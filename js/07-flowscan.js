@@ -595,6 +595,66 @@ function fsGenAlerts(){
 }
 
 // ── watchlist ──
+function fsSaveWl(){
+  try{
+    var tickers = FS_WL.map(function(w){ return w.t; });
+    localStorage.setItem('moneywatch_watchlist', JSON.stringify(tickers));
+    if(typeof saveData==='function') saveData();
+  }catch(e){}
+}
+
+function fsLoadWlTickers(){
+  try{
+    var s = localStorage.getItem('moneywatch_watchlist');
+    if(s){
+      var arr = JSON.parse(s);
+      if(Array.isArray(arr) && arr.length) return arr;
+    }
+  }catch(e){}
+  return null;
+}
+
+function fsSyncWithPortfolio(showToast){
+  var porto = (typeof getPortfolio==='function') ? getPortfolio() : [];
+  var portoTickers = porto.map(function(p){ return p.ticker; });
+  if(!portoTickers.length){
+    if(showToast && typeof showSaveStatus==='function'){
+      showSaveStatus('ℹ Portofolio masih kosong. Catat transaksi beli saham untuk sinkronisasi otomatis.', 'var(--accent)');
+    }
+    return false;
+  }
+  // Build new watchlist strictly based on user portfolio + preserve any additional custom watched tickers
+  var seen = {};
+  var newWl = [];
+  // Prioritize portfolio tickers first
+  portoTickers.forEach(function(tk){
+    if(!tk || seen[tk]) return;
+    seen[tk] = true;
+    var info = FS_UNIV.find(function(u){ return u.t===tk; }) || {t:tk, n:tk, s:'IHSG', cap:0};
+    var data = fsGenData(tk, 60);
+    var a = fsProcess(data);
+    newWl.push(Object.assign({}, info, {data:data, a:a}));
+  });
+  // Also preserve previously added non-portfolio tickers
+  FS_WL.forEach(function(w){
+    if(!seen[w.t]){
+      seen[w.t] = true;
+      newWl.push(w);
+    }
+  });
+
+  FS_WL = newWl;
+  fsSaveWl();
+  fsRenderWlPage();
+  var cnt = document.getElementById('fs-wl-count');
+  if(cnt) cnt.textContent = FS_WL.length;
+
+  if(showToast && typeof showSaveStatus==='function'){
+    showSaveStatus('✓ Watchlist berhasil diselaraskan dengan ' + portoTickers.length + ' saham portofolio Anda!');
+  }
+  return true;
+}
+
 function fsTgWl(tk){
   if(FS_WL.some(function(w){return w.t===tk;})){
     FS_WL=FS_WL.filter(function(w){return w.t!==tk;});
@@ -603,6 +663,7 @@ function fsTgWl(tk){
     var data=fsGenData(tk,60);var a=fsProcess(data);
     FS_WL.push(Object.assign({},info,{data:data,a:a}));
   }
+  fsSaveWl();
   var cnt=document.getElementById('fs-wl-count');
   if(cnt) cnt.textContent=FS_WL.length;
 }
@@ -632,24 +693,35 @@ function fsRenderWlPage(){
   var el=document.getElementById('wl-page-list');
   if(!el) return;
   if(list.length===0){
-    el.innerHTML='<div style="text-align:center;padding:28px;color:var(--text3)">Watchlist kosong. Tambah saham dari input di atas.</div>';
+    el.innerHTML='<div style="text-align:center;padding:28px;color:var(--text3)">Watchlist kosong. <button class="btn btn-ghost btn-xs" onclick="fsSyncWithPortfolio(true)" style="margin-left:6px;color:var(--accent)">🔄 Sinkronkan Portofolio</button> atau tambah dari input di atas.</div>';
     return;
   }
-  el.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Kode</th><th>Nama</th><th>Harga</th><th>Chg%</th><th>Skor</th><th>Sinyal</th><th>CMF</th><th>Vol Ratio</th><th>RSI</th><th></th></tr></thead><tbody>'
+  var porto = (typeof getPortfolio==='function') ? getPortfolio() : [];
+  var portoMap = {};
+  porto.forEach(function(p){ portoMap[p.ticker] = p; });
+
+  el.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Kode</th><th>Nama Saham</th><th>Posisi Portofolio</th><th>Harga Live</th><th>Chg%</th><th>Skor Big Money</th><th>Sinyal Flow</th><th>CMF</th><th>Vol Ratio</th><th>RSI</th><th></th></tr></thead><tbody>'
     +list.map(function(w){
       var last=w.data[w.data.length-1],prev=w.data[w.data.length-2]||last;
+      var livePrice = (typeof prices!=='undefined' && prices[w.t]) ? prices[w.t] : last.c;
       var chg=((last.c-prev.c)/prev.c*100);
+      var pItem = portoMap[w.t];
+      var portoBadge = pItem
+        ? '<div style="display:inline-flex;flex-direction:column;gap:2px"><span class="badge b-up" style="font-size:10px;font-weight:700;letter-spacing:0.3px"><i class="ti ti-briefcase"></i> '+pItem.lot+' Lot</span><span style="font-size:9px;color:var(--text2);font-family:var(--font-mono)">Avg Rp '+fmt(pItem.avg)+'</span></div>'
+        : '<span class="badge b-neu" style="font-size:9px;color:var(--text3)">Pantau</span>';
+
       return '<tr style="'+(w.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':w.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+'">'
-        +'<td class="mono" style="font-weight:600;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+w.t+'\')">'+w.t+'</td>'
-        +'<td><div style="font-size:12px">'+w.n+'</div><span class="badge b-neu" style="font-size:9px">'+w.s+'</span></td>'
-        +'<td class="mono">'+fsP(last.c)+'</td>'
+        +'<td class="mono" style="font-weight:700;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+w.t+'\')" title="Buka analisa detail FlowScan">'+w.t+'</td>'
+        +'<td><div style="font-size:12px;font-weight:500">'+w.n+'</div><span class="badge b-neu" style="font-size:9px">'+w.s+'</span></td>'
+        +'<td>'+portoBadge+'</td>'
+        +'<td class="mono" style="font-weight:600">'+fsP(livePrice)+'</td>'
         +'<td class="mono '+(chg>=0?'up':'dn')+'">'+fsPct(chg)+'</td>'
         +'<td><div style="display:flex;align-items:center;gap:5px"><span class="mono" style="color:'+fsScColor(w.a.sc)+';min-width:22px;font-weight:600">'+w.a.sc+'</span><div class="prog" style="width:50px"><div class="progf" style="width:'+w.a.sc+'%;background:'+fsScColor(w.a.sc)+'"></div></div></div></td>'
         +'<td>'+fsMkBdg(w.a.sig,true)+'</td>'
         +'<td class="mono" style="color:'+(w.a.cl>0?'#41f3a7':'#e21d48')+'">'+(w.a.cl*100).toFixed(1)+'%</td>'
         +'<td class="mono" style="color:'+(last.vr>1.5?'#41f3a7':'var(--text2)')+'">'+last.vr.toFixed(2)+'×</td>'
         +'<td class="mono" style="color:'+(w.a.rl>70?'#e21d48':w.a.rl<30?'#41f3a7':'var(--text2)')+'">'+w.a.rl.toFixed(1)+'</td>'
-        +'<td><button class="btn btn-red btn-xs" onclick="fsTgWl(\''+w.t+'\');fsRenderWlPage()" style="font-size:10px">✕</button></td>'
+        +'<td><button class="btn btn-red btn-xs" onclick="fsTgWl(\''+w.t+'\');fsRenderWlPage()" style="font-size:10px" title="Hapus dari Watchlist">✕</button></td>'
         +'</tr>';
     }).join('')+'</tbody></table></div>';
 }
@@ -815,11 +887,34 @@ function fsInit(){
     var a=fsProcess(data);
     return Object.assign({},u,{data:data,a:a});
   });
-  XLSX_DATA.stocks.slice(0,6).forEach(function(s){
-    var info=FS_UNIV.find(function(u){return u.t===s.code;})||{t:s.code,n:s.code,s:s.sector||'IHSG',cap:0};
-    var data=fsGenData(s.code,60);var a=fsProcess(data);
-    FS_WL.push(Object.assign({},info,{data:data,a:a}));
+
+  FS_WL = [];
+  var savedWl = fsLoadWlTickers();
+  var porto = (typeof getPortfolio==='function') ? getPortfolio() : [];
+  var targetTickers = [];
+
+  if(savedWl && savedWl.length){
+    targetTickers = savedWl;
+  } else if(porto && porto.length){
+    targetTickers = porto.map(function(p){ return p.ticker; });
+  } else if(typeof XLSX_DATA!=='undefined' && XLSX_DATA.stocks && XLSX_DATA.stocks.length){
+    targetTickers = XLSX_DATA.stocks.slice(0,6).map(function(s){ return s.code; });
+  } else {
+    targetTickers = ['BBCA','BBRI','BMRI','TLKM','ASII','ICBP'];
+  }
+
+  var seenTk = {};
+  targetTickers.forEach(function(code){
+    if(!code || seenTk[code]) return;
+    seenTk[code] = true;
+    var info = FS_UNIV.find(function(u){ return u.t===code; }) || {t:code, n:code, s:'IHSG', cap:0};
+    var data = fsGenData(code, 60);
+    var a = fsProcess(data);
+    FS_WL.push(Object.assign({}, info, {data:data, a:a}));
   });
+
   fsBuildQaChips();
+  var cnt = document.getElementById('fs-wl-count');
+  if(cnt) cnt.textContent = FS_WL.length;
 }
 

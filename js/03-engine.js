@@ -203,6 +203,69 @@ function getRealizedPnl(){
   return real;
 }
 
+// ── Kalkulasi Metrik Kronologis Transaksi (P&L & Modal Rata-rata per Transaksi) ──
+function calcChronologicalTxMetrics(){
+  var sorted = transactions.slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
+  });
+  var pos = {}; // ticker -> { lot, shares, grossCost, netCost }
+  var metrics = {}; // txId -> { avgGrossBuy, avgNetBuy, pnlGross, pnlNet, pnlPct, pnlNetPct, remainingLot }
+  sorted.forEach(function(tx){
+    if(!pos[tx.ticker]) pos[tx.ticker] = { lot:0, shares:0, grossCost:0, netCost:0 };
+    var p = pos[tx.ticker];
+    var isBuy = tx.type === 'BUY';
+    if(isBuy){
+      p.lot += tx.lot;
+      p.shares += tx.lot * 100;
+      p.grossCost += (tx.gross || (tx.lot * 100 * tx.price));
+      p.netCost += (tx.net || tx.gross);
+      var avgGross = p.shares > 0 ? p.grossCost / p.shares : tx.price;
+      var avgNet = p.shares > 0 ? p.netCost / p.shares : (tx.net / (tx.lot * 100));
+      metrics[tx.id] = {
+        avgGrossBuy: avgGross,
+        avgNetBuy: avgNet,
+        pnlGross: null,
+        pnlNet: null,
+        pnlPct: null,
+        pnlNetPct: null,
+        remainingLot: p.lot
+      };
+    } else {
+      // SELL
+      var soldShares = tx.lot * 100;
+      var avgGross = p.shares > 0 ? p.grossCost / p.shares : tx.price;
+      var avgNet = p.shares > 0 ? p.netCost / p.shares : (tx.net / soldShares);
+      var grossCostBasis = avgGross * soldShares;
+      var netCostBasis = avgNet * soldShares;
+      var txGross = tx.gross || (tx.lot * 100 * tx.price);
+      var txNet = tx.net || txGross;
+      var pnlGross = txGross - grossCostBasis;
+      var pnlNet = txNet - netCostBasis;
+      var pnlPct = grossCostBasis > 0 ? (pnlGross / grossCostBasis) * 100 : 0;
+      var pnlNetPct = netCostBasis > 0 ? (pnlNet / netCostBasis) * 100 : 0;
+
+      p.lot = Math.max(0, p.lot - tx.lot);
+      p.shares = Math.max(0, p.shares - soldShares);
+      p.grossCost = Math.max(0, p.grossCost - grossCostBasis);
+      p.netCost = Math.max(0, p.netCost - netCostBasis);
+
+      metrics[tx.id] = {
+        avgGrossBuy: avgGross,
+        avgNetBuy: avgNet,
+        pnlGross: pnlGross,
+        pnlNet: pnlNet,
+        pnlPct: pnlPct,
+        pnlNetPct: pnlNetPct,
+        grossCostBasis: grossCostBasis,
+        netCostBasis: netCostBasis,
+        remainingLot: p.lot
+      };
+    }
+  });
+  return metrics;
+}
+
 // ── Performa per Saham — realized (posisi ditutup/sebagian) + unrealized
 // (posisi masih terbuka) per ticker, metodologi average-cost yang SAMA
 // dengan getPortfolio()/getRealizedPnl() (satu sumber kebenaran, bukan

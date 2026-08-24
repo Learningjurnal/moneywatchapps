@@ -452,50 +452,48 @@ function renderTransaksi(){
   el('tx-sell-cnt').textContent=sells.length+' transaksi';
   el('tx-tax').textContent='Rp '+fmtK(transactions.reduce(function(a,t){return a+t.tax+t.komisi},0));
 
-  var pos={};
-  transactions.slice().sort(function(a,b){return a.date.localeCompare(b.date)}).forEach(function(tx){
-    if(!pos[tx.ticker])pos[tx.ticker]={lot:0,cost:0};
-    var p=pos[tx.ticker];
-    if(tx.type==='BUY'){p.lot+=tx.lot;p.cost+=tx.net;}
-    else if(tx.type==='SELL'&&p.lot>0){var avg=p.cost/(p.lot*100);p.lot-=tx.lot;p.cost=Math.max(0,p.cost-avg*tx.lot*100);}
-  });
+  var txMetrics = (typeof calcChronologicalTxMetrics==='function') ? calcChronologicalTxMetrics() : {};
 
-  var list=transactions.slice().sort(function(a,b){return b.date.localeCompare(a.date)}).filter(function(tx){
+  var list=transactions.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'') || ((b.id||0) - (a.id||0));}).filter(function(tx){
     return tx.ticker.toUpperCase().indexOf(search)>=0&&(filter==='all'||tx.type===filter)
   });
   _txVisibleIds = list.map(function(tx){return tx.id});
 
-  var pos2={};
   el('tx-tbody').innerHTML=list.map(function(tx){
     var isBuy=tx.type==='BUY';
-    if(!pos2[tx.ticker])pos2[tx.ticker]={lot:0,cost:0};
+    var m = txMetrics[tx.id] || {};
     var pnlHtml='—';
-    if(!isBuy&&pos2[tx.ticker].lot>0){
-      var avg2=pos2[tx.ticker].cost/(pos2[tx.ticker].lot*100);
-      var pnl=(tx.price-avg2)*tx.lot*100;
-      pnlHtml='<span class="'+(pnl>=0?'up':'dn')+'">'+(pnl>=0?'+':'')+'Rp '+fmtK(pnl)+'</span>';
+    if(!isBuy && m.pnlGross != null){
+      var pnl = m.pnlGross;
+      var pct = m.pnlPct || 0;
+      var pnlNet = m.pnlNet != null ? m.pnlNet : pnl;
+      pnlHtml = '<div style="display:inline-flex;flex-direction:column;align-items:flex-start" title="Gain Kotor: '+(pnl>=0?'+':'')+'Rp '+fmt(pnl)+' ('+pct.toFixed(2)+'%)&#10;Gain Bersih (setelah fee): '+(pnlNet>=0?'+':'')+'Rp '+fmt(pnlNet)+'&#10;Modal Rata-rata: Rp '+fmt(m.avgGrossBuy||0)+'/lbr">'
+        + '<span class="'+(pnl>=0?'up':'dn')+'" style="font-weight:600">'+(pnl>=0?'+':'')+'Rp '+fmtK(pnl)+'</span>'
+        + '<span style="font-size:9px;color:'+(pct>=0?'var(--green)':'var(--red)')+';font-family:var(--font-mono)">('+(pct>=0?'+':'')+pct.toFixed(1)+'%)</span>'
+        + '</div>';
     }
-    if(isBuy){pos2[tx.ticker].lot+=tx.lot;pos2[tx.ticker].cost+=tx.net;}
+
     return '<tr style="'+(_txSelected.has(tx.id)?'background:rgba(0,200,255,.05)':'')+'">'
       +'<td><input type="checkbox" '+ (_txSelected.has(tx.id)?'checked':'')+' onmousedown="txCbMouseDown(event,'+tx.id+')" onmouseenter="txCbMouseEnter(event,'+tx.id+')" onclick="txCbClick(event,'+tx.id+')" style="cursor:pointer"></td>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td>'
       +'<td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td>'
-      +'<td><span class="tp">'+tx.ticker+'</span></td>'
+      +'<td><span class="tp" style="cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Lihat detail kalkulasi & rincian biaya">'+tx.ticker+'</span></td>'
       +'<td style="font-size:11px;color:var(--text2)">'+tx.sekuritas+'</td>'
       +'<td class="mono">'+tx.lot+'</td>'
       +'<td class="mono">'+tx.lot*100+'</td>'
       +'<td class="mono">Rp '+fmt(tx.price)+'</td>'
       +'<td class="mono">Rp '+fmtK(tx.gross)+'</td>'
-      +'<td class="mono amb">Rp '+fmtK(tx.komisi)+'</td>'
-      +'<td class="mono dn">Rp '+fmtK(tx.tax)+'</td>'
-      +'<td class="mono" style="font-weight:600">Rp '+fmtK(tx.net)+'</td>'
+      +'<td class="mono amb" title="Komisi: Rp '+fmt(tx.komisi)+'">Rp '+fmtK(tx.komisi)+'</td>'
+      +'<td class="mono dn" title="PPN+Levy+PPh: Rp '+fmt(tx.tax)+'">Rp '+fmtK(tx.tax)+'</td>'
+      +'<td class="mono" style="font-weight:600;cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Klik untuk rincian formula bersih">Rp '+fmtK(tx.net)+'</td>'
       +'<td>'+pnlHtml+'</td>'
       +'<td style="display:flex;gap:4px;align-items:center">'
-        +'<button class="btn btn-ghost btn-xs" style="color:var(--accent)" onclick="editTx('+tx.id+')" title="Edit transaksi" aria-label="Edit transaksi '+tx.type+' '+tx.ticker+' '+tx.date+'">✎</button>'
+        +'<button class="btn btn-ghost btn-xs" style="color:var(--accent)" onclick="openTxDetailModal('+tx.id+')" title="Rincian kalkulasi transaksi" aria-label="Rincian transaksi">🔍</button>'
+        +'<button class="btn btn-ghost btn-xs" style="color:var(--text2)" onclick="editTx('+tx.id+')" title="Edit transaksi" aria-label="Edit transaksi '+tx.type+' '+tx.ticker+' '+tx.date+'">✎</button>'
         +'<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delTx('+tx.id+')" title="Hapus transaksi" aria-label="Hapus transaksi '+tx.type+' '+tx.ticker+' '+tx.date+'">✕</button>'
       +'</td>'
       +'</tr>';
-  }).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:16px;font-family:var(--font-mono)">Belum ada transaksi</td></tr>';
+  }).join('')||'<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:16px;font-family:var(--font-mono)">Belum ada transaksi</td></tr>';
 }
 
 function renderPortofolio(){

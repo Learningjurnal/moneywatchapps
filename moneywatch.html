@@ -552,8 +552,13 @@
 
   <!-- ===== WATCHLIST (dipindahkan ke bawah Dashboard utama) ===== -->
   <div id="dash-watchlist-section" style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">
-    <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">⭐ Watchlist Saya</div>
-    <div style="font-size:11px;color:var(--text3);margin-top:2px;margin-bottom:18px">Pantau saham pilihan dengan analisa big money real-time</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">⭐ Watchlist Saya</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Pantau saham pilihan &amp; portofolio Anda dengan analisa big money real-time</div>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="fsSyncWithPortfolio(true)" style="border-color:rgba(0,212,170,.35);color:var(--green);font-size:11px" title="Sinkronkan daftar pantau dengan seluruh saham aktif di portofolio Anda">🔄 Sinkronkan dengan Portofolio</button>
+    </div>
     <div class="card" style="margin-top:11px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
         <div style="display:flex;gap:7px;align-items:center">
@@ -561,6 +566,7 @@
             style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:5px 10px;border-radius:7px;font-size:12px;outline:none;text-transform:uppercase;font-family:var(--font-mono);width:120px"
             onkeydown="if(event.key==='Enter')fsAddFromInput()"/>
           <button class="btn btn-blue" onclick="fsAddFromInput()" style="font-size:12px">+ Tambah</button>
+          <button class="btn btn-ghost btn-sm" onclick="fsSyncWithPortfolio(true)" style="font-size:11px;color:var(--accent)" title="Muat otomatis semua saham dari portofolio aktif">🔄 Sync Portofolio</button>
         </div>
         <div style="display:flex;gap:5px;flex-wrap:wrap" id="wl-sort-row">
           <button class="btn btn-ghost btn-sm on-sort" onclick="fsSetWlSort('default',this)">Default</button>
@@ -966,9 +972,10 @@
         <div class="ptitle">Transaksi Saham</div>
         <div class="psub">Catat beli/jual saham dengan kalkulasi komisi &amp; pajak otomatis sesuai sekuritas</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-green" id="btn-beli">+ Beli Saham</button>
         <button class="btn btn-red" id="btn-jual">− Jual Saham</button>
+        <button class="btn btn-ghost" onclick="openTxReconciliationModal()" style="border-color:rgba(0,200,255,.4);color:var(--accent)" title="Penjelasan & kalkulator pencocokan perhitungan transaksi, komisi, PPN, levy, dan modal rata-rata vs sheet catatan">🔬 Rekonsiliasi Perhitungan ("Stock B")</button>
         <button class="btn btn-ghost" onclick="txDownloadTemplate()" style="border-color:rgba(129,140,248,.3);color:var(--accent)" title="Unduh template Excel siap isi">⬇ Download Template</button>
         <button class="btn btn-ghost" onclick="txImportExcel()" style="border-color:rgba(52,211,153,.3);color:var(--green)" title="Upload banyak transaksi sekaligus dari file Excel">📤 Upload Excel</button>
       </div>

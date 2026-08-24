@@ -1358,3 +1358,208 @@ function importMutasiUI(){
   if(typeof renderDashboard==='function') renderDashboard();
 }
 
+// ── DETAIL PERHITUNGAN TRANSAKSI (Modal Breakdown) ──
+function openTxDetailModal(txId){
+  var tx = transactions.find(function(t){ return t.id === txId; });
+  if(!tx){ if(typeof showSaveStatus==='function') showSaveStatus('Transaksi tidak ditemukan','var(--red)'); return; }
+  var isBuy = tx.type === 'BUY';
+  var gross = tx.gross || (tx.lot * 100 * tx.price);
+  var komisi = tx.komisi || 0;
+  var ppn = tx.ppn || 0;
+  var levy = tx.levy || 0;
+  var pph = tx.pph || 0;
+  var totalFee = tx.tax + komisi;
+  var net = tx.net;
+  var shares = tx.lot * 100;
+  var feeRate = gross > 0 ? (komisi / gross * 100) : 0;
+  var feePctTotal = gross > 0 ? (totalFee / gross * 100) : 0;
+
+  var txMetrics = (typeof calcChronologicalTxMetrics==='function') ? calcChronologicalTxMetrics() : {};
+  var m = txMetrics[tx.id] || {};
+
+  var body =
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5">'+
+      'Rincian lengkap kalkulasi biaya bursa, komisi, PPN, dan PPh untuk transaksi <b>'+tx.type+' '+tx.ticker+'</b> pada tanggal <b>'+tx.date+'</b>.'+
+    '</div>'+
+    '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:12px">'+
+        '<div><span style="color:var(--text3);font-size:10px">TICKER / AKSI</span><div style="font-weight:700;font-size:14px" class="'+(isBuy?'up':'dn')+'">'+tx.ticker+' ('+tx.type+')</div></div>'+
+        '<div><span style="color:var(--text3);font-size:10px">SEKURITAS</span><div style="font-weight:600">'+tx.sekuritas+'</div></div>'+
+        '<div><span style="color:var(--text3);font-size:10px">VOLUME</span><div class="mono" style="font-weight:600">'+tx.lot+' lot ('+fmt(shares)+' lbr)</div></div>'+
+        '<div><span style="color:var(--text3);font-size:10px">HARGA EKSEKUSI</span><div class="mono" style="font-weight:600">Rp '+fmt(tx.price)+'</div></div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">'+
+      '<table class="tbl" style="margin:0">'+
+        '<thead><tr><th>Komponen Biaya</th><th>Dasar Pengenaan / Rumus</th><th style="text-align:right">Nilai (Rp)</th></tr></thead>'+
+        '<tbody>'+
+          '<tr><td><b>1. Nilai Kotor (Gross)</b></td><td class="mono" style="font-size:11px">'+tx.lot+' lot × 100 × Rp '+fmt(tx.price)+'</td><td class="mono" style="text-align:right;font-weight:700">Rp '+fmt(gross)+'</td></tr>'+
+          '<tr><td><b>2. Komisi Broker</b></td><td class="mono" style="font-size:11px">'+feeRate.toFixed(2)+'% × Gross ('+tx.sekuritas+')</td><td class="mono amb" style="text-align:right">Rp '+fmt(komisi)+'</td></tr>'+
+          '<tr><td><b>3. PPN Komisi (PMK 131/2024)</b></td><td class="mono" style="font-size:11px">'+(TAX_SETTINGS.ppn*100).toFixed(0)+'% × Komisi Broker</td><td class="mono dn" style="text-align:right">Rp '+fmt(ppn)+'</td></tr>'+
+          '<tr><td><b>4. Levy BEI + KPEI + KSEI</b></td><td class="mono" style="font-size:11px">'+(TAX_SETTINGS.levy*100).toFixed(3)+'% × Gross (Bursa & KPEI)</td><td class="mono dn" style="text-align:right">Rp '+fmt(levy)+'</td></tr>'+
+          '<tr><td><b>5. PPh Final Ps 4(2)</b></td><td class="mono" style="font-size:11px">'+(isBuy?'0% (Beli bebas PPh)':(TAX_SETTINGS.pphJual*100).toFixed(1)+'% × Gross (Khusus Jual)')+'</td><td class="mono dn" style="text-align:right">Rp '+fmt(pph)+'</td></tr>'+
+          '<tr style="background:var(--bg3)"><td><b>TOTAL BIAYA &amp; PAJAK</b></td><td style="font-size:11px;color:var(--text2)">Komisi + PPN + Levy + PPh ('+feePctTotal.toFixed(3)+'%)</td><td class="mono dn" style="text-align:right;font-weight:700">Rp '+fmt(totalFee)+'</td></tr>'+
+          '<tr style="background:rgba(0,200,255,.07)"><td><b>TOTAL BERSIH (NET CASH)</b></td><td style="font-size:11px"><b>'+(isBuy?'Gross + Total Biaya (Debet RDN)':'Gross − Total Biaya (Kredit RDN)')+'</b></td><td class="mono" style="text-align:right;font-size:14px;font-weight:800;color:'+(isBuy?'var(--accent)':'var(--green)')+'">Rp '+fmt(net)+'</td></tr>'+
+        '</tbody>'+
+      '</table>'+
+    '</div>'+
+    (!isBuy && m.pnlGross != null ?
+      '<div style="background:rgba(0,229,160,.05);border:1px solid rgba(0,229,160,.2);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px">'+
+        '<div style="font-weight:700;color:var(--green);margin-bottom:4px">📊 Realized Profit / Loss Transaksi Ini:</div>'+
+        '<div style="display:flex;gap:16px;flex-wrap:wrap">'+
+          '<div>Modal Beli Rata-Rata: <b>Rp '+fmt(m.avgGrossBuy||0)+'</b>/lbr</div>'+
+          '<div>Gain Kotor: <b class="'+(m.pnlGross>=0?'up':'dn')+'">'+(m.pnlGross>=0?'+':'')+'Rp '+fmt(m.pnlGross)+' ('+(m.pnlPct||0).toFixed(2)+'%)</b></div>'+
+          '<div>Gain Bersih (All-in): <b class="'+(m.pnlNet>=0?'up':'dn')+'">'+(m.pnlNet>=0?'+':'')+'Rp '+fmt(m.pnlNet)+' ('+(m.pnlNetPct||0).toFixed(2)+'%)</b></div>'+
+        '</div>'+
+      '</div>' : '')+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">'+
+      '<button class="btn btn-ghost btn-sm" onclick="openTxReconciliationModal()" style="color:var(--accent);font-size:11px">🔬 Bandingkan dengan Sheet ("Stock B") →</button>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button class="btn btn-ghost btn-sm" onclick="closeModal()">Tutup</button>'+
+        '<button class="btn btn-blue btn-sm" onclick="closeModal();editTx('+tx.id+')">✎ Edit Transaksi</button>'+
+      '</div>'+
+    '</div>';
+
+  el('m-title').textContent = '🔍 Rincian Kalkulasi Transaksi — ' + tx.ticker;
+  el('m-title').style.color = isBuy ? 'var(--accent)' : 'var(--green)';
+  el('m-body').innerHTML = body;
+  el('modal').classList.add('on');
+}
+
+// ── REKONSILIASI PERHITUNGAN VS SHEET "STOCK B" & TRADE CONFIRMATION ──
+function openTxReconciliationModal(){
+  var secOptions = Object.keys(SEKURITAS).map(function(s){
+    return '<option value="'+s+'" '+(s===activeSekuritas?'selected':'')+'>'+s+' (Beli '+(SEKURITAS[s].buyFee*100).toFixed(2)+'% / Jual '+(SEKURITAS[s].sellFee*100).toFixed(2)+'%)</option>';
+  }).join('');
+
+  var body =
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">'+
+      'Gunakan panduan & simulator interaktif ini untuk mencocokkan perhitungan transaksi Money Watch Pro dengan catatan spreadsheet Anda (seperti <b>Stock B</b>) atau <i>Trade Confirmation</i> resmi dari sekuritas.'+
+    '</div>'+
+
+    '<!-- Nav Tabs Inside Modal -->'+
+    '<div style="display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:14px;padding-bottom:6px">'+
+      '<button class="btn btn-blue btn-xs" id="rec-tab-sim-btn" onclick="recSwitchTab(\'sim\')">⚡ Simulator &amp; Tester Cepat</button>'+
+      '<button class="btn btn-ghost btn-xs" id="rec-tab-guide-btn" onclick="recSwitchTab(\'guide\')">📖 5 Penyebab Selisih &amp; Formula Resmi</button>'+
+    '</div>'+
+
+    '<!-- TAB 1: SIMULATOR -->' +
+    '<div id="rec-tab-sim">'+
+      '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">'+
+        '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px">🧪 UJI COBA TRANSAKSI (COCOKKAN DENGAN BARIS DI SHEET ANDA)</div>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;align-items:flex-end">'+
+          '<div>'+
+            '<label style="font-size:9px;color:var(--text3);display:block;margin-bottom:2px">AKSI</label>'+
+            '<select id="rec-type" class="finput fsel" style="width:100%;padding:4px 6px;font-size:12px" onchange="calcReconciliationLive()">'+
+              '<option value="BUY">BUY (Beli)</option><option value="SELL">SELL (Jual)</option>'+
+            '</select>'+
+          '</div>'+
+          '<div>'+
+            '<label style="font-size:9px;color:var(--text3);display:block;margin-bottom:2px">SEKURITAS</label>'+
+            '<select id="rec-sec" class="finput fsel" style="width:100%;padding:4px 6px;font-size:11px" onchange="calcReconciliationLive()">'+
+              secOptions+
+            '</select>'+
+          '</div>'+
+          '<div>'+
+            '<label style="font-size:9px;color:var(--text3);display:block;margin-bottom:2px">JUMLAH LOT</label>'+
+            '<input type="number" id="rec-lot" class="finput" value="10" min="1" step="1" style="width:100%;padding:4px 6px;font-size:12px" oninput="calcReconciliationLive()">'+
+          '</div>'+
+          '<div>'+
+            '<label style="font-size:9px;color:var(--text3);display:block;margin-bottom:2px">HARGA PER LEMBAR (RP)</label>'+
+            '<input type="number" id="rec-price" class="finput" value="9500" min="1" step="25" style="width:100%;padding:4px 6px;font-size:12px" oninput="calcReconciliationLive()">'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+      '<div id="rec-result-box" style="margin-bottom:14px"></div>'+
+    '</div>'+
+
+    '<!-- TAB 2: GUIDE -->' +
+    '<div id="rec-tab-guide" style="display:none;font-size:11px;color:var(--text2);line-height:1.6">'+
+      '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">'+
+        '<div style="font-weight:700;color:var(--accent);margin-bottom:4px">1. Formula Standar Regulasi Bursa Efek Indonesia (BEI / DJP):</div>'+
+        '<ul style="margin:0;padding-left:16px;line-height:1.5">'+
+          '<li><b>Gross Value</b> = Lot × 100 × Harga per Lembar</li>'+
+          '<li><b>Komisi Sekuritas</b> = Gross × % Komisi Broker (e.g. 0.15% Beli, 0.25% Jual)</li>'+
+          '<li><b>PPN Komisi</b> = Komisi × 12% (PMK 131/2024 per Jan 2025; sebelumnya 11%)</li>'+
+          '<li><b>Levy Bursa (BEI+KPEI+KSEI)</b> = Gross × 0.043% (0.01% BEI + 0.01% KPEI + 0.003% KSEI + 0.02% Dana Jaminan)</li>'+
+          '<li><b>PPh Final Ps 4(2)</b> = Gross × 0.10% (Khusus transaksi JUAL; transaksi Beli <b>0%</b>)</li>'+
+          '<li><b>Net BUY (Uang Keluar)</b> = Gross + Komisi + PPN + Levy</li>'+
+          '<li><b>Net SELL (Uang Masuk)</b> = Gross − (Komisi + PPN + Levy + PPh)</li>'+
+        '</ul>'+
+      '</div>'+
+
+      '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">'+
+        '<div style="font-weight:700;color:var(--amber);margin-bottom:4px">2. Mengapa Hasil di Sheet "Stock B" Bisa Berbeda?</div>'+
+        '<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">'+
+          '<div><b>A. Tarif Komisi Sekuritas Berbeda:</b> Bila akun Anda memiliki promo/fee khusus (misal Mirae 0.15%/0.25%, Stockbit 0.15%/0.25%, IPOT 0.19%/0.29%, atau VIP 0.10%/0.20%), Anda dapat menyetel tarif sekuritas di menu <i>Pengaturan Pajak / Override Komisi</i> agar persis sama dengan sheet Anda.</div>'+
+          '<div><b>B. Modal Rata-rata (Cost Basis Gross vs All-in Net):</b> Sebagian spreadsheet menghitung harga rata-rata beli dengan memasukkan seluruh biaya beli (Net Cost / lembar), sedangkan sebagian mencatat harga beli murni pasar (Gross). Aplikasi Money Watch Pro menyediakan metrik keduanya.</div>'+
+          '<div><b>C. PPN 11% vs 12%:</b> Sheet lama yang belum diupdate ke regulasi 2025 masih memakai PPN 11% dari komisi.</div>'+
+          '<div><b>D. Realized Gain Bersih vs Kotor:</b> Gain kotor bursa adalah (Harga Jual − Avg Beli) × Lembar. Gain bersih yang masuk ke rekening RDN dipotong biaya transaksi jual dan beli.</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">'+
+      '<button class="btn btn-ghost btn-sm" onclick="closeModal();showTaxSettingsModal()" style="color:var(--accent);font-size:11px">⚙️ Atur Tarif Komisi Sekuritas</button>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button class="btn btn-ghost btn-sm" onclick="closeModal()">Tutup</button>'+
+      '</div>'+
+    '</div>';
+
+  el('m-title').textContent = '🔬 Rekonsiliasi Perhitungan Transaksi ("Stock B")';
+  el('m-title').style.color = 'var(--accent)';
+  el('m-body').innerHTML = body;
+  el('modal').classList.add('on');
+  calcReconciliationLive();
+}
+
+function recSwitchTab(tab){
+  var isSim = tab === 'sim';
+  var simEl = el('rec-tab-sim');
+  var guideEl = el('rec-tab-guide');
+  var simBtn = el('rec-tab-sim-btn');
+  var guideBtn = el('rec-tab-guide-btn');
+  if(simEl) simEl.style.display = isSim ? 'block' : 'none';
+  if(guideEl) guideEl.style.display = isSim ? 'none' : 'block';
+  if(simBtn) simBtn.className = isSim ? 'btn btn-blue btn-xs' : 'btn btn-ghost btn-xs';
+  if(guideBtn) guideBtn.className = isSim ? 'btn btn-ghost btn-xs' : 'btn btn-blue btn-xs';
+}
+
+function calcReconciliationLive(){
+  var type = el('rec-type') ? el('rec-type').value : 'BUY';
+  var secName = el('rec-sec') ? el('rec-sec').value : activeSekuritas;
+  var lot = parseFloat(el('rec-lot') ? el('rec-lot').value : 10) || 0;
+  var price = parseFloat(el('rec-price') ? el('rec-price').value : 0) || 0;
+  var isBuy = type === 'BUY';
+  var gross = lot * 100 * price;
+  var c = calcTxComponents(gross, isBuy, secName);
+  var totalFee = c.totalFee;
+  var shares = lot * 100;
+  var feePct = gross > 0 ? (totalFee / gross * 100) : 0;
+  var box = el('rec-result-box');
+  if(!box) return;
+
+  var grossAvg = price;
+  var netAvg = shares > 0 ? (c.net / shares) : price;
+
+  box.innerHTML =
+    '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">'+
+      '<table class="tbl" style="margin:0">'+
+        '<thead><tr><th>Komponen</th><th>Formula &amp; Dasar</th><th style="text-align:right">Hasil Kalkulasi (Rp)</th></tr></thead>'+
+        '<tbody>'+
+          '<tr><td><b>Nilai Kotor (Gross)</b></td><td class="mono" style="font-size:11px">'+lot+' lot × 100 × Rp '+fmt(price)+'</td><td class="mono" style="text-align:right;font-weight:700">Rp '+fmt(gross)+'</td></tr>'+
+          '<tr><td><b>Komisi Sekuritas</b></td><td class="mono" style="font-size:11px">'+(c.komisiRate*100).toFixed(2)+'% × Gross ('+secName+')</td><td class="mono amb" style="text-align:right">Rp '+fmt(c.komisi)+'</td></tr>'+
+          '<tr><td><b>PPN Komisi</b></td><td class="mono" style="font-size:11px">'+(TAX_SETTINGS.ppn*100).toFixed(0)+'% × Komisi ('+fmt(c.komisi)+')</td><td class="mono dn" style="text-align:right">Rp '+fmt(c.ppn)+'</td></tr>'+
+          '<tr><td><b>Levy BEI + KPEI</b></td><td class="mono" style="font-size:11px">'+(TAX_SETTINGS.levy*100).toFixed(3)+'% × Gross</td><td class="mono dn" style="text-align:right">Rp '+fmt(c.levy)+'</td></tr>'+
+          '<tr><td><b>PPh Final Ps 4(2)</b></td><td class="mono" style="font-size:11px">'+(isBuy?'0% (Beli bebas PPh)':(TAX_SETTINGS.pphJual*100).toFixed(1)+'% × Gross (Jual)')+'</td><td class="mono dn" style="text-align:right">Rp '+fmt(c.pph)+'</td></tr>'+
+          '<tr style="background:var(--bg3)"><td><b>TOTAL BIAYA POTONGAN</b></td><td style="font-size:11px;color:var(--text2)">Komisi + PPN + Levy + PPh ('+feePct.toFixed(3)+'%)</td><td class="mono dn" style="text-align:right;font-weight:700">Rp '+fmt(totalFee)+'</td></tr>'+
+          '<tr style="background:rgba(0,200,255,.07)"><td><b>TOTAL BERSIH (NET RDN)</b></td><td style="font-size:11px"><b>'+(isBuy?'Gross + Total Biaya (Kas Terpotong)':'Gross − Total Biaya (Kas Masuk)')+'</b></td><td class="mono" style="text-align:right;font-size:14px;font-weight:800;color:'+(isBuy?'var(--accent)':'var(--green)')+'">Rp '+fmt(c.net)+'</td></tr>'+
+        '</tbody>'+
+      '</table>'+
+    '</div>'+
+    '<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--text2);flex-wrap:wrap">'+
+      '<div>Modal per Lembar Murni (Gross): <b class="mono" style="color:var(--text)">Rp '+fmt(grossAvg)+'</b></div>'+
+      (isBuy ? '<div>Modal per Lembar All-in (Net Include Fee): <b class="mono" style="color:var(--accent)">Rp '+fmt(netAvg.toFixed(2))+'</b></div>' : '')+
+    '</div>';
+}
+
