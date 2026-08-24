@@ -1,0 +1,6 @@
+{
+  "name": "Money Watch Pro",
+  "description": "Portofolio, Wealth & Analisa Kuant - Investment terminal and wealth management application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
