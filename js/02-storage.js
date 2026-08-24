@@ -110,12 +110,41 @@ async function supaSaveAllData(){
   var uid = _currentUser.id;
   try {
     // Field inti — sudah ada sejak skema awal, selalu aman dikirim.
-    var coreFields = {user_id:uid,active_sekuritas:activeSekuritas,rdn_balance:rdnBalance,cash_accounts:CASH_ACCOUNTS,tax_cfg:TAX_SETTINGS,next_tx_id:nextTxId,next_div_id:nextDivId,next_rdn_id:nextRdnId,next_crypto_id:nextCryptoId||1,next_etf_id:nextEtfId||1,next_rd_id:nextRdId||1,updated_at:new Date().toISOString()};
-    // Field yang butuh sql/schema_migration.sql (Strategi per Emiten, override
-    // komisi, sinkronisasi Daftar Saham lintas perangkat, penanda versi skema, dan Wealth).
+    // Tambahkan fallback _cloud_sync_backup ke dalam cash_accounts (JSONB)
+    // agar data Wealth, Strategi, dan Override Pajak 100% TERSIMPAN KE CLOUD
+    // meskipun kolom-kolom baru di Supabase belum sempat dimigrasi!
     var currentWealth = (typeof WEALTH!=='undefined') ? WEALTH : null;
     var adminMetaWithWealth = Object.assign({}, (typeof ADMIN_META!=='undefined' ? ADMIN_META : {}));
     if(currentWealth) adminMetaWithWealth._wealth = currentWealth;
+    
+    var cloudSyncBackup = {
+      wealth: currentWealth,
+      trade_strategy: tradeStrategy || {},
+      sek_tax_override: sekTaxOverride || {},
+      admin_meta: adminMetaWithWealth,
+      admin_extra: (typeof ADMIN_EXTRA !== 'undefined') ? ADMIN_EXTRA : [],
+      idx_universe: (typeof IDX_UNIVERSE !== 'undefined') ? IDX_UNIVERSE : null,
+      idx_universe_info: (typeof IDX_UNIVERSE_INFO !== 'undefined') ? IDX_UNIVERSE_INFO : null,
+      saved_at: new Date().toISOString()
+    };
+    
+    var cashAccountsWithBackup = Object.assign({}, CASH_ACCOUNTS, {_cloud_sync_backup: cloudSyncBackup});
+    var coreFields = {
+      user_id: uid,
+      active_sekuritas: activeSekuritas,
+      rdn_balance: rdnBalance,
+      cash_accounts: cashAccountsWithBackup,
+      tax_cfg: TAX_SETTINGS,
+      next_tx_id: nextTxId,
+      next_div_id: nextDivId,
+      next_rdn_id: nextRdnId,
+      next_crypto_id: nextCryptoId||1,
+      next_etf_id: nextEtfId||1,
+      next_rd_id: nextRdId||1,
+      updated_at: new Date().toISOString()
+    };
+
+    // Field native di tabel user_settings (membutuhkan sql/schema_migration.sql)
     var newFields = {
       sek_tax_override: sekTaxOverride||{},
       trade_strategy: tradeStrategy||{},
@@ -128,11 +157,11 @@ async function supaSaveAllData(){
     };
     var settingsRes = await _supabase.from('user_settings').upsert(Object.assign({}, coreFields, newFields), {onConflict:'user_id'});
     if(settingsRes.error && /column .* does not exist|could not find the .* column/i.test(settingsRes.error.message||'')){
-      // Migrasi belum dijalankan di Supabase — simpan tanpa kolom baru dulu,
-      // tapi _wealth tetap aman tersimpan di admin_meta atau coreFields.
+      // Migrasi native kolom belum dijalankan di Supabase — simpan ke coreFields
+      // (yang sudah berisi _cloud_sync_backup lengkap sehingga data 100% aman).
       window._schemaOutdated = true;
       if(typeof updateSchemaWarnBanner==='function') updateSchemaWarnBanner();
-      console.warn('Skema Supabase belum diperbarui. Jalankan sql/schema_migration.sql sekali di SQL Editor Supabase.');
+      console.warn('Skema Supabase belum diperbarui. Data disimpan aman via cloud backup bundle. Jalankan sql/schema_migration.sql untuk optimasi native.');
       settingsRes = await _supabase.from('user_settings').upsert(coreFields, {onConflict:'user_id'});
     } else if(!settingsRes.error){
       window._schemaOutdated = false;
@@ -209,11 +238,36 @@ async function supaLoadAllData(){
   try {
     var sRes=await _supabase.from('user_settings').select('*').eq('user_id',uid).maybeSingle();
     if(sRes.data){
-      var s=sRes.data;activeSekuritas=s.active_sekuritas||'Mirae Asset';rdnBalance=s.rdn_balance||0;if(s.cash_accounts)Object.assign(CASH_ACCOUNTS,s.cash_accounts);if(s.tax_cfg){Object.assign(TAX_SETTINGS,s.tax_cfg);if(typeof saveTaxSettings==='function')saveTaxSettings();}if(s.sek_tax_override)sekTaxOverride=s.sek_tax_override;if(s.trade_strategy)tradeStrategy=s.trade_strategy;nextTxId=s.next_tx_id||1;nextDivId=s.next_div_id||1;nextRdnId=s.next_rdn_id||1;nextCryptoId=s.next_crypto_id||1;nextEtfId=s.next_etf_id||1;nextRdId=s.next_rd_id||1;
+      var s=sRes.data;
+      var backupBundle = (s.cash_accounts && s.cash_accounts._cloud_sync_backup) || {};
       
-      // Muat data Wealth (Bank, Piutang, Hutang, Emas, dll) dari user_settings (kolom wealth atau fallback admin_meta._wealth)
+      activeSekuritas=s.active_sekuritas||'Mirae Asset';
+      rdnBalance=s.rdn_balance||0;
+      if(s.cash_accounts) {
+        var cleanCash = Object.assign({}, s.cash_accounts);
+        delete cleanCash._cloud_sync_backup;
+        Object.assign(CASH_ACCOUNTS, cleanCash);
+      }
+      if(s.tax_cfg){Object.assign(TAX_SETTINGS,s.tax_cfg);if(typeof saveTaxSettings==='function')saveTaxSettings();}
+      
+      // Load Tax Override & Trade Strategy (prioritas kolom native, fallback backupBundle)
+      if(s.sek_tax_override && Object.keys(s.sek_tax_override).length > 0){
+        sekTaxOverride=s.sek_tax_override;
+      } else if(backupBundle.sek_tax_override && Object.keys(backupBundle.sek_tax_override).length > 0){
+        sekTaxOverride=backupBundle.sek_tax_override;
+      }
+      
+      if(s.trade_strategy && Object.keys(s.trade_strategy).length > 0){
+        tradeStrategy=s.trade_strategy;
+      } else if(backupBundle.trade_strategy && Object.keys(backupBundle.trade_strategy).length > 0){
+        tradeStrategy=backupBundle.trade_strategy;
+      }
+      
+      nextTxId=s.next_tx_id||1;nextDivId=s.next_div_id||1;nextRdnId=s.next_rdn_id||1;nextCryptoId=s.next_crypto_id||1;nextEtfId=s.next_etf_id||1;nextRdId=s.next_rd_id||1;
+      
+      // Muat data Wealth (Bank, Piutang, Hutang, Emas, dll) dari user_settings (kolom wealth, admin_meta._wealth, atau backupBundle.wealth)
       if(typeof WEALTH!=='undefined'){
-        var cloudWealth = s.wealth || (s.admin_meta && s.admin_meta._wealth);
+        var cloudWealth = s.wealth || (s.admin_meta && s.admin_meta._wealth) || backupBundle.wealth;
         if(cloudWealth && typeof cloudWealth==='object'){
           Object.keys(WEALTH).forEach(function(k){ if(cloudWealth[k]!==undefined) WEALTH[k]=cloudWealth[k]; });
           if(typeof wUpdateDueBadge==='function') wUpdateDueBadge();
@@ -221,18 +275,22 @@ async function supaLoadAllData(){
         }
       }
 
-      // schema_version eksplisit lebih rendah dari yang diharapkan = pasti belum
-      // migrasi. null/undefined tidak dianggap outdated di sini (bisa jadi baris
-      // baru yang belum pernah tersimpan) — deteksi otoritatif tetap dari
-      // kegagalan upsert di supaSaveAllData().
+      // schema_version eksplisit lebih rendah dari yang diharapkan = belum migrasi native.
       if(typeof s.schema_version==='number' && s.schema_version < SCHEMA_VERSION){
         window._schemaOutdated = true;
+        if(typeof updateSchemaWarnBanner==='function') updateSchemaWarnBanner();
+      } else if(s.schema_version === SCHEMA_VERSION){
+        window._schemaOutdated = false;
         if(typeof updateSchemaWarnBanner==='function') updateSchemaWarnBanner();
       }
       // Daftar Saham (import Excel IDX + override Admin Panel) — samakan dengan perangkat lain
       try{
-        var univChanged = (s.idx_universe && typeof idxApplyFromCloud==='function') ? idxApplyFromCloud(s.idx_universe, s.idx_universe_info) : false;
-        var adminChanged = (typeof adminApplyFromCloud==='function') ? adminApplyFromCloud(s.admin_meta, s.admin_extra) : false;
+        var univData = s.idx_universe || backupBundle.idx_universe;
+        var univInfo = s.idx_universe_info || backupBundle.idx_universe_info;
+        var adminM = s.admin_meta || backupBundle.admin_meta;
+        var adminE = s.admin_extra || backupBundle.admin_extra;
+        var univChanged = (univData && typeof idxApplyFromCloud==='function') ? idxApplyFromCloud(univData, univInfo) : false;
+        var adminChanged = (typeof adminApplyFromCloud==='function') ? adminApplyFromCloud(adminM, adminE) : false;
         if((univChanged || adminChanged) && typeof rdRebuildFromReal==='function'){
           if(typeof _scBaseCache!=='undefined') _scBaseCache=null;
           if(typeof QT!=='undefined') QT.scData=[];
@@ -655,10 +713,160 @@ function showSaveStatus(msg, color, persist){
 }
 
 // ── Peringatan skema Supabase belum diperbarui — tampil di UI, bukan cuma console ──
+var SCHEMA_MIGRATION_SQL = `-- ══════════════════════════════════════════════════════════
+-- MIGRASI SKEMA — Money Watch Pro (KONSOLIDASI LENGKAP)
+-- ══════════════════════════════════════════════════════════
+-- Jalankan SEKALI di Supabase SQL Editor project Anda
+-- (Dashboard Supabase → SQL Editor → New query → Tempel → Run).
+
+alter table public.user_settings
+  add column if not exists idx_universe jsonb,
+  add column if not exists idx_universe_info jsonb,
+  add column if not exists admin_meta jsonb,
+  add column if not exists admin_extra jsonb,
+  add column if not exists trade_strategy jsonb,
+  add column if not exists sek_tax_override jsonb,
+  add column if not exists wealth jsonb,
+  add column if not exists schema_version integer;
+
+update public.user_settings set schema_version = 2 where schema_version is null;
+
+do $$
+begin
+  delete from public.transactions a using public.transactions b
+    where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+  delete from public.dividends a using public.dividends b
+    where a.user_id=b.user_id and a.div_id=b.div_id and a.ctid<b.ctid;
+  delete from public.rdn_mutations a using public.rdn_mutations b
+    where a.user_id=b.user_id and a.rdn_id=b.rdn_id and a.ctid<b.ctid;
+  delete from public.crypto_tx a using public.crypto_tx b
+    where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+  delete from public.etf_tx a using public.etf_tx b
+    where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+  delete from public.rd_tx a using public.rd_tx b
+    where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+end $$;
+
+alter table public.transactions
+  drop constraint if exists transactions_user_tx_unique,
+  add constraint transactions_user_tx_unique unique (user_id, tx_id);
+alter table public.dividends
+  drop constraint if exists dividends_user_div_unique,
+  add constraint dividends_user_div_unique unique (user_id, div_id);
+alter table public.rdn_mutations
+  drop constraint if exists rdn_mutations_user_rdn_unique,
+  add constraint rdn_mutations_user_rdn_unique unique (user_id, rdn_id);
+alter table public.crypto_tx
+  drop constraint if exists crypto_tx_user_tx_unique,
+  add constraint crypto_tx_user_tx_unique unique (user_id, tx_id);
+alter table public.etf_tx
+  drop constraint if exists etf_tx_user_tx_unique,
+  add constraint etf_tx_user_tx_unique unique (user_id, tx_id);
+alter table public.rd_tx
+  drop constraint if exists rd_tx_user_tx_unique,
+  add constraint rd_tx_user_tx_unique unique (user_id, tx_id);
+
+alter table public.rdn_mutations
+  add column if not exists linked_tx_id text;
+
+do $$
+begin
+  delete from public.div_invest a using public.div_invest b
+    where a.user_id=b.user_id and a.ctid<b.ctid;
+end $$;
+alter table public.div_invest
+  drop constraint if exists div_invest_user_unique,
+  add constraint div_invest_user_unique unique (user_id);
+`;
+
 function updateSchemaWarnBanner(){
   var box = el('schema-warn-banner');
   if(!box) return;
   box.style.display = window._schemaOutdated ? 'flex' : 'none';
+}
+
+function dismissSchemaWarnBanner(){
+  var box = el('schema-warn-banner');
+  if(box) box.style.display = 'none';
+}
+
+function copySchemaMigrationSql(){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(SCHEMA_MIGRATION_SQL).then(function(){
+      showSaveStatus('✓ Script SQL Migrasi berhasil disalin ke clipboard!', 'var(--green)', true);
+      setTimeout(function(){
+        var bar = el('save-status-bar');
+        if(bar) bar.style.opacity = '0';
+      }, 4000);
+    }).catch(function(){
+      fallbackCopyText(SCHEMA_MIGRATION_SQL);
+    });
+  } else {
+    fallbackCopyText(SCHEMA_MIGRATION_SQL);
+  }
+}
+
+function fallbackCopyText(text){
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '0';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showSaveStatus('✓ Script SQL Migrasi berhasil disalin ke clipboard!', 'var(--green)', true);
+  } catch(e) {
+    alert('Gagal menyalin otomatis. Silakan buka modal dan salin teks secara manual.');
+  }
+  document.body.removeChild(ta);
+}
+
+function openSchemaMigrationModal(){
+  var m = el('schema-migration-modal');
+  if(!m) return;
+  var ta = el('schema-sql-text');
+  if(ta) ta.value = SCHEMA_MIGRATION_SQL;
+  m.style.display = 'flex';
+}
+
+function closeSchemaMigrationModal(){
+  var m = el('schema-migration-modal');
+  if(m) m.style.display = 'none';
+}
+
+async function checkSchemaMigrationStatus(){
+  if(!_currentUser){
+    showSaveStatus('Silakan login terlebih dahulu untuk cek koneksi database.', 'var(--amber)', true);
+    return;
+  }
+  var btn = el('btn-check-schema-status');
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = '⏳ Memeriksa Skema Database...';
+  }
+  showSaveStatus('⏳ Memeriksa status skema Supabase...', 'var(--accent)', true);
+  try {
+    // Coba trigger supaSaveAllData untuk cek apakah kolom native sudah aktif
+    await supaSaveAllData();
+    if(!window._schemaOutdated){
+      showSaveStatus('✓ Skema database Supabase berhasil dimigrasi & 100% Up-to-Date!', 'var(--green)', true);
+      updateSchemaWarnBanner();
+      closeSchemaMigrationModal();
+    } else {
+      showSaveStatus('⚠ Skema belum terdeteksi. Pastikan Anda sudah klik tombol "RUN" di Supabase SQL Editor.', 'var(--amber)', true);
+    }
+  } catch(e) {
+    showSaveStatus('⚠ Pemeriksaan gagal: ' + e.message, 'var(--red)', true);
+  } finally {
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = '🔄 Cek Ulang Status Sinkronisasi';
+    }
+  }
 }
 
 // ============================================================

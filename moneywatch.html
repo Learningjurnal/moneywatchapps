@@ -260,8 +260,29 @@
 <div id="page-dashboard" class="page on">
 
   <div class="load-banner" id="dash-load-banner"><span class="load-dot"></span><span id="dash-load-text"></span></div>
-  <div class="alert alert-warn" id="schema-warn-banner" style="display:none;align-items:center;gap:8px">
-    ⚠ Skema database belum diperbarui — beberapa data (Strategi per Emiten, override komisi, Daftar Saham) tidak ikut tersimpan ke cloud dan bisa hilang saat reload. Jalankan <code style="font-family:var(--font-mono)">sql/schema_migration.sql</code> sekali di Supabase SQL Editor untuk memperbaikinya.
+  <!-- Peringatan & Status Skema Supabase -->
+  <div id="schema-warn-banner" style="display:none;background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.3);border-radius:10px;padding:12px 16px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:280px">
+      <span style="font-size:20px;line-height:1">⚡</span>
+      <div style="font-size:12px;color:var(--text);line-height:1.5">
+        <strong style="color:var(--amber)">Pembaruan Skema Database Supabase Tersedia</strong>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">
+          Semua data Anda (transaksi, portofolio, wealth, strategi) <strong>aman tersimpan otomatis</strong>. Jalankan script SQL konsolidasi sekali di Supabase untuk mengaktifkan kolom native.
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green btn-xs" onclick="copySchemaMigrationSql()" style="font-size:11px;padding:6px 12px;gap:5px">
+        <span>📋</span> Salin Script SQL
+      </button>
+      <button class="btn btn-bb btn-xs" onclick="openSchemaMigrationModal()" style="font-size:11px;padding:6px 12px;gap:5px">
+        <span>📖</span> Panduan &amp; Detail
+      </button>
+      <button class="btn btn-ghost btn-xs" onclick="checkSchemaMigrationStatus()" style="font-size:11px;padding:6px 10px;color:var(--accent);border-color:rgba(0,200,255,0.3)">
+        🔄 Cek Ulang
+      </button>
+      <button onclick="dismissSchemaWarnBanner()" title="Sembunyikan peringatan ini" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 6px;line-height:1">✕</button>
+    </div>
   </div>
 
   <!-- ROW 1: Total AUM hero — berdiri sendiri, jadi satu-satunya fokus utama layar -->
@@ -3065,6 +3086,54 @@
       <button onclick="closeBackupModal()" aria-label="Tutup dialog Backup" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px">✕</button>
     </div>
     <div id="backup-modal-body"></div>
+  </div>
+</div>
+
+<!-- ===== SCHEMA MIGRATION MODAL ===== -->
+<div id="schema-migration-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1001;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:22px;width:640px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">⚡</span>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--accent)">Panduan Migrasi Skema Supabase</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">Jalankan sekali di SQL Editor Supabase</div>
+        </div>
+      </div>
+      <button onclick="closeSchemaMigrationModal()" aria-label="Tutup dialog" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px">✕</button>
+    </div>
+
+    <div style="background:rgba(0,212,170,0.06);border:1px solid rgba(0,212,170,0.25);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.6;color:var(--text)">
+      <strong style="color:var(--green)">🛡️ Data Anda Sudah 100% Aman &amp; Terbackup</strong>
+      <p style="margin:4px 0 0;color:var(--text2);font-size:11px">
+        Aplikasi Money Watch Pro telah dilengkapi sistem otomatis <em>Cloud Sync Bundle</em> sehingga seluruh transaksi, wealth, strategi emiten, dan pengaturan tidak akan pernah hilang.
+        Menjalankan skrip ini akan mengaktifkan kolom native Supabase untuk performa dan querying yang optimal.
+      </p>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">📝 3 Langkah Cepat:</div>
+    <ol style="font-size:11px;color:var(--text2);line-height:1.7;margin:0 0 14px 18px;padding:0">
+      <li>Klik tombol <strong>"Salin Seluruh Script SQL"</strong> di bawah ini.</li>
+      <li>Buka tab browser <strong>Supabase Dashboard</strong> Anda &rarr; Klik menu <strong>SQL Editor</strong> (ikon terminal di sidebar kiri) &rarr; Klik <strong>+ New query</strong>.</li>
+      <li>Tempel (Paste) skrip tersebut lalu klik tombol hijau <strong>RUN</strong> di Supabase.</li>
+    </ol>
+
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;font-family:var(--font-mono)">Script SQL (sql/schema_migration.sql)</span>
+        <button class="btn btn-green btn-xs" onclick="copySchemaMigrationSql()">📋 Salin Seluruh Script SQL</button>
+      </div>
+      <textarea id="schema-sql-text" readonly style="width:100%;height:160px;background:var(--bg3);color:var(--accent);font-family:var(--font-mono);font-size:11px;padding:10px;border-radius:8px;border:1px solid var(--border);resize:vertical;line-height:1.4"></textarea>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <button class="btn btn-blue" id="btn-check-schema-status" onclick="checkSchemaMigrationStatus()" style="font-size:12px">
+        🔄 Cek Ulang Status Sinkronisasi
+      </button>
+      <button class="btn btn-ghost" onclick="closeSchemaMigrationModal()" style="font-size:12px">
+        Tutup
+      </button>
+    </div>
   </div>
 </div>
 
