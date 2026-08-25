@@ -38,12 +38,32 @@ app.get('/api/proxy', async (req, res) => {
   }
 
   try {
-    const response = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': '*/*'
-      }
-    });
+    const isYahoo = targetUrl.includes('finance.yahoo.com');
+    const fetchHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,application/json,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'cross-site'
+    };
+    if (isYahoo) {
+      fetchHeaders['Origin'] = 'https://finance.yahoo.com';
+      fetchHeaders['Referer'] = 'https://finance.yahoo.com/';
+    }
+
+    let response = await fetch(targetUrl, { headers: fetchHeaders });
+
+    // Jika query1 gagal (404/429/500), coba alihkan otomatis ke query2
+    if (!response.ok && targetUrl.includes('query1.finance.yahoo.com')) {
+      const altUrl = targetUrl.replace('query1.finance.yahoo.com', 'query2.finance.yahoo.com');
+      try {
+        const altResp = await fetch(altUrl, { headers: fetchHeaders });
+        if (altResp.ok) {
+          response = altResp;
+        }
+      } catch (e) {}
+    }
 
     const contentType = response.headers.get('content-type') || 'application/json';
     res.setHeader('Content-Type', contentType);

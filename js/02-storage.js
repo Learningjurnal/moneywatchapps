@@ -42,11 +42,13 @@ function initPortfolio2026(force){
   nextRdnId = 1;
   activeSekuritas = 'Stockbit';
 
+  var totalBuyNet = 0;
   INITIAL_PORTO_2026.forEach(function(item){
     var gross = item.lot * 100 * item.price;
     var c = (typeof calcTxComponents === 'function') 
       ? calcTxComponents(gross, true, 'Stockbit') 
       : { komisi: gross * 0.0028, ppn: 0, levy: 0, pph: 0, net: gross * 1.0028 };
+    totalBuyNet += c.net;
     var txId = nextTxId++;
     transactions.push({
       id: txId,
@@ -74,6 +76,18 @@ function initPortfolio2026(force){
       sekuritas: 'Stockbit',
       linkedTxId: txId
     });
+  });
+
+  // Tambahkan setoran awal RDN (Top Up) agar saldo kas tidak defisit fiktif
+  var initialDeposit = Math.ceil(totalBuyNet / 50000000) * 50000000 + 10000000;
+  rdnMutations.unshift({
+    id: nextRdnId++,
+    date: '2026-08-24',
+    type: 'TOPUP',
+    ket: 'Setoran Awal RDN (Modal Awal)',
+    amount: initialDeposit,
+    balance: initialDeposit,
+    sekuritas: 'Stockbit'
   });
 
   if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();

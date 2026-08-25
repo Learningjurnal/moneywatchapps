@@ -150,9 +150,12 @@ function getPortfolio(){
   });
   var result=Object.values(pos).filter(function(p){return p.lot>0}).map(function(p){
     var info=DB[p.ticker]||{name:p.ticker,sector:'Lainnya',beta:1.0};
-    var mp=prices[p.ticker]||info.base||0;
-    var mv=mp*p.shares;
     var avg=p.shares>0?p.cost/p.shares:0;
+    // Prioritas harga: 1. Live price dari feed, 2. Base price DB jika realistis (>100), 3. Harga modal rata-rata beli (avg), 4. info.base
+    var mp = (prices[p.ticker] && prices[p.ticker]>0)
+      ? prices[p.ticker]
+      : ((info.base && info.base > 100) ? info.base : (avg > 0 ? avg : (info.base || 0)));
+    var mv=mp*p.shares;
     var unreal=mv-p.cost;
     var ret=p.cost>0?(unreal/p.cost)*100:0;
     return Object.assign({},p,{mp:mp,price:mp,mv:mv,avg:avg,unreal:unreal,ret:ret,info:info});
@@ -408,10 +411,22 @@ var FH = {
 function yfFetch(symbol, cb, proxyIdx){
   proxyIdx = proxyIdx||0;
   if(proxyIdx >= FH.PROXIES.length){ cb(new Error('ALL_PROXIES_FAILED'), null); return; }
-  var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + symbol + '?interval=1m&range=1d';
+  
+  // Gunakan query1 atau query2 secara dinamis
+  var host = (proxyIdx % 2 === 1) ? 'query2.finance.yahoo.com' : 'query1.finance.yahoo.com';
+  var yUrl = 'https://' + host + '/v8/finance/chart/' + symbol + '?interval=1m&range=1d';
   var url = FH.PROXIES[proxyIdx](yUrl);
-  fetch(url)
+  
+  var controller = null;
+  var timeoutId = null;
+  if(typeof AbortController !== 'undefined'){
+    controller = new AbortController();
+    timeoutId = setTimeout(function(){ controller.abort(); }, 7000);
+  }
+
+  fetch(url, { signal: controller ? controller.signal : undefined })
   .then(function(r){
+    if(timeoutId) clearTimeout(timeoutId);
     if(r.status===429){ throw new Error('RATE_LIMIT'); }
     if(!r.ok){ throw new Error('HTTP_'+r.status); }
     return r.json();
@@ -423,6 +438,7 @@ function yfFetch(symbol, cb, proxyIdx){
     else { throw new Error('NO_DATA'); }
   })
   .catch(function(){
+    if(timeoutId) clearTimeout(timeoutId);
     yfFetch(symbol, cb, proxyIdx+1);
   });
 }
@@ -487,7 +503,16 @@ function fhUpdateLoadBanners(status){
 // ── Fetch IHSG via Yahoo Finance ──
 function fhFetchIHSG(){
   yfFetch(FH.IHSG_SYM, function(err, meta){
-    if(err){ fhSetBadge('error','IHSG Gagal'); return; }
+    if(err){
+      // Jika fetch live gagal, gunakan harga referensi/terakhir tanpa merusak UI
+      if(ihsgCur > 0){
+        fhApplyIHSG(ihsgCur, ihsgBase, 0, 0, 0);
+        fhSetBadge('off','● Terakhir');
+      } else {
+        fhSetBadge('error','IHSG Gagal');
+      }
+      return;
+    }
     fhApplyIHSG(
       meta.regularMarketPrice,
       meta.previousClose||meta.regularMarketPrice,
@@ -532,6 +557,21 @@ function fhFetchStocks(){
   }
   extra.forEach(function(t){ if(codes.indexOf(t)<0) codes.push(t); });
   if(!codes.length) return;
+  var _debouncedRenderTimer = null;
+  function _triggerRenderAfterPrice(){
+    _invalidatePortoCache();
+    if(_debouncedRenderTimer) clearTimeout(_debouncedRenderTimer);
+    _debouncedRenderTimer = setTimeout(function(){
+      try{ updateTopbar(); }catch(e){}
+      try{ buildTickerTape(); }catch(e){}
+      if(typeof currentPage!=='undefined'){
+        if(currentPage==='dashboard') { try{ renderDashboard(); }catch(e){} }
+        else if(currentPage==='portofolio') { try{ renderPortofolio(); }catch(e){} }
+        else if(currentPage==='performance') { try{ renderStockPerformance(); }catch(e){} }
+      }
+    }, 400);
+  }
+
   codes.forEach(function(code, i){
     setTimeout(function(){
       yfFetch(code+'.JK', function(err, meta){
@@ -540,12 +580,13 @@ function fhFetchStocks(){
           if(meta.previousClose > 0) prevCloses[code] = meta.previousClose;
           if(typeof DB!=='undefined' && DB[code]) DB[code].base = meta.regularMarketPrice; // sinkronkan baseline analisa
           if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
+          _triggerRenderAfterPrice();
         }
       });
-    }, i*1500);
+    }, i*1200);
   });
   // Bangun ulang ticker tape sekali setelah seluruh batch selesai
-  setTimeout(function(){ try{ buildTickerTape(); }catch(e){} }, codes.length*1500 + 3000);
+  setTimeout(function(){ try{ buildTickerTape(); }catch(e){} }, codes.length*1200 + 2000);
 }
 
 // ── Fetch kurs USD/IDR via Yahoo Finance ──
