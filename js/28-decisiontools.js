@@ -248,10 +248,10 @@ function renderDailyBriefPage() {
 // ══════════════════════════════════════════════════════════
 // 2. INVESTMENT THESIS TRACKER
 // ══════════════════════════════════════════════════════════
-var MW_THESES = JSON.parse(localStorage.getItem('mw_theses') || 'null') || [];
+var MW_THESES = [];
 
 function saveThesesToStorage() {
-  localStorage.setItem('mw_theses', JSON.stringify(MW_THESES));
+  if (typeof saveData === 'function') saveData();
 }
 
 function renderThesisPage() {
@@ -393,10 +393,10 @@ function deleteThesis(idx) {
 // ══════════════════════════════════════════════════════════
 // 3. DECISION JOURNAL & POST-TRADE REVIEW
 // ══════════════════════════════════════════════════════════
-var MW_JOURNALS = JSON.parse(localStorage.getItem('mw_journals') || 'null') || [];
+var MW_JOURNALS = [];
 
 function saveJournalsToStorage() {
-  localStorage.setItem('mw_journals', JSON.stringify(MW_JOURNALS));
+  if (typeof saveData === 'function') saveData();
 }
 
 function renderJournalPage() {

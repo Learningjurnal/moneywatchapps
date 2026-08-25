@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "UserProfile": {
+      "collection": "users",
+      "fields": {
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" },
+        "lastLoginAt": { "type": "string", "description": "Last login timestamp" }
+      }
+    },
+    "UserSettings": {
+      "collection": "users/{userId}/settings",
+      "fields": {
+        "activeSekuritas": { "type": "string", "description": "Active default broker" },
+        "rdnBalance": { "type": "number", "description": "RDN cash balance" },
+        "taxSettings": { "type": "map", "description": "Broker commission & tax rates" },
+        "sekTaxOverride": { "type": "map", "description": "Per-broker fee overrides" },
+        "tradeStrategy": { "type": "map", "description": "Strategy tags per ticker" },
+        "wealth": { "type": "map", "description": "Comprehensive net worth data" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" }
+      }
+    },
+    "Transaction": {
+      "collection": "users/{userId}/transactions",
+      "fields": {
+        "id": { "type": "number", "description": "Sequential transaction ID" },
+        "date": { "type": "string", "description": "Transaction date YYYY-MM-DD" },
+        "type": { "type": "string", "description": "BUY or SELL" },
+        "ticker": { "type": "string", "description": "Stock ticker symbol" },
+        "sekuritas": { "type": "string", "description": "Broker code" },
+        "lot": { "type": "number", "description": "Number of lots traded" },
+        "price": { "type": "number", "description": "Price per share" },
+        "gross": { "type": "number", "description": "Gross trade value" },
+        "komisi": { "type": "number", "description": "Broker commission" },
+        "tax": { "type": "number", "description": "Levy, PPN, PPh tax amount" },
+        "net": { "type": "number", "description": "Net settlement amount" }
+      }
+    },
+    "Dividend": {
+      "collection": "users/{userId}/dividends",
+      "fields": {
+        "id": { "type": "number", "description": "Sequential dividend ID" },
+        "date": { "type": "string", "description": "Payment date YYYY-MM-DD" },
+        "ticker": { "type": "string", "description": "Stock ticker symbol" },
+        "shares": { "type": "number", "description": "Total shares owned on cum date" },
+        "dps": { "type": "number", "description": "Dividend per share" },
+        "gross": { "type": "number", "description": "Gross dividend amount" },
+        "tax": { "type": "number", "description": "PPh dividend tax withheld" },
+        "net": { "type": "number", "description": "Net dividend received" }
+      }
+    },
+    "RdnMutation": {
+      "collection": "users/{userId}/rdnMutations",
+      "fields": {
+        "id": { "type": "number", "description": "Sequential mutation ID" },
+        "date": { "type": "string", "description": "Mutation date YYYY-MM-DD" },
+        "type": { "type": "string", "description": "IN or OUT" },
+        "ket": { "type": "string", "description": "Description of cash flow" },
+        "amount": { "type": "number", "description": "Signed cash flow amount" },
+        "balance": { "type": "number", "description": "Resulting RDN balance" },
+        "linkedTxId": { "type": "string", "description": "Linked stock trade ID" }
+      }
+    },
+    "UserDataBundle": {
+      "collection": "users/{userId}/bundle",
+      "fields": {
+        "transactions": { "type": "array", "description": "Full transactions list" },
+        "dividends": { "type": "array", "description": "Full dividends list" },
+        "rdnMutations": { "type": "array", "description": "Full RDN mutations list" },
+        "cryptoTx": { "type": "array", "description": "Crypto transactions" },
+        "etfTx": { "type": "array", "description": "US ETF transactions" },
+        "rdTx": { "type": "array", "description": "Mutual fund transactions" },
+        "wealth": { "type": "map", "description": "Wealth data" },
+        "theses": { "type": "array", "description": "Investment theses" },
+        "journals": { "type": "array", "description": "Decision journals" },
+        "priceAlerts": { "type": "array", "description": "Price alerts" },
+        "savedAt": { "type": "string", "description": "Sync timestamp" }
+      }
+    }
+  }
+}

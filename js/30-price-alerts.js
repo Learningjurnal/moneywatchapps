@@ -17,26 +17,12 @@
 
   // ── Load & Save Alerts ──
   function loadAlerts() {
-    try {
-      var raw = localStorage.getItem(ALERT_LS_KEY);
-      if (raw) {
-        alertsList = JSON.parse(raw);
-        if (!Array.isArray(alertsList)) alertsList = [];
-      } else {
-        alertsList = [];
-      }
-    } catch(e) {
-      alertsList = [];
-    }
+    if (!Array.isArray(alertsList)) alertsList = [];
     return alertsList;
   }
 
   function saveAlerts() {
-    try {
-      localStorage.setItem(ALERT_LS_KEY, JSON.stringify(alertsList));
-    } catch(e) {
-      console.warn('Gagal menyimpan price alerts:', e);
-    }
+    if (typeof saveData === 'function') saveData();
     updateAlertBadgeUI();
   }
 

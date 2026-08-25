@@ -5,10 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Money Watch Pro — Portofolio, Wealth & Analisa Quant</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23131324'/><path d='M7 21 L13 13 L18 17 L25 8' stroke='%2334d399' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='25' cy='8' r='2' fill='%2334d399'/></svg>">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/00-config.js?v=20260813j"></script>
 <!-- Font sesuai invezgo.com: Figtree untuk judul/angka besar, Inter untuk isi — dibaca langsung dari computed style situsnya --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Figtree:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js"></script>
@@ -275,30 +278,6 @@
   <div class="load-banner" id="dash-load-banner"><span class="load-dot"></span><span id="dash-load-text"></span></div>
   <!-- Command Center Executive View (V6) -->
   <div id="command-center-container"></div>
-  <!-- Peringatan & Status Skema Supabase -->
-  <div id="schema-warn-banner" style="display:none;background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.3);border-radius:10px;padding:12px 16px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:280px">
-      <span style="font-size:20px;line-height:1">⚡</span>
-      <div style="font-size:12px;color:var(--text);line-height:1.5">
-        <strong style="color:var(--amber)">Pembaruan Skema Database Supabase Tersedia</strong>
-        <div style="font-size:11px;color:var(--text2);margin-top:2px">
-          Semua data Anda (transaksi, portofolio, wealth, strategi) <strong>aman tersimpan otomatis</strong>. Jalankan script SQL konsolidasi sekali di Supabase untuk mengaktifkan kolom native.
-        </div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-green btn-xs" onclick="copySchemaMigrationSql()" style="font-size:11px;padding:6px 12px;gap:5px">
-        <span>📋</span> Salin Script SQL
-      </button>
-      <button class="btn btn-bb btn-xs" onclick="openSchemaMigrationModal()" style="font-size:11px;padding:6px 12px;gap:5px">
-        <span>📖</span> Panduan &amp; Detail
-      </button>
-      <button class="btn btn-ghost btn-xs" onclick="checkSchemaMigrationStatus()" style="font-size:11px;padding:6px 10px;color:var(--accent);border-color:rgba(0,200,255,0.3)">
-        🔄 Cek Ulang
-      </button>
-      <button onclick="dismissSchemaWarnBanner()" title="Sembunyikan peringatan ini" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 6px;line-height:1">✕</button>
-    </div>
-  </div>
 
   <!-- ROW 1: Total AUM hero — berdiri sendiri, jadi satu-satunya fokus utama layar -->
   <div class="metric" style="background:linear-gradient(135deg,#0c1e3a 0%,#0e2444 100%);border-color:rgba(0,200,255,.2);position:relative;overflow:hidden;margin-bottom:14px;padding:20px 24px">
@@ -534,6 +513,58 @@
         <div class="cheader"><span class="ctitle">Kas &amp; Likuiditas</span></div>
         <div id="d-kas-detail"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ROW 5a: Pertumbuhan Net Worth (D3.js Line Chart) -->
+  <div class="card" style="margin-bottom:18px" id="d3-networth-card">
+    <div class="cheader" style="flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="ctitle" style="display:flex;align-items:center;gap:6px">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#10B981;box-shadow:0 0 10px rgba(16,185,129,.7)"></span>
+          📈 Pertumbuhan Net Worth (D3.js Chart)
+        </span>
+        <span class="badge b-up" id="d3-nw-growth-badge">+0.00%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div id="d3-nw-mode-group" style="display:flex;gap:3px;background:var(--bg);border-radius:7px;padding:3px">
+          <button class="pbtn on" onclick="d3NwSetMode('networth',this)">Net Worth</button>
+          <button class="pbtn" onclick="d3NwSetMode('both',this)">Dual (NW + Modal)</button>
+          <button class="pbtn" onclick="d3NwSetMode('pnl',this)">P&amp;L</button>
+        </div>
+        <div id="d3-nw-period-group" style="display:flex;gap:3px;background:var(--bg);border-radius:7px;padding:3px">
+          <button class="pbtn" onclick="d3NwSetPeriod('1W',this)">1Mgg</button>
+          <button class="pbtn" onclick="d3NwSetPeriod('1M',this)">1Bln</button>
+          <button class="pbtn" onclick="d3NwSetPeriod('3M',this)">3Bln</button>
+          <button class="pbtn on" onclick="d3NwSetPeriod('YTD',this)">YTD</button>
+          <button class="pbtn" onclick="d3NwSetPeriod('1Y',this)">1Thn</button>
+          <button class="pbtn" onclick="d3NwSetPeriod('ALL',this)">Semua</button>
+        </div>
+      </div>
+    </div>
+    <!-- Quick stats strip -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:10px 0 16px;padding:12px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px">
+      <div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">NET WORTH SAAT INI</div>
+        <div id="d3-nw-stat-val" style="font-size:17px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:2px">Rp 0</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">MODAL BERSIH DISETOR</div>
+        <div id="d3-nw-stat-cost" style="font-size:17px;font-weight:800;font-family:var(--font-mono);color:var(--accent);margin-top:2px">Rp 0</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">TOTAL P&amp;L (RETURN)</div>
+        <div id="d3-nw-stat-pnl" style="font-size:17px;font-weight:800;font-family:var(--font-mono);color:var(--green);margin-top:2px">Rp 0</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">PEAK VALUATION (ATH)</div>
+        <div id="d3-nw-stat-ath" style="font-size:17px;font-weight:800;font-family:var(--font-mono);color:var(--purple);margin-top:2px">Rp 0</div>
+      </div>
+    </div>
+    <!-- D3 SVG container with interactive floating tooltip -->
+    <div style="position:relative;width:100%;height:260px;overflow:hidden" id="d3-nw-wrapper">
+      <div id="d3-nw-chart-container" style="width:100%;height:100%"></div>
+      <div id="d3-nw-tooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(18,20,32,.94);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px 12px;font-family:var(--font-mono);box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:20;font-size:11px;min-width:180px;backdrop-filter:blur(6px)"></div>
     </div>
   </div>
 
@@ -3132,54 +3163,6 @@
   </div>
 </div>
 
-<!-- ===== SCHEMA MIGRATION MODAL ===== -->
-<div id="schema-migration-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1001;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
-  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:22px;width:640px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:22px">⚡</span>
-        <div>
-          <div style="font-size:16px;font-weight:700;color:var(--accent)">Panduan Migrasi Skema Supabase</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">Jalankan sekali di SQL Editor Supabase</div>
-        </div>
-      </div>
-      <button onclick="closeSchemaMigrationModal()" aria-label="Tutup dialog" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px">✕</button>
-    </div>
-
-    <div style="background:rgba(0,212,170,0.06);border:1px solid rgba(0,212,170,0.25);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.6;color:var(--text)">
-      <strong style="color:var(--green)">🛡️ Data Anda Sudah 100% Aman &amp; Terbackup</strong>
-      <p style="margin:4px 0 0;color:var(--text2);font-size:11px">
-        Aplikasi Money Watch Pro telah dilengkapi sistem otomatis <em>Cloud Sync Bundle</em> sehingga seluruh transaksi, wealth, strategi emiten, dan pengaturan tidak akan pernah hilang.
-        Menjalankan skrip ini akan mengaktifkan kolom native Supabase untuk performa dan querying yang optimal.
-      </p>
-    </div>
-
-    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">📝 3 Langkah Cepat:</div>
-    <ol style="font-size:11px;color:var(--text2);line-height:1.7;margin:0 0 14px 18px;padding:0">
-      <li>Klik tombol <strong>"Salin Seluruh Script SQL"</strong> di bawah ini.</li>
-      <li>Buka tab browser <strong>Supabase Dashboard</strong> Anda &rarr; Klik menu <strong>SQL Editor</strong> (ikon terminal di sidebar kiri) &rarr; Klik <strong>+ New query</strong>.</li>
-      <li>Tempel (Paste) skrip tersebut lalu klik tombol hijau <strong>RUN</strong> di Supabase.</li>
-    </ol>
-
-    <div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;font-family:var(--font-mono)">Script SQL (sql/schema_migration.sql)</span>
-        <button class="btn btn-green btn-xs" onclick="copySchemaMigrationSql()">📋 Salin Seluruh Script SQL</button>
-      </div>
-      <textarea id="schema-sql-text" readonly style="width:100%;height:160px;background:var(--bg3);color:var(--accent);font-family:var(--font-mono);font-size:11px;padding:10px;border-radius:8px;border:1px solid var(--border);resize:vertical;line-height:1.4"></textarea>
-    </div>
-
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <button class="btn btn-blue" id="btn-check-schema-status" onclick="checkSchemaMigrationStatus()" style="font-size:12px">
-        🔄 Cek Ulang Status Sinkronisasi
-      </button>
-      <button class="btn btn-ghost" onclick="closeSchemaMigrationModal()" style="font-size:12px">
-        Tutup
-      </button>
-    </div>
-  </div>
-</div>
-
 </div><!-- /app -->
 
 <!-- MODAL -->
@@ -3231,5 +3214,6 @@
 <script src="js/28-decisiontools.js?v=20260813j"></script>
 <script src="js/29-institutional-ui.js?v=20260813j"></script>
 <script src="js/30-price-alerts.js?v=20260813j"></script>
+<script src="js/31-d3-networth.js?v=20260813j"></script>
 </body>
 </html>

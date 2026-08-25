@@ -2,7 +2,6 @@
 // RENDER FUNCTIONS
 // ============================================================
 function renderDashboard(){
-  if(typeof updateSchemaWarnBanner==='function') updateSchemaWarnBanner();
   var porto=getPortfolio();
   var cryptoPorto=getCryptoPortfolio();
   var etfPorto=getEtfPortfolio();
@@ -256,6 +255,7 @@ function renderDashboard(){
 
   buildIhsgChart('1H');
   buildModalPosisiChart(porto);
+  if (typeof renderD3NetWorthChart === 'function') renderD3NetWorthChart();
 
   // ── Sektoral — dari getPortfolio() (transaksi user) ──
   var sectByMV = {};

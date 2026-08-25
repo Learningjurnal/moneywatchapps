@@ -1,19 +1,17 @@
-
 // ╔══════════════════════════════════════════════════════════╗
-// ║                   AUTH SYSTEM                           ║
-// ║  SHA-256 hash · session token · brute-force guard       ║
+// ║                   AUTH SYSTEM (FIREBASE)                ║
+// ║  Firebase Authentication · session token · safe cloud    ║
 // ╚══════════════════════════════════════════════════════════╝
 
-var AUTH = { SESSION_MS: 30 * 60 * 1000, _sesTimer: null, _barTimer: null, _sesStart: 0, _sesExp: 0 };
+var AUTH = { SESSION_MS: 60 * 60 * 1000, _sesTimer: null, _barTimer: null, _sesStart: 0, _sesExp: 0 };
 
-// ── Auth stubs — Supabase handles everything ──
+// ── Auth stubs ──
 function authLoadAcc(){ return _currentUser ? {user: _currentUser.email} : null; }
 function authSaveAcc(obj){}
 function authSaveSession(u){ return {}; }
-function authLoadSession(){ return _currentUser?{user:_currentUser.email, exp: AUTH._sesExp}:null; }
+function authLoadSession(){ return _currentUser ? {user:_currentUser.email, exp: AUTH._sesExp} : null; }
 function authClearSession(){ _currentUser=null; AUTH._sesExp=0; }
 function authBumpSession(){ if(_currentUser){ AUTH._sesExp = Date.now() + AUTH.SESSION_MS; } }
-
 
 // ── Show / Hide app ──
 function authShowApp(username){
@@ -21,33 +19,27 @@ function authShowApp(username){
   var app = document.getElementById('main-app');
   if(overlay) overlay.classList.add('hidden');
   if(app) app.style.display='';
+
   // Show session info
   var si = el('session-info'), su = el('session-user');
   if(si) si.style.display='flex';
   if(su) su.textContent = username;
+
   // Start session countdown bar
   AUTH._sesStart = Date.now();
   AUTH._sesExp = Date.now() + AUTH.SESSION_MS;
   authStartTimeoutBar();
-  // FIX: sebelumnya halaman yang sedang aktif (default 'dashboard') dirender
-  // SEKALI saja saat DOMContentLoaded, memakai data localStorage lokal yang
-  // basi/kosong — SEBELUM data asli dari cloud (safeCloudBoot) selesai
-  // dimuat. authShowApp() dipanggil SETELAH cloud selesai dimuat, tapi tidak
-  // pernah render ulang, jadi user melihat angka lama (mis. Kas Rp 0 di
-  // device baru) sampai siklus refresh harga otomatis berikutnya (~60 detik)
-  // kebetulan memicu render ulang — persis gejala "nilai Kas berubah sendiri
-  // tanpa pengeditan" yang dilaporkan. Render ulang di sini memastikan
-  // halaman langsung menampilkan data cloud yang benar begitu login selesai,
-  // tidak menunggu tick berikutnya.
+
   try{ if(typeof renderPage==='function' && typeof currentPage!=='undefined') renderPage(currentPage); }catch(e){}
   try{ if(typeof renderCashWidgets==='function') renderCashWidgets(); }catch(e){}
-  // Rebuild ticker tape after login (data may now be loaded)
-  try{ buildTickerTape(); }catch(e){}
+  try{ if(typeof buildTickerTape==='function') buildTickerTape(); }catch(e){}
+
   // Activity listeners reset timer
   ['click','keydown','mousemove'].forEach(function(ev){
     document.addEventListener(ev, authBumpSession, {passive:true});
   });
-  // Auto-logout check every 60s
+
+  // Auto-logout check
   if(AUTH._sesTimer) clearInterval(AUTH._sesTimer);
   AUTH._sesTimer = setInterval(function(){
     var s = authLoadSession();
@@ -78,7 +70,6 @@ function authShowLogin(){
   var lk=el('auth-lock-msg'); if(lk) lk.style.display='none';
 }
 
-
 function authShowSetup(msg){
   el('auth-login-form').style.display='none';
   el('auth-setup-form').style.display='';
@@ -101,82 +92,140 @@ function authShowErr(msg){
   e.style.display='block'; e.textContent='⚠️ '+msg;
 }
 
-// ── Login via Supabase ──
+// ── Login via Firebase Auth ──
 function authDoLogin(){
   var uInput=(el('auth-username')&&el('auth-username').value||'').trim();
   var pInput=(el('auth-password')&&el('auth-password').value||'');
   if(!uInput||!pInput){ authShowErr('Isi email dan password.'); return; }
   var btn=el('auth-login-btn');
   if(btn){ btn.disabled=true; btn.textContent='Masuk...'; }
-  _supabase.auth.signInWithPassword({email:uInput,password:pInput})
-    .then(function(result){
+
+  if(!_firebaseAuth){
+    if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
+    authShowErr('Firebase Authentication belum siap.');
+    return;
+  }
+
+  _firebaseAuth.signInWithEmailAndPassword(uInput, pInput)
+    .then(function(userCredential){
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
-      if(result.error){ authShowErr('Email atau password salah. Coba lagi.'); return; }
-      _currentUser=result.data.user;
-      var displayName=(_currentUser.user_metadata&&_currentUser.user_metadata.display_name)||_currentUser.email||'User';
-      safeCloudBoot().then(function(){ authShowApp(displayName); }).catch(function(loadErr){ authShowErr('Login berhasil tapi gagal memuat data: '+(loadErr&&loadErr.message||'unknown')); if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; } });
+      _currentUser = userCredential.user;
+      var displayName = _currentUser.displayName || _currentUser.email || 'User';
+      safeCloudBoot().then(function(){
+        authShowApp(displayName);
+      }).catch(function(loadErr){
+        authShowErr('Login berhasil tapi gagal memuat data Firestore: ' + (loadErr && loadErr.message || 'unknown'));
+      });
     })
     .catch(function(err){
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
-      authShowErr('Gagal login: '+(err&&err.message||'unknown'));
+      var msg = err && err.message ? err.message : 'Email atau password salah';
+      if(err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
+        msg = 'Email atau password salah. Pastikan akun sudah terdaftar di Firebase.';
+      }
+      authShowErr('Gagal login: ' + msg);
     });
 }
 
 // ── Login Mode Tamu / Demo Offline ──
 function authDoGuestLogin(){
-  _currentUser = {
-    id: 'guest_local_user',
-    email: 'demo@moneywatch.pro',
-    user_metadata: { display_name: 'Tamu (Demo)' },
-    isGuest: true
-  };
-  if(typeof loadDataFromLocalStorage === 'function'){
-    loadDataFromLocalStorage();
+  if(_firebaseAuth){
+    _firebaseAuth.signInAnonymously().then(function(res){
+      _currentUser = res.user;
+      _currentUser.isGuest = true;
+      safeCloudBoot().then(function(){
+        authShowApp('Mode Tamu (Demo)');
+      });
+    }).catch(function(){
+      _currentUser = {
+        uid: 'guest_' + Date.now(),
+        email: 'tamu@moneywatch.pro',
+        isGuest: true
+      };
+      safeCloudBoot().then(function(){
+        authShowApp('Mode Tamu (Demo)');
+      });
+    });
+  } else {
+    _currentUser = {
+      uid: 'guest_' + Date.now(),
+      email: 'tamu@moneywatch.pro',
+      isGuest: true
+    };
+    safeCloudBoot().then(function(){
+      authShowApp('Mode Tamu (Demo)');
+    });
   }
-  authShowApp('Mode Tamu');
 }
 
-
-
-// ── Daftar akun baru via Supabase ──
+// ── Daftar akun baru via Firebase Auth ──
 function authDoSetup(){
   var u=(el('auth-new-user')&&el('auth-new-user').value||'').trim();
   var p=(el('auth-new-pass')&&el('auth-new-pass').value||'');
   var p2=(el('auth-new-pass2')&&el('auth-new-pass2').value||'');
   if(!u||!u.includes('@')){ authShowErr('Gunakan alamat email yang valid.'); return; }
-  if(p.length<8){ authShowErr('Password minimal 8 karakter.'); return; }
+  if(p.length<6){ authShowErr('Password minimal 6 karakter.'); return; }
   if(p!==p2){ authShowErr('Password tidak cocok.'); return; }
   var setupBtn=document.querySelector('#auth-setup-form .auth-btn:not([data-added])');
   if(setupBtn){ setupBtn.disabled=true; setupBtn.textContent='Membuat akun...'; }
-  _supabase.auth.signUp({email:u,password:p})
-    .then(function(result){
+
+  if(!_firebaseAuth){
+    if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
+    authShowErr('Firebase Auth belum siap.');
+    return;
+  }
+
+  _firebaseAuth.createUserWithEmailAndPassword(u, p)
+    .then(function(userCredential){
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
-      if(result.error){ authShowErr('Gagal buat akun: '+result.error.message); return; }
+      _currentUser = userCredential.user;
       var msg=el('auth-setup-msg');
-      if(msg){msg.style.color='var(--green)';msg.style.background='rgba(0,229,160,.08)';msg.style.border='1px solid rgba(0,229,160,.2)';msg.innerHTML='\u2705 Akun berhasil dibuat!<br><br>Silakan login dengan email dan password yang baru dibuat.';}
+      if(msg){
+        msg.style.color='var(--green)';
+        msg.style.background='rgba(0,229,160,.08)';
+        msg.style.border='1px solid rgba(0,229,160,.2)';
+        msg.innerHTML='✅ Akun Firebase berhasil dibuat!<br><br>Klik tombol di bawah untuk langsung masuk.';
+      }
       var sf=el('auth-setup-form');
-      if(sf){var btn2=document.createElement('button');btn2.className='auth-btn';btn2.style.marginTop='12px';btn2.textContent='Ke halaman login \u2192';btn2.setAttribute('data-added','1');btn2.onclick=function(){authShowLogin();};sf.appendChild(btn2);}
+      if(sf){
+        var btn2=document.createElement('button');
+        btn2.className='auth-btn';
+        btn2.style.marginTop='12px';
+        btn2.textContent='Masuk ke Aplikasi \u2192';
+        btn2.setAttribute('data-added','1');
+        btn2.onclick=function(){
+          safeCloudBoot().then(function(){
+            authShowApp(_currentUser.email || 'User');
+          });
+        };
+        sf.appendChild(btn2);
+      }
     })
     .catch(function(err){
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
-      authShowErr('Gagal membuat akun. ('+(err&&err.message||'unknown')+')');
+      authShowErr('Gagal membuat akun: ' + (err && err.message || 'unknown'));
     });
 }
 
-
-// ── Reset password via Supabase ──
+// ── Reset password via Firebase ──
 function authDoReset(){
   var email=(el('auth-reset-code')&&el('auth-reset-code').value||'').trim();
   if(!email||!email.includes('@')){ authShowErr('Masukkan alamat email yang terdaftar.'); return; }
-  _supabase.auth.resetPasswordForEmail(email).then(function(result){
-    if(result.error){ authShowErr('Gagal kirim reset: '+result.error.message); return; }
+  if(!_firebaseAuth){ authShowErr('Firebase Auth belum siap.'); return; }
+
+  _firebaseAuth.sendPasswordResetEmail(email).then(function(){
     var e=el('auth-err');
-    if(e){ e.style.display='block'; e.style.color='var(--green)'; e.textContent='\u2705 Link reset password dikirim ke email Anda.'; }
-  }).catch(function(err){ authShowErr('Gagal kirim reset: '+(err&&err.message||'unknown')); });
+    if(e){
+      e.style.display='block';
+      e.style.color='var(--green)';
+      e.textContent='✅ Email instruksi reset password telah dikirim.';
+    }
+  }).catch(function(err){
+    authShowErr('Gagal kirim reset: ' + (err && err.message || 'unknown'));
+  });
 }
 
-
-// ── Logout via Supabase ──
+// ── Logout ──
 function authLogout(){
   if(!confirm('Yakin ingin logout?')) return;
   function _doLogoutUI(){
@@ -192,23 +241,32 @@ function authLogout(){
     var ae=el('auth-err'); if(ae) ae.style.display='none';
     authShowLogin();
   }
-  _supabase.auth.signOut().then(function(){ _doLogoutUI(); }).catch(function(){ _doLogoutUI(); });
+
+  if(_firebaseAuth){
+    _firebaseAuth.signOut().then(function(){ _doLogoutUI(); }).catch(function(){ _doLogoutUI(); });
+  } else {
+    _doLogoutUI();
+  }
 }
 
-
-// ── Init auth — cek Supabase session ──
+// ── Init auth — cek Firebase session ──
 function authInit(){
-  _supabase.auth.getSession().then(function(result){
-    var session=result.data&&result.data.session;
-    if(session&&session.user){
-      _currentUser=session.user;
-      var displayName=(_currentUser.user_metadata&&_currentUser.user_metadata.display_name)||_currentUser.email||'User';
-      safeCloudBoot().then(function(){ authShowApp(displayName); }).catch(function(){ authShowLogin(); });
-    } else { authShowLogin(); }
-  }).catch(function(){ authShowLogin(); });
-  _supabase.auth.onAuthStateChange(function(event,session){
-    if(event==='SIGNED_OUT'||!session){ if(_currentUser){ _currentUser=null; } }
+  if(!_firebaseAuth){
+    authShowLogin();
+    return;
+  }
+  _firebaseAuth.onAuthStateChanged(function(user){
+    if(user){
+      _currentUser = user;
+      var displayName = _currentUser.displayName || _currentUser.email || 'User';
+      safeCloudBoot().then(function(){
+        authShowApp(displayName);
+      }).catch(function(){
+        authShowLogin();
+      });
+    } else {
+      _currentUser = null;
+      authShowLogin();
+    }
   });
 }
-
-

@@ -127,14 +127,9 @@ function calcTxComponents(gross, isBuy, sekuritas){
 }
 
 function saveTaxSettings(){
-  try{ localStorage.setItem('ihsg_tax_cfg', JSON.stringify(TAX_SETTINGS)); }catch(e){}
+  if(typeof saveData==='function') saveData();
 }
-function loadTaxSettings(){
-  try{
-    var r=localStorage.getItem('ihsg_tax_cfg');
-    if(r){ var d=JSON.parse(r); Object.assign(TAX_SETTINGS,d); }
-  }catch(e){}
-}
+function loadTaxSettings(){}
 
 // Parse harga dari input — handle format Indonesia (titik=ribuan, koma=desimal)
 function parsePrice(val){
@@ -163,14 +158,11 @@ var CASH_ACCOUNTS = {
   reksadana: {label:'Kas Reksa Dana',      color:'#8070d2', balance:0},
 };
 function saveCashAccounts(){
-  try{ localStorage.setItem('ihsg_cash_v1', JSON.stringify(CASH_ACCOUNTS)); }catch(e){}
   if(typeof saveData==='function') saveData();
 }
 function setCash(account, amount){ if(!CASH_ACCOUNTS[account]) return; CASH_ACCOUNTS[account].balance=parseFloat(amount)||0; saveCashAccounts(); }
 function addCash(account, amount){ if(!CASH_ACCOUNTS[account]) return; CASH_ACCOUNTS[account].balance+=parseFloat(amount)||0; saveCashAccounts(); }
-function loadCashAccounts(){
-  try{ var r=localStorage.getItem('ihsg_cash_v1'); if(r){ var d=JSON.parse(r); Object.keys(CASH_ACCOUNTS).forEach(function(k){ if(d[k]) Object.assign(CASH_ACCOUNTS[k],d[k]); }); } }catch(e){}
-}
+function loadCashAccounts(){}
 
 // IDX SECTORS (11 sektor resmi IDX) — key Indonesia DAN alias Inggris
 // (nama resmi IDX/GICS yang dipakai data hasil import Excel Admin Panel)
