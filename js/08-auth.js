@@ -130,18 +130,12 @@ function authDoGuestLogin(){
     user_metadata: { display_name: 'Tamu (Demo)' },
     isGuest: true
   };
-  var loaded = false;
   if(typeof loadDataFromLocalStorage === 'function'){
-    loaded = loadDataFromLocalStorage();
-  }
-  if(!loaded || !transactions || transactions.length === 0){
-    if(typeof loadSample === 'function' && typeof XLSX_DATA !== 'undefined' && XLSX_DATA.stocks && XLSX_DATA.stocks.length > 0){
-      loadSample();
-      if(typeof saveData === 'function') saveData();
-    }
+    loadDataFromLocalStorage();
   }
   authShowApp('Mode Tamu');
 }
+
 
 
 // ── Daftar akun baru via Supabase ──

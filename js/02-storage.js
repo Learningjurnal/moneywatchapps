@@ -241,7 +241,7 @@ async function supaLoadAllData(){
       var s=sRes.data;
       var backupBundle = (s.cash_accounts && s.cash_accounts._cloud_sync_backup) || {};
       
-      activeSekuritas=s.active_sekuritas||'Mirae Asset';
+      activeSekuritas=s.active_sekuritas||'Stockbit';
       rdnBalance=s.rdn_balance||0;
       if(s.cash_accounts) {
         var cleanCash = Object.assign({}, s.cash_accounts);
@@ -363,8 +363,19 @@ async function supaLoadAllData(){
 
 function loadDataFromLocalStorage(){
   try{
-    var raw=localStorage.getItem('ihsg_pro_master_v5');if(!raw)return false;var d=JSON.parse(raw);if(!d||!d.transactions)return false;
-    transactions=d.transactions||[];dividends=d.dividends||[];rdnMutations=d.rdnMutations||[];activeSekuritas=d.activeSekuritas||'Mirae Asset';rdnBalance=d.rdnBalance||0;
+    var raw=localStorage.getItem(LS_KEY);
+    if(!raw){
+      loadSample();
+      saveData();
+      return true;
+    }
+    var d=JSON.parse(raw);
+    if(!d){
+      loadSample();
+      saveData();
+      return true;
+    }
+    transactions=d.transactions||[];dividends=d.dividends||[];rdnMutations=d.rdnMutations||[];activeSekuritas=d.activeSekuritas||'Stockbit';rdnBalance=d.rdnBalance||0;
     cryptoTx=d.cryptoTx||[];etfTx=d.etfTx||[];rdTx=(d.rdTx||[]).filter(function(tx){return tx._userInput===true;});
     tradeStrategy=d.tradeStrategy||{};sekTaxOverride=d.sekTaxOverride||{};
     if(d.wealth && typeof WEALTH!=='undefined'){
@@ -378,13 +389,18 @@ function loadDataFromLocalStorage(){
     nextEtfId=Math.max(d.nextEtfId||0, _maxIdPlus1(etfTx));
     nextRdId=Math.max(d.nextRdId||0, _maxIdPlus1(rdTx));
     return true;
-  }catch(e){return false;}
+  }catch(e){
+    loadSample();
+    saveData();
+    return true;
+  }
 }
 
 // ============================================================
 // LOCALSTORAGE — PERSISTENSI DATA
 // ============================================================
-var LS_KEY = 'ihsg_pro_master_v5'; // bump: start fresh, manual entry only
+var LS_KEY = 'ihsg_pro_v7_clean';
+
 var LS_PENDING_KEY = 'ihsg_sync_pending';
 
 var tradeStrategy = {};
@@ -507,8 +523,8 @@ function safeCloudBoot(){
 function loadData(){ return loadDataFromLocalStorage(); }
 
 function clearData(){
-  if(!confirm('\u26a0\ufe0f Hapus SEMUA data transaksi tersimpan (termasuk di cloud) dan mulai dari awal?\n\nTindakan ini tidak bisa dibatalkan!')) return;
-  if(_currentUser){
+  if(!confirm('\u26a0\ufe0f Hapus SEMUA data transaksi tersimpan dan kosongkan portofolio?\n\nTindakan ini akan mengosongkan seluruh data transaksi agar siap di-upload ulang.')) return;
+  if(_currentUser && !_currentUser.isGuest){
     var uid=_currentUser.id;
     var tables=['transactions','dividends','rdn_mutations','crypto_tx','etf_tx','rd_tx','user_settings','div_invest'];
     if(typeof showSaveStatus==='function') showSaveStatus('\u23f3 Menghapus semua data di cloud...', 'var(--amber)', true);
@@ -523,10 +539,11 @@ function clearData(){
           WEALTH.income=0; WEALTH.expense=0; WEALTH.deposito=0; WEALTH.emas=0; WEALTH.obligasi=0;
           WEALTH.bank=[]; WEALTH.debt=[]; WEALTH.piutang=[];
         }
-        localStorage.removeItem('ihsg_pro_master_v5');
-        localStorage.removeItem('mw_wealth_v1');
-        localStorage.removeItem('ihsg_cash_v1');
-        localStorage.removeItem(LS_PENDING_KEY);
+        [
+          'ihsg_pro_master_v5', 'ihsg_pro_stockb_v6', 'ihsg_pro_v7_clean', 'mw_wealth_v1',
+          'ihsg_cash_v1', 'porto_imported_v1', 'ihsg_divinvest_v1', 'hw_history', 'hw_state',
+          'ihsg_sync_pending'
+        ].forEach(function(k){ localStorage.removeItem(k); });
         location.reload();
       })
       .catch(function(err){
@@ -538,13 +555,15 @@ function clearData(){
       WEALTH.income=0; WEALTH.expense=0; WEALTH.deposito=0; WEALTH.emas=0; WEALTH.obligasi=0;
       WEALTH.bank=[]; WEALTH.debt=[]; WEALTH.piutang=[];
     }
-    localStorage.removeItem('ihsg_pro_master_v5');
-    localStorage.removeItem('mw_wealth_v1');
-    localStorage.removeItem('ihsg_cash_v1');
-    localStorage.removeItem(LS_PENDING_KEY);
+    [
+      'ihsg_pro_master_v5', 'ihsg_pro_stockb_v6', 'ihsg_pro_v7_clean', 'mw_wealth_v1',
+      'ihsg_cash_v1', 'porto_imported_v1', 'ihsg_divinvest_v1', 'hw_history', 'hw_state',
+      'ihsg_sync_pending'
+    ].forEach(function(k){ localStorage.removeItem(k); });
     location.reload();
   }
 }
+
 
 
 // ── EXPORT: download file JSON berisi semua data ──
@@ -613,7 +632,7 @@ function importData(){
         transactions    = d.transactions    || [];
         dividends       = d.dividends       || [];
         rdnMutations    = d.rdnMutations    || [];
-        activeSekuritas = d.activeSekuritas || 'Mirae Asset';
+        activeSekuritas = d.activeSekuritas || 'Stockbit';
         rdnBalance      = d.rdnBalance      || 0;
         nextTxId        = Math.max(d.nextTxId||0, _maxIdPlus1(transactions));
         nextDivId       = Math.max(d.nextDivId||0, _maxIdPlus1(dividends));
@@ -884,35 +903,28 @@ function el(id){return document.getElementById(id)}
 function dAgo(n){var d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0]}
 
 // ============================================================
-// METADATA PASAR — data pribadi DIHAPUS (aman untuk publikasi)
-// Hanya kode saham, sektor, dan harga acuan pasar yang disimpan.
-// Portofolio Anda berasal dari input manual (localStorage/Supabase).
+// METADATA PASAR & ACUAN DATA
 // ============================================================
 var XLSX_DATA = {
-  total_equity: 0, nett_value: 0, change_rp: 0, change_pct: 0,
-  cash: 0, equity_val: 0, crypto_etf: 0, fund_alloc: 0, p2p: 0,
-  cap_gain_2026: 0, dividend_2026: 0,
+  total_equity: 0,
+  margin_total: 0,
+  nett_value: 0,
+  change_rp: 0,
+  change_pct: 0,
+  cash: 0,
+  equity_val: 0,
+  crypto_etf: 0,
+  fund_alloc: 0,
+  p2p: 0,
+  cap_gain_2026: 0,
+  realized_gain_b: 0,
+  dividend_2026: 0,
   kurs_usd: 17823.65,
-  core_long: 0, swing_trade: 0, fast_trade: 0,
+  core_long: 0,
+  swing_trade: 0,
+  fast_trade: 0,
   sectoral:{},
-  stocks:[
-    {code:'BBCA',sector:'Financials',price:6500},
-    {code:'BBRI',sector:'Financials',price:3020},
-    {code:'BMRI',sector:'Financials',price:4420},
-    {code:'BBNI',sector:'Financials',price:3700},
-    {code:'TLKM',sector:'Infrastructures',price:2700},
-    {code:'ASII',sector:'Consumer Cyclicals',price:5150},
-    {code:'UNVR',sector:'Consumer Non-Cyclicals',price:1710},
-    {code:'ANTM',sector:'Basic Materials',price:3120},
-    {code:'ADRO',sector:'Energy',price:2300},
-    {code:'PTBA',sector:'Energy',price:3100},
-    {code:'INDF',sector:'Consumer Non-Cyclicals',price:6900},
-    {code:'ICBP',sector:'Consumer Non-Cyclicals',price:11500},
-    {code:'KLBF',sector:'Healthcare',price:1500},
-    {code:'SMGR',sector:'Basic Materials',price:3800},
-    {code:'PGAS',sector:'Energy',price:1600},
-    {code:'JSMR',sector:'Infrastructures',price:4500},
-  ],
+  stocks:[],
   crypto:[
     {code:'BTC', name:'Bitcoin',  price_idr:1306967438},
     {code:'ETH', name:'Ethereum', price_idr:60000000},
@@ -925,4 +937,5 @@ var XLSX_DATA = {
   dividends:[],
   dividend_total: 0,
 };
+
 

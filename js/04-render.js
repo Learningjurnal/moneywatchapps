@@ -338,6 +338,9 @@ function renderDashboard(){
     parts.push('Kurs USD/IDR: Rp '+Math.round(usdIdr).toLocaleString('id-ID'));
     subEl.textContent = parts.join(' · ');
   }
+
+  // ── Money Watch Pro V6 Executive Command Center ──
+  if(typeof renderExecutiveCommandCenter==='function') renderExecutiveCommandCenter();
 }
 
 function renderRdn(){
@@ -424,16 +427,17 @@ function renderRdn(){
     var canDel = (r.type==='SETOR'||r.type==='TARIK'||r.type==='FEE'||
       ['DATA_FEE','MATERAI','MIGRASI','ADMIN','TRANSFER','PENALTY','LAINNYA'].indexOf(r.type)>=0);
     var delBtn = canDel
-      ? '<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delRdnManual('+r.id+')" title="Hapus mutasi ini" aria-label="Hapus mutasi RDN '+r.date+'">✕</button>'
-      : '<span class="badge b-gray" style="font-size:9px;cursor:default" title="Hapus via tab '+r.type+'">auto</span>';
+      ? '<button class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 5px" onclick="delRdnManual('+r.id+')" title="Hapus mutasi ini" aria-label="Hapus mutasi RDN '+r.date+'">✕</button>'
+      : '<span class="badge b-gray" style="font-size:9px;cursor:default" title="Dikelola dari transaksi saham/dividen">auto</span>';
+    var auditBtn = '<button class="btn btn-ghost btn-xs" style="color:var(--accent);padding:2px 5px;margin-right:4px" onclick="if(typeof openAuditDetailModal===\'function\')openAuditDetailModal('+r.id+')" title="Buka Slip Audit Rincian">🔍</button>';
     return '<tr>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+r.date+'</td>'
       +'<td><span class="badge '+(typeColors[r.type]||'b-gray')+'">'+(typeLabels[r.type]||r.type)+'</span></td>'
-      +'<td style="max-width:200px;color:var(--text2);font-size:11px">'+escHtml(r.ket)+'</td>'
+      +'<td style="max-width:240px;color:var(--text2);font-size:11px">'+escHtml(r.ket)+'</td>'
       +'<td class="mono up">'+(isin?'Rp '+fmtK(r.amount):'—')+'</td>'
       +'<td class="mono dn">'+(!isin?'Rp '+fmtK(Math.abs(r.amount)):'—')+'</td>'
       +'<td class="mono" style="font-weight:600">Rp '+fmtK(r.balance)+'</td>'
-      +'<td>'+delBtn+'</td>'
+      +'<td style="white-space:nowrap">'+auditBtn+delBtn+'</td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Belum ada mutasi</td></tr>';
 
@@ -560,7 +564,7 @@ function renderPortofolio(){
     var alloc=p.alloc, sig=p.sig;
     var sigCls=sig==='BUY'?'sig-buy':sig==='SELL'?'sig-sell':'sig-hold';
     var secColor=sectorColor(p.info.sector);
-    return '<tr><td><span class="tp" style="border-color:'+COLORS[i%12]+'">'+p.ticker+'</span></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td><td class="mono">'+p.lot+'</td><td class="mono">'+p.shares+'</td><td class="mono">Rp '+fmt(p.avg)+'</td><td class="mono" style="color:var(--accent)">Rp '+fmt(p.mp)+'</td><td class="mono">Rp '+fmtK(p.mv)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td><td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+alloc.toFixed(1)+'%;background:'+COLORS[i%12]+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
+    return '<tr><td><div style="display:inline-flex;align-items:center;gap:4px"><span class="tp" style="border-color:'+COLORS[i%12]+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)"><i class="ti ti-bell"></i></button></div></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td><td class="mono">'+p.lot+'</td><td class="mono">'+p.shares+'</td><td class="mono">Rp '+fmt(p.avg)+'</td><td class="mono" style="color:var(--accent)">Rp '+fmt(p.mp)+'</td><td class="mono">Rp '+fmtK(p.mv)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td><td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+alloc.toFixed(1)+'%;background:'+COLORS[i%12]+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
   }).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:16px;font-family:var(--font-mono)">'+(porto.length?'Tidak ada saham yang cocok dengan filter':'Belum ada posisi aktif')+'</td></tr>';
 }
 
@@ -1160,15 +1164,13 @@ function taxPreviewLive(){
   if(el('tax-ppn-disp'))  el('tax-ppn-disp').textContent=(ppn*100).toFixed(0)+'%';
   if(el('tax-levy-disp')) el('tax-levy-disp').textContent=(levy*100).toFixed(3)+'%';
   if(el('tax-jual-disp')) el('tax-jual-disp').textContent=(j*100).toFixed(2)+'%';
-  // Preview: 10 lot @ Rp 5.000, Stockbit komisi 0.15%/0.25%
+  // Preview: 10 lot @ Rp 5.000, Stockbit fee (0.28% Beli & 0.18% Jual)
   var gross=10*100*5000;
-  var komB=gross*0.0015, komJ=gross*0.0025;
-  var ppnB=komB*ppn, ppnJ=komJ*ppn;
-  var levyB=gross*levy, levyJ=gross*levy;
-  var pphJ=gross*j;
-  if(el('tax-prev-beli')) el('tax-prev-beli').textContent='Rp '+fmt(komB+ppnB+levyB);
-  if(el('tax-prev-jual')) el('tax-prev-jual').textContent='Rp '+fmt(komJ+ppnJ+levyJ+pphJ);
-  if(el('tax-prev-diff')) el('tax-prev-diff').textContent='Rp '+fmt(komB+ppnB+levyB+komJ+ppnJ+levyJ+pphJ);
+  var cB = calcTxComponents(gross, true, 'Stockbit');
+  var cJ = calcTxComponents(gross, false, 'Stockbit');
+  if(el('tax-prev-beli')) el('tax-prev-beli').textContent='Rp '+fmt(cB.totalFee);
+  if(el('tax-prev-jual')) el('tax-prev-jual').textContent='Rp '+fmt(cJ.totalFee);
+  if(el('tax-prev-diff')) el('tax-prev-diff').textContent='Rp '+fmt(cB.totalFee + cJ.totalFee);
   simCalcTax();
 }
 

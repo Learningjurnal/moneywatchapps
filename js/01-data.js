@@ -4,12 +4,12 @@
 // Komisi broker (murni, sebelum PPN & Levy)
 // Sumber: halaman resmi masing-masing sekuritas
 var SEKURITAS = {
+  'Stockbit':         {buyFee:0.0028, sellFee:0.0018, color:'#ff6b6b'},  // Total Tax/Fee: 0.28% Beli & 0.18% Jual
   'Mirae Asset':      {buyFee:0.0015, sellFee:0.0025, color:'#00c8ff'},
   'BCA Sekuritas':    {buyFee:0.0018, sellFee:0.0028, color:'#4da6ff'},
   'Mandiri Sekuritas':{buyFee:0.0017, sellFee:0.0027, color:'#ffc107'},
   'BRI Danareksa':    {buyFee:0.0015, sellFee:0.0025, color:'#41f3a7'},
   'Phillip Sekuritas':{buyFee:0.0013, sellFee:0.0023, color:'#8070d2'},
-  'Stockbit':         {buyFee:0.0015, sellFee:0.0025, color:'#ff6b6b'},  // resmi: 0.15%/0.25%
   'Indo Premier':     {buyFee:0.0019, sellFee:0.0029, color:'#2dd4bf'},
   'CGS-CIMB':         {buyFee:0.0018, sellFee:0.0028, color:'#fb923c'},
   'RHB Sekuritas':    {buyFee:0.0016, sellFee:0.0026, color:'#c084fc'},
@@ -97,11 +97,25 @@ function getPphBeli()   { return 0; }
 
 // Hitung semua komponen biaya transaksi — sumber tunggal kebenaran
 function calcTxComponents(gross, isBuy, sekuritas){
-  var sec    = SEKURITAS[sekuritas] || SEKURITAS['Mirae Asset'];
+  var secName = sekuritas || (typeof activeSekuritas !== 'undefined' ? activeSekuritas : 'Stockbit');
+  var sec    = SEKURITAS[secName] || SEKURITAS['Stockbit'] || {buyFee:0.0028, sellFee:0.0018, color:'#ff6b6b'};
   // Gunakan override komisi jika ada (dari panel sekuritas)
-  var ovr    = (typeof sekTaxOverride!=='undefined') ? (sekTaxOverride[sekuritas]||{}) : {};
+  var ovr    = (typeof sekTaxOverride!=='undefined') ? (sekTaxOverride[secName]||{}) : {};
   var buyFee = ovr.beli!=null ? ovr.beli : sec.buyFee;
   var selFee = ovr.jual!=null ? ovr.jual : sec.sellFee;
+
+  // Untuk Stockbit: total tax/fee adalah flat 0.28% Beli & 0.18% Jual (all-in)
+  if(secName === 'Stockbit'){
+    var totalFee = gross * (isBuy ? buyFee : selFee);
+    var pph      = isBuy ? 0 : gross * (TAX_SETTINGS.pphJual || 0.001);
+    var levy     = gross * (TAX_SETTINGS.levy || 0.00043);
+    var ppn      = isBuy ? (totalFee - levy) * ((TAX_SETTINGS.ppn || 0.12) / (1 + (TAX_SETTINGS.ppn || 0.12))) : (totalFee > pph + levy ? (totalFee - pph - levy) * ((TAX_SETTINGS.ppn || 0.12) / (1 + (TAX_SETTINGS.ppn || 0.12))) : 0);
+    var komisi   = Math.max(0, totalFee - ppn - levy - pph);
+    var net      = isBuy ? gross + totalFee : gross - totalFee;
+    return { gross:gross, komisi:komisi, ppn:ppn, levy:levy, pph:pph, totalFee:totalFee, net:net,
+             komisiRate: isBuy ? buyFee : selFee };
+  }
+
   var komisi = gross * (isBuy ? buyFee : selFee);
   var ppn    = komisi * TAX_SETTINGS.ppn;           // 12% dari komisi
   var levy   = gross  * TAX_SETTINGS.levy;          // 0.043% dari gross
@@ -1208,7 +1222,7 @@ function ihsgHistPush(v){
 var nextTxId = 1;
 var nextDivId = 1;
 var nextRdnId = 1;
-var activeSekuritas = 'Mirae Asset';
+var activeSekuritas = 'Stockbit';
 var rdnBalance = 0;
 var charts = {};
 

@@ -45,7 +45,7 @@ function openModal(type){
     var isBuy=type==='buy';
     el('m-title').textContent=isBuy?'Input Pembelian Saham':'Input Penjualan Saham';
     el('m-title').style.color=isBuy?'var(--green)':'var(--red)';
-    var sf=SEKURITAS[activeSekuritas]||SEKURITAS['Mirae Asset'];
+    var sf=SEKURITAS[activeSekuritas]||SEKURITAS['Stockbit'];
     el('m-body').innerHTML=
       '<div class="fgrid">'
       +'<div class="fg ffull"><label class="flabel">Tanggal</label><input class="finput" type="date" id="mf-date" value="'+today()+'"></div>'
@@ -1005,7 +1005,7 @@ function prefillShares(){
 
 function txCalcLive(){
   var secName = el('mf-sec')&&el('mf-sec').value||activeSekuritas;
-  var sec     = SEKURITAS[secName]||SEKURITAS['Mirae Asset'];
+  var sec     = SEKURITAS[secName]||SEKURITAS['Stockbit'];
   var isBuy   = modalType==='buy';
   var lot     = parseFloat(el('mf-lot')&&el('mf-lot').value||0);
   var price   = parsePrice(el('mf-price')&&el('mf-price').value||'0');
@@ -1252,7 +1252,7 @@ function efCalcLive(){
   var price = parsePrice(el('ef-price')&&el('ef-price').value||'0');
   var secNm = el('ef-sec')&&el('ef-sec').value||activeSekuritas;
   var type  = el('ef-type')&&el('ef-type').value||'BUY';
-  var sec   = SEKURITAS[secNm]||SEKURITAS['Mirae Asset'];
+  var sec   = SEKURITAS[secNm]||SEKURITAS['Stockbit'];
   var isBuy = type==='BUY';
   var gross = lot*100*price;
   var c     = calcTxComponents(gross, isBuy, secNm);

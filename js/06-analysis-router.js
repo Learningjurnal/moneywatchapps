@@ -928,9 +928,20 @@ function toggleSidebar(force){
 function renderPage(name){
   switch(name){
     case 'dashboard':renderDashboard();break;
+    case 'daily-brief':if(typeof renderDailyBriefPage==='function')renderDailyBriefPage();else if(typeof renderDailyBrief==='function')renderDailyBrief();break;
+    case 'stock-intel':if(typeof renderStockIntelCockpit==='function')renderStockIntelCockpit();break;
+    case 'market-regime':if(typeof renderMarketRegimePage==='function')renderMarketRegimePage();break;
+    case 'radar':if(typeof renderOpportunityRadarPage==='function')renderOpportunityRadarPage();break;
+    case 'scenario':if(typeof renderScenarioPage==='function')renderScenarioPage();else if(typeof renderScenarioEnginePage==='function')renderScenarioEnginePage();break;
+    case 'rebalance':if(typeof renderRebalancingPage==='function')renderRebalancingPage();break;
+    case 'thesis':if(typeof renderThesisPage==='function')renderThesisPage();else if(typeof renderThesisTrackerPage==='function')renderThesisTrackerPage();break;
+    case 'journal':if(typeof renderJournalPage==='function')renderJournalPage();else if(typeof renderDecisionJournalPage==='function')renderDecisionJournalPage();break;
+    case 'copilot':if(typeof renderCopilotPage==='function')renderCopilotPage();break;
+    case 'dataconn':if(typeof renderDataConnPage==='function')renderDataConnPage();else if(typeof renderDataConnectionPage==='function')renderDataConnectionPage();break;
     case 'performance':renderPerformance();break;
     case 'datahealth':renderDataHealth();break;
     case 'rdn':renderRdn();break;
+    case 'rdn-audit':if(typeof renderRdnAudit==='function')renderRdnAudit();break;
     case 'transaksi':renderTransaksi();break;
     case 'portofolio':renderPortofolio();break;
     case 'crypto':renderCrypto();break;
@@ -1022,11 +1033,9 @@ document.addEventListener('DOMContentLoaded',function(){
   var sectorMap={'Financials':'Keuangan','Energy':'Energi','Infrastructures':'Infrastruktur',
     'Consumer Non-Cyclicals':'Konsumer Primer','Basic Materials':'Barang Baku',
     'Consumer Cyclicals':'Konsumer Non-Primer','Healthcare':'Kesehatan',
-    'Transportation & Logistic':'Infrastruktur','Properties':'Properti'};
-  XLSX_DATA.stocks.forEach(function(s){
-    if(!DB[s.code]){
-      DB[s.code]={name:s.code,base:s.price||s.avg||100,sector:sectorMap[s.sector]||s.sector||'Lainnya',beta:1.0};
-    }
+    'Transportation & Logistic':'Infrastruktur','Properties & Real Estate':'Properti','Properties':'Properti','Lainnya':'Lainnya'};
+  (XLSX_DATA.stocks||[]).forEach(function(s){
+    DB[s.code]={name:s.code,base:s.price||s.avg||100,sector:sectorMap[s.sector]||s.sector||'Lainnya',beta:1.0};
     if(s.price>0) prices[s.code]=s.price;
   });
   // RD metadata (nama produk, kategori) — tanpa transaksi aktif

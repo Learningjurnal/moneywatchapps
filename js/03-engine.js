@@ -1,37 +1,30 @@
 // ============================================================
-// LOAD DATA REAL KE STATE
+// STATE INITIALIZATION & CLEAN RESET
 // ============================================================
 function loadSample(){
-  // RDN
-  addRdn('2026-01-01','SETOR','Modal investasi awal 2026', XLSX_DATA.total_equity,'Mirae Asset');
-  addRdn('2026-05-31','TARIK','Mark-to-market unrealized loss', XLSX_DATA.change_rp,'Mirae Asset');
-  addRdn('2026-05-31','SETOR','Penerimaan dividen 2026',XLSX_DATA.dividend_2026,'Mirae Asset');
+  // Reset state murni — kosong tanpa data transaksi/portofolio palsu/bawaan
+  transactions = [];
+  rdnMutations = [];
+  dividends = [];
+  nextTxId = 1;
+  nextRdnId = 1;
+  nextDivId = 1;
+  activeSekuritas = 'Stockbit';
+  rdnBalance = 0;
 
-  // Extend DB dengan semua saham real
-  var sectorMap = {
-    'Financials':'Keuangan','Energy':'Energi','Infrastructures':'Infrastruktur',
-    'Consumer Non-Cyclicals':'Konsumer Primer','Basic Materials':'Barang Baku',
-    'Consumer Cyclicals':'Konsumer Non-Primer','Healthcare':'Kesehatan',
-    'Transportation & Logistic':'Infrastruktur','Properties':'Properti',
-  };
-  XLSX_DATA.stocks.forEach(function(s){
-    DB[s.code] = {name:s.code, base:s.price||s.avg||100, sector:sectorMap[s.sector]||s.sector||'Lainnya', beta:1.0};
-    prices[s.code] = s.price||s.avg||100;
-  });
+  if (typeof rebuildRdnBalance === 'function') {
+    rebuildRdnBalance();
+  }
 
-  // Transactions (satu BUY per posisi, dengan harga avg real)
-  XLSX_DATA.stocks.forEach(function(s, i){
-    addTx(dAgo(300-i*5),'BUY',s.code,s.lot||1,s.avg||100,'Mirae Asset');
-  });
-
-  // Dividends real
-  XLSX_DATA.dividends.slice(0,10).forEach(function(d, i){
-    var stk = XLSX_DATA.stocks.find(function(s){return s.code===d.code});
-    if(stk && stk.shares>0 && d.avg_per_year>0){
-      addDiv(dAgo(150-i*14), d.code, stk.shares, Math.round(d.avg_per_year/stk.shares)||10);
-    }
-  });
+  if (typeof setCash === 'function') {
+    setCash('saham', 0);
+  }
+  
+  if (typeof _invalidatePortoCache === 'function') {
+    _invalidatePortoCache();
+  }
 }
+
 
 
 // ── Deteksi sekuritas aktif dari transaksi portofolio ──
@@ -127,26 +120,32 @@ function addDiv(date,ticker,shares,dps,pphRate){
 var _portoCache=null, _portoCacheKey='';
 function _invalidatePortoCache(){ _portoCache=null; _portoCacheKey=''; }
 function getPortfolio(){
-  // FIX: cache key lama cuma menghitung JUMLAH key di prices{} — begitu key
-  // sebuah ticker sudah ada (mis. dari updatePrices() simulasi), UPDATE NILAI
-  // ke harga riil (dari fhFetchStocks/rdFetchLivePrice/dst) tidak mengubah
-  // jumlah key, jadi cache lama tetap dipakai dan Nilai Pasar macet di angka
-  // lama (termasuk macet di 0). Sekarang sertakan nilai harga tiap ticker yang
-  // benar-benar dipegang (bukan seluruh 900+ isi DB) sebagai sidik jari cache.
   var heldTickers={};
   transactions.forEach(function(tx){ heldTickers[tx.ticker]=1; });
   var priceSig=Object.keys(heldTickers).sort().map(function(t){ return t+':'+(prices[t]||0); }).join(',');
   var cacheKey=transactions.length+'|'+priceSig;
   if(_portoCache && _portoCacheKey===cacheKey) return _portoCache;
   var pos={};
-  transactions.slice().sort(function(a,b){return a.date.localeCompare(b.date)}).forEach(function(tx){
-    if(!pos[tx.ticker])pos[tx.ticker]={ticker:tx.ticker,lot:0,cost:0,shares:0};
+  transactions.slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
+  }).forEach(function(tx){
+    if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,buyNet:0,sellNet:0};
     var p=pos[tx.ticker];
-    if(tx.type==='BUY'){p.lot+=tx.lot;p.shares+=tx.lot*100;p.cost+=tx.gross;}
-    else if(tx.type==='SELL'){
-      var avg=p.shares>0?p.cost/p.shares:0;
-      var sold=tx.lot*100;
-      p.lot-=tx.lot;p.shares-=sold;p.cost=Math.max(0,p.cost-avg*sold);
+    var isBuy = tx.type==='BUY';
+    var netVal = tx.net || tx.gross || (tx.lot * 100 * tx.price);
+    if(isBuy){
+      p.lot += tx.lot;
+      p.shares += tx.lot * 100;
+      p.cost += (tx.gross || netVal);
+      p.buyNet += netVal;
+    } else {
+      p.lot = Math.max(0, p.lot - tx.lot);
+      var sold = tx.lot * 100;
+      p.shares = Math.max(0, p.shares - sold);
+      p.cost = Math.max(0, p.cost - (tx.gross || netVal));
+      p.sellNet += netVal;
+      if(p.shares <= 0) p.cost = 0;
     }
   });
   var result=Object.values(pos).filter(function(p){return p.lot>0}).map(function(p){
@@ -190,17 +189,8 @@ function equitySnapshotToday(){
 }
 
 function getRealizedPnl(){
-  var pos={};var real=0;
-  transactions.slice().sort(function(a,b){return a.date.localeCompare(b.date)}).forEach(function(tx){
-    if(!pos[tx.ticker])pos[tx.ticker]={lot:0,cost:0};
-    var p=pos[tx.ticker];
-    if(tx.type==='BUY'){p.lot+=tx.lot;p.cost+=tx.gross;}
-    else if(tx.type==='SELL'&&p.lot>0){
-      var avg=p.cost/(p.lot*100);var sold=tx.lot*100;
-      real+=(tx.gross-avg*sold);p.lot-=tx.lot;p.cost=Math.max(0,p.cost-avg*sold);
-    }
-  });
-  return real;
+  var perf = getStockPerformanceByTicker();
+  return perf.reduce(function(a, r){ return a + (r.realized || 0); }, 0);
 }
 
 // ── Kalkulasi Metrik Kronologis Transaksi (P&L & Modal Rata-rata per Transaksi) ──
@@ -212,16 +202,19 @@ function calcChronologicalTxMetrics(){
   var pos = {}; // ticker -> { lot, shares, grossCost, netCost }
   var metrics = {}; // txId -> { avgGrossBuy, avgNetBuy, pnlGross, pnlNet, pnlPct, pnlNetPct, remainingLot }
   sorted.forEach(function(tx){
-    if(!pos[tx.ticker]) pos[tx.ticker] = { lot:0, shares:0, grossCost:0, netCost:0 };
+    if(!pos[tx.ticker]) pos[tx.ticker] = { lot:0, shares:0, grossCost:0, netCost:0, buyNet:0, sellNet:0 };
     var p = pos[tx.ticker];
     var isBuy = tx.type === 'BUY';
+    var txGross = tx.gross || (tx.lot * 100 * tx.price);
+    var txNet = tx.net || txGross;
     if(isBuy){
       p.lot += tx.lot;
       p.shares += tx.lot * 100;
-      p.grossCost += (tx.gross || (tx.lot * 100 * tx.price));
-      p.netCost += (tx.net || tx.gross);
+      p.grossCost += txGross;
+      p.netCost += txNet;
+      p.buyNet += txNet;
       var avgGross = p.shares > 0 ? p.grossCost / p.shares : tx.price;
-      var avgNet = p.shares > 0 ? p.netCost / p.shares : (tx.net / (tx.lot * 100));
+      var avgNet = p.shares > 0 ? p.netCost / p.shares : (txNet / (tx.lot * 100));
       metrics[tx.id] = {
         avgGrossBuy: avgGross,
         avgNetBuy: avgNet,
@@ -235,11 +228,9 @@ function calcChronologicalTxMetrics(){
       // SELL
       var soldShares = tx.lot * 100;
       var avgGross = p.shares > 0 ? p.grossCost / p.shares : tx.price;
-      var avgNet = p.shares > 0 ? p.netCost / p.shares : (tx.net / soldShares);
+      var avgNet = p.shares > 0 ? p.netCost / p.shares : (txNet / soldShares);
       var grossCostBasis = avgGross * soldShares;
       var netCostBasis = avgNet * soldShares;
-      var txGross = tx.gross || (tx.lot * 100 * tx.price);
-      var txNet = tx.net || txGross;
       var pnlGross = txGross - grossCostBasis;
       var pnlNet = txNet - netCostBasis;
       var pnlPct = grossCostBasis > 0 ? (pnlGross / grossCostBasis) * 100 : 0;
@@ -247,8 +238,9 @@ function calcChronologicalTxMetrics(){
 
       p.lot = Math.max(0, p.lot - tx.lot);
       p.shares = Math.max(0, p.shares - soldShares);
-      p.grossCost = Math.max(0, p.grossCost - grossCostBasis);
-      p.netCost = Math.max(0, p.netCost - netCostBasis);
+      p.grossCost = Math.max(0, p.grossCost - txGross);
+      p.netCost = Math.max(0, p.netCost - txNet);
+      p.sellNet += txNet;
 
       metrics[tx.id] = {
         avgGrossBuy: avgGross,
@@ -266,37 +258,45 @@ function calcChronologicalTxMetrics(){
   return metrics;
 }
 
-// ── Performa per Saham — realized (posisi ditutup/sebagian) + unrealized
-// (posisi masih terbuka) per ticker, metodologi average-cost yang SAMA
-// dengan getPortfolio()/getRealizedPnl() (satu sumber kebenaran, bukan
-// rumus baru). Beda dari getPortfolio(): saham yang SUDAH TERTUTUP PENUH
-// (lot=0) tetap muncul di sini dengan realized P&L-nya, bukan hilang dari
-// tampilan begitu saja seperti di tabel Portofolio (yang cuma tampilkan
-// posisi aktif).
+// ── Performa per Saham (Stock B Model) — realized (posisi ditutup/sebagian) + unrealized
 function getStockPerformanceByTicker(){
   var pos={};
-  transactions.slice().sort(function(a,b){return a.date.localeCompare(b.date)}).forEach(function(tx){
-    if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,realized:0,firstDate:tx.date,lastDate:tx.date,txCount:0};
+  transactions.slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
+  }).forEach(function(tx){
+    if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,buyNet:0,sellNet:0,firstDate:tx.date,lastDate:tx.date,txCount:0};
     var p=pos[tx.ticker];
     p.txCount++; p.lastDate=tx.date;
+    var netVal = tx.net || tx.gross || (tx.lot * 100 * tx.price);
     if(tx.type==='BUY'){
-      p.lot+=tx.lot; p.shares+=tx.lot*100; p.cost+=tx.gross;
-    } else if(tx.type==='SELL' && p.lot>0){
-      var avg=p.cost/(p.lot*100), sold=tx.lot*100;
-      p.realized+=(tx.gross-avg*sold);
-      p.lot-=tx.lot; p.shares-=sold; p.cost=Math.max(0,p.cost-avg*sold);
+      p.lot += tx.lot;
+      p.shares += tx.lot * 100;
+      p.cost += (tx.gross || netVal);
+      p.buyNet += netVal;
+    } else if(tx.type==='SELL'){
+      p.lot = Math.max(0, p.lot - tx.lot);
+      var sold = tx.lot * 100;
+      p.shares = Math.max(0, p.shares - sold);
+      p.cost = Math.max(0, p.cost - (tx.gross || netVal));
+      p.sellNet += netVal;
+      if(p.shares <= 0) p.cost = 0;
     }
   });
   var portoByTicker={};
   getPortfolio().forEach(function(p){ portoByTicker[p.ticker]=p; });
   return Object.keys(pos).map(function(t){
     var p=pos[t], live=portoByTicker[t];
+    var isClosed = p.lot <= 0;
     var mv = live ? live.mv : 0;
     var unreal = live ? live.unreal : 0;
+    var cost = live ? live.cost : 0;
+    var avg = live ? live.avg : 0;
+    var realized = isClosed ? (p.sellNet - p.buyNet) : (p.sellNet > p.buyNet ? p.sellNet - p.buyNet : 0);
     return {
-      ticker:t, lot:p.lot, shares:p.shares, cost:p.cost, avg: p.shares>0?p.cost/p.shares:0,
-      mv:mv, unreal:unreal, realized:p.realized, total:p.realized+unreal,
-      closed: p.lot<=0, firstDate:p.firstDate, lastDate:p.lastDate, txCount:p.txCount
+      ticker:t, lot:p.lot, shares:p.shares, cost:cost, avg:avg,
+      mv:mv, unreal:unreal, realized:realized, total:realized+unreal,
+      closed: isClosed, firstDate:p.firstDate, lastDate:p.lastDate, txCount:p.txCount
     };
   });
 }
@@ -522,10 +522,14 @@ function fhFetchStocks(){
   var codes = porto.length > 0
     ? porto.map(function(p){ return p.ticker; })
     : ['BBCA','BBRI','BMRI','TLKM','ASII','ANTM'];
-  // Sertakan ticker yang sedang dilihat di Candlestick/Flowscan + chip umum,
-  // supaya analisa tidak pakai DB[t].base yang bisa basi
+  // Sertakan ticker yang sedang dilihat di Candlestick/Flowscan + active price alerts,
+  // supaya analisa dan monitoring alert harga selalu update
   var extra = ['BBCA','BBRI','TLKM'];
   if(typeof CD_TICKER!=='undefined' && CD_TICKER) extra.unshift(CD_TICKER);
+  if(typeof mwGetPriceAlerts==='function'){
+    var activeAls = mwGetPriceAlerts().filter(function(a){ return a.status==='ACTIVE'; });
+    activeAls.forEach(function(a){ if(extra.indexOf(a.ticker)<0) extra.push(a.ticker); });
+  }
   extra.forEach(function(t){ if(codes.indexOf(t)<0) codes.push(t); });
   if(!codes.length) return;
   codes.forEach(function(code, i){
@@ -535,6 +539,7 @@ function fhFetchStocks(){
           prices[code] = meta.regularMarketPrice;
           if(meta.previousClose > 0) prevCloses[code] = meta.previousClose;
           if(typeof DB!=='undefined' && DB[code]) DB[code].base = meta.regularMarketPrice; // sinkronkan baseline analisa
+          if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
         }
       });
     }, i*1500);
@@ -631,11 +636,45 @@ function fhStart(){
   }, slow ? 15*60*1000 : 15000);
 }
 
-// ── Stop (fallback ke simulasi) ──
+var FH_PRICE_MODE_KEY = 'mw_price_mode_v1';
+var priceEngineMode = (function(){ try{ return localStorage.getItem(FH_PRICE_MODE_KEY)||'live'; }catch(e){ return 'live'; } })();
+
+function setPriceEngineMode(mode){
+  priceEngineMode = mode;
+  try{ localStorage.setItem(FH_PRICE_MODE_KEY, mode); }catch(e){}
+  if(mode === 'static'){
+    if(FH.timer){ clearInterval(FH.timer); FH.timer=null; }
+    if(FH._simTimer){ clearInterval(FH._simTimer); FH._simTimer=null; }
+    fhSetBadge('off', '🔒 Statis');
+    // Reset prices to base reference prices
+    (XLSX_DATA.stocks||[]).forEach(function(s){ if(s.price>0) prices[s.code] = s.price; });
+    _invalidatePortoCache();
+    updateTopbar();
+    renderPage(currentPage);
+    if(typeof showSaveStatus==='function') showSaveStatus('✓ Mode Harga: Kunci Statis (Tidak Berubah Otomatis)');
+  } else if(mode === 'sim'){
+    if(FH.timer){ clearInterval(FH.timer); FH.timer=null; }
+    fhStop();
+    if(typeof showSaveStatus==='function') showSaveStatus('✓ Mode Harga: Simulasi Fluktuasi Pasar');
+  } else {
+    // live
+    if(FH._simTimer){ clearInterval(FH._simTimer); FH._simTimer=null; }
+    fhStart();
+    if(typeof showSaveStatus==='function') showSaveStatus('✓ Mode Harga: Real-time Live (Yahoo Finance)');
+  }
+  if(el('m-title') && el('m-title').textContent.indexOf('Harga')>=0) openFinnhubSettings();
+}
+
+// ── Stop (fallback ke simulasi atau statis) ──
 function fhStop(){
   if(FH.timer){ clearInterval(FH.timer); FH.timer=null; }
+  if(priceEngineMode === 'static'){
+    if(FH._simTimer){ clearInterval(FH._simTimer); FH._simTimer=null; }
+    fhSetBadge('off','🔒 Statis');
+    return;
+  }
   fhSetBadge('off','Simulasi');
-  if(!FH._simTimer){
+  if(!FH._simTimer && priceEngineMode !== 'static'){
     FH._simTimer = setInterval(function(){
       updatePrices();
       renderPage(currentPage);
@@ -645,10 +684,11 @@ function fhStop(){
 
 // ── Simulasi (fallback) ──
 function updatePrices(){
+  if(priceEngineMode === 'static') return;
   Object.keys(DB).forEach(function(t){
     var realStock = XLSX_DATA.stocks.find(function(s){return s.code===t});
     if(realStock && realStock.price>0){
-      prices[t] = realStock.price * (1 + (Math.random()*0.004-0.002));
+      prices[t] = realStock.price;
     } else {
       prices[t] = Math.round(rnd(DB[t].base));
     }
@@ -658,6 +698,7 @@ function updatePrices(){
   ihsgHist.push(Math.round(ihsgCur*100)/100);
   if(ihsgHist.length>120) ihsgHist.shift();
   updateTopbar();
+  if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
   if(typeof currentPage!=='undefined' && (currentPage==='portfolio'||currentPage==='dashboard')){
     try{ renderPage(currentPage); }catch(e){}
   }
@@ -665,40 +706,31 @@ function updatePrices(){
 
 // ── Settings Modal ──
 function openFinnhubSettings(){
-  el('m-title').textContent = '📡 Yahoo Finance — Harga Realtime';
+  el('m-title').textContent = '📡 Pengaturan Mode & Fluktuasi Harga';
   el('m-title').style.color = 'var(--accent)';
-  var sc = FH.status==='live'?'var(--green)':FH.status==='error'?'var(--red)':'var(--text3)';
-  var st = FH.status==='live'?'● Live':FH.status==='error'?'● Error':FH.status==='loading'?'⏳ Menghubungkan...':'○ Simulasi';
+  var sc = priceEngineMode==='static'?'var(--text3)':FH.status==='live'?'var(--green)':FH.status==='error'?'var(--red)':'var(--text3)';
+  var st = priceEngineMode==='static'?'🔒 Kunci Statis (Harga Tetap)':FH.status==='live'?'● Live Yahoo Finance':FH.status==='error'?'● Error Reconnect':'○ Simulasi';
   el('m-body').innerHTML =
     '<div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.7">'+
-      'Data harga realtime diambil langsung dari <strong style="color:var(--accent)">Yahoo Finance</strong> — tidak perlu API key.<br>'+
-      'Request diteruskan via CORS proxy publik (allorigins → corsproxy.io → codetabs), otomatis pindah jika satu proxy gagal.'+
+      'Nilai pasar dan <em>Unrealized P&L</em> pada dashboard dapat bergerak otomatis jika mode <strong>Real-time Live</strong> atau <strong>Simulasi</strong> aktif mengikuti fluktuasi harga pasar bursa.'+
     '</div>'+
-    '<div style="background:rgba(0,200,255,.06);border:1px solid rgba(0,200,255,.15);border-radius:8px;padding:9px 12px;margin-bottom:11px;font-size:11px;color:var(--text2);line-height:1.65">'+
-      '<div style="font-weight:700;color:var(--accent);margin-bottom:3px">📊 Data realtime (mode saat ini: '+(FH.mode==='slow'?'Hemat 15 menit':'Real-time')+'):</div>'+
-      (FH.mode==='slow'
-        ? '• Semua harga (IHSG, saham, crypto, ETF, kurs) — tiap 15 menit bersamaan'
-        : '• IHSG — tiap 15 detik<br>• Saham IDX portofolio — tiap 2 menit<br>• USD/IDR — tiap 10 menit')+
-    '</div>'+
-    '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:11px">'+
-      '<div style="font-weight:700;color:var(--text2);margin-bottom:6px;font-size:11px">⏱ Kecepatan Refresh</div>'+
-      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:8px;line-height:1.5">Proxy CORS publik gratis bisa rate-limit kalau dipukul terus-menerus. Pilih "Hemat" kalau sering lihat status Error.</div>'+
-      '<div style="display:flex;gap:8px">'+
-        '<button class="btn '+(FH.mode!=='slow'?'btn-blue':'btn-ghost')+' btn-sm" onclick="fhSetRefreshMode(\'fast\')" style="flex:1">⚡ Real-time (15 detik)</button>'+
-        '<button class="btn '+(FH.mode==='slow'?'btn-blue':'btn-ghost')+' btn-sm" onclick="fhSetRefreshMode(\'slow\')" style="flex:1">🐢 Hemat (15 menit)</button>'+
+    '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-bottom:12px">'+
+      '<div style="font-weight:700;color:var(--text);margin-bottom:8px;font-size:12px">Pilih Mode Pergerakan Harga:</div>'+
+      '<div style="display:flex;flex-direction:column;gap:7px">'+
+        '<button class="btn '+(priceEngineMode==='live'?'btn-blue':'btn-ghost')+' btn-sm" onclick="setPriceEngineMode(\'live\')" style="text-align:left;justify-content:flex-start;padding:8px 12px">'+
+          '📡 <strong>Real-time Live (Yahoo Finance)</strong> — Update harga saham IDX saat jam bursa aktif'+
+        '</button>'+
+        '<button class="btn '+(priceEngineMode==='static'?'btn-blue':'btn-ghost')+' btn-sm" onclick="setPriceEngineMode(\'static\')" style="text-align:left;justify-content:flex-start;padding:8px 12px">'+
+          '🔒 <strong>Kunci Statis (Harga Tetap)</strong> — Nilai pasar tidak bergerak sendiri tanpa transaksi'+
+        '</button>'+
+        '<button class="btn '+(priceEngineMode==='sim'?'btn-blue':'btn-ghost')+' btn-sm" onclick="setPriceEngineMode(\'sim\')" style="text-align:left;justify-content:flex-start;padding:8px 12px">'+
+          '🎲 <strong>Simulasi Fluktuasi</strong> — Mensimulasikan tick pasar acak'+
+        '</button>'+
       '</div>'+
     '</div>'+
-    '<div style="background:rgba(255,61,90,.06);border:1px solid rgba(255,61,90,.15);border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:11px;color:var(--text2);line-height:1.65">'+
-      '<div style="font-weight:700;color:var(--red);margin-bottom:3px">⚠️ Jika Error:</div>'+
-      '1. Semua proxy publik mungkin sedang rate-limited — sistem otomatis fallback ke simulasi<br>'+
-      '2. Klik "Coba Lagi" untuk reconnect manual'+
-    '</div>'+
-    '<div style="display:flex;justify-content:space-between;align-items:center">'+
-      '<span style="font-size:11px;font-family:var(--font-mono)">Status: <span id="fh-modal-status" style="color:'+sc+'">'+st+'</span></span>'+
-      '<div style="display:flex;gap:7px">'+
-        '<button class="btn btn-ghost" onclick="fhDisconnect()">Pakai Simulasi</button>'+
-        '<button class="btn btn-blue" onclick="fhConnect()">📡 Coba Lagi</button>'+
-      '</div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:4px">'+
+      '<span style="font-size:11px;font-family:var(--font-mono)">Status Saat Ini: <span id="fh-modal-status" style="color:'+sc+';font-weight:bold">'+st+'</span></span>'+
+      '<button class="btn btn-ghost" onclick="closeModal()">Tutup</button>'+
     '</div>';
   el('modal').classList.add('on');
 }

@@ -3,18 +3,72 @@
 // ║  User menguji DATA REAL: tidak ada angka contoh/lampiran ║
 // ╚══════════════════════════════════════════════════════════╝
 
-// ── 1. Purge localStorage satu kali (data lama hasil injeksi versi sebelumnya) ──
+// ── 1. Purge localStorage (data lama hasil injeksi versi sebelumnya) ──
 // Berjalan SEBELUM DOMContentLoaded (top-level), jadi loadData() membaca keadaan bersih.
-(function(){
-  try{
-    if(localStorage.getItem('mw_fresh_v6')) return; // sudah pernah dibersihkan
-    ['ihsg_pro_master_v5','porto_imported_v1','ihsg_cash_v1','ihsg_divinvest_v1',
-     'hw_history','hw_state','claude_api_key','mw_wealth_v1'
+function mwPurgeLocalState(force) {
+  try {
+    if (!force && localStorage.getItem('mw_clean_zero_v10')) return; // sudah pernah dibersihkan
+
+    [
+      'ihsg_pro_master_v5', 'ihsg_pro_stockb_v6', 'porto_imported_v1', 'ihsg_cash_v1',
+      'ihsg_divinvest_v1', 'hw_history', 'hw_state', 'claude_api_key', 'mw_wealth_v1',
+      'ihsg_sync_pending', 'mw_fresh_v6', 'mw_theses', 'mw_journals', 'mw_price_alerts_v2',
+      'equityHistory', 'ihsg_hidden_metrics', 'mw_clean_zero_v7', 'mw_clean_zero_v8'
     ].forEach(function(k){ localStorage.removeItem(k); });
-    localStorage.setItem('mw_fresh_v6','1');
-    console.log('🧹 Fresh start: data injeksi lokal dibersihkan');
-  }catch(e){}
-})();
+    
+    // Set state awal bersih di LS_KEY v7
+    var cleanPayload = {
+      transactions: [],
+      dividends: [],
+      rdnMutations: [],
+      activeSekuritas: 'Stockbit',
+      rdnBalance: 0,
+      nextTxId: 1,
+      nextDivId: 1,
+      nextRdnId: 1,
+      cryptoTx: [],
+      etfTx: [],
+      rdTx: [],
+      nextCryptoId: 1,
+      nextEtfId: 1,
+      nextRdId: 1,
+      tradeStrategy: {},
+      sekTaxOverride: {},
+      wealth: null,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('ihsg_pro_v7_clean', JSON.stringify(cleanPayload));
+    localStorage.setItem('mw_clean_zero_v10', '1');
+
+    // Kosongkan variabel runtime di memori
+    if (typeof transactions !== 'undefined') transactions = [];
+    if (typeof dividends !== 'undefined') dividends = [];
+    if (typeof rdnMutations !== 'undefined') rdnMutations = [];
+    if (typeof cryptoTx !== 'undefined') cryptoTx = [];
+    if (typeof etfTx !== 'undefined') etfTx = [];
+    if (typeof rdTx !== 'undefined') rdTx = [];
+    if (typeof rdnBalance !== 'undefined') rdnBalance = 0;
+    if (typeof MW_THESES !== 'undefined') MW_THESES = [];
+    if (typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = [];
+    if (typeof WEALTH !== 'undefined') {
+      WEALTH.income = 0; WEALTH.expense = 0; WEALTH.deposito = 0; WEALTH.emas = 0; WEALTH.obligasi = 0;
+      WEALTH.bank = []; WEALTH.debt = []; WEALTH.piutang = [];
+    }
+
+    console.log('🧹 Fresh start: seluruh data transaksi, portofolio & catatan berhasil dikosongkan 100%');
+  } catch(e) {}
+}
+
+mwPurgeLocalState(false);
+window.mwPurgeAllData = function() {
+  mwPurgeLocalState(true);
+  if (typeof clearData === 'function') {
+    clearData();
+  } else {
+    location.reload();
+  }
+};
+
 
 // ── 2. Nol-kan data pribadi yang tertanam di XLSX_DATA (lampiran lama) ──
 // Metadata pasar TETAP dipertahankan: daftar saham (nama/sektor/harga acuan),
