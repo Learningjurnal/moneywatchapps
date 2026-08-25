@@ -171,6 +171,7 @@ function wRenderNet(){
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">💼 Net Worth — Personal Family Office</div><div class="psub">Kekayaan bersih gabungan: portofolio Money Watch + aset pribadi</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal(\'wealth\');" title="Unduh Neraca & Laporan Kekayaan Bersih dalam Format PDF">📄 Unduh Laporan (PDF)</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="wExport()">⬇ Export</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="wImport()">⬆ Import</button>'+
       '<button class="btn btn-blue btn-sm" onclick="wModalSettings()">⚙ Asumsi & Aset Lain</button>'+

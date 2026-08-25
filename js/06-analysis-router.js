@@ -275,7 +275,13 @@ function renderCandle(){
 var TRADE_TYPES=['Core Long','Swing Trade','Fast Trade'];
 var TRADE_COLOR={'Core Long':'#00c8ff','Swing Trade':'#8070d2','Fast Trade':'#ffc107'};
 function stratOf(tk){ if(tradeStrategy[tk]) return tradeStrategy[tk]; return (DB[tk]&&DB[tk].tradeType)||'Core Long'; }
-function setStockStrategy(tk,val){ tradeStrategy[tk]=val; if(typeof saveData==='function')saveData(); renderStrategyPanel(); }
+function setStockStrategy(tk,val){
+  if(!tk) return;
+  tradeStrategy[tk]=val;
+  if(typeof saveData==='function') saveData();
+  if(typeof showSaveStatus==='function') showSaveStatus('✓ Strategi ' + tk + ' disimpan (' + val + ')', 'var(--green)');
+  renderStrategyPanel();
+}
 function renderStrategyPanel(){
   var box=el('d-tradetype'); if(!box) return;
   var porto=(typeof getPortfolio==='function')?getPortfolio():[];

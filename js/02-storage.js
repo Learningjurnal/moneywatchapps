@@ -101,7 +101,17 @@ initPortfolio2026();
 // ============================================================
 // FIREBASE FIRESTORE DATA SYNC
 // ============================================================
-var tradeStrategy = {};
+var tradeStrategy = {
+  'ARCI': 'Swing Trade',
+  'PGEO': 'Core Long',
+  'BBRI': 'Core Long',
+  'BBCA': 'Core Long',
+  'ADMR': 'Core Long',
+  'BMRI': 'Core Long',
+  'BBNI': 'Core Long',
+  'ADRO': 'Core Long',
+  'SMDR': 'Core Long'
+};
 var _cloudSyncFailed = false;
 var _syncInFlight = false;
 var _syncQueued = false;
@@ -239,16 +249,42 @@ async function fireLoadAllData(){
 }
 
 // ============================================================
-// DATA SAVE & SYNC CONTROLLER (NO LOCALSTORAGE)
+// DATA SAVE & SYNC CONTROLLER (HYBRID LOCALSTORAGE & FIRESTORE)
 // ============================================================
 function saveData(){
   if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
   
-  if(_currentUser && _currentUser.uid){
+  // 1. Simpan selalu ke LocalStorage browser agar persisten seketika (offline-resilient)
+  try {
+    var localPayload = {
+      transactions: transactions || [],
+      dividends: dividends || [],
+      rdnMutations: rdnMutations || [],
+      cryptoTx: cryptoTx || [],
+      etfTx: etfTx || [],
+      rdTx: rdTx || [],
+      divInvestData: divInvestData || [],
+      tradeStrategy: tradeStrategy || {},
+      activeSekuritas: activeSekuritas || 'Stockbit',
+      rdnBalance: rdnBalance || 0,
+      taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
+      sekTaxOverride: sekTaxOverride || {},
+      wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
+      theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
+      journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('mw_local_data_v2', JSON.stringify(localPayload));
+    localStorage.setItem('mw_trade_strategy', JSON.stringify(tradeStrategy || {}));
+  } catch(e) {
+    console.warn('LocalStorage save notice:', e);
+  }
+
+  // 2. Sinkronkan ke Firebase Firestore jika user terhubung
+  if(_currentUser && (_currentUser.uid || _currentUser.id) && _firebaseDb){
     _syncToCloud(true);
   } else {
-    // Mode offline / demo
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data aktif di memori sesi', 'var(--text2)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data & strategi tersimpan lokal', 'var(--green)');
   }
 }
 
@@ -266,13 +302,13 @@ function _syncToCloud(allowRetry){
       _syncQueued = false;
       return _syncToCloud(allowRetry);
     }
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan ke Firebase Firestore');
+    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan ke Firebase Firestore & Lokal', 'var(--green)');
   }).catch(function(e){
     _syncInFlight = false;
     console.warn('Firebase sync notice:', e);
     _cloudSyncFailed = true;
     var _errMsg = (e && e.message) ? e.message : String(e);
-    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Gagal sinkron Firestore: ' + _errMsg, 'var(--red)', true);
+    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan lokal (Cloud: ' + _errMsg + ')', 'var(--amber)');
     if(_syncQueued){
       _syncQueued = false;
       return _syncToCloud(allowRetry);
@@ -284,12 +320,45 @@ function _syncToCloud(allowRetry){
 }
 
 function safeCloudBoot(){
+  loadData();
   return fireLoadAllData();
 }
 
 function loadData(){
-  // Tanpa localStorage: inisialisasi state bersih di memori
-  return true;
+  try {
+    var rawStrat = localStorage.getItem('mw_trade_strategy');
+    if(rawStrat){
+      var parsedStrat = JSON.parse(rawStrat);
+      if(parsedStrat && typeof parsedStrat === 'object') {
+        tradeStrategy = Object.assign({}, tradeStrategy, parsedStrat);
+      }
+    }
+    var raw = localStorage.getItem('mw_local_data_v2');
+    if(raw){
+      var d = JSON.parse(raw);
+      if(d && typeof d === 'object'){
+        if(d.tradeStrategy) tradeStrategy = Object.assign({}, tradeStrategy, d.tradeStrategy);
+        if(d.transactions && Array.isArray(d.transactions) && d.transactions.length > 0) transactions = d.transactions;
+        if(d.dividends && Array.isArray(d.dividends)) dividends = d.dividends;
+        if(d.rdnMutations && Array.isArray(d.rdnMutations)) rdnMutations = d.rdnMutations;
+        if(d.cryptoTx && Array.isArray(d.cryptoTx)) cryptoTx = d.cryptoTx;
+        if(d.etfTx && Array.isArray(d.etfTx)) etfTx = d.etfTx;
+        if(d.rdTx && Array.isArray(d.rdTx)) rdTx = d.rdTx;
+        if(d.divInvestData && Array.isArray(d.divInvestData)) divInvestData = d.divInvestData;
+        if(d.activeSekuritas) activeSekuritas = d.activeSekuritas;
+        if(typeof d.rdnBalance === 'number') rdnBalance = d.rdnBalance;
+        if(d.sekTaxOverride) sekTaxOverride = d.sekTaxOverride;
+        if(d.taxSettings && typeof TAX_SETTINGS !== 'undefined') Object.assign(TAX_SETTINGS, d.taxSettings);
+        if(d.theses && typeof MW_THESES !== 'undefined') MW_THESES = d.theses;
+        if(d.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = d.journals;
+        if(d.wealth && typeof WEALTH !== 'undefined') Object.assign(WEALTH, d.wealth);
+      }
+    }
+    return true;
+  } catch(e){
+    console.warn('LocalStorage load notice:', e);
+    return false;
+  }
 }
 
 function clearData(){
