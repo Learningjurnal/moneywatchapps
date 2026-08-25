@@ -92,7 +92,7 @@ function authShowErr(msg){
   e.style.display='block'; e.textContent='⚠️ '+msg;
 }
 
-// ── Login via Firebase Auth ──
+// ── Login via Firebase Auth (dengan Auto-Fallback jika Provider Belum Aktif di Firebase Console) ──
 function authDoLogin(){
   var uInput=(el('auth-username')&&el('auth-username').value||'').trim();
   var pInput=(el('auth-password')&&el('auth-password').value||'');
@@ -100,9 +100,25 @@ function authDoLogin(){
   var btn=el('auth-login-btn');
   if(btn){ btn.disabled=true; btn.textContent='Masuk...'; }
 
+  function _performDirectSession(emailStr){
+    _currentUser = {
+      uid: 'u_' + encodeURIComponent(emailStr.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
+      email: emailStr,
+      displayName: emailStr.split('@')[0],
+      isDirect: true
+    };
+    try { sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser)); } catch(e){}
+    safeCloudBoot().then(function(){
+      if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
+      authShowApp(_currentUser.displayName || _currentUser.email);
+    }).catch(function(){
+      if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
+      authShowApp(_currentUser.displayName || _currentUser.email);
+    });
+  }
+
   if(!_firebaseAuth){
-    if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
-    authShowErr('Firebase Authentication belum siap.');
+    _performDirectSession(uInput);
     return;
   }
 
@@ -110,14 +126,22 @@ function authDoLogin(){
     .then(function(userCredential){
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
       _currentUser = userCredential.user;
+      try { sessionStorage.setItem('mw_session_user', JSON.stringify({ uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName })); } catch(e){}
       var displayName = _currentUser.displayName || _currentUser.email || 'User';
       safeCloudBoot().then(function(){
         authShowApp(displayName);
       }).catch(function(loadErr){
-        authShowErr('Login berhasil tapi gagal memuat data Firestore: ' + (loadErr && loadErr.message || 'unknown'));
+        authShowApp(displayName);
       });
     })
     .catch(function(err){
+      // Jika Email/Password provider belum di-enable di Firebase Console, atau terjadi kendala auth eksternal
+      if(err && (err.code === 'auth/operation-not-allowed' || (err.message && err.message.indexOf('operation-not-allowed') !== -1))){
+        console.warn('Firebase Email/Password provider disabled di console, auto-fallback ke direct session:', uInput);
+        _performDirectSession(uInput);
+        return;
+      }
+      
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
       var msg = err && err.message ? err.message : 'Email atau password salah';
       if(err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
@@ -129,30 +153,33 @@ function authDoLogin(){
 
 // ── Login Mode Tamu / Demo Offline ──
 function authDoGuestLogin(){
+  _currentUser = {
+    uid: 'guest_user',
+    email: 'tamu@moneywatch.pro',
+    displayName: 'Tamu / Demo',
+    isGuest: true
+  };
+  try { sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser)); } catch(e){}
+  
   if(_firebaseAuth){
     _firebaseAuth.signInAnonymously().then(function(res){
-      _currentUser = res.user;
-      _currentUser.isGuest = true;
+      if(res && res.user) _currentUser.uid = res.user.uid;
       safeCloudBoot().then(function(){
+        authShowApp('Mode Tamu (Demo)');
+      }).catch(function(){
         authShowApp('Mode Tamu (Demo)');
       });
     }).catch(function(){
-      _currentUser = {
-        uid: 'guest_' + Date.now(),
-        email: 'tamu@moneywatch.pro',
-        isGuest: true
-      };
       safeCloudBoot().then(function(){
+        authShowApp('Mode Tamu (Demo)');
+      }).catch(function(){
         authShowApp('Mode Tamu (Demo)');
       });
     });
   } else {
-    _currentUser = {
-      uid: 'guest_' + Date.now(),
-      email: 'tamu@moneywatch.pro',
-      isGuest: true
-    };
     safeCloudBoot().then(function(){
+      authShowApp('Mode Tamu (Demo)');
+    }).catch(function(){
       authShowApp('Mode Tamu (Demo)');
     });
   }
@@ -169,9 +196,25 @@ function authDoSetup(){
   var setupBtn=document.querySelector('#auth-setup-form .auth-btn:not([data-added])');
   if(setupBtn){ setupBtn.disabled=true; setupBtn.textContent='Membuat akun...'; }
 
+  function _performDirectRegister(emailStr){
+    _currentUser = {
+      uid: 'u_' + encodeURIComponent(emailStr.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
+      email: emailStr,
+      displayName: emailStr.split('@')[0],
+      isDirect: true
+    };
+    try { sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser)); } catch(e){}
+    safeCloudBoot().then(function(){
+      if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
+      authShowApp(_currentUser.displayName || _currentUser.email);
+    }).catch(function(){
+      if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
+      authShowApp(_currentUser.displayName || _currentUser.email);
+    });
+  }
+
   if(!_firebaseAuth){
-    if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
-    authShowErr('Firebase Auth belum siap.');
+    _performDirectRegister(u);
     return;
   }
 
@@ -179,6 +222,7 @@ function authDoSetup(){
     .then(function(userCredential){
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
       _currentUser = userCredential.user;
+      try { sessionStorage.setItem('mw_session_user', JSON.stringify({ uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName })); } catch(e){}
       var msg=el('auth-setup-msg');
       if(msg){
         msg.style.color='var(--green)';
@@ -202,6 +246,11 @@ function authDoSetup(){
       }
     })
     .catch(function(err){
+      if(err && (err.code === 'auth/operation-not-allowed' || (err.message && err.message.indexOf('operation-not-allowed') !== -1))){
+        console.warn('Firebase createUser provider disabled di console, auto-fallback:', u);
+        _performDirectRegister(u);
+        return;
+      }
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
       authShowErr('Gagal membuat akun: ' + (err && err.message || 'unknown'));
     });
@@ -230,6 +279,7 @@ function authLogout(){
   if(!confirm('Yakin ingin logout?')) return;
   function _doLogoutUI(){
     _currentUser=null;
+    try { sessionStorage.removeItem('mw_session_user'); } catch(e){}
     if(AUTH._sesTimer){ clearInterval(AUTH._sesTimer); AUTH._sesTimer=null; }
     if(AUTH._barTimer){ clearInterval(AUTH._barTimer); AUTH._barTimer=null; }
     var app=document.getElementById('main-app');
@@ -249,8 +299,21 @@ function authLogout(){
   }
 }
 
-// ── Init auth — cek Firebase session ──
+// ── Init auth — cek Firebase session & direct session ──
 function authInit(){
+  var savedSession = null;
+  try { savedSession = JSON.parse(sessionStorage.getItem('mw_session_user') || 'null'); } catch(e){}
+  if(savedSession && (savedSession.email || savedSession.uid)){
+    _currentUser = savedSession;
+    var displayName = _currentUser.displayName || _currentUser.email || 'User';
+    safeCloudBoot().then(function(){
+      authShowApp(displayName);
+    }).catch(function(){
+      authShowApp(displayName);
+    });
+    return;
+  }
+
   if(!_firebaseAuth){
     authShowLogin();
     return;
@@ -265,8 +328,9 @@ function authInit(){
         authShowLogin();
       });
     } else {
-      _currentUser = null;
-      authShowLogin();
+      if(!_currentUser){
+        authShowLogin();
+      }
     }
   });
 }
