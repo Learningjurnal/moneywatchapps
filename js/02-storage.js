@@ -78,12 +78,12 @@ function initPortfolio2026(force){
     });
   });
 
-  // Tambahkan setoran awal RDN (Top Up) agar saldo kas tidak defisit fiktif
+  // Tambahkan setoran awal RDN (Modal Awal) agar saldo kas tidak defisit fiktif
   var initialDeposit = Math.ceil(totalBuyNet / 50000000) * 50000000 + 10000000;
   rdnMutations.unshift({
     id: nextRdnId++,
     date: '2026-08-24',
-    type: 'TOPUP',
+    type: 'SETOR',
     ket: 'Setoran Awal RDN (Modal Awal)',
     amount: initialDeposit,
     balance: initialDeposit,
@@ -92,11 +92,19 @@ function initPortfolio2026(force){
 
   if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   if (typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
-  if (typeof saveData === 'function') saveData();
+  if (force && typeof saveData === 'function') saveData();
 }
 
-// Inisialisasi awal
-initPortfolio2026();
+// Inisialisasi awal aman: coba load dari localStorage dulu
+try {
+  var _hasLoaded = loadData();
+  if(!_hasLoaded || (transactions.length === 0 && !localStorage.getItem('mw_local_data_v2'))){
+    initPortfolio2026();
+  }
+} catch(e){
+  initPortfolio2026();
+}
+
 
 // ============================================================
 // FIREBASE FIRESTORE DATA SYNC
@@ -193,11 +201,6 @@ async function fireLoadAllData(){
     var d = snap.data() || {};
 
     transactions = d.transactions || [];
-    if(transactions.length === 0){
-      initPortfolio2026(true);
-      await fireSaveAllData();
-      return true;
-    }
     dividends = d.dividends || [];
     rdnMutations = d.rdnMutations || [];
     cryptoTx = d.cryptoTx || [];
@@ -354,6 +357,13 @@ function loadData(){
         if(d.wealth && typeof WEALTH !== 'undefined') Object.assign(WEALTH, d.wealth);
       }
     }
+    nextTxId  = _maxIdPlus1(transactions);
+    nextDivId = _maxIdPlus1(dividends);
+    nextRdnId = _maxIdPlus1(rdnMutations);
+    nextCryptoId = _maxIdPlus1(cryptoTx);
+    nextEtfId    = _maxIdPlus1(etfTx);
+    nextRdId     = _maxIdPlus1(rdTx);
+    if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
     return true;
   } catch(e){
     console.warn('LocalStorage load notice:', e);

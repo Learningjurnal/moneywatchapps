@@ -1186,12 +1186,27 @@ function txClearAll(){
 
 
 function rebuildRdnBalance(){
-  // Recalculate balance for all mutations in date order
+  // Recalculate balance for all mutations in date order safely
   if(!Array.isArray(rdnMutations)) rdnMutations=[];
   rdnMutations.sort(function(a,b){return (a.date||'').localeCompare(b.date||'')||((a.id||0)-(b.id||0))});
   var bal = 0;
-  rdnMutations.forEach(function(r){ bal += r.amount; r.balance = bal; });
-  rdnBalance = bal;
+  rdnMutations.forEach(function(r){
+    var amt = 0;
+    if(typeof r.amount === 'number' && !isNaN(r.amount)){
+      amt = r.amount;
+    } else if(r.amount !== undefined && !isNaN(Number(r.amount))){
+      amt = Number(r.amount);
+    } else if(r.amountIn || r.amountOut || r.amount_in || r.amount_out){
+      amt = (Number(r.amountIn||r.amount_in||0)) - (Number(r.amountOut||r.amount_out||0));
+    }
+    r.amount = amt;
+    bal += amt;
+    r.balance = bal;
+  });
+  rdnBalance = isFinite(bal) ? bal : 0;
+  if(typeof CASH_ACCOUNTS !== 'undefined' && CASH_ACCOUNTS.saham){
+    CASH_ACCOUNTS.saham.balance = rdnBalance;
+  }
 }
 
 function delTx(id){

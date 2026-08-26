@@ -345,11 +345,11 @@ function renderDashboard(){
 
 function renderRdn(){
   var rdn=calcRdnBalance();
-  var setors=rdnMutations.filter(function(r){return r.type==='SETOR'});
+  var setors=rdnMutations.filter(function(r){return r.type==='SETOR' || r.type==='TOPUP'});
   var tariks=rdnMutations.filter(function(r){return r.type==='TARIK'});
-  var totalIn=setors.reduce(function(a,r){return a+r.amount},0);
-  var totalOut=Math.abs(tariks.reduce(function(a,r){return a+r.amount},0));
-  var usedBuy=transactions.filter(function(t){return t.type==='BUY'}).reduce(function(a,t){return a+t.net},0);
+  var totalIn=setors.reduce(function(a,r){return a+(r.amount||0)},0);
+  var totalOut=Math.abs(tariks.reduce(function(a,r){return a+(r.amount||0)},0));
+  var usedBuy=transactions.filter(function(t){return t.type==='BUY'}).reduce(function(a,t){return a+(t.net||0)},0);
 
   el('rdn-saldo').textContent='Rp '+fmtK(rdn);
   el('rdn-sekuritas').textContent=activeSekuritas;
@@ -414,17 +414,18 @@ function renderRdn(){
   var FEE_SUBTYPES=['DATA_FEE','MATERAI','MIGRASI','ADMIN','TRANSFER','PENALTY','LAINNYA','FEE'];
   var list=rdnMutations.slice().reverse().filter(function(r){
     if(filter==='all') return true;
+    if(filter==='SETOR') return r.type==='SETOR' || r.type==='TOPUP';
     if(filter==='FEE') return FEE_SUBTYPES.indexOf(r.type)>=0;
     return r.type===filter;
   });
   el('rdn-tbody').innerHTML=list.map(function(r){
     var isin=r.amount>0;
-    var typeColors={'SETOR':'b-up','TARIK':'b-dn','BUY':'b-dn','SELL':'b-up','DIVIDEN':'b-pur','FEE':'b-amb',
+    var typeColors={'SETOR':'b-up','TOPUP':'b-up','TARIK':'b-dn','BUY':'b-dn','SELL':'b-up','DIVIDEN':'b-pur','FEE':'b-amb',
       'DATA_FEE':'b-amb','MATERAI':'b-amb','MIGRASI':'b-amb','ADMIN':'b-amb','TRANSFER':'b-amb','PENALTY':'b-dn','LAINNYA':'b-amb'};
-    var typeLabels={'SETOR':'SETOR','TARIK':'TARIK','BUY':'BELI','SELL':'JUAL','DIVIDEN':'DIVIDEN','FEE':'FEE',
+    var typeLabels={'SETOR':'SETOR','TOPUP':'SETOR','TARIK':'TARIK','BUY':'BELI','SELL':'JUAL','DIVIDEN':'DIVIDEN','FEE':'FEE',
       'DATA_FEE':'DATA FEE','MATERAI':'MATERAI','MIGRASI':'MIGRASI','ADMIN':'ADMIN','TRANSFER':'TRANSFER','PENALTY':'DENDA','LAINNYA':'BIAYA'};
     // SETOR, TARIK, FEE dan sub-jenisnya bisa dihapus langsung
-    var canDel = (r.type==='SETOR'||r.type==='TARIK'||r.type==='FEE'||
+    var canDel = (r.type==='SETOR'||r.type==='TOPUP'||r.type==='TARIK'||r.type==='FEE'||
       ['DATA_FEE','MATERAI','MIGRASI','ADMIN','TRANSFER','PENALTY','LAINNYA'].indexOf(r.type)>=0);
     var delBtn = canDel
       ? '<button class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 5px" onclick="delRdnManual('+r.id+')" title="Hapus mutasi ini" aria-label="Hapus mutasi RDN '+r.date+'">✕</button>'

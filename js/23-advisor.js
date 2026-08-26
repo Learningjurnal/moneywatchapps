@@ -65,7 +65,7 @@ function openInvestorTearSheet() {
   var rdVal = (typeof reksadanaTotalValuation === 'function') ? reksadanaTotalValuation() : 0;
   var etfVal = (typeof etfTotalValuation === 'function') ? etfTotalValuation() : 0;
 
-  var muts = (window.rdnMutations || []).filter(function(m) { return m.type === 'SETOR' || m.type === 'TARIK'; });
+  var muts = (window.rdnMutations || []).filter(function(m) { return m.type === 'SETOR' || m.type === 'TOPUP' || m.type === 'TARIK'; });
   var netDeposit = muts.reduce(function(a, m) { return a + m.amount; }, 0);
   var gainRp = totEquity - netDeposit;
   var gainPct = netDeposit > 0 ? (gainRp / netDeposit * 100) : 0;

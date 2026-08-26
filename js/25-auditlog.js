@@ -169,7 +169,7 @@ function buildRdnAuditLogs() {
       } else {
         triggerLabel = 'Penerimaan Dividen Saham';
       }
-    } else if (mType === 'SETOR') {
+    } else if (mType === 'SETOR' || mType === 'TOPUP') {
       triggerCategory = 'SETOR';
       triggerIcon = 'ti-arrow-up-circle';
       badgeClass = 'b-up';

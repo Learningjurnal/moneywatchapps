@@ -900,26 +900,44 @@ function goPage(name,btn){
     try{ authShowLogin(); }catch(e){} return;
   }
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on')});
-  // Remove active state from all nav items (including dropdown buttons)
-  document.querySelectorAll('.nav button, .nav-dd-btn, .nav-dd-menu button').forEach(function(b){b.classList.remove('on')});
+  // Remove active state from all nav items (including dropdown buttons and side buttons)
+  document.querySelectorAll('.nav button, .nav-dd-btn, .nav-dd-menu button, .side-nav button').forEach(function(b){b.classList.remove('on')});
+  document.querySelectorAll('.side-group').forEach(function(g){ g.classList.remove('has-active'); });
+
   var pg = el('page-'+name);
   if(!pg) return;
   pg.classList.add('on');
+  
+  var activeBtn = null;
   // Highlight: if explicit btn passed use it, otherwise find matching nav button
   if(btn && btn.classList){
     btn.classList.add('on');
+    activeBtn = btn;
   } else {
     // Try to find a matching nav button by onclick content
-    document.querySelectorAll('.nav button, .nav-dd-menu button').forEach(function(b){
-      if(b.getAttribute('onclick') && b.getAttribute('onclick').includes("'"+name+"'")) b.classList.add('on');
+    document.querySelectorAll('.nav button, .nav-dd-menu button, .side-nav button').forEach(function(b){
+      var oc = b.getAttribute('onclick') || '';
+      if(oc.indexOf("'"+name+"'") !== -1 || oc.indexOf('"'+name+'"') !== -1){
+        b.classList.add('on');
+        if(!activeBtn) activeBtn = b;
+      }
     });
   }
+
+  // Jika tombol aktif berada di dalam accordion grup sidebar, tandai grup sebagai has-active dan pastikan terbuka
+  if(activeBtn){
+    var parentGroup = activeBtn.closest ? activeBtn.closest('.side-group') : null;
+    if(parentGroup){
+      parentGroup.classList.add('has-active', 'open');
+    }
+  }
+
   currentPage=name;
   renderPage(name);
   closeDD();
   toggleSidebar(false); // di mobile, drawer sidebar otomatis tertutup setelah memilih halaman
   // Re-render cash widgets when switching to portfolio pages
-  if(['portofolio','crypto','etf','reksadana'].includes(name)) setTimeout(renderCashWidgets,50);
+  if(['portofolio','crypto','etf','reksadana','wealth','rdn'].includes(name)) setTimeout(renderCashWidgets,50);
 }
 
 // ── Sidebar drawer (mobile ≤640px) ──

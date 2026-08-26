@@ -819,13 +819,13 @@ function computeTWR(muts, terminalValue){
 function perfRenderXirr(){
   var valEl=el('perf-xirr-val'), twrEl=el('perf-twr-val'), twrSub=el('perf-twr-sub'), simpleEl=el('perf-simple-return-val'), depEl=el('perf-xirr-netdeposit'), cntEl=el('perf-xirr-flowcount'), noteEl=el('perf-xirr-note');
   if(!valEl) return;
-  var muts = (rdnMutations||[]).filter(function(m){ return m.type==='SETOR' || m.type==='TARIK'; });
+  var muts = (rdnMutations||[]).filter(function(m){ return m.type==='SETOR' || m.type==='TOPUP' || m.type==='TARIK'; });
   if(!muts.length){
     valEl.textContent='—'; if(twrEl) twrEl.textContent='—'; simpleEl.textContent='—'; depEl.textContent='Rp 0'; cntEl.textContent='0 arus kas';
     noteEl.innerHTML='Belum ada riwayat Setor/Tarik RDN untuk dihitung.';
     return;
   }
-  var flows = muts.map(function(m){ return {date:m.date, amount: m.type==='SETOR' ? -Math.abs(m.amount) : Math.abs(m.amount)}; });
+  var flows = muts.map(function(m){ return {date:m.date, amount: (m.type==='SETOR'||m.type==='TOPUP') ? -Math.abs(m.amount) : Math.abs(m.amount)}; });
   var porto=(typeof getPortfolio==='function')?getPortfolio():[];
   var stockMV=porto.reduce(function(a,p){return a+p.mv;},0);
   var rdn=(typeof calcRdnBalance==='function')?calcRdnBalance():0;

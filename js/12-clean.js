@@ -54,33 +54,148 @@ function mwZoomReset() {
   mwApplyZoom(MW_ZOOM_DEFAULT);
 }
 
-// ── Sidebar State (In Memory) ──
-var _mwSidebarOpen = { porto: true, tools: true };
+function mwZoom(delta) {
+  if (delta === 0) {
+    mwZoomReset();
+  } else {
+    mwApplyZoom(_mwCurrentZoom + delta);
+  }
+}
+window.mwZoom = mwZoom;
+window.mwZoomIn = mwZoomIn;
+window.mwZoomOut = mwZoomOut;
+window.mwZoomReset = mwZoomReset;
+
+// ── Sidebar & Toolbar Navigation Controller (Accordion, Collapse, Search) ──
+var _mwSidebarGroups = {};
 var _mwSidebarCollapsed = false;
 
-function mwToggleSideSection(sec) {
-  var header = document.querySelector('.nav-section-header[data-sec="' + sec + '"]');
-  var items = document.querySelector('.nav-section-items[data-sec="' + sec + '"]');
-  if (!items) return;
-  var isExpanded = items.style.display !== 'none';
-  items.style.display = isExpanded ? 'none' : '';
-  if (header) {
-    header.setAttribute('aria-expanded', !isExpanded);
-    var arr = header.querySelector('.nav-arrow');
-    if (arr) arr.textContent = isExpanded ? '▾' : '▴';
+function sideToggleGroup(btn) {
+  if (!btn) return;
+  var group = btn.closest ? btn.closest('.side-group') : btn.parentElement;
+  if (!group) return;
+  
+  var isOpen = group.classList.contains('open');
+  if (isOpen) {
+    group.classList.remove('open');
+  } else {
+    group.classList.add('open');
   }
-  _mwSidebarOpen[sec] = !isExpanded;
+  
+  // Simpan preferensi pengguna ke localStorage
+  var groupKey = group.getAttribute('data-group');
+  if (groupKey) {
+    try {
+      var saved = JSON.parse(localStorage.getItem('mw_side_groups') || '{}');
+      saved[groupKey] = !isOpen;
+      localStorage.setItem('mw_side_groups', JSON.stringify(saved));
+    } catch(e){}
+  }
 }
 
-function mwToggleSidebarCollapse() {
-  _mwSidebarCollapsed = !_mwSidebarCollapsed;
-  var app = document.querySelector('.app');
-  var side = document.querySelector('.sidebar');
-  var btn = document.getElementById('side-toggle-btn');
-  if (side) side.classList.toggle('collapsed', _mwSidebarCollapsed);
-  if (app) app.classList.toggle('sidebar-collapsed', _mwSidebarCollapsed);
-  if (btn) {
-    btn.setAttribute('aria-label', _mwSidebarCollapsed ? 'Buka Sidebar' : 'Ciutkan Sidebar');
-    btn.innerHTML = _mwSidebarCollapsed ? '☰' : '◀';
-  }
+function sideToggleCollapse() {
+  var sideNav = document.getElementById('side-nav');
+  if (!sideNav) return;
+  
+  _mwSidebarCollapsed = !sideNav.classList.contains('collapsed');
+  sideNav.classList.toggle('collapsed', _mwSidebarCollapsed);
+  
+  try {
+    localStorage.setItem('mw_side_collapsed', _mwSidebarCollapsed ? '1' : '0');
+  } catch(e){}
 }
+
+function sideNavFilter(query) {
+  var q = (query || '').trim().toLowerCase();
+  var sideNav = document.getElementById('side-nav');
+  if (!sideNav) return;
+  
+  var allButtons = sideNav.querySelectorAll('.side-group-items button, .side-nav-scroll > button');
+  var groups = sideNav.querySelectorAll('.side-group');
+  
+  if (!q) {
+    // Kembalikan ke state awal
+    allButtons.forEach(function(b){ b.classList.remove('side-hit-hidden'); });
+    // Pulihkan status buka/tutup grup dari localStorage
+    sideRestoreGroupStates();
+    return;
+  }
+  
+  // Filter setiap tombol
+  groups.forEach(function(grp){
+    var groupButtons = grp.querySelectorAll('.side-group-items button');
+    var hasMatchInGroup = false;
+    
+    groupButtons.forEach(function(b){
+      var txt = (b.textContent || '').toLowerCase();
+      if (txt.indexOf(q) !== -1) {
+        b.classList.remove('side-hit-hidden');
+        hasMatchInGroup = true;
+      } else {
+        b.classList.add('side-hit-hidden');
+      }
+    });
+    
+    // Jika ada item yang cocok dalam grup, buka grup tersebut otomatis
+    if (hasMatchInGroup) {
+      grp.classList.add('open');
+    }
+  });
+  
+  // Periksa tombol level atas
+  var topButtons = sideNav.querySelectorAll('.side-nav-scroll > button');
+  topButtons.forEach(function(b){
+    var txt = (b.textContent || '').toLowerCase();
+    if (txt.indexOf(q) !== -1) {
+      b.classList.remove('side-hit-hidden');
+    } else {
+      b.classList.add('side-hit-hidden');
+    }
+  });
+}
+
+function sideRestoreGroupStates() {
+  try {
+    var isCollapsed = localStorage.getItem('mw_side_collapsed') === '1';
+    var sideNav = document.getElementById('side-nav');
+    if (sideNav && isCollapsed) {
+      sideNav.classList.add('collapsed');
+      _mwSidebarCollapsed = true;
+    }
+    
+    var savedGroups = JSON.parse(localStorage.getItem('mw_side_groups') || '{}');
+    var groups = document.querySelectorAll('.side-group');
+    groups.forEach(function(grp){
+      var key = grp.getAttribute('data-group');
+      if (key && savedGroups[key] !== undefined) {
+        if (savedGroups[key]) grp.classList.add('open');
+        else grp.classList.remove('open');
+      }
+    });
+  } catch(e){}
+}
+
+// Inisialisasi shortcut keyboard (Ctrl+K / Cmd+K) untuk mencari menu di sidebar
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    var searchInput = document.getElementById('side-nav-search');
+    if (searchInput) {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+    }
+  }
+});
+
+// Jalankan pemulihan status saat halaman dimuat
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', sideRestoreGroupStates);
+} else {
+  setTimeout(sideRestoreGroupStates, 50);
+}
+
+// Global window shortcuts
+window.sideToggleGroup = sideToggleGroup;
+window.sideToggleCollapse = sideToggleCollapse;
+window.sideNavFilter = sideNavFilter;
+window.sideRestoreGroupStates = sideRestoreGroupStates;
