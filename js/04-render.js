@@ -424,13 +424,13 @@ function renderRdn(){
       'DATA_FEE':'b-amb','MATERAI':'b-amb','MIGRASI':'b-amb','ADMIN':'b-amb','TRANSFER':'b-amb','PENALTY':'b-dn','LAINNYA':'b-amb'};
     var typeLabels={'SETOR':'SETOR','TOPUP':'SETOR','TARIK':'TARIK','BUY':'BELI','SELL':'JUAL','DIVIDEN':'DIVIDEN','FEE':'FEE',
       'DATA_FEE':'DATA FEE','MATERAI':'MATERAI','MIGRASI':'MIGRASI','ADMIN':'ADMIN','TRANSFER':'TRANSFER','PENALTY':'DENDA','LAINNYA':'BIAYA'};
-    // SETOR, TARIK, FEE dan sub-jenisnya bisa dihapus langsung
+    // SETOR, TARIK, FEE dan semua mutasi non-linked (termasuk Setoran Awal) bisa dihapus langsung
     var canDel = (r.type==='SETOR'||r.type==='TOPUP'||r.type==='TARIK'||r.type==='FEE'||
-      ['DATA_FEE','MATERAI','MIGRASI','ADMIN','TRANSFER','PENALTY','LAINNYA'].indexOf(r.type)>=0);
+      ['DATA_FEE','MATERAI','MIGRASI','ADMIN','TRANSFER','PENALTY','LAINNYA'].indexOf(r.type)>=0 || !r.linkedTxId);
     var delBtn = canDel
-      ? '<button class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 5px" onclick="delRdnManual('+r.id+')" title="Hapus mutasi ini" aria-label="Hapus mutasi RDN '+r.date+'">✕</button>'
+      ? '<button class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 5px" onclick="delRdnManual(\''+r.id+'\')" title="Hapus mutasi ini" aria-label="Hapus mutasi RDN '+r.date+'">✕</button>'
       : '<span class="badge b-gray" style="font-size:9px;cursor:default" title="Dikelola dari transaksi saham/dividen">auto</span>';
-    var auditBtn = '<button class="btn btn-ghost btn-xs" style="color:var(--accent);padding:2px 5px;margin-right:4px" onclick="if(typeof openAuditDetailModal===\'function\')openAuditDetailModal('+r.id+')" title="Buka Slip Audit Rincian">🔍</button>';
+    var auditBtn = '<button class="btn btn-ghost btn-xs" style="color:var(--accent);padding:2px 5px;margin-right:4px" onclick="if(typeof openAuditDetailModal===\'function\')openAuditDetailModal(\''+r.id+'\')" title="Buka Slip Audit Rincian">🔍</button>';
     return '<tr>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+r.date+'</td>'
       +'<td><span class="badge '+(typeColors[r.type]||'b-gray')+'">'+(typeLabels[r.type]||r.type)+'</span></td>'
@@ -757,29 +757,57 @@ function divToggleSel(id, checked){
 }
 function deleteSelectedDiv(){
   if(_divSelected.size===0) return;
-  if(!confirm('Hapus '+_divSelected.size+' dividen terpilih?')) return;
-  _divSelected.forEach(function(id){
-    dividends = dividends.filter(function(d){return d.id!==id});
-    rdnMutations = rdnMutations.filter(function(r){return r.linkedTxId!=='div-'+id});
-  });
-  _divSelected.clear();
-  rebuildRdnBalance();
-  saveData();
-  showSaveStatus('✓ Dividen terpilih dihapus');
-  renderDividen();
+  var count = _divSelected.size;
+  if(typeof mwConfirm === 'function'){
+    mwConfirm('Hapus Dividen Terpilih', 'Apakah Anda yakin ingin menghapus <strong>'+count+'</strong> catatan dividen terpilih?', function(){
+      _divSelected.forEach(function(id){
+        dividends = dividends.filter(function(d){return String(d.id)!==String(id) && d.id!==Number(id)});
+        rdnMutations = rdnMutations.filter(function(r){return String(r.linkedTxId)!=='div-'+id && r.linkedTxId!=='div-'+String(id)});
+      });
+      _divSelected.clear();
+      rebuildRdnBalance();
+      saveData();
+      showSaveStatus('✓ Dividen terpilih berhasil dihapus', 'var(--green)');
+      renderDividen();
+    });
+  } else {
+    _divSelected.forEach(function(id){
+      dividends = dividends.filter(function(d){return String(d.id)!==String(id) && d.id!==Number(id)});
+      rdnMutations = rdnMutations.filter(function(r){return String(r.linkedTxId)!=='div-'+id && r.linkedTxId!=='div-'+String(id)});
+    });
+    _divSelected.clear();
+    rebuildRdnBalance();
+    saveData();
+    showSaveStatus('✓ Dividen terpilih berhasil dihapus', 'var(--green)');
+    renderDividen();
+  }
 }
 function clearAllDiv(){
-  if(!confirm('⚠️ Hapus SEMUA catatan dividen? Ini tidak bisa dibatalkan.')) return;
-  var ids = dividends.map(function(d){return d.id});
-  ids.forEach(function(id){
-    rdnMutations = rdnMutations.filter(function(r){return r.linkedTxId!=='div-'+id});
-  });
-  dividends = [];
-  _divSelected.clear();
-  rebuildRdnBalance();
-  saveData();
-  showSaveStatus('✓ Semua dividen dihapus');
-  renderDividen();
+  if(typeof mwConfirm === 'function'){
+    mwConfirm('Hapus Semua Dividen', '⚠️ Apakah Anda yakin ingin menghapus <strong>SEMUA</strong> catatan dividen? Tindakan ini tidak dapat dibatalkan.', function(){
+      var ids = dividends.map(function(d){return d.id});
+      ids.forEach(function(id){
+        rdnMutations = rdnMutations.filter(function(r){return String(r.linkedTxId)!=='div-'+id && r.linkedTxId!=='div-'+String(id)});
+      });
+      dividends = [];
+      _divSelected.clear();
+      rebuildRdnBalance();
+      saveData();
+      showSaveStatus('✓ Semua dividen berhasil dihapus', 'var(--green)');
+      renderDividen();
+    });
+  } else {
+    var ids = dividends.map(function(d){return d.id});
+    ids.forEach(function(id){
+      rdnMutations = rdnMutations.filter(function(r){return String(r.linkedTxId)!=='div-'+id && r.linkedTxId!=='div-'+String(id)});
+    });
+    dividends = [];
+    _divSelected.clear();
+    rebuildRdnBalance();
+    saveData();
+    showSaveStatus('✓ Semua dividen berhasil dihapus', 'var(--green)');
+    renderDividen();
+  }
 }
 function selectAllDiv(){
   var allChecked = _divSelected.size===dividends.length && dividends.length>0;

@@ -411,12 +411,16 @@ function renderCrypto(){
 }
 
 function delCryptoTx(id){
-  if(confirm('Hapus transaksi crypto ini?')){
-    cryptoTx=cryptoTx.filter(function(t){return t.id!==id});
+  if(id === undefined || id === null) return;
+  var target = (cryptoTx || []).find(function(t){ return String(t.id) === String(id) || t.id === Number(id); });
+  var label = target ? (target.type + ' ' + target.coin + ' (' + target.date + ')') : 'transaksi ini';
+
+  mwConfirm('Hapus Transaksi Crypto', 'Hapus transaksi <strong>' + escHtml(label) + '</strong>?', function(){
+    cryptoTx = (cryptoTx || []).filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
     saveData();
-    showSaveStatus('✓ Transaksi crypto dihapus');
+    showSaveStatus('✓ Transaksi crypto berhasil dihapus', 'var(--green)');
     renderCrypto();
-  }
+  });
 }
 
 function editCryptoTx(id){
@@ -648,12 +652,16 @@ function renderEtf(){
 }
 
 function delEtfTx(id){
-  if(confirm('Hapus transaksi ETF ini?')){
-    etfTx=etfTx.filter(function(t){return t.id!==id});
+  if(id === undefined || id === null) return;
+  var target = (etfTx || []).find(function(t){ return String(t.id) === String(id) || t.id === Number(id); });
+  var label = target ? (target.type + ' ' + target.ticker + ' (' + target.date + ')') : 'transaksi ini';
+
+  mwConfirm('Hapus Transaksi ETF', 'Hapus transaksi <strong>' + escHtml(label) + '</strong>?', function(){
+    etfTx = (etfTx || []).filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
     saveData();
-    showSaveStatus('✓ Transaksi ETF dihapus');
+    showSaveStatus('✓ Transaksi ETF berhasil dihapus', 'var(--green)');
     renderEtf();
-  }
+  });
 }
 
 function openEtfModal(type){
@@ -880,12 +888,17 @@ function renderReksaDana(){
 }
 
 function delRdTx(id){
-  if(confirm('Hapus transaksi reksa dana ini?')){
-    rdTx=rdTx.filter(function(t){return t.id!==id});
+  if(id === undefined || id === null) return;
+  var target = (rdTx || []).find(function(t){ return String(t.id) === String(id) || t.id === Number(id); });
+  var rdInfo = target ? (RD_DB[target.code] || {name: target.code}) : {name: 'transaksi ini'};
+  var label = target ? (target.type + ' ' + rdInfo.name + ' (' + target.date + ')') : 'transaksi ini';
+
+  mwConfirm('Hapus Transaksi Reksa Dana', 'Hapus transaksi <strong>' + escHtml(label) + '</strong>?', function(){
+    rdTx = (rdTx || []).filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
     saveData();
-    showSaveStatus('✓ Transaksi reksa dana dihapus');
+    showSaveStatus('✓ Transaksi reksa dana berhasil dihapus', 'var(--green)');
     renderReksaDana();
-  }
+  });
 }
 
 function editRdTx(id){
@@ -1165,23 +1178,31 @@ function txSelectAll(){
 }
 function txDeleteSelected(){
   if(!_txSelected.size) return;
-  if(!confirm('Hapus '+_txSelected.size+' transaksi terpilih?')) return;
-  _txSelected.forEach(function(id){
-    transactions=transactions.filter(function(t){return t.id!==id});
-    rdnMutations=rdnMutations.filter(function(r){return r.linkedTxId!==id});
+  var count = _txSelected.size;
+  mwConfirm('Hapus Transaksi Terpilih', 'Apakah Anda yakin ingin menghapus <strong>' + count + '</strong> transaksi terpilih?<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:inline-block">Mutasi RDN terkait akan dibersihkan dan saldo dihitung ulang.</span>', function(){
+    _txSelected.forEach(function(id){
+      transactions = transactions.filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
+      rdnMutations = rdnMutations.filter(function(r){ return String(r.linkedTxId) !== String(id) && r.linkedTxId !== Number(id); });
+    });
+    _txSelected.clear();
+    rebuildRdnBalance();
+    saveData();
+    showSaveStatus('✓ ' + count + ' transaksi berhasil dihapus', 'var(--green)');
+    renderPage(currentPage);
   });
-  _txSelected.clear();
-  rebuildRdnBalance(); saveData();
-  showSaveStatus('✓ '+_txSelected.size+' transaksi dihapus');
-  renderPage(currentPage);
 }
 function txClearAll(){
-  if(!confirm('⚠️ Hapus SEMUA transaksi saham? Saldo RDN akan diatur ulang.')) return;
-  transactions.forEach(function(t){ rdnMutations=rdnMutations.filter(function(r){return r.linkedTxId!==t.id;}); });
-  transactions=[]; _txSelected.clear();
-  rebuildRdnBalance(); saveData();
-  showSaveStatus('✓ Semua transaksi dihapus');
-  renderPage(currentPage);
+  mwConfirm('Hapus Semua Transaksi Saham', '⚠️ Apakah Anda yakin ingin menghapus <strong>SEMUA</strong> transaksi saham?<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:inline-block">Semua mutasi saham terkait akan dibersihkan dan saldo RDN diatur ulang.</span>', function(){
+    transactions.forEach(function(t){
+      rdnMutations = rdnMutations.filter(function(r){ return String(r.linkedTxId) !== String(t.id) && r.linkedTxId !== Number(t.id); });
+    });
+    transactions = [];
+    _txSelected.clear();
+    rebuildRdnBalance();
+    saveData();
+    showSaveStatus('✓ Semua transaksi saham berhasil dihapus', 'var(--green)');
+    renderPage(currentPage);
+  });
 }
 
 
@@ -1210,15 +1231,20 @@ function rebuildRdnBalance(){
 }
 
 function delTx(id){
-  if(!confirm('Hapus transaksi ini?\nMutasi RDN terkait juga akan dihapus dan saldo akan dihitung ulang.')) return;
-  if(!Array.isArray(transactions)) transactions=[];
-  if(!Array.isArray(rdnMutations)) rdnMutations=[];
-  transactions = transactions.filter(function(t){ return t.id !== id; });
-  rdnMutations = rdnMutations.filter(function(r){ return r.linkedTxId !== id; });
-  rebuildRdnBalance();
-  saveData();
-  showSaveStatus('✓ Transaksi dihapus & saldo RDN diperbarui');
-  renderPage(currentPage);
+  if(id === undefined || id === null) return;
+  var target = (transactions || []).find(function(t){ return String(t.id) === String(id) || t.id === Number(id); });
+  var label = target ? (target.type + ' ' + target.lot + ' lot ' + target.ticker + ' @ Rp ' + fmt(target.price)) : 'transaksi ini';
+
+  mwConfirm('Hapus Transaksi Saham', 'Hapus <strong>' + escHtml(label) + '</strong>?<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:inline-block">Mutasi RDN terkait juga akan dihapus dan saldo RDN dihitung ulang.</span>', function(){
+    if(!Array.isArray(transactions)) transactions=[];
+    if(!Array.isArray(rdnMutations)) rdnMutations=[];
+    transactions = transactions.filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
+    rdnMutations = rdnMutations.filter(function(r){ return String(r.linkedTxId) !== String(id) && r.linkedTxId !== Number(id); });
+    rebuildRdnBalance();
+    saveData();
+    showSaveStatus('✓ Transaksi dihapus & saldo RDN diperbarui', 'var(--green)');
+    if(typeof renderPage === 'function') renderPage(currentPage);
+  });
 }
 
 function editTx(id){
@@ -1319,24 +1345,90 @@ function updateTx(id){
   renderPage(currentPage);
 }
 
+// ============================================================
+// UNIVERSAL SAFE CONFIRMATION DIALOG (IFRAME-RESILIENT)
+// ============================================================
+function mwConfirm(title, message, onConfirm, confirmBtnText, btnClass){
+  var m = (typeof el === 'function') ? el('modal') : document.getElementById('modal');
+  if(!m){
+    var ok = true;
+    try {
+      if (typeof window.confirm === 'function') {
+        ok = window.confirm(message.replace(/<[^>]+>/g, ''));
+      }
+    } catch(e){ ok = true; }
+    if(ok && typeof onConfirm === 'function') onConfirm();
+    return;
+  }
+  var mTitle = (typeof el === 'function') ? el('m-title') : document.getElementById('m-title');
+  var mBody  = (typeof el === 'function') ? el('m-body') : document.getElementById('m-body');
+  if(mTitle){
+    mTitle.textContent = title || 'Konfirmasi Hapus';
+    mTitle.style.color = (btnClass && btnClass.indexOf('green') >= 0) ? 'var(--green)' : 'var(--red)';
+  }
+  if(mBody){
+    mBody.innerHTML = 
+      '<div style="font-size:12.5px;color:var(--text);margin-bottom:18px;line-height:1.6">' + message + '</div>'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+      + '<button class="btn btn-ghost" onclick="closeModal()">Batal</button>'
+      + '<button class="btn ' + (btnClass || 'btn-red') + '" id="mw-confirm-act-btn">' + (confirmBtnText || 'Hapus') + '</button>'
+      + '</div>';
+  }
+  m.classList.add('on');
+  var btn = document.getElementById('mw-confirm-act-btn');
+  if(btn){
+    btn.onclick = function(){
+      if (typeof closeModal === 'function') closeModal();
+      if(typeof onConfirm === 'function') onConfirm();
+    };
+  }
+}
+window.mwConfirm = mwConfirm;
+
 function delDiv(id){
-  if(!confirm('Hapus catatan dividen ini?')) return;
-  dividends = dividends.filter(function(d){ return d.id !== id; });
-  rdnMutations = rdnMutations.filter(function(r){ return r.linkedTxId !== 'div-'+id; });
-  rebuildRdnBalance();
-  saveData();
-  showSaveStatus('✓ Dividen dihapus');
-  renderPage(currentPage);
+  if(id === undefined || id === null) return;
+  var target = (dividends || []).find(function(d){ return String(d.id) === String(id) || d.id === Number(id); });
+  var label = target ? (target.ticker + ' (' + target.date + ')') : 'catatan dividen ini';
+
+  mwConfirm('Hapus Catatan Dividen', 'Hapus catatan dividen <strong>' + escHtml(label) + '</strong>? Mutasi RDN terkait juga akan disinkronkan.', function(){
+    dividends = (dividends || []).filter(function(d){ return String(d.id) !== String(id) && d.id !== Number(id); });
+    rdnMutations = (rdnMutations || []).filter(function(r){ return String(r.linkedTxId) !== 'div-' + id && r.linkedTxId !== 'div-' + String(id); });
+    rebuildRdnBalance();
+    saveData();
+    showSaveStatus('✓ Dividen berhasil dihapus', 'var(--green)');
+    if(typeof renderPage === 'function') renderPage(currentPage);
+  });
 }
 
 function delRdnManual(id){
-  if(!confirm('Hapus mutasi RDN ini?')) return;
-  rdnMutations = rdnMutations.filter(function(r){ return r.id !== id; });
-  rebuildRdnBalance();
-  saveData();
-  showSaveStatus('✓ Mutasi RDN dihapus');
-  renderPage(currentPage);
+  if(id === undefined || id === null) return;
+  var target = (rdnMutations || []).find(function(r, idx){
+    return (r.id !== undefined && (String(r.id) === String(id) || r.id === Number(id))) || String(idx) === String(id);
+  });
+  var ket = target ? (target.ket || target.type || 'mutasi ini') : 'mutasi ini';
+  var nominal = target ? ' (Rp ' + (typeof fmtK === 'function' ? fmtK(Math.abs(target.amount || 0)) : Math.abs(target.amount || 0)) + ')' : '';
+
+  mwConfirm('Hapus Mutasi RDN', 
+    'Apakah Anda yakin ingin menghapus catatan mutasi <strong>' + escHtml(ket) + '</strong>' + nominal + '?'
+    + '<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:inline-block">Saldo akhir RDN akan dihitung ulang secara otomatis.</span>', 
+    function(){
+      rdnMutations = (rdnMutations || []).filter(function(r, idx){
+        if (r.id !== undefined && r.id !== null) {
+          return String(r.id) !== String(id) && r.id !== Number(id);
+        }
+        return String(idx) !== String(id);
+      });
+      rebuildRdnBalance();
+      saveData();
+      showSaveStatus('✓ Mutasi RDN berhasil dihapus', 'var(--green)');
+      if (typeof renderRdn === 'function') renderRdn();
+      if (typeof renderPage === 'function' && typeof currentPage !== 'undefined' && currentPage !== 'rdn') renderPage(currentPage);
+    },
+    'Hapus Mutasi'
+  );
 }
+window.delRdnManual = delRdnManual;
+window.delDiv = delDiv;
 
 // ============================================================
 // NAVIGATION

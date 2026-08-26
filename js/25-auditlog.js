@@ -504,7 +504,7 @@ function toggleAuditSort() {
  */
 function openAuditDetailModal(id) {
   var logs = buildRdnAuditLogs();
-  var item = logs.find(function(l) { return l.id === id; });
+  var item = logs.find(function(l) { return String(l.id) === String(id) || l.id === Number(id); });
   if (!item) return;
 
   var bk = item.breakdown;

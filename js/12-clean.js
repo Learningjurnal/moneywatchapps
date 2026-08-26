@@ -72,7 +72,15 @@ var _mwSidebarCollapsed = false;
 
 function sideToggleGroup(btn) {
   if (!btn) return;
-  var group = btn.closest ? btn.closest('.side-group') : btn.parentElement;
+  var group = null;
+  if (typeof btn.closest === 'function') {
+    group = btn.closest('.side-group');
+  } else if (btn.parentElement) {
+    group = btn.parentElement.closest ? btn.parentElement.closest('.side-group') : btn.parentElement;
+  }
+  if (!group && btn.classList && btn.classList.contains('side-group')) {
+    group = btn;
+  }
   if (!group) return;
   
   var isOpen = group.classList.contains('open');
@@ -170,10 +178,20 @@ function sideRestoreGroupStates() {
       if (key && savedGroups[key] !== undefined) {
         if (savedGroups[key]) grp.classList.add('open');
         else grp.classList.remove('open');
+      } else {
+        grp.classList.add('open');
       }
     });
   } catch(e){}
 }
+
+// Inisialisasi event delegation untuk tombol header accordion sidebar
+document.addEventListener('click', function(e) {
+  var toggleBtn = e.target.closest ? e.target.closest('.side-sec-toggle') : null;
+  if (toggleBtn && !toggleBtn.getAttribute('onclick')) {
+    sideToggleGroup(toggleBtn);
+  }
+});
 
 // Inisialisasi shortcut keyboard (Ctrl+K / Cmd+K) untuk mencari menu di sidebar
 document.addEventListener('keydown', function(e) {
@@ -193,6 +211,11 @@ if (document.readyState === 'loading') {
 } else {
   setTimeout(sideRestoreGroupStates, 50);
 }
+
+window.sideToggleGroup = sideToggleGroup;
+window.sideToggleCollapse = sideToggleCollapse;
+window.sideNavFilter = sideNavFilter;
+window.sideRestoreGroupStates = sideRestoreGroupStates;
 
 // Global window shortcuts
 window.sideToggleGroup = sideToggleGroup;
