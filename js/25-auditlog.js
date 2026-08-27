@@ -64,9 +64,21 @@ function buildRdnAuditLogs() {
   });
 
   // Urutkan mutasi secara kronologis dari awal untuk menghitung saldo berjalan
+  function _mutPriority(type){
+    if(type === 'SETOR' || type === 'TOPUP') return 10;
+    if(type === 'DIVIDEN' || type === 'DIVIDEND') return 20;
+    if(type === 'SELL') return 30;
+    if(type === 'BUY') return 40;
+    if(type === 'TARIK') return 50;
+    return 60;
+  }
   var sortedMuts = rdnMutations.slice().sort(function(a, b) {
     var dComp = (a.date || '').localeCompare(b.date || '');
-    return dComp !== 0 ? dComp : ((a.id || 0) - (b.id || 0));
+    if(dComp !== 0) return dComp;
+    var pA = _mutPriority(a.type);
+    var pB = _mutPriority(b.type);
+    if(pA !== pB) return pA - pB;
+    return ((a.id || 0) - (b.id || 0));
   });
 
   var runningBal = 0;

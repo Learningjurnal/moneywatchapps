@@ -43,6 +43,8 @@ function initPortfolio2026(force){
   activeSekuritas = 'Stockbit';
 
   var totalBuyNet = 0;
+  var buyMuts = [];
+
   INITIAL_PORTO_2026.forEach(function(item){
     var gross = item.lot * 100 * item.price;
     var c = (typeof calcTxComponents === 'function') 
@@ -66,8 +68,7 @@ function initPortfolio2026(force){
       net: c.net,
       sekuritas: 'Stockbit'
     });
-    rdnMutations.push({
-      id: nextRdnId++,
+    buyMuts.push({
       date: '2026-08-24',
       type: 'BUY',
       ket: 'Beli ' + item.lot + ' lot ' + item.ticker + ' @ Rp ' + fmt(item.price),
@@ -78,9 +79,9 @@ function initPortfolio2026(force){
     });
   });
 
-  // Tambahkan setoran awal RDN (Modal Awal) agar saldo kas tidak defisit fiktif
+  // Tambahkan setoran awal RDN (Modal Awal) sebagai mutasi pertama (id: 1)
   var initialDeposit = Math.ceil(totalBuyNet / 50000000) * 50000000 + 10000000;
-  rdnMutations.unshift({
+  rdnMutations.push({
     id: nextRdnId++,
     date: '2026-08-24',
     type: 'SETOR',
@@ -90,9 +91,41 @@ function initPortfolio2026(force){
     sekuritas: 'Stockbit'
   });
 
+  buyMuts.forEach(function(m){
+    m.id = nextRdnId++;
+    rdnMutations.push(m);
+  });
+
   if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   if (typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
   if (force && typeof saveData === 'function') saveData();
+}
+
+function sanitizeRdnMutations(){
+  if(!Array.isArray(rdnMutations)) rdnMutations = [];
+  
+  // 1. Jika ada mutasi berulang 'Setoran Awal' dan 'Setoran Awal Penyesuaian RDN', rapikan
+  var initialSetors = rdnMutations.filter(function(r){
+    return (r.type === 'SETOR' || r.type === 'TOPUP') && 
+           (r.ket && (r.ket.indexOf('Setoran Awal') !== -1 || r.ket.indexOf('Modal Awal') !== -1));
+  });
+
+  if (initialSetors.length > 1) {
+    var maxSetor = initialSetors.reduce(function(prev, curr){
+      return (curr.amount > prev.amount) ? curr : prev;
+    }, initialSetors[0]);
+
+    rdnMutations = rdnMutations.filter(function(r){
+      if ((r.type === 'SETOR' || r.type === 'TOPUP') && 
+          (r.ket && (r.ket.indexOf('Setoran Awal') !== -1 || r.ket.indexOf('Modal Awal') !== -1))) {
+        return r.id === maxSetor.id;
+      }
+      return true;
+    });
+  }
+
+  // 2. Rebuild saldo berjalan kronologis
+  if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
 }
 
 // Inisialisasi awal aman: coba load dari localStorage dulu
@@ -100,6 +133,8 @@ try {
   var _hasLoaded = loadData();
   if(!_hasLoaded || (transactions.length === 0 && !localStorage.getItem('mw_local_data_v2'))){
     initPortfolio2026();
+  } else {
+    sanitizeRdnMutations();
   }
 } catch(e){
   initPortfolio2026();
@@ -242,7 +277,8 @@ async function fireLoadAllData(){
     
     activeSekuritas = d.activeSekuritas || 'Stockbit';
     rdnBalance = d.rdnBalance || 0;
-    if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+    if(typeof sanitizeRdnMutations === 'function') sanitizeRdnMutations();
+    else if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
 
     if(d.taxSettings && typeof TAX_SETTINGS !== 'undefined'){
       Object.assign(TAX_SETTINGS, d.taxSettings);
@@ -407,7 +443,8 @@ function loadData(){
     nextCryptoId = _maxIdPlus1(cryptoTx);
     nextEtfId    = _maxIdPlus1(etfTx);
     nextRdId     = _maxIdPlus1(rdTx);
-    if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+    if(typeof sanitizeRdnMutations === 'function') sanitizeRdnMutations();
+    else if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
     return true;
   } catch(e){
     console.warn('LocalStorage load notice:', e);

@@ -107,7 +107,10 @@ function authDoLogin(){
       displayName: emailStr.split('@')[0],
       isDirect: true
     };
-    try { sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser)); } catch(e){}
+    try {
+      sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+      localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+    } catch(e){}
     safeCloudBoot().then(function(){
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
       authShowApp(_currentUser.displayName || _currentUser.email);
@@ -126,7 +129,11 @@ function authDoLogin(){
     .then(function(userCredential){
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
       _currentUser = userCredential.user;
-      try { sessionStorage.setItem('mw_session_user', JSON.stringify({ uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName })); } catch(e){}
+      var sessData = { uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName };
+      try {
+        sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
+        localStorage.setItem('mw_session_user', JSON.stringify(sessData));
+      } catch(e){}
       var displayName = _currentUser.displayName || _currentUser.email || 'User';
       safeCloudBoot().then(function(){
         authShowApp(displayName);
@@ -159,7 +166,10 @@ function authDoGuestLogin(){
     displayName: 'Tamu / Demo',
     isGuest: true
   };
-  try { sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser)); } catch(e){}
+  try {
+    sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+    localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+  } catch(e){}
   
   if(_firebaseAuth){
     _firebaseAuth.signInAnonymously().then(function(res){
@@ -203,7 +213,10 @@ function authDoSetup(){
       displayName: emailStr.split('@')[0],
       isDirect: true
     };
-    try { sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser)); } catch(e){}
+    try {
+      sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+      localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+    } catch(e){}
     safeCloudBoot().then(function(){
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
       authShowApp(_currentUser.displayName || _currentUser.email);
@@ -222,7 +235,11 @@ function authDoSetup(){
     .then(function(userCredential){
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
       _currentUser = userCredential.user;
-      try { sessionStorage.setItem('mw_session_user', JSON.stringify({ uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName })); } catch(e){}
+      var sessData = { uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName };
+      try {
+        sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
+        localStorage.setItem('mw_session_user', JSON.stringify(sessData));
+      } catch(e){}
       var msg=el('auth-setup-msg');
       if(msg){
         msg.style.color='var(--green)';
@@ -279,7 +296,10 @@ function authLogout(){
   if(!confirm('Yakin ingin logout?')) return;
   function _doLogoutUI(){
     _currentUser=null;
-    try { sessionStorage.removeItem('mw_session_user'); } catch(e){}
+    try {
+      sessionStorage.removeItem('mw_session_user');
+      localStorage.removeItem('mw_session_user');
+    } catch(e){}
     if(AUTH._sesTimer){ clearInterval(AUTH._sesTimer); AUTH._sesTimer=null; }
     if(AUTH._barTimer){ clearInterval(AUTH._barTimer); AUTH._barTimer=null; }
     var app=document.getElementById('main-app');
@@ -302,7 +322,10 @@ function authLogout(){
 // ── Init auth — cek Firebase session & direct session ──
 function authInit(){
   var savedSession = null;
-  try { savedSession = JSON.parse(sessionStorage.getItem('mw_session_user') || 'null'); } catch(e){}
+  try {
+    var rawSess = sessionStorage.getItem('mw_session_user') || localStorage.getItem('mw_session_user');
+    savedSession = JSON.parse(rawSess || 'null');
+  } catch(e){}
   if(savedSession && (savedSession.email || savedSession.uid)){
     _currentUser = savedSession;
     var displayName = _currentUser.displayName || _currentUser.email || 'User';
@@ -321,6 +344,11 @@ function authInit(){
   _firebaseAuth.onAuthStateChanged(function(user){
     if(user){
       _currentUser = user;
+      var sessData = { uid: user.uid, email: user.email, displayName: user.displayName };
+      try {
+        sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
+        localStorage.setItem('mw_session_user', JSON.stringify(sessData));
+      } catch(e){}
       var displayName = _currentUser.displayName || _currentUser.email || 'User';
       safeCloudBoot().then(function(){
         authShowApp(displayName);

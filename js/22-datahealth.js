@@ -11,7 +11,22 @@ function dhCheckRdnNegative(){
   var rdn = (typeof calcRdnBalance==='function') ? calcRdnBalance() : 0;
   if(rdn>=0) return {status:'ok', title:'Saldo RDN', detail:'Saldo RDN saat ini positif (Rp '+fmt(rdn)+').'};
   // Cari sejak kapan saldo mulai minus (baris terakhir sebelum baris minus pertama yang bertahan)
-  var muts=(rdnMutations||[]).slice().sort(function(a,b){return a.date.localeCompare(b.date)||(a.id-b.id);});
+  function _mutPriority(type){
+    if(type === 'SETOR' || type === 'TOPUP') return 10;
+    if(type === 'DIVIDEN' || type === 'DIVIDEND') return 20;
+    if(type === 'SELL') return 30;
+    if(type === 'BUY') return 40;
+    if(type === 'TARIK') return 50;
+    return 60;
+  }
+  var muts=(rdnMutations||[]).slice().sort(function(a,b){
+    var dComp = (a.date||'').localeCompare(b.date||'');
+    if(dComp !== 0) return dComp;
+    var pA = _mutPriority(a.type);
+    var pB = _mutPriority(b.type);
+    if(pA !== pB) return pA - pB;
+    return ((a.id||0) - (b.id||0));
+  });
   var since=null;
   for(var i=0;i<muts.length;i++){ if(muts[i].balance<0){ since=muts[i].date; break; } }
   return {status:'warn', title:'Saldo RDN Minus', detail:'Saldo RDN saat ini Rp '+fmt(rdn)+' (minus) — kemungkinan Anda membeli saham melebihi kas tercatat.'+(since?' Mulai minus sejak sekitar '+since+'.':''), count:1};

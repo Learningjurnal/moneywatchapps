@@ -1209,7 +1209,25 @@ function txClearAll(){
 function rebuildRdnBalance(){
   // Recalculate balance for all mutations in date order safely
   if(!Array.isArray(rdnMutations)) rdnMutations=[];
-  rdnMutations.sort(function(a,b){return (a.date||'').localeCompare(b.date||'')||((a.id||0)-(b.id||0))});
+  
+  function _mutPriority(type){
+    if(type === 'SETOR' || type === 'TOPUP') return 10;
+    if(type === 'DIVIDEN' || type === 'DIVIDEND') return 20;
+    if(type === 'SELL') return 30;
+    if(type === 'BUY') return 40;
+    if(type === 'TARIK') return 50;
+    return 60; // FEE, MATERAI, ADMIN, etc.
+  }
+
+  rdnMutations.sort(function(a,b){
+    var dCmp = (a.date||'').localeCompare(b.date||'');
+    if(dCmp !== 0) return dCmp;
+    var pA = _mutPriority(a.type);
+    var pB = _mutPriority(b.type);
+    if(pA !== pB) return pA - pB;
+    return ((a.id||0) - (b.id||0));
+  });
+
   var bal = 0;
   rdnMutations.forEach(function(r){
     var amt = 0;
