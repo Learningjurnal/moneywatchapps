@@ -1,0 +1,25 @@
+{
+  "uid": "test_user",
+  "email": "test@example.com",
+  "savedAt": "2026-08-27T11:55:35.708Z",
+  "serverReceivedAt": "2026-08-27T11:55:35.739Z",
+  "data": {
+    "transactions": [
+      {
+        "id": 1,
+        "ticker": "BBCA",
+        "lot": 10,
+        "price": 8000,
+        "type": "BUY"
+      }
+    ],
+    "rdnMutations": [
+      {
+        "id": 1,
+        "type": "SETOR",
+        "amount": 10000000,
+        "ket": "Setoran"
+      }
+    ]
+  }
+}

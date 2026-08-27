@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 
@@ -20,6 +21,102 @@ app.get('/api/health', (req, res) => {
 function fmtIdr(n) {
   return Math.round(n || 0).toLocaleString('id-ID');
 }
+
+// ══════════════════════════════════════════════════════════
+// SERVER-SIDE USER DATA PERSISTENCE MIRROR & RECOVERY
+// ══════════════════════════════════════════════════════════
+const USER_STORES_DIR = path.join(__dirname, 'data', 'user-stores');
+if (!fs.existsSync(USER_STORES_DIR)) {
+  try {
+    fs.mkdirSync(USER_STORES_DIR, { recursive: true });
+  } catch (e) {
+    console.warn('Could not create user-stores dir:', e);
+  }
+}
+
+function getSafeFileKey(uidOrEmail) {
+  if (!uidOrEmail) return 'global_user';
+  return String(uidOrEmail).toLowerCase().replace(/[^a-z0-9_]/g, '_');
+}
+
+app.post('/api/user-data/save', (req, res) => {
+  try {
+    const body = req.body || {};
+    const uid = body.uid || body.email || 'global_user';
+    const safeKey = getSafeFileKey(uid);
+    const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
+    const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
+
+    const record = {
+      uid: uid,
+      email: body.email || '',
+      savedAt: body.savedAt || new Date().toISOString(),
+      serverReceivedAt: new Date().toISOString(),
+      data: body.data || body
+    };
+
+    const jsonStr = JSON.stringify(record, null, 2);
+    fs.writeFileSync(filePath, jsonStr, 'utf8');
+    fs.writeFileSync(backupPath, jsonStr, 'utf8');
+
+    const txCount = (record.data && Array.isArray(record.data.transactions)) ? record.data.transactions.length : 0;
+    const rdnCount = (record.data && Array.isArray(record.data.rdnMutations)) ? record.data.rdnMutations.length : 0;
+
+    return res.json({
+      success: true,
+      message: 'Data successfully persisted to server mirror',
+      savedAt: record.savedAt,
+      stats: { transactions: txCount, rdnMutations: rdnCount }
+    });
+  } catch (err) {
+    console.error('Server save data error:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to persist user data on server',
+      message: err.message
+    });
+  }
+});
+
+app.get('/api/user-data/load', (req, res) => {
+  try {
+    const uid = req.query.uid || req.query.email || 'global_user';
+    const safeKey = getSafeFileKey(uid);
+    const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
+    const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
+
+    let targetPath = null;
+    if (fs.existsSync(filePath)) {
+      targetPath = filePath;
+    } else if (fs.existsSync(backupPath)) {
+      targetPath = backupPath;
+    }
+
+    if (!targetPath) {
+      return res.json({
+        success: false,
+        found: false,
+        message: 'No server persistence record found yet'
+      });
+    }
+
+    const raw = fs.readFileSync(targetPath, 'utf8');
+    const record = JSON.parse(raw);
+
+    return res.json({
+      success: true,
+      found: true,
+      record: record
+    });
+  } catch (err) {
+    console.error('Server load data error:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to load user data from server',
+      message: err.message
+    });
+  }
+});
 
 // ══════════════════════════════════════════════════════════
 // BACKEND RDN SYNCHRONIZATION & RECONCILIATION ENGINE
@@ -618,6 +715,386 @@ app.get('/api/proxy', async (req, res) => {
       error: 'Proxy request failed',
       message: err.message
     });
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// KSEI 5%+ SHAREHOLDERS & FREE FLOAT INTELLIGENCE ENGINE
+// ══════════════════════════════════════════════════════════
+const DEFAULT_KSEI_SHEET_ID = '1GYz3TymfqJCITTWm4QKncRaw2uYLPnyq-VlnVyU8Udg';
+let _kseiCache = null;
+
+function parseKseiCsv(text, docId, url) {
+  function parseCSV(str) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      const next = str[i + 1];
+      if (c === "\"" && inQuotes && next === "\"") {
+        cell += "\"";
+        i++;
+      } else if (c === "\"") {
+        inQuotes = !inQuotes;
+      } else if (c === "," && !inQuotes) {
+        row.push(cell.trim());
+        cell = "";
+      } else if ((c === "\r" || c === "\n") && !inQuotes) {
+        if (c === "\r" && next === "\n") i++;
+        row.push(cell.trim());
+        if (row.some(x => x !== "")) rows.push(row);
+        row = [];
+        cell = "";
+      } else {
+        cell += c;
+      }
+    }
+    if (cell.length > 0 || row.length > 0) {
+      row.push(cell.trim());
+      if (row.some(x => x !== "")) rows.push(row);
+    }
+    return rows;
+  }
+
+  const rows = parseCSV(text);
+  const title = rows[0] && rows[0][0] ? rows[0][0] : "";
+  const dateMatch = title.match(/per tanggal\s+([^\,]+)/i);
+  const reportDate = dateMatch ? dateMatch[1].trim() : "26 Aug 2026";
+
+  const prevDateMatch = rows[2] && rows[2][11] ? rows[2][11].match(/Per\s+([^\,]+)/i) : null;
+  const prevDate = prevDateMatch ? prevDateMatch[1].trim() : "Periode Lalu";
+
+  const latestDateMatch = rows[2] && rows[2][14] ? rows[2][14].match(/Per\s+([^\,]+)/i) : null;
+  const latestDate = latestDateMatch ? latestDateMatch[1].trim() : reportDate;
+
+  const dataByTicker = {};
+  let currentTicker = "";
+  let currentEmitenName = "";
+  let currentInvestor = null;
+
+  for (let i = 4; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length < 5) continue;
+
+    const noCol = (r[0] || "").trim();
+    const tickerCol = (r[1] || "").trim();
+    const emitenCol = (r[2] || "").trim();
+    const custodianCol = (r[3] || "").trim();
+    const investorCol = (r[4] || "").trim();
+    const accNameCol = (r[5] || "").trim();
+    const domicileCol = (r[9] || "").trim();
+    const statusCol = (r[10] || "L").toUpperCase().startsWith("A") ? "Asing" : "Lokal";
+
+    const sharesSub = parseInt((r[14] || r[11] || "").replace(/,/g, ""), 10) || 0;
+    const sharesTotal = parseInt((r[15] || r[12] || "").replace(/,/g, ""), 10) || sharesSub;
+    const pctTotal = parseFloat((r[16] || r[13] || "").replace(/,/g, "")) || 0;
+    const change = parseInt((r[17] || "").replace(/,/g, ""), 10) || 0;
+
+    if (tickerCol && /^[A-Z0-9]{4,5}$/.test(tickerCol)) {
+      currentTicker = tickerCol;
+    }
+    if (emitenCol) {
+      currentEmitenName = emitenCol;
+    }
+
+    if (!currentTicker) continue;
+
+    if (!dataByTicker[currentTicker]) {
+      dataByTicker[currentTicker] = {
+        ticker: currentTicker,
+        name: currentEmitenName || currentTicker,
+        investors: [],
+        totalMajorPercent: 0,
+        freeFloat: 100,
+        localPercent: 0,
+        foreignPercent: 0,
+        totalSharesHeld: 0,
+        netChangeShares: 0,
+        reportDate: reportDate,
+        prevDate: prevDate,
+        latestDate: latestDate
+      };
+    }
+
+    if (noCol !== "" || investorCol !== "") {
+      const invName = investorCol || (currentInvestor ? currentInvestor.name : "Investor");
+      currentInvestor = {
+        name: invName,
+        percentage: pctTotal,
+        shares: sharesTotal,
+        change: change,
+        status: statusCol,
+        domicile: domicileCol || "INDONESIA",
+        accounts: []
+      };
+      if (custodianCol || accNameCol) {
+        currentInvestor.accounts.push({
+          custodian: custodianCol,
+          accountName: accNameCol,
+          shares: sharesSub,
+          domicile: domicileCol
+        });
+      }
+      dataByTicker[currentTicker].investors.push(currentInvestor);
+    } else if (currentInvestor) {
+      if (custodianCol || accNameCol) {
+        currentInvestor.accounts.push({
+          custodian: custodianCol,
+          accountName: accNameCol,
+          shares: sharesSub,
+          domicile: domicileCol || currentInvestor.domicile
+        });
+      }
+    }
+  }
+
+  let totalHoldersCount = 0;
+  Object.keys(dataByTicker).forEach(t => {
+    const item = dataByTicker[t];
+    let totPct = 0;
+    let locPct = 0;
+    let forPct = 0;
+    let totShares = 0;
+    let totChg = 0;
+
+    item.investors.forEach(inv => {
+      totPct += inv.percentage;
+      if (inv.status === "Asing") forPct += inv.percentage;
+      else locPct += inv.percentage;
+      totShares += inv.shares;
+      totChg += inv.change;
+    });
+
+    item.totalMajorPercent = Math.min(100, Math.round(totPct * 100) / 100);
+    item.freeFloat = Math.max(0, Math.round((100 - item.totalMajorPercent) * 100) / 100);
+    item.localPercent = Math.round(locPct * 100) / 100;
+    item.foreignPercent = Math.round(forPct * 100) / 100;
+    item.totalSharesHeld = totShares;
+    item.netChangeShares = totChg;
+    totalHoldersCount += item.investors.length;
+  });
+
+  return {
+    metadata: {
+      source: "KSEI (Kustodian Sentral Efek Indonesia) via Google Sheets",
+      sheetId: docId,
+      sheetUrl: url,
+      title: title,
+      reportDate: reportDate,
+      prevDate: prevDate,
+      latestDate: latestDate,
+      totalEmiten: Object.keys(dataByTicker).length,
+      totalMajorInvestors: totalHoldersCount,
+      lastUpdated: new Date().toISOString()
+    },
+    data: dataByTicker
+  };
+}
+
+function getStoredKseiData() {
+  if (_kseiCache) return _kseiCache;
+  const filePath = path.join(__dirname, 'data', 'ksei-shareholders.json');
+  if (fs.existsSync(filePath)) {
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      _kseiCache = JSON.parse(content);
+      return _kseiCache;
+    } catch (e) {
+      console.warn('Error reading cached KSEI json:', e.message);
+    }
+  }
+  return null;
+}
+
+// GET endpoint to return KSEI 5%+ shareholders and Free Float data
+app.get('/api/ksei/data', (req, res) => {
+  try {
+    const ksei = getStoredKseiData();
+    if (!ksei) {
+      return res.status(404).json({ success: false, error: 'KSEI dataset not yet initialized. Please run sync.' });
+    }
+
+    const { search, minFreeFloat, maxFreeFloat, status, sort, limit, offset } = req.query;
+    let list = Object.values(ksei.data || {});
+
+    if (search) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(item => {
+        if (item.ticker.toLowerCase().includes(q) || item.name.toLowerCase().includes(q)) return true;
+        return item.investors.some(inv => inv.name.toLowerCase().includes(q));
+      });
+    }
+
+    if (minFreeFloat !== undefined) {
+      list = list.filter(item => item.freeFloat >= parseFloat(minFreeFloat));
+    }
+    if (maxFreeFloat !== undefined) {
+      list = list.filter(item => item.freeFloat <= parseFloat(maxFreeFloat));
+    }
+    if (status === 'foreign_heavy') {
+      list = list.filter(item => item.foreignPercent > item.localPercent);
+    } else if (status === 'accumulating') {
+      list = list.filter(item => item.netChangeShares > 0);
+    } else if (status === 'distributing') {
+      list = list.filter(item => item.netChangeShares < 0);
+    }
+
+    if (sort === 'freefloat_asc') list.sort((a, b) => a.freeFloat - b.freeFloat);
+    else if (sort === 'freefloat_desc') list.sort((a, b) => b.freeFloat - a.freeFloat);
+    else if (sort === 'major_desc') list.sort((a, b) => b.totalMajorPercent - a.totalMajorPercent);
+    else if (sort === 'foreign_desc') list.sort((a, b) => b.foreignPercent - a.foreignPercent);
+    else if (sort === 'change_desc') list.sort((a, b) => b.netChangeShares - a.netChangeShares);
+    else list.sort((a, b) => a.ticker.localeCompare(b.ticker));
+
+    const totalCount = list.length;
+    const start = parseInt(offset, 10) || 0;
+    const pageLimit = parseInt(limit, 10) || list.length;
+    const paginated = list.slice(start, start + pageLimit);
+
+    return res.json({
+      success: true,
+      metadata: ksei.metadata,
+      total: totalCount,
+      count: paginated.length,
+      data: paginated
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET endpoint to return single stock KSEI details
+app.get('/api/ksei/stock/:ticker', (req, res) => {
+  try {
+    const rawTicker = (req.params.ticker || '').toUpperCase().replace('.JK', '').replace('.US', '');
+    const ksei = getStoredKseiData();
+    if (!ksei || !ksei.data) {
+      return res.status(404).json({ success: false, error: 'KSEI dataset not found' });
+    }
+
+    const stock = ksei.data[rawTicker];
+    if (!stock) {
+      return res.json({
+        success: true,
+        found: false,
+        ticker: rawTicker,
+        stock: {
+          ticker: rawTicker,
+          name: rawTicker,
+          investors: [],
+          totalMajorPercent: 0,
+          freeFloat: 100,
+          localPercent: 0,
+          foreignPercent: 0,
+          totalSharesHeld: 0,
+          netChangeShares: 0,
+          reportDate: ksei.metadata ? ksei.metadata.reportDate : 'Terbaru',
+          note: 'Tidak terdapat investor dengan kepemilikan >5% yang tercatat di KSEI (Free float publik mendekati 100% atau pemegang saham tersebar di bawah 5%).'
+        }
+      });
+    }
+
+    return res.json({
+      success: true,
+      found: true,
+      ticker: rawTicker,
+      metadata: ksei.metadata,
+      stock: stock
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST endpoint to sync / refresh KSEI data directly from Google Sheets
+app.post('/api/ksei/sync', async (req, res) => {
+  try {
+    let sheetId = (req.body && req.body.sheetId) || DEFAULT_KSEI_SHEET_ID;
+    const rawUrl = (req.body && req.body.sheetUrl) || '';
+    if (rawUrl && rawUrl.includes('/d/')) {
+      const match = rawUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (match) sheetId = match[1];
+    }
+
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+    console.log(`[KSEI Sync] Fetching CSV from ${exportUrl}...`);
+
+    const response = await fetch(exportUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google Sheets responded with status ${response.status} ${response.statusText}`);
+    }
+
+    const csvText = await response.text();
+    if (!csvText || csvText.length < 500) {
+      throw new Error('Retrieved CSV content is too small or invalid');
+    }
+
+    const parsed = parseKseiCsv(csvText, sheetId, exportUrl);
+    _kseiCache = parsed;
+
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(path.join(dataDir, 'ksei-shareholders.json'), JSON.stringify(parsed, null, 2), 'utf8');
+
+    console.log(`[KSEI Sync] Successfully updated ${parsed.metadata.totalEmiten} emiten, report date: ${parsed.metadata.reportDate}`);
+
+    return res.json({
+      success: true,
+      message: 'KSEI 5%+ Shareholders & Free Float data successfully synced and saved',
+      metadata: parsed.metadata,
+      stats: {
+        totalEmiten: parsed.metadata.totalEmiten,
+        totalMajorInvestors: parsed.metadata.totalMajorInvestors,
+        reportDate: parsed.metadata.reportDate,
+        lastUpdated: parsed.metadata.lastUpdated
+      }
+    });
+  } catch (err) {
+    console.error('[KSEI Sync Error]', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to sync KSEI data from Google Sheets',
+      message: err.message
+    });
+  }
+});
+
+// GET endpoint to return high-level summary & radar statistics from KSEI
+app.get('/api/ksei/summary', (req, res) => {
+  try {
+    const ksei = getStoredKseiData();
+    if (!ksei || !ksei.data) {
+      return res.status(404).json({ success: false, error: 'Dataset not loaded' });
+    }
+
+    const all = Object.values(ksei.data);
+    const lowestFreeFloat = [...all].filter(x => x.investors.length > 0).sort((a, b) => a.freeFloat - b.freeFloat).slice(0, 10);
+    const highestFreeFloat = [...all].filter(x => x.investors.length > 0).sort((a, b) => b.freeFloat - a.freeFloat).slice(0, 10);
+    const topForeignHeld = [...all].filter(x => x.foreignPercent > 0).sort((a, b) => b.foreignPercent - a.foreignPercent).slice(0, 10);
+    const topAccumulating = [...all].filter(x => x.netChangeShares > 0).sort((a, b) => b.netChangeShares - a.netChangeShares).slice(0, 10);
+    const topDistributing = [...all].filter(x => x.netChangeShares < 0).sort((a, b) => a.netChangeShares - b.netChangeShares).slice(0, 10);
+
+    return res.json({
+      success: true,
+      metadata: ksei.metadata,
+      summary: {
+        totalEmiten: all.length,
+        lowestFreeFloat,
+        highestFreeFloat,
+        topForeignHeld,
+        topAccumulating,
+        topDistributing
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

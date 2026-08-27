@@ -614,6 +614,9 @@ function renderStockIntelPage() {
       + '</div>'
     + '</div>'
 
+    // KSEI 5%+ SHAREHOLDER & FREE FLOAT WIDGET
+    + (typeof renderKseiIntelWidget === 'function' ? renderKseiIntelWidget(ticker) : '')
+
     // 5-Pillar Score Cards
     + '<div class="row5" style="margin-bottom:18px">'
       + '<div class="metric">'

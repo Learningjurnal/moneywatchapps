@@ -433,14 +433,308 @@ var tradeStrategy = {
   'ADRO': 'Core Long',
   'SMDR': 'Core Long'
 };
+// ══════════════════════════════════════════════════════════
+// DATA MERGE & CONFLICT RESOLUTION ENGINE
+// ══════════════════════════════════════════════════════════
+function _makeTxSig(t){
+  if(!t) return '';
+  return (t.date || '') + '|' + (t.type || '') + '|' + (t.ticker || '') + '|' + (t.lot || 0) + '|' + (t.price || 0) + '|' + (t.sekuritas || '');
+}
+
+function _mergeDatasets(localObj, cloudObj){
+  var local = localObj || {};
+  var cloud = cloudObj || {};
+
+  // 1. Merge Transactions (Saham BUY / SELL) — preserve every transaction from both local & cloud
+  var txMap = new Map();
+  var mergedTx = [];
+
+  var lTx = Array.isArray(local.transactions) ? local.transactions : [];
+  var cTx = Array.isArray(cloud.transactions) ? cloud.transactions : [];
+
+  // Index cloud transactions first
+  cTx.forEach(function(t){
+    if(!t) return;
+    var sig = _makeTxSig(t);
+    var key = (t.id != null) ? ('id_' + t.id) : ('sig_' + sig);
+    txMap.set(key, t);
+    if(sig) txMap.set('sig_' + sig, t);
+  });
+
+  // Merge local transactions (keep any local additions or modifications)
+  lTx.forEach(function(t){
+    if(!t) return;
+    var sig = _makeTxSig(t);
+    var key = (t.id != null) ? ('id_' + t.id) : ('sig_' + sig);
+    if(!txMap.has(key) && (!sig || !txMap.has('sig_' + sig))){
+      txMap.set(key, t);
+      if(sig) txMap.set('sig_' + sig, t);
+    } else {
+      // If exists, keep the one with net/gross components or valid id
+      var existing = txMap.get(key) || txMap.get('sig_' + sig);
+      if(existing && t.id && !existing.id) existing.id = t.id;
+      if(existing && t.sekuritas && !existing.sekuritas) existing.sekuritas = t.sekuritas;
+    }
+  });
+
+  // Extract distinct transactions
+  var seenIds = new Set();
+  var seenSigs = new Set();
+  txMap.forEach(function(t){
+    var sig = _makeTxSig(t);
+    var idKey = t.id != null ? String(t.id) : null;
+    if(idKey && seenIds.has(idKey)) return;
+    if(sig && seenSigs.has(sig)) return;
+    if(idKey) seenIds.add(idKey);
+    if(sig) seenSigs.add(sig);
+    mergedTx.push(t);
+  });
+
+  // Sort transactions chronologically
+  mergedTx.sort(function(a, b){
+    var d = (a.date || '').localeCompare(b.date || '');
+    if(d !== 0) return d;
+    return ((a.id || 0) - (b.id || 0));
+  });
+
+  // 2. Merge Dividends
+  var divMap = new Map();
+  var lDiv = Array.isArray(local.dividends) ? local.dividends : [];
+  var cDiv = Array.isArray(cloud.dividends) ? cloud.dividends : [];
+  [].concat(cDiv, lDiv).forEach(function(d){
+    if(!d) return;
+    var sig = (d.date || '') + '|' + (d.ticker || '') + '|' + (d.shares || 0) + '|' + (d.dps || 0);
+    if(!divMap.has(sig)) divMap.set(sig, d);
+  });
+  var mergedDiv = Array.from(divMap.values()).sort(function(a, b){
+    return (a.date || '').localeCompare(b.date || '') || ((a.id || 0) - (b.id || 0));
+  });
+
+  // 3. Merge RDN Mutations (Preserve all manual entries: SETOR, TARIK, PENYESUAIAN, BIAYA)
+  var lMut = Array.isArray(local.rdnMutations) ? local.rdnMutations : [];
+  var cMut = Array.isArray(cloud.rdnMutations) ? cloud.rdnMutations : [];
+  var mutMap = new Map();
+
+  [].concat(cMut, lMut).forEach(function(m){
+    if(!m) return;
+    var sig = (m.date || '') + '|' + (m.type || '') + '|' + Number(m.amount || 0) + '|' + (m.ket || '') + '|' + (m.account || 'saham') + '|' + (m.linkedTxId || '');
+    if(!mutMap.has(sig)){
+      mutMap.set(sig, m);
+    }
+  });
+  var mergedMutations = Array.from(mutMap.values());
+
+  // 4. Merge Other Assets
+  var lCrypto = Array.isArray(local.cryptoTx) ? local.cryptoTx : [];
+  var cCrypto = Array.isArray(cloud.cryptoTx) ? cloud.cryptoTx : [];
+  var cryptoMap = new Map();
+  [].concat(cCrypto, lCrypto).forEach(function(c){
+    if(!c) return;
+    var sig = (c.date||'')+'|'+(c.coin||'')+'|'+(c.qty||0)+'|'+(c.priceIdr||0);
+    if(!cryptoMap.has(sig)) cryptoMap.set(sig, c);
+  });
+
+  var lRd = Array.isArray(local.rdTx) ? local.rdTx : [];
+  var cRd = Array.isArray(cloud.rdTx) ? cloud.rdTx : [];
+  var rdMap = new Map();
+  [].concat(cRd, lRd).forEach(function(r){
+    if(!r) return;
+    var sig = (r.date||'')+'|'+(r.code||'')+'|'+(r.amount||0)+'|'+(r.nab||0);
+    if(!rdMap.has(sig)) rdMap.set(sig, r);
+  });
+
+  return {
+    transactions: mergedTx,
+    dividends: mergedDiv,
+    rdnMutations: mergedMutations,
+    cryptoTx: Array.from(cryptoMap.values()),
+    etfTx: (local.etfTx && local.etfTx.length) ? local.etfTx : (cloud.etfTx || []),
+    rdTx: Array.from(rdMap.values()),
+    divInvestData: (local.divInvestData && local.divInvestData.length) ? local.divInvestData : (cloud.divInvestData || []),
+    theses: (local.theses && local.theses.length) ? local.theses : (cloud.theses || []),
+    journals: (local.journals && local.journals.length) ? local.journals : (cloud.journals || []),
+    priceAlerts: (local.priceAlerts && local.priceAlerts.length) ? local.priceAlerts : (cloud.priceAlerts || []),
+    wealth: local.wealth || cloud.wealth || null,
+    tradeStrategy: Object.assign({}, cloud.tradeStrategy || {}, local.tradeStrategy || {}),
+    taxSettings: Object.assign({}, cloud.taxSettings || {}, local.taxSettings || {}),
+    cashAccounts: Object.assign({}, cloud.cashAccounts || {}, local.cashAccounts || {}),
+    sekTaxOverride: Object.assign({}, cloud.sekTaxOverride || {}, local.sekTaxOverride || {}),
+    activeSekuritas: local.activeSekuritas || cloud.activeSekuritas || 'Stockbit',
+    rdnBalance: (local.rdnBalance !== undefined) ? local.rdnBalance : (cloud.rdnBalance || 0)
+  };
+}
+
+// ══════════════════════════════════════════════════════════
+// CLOUD PERSISTENCE & REALTIME CROSS-DEVICE ENGINE
+// ══════════════════════════════════════════════════════════
 var _cloudSyncFailed = false;
 var _syncInFlight = false;
 var _syncQueued = false;
+var _realtimeListenerUnsub = null;
+var _isApplyingCloudSnapshot = false;
+
+function _syncToServerMirror(payload){
+  try {
+    var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
+    var email = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
+    if(typeof fetch === 'function'){
+      fetch('/api/user-data/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify({
+          uid: uid,
+          email: email,
+          savedAt: new Date().toISOString(),
+          data: payload
+        })
+      }).catch(function(e){
+        console.warn('Server persistence mirror notice:', e);
+      });
+    }
+  } catch(e){}
+}
+
+// ── SETUP REALTIME FIRESTORE CROSS-DEVICE SYNC ──
+function setupFirestoreRealtimeListener(uid){
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
+  if(!db || !uid) return;
+  if(_realtimeListenerUnsub){
+    try { _realtimeListenerUnsub(); } catch(e){}
+    _realtimeListenerUnsub = null;
+  }
+
+  try {
+    var mainDocRef = db.collection('users').doc(uid).collection('data').doc('main');
+    _realtimeListenerUnsub = mainDocRef.onSnapshot(function(docSnap){
+      if(!docSnap || !docSnap.exists) return;
+      // Jangan timpa jika perubahan berasal dari save lokal yang sedang berlangsung
+      if(_syncInFlight || _isApplyingCloudSnapshot) return;
+
+      var cData = docSnap.data();
+      if(!cData) return;
+
+      // Cek apakah updatedAt dari cloud lebih baru atau berbeda dari state saat ini
+      var currentTxLen = (transactions || []).length;
+      var cloudTxLen = (cData.transactions || []).length;
+      
+      // Terapkan update dari cloud ke memori perangkat
+      _isApplyingCloudSnapshot = true;
+      try {
+        if(Array.isArray(cData.transactions)) transactions = cData.transactions;
+        if(Array.isArray(cData.dividends)) dividends = cData.dividends;
+        if(Array.isArray(cData.rdnMutations)) rdnMutations = cData.rdnMutations;
+        if(Array.isArray(cData.cryptoTx)) cryptoTx = cData.cryptoTx;
+        if(Array.isArray(cData.etfTx)) etfTx = cData.etfTx;
+        if(Array.isArray(cData.rdTx)) rdTx = cData.rdTx;
+        if(Array.isArray(cData.divInvestData)) divInvestData = cData.divInvestData;
+        if(cData.activeSekuritas) activeSekuritas = cData.activeSekuritas;
+        if(typeof cData.rdnBalance === 'number') rdnBalance = cData.rdnBalance;
+        if(cData.taxSettings && typeof TAX_SETTINGS !== 'undefined') Object.assign(TAX_SETTINGS, cData.taxSettings);
+        if(cData.cashAccounts && typeof CASH_ACCOUNTS !== 'undefined') Object.assign(CASH_ACCOUNTS, cData.cashAccounts);
+        if(cData.tradeStrategy) tradeStrategy = Object.assign({}, tradeStrategy, cData.tradeStrategy);
+        if(cData.theses && typeof MW_THESES !== 'undefined') MW_THESES = cData.theses;
+        if(cData.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = cData.journals;
+        if(cData.wealth && typeof WEALTH !== 'undefined') Object.assign(WEALTH, cData.wealth);
+
+        if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
+        if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
+      } finally {
+        _isApplyingCloudSnapshot = false;
+      }
+    }, function(err){
+      console.warn('Realtime Firestore snapshot notice:', err);
+    });
+  } catch(e){
+    console.warn('Gagal mengaktifkan Realtime Firestore Listener:', e);
+  }
+}
+
+// ── MIGRASI TOTAL DATA LOKAL KE FIREBASE FIRESTORE ──
+async function migrateLocalDataToFirebaseCloud(force){
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
+  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
+  var email = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
+
+  if(!db){
+    console.warn('Firebase Firestore belum terhubung, migrasi ditunda.');
+    return false;
+  }
+
+  try {
+    if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Memindahkan data lokal ke Firebase Cloud Firestore...', 'var(--accent)', true);
+
+    // Ambil data lokal dari localStorage untuk memastikan tidak ada yang terlewat
+    var rawLocal = localStorage.getItem('mw_local_data_v2') || localStorage.getItem('mw_emergency_backup_v2');
+    var parsedLocal = null;
+    if(rawLocal){
+      try { parsedLocal = JSON.parse(rawLocal); } catch(e){}
+    }
+
+    var localPayload = {
+      transactions: transactions || (parsedLocal && parsedLocal.transactions) || [],
+      dividends: dividends || (parsedLocal && parsedLocal.dividends) || [],
+      rdnMutations: rdnMutations || (parsedLocal && parsedLocal.rdnMutations) || [],
+      cryptoTx: cryptoTx || (parsedLocal && parsedLocal.cryptoTx) || [],
+      etfTx: etfTx || (parsedLocal && parsedLocal.etfTx) || [],
+      rdTx: rdTx || (parsedLocal && parsedLocal.rdTx) || [],
+      divInvestData: divInvestData || (parsedLocal && parsedLocal.divInvestData) || [],
+      theses: (typeof MW_THESES !== 'undefined' && MW_THESES.length) ? MW_THESES : (parsedLocal && parsedLocal.theses) || [],
+      journals: (typeof MW_JOURNALS !== 'undefined' && MW_JOURNALS.length) ? MW_JOURNALS : (parsedLocal && parsedLocal.journals) || [],
+      priceAlerts: (typeof mwGetPriceAlerts === 'function') ? mwGetPriceAlerts() : [],
+      wealth: (typeof WEALTH !== 'undefined') ? WEALTH : (parsedLocal && parsedLocal.wealth) || null,
+      equityHistory: (typeof equityHistoryLoad === 'function') ? equityHistoryLoad() : [],
+      activeSekuritas: activeSekuritas || (parsedLocal && parsedLocal.activeSekuritas) || 'Stockbit',
+      rdnBalance: (typeof rdnBalance === 'number') ? rdnBalance : (parsedLocal && parsedLocal.rdnBalance) || 0,
+      cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : (parsedLocal && parsedLocal.cashAccounts) || {},
+      taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : (parsedLocal && parsedLocal.taxSettings) || {},
+      sekTaxOverride: sekTaxOverride || (parsedLocal && parsedLocal.sekTaxOverride) || {},
+      tradeStrategy: tradeStrategy || (parsedLocal && parsedLocal.tradeStrategy) || {},
+      migratedFromLocalAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    var userRef = db.collection('users').doc(uid);
+    var mainDataRef = userRef.collection('data').doc('main');
+
+    // 1. Simpan dokumen utama (full bundle) ke Firestore
+    await mainDataRef.set(localPayload, { merge: true });
+
+    // 2. Simpan metadata profil user
+    await userRef.set({
+      email: email,
+      storageMode: 'FIREBASE_FIRESTORE_CLOUD',
+      isMigrated: true,
+      lastMigratedAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString()
+    }, { merge: true });
+
+    window._firebaseMigrated = true;
+    _syncToServerMirror(localPayload);
+
+    // Aktifkan realtime listener lintas perangkat
+    setupFirestoreRealtimeListener(uid);
+
+    var countTx = localPayload.transactions.length;
+    var countRdn = localPayload.rdnMutations.length;
+    var countDiv = localPayload.dividends.length;
+
+    var msg = '🔥 Sukses! ' + countTx + ' Transaksi, ' + countRdn + ' Mutasi RDN & ' + countDiv + ' Dividen telah dipindahkan ke Firebase Firestore Cloud';
+    if(typeof showSaveStatus === 'function') showSaveStatus(msg, 'var(--green)');
+    
+    return true;
+  } catch(err){
+    console.error('Error saat memindahkan data lokal ke Firebase:', err);
+    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Gagal migrasi Firebase: ' + err.message, 'var(--red)', true);
+    return false;
+  }
+}
+window.migrateLocalDataToFirebaseCloud = migrateLocalDataToFirebaseCloud;
 
 async function fireSaveAllData(){
-  if(!_currentUser || !_firebaseDb) return;
-  var uid = _currentUser.uid || _currentUser.id;
-  if(!uid) return;
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
+  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
+  var email = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
 
   var currentWealth = (typeof WEALTH !== 'undefined') ? WEALTH : null;
   var currentTheses = (typeof MW_THESES !== 'undefined') ? MW_THESES : [];
@@ -471,22 +765,28 @@ async function fireSaveAllData(){
     adminExtra: (typeof ADMIN_EXTRA !== 'undefined') ? ADMIN_EXTRA : [],
     idxUniverse: (typeof IDX_UNIVERSE !== 'undefined') ? IDX_UNIVERSE : null,
     idxUniverseInfo: (typeof IDX_UNIVERSE_INFO !== 'undefined') ? IDX_UNIVERSE_INFO : null,
-    nextTxId: nextTxId || 1,
-    nextDivId: nextDivId || 1,
-    nextRdnId: nextRdnId || 1,
-    nextCryptoId: nextCryptoId || 1,
-    nextEtfId: nextEtfId || 1,
-    nextRdId: nextRdId || 1,
+    nextTxId: Math.max(nextTxId || 1, _maxIdPlus1(transactions)),
+    nextDivId: Math.max(nextDivId || 1, _maxIdPlus1(dividends)),
+    nextRdnId: Math.max(nextRdnId || 1, _maxIdPlus1(rdnMutations)),
+    nextCryptoId: Math.max(nextCryptoId || 1, _maxIdPlus1(cryptoTx)),
+    nextEtfId: Math.max(nextEtfId || 1, _maxIdPlus1(etfTx)),
+    nextRdId: Math.max(nextRdId || 1, _maxIdPlus1(rdTx)),
     updatedAt: new Date().toISOString()
   };
 
+  // Always mirror to server disk storage for 100% hard-refresh resilience
+  _syncToServerMirror(payload);
+
+  if(!db) return true;
+
   try {
-    var userRef = _firebaseDb.collection('users').doc(uid);
+    var userRef = db.collection('users').doc(uid);
     var mainDataRef = userRef.collection('data').doc('main');
     
     await mainDataRef.set(payload, { merge: true });
     await userRef.set({
-      email: _currentUser.email || 'user',
+      email: email,
+      storageMode: 'FIREBASE_FIRESTORE_CLOUD',
       lastActiveAt: new Date().toISOString()
     }, { merge: true });
 
@@ -494,7 +794,7 @@ async function fireSaveAllData(){
   } catch(err) {
     var errStr = (err && err.message) ? err.message : String(err);
     if (errStr.indexOf('offline') !== -1 || errStr.indexOf('unavailable') !== -1) {
-      console.warn('Firebase Firestore offline save queued locally:', errStr);
+      console.warn('Firebase Firestore offline save queued:', errStr);
     } else {
       console.warn('Firebase Firestore save notice:', errStr);
     }
@@ -503,117 +803,34 @@ async function fireSaveAllData(){
 }
 
 async function fireLoadAllData(){
-  if(!_currentUser || !_firebaseDb) return false;
-  var uid = _currentUser.uid || _currentUser.id;
-  if(!uid) return false;
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
+  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
+  if(!db) return false;
 
   try {
-    var mainDataRef = _firebaseDb.collection('users').doc(uid).collection('data').doc('main');
+    var mainDataRef = db.collection('users').doc(uid).collection('data').doc('main');
     
     var snap = null;
     try {
-      // Coba ambil dari Firestore dengan timeout agar tidak memblokir saat offline/koneksi lambat
+      // Ambil snapshot langsung dari Firestore
       snap = await Promise.race([
         mainDataRef.get(),
         new Promise(function(_, reject) {
-          setTimeout(function() { reject(new Error('Firestore connection timeout, using local cache')); }, 3500);
+          setTimeout(function() { reject(new Error('Firestore connection timeout, checking fallback')); }, 4500);
         })
       ]);
     } catch(fetchErr) {
-      // Jika offline atau timeout, coba ambil dari cache offline lokal Firestore
       try {
         snap = await mainDataRef.get({ source: 'cache' });
       } catch(cacheErr) {
         var msg = (fetchErr && fetchErr.message) ? fetchErr.message : String(fetchErr);
-        console.warn('Firestore offline notice (menggunakan data lokal):', msg);
+        console.warn('Firestore load notice:', msg);
         return false;
       }
     }
 
-    if(!snap || !snap.exists){
-      // Inisialisasi portofolio 24 Agustus 2026 jika belum ada data di Firestore maupun lokal
-      if(!transactions || transactions.length === 0){
-        initPortfolio2026(true);
-      }
-      try {
-        await fireSaveAllData();
-      } catch(saveErr) {
-        console.warn('Initial fireSaveAllData deferred:', saveErr && saveErr.message ? saveErr.message : saveErr);
-      }
-      return true;
-    }
-
-    var d = snap.data() || {};
-
-    transactions = d.transactions || [];
-    dividends = d.dividends || [];
-    rdnMutations = d.rdnMutations || [];
-    cryptoTx = d.cryptoTx || [];
-    etfTx = d.etfTx || [];
-    rdTx = d.rdTx || [];
-    divInvestData = d.divInvestData || [];
-    
-    activeSekuritas = d.activeSekuritas || 'Stockbit';
-    rdnBalance = d.rdnBalance || 0;
-    if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
-    else if(typeof sanitizeRdnMutations === 'function') sanitizeRdnMutations();
-    else if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
-
-    if(d.taxSettings && typeof TAX_SETTINGS !== 'undefined'){
-      Object.assign(TAX_SETTINGS, d.taxSettings);
-    }
-    if(d.cashAccounts && typeof CASH_ACCOUNTS !== 'undefined'){
-      Object.assign(CASH_ACCOUNTS, d.cashAccounts);
-    }
-
-    sekTaxOverride = d.sekTaxOverride || {};
-    tradeStrategy = d.tradeStrategy || {};
-
-    if(d.theses && typeof MW_THESES !== 'undefined') MW_THESES = d.theses;
-    if(d.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = d.journals;
-
-    if(d.wealth && typeof WEALTH !== 'undefined'){
-      Object.keys(WEALTH).forEach(function(k){
-        if(d.wealth[k] !== undefined) WEALTH[k] = d.wealth[k];
-      });
-      if(typeof wUpdateDueBadge === 'function') wUpdateDueBadge();
-    }
-
-    if(d.equityHistory && Array.isArray(d.equityHistory) && d.equityHistory.length > 0){
-      if(typeof equityHistorySave === 'function') equityHistorySave(d.equityHistory);
-    } else if(typeof equityHistoryLoad === 'function') {
-      equityHistoryLoad();
-    }
-
-    if(d.adminMeta && typeof ADMIN_META !== 'undefined') ADMIN_META = d.adminMeta;
-    if(d.adminExtra && typeof ADMIN_EXTRA !== 'undefined') ADMIN_EXTRA = d.adminExtra;
-    if(d.idxUniverse && typeof IDX_UNIVERSE !== 'undefined') IDX_UNIVERSE = d.idxUniverse;
-    if(d.idxUniverseInfo && typeof IDX_UNIVERSE_INFO !== 'undefined') IDX_UNIVERSE_INFO = d.idxUniverseInfo;
-
-    nextTxId  = Math.max(d.nextTxId || 1, _maxIdPlus1(transactions));
-    nextDivId = Math.max(d.nextDivId || 1, _maxIdPlus1(dividends));
-    nextRdnId = Math.max(d.nextRdnId || 1, _maxIdPlus1(rdnMutations));
-    nextCryptoId = Math.max(d.nextCryptoId || 1, _maxIdPlus1(cryptoTx));
-    nextEtfId    = Math.max(d.nextEtfId || 1, _maxIdPlus1(etfTx));
-    nextRdId     = Math.max(d.nextRdId || 1, _maxIdPlus1(rdTx));
-
-    return true;
-  } catch(err) {
-    var errStr = (err && err.message) ? err.message : String(err);
-    console.warn('Firebase Firestore load notice (fallback ke penyimpanan lokal):', errStr);
-    return false;
-  }
-}
-
-// ============================================================
-// DATA SAVE & SYNC CONTROLLER (HYBRID LOCALSTORAGE & FIRESTORE)
-// ============================================================
-function saveData(){
-  if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
-  
-  // 1. Simpan selalu ke LocalStorage browser agar persisten seketika (offline-resilient)
-  try {
-    var localPayload = {
+    // Capture current local state before applying cloud data
+    var currentLocalState = {
       transactions: transactions || [],
       dividends: dividends || [],
       rdnMutations: rdnMutations || [],
@@ -622,27 +839,178 @@ function saveData(){
       rdTx: rdTx || [],
       divInvestData: divInvestData || [],
       tradeStrategy: tradeStrategy || {},
-      activeSekuritas: activeSekuritas || 'Stockbit',
-      rdnBalance: rdnBalance || 0,
-      taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
-      sekTaxOverride: sekTaxOverride || {},
-      wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
       theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
       journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
-      equityHistory: (typeof equityHistoryLoad === 'function') ? equityHistoryLoad() : [],
-      savedAt: new Date().toISOString()
+      wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
+      taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
+      cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
+      activeSekuritas: activeSekuritas || 'Stockbit',
+      rdnBalance: rdnBalance || 0
     };
-    localStorage.setItem('mw_local_data_v2', JSON.stringify(localPayload));
+
+    // Jika dokumen belum ada di Firestore tapi ada data lokal, segera migrasikan ke Firestore
+    if(!snap || !snap.exists){
+      if(currentLocalState.transactions.length === 0 && !localStorage.getItem('mw_local_data_v2') && !localStorage.getItem('mw_emergency_backup_v2')){
+        initPortfolio2026(true);
+      }
+      try {
+        await migrateLocalDataToFirebaseCloud(true);
+      } catch(saveErr) {
+        console.warn('Initial migrateLocalDataToFirebaseCloud deferred:', saveErr);
+      }
+      return true;
+    }
+
+    var cloudData = snap.data() || {};
+
+    // ── SMART BI-DIRECTIONAL MERGE ──
+    var merged = _mergeDatasets(currentLocalState, cloudData);
+
+    transactions = merged.transactions;
+    dividends = merged.dividends;
+    rdnMutations = merged.rdnMutations;
+    cryptoTx = merged.cryptoTx;
+    etfTx = merged.etfTx;
+    rdTx = merged.rdTx;
+    divInvestData = merged.divInvestData;
+    activeSekuritas = merged.activeSekuritas || 'Stockbit';
+
+    if(merged.taxSettings && typeof TAX_SETTINGS !== 'undefined'){
+      Object.assign(TAX_SETTINGS, merged.taxSettings);
+    }
+    if(merged.cashAccounts && typeof CASH_ACCOUNTS !== 'undefined'){
+      Object.assign(CASH_ACCOUNTS, merged.cashAccounts);
+    }
+
+    tradeStrategy = merged.tradeStrategy || {};
+    if(merged.theses && typeof MW_THESES !== 'undefined') MW_THESES = merged.theses;
+    if(merged.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = merged.journals;
+
+    if(merged.wealth && typeof WEALTH !== 'undefined'){
+      Object.keys(WEALTH).forEach(function(k){
+        if(merged.wealth[k] !== undefined) WEALTH[k] = merged.wealth[k];
+      });
+      if(typeof wUpdateDueBadge === 'function') wUpdateDueBadge();
+    }
+
+    if(cloudData.equityHistory && Array.isArray(cloudData.equityHistory) && cloudData.equityHistory.length > 0){
+      if(typeof equityHistorySave === 'function') equityHistorySave(cloudData.equityHistory);
+    } else if(typeof equityHistoryLoad === 'function') {
+      equityHistoryLoad();
+    }
+
+    if(cloudData.adminMeta && typeof ADMIN_META !== 'undefined') ADMIN_META = cloudData.adminMeta;
+    if(cloudData.adminExtra && typeof ADMIN_EXTRA !== 'undefined') ADMIN_EXTRA = cloudData.adminExtra;
+    if(cloudData.idxUniverse && typeof IDX_UNIVERSE !== 'undefined') IDX_UNIVERSE = cloudData.idxUniverse;
+    if(cloudData.idxUniverseInfo && typeof IDX_UNIVERSE_INFO !== 'undefined') IDX_UNIVERSE_INFO = cloudData.idxUniverseInfo;
+
+    nextTxId  = Math.max(cloudData.nextTxId || 1, _maxIdPlus1(transactions));
+    nextDivId = Math.max(cloudData.nextDivId || 1, _maxIdPlus1(dividends));
+    nextRdnId = Math.max(cloudData.nextRdnId || 1, _maxIdPlus1(rdnMutations));
+    nextCryptoId = Math.max(cloudData.nextCryptoId || 1, _maxIdPlus1(cryptoTx));
+    nextEtfId    = Math.max(cloudData.nextEtfId || 1, _maxIdPlus1(etfTx));
+    nextRdId     = Math.max(cloudData.nextRdId || 1, _maxIdPlus1(rdTx));
+
+    // Recalculate RDN ledger balance and synchronize
+    if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
+    else if(typeof sanitizeRdnMutations === 'function') sanitizeRdnMutations();
+    else if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+
+    // Persist merged state to local storage & mirror
+    try {
+      var mergedPayload = {
+        transactions: transactions,
+        dividends: dividends,
+        rdnMutations: rdnMutations,
+        cryptoTx: cryptoTx,
+        etfTx: etfTx,
+        rdTx: rdTx,
+        divInvestData: divInvestData,
+        tradeStrategy: tradeStrategy,
+        activeSekuritas: activeSekuritas,
+        rdnBalance: rdnBalance,
+        taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
+        cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
+        theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
+        journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
+        wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem('mw_local_data_v2', JSON.stringify(mergedPayload));
+      localStorage.setItem('mw_emergency_backup_v2', JSON.stringify(mergedPayload));
+      _syncToServerMirror(mergedPayload);
+    } catch(e){}
+
+    // If local state had new items not in cloud, push to Firestore
+    var localTxCount = (currentLocalState.transactions || []).length;
+    var cloudTxCount = (cloudData.transactions || []).length;
+    if(transactions.length > cloudTxCount || localTxCount > cloudTxCount){
+      try {
+        fireSaveAllData();
+      } catch(e){}
+    }
+
+    // Aktifkan realtime listener untuk sinkronisasi antar perangkat
+    setupFirestoreRealtimeListener(uid);
+
+    if(typeof renderPage === 'function' && typeof currentPage !== 'undefined'){
+      renderPage(currentPage);
+    }
+
+    return true;
+  } catch(err) {
+    var errStr = (err && err.message) ? err.message : String(err);
+    console.warn('Firebase Firestore load notice:', errStr);
+    return false;
+  }
+}
+
+// ============================================================
+// DATA SAVE & SYNC CONTROLLER (FIREBASE FIRESTORE CLOUD-FIRST)
+// ============================================================
+function saveData(){
+  if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
+  
+  var payloadObj = {
+    transactions: transactions || [],
+    dividends: dividends || [],
+    rdnMutations: rdnMutations || [],
+    cryptoTx: cryptoTx || [],
+    etfTx: etfTx || [],
+    rdTx: rdTx || [],
+    divInvestData: divInvestData || [],
+    tradeStrategy: tradeStrategy || {},
+    activeSekuritas: activeSekuritas || 'Stockbit',
+    rdnBalance: rdnBalance || 0,
+    taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
+    sekTaxOverride: sekTaxOverride || {},
+    cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
+    wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
+    theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
+    journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
+    equityHistory: (typeof equityHistoryLoad === 'function') ? equityHistoryLoad() : [],
+    savedAt: new Date().toISOString()
+  };
+
+  // 1. Simpan ke local cache sebagai offline fallback
+  try {
+    var payloadStr = JSON.stringify(payloadObj);
+    localStorage.setItem('mw_local_data_v2', payloadStr);
+    localStorage.setItem('mw_emergency_backup_v2', payloadStr);
     localStorage.setItem('mw_trade_strategy', JSON.stringify(tradeStrategy || {}));
   } catch(e) {
     console.warn('LocalStorage save notice:', e);
   }
 
-  // 2. Sinkronkan ke Firebase Firestore jika user terhubung
-  if(_currentUser && (_currentUser.uid || _currentUser.id) && _firebaseDb){
+  // 2. Simpan ke Server Persistence Mirror (Tahan Hard Refresh & Tab Close)
+  _syncToServerMirror(payloadObj);
+
+  // 3. Simpan dan sinkronkan seketika ke Firebase Firestore Cloud
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
+  if(db){
     _syncToCloud(true);
   } else {
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data & strategi tersimpan lokal', 'var(--green)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data tersimpan di server & perangkat', 'var(--green)');
   }
 }
 
@@ -660,26 +1028,32 @@ function _syncToCloud(allowRetry){
       _syncQueued = false;
       return _syncToCloud(allowRetry);
     }
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan ke Firebase Firestore & Lokal', 'var(--green)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan ke Firebase Firestore Cloud', 'var(--green)');
   }).catch(function(e){
     _syncInFlight = false;
     console.warn('Firebase sync notice:', e);
     _cloudSyncFailed = true;
     var _errMsg = (e && e.message) ? e.message : String(e);
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan lokal (Cloud: ' + _errMsg + ')', 'var(--amber)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan lokal & server (Cloud: ' + _errMsg + ')', 'var(--amber)');
     if(_syncQueued){
       _syncQueued = false;
       return _syncToCloud(allowRetry);
     }
     if(allowRetry){
-      setTimeout(function(){ if(_currentUser) _syncToCloud(false); }, 8000);
+      setTimeout(function(){ _syncToCloud(false); }, 8000);
     }
   });
 }
 
 function safeCloudBoot(){
   loadData();
-  return fireLoadAllData();
+  return fireLoadAllData().then(function(ok){
+    // Pastikan data lokal termigrasi ke Firebase jika belum
+    if(!window._firebaseMigrated){
+      migrateLocalDataToFirebaseCloud();
+    }
+    return ok;
+  });
 }
 
 function loadData(){
@@ -691,7 +1065,7 @@ function loadData(){
         tradeStrategy = Object.assign({}, tradeStrategy, parsedStrat);
       }
     }
-    var raw = localStorage.getItem('mw_local_data_v2');
+    var raw = localStorage.getItem('mw_local_data_v2') || localStorage.getItem('mw_emergency_backup_v2');
     if(raw){
       var d = JSON.parse(raw);
       if(d && typeof d === 'object'){
@@ -706,6 +1080,7 @@ function loadData(){
         if(d.activeSekuritas) activeSekuritas = d.activeSekuritas;
         if(typeof d.rdnBalance === 'number') rdnBalance = d.rdnBalance;
         if(d.sekTaxOverride) sekTaxOverride = d.sekTaxOverride;
+        if(d.cashAccounts && typeof CASH_ACCOUNTS !== 'undefined') Object.assign(CASH_ACCOUNTS, d.cashAccounts);
         if(d.taxSettings && typeof TAX_SETTINGS !== 'undefined') Object.assign(TAX_SETTINGS, d.taxSettings);
         if(d.theses && typeof MW_THESES !== 'undefined') MW_THESES = d.theses;
         if(d.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = d.journals;
@@ -716,15 +1091,35 @@ function loadData(){
       }
     }
     if(typeof equityHistoryLoad === 'function') equityHistoryLoad();
-    nextTxId  = _maxIdPlus1(transactions);
-    nextDivId = _maxIdPlus1(dividends);
-    nextRdnId = _maxIdPlus1(rdnMutations);
-    nextCryptoId = _maxIdPlus1(cryptoTx);
-    nextEtfId    = _maxIdPlus1(etfTx);
-    nextRdId     = _maxIdPlus1(rdTx);
+    nextTxId  = Math.max(nextTxId || 1, _maxIdPlus1(transactions));
+    nextDivId = Math.max(nextDivId || 1, _maxIdPlus1(dividends));
+    nextRdnId = Math.max(nextRdnId || 1, _maxIdPlus1(rdnMutations));
+    nextCryptoId = Math.max(nextCryptoId || 1, _maxIdPlus1(cryptoTx));
+    nextEtfId    = Math.max(nextEtfId || 1, _maxIdPlus1(etfTx));
+    nextRdId     = Math.max(nextRdId || 1, _maxIdPlus1(rdTx));
+
     if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
     else if(typeof sanitizeRdnMutations === 'function') sanitizeRdnMutations();
     else if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+
+    // Background asynchronous fallback check against server storage mirror
+    if(typeof fetch === 'function' && (!transactions || transactions.length === 0)){
+      fetch('/api/user-data/load')
+        .then(function(res){ return res.json(); })
+        .then(function(resData){
+          if(resData && resData.found && resData.record && resData.record.data){
+            var sData = resData.record.data;
+            if(sData.transactions && Array.isArray(sData.transactions) && sData.transactions.length > 0){
+              transactions = sData.transactions;
+              if(sData.rdnMutations && Array.isArray(sData.rdnMutations)) rdnMutations = sData.rdnMutations;
+              if(sData.dividends && Array.isArray(sData.dividends)) dividends = sData.dividends;
+              if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
+              if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
+            }
+          }
+        }).catch(function(){});
+    }
+
     return true;
   } catch(e){
     console.warn('LocalStorage load notice:', e);
@@ -863,24 +1258,52 @@ function openBackupModal(){
   var body = el('backup-modal-body');
   if(!body) return;
 
+  var userEmail = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
+  var nTx = (transactions || []).length;
+  var nRdn = (rdnMutations || []).length;
+  var nDiv = (dividends || []).length;
+
   body.innerHTML = `
-    <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">
-      Database aktif menggunakan <strong>Firebase Firestore Cloud</strong> (otomatis tanpa skema). Anda juga dapat mengekspor atau mengimpor file backup JSON mandiri kapan saja.
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px">
+          🔥 Firebase Cloud Firestore
+        </span>
+        <span style="background:rgba(65,243,167,0.15);color:var(--green);font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px">
+          Aktif &amp; Terhubung
+        </span>
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6">
+        <div><strong>Akun:</strong> ${escHtml(userEmail)}</div>
+        <div><strong>Koleksi Aktif:</strong> ${nTx} Saham, ${nRdn} Mutasi RDN, ${nDiv} Dividen</div>
+        <div style="color:var(--text3);font-size:11px;margin-top:4px">
+          Seluruh data disimpan permanen di Firebase Firestore dan tersinkronisasi otomatis saat berpindah perangkat (PC, HP, Tablet).
+        </div>
+      </div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-      <button class="btn btn-primary" onclick="downloadBackup()" style="justify-content:center;padding:10px">
-        ⬇️ Download File Backup JSON
+      <button class="btn btn-primary" onclick="migrateLocalDataToFirebaseCloud(true)" style="justify-content:center;padding:11px;font-weight:600;background:var(--accent);color:#000">
+        🚀 Pindahkan / Sinkronkan Data ke Firebase Cloud
       </button>
-      
-      <label class="btn btn-ghost" style="justify-content:center;padding:10px;cursor:pointer;border-color:var(--border)">
-        ⬆️ Upload File Backup JSON
-        <input type="file" accept=".json" onchange="restoreFromBackup(this.files[0])" style="display:none">
-      </label>
+
+      <button class="btn btn-ghost" onclick="fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function') showSaveStatus('✓ Data terbaru dimuat dari Firebase Cloud','var(--green)'); closeBackupModal(); })" style="justify-content:center;padding:10px;border-color:var(--border)">
+        🔄 Muat Ulang Data dari Firebase Cloud
+      </button>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="downloadBackup()" style="flex:1;justify-content:center;padding:9px;font-size:12px;border-color:var(--border)">
+          ⬇️ Export File JSON
+        </button>
+        <label class="btn btn-ghost" style="flex:1;justify-content:center;padding:9px;font-size:12px;cursor:pointer;border-color:var(--border)">
+          ⬆️ Import File JSON
+          <input type="file" accept=".json" onchange="restoreFromBackup(this.files[0])" style="display:none">
+        </label>
+      </div>
     </div>
 
     <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
-      <button class="btn btn-ghost btn-sm" onclick="clearData()" style="color:var(--red);font-size:11px">🗑 Reset semua data</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearData()" style="color:var(--red);font-size:11px">🗑 Reset Data Portofolio</button>
       <button class="btn btn-ghost btn-sm" onclick="closeBackupModal()">Tutup</button>
     </div>
   `;

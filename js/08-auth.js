@@ -321,11 +321,19 @@ function authLogout(){
 
 // ── Init auth — cek Firebase session & direct session ──
 function authInit(){
+  var emailField = el('auth-username');
+  if(emailField && !emailField.value && typeof PRIMARY_USER_EMAIL !== 'undefined'){
+    emailField.value = PRIMARY_USER_EMAIL;
+  }
+
   var savedSession = null;
+  var isExplicitLogout = false;
   try {
+    isExplicitLogout = localStorage.getItem('mw_explicit_logout') === '1';
     var rawSess = sessionStorage.getItem('mw_session_user') || localStorage.getItem('mw_session_user');
     savedSession = JSON.parse(rawSess || 'null');
   } catch(e){}
+
   if(savedSession && (savedSession.email || savedSession.uid)){
     _currentUser = savedSession;
     var displayName = _currentUser.displayName || _currentUser.email || 'User';
@@ -333,6 +341,28 @@ function authInit(){
       authShowApp(displayName);
     }).catch(function(){
       authShowApp(displayName);
+    });
+    return;
+  }
+
+  // Cross-device auto-init: Jika belum ada session di perangkat ini dan belum logout eksplisit,
+  // hubungkan langsung ke akun utama Firebase agar data langsung termuat tanpa layar kosong
+  if(!isExplicitLogout && typeof PRIMARY_USER_EMAIL !== 'undefined' && PRIMARY_USER_EMAIL){
+    _currentUser = {
+      uid: 'u_' + encodeURIComponent(PRIMARY_USER_EMAIL.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
+      email: PRIMARY_USER_EMAIL,
+      displayName: PRIMARY_USER_EMAIL.split('@')[0],
+      isPrimary: true
+    };
+    try {
+      sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+      localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+    } catch(e){}
+
+    safeCloudBoot().then(function(){
+      authShowApp(_currentUser.displayName || _currentUser.email);
+    }).catch(function(){
+      authShowApp(_currentUser.displayName || _currentUser.email);
     });
     return;
   }

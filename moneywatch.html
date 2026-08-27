@@ -137,8 +137,8 @@
       <button class="btn btn-ghost btn-xs" onclick="mwOpenPdfReportModal()" title="Buka Pusat Laporan dan Unduh PDF Portofolio / Kekayaan Bersih" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:var(--border2);color:var(--text);letter-spacing:0">
         📄 Laporan PDF
       </button>
-      <button class="btn btn-ghost btn-xs" onclick="openBackupModal()" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:var(--border2);color:var(--text2);letter-spacing:0">
-        💾 Backup
+      <button class="btn btn-ghost btn-xs" onclick="openBackupModal()" title="Firebase Firestore Cloud Database &amp; Sync Multi-Device" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:rgba(65,243,167,0.3);color:var(--text);letter-spacing:0">
+        🔥 Cloud Database
       </button>
     </div>
     <div class="rdn-bar">
@@ -211,6 +211,7 @@
   <div class="side-group open has-active" data-group="research">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope" style="color:#3B82F6"></i><span class="side-label">Research &amp; Intel</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
+      <button onclick="openKseiModal()" id="side-btn-ksei"><i class="ti ti-users-group" style="color:#10b981"></i><span class="side-label">Kepemilikan &amp; Free Float</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">KSEI</span></button>
       <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar" style="color:#00c8ff"></i><span class="side-label">Stock Intelligence</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">COCKPIT</span></button>
       <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank" style="color:#3B82F6"></i><span class="side-label">Fundamental Suite</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle" style="color:#8B5CF6"></i><span class="side-label">Technical &amp; Flow</span></button>
@@ -2162,6 +2163,7 @@
       <a class="sm-nav-item" id="fund-nav-7" onclick="fundSwitchTab(7)">7. Quantitative Red Flag Detector</a>
       <a class="sm-nav-item" id="fund-nav-8" onclick="fundSwitchTab(8)">8. Bull/Bear Debate &amp; 5-Pilar</a>
       <a class="sm-nav-item" id="fund-nav-9" onclick="fundSwitchTab(9)">9. Traffic Light Consensus</a>
+      <a class="sm-nav-item" id="fund-nav-10" onclick="fundSwitchTab(10)"><i class="ti ti-users-group" style="margin-right:4px"></i>10. Kepemilikan &amp; Free Float KSEI</a>
     </aside>
 
     <!-- MAIN WORKSPACE -->
@@ -2199,6 +2201,15 @@
           <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:6px">Profil &amp; Keunggulan Bisnis Perusahaan</h3>
           <p id="sm-d-profile" style="font-size:12px;color:#94A3B8;line-height:1.7">Memuat profil dan fundamental emiten...</p>
         </div>
+
+        <!-- Quick KSEI Free Float Card in Tab 1 -->
+        <div id="sm-d-ksei-tab1-summary" class="sm-card" style="border-left:4px solid #10B981">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin:0">🏛️ Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
+            <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(10)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 10 →</button>
+          </div>
+          <div id="sm-d-ksei-tab1-content" style="font-size:12px;color:#94A3B8">Memuat data KSEI...</div>
+        </div>
       </div>
 
       <!-- TAB 2: Earnings Breakdown -->
@@ -2221,10 +2232,10 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
           <div>
             <h2 style="font-size:16px;font-weight:800;color:#F1F5F9;margin-bottom:2px">3. Valuasi 9-Step Buffett (Margin of Safety)</h2>
-            <p style="font-size:11px;color:#94A3B8">Kalkulasi nilai intrinsik dan margin of safety berdasarkan pertumbuhan EPS historis dan future stock price.</p>
+            <p style="font-size:11px;color:#94A3B8">Kalkulasi nilai intrinsik dan margin of safety otomatis berdasarkan harga pasar terkini dan proyeksi fundamental.</p>
           </div>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-blue btn-sm" onclick="hw_recalc()">⚡ Hitung Ulang MoS</button>
+            <button class="btn btn-blue btn-sm" onclick="fundRecalcBuffett()">⚡ Hitung Ulang MoS</button>
           </div>
         </div>
         
@@ -2232,10 +2243,25 @@
           <div class="sm-card">
             <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:10px">Parameter Model Valuasi</h3>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <div class="fg"><div class="flabel">Kode Emiten</div><input class="finput" id="hw-ticker-input" value="BBCA" oninput="this.value=this.value.toUpperCase()"></div>
-              <div class="fg"><div class="flabel">Harga Terkini (Rp)</div><input class="finput" id="hw-current-price" type="number" value="9500"></div>
-              <div class="fg"><div class="flabel">Min Return (%/thn)</div><input class="finput" id="hw-min-return" type="number" value="6"></div>
-              <div class="fg"><div class="flabel">Proyeksi (Tahun)</div><input class="finput" id="hw-proj-years" type="number" value="5"></div>
+              <div class="fg">
+                <div class="flabel">Kode Emiten Teranalisis</div>
+                <div id="hw-active-ticker-display" style="display:flex;align-items:center;height:38px;padding:0 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--accent)">BBCA</div>
+              </div>
+              <div class="fg">
+                <div class="flabel" style="display:flex;justify-content:space-between">
+                  <span>Harga Pasar Terkini (Rp)</span>
+                  <span style="color:#10B981;font-size:10px;font-weight:700">● LIVE BURSA</span>
+                </div>
+                <input class="finput" id="hw-current-price" type="number" value="9500" oninput="fundRecalcBuffett()" style="font-family:var(--font-mono);font-weight:700;color:#10B981" title="Harga saham pasar terupdate otomatis">
+              </div>
+              <div class="fg">
+                <div class="flabel">Min Return (%/thn)</div>
+                <input class="finput" id="hw-min-return" type="number" value="8" step="0.5" oninput="fundRecalcBuffett()">
+              </div>
+              <div class="fg">
+                <div class="flabel">Proyeksi (Tahun)</div>
+                <input class="finput" id="hw-proj-years" type="number" value="5" step="1" oninput="fundRecalcBuffett()">
+              </div>
             </div>
           </div>
           <div class="sm-card" style="text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center">
@@ -2333,6 +2359,11 @@
         <div class="sm-card" id="hw-traffic-light-card" style="border-left:4px solid var(--accent)">
           <div id="hw-tl-body">Memuat konsensus sinyal terpadu...</div>
         </div>
+      </div>
+
+      <!-- TAB 10: KSEI Shareholders & Free Float -->
+      <div id="fund-tab10" class="sm-tab-panel">
+        <div id="fund-ksei-container"></div>
       </div>
     </main>
   </div>
@@ -3237,5 +3268,6 @@
 <script src="js/31-d3-networth.js?v=20260813j"></script>
 <script src="js/32-pdf-reports.js?v=20260825"></script>
 <script src="js/33-trending-news.js?v=20260825"></script>
+<script src="js/34-ksei-shareholders.js?v=20260827"></script>
 </body>
 </html>

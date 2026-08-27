@@ -1,6 +1,8 @@
 // ══════════════════════════════════════════════════════════
 // FIREBASE FIRESTORE & AUTHENTICATION CONFIGURATION
 // ══════════════════════════════════════════════════════════
+var PRIMARY_USER_EMAIL = "Andry.Zuma.Musa@gmail.com";
+
 var FIREBASE_CONFIG = {
   apiKey: "AIzaSyAjO1QrHyIuR8T0NM07NWxAgbwjnrbSYXk",
   authDomain: "zinc-snowfall-6lcf1.firebaseapp.com",
@@ -16,6 +18,48 @@ var _firebaseApp = null;
 var _firebaseAuth = null;
 var _firebaseDb = null;
 var _currentUser = null;
+
+function getFirebaseDb() {
+  if (_firebaseDb) return _firebaseDb;
+  if (typeof firebase !== 'undefined') {
+    if (!_firebaseApp) {
+      try {
+        _firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
+      } catch(e) {
+        _firebaseApp = firebase.app();
+      }
+    }
+    try {
+      _firebaseDb = firebase.app().firestore(FIRESTORE_DB_ID);
+    } catch(e) {
+      try {
+        _firebaseDb = firebase.firestore();
+      } catch(e2) {
+        console.warn("Firestore fallback init:", e2);
+      }
+    }
+  }
+  return _firebaseDb;
+}
+
+function getFirestoreUserUid(user) {
+  var u = user || _currentUser;
+  if (!u) {
+    var raw = null;
+    try {
+      raw = sessionStorage.getItem('mw_session_user') || localStorage.getItem('mw_session_user');
+      if (raw) u = JSON.parse(raw);
+    } catch(e){}
+  }
+  if (u) {
+    if (u.uid && u.uid !== 'global_user' && u.uid !== 'guest_user') return u.uid;
+    if (u.id) return u.id;
+    if (u.email) {
+      return 'u_' + encodeURIComponent(u.email.toLowerCase()).replace(/[^a-z0-9_]/g, '_');
+    }
+  }
+  return 'u_' + encodeURIComponent(PRIMARY_USER_EMAIL.toLowerCase()).replace(/[^a-z0-9_]/g, '_');
+}
 
 try {
   if (typeof firebase !== 'undefined') {
@@ -46,3 +90,4 @@ try {
 
 // Schemaless flag — Firebase Firestore does not require manual SQL migration
 window._schemaOutdated = false;
+

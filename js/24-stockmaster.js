@@ -69,6 +69,11 @@ function fundSwitchTab(idx) {
   if (idx === 5) {
     fundCalculateDCF();
   }
+  if (idx === 10) {
+    if (typeof renderKseiFundamentalWidget === 'function') {
+      renderKseiFundamentalWidget(FUND_DATA.ticker, 'fund-ksei-container');
+    }
+  }
 }
 
 function fundSetTicker(ticker) {
@@ -433,6 +438,24 @@ function fundPopulateData() {
   var elS = document.getElementById('sm-d-sector'); if (elS) elS.innerText = sector;
   var elProf = document.getElementById('sm-d-profile'); if (elProf) elProf.innerText = summary;
 
+  // KSEI Free Float & Major Shareholders Summary in Tab 1
+  var elKseiTab1 = document.getElementById('sm-d-ksei-tab1-content');
+  if (elKseiTab1) {
+    if (typeof getKseiStock === 'function') {
+      var kseiStock = getKseiStock(FUND_DATA.ticker || 'BBCA');
+      var topH = (kseiStock.investors && kseiStock.investors.length > 0) ? (kseiStock.investors[0].name + ' (' + kseiStock.investors[0].percentage.toFixed(1) + '%)') : 'Publik / Tersebar (<5%)';
+      elKseiTab1.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+        + '<div><b>Free Float Publik:</b> <span style="color:#10B981;font-weight:800;font-family:var(--font-mono)">' + Number(kseiStock.freeFloat).toFixed(2) + '%</span> · <b>Pengendali Utama (>5%):</b> ' + topH + '</div>'
+        + '<div style="font-size:11px;color:var(--text3)">Lokal: <b style="color:#3B82F6">' + kseiStock.localPercent + '%</b> | Asing: <b style="color:#8B5CF6">' + kseiStock.foreignPercent + '%</b></div>'
+        + '</div>';
+    }
+  }
+
+  // Refresh Tab 10 container if available
+  if (typeof renderKseiFundamentalWidget === 'function') {
+    renderKseiFundamentalWidget(FUND_DATA.ticker || 'BBCA', 'fund-ksei-container');
+  }
+
   // 2. Earnings & Performance
   var rev = f.totalRevenue ? f.totalRevenue.raw : mcap * 0.4;
   var revG = f.revenueGrowth ? f.revenueGrowth.raw : 0.085;
@@ -466,6 +489,19 @@ function fundPopulateData() {
   var elMRoe = document.getElementById('sm-m-roe'); if (elMRoe) elMRoe.innerText = fundFmt(roe, true);
   var elMqDiv = document.getElementById('sm-mq-div'); if (elMqDiv) elMqDiv.innerText = fundFmt(divY, true);
   var elMqPay = document.getElementById('sm-mq-payout'); if (elMqPay) elMqPay.innerText = fundFmt(payout, true);
+
+  // Sync active ticker display & auto-populate current market price in Tab 3
+  var elActiveTk = document.getElementById('hw-active-ticker-display');
+  if (elActiveTk) elActiveTk.innerText = FUND_DATA.ticker || 'BBCA';
+  var elCurPInp = document.getElementById('hw-current-price');
+  if (elCurPInp) elCurPInp.value = Math.round(curPrice);
+
+  // Auto-populate estimated DCF FCF in Tab 5 based on company EPS/OCF
+  var elDcfFcf = document.getElementById('sm-dcf-fcf');
+  if (elDcfFcf) {
+    var estFcfPerShare = Math.max(10, Math.round(eps * 0.75));
+    elDcfFcf.value = estFcfPerShare;
+  }
 
   // 5. Multi-Model Valuation & 9-Step MoS
   fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps);
@@ -518,7 +554,43 @@ function fundPopulateData() {
   fundCalculateDCF();
 }
 
-function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps) {
+function fundRecalcBuffett() {
+  var f = FUND_DATA.fin || {};
+  var s = FUND_DATA.stats || {};
+  var d = FUND_DATA.detail || {};
+
+  var cpInp = document.getElementById('hw-current-price');
+  var curPrice = (cpInp && parseFloat(cpInp.value) > 0) ? parseFloat(cpInp.value) : (f.currentPrice ? f.currentPrice.raw : (d.previousClose ? d.previousClose.raw : 5000));
+  
+  var eps = s.trailingEps ? s.trailingEps.raw : (curPrice / (d.trailingPE ? d.trailingPE.raw : 14));
+  var bvps = s.bookValue ? s.bookValue.raw : (curPrice / (s.priceToBook ? s.priceToBook.raw : 2));
+  var roe = f.returnOnEquity ? f.returnOnEquity.raw : 0.18;
+  var per = d.trailingPE ? d.trailingPE.raw : 14.5;
+  var payout = d.payoutRatio ? d.payoutRatio.raw : 0.45;
+  var dps = eps * payout;
+
+  var mrInp = document.getElementById('hw-min-return');
+  var pyInp = document.getElementById('hw-proj-years');
+  var minReturn = ((mrInp && parseFloat(mrInp.value)) ? parseFloat(mrInp.value) : 8) / 100;
+  var projYears = (pyInp && parseInt(pyInp.value)) ? parseInt(pyInp.value) : 5;
+
+  fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minReturn, projYears);
+}
+
+function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minReturnOpt, projYearsOpt) {
+  // Sync display of current ticker and price
+  var elActiveTk = document.getElementById('hw-active-ticker-display');
+  if (elActiveTk) elActiveTk.innerText = FUND_DATA.ticker || 'BBCA';
+  var elCurPInp = document.getElementById('hw-current-price');
+  if (elCurPInp && (!elCurPInp.value || document.activeElement !== elCurPInp)) {
+    elCurPInp.value = Math.round(curPrice);
+  }
+
+  var mrInp = document.getElementById('hw-min-return');
+  var pyInp = document.getElementById('hw-proj-years');
+  var minReturn = minReturnOpt !== undefined ? minReturnOpt : (((mrInp && parseFloat(mrInp.value)) ? parseFloat(mrInp.value) : 8) / 100);
+  var projYears = projYearsOpt !== undefined ? projYearsOpt : ((pyInp && parseInt(pyInp.value)) ? parseInt(pyInp.value) : 5);
+
   // 1. Graham Number: √(22.5 × EPS × BVPS)
   var grahamVal = (eps > 0 && bvps > 0) ? Math.sqrt(22.5 * eps * bvps) : 0;
   var grahamDiff = grahamVal > 0 ? ((grahamVal - curPrice) / curPrice * 100) : 0;
@@ -559,8 +631,6 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps) {
   }
 
   // 4. Warren Buffett 9-Step MoS
-  var projYears = 5;
-  var minReturn = 0.08;
   var futureRoe = roe * (1 - payout);
   var futureBvps = bvps * Math.pow(1 + futureRoe, projYears);
   var futureEps = futureBvps * roe;
@@ -593,23 +663,24 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps) {
       + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">2. BVPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(bvps) + '</b></div>'
       + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">3. ROE Rata-rata:</span> <b style="color:#60A5FA">' + (roe * 100).toFixed(1) + '%</b></div>'
       + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">4. Payout Ratio:</span> <b style="color:#60A5FA">' + (payout * 100).toFixed(1) + '%</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">5. Proyeksi BVPS 5th:</span> <b style="color:#10B981">Rp ' + Math.round(futureBvps) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">6. Proyeksi EPS 5th:</span> <b style="color:#10B981">Rp ' + Math.round(futureEps) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">7. Target Harga 5th:</span> <b style="color:#10B981">Rp ' + Math.round(futurePrice) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">8. Fair Value MoS:</span> <b style="color:#41f3a7">Rp ' + Math.round(fairPriceMoS) + '</b></div>'
+      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">5. Proyeksi BVPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureBvps) + '</b></div>'
+      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">6. Proyeksi EPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureEps) + '</b></div>'
+      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">7. Target Harga (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futurePrice) + '</b></div>'
+      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">8. Fair Value MoS (' + (minReturn * 100).toFixed(1) + '% req):</span> <b style="color:#41f3a7">Rp ' + Math.round(fairPriceMoS) + '</b></div>'
       + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px;grid-column:span 2"><span style="color:#94A3B8">9. Margin of Safety:</span> <b style="color:' + (mosPct >= 15 ? '#10B981' : (mosPct >= 0 ? '#60A5FA' : '#EF4444')) + '">' + (mosPct >= 0 ? '+' : '') + mosPct.toFixed(1) + '% vs Harga Pasar Rp ' + Math.round(curPrice) + '</b></div>';
   }
 
   // 5. 2D Sensitivity Matrix
-  fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, per, roe);
+  fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, per, roe, projYears);
 
   // 6. Traffic Light Consensus Matrix
   fundBuildTrafficLight(mosPct, roe, per, curPrice);
 }
 
-function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, baseRoe) {
+function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, baseRoe, projYears) {
   var tbody = document.getElementById('hw-sm-tbody');
   if (!tbody) return;
+  projYears = projYears || 5;
 
   var roeScenarios = [
     { name: 'Bearish (-25%)', val: baseRoe * 0.75 },
@@ -627,10 +698,10 @@ function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, 
   roeScenarios.forEach(function(sc) {
     rowsHtml += '<tr><td style="font-weight:700;text-align:left;color:#94A3B8">' + sc.name + ' (' + (sc.val * 100).toFixed(1) + '%)</td>';
     perCols.forEach(function(pCol) {
-      var futBvps = bvps * Math.pow(1 + sc.val * (1 - payout), 5);
+      var futBvps = bvps * Math.pow(1 + sc.val * (1 - payout), projYears);
       var futEps = futBvps * sc.val;
       var futPrice = futEps * pCol;
-      var fairMoS = futPrice / Math.pow(1 + minReturn, 5);
+      var fairMoS = futPrice / Math.pow(1 + minReturn, projYears);
       var diff = ((fairMoS - curPrice) / fairMoS * 100);
       var color = diff >= 15 ? '#10B981' : (diff >= 0 ? '#60A5FA' : '#EF4444');
       rowsHtml += '<td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + color + '">Rp ' + Math.round(fairMoS).toLocaleString('id-ID') + '<br><span style="font-size:9px;font-weight:400">' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%</span></td>';
@@ -1295,7 +1366,8 @@ window.smSwitchTab = fundSwitchTab;
 window.smFetchData = fundFetchData;
 window.smSetTicker = fundSetTicker;
 window.smCalculateDCF = fundCalculateDCF;
-window.hw_recalc = fundFetchData;
+window.fundRecalcBuffett = fundRecalcBuffett;
+window.hw_recalc = fundRecalcBuffett;
 window.hw_resetAll = fundInit;
 window.cdLoadInput = techFetchData;
 window.cdAutoZona = techRenderCandleTab;
