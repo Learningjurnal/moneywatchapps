@@ -1490,7 +1490,7 @@ function openTxDetailModal(txId){
     '</div>'+
     '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:12px">'+
-        '<div><span style="color:var(--text3);font-size:10px">TICKER / AKSI</span><div style="font-weight:700;font-size:14px" class="'+(isBuy?'up':'dn')+'">'+tx.ticker+' ('+tx.type+')</div></div>'+
+        '<div><span style="color:var(--text3);font-size:10px">TICKER / AKSI</span><div style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px" class="'+(isBuy?'up':'dn')+'">'+getStockLogoHtml(tx.ticker,20)+tx.ticker+' ('+tx.type+')</div></div>'+
         '<div><span style="color:var(--text3);font-size:10px">SEKURITAS</span><div style="font-weight:600">'+tx.sekuritas+'</div></div>'+
         '<div><span style="color:var(--text3);font-size:10px">VOLUME</span><div class="mono" style="font-weight:600">'+tx.lot+' lot ('+fmt(shares)+' lbr)</div></div>'+
         '<div><span style="color:var(--text3);font-size:10px">HARGA EKSEKUSI</span><div class="mono" style="font-weight:600">Rp '+fmt(tx.price)+'</div></div>'+

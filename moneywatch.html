@@ -223,7 +223,7 @@
   <div class="side-group open" data-group="market">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-world"></i><span class="side-label">Market</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('alerts',this)"><i class="ti ti-bell" style="color:var(--amber)"></i><span class="side-label">Price Alerts &amp; Targets</span><span id="side-alert-badge" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px;display:none">0</span></button>
+      <button id="side-btn-alerts" onclick="goPage('alerts',this)"><i class="ti ti-bell" style="color:var(--amber)"></i><span class="side-label">Price Alerts &amp; Targets</span><span id="side-alert-badge" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px;display:none">0</span></button>
       <button onclick="goPage('market-regime',this)"><i class="ti ti-compass" style="color:var(--green)"></i><span class="side-label">Market Regime</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">BULL</span></button>
       <button onclick="goPage('radar',this)"><i class="ti ti-target" style="color:var(--accent)"></i><span class="side-label">Opportunity Radar</span></button>
       <button onclick="goPage('heatmap',this)"><i class="ti ti-layout-grid"></i><span class="side-label">Heatmap &amp; Sektor</span></button>
@@ -300,6 +300,9 @@
       <div style="display:flex;gap:6px;flex-wrap:wrap;max-width:280px;justify-content:flex-end" id="d-aum-badges"></div>
     </div>
   </div>
+
+  <!-- Google Search Grounding: Top 3 Trending Financial News Headlines directly below the hero section -->
+  <div id="dash-trending-news-container" style="margin-bottom:16px"></div>
 
   <!-- ROW 1b: 4 metrik pendukung — baris terpisah, tidak berebut perhatian dengan AUM -->
   <div class="row4">
@@ -452,8 +455,8 @@
       <div class="cheader">
         <div style="display:flex;align-items:center;gap:10px">
           <span class="ctitle">Pergerakan IHSG</span>
-          <span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--accent)" id="ihsg-close-disp">6.195,43</span>
-          <span class="badge b-up" id="ihsg-chg-disp">▲ 68,05 (+1,11%)</span>
+          <span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--accent)" id="ihsg-close-disp">6.500,83</span>
+          <span class="badge b-dn" id="ihsg-chg-disp">▼ 0,83 (-0,01%)</span>
         </div>
         <div style="display:flex;gap:4px">
           <button class="pbtn on" onclick="setPeriod(this,'1H')">1H</button>
@@ -463,11 +466,11 @@
         </div>
       </div>
       <div class="cw" style="height:200px;position:relative;background:#000;border-radius:8px;overflow:hidden"><svg id="ihsgChart" style="width:100%;height:100%;display:block"></svg></div>
-      <!-- IHSG Stats Bar — Data Real 2 Jun 2026 -->
+      <!-- IHSG Stats Bar -->
       <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-        <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">Open</div><div id="ihsg-op" style="font-family:var(--font-mono);font-size:11px;font-weight:600">6.210,00</div></div>
-        <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">High</div><div id="ihsg-hi" style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--green)">6.264,26</div></div>
-        <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">Low</div><div id="ihsg-lo" style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--red)">6.143,63</div></div>
+        <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">Open</div><div id="ihsg-op" style="font-family:var(--font-mono);font-size:11px;font-weight:600">6.500,83</div></div>
+        <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">High</div><div id="ihsg-hi" style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--green)">6.532,17</div></div>
+        <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">Low</div><div id="ihsg-lo" style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--red)">6.422,61</div></div>
         <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">Mkt Cap</div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600">11.020T</div></div>
         <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">PER</div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600">14,47</div></div>
         <div style="text-align:center"><div style="font-size:9px;color:var(--text3);margin-bottom:2px">PBV</div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600">1,82</div></div>
@@ -520,13 +523,13 @@
     </div>
   </div>
 
-  <!-- ROW 5a: Pertumbuhan Net Worth (D3.js Line Chart) -->
+  <!-- ROW 5a: Pertumbuhan Net Worth Line Chart -->
   <div class="card" style="margin-bottom:18px" id="d3-networth-card">
     <div class="cheader" style="flex-wrap:wrap;gap:10px">
       <div style="display:flex;align-items:center;gap:10px">
         <span class="ctitle" style="display:flex;align-items:center;gap:6px">
           <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#10B981;box-shadow:0 0 10px rgba(16,185,129,.7)"></span>
-          📈 Pertumbuhan Net Worth (D3.js Chart)
+          📈 Pertumbuhan Net Worth
         </span>
         <span class="badge b-up" id="d3-nw-growth-badge">+0.00%</span>
       </div>
@@ -3223,5 +3226,6 @@
 <script src="js/30-price-alerts.js?v=20260813j"></script>
 <script src="js/31-d3-networth.js?v=20260813j"></script>
 <script src="js/32-pdf-reports.js?v=20260825"></script>
+<script src="js/33-trending-news.js?v=20260825"></script>
 </body>
 </html>

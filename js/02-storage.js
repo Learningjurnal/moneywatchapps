@@ -177,7 +177,12 @@ async function fireSaveAllData(){
 
     return true;
   } catch(err) {
-    console.error('Firebase Firestore save error:', err);
+    var errStr = (err && err.message) ? err.message : String(err);
+    if (errStr.indexOf('offline') !== -1 || errStr.indexOf('unavailable') !== -1) {
+      console.warn('Firebase Firestore offline save queued locally:', errStr);
+    } else {
+      console.warn('Firebase Firestore save notice:', errStr);
+    }
     throw err;
   }
 }
@@ -189,12 +194,37 @@ async function fireLoadAllData(){
 
   try {
     var mainDataRef = _firebaseDb.collection('users').doc(uid).collection('data').doc('main');
-    var snap = await mainDataRef.get();
+    
+    var snap = null;
+    try {
+      // Coba ambil dari Firestore dengan timeout agar tidak memblokir saat offline/koneksi lambat
+      snap = await Promise.race([
+        mainDataRef.get(),
+        new Promise(function(_, reject) {
+          setTimeout(function() { reject(new Error('Firestore connection timeout, using local cache')); }, 3500);
+        })
+      ]);
+    } catch(fetchErr) {
+      // Jika offline atau timeout, coba ambil dari cache offline lokal Firestore
+      try {
+        snap = await mainDataRef.get({ source: 'cache' });
+      } catch(cacheErr) {
+        var msg = (fetchErr && fetchErr.message) ? fetchErr.message : String(fetchErr);
+        console.warn('Firestore offline notice (menggunakan data lokal):', msg);
+        return false;
+      }
+    }
 
-    if(!snap.exists){
-      // Inisialisasi portofolio 24 Agustus 2026 jika belum ada data di Firestore
-      initPortfolio2026(true);
-      await fireSaveAllData();
+    if(!snap || !snap.exists){
+      // Inisialisasi portofolio 24 Agustus 2026 jika belum ada data di Firestore maupun lokal
+      if(!transactions || transactions.length === 0){
+        initPortfolio2026(true);
+      }
+      try {
+        await fireSaveAllData();
+      } catch(saveErr) {
+        console.warn('Initial fireSaveAllData deferred:', saveErr && saveErr.message ? saveErr.message : saveErr);
+      }
       return true;
     }
 
@@ -246,7 +276,8 @@ async function fireLoadAllData(){
 
     return true;
   } catch(err) {
-    console.error('Firebase Firestore load error:', err);
+    var errStr = (err && err.message) ? err.message : String(err);
+    console.warn('Firebase Firestore load notice (fallback ke penyimpanan lokal):', errStr);
     return false;
   }
 }

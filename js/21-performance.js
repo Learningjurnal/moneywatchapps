@@ -290,7 +290,7 @@ function perfRenderTradeSummary(){
   var top = perf.filter(function(p){return p.total>0;}).sort(function(a,b){return b.total-a.total;}).slice(0,3);
   el('perf-top-gainer').innerHTML = top.length ? top.map(function(p){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'
-      +'<span class="tp">'+p.ticker+'</span>'
+      +'<div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 18)+'<span class="tp">'+p.ticker+'</span></div>'
       +'<span class="mono up" style="font-size:12px;font-weight:600">+Rp '+fmtK(p.total)+'</span>'
       +'</div>';
   }).join('') : '<div style="color:var(--text3);font-size:11px;text-align:center;padding:20px 0">Belum ada posisi untung — mulai trading untuk melihat top gainer</div>';
@@ -566,7 +566,7 @@ function renderDividendYoC(){
     var growthHtml = r.growth===null ? '<span style="color:var(--text3)">—</span>' :
       '<span class="'+(r.growth>=0?'up':'dn')+'">'+(r.growth>=0?'+':'')+r.growth.toFixed(1)+'%</span>';
     return '<tr>'
-      +'<td><span class="tp">'+r.ticker+'</span></td>'
+      +'<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(r.ticker, 18)+'<span class="tp">'+r.ticker+'</span></div></td>'
       +'<td class="mono" style="font-size:11px">Rp '+fmt(Math.round(r.avg))+'</td>'
       +'<td class="mono up" style="font-size:11px">Rp '+fmtK(r.divThis)+'</td>'
       +'<td class="mono '+(r.yoc>=5?'up':r.yoc>=2?'amb':'neu')+'" style="font-size:11px;font-weight:700">'+r.yoc.toFixed(2)+'%</td>'
@@ -694,8 +694,8 @@ function perfPaintRealBeta(data){
 
   html += '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Saham</th><th>Beta</th><th>R²</th><th>Alpha (periode)</th><th>Return Saham</th><th>Return IHSG</th><th>Periode</th></tr></thead><tbody>'
     +data.results.slice().sort(function(a,b){return b.mv-a.mv;}).map(function(r){
-      if(!r.ok) return '<tr><td><span class="tp">'+r.ticker+'</span></td><td colspan="6" style="color:var(--text3);font-size:11px">Data harga riil belum cukup panjang</td></tr>';
-      return '<tr><td><span class="tp">'+r.ticker+'</span></td>'
+      if(!r.ok) return '<tr><td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(r.ticker, 18)+'<span class="tp">'+r.ticker+'</span></div></td><td colspan="6" style="color:var(--text3);font-size:11px">Data harga riil belum cukup panjang</td></tr>';
+      return '<tr><td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(r.ticker, 18)+'<span class="tp">'+r.ticker+'</span></div></td>'
         +'<td class="mono" style="font-size:11px">'+r.beta.toFixed(2)+'</td>'
         +'<td class="mono" style="font-size:11px;color:var(--text2)">'+r.r2.toFixed(2)+'</td>'
         +'<td class="mono '+(r.alpha>=0?'up':'dn')+'" style="font-size:11px">'+(r.alpha>=0?'+':'')+r.alpha.toFixed(1)+'%</td>'

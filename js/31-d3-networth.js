@@ -78,10 +78,12 @@ function buildD3NetWorthTimeline() {
       } else if (tx.type === 'SELL') {
         var avgCost = h.shares > 0 ? (h.cost / h.shares) : tx.price;
         var soldShares = tx.lot * 100;
+        var soldCostBasis = avgCost * soldShares;
         h.lot = Math.max(0, h.lot - tx.lot);
         h.shares = Math.max(0, h.shares - soldShares);
-        h.cost = Math.max(0, h.cost - (avgCost * soldShares));
-        cumInvested = Math.max(0, cumInvested - net);
+        h.cost = Math.max(0, h.cost - soldCostBasis);
+        if (h.shares <= 0) h.cost = 0;
+        cumInvested = Math.max(0, cumInvested - soldCostBasis);
       }
     });
 
@@ -241,18 +243,20 @@ function renderD3NetWorthChart() {
   }
 
   var data = filterD3Timeline(fullTimeline, D3_NW_STATE.period);
+  if (!data || data.length === 0) data = fullTimeline;
 
   // Ukuran kontainer responsif
   var rect = container.getBoundingClientRect();
-  var width = rect.width || 800;
-  var height = rect.height || 260;
+  var parentW = container.parentElement ? container.parentElement.offsetWidth : 800;
+  var width = (rect.width > 50) ? rect.width : (parentW > 50 ? parentW : 800);
+  var height = (rect.height > 50) ? rect.height : 260;
   var margin = { top: 18, right: 24, bottom: 32, left: 75 };
-  var innerWidth = Math.max(10, width - margin.left - margin.right);
-  var innerHeight = Math.max(10, height - margin.top - margin.bottom);
+  var innerWidth = Math.max(20, width - margin.left - margin.right);
+  var innerHeight = Math.max(20, height - margin.top - margin.bottom);
 
   var svg = d3.select(container)
     .append('svg')
-    .attr('width', width)
+    .attr('width', '100%')
     .attr('height', height)
     .attr('viewBox', '0 0 ' + width + ' ' + height)
     .style('overflow', 'visible')
@@ -294,17 +298,24 @@ function renderD3NetWorthChart() {
   feMerge.append('feMergeNode').attr('in', 'blur');
   feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-  // Scales
+  // Date Extent Scale (Safe against single point domain)
+  var dateExtent = d3.extent(data, function(d) { return d.date; });
+  if (!dateExtent[0] || !dateExtent[1] || dateExtent[0].getTime() === dateExtent[1].getTime()) {
+    var dStart = new Date((dateExtent[0] || new Date()).getTime() - 86400000);
+    var dEnd = new Date((dateExtent[1] || new Date()).getTime() + 86400000);
+    dateExtent = [dStart, dEnd];
+  }
+
   var xScale = d3.scaleTime()
-    .domain(d3.extent(data, function(d) { return d.date; }))
+    .domain(dateExtent)
     .range([0, innerWidth]);
 
   var yMin = 0, yMax = 100;
   if (D3_NW_STATE.mode === 'pnl') {
     var minPnl = d3.min(data, function(d) { return d.totalPnl; }) || 0;
     var maxPnl = d3.max(data, function(d) { return d.totalPnl; }) || 100;
-    yMin = minPnl < 0 ? minPnl * 1.15 : 0;
-    yMax = Math.max(100, maxPnl * 1.15);
+    yMin = minPnl < 0 ? minPnl * 1.15 : (minPnl > 0 ? minPnl * 0.85 : -1000);
+    yMax = maxPnl > 0 ? maxPnl * 1.15 : (maxPnl < 0 ? maxPnl * 0.85 : 1000);
   } else {
     var maxVal = d3.max(data, function(d) {
       return D3_NW_STATE.mode === 'both' 
@@ -318,6 +329,9 @@ function renderD3NetWorthChart() {
     }) || 0;
     yMin = Math.max(0, minVal * 0.85);
     yMax = maxVal * 1.08;
+  }
+  if (yMax <= yMin) {
+    yMax = yMin + 1000;
   }
 
   var yScale = d3.scaleLinear()

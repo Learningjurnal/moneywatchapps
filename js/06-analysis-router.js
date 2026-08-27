@@ -642,7 +642,7 @@ function aiRenderPerHoldingReco(){
   var rows=porto.slice().sort(function(a,b){return (b.unreal/totalCost)-(a.unreal/totalCost);}).map(function(p){
     var r=aiPerHoldingAction(p,totalMV);
     var contrib=(p.unreal/totalCost)*100;
-    return '<tr><td><span class="tp">'+p.ticker+'</span></td>'
+    return '<tr><td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 18)+'<span class="tp">'+p.ticker+'</span></div></td>'
       +'<td class="mono">'+(totalMV>0?(p.mv/totalMV*100).toFixed(1):'0.0')+'%</td>'
       +'<td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(1)+'%</td>'
       +'<td class="mono '+(contrib>=0?'up':'dn')+'" title="Kontribusi posisi ini terhadap total return portofolio">'+(contrib>=0?'+':'')+contrib.toFixed(2)+' poin%</td>'

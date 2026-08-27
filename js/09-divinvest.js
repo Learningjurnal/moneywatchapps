@@ -347,6 +347,7 @@ function renderDivInvest(){
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
           +'<div>'
             +'<div style="display:flex;align-items:center;gap:6px">'
+              +getStockLogoHtml(r.ticker, 22)
               +'<span class="tp" style="font-size:14px">'+r.ticker+'</span>'
               +portoBadge
             +'</div>'
@@ -398,7 +399,7 @@ function renderDivInvest(){
     var realResults = results.filter(function(r){return r.yearsPaid.length>0;});
     rtbody.innerHTML = realResults.map(function(r){
       return '<tr>'
-        +'<td><span class="tp">'+r.ticker+'</span><div style="font-size:9px;color:var(--text3)">'+r.sector+'</div></td>'
+        +'<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(r.ticker, 18)+'<span class="tp">'+r.ticker+'</span></div><div style="font-size:9px;color:var(--text3);margin-top:2px">'+r.sector+'</div></td>'
         +'<td class="mono" style="font-size:10px">'+r.yearsPaid.join(', ')+'</td>'
         +'<td class="mono up">Rp '+fmtK(r.totalNet)+'</td>'
         +'<td class="mono">Rp '+fmt(Math.round(r.avgDPS))+'</td>'
@@ -420,7 +421,7 @@ function renderDivInvest(){
     noList.innerHTML = noDivList.length ? noDivList.map(function(r){
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">'
         +'<div>'
-          +'<span class="tp">'+r.ticker+'</span>'
+          +'<div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(r.ticker, 18)+'<span class="tp">'+r.ticker+'</span></div>'
           +'<span style="font-size:10px;color:var(--text3);margin-left:6px">'+r.compName+'</span>'
           +'<div style="font-size:9px;color:var(--text3);margin-top:1px">'+r.sector+'</div>'
         +'</div>'
@@ -444,7 +445,7 @@ function renderDivInvest(){
       var proj = diProjectNext(r,scenario);
       totalProjNet += proj.expNet;
       return '<tr>'
-        +'<td><span class="tp">'+r.ticker+'</span><div style="font-size:9px;color:var(--text3)">'+r.compName+'</div></td>'
+        +'<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(r.ticker, 18)+'<span class="tp">'+r.ticker+'</span></div><div style="font-size:9px;color:var(--text3);margin-top:2px">'+r.compName+'</div></td>'
         +'<td class="mono">'+(r.currentShares>0?r.currentShares.toLocaleString('id-ID'):'<span style="color:var(--text3)">—</span>')+'</td>'
         +'<td><div style="display:flex;align-items:center;gap:4px">'
           +'<div style="width:40px;height:4px;background:rgba(255,255,255,.08);border-radius:2px">'
@@ -489,7 +490,7 @@ function renderDivInvest(){
         : '<span style="font-size:10px;color:var(--text3)" title="Hapus dari tab Dividen">—</span>';
       return '<tr>'
         +'<td class="mono" style="color:var(--text2);font-size:11px">'+d.date+'</td>'
-        +'<td><span class="tp">'+d.ticker+'</span> '+srcBadge+'</td>'
+        +'<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(d.ticker, 18)+'<span class="tp">'+d.ticker+'</span> '+srcBadge+'</div></td>'
         +'<td class="mono">'+(d.dps>0?'Rp '+fmt(d.dps):'—')+'</td>'
         +'<td class="mono">'+(d.shares>0?d.shares.toLocaleString('id-ID'):'—')+'</td>'
         +'<td class="mono">Rp '+fmtK(d.gross)+'</td>'

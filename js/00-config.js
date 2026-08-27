@@ -30,6 +30,15 @@ try {
         console.warn("Firestore fallback init:", e2);
       }
     }
+    if (_firebaseDb && typeof _firebaseDb.enablePersistence === 'function') {
+      _firebaseDb.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+        if (err && err.code === 'failed-precondition') {
+          console.warn('Firestore persistence notice: multiple tabs open');
+        } else if (err && err.code === 'unimplemented') {
+          console.warn('Firestore persistence not supported in this browser environment');
+        }
+      });
+    }
   }
 } catch (err) {
   console.warn("Firebase initialization notice:", err);

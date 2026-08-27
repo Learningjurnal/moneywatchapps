@@ -832,12 +832,13 @@
 
     // 2. Injeksi Navigasi Sidebar jika belum ada
     var sideNavScroll = document.getElementById('side-nav-scroll');
-    if (sideNavScroll && !document.getElementById('side-btn-alerts')) {
+    var existingSideBtn = document.getElementById('side-btn-alerts') || document.querySelector('button[onclick*="goPage(\'alerts\'"]');
+    if (sideNavScroll && !existingSideBtn) {
       var marketGroup = document.querySelector('.side-group[data-group="market"] .side-group-items');
       if (marketGroup) {
         var btn = document.createElement('button');
         btn.id = 'side-btn-alerts';
-        btn.innerHTML = '<i class="ti ti-bell" style="color:var(--amber)"></i><span class="side-label">Price Alerts</span><span id="side-alert-badge" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px;display:none">0</span>';
+        btn.innerHTML = '<i class="ti ti-bell" style="color:var(--amber)"></i><span class="side-label">Price Alerts &amp; Targets</span><span id="side-alert-badge" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px;display:none">0</span>';
         btn.onclick = function() { goPage('alerts', this); };
         marketGroup.insertBefore(btn, marketGroup.firstChild);
       }

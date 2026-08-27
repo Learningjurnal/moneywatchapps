@@ -4,6 +4,39 @@
 
 var hwData = { rows: [], ticker: '', currentPrice: 0, minReturn: 6, projYears: 5 };
 var hwHistChart = null;
+var hwChartMode = 'eps';
+
+function hw_switchChart(mode) {
+  hwChartMode = mode;
+  var btnEps = document.getElementById('hw-chart-btn-eps');
+  var btnEq = document.getElementById('hw-chart-btn-eq');
+  if (btnEps) {
+    if (mode === 'eps') {
+      btnEps.style.borderColor = 'rgba(255,102,0,.5)';
+      btnEps.style.color = 'var(--bb-orange)';
+      btnEps.style.background = 'rgba(255,102,0,.12)';
+    } else {
+      btnEps.style.borderColor = '';
+      btnEps.style.color = '';
+      btnEps.style.background = '';
+    }
+  }
+  if (btnEq) {
+    if (mode === 'eq') {
+      btnEq.style.borderColor = 'rgba(0,212,170,.5)';
+      btnEq.style.color = '#00d4aa';
+      btnEq.style.background = 'rgba(0,212,170,.12)';
+    } else {
+      btnEq.style.borderColor = '';
+      btnEq.style.color = '';
+      btnEq.style.background = '';
+    }
+  }
+  if (hwData && hwData._lastRows) {
+    hw_renderChart(hwData._lastRows);
+  }
+}
+window.hw_switchChart = hw_switchChart;
 
 function hw_defaultRows() {
   var currentYear = new Date().getFullYear();

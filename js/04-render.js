@@ -154,13 +154,13 @@ function renderDashboard(){
     .sort(function(a,b){return b.c-a.c});
   el('gainers').innerHTML=movers.slice(0,3).map(function(m){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)">'+
-      '<span class="tp">'+m.t+'</span>'+
+      '<div style="display:flex;align-items:center;gap:6px">'+getStockLogoHtml(m.t,18)+'<span class="tp">'+m.t+'</span></div>'+
       '<span class="mono" style="font-size:10px;color:var(--text2)">'+fmt(m.p)+'</span>'+
       '<span class="badge b-up">+'+m.c.toFixed(2)+'%</span></div>';
   }).join('');
   el('losers').innerHTML=movers.slice(-3).reverse().map(function(m){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)">'+
-      '<span class="tp">'+m.t+'</span>'+
+      '<div style="display:flex;align-items:center;gap:6px">'+getStockLogoHtml(m.t,18)+'<span class="tp">'+m.t+'</span></div>'+
       '<span class="mono" style="font-size:10px;color:var(--text2)">'+fmt(m.p)+'</span>'+
       '<span class="badge b-dn">'+m.c.toFixed(2)+'%</span></div>';
   }).join('');
@@ -198,9 +198,11 @@ function renderDashboard(){
     var lotDisp=r.kelas==='Saham IDX'?r.lot+(r.lot?'':'—'):
                 r.kelas==='Crypto'?(+r.lot).toFixed(4):
                 r.lot||'—';
+    var logoEl = r.kelas==='Saham IDX' ? getStockLogoHtml(r.name, 22) : '';
     return '<tr>'+
-      '<td><div style="display:flex;align-items:center;gap:6px">'+
+      '<td><div style="display:flex;align-items:center;gap:7px">'+
         '<div style="width:3px;height:28px;border-radius:2px;background:'+r.color+'"></div>'+
+        (logoEl ? logoEl : '')+
         '<div><div class="mono" style="font-size:11px;font-weight:600">'+r.name+'</div>'+
         '<div style="font-size:9px;color:var(--text3)">'+r.desc.slice(0,22)+(r.desc.length>22?'…':'')+'</div></div>'+
       '</div></td>'+
@@ -225,6 +227,7 @@ function renderDashboard(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'+
       '<div style="display:flex;align-items:center;gap:6px">'+
         '<span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span>'+
+        getStockLogoHtml(tx.ticker, 18)+
         '<div><div class="mono" style="font-size:10px">'+tx.ticker+' · '+tx.lot+' lot</div>'+
         '<div style="font-size:9px;color:var(--text3);font-family:var(--font-mono)">'+tx.date+'</div></div>'+
       '</div>'+
@@ -482,7 +485,7 @@ function renderTransaksi(){
       +'<td><input type="checkbox" '+ (_txSelected.has(tx.id)?'checked':'')+' onmousedown="txCbMouseDown(event,'+tx.id+')" onmouseenter="txCbMouseEnter(event,'+tx.id+')" onclick="txCbClick(event,'+tx.id+')" style="cursor:pointer"></td>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td>'
       +'<td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td>'
-      +'<td><span class="tp" style="cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Lihat detail kalkulasi & rincian biaya">'+tx.ticker+'</span></td>'
+      +'<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(tx.ticker,18)+'<span class="tp" style="cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Lihat detail kalkulasi & rincian biaya">'+tx.ticker+'</span></div></td>'
       +'<td style="font-size:11px;color:var(--text2)">'+tx.sekuritas+'</td>'
       +'<td class="mono">'+tx.lot+'</td>'
       +'<td class="mono">'+tx.lot*100+'</td>'
@@ -499,6 +502,10 @@ function renderTransaksi(){
       +'</td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:16px;font-family:var(--font-mono)">Belum ada transaksi</td></tr>';
+
+  if (typeof renderTrendingNews === 'function') {
+    try { renderTrendingNews(); } catch (e) { console.warn('Trending news render error:', e); }
+  }
 }
 
 function renderPortofolio(){
@@ -565,7 +572,7 @@ function renderPortofolio(){
     var alloc=p.alloc, sig=p.sig;
     var sigCls=sig==='BUY'?'sig-buy':sig==='SELL'?'sig-sell':'sig-hold';
     var secColor=sectorColor(p.info.sector);
-    return '<tr><td><div style="display:inline-flex;align-items:center;gap:4px"><span class="tp" style="border-color:'+COLORS[i%12]+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)"><i class="ti ti-bell"></i></button></div></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td><td class="mono">'+p.lot+'</td><td class="mono">'+p.shares+'</td><td class="mono">Rp '+fmt(p.avg)+'</td><td class="mono" style="color:var(--accent)">Rp '+fmt(p.mp)+'</td><td class="mono">Rp '+fmtK(p.mv)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td><td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+alloc.toFixed(1)+'%;background:'+COLORS[i%12]+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
+    return '<tr><td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+COLORS[i%12]+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)"><i class="ti ti-bell"></i></button></div></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td><td class="mono">'+p.lot+'</td><td class="mono">'+p.shares+'</td><td class="mono">Rp '+fmt(p.avg)+'</td><td class="mono" style="color:var(--accent)">Rp '+fmt(p.mp)+'</td><td class="mono">Rp '+fmtK(p.mv)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td><td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+alloc.toFixed(1)+'%;background:'+COLORS[i%12]+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
   }).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:16px;font-family:var(--font-mono)">'+(porto.length?'Tidak ada saham yang cocok dengan filter':'Belum ada posisi aktif')+'</td></tr>';
 }
 
@@ -616,7 +623,7 @@ function renderStockPerformance(){
       ? '<span class="badge b-gray" style="font-size:9px">○ Ditutup</span>'
       : '<span class="badge b-up" style="font-size:9px">● Aktif</span>';
     return '<tr>'
-      +'<td><span class="tp">'+r.ticker+'</span></td>'
+      +'<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(r.ticker, 18)+'<span class="tp">'+r.ticker+'</span></div></td>'
       +'<td>'+statusBadge+'</td>'
       +'<td class="mono">'+(r.closed?'—':r.lot)+'</td>'
       +'<td class="mono '+(r.realized>=0?'up':'dn')+'">'+(r.realized>=0?'+':'')+'Rp '+fmtK(r.realized)+'</td>'
@@ -729,7 +736,7 @@ function renderDividen(){
     return '<tr style="'+(isSel?'background:rgba(0,200,255,.05)':'')+'">'
       +'<td><input type="checkbox" '+(isSel?'checked':'')+' onchange="divToggleSel('+d.id+',this.checked)" style="cursor:pointer"></td>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+d.date+'</td>'
-      +'<td><span class="tp">'+d.ticker+'</span></td>'
+      +'<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(d.ticker, 18)+'<span class="tp">'+d.ticker+'</span></div></td>'
       +'<td class="mono">'+sharesDisp+'</td>'
       +'<td class="mono">'+dpsDisp+'</td>'
       +'<td class="mono">Rp '+fmtK(d.gross||0)+'</td>'
@@ -947,7 +954,7 @@ function renderSektoral(){
         +'<span style="font-size:12px;font-weight:600">'+s+'</span>'
         +'<span class="badge b-gray" style="margin-left:auto">'+sInfo.desc+'</span>'
       +'</div>'
-      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+sv.stocks.map(function(p){return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 10px;min-width:120px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="tp" style="border-color:'+sInfo.color+'">'+p.ticker+'</span><span class="badge '+(p.ret>=0?'b-up':'b-dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(1)+'%</span></div><div style="font-size:10px;color:var(--text2);margin-top:3px">'+p.lot+' lot · Rp '+fmtK(p.mv)+'</div></div>'}).join('')+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+sv.stocks.map(function(p){return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 10px;min-width:120px"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:inline-flex;align-items:center;gap:5px">'+getStockLogoHtml(p.ticker, 16)+'<span class="tp" style="border-color:'+sInfo.color+'">'+p.ticker+'</span></div><span class="badge '+(p.ret>=0?'b-up':'b-dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(1)+'%</span></div><div style="font-size:10px;color:var(--text2);margin-top:3px">'+p.lot+' lot · Rp '+fmtK(p.mv)+'</div></div>'}).join('')+'</div>'
     +'</div>';
   }).join('')||'<div style="color:var(--text3);text-align:center;padding:20px">Belum ada portofolio</div>';
 
@@ -998,7 +1005,14 @@ function renderRisiko(){
     if(!pos2[tx.ticker])pos2[tx.ticker]={lot:0,cost:0};
     var p=pos2[tx.ticker];
     if(tx.type==='BUY'){p.lot+=tx.lot;p.cost+=tx.net;}
-    else if(tx.type==='SELL'&&p.lot>0){if(tx.price>p.cost/(p.lot*100))wins++;p.lot-=tx.lot;p.cost=Math.max(0,p.cost-p.cost/(p.lot+tx.lot*100||1)*tx.lot*100);}
+    else if(tx.type==='SELL'&&p.lot>0){
+      var avg = p.cost / (p.lot * 100);
+      if(tx.price > avg) wins++;
+      var soldShares = Math.min(p.lot, tx.lot) * 100;
+      p.lot = Math.max(0, p.lot - tx.lot);
+      p.cost = Math.max(0, p.cost - (avg * soldShares));
+      if(p.lot <= 0) p.cost = 0;
+    }
   });
   var winRate=sells.length>0?((wins/sells.length)*100).toFixed(1):0;
   // Max drawdown (simplified from unrealized)
@@ -1041,7 +1055,7 @@ function renderRisiko(){
     var varStock=p.mv*beta*0.25/Math.sqrt(252)*1.645;
     var rLevel=beta>=1.3?'Tinggi':beta>=1.0?'Sedang':'Rendah';
     var rCls=beta>=1.3?'b-dn':beta>=1.0?'b-amb':'b-up';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px"><span class="tp" style="border-color:'+COLORS[i%12]+'">'+p.ticker+'</span><div><div style="font-size:10px;color:var(--text2);font-family:var(--font-mono)">β='+beta.toFixed(2)+' · Vol '+vol+'%/yr</div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono)">Bobot '+weight+'% · VaR95: -Rp '+fmtK(varStock)+'</div></div></div><span class="badge '+rCls+'">'+rLevel+'</span></div>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px"><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 18)+'<span class="tp" style="border-color:'+COLORS[i%12]+'">'+p.ticker+'</span></div><div><div style="font-size:10px;color:var(--text2);font-family:var(--font-mono)">β='+beta.toFixed(2)+' · Vol '+vol+'%/yr</div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono)">Bobot '+weight+'% · VaR95: -Rp '+fmtK(varStock)+'</div></div></div><span class="badge '+rCls+'">'+rLevel+'</span></div>';
   }).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">Belum ada posisi</div>';
 
   // Stress test
@@ -1141,7 +1155,7 @@ function renderPajak(){
     return '<tr>'+
       '<td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td>'+
       '<td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td>'+
-      '<td><span class="tp">'+tx.ticker+'</span></td>'+
+      '<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(tx.ticker, 18)+'<span class="tp">'+tx.ticker+'</span></div></td>'+
       '<td style="font-size:11px;color:var(--text2)">'+tx.sekuritas+'</td>'+
       '<td class="mono">Rp '+fmtK(tx.gross)+'</td>'+
       '<td class="mono dn">Rp '+fmtK(tx.tax)+'</td>'+

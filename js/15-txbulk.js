@@ -153,7 +153,7 @@ function txProcessImportRows(rows, fileName){
       '<table class="tbl"><thead><tr><th>Tanggal</th><th>Aksi</th><th>Kode</th><th>Sekuritas</th><th>Lot</th><th>Harga</th></tr></thead><tbody>'+
       valid.map(function(p){
         return '<tr><td class="mono">'+p.date+'</td><td><span class="badge '+(p.type==='BUY'?'b-up':'b-dn')+'">'+p.type+'</span></td>'+
-          '<td class="tp">'+p.ticker+'</td><td style="font-size:11px">'+p.sekuritas+'</td>'+
+          '<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 18)+'<span class="tp">'+p.ticker+'</span></div></td><td style="font-size:11px">'+p.sekuritas+'</td>'+
           '<td class="mono">'+p.lot+'</td><td class="mono">Rp '+fmt(p.price)+'</td></tr>';
       }).join('')+
       '</tbody></table></div>' : (dupes.length ? '' : '<div style="font-size:12px;color:var(--red)">Tidak ada baris valid untuk diimpor — perbaiki file lalu upload ulang.</div>'));
@@ -341,7 +341,7 @@ function divProcessImportRows(rows, fileName){
       '<table class="tbl"><thead><tr><th>Tanggal</th><th>Kode</th><th>Lembar</th><th>Div/Lembar</th><th>Dividen Kotor</th><th>PPh %</th><th>Net</th></tr></thead><tbody>'+
       valid.map(function(p){
         var gross=p.shares*p.dps, net=gross*(1-p.pphPct/100);
-        return '<tr><td class="mono">'+p.date+'</td><td class="tp">'+p.ticker+'</td>'+
+        return '<tr><td class="mono">'+p.date+'</td><td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 18)+'<span class="tp">'+p.ticker+'</span></div></td>'+
           '<td class="mono">'+fmt(p.shares)+'</td><td class="mono">Rp '+fmt(p.dps)+'</td>'+
           '<td class="mono">Rp '+fmt(gross)+'</td><td class="mono">'+p.pphPct+'%</td>'+
           '<td class="mono">Rp '+fmt(net)+'</td></tr>';

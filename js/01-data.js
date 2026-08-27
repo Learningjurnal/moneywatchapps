@@ -1219,30 +1219,54 @@ var transactions = [];
 var dividends = [];
 var rdnMutations = [];
 var prices = {};
-var ihsgBase = 6195.43;  // Data real: 2 Jun 2026
+var ihsgBase = 6500.83;  // Level pasar terkini
 var IHSG_REAL = {
-  date: '2026-06-02',
-  open: 6210.00, high: 6264.26, low: 6143.63, close: 6195.43,
-  change: 68.05, changePct: 1.11,
-  marketCap: '11,020.34T',
+  date: '2026-08-25',
+  open: 6500.83, high: 6532.17, low: 6422.61, close: 6500.83,
+  change: -0.83, changePct: -0.01,
+  marketCap: '11.020T',
   per: 14.47, pbv: 1.82,
   volume: '25.36T', lot: '310.86M'
 };
-var ihsgCur = 6195.43;
+var ihsgCur = 6500.83;
 var ihsgHist = [];
-// Persist histori grafik IHSG 1H/3H ke localStorage — sebelumnya cuma di
-// memori, jadi hilang tiap reload dan grafik 1H/3H sempat kosong sampai
-// live fetch berikutnya mengisi ulang (butuh beberapa menit di titik awal).
-var IHSG_HIST_KEY = 'mw_ihsg_hist_v1';
+// Persist histori grafik IHSG 1H/3H ke localStorage dengan validasi ketat outlier
+var IHSG_HIST_KEY = 'mw_ihsg_hist_v2';
 (function(){
   try{
     var raw = localStorage.getItem(IHSG_HIST_KEY);
-    if(raw){ var arr = JSON.parse(raw); if(Array.isArray(arr)) ihsgHist = arr.slice(-120); }
-  }catch(e){}
+    if(raw){
+      var arr = JSON.parse(raw);
+      if(Array.isArray(arr)){
+        var filtered = arr.filter(function(v){
+          return typeof v === 'number' && !isNaN(v) && v > 5500 && v < 8000;
+        });
+        var clean = [];
+        for(var i=0; i<filtered.length; i++){
+          if(clean.length > 0 && Math.abs(filtered[i] - clean[clean.length-1]) / clean[clean.length-1] > 0.035){
+            continue; // abaikan outlier lonjakan tunggal
+          }
+          clean.push(filtered[i]);
+        }
+        ihsgHist = clean.slice(-120);
+      }
+    }
+  }catch(e){
+    ihsgHist = [];
+  }
 })();
 function ihsgHistPush(v){
-  ihsgHist.push(v);
-  if(ihsgHist.length>120) ihsgHist.shift();
+  if(typeof v !== 'number' || isNaN(v) || v <= 0) return;
+  var rounded = Math.round(v * 100) / 100;
+  if(rounded < 5500 || rounded > 8000) return;
+  if(ihsgHist.length >= 3 && ihsgHist[ihsgHist.length-1] === rounded && ihsgHist[ihsgHist.length-2] === rounded && ihsgHist[ihsgHist.length-3] === rounded) {
+    return;
+  }
+  if(ihsgHist.length > 0 && Math.abs(rounded - ihsgHist[ihsgHist.length-1]) / ihsgHist[ihsgHist.length-1] > 0.035) {
+    return;
+  }
+  ihsgHist.push(rounded);
+  if(ihsgHist.length > 120) ihsgHist.shift();
   try{ localStorage.setItem(IHSG_HIST_KEY, JSON.stringify(ihsgHist)); }catch(e){}
 }
 var nextTxId = 1;
@@ -1280,4 +1304,57 @@ function sideToggleGroup(btn) {
   }
 }
 window.sideToggleGroup = sideToggleGroup;
+
+// ============================================================
+// STOCK LOGO HELPER (INVEZGO CDN + RESILIENT MULTI-TIER FALLBACKS)
+// ============================================================
+function getStockLogoUrl(ticker) {
+  if (!ticker) return '';
+  var t = String(ticker).trim().toUpperCase();
+  return 'https://invezgo.com/logos/' + t + '.png';
+}
+
+function getStockLogoHtml(ticker, size, extraStyle) {
+  if (!ticker) return '';
+  var t = String(ticker).trim().toUpperCase();
+  var s = size || 20;
+  var fs = Math.max(7.5, Math.round(s * 0.42));
+  var fbText = t.slice(0, 2);
+  
+  // Palette warna monogram fallback
+  var hash = 0;
+  for (var i = 0; i < t.length; i++) hash = t.charCodeAt(i) + ((hash << 5) - hash);
+  var bgColors = ['#e0e7ff','#dbeafe','#e0f2fe','#ccfbf1','#dcfce7','#fef9c3','#ffedd5','#fee2e2','#f3e8ff','#fae8ff'];
+  var textColors = ['#3730a3','#1e40af','#075985','#115e59','#166534','#854d0e','#9a3412','#991b1b','#6b21a8','#86198f'];
+  var cIdx = Math.abs(hash) % bgColors.length;
+  var fbBg = bgColors[cIdx];
+  var fbColor = textColors[cIdx];
+
+  return '<span class="stock-logo-wrap" style="width:' + s + 'px;height:' + s + 'px;' + (extraStyle || '') + '" title="' + t + '">'
+    + '<img src="https://invezgo.com/logos/' + t + '.png" alt="' + t + '" class="stock-logo-img" loading="lazy" '
+    + 'onerror="if(!this.dataset.fb1){this.dataset.fb1=\'1\';this.src=\'https://invezgo.com/assets/logos/' + t + '.png\';}else if(!this.dataset.fb2){this.dataset.fb2=\'1\';this.src=\'https://assets.stockbit.com/logos/companies/' + t + '.png\';}else if(!this.dataset.fb3){this.dataset.fb3=\'1\';this.src=\'https://financialmodelingprep.com/image-stock/' + t + '.JK.png\';}else{this.style.display=\'none\';var f=this.nextElementSibling;if(f){f.style.display=\'inline-flex\';}}"'
+    + ' />'
+    + '<span class="stock-logo-fallback" style="font-size:' + fs + 'px;background:' + fbBg + ';color:' + fbColor + '">' + fbText + '</span>'
+    + '</span>';
+}
+
+function getTickerBadgeWithLogo(ticker, options) {
+  options = options || {};
+  var t = String(ticker || '').trim().toUpperCase();
+  var size = options.size || 20;
+  var borderColor = options.borderColor || '';
+  var style = options.style || '';
+  var clickAttr = options.onclick ? ' onclick="' + options.onclick + '" style="cursor:pointer;' + style + '"' : (style ? ' style="' + style + '"' : '');
+  var logoHtml = getStockLogoHtml(t, size);
+  var tpBorder = borderColor ? ' style="border-color:' + borderColor + '"' : '';
+
+  return '<div class="stock-cell"' + clickAttr + '>'
+    + logoHtml
+    + '<span class="tp"' + tpBorder + '>' + t + '</span>'
+    + '</div>';
+}
+
+window.getStockLogoUrl = getStockLogoUrl;
+window.getStockLogoHtml = getStockLogoHtml;
+window.getTickerBadgeWithLogo = getTickerBadgeWithLogo;
 
