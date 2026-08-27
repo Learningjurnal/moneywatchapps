@@ -114,25 +114,49 @@ async function fundFetchData(tickerOverride) {
 
   fundShowStatus('🔄 Memuat analisa fundamental &amp; konsensus valuasi <b>' + cleanCode + '</b>...', false);
 
+  // Helper fetcher yang mencoba seluruh proxy yang tersedia (lokal, corsproxy, allorigins, codetabs)
+  async function fetchWithProxyFallback(targetUrl, timeoutMs) {
+    timeoutMs = timeoutMs || 6000;
+    var proxyFns = (typeof FH !== 'undefined' && Array.isArray(FH.PROXIES)) ? FH.PROXIES : [
+      function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); },
+      function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+      function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+      function(u){ return '/api/proxy?url=' + encodeURIComponent(u); }
+    ];
+
+    for (var i = 0; i < proxyFns.length; i++) {
+      try {
+        var proxiedUrl = proxyFns[i](targetUrl);
+        var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        var timer = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs) : null;
+        var resp = await fetch(proxiedUrl, { signal: controller ? controller.signal : undefined });
+        if (timer) clearTimeout(timer);
+        if (resp.ok) {
+          var data = await resp.json();
+          return data;
+        }
+      } catch (errProxy) {
+        // Coba proxy berikutnya
+      }
+    }
+    throw new Error('Semua proxy tidak dapat menjangkau ' + targetUrl);
+  }
+
   // 1. Ambil data harga live real-time dari Yahoo Finance Chart API (v8/finance/chart)
   var livePrice = (typeof prices !== 'undefined' && prices[cleanCode]) ? prices[cleanCode] : 0;
   var liveMeta = null;
 
   try {
     var chartUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooTicker) + '?range=1d&interval=1m';
-    var proxyChartUrl = '/api/proxy?url=' + encodeURIComponent(chartUrl);
-    var chartRes = await fetch(proxyChartUrl);
-    if (chartRes.ok) {
-      var chartJson = await chartRes.json();
-      var meta = chartJson.chart && chartJson.chart.result && chartJson.chart.result[0] && chartJson.chart.result[0].meta;
-      if (meta) {
-        liveMeta = meta;
-        if (meta.currency) FUND_DATA.currency = meta.currency;
-        if (meta.regularMarketPrice && meta.regularMarketPrice > 0) {
-          livePrice = meta.regularMarketPrice;
-          if (typeof prices !== 'undefined') {
-            prices[cleanCode] = livePrice;
-          }
+    var chartJson = await fetchWithProxyFallback(chartUrl, 5000);
+    var meta = chartJson && chartJson.chart && chartJson.chart.result && chartJson.chart.result[0] && chartJson.chart.result[0].meta;
+    if (meta) {
+      liveMeta = meta;
+      if (meta.currency) FUND_DATA.currency = meta.currency;
+      if (meta.regularMarketPrice && meta.regularMarketPrice > 0) {
+        livePrice = meta.regularMarketPrice;
+        if (typeof prices !== 'undefined') {
+          prices[cleanCode] = livePrice;
         }
       }
     }
@@ -142,13 +166,10 @@ async function fundFetchData(tickerOverride) {
 
   // 2. Coba ambil quoteSummary jika tersedia
   var yahooUrl = 'https://query1.finance.yahoo.com/v10/finance/quoteSummary/' + encodeURIComponent(yahooTicker) + '?modules=financialData,defaultKeyStatistics,summaryDetail,summaryProfile';
-  var proxyUrl = '/api/proxy?url=' + encodeURIComponent(yahooUrl);
 
   try {
-    var res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error('Proxy offline');
-    var rawJson = await res.json();
-    var result = rawJson.quoteSummary && rawJson.quoteSummary.result;
+    var rawJson = await fetchWithProxyFallback(yahooUrl, 6000);
+    var result = rawJson && rawJson.quoteSummary && rawJson.quoteSummary.result;
     if (!result || result.length === 0) throw new Error('No data');
 
     FUND_DATA.fin = result[0].financialData || {};
