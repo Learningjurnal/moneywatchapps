@@ -899,7 +899,16 @@ function getStoredKseiData() {
   if (fs.existsSync(filePath)) {
     try {
       const content = fs.readFileSync(filePath, 'utf8');
-      _kseiCache = JSON.parse(content);
+      try {
+        _kseiCache = JSON.parse(content);
+      } catch (jsonErr) {
+        // Sanitize control characters if any exist
+        const sanitized = content.replace(/[\x00-\x1F\x7F]/g, (c) => {
+          if (c === '\n' || c === '\r' || c === '\t') return c;
+          return '';
+        });
+        _kseiCache = JSON.parse(sanitized);
+      }
       return _kseiCache;
     } catch (e) {
       console.warn('Error reading cached KSEI json:', e.message);
@@ -1103,8 +1112,19 @@ app.use(express.static(__dirname, {
   extensions: ['html', 'htm']
 }));
 
-// Route fallback
+// Route fallback for V7 (Production-Grade Rebuild)
+app.get('/v7', (req, res) => {
+  res.sendFile(path.join(__dirname, 'v7', 'index.html'));
+});
+app.get('/v7/app', (req, res) => {
+  res.sendFile(path.join(__dirname, 'v7', 'index.html'));
+});
+
+// Route fallback for V6 (Legacy / Benchmark Version)
 app.get('/app', (req, res) => {
+  res.sendFile(path.join(__dirname, 'moneywatch.html'));
+});
+app.get('/v6', (req, res) => {
   res.sendFile(path.join(__dirname, 'moneywatch.html'));
 });
 

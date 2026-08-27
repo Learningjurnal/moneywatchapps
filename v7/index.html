@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Money Watch Pro v7 — Personal Wealth Intelligence Platform</title>
+  <meta name="description" content="Production-grade personal wealth & quantitative investment platform. Complete multi-asset tracking, risk analytics, KSEI flow, and valuation models.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f172a'/><path d='M7 21 L13 13 L18 17 L25 8' stroke='%2338bdf8' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='25' cy='8' r='2' fill='%2338bdf8'/></svg>">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/v7/css/v7.css?v=7.0.0">
+</head>
+<body>
+  <div class="v7-app">
+    
+    <!-- ══════════════════════════════════════════════
+         TOPBAR HEADER
+         ══════════════════════════════════════════════ -->
+    <header class="v7-header">
+      <div class="v7-container">
+        <div class="v7-header-inner">
+          
+          <!-- Brand -->
+          <div class="v7-brand">
+            <div class="v7-brand-logo">
+              <i class="ti ti-chart-dots" style="font-size:18px"></i>
+            </div>
+            <span>MoneyWatch</span>
+            <span class="v7-brand-badge">PRO v7</span>
+          </div>
+
+          <!-- Center Metrics -->
+          <div class="v7-header-center">
+            <div class="v7-metric-chip">
+              <span class="v7-metric-chip-label">Kas RDN:</span>
+              <span class="v7-metric-chip-val" id="v7-hdr-rdn">Rp 0</span>
+            </div>
+            <div class="v7-metric-chip">
+              <span class="v7-metric-chip-label">Total Net Worth:</span>
+              <span class="v7-metric-chip-val" id="v7-hdr-nw" style="color:#38bdf8">Rp 0</span>
+            </div>
+            <span id="v7-hdr-freshness" class="v7-data-badge v7-badge-verified">Verified Live</span>
+          </div>
+
+          <!-- Actions -->
+          <div class="v7-header-actions">
+            <!-- Mode Toggle -->
+            <div class="v7-mode-toggle">
+              <button class="v7-mode-btn" data-mode="Simple" onclick="MW_V7.UI.switchMode('Simple')">Simple</button>
+              <button class="v7-mode-btn active" data-mode="Pro" onclick="MW_V7.UI.switchMode('Pro')">Pro</button>
+              <button class="v7-mode-btn" data-mode="Quant" onclick="MW_V7.UI.switchMode('Quant')">Quant</button>
+            </div>
+
+            <!-- Quick Action -->
+            <button class="v7-btn v7-btn-primary" onclick="MW_V7.UI.showQuickActionModal()">
+              <i class="ti ti-plus"></i> Transaksi
+            </button>
+
+            <!-- Switcher back to V6 -->
+            <a href="/v6" class="v7-btn v7-btn-switcher" title="Buka Versi 6 Legacy sebagai pembanding">
+              <i class="ti ti-exchange"></i> Buka V6
+            </a>
+          </div>
+
+        </div>
+      </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════
+         RUNNING TICKER
+         ══════════════════════════════════════════════ -->
+    <div class="v7-ticker-bar">
+      <div class="v7-ticker-track" id="v7-ticker-track">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         NAVIGATION BAR (6 PILARS)
+         ══════════════════════════════════════════════ -->
+    <nav class="v7-nav">
+      <div class="v7-container">
+        <div class="v7-nav-inner">
+          <div class="v7-nav-tabs">
+            <button class="v7-nav-tab active" data-pillar="HOME" onclick="MW_V7.UI.switchPillar('HOME')">
+              <i class="ti ti-layout-dashboard"></i> Home &amp; Ringkasan
+            </button>
+            <button class="v7-nav-tab" data-pillar="PORTFOLIO" onclick="MW_V7.UI.switchPillar('PORTFOLIO')">
+              <i class="ti ti-briefcase"></i> Portofolio &amp; Transaksi
+            </button>
+            <button class="v7-nav-tab" data-pillar="MARKETS" onclick="MW_V7.UI.switchPillar('MARKETS')">
+              <i class="ti ti-activity"></i> Pasar &amp; KSEI Flow
+            </button>
+            <button class="v7-nav-tab" data-pillar="RESEARCH" onclick="MW_V7.UI.switchPillar('RESEARCH')">
+              <i class="ti ti-microscope"></i> Riset &amp; Valuasi
+            </button>
+            <button class="v7-nav-tab" data-pillar="WEALTH" onclick="MW_V7.UI.switchPillar('WEALTH')">
+              <i class="ti ti-building-bank"></i> Kekayaan &amp; FIRE
+            </button>
+            <button class="v7-nav-tab" data-pillar="SETTINGS" onclick="MW_V7.UI.switchPillar('SETTINGS')">
+              <i class="ti ti-settings"></i> Keamanan &amp; Data
+            </button>
+          </div>
+
+          <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">
+            ENV: PRODUCTION · RLS: ACTIVE
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ══════════════════════════════════════════════
+         MAIN WORKSPACE VIEWS
+         ══════════════════════════════════════════════ -->
+    <main class="v7-main">
+      <div class="v7-container">
+        <!-- View: Home -->
+        <div id="view-home" class="v7-view active"></div>
+
+        <!-- View: Portfolio -->
+        <div id="view-portfolio" class="v7-view"></div>
+
+        <!-- View: Markets -->
+        <div id="view-markets" class="v7-view"></div>
+
+        <!-- View: Research -->
+        <div id="view-research" class="v7-view"></div>
+
+        <!-- View: Wealth -->
+        <div id="view-wealth" class="v7-view"></div>
+
+        <!-- View: Settings -->
+        <div id="view-settings" class="v7-view"></div>
+      </div>
+    </main>
+
+    <!-- ══════════════════════════════════════════════
+         MOBILE BOTTOM NAVIGATION
+         ══════════════════════════════════════════════ -->
+    <nav class="v7-mobile-nav">
+      <button class="v7-mobile-tab active" data-pillar="HOME" onclick="MW_V7.UI.switchPillar('HOME')">
+        <i class="ti ti-layout-dashboard"></i>
+        <span>Home</span>
+      </button>
+      <button class="v7-mobile-tab" data-pillar="PORTFOLIO" onclick="MW_V7.UI.switchPillar('PORTFOLIO')">
+        <i class="ti ti-briefcase"></i>
+        <span>Porto</span>
+      </button>
+      <button class="v7-mobile-tab" data-pillar="MARKETS" onclick="MW_V7.UI.switchPillar('MARKETS')">
+        <i class="ti ti-activity"></i>
+        <span>Pasar</span>
+      </button>
+      <button class="v7-mobile-tab" data-pillar="RESEARCH" onclick="MW_V7.UI.switchPillar('RESEARCH')">
+        <i class="ti ti-microscope"></i>
+        <span>Riset</span>
+      </button>
+      <button class="v7-mobile-tab" data-pillar="WEALTH" onclick="MW_V7.UI.switchPillar('WEALTH')">
+        <i class="ti ti-building-bank"></i>
+        <span>Wealth</span>
+      </button>
+    </nav>
+
+    <!-- ══════════════════════════════════════════════
+         MODAL DIALOG CONTAINER
+         ══════════════════════════════════════════════ -->
+    <div class="v7-modal-backdrop" id="v7-modal-backdrop" onclick="if(event.target===this)MW_V7.UI.closeModal()">
+      <div class="v7-modal">
+        <div class="v7-modal-head">
+          <div class="v7-modal-title" id="v7-modal-title">Modal Title</div>
+          <button class="v7-modal-close" onclick="MW_V7.UI.closeModal()">×</button>
+        </div>
+        <div class="v7-modal-body" id="v7-modal-body">
+          <!-- Injected dynamically -->
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /v7-app -->
+
+  <!-- Scripts -->
+  <script src="/v7/js/00-v7-config.js?v=7.0.0"></script>
+  <script src="/v7/js/01-v7-data-adapter.js?v=7.0.0"></script>
+  <script src="/v7/js/02-v7-calc-engine.js?v=7.0.0"></script>
+  <script src="/v7/js/03-v7-risk-engine.js?v=7.0.0"></script>
+  <script src="/v7/js/04-v7-market-data.js?v=7.0.0"></script>
+  <script src="/v7/js/05-v7-state.js?v=7.0.0"></script>
+  <script src="/v7/js/06-v7-ui.js?v=7.0.0"></script>
+  <script src="/v7/js/07-v7-views.js?v=7.0.0"></script>
+  <script src="/v7/js/08-v7-ai.js?v=7.0.0"></script>
+
+  <script>
+    // Bootstrapping V7 Platform
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log('Bootstrapping Money Watch Pro v7...');
+      MW_V7.Store.init();
+      MW_V7.UI.renderTickerBar();
+      
+      // Initial View Rendering
+      MW_V7.Views.renderActiveView('HOME');
+
+      // Subscribe to reactive store changes
+      MW_V7.Store.subscribe((state, computed) => {
+        const activePillar = MW_V7.Store.getPillar();
+        MW_V7.Views.renderActiveView(activePillar);
+        MW_V7.UI.renderTickerBar();
+      });
+
+      // Background Live Data Fetch
+      const positions = MW_V7.Store.getState().transactions.map(t => t.ticker);
+      const uniqueTickers = [...new Set(positions)];
+      if (uniqueTickers.length > 0) {
+        await MW_V7.MarketData.fetchLivePrices(uniqueTickers);
+        MW_V7.Store.notify();
+      }
+    });
+  </script>
+</body>
+</html>

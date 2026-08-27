@@ -147,6 +147,7 @@
       <span id="sh-topbar-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:2px" title="Firebase Cloud &amp; Live Feed Aktif"></span>
     </button>
 
+
     <div class="clock hide-mobile" id="clock">--:--:--</div>
 
     <!-- Session info -->
@@ -247,10 +248,23 @@
       <button onclick="goPage('journal',this)"><i class="ti ti-book" style="color:var(--green)"></i><span class="side-label">Decision Journal</span></button>
     </div>
   </div>
+
+  <div class="side-group open" data-group="settings">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-settings" style="color:var(--accent)"></i><span class="side-label">Pengaturan &amp; Sistem</span><span class="side-chevron">▾</span></button>
+    <div class="side-group-items">
+      <button onclick="goPage('settings',this)"><i class="ti ti-adjustments-horizontal" style="color:var(--accent)"></i><span class="side-label">Pusat Pengaturan</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">CENTRAL</span></button>
+      <button onclick="goPage('rdn-audit',this)"><i class="ti ti-history"></i><span class="side-label">Audit Log Transaksi</span></button>
+      <button onclick="goPage('datahealth',this)"><i class="ti ti-stethoscope" style="color:#f43f5e"></i><span class="side-label">Data Health &amp; Integrity</span></button>
+      <button onclick="goPage('dataconn',this)"><i class="ti ti-plug"></i><span class="side-label">Data Connection &amp; Feeds</span></button>
+    </div>
+  </div>
   </div>
 </nav>
 
 <div class="pages">
+
+<!-- ===== SETTINGS PILLAR PAGE ===== -->
+<div id="page-settings" class="page"></div>
 
 <!-- ===== DASHBOARD ===== -->
 <div id="page-dashboard" class="page on">
@@ -3292,5 +3306,6 @@
 <script src="js/32-pdf-reports.js?v=20260825"></script>
 <script src="js/33-trending-news.js?v=20260825"></script>
 <script src="js/34-ksei-shareholders.js?v=20260827"></script>
+<script src="js/35-settings.js?v=20260827"></script>
 </body>
 </html>

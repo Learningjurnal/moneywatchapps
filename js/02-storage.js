@@ -1498,9 +1498,12 @@ function shRenderContent(tab){
         </div>
       </div>
 
-      <div style="display:flex;justify-content:flex-end">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <button class="btn btn-primary btn-sm" onclick="closeSettingsHub(); goPage('settings');">
+          ⚙️ Buka Pusat Pengaturan Lengkap (Settings Pillar) →
+        </button>
         <button class="btn btn-ghost btn-sm" onclick="closeSettingsHub(); goPage('pajak');">
-          Buka Halaman Pajak &amp; PPh Final Lengkap →
+          Halaman Pajak &amp; PPh Final →
         </button>
       </div>
     `;

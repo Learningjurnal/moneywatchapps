@@ -952,6 +952,7 @@ function toggleSidebar(force){
 function renderPage(name){
   switch(name){
     case 'dashboard':renderDashboard();break;
+    case 'settings':if(typeof renderSettingsPage==='function')renderSettingsPage();break;
     case 'daily-brief':if(typeof renderDailyBriefPage==='function')renderDailyBriefPage();else if(typeof renderDailyBrief==='function')renderDailyBrief();break;
     case 'stock-intel':if(typeof renderStockIntelCockpit==='function')renderStockIntelCockpit();break;
     case 'market-regime':if(typeof renderMarketRegimePage==='function')renderMarketRegimePage();break;
