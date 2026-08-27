@@ -212,7 +212,7 @@ var DB = {
   'KLBF':{name:'Kalbe Farma',base:1560,sector:'Kesehatan',beta:0.68},
   'SIDO':{name:'Industri Jamu SIDO',base:760,sector:'Kesehatan',beta:0.61},
   'PGAS':{name:'Perusahaan Gas Negara',base:1480,sector:'Energi',beta:1.12},
-  'ADRO':{name:'Adaro Energy',base:2970,sector:'Energi',beta:1.28},
+  'ADRO':{name:'Alamtri Resources Indonesia',base:2680,sector:'Energi',beta:1.28},
   'PTBA':{name:'Bukit Asam',base:3210,sector:'Energi',beta:1.22},
   'ANTM':{name:'Aneka Tambang',base:1640,sector:'Barang Baku',beta:1.35},
   'INCO':{name:'Vale Indonesia',base:4180,sector:'Barang Baku',beta:1.31},

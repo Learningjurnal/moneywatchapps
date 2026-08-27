@@ -133,6 +133,7 @@ async function fireSaveAllData(){
   var currentTheses = (typeof MW_THESES !== 'undefined') ? MW_THESES : [];
   var currentJournals = (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [];
   var currentAlerts = (typeof mwGetPriceAlerts === 'function') ? mwGetPriceAlerts() : [];
+  var currentEqHist = (typeof equityHistoryLoad === 'function') ? equityHistoryLoad() : [];
 
   var payload = {
     transactions: transactions || [],
@@ -146,6 +147,7 @@ async function fireSaveAllData(){
     journals: currentJournals,
     priceAlerts: currentAlerts,
     wealth: currentWealth,
+    equityHistory: currentEqHist,
     activeSekuritas: activeSekuritas || 'Stockbit',
     rdnBalance: rdnBalance || 0,
     cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
@@ -262,6 +264,12 @@ async function fireLoadAllData(){
       if(typeof wUpdateDueBadge === 'function') wUpdateDueBadge();
     }
 
+    if(d.equityHistory && Array.isArray(d.equityHistory) && d.equityHistory.length > 0){
+      if(typeof equityHistorySave === 'function') equityHistorySave(d.equityHistory);
+    } else if(typeof equityHistoryLoad === 'function') {
+      equityHistoryLoad();
+    }
+
     if(d.adminMeta && typeof ADMIN_META !== 'undefined') ADMIN_META = d.adminMeta;
     if(d.adminExtra && typeof ADMIN_EXTRA !== 'undefined') ADMIN_EXTRA = d.adminExtra;
     if(d.idxUniverse && typeof IDX_UNIVERSE !== 'undefined') IDX_UNIVERSE = d.idxUniverse;
@@ -306,6 +314,7 @@ function saveData(){
       wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
       theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
       journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
+      equityHistory: (typeof equityHistoryLoad === 'function') ? equityHistoryLoad() : [],
       savedAt: new Date().toISOString()
     };
     localStorage.setItem('mw_local_data_v2', JSON.stringify(localPayload));
@@ -386,8 +395,12 @@ function loadData(){
         if(d.theses && typeof MW_THESES !== 'undefined') MW_THESES = d.theses;
         if(d.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = d.journals;
         if(d.wealth && typeof WEALTH !== 'undefined') Object.assign(WEALTH, d.wealth);
+        if(d.equityHistory && Array.isArray(d.equityHistory) && d.equityHistory.length > 0){
+          if(typeof equityHistorySave === 'function') equityHistorySave(d.equityHistory);
+        }
       }
     }
+    if(typeof equityHistoryLoad === 'function') equityHistoryLoad();
     nextTxId  = _maxIdPlus1(transactions);
     nextDivId = _maxIdPlus1(dividends);
     nextRdnId = _maxIdPlus1(rdnMutations);
@@ -470,6 +483,7 @@ function downloadBackup(){
     sekTaxOverride: sekTaxOverride || {},
     activeSekuritas: activeSekuritas || 'Stockbit',
     rdnBalance: rdnBalance || 0,
+    equityHistory: (typeof equityHistoryLoad === 'function') ? equityHistoryLoad() : [],
     savedAt: new Date().toISOString()
   };
 
@@ -505,6 +519,9 @@ function restoreFromBackup(file){
       if(d.theses && typeof MW_THESES !== 'undefined') MW_THESES = d.theses;
       if(d.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = d.journals;
       if(d.wealth && typeof WEALTH !== 'undefined') Object.assign(WEALTH, d.wealth);
+      if(d.equityHistory && Array.isArray(d.equityHistory) && d.equityHistory.length > 0){
+        if(typeof equityHistorySave === 'function') equityHistorySave(d.equityHistory);
+      }
 
       nextTxId  = _maxIdPlus1(transactions);
       nextDivId = _maxIdPlus1(dividends);

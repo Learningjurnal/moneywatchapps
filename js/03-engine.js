@@ -165,7 +165,7 @@ function getPortfolio(){
   return result;
 }
 
-// ── Riwayat Ekuitas Harian (AUM) — satu snapshot per hari, disimpan lokal ──
+// ── Riwayat Ekuitas Harian (AUM) — satu snapshot per hari, disimpan lokal & cloud ──
 function computeCurrentAUM(){
   var porto=getPortfolio(), cryptoPorto=getCryptoPortfolio(), etfPorto=getEtfPortfolio(), rdPorto=getRdPortfolio();
   var sahamMV=porto.reduce(function(a,p){return a+p.mv},0);
@@ -175,18 +175,181 @@ function computeCurrentAUM(){
   var rdn=(typeof calcRdnBalance==='function')?calcRdnBalance():0;
   return (sahamMV||0)+(crMV||0)+(etfMV||0)+(rdMV||0)+(rdn||0);
 }
-function equityHistoryLoad(){
-  try{ return JSON.parse(localStorage.getItem('equityHistory')||'[]'); }catch(e){ return []; }
+
+function rebuildEquityHistoryFromTransactions(existingHist){
+  var txs = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
+  var rdns = (typeof rdnMutations !== 'undefined' && Array.isArray(rdnMutations)) ? rdnMutations : [];
+  var divs = (typeof dividends !== 'undefined' && Array.isArray(dividends)) ? dividends : [];
+  var cTxs = (typeof cryptoTx !== 'undefined' && Array.isArray(cryptoTx)) ? cryptoTx : [];
+  var eTxs = (typeof etfTx !== 'undefined' && Array.isArray(etfTx)) ? etfTx : [];
+  var rTxs = (typeof rdTx !== 'undefined' && Array.isArray(rdTx)) ? rdTx : [];
+
+  if (txs.length === 0 && rdns.length === 0 && cTxs.length === 0 && eTxs.length === 0 && rTxs.length === 0) {
+    return existingHist || [];
+  }
+
+  var allDates = [];
+  txs.forEach(function(t){ if(t.date) allDates.push(t.date); });
+  rdns.forEach(function(m){ if(m.date) allDates.push(m.date); });
+  divs.forEach(function(d){ if(d.date) allDates.push(d.date); });
+  cTxs.forEach(function(c){ if(c.date) allDates.push(c.date); });
+  eTxs.forEach(function(e){ if(e.date) allDates.push(e.date); });
+  rTxs.forEach(function(r){ if(r.date) allDates.push(r.date); });
+
+  if(allDates.length === 0) return existingHist || [];
+  allDates.sort();
+
+  var firstDateStr = allDates[0];
+  var todayStr = new Date().toISOString().slice(0, 10);
+  if (firstDateStr > todayStr) firstDateStr = todayStr;
+
+  var existingMap = {};
+  if (Array.isArray(existingHist)) {
+    existingHist.forEach(function(h){
+      if(h && h.date && typeof h.equity === 'number' && h.equity > 0) {
+        existingMap[h.date] = h.equity;
+      }
+    });
+  }
+
+  var sortedTxs = txs.slice().sort(function(a, b) {
+    var d = (a.date || '').localeCompare(b.date || '');
+    return d !== 0 ? d : ((a.id || 0) - (b.id || 0));
+  });
+
+  var curDate = new Date(firstDateStr + 'T00:00:00');
+  var endDate = new Date(todayStr + 'T00:00:00');
+  var result = [];
+
+  var holdings = {}; // ticker -> { lot, shares, cost }
+
+  while (curDate <= endDate) {
+    var dStr = curDate.toISOString().slice(0, 10);
+
+    var dayTxs = sortedTxs.filter(function(t) { return t.date === dStr; });
+    dayTxs.forEach(function(tx) {
+      if (!holdings[tx.ticker]) holdings[tx.ticker] = { lot: 0, shares: 0, cost: 0 };
+      var h = holdings[tx.ticker];
+      var gross = tx.gross || (tx.lot * 100 * tx.price);
+      var net = tx.net || gross;
+
+      if (tx.type === 'BUY') {
+        h.lot += tx.lot;
+        h.shares += tx.lot * 100;
+        h.cost += net;
+      } else if (tx.type === 'SELL') {
+        var avgCost = h.shares > 0 ? (h.cost / h.shares) : tx.price;
+        var soldShares = tx.lot * 100;
+        h.lot = Math.max(0, h.lot - tx.lot);
+        h.shares = Math.max(0, h.shares - soldShares);
+        h.cost = Math.max(0, h.cost - (avgCost * soldShares));
+        if (h.shares <= 0) h.cost = 0;
+      }
+    });
+
+    var stockVal = 0;
+    Object.keys(holdings).forEach(function(ticker) {
+      var h = holdings[ticker];
+      if (h.lot > 0) {
+        var pr = (typeof prices !== 'undefined' && prices[ticker]) 
+          ? prices[ticker] 
+          : ((typeof DB !== 'undefined' && DB[ticker] && DB[ticker].base) ? DB[ticker].base : (h.shares > 0 ? h.cost / h.shares : 0));
+        stockVal += h.shares * pr;
+      }
+    });
+
+    var dayRdn = 0;
+    rdns.forEach(function(m) {
+      if (m.date && m.date <= dStr) {
+        dayRdn += (m.amount || 0);
+      }
+    });
+    if (dayRdn < 0) dayRdn = 0;
+
+    var otherVal = 0;
+    if (typeof getCryptoPortfolio === 'function') {
+      otherVal += getCryptoPortfolio().reduce(function(a, c) { return a + (c.mv || 0); }, 0);
+    }
+    if (typeof getEtfPortfolio === 'function') {
+      otherVal += getEtfPortfolio().reduce(function(a, e) { return a + (e.mvIdr || 0); }, 0);
+    }
+    if (typeof getRdPortfolio === 'function') {
+      otherVal += getRdPortfolio().reduce(function(a, r) { return a + (r.mv || 0); }, 0);
+    }
+    if (typeof WEALTH !== 'undefined') {
+      otherVal += (WEALTH.deposito || 0) + (WEALTH.emas || 0) + (WEALTH.obligasi || 0);
+    }
+
+    var calculatedEquity = stockVal + dayRdn + otherVal;
+
+    if (dStr === todayStr && typeof computeCurrentAUM === 'function') {
+      var liveAum = computeCurrentAUM();
+      if (liveAum > 0) calculatedEquity = liveAum;
+    } else if (existingMap[dStr] !== undefined && existingMap[dStr] > 0) {
+      calculatedEquity = existingMap[dStr];
+    }
+
+    result.push({
+      date: dStr,
+      equity: Math.round(calculatedEquity)
+    });
+
+    curDate.setDate(curDate.getDate() + 1);
+  }
+
+  return result;
 }
-function equityHistorySave(arr){ try{ localStorage.setItem('equityHistory', JSON.stringify(arr)); }catch(e){} }
+
+function equityHistoryLoad(){
+  var raw = [];
+  try{ raw = JSON.parse(localStorage.getItem('equityHistory')||'[]'); }catch(e){ raw = []; }
+
+  // Cek apakah histori perlu direkonstruksi/dilengkapi dari transaksi
+  var hasTx = (typeof transactions !== 'undefined' && transactions && transactions.length > 0);
+  if (hasTx) {
+    var minTxDate = transactions.reduce(function(min, t){ return (t.date && (!min || t.date < min)) ? t.date : min; }, '');
+    var needsRebuild = false;
+    if (!raw || raw.length <= 1) {
+      needsRebuild = true;
+    } else if (minTxDate && raw[0] && raw[0].date > minTxDate) {
+      needsRebuild = true;
+    }
+
+    if (needsRebuild) {
+      var rebuilt = rebuildEquityHistoryFromTransactions(raw);
+      if (rebuilt && rebuilt.length > 0) {
+        equityHistorySave(rebuilt);
+        return rebuilt;
+      }
+    }
+  }
+
+  return raw;
+}
+
+function equityHistorySave(arr){
+  try{
+    localStorage.setItem('equityHistory', JSON.stringify(arr));
+  }catch(e){}
+}
+
 function equitySnapshotToday(){
   if(!transactions.length && !(rdnMutations&&rdnMutations.length)) return [];
   var today=new Date().toISOString().slice(0,10);
   var aum=computeCurrentAUM();
   var hist=equityHistoryLoad();
-  var last=hist[hist.length-1];
-  if(last && last.date===today) last.equity=aum;
-  else hist.push({date:today,equity:aum});
+
+  if(!hist || hist.length===0){
+    hist = rebuildEquityHistoryFromTransactions([{date:today, equity:aum}]);
+  } else {
+    var last=hist[hist.length-1];
+    if(last && last.date===today) {
+      last.equity=aum;
+    } else {
+      hist.push({date:today,equity:aum});
+    }
+  }
+
   if(hist.length>730) hist=hist.slice(-730);
   equityHistorySave(hist);
   return hist;
