@@ -62,7 +62,7 @@ var FEE_TYPES = [
   { value:'LAINNYA',   label:'Biaya Lainnya',              hint:'Biaya operasional lainnya' },
 ];
 
-function addRdn(date, type, ket, amount, sekuritas, linkedTxId){
+function addRdn(date, type, ket, amount, sekuritas, linkedTxId, account){
   // FIX AUDIT F2: sebelumnya rdnBalance+=amount lalu balance:rdnBalance ditulis
   // TANPA mengurutkan ulang rdnMutations dulu — mutasi bertanggal MUNDUR yang
   // ditambahkan setelah mutasi lain akan dapat snapshot "balance" yang salah
@@ -73,7 +73,8 @@ function addRdn(date, type, ket, amount, sekuritas, linkedTxId){
   rdnMutations.push({
     id:nextRdnId++, date:date, type:type, ket:ket,
     amount:amount, balance:0, sekuritas:sekuritas,
-    linkedTxId: linkedTxId||null
+    linkedTxId: linkedTxId||null,
+    account: account || 'saham'
   });
   if(typeof rebuildRdnBalance==='function') rebuildRdnBalance();
   else rdnBalance += amount; // fallback (seharusnya tidak pernah terjadi di app ini)
@@ -470,7 +471,7 @@ function getStockPerformanceByTicker(){
   });
 }
 
-function calcRdnBalance(){
+function calcRdnBalance(account){
   // FIX AUDIT F3: sebelumnya fungsi ini "percaya" variabel cache rdnBalance
   // apa adanya (hanya menghitung ulang jika kebetulan 0) — model kepercayaan
   // BEDA dari rebuildRdnBalance() yang SELALU menghitung ulang penuh. Dua
@@ -480,12 +481,25 @@ function calcRdnBalance(){
   // jalur kebenaran untuk keduanya. Aman secara performa: rdnMutations biasa
   // berjumlah puluhan-ratusan baris, bukan jutaan.
   if(!Array.isArray(rdnMutations)) rdnMutations = [];
-  if(typeof rebuildRdnBalance === 'function'){ rebuildRdnBalance(); return rdnBalance; }
-  // Fallback jika rebuildRdnBalance entah kenapa belum termuat (seharusnya tidak pernah terjadi)
+  if(typeof rebuildRdnBalance === 'function'){
+    rebuildRdnBalance();
+    if(account === 'crypto') return (typeof CASH_ACCOUNTS !== 'undefined' && CASH_ACCOUNTS.crypto) ? (CASH_ACCOUNTS.crypto.balance||0) : 0;
+    if(account === 'reksadana') return (typeof CASH_ACCOUNTS !== 'undefined' && CASH_ACCOUNTS.reksadana) ? (CASH_ACCOUNTS.reksadana.balance||0) : 0;
+    if(account === 'all'){
+      var s = (typeof CASH_ACCOUNTS !== 'undefined' && CASH_ACCOUNTS.saham) ? CASH_ACCOUNTS.saham.balance : rdnBalance;
+      var c = (typeof CASH_ACCOUNTS !== 'undefined' && CASH_ACCOUNTS.crypto) ? CASH_ACCOUNTS.crypto.balance : 0;
+      var r = (typeof CASH_ACCOUNTS !== 'undefined' && CASH_ACCOUNTS.reksadana) ? CASH_ACCOUNTS.reksadana.balance : 0;
+      return (s||0) + (c||0) + (r||0);
+    }
+    return rdnBalance;
+  }
+  // Fallback jika rebuildRdnBalance entah kenapa belum termuat
   var bal = 0;
   rdnMutations.forEach(function(r){
+    var acc = r.account || 'saham';
+    if(account && account !== 'all' && acc !== account) return;
     if(typeof r.amount === 'number' && r.amount !== 0) bal += r.amount;
-    else bal += (r.amountIn||r.amount_in||0) - (r.amountOut||r.amount_out||0);
+    else bal += (Number(r.amountIn||r.amount_in||0)) - (Number(r.amountOut||r.amount_out||0));
   });
   return isNaN(bal) ? 0 : bal;
 }

@@ -951,19 +951,21 @@
 <div id="page-rdn" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
     <div>
-      <div class="ptitle">Rekening Dana Nasabah (RDN)</div>
-      <div class="psub">Kelola arus kas masuk &amp; keluar ke rekening RDN sekuritas Anda</div>
+      <div class="ptitle">Mutasi RDN &amp; Kas Portofolio</div>
+      <div class="psub">Catatan arus kas terpadu untuk RDN Saham IDX, Wallet Crypto, dan Reksa Dana</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-green" id="btn-setor">↑ Setor Dana</button>
-      <button class="btn btn-red" id="btn-tarik">↓ Tarik Dana</button>
+      <button class="btn btn-ghost" id="btn-sync-rdn" onclick="syncRdnDatabase(true)" style="border-color:rgba(52,211,153,.4);color:var(--green)" title="Sinkronkan mutasi RDN di database dengan transaksi terkini"><i class="ti ti-refresh"></i> ⚡ Sinkronkan Database</button>
+      <button class="btn btn-green" id="btn-setor">+ Setor / Top Up</button>
+      <button class="btn btn-red" id="btn-tarik">− Tarik Dana</button>
+      <button class="btn btn-ghost" id="btn-adjust" onclick="openModal('adjust')" style="border-color:rgba(0,200,255,.4);color:var(--accent)" title="Sesuaikan saldo kas riil via mutasi">⚖️ Penyesuaian Saldo</button>
       <button class="btn btn-ghost" id="btn-fee" style="border-color:rgba(255,193,7,.4);color:var(--amber)">📋 Catat Biaya</button>
       <button class="btn btn-ghost" onclick="goPage('rdn-audit')" style="border-color:rgba(0,200,255,.4);color:var(--accent)"><i class="ti ti-history"></i> Log Audit Transaksi</button>
     </div>
   </div>
   <div class="row4" style="margin-bottom:12px">
     <div class="metric">
-      <div class="mlabel">Saldo RDN Aktif</div>
+      <div class="mlabel">Saldo Kas / RDN</div>
       <div class="mval lg up" id="rdn-saldo">Rp 0</div>
       <div class="msub neu" id="rdn-sekuritas">— sekuritas</div>
     </div>
@@ -980,7 +982,7 @@
     <div class="metric">
       <div class="mlabel">Dana Digunakan Beli</div>
       <div class="mval" id="rdn-used">Rp 0</div>
-      <div class="msub neu">dari transaksi beli</div>
+      <div class="msub neu">dari pembelian aset</div>
     </div>
   </div>
   <div class="g2b">
@@ -998,20 +1000,28 @@
   </div>
   <div class="card">
     <div class="cheader">
-      <span class="ctitle">Riwayat Mutasi RDN</span>
-      <select class="finput fsel" id="rdn-filter" style="width:150px;padding:4px 9px;font-size:10px">
-        <option value="all">Semua Mutasi</option>
-        <option value="SETOR">Setoran</option>
-        <option value="TARIK">Penarikan</option>
-        <option value="BUY">Pembelian Saham</option>
-        <option value="SELL">Penjualan Saham</option>
-        <option value="DIVIDEN">Penerimaan Dividen</option>
-        <option value="FEE">Biaya & Fee</option>
-      </select>
+      <span class="ctitle">Riwayat Mutasi RDN &amp; Kas Investasi</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select class="finput fsel" id="rdn-acc-filter" style="width:160px;padding:4px 9px;font-size:10px" onchange="renderRdn()">
+          <option value="all">Semua Rekening</option>
+          <option value="saham">🇮🇩 Saham IDX (RDN)</option>
+          <option value="crypto">🪙 Crypto (Wallet/Exch)</option>
+          <option value="reksadana">💼 Reksa Dana</option>
+        </select>
+        <select class="finput fsel" id="rdn-filter" style="width:150px;padding:4px 9px;font-size:10px" onchange="renderRdn()">
+          <option value="all">Semua Mutasi</option>
+          <option value="SETOR">Setoran / Top-up</option>
+          <option value="TARIK">Penarikan Dana</option>
+          <option value="BUY">Pembelian Aset</option>
+          <option value="SELL">Penjualan Aset</option>
+          <option value="DIVIDEN">Penerimaan Dividen</option>
+          <option value="FEE">Biaya &amp; Fee</option>
+        </select>
+      </div>
     </div>
     <div style="overflow-x:auto">
       <table class="tbl">
-        <thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th>Masuk (+)</th><th>Keluar (-)</th><th>Saldo</th><th></th></tr></thead>
+        <thead><tr><th>Tanggal</th><th>Rekening</th><th>Jenis</th><th>Keterangan</th><th>Masuk (+)</th><th>Keluar (-)</th><th>Saldo</th><th>Aksi</th></tr></thead>
         <tbody id="rdn-tbody"></tbody>
       </table>
     </div>
@@ -1088,9 +1098,9 @@
   <div style="background:rgba(0,0,0,.15);border:1px solid #41f3a733;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <span style="font-size:10px;font-weight:700;color:#41f3a7;letter-spacing:.8px;white-space:nowrap">💰 KAS AKUN SAHAM (RDN)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#41f3a7" id="cash-saham-disp">Rp 0</span>
-    <input type="number" id="cash-saham-input" placeholder="Set kas..." class="finput" style="width:140px;padding:4px 9px;font-size:11px">
-    <button class="btn btn-ghost btn-xs" style="color:#41f3a7;border-color:#41f3a744" onclick="saveCashInput('saham')">💾 Simpan</button>
-    <span style="font-size:10px;color:var(--text3);flex:1">Dana tersedia di rekening sekuritas untuk trading saham IDX</span>
+    <button class="btn btn-ghost btn-xs" style="color:#41f3a7;border-color:#41f3a744" onclick="openModal('setor', 'saham')" title="Top-up / Mutasi Kas Saham">➕ Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'saham')" title="Sesuaikan saldo riil via mutasi RDN">⚖️ Sesuaikan</button>
+    <span style="font-size:10px;color:var(--text3);flex:1">Dana tersedia di rekening sekuritas (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
   <div class="row4">
     <div class="metric"><div class="mlabel">Total Modal</div><div class="mval" id="p-invest">Rp 0</div></div>
@@ -1591,9 +1601,9 @@
   <div style="background:rgba(0,0,0,.15);border:1px solid #f7931a33;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <span style="font-size:10px;font-weight:700;color:#f7931a;letter-spacing:.8px;white-space:nowrap">💰 KAS CRYPTO (WALLET/EXCHANGE)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#f7931a" id="cash-crypto-disp">Rp 0</span>
-    <input type="number" id="cash-crypto-input" placeholder="Set kas..." class="finput" style="width:140px;padding:4px 9px;font-size:11px">
-    <button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44" onclick="saveCashInput('crypto')">💾 Simpan</button>
-    <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di exchange crypto (Indodax, Tokocrypto, dll)</span>
+    <button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44" onclick="openModal('setor', 'crypto')" title="Top-up Saldo Crypto via Mutasi RDN">➕ Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'crypto')" title="Sesuaikan saldo riil via mutasi RDN">⚖️ Sesuaikan</button>
+    <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di exchange crypto (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
   <div class="row5">
     <div class="metric"><div class="mlabel">Nilai Crypto (IDR)</div><div class="mval lg" id="cr-total">Rp 0</div><div class="msub" id="cr-total-sub"></div></div>
@@ -1774,9 +1784,9 @@
   <div style="background:rgba(0,0,0,.15);border:1px solid #8070d233;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <span style="font-size:10px;font-weight:700;color:#8070d2;letter-spacing:.8px;white-space:nowrap">💰 KAS REKSA DANA</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#8070d2" id="cash-reksadana-disp">Rp 0</span>
-    <input type="number" id="cash-reksadana-input" placeholder="Set kas..." class="finput" style="width:140px;padding:4px 9px;font-size:11px">
-    <button class="btn btn-ghost btn-xs" style="color:#8070d2;border-color:#8070d244" onclick="saveCashInput('reksadana')">💾 Simpan</button>
-    <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di platform reksa dana</span>
+    <button class="btn btn-ghost btn-xs" style="color:#8070d2;border-color:#8070d244" onclick="openModal('setor', 'reksadana')" title="Top-up Saldo Reksa Dana via Mutasi RDN">➕ Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'reksadana')" title="Sesuaikan saldo riil via mutasi RDN">⚖️ Sesuaikan</button>
+    <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di platform reksa dana (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:18px">
     <div class="metric" style="border-color:rgba(0,229,160,.3)">

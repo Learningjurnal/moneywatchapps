@@ -347,22 +347,25 @@ function renderDashboard(){
 }
 
 function renderRdn(){
-  var rdn=calcRdnBalance();
-  var setors=rdnMutations.filter(function(r){return r.type==='SETOR' || r.type==='TOPUP'});
-  var tariks=rdnMutations.filter(function(r){return r.type==='TARIK'});
+  var accFilter = el('rdn-acc-filter') ? el('rdn-acc-filter').value : 'all';
+  var rdn = calcRdnBalance(accFilter === 'all' ? 'saham' : accFilter);
+  var activeMuts = (accFilter === 'all') ? rdnMutations : rdnMutations.filter(function(r){ return (r.account || 'saham') === accFilter; });
+
+  var setors=activeMuts.filter(function(r){return r.type==='SETOR' || r.type==='TOPUP'});
+  var tariks=activeMuts.filter(function(r){return r.type==='TARIK'});
   var totalIn=setors.reduce(function(a,r){return a+(r.amount||0)},0);
   var totalOut=Math.abs(tariks.reduce(function(a,r){return a+(r.amount||0)},0));
   var usedBuy=transactions.filter(function(t){return t.type==='BUY'}).reduce(function(a,t){return a+(t.net||0)},0);
 
   el('rdn-saldo').textContent='Rp '+fmtK(rdn);
-  el('rdn-sekuritas').textContent=activeSekuritas;
+  el('rdn-sekuritas').textContent= (accFilter === 'crypto') ? 'Crypto Wallet' : (accFilter === 'reksadana') ? 'Reksa Dana' : activeSekuritas;
   el('rdn-in').textContent='Rp '+fmtK(totalIn);
   el('rdn-in-cnt').textContent=setors.length+' kali setor';
   el('rdn-out').textContent='Rp '+fmtK(totalOut);
   el('rdn-out-cnt').textContent=tariks.length+' kali tarik';
   el('rdn-used').textContent='Rp '+fmtK(usedBuy);
 
-  var feeMuts=rdnMutations.filter(function(r){
+  var feeMuts=activeMuts.filter(function(r){
     return ['DATA_FEE','MATERAI','MIGRASI','ADMIN','TRANSFER','PENALTY','LAINNYA','FEE'].indexOf(r.type)>=0;
   });
   var totalFee=Math.abs(feeMuts.reduce(function(a,r){return a+r.amount;},0));
@@ -416,6 +419,8 @@ function renderRdn(){
   var filter=el('rdn-filter')?el('rdn-filter').value:'all';
   var FEE_SUBTYPES=['DATA_FEE','MATERAI','MIGRASI','ADMIN','TRANSFER','PENALTY','LAINNYA','FEE'];
   var list=rdnMutations.slice().reverse().filter(function(r){
+    var acc = r.account || 'saham';
+    if(accFilter !== 'all' && acc !== accFilter) return false;
     if(filter==='all') return true;
     if(filter==='SETOR') return r.type==='SETOR' || r.type==='TOPUP';
     if(filter==='FEE') return FEE_SUBTYPES.indexOf(r.type)>=0;
@@ -423,6 +428,14 @@ function renderRdn(){
   });
   el('rdn-tbody').innerHTML=list.map(function(r){
     var isin=r.amount>0;
+    var acc = r.account || 'saham';
+    var accBadges = {
+      'saham': '<span class="badge" style="background:rgba(0,200,255,.12);color:var(--accent);font-size:9px">Saham</span>',
+      'crypto': '<span class="badge" style="background:rgba(247,147,26,.12);color:#f7931a;font-size:9px">Crypto</span>',
+      'reksadana': '<span class="badge" style="background:rgba(128,112,210,.12);color:#8070d2;font-size:9px">Reksa Dana</span>'
+    };
+    var accBadge = accBadges[acc] || accBadges['saham'];
+
     var typeColors={'SETOR':'b-up','TOPUP':'b-up','TARIK':'b-dn','BUY':'b-dn','SELL':'b-up','DIVIDEN':'b-pur','FEE':'b-amb',
       'DATA_FEE':'b-amb','MATERAI':'b-amb','MIGRASI':'b-amb','ADMIN':'b-amb','TRANSFER':'b-amb','PENALTY':'b-dn','LAINNYA':'b-amb'};
     var typeLabels={'SETOR':'SETOR','TOPUP':'SETOR','TARIK':'TARIK','BUY':'BELI','SELL':'JUAL','DIVIDEN':'DIVIDEN','FEE':'FEE',
@@ -432,10 +445,11 @@ function renderRdn(){
       ['DATA_FEE','MATERAI','MIGRASI','ADMIN','TRANSFER','PENALTY','LAINNYA'].indexOf(r.type)>=0 || !r.linkedTxId);
     var delBtn = canDel
       ? '<button class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 5px" onclick="delRdnManual(\''+r.id+'\')" title="Hapus mutasi ini" aria-label="Hapus mutasi RDN '+r.date+'">✕</button>'
-      : '<span class="badge b-gray" style="font-size:9px;cursor:default" title="Dikelola dari transaksi saham/dividen">auto</span>';
+      : '<span class="badge b-gray" style="font-size:9px;cursor:default" title="Dikelola dari transaksi terkait">auto</span>';
     var auditBtn = '<button class="btn btn-ghost btn-xs" style="color:var(--accent);padding:2px 5px;margin-right:4px" onclick="if(typeof openAuditDetailModal===\'function\')openAuditDetailModal(\''+r.id+'\')" title="Buka Slip Audit Rincian">🔍</button>';
     return '<tr>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+r.date+'</td>'
+      +'<td>'+accBadge+'</td>'
       +'<td><span class="badge '+(typeColors[r.type]||'b-gray')+'">'+(typeLabels[r.type]||r.type)+'</span></td>'
       +'<td style="max-width:240px;color:var(--text2);font-size:11px">'+escHtml(r.ket)+'</td>'
       +'<td class="mono up">'+(isin?'Rp '+fmtK(r.amount):'—')+'</td>'
@@ -443,7 +457,7 @@ function renderRdn(){
       +'<td class="mono" style="font-weight:600">Rp '+fmtK(r.balance)+'</td>'
       +'<td style="white-space:nowrap">'+auditBtn+delBtn+'</td>'
       +'</tr>';
-  }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Belum ada mutasi</td></tr>';
+  }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Belum ada mutasi</td></tr>';
 
   buildRdnChart();
 }

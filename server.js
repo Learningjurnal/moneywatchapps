@@ -16,6 +16,301 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+// Helper formatting function for IDR
+function fmtIdr(n) {
+  return Math.round(n || 0).toLocaleString('id-ID');
+}
+
+// ══════════════════════════════════════════════════════════
+// BACKEND RDN SYNCHRONIZATION & RECONCILIATION ENGINE
+// ══════════════════════════════════════════════════════════
+function reconcileRdnPayload(data) {
+  const transactions = Array.isArray(data.transactions) ? data.transactions : [];
+  const dividends = Array.isArray(data.dividends) ? data.dividends : [];
+  const cryptoTx = Array.isArray(data.cryptoTx) ? data.cryptoTx : [];
+  const rdTx = Array.isArray(data.rdTx) ? data.rdTx : [];
+  const existingMutations = Array.isArray(data.rdnMutations) ? data.rdnMutations : [];
+  const defaultSekuritas = data.activeSekuritas || 'Stockbit';
+
+  // 1. Map existing manual / non-trade mutations (SETOR, TARIK, FEE, BIAYA, ADJUST, etc.)
+  const preservedManualMutations = [];
+  const existingTradeMutationsByLinkedId = new Map();
+
+  existingMutations.forEach(m => {
+    if (!m) return;
+    const linkedId = m.linkedTxId != null ? String(m.linkedTxId) : null;
+    if (linkedId) {
+      existingTradeMutationsByLinkedId.set(linkedId, m);
+    } else {
+      // Manual deposit, withdrawal, fee, or balance adjustment
+      preservedManualMutations.push({
+        id: m.id || null,
+        date: m.date || new Date().toISOString().split('T')[0],
+        type: m.type || (m.amount >= 0 ? 'SETOR' : 'TARIK'),
+        ket: m.ket || (m.type === 'SETOR' ? 'Setoran / Top Up Kas' : 'Penarikan Kas'),
+        amount: Number(m.amount || 0),
+        balance: 0,
+        sekuritas: m.sekuritas || defaultSekuritas,
+        account: m.account || 'saham',
+        linkedTxId: null
+      });
+    }
+  });
+
+  const reconciledList = [...preservedManualMutations];
+  let syncedTradesCount = 0;
+  let syncedDividendsCount = 0;
+  let syncedCryptoCount = 0;
+  let syncedRdCount = 0;
+
+  // 2. Reconcile Saham Transactions (BUY/SELL)
+  transactions.forEach(tx => {
+    if (!tx || !tx.id) return;
+    const isBuy = tx.type === 'BUY';
+    const gross = Number(tx.gross || (Number(tx.lot || 0) * 100 * Number(tx.price || 0)));
+    const net = Number(tx.net || gross);
+    const amount = isBuy ? -Math.abs(net) : Math.abs(net);
+    const linkedId = String(tx.id);
+    const existing = existingTradeMutationsByLinkedId.get(linkedId);
+
+    reconciledList.push({
+      id: existing && existing.id ? existing.id : null,
+      date: tx.date || (existing && existing.date) || new Date().toISOString().split('T')[0],
+      type: tx.type || (isBuy ? 'BUY' : 'SELL'),
+      ket: (isBuy ? 'Beli ' : 'Jual ') + (tx.lot || 0) + ' lot ' + (tx.ticker || '') + ' @ Rp ' + fmtIdr(tx.price || 0),
+      amount: amount,
+      balance: 0,
+      sekuritas: tx.sekuritas || defaultSekuritas,
+      account: 'saham',
+      linkedTxId: tx.id
+    });
+    syncedTradesCount++;
+  });
+
+  // 3. Reconcile Dividends
+  dividends.forEach(d => {
+    if (!d || !d.id) return;
+    const gross = Number(d.gross || (Number(d.shares || 0) * Number(d.dps || 0)));
+    const tax = Number(d.tax || (gross * 0.1));
+    const net = Number(d.net || (gross - tax));
+    const linkedId = 'div-' + d.id;
+    const existing = existingTradeMutationsByLinkedId.get(linkedId);
+
+    reconciledList.push({
+      id: existing && existing.id ? existing.id : null,
+      date: d.date || (existing && existing.date) || new Date().toISOString().split('T')[0],
+      type: 'DIVIDEN',
+      ket: 'Dividen ' + (d.ticker || '') + ' (' + fmtIdr(d.shares || 0) + ' lbr @ Rp ' + fmtIdr(d.dps || 0) + ')',
+      amount: Math.abs(net),
+      balance: 0,
+      sekuritas: d.sekuritas || defaultSekuritas,
+      account: 'saham',
+      linkedTxId: linkedId
+    });
+    syncedDividendsCount++;
+  });
+
+  // 4. Reconcile Crypto Transactions
+  cryptoTx.forEach(c => {
+    if (!c || !c.id) return;
+    const isBuy = c.type === 'BUY';
+    const total = Number(c.total || (Number(c.qty || 0) * Number(c.priceIdr || 0)));
+    const amount = isBuy ? -Math.abs(total) : Math.abs(total);
+    const linkedId = 'cr-' + c.id;
+    const existing = existingTradeMutationsByLinkedId.get(linkedId) || existingTradeMutationsByLinkedId.get('crypto-' + c.id);
+
+    reconciledList.push({
+      id: existing && existing.id ? existing.id : null,
+      date: c.date || (existing && existing.date) || new Date().toISOString().split('T')[0],
+      type: c.type || (isBuy ? 'BUY' : 'SELL'),
+      ket: (isBuy ? 'Beli ' : 'Jual ') + (c.qty || 0) + ' ' + (c.coin || '') + ' @ Rp ' + fmtIdr(Math.round(c.priceIdr || 0)),
+      amount: amount,
+      balance: 0,
+      sekuritas: 'Crypto Exchange',
+      account: 'crypto',
+      linkedTxId: linkedId
+    });
+    syncedCryptoCount++;
+  });
+
+  // 5. Reconcile Reksa Dana Transactions
+  rdTx.forEach(r => {
+    if (!r || !r.id) return;
+    const isBeli = (r.type === 'BELI' || r.type === 'BUY');
+    const amount = isBeli ? -Math.abs(Number(r.amount || 0)) : Math.abs(Number(r.amount || 0));
+    const linkedId = 'rd-' + r.id;
+    const existing = existingTradeMutationsByLinkedId.get(linkedId);
+
+    reconciledList.push({
+      id: existing && existing.id ? existing.id : null,
+      date: r.date || (existing && existing.date) || new Date().toISOString().split('T')[0],
+      type: isBeli ? 'BUY' : 'SELL',
+      ket: (isBeli ? 'Beli RD ' : 'Jual RD ') + (r.code || 'Reksa Dana') + ' (NAB Rp ' + fmtIdr(Math.round(r.nab || 1000)) + ')',
+      amount: amount,
+      balance: 0,
+      sekuritas: 'Platform RD',
+      account: 'reksadana',
+      linkedTxId: linkedId
+    });
+    syncedRdCount++;
+  });
+
+  // 6. Deterministic Chronological Sorting
+  function getPriority(type) {
+    if (type === 'SETOR' || type === 'TOPUP') return 10;
+    if (type === 'DIVIDEN' || type === 'DIVIDEND') return 20;
+    if (type === 'SELL') return 30;
+    if (type === 'BUY') return 40;
+    if (type === 'TARIK') return 50;
+    return 60; // Fees, Adjustments, Others
+  }
+
+  reconciledList.sort((a, b) => {
+    const dComp = (a.date || '').localeCompare(b.date || '');
+    if (dComp !== 0) return dComp;
+    const pA = getPriority(a.type);
+    const pB = getPriority(b.type);
+    if (pA !== pB) return pA - pB;
+    return ((a.id || 0) - (b.id || 0));
+  });
+
+  // 7. Deterministic Sequential ID Assignment & Running Balance Recalculation
+  let currentId = 1;
+  let balSaham = 0;
+  let balCrypto = 0;
+  let balRd = 0;
+
+  reconciledList.forEach(m => {
+    m.id = currentId++;
+    const amt = Number(m.amount || 0);
+    m.amount = amt;
+    const acc = m.account || 'saham';
+    m.account = acc;
+
+    if (acc === 'crypto') {
+      balCrypto += amt;
+      m.balance = balCrypto;
+    } else if (acc === 'reksadana') {
+      balRd += amt;
+      m.balance = balRd;
+    } else {
+      balSaham += amt;
+      m.balance = balSaham;
+    }
+  });
+
+  const totalCashBalance = balSaham + balCrypto + balRd;
+
+  return {
+    reconciledMutations: reconciledList,
+    stats: {
+      totalMutations: reconciledList.length,
+      syncedTrades: syncedTradesCount,
+      syncedDividends: syncedDividendsCount,
+      syncedCrypto: syncedCryptoCount,
+      syncedRd: syncedRdCount,
+      preservedManual: preservedManualMutations.length,
+      balanceSaham: balSaham,
+      balanceCrypto: balCrypto,
+      balanceRd: balRd,
+      totalCashBalance: totalCashBalance
+    },
+    nextRdnId: currentId
+  };
+}
+
+// POST endpoint to reconcile RDN mutations against latest app state
+app.post('/api/sync/reconcile-rdn', (req, res) => {
+  try {
+    const data = req.body || {};
+    const result = reconcileRdnPayload(data);
+    return res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      ...result
+    });
+  } catch (err) {
+    console.error('RDN reconcile error:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to reconcile RDN mutations',
+      message: err.message
+    });
+  }
+});
+
+// POST endpoint to audit RDN data alignment
+app.post('/api/sync/audit-rdn', (req, res) => {
+  try {
+    const data = req.body || {};
+    const currentMutations = Array.isArray(data.rdnMutations) ? data.rdnMutations : [];
+    const transactions = Array.isArray(data.transactions) ? data.transactions : [];
+    const dividends = Array.isArray(data.dividends) ? data.dividends : [];
+    const cryptoTx = Array.isArray(data.cryptoTx) ? data.cryptoTx : [];
+    const rdTx = Array.isArray(data.rdTx) ? data.rdTx : [];
+
+    // Find missing and orphan mutations
+    const existingLinkedIds = new Set(
+      currentMutations
+        .filter(m => m && m.linkedTxId != null)
+        .map(m => String(m.linkedTxId))
+    );
+
+    const missingStockTrades = transactions.filter(t => t && t.id && !existingLinkedIds.has(String(t.id)));
+    const missingDividends = dividends.filter(d => d && d.id && !existingLinkedIds.has('div-' + d.id));
+    const missingCrypto = cryptoTx.filter(c => c && c.id && !existingLinkedIds.has('cr-' + c.id) && !existingLinkedIds.has('crypto-' + c.id));
+    const missingRd = rdTx.filter(r => r && r.id && !existingLinkedIds.has('rd-' + r.id));
+
+    const validParentLinkedIds = new Set([
+      ...transactions.map(t => String(t.id)),
+      ...dividends.map(d => 'div-' + d.id),
+      ...cryptoTx.map(c => 'cr-' + c.id),
+      ...cryptoTx.map(c => 'crypto-' + c.id),
+      ...rdTx.map(r => 'rd-' + r.id)
+    ]);
+
+    const orphanMutations = currentMutations.filter(m => {
+      if (!m || m.linkedTxId == null) return false;
+      return !validParentLinkedIds.has(String(m.linkedTxId));
+    });
+
+    const isFullySynced = (
+      missingStockTrades.length === 0 &&
+      missingDividends.length === 0 &&
+      missingCrypto.length === 0 &&
+      missingRd.length === 0 &&
+      orphanMutations.length === 0
+    );
+
+    return res.json({
+      success: true,
+      isFullySynced,
+      summary: {
+        missingStockTradesCount: missingStockTrades.length,
+        missingDividendsCount: missingDividends.length,
+        missingCryptoCount: missingCrypto.length,
+        missingRdCount: missingRd.length,
+        orphanMutationsCount: orphanMutations.length,
+        totalDiscrepancies: missingStockTrades.length + missingDividends.length + missingCrypto.length + missingRd.length + orphanMutations.length
+      },
+      discrepancies: {
+        missingStockTrades: missingStockTrades.slice(0, 10),
+        missingDividends: missingDividends.slice(0, 10),
+        missingCrypto: missingCrypto.slice(0, 10),
+        missingRd: missingRd.slice(0, 10),
+        orphanMutations: orphanMutations.slice(0, 10)
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to audit RDN synchronization',
+      message: err.message
+    });
+  }
+});
+
 // Lazy initialize Google GenAI SDK client
 let _aiClient = null;
 function getAiClient() {

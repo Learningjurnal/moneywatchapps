@@ -817,36 +817,38 @@ function saveCashInput(account){
   var input = el('cash-'+account+'-input');
   if(!input) return;
   var val = parseFloat(input.value)||0;
-  if(account==='saham'){
-    // Saldo RDN bersumber dari mutasi — tambah entri penyesuaian
-    var current = calcRdnBalance();
-    var diff = val - current;
-    if(Math.abs(diff) > 0){
-      addRdn(today(),'SETOR', diff>=0?'Penyesuaian saldo masuk':'Penyesuaian saldo keluar', diff, activeSekuritas, null);
-      saveData();
-    }
-    renderCashWidgets();
-    updateTopbar();
-    showSaveStatus('✓ Saldo RDN disesuaikan ke Rp '+fmtK(val));
-    return;
+  var current = (typeof calcRdnBalance === 'function') ? calcRdnBalance(account) : 0;
+  var diff = val - current;
+  if(Math.abs(diff) > 0){
+    var isIn = diff >= 0;
+    var absDiff = Math.abs(diff);
+    var sek = (account === 'saham') ? activeSekuritas : (account === 'crypto' ? 'Crypto Exchange' : 'Platform RD');
+    var label = (account === 'crypto') ? 'Kas Crypto' : (account === 'reksadana') ? 'Kas Reksa Dana' : 'Kas Saham IDX (RDN)';
+    addRdn(today(), isIn ? 'SETOR' : 'TARIK', 'Penyesuaian saldo ' + label, isIn ? absDiff : -absDiff, sek, null, account);
+    saveData();
   }
-  CASH_ACCOUNTS[account].balance = val;
-  saveCashAccounts();
-  var disp = el('cash-'+account+'-disp');
-  var isUsd = CASH_ACCOUNTS[account].isUsd;
-  if(disp) disp.textContent = (isUsd?'$':'Rp ')+fmt(val);
-  showSaveStatus('✓ Kas '+account+' disimpan');
+  renderCashWidgets();
+  updateTopbar();
+  showSaveStatus('✓ Saldo kas ' + account + ' disesuaikan ke Rp ' + fmtK(val));
 }
 function renderCashWidgets(){
-  // Kas Saham (RDN) selalu sinkron dengan saldo RDN dari mutasi transaksi
-  CASH_ACCOUNTS.saham.balance = calcRdnBalance();
-  Object.keys(CASH_ACCOUNTS).forEach(function(k){
-    var disp = el('cash-'+k+'-disp');
-    var input = el('cash-'+k+'-input');
-    var ca = CASH_ACCOUNTS[k];
-    if(disp){ var isUsd=ca.isUsd; disp.textContent=(isUsd?'$':'Rp ')+fmt(ca.balance); }
-    if(input){ input.value=Math.round(ca.balance); }
-  });
+  // Semua saldo kas akun (Saham, Crypto, Reksa Dana) bersumber dari mutasi RDN
+  if(typeof calcRdnBalance === 'function'){
+    if(typeof CASH_ACCOUNTS !== 'undefined'){
+      if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = calcRdnBalance('saham');
+      if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = calcRdnBalance('crypto');
+      if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = calcRdnBalance('reksadana');
+    }
+  }
+  if(typeof CASH_ACCOUNTS !== 'undefined'){
+    Object.keys(CASH_ACCOUNTS).forEach(function(k){
+      var disp = el('cash-'+k+'-disp');
+      var input = el('cash-'+k+'-input');
+      var ca = CASH_ACCOUNTS[k];
+      if(disp){ var isUsd=ca.isUsd; disp.textContent=(isUsd?'$':'Rp ')+fmt(Math.round(ca.balance)); }
+      if(input){ input.value=Math.round(ca.balance); }
+    });
+  }
 }
 
 function toggleDD(id, btn){

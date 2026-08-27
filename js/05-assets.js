@@ -2,8 +2,9 @@
 // MODAL
 // ============================================================
 var modalType='';
-function openModal(type){
+function openModal(type, targetAccount){
   modalType=type;
+  var targetAcc = targetAccount || 'saham';
   var secOpts=Object.keys(SEKURITAS).map(function(s){
     var sf=SEKURITAS[s];
     return '<option value="'+s+'"'+(s===activeSekuritas?' selected':'')+'>'+s
@@ -13,9 +14,56 @@ function openModal(type){
 
   if(type==='setor'||type==='tarik'){
     var isIn=type==='setor';
-    el('m-title').textContent=isIn?'Setor Dana ke RDN':'Tarik Dana dari RDN';
+    el('m-title').textContent=isIn?'Setor Dana / Top Up Kas':'Tarik Dana Kas Investasi';
     el('m-title').style.color=isIn?'var(--green)':'var(--red)';
-    el('m-body').innerHTML='<div class="fgrid"><div class="fg ffull"><label class="flabel">Tanggal</label><input class="finput" type="date" id="mf-date" value="'+today()+'"></div><div class="fg ffull"><label class="flabel">Jumlah Dana (Rp)</label><input class="finput" type="number" id="mf-amount" placeholder="Contoh: 50000000" oninput="updateAmtPreview()"></div><div class="fg ffull"><label class="flabel">Keterangan</label><input class="finput" type="text" id="mf-ket" placeholder="'+(isIn?'Setoran rutin, top-up, dll':'Penarikan profit, kebutuhan mendesak, dll')+'"></div></div><div class="taxbox"><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:7px">'+(isIn?'DANA MASUK RDN':'DANA KELUAR RDN')+'</div><div class="taxrow tot"><span>Jumlah</span><span class="mono '+(isIn?'up':'dn')+'" id="amt-preview">Rp 0</span></div></div><div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeModal()">Batal</button><button class="btn '+(isIn?'btn-green':'btn-red')+'" onclick="submitRdn()">Konfirmasi '+(isIn?'Setor':'Tarik')+'</button></div>';
+    el('m-body').innerHTML=
+      '<div class="fgrid">'
+      +'<div class="fg ffull"><label class="flabel">Rekening Tujuan / Asal</label>'
+      +'<select class="finput fsel" id="mf-account" onchange="onRdnAccountChange()">'
+      +'<option value="saham"'+(targetAcc==='saham'?' selected':'')+'>🇮🇩 Kas Saham IDX (RDN)</option>'
+      +'<option value="crypto"'+(targetAcc==='crypto'?' selected':'')+'>🪙 Kas Crypto (Wallet/Exchange)</option>'
+      +'<option value="reksadana"'+(targetAcc==='reksadana'?' selected':'')+'>💼 Kas Reksa Dana</option>'
+      +'</select></div>'
+      +'<div class="fg ffull"><label class="flabel">Tanggal</label><input class="finput" type="date" id="mf-date" value="'+today()+'"></div>'
+      +'<div class="fg ffull" id="mf-sec-group"><label class="flabel">Sekuritas</label><select class="finput fsel" id="mf-sec">'+secOpts+'</select></div>'
+      +'<div class="fg ffull"><label class="flabel">Jumlah Dana (Rp)</label><input class="finput" type="number" id="mf-amount" placeholder="Contoh: 50000000" oninput="updateAmtPreview()"></div>'
+      +'<div class="fg ffull"><label class="flabel">Keterangan</label><input class="finput" type="text" id="mf-ket" placeholder="'+(isIn?'Setoran modal, top-up saldo, transfer masuk':'Penarikan profit, kebutuhan mendesak, transfer keluar')+'"></div>'
+      +'</div>'
+      +'<div class="taxbox">'
+      +'<div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:7px">'+(isIn?'DANA MASUK MUTASI':'DANA KELUAR MUTASI')+'</div>'
+      +'<div class="taxrow tot"><span>Jumlah</span><span class="mono '+(isIn?'up':'dn')+'" id="amt-preview">Rp 0</span></div>'
+      +'</div>'
+      +'<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">'
+      +'<button class="btn btn-ghost" onclick="closeModal()">Batal</button>'
+      +'<button class="btn '+(isIn?'btn-green':'btn-red')+'" onclick="submitRdn()">Konfirmasi '+(isIn?'Setor':'Tarik')+'</button>'
+      +'</div>';
+    setTimeout(function(){ if(typeof onRdnAccountChange==='function') onRdnAccountChange(); }, 20);
+  } else if(type==='adjust'){
+    el('m-title').textContent='Penyesuaian Saldo Kas / RDN';
+    el('m-title').style.color='var(--accent)';
+    el('m-body').innerHTML=
+      '<div class="fgrid">'
+      +'<div class="fg ffull"><label class="flabel">Pilih Rekening yang Disesuaikan</label>'
+      +'<select class="finput fsel" id="mf-adj-account" onchange="onAdjustAccountChange()">'
+      +'<option value="saham"'+(targetAcc==='saham'?' selected':'')+'>🇮🇩 Kas Saham IDX (RDN)</option>'
+      +'<option value="crypto"'+(targetAcc==='crypto'?' selected':'')+'>🪙 Kas Crypto (Wallet/Exchange)</option>'
+      +'<option value="reksadana"'+(targetAcc==='reksadana'?' selected':'')+'>💼 Kas Reksa Dana</option>'
+      +'</select></div>'
+      +'<div class="fg ffull"><label class="flabel">Tanggal Penyesuaian</label><input class="finput" type="date" id="mf-adj-date" value="'+today()+'"></div>'
+      +'<div class="fg ffull"><label class="flabel">Saldo Riil Baru (Rp)</label><input class="finput" type="number" id="mf-adj-target" placeholder="Contoh: 1573382" oninput="onAdjustTargetInput()"></div>'
+      +'<div class="fg ffull"><label class="flabel">Keterangan / Catatan</label><input class="finput" type="text" id="mf-adj-ket" placeholder="Penyesuaian saldo riil rekening"></div>'
+      +'</div>'
+      +'<div class="taxbox" style="margin-top:8px">'
+      +'<div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px">KALKULASI PENYESUAIAN MUTASI</div>'
+      +'<div class="taxrow"><span>Saldo di Sistem Saat Ini</span><span class="mono" id="adj-cur-disp">Rp 0</span></div>'
+      +'<div class="taxrow"><span>Saldo Riil Baru</span><span class="mono" id="adj-tgt-disp">Rp 0</span></div>'
+      +'<div class="taxrow tot"><span>Selisih Mutasi</span><span class="mono" id="adj-diff-disp">Rp 0</span></div>'
+      +'</div>'
+      +'<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">'
+      +'<button class="btn btn-ghost" onclick="closeModal()">Batal</button>'
+      +'<button class="btn btn-blue" onclick="submitAdjustRdn()">💾 Simpan Penyesuaian</button>'
+      +'</div>';
+    setTimeout(function(){ if(typeof onAdjustAccountChange==='function') onAdjustAccountChange(); }, 20);
   } else if(type==='fee'){
     el('m-title').textContent='Catat Biaya & Fee Sekuritas';
     el('m-title').style.color='var(--amber)';
@@ -273,7 +321,9 @@ function updateCryptoPrices(){
 function addCryptoTx(date,type,coin,qty,priceIdr){
   var isBuy = type==='BUY';
   var total = qty * priceIdr;
-  cryptoTx.push({id:nextCryptoId++,date:date,type:type,coin:coin,qty:qty,priceIdr:priceIdr,total:total});
+  var txId = nextCryptoId++;
+  cryptoTx.push({id:txId,date:date,type:type,coin:coin,qty:qty,priceIdr:priceIdr,total:total});
+  addRdn(date, type, (isBuy?'Beli ':'Jual ') + qty + ' ' + coin + ' @ Rp ' + fmt(Math.round(priceIdr)), isBuy ? -total : total, 'Crypto Exchange', 'cr-' + txId, 'crypto');
 }
 
 function getCryptoPortfolio(){
@@ -415,11 +465,14 @@ function delCryptoTx(id){
   var target = (cryptoTx || []).find(function(t){ return String(t.id) === String(id) || t.id === Number(id); });
   var label = target ? (target.type + ' ' + target.coin + ' (' + target.date + ')') : 'transaksi ini';
 
-  mwConfirm('Hapus Transaksi Crypto', 'Hapus transaksi <strong>' + escHtml(label) + '</strong>?', function(){
+  mwConfirm('Hapus Transaksi Crypto', 'Hapus transaksi <strong>' + escHtml(label) + '</strong>?<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:inline-block">Mutasi kas crypto terkait juga akan dihapus.</span>', function(){
     cryptoTx = (cryptoTx || []).filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
+    rdnMutations = (rdnMutations || []).filter(function(r){ return String(r.linkedTxId) !== 'cr-' + String(id) && r.linkedTxId !== 'cr-' + Number(id); });
+    if(typeof rebuildRdnBalance==='function') rebuildRdnBalance();
     saveData();
     showSaveStatus('✓ Transaksi crypto berhasil dihapus', 'var(--green)');
     renderCrypto();
+    if(typeof renderCashWidgets === 'function') renderCashWidgets();
   });
 }
 
@@ -471,12 +524,28 @@ function updateCryptoTx(id){
 
   var idx = cryptoTx.findIndex(function(t){ return t.id === id; });
   if(idx === -1){ alert('Transaksi tidak ditemukan'); return; }
-  cryptoTx[idx] = {id:id, date:date, type:type, coin:coin, qty:qty, priceIdr:price, total:qty*price};
+  var total = qty * price;
+  var isBuy = type === 'BUY';
+  cryptoTx[idx] = {id:id, date:date, type:type, coin:coin, qty:qty, priceIdr:price, total:total};
 
+  // Sync mutasi terkait
+  var mutIdx = (rdnMutations || []).findIndex(function(r){ return String(r.linkedTxId) === 'cr-' + String(id) || r.linkedTxId === 'cr-' + Number(id); });
+  if(mutIdx >= 0){
+    rdnMutations[mutIdx].date = date;
+    rdnMutations[mutIdx].type = type;
+    rdnMutations[mutIdx].ket = (isBuy ? 'Beli ' : 'Jual ') + qty + ' ' + coin + ' @ Rp ' + fmt(Math.round(price));
+    rdnMutations[mutIdx].amount = isBuy ? -total : total;
+    rdnMutations[mutIdx].account = 'crypto';
+  } else {
+    addRdn(date, type, (isBuy ? 'Beli ' : 'Jual ') + qty + ' ' + coin + ' @ Rp ' + fmt(Math.round(price)), isBuy ? -total : total, 'Crypto Exchange', 'cr-' + id, 'crypto');
+  }
+
+  if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   saveData();
   showSaveStatus('✓ Transaksi crypto diperbarui');
   closeModal();
   renderCrypto();
+  if(typeof renderCashWidgets === 'function') renderCashWidgets();
 }
 
 function openCryptoModal(type){
@@ -709,9 +778,13 @@ function updateRdNAB(){
 }
 
 function addRdTx(date,type,code,amount,nab){
+  var isBeli = (type==='BELI' || type==='BUY');
   var units = amount / nab;
-  rdTx.push({id:nextRdId++, date:date, type:type, code:code,
+  var txId = nextRdId++;
+  rdTx.push({id:txId, date:date, type:type, code:code,
              amount:amount, nab:nab, units:units, _userInput:true});
+  var rdName = (RD_DB[code] && RD_DB[code].name) || code;
+  addRdn(date, isBeli ? 'BUY' : 'SELL', (isBeli?'Beli RD ':'Jual RD ') + rdName + ' (NAB Rp ' + fmt(Math.round(nab)) + ')', isBeli ? -amount : amount, 'Platform RD', 'rd-' + txId, 'reksadana');
 }
 
 function getRdPortfolio(){
@@ -893,11 +966,14 @@ function delRdTx(id){
   var rdInfo = target ? (RD_DB[target.code] || {name: target.code}) : {name: 'transaksi ini'};
   var label = target ? (target.type + ' ' + rdInfo.name + ' (' + target.date + ')') : 'transaksi ini';
 
-  mwConfirm('Hapus Transaksi Reksa Dana', 'Hapus transaksi <strong>' + escHtml(label) + '</strong>?', function(){
+  mwConfirm('Hapus Transaksi Reksa Dana', 'Hapus transaksi <strong>' + escHtml(label) + '</strong>?<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:inline-block">Mutasi kas reksa dana terkait juga akan dihapus.</span>', function(){
     rdTx = (rdTx || []).filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
+    rdnMutations = (rdnMutations || []).filter(function(r){ return String(r.linkedTxId) !== 'rd-' + String(id) && r.linkedTxId !== 'rd-' + Number(id); });
+    if(typeof rebuildRdnBalance==='function') rebuildRdnBalance();
     saveData();
     showSaveStatus('✓ Transaksi reksa dana berhasil dihapus', 'var(--green)');
     renderReksaDana();
+    if(typeof renderCashWidgets === 'function') renderCashWidgets();
   });
 }
 
@@ -949,13 +1025,29 @@ function submitEditRdTx(id){
   var nab=parseFloat(el('ed-rd-nab').value||0);
   if(!date||!code||amount<=0||nab<=0){alert('Lengkapi semua data!');return;}
   var units=amount/nab;
+  var isBeli=(type==='BELI'||type==='BUY');
   var idx=rdTx.findIndex(function(t){return t.id===id;});
   if(idx<0){alert('Transaksi tidak ditemukan');return;}
   rdTx[idx]=Object.assign(rdTx[idx],{date:date,code:code,type:type,amount:amount,nab:nab,units:units,_userInput:true});
+
+  var rdName = (RD_DB[code] && RD_DB[code].name) || code;
+  var mutIdx = (rdnMutations || []).findIndex(function(r){ return String(r.linkedTxId) === 'rd-' + String(id) || r.linkedTxId === 'rd-' + Number(id); });
+  if(mutIdx >= 0){
+    rdnMutations[mutIdx].date = date;
+    rdnMutations[mutIdx].type = isBeli ? 'BUY' : 'SELL';
+    rdnMutations[mutIdx].ket = (isBeli ? 'Beli RD ' : 'Jual RD ') + rdName + ' (NAB Rp ' + fmt(Math.round(nab)) + ')';
+    rdnMutations[mutIdx].amount = isBeli ? -amount : amount;
+    rdnMutations[mutIdx].account = 'reksadana';
+  } else {
+    addRdn(date, isBeli ? 'BUY' : 'SELL', (isBeli ? 'Beli RD ' : 'Jual RD ') + rdName + ' (NAB Rp ' + fmt(Math.round(nab)) + ')', isBeli ? -amount : amount, 'Platform RD', 'rd-' + id, 'reksadana');
+  }
+
+  if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   saveData();
   showSaveStatus('✓ Transaksi reksa dana diperbarui');
   closeModal();
   renderReksaDana();
+  if(typeof renderCashWidgets === 'function') renderCashWidgets();
 }
 
 function openRdModal(type){
@@ -1084,14 +1176,81 @@ function submitFee(){
   closeModal(); renderPage(currentPage);
 }
 
+function onRdnAccountChange(){
+  var acc = el('mf-account') ? el('mf-account').value : 'saham';
+  var secGrp = el('mf-sec-group');
+  if(secGrp){
+    secGrp.style.display = (acc === 'saham') ? 'block' : 'none';
+  }
+}
+
+function onAdjustAccountChange(){
+  var acc = el('mf-adj-account') ? el('mf-adj-account').value : 'saham';
+  var curBal = (typeof calcRdnBalance === 'function') ? calcRdnBalance(acc) : 0;
+  if(el('adj-cur-disp')) el('adj-cur-disp').textContent = 'Rp ' + fmt(Math.round(curBal));
+  onAdjustTargetInput();
+}
+
+function onAdjustTargetInput(){
+  var acc = el('mf-adj-account') ? el('mf-adj-account').value : 'saham';
+  var curBal = (typeof calcRdnBalance === 'function') ? calcRdnBalance(acc) : 0;
+  var tgtVal = parseFloat(el('mf-adj-target') && el('mf-adj-target').value || 0);
+  var diff = tgtVal - curBal;
+  if(el('adj-tgt-disp')) el('adj-tgt-disp').textContent = 'Rp ' + fmt(Math.round(tgtVal));
+  if(el('adj-diff-disp')){
+    el('adj-diff-disp').textContent = (diff >= 0 ? '+' : '') + 'Rp ' + fmt(Math.round(diff));
+    el('adj-diff-disp').className = 'mono ' + (diff >= 0 ? 'up' : 'dn');
+  }
+}
+
+function submitAdjustRdn(){
+  var acc = (el('mf-adj-account') && el('mf-adj-account').value) || 'saham';
+  var date = (el('mf-adj-date') && el('mf-adj-date').value) || today();
+  var tgtVal = parseFloat(el('mf-adj-target') && el('mf-adj-target').value);
+  var ket = (el('mf-adj-ket') && el('mf-adj-ket').value) || '';
+
+  if(isNaN(tgtVal)){
+    alert('Masukkan saldo riil target yang valid!');
+    return;
+  }
+
+  var curBal = (typeof calcRdnBalance === 'function') ? calcRdnBalance(acc) : 0;
+  var diff = tgtVal - curBal;
+
+  if(Math.abs(diff) < 0.001){
+    alert('Saldo saat ini sudah sama dengan target (' + (acc === 'crypto' ? 'Kas Crypto' : acc === 'reksadana' ? 'Kas Reksa Dana' : 'Kas Saham IDX') + ' Rp ' + fmt(Math.round(curBal)) + '). Tidak ada penyesuaian yang diperlukan.');
+    return;
+  }
+
+  var isIn = diff > 0;
+  var absDiff = Math.abs(diff);
+  var defaultKet = 'Penyesuaian Saldo ' + (acc === 'crypto' ? 'Kas Crypto' : acc === 'reksadana' ? 'Kas Reksa Dana' : 'Kas Saham IDX') + ' (' + (isIn ? '+' : '-') + 'Rp ' + fmt(Math.round(absDiff)) + ')';
+  var sek = (acc === 'saham') ? activeSekuritas : (acc === 'crypto' ? 'Crypto Exchange' : 'Platform RD');
+
+  addRdn(date, isIn ? 'SETOR' : 'TARIK', ket || defaultKet, isIn ? absDiff : -absDiff, sek, null, acc);
+  saveData();
+  showSaveStatus('✓ Saldo kas ' + acc + ' berhasil disesuaikan ke Rp ' + fmt(Math.round(tgtVal)));
+  closeModal();
+  renderPage(currentPage);
+  if(typeof renderCashWidgets === 'function') renderCashWidgets();
+}
+
 function submitRdn(){
-  var date=el('mf-date').value;var amount=parseFloat(el('mf-amount').value||0);var ket=el('mf-ket').value||'';
+  var date=el('mf-date').value;
+  var amount=parseFloat(el('mf-amount').value||0);
+  var ket=el('mf-ket').value||'';
+  var acc=(el('mf-account')&&el('mf-account').value)||'saham';
+  var sek=(acc==='saham' ? (el('mf-sec')&&el('mf-sec').value||activeSekuritas) : (acc==='crypto'?'Crypto Exchange':'Platform RD'));
+
   if(!date||amount<=0){alert('Lengkapi tanggal dan jumlah dana!');return;}
   var isIn=modalType==='setor';
-  addRdn(date,isIn?'SETOR':'TARIK',ket||(isIn?'Setoran dana':'Penarikan dana'),isIn?amount:-amount,activeSekuritas,null);
+  var accLabel = acc==='crypto'?'Kas Crypto':acc==='reksadana'?'Kas Reksa Dana':'RDN Saham';
+  addRdn(date,isIn?'SETOR':'TARIK',ket||((isIn?'Setoran dana ':'Penarikan dana ')+accLabel),isIn?amount:-amount,sek,null,acc);
   saveData();
-  showSaveStatus('✓ '+(isIn?'Setoran':'Penarikan')+' berhasil disimpan');
-  closeModal();renderPage(currentPage);
+  showSaveStatus('✓ '+(isIn?'Setoran ':'Penarikan ')+accLabel+' berhasil disimpan');
+  closeModal();
+  renderPage(currentPage);
+  if(typeof renderCashWidgets === 'function') renderCashWidgets();
 }
 
 function submitTxModal(){
@@ -1228,8 +1387,13 @@ function rebuildRdnBalance(){
     return ((a.id||0) - (b.id||0));
   });
 
-  var bal = 0;
+  var balSaham = 0;
+  var balCrypto = 0;
+  var balRd = 0;
+
   rdnMutations.forEach(function(r){
+    var acc = r.account || 'saham';
+    r.account = acc;
     var amt = 0;
     if(typeof r.amount === 'number' && !isNaN(r.amount)){
       amt = r.amount;
@@ -1239,12 +1403,24 @@ function rebuildRdnBalance(){
       amt = (Number(r.amountIn||r.amount_in||0)) - (Number(r.amountOut||r.amount_out||0));
     }
     r.amount = amt;
-    bal += amt;
-    r.balance = bal;
+
+    if(acc === 'crypto'){
+      balCrypto += amt;
+      r.balance = balCrypto;
+    } else if(acc === 'reksadana'){
+      balRd += amt;
+      r.balance = balRd;
+    } else {
+      balSaham += amt;
+      r.balance = balSaham;
+    }
   });
-  rdnBalance = isFinite(bal) ? bal : 0;
-  if(typeof CASH_ACCOUNTS !== 'undefined' && CASH_ACCOUNTS.saham){
-    CASH_ACCOUNTS.saham.balance = rdnBalance;
+
+  rdnBalance = isFinite(balSaham) ? balSaham : 0;
+  if(typeof CASH_ACCOUNTS !== 'undefined'){
+    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = rdnBalance;
+    if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = isFinite(balCrypto) ? balCrypto : 0;
+    if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = isFinite(balRd) ? balRd : 0;
   }
 }
 
@@ -1440,6 +1616,7 @@ function delRdnManual(id){
       saveData();
       showSaveStatus('✓ Mutasi RDN berhasil dihapus', 'var(--green)');
       if (typeof renderRdn === 'function') renderRdn();
+      if (typeof renderCashWidgets === 'function') renderCashWidgets();
       if (typeof renderPage === 'function' && typeof currentPage !== 'undefined' && currentPage !== 'rdn') renderPage(currentPage);
     },
     'Hapus Mutasi'

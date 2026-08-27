@@ -42,10 +42,61 @@ function dhCheckDuplicateTx(){
   return {status:'warn', title:'Kemungkinan Transaksi Duplikat', detail:dups.length+' transaksi punya kembaran persis (tanggal+ticker+tipe+lot+harga+sekuritas sama) — cek apakah ini hasil bulk-import yang ter-upload dua kali: '+dups.slice(0,5).map(function(t){return t.date+' '+t.type+' '+t.ticker;}).join(', ')+(dups.length>5?', dst.':''), count:dups.length};
 }
 
+function dhCheckRdnDatabaseSync(){
+  var txIds = {}; (transactions||[]).forEach(function(t){ txIds[String(t.id)] = true; });
+  var divIds = {}; (dividends||[]).forEach(function(d){ divIds['div-' + String(d.id)] = true; });
+  var crIds = {}; (typeof cryptoTx!=='undefined'?cryptoTx:[]).forEach(function(c){ crIds['cr-' + String(c.id)] = true; crIds['crypto-' + String(c.id)] = true; });
+  var rdIds = {}; (typeof rdTx!=='undefined'?rdTx:[]).forEach(function(r){ rdIds['rd-' + String(r.id)] = true; });
+
+  var existingLinked = {};
+  (rdnMutations||[]).forEach(function(m){
+    if(m && m.linkedTxId != null) existingLinked[String(m.linkedTxId)] = true;
+  });
+
+  var missingTx = (transactions||[]).filter(function(t){ return !existingLinked[String(t.id)]; });
+  var missingDiv = (dividends||[]).filter(function(d){ return !existingLinked['div-' + String(d.id)]; });
+  var missingCr = (typeof cryptoTx!=='undefined'?cryptoTx:[]).filter(function(c){ return !existingLinked['cr-' + String(c.id)] && !existingLinked['crypto-' + String(c.id)]; });
+  var missingRd = (typeof rdTx!=='undefined'?rdTx:[]).filter(function(r){ return !existingLinked['rd-' + String(r.id)]; });
+
+  var orphanMuts = (rdnMutations||[]).filter(function(m){
+    if(!m || m.linkedTxId == null) return false;
+    var lid = String(m.linkedTxId);
+    if(lid.startsWith('div-')) return !divIds[lid];
+    if(lid.startsWith('cr-') || lid.startsWith('crypto-')) return !crIds[lid];
+    if(lid.startsWith('rd-')) return !rdIds[lid];
+    return !txIds[lid];
+  });
+
+  var totalSelisih = missingTx.length + missingDiv.length + missingCr.length + missingRd.length + orphanMuts.length;
+
+  if(totalSelisih === 0){
+    return {
+      status: 'ok',
+      title: 'Sinkronisasi Database & Mutasi RDN',
+      detail: 'Seluruh data transaksi Saham (' + (transactions||[]).length + '), Dividen (' + (dividends||[]).length + '), Crypto (' + (cryptoTx||[]).length + '), dan Reksa Dana (' + (rdTx||[]).length + ') telah 100% selaras dan tersimpan di database mutasi RDN.'
+    };
+  }
+
+  var details = [];
+  if(missingTx.length) details.push(missingTx.length + ' transaksi saham belum tercatat di RDN');
+  if(missingDiv.length) details.push(missingDiv.length + ' penerimaan dividen belum tercatat di RDN');
+  if(missingCr.length) details.push(missingCr.length + ' transaksi crypto belum tercatat di RDN');
+  if(missingRd.length) details.push(missingRd.length + ' transaksi reksa dana belum tercatat di RDN');
+  if(orphanMuts.length) details.push(orphanMuts.length + ' mutasi yatim tanpa transaksi induk');
+
+  return {
+    status: 'warn',
+    title: 'Sinkronisasi Database RDN Perlu Dijalankan',
+    detail: 'Ditemukan selisih data: ' + details.join(', ') + '. '
+      + '<div style="margin-top:8px"><button class="btn btn-green btn-xs" onclick="syncRdnDatabase(true)" style="cursor:pointer">⚡ Sinkronkan & Rekonsiliasi Database Sekarang</button></div>',
+    count: totalSelisih
+  };
+}
+
 function dhCheckOrphanRdn(){
-  var txIds={}; (transactions||[]).forEach(function(t){ txIds[t.id]=true; });
+  var txIds={}; (transactions||[]).forEach(function(t){ txIds[String(t.id)]=true; txIds[t.id]=true; });
   var orphans=(rdnMutations||[]).filter(function(m){
-    return m.linkedTxId!=null && String(m.linkedTxId).indexOf('div-')!==0 && !txIds[m.linkedTxId] && !txIds[parseInt(m.linkedTxId,10)];
+    return m.linkedTxId!=null && String(m.linkedTxId).indexOf('div-')!==0 && String(m.linkedTxId).indexOf('cr-')!==0 && String(m.linkedTxId).indexOf('crypto-')!==0 && String(m.linkedTxId).indexOf('rd-')!==0 && !txIds[String(m.linkedTxId)];
   });
   if(!orphans.length) return {status:'ok', title:'Mutasi RDN Yatim', detail:'Semua mutasi RDN yang tertaut ke transaksi saham (BUY/SELL) masih punya transaksi induk yang valid.'};
   return {status:'warn', title:'Mutasi RDN Yatim', detail:orphans.length+' mutasi RDN menunjuk ke transaksi saham yang sudah tidak ada (mungkin terhapus tanpa lewat tombol Hapus) — saldo RDN tetap benar (dihitung dari mutasi, bukan dari transaksi), tapi baris ini jadi tidak bisa ditelusuri asalnya.', count:orphans.length};
@@ -89,6 +140,7 @@ function dhCheckExtremeValues(){
 
 function dhRunAllChecks(){
   return [
+    dhCheckRdnDatabaseSync(),
     dhCheckRdnNegative(),
     dhCheckDuplicateTx(),
     dhCheckOrphanRdn(),
