@@ -155,6 +155,23 @@ function wRenderPage(name){
 }
 function wKillChart(id){ if(wCharts[id]){ try{wCharts[id].destroy();}catch(e){} delete wCharts[id]; } }
 
+function wSubNav(activePage){
+  var tabs = [
+    {id:'wealth', label:'💼 Ringkasan Net Worth'},
+    {id:'wbank', label:'🏦 Rekening Bank & Kas'},
+    {id:'wdebt', label:'💳 Hutang & Cicilan'},
+    {id:'wpiutang', label:'🧾 Piutang'},
+    {id:'wfire', label:'🔥 Proyeksi FIRE'}
+  ];
+  var html = '<div style="display:flex;gap:6px;margin:12px 0 16px;background:var(--bg2);padding:4px;border-radius:10px;border:1px solid var(--border);width:fit-content;max-width:100%;overflow-x:auto">';
+  tabs.forEach(function(t){
+    var on = t.id === activePage;
+    html += '<button onclick="goPage(\''+t.id+'\')" class="btn '+(on?'btn-blue':'btn-ghost')+' btn-sm" style="font-size:11.5px;font-weight:'+(on?'700':'500')+';border:none;border-radius:7px;padding:6px 13px;white-space:nowrap">'+t.label+'</button>';
+  });
+  html += '</div>';
+  return html;
+}
+
 // ══════════════════════════════════════════════
 // PAGE 1 — NET WORTH DASHBOARD
 // ══════════════════════════════════════════════
@@ -177,6 +194,7 @@ function wRenderNet(){
       '<button class="btn btn-blue btn-sm" onclick="wModalSettings()">⚙ Asumsi & Aset Lain</button>'+
     '</div>'+
   '</div>'+
+  wSubNav('wealth')+
   '<div class="w-hero">'+
     '<div class="w-hero-label">Total Net Worth</div>'+
     '<div class="w-hero-value">'+wRp(a.net)+'</div>'+
@@ -339,10 +357,11 @@ function wRenderBank(){
   var fillCls = a.emMonths>=6 ? 'green' : a.emMonths>=3 ? 'amber' : 'red';
 
   el('page-wbank').innerHTML =
-  '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">🏦 Bank & Dana Darurat</div><div class="psub">Rekening di luar RDN — RDN & kas trading dikelola di menu Keuangan</div></div>'+
     '<button class="btn btn-blue btn-sm" onclick="wModalBank()">＋ Tambah Rekening</button>'+
   '</div>'+
+  wSubNav('wbank')+
   '<div class="row4">'+
     '<div class="metric"><div class="mlabel">Total Saldo Bank</div><div class="mval">'+wRp(a.bankTotal)+'</div></div>'+
     '<div class="metric"><div class="mlabel">Dana Darurat</div><div class="mval '+(a.emMonths>=6?'up':a.emMonths>=3?'amb':'dn')+'">'+a.emMonths.toFixed(1)+' bln</div><div class="msub neu">'+(a.emMonths>=6?'✓ Ideal':'target 6 bln')+'</div></div>'+
@@ -396,10 +415,11 @@ function wRenderDebt(){
   var bySize = WEALTH.debt.slice().sort(function(x,y){return (x.outstanding||0)-(y.outstanding||0)});
 
   el('page-wdebt').innerHTML =
-  '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">💳 Hutang & Kewajiban</div><div class="psub">Strategi pelunasan avalanche (hemat bunga) vs snowball (motivasi)</div></div>'+
     '<button class="btn btn-blue btn-sm" onclick="wModalDebt()">＋ Tambah Hutang</button>'+
   '</div>'+
+  wSubNav('wdebt')+
   '<div class="row4">'+
     '<div class="metric"><div class="mlabel">Total Hutang</div><div class="mval dn">'+wRp(a.debt.t)+'</div></div>'+
     '<div class="metric"><div class="mlabel">Debt Ratio</div><div class="mval '+(wPct(a.debt.t,a.aset)>40?'dn':'neu')+'">'+wPct(a.debt.t,a.aset).toFixed(1)+'%</div><div class="msub neu">dari total aset · target &lt;40%</div></div>'+
@@ -449,10 +469,11 @@ function wRenderPiutang(){
   var colors = {'Lancar':['rgba(129,140,248,.15)','#2f6af3'],'Lunas':['rgba(52,211,153,.15)','#34d399'],'Telat':['rgba(251,191,36,.15)','#fbbf24'],'Macet':['rgba(248,113,113,.15)','#f87171']};
 
   el('page-wpiutang').innerHTML =
-  '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">🧾 Piutang</div><div class="psub">Uang yang dipinjamkan ke pihak lain — pantau progres pembayarannya</div></div>'+
     '<button class="btn btn-blue btn-sm" onclick="wModalPiutang()">＋ Tambah Piutang</button>'+
   '</div>'+
+  wSubNav('wpiutang')+
   '<div class="row4">'+
     '<div class="metric"><div class="mlabel">Total Pokok</div><div class="mval">'+wRp(tP)+'</div></div>'+
     '<div class="metric"><div class="mlabel">Outstanding</div><div class="mval amb">'+wRp(tP-tT)+'</div></div>'+
@@ -498,10 +519,11 @@ function wRenderFire(){
   var pct = target>0 ? Math.min(100, a.net/target*100) : 0;
 
   el('page-wfire').innerHTML =
-  '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+
+  '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">🔥 FIRE & Proyeksi Kekayaan</div><div class="psub">Financial Independence, Retire Early — aturan 25× pengeluaran tahunan & 4% withdrawal</div></div>'+
     '<button class="btn btn-ghost btn-sm" onclick="wModalSettings()">⚙ Ubah Asumsi</button>'+
   '</div>'+
+  wSubNav('wfire')+
   '<div class="row4">'+
     '<div class="metric"><div class="mlabel">Net Worth</div><div class="mval">'+wRp(a.net)+'</div></div>'+
     '<div class="metric"><div class="mlabel">FIRE Number (25×)</div><div class="mval">'+(target>0?wRp(target):'—')+'</div><div class="msub neu">'+wRp(annualExp)+'/thn × 25</div></div>'+

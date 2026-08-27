@@ -949,6 +949,10 @@ function updatePrices(){
 
 // ── Settings Modal ──
 function openFinnhubSettings(){
+  if(typeof openSettingsHub === 'function'){
+    openSettingsHub('feed');
+    return;
+  }
   el('m-title').textContent = '📡 Pengaturan Mode & Fluktuasi Harga';
   el('m-title').style.color = 'var(--accent)';
   var sc = priceEngineMode==='static'?'var(--text3)':FH.status==='live'?'var(--green)':FH.status==='error'?'var(--red)':'var(--text3)';

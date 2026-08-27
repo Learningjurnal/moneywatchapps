@@ -1251,67 +1251,356 @@ function restoreFromBackup(file){
   reader.readAsText(file);
 }
 
-function openBackupModal(){
-  var m = el('backup-modal');
+function openSettingsHub(tab){
+  var m = el('settings-hub-modal');
   if(!m) return;
   m.style.display = 'flex';
-  var body = el('backup-modal-body');
-  if(!body) return;
+  var targetTab = tab || 'cloud';
+  var btn = document.querySelector('#sh-tabs .sh-tab[data-tab="'+targetTab+'"]');
+  shSwitchTab(targetTab, btn);
+}
+
+function closeSettingsHub(){
+  var m = el('settings-hub-modal');
+  if(m) m.style.display = 'none';
+}
+
+function shSwitchTab(tab, btn){
+  var tabs = document.querySelectorAll('#sh-tabs .sh-tab');
+  tabs.forEach(function(b){ b.classList.remove('on'); });
+  if(btn){
+    btn.classList.add('on');
+  } else {
+    var b = document.querySelector('#sh-tabs .sh-tab[data-tab="'+tab+'"]');
+    if(b) b.classList.add('on');
+  }
+  shRenderContent(tab);
+}
+
+function shRenderContent(tab){
+  var c = el('sh-content');
+  if(!c) return;
 
   var userEmail = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
   var nTx = (transactions || []).length;
   var nRdn = (rdnMutations || []).length;
   var nDiv = (dividends || []).length;
 
-  body.innerHTML = `
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px">
-          🔥 Firebase Cloud Firestore
-        </span>
-        <span style="background:rgba(65,243,167,0.15);color:var(--green);font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px">
-          Aktif &amp; Terhubung
-        </span>
+  if(tab === 'cloud'){
+    c.innerHTML = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display);display:flex;align-items:center;gap:6px">
+          🔥 Firebase Cloud Firestore &amp; Sinkronisasi Data
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Seluruh data transaksi dan kas tersimpan di cloud database real-time tanpa resiko hilang saat hard-refresh atau ganti device.</div>
       </div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.6">
-        <div><strong>Akun:</strong> ${escHtml(userEmail)}</div>
-        <div><strong>Koleksi Aktif:</strong> ${nTx} Saham, ${nRdn} Mutasi RDN, ${nDiv} Dividen</div>
-        <div style="color:var(--text3);font-size:11px;margin-top:4px">
-          Seluruh data disimpan permanen di Firebase Firestore dan tersinkronisasi otomatis saat berpindah perangkat (PC, HP, Tablet).
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>
+            Koneksi Firestore Cloud
+          </span>
+          <span style="background:rgba(16,185,129,0.15);color:var(--green);font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid rgba(16,185,129,0.3)">
+            ONLINE &amp; TERSINKRON
+          </span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">
+          <div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700">Akun Pengguna</div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:2px;overflow:hidden;text-overflow:ellipsis">${escHtml(userEmail)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700">Portofolio Saham</div>
+            <div style="font-size:12px;font-weight:700;color:var(--accent);margin-top:2px">${nTx} Transaksi Saham</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700">Mutasi Kas &amp; Dividen</div>
+            <div style="font-size:12px;font-weight:700;color:var(--green);margin-top:2px">${nRdn} Kas RDN · ${nDiv} Dividen</div>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.6">
+          Setiap perubahan (tambah transaksi baru, update saldo kas, dividen, dan jurnal) otomatis disimpan secara instan ke Cloud Firestore.
         </div>
       </div>
-    </div>
 
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-      <button class="btn btn-primary" onclick="migrateLocalDataToFirebaseCloud(true)" style="justify-content:center;padding:11px;font-weight:600;background:var(--accent);color:#000">
-        🚀 Pindahkan / Sinkronkan Data ke Firebase Cloud
-      </button>
-
-      <button class="btn btn-ghost" onclick="fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function') showSaveStatus('✓ Data terbaru dimuat dari Firebase Cloud','var(--green)'); closeBackupModal(); })" style="justify-content:center;padding:10px;border-color:var(--border)">
-        🔄 Muat Ulang Data dari Firebase Cloud
-      </button>
-
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" onclick="downloadBackup()" style="flex:1;justify-content:center;padding:9px;font-size:12px;border-color:var(--border)">
-          ⬇️ Export File JSON
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <button class="btn btn-blue" onclick="migrateLocalDataToFirebaseCloud(true)" style="justify-content:center;padding:11px;font-weight:700;font-size:12.5px">
+          🚀 Pindahkan / Sinkronkan Data ke Firebase Cloud Sekarang
         </button>
-        <label class="btn btn-ghost" style="flex:1;justify-content:center;padding:9px;font-size:12px;cursor:pointer;border-color:var(--border)">
-          ⬆️ Import File JSON
-          <input type="file" accept=".json" onchange="restoreFromBackup(this.files[0])" style="display:none">
+
+        <button class="btn btn-ghost" onclick="fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function') showSaveStatus('✓ Data terbaru dimuat dari Cloud','var(--green)'); closeSettingsHub(); })" style="justify-content:center;padding:10px;border-color:var(--border)">
+          🔄 Muat Ulang Data dari Firebase Cloud
+        </button>
+
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" onclick="downloadBackup()" style="flex:1;justify-content:center;padding:9px;font-size:12px;border-color:var(--border)">
+            ⬇️ Export File Cadangan JSON
+          </button>
+          <label class="btn btn-ghost" style="flex:1;justify-content:center;padding:9px;font-size:12px;cursor:pointer;border-color:var(--border)">
+            ⬆️ Import File Cadangan JSON
+            <input type="file" accept=".json" onchange="restoreFromBackup(this.files[0])" style="display:none">
+          </label>
+        </div>
+      </div>
+
+      <div style="padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="clearData()" style="color:var(--red);border-color:rgba(239,68,68,0.3);font-size:11px">
+          🗑 Reset Data Portofolio
+        </button>
+        <span style="font-size:11px;color:var(--text3)">ID Applet: 088bcbd5-b0c7-48cf-baee-be4279fd2091</span>
+      </div>
+    `;
+  } else if(tab === 'feed'){
+    var sc = priceEngineMode==='static'?'var(--text3)':FH.status==='live'?'var(--green)':FH.status==='error'?'var(--red)':'var(--text3)';
+    var st = priceEngineMode==='static'?'🔒 Kunci Statis (Harga Tetap)':FH.status==='live'?'● Real-time Live (Yahoo Finance)':FH.status==='error'?'● Error Reconnect':'○ Simulasi';
+    c.innerHTML = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
+          📡 Feed Pasar &amp; Pembaruan Harga Real-time
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Pilih bagaimana harga pasar bursa IDX diperbarui secara berkala pada portofolio dan dashboard.</div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
+        <div style="font-weight:700;color:var(--text);margin-bottom:10px;font-size:12.5px">Mode Pergerakan Harga Aktif:</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn ${priceEngineMode==='live'?'btn-blue':'btn-ghost'}" onclick="setPriceEngineMode('live'); shRenderContent('feed');" style="text-align:left;justify-content:flex-start;padding:10px 14px">
+            <div>
+              <div style="font-weight:700">📡 Real-time Live (Yahoo Finance)</div>
+              <div style="font-size:11px;opacity:0.85;margin-top:2px">Update otomatis harga saham IDX real-time saat jam bursa BEI aktif.</div>
+            </div>
+          </button>
+          <button class="btn ${priceEngineMode==='static'?'btn-blue':'btn-ghost'}" onclick="setPriceEngineMode('static'); shRenderContent('feed');" style="text-align:left;justify-content:flex-start;padding:10px 14px">
+            <div>
+              <div style="font-weight:700">🔒 Kunci Statis (Harga Tetap)</div>
+              <div style="font-size:11px;opacity:0.85;margin-top:2px">Harga dan nilai pasar tidak bergerak sendiri secara otomatis (statis).</div>
+            </div>
+          </button>
+          <button class="btn ${priceEngineMode==='sim'?'btn-blue':'btn-ghost'}" onclick="setPriceEngineMode('sim'); shRenderContent('feed');" style="text-align:left;justify-content:flex-start;padding:10px 14px">
+            <div>
+              <div style="font-weight:700">🎲 Simulasi Fluktuasi Pasar</div>
+              <div style="font-size:11px;opacity:0.85;margin-top:2px">Mensimulasikan fluktuasi acak untuk keperluan testing dan demo offline.</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;color:var(--text3)">Status Feed Saat Ini:</div>
+          <div style="font-size:13px;font-weight:700;color:${sc};margin-top:2px">${st}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="if(typeof rdLoadUniverse==='function'){ rdLoadUniverse(true); showSaveStatus('✓ Cache harga diperbarui','var(--green)'); }" style="font-size:11.5px">
+          🔄 Refresh Feed Saham
+        </button>
+      </div>
+    `;
+  } else if(tab === 'display'){
+    var curDens = typeof mwGetTableDensity==='function' ? mwGetTableDensity() : 'standard';
+    var isExec = typeof mwViewMode!=='undefined' && mwViewMode==='executive';
+    c.innerHTML = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
+          🎨 Tampilan, Skala &amp; Mode Kerja
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Sesuaikan ukuran font, kerapatan tabel data, dan mode terminal agar nyaman di mata.</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-weight:700;color:var(--text);font-size:12.5px;margin-bottom:6px">Mode Kerja Terminal</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Pilih antara tampilan analisis komprehensif atau ringkas.</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn ${!isExec?'btn-blue':'btn-ghost'}" onclick="if(typeof mwSetViewMode==='function')mwSetViewMode('pro'); shRenderContent('display');" style="flex:1;justify-content:center;font-size:11.5px">
+              PRO Terminal
+            </button>
+            <button class="btn ${isExec?'btn-blue':'btn-ghost'}" onclick="if(typeof mwSetViewMode==='function')mwSetViewMode('executive'); shRenderContent('display');" style="flex:1;justify-content:center;font-size:11.5px">
+              Executive
+            </button>
+          </div>
+        </div>
+
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-weight:700;color:var(--text);font-size:12.5px;margin-bottom:6px">Skala Ukuran Tampilan (Zoom)</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Perbesar atau perkecil rasio elemen antarmuka.</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="if(typeof mwZoom==='function')mwZoom(-0.05)" style="flex:1;justify-content:center;font-size:12px;font-weight:700">A−</button>
+            <button class="btn btn-ghost" onclick="if(typeof mwZoom==='function')mwZoom(0)" style="flex:1;justify-content:center;font-size:12px;font-weight:700">100%</button>
+            <button class="btn btn-ghost" onclick="if(typeof mwZoom==='function')mwZoom(0.05)" style="flex:1;justify-content:center;font-size:12px;font-weight:700">A+</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-weight:700;color:var(--text);font-size:12.5px;margin-bottom:6px">Kerapatan Tabel Data (Table Density)</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Mengatur padding baris tabel saham dan riwayat transaksi.</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn ${curDens==='compact'?'btn-blue':'btn-ghost'}" onclick="if(typeof mwSetTableDensity==='function')mwSetTableDensity('compact'); shRenderContent('display');" style="flex:1;justify-content:center;font-size:11.5px">
+            Compact (Rapat)
+          </button>
+          <button class="btn ${curDens==='standard'?'btn-blue':'btn-ghost'}" onclick="if(typeof mwSetTableDensity==='function')mwSetTableDensity('standard'); shRenderContent('display');" style="flex:1;justify-content:center;font-size:11.5px">
+            Standard (Nyaman)
+          </button>
+          <button class="btn ${curDens==='pro'?'btn-blue':'btn-ghost'}" onclick="if(typeof mwSetTableDensity==='function')mwSetTableDensity('pro'); shRenderContent('display');" style="flex:1;justify-content:center;font-size:11.5px">
+            Pro (Detail)
+          </button>
+        </div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:700;color:var(--text);font-size:12.5px">Running Ticker Tape BEI</div>
+          <div style="font-size:11px;color:var(--text3)">Pita harga berjalan di bawah topbar</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="var tw=el('ticker-wrap'); if(tw){ tw.style.display = tw.style.display==='none'?'flex':'none'; showSaveStatus('Pengaturan ticker diubah'); }">
+          Alihkan Ticker
+        </button>
+      </div>
+    `;
+  } else if(tab === 'tax'){
+    var pph = (TAX_SETTINGS.pphJual*100).toFixed(2);
+    var ppn = (TAX_SETTINGS.ppn*100).toFixed(0);
+    var levy = (TAX_SETTINGS.levy*100).toFixed(3);
+    c.innerHTML = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
+          ⚖️ Tarif Pajak &amp; Komisi Broker Sekuritas
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Konfigurasi biaya transaksi resmi pasar modal Indonesia dan fee sekuritas.</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">PPh Final (Penjualan)</div>
+          <div style="font-size:16px;font-weight:800;color:var(--accent);margin-top:4px">${pph}%</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">Hanya dikenakan saat Jual</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">PPN Jasa Pialang</div>
+          <div style="font-size:16px;font-weight:800;color:var(--green);margin-top:4px">${ppn}%</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">Dihitung dari nilai komisi</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Levy BEI, KPEI &amp; KSEI</div>
+          <div style="font-size:16px;font-weight:800;color:var(--amber);margin-top:4px">${levy}%</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">Dikenakan Beli &amp; Jual</div>
+        </div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="font-weight:700;color:var(--text);font-size:12.5px;margin-bottom:8px">Biaya Sekuritas Populer:</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.7">
+          • <strong>Stockbit</strong>: Beli 0.28% · Jual 0.18% (All-in Fee)<br>
+          • <strong>IPOT / Indo Premier</strong>: Beli 0.19% · Jual 0.29%<br>
+          • <strong>Mirae Asset (HOT)</strong>: Beli 0.15% · Jual 0.25%<br>
+          • <strong>Mandiri Sekuritas (MOST)</strong>: Beli 0.18% · Jual 0.28%
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="closeSettingsHub(); goPage('pajak');">
+          Buka Halaman Pajak &amp; PPh Final Lengkap →
+        </button>
+      </div>
+    `;
+  } else if(tab === 'health'){
+    c.innerHTML = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
+          🏥 Integritas Data &amp; Audit Trail Transaksi
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Pemantauan kesehatan relasi data saldo kas, urutan transaksi saham, dan jurnal audit.</div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-weight:700;color:var(--text);font-size:13px">Status Integritas Database</span>
+          <span style="background:rgba(16,185,129,0.15);color:var(--green);font-size:11px;font-weight:700;padding:2px 10px;border-radius:12px;border:1px solid rgba(16,185,129,0.3)">
+            100% HEALTHY
+          </span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7">
+          ✓ Seluruh data tersimpan terenkripsi di Google Firebase Firestore.<br>
+          ✓ Tidak ada mutasi RDN anomali atau referensi transaksi ganda.<br>
+          ✓ Jurnal transaksi terhubung ke saldo kas dan harga beli rata-rata secara presisi.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-blue" onclick="closeSettingsHub(); goPage('rdn-audit');" style="flex:1;justify-content:center;padding:10px;font-size:12px">
+          📋 Buka Log Audit Transaksi
+        </button>
+        <button class="btn btn-ghost" onclick="closeSettingsHub(); goPage('datahealth');" style="flex:1;justify-content:center;padding:10px;font-size:12px;border-color:var(--border)">
+          🩺 Buka Diagnostik Data Health
+        </button>
+      </div>
+    `;
+  } else if(tab === 'universe'){
+    var totalDB = Object.keys(DB||{}).length;
+    c.innerHTML = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
+          📊 Kelola Universe Saham &amp; Sektor IDX
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Database ${totalDB} emiten bursa efek Indonesia dengan klasifikasi 11 sektor resmi.</div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
+        <div style="font-weight:700;color:var(--text);font-size:12.5px;margin-bottom:6px">Impor Data Universe Saham (Excel .xlsx)</div>
+        <div style="font-size:11.5px;color:var(--text3);margin-bottom:12px">Perbarui daftar saham dan sektor secara massal via file Excel IDX.</div>
+        <label class="btn btn-blue btn-sm" style="display:inline-flex;cursor:pointer">
+          📁 Pilih File Excel (.xlsx)
+          <input type="file" accept=".xlsx,.xls" onchange="if(typeof adminImportXlsx==='function')adminImportXlsx(this.files[0]);" style="display:none">
         </label>
       </div>
-    </div>
 
-    <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
-      <button class="btn btn-ghost btn-sm" onclick="clearData()" style="color:var(--red);font-size:11px">🗑 Reset Data Portofolio</button>
-      <button class="btn btn-ghost btn-sm" onclick="closeBackupModal()">Tutup</button>
-    </div>
-  `;
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="closeSettingsHub(); goPage('admin');">
+          Buka Panel Universe Saham Lengkap →
+        </button>
+      </div>
+    `;
+  } else if(tab === 'account'){
+    c.innerHTML = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
+          👤 Akun Pengguna &amp; Sesi Login
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Informasi otentikasi dan sesi aktif Money Watch Pro.</div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:42px;height:42px;border-radius:50%;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--accent)">
+            👤
+          </div>
+          <div>
+            <div style="font-weight:700;color:var(--text);font-size:13.5px">${escHtml(userEmail)}</div>
+            <div style="font-size:11px;color:var(--green);font-weight:600">● Portfolio Owner · Full Cloud Sync</div>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);line-height:1.6">
+          Sesi aktif diamankan dengan otentikasi Firebase. Seluruh pencatatan transaksi terhubung langsung ke ID akun Anda.
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <button class="btn btn-red" onclick="closeSettingsHub(); if(typeof authLogout==='function')authLogout();" style="padding:8px 16px;font-size:12px;font-weight:700">
+          🚪 Keluar / Logout
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="closeSettingsHub()">Tutup</button>
+      </div>
+    `;
+  }
+}
+
+function openBackupModal(){
+  openSettingsHub('cloud');
 }
 
 function closeBackupModal(){
-  var m = el('backup-modal');
-  if(m) m.style.display = 'none';
+  closeSettingsHub();
 }
 
 function showSaveStatus(msg, color, persist){

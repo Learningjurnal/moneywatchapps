@@ -68,6 +68,13 @@ body::after{display:none}
 .rdn-label{font-size:9px;color:var(--text3);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:.5px;text-transform:uppercase;font-weight:700}
 .rdn-val{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text)}
 .clock{font-family:var(--font-mono);font-size:11px;color:var(--text3);letter-spacing:.5px}
+@media (max-width:768px){.hide-mobile{display:none!important}}
+
+/* SETTINGS & DATA HUB TABS */
+.sh-tab{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;font-size:12px;font-weight:600;color:var(--text2);background:transparent;border:1px solid transparent;cursor:pointer;width:100%;text-align:left;transition:all .15s ease}
+.sh-tab:hover{background:rgba(59,130,246,.08);color:#fff;border-color:rgba(59,130,246,.2)}
+.sh-tab.on{background:rgba(59,130,246,.18);color:#fff;border-color:rgba(59,130,246,.45);font-weight:700}
+.sh-tab i{font-size:15px;flex-shrink:0}
 
 /* PAGES */
 .pages{flex:1;overflow:hidden;position:relative}

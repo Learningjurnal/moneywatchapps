@@ -110,63 +110,51 @@
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <div style="display:flex;align-items:center;gap:14px;flex:1;justify-content:space-between">
-  <div style="display:flex;align-items:center;gap:6px">
-  <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Buka/tutup menu navigasi">☰</button>
-  <div class="logo" style="display:flex;align-items:center;gap:7px">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="2" width="20" height="20" rx="4" stroke="#2f6af3" stroke-width="1.5"/>
-      <path d="M7 14 L10 10 L13 13 L17 8" stroke="#2f6af3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="17" cy="8" r="1.5" fill="#2f6af3"/>
-    </svg>
-    <span class="logo" style="color:var(--text)">MW<span style="color:var(--border2)"> |</span> <span style="font-size:11px;letter-spacing:.3px;color:var(--text3);font-weight:400">PRO</span></span>
-  </div>
-  </div>
-  <div class="topbar-right">
-    <div class="zoom-ctl" title="Ukuran tampilan">
-      <button onclick="mwZoom(-0.05)" title="Perkecil tampilan" aria-label="Perkecil tampilan">A−</button>
-      <button onclick="mwZoom(0)" title="Kembali ke ukuran standar" aria-label="Kembali ke ukuran tampilan standar">A</button>
-      <button onclick="mwZoom(0.05)" title="Perbesar tampilan" aria-label="Perbesar tampilan">A+</button>
-      <div class="view-mode-toggle" style="margin-left:4px" title="Beralih antara Mode Ringkas Eksekutif vs Mode Analisis Mendalam">
-        <button id="view-mode-pro-btn" class="on" onclick="mwSetViewMode('pro')">PRO Terminal</button>
-        <button id="view-mode-exec-btn" onclick="mwSetViewMode('executive')">Executive</button>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <span id="save-status-bar" role="status" aria-live="polite" style="font-size:9px;font-family:var(--font-mono);transition:opacity .5s;opacity:0;color:var(--green);letter-spacing:.5px;text-transform:uppercase"></span>
-      <button class="btn btn-ghost btn-xs" onclick="mwOpenPdfReportModal()" title="Buka Pusat Laporan dan Unduh PDF Portofolio / Kekayaan Bersih" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:var(--border2);color:var(--text);letter-spacing:0">
-        📄 Laporan PDF
-      </button>
-      <button class="btn btn-ghost btn-xs" onclick="openBackupModal()" title="Firebase Firestore Cloud Database &amp; Sync Multi-Device" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:rgba(65,243,167,0.3);color:var(--text);letter-spacing:0">
-        🔥 Cloud Database
-      </button>
-    </div>
-    <div class="rdn-bar">
-      <span class="rdn-label">RDN</span>
-      <span class="rdn-val" id="tb-rdn">Rp 0</span>
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Buka/tutup menu navigasi">☰</button>
+    <div class="logo" style="display:flex;align-items:center;gap:7px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="20" height="20" rx="4" stroke="#3B82F6" stroke-width="1.5"/>
+        <path d="M7 14 L10 10 L13 13 L17 8" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="17" cy="8" r="1.5" fill="#3B82F6"/>
+      </svg>
+      <span class="logo" style="color:var(--text);font-weight:800">MONEY<span style="color:var(--accent)">WATCH</span> <span style="font-size:10px;padding:1px 5px;background:rgba(59,130,246,0.18);border:1px solid rgba(59,130,246,0.3);border-radius:4px;color:var(--accent);font-weight:700">PRO</span></span>
     </div>
     <div class="ihsg-bar">
-      <span style="font-size:10px;color:var(--text3);font-family:'Inter',sans-serif">IHSG</span>
+      <span style="font-size:10px;color:var(--text3);font-family:'Inter',sans-serif;font-weight:700">IHSG</span>
       <span class="ibar-val" id="tb-ihsg">6.195,43</span>
       <span class="ibar-chg" id="tb-chg"></span>
     </div>
-    <div class="live"><div class="dot"></div>LIVE</div>
-    <!-- Finnhub status badge -->
-    <div id="fh-badge" onclick="openFinnhubSettings()" title="Klik untuk status koneksi Yahoo Finance"
-      style="display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:3px 8px;cursor:pointer;font-size:10px;font-family:'Inter',sans-serif;transition:all .15s;letter-spacing:0">
-      <span id="fh-dot" style="width:5px;height:5px;border-radius:50%;background:var(--text3);flex-shrink:0"></span>
-      <span id="fh-label">Simulasi</span>
-      <span id="fh-lastsync" style="color:var(--text3);border-left:1px solid var(--border2);padding-left:6px;margin-left:2px"></span>
+    <div class="live" style="margin-left:2px"><div class="dot"></div>LIVE</div>
+  </div>
+
+  <div class="topbar-right" style="display:flex;align-items:center;gap:8px">
+    <span id="save-status-bar" role="status" aria-live="polite" style="font-size:9px;font-family:var(--font-mono);transition:opacity .5s;opacity:0;color:var(--green);letter-spacing:.5px;text-transform:uppercase"></span>
+    
+    <div class="rdn-bar" onclick="goPage('rdn')" style="cursor:pointer" title="Klik untuk kelola Kas & Mutasi RDN">
+      <span class="rdn-label">RDN</span>
+      <span class="rdn-val" id="tb-rdn">Rp 0</span>
     </div>
-    <div class="clock" id="clock">--:--:--</div>
+
+    <button class="btn btn-ghost btn-xs" onclick="mwOpenPdfReportModal()" title="Buka Pusat Laporan dan Unduh PDF Portofolio / Kekayaan Bersih" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:var(--border2);color:var(--text);padding:5px 9px">
+      📄 <span class="hide-mobile">Laporan PDF</span>
+    </button>
+
+    <!-- UNIFIED SETTINGS & DATA HUB TOOLBAR BUTTON -->
+    <button class="btn btn-ghost btn-xs" id="btn-settings-hub" onclick="openSettingsHub()" title="Buka Pusat Pengaturan & Data Hub (Cloud, Feed, Tampilan, Pajak, Audit, Akun)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:var(--text);padding:5px 10px;border-radius:6px">
+      <i class="ti ti-settings" style="color:var(--accent);font-size:13px"></i>
+      <span style="font-weight:600">Pengaturan &amp; Data</span>
+      <span id="sh-topbar-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:2px" title="Firebase Cloud &amp; Live Feed Aktif"></span>
+    </button>
+
+    <div class="clock hide-mobile" id="clock">--:--:--</div>
+
     <!-- Session info -->
-    <div id="session-info" style="display:none;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;color:var(--text3)">
-      <span style="color:var(--bb-orange)">◆</span>
-      <span id="session-user" style="color:var(--text2)">—</span>
-      <button onclick="authLogout()" title="Logout" style="background:none;border:1px solid rgba(242,54,69,.3);color:var(--red);cursor:pointer;font-size:10px;padding:2px 7px;border-radius:3px;font-family:'Inter',sans-serif;letter-spacing:0">Keluar</button>
+    <div id="session-info" style="display:none;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer" onclick="openSettingsHub('account')">
+      <span style="color:var(--green)">●</span>
+      <span id="session-user" style="color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
     </div>
   </div>
-</div><!-- /topbar-left-group -->
 </div><!-- /topbar -->
 
 <!-- TICKER TAPE -->
@@ -187,7 +175,7 @@
     <button class="side-collapse-btn" onclick="sideToggleCollapse()" aria-label="Ciutkan/lebarkan sidebar" title="Ciutkan/lebarkan sidebar"><i class="ti ti-layout-sidebar"></i></button>
     <div class="side-search-wrap">
       <i class="ti ti-search"></i>
-      <input type="text" id="side-nav-search" class="side-search-input" placeholder="Cari halaman..." oninput="sideNavFilter(this.value)" onkeydown="if(event.key==='Escape'){this.value='';sideNavFilter('');this.blur();}">
+      <input type="text" id="side-nav-search" class="side-search-input" placeholder="Cari fitur (Ctrl+K)..." oninput="sideNavFilter(this.value)" onkeydown="if(event.key==='Escape'){this.value='';sideNavFilter('');this.blur();}">
       <span class="side-kbd">Ctrl K</span>
     </div>
   </div>
@@ -196,33 +184,33 @@
   <button onclick="goPage('daily-brief',this)"><i class="ti ti-sun" style="color:var(--amber)"></i><span class="side-label">Daily Brief</span></button>
 
   <div class="side-group open" data-group="portofolio">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-briefcase"></i><span class="side-label">Portfolio</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-briefcase"></i><span class="side-label">Portofolio &amp; Aset</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goPage('portofolio',this)"><i class="ti ti-chart-line"></i><span class="side-label">Saham IDX</span></button>
       <button onclick="goPage('performance',this)"><i class="ti ti-chart-histogram"></i><span class="side-label">Performance &amp; TWR</span></button>
-      <button onclick="goPage('transaksi',this)"><i class="ti ti-receipt-2"></i><span class="side-label">Transaksi</span></button>
-      <button onclick="goPage('dividen',this)"><i class="ti ti-cash"></i><span class="side-label">Dividen</span></button>
-      <button onclick="goPage('rebalance',this)"><i class="ti ti-scale" style="color:#00c8ff"></i><span class="side-label">Rebalancing</span></button>
-      <button onclick="goPage('crypto',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto</span></button>
+      <button onclick="goPage('transaksi',this)"><i class="ti ti-receipt-2"></i><span class="side-label">Riwayat Transaksi</span></button>
+      <button onclick="goPage('dividen',this)"><i class="ti ti-cash"></i><span class="side-label">Dividen &amp; Yield</span></button>
+      <button onclick="goPage('rebalance',this)"><i class="ti ti-scale" style="color:#00c8ff"></i><span class="side-label">Rebalancing Portofolio</span></button>
+      <button onclick="goPage('crypto',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto Assets</span></button>
       <button onclick="goPage('reksadana',this)"><i class="ti ti-building-bank"></i><span class="side-label">Reksa Dana &amp; ETF</span></button>
     </div>
   </div>
 
   <div class="side-group open has-active" data-group="research">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope" style="color:#3B82F6"></i><span class="side-label">Research &amp; Intel</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope" style="color:#3B82F6"></i><span class="side-label">Riset &amp; Intelijen</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="openKseiModal()" id="side-btn-ksei"><i class="ti ti-users-group" style="color:#10b981"></i><span class="side-label">Kepemilikan &amp; Free Float</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">KSEI</span></button>
       <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar" style="color:#00c8ff"></i><span class="side-label">Stock Intelligence</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">COCKPIT</span></button>
+      <button onclick="openKseiModal()" id="side-btn-ksei"><i class="ti ti-users-group" style="color:#10b981"></i><span class="side-label">Kepemilikan KSEI</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">FREE FLOAT</span></button>
       <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank" style="color:#3B82F6"></i><span class="side-label">Fundamental Suite</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle" style="color:#8B5CF6"></i><span class="side-label">Technical &amp; Flow</span></button>
       <button onclick="goPage('flowscan',this)"><i class="ti ti-flame" style="color:#f97316"></i><span class="side-label">Smart Money Flow</span></button>
-      <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation (Fair Value)</span></button>
+      <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuasi Harga Wajar</span></button>
       <button onclick="goPage('screener',this)"><i class="ti ti-filter"></i><span class="side-label">Screener LQ45</span></button>
     </div>
   </div>
 
   <div class="side-group open" data-group="market">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-world"></i><span class="side-label">Market</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-world"></i><span class="side-label">Pasar &amp; Alerts</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button id="side-btn-alerts" onclick="goPage('alerts',this)"><i class="ti ti-bell" style="color:var(--amber)"></i><span class="side-label">Price Alerts &amp; Targets</span><span id="side-alert-badge" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px;display:none">0</span></button>
       <button onclick="goPage('market-regime',this)"><i class="ti ti-compass" style="color:var(--green)"></i><span class="side-label">Market Regime</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">BULL</span></button>
@@ -233,7 +221,7 @@
   </div>
 
   <div class="side-group open" data-group="quant">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-brain"></i><span class="side-label">Quant &amp; Simulation</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-brain"></i><span class="side-label">Quant &amp; Simulasi</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goPage('scenario',this)"><i class="ti ti-variable" style="color:#38bdf8"></i><span class="side-label">Scenario Engine</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">WHAT-IF</span></button>
       <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Correlation Matrix</span></button>
@@ -243,13 +231,10 @@
   </div>
 
   <div class="side-group open" data-group="wealth">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-diamond"></i><span class="side-label">Wealth Operating</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-diamond"></i><span class="side-label">Wealth &amp; Net Worth</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('wealth',this)"><i class="ti ti-report-money"></i><span class="side-label">Net Worth &amp; Money Map</span></button>
-      <button onclick="goPage('rdn',this)"><i class="ti ti-building-bank"></i><span class="side-label">Cash &amp; RDN</span></button>
-      <button onclick="goPage('wbank',this)"><i class="ti ti-wallet"></i><span class="side-label">Bank &amp; Darurat</span></button>
-      <button onclick="goPage('wdebt',this)"><i class="ti ti-credit-card"></i><span class="side-label">Hutang &amp; Piutang</span> <span id="debt-due-badge" class="nav-due-badge" style="display:none" title="Hutang jatuh tempo ≤7 hari"></span></button>
-      <button onclick="goPage('wfire',this)"><i class="ti ti-flame"></i><span class="side-label">FIRE Projections</span></button>
+      <button onclick="goPage('wealth',this)"><i class="ti ti-report-money"></i><span class="side-label">Net Worth &amp; Family Office</span></button>
+      <button onclick="goPage('rdn',this)"><i class="ti ti-building-bank"></i><span class="side-label">Kas &amp; Mutasi RDN</span></button>
       <button onclick="goPage('pajak',this)"><i class="ti ti-receipt-tax"></i><span class="side-label">Pajak &amp; PPh Final</span></button>
     </div>
   </div>
@@ -260,16 +245,6 @@
       <button onclick="goPage('copilot',this)"><i class="ti ti-message-chatbot" style="color:#38bdf8"></i><span class="side-label">AI Copilot</span></button>
       <button onclick="goPage('thesis',this)"><i class="ti ti-clipboard-list" style="color:var(--accent)"></i><span class="side-label">Investment Thesis</span></button>
       <button onclick="goPage('journal',this)"><i class="ti ti-book" style="color:var(--green)"></i><span class="side-label">Decision Journal</span></button>
-    </div>
-  </div>
-
-  <div class="side-group open" data-group="system">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-settings"></i><span class="side-label">System &amp; Data Trust</span><span class="side-chevron">▾</span></button>
-    <div class="side-group-items">
-      <button onclick="goPage('dataconn',this)"><i class="ti ti-plug" style="color:var(--green)"></i><span class="side-label">Data Trust &amp; Feeds</span></button>
-      <button onclick="goPage('rdn-audit',this)"><i class="ti ti-history"></i><span class="side-label">Log Audit Transaksi</span></button>
-      <button onclick="goPage('datahealth',this)"><i class="ti ti-stethoscope"></i><span class="side-label">Data Health Check</span></button>
-      <button onclick="goPage('admin',this)"><i class="ti ti-list-details"></i><span class="side-label">Kelola Universe Saham</span></button>
     </div>
   </div>
   </div>
@@ -3200,18 +3175,66 @@
 <div id="page-datahealth" class="page"></div>
 
 </div><!-- /pages -->
-</div><!-- /main-row --><!-- ===== BACKUP MODAL ===== -->
-<div id="backup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
-  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:20px;width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div>
-        <div style="font-size:15px;font-weight:700;color:var(--accent)">💾 Backup &amp; Restore</div>
-        <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">Kelola data jurnal investasimu</div>
+</div><!-- /main-row --><!-- ===== SETTINGS & DATA HUB MODAL ===== -->
+<div id="settings-hub-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1100;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:14px">
+  <div style="background:#131B2E;border:1px solid #2E3E66;border-radius:14px;width:860px;max-width:96vw;height:620px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #232F4D;background:#101726;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px">⚙️</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--font-display)">Pusat Pengaturan &amp; Data Hub</div>
+          <div style="font-size:11px;color:var(--text3)">Konfigurasi Cloud Database, Feed Pasar, Tampilan, Pajak/Komisi, Integritas Data, dan Akun</div>
+        </div>
       </div>
-      <button onclick="closeBackupModal()" aria-label="Tutup dialog Backup" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px">✕</button>
+      <button onclick="closeSettingsHub()" aria-label="Tutup Pusat Pengaturan" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px;border-radius:4px" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text3)'">✕</button>
     </div>
-    <div id="backup-modal-body"></div>
+
+    <!-- Body with Left Tabs and Right Content -->
+    <div style="display:flex;flex:1;min-height:0;overflow:hidden">
+      <!-- Tabs Nav -->
+      <div style="width:220px;background:#0E1422;border-right:1px solid #232F4D;padding:10px 8px;display:flex;flex-direction:column;gap:3px;flex-shrink:0;overflow-y:auto" id="sh-tabs">
+        <button class="sh-tab on" data-tab="cloud" onclick="shSwitchTab('cloud',this)">
+          <i class="ti ti-cloud" style="color:var(--accent)"></i>
+          <span>Firebase Cloud &amp; Sync</span>
+        </button>
+        <button class="sh-tab" data-tab="feed" onclick="shSwitchTab('feed',this)">
+          <i class="ti ti-activity" style="color:var(--green)"></i>
+          <span>Feed Pasar Real-time</span>
+        </button>
+        <button class="sh-tab" data-tab="display" onclick="shSwitchTab('display',this)">
+          <i class="ti ti-palette" style="color:#38bdf8"></i>
+          <span>Tampilan &amp; Layout</span>
+        </button>
+        <button class="sh-tab" data-tab="tax" onclick="shSwitchTab('tax',this)">
+          <i class="ti ti-scale" style="color:var(--amber)"></i>
+          <span>Pajak &amp; Komisi Broker</span>
+        </button>
+        <button class="sh-tab" data-tab="health" onclick="shSwitchTab('health',this)">
+          <i class="ti ti-stethoscope" style="color:#f43f5e"></i>
+          <span>Integritas &amp; Audit Trail</span>
+        </button>
+        <button class="sh-tab" data-tab="universe" onclick="shSwitchTab('universe',this)">
+          <i class="ti ti-list-details" style="color:#8b5cf6"></i>
+          <span>Kelola Universe Saham</span>
+        </button>
+        <button class="sh-tab" data-tab="account" onclick="shSwitchTab('account',this)">
+          <i class="ti ti-user" style="color:var(--text2)"></i>
+          <span>Akun &amp; Sesi Login</span>
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div style="flex:1;padding:18px;overflow-y:auto;background:#131B2E" id="sh-content">
+        <!-- Injected dynamically by openSettingsHub -->
+      </div>
+    </div>
   </div>
+</div>
+
+<!-- ===== BACKUP MODAL (ALIAS) ===== -->
+<div id="backup-modal" style="display:none">
+  <div id="backup-modal-body"></div>
 </div>
 
 </div><!-- /app -->
