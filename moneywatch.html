@@ -294,7 +294,11 @@
             </div>
             
             <div class="hero-chart-wrapper" style="display: flex;align-items: center;gap: 30px;position:relative; z-index:2; flex-wrap:wrap;">
-                <div class="donut-chart" style="width: 150px;height: 150px;border-radius: 50%;background: conic-gradient(#3B82F6 0% 40%, #10B981 40% 64%, #EF4444 64% 84%, #8B5CF6 84% 100%);position: relative;display: flex;align-items: center;justify-content: center;box-shadow: 0 0 30px rgba(255,255,255,0.05);" id="hub-donut">
+                <div class="donut-chart" style="width: 150px;height: 150px;border-radius: 50%;background: conic-gradient(#3B82F6 0% 40%, #10B981 40% 64%, #EF4444 64% 84%, #8B5CF6 84% 100%);position: relative;display: flex;align-items: center;justify-content: center;box-shadow: 0 4px 20px rgba(0,0,0,0.25);flex-shrink: 0;" id="hub-donut">
+                    <div class="donut-inner" style="width: 104px;height: 104px;border-radius: 50%;background: var(--bg2);display: flex;flex-direction: column;align-items: center;justify-content: center;box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);border: 1px solid var(--border);text-align: center;padding: 4px;">
+                        <span style="font-size: 10px;font-weight: 700;letter-spacing: 0.05em;text-transform: uppercase;color: var(--text3);">Alokasi</span>
+                        <span id="hub-donut-center-val" style="font-size: 13px;font-weight: 800;font-family: var(--font-mono);color: var(--text);margin-top: 1px;">4 Aset</span>
+                    </div>
                 </div>
                 <div class="legend" style="display: flex;flex-direction: column;gap: 12px; background:rgba(0,0,0,0.25); padding:16px 20px; border-radius:16px; border:1px solid rgba(255,255,255,0.05);">
                     <div class="legend-item" style="display: flex;align-items: center;gap: 10px;font-size: 14px;color: #94A3B8;font-weight: 600;"><div class="dot" style="width: 10px; height: 10px; border-radius: 50%;box-shadow: 0 0 10px currentColor; background: #3B82F6;"></div> <span style="width:100px;">Saham ID</span></div>

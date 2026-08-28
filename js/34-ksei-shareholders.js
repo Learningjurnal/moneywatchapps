@@ -32,11 +32,106 @@ var KSEI_STATE = {
 };
 
 // ══════════════════════════════════════════════════════════════
-// 1. DATA INITIALIZATION & SYNC ENGINE
+// 1. DATA INITIALIZATION & FIREBASE FIRESTORE SYNC ENGINE
 // ══════════════════════════════════════════════════════════════
 
 /**
- * Load KSEI dataset from cache or backend API
+ * Handle Firestore Error with standardized format
+ */
+function handleKseiFirestoreError(error, operationType, path) {
+  var errInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    operationType: operationType,
+    path: path,
+    timestamp: new Date().toISOString()
+  };
+  console.warn('[KSEI Firestore Error]', JSON.stringify(errInfo));
+}
+
+/**
+ * Save KSEI dataset and metadata to Firebase Firestore
+ */
+async function kseiSaveSnapshotToFirestore(dataMap, metadata) {
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : (typeof _firebaseDb !== 'undefined' ? _firebaseDb : null);
+  if (!db) {
+    console.warn('[KSEI Firebase] Firestore instance not available yet');
+    return false;
+  }
+
+  var updatedIso = new Date().toISOString();
+  var userEmail = (typeof _currentUser !== 'undefined' && _currentUser && _currentUser.email) 
+    || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
+
+  var metaObj = Object.assign({}, metadata || {}, {
+    source: 'KSEI (Kustodian Sentral Efek Indonesia) via Google Sheets',
+    lastUpdated: updatedIso,
+    updatedBy: userEmail,
+    totalEmiten: Object.keys(dataMap || {}).length,
+    sheetId: (metadata && metadata.sheetId) || KSEI_DEFAULT_SHEET_ID,
+    sheetUrl: (metadata && metadata.sheetUrl) || KSEI_DEFAULT_SHEET_URL
+  });
+
+  try {
+    // 1. Save metadata to collection 'ksei_metadata', doc 'main'
+    await db.collection('ksei_metadata').doc('main').set(metaObj, { merge: true });
+
+    // 2. Save full snapshot to collection 'ksei_snapshots', doc 'latest'
+    var snapshotObj = {
+      snapshotId: 'latest',
+      reportDate: metaObj.reportDate || 'Terbaru',
+      totalEmiten: metaObj.totalEmiten,
+      totalMajorInvestors: metaObj.totalMajorInvestors || 0,
+      metadata: metaObj,
+      stocks: dataMap,
+      updatedAt: updatedIso,
+      updatedBy: userEmail
+    };
+    await db.collection('ksei_snapshots').doc('latest').set(snapshotObj);
+
+    console.log('[KSEI Firebase] Successfully saved snapshot to Firestore (ksei_snapshots/latest & ksei_metadata/main)');
+    return true;
+  } catch (err) {
+    handleKseiFirestoreError(err, 'write', 'ksei_snapshots/latest');
+    return false;
+  }
+}
+
+/**
+ * Load KSEI dataset from Firebase Firestore
+ */
+async function kseiLoadFromFirestore() {
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : (typeof _firebaseDb !== 'undefined' ? _firebaseDb : null);
+  if (!db) return null;
+
+  try {
+    var snapDoc = await db.collection('ksei_snapshots').doc('latest').get();
+    if (snapDoc.exists) {
+      var data = snapDoc.data();
+      if (data && data.stocks && Object.keys(data.stocks).length > 0) {
+        console.log('[KSEI Firebase] Successfully loaded KSEI dataset from Firestore (' + Object.keys(data.stocks).length + ' emiten)');
+        return {
+          data: data.stocks,
+          metadata: data.metadata || {
+            source: 'KSEI (Kustodian Sentral Efek Indonesia)',
+            reportDate: data.reportDate,
+            totalEmiten: data.totalEmiten,
+            lastUpdated: data.updatedAt
+          }
+        };
+      }
+    }
+  } catch (err) {
+    handleKseiFirestoreError(err, 'get', 'ksei_snapshots/latest');
+  }
+  return null;
+}
+
+/**
+ * Load KSEI dataset:
+ * 1. Fast local cache (Instant)
+ * 2. If empty, load from Firebase Firestore
+ * 3. Fallback to server snapshot
+ * (No continuous pulling/polling — data updates only when user explicitly clicks Update)
  */
 async function kseiInitData(forceRefresh) {
   // 1. Check local cache first for instant response
@@ -48,6 +143,7 @@ async function kseiInitData(forceRefresh) {
         if (parsed && parsed.data && Object.keys(parsed.data).length > 0) {
           KSEI_STATE.data = parsed.data;
           if (parsed.metadata) KSEI_STATE.metadata = parsed.metadata;
+          return;
         }
       }
     } catch (e) {
@@ -56,7 +152,27 @@ async function kseiInitData(forceRefresh) {
     }
   }
 
-  // 2. Fetch fresh data from backend
+  // 2. If forceRefresh or no cache, try Firestore first
+  if (!forceRefresh) {
+    try {
+      var fsResult = await kseiLoadFromFirestore();
+      if (fsResult && fsResult.data && Object.keys(fsResult.data).length > 0) {
+        KSEI_STATE.data = fsResult.data;
+        if (fsResult.metadata) KSEI_STATE.metadata = fsResult.metadata;
+        try {
+          localStorage.setItem('MW_KSEI_DATA_CACHE', JSON.stringify({
+            metadata: KSEI_STATE.metadata,
+            data: KSEI_STATE.data
+          }));
+        } catch (e) {}
+        return;
+      }
+    } catch (e) {
+      console.warn('[KSEI] Firestore read fallback:', e);
+    }
+  }
+
+  // 3. Fallback: Fetch from backend API / static snapshot
   try {
     KSEI_STATE.isLoading = true;
     var resp = await fetch('/api/ksei/data');
@@ -80,14 +196,14 @@ async function kseiInitData(forceRefresh) {
             metadata: KSEI_STATE.metadata,
             data: KSEI_STATE.data
           }));
-        } catch (e) {
-          // In case quota exceeded, ignore
-        }
+        } catch (e) {}
+
+        // Also push initial snapshot to Firebase if not yet existing
+        kseiSaveSnapshotToFirestore(KSEI_STATE.data, KSEI_STATE.metadata);
       }
     }
   } catch (err) {
     console.warn('[KSEI] Error fetching /api/ksei/data, falling back to local snapshot or direct sheet fetch:', err);
-    // Fallback: fetch from static file if available
     try {
       var fResp = await fetch('data/ksei-shareholders.json');
       if (fResp.ok) {
@@ -104,14 +220,15 @@ async function kseiInitData(forceRefresh) {
 }
 
 /**
- * Trigger on-demand sync from Google Sheets
+ * Trigger manual on-demand sync from Google Sheets & save to Firebase Firestore
+ * (Only runs when user clicks the "Update Data" button)
  */
 async function kseiSyncFromSheets(customSheetUrl, customSheetId) {
   KSEI_STATE.isSyncing = true;
   kseiUpdateSyncUI();
 
   if (typeof showToast === 'function') {
-    showToast('⏳ Menghubungi Google Sheets KSEI & memperbarui data kepemilikan...');
+    showToast('⏳ Menghubungi Google Sheets KSEI & memperbarui data ke Firebase Firestore...');
   }
 
   var payload = {};
@@ -132,11 +249,15 @@ async function kseiSyncFromSheets(customSheetUrl, customSheetId) {
     var result = await resp.json();
     if (result.success) {
       if (result.metadata) KSEI_STATE.metadata = result.metadata;
-      // Re-fetch fresh data
+      
+      // Re-fetch fresh data from API
       await kseiInitData(true);
 
+      // Save latest snapshot directly to Firebase Firestore
+      await kseiSaveSnapshotToFirestore(KSEI_STATE.data, KSEI_STATE.metadata);
+
       if (typeof showToast === 'function') {
-        showToast('✅ Berhasil menyinkronkan data KSEI (' + (KSEI_STATE.metadata.totalEmiten || '840+') + ' emiten, ' + (KSEI_STATE.metadata.reportDate || 'terbaru') + ')');
+        showToast('✅ Berhasil memperbarui data KSEI & Free Float ke Firebase (' + (KSEI_STATE.metadata.totalEmiten || '840+') + ' emiten, ' + (KSEI_STATE.metadata.reportDate || 'terbaru') + ')');
       }
 
       // Re-render open modals or components
@@ -209,7 +330,7 @@ function openKseiModal(ticker) {
               <div>
                 <div style="font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">
                   KSEI 5%+ Shareholders &amp; Free Float Explorer
-                  <span class="badge b-up" style="font-size:10px">REAL KSEI DATA</span>
+                  <span class="badge b-up" style="font-size:10px">FIREBASE STORED</span>
                 </div>
                 <div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px" id="ksei-modal-meta-bar">
                   <span>Memuat data KSEI...</span>
@@ -219,8 +340,8 @@ function openKseiModal(ticker) {
 
             <!-- MODAL ACTION BUTTONS -->
             <div style="display:flex;align-items:center;gap:8px">
-              <button id="btn-ksei-sync" class="btn btn-blue btn-xs" onclick="kseiSyncFromSheets()" style="display:flex;align-items:center;gap:4px;font-size:11px;padding:5px 10px">
-                ⚡ Update dari Google Sheets
+              <button id="btn-ksei-sync" class="btn btn-blue btn-xs" onclick="kseiSyncFromSheets()" style="display:flex;align-items:center;gap:5px;font-size:11px;padding:6px 12px;font-weight:700">
+                🔄 Update Data ke Firebase
               </button>
               <button class="mclose" onclick="closeKseiModal()" style="font-size:22px;line-height:1;background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px" aria-label="Tutup dialog">×</button>
             </div>
@@ -235,7 +356,7 @@ function openKseiModal(ticker) {
               📊 Market-Wide Free Float Scanner (840 Saham)
             </button>
             <button id="ksei-tab-btn-settings" class="btn btn-xs btn-ghost" onclick="kseiSwitchTab('sync-settings')" style="font-size:11px;padding:5px 12px;border-radius:6px">
-              ⚙️ Pengaturan Sumber Google Sheets
+              🔥 Database Firebase &amp; Sumber Data
             </button>
           </div>
 
@@ -300,10 +421,10 @@ function kseiUpdateSyncUI() {
   if (!btn) return;
   if (KSEI_STATE.isSyncing) {
     btn.disabled = true;
-    btn.innerHTML = '⏳ Sedang Menyinkronkan...';
+    btn.innerHTML = '⏳ Menyinkronkan ke Firebase...';
   } else {
     btn.disabled = false;
-    btn.innerHTML = '⚡ Update dari Google Sheets';
+    btn.innerHTML = '🔄 Update Data ke Firebase';
   }
 }
 
@@ -762,17 +883,40 @@ function kseiOnScannerSearch(val) {
 
 function renderKseiSettingsView(container) {
   var m = KSEI_STATE.metadata || {};
+  var lastUpdatedStr = m.lastUpdated ? new Date(m.lastUpdated).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Tersimpan di Cloud';
+  
   container.innerHTML = `
-    <div style="max-width:720px;margin:0 auto;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:24px">
+    <div style="max-width:760px;margin:0 auto;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:24px">
       <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px">
-        <span>⚙️ Sumber Data Google Sheets &amp; Konfigurasi Pembaruan</span>
+        <span>🔥 Firebase Firestore Database &amp; Manajemen Data KSEI</span>
+        <span class="badge b-up" style="font-size:10px">ON-DEMAND SYNC</span>
       </div>
       <p style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:20px">
-        Aplikasi terhubung langsung dengan dokumen Google Sheets yang berisi data <b>KEPEMILIKAN EFEK DIATAS 5% BERDASARKAN SID (PUBLIK)</b> dari KSEI. Anda dapat melakukan sinkronisasi ulang kapan saja ketika dokumen spreadsheet diperbarui.
+        Data <b>Shareholder &gt;5% &amp; Free Float Publik</b> tersimpan permanen di <b>Firebase Firestore</b> (koleksi <code>ksei_snapshots</code> &amp; <code>ksei_metadata</code>). Aplikasi <b>tidak akan terus-menerus menarik data</b> di latar belakang secara otomatis, melainkan membaca data tersimpan. Klik tombol <b>"Update Data ke Firebase"</b> di bawah kapan saja Anda ingin menyinkronkan data terbaru dari Google Sheets.
       </p>
 
+      <!-- FIREBASE STATUS CARD -->
+      <div style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);display:flex;align-items:center;gap:6px">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981"></span>
+            FIRESTORE DATABASE STATUS:
+          </div>
+          <div style="font-size:12px;font-weight:800;color:var(--text);font-family:var(--font-mono);margin-top:2px">
+            ai-studio-moneywatchpro-088bcbd5-b0c7-48cf-baee-be4279fd2091
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">
+            Koleksi: <code>ksei_snapshots/latest</code> · <code>ksei_metadata/main</code>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;color:var(--text3);font-weight:700">TERAKHIR DIPERBARUI:</div>
+          <div style="font-size:12px;font-weight:800;color:var(--accent);font-family:var(--font-mono);margin-top:2px">${lastUpdatedStr}</div>
+        </div>
+      </div>
+
       <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px;margin-bottom:20px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px">URL GOOGLE SPREADSHEET SUMBER:</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px">URL GOOGLE SPREADSHEET SUMBER KSEI:</div>
         <input type="text" id="ksei-custom-sheet-url" class="finput" style="width:100%;font-size:12px;padding:8px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--font-mono)" value="${m.sheetUrl || KSEI_DEFAULT_SHEET_URL}">
         <div style="font-size:10px;color:var(--text3);margin-top:6px">
           💡 Tips: Pastikan dokumen Google Sheets diatur ke mode akses publik ("Anyone with the link can view").
@@ -790,12 +934,12 @@ function renderKseiSettingsView(container) {
         </div>
       </div>
 
-      <div style="display:flex;justify-content:flex-end;gap:10px">
-        <button class="btn btn-ghost" onclick="document.getElementById('ksei-custom-sheet-url').value='${KSEI_DEFAULT_SHEET_URL}'" style="font-size:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <button class="btn btn-ghost" onclick="document.getElementById('ksei-custom-sheet-url').value='${KSEI_DEFAULT_SHEET_URL}'" style="font-size:11px">
           Reset ke URL Standar
         </button>
-        <button class="btn btn-blue" onclick="kseiSyncFromSheets(document.getElementById('ksei-custom-sheet-url').value)" style="font-size:12px;padding:8px 16px;font-weight:700">
-          ⚡ Simpan &amp; Tarik Data Sekarang
+        <button class="btn btn-blue" onclick="kseiSyncFromSheets(document.getElementById('ksei-custom-sheet-url').value)" style="font-size:12px;padding:9px 18px;font-weight:800;display:flex;align-items:center;gap:6px">
+          🔄 Update Data &amp; Simpan ke Firebase
         </button>
       </div>
     </div>

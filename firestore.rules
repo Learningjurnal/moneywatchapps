@@ -9,5 +9,18 @@ service cloud.firestore {
         allow read, write: if true;
       }
     }
+
+    // KSEI 5%+ Shareholders & Free Float collections
+    match /ksei_stocks/{ticker} {
+      allow read, write: if true;
+    }
+
+    match /ksei_snapshots/{snapshotId} {
+      allow read, write: if true;
+    }
+
+    match /ksei_metadata/{docId} {
+      allow read, write: if true;
+    }
   }
 }

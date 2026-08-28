@@ -77,6 +77,48 @@
         "priceAlerts": { "type": "array", "description": "Price alerts" },
         "savedAt": { "type": "string", "description": "Sync timestamp" }
       }
+    },
+    "KseiStock": {
+      "collection": "ksei_stocks",
+      "fields": {
+        "ticker": { "type": "string", "description": "Stock ticker symbol" },
+        "name": { "type": "string", "description": "Company name" },
+        "freeFloat": { "type": "number", "description": "Free float percentage (<5% public holdings)" },
+        "totalMajorPercent": { "type": "number", "description": "Total >5% major shareholders percentage" },
+        "localPercent": { "type": "number", "description": "Domestic major holdings percentage" },
+        "foreignPercent": { "type": "number", "description": "Foreign major holdings percentage" },
+        "totalSharesHeld": { "type": "number", "description": "Total shares held by major investors" },
+        "netChangeShares": { "type": "number", "description": "Net change in shares from previous period" },
+        "reportDate": { "type": "string", "description": "KSEI report date" },
+        "investors": { "type": "array", "description": "List of major shareholders (>5%)" },
+        "updatedAt": { "type": "string", "description": "Timestamp when synced to Firebase" }
+      }
+    },
+    "KseiSnapshot": {
+      "collection": "ksei_snapshots",
+      "fields": {
+        "snapshotId": { "type": "string", "description": "Snapshot identifier (e.g. latest)" },
+        "reportDate": { "type": "string", "description": "KSEI report date" },
+        "totalEmiten": { "type": "number", "description": "Total stocks tracked" },
+        "totalMajorInvestors": { "type": "number", "description": "Total major investors tracked" },
+        "stocks": { "type": "map", "description": "Stock map keyed by ticker with free float & major investor data" },
+        "metadata": { "type": "map", "description": "KSEI metadata & sync statistics" },
+        "updatedAt": { "type": "string", "description": "Timestamp when synced to Firebase" },
+        "updatedBy": { "type": "string", "description": "Email/UID of user who triggered sync" }
+      }
+    },
+    "KseiMetadata": {
+      "collection": "ksei_metadata",
+      "fields": {
+        "source": { "type": "string", "description": "Data source description" },
+        "reportDate": { "type": "string", "description": "KSEI report date" },
+        "totalEmiten": { "type": "number", "description": "Total emiten count" },
+        "totalMajorInvestors": { "type": "number", "description": "Total major investors count" },
+        "lastUpdated": { "type": "string", "description": "Last update ISO timestamp" },
+        "updatedBy": { "type": "string", "description": "Email/UID of user who triggered sync" },
+        "sheetId": { "type": "string", "description": "Source Google Sheet ID" },
+        "sheetUrl": { "type": "string", "description": "Source Google Sheet URL" }
+      }
     }
   }
 }
