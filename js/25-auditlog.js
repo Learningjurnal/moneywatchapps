@@ -527,7 +527,7 @@ function openAuditDetailModal(id) {
   el('m-title').textContent = 'Slip Audit Transaksi RDN — ' + item.auditRef;
   el('m-title').style.color = item.isCredit ? 'var(--green)' : 'var(--red)';
 
-  var bodyHtml = '<div style="background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;margin-bottom:14px">'
+  var bodyHtml = '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;margin-bottom:14px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       + '<span class="badge ' + item.badgeClass + '" style="font-size:11px;padding:3px 8px">' + item.triggerLabel + '</span>'
       + '<span class="mono" style="color:var(--text3);font-size:11px">' + item.timestamp + '</span>'
@@ -575,7 +575,7 @@ function openAuditDetailModal(id) {
 
   // Status Ledger Sebelum vs Sesudah
   bodyHtml += '<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:6px">POSISI BUKU BESAR RDN (LEDGER BALANCE)</div>';
-  bodyHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:8px;padding:12px;text-align:center">'
+  bodyHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;text-align:center">'
     + '<div>'
       + '<div style="font-size:10px;color:var(--text3)">Saldo Awal</div>'
       + '<div class="mono" style="font-size:12px;font-weight:600;margin-top:2px">Rp ' + fmt(item.balanceBefore) + '</div>'

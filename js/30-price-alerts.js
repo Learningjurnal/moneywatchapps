@@ -154,7 +154,7 @@
     toast.innerHTML = 
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
-          '<div style="width:30px;height:30px;border-radius:6px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:16px;color:' + color + ';flex-shrink:0">' +
+          '<div style="width:30px;height:30px;border-radius:6px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:16px;color:' + color + ';flex-shrink:0">' +
             '<i class="ti ti-bell-ringing"></i>' +
           '</div>' +
           '<div>' +
@@ -691,12 +691,12 @@
             '</div>' +
 
             // Progress bar and Notes
-            '<div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:6px">' +
+            '<div style="background:var(--bg3);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:6px">' +
               '<div style="display:flex;align-items:center;justify-content:space-between;font-size:10.5px;color:var(--text3)">' +
                 '<span>Progres ke Target (' + progressPct.toFixed(0) + '%)</span>' +
                 '<span>' + (isTriggered ? 'Tercapai pada: ' + new Date(a.triggeredAt).toLocaleTimeString('id-ID') : 'Dibuat: ' + new Date(a.createdAt).toLocaleDateString('id-ID')) + '</span>' +
               '</div>' +
-              '<div style="width:100%;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">' +
+              '<div style="width:100%;height:5px;background:var(--bg5);border-radius:3px;overflow:hidden">' +
                 '<div style="height:100%;width:' + progressPct + '%;background:' + (isTriggered ? 'var(--green)' : 'var(--accent)') + ';transition:width .3s ease"></div>' +
               '</div>' +
               (a.note ? '<div style="font-size:11px;color:var(--text2);margin-top:2px"><i class="ti ti-notes" style="color:var(--accent);margin-right:4px"></i>' + a.note + '</div>' : '') +

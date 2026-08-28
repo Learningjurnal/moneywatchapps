@@ -334,7 +334,7 @@
           '</div>' +
         '</div>' +
         '<div class="cmd-item-right">' +
-          '<span class="badge" style="background:rgba(255,255,255,0.06);color:' + item.badgeColor + ';border:1px solid ' + item.badgeColor + '44">' + item.badge + '</span>' +
+          '<span class="badge" style="background:var(--bg4);color:' + item.badgeColor + ';border:1px solid ' + item.badgeColor + '44">' + item.badge + '</span>' +
         '</div>' +
       '</div>';
     });

@@ -440,7 +440,7 @@ function renderCrypto(){
     var sigCls = sig==='BUY'?'sig-buy':sig==='SELL'?'sig-sell':'sig-hold';
     var catColor = CRYPTO_CATEGORIES[p.info.category]||'#4a5e82';
     var qtyDisp = p.qty < 0.001 ? p.qty.toFixed(6) : p.qty < 1 ? p.qty.toFixed(4) : p.qty.toFixed(2);
-    return '<tr><td><span class="tp" style="border-color:'+(p.info.color||'#4a5e82')+'">'+p.coin+'</span></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span class="badge" style="background:rgba(255,255,255,.06);color:'+catColor+'">'+p.info.category+'</span></td><td class="mono">'+qtyDisp+'</td><td class="mono">Rp '+fmt(Math.round(p.avg))+'</td><td class="mono" style="color:var(--accent)">Rp '+fmt(Math.round(p.priceIdr))+'</td><td class="mono" style="color:var(--text2)">$'+p.priceUSD.toFixed(2)+'</td><td class="mono">Rp '+fmtK(p.mv)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td><td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+Math.min(alloc,100).toFixed(1)+'%;background:'+(p.info.color||'#4a5e82')+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
+    return '<tr><td><span class="tp" style="border-color:'+(p.info.color||'#4a5e82')+'">'+p.coin+'</span></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span class="badge" style="background:var(--bg4);color:'+catColor+'">'+p.info.category+'</span></td><td class="mono">'+qtyDisp+'</td><td class="mono">Rp '+fmt(Math.round(p.avg))+'</td><td class="mono" style="color:var(--accent)">Rp '+fmt(Math.round(p.priceIdr))+'</td><td class="mono" style="color:var(--text2)">$'+p.priceUSD.toFixed(2)+'</td><td class="mono">Rp '+fmtK(p.mv)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td><td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+Math.min(alloc,100).toFixed(1)+'%;background:'+(p.info.color||'#4a5e82')+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
   }).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:16px">'+(porto.length?'Tidak ada aset yang cocok dengan filter':'Belum ada posisi crypto')+'</td></tr>';
 
   // Tx history
@@ -700,7 +700,7 @@ function renderEtf(){
     var alloc=p.alloc, sig=p.sig;
     var sigCls=sig==='BUY'?'sig-buy':sig==='SELL'?'sig-sell':'sig-hold';
     var catCol=ETF_CATEGORIES[p.info.category]||'#4a5e82';
-    return '<tr><td><span class="tp" style="border-color:'+(p.info.color||'#4a5e82')+'">'+p.ticker+'</span></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span class="badge" style="background:rgba(255,255,255,.06);color:'+catCol+'">'+p.info.category+'</span></td><td class="mono">'+p.shares+'</td><td class="mono">$'+p.avgUSD.toFixed(2)+'</td><td class="mono" style="color:var(--accent)">$'+p.priceUSD.toFixed(2)+'</td><td class="mono">Rp '+fmtK(p.mvIdr)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.costIdr)+'</td><td class="mono '+(p.unrIdr>=0?'up':'dn')+'">'+(p.unrIdr>=0?'+':'')+'Rp '+fmtK(p.unrIdr)+'</td><td class="mono '+(p.unrUSD>=0?'up':'dn')+'">'+(p.unrUSD>=0?'+':'')+'$'+Math.abs(p.unrUSD).toFixed(2)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+Math.min(alloc,100).toFixed(1)+'%;background:'+(p.info.color||'#4a5e82')+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
+    return '<tr><td><span class="tp" style="border-color:'+(p.info.color||'#4a5e82')+'">'+p.ticker+'</span></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span class="badge" style="background:var(--bg4);color:'+catCol+'">'+p.info.category+'</span></td><td class="mono">'+p.shares+'</td><td class="mono">$'+p.avgUSD.toFixed(2)+'</td><td class="mono" style="color:var(--accent)">$'+p.priceUSD.toFixed(2)+'</td><td class="mono">Rp '+fmtK(p.mvIdr)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.costIdr)+'</td><td class="mono '+(p.unrIdr>=0?'up':'dn')+'">'+(p.unrIdr>=0?'+':'')+'Rp '+fmtK(p.unrIdr)+'</td><td class="mono '+(p.unrUSD>=0?'up':'dn')+'">'+(p.unrUSD>=0?'+':'')+'$'+Math.abs(p.unrUSD).toFixed(2)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+Math.min(alloc,100).toFixed(1)+'%;background:'+(p.info.color||'#4a5e82')+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
   }).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:16px">'+(porto.length?'Tidak ada ETF yang cocok dengan filter':'Belum ada posisi ETF')+'</td></tr>';
 
   // Tx history
@@ -902,7 +902,7 @@ function renderReksaDana(){
         var riskCls = info.risk==='Tinggi'?'b-dn':info.risk==='Sedang'?'b-amb':'b-up';
         return '<tr>'
           +'<td style="font-size:11px">'+info.name+'</td>'
-          +'<td><span class="badge" style="background:rgba(255,255,255,.06);color:'+col+'">'+info.type+'</span></td>'
+          +'<td><span class="badge" style="background:var(--bg4);color:'+col+'">'+info.type+'</span></td>'
           +'<td style="font-size:10px;color:var(--text2)">'+info.mi+'</td>'
           +'<td class="mono">'+p.units.toFixed(2)+'</td>'
           +'<td class="mono" style="color:var(--text2)">Rp '+fmt(Math.round(p.avgNAB))+'</td>'
@@ -924,7 +924,7 @@ function renderReksaDana(){
     var accBadge = f.account==='BIBIT'?'b-neu':f.account==='IPOT'?'b-pur':'b-amb';
     return '<tr>'
       +'<td style="font-size:11px">'+f.name+'</td>'
-      +'<td><span class="badge" style="background:rgba(255,255,255,.05);color:'+col+'">'+f.category+'</span></td>'
+      +'<td><span class="badge" style="background:var(--bg4);color:'+col+'">'+f.category+'</span></td>'
       +'<td><span class="badge '+accBadge+'">'+f.account+'</span></td>'
       +'<td class="mono '+(gl>=0?'up':'dn')+'">'+(gl>=0?'+':'')+'Rp '+fmtK(gl)+'</td>'
       +'<td class="mono '+(pct>=0?'up':'dn')+'">'+(pct>=0?'+':'')+pct.toFixed(2)+'%</td>'
@@ -950,7 +950,7 @@ function renderReksaDana(){
     return '<tr>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td>'
       +'<td><span class="badge '+(isBeli?'b-up':'b-dn')+'">'+tx.type+'</span></td>'
-      +'<td><span style="font-size:11px">'+rdInfo.name+'</span> <span class="badge" style="background:rgba(255,255,255,.05);color:'+tCol+'">'+rdInfo.type+'</span></td>'
+      +'<td><span style="font-size:11px">'+rdInfo.name+'</span> <span class="badge" style="background:var(--bg4);color:'+tCol+'">'+rdInfo.type+'</span></td>'
       +'<td class="mono">'+tx.units.toFixed(2)+'</td>'
       +'<td class="mono">Rp '+fmt(Math.round(tx.nab))+'</td>'
       +'<td class="mono">Rp '+fmtK(tx.amount)+'</td>'

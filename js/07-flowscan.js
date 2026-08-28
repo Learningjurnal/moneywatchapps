@@ -406,7 +406,7 @@ function fsRenderVWAP(){
         titleColor:'#8fa3c8',bodyColor:'#dce8ff',bodyFont:{family:'Menlo',size:10},
         callbacks:{label:function(c){return c.dataset.label+': '+fsP(c.parsed.y);}}}},
     scales:{x:{ticks:{maxTicksLimit:8,autoSkip:true,color:'#4a5e82',font:{size:9}},grid:{display:false},border:{display:false}},
-            y:{ticks:{color:'#4a5e82',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'},border:{display:false}}}};
+            y:{ticks:{color:'#4a5e82',font:{size:9}},grid:{color:GC},border:{display:false}}}};
   if(cv1) FS_CHARTS.vwap=new Chart(cv1,{type:'line',data:{labels:labels,datasets:[
     {label:'Harga',data:closes,borderColor:'rgba(77,166,255,.9)',borderWidth:1.5,pointRadius:0,fill:false,tension:.3},
     {label:'VWAP',data:vwap,borderColor:'#ffc107',borderWidth:2.5,pointRadius:0,fill:false,tension:.3},
@@ -481,7 +481,7 @@ function fsRenderRanking(){
               backgroundColor:top.map(function(r){return r.a.sig==='AKUMULASI'?'rgba(0,229,160,.75)':r.a.sig==='DISTRIBUSI'?'rgba(255,61,90,.75)':'rgba(60,75,95,.8)';}),borderWidth:0,borderRadius:3}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
         scales:{x:{ticks:{color:'#4a5e82',font:{family:'Menlo',size:10}},grid:{display:false},border:{display:false}},
-                y:{min:0,max:100,ticks:{color:'#4a5e82',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'},border:{display:false}}}}});
+                y:{min:0,max:100,ticks:{color:'#4a5e82',font:{size:10}},grid:{color:GC},border:{display:false}}}}});
   }
 
   var rkBody=document.getElementById('rk-body');
@@ -772,7 +772,7 @@ function fsRunAI(){
     else if(mode==='deep') s5=(a.sig==='AKUMULASI'?'Pola stealth accumulation terdeteksi — institusi mengisi posisi diam-diam. Investor retail yang masuk sekarang berpotensi ikut tren institusional sejak awal.':a.sig==='DISTRIBUSI'?'Distribusi bertahap bisa berlangsung mingguan. Retail sering terjebak beli saat institusi justru jual.':'Institusi belum menunjukkan posisi jelas. Bisa berarti base building sebelum rally.');
     else s5=(a.sig==='AKUMULASI'?'Saham ini layak dipantau. Konfirmasi dengan fundamental sebelum masuk. Pantau CMF dan big vol sebagai konfirmasi.':a.sig==='DISTRIBUSI'?'Ekstra hati-hati. Tunggu reversal volume yang jelas sebelum entry.':'Bersabar. Gunakan capital untuk saham dengan sinyal lebih jelas.');
 
-    var html='<div style="display:flex;align-items:center;gap:9px;margin-bottom:13px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.05)">';
+    var html='<div style="display:flex;align-items:center;gap:9px;margin-bottom:13px;padding-bottom:12px;border-bottom:1px solid var(--border)">';
     html+=fsMkBdg(a.sig);
     html+='<span style="font-size:11px;color:var(--text2)">Skor: <span class="mono" style="color:'+fsScColor(a.sc)+'">'+a.sc+'/100</span></span>';
     html+='<span style="font-size:11px;color:var(--text2)">CMF: <span class="mono" style="color:'+(a.cl>0?'#41f3a7':'#e21d48')+'">'+(a.cl*100).toFixed(1)+'%</span></span>';
@@ -785,7 +785,7 @@ function fsRunAI(){
       {t:'05 — Strategi',ic:'ti-user-check',b:s5}
     ];
     sections.forEach(function(sec){
-      html+='<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.04)">';
+      html+='<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">';
       html+='<div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px"><i class="ti '+sec.ic+'"></i> '+sec.t+'</div>';
       html+='<div style="font-size:13px;color:#c8d8ea;line-height:1.85">'+sec.b+'</div></div>';
     });

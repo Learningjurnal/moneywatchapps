@@ -162,7 +162,7 @@
           '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">' +
             [1, 2, 3].map(function() {
-              return '<div style="background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:8px;padding:14px;min-height:140px;display:flex;flex-direction:column;justify-content:space-between">' +
+              return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px;min-height:140px;display:flex;flex-direction:column;justify-content:space-between">' +
                 '<div>' +
                   '<div style="height:14px;width:35%;background:var(--bg4);border-radius:4px;margin-bottom:10px;animation:pulse 1.5s infinite"></div>' +
                   '<div style="height:16px;width:90%;background:var(--bg4);border-radius:4px;margin-bottom:6px;animation:pulse 1.5s infinite"></div>' +
@@ -243,7 +243,7 @@
       var hasUrl = url && url !== '#' && url.startsWith('http');
       var sourceName = item.source || 'Media Finansial';
 
-      return '<div class="news-card" style="background:linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,.01) 100%);border:1px solid var(--border2);border-radius:8px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .15s, border-color .15s;position:relative">' +
+      return '<div class="news-card" style="background:var(--bg3) 100%);border:1px solid var(--border2);border-radius:8px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .15s, border-color .15s;position:relative">' +
         '<div>' +
           '<!-- Card Header: Category & Sentiment Impact -->' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">' +
@@ -267,7 +267,7 @@
         '</div>' +
 
         '<!-- Card Footer: Tickers, Source & Action Link -->' +
-        '<div style="border-top:1px solid rgba(255,255,255,.05);padding-top:10px;margin-top:auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+        '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
           '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
             tickerChipsHtml +
             '<span style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">' + sourceName + '</span>' +

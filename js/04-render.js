@@ -297,7 +297,7 @@ function renderPortofolio(){
         var val = dataVals[idx];
         var pct = (val / totalVal * 100).toFixed(1);
         var col = backgroundColors[idx];
-        return '<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.02)">'
+        return '<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;background:var(--bg3)">'
           + '<div style="width:8px;height:8px;border-radius:2px;background:'+col+';flex-shrink:0"></div>'
           + '<span style="color:var(--text2);flex:1;font-weight:500">'+lbl+'</span>'
           + '<span style="font-family:var(--font-mono);font-weight:600;color:'+col+'">'+pct+'%</span>'
@@ -1033,7 +1033,7 @@ function openMarketSyncModal(){
     + '</div>'
     + '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Jika data Yahoo Finance terlambat atau berbeda dari aplikasi sekuritas Anda (Stockbit, IPOT, Mandiri Sekuritas, dll), Anda dapat memperbarui level IHSG dan menyesuaikan harga pasar per saham secara manual di sini.</div>'
     
-    + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">'
+    + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">'
     + '<div style="font-weight:600;font-size:12px;margin-bottom:8px">Indeks Harga Saham Gabungan (IHSG)</div>'
     + '<div style="display:flex;gap:8px;align-items:center">'
     + '<div style="flex:1"><label style="font-size:10px;color:var(--text3)">Level IHSG Saat Ini</label><input type="number" step="0.01" id="sync-ihsg-input" value="'+(typeof ihsgCur !== 'undefined' ? ihsgCur : 6500)+'" class="finput mono" style="width:100%;padding:6px"></div>'

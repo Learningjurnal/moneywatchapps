@@ -548,7 +548,7 @@ function renderD3NetWorthChart() {
       if (tooltip) {
         var dateFormatted = d3.timeFormat("%d %B %Y")(d.date);
         var isPos = d.totalPnl >= 0;
-        var html = '<div style="font-weight:700;color:var(--text);border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:4px;margin-bottom:6px">📅 ' + dateFormatted + '</div>'
+        var html = '<div style="font-weight:700;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:6px">📅 ' + dateFormatted + '</div>'
           + '<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:3px"><span style="color:var(--text3)">Net Worth:</span><span style="font-weight:700;color:#10B981">Rp ' + fmt(d.netWorth) + '</span></div>'
           + '<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:3px"><span style="color:var(--text3)">Modal Disetor:</span><span style="font-weight:700;color:#60A5FA">Rp ' + fmt(d.investedCapital) + '</span></div>'
           + '<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:3px"><span style="color:var(--text3)">Total P&L:</span><span style="font-weight:700;color:' + (isPos ? '#10B981' : '#EF4444') + '">' + (isPos ? '+' : '') + 'Rp ' + fmt(d.totalPnl) + ' (' + (isPos ? '+' : '') + d.pnlPct.toFixed(2) + '%)</span></div>'

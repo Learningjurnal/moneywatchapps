@@ -315,7 +315,7 @@ function wRenderNetWorthHistory(currentNet){
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
         tooltip:{callbacks:{label:function(c){return wRp(c.parsed.y);}}}},
         scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:7},grid:{display:false}},
-                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return wRp(v);}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return wRp(v);}},grid:{color:GC}}}}});
   }
 }
 
@@ -375,8 +375,8 @@ function wRenderBank(){
           '<div><div style="font-size:10px;opacity:.65;margin-bottom:4px">Saldo Rekening</div><div style="font-size:21px;font-weight:700;font-family:\'Menlo\',monospace">'+wRp(b.saldo)+'</div></div>'+
           '<div style="text-align:right"><div style="font-size:11px;opacity:.75">'+(b.type||'Tabungan')+' · '+(b.no||'—')+'</div>'+
           '<div style="display:flex;gap:4px;margin-top:8px;justify-content:flex-end">'+
-            '<button class="btn btn-xs" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.25);color:#fff" onclick="wModalBank('+b.id+')">✎</button>'+
-            '<button class="btn btn-xs" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.25);color:#fff" onclick="wConfirmDelete(\'bank\','+b.id+',\''+(b.bank||'')+'\')">🗑</button>'+
+            '<button class="btn btn-xs" style="background:var(--bg3);border-color:var(--border);color:#fff" onclick="wModalBank('+b.id+')">✎</button>'+
+            '<button class="btn btn-xs" style="background:var(--bg3);border-color:var(--border);color:#fff" onclick="wConfirmDelete(\'bank\','+b.id+',\''+(b.bank||'')+'\')">🗑</button>'+
           '</div></div>'+
         '</div>'+
         '<div style="font-size:11px;opacity:.7;margin-top:12px">Bank '+(b.bank||'—')+'</div>'+
@@ -692,7 +692,7 @@ function wPaymentHistoryHtml(payments){
     '<div style="font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Riwayat Pembayaran</div>'+
     '<div style="max-height:140px;overflow-y:auto">'+
     sorted.map(function(p){
-      return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">'+
+      return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--border)">'+
         '<span style="color:var(--text3)">'+(p.date?new Date(p.date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'—')+'</span>'+
         '<b>'+wRp(p.amount)+'</b></div>';
     }).join('')+

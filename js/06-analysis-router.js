@@ -473,7 +473,7 @@ function aiHeuristicHtml(ctx){
   var m=ctx.m, hf=ctx.hf;
   var retPct=(m.totalReturn*100);
   var c=retPct>=0?'#41f3a7':'#e21d48';
-  var sec=function(t,b){return '<div style="margin-bottom:11px;padding-bottom:11px;border-bottom:1px solid rgba(255,255,255,.05)"><div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">'+t+'</div><div style="font-size:12px;color:#c8d8ea;line-height:1.7">'+b+'</div></div>';};
+  var sec=function(t,b){return '<div style="margin-bottom:11px;padding-bottom:11px;border-bottom:1px solid var(--border)"><div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">'+t+'</div><div style="font-size:12px;color:#c8d8ea;line-height:1.7">'+b+'</div></div>';};
 
   // 01 — Ringkasan Eksekutif
   var verdict;
@@ -695,7 +695,7 @@ function fsRenderProb(a){
   var emo=p.dir==='BULLISH'?'▲':p.dir==='BEARISH'?'▼':'◆';
 
   function pBar(val,color){
-    return '<div style="height:5px;background:rgba(255,255,255,.08);border-radius:1px;overflow:hidden">'
+    return '<div style="height:5px;background:var(--bg5);border-radius:1px;overflow:hidden">'
       +'<div style="width:'+val+'%;height:100%;background:'+color+';border-radius:1px;transition:width .5s"></div></div>';
   }
   function indRow(label,score,detail){
@@ -711,7 +711,7 @@ function fsRenderProb(a){
 
   box.innerHTML=''
     // ── Header row: signal + confidence ──
-    +'<div class="card" style="border-top-color:'+c+';border-color:rgba(255,255,255,.06);background:linear-gradient(135deg,rgba(255,255,255,.02),transparent)">'
+    +'<div class="card" style="border-top-color:'+c+';border-color:var(--border);background:var(--bg3)">'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)">'
     // Signal box
     +'<div style="text-align:center;padding:8px 0">'

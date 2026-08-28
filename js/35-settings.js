@@ -267,7 +267,7 @@
           </div>
 
           <!-- FIRE Progress Meter -->
-          <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:12px;margin-bottom:14px">
+          <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;margin-bottom:14px">
             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
               <span>Kesiapan Dana FIRE</span>
               <strong style="color:var(--accent)">${fireProgressPct}% (Rp ${fmt(currentNet)} / Rp ${fmt(fireTarget)})</strong>
@@ -328,7 +328,7 @@
             ${accounts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:8px 0">Belum ada rekening bank yang dikonfigurasi.</div>' : ''}
             ${accounts.map(function(acc, idx) {
               return `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:6px;border:1px solid var(--border2)">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:6px;border:1px solid var(--border2)">
                   <div>
                     <div style="font-weight:600;font-size:13px;color:var(--text)">${escHtml(acc.bank || acc.name || 'Bank')}</div>
                     <div style="font-size:11px;color:var(--text3)">${escHtml(acc.type || acc.category || 'Tabungan')} ${acc.no ? '· ' + escHtml(acc.no) : ''}</div>
@@ -379,7 +379,7 @@
             ${debts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:8px 0">Tidak ada kewajiban atau hutang aktif.</div>' : ''}
             ${debts.map(function(d, idx) {
               return `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:6px;border:1px solid var(--border2)">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:6px;border:1px solid var(--border2)">
                   <div>
                     <div style="font-weight:600;font-size:13px;color:var(--text)">${escHtml(d.nama || d.name || 'Kewajiban')}</div>
                     <div style="font-size:11px;color:var(--text3)">${escHtml(d.tipe || d.category || 'Cicilan')} ${d.cicilan ? '· Cicilan Rp ' + fmt(d.cicilan) + '/bln' : ''}</div>
@@ -429,7 +429,7 @@
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px">
               <div>
                 <div style="font-weight:700;font-size:12.5px;color:var(--text)">Ekspor Cadangan JSON</div>
                 <div style="font-size:11px;color:var(--text3)">Unduh berkas portofolio, mutasi kas RDN, dividen, dan rekening.</div>
@@ -439,7 +439,7 @@
               </button>
             </div>
 
-            <div style="padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:6px">
+            <div style="padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px">
               <div style="font-weight:700;font-size:12.5px;color:var(--text);margin-bottom:2px">Pulihkan Data dari JSON</div>
               <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Unggah berkas cadangan MoneyWatch Pro.</div>
               <label class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;cursor:pointer">
@@ -489,7 +489,7 @@
               </div>
             </div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px">
               <div>
                 <div style="font-weight:600;font-size:12px;color:var(--text)">Running Ticker Tape BEI</div>
                 <div style="font-size:11px;color:var(--text3)">Pita harga berjalan di bawah topbar</div>

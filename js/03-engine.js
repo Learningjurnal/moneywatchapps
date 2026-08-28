@@ -1072,7 +1072,73 @@ function buildTickerTape(){
 function kc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 var TC={color:'#8a90ad',font:{family:'Menlo',size:9}};
 var GC='rgba(255,102,0,.07)';
-var TT={backgroundColor:'#0a0a0f',titleColor:'#b8bdd4',bodyColor:'#f5f5fa',borderColor:'rgba(255,102,0,.25)',borderWidth:1,titleFont:{family:'Menlo'},bodyFont:{family:'Menlo',size:11}};
+
+function customChartTooltip(context) {
+    let tooltipEl = document.getElementById('mw-tooltip');
+    if (!tooltipEl) {
+        tooltipEl = document.createElement('div');
+        tooltipEl.id = 'mw-tooltip';
+        document.body.appendChild(tooltipEl);
+    }
+    
+    const tooltipModel = context.tooltip;
+    if (tooltipModel.opacity === 0) {
+        tooltipEl.style.opacity = 0;
+        tooltipEl.style.transform = 'translateY(4px)';
+        tooltipEl.style.pointerEvents = 'none';
+        return;
+    }
+    
+    tooltipEl.classList.remove('above', 'below', 'no-transform');
+    if (tooltipModel.yAlign) {
+        tooltipEl.classList.add(tooltipModel.yAlign);
+    } else {
+        tooltipEl.classList.add('no-transform');
+    }
+
+    function getBody(bodyItem) {
+        return bodyItem.lines;
+    }
+
+    if (tooltipModel.body) {
+        const titleLines = tooltipModel.title || [];
+        const bodyLines = tooltipModel.body.map(getBody);
+        let innerHtml = '';
+
+        titleLines.forEach(function(title) {
+            innerHtml += '<div class="mw-tt-title">' + title + '</div>';
+        });
+
+        bodyLines.forEach(function(body, i) {
+            const colors = (tooltipModel.labelColors && tooltipModel.labelColors[i]) ? tooltipModel.labelColors[i] : {backgroundColor: "var(--accent)", borderColor: "var(--accent)"};
+            let style = 'background:' + colors.backgroundColor + '; border-color:' + colors.borderColor + ';';
+            if (!colors.backgroundColor) { style = 'background:var(--accent);'; }
+            const span = '<span class="mw-tt-indicator" style="' + style + '"></span>';
+            innerHtml += '<div class="mw-tt-body">' + span + body + '</div>';
+        });
+
+        tooltipEl.innerHTML = innerHtml;
+    }
+
+    const position = context.chart.canvas.getBoundingClientRect();
+    let left = position.left + window.pageXOffset + tooltipModel.caretX;
+    let top = position.top + window.pageYOffset + tooltipModel.caretY;
+    
+    // basic overflow prevention
+    if (left + 250 > window.innerWidth) left = window.innerWidth - 260;
+    if (top + 100 > window.innerHeight) top = top - 80;
+
+    tooltipEl.style.opacity = 1;
+    tooltipEl.style.transform = 'translateY(0)';
+    tooltipEl.style.left = left + 'px';
+    tooltipEl.style.top = top + 'px';
+}
+
+var TT = {
+    enabled: false,
+    external: customChartTooltip
+};
+
 
 function genIHSG(n){
   // Simulate realistic intraday IHSG from Open 6210 → Close 6195
@@ -1536,3 +1602,57 @@ function buildRetDistChart(porto){
   charts['retdist']=new Chart(cv,{type:'bar',data:{labels:labels,datasets:[{data:counts,backgroundColor:bkgs,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.parsed.y+' saham'}}})},scales:{x:{grid:{color:GC},ticks:Object.assign({},TC,{maxRotation:35})},y:{grid:{color:GC},ticks:Object.assign({},TC,{stepSize:1}),position:'right'}}}});
 }
 
+
+
+// DOM tooltips for metrics and icons
+document.addEventListener('mouseover', function(e) {
+  let target = e.target.closest('[title], [data-tooltip]');
+  if (!target) return;
+  if (target.tagName.toLowerCase() === 'canvas') return;
+
+  if (target.hasAttribute('title')) {
+    target.setAttribute('data-tooltip', target.getAttribute('title'));
+    target.removeAttribute('title');
+  }
+  
+  let text = target.getAttribute('data-tooltip');
+  if (!text) return;
+
+  let tooltipEl = document.getElementById('mw-tooltip');
+  if (!tooltipEl) {
+      tooltipEl = document.createElement('div');
+      tooltipEl.id = 'mw-tooltip';
+      document.body.appendChild(tooltipEl);
+  }
+
+  tooltipEl.innerHTML = '<div class="mw-tt-body">' + text.replace(/\n/g, '<br>') + '</div>';
+  
+  const rect = target.getBoundingClientRect();
+  let left = rect.left + window.pageXOffset + (rect.width / 2);
+  let top = rect.bottom + window.pageYOffset + 8;
+
+  tooltipEl.style.display = 'flex';
+  tooltipEl.style.pointerEvents = 'none';
+  
+  // Measure after content is set
+  let ttRect = tooltipEl.getBoundingClientRect();
+  left = left - (ttRect.width / 2);
+  
+  if (left < 10) left = 10;
+  if (left + ttRect.width > window.innerWidth) left = window.innerWidth - ttRect.width - 10;
+  
+  if (top + ttRect.height > window.innerHeight + window.pageYOffset) {
+     top = rect.top + window.pageYOffset - ttRect.height - 8;
+  }
+  
+  tooltipEl.style.left = left + 'px';
+  tooltipEl.style.top = top + 'px';
+  tooltipEl.style.opacity = 1;
+  tooltipEl.style.transform = 'translateY(0)';
+  
+  target.addEventListener('mouseleave', function onLeave() {
+     tooltipEl.style.opacity = 0;
+     tooltipEl.style.transform = 'translateY(4px)';
+     target.removeEventListener('mouseleave', onLeave);
+  });
+});

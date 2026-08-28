@@ -537,7 +537,7 @@ function fundPopulateData() {
     var c4 = roe >= 0.12;
     var c5 = ocf > 0;
     var makeCheck = function(pass, title, desc) {
-      return '<div class="sm-check-item" style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
+      return '<div class="sm-check-item" style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
         + '<span class="sm-check-icon">' + (pass ? '✅' : '❌') + '</span>'
         + '<div><div style="font-size:12px;font-weight:700;color:' + (pass ? '#10B981' : '#EF4444') + '">' + title + '</div>'
         + '<div style="font-size:11px;color:#94A3B8">' + desc + '</div></div>'
@@ -953,8 +953,8 @@ function techRenderMainChart(ticker) {
           tooltip: { mode: 'index', intersect: false }
         },
         scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8', maxTicksLimit: 8 } },
-          y: { position: 'right', grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8' } }
+          x: { grid:{color:GC}, ticks: { color: '#94A3B8', maxTicksLimit: 8 } },
+          y: { position: 'right', grid:{color:GC}, ticks: { color: '#94A3B8' } }
         }
       }
     });
@@ -1102,7 +1102,7 @@ function techRunFlowScanTab(ticker) {
         },
         scales: {
           x: { grid: { display: false }, ticks: { color: '#94A3B8', maxTicksLimit: 7 } },
-          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8' } }
+          y: { grid:{color:GC}, ticks: { color: '#94A3B8' } }
         }
       }
     });
@@ -1139,7 +1139,7 @@ function techRunFlowScanTab(ticker) {
         },
         scales: {
           x: { grid: { display: false }, ticks: { color: '#94A3B8', maxTicksLimit: 7 } },
-          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8' } }
+          y: { grid:{color:GC}, ticks: { color: '#94A3B8' } }
         }
       }
     });

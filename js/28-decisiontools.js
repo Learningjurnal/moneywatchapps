@@ -75,7 +75,7 @@ function renderDailyBriefPage() {
   // 1. Dynamic Watch #1: Top Mover / Momentum in Portfolio
   if (topGainer) {
     var gainerDelta = (topGainer.chgPct || 0);
-    html += '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:14px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
       + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
         + '<span class="badge b-up">1. PORTFOLIO TOP MOVER</span>'
         + '<strong style="color:var(--text);font-size:13px">' + topGainer.ticker + ' Memimpin Penguatan Portofolio (' + (gainerDelta >= 0 ? '+' : '') + gainerDelta.toFixed(2) + '%)</strong>'
@@ -85,7 +85,7 @@ function renderDailyBriefPage() {
       + '</div>'
     + '</div>';
   } else {
-    html += '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:14px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
       + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
         + '<span class="badge b-up">1. FLOW BREAKOUT</span>'
         + '<strong style="color:var(--text);font-size:13px">ANTM Memasuki Buy Zone dengan Lonjakan Volume Institusi</strong>'
@@ -99,7 +99,7 @@ function renderDailyBriefPage() {
   // 2. Dynamic Watch #2: Overweight / Concentration Guard
   if (topHolding) {
     var isOverweight = parseFloat(topHoldingWeight) > 15;
-    html += '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:14px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
       + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
         + '<span class="badge ' + (isOverweight ? 'b-amb' : 'b-accent') + '">2. ALLOCATION &amp; RISK GUARD</span>'
         + '<strong style="color:var(--text);font-size:13px">Bobot Terbesar: ' + topHolding.ticker + ' Mencapai ' + topHoldingWeight + '% Portofolio</strong>'
@@ -111,7 +111,7 @@ function renderDailyBriefPage() {
       + '</div>'
     + '</div>';
   } else {
-    html += '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:14px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
       + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
         + '<span class="badge b-amb">2. REBALANCE ALERT</span>'
         + '<strong style="color:var(--text);font-size:13px">Pemantauan Batas Alokasi &amp; Diversifikasi Portofolio</strong>'
@@ -123,7 +123,7 @@ function renderDailyBriefPage() {
   }
 
   // 3. Dynamic Watch #3: Total Projected Dividend Pipeline
-  html += '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:14px">'
+  html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
       + '<span class="badge b-pur">3. DIVIDEND &amp; CASHFLOW PIPELINE</span>'
       + '<strong style="color:var(--text);font-size:13px">Estimasi Cashflow Dividen Portofolio ~Rp ' + fmtK(totalAnnualDiv) + '/Tahun</strong>'
@@ -287,7 +287,7 @@ function renderThesisPage() {
             + '</div>'
             + '<span class="badge ' + (th.statusClass || 'b-up') + '">🟢 THESIS ' + (th.status || 'INTACT') + '</span>'
           + '</div>'
-          + '<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px;background:rgba(255,255,255,0.02);border-left:3px solid var(--accent);padding:8px 12px;border-radius:0 6px 6px 0">'
+          + '<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px;background:var(--bg3);border-left:3px solid var(--accent);padding:8px 12px;border-radius:0 6px 6px 0">'
             + '<strong>Why Bought:</strong> ' + th.whyBought
           + '</div>'
           + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
@@ -865,17 +865,17 @@ function renderRebalancePage() {
       + '<i class="ti ti-route" style="color:var(--accent)"></i> Alur Kerja Step-by-Step Eksekusi Rebalancing'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">'
-      + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px">'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
         + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 1</div>'
         + '<div style="font-weight:600;font-size:12px;margin:4px 0">Identifikasi Deviasi</div>'
         + '<div style="font-size:11px;color:var(--text2)">Sistem mendeteksi posisi yang melampaui target (overweight) untuk di-trim dan posisi lagging untuk di-accumulate.</div>'
       + '</div>'
-      + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px">'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
         + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 2</div>'
         + '<div style="font-weight:600;font-size:12px;margin:4px 0">Eksekusi di Sekuritas</div>'
         + '<div style="font-size:11px;color:var(--text2)">Gunakan order sheet untuk menjual saham overweight dan membeli saham underweight secara bertahap.</div>'
       + '</div>'
-      + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px">'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
         + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 3</div>'
         + '<div style="font-weight:600;font-size:12px;margin:4px 0">Validasi Keseimbangan Baru</div>'
         + '<div style="font-size:11px;color:var(--text2)">Proyeksi menunjukkan portofolio kembali seimbang dengan risiko konsentrasi yang tereduksi optimal.</div>'
@@ -887,7 +887,7 @@ function renderRebalancePage() {
     + '<div class="card" style="margin:0">'
       + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">Ringkasan Portofolio &amp; Alokasi</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-        + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:12px">'
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
           + '<div style="font-size:10px;color:var(--text3);font-weight:700">POSISI SAAT INI</div>'
           + '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px">'
             + '<div>Total Nilai Saham: <strong class="mono">Rp ' + fmtK(totalMV) + '</strong></div>'
@@ -1097,7 +1097,7 @@ function generateDynamicCopilotReply(prompt) {
       + '<strong>Daftar Pembobotan AUM Terbesar:</strong>'
       + '<div style="overflow-x:auto;margin:8px 0">'
         + '<table style="width:100%;font-size:11px;border-collapse:collapse;background:var(--bg3);border-radius:6px">'
-          + '<thead style="background:rgba(255,255,255,0.05);color:var(--text3);text-align:left">'
+          + '<thead style="background:var(--bg4);color:var(--text3);text-align:left">'
             + '<tr><th style="padding:4px 8px">Saham</th><th style="padding:4px 8px">Nilai Pasar</th><th style="padding:4px 8px">% AUM</th><th style="padding:4px 8px">% Saham</th><th style="padding:4px 8px">Return</th></tr>'
           + '</thead>'
           + '<tbody>' + topListHtml + '</tbody>'

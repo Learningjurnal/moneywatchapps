@@ -10,8 +10,8 @@
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;position:relative;z-index:2">
       <div>
-        <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px">MoneyWatch Pro</div>
-        <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">Hub Portofolio &amp; Aset Terpadu • Klik card di bawah untuk membuka manajemen detail</div>
+        <div style="font-size:24px;font-weight:800;color:var(--text-main);letter-spacing:-0.5px">MoneyWatch Pro</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Hub Portofolio &amp; Aset Terpadu • Klik card di bawah untuk membuka manajemen detail</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center">
         <button class="btn btn-blue btn-sm" onclick="renderPortfolioHub()" style="background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;border-radius:10px;padding:8px 14px;font-size:11px;font-weight:700">⚡ Refresh Data</button>
@@ -22,8 +22,8 @@
     <!-- CARD 5: NET WORTH & ALLOCATION HERO (TOP BANNER) -->
     <div style="background:rgba(255,255,255,0.03);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:22px;margin-bottom:22px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;position:relative;z-index:2">
       <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.5);margin-bottom:4px;font-weight:600">Total Net Worth (Semua Portofolio)</div>
-        <div style="font-size:32px;font-weight:800;font-family:var(--font-mono);color:#ffffff;letter-spacing:-1px;margin-bottom:8px" id="hub-tot-val">Rp 1.250.000.000</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;font-weight:600">Total Net Worth (Semua Portofolio)</div>
+        <div style="font-size:32px;font-weight:800;font-family:var(--font-mono);color:var(--text-main);letter-spacing:-1px;margin-bottom:8px" id="hub-tot-val">Rp 1.250.000.000</div>
         <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;color:#10b981" id="hub-tot-pnl-pill">
           <span>▲</span> <span id="hub-tot-pnl">Rp 15.500.000 (1.25%)</span> Hari Ini
         </div>
@@ -46,11 +46,11 @@
           <div style="width:36px;height:36px;border-radius:10px;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center;color:#60a5fa;font-size:16px">📊</div>
           <span style="font-size:10px;font-weight:700;color:#60a5fa;background:rgba(59,130,246,0.15);padding:3px 8px;border-radius:10px">Blue Electric</span>
         </div>
-        <div style="font-size:14px;font-weight:800;color:#ffffff;margin-bottom:2px">Saham Indonesia</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:12px" id="hub-saham-count">0 Emiten aktif</div>
-        <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:#ffffff;margin-bottom:14px" id="hub-saham-val">Rp 0</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
-          <span style="color:rgba(255,255,255,0.6)">P&amp;L: <span style="font-weight:700" id="hub-saham-pnl">Rp 0 (0%)</span></span>
+        <div style="font-size:14px;font-weight:800;color:var(--text-main);margin-bottom:2px">Saham Indonesia</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:12px" id="hub-saham-count">0 Emiten aktif</div>
+        <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:var(--text-main);margin-bottom:14px" id="hub-saham-val">Rp 0</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px solid var(--border);padding-top:10px">
+          <span style="color:var(--text-muted)">P&amp;L: <span style="font-weight:700" id="hub-saham-pnl">Rp 0 (0%)</span></span>
           <span style="color:#60a5fa;font-weight:700">Kelola →</span>
         </div>
       </div>
@@ -61,11 +61,11 @@
           <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);display:flex;align-items:center;justify-content:center;color:#34d399;font-size:16px">🪙</div>
           <span style="font-size:10px;font-weight:700;color:#34d399;background:rgba(16,185,129,0.15);padding:3px 8px;border-radius:10px">Mint Green</span>
         </div>
-        <div style="font-size:14px;font-weight:800;color:#ffffff;margin-bottom:2px">Crypto Asset</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:12px" id="hub-crypto-count">0 Koin aktif</div>
-        <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:#ffffff;margin-bottom:14px" id="hub-crypto-val">Rp 0</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
-          <span style="color:rgba(255,255,255,0.6)">P&amp;L: <span style="font-weight:700" id="hub-crypto-pnl">Rp 0 (0%)</span></span>
+        <div style="font-size:14px;font-weight:800;color:var(--text-main);margin-bottom:2px">Crypto Asset</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:12px" id="hub-crypto-count">0 Koin aktif</div>
+        <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:var(--text-main);margin-bottom:14px" id="hub-crypto-val">Rp 0</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px solid var(--border);padding-top:10px">
+          <span style="color:var(--text-muted)">P&amp;L: <span style="font-weight:700" id="hub-crypto-pnl">Rp 0 (0%)</span></span>
           <span style="color:#34d399;font-weight:700">Kelola →</span>
         </div>
       </div>
@@ -76,11 +76,11 @@
           <div style="width:36px;height:36px;border-radius:10px;background:rgba(248,113,113,0.2);border:1px solid rgba(248,113,113,0.4);display:flex;align-items:center;justify-content:center;color:#f87171;font-size:16px">🌐</div>
           <span style="font-size:10px;font-weight:700;color:#f87171;background:rgba(248,113,113,0.15);padding:3px 8px;border-radius:10px">Global ETFs</span>
         </div>
-        <div style="font-size:14px;font-weight:800;color:#ffffff;margin-bottom:2px">ETF US &amp; Global</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:12px" id="hub-etf-count">0 ETF aktif</div>
-        <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:#ffffff;margin-bottom:14px" id="hub-etf-val">Rp 0</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
-          <span style="color:rgba(255,255,255,0.6)">P&amp;L: <span style="font-weight:700" id="hub-etf-pnl">Rp 0 (0%)</span></span>
+        <div style="font-size:14px;font-weight:800;color:var(--text-main);margin-bottom:2px">ETF US &amp; Global</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:12px" id="hub-etf-count">0 ETF aktif</div>
+        <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:var(--text-main);margin-bottom:14px" id="hub-etf-val">Rp 0</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px solid var(--border);padding-top:10px">
+          <span style="color:var(--text-muted)">P&amp;L: <span style="font-weight:700" id="hub-etf-pnl">Rp 0 (0%)</span></span>
           <span style="color:#f87171;font-weight:700">Kelola →</span>
         </div>
       </div>
@@ -91,11 +91,11 @@
           <div style="width:36px;height:36px;border-radius:10px;background:rgba(167,139,250,0.2);border:1px solid rgba(167,139,250,0.4);display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:16px">🏛️</div>
           <span style="font-size:10px;font-weight:700;color:#a78bfa;background:rgba(167,139,250,0.15);padding:3px 8px;border-radius:10px">Nila Purple</span>
         </div>
-        <div style="font-size:14px;font-weight:800;color:#ffffff;margin-bottom:2px">Reksa Dana &amp; SBN</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:12px" id="hub-rd-count">0 Produk tercatat</div>
-        <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:#ffffff;margin-bottom:14px" id="hub-rd-val">Rp 0</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
-          <span style="color:rgba(255,255,255,0.6)">Modal: <span style="font-weight:700" id="hub-rd-pnl">Rp 0</span></span>
+        <div style="font-size:14px;font-weight:800;color:var(--text-main);margin-bottom:2px">Reksa Dana &amp; SBN</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:12px" id="hub-rd-count">0 Produk tercatat</div>
+        <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:var(--text-main);margin-bottom:14px" id="hub-rd-val">Rp 0</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px solid var(--border);padding-top:10px">
+          <span style="color:var(--text-muted)">Modal: <span style="font-weight:700" id="hub-rd-pnl">Rp 0</span></span>
           <span style="color:#a78bfa;font-weight:700">Kelola →</span>
         </div>
       </div>

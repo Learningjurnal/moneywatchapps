@@ -83,7 +83,7 @@ function perfRenderEquity(period){
       datasets:[{data:filtered.map(function(h){return h.equity;}),borderColor:'#2f6af3',backgroundColor:grad,fill:true,tension:.3,pointRadius:0,borderWidth:2}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return 'Rp '+fmtK(c.parsed.y);}}})},
         scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:7},grid:{display:false}},
-                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return fmtK(v);}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return fmtK(v);}},grid:{color:GC}}}}});
   }
 
   // Tabel riwayat — reverse kronologis, P&L dihitung dari FULL history (bukan hasil filter)
@@ -222,7 +222,7 @@ function perfRenderBenchmark(){
     charts['perfBench'] = new Chart(cv,{type:'line',data:{labels:hist.map(function(h){return h.date;}),datasets:datasets},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.dataset.label+': '+(c.parsed.y>=0?'+':'')+c.parsed.y.toFixed(2)+'%';}}})},
         scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:7},grid:{display:false}},
-                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return v.toFixed(0)+'%';}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return v.toFixed(0)+'%';}},grid:{color:GC}}}}});
   });
 }
 
@@ -401,7 +401,7 @@ function perfRenderActivity(){
           tooltip:Object.assign({},TT,{callbacks:{label:function(c){ return c.dataset.label==='Realized P&L' ? 'P&L: '+(c.parsed.y>=0?'+':'')+'Rp '+fmtK(c.parsed.y) : 'Order: '+c.parsed.y; }}})},
         scales:{
           x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:8},grid:{display:false}},
-          y:{position:'left',ticks:{color:'#555d6e',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'},title:{display:false}},
+          y:{position:'left',ticks:{color:'#555d6e',font:{size:9}},grid:{color:GC},title:{display:false}},
           y1:{position:'right',ticks:{color:'#555d6e',font:{size:9},callback:function(v){return fmtK(v);}},grid:{display:false}}
         }}
     });
@@ -523,7 +523,7 @@ function renderCostDrag(){
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
         tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.parsed.y.toFixed(2)+'% dari nilai transaksi bulan itu';}}})},
         scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:8},grid:{display:false}},
-                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return v+'%';}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return v+'%';}},grid:{color:GC}}}}});
   }
 }
 

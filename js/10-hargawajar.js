@@ -623,7 +623,7 @@ function hw_renderChart(rows) {
   if (hwHistChart) { hwHistChart.destroy(); hwHistChart = null; }
   var labels = rows.map(function(r){ return r.year; });
   var tickStyle = { color: '#b8bdd4', font: { size: 9, family: 'Menlo' } };
-  var gridStyle = { color: 'rgba(255,255,255,.05)' };
+  var gridStyle = { color: GC };
   var legendOpts = { labels: { color: '#b8bdd4', font: { family: 'Menlo', size: 9 }, boxWidth: 10, padding: 10 } };
 
   var datasets, scales;

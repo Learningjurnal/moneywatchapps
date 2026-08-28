@@ -370,7 +370,7 @@ function renderTrafficLightMatrix(ticker, mosPct, flowSignal, quantScore) {
       + '    <div style="font-size:10px;color:var(--text2);margin-top:2px">' + verdictDesc + '</div>'
       + '  </div>'
       + '  <div style="text-align:right">'
-      + '    <span class="badge" style="background:rgba(255,255,255,.05);border:1px solid ' + verdictColor + ';color:' + verdictColor + ';font-size:12px;padding:4px 10px">Skor Konsensus: ' + totalScore + ' / 3</span>'
+      + '    <span class="badge" style="background:var(--bg4);border:1px solid ' + verdictColor + ';color:' + verdictColor + ';font-size:12px;padding:4px 10px">Skor Konsensus: ' + totalScore + ' / 3</span>'
       + '  </div>'
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:10px">'

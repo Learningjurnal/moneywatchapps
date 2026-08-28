@@ -661,7 +661,7 @@ function fhmRender(){
     if(factor==='rsi'){bg=v<30?'rgba(0,212,170,.6)':v>70?'rgba(255,34,68,.6)':'rgba(255,187,0,.2)';col=v<30?'#00d4aa':v>70?'#ff2244':'#ffbb00';}
     else if(factor==='vol'){bg='rgba(155,127,232,'+(0.15+norm*0.7)+')';col='var(--purple)';}
     else{bg=v>=0?'rgba(0,212,170,'+(0.15+norm*0.7)+')':'rgba(255,34,68,'+(0.15+(1-norm)*0.7)+')';col=v>=0?'var(--green)':'var(--red)';}
-    return '<div style="background:'+bg+';border-radius:3px;padding:8px 6px;border:1px solid rgba(255,255,255,.06)">'
+    return '<div style="background:'+bg+';border-radius:3px;padding:8px 6px;border:1px solid var(--border)">'
       +'<div style="font-size:11px;font-weight:700;color:var(--text);font-family:Menlo,monospace">'+s.t+'</div>'
       +'<div style="font-size:12px;font-weight:600;color:'+col+';font-family:Menlo,monospace;margin-top:2px">'+(factor!=='rsi'&&v>=0?'+':'')+v.toFixed(factor==='score'?0:1)+'</div>'
       +'</div>';
@@ -687,7 +687,7 @@ function fhmRender(){
   if(QT.btCharts['fhm-dist']){QT.btCharts['fhm-dist'].destroy();}
   var cv = el('fhm-dist-chart');
   if(cv){
-    QT.btCharts['fhm-dist'] = new Chart(cv.getContext('2d'),{type:'bar',data:{labels:stocks.map(function(s){return s.t;}),datasets:[{data:vals,backgroundColor:vals.map(function(v){return v>=0&&factor!=='rsi'?'rgba(0,212,170,.5)':'rgba(74,158,255,.5)';}),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555d6e',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}}); 
+    QT.btCharts['fhm-dist'] = new Chart(cv.getContext('2d'),{type:'bar',data:{labels:stocks.map(function(s){return s.t;}),datasets:[{data:vals,backgroundColor:vals.map(function(v){return v>=0&&factor!=='rsi'?'rgba(0,212,170,.5)':'rgba(74,158,255,.5)';}),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555d6e',font:{size:9}},grid:{color:GC}}}}}); 
   }
 }
 
@@ -1046,7 +1046,7 @@ function mrRender(){
       + '<th style="padding:8px 10px;color:var(--text3);font-size:11px;text-align:center">YTD</th></tr></thead><tbody>';
 
     years2.forEach(function(y){
-      h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.03)"><td style="padding:8px 10px;font-weight:700;color:var(--text2)">' + y + '</td>';
+      h += '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 10px;font-weight:700;color:var(--text2)">' + y + '</td>';
       var ytd = 0;
       var hasDataInYear = false;
       for(var mi = 0; mi < 12; mi++){

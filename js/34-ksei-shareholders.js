@@ -591,7 +591,7 @@ function renderKseiStockView(container, ticker) {
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
           <thead>
-            <tr style="background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border2);color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.5px">
+            <tr style="background:var(--bg3);border-bottom:1px solid var(--border2);color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.5px">
               <th style="padding:10px 12px">Nama Pemegang Saham &amp; Sub-Akun Kustodian</th>
               <th style="padding:10px 12px;text-align:right">Porsi (%)</th>
               <th style="padding:10px 12px;text-align:right">Jumlah Lembar Saham</th>
