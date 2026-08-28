@@ -48,3 +48,32 @@
 /* Score ring wrapper */
 .w-ring{position:relative;width:84px;height:84px;flex-shrink:0}
 .w-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+
+/* ══════════════════════════════════════════════
+   WEALTH MODULE — LIGHT THEME OVERRIDES
+   ══════════════════════════════════════════════ */
+body.theme-light .w-hero-value {
+  color: #2563EB !important;
+}
+body.theme-light .w-track {
+  background: #E2E8F0 !important;
+}
+body.theme-light .w-bank-card {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+}
+body.theme-light .w-piu-row {
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+body.theme-light .w-insight {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+}
+body.theme-light .w-insight:hover {
+  border-color: #2563EB !important;
+}
+body.theme-light .w-mini {
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+body.theme-light .w-slider b {
+  color: #0F172A !important;
+}

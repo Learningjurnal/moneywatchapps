@@ -512,7 +512,7 @@ function fundPopulateData() {
     debateBox.innerHTML = ''
       + '<div class="sm-card" style="margin-bottom:14px;border-left:4px solid #10B981">'
       + '  <div style="font-size:14px;font-weight:800;color:#10B981;display:flex;align-items:center;gap:6px">🐂 THE BULL CASE (Kekuatan &amp; Katalis Positif)</div>'
-      + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:#CBD5E1">'
+      + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2)">'
       + '    <li>Fundamental solid di sektor <b>' + sector + '</b> dengan ROE <b>' + fundFmt(roe, true) + '</b> dan profit margin <b>' + fundFmt(pm, true) + '</b>.</li>'
       + '    <li>Penetrasi pangsa pasar luas dan daya beli pelanggan tangguh (Pricing Power terbukti dari gross margin ' + fundFmt(gm, true) + ').</li>'
       + '    <li>Kapasitas dividen teratur dengan yield <b>' + fundFmt(divY, true) + '</b> dan neraca bebas tekanan liabilitas tinggi (DER ' + dte.toFixed(2) + 'x).</li>'
@@ -520,7 +520,7 @@ function fundPopulateData() {
       + '</div>'
       + '<div class="sm-card" style="border-left:4px solid #EF4444">'
       + '  <div style="font-size:14px;font-weight:800;color:#EF4444;display:flex;align-items:center;gap:6px">🐻 THE BEAR CASE (Risiko &amp; Skenario Negatif)</div>'
-      + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:#CBD5E1">'
+      + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2)">'
       + '    <li>Sensitivitas perputaran suku bunga BI &amp; Federal Reserve yang dapat mempengaruhi likuiditas perbankan dan belanja modal.</li>'
       + '    <li>Potensi kompresi margin akibat persaingan tarif industri dan kenaikan ongkos operasional harian.</li>'
       + '    <li>Risiko rotasi dana asing (Foreign Outflow) di bursa berkembang ke pasar obligasi global.</li>'
@@ -540,7 +540,7 @@ function fundPopulateData() {
       return '<div class="sm-check-item" style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
         + '<span class="sm-check-icon">' + (pass ? '✅' : '❌') + '</span>'
         + '<div><div style="font-size:12px;font-weight:700;color:' + (pass ? '#10B981' : '#EF4444') + '">' + title + '</div>'
-        + '<div style="font-size:11px;color:#94A3B8">' + desc + '</div></div>'
+        + '<div style="font-size:11px;color:var(--text3)">' + desc + '</div></div>'
         + '</div>';
     };
     checkList.innerHTML = ''
@@ -659,15 +659,15 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   var stepsBody = document.getElementById('hw-steps-body');
   if (stepsBody) {
     stepsBody.innerHTML = ''
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">1. EPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(eps) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">2. BVPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(bvps) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">3. ROE Rata-rata:</span> <b style="color:#60A5FA">' + (roe * 100).toFixed(1) + '%</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">4. Payout Ratio:</span> <b style="color:#60A5FA">' + (payout * 100).toFixed(1) + '%</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">5. Proyeksi BVPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureBvps) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">6. Proyeksi EPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureEps) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">7. Target Harga (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futurePrice) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:#94A3B8">8. Fair Value MoS (' + (minReturn * 100).toFixed(1) + '% req):</span> <b style="color:#41f3a7">Rp ' + Math.round(fairPriceMoS) + '</b></div>'
-      + '<div style="background:#131B2E;padding:8px 12px;border-radius:6px;font-size:11px;grid-column:span 2"><span style="color:#94A3B8">9. Margin of Safety:</span> <b style="color:' + (mosPct >= 15 ? '#10B981' : (mosPct >= 0 ? '#60A5FA' : '#EF4444')) + '">' + (mosPct >= 0 ? '+' : '') + mosPct.toFixed(1) + '% vs Harga Pasar Rp ' + Math.round(curPrice) + '</b></div>';
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">1. EPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(eps) + '</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">2. BVPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(bvps) + '</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">3. ROE Rata-rata:</span> <b style="color:#60A5FA">' + (roe * 100).toFixed(1) + '%</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">4. Payout Ratio:</span> <b style="color:#60A5FA">' + (payout * 100).toFixed(1) + '%</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">5. Proyeksi BVPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureBvps) + '</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">6. Proyeksi EPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureEps) + '</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">7. Target Harga (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futurePrice) + '</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">8. Fair Value MoS (' + (minReturn * 100).toFixed(1) + '% req):</span> <b style="color:#41f3a7">Rp ' + Math.round(fairPriceMoS) + '</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px;grid-column:span 2"><span style="color:var(--text3)">9. Margin of Safety:</span> <b style="color:' + (mosPct >= 15 ? '#10B981' : (mosPct >= 0 ? '#60A5FA' : '#EF4444')) + '">' + (mosPct >= 0 ? '+' : '') + mosPct.toFixed(1) + '% vs Harga Pasar Rp ' + Math.round(curPrice) + '</b></div>';
   }
 
   // 5. 2D Sensitivity Matrix
@@ -696,7 +696,7 @@ function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, 
 
   var rowsHtml = '';
   roeScenarios.forEach(function(sc) {
-    rowsHtml += '<tr><td style="font-weight:700;text-align:left;color:#94A3B8">' + sc.name + ' (' + (sc.val * 100).toFixed(1) + '%)</td>';
+    rowsHtml += '<tr><td style="font-weight:700;text-align:left;color:var(--text3)">' + sc.name + ' (' + (sc.val * 100).toFixed(1) + '%)</td>';
     perCols.forEach(function(pCol) {
       var futBvps = bvps * Math.pow(1 + sc.val * (1 - payout), projYears);
       var futEps = futBvps * sc.val;
@@ -728,20 +728,20 @@ function fundBuildTrafficLight(mosPct, roe, per, curPrice) {
   };
 
   tlBody.innerHTML = ''
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #232F4D">'
-    + '  <span style="font-size:11px;color:#94A3B8">1. Pilar Valuasi Fundamental (MoS / Multi-Model)</span>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
+    + '  <span style="font-size:11px;color:var(--text3)">1. Pilar Valuasi Fundamental (MoS / Multi-Model)</span>'
     + '  <div>' + getSignalBadge(valScore) + '</div>'
     + '</div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #232F4D">'
-    + '  <span style="font-size:11px;color:#94A3B8">2. Pilar Arus Bandar &amp; Likuiditas Asing (FlowScan)</span>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
+    + '  <span style="font-size:11px;color:var(--text3)">2. Pilar Arus Bandar &amp; Likuiditas Asing (FlowScan)</span>'
     + '  <div>' + getSignalBadge(flowScore) + '</div>'
     + '</div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #232F4D">'
-    + '  <span style="font-size:11px;color:#94A3B8">3. Pilar Kualitas Ekuitas &amp; Profitabilitas (Quant ROE)</span>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
+    + '  <span style="font-size:11px;color:var(--text3)">3. Pilar Kualitas Ekuitas &amp; Profitabilitas (Quant ROE)</span>'
     + '  <div>' + getSignalBadge(quantScore) + '</div>'
     + '</div>'
-    + '<div style="margin-top:8px;padding:8px;background:#1A233A;border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
-    + '  <span style="font-size:12px;font-weight:800;color:#F1F5F9">KONSENSUS FINAL SISTEM:</span>'
+    + '<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
+    + '  <span style="font-size:12px;font-weight:800;color:var(--text)">KONSENSUS FINAL SISTEM:</span>'
     + '  <span style="font-size:12px;font-weight:800;color:' + (totalScore >= 4 ? '#10B981' : (totalScore >= 2 ? '#60A5FA' : '#EF4444')) + '">' + (totalScore >= 4 ? '🟢 STRONG BUY CONVICTION' : (totalScore >= 2 ? '🟡 ACCUMULATE ON WEAKNESS' : '🔴 WAIT & SEE / AVOID')) + '</span>'
     + '</div>';
 }
@@ -895,9 +895,9 @@ function techRenderMainChart(ticker) {
   var chgPct = (chg / prevPrice * 100);
 
   container.innerHTML = ''
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#1A233A;border-bottom:1px solid #232F4D;border-radius:10px 10px 0 0;flex-wrap:wrap;gap:8px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;flex-wrap:wrap;gap:8px">'
     + '  <div style="display:flex;align-items:center;gap:10px">'
-    + '    <span style="font-size:16px;font-weight:800;color:#F1F5F9;font-family:JetBrains Mono,monospace">' + ticker + '</span>'
+    + '    <span style="font-size:16px;font-weight:800;color:var(--text);font-family:JetBrains Mono,monospace">' + ticker + '</span>'
     + '    <span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:JetBrains Mono,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
     + '    <span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
     + '  </div>'
@@ -905,7 +905,7 @@ function techRenderMainChart(ticker) {
     + '    <button class="btn btn-ghost btn-xs" style="border-color:#8B5CF6;color:#8B5CF6" onclick="techToggleChartMode(\'tv\')"><i class="ti ti-external-link"></i> Buka TradingView Pro</button>'
     + '  </div>'
     + '</div>'
-    + '<div style="position:relative;height:380px;background:#131B2E;padding:10px;border-radius:0 0 10px 10px">'
+    + '<div style="position:relative;height:380px;background:var(--bg2);padding:10px;border-radius:0 0 10px 10px">'
     + '  <canvas id="techNativeChartCanvas"></canvas>'
     + '</div>';
 
@@ -969,7 +969,7 @@ function techToggleChartMode(mode) {
 function techLoadTradingViewWidget(ticker, container) {
   var tvTicker = techFormatTV(ticker);
   container.innerHTML = ''
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#1A233A;border-bottom:1px solid #232F4D;border-radius:10px 10px 0 0">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0">'
     + '  <span style="font-size:12px;font-weight:700;color:#8B5CF6">TradingView Interactive Cloud Chart (' + tvTicker + ')</span>'
     + '  <button class="btn btn-ghost btn-xs" onclick="techToggleChartMode(\'native\')">⚡ Switch to Native Fast Chart</button>'
     + '</div>'
@@ -1053,11 +1053,11 @@ function techRunFlowScanTab(ticker) {
     probEl.innerHTML = ''
       + '<div style="background:' + probColor + ';border:1px solid ' + probBorder + '44;border-left:4px solid ' + probBorder + ';border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
       + '  <div>'
-      + '    <div style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:2px">Bandarmologi Intelligence Summary — ' + tk + ' (' + days + ' Hari)</div>'
-      + '    <div style="font-size:12px;color:#CBD5E1;line-height:1.5">' + probText + '</div>'
+      + '    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">Bandarmologi Intelligence Summary — ' + tk + ' (' + days + ' Hari)</div>'
+      + '    <div style="font-size:12px;color:var(--text2);line-height:1.5">' + probText + '</div>'
       + '  </div>'
       + '  <div style="text-align:right">'
-      + '    <div style="font-size:10px;color:#94A3B8">PROBABILITAS ARAH</div>'
+      + '    <div style="font-size:10px;color:var(--text3)">PROBABILITAS ARAH</div>'
       + '    <div style="font-size:16px;font-weight:800;color:' + probBorder + '">' + (a.sc >= 58 ? 'BULLISH (UP) ' + a.sc + '%' : a.sc <= 42 ? 'BEARISH (DOWN) ' + (100 - a.sc) + '%' : 'SIDEWAYS 50%') + '</div>'
       + '  </div>'
       + '</div>';
@@ -1162,10 +1162,10 @@ function techRunFlowScanTab(ticker) {
     ];
 
     indGrid.innerHTML = indItems.map(function(item) {
-      return '<div style="background:#131B2E;border:1px solid #232F4D;border-radius:8px;padding:12px">'
-        + '  <div style="font-size:11px;color:#94A3B8;margin-bottom:4px">' + item.name + '</div>'
+      return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
+        + '  <div style="font-size:11px;color:var(--text3);margin-bottom:4px">' + item.name + '</div>'
         + '  <div style="font-size:16px;font-weight:700;color:' + (item.pass ? '#10B981' : '#EF4444') + ';font-family:JetBrains Mono,monospace;margin-bottom:4px">' + item.val + '</div>'
-        + '  <div style="font-size:11px;color:#CBD5E1">' + item.desc + '</div>'
+        + '  <div style="font-size:11px;color:var(--text2)">' + item.desc + '</div>'
         + '</div>';
     }).join('');
   }
@@ -1200,20 +1200,20 @@ function techRenderGaugesTab(ticker) {
   container.innerHTML = ''
     + '<div style="padding:16px">'
     + '  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px">'
-    + '    <div style="background:#1A233A;border:1px solid #232F4D;border-radius:8px;padding:12px;text-align:center">'
-    + '      <div style="font-size:11px;color:#94A3B8">SINYAL BELI (BUY)</div>'
+    + '    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">'
+    + '      <div style="font-size:11px;color:var(--text3)">SINYAL BELI (BUY)</div>'
     + '      <div style="font-size:24px;font-weight:800;color:#10B981">' + buyCount + '</div>'
     + '    </div>'
-    + '    <div style="background:#1A233A;border:1px solid #232F4D;border-radius:8px;padding:12px;text-align:center">'
-    + '      <div style="font-size:11px;color:#94A3B8">SINYAL NETRAL (HOLD)</div>'
+    + '    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">'
+    + '      <div style="font-size:11px;color:var(--text3)">SINYAL NETRAL (HOLD)</div>'
     + '      <div style="font-size:24px;font-weight:800;color:#60A5FA">' + neutralCount + '</div>'
     + '    </div>'
-    + '    <div style="background:#1A233A;border:1px solid #232F4D;border-radius:8px;padding:12px;text-align:center">'
-    + '      <div style="font-size:11px;color:#94A3B8">SINYAL JUAL (SELL)</div>'
+    + '    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">'
+    + '      <div style="font-size:11px;color:var(--text3)">SINYAL JUAL (SELL)</div>'
     + '      <div style="font-size:24px;font-weight:800;color:#EF4444">' + sellCount + '</div>'
     + '    </div>'
-    + '    <div style="background:#1A233A;border:1px solid #232F4D;border-radius:8px;padding:12px;text-align:center">'
-    + '      <div style="font-size:11px;color:#94A3B8">RINGKASAN TEKNIKAL</div>'
+    + '    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">'
+    + '      <div style="font-size:11px;color:var(--text3)">RINGKASAN TEKNIKAL</div>'
     + '      <div style="font-size:15px;font-weight:800;color:' + (buyCount >= 8 ? '#10B981' : '#60A5FA') + ';margin-top:4px">' + (buyCount >= 8 ? 'STRONG BUY' : 'ACCUMULATE') + '</div>'
     + '    </div>'
     + '  </div>'
@@ -1223,7 +1223,7 @@ function techRenderGaugesTab(ticker) {
     + '      <tbody>'
     + indicators.map(function(item) {
         return '<tr>'
-          + '<td style="font-weight:600;color:#F1F5F9">' + item.name + '</td>'
+          + '<td style="font-weight:600;color:var(--text)">' + item.name + '</td>'
           + '<td class="mono">' + item.val + '</td>'
           + '<td><span class="badge" style="background:' + item.color + '22;color:' + item.color + ';border:1px solid ' + item.color + '44">' + item.action + '</span></td>'
           + '</tr>';
@@ -1252,17 +1252,17 @@ function techRenderCandleTab(ticker) {
     + '<div class="metric"><div class="mlabel">Volume Spike</div><div class="mval amb">1.65×</div><div class="msub neu">di atas rata-rata</div></div>';
 
   psyco.innerHTML = ''
-    + '<div style="background:#131B2E;border:1px solid #232F4D;border-radius:8px;padding:12px">'
-    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:#94A3B8">3 Hari Lalu</span><span class="badge b-up">BUYER CONTROL</span></div>'
-    + '  <div style="font-size:11px;color:#CBD5E1">Bullish body solid menutup di dekat High harian dengan partisipasi volume kuat.</div>'
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
+    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:var(--text3)">3 Hari Lalu</span><span class="badge b-up">BUYER CONTROL</span></div>'
+    + '  <div style="font-size:11px;color:var(--text2)">Bullish body solid menutup di dekat High harian dengan partisipasi volume kuat.</div>'
     + '</div>'
-    + '<div style="background:#131B2E;border:1px solid #232F4D;border-radius:8px;padding:12px">'
-    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:#94A3B8">Kemarin</span><span class="badge b-neu">DEFENSIVE BUY</span></div>'
-    + '  <div style="font-size:11px;color:#CBD5E1">Lower shadow panjang menandakan penolakan harga murah di area support dinamis.</div>'
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
+    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:var(--text3)">Kemarin</span><span class="badge b-neu">DEFENSIVE BUY</span></div>'
+    + '  <div style="font-size:11px;color:var(--text2)">Lower shadow panjang menandakan penolakan harga murah di area support dinamis.</div>'
     + '</div>'
-    + '<div style="background:#131B2E;border:1px solid #232F4D;border-radius:8px;padding:12px">'
-    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:#94A3B8">Hari Ini</span><span class="badge b-up">ACCUMULATION</span></div>'
-    + '  <div style="font-size:11px;color:#CBD5E1">Tekanan beli mendominasi, harga berkonsolidasi di atas Pivot Point mingguan.</div>'
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
+    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:var(--text3)">Hari Ini</span><span class="badge b-up">ACCUMULATION</span></div>'
+    + '  <div style="font-size:11px;color:var(--text2)">Tekanan beli mendominasi, harga berkonsolidasi di atas Pivot Point mingguan.</div>'
     + '</div>';
 }
 
@@ -1308,12 +1308,12 @@ function techRenderPivotsTab(ticker) {
   rrPlanner.innerHTML = ''
     + '<div style="display:flex;flex-direction:column;gap:10px">'
     + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-    + '    <div style="background:#131B2E;padding:10px;border-radius:6px"><div style="font-size:10px;color:#94A3B8">Entry Price</div><div class="mono" style="font-size:15px;font-weight:700;color:#F1F5F9">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</div></div>'
-    + '    <div style="background:#131B2E;padding:10px;border-radius:6px"><div style="font-size:10px;color:#94A3B8">Stop Loss (S1)</div><div class="mono" style="font-size:15px;font-weight:700;color:#EF4444">Rp ' + Number(sl).toLocaleString('id-ID') + ' (-' + ((curPrice - sl) / curPrice * 100).toFixed(1) + '%)</div></div>'
-    + '    <div style="background:#131B2E;padding:10px;border-radius:6px"><div style="font-size:10px;color:#94A3B8">Target Profit (R1)</div><div class="mono" style="font-size:15px;font-weight:700;color:#10B981">Rp ' + Number(tp).toLocaleString('id-ID') + ' (+' + ((tp - curPrice) / curPrice * 100).toFixed(1) + '%)</div></div>'
-    + '    <div style="background:#131B2E;padding:10px;border-radius:6px"><div style="font-size:10px;color:#94A3B8">Risk to Reward Ratio</div><div class="mono" style="font-size:15px;font-weight:700;color:#60A5FA">1 : ' + rr + '</div></div>'
+    + '    <div style="background:var(--bg2);padding:10px;border-radius:6px"><div style="font-size:10px;color:var(--text3)">Entry Price</div><div class="mono" style="font-size:15px;font-weight:700;color:var(--text)">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</div></div>'
+    + '    <div style="background:var(--bg2);padding:10px;border-radius:6px"><div style="font-size:10px;color:var(--text3)">Stop Loss (S1)</div><div class="mono" style="font-size:15px;font-weight:700;color:#EF4444">Rp ' + Number(sl).toLocaleString('id-ID') + ' (-' + ((curPrice - sl) / curPrice * 100).toFixed(1) + '%)</div></div>'
+    + '    <div style="background:var(--bg2);padding:10px;border-radius:6px"><div style="font-size:10px;color:var(--text3)">Target Profit (R1)</div><div class="mono" style="font-size:15px;font-weight:700;color:#10B981">Rp ' + Number(tp).toLocaleString('id-ID') + ' (+' + ((tp - curPrice) / curPrice * 100).toFixed(1) + '%)</div></div>'
+    + '    <div style="background:var(--bg2);padding:10px;border-radius:6px"><div style="font-size:10px;color:var(--text3)">Risk to Reward Ratio</div><div class="mono" style="font-size:15px;font-weight:700;color:#60A5FA">1 : ' + rr + '</div></div>'
     + '  </div>'
-    + '  <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);padding:10px;border-radius:6px;font-size:11px;color:#CBD5E1">'
+    + '  <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);padding:10px;border-radius:6px;font-size:11px;color:var(--text2)">'
     + '    💡 <b>Money Management Rule:</b> Batasi risiko maksimal 1-2% dari total ekuitas RDN per transaksi. Pada rasio 1:' + rr + ', skenario trading memiliki ekspektasi matematis positif.'
     + '  </div>'
     + '</div>';
@@ -1349,9 +1349,9 @@ function techRenderLq45Heatmap() {
     var bg = item.chg > 2 ? 'rgba(16, 185, 129, 0.35)' : item.chg > 0 ? 'rgba(16, 185, 129, 0.18)' : item.chg < -2 ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.18)';
     var color = item.chg >= 0 ? '#10B981' : '#EF4444';
     return '<div onclick="techSetTicker(\'' + item.code + '\')" style="background:' + bg + ';border:1px solid ' + (item.chg >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') + ';border-radius:6px;padding:8px;text-align:center;cursor:pointer;transition:transform 0.15s" onmouseover="this.style.transform=\'scale(1.04)\'" onmouseout="this.style.transform=\'scale(1)\'">'
-      + '<div style="font-weight:800;font-size:12px;color:#F1F5F9">' + item.code + '</div>'
+      + '<div style="font-weight:800;font-size:12px;color:var(--text)">' + item.code + '</div>'
       + '<div style="font-size:11px;font-weight:700;font-family:JetBrains Mono,monospace;color:' + color + '">' + (item.chg >= 0 ? '+' : '') + item.chg.toFixed(2) + '%</div>'
-      + '<div style="font-size:9px;color:#94A3B8;margin-top:2px">RSI ' + item.rsi + ' · ' + item.flow + '</div>'
+      + '<div style="font-size:9px;color:var(--text3);margin-top:2px">RSI ' + item.rsi + ' · ' + item.flow + '</div>'
       + '</div>';
   }).join('');
 }
