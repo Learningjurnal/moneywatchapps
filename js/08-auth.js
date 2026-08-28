@@ -108,6 +108,7 @@ function authDoLogin(){
       isDirect: true
     };
     try {
+      localStorage.removeItem('mw_explicit_logout');
       sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
       localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
     } catch(e){}
@@ -131,6 +132,7 @@ function authDoLogin(){
       _currentUser = userCredential.user;
       var sessData = { uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName };
       try {
+        localStorage.removeItem('mw_explicit_logout');
         sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
         localStorage.setItem('mw_session_user', JSON.stringify(sessData));
       } catch(e){}
@@ -294,11 +296,16 @@ function authDoReset(){
 // ── Logout ──
 function authLogout(){
   if(!confirm('Yakin ingin logout?')) return;
+  // Pastikan seluruh data terakhir (termasuk setoran kas / transaksi baru) tersimpan aman ke cloud & lokal sebelum session ditutup
+  if(typeof saveData === 'function'){
+    try { saveData(); } catch(e){}
+  }
   function _doLogoutUI(){
     _currentUser=null;
     try {
       sessionStorage.removeItem('mw_session_user');
       localStorage.removeItem('mw_session_user');
+      localStorage.setItem('mw_explicit_logout', '1');
     } catch(e){}
     if(AUTH._sesTimer){ clearInterval(AUTH._sesTimer); AUTH._sesTimer=null; }
     if(AUTH._barTimer){ clearInterval(AUTH._barTimer); AUTH._barTimer=null; }

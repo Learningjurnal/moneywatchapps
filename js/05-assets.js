@@ -1865,3 +1865,116 @@ function calcReconciliationLive(){
     '</div>';
 }
 
+function renderPortfolioHub(){
+  var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
+  var sahamMv = porto.reduce(function(a,p){ return a + (p.mv || 0); }, 0);
+  var sahamCost = porto.reduce(function(a,p){ return a + (p.cost || 0); }, 0);
+  var sahamPnl = sahamMv - sahamCost;
+  var sahamPct = sahamCost > 0 ? (sahamPnl / sahamCost) * 100 : 0;
+
+  var cryptoPorto = typeof getCryptoPortfolio === 'function' ? getCryptoPortfolio() : [];
+  var cryptoMv = cryptoPorto.reduce(function(a,p){ return a + (p.mv || 0); }, 0);
+  var cryptoCost = cryptoPorto.reduce(function(a,p){ return a + (p.cost || 0); }, 0);
+  var cryptoPnl = cryptoMv - cryptoCost;
+  var cryptoPct = cryptoCost > 0 ? (cryptoPnl / cryptoCost) * 100 : 0;
+
+  var etfPorto = typeof getEtfPortfolio === 'function' ? getEtfPortfolio() : [];
+  var etfMv = etfPorto.reduce(function(a,p){ return a + (p.mvIdr || 0); }, 0);
+  var etfCost = etfPorto.reduce(function(a,p){ return a + (p.costIdr || 0); }, 0);
+  var etfPnl = etfMv - etfCost;
+  var etfPct = etfCost > 0 ? (etfPnl / etfCost) * 100 : 0;
+
+  var rdPorto = typeof getRdPortfolio === 'function' ? getRdPortfolio() : [];
+  var rdVal = rdPorto.reduce(function(a,p){ return a + (p.val || 0); }, 0);
+  var rdCost = rdPorto.reduce(function(a,p){ return a + (p.cost || 0); }, 0);
+  var rdPnl = rdVal - rdCost;
+
+  if(el('hub-saham-count')) el('hub-saham-count').textContent = porto.length + ' Emiten aktif';
+  if(el('hub-saham-val')) el('hub-saham-val').textContent = 'Rp ' + fmt(Math.round(sahamMv));
+  if(el('hub-saham-pnl')) {
+    el('hub-saham-pnl').textContent = 'Rp ' + (sahamPnl >= 0 ? '+' : '') + fmt(Math.round(sahamPnl)) + ' (' + (sahamPct >= 0 ? '+' : '') + sahamPct.toFixed(2) + '%)';
+    el('hub-saham-pnl').style.color = sahamPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  if(el('hub-crypto-count')) el('hub-crypto-count').textContent = cryptoPorto.length + ' Koin aktif';
+  if(el('hub-crypto-val')) el('hub-crypto-val').textContent = 'Rp ' + fmt(Math.round(cryptoMv));
+  if(el('hub-crypto-pnl')) {
+    el('hub-crypto-pnl').textContent = 'Rp ' + (cryptoPnl >= 0 ? '+' : '') + fmt(Math.round(cryptoPnl)) + ' (' + (cryptoPct >= 0 ? '+' : '') + cryptoPct.toFixed(2) + '%)';
+    el('hub-crypto-pnl').style.color = cryptoPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  if(el('hub-etf-count')) el('hub-etf-count').textContent = etfPorto.length + ' ETF aktif';
+  if(el('hub-etf-val')) el('hub-etf-val').textContent = 'Rp ' + fmt(Math.round(etfMv));
+  if(el('hub-etf-pnl')) {
+    el('hub-etf-pnl').textContent = 'Rp ' + (etfPnl >= 0 ? '+' : '') + fmt(Math.round(etfPnl)) + ' (' + (etfPct >= 0 ? '+' : '') + etfPct.toFixed(2) + '%)';
+    el('hub-etf-pnl').style.color = etfPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  if(el('hub-rd-count')) el('hub-rd-count').textContent = rdPorto.length + ' Produk tercatat';
+  if(el('hub-rd-val')) el('hub-rd-val').textContent = 'Rp ' + fmt(Math.round(rdVal));
+  if(el('hub-rd-pnl')) {
+    el('hub-rd-pnl').textContent = 'Rp ' + (rdPnl >= 0 ? '+' : '') + fmt(Math.round(rdPnl));
+    el('hub-rd-pnl').style.color = rdPnl >= 0 ? 'var(--green)' : 'var(--text)';
+  }
+
+  var totVal = sahamMv + cryptoMv + etfMv + rdVal;
+  var totCost = sahamCost + cryptoCost + etfCost + rdCost;
+  var totPnl = totVal - totCost;
+  var totPct = totCost > 0 ? (totPnl / totCost) * 100 : 0;
+  var totCash = (typeof calcRdnBalance === 'function' ? (calcRdnBalance('saham') + calcRdnBalance('crypto') + calcRdnBalance('reksadana')) : 0);
+
+  
+  if(el('hub-tot-val')) el('hub-tot-val').textContent = 'Rp ' + fmt(Math.round(totVal));
+  if(el('hub-tot-cost')) el('hub-tot-cost').textContent = 'Rp ' + fmt(Math.round(totCost));
+  
+  if(el('hub-tot-pnl')) {
+    el('hub-tot-pnl').textContent = 'Rp ' + fmt(Math.abs(Math.round(totPnl))) + ' (' + Math.abs(totPct).toFixed(2) + '%)';
+    if(el('hub-tot-pnl-icon')) {
+       el('hub-tot-pnl-icon').textContent = totPnl >= 0 ? '▲' : '▼';
+    }
+    if(el('hub-tot-pnl-pill')) {
+       el('hub-tot-pnl-pill').style.color = totPnl >= 0 ? '#10B981' : '#EF4444';
+       el('hub-tot-pnl-pill').style.background = totPnl >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+       el('hub-tot-pnl-pill').style.borderColor = totPnl >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+       el('hub-tot-pnl-pill').style.boxShadow = totPnl >= 0 ? '0 0 15px rgba(16, 185, 129, 0.2)' : '0 0 15px rgba(239, 68, 68, 0.2)';
+    }
+  }
+
+  // Update Donut
+  var donut = el('hub-donut');
+  if(donut && totVal > 0) {
+      var pSaham = (sahamMv / totVal) * 100;
+      var pCrypto = (cryptoMv / totVal) * 100;
+      var pEtf = (etfMv / totVal) * 100;
+      var pRd = (rdVal / totVal) * 100;
+      
+      var c1 = pSaham;
+      var c2 = c1 + pCrypto;
+      var c3 = c2 + pEtf;
+      var c4 = 100;
+      
+      donut.style.background = 'conic-gradient(#3B82F6 0% ' + c1 + '%, #10B981 ' + c1 + '% ' + c2 + '%, #EF4444 ' + c2 + '% ' + c3 + '%, #8B5CF6 ' + c3 + '% 100%)';
+  } else if (donut) {
+      donut.style.background = 'conic-gradient(#3B82F6 0% 0%)';
+  }
+var barsEl = el('hub-alloc-bars');
+  if(barsEl){
+    var items = [
+      {label: 'Saham Indonesia', val: sahamMv, color: '#10b981'},
+      {label: 'Crypto Assets', val: cryptoMv, color: '#f7931a'},
+      {label: 'ETF US & Global', val: etfMv, color: '#00c8ff'},
+      {label: 'Reksa Dana & SBN', val: rdVal, color: '#8070d2'}
+    ];
+    barsEl.innerHTML = items.map(function(it){
+      var pct = totVal > 0 ? (it.val / totVal * 100) : 0;
+      return '<div style="display:flex;flex-direction:column;gap:3px">'
+        +'<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text);font-weight:600">'+it.label+'</span><span class="mono" style="color:var(--text2)">Rp '+fmt(Math.round(it.val))+' ('+pct.toFixed(1)+'%)</span></div>'
+        +'<div style="width:100%;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">'
+        +'<div style="width:'+pct.toFixed(1)+'%;height:100%;background:'+it.color+';border-radius:3px"></div>'
+        +'</div>'
+        +'</div>';
+    }).join('');
+  }
+}
+window.renderPortfolioHub = renderPortfolioHub;
+

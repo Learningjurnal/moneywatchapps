@@ -168,11 +168,14 @@ function getPortfolio(){
 
 // ── Riwayat Ekuitas Harian (AUM) — satu snapshot per hari, disimpan lokal & cloud ──
 function computeCurrentAUM(){
-  var porto=getPortfolio(), cryptoPorto=getCryptoPortfolio(), etfPorto=getEtfPortfolio(), rdPorto=getRdPortfolio();
-  var sahamMV=porto.reduce(function(a,p){return a+p.mv},0);
-  var crMV=cryptoPorto.reduce(function(a,p){return a+p.mv},0);
-  var etfMV=etfPorto.reduce(function(a,p){return a+p.mvIdr},0);
-  var rdMV=rdPorto.reduce(function(a,p){return a+p.mv},0);
+  var porto=(typeof getPortfolio==='function')?getPortfolio():[];
+  var cryptoPorto=(typeof getCryptoPortfolio==='function')?getCryptoPortfolio():[];
+  var etfPorto=(typeof getEtfPortfolio==='function')?getEtfPortfolio():[];
+  var rdPorto=(typeof getRdPortfolio==='function')?getRdPortfolio():[];
+  var sahamMV=porto.reduce(function(a,p){return a+(p.mv||0)},0);
+  var crMV=cryptoPorto.reduce(function(a,p){return a+(p.mv||0)},0);
+  var etfMV=etfPorto.reduce(function(a,p){return a+(p.mvIdr||0)},0);
+  var rdMV=rdPorto.reduce(function(a,p){return a+(p.mv||0)},0);
   var rdn=(typeof calcRdnBalance==='function')?calcRdnBalance():0;
   return (sahamMV||0)+(crMV||0)+(etfMV||0)+(rdMV||0)+(rdn||0);
 }

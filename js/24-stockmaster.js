@@ -817,13 +817,10 @@ function techSwitchTab(idx) {
     techRenderMainChart(ticker);
   } else if (idx === 2) {
     techRunFlowScanTab(ticker);
-  } else if (idx === 3) {
     techRenderGaugesTab(ticker);
-  } else if (idx === 4) {
     techRenderCandleTab(ticker);
-  } else if (idx === 5) {
     techRenderPivotsTab(ticker);
-  } else if (idx === 6) {
+  } else if (idx === 3) {
     techRenderLq45Heatmap();
   }
 }

@@ -633,6 +633,53 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown \
   }
 });
 
+// AI Portfolio Advisor endpoint powered by Gemini 3.7 Flash with Google Search Grounding
+app.post('/api/ai/portfolio-advice', async (req, res) => {
+  const { portfolioSummary, metrics, hfMetrics, ihsg } = req.body || {};
+  const ai = getAiClient();
+  if (!ai) {
+    return res.status(400).json({ success: false, error: 'GEMINI_API_KEY belum dikonfigurasi di server.' });
+  }
+
+  try {
+    const prompt = `Anda adalah seorang hedge fund portfolio manager dan analis saham senior IDX yang sangat tajam, objektif, dan profesional.
+Analisis data portofolio investor Indonesia berikut ini secara mendalam ala tearsheet institusional:
+- Ringkasan AUM & Modal: ${JSON.stringify(portfolioSummary || {})}
+- Metrik Risiko & Portofolio: ${JSON.stringify(metrics || {})}
+- Metrik Hedge Fund & Risiko Tersesuaikan (Sharpe/Sortino/Calmar/MaxDD/HHI): ${JSON.stringify(hfMetrics || {})}
+- Posisi IHSG Terkini: ${ihsg || 'N/A'}
+
+Cari data TERKINI via Google Search grounding untuk sentimen pasar IDX, arah BI rate, kurs USD/IDR, suku bunga The Fed, dan pergerakan komoditas terkait.
+Berikan analisis terstruktur dalam Bahasa Indonesia yang tegas dan berbobot dengan bagian berikut:
+1. **Evaluasi Kinerja & Risiko Tersesuaikan**: Analisis return vs risiko (Sharpe/Sortino) dan performa relatif terhadap IHSG.
+2. **Kondisi Makroekonomi & Sektoral**: Hubungkan sentimen makro terkini (suku bunga, mata uang, komoditas) dengan eksposur emiten utama portofolio.
+3. **Analisis Konsentrasi & Drawdown**: Evaluasi indeks HHI, konsentrasi posisi terbesar, dan potensi risiko penurunan (VaR & Max Drawdown).
+4. **Rekomendasi Rebalancing & Eksekusi Konkret**: Berikan 3-4 rekomendasi tindakan spesifik (misal trim posisi over-weighted, cut-loss disiplin pada saham lagging, atau rebalancing sektor).
+
+Gunakan format markdown yang rapi, tegas, dan profesional. Tutup dengan disclaimer bahwa ini bukan rekomendasi investasi mutlak.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.7-flash',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }]
+      }
+    });
+
+    const text = response.text || '';
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+    return res.json({
+      success: true,
+      analysis: text,
+      grounded: groundingChunks.length > 0
+    });
+  } catch (err) {
+    console.error('Gemini portfolio advice error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Gagal menghasilkan analisis AI.' });
+  }
+});
+
 // In-memory cache for external market data requests (TTL 60s for live quotes, 300s for historical)
 const proxyCache = new Map();
 

@@ -262,7 +262,7 @@ var DB = {
 
 
 // Daftar Saham IDX lengkap â sumber: IDX 20260617
-Object.assign(DB, {
+var _IDX_RAW_LIST = {
   'AALI':{name:'Astra Agro Lestari Tbk.',base:100,sector:'Lainnya',beta:1.0},
   'ABBA':{name:'Mahaka Media Tbk.',base:100,sector:'Lainnya',beta:1.0},
   'ABDA':{name:'Asuransi Bina Dana Arta Tbk.',base:100,sector:'Lainnya',beta:1.0},
@@ -1193,6 +1193,16 @@ Object.assign(DB, {
   'POLY':{name:'Asia Pacific Fibers Tbk',base:100,sector:'Lainnya',beta:1.0},
   'POOL':{name:'Pool Advista Indonesia Tbk.',base:100,sector:'Lainnya',beta:1.0},
   'PPRO':{name:'PP Properti Tbk.',base:100,sector:'Lainnya',beta:1.0},
+};
+
+Object.keys(_IDX_RAW_LIST).forEach(function(k){
+  if(!DB[k]){
+    DB[k] = _IDX_RAW_LIST[k];
+  } else {
+    if(DB[k].base === 100 && _IDX_RAW_LIST[k].base > 100) DB[k].base = _IDX_RAW_LIST[k].base;
+    if((!DB[k].name || DB[k].name === k) && _IDX_RAW_LIST[k].name) DB[k].name = _IDX_RAW_LIST[k].name;
+    if((!DB[k].sector || DB[k].sector === 'Lainnya') && _IDX_RAW_LIST[k].sector && _IDX_RAW_LIST[k].sector !== 'Lainnya') DB[k].sector = _IDX_RAW_LIST[k].sector;
+  }
 });
 var COLORS = ['#ff6600','#00d4aa','#0088ff','#ffbb00','#9b7fe8','#ff4466','#00b4c8','#ff8833','#44cc88','#dd8800','#6688ff','#22dd66'];
 

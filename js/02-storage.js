@@ -1,3 +1,18 @@
+// Global Data Stores
+var transactions = [];
+var rdnMutations = [];
+var dividends = [];
+var cryptoTx = [];
+var etfTx = [];
+var rdTx = [];
+var divInvestData = [];
+var tradeStrategy = {};
+var activeSekuritas = 'Stockbit';
+var rdnBalance = 0;
+var sekTaxOverride = {};
+var nextTxId = 1;
+var nextRdnId = 1;
+
 // Helper bersama: id berikutnya yang AMAN untuk sebuah array {id,...}
 function _maxIdPlus1(arr){ var m=0; (arr||[]).forEach(function(x){ if(x.id>m) m=x.id; }); return m+1; }
 

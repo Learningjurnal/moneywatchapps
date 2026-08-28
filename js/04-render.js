@@ -2,348 +2,7 @@
 // RENDER FUNCTIONS
 // ============================================================
 function renderDashboard(){
-  var porto=getPortfolio();
-  var cryptoPorto=getCryptoPortfolio();
-  var etfPorto=getEtfPortfolio();
-  var rdPorto=getRdPortfolio();
-
-  // ── nilai masing-masing kelas aset ──
-  var sahamMV   = porto.reduce(function(a,p){return a+p.mv},0);
-  var sahamCost = porto.reduce(function(a,p){return a+p.cost},0);
-  var crMV      = cryptoPorto.reduce(function(a,p){return a+p.mv},0);
-  var crCost    = cryptoPorto.reduce(function(a,p){return a+p.cost},0);
-  var etfMV     = etfPorto.reduce(function(a,p){return a+p.mvIdr},0);
-  var etfCost   = etfPorto.reduce(function(a,p){return a+p.costIdr},0);
-  var rdMV      = rdPorto.reduce(function(a,p){return a+p.mv},0);
-  var rdCost    = rdPorto.reduce(function(a,p){return a+p.cost},0);
-  // Reksa dana: semua sudah dicairkan. Tampilkan gain kumulatif historis jika tidak ada posisi aktif
-  var rdGainHistoris = 0; // data injeksi historis dihapus — mulai kosong
-  var rdDisplayVal   = rdMV > 0 ? rdMV : 0; // nilai aktif = 0 karena semua dicairkan
-  var rdn       = calcRdnBalance();
-
-  // FIX AUDIT F5: sebelumnya RDN negatif dibulatkan ke 0 (Math.max(0,rdn)) saat
-  // dijumlah ke AUM — artinya kalau user membeli saham melebihi kas tercatat
-  // (RDN minus, kondisi yang sengaja DIPERTAHANKAN sebagai valid oleh app ini),
-  // liabilitas itu hilang dari total, membuat AUM tampak lebih besar dari
-  // kondisi sebenarnya. Sekarang RDN mentah (boleh negatif) ikut dijumlah —
-  // liabilitas kas ikut mengurangi AUM, bukan disembunyikan.
-  var investMV  = (sahamMV||0) + (crMV||0) + (etfMV||0) + (rdMV||0);
-  var AUM = investMV + (rdn||0);
-  var totalCost = (sahamCost||0) + (crCost||0) + (etfCost||0) + (rdCost||0);
-  var totalUnreal = investMV - totalCost; // P&L investasi murni, tidak tercampur kas RDN
-  var real = getRealizedPnl();
-  var yr = new Date().getFullYear();
-  var divYTD = dividends.filter(function(d){return new Date(d.date).getFullYear()===yr}).reduce(function(a,d){return a+d.net},0);
-  var divCnt = dividends.filter(function(d){return new Date(d.date).getFullYear()===yr}).length;
-  var aumPct = totalCost>0 ? (totalUnreal/totalCost*100).toFixed(2) : '0.00';
-
-  // bobot (% dari AUM)
-  var AUMsafe = AUM||1;
-  var wSaham  = (sahamMV/AUMsafe*100);
-  var wCrypto = (crMV/AUMsafe*100);
-  var wEtf    = (etfMV/AUMsafe*100);
-  var wRd     = (rdMV/AUMsafe*100);
-  var wKas    = (Math.max(0,rdn)/AUMsafe*100);
-
-  // ── Hero AUM ──
-  el('d-aum').textContent = 'Rp '+fmtK(AUM);
-  el('d-aum-sub').innerHTML =
-    '<span class="'+(totalUnreal>=0?'up':'dn')+'" style="font-family:var(--font-mono);font-size:11px">'+(totalUnreal>=0?'▲ +':'▼ ')+'Rp '+fmtK(totalUnreal)+' ('+aumPct+'%)</span>'+
-    '<span style="color:var(--text3);font-size:10px;font-family:var(--font-mono);margin-left:8px">dari total modal Rp '+fmtK(totalCost)+'</span>';
-  el('d-aum-badges').innerHTML =
-    '<span class="badge b-up">'+porto.length+' Saham</span>'+
-    '<span class="badge" style="background:rgba(247,147,26,.12);color:#f7931a">'+cryptoPorto.length+' Crypto</span>'+
-    '<span class="badge b-neu">'+etfPorto.length+' ETF</span>'+
-    '<span class="badge b-pur">'+rdPorto.length+' RD</span>';
-
-  // ── P&L cards ──
-  el('d-unreal').className='mval '+(totalUnreal>=0?'up':'dn');
-  el('d-unreal').textContent=(totalUnreal>=0?'+':'')+'Rp '+fmtK(totalUnreal);
-  el('d-unreal-sub').innerHTML='<span class="'+(totalUnreal>=0?'up':'dn')+'">'+aumPct+'% return</span>';
-  el('d-real').className='mval '+(real>=0?'up':'dn');
-  el('d-real').textContent=(real>=0?'+':'')+'Rp '+fmtK(real);
-  el('d-rdn').textContent=(rdn<0?'-':'')+'Rp '+fmtK(Math.abs(rdn));
-  el('d-rdn').className='mval '+(rdn<0?'dn':'');
-  if(el('d-rdn-sub')) el('d-rdn-sub').innerHTML = rdn<0
-    ? '<span class="dn">⚠ RDN minus — liabilitas, sudah dikurangkan dari AUM</span>' : 'dana kas tersedia';
-
-  // ── 4 Asset Cards ──
-  // Saham
-  el('d-porto').textContent='Rp '+fmtK(sahamMV);
-  el('d-porto-bobot').textContent=wSaham.toFixed(1)+'%';
-  el('d-porto-bar').style.width=Math.min(wSaham,100)+'%';
-  var sahamPnl=sahamMV-sahamCost;
-  el('d-porto-sub').innerHTML='<span class="'+(sahamPnl>=0?'up':'dn')+'">'+(sahamPnl>=0?'+':'')+'Rp '+fmtK(sahamPnl)+'</span>';
-  el('d-porto-cnt').textContent=porto.length+' saham';
-  // Crypto
-  el('d-crypto').textContent='Rp '+fmtK(crMV);
-  el('d-crypto-bobot').textContent=wCrypto.toFixed(1)+'%';
-  el('d-crypto-bar').style.width=Math.min(wCrypto,100)+'%';
-  var crPnl=crMV-crCost;
-  el('d-crypto-sub').innerHTML='<span class="'+(crPnl>=0?'up':'dn')+'">'+(crPnl>=0?'+':'')+'Rp '+fmtK(crPnl)+'</span>';
-  el('d-crypto-cnt').textContent=cryptoPorto.length+' aset';
-  // ETF
-  el('d-etf').textContent='Rp '+fmtK(etfMV);
-  el('d-etf-bobot').textContent=wEtf.toFixed(1)+'%';
-  el('d-etf-bar').style.width=Math.min(wEtf,100)+'%';
-  var etfPnl=etfMV-etfCost;
-  el('d-etf-sub').innerHTML='<span class="'+(etfPnl>=0?'up':'dn')+'">'+(etfPnl>=0?'+':'')+'Rp '+fmtK(etfPnl)+'</span>';
-  el('d-etf-cnt').textContent=etfPorto.length+' ETF';
-  // Reksa Dana — nilai aktif dari user transactions saja
-  var rdAktif = rdPorto.length > 0;
-  el('d-rd').textContent = rdAktif ? 'Rp '+fmtK(rdMV) : 'Rp 0';
-  el('d-rd').style.color = rdAktif ? 'var(--purple)' : 'var(--text3)';
-  el('d-rd-bobot').textContent = wRd.toFixed(1)+'%';
-  el('d-rd-bar').style.width = Math.min(wRd,100)+'%';
-  el('d-rd-sub').innerHTML = rdAktif
-    ? '<span class="'+(rdMV-rdCost>=0?'up':'dn')+'">'+(rdMV-rdCost>=0?'+':'')+'Rp '+fmtK(rdMV-rdCost)+'</span>'
-    : '<span style="font-size:10px;color:var(--text3)">Tidak ada posisi aktif</span>';
-  el('d-rd-cnt').textContent = rdAktif ? rdPorto.length+' produk aktif' : 'klik untuk lihat riwayat';
-
-  // ── AUM Donut ──
-  kc('aumD');
-  var cvAum=el('aumDonut');
-  if(cvAum){
-    charts['aumD']=new Chart(cvAum,{
-      type:'doughnut',
-      data:{
-        labels:['Saham IDX','Crypto','ETF AS','Reksa Dana','Kas RDN'],
-        datasets:[{
-          data:[sahamMV,crMV,etfMV,rdMV,Math.max(0,rdn)],
-          backgroundColor:['#41f3a7','#f7931a','#00c8ff','#8070d2','#ffc107'],
-          borderWidth:0,hoverOffset:5
-        }]
-      },
-      options:{
-        responsive:true,maintainAspectRatio:false,cutout:'62%',
-        plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{
-          label:function(c){
-            var pct=(c.parsed/AUMsafe*100).toFixed(1);
-            return c.label+': Rp '+fmtK(c.parsed)+' ('+pct+'%)';
-          }
-        }})}
-      }
-    });
-  }
-  // Legend AUM
-  var aumItems=[
-    {label:'Saham IDX', val:sahamMV, pct:wSaham,  color:'#41f3a7'},
-    {label:'Crypto',    val:crMV,    pct:wCrypto,  color:'#f7931a'},
-    {label:'ETF AS',    val:etfMV,   pct:wEtf,     color:'#00c8ff'},
-    {label:'Reksa Dana',val:rdMV,    pct:wRd,      color:'#8070d2'},
-    {label:'Kas RDN',   val:Math.max(0,rdn), pct:wKas, color:'#ffc107'},
-  ];
-  el('aum-leg').innerHTML=aumItems.map(function(it){
-    return '<div style="display:flex;align-items:center;gap:6px">'+
-      '<div style="width:7px;height:7px;border-radius:2px;background:'+it.color+';flex-shrink:0"></div>'+
-      '<span style="font-size:10px;color:var(--text2);flex:1">'+it.label+'</span>'+
-      '<span style="font-family:var(--font-mono);font-size:10px;font-weight:600;color:'+it.color+'">'+it.pct.toFixed(1)+'%</span>'+
-      '<span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);min-width:60px;text-align:right">'+fmtK(it.val)+'</span>'+
-    '</div>';
-  }).join('');
-  el('d-aum-total-badge').textContent='Rp '+fmtK(AUM);
-
-  // ── IHSG + Movers ──
-  // FIX: sebelumnya pakai DB[t].base — crash (t tidak lagi ada di DB setelah
-  // reset universe via import Excel) dan tidak akurat (base beku, bukan harga
-  // penutupan kemarin). Sekarang pakai previousClose riil dari Yahoo Finance;
-  // ticker yang belum sempat fetch (belum ada prevClose) otomatis dilewati
-  // alih-alih menampilkan angka fiktif atau membuat halaman error.
-  var movers=Object.keys(prices).filter(function(t){ return typeof prevCloses!=='undefined' && prevCloses[t]>0; })
-    .map(function(t){ var p=prices[t], pc=prevCloses[t]; return {t:t,p:p,c:((p-pc)/pc*100)}; })
-    .sort(function(a,b){return b.c-a.c});
-  el('gainers').innerHTML=movers.slice(0,3).map(function(m){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)">'+
-      '<div style="display:flex;align-items:center;gap:6px">'+getStockLogoHtml(m.t,18)+'<span class="tp">'+m.t+'</span></div>'+
-      '<span class="mono" style="font-size:10px;color:var(--text2)">'+fmt(m.p)+'</span>'+
-      '<span class="badge b-up">+'+m.c.toFixed(2)+'%</span></div>';
-  }).join('');
-  el('losers').innerHTML=movers.slice(-3).reverse().map(function(m){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)">'+
-      '<div style="display:flex;align-items:center;gap:6px">'+getStockLogoHtml(m.t,18)+'<span class="tp">'+m.t+'</span></div>'+
-      '<span class="mono" style="font-size:10px;color:var(--text2)">'+fmt(m.p)+'</span>'+
-      '<span class="badge b-dn">'+m.c.toFixed(2)+'%</span></div>';
-  }).join('');
-
-  // ── Tabel ringkasan semua aset ──
-  var allRows=[];
-  porto.forEach(function(p){
-    allRows.push({name:p.ticker,desc:p.info.name,kelas:'Saham IDX',lot:p.lot||0,mv:p.mv,cost:p.cost,pnl:p.unreal,ret:p.ret,color:'#41f3a7'});
-  });
-  cryptoPorto.forEach(function(p){
-    allRows.push({name:p.coin,desc:p.info.name,kelas:'Crypto',lot:p.qty||0,mv:p.mv,cost:p.cost,pnl:p.unreal,ret:p.ret,color:'#f7931a'});
-  });
-  etfPorto.forEach(function(p){
-    allRows.push({name:p.ticker,desc:p.info.name,kelas:'ETF AS',lot:p.qty||0,mv:p.mvIdr,cost:p.costIdr,pnl:p.unrIdr,ret:p.ret,color:'#00c8ff'});
-  });
-  rdPorto.forEach(function(p){
-    allRows.push({name:p.code,desc:p.info.name,kelas:'Reksa Dana',lot:0,mv:p.mv,cost:p.cost,pnl:p.unreal,ret:p.ret,color:'#8070d2'});
-  });
-  // apply sort
-  (function(){
-    var sk=_assetSort.key, asc=_assetSort.asc;
-    if(sk==='name') allRows.sort(function(a,b){return asc?a.name.localeCompare(b.name):b.name.localeCompare(a.name);});
-    else if(sk==='lot') allRows.sort(function(a,b){return asc?a.lot-b.lot:b.lot-a.lot;});
-    else if(sk==='pnl') allRows.sort(function(a,b){return asc?a.pnl-b.pnl:b.pnl-a.pnl;});
-    else if(sk==='ret') allRows.sort(function(a,b){return asc?a.ret-b.ret:b.ret-a.ret;});
-    else allRows.sort(function(a,b){return asc?a.mv-b.mv:b.mv-a.mv;});
-    ['name','lot','mv','pnl','ret'].forEach(function(k){
-      var ico=el('sort-ico-'+k);
-      if(ico) ico.textContent=k===sk?(asc?'↑':'↓'):'↕';
-    });
-  })();
-  el('d-total-items').textContent=allRows.length+' instrumen aktif'+(rdGainHistoris>0?' · Gain RD historis: +Rp '+fmtK(rdGainHistoris):'');
-  el('d-asset-tbody').innerHTML=allRows.map(function(r){
-    var bobot=(r.mv/AUMsafe*100);
-    var lotDisp=r.kelas==='Saham IDX'?r.lot+(r.lot?'':'—'):
-                r.kelas==='Crypto'?(+r.lot).toFixed(4):
-                r.lot||'—';
-    var logoEl = r.kelas==='Saham IDX' ? getStockLogoHtml(r.name, 22) : '';
-    return '<tr>'+
-      '<td><div style="display:flex;align-items:center;gap:7px">'+
-        '<div style="width:3px;height:28px;border-radius:2px;background:'+r.color+'"></div>'+
-        (logoEl ? logoEl : '')+
-        '<div><div class="mono" style="font-size:11px;font-weight:600">'+r.name+'</div>'+
-        '<div style="font-size:9px;color:var(--text3)">'+r.desc.slice(0,22)+(r.desc.length>22?'…':'')+'</div></div>'+
-      '</div></td>'+
-      '<td><span class="badge" style="background:rgba(255,255,255,.05);color:'+r.color+'">'+r.kelas+'</span></td>'+
-      '<td class="mono" style="font-size:11px;color:var(--text2)">'+lotDisp+'</td>'+
-      '<td class="mono" style="font-weight:600">Rp '+fmtK(r.mv)+'</td>'+
-      '<td class="mono" style="color:var(--text2)">Rp '+fmtK(r.cost)+'</td>'+
-      '<td class="mono '+(r.pnl>=0?'up':'dn')+'">'+(r.pnl>=0?'+':'')+'Rp '+fmtK(r.pnl)+'</td>'+
-      '<td class="mono '+(r.ret>=0?'up':'dn')+'">'+(r.ret>=0?'+':'')+r.ret.toFixed(2)+'%</td>'+
-      '<td><div style="display:flex;align-items:center;gap:6px">'+
-        '<div style="width:50px;background:var(--bg5);height:3px;border-radius:2px">'+
-          '<div style="width:'+Math.min(bobot/Math.max(wSaham,wCrypto,wEtf,wRd,1)*100,100).toFixed(0)+'%;height:100%;background:'+r.color+';border-radius:2px"></div>'+
-        '</div>'+
-        '<span class="mono" style="font-size:10px;color:'+r.color+';font-weight:700">'+bobot.toFixed(1)+'%</span>'+
-      '</div></td>'+
-    '</tr>';
-  }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Belum ada aset</td></tr>';
-
-  // ── Recent TX ──
-  el('recent-tx').innerHTML=transactions.slice().reverse().slice(0,4).map(function(tx){
-    var isBuy=tx.type==='BUY';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'+
-      '<div style="display:flex;align-items:center;gap:6px">'+
-        '<span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span>'+
-        getStockLogoHtml(tx.ticker, 18)+
-        '<div><div class="mono" style="font-size:10px">'+tx.ticker+' · '+tx.lot+' lot</div>'+
-        '<div style="font-size:9px;color:var(--text3);font-family:var(--font-mono)">'+tx.date+'</div></div>'+
-      '</div>'+
-      '<div style="text-align:right;font-family:var(--font-mono);font-size:10px">'+
-        '<div style="color:'+(isBuy?'var(--red)':'var(--green)')+'">'+(isBuy?'-':'+')+' Rp '+fmtK(tx.net)+'</div>'+
-        '<div style="font-size:9px;color:var(--text3)">'+tx.sekuritas+'</div>'+
-      '</div></div>';
-  }).join('')||'<div style="color:var(--text3);text-align:center;padding:12px;font-size:11px">Belum ada transaksi</div>';
-
-  // ── Kas & Likuiditas (semua akun) ──
-  // Saham/RDN = calcRdnBalance(), CASH_ACCOUNTS.saham dikecualikan agar tidak double count
-  var totalCashAll = Object.entries(CASH_ACCOUNTS).reduce(function(a,e){
-    if(e[0]==='saham') return a; // RDN sudah dihitung lewat rdn
-    return a + (e[1].isUsd ? e[1].balance*usdIdr : e[1].balance);
-  }, 0) + Math.max(0,rdn);
-  el('d-kas-detail').innerHTML=
-    '<div class="taxrow" style="padding:3px 0"><span style="color:var(--green);font-size:11px">💰 Kas Saham (RDN)</span><span class="mono up" style="font-size:11px">'+fmtK(Math.max(0,rdn))+'</span></div>'+
-    Object.entries(CASH_ACCOUNTS).filter(function(e){return e[0]!=='saham';}).map(function(e){
-      var k=e[0],c=e[1]; var val=c.isUsd?c.balance*usdIdr:c.balance;
-      return '<div class="taxrow" style="padding:3px 0"><span style="color:'+c.color+';font-size:11px">'+c.label+'</span><span class="mono" style="color:'+c.color+';font-size:11px">'+fmtK(val)+'</span></div>';
-    }).join('')+
-    '<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px">'+
-    '<div class="taxrow tot"><span style="font-weight:600;font-size:11px">Total Kas</span><span class="mono up" style="font-size:12px;font-weight:700">Rp '+fmtK(totalCashAll)+'</span></div>'+
-    '<div class="prog" style="margin-top:4px"><div class="progf" style="width:'+Math.min(totalCashAll/(AUMsafe||1)*100,100).toFixed(1)+'%;background:var(--amber)"></div></div>'+
-    '<div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:4px">'+
-      (totalCashAll/(AUMsafe||1)<0.05?'⚠️ Kas total rendah':totalCashAll/(AUMsafe||1)>0.30?'ℹ️ Kas tinggi':'✅ Likuiditas proporsional')+
-    '</div></div>';
-
-  buildIhsgChart('1H');
-  buildModalPosisiChart(porto);
-  if (typeof renderD3NetWorthChart === 'function') renderD3NetWorthChart();
-
-  // ── Sektoral — dari getPortfolio() (transaksi user) ──
-  var sectByMV = {};
-  porto.forEach(function(p){
-    var sec = (p.info && p.info.sector) || (DB[p.ticker] && DB[p.ticker].sector) || 'Lainnya';
-    sectByMV[sec] = (sectByMV[sec]||0) + p.mv;
-  });
-  var sectTotalMV = Object.values(sectByMV).reduce(function(a,v){return a+v},0)||1;
-  var sectItems = Object.entries(sectByMV).filter(function(e){return e[1]>0})
-    .sort(function(a,b){return b[1]-a[1]});
-  el('d-sectoral-detail').innerHTML = sectItems.length > 0
-    ? sectItems.map(function(e){
-        var pct = e[1]/sectTotalMV*100;
-        var col = sectorColor(e[0]);
-        return '<div style="margin-bottom:7px">'+
-          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
-            '<span style="font-size:11px;display:flex;align-items:center;gap:5px">'+
-              '<span style="width:7px;height:7px;border-radius:50%;background:'+col+';display:inline-block"></span>'+
-              e[0]+'</span>'+
-            '<span style="font-family:var(--font-mono);font-size:10px">'+
-              '<span style="color:'+col+';font-weight:700">'+pct.toFixed(1)+'%</span>'+
-              ' <span style="color:var(--text3)">'+fmtK(e[1])+'</span>'+
-            '</span>'+
-          '</div>'+
-          '<div style="height:3px;background:var(--bg5);border-radius:2px">'+
-            '<div style="width:'+Math.min(pct,100).toFixed(1)+'%;height:100%;background:'+col+';border-radius:2px"></div>'+
-          '</div></div>';
-    }).join('')
-    : '<div style="color:var(--text3);font-size:11px;padding:10px 0;text-align:center">Belum ada posisi — tambahkan transaksi beli saham</div>';
-
-  // ── Dividen — hanya dari user transactions ──
-  var divTotal = dividends.reduce(function(a,d){return a+d.net},0);
-  var yr2=new Date().getFullYear();
-  var divYTD=dividends.filter(function(d){return d.date&&d.date.startsWith(yr2+'')}).reduce(function(a,d){return a+d.net},0);
-  el('d-div-total').textContent = 'Rp '+fmtK(divTotal);
-  el('d-div-info').textContent = dividends.length > 0
-    ? dividends.length+' pembayaran tercatat · Rata-rata Rp '+fmtK(Math.round(divTotal/(dividends.length||1)))+'/tx'
-    : 'Belum ada data dividen — isi manual di tab Dividen';
-  // List per saham dari user transactions
-  var divByTicker={};
-  dividends.forEach(function(d){ divByTicker[d.ticker]=(divByTicker[d.ticker]||0)+d.net; });
-  var topDiv=Object.entries(divByTicker).sort(function(a,b){return b[1]-a[1]}).slice(0,12);
-  el('d-dividen-list').innerHTML = topDiv.length > 0
-    ? topDiv.map(function(e){
-        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)">'+
-          '<span class="tp" style="font-size:10px">'+e[0]+'</span>'+
-          '<span style="font-family:var(--font-mono);font-size:10px;color:var(--green)">+'+fmtK(e[1])+'</span>'+
-        '</div>';
-      }).join('')
-    : '<div style="color:var(--text3);font-size:11px;padding:8px 0">Belum ada dividen tercatat</div>';
-  el('d-div').textContent='Rp '+fmtK(divYTD);
-  el('d-div-sub').textContent=dividends.length>0?dividends.length+' pembayaran total':'—';
-
-  renderStrategyPanel();
-  renderDashRisk();
-
-  // ── Bagian yang dipindahkan ke Dashboard: Watchlist, AI Guide ──
-  // Riwayat Ekuitas & Manajemen Risiko kini di halaman Performance (renderPerformance())
-  // — tapi pencatatan snapshot harian tetap jalan di sini supaya tetap terekam
-  // setiap kali Dashboard dibuka, bukan hanya saat user mampir ke Performance.
-  if(typeof fsRenderWlPage==='function') fsRenderWlPage();
-  if(typeof equitySnapshotToday==='function') equitySnapshotToday();
-  if(typeof aiRenderPerHoldingReco==='function') aiRenderPerHoldingReco();
-  if(typeof aiUpdateKeyBtn==='function') aiUpdateKeyBtn();
-  if(el('ai-box') && !el('ai-box').dataset.live) aiRunHeuristic();
-
-  // Re-apply hide masks after every render
-  applyMetricMasks();
-
-  // ── Sumber data — live counts ──
-  var subEl = el('d-sumber-sub');
-  if(subEl){
-    var sahamAktif = porto.length;
-    var cryptoAktif = getCryptoPortfolio().length;
-    var rdAktif = getRdPortfolio().length;
-    var parts = [];
-    if(sahamAktif > 0) parts.push(sahamAktif+' saham aktif');
-    if(cryptoAktif > 0) parts.push(cryptoAktif+' crypto');
-    if(rdAktif > 0) parts.push(rdAktif+' reksa dana aktif');
-    parts.push('Kurs USD/IDR: Rp '+Math.round(usdIdr).toLocaleString('id-ID'));
-    subEl.textContent = parts.join(' · ');
-  }
-
-  // ── Money Watch Pro V6 Executive Command Center ──
-  if(typeof renderExecutiveCommandCenter==='function') renderExecutiveCommandCenter();
+  if(typeof renderPortfolioHub === 'function') renderPortfolioHub();
 }
 
 function renderRdn(){
@@ -522,6 +181,24 @@ function renderTransaksi(){
   }
 }
 
+var _portoChartMode = 'sector'; // 'sector' or 'class'
+function setPortoChartMode(mode){
+  _portoChartMode = mode;
+  var bSec = el('porto-tab-sector');
+  var bCls = el('porto-tab-class');
+  if(bSec && bCls){
+    if(mode === 'sector'){
+      bSec.className = 'btn btn-ghost btn-sm active';
+      bCls.className = 'btn btn-ghost btn-sm';
+    } else {
+      bSec.className = 'btn btn-ghost btn-sm';
+      bCls.className = 'btn btn-ghost btn-sm active';
+    }
+  }
+  renderPortofolio();
+}
+window.setPortoChartMode = setPortoChartMode;
+
 function renderPortofolio(){
   if(typeof renderStockPerformance==='function') renderStockPerformance();
   var porto=getPortfolio();
@@ -539,6 +216,96 @@ function renderPortofolio(){
   el('p-best').className='mval '+(best.ret>=0?'up':'dn');
   el('p-best').textContent=best.ret!==-Infinity?(best.ret>=0?'+':'')+best.ret.toFixed(2)+'%':'-';
   el('p-best-sub').textContent=best.ticker!=='-'?best.ticker:'';
+
+  // ── Donut Chart Alokasi (Sektor / Kelas Aset) ──
+  kc('portoDonut');
+  var cvPorto = el('portoDonutChart');
+  if(cvPorto){
+    var labels = [];
+    var dataVals = [];
+    var backgroundColors = [];
+    var totalVal = 0;
+
+    if(_portoChartMode === 'sector'){
+      var secMap = {};
+      porto.forEach(function(p){
+        var sec = (p.info && p.info.sector) || 'Lainnya';
+        secMap[sec] = (secMap[sec] || 0) + (p.mv || 0);
+      });
+      var sortedSec = Object.keys(secMap).map(function(s){return {sector:s, mv:secMap[s]};}).sort(function(a,b){return b.mv-a.mv;});
+      totalVal = sortedSec.reduce(function(a,x){return a+x.mv;}, 0) || 1;
+      labels = sortedSec.map(function(x){return x.sector;});
+      dataVals = sortedSec.map(function(x){return x.mv;});
+      backgroundColors = sortedSec.map(function(x,i){return sectorColor(x.sector) || COLORS[i%COLORS.length];});
+    } else {
+      var sahamMV = porto.reduce(function(a,p){return a+(p.mv||0);},0);
+      var cryptoPorto = typeof getCryptoPortfolio==='function'?getCryptoPortfolio():[];
+      var etfPorto = typeof getEtfPortfolio==='function'?getEtfPortfolio():[];
+      var rdPorto = typeof getRdPortfolio==='function'?getRdPortfolio():[];
+      var crMV = cryptoPorto.reduce(function(a,p){return a+(p.mv||0);},0);
+      var etfMV = etfPorto.reduce(function(a,p){return a+(p.mvIdr||0);},0);
+      var rdMV = rdPorto.reduce(function(a,p){return a+(p.mv||0);},0);
+      var rdn = typeof calcRdnBalance==='function'?calcRdnBalance():0;
+      var kasRdn = Math.max(0, rdn);
+
+      var classItems = [
+        {label:'Saham IDX', val:sahamMV, color:'#41f3a7'},
+        {label:'Crypto', val:crMV, color:'#f7931a'},
+        {label:'ETF AS', val:etfMV, color:'#00c8ff'},
+        {label:'Reksa Dana', val:rdMV, color:'#8070d2'},
+        {label:'Kas RDN', val:kasRdn, color:'#ffc107'}
+      ].filter(function(x){return x.val > 0;});
+
+      totalVal = classItems.reduce(function(a,x){return a+x.val;},0) || 1;
+      labels = classItems.map(function(x){return x.label;});
+      dataVals = classItems.map(function(x){return x.val;});
+      backgroundColors = classItems.map(function(x){return x.color;});
+    }
+
+    charts['portoDonut'] = new Chart(cvPorto,{
+      type:'doughnut',
+      data:{
+        labels:labels,
+        datasets:[{
+          data:dataVals,
+          backgroundColor:backgroundColors,
+          borderWidth:0,
+          hoverOffset:6
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        cutout:'65%',
+        plugins:{
+          legend:{display:false},
+          tooltip:Object.assign({}, TT, {
+            callbacks:{
+              label:function(c){
+                var pct = (c.parsed / totalVal * 100).toFixed(1);
+                return c.label + ': Rp ' + fmtK(c.parsed) + ' (' + pct + '%)';
+              }
+            }
+          })
+        }
+      }
+    });
+
+    var legEl = el('porto-donut-legend');
+    if(legEl){
+      legEl.innerHTML = labels.map(function(lbl, idx){
+        var val = dataVals[idx];
+        var pct = (val / totalVal * 100).toFixed(1);
+        var col = backgroundColors[idx];
+        return '<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.02)">'
+          + '<div style="width:8px;height:8px;border-radius:2px;background:'+col+';flex-shrink:0"></div>'
+          + '<span style="color:var(--text2);flex:1;font-weight:500">'+lbl+'</span>'
+          + '<span style="font-family:var(--font-mono);font-weight:600;color:'+col+'">'+pct+'%</span>'
+          + '<span style="font-family:var(--font-mono);color:var(--text3);min-width:70px;text-align:right">Rp '+fmtK(val)+'</span>'
+          + '</div>';
+      }).join('');
+    }
+  }
 
   // ── Isi dropdown filter sektor (pertahankan pilihan aktif) ──
   var secSel=el('porto-filter-sector');
@@ -1255,4 +1022,78 @@ function saveTaxFromUI(){
   showSaveStatus('✓ Pajak disimpan: PPN '+(ppn*100).toFixed(0)+'% · Levy '+(levy*100).toFixed(3)+'% · PPh Jual '+(j*100).toFixed(2)+'%');
   renderPajak();
 }
+
+function openMarketSyncModal(){
+  var porto = getPortfolio();
+  var html = '<div class="modal-backdrop" id="market-sync-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">'
+    + '<div class="card" style="width:100%;max-width:550px;max-height:90vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--border)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    + '<div class="ptitle" style="font-size:15px">⚙️ Sinkronisasi &amp; Penyesuaian Harga Pasar (IHSG &amp; Saham)</div>'
+    + '<button class="btn btn-ghost btn-xs" onclick="document.getElementById(\'market-sync-modal\').remove()">✕</button>'
+    + '</div>'
+    + '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Jika data Yahoo Finance terlambat atau berbeda dari aplikasi sekuritas Anda (Stockbit, IPOT, Mandiri Sekuritas, dll), Anda dapat memperbarui level IHSG dan menyesuaikan harga pasar per saham secara manual di sini.</div>'
+    
+    + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">'
+    + '<div style="font-weight:600;font-size:12px;margin-bottom:8px">Indeks Harga Saham Gabungan (IHSG)</div>'
+    + '<div style="display:flex;gap:8px;align-items:center">'
+    + '<div style="flex:1"><label style="font-size:10px;color:var(--text3)">Level IHSG Saat Ini</label><input type="number" step="0.01" id="sync-ihsg-input" value="'+(typeof ihsgCur !== 'undefined' ? ihsgCur : 6500)+'" class="finput mono" style="width:100%;padding:6px"></div>'
+    + '<button class="btn btn-primary btn-sm" style="margin-top:16px" onclick="applyManualIhsg()">Set IHSG</button>'
+    + '</div>'
+    + '</div>'
+
+    + '<div style="font-weight:600;font-size:12px;margin-bottom:8px">Harga Pasar Saham Portofolio (Cocokkan dengan Sekuritas)</div>'
+    + '<div style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">'
+    + '<table class="tbl" style="font-size:11px">'
+    + '<thead><tr><th>Ticker</th><th>Modal / Avg</th><th>Harga Pasar (Rp)</th></tr></thead>'
+    + '<tbody>'
+    + (porto.length ? porto.map(function(p){
+        var curP = p.price || (typeof prices !== 'undefined' && prices[p.ticker]) || 0;
+        return '<tr>'
+          + '<td><strong>'+p.ticker+'</strong><br><span style="font-size:10px;color:var(--text3)">'+(p.name||'')+'</span></td>'
+          + '<td class="mono">Rp '+fmtK(p.avg)+'</td>'
+          + '<td><input type="number" step="25" id="sync-p-'+p.ticker+'" value="'+curP+'" onchange="updateManualPrice(\''+p.ticker+'\', this.value)" class="finput mono" style="width:110px;padding:4px 6px"></td>'
+          + '</tr>';
+      }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text3)">Belum ada saham di portofolio</td>')
+    + '</tbody>'
+    + '</table>'
+    + '</div>'
+
+    + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'
+    + '<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'market-sync-modal\').remove()">Tutup</button>'
+    + '<button class="btn btn-primary btn-sm" onclick="location.reload()">Simpan &amp; Muat Ulang</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+  
+  var div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div);
+}
+
+function applyManualIhsg(){
+  var val = parseFloat(document.getElementById('sync-ihsg-input').value);
+  if(val > 0){
+    if(typeof fhApplyIHSG === 'function'){
+      fhApplyIHSG(val, val * 0.995, val * 0.99, val * 1.01, val * 0.98);
+    } else {
+      window.ihsgCur = val;
+    }
+    alert('Level IHSG berhasil diperbarui menjadi ' + val.toLocaleString('id-ID'));
+  }
+}
+
+function updateManualPrice(ticker, val){
+  var p = parseFloat(val);
+  if(p > 0){
+    if(typeof prices === 'undefined') window.prices = {};
+    prices[ticker] = p;
+    if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
+    if(typeof renderPortofolio === 'function') renderPortofolio();
+  }
+}
+
+window.openMarketSyncModal = openMarketSyncModal;
+window.applyManualIhsg = applyManualIhsg;
+window.updateManualPrice = updateManualPrice;
+
 

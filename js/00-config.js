@@ -52,11 +52,11 @@ function getFirestoreUserUid(user) {
     } catch(e){}
   }
   if (u) {
-    if (u.uid && u.uid !== 'global_user' && u.uid !== 'guest_user') return u.uid;
-    if (u.id) return u.id;
     if (u.email) {
       return 'u_' + encodeURIComponent(u.email.toLowerCase()).replace(/[^a-z0-9_]/g, '_');
     }
+    if (u.uid && u.uid !== 'global_user' && u.uid !== 'guest_user') return u.uid;
+    if (u.id) return u.id;
   }
   return 'u_' + encodeURIComponent(PRIMARY_USER_EMAIL.toLowerCase()).replace(/[^a-z0-9_]/g, '_');
 }

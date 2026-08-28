@@ -51,7 +51,8 @@ async function kseiInitData(forceRefresh) {
         }
       }
     } catch (e) {
-      console.warn('[KSEI] Cache read error:', e);
+      console.warn('[KSEI] Cache read error, clearing corrupted cache:', e);
+      try { localStorage.removeItem('MW_KSEI_DATA_CACHE'); } catch(err){}
     }
   }
 

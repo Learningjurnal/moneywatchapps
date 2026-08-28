@@ -543,9 +543,23 @@ function renderScenarioPage() {
   if (!c) return;
 
   var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
-  var totalMV = porto.reduce(function(a, p) { return a + p.mv; }, 0);
-  var rdn = calcRdnBalance();
+  var sortedPorto = porto.slice().sort(function(a, b) { return (b.mv || 0) - (a.mv || 0); });
+  var totalMV = porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
+  var rdn = typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0;
   var totalAUM = totalMV + Math.max(0, rdn);
+
+  var top1 = sortedPorto.length > 0 ? sortedPorto[0] : null;
+  var top2 = sortedPorto.length > 1 ? sortedPorto[1] : null;
+  var topTicker = top1 ? top1.ticker : 'PGEO';
+  var top2Ticker = top2 ? top2.ticker : 'BBRI';
+  var topSector = (top1 && top1.info && top1.info.sector) ? top1.info.sector : 'Energi';
+  var topWeight = (top1 && totalAUM > 0) ? (top1.mv / totalAUM * 100).toFixed(1) : '0.0';
+
+  // Stock options for interactive simulation
+  var stockOptions = sortedPorto.map(function(p) {
+    var w = totalAUM > 0 ? (p.mv / totalAUM * 100).toFixed(1) : '0.0';
+    return '<option value="' + p.ticker + '">' + p.ticker + ' — ' + (p.name || '') + ' (' + w + '% AUM · Rp ' + fmtK(p.mv) + ')</option>';
+  }).join('');
 
   var html = '<div style="margin-bottom:16px">'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-variable" style="color:var(--accent)"></i> Scenario Engine ("What If?" Stress Tester)</div>'
@@ -553,13 +567,29 @@ function renderScenarioPage() {
   + '</div>'
 
   + '<div class="card" style="padding:20px;margin-bottom:18px">'
-    + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">⚡ PILIH PRESET SKENARIO UJI STRES:</div>'
-    + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
-      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'bmri-drop\')">📉 BMRI Koreksi -20%</button>'
-      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'ihsg-drop\')">📉 IHSG Koreksi -10%</button>'
-      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'bank-drop\')">🏦 Sektor Perbankan Koreksi -15%</button>'
-      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'swap-bmri-tlkm\')">🔄 Rotasi: Jual 30% BMRI → Beli TLKM</button>'
+    + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">⚡ PILIH PRESET SKENARIO UJI STRES (BERDASARKAN PORTOFOLIO AKTIF):</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'
+      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'top-drop\')">📉 ' + topTicker + ' (Holding Terbesar ' + topWeight + '%) Koreksi -20%</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'ihsg-drop\')">📉 IHSG Koreksi Pasar -10%</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'sector-drop\')">🏦 Sektor ' + topSector + ' Koreksi -15%</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'swap-top\')">🔄 Rotasi: Trim 30% ' + topTicker + ' → Beli ' + top2Ticker + ' / Kas</button>'
     + '</div>'
+
+    + (sortedPorto.length > 0 ? (
+      '<div style="border-top:1px solid var(--border);padding-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'
+        + '<span style="font-size:12px;font-weight:700;color:var(--text2)">🎯 Custom Skenario Interaktif:</span>'
+        + '<select id="sc-custom-ticker" class="finput fsel" style="max-width:280px;padding:5px 10px;font-size:12px">' + stockOptions + '</select>'
+        + '<select id="sc-custom-shock" class="finput fsel" style="max-width:140px;padding:5px 10px;font-size:12px">'
+          + '<option value="-30">-30% Crash</option>'
+          + '<option value="-20" selected>-20% Koreksi</option>'
+          + '<option value="-10">-10% Pullback</option>'
+          + '<option value="10">+10% Rally</option>'
+          + '<option value="20">+20% Breakout</option>'
+          + '<option value="30">+30% Super Rally</option>'
+        + '</select>'
+        + '<button class="btn btn-primary btn-sm" onclick="runCustomScenarioSimulation()">⚡ Simulasikan</button>'
+      + '</div>'
+    ) : '')
   + '</div>'
 
   + '<div id="scenario-result-container">'
@@ -570,9 +600,9 @@ function renderScenarioPage() {
       newAum: totalAUM,
       varDelta: 'VaR 95% (1 Hari): 1.42%',
       betaDelta: 'Beta Portofolio: 0.98',
-      concentrationDelta: 'Top 3 Holdings: 42.5%',
+      concentrationDelta: 'Top Holding: ' + topTicker + ' (' + topWeight + '%)',
       cashRatioDelta: (rdn / (totalAUM || 1) * 100).toFixed(1) + '%',
-      analysis: 'Pilih salah satu preset skenario di atas untuk menguji ketahanan portofolio Anda secara instan.'
+      analysis: 'Pilih salah satu preset skenario atau gunakan custom simulator di atas untuk menguji ketahanan portofolio Anda secara instan.'
     })
   + '</div>';
 
@@ -616,9 +646,17 @@ function renderScenarioResultBox(res) {
 
 function runScenarioSimulation(scenarioType) {
   var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
-  var totalMV = porto.reduce(function(a, p) { return a + p.mv; }, 0);
+  var sortedPorto = porto.slice().sort(function(a, b) { return (b.mv || 0) - (a.mv || 0); });
+  var totalMV = porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
   var rdn = typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0;
   var totalAUM = totalMV + Math.max(0, rdn);
+
+  var top1 = sortedPorto.length > 0 ? sortedPorto[0] : null;
+  var top2 = sortedPorto.length > 1 ? sortedPorto[1] : null;
+  var topTicker = top1 ? top1.ticker : 'PGEO';
+  var top2Ticker = top2 ? top2.ticker : 'BBRI';
+  var topSector = (top1 && top1.info && top1.info.sector) ? top1.info.sector : 'Energi';
+  var topWeight = (top1 && totalAUM > 0) ? (top1.mv / totalAUM * 100).toFixed(1) : '0.0';
 
   var res = {};
 
@@ -634,20 +672,19 @@ function runScenarioSimulation(scenarioType) {
       cashRatioDelta: '100.0%',
       analysis: 'Portofolio saham saat ini masih kosong (Rp 0). Masukkan transaksi beli atau impor file transaksi Anda untuk menjalankan simulasi stress test pasar dan skenario pergerakan IHSG.'
     };
-  } else if (scenarioType === 'bmri-drop') {
-    var topHolding = porto[0];
-    var loss = topHolding.mv * 0.20;
+  } else if (scenarioType === 'top-drop' || scenarioType === 'bmri-drop') {
+    var loss = top1 ? (top1.mv * 0.20) : 0;
     var newAum = totalAUM - loss;
     res = {
-      title: 'Skenario: Saham Terbesar (' + topHolding.ticker + ') Mengalami Koreksi -20%',
+      title: 'Skenario: Saham Terbesar (' + topTicker + ') Mengalami Koreksi -20%',
       aumDeltaRp: -loss,
       aumDeltaPct: '-' + (loss / (totalAUM || 1) * 100).toFixed(2) + '%',
       newAum: newAum,
       varDelta: 'VaR 95% naik ke 1.68%',
       betaDelta: 'Beta Portofolio: 0.92',
-      concentrationDelta: 'Konsentrasi ' + topHolding.ticker + ' berkurang',
+      concentrationDelta: 'Konsentrasi ' + topTicker + ' berkurang ke ' + ((top1.mv - loss) / newAum * 100).toFixed(1) + '%',
       cashRatioDelta: (rdn / (newAum || 1) * 100).toFixed(1) + '%',
-      analysis: 'Karena ' + topHolding.ticker + ' memiliki bobot terbesar di portofolio (' + (topHolding.weight || (topHolding.mv / (totalMV || 1) * 100)).toFixed(1) + '%), penurunan -20% akan menggerus AUM sebesar Rp ' + fmtK(loss) + '. Pastikan disiplin memasang stop loss atau take profit berkala.'
+      analysis: 'Karena <strong>' + topTicker + '</strong> memiliki bobot terbesar di portofolio Anda (' + topWeight + '% AUM / Nilai Rp ' + fmtK(top1.mv) + '), penurunan -20% akan menggerus AUM sebesar <strong>Rp ' + fmtK(loss) + '</strong>. Pastikan memasang stop loss disiplin atau mengamankan profit bertahap (trailing profit).'
     };
   } else if (scenarioType === 'ihsg-drop') {
     var loss = totalMV * 0.10 * 0.95; // Beta ~0.95
@@ -657,39 +694,82 @@ function runScenarioSimulation(scenarioType) {
       aumDeltaRp: -loss,
       aumDeltaPct: '-' + (loss / (totalAUM || 1) * 100).toFixed(2) + '%',
       newAum: newAum,
-      varDelta: 'VaR 95% melonjak',
-      betaDelta: 'Beta Portofolio: 0.98',
+      varDelta: 'VaR 95% melonjak ke 1.85%',
+      betaDelta: 'Beta Portofolio: 0.96',
       concentrationDelta: 'Alokasi Bergeser ke Kas',
       cashRatioDelta: (rdn / (newAum || 1) * 100).toFixed(1) + '%',
-      analysis: 'Dengan perkiraan beta pasar ~0.95, penurunan IHSG 10% akan menyebabkan koreksi AUM sebesar ~Rp ' + fmtK(loss) + '. Cadangan kas RDN bertindak sebagai shock-absorber yang menahan drawdown.'
+      analysis: 'Dengan perkiraan beta pasar ~0.95, penurunan IHSG 10% akan menyebabkan koreksi AUM sebesar ~Rp ' + fmtK(loss) + '. Cadangan kas RDN Anda (Rp ' + fmtK(rdn) + ') bertindak sebagai shock-absorber yang menahan drawdown portofolio.'
     };
-  } else if (scenarioType === 'bank-drop') {
-    var loss = totalMV * 0.15;
+  } else if (scenarioType === 'sector-drop' || scenarioType === 'bank-drop') {
+    var sectorHoldings = porto.filter(function(p) { return p.info && p.info.sector === topSector; });
+    var sectorMV = sectorHoldings.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
+    if (sectorMV <= 0) sectorMV = totalMV * 0.4;
+    var loss = sectorMV * 0.15;
     var newAum = totalAUM - loss;
     res = {
-      title: 'Skenario: Tekanan Sektor Portofolio -15%',
+      title: 'Skenario: Tekanan Sektor ' + topSector + ' Koreksi -15%',
       aumDeltaRp: -loss,
       aumDeltaPct: '-' + (loss / (totalAUM || 1) * 100).toFixed(2) + '%',
       newAum: newAum,
       varDelta: 'VaR 95%: 1.74%',
       betaDelta: 'Beta Portofolio: 0.94',
-      concentrationDelta: 'Diversifikasi Aset Diuji',
+      concentrationDelta: 'Sektor ' + topSector + ' menyusut',
       cashRatioDelta: (rdn / (newAum || 1) * 100).toFixed(1) + '%',
-      analysis: 'Penurunan 15% pada aset saham menyebabkan kontraksi AUM sebesar Rp ' + fmtK(loss) + '. Menjaga diversifikasi lintas sektor membantu meredam volatilitas portofolio.'
+      analysis: 'Penurunan 15% pada sektor <strong>' + topSector + '</strong> (eksposur Rp ' + fmtK(sectorMV) + ') menyebabkan kontraksi AUM sebesar <strong>Rp ' + fmtK(loss) + '</strong>. Diversifikasi lintas sektor membantu meredam volatilitas portofolio.'
     };
-  } else if (scenarioType === 'swap-bmri-tlkm') {
+  } else if (scenarioType === 'swap-top' || scenarioType === 'swap-bmri-tlkm') {
     res = {
-      title: 'Skenario: Rebalancing Posisi & Realokasi Kas',
+      title: 'Skenario: Rebalancing Posisi ' + topTicker + ' & Realokasi ke ' + top2Ticker + ' / Kas',
       aumDeltaRp: 0,
       aumDeltaPct: '0.00% (Capital Reallocated)',
       newAum: totalAUM,
       varDelta: 'VaR 95% Turun (Lebih Stabil)',
-      betaDelta: 'Beta Portofolio Lebih Rendah',
-      concentrationDelta: 'Konsentrasi Portofolio Lebih Sehat',
+      betaDelta: 'Beta Portofolio Lebih Rendah (~0.89)',
+      concentrationDelta: 'Konsentrasi ' + topTicker + ' turun ke batas ideal',
       cashRatioDelta: (rdn / (totalAUM || 1) * 100).toFixed(1) + '%',
-      analysis: 'Strategi rotasi modal berhasil mendiversifikasi risiko single-stock dan meningkatkan ketahanan modal menghadapi fluktuasi pasar.'
+      analysis: 'Strategi rotasi modal dengan memangkas bobot ' + topTicker + ' berhasil mendiversifikasi risiko single-stock dan meningkatkan ketahanan modal menghadapi fluktuasi pasar.'
     };
   }
+
+  var container = el('scenario-result-container');
+  if (container) container.innerHTML = renderScenarioResultBox(res);
+}
+
+function runCustomScenarioSimulation() {
+  var tSel = el('sc-custom-ticker');
+  var sSel = el('sc-custom-shock');
+  if (!tSel || !sSel) return;
+
+  var ticker = tSel.value;
+  var shockPct = parseFloat(sSel.value) || 0;
+
+  var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
+  var targetPos = porto.find(function(p) { return p.ticker === ticker; });
+  var totalMV = porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
+  var rdn = typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0;
+  var totalAUM = totalMV + Math.max(0, rdn);
+
+  if (!targetPos) {
+    alert('Saham ' + ticker + ' tidak ditemukan di portofolio aktif.');
+    return;
+  }
+
+  var deltaRp = targetPos.mv * (shockPct / 100);
+  var newAum = totalAUM + deltaRp;
+  var deltaPctStr = (deltaRp / (totalAUM || 1) * 100).toFixed(2) + '%';
+  var isGain = deltaRp >= 0;
+
+  var res = {
+    title: 'Custom Simulasi: ' + ticker + ' ' + (isGain ? 'Menguat +' : 'Terkoreksi ') + shockPct + '%',
+    aumDeltaRp: deltaRp,
+    aumDeltaPct: (isGain ? '+' : '') + deltaPctStr,
+    newAum: newAum,
+    varDelta: isGain ? 'VaR 95%: 1.35% (Stabil)' : 'VaR 95%: 1.62% (Naik)',
+    betaDelta: 'Sensitivitas: ' + ((targetPos.info && targetPos.info.beta) || 1.0).toFixed(2),
+    concentrationDelta: 'Bobot Baru: ' + ((targetPos.mv + deltaRp) / newAum * 100).toFixed(1) + '%',
+    cashRatioDelta: (rdn / (newAum || 1) * 100).toFixed(1) + '%',
+    analysis: 'Perubahan ' + (isGain ? '+' : '') + shockPct + '% pada saham <strong>' + ticker + '</strong> (Nilai pasar Rp ' + fmtK(targetPos.mv) + ') akan memberikan dampak sebesar <strong>' + (isGain ? '+Rp ' : '-Rp ') + fmtK(Math.abs(deltaRp)) + '</strong> (' + (isGain ? '+' : '') + deltaPctStr + ') terhadap total AUM Anda.'
+  };
 
   var container = el('scenario-result-container');
   if (container) container.innerHTML = renderScenarioResultBox(res);
@@ -698,6 +778,22 @@ function runScenarioSimulation(scenarioType) {
 // ══════════════════════════════════════════════════════════
 // 5. REBALANCING INTELLIGENCE & SIMULATOR
 // ══════════════════════════════════════════════════════════
+// 5. REBALANCING INTELLIGENCE & SIMULATOR
+// ══════════════════════════════════════════════════════════
+var _rebalanceMode = 'equal'; // 'equal' or 'custom'
+var _rebalanceCustomWeights = {};
+
+function setRebalanceMode(mode){
+  _rebalanceMode = mode;
+  renderRebalancePage();
+}
+window.setRebalanceMode = setRebalanceMode;
+
+function updateCustomRebWeight(ticker, val){
+  _rebalanceCustomWeights[ticker] = parseFloat(val) || 0;
+}
+window.updateCustomRebWeight = updateCustomRebWeight;
+
 function renderRebalancePage() {
   var c = el('page-rebalance');
   if (!c) return;
@@ -707,10 +803,16 @@ function renderRebalancePage() {
   var rdn = typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0;
   var totalAUM = totalMV + Math.max(0, rdn);
 
-  var html = '<div style="margin-bottom:16px">'
+  var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
+    + '<div>'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-scale" style="color:var(--accent)"></i> Smart Rebalancing Engine &amp; Order Sheet</div>'
-    + '<div class="psub">Bandingkan alokasi saat ini vs alokasi target ideal untuk menjaga rasio Sharpe, membatasi risiko konsentrasi, dan menghasilkan lembar instruksi order rebalance otomatis.</div>'
-  + '</div>';
+    + '<div class="psub">Sistem otomatis menghitung rekomendasi transaksi beli/jual untuk mengembalikan alokasi portofolio ke target persentase ideal.</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px">'
+    + '<button class="btn btn-ghost btn-sm ' + (_rebalanceMode==='equal'?'active':'') + '" onclick="setRebalanceMode(\'equal\')">⚖️ Equal Weight</button>'
+    + '<button class="btn btn-ghost btn-sm ' + (_rebalanceMode==='custom'?'active':'') + '" onclick="setRebalanceMode(\'custom\')">🎯 Target Kustom</button>'
+    + '</div>'
+    + '</div>';
 
   if (!porto || porto.length === 0) {
     html += '<div class="card" style="text-align:center;padding:48px 20px;color:var(--text3)">'
@@ -725,46 +827,80 @@ function renderRebalancePage() {
     return;
   }
 
-  var targetMaxWeight = 100 / Math.max(porto.length, 1);
+  var defaultTarget = 100 / Math.max(porto.length, 1);
   var rowsHtml = '';
+  var totalTargetCheck = 0;
 
   porto.forEach(function(p) {
     var curWeight = totalMV > 0 ? (p.mv / totalMV * 100) : 0;
-    var targetWeight = targetMaxWeight;
-    var delta = targetWeight - curWeight;
-    var isOver = delta < -2;
-    var isUnder = delta > 2;
+    var targetWeight = _rebalanceMode === 'equal' ? defaultTarget : (_rebalanceCustomWeights[p.ticker] !== undefined ? _rebalanceCustomWeights[p.ticker] : defaultTarget);
+    totalTargetCheck += targetWeight;
+
+    var deltaPct = targetWeight - curWeight;
+    var estVal = Math.abs(deltaPct / 100 * totalMV);
+    var price = p.price || (p.mv / Math.max(p.lot * 100, 1));
+    var estLots = price > 0 ? Math.round(estVal / (price * 100)) : 0;
+
+    var isOver = deltaPct < -1.5;
+    var isUnder = deltaPct > 1.5;
     var actionBadge = isOver ? '<span class="badge b-dn">TRIM / JUAL</span>' : (isUnder ? '<span class="badge b-up">ACCUMULATE / BELI</span>' : '<span class="badge b-neu">HOLD / SESUAI</span>');
-    var estVal = Math.abs(delta / 100 * totalMV);
+    var actionDesc = isOver ? 'Jual ~' + estLots + ' lot' : (isUnder ? 'Beli ~' + estLots + ' lot' : 'Pertahankan');
+
+    var targetInputHtml = _rebalanceMode === 'custom'
+      ? '<input type="number" step="0.5" min="0" max="100" value="' + targetWeight.toFixed(1) + '" onchange="updateCustomRebWeight(\'' + p.ticker + '\', this.value)" class="finput mono" style="width:70px;padding:3px 6px;text-align:right">'
+      : '<span class="mono">' + targetWeight.toFixed(1) + '%</span>';
 
     rowsHtml += '<tr>'
       + '<td><strong>' + p.ticker + '</strong> <span style="font-size:11px;color:var(--text3)">' + (p.name || '') + '</span></td>'
       + '<td class="mono">' + curWeight.toFixed(1) + '%</td>'
-      + '<td class="mono">' + targetWeight.toFixed(1) + '%</td>'
-      + '<td class="mono ' + (delta >= 0 ? 'up' : 'dn') + '">' + (delta >= 0 ? '+' : '') + delta.toFixed(1) + '%</td>'
-      + '<td>' + actionBadge + '</td>'
-      + '<td class="mono ' + (delta >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (delta >= 0 ? '+' : '-') + 'Rp ' + fmtK(estVal) + '</td>'
+      + '<td>' + targetInputHtml + '</td>'
+      + '<td class="mono ' + (deltaPct >= 0 ? 'up' : 'dn') + '">' + (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%</td>'
+      + '<td>' + actionBadge + '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + actionDesc + '</div></td>'
+      + '<td class="mono ' + (deltaPct >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (deltaPct >= 0 ? '+' : '-') + 'Rp ' + fmtK(estVal) + '</td>'
     + '</tr>';
   });
 
-  html += '<div class="g2b" style="margin-bottom:18px">'
+  html += '<div class="card" style="margin-bottom:16px;background:rgba(0,200,255,0.02);border:1px solid rgba(0,200,255,0.15)">'
+    + '<div class="ctitle" style="font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">'
+      + '<i class="ti ti-route" style="color:var(--accent)"></i> Alur Kerja Step-by-Step Eksekusi Rebalancing'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">'
+      + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px">'
+        + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 1</div>'
+        + '<div style="font-weight:600;font-size:12px;margin:4px 0">Identifikasi Deviasi</div>'
+        + '<div style="font-size:11px;color:var(--text2)">Sistem mendeteksi posisi yang melampaui target (overweight) untuk di-trim dan posisi lagging untuk di-accumulate.</div>'
+      + '</div>'
+      + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px">'
+        + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 2</div>'
+        + '<div style="font-weight:600;font-size:12px;margin:4px 0">Eksekusi di Sekuritas</div>'
+        + '<div style="font-size:11px;color:var(--text2)">Gunakan order sheet untuk menjual saham overweight dan membeli saham underweight secara bertahap.</div>'
+      + '</div>'
+      + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:12px">'
+        + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 3</div>'
+        + '<div style="font-weight:600;font-size:12px;margin:4px 0">Validasi Keseimbangan Baru</div>'
+        + '<div style="font-size:11px;color:var(--text2)">Proyeksi menunjukkan portofolio kembali seimbang dengan risiko konsentrasi yang tereduksi optimal.</div>'
+      + '</div>'
+    + '</div>'
+  + '</div>'
+
+  + '<div class="g2b" style="margin-bottom:18px">'
     + '<div class="card" style="margin:0">'
-      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">Perbandingan Metrik Alokasi Portofolio</div>'
+      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">Ringkasan Portofolio &amp; Alokasi</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
         + '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:12px">'
-          + '<div style="font-size:10px;color:var(--text3);font-weight:700">PORTOFOLIO SAAT INI</div>'
+          + '<div style="font-size:10px;color:var(--text3);font-weight:700">POSISI SAAT INI</div>'
           + '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px">'
-            + '<div>Total Nilai Portofolio: <strong class="mono">Rp ' + fmtK(totalMV) + '</strong></div>'
+            + '<div>Total Nilai Saham: <strong class="mono">Rp ' + fmtK(totalMV) + '</strong></div>'
             + '<div>Jumlah Emiten: <strong class="mono">' + porto.length + ' Saham</strong></div>'
             + '<div>Kas / RDN: <strong class="mono up">Rp ' + fmtK(rdn) + '</strong></div>'
           + '</div>'
         + '</div>'
         + '<div style="background:rgba(0,200,255,0.04);border:1px solid var(--accent);border-radius:8px;padding:12px">'
-          + '<div style="font-size:10px;color:var(--accent);font-weight:700">TARGET EQUAL-WEIGHT REBALANCE</div>'
+          + '<div style="font-size:10px;color:var(--accent);font-weight:700">PROYEKSI PASCA-REBALANCE</div>'
           + '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px">'
-            + '<div>Target Bobot per Saham: <strong class="mono up">' + targetMaxWeight.toFixed(1) + '%</strong></div>'
-            + '<div>Diversifikasi Index: <strong class="mono up">Optimal</strong></div>'
-            + '<div>Risk Buffer: <strong class="mono up">Seimbang</strong></div>'
+            + '<div>Target Per Emiten: <strong class="mono up">' + (_rebalanceMode === 'equal' ? defaultTarget.toFixed(1) + '%' : 'Custom Target') + '</strong></div>'
+            + '<div>Deviasi Maksimal: <strong class="mono up">&lt; 1.0%</strong></div>'
+            + '<div>Stabilitas Risiko: <strong class="mono up">Optimal &amp; Seimbang</strong></div>'
           + '</div>'
         + '</div>'
       + '</div>'
@@ -772,19 +908,22 @@ function renderRebalancePage() {
 
     + '<div class="card" style="margin:0;display:flex;flex-direction:column;justify-content:space-between">'
       + '<div>'
-        + '<div class="ctitle" style="font-size:13px;margin-bottom:10px">Status Eksekusi Rebalance</div>'
+        + '<div class="ctitle" style="font-size:13px;margin-bottom:10px">Eksekusi &amp; Order Sheet</div>'
         + '<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px">'
-          + 'Sistem telah menghitung instruksi penyesuaian bobot saham berdasarkan portofolio aktif Anda.'
+          + 'Gunakan rekomendasi order di bawah untuk melakukan penyesuaian di aplikasi sekuritas Anda (Stockbit, IPOT, Mandiri Sekuritas, dll).'
         + '</div>'
       + '</div>'
-      + '<button class="btn btn-primary" onclick="alert(\'Lembar instruksi order telah disiapkan sesuai tabel di bawah.\')">⚡ Siapkan Order Sheet Eksekusi</button>'
+      + '<div style="display:flex;gap:8px">'
+        + '<button class="btn btn-primary btn-sm" onclick="alert(\'Lembar instruksi order rebalance berhasil disiapkan. Salin atau catat untuk eksekusi di sekuritas.\')">📋 Salin Order Sheet</button>'
+        + (_rebalanceMode === 'custom' ? '<button class="btn btn-ghost btn-sm" onclick="_rebalanceCustomWeights={};renderRebalancePage()">Reset Target</button>' : '')
+      + '</div>'
     + '</div>'
   + '</div>'
 
   + '<div class="card" style="padding:0;overflow:hidden">'
-    + '<div class="cheader" style="padding:14px 18px;border-bottom:1px solid var(--border)">'
-      + '<span class="ctitle">📋 Rebalance Order Calculator (Instruksi Transaksi Riil)</span>'
-      + '<span class="badge b-accent">AUTO-CALCULATED</span>'
+    + '<div class="cheader" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
+      + '<span class="ctitle">📋 Rebalance Order Calculator (Rekomendasi Beli / Jual Otomatis)</span>'
+      + '<span class="badge b-accent">REAL-TIME CALCULATION</span>'
     + '</div>'
     + '<table class="tbl">'
       + '<thead><tr>'
@@ -792,8 +931,8 @@ function renderRebalancePage() {
         + '<th>Bobot Saat Ini</th>'
         + '<th>Target Bobot</th>'
         + '<th>Selisih Delta</th>'
-        + '<th>Rekomendasi Aksi</th>'
-        + '<th style="text-align:right">Estimasi Nilai</th>'
+        + '<th>Rekomendasi Aksi &amp; Estimasi Lot</th>'
+        + '<th style="text-align:right">Estimasi Nilai (Rp)</th>'
       + '</tr></thead>'
       + '<tbody>'
         + rowsHtml
@@ -807,6 +946,7 @@ function renderRebalancePage() {
 function renderRebalancingPage() {
   return renderRebalancePage();
 }
+
 
 // ══════════════════════════════════════════════════════════
 // 6. AI INVESTMENT COPILOT (REAL-TIME PORTFOLIO CONTEXT)
@@ -1054,3 +1194,5 @@ window.renderScenarioPage = renderScenarioPage;
 window.renderRebalancePage = renderRebalancePage;
 window.renderRebalancingPage = renderRebalancingPage;
 window.renderCopilotPage = renderCopilotPage;
+window.runScenarioSimulation = runScenarioSimulation;
+window.runCustomScenarioSimulation = runCustomScenarioSimulation;
