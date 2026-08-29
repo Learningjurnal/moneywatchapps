@@ -30,7 +30,17 @@ function authShowApp(username){
   AUTH._sesExp = Date.now() + AUTH.SESSION_MS;
   authStartTimeoutBar();
 
-  try{ if(typeof renderPage==='function' && typeof currentPage!=='undefined') renderPage(currentPage); }catch(e){}
+  try{
+    var urlParams = (typeof window !== 'undefined' && window.location && window.location.search) ? new URLSearchParams(window.location.search) : null;
+    var targetPage = urlParams ? urlParams.get('page') : null;
+    if(targetPage && typeof goPage === 'function'){
+      goPage(targetPage);
+    } else if(typeof renderPage==='function' && typeof currentPage!=='undefined') {
+      renderPage(currentPage);
+    }
+  }catch(e){
+    try{ if(typeof renderPage==='function' && typeof currentPage!=='undefined') renderPage(currentPage); }catch(e2){}
+  }
   try{ if(typeof renderCashWidgets==='function') renderCashWidgets(); }catch(e){}
   try{ if(typeof buildTickerTape==='function') buildTickerTape(); }catch(e){}
 

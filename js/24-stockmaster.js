@@ -1364,8 +1364,7 @@ window.smFetchData = fundFetchData;
 window.smSetTicker = fundSetTicker;
 window.smCalculateDCF = fundCalculateDCF;
 window.fundRecalcBuffett = fundRecalcBuffett;
-window.hw_recalc = fundRecalcBuffett;
-window.hw_resetAll = fundInit;
 window.cdLoadInput = techFetchData;
 window.cdAutoZona = techRenderCandleTab;
 window.cdRecalc = techRenderCandleTab;
+

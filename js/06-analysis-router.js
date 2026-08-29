@@ -961,6 +961,7 @@ function renderPage(name){
     case 'pajak':renderPajak();break;
     case 'fundamental':if(typeof fundInit==='function') fundInit();break;
     case 'technical':if(typeof techInit==='function') techInit();break;
+    case 'crypto-technical':if(typeof initCryptoTechnicalSuite==='function') initCryptoTechnicalSuite();break;
     case 'flowscan':if(typeof techInit==='function') techInit(); else fsRunAnalysis();break;
     case 'ranking':fsRenderRanking();break;
     case 'heatmap':fsRenderHeatmap();break;
@@ -968,7 +969,7 @@ function renderPage(name){
     case 'alerts':fsGenAlerts();break;
     case 'candle':if(typeof techInit==='function') techInit(); else renderCandle();break;
     case 'stockmaster':if(typeof fundInit==='function') fundInit(); else if(typeof smFetchData==='function') smFetchData();break;
-    case 'hargawajar':if(typeof fundInit==='function') fundInit(); else if(typeof hw_recalc==='function') hw_recalc();break;
+    case 'hargawajar':if(typeof hw_init==='function') hw_init(); if(typeof hw_recalc==='function') hw_recalc();break;
     // ── QuantTrader pages ──
     case 'backtester':break; // wait for user action
     case 'screener':if(typeof scRenderTable!=='undefined'){if(!QT.scData.length)scBuildSim();else scRenderTable();}break;

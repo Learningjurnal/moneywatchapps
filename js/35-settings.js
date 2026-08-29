@@ -429,12 +429,32 @@
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(5,150,105,0.1);border:1px solid rgba(5,150,105,0.3);border-radius:6px">
+              <div>
+                <div style="font-weight:700;font-size:12.5px;color:#10b981">Ekspor Terkonsolidasi (Excel / CSV)</div>
+                <div style="font-size:11px;color:var(--text3)">Gabungkan seluruh hasil, saham, crypto, ETF, RD, kas, hutang, dan proyeksi FIRE.</div>
+              </div>
+              <button type="button" class="btn btn-green btn-sm" style="background:#059669;color:#fff;border-color:#047857;font-weight:700" onclick="if(typeof exportConsolidatedPortfolioCsv==='function')exportConsolidatedPortfolioCsv();">
+                <i class="ti ti-file-spreadsheet"></i> Ekspor CSV
+              </button>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px">
+              <div>
+                <div style="font-weight:700;font-size:12.5px;color:#38bdf8">Pusat Laporan &amp; Dokumen PDF</div>
+                <div style="font-size:11px;color:var(--text3)">Pratinjau dan cetak dokumen resmi Family Office A4.</div>
+              </div>
+              <button type="button" class="btn btn-blue btn-sm" style="font-weight:700" onclick="if(typeof mwOpenPdfReportModal==='function')mwOpenPdfReportModal('consolidated');">
+                <i class="ti ti-file-text"></i> Buka Pusat Laporan
+              </button>
+            </div>
+
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px">
               <div>
-                <div style="font-weight:700;font-size:12.5px;color:var(--text)">Ekspor Cadangan JSON</div>
+                <div style="font-weight:700;font-size:12.5px;color:var(--text)">Ekspor Cadangan Master JSON</div>
                 <div style="font-size:11px;color:var(--text3)">Unduh berkas portofolio, mutasi kas RDN, dividen, dan rekening.</div>
               </div>
-              <button type="button" class="btn btn-primary btn-sm" onclick="MW_SETTINGS.exportJsonBackup()">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="MW_SETTINGS.exportJsonBackup()">
                 <i class="ti ti-download"></i> Ekspor JSON
               </button>
             </div>

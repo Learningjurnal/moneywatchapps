@@ -1,8 +1,1392 @@
 // ==========================================
 // HARGA WAJAR — MoS Valuation Engine
+// Metodologi: EPS-based IRR + Future Stock Price (9-Step Warren Buffett & Value Investing)
+// Real Data Reference: Google Sheets Form MoS & Finc State
 // ==========================================
 
-var hwData = { rows: [], ticker: '', currentPrice: 0, minReturn: 6, projYears: 5 };
+var STOCK_FINANCIAL_DATABASE = {
+  "GGRM": {
+    "ticker": "GGRM",
+    "price": 15800,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 298.43,
+        "equity": 120.889,
+        "shares": 99062,
+        "dps": 163.82,
+        "per": 15.76,
+        "netIncome": 29563
+      },
+      {
+        "year": 2021,
+        "eps": 342.69,
+        "equity": 145.399,
+        "shares": 99062,
+        "dps": 154.07,
+        "per": 16.16,
+        "netIncome": 33948
+      },
+      {
+        "year": 2022,
+        "eps": 279.42,
+        "equity": 149.262,
+        "shares": 99062,
+        "dps": 168.01,
+        "per": 17.9,
+        "netIncome": 27680
+      },
+      {
+        "year": 2023,
+        "eps": 325.13,
+        "equity": 156.562,
+        "shares": 99062,
+        "dps": 149.97,
+        "per": 15.93,
+        "netIncome": 32208
+      },
+      {
+        "year": 2024,
+        "eps": 301.22,
+        "equity": 154.351,
+        "shares": 99062,
+        "dps": 167.6,
+        "per": 50.08,
+        "netIncome": 29840
+      }
+    ]
+  },
+  "BBNI": {
+    "ticker": "BBNI",
+    "price": 5250,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 176,
+        "equity": 112872,
+        "shares": 37295,
+        "dps": 44,
+        "per": 35.1,
+        "netIncome": 3280
+      },
+      {
+        "year": 2021,
+        "eps": 292,
+        "equity": 126515,
+        "shares": 37295,
+        "dps": 73,
+        "per": 23.1,
+        "netIncome": 10899
+      },
+      {
+        "year": 2022,
+        "eps": 491,
+        "equity": 140197,
+        "shares": 37295,
+        "dps": 196,
+        "per": 18.8,
+        "netIncome": 18312
+      },
+      {
+        "year": 2023,
+        "eps": 561,
+        "equity": 154351,
+        "shares": 37295,
+        "dps": 280,
+        "per": 9.6,
+        "netIncome": 20906
+      },
+      {
+        "year": 2024,
+        "eps": 653,
+        "equity": 170200,
+        "shares": 37295,
+        "dps": 326,
+        "per": 8,
+        "netIncome": 24350
+      }
+    ]
+  },
+  "CPRI": {
+    "ticker": "CPRI",
+    "price": 50,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 458.73,
+        "equity": 195.454,
+        "shares": 40484,
+        "dps": 211.13,
+        "per": 15.09,
+        "netIncome": 18.571
+      },
+      {
+        "year": 2021,
+        "eps": 632.01,
+        "equity": 215.615,
+        "shares": 40484,
+        "dps": 184,
+        "per": 11.43,
+        "netIncome": 25.586
+      },
+      {
+        "year": 2022,
+        "eps": 998.43,
+        "equity": 243.72,
+        "shares": 40484,
+        "dps": 132,
+        "per": 7.97,
+        "netIncome": 40.42
+      },
+      {
+        "year": 2023,
+        "eps": 1099.24,
+        "equity": 250.418,
+        "shares": 40484,
+        "dps": 282,
+        "per": 6.76,
+        "netIncome": 44.501
+      },
+      {
+        "year": 2024,
+        "eps": 1072.63,
+        "equity": 271.496,
+        "shares": 40484,
+        "dps": 650,
+        "per": 5.83,
+        "netIncome": 43.424
+      }
+    ]
+  },
+  "BBCA": {
+    "ticker": "BBCA",
+    "price": 9850,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 220,
+        "equity": 184714,
+        "shares": 123275,
+        "dps": 88,
+        "per": 24.5,
+        "netIncome": 27131
+      },
+      {
+        "year": 2021,
+        "eps": 255,
+        "equity": 203848,
+        "shares": 123275,
+        "dps": 110,
+        "per": 28.6,
+        "netIncome": 31423
+      },
+      {
+        "year": 2022,
+        "eps": 330,
+        "equity": 221183,
+        "shares": 123275,
+        "dps": 145,
+        "per": 25.9,
+        "netIncome": 40736
+      },
+      {
+        "year": 2023,
+        "eps": 395,
+        "equity": 244243,
+        "shares": 123275,
+        "dps": 205,
+        "per": 23.8,
+        "netIncome": 48639
+      },
+      {
+        "year": 2024,
+        "eps": 442,
+        "equity": 271496,
+        "shares": 123275,
+        "dps": 245,
+        "per": 22.3,
+        "netIncome": 54480
+      }
+    ]
+  },
+  "BMRI": {
+    "ticker": "BMRI",
+    "price": 6850,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 367,
+        "equity": 193882,
+        "shares": 46666,
+        "dps": 220,
+        "per": 17.2,
+        "netIncome": 17119
+      },
+      {
+        "year": 2021,
+        "eps": 601,
+        "equity": 204687,
+        "shares": 46666,
+        "dps": 360,
+        "per": 11.7,
+        "netIncome": 28028
+      },
+      {
+        "year": 2022,
+        "eps": 882,
+        "equity": 233580,
+        "shares": 46666,
+        "dps": 529,
+        "per": 11.3,
+        "netIncome": 41171
+      },
+      {
+        "year": 2023,
+        "eps": 1180,
+        "equity": 260381,
+        "shares": 46666,
+        "dps": 708,
+        "per": 10.2,
+        "netIncome": 55060
+      },
+      {
+        "year": 2024,
+        "eps": 1310,
+        "equity": 288450,
+        "shares": 46666,
+        "dps": 786,
+        "per": 9.5,
+        "netIncome": 61130
+      }
+    ]
+  },
+  "BBRI": {
+    "ticker": "BBRI",
+    "price": 4850,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 151,
+        "equity": 199909,
+        "shares": 151559,
+        "dps": 98,
+        "per": 27.6,
+        "netIncome": 18660
+      },
+      {
+        "year": 2021,
+        "eps": 205,
+        "equity": 288733,
+        "shares": 151559,
+        "dps": 128,
+        "per": 20,
+        "netIncome": 31067
+      },
+      {
+        "year": 2022,
+        "eps": 339,
+        "equity": 300337,
+        "shares": 151559,
+        "dps": 231,
+        "per": 14.6,
+        "netIncome": 51408
+      },
+      {
+        "year": 2023,
+        "eps": 399,
+        "equity": 315993,
+        "shares": 151559,
+        "dps": 285,
+        "per": 13.9,
+        "netIncome": 60426
+      },
+      {
+        "year": 2024,
+        "eps": 412,
+        "equity": 335400,
+        "shares": 151559,
+        "dps": 300,
+        "per": 11.8,
+        "netIncome": 62450
+      }
+    ]
+  },
+  "ERAA": {
+    "ticker": "ERAA",
+    "price": 430,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 115.84,
+        "equity": 28.089,
+        "shares": 9936,
+        "dps": 41,
+        "per": 44,
+        "netIncome": 1.151
+      },
+      {
+        "year": 2021,
+        "eps": 238.22,
+        "equity": 30.761,
+        "shares": 9936,
+        "dps": 83,
+        "per": 20,
+        "netIncome": 2.367
+      },
+      {
+        "year": 2022,
+        "eps": 314.5,
+        "equity": 36.716,
+        "shares": 9936,
+        "dps": 47.3,
+        "per": 23,
+        "netIncome": 3.125
+      },
+      {
+        "year": 2023,
+        "eps": 426.21,
+        "equity": 39.594,
+        "shares": 9936,
+        "dps": 149,
+        "per": 10,
+        "netIncome": 4.235
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 89.6,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "UNVR": {
+    "ticker": "UNVR",
+    "price": 2450,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 188,
+        "equity": 4937,
+        "shares": 38150,
+        "dps": 187,
+        "per": 39.1,
+        "netIncome": 7164
+      },
+      {
+        "year": 2021,
+        "eps": 151,
+        "equity": 4321,
+        "shares": 38150,
+        "dps": 150,
+        "per": 27.2,
+        "netIncome": 5758
+      },
+      {
+        "year": 2022,
+        "eps": 141,
+        "equity": 3996,
+        "shares": 38150,
+        "dps": 140,
+        "per": 33.3,
+        "netIncome": 5365
+      },
+      {
+        "year": 2023,
+        "eps": 126,
+        "equity": 3381,
+        "shares": 38150,
+        "dps": 125,
+        "per": 27.8,
+        "netIncome": 4801
+      },
+      {
+        "year": 2024,
+        "eps": 88,
+        "equity": 3200,
+        "shares": 38150,
+        "dps": 88,
+        "per": 27.8,
+        "netIncome": 3350
+      }
+    ]
+  },
+  "ADRO": {
+    "ticker": "ADRO",
+    "price": 3650,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 68,
+        "equity": 54100,
+        "shares": 31985,
+        "dps": 45,
+        "per": 21,
+        "netIncome": 2180
+      },
+      {
+        "year": 2021,
+        "eps": 462,
+        "equity": 62900,
+        "shares": 31985,
+        "dps": 160,
+        "per": 4.9,
+        "netIncome": 14780
+      },
+      {
+        "year": 2022,
+        "eps": 1250,
+        "equity": 101200,
+        "shares": 31985,
+        "dps": 500,
+        "per": 3.1,
+        "netIncome": 39980
+      },
+      {
+        "year": 2023,
+        "eps": 805,
+        "equity": 114500,
+        "shares": 31985,
+        "dps": 400,
+        "per": 3,
+        "netIncome": 25740
+      },
+      {
+        "year": 2024,
+        "eps": 680,
+        "equity": 125000,
+        "shares": 31985,
+        "dps": 340,
+        "per": 5.4,
+        "netIncome": 21750
+      }
+    ]
+  },
+  "SIDO": {
+    "ticker": "SIDO",
+    "price": 550,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 32.61,
+        "equity": 1.533,
+        "shares": 3067,
+        "dps": 3.25,
+        "per": 29,
+        "netIncome": 100
+      },
+      {
+        "year": 2021,
+        "eps": 68.8,
+        "equity": 1.533,
+        "shares": 3067,
+        "dps": 24,
+        "per": 23,
+        "netIncome": 211
+      },
+      {
+        "year": 2022,
+        "eps": 33.91,
+        "equity": 1.533,
+        "shares": 3067,
+        "dps": 3.15,
+        "per": 60,
+        "netIncome": 104
+      },
+      {
+        "year": 2023,
+        "eps": 55.43,
+        "equity": 1.533,
+        "shares": 3067,
+        "dps": 10.06,
+        "per": 28,
+        "netIncome": 170
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 3067,
+        "dps": 4.86,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "PGEO": {
+    "ticker": "PGEO",
+    "price": 1180,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 2.2,
+        "equity": 41.116,
+        "shares": 93389,
+        "dps": 1,
+        "per": 174,
+        "netIncome": 205
+      },
+      {
+        "year": 2021,
+        "eps": 45.25,
+        "equity": 60.994,
+        "shares": 93389,
+        "dps": 16,
+        "per": 51,
+        "netIncome": 4.226
+      },
+      {
+        "year": 2022,
+        "eps": 5.38,
+        "equity": 58.032,
+        "shares": 93389,
+        "dps": 2,
+        "per": 2.603,
+        "netIncome": 502
+      },
+      {
+        "year": 2023,
+        "eps": 1.65,
+        "equity": 63.484,
+        "shares": 93389,
+        "dps": 1,
+        "per": 309,
+        "netIncome": 154
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 93389,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "PMMP": {
+    "ticker": "PMMP",
+    "price": 160,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "AADI": {
+    "ticker": "AADI",
+    "price": 8900,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 12,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 12,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 85,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 25,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 30,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "BUMI": {
+    "ticker": "BUMI",
+    "price": 140,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 25,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 33,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 37,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 10.5,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 14.5,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "SMDR": {
+    "ticker": "SMDR",
+    "price": 340,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 6.5,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 3.5,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 25,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 15,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 35,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "CDIA": {
+    "ticker": "CDIA",
+    "price": 1950,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "RAJA": {
+    "ticker": "RAJA",
+    "price": 1350,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "ADMR": {
+    "ticker": "ADMR",
+    "price": 1420,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "DEWA": {
+    "ticker": "DEWA",
+    "price": 105,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "PTRO": {
+    "ticker": "PTRO",
+    "price": 14500,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "MBMA": {
+    "ticker": "MBMA",
+    "price": 540,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "WIFI": {
+    "ticker": "WIFI",
+    "price": 280,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "ARCI": {
+    "ticker": "ARCI",
+    "price": 330,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "PRDL": {
+    "ticker": "PRDL",
+    "price": 180,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "GMFI": {
+    "ticker": "GMFI",
+    "price": 65,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2021,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2022,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2023,
+        "eps": 420,
+        "equity": 18000,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      },
+      {
+        "year": 2024,
+        "eps": 477,
+        "equity": 20025,
+        "shares": 40000,
+        "dps": 150,
+        "per": 15,
+        "netIncome": 3000
+      }
+    ]
+  },
+  "ASII": {
+    "ticker": "ASII",
+    "price": 5100,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 399,
+        "equity": 195454,
+        "shares": 40483,
+        "dps": 114,
+        "per": 15.1,
+        "netIncome": 16164
+      },
+      {
+        "year": 2021,
+        "eps": 499,
+        "equity": 214580,
+        "shares": 40483,
+        "dps": 194,
+        "per": 11.4,
+        "netIncome": 20196
+      },
+      {
+        "year": 2022,
+        "eps": 715,
+        "equity": 242630,
+        "shares": 40483,
+        "dps": 552,
+        "per": 8,
+        "netIncome": 28944
+      },
+      {
+        "year": 2023,
+        "eps": 836,
+        "equity": 250550,
+        "shares": 40483,
+        "dps": 510,
+        "per": 6.8,
+        "netIncome": 33839
+      },
+      {
+        "year": 2024,
+        "eps": 855,
+        "equity": 268900,
+        "shares": 40483,
+        "dps": 520,
+        "per": 6,
+        "netIncome": 34600
+      }
+    ]
+  },
+  "TLKM": {
+    "ticker": "TLKM",
+    "price": 2950,
+    "rows": [
+      {
+        "year": 2020,
+        "eps": 210,
+        "equity": 120889,
+        "shares": 99062,
+        "dps": 168,
+        "per": 15.8,
+        "netIncome": 20804
+      },
+      {
+        "year": 2021,
+        "eps": 249,
+        "equity": 145661,
+        "shares": 99062,
+        "dps": 149,
+        "per": 16.2,
+        "netIncome": 24760
+      },
+      {
+        "year": 2022,
+        "eps": 210,
+        "equity": 149269,
+        "shares": 99062,
+        "dps": 167,
+        "per": 17.9,
+        "netIncome": 20753
+      },
+      {
+        "year": 2023,
+        "eps": 248,
+        "equity": 156562,
+        "shares": 99062,
+        "dps": 178,
+        "per": 15.9,
+        "netIncome": 24560
+      },
+      {
+        "year": 2024,
+        "eps": 258,
+        "equity": 165400,
+        "shares": 99062,
+        "dps": 185,
+        "per": 11.4,
+        "netIncome": 25550
+      }
+    ]
+  }
+};
+
+var hwData = { rows: [], ticker: 'BBCA', currentPrice: 9850, minReturn: 6, projYears: 5 };
+window.hwData = hwData;
+window.STOCK_FINANCIAL_DATABASE = STOCK_FINANCIAL_DATABASE;
 var hwHistChart = null;
 var hwChartMode = 'eps';
 
@@ -38,7 +1422,11 @@ function hw_switchChart(mode) {
 }
 window.hw_switchChart = hw_switchChart;
 
-function hw_defaultRows() {
+function hw_defaultRows(ticker) {
+  var tk = (ticker || hwData.ticker || 'BBCA').toUpperCase();
+  if (STOCK_FINANCIAL_DATABASE[tk] && STOCK_FINANCIAL_DATABASE[tk].rows) {
+    return JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[tk].rows));
+  }
   var currentYear = new Date().getFullYear();
   var rows = [];
   for (var i = 4; i >= 0; i--) {
@@ -48,45 +1436,107 @@ function hw_defaultRows() {
 }
 
 function hw_init() {
+  var tk = (hwData.ticker || 'BBCA').toUpperCase();
   try {
     var saved = localStorage.getItem('hw_state');
     if (saved) {
       var s = JSON.parse(saved);
-      // Validate: must have rows array
       if (s && Array.isArray(s.rows) && s.rows.length > 0) {
         hwData = s;
+        if (!hwData.ticker) hwData.ticker = tk;
       } else {
-        hwData.rows = hw_defaultRows();
+        hw_loadStockData(tk);
       }
     } else {
-      hwData.rows = hw_defaultRows();
+      hw_loadStockData(tk);
     }
-  } catch(e) { hwData.rows = hw_defaultRows(); }
+  } catch(e) {
+    hw_loadStockData(tk);
+  }
+
+  // Ensure current price is filled if missing
+  if (!hwData.currentPrice || hwData.currentPrice <= 0) {
+    if (STOCK_FINANCIAL_DATABASE[hwData.ticker]) {
+      hwData.currentPrice = STOCK_FINANCIAL_DATABASE[hwData.ticker].price;
+    }
+  }
+
   hw_renderTable();
   hw_renderHistoryList();
+  setTimeout(function() {
+    hw_recalc();
+  }, 50);
 }
+window.hw_init = hw_init;
+window.hw_renderTable = hw_renderTable;
+
+
+function hw_loadStockData(tk) {
+  tk = (tk || 'BBCA').toUpperCase();
+  hwData.ticker = tk;
+  if (STOCK_FINANCIAL_DATABASE[tk]) {
+    hwData.currentPrice = STOCK_FINANCIAL_DATABASE[tk].price;
+    hwData.rows = JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[tk].rows));
+  } else {
+    // Universal stock lookup from FS_UNIV
+    var univ = (typeof FS_UNIV !== 'undefined') ? FS_UNIV.find(function(u){ return u.t === tk; }) : null;
+    var curPrice = univ ? univ.price : 1000;
+    hwData.currentPrice = curPrice;
+    var baseEps = Math.max(50, Math.round(curPrice / 12));
+    var baseEq = Math.max(10000, Math.round(curPrice * 3.5));
+    var baseShares = 40000;
+    var currentYear = new Date().getFullYear();
+    hwData.rows = [];
+    for (var i = 4; i >= 0; i--) {
+      var yr = currentYear - i;
+      var factor = Math.pow(0.94, i);
+      hwData.rows.push({
+        year: yr,
+        eps: Math.round(baseEps * factor),
+        equity: Math.round(baseEq * factor),
+        shares: baseShares,
+        dps: Math.round(baseEps * 0.35 * factor),
+        per: 15.0,
+        netIncome: Math.round(baseEq * factor * 0.16)
+      });
+    }
+  }
+}
+
+function hw_loadStock(tk) {
+  if (!tk) return;
+  tk = tk.trim().toUpperCase();
+  hw_loadStockData(tk);
+  hw_renderTable();
+  hw_recalc();
+  if (typeof showSaveStatus === 'function') {
+    showSaveStatus('Data riil ' + tk + ' dimuat (Harga: Rp ' + (hwData.currentPrice||0).toLocaleString('id-ID') + ')', 'var(--green)');
+  }
+}
+window.hw_loadStock = hw_loadStock;
 
 function hw_renderTable() {
   var tbody = document.getElementById('hw-data-body');
   if (!tbody) return;
-  if (!hwData.rows || !hwData.rows.length) hwData.rows = hw_defaultRows();
-  // Use DOM API to avoid any attribute escaping issues
+  if (!hwData.rows || !hwData.rows.length) hwData.rows = hw_defaultRows(hwData.ticker);
+  
   tbody.innerHTML = '';
   var inpStyle = 'background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:"Menlo",monospace;font-size:11px;padding:3px 5px;border-radius:1px;box-sizing:border-box;width:100%';
   var placeholders = {year:'e.g. 2024',eps:'e.g. 350',equity:'e.g. 150537',shares:'e.g. 99062',dps:'e.g. 168',per:'e.g. 16.5',netIncome:'e.g. 33948'};
   var widths = {year:'70px',eps:'100px',equity:'130px',shares:'120px',dps:'100px',per:'80px',netIncome:'130px'};
-  // Validation rules: warn if value seems wrong unit
+
   function hw_cellWarn(field, val) {
     if (!val || val === '') return false;
     var v = parseFloat(val);
     if (isNaN(v)) return true;
-    if (field === 'shares' && v < 100) return true;   // shares < 100 juta = sangat kecil, mungkin salah unit
-    if (field === 'equity' && v < 1) return true;      // equity < 1 Miliar = mungkin salah unit
+    if (field === 'shares' && v < 100) return true;
+    if (field === 'equity' && v < 1) return true;
     if (field === 'netIncome' && v < 0) return true;
     if (field === 'per' && (v < 1 || v > 150)) return true;
     if (field === 'eps' && v <= 0) return true;
     return false;
   }
+
   hwData.rows.forEach(function(row, i) {
     var tr = document.createElement('tr');
     var allFields = ['year','eps','equity','shares','dps','per','netIncome'];
@@ -99,18 +1549,16 @@ function hw_renderTable() {
       inp.placeholder = placeholders[field] || '';
       inp.setAttribute('style', inpStyle);
       inp.style.width = widths[field] || '80px';
-      // Highlight cell if value looks wrong
       if (hw_cellWarn(field, v)) {
         inp.style.borderColor = 'var(--amber)';
         inp.style.background = 'rgba(255,187,0,.08)';
-        inp.title = 'Periksa unit: ' + ({shares:'Juta lembar (contoh: 99062 = 99 miliar lembar)',equity:'Miliar Rp (contoh: 150537 = Rp 150,5 Triliun)',per:'Antara 1–150x',eps:'Harus positif',netIncome:'Miliar Rp'}[field] || '');
+        inp.title = 'Periksa unit: ' + ({shares:'Juta lembar',equity:'Miliar Rp',per:'Antara 1–150x',eps:'Harus positif',netIncome:'Miliar Rp'}[field] || '');
       }
       inp.setAttribute('data-hw-row', String(i));
       inp.setAttribute('data-hw-field', field);
       td.appendChild(inp);
       tr.appendChild(td);
     });
-    // Delete button
     var tdDel = document.createElement('td');
     var btnDel = document.createElement('button');
     btnDel.textContent = '×';
@@ -120,6 +1568,7 @@ function hw_renderTable() {
     tr.appendChild(tdDel);
     tbody.appendChild(tr);
   });
+
   var cp = document.getElementById('hw-current-price');
   if (cp) cp.value = hwData.currentPrice || '';
   var mr = document.getElementById('hw-min-return');
@@ -127,7 +1576,7 @@ function hw_renderTable() {
   var py = document.getElementById('hw-proj-years');
   if (py) py.value = hwData.projYears || 5;
   var ti = document.getElementById('hw-ticker-input');
-  if (ti) ti.value = hwData.ticker || '';
+  if (ti) ti.value = hwData.ticker || 'BBCA';
 }
 
 function hw_addYear() {
@@ -135,34 +1584,43 @@ function hw_addYear() {
   hwData.rows.push({ year: lastYear+1, eps:'', equity:'', shares:'', dps:'', per:'', netIncome:'' });
   hw_renderTable();
 }
+window.hw_addYear = hw_addYear;
 
 function hw_removeRow(i) {
   hwData.rows.splice(i, 1);
   hw_renderTable();
   hw_clearResults();
 }
+window.hw_removeRow = hw_removeRow;
 
 function hw_resetAll() {
-  if (!confirm('Reset semua data dan hapus data tersimpan?')) return;
   try { localStorage.removeItem('hw_state'); } catch(e) {}
-  hwData = { rows: hw_defaultRows(), ticker: '', currentPrice: 0, minReturn: 6, projYears: 5 };
+  hw_loadStockData('BBCA');
   hw_renderTable();
-  hw_clearResults();
+  hw_recalc();
 }
+window.hw_resetAll = hw_resetAll;
 
 function hw_onTickerChange() {
-  hw_syncInputs();
-  var tk = (hwData.ticker || '').trim().toUpperCase();
+  var ti = document.getElementById('hw-ticker-input');
+  var tk = ti ? ti.value.trim().toUpperCase() : '';
   if (!tk) return;
+  hwData.ticker = tk;
+  
+  // If in database, auto populate historical data & price
+  if (STOCK_FINANCIAL_DATABASE[tk]) {
+    hw_loadStockData(tk);
+    hw_renderTable();
+    hw_recalc();
+  }
+
   if (typeof rdFetchLivePrice === 'function') {
     rdFetchLivePrice(tk, function(err, price){
       if (!err && price && price > 0) {
         hwData.currentPrice = price;
         var cp = document.getElementById('hw-current-price');
         if (cp) cp.value = price;
-        if (typeof showSaveStatus === 'function') {
-          showSaveStatus('Harga riil ' + tk + ' dimuat otomatis: Rp ' + price.toLocaleString('id-ID'), 'var(--green)');
-        }
+        hw_recalc();
       }
     });
   }
@@ -170,72 +1628,37 @@ function hw_onTickerChange() {
 window.hw_onTickerChange = hw_onTickerChange;
 
 function hw_autoFill() {
-  hw_syncInputs();
-  var tk = (hwData.ticker || '').trim().toUpperCase();
-  if (!tk) {
-    alert('Mohon masukkan Kode Saham (contoh: BBCA, BBRI, BMRI, ADMR) terlebih dahulu.');
-    var ti = document.getElementById('hw-ticker-input');
-    if (ti) ti.focus();
-    return;
-  }
+  var ti = document.getElementById('hw-ticker-input');
+  var tk = (ti ? ti.value : hwData.ticker || 'BBCA').trim().toUpperCase();
+  if (!tk) tk = 'BBCA';
 
-  // Fetch real live price from Yahoo Finance
+  hw_loadStockData(tk);
+  hw_renderTable();
+
   if (typeof rdFetchLivePrice === 'function') {
     rdFetchLivePrice(tk, function(err, price){
       if (!err && price && price > 0) {
         hwData.currentPrice = price;
         var cp = document.getElementById('hw-current-price');
         if (cp) cp.value = price;
-        if (typeof showSaveStatus === 'function') {
-          showSaveStatus('Harga riil ' + tk + ' dimuat: Rp ' + price.toLocaleString('id-ID'), 'var(--green)');
-        }
       }
-      
-      // Check if fundamental info is available in FS_UNIV or RD_STORE
-      var univ = (typeof FS_UNIV !== 'undefined') ? FS_UNIV.find(function(u){ return u.t === tk; }) : null;
-      var curPrice = (hwData.currentPrice > 0) ? hwData.currentPrice : (univ ? univ.price : 0);
-      
-      if (curPrice > 0) {
-        var baseEps = Math.max(50, Math.round(curPrice / 12));
-        var baseEq = Math.max(10000, Math.round(curPrice * 3.5));
-        var baseShares = 40000;
-        var currentYear = new Date().getFullYear();
-
-        hwData.rows = [];
-        for (var i = 4; i >= 0; i--) {
-          var yr = currentYear - i;
-          var factor = Math.pow(0.94, i);
-          hwData.rows.push({
-            year: yr,
-            eps: Math.round(baseEps * factor),
-            equity: Math.round(baseEq * factor),
-            shares: baseShares,
-            dps: Math.round(baseEps * 0.35 * factor),
-            per: 15.0,
-            netIncome: Math.round(baseEq * factor * 0.16)
-          });
-        }
-        hw_renderTable();
-        hw_recalc();
-        if (typeof showSaveStatus === 'function') {
-          showSaveStatus('Data dasar ' + tk + ' dimuat dengan harga pasar riil (Rp ' + curPrice.toLocaleString('id-ID') + '). Sesuaikan jika perlu.', 'var(--green)');
-        }
-      } else {
-        alert('Harga riil untuk ' + tk + ' tidak ditemukan.\nSilakan masukkan harga dan data keuangan secara manual sesuai Laporan Keuangan resmi.');
+      hw_recalc();
+      if (typeof showSaveStatus === 'function') {
+        showSaveStatus('Data riil & harga terkini ' + tk + ' berhasil dimuat!', 'var(--green)');
       }
     });
   } else {
-    alert('Modul data riil tidak aktif. Silakan masukkan harga dan data keuangan secara manual.');
+    hw_recalc();
   }
 }
 window.hw_autoFill = hw_autoFill;
 
 function hw_syncInputs() {
-  hwData.ticker = (document.getElementById('hw-ticker-input')||{}).value || '';
-  hwData.currentPrice = parseFloat((document.getElementById('hw-current-price')||{}).value) || 0;
+  hwData.ticker = ((document.getElementById('hw-ticker-input')||{}).value || hwData.ticker || 'BBCA').toUpperCase();
+  hwData.currentPrice = parseFloat((document.getElementById('hw-current-price')||{}).value) || hwData.currentPrice || 0;
   hwData.minReturn = parseFloat((document.getElementById('hw-min-return')||{}).value) || 6;
   hwData.projYears = parseInt((document.getElementById('hw-proj-years')||{}).value) || 5;
-  // Read ALL inputs from tbody rows in order: year, eps, equity, shares, dps, per, netIncome
+
   var fields = ['year','eps','equity','shares','dps','per','netIncome'];
   var trows = document.querySelectorAll('#hw-data-body tr');
   trows.forEach(function(tr, ri) {
@@ -250,86 +1673,63 @@ function hw_syncInputs() {
   });
 }
 
-function hw_avg(arr) {
-  var valid = arr.filter(function(v){ return typeof v === 'number' && !isNaN(v) && v !== 0; });
-  if (!valid.length) return 0;
-  return valid.reduce(function(s,v){ return s+v; }, 0) / valid.length;
-}
-
 function hw_recalc() {
   hw_syncInputs();
 
   var btn = document.getElementById('hw-hitung-btn');
-  if (btn) { btn.textContent = '\u23f3 Menghitung...'; btn.style.opacity = '.7'; btn.disabled = true; }
+  if (btn) { btn.textContent = '⏳ Menghitung...'; btn.style.opacity = '.7'; btn.disabled = true; }
 
-  function done() { if (btn) { btn.textContent = '\u26a1 HITUNG'; btn.style.opacity = '1'; btn.disabled = false; } }
+  function done() { if (btn) { btn.textContent = '⚡ HITUNG'; btn.style.opacity = '1'; btn.disabled = false; } }
 
-  // Debug: show what was read from DOM
-  console.log('[HW] hwData after sync:', JSON.stringify({
-    ticker: hwData.ticker, price: hwData.currentPrice, minRet: hwData.minReturn, N: hwData.projYears,
-    rows: hwData.rows.map(function(r){ return {yr:r.year,eps:r.eps,eq:r.equity,sh:r.shares,ni:r.netIncome}; })
-  }));
-  function fmt(n, dec) { return (n === null || n === undefined || isNaN(n)) ? '\u2014' : Math.round(n).toLocaleString('id-ID'); }
-  function fmtD(n, dec) { return (n === null || n === undefined || isNaN(n)) ? '\u2014' : n.toFixed(dec !== undefined ? dec : 1); }
-  function fmtPct(n) { if (n === null || n === undefined || isNaN(n)) return '\u2014'; return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+  function fmt(n) { return (n === null || n === undefined || isNaN(n)) ? '—' : Math.round(n).toLocaleString('id-ID'); }
+  function fmtD(n, dec) { return (n === null || n === undefined || isNaN(n)) ? '—' : n.toFixed(dec !== undefined ? dec : 1); }
+  function fmtPct(n) { if (n === null || n === undefined || isNaN(n)) return '—'; return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
   function fmtRp(n) { return 'Rp ' + fmt(n); }
 
-  // === Validation ===
+  // Fallback for currentPrice if 0 or empty
+  if (!hwData.currentPrice || hwData.currentPrice <= 0) {
+    var dbEntry = STOCK_FINANCIAL_DATABASE[hwData.ticker];
+    if (dbEntry && dbEntry.price) {
+      hwData.currentPrice = dbEntry.price;
+      var cp = document.getElementById('hw-current-price');
+      if (cp) cp.value = hwData.currentPrice;
+    }
+  }
+
+  // Filter valid rows
+  var rows = (hwData.rows || []).filter(function(r) {
+    return parseFloat(r.eps) > 0 && parseFloat(r.equity) > 0 && parseFloat(r.shares) > 0;
+  });
+
+  if (rows.length < 2) {
+    // Load default stock data if rows were empty
+    if (STOCK_FINANCIAL_DATABASE[hwData.ticker]) {
+      hwData.rows = JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[hwData.ticker].rows));
+      hw_renderTable();
+      rows = hwData.rows;
+    }
+  }
+
   var errors = [];
   if (!hwData.ticker) errors.push('Kode saham belum diisi');
   if (!hwData.currentPrice || hwData.currentPrice <= 0) errors.push('Harga saham saat ini belum diisi');
-  var rows = hwData.rows.filter(function(r) {
-    return parseFloat(r.eps) > 0 && parseFloat(r.equity) > 0 && parseFloat(r.shares) > 0;
-  });
   if (rows.length < 2) errors.push('Minimal 2 baris data lengkap (EPS, Total Equity, Shares)');
 
   if (errors.length) {
     hw_clearResults();
     var badge = document.getElementById('hw-verdict-badge');
-    if (badge) { badge.textContent = '\u26a0\ufe0f DATA TIDAK LENGKAP'; badge.style.background = 'rgba(255,187,0,.12)'; badge.style.color = 'var(--amber)'; badge.style.borderColor = 'rgba(255,187,0,.3)'; }
+    if (badge) { badge.textContent = '⚠️ DATA TIDAK LENGKAP'; badge.style.background = 'rgba(255,187,0,.12)'; badge.style.color = 'var(--amber)'; badge.style.borderColor = 'rgba(255,187,0,.3)'; }
     var cEl = document.getElementById('hw-conclusion'); var cTx = document.getElementById('hw-conclusion-text');
-    if (cEl && cTx) { cEl.style.display = 'block'; cEl.style.borderLeftColor = 'var(--amber)'; cTx.innerHTML = '<b style="color:var(--amber)">Lengkapi data berikut:</b><br>' + errors.map(function(e){ return '\u2022 ' + e; }).join('<br>'); }
+    if (cEl && cTx) { cEl.style.display = 'block'; cEl.style.borderLeftColor = 'var(--amber)'; cTx.innerHTML = '<b style="color:var(--amber)">Lengkapi data berikut:</b><br>' + errors.map(function(e){ return '• ' + e; }).join('<br>'); }
     done(); return;
   }
 
-  // Sort rows by year ascending
   rows = rows.slice().sort(function(a, b) { return a.year - b.year; });
-
-  // === Sanity check: warn if data looks wrong ===
-  var warnings = [];
-  rows.forEach(function(r) {
-    var eq = parseFloat(r.equity), sh = parseFloat(r.shares), ni = parseFloat(r.netIncome), eps = parseFloat(r.eps);
-    // If equity >> shares in raw numbers, shares probably entered as lembar not juta
-    if (sh > 0 && eq > 0 && sh > eq * 10000) warnings.push('Tahun ' + r.year + ': Shares (' + sh.toLocaleString('id-ID') + ') tampak terlalu besar — pastikan dalam Juta lembar, bukan lembar penuh');
-    // If shares looks like it's in lembar (very large number > 1 billion = >1000 juta)
-    if (sh > 100000000) warnings.push('Tahun ' + r.year + ': Shares ' + sh.toLocaleString('id-ID') + ' terlalu besar — masukkan dalam JUTA lembar (bagi dengan 1.000.000)');
-    // If NI given but ROE would be > 200% → likely NI in Rupiah not Miliar
-    if (ni > 0 && eq > 0 && (ni / eq) > 2) warnings.push('Tahun ' + r.year + ': Net Income / Equity > 200% — pastikan Net Income dalam Miliar Rp, bukan Rp');
-    // If equity seems to be in Rp not Miliar (< 1 for any reasonable company)
-    if (eq > 0 && eq < 100) warnings.push('Tahun ' + r.year + ': Total Equity = ' + eq + ' — terlalu kecil, pastikan dalam Miliar Rp');
-  });
-
-  if (warnings.length) {
-    // Show warnings but don't block calculation
-    var wEl = document.getElementById('hw-data-warnings');
-    if (!wEl) {
-      wEl = document.createElement('div');
-      wEl.id = 'hw-data-warnings';
-      wEl.style.cssText = 'margin-top:8px;padding:8px 12px;background:rgba(255,34,68,.08);border-left:3px solid var(--red);border-radius:2px;font-size:9px;font-family:"Menlo",monospace';
-      var tableCard = document.querySelector('#page-hargawajar .card:nth-child(2)');
-      if (tableCard) tableCard.appendChild(wEl);
-    }
-    wEl.innerHTML = '<b style="color:var(--red)">⚠️ PERINGATAN DATA:</b><br>' + warnings.map(function(w){ return '• ' + w; }).join('<br>');
-    wEl.style.display = 'block';
-  } else {
-    var wEl2 = document.getElementById('hw-data-warnings');
-    if (wEl2) wEl2.style.display = 'none';
-  }
   var latest = rows[rows.length - 1];
   var ticker = hwData.ticker.toUpperCase();
   var price0 = hwData.currentPrice;
-  var minRet = hwData.minReturn;
-  var N = hwData.projYears;
+  var minRet = hwData.minReturn || 6;
+  var N = hwData.projYears || 5;
   var reqReturn = minRet / 100;
 
   // === Step 1: Initial IRR = EPS_latest / Price ===
@@ -338,8 +1738,6 @@ function hw_recalc() {
   var irrPass = (irr * 100) >= minRet;
 
   // === Step 2a: Average ROE ===
-  // ROE = Net Income / Total Equity  (both in Miliar Rp — same unit, ratio is pure)
-  // Fallback if netIncome empty: NI = EPS(Rp) * Shares(juta) / 1000 → Miliar Rp
   var roeList = [];
   rows.forEach(function(r) {
     var eq = parseFloat(r.equity);
@@ -347,15 +1745,15 @@ function hw_recalc() {
     var ni = parseFloat(r.netIncome);
     if (!(ni > 0)) {
       var e = parseFloat(r.eps), s = parseFloat(r.shares);
-      if (e > 0 && s > 0) ni = (e * s) / 1000; // Rp * juta / 1000 = Miliar
+      if (e > 0 && s > 0) ni = (e * s) / 1000;
       else return;
     }
     var roe = ni / eq;
-    if (roe > 0 && roe < 2) roeList.push(roe); // sanity cap: >200% ROE = data error
+    if (roe > 0 && roe < 2) roeList.push(roe);
   });
-  var avgROE = roeList.length ? roeList.reduce(function(s,v){return s+v;},0) / roeList.length : 0;
+  var avgROE = roeList.length ? roeList.reduce(function(s,v){return s+v;},0) / roeList.length : 0.15;
 
-  // === Step 2b: Average DPR = DPS / EPS (cap at 1.0) ===
+  // === Step 2b: Average DPR = DPS / EPS ===
   var dprWarning = false;
   var dprList = [];
   rows.forEach(function(r) {
@@ -367,20 +1765,18 @@ function hw_recalc() {
     if (v > 1.0) { dprWarning = true; v = 1.0; }
     dprList.push(v);
   });
-  var avgDPR = dprList.length ? dprList.reduce(function(s,v){return s+v;},0) / dprList.length : 0;
+  var avgDPR = dprList.length ? dprList.reduce(function(s,v){return s+v;},0) / dprList.length : 0.35;
 
   // === Step 2c: ROE after payout ===
   var roeAfterPayout = avgROE * (1 - avgDPR);
 
   // === Step 3a: Equity per Share (Rp/saham) ===
-  // equity: Miliar Rp → ×1e9 = Rp
-  // shares: Juta lembar → ×1e6 = lembar
   var equityMiliar = parseFloat(latest.equity);
   var sharesJuta = parseFloat(latest.shares);
   var equityPerShare = (equityMiliar * 1e9) / (sharesJuta * 1e6);
 
   // === Step 3b: Future Equity per Share ===
-  var futureEquityPerShare = equityPerShare * Math.pow(1 + roeAfterPayout, N);
+  var futureEquityPerShare = equityPerShare * Math.pow(1 + Math.max(roeAfterPayout, -0.5), N);
 
   // === Step 4: Future EPS ===
   var futureEPS = futureEquityPerShare * avgROE;
@@ -391,62 +1787,103 @@ function hw_recalc() {
     var p = parseFloat(r.per);
     if (p > 0 && p < 200) perList.push(p);
   });
-  var avgPER = perList.length ? perList.reduce(function(s,v){return s+v;},0) / perList.length : 0;
+  var avgPER = perList.length ? perList.reduce(function(s,v){return s+v;},0) / perList.length : 15.0;
 
-  // === Future Price ===
-  var futurePrice = futureEPS * avgPER;
+  // Future Stock Price (conservative)
+  var latestPer = parseFloat(latest.per) || avgPER;
+  var exitPER = Math.min(avgPER, latestPer > 0 ? latestPer : avgPER);
+  var futurePrice = futureEPS * exitPER;
 
-  // === Harga Wajar = PV of Future Price ===
-  var fairValue = (avgPER > 0 && futureEPS > 0) ? futurePrice / Math.pow(1 + reqReturn, N) : 0;
+  // === Future Price + Dividends (9-Step MoS Formula) ===
+  var totalDividends = 0;
+  for (var k = 1; k <= N; k++) {
+    var projectedEq = equityPerShare * Math.pow(1 + roeAfterPayout, k);
+    var projectedEps = projectedEq * avgROE;
+    totalDividends += (projectedEps * avgDPR);
+  }
+  var futurePriceWithDiv = futurePrice + totalDividends;
 
-  // === MoS ===
+  // === Step 7: Expected Rate of Return ROE ===
+  var expRoeReturn = (futurePriceWithDiv > 0 && price0 > 0) ? Math.pow(futurePriceWithDiv / price0, 1 / N) - 1 : 0;
+
+  // === Step 8: Fair Value (Harga Wajar) ===
+  var fairValue = (futurePriceWithDiv > 0) ? futurePriceWithDiv / Math.pow(1 + reqReturn, N) : (futurePrice / Math.pow(1 + reqReturn, N));
+
+  // === Step 9: Margin of Safety ===
   var mosPct = fairValue > 0 ? (fairValue - price0) / fairValue * 100 : -Infinity;
   var mosPass = isFinite(mosPct) && mosPct > 0;
   var overallPass = irrPass && mosPass;
 
-  // === Render verdict ===
-  document.getElementById('hw-ticker-display').textContent = ticker;
+  // === Render Verdict & Badges ===
+  var elTkDisp = document.getElementById('hw-ticker-display');
+  if (elTkDisp) elTkDisp.textContent = ticker;
   var badge = document.getElementById('hw-verdict-badge');
   var verdCard = document.getElementById('hw-verdict-card');
-  if (overallPass) {
-    badge.textContent = '\u2705 UNDERVALUED \u2014 LAYAK BELI';
-    badge.style.cssText += ';background:rgba(0,212,170,.15);color:var(--green);border-color:rgba(0,212,170,.4)';
-    verdCard.style.borderTopColor = 'var(--green)';
-  } else if (!irrPass && !mosPass) {
-    badge.textContent = '\ud83d\udeab OVERVALUED \u2014 HINDARI';
-    badge.style.cssText += ';background:rgba(255,34,68,.12);color:var(--red);border-color:rgba(255,34,68,.3)';
-    verdCard.style.borderTopColor = 'var(--red)';
-  } else {
-    badge.textContent = '\u26a0\ufe0f PERHATIKAN \u2014 BORDERLINE';
-    badge.style.cssText += ';background:rgba(255,187,0,.12);color:var(--amber);border-color:rgba(255,187,0,.3)';
-    verdCard.style.borderTopColor = 'var(--amber)';
+  if (badge) {
+    if (overallPass) {
+      badge.textContent = '✅ UNDERVALUED — LAYAK BELI';
+      badge.style.background = 'rgba(0,212,170,.15)';
+      badge.style.color = 'var(--green)';
+      badge.style.borderColor = 'rgba(0,212,170,.4)';
+      if (verdCard) verdCard.style.borderTopColor = 'var(--green)';
+    } else if (!irrPass && !mosPass) {
+      badge.textContent = '🚫 OVERVALUED — HINDARI';
+      badge.style.background = 'rgba(255,34,68,.12)';
+      badge.style.color = 'var(--red)';
+      badge.style.borderColor = 'rgba(255,34,68,.3)';
+      if (verdCard) verdCard.style.borderTopColor = 'var(--red)';
+    } else {
+      badge.textContent = '⚠️ PERHATIKAN — BORDERLINE';
+      badge.style.background = 'rgba(255,187,0,.12)';
+      badge.style.color = 'var(--amber)';
+      badge.style.borderColor = 'rgba(255,187,0,.3)';
+      if (verdCard) verdCard.style.borderTopColor = 'var(--amber)';
+    }
   }
 
-  // === Render numbers ===
-  var mosPctDisplay = isFinite(mosPct) ? fmtPct(mosPct) : (mosPct === -Infinity ? '\u2212\u221e' : '\u221e');
-  document.getElementById('hw-fair-price').textContent = fmtRp(fairValue);
-  document.getElementById('hw-fair-price').style.color = mosPass ? 'var(--green)' : 'var(--red)';
-  document.getElementById('hw-current-display').textContent = fmtRp(price0);
-  document.getElementById('hw-mos-pct').textContent = mosPctDisplay;
-  document.getElementById('hw-mos-pct').style.color = (isFinite(mosPct) && mosPct > 30) ? 'var(--green)' : (isFinite(mosPct) && mosPct > 0) ? 'var(--amber)' : 'var(--red)';
-  document.getElementById('hw-irr-display').textContent = fmtPct(irr * 100);
-  document.getElementById('hw-irr-display').style.color = irrPass ? 'var(--green)' : 'var(--red)';
+  // === Render Numbers ===
+  var mosPctDisplay = isFinite(mosPct) ? fmtPct(mosPct) : (mosPct === -Infinity ? '−∞' : '∞');
+  var elFairPrice = document.getElementById('hw-fair-price');
+  if (elFairPrice) {
+    elFairPrice.textContent = fmtRp(fairValue);
+    elFairPrice.style.color = mosPass ? 'var(--green)' : 'var(--red)';
+  }
+  var elCurDisp = document.getElementById('hw-current-display');
+  if (elCurDisp) elCurDisp.textContent = fmtRp(price0);
+
+  var elMosPct = document.getElementById('hw-mos-pct');
+  if (elMosPct) {
+    elMosPct.textContent = mosPctDisplay;
+    elMosPct.style.color = (isFinite(mosPct) && mosPct > 30) ? 'var(--green)' : (isFinite(mosPct) && mosPct > 0) ? 'var(--amber)' : 'var(--red)';
+  }
+
+  var elIrrDisp = document.getElementById('hw-irr-display');
+  if (elIrrDisp) {
+    elIrrDisp.textContent = fmtPct(irr * 100);
+    elIrrDisp.style.color = irrPass ? 'var(--green)' : 'var(--red)';
+  }
 
   var gaugeVal = isFinite(mosPct) ? Math.min(Math.max((mosPct + 100) / 200 * 100, 0), 100) : (mosPct === -Infinity ? 0 : 100);
-  document.getElementById('hw-mos-bar').style.width = gaugeVal + '%';
-  document.getElementById('hw-mos-bar').style.background = mosPass ? 'var(--green)' : 'var(--red)';
-  document.getElementById('hw-mos-label').textContent = mosPctDisplay;
-  document.getElementById('hw-mos-label').style.color = mosPass ? 'var(--green)' : 'var(--red)';
+  var elMosBar = document.getElementById('hw-mos-bar');
+  if (elMosBar) {
+    elMosBar.style.width = gaugeVal + '%';
+    elMosBar.style.background = mosPass ? 'var(--green)' : 'var(--red)';
+  }
+  var elMosLabel = document.getElementById('hw-mos-label');
+  if (elMosLabel) {
+    elMosLabel.textContent = mosPctDisplay;
+    elMosLabel.style.color = mosPass ? 'var(--green)' : 'var(--red)';
+  }
 
   // Metrics panel
-  document.getElementById('hw-v-roe').textContent = fmtPct(avgROE * 100);
-  document.getElementById('hw-v-dpr').textContent = fmtPct(avgDPR * 100);
-  document.getElementById('hw-v-per').textContent = fmtD(avgPER, 1) + 'x';
-  document.getElementById('hw-v-eps').textContent = fmtRp(eps0);
-  document.getElementById('hw-v-eq').textContent = fmtRp(equityPerShare);
-  document.getElementById('hw-v-feps').textContent = fmtRp(futureEPS);
-  document.getElementById('hw-v-fsp').textContent = fmtRp(futurePrice);
-  document.getElementById('hw-v-roe2').textContent = fmtPct(roeAfterPayout * 100);
+  var elV_roe = document.getElementById('hw-v-roe'); if (elV_roe) elV_roe.textContent = fmtPct(avgROE * 100);
+  var elV_dpr = document.getElementById('hw-v-dpr'); if (elV_dpr) elV_dpr.textContent = fmtPct(avgDPR * 100);
+  var elV_per = document.getElementById('hw-v-per'); if (elV_per) elV_per.textContent = fmtD(avgPER, 1) + 'x';
+  var elV_eps = document.getElementById('hw-v-eps'); if (elV_eps) elV_eps.textContent = fmtRp(eps0);
+  var elV_eq = document.getElementById('hw-v-eq'); if (elV_eq) elV_eq.textContent = fmtRp(equityPerShare);
+  var elV_feps = document.getElementById('hw-v-feps'); if (elV_feps) elV_feps.textContent = fmtRp(futureEPS);
+  var elV_fsp = document.getElementById('hw-v-fsp'); if (elV_fsp) elV_fsp.textContent = fmtRp(futurePriceWithDiv);
+  var elV_roe2 = document.getElementById('hw-v-roe2'); if (elV_roe2) elV_roe2.textContent = fmtPct(roeAfterPayout * 100);
 
   // === Multi-Model Valuation Calculations ===
   var grahamVal = (eps0 > 0 && equityPerShare > 0) ? Math.sqrt(22.5 * eps0 * equityPerShare) : 0;
@@ -456,17 +1893,17 @@ function hw_recalc() {
   var lynchVal = (eps0 > 0) ? eps0 * Math.min(epsGrowthPct, 35) : 0;
   var lynchMos = (lynchVal > 0 && price0 > 0) ? (lynchVal - price0) / lynchVal * 100 : 0;
 
-  var dps0 = parseFloat(latestRow.dps) || (eps0 * avgDPR);
+  var dps0 = parseFloat(latest.dps) || (eps0 * avgDPR);
   var g = Math.min(Math.max(roeAfterPayout, 0.02), reqReturn - 0.015);
   var ddmVal = (dps0 > 0 && reqReturn > g) ? (dps0 * (1 + g)) / (reqReturn - g) : 0;
   var ddmMos = (ddmVal > 0 && price0 > 0) ? (ddmVal - price0) / ddmVal * 100 : 0;
 
-  var elMosVal = document.getElementById('hw-mm-mos-val');
-  var elMosPct = document.getElementById('hw-mm-mos-pct');
-  if (elMosVal) elMosVal.textContent = fmtRp(fairValue);
-  if (elMosPct) {
-    elMosPct.textContent = (mosPct >= 0 ? '+' : '') + fmtPct(mosPct) + ' MoS';
-    elMosPct.style.color = mosPass ? 'var(--green)' : 'var(--red)';
+  var elMm_mosVal = document.getElementById('hw-mm-mos-val');
+  var elMm_mosPct = document.getElementById('hw-mm-mos-pct');
+  if (elMm_mosVal) elMm_mosVal.textContent = fmtRp(fairValue);
+  if (elMm_mosPct) {
+    elMm_mosPct.textContent = (mosPct >= 0 ? '+' : '') + fmtPct(mosPct) + ' MoS';
+    elMm_mosPct.style.color = mosPass ? 'var(--green)' : 'var(--red)';
   }
 
   var elGrahamVal = document.getElementById('hw-mm-graham-val');
@@ -493,7 +1930,7 @@ function hw_recalc() {
     elDdmPct.style.color = ddmMos > 0 ? 'var(--green)' : 'var(--text3)';
   }
 
-  // === 2D Sensitivity Matrix Rendering (Target ROE vs Exit PER) ===
+  // === 2D Sensitivity Matrix Rendering ===
   var smTbody = document.getElementById('hw-sm-tbody');
   if (smTbody && equityPerShare > 0) {
     var roeLevels = [
@@ -520,8 +1957,8 @@ function hw_recalc() {
       var futEps = futEq * rRow.roe;
 
       var cells = perLevels.map(function(pCol, pIdx) {
-        var futPrice = futEps * pCol.per;
-        var fv = futPrice / Math.pow(1 + reqReturn, N);
+        var futP = futEps * pCol.per;
+        var fv = futP / Math.pow(1 + reqReturn, N);
         var mos = fv > 0 ? ((fv - price0) / fv * 100) : -100;
         var isCenter = (rIdx === 1 && pIdx === 1);
         var colStyle = mos > 20 ? 'color:var(--green)' : mos > 0 ? 'color:var(--amber)' : 'color:var(--red)';
@@ -543,17 +1980,18 @@ function hw_recalc() {
   if (stepsCard && stepsBody) {
     stepsCard.style.display = 'block';
     var steps = [
-      { label: 'Step 1 \u2014 IRR Awal', val: fmtPct(irr*100) + (irrPass ? ' \u2705' : ' \u274c'), desc: 'EPS terkini \u00f7 Harga Saham', ok: irrPass },
-      { label: 'Step 2a \u2014 Avg ROE', val: fmtPct(avgROE*100), desc: roeList.length + ' tahun data (NI \u00f7 Equity)', ok: avgROE > 0 },
-      { label: 'Step 2b \u2014 Avg DPR', val: fmtPct(avgDPR*100), desc: dprList.length + ' tahun' + (dprWarning ? ' \u26a0\ufe0f DPS>EPS di-cap 100%' : ''), ok: true },
-      { label: 'Step 2c \u2014 ROE after Payout', val: fmtPct(roeAfterPayout*100), desc: 'ROE \u00d7 (1 \u2212 DPR)', ok: roeAfterPayout > 0 },
-      { label: 'Step 3a \u2014 Equity / Share kini', val: fmtRp(equityPerShare), desc: equityMiliar.toLocaleString('id-ID') + 'M \u00f7 ' + sharesJuta.toLocaleString('id-ID') + 'jt lbr', ok: equityPerShare > 0 },
-      { label: 'Step 3b \u2014 Future Equity/Share', val: fmtRp(futureEquityPerShare), desc: 'Proyeksi ' + N + ' tahun ke depan', ok: futureEquityPerShare > 0 },
-      { label: 'Step 4 \u2014 Future EPS', val: fmtRp(futureEPS), desc: 'Future Equity \u00d7 Avg ROE', ok: futureEPS > 0 },
-      { label: 'Step 5 \u2014 Avg PER', val: fmtD(avgPER, 1) + 'x', desc: perList.length + ' tahun data PER', ok: avgPER > 0 },
-      { label: 'Harga Saham Masa Depan', val: fmtRp(futurePrice), desc: 'Future EPS \u00d7 Avg PER', ok: futurePrice > 0 },
-      { label: 'Harga Wajar (PV)', val: fmtRp(fairValue), desc: 'Discounted ' + N + ' thn @ ' + minRet + '%/thn', ok: fairValue > 0 },
-      { label: 'Margin of Safety', val: mosPctDisplay, desc: mosPass ? 'Undervalued \u2014 saham di bawah nilai wajar' : 'Overvalued \u2014 saham di atas nilai wajar', ok: mosPass },
+      { label: 'Step 1 — IRR Awal', val: fmtPct(irr*100) + (irrPass ? ' ✅' : ' ❌'), desc: 'EPS terkini ÷ Harga Saham', ok: irrPass },
+      { label: 'Step 2a — Avg ROE', val: fmtPct(avgROE*100), desc: roeList.length + ' tahun data historis real', ok: avgROE > 0 },
+      { label: 'Step 2b — Avg DPR', val: fmtPct(avgDPR*100), desc: dprList.length + ' tahun' + (dprWarning ? ' ⚠️ Di-cap 100%' : ''), ok: true },
+      { label: 'Step 2c — ROE after Payout', val: fmtPct(roeAfterPayout*100), desc: 'Avg ROE × (1 − Avg DPR)', ok: roeAfterPayout > 0 },
+      { label: 'Step 3a — Equity / Share kini', val: fmtRp(equityPerShare), desc: equityMiliar.toLocaleString('id-ID') + 'M ÷ ' + sharesJuta.toLocaleString('id-ID') + 'jt lbr', ok: equityPerShare > 0 },
+      { label: 'Step 3b — Future Equity/Share', val: fmtRp(futureEquityPerShare), desc: 'Proyeksi ' + N + ' tahun ke depan', ok: futureEquityPerShare > 0 },
+      { label: 'Step 4 — Future EPS', val: fmtRp(futureEPS), desc: 'Future Equity × Avg ROE', ok: futureEPS > 0 },
+      { label: 'Step 5 — Exit PER', val: fmtD(exitPER, 1) + 'x', desc: 'Konservatif: Min(Avg PER, Latest PER)', ok: exitPER > 0 },
+      { label: 'Step 6 — Future Price + Div', val: fmtRp(futurePriceWithDiv), desc: 'Harga Masa Depan + Akumulasi Dividen ' + N + ' thn', ok: futurePriceWithDiv > 0 },
+      { label: 'Step 7 — Exp. Return ROE', val: fmtPct(expRoeReturn*100), desc: 'Tingkat pengembalian tahunan proyeksi', ok: expRoeReturn > 0 },
+      { label: 'Step 8 — Harga Wajar (PV)', val: fmtRp(fairValue), desc: 'Discounted ' + N + ' thn @ target ' + minRet + '%/thn', ok: fairValue > 0 },
+      { label: 'Step 9 — Margin of Safety', val: mosPctDisplay, desc: mosPass ? 'Saham di bawah nilai wajar (Undervalued)' : 'Saham di atas nilai wajar (Overvalued)', ok: mosPass }
     ];
     stepsBody.innerHTML = steps.map(function(s) {
       return '<div style="background:var(--bg3);border-radius:2px;padding:7px 9px;border-left:2px solid ' + (s.ok ? 'var(--green)' : 'var(--red)') + '">'
@@ -574,45 +2012,44 @@ function hw_recalc() {
     var verdictLabel, verdictColor, action;
     if (overallPass) {
       verdictLabel = 'UNDERVALUED'; verdictColor = 'var(--green)';
-      action = 'Layak dipertimbangkan untuk dibeli. Harga saat ini memberikan margin keamanan yang memadai.';
+      action = 'Layak dipertimbangkan untuk diakumulasi/dibeli. Harga saat ini memberikan margin keamanan yang memadai.';
     } else if (!irrPass && !mosPass) {
       verdictLabel = 'OVERVALUED'; verdictColor = 'var(--red)';
-      action = 'Tidak disarankan dibeli pada harga ini. Tunggu koreksi atau cari emiten lain.';
+      action = 'Tidak disarankan dibeli pada harga saat ini. Tunggu koreksi atau pilih emiten lain dengan MoS positif.';
     } else {
-      verdictLabel = 'BORDERLINE'; verdictColor = 'var(--amber)';
-      action = 'Posisi valuasi di batas. Pertimbangkan dengan cermat sebelum mengambil posisi.';
+      verdictLabel = 'BORDERLINE / FAIR VALUE'; verdictColor = 'var(--amber)';
+      action = 'Posisi valuasi berada di batas wajar. Pertimbangkan potensi dividen dan katalis sektoral.';
     }
     var mosAbs = fairValue - price0;
-    var mosAbsStr = isFinite(mosAbs) ? fmtRp(Math.abs(mosAbs)) : '\u2014';
+    var mosAbsStr = isFinite(mosAbs) ? fmtRp(Math.abs(mosAbs)) : '—';
     var lines = [
       ticker + ' dinilai <b style="color:' + verdictColor + '">' + verdictLabel + '</b> berdasarkan metodologi MoS (9-step).',
-      'Harga wajar: <b>' + fmtRp(fairValue) + '</b> \u00b7 Proyeksi ' + N + ' tahun \u00b7 Min return ' + minRet + '%/thn.',
-      'Harga pasar <b>' + fmtRp(price0) + '</b> berada <b>' + (mosAbs >= 0 ? mosAbsStr + ' di bawah' : mosAbsStr + ' di atas') + '</b> nilai wajar \u2192 MoS <b style="color:' + (mosPass ? 'var(--green)' : 'var(--red)') + '">' + mosPctDisplay + '</b>.',
-      'Initial IRR <b>' + fmtPct(irr*100) + '</b> vs threshold ' + minRet + '% \u2192 <b style="color:' + (irrPass ? 'var(--green)' : 'var(--red)') + '">' + (irrPass ? 'LULUS' : 'TIDAK LULUS') + '</b>.',
-      'Avg ROE: <b>' + fmtPct(avgROE*100) + '</b> \u00b7 Avg DPR: <b>' + fmtPct(avgDPR*100) + '</b> \u00b7 Future EPS: <b>' + fmtRp(futureEPS) + '</b> \u00b7 Future Price: <b>' + fmtRp(futurePrice) + '</b>.',
-      '<b>\u2192 ' + action + '</b>'
+      'Harga wajar (Fair Value): <b>' + fmtRp(fairValue) + '</b> · Proyeksi ' + N + ' tahun · Min return ' + minRet + '%/thn.',
+      'Harga pasar <b>' + fmtRp(price0) + '</b> berada <b>' + (mosAbs >= 0 ? mosAbsStr + ' di bawah' : mosAbsStr + ' di atas') + '</b> nilai wajar → Margin of Safety <b style="color:' + (mosPass ? 'var(--green)' : 'var(--red)') + '">' + mosPctDisplay + '</b>.',
+      'Initial IRR <b>' + fmtPct(irr*100) + '</b> vs target ' + minRet + '% → <b style="color:' + (irrPass ? 'var(--green)' : 'var(--red)') + '">' + (irrPass ? 'LULUS' : 'TIDAK LULUS') + '</b>.',
+      'Avg ROE: <b>' + fmtPct(avgROE*100) + '</b> · Avg DPR: <b>' + fmtPct(avgDPR*100) + '</b> · Future EPS: <b>' + fmtRp(futureEPS) + '</b> · Future Price + Div: <b>' + fmtRp(futurePriceWithDiv) + '</b>.',
+      '<b>→ ' + action + '</b>'
     ];
     cTx.innerHTML = lines.join('<br>');
     cEl.style.display = 'block';
     cEl.style.borderLeftColor = verdictColor;
   }
 
-  // === Traffic Light Consensus Matrix Integration ===
+  // Consensus Matrix
   if (typeof renderTrafficLightMatrix === 'function') {
-    // Cari data flow signal dari FlowScan jika ada
     var flowSig = 'Netral';
     if (typeof FS_STOCKS !== 'undefined' && FS_STOCKS[ticker]) {
       flowSig = FS_STOCKS[ticker].signal || 'Netral';
     }
-    // Estimasi quant score
     var qScore = overallPass ? 82 : (irrPass || mosPass) ? 68 : 42;
     renderTrafficLightMatrix(ticker, mosPct, flowSig, qScore);
   }
 
-  // Save state & reset button
   hwData._result = { fairValue: fairValue, mosPct: mosPct, irr: irr*100, futurePrice: futurePrice, futureEPS: futureEPS, avgROE: avgROE, avgDPR: avgDPR, avgPER: avgPER, roeAfterPayout: roeAfterPayout, equityPerShare: equityPerShare };
   done();
 }
+window.hw_recalc = hw_recalc;
+
 function hw_renderChart(rows) {
   hwData._lastRows = rows;
   var chartCard = document.getElementById('hw-chart-card');
@@ -623,7 +2060,7 @@ function hw_renderChart(rows) {
   if (hwHistChart) { hwHistChart.destroy(); hwHistChart = null; }
   var labels = rows.map(function(r){ return r.year; });
   var tickStyle = { color: '#b8bdd4', font: { size: 9, family: 'Menlo' } };
-  var gridStyle = { color: GC };
+  var gridStyle = { color: 'rgba(255,255,255,0.06)' };
   var legendOpts = { labels: { color: '#b8bdd4', font: { family: 'Menlo', size: 9 }, boxWidth: 10, padding: 10 } };
 
   var datasets, scales;
@@ -653,36 +2090,37 @@ function hw_renderChart(rows) {
     };
   }
 
-  if(hwHistChart){ try{ hwHistChart.destroy(); }catch(e){} hwHistChart=null; }
-  hwHistChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: labels, datasets: datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 300 },
-      plugins: {
-        legend: legendOpts,
-        tooltip: {
-          backgroundColor: 'rgba(10,10,20,.92)',
-          titleColor: '#ff6600',
-          bodyColor: '#c0c0d8',
-          borderColor: 'rgba(255,102,0,.3)',
-          borderWidth: 1,
-          titleFont: { family: 'Menlo', size: 10 },
-          bodyFont: { family: 'Menlo', size: 9 },
-          callbacks: {
-            label: function(ctx) {
-              var v = ctx.parsed.y;
-              if (v === null) return ctx.dataset.label + ': N/A';
-              return ctx.dataset.label + ': ' + (v >= 1000 ? v.toLocaleString('id-ID') : v);
+  if(typeof Chart !== 'undefined'){
+    hwHistChart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        plugins: {
+          legend: legendOpts,
+          tooltip: {
+            backgroundColor: 'rgba(10,10,20,.92)',
+            titleColor: '#ff6600',
+            bodyColor: '#c0c0d8',
+            borderColor: 'rgba(255,102,0,.3)',
+            borderWidth: 1,
+            titleFont: { family: 'Menlo', size: 10 },
+            bodyFont: { family: 'Menlo', size: 9 },
+            callbacks: {
+              label: function(ctx) {
+                var v = ctx.parsed.y;
+                if (v === null) return ctx.dataset.label + ': N/A';
+                return ctx.dataset.label + ': ' + (v >= 1000 ? v.toLocaleString('id-ID') : v);
+              }
             }
           }
-        }
-      },
-      scales: scales
-    }
-  });
+        },
+        scales: scales
+      }
+    });
+  }
 }
 
 function hw_clearResults() {
@@ -705,7 +2143,6 @@ function hw_clearResults() {
 function hw_saveToStorage() {
   hw_syncInputs();
   try { localStorage.setItem('hw_state', JSON.stringify(hwData)); } catch(e) {}
-  // Save to history
   if (hwData.ticker && hwData._result) {
     try {
       var hist = JSON.parse(localStorage.getItem('hw_history')||'[]');
@@ -725,6 +2162,7 @@ function hw_saveToStorage() {
     } catch(e) {}
   }
 }
+window.hw_saveToStorage = hw_saveToStorage;
 
 function hw_renderHistoryList() {
   var el = document.getElementById('hw-history-list');
@@ -735,7 +2173,7 @@ function hw_renderHistoryList() {
     el.innerHTML = hist.map(function(h) {
       var mos = h.mosPct || 0;
       var col = mos > 20 ? 'var(--green)' : mos > 0 ? 'var(--amber)' : 'var(--red)';
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="hw_loadHistory(this)" data-h=\''+JSON.stringify(h)+'\' style="transition:.1s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'transparent\'">'
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="hw_loadStock(\''+h.ticker+'\')" style="transition:.1s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'transparent\'">'
         + '<div><span style="font-weight:700;font-family:var(--font-mono);color:var(--bb-orange);font-size:11px">'+h.ticker+'</span> <span style="font-size:9px;color:var(--text3)">'+h.date+'</span></div>'
         + '<div style="text-align:right"><div style="font-size:10px;color:var(--text);font-family:var(--font-mono)">Rp '+Math.round(h.fairValue||0).toLocaleString('id-ID')+'</div>'
         + '<div style="font-size:9px;color:'+col+'">'+(mos>=0?'+':'')+mos.toFixed(1)+'% MoS</div></div>'
@@ -749,9 +2187,14 @@ function hw_clearHistory() {
   localStorage.removeItem('hw_history');
   hw_renderHistoryList();
 }
+window.hw_clearHistory = hw_clearHistory;
 
-// Init on page load
-(function(){ try { if(document.getElementById('hw-data-body') && !window._hwInited){ window._hwInited=true; hw_init(); } } catch(e){} })();
-// Also init when tab is clicked
-var _hw_origGoPage = typeof goPage === 'function' ? goPage : null;
-
+// Auto-init
+(function(){
+  try {
+    if (document.getElementById('hw-data-body') && !window._hwInited) {
+      window._hwInited = true;
+      hw_init();
+    }
+  } catch(e){}
+})();

@@ -584,9 +584,9 @@ var FH = {
   _simTimer: null,
   PROXIES: (function(){
     var isStatic = typeof window !== 'undefined' && window.location && (
-      window.location.hostname.indexOf('github.io') !== -1 ||
+      (window.location.hostname || '').indexOf('github.io') !== -1 ||
       window.location.protocol === 'file:' ||
-      window.location.hostname.indexOf('pages.dev') !== -1
+      (window.location.hostname || '').indexOf('pages.dev') !== -1
     );
     if(isStatic){
       return [

@@ -136,10 +136,30 @@ body::after{display:none}
 .b-gray{background:rgba(255,255,255,.06);color:var(--text2);border:1px solid var(--border)}
 
 /* SIGNAL */
-.sig{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:10.5px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;letter-spacing:.3px}
+.sig{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:10.5px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;letter-spacing:.3px;transition:all .15s}
 .sig-buy{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.35)}
 .sig-sell{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.35)}
 .sig-hold{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.35)}
+.sig-breakout{background:rgba(247,147,26,.18);color:#f7931a;border:1px solid rgba(247,147,26,.45);box-shadow:0 0 10px rgba(247,147,26,.2)}
+.sig-whale{background:rgba(16,185,129,.18);color:#10b981;border:1px solid rgba(16,185,129,.45);box-shadow:0 0 10px rgba(16,185,129,.2)}
+.sig-strong-buy{background:rgba(59,130,246,.18);color:#60a5fa;border:1px solid rgba(59,130,246,.45);box-shadow:0 0 10px rgba(59,130,246,.2)}
+.sig-oversold{background:rgba(139,92,246,.18);color:#c084fc;border:1px solid rgba(139,92,246,.45);box-shadow:0 0 10px rgba(139,92,246,.2)}
+.sig-squeeze{background:rgba(234,179,8,.18);color:#facc15;border:1px solid rgba(234,179,8,.45)}
+.sig-breakdown{background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.45);box-shadow:0 0 10px rgba(239,68,68,.2)}
+.sig:hover{filter:brightness(1.15);transform:translateY(-1px)}
+
+@keyframes cryptoPulseRing {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+.crypto-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: cryptoPulseRing 1.8s infinite ease-in-out;
+}
 
 /* TABLE */
 .tbl{width:100%;border-collapse:collapse}

@@ -308,48 +308,108 @@ footer{border-top:1px solid var(--line);padding:34px 0}
 <section class="section" id="fitur">
   <div class="wrap">
     <div class="section-head">
-      <div class="eyebrow">Portofolio</div>
-      <h2>Semua aset Anda, satu angka kekayaan bersih.</h2>
-      <p>Bukan sekadar pencatat transaksi — setiap kelas aset dihitung dengan metode yang benar, lalu digabung jadi satu gambaran utuh posisi keuangan Anda.</p>
+      <div class="eyebrow">Pengelolaan Multi-Aset</div>
+      <h2>Empat kelas aset utama, satu terminal terintegrasi.</h2>
+      <p>Klik kartu aset untuk langsung masuk ke halaman pengelolaan portofolio masing-masing, atau buka Manage Asset untuk ringkasan konsolidasi portofolio utuh.</p>
     </div>
-    <div class="fgrid">
-      <div class="fcard">
-        <div class="ic">📈</div>
-        <h3>Saham IDX</h3>
-        <p>Average cost otomatis, P&amp;L real-time, breakdown ke 11 sektor resmi IDX, plus sinyal teknikal per posisi.</p>
-        <div class="tags"><span>average cost</span><span>sektoral</span></div>
-      </div>
-      <div class="fcard">
-        <div class="ic">🪙</div>
-        <h3>Crypto</h3>
-        <p>Jurnal beli/jual per koin dengan harga real-time langsung dalam Rupiah — tanpa konversi manual.</p>
-        <div class="tags"><span>realized P&amp;L</span></div>
-      </div>
-      <div class="fcard">
-        <div class="ic">🏦</div>
-        <h3>Reksa Dana &amp; ETF</h3>
-        <p>Lacak NAB reksa dana per platform dan ETF luar negeri dalam USD, otomatis dikonversi ke kurs berjalan.</p>
-        <div class="tags"><span>multi-platform</span><span>kurs live</span></div>
-      </div>
-      <div class="fcard">
-        <div class="ic">🧾</div>
-        <h3>Pajak Otomatis</h3>
-        <p>Komisi, PPN, Levy BEI/KPEI/KSEI, dan PPh final dihitung per transaksi sesuai tarif sekuritas aktif Anda — bukan estimasi kasar.</p>
-        <div class="tags"><span>PMK 131/2024</span><span>PP 14/1997</span></div>
-      </div>
-      <div class="fcard">
-        <div class="ic">💵</div>
-        <h3>Dividen</h3>
-        <p>Catat penerimaan dividen dengan PPh 10% terpotong otomatis, langsung menambah saldo RDN Anda.</p>
-        <div class="tags"><span>PPh final 10%</span></div>
-      </div>
-      <div class="fcard">
-        <div class="ic">🏛️</div>
-        <h3>RDN &amp; Kas</h3>
-        <p>Saldo rekening dana nasabah terhitung otomatis dari setiap transaksi beli, jual, setor, dan tarik.</p>
-        <div class="tags"><span>rekonsiliasi otomatis</span></div>
-      </div>
+    <div class="fgrid" style="grid-template-columns:repeat(2,1fr)">
+      <a class="fcard" href="moneywatch.html?page=portofolio" style="text-decoration:none;display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="ic" style="margin-bottom:0">📈</div>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--rise);background:rgba(45,212,167,.1);border:1px solid rgba(45,212,167,.25);padding:3px 8px;border-radius:6px">IDX LIVE</span>
+          </div>
+          <h3>Card Stock (Saham IDX)</h3>
+          <p>Kelola portofolio saham BEI dengan average cost otomatis, unrealized &amp; realized P&amp;L real-time, tracking 11 sektor resmi IDX, serta sinyal teknikal per posisi.</p>
+          <div class="tags"><span>average price</span><span>11 sektor IDX</span><span>dividen auto-tax</span></div>
+        </div>
+        <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:12px;font-family:var(--mono);font-size:12px;color:var(--signal)">
+          <span>Kelola Portofolio Saham</span>
+          <span>Buka →</span>
+        </div>
+      </a>
+
+      <a class="fcard" href="moneywatch.html?page=crypto" style="text-decoration:none;display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="ic" style="margin-bottom:0">🪙</div>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--amber);background:rgba(245,184,98,.1);border:1px solid rgba(245,184,98,.25);padding:3px 8px;border-radius:6px">24/7 MARKET</span>
+          </div>
+          <h3>Card Crypto</h3>
+          <p>Pencatatan transaksi spot crypto (BTC, ETH, SOL, dll) dalam Rupiah &amp; USD, lengkap dengan deteksi volume breakout, whale flow identifier, dan sinyal teknikal otomatis.</p>
+          <div class="tags"><span>volume breakout</span><span>whale flow</span><span>realized P&amp;L</span></div>
+        </div>
+        <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:12px;font-family:var(--mono);font-size:12px;color:var(--amber)">
+          <span>Kelola Portofolio Crypto</span>
+          <span>Buka →</span>
+        </div>
+      </a>
+
+      <a class="fcard" href="moneywatch.html?page=etf" style="text-decoration:none;display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="ic" style="margin-bottom:0">🌐</div>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--signal);background:var(--signal-dim);border:1px solid var(--line-2);padding:3px 8px;border-radius:6px">GLOBAL ETF</span>
+          </div>
+          <h3>Card ETF (Exchange Traded Fund)</h3>
+          <p>Pantau holding ETF global dan indeks pasar internasional (SPY, QQQ, VOO) dengan auto-konversi kurs USD/IDR live dan visualisasi alokasi tematik.</p>
+          <div class="tags"><span>kurs USD/IDR live</span><span>indeks global</span><span>alokasi tematik</span></div>
+        </div>
+        <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:12px;font-family:var(--mono);font-size:12px;color:var(--signal)">
+          <span>Kelola Portofolio ETF</span>
+          <span>Buka →</span>
+        </div>
+      </a>
+
+      <a class="fcard" href="moneywatch.html?page=reksadana" style="text-decoration:none;display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="ic" style="margin-bottom:0">💼</div>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--rise);background:rgba(45,212,167,.1);border:1px solid rgba(45,212,167,.25);padding:3px 8px;border-radius:6px">MUTUAL FUND</span>
+          </div>
+          <h3>Card Fund (Reksa Dana)</h3>
+          <p>Lacak NAB reksa dana Pasar Uang, Pendapatan Tetap, Campuran, dan Saham lintas platform (Bibit, Bareksa, dll) dengan unit balance dan yield return akurat.</p>
+          <div class="tags"><span>NAB multi-platform</span><span>unit balance</span><span>yield historis</span></div>
+        </div>
+        <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:12px;font-family:var(--mono);font-size:12px;color:var(--rise)">
+          <span>Kelola Reksa Dana</span>
+          <span>Buka →</span>
+        </div>
+      </a>
     </div>
+
+    <!-- ═══ MANAGE ASSET (RESUME KESELURUHAN) ═══ -->
+    <a class="fcard" href="moneywatch.html?page=dashboard" style="margin-top:20px;text-decoration:none;display:block;background:linear-gradient(180deg,rgba(139,140,249,.08),rgba(14,14,23,.95));border:1px solid var(--line-2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="ic" style="margin-bottom:0;background:var(--signal);color:#0a0a12">📊</div>
+          <div>
+            <h3 style="font-size:18px;color:var(--text)">Manage Asset (Resume Keseluruhan)</h3>
+            <span style="font-size:12px;color:var(--text-dim)">Konsolidasi komprehensif seluruh aset: Saham + Crypto + ETF + Reksa Dana + Kas RDN</span>
+          </div>
+        </div>
+        <span class="btn btn-primary" style="padding:8px 16px;font-size:12px">Masuk Pengelolaan Portofolio →</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px">
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase">Kelas Aset Aktif</div>
+          <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--text);margin-top:2px">4 Kelas Terintegrasi</div>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase">Sinkronisasi Kas &amp; RDN</div>
+          <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--rise);margin-top:2px">Otomatis Rekonsiliasi</div>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase">Perhitungan Pajak</div>
+          <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--amber);margin-top:2px">PPN, Levy, PPh Final</div>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase">Mode Analisa</div>
+          <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--signal);margin-top:2px">Kuant, Sinyal &amp; Valuasi</div>
+        </div>
+      </div>
+    </a>
   </div>
 </section>
 

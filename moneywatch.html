@@ -136,8 +136,8 @@
       <span class="rdn-val" id="tb-rdn">Rp 0</span>
     </div>
 
-    <button class="btn btn-ghost btn-xs" onclick="mwOpenPdfReportModal()" title="Buka Pusat Laporan dan Unduh PDF Portofolio / Kekayaan Bersih" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:var(--border2);color:var(--text);padding:5px 9px">
-      📄 <span class="hide-mobile">Laporan PDF</span>
+    <button class="btn btn-ghost btn-xs" onclick="mwOpenPdfReportModal()" title="Buka Laporan Konsolidasi Finansial Terpadu (Portofolio, Aset, Kas, FIRE dlm Excel/PDF/JSON)" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:var(--border2);color:var(--text);padding:5px 9px">
+      📥 <span class="hide-mobile">Laporan Konsolidasi</span>
     </button>
 
     <!-- UNIFIED SETTINGS & DATA HUB TOOLBAR BUTTON -->
@@ -204,6 +204,7 @@
       <button onclick="openKseiModal()" id="side-btn-ksei"><i class="ti ti-users-group" style="color:#10b981"></i><span class="side-label">Kepemilikan KSEI</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">FREE FLOAT</span></button>
       <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank" style="color:#3B82F6"></i><span class="side-label">Fundamental Suite</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle" style="color:#8B5CF6"></i><span class="side-label">Technical &amp; Flow</span></button>
+      <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin" style="color:#f7931a"></i><span class="side-label">Crypto Technical &amp; Whale</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">WHALE &amp; SIG</span></button>
       <button onclick="goPage('flowscan',this)"><i class="ti ti-flame" style="color:#f97316"></i><span class="side-label">Smart Money Flow</span></button>
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuasi Harga Wajar</span></button>
       <button onclick="goPage('screener',this)"><i class="ti ti-filter"></i><span class="side-label">Screener LQ45</span></button>
@@ -269,117 +270,243 @@
 <!-- ===== DASHBOARD ===== -->
 <div id="page-dashboard" class="page on">
   <div class="load-banner" id="dash-load-banner"><span class="load-dot"></span><span id="dash-load-text"></span></div>
-  <div style="padding-top:16px;">
+  <div style="padding-top:12px;display:flex;flex-direction:column;gap:24px">
+        
         <!-- Header -->
-        <div class="header" style="display: flex;justify-content: space-between;align-items: center;margin-bottom: 30px;">
-            <div style="display:flex; flex-direction:column;">
-                <h1 style="font-size: 28px;font-weight: 800;color: var(--text-main);letter-spacing:-0.5px;margin-bottom:4px;margin-top:0;">MoneyWatch Pro</h1>
-                <div style="font-size:12px;color:var(--text-muted);">Hub Portofolio & Aset Terpadu • Klik card di bawah untuk membuka manajemen detail</div>
+        <div class="header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <h1 style="font-size:26px;font-weight:800;color:var(--text);letter-spacing:-0.5px;margin:0">MoneyWatch Pro</h1>
+                    <span class="badge b-accent" style="font-size:10px;font-weight:700;padding:2px 8px">PORTFOLIO HUB</span>
+                </div>
+                <div style="font-size:12px;color:var(--text3)">Hub Multi-Aset Terpadu • Klik pada card untuk langsung masuk ke halaman pengelolaan portofolio</div>
             </div>
-            <div style="display:flex;gap:12px;align-items:center;">
-               <button class="btn btn-blue btn-sm" onclick="if(typeof renderPortfolioHub==='function') renderPortfolioHub();" style="background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;border-radius:10px;padding:8px 14px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;">⚡ Refresh Data</button>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <button class="btn btn-ghost btn-sm" onclick="goPage('rebalance')" title="Buka Smart Rebalancing Portofolio" style="font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px">
+                    ⚖️ Smart Rebalance
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="goPage('rdn')" title="Buka Kas & Mutasi Saldo RDN" style="font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px">
+                    🏛️ Kas RDN
+                </button>
+                <button class="btn btn-blue btn-sm" onclick="if(typeof renderPortfolioHub==='function') renderPortfolioHub();if(typeof showToast==='function') showToast('🔄 Data portofolio diperbarui');" style="border:none;border-radius:8px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">
+                    ⚡ Refresh Data
+                </button>
             </div>
         </div>
 
-        <!-- Hero Card (Summary) -->
-        <div class="glass-panel hero-section" style="background:var(--bg-elevated);backdrop-filter: blur(20px);-webkit-backdrop-filter: blur(20px);border: 1px solid var(--border);border-radius: 24px;padding: 30px;box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);display: flex;justify-content: space-between;align-items: center;margin-bottom: 30px;position: relative;overflow: hidden; flex-wrap: wrap; gap: 30px;">
-            <div style="position: absolute;top: -50%; left: -50%; width: 200%; height: 200%;background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 60%);pointer-events: none;"></div>
-            
-            <div class="hero-balance" style="position:relative; z-index:2;">
-                <p style="font-size: 15px;color: #94A3B8;font-weight: 600;text-transform: uppercase;letter-spacing: 1px;margin-bottom: 10px;margin-top:0;">Total Net Worth (Semua Portofolio)</p>
-                <h2 style="font-size: 48px;font-weight: 800;margin-bottom: 15px;letter-spacing: -1px;font-family:var(--font-mono);margin-top:0;color:var(--text-main);" id="hub-tot-val">Rp 0</h2>
-                <div class="badge-trend" id="hub-tot-pnl-pill" style="display: inline-flex;align-items: center;gap: 6px;background: rgba(16, 185, 129, 0.15);color: #10B981;padding: 8px 16px;border-radius: 100px;font-weight: 700;font-size: 14px;border: 1px solid rgba(16, 185, 129, 0.3);box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);">
-                    <span id="hub-tot-pnl-icon">▲</span> <span id="hub-tot-pnl">Rp 0</span> Hari Ini
-                </div>
-            </div>
-            
-            <div class="hero-chart-wrapper" style="display: flex;align-items: center;gap: 30px;position:relative; z-index:2; flex-wrap:wrap;">
-                <div class="donut-chart" style="width: 150px;height: 150px;border-radius: 50%;background: conic-gradient(#3B82F6 0% 40%, #10B981 40% 64%, #EF4444 64% 84%, #8B5CF6 84% 100%);position: relative;display: flex;align-items: center;justify-content: center;box-shadow: 0 4px 20px rgba(0,0,0,0.25);flex-shrink: 0;" id="hub-donut">
-                    <div class="donut-inner" style="width: 104px;height: 104px;border-radius: 50%;background: var(--bg2);display: flex;flex-direction: column;align-items: center;justify-content: center;box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);border: 1px solid var(--border);text-align: center;padding: 4px;">
-                        <span style="font-size: 10px;font-weight: 700;letter-spacing: 0.05em;text-transform: uppercase;color: var(--text3);">Alokasi</span>
-                        <span id="hub-donut-center-val" style="font-size: 13px;font-weight: 800;font-family: var(--font-mono);color: var(--text);margin-top: 1px;">4 Aset</span>
+        <!-- 1. MANAGE ASSET CARD (RESUME KESELURUHAN) -->
+        <div id="card-manage-asset" style="background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:24px;position:relative;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,0.12)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:20px;border-bottom:1px solid var(--border2);padding-bottom:16px">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div style="width:44px;height:44px;border-radius:12px;background:rgba(59,130,246,0.15);color:#3B82F6;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800">
+                        💼
+                    </div>
+                    <div>
+                        <div style="font-size:18px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">
+                            Manage Asset
+                            <span class="badge b-up" style="font-size:10px;font-weight:700;padding:2px 8px">RESUME KESELURUHAN</span>
+                        </div>
+                        <div style="font-size:12px;color:var(--text3);margin-top:2px">
+                            Konsolidasi seluruh portofolio investasi, alokasi aset, posisi modal, dan likuiditas kas.
+                        </div>
                     </div>
                 </div>
-                <div class="legend" style="display: flex;flex-direction: column;gap: 12px; background:rgba(0,0,0,0.25); padding:16px 20px; border-radius:16px; border:1px solid rgba(255,255,255,0.05);">
-                    <div class="legend-item" style="display: flex;align-items: center;gap: 10px;font-size: 14px;color: #94A3B8;font-weight: 600;"><div class="dot" style="width: 10px; height: 10px; border-radius: 50%;box-shadow: 0 0 10px currentColor; background: #3B82F6;"></div> <span style="width:100px;">Saham ID</span></div>
-                    <div class="legend-item" style="display: flex;align-items: center;gap: 10px;font-size: 14px;color: #94A3B8;font-weight: 600;"><div class="dot" style="width: 10px; height: 10px; border-radius: 50%;box-shadow: 0 0 10px currentColor; background: #10B981;"></div> <span style="width:100px;">Crypto</span></div>
-                    <div class="legend-item" style="display: flex;align-items: center;gap: 10px;font-size: 14px;color: #94A3B8;font-weight: 600;"><div class="dot" style="width: 10px; height: 10px; border-radius: 50%;box-shadow: 0 0 10px currentColor; background: #EF4444;"></div> <span style="width:100px;">ETF US</span></div>
-                    <div class="legend-item" style="display: flex;align-items: center;gap: 10px;font-size: 14px;color: #94A3B8;font-weight: 600;"><div class="dot" style="width: 10px; height: 10px; border-radius: 50%;box-shadow: 0 0 10px currentColor; background: #8B5CF6;"></div> <span style="width:100px;">Reksa Dana/SBN</span></div>
+
+                <!-- Quick Action Buttons for Consolidated Management -->
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-ghost btn-xs" onclick="goPage('portofolio')" style="font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px" title="Kelola portofolio saham">
+                        📈 Kelola Saham
+                    </button>
+                    <button class="btn btn-ghost btn-xs" onclick="goPage('performance')" style="font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px" title="Analisa TWR & Tear Sheet">
+                        📊 Kinerja GIPS
+                    </button>
+                    <button class="btn btn-ghost btn-xs" onclick="goPage('wealth')" style="font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px" title="Family Office & Net Worth">
+                        💎 Family Office
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resume Metrics 4-Column Grid -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px;margin-bottom:24px">
+                <!-- Total Net Worth -->
+                <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:16px">
+                    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Total Net Worth (Semua Aset)</div>
+                    <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px" id="hub-tot-val">Rp 0</div>
+                    <div style="margin-top:8px">
+                        <div class="badge-trend" id="hub-tot-pnl-pill" style="display:inline-flex;align-items:center;gap:5px;background:rgba(16,185,129,0.15);color:#10B981;padding:4px 10px;border-radius:20px;font-weight:700;font-size:12px;border:1px solid rgba(16,185,129,0.3)">
+                            <span id="hub-tot-pnl-icon">▲</span> <span id="hub-tot-pnl">Rp 0 (+0.00%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Investasi / Modal -->
+                <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:16px">
+                    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Total Modal / Invested Capital</div>
+                    <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px" id="hub-tot-cost">Rp 0</div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:10px">Akumulasi modal beli di semua instrumen</div>
+                </div>
+
+                <!-- Total Saldo Kas RDN -->
+                <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:16px">
+                    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Saldo Kas RDN (Likuid)</div>
+                    <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--accent);letter-spacing:-0.5px" id="hub-tot-cash">Rp 0</div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:10px">Dana siap investasi di sekuritas &amp; broker</div>
+                </div>
+
+                <!-- Total Posisi Aktif -->
+                <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:16px">
+                    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Total Posisi Multi-Aset</div>
+                    <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px" id="hub-tot-posisi">0 Aset Aktif</div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:10px">Terbagi dalam 4 kelas instrumen utama</div>
+                </div>
+            </div>
+
+            <!-- Allocation & Visual Breakdown -->
+            <div style="background:var(--bg);border:1px solid var(--border2);border-radius:14px;padding:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px">
+                <!-- Donut Chart -->
+                <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+                    <div class="donut-chart" style="width:120px;height:120px;border-radius:50%;background:conic-gradient(#3B82F6 0% 25%, #10B981 25% 50%, #EF4444 50% 75%, #8B5CF6 75% 100%);position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);flex-shrink:0" id="hub-donut">
+                        <div class="donut-inner" style="width:82px;height:82px;border-radius:50%;background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--border);text-align:center;padding:2px">
+                            <span style="font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3)">Alokasi</span>
+                            <span id="hub-donut-center-val" style="font-size:12px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:1px">4 Aset</span>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div style="display:grid;grid-template-columns:repeat(2, minmax(130px, 1fr));gap:8px 16px">
+                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);font-weight:600">
+                            <span style="width:10px;height:10px;border-radius:50%;background:#3B82F6;display:inline-block"></span> Saham Indonesia
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);font-weight:600">
+                            <span style="width:10px;height:10px;border-radius:50%;background:#10B981;display:inline-block"></span> Crypto Assets
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);font-weight:600">
+                            <span style="width:10px;height:10px;border-radius:50%;background:#EF4444;display:inline-block"></span> ETF US &amp; Global
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);font-weight:600">
+                            <span style="width:10px;height:10px;border-radius:50%;background:#8B5CF6;display:inline-block"></span> Reksa Dana &amp; SBN
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Breakdown Bars -->
+                <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:10px" id="hub-alloc-bars">
+                    <!-- Populated by JS renderPortfolioHub -->
                 </div>
             </div>
         </div>
 
-        <!-- 4 Categories Grid -->
-        <div class="cards-grid" style="display: grid;grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));gap: 20px;">
-            
-            <!-- Saham Card -->
-            <div class="asset-card card-blue" onclick="goPage('portofolio')" style="background:var(--bg-elevated);backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border-radius: 20px;padding: 25px 20px;position: relative;overflow: hidden;display: flex;flex-direction: column;transition: transform 0.3s ease, box-shadow 0.3s ease;cursor: pointer;border: 1px solid rgba(59, 130, 246, 0.2);" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 10px 30px rgba(59, 130, 246, 0.15)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-                <div class="card-header" style="display: flex;justify-content: space-between;align-items: flex-start;margin-bottom: 20px;position: relative;z-index: 2;">
-                    <div class="icon-box" style="width: 42px; height: 42px;border-radius: 12px;display: flex; align-items: center; justify-content: center;font-size: 20px; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #3B82F6;">ID</div>
-                    <div class="mini-badge" style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(59, 130, 246, 0.1); color: #3B82F6;">Blue Electric</div>
+        <!-- 2. THE 4 ASSET CARDS GRID (STOCK, CRYPTO, ETF, FUND) -->
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <div style="font-size:15px;font-weight:800;color:var(--text)">
+                    📂 Portofolio Mandiri Berdasarkan Kelas Aset
                 </div>
-                <div class="card-info" style="position: relative; z-index: 2; margin-bottom: 35px;">
-                    <div class="card-title" style="font-size: 16px; color: var(--text-main); font-weight: 800; margin-bottom: 2px;">Saham Indonesia</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;" id="hub-saham-count">0 Emiten aktif</div>
-                    <div class="card-amount" style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; font-family:var(--font-mono);color:var(--text-main);" id="hub-saham-val">Rp 0</div>
-                </div>
-                <div style="position: relative; z-index: 2; display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px solid var(--border); padding-top:12px;">
-                    <span style="color:var(--text-muted)">P&L: <span style="font-weight:700" id="hub-saham-pnl">Rp 0 (0%)</span></span>
-                    <span style="color:#3B82F6;font-weight:700">Kelola →</span>
+                <div style="font-size:11px;color:var(--text3)">
+                    Klik card di bawah untuk membuka manajemen &amp; transaksi detail
                 </div>
             </div>
 
-            <!-- Crypto Card -->
-            <div class="asset-card card-green" onclick="goPage('crypto')" style="background:var(--bg-elevated);backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border-radius: 20px;padding: 25px 20px;position: relative;overflow: hidden;display: flex;flex-direction: column;transition: transform 0.3s ease, box-shadow 0.3s ease;cursor: pointer;border: 1px solid rgba(16, 185, 129, 0.2);" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 10px 30px rgba(16, 185, 129, 0.15)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-                <div class="card-header" style="display: flex;justify-content: space-between;align-items: flex-start;margin-bottom: 20px;position: relative;z-index: 2;">
-                    <div class="icon-box" style="width: 42px; height: 42px;border-radius: 12px;display: flex; align-items: center; justify-content: center;font-size: 20px; font-weight: 800; background: rgba(16, 185, 129, 0.15); color: #10B981;">₿</div>
-                    <div class="mini-badge" style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: #10B981;">Mint Green</div>
+            <div class="cards-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));gap:18px">
+                
+                <!-- CARD 1: STOCK (SAHAM INDONESIA) -->
+                <div id="card-landing-stock" class="asset-card card-blue" onclick="goPage('portofolio')" style="background:var(--bg2);border-radius:16px;padding:22px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;cursor:pointer;border:1px solid rgba(59, 130, 246, 0.3)" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 30px rgba(59, 130, 246, 0.18)';this.style.borderColor='#3B82F6'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none';this.style.borderColor='rgba(59, 130, 246, 0.3)'">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+                        <div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;background:rgba(59, 130, 246, 0.15);color:#3B82F6">
+                            🇮🇩
+                        </div>
+                        <div style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(59, 130, 246, 0.12);color:#3B82F6;border:1px solid rgba(59, 130, 246, 0.25)">
+                            STOCK (IDX)
+                        </div>
+                    </div>
+                    <div style="margin-bottom:20px;flex:1">
+                        <div style="font-size:16px;color:var(--text);font-weight:800;margin-bottom:2px">Saham Indonesia</div>
+                        <div style="font-size:11px;color:var(--text3);margin-bottom:10px" id="hub-saham-count">0 Emiten aktif</div>
+                        <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text)" id="hub-saham-val">Rp 0</div>
+                        <div style="font-size:12px;margin-top:6px;color:var(--text3)">
+                            P&amp;L: <span style="font-weight:700" id="hub-saham-pnl">Rp 0 (0.00%)</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid var(--border2);padding-top:12px;color:#3B82F6;font-weight:700">
+                        <span>Kelola Portofolio Saham</span>
+                        <span>→</span>
+                    </div>
                 </div>
-                <div class="card-info" style="position: relative; z-index: 2; margin-bottom: 35px;">
-                    <div class="card-title" style="font-size: 16px; color: var(--text-main); font-weight: 800; margin-bottom: 2px;">Crypto Asset</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;" id="hub-crypto-count">0 Koin aktif</div>
-                    <div class="card-amount" style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; font-family:var(--font-mono);color:var(--text-main);" id="hub-crypto-val">Rp 0</div>
-                </div>
-                <div style="position: relative; z-index: 2; display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px solid var(--border); padding-top:12px;">
-                    <span style="color:var(--text-muted)">P&L: <span style="font-weight:700" id="hub-crypto-pnl">Rp 0 (0%)</span></span>
-                    <span style="color:#10B981;font-weight:700">Kelola →</span>
-                </div>
-            </div>
 
-            <!-- ETF Card -->
-            <div class="asset-card card-red" onclick="goPage('etf')" style="background:var(--bg-elevated);backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border-radius: 20px;padding: 25px 20px;position: relative;overflow: hidden;display: flex;flex-direction: column;transition: transform 0.3s ease, box-shadow 0.3s ease;cursor: pointer;border: 1px solid rgba(239, 68, 68, 0.2);" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 10px 30px rgba(239, 68, 68, 0.15)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-                <div class="card-header" style="display: flex;justify-content: space-between;align-items: flex-start;margin-bottom: 20px;position: relative;z-index: 2;">
-                    <div class="icon-box" style="width: 42px; height: 42px;border-radius: 12px;display: flex; align-items: center; justify-content: center;font-size: 20px; font-weight: 800; background: rgba(239, 68, 68, 0.15); color: #EF4444;">US</div>
-                    <div class="mini-badge" style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); color: #EF4444;">Global ETFs</div>
+                <!-- CARD 2: CRYPTO (CRYPTO ASSETS) -->
+                <div id="card-landing-crypto" class="asset-card card-green" onclick="goPage('crypto')" style="background:var(--bg2);border-radius:16px;padding:22px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;cursor:pointer;border:1px solid rgba(16, 185, 129, 0.3)" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 30px rgba(16, 185, 129, 0.18)';this.style.borderColor='#10B981'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none';this.style.borderColor='rgba(16, 185, 129, 0.3)'">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+                        <div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;background:rgba(16, 185, 129, 0.15);color:#10B981">
+                            ₿
+                        </div>
+                        <div style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(16, 185, 129, 0.12);color:#10B981;border:1px solid rgba(16, 185, 129, 0.25)">
+                            CRYPTO
+                        </div>
+                    </div>
+                    <div style="margin-bottom:14px;flex:1">
+                        <div style="font-size:16px;color:var(--text);font-weight:800;margin-bottom:2px">Crypto Assets</div>
+                        <div style="font-size:11px;color:var(--text3);margin-bottom:8px" id="hub-crypto-count">0 Koin aktif</div>
+                        <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text)" id="hub-crypto-val">Rp 0</div>
+                        <div style="font-size:12px;margin-top:6px;color:var(--text3)">
+                            P&amp;L: <span style="font-weight:700" id="hub-crypto-pnl">Rp 0 (0.00%)</span>
+                        </div>
+                        <div id="hub-crypto-signals" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid var(--border2);padding-top:12px;color:#10B981;font-weight:700">
+                        <span>Kelola Portofolio Crypto</span>
+                        <span>→</span>
+                    </div>
                 </div>
-                <div class="card-info" style="position: relative; z-index: 2; margin-bottom: 35px;">
-                    <div class="card-title" style="font-size: 16px; color: var(--text-main); font-weight: 800; margin-bottom: 2px;">ETF US & Global</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;" id="hub-etf-count">0 ETF aktif</div>
-                    <div class="card-amount" style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; font-family:var(--font-mono);color:var(--text-main);" id="hub-etf-val">Rp 0</div>
-                </div>
-                <div style="position: relative; z-index: 2; display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px solid var(--border); padding-top:12px;">
-                    <span style="color:var(--text-muted)">P&L: <span style="font-weight:700" id="hub-etf-pnl">Rp 0 (0%)</span></span>
-                    <span style="color:#EF4444;font-weight:700">Kelola →</span>
-                </div>
-            </div>
 
-            <!-- Reksadana Card -->
-            <div class="asset-card card-purple" onclick="goPage('reksadana')" style="background:var(--bg-elevated);backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);border-radius: 20px;padding: 25px 20px;position: relative;overflow: hidden;display: flex;flex-direction: column;transition: transform 0.3s ease, box-shadow 0.3s ease;cursor: pointer;border: 1px solid rgba(139, 92, 246, 0.2);" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 10px 30px rgba(139, 92, 246, 0.15)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-                <div class="card-header" style="display: flex;justify-content: space-between;align-items: flex-start;margin-bottom: 20px;position: relative;z-index: 2;">
-                    <div class="icon-box" style="width: 42px; height: 42px;border-radius: 12px;display: flex; align-items: center; justify-content: center;font-size: 20px; font-weight: 800; background: rgba(139, 92, 246, 0.15); color: #8B5CF6;">Rp</div>
-                    <div class="mini-badge" style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(139, 92, 246, 0.1); color: #8B5CF6;">Nila Purple</div>
+                <!-- CARD 3: ETF (ETF US & GLOBAL) -->
+                <div id="card-landing-etf" class="asset-card card-red" onclick="goPage('etf')" style="background:var(--bg2);border-radius:16px;padding:22px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;cursor:pointer;border:1px solid rgba(239, 68, 68, 0.3)" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 30px rgba(239, 68, 68, 0.18)';this.style.borderColor='#EF4444'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none';this.style.borderColor='rgba(239, 68, 68, 0.3)'">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+                        <div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;background:rgba(239, 68, 68, 0.15);color:#EF4444">
+                            🌐
+                        </div>
+                        <div style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(239, 68, 68, 0.12);color:#EF4444;border:1px solid rgba(239, 68, 68, 0.25)">
+                            GLOBAL ETF
+                        </div>
+                    </div>
+                    <div style="margin-bottom:20px;flex:1">
+                        <div style="font-size:16px;color:var(--text);font-weight:800;margin-bottom:2px">ETF US &amp; Global</div>
+                        <div style="font-size:11px;color:var(--text3);margin-bottom:10px" id="hub-etf-count">0 ETF aktif</div>
+                        <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text)" id="hub-etf-val">Rp 0</div>
+                        <div style="font-size:12px;margin-top:6px;color:var(--text3)">
+                            P&amp;L: <span style="font-weight:700" id="hub-etf-pnl">Rp 0 (0.00%)</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid var(--border2);padding-top:12px;color:#EF4444;font-weight:700">
+                        <span>Kelola Portofolio ETF</span>
+                        <span>→</span>
+                    </div>
                 </div>
-                <div class="card-info" style="position: relative; z-index: 2; margin-bottom: 35px;">
-                    <div class="card-title" style="font-size: 16px; color: var(--text-main); font-weight: 800; margin-bottom: 2px;">Reksa Dana & SBN</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;" id="hub-rd-count">0 Produk tercatat</div>
-                    <div class="card-amount" style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; font-family:var(--font-mono);color:var(--text-main);" id="hub-rd-val">Rp 0</div>
-                </div>
-                <div style="position: relative; z-index: 2; display:flex; justify-content:space-between; align-items:center; font-size:11px; border-top:1px solid var(--border); padding-top:12px;">
-                    <span style="color:var(--text-muted)">Modal: <span style="font-weight:700" id="hub-rd-pnl">Rp 0</span></span>
-                    <span style="color:#8B5CF6;font-weight:700">Kelola →</span>
-                </div>
-            </div>
 
+                <!-- CARD 4: FUND (REKSA DANA, SBN & ORI) -->
+                <div id="card-landing-fund" class="asset-card card-purple" onclick="goPage('reksadana')" style="background:var(--bg2);border-radius:16px;padding:22px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;cursor:pointer;border:1px solid rgba(139, 92, 246, 0.3)" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 30px rgba(139, 92, 246, 0.18)';this.style.borderColor='#8B5CF6'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none';this.style.borderColor='rgba(139, 92, 246, 0.3)'">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+                        <div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;background:rgba(139, 92, 246, 0.15);color:#8B5CF6">
+                            🏦
+                        </div>
+                        <div style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(139, 92, 246, 0.12);color:#8B5CF6;border:1px solid rgba(139, 92, 246, 0.25)">
+                            MUTUAL FUND
+                        </div>
+                    </div>
+                    <div style="margin-bottom:20px;flex:1">
+                        <div style="font-size:16px;color:var(--text);font-weight:800;margin-bottom:2px">Reksa Dana &amp; SBN</div>
+                        <div style="font-size:11px;color:var(--text3);margin-bottom:10px" id="hub-rd-count">0 Produk tercatat</div>
+                        <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text)" id="hub-rd-val">Rp 0</div>
+                        <div style="font-size:12px;margin-top:6px;color:var(--text3)">
+                            Modal / Nilai: <span style="font-weight:700" id="hub-rd-pnl">Rp 0</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid var(--border2);padding-top:12px;color:#8B5CF6;font-weight:700">
+                        <span>Kelola Reksa Dana &amp; SBN</span>
+                        <span>→</span>
+                    </div>
+                </div>
+
+            </div>
         </div>
   </div>
 
@@ -815,7 +942,7 @@
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="openMarketSyncModal()" title="Sinkronisasi & Penyesuaian Manual Harga Pasar & IHSG" style="border-color:var(--accent);color:var(--accent);font-size:11px">⚙️ Sesuaikan Harga &amp; IHSG</button>
-      <button class="btn btn-ghost btn-sm" onclick="mwOpenPdfReportModal('portfolio')" title="Unduh Ringkasan Portofolio Saham dalam Format PDF">📄 Unduh Laporan (PDF)</button>
+      <button class="btn btn-ghost btn-sm" onclick="mwOpenPdfReportModal()" title="Buka Laporan Konsolidasi Finansial Terpadu (Excel CSV, PDF, Teks &amp; FIRE)">📥 Laporan Konsolidasi</button>
       <button class="btn btn-blue" id="btn-beli2">+ Beli Saham</button>
     </div>
   </div>
@@ -1337,19 +1464,24 @@
       <div class="ptitle">Portofolio Crypto</div>
       <div class="psub">Tracking aset kripto dengan harga dalam Rupiah (IDR) — real-time simulasi</div>
     </div>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="goPage('crypto-technical')" style="border-color:#f7931a66;color:#f7931a;font-weight:700"><i class="ti ti-chart-candle"></i> Analisa &amp; Sinyal Crypto</button>
       <button class="btn btn-blue" onclick="openCryptoModal('buy')">+ Beli Crypto</button>
       <button class="btn btn-red" onclick="openCryptoModal('sell')">− Jual Crypto</button>
     </div>
   </div>
     <!-- Cash widget crypto -->
-  <div style="background:rgba(0,0,0,.15);border:1px solid #f7931a33;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <div style="background:rgba(0,0,0,.15);border:1px solid #f7931a33;border-radius:9px;padding:8px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <span style="font-size:10px;font-weight:700;color:#f7931a;letter-spacing:.8px;white-space:nowrap">💰 KAS CRYPTO (WALLET/EXCHANGE)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#f7931a" id="cash-crypto-disp">Rp 0</span>
     <button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44" onclick="openModal('setor', 'crypto')" title="Top-up Saldo Crypto via Mutasi RDN">➕ Top Up / Mutasi</button>
     <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'crypto')" title="Sesuaikan saldo riil via mutasi RDN">⚖️ Sesuaikan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di exchange crypto (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
+
+  <!-- Live Technical Signal & Volume Breakout Radar Banner -->
+  <div id="cr-signal-radar-container" style="margin-bottom:16px"></div>
+
   <div class="row5">
     <div class="metric"><div class="mlabel">Nilai Crypto (IDR)</div><div class="mval lg" id="cr-total">Rp 0</div><div class="msub" id="cr-total-sub"></div></div>
     <div class="metric"><div class="mlabel">Total Modal</div><div class="mval" id="cr-modal">Rp 0</div></div>
@@ -1376,7 +1508,13 @@
       <input id="cr-filter-search" placeholder="Cari koin / nama..." class="finput" style="padding:5px 10px;font-size:11px;width:160px" oninput="renderCrypto()"/>
       <select class="finput fsel" id="cr-filter-cat" onchange="renderCrypto()" style="padding:5px 8px;font-size:11px"><option value="">Semua Kategori</option></select>
       <select class="finput fsel" id="cr-filter-signal" onchange="renderCrypto()" style="padding:5px 8px;font-size:11px">
-        <option value="">Semua Sinyal</option><option value="BUY">BUY</option><option value="HOLD">HOLD</option><option value="SELL">SELL</option>
+        <option value="">Semua Sinyal</option>
+        <option value="breakout">🔥 Bullish Breakout (Volume Surge)</option>
+        <option value="whale">🐋 Whale Accumulation</option>
+        <option value="buy">🟢 Strong Buy / Buy</option>
+        <option value="oversold">🛡️ Oversold Bounce</option>
+        <option value="squeeze">⏳ Volatility Squeeze</option>
+        <option value="sell">🔴 Sell / Bearish</option>
       </select>
       <select class="finput fsel" id="cr-filter-pnl" onchange="renderCrypto()" style="padding:5px 8px;font-size:11px">
         <option value="">Semua P&amp;L</option><option value="profit">Profit saja</option><option value="loss">Rugi saja</option>
@@ -1398,7 +1536,8 @@
           <th onclick="sortCr('unreal')" style="cursor:pointer;user-select:none">P&amp;L (IDR) <span id="cr-sort-ico-unreal" style="font-size:9px;color:var(--text3)">↕</span></th>
           <th onclick="sortCr('ret')" style="cursor:pointer;user-select:none">Return % <span id="cr-sort-ico-ret" style="font-size:9px;color:var(--text3)">↕</span></th>
           <th onclick="sortCr('alloc')" style="cursor:pointer;user-select:none">Alokasi <span id="cr-sort-ico-alloc" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th>Signal</th>
+          <th>Sinyal &amp; Volume Flow</th>
+          <th style="text-align:center">Aksi</th>
         </tr></thead>
         <tbody id="crypto-tbody"></tbody>
       </table>
@@ -2115,6 +2254,86 @@
 
 
 <!-- ====================================================
+     MEGA CRYPTO TECHNICAL & WHALE FLOW SUITE (ALL-IN-ONE)
+     ==================================================== -->
+<div id="page-crypto-technical" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div class="ptitle" style="color:#F1F5F9;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px">⚡ Crypto Technical Suite — Volume Breakout &amp; Whale Identifier</div>
+      <div class="psub" style="color:#94A3B8;font-family:'Plus Jakarta Sans',sans-serif">Terminal Analisis &amp; Sinyal Khusus Crypto Murni (Pure Technical): Volume Breakout Engine, Whale Accumulation Tracker, 15+ Indicator Gauges, Fibonacci S/R, Candlestick &amp; Multi-Coin Screener.</div>
+    </div>
+  </div>
+
+  <div class="sm-container">
+    <!-- LEFT ASIDE / SUB-NAV -->
+    <aside class="sm-aside">
+      <div class="sm-brand" style="border-bottom-color:rgba(247,147,26,0.3)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#f7931a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="#f7931a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="#f7931a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Crypto <span style="color:#f7931a">WHALE &amp; TECH</span>
+      </div>
+
+      <div class="sm-nav-cat" style="color:#f7931a">📊 Modul Analisa &amp; Sinyal</div>
+      <a class="sm-nav-item active-tech" id="cr-tech-nav-1" onclick="cryptoTechSwitchTab(1)">1. Interactive Chart &amp; Whale Overlay</a>
+      <a class="sm-nav-item" id="cr-tech-nav-2" onclick="cryptoTechSwitchTab(2)">2. Whale Tracker &amp; 15+ Indikator</a>
+      <a class="sm-nav-item" id="cr-tech-nav-3" onclick="cryptoTechSwitchTab(3)">3. Multi-Coin Signal &amp; Breakout Scanner</a>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="sm-main">
+      <!-- TOP COMMAND BAR -->
+      <div class="sm-top-bar" style="border-bottom-color:rgba(247,147,26,0.25)">
+        <div class="sm-input-group">
+          <label>Koin Crypto (Contoh: BTC, ETH, SOL, BNB, XRP, SUI, NEAR, PEPE)</label>
+          <input type="text" id="crTechTickerInput" class="sm-input" value="BTC" onkeydown="if(event.key==='Enter')cryptoTechSelectCoin(this.value,true)" placeholder="BTC">
+        </div>
+        <button class="sm-btn" onclick="cryptoTechSelectCoin(document.getElementById('crTechTickerInput').value,true)" style="background:#f7931a;color:#000;font-weight:800">⚡ Jalankan Analisa Crypto</button>
+        
+        <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap">
+          <div style="display:flex;gap:4px;margin-right:8px" id="cr-tech-tf-group">
+            <button class="pbtn" data-tf="15m" onclick="cryptoTechSetTimeframe('15m')">15m</button>
+            <button class="pbtn" data-tf="1h" onclick="cryptoTechSetTimeframe('1h')">1h</button>
+            <button class="pbtn" data-tf="4h" onclick="cryptoTechSetTimeframe('4h')">4h</button>
+            <button class="pbtn on" data-tf="1D" onclick="cryptoTechSetTimeframe('1D')">1D</button>
+            <button class="pbtn" data-tf="1W" onclick="cryptoTechSetTimeframe('1W')">1W</button>
+          </div>
+          <span style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase">Quick:</span>
+          <span class="sm-chip" onclick="cryptoTechSelectCoin('BTC',true)">BTC</span>
+          <span class="sm-chip" onclick="cryptoTechSelectCoin('ETH',true)">ETH</span>
+          <span class="sm-chip" onclick="cryptoTechSelectCoin('SOL',true)">SOL</span>
+          <span class="sm-chip" onclick="cryptoTechSelectCoin('BNB',true)">BNB</span>
+          <span class="sm-chip" onclick="cryptoTechSelectCoin('XRP',true)">XRP</span>
+          <span class="sm-chip" onclick="cryptoTechSelectCoin('SUI',true)">SUI</span>
+          <span class="sm-chip" onclick="cryptoTechSelectCoin('NEAR',true)">NEAR</span>
+          <span class="sm-chip" onclick="cryptoTechSelectCoin('PEPE',true)">PEPE</span>
+        </div>
+      </div>
+
+      <!-- Live Header Overview Metrics -->
+      <div id="cr-tech-header-metrics"></div>
+
+      <!-- TAB 1: Live Interactive Chart & Whale Overlay -->
+      <div id="cr-tech-tab1" class="sm-tab-panel active">
+        <div class="sm-card-fill" id="cr-chart-container"></div>
+      </div>
+
+      <!-- TAB 2: Comprehensive Technical & Whale Analysis -->
+      <div id="cr-tech-tab2" class="sm-tab-panel">
+        <div id="cr-analysis-container"></div>
+      </div>
+
+      <!-- TAB 3: Multi-Coin Scanner -->
+      <div id="cr-tech-tab3" class="sm-tab-panel">
+        <div id="cr-scanner-container"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ====================================================
      MEGA TECHNICAL & FLOW SUITE (ALL-IN-ONE)
      ==================================================== -->
 <div id="page-technical" class="page">
@@ -2314,6 +2533,26 @@
               ⚡ HITUNG
             </button>
           </div>
+        </div>
+        <!-- Quick Stock Selector Chips -->
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase">Quick Select Real Data:</span>
+          <button type="button" onclick="hw_loadStock('BBCA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BBCA</button>
+          <button type="button" onclick="hw_loadStock('BBRI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BBRI</button>
+          <button type="button" onclick="hw_loadStock('BMRI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BMRI</button>
+          <button type="button" onclick="hw_loadStock('BBNI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BBNI</button>
+          <button type="button" onclick="hw_loadStock('UNVR')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">UNVR</button>
+          <button type="button" onclick="hw_loadStock('ADRO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ADRO</button>
+          <button type="button" onclick="hw_loadStock('ASII')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ASII</button>
+          <button type="button" onclick="hw_loadStock('TLKM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">TLKM</button>
+          <button type="button" onclick="hw_loadStock('GGRM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--bb-orange);border-color:rgba(255,102,0,.4)">GGRM</button>
+          <button type="button" onclick="hw_loadStock('SIDO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--green);border-color:rgba(0,212,170,.4)">SIDO</button>
+          <button type="button" onclick="hw_loadStock('PGEO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--green);border-color:rgba(0,212,170,.4)">PGEO</button>
+          <button type="button" onclick="hw_loadStock('ERAA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">ERAA</button>
+          <button type="button" onclick="hw_loadStock('AADI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">AADI</button>
+          <button type="button" onclick="hw_loadStock('PTRO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">PTRO</button>
+          <button type="button" onclick="hw_loadStock('ADMR')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">ADMR</button>
+          <button type="button" onclick="hw_loadStock('DEWA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">DEWA</button>
         </div>
       </div>
 
@@ -3026,6 +3265,7 @@
 <script src="js/02-storage.js?v=20260813j"></script>
 <script src="js/03-engine.js?v=20260813j"></script>
 <script src="js/04-render.js?v=20260813j"></script>
+<script src="js/36-crypto-technical.js?v=20260828"></script>
 <script src="js/05-assets.js?v=20260813j"></script>
 <script src="js/06-analysis-router.js?v=20260813j"></script>
 <script src="js/07-flowscan.js?v=20260813j"></script>

@@ -89,8 +89,9 @@ function openModal(type, targetAccount){
       var sel=el('mf-fee-sec');
       if(sel) sel.value=detectActiveSekuritas();
     },30);
-  } else if(type==='buy'||type==='sell'){
-    var isBuy=type==='buy';
+  } else if(type==='buy'||type==='sell'||type==='tx'){
+    if(type==='tx') modalType='buy';
+    var isBuy=modalType==='buy';
     el('m-title').textContent=isBuy?'Input Pembelian Saham':'Input Penjualan Saham';
     el('m-title').style.color=isBuy?'var(--green)':'var(--red)';
     var sf=SEKURITAS[activeSekuritas]||SEKURITAS['Stockbit'];
@@ -350,6 +351,201 @@ function getCryptoPortfolio(){
   });
 }
 
+/**
+ * Mendapatkan sinyal teknikal murni, volume breakout, dan whale accumulation untuk koin crypto
+ */
+function getCryptoTechnicalSignal(coinSymbol) {
+  var sym = (coinSymbol || '').toUpperCase().trim();
+  if (typeof window.analyzeCryptoTechnical === 'function') {
+    try {
+      var tech = window.analyzeCryptoTechnical(sym, '1D');
+      if (tech) {
+        var isBreakout = tech.rvol >= 1.65 && tech.chg24hPct > 1.0;
+        var isWhaleInflow = tech.whaleScore >= 65 && tech.whaleFlowUSD > 0;
+        var isOversold = tech.rsi < 35;
+        var isSqueeze = tech.bb && tech.bb.bandwidth < 8.5;
+        var isBreakdown = (tech.rvol >= 1.5 && tech.chg24hPct < -2.0) || tech.overallSignal === 'STRONG SELL';
+        var isWhaleDump = tech.whaleScore <= 35 && tech.whaleFlowUSD < 0;
+
+        var badgeText = 'Netral';
+        var badgeClass = 'sig-hold';
+        var typeKey = 'neutral';
+        var summaryText = 'RVOL ' + tech.rvol.toFixed(1) + 'x · RSI ' + Math.round(tech.rsi);
+        var icon = 'ti ti-minus';
+
+        if (isBreakout) {
+          badgeText = 'Bullish Breakout';
+          badgeClass = 'sig-breakout';
+          typeKey = 'breakout';
+          summaryText = 'Surge Vol ' + tech.rvol.toFixed(1) + 'x · ' + (tech.chg24hPct >= 0 ? '+' : '') + tech.chg24hPct.toFixed(1) + '%';
+          icon = 'ti ti-flame';
+        } else if (isWhaleInflow) {
+          badgeText = 'Whale Inflow';
+          badgeClass = 'sig-whale';
+          typeKey = 'whale';
+          summaryText = 'Whale Score ' + tech.whaleScore + '/100 · Akumulasi';
+          icon = 'ti ti-fish';
+        } else if (tech.overallSignal === 'STRONG BUY') {
+          badgeText = 'Strong Buy';
+          badgeClass = 'sig-strong-buy';
+          typeKey = 'buy';
+          summaryText = 'Score ' + tech.signalScorePct + '% · Uptrend Murni';
+          icon = 'ti ti-trending-up';
+        } else if (tech.overallSignal === 'BUY') {
+          badgeText = 'Buy Signal';
+          badgeClass = 'sig-buy';
+          typeKey = 'buy';
+          summaryText = 'Score ' + tech.signalScorePct + '% · Bullish';
+          icon = 'ti ti-arrow-up-right';
+        } else if (isOversold) {
+          badgeText = 'Oversold Bounce';
+          badgeClass = 'sig-oversold';
+          typeKey = 'oversold';
+          summaryText = 'RSI ' + Math.round(tech.rsi) + ' · Potensi Reversal';
+          icon = 'ti ti-shield-check';
+        } else if (isSqueeze) {
+          badgeText = 'Vol Squeeze';
+          badgeClass = 'sig-squeeze';
+          typeKey = 'squeeze';
+          summaryText = 'BB Squeeze ' + tech.bb.bandwidth.toFixed(1) + '% · Siap Gerak';
+          icon = 'ti ti-hourglass';
+        } else if (isBreakdown || isWhaleDump) {
+          badgeText = isBreakdown ? 'Bearish Breakdown' : 'Whale Outflow';
+          badgeClass = 'sig-breakdown';
+          typeKey = 'sell';
+          summaryText = 'Score ' + tech.signalScorePct + '% · Waspada';
+          icon = 'ti ti-alert-triangle';
+        } else if (tech.overallSignal === 'SELL') {
+          badgeText = 'Sell Signal';
+          badgeClass = 'sig-sell';
+          typeKey = 'sell';
+          summaryText = 'Tekanan Jual · RSI ' + Math.round(tech.rsi);
+          icon = 'ti ti-arrow-down-right';
+        }
+
+        return {
+          coin: sym,
+          badgeText: badgeText,
+          badgeClass: badgeClass,
+          typeKey: typeKey,
+          summaryText: summaryText,
+          icon: icon,
+          rvol: tech.rvol,
+          whaleScore: tech.whaleScore,
+          whaleFlowUSD: tech.whaleFlowUSD,
+          rsi: tech.rsi,
+          chg24hPct: tech.chg24hPct,
+          overallSignal: tech.overallSignal,
+          signalScorePct: tech.signalScorePct,
+          isBreakout: isBreakout,
+          isWhaleInflow: isWhaleInflow,
+          isOversold: isOversold
+        };
+      }
+    } catch(e) {
+      console.warn('Error computing crypto technical signal for', sym, e);
+    }
+  }
+
+  return {
+    coin: sym,
+    badgeText: 'Netral',
+    badgeClass: 'sig-hold',
+    typeKey: 'neutral',
+    summaryText: 'Klik untuk analisa',
+    icon: 'ti ti-chart-candle',
+    rvol: 1.0,
+    whaleScore: 50,
+    whaleFlowUSD: 0,
+    rsi: 50,
+    chg24hPct: 0,
+    overallSignal: 'HOLD',
+    signalScorePct: 50,
+    isBreakout: false,
+    isWhaleInflow: false,
+    isOversold: false
+  };
+}
+window.getCryptoTechnicalSignal = getCryptoTechnicalSignal;
+
+/**
+ * Render Radar Notifikasi & Volume Breakout Banner di halaman Crypto Portfolio
+ */
+function renderCryptoRadarBanner(porto) {
+  var bannerEl = el('cr-signal-radar-container');
+  if (!bannerEl) return;
+
+  // Analisa sinyal untuk koin portofolio + koin utama jika portofolio kosong
+  var coinsToScan = porto.length ? porto.map(function(p){ return p.coin; }) : ['BTC', 'ETH', 'SOL', 'BNB'];
+  var signals = coinsToScan.map(function(c){ return getCryptoTechnicalSignal(c); });
+
+  var breakouts = signals.filter(function(s){ return s.isBreakout || s.typeKey === 'breakout'; });
+  var whaleInflows = signals.filter(function(s){ return s.isWhaleInflow || (s.whaleScore >= 65 && s.whaleFlowUSD > 0); });
+  var oversolds = signals.filter(function(s){ return s.isOversold || s.typeKey === 'oversold'; });
+  var strongBuys = signals.filter(function(s){ return s.typeKey === 'buy' && !s.isBreakout && !s.isWhaleInflow; });
+
+  var totalAlerts = breakouts.length + whaleInflows.length + oversolds.length;
+
+  var html = '<div style="background:#131B2E;border:1px solid #232F4D;border-radius:12px;padding:14px 18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.25)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span class="crypto-pulse-dot" style="background:#f7931a"></span>'
+    + '<span style="font-size:12px;font-weight:800;color:#f8fafc;letter-spacing:0.3px;font-family:\'Plus Jakarta Sans\',sans-serif">⚡ RADAR SINYAL TEKNIKAL &amp; WHALE FLOW CRYPTO</span>'
+    + (totalAlerts > 0 ? '<span class="badge b-up" style="font-size:9.5px;padding:2px 7px;font-weight:800">'+totalAlerts+' Peluang Terdeteksi</span>' : '<span class="badge b-gray" style="font-size:9.5px;padding:2px 7px">Market Stabil</span>')
+    + '</div>'
+    + '<button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px" onclick="goPage(\'crypto-technical\')"><i class="ti ti-chart-candle"></i> Buka Terminal Analisa Lengkap →</button>'
+    + '</div>';
+
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">';
+
+  if (breakouts.length > 0) {
+    html += '<div style="display:flex;align-items:center;gap:6px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:6px 10px">'
+      + '<span style="font-size:11px;font-weight:700;color:#f7931a;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-flame"></i> Volume Breakout:</span>'
+      + breakouts.map(function(b){
+          return '<button class="badge sig-breakout" style="cursor:pointer;border-radius:4px;padding:2px 7px;font-size:10px;display:inline-flex;align-items:center;gap:3px" onclick="goPage(\'crypto-technical\'); if(typeof cryptoTechSelectCoin===\'function\') cryptoTechSelectCoin(\''+b.coin+'\', true);" title="Klik untuk analisa teknikal '+b.coin+'">'
+            + '<strong>'+b.coin+'</strong> (RVOL '+b.rvol.toFixed(1)+'x · '+(b.chg24hPct>=0?'+':'')+b.chg24hPct.toFixed(1)+'%)</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  if (whaleInflows.length > 0) {
+    html += '<div style="display:flex;align-items:center;gap:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:6px 10px">'
+      + '<span style="font-size:11px;font-weight:700;color:#10b981;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-fish"></i> Whale Accumulation:</span>'
+      + whaleInflows.map(function(w){
+          return '<button class="badge sig-whale" style="cursor:pointer;border-radius:4px;padding:2px 7px;font-size:10px;display:inline-flex;align-items:center;gap:3px" onclick="goPage(\'crypto-technical\'); if(typeof cryptoTechSelectCoin===\'function\') cryptoTechSelectCoin(\''+w.coin+'\', true);" title="Klik untuk analisa teknikal '+w.coin+'">'
+            + '<strong>'+w.coin+'</strong> (Score '+w.whaleScore+'/100 · +$'+fmtK(w.whaleFlowUSD)+')</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  if (oversolds.length > 0) {
+    html += '<div style="display:flex;align-items:center;gap:6px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:8px;padding:6px 10px">'
+      + '<span style="font-size:11px;font-weight:700;color:#c084fc;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-shield-check"></i> Oversold Bounce:</span>'
+      + oversolds.map(function(o){
+          return '<button class="badge sig-oversold" style="cursor:pointer;border-radius:4px;padding:2px 7px;font-size:10px;display:inline-flex;align-items:center;gap:3px" onclick="goPage(\'crypto-technical\'); if(typeof cryptoTechSelectCoin===\'function\') cryptoTechSelectCoin(\''+o.coin+'\', true);">'
+            + '<strong>'+o.coin+'</strong> (RSI '+Math.round(o.rsi)+')</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  if (totalAlerts === 0 && strongBuys.length > 0) {
+    html += '<div style="display:flex;align-items:center;gap:6px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:6px 10px">'
+      + '<span style="font-size:11px;font-weight:700;color:#60a5fa;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-trending-up"></i> Bullish Trend:</span>'
+      + strongBuys.map(function(sb){
+          return '<button class="badge sig-buy" style="cursor:pointer;border-radius:4px;padding:2px 7px;font-size:10px" onclick="goPage(\'crypto-technical\'); if(typeof cryptoTechSelectCoin===\'function\') cryptoTechSelectCoin(\''+sb.coin+'\', true);">'
+            + '<strong>'+sb.coin+'</strong> (Score '+sb.signalScorePct+'%)</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  if (totalAlerts === 0 && strongBuys.length === 0) {
+    html += '<div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px"><i class="ti ti-info-circle"></i> Tidak ada anomali volume ekstrem pada aset saat ini. Sistem memantau secara berkala.</div>';
+  }
+
+  html += '</div></div>';
+  bannerEl.innerHTML = html;
+}
+
 function renderCrypto(){
   var porto = getCryptoPortfolio();
   var totalMV = porto.reduce(function(a,p){return a+p.mv},0);
@@ -370,6 +566,9 @@ function renderCrypto(){
   el('cr-best').className = 'mval '+(best.ret>=0?'up':'dn');
   el('cr-best-sub').textContent = best.coin!=='-' ? best.coin : '';
   el('cr-cnt').textContent = porto.length+' aset';
+
+  // Render Radar Notifikasi & Sinyal Breakout
+  renderCryptoRadarBanner(porto);
 
   // Donut
   kc('cryptoDonut');
@@ -407,14 +606,26 @@ function renderCrypto(){
   var crQCat=(el('cr-filter-cat')&&el('cr-filter-cat').value)||'';
   var crQSig=(el('cr-filter-signal')&&el('cr-filter-signal').value)||'';
   var crQPnl=(el('cr-filter-pnl')&&el('cr-filter-pnl').value)||'';
+  
   var crRows=porto.map(function(p){
     var alloc=totalMV>0?(p.mv/totalMV*100):0;
-    var sig=p.ret>10?'BUY':p.ret<-10?'SELL':'HOLD';
-    return Object.assign({},p,{alloc:alloc,sig:sig});
+    var techSig = getCryptoTechnicalSignal(p.coin);
+    return Object.assign({},p,{alloc:alloc,techSig:techSig});
   });
+
   if(crQ) crRows=crRows.filter(function(p){return p.coin.toUpperCase().indexOf(crQ)>-1||(p.info.name||'').toUpperCase().indexOf(crQ)>-1;});
   if(crQCat) crRows=crRows.filter(function(p){return p.info.category===crQCat;});
-  if(crQSig) crRows=crRows.filter(function(p){return p.sig===crQSig;});
+  if(crQSig) {
+    crRows=crRows.filter(function(p){
+      if(crQSig==='breakout') return p.techSig.typeKey==='breakout' || p.techSig.isBreakout;
+      if(crQSig==='whale') return p.techSig.typeKey==='whale' || p.techSig.isWhaleInflow;
+      if(crQSig==='buy') return p.techSig.typeKey==='buy' || p.techSig.overallSignal.indexOf('BUY')>-1;
+      if(crQSig==='oversold') return p.techSig.typeKey==='oversold' || p.techSig.isOversold;
+      if(crQSig==='squeeze') return p.techSig.typeKey==='squeeze';
+      if(crQSig==='sell') return p.techSig.typeKey==='sell' || p.techSig.overallSignal.indexOf('SELL')>-1;
+      return true;
+    });
+  }
   if(crQPnl==='profit') crRows=crRows.filter(function(p){return p.unreal>=0;});
   else if(crQPnl==='loss') crRows=crRows.filter(function(p){return p.unreal<0;});
 
@@ -436,12 +647,38 @@ function renderCrypto(){
 
   // Table
   el('crypto-tbody').innerHTML = crRows.map(function(p){
-    var alloc = p.alloc, sig = p.sig;
-    var sigCls = sig==='BUY'?'sig-buy':sig==='SELL'?'sig-sell':'sig-hold';
+    var alloc = p.alloc;
+    var sig = p.techSig;
     var catColor = CRYPTO_CATEGORIES[p.info.category]||'#4a5e82';
     var qtyDisp = p.qty < 0.001 ? p.qty.toFixed(6) : p.qty < 1 ? p.qty.toFixed(4) : p.qty.toFixed(2);
-    return '<tr><td><span class="tp" style="border-color:'+(p.info.color||'#4a5e82')+'">'+p.coin+'</span></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span class="badge" style="background:var(--bg4);color:'+catColor+'">'+p.info.category+'</span></td><td class="mono">'+qtyDisp+'</td><td class="mono">Rp '+fmt(Math.round(p.avg))+'</td><td class="mono" style="color:var(--accent)">Rp '+fmt(Math.round(p.priceIdr))+'</td><td class="mono" style="color:var(--text2)">$'+p.priceUSD.toFixed(2)+'</td><td class="mono">Rp '+fmtK(p.mv)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td><td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+Math.min(alloc,100).toFixed(1)+'%;background:'+(p.info.color||'#4a5e82')+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
-  }).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:16px">'+(porto.length?'Tidak ada aset yang cocok dengan filter':'Belum ada posisi crypto')+'</td></tr>';
+    
+    var signalBadgeHtml = '<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">'
+      + '<span class="sig '+sig.badgeClass+'" style="cursor:pointer;user-select:none" onclick="goPage(\'crypto-technical\'); if(typeof cryptoTechSelectCoin===\'function\') cryptoTechSelectCoin(\''+p.coin+'\', true);" title="Buka terminal analisa teknikal '+p.coin+'">'
+      + '<i class="'+sig.icon+'"></i> '+sig.badgeText+'</span>'
+      + '<span style="font-size:9.5px;color:var(--text3);font-family:var(--font-mono)">'+sig.summaryText+'</span>'
+      + '</div>';
+
+    var actionBtnHtml = '<div style="display:flex;justify-content:center;gap:6px">'
+      + '<button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44;padding:3px 8px;font-size:11px;font-weight:700" onclick="goPage(\'crypto-technical\'); if(typeof cryptoTechSelectCoin===\'function\') cryptoTechSelectCoin(\''+p.coin+'\', true);" title="Buka chart & analisa teknikal '+p.coin+'"><i class="ti ti-chart-candle"></i> Analisa</button>'
+      + '</div>';
+
+    return '<tr>'
+      + '<td><span class="tp" style="border-color:'+(p.info.color||'#4a5e82')+'">'+p.coin+'</span></td>'
+      + '<td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td>'
+      + '<td><span class="badge" style="background:var(--bg4);color:'+catColor+'">'+p.info.category+'</span></td>'
+      + '<td class="mono">'+qtyDisp+'</td>'
+      + '<td class="mono">Rp '+fmt(Math.round(p.avg))+'</td>'
+      + '<td class="mono" style="color:var(--accent)">Rp '+fmt(Math.round(p.priceIdr))+'</td>'
+      + '<td class="mono" style="color:var(--text2)">$'+p.priceUSD.toFixed(2)+'</td>'
+      + '<td class="mono">Rp '+fmtK(p.mv)+'</td>'
+      + '<td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td>'
+      + '<td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td>'
+      + '<td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td>'
+      + '<td><div class="prog" style="width:70px"><div class="progf" style="width:'+Math.min(alloc,100).toFixed(1)+'%;background:'+(p.info.color||'#4a5e82')+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td>'
+      + '<td>'+signalBadgeHtml+'</td>'
+      + '<td style="text-align:center">'+actionBtnHtml+'</td>'
+      + '</tr>';
+  }).join('')||'<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:16px">'+(porto.length?'Tidak ada aset yang cocok dengan filter':'Belum ada posisi crypto')+'</td></tr>';
 
   // Tx history
   var pos3 = {};
@@ -1902,6 +2139,28 @@ function renderPortfolioHub(){
     el('hub-crypto-pnl').textContent = 'Rp ' + (cryptoPnl >= 0 ? '+' : '') + fmt(Math.round(cryptoPnl)) + ' (' + (cryptoPct >= 0 ? '+' : '') + cryptoPct.toFixed(2) + '%)';
     el('hub-crypto-pnl').style.color = cryptoPnl >= 0 ? 'var(--green)' : 'var(--red)';
   }
+  if(el('hub-crypto-signals')) {
+    var coinsToScanHub = cryptoPorto.length ? cryptoPorto.map(function(p){ return p.coin; }) : ['BTC', 'ETH', 'SOL'];
+    var hubSignals = coinsToScanHub.map(function(c){ return getCryptoTechnicalSignal(c); });
+    var hubBreakouts = hubSignals.filter(function(s){ return s.isBreakout || s.typeKey === 'breakout'; });
+    var hubWhales = hubSignals.filter(function(s){ return s.isWhaleInflow || (s.whaleScore >= 65 && s.whaleFlowUSD > 0); });
+    var hubOversold = hubSignals.filter(function(s){ return s.isOversold; });
+
+    var badgesHtml = '';
+    if (hubBreakouts.length > 0) {
+      badgesHtml += '<span class="badge sig-breakout" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px"><span class="crypto-pulse-dot" style="background:#f7931a"></span> 🔥 ' + hubBreakouts.map(function(b){ return b.coin; }).join(', ') + ' Breakout</span>';
+    }
+    if (hubWhales.length > 0) {
+      badgesHtml += '<span class="badge sig-whale" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px">🐋 ' + hubWhales.map(function(w){ return w.coin; }).join(', ') + ' Inflow</span>';
+    }
+    if (hubOversold.length > 0) {
+      badgesHtml += '<span class="badge sig-oversold" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px">🛡️ ' + hubOversold.map(function(o){ return o.coin; }).join(', ') + ' Oversold</span>';
+    }
+    if (!badgesHtml) {
+      badgesHtml = '<span class="badge" style="background:rgba(247,147,26,0.12);color:#f7931a;border:1px solid rgba(247,147,26,0.25);font-size:9.5px;padding:2px 6px">⚡ Pure Tech &amp; Whale Radar</span>';
+    }
+    el('hub-crypto-signals').innerHTML = badgesHtml;
+  }
 
   if(el('hub-etf-count')) el('hub-etf-count').textContent = etfPorto.length + ' ETF aktif';
   if(el('hub-etf-val')) el('hub-etf-val').textContent = 'Rp ' + fmt(Math.round(etfMv));
@@ -1922,13 +2181,15 @@ function renderPortfolioHub(){
   var totPnl = totVal - totCost;
   var totPct = totCost > 0 ? (totPnl / totCost) * 100 : 0;
   var totCash = (typeof calcRdnBalance === 'function' ? (calcRdnBalance('saham') + calcRdnBalance('crypto') + calcRdnBalance('reksadana')) : 0);
+  var totPositions = porto.length + cryptoPorto.length + etfPorto.length + rdPorto.length;
 
-  
   if(el('hub-tot-val')) el('hub-tot-val').textContent = 'Rp ' + fmt(Math.round(totVal));
   if(el('hub-tot-cost')) el('hub-tot-cost').textContent = 'Rp ' + fmt(Math.round(totCost));
+  if(el('hub-tot-cash')) el('hub-tot-cash').textContent = 'Rp ' + fmt(Math.round(totCash));
+  if(el('hub-tot-posisi')) el('hub-tot-posisi').textContent = totPositions + ' Aset Aktif';
   
   if(el('hub-tot-pnl')) {
-    el('hub-tot-pnl').textContent = 'Rp ' + fmt(Math.abs(Math.round(totPnl))) + ' (' + Math.abs(totPct).toFixed(2) + '%)';
+    el('hub-tot-pnl').textContent = (totPnl >= 0 ? '+' : '') + 'Rp ' + fmt(Math.abs(Math.round(totPnl))) + ' (' + (totPct >= 0 ? '+' : '') + totPct.toFixed(2) + '%)';
     if(el('hub-tot-pnl-icon')) {
        el('hub-tot-pnl-icon').textContent = totPnl >= 0 ? '▲' : '▼';
     }
@@ -1942,6 +2203,9 @@ function renderPortfolioHub(){
 
   // Update Donut
   var donut = el('hub-donut');
+  if(el('hub-donut-center-val')) {
+    el('hub-donut-center-val').textContent = totPositions > 0 ? totPositions + ' Aset' : '4 Aset';
+  }
   if(donut && totVal > 0) {
       var pSaham = (sahamMv / totVal) * 100;
       var pCrypto = (cryptoMv / totVal) * 100;
@@ -1957,13 +2221,13 @@ function renderPortfolioHub(){
   } else if (donut) {
       donut.style.background = 'conic-gradient(#3B82F6 0% 0%)';
   }
-var barsEl = el('hub-alloc-bars');
+  var barsEl = el('hub-alloc-bars');
   if(barsEl){
     var items = [
-      {label: 'Saham Indonesia', val: sahamMv, color: '#10b981'},
-      {label: 'Crypto Assets', val: cryptoMv, color: '#f7931a'},
-      {label: 'ETF US & Global', val: etfMv, color: '#00c8ff'},
-      {label: 'Reksa Dana & SBN', val: rdVal, color: '#8070d2'}
+      {label: 'Saham Indonesia', val: sahamMv, color: '#3B82F6'},
+      {label: 'Crypto Assets', val: cryptoMv, color: '#10B981'},
+      {label: 'ETF US & Global', val: etfMv, color: '#EF4444'},
+      {label: 'Reksa Dana & SBN', val: rdVal, color: '#8B5CF6'}
     ];
     barsEl.innerHTML = items.map(function(it){
       var pct = totVal > 0 ? (it.val / totVal * 100) : 0;

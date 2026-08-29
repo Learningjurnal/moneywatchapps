@@ -188,9 +188,9 @@ function wRenderNet(){
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">💼 Net Worth — Personal Family Office</div><div class="psub">Kekayaan bersih gabungan: portofolio Money Watch + aset pribadi</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal(\'wealth\');" title="Unduh Neraca & Laporan Kekayaan Bersih dalam Format PDF">📄 Unduh Laporan (PDF)</button>'+
-      '<button class="btn btn-ghost btn-sm" onclick="wExport()">⬇ Export</button>'+
-      '<button class="btn btn-ghost btn-sm" onclick="wImport()">⬆ Import</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">📥 Laporan Konsolidasi</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="wExport()">⬇ Export JSON</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="wImport()">⬆ Import JSON</button>'+
       '<button class="btn btn-blue btn-sm" onclick="wModalSettings()">⚙ Asumsi & Aset Lain</button>'+
     '</div>'+
   '</div>'+
@@ -521,7 +521,10 @@ function wRenderFire(){
   el('page-wfire').innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">🔥 FIRE & Proyeksi Kekayaan</div><div class="psub">Financial Independence, Retire Early — aturan 25× pengeluaran tahunan & 4% withdrawal</div></div>'+
-    '<button class="btn btn-ghost btn-sm" onclick="wModalSettings()">⚙ Ubah Asumsi</button>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">📥 Laporan Konsolidasi</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="wModalSettings()">⚙ Ubah Asumsi</button>'+
+    '</div>'+
   '</div>'+
   wSubNav('wfire')+
   '<div class="row4">'+
