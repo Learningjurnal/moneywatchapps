@@ -2,9 +2,9 @@
 // SEKURITAS DATABASE — tarif komisi berbeda per sekuritas
 // ============================================================
 // Komisi broker (murni, sebelum PPN & Levy)
-// Sumber: halaman resmi masing-masing sekuritas
+// Sumber: halaman resmi masing-masing sekuritas (Jual = Beli + PPh Final 0.1%)
 var SEKURITAS = {
-  'Stockbit':         {buyFee:0.0028, sellFee:0.0018, color:'#ff6b6b'},  // Total Tax/Fee: 0.28% Beli & 0.18% Jual
+  'Stockbit':         {buyFee:0.0018, sellFee:0.0028, color:'#ff6b6b'},  // Total Tax/Fee: 0.18% Beli & 0.28% Jual (All-in)
   'Mirae Asset':      {buyFee:0.0015, sellFee:0.0025, color:'#00c8ff'},
   'BCA Sekuritas':    {buyFee:0.0018, sellFee:0.0028, color:'#4da6ff'},
   'Mandiri Sekuritas':{buyFee:0.0017, sellFee:0.0027, color:'#ffc107'},
@@ -80,50 +80,53 @@ function resetRdFilter(){
   renderReksaDana();
 }
 
-// ── TARIF PAJAK GLOBAL — sesuai regulasi BEI & DJP ──
-// Ref: PMK 131/2024 (PPN 12%), PP 14/1997 (PPh Final 0.1%), IDX Regulation
+// ── TARIF PAJAK GLOBAL — sesuai regulasi BEI, KPEI, KSEI & DJP ──
+// Ref: PPN Efektif 11% Jasa Pialang, PMK 18/PMK.03/2021 (Dividen Bebas Pajak WP OP DN Reinvestasi), PP 14/1997 (PPh Final Jual 0.1%)
 var TAX_SETTINGS = {
-  ppn:        0.12,    // PPN 12% dari nilai komisi broker (PMK 131/2024)
-  levy:       0.00043, // Levy BEI(0.018%)+KPEI(0.010%)+KSEI(0.015%) = 0.043% dari gross
-  pphJual:    0.001,   // PPh Final 0.1% dari gross JUAL saja (bukan beli) — PP 14/1997
-  pphDividen: 0.10     // PPh Dividen 10%
+  ppn:           0.11,    // PPN efektif 11% dari nilai komisi jasa pialang
+  levy:          0.00043, // Levy BEI(0.010%)+KPEI(0.010%)+KSEI(0.005%)+Dana Jaminan(0.018%) = 0.043% dari gross
+  pphJual:       0.001,   // PPh Final 0.1% dari gross JUAL saja (bukan beli) — PP 14/1997 & PP 41/1994
+  pphDividen:    0.00,    // Default 0% bebas PPh dividen (PMK 18/2021 syarat reinvestasi NKRI)
+  dividenExempt: true,    // Toggle: true => 0% (PMK 18/2021), false => 10% tarif PPh Final reguler
+  serviceFee:    0.00     // Parameter service fee dinamis (mis. komunitas / referral, default 0)
 };
 // Helper functions
-function getLevy()      { return TAX_SETTINGS.levy; }
-function getPpn()       { return TAX_SETTINGS.ppn; }
-function getPphJual()   { return TAX_SETTINGS.pphJual; }
+function getLevy()          { return TAX_SETTINGS.levy; }
+function getPpn()           { return TAX_SETTINGS.ppn; }
+function getPphJual()       { return TAX_SETTINGS.pphJual; }
+function getPphDividen()    { return TAX_SETTINGS.dividenExempt ? 0 : (TAX_SETTINGS.pphDividen || 0.10); }
 // Legacy compat — pphBeli di Indonesia = 0 (tidak ada PPh atas pembelian saham)
-function getPphBeli()   { return 0; }
+function getPphBeli()       { return 0; }
 
-// Hitung semua komponen biaya transaksi — sumber tunggal kebenaran
+// Hitung semua komponen biaya transaksi — sumber tunggal kebenaran (dibulatkan ke integer rupiah utuh per broker)
 function calcTxComponents(gross, isBuy, sekuritas){
   var secName = sekuritas || (typeof activeSekuritas !== 'undefined' ? activeSekuritas : 'Stockbit');
-  var sec    = SEKURITAS[secName] || SEKURITAS['Stockbit'] || {buyFee:0.0028, sellFee:0.0018, color:'#ff6b6b'};
+  var sec    = SEKURITAS[secName] || SEKURITAS['Stockbit'] || {buyFee:0.0018, sellFee:0.0028, color:'#ff6b6b'};
   // Gunakan override komisi jika ada (dari panel sekuritas)
   var ovr    = (typeof sekTaxOverride!=='undefined') ? (sekTaxOverride[secName]||{}) : {};
   var buyFee = ovr.beli!=null ? ovr.beli : sec.buyFee;
   var selFee = ovr.jual!=null ? ovr.jual : sec.sellFee;
+  var rate   = isBuy ? buyFee : selFee;
 
-  // Untuk Stockbit: total tax/fee adalah flat 0.28% Beli & 0.18% Jual (all-in)
-  if(secName === 'Stockbit'){
-    var totalFee = gross * (isBuy ? buyFee : selFee);
-    var pph      = isBuy ? 0 : gross * (TAX_SETTINGS.pphJual || 0.001);
-    var levy     = gross * (TAX_SETTINGS.levy || 0.00043);
-    var ppn      = isBuy ? (totalFee - levy) * ((TAX_SETTINGS.ppn || 0.12) / (1 + (TAX_SETTINGS.ppn || 0.12))) : (totalFee > pph + levy ? (totalFee - pph - levy) * ((TAX_SETTINGS.ppn || 0.12) / (1 + (TAX_SETTINGS.ppn || 0.12))) : 0);
-    var komisi   = Math.max(0, totalFee - ppn - levy - pph);
-    var net      = isBuy ? gross + totalFee : gross - totalFee;
-    return { gross:gross, komisi:komisi, ppn:ppn, levy:levy, pph:pph, totalFee:totalFee, net:net,
-             komisiRate: isBuy ? buyFee : selFee };
-  }
+  var komisi = Math.round(gross * rate);
+  var ppn    = Math.round(komisi * (TAX_SETTINGS.ppn || 0.11));
+  var levy   = Math.round(gross * (TAX_SETTINGS.levy || 0.00043));
+  var pph    = isBuy ? 0 : Math.round(gross * (TAX_SETTINGS.pphJual || 0.001));
+  var svc    = Math.round(gross * (TAX_SETTINGS.serviceFee || 0));
+  var totalFee = komisi + ppn + levy + pph + svc;
+  var net    = isBuy ? (gross + totalFee) : (gross - totalFee);
 
-  var komisi = gross * (isBuy ? buyFee : selFee);
-  var ppn    = komisi * TAX_SETTINGS.ppn;           // 12% dari komisi
-  var levy   = gross  * TAX_SETTINGS.levy;          // 0.043% dari gross
-  var pph    = isBuy  ? 0 : gross * TAX_SETTINGS.pphJual; // 0.1% hanya jual
-  var totalFee = komisi + ppn + levy + pph;
-  var net    = isBuy ? gross + totalFee : gross - totalFee;
-  return { gross:gross, komisi:komisi, ppn:ppn, levy:levy, pph:pph, totalFee:totalFee, net:net,
-           komisiRate: isBuy ? buyFee : selFee };
+  return {
+    gross: gross,
+    komisi: komisi,
+    ppn: ppn,
+    levy: levy,
+    pph: pph,
+    serviceFee: svc,
+    totalFee: totalFee,
+    net: net,
+    komisiRate: rate
+  };
 }
 
 function saveTaxSettings(){

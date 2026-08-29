@@ -1506,7 +1506,7 @@ function shRenderContent(tab){
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
         <div style="font-weight:700;color:var(--text);font-size:12.5px;margin-bottom:8px">Biaya Sekuritas Populer:</div>
         <div style="font-size:11.5px;color:var(--text2);line-height:1.7">
-          • <strong>Stockbit</strong>: Beli 0.28% · Jual 0.18% (All-in Fee)<br>
+          • <strong>Stockbit</strong>: Beli 0.18% · Jual 0.28% (All-in Fee)<br>
           • <strong>IPOT / Indo Premier</strong>: Beli 0.19% · Jual 0.29%<br>
           • <strong>Mirae Asset (HOT)</strong>: Beli 0.15% · Jual 0.25%<br>
           • <strong>Mandiri Sekuritas (MOST)</strong>: Beli 0.18% · Jual 0.28%

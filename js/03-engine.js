@@ -100,17 +100,15 @@ function addTx(date,type,ticker,lot,price,sekuritas){
 }
 
 function addDiv(date,ticker,shares,dps,pphRate){
-  // FIX AUDIT F1: pakai TAX_SETTINGS.pphDividen (single source of truth),
-  // bukan literal 0.1 — lihat AUDIT_FINANCIAL_ENGINE.md Temuan #1.
-  // `pphRate` opsional (pecahan, mis. 0.1 untuk 10%) — dipakai bulk import
-  // dividen supaya tarif PPh HISTORIS (saat regulasi belum berubah) tetap
-  // bisa dicatat per baris, bukan otomatis memakai tarif TAX_SETTINGS yang
-  // berlaku SEKARANG untuk seluruh dividen lama. Kalau tidak diisi, tetap
-  // pakai TAX_SETTINGS.pphDividen seperti sebelumnya (jalur manual/sample).
-  var rate = (typeof pphRate==='number' && isFinite(pphRate) && pphRate>=0) ? pphRate : TAX_SETTINGS.pphDividen;
-  var gross=shares*dps;var tax=gross*rate;var net=gross-tax;
+  // FIX AUDIT PMK 18/2021: Dividen WP OP DN bebas pajak (0%) jika reinvestasi, atau 10% jika kena tarif
+  var rate = (typeof pphRate==='number' && isFinite(pphRate) && pphRate>=0)
+    ? pphRate
+    : (TAX_SETTINGS.dividenExempt ? 0 : (TAX_SETTINGS.pphDividen || 0));
+  var gross = Math.round(shares * dps);
+  var tax = Math.round(gross * rate);
+  var net = gross - tax;
   var divId = nextDivId++;
-  dividends.push({id:divId,date:date,ticker:ticker,shares:shares,dps:dps,gross:gross,tax:tax,net:net});
+  dividends.push({id:divId,date:date,ticker:ticker,shares:shares,dps:dps,gross:gross,tax:tax,net:net,pphRate:rate});
   addRdn(date,'DIVIDEN','Dividen '+ticker+' Rp '+fmt(dps)+'/lbr',net,'—', 'div-'+divId);
   saveData();
 }
@@ -120,11 +118,16 @@ function addDiv(date,ticker,shares,dps,pphRate){
 // ============================================================
 var _portoCache=null, _portoCacheKey='';
 function _invalidatePortoCache(){ _portoCache=null; _portoCacheKey=''; }
+function _txHash(){
+  return (transactions||[]).reduce(function(h,t){
+    return h + [t.id, t.type, t.ticker, t.lot, t.price, t.gross, t.net, t.sekuritas].join(':') + '|';
+  }, '');
+}
 function getPortfolio(){
   var heldTickers={};
-  transactions.forEach(function(tx){ heldTickers[tx.ticker]=1; });
+  (transactions||[]).forEach(function(tx){ heldTickers[tx.ticker]=1; });
   var priceSig=Object.keys(heldTickers).sort().map(function(t){ return t+':'+(prices[t]||0); }).join(',');
-  var cacheKey=transactions.length+'|'+priceSig;
+  var cacheKey=_txHash()+'#'+priceSig;
   if(_portoCache && _portoCacheKey===cacheKey) return _portoCache;
   var pos={};
   transactions.slice().sort(function(a,b){
@@ -430,30 +433,40 @@ function calcChronologicalTxMetrics(){
   return metrics;
 }
 
-// ── Performa per Saham (Stock B Model) — realized (posisi ditutup/sebagian) + unrealized
+// ── Performa per Saham (Stock B Model) — Realized P&L (Weighted Average Basis) + Unrealized P&L ──
+// Sesuai audit finansial: Realized pada jual sebagian dihitung dari (proceedsNet - (avgNetCost * sharesSold))
 function getStockPerformanceByTicker(){
   var pos={};
-  transactions.slice().sort(function(a,b){
+  (transactions||[]).slice().sort(function(a,b){
     var d = (a.date||'').localeCompare(b.date||'');
     return d !== 0 ? d : ((a.id||0) - (b.id||0));
   }).forEach(function(tx){
-    if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,buyNet:0,sellNet:0,firstDate:tx.date,lastDate:tx.date,txCount:0};
+    if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,netCost:0,buyNet:0,sellNet:0,realizedNet:0,firstDate:tx.date,lastDate:tx.date,txCount:0};
     var p=pos[tx.ticker];
     p.txCount++; p.lastDate=tx.date;
-    var netVal = tx.net || tx.gross || (tx.lot * 100 * tx.price);
+    var txGross = tx.gross || (tx.lot * 100 * tx.price);
+    var txNet = tx.net || txGross;
     if(tx.type==='BUY'){
       p.lot += tx.lot;
       p.shares += tx.lot * 100;
-      p.cost += (tx.gross || netVal);
-      p.buyNet += netVal;
+      p.cost += txGross;
+      p.netCost += txNet;
+      p.buyNet += txNet;
     } else if(tx.type==='SELL'){
       var sold = tx.lot * 100;
-      var avg = p.shares > 0 ? (p.cost / p.shares) : 0;
+      var avgGross = p.shares > 0 ? (p.cost / p.shares) : tx.price;
+      var avgNet = p.shares > 0 ? (p.netCost / p.shares) : (txNet / sold);
+      var grossCostBasis = avgGross * sold;
+      var netCostBasis = avgNet * sold;
+      var pnlNet = txNet - netCostBasis;
+      p.realizedNet += pnlNet; // Boleh bernilai positif (untung) maupun negatif (rugi)
+
       p.lot = Math.max(0, p.lot - tx.lot);
       p.shares = Math.max(0, p.shares - sold);
-      p.cost = Math.max(0, p.cost - (avg * sold));
-      p.sellNet += netVal;
-      if(p.shares <= 0) p.cost = 0;
+      p.cost = Math.max(0, p.cost - grossCostBasis);
+      p.netCost = Math.max(0, p.netCost - netCostBasis);
+      if(p.shares <= 0) { p.cost = 0; p.netCost = 0; }
+      p.sellNet += txNet;
     }
   });
   var portoByTicker={};
@@ -465,13 +478,93 @@ function getStockPerformanceByTicker(){
     var unreal = live ? live.unreal : 0;
     var cost = live ? live.cost : 0;
     var avg = live ? live.avg : 0;
-    var realized = isClosed ? (p.sellNet - p.buyNet) : (p.sellNet > p.buyNet ? p.sellNet - p.buyNet : 0);
+    var realized = Math.round(p.realizedNet);
     return {
       ticker:t, lot:p.lot, shares:p.shares, cost:cost, avg:avg,
       mv:mv, unreal:unreal, realized:realized, total:realized+unreal,
       closed: isClosed, firstDate:p.firstDate, lastDate:p.lastDate, txCount:p.txCount
     };
   });
+}
+
+// ── REKALKULASI SELURUH DATA TRANSAKSI & PAJAK SECARA PRESISI (HEALING / MIGRATION) ──
+function recalculateAllStoredData(silent){
+  if(!Array.isArray(transactions)) transactions = [];
+  if(!Array.isArray(dividends)) dividends = [];
+  if(!Array.isArray(rdnMutations)) rdnMutations = [];
+
+  var txChanged = 0;
+  var divChanged = 0;
+
+  // 1. Rekalkulasi tiap transaksi saham dengan mesin komponen biaya 11% PPN, broker fee baru, & Math.round
+  transactions.forEach(function(tx){
+    var lot = Number(tx.lot) || 0;
+    var price = Number(tx.price) || 0;
+    var isBuy = tx.type === 'BUY';
+    var sec = tx.sekuritas || (typeof activeSekuritas !== 'undefined' ? activeSekuritas : 'Stockbit') || 'Stockbit';
+    var gross = Math.round(lot * 100 * price);
+    var c = (typeof calcTxComponents === 'function')
+      ? calcTxComponents(gross, isBuy, sec)
+      : { gross: gross, komisi: Math.round(gross * (isBuy ? 0.0018 : 0.0028)), ppn: 0, levy: 0, pph: 0, net: gross };
+
+    tx.gross = c.gross;
+    tx.komisi = c.komisi;
+    tx.ppn = c.ppn;
+    tx.levy = c.levy;
+    tx.pph = c.pph;
+    tx.tax = (c.ppn || 0) + (c.levy || 0) + (c.pph || 0);
+    tx.serviceFee = c.serviceFee || 0;
+    tx.net = c.net;
+    tx.sekuritas = sec;
+    txChanged++;
+  });
+
+  // 2. Sinkronkan mutasi RDN yang terhubung ke transaksi saham
+  var txMap = {};
+  transactions.forEach(function(t){ txMap[t.id] = t; txMap['tx-' + t.id] = t; });
+  rdnMutations.forEach(function(m){
+    if(m.linkedTxId && txMap[m.linkedTxId]){
+      var tx = txMap[m.linkedTxId];
+      m.amount = (tx.type === 'BUY' ? -tx.net : tx.net);
+    }
+  });
+
+  // 3. Rekalkulasi dividen (PMK 18/2021 dividen bebas pajak 0% jika exempt)
+  dividends.forEach(function(d){
+    var shares = Number(d.shares) || 0;
+    var dps = Number(d.dps) || 0;
+    var gross = Math.round(shares * dps);
+    var rate = (typeof d.pphRate === 'number' && isFinite(d.pphRate) && d.pphRate >= 0)
+      ? d.pphRate
+      : (TAX_SETTINGS.dividenExempt ? 0 : (TAX_SETTINGS.pphDividen || 0));
+    var tax = Math.round(gross * rate);
+    var net = gross - tax;
+    d.gross = gross;
+    d.tax = tax;
+    d.net = net;
+    divChanged++;
+  });
+
+  // 4. Sinkronkan mutasi RDN yang terhubung ke dividen
+  var divMap = {};
+  dividends.forEach(function(d){ divMap['div-' + d.id] = d; });
+  rdnMutations.forEach(function(m){
+    if(m.linkedTxId && divMap[m.linkedTxId]){
+      var d = divMap[m.linkedTxId];
+      m.amount = d.net;
+    }
+  });
+
+  // 5. Invalidate cache dan bangun ulang saldo RDN
+  _invalidatePortoCache();
+  if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+
+  // 6. Simpan perubahan ke storage / cloud
+  if(typeof saveData === 'function') saveData();
+
+  if(!silent && typeof showSaveStatus === 'function'){
+    showSaveStatus('✓ ' + txChanged + ' transaksi & ' + divChanged + ' dividen berhasil direkalkulasi secara presisi!');
+  }
 }
 
 function calcRdnBalance(account){

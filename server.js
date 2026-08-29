@@ -1159,20 +1159,17 @@ app.use(express.static(__dirname, {
   extensions: ['html', 'htm']
 }));
 
-// Route fallback for V7 (Production-Grade Rebuild)
-app.get('/v7', (req, res) => {
-  res.sendFile(path.join(__dirname, 'v7', 'index.html'));
-});
-app.get('/v7/app', (req, res) => {
-  res.sendFile(path.join(__dirname, 'v7', 'index.html'));
+// Route fallback for primary app entry point
+app.get('/app', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Route fallback for V6 (Legacy / Benchmark Version)
-app.get('/app', (req, res) => {
-  res.sendFile(path.join(__dirname, 'moneywatch.html'));
-});
-app.get('/v6', (req, res) => {
-  res.sendFile(path.join(__dirname, 'moneywatch.html'));
+// Fallback for HTML5 client-side routing
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API route not found' });
+  }
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Start HTTP server on 0.0.0.0:3000

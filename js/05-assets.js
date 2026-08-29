@@ -124,7 +124,8 @@ function openModal(type, targetAccount){
     el('m-title').textContent='Catat Penerimaan Dividen';
     el('m-title').style.color='var(--purple)';
     var porto=getPortfolio();
-    el('m-body').innerHTML='<div class="fgrid"><div class="fg ffull"><label class="flabel">Tanggal Pembayaran</label><input class="finput" type="date" id="mf-date" value="'+today()+'"></div><div class="fg"><label class="flabel">Kode Saham</label><select class="finput fsel" id="mf-ticker" onchange="prefillShares()">'+tkrOpts+'</select></div><div class="fg"><label class="flabel">Jumlah Lembar</label><input class="finput" type="number" id="mf-shares" placeholder="Lembar dimiliki" oninput="divCalcLive()"></div><div class="fg ffull"><label class="flabel">Dividen per Lembar (Rp)</label><input class="finput" type="number" id="mf-dps" placeholder="Contoh: 250" oninput="divCalcLive()"></div></div><div class="taxbox"><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:7px">RINCIAN DIVIDEN</div><div class="taxrow"><span>Dividen Kotor</span><span class="mono" id="dc-g">Rp 0</span></div><div class="taxrow"><span>PPh Dividen (10%)</span><span class="mono dn" id="dc-t">-Rp 0</span></div><div class="taxrow tot"><span>Diterima Bersih</span><span class="mono up" id="dc-n">Rp 0</span></div></div><div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeModal()">Batal</button><button class="btn btn-purple" onclick="submitDivModal()">Simpan Dividen</button></div>';
+    var divRateLabel = (TAX_SETTINGS.dividenExempt) ? '0% — Bebas PPh PMK 18/2021' : ((TAX_SETTINGS.pphDividen*100).toFixed(0)+'%');
+    el('m-body').innerHTML='<div class="fgrid"><div class="fg ffull"><label class="flabel">Tanggal Pembayaran</label><input class="finput" type="date" id="mf-date" value="'+today()+'"></div><div class="fg"><label class="flabel">Kode Saham</label><select class="finput fsel" id="mf-ticker" onchange="prefillShares()">'+tkrOpts+'</select></div><div class="fg"><label class="flabel">Jumlah Lembar</label><input class="finput" type="number" id="mf-shares" placeholder="Lembar dimiliki" oninput="divCalcLive()"></div><div class="fg ffull"><label class="flabel">Dividen per Lembar (Rp)</label><input class="finput" type="number" id="mf-dps" placeholder="Contoh: 250" oninput="divCalcLive()"></div></div><div class="taxbox"><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:7px">RINCIAN DIVIDEN (PMK 18/2021)</div><div class="taxrow"><span>Dividen Kotor</span><span class="mono" id="dc-g">Rp 0</span></div><div class="taxrow"><span id="dc-t-lbl">PPh Dividen ('+divRateLabel+')</span><span class="mono dn" id="dc-t">-Rp 0</span></div><div class="taxrow tot"><span>Diterima Bersih</span><span class="mono up" id="dc-n">Rp 0</span></div></div><div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeModal()">Batal</button><button class="btn btn-purple" onclick="submitDivModal()">Simpan Dividen</button></div>';
     setTimeout(function(){var t=el('mf-ticker').value;var p=porto.find(function(pp){return pp.ticker===t});if(p)el('mf-shares').value=p.shares;divCalcLive();},50);
   } else if(type==='sec'){
     el('m-title').textContent='Ganti Sekuritas Aktif';
@@ -1384,11 +1385,15 @@ function txCalcLive(){
 function divCalcLive(){
   var shares=parseFloat(el('mf-shares')&&el('mf-shares').value||0);
   var dps=parseFloat(el('mf-dps')&&el('mf-dps').value||0);
-  // FIX AUDIT F1: pakai TAX_SETTINGS.pphDividen, bukan literal 0.1
-  var gross=shares*dps;var tax=gross*TAX_SETTINGS.pphDividen;var net=gross-tax;
-  if(el('dc-g'))el('dc-g').textContent='Rp '+fmt(gross);
-  if(el('dc-t'))el('dc-t').textContent='-Rp '+fmt(tax);
-  if(el('dc-n'))el('dc-n').textContent='Rp '+fmt(net);
+  var gross=Math.round(shares*dps);
+  var isExempt = (typeof TAX_SETTINGS !== 'undefined' && TAX_SETTINGS.dividenExempt !== false);
+  var rate = isExempt ? 0 : ((typeof TAX_SETTINGS !== 'undefined' && typeof TAX_SETTINGS.pphDividen === 'number') ? TAX_SETTINGS.pphDividen : 0);
+  var tax = isExempt ? 0 : Math.round(gross * rate);
+  var net = Math.round(gross - tax);
+  if(el('dc-g')) el('dc-g').textContent='Rp '+fmt(gross);
+  if(el('dc-t')) el('dc-t').textContent='-Rp '+fmt(tax);
+  if(el('dc-n')) el('dc-n').textContent='Rp '+fmt(net);
+  if(el('dc-t-lbl')) el('dc-t-lbl').textContent = isExempt ? 'PPh Dividen (0% — Bebas PPh PMK 18/2021)' : ('PPh Dividen ('+(rate*100).toFixed(0)+'%)');
 }
 
 function onFeeTypeChange(){

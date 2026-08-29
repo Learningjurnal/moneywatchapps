@@ -883,7 +883,8 @@ function renderPajak(){
   if(infoBar) infoBar.textContent = 'ℹ️ Tarif aktif: Komisi sesuai sekuritas · PPN '+
     (TAX_SETTINGS.ppn*100).toFixed(0)+'% × Komisi · Levy '+
     (TAX_SETTINGS.levy*100).toFixed(3)+'% (BEI+KPEI+KSEI) · PPh Final Jual '+
-    (TAX_SETTINGS.pphJual*100).toFixed(1)+'% · PPh Dividen 10%';
+    (TAX_SETTINGS.pphJual*100).toFixed(1)+'% · PPh Dividen '+
+    (TAX_SETTINGS.dividenExempt ? '0% (PMK 18/2021 Bebas Pajak Reinvestasi)' : ((TAX_SETTINGS.pphDividen*100).toFixed(0)+'%'));
   if(typeof renderSekTaxPanel==='function') renderSekTaxPanel();
 
   var pj = TAX_SETTINGS.pphJual*100;
@@ -988,7 +989,7 @@ function taxPreviewLive(){
   if(el('tax-ppn-disp'))  el('tax-ppn-disp').textContent=(ppn*100).toFixed(0)+'%';
   if(el('tax-levy-disp')) el('tax-levy-disp').textContent=(levy*100).toFixed(3)+'%';
   if(el('tax-jual-disp')) el('tax-jual-disp').textContent=(j*100).toFixed(2)+'%';
-  // Preview: 10 lot @ Rp 5.000, Stockbit fee (0.28% Beli & 0.18% Jual)
+  // Preview: 10 lot @ Rp 5.000, Stockbit fee (0.18% Beli & 0.28% Jual)
   var gross=10*100*5000;
   var cB = calcTxComponents(gross, true, 'Stockbit');
   var cJ = calcTxComponents(gross, false, 'Stockbit');

@@ -90,9 +90,12 @@ function saveDivInvestEntry(){
   // Cek duplikat di dividends global
   var isDup=dividends.some(function(d){return d.ticker===ticker&&d.date===date&&d.dps===dps;});
   if(isDup){alert('Data ini sudah ada di riwayat dividen global. Tidak perlu diinput ulang.');return;}
-  // FIX AUDIT F1: pakai TAX_SETTINGS.pphDividen, bukan literal 0.10
-  var gross=dps*shares;var tax=gross*TAX_SETTINGS.pphDividen;var net=gross-tax;
-  divInvestData.push({id:_divInvestId++,ticker:ticker,date:date,dps:dps,shares:shares,avgPrice:avgPrice,gross:gross,tax:tax,net:net});
+  // FIX AUDIT PMK 18/2021: Dividen WP OP DN bebas pajak (0%) jika exempt/reinvestasi, atau tarif pphDividen
+  var divRate = (typeof TAX_SETTINGS.dividenExempt !== 'undefined' && TAX_SETTINGS.dividenExempt) ? 0 : (TAX_SETTINGS.pphDividen || 0);
+  var gross = Math.round(dps * shares);
+  var tax = Math.round(gross * divRate);
+  var net = gross - tax;
+  divInvestData.push({id:_divInvestId++,ticker:ticker,date:date,dps:dps,shares:shares,avgPrice:avgPrice,gross:gross,tax:tax,net:net,pphRate:divRate});
   diSaveData();
   ['di-inp-ticker','di-inp-date','di-inp-dps','di-inp-shares','di-inp-avgprice'].forEach(function(id){var e=el(id);if(e)e.value='';});
   renderDivInvest();
@@ -103,6 +106,7 @@ function saveDivBatch(){
   var raw=el('di-batch-text')&&el('di-batch-text').value||'';
   var lines=raw.trim().split('\n').filter(function(l){return l.trim();});
   var count=0;
+  var divRate = (typeof TAX_SETTINGS.dividenExempt !== 'undefined' && TAX_SETTINGS.dividenExempt) ? 0 : (TAX_SETTINGS.pphDividen || 0);
   lines.forEach(function(line){
     var parts=line.split(',').map(function(s){return s.trim();});
     if(parts.length<4)return;
@@ -110,9 +114,10 @@ function saveDivBatch(){
     var dps=parseFloat(parts[2]),shares=parseFloat(parts[3]);
     var avgPrice=parseFloat(parts[4])||0;
     if(!ticker||!date||isNaN(dps)||isNaN(shares)||dps<=0||shares<=0)return;
-    // FIX AUDIT F1: pakai TAX_SETTINGS.pphDividen, bukan literal 0.10
-    var gross=dps*shares,tax=gross*TAX_SETTINGS.pphDividen,net=gross-tax;
-    divInvestData.push({id:_divInvestId++,ticker:ticker,date:date,dps:dps,shares:shares,avgPrice:avgPrice,gross:gross,tax:tax,net:net});
+    var gross = Math.round(dps * shares);
+    var tax = Math.round(gross * divRate);
+    var net = gross - tax;
+    divInvestData.push({id:_divInvestId++,ticker:ticker,date:date,dps:dps,shares:shares,avgPrice:avgPrice,gross:gross,tax:tax,net:net,pphRate:divRate});
     count++;
   });
   if(count===0){alert('Tidak ada data valid. Cek format: TICKER,YYYY-MM-DD,DPS,LEMBAR,HARGA_BELI');return;}

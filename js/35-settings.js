@@ -17,11 +17,13 @@
 
   var DEFAULT_SETTINGS = {
     tax: {
-      buyFee: 0.0015,       // 0.15% (murni broker)
-      sellFee: 0.0025,      // 0.25% (murni broker)
-      pphFinal: 0.001,      // 0.1% PPh Final jual
-      dividendTax: 0.10,    // 10% PPh Dividen
-      ppnFee: 0.12,         // 12% PPN komisi
+      buyFee: 0.0018,       // 0.18% (Stockbit All-in buy fee)
+      sellFee: 0.0028,      // 0.28% (Stockbit All-in sell fee)
+      pphFinal: 0.001,      // 0.1% PPh Final jual (PP 14/1997)
+      dividendTax: 0.00,    // 0% PPh Dividen (PMK 18/2021 bebas pajak)
+      dividenExempt: true,  // Toggle bebas pajak dividen (PMK 18/2021)
+      ppnFee: 0.11,         // PPN Efektif 11% Jasa Pialang
+      serviceFee: 0.00,     // Biaya layanan tambahan (opsional)
       activeSekuritas: 'Stockbit'
     },
     fire: {
@@ -61,15 +63,17 @@
   function syncWithGlobalEngines() {
     // 1. Sync Tax settings to global TAX_SETTINGS
     if (typeof TAX_SETTINGS !== 'undefined') {
-      TAX_SETTINGS.ppn = state.tax.ppnFee || 0.12;
-      TAX_SETTINGS.pphJual = state.tax.pphFinal || 0.001;
-      TAX_SETTINGS.pphDividen = state.tax.dividendTax || 0.10;
+      TAX_SETTINGS.ppn = (typeof state.tax.ppnFee === 'number') ? state.tax.ppnFee : 0.11;
+      TAX_SETTINGS.pphJual = (typeof state.tax.pphFinal === 'number') ? state.tax.pphFinal : 0.001;
+      TAX_SETTINGS.pphDividen = (typeof state.tax.dividendTax === 'number') ? state.tax.dividendTax : 0.00;
+      TAX_SETTINGS.dividenExempt = (state.tax.dividenExempt !== false);
+      TAX_SETTINGS.serviceFee = state.tax.serviceFee || 0.00;
     }
 
     // 2. Sync Sekuritas to global SEKURITAS
     if (typeof SEKURITAS !== 'undefined' && state.tax.activeSekuritas) {
       var sec = SEKURITAS[state.tax.activeSekuritas];
-      if (sec && state.tax.activeSekuritas !== 'Stockbit') {
+      if (sec) {
         sec.buyFee = state.tax.buyFee;
         sec.sellFee = state.tax.sellFee;
       }
@@ -88,7 +92,7 @@
 
   // Broker Presets
   var BROKER_PRESETS = {
-    'Stockbit': { buyFee: 0.0028, sellFee: 0.0018, name: 'Stockbit (All-in Fee)' },
+    'Stockbit': { buyFee: 0.0018, sellFee: 0.0028, name: 'Stockbit (All-in Fee)' },
     'IPOT': { buyFee: 0.0019, sellFee: 0.0029, name: 'IPOT / Indo Premier' },
     'Mirae Asset': { buyFee: 0.0015, sellFee: 0.0025, name: 'Mirae Asset Sekuritas' },
     'Mandiri Sekuritas': { buyFee: 0.0018, sellFee: 0.0028, name: 'Mandiri Sekuritas (MOST)' },
@@ -222,22 +226,18 @@
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
               <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Tarif PPh Final Jual (%)</label>
+                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">PPh Final Jual (%)</label>
                 <input type="number" id="cfg-pph" class="form-input mono" step="0.0001" value="${(state.tax.pphFinal * 100).toFixed(2)}" required style="width:100%">
               </div>
-              <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Tarif Pajak Dividen (%)</label>
-                <input type="number" id="cfg-divtax" class="form-input mono" step="0.01" value="${(state.tax.dividendTax * 100).toFixed(1)}" required style="width:100%">
-              </div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
               <div>
                 <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Tarif PPN Komisi (%)</label>
                 <input type="number" id="cfg-ppn" class="form-input mono" step="0.1" value="${(state.tax.ppnFee * 100).toFixed(0)}" style="width:100%">
               </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
               <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Nama Sekuritas</label>
+                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Nama Sekuritas Aktif</label>
                 <select id="cfg-default-sekuritas" class="form-input" style="width:100%">
                   <option value="Stockbit" ${state.tax.activeSekuritas === 'Stockbit' ? 'selected' : ''}>Stockbit</option>
                   <option value="IPOT" ${state.tax.activeSekuritas === 'IPOT' ? 'selected' : ''}>IPOT / Indo Premier</option>
@@ -248,11 +248,36 @@
                   <option value="Custom" ${state.tax.activeSekuritas === 'Custom' ? 'selected' : ''}>Custom Sekuritas</option>
                 </select>
               </div>
+              <div>
+                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Service Fee Tambahan (%)</label>
+                <input type="number" id="cfg-servicefee" class="form-input mono" step="0.001" value="${((state.tax.serviceFee || 0) * 100).toFixed(3)}" style="width:100%">
+              </div>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
-              <i class="ti ti-device-floppy"></i> Simpan Tarif Pajak &amp; Komisi Broker
-            </button>
+            <!-- PMK 18/2021 Dividend Exemption Toggle -->
+            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <div style="font-size:12px;font-weight:700;color:var(--text)">Bebas PPh Dividen (PMK 18/2021)</div>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                  <input type="checkbox" id="cfg-div-exempt" ${state.tax.dividenExempt !== false ? 'checked' : ''} onchange="var dt=document.getElementById('cfg-divtax-box'); if(dt) dt.style.display=this.checked?'none':'block';">
+                  <span style="font-size:11.5px;font-weight:600;color:var(--green)">0% (Bebas Pajak)</span>
+                </label>
+              </div>
+              <div style="font-size:10.5px;color:var(--text3);line-height:1.4">Dividen Wajib Pajak OP Dalam Negeri bebas PPh jika direinvestasikan di wilayah NKRI.</div>
+              <div id="cfg-divtax-box" style="display:${state.tax.dividenExempt !== false ? 'none' : 'block'};margin-top:8px;padding-top:8px;border-top:1px solid var(--border2)">
+                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Tarif PPh Dividen Normal Non-Reinvestasi (%)</label>
+                <input type="number" id="cfg-divtax" class="form-input mono" step="0.01" value="${((state.tax.dividendTax || 0.10) * 100).toFixed(1)}" style="width:100%">
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center">
+                <i class="ti ti-device-floppy"></i> Simpan Tarif Pajak
+              </button>
+              <button type="button" class="btn btn-ghost" onclick="MW_SETTINGS.triggerRecalculate()" title="Koreksi ulang seluruh angka transaksi &amp; pajak yang tersimpan tanpa menghapus riwayat transaksi">
+                <i class="ti ti-refresh"></i> Rekalkulasi Data
+              </button>
+            </div>
           </form>
         </div>
 
@@ -535,8 +560,12 @@
     var buyFee = Number(document.getElementById('cfg-buyfee').value) / 100;
     var sellFee = Number(document.getElementById('cfg-sellfee').value) / 100;
     var pphFinal = Number(document.getElementById('cfg-pph').value) / 100;
-    var dividendTax = Number(document.getElementById('cfg-divtax').value) / 100;
+    var divExemptEl = document.getElementById('cfg-div-exempt');
+    var isDivExempt = divExemptEl ? divExemptEl.checked : true;
+    var divTaxInput = document.getElementById('cfg-divtax');
+    var dividendTax = isDivExempt ? 0 : (divTaxInput ? Number(divTaxInput.value) / 100 : 0.10);
     var ppnFee = Number(document.getElementById('cfg-ppn').value) / 100;
+    var serviceFee = (document.getElementById('cfg-servicefee') ? Number(document.getElementById('cfg-servicefee').value) / 100 : 0) || 0;
     var activeSekuritasVal = document.getElementById('cfg-default-sekuritas').value;
 
     state.tax = {
@@ -544,13 +573,25 @@
       sellFee: sellFee,
       pphFinal: pphFinal,
       dividendTax: dividendTax,
+      dividenExempt: isDivExempt,
       ppnFee: ppnFee,
+      serviceFee: serviceFee,
       activeSekuritas: activeSekuritasVal
     };
 
     saveSettings();
+    if (typeof recalculateAllStoredData === 'function') {
+      recalculateAllStoredData(true);
+    }
     if (typeof showSaveStatus === 'function') {
-      showSaveStatus('✓ Tarif Pajak & Komisi Broker berhasil disimpan');
+      showSaveStatus('✓ Tarif Pajak & Komisi Broker berhasil disimpan & data direkalkulasi');
+    }
+    renderSettingsPage();
+  }
+
+  function triggerRecalculate() {
+    if (typeof recalculateAllStoredData === 'function') {
+      recalculateAllStoredData(false);
     }
     renderSettingsPage();
   }
@@ -732,7 +773,8 @@
     deleteDebt: deleteDebt,
     exportJsonBackup: exportJsonBackup,
     handleFileImport: handleFileImport,
-    confirmDataReset: confirmDataReset
+    confirmDataReset: confirmDataReset,
+    triggerRecalculate: triggerRecalculate
   };
 
   // Aliases for Router Compatibility
