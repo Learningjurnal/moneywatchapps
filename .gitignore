@@ -1,7 +1,23 @@
+# Operating System Files
 Thumbs.db
 .DS_Store
 desktop.ini
 *.log
-_test_import.xlsx
+
+# Dependencies & Environments
+node_modules/
+.npm/
 .mlvenv/
 __pycache__/
+*.pyc
+
+# Local Test & Scratch Data
+_test_import.xlsx
+*.tmp
+*.bak
+*.swp
+
+# Local User Stores (Private user cache & local backups)
+data/user-stores/*.json
+!data/user-stores/.gitkeep
+

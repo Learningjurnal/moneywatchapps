@@ -452,6 +452,26 @@ input, select, textarea {
 
 .v7-view.active {
   display: block;
+  animation: v7ViewFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes v7ViewFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v7-view.active {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 /* Executive Cards Grid */
