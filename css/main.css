@@ -331,17 +331,18 @@ body::after{display:none}
 
 
 /* ── SIDEBAR NAV (StockMaster PRO Style) ── */
-.main-row{flex:1;display:flex;min-height:0}
-.side-nav{width:224px;flex-shrink:0;background:#131B2E;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0;transition:width .18s ease}
-.side-nav button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:8px 11px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--text2);background:none;border:1px solid transparent;font-family:'Plus Jakarta Sans',sans-serif;transition:all var(--spring);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.side-nav button i.ti{font-size:16px;flex-shrink:0;width:18px;text-align:center;color:var(--text3);transition:color var(--spring)}
-.side-label{overflow:hidden;text-overflow:ellipsis}
+.main-row{flex:1;display:flex;min-height:0;overflow:hidden}
+.side-nav{width:260px;min-width:260px;max-width:260px;flex-shrink:0;background:#131B2E;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0;overflow-x:hidden;user-select:none;transition:width .18s ease}
+.side-nav button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text2);background:none;border:1px solid transparent;font-family:'Plus Jakarta Sans',sans-serif;transition:all var(--spring);white-space:nowrap;overflow:visible}
+.side-nav button i.ti{font-size:15px;flex-shrink:0;width:18px;text-align:center;color:var(--text3);transition:color var(--spring)}
+.side-label{white-space:nowrap;overflow:visible;text-overflow:clip;flex:1;min-width:0}
 .side-nav button:hover{color:#fff;background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.25)}
 .side-nav button:hover i.ti{color:var(--accent)}
 /* Active — solid / highlighted card */
 .side-nav button.on{background:rgba(59,130,246,.18);color:#fff;font-weight:700;border-color:var(--accent)}
 .side-nav button.on i.ti{color:var(--accent)}
 .nav-due-badge{margin-left:auto;flex-shrink:0;background:var(--red);color:#fff;font-size:9px;font-weight:700;line-height:1;padding:2px 5px;border-radius:20px;font-family:var(--font-mono);min-width:14px;text-align:center}
+.side-nav .badge{flex-shrink:0;white-space:nowrap;margin-left:auto;font-size:8px;padding:1px 5px}
 
 /* ── Toolbar sidebar: tombol ciutkan + kolom cari ── */
 .side-toolbar{display:flex;align-items:center;gap:6px;padding:10px 10px;flex-shrink:0;border-bottom:1px solid var(--border)}
@@ -354,25 +355,25 @@ body::after{display:none}
 .side-kbd{flex-shrink:0;font-size:9px;font-family:var(--font-mono);color:var(--text3);background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:4px;padding:1px 5px;letter-spacing:.02em}
 
 /* ── Area scroll (daftar menu) — terpisah dari toolbar supaya toolbar tetap terlihat ── */
-.side-nav-scroll{flex:1;min-height:0;overflow-y:auto;padding:8px 8px 20px}
+.side-nav-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:8px 8px 20px}
 .side-nav-scroll::-webkit-scrollbar{width:3px}
 
 /* ── Sidebar groups — "spoiler"/accordion + garis panduan indentasi ── */
 .side-group{margin-top:4px}
-.side-sec-toggle{display:flex!important;align-items:center;gap:9px;width:100%;padding:8px 9px!important;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)!important;background:none;border:none;cursor:pointer;border-radius:8px;user-select:none}
+.side-sec-toggle{display:flex!important;align-items:center;gap:8px;width:100%;padding:7px 8px!important;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)!important;background:none;border:none;cursor:pointer;border-radius:8px;user-select:none}
 .side-sec-toggle:hover{color:var(--text2)!important;background:rgba(255,255,255,.04)}
 .side-sec-toggle i.ti{font-size:14px;width:18px;text-align:center;flex-shrink:0;pointer-events:none}
 .side-sec-toggle .side-label{flex:1;text-align:left;pointer-events:none}
 .side-chevron{font-size:9px;transition:transform .2s ease;color:var(--text3);margin-left:auto;flex-shrink:0;pointer-events:none}
 .side-group.open .side-chevron{transform:rotate(180deg)}
-.side-group-items{display:none;margin-left:14px;padding-left:8px;border-left:1px solid var(--border)}
+.side-group-items{display:none;margin-left:8px;padding-left:6px;border-left:1px solid var(--border)}
 .side-group.open .side-group-items{display:block}
 .side-group.has-active .side-sec-toggle{color:var(--accent)!important}
 .side-group.has-active .side-sec-toggle i.ti{color:var(--accent)}
 
 /* ── Ciutkan sidebar (desktop) — sembunyikan label/toolbar teks, sisakan ikon ── */
-.side-nav.collapsed{width:56px}
-.side-nav.collapsed .side-label,.side-nav.collapsed .side-chevron,.side-nav.collapsed .side-search-wrap,.side-nav.collapsed .nav-due-badge{display:none}
+.side-nav.collapsed{width:56px;min-width:56px;max-width:56px}
+.side-nav.collapsed .side-label,.side-nav.collapsed .side-chevron,.side-nav.collapsed .side-search-wrap,.side-nav.collapsed .nav-due-badge,.side-nav.collapsed .badge{display:none}
 .side-nav.collapsed .side-toolbar{justify-content:center}
 .side-nav.collapsed .side-group-items{margin-left:0;padding-left:0;border-left:none}
 .side-nav.collapsed .side-nav button{justify-content:center;padding:8px 4px}
@@ -382,8 +383,8 @@ body::after{display:none}
 .side-nav button.side-hit-hidden{display:none!important}
 
 @media(max-width:900px){
-  .side-nav:not(.collapsed){width:56px}
-  .side-nav:not(.collapsed) .side-label,.side-nav:not(.collapsed) .side-chevron,.side-nav:not(.collapsed) .side-search-wrap,.side-nav:not(.collapsed) .nav-due-badge{display:none}
+  .side-nav:not(.collapsed){width:56px;min-width:56px;max-width:56px}
+  .side-nav:not(.collapsed) .side-label,.side-nav:not(.collapsed) .side-chevron,.side-nav:not(.collapsed) .side-search-wrap,.side-nav:not(.collapsed) .nav-due-badge,.side-nav:not(.collapsed) .badge{display:none}
   .side-nav:not(.collapsed) .side-toolbar{justify-content:center}
   .side-nav:not(.collapsed) .side-group-items{max-height:none!important;margin-left:0;padding-left:0;border-left:none}
   .side-nav:not(.collapsed) .side-nav button{justify-content:center;padding:8px 4px}
@@ -412,9 +413,9 @@ html,body{font-size:13.5px}
 .rdn-val{font-size:13px}
 .ibar-val{font-size:13.5px}
 .ibar-chg{font-size:11.5px}
-.side-nav button{font-size:13px;padding:8px 11px}
+.side-nav button{font-size:12px;padding:7px 10px}
 .side-sec-toggle{font-size:10px!important}
-.side-group-items button{padding-left:14px!important}
+.side-group-items button{padding-left:10px!important}
 .pbtn{font-size:12px;padding:4px 12px}
 
 /* Kontrol ukuran tampilan (A− / A / A+) */

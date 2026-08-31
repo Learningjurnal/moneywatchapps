@@ -959,6 +959,9 @@ function renderPage(name){
     case 'divinvest':renderDivInvest();break;
     case 'sektoral':renderSektoral();break;
     case 'pajak':renderPajak();break;
+    case 'knowledge':if(typeof initKnowledgeSuite==='function') initKnowledgeSuite();break;
+    case 'ai-trading':if(typeof initAiAutonomousSuite==='function') initAiAutonomousSuite();break;
+    case 'tradewave':if(typeof initTradeWaveSuite==='function') initTradeWaveSuite();break;
     case 'fundamental':if(typeof fundInit==='function') fundInit();break;
     case 'technical':if(typeof techInit==='function') techInit();break;
     case 'crypto-technical':if(typeof initCryptoTechnicalSuite==='function') initCryptoTechnicalSuite();break;
