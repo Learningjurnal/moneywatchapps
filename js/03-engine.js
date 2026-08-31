@@ -178,12 +178,19 @@ function computeCurrentAUM(){
   var sahamMV=porto.reduce(function(a,p){return a+(p.mv||0)},0);
   var crMV=cryptoPorto.reduce(function(a,p){return a+(p.mv||0)},0);
   var etfMV=etfPorto.reduce(function(a,p){return a+(p.mvIdr||0)},0);
-  var rdMV=rdPorto.reduce(function(a,p){return a+(p.mv||0)},0);
-  var rdn=(typeof calcRdnBalance==='function')?calcRdnBalance():0;
-  return (sahamMV||0)+(crMV||0)+(etfMV||0)+(rdMV||0)+(rdn||0);
+  var rdMV=rdPorto.reduce(function(a,p){return a+(p.val||p.mv||0)},0);
+  var rdn=(typeof calcRdnBalance==='function')?calcRdnBalance('all'):0;
+  return Math.round((sahamMV||0)+(crMV||0)+(etfMV||0)+(rdMV||0)+(rdn||0));
 }
 
-function rebuildEquityHistoryFromTransactions(existingHist){
+function isPortfolioDataReady(){
+  // Cek apakah data transaksi & RDN sudah diinisialisasi
+  var hasTx = (typeof transactions !== 'undefined' && Array.isArray(transactions));
+  var hasRdn = (typeof rdnMutations !== 'undefined' && Array.isArray(rdnMutations));
+  return hasTx || hasRdn;
+}
+
+function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild){
   var txs = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
   var rdns = (typeof rdnMutations !== 'undefined' && Array.isArray(rdnMutations)) ? rdnMutations : [];
   var divs = (typeof dividends !== 'undefined' && Array.isArray(dividends)) ? dividends : [];
@@ -210,16 +217,17 @@ function rebuildEquityHistoryFromTransactions(existingHist){
   var todayStr = new Date().toISOString().slice(0, 10);
   if (firstDateStr > todayStr) firstDateStr = todayStr;
 
-  var existingMap = {};
-  if (Array.isArray(existingHist)) {
-    existingHist.forEach(function(h){
-      if(h && h.date && typeof h.equity === 'number' && h.equity > 0) {
-        existingMap[h.date] = h.equity;
-      }
-    });
-  }
+  var sortedCrypto = cTxs.slice().sort(function(a, b) {
+    var d = (a.date || '').localeCompare(b.date || '');
+    return d !== 0 ? d : ((a.id || 0) - (b.id || 0));
+  });
 
-  var sortedTxs = txs.slice().sort(function(a, b) {
+  var sortedEtf = eTxs.slice().sort(function(a, b) {
+    var d = (a.date || '').localeCompare(b.date || '');
+    return d !== 0 ? d : ((a.id || 0) - (b.id || 0));
+  });
+
+  var sortedRd = rTxs.slice().sort(function(a, b) {
     var d = (a.date || '').localeCompare(b.date || '');
     return d !== 0 ? d : ((a.id || 0) - (b.id || 0));
   });
@@ -228,15 +236,20 @@ function rebuildEquityHistoryFromTransactions(existingHist){
   var endDate = new Date(todayStr + 'T00:00:00');
   var result = [];
 
-  var holdings = {}; // ticker -> { lot, shares, cost }
+  var stockHoldings = {}; // ticker -> { lot, shares, cost, lastPrice }
+  var cryptoHoldings = {}; // coin -> { qty, cost, lastPrice }
+  var etfHoldings = {}; // ticker -> { shares, costUSD, costIdr, lastPrice }
+  var rdHoldings = {}; // code -> { units, cost, lastNAB }
 
   while (curDate <= endDate) {
     var dStr = curDate.toISOString().slice(0, 10);
 
+    // 1. Transaksi Saham sampai dStr
     var dayTxs = sortedTxs.filter(function(t) { return t.date === dStr; });
     dayTxs.forEach(function(tx) {
-      if (!holdings[tx.ticker]) holdings[tx.ticker] = { lot: 0, shares: 0, cost: 0 };
-      var h = holdings[tx.ticker];
+      if (!stockHoldings[tx.ticker]) stockHoldings[tx.ticker] = { lot: 0, shares: 0, cost: 0, lastPrice: tx.price };
+      var h = stockHoldings[tx.ticker];
+      h.lastPrice = tx.price || h.lastPrice;
       var gross = tx.gross || (tx.lot * 100 * tx.price);
       var net = tx.net || gross;
 
@@ -255,16 +268,108 @@ function rebuildEquityHistoryFromTransactions(existingHist){
     });
 
     var stockVal = 0;
-    Object.keys(holdings).forEach(function(ticker) {
-      var h = holdings[ticker];
-      if (h.lot > 0) {
-        var pr = (typeof prices !== 'undefined' && prices[ticker]) 
-          ? prices[ticker] 
-          : ((typeof DB !== 'undefined' && DB[ticker] && DB[ticker].base) ? DB[ticker].base : (h.shares > 0 ? h.cost / h.shares : 0));
+    Object.keys(stockHoldings).forEach(function(ticker) {
+      var h = stockHoldings[ticker];
+      if (h.shares > 0) {
+        var pr = (dStr === todayStr && typeof prices !== 'undefined' && prices[ticker])
+          ? prices[ticker]
+          : (h.lastPrice || (typeof prices !== 'undefined' && prices[ticker]) || ((typeof DB !== 'undefined' && DB[ticker] && DB[ticker].base) ? DB[ticker].base : (h.cost / h.shares)));
         stockVal += h.shares * pr;
       }
     });
 
+    // 2. Transaksi Crypto sampai dStr
+    var dayCrypto = sortedCrypto.filter(function(c) { return c.date === dStr; });
+    dayCrypto.forEach(function(c) {
+      if (!cryptoHoldings[c.coin]) cryptoHoldings[c.coin] = { qty: 0, cost: 0, lastPrice: c.priceIdr };
+      var ch = cryptoHoldings[c.coin];
+      ch.lastPrice = c.priceIdr || ch.lastPrice;
+      if (c.type === 'BUY') {
+        ch.qty += c.qty;
+        ch.cost += c.total;
+      } else if (c.type === 'SELL') {
+        var avgCost = ch.qty > 0 ? (ch.cost / ch.qty) : (c.priceIdr || 0);
+        ch.qty = Math.max(0, ch.qty - c.qty);
+        ch.cost = Math.max(0, ch.cost - avgCost * c.qty);
+        if (ch.qty <= 0) ch.cost = 0;
+      }
+    });
+
+    var cryptoVal = 0;
+    Object.keys(cryptoHoldings).forEach(function(coin) {
+      var ch = cryptoHoldings[coin];
+      if (ch.qty > 0.000001) {
+        var info = (typeof CRYPTO_DB !== 'undefined' && CRYPTO_DB[coin]) ? CRYPTO_DB[coin] : null;
+        var pr = (dStr === todayStr && typeof cryptoPrices !== 'undefined' && cryptoPrices[coin])
+          ? cryptoPrices[coin]
+          : (ch.lastPrice || (typeof cryptoPrices !== 'undefined' && cryptoPrices[coin]) || (info && (info.baseIDR || (info.baseUSD ? info.baseUSD * usdIdr : 0))) || (ch.cost / ch.qty));
+        cryptoVal += ch.qty * pr;
+      }
+    });
+
+    // 3. Transaksi ETF sampai dStr
+    var dayEtf = sortedEtf.filter(function(e) { return e.date === dStr; });
+    dayEtf.forEach(function(e) {
+      if (!etfHoldings[e.ticker]) etfHoldings[e.ticker] = { shares: 0, costUSD: 0, costIdr: 0, lastPrice: e.priceUSD };
+      var eh = etfHoldings[e.ticker];
+      eh.lastPrice = e.priceUSD || eh.lastPrice;
+      if (e.type === 'BUY') {
+        eh.shares += e.shares;
+        eh.costUSD += e.totalUSD;
+        eh.costIdr += e.totalIdr;
+      } else if (e.type === 'SELL') {
+        var avgUSD = eh.shares > 0 ? (eh.costUSD / eh.shares) : e.priceUSD;
+        var avgIdr = eh.shares > 0 ? (eh.costIdr / eh.shares) : (e.totalIdr / e.shares);
+        eh.shares = Math.max(0, eh.shares - e.shares);
+        eh.costUSD = Math.max(0, eh.costUSD - avgUSD * e.shares);
+        eh.costIdr = Math.max(0, eh.costIdr - avgIdr * e.shares);
+        if (eh.shares <= 0) { eh.costUSD = 0; eh.costIdr = 0; }
+      }
+    });
+
+    var etfVal = 0;
+    Object.keys(etfHoldings).forEach(function(ticker) {
+      var eh = etfHoldings[ticker];
+      if (eh.shares > 0) {
+        var info = (typeof ETF_DB !== 'undefined' && ETF_DB[ticker]) ? ETF_DB[ticker] : null;
+        var prUSD = (dStr === todayStr && typeof etfPrices !== 'undefined' && etfPrices[ticker])
+          ? etfPrices[ticker]
+          : (eh.lastPrice || (typeof etfPrices !== 'undefined' && etfPrices[ticker]) || (info && info.baseUSD) || (eh.costUSD / eh.shares));
+        etfVal += eh.shares * prUSD * (typeof usdIdr !== 'undefined' ? usdIdr : 16000);
+      }
+    });
+
+    // 4. Transaksi Reksa Dana sampai dStr
+    var dayRd = sortedRd.filter(function(r) { return r.date === dStr; });
+    dayRd.forEach(function(r) {
+      if (!rdHoldings[r.code]) rdHoldings[r.code] = { units: 0, cost: 0, lastNAB: r.nab };
+      var rh = rdHoldings[r.code];
+      rh.lastNAB = r.nab || rh.lastNAB;
+      if (r.type === 'BELI' || r.type === 'BUY') {
+        rh.units += (r.units || (r.amount / (r.nab || 1000)));
+        rh.cost += r.amount;
+      } else if (r.type === 'JUAL' || r.type === 'SELL') {
+        var avgNAB = rh.units > 0 ? (rh.cost / rh.units) : r.nab;
+        var soldUnits = (r.units || (r.amount / (r.nab || 1000)));
+        rh.units = Math.max(0, rh.units - soldUnits);
+        rh.cost = Math.max(0, rh.cost - avgNAB * soldUnits);
+        if (rh.units <= 0) rh.cost = 0;
+      }
+    });
+
+    var rdVal = 0;
+    Object.keys(rdHoldings).forEach(function(code) {
+      var rh = rdHoldings[code];
+      if (rh.units > 0.001) {
+        var info = (typeof RD_DB !== 'undefined' && RD_DB[code]) ? RD_DB[code] : null;
+        var nab = (dStr === todayStr && typeof rdNAB !== 'undefined' && rdNAB[code])
+          ? rdNAB[code]
+          : (rh.lastNAB || (typeof rdNAB !== 'undefined' && rdNAB[code]) || (info && info.baseNAB) || 1000);
+        rdVal += rh.units * nab;
+      }
+    });
+
+    // 5. Kas Saldo RDN Ledger sampai dStr
     var dayRdn = 0;
     rdns.forEach(function(m) {
       if (m.date && m.date <= dStr) {
@@ -273,27 +378,11 @@ function rebuildEquityHistoryFromTransactions(existingHist){
     });
     if (dayRdn < 0) dayRdn = 0;
 
-    var otherVal = 0;
-    if (typeof getCryptoPortfolio === 'function') {
-      otherVal += getCryptoPortfolio().reduce(function(a, c) { return a + (c.mv || 0); }, 0);
-    }
-    if (typeof getEtfPortfolio === 'function') {
-      otherVal += getEtfPortfolio().reduce(function(a, e) { return a + (e.mvIdr || 0); }, 0);
-    }
-    if (typeof getRdPortfolio === 'function') {
-      otherVal += getRdPortfolio().reduce(function(a, r) { return a + (r.mv || 0); }, 0);
-    }
-    if (typeof WEALTH !== 'undefined') {
-      otherVal += (WEALTH.deposito || 0) + (WEALTH.emas || 0) + (WEALTH.obligasi || 0);
-    }
-
-    var calculatedEquity = stockVal + dayRdn + otherVal;
+    var calculatedEquity = stockVal + cryptoVal + etfVal + rdVal + dayRdn;
 
     if (dStr === todayStr && typeof computeCurrentAUM === 'function') {
       var liveAum = computeCurrentAUM();
       if (liveAum > 0) calculatedEquity = liveAum;
-    } else if (existingMap[dStr] !== undefined && existingMap[dStr] > 0) {
-      calculatedEquity = existingMap[dStr];
     }
 
     result.push({
@@ -311,19 +400,30 @@ function equityHistoryLoad(){
   var raw = [];
   try{ raw = JSON.parse(localStorage.getItem('equityHistory')||'[]'); }catch(e){ raw = []; }
 
-  // Cek apakah histori perlu direkonstruksi/dilengkapi dari transaksi
-  var hasTx = (typeof transactions !== 'undefined' && transactions && transactions.length > 0);
+  // Rekonstruksi atau validasi histori dari data transaksi riil
+  var hasTx = (typeof transactions !== 'undefined' && transactions && transactions.length > 0)
+    || (typeof rdnMutations !== 'undefined' && rdnMutations && rdnMutations.length > 0)
+    || (typeof cryptoTx !== 'undefined' && cryptoTx && cryptoTx.length > 0);
+
   if (hasTx) {
-    var minTxDate = transactions.reduce(function(min, t){ return (t.date && (!min || t.date < min)) ? t.date : min; }, '');
+    var minTxDate = '';
+    if(transactions.length) minTxDate = transactions.reduce(function(min, t){ return (t.date && (!min || t.date < min)) ? t.date : min; }, '');
+    if(rdnMutations.length) {
+      var minRdnDate = rdnMutations.reduce(function(min, m){ return (m.date && (!min || m.date < min)) ? m.date : min; }, '');
+      if(!minTxDate || (minRdnDate && minRdnDate < minTxDate)) minTxDate = minRdnDate;
+    }
+
     var needsRebuild = false;
     if (!raw || raw.length <= 1) {
       needsRebuild = true;
     } else if (minTxDate && raw[0] && raw[0].date > minTxDate) {
       needsRebuild = true;
+    } else if (raw.some(function(h){ return !h || typeof h.equity !== 'number' || isNaN(h.equity) || h.equity <= 0; })) {
+      needsRebuild = true;
     }
 
     if (needsRebuild) {
-      var rebuilt = rebuildEquityHistoryFromTransactions(raw);
+      var rebuilt = rebuildEquityHistoryFromTransactions(raw, true);
       if (rebuilt && rebuilt.length > 0) {
         equityHistorySave(rebuilt);
         return rebuilt;
@@ -341,13 +441,17 @@ function equityHistorySave(arr){
 }
 
 function equitySnapshotToday(){
+  if(!isPortfolioDataReady()) return [];
   if(!transactions.length && !(rdnMutations&&rdnMutations.length)) return [];
+  
   var today=new Date().toISOString().slice(0,10);
   var aum=computeCurrentAUM();
+  if(aum <= 0) return equityHistoryLoad();
+
   var hist=equityHistoryLoad();
 
   if(!hist || hist.length===0){
-    hist = rebuildEquityHistoryFromTransactions([{date:today, equity:aum}]);
+    hist = rebuildEquityHistoryFromTransactions([{date:today, equity:aum}], true);
   } else {
     var last=hist[hist.length-1];
     if(last && last.date===today) {
@@ -360,6 +464,23 @@ function equitySnapshotToday(){
   if(hist.length>730) hist=hist.slice(-730);
   equityHistorySave(hist);
   return hist;
+}
+
+function validateAndSyncEquityHistory(forceRebuild){
+  var currentAum = computeCurrentAUM();
+  var hist = equityHistoryLoad();
+  var rebuilt = rebuildEquityHistoryFromTransactions(hist, true);
+  
+  var today = new Date().toISOString().slice(0,10);
+  if(rebuilt.length > 0 && currentAum > 0){
+    var last = rebuilt[rebuilt.length-1];
+    if(last.date === today){
+      last.equity = currentAum;
+    }
+  }
+  
+  equityHistorySave(rebuilt);
+  return rebuilt;
 }
 
 function getRealizedPnl(){

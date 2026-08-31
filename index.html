@@ -552,7 +552,15 @@
       <div class="cw" style="height:190px"><canvas id="perfEquityChart"></canvas></div>
     </div>
     <div class="card" style="margin:0;display:flex;flex-direction:column">
-      <div class="cheader"><span class="ctitle">Riwayat Ekuitas</span><span class="badge b-gray" id="perf-eq-table-count">0 hari</span></div>
+      <div class="cheader">
+        <span class="ctitle">Riwayat Ekuitas</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="btn btn-ghost btn-xs" title="Validasi dan Sinkronkan Riwayat Ekuitas dengan Data Transaksi Riil" onclick="perfSyncEquityHistory()" style="padding:2px 7px;font-size:10px;border:1px solid var(--border2);border-radius:5px">
+            <span style="color:var(--accent)">🔄 Validasi</span>
+          </button>
+          <span class="badge b-gray" id="perf-eq-table-count">0 hari</span>
+        </div>
+      </div>
       <div style="overflow-y:auto;max-height:270px;flex:1">
         <table class="tbl">
           <thead><tr><th>Tanggal</th><th>Ekuitas</th><th>P&amp;L</th></tr></thead>

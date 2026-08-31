@@ -968,6 +968,11 @@ async function fireLoadAllData(){
     // Aktifkan realtime listener untuk sinkronisasi antar perangkat
     setupFirestoreRealtimeListener(uid);
 
+    // Pastikan riwayat ekuitas divalidasi setelah semua portofolio & mutasi RDN termuat
+    if(typeof validateAndSyncEquityHistory === 'function'){
+      try { validateAndSyncEquityHistory(false); } catch(e){}
+    }
+
     if(typeof renderPage === 'function' && typeof currentPage !== 'undefined'){
       renderPage(currentPage);
     }

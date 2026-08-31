@@ -86,19 +86,65 @@ function perfRenderEquity(period){
                  y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return fmtK(v);}},grid:{color:GC}}}}});
   }
 
-  // Tabel riwayat — reverse kronologis, P&L dihitung dari FULL history (bukan hasil filter)
-  // supaya baris pertama di periode manapun tetap benar dibanding hari sebelumnya.
+  // Tabel riwayat — reverse kronologis, membedakan P&L investasi riil vs mutasi kas (Setor/Tarik)
+  var rdns = (typeof rdnMutations !== 'undefined' && Array.isArray(rdnMutations)) ? rdnMutations : [];
   var rows = filtered.slice().reverse().map(function(h){
     var i = full.indexOf(h);
     var prevEq = i>0 ? full[i-1].equity : h.equity;
-    var pnl = h.equity - prevEq;
-    return {date:h.date, equity:h.equity, pnl:pnl};
+    var rawDiff = h.equity - prevEq;
+
+    // Hitung mutasi kas (Setor / Tarik RDN) pada hari ini
+    var daySetor = 0, dayTarik = 0;
+    rdns.forEach(function(m){
+      if(m.date === h.date){
+        if(m.type === 'SETOR' || m.type === 'TOPUP') daySetor += (m.amount || 0);
+        else if(m.type === 'TARIK') dayTarik += Math.abs(m.amount || 0);
+      }
+    });
+    var netCashFlow = daySetor - dayTarik;
+    var pureTradingPnl = rawDiff - netCashFlow;
+
+    return {
+      date: h.date,
+      equity: h.equity,
+      rawDiff: rawDiff,
+      pureTradingPnl: pureTradingPnl,
+      daySetor: daySetor,
+      dayTarik: dayTarik
+    };
   });
+
   el('perf-eq-tbody').innerHTML = rows.length ? rows.map(function(r){
+    var cfBadge = '';
+    if(r.daySetor > 0){
+      cfBadge += '<div style="font-size:9px;color:var(--accent);margin-top:2px">Setor: +Rp '+fmtK(r.daySetor)+'</div>';
+    }
+    if(r.dayTarik > 0){
+      cfBadge += '<div style="font-size:9px;color:var(--amber);margin-top:2px">Tarik: -Rp '+fmtK(r.dayTarik)+'</div>';
+    }
+
     return '<tr><td class="mono" style="font-size:11px">'+r.date+'</td>'
       +'<td class="mono" style="font-size:11px">Rp '+fmtK(r.equity)+'</td>'
-      +'<td class="mono '+(r.pnl>=0?'up':'dn')+'" style="font-size:11px">'+(r.pnl>=0?'+':'')+'Rp '+fmtK(r.pnl)+'</td></tr>';
+      +'<td class="mono '+(r.rawDiff>=0?'up':'dn')+'" style="font-size:11px">'
+      + (r.rawDiff>=0?'+':'')+'Rp '+fmtK(r.rawDiff)
+      + cfBadge
+      +'</td></tr>';
   }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">Tidak ada data di periode ini</td></tr>';
+}
+
+function perfSyncEquityHistory(){
+  if(typeof validateAndSyncEquityHistory === 'function'){
+    var updated = validateAndSyncEquityHistory(true);
+    perfRenderEquity(PERF_STATE.eqPeriod);
+    if(typeof fireSaveAllData === 'function'){
+      try { fireSaveAllData(); } catch(e){}
+    } else if(typeof saveData === 'function'){
+      saveData();
+    }
+    if(typeof showSaveStatus === 'function'){
+      showSaveStatus('✓ Riwayat Ekuitas divalidasi & disinkronkan dengan data transaksi riil');
+    }
+  }
 }
 
 // ── Alokasi Portofolio: donut Saham vs Sektor ──

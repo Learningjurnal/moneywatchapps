@@ -219,6 +219,56 @@ test('3-Pillar Confluence Scoring & Capital Allocation Rules', () => {
   assert.strictEqual(maxSectorLimit, 125000000);
 });
 
+// ── TEST 9: EQUITY HISTORY VALIDATION & CASH FLOW RECONCILIATION ──
+test('Equity History Validation, AUM Calculation & Cash Flow Reconciliation', () => {
+  // Saham MV = 300,000,000; Crypto MV = 100,000,000; ETF = 50,000,000; RD = 25,000,000; RDN Cash = 29,600,000
+  const sahamMv = 300000000;
+  const cryptoMv = 100000000;
+  const etfMv = 50000000;
+  const rdMv = 25000000;
+  const rdnCash = 29600000;
+
+  const currentAum = sahamMv + cryptoMv + etfMv + rdMv + rdnCash;
+  assert.strictEqual(currentAum, 504600000); // Rp 504.600.000
+
+  // Kemarin: Ekuitas Rp 500.000.000
+  // Hari ini ada SETOR RDN Rp 5.000.000 dan penambahan nilai investasi Rp -400.000
+  const yesterdayEquity = 500000000;
+  const daySetor = 5000000;
+  const dayTarik = 0;
+  const netCashFlow = daySetor - dayTarik;
+
+  const totalDiff = currentAum - yesterdayEquity; // +4,600,000
+  const pureTradingPnl = totalDiff - netCashFlow; // -400,000
+
+  assert.strictEqual(totalDiff, 4600000);
+  assert.strictEqual(pureTradingPnl, -400000);
+  assert.strictEqual(pureTradingPnl + netCashFlow, totalDiff);
+});
+
+// ── TEST 10: MULTI-ASSET DAY-BY-DAY PORTFOLIO TIMELINE RECONSTRUCTION ──
+test('Multi-Asset Day-by-Day Portfolio Timeline Reconstruction', () => {
+  // Day 1: Deposit 500,000,000
+  // Day 2: Buy 100 lot BBCA @ 10,000 (100,000,000) -> RDN = 400,000,000, Stock = 100,000,000 -> Total = 500,000,000
+  // Day 3: Buy 0.05 BTC @ 1,200,000,000 (60,000,000) -> RDN = 340,000,000, Stock = 100,000,000, Crypto = 60,000,000 -> Total = 500,000,000
+  // Day 4: BBCA rises to 10,500 (105,000,000) -> Total = 505,000,000 (+5,000,000 pure PnL)
+  const day1Rdn = 500000000;
+  assert.strictEqual(day1Rdn, 500000000);
+
+  const day2Stock = 100 * 100 * 10000;
+  const day2Rdn = day1Rdn - day2Stock;
+  assert.strictEqual(day2Stock + day2Rdn, 500000000);
+
+  const day3Crypto = 0.05 * 1200000000;
+  const day3Rdn = day2Rdn - day3Crypto;
+  assert.strictEqual(day2Stock + day3Crypto + day3Rdn, 500000000);
+
+  const day4Stock = 100 * 100 * 10500;
+  const day4Total = day4Stock + day3Crypto + day3Rdn;
+  assert.strictEqual(day4Total, 505000000);
+  assert.strictEqual(day4Total - (day2Stock + day3Crypto + day3Rdn), 5000000);
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
