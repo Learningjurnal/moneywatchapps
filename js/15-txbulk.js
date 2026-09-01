@@ -153,7 +153,7 @@ function txProcessImportRows(rows, fileName){
       '<table class="tbl"><thead><tr><th>Tanggal</th><th>Aksi</th><th>Kode</th><th>Sekuritas</th><th>Lot</th><th>Harga</th></tr></thead><tbody>'+
       valid.map(function(p){
         return '<tr><td class="mono">'+p.date+'</td><td><span class="badge '+(p.type==='BUY'?'b-up':'b-dn')+'">'+p.type+'</span></td>'+
-          '<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 18)+'<span class="tp">'+p.ticker+'</span></div></td><td style="font-size:11px">'+p.sekuritas+'</td>'+
+          '<td><span class="tp">'+p.ticker+'</span></td><td style="font-size:11px">'+p.sekuritas+'</td>'+
           '<td class="mono">'+p.lot+'</td><td class="mono">Rp '+fmt(p.price)+'</td></tr>';
       }).join('')+
       '</tbody></table></div>' : (dupes.length ? '' : '<div style="font-size:12px;color:var(--red)">Tidak ada baris valid untuk diimpor — perbaiki file lalu upload ulang.</div>'));

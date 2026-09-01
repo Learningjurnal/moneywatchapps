@@ -95,7 +95,8 @@ function initPortfolio2026(force){
   });
 
   // Tambahkan setoran awal RDN (Modal Awal) sebagai mutasi pertama (id: 1)
-  var initialDeposit = Math.ceil(totalBuyNet / 50000000) * 50000000 + 10000000;
+  // Target saldo kas RDN awal konsisten Rp 12.000.000 (12 Juta)
+  var initialDeposit = totalBuyNet + 12000000;
   rdnMutations.push({
     id: nextRdnId++,
     date: '2026-08-24',

@@ -158,7 +158,7 @@ function renderTransaksi(){
       +'<td><input type="checkbox" '+ (_txSelected.has(tx.id)?'checked':'')+' onmousedown="txCbMouseDown(event,'+tx.id+')" onmouseenter="txCbMouseEnter(event,'+tx.id+')" onclick="txCbClick(event,'+tx.id+')" style="cursor:pointer"></td>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td>'
       +'<td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td>'
-      +'<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(tx.ticker,18)+'<span class="tp" style="cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Lihat detail kalkulasi & rincian biaya">'+tx.ticker+'</span></div></td>'
+      +'<td><span class="tp" style="cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Lihat detail kalkulasi & rincian biaya">'+tx.ticker+'</span></td>'
       +'<td style="font-size:11px;color:var(--text2)">'+tx.sekuritas+'</td>'
       +'<td class="mono">'+tx.lot+'</td>'
       +'<td class="mono">'+tx.lot*100+'</td>'
@@ -937,7 +937,7 @@ function renderPajak(){
     return '<tr>'+
       '<td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td>'+
       '<td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td>'+
-      '<td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(tx.ticker, 18)+'<span class="tp">'+tx.ticker+'</span></div></td>'+
+      '<td><span class="tp">'+tx.ticker+'</span></td>'+
       '<td style="font-size:11px;color:var(--text2)">'+tx.sekuritas+'</td>'+
       '<td class="mono">Rp '+fmtK(tx.gross)+'</td>'+
       '<td class="mono dn">Rp '+fmtK(tx.tax)+'</td>'+
