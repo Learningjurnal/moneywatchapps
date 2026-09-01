@@ -217,6 +217,11 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild){
   var todayStr = new Date().toISOString().slice(0, 10);
   if (firstDateStr > todayStr) firstDateStr = todayStr;
 
+  var sortedTxs = txs.slice().sort(function(a, b) {
+    var d = (a.date || '').localeCompare(b.date || '');
+    return d !== 0 ? d : ((a.id || 0) - (b.id || 0));
+  });
+
   var sortedCrypto = cTxs.slice().sort(function(a, b) {
     var d = (a.date || '').localeCompare(b.date || '');
     return d !== 0 ? d : ((a.id || 0) - (b.id || 0));

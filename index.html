@@ -139,6 +139,11 @@
       <span class="rdn-val" id="tb-rdn">Rp 0</span>
     </div>
 
+    <button class="btn btn-ghost btn-xs" onclick="goPage('knowledge')" title="Buka Panduan Knowledge & Master Workflow Aplikasi" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(56,189,248,0.4);background:rgba(56,189,248,0.1);color:#38bdf8;padding:5px 9px;border-radius:6px">
+      <i class="ti ti-book-2" style="color:#38bdf8;font-size:13px"></i>
+      <span class="hide-mobile" style="font-weight:600">Knowledge</span>
+    </button>
+
     <button class="btn btn-ghost btn-xs" onclick="mwOpenPdfReportModal()" title="Buka Laporan Konsolidasi Finansial Terpadu (Portofolio, Aset, Kas, FIRE dlm Excel/PDF/JSON)" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:var(--border2);color:var(--text);padding:5px 9px">
       📥 <span class="hide-mobile">Laporan Konsolidasi</span>
     </button>
@@ -204,7 +209,7 @@
   <div class="side-group open has-active" data-group="research">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope" style="color:#3B82F6"></i><span class="side-label">Riset &amp; Intelijen</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar" style="color:#00c8ff"></i><span class="side-label">Stock Intelligence</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">COCKPIT</span></button>
+      <button onclick="goPage('stock-intel',this)" class="active"><i class="ti ti-radar" style="color:#00c8ff"></i><span class="side-label">Stock Intelligence</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">COCKPIT</span></button>
       <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine" style="color:#00c8ff"></i><span class="side-label">TradeWave PRO</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">WAVE RADAR</span></button>
       <button onclick="openKseiModal()" id="side-btn-ksei"><i class="ti ti-users-group" style="color:#10b981"></i><span class="side-label">Kepemilikan KSEI</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">FREE FLOAT</span></button>
       <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank" style="color:#3B82F6"></i><span class="side-label">Fundamental Suite</span></button>
@@ -3187,6 +3192,7 @@
 <div id="page-wfire" class="page"></div>
 
 <!-- ===== V6 PERSONAL INVESTMENT OPERATING SYSTEM MODULES ===== -->
+<div id="page-knowledge" class="page"></div>
 <div id="page-daily-brief" class="page"></div>
 <div id="page-stock-intel" class="page"></div>
 <div id="page-market-regime" class="page"></div>

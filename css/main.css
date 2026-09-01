@@ -1777,6 +1777,21 @@ body.theme-light {
   color: #0F172A !important;
 }
 
+/* Force light style on any element with dark hardcoded background or inline style in theme-light */
+body.theme-light [style*="background: #131B2E"],
+body.theme-light [style*="background:#131B2E"],
+body.theme-light [style*="background: #101726"],
+body.theme-light [style*="background:#101726"],
+body.theme-light [style*="background: #0B0F19"],
+body.theme-light [style*="background:#0B0F19"],
+body.theme-light [style*="background:var(--bg2)"],
+body.theme-light [style*="background:var(--bg3)"],
+body.theme-light [style*="background: rgba(0,0,0"] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+
 /* Base Body & App Container */
 body.theme-light .app {
   background: #F1F5F9 !important;

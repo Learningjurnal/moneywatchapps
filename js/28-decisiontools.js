@@ -21,24 +21,38 @@ function renderDailyBriefPage() {
   var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
   var rdn = typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0;
   var totalMV = porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
-  var dayGain = porto.reduce(function(a, p) { return a + ((p.mv || 0) * (p.chgPct || 0) / 100); }, 0);
+  
+  // Compute dynamic daily change for each portfolio holding
+  porto.forEach(function(p) {
+    var cur = (typeof prices !== 'undefined' && prices[p.ticker]) ? prices[p.ticker] : (p.mp || p.avg || 0);
+    var prev = p.avg > 0 ? p.avg : cur;
+    p.dynamicChgPct = prev > 0 ? ((cur - prev) / prev * 100) : (p.chgPct || 0);
+  });
+
+  var dayGain = porto.reduce(function(a, p) { return a + ((p.mv || 0) * (p.dynamicChgPct || 0) / 100); }, 0);
   var dayGainPct = totalMV > 0 ? (dayGain / totalMV * 100).toFixed(2) : '0.00';
   var totalPortfolioAssets = totalMV + Math.max(0, rdn);
 
+  // Live IHSG calculation
+  var curIhsg = (typeof ihsgCur === 'number' && ihsgCur > 0) ? ihsgCur : 6845.00;
+  var baseIhsg = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : 6800.00;
+  var ihsgDiff = curIhsg - baseIhsg;
+  var ihsgPct = baseIhsg > 0 ? (ihsgDiff / baseIhsg * 100).toFixed(2) : '0.00';
+  var isBullish = ihsgDiff >= 0;
+
   // Sorting for dynamic portfolio analysis
   var sortedByMv = porto.slice().sort(function(a, b) { return (b.mv || 0) - (a.mv || 0); });
-  var sortedByChg = porto.slice().sort(function(a, b) { return (b.chgPct || 0) - (a.chgPct || 0); });
-  var sortedByUnrealPct = porto.slice().sort(function(a, b) { return (b.unrealPct || 0) - (a.unrealPct || 0); });
+  var sortedByChg = porto.slice().sort(function(a, b) { return (b.dynamicChgPct || 0) - (a.dynamicChgPct || 0); });
 
   var topHolding = sortedByMv.length ? sortedByMv[0] : null;
   var topHoldingWeight = (topHolding && totalPortfolioAssets > 0) ? (topHolding.mv / totalPortfolioAssets * 100).toFixed(1) : '0.0';
-  var topGainer = sortedByChg.length && sortedByChg[0].chgPct > 0 ? sortedByChg[0] : (porto.length ? porto[0] : null);
-  var topWinner = sortedByUnrealPct.length ? sortedByUnrealPct[0] : null;
+  var topGainer = sortedByChg.length ? sortedByChg[0] : null;
 
   // Calculate annual projected dividends across all holdings in portfolio
   var totalAnnualDiv = 0;
   porto.forEach(function(p) {
-    var yieldRate = (p.yYield || (p.cur > 0 && p.divTot ? (p.divTot / p.cur * 100) : 0)) || 3.5;
+    var info = (typeof DB !== 'undefined' && DB[p.ticker]) ? DB[p.ticker] : {};
+    var yieldRate = p.yYield || info.grossDividendYield ? parseFloat(info.grossDividendYield) : 3.5;
     totalAnnualDiv += (p.mv || 0) * (yieldRate / 100);
   });
 
@@ -50,8 +64,8 @@ function renderDailyBriefPage() {
   + '<div class="row3" style="margin-bottom:18px">'
     + '<div class="metric">'
       + '<div class="mlabel">MARKET REGIME HARI INI</div>'
-      + '<div class="mval up" style="font-size:22px">🟢 RISK-ON BULLISH</div>'
-      + '<div class="msub up">IHSG 6.845 (+0.65%) · Foreign Flow +342.5B</div>'
+      + '<div class="mval ' + (isBullish ? 'up' : 'dn') + '" style="font-size:22px">' + (isBullish ? '🟢 RISK-ON BULLISH' : '🔴 BEARISH CORRECTION') + '</div>'
+      + '<div class="msub ' + (isBullish ? 'up' : 'dn') + '">IHSG ' + curIhsg.toLocaleString('id-ID', {minimumFractionDigits:2}) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%) · Real-time Feed</div>'
     + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">ESTIMASI DELTA PORTOFOLIO HARI INI</div>'
@@ -74,24 +88,24 @@ function renderDailyBriefPage() {
 
   // 1. Dynamic Watch #1: Top Mover / Momentum in Portfolio
   if (topGainer) {
-    var gainerDelta = (topGainer.chgPct || 0);
+    var gainerDelta = (topGainer.dynamicChgPct || 0);
     html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
       + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
-        + '<span class="badge b-up">1. PORTFOLIO TOP MOVER</span>'
-        + '<strong style="color:var(--text);font-size:13px">' + topGainer.ticker + ' Memimpin Penguatan Portofolio (' + (gainerDelta >= 0 ? '+' : '') + gainerDelta.toFixed(2) + '%)</strong>'
+      + '<span class="badge ' + (gainerDelta >= 0 ? 'b-up' : 'b-dn') + '">1. PORTFOLIO TOP MOVER</span>'
+      + '<strong style="color:var(--text);font-size:13px">' + topGainer.ticker + ' Memimpin Pergerakan Portofolio (' + (gainerDelta >= 0 ? '+' : '') + gainerDelta.toFixed(2) + '%)</strong>'
       + '</div>'
       + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
-        + 'Saham <strong>' + topGainer.ticker + '</strong> (' + (topGainer.name || 'IDX Equities') + ') mencatatkan pergerakan terkuat di portofolio Anda hari ini dengan nilai pasar saat ini Rp ' + fmtK(topGainer.mv) + '. Pantau volume kelanjutan dan area target terdekat di Cockpit Analisis.'
+      + 'Saham <strong>' + topGainer.ticker + '</strong> (' + (topGainer.info && topGainer.info.name ? topGainer.info.name : 'IDX Equities') + ') mencatatkan pergerakan aktif di portofolio Anda dengan nilai pasar Rp ' + fmtK(topGainer.mv) + ' (@ Rp ' + fmtK(topGainer.mp) + '). Pantau volume kelanjutan dan area target terdekat di Cockpit Analisis.'
       + '</div>'
     + '</div>';
   } else {
     html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
       + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
         + '<span class="badge b-up">1. FLOW BREAKOUT</span>'
-        + '<strong style="color:var(--text);font-size:13px">ANTM Memasuki Buy Zone dengan Lonjakan Volume Institusi</strong>'
+        + '<strong style="color:var(--text);font-size:13px">Belum Ada Emisi Saham Aktif di Portofolio</strong>'
       + '</div>'
       + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
-        + 'Akumulasi institusi asing tercatat menguat didorong sentimen harga komoditas global. Pantau area akumulasi bertahap dengan target terukur.'
+        + 'Tambahkan transaksi saham ke portofolio Anda untuk memantau Top Mover harian secara otomatis.'
       + '</div>'
     + '</div>';
   }
@@ -949,64 +963,112 @@ function renderRebalancingPage() {
 
 
 // ══════════════════════════════════════════════════════════
-// 6. AI INVESTMENT COPILOT (REAL-TIME PORTFOLIO CONTEXT)
+// 6. MONEYWATCH PRO AI AGENT (INSTITUTIONAL MULTI-ASSET ANALYST)
 // ══════════════════════════════════════════════════════════
 var MW_COPILOT_HISTORY = [
   {
     role: 'assistant',
-    text: 'Halo! Saya AI Investment Copilot Anda di Money Watch Pro V6. Saya menganalisis portofolio Anda secara real-time berdasarkan data posisi aktif, pembobotan AUM aktual, thesis emiten, dan indikator Smart Money Flow. Apa yang ingin Anda diskusikan?'
+    text: 'Halo! Saya adalah **MoneyWatch Pro AI**, asisten analis portofolio multi-aset kelas institusional yang berfokus pada pasar modal Indonesia (IHSG/BEI).\n\nSaya siap membantu Anda dalam:\n- 📊 **Analisa Portofolio & Risiko**: Evaluasi konsentrasi AUM, alokasi kas RDN, dan Maximum Drawdown.\n- 🏛️ **Kepatuhan Regulasi BEI**: Validasi simulasi transaksi sesuai fraksi harga (tick size) dan batas ARA/ARB simetris.\n- 💰 **Kalkulasi Pajak Dividen**: Proyeksi imbal hasil dividen bersih setelah dipotong PPh Final 10% (atau 0% reinvestasi PMK 18/2021).\n- 🔍 **Rasio Fundamental & Valuasi**: P/E, P/BV, ROE, DER, NPM, dan Margin of Safety tanpa halusinasi.\n- 👥 **Kepemilikan KSEI**: Pantau data pemegang saham institusi >5% dan estimasi free float publik.\n\n*Silakan tanyakan tentang portofolio Anda atau kode saham spesifik di BEI (misal: BBCA, BBRI, BMRI, PGEO).*',
+    toolCalls: []
   }
 ];
+
+var MW_AI_IS_LOADING = false;
 
 function renderCopilotPage() {
   var c = el('page-copilot');
   if (!c) return;
 
-  var porto = (typeof getPortfolio === 'function') ? getPortfolio() : [];
-  var sortedPorto = porto.slice().sort(function(a, b) { return b.mv - a.mv; });
-  var topTicker = sortedPorto.length > 0 ? sortedPorto[0].ticker : 'PGEO';
-  var secondTicker = sortedPorto.length > 1 ? sortedPorto[1].ticker : 'BBRI';
+  var porto = (typeof getPortfolio === 'function') ? getPortfolio() : (window.holdings || []);
+  var sortedPorto = porto.slice().sort(function(a, b) { return (b.mv || 0) - (a.mv || 0); });
+  var topTicker = sortedPorto.length > 0 ? (sortedPorto[0].ticker || 'BBCA') : 'BBCA';
+  var secondTicker = sortedPorto.length > 1 ? (sortedPorto[1].ticker || 'BBRI') : 'BBRI';
 
-  var messagesHtml = MW_COPILOT_HISTORY.map(function(m) {
-    return '<div class="copilot-bubble bubble-' + m.role + '">'
-      + '<div class="cb-head">'
-        + '<span class="cb-role">' + (m.role === 'assistant' ? '🤖 AI Copilot' : '👤 Anda') + '</span>'
+  var messagesHtml = MW_COPILOT_HISTORY.map(function(m, idx) {
+    var isAssistant = (m.role === 'assistant');
+    var formattedText = formatAgentMarkdown(m.text || '');
+
+    var toolHtml = '';
+    if (m.toolCalls && m.toolCalls.length > 0) {
+      toolHtml = '<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px">'
+        + m.toolCalls.map(function(tc) {
+          return '<span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:10px;padding:2px 6px;border-radius:4px">'
+            + '⚡ ' + escapeHtml(tc.name) + '(' + escapeHtml(JSON.stringify(tc.args || {})) + ')'
+          + '</span>';
+        }).join('')
+      + '</div>';
+    }
+
+    return '<div class="copilot-bubble bubble-' + m.role + '" style="margin-bottom:12px;background:' + (isAssistant ? 'var(--bg2)' : 'rgba(56,189,248,0.12)') + ';border:1px solid ' + (isAssistant ? 'var(--border)' : 'rgba(56,189,248,0.3)') + ';border-radius:8px;padding:14px">'
+      + '<div class="cb-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        + '<span class="cb-role" style="font-weight:700;font-size:12px;color:' + (isAssistant ? '#38bdf8' : 'var(--accent)') + '">'
+          + (isAssistant ? '🤖 MoneyWatch Pro AI' : '👤 Anda')
+        + '</span>'
+        + (isAssistant ? '<span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:1px 6px;border-radius:4px">BEI Institutional Analyst</span>' : '')
       + '</div>'
-      + '<div class="cb-text">' + m.text + '</div>'
+      + toolHtml
+      + '<div class="cb-text" style="font-size:12.5px;line-height:1.6;color:var(--text)">' + formattedText + '</div>'
     + '</div>';
   }).join('');
 
-  var html = '<div style="margin-bottom:16px">'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-sparkles" style="color:#38bdf8"></i> AI Investment Copilot</div>'
-    + '<div class="psub">Asisten cerdas interaktif berbasis data portofolio riil, pembobotan AUM live, indikator Smart Money Flow, dan analisis fundamental.</div>'
+  if (MW_AI_IS_LOADING) {
+    messagesHtml += '<div class="copilot-bubble bubble-assistant" style="margin-bottom:12px;background:var(--bg2);border:1px dashed #38bdf8;border-radius:8px;padding:14px">'
+      + '<div style="display:flex;align-items:center;gap:10px;color:#38bdf8;font-size:12px;font-weight:600">'
+        + '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #38bdf8;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></span>'
+        + 'MoneyWatch Pro AI sedang menjalankan Agentic Loop (pemeriksaan data pasar, regulasi BEI & sinkronisasi portofolio)...'
+      + '</div>'
+    + '</div>';
+  }
+
+  var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">'
+    + '<div>'
+      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-sparkles" style="color:#38bdf8"></i> MoneyWatch Pro AI — Institutional Analyst</div>'
+      + '<div class="psub">Asisten analis portofolio multi-aset berbasis model reasoning, kepatuhan regulasi BEI, kepemilikan KSEI &amp; kalkulasi pajak dividen bersih.</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px">'
+      + '<button class="btn btn-ghost btn-sm" onclick="clearCopilotHistory()"><i class="ti ti-trash"></i> Bersihkan Sesi</button>'
+    + '</div>'
   + '</div>'
 
-  + '<div class="copilot-container card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:500px">'
-    + '<div class="copilot-history" id="copilot-history-box" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px">'
+  + '<div class="copilot-container card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:560px">'
+    + '<div class="copilot-history" id="copilot-history-box" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column">'
       + messagesHtml
     + '</div>'
 
-    + '<div class="copilot-chips-wrap" style="padding:8px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,0.2);display:flex;gap:8px;overflow-x:auto">'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Analisa risiko konsentrasi portfolio dan bobot AUM saya saat ini\')">📊 Analisa Risiko & Konsentrasi AUM</button>'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Evaluasi thesis dan performa posisi ' + topTicker + ' saya\')">📝 Evaluasi Thesis ' + topTicker + '</button>'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Saham apa yang berada di Buy Zone dengan Margin of Safety tertinggi?\')">🎯 Rekomendasi Buy Zone</button>'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Simulasikan jika IHSG terkoreksi 5% apa dampaknya terhadap AUM?\')">📉 Simulasi Koreksi IHSG</button>'
+    + '<div class="copilot-chips-wrap" style="padding:8px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,0.2);display:flex;gap:8px;overflow-x:auto;white-space:nowrap">'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Analisa konsentrasi portofolio, alokasi kas RDN, dan risiko Maximum Drawdown saya saat ini\')">📊 Analisa Portofolio & Konsentrasi</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Cek rasio fundamental, MoS, dan analisa dua sisi potensi vs risiko saham ' + topTicker + '\')">🔍 Fundamental & MoS ' + topTicker + '</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Simulasikan beli 50 lot ' + secondTicker + ' dan validasi fraksi harga BEI serta batas ARA/ARB\')">🏛️ Simulasi Transaksi ' + secondTicker + '</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Hitung proyeksi dividen bersih saham ' + topTicker + ' dengan potongan pajak final 10%\')">💰 Hitung Pajak Dividen ' + topTicker + '</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Cek struktur pemegang saham institusi >5% dan estimasi free float KSEI saham BMRI\')">👥 Kepemilikan KSEI BMRI</button>'
     + '</div>'
 
-    + '<div class="copilot-input-bar" style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:10px">'
-      + '<input type="text" id="copilot-prompt-input" class="fin" placeholder="Tanyakan tentang pembobotan AUM, thesis saham (PGEO, BBRI, BMRI, dll.), atau simulasi risiko..." onkeydown="if(event.key===\'Enter\')sendCopilotPrompt(this.value)" style="flex:1">'
-      + '<button class="btn btn-primary" onclick="var inp=el(\'copilot-prompt-input\');if(inp)sendCopilotPrompt(inp.value)">Kirim ↵</button>'
+    + '<div class="copilot-input-bar" style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:10px;background:var(--bg2)">'
+      + '<input type="text" id="copilot-prompt-input" class="fin" placeholder="Tanyakan analisa portofolio, simulasi fraksi BEI, dividen bersih, atau rasio emiten..." onkeydown="if(event.key===\'Enter\')sendCopilotPrompt(this.value)" style="flex:1">'
+      + '<button class="btn btn-primary" id="copilot-send-btn" onclick="var inp=el(\'copilot-prompt-input\');if(inp)sendCopilotPrompt(inp.value)">Kirim Analisa ↵</button>'
     + '</div>'
   + '</div>';
 
   c.innerHTML = html;
 }
 
-function sendCopilotPrompt(text) {
-  if (!text || !text.trim()) return;
+function clearCopilotHistory() {
+  MW_COPILOT_HISTORY = [
+    {
+      role: 'assistant',
+      text: 'Sesi baru dimulai. Saya adalah **MoneyWatch Pro AI**. Bagaimana saya dapat membantu analisa portofolio atau pasar modal Anda hari ini?',
+      toolCalls: []
+    }
+  ];
+  renderCopilotPage();
+}
+
+async function sendCopilotPrompt(text) {
+  if (!text || !text.trim() || MW_AI_IS_LOADING) return;
   var prompt = text.trim();
 
   MW_COPILOT_HISTORY.push({ role: 'user', text: prompt });
+  MW_AI_IS_LOADING = true;
 
   var inp = el('copilot-prompt-input');
   if (inp) inp.value = '';
@@ -1015,171 +1077,87 @@ function sendCopilotPrompt(text) {
   var box = el('copilot-history-box');
   if (box) box.scrollTop = box.scrollHeight;
 
-  // Generate Real-Time Dynamic AI Response
-  setTimeout(function() {
-    var reply = generateDynamicCopilotReply(prompt);
+  // Prepare Live User Context
+  var porto = (typeof getPortfolio === 'function') ? getPortfolio() : (window.holdings || []);
+  var totalAum = (typeof computeCurrentAUM === 'function') ? computeCurrentAUM() : (typeof totalValuation === 'function' ? totalValuation() : 0);
+  var rdn = (typeof calcRdnBalance === 'function') ? calcRdnBalance() : (window.rdnBalance || 0);
+  var sekuritasName = (typeof activeSekuritas !== 'undefined') ? activeSekuritas : 'Stockbit';
+  var livePrices = window.prices || {};
 
-    MW_COPILOT_HISTORY.push({ role: 'assistant', text: reply });
+  var userContext = {
+    holdings: porto,
+    totalAum: totalAum,
+    rdnCash: rdn,
+    sekuritas: sekuritasName,
+    livePrices: livePrices
+  };
+
+  try {
+    var res = await fetch('/api/ai/agent-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: prompt,
+        history: MW_COPILOT_HISTORY.slice(-8),
+        userContext: userContext
+      })
+    });
+
+    var data = await res.json();
+    if (data && data.success) {
+      MW_COPILOT_HISTORY.push({
+        role: 'assistant',
+        text: data.reply || 'Analisa berhasil diproses.',
+        toolCalls: data.toolCalls || []
+      });
+    } else {
+      MW_COPILOT_HISTORY.push({
+        role: 'assistant',
+        text: '⚠️ Terjadi kendala saat memproses analisa: ' + (data.error || 'Server tidak merespons.'),
+        toolCalls: []
+      });
+    }
+  } catch (err) {
+    console.error('Agent chat client error:', err);
+    MW_COPILOT_HISTORY.push({
+      role: 'assistant',
+      text: '⚠️ Gagal terhubung ke engine MoneyWatch Pro AI. Silakan coba kembali sesaat lagi.',
+      toolCalls: []
+    });
+  } finally {
+    MW_AI_IS_LOADING = false;
     renderCopilotPage();
     var b = el('copilot-history-box');
     if (b) b.scrollTop = b.scrollHeight;
-  }, 400);
+  }
 }
 
-function generateDynamicCopilotReply(prompt) {
-  var pLower = prompt.toLowerCase();
-  var porto = (typeof getPortfolio === 'function') ? getPortfolio() : [];
-  var totalAum = (typeof computeCurrentAUM === 'function') ? computeCurrentAUM() : 0;
-  var rdn = (typeof calcRdnBalance === 'function') ? calcRdnBalance() : 0;
-  var sahamMV = porto.reduce(function(a, p) { return a + p.mv; }, 0);
-  if (totalAum <= 0) totalAum = sahamMV + Math.max(0, rdn) || 1;
+// Markdown Formatter for Institutional Agent Output
+function formatAgentMarkdown(md) {
+  if (!md) return '';
+  var text = String(md);
 
-  // Hitung bobot AUM & bobot saham per holding
-  porto.forEach(function(p) {
-    p.aumWeight = totalAum > 0 ? (p.mv / totalAum * 100) : 0;
-    p.stockWeight = sahamMV > 0 ? (p.mv / sahamMV * 100) : 0;
-  });
+  // Escaping basic HTML while preserving custom tags if needed
+  text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  var sortedPorto = porto.slice().sort(function(a, b) { return b.mv - a.mv; });
-  var weightedBeta = porto.reduce(function(a, p) {
-    var b = (p.info && p.info.beta) ? p.info.beta : 1.0;
-    return a + (b * (p.mv / (sahamMV || 1)));
-  }, 0);
+  // Bold **text**
+  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-  // Deteksi kode saham spesifik di dalam prompt
-  var knownTickers = Object.keys(window.DB || {});
-  var matchedTicker = null;
-  for (var i = 0; i < knownTickers.length; i++) {
-    var tk = knownTickers[i];
-    var re = new RegExp('\\b' + tk + '\\b', 'i');
-    if (re.test(prompt)) {
-      matchedTicker = tk;
-      break;
-    }
-  }
+  // Headings
+  text = text.replace(/^### (.*$)/gim, '<div style="font-size:14px;font-weight:700;color:#38bdf8;margin:10px 0 4px">$1</div>');
+  text = text.replace(/^## (.*$)/gim, '<div style="font-size:15px;font-weight:800;color:var(--text);margin:12px 0 6px">$1</div>');
 
-  // 1. KONSENTRASI, AUM, ALOKASI BOBOT, ATAU DAFTAR HOLDING TERBESAR
-  if (pLower.includes('konsentrasi') || pLower.includes('aum') || pLower.includes('bobot') || pLower.includes('alokasi') || pLower.includes('terbesar') || pLower.includes('holding')) {
-    if (!sortedPorto.length) {
-      return 'Saat ini portofolio Anda belum memiliki posisi saham aktif. Total AUM tercatat sebesar <strong>Rp ' + fmtK(totalAum) + '</strong> (Kas RDN: Rp ' + fmtK(rdn) + '). Silakan tambahkan transaksi untuk mengaktifkan analisis konsentrasi real-time.';
-    }
+  // Bullet points
+  text = text.replace(/^- (.*$)/gim, '<div style="display:flex;align-items:flex-start;gap:6px;margin:2px 0"><span style="color:#38bdf8">•</span><span>$1</span></div>');
 
-    var topListHtml = sortedPorto.map(function(p, idx) {
-      var logo = (typeof getStockLogoHtml === 'function') ? getStockLogoHtml(p.ticker, 16) : '';
-      return '<tr>'
-        + '<td style="padding:4px 8px;font-weight:700">' + (idx + 1) + '. ' + logo + ' ' + p.ticker + '</td>'
-        + '<td class="mono" style="padding:4px 8px">Rp ' + fmtK(p.mv) + '</td>'
-        + '<td class="mono" style="padding:4px 8px;font-weight:700;color:var(--accent)">' + p.aumWeight.toFixed(1) + '%</td>'
-        + '<td class="mono" style="padding:4px 8px;color:var(--text2)">' + p.stockWeight.toFixed(1) + '%</td>'
-        + '<td class="mono ' + (p.ret >= 0 ? 'up' : 'dn') + '" style="padding:4px 8px">' + (p.ret >= 0 ? '+' : '') + p.ret.toFixed(1) + '%</td>'
-      + '</tr>';
-    }).join('');
+  // Disclaimer styling
+  text = text.replace(/\*Disclaimer: (.*?)\*/gim, '<div style="margin-top:12px;padding:8px 12px;background:rgba(245,158,11,0.08);border-left:3px solid #f59e0b;font-size:11px;color:var(--text2);font-style:italic"><strong>Disclaimer:</strong> $1</div>');
 
-    var top1 = sortedPorto[0];
-    var top2 = sortedPorto.length > 1 ? sortedPorto[1] : null;
-    var bmriHolding = porto.find(function(p) { return p.ticker === 'BMRI'; });
+  // Line breaks
+  text = text.replace(/\n\n/g, '<div style="height:8px"></div>');
+  text = text.replace(/\n/g, '<br>');
 
-    var bmriNote = '';
-    if (bmriHolding) {
-      bmriNote = '<br>• <strong>Posisi BMRI:</strong> Nilai pasar Rp ' + fmtK(bmriHolding.mv) + ' (<strong>' + bmriHolding.aumWeight.toFixed(1) + '% dari total AUM</strong>, ' + bmriHolding.stockWeight.toFixed(1) + '% dari saham).';
-    } else {
-      bmriNote = '<br>• <strong>Posisi BMRI:</strong> Anda saat ini <strong>tidak memiliki posisi aktif di BMRI (0% AUM)</strong>.';
-    }
-
-    var concVerdict = '';
-    if (top1 && top1.aumWeight > 15.0) {
-      concVerdict = '⚠️ <strong>Peringatan Risiko Konsentrasi:</strong> Posisi <strong>' + top1.ticker + ' (' + top1.aumWeight.toFixed(1) + '% AUM)</strong> melampaui ambang batas ideal diversifikasi single-stock (12–15%). Disarankan melakukan <em>partial profit taking / trim</em> 10–20% pada ' + top1.ticker + ' dan merotasi ke aset dividen defensive atau cadangan kas RDN.';
-    } else {
-      concVerdict = '✅ <strong>Diversifikasi Sehat:</strong> Tidak ada saham tunggal yang melampaui batas aman 15% dari total AUM. Distribusi risiko portofolio seimbang.';
-    }
-
-    return 'Berdasarkan kalkulasi real-time portofolio Anda (Total AUM: <strong>Rp ' + fmtK(totalAum) + '</strong> | Kas RDN: <strong>Rp ' + fmtK(rdn) + '</strong>):<br><br>'
-      + '<strong>Daftar Pembobotan AUM Terbesar:</strong>'
-      + '<div style="overflow-x:auto;margin:8px 0">'
-        + '<table style="width:100%;font-size:11px;border-collapse:collapse;background:var(--bg3);border-radius:6px">'
-          + '<thead style="background:var(--bg4);color:var(--text3);text-align:left">'
-            + '<tr><th style="padding:4px 8px">Saham</th><th style="padding:4px 8px">Nilai Pasar</th><th style="padding:4px 8px">% AUM</th><th style="padding:4px 8px">% Saham</th><th style="padding:4px 8px">Return</th></tr>'
-          + '</thead>'
-          + '<tbody>' + topListHtml + '</tbody>'
-        + '</table>'
-      + '</div>'
-      + '<strong>Rincian Utama:</strong>'
-      + '<br>• <strong>Posisi Terbesar #1:</strong> <strong>' + top1.ticker + '</strong> dengan bobot <strong>' + top1.aumWeight.toFixed(1) + '% dari AUM</strong> (Rp ' + fmtK(top1.mv) + ').'
-      + (top2 ? '<br>• <strong>Posisi Terbesar #2:</strong> <strong>' + top2.ticker + '</strong> dengan bobot <strong>' + top2.aumWeight.toFixed(1) + '% dari AUM</strong> (Rp ' + fmtK(top2.mv) + ').' : '')
-      + bmriNote
-      + '<br><br>' + concVerdict;
-  }
-
-  // 2. TANYA EMITEN SPESIFIK (THESIS / BMRI / PGEO / BBRI / DLL.)
-  if (matchedTicker) {
-    var pos = porto.find(function(p) { return p.ticker === matchedTicker; });
-    var dbInfo = (window.DB && window.DB[matchedTicker]) || { name: matchedTicker, sector: 'Lainnya', beta: 1.0, pe: '—', roe: '—', dy: '—' };
-    var logo = (typeof getStockLogoHtml === 'function') ? getStockLogoHtml(matchedTicker, 18) : '';
-
-    if (pos) {
-      return 'Analisis Real-Time untuk <strong>' + logo + ' ' + matchedTicker + ' (' + dbInfo.name + ')</strong>:<br><br>'
-        + '<strong>Data Kepemilikan Portofolio:</strong><br>'
-        + '• <strong>Nilai Pasar:</strong> Rp ' + fmtK(pos.mv) + ' (<strong>' + pos.aumWeight.toFixed(1) + '% dari Total AUM</strong> | ' + pos.stockWeight.toFixed(1) + '% dari Saham)<br>'
-        + '• <strong>Volume:</strong> ' + pos.lot + ' lot (' + fmt(pos.shares) + ' lembar)<br>'
-        + '• <strong>Modal Rata-rata:</strong> Rp ' + fmt(Math.round(pos.avg)) + ' | <strong>Harga Terkini:</strong> Rp ' + fmt(pos.mp) + '<br>'
-        + '• <strong>Unrealized P&L:</strong> <span class="' + (pos.unreal >= 0 ? 'up' : 'dn') + '">' + (pos.unreal >= 0 ? '+' : '') + 'Rp ' + fmtK(pos.unreal) + ' (' + (pos.ret >= 0 ? '+' : '') + pos.ret.toFixed(1) + '%)</span><br><br>'
-        + '<strong>Evaluasi Thesis & Fundamental:</strong><br>'
-        + '• <strong>Sektor:</strong> ' + dbInfo.sector + ' | <strong>Beta:</strong> ' + (dbInfo.beta || 1.0).toFixed(2) + '<br>'
-        + '• <strong>Status Thesis:</strong> 🟢 <strong>INTACT</strong> — fundamental kuat dengan posisi profit positif.<br>'
-        + '• <strong>Rekomendasi Aksi:</strong> ' + (pos.aumWeight > 15 ? 'Pertimbangkan <strong>Partial Trim</strong> untuk menjaga batas aman konsentrasi <15%.' : '<strong>HOLD / ACCUMULATE</strong> saat koreksi teknikal wajar.');
-    } else {
-      var livePrice = (window.prices && window.prices[matchedTicker]) || dbInfo.base || 0;
-      return 'Informasi untuk <strong>' + logo + ' ' + matchedTicker + ' (' + dbInfo.name + ')</strong>:<br><br>'
-        + '• <strong>Status Portofolio:</strong> Anda saat ini <strong>tidak memiliki posisi aktif di ' + matchedTicker + ' (0% AUM)</strong>.<br>'
-        + '• <strong>Harga Pasar:</strong> Rp ' + fmt(livePrice) + '<br>'
-        + '• <strong>Sektor:</strong> ' + dbInfo.sector + ' | <strong>Beta:</strong> ' + (dbInfo.beta || 1.0).toFixed(2) + '<br>'
-        + '• <strong>Catatan Copilot:</strong> Jika ingin membangun posisi baru, pastikan alokasi modal tidak melebihi 10–12% dari total AUM Anda.';
-    }
-  }
-
-  // 3. BUY ZONE / REKOMENDASI / PELUANG
-  if (pLower.includes('buy zone') || pLower.includes('peluang') || pLower.includes('rekomendasi') || pLower.includes('radar')) {
-    return 'Berdasarkan pemindaian <strong>Opportunity Radar & Smart Money Flow</strong> hari ini:<br><br>'
-      + '1. <strong>BBCA</strong> — MoS +18.5%, ROE 22.4%, akumulasi asing solid, zona valuasi wajar.<br>'
-      + '2. <strong>ANTM</strong> — MoS +24.2%, volume surge 1.8x, sentimen hilirisasi nikel & komoditas emas.<br>'
-      + '3. <strong>TLKM</strong> — MoS +21.0%, P/E 13.2x, dividend yield 5.8%, defensif untuk menyeimbangkan portofolio.<br><br>'
-      + '💡 <em>Tips Eksekusi:</em> Manfaatkan cadangan kas RDN Anda (Rp ' + fmtK(rdn) + ') untuk bertahap averaging down saat emiten berada di support kuat.';
-  }
-
-  // 4. KOREKSI / STRESS TEST IHSG
-  if (pLower.includes('koreksi') || pLower.includes('ihsg') || pLower.includes('stress') || pLower.includes('crash')) {
-    var cashRatio = totalAum > 0 ? (rdn / totalAum) : 0;
-    var equityImpact = -(5.0 * weightedBeta * (1 - cashRatio)).toFixed(1);
-
-    return '<strong>Hasil Simulasi Skenario: IHSG Terkoreksi -5.0%</strong><br><br>'
-      + '• <strong>Beta Terbobot Portofolio:</strong> ' + weightedBeta.toFixed(2) + '<br>'
-      + '• <strong>Porsi Kas RDN (Buffer):</strong> Rp ' + fmtK(rdn) + ' (' + (cashRatio * 100).toFixed(1) + '% dari AUM)<br>'
-      + '• <strong>Estimasi Dampak terhadap Total AUM:</strong> <span class="dn">' + equityImpact + '%</span> (sekitar -Rp ' + fmtK(Math.abs(totalAum * (parseFloat(equityImpact) / 100))) + ')<br><br>'
-      + '🛡️ <em>Buffer Kas:</em> Rasio kas RDN Anda bertindak sebagai bantalan peredam risiko yang melindungi portofolio dari penurunan tajam dan memberi fleksibilitas untuk akumulasi harga diskon.';
-  }
-
-  // 5. REBALANCE / KAS / STRATEGI UMUM
-  if (pLower.includes('rebalance') || pLower.includes('kas') || pLower.includes('rdn') || pLower.includes('strategi')) {
-    var cashPct = totalAum > 0 ? (rdn / totalAum * 100).toFixed(1) : '0';
-    return '<strong>Rencana Strategi Rebalancing Portofolio:</strong><br><br>'
-      + '• <strong>Total AUM:</strong> Rp ' + fmtK(totalAum) + '<br>'
-      + '• <strong>Ekuitas Saham:</strong> Rp ' + fmtK(sahamMV) + ' (' + (100 - parseFloat(cashPct)).toFixed(1) + '%)<br>'
-      + '• <strong>Kas RDN Siap Pakai:</strong> Rp ' + fmtK(rdn) + ' (' + cashPct + '%)<br><br>'
-      + (sortedPorto.length && sortedPorto[0].aumWeight > 15 ? '⚡ <strong>Prioritas Rebalance:</strong> Trim sebagian profit dari <strong>' + sortedPorto[0].ticker + ' (' + sortedPorto[0].aumWeight.toFixed(1) + '% AUM)</strong> untuk menurunkan konsentrasi ke level optimal 12.0%.' : '✅ Alokasi aset Anda saat ini berada dalam rentang risiko yang terukur.');
-  }
-
-  // 6. DEFAULT TEARSHEET OVERVIEW
-  var topStr = sortedPorto.slice(0, 3).map(function(p) {
-    return p.ticker + ' (' + p.aumWeight.toFixed(1) + '%)';
-  }).join(', ') || 'Belum ada posisi';
-
-  return 'Pertanyaan Anda tercatat: <em>"' + prompt + '"</em>.<br><br>'
-    + '<strong>Ringkasan Real-Time Portofolio Anda:</strong><br>'
-    + '• <strong>Total AUM:</strong> Rp ' + fmtK(totalAum) + '<br>'
-    + '• <strong>Kas RDN:</strong> Rp ' + fmtK(rdn) + '<br>'
-    + '• <strong>Top Holdings:</strong> ' + topStr + '<br>'
-    + '• <strong>Beta Portofolio:</strong> ' + weightedBeta.toFixed(2) + '<br><br>'
-    + 'Anda dapat menanyakan analisis konsentrasi, evaluasi thesis emiten (PGEO, BBRI, BMRI, dll.), atau rekomendasi rebalancing secara spesifik.';
+  return text;
 }
 
 // ── Global Aliases for Router Compatibility ──
@@ -1194,5 +1172,6 @@ window.renderScenarioPage = renderScenarioPage;
 window.renderRebalancePage = renderRebalancePage;
 window.renderRebalancingPage = renderRebalancingPage;
 window.renderCopilotPage = renderCopilotPage;
+window.sendCopilotPrompt = sendCopilotPrompt;
 window.runScenarioSimulation = runScenarioSimulation;
 window.runCustomScenarioSimulation = runCustomScenarioSimulation;

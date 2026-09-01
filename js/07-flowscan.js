@@ -62,8 +62,14 @@ function fsSd(s){var h=0;for(var i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCod
 function fsSr(s){var x=Math.sin(s+1)*10000;return x-Math.floor(x);}
 
 // ── format helpers ──
+function fsTick(p){
+  if(p<200)return 1; if(p<500)return 2; if(p<2000)return 5;
+  if(p<5000)return 10; return 25;
+}
+function fsRoundTick(p){var t=fsTick(p);return Math.max(t,Math.round(p/t)*t);}
+
 function fsV(n){if(!n||isNaN(n))return'—';if(n>=1e9)return(n/1e9).toFixed(2)+'M';if(n>=1e6)return(n/1e6).toFixed(1)+'Jt';if(n>=1e3)return(n/1e3).toFixed(0)+'Rb';return Math.round(n)+'';}
-function fsP(n){if(!n||isNaN(n))return'—';return'Rp '+(n<100?n.toFixed(2):Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');}
+function fsP(n){if(!n||isNaN(n))return'—';return'Rp '+Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');}
 function fsD(d){return new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short'});}
 function fsPct(n){return(n>=0?'▲':'▼')+Math.abs(n).toFixed(2)+'%';}
 function fsScColor(s){return s>=58?'#41f3a7':s<=42?'#e21d48':'#8fa3c8';}
@@ -89,6 +95,7 @@ function fsGenData(tk,days){
     var mfm=(h-l)>0?((c-l)-(h-c))/(h-l):0;
     obv+=c>o?v:-v; ad+=mfm*v;
     var dt=new Date();dt.setDate(dt.getDate()-days+i);
+    o=fsRoundTick(o); h=fsRoundTick(h); l=fsRoundTick(l); c=fsRoundTick(c);
     data.push({dt:dt,o:o,h:h,l:l,c:c,v:v,obv:obv,ad:ad,mfv:mfm*v,big:big,up:c>=o,mfm:mfm});
     price=c;
   }
