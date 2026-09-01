@@ -149,6 +149,12 @@
     </button>
 
     <!-- UNIFIED SETTINGS & DATA HUB TOOLBAR BUTTON -->
+    <button class="btn btn-ghost btn-xs" onclick="goPage('stockchat')" title="Buka StockChat AI & Bandarmology Cockpit" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(56,189,248,0.4);background:rgba(56,189,248,0.1);color:#38bdf8;padding:5px 10px;border-radius:6px">
+      <i class="ti ti-messages" style="color:#38bdf8;font-size:13px"></i>
+      <span class="hide-mobile" style="font-weight:600">StockChat AI</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:#10b981;margin-left:2px" title="Bandarmology & Broker Flow Engine Aktif"></span>
+    </button>
+
     <button class="btn btn-ghost btn-xs" onclick="IDX_PIPELINE.openIdxHubModal()" title="Buka Ringkasan Data IDX & Kalender Aksi Korporasi" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:#0284c7;padding:5px 9px;border-radius:6px">
       <i class="ti ti-activity" style="color:#0284c7;font-size:13px"></i>
       <span class="hide-mobile" style="font-weight:600">IDX Data Hub</span>
@@ -260,6 +266,7 @@
   <div class="side-group open" data-group="ai">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-sparkles" style="color:#38bdf8"></i><span class="side-label">AI Intelligence</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
+      <button onclick="goPage('stockchat',this)"><i class="ti ti-messages" style="color:#38bdf8"></i><span class="side-label">StockChat AI</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">BANDAR</span></button>
       <button onclick="goPage('ai-trading',this)"><i class="ti ti-brain" style="color:#38bdf8"></i><span class="side-label">AI Trading Engine</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">SELF-LEARN</span></button>
       <button onclick="goPage('copilot',this)"><i class="ti ti-message-chatbot" style="color:#38bdf8"></i><span class="side-label">AI Copilot</span></button>
       <button onclick="goPage('thesis',this)"><i class="ti ti-clipboard-list" style="color:var(--accent)"></i><span class="side-label">Investment Thesis</span></button>
@@ -296,7 +303,6 @@
                     <h1 style="font-size:26px;font-weight:800;color:var(--text);letter-spacing:-0.5px;margin:0">MoneyWatch Pro</h1>
                     <span class="badge b-accent" style="font-size:10px;font-weight:700;padding:2px 8px">PORTFOLIO HUB</span>
                 </div>
-                <div style="font-size:12px;color:var(--text3)">Hub Multi-Aset Terpadu • Klik pada card untuk langsung masuk ke halaman pengelolaan portofolio</div>
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                 <button class="btn btn-ghost btn-sm" onclick="goPage('rebalance')" title="Buka Smart Rebalancing Portofolio" style="font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px">
@@ -360,21 +366,18 @@
                 <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:16px">
                     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Total Modal / Invested Capital</div>
                     <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px" id="hub-tot-cost">Rp 0</div>
-                    <div style="font-size:11px;color:var(--text3);margin-top:10px">Akumulasi modal beli di semua instrumen</div>
                 </div>
 
                 <!-- Total Saldo Kas RDN -->
                 <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:16px">
                     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Saldo Kas RDN (Likuid)</div>
                     <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--accent);letter-spacing:-0.5px" id="hub-tot-cash">Rp 0</div>
-                    <div style="font-size:11px;color:var(--text3);margin-top:10px">Dana siap investasi di sekuritas &amp; broker</div>
                 </div>
 
                 <!-- Total Posisi Aktif -->
                 <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:16px">
                     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Total Posisi Multi-Aset</div>
                     <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px" id="hub-tot-posisi">0 Aset Aktif</div>
-                    <div style="font-size:11px;color:var(--text3);margin-top:10px">Terbagi dalam 4 kelas instrumen utama</div>
                 </div>
             </div>
 
@@ -418,9 +421,6 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
                 <div style="font-size:15px;font-weight:800;color:var(--text)">
                     📂 Portofolio Mandiri Berdasarkan Kelas Aset
-                </div>
-                <div style="font-size:11px;color:var(--text3)">
-                    Klik card di bawah untuk membuka manajemen &amp; transaksi detail
                 </div>
             </div>
 
@@ -3208,6 +3208,7 @@
 <div id="page-thesis" class="page"></div>
 <div id="page-journal" class="page"></div>
 <div id="page-copilot" class="page"></div>
+<div id="page-stockchat" class="page"></div>
 <div id="page-dataconn" class="page"></div>
 
 <!-- ===== ADMIN — KELOLA DAFTAR SAHAM ===== -->
@@ -3338,6 +3339,7 @@
 <script src="js/38-ai-autonomous-trading.js?v=20260830"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260830"></script>
 <script src="js/40-idx-pipeline.js?v=20260901"></script>
+<script src="js/41-stockchat-cockpit.js?v=20260901"></script>
 
   <!-- Theme Toggle Floating Button -->
   <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--text-main);border:none;box-shadow:0 4px 15px rgba(0,0,0,0.2);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">

@@ -8,7 +8,9 @@ import {
   fetchYahooQuote,
   getIdxMarketSummary,
   getIdxCalendarData,
-  getBeiTickSize
+  getBeiTickSize,
+  generateBrokerSummary,
+  IDX_BROKERS
 } from './lib/idx-data-engine.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1069,6 +1071,14 @@ function executeAgentTool(toolName, args, userContext = {}) {
       };
     }
 
+    case 'cek_broker_summary': {
+      const raw = (args.ticker || 'BBCA').trim().toUpperCase();
+      const timeframe = (args.timeframe || '1D').toUpperCase();
+      const item = STOCK_REGISTRY[raw] || { price: 5000, changePercent: 0, volume: 5000000, value: 25000000000 };
+      const summary = generateBrokerSummary(raw, item, timeframe);
+      return summary;
+    }
+
     default:
       return { error: `Alat ${toolName} tidak dikenal.` };
   }
@@ -1076,6 +1086,18 @@ function executeAgentTool(toolName, args, userContext = {}) {
 
 // Function Declarations for Gemini Function Calling
 const AGENT_TOOL_DECLARATIONS = [
+  {
+    name: 'cek_broker_summary',
+    description: 'Mengambil data Broker Summary (Bandarmology / Broker Transaction Flow) terkini untuk saham BEI. Menyajikan Top 5/Top 10 Broker Pembeli (Buyer) vs Penjual (Seller), Volume, Nilai Transaksi (IDR), Harga Rata-Rata Beli/Jual (Average Buy/Sell Price), Rasio Konsentrasi Top 1/3/5, Arus Asing vs Domestik (Foreign Flow), dan Status Akumulasi/Distribusi Bandarmology.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        ticker: { type: 'STRING', description: 'Kode ticker saham BEI 4 huruf kapital, contoh: BBCA, BBRI, BMRI, BREN, AMMN, GOTO' },
+        timeframe: { type: 'STRING', description: 'Rentang waktu analisis: "1D" (Hari Ini), "3D" (3 Hari), "1W" (1 Minggu), "1M" (1 Bulan)' }
+      },
+      required: ['ticker']
+    }
+  },
   {
     name: 'cek_harga',
     description: 'Mengambil data harga terkini saham BEI/IDX, fraksi harga tick size regulasi BEI, batas Auto Rejection Atas (ARA), dan batas Auto Rejection Bawah (ARB).',
@@ -1172,26 +1194,30 @@ const AGENT_TOOL_DECLARATIONS = [
   }
 ];
 
-const SYSTEM_INSTRUCTION_MONEYWATCH_AI = `Anda adalah "MoneyWatch Pro AI", asisten analis portofolio multi-aset kelas institusional yang berfokus pada pasar modal Indonesia (IHSG/BEI). Tugas utama Anda adalah membantu pengguna mengelola portofolio, memberikan analisa rasio keuangan yang objektif, dan menghitung proyeksi keuntungan/risiko.
+const SYSTEM_INSTRUCTION_MONEYWATCH_AI = `Anda adalah "MoneyWatch Pro AI & StockChat", asisten analis portofolio multi-aset kelas institusional dan pakar Bandarmology pasar modal Indonesia (IHSG/BEI). Tugas utama Anda adalah membantu pengguna mengelola portofolio, memberikan analisa rasio keuangan objektif, membedah Broker Summary (Bandarmology & Flow Asing), dan menghitung proyeksi keuntungan/risiko drawdown.
 
 ATURAN PERILAKU & ANALISA:
 1. OBJEKTIF & BERBASIS DATA: Jangan pernah memberikan rekomendasi beli/jual secara definitif (hindari "pom-pom"). Selalu berikan analisa dua sisi (potensi untung dan risiko Maximum Drawdown).
-2. KEPATUHAN REGULASI: Dalam setiap simulasi transaksi, pastikan perhitungan Anda mempertimbangkan aturan Bursa Efek Indonesia (BEI) seperti fraksi harga (tick size) dan batas Auto Rejection (ARA/ARB).
-3. SINKRONISASI PORTOFOLIO: Jika menganalisa porsi kepemilikan, asumsikan data yang Anda proses harus sinkron dengan pencatatan riil (seperti standar KSEI). Jangan menebak saldo atau jumlah lot pengguna jika belum disediakan oleh sistem.
-4. KALKULASI PAJAK: Saat menghitung proyeksi imbal hasil dividen (dividend yield), Anda WAJIB memotongnya dengan tarif pajak dividen final yang berlaku di Indonesia sebelum menyajikan angka bersih (Net Dividend) kepada pengguna.
-5. NO HALLUCINATION: Jika pengguna menanyakan data harga saham terkini atau metrik fundamental (PER, PBV, ROE), Anda HARUS menggunakan alat (tools/functions) yang tersedia untuk menarik data. Jika alat gagal atau data tidak tersedia, katakan dengan jujur bahwa Anda tidak memiliki data tersebut.
+2. KEAHLIAN BANDARMOLOGY & BROKER SUMMARY: Jika pengguna menanyakan broker flow, akumulasi bandar, siapa pembeli terbesar (top buyer), atau pergerakan asing, Anda WAJIB memanggil alat "cek_broker_summary". Uraikan:
+   - Konsentrasi Top 1, Top 3, dan Top 5 Broker (misal: jika Top 3 Buyer menguasai > 60% = Big Accumulation).
+   - Rata-rata harga beli Top Broker (Average Buy Price) sebagai level support bandar.
+   - Partisipasi investor Asing (Foreign Flow) vs Domestik.
+   - Perilaku broker ritel (YP, PD, XC, XL) vs broker institusi (AK, BK, ZP, CC, KZ).
+3. KEPATUHAN REGULASI: Dalam setiap simulasi transaksi, pastikan perhitungan Anda mempertimbangkan aturan Bursa Efek Indonesia (BEI) seperti fraksi harga (tick size) dan batas Auto Rejection (ARA/ARB).
+4. SINKRONISASI PORTOFOLIO: Jika menganalisa porsi kepemilikan, asumsikan data yang Anda proses harus sinkron dengan pencatatan riil (seperti standar KSEI). Jangan menebak saldo atau jumlah lot pengguna jika belum disediakan oleh sistem.
+5. KALKULASI PAJAK: Saat menghitung proyeksi imbal hasil dividen (dividend yield), Anda WAJIB memotongnya dengan tarif pajak dividen final yang berlaku di Indonesia (10% PPh Final atau 0% PMK 18/2021) sebelum menyajikan angka bersih (Net Dividend).
+6. NO HALLUCINATION: Gunakan selalu alat (tools/functions) yang tersedia untuk menarik data kuotasi, fundamental, dan broker summary.
 
 FORMAT RESPON:
-- Gunakan bahasa Indonesia yang profesional, ringkas, namun mudah dipahami.
-- Gunakan poin-poin untuk memecah informasi kompleks.
+- Gunakan bahasa Indonesia yang profesional, ringkas, bersahabat, dan mudah dipahami.
+- Gunakan poin-poin dan tabel ringkas jika menyajikan data broker atau rasio keuangan.
 - Selalu akhiri analisa yang memuat proyeksi harga dengan disclaimer singkat:
-"*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*"
+"*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis, fundamental, dan bandarmology pasar.*"
 
 ALUR KERJA (AGENTIC LOOP):
-- Saat menerima pertanyaan, tentukan alat/functions yang relevan.
-- Panggil alat tersebut (misalnya: cek_harga, cek_fundamental, cek_portofolio_user, cek_saldo_rdn, cek_kepemilikan_ksei, hitung_simulasi_transaksi_bei, hitung_pajak_dividen, hitung_proyeksi_risiko_drawdown).
-- Evaluasi hasil data.
-- Sajikan jawaban terstruktur yang mencakup data, kepatuhan BEI/pajak, analisis dua sisi (potensi vs risiko), dan disclaimer.`;
+- Saat menerima pertanyaan, tentukan alat/functions yang relevan (misalnya: cek_broker_summary, cek_harga, cek_fundamental, cek_portofolio_user, cek_saldo_rdn, cek_kepemilikan_ksei, hitung_simulasi_transaksi_bei, hitung_pajak_dividen, hitung_proyeksi_risiko_drawdown).
+- Panggil alat tersebut.
+- Evaluasi hasil data dan sajikan jawaban terstruktur yang mencakup data, kepatuhan BEI/pajak, analisis dua sisi (potensi vs risiko), dan disclaimer.`;
 
 // MoneyWatch Pro AI Agent Chat Endpoint (Multi-Turn Agentic Loop)
 app.post('/api/ai/agent-chat', async (req, res) => {
@@ -2002,6 +2028,38 @@ app.get('/api/idx/quote/:ticker', async (req, res) => {
         investorsCount: kseiItem.investors?.length || 0,
         topHolders: kseiItem.investors?.slice(0, 5) || []
       } : null
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/broker-summary/:ticker — Comprehensive Broker Flow & Bandarmology
+app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    const timeframe = (req.query.timeframe || '1D').toUpperCase();
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const quote = await fetchYahooQuote(ticker);
+    const summary = generateBrokerSummary(ticker, quote, timeframe);
+
+    return res.json({
+      success: true,
+      data: summary
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/brokers — Master list of Indonesian brokers
+app.get('/api/idx/brokers', (req, res) => {
+  try {
+    return res.json({
+      success: true,
+      count: Object.keys(IDX_BROKERS).length,
+      brokers: IDX_BROKERS
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
