@@ -17,34 +17,23 @@ var nextRdnId = 1;
 function _maxIdPlus1(arr){ var m=0; (arr||[]).forEach(function(x){ if(x.id>m) m=x.id; }); return m+1; }
 
 // ============================================================
-// DATA PORTOFOLIO & TRANSAKSI 24 AGUSTUS 2026 (STOCKBIT)
+// DATA PORTOFOLIO & TRANSAKSI RIIL AGUSTUS 2026 (STOCKBIT)
 // ============================================================
 var INITIAL_PORTO_2026 = [
-  { no: 3,  ticker: 'GGRM', lot: 6,   price: 67303,  amount: 40381580 },
-  { no: 4,  ticker: 'BBNI', lot: 73,  price: 5243,   amount: 38276774 },
-  { no: 5,  ticker: 'CPRI', lot: 90,  price: 123,    amount: 1106098 },
-  { no: 12, ticker: 'BBCA', lot: 68,  price: 8116,   amount: 55190301 },
-  { no: 15, ticker: 'BMRI', lot: 72,  price: 6023,   amount: 43362552 },
-  { no: 37, ticker: 'BBRI', lot: 223, price: 4833,   amount: 107776850 },
-  { no: 38, ticker: 'ERAA', lot: 415, price: 544.9,  amount: 22613284 },
-  { no: 42, ticker: 'UNVR', lot: 60,  price: 5756.8, amount: 34540561 },
-  { no: 46, ticker: 'ADRO', lot: 102, price: 3484.6, amount: 35542862 },
-  { no: 51, ticker: 'SIDO', lot: 330, price: 645,    amount: 21273844 },
-  { no: 53, ticker: 'PGEO', lot: 823, price: 1521,   amount: 125189937 },
-  { no: 62, ticker: 'PMMP', lot: 38,  price: 265,    amount: 1007284 },
-  { no: 64, ticker: 'AADI', lot: 5,   price: 10679,  amount: 5339594 },
-  { no: 67, ticker: 'BUMI', lot: 523, price: 357,    amount: 18682368 },
-  { no: 70, ticker: 'SMDR', lot: 710, price: 439,    amount: 31180236 },
-  { no: 74, ticker: 'CDIA', lot: 198, price: 1950,   amount: 38608062 },
-  { no: 76, ticker: 'RAJA', lot: 215, price: 1072,   amount: 23053923 },
-  { no: 77, ticker: 'ADMR', lot: 203, price: 2062,   amount: 41854202 },
-  { no: 78, ticker: 'DEWA', lot: 135, price: 474,    amount: 6398196 },
-  { no: 81, ticker: 'PTRO', lot: 5,   price: 5619,   amount: 2809608 },
-  { no: 82, ticker: 'MBMA', lot: 92,  price: 788,    amount: 7248969 },
-  { no: 85, ticker: 'WIFI', lot: 57,  price: 3406,   amount: 19415886 },
-  { no: 90, ticker: 'ARCI', lot: 236, price: 1890,   amount: 44610655 },
-  { no: 92, ticker: 'PRDL', lot: 31,  price: 356,    amount: 1104985 },
-  { no: 93, ticker: 'GMFI', lot: 120, price: 64,     amount: 773390 },
+  { no: 1,  date: '2026-08-11', type: 'BUY',  ticker: 'GMFI', lot: 100, price: 65,    net: 651170 },
+  { no: 2,  date: '2026-08-12', type: 'BUY',  ticker: 'GMFI', lot: 20,  price: 61,    net: 122220 },
+  { no: 3,  date: '2026-08-13', type: 'BUY',  ticker: 'RAJA', lot: 10,  price: 880,   net: 881584 },
+  { no: 4,  date: '2026-08-20', type: 'BUY',  ticker: 'ERAA', lot: 215, price: 480,   net: 10338576 },
+  { no: 5,  date: '2026-08-20', type: 'BUY',  ticker: 'PTRO', lot: 5,   price: 4900,  net: 2454410 },
+  { no: 6,  date: '2026-08-20', type: 'BUY',  ticker: 'AADI', lot: 5,   price: 10200, net: 5109180 },
+  { no: 7,  date: '2026-08-20', type: 'BUY',  ticker: 'SMDR', lot: 710, price: 410,   net: 29162398 },
+  { no: 8,  date: '2026-08-27', type: 'SELL', ticker: 'PTRO', lot: 5,   price: 5100,  net: 2542860 },
+  { no: 9,  date: '2026-08-27', type: 'SELL', ticker: 'ERAA', lot: 5,   price: 494,   net: 246308 },
+  { no: 10, date: '2026-08-27', type: 'SELL', ticker: 'ERAA', lot: 210, price: 496,   net: 10386835 },
+  { no: 11, date: '2026-08-28', type: 'BUY',  ticker: 'ADRO', lot: 10,  price: 2660,  net: 2664788 },
+  { no: 12, date: '2026-08-31', type: 'SELL', ticker: 'AADI', lot: 5,   price: 10775, net: 5372415 },
+  { no: 13, date: '2026-08-31', type: 'BUY',  ticker: 'ARCI', lot: 4,   price: 1335,  net: 534961 },
+  { no: 14, date: '2026-08-31', type: 'BUY',  ticker: 'ADMR', lot: 20,  price: 1740,  net: 3486264 }
 ];
 
 function initPortfolio2026(force){
@@ -57,49 +46,79 @@ function initPortfolio2026(force){
   nextRdnId = 1;
   activeSekuritas = 'Stockbit';
 
-  var totalBuyNet = 0;
   var buyMuts = [];
+  var totalBuyNet = 0;
+  var totalSellNet = 0;
 
   INITIAL_PORTO_2026.forEach(function(item){
     var gross = item.lot * 100 * item.price;
     var c = (typeof calcTxComponents === 'function') 
-      ? calcTxComponents(gross, true, 'Stockbit') 
-      : { komisi: gross * 0.0028, ppn: 0, levy: 0, pph: 0, net: gross * 1.0028 };
-    totalBuyNet += c.net;
+      ? calcTxComponents(gross, item.type === 'BUY', 'Stockbit') 
+      : { 
+          komisi: item.type === 'BUY' ? gross * 0.0016 : gross * 0.0018, 
+          ppn: 0, levy: 0, pph: item.type === 'SELL' ? gross * 0.001 : 0, 
+          net: item.net || (item.type === 'BUY' ? gross * 1.0018 : gross * 0.9972) 
+        };
+    
+    var netVal = item.net || c.net;
+    if(item.type === 'BUY') totalBuyNet += netVal;
+    else totalSellNet += netVal;
+
     var txId = nextTxId++;
     transactions.push({
       id: txId,
-      date: '2026-08-24',
-      type: 'BUY',
+      date: item.date,
+      type: item.type,
       ticker: item.ticker,
       lot: item.lot,
       price: item.price,
       gross: gross,
-      komisi: c.komisi,
-      ppn: c.ppn,
-      levy: c.levy,
-      pph: c.pph,
+      komisi: c.komisi || 0,
+      ppn: c.ppn || 0,
+      levy: c.levy || 0,
+      pph: c.pph || 0,
       tax: (c.ppn || 0) + (c.levy || 0) + (c.pph || 0),
-      net: c.net,
+      net: netVal,
       sekuritas: 'Stockbit'
     });
+
     buyMuts.push({
-      date: '2026-08-24',
-      type: 'BUY',
-      ket: 'Beli ' + item.lot + ' lot ' + item.ticker + ' @ Rp ' + fmt(item.price),
-      amount: -c.net,
+      date: item.date,
+      type: item.type,
+      ket: (item.type === 'BUY' ? 'Beli ' : 'Jual ') + item.lot + ' lot ' + item.ticker + ' @ Rp ' + fmt(item.price),
+      amount: item.type === 'BUY' ? -netVal : netVal,
       balance: 0,
       sekuritas: 'Stockbit',
       linkedTxId: txId
     });
   });
 
-  // Tambahkan setoran awal RDN (Modal Awal) sebagai mutasi pertama (id: 1)
-  // Target saldo kas RDN awal konsisten Rp 12.000.000 (12 Juta)
-  var initialDeposit = totalBuyNet + 12000000;
+  // Dividen SMDR 28 Aug 2026
+  var divSmdrNet = 177500;
+  dividends.push({
+    id: nextDivId++,
+    ticker: 'SMDR',
+    date: '2026-08-28',
+    paymentDate: '2026-08-28',
+    cumDate: '2026-08-20',
+    dps: 2.5,
+    shares: 71000,
+    gross: 177500,
+    tax: 0,
+    net: divSmdrNet,
+    notes: 'Dividen SMDR 710 lot @ Rp 2.5/lembar',
+    sekuritas: 'Stockbit'
+  });
+
+  // Target saldo kas RDN pas Rp 12.600.000 (12,6 Juta)
+  // Net cash flow = totalSellNet + divSmdrNet - 10000(meterai) - totalBuyNet
+  var feeMeterai = 10000;
+  var netFlow = totalSellNet + divSmdrNet - feeMeterai - totalBuyNet;
+  var initialDeposit = 12600000 - netFlow;
+
   rdnMutations.push({
     id: nextRdnId++,
-    date: '2026-08-24',
+    date: '2026-08-01',
     type: 'SETOR',
     ket: 'Setoran Awal RDN (Modal Awal)',
     amount: initialDeposit,
@@ -110,7 +129,39 @@ function initPortfolio2026(force){
   buyMuts.forEach(function(m){
     m.id = nextRdnId++;
     rdnMutations.push(m);
+    if(m.date === '2026-08-27' && !rdnMutations.some(function(x){ return x.type === 'FEE'; })){
+      rdnMutations.push({
+        id: nextRdnId++,
+        date: '2026-08-27',
+        type: 'FEE',
+        ket: 'Bea Meterai',
+        amount: -feeMeterai,
+        balance: 0,
+        sekuritas: 'Stockbit'
+      });
+    }
+    if(m.date === '2026-08-28' && !rdnMutations.some(function(x){ return x.type === 'DIVIDEN'; })){
+      rdnMutations.push({
+        id: nextRdnId++,
+        date: '2026-08-28',
+        type: 'DIVIDEN',
+        ket: 'Dividen SMDR (710 lot)',
+        amount: divSmdrNet,
+        balance: 0,
+        sekuritas: 'Stockbit',
+        linkedTxId: 'div-1'
+      });
+    }
   });
+
+  tradeStrategy = {
+    'GMFI': 'Swing Trade',
+    'RAJA': 'Swing Trade',
+    'ADRO': 'Core Long',
+    'ARCI': 'Swing Trade',
+    'ADMR': 'Core Long',
+    'SMDR': 'Dividend Play'
+  };
 
   if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   if (typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
@@ -120,21 +171,24 @@ function initPortfolio2026(force){
 function sanitizeRdnMutations(){
   if(!Array.isArray(rdnMutations)) rdnMutations = [];
   
-  // 1. Jika ada mutasi berulang 'Setoran Awal' dan 'Setoran Awal Penyesuaian RDN', rapikan
+  // 1. Jika ada mutasi berulang 'Setoran Awal' dan 'Setoran Awal Penyesuaian RDN', pertahankan yang TERBARU (berdasarkan ID / tanggal), bukan nilai terbesar
   var initialSetors = rdnMutations.filter(function(r){
     return (r.type === 'SETOR' || r.type === 'TOPUP') && 
            (r.ket && (r.ket.indexOf('Setoran Awal') !== -1 || r.ket.indexOf('Modal Awal') !== -1));
   });
 
   if (initialSetors.length > 1) {
-    var maxSetor = initialSetors.reduce(function(prev, curr){
-      return (curr.amount > prev.amount) ? curr : prev;
+    // Ambil mutasi setoran awal terbaru yang diupdate pengguna
+    var latestSetor = initialSetors.reduce(function(prev, curr){
+      if((curr.date || '') > (prev.date || '')) return curr;
+      if((curr.date || '') === (prev.date || '') && (curr.id || 0) > (prev.id || 0)) return curr;
+      return prev;
     }, initialSetors[0]);
 
     rdnMutations = rdnMutations.filter(function(r){
       if ((r.type === 'SETOR' || r.type === 'TOPUP') && 
           (r.ket && (r.ket.indexOf('Setoran Awal') !== -1 || r.ket.indexOf('Modal Awal') !== -1))) {
-        return r.id === maxSetor.id;
+        return r.id === latestSetor.id;
       }
       return true;
     });
@@ -166,7 +220,7 @@ function reconcileRdnWithTransactions(silent){
     if(linkedId){
       existingTradeMutationsByLinkedId[linkedId] = m;
     } else {
-      // Manual cash entry
+      // Manual cash entry (setoran, penarikan, penyesuaian saldo riil)
       var amt = (typeof m.amount === 'number' && !isNaN(m.amount)) ? m.amount : Number(m.amount || 0);
       manualMutations.push({
         id: m.id || null,
@@ -182,19 +236,21 @@ function reconcileRdnWithTransactions(silent){
     }
   });
 
-  // Rapikan duplikasi Setoran Awal jika ada lebih dari 1
+  // Rapikan duplikasi Setoran Awal jika ada lebih dari 1 dengan memilih yang TERAKHIR (terbaru) diupdate
   var initialSetors = manualMutations.filter(function(r){
     return (r.type === 'SETOR' || r.type === 'TOPUP') && 
            (r.ket && (r.ket.indexOf('Setoran Awal') !== -1 || r.ket.indexOf('Modal Awal') !== -1));
   });
   if (initialSetors.length > 1) {
-    var maxSetor = initialSetors.reduce(function(prev, curr){
-      return (curr.amount > prev.amount) ? curr : prev;
+    var latestSetor = initialSetors.reduce(function(prev, curr){
+      if((curr.date || '') > (prev.date || '')) return curr;
+      if((curr.date || '') === (prev.date || '') && (curr.id || 0) > (prev.id || 0)) return curr;
+      return prev;
     }, initialSetors[0]);
     manualMutations = manualMutations.filter(function(r){
       if ((r.type === 'SETOR' || r.type === 'TOPUP') && 
           (r.ket && (r.ket.indexOf('Setoran Awal') !== -1 || r.ket.indexOf('Modal Awal') !== -1))) {
-        return r.id === maxSetor.id;
+        return r.id === latestSetor.id;
       }
       return true;
     });
@@ -460,6 +516,33 @@ function _makeTxSig(t){
 function _mergeDatasets(localObj, cloudObj){
   var local = localObj || {};
   var cloud = cloudObj || {};
+
+  var localTime = new Date(local.savedAt || local.updatedAt || 0).getTime();
+  var cloudTime = new Date(cloud.savedAt || cloud.updatedAt || 0).getTime();
+
+  // Jika salah satu sisi secara eksplisit lebih baru (> 10 detik bedanya), prioritaskan dataset yang lebih baru agar transaksi yang dihapus/diubah pengguna tidak ditumpuk ulang secara bertentangan
+  var isLocalMuchNewer = localTime > 0 && (localTime - cloudTime > 10000);
+  var isCloudMuchNewer = cloudTime > 0 && (cloudTime - localTime > 10000);
+
+  if (isLocalMuchNewer && Array.isArray(local.transactions) && local.transactions.length >= 0) {
+    return Object.assign({}, cloud, local, {
+      transactions: local.transactions,
+      dividends: local.dividends || cloud.dividends || [],
+      rdnMutations: local.rdnMutations || cloud.rdnMutations || [],
+      cryptoTx: local.cryptoTx || cloud.cryptoTx || [],
+      rdTx: local.rdTx || cloud.rdTx || []
+    });
+  }
+
+  if (isCloudMuchNewer && Array.isArray(cloud.transactions) && cloud.transactions.length >= 0) {
+    return Object.assign({}, local, cloud, {
+      transactions: cloud.transactions,
+      dividends: cloud.dividends || local.dividends || [],
+      rdnMutations: cloud.rdnMutations || local.rdnMutations || [],
+      cryptoTx: cloud.cryptoTx || local.cryptoTx || [],
+      rdTx: cloud.rdTx || local.rdTx || []
+    });
+  }
 
   // 1. Merge Transactions (Saham BUY / SELL) — preserve every transaction from both local & cloud
   var txMap = new Map();
@@ -1627,15 +1710,22 @@ function closeBackupModal(){
   closeSettingsHub();
 }
 
+var _saveStatusTimer = null;
 function showSaveStatus(msg, color, persist){
   var bar = el('save-status-bar');
   if(!bar) return;
+  if(_saveStatusTimer){
+    clearTimeout(_saveStatusTimer);
+    _saveStatusTimer = null;
+  }
   bar.textContent = msg;
   bar.style.color = color || 'var(--green)';
   bar.style.opacity = '1';
-  if(!persist){
-    setTimeout(function(){ bar.style.opacity = '0'; }, 2500);
-  }
+  var duration = persist ? 4500 : 2500;
+  _saveStatusTimer = setTimeout(function(){
+    bar.style.opacity = '0';
+    setTimeout(function(){ if(bar.style.opacity === '0') bar.textContent = ''; }, 600);
+  }, duration);
 }
 
 // ============================================================

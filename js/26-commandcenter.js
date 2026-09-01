@@ -318,18 +318,188 @@ function getAiActionRecommendations() {
   return actions;
 }
 
+// ── Opportunity Radar Universe State & Cache ──
+var RADAR_STATE = {
+  activeTab: 'screener', // 'screener' | 'scanner' | 'flow-trail' | 'corporate-actions'
+  search: '',
+  index: 'ALL',
+  sector: 'ALL',
+  zone: 'ALL',
+  flow: 'ALL',
+  sort: 'score',
+  order: 'desc',
+  page: 1,
+  pageSize: 25,
+  items: [],
+  summary: { totalUniverse: 958, buyZoneCount: 20, watchlistCount: 14, avoidCount: 5, corpActionCount: 30, lq45Count: 48 },
+  accData: null,
+  accTimeframe: '1D',
+  flowTicker: 'BBCA',
+  flowTimeframe: '1D',
+  flowData: null,
+  corpData: null,
+  corpFilter: 'ALL',
+  isLoading: false,
+  lastUpdated: null
+};
+
 /**
- * Opportunity Radar Universe (Buy Zone >=80, Watch 70-79, Avoid <50)
+ * Opportunity Radar Universe (Supports Live Backend + Fast In-Memory Fallback)
  */
 function getOpportunityRadarItems() {
+  if (RADAR_STATE.items && RADAR_STATE.items.length > 0) {
+    return RADAR_STATE.items;
+  }
   return [
-    { ticker: 'BBCA', name: 'Bank Central Asia', score: 91, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+18.5%', pe: '21.4x', roe: '22.4%', flow: 'Strong Accumulation', verdict: 'Strong Buy', cat: 'Value / Quality' },
-    { ticker: 'ANTM', name: 'Aneka Tambang', score: 87, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+24.2%', pe: '11.8x', roe: '16.5%', flow: 'High Institutional Volume', verdict: 'Accumulate', cat: 'Growth / Momentum' },
+    { ticker: 'ADRO', name: 'Adaro Energy Indonesia', score: 95, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+32.0%', pe: '4.8x', roe: '24.5%', flow: 'High Dividend Inflow', verdict: 'Strong Buy', cat: 'Deep Value & Yield', corporateActions: [{ type: 'DIVIDEN', title: 'Dividen Rp 400', date: '2026-09-18' }] },
+    { ticker: 'BBCA', name: 'Bank Central Asia', score: 91, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+18.5%', pe: '21.4x', roe: '22.4%', flow: 'Strong Accumulation', verdict: 'Strong Buy', cat: 'Quality Large Cap', corporateActions: [{ type: 'DIVIDEN', title: 'Dividen Rp 120', date: '2026-09-15' }] },
+    { ticker: 'ANTM', name: 'Aneka Tambang', score: 87, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+24.2%', pe: '11.8x', roe: '16.5%', flow: 'High Institutional Volume', verdict: 'Accumulate', cat: 'Growth / Commodity' },
+    { ticker: 'BBRI', name: 'Bank Rakyat Indonesia', score: 88, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+26.0%', pe: '10.8x', roe: '19.8%', flow: 'Institutional Inflow', verdict: 'Strong Buy', cat: 'High ROE Banking' },
     { ticker: 'TLKM', name: 'Telkom Indonesia', score: 83, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+21.0%', pe: '13.2x', roe: '18.2%', flow: 'Moderate Inflow', verdict: 'Value Buy', cat: 'Dividend / Defensive' },
+    { ticker: 'ITMG', name: 'Indo Tambangraya Megah', score: 87, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+24.0%', pe: '5.2x', roe: '28.0%', flow: 'High Dividend Inflow', verdict: 'Accumulate', cat: 'Energy Yield', corporateActions: [{ type: 'DIVIDEN', title: 'Dividen Rp 1.250', date: '2026-09-20' }] },
     { ticker: 'BMRI', name: 'Bank Mandiri', score: 74, zone: 'WATCH', zoneClass: 'b-amb', mos: '+8.4%', pe: '10.5x', roe: '20.1%', flow: 'Neutral Distribution', verdict: 'Hold / Trim', cat: 'Quality Large Cap' },
     { ticker: 'ASII', name: 'Astra International', score: 71, zone: 'WATCH', zoneClass: 'b-amb', mos: '+12.0%', pe: '7.2x', roe: '14.8%', flow: 'Consolidation', verdict: 'Watch Support', cat: 'Deep Value' },
     { ticker: 'GOTO', name: 'GoTo Gojek Tokopedia', score: 46, zone: 'AVOID', zoneClass: 'b-dn', mos: '-15.4%', pe: 'N/A', roe: '-8.2%', flow: 'Foreign Outflow', verdict: 'Avoid / Sell', cat: 'Speculative Tech' }
   ];
+}
+
+/**
+ * Fetch Universe Opportunity Radar from API
+ */
+async function loadOpportunityRadarUniverse(force) {
+  if (RADAR_STATE.isLoading) return;
+  if (!force && RADAR_STATE.items.length > 0 && RADAR_STATE.lastUpdated && (Date.now() - RADAR_STATE.lastUpdated < 60000)) {
+    return;
+  }
+
+  RADAR_STATE.isLoading = true;
+  var queryParams = new URLSearchParams({
+    search: RADAR_STATE.search || '',
+    index: RADAR_STATE.index || 'ALL',
+    sector: RADAR_STATE.sector || 'ALL',
+    zone: RADAR_STATE.zone || 'ALL',
+    sort: RADAR_STATE.sort || 'score',
+    order: RADAR_STATE.order || 'desc',
+    limit: '250'
+  });
+
+  try {
+    var res = await fetch('/api/idx/opportunity-radar?' + queryParams.toString());
+    var data = await res.json();
+    if (data && data.success && Array.isArray(data.items)) {
+      RADAR_STATE.items = data.items;
+      RADAR_STATE.summary = data.summary || RADAR_STATE.summary;
+      RADAR_STATE.lastUpdated = Date.now();
+    }
+  } catch (err) {
+    console.warn('[Opportunity Radar Fetch Warning]', err);
+  } finally {
+    RADAR_STATE.isLoading = false;
+  }
+}
+
+/**
+ * Fetch Accumulation / Distribution Scanner Data
+ */
+async function loadAccumulationDistributionData(tf) {
+  var timeframe = tf || RADAR_STATE.accTimeframe || '1D';
+  RADAR_STATE.accTimeframe = timeframe;
+  try {
+    var res = await fetch('/api/idx/accumulation-distribution?timeframe=' + encodeURIComponent(timeframe));
+    var data = await res.json();
+    if (data && data.success) {
+      RADAR_STATE.accData = data;
+      return data;
+    }
+  } catch (err) {
+    console.warn('[Acc/Dist Scanner Fetch Warning]', err);
+  }
+  return null;
+}
+
+/**
+ * Fetch Transaction Flow Visualizer Data for Ticker
+ */
+async function loadTransactionFlowData(ticker, tf) {
+  var tk = (ticker || RADAR_STATE.flowTicker || 'BBCA').toUpperCase().trim();
+  var timeframe = tf || RADAR_STATE.flowTimeframe || '1D';
+  RADAR_STATE.flowTicker = tk;
+  RADAR_STATE.flowTimeframe = timeframe;
+
+  try {
+    var res = await fetch('/api/idx/flow-trail/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(timeframe));
+    var data = await res.json();
+    if (data && data.success) {
+      RADAR_STATE.flowData = data;
+      return data;
+    }
+  } catch (err) {
+    console.warn('[Flow Trail Fetch Warning]', err);
+  }
+  return null;
+}
+
+/**
+ * Fetch Corporate Actions Calendar Data
+ */
+async function loadCorporateActionsData(filter) {
+  var type = filter || RADAR_STATE.corpFilter || 'ALL';
+  RADAR_STATE.corpFilter = type;
+  try {
+    var res = await fetch('/api/idx/calendar' + (type !== 'ALL' ? '?type=' + encodeURIComponent(type) : ''));
+    var data = await res.json();
+    if (data && data.success) {
+      RADAR_STATE.corpData = data;
+      return data;
+    }
+  } catch (err) {
+    console.warn('[Corporate Actions Fetch Warning]', err);
+  }
+  return null;
+}
+
+/**
+ * Helper to Switch Radar Subtabs
+ */
+function setRadarSubTab(tabName) {
+  RADAR_STATE.activeTab = tabName || 'screener';
+  renderOpportunityRadarPage();
+  if (tabName === 'scanner') {
+    loadAccumulationDistributionData(RADAR_STATE.accTimeframe).then(function() {
+      renderOpportunityRadarPage();
+    });
+  } else if (tabName === 'flow-trail') {
+    loadTransactionFlowData(RADAR_STATE.flowTicker, RADAR_STATE.flowTimeframe).then(function() {
+      renderOpportunityRadarPage();
+    });
+  } else if (tabName === 'corporate-actions') {
+    loadCorporateActionsData(RADAR_STATE.corpFilter).then(function() {
+      renderOpportunityRadarPage();
+    });
+  }
+}
+
+/**
+ * Helper to select ticker for Transaction Flow Visualizer
+ */
+function selectRadarFlowTicker(tk) {
+  RADAR_STATE.flowTicker = (tk || 'BBCA').toUpperCase().trim();
+  RADAR_STATE.activeTab = 'flow-trail';
+  renderOpportunityRadarPage();
+  loadTransactionFlowData(RADAR_STATE.flowTicker, RADAR_STATE.flowTimeframe).then(function() {
+    renderOpportunityRadarPage();
+  });
+}
+
+/**
+ * Helper to change radar filter in-page
+ */
+function updateRadarFilter(key, val) {
+  RADAR_STATE[key] = val;
+  RADAR_STATE.page = 1;
+  loadOpportunityRadarUniverse(true).then(function() {
+    renderOpportunityRadarPage();
+  });
 }
 
 /**
@@ -630,17 +800,25 @@ function renderOpportunityRadarWidget() {
     + '<div class="card-head-between">'
       + '<div class="card-title-group">'
         + '<i class="ti ti-radar" style="color:var(--accent)"></i>'
-        + '<span class="card-title">OPPORTUNITY RADAR</span>'
+        + '<span class="card-title">OPPORTUNITY RADAR (950+ IDX UNIVERSE)</span>'
+        + '<span class="badge b-up" style="font-size:10px">' + (RADAR_STATE.summary.buyZoneCount || 20) + ' Buy Zone</span>'
       + '</div>'
-      + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\')">Lihat Radar Lengkap →</button>'
+      + '<div style="display:flex;gap:6px">'
+        + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\');setRadarSubTab(\'scanner\');">🌊 Scanner Flow</button>'
+        + '<button class="btn btn-primary btn-xs" onclick="goPage(\'radar\');setRadarSubTab(\'screener\');">Lihat Radar Lengkap →</button>'
+      + '</div>'
     + '</div>'
     + '<div class="radar-preview-grid">';
 
   items.slice(0, 4).forEach(function(it) {
-    html += '<div class="radar-mini-card" onclick="goPage(\'stock-intel\');if(typeof selectStockIntelTicker===\'function\')selectStockIntelTicker(\'' + it.ticker + '\');">'
+    var corpTag = (it.corporateActions && it.corporateActions.length > 0)
+      ? '<span class="badge b-accent" style="font-size:8px;padding:1px 4px" title="' + it.corporateActions[0].title + '">📅 ' + it.corporateActions[0].type + '</span>'
+      : '';
+
+    html += '<div class="radar-mini-card" onclick="goPage(\'radar\');selectRadarFlowTicker(\'' + it.ticker + '\');">'
       + '<div class="rmc-top">'
-        + '<div class="rmc-ticker">' + it.ticker + '</div>'
-        + '<span class="badge ' + it.zoneClass + '" style="font-size:9px">' + it.zone + '</span>'
+        + '<div style="display:flex;align-items:center;gap:4px"><div class="rmc-ticker">' + it.ticker + '</div>' + corpTag + '</div>'
+        + '<span class="badge ' + (it.zoneClass || 'b-up') + '" style="font-size:9px">' + it.zone + '</span>'
       + '</div>'
       + '<div class="rmc-score-wrap">'
         + '<span class="rmc-score-val">' + it.score + '</span>'
@@ -648,9 +826,9 @@ function renderOpportunityRadarWidget() {
       + '</div>'
       + '<div class="rmc-stats">'
         + '<div><span>MoS:</span> <strong class="up">' + it.mos + '</strong></div>'
-        + '<div><span>PE:</span> <strong>' + it.pe + '</strong></div>'
+        + '<div><span>PE:</span> <strong>' + (it.pe || 'N/A') + '</strong></div>'
       + '</div>'
-      + '<div class="rmc-verdict">' + it.verdict + '</div>'
+      + '<div class="rmc-verdict">' + (it.flow || it.verdict) + '</div>'
     + '</div>';
   });
 
@@ -676,7 +854,7 @@ function renderMarketRegimePage() {
     + '<div class="metric" style="border-left:3px solid var(--green)">'
       + '<div class="mlabel">STATUS MARKET REGIME</div>'
       + '<div class="mval up" style="font-size:24px">🟢 ' + r.status + '</div>'
-      + '<div class="msub up">Kondisi Makro Kondusif</div>'
+      + '<div class="msub up">Strategi: ' + r.strategy + '</div>'
     + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">REKOMENDASI ALOKASI EKUITAS</div>'
@@ -696,21 +874,21 @@ function renderMarketRegimePage() {
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
         + '<div style="font-size:11px;color:var(--text3);font-weight:700">1. TREN IHSG &amp; MOVING AVERAGE</div>'
         + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--green)">Bullish (Above MA50 &amp; MA200)</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">IHSG 6.845, resistance terdekat 6.920, support kuat 6.780.</div>'
+        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">IHSG ' + r.ihsgVal + ' (' + (r.ihsgChg >= 0 ? '+' : '') + r.ihsgChg + '%), support 6.780, resist 6.920.</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
         + '<div style="font-size:11px;color:var(--text3);font-weight:700">2. FOREIGN CAPITAL FLOW</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--green)">Net Inflow (+Rp 342.5B)</div>'
+        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--green)">Net Inflow (+Rp ' + r.foreignFlow + 'B)</div>'
         + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Arus dana asing terakumulasi di Big 4 Banks &amp; Komoditas.</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
         + '<div style="font-size:11px;color:var(--text3);font-weight:700">3. MARKET BREADTH &amp; ADVANCE/DECLINE</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--accent)">Broad Participation (1.48x)</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">284 saham menguat berbanding 192 saham melemah.</div>'
+        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--accent)">Broad Participation (' + r.breadthRatio + 'x)</div>'
+        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">' + r.breadthAdv + ' saham menguat berbanding ' + r.breadthDec + ' melemah.</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-        + '<div style="font-size:11px;color:var(--text3);font-weight:700">4. VOLATILITAS &amp; SENTIMEN GLOBAL</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--green)">Low Risk (VIX 12.4)</div>'
+        + '<div style="font-size:11px;color:var(--text3);font-weight:700">4. VOLATILITAS &amp; SENTIMEN PASAR</div>'
+        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--green)">' + r.volatility + '</div>'
         + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Kondisi pasar stabil tanpa tekanan likuiditas ekstrem.</div>'
       + '</div>'
     + '</div>'
@@ -720,52 +898,594 @@ function renderMarketRegimePage() {
 }
 
 /**
- * Render Full Opportunity Radar Page
+ * Render Full Opportunity Radar Page with Subtabs
  */
 function renderOpportunityRadarPage() {
   var c = el('page-radar');
   if (!c) return;
 
-  var items = getOpportunityRadarItems();
+  // Trigger background universe loading on first visit
+  if (RADAR_STATE.items.length === 0 && !RADAR_STATE.isLoading) {
+    loadOpportunityRadarUniverse();
+  }
+
+  var activeTab = RADAR_STATE.activeTab || 'screener';
+  var sum = RADAR_STATE.summary || { totalUniverse: 958, buyZoneCount: 20, watchlistCount: 14, corpActionCount: 30 };
 
   var html = '<div style="margin-bottom:16px">'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-radar" style="color:var(--accent)"></i> Opportunity Radar</div>'
-    + '<div class="psub">Pemeringkatan peluang saham berdasarkan gabungan skor Fundamental MoS, Smart Money Flow, Trend Momentum, dan Risk/Reward.</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
+      + '<div>'
+        + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-radar" style="color:var(--accent)"></i> Opportunity Radar (950+ Saham BEI)</div>'
+        + '<div class="psub">Sistem evaluasi cerdas multi-faktor: Margin of Safety (35%), Bandarmology Flow (35%), ROE/Quality (20%), dan Momentum (10%) untuk seluruh emiten IHSG.</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:8px">'
+        + '<button class="btn btn-ghost btn-xs" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData();loadCorporateActionsData();showSaveStatus(\'✓ Data Radar diperbarui\');">🔄 Refresh Feed</button>'
+        + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\')">🚀 Buka StockChat Cockpit →</button>'
+      + '</div>'
+    + '</div>'
   + '</div>'
 
-  + '<div class="card" style="padding:0;overflow:hidden">'
-    + '<table class="tbl">'
-      + '<thead><tr>'
-        + '<th>Ticker &amp; Nama Saham</th>'
-        + '<th style="text-align:center">Radar Score</th>'
-        + '<th>Zona Klasifikasi</th>'
-        + '<th style="text-align:right">Margin of Safety</th>'
-        + '<th style="text-align:right">P/E Ratio</th>'
-        + '<th style="text-align:right">ROE</th>'
-        + '<th>Smart Money Flow</th>'
-        + '<th>AI Verdict</th>'
-        + '<th style="text-align:center">Aksi</th>'
-      + '</tr></thead>'
-      + '<tbody>';
+  // Summary Metrics Banner
+  + '<div class="row4" style="margin-bottom:16px">'
+    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+      + '<div class="mlabel">TOTAL STOCK UNIVERSE</div>'
+      + '<div class="mval mono" style="font-size:22px">' + (sum.totalUniverse || 958) + '</div>'
+      + '<div class="msub neu">Seluruh Emiten BEI / IDX</div>'
+    + '</div>'
+    + '<div class="metric" style="border-left:3px solid var(--green)">'
+      + '<div class="mlabel">BUY ZONE CANDIDATES</div>'
+      + '<div class="mval up mono" style="font-size:22px">' + (sum.buyZoneCount || 20) + '</div>'
+      + '<div class="msub up">Composite Score ≥ 80</div>'
+    + '</div>'
+    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+      + '<div class="mlabel">AKUMULASI SMART MONEY</div>'
+      + '<div class="mval mono" style="font-size:22px;color:var(--blue)">' + (RADAR_STATE.accData?.counts?.accumulation || 15) + '</div>'
+      + '<div class="msub neu">Inflow Dominan Bandar</div>'
+    + '</div>'
+    + '<div class="metric" style="border-left:3px solid var(--amber)">'
+      + '<div class="mlabel">AKSI KORPORASI AKTIF</div>'
+      + '<div class="mval amb mono" style="font-size:22px">' + (sum.corpActionCount || 30) + '</div>'
+      + '<div class="msub neu">Dividen / Split / Rights / RUPS</div>'
+    + '</div>'
+  + '</div>'
 
-  items.forEach(function(it) {
+  // In-Page Subtab Navigation
+  + '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px">'
+    + '<button class="btn btn-xs ' + (activeTab === 'screener' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'screener\')"><i class="ti ti-layout-grid"></i> 🎯 Radar Screener (950+)</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'scanner' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'scanner\')"><i class="ti ti-chart-arrows"></i> 🌊 Scanner Akumulasi &amp; Distribusi</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'flow-trail' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'flow-trail\')"><i class="ti ti-timeline"></i> ⚡ Visualisasi Alur Transaksi</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'corporate-actions' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'corporate-actions\')"><i class="ti ti-calendar-event"></i> 📅 Kalender Aksi Korporasi &amp; Dividen</button>'
+  + '</div>';
+
+  // Render Active Subtab Content
+  if (activeTab === 'screener') {
+    html += renderRadarScreenerSubTab();
+  } else if (activeTab === 'scanner') {
+    html += renderRadarScannerSubTab();
+  } else if (activeTab === 'flow-trail') {
+    html += renderRadarFlowTrailSubTab();
+  } else if (activeTab === 'corporate-actions') {
+    html += renderRadarCorporateActionsSubTab();
+  }
+
+  c.innerHTML = html;
+}
+
+/**
+ * Subtab 1: Radar Universe Screener (950+ Saham)
+ */
+function renderRadarScreenerSubTab() {
+  var items = getOpportunityRadarItems();
+
+  // In-page Filter & Search Bar
+  var html = '<div class="card" style="padding:14px;margin-bottom:14px">'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:center">'
+      + '<div>'
+        + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Cari Kode / Nama Saham</label>'
+        + '<input type="text" class="form-input" style="width:100%;height:32px;font-size:12px" placeholder="Contoh: BBCA, ANTM, ADRO..." value="' + (RADAR_STATE.search || '') + '" oninput="updateRadarFilter(\'search\', this.value)">'
+      + '</div>'
+      + '<div>'
+        + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Indeks Saham</label>'
+        + '<select class="form-select" style="width:100%;height:32px;font-size:12px" onchange="updateRadarFilter(\'index\', this.value)">'
+          + '<option value="ALL"' + (RADAR_STATE.index === 'ALL' ? ' selected' : '') + '>Semua Indeks (950+)</option>'
+          + '<option value="LQ45"' + (RADAR_STATE.index === 'LQ45' ? ' selected' : '') + '>LQ45 (45 Bluechips)</option>'
+          + '<option value="IDX30"' + (RADAR_STATE.index === 'IDX30' ? ' selected' : '') + '>IDX30 (30 Terlikuid)</option>'
+          + '<option value="KOMPAS100"' + (RADAR_STATE.index === 'KOMPAS100' ? ' selected' : '') + '>KOMPAS100</option>'
+          + '<option value="SRI-KEHATI"' + (RADAR_STATE.index === 'SRI-KEHATI' ? ' selected' : '') + '>SRI-KEHATI (ESG)</option>'
+          + '<option value="ISSI"' + (RADAR_STATE.index === 'ISSI' ? ' selected' : '') + '>ISSI (Syariah)</option>'
+        + '</select>'
+      + '</div>'
+      + '<div>'
+        + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Zona Radar</label>'
+        + '<select class="form-select" style="width:100%;height:32px;font-size:12px" onchange="updateRadarFilter(\'zone\', this.value)">'
+          + '<option value="ALL"' + (RADAR_STATE.zone === 'ALL' ? ' selected' : '') + '>Semua Zona</option>'
+          + '<option value="BUY ZONE"' + (RADAR_STATE.zone === 'BUY ZONE' ? ' selected' : '') + '>🟢 BUY ZONE (Score ≥80)</option>'
+          + '<option value="WATCHLIST"' + (RADAR_STATE.zone === 'WATCHLIST' ? ' selected' : '') + '>🟡 WATCHLIST (Score 70-79)</option>'
+          + '<option value="NEUTRAL"' + (RADAR_STATE.zone === 'NEUTRAL' ? ' selected' : '') + '>⚪ NEUTRAL (Score 50-69)</option>'
+          + '<option value="AVOID"' + (RADAR_STATE.zone === 'AVOID' ? ' selected' : '') + '>🔴 AVOID (Score &lt;50)</option>'
+        + '</select>'
+      + '</div>'
+      + '<div>'
+        + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Urutkan Berdasarkan</label>'
+        + '<select class="form-select" style="width:100%;height:32px;font-size:12px" onchange="updateRadarFilter(\'sort\', this.value)">'
+          + '<option value="score"' + (RADAR_STATE.sort === 'score' ? ' selected' : '') + '>Radar Composite Score</option>'
+          + '<option value="mos"' + (RADAR_STATE.sort === 'mos' ? ' selected' : '') + '>Margin of Safety (%)</option>'
+          + '<option value="roe"' + (RADAR_STATE.sort === 'roe' ? ' selected' : '') + '>Return on Equity (ROE)</option>'
+          + '<option value="pe"' + (RADAR_STATE.sort === 'pe' ? ' selected' : '') + '>P/E Ratio Terendah</option>'
+          + '<option value="ticker"' + (RADAR_STATE.sort === 'ticker' ? ' selected' : '') + '>Kode Ticker (A-Z)</option>'
+        + '</select>'
+      + '</div>'
+    + '</div>'
+  + '</div>'
+
+  // Screener Table Card
+  + '<div class="card" style="padding:0;overflow:hidden">'
+    + '<div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">'
+      + '<span style="font-size:12px;color:var(--text2);font-weight:600">Menampilkan ' + items.length + ' kandidat saham terevaluasi</span>'
+      + '<span style="font-size:11px;color:var(--text3)">Formula: 35% MoS + 35% Flow + 20% ROE + 10% Momentum</span>'
+    + '</div>'
+    + '<div style="overflow-x:auto">'
+      + '<table class="tbl">'
+        + '<thead><tr>'
+          + '<th>Ticker &amp; Nama Emiten</th>'
+          + '<th style="text-align:center">Radar Score</th>'
+          + '<th>Zona Klasifikasi</th>'
+          + '<th style="text-align:right">Harga Saat Ini</th>'
+          + '<th style="text-align:right">Margin of Safety</th>'
+          + '<th style="text-align:right">P/E</th>'
+          + '<th style="text-align:right">ROE</th>'
+          + '<th>Bandarmology Flow</th>'
+          + '<th>Aksi Korporasi</th>'
+          + '<th style="text-align:center">Aksi &amp; Detail</th>'
+        + '</tr></thead>'
+        + '<tbody>';
+
+  if (items.length === 0) {
+    html += '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text3)">Tidak ada saham yang sesuai dengan filter pencarian.</td></tr>';
+  } else {
+    items.forEach(function(it) {
+      var corpBadge = '-';
+      if (it.corporateActions && it.corporateActions.length > 0) {
+        var ca = it.corporateActions[0];
+        corpBadge = '<span class="badge b-accent" style="font-size:10px" title="' + (ca.details || ca.title) + '">📅 ' + ca.type + ' (' + ca.date + ')</span>';
+      }
+
+      var mosVal = parseFloat(it.mos || '0');
+      var mosClass = mosVal >= 0 ? 'up' : 'dn';
+
+      html += '<tr>'
+        + '<td>'
+          + '<div style="display:flex;align-items:center;gap:6px">'
+            + '<strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong>'
+            + (it.isLQ45 ? '<span class="badge b-up" style="font-size:9px;padding:1px 4px">LQ45</span>' : '')
+          + '</div>'
+          + '<div style="color:var(--text3);font-size:11px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.name + '</div>'
+        + '</td>'
+        + '<td style="text-align:center">'
+          + '<span class="mono" style="font-size:15px;font-weight:800;color:var(--accent)">' + it.score + '</span><span style="font-size:10px;color:var(--text3)">/100</span>'
+        + '</td>'
+        + '<td><span class="badge ' + (it.zoneClass || 'b-up') + '">' + it.zone + '</span></td>'
+        + '<td class="mono" style="text-align:right;font-weight:600">Rp ' + Number(it.price || 0).toLocaleString('id-ID') + '</td>'
+        + '<td class="mono ' + mosClass + '" style="text-align:right;font-weight:700">' + it.mos + '</td>'
+        + '<td class="mono" style="text-align:right">' + (it.pe || 'N/A') + '</td>'
+        + '<td class="mono" style="text-align:right">' + (it.roe || 'N/A') + '</td>'
+        + '<td><span style="font-size:11px;color:var(--text2)">' + (it.flow || 'Normal Flow') + '</span></td>'
+        + '<td>' + corpBadge + '</td>'
+        + '<td style="text-align:center;white-space:nowrap">'
+          + '<div style="display:inline-flex;gap:4px">'
+            + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi &amp; Bandar"><i class="ti ti-timeline"></i> Alur</button>'
+            + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\');if(typeof selectStockIntelTicker===\'function\')selectStockIntelTicker(\'' + it.ticker + '\');" title="Buka Cockpit Analisis Lengkap">Cockpit →</button>'
+          + '</div>'
+        + '</td>'
+      + '</tr>';
+    });
+  }
+
+  html += '</tbody></table></div></div>';
+  return html;
+}
+
+/**
+ * Subtab 2: Universe-Wide Accumulation & Distribution Scanner
+ */
+function renderRadarScannerSubTab() {
+  var accData = RADAR_STATE.accData;
+  if (!accData) {
+    loadAccumulationDistributionData();
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)"><i class="ti ti-loader animate-spin"></i> Memuat data scanner akumulasi &amp; distribusi seluruh IHSG...</div>';
+  }
+
+  var accList = accData.accumulation || [];
+  var distList = accData.distribution || [];
+  var tf = RADAR_STATE.accTimeframe || '1D';
+
+  var html = '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+    + '<div>'
+      + '<div style="font-weight:700;font-size:13px;color:var(--text)">Pemindaian Smart Money &amp; Retail Absorption Seluruh BEI</div>'
+      + '<div style="font-size:11px;color:var(--text3)">Mendeteksi anomali akumulasi bandar tersembunyi dan distribusi institusi besar.</div>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+      + '<span style="font-size:11px;color:var(--text3)">Timeframe:</span>'
+      + '<div style="display:inline-flex;gap:4px">'
+        + '<button class="btn btn-xs ' + (tf === '1D' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'1D\').then(renderOpportunityRadarPage)">1D</button>'
+        + '<button class="btn btn-xs ' + (tf === '3D' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'3D\').then(renderOpportunityRadarPage)">3D</button>'
+        + '<button class="btn btn-xs ' + (tf === '5D' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'5D\').then(renderOpportunityRadarPage)">5D</button>'
+        + '<button class="btn btn-xs ' + (tf === '20D' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'20D\').then(renderOpportunityRadarPage)">20D</button>'
+      + '</div>'
+    + '</div>'
+  + '</div>'
+
+  + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">'
+    // Column 1: Top Accumulation
+    + '<div class="card" style="padding:0;overflow:hidden">'
+      + '<div style="padding:12px 16px;background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.2);display:flex;justify-content:space-between;align-items:center">'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+          + '<i class="ti ti-arrow-big-up-lines" style="color:var(--green);font-size:18px"></i>'
+          + '<strong style="color:var(--green);font-size:13px">TOP AKUMULASI (SMART MONEY INFLOW)</strong>'
+        + '</div>'
+        + '<span class="badge b-up">' + accList.length + ' Saham</span>'
+      + '</div>'
+      + '<div style="overflow-x:auto">'
+        + '<table class="tbl">'
+          + '<thead><tr>'
+            + '<th>Ticker</th>'
+            + '<th>Verdict Bandar</th>'
+            + '<th style="text-align:right">Smart Inflow</th>'
+            + '<th style="text-align:right">Foreign Net</th>'
+            + '<th style="text-align:center">Alur</th>'
+          + '</tr></thead>'
+          + '<tbody>';
+
+  accList.forEach(function(it, idx) {
+    var inflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
+    var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
+    var verdictClass = it.bandarVerdict.includes('BIG') ? 'b-up' : 'b-accent';
+
     html += '<tr>'
-      + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong> <span style="color:var(--text3);font-size:11px">' + it.name + '</span></td>'
-      + '<td style="text-align:center"><span class="mono" style="font-size:14px;font-weight:800;color:var(--accent)">' + it.score + '</span><span style="font-size:10px;color:var(--text3)">/100</span></td>'
-      + '<td><span class="badge ' + it.zoneClass + '">' + it.zone + '</span></td>'
-      + '<td class="mono up" style="text-align:right;font-weight:700">' + it.mos + '</td>'
-      + '<td class="mono" style="text-align:right">' + it.pe + '</td>'
-      + '<td class="mono" style="text-align:right">' + it.roe + '</td>'
-      + '<td><span style="font-size:11px;color:var(--text2)">' + it.flow + '</span></td>'
-      + '<td><strong style="color:var(--text)">' + it.verdict + '</strong></td>'
+      + '<td>'
+        + '<strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong>'
+        + '<div style="font-size:10px;color:var(--text3)">Top Buy: ' + (it.topBuyers ? it.topBuyers.join(', ') : '-') + '</div>'
+      + '</td>'
+      + '<td><span class="badge ' + verdictClass + '" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
+      + '<td class="mono up" style="text-align:right;font-weight:700">+Rp ' + inflowM.toLocaleString('id-ID') + ' M</td>'
+      + '<td class="mono ' + (foreignM >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (foreignM >= 0 ? '+' : '') + foreignM.toLocaleString('id-ID') + ' M</td>'
       + '<td style="text-align:center">'
-        + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\');if(typeof selectStockIntelTicker===\'function\')selectStockIntelTicker(\'' + it.ticker + '\');">Cockpit →</button>'
+        + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">⚡</button>'
       + '</td>'
     + '</tr>';
   });
 
-  html += '</tbody></table></div>';
-  c.innerHTML = html;
+  html += '</tbody></table></div></div>'
+
+    // Column 2: Top Distribution
+    + '<div class="card" style="padding:0;overflow:hidden">'
+      + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);display:flex;justify-content:space-between;align-items:center">'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+          + '<i class="ti ti-arrow-big-down-lines" style="color:var(--red);font-size:18px"></i>'
+          + '<strong style="color:var(--red);font-size:13px">TOP DISTRIBUSI (TEKANAN JUAL / RETAIL TRAP)</strong>'
+        + '</div>'
+        + '<span class="badge b-dn">' + distList.length + ' Saham</span>'
+      + '</div>'
+      + '<div style="overflow-x:auto">'
+        + '<table class="tbl">'
+          + '<thead><tr>'
+            + '<th>Ticker</th>'
+            + '<th>Verdict Bandar</th>'
+            + '<th style="text-align:right">Tekanan Jual</th>'
+            + '<th style="text-align:right">Foreign Net</th>'
+            + '<th style="text-align:center">Alur</th>'
+          + '</tr></thead>'
+          + '<tbody>';
+
+  distList.forEach(function(it, idx) {
+    var outflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
+    var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
+
+    html += '<tr>'
+      + '<td>'
+        + '<strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong>'
+        + '<div style="font-size:10px;color:var(--text3)">Top Sell: ' + (it.topSellers ? it.topSellers.join(', ') : '-') + '</div>'
+      + '</td>'
+      + '<td><span class="badge b-dn" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
+      + '<td class="mono dn" style="text-align:right;font-weight:700">-Rp ' + Math.abs(outflowM).toLocaleString('id-ID') + ' M</td>'
+      + '<td class="mono dn" style="text-align:right">' + foreignM.toLocaleString('id-ID') + ' M</td>'
+      + '<td style="text-align:center">'
+        + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">⚡</button>'
+      + '</td>'
+    + '</tr>';
+  });
+
+  html += '</tbody></table></div></div></div>';
+  return html;
+}
+
+/**
+ * Subtab 3: Interactive Transaction Flow Visualizer per Ticker
+ */
+function renderRadarFlowTrailSubTab() {
+  var flow = RADAR_STATE.flowData;
+  var currentTicker = RADAR_STATE.flowTicker || 'BBCA';
+
+  if (!flow || flow.ticker !== currentTicker) {
+    loadTransactionFlowData(currentTicker, RADAR_STATE.flowTimeframe);
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)"><i class="ti ti-loader animate-spin"></i> Memuat visualisasi alur transaksi untuk <strong>' + currentTicker + '</strong>...</div>';
+  }
+
+  var popularTickers = ['BBCA', 'BBRI', 'BMRI', 'ANTM', 'ADRO', 'ADMR', 'ARCI', 'ITMG', 'TLKM', 'MDKA', 'HRUM', 'GOTO', 'GMFI', 'PTRO'];
+  var bSummary = flow.brokerSummary || {};
+  var bBandar = bSummary.bandarmology || {};
+  var timeline = flow.flowTimeline || [];
+
+  var html = '<div class="card" style="padding:14px;margin-bottom:14px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<span style="font-size:12px;font-weight:700;color:var(--text)">Pilih Emiten:</span>'
+        + '<div style="display:flex;gap:4px;flex-wrap:wrap">'
+          + popularTickers.map(function(tk) {
+            return '<button class="btn btn-xs ' + (tk === currentTicker ? 'btn-primary' : 'btn-ghost') + '" onclick="selectRadarFlowTicker(\'' + tk + '\')">' + tk + '</button>';
+          }).join('')
+        + '</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<input type="text" id="flow-custom-ticker" class="form-input" style="width:90px;height:28px;font-size:11px;text-transform:uppercase" placeholder="KODE LAIN" onkeydown="if(event.key===\'Enter\')selectRadarFlowTicker(this.value)">'
+        + '<button class="btn btn-primary btn-xs" onclick="selectRadarFlowTicker(el(\'flow-custom-ticker\').value)">Cari</button>'
+      + '</div>'
+    + '</div>'
+  + '</div>'
+
+  // Header Ticker Flow Profile
+  + '<div class="card" style="padding:18px;margin-bottom:16px;background:var(--bg2);border:1px solid var(--border2)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
+      + '<div>'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+          + '<h2 style="font-size:22px;font-weight:800;color:var(--text);margin:0">' + flow.ticker + '</h2>'
+          + '<span class="badge b-up">' + flow.companyName + '</span>'
+          + '<span class="badge ' + (bBandar.verdict?.includes('ACCUM') ? 'b-up' : 'b-dn') + '">' + (bBandar.verdict || 'NORMAL FLOW') + '</span>'
+        + '</div>'
+        + '<div style="font-size:12px;color:var(--text3);margin-top:4px">Harga Saat Ini: <strong style="color:var(--text)">Rp ' + Number(flow.currentPrice || 0).toLocaleString('id-ID') + '</strong> · Sektor: ' + flow.sector + '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:12px;align-items:center">'
+        + '<div style="text-align:right;background:var(--bg3);padding:8px 14px;border-radius:8px;border:1px solid var(--border2)">'
+          + '<div style="font-size:10px;color:var(--text3);font-weight:700">ESTIMASI BANDAR AVG COST</div>'
+          + '<div class="mono" style="font-size:18px;font-weight:800;color:var(--accent)">Rp ' + Number(flow.bandarAvgCost || flow.currentPrice).toLocaleString('id-ID') + '</div>'
+          + '<div style="font-size:10px" class="' + (flow.bandarProfitPercent >= 0 ? 'up' : 'dn') + '">Margin: ' + (flow.bandarProfitPercent >= 0 ? '+' : '') + flow.bandarProfitPercent + '%</div>'
+        + '</div>'
+        + '<button class="btn btn-primary" onclick="goPage(\'stock-intel\');if(typeof selectStockIntelTicker===\'function\')selectStockIntelTicker(\'' + flow.ticker + '\');">Buka Cockpit AI →</button>'
+      + '</div>'
+    + '</div>'
+  + '</div>'
+
+  // Flow Visualizer Grid: 10-Session Flow Timeline & Top Broker Comparison
+  + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px">'
+    // Left: 10-Session Inflow / Outflow Flow Trail Timeline
+    + '<div class="card" style="padding:16px">'
+      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px"><i class="ti ti-timeline"></i> Alur Akumulasi Smart Money 10 Sesi Terakhir</div>'
+      + '<div style="display:flex;flex-direction:column;gap:8px">'
+        + timeline.map(function(t, idx) {
+          var isPositive = t.smartMoneyDailyRp >= 0;
+          var inM = Math.round(t.smartMoneyDailyRp / 1000000000);
+          var cumM = Math.round(t.smartMoneyCumulativeRp / 1000000000);
+          var barPct = Math.min(100, Math.max(10, Math.abs(inM) * 3));
+
+          return '<div style="display:flex;align-items:center;gap:8px;font-size:11px">'
+            + '<span class="mono" style="width:75px;color:var(--text3)">' + t.date + '</span>'
+            + '<span class="mono" style="width:55px;text-align:right">Rp ' + Number(t.price).toLocaleString('id-ID') + '</span>'
+            + '<div style="flex:1;background:var(--bg3);height:14px;border-radius:3px;overflow:hidden;position:relative">'
+              + '<div style="height:100%;width:' + barPct + '%;background:' + (isPositive ? 'var(--green)' : 'var(--red)') + ';border-radius:3px"></div>'
+            + '</div>'
+            + '<span class="mono ' + (isPositive ? 'up' : 'dn') + '" style="width:70px;text-align:right;font-weight:700">' + (isPositive ? '+' : '') + inM + ' M</span>'
+            + '<span class="mono" style="width:75px;text-align:right;color:var(--text3)" title="Kumulatif">Σ ' + cumM + ' M</span>'
+          + '</div>';
+        }).join('')
+      + '</div>'
+    + '</div>'
+
+    // Right: Top Buyers vs Sellers Broker Matrix
+    + '<div class="card" style="padding:16px">'
+      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px"><i class="ti ti-users"></i> Top 5 Broker Accumulator vs Distributor</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+        + '<div>'
+          + '<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">TOP BUYERS (AKUMULATOR)</div>'
+          + (bSummary.topBuyers || []).slice(0, 5).map(function(b) {
+            var valM = Math.round(b.valueRp / 1000000000);
+            return '<div style="background:var(--bg3);padding:6px 8px;border-radius:6px;margin-bottom:6px;border-left:3px solid var(--green)">'
+              + '<div style="display:flex;justify-content:space-between;align-items:center">'
+                + '<strong style="color:var(--text)">' + b.broker + ' <span style="font-size:9px;color:var(--text3)">(' + b.type + ')</span></strong>'
+                + '<span class="mono up" style="font-weight:700;font-size:11px">Rp ' + valM + ' M</span>'
+              + '</div>'
+              + '<div style="font-size:10px;color:var(--text3);display:flex;justify-content:space-between;margin-top:2px">'
+                + '<span>' + Number(b.volumeLot).toLocaleString('id-ID') + ' lot</span>'
+                + '<span>Avg: Rp ' + Number(b.avgPrice).toLocaleString('id-ID') + '</span>'
+              + '</div>'
+            + '</div>';
+          }).join('')
+        + '</div>'
+        + '<div>'
+          + '<div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">TOP SELLERS (DISTRIBUTOR)</div>'
+          + (bSummary.topSellers || []).slice(0, 5).map(function(b) {
+            var valM = Math.round(b.valueRp / 1000000000);
+            return '<div style="background:var(--bg3);padding:6px 8px;border-radius:6px;margin-bottom:6px;border-left:3px solid var(--red)">'
+              + '<div style="display:flex;justify-content:space-between;align-items:center">'
+                + '<strong style="color:var(--text)">' + b.broker + ' <span style="font-size:9px;color:var(--text3)">(' + b.type + ')</span></strong>'
+                + '<span class="mono dn" style="font-weight:700;font-size:11px">Rp ' + valM + ' M</span>'
+              + '</div>'
+              + '<div style="font-size:10px;color:var(--text3);display:flex;justify-content:space-between;margin-top:2px">'
+                + '<span>' + Number(b.volumeLot).toLocaleString('id-ID') + ' lot</span>'
+                + '<span>Avg: Rp ' + Number(b.avgPrice).toLocaleString('id-ID') + '</span>'
+              + '</div>'
+            + '</div>';
+          }).join('')
+        + '</div>'
+      + '</div>'
+    + '</div>'
+  + '</div>'
+
+  // Active Corporate Actions Timeline for this Ticker
+  + '<div class="card" style="padding:16px">'
+    + '<div class="ctitle" style="font-size:13px;margin-bottom:10px"><i class="ti ti-calendar"></i> Aksi Korporasi Terjadwal untuk ' + flow.ticker + '</div>'
+    + ((flow.corporateActions && flow.corporateActions.length > 0)
+      ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">'
+          + flow.corporateActions.map(function(ca) {
+            return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px">'
+              + '<div style="display:flex;justify-content:space-between;align-items:center">'
+                + '<span class="badge b-accent" style="font-size:10px">' + ca.type + '</span>'
+                + '<span class="mono" style="font-size:11px;color:var(--text3)">' + ca.date + '</span>'
+              + '</div>'
+              + '<strong style="font-size:12px;color:var(--text);display:block;margin-top:4px">' + ca.title + '</strong>'
+              + '<div style="font-size:11px;color:var(--text2);margin-top:2px">' + (ca.details || '-') + '</div>'
+            + '</div>';
+          }).join('')
+        + '</div>'
+      : '<div style="font-size:12px;color:var(--text3)">Tidak ada aksi korporasi terdekat yang dicatatkan untuk emiten ini.</div>'
+    )
+  + '</div>';
+
+  return html;
+}
+
+/**
+ * Subtab 4: Corporate Actions Calendar (Dividends, Splits, Rights Issue, RUPS, Suspensions)
+ */
+function renderRadarCorporateActionsSubTab() {
+  var corpData = RADAR_STATE.corpData;
+  if (!corpData) {
+    loadCorporateActionsData();
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)"><i class="ti ti-loader animate-spin"></i> Memuat Kalender Aksi Korporasi Seluruh BEI...</div>';
+  }
+
+  var activeFilter = RADAR_STATE.corpFilter || 'ALL';
+  var divs = corpData.dividends || [];
+  var splits = corpData.stockSplits || [];
+  var rights = corpData.rightsIssues || [];
+  var rups = corpData.rups || [];
+  var susps = corpData.suspensions || [];
+
+  var html = '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+    + '<div>'
+      + '<div style="font-weight:700;font-size:13px;color:var(--text)">Kalender Aksi Korporasi Bursa Efek Indonesia (IDX)</div>'
+      + '<div style="font-size:11px;color:var(--text3)">Jadwal Dividen Tunai, Stock Split, Rights Issue, RUPS, dan Status Suspensi/UMA.</div>'
+    + '</div>'
+    + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
+      + '<button class="btn btn-xs ' + (activeFilter === 'ALL' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'ALL\').then(renderOpportunityRadarPage)">Semua (' + (divs.length + splits.length + rights.length + rups.length + susps.length) + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'DIVIDEN' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'DIVIDEN\').then(renderOpportunityRadarPage)">💰 Dividen (' + divs.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'SPLIT' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'SPLIT\').then(renderOpportunityRadarPage)">✂️ Stock Split (' + splits.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'RIGHTS' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'RIGHTS\').then(renderOpportunityRadarPage)">📜 Rights Issue (' + rights.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'RUPS' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'RUPS\').then(renderOpportunityRadarPage)">🏛️ RUPS (' + rups.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'SUSPENSI' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'SUSPENSI\').then(renderOpportunityRadarPage)">⚠️ Suspensi (' + susps.length + ')</button>'
+    + '</div>'
+  + '</div>';
+
+  // Section 1: Upcoming Dividends
+  if (activeFilter === 'ALL' || activeFilter === 'DIVIDEN') {
+    html += '<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">'
+      + '<div style="padding:12px 16px;background:rgba(56,189,248,0.08);border-bottom:1px solid rgba(56,189,248,0.2);display:flex;justify-content:space-between;align-items:center">'
+        + '<strong style="color:var(--accent);font-size:13px">💰 KALENDER DIVIDEN TUNAI (CASH DIVIDEND)</strong>'
+        + '<span class="badge b-accent">' + divs.length + ' Emiten</span>'
+      + '</div>'
+      + '<div style="overflow-x:auto">'
+        + '<table class="tbl">'
+          + '<thead><tr>'
+            + '<th>Ticker &amp; Nama Emiten</th>'
+            + '<th style="text-align:right">DPS (Rp / Lbr)</th>'
+            + '<th style="text-align:right">Est. Dividend Yield</th>'
+            + '<th style="text-align:center">Cum Date</th>'
+            + '<th style="text-align:center">Ex Date</th>'
+            + '<th style="text-align:center">Payment Date</th>'
+            + '<th style="text-align:center">Aksi</th>'
+          + '</tr></thead>'
+          + '<tbody>'
+            + divs.map(function(d) {
+              return '<tr>'
+                + '<td><strong style="color:var(--text);font-size:13px">' + d.ticker + '</strong> <span style="font-size:11px;color:var(--text3)">' + d.name + '</span></td>'
+                + '<td class="mono up" style="text-align:right;font-weight:700">Rp ' + d.dps + '</td>'
+                + '<td class="mono up" style="text-align:right;font-weight:700">' + d.yield + '</td>'
+                + '<td class="mono" style="text-align:center">' + d.cumDate + '</td>'
+                + '<td class="mono" style="text-align:center">' + d.exDate + '</td>'
+                + '<td class="mono" style="text-align:center">' + d.paymentDate + '</td>'
+                + '<td style="text-align:center">'
+                  + '<button class="btn btn-primary btn-xs" onclick="selectRadarFlowTicker(\'' + d.ticker + '\')">⚡ Alur Transaksi</button>'
+                + '</td>'
+              + '</tr>';
+            }).join('')
+          + '</tbody>'
+        + '</table>'
+      + '</div>'
+    + '</div>';
+  }
+
+  // Section 2: Stock Splits & Rights Issues
+  if (activeFilter === 'ALL' || activeFilter === 'SPLIT' || activeFilter === 'RIGHTS') {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px">';
+
+    if (activeFilter === 'ALL' || activeFilter === 'SPLIT') {
+      html += '<div class="card" style="padding:0;overflow:hidden">'
+        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">✂️ JADWAL STOCK SPLIT &amp; REVERSE SPLIT</div>'
+        + '<table class="tbl"><thead><tr><th>Ticker</th><th>Rasio</th><th>Effective Date</th></tr></thead><tbody>'
+          + splits.map(function(s) {
+            return '<tr>'
+              + '<td><strong>' + s.ticker + '</strong> <div style="font-size:10px;color:var(--text3)">' + s.name + '</div></td>'
+              + '<td class="mono up" style="font-weight:700">' + s.ratio + '</td>'
+              + '<td class="mono">' + s.effectiveDate + '</td>'
+            + '</tr>';
+          }).join('')
+        + '</tbody></table></div>';
+    }
+
+    if (activeFilter === 'ALL' || activeFilter === 'RIGHTS') {
+      html += '<div class="card" style="padding:0;overflow:hidden">'
+        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">📜 JADWAL RIGHTS ISSUE (HMETD)</div>'
+        + '<table class="tbl"><thead><tr><th>Ticker</th><th>Rasio</th><th>Harga Tebus</th><th>Cum Date</th></tr></thead><tbody>'
+          + rights.map(function(r) {
+            return '<tr>'
+              + '<td><strong>' + r.ticker + '</strong> <div style="font-size:10px;color:var(--text3)">' + r.name + '</div></td>'
+              + '<td class="mono">' + r.ratio + '</td>'
+              + '<td class="mono up" style="font-weight:700">Rp ' + r.exercisePrice + '</td>'
+              + '<td class="mono">' + r.cumDate + '</td>'
+            + '</tr>';
+          }).join('')
+        + '</tbody></table></div>';
+    }
+
+    html += '</div>';
+  }
+
+  // Section 3: RUPS & Suspensions
+  if (activeFilter === 'ALL' || activeFilter === 'RUPS' || activeFilter === 'SUSPENSI') {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">';
+
+    if (activeFilter === 'ALL' || activeFilter === 'RUPS') {
+      html += '<div class="card" style="padding:0;overflow:hidden">'
+        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">🏛️ JADWAL RUPS / EGMS</div>'
+        + '<table class="tbl"><thead><tr><th>Ticker &amp; Jenis</th><th>Tanggal</th><th>Agenda &amp; Lokasi</th></tr></thead><tbody>'
+          + rups.map(function(u) {
+            return '<tr>'
+              + '<td><strong>' + u.ticker + '</strong> <div class="badge b-accent" style="font-size:9px">' + u.type + '</div></td>'
+              + '<td class="mono">' + u.date + '</td>'
+              + '<td style="font-size:11px;color:var(--text2)">' + u.agenda + '<div style="color:var(--text3);font-size:10px">📍 ' + u.venue + '</div></td>'
+            + '</tr>';
+          }).join('')
+        + '</tbody></table></div>';
+    }
+
+    if (activeFilter === 'ALL' || activeFilter === 'SUSPENSI') {
+      html += '<div class="card" style="padding:0;overflow:hidden">'
+        + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);color:var(--red);font-weight:700;font-size:13px">⚠️ STATUS SUSPENSI &amp; UNUSUAL MARKET ACTIVITY (UMA)</div>'
+        + '<table class="tbl"><thead><tr><th>Ticker</th><th>Status</th><th>Tanggal Suspensi</th><th>Alasan</th></tr></thead><tbody>'
+          + susps.map(function(sp) {
+            return '<tr>'
+              + '<td><strong>' + sp.ticker + '</strong> <div style="font-size:10px;color:var(--text3)">' + sp.name + '</div></td>'
+              + '<td><span class="badge ' + (sp.status.includes('SUSPEN') ? 'b-dn' : 'b-amb') + '" style="font-size:9px">' + sp.status + '</span></td>'
+              + '<td class="mono">' + sp.date + '</td>'
+              + '<td style="font-size:11px;color:var(--text2)">' + sp.reason + '</td>'
+            + '</tr>';
+          }).join('')
+        + '</tbody></table></div>';
+    }
+
+    html += '</div>';
+  }
+
+  return html;
 }
 
 /**
@@ -830,3 +1550,11 @@ window.renderMarketRegimePage = renderMarketRegimePage;
 window.renderOpportunityRadarPage = renderOpportunityRadarPage;
 window.renderDataConnPage = renderDataConnPage;
 window.renderDataConnectionPage = renderDataConnPage;
+window.setRadarSubTab = setRadarSubTab;
+window.selectRadarFlowTicker = selectRadarFlowTicker;
+window.updateRadarFilter = updateRadarFilter;
+window.loadOpportunityRadarUniverse = loadOpportunityRadarUniverse;
+window.loadAccumulationDistributionData = loadAccumulationDistributionData;
+window.loadTransactionFlowData = loadTransactionFlowData;
+window.loadCorporateActionsData = loadCorporateActionsData;
+window.RADAR_STATE = RADAR_STATE;

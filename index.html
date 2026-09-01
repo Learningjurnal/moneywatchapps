@@ -14,6 +14,26 @@
 <script src="js/00-config.js?v=20260813j"></script>
 <!-- Font sesuai invezgo.com: Figtree untuk judul/angka besar, Inter untuk isi — dibaca langsung dari computed style situsnya --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Figtree:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          slate: {
+            950: '#070a12',
+            900: '#0B0F19',
+            850: '#0F1626',
+            800: '#131B2E',
+            700: '#232F4D',
+            600: '#334155'
+          }
+        }
+      }
+    }
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -115,7 +135,7 @@
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:12px">
     <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Buka/tutup menu navigasi">☰</button>
-    <div class="logo" style="display:flex;align-items:center;gap:7px">
+    <div class="logo" style="display:flex;align-items:center;gap:7px;cursor:pointer" onclick="goPage('dashboard')">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="2" width="20" height="20" rx="4" stroke="#3B82F6" stroke-width="1.5"/>
         <path d="M7 14 L10 10 L13 13 L17 8" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -129,9 +149,22 @@
       <span class="ibar-chg" id="tb-chg"></span>
     </div>
     <div class="live" style="margin-left:2px"><div class="dot"></div>LIVE</div>
+    
+    <!-- AI Status Indicator -->
+    <div class="hide-mobile" style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--accent);background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:20px;padding:2px 8px">
+      <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981"></span>
+      <span>AI Engine Live</span>
+    </div>
   </div>
 
   <div class="topbar-right" style="display:flex;align-items:center;gap:8px">
+    <!-- Global Stock & Feature Search in Header -->
+    <div class="hide-mobile" style="position:relative;display:flex;align-items:center">
+      <i class="ti ti-search" style="position:absolute;left:9px;color:var(--text3);font-size:12px;pointer-events:none"></i>
+      <input type="text" id="topbar-global-search" placeholder="Cari saham (BBCA, BBRI)..." onkeydown="if(event.key==='Enter'&&this.value.trim()){ mwSelectGlobalStock(this.value.trim()); this.value=''; }" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 28px 4px 26px;font-size:11px;font-family:var(--font-mono);color:var(--text);width:190px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <span style="position:absolute;right:6px;font-size:9px;font-family:var(--font-mono);color:var(--text3);background:var(--bg2);padding:1px 4px;border-radius:3px;border:1px solid var(--border)">Ctrl K</span>
+    </div>
+
     <span id="save-status-bar" role="status" aria-live="polite" style="font-size:9px;font-family:var(--font-mono);transition:opacity .5s;opacity:0;color:var(--green);letter-spacing:.5px;text-transform:uppercase"></span>
     
     <div class="rdn-bar" onclick="goPage('rdn')" style="cursor:pointer" title="Klik untuk kelola Kas & Mutasi RDN">
@@ -139,37 +172,22 @@
       <span class="rdn-val" id="tb-rdn">Rp 0</span>
     </div>
 
-    <button class="btn btn-ghost btn-xs" onclick="goPage('knowledge')" title="Buka Panduan Knowledge & Master Workflow Aplikasi" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(56,189,248,0.4);background:rgba(56,189,248,0.1);color:#38bdf8;padding:5px 9px;border-radius:6px">
-      <i class="ti ti-book-2" style="color:#38bdf8;font-size:13px"></i>
-      <span class="hide-mobile" style="font-weight:600">Knowledge</span>
+    <!-- Notification / Alerts Bell -->
+    <button class="btn btn-ghost btn-xs" onclick="goPage('alerts')" title="Notifikasi & Price Alerts" style="font-size:12px;position:relative;padding:5px 8px;border-radius:6px;border-color:var(--border2);color:var(--text2)">
+      <i class="ti ti-bell" style="font-size:14px"></i>
+      <span id="tb-alert-dot" style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--red);display:none"></span>
     </button>
 
-    <button class="btn btn-ghost btn-xs" onclick="mwOpenPdfReportModal()" title="Buka Laporan Konsolidasi Finansial Terpadu (Portofolio, Aset, Kas, FIRE dlm Excel/PDF/JSON)" style="font-size:11px;gap:4px;display:flex;align-items:center;border-color:var(--border2);color:var(--text);padding:5px 9px">
-      📥 <span class="hide-mobile">Laporan Konsolidasi</span>
-    </button>
-
-    <!-- UNIFIED SETTINGS & DATA HUB TOOLBAR BUTTON -->
-    <button class="btn btn-ghost btn-xs" onclick="goPage('stockchat')" title="Buka StockChat AI & Bandarmology Cockpit" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(56,189,248,0.4);background:rgba(56,189,248,0.1);color:#38bdf8;padding:5px 10px;border-radius:6px">
-      <i class="ti ti-messages" style="color:#38bdf8;font-size:13px"></i>
-      <span class="hide-mobile" style="font-weight:600">StockChat AI</span>
-      <span style="width:6px;height:6px;border-radius:50%;background:#10b981;margin-left:2px" title="Bandarmology & Broker Flow Engine Aktif"></span>
-    </button>
-
-    <button class="btn btn-ghost btn-xs" onclick="IDX_PIPELINE.openIdxHubModal()" title="Buka Ringkasan Data IDX & Kalender Aksi Korporasi" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(14,165,233,0.4);background:rgba(14,165,233,0.1);color:#0284c7;padding:5px 9px;border-radius:6px">
-      <i class="ti ti-activity" style="color:#0284c7;font-size:13px"></i>
-      <span class="hide-mobile" style="font-weight:600">IDX Data Hub</span>
-    </button>
-
+    <!-- UNIFIED SETTINGS HUB BUTTON -->
     <button class="btn btn-ghost btn-xs" id="btn-settings-hub" onclick="openSettingsHub()" title="Buka Pusat Pengaturan & Data Hub (Cloud, Feed, Tampilan, Pajak, Audit, Akun)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:var(--text);padding:5px 10px;border-radius:6px">
       <i class="ti ti-settings" style="color:var(--accent);font-size:13px"></i>
       <span style="font-weight:600">Pengaturan &amp; Data</span>
       <span id="sh-topbar-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:2px" title="Firebase Cloud &amp; Live Feed Aktif"></span>
     </button>
 
-
     <div class="clock hide-mobile" id="clock">--:--:--</div>
 
-    <!-- Session info -->
+    <!-- Session info / Profile -->
     <div id="session-info" style="display:none;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer" onclick="openSettingsHub('account')">
       <span style="color:var(--green)">●</span>
       <span id="session-user" style="color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
@@ -200,89 +218,96 @@
     </div>
   </div>
   <div class="side-nav-scroll" id="side-nav-scroll">
-  <button class="on" onclick="goPage('dashboard',this)" style="margin-top:2px"><i class="ti ti-layout-grid" style="color:var(--accent)"></i><span class="side-label">Hub Portofolio</span></button>
-  <button onclick="goPage('daily-brief',this)"><i class="ti ti-sun" style="color:var(--amber)"></i><span class="side-label">Daily Brief</span></button>
-  <button onclick="goPage('knowledge',this)"><i class="ti ti-book-2" style="color:#38bdf8"></i><span class="side-label">Knowledge</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">MASTER GUIDE</span></button>
-  <div class="side-group open" data-group="portofolio">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-briefcase"></i><span class="side-label">Portofolio &amp; Aset</span><span class="side-chevron">▾</span></button>
+
+  <!-- 1. HOME -->
+  <div class="side-group open" data-group="home">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-home" style="color:var(--accent)"></i><span class="side-label">HOME</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('portofolio',this)"><i class="ti ti-chart-line" style="color:#10b981"></i><span class="side-label">Saham Indonesia</span></button>
-      <button onclick="goPage('crypto',this)"><i class="ti ti-currency-bitcoin" style="color:#f7931a"></i><span class="side-label">Crypto Assets</span></button>
-      <button onclick="goPage('etf',this)"><i class="ti ti-world" style="color:#00c8ff"></i><span class="side-label">ETF US &amp; Global</span></button>
-      <button onclick="goPage('reksadana',this)"><i class="ti ti-building-bank" style="color:#8070d2"></i><span class="side-label">Reksa Dana &amp; SBN</span></button>
-      <button onclick="goPage('performance',this)"><i class="ti ti-chart-histogram"></i><span class="side-label">Performance &amp; TWR</span></button>
-      <button onclick="goPage('transaksi',this)"><i class="ti ti-receipt-2"></i><span class="side-label">Riwayat Transaksi</span></button>
-      <button onclick="goPage('dividen',this)"><i class="ti ti-cash"></i><span class="side-label">Dividen &amp; Yield</span></button>
-      <button onclick="goPage('rebalance',this)"><i class="ti ti-scale" style="color:#00c8ff"></i><span class="side-label">Rebalancing Portofolio</span></button>
+      <button onclick="goPage('daily-brief',this)"><i class="ti ti-sun" style="color:var(--amber)"></i><span class="side-label">Market Pulse</span></button>
+      <button onclick="goPage('radar',this)"><i class="ti ti-target" style="color:var(--accent)"></i><span class="side-label">AI Opportunity Radar</span></button>
+      <button class="on" onclick="goPage('dashboard',this)"><i class="ti ti-layout-grid" style="color:var(--green)"></i><span class="side-label">Portfolio Snapshot</span></button>
+      <button id="side-btn-alerts" onclick="goPage('alerts',this)"><i class="ti ti-bell" style="color:var(--red)"></i><span class="side-label">Alerts</span><span id="side-alert-badge" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px;display:none">0</span></button>
     </div>
   </div>
 
-  <div class="side-group open has-active" data-group="research">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope" style="color:#3B82F6"></i><span class="side-label">Riset &amp; Intelijen</span><span class="side-chevron">▾</span></button>
+  <!-- 2. INTELLIGENCE -->
+  <div class="side-group open" data-group="intelligence">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope" style="color:#38bdf8"></i><span class="side-label">INTELLIGENCE</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('stock-intel',this)" class="active"><i class="ti ti-radar" style="color:#00c8ff"></i><span class="side-label">Stock Intelligence</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">COCKPIT</span></button>
-      <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine" style="color:#00c8ff"></i><span class="side-label">TradeWave PRO</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">WAVE RADAR</span></button>
-      <button onclick="IDX_PIPELINE.openIdxHubModal()" id="side-btn-idx"><i class="ti ti-activity" style="color:#0284c7"></i><span class="side-label">IDX Data Hub</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">950+ EMITEN</span></button>
-      <button onclick="openKseiModal()" id="side-btn-ksei"><i class="ti ti-users-group" style="color:#10b981"></i><span class="side-label">Kepemilikan KSEI</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">FREE FLOAT</span></button>
-      <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank" style="color:#3B82F6"></i><span class="side-label">Fundamental Suite</span></button>
-      <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle" style="color:#8B5CF6"></i><span class="side-label">Technical &amp; Flow</span></button>
-      <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin" style="color:#f7931a"></i><span class="side-label">Crypto Technical &amp; Whale</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">WHALE &amp; SIG</span></button>
-      <button onclick="goPage('flowscan',this)"><i class="ti ti-flame" style="color:#f97316"></i><span class="side-label">Smart Money Flow</span></button>
-      <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuasi Harga Wajar</span></button>
-      <button onclick="goPage('screener',this)"><i class="ti ti-filter"></i><span class="side-label">Screener LQ45</span></button>
+      <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar" style="color:#00c8ff"></i><span class="side-label">Stock Intelligence</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">COCKPIT</span></button>
+      <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine" style="color:#00c8ff"></i><span class="side-label">Research</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">PRO</span></button>
+      <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank" style="color:#3B82F6"></i><span class="side-label">Fundamental</span></button>
+      <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle" style="color:#8B5CF6"></i><span class="side-label">Technical</span></button>
+      <button onclick="goPage('flowscan',this)"><i class="ti ti-flame" style="color:#f97316"></i><span class="side-label">Smart Money</span></button>
+      <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator" style="color:#10b981"></i><span class="side-label">Valuation</span></button>
+      <button onclick="goPage('ranking',this)"><i class="ti ti-trophy" style="color:#eab308"></i><span class="side-label">Market Radar</span></button>
     </div>
   </div>
 
-  <div class="side-group open" data-group="market">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-world"></i><span class="side-label">Pasar &amp; Alerts</span><span class="side-chevron">▾</span></button>
+  <!-- 3. STOCKCHAT AI -->
+  <div class="side-group open" data-group="stockchat">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-messages" style="color:#38bdf8"></i><span class="side-label">STOCKCHAT AI</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button id="side-btn-alerts" onclick="goPage('alerts',this)"><i class="ti ti-bell" style="color:var(--amber)"></i><span class="side-label">Price Alerts &amp; Targets</span><span id="side-alert-badge" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px;display:none">0</span></button>
-      <button onclick="goPage('market-regime',this)"><i class="ti ti-compass" style="color:var(--green)"></i><span class="side-label">Market Regime</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">BULL</span></button>
-      <button onclick="goPage('radar',this)"><i class="ti ti-target" style="color:var(--accent)"></i><span class="side-label">Opportunity Radar</span></button>
-      <button onclick="goPage('heatmap',this)"><i class="ti ti-layout-grid"></i><span class="side-label">Heatmap &amp; Sektor</span></button>
-      <button onclick="goPage('ranking',this)"><i class="ti ti-trophy"></i><span class="side-label">Market Rankings</span></button>
+      <button onclick="goPage('stockchat',this)"><i class="ti ti-terminal-2" style="color:#38bdf8"></i><span class="side-label">Standalone AI Research Terminal</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">AI</span></button>
     </div>
   </div>
 
-  <div class="side-group open" data-group="quant">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-brain"></i><span class="side-label">Quant &amp; Simulasi</span><span class="side-chevron">▾</span></button>
+  <!-- 4. BANDARMOLOGY COCKPIT -->
+  <div class="side-group open" data-group="bandarmology">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-chart-arrows" style="color:#10b981"></i><span class="side-label">BANDARMOLOGY COCKPIT</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('scenario',this)"><i class="ti ti-variable" style="color:#38bdf8"></i><span class="side-label">Scenario Engine</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">WHAT-IF</span></button>
-      <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Correlation Matrix</span></button>
-      <button onclick="goPage('backtester',this)"><i class="ti ti-history"></i><span class="side-label">Backtester Strategi</span></button>
-      <button onclick="goPage('monthly-returns',this)"><i class="ti ti-calendar"></i><span class="side-label">Monthly Seasonality</span></button>
+      <button onclick="goBandarmology('market-flow',this)"><i class="ti ti-world-download" style="color:#38bdf8"></i><span class="side-label">Market Flow</span></button>
+      <button onclick="goBandarmology('broker-flow',this)"><i class="ti ti-arrows-diff" style="color:#10b981"></i><span class="side-label">Broker Flow</span></button>
+      <button onclick="goBandarmology('foreign-flow',this)"><i class="ti ti-coin" style="color:#f59e0b"></i><span class="side-label">Foreign Flow</span></button>
+      <button onclick="goBandarmology('accumulation',this)"><i class="ti ti-circle-arrow-up" style="color:#10b981"></i><span class="side-label">Accumulation</span></button>
+      <button onclick="goBandarmology('distribution',this)"><i class="ti ti-circle-arrow-down" style="color:#f43f5e"></i><span class="side-label">Distribution</span></button>
+      <button onclick="goBandarmology('smart-money-radar',this)"><i class="ti ti-radar-2" style="color:#8b5cf6"></i><span class="side-label">Smart Money Radar</span></button>
+      <button onclick="goBandarmology('broker-trail',this)"><i class="ti ti-route" style="color:#ec4899"></i><span class="side-label">Broker Trail</span></button>
     </div>
   </div>
 
+  <!-- 5. PORTFOLIO -->
+  <div class="side-group open" data-group="portfolio">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-briefcase" style="color:var(--accent)"></i><span class="side-label">PORTFOLIO</span><span class="side-chevron">▾</span></button>
+    <div class="side-group-items">
+      <button onclick="goPage('portofolio',this)"><i class="ti ti-chart-line" style="color:#10b981"></i><span class="side-label">Portfolio</span></button>
+      <button onclick="goPage('transaksi',this)"><i class="ti ti-receipt-2" style="color:#38bdf8"></i><span class="side-label">Transactions</span></button>
+      <button onclick="goPage('dividen',this)"><i class="ti ti-cash" style="color:#f59e0b"></i><span class="side-label">Dividend</span></button>
+      <button onclick="goPage('rebalance',this)"><i class="ti ti-scale" style="color:#ec4899"></i><span class="side-label">Risk</span></button>
+      <button onclick="goPage('performance',this)"><i class="ti ti-chart-histogram" style="color:#8b5cf6"></i><span class="side-label">Performance</span></button>
+    </div>
+  </div>
+
+  <!-- 6. WEALTH -->
   <div class="side-group open" data-group="wealth">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-diamond"></i><span class="side-label">Wealth &amp; Net Worth</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-diamond" style="color:#a855f7"></i><span class="side-label">WEALTH</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('wealth',this)"><i class="ti ti-report-money"></i><span class="side-label">Net Worth &amp; Family Office</span></button>
-      <button onclick="goPage('rdn',this)"><i class="ti ti-building-bank"></i><span class="side-label">Kas &amp; Mutasi RDN</span></button>
-      <button onclick="goPage('pajak',this)"><i class="ti ti-receipt-tax"></i><span class="side-label">Pajak &amp; PPh Final</span></button>
+      <button onclick="goPage('wealth',this)"><i class="ti ti-report-money" style="color:#a855f7"></i><span class="side-label">Net Worth</span></button>
+      <button onclick="goPage('rdn',this)"><i class="ti ti-building-bank" style="color:#10b981"></i><span class="side-label">Cash</span></button>
+      <button onclick="goPage('wbank',this)"><i class="ti ti-building-columns" style="color:#38bdf8"></i><span class="side-label">Assets</span></button>
+      <button onclick="goPage('wdebt',this)"><i class="ti ti-credit-card-off" style="color:#f43f5e"></i><span class="side-label">Debt</span></button>
+      <button onclick="goPage('divinvest',this)"><i class="ti ti-pig-money" style="color:#f59e0b"></i><span class="side-label">Passive Income</span></button>
     </div>
   </div>
 
-  <div class="side-group open" data-group="ai">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-sparkles" style="color:#38bdf8"></i><span class="side-label">AI Intelligence</span><span class="side-chevron">▾</span></button>
+  <!-- 7. MORE -->
+  <div class="side-group open" data-group="more">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-dots" style="color:var(--text3)"></i><span class="side-label">MORE</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('stockchat',this)"><i class="ti ti-messages" style="color:#38bdf8"></i><span class="side-label">StockChat AI</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">BANDAR</span></button>
-      <button onclick="goPage('ai-trading',this)"><i class="ti ti-brain" style="color:#38bdf8"></i><span class="side-label">AI Trading Engine</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">SELF-LEARN</span></button>
-      <button onclick="goPage('copilot',this)"><i class="ti ti-message-chatbot" style="color:#38bdf8"></i><span class="side-label">AI Copilot</span></button>
-      <button onclick="goPage('thesis',this)"><i class="ti ti-clipboard-list" style="color:var(--accent)"></i><span class="side-label">Investment Thesis</span></button>
-      <button onclick="goPage('journal',this)"><i class="ti ti-book" style="color:var(--green)"></i><span class="side-label">Decision Journal</span></button>
+      <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots" style="color:#38bdf8"></i><span class="side-label">Quant Lab</span></button>
+      <button onclick="goPage('backtester',this)"><i class="ti ti-history" style="color:#8b5cf6"></i><span class="side-label">Backtester</span></button>
+      <button onclick="goPage('scenario',this)"><i class="ti ti-variable" style="color:#10b981"></i><span class="side-label">Scenario</span></button>
+      <button onclick="goPage('datahealth',this)"><i class="ti ti-stethoscope" style="color:#f43f5e"></i><span class="side-label">Data Health</span></button>
+      <button onclick="goPage('admin',this)"><i class="ti ti-user-shield" style="color:#f59e0b"></i><span class="side-label">Admin</span></button>
+      <button onclick="goPage('settings',this)"><i class="ti ti-settings" style="color:var(--accent)"></i><span class="side-label">Settings</span></button>
     </div>
   </div>
 
-  <div class="side-group open" data-group="settings">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-settings" style="color:var(--accent)"></i><span class="side-label">Pengaturan &amp; Sistem</span><span class="side-chevron">▾</span></button>
-    <div class="side-group-items">
-      <button onclick="goPage('settings',this)"><i class="ti ti-adjustments-horizontal" style="color:var(--accent)"></i><span class="side-label">Pusat Pengaturan</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">CENTRAL</span></button>
-      <button onclick="goPage('rdn-audit',this)"><i class="ti ti-history"></i><span class="side-label">Audit Log Transaksi</span></button>
-      <button onclick="goPage('datahealth',this)"><i class="ti ti-stethoscope" style="color:#f43f5e"></i><span class="side-label">Data Health &amp; Integrity</span></button>
-      <button onclick="goPage('dataconn',this)"><i class="ti ti-plug"></i><span class="side-label">Data Connection &amp; Feeds</span></button>
-    </div>
+  <!-- 8. FOOTER -->
+  <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border2)">
+    <button onclick="goPage('knowledge',this)" style="width:100%"><i class="ti ti-book-2" style="color:#38bdf8"></i><span class="side-label">Knowledge Center</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">GUIDE</span></button>
   </div>
+
   </div>
 </nav>
 
@@ -3198,7 +3223,6 @@
 <div id="page-wfire" class="page"></div>
 
 <!-- ===== V6 PERSONAL INVESTMENT OPERATING SYSTEM MODULES ===== -->
-<div id="page-knowledge" class="page"></div>
 <div id="page-daily-brief" class="page"></div>
 <div id="page-stock-intel" class="page"></div>
 <div id="page-market-regime" class="page"></div>
@@ -3209,6 +3233,7 @@
 <div id="page-journal" class="page"></div>
 <div id="page-copilot" class="page"></div>
 <div id="page-stockchat" class="page"></div>
+<div id="page-bandarmology" class="page"></div>
 <div id="page-dataconn" class="page"></div>
 
 <!-- ===== ADMIN — KELOLA DAFTAR SAHAM ===== -->

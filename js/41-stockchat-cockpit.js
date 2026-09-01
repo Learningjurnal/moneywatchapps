@@ -52,6 +52,10 @@ var STOCKCHAT_PROMPT_PRESETS = [
   {
     title: '💰 Pajak Dividen Bersih',
     prompt: 'Hitung simulasi penerimaan dividen bersih saham BBRI dengan DPS Rp 185 per lembar untuk 100 lot kepemilikan sesuai aturan pajak PPh Final.'
+  },
+  {
+    title: '📅 Aksi Korporasi & Dividen',
+    prompt: 'Tolong periksa jadwal aksi korporasi terdekat untuk saham ADRO, BBCA, dan ITMG. Berapa estimasi dividen per lembar (DPS) dan kapan batas cum-date nya?'
   }
 ];
 
@@ -762,7 +766,7 @@ function renderStockChatPage(containerId) {
   var isChatTab = STOCKCHAT_ACTIVE_TAB === 'chat';
   var isFlowTab = STOCKCHAT_ACTIVE_TAB === 'broker-flow';
 
-  var html = '<div class="max-w-6xl mx-auto space-y-5 pb-12">'
+  var html = '<div class="w-full space-y-5 pb-12 px-1 md:px-2">'
     // Top Bar & Header
     + '<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-xl backdrop-blur-md">'
     + '<div>'
@@ -916,6 +920,9 @@ function renderStockChatPage(containerId) {
 function selectStockChatTicker(tk) {
   if (!tk) return;
   STOCKCHAT_SELECTED_TICKER = tk.toUpperCase().replace(/\.JK$/i, '').trim();
+  if (window.GLOBAL_STOCK_CONTEXT && window.GLOBAL_STOCK_CONTEXT.getTicker() !== STOCKCHAT_SELECTED_TICKER) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(STOCKCHAT_SELECTED_TICKER, 'stockchat');
+  }
   renderStockChatPage();
   if (STOCKCHAT_ACTIVE_TAB === 'chat') {
     var inp = document.getElementById('stockchat-input-text');
@@ -926,6 +933,18 @@ function selectStockChatTicker(tk) {
   } else if (STOCKCHAT_ACTIVE_TAB === 'broker-flow') {
     loadAndRenderBrokerFlowTab();
   }
+}
+
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'stockchat' && tk && tk !== STOCKCHAT_SELECTED_TICKER) {
+      STOCKCHAT_SELECTED_TICKER = tk;
+      var elP = document.getElementById('page-stockchat');
+      if (elP && elP.classList.contains('on') && typeof renderStockChatPage === 'function') {
+        renderStockChatPage();
+      }
+    }
+  });
 }
 
 // Preset button handler
@@ -1075,4 +1094,529 @@ window.toggleStockChatTableSort = toggleStockChatTableSort;
 window.setStockChatTableLimit = setStockChatTableLimit;
 window.setStockChatBrokerFilter = setStockChatBrokerFilter;
 window.askAiAboutBrokerAction = askAiAboutBrokerAction;
+
+// ============================================================
+// BANDARMOLOGY COCKPIT SUITE
+// 7 Sub-Views: Market Flow, Broker Flow, Foreign Flow, Accumulation,
+// Distribution, Smart Money Radar, Broker Trail
+// ============================================================
+
+var BANDARMOLOGY_ACTIVE_TAB = 'market-flow';
+var BANDARMOLOGY_SELECTED_BROKER = 'YU';
+var BANDARMOLOGY_BROKER_LIST = [
+  { code: 'YU', name: 'CGS International Sekuritas', type: 'F', badge: 'Asing / Institusi' },
+  { code: 'AK', name: 'UBS Sekuritas Indonesia', type: 'F', badge: 'Asing / Smart Money' },
+  { code: 'ZP', name: 'Maybank Sekuritas Indonesia', type: 'F', badge: 'Asing / Institusi' },
+  { code: 'CC', name: 'Mandiri Sekuritas', type: 'D', badge: 'BUMN / Domestik' },
+  { code: 'RX', name: 'Macquarie Sekuritas Indonesia', type: 'F', badge: 'Asing / Quant' },
+  { code: 'NI', name: 'BNI Sekuritas', type: 'D', badge: 'BUMN / Domestik' },
+  { code: 'BK', name: 'J.P. Morgan Sekuritas Indonesia', type: 'F', badge: 'Asing / Bulge' },
+  { code: 'PD', name: 'Indo Premier Sekuritas', type: 'D', badge: 'Retail & Institusi' },
+  { code: 'YP', name: 'Mirae Asset Sekuritas', type: 'D', badge: 'Retail Heavy' },
+  { code: 'XC', name: 'Ajaib Sekuritas Asia', type: 'D', badge: 'Retail' },
+  { code: 'SQ', name: 'BCA Sekuritas', type: 'D', badge: 'Domestik' },
+  { code: 'GR', name: 'Panin Sekuritas', type: 'D', badge: 'Domestik' }
+];
+
+window.goBandarmology = function(subTab, btn) {
+  BANDARMOLOGY_ACTIVE_TAB = subTab || 'market-flow';
+  if (typeof goPage === 'function') {
+    goPage('bandarmology', btn);
+  }
+  renderBandarmologyCockpitPage();
+};
+
+window.setBandarmologyTab = function(subTab) {
+  BANDARMOLOGY_ACTIVE_TAB = subTab || 'market-flow';
+  renderBandarmologyCockpitPage();
+};
+
+window.setBandarmologyBroker = function(brokerCode) {
+  BANDARMOLOGY_SELECTED_BROKER = brokerCode || 'YU';
+  renderBandarmologyCockpitPage();
+};
+
+function renderBandarmologyCockpitPage(containerId) {
+  var target = document.getElementById(containerId || 'page-bandarmology');
+  if (!target) return;
+
+  var tk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
+  var tabs = [
+    { id: 'market-flow', label: 'Market Flow', icon: 'ti-world-download', desc: 'Arus Dana Pasar & IHSG' },
+    { id: 'broker-flow', label: 'Broker Flow', icon: 'ti-arrows-diff', desc: 'Top 5/10 Buyer & Seller' },
+    { id: 'foreign-flow', label: 'Foreign Flow', icon: 'ti-coin', desc: 'Arus Dana Asing Terkini' },
+    { id: 'accumulation', label: 'Accumulation', icon: 'ti-circle-arrow-up', desc: 'Radar Saham Terakumulasi' },
+    { id: 'distribution', label: 'Distribution', icon: 'ti-circle-arrow-down', desc: 'Radar Saham Terdistribusi' },
+    { id: 'smart-money-radar', label: 'Smart Money Radar', icon: 'ti-radar-2', desc: 'Whale vs Retail Footprint' },
+    { id: 'broker-trail', label: 'Broker Trail', icon: 'ti-route', desc: 'Jejak Transaksi Broker' }
+  ];
+
+  var html = '<div class="w-full space-y-5 pb-14 px-1 md:px-2">'
+    // Header Cockpit
+    + '<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 p-5 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-md">'
+    + '<div class="flex items-center gap-3.5">'
+    + '<div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-emerald-600/30">🎯</div>'
+    + '<div>'
+    + '<h1 class="text-xl md:text-2xl font-black text-white flex items-center gap-2.5">'
+    + '<span>BANDARMOLOGY COCKPIT</span>'
+    + '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">INSTITUTIONAL RADAR</span>'
+    + '</h1>'
+    + '<p class="text-xs text-slate-400 mt-0.5">Analisis Aliran Dana Bandar, Broker Summary, Foreign Flow, Konsentrasi Akumulasi &amp; Distribusi BEI</p>'
+    + '</div>'
+    + '</div>'
+    + '<div class="flex items-center gap-2 flex-wrap">'
+    + '<button onclick="openStockChat(\'' + tk + '\', \'Analisa menyeluruh bandarmology, broker summary dan foreign flow saham ' + tk + '\')" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-600/20 transition flex items-center gap-1.5">'
+    + '<i class="ti ti-messages"></i> <span>Tanya StockChat AI</span>'
+    + '</button>'
+    + '<button onclick="goPage(\'stock-intel\')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition flex items-center gap-1.5">'
+    + '<i class="ti ti-radar"></i> <span>Stock Intelligence</span>'
+    + '</button>'
+    + '</div>'
+    + '</div>';
+
+  // Sub-Navigation Tabs Bar
+  html += '<div class="bg-slate-900/80 p-1.5 rounded-xl border border-slate-800 flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-thin">'
+    + tabs.map(function(t) {
+      var isActive = BANDARMOLOGY_ACTIVE_TAB === t.id;
+      return '<button onclick="setBandarmologyTab(\'' + t.id + '\')" class="px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ' + (isActive ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/25' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60') + '">'
+        + '<i class="ti ' + t.icon + ' text-sm"></i>'
+        + '<span>' + t.label + '</span>'
+        + '</button>';
+    }).join('')
+    + '</div>';
+
+  // Ticker Quick Selector Bar (for ticker-dependent tabs)
+  if (['broker-flow', 'market-flow', 'foreign-flow', 'smart-money-radar'].includes(BANDARMOLOGY_ACTIVE_TAB)) {
+    html += '<div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap">'
+      + '<div class="flex items-center gap-2">'
+      + '<span class="text-[11px] font-semibold text-slate-400">⚡ Fokus Emiten:</span>'
+      + '<div class="flex items-center gap-1">'
+      + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(itemTk) {
+        var isAct = itemTk === tk;
+        return '<button onclick="selectStockChatTicker(\'' + itemTk + '\');renderBandarmologyCockpitPage();" class="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ' + (isAct ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50') + '">' + itemTk + '</button>';
+      }).join('')
+      + '</div>'
+      + '</div>'
+      + '<div class="flex items-center gap-1.5">'
+      + '<input id="bandar-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="w-16 px-2 py-1 text-center uppercase font-mono text-xs rounded bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);renderBandarmologyCockpitPage();this.value=\'\';}">'
+      + '<button onclick="var el=document.getElementById(\'bandar-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);renderBandarmologyCockpitPage();}" class="px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Set</button>'
+      + '</div>'
+      + '</div>';
+  }
+
+  // Content Container for Selected Tab
+  html += '<div id="bandarmology-tab-content" class="min-h-[460px]">';
+  
+  if (BANDARMOLOGY_ACTIVE_TAB === 'market-flow') {
+    html += renderBandarmologyMarketFlowView(tk);
+  } else if (BANDARMOLOGY_ACTIVE_TAB === 'broker-flow') {
+    html += '<div id="stockchat-flow-tab-content">'
+      + '<div class="p-8 text-center text-slate-400 text-xs flex items-center justify-center gap-2">'
+      + '<i class="ti ti-loader animate-spin text-emerald-400 text-lg"></i> Memuat Broker Summary ' + tk + '...'
+      + '</div>'
+      + '</div>';
+    setTimeout(loadAndRenderBrokerFlowTab, 40);
+  } else if (BANDARMOLOGY_ACTIVE_TAB === 'foreign-flow') {
+    html += renderBandarmologyForeignFlowView(tk);
+  } else if (BANDARMOLOGY_ACTIVE_TAB === 'accumulation') {
+    html += renderBandarmologyAccumulationView();
+  } else if (BANDARMOLOGY_ACTIVE_TAB === 'distribution') {
+    html += renderBandarmologyDistributionView();
+  } else if (BANDARMOLOGY_ACTIVE_TAB === 'smart-money-radar') {
+    html += renderBandarmologySmartMoneyRadarView(tk);
+  } else if (BANDARMOLOGY_ACTIVE_TAB === 'broker-trail') {
+    html += renderBandarmologyBrokerTrailView();
+  }
+
+  html += '</div></div>';
+
+  target.innerHTML = html;
+}
+
+// 1. Market Flow View
+function renderBandarmologyMarketFlowView(tk) {
+  var bigBanks = [
+    { ticker: 'BBCA', name: 'Bank Central Asia', flow: '+Rp 284.5 M', status: 'BIG ACCUMULATION', color: 'text-emerald-400', bg: 'bg-emerald-950/40', border: 'border-emerald-800/40', topBuyer: 'AK, ZP, BK' },
+    { ticker: 'BBRI', name: 'Bank Rakyat Indonesia', flow: '+Rp 195.2 M', status: 'ACCUMULATION', color: 'text-emerald-400', bg: 'bg-emerald-950/40', border: 'border-emerald-800/40', topBuyer: 'YU, CC, AK' },
+    { ticker: 'BMRI', name: 'Bank Mandiri', flow: '+Rp 142.8 M', status: 'NORMAL ACC', color: 'text-emerald-400', bg: 'bg-emerald-950/40', border: 'border-emerald-800/40', topBuyer: 'RX, YU, ZP' },
+    { ticker: 'BBNI', name: 'Bank Negara Indonesia', flow: '-Rp 38.6 M', status: 'DISTRIBUTION', color: 'text-rose-400', bg: 'bg-rose-950/40', border: 'border-rose-800/40', topBuyer: 'YP, PD (Retail)' }
+  ];
+
+  var sectors = [
+    { name: 'Financials (Perbankan)', flowVal: '+Rp 583.9 M', pct: 82, isAcc: true },
+    { name: 'Basic Materials (Tambang)', flowVal: '+Rp 192.4 M', pct: 64, isAcc: true },
+    { name: 'Energy (Minyak & Batubara)', flowVal: '+Rp 88.7 M', pct: 55, isAcc: true },
+    { name: 'Infrastructure (Telko & Toll)', flowVal: '-Rp 64.2 M', pct: 42, isAcc: false },
+    { name: 'Consumer Non-Cyclical', flowVal: '-Rp 115.0 M', pct: 35, isAcc: false }
+  ];
+
+  var html = '<div class="space-y-4">'
+    // Top Summary Metric Cards
+    + '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">'
+    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
+    + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">IHSG Bandar Pulse</div>'
+    + '<div class="text-xl font-black text-emerald-400 mt-1 flex items-center gap-1.5"><i class="ti ti-trending-up"></i> NET ACCUMULATION</div>'
+    + '<div class="text-[11px] text-slate-400 mt-0.5">+Rp 786.4 Miliar Net Bandar Inflow</div>'
+    + '</div>'
+    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
+    + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Foreign Participation</div>'
+    + '<div class="text-xl font-black text-sky-400 mt-1">42.8% <span class="text-xs font-normal text-slate-400">of Volume</span></div>'
+    + '<div class="text-[11px] text-slate-400 mt-0.5">Institusi Asing Sangat Aktif</div>'
+    + '</div>'
+    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
+    + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Big 4 Banks Inflow</div>'
+    + '<div class="text-xl font-black text-emerald-400 mt-1">+Rp 583.9 M</div>'
+    + '<div class="text-[11px] text-slate-400 mt-0.5">74.2% Konsentrasi di Big Banks</div>'
+    + '</div>'
+    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
+    + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Smart Money Dominancy</div>'
+    + '<div class="text-xl font-black text-indigo-400 mt-1">68 / 100</div>'
+    + '<div class="text-[11px] text-slate-400 mt-0.5">Institusional Kontrol Pasar</div>'
+    + '</div>'
+    + '</div>';
+
+  // Big 4 Banks Flow Section
+  html += '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
+    + '<div class="flex items-center justify-between">'
+    + '<h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5"><i class="ti ti-building-bank text-emerald-400"></i> Aliran Dana Bandar Big 4 Banks (Motor IHSG)</h3>'
+    + '<span class="text-[10px] text-slate-400 font-mono">Live Aggregation</span>'
+    + '</div>'
+    + '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">';
+
+  bigBanks.forEach(function(b) {
+    html += '<div class="p-3 rounded-lg ' + b.bg + ' border ' + b.border + ' space-y-1.5 cursor-pointer hover:opacity-90 transition" onclick="selectStockChatTicker(\'' + b.ticker + '\');setBandarmologyTab(\'broker-flow\');">'
+      + '<div class="flex items-center justify-between">'
+      + '<span class="font-bold text-white font-mono">' + b.ticker + '</span>'
+      + '<span class="text-[10px] font-bold ' + b.color + '">' + b.status + '</span>'
+      + '</div>'
+      + '<div class="text-lg font-black font-mono ' + b.color + '">' + b.flow + '</div>'
+      + '<div class="text-[10px] text-slate-400 flex items-center justify-between">'
+      + '<span>Top Buyer:</span>'
+      + '<span class="font-mono text-slate-200">' + b.topBuyer + '</span>'
+      + '</div>'
+      + '</div>';
+  });
+
+  html += '</div></div>';
+
+  // Sectoral Flow Breakdown
+  html += '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
+    + '<h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5"><i class="ti ti-layout-grid text-sky-400"></i> Distribusi Arus Dana Smart Money per Sektor</h3>'
+    + '<div class="space-y-2.5">';
+
+  sectors.forEach(function(s) {
+    var barColor = s.isAcc ? 'bg-emerald-500' : 'bg-rose-500';
+    var txtColor = s.isAcc ? 'text-emerald-400' : 'text-rose-400';
+    html += '<div class="space-y-1">'
+      + '<div class="flex items-center justify-between text-xs">'
+      + '<span class="text-slate-300 font-medium">' + s.name + '</span>'
+      + '<span class="font-mono font-bold ' + txtColor + '">' + s.flowVal + '</span>'
+      + '</div>'
+      + '<div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden">'
+      + '<div class="' + barColor + ' h-full rounded-full" style="width:' + s.pct + '%"></div>'
+      + '</div>'
+      + '</div>';
+  });
+
+  html += '</div></div></div>';
+  return html;
+}
+
+// 3. Foreign Flow View
+function renderBandarmologyForeignFlowView(tk) {
+  var topForeignBuys = [
+    { ticker: 'BBCA', netRp: '+Rp 245.8 M', sharesPct: '68%', price: 'Rp 10.250', chg: '+1.48%' },
+    { ticker: 'BMRI', netRp: '+Rp 162.3 M', sharesPct: '61%', price: 'Rp 6.850', chg: '+2.24%' },
+    { ticker: 'BBRI', netRp: '+Rp 138.9 M', sharesPct: '54%', price: 'Rp 5.125', chg: '+0.98%' },
+    { ticker: 'ANTM', netRp: '+Rp 78.4 M', sharesPct: '48%', price: 'Rp 1.620', chg: '+3.18%' },
+    { ticker: 'ASII', netRp: '+Rp 45.2 M', sharesPct: '42%', price: 'Rp 5.050', chg: '+0.50%' }
+  ];
+
+  var topForeignSells = [
+    { ticker: 'TLKM', netRp: '-Rp 82.5 M', sharesPct: '52%', price: 'Rp 3.120', chg: '-1.27%' },
+    { ticker: 'GOTO', netRp: '-Rp 48.0 M', sharesPct: '39%', price: 'Rp 54', chg: '-1.82%' },
+    { ticker: 'UNVR', netRp: '-Rp 34.6 M', sharesPct: '45%', price: 'Rp 2.450', chg: '-0.81%' },
+    { ticker: 'BBNI', netRp: '-Rp 28.3 M', sharesPct: '40%', price: 'Rp 5.350', chg: '-0.46%' }
+  ];
+
+  var html = '<div class="space-y-4">'
+    + '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">'
+    // Top Foreign Buys
+    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-emerald-900/40 shadow-md space-y-3">'
+    + '<div class="flex items-center justify-between border-b border-emerald-900/40 pb-2">'
+    + '<h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5"><i class="ti ti-arrow-up-right"></i> Top 5 Foreign Net Buy (Akumulasi Asing)</h3>'
+    + '<span class="text-[10px] text-emerald-300/80 font-mono">INFLOW</span>'
+    + '</div>'
+    + '<div class="divide-y divide-slate-800/60">';
+
+  topForeignBuys.forEach(function(item) {
+    html += '<div class="py-2.5 flex items-center justify-between hover:bg-slate-800/40 px-1.5 rounded transition cursor-pointer" onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');">'
+      + '<div>'
+      + '<div class="flex items-center gap-2">'
+      + '<span class="font-bold text-white font-mono">' + item.ticker + '</span>'
+      + '<span class="text-[10px] text-emerald-400 font-mono">' + item.chg + '</span>'
+      + '</div>'
+      + '<div class="text-[10px] text-slate-400">Porsi Asing: ' + item.sharesPct + '</div>'
+      + '</div>'
+      + '<div class="text-right">'
+      + '<div class="font-black font-mono text-emerald-400">' + item.netRp + '</div>'
+      + '<div class="text-[10px] text-slate-400 font-mono">' + item.price + '</div>'
+      + '</div>'
+      + '</div>';
+  });
+
+  html += '</div></div>';
+
+  // Top Foreign Sells
+  html += '<div class="bg-slate-900/90 p-4 rounded-xl border border-rose-900/40 shadow-md space-y-3">'
+    + '<div class="flex items-center justify-between border-b border-rose-900/40 pb-2">'
+    + '<h3 class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5"><i class="ti ti-arrow-down-right"></i> Top Foreign Net Sell (Distribusi Asing)</h3>'
+    + '<span class="text-[10px] text-rose-300/80 font-mono">OUTFLOW</span>'
+    + '</div>'
+    + '<div class="divide-y divide-slate-800/60">';
+
+  topForeignSells.forEach(function(item) {
+    html += '<div class="py-2.5 flex items-center justify-between hover:bg-slate-800/40 px-1.5 rounded transition cursor-pointer" onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');">'
+      + '<div>'
+      + '<div class="flex items-center gap-2">'
+      + '<span class="font-bold text-white font-mono">' + item.ticker + '</span>'
+      + '<span class="text-[10px] text-rose-400 font-mono">' + item.chg + '</span>'
+      + '</div>'
+      + '<div class="text-[10px] text-slate-400">Porsi Asing: ' + item.sharesPct + '</div>'
+      + '</div>'
+      + '<div class="text-right">'
+      + '<div class="font-black font-mono text-rose-400">' + item.netRp + '</div>'
+      + '<div class="text-[10px] text-slate-400 font-mono">' + item.price + '</div>'
+      + '</div>'
+      + '</div>';
+  });
+
+  html += '</div></div></div></div>';
+  return html;
+}
+
+// 4. Accumulation View
+function renderBandarmologyAccumulationView() {
+  var accList = [
+    { ticker: 'BBCA', name: 'Bank Central Asia', status: 'BIG ACCUMULATION', concTop3: '74.2%', topBrokers: 'AK, ZP, BK', avgBuyPrice: 'Rp 10.220', lastPrice: 'Rp 10.250', spreadPct: '+0.29%', signal: 'STRONG BUY' },
+    { ticker: 'ANTM', name: 'Aneka Tambang', status: 'BIG ACCUMULATION', concTop3: '68.5%', topBrokers: 'YU, CC, RX', avgBuyPrice: 'Rp 1.590', lastPrice: 'Rp 1.620', spreadPct: '+1.89%', signal: 'BREAKOUT ACC' },
+    { ticker: 'BMRI', name: 'Bank Mandiri', status: 'ACCUMULATION', concTop3: '62.8%', topBrokers: 'RX, YU, ZP', avgBuyPrice: 'Rp 6.810', lastPrice: 'Rp 6.850', spreadPct: '+0.59%', signal: 'ACCUMULATE' },
+    { ticker: 'ADRO', name: 'Adaro Energy', status: 'ACCUMULATION', concTop3: '59.4%', topBrokers: 'BK, AK, NI', avgBuyPrice: 'Rp 3.680', lastPrice: 'Rp 3.720', spreadPct: '+1.08%', signal: 'ACCUMULATE' },
+    { ticker: 'PTRO', name: 'Petrosea', status: 'NORMAL ACC', concTop3: '54.1%', topBrokers: 'CC, YU, SQ', avgBuyPrice: 'Rp 18.200', lastPrice: 'Rp 18.450', spreadPct: '+1.37%', signal: 'WATCHLIST' }
+  ];
+
+  var html = '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
+    + '<div class="flex items-center justify-between">'
+    + '<div>'
+    + '<h3 class="text-sm font-bold text-emerald-400 flex items-center gap-1.5"><i class="ti ti-circle-arrow-up"></i> Radar Saham Terakumulasi Smart Money &amp; Bandar</h3>'
+    + '<p class="text-[11px] text-slate-400">Saham dengan dominansi Top Buyer tinggi vs Top Seller yang terpecah (retail fragmentation)</p>'
+    + '</div>'
+    + '</div>'
+    + '<div class="overflow-x-auto">'
+    + '<table class="w-full text-xs text-left">'
+    + '<thead class="text-[10px] text-slate-400 uppercase bg-slate-950/80 border-b border-slate-800 font-mono">'
+    + '<tr>'
+    + '<th class="p-2.5">Emiten</th>'
+    + '<th class="p-2.5">Status Bandar</th>'
+    + '<th class="p-2.5">Top 3 Konsentrasi</th>'
+    + '<th class="p-2.5">Top Broker Akumulator</th>'
+    + '<th class="p-2.5">Avg Buy Bandar</th>'
+    + '<th class="p-2.5">Harga Terkini</th>'
+    + '<th class="p-2.5">Aksi</th>'
+    + '</tr>'
+    + '</thead>'
+    + '<tbody class="divide-y divide-slate-800/60 font-mono">';
+
+  accList.forEach(function(item) {
+    html += '<tr class="hover:bg-slate-800/40 transition">'
+      + '<td class="p-2.5 font-bold text-white">' + item.ticker + ' <span class="text-[10px] font-normal text-slate-400 font-sans block">' + item.name + '</span></td>'
+      + '<td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">' + item.status + '</span></td>'
+      + '<td class="p-2.5 text-emerald-400 font-bold">' + item.concTop3 + '</td>'
+      + '<td class="p-2.5 text-slate-200">' + item.topBrokers + '</td>'
+      + '<td class="p-2.5 text-slate-300">' + item.avgBuyPrice + '</td>'
+      + '<td class="p-2.5 text-white font-bold">' + item.lastPrice + '</td>'
+      + '<td class="p-2.5">'
+      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold font-sans transition">Detail Broker</button>'
+      + '</td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+  return html;
+}
+
+// 5. Distribution View
+function renderBandarmologyDistributionView() {
+  var distList = [
+    { ticker: 'TLKM', name: 'Telkom Indonesia', status: 'BIG DISTRIBUTION', concTop3: '71.5%', topSellers: 'AK, ZP, RX', avgSellPrice: 'Rp 3.140', lastPrice: 'Rp 3.120', warning: 'Heavy Institutional Outflow' },
+    { ticker: 'GOTO', name: 'GoTo Gojek Tokopedia', status: 'DISTRIBUTION', concTop3: '65.2%', topSellers: 'BK, YU, ZP', avgSellPrice: 'Rp 56', lastPrice: 'Rp 54', warning: 'Foreign Dumps into Retail' },
+    { ticker: 'UNVR', name: 'Unilever Indonesia', status: 'DISTRIBUTION', concTop3: '61.8%', topSellers: 'AK, CC, CS', avgSellPrice: 'Rp 2.480', lastPrice: 'Rp 2.450', warning: 'Sustained Selling Pressure' },
+    { ticker: 'KLBF', name: 'Kalbe Farma', status: 'NORMAL DIST', concTop3: '55.0%', topSellers: 'RX, BK, ZP', avgSellPrice: 'Rp 1.480', lastPrice: 'Rp 1.465', warning: 'Profit Taking' }
+  ];
+
+  var html = '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
+    + '<div class="flex items-center justify-between">'
+    + '<div>'
+    + '<h3 class="text-sm font-bold text-rose-400 flex items-center gap-1.5"><i class="ti ti-circle-arrow-down"></i> Radar Saham Terdistribusi (Peringatan Tekanan Jual)</h3>'
+    + '<p class="text-[11px] text-slate-400">Saham dengan tekanan jual institusi/asing terkonsentrasi yang diserap oleh broker retail (YP, PD, XC)</p>'
+    + '</div>'
+    + '</div>'
+    + '<div class="overflow-x-auto">'
+    + '<table class="w-full text-xs text-left">'
+    + '<thead class="text-[10px] text-slate-400 uppercase bg-slate-950/80 border-b border-slate-800 font-mono">'
+    + '<tr>'
+    + '<th class="p-2.5">Emiten</th>'
+    + '<th class="p-2.5">Status Bandar</th>'
+    + '<th class="p-2.5">Top 3 Seller Share</th>'
+    + '<th class="p-2.5">Top Broker Seller</th>'
+    + '<th class="p-2.5">Avg Sell Bandar</th>'
+    + '<th class="p-2.5">Harga Terkini</th>'
+    + '<th class="p-2.5">Peringatan</th>'
+    + '<th class="p-2.5">Aksi</th>'
+    + '</tr>'
+    + '</thead>'
+    + '<tbody class="divide-y divide-slate-800/60 font-mono">';
+
+  distList.forEach(function(item) {
+    html += '<tr class="hover:bg-slate-800/40 transition">'
+      + '<td class="p-2.5 font-bold text-white">' + item.ticker + ' <span class="text-[10px] font-normal text-slate-400 font-sans block">' + item.name + '</span></td>'
+      + '<td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">' + item.status + '</span></td>'
+      + '<td class="p-2.5 text-rose-400 font-bold">' + item.concTop3 + '</td>'
+      + '<td class="p-2.5 text-slate-200">' + item.topSellers + '</td>'
+      + '<td class="p-2.5 text-slate-300">' + item.avgSellPrice + '</td>'
+      + '<td class="p-2.5 text-white font-bold">' + item.lastPrice + '</td>'
+      + '<td class="p-2.5 text-[10px] text-amber-300 font-sans">' + item.warning + '</td>'
+      + '<td class="p-2.5">'
+      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold font-sans border border-slate-700 transition">Detail Broker</button>'
+      + '</td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+  return html;
+}
+
+// 6. Smart Money Radar View
+function renderBandarmologySmartMoneyRadarView(tk) {
+  var html = '<div class="space-y-4">'
+    + '<div class="bg-slate-900/90 p-5 rounded-xl border border-slate-800 shadow-md space-y-4">'
+    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">'
+    + '<div>'
+    + '<h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="ti ti-radar-2 text-indigo-400 text-base"></i> Smart Money vs Retail Footprint: <span class="font-mono text-amber-300">' + tk + '</span></h3>'
+    + '<p class="text-xs text-slate-400">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs jebakan ritel</p>'
+    + '</div>'
+    + '<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">SMART MONEY SCORE: 84/100</span>'
+    + '</div>'
+    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
+    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
+    + '<div class="text-[10px] text-slate-400 uppercase font-mono">1. Dominansi Institusi / Whale</div>'
+    + '<div class="text-base font-bold text-emerald-400">WHALE DOMINANT (68%)</div>'
+    + '<div class="text-[11px] text-slate-400">Order size rata-rata > 500 lot per transaksi</div>'
+    + '</div>'
+    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
+    + '<div class="text-[10px] text-slate-400 uppercase font-mono">2. Retail Sentiment (YP, PD, XC)</div>'
+    + '<div class="text-base font-bold text-amber-400">RETAIL SELLING (58%)</div>'
+    + '<div class="text-[11px] text-slate-400">Ritel melakukan cut loss / profit taking dini</div>'
+    + '</div>'
+    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
+    + '<div class="text-[10px] text-slate-400 uppercase font-mono">3. Divergensi Harga &amp; Volume</div>'
+    + '<div class="text-base font-bold text-sky-400">BULLISH DIVERGENCE</div>'
+    + '<div class="text-[11px] text-slate-400">Harga stabil di support sementara volume akumulasi naik</div>'
+    + '</div>'
+    + '</div>'
+    + '<div class="p-3.5 rounded-lg bg-emerald-950/30 border border-emerald-900/40 text-emerald-200 text-xs leading-relaxed">'
+    + '<strong class="text-emerald-400">💡 Kesimpulan Smart Money:</strong> Smart Money terdeteksi melakukan akumulasi konsisten pada saham <strong>' + tk + '</strong> melalui broker asing (AK, ZP, YU) dengan menyerap barang yang dilepas oleh investor ritel. Skenario teknikal mendukung potensi penguatan ke level resistance berikutnya.'
+    + '</div>'
+    + '</div></div>';
+  return html;
+}
+
+// 7. Broker Trail View
+function renderBandarmologyBrokerTrailView() {
+  var bCode = BANDARMOLOGY_SELECTED_BROKER || 'YU';
+  var bInfo = BANDARMOLOGY_BROKER_LIST.find(function(b) { return b.code === bCode; }) || BANDARMOLOGY_BROKER_LIST[0];
+
+  var trailData = [
+    { ticker: 'BBCA', action: 'NET BUY', netVal: '+Rp 184.2 M', avgPrice: 'Rp 10.210', lots: '180.400 Lot', date: 'Hari Ini' },
+    { ticker: 'BMRI', action: 'NET BUY', netVal: '+Rp 96.5 M', avgPrice: 'Rp 6.820', lots: '141.500 Lot', date: 'Hari Ini' },
+    { ticker: 'ANTM', action: 'NET BUY', netVal: '+Rp 42.1 M', avgPrice: 'Rp 1.585', lots: '265.600 Lot', date: 'Hari Ini' },
+    { ticker: 'TLKM', action: 'NET SELL', netVal: '-Rp 35.8 M', avgPrice: 'Rp 3.140', lots: '114.000 Lot', date: 'Hari Ini' },
+    { ticker: 'ASII', action: 'NET SELL', netVal: '-Rp 18.2 M', avgPrice: 'Rp 5.075', lots: '35.800 Lot', date: 'Hari Ini' }
+  ];
+
+  var html = '<div class="space-y-4">'
+    // Broker Selector Bar
+    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-2.5">'
+    + '<div class="flex items-center justify-between">'
+    + '<span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Pilih Kode Broker untuk Pelacakan Jejak Transaksi:</span>'
+    + '<span class="text-[10px] text-slate-400 font-mono">12 Kode Teratas BEI</span>'
+    + '</div>'
+    + '<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">';
+
+  BANDARMOLOGY_BROKER_LIST.forEach(function(b) {
+    var isSel = b.code === bCode;
+    html += '<button onclick="setBandarmologyBroker(\'' + b.code + '\')" class="p-2 rounded-lg text-center transition font-mono font-bold ' + (isSel ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/60') + '">'
+      + '<div class="text-xs">' + b.code + '</div>'
+      + '<div class="text-[9px] font-sans text-slate-400 truncate mt-0.5">' + b.type + '</div>'
+      + '</button>';
+  });
+
+  html += '</div></div>';
+
+  // Selected Broker Profile & Trail
+  html += '<div class="bg-slate-900/90 p-5 rounded-xl border border-slate-800 shadow-md space-y-4">'
+    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">'
+    + '<div class="flex items-center gap-3">'
+    + '<div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-black font-mono text-lg text-emerald-400">' + bInfo.code + '</div>'
+    + '<div>'
+    + '<h3 class="text-sm font-bold text-white">' + bInfo.name + '</h3>'
+    + '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">' + bInfo.badge + '</span>'
+    + '</div>'
+    + '</div>'
+    + '<button onclick="openStockChat(\'BBCA\', \'Analisa jejak transaksi broker ' + bInfo.code + ' (' + bInfo.name + ') hari ini di seluruh emiten BEI\')" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition flex items-center gap-1.5 self-start sm:self-auto">'
+    + '<i class="ti ti-messages"></i> <span>Tanya AI tentang ' + bInfo.code + '</span>'
+    + '</button>'
+    + '</div>'
+    + '<div class="overflow-x-auto">'
+    + '<table class="w-full text-xs text-left">'
+    + '<thead class="text-[10px] text-slate-400 uppercase bg-slate-950/80 border-b border-slate-800 font-mono">'
+    + '<tr>'
+    + '<th class="p-2.5">Emiten</th>'
+    + '<th class="p-2.5">Aksi ' + bInfo.code + '</th>'
+    + '<th class="p-2.5">Nilai Transaksi (Rp)</th>'
+    + '<th class="p-2.5">Volume (Lot)</th>'
+    + '<th class="p-2.5">Estimasi Avg Price</th>'
+    + '<th class="p-2.5">Waktu</th>'
+    + '<th class="p-2.5">Aksi</th>'
+    + '</tr>'
+    + '</thead>'
+    + '<tbody class="divide-y divide-slate-800/60 font-mono">';
+
+  trailData.forEach(function(item) {
+    var isBuy = item.action === 'NET BUY';
+    html += '<tr class="hover:bg-slate-800/40 transition">'
+      + '<td class="p-2.5 font-bold text-white">' + item.ticker + '</td>'
+      + '<td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ' + (isBuy ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40') + '">' + item.action + '</span></td>'
+      + '<td class="p-2.5 font-bold ' + (isBuy ? 'text-emerald-400' : 'text-rose-400') + '">' + item.netVal + '</td>'
+      + '<td class="p-2.5 text-slate-200">' + item.lots + '</td>'
+      + '<td class="p-2.5 text-slate-300">' + item.avgPrice + '</td>'
+      + '<td class="p-2.5 text-slate-400">' + item.date + '</td>'
+      + '<td class="p-2.5">'
+      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="px-2 py-0.8 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold font-sans border border-slate-700 transition">Buka ' + item.ticker + '</button>'
+      + '</td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table></div></div></div>';
+  return html;
+}
+
+window.renderBandarmologyCockpitPage = renderBandarmologyCockpitPage;
+window.renderBandarmologyMarketFlowView = renderBandarmologyMarketFlowView;
+window.renderBandarmologyForeignFlowView = renderBandarmologyForeignFlowView;
+window.renderBandarmologyAccumulationView = renderBandarmologyAccumulationView;
+window.renderBandarmologyDistributionView = renderBandarmologyDistributionView;
+window.renderBandarmologySmartMoneyRadarView = renderBandarmologySmartMoneyRadarView;
+window.renderBandarmologyBrokerTrailView = renderBandarmologyBrokerTrailView;
+
 

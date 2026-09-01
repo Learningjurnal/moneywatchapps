@@ -431,6 +431,9 @@ function kseiUpdateSyncUI() {
 function kseiSelectTicker(ticker) {
   if (!ticker) return;
   KSEI_STATE.selectedTicker = String(ticker).toUpperCase().trim().replace('.JK', '').replace('.US', '');
+  if (window.GLOBAL_STOCK_CONTEXT && window.GLOBAL_STOCK_CONTEXT.getTicker() !== KSEI_STATE.selectedTicker) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(KSEI_STATE.selectedTicker, 'ksei');
+  }
   KSEI_STATE.activeTab = 'stock-view';
   kseiSwitchTab('stock-view');
 }

@@ -415,6 +415,10 @@ function selectStockIntelTicker(ticker) {
   if (!ticker) return;
   MW_SELECTED_INTEL_TICKER = ticker.toUpperCase().trim();
   
+  if (window.GLOBAL_STOCK_CONTEXT && window.GLOBAL_STOCK_CONTEXT.getTicker() !== MW_SELECTED_INTEL_TICKER) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(MW_SELECTED_INTEL_TICKER, 'stockintel');
+  }
+
   // Sinkronkan elemen select dan search input jika ada di DOM
   var sel = el('intel-ticker-select');
   if (sel) sel.value = MW_SELECTED_INTEL_TICKER;
@@ -434,6 +438,18 @@ function selectStockIntelTicker(ticker) {
   }
 
   renderStockIntelPage();
+}
+
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'stockintel' && tk && tk !== MW_SELECTED_INTEL_TICKER) {
+      MW_SELECTED_INTEL_TICKER = tk;
+      var elP = document.getElementById('page-stock-intel');
+      if (elP && elP.classList.contains('on') && typeof renderStockIntelPage === 'function') {
+        renderStockIntelPage();
+      }
+    }
+  });
 }
 
 /**

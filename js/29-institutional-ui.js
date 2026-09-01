@@ -420,9 +420,9 @@
       portoToolbar.appendChild(densityDiv);
     }
 
-    // 2. Injeksi Quick Search Button di Topbar
+    // 2. Injeksi Quick Search Button di Topbar (jika belum ada input search)
     var topbarRight = document.querySelector('.topbar-right');
-    if (topbarRight && !document.getElementById('tb-cmd-btn')) {
+    if (topbarRight && !document.getElementById('tb-cmd-btn') && !document.getElementById('topbar-global-search')) {
       var cmdBtn = document.createElement('button');
       cmdBtn.id = 'tb-cmd-btn';
       cmdBtn.className = 'btn btn-ghost btn-xs';

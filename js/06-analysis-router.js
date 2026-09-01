@@ -946,6 +946,7 @@ function renderPage(name){
     case 'journal':if(typeof renderJournalPage==='function')renderJournalPage();else if(typeof renderDecisionJournalPage==='function')renderDecisionJournalPage();break;
     case 'copilot':if(typeof renderCopilotPage==='function')renderCopilotPage();break;
     case 'stockchat':if(typeof renderStockChatPage==='function')renderStockChatPage();break;
+    case 'bandarmology':if(typeof renderBandarmologyCockpitPage==='function')renderBandarmologyCockpitPage();break;
     case 'dataconn':if(typeof renderDataConnPage==='function')renderDataConnPage();else if(typeof renderDataConnectionPage==='function')renderDataConnectionPage();break;
     case 'performance':renderPerformance();break;
     case 'datahealth':renderDataHealth();break;

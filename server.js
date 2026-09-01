@@ -8,6 +8,9 @@ import {
   fetchYahooQuote,
   getIdxMarketSummary,
   getIdxCalendarData,
+  getUniverseOpportunityRadar,
+  getUniverseAccumulationDistribution,
+  getTransactionFlowVisualizer,
   getBeiTickSize,
   generateBrokerSummary,
   IDX_BROKERS
@@ -423,18 +426,78 @@ function getAiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
   if (!_aiClient) {
-    _aiClient = new GoogleGenAI({ apiKey });
+    _aiClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build'
+        }
+      }
+    });
   }
   return _aiClient;
 }
 
 // Timeout helper to ensure AI API calls never hang indefinitely
-function withTimeout(promise, ms = 5000) {
+function withTimeout(promise, ms = 15000) {
   let timer;
   const timeoutPromise = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error('AI_REQUEST_TIMEOUT')), ms);
   });
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
+
+// Robust wrapper with exponential backoff & multi-model fallback for high demand (503/429)
+async function callGeminiWithRetryAndFallback(ai, requestConfig, options = {}) {
+  const timeoutMs = options.timeoutMs || 15000;
+  const maxRetries = options.maxRetries ?? 2;
+  const primaryModel = requestConfig.model || 'gemini-3.7-flash';
+  // List of fallback models if primary model is unavailable
+  const fallbackModels = [
+    primaryModel,
+    'gemini-flash-latest',
+    'gemini-3.1-flash-lite'
+  ].filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+  let lastError = null;
+
+  for (let modelIdx = 0; modelIdx < fallbackModels.length; modelIdx++) {
+    const candidateModel = fallbackModels[modelIdx];
+    const candidateConfig = {
+      ...requestConfig,
+      model: candidateModel
+    };
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await withTimeout(
+          ai.models.generateContent(candidateConfig),
+          timeoutMs
+        );
+        return { response, usedModel: candidateModel };
+      } catch (err) {
+        lastError = err;
+        const errMsg = String(err?.message || err || '');
+        const isUnavailableOrRateLimited =
+          errMsg.includes('503') ||
+          errMsg.includes('UNAVAILABLE') ||
+          errMsg.includes('429') ||
+          errMsg.includes('RESOURCE_EXHAUSTED') ||
+          errMsg.includes('high demand') ||
+          errMsg.includes('AI_REQUEST_TIMEOUT');
+
+        if (isUnavailableOrRateLimited && attempt < maxRetries) {
+          const delay = (attempt + 1) * 400 + Math.floor(Math.random() * 250);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        // If retries for this candidate model exhausted, break to next fallback model
+        break;
+      }
+    }
+  }
+
+  throw lastError || new Error('Semua model Gemini mengalami lonjakan permintaan (503/429).');
 }
 
 // Fallback high-impact Indonesian stock market news headlines
@@ -550,15 +613,16 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
   }
 ]`;
 
-    const response = await withTimeout(
-      ai.models.generateContent({
+    const { response } = await callGeminiWithRetryAndFallback(
+      ai,
+      {
         model: 'gemini-3.7-flash',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }]
         }
-      }),
-      5000
+      },
+      { timeoutMs: 15000, maxRetries: 2 }
     );
 
     const rawText = response.text || '';
@@ -672,15 +736,16 @@ Berikan analisis terstruktur dalam Bahasa Indonesia yang tegas dan berbobot deng
 
 Gunakan format markdown yang rapi, tegas, dan profesional. Tutup dengan disclaimer bahwa ini bukan rekomendasi investasi mutlak.`;
 
-    const response = await withTimeout(
-      ai.models.generateContent({
+    const { response } = await callGeminiWithRetryAndFallback(
+      ai,
+      {
         model: 'gemini-3.7-flash',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }]
         }
-      }),
-      5000
+      },
+      { timeoutMs: 15000, maxRetries: 2 }
     );
 
     const text = response.text || '';
@@ -1254,21 +1319,25 @@ app.post('/api/ai/agent-chat', async (req, res) => {
       let currentIteration = 0;
       const maxIterations = 5;
       let finalReply = '';
+      let activeEngineModel = 'gemini-3.7-flash';
 
       while (currentIteration < maxIterations) {
         currentIteration++;
 
-        const response = await withTimeout(
-          ai.models.generateContent({
+        const { response, usedModel } = await callGeminiWithRetryAndFallback(
+          ai,
+          {
             model: 'gemini-3.7-flash',
             contents: contents,
             config: {
               systemInstruction: SYSTEM_INSTRUCTION_MONEYWATCH_AI,
               tools: [{ functionDeclarations: AGENT_TOOL_DECLARATIONS }]
             }
-          }),
-          5000
+          },
+          { timeoutMs: 15000, maxRetries: 2 }
         );
+
+        if (usedModel) activeEngineModel = usedModel;
 
         const candidate = response.candidates?.[0];
         const functionCalls = response.functionCalls;
@@ -1325,10 +1394,10 @@ app.post('/api/ai/agent-chat', async (req, res) => {
         success: true,
         reply: finalReply,
         toolCalls: executedTools,
-        engine: 'Gemini 3.7 Flash Agentic Loop'
+        engine: (activeEngineModel ? activeEngineModel : 'Gemini 3.7 Flash') + ' Agentic Loop'
       });
     } catch (geminiError) {
-      console.error('Gemini Agent loop error, falling back to deterministic engine:', geminiError);
+      console.warn('Gemini Agent loop notice, gracefully routing to high-fidelity deterministic engine:', geminiError?.message || geminiError);
       // Fall through to deterministic fallback below
     }
   }
@@ -1733,7 +1802,7 @@ function parseKseiCsv(text, docId, url) {
 }
 
 function getStoredKseiData() {
-  if (_kseiCache) return _kseiCache;
+  if (_kseiCache && _kseiCache.metadata && _kseiCache.metadata.totalEmiten > 0) return _kseiCache;
   const filePath = path.join(__dirname, 'data', 'ksei-shareholders.json');
   if (fs.existsSync(filePath)) {
     try {
@@ -1741,21 +1810,24 @@ function getStoredKseiData() {
       try {
         _kseiCache = JSON.parse(content);
       } catch (jsonErr) {
-        // Sanitize control characters if any exist
-        const sanitized = content.replace(/[\x00-\x1F\x7F]/g, (c) => {
-          if (c === '\n' || c === '\r' || c === '\t') return c;
-          return '';
-        });
+        // Sanitize any problematic control characters or escape sequences
+        const sanitized = content
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, (c) => {
+            if (c === '\n' || c === '\r' || c === '\t') return ' ';
+            return '';
+          });
         _kseiCache = JSON.parse(sanitized);
       }
-      return _kseiCache;
+      if (_kseiCache && _kseiCache.metadata) {
+        return _kseiCache;
+      }
     } catch (e) {
-      console.warn('Error reading cached KSEI json, resetting cache fallback:', e.message);
+      console.warn('[KSEI Cache Warning] Error parsing cached KSEI json:', e.message);
+      // If parsing fails, create empty fallback and trigger background sync if possible
       _kseiCache = { metadata: { totalEmiten: 0, reportDate: 'Belum Sinkron' }, data: {} };
-      return _kseiCache;
     }
   }
-  return { metadata: { totalEmiten: 0, reportDate: 'Belum Sinkron' }, data: {} };
+  return _kseiCache || { metadata: { totalEmiten: 0, reportDate: 'Belum Sinkron' }, data: {} };
 }
 
 // GET endpoint to return KSEI 5%+ shareholders and Free Float data
@@ -1891,7 +1963,10 @@ app.post('/api/ksei/sync', async (req, res) => {
 
     const dataDir = path.join(__dirname, 'data');
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-    fs.writeFileSync(path.join(dataDir, 'ksei-shareholders.json'), JSON.stringify(parsed, null, 2), 'utf8');
+    const targetFile = path.join(dataDir, 'ksei-shareholders.json');
+    const tmpFile = path.join(dataDir, 'ksei-shareholders.tmp.json');
+    fs.writeFileSync(tmpFile, JSON.stringify(parsed, null, 2), 'utf8');
+    fs.renameSync(tmpFile, targetFile);
 
     console.log('[KSEI Sync] Successfully updated ' + parsed.metadata.totalEmiten + ' emiten, report date: ' + parsed.metadata.reportDate);
 
@@ -2220,10 +2295,47 @@ app.get('/api/idx/indices', async (req, res) => {
   }
 });
 
-// GET /api/idx/calendar — Corporate Actions (Dividends, Splits, Suspensions, RUPS)
+// GET /api/idx/opportunity-radar — Dynamic Opportunity Radar across 950+ IDX Universe
+app.get('/api/idx/opportunity-radar', (req, res) => {
+  try {
+    const data = getUniverseOpportunityRadar(req.query);
+    return res.json(data);
+  } catch (err) {
+    console.error('[IDX Opportunity Radar Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/accumulation-distribution — Full Universe Accumulation & Distribution Scanner
+app.get('/api/idx/accumulation-distribution', (req, res) => {
+  try {
+    const data = getUniverseAccumulationDistribution(req.query);
+    return res.json(data);
+  } catch (err) {
+    console.error('[IDX Acc/Dist Scanner Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/flow-trail/:ticker — Interactive Transaction Flow Visualizer per Ticker
+app.get('/api/idx/flow-trail/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    const timeframe = (req.query.timeframe || '1D').toUpperCase();
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const data = await getTransactionFlowVisualizer(ticker, timeframe);
+    return res.json(data);
+  } catch (err) {
+    console.error('[IDX Flow Trail Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/calendar — Corporate Actions (Dividends, Splits, Rights Issues, RUPS, Suspensions)
 app.get('/api/idx/calendar', (req, res) => {
   try {
-    const cal = getIdxCalendarData();
+    const cal = getIdxCalendarData(req.query);
     return res.json({ success: true, ...cal });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
