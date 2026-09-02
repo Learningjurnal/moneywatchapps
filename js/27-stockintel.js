@@ -757,6 +757,8 @@ function switchIntelTicker(ticker) {
 
 window.getIntelStockMeta = getIntelStockMeta;
 window.getIntelUniverse = getIntelUniverse;
+window.generateDynamicIntelProfile = generateDynamicIntelProfile;
+window.getStockIntelData = getStockIntelData;
 window.switchIntelTicker = switchIntelTicker;
 window.selectStockIntelTicker = selectStockIntelTicker;
 window.handleIntelSearchSubmit = handleIntelSearchSubmit;
