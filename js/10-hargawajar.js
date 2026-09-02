@@ -1474,13 +1474,17 @@ window.hw_renderTable = hw_renderTable;
 function hw_loadStockData(tk) {
   tk = (tk || 'BBCA').toUpperCase();
   hwData.ticker = tk;
+  
+  // Resolve price from SSOT first (ensures 100% uniformity across all modules)
+  var marketPrice = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(tk) : 0;
+  
   if (STOCK_FINANCIAL_DATABASE[tk]) {
-    hwData.currentPrice = STOCK_FINANCIAL_DATABASE[tk].price;
+    hwData.currentPrice = marketPrice > 0 ? marketPrice : STOCK_FINANCIAL_DATABASE[tk].price;
     hwData.rows = JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[tk].rows));
   } else {
-    // Universal stock lookup from FS_UNIV
+    // Universal stock lookup
     var univ = (typeof FS_UNIV !== 'undefined') ? FS_UNIV.find(function(u){ return u.t === tk; }) : null;
-    var curPrice = univ ? univ.price : 1000;
+    var curPrice = marketPrice > 0 ? marketPrice : (univ && univ.price > 0 ? univ.price : (typeof DB !== 'undefined' && DB[tk] ? DB[tk].base : 0));
     hwData.currentPrice = curPrice;
     var baseEps = Math.max(50, Math.round(curPrice / 12));
     var baseEq = Math.max(10000, Math.round(curPrice * 3.5));

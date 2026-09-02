@@ -195,8 +195,115 @@ var IDX_SECTORS = {
   'Infrastructures':    {color:'#f43f5e',icon:'🏗️',desc:'Telekomunikasi, Utilitas, Transportasi'},
   'Transportation & Logistic':{color:'#6366f1',icon:'🚚',desc:'Transportasi, Logistik, Pergudangan'},
   'Keuangan Syariah':   {color:'#06b6d4',icon:'🕌',desc:'Bank Syariah, Asuransi Syariah, Sukuk'},
-  'Lainnya':            {color:'#94a3b8',icon:'📦',desc:'Belum terklasifikasi sektor resmi IDX'},
+  'Lainnya':            {color:'#94a3b8',icon:'📦',desc:'Belum terklasifikasi sektor resmi IDX'}
 };
+
+// ============================================================
+// SINGLE SOURCE OF TRUTH (SSOT) FOR REAL-TIME MARKET PRICING
+// ============================================================
+// Aturan: Tidak ada angka dummy/karangan. Jika harga belum terload,
+// kembalikan 0 / tanda eksplisit ('Rp —' / 'Memuat...') dan trigger live fetch.
+function getGlobalMarketPrice(ticker) {
+  if (!ticker) return 0;
+  var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+
+  // 1. Live price in global prices object
+  if (typeof prices !== 'undefined' && prices[tk] && Number(prices[tk]) > 0) {
+    return Number(prices[tk]);
+  }
+
+  // 2. Real OHLCV history cache in 13-realdata.js (Yahoo live cached daily close)
+  if (typeof rdGetAny === 'function') {
+    var rdRows = rdGetAny(tk);
+    if (rdRows && rdRows.length > 0 && rdRows[rdRows.length - 1].close > 0) {
+      var c = Number(rdRows[rdRows.length - 1].close);
+      if (typeof prices !== 'undefined') prices[tk] = c;
+      return c;
+    }
+  }
+
+  // 3. User Portfolio Holdings (Actual market price from portofolio / XLSX)
+  if (typeof XLSX_DATA !== 'undefined' && XLSX_DATA && Array.isArray(XLSX_DATA.stocks)) {
+    var sItem = XLSX_DATA.stocks.find(function(s) { return s.ticker === tk; });
+    if (sItem && sItem.price && Number(sItem.price) > 0) {
+      var p = Number(sItem.price);
+      if (typeof prices !== 'undefined') prices[tk] = p;
+      return p;
+    }
+  }
+
+  // 4. Fundamental & Master Profiles (js/24-stockmaster.js)
+  if (typeof STOCK_PROFILES !== 'undefined' && STOCK_PROFILES[tk] && STOCK_PROFILES[tk].price > 0) {
+    return Number(STOCK_PROFILES[tk].price);
+  }
+  if (typeof FUND_DATA !== 'undefined' && FUND_DATA[tk] && FUND_DATA[tk].price > 0) {
+    return Number(FUND_DATA[tk].price);
+  }
+
+  // 5. Database Base Price in DB (01-data.js)
+  if (typeof DB !== 'undefined' && DB[tk] && DB[tk].base > 0) {
+    return Number(DB[tk].base);
+  }
+
+  // 6. IDX Universe (40-idx-pipeline.js)
+  if (typeof IDX_PIPELINE !== 'undefined' && IDX_PIPELINE.state && IDX_PIPELINE.state.universe && IDX_PIPELINE.state.universe[tk]) {
+    var uItem = IDX_PIPELINE.state.universe[tk];
+    if (uItem.basePrice > 0) return Number(uItem.basePrice);
+    if (uItem.price > 0) return Number(uItem.price);
+  }
+
+  return 0; // Return 0 if not loaded, NEVER invent fake numbers
+}
+
+function getGlobalMarketChange(ticker) {
+  if (!ticker) return 0;
+  var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+  if (typeof changes !== 'undefined' && changes[tk] !== undefined && !isNaN(changes[tk])) {
+    return Number(changes[tk]);
+  }
+  if (typeof rdGetAny === 'function') {
+    var rdRows = rdGetAny(tk);
+    if (rdRows && rdRows.length >= 2) {
+      var last = rdRows[rdRows.length - 1].close;
+      var prev = rdRows[rdRows.length - 2].close;
+      if (prev > 0) {
+        var chg = ((last - prev) / prev) * 100;
+        if (typeof changes !== 'undefined') changes[tk] = chg;
+        return chg;
+      }
+    }
+  }
+  return 0;
+}
+
+function formatMarketPrice(price, showPrefix) {
+  var p = Number(price);
+  if (!p || p <= 0 || isNaN(p)) {
+    return (showPrefix === false ? '—' : 'Rp —');
+  }
+  return (showPrefix === false ? '' : 'Rp ') + Math.round(p).toLocaleString('id-ID');
+}
+
+function syncGlobalMarketQuote(ticker, quoteData) {
+  if (!ticker || !quoteData) return;
+  var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+  if (typeof prices === 'undefined') window.prices = {};
+  if (typeof changes === 'undefined') window.changes = {};
+
+  if (quoteData.price && Number(quoteData.price) > 0) {
+    prices[tk] = Number(quoteData.price);
+  }
+  if (quoteData.changePercent !== undefined && !isNaN(quoteData.changePercent)) {
+    changes[tk] = Number(quoteData.changePercent);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.getGlobalMarketPrice = getGlobalMarketPrice;
+  window.getGlobalMarketChange = getGlobalMarketChange;
+  window.formatMarketPrice = formatMarketPrice;
+  window.syncGlobalMarketQuote = syncGlobalMarketQuote;
+}
 
 // STOCK DATABASE dengan sektor IDX
 var DB = {

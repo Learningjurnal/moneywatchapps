@@ -392,8 +392,8 @@
     }
 
     defaultTicker = (defaultTicker || (tickers[0] || 'BBCA')).toUpperCase();
-    var curP = (window.prices && window.prices[defaultTicker]) || (window.DB && window.DB[defaultTicker] && window.DB[defaultTicker].base) || 1000;
-    var targetP = defaultTarget || Math.round(curP * 1.05);
+    var curP = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(defaultTicker) : ((window.prices && window.prices[defaultTicker]) || (window.DB && window.DB[defaultTicker] && window.DB[defaultTicker].base) || 0);
+    var targetP = defaultTarget || (curP > 0 ? Math.round(curP * 1.05) : 0);
     var cond = defaultCond || (targetP >= curP ? 'GTE' : 'LTE');
     var tag = defaultTag || (targetP >= curP ? 'Take Profit' : 'Stop Loss');
 
@@ -492,18 +492,18 @@
   };
 
   window.mwOnAlertModalTickerChange = function(ticker) {
-    var curP = (window.prices && window.prices[ticker]) || (window.DB && window.DB[ticker] && window.DB[ticker].base) || 1000;
+    var curP = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(ticker) : ((window.prices && window.prices[ticker]) || (window.DB && window.DB[ticker] && window.DB[ticker].base) || 0);
     var elCur = document.getElementById('al-modal-cur-price');
-    if (elCur) elCur.textContent = 'Rp ' + curP.toLocaleString('id-ID');
+    if (elCur) elCur.textContent = curP > 0 ? 'Rp ' + curP.toLocaleString('id-ID') : 'Rp — (Memuat...)';
     var elTarget = document.getElementById('al-modal-target');
-    if (elTarget) elTarget.value = Math.round(curP * 1.05);
+    if (elTarget && curP > 0) elTarget.value = Math.round(curP * 1.05);
     mwCalcAlertDistance();
   };
 
   window.mwSetAlertPreset = function(multiplier, cond, tag) {
     var ticker = (document.getElementById('al-modal-ticker') && document.getElementById('al-modal-ticker').value) || 'BBCA';
-    var curP = (window.prices && window.prices[ticker]) || (window.DB && window.DB[ticker] && window.DB[ticker].base) || 1000;
-    var target = Math.round(curP * multiplier);
+    var curP = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(ticker) : ((window.prices && window.prices[ticker]) || (window.DB && window.DB[ticker] && window.DB[ticker].base) || 0);
+    var target = curP > 0 ? Math.round(curP * multiplier) : 0;
 
     var elTarget = document.getElementById('al-modal-target');
     if (elTarget) elTarget.value = target;
@@ -519,7 +519,7 @@
 
   window.mwCalcAlertDistance = function() {
     var ticker = (document.getElementById('al-modal-ticker') && document.getElementById('al-modal-ticker').value) || 'BBCA';
-    var curP = (window.prices && window.prices[ticker]) || (window.DB && window.DB[ticker] && window.DB[ticker].base) || 1000;
+    var curP = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(ticker) : ((window.prices && window.prices[ticker]) || (window.DB && window.DB[ticker] && window.DB[ticker].base) || 0);
     var target = Number((document.getElementById('al-modal-target') && document.getElementById('al-modal-target').value) || curP);
     var elDist = document.getElementById('al-modal-distance');
     if (!elDist) return;

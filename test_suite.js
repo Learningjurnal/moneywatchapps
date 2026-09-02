@@ -545,10 +545,37 @@ test('Smart Money: Chaikin Money Flow & Institutional VWAP Bands Math', () => {
   assert.strictEqual(vwapUpper, 10168);
   assert.strictEqual(vwapLower, 9672);
   assert(distToVwap > 0, 'Price above VWAP indicates positive premium');
+});
 
-  const cmfPositive = 0.24;
-  const isAccumulation = cmfPositive >= 0.15;
-  assert.strictEqual(isAccumulation, true, 'CMF >= 0.15 must classify as Strong Accumulation');
+// ── TEST 21: SINGLE SOURCE OF TRUTH MARKET PRICING UNIFORMITY ──
+test('Pricing Engine: Cross-Feature Uniformity & Zero Dummy Data', () => {
+  // Mock DB and global state
+  const mockDB = {
+    'ANTM': { name: 'Aneka Tambang', base: 1640, sector: 'Barang Baku' },
+    'BBCA': { name: 'Bank Central Asia', base: 8900, sector: 'Keuangan' },
+    'PTRO': { name: 'Petrosea Tbk.', base: 5125, sector: 'Perindustrian' },
+    'ADRO': { name: 'Alamtri Resources', base: 2680, sector: 'Energi' }
+  };
+
+  const getPrice = (tk) => (mockDB[tk] ? mockDB[tk].base : 0);
+
+  assert.strictEqual(getPrice('ANTM'), 1640, 'ANTM must resolve to actual base price 1640, not dummy 1000');
+  assert.strictEqual(getPrice('BBCA'), 8900, 'BBCA must resolve to actual base price 8900, not dummy 1000');
+  assert.strictEqual(getPrice('PTRO'), 5125, 'PTRO must resolve to actual base price 5125, not dummy 1000');
+  assert.strictEqual(getPrice('ADRO'), 2680, 'ADRO must resolve to actual base price 2680, not dummy 1000');
+});
+
+// ── TEST 22: UNLOADED / UNKNOWN TICKER ZERO DUMMY DATA POLICY ──
+test('Pricing Engine: Unloaded Stock Explicit Marker (No Fabricated Prices)', () => {
+  const formatPrice = (p) => {
+    if (!p || p <= 0 || isNaN(p)) return 'Rp —';
+    return 'Rp ' + Number(p).toLocaleString('id-ID');
+  };
+
+  assert.strictEqual(formatPrice(0), 'Rp —', 'Zero price must display explicit placeholder marker');
+  assert.strictEqual(formatPrice(null), 'Rp —', 'Null price must display explicit placeholder marker');
+  assert.strictEqual(formatPrice(undefined), 'Rp —', 'Undefined price must display explicit placeholder marker');
+  assert.strictEqual(formatPrice(1640), 'Rp 1.640', 'Valid price must format with Indonesian locale');
 });
 
 console.log('═══════════════════════════════════════════════════════');

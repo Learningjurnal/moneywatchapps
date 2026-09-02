@@ -219,37 +219,27 @@ function getIntelStockMeta(ticker) {
     sector = prof.sector;
   }
 
-  // Resolve Live Price from System State
-  var price = 0;
-  if (typeof prices !== 'undefined' && prices[tk] && prices[tk] > 0) {
-    price = prices[tk];
-  } else if (typeof rdGetAny === 'function') {
-    var rd = rdGetAny(tk);
-    if (rd && rd.length > 0 && rd[rd.length - 1].c > 0) {
-      price = rd[rd.length - 1].c;
-    }
-  }
-  
+  // Resolve Live Price from System State (SSOT - No Dummy Data)
+  var price = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(tk) : 0;
   if (!price || price <= 0) {
-    if (prof && prof.price > 0) price = prof.price;
+    if (typeof prices !== 'undefined' && prices[tk] > 0) price = prices[tk];
+    else if (prof && prof.price > 0) price = prof.price;
     else if (dbItem && dbItem.base > 0) price = dbItem.base;
-    else price = 1000;
   }
 
   // Resolve Daily Change %
   var chg = '+0.00%';
-  if (typeof changes !== 'undefined' && changes[tk] !== undefined) {
-    var cVal = changes[tk];
-    if (typeof cVal === 'number') {
-      chg = (cVal >= 0 ? '+' : '') + cVal.toFixed(2) + '%';
-    } else {
-      chg = String(cVal);
-    }
+  if (typeof getGlobalMarketChange === 'function') {
+    var cVal = getGlobalMarketChange(tk);
+    chg = (cVal >= 0 ? '+' : '') + cVal.toFixed(2) + '%';
+  } else if (typeof changes !== 'undefined' && changes[tk] !== undefined) {
+    var cVal = Number(changes[tk]) || 0;
+    chg = (cVal >= 0 ? '+' : '') + cVal.toFixed(2) + '%';
   } else if (typeof rdGetAny === 'function') {
     var rdH = rdGetAny(tk);
     if (rdH && rdH.length >= 2) {
-      var last = rdH[rdH.length - 1].c;
-      var prev = rdH[rdH.length - 2].c;
+      var last = rdH[rdH.length - 1].close || rdH[rdH.length - 1].c;
+      var prev = rdH[rdH.length - 2].close || rdH[rdH.length - 2].c;
       if (prev > 0) {
         var pct = ((last - prev) / prev) * 100;
         chg = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
