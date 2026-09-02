@@ -406,37 +406,130 @@
                 </div>
             </div>
 
-            <!-- Allocation & Visual Breakdown -->
-            <div style="background:var(--bg);border:1px solid var(--border2);border-radius:14px;padding:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px">
-                <!-- Donut Chart -->
-                <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-                    <div class="donut-chart" style="width:120px;height:120px;border-radius:50%;background:conic-gradient(#3B82F6 0% 25%, #10B981 25% 50%, #EF4444 50% 75%, #8B5CF6 75% 100%);position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);flex-shrink:0" id="hub-donut">
-                        <div class="donut-inner" style="width:82px;height:82px;border-radius:50%;background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--border);text-align:center;padding:2px">
-                            <span style="font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3)">Alokasi</span>
-                            <span id="hub-donut-center-val" style="font-size:12px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:1px">4 Aset</span>
+            <!-- Allocation & Portfolio Volatility 2-Column Responsive Layout -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px">
+                <!-- Left: Allocation & Visual Breakdown -->
+                <div style="background:var(--bg);border:1px solid var(--border2);border-radius:14px;padding:18px;display:flex;flex-direction:column;justify-content:space-between;gap:16px">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <span style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
+                            📊 Komposisi &amp; Alokasi Aset
+                        </span>
+                        <span class="badge b-neu" style="font-size:9.5px">Multi-Asset</span>
+                    </div>
+
+                    <!-- Donut Chart & Legend -->
+                    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+                        <div class="donut-chart" style="width:110px;height:110px;border-radius:50%;background:conic-gradient(#3B82F6 0% 25%, #10B981 25% 50%, #EF4444 50% 75%, #8B5CF6 75% 100%);position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);flex-shrink:0" id="hub-donut">
+                            <div class="donut-inner" style="width:74px;height:74px;border-radius:50%;background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--border);text-align:center;padding:2px">
+                                <span style="font-size:8.5px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3)">Alokasi</span>
+                                <span id="hub-donut-center-val" style="font-size:11px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:1px">4 Aset</span>
+                            </div>
+                        </div>
+
+                        <!-- Legend -->
+                        <div style="display:grid;grid-template-columns:repeat(2, minmax(110px, 1fr));gap:6px 12px;flex:1">
+                            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);font-weight:600">
+                                <span style="width:8px;height:8px;border-radius:50%;background:#3B82F6;display:inline-block"></span> Saham IDX
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);font-weight:600">
+                                <span style="width:8px;height:8px;border-radius:50%;background:#10B981;display:inline-block"></span> Crypto
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);font-weight:600">
+                                <span style="width:8px;height:8px;border-radius:50%;background:#EF4444;display:inline-block"></span> Global ETF
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);font-weight:600">
+                                <span style="width:8px;height:8px;border-radius:50%;background:#8B5CF6;display:inline-block"></span> Reksa Dana
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Legend -->
-                    <div style="display:grid;grid-template-columns:repeat(2, minmax(130px, 1fr));gap:8px 16px">
-                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);font-weight:600">
-                            <span style="width:10px;height:10px;border-radius:50%;background:#3B82F6;display:inline-block"></span> Saham Indonesia
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);font-weight:600">
-                            <span style="width:10px;height:10px;border-radius:50%;background:#10B981;display:inline-block"></span> Crypto Assets
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);font-weight:600">
-                            <span style="width:10px;height:10px;border-radius:50%;background:#EF4444;display:inline-block"></span> ETF US &amp; Global
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);font-weight:600">
-                            <span style="width:10px;height:10px;border-radius:50%;background:#8B5CF6;display:inline-block"></span> Reksa Dana &amp; SBN
-                        </div>
+                    <!-- Breakdown Bars -->
+                    <div style="display:flex;flex-direction:column;gap:8px" id="hub-alloc-bars">
+                        <!-- Populated by JS renderPortfolioHub -->
                     </div>
                 </div>
 
-                <!-- Breakdown Bars -->
-                <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:10px" id="hub-alloc-bars">
-                    <!-- Populated by JS renderPortfolioHub -->
+                <!-- Right: Portfolio Volatility & Risk Assessment Gauge -->
+                <div id="card-portfolio-volatility" style="background:var(--bg);border:1px solid var(--border2);border-radius:14px;padding:18px;display:flex;flex-direction:column;justify-content:space-between;gap:14px">
+                    <!-- Header -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
+                                ⚡ Portfolio Volatility
+                            </span>
+                            <span class="badge" id="vol-risk-badge" style="font-size:10px;font-weight:700;padding:2px 8px;background:rgba(16,185,129,0.12);color:#10B981;border:1px solid rgba(16,185,129,0.25)">
+                                MODERAT
+                            </span>
+                        </div>
+                        <button class="btn btn-ghost btn-xs" onclick="openModal('portfolioRisk')" style="font-size:10.5px;padding:3px 9px;border-radius:6px;border:1px solid var(--border2)" title="Lihat detail dekomposisi risiko per aset">
+                            🔍 Rincian Risiko
+                        </button>
+                    </div>
+
+                    <!-- Gauge + Score Hero Row -->
+                    <div style="display:flex;align-items:center;justify-content:space-around;gap:16px;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px 14px">
+                        <!-- SVG Radial Semi-Circle Gauge -->
+                        <div style="display:flex;flex-direction:column;align-items:center;position:relative;width:130px;height:76px;flex-shrink:0">
+                            <svg viewBox="0 0 160 92" style="width:130px;height:76px;overflow:visible">
+                                <defs>
+                                    <linearGradient id="volGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#10B981" />
+                                        <stop offset="30%" stop-color="#3B82F6" />
+                                        <stop offset="65%" stop-color="#F59E0B" />
+                                        <stop offset="100%" stop-color="#EF4444" />
+                                    </linearGradient>
+                                </defs>
+                                <path d="M 18 80 A 62 62 0 0 1 142 80" fill="none" stroke="var(--bg3)" stroke-width="12" stroke-linecap="round" />
+                                <path id="vol-gauge-arc" d="M 18 80 A 62 62 0 0 1 142 80" fill="none" stroke="url(#volGaugeGrad)" stroke-width="12" stroke-linecap="round" stroke-dasharray="194.8" stroke-dashoffset="0" opacity="0.9" />
+                                <!-- Needle Group -->
+                                <g id="vol-gauge-needle" style="transform-origin:80px 80px;transform:rotate(-90deg);transition:transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)">
+                                    <polygon points="77,80 83,80 81,28 79,28" fill="var(--text)" />
+                                    <circle cx="80" cy="80" r="7" fill="var(--bg2)" stroke="var(--accent)" stroke-width="2.5" />
+                                    <circle cx="80" cy="80" r="2.5" fill="var(--accent)" />
+                                </g>
+                                <text x="18" y="92" font-size="8" fill="var(--green)" font-weight="700" text-anchor="middle">Low</text>
+                                <text x="80" y="24" font-size="7.5" fill="var(--text3)" font-weight="600" text-anchor="middle">Mod</text>
+                                <text x="142" y="92" font-size="8" fill="var(--red)" font-weight="700" text-anchor="middle">High</text>
+                            </svg>
+                        </div>
+
+                        <!-- Score & Risk Label -->
+                        <div style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:120px">
+                            <div style="font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Risk Assessment</div>
+                            <div style="display:flex;align-items:baseline;gap:4px">
+                                <span id="vol-risk-score" style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px">0</span>
+                                <span style="font-size:13px;color:var(--text3);font-family:var(--font-mono);font-weight:600">/ 100</span>
+                            </div>
+                            <div id="vol-risk-category" style="font-size:11px;font-weight:700;color:var(--green)">
+                                🟢 Konservatif
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Micro Metrics Grid -->
+                    <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:8px">
+                        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px">
+                            <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase">Volatilitas Tahunan</div>
+                            <div id="vol-annual-val" style="font-size:13px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:2px">0.0% p.a.</div>
+                        </div>
+                        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px">
+                            <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase">Portfolio Beta</div>
+                            <div id="vol-beta-val" style="font-size:13px;font-weight:800;font-family:var(--font-mono);color:var(--accent);margin-top:2px">0.00 vs IHSG</div>
+                        </div>
+                        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px">
+                            <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase">1-Day VaR (95%)</div>
+                            <div id="vol-var-val" style="font-size:13px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:2px">0.0% (Rp 0)</div>
+                        </div>
+                        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px">
+                            <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase">Diversifikasi</div>
+                            <div id="vol-div-val" style="font-size:13px;font-weight:800;font-family:var(--font-mono);color:var(--green);margin-top:2px">100/100</div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Dynamic Narrative Banner -->
+                    <div id="vol-risk-narrative" style="font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;line-height:1.4">
+                        Memuat asesmen volatilitas portofolio...
+                    </div>
                 </div>
             </div>
         </div>

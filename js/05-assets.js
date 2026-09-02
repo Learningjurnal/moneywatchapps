@@ -156,6 +156,86 @@ function openModal(type, targetAccount){
     }
     el('mf-sec-choose').onchange=updateSecPreview;
     setTimeout(updateSecPreview,30);
+  } else if(type==='portfolioRisk'){
+    var riskData = (typeof calcPortfolioVolatilityAndRisk === 'function') ? calcPortfolioVolatilityAndRisk() : null;
+    if (!riskData) {
+      el('m-title').textContent = '⚡ Volatilitas & Asesmen Risiko Portofolio';
+      el('m-body').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3)">Data portofolio tidak tersedia.</div>';
+    } else {
+      el('m-title').textContent = '⚡ Rincian Volatilitas & Profil Risiko Portofolio';
+      el('m-title').style.color = riskData.riskColor || 'var(--accent)';
+
+      var assetRows = (riskData.assets || []).filter(function(a){ return a.val > 0; }).sort(function(a,b){
+        return b.val - a.val;
+      }).map(function(a){
+        var riskContribPct = 0;
+        var totWeighted = riskData.assets.reduce(function(acc, item){ return acc + (item.weight * item.vol); }, 0);
+        if (totWeighted > 0) riskContribPct = (a.weight * a.vol) / totWeighted * 100;
+        var typeBadge = a.type === 'saham' ? '<span class="badge" style="background:rgba(59,130,246,0.12);color:#3B82F6;font-size:9.5px">Saham IDX</span>'
+          : a.type === 'crypto' ? '<span class="badge" style="background:rgba(16,185,129,0.12);color:#10B981;font-size:9.5px">Crypto</span>'
+          : a.type === 'etf' ? '<span class="badge" style="background:rgba(239,68,68,0.12);color:#EF4444;font-size:9.5px">Global ETF</span>'
+          : a.type === 'reksadana' ? '<span class="badge" style="background:rgba(139,92,246,0.12);color:#8B5CF6;font-size:9.5px">Reksa Dana</span>'
+          : '<span class="badge b-gray" style="font-size:9.5px">Kas RDN</span>';
+
+        return '<tr>'
+          + '<td style="font-weight:700;color:var(--text)">' + a.name + '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + typeBadge + '</div></td>'
+          + '<td class="mono" style="text-align:right">Rp ' + fmt(Math.round(a.val)) + '<div style="font-size:10px;color:var(--text2)">' + (a.weight * 100).toFixed(1) + '%</div></td>'
+          + '<td class="mono" style="text-align:right;color:' + (a.beta > 1.2 ? 'var(--red)' : a.beta < 0.8 ? 'var(--green)' : 'var(--text)') + '">' + a.beta.toFixed(2) + '</td>'
+          + '<td class="mono" style="text-align:right;color:' + (a.vol > 0.3 ? 'var(--red)' : a.vol < 0.1 ? 'var(--green)' : 'var(--text)') + '">' + (a.vol * 100).toFixed(1) + '% p.a.</td>'
+          + '<td class="mono" style="text-align:right;font-weight:700;color:' + (riskContribPct > 25 ? 'var(--red)' : 'var(--text)') + '">' + riskContribPct.toFixed(1) + '%</td>'
+          + '</tr>';
+      }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:14px">Belum ada aset aktif dalam portofolio</td></tr>';
+
+      var stressIHSG5 = Math.round(riskData.totVal * (riskData.portfolioBeta * -0.05));
+      var stressTech10 = Math.round(riskData.totVal * (((riskData.riskContrib.crypto || 0) + (riskData.riskContrib.etf || 0)) / 100 * -0.10 + (riskData.portfolioBeta * -0.02)));
+      var stressCrypto20 = Math.round(riskData.totVal * ((riskData.riskContrib.crypto || 0) / 100 * -0.20));
+
+      el('m-body').innerHTML = '<div style="display:flex;flex-direction:column;gap:14px">'
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+          + '<div>'
+            + '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Status &amp; Kategori Risiko</div>'
+            + '<div style="font-size:16px;font-weight:800;color:' + (riskData.riskColor || 'var(--text)') + ';margin-top:2px">' + riskData.riskCategory + '</div>'
+          + '</div>'
+          + '<div style="display:flex;gap:14px;align-items:center">'
+            + '<div style="text-align:right"><div style="font-size:10px;color:var(--text3)">SKOR RISIKO</div><div class="mono" style="font-size:20px;font-weight:800;color:var(--text)">' + riskData.riskScore + '<span style="font-size:12px;color:var(--text3)">/100</span></div></div>'
+            + '<div style="text-align:right"><div style="font-size:10px;color:var(--text3)">VOLATILITAS</div><div class="mono" style="font-size:20px;font-weight:800;color:var(--accent)">' + (riskData.annualVol * 100).toFixed(1) + '%</div></div>'
+          + '</div>'
+        + '</div>'
+
+        + '<div>'
+          + '<div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text)">📋 Dekomposisi Risiko &amp; Bobot per Instrumen</div>'
+          + '<div style="overflow-x:auto;max-height:220px;border:1px solid var(--border2);border-radius:8px">'
+            + '<table class="tbl" style="margin:0;font-size:11px">'
+              + '<thead><tr><th>Instrumen Aset</th><th style="text-align:right">Nilai &amp; Bobot</th><th style="text-align:right">Beta</th><th style="text-align:right">Volatilitas</th><th style="text-align:right">Kontribusi Risiko</th></tr></thead>'
+              + '<tbody>' + assetRows + '</tbody>'
+            + '</table>'
+          + '</div>'
+        + '</div>'
+
+        + '<div>'
+          + '<div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text)">🛡️ Scenario Stress Test (Simulasi Tekanan Pasar)</div>'
+          + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">'
+            + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px">'
+              + '<div style="font-size:10.5px;font-weight:700;color:var(--text)">IHSG Koreksi -5.0%</div>'
+              + '<div class="mono dn" style="font-size:13px;font-weight:800;margin-top:4px">Rp ' + fmt(stressIHSG5) + ' (' + (riskData.totVal > 0 ? (stressIHSG5 / riskData.totVal * 100).toFixed(2) : '0.00') + '%)</div>'
+            + '</div>'
+            + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px">'
+              + '<div style="font-size:10.5px;font-weight:700;color:var(--text)">Global / Tech Selloff -10%</div>'
+              + '<div class="mono dn" style="font-size:13px;font-weight:800;margin-top:4px">Rp ' + fmt(stressTech10) + ' (' + (riskData.totVal > 0 ? (stressTech10 / riskData.totVal * 100).toFixed(2) : '0.00') + '%)</div>'
+            + '</div>'
+            + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px">'
+              + '<div style="font-size:10.5px;font-weight:700;color:var(--text)">Crypto Flash Crash -20%</div>'
+              + '<div class="mono dn" style="font-size:13px;font-weight:800;margin-top:4px">Rp ' + fmt(stressCrypto20) + ' (' + (riskData.totVal > 0 ? (stressCrypto20 / riskData.totVal * 100).toFixed(2) : '0.00') + '%)</div>'
+            + '</div>'
+          + '</div>'
+        + '</div>'
+
+        + '<div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">'
+          + '<button class="btn btn-ghost" onclick="closeModal()">Tutup</button>'
+          + '<button class="btn btn-blue" onclick="closeModal();goPage(\'rebalance\')">⚖️ Rebalance Portofolio</button>'
+        + '</div>'
+      + '</div>';
+    }
   }
   el('modal').classList.add('on');
 }
@@ -2107,6 +2187,244 @@ function calcReconciliationLive(){
     '</div>';
 }
 
+// ============================================================
+// PORTFOLIO VOLATILITY & RISK ASSESSMENT ENGINE
+// ============================================================
+function calcPortfolioVolatilityAndRisk(){
+  var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
+  var cryptoPorto = typeof getCryptoPortfolio === 'function' ? getCryptoPortfolio() : [];
+  var etfPorto = typeof getEtfPortfolio === 'function' ? getEtfPortfolio() : [];
+  var rdPorto = typeof getRdPortfolio === 'function' ? getRdPortfolio() : [];
+
+  var sahamMv = porto.reduce(function(a,p){ return a + (p.mv || 0); }, 0);
+  var cryptoMv = cryptoPorto.reduce(function(a,p){ return a + (p.mv || 0); }, 0);
+  var etfMv = etfPorto.reduce(function(a,p){ return a + (p.mvIdr || 0); }, 0);
+  var rdVal = rdPorto.reduce(function(a,p){ return a + (p.val || 0); }, 0);
+  var rdnCash = typeof calcRdnBalance === 'function' ? (calcRdnBalance('saham') + calcRdnBalance('crypto') + calcRdnBalance('reksadana')) : 0;
+  
+  var totVal = sahamMv + cryptoMv + etfMv + rdVal;
+  var assets = [];
+
+  // 1. Saham IDX
+  porto.forEach(function(p){
+    var mv = p.mv || 0;
+    var tkr = p.ticker;
+    var d = DB[tkr] || {};
+    var beta = typeof d.beta === 'number' ? d.beta : (d.cap === 'big' ? 1.05 : d.cap === 'mid' ? 1.25 : 1.45);
+    
+    // Estimate volatility from quant if available, else standard deviation lookup
+    var vol = 0.22;
+    if (typeof calcStockVolatility === 'function') {
+      vol = calcStockVolatility(tkr) || 0.22;
+    } else if (d.cap === 'big') {
+      vol = 0.18 + (beta - 1.0) * 0.08;
+    } else if (d.cap === 'mid') {
+      vol = 0.28 + (beta - 1.0) * 0.10;
+    } else {
+      vol = 0.42 + (beta - 1.0) * 0.12;
+    }
+    vol = Math.max(0.12, Math.min(0.85, vol));
+
+    assets.push({
+      id: tkr,
+      name: tkr + ' - ' + (d.name || 'IDX Stock'),
+      type: 'saham',
+      val: mv,
+      weight: totVal > 0 ? (mv / totVal) : 0,
+      vol: vol,
+      beta: beta
+    });
+  });
+
+  // 2. Crypto Assets
+  cryptoPorto.forEach(function(cp){
+    var mv = cp.mv || 0;
+    var coin = (cp.coin || '').toUpperCase();
+    var cdb = (typeof CRYPTO_DB === 'object' && CRYPTO_DB[coin]) ? CRYPTO_DB[coin] : {};
+    var vol = 0.65;
+    var beta = 2.4;
+    if (coin === 'BTC') { vol = 0.48; beta = 1.9; }
+    else if (coin === 'ETH') { vol = 0.58; beta = 2.2; }
+    else if (coin === 'SOL') { vol = 0.72; beta = 2.6; }
+    else if (coin === 'USDT' || coin === 'USDC') { vol = 0.02; beta = 0.05; }
+    else { vol = 0.85; beta = 3.0; }
+
+    assets.push({
+      id: coin,
+      name: coin + ' (' + (cdb.name || 'Crypto') + ')',
+      type: 'crypto',
+      val: mv,
+      weight: totVal > 0 ? (mv / totVal) : 0,
+      vol: vol,
+      beta: beta
+    });
+  });
+
+  // 3. ETF Global
+  etfPorto.forEach(function(ep){
+    var mv = ep.mvIdr || 0;
+    var tkr = (ep.ticker || '').toUpperCase();
+    var edb = (typeof ETF_DB === 'object' && ETF_DB[tkr]) ? ETF_DB[tkr] : {};
+    var vol = 0.18;
+    var beta = 1.0;
+    if (tkr === 'QQQ' || tkr === 'SOXX' || tkr === 'SMH') { vol = 0.24; beta = 1.25; }
+    else if (tkr === 'SPY' || tkr === 'VOO' || tkr === 'IVV') { vol = 0.16; beta = 1.0; }
+    else if (tkr === 'TLT' || tkr === 'BND' || tkr === 'AGG') { vol = 0.09; beta = 0.2; }
+    else if (tkr === 'GLD' || tkr === 'IAU') { vol = 0.14; beta = 0.3; }
+
+    assets.push({
+      id: tkr,
+      name: tkr + ' - ' + (edb.name || 'Global ETF'),
+      type: 'etf',
+      val: mv,
+      weight: totVal > 0 ? (mv / totVal) : 0,
+      vol: vol,
+      beta: beta
+    });
+  });
+
+  // 4. Reksa Dana
+  rdPorto.forEach(function(rp){
+    var val = rp.val || 0;
+    var code = rp.code || '';
+    var rdb = (typeof RD_DB === 'object' && RD_DB[code]) ? RD_DB[code] : {};
+    var cat = (rdb.cat || rp.cat || '').toLowerCase();
+    var vol = 0.08;
+    var beta = 0.4;
+    if (cat.indexOf('pasar uang') >= 0 || cat.indexOf('money') >= 0) {
+      vol = 0.015; beta = 0.05;
+    } else if (cat.indexOf('pendapatan tetap') >= 0 || cat.indexOf('obligasi') >= 0 || cat.indexOf('bond') >= 0) {
+      vol = 0.045; beta = 0.25;
+    } else if (cat.indexOf('campuran') >= 0 || cat.indexOf('balanced') >= 0) {
+      vol = 0.11; beta = 0.65;
+    } else { // Saham
+      vol = 0.17; beta = 0.95;
+    }
+
+    assets.push({
+      id: code,
+      name: (rdb.name || rp.name || code),
+      type: 'reksadana',
+      val: val,
+      weight: totVal > 0 ? (val / totVal) : 0,
+      vol: vol,
+      beta: beta
+    });
+  });
+
+  if (totVal === 0 || assets.length === 0) {
+    return {
+      totVal: 0,
+      annualVol: 0,
+      portfolioBeta: 0,
+      var1DPercent: 0,
+      var1DIdr: 0,
+      diversificationScore: 100,
+      riskScore: 0,
+      needleAngle: -90,
+      riskCategory: '🟢 Konservatif (Kas / Kosong)',
+      riskColor: '#10B981',
+      narrative: 'Portofolio saat ini tidak memiliki aset aktif yang menanggung risiko volatilitas pasar.',
+      assets: [],
+      riskContrib: { saham: 0, crypto: 0, etf: 0, reksadana: 0 }
+    };
+  }
+
+  // Weighted Volatility & Portfolio Beta
+  var weightedVol = assets.reduce(function(acc, a){ return acc + (a.weight * a.vol); }, 0);
+  var portfolioBeta = assets.reduce(function(acc, a){ return acc + (a.weight * a.beta); }, 0);
+
+  // Herfindahl-Hirschman Index (HHI) for Concentration & Diversification
+  var sumSqWeights = assets.reduce(function(acc, a){ return acc + Math.pow(a.weight, 2); }, 0);
+  var activeClasses = 0;
+  if (sahamMv > 0) activeClasses++;
+  if (cryptoMv > 0) activeClasses++;
+  if (etfMv > 0) activeClasses++;
+  if (rdVal > 0) activeClasses++;
+
+  // Diversification Discount (multi-asset & low concentration reduces total portfolio volatility)
+  var diversificationDiscount = Math.max(0, (1 - Math.sqrt(sumSqWeights)) * 0.22 + (activeClasses - 1) * 0.04);
+  var annualVol = Math.max(0.015, weightedVol * (1 - diversificationDiscount));
+
+  // 1-Day Value-at-Risk (95% Confidence, Parametric Normal Distribution)
+  // dailyVol = annualVol / sqrt(252), z_95 = 1.645
+  var dailyVol = annualVol / Math.sqrt(252);
+  var var1DPercent = (1.645 * dailyVol) * 100;
+  var var1DIdr = (var1DPercent / 100) * totVal;
+
+  // Diversification Score (0 - 100)
+  var divScore = Math.round(Math.min(100, Math.max(10, (1 - sumSqWeights) * 80 + (activeClasses * 6.5))));
+
+  // Normalized Risk Score Calculation (0 - 100)
+  // Volatility factor (0-55 pts): 0% vol -> 0 pts, 40%+ vol -> 55 pts
+  var volPts = Math.min(55, (annualVol / 0.40) * 55);
+  // Beta factor (0-30 pts): 0 beta -> 0 pts, 2.0+ beta -> 30 pts
+  var betaPts = Math.min(30, (portfolioBeta / 2.0) * 30);
+  // Concentration & Crypto risk bump (0-15 pts)
+  var cryptoWeight = totVal > 0 ? (cryptoMv / totVal) : 0;
+  var concPts = Math.min(15, (cryptoWeight * 12) + (sumSqWeights * 5));
+
+  var riskScore = Math.round(Math.min(100, Math.max(5, volPts + betaPts + concPts)));
+
+  // Risk Classification
+  var riskCategory = '🟢 Konservatif';
+  var riskColor = '#10B981';
+  if (riskScore > 80) {
+    riskCategory = '🔴 Agresif & Spekulatif';
+    riskColor = '#EF4444';
+  } else if (riskScore > 60) {
+    riskCategory = '🟠 Pertumbuhan Tinggi (Aggressive)';
+    riskColor = '#F59E0B';
+  } else if (riskScore > 40) {
+    riskCategory = '🟡 Moderat Dinamis';
+    riskColor = '#3B82F6';
+  } else if (riskScore > 20) {
+    riskCategory = '🔵 Moderat Rendah (Balanced)';
+    riskColor = '#06B6D4';
+  }
+
+  // Needle Angle: -90deg is 0 score (Low), +90deg is 100 score (High)
+  var needleAngle = -90 + (riskScore / 100) * 180;
+
+  // Risk contribution per asset class
+  var riskContrib = {
+    saham: totVal > 0 ? (sahamMv / totVal) * 100 : 0,
+    crypto: totVal > 0 ? (cryptoMv / totVal) * 100 : 0,
+    etf: totVal > 0 ? (etfMv / totVal) * 100 : 0,
+    reksadana: totVal > 0 ? (rdVal / totVal) * 100 : 0
+  };
+
+  // Narrative summary generator
+  var topRiskAsset = assets.slice().sort(function(a,b){ return (b.weight * b.vol) - (a.weight * a.vol); })[0];
+  var narrative = '';
+  if (cryptoWeight > 0.3) {
+    narrative = '⚠️ Portofolio didominasi aset kripto (' + (cryptoWeight * 100).toFixed(1) + '%). Fluktuasi jangka pendek tinggi dengan potensi deviasi tajam.';
+  } else if (activeClasses >= 3 && sumSqWeights < 0.35) {
+    narrative = '✨ Diversifikasi aset lintas kelas berjalan optimal. Risiko terdistribusi sehat dengan volatilitas terukur (' + (annualVol * 100).toFixed(1) + '% p.a.).';
+  } else if (topRiskAsset && (topRiskAsset.weight * topRiskAsset.vol) > (weightedVol * 0.45)) {
+    narrative = '📌 ' + topRiskAsset.name + ' menyumbang kontribusi volatilitas terbesar. Pantau pergerakan harga untuk menjaga batas risiko.';
+  } else {
+    narrative = '💡 Profil risiko portofolio berimbang. Estimasi Value at Risk harian 95% berkisar di Rp ' + fmt(Math.round(var1DIdr)) + ' (' + var1DPercent.toFixed(2) + '%).';
+  }
+
+  return {
+    totVal: totVal,
+    annualVol: annualVol,
+    portfolioBeta: portfolioBeta,
+    var1DPercent: var1DPercent,
+    var1DIdr: var1DIdr,
+    diversificationScore: divScore,
+    riskScore: riskScore,
+    needleAngle: needleAngle,
+    riskCategory: riskCategory,
+    riskColor: riskColor,
+    narrative: narrative,
+    assets: assets,
+    riskContrib: riskContrib
+  };
+}
+window.calcPortfolioVolatilityAndRisk = calcPortfolioVolatilityAndRisk;
+
 function renderPortfolioHub(){
   var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
   var sahamMv = porto.reduce(function(a,p){ return a + (p.mv || 0); }, 0);
@@ -2243,6 +2561,44 @@ function renderPortfolioHub(){
         +'</div>'
         +'</div>';
     }).join('');
+  }
+
+  // ==========================================
+  // RENDER PORTFOLIO VOLATILITY GAUGE & METRICS
+  // ==========================================
+  var risk = calcPortfolioVolatilityAndRisk();
+
+  if (el('vol-risk-score')) {
+    el('vol-risk-score').textContent = risk.riskScore;
+  }
+  if (el('vol-risk-category')) {
+    el('vol-risk-category').textContent = risk.riskCategory;
+    el('vol-risk-category').style.color = risk.riskColor;
+  }
+  if (el('vol-risk-badge')) {
+    var riskBadgeText = risk.riskScore <= 20 ? 'KONSERVATIF' : risk.riskScore <= 40 ? 'MODERAT RENDAH' : risk.riskScore <= 60 ? 'MODERAT' : risk.riskScore <= 80 ? 'PERTUMBUHAN' : 'AGRESIF';
+    el('vol-risk-badge').textContent = riskBadgeText + ' • ' + (risk.annualVol * 100).toFixed(1) + '%';
+    el('vol-risk-badge').style.color = risk.riskColor;
+    el('vol-risk-badge').style.background = risk.riskColor + '18';
+    el('vol-risk-badge').style.borderColor = risk.riskColor + '40';
+  }
+  if (el('vol-gauge-needle')) {
+    el('vol-gauge-needle').style.transform = 'rotate(' + risk.needleAngle.toFixed(1) + 'deg)';
+  }
+  if (el('vol-annual-val')) {
+    el('vol-annual-val').textContent = (risk.annualVol * 100).toFixed(1) + '% p.a.';
+  }
+  if (el('vol-beta-val')) {
+    el('vol-beta-val').textContent = risk.portfolioBeta.toFixed(2) + ' vs IHSG';
+  }
+  if (el('vol-var-val')) {
+    el('vol-var-val').textContent = '-' + risk.var1DPercent.toFixed(2) + '% (Rp ' + fmt(Math.round(risk.var1DIdr)) + ')';
+  }
+  if (el('vol-div-val')) {
+    el('vol-div-val').textContent = risk.diversificationScore + '/100 (' + (risk.diversificationScore >= 75 ? 'Optimal' : risk.diversificationScore >= 50 ? 'Cukup' : 'Terkonsentrasi') + ')';
+  }
+  if (el('vol-risk-narrative')) {
+    el('vol-risk-narrative').innerHTML = risk.narrative;
   }
 }
 window.renderPortfolioHub = renderPortfolioHub;
