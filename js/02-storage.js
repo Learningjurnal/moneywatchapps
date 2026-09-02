@@ -17,24 +17,10 @@ var nextRdnId = 1;
 function _maxIdPlus1(arr){ var m=0; (arr||[]).forEach(function(x){ if(x.id>m) m=x.id; }); return m+1; }
 
 // ============================================================
-// DATA PORTOFOLIO & TRANSAKSI RIIL AGUSTUS 2026 (STOCKBIT)
 // ============================================================
-var INITIAL_PORTO_2026 = [
-  { no: 1,  date: '2026-08-11', type: 'BUY',  ticker: 'GMFI', lot: 100, price: 65,    net: 651170 },
-  { no: 2,  date: '2026-08-12', type: 'BUY',  ticker: 'GMFI', lot: 20,  price: 61,    net: 122220 },
-  { no: 3,  date: '2026-08-13', type: 'BUY',  ticker: 'RAJA', lot: 10,  price: 880,   net: 881584 },
-  { no: 4,  date: '2026-08-20', type: 'BUY',  ticker: 'ERAA', lot: 215, price: 480,   net: 10338576 },
-  { no: 5,  date: '2026-08-20', type: 'BUY',  ticker: 'PTRO', lot: 5,   price: 4900,  net: 2454410 },
-  { no: 6,  date: '2026-08-20', type: 'BUY',  ticker: 'AADI', lot: 5,   price: 10200, net: 5109180 },
-  { no: 7,  date: '2026-08-20', type: 'BUY',  ticker: 'SMDR', lot: 710, price: 410,   net: 29162398 },
-  { no: 8,  date: '2026-08-27', type: 'SELL', ticker: 'PTRO', lot: 5,   price: 5100,  net: 2542860 },
-  { no: 9,  date: '2026-08-27', type: 'SELL', ticker: 'ERAA', lot: 5,   price: 494,   net: 246308 },
-  { no: 10, date: '2026-08-27', type: 'SELL', ticker: 'ERAA', lot: 210, price: 496,   net: 10386835 },
-  { no: 11, date: '2026-08-28', type: 'BUY',  ticker: 'ADRO', lot: 10,  price: 2660,  net: 2664788 },
-  { no: 12, date: '2026-08-31', type: 'SELL', ticker: 'AADI', lot: 5,   price: 10775, net: 5372415 },
-  { no: 13, date: '2026-08-31', type: 'BUY',  ticker: 'ARCI', lot: 4,   price: 1335,  net: 534961 },
-  { no: 14, date: '2026-08-31', type: 'BUY',  ticker: 'ADMR', lot: 20,  price: 1740,  net: 3486264 }
-];
+// DATA PORTOFOLIO & TRANSAKSI (BERSIH / SIAP INPUT DATA BARU)
+// ============================================================
+var INITIAL_PORTO_2026 = [];
 
 function initPortfolio2026(force){
   if(transactions && transactions.length > 0 && !force) return;
@@ -42,131 +28,88 @@ function initPortfolio2026(force){
   transactions = [];
   rdnMutations = [];
   dividends = [];
+  cryptoTx = [];
+  etfTx = [];
+  rdTx = [];
+  divInvestData = [];
   nextTxId = 1;
   nextRdnId = 1;
   activeSekuritas = 'Stockbit';
+  rdnBalance = 0;
 
-  var buyMuts = [];
-  var totalBuyNet = 0;
-  var totalSellNet = 0;
+  if(typeof CASH_ACCOUNTS !== 'undefined'){
+    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 0;
+    if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = 0;
+    if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
+  }
 
-  INITIAL_PORTO_2026.forEach(function(item){
-    var gross = item.lot * 100 * item.price;
-    var c = (typeof calcTxComponents === 'function') 
-      ? calcTxComponents(gross, item.type === 'BUY', 'Stockbit') 
-      : { 
-          komisi: item.type === 'BUY' ? gross * 0.0016 : gross * 0.0018, 
-          ppn: 0, levy: 0, pph: item.type === 'SELL' ? gross * 0.001 : 0, 
-          net: item.net || (item.type === 'BUY' ? gross * 1.0018 : gross * 0.9972) 
-        };
-    
-    var netVal = item.net || c.net;
-    if(item.type === 'BUY') totalBuyNet += netVal;
-    else totalSellNet += netVal;
-
-    var txId = nextTxId++;
-    transactions.push({
-      id: txId,
-      date: item.date,
-      type: item.type,
-      ticker: item.ticker,
-      lot: item.lot,
-      price: item.price,
-      gross: gross,
-      komisi: c.komisi || 0,
-      ppn: c.ppn || 0,
-      levy: c.levy || 0,
-      pph: c.pph || 0,
-      tax: (c.ppn || 0) + (c.levy || 0) + (c.pph || 0),
-      net: netVal,
-      sekuritas: 'Stockbit'
-    });
-
-    buyMuts.push({
-      date: item.date,
-      type: item.type,
-      ket: (item.type === 'BUY' ? 'Beli ' : 'Jual ') + item.lot + ' lot ' + item.ticker + ' @ Rp ' + fmt(item.price),
-      amount: item.type === 'BUY' ? -netVal : netVal,
-      balance: 0,
-      sekuritas: 'Stockbit',
-      linkedTxId: txId
-    });
-  });
-
-  // Dividen SMDR 28 Aug 2026
-  var divSmdrNet = 177500;
-  dividends.push({
-    id: nextDivId++,
-    ticker: 'SMDR',
-    date: '2026-08-28',
-    paymentDate: '2026-08-28',
-    cumDate: '2026-08-20',
-    dps: 2.5,
-    shares: 71000,
-    gross: 177500,
-    tax: 0,
-    net: divSmdrNet,
-    notes: 'Dividen SMDR 710 lot @ Rp 2.5/lembar',
-    sekuritas: 'Stockbit'
-  });
-
-  // Target saldo kas RDN pas Rp 12.600.000 (12,6 Juta)
-  // Net cash flow = totalSellNet + divSmdrNet - 10000(meterai) - totalBuyNet
-  var feeMeterai = 10000;
-  var netFlow = totalSellNet + divSmdrNet - feeMeterai - totalBuyNet;
-  var initialDeposit = 12600000 - netFlow;
-
-  rdnMutations.push({
-    id: nextRdnId++,
-    date: '2026-08-01',
-    type: 'SETOR',
-    ket: 'Setoran Awal RDN (Modal Awal)',
-    amount: initialDeposit,
-    balance: initialDeposit,
-    sekuritas: 'Stockbit'
-  });
-
-  buyMuts.forEach(function(m){
-    m.id = nextRdnId++;
-    rdnMutations.push(m);
-    if(m.date === '2026-08-27' && !rdnMutations.some(function(x){ return x.type === 'FEE'; })){
-      rdnMutations.push({
-        id: nextRdnId++,
-        date: '2026-08-27',
-        type: 'FEE',
-        ket: 'Bea Meterai',
-        amount: -feeMeterai,
-        balance: 0,
-        sekuritas: 'Stockbit'
-      });
-    }
-    if(m.date === '2026-08-28' && !rdnMutations.some(function(x){ return x.type === 'DIVIDEN'; })){
-      rdnMutations.push({
-        id: nextRdnId++,
-        date: '2026-08-28',
-        type: 'DIVIDEN',
-        ket: 'Dividen SMDR (710 lot)',
-        amount: divSmdrNet,
-        balance: 0,
-        sekuritas: 'Stockbit',
-        linkedTxId: 'div-1'
-      });
-    }
-  });
-
-  tradeStrategy = {
-    'GMFI': 'Swing Trade',
-    'RAJA': 'Swing Trade',
-    'ADRO': 'Core Long',
-    'ARCI': 'Swing Trade',
-    'ADMR': 'Core Long',
-    'SMDR': 'Dividend Play'
-  };
+  tradeStrategy = {};
 
   if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   if (typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
   if (force && typeof saveData === 'function') saveData();
 }
+
+function resetAllDatabaseAndTransactions(){
+  transactions = [];
+  rdnMutations = [];
+  dividends = [];
+  cryptoTx = [];
+  etfTx = [];
+  rdTx = [];
+  divInvestData = [];
+  nextTxId = 1;
+  nextRdnId = 1;
+  rdnBalance = 0;
+
+  if(typeof CASH_ACCOUNTS !== 'undefined'){
+    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 0;
+    if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = 0;
+    if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
+  }
+
+  tradeStrategy = {};
+
+  try {
+    var keysToClear = [
+      'mw_local_data_v2',
+      'mw_stocks_db',
+      'moneywatch_stocks_db',
+      'moneywatch_stocks_backup',
+      'transactions',
+      'portfolio',
+      'rdnMutations',
+      'dividends',
+      'cryptoTx',
+      'etfTx',
+      'rdTx',
+      'divInvestData',
+      'mw_backup_history',
+      'mw_tx_cache'
+    ];
+    keysToClear.forEach(function(k){
+      localStorage.removeItem(k);
+    });
+  } catch(e){}
+
+  if(typeof saveData === 'function') saveData();
+  if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+  if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
+
+  if(typeof renderDashboard === 'function') renderDashboard();
+  if(typeof renderPortofolio === 'function') renderPortofolio();
+  if(typeof renderTransaksi === 'function') renderTransaksi();
+  if(typeof renderRdn === 'function') renderRdn();
+  if(typeof renderDividen === 'function') renderDividen();
+  if(typeof renderCrypto === 'function') renderCrypto();
+  if(typeof renderReksaDana === 'function') renderReksaDana();
+  if(typeof renderCashWidgets === 'function') renderCashWidgets();
+
+  if(typeof showSaveStatus === 'function'){
+    showSaveStatus('✓ Database portofolio berhasil dikosongkan 100% (Siap upload data baru)', 'var(--green)');
+  }
+}
+window.resetAllDatabaseAndTransactions = resetAllDatabaseAndTransactions;
 
 function sanitizeRdnMutations(){
   if(!Array.isArray(rdnMutations)) rdnMutations = [];
@@ -489,12 +432,8 @@ window.reconcileRdnWithTransactions = reconcileRdnWithTransactions;
 
 // Inisialisasi awal aman: coba load dari localStorage dulu
 try {
-  var _hasLoaded = loadData();
-  if(!_hasLoaded || (transactions.length === 0 && !localStorage.getItem('mw_local_data_v2'))){
-    initPortfolio2026();
-  } else {
-    sanitizeRdnMutations();
-  }
+  loadData();
+  sanitizeRdnMutations();
 } catch(e){
   initPortfolio2026();
 }
