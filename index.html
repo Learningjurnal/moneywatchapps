@@ -238,7 +238,7 @@
       <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine" style="color:#00c8ff"></i><span class="side-label">Research</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">PRO</span></button>
       <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank" style="color:#3B82F6"></i><span class="side-label">Fundamental</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle" style="color:#8B5CF6"></i><span class="side-label">Technical</span></button>
-      <button onclick="goPage('flowscan',this)"><i class="ti ti-flame" style="color:#f97316"></i><span class="side-label">Smart Money</span></button>
+      <button onclick="goBandarmology('smart-money-flow',this)"><i class="ti ti-flame" style="color:#f97316"></i><span class="side-label">Smart Money</span><span class="badge b-up" style="margin-left:auto;font-size:8px;padding:1px 5px">CMF</span></button>
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator" style="color:#10b981"></i><span class="side-label">Valuation</span></button>
       <button onclick="goPage('ranking',this)"><i class="ti ti-trophy" style="color:#eab308"></i><span class="side-label">Market Radar</span></button>
     </div>
@@ -252,16 +252,18 @@
     </div>
   </div>
 
-  <!-- 4. BANDARMOLOGY COCKPIT -->
+  <!-- 4. BANDARMOLOGY & SMART MONEY COCKPIT -->
   <div class="side-group open" data-group="bandarmology">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-chart-arrows" style="color:#10b981"></i><span class="side-label">BANDARMOLOGY COCKPIT</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-chart-arrows" style="color:#10b981"></i><span class="side-label">BANDARMOLOGY & SMART MONEY</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goBandarmology('market-flow',this)"><i class="ti ti-world-download" style="color:#38bdf8"></i><span class="side-label">Market Flow</span></button>
       <button onclick="goBandarmology('broker-flow',this)"><i class="ti ti-arrows-diff" style="color:#10b981"></i><span class="side-label">Broker Flow</span></button>
+      <button onclick="goBandarmology('smart-money-flow',this)"><i class="ti ti-flame" style="color:#f97316"></i><span class="side-label">Smart Money Flow</span></button>
       <button onclick="goBandarmology('foreign-flow',this)"><i class="ti ti-coin" style="color:#f59e0b"></i><span class="side-label">Foreign Flow</span></button>
       <button onclick="goBandarmology('accumulation',this)"><i class="ti ti-circle-arrow-up" style="color:#10b981"></i><span class="side-label">Accumulation</span></button>
       <button onclick="goBandarmology('distribution',this)"><i class="ti ti-circle-arrow-down" style="color:#f43f5e"></i><span class="side-label">Distribution</span></button>
-      <button onclick="goBandarmology('smart-money-radar',this)"><i class="ti ti-radar-2" style="color:#8b5cf6"></i><span class="side-label">Smart Money Radar</span></button>
+      <button onclick="goBandarmology('smart-money-radar',this)"><i class="ti ti-radar-2" style="color:#8b5cf6"></i><span class="side-label">Whale vs Retail Radar</span></button>
+      <button onclick="goBandarmology('heatmap-scanner',this)"><i class="ti ti-layout-grid" style="color:#06b6d4"></i><span class="side-label">Heatmap & Scanner</span></button>
       <button onclick="goBandarmology('broker-trail',this)"><i class="ti ti-route" style="color:#ec4899"></i><span class="side-label">Broker Trail</span></button>
     </div>
   </div>

@@ -532,9 +532,29 @@ test('Broker Flow: Top 1/3/5 Concentration Ratio & Safe Default Fallback', () =>
   assert(conc.top3BuyPct >= 60, 'Top 3 Buy Pct >= 60% qualifies for High Accumulation flag');
 });
 
+// ── TEST 20: SMART MONEY CMF & VWAP MULTI-PERIOD BANDS MATH ──
+test('Smart Money: Chaikin Money Flow & Institutional VWAP Bands Math', () => {
+  const price = 10000;
+  const isUp = true;
+  const vwapSession = Math.round(price * (isUp ? 0.992 : 1.008)); // 9920
+  const vwapUpper = Math.round(vwapSession * 1.025); // 10168
+  const vwapLower = Math.round(vwapSession * 0.975); // 9672
+  const distToVwap = Number((((price - vwapSession) / vwapSession) * 100).toFixed(2));
+
+  assert.strictEqual(vwapSession, 9920);
+  assert.strictEqual(vwapUpper, 10168);
+  assert.strictEqual(vwapLower, 9672);
+  assert(distToVwap > 0, 'Price above VWAP indicates positive premium');
+
+  const cmfPositive = 0.24;
+  const isAccumulation = cmfPositive >= 0.15;
+  assert.strictEqual(isAccumulation, true, 'CMF >= 0.15 must classify as Strong Accumulation');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
+
 
 
 

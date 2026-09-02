@@ -967,7 +967,7 @@ function renderPage(name){
     case 'fundamental':if(typeof fundInit==='function') fundInit();break;
     case 'technical':if(typeof techInit==='function') techInit();break;
     case 'crypto-technical':if(typeof initCryptoTechnicalSuite==='function') initCryptoTechnicalSuite();break;
-    case 'flowscan':if(typeof techInit==='function') techInit(); else fsRunAnalysis();break;
+    case 'flowscan':if(typeof goBandarmology==='function') goBandarmology('smart-money-flow'); else if(typeof techInit==='function') techInit(); else fsRunAnalysis();break;
     case 'ranking':fsRenderRanking();break;
     case 'heatmap':fsRenderHeatmap();break;
     case 'scanner':break;
