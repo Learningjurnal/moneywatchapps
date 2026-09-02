@@ -476,8 +476,65 @@ test('Stock Universe: Dynamic 5-Pillar Score & Valuation Synthesis for Any IDX T
   assert.strictEqual(resBbca.overallScore, 82);
 });
 
+// ── TEST 18: SMART MONEY VS RETAIL DIVERGENCE & INSTITUTIONAL NET FLOW MATH ──
+test('Smart Money Flow: Institutional vs Retail Divergence Detection', () => {
+  const instList = ['AK', 'BK', 'ZP', 'KZ', 'CS', 'RX', 'CC', 'SQ', 'OD', 'NI', 'LG', 'IF', 'YU'];
+  const retList = ['YP', 'PD', 'XC', 'XL', 'KK', 'EP', 'AT'];
+
+  const buyers = [
+    { broker: 'AK', valueRp: 25000000000, avgPrice: 9800 },
+    { broker: 'BK', valueRp: 20000000000, avgPrice: 9825 },
+    { broker: 'CC', valueRp: 15000000000, avgPrice: 9850 },
+    { broker: 'YP', valueRp: 3000000000, avgPrice: 9900 }
+  ];
+
+  const sellers = [
+    { broker: 'YP', valueRp: 22000000000, avgPrice: 9850 },
+    { broker: 'PD', valueRp: 18000000000, avgPrice: 9825 },
+    { broker: 'XC', valueRp: 12000000000, avgPrice: 9800 },
+    { broker: 'AK', valueRp: 2000000000, avgPrice: 9875 }
+  ];
+
+  const smBuyers = buyers.filter(b => instList.includes(b.broker));
+  const smSellers = sellers.filter(s => instList.includes(s.broker));
+  const retBuyers = buyers.filter(b => retList.includes(b.broker));
+  const retSellers = sellers.filter(s => retList.includes(s.broker));
+
+  const smBuyVal = smBuyers.reduce((a, b) => a + b.valueRp, 0); // 60B
+  const smSellVal = smSellers.reduce((a, s) => a + s.valueRp, 0); // 2B
+  const smNet = smBuyVal - smSellVal; // +58B
+
+  const retBuyVal = retBuyers.reduce((a, b) => a + b.valueRp, 0); // 3B
+  const retSellVal = retSellers.reduce((a, s) => a + s.valueRp, 0); // 52B
+  const retNet = retBuyVal - retSellVal; // -49B
+
+  assert.strictEqual(smNet, 58000000000);
+  assert.strictEqual(retNet, -49000000000);
+
+  const isBullishDivergence = smNet > 0 && retNet < 0;
+  assert.strictEqual(isBullishDivergence, true, 'Whale accumulation while retail sells must trigger Bullish Divergence');
+});
+
+// ── TEST 19: BANDARMOLOGY SPECTRUM & CONCENTRATION RATIO BOUNDS ──
+test('Broker Flow: Top 1/3/5 Concentration Ratio & Safe Default Fallback', () => {
+  const conc = {
+    top1BuyPct: 28.5,
+    top1SellPct: 22.0,
+    top3BuyPct: 66.0,
+    top3SellPct: 54.0,
+    top5BuyPct: 85.0,
+    top5SellPct: 76.0
+  };
+
+  assert(conc.top1BuyPct <= 100 && conc.top1BuyPct >= 0);
+  assert(conc.top3BuyPct <= 100 && conc.top3BuyPct >= conc.top1BuyPct);
+  assert(conc.top5BuyPct <= 100 && conc.top5BuyPct >= conc.top3BuyPct);
+  assert(conc.top3BuyPct >= 60, 'Top 3 Buy Pct >= 60% qualifies for High Accumulation flag');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
+
 
 

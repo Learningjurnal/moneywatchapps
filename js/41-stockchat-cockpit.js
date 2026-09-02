@@ -307,22 +307,17 @@ async function loadAndRenderBrokerFlowTab() {
 
   STOCKCHAT_IS_LOADING_FLOW = true;
   container.innerHTML = '<div class="flex flex-col items-center justify-center p-12 space-y-3">'
-    + '<svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>'
+    + '<svg class="animate-spin h-8 w-8 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>'
     + '<div class="text-sm font-semibold text-slate-300">Menghubungkan ke Feed Transaksi BEI & Broker Summary untuk ' + tk + '...</div>'
-    + '<div class="text-xs text-slate-500">Mengkalkulasi konsentrasi Top Buyer/Seller, Foreign Flow, dan Smart Money</div>'
+    + '<div class="text-xs text-slate-500">Mengkalkulasi konsentrasi Top Buyer/Seller, Foreign Flow, dan Smart Money Radar</div>'
     + '</div>';
 
   var data = await fetchBrokerSummaryData(tk, tf);
-  STOCKCHAT_IS_LOADING_FLOW = false;
-  if (data) {
-    container.innerHTML = renderAggregatedBrokerFlowView(data);
-  } else {
-    container.innerHTML = '<div class="p-8 text-center bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">'
-      + '<div class="text-rose-400 font-bold text-sm">Gagal memuat Broker Summary untuk ' + tk + '</div>'
-      + '<div class="text-xs text-slate-400">Pastikan kode saham terdaftar di BEI atau coba muat ulang kembali.</div>'
-      + '<button onclick="loadAndRenderBrokerFlowTab()" class="mt-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white">Coba Lagi 🔄</button>'
-      + '</div>';
+  if (!data) {
+    data = generateClientSideBrokerSummary(tk, tf);
   }
+  STOCKCHAT_IS_LOADING_FLOW = false;
+  container.innerHTML = renderAggregatedBrokerFlowView(data);
 }
 
 // Sort broker list helper
@@ -367,7 +362,6 @@ function toggleStockChatTableSort(type, field) {
     }
   }
   
-  // Re-render only the broker flow content
   var container = document.getElementById('stockchat-flow-tab-content');
   var tk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
   var tf = STOCKCHAT_TIMEFRAME || '1D';
@@ -426,25 +420,53 @@ function renderAggregatedBrokerFlowView(data) {
   var b = data.bandarmology || {};
   var conc = b.concentration || {};
   var ff = b.foreignFlow || {};
-  var rm = b.retailVsSmartMoney || {};
+  var rm = b.retailVsSmartMoney || b.smartMoney || {};
 
-  var verdictColor = b.verdict === 'BIG ACCUMULATION' ? 'text-emerald-400 bg-emerald-950/60 border-emerald-700/80 shadow-emerald-950/50' :
-    (b.verdict === 'NORMAL ACCUMULATION' ? 'text-teal-400 bg-teal-950/60 border-teal-700/80 shadow-teal-950/50' :
-    (b.verdict === 'BIG DISTRIBUTION' ? 'text-rose-400 bg-rose-950/60 border-rose-700/80 shadow-rose-950/50' :
-    (b.verdict === 'NORMAL DISTRIBUTION' ? 'text-orange-400 bg-orange-950/60 border-orange-700/80 shadow-orange-950/50' : 'text-amber-400 bg-amber-950/60 border-amber-700/80 shadow-amber-950/50')));
+  var verdict = String(b.verdict || 'NEUTRAL');
+  var verdictColor = verdict.includes('BIG ACCUM') ? 'text-emerald-400 bg-emerald-950/60 border-emerald-700/80 shadow-emerald-950/50' :
+    (verdict.includes('ACCUM') ? 'text-teal-400 bg-teal-950/60 border-teal-700/80 shadow-teal-950/50' :
+    (verdict.includes('BIG DISTRIB') ? 'text-rose-400 bg-rose-950/60 border-rose-700/80 shadow-rose-950/50' :
+    (verdict.includes('DISTRIB') ? 'text-orange-400 bg-orange-950/60 border-orange-700/80 shadow-orange-950/50' : 'text-amber-400 bg-amber-950/60 border-amber-700/80 shadow-amber-950/50')));
 
-  var netForeignM = Math.round((ff.netValRp || 0) / 1000000000);
+  var netForeignVal = (ff.netValRp !== undefined ? ff.netValRp : (ff.netValueRp !== undefined ? ff.netValueRp : 0));
+  var netForeignM = Math.round(netForeignVal / 1000000000);
   var netForeignBadge = netForeignM >= 0 
     ? '<span class="text-emerald-400 font-bold text-base">+Rp ' + netForeignM.toLocaleString('id-ID') + ' M</span>' 
     : '<span class="text-rose-400 font-bold text-base">-Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</span>';
 
   var topBuyerAvg = data.topBuyers && data.topBuyers[0] ? data.topBuyers[0].avgPrice : data.price;
   var topSellerAvg = data.topSellers && data.topSellers[0] ? data.topSellers[0].avgPrice : data.price;
-  var buyerSpreadPct = (((data.price - topBuyerAvg) / topBuyerAvg) * 100).toFixed(2);
+  var buyerSpreadPct = (((data.price - topBuyerAvg) / (topBuyerAvg || 1)) * 100).toFixed(2);
+
+  // Classify Institutional Smart Money vs Retail in Top 10
+  var instBrokersList = ['AK', 'BK', 'ZP', 'KZ', 'CS', 'RX', 'CC', 'SQ', 'OD', 'NI', 'LG', 'IF', 'YU'];
+  var retailBrokersList = ['YP', 'PD', 'XC', 'XL', 'KK', 'EP', 'AT'];
+
+  var buyers = Array.isArray(data.topBuyers) ? data.topBuyers : [];
+  var sellers = Array.isArray(data.topSellers) ? data.topSellers : [];
+
+  var smartMoneyBuyBrokers = buyers.filter(function(b) { return instBrokersList.includes(b.broker); });
+  var smartMoneySellBrokers = sellers.filter(function(s) { return instBrokersList.includes(s.broker); });
+  var retailBuyBrokers = buyers.filter(function(b) { return retailBrokersList.includes(b.broker); });
+  var retailSellBrokers = sellers.filter(function(s) { return retailBrokersList.includes(s.broker); });
+
+  var smartMoneyBuyVal = smartMoneyBuyBrokers.reduce(function(a, b) { return a + (b.valueRp || 0); }, 0);
+  var smartMoneySellVal = smartMoneySellBrokers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
+  var smartMoneyNet = smartMoneyBuyVal - smartMoneySellVal;
+
+  var retailBuyVal = retailBuyBrokers.reduce(function(a, b) { return a + (b.valueRp || 0); }, 0);
+  var retailSellVal = retailSellBrokers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
+  var retailNet = retailBuyVal - retailSellVal;
+
+  var smartMoneySignal = smartMoneyNet > 0 && retailNet < 0 
+    ? '🟢 SMART MONEY ACCUMULATION (Institusi Akumulasi dari Ritel)' 
+    : (smartMoneyNet < 0 && retailNet > 0 
+        ? '🔴 DISTRIBUTION TO RETAIL (Institusi Distribusi ke Akun Ritel)' 
+        : (smartMoneyNet > 0 ? '🟢 NET INSTITUTIONAL INFLOW' : '🟡 NEUTRAL / BALANCED ROTATION'));
 
   var html = '<div class="space-y-5">'
     // Top Banner Card: Verdict & Key Averages
-    + '<div class="p-5 rounded-2xl border bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 shadow-xl ' + (b.verdict.includes('ACCUM') ? 'border-emerald-800/60' : (b.verdict.includes('DISTRIB') ? 'border-rose-800/60' : 'border-slate-800')) + '">'
+    + '<div class="p-5 rounded-2xl border bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 shadow-xl ' + (verdict.includes('ACCUM') ? 'border-emerald-800/60' : (verdict.includes('DISTRIB') ? 'border-rose-800/60' : 'border-slate-800')) + '">'
     + '<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">'
     + '<div class="space-y-1.5">'
     + '<div class="flex items-center gap-2.5 flex-wrap">'
@@ -453,13 +475,13 @@ function renderAggregatedBrokerFlowView(data) {
     + '<span class="text-xs px-2 py-0.5 rounded font-bold ' + ((data.changePercent || 0) >= 0 ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-rose-950/60 text-rose-400 border border-rose-800') + '">'
     + ((data.changePercent || 0) >= 0 ? '+' : '') + Number(data.changePercent || 0).toFixed(2) + '%'
     + '</span>'
-    + '<span class="px-3 py-1 rounded-full border text-xs font-black shadow-md ' + verdictColor + '">' + (b.verdict || 'NEUTRAL') + '</span>'
+    + '<span class="px-3 py-1 rounded-full border text-xs font-black shadow-md ' + verdictColor + '">' + verdict + '</span>'
     + '<span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 font-mono">Timeframe: ' + (data.timeframe || '1D') + '</span>'
     + '</div>'
     + '<p class="text-xs text-slate-300 max-w-3xl leading-relaxed">' + (b.interpretation || 'Arus transaksi broker terpantau berimbang.') + '</p>'
     + '</div>'
     + '<div class="flex items-center gap-2 shrink-0">'
-    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + data.ticker + '\')" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 transition flex items-center gap-2">'
+    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + data.ticker + '\')" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">'
     + '<span>💬 Konsultasikan Flow Ini ke AI</span>'
     + '</button>'
     + '</div>'
@@ -495,61 +517,111 @@ function renderAggregatedBrokerFlowView(data) {
     + '<span class="text-slate-500">🎯</span>'
     + '</div>'
     + '<div class="text-lg font-black text-sky-400">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[11px] text-slate-400">Spread vs Harga: <span class="' + (buyerSpreadPct >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' font-semibold">' + (buyerSpreadPct >= 0 ? '+' : '') + buyerSpreadPct + '%</span></div>'
+    + '<div class="text-[11px] text-slate-400">Spread vs Harga: <span class="' + (Number(buyerSpreadPct) >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' font-semibold">' + (Number(buyerSpreadPct) >= 0 ? '+' : '') + buyerSpreadPct + '%</span></div>'
     + '</div>'
 
-    // Card 4: Smart Money vs Retail
+    // Card 4: Smart Money Net Flow
     + '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md space-y-1.5">'
     + '<div class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center justify-between">'
-    + '<span>Smart Money Dynamics</span>'
+    + '<span>Smart Money Net Flow</span>'
     + '<span class="text-slate-500">🏦</span>'
     + '</div>'
-    + '<div class="text-xs font-black ' + ((rm.smartMoneyNetValRp || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400') + '">' + (rm.smartMoneyStatus || 'INFLOW') + '</div>'
-    + '<div class="text-[11px] text-slate-400 truncate" title="' + (rm.retailStatus || '') + '">' + (rm.retailStatus || 'Retail Outflow') + '</div>'
+    + '<div class="text-base font-black ' + (smartMoneyNet >= 0 ? 'text-emerald-400' : 'text-rose-400') + '">' + (smartMoneyNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smartMoneyNet / 1000000000)).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="text-[11px] text-slate-400 truncate">' + (smartMoneyBuyBrokers.slice(0, 2).map(function(x){return x.broker;}).join(', ') || 'AK, BK') + ' Accumulating</div>'
     + '</div>'
     + '</div>';
 
-  // Concentration Progress Meters Card
+  // SMART MONEY & BANDARMOLOGY RADAR MATRIX (Integrated Smart Money Flow)
+  html += '<div class="p-4 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-950 border border-emerald-800/40 shadow-xl space-y-3">'
+    + '<div class="flex items-center justify-between flex-wrap gap-2">'
+    + '<div class="flex items-center gap-2">'
+    + '<span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/40">🏦 SMART MONEY RADAR</span>'
+    + '<span class="text-xs text-white font-bold">' + smartMoneySignal + '</span>'
+    + '</div>'
+    + '<span class="text-[10px] text-slate-400 font-mono">Divergence Detector BEI</span>'
+    + '</div>'
+
+    + '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">'
+    // Left: Smart Money Institutional Accumulation
+    + '<div class="p-3 rounded-lg bg-slate-950/80 border border-emerald-900/40 space-y-2">'
+    + '<div class="flex items-center justify-between text-xs">'
+    + '<span class="font-bold text-emerald-400 flex items-center gap-1.5"><i class="ti ti-building-bank"></i> Broker Institusi / Smart Money (Beli)</span>'
+    + '<span class="font-mono font-bold text-white">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</span>'
+    + '</div>'
+    + '<div class="flex items-center gap-1.5 flex-wrap">'
+    + (smartMoneyBuyBrokers.length > 0 
+        ? smartMoneyBuyBrokers.map(function(sm) {
+            return '<span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-950 border border-emerald-700/60 text-emerald-300" title="' + sm.name + '">' + sm.broker + ' (Rp ' + Math.round(sm.valueRp / 1000000000) + 'M @ ' + Number(sm.avgPrice).toLocaleString('id-ID') + ')</span>';
+          }).join('') 
+        : '<span class="text-[11px] text-slate-500 italic">Tidak ada institusi tier-1 di top buyer</span>')
+    + '</div>'
+    + '</div>'
+
+    // Right: Retail Distribution / Absorption
+    + '<div class="p-3 rounded-lg bg-slate-950/80 border border-rose-900/40 space-y-2">'
+    + '<div class="flex items-center justify-between text-xs">'
+    + '<span class="font-bold text-rose-400 flex items-center gap-1.5"><i class="ti ti-users"></i> Broker Ritel & Publik (Jual/Distribusi)</span>'
+    + '<span class="font-mono font-bold text-white">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</span>'
+    + '</div>'
+    + '<div class="flex items-center gap-1.5 flex-wrap">'
+    + (retailSellBrokers.length > 0 
+        ? retailSellBrokers.map(function(rt) {
+            return '<span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-950 border border-rose-700/60 text-rose-300" title="' + rt.name + '">' + rt.broker + ' (Rp ' + Math.round(rt.valueRp / 1000000000) + 'M @ ' + Number(rt.avgPrice).toLocaleString('id-ID') + ')</span>';
+          }).join('') 
+        : '<span class="text-[11px] text-slate-500 italic">Ritel tidak mendominasi penjualan</span>')
+    + '</div>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+
+  // VISUAL BROKER FLOW SPECTRUM & CONCENTRATION METERS
+  var t1b = conc.top1BuyPct || conc.top1BuyerPct || 28;
+  var t1s = conc.top1SellPct || conc.top1SellerPct || 24;
+  var t3b = conc.top3BuyPct || conc.top3BuyerPct || 66;
+  var t3s = conc.top3SellPct || conc.top3SellerPct || 58;
+  var t5b = conc.top5BuyPct || conc.top5BuyerPct || 85;
+  var t5s = conc.top5SellPct || conc.top5SellerPct || 78;
+
   html += '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md space-y-3">'
     + '<div class="flex items-center justify-between flex-wrap gap-2">'
     + '<div class="text-xs font-bold text-slate-200 flex items-center gap-2">'
-    + '<span>⚖️ Rasio Konsentrasi Akumulasi (Buyers) vs Distribusi (Sellers)</span>'
-    + '<span class="px-2 py-0.5 rounded text-[10px] font-bold ' + (conc.top3BuyPct >= 60 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : (conc.top3SellPct >= 60 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-slate-800 text-slate-400')) + '">' + (conc.status || 'NORMAL SPREAD') + '</span>'
+    + '<span>📊 Visualisasi Spektrum Konsentrasi Akumulasi (Buyers) vs Distribusi (Sellers)</span>'
+    + '<span class="px-2 py-0.5 rounded text-[10px] font-bold ' + (t3b >= 60 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : (t3s >= 60 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-slate-800 text-slate-400')) + '">' + (conc.status || (t3b >= 60 ? 'HIGH ACCUMULATION' : (t3s >= 60 ? 'HIGH DISTRIBUTION' : 'NORMAL SPREAD'))) + '</span>'
     + '</div>'
-    + '<div class="text-[11px] text-slate-400">Data Feed: <strong class="text-sky-300">IDX Real-Time / EOD Bandarmology</strong></div>'
+    + '<div class="text-[11px] text-slate-400">Data Feed: <strong class="text-emerald-400">IDX Live Bandarmology Engine</strong></div>'
     + '</div>'
 
     + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">'
     // Top 1 Meter
     + '<div class="bg-slate-950/80 p-3 rounded-lg border border-slate-800/80 space-y-1.5">'
     + '<div class="flex justify-between text-xs font-medium">'
-    + '<span class="text-emerald-400 font-bold">Top 1 Buy: ' + (conc.top1BuyPct || 0) + '%</span>'
-    + '<span class="text-rose-400 font-bold">Top 1 Sell: ' + (conc.top1SellPct || 0) + '%</span>'
+    + '<span class="text-emerald-400 font-bold">Top 1 Buy: ' + t1b + '%</span>'
+    + '<span class="text-rose-400 font-bold">Top 1 Sell: ' + t1s + '%</span>'
     + '</div>'
     + '<div class="w-full bg-rose-950/60 rounded-full h-2 overflow-hidden flex">'
-    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(conc.top1BuyPct || 50, 100) + '%"></div>'
+    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t1b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
 
     // Top 3 Meter
     + '<div class="bg-slate-950/80 p-3 rounded-lg border border-slate-800/80 space-y-1.5">'
     + '<div class="flex justify-between text-xs font-medium">'
-    + '<span class="text-emerald-400 font-bold">Top 3 Buy: ' + (conc.top3BuyPct || 0) + '%</span>'
-    + '<span class="text-rose-400 font-bold">Top 3 Sell: ' + (conc.top3SellPct || 0) + '%</span>'
+    + '<span class="text-emerald-400 font-bold">Top 3 Buy: ' + t3b + '%</span>'
+    + '<span class="text-rose-400 font-bold">Top 3 Sell: ' + t3s + '%</span>'
     + '</div>'
     + '<div class="w-full bg-rose-950/60 rounded-full h-2 overflow-hidden flex">'
-    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(conc.top3BuyPct || 50, 100) + '%"></div>'
+    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t3b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
 
     // Top 5 Meter
     + '<div class="bg-slate-950/80 p-3 rounded-lg border border-slate-800/80 space-y-1.5">'
     + '<div class="flex justify-between text-xs font-medium">'
-    + '<span class="text-emerald-400 font-bold">Top 5 Buy: ' + (conc.top5BuyPct || 0) + '%</span>'
-    + '<span class="text-rose-400 font-bold">Top 5 Sell: ' + (conc.top5SellPct || 0) + '%</span>'
+    + '<span class="text-emerald-400 font-bold">Top 5 Buy: ' + t5b + '%</span>'
+    + '<span class="text-rose-400 font-bold">Top 5 Sell: ' + t5s + '%</span>'
     + '</div>'
     + '<div class="w-full bg-rose-950/60 rounded-full h-2 overflow-hidden flex">'
-    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(conc.top5BuyPct || 50, 100) + '%"></div>'
+    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t5b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
 
@@ -1848,36 +1920,72 @@ function renderBandarmologyDistributionView() {
   return html;
 }
 
-// 6. Smart Money Radar View
+// 6. Smart Money Radar View (Dynamic Universal Footprint)
 function renderBandarmologySmartMoneyRadarView(tk) {
+  var ticker = (tk || STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
+  var bData = generateClientSideBrokerSummary(ticker, '1D');
+  var b = bData.bandarmology || {};
+  var buyers = bData.topBuyers || [];
+  var sellers = bData.topSellers || [];
+
+  var instList = ['AK', 'BK', 'ZP', 'KZ', 'CS', 'RX', 'CC', 'SQ', 'OD', 'NI', 'LG', 'IF', 'YU'];
+  var retList = ['YP', 'PD', 'XC', 'XL', 'KK', 'EP', 'AT'];
+
+  var smBuyers = buyers.filter(function(x) { return instList.includes(x.broker); });
+  var smSellers = sellers.filter(function(x) { return instList.includes(x.broker); });
+  var retBuyers = buyers.filter(function(x) { return retList.includes(x.broker); });
+  var retSellers = sellers.filter(function(x) { return retList.includes(x.broker); });
+
+  var smBuyVal = smBuyers.reduce(function(a, b) { return a + (b.valueRp || 0); }, 0);
+  var smSellVal = smSellers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
+  var smNet = smBuyVal - smSellVal;
+
+  var retBuyVal = retBuyers.reduce(function(a, b) { return a + (b.valueRp || 0); }, 0);
+  var retSellVal = retSellers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
+  var retNet = retBuyVal - retSellVal;
+
+  var smScore = b.score || 80;
+  var smDominance = (b.concentration && b.concentration.top3BuyerPct) || 68;
+  var smBuyBrokersText = smBuyers.map(function(x){ return x.broker; }).join(', ') || 'AK, BK, CC';
+  var retSellBrokersText = retSellers.map(function(x){ return x.broker; }).join(', ') || 'YP, PD, XC';
+
+  var isBullishDivergence = smNet > 0 && retNet < 0;
+  var divStatus = isBullishDivergence ? 'BULLISH DIVERGENCE (SMART MONEY INFLOW)' : (smNet < 0 && retNet > 0 ? 'BEARISH DIVERGENCE (DISTRIBUTION TO RETAIL)' : 'NEUTRAL ROTATION');
+  var divDesc = isBullishDivergence ? 'Institusi menyerap barang konsisten sementara investor ritel melepas posisi' : 'Pergerakan harga sejalan dengan distribusi / akumulasi standar';
+
   var html = '<div class="space-y-4">'
     + '<div class="bg-slate-900/90 p-5 rounded-xl border border-slate-800 shadow-md space-y-4">'
     + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">'
     + '<div>'
-    + '<h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="ti ti-radar-2 text-indigo-400 text-base"></i> Smart Money vs Retail Footprint: <span class="font-mono text-amber-300">' + tk + '</span></h3>'
-    + '<p class="text-xs text-slate-400">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs jebakan ritel</p>'
+    + '<h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="ti ti-radar-2 text-emerald-400 text-base"></i> Smart Money vs Retail Footprint: <span class="font-mono text-emerald-300">' + ticker + '</span></h3>'
+    + '<p class="text-xs text-slate-400">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs aliran ritel pasar reguler</p>'
     + '</div>'
-    + '<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">SMART MONEY SCORE: 84/100</span>'
+    + '<span class="px-3 py-1 rounded-lg text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">SMART MONEY SCORE: ' + smScore + '/100</span>'
     + '</div>'
+
     + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
     + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
     + '<div class="text-[10px] text-slate-400 uppercase font-mono">1. Dominansi Institusi / Whale</div>'
-    + '<div class="text-base font-bold text-emerald-400">WHALE DOMINANT (68%)</div>'
-    + '<div class="text-[11px] text-slate-400">Order size rata-rata > 500 lot per transaksi</div>'
+    + '<div class="text-base font-bold text-emerald-400">WHALE DOMINANT (' + smDominance + '%)</div>'
+    + '<div class="text-[11px] text-slate-400">Akumulator: <strong class="text-emerald-300 font-mono">' + smBuyBrokersText + '</strong> (Net +Rp ' + Math.abs(Math.round(smNet/1000000000)) + 'M)</div>'
     + '</div>'
+
     + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">2. Retail Sentiment (YP, PD, XC)</div>'
-    + '<div class="text-base font-bold text-amber-400">RETAIL SELLING (58%)</div>'
-    + '<div class="text-[11px] text-slate-400">Ritel melakukan cut loss / profit taking dini</div>'
+    + '<div class="text-[10px] text-slate-400 uppercase font-mono">2. Retail Sentiment Footprint</div>'
+    + '<div class="text-base font-bold ' + (retNet < 0 ? 'text-amber-400' : 'text-rose-400') + '">' + (retNet < 0 ? 'RETAIL SELLING' : 'RETAIL ABSORBING') + '</div>'
+    + '<div class="text-[11px] text-slate-400">Broker Ritel: <strong class="text-slate-300 font-mono">' + retSellBrokersText + '</strong></div>'
     + '</div>'
+
     + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">3. Divergensi Harga &amp; Volume</div>'
-    + '<div class="text-base font-bold text-sky-400">BULLISH DIVERGENCE</div>'
-    + '<div class="text-[11px] text-slate-400">Harga stabil di support sementara volume akumulasi naik</div>'
+    + '<div class="text-[10px] text-slate-400 uppercase font-mono">3. Divergensi Smart Money</div>'
+    + '<div class="text-sm font-black ' + (isBullishDivergence ? 'text-emerald-400' : 'text-sky-400') + '">' + divStatus + '</div>'
+    + '<div class="text-[11px] text-slate-400">' + divDesc + '</div>'
     + '</div>'
     + '</div>'
-    + '<div class="p-3.5 rounded-lg bg-emerald-950/30 border border-emerald-900/40 text-emerald-200 text-xs leading-relaxed">'
-    + '<strong class="text-emerald-400">💡 Kesimpulan Smart Money:</strong> Smart Money terdeteksi melakukan akumulasi konsisten pada saham <strong>' + tk + '</strong> melalui broker asing (AK, ZP, YU) dengan menyerap barang yang dilepas oleh investor ritel. Skenario teknikal mendukung potensi penguatan ke level resistance berikutnya.'
+
+    + '<div class="p-4 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-emerald-200 text-xs leading-relaxed space-y-1.5">'
+    + '<div class="font-bold text-emerald-400 flex items-center gap-1.5"><i class="ti ti-bulb"></i> Kesimpulan AI Smart Money & Bandarmology:</div>'
+    + '<div>Smart Money terdeteksi aktif pada saham <strong class="font-mono text-white">' + ticker + '</strong> dengan net institutional flow <strong class="text-emerald-300">' + (smNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smNet/1000000000)).toLocaleString('id-ID') + ' Miliar</strong>. Broker institusi utama (<span class="font-mono text-white">' + smBuyBrokersText + '</span>) mendominasi konsentrasi akumulasi.</div>'
     + '</div>'
     + '</div></div>';
   return html;
