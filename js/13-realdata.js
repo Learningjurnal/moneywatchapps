@@ -39,12 +39,18 @@ function rdIsReal(tk){ return !!rdGetAny(tk); }
 // ── Fetch Yahoo 1 tahun harian — TANPA fallback simulasi (caller yang memutuskan) ──
 function rdFetchYahoo(tk, cb, pi){
   pi = pi || 0;
-  if(pi >= FH.PROXIES.length){ RD_FAILED[tk] = true; cb(new Error('ALL_PROXIES_FAILED'), null); return; }
+  if(!window.FH || !FH.PROXIES || pi >= FH.PROXIES.length){ RD_FAILED[tk] = true; cb(new Error('ALL_PROXIES_FAILED'), null); return; }
   var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + tk + '.JK?interval=1d&range=1y';
-  fetch(FH.PROXIES[pi](yUrl))
+  var proxyConfig = FH.PROXIES[pi];
+  var url = typeof proxyConfig === 'function' ? proxyConfig(yUrl) : (proxyConfig && proxyConfig.url ? proxyConfig.url(yUrl) : yUrl);
+  fetch(url)
   .then(function(r){ if(!r.ok) throw new Error('HTTP_'+r.status); return r.json(); })
   .then(function(d){
-    var res = d && d.chart && d.chart.result && d.chart.result[0];
+    var rawObj = d;
+    if(proxyConfig && proxyConfig.isWrapped && d && d.contents){
+      try { rawObj = JSON.parse(d.contents); } catch(e){ throw new Error('PARSE_ERROR'); }
+    }
+    var res = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
     if(!res || !res.timestamp) throw new Error('NO_DATA');
     var q = res.indicators.quote[0];
     var rows = res.timestamp.map(function(ts,i){

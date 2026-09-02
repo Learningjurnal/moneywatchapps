@@ -251,6 +251,7 @@ var IDX_PIPELINE = {
             } else if (cb) cb(err);
           });
         } else if (cb) cb(err);
+      });
   },
 
   /**

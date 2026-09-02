@@ -197,12 +197,18 @@ function rdFetchIhsgDaily(cb, pi){
   pi = pi||0;
   var cached = (typeof rdGetAny==='function') ? rdGetAny('IHSG_DAILY') : null;
   if(cached){ cb(null, cached); return; }
-  if(!window.FH || pi >= FH.PROXIES.length){ cb(new Error('ALL_PROXIES_FAILED'), null); return; }
+  if(!window.FH || !FH.PROXIES || pi >= FH.PROXIES.length){ cb(new Error('ALL_PROXIES_FAILED'), null); return; }
   var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/'+FH.IHSG_SYM+'?interval=1d&range=2y';
-  fetch(FH.PROXIES[pi](yUrl))
+  var proxyConfig = FH.PROXIES[pi];
+  var url = typeof proxyConfig === 'function' ? proxyConfig(yUrl) : (proxyConfig && proxyConfig.url ? proxyConfig.url(yUrl) : yUrl);
+  fetch(url)
     .then(function(r){ if(!r.ok) throw new Error('HTTP_'+r.status); return r.json(); })
     .then(function(d){
-      var res = d && d.chart && d.chart.result && d.chart.result[0];
+      var rawObj = d;
+      if(proxyConfig && proxyConfig.isWrapped && d && d.contents){
+        try { rawObj = JSON.parse(d.contents); } catch(e){ throw new Error('PARSE_ERROR'); }
+      }
+      var res = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
       if(!res || !res.timestamp) throw new Error('NO_DATA');
       var q = res.indicators.quote[0];
       var rows = res.timestamp.map(function(ts,i){
