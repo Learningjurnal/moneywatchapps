@@ -809,53 +809,76 @@ var FH = {
     );
     if(isStatic){
       return [
-        function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
-        function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-        function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); }
+        { name: 'allorigins_get', isWrapped: true, url: function(u){ return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); } },
+        { name: 'codetabs', isWrapped: false, url: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } }
       ];
     }
     return [
-      function(u){ return '/api/proxy?url=' + encodeURIComponent(u); },
-      function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
-      function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-      function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); }
+      { name: 'local_proxy', isWrapped: false, url: function(u){ return '/api/proxy?url=' + encodeURIComponent(u); } },
+      { name: 'allorigins_get', isWrapped: true, url: function(u){ return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); } },
+      { name: 'codetabs', isWrapped: false, url: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } }
     ];
   })()
 };
 
+var _proxyFailureCount = 0;
+var _proxyCircuitOpenUntil = 0;
+
 // ── Core: fetch Yahoo Finance chart endpoint, mencoba tiap proxy berurutan ──
 function yfFetch(symbol, cb, proxyIdx){
-  proxyIdx = proxyIdx||0;
-  if(proxyIdx >= FH.PROXIES.length){ cb(new Error('ALL_PROXIES_FAILED'), null); return; }
-  
-  // Gunakan query1 atau query2 secara dinamis
-  var host = (proxyIdx % 2 === 1) ? 'query2.finance.yahoo.com' : 'query1.finance.yahoo.com';
-  var yUrl = 'https://' + host + '/v8/finance/chart/' + symbol + '?interval=1m&range=1d';
-  var url = FH.PROXIES[proxyIdx](yUrl);
-  
+  if(Date.now() < _proxyCircuitOpenUntil){
+    cb(new Error('CIRCUIT_OPEN'), null);
+    return;
+  }
+
+  proxyIdx = proxyIdx || 0;
+  if(proxyIdx >= FH.PROXIES.length){
+    _proxyFailureCount++;
+    if(_proxyFailureCount >= 3){
+      // Buka circuit breaker selama 5 menit jika proxy publik offline agar console tidak dibanjiri error
+      _proxyCircuitOpenUntil = Date.now() + (5 * 60 * 1000);
+      console.log('[Feed Engine] Proxy eksternal offline/rate-limited. Menggunakan data baseline lokal.');
+      if(typeof fhSetBadge === 'function') fhSetBadge('off', '● Data Baseline');
+    }
+    cb(new Error('ALL_PROXIES_FAILED'), null);
+    return;
+  }
+
+  var host = 'query1.finance.yahoo.com';
+  var yUrl = 'https://' + host + '/v8/finance/chart/' + symbol + '?interval=1d&range=1d';
+  var proxyConfig = FH.PROXIES[proxyIdx];
+  var url = proxyConfig.url(yUrl);
+
   var controller = null;
   var timeoutId = null;
   if(typeof AbortController !== 'undefined'){
     controller = new AbortController();
-    timeoutId = setTimeout(function(){ controller.abort(); }, 7000);
+    timeoutId = setTimeout(function(){ controller.abort(); }, 5000);
   }
 
   fetch(url, { signal: controller ? controller.signal : undefined })
   .then(function(r){
     if(timeoutId) clearTimeout(timeoutId);
-    if(r.status===429){ throw new Error('RATE_LIMIT'); }
-    if(!r.ok){ throw new Error('HTTP_'+r.status); }
+    if(!r.ok){ throw new Error('HTTP_' + r.status); }
     return r.json();
   })
   .then(function(d){
-    var result = d && d.chart && d.chart.result && d.chart.result[0];
+    var rawObj = d;
+    if(proxyConfig.isWrapped && d && d.contents){
+      try { rawObj = JSON.parse(d.contents); } catch(e){ throw new Error('PARSE_ERROR'); }
+    }
+    var result = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
     var meta = result && result.meta;
-    if(meta && meta.regularMarketPrice > 0){ cb(null, meta); }
-    else { throw new Error('NO_DATA'); }
+    if(meta && meta.regularMarketPrice > 0){
+      _proxyFailureCount = 0;
+      cb(null, meta);
+    } else {
+      throw new Error('NO_DATA');
+    }
   })
   .catch(function(){
     if(timeoutId) clearTimeout(timeoutId);
-    yfFetch(symbol, cb, proxyIdx+1);
+    yfFetch(symbol, cb, proxyIdx + 1);
   });
 }
 

@@ -183,10 +183,14 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
   })
   .catch(function(err){
     // Try second proxy
-    var proxyUrl2 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(yUrl);
+    var proxyUrl2 = 'https://api.allorigins.win/get?url=' + encodeURIComponent(yUrl);
     fetch(proxyUrl2).then(function(r){ return r.json(); })
     .then(function(d){
-      var result = d && d.chart && d.chart.result && d.chart.result[0];
+      var rawObj = d;
+      if(d && d.contents){
+        try { rawObj = JSON.parse(d.contents); } catch(e){}
+      }
+      var result = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
       if(!result) throw new Error('NO_DATA');
       var quotes = result.indicators.quote[0];
       var timestamps = result.timestamp;

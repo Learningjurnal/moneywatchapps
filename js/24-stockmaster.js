@@ -122,22 +122,23 @@ async function fundFetchData(tickerOverride) {
   // Helper fetcher yang mencoba seluruh proxy yang tersedia (lokal, corsproxy, allorigins, codetabs)
   async function fetchWithProxyFallback(targetUrl, timeoutMs) {
     timeoutMs = timeoutMs || 6000;
-    var proxyFns = (typeof FH !== 'undefined' && Array.isArray(FH.PROXIES)) ? FH.PROXIES : [
-      function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
-      function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-      function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); },
-      function(u){ return '/api/proxy?url=' + encodeURIComponent(u); }
+    var proxyList = [
+      { name: 'allorigins_get', isWrapped: true, url: function(u){ return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); } },
+      { name: 'codetabs', isWrapped: false, url: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } }
     ];
 
-    for (var i = 0; i < proxyFns.length; i++) {
+    for (var i = 0; i < proxyList.length; i++) {
       try {
-        var proxiedUrl = proxyFns[i](targetUrl);
+        var proxiedUrl = proxyList[i].url(targetUrl);
         var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
         var timer = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs) : null;
         var resp = await fetch(proxiedUrl, { signal: controller ? controller.signal : undefined });
         if (timer) clearTimeout(timer);
         if (resp.ok) {
           var data = await resp.json();
+          if (proxyList[i].isWrapped && data && data.contents) {
+            try { return JSON.parse(data.contents); } catch(e){}
+          }
           return data;
         }
       } catch (errProxy) {
