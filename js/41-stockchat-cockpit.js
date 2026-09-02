@@ -628,69 +628,63 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div>'
     + '</div>';
 
-  // SMART MONEY & BANDARMOLOGY RADAR MATRIX (Integrated Smart Money Flow)
-  html += '<div class="p-4 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-950 border border-emerald-800/40 shadow-xl space-y-3">'
+  // MODERN INTERACTIVE BROKER MUTATION FLOW SPECTRUM (Whale vs Retail Capital Flow)
+  var netMutationM = Math.round(Math.abs(smartMoneyNet) / 1000000000);
+  var isInstAccum = smartMoneyNet >= 0;
+
+  html += '<div class="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-950 border border-slate-800 shadow-2xl space-y-4">'
     + '<div class="flex items-center justify-between flex-wrap gap-2">'
     + '<div class="flex items-center gap-2">'
-    + '<span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/40">🏦 SMART MONEY RADAR</span>'
+    + '<span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/40 flex items-center gap-1.5"><i class="ti ti-chart-arrows"></i> ALUR MUTASI DANA BROKER</span>'
     + '<span class="text-xs text-white font-bold">' + smartMoneySignal + '</span>'
     + '</div>'
-    + '<span class="text-[10px] text-slate-400 font-mono">Divergence Detector BEI</span>'
+    + '<span class="text-[11px] text-slate-400 font-mono">Live Institutional Spectrum</span>'
     + '</div>'
 
-    + '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">'
-    // Left: Smart Money Institutional Accumulation
-    + '<div class="p-3 rounded-lg bg-slate-950/80 border border-emerald-900/40 space-y-2">'
-    + '<div class="flex items-center justify-between text-xs">'
-    + '<span class="font-bold text-emerald-400 flex items-center gap-1.5"><i class="ti ti-building-bank"></i> Broker Institusi / Smart Money (Beli)</span>'
-    + '<span class="font-mono font-bold text-white">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</span>'
+    // Visual Flow Waterfall / Sankey Spectrum Diagram
+    + '<div class="p-4 rounded-xl bg-slate-950/90 border border-slate-800/80 space-y-3">'
+    + '<div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4 text-center">'
+    // Left Node: Smart Money Accumulation Pool
+    + '<div class="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/50 space-y-1.5">'
+    + '<div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-center gap-1"><i class="ti ti-building-bank"></i> Tier-1 Institusi & Asing</div>'
+    + '<div class="text-lg font-black text-emerald-300 font-mono">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="text-[10px] text-slate-400 truncate">' + (smartMoneyBuyBrokers.map(function(x){return x.broker;}).join(', ') || 'AK, BK, ZP, CC') + '</div>'
     + '</div>'
-    + '<div class="flex items-center gap-1.5 flex-wrap">'
-    + (smartMoneyBuyBrokers.length > 0 
-        ? smartMoneyBuyBrokers.map(function(sm) {
-            return '<span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-950 border border-emerald-700/60 text-emerald-300" title="' + sm.name + '">' + sm.broker + ' (Rp ' + Math.round(sm.valueRp / 1000000000) + 'M @ ' + Number(sm.avgPrice).toLocaleString('id-ID') + ')</span>';
-          }).join('') 
-        : '<span class="text-[11px] text-slate-500 italic">Tidak ada institusi tier-1 di top buyer</span>')
+
+    // Center Node: Capital Mutation Stream (Animated Arrow)
+    + '<div class="flex flex-col items-center justify-center space-y-1.5 py-2">'
+    + '<span class="text-[10px] font-bold uppercase tracking-wider ' + (isInstAccum ? 'text-emerald-400' : 'text-rose-400') + '">' + (isInstAccum ? 'Net Inflow Institusi' : 'Net Distribusi Institusi') + '</span>'
+    + '<div class="flex items-center gap-2 px-3 py-1.5 rounded-full ' + (isInstAccum ? 'bg-emerald-950/80 border border-emerald-600/60 text-emerald-300' : 'bg-rose-950/80 border border-rose-600/60 text-rose-300') + ' text-xs font-black shadow-lg">'
+    + '<span>' + (isInstAccum ? '➔ Rp ' : '⬅ Rp ') + netMutationM.toLocaleString('id-ID') + ' M ' + (isInstAccum ? '➔' : '⬅') + '</span>'
+    + '</div>'
+    + '<span class="text-[10px] text-slate-400 font-mono">' + (isInstAccum ? 'Modal Ritel Terserap ke Institusi' : 'Institusi Melepas ke Ritel') + '</span>'
+    + '</div>'
+
+    // Right Node: Retail & Domestic Absorption Pool
+    + '<div class="p-3 rounded-xl bg-rose-950/40 border border-rose-800/50 space-y-1.5">'
+    + '<div class="text-[10px] uppercase font-bold text-rose-400 flex items-center justify-center gap-1"><i class="ti ti-users"></i> Partisipasi Publik & Ritel</div>'
+    + '<div class="text-lg font-black text-rose-300 font-mono">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="text-[10px] text-slate-400 truncate">' + (retailSellBrokers.map(function(x){return x.broker;}).join(', ') || 'YP, PD, XC, XL') + '</div>'
     + '</div>'
     + '</div>'
 
-    // Right: Retail Distribution / Absorption
-    + '<div class="p-3 rounded-lg bg-slate-950/80 border border-rose-900/40 space-y-2">'
-    + '<div class="flex items-center justify-between text-xs">'
-    + '<span class="font-bold text-rose-400 flex items-center gap-1.5"><i class="ti ti-users"></i> Broker Ritel & Publik (Jual/Distribusi)</span>'
-    + '<span class="font-mono font-bold text-white">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</span>'
+    // Full Width Spectrum Mutation Progress Bar
+    + '<div class="space-y-1 pt-2">'
+    + '<div class="flex justify-between text-[11px] font-mono">'
+    + '<span class="text-emerald-400 font-bold">Institusi: ' + (smartMoneyBuyVal > 0 ? Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
+    + '<span class="text-slate-400">Spektrum Distribusi Kepemilikan</span>'
+    + '<span class="text-rose-400 font-bold">Ritel: ' + (retailSellVal > 0 ? Math.round((retailSellVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
     + '</div>'
-    + '<div class="flex items-center gap-1.5 flex-wrap">'
-    + (retailSellBrokers.length > 0 
-        ? retailSellBrokers.map(function(rt) {
-            return '<span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-950 border border-rose-700/60 text-rose-300" title="' + rt.name + '">' + rt.broker + ' (Rp ' + Math.round(rt.valueRp / 1000000000) + 'M @ ' + Number(rt.avgPrice).toLocaleString('id-ID') + ')</span>';
-          }).join('') 
-        : '<span class="text-[11px] text-slate-500 italic">Ritel tidak mendominasi penjualan</span>')
+    + '<div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden flex border border-slate-800">'
+    + '<div class="bg-gradient-to-r from-emerald-600 to-teal-400 h-3 transition-all duration-700" style="width:' + (smartMoneyBuyVal > 0 ? Math.min(Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100), 95) : 50) + '%"></div>'
+    + '<div class="bg-gradient-to-r from-rose-500 to-red-600 h-3 flex-1 transition-all duration-700"></div>'
     + '</div>'
     + '</div>'
-    + '</div>'
-    + '</div>';
-
-  // VISUAL BROKER FLOW SPECTRUM & CONCENTRATION METERS
-  var t1b = conc.top1BuyPct || conc.top1BuyerPct || 28;
-  var t1s = conc.top1SellPct || conc.top1SellerPct || 24;
-  var t3b = conc.top3BuyPct || conc.top3BuyerPct || 66;
-  var t3s = conc.top3SellPct || conc.top3SellerPct || 58;
-  var t5b = conc.top5BuyPct || conc.top5BuyerPct || 85;
-  var t5s = conc.top5SellPct || conc.top5SellerPct || 78;
-
-  html += '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md space-y-3">'
-    + '<div class="flex items-center justify-between flex-wrap gap-2">'
-    + '<div class="text-xs font-bold text-slate-200 flex items-center gap-2">'
-    + '<span>📊 Visualisasi Spektrum Konsentrasi Akumulasi (Buyers) vs Distribusi (Sellers)</span>'
-    + '<span class="px-2 py-0.5 rounded text-[10px] font-bold ' + (t3b >= 60 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : (t3s >= 60 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-slate-800 text-slate-400')) + '">' + (conc.status || (t3b >= 60 ? 'HIGH ACCUMULATION' : (t3s >= 60 ? 'HIGH DISTRIBUTION' : 'NORMAL SPREAD'))) + '</span>'
-    + '</div>'
-    + '<div class="text-[11px] text-slate-400">Data Feed: <strong class="text-emerald-400">IDX Live Bandarmology Engine</strong></div>'
     + '</div>'
 
+    // Concentration Meters (Top 1, 3, 5)
     + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">'
-    // Top 1 Meter
-    + '<div class="bg-slate-950/80 p-3 rounded-lg border border-slate-800/80 space-y-1.5">'
+    + '<div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5">'
     + '<div class="flex justify-between text-xs font-medium">'
     + '<span class="text-emerald-400 font-bold">Top 1 Buy: ' + t1b + '%</span>'
     + '<span class="text-rose-400 font-bold">Top 1 Sell: ' + t1s + '%</span>'
@@ -700,8 +694,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div>'
     + '</div>'
 
-    // Top 3 Meter
-    + '<div class="bg-slate-950/80 p-3 rounded-lg border border-slate-800/80 space-y-1.5">'
+    + '<div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5">'
     + '<div class="flex justify-between text-xs font-medium">'
     + '<span class="text-emerald-400 font-bold">Top 3 Buy: ' + t3b + '%</span>'
     + '<span class="text-rose-400 font-bold">Top 3 Sell: ' + t3s + '%</span>'
@@ -711,8 +704,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div>'
     + '</div>'
 
-    // Top 5 Meter
-    + '<div class="bg-slate-950/80 p-3 rounded-lg border border-slate-800/80 space-y-1.5">'
+    + '<div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5">'
     + '<div class="flex justify-between text-xs font-medium">'
     + '<span class="text-emerald-400 font-bold">Top 5 Buy: ' + t5b + '%</span>'
     + '<span class="text-rose-400 font-bold">Top 5 Sell: ' + t5s + '%</span>'
@@ -721,8 +713,9 @@ function renderAggregatedBrokerFlowView(data) {
     + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t5b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
+    + '</div>'
 
-    + '</div></div>';
+    + '</div>';
 
   // ==========================================
   // SORTABLE TABLES: Top 5 Buying vs Selling
@@ -1627,12 +1620,14 @@ window.setStockChatBrokerFilter = setStockChatBrokerFilter;
 window.askAiAboutBrokerAction = askAiAboutBrokerAction;
 
 // ============================================================
-// BANDARMOLOGY COCKPIT SUITE
-// 7 Sub-Views: Market Flow, Broker Flow, Foreign Flow, Accumulation,
-// Distribution, Smart Money Radar, Broker Trail
+// ============================================================
+// BANDARMOLOGY & SMART MONEY COCKPIT SUITE
+// 2 Master Modes:
+// 1. ANALISIS FULL EMITEN (Single Stock Deep Cockpit: Broker Flow + CMF + VWAP Bands + Foreign Flow)
+// 2. ANALISIS FULL MARKET (Macro IHSG + Big Banks + Sektoral Heatmap + Accum/Distrib Radar + Screener)
 // ============================================================
 
-var BANDARMOLOGY_ACTIVE_TAB = 'market-flow';
+var BANDARMOLOGY_MASTER_MODE = 'stock'; // 'stock' | 'market'
 var BANDARMOLOGY_SELECTED_BROKER = 'YU';
 var BANDARMOLOGY_BROKER_LIST = [
   { code: 'YU', name: 'CGS International Sekuritas', type: 'F', badge: 'Asing / Institusi' },
@@ -1649,16 +1644,29 @@ var BANDARMOLOGY_BROKER_LIST = [
   { code: 'GR', name: 'Panin Sekuritas', type: 'D', badge: 'Domestik' }
 ];
 
-window.goBandarmology = function(subTab, btn) {
-  BANDARMOLOGY_ACTIVE_TAB = subTab || 'market-flow';
+window.goBandarmology = function(subTabOrMode, btn) {
+  if (subTabOrMode === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail'].includes(subTabOrMode)) {
+    BANDARMOLOGY_MASTER_MODE = 'market';
+  } else {
+    BANDARMOLOGY_MASTER_MODE = 'stock';
+  }
   if (typeof goPage === 'function') {
     goPage('bandarmology', btn);
   }
   renderBandarmologyCockpitPage();
 };
 
+window.setBandarmologyMode = function(mode) {
+  BANDARMOLOGY_MASTER_MODE = mode || 'stock';
+  renderBandarmologyCockpitPage();
+};
+
 window.setBandarmologyTab = function(subTab) {
-  BANDARMOLOGY_ACTIVE_TAB = subTab || 'market-flow';
+  if (subTab === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail'].includes(subTab)) {
+    BANDARMOLOGY_MASTER_MODE = 'market';
+  } else {
+    BANDARMOLOGY_MASTER_MODE = 'stock';
+  }
   renderBandarmologyCockpitPage();
 };
 
@@ -1672,17 +1680,7 @@ function renderBandarmologyCockpitPage(containerId) {
   if (!target) return;
 
   var tk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
-  var tabs = [
-    { id: 'market-flow', label: 'Market Flow', icon: 'ti-world-download', desc: 'Arus Dana Pasar & IHSG' },
-    { id: 'broker-flow', label: 'Broker Flow', icon: 'ti-arrows-diff', desc: 'Top 5/10 Buyer & Seller' },
-    { id: 'smart-money-flow', label: 'Smart Money (CMF)', icon: 'ti-flame', desc: 'Chaikin Flow & VWAP Bands' },
-    { id: 'foreign-flow', label: 'Foreign Flow', icon: 'ti-coin', desc: 'Arus Dana Asing Terkini' },
-    { id: 'accumulation', label: 'Accumulation', icon: 'ti-circle-arrow-up', desc: 'Radar Saham Terakumulasi' },
-    { id: 'distribution', label: 'Distribution', icon: 'ti-circle-arrow-down', desc: 'Radar Saham Terdistribusi' },
-    { id: 'smart-money-radar', label: 'Whale vs Retail', icon: 'ti-radar-2', desc: 'Divergensi Smart Money' },
-    { id: 'heatmap-scanner', label: 'Heatmap & Scanner', icon: 'ti-layout-grid', desc: 'Pemindaian Sektoral & Sinyal' },
-    { id: 'broker-trail', label: 'Broker Trail', icon: 'ti-route', desc: 'Jejak Transaksi 20 Sekuritas' }
-  ];
+  var isStockMode = BANDARMOLOGY_MASTER_MODE === 'stock';
 
   var html = '<div class="w-full space-y-5 pb-14 px-1 md:px-2">'
     // Header Cockpit
@@ -1694,7 +1692,7 @@ function renderBandarmologyCockpitPage(containerId) {
     + '<span>BANDARMOLOGY & SMART MONEY COCKPIT</span>'
     + '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">INSTITUTIONAL RADAR</span>'
     + '</h1>'
-    + '<p class="text-xs text-slate-400 mt-0.5">Analisis Aliran Dana Bandar, Broker Summary, Chaikin Smart Money (CMF), Foreign Flow, VWAP Bands, Konsentrasi Akumulasi &amp; Distribusi BEI</p>'
+    + '<p class="text-xs text-slate-400 mt-0.5">Analisis Terpadu Aliran Dana Bandar, Broker Flow, Chaikin Smart Money (CMF), Foreign Flow, VWAP Bands & Konsentrasi Akumulasi/Distribusi BEI</p>'
     + '</div>'
     + '</div>'
     + '<div class="flex items-center gap-2 flex-wrap">'
@@ -1707,19 +1705,19 @@ function renderBandarmologyCockpitPage(containerId) {
     + '</div>'
     + '</div>';
 
-  // Sub-Navigation Tabs Bar
-  html += '<div class="bg-slate-900/80 p-1.5 rounded-xl border border-slate-800 flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-thin">'
-    + tabs.map(function(t) {
-      var isActive = BANDARMOLOGY_ACTIVE_TAB === t.id;
-      return '<button onclick="setBandarmologyTab(\'' + t.id + '\')" class="px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ' + (isActive ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/25' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60') + '">'
-        + '<i class="ti ' + t.icon + ' text-sm"></i>'
-        + '<span>' + t.label + '</span>'
-        + '</button>';
-    }).join('')
+  // Master 2-Mode Power Toolbar (Single unified switch, eliminates repetitive sub-bars)
+  html += '<div class="flex items-center justify-center gap-2 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl max-w-xl mx-auto">'
+    + '<button onclick="setBandarmologyMode(\'stock\')" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 ' + (isStockMode ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-700/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">'
+    + '<i class="ti ti-chart-candle text-base"></i> <span>🏢 ANALISIS FULL EMITEN</span>'
+    + '</button>'
+    + '<button onclick="setBandarmologyMode(\'market\')" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 ' + (!isStockMode ? 'bg-gradient-to-r from-sky-600 to-cyan-600 text-white shadow-lg shadow-sky-700/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">'
+    + '<i class="ti ti-world-download text-base"></i> <span>🌐 ANALISIS FULL MARKET</span>'
+    + '</button>'
     + '</div>';
 
-  // Ticker Quick Selector Bar (for ticker-dependent tabs)
-  if (['broker-flow', 'market-flow', 'smart-money-flow', 'foreign-flow', 'smart-money-radar'].includes(BANDARMOLOGY_ACTIVE_TAB)) {
+  // Content rendering based on Master Mode
+  if (isStockMode) {
+    // Mode 1: Full Emiten Suite
     html += '<div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap">'
       + '<div class="flex items-center gap-2">'
       + '<span class="text-[11px] font-semibold text-slate-400">⚡ Fokus Emiten:</span>'
@@ -1735,38 +1733,32 @@ function renderBandarmologyCockpitPage(containerId) {
       + '<button onclick="var el=document.getElementById(\'bandar-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);renderBandarmologyCockpitPage();}" class="px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Set</button>'
       + '</div>'
       + '</div>';
-  }
 
-  // Content Container for Selected Tab
-  html += '<div id="bandarmology-tab-content" class="min-h-[460px]">';
-  
-  if (BANDARMOLOGY_ACTIVE_TAB === 'market-flow') {
-    html += renderBandarmologyMarketFlowView(tk);
-  } else if (BANDARMOLOGY_ACTIVE_TAB === 'broker-flow') {
-    html += '<div id="stockchat-flow-tab-content">'
+    html += '<div id="bandarmology-tab-content" class="min-h-[460px] space-y-6">'
+      + '<div id="stockchat-flow-tab-content">'
       + '<div class="p-8 text-center text-slate-400 text-xs flex items-center justify-center gap-2">'
-      + '<i class="ti ti-loader animate-spin text-emerald-400 text-lg"></i> Memuat Broker Summary ' + tk + '...'
+      + '<i class="ti ti-loader animate-spin text-emerald-400 text-lg"></i> Memuat Analisis Broker Flow & Smart Money ' + tk + '...'
       + '</div>'
+      + '</div>'
+      + renderBandarmologySmartMoneyFlowView(tk)
+      + renderBandarmologyForeignFlowView(tk)
       + '</div>';
+
     setTimeout(loadAndRenderBrokerFlowTab, 40);
-  } else if (BANDARMOLOGY_ACTIVE_TAB === 'smart-money-flow') {
-    html += renderBandarmologySmartMoneyFlowView(tk);
-  } else if (BANDARMOLOGY_ACTIVE_TAB === 'foreign-flow') {
-    html += renderBandarmologyForeignFlowView(tk);
-  } else if (BANDARMOLOGY_ACTIVE_TAB === 'accumulation') {
-    html += renderBandarmologyAccumulationView();
-  } else if (BANDARMOLOGY_ACTIVE_TAB === 'distribution') {
-    html += renderBandarmologyDistributionView();
-  } else if (BANDARMOLOGY_ACTIVE_TAB === 'smart-money-radar') {
-    html += renderBandarmologySmartMoneyRadarView(tk);
-  } else if (BANDARMOLOGY_ACTIVE_TAB === 'heatmap-scanner') {
-    html += renderBandarmologyHeatmapScannerView();
-  } else if (BANDARMOLOGY_ACTIVE_TAB === 'broker-trail') {
-    html += renderBandarmologyBrokerTrailView();
+  } else {
+    // Mode 2: Full Market & Macro Suite
+    html += '<div id="bandarmology-tab-content" class="min-h-[460px] space-y-6">'
+      + renderBandarmologyMarketFlowView(tk)
+      + renderBandarmologyHeatmapScannerView()
+      + '<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">'
+      + renderBandarmologyAccumulationView()
+      + renderBandarmologyDistributionView()
+      + '</div>'
+      + renderBandarmologyBrokerTrailView()
+      + '</div>';
   }
 
-  html += '</div></div>';
-
+  html += '</div>';
   target.innerHTML = html;
 }
 
