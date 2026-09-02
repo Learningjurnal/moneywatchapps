@@ -700,7 +700,7 @@ function renderStockIntelPage() {
           + '<button class="btn btn-primary btn-sm" onclick="if(typeof openStockChat===\'function\'){openStockChat(\'' + ticker + '\',\'Tolong analisa Broker Summary dan Bandarmology saham ' + ticker + ' terkini.\');}else{goPage(\'stockchat\');}">💬 StockChat AI &amp; Bandar</button>'
           + '<button class="btn btn-ghost btn-sm" onclick="goPage(\'thesis\');if(typeof openNewThesisModal===\'function\')openNewThesisModal(\'' + ticker + '\');">📝 Buat / Edit Thesis ' + ticker + '</button>'
           + '<button class="btn btn-ghost btn-sm" onclick="goPage(\'fundamental\');if(typeof fundSetTicker===\'function\')fundSetTicker(\'' + ticker + '.JK\');">🏛️ Mega Fundamental</button>'
-          + '<button class="btn btn-ghost btn-sm" onclick="goPage(\'flowscan\');if(typeof fsSelectTicker===\'function\')fsSelectTicker(\'' + ticker + '\');">🌊 Big Money Flow</button>'
+          + '<button class="btn btn-ghost btn-sm" onclick="selectStockChatTicker(\'' + ticker + '\');goBandarmology(\'smart-money-flow\');">🌊 Big Money Flow</button>'
         + '</div>'
       + '</div>'
 

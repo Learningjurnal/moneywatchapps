@@ -167,7 +167,7 @@
       { id: 'stock-intel', title: 'Stock Intelligence Cockpit', sub: 'Deep cockpit analisis 360°, valuasi, teknikal & bandarmologi' },
       { id: 'portofolio', title: 'Portofolio Saham IDX', sub: 'Posisi aktif, lot, average price, unrealized P&L, dan alokasi' },
       { id: 'fundamental', title: 'Fundamental Suite & Health Score', sub: 'Rasio valuasi, ROE, PER, PBV, Altman Z-Score, dan margin' },
-      { id: 'flowscan', title: 'Smart Money Flow & Foreign Tracker', sub: 'Deteksi akumulasi/distribusi big player dan arus dana asing' },
+      { id: 'bandarmology', title: 'Bandarmology & Smart Money Cockpit', sub: 'Broker flow, Chaikin CMF, foreign flow, dan deteksi akumulasi/distribusi big player' },
       { id: 'technical', title: 'Technical Indicators & Flow Scanner', sub: 'RSI, MACD, Stochastic, MA 20/50/200, dan support resistance' },
       { id: 'hargawajar', title: 'Fair Value & Valuation Model', sub: 'Graham Number, DCF Model, Peter Lynch & Relative Valuation' },
       { id: 'screener', title: 'Screener Saham LQ45 / Kompas100', sub: 'Filter saham berbasis kriteria fundamental dan momentum' },
