@@ -123,9 +123,9 @@ async function fundFetchData(tickerOverride) {
   async function fetchWithProxyFallback(targetUrl, timeoutMs) {
     timeoutMs = timeoutMs || 6000;
     var proxyFns = (typeof FH !== 'undefined' && Array.isArray(FH.PROXIES)) ? FH.PROXIES : [
-      function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); },
-      function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
       function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+      function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+      function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); },
       function(u){ return '/api/proxy?url=' + encodeURIComponent(u); }
     ];
 

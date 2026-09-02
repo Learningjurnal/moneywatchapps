@@ -148,7 +148,7 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
   var sym = ticker.toUpperCase() + '.JK';
   var range = rangeDays <= 365 ? '1y' : (rangeDays <= 730 ? '2y' : (rangeDays <= 1095 ? '3y' : '5y'));
   var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + sym + '?interval=1d&range=' + range;
-  var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(yUrl);
+  var proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(yUrl);
 
   el('bt-data-status') && (el('bt-data-status').textContent = '📡 Mengambil data live ' + sym + '...');
 
@@ -183,7 +183,7 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
   })
   .catch(function(err){
     // Try second proxy
-    var proxyUrl2 = 'https://corsproxy.io/?' + encodeURIComponent(yUrl);
+    var proxyUrl2 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(yUrl);
     fetch(proxyUrl2).then(function(r){ return r.json(); })
     .then(function(d){
       var result = d && d.chart && d.chart.result && d.chart.result[0];

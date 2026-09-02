@@ -404,24 +404,33 @@ function reconcileRdnWithTransactions(silent){
 
   // 8. Kirim verifikasi rekonsiliasi ke backend async
   try {
-    fetch('/api/sync/reconcile-rdn', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transactions: transactions,
-        dividends: dividends,
-        cryptoTx: cryptoTx,
-        rdTx: rdTx,
-        rdnMutations: rdnMutations,
-        activeSekuritas: activeSekuritas
-      })
-    }).then(function(res){ return res.json(); }).then(function(backendResult){
-      if(backendResult && backendResult.success){
-        console.log('✓ Backend RDN sync & audit verified:', backendResult.stats);
-      }
-    }).catch(function(beErr){
-      console.warn('Backend sync ping notice (offline/local):', beErr);
-    });
+    var isStaticHost = typeof window !== 'undefined' && window.location && (
+      (window.location.hostname || '').indexOf('github.io') !== -1 ||
+      window.location.protocol === 'file:' ||
+      (window.location.hostname || '').indexOf('pages.dev') !== -1
+    );
+    if(!isStaticHost && typeof fetch === 'function'){
+      fetch('/api/sync/reconcile-rdn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactions: transactions,
+          dividends: dividends,
+          cryptoTx: cryptoTx,
+          rdTx: rdTx,
+          rdnMutations: rdnMutations,
+          activeSekuritas: activeSekuritas
+        })
+      }).then(function(res){
+        if(!res.ok) return null;
+        var ct = res.headers.get('content-type');
+        return (ct && ct.indexOf('application/json') !== -1) ? res.json() : null;
+      }).then(function(backendResult){
+        if(backendResult && backendResult.success){
+          console.log('✓ Backend RDN sync & audit verified:', backendResult.stats);
+        }
+      }).catch(function(beErr){});
+    }
   } catch(netErr){}
 
   if(!silent && typeof showSaveStatus === 'function'){
@@ -674,6 +683,13 @@ var _isApplyingCloudSnapshot = false;
 
 function _syncToServerMirror(payload){
   try {
+    var isStaticHost = typeof window !== 'undefined' && window.location && (
+      (window.location.hostname || '').indexOf('github.io') !== -1 ||
+      window.location.protocol === 'file:' ||
+      (window.location.hostname || '').indexOf('pages.dev') !== -1
+    );
+    if(isStaticHost) return; // GitHub Pages is static host, bypass /api/user-data/save
+
     var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
     var email = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
     if(typeof fetch === 'function'){
@@ -687,9 +703,7 @@ function _syncToServerMirror(payload){
           savedAt: new Date().toISOString(),
           data: payload
         })
-      }).catch(function(e){
-        console.warn('Server persistence mirror notice:', e);
-      });
+      }).catch(function(e){});
     }
   } catch(e){}
 }

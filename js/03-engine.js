@@ -809,17 +809,16 @@ var FH = {
     );
     if(isStatic){
       return [
-        function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); },
-        function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
         function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
-        function(u){ return '/api/proxy?url=' + encodeURIComponent(u); }
+        function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+        function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); }
       ];
     }
     return [
       function(u){ return '/api/proxy?url=' + encodeURIComponent(u); },
-      function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); },
+      function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
       function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-      function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+      function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); }
     ];
   })()
 };

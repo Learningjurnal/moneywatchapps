@@ -65,10 +65,26 @@ var IDX_PIPELINE = {
    */
   refreshMarketSummary: function() {
     var self = this;
+    var isStaticHost = typeof window !== 'undefined' && window.location && (
+      (window.location.hostname || '').indexOf('github.io') !== -1 ||
+      window.location.protocol === 'file:' ||
+      (window.location.hostname || '').indexOf('pages.dev') !== -1
+    );
+
+    if (isStaticHost) {
+      // Pada Static Hosting, gunakan quote real-time dari engine Yahoo / memory
+      if (typeof prices !== 'undefined' && prices['^JKSE']) {
+        self.state.summary.ihsg.price = prices['^JKSE'];
+      }
+      self.updateTopBarUI();
+      return;
+    }
+
     fetch('/api/idx/summary')
       .then(function(res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
+        if (!res.ok) return null;
+        var ct = res.headers.get('content-type');
+        return (ct && ct.indexOf('application/json') !== -1) ? res.json() : null;
       })
       .then(function(data) {
         if (data && data.success) {
@@ -83,12 +99,10 @@ var IDX_PIPELINE = {
           };
           self.state.lastUpdated = data.updatedAt || new Date().toISOString();
           self.updateTopBarUI();
-          self.syncQuotesToGlobal(data.topGainers.concat(data.topLosers).concat(data.mostActive));
+          self.syncQuotesToGlobal((data.topGainers || []).concat(data.topLosers || []).concat(data.mostActive || []));
         }
       })
-      .catch(function(err) {
-        console.warn('[IDX Pipeline] Market summary sync note:', err.message);
-      });
+      .catch(function(err) {});
   },
 
   /**
@@ -96,14 +110,32 @@ var IDX_PIPELINE = {
    */
   fetchMasterStocks: function() {
     var self = this;
+    var isStaticHost = typeof window !== 'undefined' && window.location && (
+      (window.location.hostname || '').indexOf('github.io') !== -1 ||
+      window.location.protocol === 'file:' ||
+      (window.location.hostname || '').indexOf('pages.dev') !== -1
+    );
+
+    if (isStaticHost) {
+      if (typeof DB !== 'undefined') {
+        Object.keys(DB).forEach(function(code) {
+          self.state.universe[code] = Object.assign({ code: code }, DB[code]);
+        });
+        console.log('[IDX Pipeline] Master Securities Universe initialized from static DB: ' + Object.keys(DB).length + ' emiten');
+      }
+      return;
+    }
+
     fetch('/api/idx/stocks?limit=1000')
-      .then(function(res) { return res.json(); })
+      .then(function(res) {
+        if (!res.ok) return null;
+        var ct = res.headers.get('content-type');
+        return (ct && ct.indexOf('application/json') !== -1) ? res.json() : null;
+      })
       .then(function(data) {
         if (data && data.success && Array.isArray(data.data)) {
           data.data.forEach(function(item) {
             self.state.universe[item.code] = item;
-            
-            // Enrich global DB in js/01-data.js if not present
             if (typeof DB !== 'undefined' && !DB[item.code]) {
               DB[item.code] = {
                 name: item.name,
@@ -116,9 +148,7 @@ var IDX_PIPELINE = {
           console.log('[IDX Pipeline] Master Securities Universe synced: ' + data.data.length + ' emiten');
         }
       })
-      .catch(function(err) {
-        console.warn('[IDX Pipeline] Master universe fetch note:', err.message);
-      });
+      .catch(function(err) {});
   },
 
   /**
@@ -126,8 +156,20 @@ var IDX_PIPELINE = {
    */
   fetchCalendar: function() {
     var self = this;
+    var isStaticHost = typeof window !== 'undefined' && window.location && (
+      (window.location.hostname || '').indexOf('github.io') !== -1 ||
+      window.location.protocol === 'file:' ||
+      (window.location.hostname || '').indexOf('pages.dev') !== -1
+    );
+
+    if (isStaticHost) return;
+
     fetch('/api/idx/calendar')
-      .then(function(res) { return res.json(); })
+      .then(function(res) {
+        if (!res.ok) return null;
+        var ct = res.headers.get('content-type');
+        return (ct && ct.indexOf('application/json') !== -1) ? res.json() : null;
+      })
       .then(function(data) {
         if (data && data.success) {
           self.state.calendar = {
@@ -148,53 +190,67 @@ var IDX_PIPELINE = {
     var cleanTk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
     var self = this;
 
+    var isStaticHost = typeof window !== 'undefined' && window.location && (
+      (window.location.hostname || '').indexOf('github.io') !== -1 ||
+      window.location.protocol === 'file:' ||
+      (window.location.hostname || '').indexOf('pages.dev') !== -1
+    );
+
+    if (isStaticHost) {
+      if (typeof yfFetch === 'function') {
+        yfFetch(cleanTk + '.JK', function(err, meta) {
+          if (!err && meta && meta.regularMarketPrice) {
+            var q = {
+              code: cleanTk,
+              price: meta.regularMarketPrice,
+              change: meta.regularMarketPrice - (meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice),
+              changePercent: meta.chartPreviousClose ? ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100) : 0
+            };
+            if (typeof prices !== 'undefined') prices[cleanTk] = q.price;
+            if (cb) cb(null, q, null);
+          } else {
+            if (cb) cb(err || new Error('No quote data'));
+          }
+        });
+        return;
+      }
+    }
+
     fetch('/api/idx/quote/' + encodeURIComponent(cleanTk))
-      .then(function(res) { return res.json(); })
+      .then(function(res) {
+        if (!res.ok) return null;
+        var ct = res.headers.get('content-type');
+        return (ct && ct.indexOf('application/json') !== -1) ? res.json() : null;
+      })
       .then(function(data) {
         if (data && data.success && data.quote) {
           var q = data.quote;
-          
-          // 1. Sync live price
           if (typeof prices !== 'undefined') {
             prices[cleanTk] = q.price;
           }
-
-          // 2. Sync FUND_DATA in js/24-stockmaster.js
-          if (typeof FUND_DATA !== 'undefined' && q.fundamentals) {
-            FUND_DATA[cleanTk] = Object.assign({}, FUND_DATA[cleanTk] || {}, {
-              per: q.fundamentals.per,
-              pbv: q.fundamentals.pbv,
-              roe: q.fundamentals.roe,
-              roa: q.fundamentals.roa,
-              der: q.fundamentals.der,
-              npm: q.fundamentals.npm,
-              divYield: q.fundamentals.dividendYield,
-              marketCap: q.marketCap,
-              eps: q.fundamentals.eps,
-              bvps: q.fundamentals.bvps
-            });
-          }
-
-          // 3. Sync KSEI data if attached
-          if (data.ksei && typeof KSEI_STATE !== 'undefined' && KSEI_STATE.data) {
-            KSEI_STATE.data[cleanTk] = Object.assign({}, KSEI_STATE.data[cleanTk] || {}, {
-              ticker: cleanTk,
-              freeFloat: data.ksei.freeFloat,
-              totalMajorPercent: data.ksei.totalMajorPercent,
-              localPercent: data.ksei.localPercent,
-              foreignPercent: data.ksei.foreignPercent,
-              investors: data.ksei.topHolders || []
-            });
-          }
-
           if (cb) cb(null, q, data.ksei);
         } else {
-          if (cb) cb(new Error('No quote data'));
+          if (typeof yfFetch === 'function') {
+            yfFetch(cleanTk + '.JK', function(yErr, meta) {
+              if (!yErr && meta && meta.regularMarketPrice) {
+                var qFallback = { code: cleanTk, price: meta.regularMarketPrice };
+                if (typeof prices !== 'undefined') prices[cleanTk] = qFallback.price;
+                if (cb) cb(null, qFallback, null);
+              } else if (cb) cb(new Error('No quote data'));
+            });
+          } else if (cb) cb(new Error('No quote data'));
         }
       })
       .catch(function(err) {
-        if (cb) cb(err);
-      });
+        if (typeof yfFetch === 'function') {
+          yfFetch(cleanTk + '.JK', function(yErr, meta) {
+            if (!yErr && meta && meta.regularMarketPrice) {
+              var qFallback = { code: cleanTk, price: meta.regularMarketPrice };
+              if (typeof prices !== 'undefined') prices[cleanTk] = qFallback.price;
+              if (cb) cb(null, qFallback, null);
+            } else if (cb) cb(err);
+          });
+        } else if (cb) cb(err);
   },
 
   /**
