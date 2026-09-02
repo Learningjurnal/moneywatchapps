@@ -1,7 +1,18 @@
-﻿import http from 'http';
+import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  loadBaseUniverse,
+  fetchYahooQuote,
+  getIdxMarketSummary,
+  getIdxCalendarData,
+  getUniverseOpportunityRadar,
+  getUniverseAccumulationDistribution,
+  getBeiTickSize,
+  generateBrokerSummary,
+  IDX_BROKERS
+} from './lib/idx-data-engine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -138,6 +149,69 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'No user data record found' }));
       }
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith('/api/idx/broker-summary/')) {
+    try {
+      const ticker = pathname.replace('/api/idx/broker-summary/', '').toUpperCase();
+      const tf = (parsedUrl.searchParams.get('timeframe') || '1D').toUpperCase();
+      const quote = await fetchYahooQuote(ticker);
+      const data = generateBrokerSummary(ticker, quote, tf);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, data: data }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/idx/summary') {
+    try {
+      const data = getIdxMarketSummary();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, ...data }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/idx/opportunity-radar') {
+    try {
+      const data = getUniverseOpportunityRadar();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/idx/accumulation-distribution') {
+    try {
+      const data = getUniverseAccumulationDistribution();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/idx/calendar') {
+    try {
+      const cal = getIdxCalendarData();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, ...cal }));
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: err.message }));

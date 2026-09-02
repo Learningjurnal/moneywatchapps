@@ -280,14 +280,16 @@ function getIntelUniverse() {
     'INKP', 'ISAT', 'HRUM', 'JPFA', 'MIKA', 'SILO', 'HEAL', 'CMRY', 'MAPA', 'ERAA'
   ];
 
-  // Ambil seluruh ticker dari DB
+  // Ambil seluruh ticker dari DB dan _IDX_RAW_LIST (900+ emiten IDX)
   var allDbKeys = (typeof DB !== 'undefined') ? Object.keys(DB) : [];
+  var allRawKeys = (typeof _IDX_RAW_LIST !== 'undefined') ? Object.keys(_IDX_RAW_LIST) : [];
   
   // Gabungkan semua ticker unik
   var allSet = new Set();
   portoTickers.forEach(function(t) { if (t) allSet.add(t.toUpperCase()); });
   topList.forEach(function(t) { if (t) allSet.add(t.toUpperCase()); });
   allDbKeys.forEach(function(t) { if (t) allSet.add(t.toUpperCase()); });
+  allRawKeys.forEach(function(t) { if (t) allSet.add(t.toUpperCase()); });
 
   // Convert to array and sort
   var fullUniverse = Array.from(allSet).sort();

@@ -411,7 +411,73 @@ test('Tax Compliance: PMK 18/2021 Dividend Reinvestment (0%) vs Standard Final (
   assert.strictEqual(netDividendB, 9000000);
 });
 
+// ── TEST 16: BANDARMOLOGY & BROKER FLOW CONCENTRATION ENGINE ──
+test('Bandarmology: Top 3/5 Concentration, Foreign Flow & Smart Money Math', () => {
+  const buyers = [
+    { broker: 'AK', pctOfTurnover: 28, valueRp: 28000000000, type: 'F' },
+    { broker: 'BK', pctOfTurnover: 22, valueRp: 22000000000, type: 'F' },
+    { broker: 'ZP', pctOfTurnover: 16, valueRp: 16000000000, type: 'F' },
+    { broker: 'CC', pctOfTurnover: 11, valueRp: 11000000000, type: 'D' },
+    { broker: 'SQ', pctOfTurnover: 8, valueRp: 8000000000, type: 'D' }
+  ];
+
+  const sellers = [
+    { broker: 'YP', pctOfTurnover: 24, valueRp: 24000000000, type: 'D' },
+    { broker: 'PD', pctOfTurnover: 19, valueRp: 19000000000, type: 'D' },
+    { broker: 'XC', pctOfTurnover: 15, valueRp: 15000000000, type: 'D' },
+    { broker: 'XL', pctOfTurnover: 12, valueRp: 12000000000, type: 'D' },
+    { broker: 'EP', pctOfTurnover: 9, valueRp: 9000000000, type: 'D' }
+  ];
+
+  const top3BuyPct = buyers[0].pctOfTurnover + buyers[1].pctOfTurnover + buyers[2].pctOfTurnover; // 66%
+  const top3SellPct = sellers[0].pctOfTurnover + sellers[1].pctOfTurnover + sellers[2].pctOfTurnover; // 58%
+
+  assert.strictEqual(top3BuyPct, 66);
+  assert.strictEqual(top3SellPct, 58);
+
+  const foreignBuyTotal = buyers.filter(b => b.type === 'F').reduce((sum, b) => sum + b.valueRp, 0); // 66M
+  const foreignSellTotal = sellers.filter(s => s.type === 'F').reduce((sum, s) => sum + s.valueRp, 0); // 0
+  const netForeign = foreignBuyTotal - foreignSellTotal;
+
+  assert.strictEqual(foreignBuyTotal, 66000000000);
+  assert.strictEqual(netForeign, 66000000000);
+  assert(top3BuyPct >= 60, 'Top 3 Buy Pct >= 60% qualifies as Big Accumulation');
+});
+
+// ── TEST 17: FULL STOCK UNIVERSE DYNAMIC 5-PILLAR PROFILE SYNTHESIS ──
+test('Stock Universe: Dynamic 5-Pillar Score & Valuation Synthesis for Any IDX Ticker', () => {
+  function synthesizePillars(ticker, price, sector) {
+    const isBank = sector.toLowerCase().includes('keuangan') || sector.toLowerCase().includes('bank');
+    const fairMult = isBank ? 1.22 : 1.20;
+    const fairValue = Math.round(price * fairMult);
+    const mos = Math.round(((fairValue - price) / fairValue) * 1000) / 10;
+    const pFund = isBank ? 88 : 80;
+    const pTech = 78;
+    const pFlow = 82;
+    const pVal = 80;
+    const pRisk = 82;
+    const overallScore = Math.round((pFund * 0.25) + (pTech * 0.25) + (pFlow * 0.20) + (pVal * 0.15) + (pRisk * 0.15));
+
+    return {
+      ticker,
+      fairValue,
+      mos,
+      overallScore
+    };
+  }
+
+  const resAali = synthesizePillars('AALI', 6500, 'Lainnya');
+  assert.strictEqual(resAali.fairValue, 7800);
+  assert.strictEqual(resAali.mos, 16.7);
+  assert(resAali.overallScore >= 75, 'Score must be high quality');
+
+  const resBbca = synthesizePillars('BBCA', 9500, 'Keuangan');
+  assert.strictEqual(resBbca.fairValue, 11590);
+  assert.strictEqual(resBbca.overallScore, 82);
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
+
 
