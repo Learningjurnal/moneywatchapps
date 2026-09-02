@@ -2597,65 +2597,162 @@ body.theme-light .hw-metric-box {
 }
 
 /* ── Comprehensive Light Theme for Bandarmology Cockpit & StockChat AI ── */
+/* ── Comprehensive High-Contrast Light Theme for Bandarmology, StockChat & Master Modes ── */
 body.theme-light #page-stockchat,
-body.theme-light #page-bandarmology {
-  background: #F1F5F9 !important;
+body.theme-light #page-bandarmology,
+body.theme-light #page-stockintel,
+body.theme-light #page-flowscan {
+  background: #F8FAFC !important;
   color: #0F172A !important;
 }
 
+/* Card Containers & Glassmorphism Panels */
 body.theme-light #page-bandarmology [class*="bg-slate-900"],
 body.theme-light #page-stockchat [class*="bg-slate-900"],
 body.theme-light #page-bandarmology [class*="bg-slate-950"],
-body.theme-light #page-stockchat [class*="bg-slate-950"] {
+body.theme-light #page-stockchat [class*="bg-slate-950"],
+body.theme-light .stockchat-card {
   background: #FFFFFF !important;
   border-color: #E2E8F0 !important;
   color: #0F172A !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
 }
 
+/* Typography & Headings */
 body.theme-light #page-bandarmology h1,
 body.theme-light #page-bandarmology h2,
 body.theme-light #page-bandarmology h3,
+body.theme-light #page-bandarmology h4,
 body.theme-light #page-stockchat h1,
 body.theme-light #page-stockchat h2,
-body.theme-light #page-stockchat h3 {
+body.theme-light #page-stockchat h3,
+body.theme-light #page-stockchat h4,
+body.theme-light #page-bandarmology .text-white,
+body.theme-light #page-stockchat .text-white {
   color: #0F172A !important;
+  font-weight: 800;
 }
 
 body.theme-light #page-bandarmology p,
 body.theme-light #page-stockchat p {
-  color: #475569 !important;
+  color: #334155 !important;
 }
 
-body.theme-light #page-bandarmology .text-white,
-body.theme-light #page-stockchat .text-white {
-  color: #0F172A !important;
-}
-
+/* Body & Subtitle Text Contrast */
 body.theme-light #page-bandarmology .text-slate-200,
 body.theme-light #page-stockchat .text-slate-200,
 body.theme-light #page-bandarmology .text-slate-300,
 body.theme-light #page-stockchat .text-slate-300 {
   color: #1E293B !important;
+  font-weight: 600;
 }
 
 body.theme-light #page-bandarmology .text-slate-400,
 body.theme-light #page-stockchat .text-slate-400,
 body.theme-light #page-bandarmology .text-slate-500,
 body.theme-light #page-stockchat .text-slate-500 {
-  color: #64748B !important;
+  color: #475569 !important;
+  font-weight: 500;
 }
 
-/* Sub-nav bars & Ticker Quick Selector Bar */
-body.theme-light #page-bandarmology .overflow-x-auto,
-body.theme-light #page-stockchat .overflow-x-auto {
-  scrollbar-color: #CBD5E1 #F1F5F9;
+/* High-Contrast Color Accents (Never Pale in Light Mode) */
+body.theme-light .text-emerald-300,
+body.theme-light .text-emerald-400,
+body.theme-light #page-bandarmology .text-emerald-400 {
+  color: #047857 !important; /* Deep Emerald (7:1 Contrast) */
+  font-weight: 700 !important;
 }
 
+body.theme-light .text-rose-300,
+body.theme-light .text-rose-400,
+body.theme-light #page-bandarmology .text-rose-400 {
+  color: #B91C1C !important; /* Deep Rose Red (7:1 Contrast) */
+  font-weight: 700 !important;
+}
+
+body.theme-light .text-amber-300,
+body.theme-light .text-amber-400,
+body.theme-light #page-bandarmology .text-amber-300 {
+  color: #B45309 !important; /* Deep Amber */
+  font-weight: 700 !important;
+}
+
+body.theme-light .text-sky-300,
+body.theme-light .text-sky-400,
+body.theme-light .text-blue-300,
+body.theme-light .text-blue-400,
+body.theme-light #page-bandarmology .text-sky-400 {
+  color: #0284C7 !important; /* Deep Sky Blue */
+  font-weight: 700 !important;
+}
+
+body.theme-light .text-indigo-300,
+body.theme-light .text-indigo-400 {
+  color: #4338CA !important;
+  font-weight: 700 !important;
+}
+
+/* Badges, Pills & Status Tags */
+body.theme-light [class*="bg-emerald-500/20"],
+body.theme-light [class*="bg-emerald-950"],
+body.theme-light #stockchat-flow-tab-content .bg-emerald-950\/40,
+body.theme-light #page-bandarmology .bg-emerald-950\/40 {
+  background: #DCFCE7 !important;
+  border-color: #86EFAC !important;
+  color: #065F46 !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light [class*="bg-rose-500/20"],
+body.theme-light [class*="bg-rose-950"],
+body.theme-light #stockchat-flow-tab-content .bg-rose-950\/40,
+body.theme-light #page-bandarmology .bg-rose-950\/40 {
+  background: #FEE2E2 !important;
+  border-color: #FCA5A5 !important;
+  color: #991B1B !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light [class*="bg-amber-500/20"],
+body.theme-light [class*="bg-amber-950"],
+body.theme-light #page-bandarmology .bg-amber-950\/80,
+body.theme-light #page-stockchat .bg-amber-950\/80 {
+  background: #FEF3C7 !important;
+  border-color: #FCD34D !important;
+  color: #92400E !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light [class*="bg-sky-500/20"],
+body.theme-light [class*="bg-sky-950"],
+body.theme-light [class*="bg-blue-600/20"] {
+  background: #E0F2FE !important;
+  border-color: #BAE6FD !important;
+  color: #0369A1 !important;
+  font-weight: 700 !important;
+}
+
+/* Master Mode Switcher Buttons */
+body.theme-light button.bg-gradient-to-r.from-sky-600,
+body.theme-light button[class*="from-sky-600"] {
+  background: linear-gradient(135deg, #0284C7, #0369A1) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3) !important;
+}
+
+body.theme-light button.bg-gradient-to-r.from-emerald-600,
+body.theme-light button[class*="from-emerald-600"] {
+  background: linear-gradient(135deg, #059669, #047857) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3) !important;
+}
+
+/* Secondary Buttons & Inactive State */
 body.theme-light #page-bandarmology button.bg-slate-800,
 body.theme-light #page-stockchat button.bg-slate-800,
 body.theme-light #page-bandarmology button[class*="bg-slate-800"],
 body.theme-light #page-stockchat button[class*="bg-slate-800"] {
-  background: #F1F5F9 !important;
+  background: #FFFFFF !important;
   color: #334155 !important;
   border: 1px solid #CBD5E1 !important;
 }
@@ -2664,10 +2761,62 @@ body.theme-light #page-bandarmology button.bg-slate-800:hover,
 body.theme-light #page-stockchat button.bg-slate-800:hover,
 body.theme-light #page-bandarmology button[class*="bg-slate-800"]:hover,
 body.theme-light #page-stockchat button[class*="bg-slate-800"]:hover {
-  background: #E2E8F0 !important;
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+  border-color: #94A3B8 !important;
+}
+
+/* Broker Selector Chips & Buttons */
+body.theme-light #page-bandarmology button[onclick*="selectBrokerTrail"] {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #1E293B !important;
+}
+
+body.theme-light #page-bandarmology button[onclick*="selectBrokerTrail"]:hover {
+  background: #F1F5F9 !important;
   color: #0F172A !important;
 }
 
+body.theme-light #page-bandarmology button.bg-emerald-600[onclick*="selectBrokerTrail"],
+body.theme-light #page-bandarmology button.bg-emerald-700[onclick*="selectBrokerTrail"] {
+  background: #059669 !important;
+  color: #FFFFFF !important;
+  border-color: #059669 !important;
+}
+
+/* Tables, Grid Headers & Rows */
+body.theme-light #page-bandarmology table,
+body.theme-light #page-stockchat table {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+body.theme-light #page-bandarmology thead,
+body.theme-light #page-stockchat thead {
+  background: #F8FAFC !important;
+  color: #334155 !important;
+  border-bottom: 2px solid #E2E8F0 !important;
+}
+
+body.theme-light #page-bandarmology thead th,
+body.theme-light #page-stockchat thead th {
+  color: #475569 !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light #page-bandarmology tbody tr,
+body.theme-light #page-stockchat tbody tr {
+  border-color: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+body.theme-light #page-bandarmology tbody tr:hover,
+body.theme-light #page-stockchat tbody tr:hover {
+  background: #F8FAFC !important;
+}
+
+/* Inputs & Form Controls */
 body.theme-light #page-bandarmology input,
 body.theme-light #page-stockchat input {
   background: #FFFFFF !important;
@@ -2680,110 +2829,33 @@ body.theme-light #page-stockchat input::placeholder {
   color: #94A3B8 !important;
 }
 
-/* Big 4 Banks Flow */
-body.theme-light #page-bandarmology .bg-emerald-950\/40 {
-  background: #F0FDF4 !important;
-  border-color: #BBF7D0 !important;
+/* Progress Bar Tracks (No Black Bars in Light Mode) */
+body.theme-light .w-full.bg-slate-950.h-2,
+body.theme-light [class*="bg-slate-950"].h-2,
+body.theme-light [class*="bg-slate-950"].h-1,
+body.theme-light [class*="bg-slate-950"].h-1\.5 {
+  background: #E2E8F0 !important;
 }
 
-body.theme-light #page-bandarmology .bg-rose-950\/40 {
-  background: #FEF2F2 !important;
-  border-color: #FECACA !important;
+/* Sector Heatmap Tiles (White Text on Vivid Color) */
+body.theme-light [class*="bg-emerald-600"],
+body.theme-light [class*="bg-emerald-700"],
+body.theme-light [class*="bg-emerald-800"],
+body.theme-light [class*="bg-emerald-900"] {
+  color: #FFFFFF !important;
 }
 
-body.theme-light #page-bandarmology .text-emerald-400 {
-  color: #16A34A !important;
+body.theme-light [class*="bg-rose-600"],
+body.theme-light [class*="bg-rose-700"],
+body.theme-light [class*="bg-rose-800"],
+body.theme-light [class*="bg-rose-900"] {
+  color: #FFFFFF !important;
 }
 
-body.theme-light #page-bandarmology .text-rose-400 {
-  color: #DC2626 !important;
-}
-
-/* Tables & Sort Headers */
-body.theme-light #page-bandarmology table,
-body.theme-light #page-stockchat table {
-  background: #FFFFFF !important;
-  color: #0F172A !important;
-}
-
-body.theme-light #page-bandarmology thead,
-body.theme-light #page-stockchat thead {
-  background: #F8FAFC !important;
-  color: #475569 !important;
-  border-bottom: 1px solid #E2E8F0 !important;
-}
-
-body.theme-light #page-bandarmology tbody tr,
-body.theme-light #page-stockchat tbody tr {
-  border-color: #F1F5F9 !important;
-}
-
-body.theme-light #page-bandarmology tbody tr:hover,
-body.theme-light #page-stockchat tbody tr:hover {
-  background: #F8FAFC !important;
-}
-
-/* Broker Flow Dual Sortable Tables */
-body.theme-light #stockchat-flow-tab-content [class*="bg-gradient-to-r from-emerald-950"] {
-  background: #F0FDF4 !important;
-  border-color: #BBF7D0 !important;
-}
-
-body.theme-light #stockchat-flow-tab-content [class*="bg-gradient-to-r from-rose-950"] {
-  background: #FEF2F2 !important;
-  border-color: #FECACA !important;
-}
-
-body.theme-light #stockchat-flow-tab-content .border-emerald-900\/40,
-body.theme-light #stockchat-flow-tab-content .border-emerald-900\/50 {
-  border-color: #BBF7D0 !important;
-}
-
-body.theme-light #stockchat-flow-tab-content .border-rose-900\/40,
-body.theme-light #stockchat-flow-tab-content .border-rose-900\/50 {
-  border-color: #FECACA !important;
-}
-
-body.theme-light #stockchat-flow-tab-content .bg-slate-900\/90.border-t {
-  background: #F8FAFC !important;
-  border-color: #E2E8F0 !important;
-  color: #0F172A !important;
-}
-
-body.theme-light #stockchat-flow-tab-content .bg-rose-950\/60 {
-  background: #FEE2E2 !important;
-}
-
-body.theme-light #stockchat-flow-tab-content .bg-emerald-950\/40 {
-  background: #DCFCE7 !important;
-  color: #15803D !important;
-}
-
-body.theme-light #stockchat-flow-tab-content .bg-rose-950\/40 {
-  background: #FEE2E2 !important;
-  color: #B91C1C !important;
-}
-
-/* Foreign & Domestic Broker Chips */
-body.theme-light #page-bandarmology .bg-amber-950\/80,
-body.theme-light #page-stockchat .bg-amber-950\/80,
-body.theme-light #page-bandarmology .bg-amber-900\/40,
-body.theme-light #page-stockchat .bg-amber-900\/40 {
-  background: #FEF3C7 !important;
-  color: #92400E !important;
-  border: 1px solid #FDE68A !important;
-}
-
-body.theme-light #page-bandarmology .text-amber-300,
-body.theme-light #page-stockchat .text-amber-300 {
-  color: #B45309 !important;
-}
-
-/* Chat History & Bubbles */
+/* Chat History & AI Dialogues */
 body.theme-light #stockchat-history-box {
   background: #FFFFFF !important;
-  border: 1px solid #E2E8F0 !important;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
+  border: 1px solid #CBD5E1 !important;
 }
 
 body.theme-light #stockchat-history-box .bg-slate-900 {
@@ -2794,23 +2866,5 @@ body.theme-light #stockchat-history-box .bg-slate-900 {
 
 body.theme-light #stockchat-history-box strong {
   color: #0F172A !important;
-}
-
-body.theme-light #stockchat-history-box .bg-amber-950\/30 {
-  background: #FEF3C7 !important;
-  border-color: #FCD34D !important;
-  color: #92400E !important;
-}
-
-body.theme-light #stockchat-history-box .bg-blue-950\/30 {
-  background: #EFF6FF !important;
-  border-color: #BFDBFE !important;
-  color: #1E40AF !important;
-}
-
-body.theme-light .stockchat-card {
-  background: #FFFFFF !important;
-  border-color: #CBD5E1 !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
 }
 

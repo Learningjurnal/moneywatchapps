@@ -2583,9 +2583,10 @@ function mountBandarmologySmartMoneyCharts(tk) {
     return +((buyVol - sellVol) / 1e6).toFixed(2);
   });
 
+  var isLight = (typeof document !== 'undefined' && document.body && document.body.classList.contains('theme-light'));
   var chartFont = { size: 10, family: 'Inter, system-ui, sans-serif' };
-  var gridColor = 'rgba(255, 255, 255, 0.05)';
-  var tickColor = '#64748b';
+  var gridColor = isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.05)';
+  var tickColor = isLight ? '#334155' : '#94a3b8';
 
   var baseOpts = {
     responsive: true,
@@ -2593,11 +2594,11 @@ function mountBandarmologySmartMoneyCharts(tk) {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: isLight ? '#FFFFFF' : 'rgba(15, 23, 42, 0.95)',
+        borderColor: isLight ? '#CBD5E1' : 'rgba(255, 255, 255, 0.1)',
         borderWidth: 1,
-        titleColor: '#94a3b8',
-        bodyColor: '#f8fafc',
+        titleColor: isLight ? '#334155' : '#94a3b8',
+        bodyColor: isLight ? '#0F172A' : '#f8fafc',
         bodyFont: { family: 'monospace', size: 11 }
       }
     },

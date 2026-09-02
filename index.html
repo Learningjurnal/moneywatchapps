@@ -3462,7 +3462,18 @@
       document.body.classList.toggle('theme-light');
       const isLight = document.body.classList.contains('theme-light');
       localStorage.setItem('mw_theme', isLight ? 'light' : 'dark');
-      document.getElementById('theme-icon').className = isLight ? 'ti ti-moon' : 'ti ti-sun';
+      const icon = document.getElementById('theme-icon');
+      if (icon) icon.className = isLight ? 'ti ti-moon' : 'ti ti-sun';
+
+      // Dynamically re-render any active charts with new theme colors
+      setTimeout(() => {
+        if (typeof mountBandarmologySmartMoneyCharts === 'function') {
+          try { mountBandarmologySmartMoneyCharts(); } catch(e) {}
+        }
+        if (typeof fsRenderCharts === 'function') {
+          try { fsRenderCharts(); } catch(e) {}
+        }
+      }, 50);
     }
     // Load theme on startup
     if(localStorage.getItem('mw_theme') === 'light') {
