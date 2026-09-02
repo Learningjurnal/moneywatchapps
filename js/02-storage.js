@@ -59,8 +59,20 @@ function resetAllDatabaseAndTransactions(){
   rdTx = [];
   divInvestData = [];
   nextTxId = 1;
+  nextDivId = 1;
   nextRdnId = 1;
+  nextCryptoId = 1;
+  nextEtfId = 1;
+  nextRdId = 1;
   rdnBalance = 0;
+  sekTaxOverride = {};
+
+  if(typeof MW_THESES !== 'undefined') MW_THESES = [];
+  if(typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = [];
+  if(typeof WEALTH !== 'undefined'){
+    WEALTH.income = 0; WEALTH.expense = 0; WEALTH.deposito = 0; WEALTH.emas = 0; WEALTH.obligasi = 0;
+    WEALTH.bank = []; WEALTH.debt = []; WEALTH.piutang = [];
+  }
 
   if(typeof CASH_ACCOUNTS !== 'undefined'){
     if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 0;
@@ -73,6 +85,8 @@ function resetAllDatabaseAndTransactions(){
   try {
     var keysToClear = [
       'mw_local_data_v2',
+      'mw_emergency_backup_v2',
+      'mw_trade_strategy',
       'mw_stocks_db',
       'moneywatch_stocks_db',
       'moneywatch_stocks_backup',
@@ -85,14 +99,48 @@ function resetAllDatabaseAndTransactions(){
       'rdTx',
       'divInvestData',
       'mw_backup_history',
-      'mw_tx_cache'
+      'mw_tx_cache',
+      'mw_price_alerts',
+      'mw_custom_stocks'
     ];
     keysToClear.forEach(function(k){
       localStorage.removeItem(k);
     });
   } catch(e){}
 
-  if(typeof saveData === 'function') saveData();
+  // Purge server persistence mirror
+  if(typeof fetch === 'function'){
+    try {
+      var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
+      fetch('/api/user-data/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: uid })
+      }).catch(function(){});
+    } catch(e){}
+  }
+
+  // Purge Firebase Firestore doc if connected
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
+  var fireUid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
+  if(db && fireUid){
+    try {
+      var mainDoc = db.collection('users').doc(fireUid).collection('data').doc('main');
+      mainDoc.set({
+        transactions: [],
+        dividends: [],
+        rdnMutations: [],
+        cryptoTx: [],
+        etfTx: [],
+        rdTx: [],
+        divInvestData: [],
+        tradeStrategy: {},
+        rdnBalance: 0,
+        updatedAt: new Date().toISOString()
+      }, { merge: false }).catch(function(){});
+    } catch(e){}
+  }
+
   if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
 
@@ -104,9 +152,10 @@ function resetAllDatabaseAndTransactions(){
   if(typeof renderCrypto === 'function') renderCrypto();
   if(typeof renderReksaDana === 'function') renderReksaDana();
   if(typeof renderCashWidgets === 'function') renderCashWidgets();
+  if(typeof renderAll === 'function') renderAll();
 
   if(typeof showSaveStatus === 'function'){
-    showSaveStatus('✓ Database portofolio berhasil dikosongkan 100% (Siap upload data baru)', 'var(--green)');
+    showSaveStatus('✓ Seluruh data transaksi & lokal berhasil dikosongkan 100% (Bersih)', 'var(--green)');
   }
 }
 window.resetAllDatabaseAndTransactions = resetAllDatabaseAndTransactions;
@@ -1185,7 +1234,7 @@ function loadData(){
 }
 
 function clearData(){
-  if(!confirm('⚠️ Hapus SEMUA data transaksi tersimpan dan kosongkan portofolio di Firebase?\n\nTindakan ini akan mengosongkan seluruh data transaksi agar siap di-upload ulang.')) return;
+  if(!confirm('⚠️ Hapus SEMUA data transaksi tersimpan dan kosongkan portofolio di Firebase & Local?\n\nTindakan ini akan mengosongkan seluruh data transaksi agar siap di-upload ulang.')) return;
   
   // Kosongkan variabel memori
   transactions = [];
@@ -1211,23 +1260,84 @@ function clearData(){
     WEALTH.income = 0; WEALTH.expense = 0; WEALTH.deposito = 0; WEALTH.emas = 0; WEALTH.obligasi = 0;
     WEALTH.bank = []; WEALTH.debt = []; WEALTH.piutang = [];
   }
+  if(typeof CASH_ACCOUNTS !== 'undefined'){
+    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 0;
+    if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = 0;
+    if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
+  }
 
-  if(_currentUser && _currentUser.uid && _firebaseDb){
-    var uid = _currentUser.uid || _currentUser.id;
+  // Bersihkan LocalStorage
+  try {
+    var keysToClear = [
+      'mw_local_data_v2',
+      'mw_emergency_backup_v2',
+      'mw_trade_strategy',
+      'mw_stocks_db',
+      'moneywatch_stocks_db',
+      'moneywatch_stocks_backup',
+      'transactions',
+      'portfolio',
+      'rdnMutations',
+      'dividends',
+      'cryptoTx',
+      'etfTx',
+      'rdTx',
+      'divInvestData',
+      'mw_backup_history',
+      'mw_tx_cache',
+      'mw_price_alerts',
+      'mw_custom_stocks'
+    ];
+    keysToClear.forEach(function(k){
+      localStorage.removeItem(k);
+    });
+  } catch(e){}
+
+  // Bersihkan server storage mirror
+  if(typeof fetch === 'function'){
+    try {
+      var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
+      fetch('/api/user-data/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: uid })
+      }).catch(function(){});
+    } catch(e){}
+  }
+
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
+  var fireUid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : (_currentUser && (_currentUser.uid || _currentUser.id));
+  
+  if(db && fireUid){
     if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Menghapus data di Firestore...', 'var(--amber)', true);
     
-    var userRef = _firebaseDb.collection('users').doc(uid);
+    var userRef = db.collection('users').doc(fireUid);
     var mainDataRef = userRef.collection('data').doc('main');
     
-    mainDataRef.delete().then(function(){
-      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Seluruh data transaksi di Firestore telah dikosongkan 100%');
+    mainDataRef.set({
+      transactions: [],
+      dividends: [],
+      rdnMutations: [],
+      cryptoTx: [],
+      etfTx: [],
+      rdTx: [],
+      divInvestData: [],
+      tradeStrategy: {},
+      rdnBalance: 0,
+      updatedAt: new Date().toISOString()
+    }, { merge: false }).then(function(){
+      if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+      if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
+      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Seluruh data transaksi di Firestore & lokal telah dikosongkan 100%');
       if(typeof renderAll === 'function') renderAll();
       if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
     }).catch(function(err){
       if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Gagal menghapus: ' + err.message, 'var(--red)', true);
     });
   } else {
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data transaksi di memori telah dikosongkan 100%');
+    if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+    if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
+    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data transaksi di memori & lokal telah dikosongkan 100%');
     if(typeof renderAll === 'function') renderAll();
     if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
   }

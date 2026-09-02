@@ -575,6 +575,28 @@ function renderAggregatedBrokerFlowView(data) {
   var topSellerAvg = data.topSellers && data.topSellers[0] ? data.topSellers[0].avgPrice : data.price;
   var buyerSpreadPct = (((data.price - topBuyerAvg) / (topBuyerAvg || 1)) * 100).toFixed(2);
 
+  // Extract or calculate Top 1, 3, 5 Concentration Percentages
+  var t1b = conc.top1BuyerPct !== undefined ? conc.top1BuyerPct : (conc.top1BuyPct !== undefined ? conc.top1BuyPct : 0);
+  var t1s = conc.top1SellerPct !== undefined ? conc.top1SellerPct : (conc.top1SellPct !== undefined ? conc.top1SellPct : 0);
+  var t3b = conc.top3BuyerPct !== undefined ? conc.top3BuyerPct : (conc.top3BuyPct !== undefined ? conc.top3BuyPct : 0);
+  var t3s = conc.top3SellerPct !== undefined ? conc.top3SellerPct : (conc.top3SellPct !== undefined ? conc.top3SellPct : 0);
+  var t5b = conc.top5BuyerPct !== undefined ? conc.top5BuyerPct : (conc.top5BuyPct !== undefined ? conc.top5BuyPct : 0);
+  var t5s = conc.top5SellerPct !== undefined ? conc.top5SellerPct : (conc.top5SellPct !== undefined ? conc.top5SellPct : 0);
+
+  // Fallback calculation from topBuyers & topSellers if not populated in conc object
+  var rawB = Array.isArray(data.topBuyers) ? data.topBuyers : [];
+  var rawS = Array.isArray(data.topSellers) ? data.topSellers : [];
+  if (!t1b && rawB.length) {
+    var totBVol = rawB.reduce(function(a, x){ return a + (x.volumeLot || 0); }, 0) || 1;
+    var totSVol = rawS.reduce(function(a, x){ return a + (x.volumeLot || 0); }, 0) || 1;
+    t1b = Math.round(((rawB[0] ? rawB[0].volumeLot : 0) / totBVol) * 100);
+    t1s = Math.round(((rawS[0] ? rawS[0].volumeLot : 0) / totSVol) * 100);
+    t3b = Math.round(((rawB.slice(0, 3).reduce(function(a, x){ return a + (x.volumeLot || 0); }, 0)) / totBVol) * 100);
+    t3s = Math.round(((rawS.slice(0, 3).reduce(function(a, x){ return a + (x.volumeLot || 0); }, 0)) / totSVol) * 100);
+    t5b = Math.round(((rawB.slice(0, 5).reduce(function(a, x){ return a + (x.volumeLot || 0); }, 0)) / totBVol) * 100);
+    t5s = Math.round(((rawS.slice(0, 5).reduce(function(a, x){ return a + (x.volumeLot || 0); }, 0)) / totSVol) * 100);
+  }
+
   // Classify Institutional Smart Money vs Retail in Top 10
   var instBrokersList = ['AK', 'BK', 'ZP', 'KZ', 'CS', 'RX', 'CC', 'SQ', 'OD', 'NI', 'LG', 'IF', 'YU'];
   var retailBrokersList = ['YP', 'PD', 'XC', 'XL', 'KK', 'EP', 'AT'];

@@ -134,6 +134,45 @@ app.get('/api/user-data/load', (req, res) => {
   }
 });
 
+app.post('/api/user-data/clear', (req, res) => {
+  try {
+    const body = req.body || {};
+    const uid = body.uid || body.email || req.query.uid || req.query.email || '';
+    
+    // Clear user specific file if provided, otherwise clear all user stores
+    if (uid) {
+      const safeKey = getSafeFileKey(uid);
+      const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } else {
+      const files = fs.readdirSync(USER_STORES_DIR);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          fs.unlinkSync(path.join(USER_STORES_DIR, file));
+        }
+      }
+    }
+    const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
+    if (fs.existsSync(backupPath)) {
+      fs.unlinkSync(backupPath);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Server storage mirror cleared successfully'
+    });
+  } catch (err) {
+    console.error('Server clear data error:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to clear user data on server',
+      message: err.message
+    });
+  }
+});
+
 // ══════════════════════════════════════════════════════════
 // BACKEND RDN SYNCHRONIZATION & RECONCILIATION ENGINE
 // ══════════════════════════════════════════════════════════
