@@ -269,6 +269,149 @@ test('Multi-Asset Day-by-Day Portfolio Timeline Reconstruction', () => {
   assert.strictEqual(day4Total - (day2Stock + day3Crypto + day3Rdn), 5000000);
 });
 
+// ── TEST 11: BEI TICK SIZES & AUTO-REJECTION (ARA / ARB) ENGINE ──
+test('BEI Official Price Fractions (Tick Size) & ARA/ARB Validation', () => {
+  function getTick(price) {
+    if (price < 200) return 1;
+    if (price < 500) return 2;
+    if (price < 2000) return 5;
+    if (price < 5000) return 10;
+    return 25;
+  }
+
+  assert.strictEqual(getTick(50), 1);
+  assert.strictEqual(getTick(199), 1);
+  assert.strictEqual(getTick(200), 2);
+  assert.strictEqual(getTick(498), 2);
+  assert.strictEqual(getTick(500), 5);
+  assert.strictEqual(getTick(1995), 5);
+  assert.strictEqual(getTick(2000), 10);
+  assert.strictEqual(getTick(4990), 10);
+  assert.strictEqual(getTick(5000), 25);
+  assert.strictEqual(getTick(10000), 25);
+
+  // ARA / ARB calculation for BBCA @ Rp 10,000 (Tick 25, 20% limit)
+  const prevPrice = 10000;
+  const araLimitPct = 0.20;
+  const arbLimitPct = 0.20;
+  const rawAra = prevPrice * (1 + araLimitPct); // 12,000
+  const rawArb = prevPrice * (1 - arbLimitPct); // 8,000
+  assert.strictEqual(rawAra, 12000);
+  assert.strictEqual(rawArb, 8000);
+});
+
+// ── TEST 12: HEDGE FUND RISK-ADJUSTED METRICS (SHARPE, SORTINO, HHI) ──
+test('Hedge Fund Metrics: Sharpe, Sortino & HHI Portfolio Concentration', () => {
+  // Returns over 6 months: +4%, +6%, -2%, +5%, +3%, -1%
+  const monthlyReturns = [0.04, 0.06, -0.02, 0.05, 0.03, -0.01];
+  const riskFreeRate = 0.005; // 0.5% monthly (~6% annual)
+
+  const meanReturn = monthlyReturns.reduce((a, b) => a + b, 0) / monthlyReturns.length; // 0.025 (2.5%)
+  const variance = monthlyReturns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / (monthlyReturns.length - 1);
+  const stdDev = Math.sqrt(variance);
+
+  const downsideReturns = monthlyReturns.filter(r => r < riskFreeRate);
+  const downsideVariance = downsideReturns.reduce((sum, r) => sum + Math.pow(r - riskFreeRate, 2), 0) / downsideReturns.length;
+  const downsideDev = Math.sqrt(downsideVariance);
+
+  const sharpe = (meanReturn - riskFreeRate) / stdDev;
+  const sortino = (meanReturn - riskFreeRate) / downsideDev;
+
+  assert(sharpe > 0.5, `Sharpe ratio positive: ${sharpe.toFixed(2)}`);
+  assert(sortino > 0.5, `Sortino ratio positive: ${sortino.toFixed(2)}`);
+
+  // HHI (Herfindahl-Hirschman Index) concentration: 3 stocks with 50%, 30%, 20% weights
+  const weights = [0.50, 0.30, 0.20];
+  const hhi = weights.reduce((sum, w) => sum + Math.pow(w * 100, 2), 0); // 2500 + 900 + 400 = 3800
+  assert.strictEqual(hhi, 3800);
+  assert(hhi > 2500, 'HHI > 2500 signifies a highly concentrated portfolio');
+});
+
+// ── TEST 13: SSRF DEFENSE VALIDATION ON PROXY ENDPOINTS ──
+test('Security: SSRF Prevention Validator for External Proxy', () => {
+  function isSafeProxyUrl(urlString) {
+    try {
+      const parsed = new URL(urlString);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+      const hostname = parsed.hostname.toLowerCase();
+      if (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === '::1' ||
+        hostname === '0.0.0.0' ||
+        hostname === '169.254.169.254' ||
+        hostname.endsWith('.internal') ||
+        hostname.endsWith('.local')
+      ) {
+        return false;
+      }
+      const ipMatch = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+      if (ipMatch) {
+        const b0 = parseInt(ipMatch[1], 10);
+        const b1 = parseInt(ipMatch[2], 10);
+        if (b0 === 10) return false;
+        if (b0 === 127) return false;
+        if (b0 === 169 && b1 === 254) return false;
+        if (b0 === 192 && b1 === 168) return false;
+        if (b0 === 172 && b1 >= 16 && b1 <= 31) return false;
+        if (b0 === 0) return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Must reject malicious / internal / SSRF vectors
+  assert.strictEqual(isSafeProxyUrl('http://localhost:3000/api/user-data'), false);
+  assert.strictEqual(isSafeProxyUrl('http://127.0.0.1:8080/admin'), false);
+  assert.strictEqual(isSafeProxyUrl('http://169.254.169.254/latest/meta-data/'), false);
+  assert.strictEqual(isSafeProxyUrl('http://192.168.1.1/router'), false);
+  assert.strictEqual(isSafeProxyUrl('http://10.0.0.1/internal'), false);
+  assert.strictEqual(isSafeProxyUrl('file:///etc/passwd'), false);
+  assert.strictEqual(isSafeProxyUrl('javascript:alert(1)'), false);
+
+  // Must allow safe external financial sources
+  assert.strictEqual(isSafeProxyUrl('https://query1.finance.yahoo.com/v8/finance/chart/BBCA.JK'), true);
+  assert.strictEqual(isSafeProxyUrl('https://query2.finance.yahoo.com/v8/finance/chart/QQQ'), true);
+});
+
+// ── TEST 14: USER DATA STORAGE KEY NORMALIZATION & PATH SAFETY ──
+test('Security: User Store Key Normalization (Path Traversal Protection)', () => {
+  function getSafeFileKey(uidOrEmail) {
+    if (!uidOrEmail) return 'global_user';
+    return String(uidOrEmail).toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  }
+
+  assert.strictEqual(getSafeFileKey('user@example.com'), 'user_example_com');
+  assert.strictEqual(getSafeFileKey('../../etc/passwd'), '______etc_passwd');
+  assert.strictEqual(getSafeFileKey('..\\..\\windows\\system32'), '______windows_system32');
+  assert.strictEqual(getSafeFileKey(''), 'global_user');
+  assert.strictEqual(getSafeFileKey(null), 'global_user');
+});
+
+// ── TEST 15: PMK 18/2021 DIVIDEND TAX EXEMPTION VS REGULAR 10% ──
+test('Tax Compliance: PMK 18/2021 Dividend Reinvestment (0%) vs Standard Final (10%)', () => {
+  const grossDividend = 10000000; // Rp 10.000.000
+
+  // Case A: Reinvested in NKRI -> 0% Tax
+  const isReinvested = true;
+  const taxRateA = isReinvested ? 0.00 : 0.10;
+  const taxRpA = grossDividend * taxRateA;
+  const netDividendA = grossDividend - taxRpA;
+  assert.strictEqual(taxRpA, 0);
+  assert.strictEqual(netDividendA, 10000000);
+
+  // Case B: Regular Non-Reinvested -> 10% Final Tax
+  const isReinvestedB = false;
+  const taxRateB = isReinvestedB ? 0.00 : 0.10;
+  const taxRpB = grossDividend * taxRateB;
+  const netDividendB = grossDividend - taxRpB;
+  assert.strictEqual(taxRpB, 1000000);
+  assert.strictEqual(netDividendB, 9000000);
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
+

@@ -7,11 +7,10 @@
     "dev": "node server.js",
     "build": "echo 'Build complete'",
     "start": "node server.js",
+    "test": "node test_suite.js",
     "lint": "node --check server.js"
   },
   "dependencies": {
-    "@google/genai": "^2.19.0",
-    "express": "^5.2.1",
-    "firebase": "^12.18.0"
+    "express": "^4.21.2"
   }
 }

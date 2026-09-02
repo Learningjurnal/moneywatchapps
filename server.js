@@ -54,6 +54,10 @@ function getSafeFileKey(uidOrEmail) {
 app.post('/api/user-data/save', (req, res) => {
   try {
     const body = req.body || {};
+    const rawPayload = JSON.stringify(body);
+    if (rawPayload.length > 10 * 1024 * 1024) {
+      return res.status(413).json({ success: false, error: 'Payload exceeds maximum limit (10MB)' });
+    }
     const uid = body.uid || body.email || 'global_user';
     const safeKey = getSafeFileKey(uid);
     const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
@@ -1542,13 +1546,53 @@ app.post('/api/ai/agent-chat', async (req, res) => {
 
 
 // In-memory cache for external market data requests (TTL 60s for live quotes, 300s for historical)
+// Helper: SSRF & URL security guard
+export function isSafeProxyUrl(urlString) {
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname === '0.0.0.0' ||
+      hostname === '169.254.169.254' ||
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.local')
+    ) {
+      return false;
+    }
+    const ipMatch = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (ipMatch) {
+      const b0 = parseInt(ipMatch[1], 10);
+      const b1 = parseInt(ipMatch[2], 10);
+      if (b0 === 10) return false;
+      if (b0 === 127) return false;
+      if (b0 === 169 && b1 === 254) return false;
+      if (b0 === 192 && b1 === 168) return false;
+      if (b0 === 172 && b1 >= 16 && b1 <= 31) return false;
+      if (b0 === 0) return false;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 const proxyCache = new Map();
 
-// Proxy endpoint for external financial feeds / CORS bypass with server-side caching
+// Proxy endpoint for external financial feeds / CORS bypass with server-side caching & SSRF protection
 app.get('/api/proxy', async (req, res) => {
   const targetUrl = req.query.url;
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).json({ error: 'Missing or invalid url parameter' });
+  }
+
+  if (!isSafeProxyUrl(targetUrl)) {
+    return res.status(403).json({ error: 'Forbidden: URL is not permitted or violates SSRF protection policy' });
   }
 
   // Determine TTL: 5 minutes (300s) for range/daily historical charts, 45s for 1m intraday
