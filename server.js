@@ -96,16 +96,31 @@ app.post('/api/user-data/save', (req, res) => {
 
 app.get('/api/user-data/load', (req, res) => {
   try {
-    const uid = req.query.uid || req.query.email || 'global_user';
-    const safeKey = getSafeFileKey(uid);
-    const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
-    const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
-
+    const uid = req.query.uid || req.query.email || '';
     let targetPath = null;
-    if (fs.existsSync(filePath)) {
-      targetPath = filePath;
-    } else if (fs.existsSync(backupPath)) {
-      targetPath = backupPath;
+
+    if (uid) {
+      const safeKey = getSafeFileKey(uid);
+      const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
+      if (fs.existsSync(filePath)) {
+        targetPath = filePath;
+      }
+    }
+
+    // Check alternative key (e.g. without _40 or normalized)
+    if (!targetPath && uid) {
+      const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+      const altPath = path.join(USER_STORES_DIR, `user_${altKey}.json`);
+      if (fs.existsSync(altPath)) {
+        targetPath = altPath;
+      }
+    }
+
+    if (!targetPath) {
+      const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
+      if (fs.existsSync(backupPath)) {
+        targetPath = backupPath;
+      }
     }
 
     if (!targetPath) {
@@ -138,30 +153,65 @@ app.post('/api/user-data/clear', (req, res) => {
   try {
     const body = req.body || {};
     const uid = body.uid || body.email || req.query.uid || req.query.email || '';
-    
-    // Clear user specific file if provided, otherwise clear all user stores
-    if (uid) {
-      const safeKey = getSafeFileKey(uid);
-      const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    } else {
+    const purgeAll = body.purgeAll === true || !uid;
+
+    if (fs.existsSync(USER_STORES_DIR)) {
       const files = fs.readdirSync(USER_STORES_DIR);
       for (const file of files) {
-        if (file.endsWith('.json')) {
-          fs.unlinkSync(path.join(USER_STORES_DIR, file));
+        if (!file.endsWith('.json')) continue;
+        if (purgeAll) {
+          try { fs.unlinkSync(path.join(USER_STORES_DIR, file)); } catch(e){}
+        } else {
+          const safeKey = getSafeFileKey(uid);
+          const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+          if (file.includes(safeKey) || file.includes(altKey) || file === 'latest_backup.json') {
+            try { fs.unlinkSync(path.join(USER_STORES_DIR, file)); } catch(e){}
+          }
         }
       }
     }
+
+    // Always ensure latest_backup is removed when clearing
     const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
     if (fs.existsSync(backupPath)) {
-      fs.unlinkSync(backupPath);
+      try { fs.unlinkSync(backupPath); } catch(e){}
+    }
+
+    // Write an explicit empty record file so any fallback reads know transactions are 0
+    if (uid) {
+      const safeKey = getSafeFileKey(uid);
+      const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+      const emptyRecord = {
+        uid: uid,
+        savedAt: new Date().toISOString(),
+        clearedAt: new Date().toISOString(),
+        data: {
+          transactions: [],
+          dividends: [],
+          rdnMutations: [],
+          cryptoTx: [],
+          etfTx: [],
+          rdTx: [],
+          divInvestData: [],
+          theses: [],
+          journals: [],
+          priceAlerts: [],
+          wealth: { income: 0, expense: 0, bank: [], debt: [], emas: 0, obligasi: 0, deposito: 0 },
+          equityHistory: [],
+          rdnBalance: 0,
+          cashAccounts: { saham: { balance: 0 }, crypto: { balance: 0 }, reksadana: { balance: 0 } },
+          tradeStrategy: {},
+          isExplicitlyEmpty: true,
+          updatedAt: new Date().toISOString()
+        }
+      };
+      try { fs.writeFileSync(path.join(USER_STORES_DIR, `user_${safeKey}.json`), JSON.stringify(emptyRecord, null, 2), 'utf8'); } catch(e){}
+      try { fs.writeFileSync(path.join(USER_STORES_DIR, `user_${altKey}.json`), JSON.stringify(emptyRecord, null, 2), 'utf8'); } catch(e){}
     }
 
     return res.json({
       success: true,
-      message: 'Server storage mirror cleared successfully'
+      message: 'Server storage mirror cleared successfully, transactions set to 0'
     });
   } catch (err) {
     console.error('Server clear data error:', err);

@@ -537,7 +537,7 @@ try {
   loadData();
   sanitizeRdnMutations();
 } catch(e){
-  initPortfolio2026();
+  console.warn('Initial storage load notice:', e);
 }
 
 
@@ -569,6 +569,52 @@ function _mergeDatasets(localObj, cloudObj){
 
   var localTime = new Date(local.savedAt || local.updatedAt || 0).getTime();
   var cloudTime = new Date(cloud.savedAt || cloud.updatedAt || 0).getTime();
+
+  // 0. Cek flag eksplisit empty / reset dari user
+  var localIsExplicitlyEmpty = local.isExplicitlyEmpty === true || (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
+  var cloudIsExplicitlyEmpty = cloud.isExplicitlyEmpty === true;
+
+  if(localIsExplicitlyEmpty && (!cloudTime || localTime >= cloudTime)){
+    return Object.assign({}, cloud, local, {
+      transactions: [],
+      dividends: [],
+      rdnMutations: [],
+      cryptoTx: [],
+      etfTx: [],
+      rdTx: [],
+      divInvestData: [],
+      rdnBalance: 0,
+      isExplicitlyEmpty: true
+    });
+  }
+
+  if(cloudIsExplicitlyEmpty && (!localTime || cloudTime >= localTime)){
+    return Object.assign({}, local, cloud, {
+      transactions: [],
+      dividends: [],
+      rdnMutations: [],
+      cryptoTx: [],
+      etfTx: [],
+      rdTx: [],
+      divInvestData: [],
+      rdnBalance: 0,
+      isExplicitlyEmpty: true
+    });
+  }
+
+  if(localIsExplicitlyEmpty && cloudIsExplicitlyEmpty){
+    return Object.assign({}, cloud, local, {
+      transactions: [],
+      dividends: [],
+      rdnMutations: [],
+      cryptoTx: [],
+      etfTx: [],
+      rdTx: [],
+      divInvestData: [],
+      rdnBalance: 0,
+      isExplicitlyEmpty: true
+    });
+  }
 
   // Jika salah satu sisi secara eksplisit lebih baru (> 10 detik bedanya), prioritaskan dataset yang lebih baru agar transaksi yang dihapus/diubah pengguna tidak ditumpuk ulang secara bertentangan
   var isLocalMuchNewer = localTime > 0 && (localTime - cloudTime > 10000);
@@ -1002,15 +1048,15 @@ async function fireLoadAllData(){
       rdnBalance: rdnBalance || 0
     };
 
-    // Jika dokumen belum ada di Firestore tapi ada data lokal, segera migrasikan ke Firestore
+    // Jika dokumen belum ada di Firestore tapi ada data lokal, migrasikan jika bukan data kosong/reset
     if(!snap || !snap.exists){
-      if(currentLocalState.transactions.length === 0 && !localStorage.getItem('mw_local_data_v2') && !localStorage.getItem('mw_emergency_backup_v2')){
-        initPortfolio2026(true);
-      }
-      try {
-        await migrateLocalDataToFirebaseCloud(true);
-      } catch(saveErr) {
-        console.warn('Initial migrateLocalDataToFirebaseCloud deferred:', saveErr);
+      var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
+      if(currentLocalState.transactions.length > 0 && !isDataCleared){
+        try {
+          await migrateLocalDataToFirebaseCloud(true);
+        } catch(saveErr) {
+          console.warn('Initial migrateLocalDataToFirebaseCloud deferred:', saveErr);
+        }
       }
       return true;
     }
@@ -1020,13 +1066,13 @@ async function fireLoadAllData(){
     // ── SMART BI-DIRECTIONAL MERGE ──
     var merged = _mergeDatasets(currentLocalState, cloudData);
 
-    transactions = merged.transactions;
-    dividends = merged.dividends;
-    rdnMutations = merged.rdnMutations;
-    cryptoTx = merged.cryptoTx;
-    etfTx = merged.etfTx;
-    rdTx = merged.rdTx;
-    divInvestData = merged.divInvestData;
+    transactions = merged.transactions || [];
+    dividends = merged.dividends || [];
+    rdnMutations = merged.rdnMutations || [];
+    cryptoTx = merged.cryptoTx || [];
+    etfTx = merged.etfTx || [];
+    rdTx = merged.rdTx || [];
+    divInvestData = merged.divInvestData || [];
     activeSekuritas = merged.activeSekuritas || 'Stockbit';
 
     if(merged.taxSettings && typeof TAX_SETTINGS !== 'undefined'){
@@ -1095,13 +1141,16 @@ async function fireLoadAllData(){
       _syncToServerMirror(mergedPayload);
     } catch(e){}
 
-    // If local state had new items not in cloud, push to Firestore
-    var localTxCount = (currentLocalState.transactions || []).length;
-    var cloudTxCount = (cloudData.transactions || []).length;
-    if(transactions.length > cloudTxCount || localTxCount > cloudTxCount){
-      try {
-        fireSaveAllData();
-      } catch(e){}
+    // If local state had new items not in cloud, push to Firestore (hanya jika data cloud tidak dalam status explicitly cleared)
+    var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
+    if(!cloudData.isExplicitlyEmpty && !isDataCleared){
+      var localTxCount = (currentLocalState.transactions || []).length;
+      var cloudTxCount = (cloudData.transactions || []).length;
+      if((transactions.length > cloudTxCount || localTxCount > cloudTxCount) && transactions.length > 0){
+        try {
+          fireSaveAllData();
+        } catch(e){}
+      }
     }
 
     // Aktifkan realtime listener untuk sinkronisasi antar perangkat
@@ -1207,8 +1256,9 @@ function _syncToCloud(allowRetry){
 function safeCloudBoot(){
   loadData();
   return fireLoadAllData().then(function(ok){
-    // Pastikan data lokal termigrasi ke Firebase jika belum
-    if(!window._firebaseMigrated){
+    // Pastikan data lokal termigrasi ke Firebase jika belum dan bukan dalam status cleared
+    var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
+    if(!window._firebaseMigrated && !isDataCleared && transactions && transactions.length > 0){
       migrateLocalDataToFirebaseCloud();
     }
     return ok;
@@ -1217,6 +1267,19 @@ function safeCloudBoot(){
 
 function loadData(){
   try {
+    var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
+    if(isDataCleared){
+      transactions = [];
+      dividends = [];
+      rdnMutations = [];
+      cryptoTx = [];
+      etfTx = [];
+      rdTx = [];
+      divInvestData = [];
+      rdnBalance = 0;
+      return true;
+    }
+
     var rawStrat = localStorage.getItem('mw_trade_strategy');
     if(rawStrat){
       var parsedStrat = JSON.parse(rawStrat);
@@ -1228,8 +1291,19 @@ function loadData(){
     if(raw){
       var d = JSON.parse(raw);
       if(d && typeof d === 'object'){
+        if(d.isExplicitlyEmpty){
+          transactions = [];
+          dividends = [];
+          rdnMutations = [];
+          cryptoTx = [];
+          etfTx = [];
+          rdTx = [];
+          divInvestData = [];
+          rdnBalance = 0;
+          return true;
+        }
         if(d.tradeStrategy) tradeStrategy = Object.assign({}, tradeStrategy, d.tradeStrategy);
-        if(d.transactions && Array.isArray(d.transactions) && d.transactions.length > 0) transactions = d.transactions;
+        if(d.transactions && Array.isArray(d.transactions)) transactions = d.transactions;
         if(d.dividends && Array.isArray(d.dividends)) dividends = d.dividends;
         if(d.rdnMutations && Array.isArray(d.rdnMutations)) rdnMutations = d.rdnMutations;
         if(d.cryptoTx && Array.isArray(d.cryptoTx)) cryptoTx = d.cryptoTx;
@@ -1250,8 +1324,8 @@ function loadData(){
       }
     }
 
-    if(!transactions || transactions.length === 0){
-      initPortfolio2026();
+    if(!transactions){
+      transactions = [];
     }
 
     if(typeof equityHistoryLoad === 'function') equityHistoryLoad();
@@ -1267,12 +1341,19 @@ function loadData(){
     else if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
 
     // Background asynchronous fallback check against server storage mirror
-    if(typeof fetch === 'function' && (!transactions || transactions.length === 0)){
-      fetch('/api/user-data/load')
+    if(typeof fetch === 'function' && (!transactions || transactions.length === 0) && !isDataCleared){
+      var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
+      fetch('/api/user-data/load?uid=' + encodeURIComponent(uid))
         .then(function(res){ return res.json(); })
         .then(function(resData){
           if(resData && resData.found && resData.record && resData.record.data){
             var sData = resData.record.data;
+            if(sData.isExplicitlyEmpty){
+              transactions = [];
+              dividends = [];
+              rdnMutations = [];
+              return;
+            }
             if(sData.transactions && Array.isArray(sData.transactions) && sData.transactions.length > 0){
               transactions = sData.transactions;
               if(sData.rdnMutations && Array.isArray(sData.rdnMutations)) rdnMutations = sData.rdnMutations;
@@ -1291,10 +1372,13 @@ function loadData(){
   }
 }
 
-function clearData(){
-  if(!confirm('⚠️ Hapus SEMUA data transaksi tersimpan dan kosongkan portofolio di Firebase & Local?\n\nTindakan ini akan mengosongkan seluruh data transaksi agar siap di-upload ulang.')) return;
+async function clearData(skipConfirm){
+  if(!skipConfirm){
+    var confirmed = confirm('⚠️ PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH data transaksi dan portofolio menjadi 0?\n\nTindakan ini akan menghapus semua riwayat transaksi di Firebase Firestore Cloud, server, dan browser lokal.');
+    if(!confirmed) return false;
+  }
   
-  // Kosongkan variabel memori
+  // 1. Kosongkan seluruh variabel memori
   transactions = [];
   dividends = [];
   rdnMutations = [];
@@ -1324,11 +1408,9 @@ function clearData(){
     if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
   }
 
-  // Bersihkan LocalStorage
+  // 2. Tandai LocalStorage dengan status bersih eksplisit
   try {
     var keysToClear = [
-      'mw_local_data_v2',
-      'mw_emergency_backup_v2',
       'mw_trade_strategy',
       'mw_stocks_db',
       'moneywatch_stocks_db',
@@ -1349,30 +1431,8 @@ function clearData(){
     keysToClear.forEach(function(k){
       localStorage.removeItem(k);
     });
-  } catch(e){}
 
-  // Bersihkan server storage mirror
-  if(typeof fetch === 'function'){
-    try {
-      var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
-      fetch('/api/user-data/clear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: uid })
-      }).catch(function(){});
-    } catch(e){}
-  }
-
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var fireUid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : (_currentUser && (_currentUser.uid || _currentUser.id));
-  
-  if(db && fireUid){
-    if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Menghapus data di Firestore...', 'var(--amber)', true);
-    
-    var userRef = db.collection('users').doc(fireUid);
-    var mainDataRef = userRef.collection('data').doc('main');
-    
-    mainDataRef.set({
+    var emptyRecord = {
       transactions: [],
       dividends: [],
       rdnMutations: [],
@@ -1380,26 +1440,107 @@ function clearData(){
       etfTx: [],
       rdTx: [],
       divInvestData: [],
+      theses: [],
+      journals: [],
+      priceAlerts: [],
+      wealth: null,
+      equityHistory: [],
+      activeSekuritas: 'Stockbit',
+      rdnBalance: 0,
+      cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
+      tradeStrategy: {},
+      isExplicitlyEmpty: true,
+      clearedAt: new Date().toISOString(),
+      savedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem('mw_local_data_v2', JSON.stringify(emptyRecord));
+    localStorage.setItem('mw_emergency_backup_v2', JSON.stringify(emptyRecord));
+    localStorage.setItem('mw_data_cleared', '1');
+    localStorage.setItem('mw_empty_state_explicit', '1');
+  } catch(e){}
+
+  // 3. Bersihkan server storage mirror secara sinkron/menunggu
+  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
+  var email = (typeof PRIMARY_USER_EMAIL !== 'undefined') ? PRIMARY_USER_EMAIL : '';
+  if(typeof fetch === 'function'){
+    try {
+      await fetch('/api/user-data/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: uid, email: email, purgeAll: true })
+      });
+    } catch(e){
+      console.warn('Server storage clear notice:', e);
+    }
+  }
+
+  // 4. Bersihkan Firebase Firestore Cloud pada semua alias dokumen akun
+  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
+  var fireUid = uid || (typeof getFirestoreUserUid === 'function' ? getFirestoreUserUid() : null);
+  
+  if(db){
+    if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Menghapus & mengosongkan data di Firestore Cloud...', 'var(--amber)', true);
+    
+    var uidsToClear = new Set();
+    if(fireUid) uidsToClear.add(fireUid);
+    if(email){
+      uidsToClear.add('u_' + encodeURIComponent(email.toLowerCase()).replace(/[^a-z0-9_]/g, '_'));
+      uidsToClear.add('u_' + email.toLowerCase().replace(/[^a-z0-9_]/g, '_'));
+    }
+
+    var clearPromises = [];
+    var emptyCloudDoc = {
+      transactions: [],
+      dividends: [],
+      rdnMutations: [],
+      cryptoTx: [],
+      etfTx: [],
+      rdTx: [],
+      divInvestData: [],
+      theses: [],
+      journals: [],
+      priceAlerts: [],
+      wealth: null,
+      equityHistory: [],
       tradeStrategy: {},
       rdnBalance: 0,
-      updatedAt: new Date().toISOString()
-    }, { merge: false }).then(function(){
-      if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
-      if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
-      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Seluruh data transaksi di Firestore & lokal telah dikosongkan 100%');
-      if(typeof renderAll === 'function') renderAll();
-      if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
-    }).catch(function(err){
-      if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Gagal menghapus: ' + err.message, 'var(--red)', true);
+      activeSekuritas: 'Stockbit',
+      isExplicitlyEmpty: true,
+      clearedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      savedAt: new Date().toISOString()
+    };
+
+    uidsToClear.forEach(function(targetUid){
+      try {
+        var userRef = db.collection('users').doc(targetUid);
+        var mainDataRef = userRef.collection('data').doc('main');
+        
+        clearPromises.push(mainDataRef.set(emptyCloudDoc, { merge: false }));
+        clearPromises.push(userRef.set({ isCleared: true, lastResetAt: new Date().toISOString() }, { merge: true }));
+      } catch(docErr){}
     });
-  } else {
-    if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
-    if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data transaksi di memori & lokal telah dikosongkan 100%');
-    if(typeof renderAll === 'function') renderAll();
-    if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
+
+    try {
+      await Promise.all(clearPromises);
+    } catch(err){
+      console.warn('Firestore cloud clear note:', err);
+    }
   }
+
+  // 5. Perbarui tampilan & ledger
+  if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+  if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
+  if(typeof renderAll === 'function') renderAll();
+  if(typeof renderSettingsPage === 'function') renderSettingsPage();
+  if(typeof showSaveStatus === 'function') showSaveStatus('✓ Seluruh data transaksi di Firestore & lokal telah dikosongkan 100% (0 Transaksi)', 'var(--green)');
+
+  return true;
 }
+window.clearData = clearData;
+window.resetAllDatabaseAndTransactions = clearData;
+window.resetAllDataToZero = clearData;
 
 // ============================================================
 // BACKUP & RESTORE MODAL (JSON FILE EXPORT / IMPORT)
