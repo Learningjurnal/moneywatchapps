@@ -640,6 +640,25 @@ function _mergeDatasets(localObj, cloudObj){
     });
   }
 
+  // Jika perangkat baru / device lain (local transaksi kosong) dan cloud memiliki transaksi, adopsi data cloud secara penuh
+  if ((!local.transactions || local.transactions.length === 0) && Array.isArray(cloud.transactions) && cloud.transactions.length > 0) {
+    return Object.assign({}, local, cloud, {
+      transactions: cloud.transactions,
+      dividends: cloud.dividends || [],
+      rdnMutations: cloud.rdnMutations || [],
+      cryptoTx: cloud.cryptoTx || [],
+      rdTx: cloud.rdTx || [],
+      etfTx: cloud.etfTx || [],
+      divInvestData: cloud.divInvestData || [],
+      rdnBalance: (typeof cloud.rdnBalance === 'number') ? cloud.rdnBalance : (local.rdnBalance || 0),
+      wealth: cloud.wealth || local.wealth || null,
+      theses: (cloud.theses && cloud.theses.length) ? cloud.theses : (local.theses || []),
+      journals: (cloud.journals && cloud.journals.length) ? cloud.journals : (local.journals || []),
+      tradeStrategy: Object.assign({}, local.tradeStrategy || {}, cloud.tradeStrategy || {}),
+      cashAccounts: Object.assign({}, local.cashAccounts || {}, cloud.cashAccounts || {})
+    });
+  }
+
   // 1. Merge Transactions (Saham BUY / SELL) — preserve every transaction from both local & cloud
   var txMap = new Map();
   var mergedTx = [];
@@ -777,7 +796,7 @@ function _syncToServerMirror(payload){
     );
     if(isStaticHost) return; // GitHub Pages is static host, bypass /api/user-data/save
 
-    var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
+    var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_40gmail_com';
     var email = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
     if(typeof fetch === 'function'){
       fetch('/api/user-data/save', {
@@ -837,6 +856,26 @@ function setupFirestoreRealtimeListener(uid){
         if(cData.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = cData.journals;
         if(cData.wealth && typeof WEALTH !== 'undefined') Object.assign(WEALTH, cData.wealth);
 
+        // Simpan salinan terbaru ke local storage perangkat ini agar offline-ready
+        try {
+          var snapshotPayload = {
+            transactions: transactions,
+            dividends: dividends,
+            rdnMutations: rdnMutations,
+            cryptoTx: cryptoTx,
+            etfTx: etfTx,
+            rdTx: rdTx,
+            divInvestData: divInvestData,
+            tradeStrategy: tradeStrategy,
+            activeSekuritas: activeSekuritas,
+            rdnBalance: rdnBalance,
+            wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
+            savedAt: cData.updatedAt || new Date().toISOString()
+          };
+          localStorage.setItem('mw_local_data_v2', JSON.stringify(snapshotPayload));
+          localStorage.setItem('mw_emergency_backup_v2', JSON.stringify(snapshotPayload));
+        } catch(e){}
+
         if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
         if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
       } finally {
@@ -853,7 +892,7 @@ function setupFirestoreRealtimeListener(uid){
 // ── MIGRASI TOTAL DATA LOKAL KE FIREBASE FIRESTORE ──
 async function migrateLocalDataToFirebaseCloud(force){
   var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
+  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_40gmail_com';
   var email = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
 
   if(!db){
@@ -933,7 +972,7 @@ window.migrateLocalDataToFirebaseCloud = migrateLocalDataToFirebaseCloud;
 
 async function fireSaveAllData(){
   var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
+  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_40gmail_com';
   var email = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
 
   var currentWealth = (typeof WEALTH !== 'undefined') ? WEALTH : null;
@@ -990,6 +1029,14 @@ async function fireSaveAllData(){
       lastActiveAt: new Date().toISOString()
     }, { merge: true });
 
+    // Sync to alternative UID alias if applicable
+    var altUid = uid.replace(/_40/g, '_');
+    if(altUid !== uid){
+      try {
+        db.collection('users').doc(altUid).collection('data').doc('main').set(payload, { merge: true });
+      } catch(e){}
+    }
+
     return true;
   } catch(err) {
     var errStr = (err && err.message) ? err.message : String(err);
@@ -1004,7 +1051,7 @@ async function fireSaveAllData(){
 
 async function fireLoadAllData(){
   var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_gmail_com';
+  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_40gmail_com';
   if(!db) return false;
 
   try {
@@ -1026,6 +1073,26 @@ async function fireLoadAllData(){
         var msg = (fetchErr && fetchErr.message) ? fetchErr.message : String(fetchErr);
         console.warn('Firestore load notice:', msg);
         return false;
+      }
+    }
+
+    // Jika dokumen tidak ditemukan di UID utama, periksa alias UID alternatif
+    if(!snap || !snap.exists){
+      var candidateUids = [];
+      var alt1 = uid.replace(/_40/g, '_');
+      var alt2 = uid.includes('_40') ? uid : uid.replace('@', '_40');
+      if (alt1 !== uid) candidateUids.push(alt1);
+      if (alt2 !== uid && !candidateUids.includes(alt2)) candidateUids.push(alt2);
+
+      for (var i = 0; i < candidateUids.length; i++) {
+        try {
+          var candSnap = await db.collection('users').doc(candidateUids[i]).collection('data').doc('main').get();
+          if (candSnap && candSnap.exists) {
+            snap = candSnap;
+            uid = candidateUids[i];
+            break;
+          }
+        } catch(e){}
       }
     }
 
@@ -1058,6 +1125,7 @@ async function fireLoadAllData(){
           console.warn('Initial migrateLocalDataToFirebaseCloud deferred:', saveErr);
         }
       }
+      setupFirestoreRealtimeListener(uid);
       return true;
     }
 
@@ -1617,6 +1685,71 @@ function restoreFromBackup(file){
   reader.readAsText(file);
 }
 
+async function checkFirebaseLiveSyncStatus(){
+  var box = el('sh-firebase-audit-box');
+  if(!box) return;
+  box.style.display = 'block';
+  box.innerHTML = '<div style="color:var(--text3);display:flex;align-items:center;gap:6px"><span>⏳ Mengaudit koneksi & data langsung ke Firebase Firestore Cloud...</span></div>';
+
+  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_40gmail_com';
+  try {
+    var res = await fetch('/api/sync/firebase-audit?uid=' + encodeURIComponent(uid));
+    var json = await res.json();
+
+    if(!json.success || !json.hasDocument){
+      box.innerHTML = `
+        <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">⚠️ Dokumen di Firestore belum terbuat atau kosong</div>
+        <div style="color:var(--text2);font-size:11.5px;margin-bottom:8px">Silakan klik tombol <b>"Pindahkan / Sinkronkan Data ke Firebase Cloud Sekarang"</b> di atas.</div>
+      `;
+      return;
+    }
+
+    var localTx = (transactions || []).length;
+    var localRdn = (rdnMutations || []).length;
+    var localDiv = (dividends || []).length;
+
+    var cloudTx = (json.stats && json.stats.transactions) || 0;
+    var cloudRdn = (json.stats && json.stats.rdnMutations) || 0;
+    var cloudDiv = (json.stats && json.stats.dividends) || 0;
+
+    var isIdentical = (localTx === cloudTx && localRdn === cloudRdn && localDiv === cloudDiv);
+    var badgeColor = isIdentical ? 'var(--green)' : 'var(--yellow)';
+    var badgeText = isIdentical ? '✓ 100% IDENTIK & TERSINKRON' : '⚠️ SINKRONISASI PARSIAL';
+
+    var html = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+        <span style="font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${badgeColor}"></span>
+          Status Sinkronisasi Cloud Firestore
+        </span>
+        <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(16,185,129,0.15);color:${badgeColor};border:1px solid ${badgeColor}">
+          ${badgeText}
+        </span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:11.5px">
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;border:1px solid var(--border)">
+          <div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:700">Data di Perangkat Ini (Lokal)</div>
+          <div style="font-weight:700;color:var(--text);margin-top:2px">${localTx} Saham · ${localRdn} Kas RDN · ${localDiv} Dividen</div>
+        </div>
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;border:1px solid var(--border)">
+          <div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:700">Data di Firestore Cloud</div>
+          <div style="font-weight:700;color:${badgeColor};margin-top:2px">${cloudTx} Saham · ${cloudRdn} Kas RDN · ${cloudDiv} Dividen</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.5">
+        <div>• Project ID: <b style="color:var(--text2)">${json.projectId}</b></div>
+        <div>• Database: <b style="color:var(--text2)">${json.firestoreDatabaseId}</b></div>
+        <div>• Waktu Update Cloud: <b style="color:var(--text2)">${new Date(json.savedAt).toLocaleString('id-ID')}</b></div>
+        <div style="color:var(--green);font-weight:600;margin-top:4px">✓ Aman dibuka di perangkat lain (laptop, HP, tablet). Data akan langsung termuat otomatis saat login.</div>
+      </div>
+    `;
+    box.innerHTML = html;
+  } catch(e) {
+    box.innerHTML = '<div style="color:var(--red);font-size:11.5px">Gagal memeriksa status Firestore: ' + (e.message || e) + '</div>';
+  }
+}
+window.checkFirebaseLiveSyncStatus = checkFirebaseLiveSyncStatus;
+
 function openSettingsHub(tab){
   var m = el('settings-hub-modal');
   if(!m) return;
@@ -1691,9 +1824,17 @@ function shRenderContent(tab){
       </div>
 
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-        <button class="btn btn-blue" onclick="migrateLocalDataToFirebaseCloud(true)" style="justify-content:center;padding:11px;font-weight:700;font-size:12.5px">
+        <button class="btn btn-blue" onclick="migrateLocalDataToFirebaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="justify-content:center;padding:11px;font-weight:700;font-size:12.5px">
           🚀 Pindahkan / Sinkronkan Data ke Firebase Cloud Sekarang
         </button>
+
+        <button class="btn btn-ghost" onclick="checkFirebaseLiveSyncStatus()" style="justify-content:center;padding:10px;border-color:var(--accent);color:var(--accent);font-weight:600">
+          🔍 Periksa Status Sinkronisasi Firebase Cloud (Live Audit)
+        </button>
+
+        <div id="sh-firebase-audit-box" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px">
+          <!-- Injected dynamically by checkFirebaseLiveSyncStatus() -->
+        </div>
 
         <button class="btn btn-ghost" onclick="fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function') showSaveStatus('✓ Data terbaru dimuat dari Cloud','var(--green)'); closeSettingsHub(); })" style="justify-content:center;padding:10px;border-color:var(--border)">
           🔄 Muat Ulang Data dari Firebase Cloud

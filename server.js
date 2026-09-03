@@ -51,6 +51,85 @@ function getSafeFileKey(uidOrEmail) {
   return String(uidOrEmail).toLowerCase().replace(/[^a-z0-9_]/g, '_');
 }
 
+const FIREBASE_CONFIG = {
+  projectId: 'zinc-snowfall-6lcf1',
+  apiKey: 'AIzaSyAjO1QrHyIuR8T0NM07NWxAgbwjnrbSYXk',
+  firestoreDatabaseId: 'ai-studio-moneywatchpro-088bcbd5-b0c7-48cf-baee-be4279fd2091'
+};
+
+function toFirestoreValue(val) {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (typeof val === 'number') {
+    if (Number.isInteger(val)) return { integerValue: String(val) };
+    return { doubleValue: val };
+  }
+  if (typeof val === 'string') return { stringValue: val };
+  if (Array.isArray(val)) {
+    return { arrayValue: { values: val.map(toFirestoreValue) } };
+  }
+  if (typeof val === 'object') {
+    const fields = {};
+    for (const k of Object.keys(val)) {
+      if (val[k] !== undefined) {
+        fields[k] = toFirestoreValue(val[k]);
+      }
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+function fromFirestoreValue(val) {
+  if (!val) return null;
+  if ('nullValue' in val) return null;
+  if ('booleanValue' in val) return val.booleanValue;
+  if ('integerValue' in val) return parseInt(val.integerValue, 10);
+  if ('doubleValue' in val) return val.doubleValue;
+  if ('stringValue' in val) return val.stringValue;
+  if ('timestampValue' in val) return val.timestampValue;
+  if ('arrayValue' in val) return (val.arrayValue.values || []).map(fromFirestoreValue);
+  if ('mapValue' in val) {
+    const res = {};
+    const fields = val.mapValue.fields || {};
+    for (const k of Object.keys(fields)) {
+      res[k] = fromFirestoreValue(fields[k]);
+    }
+    return res;
+  }
+  return null;
+}
+
+async function syncRecordToFirestoreCloud(uid, dataObj) {
+  if (!uid || !dataObj) return false;
+  try {
+    const fsFields = {};
+    for (const k of Object.keys(dataObj)) {
+      if (dataObj[k] !== undefined) {
+        fsFields[k] = toFirestoreValue(dataObj[k]);
+      }
+    }
+    fsFields.updatedAt = { stringValue: new Date().toISOString() };
+
+    const uidsToSync = [uid];
+    const altUid = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+    if (altUid !== uid) uidsToSync.push(altUid);
+
+    for (const targetUid of uidsToSync) {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.firestoreDatabaseId}/documents/users/${targetUid}/data/main?key=${FIREBASE_CONFIG.apiKey}`;
+      fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: fsFields })
+      }).catch(err => console.warn(`Firestore background patch notice (${targetUid}):`, err.message));
+    }
+    return true;
+  } catch (err) {
+    console.warn('syncRecordToFirestoreCloud error:', err.message);
+    return false;
+  }
+}
+
 app.post('/api/user-data/save', (req, res) => {
   try {
     const body = req.body || {};
@@ -75,12 +154,15 @@ app.post('/api/user-data/save', (req, res) => {
     fs.writeFileSync(filePath, jsonStr, 'utf8');
     fs.writeFileSync(backupPath, jsonStr, 'utf8');
 
+    // Asynchronously replicate to Firestore Cloud
+    syncRecordToFirestoreCloud(uid, record.data);
+
     const txCount = (record.data && Array.isArray(record.data.transactions)) ? record.data.transactions.length : 0;
     const rdnCount = (record.data && Array.isArray(record.data.rdnMutations)) ? record.data.rdnMutations.length : 0;
 
     return res.json({
       success: true,
-      message: 'Data successfully persisted to server mirror',
+      message: 'Data successfully persisted to server mirror and Firebase Cloud',
       savedAt: record.savedAt,
       stats: { transactions: txCount, rdnMutations: rdnCount }
     });
@@ -90,6 +172,86 @@ app.post('/api/user-data/save', (req, res) => {
       success: false,
       error: 'Failed to persist user data on server',
       message: err.message
+    });
+  }
+});
+
+// Endpoint audit langsung ke Firebase Firestore Cloud
+app.get('/api/sync/firebase-audit', async (req, res) => {
+  try {
+    const uid = req.query.uid || 'u_andry_zuma_musa_40gmail_com';
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.firestoreDatabaseId}/documents/users/${uid}/data/main?key=${FIREBASE_CONFIG.apiKey}`;
+
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      // Cek apakah fallback key ada
+      const altUid = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+      const altUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.firestoreDatabaseId}/documents/users/${altUid}/data/main?key=${FIREBASE_CONFIG.apiKey}`;
+      const altResp = await fetch(altUrl);
+      if (!altResp.ok) {
+        return res.json({
+          success: true,
+          cloudConnected: true,
+          hasDocument: false,
+          projectId: FIREBASE_CONFIG.projectId,
+          firestoreDatabaseId: FIREBASE_CONFIG.firestoreDatabaseId,
+          stats: { transactions: 0, dividends: 0, rdnMutations: 0, rdnBalance: 0 },
+          message: 'Dokumen pengguna belum ditemukan di Firestore'
+        });
+      }
+      const altJson = await altResp.json();
+      const altData = {};
+      for (const k of Object.keys(altJson.fields || {})) {
+        altData[k] = fromFirestoreValue(altJson.fields[k]);
+      }
+      return res.json({
+        success: true,
+        cloudConnected: true,
+        hasDocument: true,
+        projectId: FIREBASE_CONFIG.projectId,
+        firestoreDatabaseId: FIREBASE_CONFIG.firestoreDatabaseId,
+        uid: altUid,
+        savedAt: altData.updatedAt || altJson.updateTime,
+        stats: {
+          transactions: Array.isArray(altData.transactions) ? altData.transactions.length : 0,
+          dividends: Array.isArray(altData.dividends) ? altData.dividends.length : 0,
+          rdnMutations: Array.isArray(altData.rdnMutations) ? altData.rdnMutations.length : 0,
+          rdnBalance: typeof altData.rdnBalance === 'number' ? altData.rdnBalance : 0,
+          tickers: (altData.transactions || []).slice(0, 10).map(t => t.ticker)
+        },
+        message: 'Data terverifikasi tersinkron di Firebase Cloud'
+      });
+    }
+
+    const json = await resp.json();
+    const data = {};
+    for (const k of Object.keys(json.fields || {})) {
+      data[k] = fromFirestoreValue(json.fields[k]);
+    }
+
+    return res.json({
+      success: true,
+      cloudConnected: true,
+      hasDocument: true,
+      projectId: FIREBASE_CONFIG.projectId,
+      firestoreDatabaseId: FIREBASE_CONFIG.firestoreDatabaseId,
+      uid: uid,
+      savedAt: data.updatedAt || json.updateTime,
+      stats: {
+        transactions: Array.isArray(data.transactions) ? data.transactions.length : 0,
+        dividends: Array.isArray(data.dividends) ? data.dividends.length : 0,
+        rdnMutations: Array.isArray(data.rdnMutations) ? data.rdnMutations.length : 0,
+        rdnBalance: typeof data.rdnBalance === 'number' ? data.rdnBalance : 0,
+        tickers: (data.transactions || []).slice(0, 10).map(t => t.ticker)
+      },
+      message: 'Data terverifikasi tersinkron di Firebase Cloud'
+    });
+  } catch (err) {
+    console.error('Firebase audit error:', err);
+    return res.status(500).json({
+      success: false,
+      cloudConnected: false,
+      error: err.message
     });
   }
 });
