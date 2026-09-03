@@ -887,7 +887,8 @@ function goPage(name,btn){
   document.querySelectorAll('.nav button, .nav-dd-btn, .nav-dd-menu button, .side-nav button').forEach(function(b){b.classList.remove('on')});
   document.querySelectorAll('.side-group').forEach(function(g){ g.classList.remove('has-active'); });
 
-  var pg = el('page-'+name);
+  var targetPageName = name === 'dividen-calendar' ? 'dividen' : name;
+  var pg = el('page-'+targetPageName);
   if(!pg) return;
   pg.classList.add('on');
   
@@ -957,7 +958,15 @@ function renderPage(name){
     case 'crypto':renderCrypto();break;
     case 'etf':renderEtf();break;
     case 'reksadana':renderReksaDana();break;
-    case 'dividen':renderDividen();break;
+    case 'dividen':
+      renderDividen();
+      if(typeof renderDividendCalendarComponent==='function') renderDividendCalendarComponent();
+      break;
+    case 'dividen-calendar':
+      renderDividen();
+      if(typeof switchDivSubTab==='function') switchDivSubTab('calendar');
+      if(typeof renderDividendCalendarComponent==='function') renderDividendCalendarComponent();
+      break;
     case 'divinvest':renderDivInvest();break;
     case 'sektoral':renderSektoral();break;
     case 'pajak':renderPajak();break;

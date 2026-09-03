@@ -530,6 +530,10 @@ function renderDividen(){
       +'</td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:16px">Belum ada data dividen. Klik "+ Catat Dividen" untuk mulai.</td></tr>';
+
+  if (typeof renderDividendCalendarComponent === 'function') {
+    try { renderDividendCalendarComponent(); } catch(e) { console.warn('renderDividendCalendarComponent err:', e); }
+  }
 }
 
 // ── Dividen helpers ──

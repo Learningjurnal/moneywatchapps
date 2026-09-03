@@ -18,27 +18,80 @@ function _maxIdPlus1(arr){ var m=0; (arr||[]).forEach(function(x){ if(x.id>m) m=
 
 // ============================================================
 // ============================================================
-// DATA PORTOFOLIO & TRANSAKSI (BERSIH / SIAP INPUT DATA BARU)
+// DATA PORTOFOLIO & TRANSAKSI STOCK B (22 SAHAM SEKURITAS STOCKBIT)
 // ============================================================
-var INITIAL_PORTO_2026 = [];
+var INITIAL_PORTO_2026 = [
+  { id: 1, date: '2026-09-02', type: 'BUY', ticker: 'GGRM', lot: 3, price: 134605, gross: 40381500, komisi: 60572, ppn: 6663, levy: 17364, pph: 0, tax: 24027, net: 40466099, sekuritas: 'Stockbit' },
+  { id: 2, date: '2026-09-02', type: 'BUY', ticker: 'BBNI', lot: 814, price: 4703, gross: 382824200, komisi: 574236, ppn: 63166, levy: 164614, pph: 0, tax: 227780, net: 383626216, sekuritas: 'Stockbit' },
+  { id: 3, date: '2026-09-02', type: 'BUY', ticker: 'CPRI', lot: 662, price: 167, gross: 11055400, komisi: 16583, ppn: 1824, levy: 4754, pph: 0, tax: 6578, net: 11078561, sekuritas: 'Stockbit' },
+  { id: 4, date: '2026-09-02', type: 'BUY', ticker: 'BBCA', lot: 753, price: 7329, gross: 551873700, komisi: 827811, ppn: 91059, levy: 237306, pph: 0, tax: 328365, net: 553029876, sekuritas: 'Stockbit' },
+  { id: 5, date: '2026-09-02', type: 'BUY', ticker: 'BMRI', lot: 875, price: 4956, gross: 433650000, komisi: 650475, ppn: 71552, levy: 186470, pph: 0, tax: 258022, net: 434558497, sekuritas: 'Stockbit' },
+  { id: 6, date: '2026-09-02', type: 'BUY', ticker: 'BBRI', lot: 2581, price: 4176, gross: 1077825600, komisi: 1616738, ppn: 177841, levy: 463465, pph: 0, tax: 641306, net: 1080083644, sekuritas: 'Stockbit' },
+  { id: 7, date: '2026-09-02', type: 'BUY', ticker: 'UNVR', lot: 645, price: 5355, gross: 345397500, komisi: 518096, ppn: 56991, levy: 148521, pph: 0, tax: 205512, net: 346121108, sekuritas: 'Stockbit' },
+  { id: 8, date: '2026-09-02', type: 'BUY', ticker: 'ADRO', lot: 1427, price: 2673, gross: 381437100, komisi: 572156, ppn: 62937, levy: 164018, pph: 0, tax: 226955, net: 382236211, sekuritas: 'Stockbit' },
+  { id: 9, date: '2026-09-02', type: 'BUY', ticker: 'SIDO', lot: 3427, price: 621, gross: 212816700, komisi: 319225, ppn: 35115, levy: 91511, pph: 0, tax: 126626, net: 213262551, sekuritas: 'Stockbit' },
+  { id: 10, date: '2026-09-02', type: 'BUY', ticker: 'PGEO', lot: 9001, price: 1391, gross: 1252039100, komisi: 1878059, ppn: 206586, levy: 538377, pph: 0, tax: 744963, net: 1254662122, sekuritas: 'Stockbit' },
+  { id: 11, date: '2026-09-02', type: 'BUY', ticker: 'PMMP', lot: 415, price: 243, gross: 10084500, komisi: 15127, ppn: 1664, levy: 4336, pph: 0, tax: 6000, net: 10105627, sekuritas: 'Stockbit' },
+  { id: 12, date: '2026-09-02', type: 'BUY', ticker: 'BUMI', lot: 626, price: 298, gross: 18654800, komisi: 27982, ppn: 3078, levy: 8022, pph: 0, tax: 11100, net: 18693882, sekuritas: 'Stockbit' },
+  { id: 13, date: '2026-09-02', type: 'BUY', ticker: 'SMDR', lot: 808, price: 386, gross: 31188800, komisi: 46783, ppn: 5146, levy: 13411, pph: 0, tax: 18557, net: 31254140, sekuritas: 'Stockbit' },
+  { id: 14, date: '2026-09-02', type: 'BUY', ticker: 'CDIA', lot: 224, price: 1724, gross: 38617600, komisi: 57926, ppn: 6372, levy: 16606, pph: 0, tax: 22978, net: 38698504, sekuritas: 'Stockbit' },
+  { id: 15, date: '2026-09-02', type: 'BUY', ticker: 'RAJA', lot: 269, price: 857, gross: 23053300, komisi: 34580, ppn: 3804, levy: 9913, pph: 0, tax: 13717, net: 23101597, sekuritas: 'Stockbit' },
+  { id: 16, date: '2026-09-02', type: 'BUY', ticker: 'ADMR', lot: 200, price: 1735, gross: 34700000, komisi: 52050, ppn: 5726, levy: 14921, pph: 0, tax: 20647, net: 34772697, sekuritas: 'Stockbit' },
+  { id: 17, date: '2026-09-02', type: 'BUY', ticker: 'DEWA', lot: 586, price: 109, gross: 6387400, komisi: 9581, ppn: 1054, levy: 2747, pph: 0, tax: 3801, net: 6400782, sekuritas: 'Stockbit' },
+  { id: 18, date: '2026-09-02', type: 'BUY', ticker: 'MBMA', lot: 130, price: 560, gross: 7280000, komisi: 10920, ppn: 1201, levy: 3130, pph: 0, tax: 4331, net: 7295251, sekuritas: 'Stockbit' },
+  { id: 19, date: '2026-09-02', type: 'BUY', ticker: 'WIFI', lot: 600, price: 324, gross: 19440000, komisi: 29160, ppn: 3208, levy: 8359, pph: 0, tax: 11567, net: 19480727, sekuritas: 'Stockbit' },
+  { id: 20, date: '2026-09-02', type: 'BUY', ticker: 'ARCI', lot: 244, price: 1850, gross: 45140000, komisi: 67710, ppn: 7448, levy: 19410, pph: 0, tax: 26858, net: 45234568, sekuritas: 'Stockbit' },
+  { id: 21, date: '2026-09-02', type: 'BUY', ticker: 'PRDL', lot: 100, price: 50, gross: 500000, komisi: 750, ppn: 83, levy: 215, pph: 0, tax: 298, net: 501048, sekuritas: 'Stockbit' },
+  { id: 22, date: '2026-09-02', type: 'BUY', ticker: 'GMFI', lot: 500, price: 63, gross: 3150000, komisi: 4725, ppn: 520, levy: 1355, pph: 0, tax: 1875, net: 3156600, sekuritas: 'Stockbit' }
+];
 
 function initPortfolio2026(force){
   if(transactions && transactions.length > 0 && !force) return;
   
-  transactions = [];
+  transactions = JSON.parse(JSON.stringify(INITIAL_PORTO_2026));
   rdnMutations = [];
   dividends = [];
   cryptoTx = [];
   etfTx = [];
   rdTx = [];
   divInvestData = [];
-  nextTxId = 1;
+  nextTxId = 23;
   nextRdnId = 1;
+  nextDivId = 1;
+  nextCryptoId = 1;
+  nextEtfId = 1;
+  nextRdId = 1;
   activeSekuritas = 'Stockbit';
-  rdnBalance = 0;
+  rdnBalance = 22213430;
+
+  // Initial RDN balance deposit mutation
+  rdnMutations.push({
+    id: nextRdnId++,
+    date: '2026-09-02',
+    type: 'TOPUP',
+    ket: 'Saldo Awal Kas RDN Stockbit',
+    amount: 22213430,
+    balance: 22213430,
+    sekuritas: 'Stockbit',
+    linkedTxId: null,
+    account: 'saham'
+  });
+
+  // Dividen YTD 2026 jika ada
+  dividends.push({
+    id: nextDivId++,
+    date: '2026-09-02',
+    ticker: 'BBRI',
+    shares: 258100,
+    dps: 104.22,
+    gross: 26900606,
+    tax: 0,
+    net: 26900606,
+    pphRate: 0
+  });
 
   if(typeof CASH_ACCOUNTS !== 'undefined'){
-    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 0;
+    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 22213430;
     if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = 0;
     if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
   }
@@ -47,7 +100,7 @@ function initPortfolio2026(force){
 
   if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   if (typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
-  if (force && typeof saveData === 'function') saveData();
+  if (typeof saveData === 'function') saveData();
 }
 
 function resetAllDatabaseAndTransactions(){
@@ -1196,6 +1249,11 @@ function loadData(){
         }
       }
     }
+
+    if(!transactions || transactions.length === 0){
+      initPortfolio2026();
+    }
+
     if(typeof equityHistoryLoad === 'function') equityHistoryLoad();
     nextTxId  = Math.max(nextTxId || 1, _maxIdPlus1(transactions));
     nextDivId = Math.max(nextDivId || 1, _maxIdPlus1(dividends));

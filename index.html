@@ -4,13 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Money Watch Pro</title>
-<meta name="description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, net worth reporting, and PDF investment statement generation.">
+<meta name="description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, visual dividend calendar, passive income tracking, net worth reporting, and PDF investment statement generation.">
 <meta property="og:title" content="Money Watch Pro">
-<meta property="og:description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, net worth reporting, and PDF investment statement generation.">
+<meta property="og:description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, visual dividend calendar, passive income tracking, net worth reporting, and PDF investment statement generation.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23131324'/><path d='M7 21 L13 13 L18 17 L25 8' stroke='%2334d399' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='25' cy='8' r='2' fill='%2334d399'/></svg>">
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+  // Global error safety shield for iframe and cross-origin environments
+  window.addEventListener('error', function(e) {
+    if (!e) return;
+    if (e.message === 'Script error.' || (e.filename && e.filename.indexOf('chrome-extension') !== -1)) {
+      // Cross-origin script error or extension error suppressed safely
+      console.warn('[MoneyWatch Shield] Suppressed cross-origin script event:', e.message);
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      return true;
+    }
+  }, true);
+  window.addEventListener('unhandledrejection', function(e) {
+    if (e && e.reason) {
+      console.warn('[MoneyWatch Shield] Handled async promise notice:', e.reason);
+    }
+  });
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" crossorigin="anonymous"></script>
 <script src="js/00-config.js?v=20260902c"></script>
 <!-- Font sesuai invezgo.com: Figtree untuk judul/angka besar, Inter untuk isi — dibaca langsung dari computed style situsnya --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Figtree:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
@@ -34,11 +51,11 @@
     }
   }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="css/main.css?v=20260813j">
 <link rel="stylesheet" href="css/wealth.css?v=20260813j">
 </head>
@@ -1181,10 +1198,10 @@
 
 <!-- ===== DIVIDEN ===== -->
 <div id="page-dividen" class="page">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
     <div>
-      <div class="ptitle">Dashboard Dividen</div>
-      <div class="psub">Riwayat penerimaan dividen per tahun 2018–2026 · PPh 10% · Proyeksi 5 tahun ke depan</div>
+      <div class="ptitle">Dashboard Dividen &amp; Passive Income</div>
+      <div class="psub">Kalender pembayaran mendatang &amp; historis saham portofolio · PPh 10% · Proyeksi cashflow dividen 5 tahun</div>
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-xs" onclick="selectAllDiv()" id="div-sel-all-btn">☑ Pilih Semua</button>
@@ -1195,83 +1212,112 @@
       <button class="btn btn-ghost" onclick="divImportExcel()" style="border-color:rgba(52,211,153,.3);color:var(--green)" title="Upload banyak dividen sekaligus dari file Excel">📤 Upload Excel</button>
     </div>
   </div>
-  <div class="row4">
-    <div class="metric"><div class="mlabel">Total Dividen Bersih</div><div class="mval" id="dv-total">Rp 0</div><div class="msub neu" id="dv-total-sub"></div></div>
-    <div class="metric"><div class="mlabel">Dividen YTD 2026</div><div class="mval" id="dv-ytd">Rp 0</div><div class="msub neu" id="dv-ytd-sub"></div></div>
-    <div class="metric"><div class="mlabel">PPh Dividen (10%)</div><div class="mval" id="dv-tax">Rp 0</div><div class="msub neu">dipotong otomatis</div></div>
-    <div class="metric"><div class="mlabel">Dividend Yield (est.)</div><div class="mval" id="dv-yield">0,00%</div><div class="msub neu">dari portofolio</div></div>
+
+  <!-- Subtabs: Kalender Dividen / Analisis / Riwayat -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;flex-wrap:wrap;">
+    <button class="btn btn-xs btn-green" id="div-subtab-btn-cal" onclick="switchDivSubTab('calendar')">
+      <i class="ti ti-calendar-event"></i> 📅 Kalender Dividen &amp; Expected Passive Income
+      <span class="badge b-up" style="font-size:9px;padding:1px 5px;margin-left:4px;">RADAR</span>
+    </button>
+    <button class="btn btn-xs btn-ghost" id="div-subtab-btn-analytics" onclick="switchDivSubTab('analytics')">
+      <i class="ti ti-chart-pie"></i> 📊 Analisis &amp; Proyeksi 5 Tahun
+    </button>
+    <button class="btn btn-xs btn-ghost" id="div-subtab-btn-ledger" onclick="switchDivSubTab('ledger')">
+      <i class="ti ti-receipt"></i> 📋 Riwayat Pembukuan Transaksi
+    </button>
+    <button class="btn btn-xs btn-ghost" id="div-subtab-btn-all" onclick="switchDivSubTab('all')" style="margin-left:auto;color:var(--text3);">
+      <i class="ti ti-layout-grid"></i> Tampilkan Semua
+    </button>
   </div>
-  <!-- Chart tabs: per tahun -->
-  <div class="g2c" style="margin-bottom:18px">
+
+  <!-- Tab 1: Visual Dividend Calendar Component Mount -->
+  <div id="div-section-calendar" style="display:block;margin-bottom:18px;">
+    <div id="dividend-calendar-mount"></div>
+  </div>
+
+  <!-- Tab 2: Analytics & Projections -->
+  <div id="div-section-analytics" style="display:block;">
+    <div class="row4">
+      <div class="metric"><div class="mlabel">Total Dividen Bersih</div><div class="mval" id="dv-total">Rp 0</div><div class="msub neu" id="dv-total-sub"></div></div>
+      <div class="metric"><div class="mlabel">Dividen YTD 2026</div><div class="mval" id="dv-ytd">Rp 0</div><div class="msub neu" id="dv-ytd-sub"></div></div>
+      <div class="metric"><div class="mlabel">PPh Dividen (10%)</div><div class="mval" id="dv-tax">Rp 0</div><div class="msub neu">dipotong otomatis</div></div>
+      <div class="metric"><div class="mlabel">Dividend Yield (est.)</div><div class="mval" id="dv-yield">0,00%</div><div class="msub neu">dari portofolio</div></div>
+    </div>
+    <!-- Chart tabs: per tahun -->
+    <div class="g2c" style="margin-bottom:18px">
+      <div class="card">
+        <div class="cheader">
+          <span class="ctitle">Dividen Per Tahun (2018–2026)</span>
+        </div>
+        <div class="cw" style="height:185px"><canvas id="divYearChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="cheader"><span class="ctitle">Dividen Per Saham (Kumulatif)</span></div>
+        <div class="cw" style="height:185px"><canvas id="divChart"></canvas></div>
+      </div>
+    </div>
+    <!-- Yield on Cost & pertumbuhan dividen per saham -->
+    <div class="card" style="margin-bottom:18px">
+      <div class="cheader">
+        <span class="ctitle">Yield on Cost &amp; Pertumbuhan Dividen per Saham</span>
+        <span class="badge b-gray" title="Yield on Cost = dividen tahun berjalan dibagi harga BELI dulu (bukan harga sekarang) — makin lama Anda pegang saham berdividen naik, makin tinggi angka ini dibanding yield biasa">ⓘ apa ini?</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Saham</th><th>Avg. Harga Beli</th><th>Dividen Thn Ini</th><th>Yield on Cost</th><th>Dividen Thn Lalu</th><th>Pertumbuhan YoY</th></tr></thead>
+          <tbody id="div-yoc-tbody"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Belum ada data</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Proyeksi 5 tahun -->
+    <div class="card" style="margin-bottom:18px">
+      <div class="cheader">
+        <span class="ctitle">📈 Proyeksi Dividen 5 Tahun (2027–2031)</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:10px;color:var(--text3)">Asumsi pertumbuhan:</span>
+          <select class="finput fsel" id="div-growth-sel" onchange="renderDividen()" style="padding:3px 7px;font-size:10px">
+            <option value="0.05">+5%/th</option>
+            <option value="0.08" selected>+8%/th</option>
+            <option value="0.10">+10%/th</option>
+            <option value="0.15">+15%/th</option>
+            <option value="0">Flat</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px" id="div-proj-cards"></div>
+      <div class="cw" style="height:130px"><canvas id="divProjChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Tabel Riwayat Dividen -->
+  <div id="div-section-ledger" style="display:block;">
     <div class="card">
       <div class="cheader">
-        <span class="ctitle">Dividen Per Tahun (2018–2026)</span>
+        <span class="ctitle">Riwayat Dividen</span>
+        <div style="display:flex;gap:5px">
+          <select class="finput fsel" id="div-year-filter" onchange="renderDividen()" style="padding:3px 7px;font-size:10px">
+            <option value="all">Semua Tahun</option>
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+            <option value="2021">2021</option>
+            <option value="2020">2020</option>
+            <option value="2019">2019</option>
+            <option value="2018">2018</option>
+          </select>
+        </div>
       </div>
-      <div class="cw" style="height:185px"><canvas id="divYearChart"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="cheader"><span class="ctitle">Dividen Per Saham (Kumulatif)</span></div>
-      <div class="cw" style="height:185px"><canvas id="divChart"></canvas></div>
-    </div>
-  </div>
-  <!-- Yield on Cost & pertumbuhan dividen per saham -->
-  <div class="card" style="margin-bottom:18px">
-    <div class="cheader">
-      <span class="ctitle">Yield on Cost &amp; Pertumbuhan Dividen per Saham</span>
-      <span class="badge b-gray" title="Yield on Cost = dividen tahun berjalan dibagi harga BELI dulu (bukan harga sekarang) — makin lama Anda pegang saham berdividen naik, makin tinggi angka ini dibanding yield biasa">ⓘ apa ini?</span>
-    </div>
-    <div style="overflow-x:auto">
-      <table class="tbl">
-        <thead><tr><th>Saham</th><th>Avg. Harga Beli</th><th>Dividen Thn Ini</th><th>Yield on Cost</th><th>Dividen Thn Lalu</th><th>Pertumbuhan YoY</th></tr></thead>
-        <tbody id="div-yoc-tbody"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Belum ada data</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-  <!-- Proyeksi 5 tahun -->
-  <div class="card" style="margin-bottom:18px">
-    <div class="cheader">
-      <span class="ctitle">📈 Proyeksi Dividen 5 Tahun (2027–2031)</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <span style="font-size:10px;color:var(--text3)">Asumsi pertumbuhan:</span>
-        <select class="finput fsel" id="div-growth-sel" onchange="renderDividen()" style="padding:3px 7px;font-size:10px">
-          <option value="0.05">+5%/th</option>
-          <option value="0.08" selected>+8%/th</option>
-          <option value="0.10">+10%/th</option>
-          <option value="0.15">+15%/th</option>
-          <option value="0">Flat</option>
-        </select>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr>
+            <th><input type="checkbox" id="div-check-all" onchange="divToggleAll(this.checked)" style="cursor:pointer"></th>
+            <th>Tanggal</th><th>Ticker</th><th>Lembar</th><th>Div/Lbr</th><th>Kotor</th><th>PPh 10%</th><th>Bersih</th><th>Yield</th><th>Aksi</th>
+          </tr></thead>
+          <tbody id="div-tbody"></tbody>
+        </table>
       </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px" id="div-proj-cards"></div>
-    <div class="cw" style="height:130px"><canvas id="divProjChart"></canvas></div>
-  </div>
-  <!-- Tabel per tahun -->
-  <div class="card">
-    <div class="cheader">
-      <span class="ctitle">Riwayat Dividen</span>
-      <div style="display:flex;gap:5px">
-        <select class="finput fsel" id="div-year-filter" onchange="renderDividen()" style="padding:3px 7px;font-size:10px">
-          <option value="all">Semua Tahun</option>
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-          <option value="2024">2024</option>
-          <option value="2023">2023</option>
-          <option value="2022">2022</option>
-          <option value="2021">2021</option>
-          <option value="2020">2020</option>
-          <option value="2019">2019</option>
-          <option value="2018">2018</option>
-        </select>
-      </div>
-    </div>
-    <div style="overflow-x:auto">
-      <table class="tbl">
-        <thead><tr>
-          <th><input type="checkbox" id="div-check-all" onchange="divToggleAll(this.checked)" style="cursor:pointer"></th>
-          <th>Tanggal</th><th>Ticker</th><th>Lembar</th><th>Div/Lbr</th><th>Kotor</th><th>PPh 10%</th><th>Bersih</th><th>Yield</th><th>Aksi</th>
-        </tr></thead>
-        <tbody id="div-tbody"></tbody>
-      </table>
     </div>
   </div>
 </div>
@@ -3453,6 +3499,7 @@
 <script src="js/39-knowledge-master-guide.js?v=20260902c"></script>
 <script src="js/40-idx-pipeline.js?v=20260902c"></script>
 <script src="js/41-stockchat-cockpit.js?v=20260902c"></script>
+<script src="js/42-dividend-calendar.js?v=20260902c"></script>
 
   <!-- Theme Toggle Floating Button -->
   <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--text-main);border:none;box-shadow:0 4px 15px rgba(0,0,0,0.2);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
