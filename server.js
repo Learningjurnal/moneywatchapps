@@ -52,9 +52,9 @@ function getSafeFileKey(uidOrEmail) {
 }
 
 const FIREBASE_CONFIG = {
-  projectId: 'zinc-snowfall-6lcf1',
-  apiKey: 'AIzaSyAjO1QrHyIuR8T0NM07NWxAgbwjnrbSYXk',
-  firestoreDatabaseId: 'ai-studio-moneywatchpro-088bcbd5-b0c7-48cf-baee-be4279fd2091'
+  projectId: process.env.FIREBASE_PROJECT_ID || 'zinc-snowfall-6lcf1',
+  apiKey: process.env.FIREBASE_API_KEY || 'AIzaSyAjO1QrHyIuR8T0NM07NWxAgbwjnrbSYXk',
+  firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || 'ai-studio-moneywatchpro-088bcbd5-b0c7-48cf-baee-be4279fd2091'
 };
 
 function toFirestoreValue(val) {
@@ -2689,7 +2689,11 @@ app.use((req, res, next) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Start HTTP server on 0.0.0.0:3000
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('Money Watch Pro server running on http://0.0.0.0:' + PORT);
-});
+// Start HTTP server on 0.0.0.0:3000 (when not managed by Vercel serverless runtime)
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log('Money Watch Pro server running on http://0.0.0.0:' + PORT);
+  });
+}
+
+export default app;

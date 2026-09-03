@@ -10,6 +10,16 @@ node_modules/
 .mlvenv/
 __pycache__/
 *.pyc
+.vercel/
+
+# Secrets & Environment Variables (NEVER COMMIT)
+.env
+.env.local
+.env.*.local
+*.pem
+service-account*.json
+firebase-adminsdk*.json
+*private_key*
 
 # Local Test & Scratch Data
 _test_import.xlsx

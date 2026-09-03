@@ -1,26 +1,59 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User root document and any subcollections
+
+    // Helper functions for zero-trust security & ABAC
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && (
+        request.auth.uid == userId ||
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'Andry.Zuma.Musa@gmail.com' ||
+          request.auth.token.email == 'andry.zuma.musa@gmail.com' ||
+          userId == 'u_' + request.auth.token.email.replace('@', '_40').replace('[^a-zA-Z0-9_]', '_')
+        ))
+      );
+    }
+
+    function isPortfolioAdmin() {
+      return isSignedIn() && request.auth.token.email != null && (
+        request.auth.token.email == 'Andry.Zuma.Musa@gmail.com' ||
+        request.auth.token.email == 'andry.zuma.musa@gmail.com'
+      );
+    }
+
+    // Default deny: Block any unexpected collection access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User private data: strictly isolated to the authenticated owner & portfolio admin
     match /users/{userId} {
-      allow read, write: if true;
+      allow read, write: if isOwner(userId) || isPortfolioAdmin();
       
       match /{allSubcollections=**} {
-        allow read, write: if true;
+        allow read, write: if isOwner(userId) || isPortfolioAdmin();
       }
     }
 
-    // KSEI 5%+ Shareholders & Free Float collections
+    // KSEI 5%+ Major Shareholders & Free Float Intelligence
+    // Market intelligence is public/read-only for all platform visitors, write restricted to authenticated sessions
     match /ksei_stocks/{ticker} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     match /ksei_snapshots/{snapshotId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     match /ksei_metadata/{docId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isSignedIn();
     }
   }
 }
