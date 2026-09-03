@@ -575,7 +575,7 @@
                         </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid var(--border2);padding-top:12px;color:#3B82F6;font-weight:700">
-                        <span>Kelola Portofolio Saham</span>
+                        <span style="display:flex;align-items:center;gap:6px"><i class="ti ti-chart-candle"></i> Kelola Portofolio Saham</span>
                         <span>→</span>
                     </div>
                 </div>
@@ -600,7 +600,7 @@
                         <div id="hub-crypto-signals" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid var(--border2);padding-top:12px;color:#10B981;font-weight:700">
-                        <span>Kelola Portofolio Crypto</span>
+                        <span style="display:flex;align-items:center;gap:6px"><i class="ti ti-currency-bitcoin"></i> Kelola Portofolio Crypto</span>
                         <span>→</span>
                     </div>
                 </div>
@@ -624,7 +624,7 @@
                         </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid var(--border2);padding-top:12px;color:#EF4444;font-weight:700">
-                        <span>Kelola Portofolio ETF</span>
+                        <span style="display:flex;align-items:center;gap:6px"><i class="ti ti-world"></i> Kelola Portofolio ETF</span>
                         <span>→</span>
                     </div>
                 </div>
@@ -648,7 +648,7 @@
                         </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;border-top:1px solid var(--border2);padding-top:12px;color:#8B5CF6;font-weight:700">
-                        <span>Kelola Reksa Dana &amp; SBN</span>
+                        <span style="display:flex;align-items:center;gap:6px"><i class="ti ti-building-bank"></i> Kelola Reksa Dana &amp; SBN</span>
                         <span>→</span>
                     </div>
                 </div>
@@ -1096,17 +1096,17 @@
       <div class="psub">Posisi aktif, unrealized P&amp;L, alokasi dan sinyal teknikal</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-ghost btn-sm" onclick="openMarketSyncModal()" title="Sinkronisasi & Penyesuaian Manual Harga Pasar & IHSG" style="border-color:var(--accent);color:var(--accent);font-size:11px">⚙️ Sesuaikan Harga &amp; IHSG</button>
-      <button class="btn btn-ghost btn-sm" onclick="mwOpenPdfReportModal()" title="Buka Laporan Konsolidasi Finansial Terpadu (Excel CSV, PDF, Teks &amp; FIRE)">📥 Laporan Konsolidasi</button>
-      <button class="btn btn-blue" id="btn-beli2">+ Beli Saham</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMarketSyncModal()" title="Sinkronisasi & Penyesuaian Manual Harga Pasar & IHSG" style="border-color:var(--accent);color:var(--accent);font-size:11px"><i class="ti ti-adjustments-horizontal"></i> Sesuaikan Harga &amp; IHSG</button>
+      <button class="btn btn-ghost btn-sm" onclick="mwOpenPdfReportModal()" title="Buka Laporan Konsolidasi Finansial Terpadu (Excel CSV, PDF, Teks &amp; FIRE)"><i class="ti ti-file-analytics"></i> Laporan Konsolidasi</button>
+      <button class="btn btn-blue" id="btn-beli2"><i class="ti ti-plus"></i> Beli Saham</button>
     </div>
   </div>
   <!-- Cash widget saham -->
-  <div style="background:rgba(0,0,0,.15);border:1px solid #41f3a733;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#41f3a7;letter-spacing:.8px;white-space:nowrap">💰 KAS AKUN SAHAM (RDN)</span>
+  <div id="cash-saham-banner" class="cash-sync-banner cash-saham" style="background:rgba(0,0,0,.15);border:1px solid #41f3a733;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:700;color:#41f3a7;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-wallet"></i> KAS AKUN SAHAM (RDN)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#41f3a7" id="cash-saham-disp">Rp 0</span>
-    <button class="btn btn-ghost btn-xs" style="color:#41f3a7;border-color:#41f3a744" onclick="openModal('setor', 'saham')" title="Top-up / Mutasi Kas Saham">➕ Top Up / Mutasi</button>
-    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'saham')" title="Sesuaikan saldo riil via mutasi RDN">⚖️ Sesuaikan</button>
+    <button class="btn btn-ghost btn-xs" style="color:#41f3a7;border-color:#41f3a744" onclick="openModal('setor', 'saham')" title="Top-up / Mutasi Kas Saham"><i class="ti ti-plus"></i> Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'saham')" title="Sesuaikan saldo riil via mutasi RDN"><i class="ti ti-adjustments-horizontal"></i> Sesuaikan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Dana tersedia di rekening sekuritas (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
   <div class="row4" style="margin-bottom:16px">
@@ -1132,7 +1132,7 @@
       <div style="width:240px;height:220px;position:relative;flex-shrink:0;margin:0 auto">
         <canvas id="portoDonutChart"></canvas>
       </div>
-      <div id="porto-donut-legend" style="flex:1;min-width:260px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;font-size:11px"></div>
+      <div id="porto-donut-legend" style="flex:1;min-width:260px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;font-size:11px"></div>
     </div>
   </div>
 
@@ -1650,16 +1650,16 @@
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="goPage('crypto-technical')" style="border-color:#f7931a66;color:#f7931a;font-weight:700"><i class="ti ti-chart-candle"></i> Analisa &amp; Sinyal Crypto</button>
-      <button class="btn btn-blue" onclick="openCryptoModal('buy')">+ Beli Crypto</button>
-      <button class="btn btn-red" onclick="openCryptoModal('sell')">− Jual Crypto</button>
+      <button class="btn btn-blue" onclick="openCryptoModal('buy')"><i class="ti ti-plus"></i> Beli Crypto</button>
+      <button class="btn btn-red" onclick="openCryptoModal('sell')"><i class="ti ti-minus"></i> Jual Crypto</button>
     </div>
   </div>
     <!-- Cash widget crypto -->
-  <div style="background:rgba(0,0,0,.15);border:1px solid #f7931a33;border-radius:9px;padding:8px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#f7931a;letter-spacing:.8px;white-space:nowrap">💰 KAS CRYPTO (WALLET/EXCHANGE)</span>
+  <div id="cash-crypto-banner" class="cash-sync-banner cash-crypto" style="background:rgba(0,0,0,.15);border:1px solid #f7931a33;border-radius:9px;padding:8px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:700;color:#f7931a;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-wallet"></i> KAS CRYPTO (WALLET/EXCHANGE)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#f7931a" id="cash-crypto-disp">Rp 0</span>
-    <button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44" onclick="openModal('setor', 'crypto')" title="Top-up Saldo Crypto via Mutasi RDN">➕ Top Up / Mutasi</button>
-    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'crypto')" title="Sesuaikan saldo riil via mutasi RDN">⚖️ Sesuaikan</button>
+    <button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44" onclick="openModal('setor', 'crypto')" title="Top-up Saldo Crypto via Mutasi RDN"><i class="ti ti-plus"></i> Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'crypto')" title="Sesuaikan saldo riil via mutasi RDN"><i class="ti ti-adjustments-horizontal"></i> Sesuaikan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di exchange crypto (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
 
@@ -1746,16 +1746,16 @@
       <div class="psub">Tracking ETF US dengan konversi harga USD → IDR otomatis</div>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-blue" onclick="openEtfModal('buy')">+ Beli ETF</button>
-      <button class="btn btn-red" onclick="openEtfModal('sell')">− Jual ETF</button>
+      <button class="btn btn-blue" onclick="openEtfModal('buy')"><i class="ti ti-plus"></i> Beli ETF</button>
+      <button class="btn btn-red" onclick="openEtfModal('sell')"><i class="ti ti-minus"></i> Jual ETF</button>
     </div>
   </div>
     <!-- Cash widget etf -->
-  <div style="background:rgba(0,0,0,.15);border:1px solid #00c8ff33;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#00c8ff;letter-spacing:.8px;white-space:nowrap">💰 KAS ETF (USD ACCOUNT)</span>
+  <div id="cash-etf-banner" class="cash-sync-banner cash-etf" style="background:rgba(0,0,0,.15);border:1px solid #00c8ff33;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:700;color:#00c8ff;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-wallet"></i> KAS ETF (USD ACCOUNT)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#00c8ff" id="cash-etf-disp">$ 0</span>
     <input type="number" id="cash-etf-input" placeholder="Set kas..." class="finput" style="width:140px;padding:4px 9px;font-size:11px">
-    <button class="btn btn-ghost btn-xs" style="color:#00c8ff;border-color:#00c8ff44" onclick="saveCashInput('etf')">💾 Simpan</button>
+    <button class="btn btn-ghost btn-xs" style="color:#00c8ff;border-color:#00c8ff44" onclick="saveCashInput('etf')"><i class="ti ti-device-floppy"></i> Simpan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Saldo USD di broker internasional (IBKR, dll)</span>
   </div>
   <div class="row5">
@@ -1844,16 +1844,16 @@
       <div style="font-size:12px;font-weight:700;color:var(--amber)">Semua reksa dana sudah dicairkan</div>
       <div style="font-size:11px;color:var(--text2);margin-top:2px">Data berikut adalah <strong>riwayat historis</strong> transaksi reksa dana. Gunakan tombol + Beli RD untuk mulai mencatat posisi aktif baru.</div>
     </div>
-    <button class="btn btn-green btn-sm" onclick="openRdModal('beli')" style="flex-shrink:0">+ Beli RD Baru</button>
+    <button class="btn btn-green btn-sm" onclick="openRdModal('beli')" style="flex-shrink:0"><i class="ti ti-plus"></i> Beli RD Baru</button>
   </div>
 
   <!-- Summary metrics -->
     <!-- Cash widget reksadana -->
-  <div style="background:rgba(0,0,0,.15);border:1px solid #8070d233;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#8070d2;letter-spacing:.8px;white-space:nowrap">💰 KAS REKSA DANA</span>
+  <div id="cash-rd-banner" class="cash-sync-banner cash-rd" style="background:rgba(0,0,0,.15);border:1px solid #8070d233;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:700;color:#8070d2;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-wallet"></i> KAS REKSA DANA</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#8070d2" id="cash-reksadana-disp">Rp 0</span>
-    <button class="btn btn-ghost btn-xs" style="color:#8070d2;border-color:#8070d244" onclick="openModal('setor', 'reksadana')" title="Top-up Saldo Reksa Dana via Mutasi RDN">➕ Top Up / Mutasi</button>
-    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'reksadana')" title="Sesuaikan saldo riil via mutasi RDN">⚖️ Sesuaikan</button>
+    <button class="btn btn-ghost btn-xs" style="color:#8070d2;border-color:#8070d244" onclick="openModal('setor', 'reksadana')" title="Top-up Saldo Reksa Dana via Mutasi RDN"><i class="ti ti-plus"></i> Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'reksadana')" title="Sesuaikan saldo riil via mutasi RDN"><i class="ti ti-adjustments-horizontal"></i> Sesuaikan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di platform reksa dana (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:18px">
@@ -1880,8 +1880,8 @@
     <div class="cheader">
       <span class="ctitle">Posisi Aktif (Input Manual)</span>
       <div style="display:flex;gap:7px">
-        <button class="btn btn-green btn-xs" onclick="openRdModal('beli')">+ Beli</button>
-        <button class="btn btn-red btn-xs" onclick="openRdModal('jual')">− Jual</button>
+        <button class="btn btn-green btn-xs" onclick="openRdModal('beli')"><i class="ti ti-plus"></i> Beli</button>
+        <button class="btn btn-red btn-xs" onclick="openRdModal('jual')"><i class="ti ti-minus"></i> Jual</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
@@ -3500,9 +3500,10 @@
 <script src="js/40-idx-pipeline.js?v=20260902c"></script>
 <script src="js/41-stockchat-cockpit.js?v=20260902c"></script>
 <script src="js/42-dividend-calendar.js?v=20260902c"></script>
+<script src="js/43-ai-chart-intelligence.js?v=20260903a"></script>
 
   <!-- Theme Toggle Floating Button -->
-  <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--text-main);border:none;box-shadow:0 4px 15px rgba(0,0,0,0.2);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
+  <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#2563eb;color:#ffffff;border:none;box-shadow:0 4px 15px rgba(0,0,0,0.25);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
     <i class="ti ti-sun" id="theme-icon"></i>
   </button>
   <script>
@@ -3520,6 +3521,12 @@
         }
         if (typeof fsRenderCharts === 'function') {
           try { fsRenderCharts(); } catch(e) {}
+        }
+        if (typeof renderPortoDonut === 'function') {
+          try { renderPortoDonut(); } catch(e) {}
+        }
+        if (typeof renderAll === 'function') {
+          try { renderAll(); } catch(e) {}
         }
       }, 50);
     }

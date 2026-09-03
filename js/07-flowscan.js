@@ -110,13 +110,17 @@ function fsGenData(tk,days){
   }
 
   // 2. Real SSOT Base Price Resolution (No Dummy Data)
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
+    return [];
+  }
+
   var s = fsSd(tk);
   var base = (typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(tk) : 0);
   if (!base || base <= 0) {
     var realStk = (typeof XLSX_DATA !== 'undefined' && XLSX_DATA.stocks) ? XLSX_DATA.stocks.find(function(x){return x.code===tk;}) : null;
     if (realStk && realStk.price > 0) base = realStk.price;
     else if (typeof DB !== 'undefined' && DB[tk]) base = DB[tk].base;
-    else base = 1500;
+    else return [];
   }
   var price = base, obv = 0, ad = 0, data = [];
   var vol = 5e6 + fsSr(s+1)*50e6;

@@ -162,8 +162,9 @@ const server = http.createServer(async (req, res) => {
       const tf = (parsedUrl.searchParams.get('timeframe') || '1D').toUpperCase();
       const quote = await fetchYahooQuote(ticker);
       const data = generateBrokerSummary(ticker, quote, tf);
+      const isOk = data && data.isValidTicker !== false && data.price > 0;
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true, data: data }));
+      res.end(JSON.stringify({ success: isOk, isValidTicker: isOk, data: data }));
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: err.message }));

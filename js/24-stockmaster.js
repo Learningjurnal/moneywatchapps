@@ -196,6 +196,29 @@ async function fundFetchData(tickerOverride) {
 }
 
 function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(code)) {
+    FUND_DATA.fin = {
+      currentPrice: { raw: 0 },
+      totalRevenue: { raw: 0 },
+      revenueGrowth: { raw: 0 },
+      ebitda: { raw: 0 },
+      grossMargins: { raw: 0 },
+      operatingMargins: { raw: 0 },
+      profitMargins: { raw: 0 },
+      debtToEquity: { raw: 0 },
+      currentRatio: { raw: 0 },
+      operatingCashflow: { raw: 0 },
+      returnOnEquity: { raw: 0 },
+      returnOnAssets: { raw: 0 }
+    };
+    FUND_DATA.stats = { priceToBook: { raw: 0 }, sharesOutstanding: { raw: 0 }, trailingEps: { raw: 0 }, bookValue: { raw: 0 } };
+    FUND_DATA.detail = { marketCap: { raw: 0 }, trailingPE: { raw: 0 }, forwardPE: { raw: 0 }, dividendYield: { raw: 0 }, payoutRatio: { raw: 0 } };
+    FUND_DATA.profile = { sector: 'Tidak Ditemukan', longBusinessSummary: 'Ticker "' + code + '" tidak terdaftar dalam Stock Universe IDX. Seluruh parameter fundamental bernilai 0.' };
+    fundPopulateData();
+    fundShowStatus('⚠️ Ticker <b>' + code + '</b> tidak terdaftar dalam Stock Universe pasar saham Indonesia. Data = 0.', true);
+    return;
+  }
+
   var basePrice = 5000;
   var shares = 10000000000; // 10 miliar lembar default
   var mcap = 50000000000000;
@@ -864,6 +887,11 @@ function techRenderMainChart(ticker) {
     return;
   }
 
+  if (typeof runAiChartAnalysis === 'function') {
+    runAiChartAnalysis(ticker);
+    return;
+  }
+
   // Native High-Performance Interactive Chart
   var ohlcv = (typeof fsGenData === 'function') ? fsGenData(ticker, 45) : [];
   if (!ohlcv || !ohlcv.length) {
@@ -995,14 +1023,16 @@ function techRunFlowScanTab(ticker) {
 
   var data = (typeof fsGenData === 'function') ? fsGenData(tk, days) : [];
   if (!data || !data.length) {
-    var basePx = (typeof prices !== 'undefined' && prices[tk]) || 5000;
-    data = [];
-    for (var i = 0; i < days; i++) {
-      var dt = new Date(); dt.setDate(dt.getDate() - days + i);
-      var c = Math.round(basePx * (1 + Math.sin(i * 0.2) * 0.04));
-      var v = 15000000 + Math.random() * 25000000;
-      data.push({ dt: dt, o: c * 0.99, h: c * 1.02, l: c * 0.98, c: c, v: v, obv: v, ad: v * 0.5, mfv: v * 0.3, big: true, up: true, mfm: 0.3 });
+    var cContainer = document.getElementById('tech-tab2');
+    if (cContainer) {
+      var unkContent = '<div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-3 my-4">'
+        + '<div class="text-rose-400 font-bold text-base"><i class="ti ti-alert-triangle text-xl"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
+        + '<p class="text-xs text-slate-400">Seluruh data FlowScan dan Bandarmologi bernilai 0. Silakan pilih emiten terdaftar (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM).</p>'
+        + '</div>';
+      var flowRes = document.getElementById('fs-tab2-render');
+      if (flowRes) flowRes.innerHTML = unkContent;
     }
+    return;
   }
 
   var a = (typeof fsProcess === 'function') ? fsProcess(data) : {

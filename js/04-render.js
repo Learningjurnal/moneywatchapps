@@ -229,7 +229,8 @@ function renderPortofolio(){
     if(_portoChartMode === 'sector'){
       var secMap = {};
       porto.forEach(function(p){
-        var sec = (p.info && p.info.sector) || 'Lainnya';
+        var rawSec = (p.info && p.info.sector) ? String(p.info.sector).trim() : '';
+        var sec = (rawSec && rawSec !== '..' && rawSec !== '-' && rawSec !== 'N/A') ? rawSec : 'Lainnya';
         secMap[sec] = (secMap[sec] || 0) + (p.mv || 0);
       });
       var sortedSec = Object.keys(secMap).map(function(s){return {sector:s, mv:secMap[s]};}).sort(function(a,b){return b.mv-a.mv;});
@@ -311,7 +312,10 @@ function renderPortofolio(){
   var secSel=el('porto-filter-sector');
   if(secSel){
     var curSecVal=secSel.value;
-    var secList=Array.from(new Set(porto.map(function(p){return p.info.sector;}))).sort();
+    var secList=Array.from(new Set(porto.map(function(p){
+      var raw = (p.info && p.info.sector) ? String(p.info.sector).trim() : '';
+      return (raw && raw !== '..' && raw !== '-' && raw !== 'N/A') ? raw : 'Lainnya';
+    }))).sort();
     secSel.innerHTML='<option value="">Semua Sektor</option>'+secList.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
     if(secList.indexOf(curSecVal)>-1) secSel.value=curSecVal;
   }

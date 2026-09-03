@@ -567,11 +567,11 @@ function renderCryptoRadarBanner(porto) {
 
   var totalAlerts = breakouts.length + whaleInflows.length + oversolds.length;
 
-  var html = '<div style="background:#131B2E;border:1px solid #232F4D;border-radius:12px;padding:14px 18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.25)">'
+  var html = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.15)">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
     + '<div style="display:flex;align-items:center;gap:8px">'
     + '<span class="crypto-pulse-dot" style="background:#f7931a"></span>'
-    + '<span style="font-size:12px;font-weight:800;color:#f8fafc;letter-spacing:0.3px;font-family:\'Plus Jakarta Sans\',sans-serif">⚡ RADAR SINYAL TEKNIKAL &amp; WHALE FLOW CRYPTO</span>'
+    + '<span style="font-size:12px;font-weight:800;color:var(--text);letter-spacing:0.3px;font-family:\'Plus Jakarta Sans\',sans-serif">⚡ RADAR SINYAL TEKNIKAL &amp; WHALE FLOW CRYPTO</span>'
     + (totalAlerts > 0 ? '<span class="badge b-up" style="font-size:9.5px;padding:2px 7px;font-weight:800">'+totalAlerts+' Peluang Terdeteksi</span>' : '<span class="badge b-gray" style="font-size:9.5px;padding:2px 7px">Market Stabil</span>')
     + '</div>'
     + '<button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px" onclick="goPage(\'crypto-technical\')"><i class="ti ti-chart-candle"></i> Buka Terminal Analisa Lengkap →</button>'
@@ -2504,12 +2504,19 @@ function renderPortfolioHub(){
   var totPnl = totVal - totCost;
   var totPct = totCost > 0 ? (totPnl / totCost) * 100 : 0;
   var totCash = (typeof calcRdnBalance === 'function' ? (calcRdnBalance('saham') + calcRdnBalance('crypto') + calcRdnBalance('reksadana')) : 0);
-  var totPositions = porto.length + cryptoPorto.length + etfPorto.length + rdPorto.length;
+  var nonSahamCount = cryptoPorto.length + etfPorto.length + rdPorto.length;
+  var totPositions = porto.length + nonSahamCount;
 
   if(el('hub-tot-val')) el('hub-tot-val').textContent = 'Rp ' + fmt(Math.round(totVal));
   if(el('hub-tot-cost')) el('hub-tot-cost').textContent = 'Rp ' + fmt(Math.round(totCost));
   if(el('hub-tot-cash')) el('hub-tot-cash').textContent = 'Rp ' + fmt(Math.round(totCash));
-  if(el('hub-tot-posisi')) el('hub-tot-posisi').textContent = totPositions + ' Aset Aktif';
+  if(el('hub-tot-posisi')) {
+    if(nonSahamCount === 0) {
+      el('hub-tot-posisi').textContent = porto.length + ' Saham Aktif';
+    } else {
+      el('hub-tot-posisi').textContent = totPositions + ' Aset (' + porto.length + ' Saham)';
+    }
+  }
   
   if(el('hub-tot-pnl')) {
     el('hub-tot-pnl').textContent = (totPnl >= 0 ? '+' : '') + 'Rp ' + fmt(Math.abs(Math.round(totPnl))) + ' (' + (totPct >= 0 ? '+' : '') + totPct.toFixed(2) + '%)';
@@ -2527,7 +2534,7 @@ function renderPortfolioHub(){
   // Update Donut
   var donut = el('hub-donut');
   if(el('hub-donut-center-val')) {
-    el('hub-donut-center-val').textContent = totPositions > 0 ? totPositions + ' Aset' : '4 Aset';
+    el('hub-donut-center-val').textContent = (nonSahamCount === 0 && porto.length > 0) ? porto.length + ' Saham' : (totPositions > 0 ? totPositions + ' Aset' : '4 Aset');
   }
   if(donut && totVal > 0) {
       var pSaham = (sahamMv / totVal) * 100;

@@ -295,9 +295,36 @@ function getIntelUniverse() {
  * Generate Analisa Cerdas 5-Pillar & Level Otomatis untuk Emiten Apapun
  */
 function generateDynamicIntelProfile(ticker) {
-  var meta = getIntelStockMeta(ticker);
-  var tk = meta.ticker;
+  var tk = (ticker || 'BBCA').toUpperCase().trim();
+
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
+    return {
+      isValidTicker: false,
+      name: 'Saham Tidak Terdaftar dalam Stock Universe IDX',
+      sector: 'Tidak Ditemukan',
+      price: 0,
+      chg: '0.00%',
+      score: 0,
+      status: 'UNIDENTIFIED / NO MARKET DATA',
+      statusClass: 'b-dn',
+      conviction: 0,
+      targetZone: 'Rp 0',
+      invalidation: 'Rp 0',
+      timeHorizon: 'N/A',
+      pillars: { fundamental: 0, technical: 0, flow: 0, valuation: 0, risk: 0 },
+      bullCase: 'Ticker ' + tk + ' tidak terdaftar dalam Stock Universe IDX. Silakan gunakan ticker emiten resmi terdaftar.',
+      bearCase: 'Tidak ada data transaksi pasar riil untuk ticker ini.',
+      catalysts: ['N/A'],
+      risks: ['Ticker tidak teridentifikasi'],
+      levels: { r2: 0, r1: 0, current: 0, s1: 0, s2: 0 },
+      flow: { cmf: '0.00', foreignFlow3D: 'Rp 0', volumeRatio: '0x', vwap: 'Rp 0' },
+      valuation: { fairValue: 'Rp 0', mos: '0%', pe: '0x', pbv: '0x', roe: '0%' }
+    };
+  }
+
+  var meta = getIntelStockMeta(tk);
   var px = meta.price;
+
 
   // Base score generation berdasarkan stabilitas harga & sektor
   var sector = meta.sector;

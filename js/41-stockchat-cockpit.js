@@ -85,8 +85,13 @@ var CLIENT_IDX_BROKERS = {
 
 // Comprehensive Real-Time Price & Valuation Resolver (Zero Dummy Data Policy)
 function getAccurateStockPrice(ticker) {
-  if (!ticker) return 1000;
+  if (!ticker) return 0;
   var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+
+  // Strict Market Integrity: if ticker is not in valid stock universe, return 0 immediately
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
+    return 0;
+  }
 
   // 1. Live price in global prices object
   if (typeof prices !== 'undefined' && prices[tk] && Number(prices[tk]) > 0) {
@@ -96,8 +101,10 @@ function getAccurateStockPrice(ticker) {
   // 2. Real OHLCV history cache in 13-realdata.js (Yahoo live cached daily close)
   if (typeof rdGetAny === 'function') {
     var rdRows = rdGetAny(tk);
-    if (rdRows && rdRows.length > 0 && rdRows[rdRows.length - 1].close > 0) {
-      return Number(rdRows[rdRows.length - 1].close);
+    if (rdRows && rdRows.length > 0 && rdRows[rdRows.length - 1]) {
+      var lastR = rdRows[rdRows.length - 1];
+      var pVal = Number(lastR.close !== undefined ? lastR.close : (lastR.c !== undefined ? lastR.c : 0));
+      if (pVal > 0) return pVal;
     }
   }
 
@@ -149,7 +156,7 @@ function getAccurateStockPrice(ticker) {
     return Number(_IDX_RAW_LIST[tk].base);
   }
 
-  return 1500;
+  return 0;
 }
 
 // High-Fidelity Client-Side Broker Summary & Bandarmology Engine
@@ -158,7 +165,39 @@ function generateClientSideBrokerSummary(ticker, timeframe) {
   var tk = (ticker || 'BBCA').toUpperCase().replace(/\.JK$/i, '').trim();
 
   var price = getAccurateStockPrice(tk);
+
+  // STRICT RULE: If ticker is NOT in valid stock universe, NO dummy data! Return zero/unidentified state.
+  if (price <= 0 || (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk))) {
+    return {
+      isValidTicker: false,
+      ticker: tk,
+      timeframe: tf,
+      reportDate: new Date().toISOString().slice(0, 10),
+      price: 0,
+      changePercent: 0,
+      totalVolumeLot: 0,
+      totalValueRp: 0,
+      bandarmology: {
+        verdict: 'TICKER UNKNOWN / NO DATA',
+        score: 0,
+        interpretation: 'Ticker "' + tk + '" tidak terdaftar dalam Stock Universe IDX. Seluruh metrik analisis bernilai 0.',
+        concentration: {
+          top1BuyerPct: 0, top1SellerPct: 0,
+          top3BuyerPct: 0, top3SellerPct: 0,
+          top5BuyerPct: 0, top5SellerPct: 0
+        },
+        foreignFlow: { buyValueRp: 0, sellValueRp: 0, netValueRp: 0, status: 'NO MARKET DATA' },
+        domesticFlow: { buyValueRp: 0, sellValueRp: 0, netValueRp: 0 },
+        smartMoney: { institutionalNetRp: 0, retailNetRp: 0, signal: 'NO MARKET DATA' }
+      },
+      topBuyers: [],
+      topSellers: [],
+      matrix: []
+    };
+  }
+
   var changePct = (typeof changes !== 'undefined' && changes[tk] !== undefined) ? Number(changes[tk]) : 0.85;
+
   var isUp = changePct >= 0;
 
   // Multi-Period Multiplier (1D = 1, 1W = 5, 1M = 22, 3M = 66, 6M = 132, 1Y = 250 days)
@@ -354,6 +393,32 @@ async function fetchBrokerSummaryData(ticker, timeframe) {
   var tk = (ticker || STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase().replace(/\.JK$/i, '').trim();
   var cacheKey = tk + '_' + tf;
 
+  // Strict Market Integrity: Block invalid ticker immediately
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
+    return {
+      isValidTicker: false,
+      ticker: tk,
+      timeframe: tf,
+      reportDate: new Date().toISOString().slice(0, 10),
+      price: 0,
+      changePercent: 0,
+      totalVolumeLot: 0,
+      totalValueRp: 0,
+      bandarmology: {
+        verdict: 'TICKER UNKNOWN / NO DATA',
+        score: 0,
+        interpretation: 'Ticker "' + tk + '" tidak terdaftar dalam Stock Universe IDX. Seluruh metrik analisis bernilai 0.',
+        concentration: { top1BuyerPct: 0, top1SellerPct: 0, top3BuyerPct: 0, top3SellerPct: 0, top5BuyerPct: 0, top5SellerPct: 0 },
+        foreignFlow: { buyValueRp: 0, sellValueRp: 0, netValueRp: 0, status: 'NO MARKET DATA' },
+        domesticFlow: { buyValueRp: 0, sellValueRp: 0, netValueRp: 0 },
+        smartMoney: { institutionalNetRp: 0, retailNetRp: 0, signal: 'NO MARKET DATA' }
+      },
+      topBuyers: [],
+      topSellers: [],
+      matrix: []
+    };
+  }
+
   if (STOCKCHAT_BROKER_DATA_CACHE[cacheKey]) {
     return STOCKCHAT_BROKER_DATA_CACHE[cacheKey];
   }
@@ -392,7 +457,7 @@ async function fetchBrokerSummaryData(ticker, timeframe) {
             if (!err && rows && rows.length > 0) {
               var last = rows[rows.length - 1];
               if (typeof prices === 'undefined') window.prices = {};
-              prices[tk] = last.close;
+              if (last) prices[tk] = last.close !== undefined ? last.close : (last.c !== undefined ? last.c : 0);
             }
             resolve();
           });
@@ -552,9 +617,23 @@ function askAiAboutBrokerAction(brokerCode, brokerName, side, ticker, volumeLot,
 
 // Render the dedicated Aggregated Broker Flow View for Active Ticker
 function renderAggregatedBrokerFlowView(data) {
-  if (!data) return '<div class="p-6 text-center text-xs text-slate-400">Data broker summary tidak tersedia.</div>';
+  if (!data || data.isValidTicker === false || !data.price || data.price <= 0) {
+    var unknownTk = (data && data.ticker) ? data.ticker : 'UNKNOWN';
+    return '<div class="p-6 rounded-2xl bg-rose-950/30 border border-rose-800/80 text-rose-200 space-y-3 my-4 shadow-xl">'
+      + '<div class="flex items-center gap-2.5 text-rose-400 font-black text-base md:text-lg">'
+      + '<i class="ti ti-alert-triangle text-2xl"></i> Ticker "' + unknownTk + '" Tidak Terdaftar dalam Stock Universe IDX'
+      + '</div>'
+      + '<p class="text-xs text-slate-300 leading-relaxed max-w-2xl">'
+      + 'Saham <strong>' + unknownTk + '</strong> tidak teridentifikasi pada database pasar saham Indonesia (IDX) atau tidak memiliki riwayat transaksi riil. Sesuai prinsip integritas data pasar, tidak ada data dummy yang ditampilkan (Seluruh metrik Turnover, Foreign Flow, Top Buyer/Seller, dan Matriks Historis bernilai 0).'
+      + '</p>'
+      + '<div class="pt-2 text-[11px] text-slate-400 font-mono">'
+      + '💡 Silakan gunakan ticker emiten IDX yang valid (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM, ADRO, GOTO).'
+      + '</div>'
+      + '</div>';
+  }
 
   var b = data.bandarmology || {};
+
   var conc = b.concentration || {};
   var ff = b.foreignFlow || {};
   var rm = b.retailVsSmartMoney || b.smartMoney || {};
@@ -640,10 +719,10 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div>'
     + '<div class="flex items-center gap-2 flex-wrap shrink-0">'
     // Multi-Period Timeframe Switcher (1D to 1Y)
-    + '<div class="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 shadow-inner">'
+    + '<div class="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 shadow-inner bandar-tf-bar">'
     + ['1D', '1W', '1M', '3M', '6M', '1Y'].map(function(tVal) {
         var isTfActive = (data.timeframe || '1D') === tVal;
-        return '<button onclick="setStockChatTimeframe(\'' + tVal + '\')" class="px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition ' + (isTfActive ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">' + (tVal === '1Y' ? '1Y (1 Tahun)' : tVal) + '</button>';
+        return '<button onclick="setStockChatTimeframe(\'' + tVal + '\')" class="bandar-tf-btn px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition ' + (isTfActive ? 'active bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">' + (tVal === '1Y' ? '1Y (1 Tahun)' : tVal) + '</button>';
       }).join('')
     + '</div>'
     + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + data.ticker + '\')" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-600/20 transition flex items-center gap-1.5">'
@@ -849,18 +928,18 @@ function renderAggregatedBrokerFlowView(data) {
 
     + '<div class="flex items-center gap-2.5 flex-wrap">'
     // Limit Toggle (Top 5 / Top 10)
-    + '<div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px]">'
+    + '<div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px] bandar-filter-bar">'
     + '<span class="text-slate-400 text-[10px] font-semibold px-1">Tampilkan:</span>'
-    + '<button onclick="setStockChatTableLimit(5)" class="px-2.5 py-1 rounded font-bold transition ' + (limit === 5 ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">Top 5</button>'
-    + '<button onclick="setStockChatTableLimit(10)" class="px-2.5 py-1 rounded font-bold transition ' + (limit === 10 ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">Top 10</button>'
+    + '<button onclick="setStockChatTableLimit(5)" class="bandar-limit-btn px-2.5 py-1 rounded font-bold transition ' + (limit === 5 ? 'active bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">Top 5</button>'
+    + '<button onclick="setStockChatTableLimit(10)" class="bandar-limit-btn px-2.5 py-1 rounded font-bold transition ' + (limit === 10 ? 'active bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">Top 10</button>'
     + '</div>'
 
     // Filter Toggle (All / Foreign / Domestic)
-    + '<div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px]">'
+    + '<div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px] bandar-filter-bar">'
     + '<span class="text-slate-400 text-[10px] font-semibold px-1">Tipe:</span>'
-    + '<button onclick="setStockChatBrokerFilter(\'ALL\')" class="px-2 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white') + '">Semua</button>'
-    + '<button onclick="setStockChatBrokerFilter(\'F\')" class="px-2 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'F' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white') + '">Asing (F)</button>'
-    + '<button onclick="setStockChatBrokerFilter(\'D\')" class="px-2 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'D' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white') + '">Domestik</button>'
+    + '<button onclick="setStockChatBrokerFilter(\'ALL\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'ALL' ? 'active bg-slate-700 text-white' : 'text-slate-400 hover:text-white') + '">Semua</button>'
+    + '<button onclick="setStockChatBrokerFilter(\'F\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'F' ? 'active bg-amber-600 text-white' : 'text-slate-400 hover:text-white') + '">Asing (F)</button>'
+    + '<button onclick="setStockChatBrokerFilter(\'D\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'D' ? 'active bg-indigo-600 text-white' : 'text-slate-400 hover:text-white') + '">Domestik</button>'
     + '</div>'
     + '</div>'
     + '</div>';
@@ -1074,7 +1153,17 @@ function askAiAboutCurrentBrokerFlow(ticker) {
 function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
   var price = Number(curPrice) || getAccurateStockPrice(tk);
   
+  if (!price || price <= 0 || (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk))) {
+    return '<div class="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3 my-3">'
+      + '<div class="flex items-center gap-2 text-rose-400 font-bold text-sm">'
+      + '<i class="ti ti-alert-circle text-lg"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX (Nilai 0)'
+      + '</div>'
+      + '<p class="text-xs text-slate-400">Tidak ada riwayat transaksi broker 250D untuk ticker yang tidak terdaftar dalam Stock Universe pasar saham Indonesia.</p>'
+      + '</div>';
+  }
+
   // Calculate 1-Year Historical VWAP from actual daily candles
+
   var vwap1Y = price;
   var high1Y = Math.round(price * 1.35);
   var low1Y = Math.round(price * 0.75);
@@ -1374,22 +1463,22 @@ function renderStockChatPage(containerId) {
     + '</div>'
     + '</div>'
     + '<div class="flex items-center gap-2 flex-wrap">'
-    + '<button onclick="clearStockChatHistory()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1.5">'
+    + '<button onclick="clearStockChatHistory()" class="stockchat-action-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1.5">'
     + '<span>🔄</span> Sesi Baru'
     + '</button>'
-    + '<button onclick="openStockIntelForTicker(STOCKCHAT_SELECTED_TICKER)" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-md transition flex items-center gap-1.5">'
+    + '<button onclick="openStockIntelForTicker(STOCKCHAT_SELECTED_TICKER)" class="stockchat-action-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-md transition flex items-center gap-1.5">'
     + '<span>🔍</span> Stock Intelligence'
     + '</button>'
     + '</div>'
     + '</div>';
 
   // Navigation Subheader Tabs (Tab 1: Chat AI vs Tab 2: Aggregated Broker Flow)
-  html += '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">'
+  html += '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 stockchat-subtabs-bar">'
     + '<div class="flex items-center gap-2">'
-    + '<button onclick="setStockChatActiveTab(\'chat\')" class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ' + (isChatTab ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60') + '">'
+    + '<button onclick="setStockChatActiveTab(\'chat\')" class="stockchat-tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ' + (isChatTab ? 'active bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60') + '">'
     + '<span>💬 StockChat AI Assistant</span>'
     + '</button>'
-    + '<button onclick="setStockChatActiveTab(\'broker-flow\')" class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ' + (isFlowTab ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60') + '">'
+    + '<button onclick="setStockChatActiveTab(\'broker-flow\')" class="stockchat-tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ' + (isFlowTab ? 'active bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60') + '">'
     + '<span>📊 Aggregated Broker Flow: <strong class="font-mono text-amber-300">' + STOCKCHAT_SELECTED_TICKER + '</strong></span>'
     + '<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">BANDAR</span>'
     + '</button>'
@@ -1397,44 +1486,44 @@ function renderStockChatPage(containerId) {
 
     // Timeframe & Ticker selector control
     + '<div class="flex items-center gap-2 self-end sm:self-auto">'
-    + '<span class="text-[11px] text-slate-400 font-semibold">Rentang:</span>'
-    + '<div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800">'
+    + '<span class="text-[11px] text-slate-400 font-semibold stockchat-label">Rentang:</span>'
+    + '<div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 stockchat-tf-bar">'
     + ['1D', '3D', '1W', '1M'].map(function(tf) {
       var isTfActive = STOCKCHAT_TIMEFRAME === tf;
-      return '<button onclick="setStockChatTimeframe(\'' + tf + '\')" class="px-2.5 py-1 text-[10px] font-bold rounded-md transition ' + (isTfActive ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">' + tf + '</button>';
+      return '<button onclick="setStockChatTimeframe(\'' + tf + '\')" class="stockchat-tf-btn px-2.5 py-1 text-[10px] font-bold rounded-md transition ' + (isTfActive ? 'active bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">' + tf + '</button>';
     }).join('')
     + '</div>'
     + '</div>'
     + '</div>';
 
   // Ticker Quick Selector Bar
-  html += '<div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap">'
+  html += '<div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap bandar-ticker-bar">'
     + '<div class="flex items-center gap-2">'
-    + '<span class="text-[11px] font-semibold text-slate-400">⚡ Active Ticker:</span>'
+    + '<span class="text-[11px] font-semibold text-slate-400 bandar-label">⚡ Active Ticker:</span>'
     + '<div class="flex items-center gap-1">'
     + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(tk) {
       var isAct = tk === STOCKCHAT_SELECTED_TICKER;
-      return '<button onclick="selectStockChatTicker(\'' + tk + '\')" class="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ' + (isAct ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50') + '">' + tk + '</button>';
+      return '<button onclick="selectStockChatTicker(\'' + tk + '\')" class="bandar-ticker-btn px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ' + (isAct ? 'active bg-blue-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50') + '">' + tk + '</button>';
     }).join('')
     + '</div>'
     + '</div>'
     + '<div class="flex items-center gap-1.5">'
-    + '<input id="stockchat-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="w-16 px-2 py-1 text-center uppercase font-mono text-xs rounded bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-blue-500" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);this.value=\'\';}">'
-    + '<button onclick="var el=document.getElementById(\'stockchat-custom-ticker\');if(el&&el.value)selectStockChatTicker(el.value)" class="px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Set</button>'
+    + '<input id="stockchat-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="bandar-input w-16 px-2 py-1 text-center uppercase font-mono text-xs rounded bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-blue-500" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);this.value=\'\';}">'
+    + '<button onclick="var el=document.getElementById(\'stockchat-custom-ticker\');if(el&&el.value)selectStockChatTicker(el.value)" class="bandar-btn bandar-btn-set px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Set</button>'
     + '</div>'
     + '</div>';
 
   // TAB 1: Chat Assistant View
   if (isChatTab) {
     // Quick Action Matrix Chips
-    html += '<div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800/80 space-y-2.5">'
-      + '<div class="text-xs text-slate-400 font-semibold px-1">⚡ Quick Action Prompts untuk ' + STOCKCHAT_SELECTED_TICKER + ':</div>'
+    html += '<div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800/80 space-y-2.5 stockchat-presets-box">'
+      + '<div class="text-xs text-slate-400 font-semibold px-1 stockchat-label">⚡ Quick Action Prompts untuk ' + STOCKCHAT_SELECTED_TICKER + ':</div>'
       + '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">';
 
     STOCKCHAT_PROMPT_PRESETS.forEach(function(item, idx) {
-      html += '<button onclick="sendStockChatPreset(' + idx + ')" class="p-2.5 text-left rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition group hover:border-blue-500/50">'
-        + '<div class="font-bold text-[11px] text-slate-200 group-hover:text-blue-400 truncate">' + item.title + '</div>'
-        + '<div class="text-[10px] text-slate-400 truncate mt-0.5">' + item.prompt.slice(0, 38) + '...</div>'
+      html += '<button onclick="sendStockChatPreset(' + idx + ')" class="stockchat-preset-btn p-2.5 text-left rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition group hover:border-blue-500/50">'
+        + '<div class="font-bold text-[11px] text-slate-200 group-hover:text-blue-400 truncate preset-title">' + item.title + '</div>'
+        + '<div class="text-[10px] text-slate-400 truncate mt-0.5 preset-desc">' + item.prompt.slice(0, 38) + '...</div>'
         + '</button>';
     });
 
@@ -1631,13 +1720,59 @@ function generateClientSideAiAgentResponse(message, userContext) {
     return (typeof DB !== 'undefined' && DB[w]) ||
            (typeof _IDX_RAW_LIST !== 'undefined' && _IDX_RAW_LIST[w]) ||
            ((userContext && userContext.holdings) || []).some(function(h) { return h.ticker === w; });
-  }) || (userContext && userContext.selectedTicker) || STOCKCHAT_SELECTED_TICKER || 'BBCA';
+  });
+
+  if (!matchedTicker) {
+    var possibleCode = words.find(function(w) {
+      return w.length >= 3 && w.length <= 6 && !['DATA','STOCK','BROKER','FLOW','BUY','SELL','HELP','ASING','RITEL','PORTO','VALUASI','DIVIDEN'].includes(w);
+    });
+    if (possibleCode) matchedTicker = possibleCode;
+    else matchedTicker = (userContext && userContext.selectedTicker) || STOCKCHAT_SELECTED_TICKER || 'BBCA';
+  }
 
   matchedTicker = matchedTicker.toUpperCase();
+
+  // STRICT ZERO DUMMY DATA CHECK FOR UNKNOWN TICKERS
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(matchedTicker)) {
+    return {
+      reply: '### ⚠️ Ticker Tidak Terdaftar dalam Stock Universe IDX\n\n'
+        + 'Kode ticker **' + matchedTicker + '** tidak teridentifikasi pada database pasar saham Indonesia (IDX) atau tidak memiliki riwayat transaksi riil.\n\n'
+        + 'Sesuai prinsip integritas data pasar:\n'
+        + '- Seluruh nilai kalkulasi (Turnover, Foreign Flow, Top Buyers/Sellers, Bandarmology, dan Valuasi) bernilai **0**.\n'
+        + '- Tidak ada data dummy / fiktif yang digenerate untuk ticker yang tidak terdaftar.\n\n'
+        + '**Saran**: Harap periksa kembali penulisan kode ticker Anda (Contoh ticker valid: `BBCA`, `BBRI`, `BMRI`, `ANTM`, `TLKM`, `ADRO`, `GOTO`, `BREN`, `AMMN`).',
+      toolCalls: []
+    };
+  }
+
   var executedTools = [];
+
   var reply = '';
 
-  if (pLower.includes('broker') || pLower.includes('flow') || pLower.includes('bandar') || pLower.includes('smart money') || pLower.includes('foreign') || pLower.includes('asing') || pLower.includes('akumulasi') || pLower.includes('distribusi')) {
+  if (pLower.includes('strategi') || pLower.includes('playbook') || pLower.includes('metode') || pLower.includes('resep') || pLower.includes('cara trading') || pLower.includes('aturan trading')) {
+    reply = '### 📈 Playbook Strategi Trading & Investasi (MoneyWatch Pro AI)\n\n'
+      + 'Berikut adalah **5 Strategi Utama Kelas Institusi** yang tertanam dalam Knowledge Base StockChat AI:\n\n'
+      + '1. **Smart Money & Bandarmology Momentum (Swing Trading)**\n'
+      + '   - *Prinsip*: Membeli saham dengan status **Big Accumulation** (Top 3 Broker > 60%) & Net Foreign Buy konsisten.\n'
+      + '   - *Entry*: Di area VWAP / Average Buy Price Top Broker.\n'
+      + '   - *Risk/Reward*: Minimal 1 : 2 | Stop loss -3% s/d -5% di bawah VWAP Bandar.\n\n'
+      + '2. **Value Investing & Margin of Safety (Benjamin Graham + DCF)**\n'
+      + '   - *Prinsip*: Membeli saham undervalued dengan **Margin of Safety (MoS) > 15-20%**.\n'
+      + '   - *Kriteria*: ROE > 12%, DER < 1.0x, PE di bawah rata-rata historis 5 tahun.\n'
+      + '   - *Horizon*: 6 - 24 bulan hingga harga mencapai Nilai Wajar (Fair Value).\n\n'
+      + '3. **Techno-Bandarmology Breakout (Momentum)**\n'
+      + '   - *Prinsip*: Penembusan resistensi teknikal yang dikonfirmasi oleh **Volume Spike (>2x)** DAN **Akumulasi Bandar**.\n'
+      + '   - *Proteksi*: Hindari *False Breakout* jika kenaikan hanya digerakkan oleh broker ritel.\n\n'
+      + '4. **Dividend Compounder & Bebas Pajak (PMK 18/2021)**\n'
+      + '   - *Prinsip*: Fokus emiten *Cash Cow* bertanda Dividend Yield > 5-8%.\n'
+      + '   - *Fasilitas Pajak*: Reinvestasi dividen selama 3 tahun menjadikan **PPh Dividen 0% (Bebas Pajak 10%)**.\n\n'
+      + '5. **Institutional Risk Control & Portfolio Sizing**\n'
+      + '   - *Sizing*: Maksimal 10-15% Total AUM per Big Cap, maks 5% per Mid/Small Cap.\n'
+      + '   - *Kas RDN*: Jaga cadangan Kas RDN minimal **15-20%** untuk mengambil peluang *Buy on Weakness*.\n\n'
+      + '💡 *Panduan Lengkap*: Anda dapat membuka menu **Knowledge & Master Guide** untuk simulasi skor konfluensi dan mempelajari alur kerja lengkap.\n\n'
+      + '*Disclaimer: Keputusan investasi berada di tangan Anda.*';
+  }
+  else if (pLower.includes('broker') || pLower.includes('flow') || pLower.includes('bandar') || pLower.includes('smart money') || pLower.includes('foreign') || pLower.includes('asing') || pLower.includes('akumulasi') || pLower.includes('distribusi')) {
     var bData = generateClientSideBrokerSummary(matchedTicker, STOCKCHAT_TIMEFRAME || '1D');
     executedTools.push({
       name: 'cek_broker_summary',
@@ -1884,7 +2019,7 @@ var BANDARMOLOGY_BROKER_LIST = [
 ];
 
 window.goBandarmology = function(subTabOrMode, btn) {
-  if (subTabOrMode === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail'].includes(subTabOrMode)) {
+  if (subTabOrMode === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail', 'smart-money-radar'].includes(subTabOrMode)) {
     BANDARMOLOGY_MASTER_MODE = 'market';
   } else {
     BANDARMOLOGY_MASTER_MODE = 'stock';
@@ -1893,6 +2028,11 @@ window.goBandarmology = function(subTabOrMode, btn) {
     goPage('bandarmology', btn);
   }
   renderBandarmologyCockpitPage();
+  if (['broker-flow', 'smart-money-flow', 'foreign-flow', 'smart-money-radar'].includes(subTabOrMode)) {
+    setTimeout(function() {
+      setBandarmologyTab(subTabOrMode);
+    }, 80);
+  }
 };
 
 window.setBandarmologyMode = function(mode) {
@@ -1901,12 +2041,28 @@ window.setBandarmologyMode = function(mode) {
 };
 
 window.setBandarmologyTab = function(subTab) {
-  if (subTab === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail'].includes(subTab)) {
+  if (subTab === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail', 'smart-money-radar'].includes(subTab)) {
     BANDARMOLOGY_MASTER_MODE = 'market';
   } else {
     BANDARMOLOGY_MASTER_MODE = 'stock';
   }
   renderBandarmologyCockpitPage();
+  if (subTab === 'broker-flow') {
+    setTimeout(function() {
+      var el = document.getElementById('stockchat-flow-tab-content');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+  } else if (subTab === 'smart-money-flow') {
+    setTimeout(function() {
+      var el = document.getElementById('bandarSmartMoneyChart') || document.getElementById('bandar-tab-content');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+  } else if (subTab === 'foreign-flow') {
+    setTimeout(function() {
+      var el = document.getElementById('bandarForeignFlowChart');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+  }
 };
 
 window.setBandarmologyBroker = function(brokerCode) {
@@ -1935,21 +2091,21 @@ function renderBandarmologyCockpitPage(containerId) {
     + '</div>'
     + '</div>'
     + '<div class="flex items-center gap-2 flex-wrap">'
-    + '<button onclick="openStockChat(\'' + tk + '\', \'Analisa menyeluruh bandarmology, broker summary, smart money CMF dan foreign flow saham ' + tk + '\')" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-600/20 transition flex items-center gap-1.5">'
+    + '<button onclick="openStockChat(\'' + tk + '\', \'Analisa menyeluruh bandarmology, broker summary, smart money CMF dan foreign flow saham ' + tk + '\')" class="bandar-btn bandar-btn-primary px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-600/20 transition flex items-center gap-1.5">'
     + '<i class="ti ti-messages"></i> <span>Tanya StockChat AI</span>'
     + '</button>'
-    + '<button onclick="goPage(\'stock-intel\')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition flex items-center gap-1.5">'
+    + '<button onclick="goPage(\'stock-intel\')" class="bandar-btn bandar-btn-secondary px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition flex items-center gap-1.5">'
     + '<i class="ti ti-radar"></i> <span>Stock Intelligence</span>'
     + '</button>'
     + '</div>'
     + '</div>';
 
   // Master 2-Mode Power Toolbar (Single unified switch, eliminates repetitive sub-bars)
-  html += '<div class="flex items-center justify-center gap-2 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl max-w-xl mx-auto">'
-    + '<button onclick="setBandarmologyMode(\'stock\')" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 ' + (isStockMode ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-700/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">'
+  html += '<div class="flex items-center justify-center gap-2 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl max-w-xl mx-auto bandar-master-toolbar">'
+    + '<button onclick="setBandarmologyMode(\'stock\')" class="bandar-mode-btn flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 ' + (isStockMode ? 'active bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-700/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">'
     + '<i class="ti ti-chart-candle text-base"></i> <span>🏢 ANALISIS FULL EMITEN</span>'
     + '</button>'
-    + '<button onclick="setBandarmologyMode(\'market\')" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 ' + (!isStockMode ? 'bg-gradient-to-r from-sky-600 to-cyan-600 text-white shadow-lg shadow-sky-700/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">'
+    + '<button onclick="setBandarmologyMode(\'market\')" class="bandar-mode-btn flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 ' + (!isStockMode ? 'active bg-gradient-to-r from-sky-600 to-cyan-600 text-white shadow-lg shadow-sky-700/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">'
     + '<i class="ti ti-world-download text-base"></i> <span>🌐 ANALISIS FULL MARKET</span>'
     + '</button>'
     + '</div>';
@@ -1957,19 +2113,19 @@ function renderBandarmologyCockpitPage(containerId) {
   // Content rendering based on Master Mode
   if (isStockMode) {
     // Mode 1: Full Emiten Suite
-    html += '<div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap">'
+    html += '<div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap bandar-ticker-bar">'
       + '<div class="flex items-center gap-2">'
-      + '<span class="text-[11px] font-semibold text-slate-400">⚡ Fokus Emiten:</span>'
+      + '<span class="text-[11px] font-semibold text-slate-400 bandar-label">⚡ Fokus Emiten:</span>'
       + '<div class="flex items-center gap-1">'
       + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(itemTk) {
         var isAct = itemTk === tk;
-        return '<button onclick="selectStockChatTicker(\'' + itemTk + '\');renderBandarmologyCockpitPage();" class="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ' + (isAct ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50') + '">' + itemTk + '</button>';
+        return '<button onclick="selectStockChatTicker(\'' + itemTk + '\');renderBandarmologyCockpitPage();" class="bandar-ticker-btn px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ' + (isAct ? 'active bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50') + '">' + itemTk + '</button>';
       }).join('')
       + '</div>'
       + '</div>'
       + '<div class="flex items-center gap-1.5">'
-      + '<input id="bandar-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="w-16 px-2 py-1 text-center uppercase font-mono text-xs rounded bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);renderBandarmologyCockpitPage();this.value=\'\';}">'
-      + '<button onclick="var el=document.getElementById(\'bandar-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);renderBandarmologyCockpitPage();}" class="px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Set</button>'
+      + '<input id="bandar-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="bandar-input w-16 px-2 py-1 text-center uppercase font-mono text-xs rounded bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);renderBandarmologyCockpitPage();this.value=\'\';}">'
+      + '<button onclick="var el=document.getElementById(\'bandar-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);renderBandarmologyCockpitPage();}" class="bandar-btn bandar-btn-set px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Set</button>'
       + '</div>'
       + '</div>';
 
@@ -2003,38 +2159,85 @@ function renderBandarmologyCockpitPage(containerId) {
 
 // 1. Market Flow View
 function renderBandarmologyMarketFlowView(tk) {
-  var bigBanks = [
-    { ticker: 'BBCA', name: 'Bank Central Asia', flow: '+Rp 284.5 M', status: 'BIG ACCUMULATION', color: 'text-emerald-400', bg: 'bg-emerald-950/40', border: 'border-emerald-800/40', topBuyer: 'AK, ZP, BK' },
-    { ticker: 'BBRI', name: 'Bank Rakyat Indonesia', flow: '+Rp 195.2 M', status: 'ACCUMULATION', color: 'text-emerald-400', bg: 'bg-emerald-950/40', border: 'border-emerald-800/40', topBuyer: 'YU, CC, AK' },
-    { ticker: 'BMRI', name: 'Bank Mandiri', flow: '+Rp 142.8 M', status: 'NORMAL ACC', color: 'text-emerald-400', bg: 'bg-emerald-950/40', border: 'border-emerald-800/40', topBuyer: 'RX, YU, ZP' },
-    { ticker: 'BBNI', name: 'Bank Negara Indonesia', flow: '-Rp 38.6 M', status: 'DISTRIBUTION', color: 'text-rose-400', bg: 'bg-rose-950/40', border: 'border-rose-800/40', topBuyer: 'YP, PD (Retail)' }
+  var bigBanksTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI'];
+  var bigBanksName = { 'BBCA': 'Bank Central Asia', 'BBRI': 'Bank Rakyat Indonesia', 'BMRI': 'Bank Mandiri', 'BBNI': 'Bank Negara Indonesia' };
+  var totalBigBanksNetVal = 0;
+
+  var bigBanks = bigBanksTickers.map(function(t) {
+    var bData = generateClientSideBrokerSummary(t, '1D');
+    var netVal = (bData.bandarmology && bData.bandarmology.foreignFlow && bData.bandarmology.foreignFlow.netValueRp !== undefined)
+      ? bData.bandarmology.foreignFlow.netValueRp
+      : ((bData.bandarmology && bData.bandarmology.smartMoney) ? bData.bandarmology.smartMoney.institutionalNetRp : 0);
+    totalBigBanksNetVal += netVal;
+    var netM = Math.round(netVal / 1000000000);
+    var flowStr = (netM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netM).toLocaleString('id-ID') + ' M';
+    var isAcc = netM >= 0;
+    var status = (bData.bandarmology && bData.bandarmology.verdict) ? bData.bandarmology.verdict : (isAcc ? 'ACCUMULATION' : 'DISTRIBUTION');
+    var topB = (bData.topBuyers || []).slice(0, 3).map(function(x){ return x.broker; }).join(', ') || 'N/A';
+    return {
+      ticker: t,
+      name: bigBanksName[t] || t,
+      flow: flowStr,
+      status: status,
+      color: isAcc ? 'text-emerald-400' : 'text-rose-400',
+      bg: isAcc ? 'bg-emerald-950/40' : 'bg-rose-950/40',
+      border: isAcc ? 'border-emerald-800/40' : 'border-rose-800/40',
+      topBuyer: topB
+    };
+  });
+
+  var sectorDefinitions = [
+    { name: 'Financials (Perbankan & Keuangan)', tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BBTN'] },
+    { name: 'Basic Materials (Tambang & Mineral)', tickers: ['ANTM', 'AMMN', 'MDKA', 'INCO', 'BRMS', 'MBMA', 'INKP', 'TKIM'] },
+    { name: 'Energy (Minyak, Gas & Batubara)', tickers: ['ADRO', 'PTRO', 'MEDC', 'PGAS', 'PTBA', 'BUMI', 'DEWA', 'AADI'] },
+    { name: 'Infrastructure (Telko & Infrastruktur)', tickers: ['TLKM', 'BREN', 'TPIA', 'PGEO', 'JSMR', 'EXCL', 'WIFI'] },
+    { name: 'Consumer & Retail (Sektor Konsumer)', tickers: ['UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'CPIN', 'MYOR', 'ACES'] }
   ];
 
-  var sectors = [
-    { name: 'Financials (Perbankan)', flowVal: '+Rp 583.9 M', pct: 82, isAcc: true },
-    { name: 'Basic Materials (Tambang)', flowVal: '+Rp 192.4 M', pct: 64, isAcc: true },
-    { name: 'Energy (Minyak & Batubara)', flowVal: '+Rp 88.7 M', pct: 55, isAcc: true },
-    { name: 'Infrastructure (Telko & Toll)', flowVal: '-Rp 64.2 M', pct: 42, isAcc: false },
-    { name: 'Consumer Non-Cyclical', flowVal: '-Rp 115.0 M', pct: 35, isAcc: false }
-  ];
+  var totalMarketFlow = 0;
+  var sectors = sectorDefinitions.map(function(sec) {
+    var secNetVal = 0;
+    sec.tickers.forEach(function(t) {
+      var bd = generateClientSideBrokerSummary(t, '1D');
+      if (bd && bd.isValidTicker !== false) {
+        var v = (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
+        secNetVal += v;
+      }
+    });
+    totalMarketFlow += secNetVal;
+    var secM = Math.round(secNetVal / 1000000000);
+    var isAcc = secM >= 0;
+    var pct = Math.min(Math.max(Math.abs(secM), 15), 95);
+    return {
+      name: sec.name,
+      flowVal: (secM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(secM).toLocaleString('id-ID') + ' M',
+      pct: pct,
+      isAcc: isAcc
+    };
+  });
+
+  var totMarketM = Math.round(totalMarketFlow / 1000000000);
+  var totBigBanksM = Math.round(totalBigBanksNetVal / 1000000000);
 
   var html = '<div class="space-y-4">'
     // Top Summary Metric Cards
     + '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">'
     + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
     + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">IHSG Bandar Pulse</div>'
-    + '<div class="text-xl font-black text-emerald-400 mt-1 flex items-center gap-1.5"><i class="ti ti-trending-up"></i> NET ACCUMULATION</div>'
-    + '<div class="text-[11px] text-slate-400 mt-0.5">+Rp 786.4 Miliar Net Bandar Inflow</div>'
+    + '<div class="text-xl font-black ' + (totMarketM >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' mt-1 flex items-center gap-1.5">'
+    + '<i class="ti ti-' + (totMarketM >= 0 ? 'trending-up' : 'trending-down') + '"></i> ' + (totMarketM >= 0 ? 'NET ACCUMULATION' : 'NET DISTRIBUTION')
+    + '</div>'
+    + '<div class="text-[11px] text-slate-400 mt-0.5">' + (totMarketM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totMarketM).toLocaleString('id-ID') + ' Miliar Net Bandar Flow</div>'
     + '</div>'
     + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
     + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Foreign Participation</div>'
     + '<div class="text-xl font-black text-sky-400 mt-1">42.8% <span class="text-xs font-normal text-slate-400">of Volume</span></div>'
-    + '<div class="text-[11px] text-slate-400 mt-0.5">Institusi Asing Sangat Aktif</div>'
+    + '<div class="text-[11px] text-slate-400 mt-0.5">Institusi Asing Aktif</div>'
     + '</div>'
     + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
     + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Big 4 Banks Inflow</div>'
-    + '<div class="text-xl font-black text-emerald-400 mt-1">+Rp 583.9 M</div>'
-    + '<div class="text-[11px] text-slate-400 mt-0.5">74.2% Konsentrasi di Big Banks</div>'
+    + '<div class="text-xl font-black ' + (totBigBanksM >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' mt-1">' + (totBigBanksM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totBigBanksM).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="text-[11px] text-slate-400 mt-0.5">Konsentrasi di Big Banks</div>'
     + '</div>'
     + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
     + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Smart Money Dominancy</div>'
@@ -2092,20 +2295,28 @@ function renderBandarmologyMarketFlowView(tk) {
 
 // 3. Foreign Flow View
 function renderBandarmologyForeignFlowView(tk) {
-  var topForeignBuys = [
-    { ticker: 'BBCA', netRp: '+Rp 245.8 M', sharesPct: '68%', price: 'Rp 10.250', chg: '+1.48%' },
-    { ticker: 'BMRI', netRp: '+Rp 162.3 M', sharesPct: '61%', price: 'Rp 6.850', chg: '+2.24%' },
-    { ticker: 'BBRI', netRp: '+Rp 138.9 M', sharesPct: '54%', price: 'Rp 5.125', chg: '+0.98%' },
-    { ticker: 'ANTM', netRp: '+Rp 78.4 M', sharesPct: '48%', price: 'Rp 1.620', chg: '+3.18%' },
-    { ticker: 'ASII', netRp: '+Rp 45.2 M', sharesPct: '42%', price: 'Rp 5.050', chg: '+0.50%' }
-  ];
+  var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
 
-  var topForeignSells = [
-    { ticker: 'TLKM', netRp: '-Rp 82.5 M', sharesPct: '52%', price: 'Rp 3.120', chg: '-1.27%' },
-    { ticker: 'GOTO', netRp: '-Rp 48.0 M', sharesPct: '39%', price: 'Rp 54', chg: '-1.82%' },
-    { ticker: 'UNVR', netRp: '-Rp 34.6 M', sharesPct: '45%', price: 'Rp 2.450', chg: '-0.81%' },
-    { ticker: 'BBNI', netRp: '-Rp 28.3 M', sharesPct: '40%', price: 'Rp 5.350', chg: '-0.46%' }
-  ];
+  var items = [];
+  sampleTickers.forEach(function(t) {
+    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
+    var bData = generateClientSideBrokerSummary(t, '1D');
+    if (!bData || bData.isValidTicker === false || !bData.price) return;
+    var ff = (bData.bandarmology && bData.bandarmology.foreignFlow) || {};
+    var netVal = ff.netValueRp !== undefined ? ff.netValueRp : (ff.netValRp !== undefined ? ff.netValRp : 0);
+    var netM = Math.round(netVal / 1000000000);
+    items.push({
+      ticker: t,
+      netVal: netVal,
+      netRp: (netM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netM).toLocaleString('id-ID') + ' M',
+      sharesPct: (ff.participationPct || 50) + '%',
+      price: 'Rp ' + Number(bData.price || 0).toLocaleString('id-ID'),
+      chg: ((bData.changePercent || 0) >= 0 ? '+' : '') + Number(bData.changePercent || 0).toFixed(2) + '%'
+    });
+  });
+
+  var topForeignBuys = items.slice().sort(function(a, b) { return b.netVal - a.netVal; }).slice(0, 5);
+  var topForeignSells = items.slice().sort(function(a, b) { return a.netVal - b.netVal; }).slice(0, 5);
 
   var html = '<div class="space-y-4">'
     + '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">'
@@ -2165,13 +2376,36 @@ function renderBandarmologyForeignFlowView(tk) {
 
 // 4. Accumulation View
 function renderBandarmologyAccumulationView() {
-  var accList = [
-    { ticker: 'BBCA', name: 'Bank Central Asia', status: 'BIG ACCUMULATION', concTop3: '74.2%', topBrokers: 'AK, ZP, BK', avgBuyPrice: 'Rp 10.220', lastPrice: 'Rp 10.250', spreadPct: '+0.29%', signal: 'STRONG BUY' },
-    { ticker: 'ANTM', name: 'Aneka Tambang', status: 'BIG ACCUMULATION', concTop3: '68.5%', topBrokers: 'YU, CC, RX', avgBuyPrice: 'Rp 1.590', lastPrice: 'Rp 1.620', spreadPct: '+1.89%', signal: 'BREAKOUT ACC' },
-    { ticker: 'BMRI', name: 'Bank Mandiri', status: 'ACCUMULATION', concTop3: '62.8%', topBrokers: 'RX, YU, ZP', avgBuyPrice: 'Rp 6.810', lastPrice: 'Rp 6.850', spreadPct: '+0.59%', signal: 'ACCUMULATE' },
-    { ticker: 'ADRO', name: 'Adaro Energy', status: 'ACCUMULATION', concTop3: '59.4%', topBrokers: 'BK, AK, NI', avgBuyPrice: 'Rp 3.680', lastPrice: 'Rp 3.720', spreadPct: '+1.08%', signal: 'ACCUMULATE' },
-    { ticker: 'PTRO', name: 'Petrosea', status: 'NORMAL ACC', concTop3: '54.1%', topBrokers: 'CC, YU, SQ', avgBuyPrice: 'Rp 18.200', lastPrice: 'Rp 18.450', spreadPct: '+1.37%', signal: 'WATCHLIST' }
-  ];
+  var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
+
+  var accList = [];
+  sampleTickers.forEach(function(t) {
+    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
+    var bData = generateClientSideBrokerSummary(t, '1D');
+    if (!bData || bData.isValidTicker === false || !bData.price) return;
+    var b = bData.bandarmology || {};
+    var conc = b.concentration || {};
+    var t3 = conc.top3BuyerPct || conc.top3BuyPct || 60;
+    var topBrokers = (bData.topBuyers || []).slice(0, 3).map(function(x){ return x.broker; }).join(', ') || 'AK, ZP, BK';
+    var topBuyerAvg = (bData.topBuyers && bData.topBuyers[0]) ? bData.topBuyers[0].avgPrice : bData.price;
+    var emitenName = (typeof DB !== 'undefined' && DB[t] && DB[t].name) ? DB[t].name : t;
+
+    if ((b.verdict && b.verdict.includes('ACCUM')) || (b.smartMoney && b.smartMoney.institutionalNetRp > 0)) {
+      accList.push({
+        ticker: t,
+        name: emitenName,
+        status: b.verdict || 'ACCUMULATION',
+        concTop3: t3 + '%',
+        topBrokers: topBrokers,
+        avgBuyPrice: 'Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID'),
+        lastPrice: 'Rp ' + Number(bData.price || 0).toLocaleString('id-ID'),
+        t3Val: t3
+      });
+    }
+  });
+
+  accList.sort(function(a, b) { return b.t3Val - a.t3Val; });
+  accList = accList.slice(0, 5);
 
   var html = '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
     + '<div class="flex items-center justify-between">'
@@ -2215,12 +2449,37 @@ function renderBandarmologyAccumulationView() {
 
 // 5. Distribution View
 function renderBandarmologyDistributionView() {
-  var distList = [
-    { ticker: 'TLKM', name: 'Telkom Indonesia', status: 'BIG DISTRIBUTION', concTop3: '71.5%', topSellers: 'AK, ZP, RX', avgSellPrice: 'Rp 3.140', lastPrice: 'Rp 3.120', warning: 'Heavy Institutional Outflow' },
-    { ticker: 'GOTO', name: 'GoTo Gojek Tokopedia', status: 'DISTRIBUTION', concTop3: '65.2%', topSellers: 'BK, YU, ZP', avgSellPrice: 'Rp 56', lastPrice: 'Rp 54', warning: 'Foreign Dumps into Retail' },
-    { ticker: 'UNVR', name: 'Unilever Indonesia', status: 'DISTRIBUTION', concTop3: '61.8%', topSellers: 'AK, CC, CS', avgSellPrice: 'Rp 2.480', lastPrice: 'Rp 2.450', warning: 'Sustained Selling Pressure' },
-    { ticker: 'KLBF', name: 'Kalbe Farma', status: 'NORMAL DIST', concTop3: '55.0%', topSellers: 'RX, BK, ZP', avgSellPrice: 'Rp 1.480', lastPrice: 'Rp 1.465', warning: 'Profit Taking' }
-  ];
+  var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
+
+  var distList = [];
+  sampleTickers.forEach(function(t) {
+    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
+    var bData = generateClientSideBrokerSummary(t, '1D');
+    if (!bData || bData.isValidTicker === false || !bData.price) return;
+    var b = bData.bandarmology || {};
+    var conc = b.concentration || {};
+    var t3 = conc.top3SellerPct || conc.top3SellPct || 60;
+    var topSellers = (bData.topSellers || []).slice(0, 3).map(function(x){ return x.broker; }).join(', ') || 'YP, PD, XC';
+    var topSellerAvg = (bData.topSellers && bData.topSellers[0]) ? bData.topSellers[0].avgPrice : bData.price;
+    var emitenName = (typeof DB !== 'undefined' && DB[t] && DB[t].name) ? DB[t].name : t;
+
+    if ((b.verdict && b.verdict.includes('DISTRIB')) || (b.smartMoney && b.smartMoney.institutionalNetRp < 0)) {
+      distList.push({
+        ticker: t,
+        name: emitenName,
+        status: b.verdict || 'DISTRIBUTION',
+        concTop3: t3 + '%',
+        topSellers: topSellers,
+        avgSellPrice: 'Rp ' + Number(topSellerAvg || 0).toLocaleString('id-ID'),
+        lastPrice: 'Rp ' + Number(bData.price || 0).toLocaleString('id-ID'),
+        warning: 'Heavy Institutional Outflow',
+        t3Val: t3
+      });
+    }
+  });
+
+  distList.sort(function(a, b) { return b.t3Val - a.t3Val; });
+  distList = distList.slice(0, 5);
 
   var html = '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
     + '<div class="flex items-center justify-between">'
@@ -2255,7 +2514,7 @@ function renderBandarmologyDistributionView() {
       + '<td class="p-2.5 text-white font-bold">' + item.lastPrice + '</td>'
       + '<td class="p-2.5 text-[10px] text-amber-300 font-sans">' + item.warning + '</td>'
       + '<td class="p-2.5">'
-      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold font-sans border border-slate-700 transition">Detail Broker</button>'
+      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="bandar-action-btn px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold font-sans border border-slate-700 transition">Detail Broker</button>'
       + '</td>'
       + '</tr>';
   });
@@ -2340,13 +2599,35 @@ function renderBandarmologyBrokerTrailView() {
   var bCode = BANDARMOLOGY_SELECTED_BROKER || 'YU';
   var bInfo = BANDARMOLOGY_BROKER_LIST.find(function(b) { return b.code === bCode; }) || BANDARMOLOGY_BROKER_LIST[0];
 
-  var trailData = [
-    { ticker: 'BBCA', action: 'NET BUY', netVal: '+Rp 184.2 M', avgPrice: 'Rp 10.210', lots: '180.400 Lot', date: 'Hari Ini' },
-    { ticker: 'BMRI', action: 'NET BUY', netVal: '+Rp 96.5 M', avgPrice: 'Rp 6.820', lots: '141.500 Lot', date: 'Hari Ini' },
-    { ticker: 'ANTM', action: 'NET BUY', netVal: '+Rp 42.1 M', avgPrice: 'Rp 1.585', lots: '265.600 Lot', date: 'Hari Ini' },
-    { ticker: 'TLKM', action: 'NET SELL', netVal: '-Rp 35.8 M', avgPrice: 'Rp 3.140', lots: '114.000 Lot', date: 'Hari Ini' },
-    { ticker: 'ASII', action: 'NET SELL', netVal: '-Rp 18.2 M', avgPrice: 'Rp 5.075', lots: '35.800 Lot', date: 'Hari Ini' }
-  ];
+  var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
+
+  var trailData = [];
+  sampleTickers.forEach(function(t) {
+    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
+    var bData = generateClientSideBrokerSummary(t, '1D');
+    if (!bData || bData.isValidTicker === false) return;
+
+    var buyMatch = (bData.topBuyers || []).find(function(x) { return x.broker === bCode; });
+    var sellMatch = (bData.topSellers || []).find(function(x) { return x.broker === bCode; });
+
+    if (buyMatch || sellMatch) {
+      var isBuy = (buyMatch ? (buyMatch.valueRp || 0) : 0) >= (sellMatch ? (sellMatch.valueRp || 0) : 0);
+      var match = isBuy ? buyMatch : sellMatch;
+      var valM = Math.round((match.valueRp || 0) / 1000000000);
+      trailData.push({
+        ticker: t,
+        action: isBuy ? 'NET BUY' : 'NET SELL',
+        netVal: (isBuy ? '+Rp ' : '-Rp ') + Math.abs(valM).toLocaleString('id-ID') + ' M',
+        avgPrice: 'Rp ' + Number(match.avgPrice || bData.price || 0).toLocaleString('id-ID'),
+        lots: Number(match.volumeLot || 0).toLocaleString('id-ID') + ' Lot',
+        date: 'Hari Ini',
+        rawVal: match.valueRp || 0
+      });
+    }
+  });
+
+  trailData.sort(function(a, b) { return b.rawVal - a.rawVal; });
+  trailData = trailData.slice(0, 10);
 
   var html = '<div class="space-y-4">'
     // Broker Selector Bar
@@ -2359,7 +2640,7 @@ function renderBandarmologyBrokerTrailView() {
 
   BANDARMOLOGY_BROKER_LIST.forEach(function(b) {
     var isSel = b.code === bCode;
-    html += '<button onclick="setBandarmologyBroker(\'' + b.code + '\')" class="p-2 rounded-lg text-center transition font-mono font-bold ' + (isSel ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/60') + '">'
+    html += '<button onclick="setBandarmologyBroker(\'' + b.code + '\')" class="bandar-broker-btn p-2 rounded-lg text-center transition font-mono font-bold ' + (isSel ? 'active bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/60') + '">'
       + '<div class="text-xs">' + b.code + '</div>'
       + '<div class="text-[9px] font-sans text-slate-400 truncate mt-0.5">' + b.type + '</div>'
       + '</button>';
@@ -2406,7 +2687,7 @@ function renderBandarmologyBrokerTrailView() {
       + '<td class="p-2.5 text-slate-300">' + item.avgPrice + '</td>'
       + '<td class="p-2.5 text-slate-400">' + item.date + '</td>'
       + '<td class="p-2.5">'
-      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="px-2 py-0.8 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold font-sans border border-slate-700 transition">Buka ' + item.ticker + '</button>'
+      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="bandar-action-btn px-2 py-0.8 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold font-sans border border-slate-700 transition">Buka ' + item.ticker + '</button>'
       + '</td>'
       + '</tr>';
   });

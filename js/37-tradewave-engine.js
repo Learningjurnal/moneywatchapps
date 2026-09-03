@@ -82,7 +82,29 @@
   function twGetOhlcv(ticker, count) {
     count = count || 60;
     var cleanTk = (ticker || 'BBCA').toUpperCase().replace('.JK', '').replace('.US', '');
-    
+
+    // 1. Prioritize real market data from Yahoo / RD_STORE
+    if (typeof rdGetAny === 'function') {
+      var realRows = rdGetAny(cleanTk);
+      if (realRows && realRows.length > 0) {
+        var slice = realRows.slice(-count);
+        return slice.map(function(r) {
+          var o = r.open || r.o || r.close || r.c || 5000;
+          var h = r.high || r.h || r.close || r.c || o;
+          var l = r.low || r.l || r.close || r.c || o;
+          var c = r.close || r.c || o;
+          var v = r.volume || r.v || r.vol || 1000000;
+          var mfm = (h - l) > 0 ? ((c - l) - (h - c)) / (h - l) : 0;
+          var dt = new Date(r.date || r.dt || Date.now());
+          return { dt: dt, date: dt, open: o, o: o, high: h, h: h, low: l, l: l, close: c, c: c, vol: v, v: v, volume: v, mfm: mfm, mfv: mfm * v };
+        });
+      }
+    }
+
+    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(cleanTk)) {
+      return [];
+    }
+
     // Check if we have standard price in global prices
     var basePrice = 5000;
     if (typeof prices !== 'undefined' && prices[cleanTk]) {
@@ -232,7 +254,21 @@
    * Complete Wave Flow & Elliott Wave Recognition Engine
    */
   function twAnalyzeWave(ticker) {
-    var ohlcv = twGetOhlcv(ticker, 65);
+    var rawOhlcv = twGetOhlcv(ticker, 65);
+    if (!rawOhlcv || !rawOhlcv.length) {
+      var baseP = (typeof prices !== 'undefined' && prices[ticker]) || 5000;
+      rawOhlcv = [{ dt: new Date(), date: new Date(), open: baseP, o: baseP, high: baseP, h: baseP, low: baseP, l: baseP, close: baseP, c: baseP, vol: 1000000, v: 1000000, volume: 1000000, mfm: 0, mfv: 0 }];
+    }
+    var ohlcv = rawOhlcv.map(function(d) {
+      if (!d) return { dt: new Date(), date: new Date(), open: 5000, o: 5000, high: 5000, h: 5000, low: 5000, l: 5000, close: 5000, c: 5000, vol: 1000000, v: 1000000, volume: 1000000, mfm: 0, mfv: 0 };
+      var c = Number(d.close !== undefined ? d.close : (d.c !== undefined ? d.c : 5000));
+      var o = Number(d.open !== undefined ? d.open : (d.o !== undefined ? d.o : c));
+      var h = Number(d.high !== undefined ? d.high : (d.h !== undefined ? d.h : Math.max(o, c)));
+      var l = Number(d.low !== undefined ? d.low : (d.l !== undefined ? d.l : Math.min(o, c)));
+      var v = Number(d.volume !== undefined ? d.volume : (d.v !== undefined ? d.v : (d.vol !== undefined ? d.vol : 1000000)));
+      var dt = d.dt || d.date || new Date();
+      return { dt: dt, date: dt, open: o, o: o, high: h, h: h, low: l, l: l, close: c, c: c, vol: v, v: v, volume: v, mfm: d.mfm || 0, mfv: d.mfv || 0 };
+    });
     var closes = ohlcv.map(function(d) { return d.close; });
     var n = ohlcv.length;
     var cur = ohlcv[n - 1];

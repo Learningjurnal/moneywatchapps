@@ -123,6 +123,22 @@ function _txHash(){
     return h + [t.id, t.type, t.ticker, t.lot, t.price, t.gross, t.net, t.sekuritas].join(':') + '|';
   }, '');
 }
+function getTxMultiplier(tx){
+  if(!tx) return 100;
+  if(tx.unitMultiplier !== undefined && tx.unitMultiplier > 0) return tx.unitMultiplier;
+  if(tx.shares && tx.lot) {
+    var ratio = tx.shares / tx.lot;
+    if(ratio > 0.8 && ratio < 1.2) return 1;
+    if(ratio > 80 && ratio < 120) return 100;
+  }
+  if(tx.gross && tx.price && tx.lot){
+    var diff1 = Math.abs(tx.gross - (tx.lot * tx.price));
+    var diff100 = Math.abs(tx.gross - (tx.lot * 100 * tx.price));
+    if(diff1 < diff100) return 1;
+  }
+  return 100;
+}
+
 function getPortfolio(){
   var heldTickers={};
   (transactions||[]).forEach(function(tx){ heldTickers[tx.ticker]=1; });
@@ -137,14 +153,16 @@ function getPortfolio(){
     if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,buyNet:0,sellNet:0};
     var p=pos[tx.ticker];
     var isBuy = tx.type==='BUY';
-    var netVal = tx.net || tx.gross || (tx.lot * 100 * tx.price);
+    var mult = getTxMultiplier(tx);
+    var txShares = tx.shares ? tx.shares : Math.round(tx.lot * mult);
+    var netVal = tx.net || tx.gross || (tx.lot * mult * tx.price);
     if(isBuy){
       p.lot += tx.lot;
-      p.shares += tx.lot * 100;
+      p.shares += txShares;
       p.cost += (tx.gross || netVal);
       p.buyNet += netVal;
     } else {
-      var sold = tx.lot * 100;
+      var sold = txShares;
       var avg = p.shares > 0 ? (p.cost / p.shares) : (tx.gross / sold);
       p.lot = Math.max(0, p.lot - tx.lot);
       p.shares = Math.max(0, p.shares - sold);
@@ -570,16 +588,18 @@ function getStockPerformanceByTicker(){
     if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,netCost:0,buyNet:0,sellNet:0,realizedNet:0,firstDate:tx.date,lastDate:tx.date,txCount:0};
     var p=pos[tx.ticker];
     p.txCount++; p.lastDate=tx.date;
-    var txGross = tx.gross || (tx.lot * 100 * tx.price);
+    var mult = getTxMultiplier(tx);
+    var txShares = tx.shares ? tx.shares : Math.round(tx.lot * mult);
+    var txGross = tx.gross || (tx.lot * mult * tx.price);
     var txNet = tx.net || txGross;
     if(tx.type==='BUY'){
       p.lot += tx.lot;
-      p.shares += tx.lot * 100;
+      p.shares += txShares;
       p.cost += txGross;
       p.netCost += txNet;
       p.buyNet += txNet;
     } else if(tx.type==='SELL'){
-      var sold = tx.lot * 100;
+      var sold = txShares;
       var avgGross = p.shares > 0 ? (p.cost / p.shares) : tx.price;
       var avgNet = p.shares > 0 ? (p.netCost / p.shares) : (txNet / sold);
       var grossCostBasis = avgGross * sold;
@@ -628,10 +648,16 @@ function recalculateAllStoredData(silent){
     var price = Number(tx.price) || 0;
     var isBuy = tx.type === 'BUY';
     var sec = tx.sekuritas || (typeof activeSekuritas !== 'undefined' ? activeSekuritas : 'Stockbit') || 'Stockbit';
-    var gross = Math.round(lot * 100 * price);
+    var mult = getTxMultiplier(tx);
+    var gross = (tx.gross && Math.abs(tx.gross - (lot * mult * price)) < 5000) ? tx.gross : Math.round(lot * mult * price);
     var c = (typeof calcTxComponents === 'function')
       ? calcTxComponents(gross, isBuy, sec)
       : { gross: gross, komisi: Math.round(gross * (isBuy ? 0.0018 : 0.0028)), ppn: 0, levy: 0, pph: 0, net: gross };
+
+    // Jika transaksi sudah memiliki nilai net eksak dan komisi 0 (impor manual)
+    if(tx.komisi === 0 && tx.tax === 0 && tx.net && Math.abs(tx.net - gross) < 5000){
+      c.komisi = 0; c.ppn = 0; c.levy = 0; c.pph = 0; c.tax = 0; c.net = gross;
+    }
 
     tx.gross = c.gross;
     tx.komisi = c.komisi;
@@ -1018,21 +1044,60 @@ function fhFetchStocks(){
     }, 400);
   }
 
-  codes.forEach(function(code, i){
-    setTimeout(function(){
-      yfFetch(code+'.JK', function(err, meta){
-        if(!err && meta && meta.regularMarketPrice > 0){
-          prices[code] = meta.regularMarketPrice;
-          if(meta.previousClose > 0) prevCloses[code] = meta.previousClose;
-          if(typeof DB!=='undefined' && DB[code]) DB[code].base = meta.regularMarketPrice; // sinkronkan baseline analisa
-          if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
+  // Coba fetch batch langsung dari endpoint server lokal /api/idx/quotes (cepat, akurat, tanpa CORS)
+  if(typeof fetch === 'function'){
+    fetch('/api/idx/quotes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tickers: codes })
+    })
+    .then(function(res){ return res.json(); })
+    .then(function(resJson){
+      if(resJson && resJson.success && resJson.quotes){
+        var quotes = resJson.quotes;
+        var updated = false;
+        Object.keys(quotes).forEach(function(c){
+          var q = quotes[c];
+          if(q && q.price > 0){
+            prices[c] = q.price;
+            if(q.previous > 0) prevCloses[c] = q.previous;
+            if(typeof DB!=='undefined' && DB[c]) DB[c].base = q.price;
+            updated = true;
+          }
+        });
+        if(updated){
+          fhSetBadge('live', '● LIVE');
           _triggerRenderAfterPrice();
+          return;
         }
-      });
-    }, i*1200);
-  });
+      }
+      _fallbackFetchIndividual();
+    })
+    .catch(function(){
+      _fallbackFetchIndividual();
+    });
+  } else {
+    _fallbackFetchIndividual();
+  }
+
+  function _fallbackFetchIndividual(){
+    codes.forEach(function(code, i){
+      setTimeout(function(){
+        yfFetch(code+'.JK', function(err, meta){
+          if(!err && meta && meta.regularMarketPrice > 0){
+            prices[code] = meta.regularMarketPrice;
+            if(meta.previousClose > 0) prevCloses[code] = meta.previousClose;
+            if(typeof DB!=='undefined' && DB[code]) DB[code].base = meta.regularMarketPrice;
+            if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
+            _triggerRenderAfterPrice();
+          }
+        });
+      }, i*1200);
+    });
+  }
+
   // Bangun ulang ticker tape sekali setelah seluruh batch selesai
-  setTimeout(function(){ try{ buildTickerTape(); }catch(e){} }, codes.length*1200 + 2000);
+  setTimeout(function(){ try{ buildTickerTape(); }catch(e){} }, Math.min(codes.length*1200 + 2000, 8000));
 }
 
 // ── Fetch kurs USD/IDR via Yahoo Finance ──
@@ -1152,43 +1217,26 @@ function setPriceEngineMode(mode){
   if(el('m-title') && el('m-title').textContent.indexOf('Harga')>=0) openFinnhubSettings();
 }
 
-// ── Stop (fallback ke simulasi atau statis) ──
+// ── Stop (fallback ke statis aman tanpa jitter) ──
 function fhStop(){
   if(FH.timer){ clearInterval(FH.timer); FH.timer=null; }
-  if(priceEngineMode === 'static'){
-    if(FH._simTimer){ clearInterval(FH._simTimer); FH._simTimer=null; }
-    fhSetBadge('off','🔒 Statis');
-    return;
-  }
-  fhSetBadge('off','Simulasi');
-  if(!FH._simTimer && priceEngineMode !== 'static'){
-    FH._simTimer = setInterval(function(){
-      updatePrices();
-      renderPage(currentPage);
-    }, 6000);
-  }
+  if(FH._simTimer){ clearInterval(FH._simTimer); FH._simTimer=null; }
+  fhSetBadge('off','🔒 Statis');
 }
 
-// ── Simulasi (fallback) ──
+// ── Update harga stabil (tanpa acak Math.random) ──
 function updatePrices(){
   if(priceEngineMode === 'static') return;
-  Object.keys(DB).forEach(function(t){
-    var realStock = XLSX_DATA.stocks.find(function(s){return s.code===t});
-    if(realStock && realStock.price>0){
-      prices[t] = realStock.price;
-    } else {
-      prices[t] = Math.round(rnd(DB[t].base));
-    }
-  });
-  ihsgCur += (Math.random()-.48)*25;
-  ihsgCur  = Math.max(ihsgBase*0.92, Math.min(ihsgBase*1.08, ihsgCur));
-  ihsgHist.push(Math.round(ihsgCur*100)/100);
-  if(ihsgHist.length>120) ihsgHist.shift();
+  // Pastikan harga stabil dan tidak berubah-ubah secara acak
+  if(typeof XLSX_DATA !== 'undefined' && Array.isArray(XLSX_DATA.stocks)){
+    XLSX_DATA.stocks.forEach(function(s){
+      if(s && s.code && s.price > 0 && (!prices[s.code] || prices[s.code] <= 0)){
+        prices[s.code] = s.price;
+      }
+    });
+  }
   updateTopbar();
   if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
-  if(typeof currentPage!=='undefined' && (currentPage==='portfolio'||currentPage==='dashboard')){
-    try{ renderPage(currentPage); }catch(e){}
-  }
 }
 
 // ── Settings Modal ──

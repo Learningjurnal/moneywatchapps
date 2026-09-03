@@ -215,10 +215,13 @@ function getGlobalMarketPrice(ticker) {
   // 2. Real OHLCV history cache in 13-realdata.js (Yahoo live cached daily close)
   if (typeof rdGetAny === 'function') {
     var rdRows = rdGetAny(tk);
-    if (rdRows && rdRows.length > 0 && rdRows[rdRows.length - 1].close > 0) {
-      var c = Number(rdRows[rdRows.length - 1].close);
-      if (typeof prices !== 'undefined') prices[tk] = c;
-      return c;
+    if (rdRows && rdRows.length > 0 && rdRows[rdRows.length - 1]) {
+      var lastRow = rdRows[rdRows.length - 1];
+      var c = Number(lastRow.close !== undefined ? lastRow.close : (lastRow.c !== undefined ? lastRow.c : 0));
+      if (c > 0) {
+        if (typeof prices !== 'undefined') prices[tk] = c;
+        return c;
+      }
     }
   }
 
@@ -263,9 +266,11 @@ function getGlobalMarketChange(ticker) {
   }
   if (typeof rdGetAny === 'function') {
     var rdRows = rdGetAny(tk);
-    if (rdRows && rdRows.length >= 2) {
-      var last = rdRows[rdRows.length - 1].close;
-      var prev = rdRows[rdRows.length - 2].close;
+    if (rdRows && rdRows.length >= 2 && rdRows[rdRows.length - 1] && rdRows[rdRows.length - 2]) {
+      var rLast = rdRows[rdRows.length - 1];
+      var rPrev = rdRows[rdRows.length - 2];
+      var last = Number(rLast.close !== undefined ? rLast.close : (rLast.c !== undefined ? rLast.c : 0));
+      var prev = Number(rPrev.close !== undefined ? rPrev.close : (rPrev.c !== undefined ? rPrev.c : 0));
       if (prev > 0) {
         var chg = ((last - prev) / prev) * 100;
         if (typeof changes !== 'undefined') changes[tk] = chg;
@@ -1477,4 +1482,42 @@ function getTickerBadgeWithLogo(ticker, options) {
 window.getStockLogoUrl = getStockLogoUrl;
 window.getStockLogoHtml = getStockLogoHtml;
 window.getTickerBadgeWithLogo = getTickerBadgeWithLogo;
+
+// ============================================================
+// STRICT STOCK UNIVERSE VALIDATION (ZERO DUMMY DATA POLICY)
+// ============================================================
+function isValidStockTicker(ticker) {
+  if (!ticker) return false;
+  var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+  if (!tk) return false;
+
+  var usStocks = ['AAPL','TSLA','NVDA','MSFT','GOOG','GOOGL','AMZN','META','NFLX','AMD','INTC','COIN','PLTR','BRK-B','SPY','QQQ'];
+  if (usStocks.includes(tk)) return true;
+
+  if (typeof _IDX_RAW_LIST !== 'undefined' && _IDX_RAW_LIST[tk]) return true;
+  if (typeof DB !== 'undefined' && DB[tk]) return true;
+  if (typeof STOCK_PROFILES !== 'undefined' && STOCK_PROFILES[tk]) return true;
+  if (typeof FUND_DATA !== 'undefined' && FUND_DATA[tk]) return true;
+  if (typeof IDX_PIPELINE !== 'undefined' && IDX_PIPELINE.state && IDX_PIPELINE.state.universe && IDX_PIPELINE.state.universe[tk]) return true;
+  if (typeof rdGetAny === 'function' && rdGetAny(tk)) return true;
+  if (typeof RD_STALE !== 'undefined' && RD_STALE[tk]) return true;
+  if (typeof XLSX_DATA !== 'undefined' && XLSX_DATA && Array.isArray(XLSX_DATA.stocks)) {
+    if (XLSX_DATA.stocks.some(function(s) { return String(s.ticker || s.code || '').toUpperCase() === tk; })) return true;
+  }
+
+  var IDX_REF_PRICES = {
+    'BBCA':1,'BBRI':1,'BMRI':1,'BBNI':1,'ANTM':1,'ADRO':1,'PTRO':1,'TLKM':1,'ASII':1,
+    'GOTO':1,'BREN':1,'AMMN':1,'TPIA':1,'CUAN':1,'PANI':1,'BRMS':1,'MEDC':1,'PGAS':1,
+    'PTBA':1,'INCO':1,'MDKA':1,'HRUM':1,'MBMA':1,'BUMI':1,'DEWA':1,'AADI':1,'ARCI':1,
+    'BRIS':1,'BBTN':1,'UNVR':1,'ICBP':1,'INDF':1,'KLBF':1,'SIDO':1,'MYOR':1,'CPIN':1,
+    'ACES':1,'ERAA':1,'WIFI':1,'RAJA':1,'SMDR':1,'INKP':1,'TKIM':1,'JSMR':1,'CTRA':1,
+    'SMRA':1,'BSDE':1,'PWON':1,'GGRM':1,'PGEO':1,'CDIA':1,'ADMR':1,'EXCL':1,'BUKA':1,
+    'SMGR':1,'BMTR':1,'PMMP':1,'PRDL':1,'GMFI':1,'CPRI':1
+  };
+  if (IDX_REF_PRICES[tk]) return true;
+
+  return false;
+}
+window.isValidStockTicker = isValidStockTicker;
+
 

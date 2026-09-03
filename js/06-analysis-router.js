@@ -203,8 +203,11 @@ function cdAutoParams(ohlcv){
     tp3:cdRoundTick(hi+1.0*rng)
   };
 }
-// OHLCV deterministik via engine FlowScan, di-skala ke harga acuan & dibulatkan ke tick
+// OHLCV via engine FlowScan / Live Market Data
 function cdGenOhlcv(tk){
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
+    return [];
+  }
   var raw=fsGenData(tk,38);
   var ref=(typeof prices!=='undefined'&&prices[tk])||(DB[tk]&&DB[tk].base)||0;
   var lastC=raw.length?raw[raw.length-1].c:0;
@@ -218,9 +221,13 @@ function cdSrcNote(){
   var n=el('cd-src-note'); if(!n)return;
   if(CD_SRC==='sheet'){
     n.innerHTML='<span>📄</span><div>Sumber data: <b style="color:var(--accent)">candle ADMR dari sheet</b> (data historis nyata yang Anda lampirkan). Zona &amp; parameter sesuai sheet.</div>';
+  } else if (typeof isValidStockTicker === 'function' && !isValidStockTicker(CD_TICKER)) {
+    n.innerHTML='<span>⚠️</span><div>Sumber data: <b style="color:var(--red)">Ticker '+CD_TICKER+' Tidak Terdaftar</b>. Kode saham tidak ditemukan dalam Stock Universe IDX. Seluruh parameter teknikal bernilai 0.</div>';
+  } else if (typeof rdIsReal === 'function' && rdIsReal(CD_TICKER)) {
+    n.innerHTML='<span>⚡</span><div>Sumber data: <b style="color:var(--green)">LIVE Market Data (Yahoo Finance Data)</b> untuk <b>'+CD_TICKER+'</b>. Analisa candlestick, zona, stop, dan TP dihitung langsung dari data harga riil pasar.</div>';
   } else {
     var px=prices[CD_TICKER]||(DB[CD_TICKER]&&DB[CD_TICKER].base)||0;
-    n.innerHTML='<span>⚙️</span><div>Sumber data: <b style="color:var(--amber)">simulasi harga deterministik</b> untuk <b>'+CD_TICKER+'</b> (≈ harga acuan Rp '+fmt(px)+'). Tidak ada feed OHLCV historis nyata (mode offline), jadi seri harga di sini adalah model — pakai untuk uji logika &amp; money management, bukan sinyal real-time. Zona/stop/TP dihitung otomatis dari struktur harga; sesuaikan manual bila perlu.</div>';
+    n.innerHTML='<span>⚙️</span><div>Sumber data: <b style="color:var(--amber)">Harga Acuan Pasar</b> untuk <b>'+CD_TICKER+'</b> (Rp '+fmt(px)+'). Zona, stop, dan TP dihitung dari struktur harga acuan resmi.</div>';
   }
 }
 function cdRenderChips(){
@@ -887,7 +894,8 @@ function goPage(name,btn){
   document.querySelectorAll('.nav button, .nav-dd-btn, .nav-dd-menu button, .side-nav button').forEach(function(b){b.classList.remove('on')});
   document.querySelectorAll('.side-group').forEach(function(g){ g.classList.remove('has-active'); });
 
-  var targetPageName = name === 'dividen-calendar' ? 'dividen' : name;
+  var targetPageName = name === 'dividen-calendar' ? 'dividen' 
+    : (['broker-flow', 'smart-money-flow', 'foreign-flow', 'smart-money-radar'].includes(name) ? 'bandarmology' : name);
   var pg = el('page-'+targetPageName);
   if(!pg) return;
   pg.classList.add('on');
@@ -947,7 +955,14 @@ function renderPage(name){
     case 'journal':if(typeof renderJournalPage==='function')renderJournalPage();else if(typeof renderDecisionJournalPage==='function')renderDecisionJournalPage();break;
     case 'copilot':if(typeof renderCopilotPage==='function')renderCopilotPage();break;
     case 'stockchat':if(typeof renderStockChatPage==='function')renderStockChatPage();break;
-    case 'bandarmology':if(typeof renderBandarmologyCockpitPage==='function')renderBandarmologyCockpitPage();break;
+    case 'bandarmology':
+    case 'broker-flow':
+    case 'smart-money-flow':
+    case 'foreign-flow':
+    case 'smart-money-radar':
+      if(typeof goBandarmology==='function') goBandarmology(name);
+      else if(typeof renderBandarmologyCockpitPage==='function') renderBandarmologyCockpitPage();
+      break;
     case 'dataconn':if(typeof renderDataConnPage==='function')renderDataConnPage();else if(typeof renderDataConnectionPage==='function')renderDataConnectionPage();break;
     case 'performance':renderPerformance();break;
     case 'datahealth':renderDataHealth();break;

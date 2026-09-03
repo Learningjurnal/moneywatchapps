@@ -94,6 +94,11 @@
     var rate = getUsdIdrRate();
     var baseUSD = info.baseUSD;
     
+    var isKnownCoin = CRYPTO_TECH_UNIVERSE.some(function(c) { return c.s === (sym || '').toUpperCase(); });
+    if (!isKnownCoin && (!cryptoPrices || !cryptoPrices[sym])) {
+      return [];
+    }
+
     // Check if real live price exists in cryptoPrices
     if (typeof cryptoPrices !== 'undefined' && cryptoPrices[sym] && cryptoPrices[sym] > 0) {
       baseUSD = cryptoPrices[sym] / rate;
@@ -305,11 +310,11 @@
     tf = tf || CRYPTO_TECH_STATE.timeframe;
     var ohlcv = generateCryptoOHLCV(sym, tf, 70);
     var closes = ohlcv.map(function(d) { return d.close; });
-    var len = ohlcv.length;
-    var curBar = ohlcv[len - 1];
-    var prevBar = ohlcv[len - 2];
-    var curPriceUSD = curBar.close;
-    var prevPriceUSD = prevBar.close;
+    var len = ohlcv ? ohlcv.length : 0;
+    var curBar = (ohlcv && len > 0) ? ohlcv[len - 1] : { open: 1, high: 1, low: 1, close: 1, volume: 1 };
+    var prevBar = (ohlcv && len > 1) ? ohlcv[len - 2] : curBar;
+    var curPriceUSD = curBar.close || 1;
+    var prevPriceUSD = prevBar.close || curPriceUSD || 1;
     var chg24hPct = ((curPriceUSD - prevPriceUSD) / prevPriceUSD) * 100;
     var usdRate = getUsdIdrRate();
     var curPriceIDR = curPriceUSD * usdRate;
@@ -446,10 +451,10 @@
     } else if (upperWick > body * 2.0 && curClose <= curOpen) {
       candlePattern = 'Shooting Star / Bearish Rejection ☄️';
       candleBullish = false;
-    } else if (curClose > prevBar.high && prevBar.close < prevBar.open && curClose > curOpen) {
+    } else if (prevBar && curClose > prevBar.high && prevBar.close < prevBar.open && curClose > curOpen) {
       candlePattern = 'Bullish Engulfing 🟢';
       candleBullish = true;
-    } else if (curClose < prevBar.low && prevBar.close > prevBar.open && curClose < curOpen) {
+    } else if (prevBar && curClose < prevBar.low && prevBar.close > prevBar.open && curClose < curOpen) {
       candlePattern = 'Bearish Engulfing 🔴';
       candleBullish = false;
     } else if (body < (curHigh - curLow) * 0.15) {
@@ -461,13 +466,16 @@
     }
 
     // Support, Resistance & Pivot Levels
-    var pivot = (prevBar.high + prevBar.low + prevBar.close) / 3;
-    var r1 = (2 * pivot) - prevBar.low;
-    var s1 = (2 * pivot) - prevBar.high;
-    var r2 = pivot + (prevBar.high - prevBar.low);
-    var s2 = pivot - (prevBar.high - prevBar.low);
-    var r3 = prevBar.high + 2 * (pivot - prevBar.low);
-    var s3 = prevBar.low - 2 * (prevBar.high - pivot);
+    var pHigh = prevBar ? prevBar.high : curHigh;
+    var pLow = prevBar ? prevBar.low : curLow;
+    var pClose = prevBar ? prevBar.close : curClose;
+    var pivot = (pHigh + pLow + pClose) / 3;
+    var r1 = (2 * pivot) - pLow;
+    var s1 = (2 * pivot) - pHigh;
+    var r2 = pivot + (pHigh - pLow);
+    var s2 = pivot - (pHigh - pLow);
+    var r3 = pHigh + 2 * (pivot - pLow);
+    var s3 = pLow - 2 * (pHigh - pivot);
     var fibGoldenPocket = curPriceUSD * (chg24hPct >= 0 ? 0.9618 : 1.0382);
 
     // Dynamic ATR Risk Management & TP/SL Target Calculator

@@ -156,17 +156,18 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
   .then(function(r){ return r.json(); })
   .then(function(d){
     var result = d && d.chart && d.chart.result && d.chart.result[0];
-    if(!result) throw new Error('NO_DATA');
-    var quotes = result.indicators.quote[0];
+    if(!result || !result.timestamp) throw new Error('NO_DATA');
+    var quotes = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
+    var qOpen = quotes.open || [], qHigh = quotes.high || [], qLow = quotes.low || [], qClose = quotes.close || [], qVol = quotes.volume || [];
     var timestamps = result.timestamp;
     var data = timestamps.map(function(ts, i){
       return {
         date: new Date(ts*1000).toISOString().slice(0,10),
-        open: quotes.open[i] || 0,
-        high: quotes.high[i] || 0,
-        low: quotes.low[i] || 0,
-        close: quotes.close[i] || 0,
-        volume: quotes.volume[i] || 0
+        open: qOpen[i] || 0,
+        high: qHigh[i] || 0,
+        low: qLow[i] || 0,
+        close: qClose[i] || 0,
+        volume: qVol[i] || 0
       };
     }).filter(function(d){ return d.close > 0; });
 
@@ -191,11 +192,12 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
         try { rawObj = JSON.parse(d.contents); } catch(e){}
       }
       var result = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
-      if(!result) throw new Error('NO_DATA');
-      var quotes = result.indicators.quote[0];
+      if(!result || !result.timestamp) throw new Error('NO_DATA');
+      var quotes = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
+      var qOpen = quotes.open || [], qHigh = quotes.high || [], qLow = quotes.low || [], qClose = quotes.close || [], qVol = quotes.volume || [];
       var timestamps = result.timestamp;
       var data = timestamps.map(function(ts, i){
-        return { date: new Date(ts*1000).toISOString().slice(0,10), open: quotes.open[i]||0, high: quotes.high[i]||0, low: quotes.low[i]||0, close: quotes.close[i]||0, volume: quotes.volume[i]||0 };
+        return { date: new Date(ts*1000).toISOString().slice(0,10), open: qOpen[i]||0, high: qHigh[i]||0, low: qLow[i]||0, close: qClose[i]||0, volume: qVol[i]||0 };
       }).filter(function(d){ return d.close > 0; });
       el('bt-src-label') && (el('bt-src-label').textContent = '● LIVE Yahoo Finance');
       el('bt-src-label') && (el('bt-src-label').style.color = 'var(--green)');
@@ -216,6 +218,26 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
 
 // ── Simulation fallback ──
 function qtGenSim(ticker, days){
+  if (typeof rdGetAny === 'function') {
+    var realRows = rdGetAny(ticker);
+    if (realRows && realRows.length > 0) {
+      return realRows.slice(-days).map(function(r) {
+        return {
+          date: typeof r.date === 'string' ? r.date : new Date(r.date || r.dt || Date.now()).toISOString().slice(0, 10),
+          open: r.open || r.o || r.close || r.c,
+          high: r.high || r.h || r.close || r.c,
+          low: r.low || r.l || r.close || r.c,
+          close: r.close || r.c,
+          volume: r.volume || r.v || 1000000
+        };
+      });
+    }
+  }
+
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(ticker)) {
+    return [];
+  }
+
   var baseP = {BBCA:9500,BBRI:4800,BMRI:7200,TLKM:3300,ASII:5800,ANTM:1700,ADRO:3200,UNVR:3700,INDF:6900,PTBA:3100};
   var price = baseP[ticker.toUpperCase()] || 5000;
   var seed = ticker.charCodeAt(0) * 17 + (ticker.charCodeAt(1)||7);

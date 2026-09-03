@@ -52,11 +52,12 @@ function rdFetchYahoo(tk, cb, pi){
     }
     var res = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
     if(!res || !res.timestamp) throw new Error('NO_DATA');
-    var q = res.indicators.quote[0];
+    var q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
+    var qOpen = q.open || [], qHigh = q.high || [], qLow = q.low || [], qClose = q.close || [], qVol = q.volume || [];
     var rows = res.timestamp.map(function(ts,i){
       return {date:new Date(ts*1000).toISOString().slice(0,10),
-              open:q.open[i]||0, high:q.high[i]||0, low:q.low[i]||0,
-              close:q.close[i]||0, volume:q.volume[i]||0};
+              open:qOpen[i]||0, high:qHigh[i]||0, low:qLow[i]||0,
+              close:qClose[i]||0, volume:qVol[i]||0};
     }).filter(function(r){ return r.close > 0; });
     if(rows.length < 20) throw new Error('TOO_FEW');
     rdSave(tk, rows);

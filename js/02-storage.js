@@ -21,28 +21,28 @@ function _maxIdPlus1(arr){ var m=0; (arr||[]).forEach(function(x){ if(x.id>m) m=
 // DATA PORTOFOLIO & TRANSAKSI STOCK B (22 SAHAM SEKURITAS STOCKBIT)
 // ============================================================
 var INITIAL_PORTO_2026 = [
-  { id: 1, date: '2026-09-02', type: 'BUY', ticker: 'GGRM', lot: 3, price: 134605, gross: 40381500, komisi: 60572, ppn: 6663, levy: 17364, pph: 0, tax: 24027, net: 40466099, sekuritas: 'Stockbit' },
-  { id: 2, date: '2026-09-02', type: 'BUY', ticker: 'BBNI', lot: 814, price: 4703, gross: 382824200, komisi: 574236, ppn: 63166, levy: 164614, pph: 0, tax: 227780, net: 383626216, sekuritas: 'Stockbit' },
-  { id: 3, date: '2026-09-02', type: 'BUY', ticker: 'CPRI', lot: 662, price: 167, gross: 11055400, komisi: 16583, ppn: 1824, levy: 4754, pph: 0, tax: 6578, net: 11078561, sekuritas: 'Stockbit' },
-  { id: 4, date: '2026-09-02', type: 'BUY', ticker: 'BBCA', lot: 753, price: 7329, gross: 551873700, komisi: 827811, ppn: 91059, levy: 237306, pph: 0, tax: 328365, net: 553029876, sekuritas: 'Stockbit' },
-  { id: 5, date: '2026-09-02', type: 'BUY', ticker: 'BMRI', lot: 875, price: 4956, gross: 433650000, komisi: 650475, ppn: 71552, levy: 186470, pph: 0, tax: 258022, net: 434558497, sekuritas: 'Stockbit' },
-  { id: 6, date: '2026-09-02', type: 'BUY', ticker: 'BBRI', lot: 2581, price: 4176, gross: 1077825600, komisi: 1616738, ppn: 177841, levy: 463465, pph: 0, tax: 641306, net: 1080083644, sekuritas: 'Stockbit' },
-  { id: 7, date: '2026-09-02', type: 'BUY', ticker: 'UNVR', lot: 645, price: 5355, gross: 345397500, komisi: 518096, ppn: 56991, levy: 148521, pph: 0, tax: 205512, net: 346121108, sekuritas: 'Stockbit' },
-  { id: 8, date: '2026-09-02', type: 'BUY', ticker: 'ADRO', lot: 1427, price: 2673, gross: 381437100, komisi: 572156, ppn: 62937, levy: 164018, pph: 0, tax: 226955, net: 382236211, sekuritas: 'Stockbit' },
-  { id: 9, date: '2026-09-02', type: 'BUY', ticker: 'SIDO', lot: 3427, price: 621, gross: 212816700, komisi: 319225, ppn: 35115, levy: 91511, pph: 0, tax: 126626, net: 213262551, sekuritas: 'Stockbit' },
-  { id: 10, date: '2026-09-02', type: 'BUY', ticker: 'PGEO', lot: 9001, price: 1391, gross: 1252039100, komisi: 1878059, ppn: 206586, levy: 538377, pph: 0, tax: 744963, net: 1254662122, sekuritas: 'Stockbit' },
-  { id: 11, date: '2026-09-02', type: 'BUY', ticker: 'PMMP', lot: 415, price: 243, gross: 10084500, komisi: 15127, ppn: 1664, levy: 4336, pph: 0, tax: 6000, net: 10105627, sekuritas: 'Stockbit' },
-  { id: 12, date: '2026-09-02', type: 'BUY', ticker: 'BUMI', lot: 626, price: 298, gross: 18654800, komisi: 27982, ppn: 3078, levy: 8022, pph: 0, tax: 11100, net: 18693882, sekuritas: 'Stockbit' },
-  { id: 13, date: '2026-09-02', type: 'BUY', ticker: 'SMDR', lot: 808, price: 386, gross: 31188800, komisi: 46783, ppn: 5146, levy: 13411, pph: 0, tax: 18557, net: 31254140, sekuritas: 'Stockbit' },
-  { id: 14, date: '2026-09-02', type: 'BUY', ticker: 'CDIA', lot: 224, price: 1724, gross: 38617600, komisi: 57926, ppn: 6372, levy: 16606, pph: 0, tax: 22978, net: 38698504, sekuritas: 'Stockbit' },
-  { id: 15, date: '2026-09-02', type: 'BUY', ticker: 'RAJA', lot: 269, price: 857, gross: 23053300, komisi: 34580, ppn: 3804, levy: 9913, pph: 0, tax: 13717, net: 23101597, sekuritas: 'Stockbit' },
-  { id: 16, date: '2026-09-02', type: 'BUY', ticker: 'ADMR', lot: 200, price: 1735, gross: 34700000, komisi: 52050, ppn: 5726, levy: 14921, pph: 0, tax: 20647, net: 34772697, sekuritas: 'Stockbit' },
-  { id: 17, date: '2026-09-02', type: 'BUY', ticker: 'DEWA', lot: 586, price: 109, gross: 6387400, komisi: 9581, ppn: 1054, levy: 2747, pph: 0, tax: 3801, net: 6400782, sekuritas: 'Stockbit' },
-  { id: 18, date: '2026-09-02', type: 'BUY', ticker: 'MBMA', lot: 130, price: 560, gross: 7280000, komisi: 10920, ppn: 1201, levy: 3130, pph: 0, tax: 4331, net: 7295251, sekuritas: 'Stockbit' },
-  { id: 19, date: '2026-09-02', type: 'BUY', ticker: 'WIFI', lot: 600, price: 324, gross: 19440000, komisi: 29160, ppn: 3208, levy: 8359, pph: 0, tax: 11567, net: 19480727, sekuritas: 'Stockbit' },
-  { id: 20, date: '2026-09-02', type: 'BUY', ticker: 'ARCI', lot: 244, price: 1850, gross: 45140000, komisi: 67710, ppn: 7448, levy: 19410, pph: 0, tax: 26858, net: 45234568, sekuritas: 'Stockbit' },
-  { id: 21, date: '2026-09-02', type: 'BUY', ticker: 'PRDL', lot: 100, price: 50, gross: 500000, komisi: 750, ppn: 83, levy: 215, pph: 0, tax: 298, net: 501048, sekuritas: 'Stockbit' },
-  { id: 22, date: '2026-09-02', type: 'BUY', ticker: 'GMFI', lot: 500, price: 63, gross: 3150000, komisi: 4725, ppn: 520, levy: 1355, pph: 0, tax: 1875, net: 3156600, sekuritas: 'Stockbit' }
+  { id: 1, date: '2026-09-02', type: 'BUY', ticker: 'GGRM', lot: 6, shares: 600, price: 77464, gross: 46478309, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 46478309, sekuritas: 'Stockbit' },
+  { id: 2, date: '2026-09-02', type: 'BUY', ticker: 'BBNI', lot: 73, shares: 7300, price: 4795, gross: 35005891, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 35005891, sekuritas: 'Stockbit' },
+  { id: 3, date: '2026-09-02', type: 'BUY', ticker: 'CPRI', lot: 90, shares: 9000, price: 136, gross: 1224792, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 1224792, sekuritas: 'Stockbit' },
+  { id: 4, date: '2026-09-02', type: 'BUY', ticker: 'BBCA', lot: 68, shares: 6800, price: 7395, gross: 50282840, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 50282840, sekuritas: 'Stockbit' },
+  { id: 5, date: '2026-09-02', type: 'BUY', ticker: 'BMRI', lot: 72, shares: 7200, price: 5085, gross: 36611126, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 36611126, sekuritas: 'Stockbit' },
+  { id: 6, date: '2026-09-02', type: 'BUY', ticker: 'BBRI', lot: 223, shares: 22300, price: 4277, gross: 95379245, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 95379245, sekuritas: 'Stockbit' },
+  { id: 7, date: '2026-09-02', type: 'BUY', ticker: 'UNVR', lot: 60, shares: 6000, price: 5631, gross: 33783526, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 33783526, sekuritas: 'Stockbit' },
+  { id: 8, date: '2026-09-02', type: 'BUY', ticker: 'ADRO', lot: 112, shares: 11200, price: 2685, gross: 30071411, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 30071411, sekuritas: 'Stockbit' },
+  { id: 9, date: '2026-09-02', type: 'BUY', ticker: 'SIDO', lot: 330, shares: 33000, price: 631, gross: 20821181, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 20821181, sekuritas: 'Stockbit' },
+  { id: 10, date: '2026-09-02', type: 'BUY', ticker: 'PGEO', lot: 823, shares: 82300, price: 1426, gross: 117354354, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 117354354, sekuritas: 'Stockbit' },
+  { id: 11, date: '2026-09-02', type: 'BUY', ticker: 'PMMP', lot: 38, shares: 3800, price: 260, gross: 989659, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 989659, sekuritas: 'Stockbit' },
+  { id: 12, date: '2026-09-02', type: 'BUY', ticker: 'BUMI', lot: 523, shares: 52300, price: 314, gross: 16444154, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 16444154, sekuritas: 'Stockbit' },
+  { id: 13, date: '2026-09-02', type: 'BUY', ticker: 'SMDR', lot: 710, shares: 71000, price: 395, gross: 28057533, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 28057533, sekuritas: 'Stockbit' },
+  { id: 14, date: '2026-09-02', type: 'BUY', ticker: 'CDIA', lot: 198, shares: 19800, price: 1859, gross: 36804194, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 36804194, sekuritas: 'Stockbit' },
+  { id: 15, date: '2026-09-02', type: 'BUY', ticker: 'RAJA', lot: 225, shares: 22500, price: 868, gross: 19526715, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 19526715, sekuritas: 'Stockbit' },
+  { id: 16, date: '2026-09-02', type: 'BUY', ticker: 'ADMR', lot: 223, shares: 22300, price: 1395, gross: 31117939, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 31117939, sekuritas: 'Stockbit' },
+  { id: 17, date: '2026-09-02', type: 'BUY', ticker: 'DEWA', lot: 135, shares: 13500, price: 730, gross: 9851114, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 9851114, sekuritas: 'Stockbit' },
+  { id: 18, date: '2026-09-02', type: 'BUY', ticker: 'MBMA', lot: 92, shares: 9200, price: 543, gross: 4996779, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 4996779, sekuritas: 'Stockbit' },
+  { id: 19, date: '2026-09-02', type: 'BUY', ticker: 'WIFI', lot: 57, shares: 5700, price: 3298, gross: 18797336, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 18797336, sekuritas: 'Stockbit' },
+  { id: 20, date: '2026-09-02', type: 'BUY', ticker: 'ARCI', lot: 240, shares: 24000, price: 1860, gross: 44638873, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 44638873, sekuritas: 'Stockbit' },
+  { id: 21, date: '2026-09-02', type: 'BUY', ticker: 'PRDL', lot: 31, shares: 3100, price: 356, gross: 1104985, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 1104985, sekuritas: 'Stockbit' },
+  { id: 22, date: '2026-09-02', type: 'BUY', ticker: 'GMFI', lot: 120, shares: 12000, price: 64, gross: 773390, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 773390, sekuritas: 'Stockbit' }
 ];
 
 function initPortfolio2026(force){
@@ -62,16 +62,16 @@ function initPortfolio2026(force){
   nextEtfId = 1;
   nextRdId = 1;
   activeSekuritas = 'Stockbit';
-  rdnBalance = 22213430;
+  rdnBalance = 52016390;
 
-  // Initial RDN balance deposit mutation
+  // Initial RDN balance deposit mutation (Modal Pokok Awal = 729.807.630 + Dividen BBRI 2.324.106 - Beli 22 Saham 680.115.346 = Sisa Kas RDN 52.016.390)
   rdnMutations.push({
     id: nextRdnId++,
     date: '2026-09-02',
     type: 'TOPUP',
-    ket: 'Saldo Awal Kas RDN Stockbit',
-    amount: 22213430,
-    balance: 22213430,
+    ket: 'Setoran Modal Awal Investasi',
+    amount: 729807630,
+    balance: 729807630,
     sekuritas: 'Stockbit',
     linkedTxId: null,
     account: 'saham'
@@ -82,16 +82,16 @@ function initPortfolio2026(force){
     id: nextDivId++,
     date: '2026-09-02',
     ticker: 'BBRI',
-    shares: 258100,
+    shares: 22300,
     dps: 104.22,
-    gross: 26900606,
+    gross: 2324106,
     tax: 0,
-    net: 26900606,
+    net: 2324106,
     pphRate: 0
   });
 
   if(typeof CASH_ACCOUNTS !== 'undefined'){
-    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 22213430;
+    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 52016390;
     if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = 0;
     if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
   }
@@ -1389,11 +1389,70 @@ function loadData(){
         if(d.equityHistory && Array.isArray(d.equityHistory) && d.equityHistory.length > 0){
           if(typeof equityHistorySave === 'function') equityHistorySave(d.equityHistory);
         }
+
+        // ── AUTO-HEAL & MIGRASI SCHEMA: 22 Saham Portofolio Stockbit (Total 4.449 Lot) ──
+        var curVer = localStorage.getItem('mw_data_version');
+        var isCorrupted = false;
+        if(d.transactions && Array.isArray(d.transactions)){
+          var ggrm = d.transactions.find(function(t){ return t && t.ticker === 'GGRM'; });
+          var bbri = d.transactions.find(function(t){ return t && t.ticker === 'BBRI'; });
+          if(ggrm && (ggrm.lot === 3 || ggrm.lot === 600 || ggrm.price === 134605)) isCorrupted = true;
+          if(bbri && (bbri.lot === 2581 || bbri.lot === 22300)) isCorrupted = true;
+        }
+        if(typeof d.rdnBalance === 'number' && d.rdnBalance < -100000000) isCorrupted = true;
+
+        if((curVer !== '2026.09.03_v5_lot4449' && isCorrupted) || (!transactions || transactions.length === 0)){
+          console.log('[Auto-Heal] Migrating portfolio to authoritative 22-stock portfolio (4.449 Lot, Modal Rp 680jt, RDN Rp 52jt)...');
+          transactions = JSON.parse(JSON.stringify(INITIAL_PORTO_2026));
+          activeSekuritas = 'Stockbit';
+          rdnBalance = 52016390;
+          rdnMutations = [
+            {
+              id: 1,
+              date: '2026-09-02',
+              type: 'TOPUP',
+              ket: 'Setoran Modal Awal Investasi',
+              amount: 729807630,
+              balance: 729807630,
+              sekuritas: 'Stockbit',
+              account: 'saham',
+              linkedTxId: null
+            },
+            {
+              id: 2,
+              date: '2026-09-02',
+              type: 'DIVIDEN',
+              ket: 'Dividen BBRI (22.300 lbr @ Rp 104,22)',
+              amount: 2324106,
+              balance: 732131736,
+              sekuritas: 'Stockbit',
+              account: 'saham',
+              linkedTxId: 'div-1'
+            }
+          ];
+          dividends = [
+            {
+              id: 1,
+              date: '2026-09-02',
+              ticker: 'BBRI',
+              shares: 22300,
+              dps: 104.22,
+              gross: 2324106,
+              tax: 0,
+              net: 2324106,
+              pphRate: 0
+            }
+          ];
+          try {
+            localStorage.setItem('mw_data_version', '2026.09.03_v5_lot4449');
+            saveData();
+          } catch(e){}
+        }
       }
     }
 
-    if(!transactions){
-      transactions = [];
+    if(!transactions || transactions.length === 0){
+      initPortfolio2026(true);
     }
 
     if(typeof equityHistoryLoad === 'function') equityHistoryLoad();

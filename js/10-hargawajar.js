@@ -1481,6 +1481,9 @@ function hw_loadStockData(tk) {
   if (STOCK_FINANCIAL_DATABASE[tk]) {
     hwData.currentPrice = marketPrice > 0 ? marketPrice : STOCK_FINANCIAL_DATABASE[tk].price;
     hwData.rows = JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[tk].rows));
+  } else if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
+    hwData.currentPrice = 0;
+    hwData.rows = [];
   } else {
     // Universal stock lookup
     var univ = (typeof FS_UNIV !== 'undefined') ? FS_UNIV.find(function(u){ return u.t === tk; }) : null;

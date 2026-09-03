@@ -210,9 +210,10 @@ function rdFetchIhsgDaily(cb, pi){
       }
       var res = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
       if(!res || !res.timestamp) throw new Error('NO_DATA');
-      var q = res.indicators.quote[0];
+      var q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
+      var qClose = q.close || [];
       var rows = res.timestamp.map(function(ts,i){
-        return {date:new Date(ts*1000).toISOString().slice(0,10), close:q.close[i]||0};
+        return {date:new Date(ts*1000).toISOString().slice(0,10), close:qClose[i]||0};
       }).filter(function(r){ return r.close>0; });
       if(rows.length<20) throw new Error('TOO_FEW');
       if(typeof rdSave==='function') rdSave('IHSG_DAILY', rows);
