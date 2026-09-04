@@ -52,8 +52,33 @@ function buildAiSharedMarketContext(ticker, timeframe) {
     return { dt: dt, date: dt, o: o, open: o, h: h, high: h, l: l, low: l, c: c, close: c, v: v, volume: v, mfv: d.mfv || 0, mfm: d.mfm || 0 };
   });
 
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
+    return {
+      symbol: tk,
+      isValid: false,
+      error: 'Ticker "' + tk + '" tidak terdaftar dalam Stock Universe IDX atau Yahoo Finance.',
+      ohlcv: [],
+      price: { current: 0, previous: 0, change: 0, changePct: 0, high: 0, low: 0, volume: 0 },
+      indicators: { rsi: 0, ma20: 0, ma50: 0, cmf: 0 },
+      supportResistance: [],
+      flowScan: { verdict: 'INVALID', institutionalNetRp: 0, cmf: 0 }
+    };
+  }
+
   if (!ohlcv.length) {
-    var fallbackPx = (typeof prices !== 'undefined' && prices[tk]) || 5000;
+    var fallbackPx = (typeof prices !== 'undefined' && prices[tk]) || 0;
+    if (fallbackPx <= 0) {
+      return {
+        symbol: tk,
+        isValid: false,
+        error: 'Tidak ada data harga pasar untuk ticker "' + tk + '". Proyeksi teknikal dinonaktifkan.',
+        ohlcv: [],
+        price: { current: 0, previous: 0, change: 0, changePct: 0, high: 0, low: 0, volume: 0 },
+        indicators: { rsi: 0, ma20: 0, ma50: 0, cmf: 0 },
+        supportResistance: [],
+        flowScan: { verdict: 'INVALID', institutionalNetRp: 0, cmf: 0 }
+      };
+    }
     ohlcv = [{ dt: new Date(), date: new Date(), o: fallbackPx, open: fallbackPx, h: fallbackPx, high: fallbackPx, l: fallbackPx, low: fallbackPx, c: fallbackPx, close: fallbackPx, v: 1000000, volume: 1000000, mfv: 0, mfm: 0 }];
   }
 
@@ -690,6 +715,14 @@ function runAiChartAnalysis(ticker) {
   // 1. Build Single Source of Truth Market Context Object
   var ctx = buildAiSharedMarketContext(tk, AI_CHART_STATE.timeframe);
 
+  if (ctx && ctx.isValid === false) {
+    AI_CHART_STATE.lastContext = ctx;
+    AI_CHART_STATE.lastAnalysis = null;
+    renderAiTechnicalWorkspaceUI(tk, ctx, null, null, null, null, null);
+    AI_CHART_STATE.isAnalyzing = false;
+    return;
+  }
+
   // 2. Run Deterministic Intelligence Engines
   var struct = detectAiMarketStructure(ctx.ohlcv);
   var fib = calculateAiFibonacciSwings(ctx.ohlcv);
@@ -722,6 +755,21 @@ function runAiChartAnalysis(ticker) {
 function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, setup) {
   var container = document.getElementById('sm-tv-chart-container') || document.getElementById('tech-tv-chart-container');
   if (!container) return;
+
+  if (!ctx || ctx.isValid === false) {
+    var unk = (ctx && ctx.symbol) || ticker || 'UNKNOWN';
+    var msg = (ctx && ctx.error) || 'Ticker "' + unk + '" tidak terdaftar dalam Stock Universe IDX atau Yahoo Finance.';
+    container.innerHTML = ''
+      + '<div style="padding:28px 20px;border-radius:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);color:var(--text);text-align:center;margin:10px 0;">'
+      + '  <div style="font-size:28px;margin-bottom:8px">⚠️</div>'
+      + '  <div style="font-size:16px;font-weight:800;color:var(--red);margin-bottom:6px">TICKER INVALID: ' + unk + '</div>'
+      + '  <div style="font-size:12px;color:var(--text2);max-width:560px;margin:0 auto 12px;line-height:1.6">'
+      + '    ' + msg + '<br>'
+      + '    Sesuai kebijakan <strong>Zero Dummy Data</strong>, kalkulasi Fibonacci Retracement, Market Structure, dan AI Confluence dinonaktifkan.'
+      + '  </div>'
+      + '</div>';
+    return;
+  }
 
   var curPrice = ctx.price.current;
   var chg = ctx.price.change;

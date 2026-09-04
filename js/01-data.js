@@ -1504,6 +1504,9 @@ function isValidStockTicker(ticker) {
   if (typeof XLSX_DATA !== 'undefined' && XLSX_DATA && Array.isArray(XLSX_DATA.stocks)) {
     if (XLSX_DATA.stocks.some(function(s) { return String(s.ticker || s.code || '').toUpperCase() === tk; })) return true;
   }
+  if (typeof YAHOO_REAL_CACHE !== 'undefined' && YAHOO_REAL_CACHE[tk]) return true;
+  if (typeof prices !== 'undefined' && prices[tk] && prices[tk] > 0) return true;
+  if (typeof LIVE_MARKET_PRICES !== 'undefined' && LIVE_MARKET_PRICES[tk] && LIVE_MARKET_PRICES[tk] > 0) return true;
 
   var IDX_REF_PRICES = {
     'BBCA':1,'BBRI':1,'BMRI':1,'BBNI':1,'ANTM':1,'ADRO':1,'PTRO':1,'TLKM':1,'ASII':1,

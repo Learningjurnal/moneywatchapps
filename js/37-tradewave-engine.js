@@ -254,21 +254,40 @@
    * Complete Wave Flow & Elliott Wave Recognition Engine
    */
   function twAnalyzeWave(ticker) {
-    var rawOhlcv = twGetOhlcv(ticker, 65);
+    var cleanTk = String(ticker || '').toUpperCase().replace(/\.JK$/i, '').trim();
+    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(cleanTk)) {
+      return {
+        isValid: false,
+        ticker: cleanTk,
+        error: 'Ticker "' + cleanTk + '" tidak terdaftar dalam Stock Universe IDX atau Yahoo Finance.'
+      };
+    }
+    var rawOhlcv = twGetOhlcv(cleanTk, 65);
     if (!rawOhlcv || !rawOhlcv.length) {
-      var baseP = (typeof prices !== 'undefined' && prices[ticker]) || 5000;
-      rawOhlcv = [{ dt: new Date(), date: new Date(), open: baseP, o: baseP, high: baseP, h: baseP, low: baseP, l: baseP, close: baseP, c: baseP, vol: 1000000, v: 1000000, volume: 1000000, mfm: 0, mfv: 0 }];
+      return {
+        isValid: false,
+        ticker: cleanTk,
+        error: 'Tidak ada riwayat candle atau transaksi pasar untuk ticker "' + cleanTk + '". Proyeksi Fibonacci dibatalkan.'
+      };
     }
     var ohlcv = rawOhlcv.map(function(d) {
-      if (!d) return { dt: new Date(), date: new Date(), open: 5000, o: 5000, high: 5000, h: 5000, low: 5000, l: 5000, close: 5000, c: 5000, vol: 1000000, v: 1000000, volume: 1000000, mfm: 0, mfv: 0 };
-      var c = Number(d.close !== undefined ? d.close : (d.c !== undefined ? d.c : 5000));
+      if (!d) return null;
+      var c = Number(d.close !== undefined ? d.close : (d.c !== undefined ? d.c : 0));
       var o = Number(d.open !== undefined ? d.open : (d.o !== undefined ? d.o : c));
       var h = Number(d.high !== undefined ? d.high : (d.h !== undefined ? d.h : Math.max(o, c)));
       var l = Number(d.low !== undefined ? d.low : (d.l !== undefined ? d.l : Math.min(o, c)));
-      var v = Number(d.volume !== undefined ? d.volume : (d.v !== undefined ? d.v : (d.vol !== undefined ? d.vol : 1000000)));
+      var v = Number(d.volume !== undefined ? d.volume : (d.v !== undefined ? d.v : (d.vol !== undefined ? d.vol : 0)));
       var dt = d.dt || d.date || new Date();
       return { dt: dt, date: dt, open: o, o: o, high: h, h: h, low: l, l: l, close: c, c: c, vol: v, v: v, volume: v, mfm: d.mfm || 0, mfv: d.mfv || 0 };
-    });
+    }).filter(Boolean);
+
+    if (!ohlcv.length) {
+      return {
+        isValid: false,
+        ticker: cleanTk,
+        error: 'Data harga kosong untuk ticker "' + cleanTk + '". Proyeksi Fibonacci dibatalkan.'
+      };
+    }
     var closes = ohlcv.map(function(d) { return d.close; });
     var n = ohlcv.length;
     var cur = ohlcv[n - 1];
@@ -500,6 +519,31 @@
       + '</div>';
 
     // ── ACTIVE TAB RENDERING ──
+    if (!data || data.isValid === false) {
+      var unkTk = (data && data.ticker) || ticker || 'UNKNOWN';
+      var errMsg = (data && data.error) || 'Ticker "' + unkTk + '" tidak terdaftar dalam Stock Universe IDX atau Yahoo Finance.';
+      html += ''
+        + '<div class="card" style="padding:32px 24px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.3);border-radius:12px;text-align:center;margin-top:14px">'
+        + '  <div style="font-size:36px;margin-bottom:10px">⚠️</div>'
+        + '  <div style="font-size:17px;font-weight:800;color:var(--red);margin-bottom:8px">TICKER INVALID: ' + unkTk + ' TIDAK TERDAFTAR DI IDX / YAHOO FINANCE</div>'
+        + '  <div style="font-size:13px;color:var(--text2);max-width:680px;margin:0 auto 18px;line-height:1.6">'
+        + '    ' + errMsg + '<br>'
+        + '    Sesuai kebijakan <strong>Zero Dummy Data</strong>, fitur deteksi Siklus Elliott Wave, target proyeksi Fibonacci (1.272, 1.618 Golden Ratio, 2.618), SuperTrend, dan Smart Money CMF <strong>tidak akan menampilkan data fiktif</strong> untuk kode saham yang tidak terdaftar.'
+        + '  </div>'
+        + '  <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap">'
+        + '    <span style="font-size:12px;color:var(--text3);font-weight:600">Pilih Ticker Resmi:</span>'
+        + '    <button class="btn btn-blue btn-sm" onclick="twSetTicker(\'BBCA\')">BBCA</button>'
+        + '    <button class="btn btn-ghost btn-sm" onclick="twSetTicker(\'BBRI\')">BBRI</button>'
+        + '    <button class="btn btn-ghost btn-sm" onclick="twSetTicker(\'BMRI\')">BMRI</button>'
+        + '    <button class="btn btn-ghost btn-sm" onclick="twSetTicker(\'TLKM\')">TLKM</button>'
+        + '    <button class="btn btn-ghost btn-sm" onclick="twSetTicker(\'ANTM\')">ANTM</button>'
+        + '    <button class="btn btn-ghost btn-sm" onclick="twSetTicker(\'ADRO\')">ADRO</button>'
+        + '  </div>'
+        + '</div>';
+      c.innerHTML = html;
+      return;
+    }
+
     if (TW_STATE.activeTab === 1) {
       html += renderTab1WaveCockpit(data);
     } else if (TW_STATE.activeTab === 2) {

@@ -2018,16 +2018,38 @@ var BANDARMOLOGY_BROKER_LIST = [
   { code: 'GR', name: 'Panin Sekuritas', type: 'D', badge: 'Domestik' }
 ];
 
+var _isNavigatingBandarmology = false;
 window.goBandarmology = function(subTabOrMode, btn) {
   if (subTabOrMode === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail', 'smart-money-radar'].includes(subTabOrMode)) {
     BANDARMOLOGY_MASTER_MODE = 'market';
-  } else {
+  } else if (subTabOrMode === 'stock' || subTabOrMode === 'emiten') {
     BANDARMOLOGY_MASTER_MODE = 'stock';
   }
-  if (typeof goPage === 'function') {
-    goPage('bandarmology', btn);
+  // Note: if subTabOrMode is 'bandarmology' or null, keep existing BANDARMOLOGY_MASTER_MODE
+
+  if (!_isNavigatingBandarmology) {
+    _isNavigatingBandarmology = true;
+    try {
+      if (typeof goPage === 'function' && typeof currentPage !== 'undefined' && currentPage !== 'bandarmology') {
+        goPage('bandarmology', btn);
+      } else {
+        var pg = document.getElementById('page-bandarmology');
+        if (pg) {
+          document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+          pg.classList.add('on');
+        }
+        if (btn && btn.classList) {
+          document.querySelectorAll('.side-nav button, .nav button').forEach(function(b){ b.classList.remove('on'); });
+          btn.classList.add('on');
+        }
+      }
+    } finally {
+      _isNavigatingBandarmology = false;
+    }
   }
+
   renderBandarmologyCockpitPage();
+
   if (['broker-flow', 'smart-money-flow', 'foreign-flow', 'smart-money-radar'].includes(subTabOrMode)) {
     setTimeout(function() {
       setBandarmologyTab(subTabOrMode);

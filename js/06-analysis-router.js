@@ -956,11 +956,13 @@ function renderPage(name){
     case 'copilot':if(typeof renderCopilotPage==='function')renderCopilotPage();break;
     case 'stockchat':if(typeof renderStockChatPage==='function')renderStockChatPage();break;
     case 'bandarmology':
+      if(typeof renderBandarmologyCockpitPage==='function') renderBandarmologyCockpitPage();
+      break;
     case 'broker-flow':
     case 'smart-money-flow':
     case 'foreign-flow':
     case 'smart-money-radar':
-      if(typeof goBandarmology==='function') goBandarmology(name);
+      if(typeof setBandarmologyTab==='function') setBandarmologyTab(name);
       else if(typeof renderBandarmologyCockpitPage==='function') renderBandarmologyCockpitPage();
       break;
     case 'dataconn':if(typeof renderDataConnPage==='function')renderDataConnPage();else if(typeof renderDataConnectionPage==='function')renderDataConnectionPage();break;
