@@ -42,11 +42,11 @@
     // ISOLATED VIRTUAL ACCOUNT (Rp 100 Juta Initial Capital)
     paperAccount: {
       initialCapital: 100000000,
-      cash: 68450000,
-      totalEquity: 108400000,
+      cash: 76030500,
+      totalEquity: 106406500,
       realizedPnL: 5200000,
-      unrealizedPnL: 3200000,
-      totalReturnPct: 8.40,
+      unrealizedPnL: 1206500,
+      totalReturnPct: 6.41,
       maxDrawdownPct: 2.10,
       winRate: 68.4,
       profitFactor: 1.82,
@@ -60,17 +60,17 @@
           ticker: 'BBCA',
           strategy: 'Trend Pullback',
           entryDate: '2026-08-26',
-          entryPrice: 9750,
-          currentPrice: 10150,
-          lots: 10,
-          shares: 1000,
-          costBasis: 9750000,
-          currentValue: 10150000,
-          unrealizedPnL: 400000,
-          unrealizedPct: 4.10,
-          sl: 9400,
-          tp1: 10200,
-          tp2: 10600,
+          entryPrice: 6475,
+          currentPrice: 6800,
+          lots: 15,
+          shares: 1500,
+          costBasis: 9712500,
+          currentValue: 10200000,
+          unrealizedPnL: 487500,
+          unrealizedPct: 5.02,
+          sl: 6250,
+          tp1: 6850,
+          tp2: 7100,
           thesis: 'Pullback ke EMA20 support pada tren mingguan bullish dengan konvergensi net buy asing.',
           confidence: 84,
           ev: '+Rp 1.85M'
@@ -80,17 +80,17 @@
           ticker: 'BMRI',
           strategy: 'Volume Accumulation Breakout',
           entryDate: '2026-08-27',
-          entryPrice: 6650,
-          currentPrice: 6850,
-          lots: 15,
-          shares: 1500,
-          costBasis: 9975000,
-          currentValue: 10275000,
-          unrealizedPnL: 300000,
-          unrealizedPct: 3.01,
-          sl: 6425,
-          tp1: 6950,
-          tp2: 7250,
+          entryPrice: 4230,
+          currentPrice: 4460,
+          lots: 23,
+          shares: 2300,
+          costBasis: 9729000,
+          currentValue: 10258000,
+          unrealizedPnL: 529000,
+          unrealizedPct: 5.44,
+          sl: 4050,
+          tp1: 4500,
+          tp2: 4750,
           thesis: 'Spike volume institusi > 2.4x rata-rata disertai ekspansi Chaikin Money Flow.',
           confidence: 88,
           ev: '+Rp 2.10M'
@@ -100,17 +100,17 @@
           ticker: 'TLKM',
           strategy: 'Mean Reversion Oversold',
           entryDate: '2026-08-25',
-          entryPrice: 2880,
-          currentPrice: 2980,
-          lots: 30,
-          shares: 3000,
-          costBasis: 8640000,
-          currentValue: 8940000,
-          unrealizedPnL: 300000,
-          unrealizedPct: 3.47,
-          sl: 2790,
-          tp1: 3050,
-          tp2: 3180,
+          entryPrice: 2560,
+          currentPrice: 2610,
+          lots: 38,
+          shares: 3800,
+          costBasis: 9728000,
+          currentValue: 9918000,
+          unrealizedPnL: 190000,
+          unrealizedPct: 1.95,
+          sl: 2450,
+          tp1: 2700,
+          tp2: 2850,
           thesis: 'RSI-14 oversold bounce di batas bawah Bollinger Band + divergensi positif MACD.',
           confidence: 76,
           ev: '+Rp 1.15M'
@@ -383,6 +383,29 @@
   // ══════════════════════════════════════════════════════════
   // 2. COMPREHENSIVE QUANTITATIVE UNIVERSE DATASET & FULL UNIVERSE LOADER
   // ══════════════════════════════════════════════════════════
+  function syncAiUniverseWithRealPrices() {
+    if (!Array.isArray(AI_UNIVERSE)) return;
+    AI_UNIVERSE.forEach(function(item) {
+      if (!item || !item.ticker) return;
+      var px = 0;
+      if (typeof getGlobalMarketPrice === 'function') {
+        px = getGlobalMarketPrice(item.ticker);
+      }
+      if (!px && typeof prices !== 'undefined' && prices[item.ticker]) {
+        px = Number(prices[item.ticker]);
+      }
+      if (px > 0) {
+        item.price = px;
+        if (item.signal && !item.signal.includes('AVOID') && !item.signal.includes('EXIT')) {
+          item.entry = px;
+          item.sl = Math.round(px * 0.95);
+          item.tp1 = Math.round(px * 1.05);
+          item.tp2 = Math.round(px * 1.10);
+        }
+      }
+    });
+  }
+
   function ensureFullUniverseLoaded() {
     var existingTickers = {};
     if (Array.isArray(AI_UNIVERSE)) {
@@ -398,7 +421,11 @@
       var tk = u.t || u.code;
       if (!tk || existingTickers[tk]) return;
       existingTickers[tk] = true;
-      var pr = (typeof prices !== 'undefined' && prices[tk]) ? prices[tk] : (u.price || u.base || 5000);
+      var pr = 0;
+      if (typeof getGlobalMarketPrice === 'function') pr = getGlobalMarketPrice(tk);
+      if (!pr && typeof prices !== 'undefined' && prices[tk]) pr = prices[tk];
+      if (!pr) pr = (u.price || u.base || 5000);
+
       var sc = 60 + Math.floor((tk.charCodeAt(0) * 17) % 35);
       var sig = sc >= 85 ? 'STRONG BUY' : sc >= 72 ? 'BUY' : sc >= 58 ? 'HOLD' : 'WATCH';
       AI_UNIVERSE.push({
@@ -440,6 +467,8 @@
         mainRisk: 'Sentimen makroekonomi.'
       });
     });
+
+    syncAiUniverseWithRealPrices();
   }
 
   AI_UNIVERSE = [
@@ -447,8 +476,8 @@
       ticker: 'BBCA',
       name: 'Bank Central Asia Tbk',
       sector: 'Financials',
-      price: 10150,
-      chg: 1.25,
+      price: 6800,
+      chg: 5.02,
       volume: 48200000,
       volRatio: 1.45,
       signal: 'BUY',
@@ -457,13 +486,13 @@
       probability: 74,
       confidence: 84,
       ev: '+Rp 1.850.000',
-      entry: 10150,
-      sl: 9750,
-      tp1: 10550,
-      tp2: 10950,
+      entry: 6800,
+      sl: 6475,
+      tp1: 7100,
+      tp2: 7400,
       rrRatio: '1 : 2.0',
       holdingPeriod: '5 - 12 Hari',
-      invalidation: 'Penutupan harian di bawah support struktural Rp 9.700',
+      invalidation: 'Penutupan harian di bawah support struktural Rp 6.450',
       catalyst: 'Pertumbuhan kredit solid + Net buy asing Rp 180 M hari ini',
       riskScore: 24, // Low risk
       trendScore: 94,
@@ -491,8 +520,8 @@
       ticker: 'BMRI',
       name: 'Bank Mandiri (Persero) Tbk',
       sector: 'Financials',
-      price: 6850,
-      chg: 2.24,
+      price: 4460,
+      chg: 5.44,
       volume: 62400000,
       volRatio: 2.15,
       signal: 'STRONG BUY',
@@ -501,13 +530,13 @@
       probability: 76,
       confidence: 88,
       ev: '+Rp 2.100.000',
-      entry: 6850,
-      sl: 6550,
-      tp1: 7200,
-      tp2: 7550,
+      entry: 4460,
+      sl: 4250,
+      tp1: 4700,
+      tp2: 4950,
       rrRatio: '1 : 2.33',
       holdingPeriod: '7 - 15 Hari',
-      invalidation: 'Penutupan di bawah level breakdown Rp 6.500',
+      invalidation: 'Penutupan di bawah level breakdown Rp 4.200',
       catalyst: 'Laba bersih kuartalan melampaui konsensus analis + ekspansi margin bunga',
       riskScore: 28,
       trendScore: 92,
@@ -516,7 +545,7 @@
       brokerScore: 90,
       fundamentalScore: 92,
       brokerStatus: 'AKUMULASI SANGAT BESAR (Top Buyer: BK, RX, YU)',
-      thesis: 'Breakout resistance 6.800 dengan lonjakan volume 2.15x lipat dan aliran dana asing terkonsentrasi.',
+      thesis: 'Breakout resistance 4.400 dengan lonjakan volume 2.15x lipat dan aliran dana asing terkonsentrasi.',
       evidence: [
         'Volume transaksi melesat 215% di atas rata-rata 20 hari saat menembus resistance.',
         'OBV (On-Balance Volume) menembus rekor tertinggi baru mendahului pergerakan harga.',
@@ -533,8 +562,8 @@
       ticker: 'TLKM',
       name: 'Telkom Indonesia Tbk',
       sector: 'Telecommunication',
-      price: 2980,
-      chg: 1.02,
+      price: 2610,
+      chg: 0.38,
       volume: 38500000,
       volRatio: 1.12,
       signal: 'BUY',
@@ -543,13 +572,13 @@
       probability: 68,
       confidence: 78,
       ev: '+Rp 1.250.000',
-      entry: 2980,
-      sl: 2840,
-      tp1: 3150,
-      tp2: 3300,
+      entry: 2610,
+      sl: 2480,
+      tp1: 2760,
+      tp2: 2900,
       rrRatio: '1 : 2.28',
       holdingPeriod: '10 - 20 Hari',
-      invalidation: 'Penutupan di bawah support psikologis Rp 2.800',
+      invalidation: 'Penutupan di bawah support psikologis Rp 2.450',
       catalyst: 'Monetisasi data center & ekspansi fiber optic B2B',
       riskScore: 32,
       trendScore: 78,
@@ -560,7 +589,7 @@
       brokerStatus: 'AKUMULASI MODERAT (Top Buyer: CS, BB)',
       thesis: 'Pemulihan dari fase bottoming, membentuk higher low dengan dukungan dividen yield tinggi (>6%).',
       evidence: [
-        'Struktur harga berhasil membentuk Higher Low di level 2.880.',
+        'Struktur harga berhasil membentuk Higher Low di level 2.550.',
         'MACD Histogram bergerak di teritori positif dengan pola Bullish Divergence.',
         'Dividen yield diproyeksikan ~6.2% memberikan safety margin fundamental kuat.',
         'Valuasi EV/EBITDA berada pada -1 Standar Deviasi historis (sangat murah).'
@@ -574,8 +603,8 @@
       ticker: 'ASII',
       name: 'Astra International Tbk',
       sector: 'Industrial',
-      price: 5200,
-      chg: 0.97,
+      price: 5000,
+      chg: 4.17,
       volume: 24100000,
       volRatio: 1.05,
       signal: 'BUY',
@@ -584,13 +613,13 @@
       probability: 66,
       confidence: 76,
       ev: '+Rp 980.000',
-      entry: 5200,
-      sl: 4980,
-      tp1: 5450,
-      tp2: 5700,
+      entry: 5000,
+      sl: 4780,
+      tp1: 5250,
+      tp2: 5500,
       rrRatio: '1 : 2.27',
       holdingPeriod: '10 - 25 Hari',
-      invalidation: 'Penutupan di bawah support EMA200 Rp 4.950',
+      invalidation: 'Penutupan di bawah support EMA200 Rp 4.750',
       catalyst: 'Peningkatan pangsa pasar otomotif & kontribusi dividen anak usaha UNTR',
       riskScore: 35,
       trendScore: 82,
@@ -614,8 +643,8 @@
       ticker: 'ADRO',
       name: 'Adaro Energy Indonesia Tbk',
       sector: 'Energy',
-      price: 3720,
-      chg: 2.76,
+      price: 2730,
+      chg: -3.87,
       volume: 45200000,
       volRatio: 1.85,
       signal: 'HOLD',
@@ -624,13 +653,13 @@
       probability: 62,
       confidence: 72,
       ev: '+Rp 750.000',
-      entry: 3720,
-      sl: 3500,
-      tp1: 3950,
-      tp2: 4200,
+      entry: 2730,
+      sl: 2580,
+      tp1: 2920,
+      tp2: 3100,
       rrRatio: '1 : 2.18',
       holdingPeriod: '3 - 8 Hari',
-      invalidation: 'Penutupan di bawah batas trailing stop Rp 3.500',
+      invalidation: 'Penutupan di bawah batas trailing stop Rp 2.550',
       catalyst: 'Kenaikan harga batubara Newcastle ke level $145/ton',
       riskScore: 42,
       trendScore: 88,
@@ -654,8 +683,8 @@
       ticker: 'ANTM',
       name: 'Aneka Tambang Tbk',
       sector: 'Basic Materials',
-      price: 1540,
-      chg: -1.28,
+      price: 3130,
+      chg: 0.97,
       volume: 29800000,
       volRatio: 0.88,
       signal: 'WATCH',
@@ -664,13 +693,13 @@
       probability: 56,
       confidence: 65,
       ev: '+Rp 320.000',
-      entry: 1540,
-      sl: 1470,
-      tp1: 1650,
-      tp2: 1750,
+      entry: 3130,
+      sl: 2980,
+      tp1: 3320,
+      tp2: 3480,
       rrRatio: '1 : 2.0',
       holdingPeriod: '7 - 14 Hari',
-      invalidation: 'Penembusan di bawah support kuat Rp 1.460',
+      invalidation: 'Penembusan di bawah support kuat Rp 2.950',
       catalyst: 'Progres proyek ekosistem baterai EV & smelter nikel',
       riskScore: 48,
       trendScore: 62,
@@ -679,9 +708,9 @@
       brokerScore: 68,
       fundamentalScore: 74,
       brokerStatus: 'NETRAL / WAIT AND SEE',
-      thesis: 'Sedang berkonsolidasi di atas support 1.500. Belum ada konfirmasi volume breakout yang valid.',
+      thesis: 'Sedang berkonsolidasi di atas support 3.000. Belum ada konfirmasi volume breakout yang valid.',
       evidence: [
-        'Support psikologis 1.500 terbukti bertahan kuat pada pengujian 2 minggu lalu.',
+        'Support psikologis 3.000 terbukti bertahan kuat pada pengujian 2 minggu lalu.',
         'Harga komoditas emas stabil di level rekor tertinggi.'
       ],
       against: [
@@ -694,8 +723,8 @@
       ticker: 'GOTO',
       name: 'GoTo Gojek Tokopedia Tbk',
       sector: 'Technology',
-      price: 54,
-      chg: -1.82,
+      price: 50,
+      chg: 0.00,
       volume: 185000000,
       volRatio: 0.72,
       signal: 'AVOID / EXIT RISK',
@@ -734,8 +763,8 @@
       ticker: 'BUMI',
       name: 'Bumi Resources Tbk',
       sector: 'Energy',
-      price: 142,
-      chg: -2.74,
+      price: 208,
+      chg: 8.33,
       volume: 210000000,
       volRatio: 1.10,
       signal: 'AVOID / EXIT RISK',
@@ -773,23 +802,135 @@
   // 3. UI RENDERING ENGINE & MODULAR COCKPIT
   // ══════════════════════════════════════════════════════════
 
+  function updateAiPaperPositionMetrics(pos, livePrice) {
+    if (livePrice && Number(livePrice) > 0) {
+      pos.currentPrice = Number(livePrice);
+    }
+    pos.shares = (pos.lots || 0) * 100;
+    pos.costBasis = pos.shares * (pos.entryPrice || pos.currentPrice);
+    pos.currentValue = pos.shares * pos.currentPrice;
+    pos.unrealizedPnL = pos.currentValue - pos.costBasis;
+    pos.unrealizedPct = pos.costBasis > 0 ? Number(((pos.unrealizedPnL / pos.costBasis) * 100).toFixed(2)) : 0;
+  }
+
+  function syncAiPaperPortfolioLivePrices(forceFetch, onDone) {
+    var p = AI_TRADE_STATE.paperAccount;
+    if (!p || !Array.isArray(p.openPositions)) return;
+
+    var totalCurrentVal = 0;
+    var totalCostBasis = 0;
+    var totalUnrealized = 0;
+
+    p.openPositions.forEach(function(pos) {
+      var px = 0;
+      if (typeof getGlobalMarketPrice === 'function') {
+        px = getGlobalMarketPrice(pos.ticker);
+      }
+      if (!px && typeof prices !== 'undefined' && prices[pos.ticker]) {
+        px = Number(prices[pos.ticker]);
+      }
+      if (px > 0) {
+        pos.currentPrice = px;
+      }
+      updateAiPaperPositionMetrics(pos, pos.currentPrice);
+
+      totalCurrentVal += pos.currentValue;
+      totalCostBasis += pos.costBasis;
+      totalUnrealized += pos.unrealizedPnL;
+    });
+
+    p.unrealizedPnL = totalUnrealized;
+    p.totalEquity = p.cash + totalCurrentVal;
+    var netProfit = (p.realizedPnL || 0) + p.unrealizedPnL;
+    p.totalReturnPct = p.initialCapital > 0 ? Number(((netProfit / p.initialCapital) * 100).toFixed(2)) : 0;
+
+    // Sync IHSG in market regime if available
+    if (typeof prices !== 'undefined' && prices['^JKSE'] && prices['^JKSE'] > 0) {
+      AI_TRADE_STATE.marketRegime.ihsg = Math.round(prices['^JKSE']);
+    } else if (typeof ihsgCur !== 'undefined' && ihsgCur > 0) {
+      AI_TRADE_STATE.marketRegime.ihsg = Math.round(ihsgCur);
+    }
+
+    if (forceFetch) {
+      aiRefreshPaperPortfolioQuotes(true, onDone);
+    }
+  }
+
+  function aiRefreshPaperPortfolioQuotes(showNotification, onDone) {
+    var p = AI_TRADE_STATE.paperAccount;
+    if (!p || !Array.isArray(p.openPositions) || p.openPositions.length === 0) {
+      if (onDone) onDone();
+      return;
+    }
+
+    var tickersToFetch = p.openPositions.map(function(pos) { return pos.ticker; });
+    var updated = 0;
+    var fetchedQuotes = [];
+
+    var promises = tickersToFetch.map(function(tk) {
+      return fetch('/api/idx/quote/' + encodeURIComponent(tk))
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          if (data && data.success && data.quote && data.quote.price) {
+            var q = data.quote;
+            if (typeof prices !== 'undefined') {
+              prices[tk] = q.price;
+            }
+            if (typeof syncGlobalMarketQuote === 'function') {
+              syncGlobalMarketQuote(tk, q);
+            }
+            var pos = p.openPositions.find(function(item) { return item.ticker === tk; });
+            if (pos) {
+              updateAiPaperPositionMetrics(pos, q.price);
+              updated++;
+              fetchedQuotes.push(tk + ' (Rp ' + Number(q.price).toLocaleString('id-ID') + ')');
+            }
+          }
+        })
+        .catch(function(err) {
+          console.warn('Gagal fetch live quote untuk ' + tk, err);
+        });
+    });
+
+    Promise.all(promises).then(function() {
+      syncAiPaperPortfolioLivePrices(false);
+      syncAiUniverseWithRealPrices();
+
+      if (AI_TRADE_STATE.activeTab === 'paper' || AI_TRADE_STATE.activeTab === 'cockpit') {
+        renderAiTradingPage();
+      }
+
+      if (showNotification && typeof showToast === 'function') {
+        if (updated > 0) {
+          showToast('✓ Harga real-time pasar diperbarui: ' + fetchedQuotes.join(', '));
+        } else {
+          showToast('✓ Harga posisi virtual sudah sesuai dengan feed pasar real-time.');
+        }
+      }
+
+      if (onDone) onDone();
+    });
+  }
+
   function checkAndRefreshDailyUniverseCache() {
     try {
-      var cachedDate = localStorage.getItem('mw_univ_cache_date');
+      var cachedDate = localStorage.getItem('mw_univ_cache_date_v2');
       var todayStr = new Date().toISOString().slice(0, 10);
-      var cachedData = localStorage.getItem('mw_univ_cache_v1');
+      var cachedData = localStorage.getItem('mw_univ_cache_v2');
       
       if (cachedDate === todayStr && cachedData) {
         var parsed = JSON.parse(cachedData);
         if (Array.isArray(parsed) && parsed.length > 0) {
           AI_UNIVERSE = parsed;
+          syncAiUniverseWithRealPrices();
           return;
         }
       }
       
       ensureFullUniverseLoaded();
-      localStorage.setItem('mw_univ_cache_v1', JSON.stringify(AI_UNIVERSE));
-      localStorage.setItem('mw_univ_cache_date', todayStr);
+      syncAiUniverseWithRealPrices();
+      localStorage.setItem('mw_univ_cache_v2', JSON.stringify(AI_UNIVERSE));
+      localStorage.setItem('mw_univ_cache_date_v2', todayStr);
     } catch(e) {
       console.warn('Daily universe cache error:', e);
     }
@@ -797,7 +938,9 @@
 
   function initAiAutonomousSuite() {
     checkAndRefreshDailyUniverseCache();
+    syncAiPaperPortfolioLivePrices(false);
     renderAiTradingPage();
+    aiRefreshPaperPortfolioQuotes(false);
   }
 
   function renderAiTradingPage() {
@@ -884,12 +1027,16 @@
   // ══════════════════════════════════════════════════════════
   function renderAiCockpit(state) {
     ensureFullUniverseLoaded();
+    syncAiPaperPortfolioLivePrices(false);
     var p = state.paperAccount;
     var r = state.marketRegime;
 
     var bestOpp = AI_UNIVERSE.find(function(x) { return x.ticker === 'BBCA'; }) || AI_UNIVERSE[0];
     var topBull = AI_UNIVERSE.filter(function(x) { return x.signal.includes('BUY'); }).slice(0, 10);
     var topBear = AI_UNIVERSE.filter(function(x) { return x.signal.includes('AVOID') || x.signal.includes('SELL'); }).slice(0, 5);
+
+    var eqClass = p.totalReturnPct >= 0 ? 'up' : 'down';
+    var eqSign = p.totalReturnPct >= 0 ? '+' : '';
 
     return ''
       // Row 4 KPI Cards
@@ -911,8 +1058,8 @@
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">AI Paper Portfolio Equity</div>'
-      + '    <div class="mval up" style="font-size:20px">Rp ' + Number(p.totalEquity).toLocaleString('id-ID') + '</div>'
-      + '    <div class="msub up">+' + p.totalReturnPct + '% Net Return · Max DD -' + p.maxDrawdownPct + '%</div>'
+      + '    <div class="mval ' + eqClass + '" style="font-size:20px">Rp ' + Number(p.totalEquity).toLocaleString('id-ID') + '</div>'
+      + '    <div class="msub ' + eqClass + '">' + eqSign + p.totalReturnPct + '% Net Return · Max DD -' + p.maxDrawdownPct + '%</div>'
       + '  </div>'
       + '</div>'
 
@@ -1125,12 +1272,17 @@
     ensureFullUniverseLoaded();
     var tk = state.selectedTicker || 'BBCA';
     var data = AI_UNIVERSE.find(function(x) { return x.ticker === tk; });
+    var livePx = 0;
+    if (typeof getGlobalMarketPrice === 'function') livePx = getGlobalMarketPrice(tk);
+    if (!livePx && typeof prices !== 'undefined' && prices[tk]) livePx = Number(prices[tk]);
+
     if (!data) {
+      var initialPx = livePx > 0 ? livePx : 5000;
       data = {
         ticker: tk,
         name: tk + ' Tbk',
         sector: 'IDX Equities',
-        price: (typeof prices !== 'undefined' && prices[tk]) ? prices[tk] : 5000,
+        price: initialPx,
         chg: 1.25,
         volume: 20000000,
         volRatio: 1.3,
@@ -1140,10 +1292,10 @@
         probability: 72,
         confidence: 78,
         ev: '+Rp 1.500.000',
-        entry: (typeof prices !== 'undefined' && prices[tk]) ? prices[tk] : 5000,
-        sl: Math.round(((typeof prices !== 'undefined' && prices[tk]) ? prices[tk] : 5000) * 0.95),
-        tp1: Math.round(((typeof prices !== 'undefined' && prices[tk]) ? prices[tk] : 5000) * 1.05),
-        tp2: Math.round(((typeof prices !== 'undefined' && prices[tk]) ? prices[tk] : 5000) * 1.10),
+        entry: initialPx,
+        sl: Math.round(initialPx * 0.95),
+        tp1: Math.round(initialPx * 1.05),
+        tp2: Math.round(initialPx * 1.10),
         rrRatio: '1 : 2.0',
         holdingPeriod: '5 - 15 Hari',
         invalidation: 'Penutupan di bawah support harian',
@@ -1161,6 +1313,8 @@
         mainRisk: 'Risiko pasar umum'
       };
       AI_UNIVERSE.push(data);
+    } else if (livePx > 0) {
+      data.price = livePx;
     }
 
     var badgeCls = data.signal.includes('BUY') ? 'b-up' : data.signal.includes('HOLD') ? 'b-amb' : data.signal.includes('WATCH') ? 'b-accent' : 'b-dn';
@@ -1411,7 +1565,18 @@
   // 9. SUB-PAGE RENDERING: AI PAPER PORTFOLIO (ISOLATED)
   // ══════════════════════════════════════════════════════════
   function renderAiPaperPortfolio(state) {
+    syncAiPaperPortfolioLivePrices(false);
     var p = state.paperAccount;
+
+    var totalPnL = (p.realizedPnL || 0) + (p.unrealizedPnL || 0);
+    var totalPnLClass = totalPnL >= 0 ? 'up' : 'down';
+    var totalPnLSign = totalPnL >= 0 ? '+' : '';
+
+    var unPnLClass = p.unrealizedPnL >= 0 ? 'up' : 'down';
+    var unPnLSign = p.unrealizedPnL >= 0 ? '+' : '';
+
+    var returnClass = p.totalReturnPct >= 0 ? 'up' : 'down';
+    var returnSign = p.totalReturnPct >= 0 ? '+' : '';
 
     var html = ''
       + '<div class="row4" style="margin-bottom:18px">'
@@ -1422,13 +1587,13 @@
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Total Nilai Ekuitas AI</div>'
-      + '    <div class="mval up" style="font-size:20px">Rp ' + Number(p.totalEquity).toLocaleString('id-ID') + '</div>'
-      + '    <div class="msub up">+' + p.totalReturnPct + '% Total Return Bersih</div>'
+      + '    <div class="mval ' + returnClass + '" style="font-size:20px">Rp ' + Number(p.totalEquity).toLocaleString('id-ID') + '</div>'
+      + '    <div class="msub ' + returnClass + '">' + returnSign + p.totalReturnPct + '% Total Return Bersih</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Realized &amp; Unrealized PnL</div>'
-      + '    <div class="mval up" style="font-size:18px">+Rp ' + Number(p.realizedPnL + p.unrealizedPnL).toLocaleString('id-ID') + '</div>'
-      + '    <div class="msub up">Realized +Rp ' + Number(p.realizedPnL).toLocaleString('id-ID') + ' | Float +Rp ' + Number(p.unrealizedPnL).toLocaleString('id-ID') + '</div>'
+      + '    <div class="mval ' + totalPnLClass + '" style="font-size:18px">' + totalPnLSign + 'Rp ' + Number(totalPnL).toLocaleString('id-ID') + '</div>'
+      + '    <div class="msub ' + unPnLClass + '">Realized +Rp ' + Number(p.realizedPnL).toLocaleString('id-ID') + ' | Float ' + unPnLSign + 'Rp ' + Number(p.unrealizedPnL).toLocaleString('id-ID') + '</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Win Rate &amp; Profit Factor</div>'
@@ -1439,9 +1604,15 @@
 
       // Open Positions Table
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
-      + '  <div class="cheader" style="margin-bottom:14px">'
-      + '    <span class="ctitle"><i class="ti ti-briefcase" style="color:#38bdf8"></i> Posisi Virtual Terbuka (Open Positions)</span>'
-      + '    <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Risk Per Trade: 1.0% Capital Max (Rp 1.000.000)</span>'
+      + '  <div class="cheader" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '    <div style="display:flex;align-items:center;gap:10px">'
+      + '      <span class="ctitle"><i class="ti ti-briefcase" style="color:#38bdf8"></i> Posisi Virtual Terbuka (Open Positions)</span>'
+      + '      <span class="badge b-up" style="font-size:10px;padding:2px 8px"><i class="ti ti-activity"></i> FEED PASAR REAL-TIME</span>'
+      + '    </div>'
+      + '    <div style="display:flex;align-items:center;gap:10px">'
+      + '      <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Risk Per Trade: 1.0% Capital Max (Rp 1.000.000)</span>'
+      + '      <button class="btn btn-ghost btn-xs" onclick="aiRefreshPaperPortfolioQuotes(true)" style="font-size:11px;border-color:#38bdf8;color:#38bdf8;cursor:pointer"><i class="ti ti-refresh"></i> Refresh Harga Real-Time</button>'
+      + '    </div>'
       + '  </div>'
       + '  <div style="overflow-x:auto">'
       + '    <table class="tbl">'
@@ -1451,8 +1622,8 @@
       + '          <th>Strategi</th>'
       + '          <th>Tgl Entry</th>'
       + '          <th>Lot &amp; Lembar</th>'
-      + '          <th>Harga Rata-rata</th>'
-      + '          <th>Harga Terkini</th>'
+      + '          <th>Harga Entry</th>'
+      + '          <th>Harga Terkini (Real Market)</th>'
       + '          <th>Nilai Posisi</th>'
       + '          <th>Floating PnL</th>'
       + '          <th>Stop Loss / TP</th>'
@@ -1461,16 +1632,20 @@
       + '      <tbody>';
 
     p.openPositions.forEach(function(pos) {
+      var pnlColor = pos.unrealizedPnL >= 0 ? 'var(--green)' : 'var(--red)';
+      var pnlSign = pos.unrealizedPnL >= 0 ? '+' : '';
+      var priceClass = pos.currentPrice > pos.entryPrice ? 'color:var(--green)' : pos.currentPrice < pos.entryPrice ? 'color:var(--red)' : 'color:var(--text)';
+
       html += '<tr>'
         + '<td style="font-weight:800;font-family:var(--font-mono);color:#38bdf8">' + pos.ticker + '</td>'
         + '<td style="font-size:11.5px">' + pos.strategy + '</td>'
         + '<td style="font-size:11px;color:var(--text3)">' + pos.entryDate + '</td>'
-        + '<td style="font-family:var(--font-mono)">' + pos.lots + ' Lot (' + pos.shares + ')</td>'
+        + '<td style="font-family:var(--font-mono)">' + pos.lots + ' Lot (' + Number(pos.shares).toLocaleString('id-ID') + ')</td>'
         + '<td style="font-family:var(--font-mono)">Rp ' + Number(pos.entryPrice).toLocaleString('id-ID') + '</td>'
-        + '<td style="font-family:var(--font-mono)">Rp ' + Number(pos.currentPrice).toLocaleString('id-ID') + '</td>'
+        + '<td style="font-family:var(--font-mono);' + priceClass + ';font-weight:700">Rp ' + Number(pos.currentPrice).toLocaleString('id-ID') + '</td>'
         + '<td style="font-family:var(--font-mono)">Rp ' + Number(pos.currentValue).toLocaleString('id-ID') + '</td>'
-        + '<td><strong style="font-family:var(--font-mono);color:var(--green)">+Rp ' + Number(pos.unrealizedPnL).toLocaleString('id-ID') + ' (+' + pos.unrealizedPct + '%)</strong></td>'
-        + '<td style="font-family:var(--font-mono);font-size:10.5px">SL: <span style="color:var(--red)">' + Number(pos.sl).toLocaleString('id-ID') + '</span> | TP2: <span style="color:var(--green)">' + Number(pos.tp2).toLocaleString('id-ID') + '</span></td>'
+        + '<td><strong style="font-family:var(--font-mono);color:' + pnlColor + '">' + pnlSign + 'Rp ' + Number(pos.unrealizedPnL).toLocaleString('id-ID') + ' (' + pnlSign + pos.unrealizedPct + '%)</strong></td>'
+        + '<td style="font-family:var(--font-mono);font-size:10.5px">SL: <span style="color:var(--red)">Rp ' + Number(pos.sl).toLocaleString('id-ID') + '</span> | TP2: <span style="color:var(--green)">Rp ' + Number(pos.tp2).toLocaleString('id-ID') + '</span></td>'
         + '</tr>';
     });
 
@@ -1855,6 +2030,10 @@
 
   function aiSwitchTab(tabName) {
     AI_TRADE_STATE.activeTab = tabName;
+    if (tabName === 'paper' || tabName === 'cockpit') {
+      syncAiPaperPortfolioLivePrices(false);
+      aiRefreshPaperPortfolioQuotes(false);
+    }
     renderAiTradingPage();
   }
 
@@ -1875,8 +2054,10 @@
   }
 
   function aiTriggerAutonomousCycle() {
+    syncAiUniverseWithRealPrices();
+    syncAiPaperPortfolioLivePrices(false);
     if (typeof showToast === 'function') {
-      showToast('⚡ Siklus Riset AI Selesai: 30 Emiten discan, 10 Strategi diuji ulang, Probabilitas dikalibrasi');
+      showToast('⚡ Siklus Riset AI Selesai: Universe disinkronkan dengan feed pasar real-time & probabilitas dikalibrasi.');
     }
     renderAiTradingPage();
   }
@@ -1900,5 +2081,8 @@
   window.aiSetFilterSignal = aiSetFilterSignal;
   window.aiTriggerAutonomousCycle = aiTriggerAutonomousCycle;
   window.aiFormulateNewHypothesis = aiFormulateNewHypothesis;
+  window.syncAiPaperPortfolioLivePrices = syncAiPaperPortfolioLivePrices;
+  window.aiRefreshPaperPortfolioQuotes = aiRefreshPaperPortfolioQuotes;
+  window.syncAiUniverseWithRealPrices = syncAiUniverseWithRealPrices;
 
 })(window, document);
