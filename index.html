@@ -2338,17 +2338,9 @@
       </div>
 
       <div class="sm-nav-cat">📊 Analisa Fundamental</div>
-      <a class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">⚡ 1. Analisa Terpadu (1–7 &amp; 9)</a>
-      <a class="sm-nav-item" id="fund-nav-9" onclick="fundSwitchTab(9)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 9. Traffic Light Consensus</a>
-      <a class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 2. Laba Rugi &amp; Margins</a>
-      <a class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 3. Valuasi 9-Step Buffett</a>
-      <a class="sm-nav-item" id="fund-nav-4" onclick="fundSwitchTab(4)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 4. Multi-Model Matrix</a>
-      <a class="sm-nav-item" id="fund-nav-5" onclick="fundSwitchTab(5)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 5. DCF Simulator</a>
-      <a class="sm-nav-item" id="fund-nav-6" onclick="fundSwitchTab(6)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 6. Moat &amp; Management</a>
-      <a class="sm-nav-item" id="fund-nav-7" onclick="fundSwitchTab(7)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 7. Red Flag Detector</a>
-      <div class="sm-nav-cat" style="margin-top:10px">🔬 Modul Tambahan</div>
-      <a class="sm-nav-item" id="fund-nav-8" onclick="fundSwitchTab(8)">8. Bull/Bear Debate &amp; 5-Pilar</a>
-      <a class="sm-nav-item" id="fund-nav-10" onclick="fundSwitchTab(10)"><i class="ti ti-users-group" style="margin-right:4px"></i>10. Kepemilikan &amp; Free Float KSEI</a>
+      <a class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)"><i class="ti ti-chart-dots" style="margin-right:6px"></i>1. Analisa Terpadu &amp; Valuasi Saham</a>
+      <a class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)"><i class="ti ti-scale" style="margin-right:6px"></i>2. Bull/Bear Debate &amp; 5-Pilar Kualitas</a>
+      <a class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)"><i class="ti ti-users-group" style="margin-right:6px"></i>3. Kepemilikan &amp; Free Float KSEI</a>
     </aside>
 
     <!-- MAIN WORKSPACE -->
@@ -2397,9 +2389,57 @@
           <div id="sm-d-ksei-tab1-summary" class="sm-card" style="border-left:4px solid #10B981;margin-bottom:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin:0">🏛️ Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
-              <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(10)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 10 →</button>
+              <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(3)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 3 →</button>
             </div>
             <div id="sm-d-ksei-tab1-content" style="font-size:12px;color:#94A3B8">Memuat data KSEI...</div>
+          </div>
+        </div>
+
+        <!-- SECTION EXECUTIVE SYNTHESIS & ACADEMIC LITERATURE VERDICT -->
+        <div id="fund-sec-synthesis" style="scroll-margin-top:14px">
+          <div class="sm-card" style="border-left:4px solid #3B82F6;background:linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95));padding:18px;margin-bottom:0">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                  <span style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);color:#FFF;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:800">SINTESIS EKSEKUTIF</span>
+                  <h2 style="font-size:16px;font-weight:800;color:#F1F5F9;margin:0">🏛️ Kesimpulan Analisa Fundamental Berbasis Literatur &amp; Jurnal</h2>
+                </div>
+                <p style="font-size:11px;color:#94A3B8;margin:0">Sintesis multi-pilar merujuk pada metodologi Benjamin Graham (1934), Warren Buffett (1977-2023), Aswath Damodaran (NYU Stern), Peter Lynch (1989), dan Joseph Piotroski (2000).</p>
+              </div>
+              <div id="fund-synthesis-overall-badge" style="text-align:right">
+                <span class="badge b-up" style="font-size:12px;padding:5px 12px;font-weight:800">MEMUAT KESIMPULAN...</span>
+              </div>
+            </div>
+
+            <!-- Executive Summary Text Box -->
+            <div id="fund-synthesis-summary-text" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:#E2E8F0;line-height:1.75;margin-bottom:14px">
+              Menghubungkan data laporan keuangan dengan model valuasi akademik...
+            </div>
+
+            <!-- 5 Academic Pillars Matrix -->
+            <div style="margin-bottom:14px">
+              <h4 style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px">🔬 Matriks Evaluasi 5 Pilar Jurnal &amp; Literatur Akademis</h4>
+              <div style="overflow-x:auto">
+                <table class="tbl" style="font-size:11px;text-align:left;width:100%">
+                  <thead>
+                    <tr style="background:var(--bg3);color:#94A3B8">
+                      <th style="padding:8px 10px">Literatur &amp; Penulis</th>
+                      <th style="padding:8px 10px">Metodologi &amp; Formula Acuan</th>
+                      <th style="padding:8px 10px">Kondisi Emiten Terkini</th>
+                      <th style="padding:8px 10px;text-align:right">Status / Verdict</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fund-synthesis-table-body">
+                    <tr><td colspan="4" style="text-align:center;padding:12px;color:#94A3B8">Memuat matriks literatur...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Investor Profile Actionable Verdict -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px" id="fund-synthesis-action-cards">
+              <!-- Rendered via JS -->
+            </div>
           </div>
         </div>
 
