@@ -639,16 +639,15 @@ function renderAggregatedBrokerFlowView(data) {
   var rm = b.retailVsSmartMoney || b.smartMoney || {};
 
   var verdict = String(b.verdict || 'NEUTRAL');
-  var verdictColor = verdict.includes('BIG ACCUM') ? 'text-emerald-400 bg-emerald-950/60 border-emerald-700/80 shadow-emerald-950/50' :
-    (verdict.includes('ACCUM') ? 'text-teal-400 bg-teal-950/60 border-teal-700/80 shadow-teal-950/50' :
-    (verdict.includes('BIG DISTRIB') ? 'text-rose-400 bg-rose-950/60 border-rose-700/80 shadow-rose-950/50' :
-    (verdict.includes('DISTRIB') ? 'text-orange-400 bg-orange-950/60 border-orange-700/80 shadow-orange-950/50' : 'text-amber-400 bg-amber-950/60 border-amber-700/80 shadow-amber-950/50')));
+  var verdictBadge = 'b-neu';
+  if (verdict.includes('BIG ACCUM') || verdict.includes('STRONG ACCUM')) verdictBadge = 'b-up';
+  else if (verdict.includes('ACCUM')) verdictBadge = 'b-up';
+  else if (verdict.includes('BIG DISTRIB') || verdict.includes('STRONG DISTRIB')) verdictBadge = 'b-dn';
+  else if (verdict.includes('DISTRIB')) verdictBadge = 'b-dn';
 
   var netForeignVal = (ff.netValRp !== undefined ? ff.netValRp : (ff.netValueRp !== undefined ? ff.netValueRp : 0));
   var netForeignM = Math.round(netForeignVal / 1000000000);
-  var netForeignBadge = netForeignM >= 0 
-    ? '<span class="text-emerald-400 font-bold text-base">+Rp ' + netForeignM.toLocaleString('id-ID') + ' M</span>' 
-    : '<span class="text-rose-400 font-bold text-base">-Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</span>';
+  var netForeignBadge = (netForeignM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netForeignM).toLocaleString('id-ID') + ' M';
 
   var topBuyerAvg = data.topBuyers && data.topBuyers[0] ? data.topBuyers[0].avgPrice : data.price;
   var topSellerAvg = data.topSellers && data.topSellers[0] ? data.topSellers[0].avgPrice : data.price;
@@ -697,171 +696,158 @@ function renderAggregatedBrokerFlowView(data) {
   var retailNet = retailBuyVal - retailSellVal;
 
   var smartMoneySignal = smartMoneyNet > 0 && retailNet < 0 
-    ? '🟢 SMART MONEY ACCUMULATION (Institusi Akumulasi dari Ritel)' 
+    ? 'SMART MONEY ACCUMULATION (Institusi Akumulasi dari Ritel)' 
     : (smartMoneyNet < 0 && retailNet > 0 
-        ? '🔴 DISTRIBUTION TO RETAIL (Institusi Distribusi ke Akun Ritel)' 
-        : (smartMoneyNet > 0 ? '🟢 NET INSTITUTIONAL INFLOW' : '🟡 NEUTRAL / BALANCED ROTATION'));
+        ? 'DISTRIBUTION TO RETAIL (Institusi Distribusi ke Akun Ritel)' 
+        : (smartMoneyNet > 0 ? 'NET INSTITUTIONAL INFLOW' : 'NEUTRAL / BALANCED ROTATION'));
 
-  var html = '<div class="space-y-4">'
+  var html = '<div style="display:flex;flex-direction:column;gap:16px">'
     // Top Banner Card: Verdict & Key Averages
-    + '<div class="bandar-banner-card ' + (verdict.includes('ACCUM') ? 'border-emerald-500/40' : (verdict.includes('DISTRIB') ? 'border-rose-500/40' : '')) + '">'
-    + '<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">'
-    + '<div class="space-y-1.5">'
-    + '<div class="flex items-center gap-2.5 flex-wrap">'
-    + '<span class="px-3 py-1 rounded-lg bg-blue-500/15 border border-blue-500/40 text-blue-400 font-black text-lg tracking-wider font-mono">' + data.ticker + '</span>'
-    + '<span class="font-black text-xl" style="color:var(--text)">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</span>'
-    + '<span class="text-xs px-2 py-0.5 rounded font-bold ' + ((data.changePercent || 0) >= 0 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30') + '">'
+    + '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
+    + '<div style="display:flex;flex-direction:column;gap:6px">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + '<span class="badge b-accent" style="font-size:14px;font-weight:900;font-family:monospace;padding:4px 8px">' + data.ticker + '</span>'
+    + '<span style="font-size:18px;font-weight:800;font-family:monospace;color:var(--text)">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</span>'
+    + '<span class="badge ' + ((data.changePercent || 0) >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:11px;font-family:monospace">'
     + ((data.changePercent || 0) >= 0 ? '+' : '') + Number(data.changePercent || 0).toFixed(2) + '%'
     + '</span>'
-    + '<span class="px-3 py-1 rounded-full border text-xs font-black shadow-md ' + verdictColor + '">' + verdict + '</span>'
+    + '<span class="badge ' + verdictBadge + '" style="font-size:11px">' + verdict + '</span>'
     + '</div>'
-    + '<p class="text-xs max-w-3xl leading-relaxed" style="color:var(--text2)">' + (b.interpretation || 'Arus transaksi broker terpantau berimbang.') + '</p>'
+    + '<p style="font-size:12px;color:var(--text2);margin:0;max-width:700px;line-height:1.5">' + (b.interpretation || 'Arus transaksi broker terpantau berimbang.') + '</p>'
     + '</div>'
-    + '<div class="flex items-center gap-2 flex-wrap shrink-0">'
-    // Multi-Period Timeframe Switcher (1D to 1Y)
-    + '<div class="flex items-center gap-1 p-1 rounded-xl border shadow-inner bandar-tf-bar" style="background:var(--bg3);border-color:var(--border)">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    // Multi-Period Timeframe Switcher
+    + '<div class="btn-group" style="display:inline-flex;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:2px">'
     + ['1D', '1W', '1M', '3M', '6M', '1Y'].map(function(tVal) {
         var isTfActive = (data.timeframe || '1D') === tVal;
-        return '<button onclick="setStockChatTimeframe(\'' + tVal + '\')" class="bandar-tf-btn px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition ' + (isTfActive ? 'active bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white') + '">' + (tVal === '1Y' ? '1Y (1 Tahun)' : tVal) + '</button>';
+        return '<button onclick="setStockChatTimeframe(\'' + tVal + '\')" class="btn btn-xs ' + (isTfActive ? 'btn-primary' : 'btn-ghost') + '" style="font-family:monospace;font-weight:700;padding:2px 8px">' + tVal + '</button>';
       }).join('')
     + '</div>'
-    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + data.ticker + '\')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg transition flex items-center gap-1.5">'
+    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + data.ticker + '\')" class="btn btn-primary btn-xs flex items-center gap-1">'
     + '<i class="ti ti-messages"></i> <span>Tanya AI</span>'
     + '</button>'
     + '</div>'
     + '</div>'
-    + '</div>';
-
-  // 4 Main Aggregated Metrics Cards Grid (Visualization)
-  html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">'
-    // Card 1: Volume & Turnover
-    + '<div class="bandar-kpi-card">'
-    + '<div class="bandar-kpi-label">'
-    + '<span>Total Turnover (' + (data.timeframe || '1D') + ')</span>'
-    + '<span>💰</span>'
     + '</div>'
-    + '<div class="bandar-kpi-val">Rp ' + Math.round((data.totalValueRp || 0) / 1000000000).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="bandar-kpi-sub font-mono">' + Number(data.totalVolumeLot || 0).toLocaleString('id-ID') + ' Lot Traded</div>'
+
+    // 4 Aggregated Metrics Cards Grid (Opportunity Radar .row4 / .metric style)
+    + '<div class="row4">'
+    // Card 1: Total Turnover
+    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="mlabel">TOTAL TURNOVER (' + (data.timeframe || '1D') + ')</div>'
+    + '<div class="mval mono" style="font-size:20px">Rp ' + Math.round((data.totalValueRp || 0) / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="msub neu">' + Number(data.totalVolumeLot || 0).toLocaleString('id-ID') + ' Lot Diperdagangkan</div>'
     + '</div>'
 
     // Card 2: Foreign Flow
-    + '<div class="bandar-kpi-card">'
-    + '<div class="bandar-kpi-label">'
-    + '<span>Net Foreign Flow (Asing)</span>'
-    + '<span>🌐</span>'
-    + '</div>'
-    + '<div class="bandar-kpi-val">' + netForeignBadge + '</div>'
-    + '<div class="bandar-kpi-sub">Partisipasi Asing: <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong></div>'
+    + '<div class="metric" style="border-left:3px solid ' + (netForeignM >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+    + '<div class="mlabel">NET FOREIGN FLOW</div>'
+    + '<div class="mval mono ' + (netForeignM >= 0 ? 'up' : 'dn') + '" style="font-size:20px">' + netForeignBadge + '</div>'
+    + '<div class="msub neu">Partisipasi Asing: <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong></div>'
     + '</div>'
 
-    // Card 3: Bandar Average Price
-    + '<div class="bandar-kpi-card">'
-    + '<div class="bandar-kpi-label">'
-    + '<span>Top 1 Buyer Avg Price</span>'
-    + '<span>🎯</span>'
-    + '</div>'
-    + '<div class="bandar-kpi-val text-sky-400">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</div>'
-    + '<div class="bandar-kpi-sub">Spread vs Harga: <span class="' + (Number(buyerSpreadPct) >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' font-semibold">' + (Number(buyerSpreadPct) >= 0 ? '+' : '') + buyerSpreadPct + '%</span></div>'
+    // Card 3: Top 1 Buyer Avg
+    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="mlabel">TOP 1 BUYER AVG PRICE</div>'
+    + '<div class="mval mono" style="font-size:20px;color:var(--blue)">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</div>'
+    + '<div class="msub neu">Spread vs Harga: <span class="' + (Number(buyerSpreadPct) >= 0 ? 'up' : 'dn') + ' font-semibold">' + (Number(buyerSpreadPct) >= 0 ? '+' : '') + buyerSpreadPct + '%</span></div>'
     + '</div>'
 
     // Card 4: Smart Money Net Flow
-    + '<div class="bandar-kpi-card">'
-    + '<div class="bandar-kpi-label">'
-    + '<span>Smart Money Net Flow</span>'
-    + '<span>🏦</span>'
-    + '</div>'
-    + '<div class="bandar-kpi-val ' + (smartMoneyNet >= 0 ? 'text-emerald-400' : 'text-rose-400') + '">' + (smartMoneyNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smartMoneyNet / 1000000000)).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="bandar-kpi-sub truncate">' + (smartMoneyBuyBrokers.slice(0, 2).map(function(x){return x.broker;}).join(', ') || 'AK, BK') + ' Accumulating</div>'
+    + '<div class="metric" style="border-left:3px solid ' + (smartMoneyNet >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+    + '<div class="mlabel">SMART MONEY NET FLOW</div>'
+    + '<div class="mval mono ' + (smartMoneyNet >= 0 ? 'up' : 'dn') + '" style="font-size:20px">' + (smartMoneyNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smartMoneyNet / 1000000000)).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="msub neu truncate">' + (smartMoneyBuyBrokers.slice(0, 2).map(function(x){return x.broker;}).join(', ') || 'AK, BK') + ' Accumulating</div>'
     + '</div>'
     + '</div>';
 
-  // MODERN INTERACTIVE BROKER MUTATION FLOW SPECTRUM (Whale vs Retail Capital Flow)
+  // BROKER MUTATION FLOW SPECTRUM (Whale vs Retail Capital Flow)
   var netMutationM = Math.round(Math.abs(smartMoneyNet) / 1000000000);
   var isInstAccum = smartMoneyNet >= 0;
 
-  html += '<div class="bandar-card space-y-4">'
-    + '<div class="flex items-center justify-between flex-wrap gap-2">'
-    + '<div class="flex items-center gap-2">'
-    + '<span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/40 flex items-center gap-1.5"><i class="ti ti-chart-arrows"></i> ALUR MUTASI DANA BROKER</span>'
-    + '<span class="text-xs font-bold" style="color:var(--text)">' + smartMoneySignal + '</span>'
+  html += '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span class="badge b-up" style="font-size:10px;font-weight:700"><i class="ti ti-chart-arrows"></i> ALUR MUTASI MODAL BROKER</span>'
+    + '<span style="font-size:12px;font-weight:700;color:var(--text)">' + smartMoneySignal + '</span>'
     + '</div>'
-    + '<span class="text-[11px] font-mono" style="color:var(--text3)">Live Institutional Spectrum</span>'
-    + '</div>'
-
-    // Visual Flow Waterfall / Sankey Spectrum Diagram
-    + '<div class="bandar-spectrum-box space-y-3">'
-    + '<div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4 text-center">'
-    // Left Node: Smart Money Accumulation Pool
-    + '<div class="bandar-node-inst space-y-1.5">'
-    + '<div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-center gap-1"><i class="ti ti-building-bank"></i> Tier-1 Institusi & Asing</div>'
-    + '<div class="text-lg font-black text-emerald-400 font-mono">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="text-[10px] truncate" style="color:var(--text3)">' + (smartMoneyBuyBrokers.map(function(x){return x.broker;}).join(', ') || 'AK, BK, ZP, CC') + '</div>'
+    + '<span style="font-size:11px;color:var(--text3);font-family:monospace">Live Institutional Spectrum</span>'
     + '</div>'
 
-    // Center Node: Capital Mutation Stream (Animated Arrow)
-    + '<div class="flex flex-col items-center justify-center space-y-1.5 py-2">'
-    + '<span class="text-[10px] font-bold uppercase tracking-wider ' + (isInstAccum ? 'text-emerald-400' : 'text-rose-400') + '">' + (isInstAccum ? 'Net Inflow Institusi' : 'Net Distribusi Institusi') + '</span>'
-    + '<div class="bandar-arrow-badge ' + (isInstAccum ? 'accum' : 'distrib') + '">'
-    + '<span>' + (isInstAccum ? '➔ Rp ' : '⬅ Rp ') + netMutationM.toLocaleString('id-ID') + ' M ' + (isInstAccum ? '➔' : '⬅') + '</span>'
-    + '</div>'
-    + '<span class="text-[10px] font-mono" style="color:var(--text3)">' + (isInstAccum ? 'Modal Ritel Terserap ke Institusi' : 'Institusi Melepas ke Ritel') + '</span>'
-    + '</div>'
-
-    // Right Node: Retail & Domestic Absorption Pool
-    + '<div class="bandar-node-retail space-y-1.5">'
-    + '<div class="text-[10px] uppercase font-bold text-rose-400 flex items-center justify-center gap-1"><i class="ti ti-users"></i> Partisipasi Publik & Ritel</div>'
-    + '<div class="text-lg font-black text-rose-400 font-mono">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="text-[10px] truncate" style="color:var(--text3)">' + (retailSellBrokers.map(function(x){return x.broker;}).join(', ') || 'YP, PD, XC, XL') + '</div>'
-    + '</div>'
+    // Visual Flow Spectrum Diagram
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:12px">'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:center;text-align:center">'
+    // Left Node: Institutional
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px">'
+    + '<div style="font-size:10px;text-transform:uppercase;font-weight:700;color:var(--green)"><i class="ti ti-building-bank"></i> Tier-1 Institusi &amp; Asing</div>'
+    + '<div style="font-size:16px;font-weight:800;color:var(--green);font-family:monospace;margin:4px 0">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (smartMoneyBuyBrokers.map(function(x){return x.broker;}).join(', ') || 'AK, BK, ZP, CC') + '</div>'
     + '</div>'
 
-    // Full Width Spectrum Mutation Progress Bar
-    + '<div class="space-y-1 pt-2">'
-    + '<div class="flex justify-between text-[11px] font-mono">'
-    + '<span class="text-emerald-400 font-bold">Institusi: ' + (smartMoneyBuyVal > 0 ? Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
+    // Center Node: Capital Mutation
+    + '<div style="padding:6px 0">'
+    + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:4px" class="' + (isInstAccum ? 'up' : 'dn') + '">' + (isInstAccum ? 'Net Inflow Institusi' : 'Net Distribusi Institusi') + '</div>'
+    + '<div class="badge ' + (isInstAccum ? 'b-up' : 'b-dn') + '" style="font-size:12px;font-family:monospace;font-weight:800;padding:4px 10px">'
+    + (isInstAccum ? '➔ Rp ' : '⬅ Rp ') + netMutationM.toLocaleString('id-ID') + ' M ' + (isInstAccum ? '➔' : '⬅')
+    + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);font-family:monospace;margin-top:4px">' + (isInstAccum ? 'Modal Ritel Terserap ke Institusi' : 'Institusi Melepas ke Ritel') + '</div>'
+    + '</div>'
+
+    // Right Node: Retail
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px">'
+    + '<div style="font-size:10px;text-transform:uppercase;font-weight:700;color:var(--red)"><i class="ti ti-users"></i> Partisipasi Publik &amp; Ritel</div>'
+    + '<div style="font-size:16px;font-weight:800;color:var(--red);font-family:monospace;margin:4px 0">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (retailSellBrokers.map(function(x){return x.broker;}).join(', ') || 'YP, PD, XC, XL') + '</div>'
+    + '</div>'
+    + '</div>'
+
+    // Spectrum Progress Bar
+    + '<div style="margin-top:12px">'
+    + '<div style="display:flex;justify-content:between;font-size:11px;font-family:monospace;margin-bottom:4px">'
+    + '<span class="up" style="font-weight:700">Institusi: ' + (smartMoneyBuyVal > 0 ? Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
     + '<span style="color:var(--text3)">Spektrum Distribusi Kepemilikan</span>'
-    + '<span class="text-rose-400 font-bold">Ritel: ' + (retailSellVal > 0 ? Math.round((retailSellVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
+    + '<span class="dn" style="font-weight:700">Ritel: ' + (retailSellVal > 0 ? Math.round((retailSellVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
     + '</div>'
-    + '<div class="w-full rounded-full h-3 overflow-hidden flex border" style="background:var(--bg4);border-color:var(--border)">'
-    + '<div class="bg-gradient-to-r from-emerald-600 to-teal-400 h-3 transition-all duration-700" style="width:' + (smartMoneyBuyVal > 0 ? Math.min(Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100), 95) : 50) + '%"></div>'
-    + '<div class="bg-gradient-to-r from-rose-500 to-red-600 h-3 flex-1 transition-all duration-700"></div>'
+    + '<div style="width:100%;height:8px;border-radius:4px;overflow:hidden;display:flex;background:var(--bg4);border:1px solid var(--border2)">'
+    + '<div style="background:var(--green);height:8px;width:' + (smartMoneyBuyVal > 0 ? Math.min(Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100), 95) : 50) + '%;transition:all 0.5s"></div>'
+    + '<div style="background:var(--red);height:8px;flex:1;transition:all 0.5s"></div>'
     + '</div>'
     + '</div>'
     + '</div>'
 
     // Concentration Meters (Top 1, 3, 5)
-    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">'
-    + '<div class="p-3 rounded-xl border space-y-1.5" style="background:var(--bg3);border-color:var(--border)">'
-    + '<div class="flex justify-between text-xs font-medium">'
-    + '<span class="text-emerald-400 font-bold">Top 1 Buy: ' + t1b + '%</span>'
-    + '<span class="text-rose-400 font-bold">Top 1 Sell: ' + t1s + '%</span>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">'
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px">'
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">'
+    + '<span class="up" style="font-weight:700">Top 1 Buy: ' + t1b + '%</span>'
+    + '<span class="dn" style="font-weight:700">Top 1 Sell: ' + t1s + '%</span>'
     + '</div>'
-    + '<div class="w-full rounded-full h-2 overflow-hidden flex" style="background:rgba(239,68,68,0.25)">'
-    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t1b, 100) + '%"></div>'
-    + '</div>'
-    + '</div>'
-
-    + '<div class="p-3 rounded-xl border space-y-1.5" style="background:var(--bg3);border-color:var(--border)">'
-    + '<div class="flex justify-between text-xs font-medium">'
-    + '<span class="text-emerald-400 font-bold">Top 3 Buy: ' + t3b + '%</span>'
-    + '<span class="text-rose-400 font-bold">Top 3 Sell: ' + t3s + '%</span>'
-    + '</div>'
-    + '<div class="w-full rounded-full h-2 overflow-hidden flex" style="background:rgba(239,68,68,0.25)">'
-    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t3b, 100) + '%"></div>'
+    + '<div style="width:100%;height:6px;border-radius:3px;overflow:hidden;display:flex;background:rgba(239,68,68,0.2)">'
+    + '<div style="background:var(--green);height:6px;width:' + Math.min(t1b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
 
-    + '<div class="p-3 rounded-xl border space-y-1.5" style="background:var(--bg3);border-color:var(--border)">'
-    + '<div class="flex justify-between text-xs font-medium">'
-    + '<span class="text-emerald-400 font-bold">Top 5 Buy: ' + t5b + '%</span>'
-    + '<span class="text-rose-400 font-bold">Top 5 Sell: ' + t5s + '%</span>'
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px">'
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">'
+    + '<span class="up" style="font-weight:700">Top 3 Buy: ' + t3b + '%</span>'
+    + '<span class="dn" style="font-weight:700">Top 3 Sell: ' + t3s + '%</span>'
     + '</div>'
-    + '<div class="w-full rounded-full h-2 overflow-hidden flex" style="background:rgba(239,68,68,0.25)">'
-    + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t5b, 100) + '%"></div>'
-    + '</div>'
+    + '<div style="width:100%;height:6px;border-radius:3px;overflow:hidden;display:flex;background:rgba(239,68,68,0.2)">'
+    + '<div style="background:var(--green);height:6px;width:' + Math.min(t3b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
 
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px">'
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">'
+    + '<span class="up" style="font-weight:700">Top 5 Buy: ' + t5b + '%</span>'
+    + '<span class="dn" style="font-weight:700">Top 5 Sell: ' + t5s + '%</span>'
+    + '</div>'
+    + '<div style="width:100%;height:6px;border-radius:3px;overflow:hidden;display:flex;background:rgba(239,68,68,0.2)">'
+    + '<div style="background:var(--green);height:6px;width:' + Math.min(t5b, 100) + '%"></div>'
+    + '</div>'
+    + '</div>'
+    + '</div>'
     + '</div>';
 
   // ==========================================
@@ -870,7 +856,6 @@ function renderAggregatedBrokerFlowView(data) {
   var rawBuyers = data.topBuyers || [];
   var rawSellers = data.topSellers || [];
 
-  // Filter if needed
   if (STOCKCHAT_BROKER_FILTER === 'F') {
     rawBuyers = rawBuyers.filter(function(x) { return x.type === 'F'; });
     rawSellers = rawSellers.filter(function(x) { return x.type === 'F'; });
@@ -879,32 +864,25 @@ function renderAggregatedBrokerFlowView(data) {
     rawSellers = rawSellers.filter(function(x) { return x.type !== 'F'; });
   }
 
-  // Sort lists
   var sortedBuyers = sortBrokerList(rawBuyers, STOCKCHAT_BUYERS_SORT);
   var sortedSellers = sortBrokerList(rawSellers, STOCKCHAT_SELLERS_SORT);
 
-  // Slice by active limit (default Top 5)
   var limit = STOCKCHAT_TABLE_LIMIT || 5;
   var displayBuyers = sortedBuyers.slice(0, limit);
   var displaySellers = sortedSellers.slice(0, limit);
 
-  // Helper for sort header label & arrow
   function renderSortHeader(tableType, field, label, align) {
     var activeSort = tableType === 'buyers' ? STOCKCHAT_BUYERS_SORT : STOCKCHAT_SELLERS_SORT;
     var isActive = activeSort.field === field;
     var arrow = isActive ? (activeSort.order === 'asc' ? ' ▲' : ' ▼') : ' ↕';
-    var alignmentClass = align === 'right' ? 'text-right justify-end' : (align === 'center' ? 'text-center justify-center' : 'text-left justify-start');
-    var activeClass = isActive ? (tableType === 'buyers' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold') : 'text-slate-400 hover:text-white';
+    var alignment = align === 'right' ? 'text-align:right;' : (align === 'center' ? 'text-align:center;' : 'text-align:left;');
+    var colorStyle = isActive ? (tableType === 'buyers' ? 'color:var(--green);font-weight:700;' : 'color:var(--red);font-weight:700;') : 'color:var(--text2);';
 
-    return '<th onclick="toggleStockChatTableSort(\'' + tableType + '\', \'' + field + '\')" class="p-2.5 cursor-pointer select-none transition ' + activeClass + '" title="Klik untuk mengurutkan berdasarkan ' + label + '">'
-      + '<div class="flex items-center gap-1 ' + alignmentClass + '">'
-      + '<span>' + label + '</span>'
-      + '<span class="text-[10px] font-mono opacity-80">' + arrow + '</span>'
-      + '</div>'
+    return '<th onclick="toggleStockChatTableSort(\'' + tableType + '\', \'' + field + '\')" style="padding:8px 10px;cursor:pointer;user-select:none;' + alignment + colorStyle + '" title="Klik untuk menyortir">'
+      + label + '<span style="font-size:10px;font-family:monospace;opacity:0.7">' + arrow + '</span>'
       + '</th>';
   }
 
-  // Calculate subtotals for the displayed Top N
   var buyerSubtotalLot = displayBuyers.reduce(function(acc, x) { return acc + (x.volumeLot || 0); }, 0);
   var buyerSubtotalVal = displayBuyers.reduce(function(acc, x) { return acc + (x.valueRp || 0); }, 0);
   var buyerSubtotalPct = displayBuyers.reduce(function(acc, x) { return acc + (x.pctOfTurnover || 0); }, 0);
@@ -915,216 +893,158 @@ function renderAggregatedBrokerFlowView(data) {
   var sellerSubtotalPct = displaySellers.reduce(function(acc, x) { return acc + (x.pctOfTurnover || 0); }, 0);
   var sellerWeightedAvg = sellerSubtotalLot > 0 ? Math.round(sellerSubtotalVal / (sellerSubtotalLot * 100)) : 0;
 
-  // Header Controls for Sortable Table Section
-  html += '<div class="bandar-card space-y-4">'
-    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3" style="border-color:var(--border)">'
-    + '<div>'
-    + '<div class="text-sm font-black flex items-center gap-2" style="color:var(--text)">'
-    + '<span>📊 Top ' + limit + ' Buying vs Top ' + limit + ' Selling Brokers (' + data.ticker + ')</span>'
-    + '<span class="text-[10px] px-2 py-0.5 rounded font-bold bg-blue-500/20 text-blue-400 border border-blue-500/40">Sortable Table</span>'
+  html += '<div class="card" style="padding:0;overflow:hidden">'
+    + '<div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span style="font-size:12px;font-weight:700;color:var(--text)">📊 Top ' + limit + ' Buying vs Top ' + limit + ' Selling Brokers (' + data.ticker + ')</span>'
+    + '<span class="badge b-accent" style="font-size:10px">Sortable Table</span>'
     + '</div>'
-    + '<p class="text-[11px] mt-0.5" style="color:var(--text3)">Klik pada header kolom tabel mana saja untuk menyortir (Volume, Nilai Rp, Avg Price, % Turnover, Rank).</p>'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + '<div class="btn-group" style="display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px">'
+    + '<button onclick="setStockChatTableLimit(5)" class="btn btn-xs ' + (limit === 5 ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 6px">Top 5</button>'
+    + '<button onclick="setStockChatTableLimit(10)" class="btn btn-xs ' + (limit === 10 ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 6px">Top 10</button>'
     + '</div>'
-
-    + '<div class="flex items-center gap-2.5 flex-wrap">'
-    // Limit Toggle (Top 5 / Top 10)
-    + '<div class="flex items-center gap-1 p-1 rounded-lg border text-[11px] bandar-filter-bar" style="background:var(--bg3);border-color:var(--border)">'
-    + '<span class="text-[10px] font-semibold px-1" style="color:var(--text3)">Tampilkan:</span>'
-    + '<button onclick="setStockChatTableLimit(5)" class="bandar-limit-btn px-2.5 py-1 rounded font-bold transition ' + (limit === 5 ? 'active bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">Top 5</button>'
-    + '<button onclick="setStockChatTableLimit(10)" class="bandar-limit-btn px-2.5 py-1 rounded font-bold transition ' + (limit === 10 ? 'active bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">Top 10</button>'
-    + '</div>'
-
-    // Filter Toggle (All / Foreign / Domestic)
-    + '<div class="flex items-center gap-1 p-1 rounded-lg border text-[11px] bandar-filter-bar" style="background:var(--bg3);border-color:var(--border)">'
-    + '<span class="text-[10px] font-semibold px-1" style="color:var(--text3)">Tipe:</span>'
-    + '<button onclick="setStockChatBrokerFilter(\'ALL\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'ALL' ? 'active bg-blue-600 text-white' : 'text-slate-400 hover:text-white') + '">Semua</button>'
-    + '<button onclick="setStockChatBrokerFilter(\'F\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'F' ? 'active bg-amber-600 text-white' : 'text-slate-400 hover:text-white') + '">Asing (F)</button>'
-    + '<button onclick="setStockChatBrokerFilter(\'D\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'D' ? 'active bg-indigo-600 text-white' : 'text-slate-400 hover:text-white') + '">Domestik</button>'
+    + '<div class="btn-group" style="display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px">'
+    + '<button onclick="setStockChatBrokerFilter(\'ALL\')" class="btn btn-xs ' + (STOCKCHAT_BROKER_FILTER === 'ALL' ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 6px">Semua</button>'
+    + '<button onclick="setStockChatBrokerFilter(\'F\')" class="btn btn-xs ' + (STOCKCHAT_BROKER_FILTER === 'F' ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 6px">Asing (F)</button>'
+    + '<button onclick="setStockChatBrokerFilter(\'D\')" class="btn btn-xs ' + (STOCKCHAT_BROKER_FILTER === 'D' ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 6px">Domestik</button>'
     + '</div>'
     + '</div>'
     + '</div>';
 
   // Dual Sortable Tables Grid
-  html += '<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">'
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0;border-bottom:1px solid var(--border2)">'
 
-    // ================= TABLE 1: TOP BUYERS =================
-    + '<div class="bandar-table-box flex flex-col justify-between">'
+    // TABLE 1: TOP BUYERS
+    + '<div style="border-right:1px solid var(--border2);display:flex;flex-direction:column;justify-content:space-between">'
     + '<div>'
-    + '<div class="bandar-table-head-buy">'
-    + '<div class="flex items-center gap-2">'
-    + '<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>'
-    + '<span class="font-black text-xs text-emerald-400 tracking-wider">TOP ' + limit + ' BUYING BROKERS (AKUMULASI)</span>'
+    + '<div style="padding:8px 12px;background:rgba(16,185,129,0.08);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">'
+    + '<span class="up" style="font-size:11px;font-weight:700">🟢 TOP ' + limit + ' BUYING BROKERS (AKUMULASI)</span>'
+    + '<span class="mono up" style="font-size:10px">Sort: ' + STOCKCHAT_BUYERS_SORT.field.toUpperCase() + '</span>'
     + '</div>'
-    + '<span class="text-[10px] text-emerald-400 font-mono">Sort: ' + STOCKCHAT_BUYERS_SORT.field.toUpperCase() + ' (' + STOCKCHAT_BUYERS_SORT.order.toUpperCase() + ')</span>'
-    + '</div>'
-
-    + '<div class="overflow-x-auto">'
-    + '<table class="bandar-table">'
-    + '<thead>'
-    + '<tr>'
+    + '<div style="overflow-x:auto">'
+    + '<table class="tbl">'
+    + '<thead><tr>'
     + renderSortHeader('buyers', 'rank', '#', 'center')
     + renderSortHeader('buyers', 'broker', 'Broker', 'left')
-    + renderSortHeader('buyers', 'volumeLot', 'Volume (Lot)', 'right')
+    + renderSortHeader('buyers', 'volumeLot', 'Volume', 'right')
     + renderSortHeader('buyers', 'valueRp', 'Nilai (Rp)', 'right')
-    + renderSortHeader('buyers', 'avgPrice', 'Avg Price', 'right')
+    + renderSortHeader('buyers', 'avgPrice', 'Avg', 'right')
     + renderSortHeader('buyers', 'pctOfTurnover', '% Share', 'right')
-    + '<th class="p-2.5 text-center" style="color:var(--text3)">Tanya</th>'
-    + '</tr>'
-    + '</thead>'
+    + '<th style="text-align:center;padding:8px 6px;color:var(--text3)">AI</th>'
+    + '</tr></thead>'
     + '<tbody>';
 
   if (displayBuyers.length === 0) {
-    html += '<tr><td colspan="7" class="p-6 text-center text-slate-500 text-xs">Tidak ada data broker pembeli yang cocok dengan filter.</td></tr>';
+    html += '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Tidak ada data broker pembeli.</td></tr>';
   } else {
     displayBuyers.forEach(function(bItem) {
       var isF = bItem.type === 'F';
       var valM = (bItem.valueRp / 1000000000).toFixed(2);
       var priceSpread = data.price ? (((data.price - bItem.avgPrice) / bItem.avgPrice) * 100).toFixed(1) : 0;
       var priceSpreadHtml = Number(priceSpread) >= 0 
-        ? '<span class="text-[9px] text-emerald-400 ml-1 font-semibold">+' + priceSpread + '%</span>'
-        : '<span class="text-[9px] text-rose-400 ml-1 font-semibold">' + priceSpread + '%</span>';
+        ? '<span class="up" style="font-size:9px;margin-left:3px;font-weight:700">+' + priceSpread + '%</span>'
+        : '<span class="dn" style="font-size:9px;margin-left:3px;font-weight:700">' + priceSpread + '%</span>';
 
-      html += '<tr class="transition group">'
-        // Rank
-        + '<td class="p-2.5 text-center font-mono font-bold text-[10px]" style="color:var(--text3)">' + bItem.rank + '</td>'
-        // Broker Code & Info
-        + '<td class="p-2.5">'
-        + '<div class="flex items-center gap-1.5">'
-        + '<span class="font-black font-mono px-2 py-0.5 rounded text-xs ' + (isF ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-200 border border-slate-700/60') + '">' + bItem.broker + '</span>'
-        + '<div class="min-w-0">'
-        + '<div class="font-semibold truncate text-[11px] max-w-[110px]" style="color:var(--text)" title="' + bItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</div>'
-        + '<div class="text-[9px] truncate" style="color:var(--text3)">' + (bItem.category || (isF ? 'Foreign' : 'Domestic')) + '</div>'
-        + '</div>'
+      html += '<tr>'
+        + '<td class="mono" style="text-align:center;font-size:10px;color:var(--text3)">' + bItem.rank + '</td>'
+        + '<td>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<span class="badge ' + (isF ? 'b-amb' : 'b-neu') + '" style="font-family:monospace;font-weight:800;font-size:10px">' + bItem.broker + '</span>'
+        + '<div style="font-size:11px;color:var(--text);font-weight:600;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</div>'
         + '</div>'
         + '</td>'
-        // Volume
-        + '<td class="p-2.5 text-right font-mono font-bold" style="color:var(--text)">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
-        // Value
-        + '<td class="p-2.5 text-right font-mono font-bold text-emerald-400">Rp ' + valM + ' M</td>'
-        // Avg Price
-        + '<td class="p-2.5 text-right font-mono" style="color:var(--text)">Rp ' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
-        // % Turnover
-        + '<td class="p-2.5 text-right">'
-        + '<div class="font-mono font-bold text-xs" style="color:var(--text)">' + Number(bItem.pctOfTurnover || 0).toFixed(1) + '%</div>'
-        + '<div class="w-16 rounded-full h-1 mt-1 ml-auto overflow-hidden" style="background:var(--bg4)">'
-        + '<div class="bg-emerald-500 h-1 rounded-full" style="width:' + Math.min(bItem.pctOfTurnover * 2.5, 100) + '%"></div>'
-        + '</div>'
-        + '</td>'
-        // Action (Ask AI)
-        + '<td class="p-2.5 text-center">'
-        + '<button onclick="askAiAboutBrokerAction(\'' + bItem.broker + '\', \'' + bItem.name.replace(/'/g, '') + '\', \'BUY\', \'' + data.ticker + '\', ' + bItem.volumeLot + ', ' + bItem.avgPrice + ', ' + bItem.valueRp + ')" class="p-1 rounded hover:bg-blue-600 transition" style="background:var(--bg3);border:1px solid var(--border)" title="Tanya AI tentang broker ini">💬</button>'
+        + '<td class="mono" style="text-align:right;font-weight:700">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
+        + '<td class="mono up" style="text-align:right;font-weight:700">Rp ' + valM + 'M</td>'
+        + '<td class="mono" style="text-align:right">' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
+        + '<td class="mono" style="text-align:right;font-weight:700">' + Number(bItem.pctOfTurnover || 0).toFixed(1) + '%</td>'
+        + '<td style="text-align:center">'
+        + '<button onclick="askAiAboutBrokerAction(\'' + bItem.broker + '\', \'' + bItem.name.replace(/'/g, '') + '\', \'BUY\', \'' + data.ticker + '\', ' + bItem.volumeLot + ', ' + bItem.avgPrice + ', ' + bItem.valueRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 4px" title="Tanya AI">💬</button>'
         + '</td>'
         + '</tr>';
     });
   }
 
   html += '</tbody></table></div></div>'
-
-    // Buyer Table Footer / Subtotals
-    + '<div class="bandar-table-foot flex items-center justify-between flex-wrap gap-2">'
-    + '<div class="font-semibold" style="color:var(--text3)">Subtotal Top ' + displayBuyers.length + ' Buyers:</div>'
-    + '<div class="flex items-center gap-3 font-mono text-xs flex-wrap">'
-    + '<span><strong style="color:var(--text)">' + buyerSubtotalLot.toLocaleString('id-ID') + '</strong> lot</span>'
-    + '<span><strong class="text-emerald-400">Rp ' + (buyerSubtotalVal / 1000000000).toFixed(2) + ' M</strong> (' + buyerSubtotalPct.toFixed(1) + '%)</span>'
-    + '<span>Avg: <strong class="text-sky-400">Rp ' + buyerWeightedAvg.toLocaleString('id-ID') + '</strong></span>'
+    + '<div style="padding:8px 12px;background:var(--bg3);border-top:1px solid var(--border2);font-size:11px;display:flex;justify-content:space-between;align-items:center">'
+    + '<span style="color:var(--text3)">Subtotal (' + displayBuyers.length + '):</span>'
+    + '<div class="mono" style="display:flex;gap:8px">'
+    + '<span>' + buyerSubtotalLot.toLocaleString('id-ID') + ' lot</span>'
+    + '<span class="up" style="font-weight:700">Rp ' + (buyerSubtotalVal / 1000000000).toFixed(2) + ' M (' + buyerSubtotalPct.toFixed(1) + '%)</span>'
     + '</div>'
     + '</div>'
     + '</div>'
 
-    // ================= TABLE 2: TOP SELLERS =================
-    + '<div class="bandar-table-box flex flex-col justify-between">'
+    // TABLE 2: TOP SELLERS
+    + '<div style="display:flex;flex-direction:column;justify-content:space-between">'
     + '<div>'
-    + '<div class="bandar-table-head-sell">'
-    + '<div class="flex items-center gap-2">'
-    + '<span class="w-2.5 h-2.5 rounded-full bg-rose-400 shadow-sm shadow-rose-400/50"></span>'
-    + '<span class="font-black text-xs text-rose-400 tracking-wider">TOP ' + limit + ' SELLING BROKERS (DISTRIBUSI)</span>'
+    + '<div style="padding:8px 12px;background:rgba(239,68,68,0.08);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">'
+    + '<span class="dn" style="font-size:11px;font-weight:700">🔴 TOP ' + limit + ' SELLING BROKERS (DISTRIBUSI)</span>'
+    + '<span class="mono dn" style="font-size:10px">Sort: ' + STOCKCHAT_SELLERS_SORT.field.toUpperCase() + '</span>'
     + '</div>'
-    + '<span class="text-[10px] text-rose-400 font-mono">Sort: ' + STOCKCHAT_SELLERS_SORT.field.toUpperCase() + ' (' + STOCKCHAT_SELLERS_SORT.order.toUpperCase() + ')</span>'
-    + '</div>'
-
-    + '<div class="overflow-x-auto">'
-    + '<table class="bandar-table">'
-    + '<thead>'
-    + '<tr>'
+    + '<div style="overflow-x:auto">'
+    + '<table class="tbl">'
+    + '<thead><tr>'
     + renderSortHeader('sellers', 'rank', '#', 'center')
     + renderSortHeader('sellers', 'broker', 'Broker', 'left')
-    + renderSortHeader('sellers', 'volumeLot', 'Volume (Lot)', 'right')
+    + renderSortHeader('sellers', 'volumeLot', 'Volume', 'right')
     + renderSortHeader('sellers', 'valueRp', 'Nilai (Rp)', 'right')
-    + renderSortHeader('sellers', 'avgPrice', 'Avg Price', 'right')
+    + renderSortHeader('sellers', 'avgPrice', 'Avg', 'right')
     + renderSortHeader('sellers', 'pctOfTurnover', '% Share', 'right')
-    + '<th class="p-2.5 text-center" style="color:var(--text3)">Tanya</th>'
-    + '</tr>'
-    + '</thead>'
+    + '<th style="text-align:center;padding:8px 6px;color:var(--text3)">AI</th>'
+    + '</tr></thead>'
     + '<tbody>';
 
   if (displaySellers.length === 0) {
-    html += '<tr><td colspan="7" class="p-6 text-center text-slate-500 text-xs">Tidak ada data broker penjual yang cocok dengan filter.</td></tr>';
+    html += '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Tidak ada data broker penjual.</td></tr>';
   } else {
     displaySellers.forEach(function(sItem) {
       var isF = sItem.type === 'F';
       var valM = (sItem.valueRp / 1000000000).toFixed(2);
       var priceSpread = data.price ? (((data.price - sItem.avgPrice) / sItem.avgPrice) * 100).toFixed(1) : 0;
       var priceSpreadHtml = Number(priceSpread) >= 0 
-        ? '<span class="text-[9px] text-emerald-400 ml-1 font-semibold">+' + priceSpread + '%</span>'
-        : '<span class="text-[9px] text-rose-400 ml-1 font-semibold">' + priceSpread + '%</span>';
+        ? '<span class="up" style="font-size:9px;margin-left:3px;font-weight:700">+' + priceSpread + '%</span>'
+        : '<span class="dn" style="font-size:9px;margin-left:3px;font-weight:700">' + priceSpread + '%</span>';
 
-      html += '<tr class="transition group">'
-        // Rank
-        + '<td class="p-2.5 text-center font-mono font-bold text-[10px]" style="color:var(--text3)">' + sItem.rank + '</td>'
-        // Broker Code & Info
-        + '<td class="p-2.5">'
-        + '<div class="flex items-center gap-1.5">'
-        + '<span class="font-black font-mono px-2 py-0.5 rounded text-xs ' + (isF ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-200 border border-slate-700/60') + '">' + sItem.broker + '</span>'
-        + '<div class="min-w-0">'
-        + '<div class="font-semibold truncate text-[11px] max-w-[110px]" style="color:var(--text)" title="' + sItem.name + '">' + sItem.name.replace(/ Sekuritas.*/i, '') + '</div>'
-        + '<div class="text-[9px] truncate" style="color:var(--text3)">' + (sItem.category || (isF ? 'Foreign' : 'Domestic')) + '</div>'
-        + '</div>'
+      html += '<tr>'
+        + '<td class="mono" style="text-align:center;font-size:10px;color:var(--text3)">' + sItem.rank + '</td>'
+        + '<td>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<span class="badge ' + (isF ? 'b-amb' : 'b-neu') + '" style="font-family:monospace;font-weight:800;font-size:10px">' + sItem.broker + '</span>'
+        + '<div style="font-size:11px;color:var(--text);font-weight:600;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + sItem.name.replace(/ Sekuritas.*/i, '') + '</div>'
         + '</div>'
         + '</td>'
-        // Volume
-        + '<td class="p-2.5 text-right font-mono font-bold" style="color:var(--text)">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
-        // Value
-        + '<td class="p-2.5 text-right font-mono font-bold text-rose-400">Rp ' + valM + ' M</td>'
-        // Avg Price
-        + '<td class="p-2.5 text-right font-mono" style="color:var(--text)">Rp ' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
-        // % Turnover
-        + '<td class="p-2.5 text-right">'
-        + '<div class="font-mono font-bold text-xs" style="color:var(--text)">' + Number(sItem.pctOfTurnover || 0).toFixed(1) + '%</div>'
-        + '<div class="w-16 rounded-full h-1 mt-1 ml-auto overflow-hidden" style="background:var(--bg4)">'
-        + '<div class="bg-rose-500 h-1 rounded-full" style="width:' + Math.min(sItem.pctOfTurnover * 2.5, 100) + '%"></div>'
-        + '</div>'
-        + '</td>'
-        // Action (Ask AI)
-        + '<td class="p-2.5 text-center">'
-        + '<button onclick="askAiAboutBrokerAction(\'' + sItem.broker + '\', \'' + sItem.name.replace(/'/g, '') + '\', \'SELL\', \'' + data.ticker + '\', ' + sItem.volumeLot + ', ' + sItem.avgPrice + ', ' + sItem.valueRp + ')" class="p-1 rounded hover:bg-blue-600 transition" style="background:var(--bg3);border:1px solid var(--border)" title="Tanya AI tentang broker ini">💬</button>'
+        + '<td class="mono" style="text-align:right;font-weight:700">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
+        + '<td class="mono dn" style="text-align:right;font-weight:700">Rp ' + valM + 'M</td>'
+        + '<td class="mono" style="text-align:right">' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
+        + '<td class="mono" style="text-align:right;font-weight:700">' + Number(sItem.pctOfTurnover || 0).toFixed(1) + '%</td>'
+        + '<td style="text-align:center">'
+        + '<button onclick="askAiAboutBrokerAction(\'' + sItem.broker + '\', \'' + sItem.name.replace(/'/g, '') + '\', \'SELL\', \'' + data.ticker + '\', ' + sItem.volumeLot + ', ' + sItem.avgPrice + ', ' + sItem.valueRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 4px" title="Tanya AI">💬</button>'
         + '</td>'
         + '</tr>';
     });
   }
 
   html += '</tbody></table></div></div>'
-
-    // Seller Table Footer / Subtotals
-    + '<div class="bandar-table-foot flex items-center justify-between flex-wrap gap-2">'
-    + '<div class="font-semibold" style="color:var(--text3)">Subtotal Top ' + displaySellers.length + ' Sellers:</div>'
-    + '<div class="flex items-center gap-3 font-mono text-xs flex-wrap">'
-    + '<span><strong style="color:var(--text)">' + sellerSubtotalLot.toLocaleString('id-ID') + '</strong> lot</span>'
-    + '<span><strong class="text-rose-400">Rp ' + (sellerSubtotalVal / 1000000000).toFixed(2) + ' M</strong> (' + sellerSubtotalPct.toFixed(1) + '%)</span>'
-    + '<span>Avg: <strong class="text-sky-400">Rp ' + sellerWeightedAvg.toLocaleString('id-ID') + '</strong></span>'
+    + '<div style="padding:8px 12px;background:var(--bg3);border-top:1px solid var(--border2);font-size:11px;display:flex;justify-content:space-between;align-items:center">'
+    + '<span style="color:var(--text3)">Subtotal (' + displaySellers.length + '):</span>'
+    + '<div class="mono" style="display:flex;gap:8px">'
+    + '<span>' + sellerSubtotalLot.toLocaleString('id-ID') + ' lot</span>'
+    + '<span class="dn" style="font-weight:700">Rp ' + (sellerSubtotalVal / 1000000000).toFixed(2) + ' M (' + sellerSubtotalPct.toFixed(1) + '%)</span>'
     + '</div>'
     + '</div>'
     + '</div>'
-
-    + '</div></div>';
+    + '</div>'
+    + '</div>';
 
   // Tactical Bandarmology Takeaways
-  html += '<div class="bandar-card space-y-2">'
-    + '<div class="text-xs font-bold text-sky-400 flex items-center gap-2">'
-    + '<span>💡 Rekomendasi & Catatan Taktis Bandarmology untuk ' + data.ticker + ':</span>'
+  html += '<div class="card" style="padding:14px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px;margin-bottom:8px">'
+    + '<i class="ti ti-bulb"></i> Rekomendasi &amp; Catatan Taktis Bandarmology untuk ' + data.ticker + ':'
     + '</div>'
-    + '<ul class="text-xs space-y-1.5 list-disc list-inside leading-relaxed" style="color:var(--text2)">'
+    + '<ul style="margin:0;padding-left:20px;font-size:12px;color:var(--text2);line-height:1.6">'
     + '<li>Level harga rata-rata Top Buyer (<strong style="color:var(--text)">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</strong>) dapat dijadikan area support kunci penahan penurunan harga.</li>'
-    + '<li>Arus investor asing saat ini mencatatkan ' + (netForeignM >= 0 ? '<strong class="text-emerald-400">Net Buy +Rp ' + netForeignM.toLocaleString('id-ID') + ' M</strong>' : '<strong class="text-rose-400">Net Sell -Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</strong>') + ' dengan partisipasi pasar sebesar <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong>.</li>'
+    + '<li>Arus investor asing saat ini mencatatkan ' + (netForeignM >= 0 ? '<strong class="up">Net Buy +Rp ' + netForeignM.toLocaleString('id-ID') + ' M</strong>' : '<strong class="dn">Net Sell -Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</strong>') + ' dengan partisipasi pasar sebesar <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong>.</li>'
     + '<li>Karakteristik dominan pergerakan: <strong style="color:var(--text)">' + (rm.smartMoneyStatus || 'NORMAL') + '</strong> vs <strong style="color:var(--text)">' + (rm.retailStatus || 'NORMAL') + '</strong>.</li>'
     + '</ul>'
     + '</div>';
@@ -1343,37 +1263,37 @@ function renderBrokerSummaryWidget(data) {
     ? '<span class="text-emerald-400 font-semibold">+Rp ' + netForeignM.toLocaleString('id-ID') + ' M</span>' 
     : '<span class="text-rose-400 font-semibold">-Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</span>';
 
-  var html = '<div class="rounded-xl border border-slate-700/80 bg-slate-900/90 p-4 shadow-xl text-xs space-y-4 my-2">';
+  var html = '<div class="stockchat-widget-card text-xs space-y-3 my-2">';
   
   // Header: Ticker, Verdict, Timeframe
-  html += '<div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">'
+  html += '<div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2.5" style="border-color:var(--border)">'
     + '<div class="flex items-center gap-2">'
-    + '<span class="px-2.5 py-1 rounded-md bg-blue-600/20 border border-blue-500/40 text-blue-400 font-black text-sm tracking-wider">' + data.ticker + '</span>'
-    + '<span class="text-slate-300 font-bold text-sm">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</span>'
+    + '<span class="px-2.5 py-1 rounded-md bg-blue-500/20 border border-blue-500/40 text-blue-400 font-black text-sm tracking-wider font-mono">' + data.ticker + '</span>'
+    + '<span class="font-bold text-sm" style="color:var(--text)">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</span>'
     + '<span class="' + ((data.changePercent || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' font-semibold">(' + ((data.changePercent || 0) >= 0 ? '+' : '') + Number(data.changePercent || 0).toFixed(2) + '%)</span>'
     + '</div>'
     + '<div class="flex items-center gap-2">'
     + '<span class="px-2.5 py-1 rounded-full border text-[11px] font-bold ' + verdictColor + '">' + (b.verdict || 'NEUTRAL') + '</span>'
-    + '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono">' + (data.timeframe || '1D') + '</span>'
+    + '<span class="px-2 py-0.5 rounded text-[10px] font-mono" style="background:var(--bg3);color:var(--text3);border:1px solid var(--border)">' + (data.timeframe || '1D') + '</span>'
     + '</div>'
     + '</div>';
 
   // Bandarmology Highlights Grid
   html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">'
-    + '<div class="bg-slate-800/60 p-2 rounded-lg border border-slate-700/40">'
-    + '<div class="text-[10px] text-slate-400 uppercase tracking-wider">Top 3 Buyer Pct</div>'
+    + '<div class="p-2 rounded-lg border" style="background:var(--bg3);border-color:var(--border)">'
+    + '<div class="text-[10px] uppercase tracking-wider" style="color:var(--text3)">Top 3 Buyer Pct</div>'
     + '<div class="text-emerald-400 font-bold text-sm mt-0.5">' + (conc.top3BuyPct || 0) + '%</div>'
     + '</div>'
-    + '<div class="bg-slate-800/60 p-2 rounded-lg border border-slate-700/40">'
-    + '<div class="text-[10px] text-slate-400 uppercase tracking-wider">Top 3 Seller Pct</div>'
+    + '<div class="p-2 rounded-lg border" style="background:var(--bg3);border-color:var(--border)">'
+    + '<div class="text-[10px] uppercase tracking-wider" style="color:var(--text3)">Top 3 Seller Pct</div>'
     + '<div class="text-rose-400 font-bold text-sm mt-0.5">' + (conc.top3SellPct || 0) + '%</div>'
     + '</div>'
-    + '<div class="bg-slate-800/60 p-2 rounded-lg border border-slate-700/40">'
-    + '<div class="text-[10px] text-slate-400 uppercase tracking-wider">Net Foreign Flow</div>'
+    + '<div class="p-2 rounded-lg border" style="background:var(--bg3);border-color:var(--border)">'
+    + '<div class="text-[10px] uppercase tracking-wider" style="color:var(--text3)">Net Foreign Flow</div>'
     + '<div class="text-sm mt-0.5">' + netForeignBadge + '</div>'
     + '</div>'
-    + '<div class="bg-slate-800/60 p-2 rounded-lg border border-slate-700/40">'
-    + '<div class="text-[10px] text-slate-400 uppercase tracking-wider">Smart Money</div>'
+    + '<div class="p-2 rounded-lg border" style="background:var(--bg3);border-color:var(--border)">'
+    + '<div class="text-[10px] uppercase tracking-wider" style="color:var(--text3)">Smart Money</div>'
     + '<div class="text-sky-400 font-bold text-[11px] mt-0.5 truncate">' + (rm.smartMoneyStatus || 'NEUTRAL') + '</div>'
     + '</div>'
     + '</div>';
@@ -1385,22 +1305,22 @@ function renderBrokerSummaryWidget(data) {
   html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">'
     // Buyers Column
     + '<div class="space-y-1.5">'
-    + '<div class="flex items-center justify-between text-[11px] font-bold text-emerald-400 border-b border-emerald-900/50 pb-1">'
+    + '<div class="flex items-center justify-between text-[11px] font-bold text-emerald-400 border-b pb-1" style="border-color:rgba(16,185,129,0.3)">'
     + '<span>TOP BUYERS (AKUMULASI)</span>'
     + '<span>LOT / AVG</span>'
     + '</div>';
 
   topBuyers.forEach(function(bItem) {
     var isF = bItem.type === 'F';
-    html += '<div class="flex items-center justify-between py-1 border-b border-slate-800/50 text-[11px]">'
+    html += '<div class="flex items-center justify-between py-1 border-b text-[11px]" style="border-color:var(--border)">'
       + '<div class="flex items-center gap-1.5">'
-      + '<span class="font-bold font-mono px-1.5 py-0.5 rounded ' + (isF ? 'bg-amber-900/40 text-amber-300 border border-amber-700/40' : 'bg-slate-800 text-slate-200') + '">' + bItem.broker + '</span>'
-      + '<span class="text-slate-300 truncate max-w-[110px]" title="' + bItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
-      + (isF ? '<span class="text-[9px] px-1 bg-amber-500/20 text-amber-400 rounded">F</span>' : '')
+      + '<span class="font-bold font-mono px-1.5 py-0.5 rounded ' + (isF ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40' : 'bg-slate-800 text-slate-200') + '">' + bItem.broker + '</span>'
+      + '<span class="truncate max-w-[110px]" style="color:var(--text)" title="' + bItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
+      + (isF ? '<span class="text-[9px] px-1 bg-sky-500/20 text-sky-400 rounded">F</span>' : '')
       + '</div>'
       + '<div class="text-right">'
-      + '<span class="text-slate-200 font-mono font-medium">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
-      + '<span class="text-slate-400 text-[10px] ml-1.5">@' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
+      + '<span class="font-mono font-medium" style="color:var(--text)">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
+      + '<span class="text-[10px] ml-1.5" style="color:var(--text3)">@' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
       + '</div>'
       + '</div>';
   });
@@ -1409,22 +1329,22 @@ function renderBrokerSummaryWidget(data) {
 
   // Sellers Column
   html += '<div class="space-y-1.5">'
-    + '<div class="flex items-center justify-between text-[11px] font-bold text-rose-400 border-b border-rose-900/50 pb-1">'
+    + '<div class="flex items-center justify-between text-[11px] font-bold text-rose-400 border-b pb-1" style="border-color:rgba(244,63,94,0.3)">'
     + '<span>TOP SELLERS (DISTRIBUSI)</span>'
     + '<span>LOT / AVG</span>'
     + '</div>';
 
   topSellers.forEach(function(sItem) {
     var isF = sItem.type === 'F';
-    html += '<div class="flex items-center justify-between py-1 border-b border-slate-800/50 text-[11px]">'
+    html += '<div class="flex items-center justify-between py-1 border-b text-[11px]" style="border-color:var(--border)">'
       + '<div class="flex items-center gap-1.5">'
-      + '<span class="font-bold font-mono px-1.5 py-0.5 rounded ' + (isF ? 'bg-amber-900/40 text-amber-300 border border-amber-700/40' : 'bg-slate-800 text-slate-200') + '">' + sItem.broker + '</span>'
-      + '<span class="text-slate-300 truncate max-w-[110px]" title="' + sItem.name + '">' + sItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
-      + (isF ? '<span class="text-[9px] px-1 bg-amber-500/20 text-amber-400 rounded">F</span>' : '')
+      + '<span class="font-bold font-mono px-1.5 py-0.5 rounded ' + (isF ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40' : 'bg-slate-800 text-slate-200') + '">' + sItem.broker + '</span>'
+      + '<span class="truncate max-w-[110px]" style="color:var(--text)" title="' + sItem.name + '">' + sItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
+      + (isF ? '<span class="text-[9px] px-1 bg-sky-500/20 text-sky-400 rounded">F</span>' : '')
       + '</div>'
       + '<div class="text-right">'
-      + '<span class="text-slate-200 font-mono font-medium">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
-      + '<span class="text-slate-400 text-[10px] ml-1.5">@' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
+      + '<span class="font-mono font-medium" style="color:var(--text)">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
+      + '<span class="text-[10px] ml-1.5" style="color:var(--text3)">@' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
       + '</div>'
       + '</div>';
   });
@@ -1433,7 +1353,7 @@ function renderBrokerSummaryWidget(data) {
 
   // Interpretation Footer
   if (b.interpretation) {
-    html += '<div class="p-2.5 rounded-lg bg-blue-950/30 border border-blue-900/40 text-blue-200 text-[11px] leading-relaxed">'
+    html += '<div class="p-2.5 rounded-lg text-[11px] leading-relaxed" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2)">'
       + '<span class="font-bold text-blue-400">💡 Analisa Bandarmology:</span> ' + b.interpretation
       + '</div>';
   }
@@ -1449,95 +1369,132 @@ function renderStockChatPage(containerId) {
 
   var isChatTab = STOCKCHAT_ACTIVE_TAB === 'chat';
   var isFlowTab = STOCKCHAT_ACTIVE_TAB === 'broker-flow';
+  var curTk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
+  var curPrice = getAccurateStockPrice(curTk);
+  var bData = generateClientSideBrokerSummary(curTk, STOCKCHAT_TIMEFRAME || '1D');
+  var b = (bData && bData.bandarmology) || {};
+  var conc = b.concentration || {};
+  var ff = b.foreignFlow || {};
+  var rm = b.retailVsSmartMoney || b.smartMoney || {};
+  var verdict = String(b.verdict || 'NEUTRAL ACCUMULATION');
+  var chgPct = (bData && bData.changePercent !== undefined) ? bData.changePercent : 0;
+  var netForeignVal = (ff.netValRp !== undefined ? ff.netValRp : (ff.netValueRp !== undefined ? ff.netValueRp : 0));
+  var netForeignM = Math.round(netForeignVal / 1000000000);
 
-  var html = '<div class="w-full space-y-5 pb-12 px-1 md:px-2">'
+  var html = '<div style="margin-bottom:16px">'
     // Top Bar & Header
-    + '<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-xl backdrop-blur-md">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
     + '<div>'
-    + '<div class="flex items-center gap-3">'
-    + '<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-blue-500/20">💬</div>'
-    + '<div>'
-    + '<h1 class="text-xl font-black tracking-tight text-white flex items-center gap-2">StockChat AI & Bandarmology Cockpit <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">LIVE ENGINE</span></h1>'
-    + '<p class="text-xs text-slate-400 mt-0.5">Asisten Analis Broker Summary, Aliran Dana Asing, Valuasi Fundamental, dan Portofolio BEI</p>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">'
+    + '<i class="ti ti-messages" style="color:var(--accent)"></i> StockChat AI &amp; Bandarmology Cockpit'
+    + '<span class="badge b-accent" style="font-size:9px;margin-left:4px">LIVE ENGINE</span>'
     + '</div>'
+    + '<div class="psub">Asisten Analis Broker Summary, Aliran Dana Asing, Valuasi Fundamental, dan Deteksi Akumulasi Smart Money BEI.</div>'
     + '</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn btn-ghost btn-xs" onclick="clearStockChatHistory();if(typeof showSaveStatus===\'function\')showSaveStatus(\'✓ Sesi obrolan baru dimulai\');">🔄 Sesi Baru</button>'
+    + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\')">🎯 Opportunity Radar →</button>'
+    + '<button class="btn btn-primary btn-xs" onclick="openStockIntelForTicker(\'' + curTk + '\')">🚀 Stock Intelligence →</button>'
     + '</div>'
-    + '<div class="flex items-center gap-2 flex-wrap">'
-    + '<button onclick="clearStockChatHistory()" class="stockchat-action-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1.5">'
-    + '<span>🔄</span> Sesi Baru'
-    + '</button>'
-    + '<button onclick="openStockIntelForTicker(STOCKCHAT_SELECTED_TICKER)" class="stockchat-action-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-md transition flex items-center gap-1.5">'
-    + '<span>🔍</span> Stock Intelligence'
-    + '</button>'
+    + '</div>';
+
+  // 4 Top Metrics Summary Banner (Opportunity Radar pattern)
+  html += '<div class="row4" style="margin-bottom:16px">'
+    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="mlabel">ACTIVE TICKER &amp; PRICE</div>'
+    + '<div class="mval mono" style="font-size:22px">' + curTk + ' <span style="font-size:16px;color:var(--text);font-weight:600">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span></div>'
+    + '<div class="msub ' + (chgPct >= 0 ? 'up' : 'down') + '">' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '% Hari Ini</div>'
+    + '</div>'
+
+    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="mlabel">STATUS BANDARMOLOGY (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
+    + '<div class="mval ' + (verdict.includes('ACCUM') ? 'up' : (verdict.includes('DISTRIB') ? 'down' : 'amb')) + ' mono" style="font-size:19px">' + verdict + '</div>'
+    + '<div class="msub up">Top 3 Buyer ' + (conc.top3BuyPct || conc.top3BuyerPct || 65) + '% Konsentrasi</div>'
+    + '</div>'
+
+    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="mlabel">NET FOREIGN FLOW (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
+    + '<div class="mval mono" style="font-size:20px;color:var(--blue)">' + (netForeignM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="msub neu">' + (ff.participationPct ? 'Partisipasi Pasar ' + ff.participationPct + '%' : 'Arus Modal Asing BEI') + '</div>'
+    + '</div>'
+
+    + '<div class="metric" style="border-left:3px solid var(--amber)">'
+    + '<div class="mlabel">INTELLIGENCE FRAMEWORKS</div>'
+    + '<div class="mval amb mono" style="font-size:20px">5 STRATEGI</div>'
+    + '<div class="msub neu">Bandarmology, Value, Breakout, PMK18, Risk</div>'
     + '</div>'
     + '</div>';
 
   // Navigation Subheader Tabs (Tab 1: Chat AI vs Tab 2: Aggregated Broker Flow)
-  html += '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 stockchat-subtabs-bar">'
-    + '<div class="flex items-center gap-2">'
-    + '<button onclick="setStockChatActiveTab(\'chat\')" class="stockchat-tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ' + (isChatTab ? 'active bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60') + '">'
-    + '<span>💬 StockChat AI Assistant</span>'
+  html += '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    + '<button onclick="setStockChatActiveTab(\'chat\')" class="btn btn-xs ' + (isChatTab ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700">'
+    + '<i class="ti ti-messages"></i> 💬 StockChat AI Assistant'
     + '</button>'
-    + '<button onclick="setStockChatActiveTab(\'broker-flow\')" class="stockchat-tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 ' + (isFlowTab ? 'active bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60') + '">'
-    + '<span>📊 Aggregated Broker Flow: <strong class="font-mono text-amber-300">' + STOCKCHAT_SELECTED_TICKER + '</strong></span>'
-    + '<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">BANDAR</span>'
+    + '<button onclick="setStockChatActiveTab(\'broker-flow\')" class="btn btn-xs ' + (isFlowTab ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700">'
+    + '<i class="ti ti-chart-arrows"></i> 📊 Aggregated Broker Flow: <strong class="mono" style="color:var(--accent);margin:0 4px">' + curTk + '</strong>'
+    + '<span class="badge b-accent" style="font-size:9px">BANDAR</span>'
     + '</button>'
     + '</div>'
 
-    // Timeframe & Ticker selector control
-    + '<div class="flex items-center gap-2 self-end sm:self-auto">'
-    + '<span class="text-[11px] text-slate-400 font-semibold stockchat-label">Rentang:</span>'
-    + '<div class="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 stockchat-tf-bar">'
+    // Timeframe selector control
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<span style="font-size:11px;font-weight:600;color:var(--text3)">Rentang Waktu:</span>'
+    + '<div style="display:inline-flex;gap:4px">'
     + ['1D', '3D', '1W', '1M'].map(function(tf) {
-      var isTfActive = STOCKCHAT_TIMEFRAME === tf;
-      return '<button onclick="setStockChatTimeframe(\'' + tf + '\')" class="stockchat-tf-btn px-2.5 py-1 text-[10px] font-bold rounded-md transition ' + (isTfActive ? 'active bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">' + tf + '</button>';
-    }).join('')
+        var isTfActive = STOCKCHAT_TIMEFRAME === tf;
+        return '<button onclick="setStockChatTimeframe(\'' + tf + '\')" class="btn btn-xs ' + (isTfActive ? 'btn-primary' : 'btn-ghost') + '" style="font-family:monospace;font-weight:700">' + tf + '</button>';
+      }).join('')
     + '</div>'
     + '</div>'
     + '</div>';
 
-  // Ticker Quick Selector Bar
-  html += '<div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap bandar-ticker-bar">'
-    + '<div class="flex items-center gap-2">'
-    + '<span class="text-[11px] font-semibold text-slate-400 bandar-label">⚡ Active Ticker:</span>'
-    + '<div class="flex items-center gap-1">'
+  // Ticker Quick Selector Bar Card
+  html += '<div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + '<span style="font-size:11px;font-weight:700;color:var(--text3)"><i class="ti ti-bolt" style="color:var(--accent)"></i> Ticker Aktif:</span>'
+    + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
     + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(tk) {
-      var isAct = tk === STOCKCHAT_SELECTED_TICKER;
-      return '<button onclick="selectStockChatTicker(\'' + tk + '\')" class="bandar-ticker-btn px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ' + (isAct ? 'active bg-blue-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50') + '">' + tk + '</button>';
-    }).join('')
+        var isAct = tk === curTk;
+        return '<button onclick="selectStockChatTicker(\'' + tk + '\')" class="btn btn-xs ' + (isAct ? 'btn-primary' : 'btn-ghost') + '" style="font-family:monospace;font-weight:700">' + tk + '</button>';
+      }).join('')
     + '</div>'
     + '</div>'
-    + '<div class="flex items-center gap-1.5">'
-    + '<input id="stockchat-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="bandar-input w-16 px-2 py-1 text-center uppercase font-mono text-xs rounded bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-blue-500" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);this.value=\'\';}">'
-    + '<button onclick="var el=document.getElementById(\'stockchat-custom-ticker\');if(el&&el.value)selectStockChatTicker(el.value)" class="bandar-btn bandar-btn-set px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Set</button>'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<label style="font-size:11px;color:var(--text3)">Cari Emiten:</label>'
+    + '<input id="stockchat-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="form-input" style="width:85px;height:28px;text-align:center;text-transform:uppercase;font-family:monospace;font-size:11px;font-weight:700" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);this.value=\'\';}">'
+    + '<button onclick="var el=document.getElementById(\'stockchat-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);el.value=\'\';}" class="btn btn-secondary btn-xs">Pilih</button>'
     + '</div>'
     + '</div>';
 
   // TAB 1: Chat Assistant View
   if (isChatTab) {
     // Quick Action Matrix Chips
-    html += '<div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800/80 space-y-2.5 stockchat-presets-box">'
-      + '<div class="text-xs text-slate-400 font-semibold px-1 stockchat-label">⚡ Quick Action Prompts untuk ' + STOCKCHAT_SELECTED_TICKER + ':</div>'
-      + '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">';
+    html += '<div class="card" style="padding:12px 14px;margin-bottom:14px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '<span style="font-size:11px;font-weight:700;color:var(--text2)"><i class="ti ti-sparkles" style="color:var(--accent)"></i> Quick Prompts Rekomendasi untuk <strong style="color:var(--accent);font-family:monospace">' + curTk + '</strong>:</span>'
+      + '<span style="font-size:10px;color:var(--text3)">5 Framework Institusional</span>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">';
 
     STOCKCHAT_PROMPT_PRESETS.forEach(function(item, idx) {
-      html += '<button onclick="sendStockChatPreset(' + idx + ')" class="stockchat-preset-btn p-2.5 text-left rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition group hover:border-blue-500/50">'
-        + '<div class="font-bold text-[11px] text-slate-200 group-hover:text-blue-400 truncate preset-title">' + item.title + '</div>'
-        + '<div class="text-[10px] text-slate-400 truncate mt-0.5 preset-desc">' + item.prompt.slice(0, 38) + '...</div>'
+      html += '<button onclick="sendStockChatPreset(' + idx + ')" class="btn btn-ghost" style="text-align:left;padding:8px 10px;height:auto;display:flex;flex-direction:column;align-items:flex-start;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%">' + item.title + '</div>'
+        + '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;margin-top:2px">' + item.prompt.slice(0, 38) + '...</div>'
         + '</button>';
     });
 
     html += '</div></div>';
 
     // Chat History Box
-    html += '<div id="stockchat-history-box" class="bg-slate-950/70 rounded-2xl border border-slate-800 p-5 min-h-[420px] max-h-[600px] overflow-y-auto space-y-4 shadow-inner">';
+    html += '<div id="stockchat-history-box" class="card" style="padding:16px;min-height:420px;max-height:600px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:12px">';
 
     STOCKCHAT_CONVERSATION.forEach(function(msg, i) {
       var isUser = msg.role === 'user';
-      html += '<div class="flex items-start gap-3 ' + (isUser ? 'justify-end' : 'justify-start') + '">'
-        + (!isUser ? '<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs font-black shrink-0 shadow-md">AI</div>' : '')
-        + '<div class="max-w-2xl rounded-2xl p-4 ' + (isUser ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none') + ' shadow-lg space-y-2">'
-        + '<div class="text-xs leading-relaxed">' + formatStockChatMarkdown(msg.text) + '</div>';
+      html += '<div style="display:flex;justify-content:' + (isUser ? 'flex-end' : 'flex-start') + ';align-items:flex-start;gap:8px">'
+        + (!isUser ? '<div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#2563eb);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#ffffff;flex-shrink:0;box-shadow:0 2px 6px rgba(37,99,235,0.3)">AI</div>' : '')
+        + '<div style="' + (isUser ? 'background:var(--blue);color:#ffffff;padding:10px 14px;border-radius:12px 12px 2px 12px;font-size:12px;max-width:80%;line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,0.15)' : 'background:var(--bg3);border:1px solid var(--border2);padding:12px 16px;border-radius:12px 12px 12px 2px;font-size:12px;max-width:85%;line-height:1.6;color:var(--text)') + '">'
+        + '<div style="word-break:break-word">' + formatStockChatMarkdown(msg.text) + '</div>';
 
       // If tool calls are present, display formatted tool cards or broker summary widget
       if (msg.toolCalls && msg.toolCalls.length > 0) {
@@ -1545,47 +1502,46 @@ function renderStockChatPage(containerId) {
           if (tc.toolName === 'cek_broker_summary' && tc.result && !tc.result.error) {
             html += renderBrokerSummaryWidget(tc.result);
           } else {
-            html += '<div class="mt-2 px-2.5 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[10px] font-mono text-slate-400 flex items-center gap-2">'
-              + '<span class="text-blue-400">⚡ Tool Executed:</span> ' + tc.toolName
+            html += '<div style="margin-top:8px;padding:6px 10px;border-radius:6px;font-size:10px;font-family:monospace;background:var(--bg4);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;gap:6px">'
+              + '<span style="color:var(--accent);font-weight:700">⚡ Tool Executed:</span> ' + tc.toolName
               + '</div>';
           }
         });
       }
 
       html += '</div>'
-        + (isUser ? '<div class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 text-xs font-bold shrink-0">YOU</div>' : '')
+        + (isUser ? '<div style="width:28px;height:28px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text);flex-shrink:0">YOU</div>' : '')
         + '</div>';
     });
 
     if (STOCKCHAT_IS_BUSY) {
-      html += '<div class="flex items-start gap-3 justify-start stockchat-msg-busy">'
-        + '<div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black shrink-0 animate-pulse stockchat-avatar">AI</div>'
-        + '<div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 text-xs text-blue-400 flex items-center gap-2 stockchat-busy-bubble">'
-        + '<svg width="18" height="18" class="animate-spin text-blue-400" style="width:18px;height:18px;min-width:18px;min-height:18px;display:inline-block;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>'
-        + '<span>Memproses kalkulasi Bandarmology, data KSEI & analitik pasar...</span>'
+      html += '<div style="display:flex;justify-content:flex-start;align-items:flex-start;gap:8px">'
+        + '<div style="width:28px;height:28px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#ffffff;flex-shrink:0">AI</div>'
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);padding:10px 14px;border-radius:12px 12px 12px 2px;font-size:12px;color:var(--accent);display:flex;align-items:center;gap:8px">'
+        + '<i class="ti ti-loader animate-spin" style="font-size:16px;color:var(--accent)"></i>'
+        + '<span>Memproses kalkulasi Bandarmology, data KSEI &amp; analitik pasar...</span>'
         + '</div>'
         + '</div>';
     }
 
     html += '</div>';
 
-    // Bottom Input Form
-    html += '<form onsubmit="handleStockChatSubmit(event)" class="relative flex items-center gap-2 stockchat-input-form">'
-      + '<div class="relative flex-1">'
-      + '<input id="stockchat-input-text" type="text" placeholder="Tanyakan apa saja (misal: \'Cek broker summary ' + STOCKCHAT_SELECTED_TICKER + ' hari ini\', \'Review portofolio\', \'Simulasi risk reward\')..."'
-      + ' class="w-full pl-4 pr-12 py-3.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xl transition stockchat-input-field">'
-      + '</div>'
-      + '<button type="submit" ' + (STOCKCHAT_IS_BUSY ? 'disabled' : '') + ' class="px-5 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center gap-1.5 shrink-0 stockchat-send-btn">'
-      + '<span>Kirim</span>'
-      + '<svg width="14" height="14" class="w-3.5 h-3.5" style="width:14px;height:14px;min-width:14px;min-height:14px;display:inline-block;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>'
+    // Bottom Input Form Card
+    html += '<div class="card" style="padding:10px 14px">'
+      + '<form onsubmit="handleStockChatSubmit(event)" style="display:flex;align-items:center;gap:8px">'
+      + '<input id="stockchat-input-text" type="text" placeholder="Tanyakan apa saja (misal: \'Cek broker summary ' + curTk + ' hari ini\', \'Review portofolio\', \'Simulasi risk reward\')..."'
+      + ' class="form-input" style="flex:1;height:38px;font-size:12px">'
+      + '<button type="submit" ' + (STOCKCHAT_IS_BUSY ? 'disabled' : '') + ' class="btn btn-primary" style="height:38px;padding:0 18px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:6px">'
+      + '<span>Kirim</span> <i class="ti ti-send"></i>'
       + '</button>'
-      + '</form>';
+      + '</form>'
+      + '</div>';
   }
 
   // TAB 2: Dedicated Aggregated Broker Flow View
   if (isFlowTab) {
-    html += '<div id="stockchat-flow-tab-content" class="min-h-[460px]">'
-      + '<div class="flex items-center justify-center p-12 text-slate-400 text-xs">Memuat data broker flow...</div>'
+    html += '<div id="stockchat-flow-tab-content" style="min-height:460px">'
+      + '<div style="display:flex;align-items:center;justify-content:center;padding:48px;font-size:12px;color:var(--text3)"><i class="ti ti-loader animate-spin" style="margin-right:6px"></i> Memuat data broker flow...</div>'
       + '</div>';
   }
 
@@ -2099,62 +2055,63 @@ function renderBandarmologyCockpitPage(containerId) {
   var tk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
   var isStockMode = BANDARMOLOGY_MASTER_MODE === 'stock';
 
-  var html = '<div class="w-full space-y-5 pb-14 px-1 md:px-2">'
+  var html = '<div style="margin-bottom:16px">'
     // Header Cockpit
-    + '<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 p-5 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-md">'
-    + '<div class="flex items-center gap-3.5">'
-    + '<div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-emerald-600/30">🎯</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
     + '<div>'
-    + '<h1 class="text-xl md:text-2xl font-black text-white flex items-center gap-2.5">'
-    + '<span>BANDARMOLOGY & SMART MONEY COCKPIT</span>'
-    + '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">INSTITUTIONAL RADAR</span>'
-    + '</h1>'
-    + '<p class="text-xs text-slate-400 mt-0.5">Analisis Terpadu Aliran Dana Bandar, Broker Flow, Chaikin Smart Money (CMF), Foreign Flow, VWAP Bands & Konsentrasi Akumulasi/Distribusi BEI</p>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">'
+    + '<i class="ti ti-target" style="color:var(--accent)"></i> Bandarmology &amp; Smart Money Cockpit'
+    + '<span class="badge b-accent" style="font-size:9px;margin-left:4px">INSTITUTIONAL RADAR</span>'
     + '</div>'
+    + '<div class="psub">Analisis Terpadu Aliran Dana Bandar, Broker Flow, Chaikin Smart Money (CMF), Foreign Flow, VWAP Bands &amp; Konsentrasi Akumulasi/Distribusi BEI.</div>'
     + '</div>'
-    + '<div class="flex items-center gap-2 flex-wrap">'
-    + '<button onclick="openStockChat(\'' + tk + '\', \'Analisa menyeluruh bandarmology, broker summary, smart money CMF dan foreign flow saham ' + tk + '\')" class="bandar-btn bandar-btn-primary px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-600/20 transition flex items-center gap-1.5">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button onclick="openStockChat(\'' + tk + '\', \'Analisa menyeluruh bandarmology, broker summary, smart money CMF dan foreign flow saham ' + tk + '\')" class="btn btn-primary btn-xs flex items-center gap-1">'
     + '<i class="ti ti-messages"></i> <span>Tanya StockChat AI</span>'
     + '</button>'
-    + '<button onclick="goPage(\'stock-intel\')" class="bandar-btn bandar-btn-secondary px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition flex items-center gap-1.5">'
+    + '<button onclick="goPage(\'radar\')" class="btn btn-ghost btn-xs">'
+    + '🎯 Opportunity Radar →'
+    + '</button>'
+    + '<button onclick="goPage(\'stock-intel\')" class="btn btn-ghost btn-xs flex items-center gap-1">'
     + '<i class="ti ti-radar"></i> <span>Stock Intelligence</span>'
     + '</button>'
     + '</div>'
     + '</div>';
 
-  // Master 2-Mode Power Toolbar (Single unified switch, eliminates repetitive sub-bars)
-  html += '<div class="flex items-center justify-center gap-2 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl max-w-xl mx-auto bandar-master-toolbar">'
-    + '<button onclick="setBandarmologyMode(\'stock\')" class="bandar-mode-btn flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 ' + (isStockMode ? 'active bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-700/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">'
-    + '<i class="ti ti-chart-candle text-base"></i> <span>🏢 ANALISIS FULL EMITEN</span>'
+  // Master 2-Mode Power Toolbar (Matching Opportunity Radar .tab-row)
+  html += '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap;align-items:center;justify-content:center">'
+    + '<button onclick="setBandarmologyMode(\'stock\')" class="btn btn-xs ' + (isStockMode ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700;padding:6px 16px">'
+    + '<i class="ti ti-chart-candle"></i> <span>🏢 ANALISIS FULL EMITEN (' + tk + ')</span>'
     + '</button>'
-    + '<button onclick="setBandarmologyMode(\'market\')" class="bandar-mode-btn flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 ' + (!isStockMode ? 'active bg-gradient-to-r from-sky-600 to-cyan-600 text-white shadow-lg shadow-sky-700/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">'
-    + '<i class="ti ti-world-download text-base"></i> <span>🌐 ANALISIS FULL MARKET</span>'
+    + '<button onclick="setBandarmologyMode(\'market\')" class="btn btn-xs ' + (!isStockMode ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700;padding:6px 16px">'
+    + '<i class="ti ti-world-download"></i> <span>🌐 ANALISIS FULL MARKET (SEKTORAL &amp; HEATMAP)</span>'
     + '</button>'
     + '</div>';
 
   // Content rendering based on Master Mode
   if (isStockMode) {
     // Mode 1: Full Emiten Suite
-    html += '<div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 overflow-x-auto whitespace-nowrap bandar-ticker-bar">'
-      + '<div class="flex items-center gap-2">'
-      + '<span class="text-[11px] font-semibold text-slate-400 bandar-label">⚡ Fokus Emiten:</span>'
-      + '<div class="flex items-center gap-1">'
+    html += '<div class="card" style="padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<span style="font-size:11px;font-weight:700;color:var(--text3)"><i class="ti ti-bolt" style="color:var(--accent)"></i> Fokus Emiten:</span>'
+      + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
       + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(itemTk) {
         var isAct = itemTk === tk;
-        return '<button onclick="selectStockChatTicker(\'' + itemTk + '\');renderBandarmologyCockpitPage();" class="bandar-ticker-btn px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ' + (isAct ? 'active bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700/50') + '">' + itemTk + '</button>';
+        return '<button onclick="selectStockChatTicker(\'' + itemTk + '\');renderBandarmologyCockpitPage();" class="btn btn-xs ' + (isAct ? 'btn-primary' : 'btn-ghost') + '" style="font-family:monospace;font-weight:700">' + itemTk + '</button>';
       }).join('')
       + '</div>'
       + '</div>'
-      + '<div class="flex items-center gap-1.5">'
-      + '<input id="bandar-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="bandar-input w-16 px-2 py-1 text-center uppercase font-mono text-xs rounded bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);renderBandarmologyCockpitPage();this.value=\'\';}">'
-      + '<button onclick="var el=document.getElementById(\'bandar-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);renderBandarmologyCockpitPage();}" class="bandar-btn bandar-btn-set px-2.5 py-1 text-[11px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Set</button>'
+      + '<div style="display:flex;align-items:center;gap:6px">'
+      + '<label style="font-size:11px;color:var(--text3)">Cari Emiten:</label>'
+      + '<input id="bandar-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="form-input" style="width:85px;height:28px;text-align:center;text-transform:uppercase;font-family:monospace;font-size:11px;font-weight:700" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);renderBandarmologyCockpitPage();this.value=\'\';}">'
+      + '<button onclick="var el=document.getElementById(\'bandar-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);renderBandarmologyCockpitPage();}" class="btn btn-secondary btn-xs">Set</button>'
       + '</div>'
       + '</div>';
 
-    html += '<div id="bandarmology-tab-content" class="min-h-[460px] space-y-6">'
+    html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
       + '<div id="stockchat-flow-tab-content">'
-      + '<div class="p-8 text-center text-slate-400 text-xs flex items-center justify-center gap-2">'
-      + '<i class="ti ti-loader animate-spin text-emerald-400 text-lg"></i> Memuat Analisis Broker Flow & Smart Money ' + tk + '...'
+      + '<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;display:flex;align-items:center;justify-content:center;gap:8px">'
+      + '<i class="ti ti-loader animate-spin" style="color:var(--accent);font-size:18px"></i> Memuat Analisis Broker Flow &amp; Smart Money ' + tk + '...'
       + '</div>'
       + '</div>'
       + renderBandarmologySmartMoneyFlowView(tk)
@@ -2164,10 +2121,10 @@ function renderBandarmologyCockpitPage(containerId) {
     setTimeout(loadAndRenderBrokerFlowTab, 40);
   } else {
     // Mode 2: Full Market & Macro Suite
-    html += '<div id="bandarmology-tab-content" class="min-h-[460px] space-y-6">'
+    html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
       + renderBandarmologyMarketFlowView(tk)
       + renderBandarmologyHeatmapScannerView()
-      + '<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
       + renderBandarmologyAccumulationView()
       + renderBandarmologyDistributionView()
       + '</div>'
@@ -2201,9 +2158,7 @@ function renderBandarmologyMarketFlowView(tk) {
       name: bigBanksName[t] || t,
       flow: flowStr,
       status: status,
-      color: isAcc ? 'text-emerald-400' : 'text-rose-400',
-      bg: isAcc ? 'bg-emerald-950/40' : 'bg-rose-950/40',
-      border: isAcc ? 'border-emerald-800/40' : 'border-rose-800/40',
+      isAcc: isAcc,
       topBuyer: topB
     };
   });
@@ -2241,72 +2196,76 @@ function renderBandarmologyMarketFlowView(tk) {
   var totMarketM = Math.round(totalMarketFlow / 1000000000);
   var totBigBanksM = Math.round(totalBigBanksNetVal / 1000000000);
 
-  var html = '<div class="space-y-4">'
-    // Top Summary Metric Cards
-    + '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">'
-    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
-    + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">IHSG Bandar Pulse</div>'
-    + '<div class="text-xl font-black ' + (totMarketM >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' mt-1 flex items-center gap-1.5">'
+  var html = '<div style="display:flex;flex-direction:column;gap:16px">'
+    // Top Summary Metric Cards (Matching Opportunity Radar row4/metric)
+    + '<div class="row4">'
+    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="mlabel">IHSG BANDAR PULSE</div>'
+    + '<div class="mval ' + (totMarketM >= 0 ? 'up' : 'down') + ' mono" style="font-size:20px">'
     + '<i class="ti ti-' + (totMarketM >= 0 ? 'trending-up' : 'trending-down') + '"></i> ' + (totMarketM >= 0 ? 'NET ACCUMULATION' : 'NET DISTRIBUTION')
     + '</div>'
-    + '<div class="text-[11px] text-slate-400 mt-0.5">' + (totMarketM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totMarketM).toLocaleString('id-ID') + ' Miliar Net Bandar Flow</div>'
+    + '<div class="msub neu">' + (totMarketM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totMarketM).toLocaleString('id-ID') + ' M Net Flow</div>'
     + '</div>'
-    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
-    + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Foreign Participation</div>'
-    + '<div class="text-xl font-black text-sky-400 mt-1">42.8% <span class="text-xs font-normal text-slate-400">of Volume</span></div>'
-    + '<div class="text-[11px] text-slate-400 mt-0.5">Institusi Asing Aktif</div>'
+    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="mlabel">FOREIGN PARTICIPATION</div>'
+    + '<div class="mval mono" style="font-size:20px;color:var(--blue)">42.8% <span style="font-size:12px;color:var(--text3)">of Volume</span></div>'
+    + '<div class="msub neu">Institusi Asing Aktif</div>'
     + '</div>'
-    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
-    + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Big 4 Banks Inflow</div>'
-    + '<div class="text-xl font-black ' + (totBigBanksM >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' mt-1">' + (totBigBanksM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totBigBanksM).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="text-[11px] text-slate-400 mt-0.5">Konsentrasi di Big Banks</div>'
+    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="mlabel">BIG 4 BANKS INFLOW</div>'
+    + '<div class="mval ' + (totBigBanksM >= 0 ? 'up' : 'down') + ' mono" style="font-size:20px">' + (totBigBanksM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totBigBanksM).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="msub neu">Konsentrasi di Big Banks</div>'
     + '</div>'
-    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md">'
-    + '<div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Smart Money Dominancy</div>'
-    + '<div class="text-xl font-black text-indigo-400 mt-1">68 / 100</div>'
-    + '<div class="text-[11px] text-slate-400 mt-0.5">Institusional Kontrol Pasar</div>'
+    + '<div class="metric" style="border-left:3px solid var(--amber)">'
+    + '<div class="mlabel">SMART MONEY DOMINANCY</div>'
+    + '<div class="mval amb mono" style="font-size:20px">68 / 100</div>'
+    + '<div class="msub neu">Institusional Kontrol Pasar</div>'
     + '</div>'
     + '</div>';
 
-  // Big 4 Banks Flow Section
-  html += '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
-    + '<div class="flex items-center justify-between">'
-    + '<h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5"><i class="ti ti-building-bank text-emerald-400"></i> Aliran Dana Bandar Big 4 Banks (Motor IHSG)</h3>'
-    + '<span class="text-[10px] text-slate-400 font-mono">Live Aggregation</span>'
+  // Big 4 Banks Flow Section (Matching Opportunity Radar Card Pattern)
+  html += '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-building-bank" style="color:var(--green)"></i> ALIRAN DANA BANDAR BIG 4 BANKS (MOTOR IHSG)'
     + '</div>'
-    + '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">';
+    + '<span class="badge b-neu" style="font-size:9px">LIVE AGGREGATION</span>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">';
 
   bigBanks.forEach(function(b) {
-    html += '<div class="p-3 rounded-lg ' + b.bg + ' border ' + b.border + ' space-y-1.5 cursor-pointer hover:opacity-90 transition" onclick="selectStockChatTicker(\'' + b.ticker + '\');setBandarmologyTab(\'broker-flow\');">'
-      + '<div class="flex items-center justify-between">'
-      + '<span class="font-bold text-white font-mono">' + b.ticker + '</span>'
-      + '<span class="text-[10px] font-bold ' + b.color + '">' + b.status + '</span>'
+    html += '<div onclick="selectStockChatTicker(\'' + b.ticker + '\');setBandarmologyMode(\'stock\');" style="background:var(--bg3);border:1px solid ' + (b.isAcc ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)') + ';border-radius:8px;padding:12px;cursor:pointer;transition:transform 0.15s ease;" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'none\'">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      + '<span class="mono" style="font-weight:800;font-size:14px;color:var(--text)">' + b.ticker + '</span>'
+      + '<span class="badge ' + (b.isAcc ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + b.status + '</span>'
       + '</div>'
-      + '<div class="text-lg font-black font-mono ' + b.color + '">' + b.flow + '</div>'
-      + '<div class="text-[10px] text-slate-400 flex items-center justify-between">'
+      + '<div class="mono" style="font-size:18px;font-weight:800;margin-bottom:8px;color:' + (b.isAcc ? 'var(--green)' : 'var(--red)') + '">' + b.flow + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);display:flex;justify-content:space-between">'
       + '<span>Top Buyer:</span>'
-      + '<span class="font-mono text-slate-200">' + b.topBuyer + '</span>'
+      + '<span class="mono" style="font-weight:700;color:var(--text)">' + b.topBuyer + '</span>'
       + '</div>'
       + '</div>';
   });
 
   html += '</div></div>';
 
-  // Sectoral Flow Breakdown
-  html += '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
-    + '<h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5"><i class="ti ti-layout-grid text-sky-400"></i> Distribusi Arus Dana Smart Money per Sektor</h3>'
-    + '<div class="space-y-2.5">';
+  // Sectoral Flow Breakdown (Opportunity Radar pattern)
+  html += '<div class="card" style="padding:16px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;margin-bottom:14px">'
+    + '<i class="ti ti-layout-grid" style="color:var(--accent)"></i> DISTRIBUSI ARUS DANA SMART MONEY PER SEKTOR'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:12px">';
 
   sectors.forEach(function(s) {
-    var barColor = s.isAcc ? 'bg-emerald-500' : 'bg-rose-500';
-    var txtColor = s.isAcc ? 'text-emerald-400' : 'text-rose-400';
-    html += '<div class="space-y-1">'
-      + '<div class="flex items-center justify-between text-xs">'
-      + '<span class="text-slate-300 font-medium">' + s.name + '</span>'
-      + '<span class="font-mono font-bold ' + txtColor + '">' + s.flowVal + '</span>'
+    var barColor = s.isAcc ? 'var(--green)' : 'var(--red)';
+    var txtColor = s.isAcc ? 'var(--green)' : 'var(--red)';
+    html += '<div style="display:flex;flex-direction:column;gap:4px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">'
+      + '<span style="color:var(--text);font-weight:600">' + s.name + '</span>'
+      + '<span class="mono" style="font-weight:700;color:' + txtColor + '">' + s.flowVal + '</span>'
       + '</div>'
-      + '<div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden">'
-      + '<div class="' + barColor + ' h-full rounded-full" style="width:' + s.pct + '%"></div>'
+      + '<div style="width:100%;height:6px;background:var(--bg3);border-radius:4px;overflow:hidden">'
+      + '<div style="width:' + s.pct + '%;height:100%;background:' + barColor + ';border-radius:4px"></div>'
       + '</div>'
       + '</div>';
   });
@@ -2340,28 +2299,29 @@ function renderBandarmologyForeignFlowView(tk) {
   var topForeignBuys = items.slice().sort(function(a, b) { return b.netVal - a.netVal; }).slice(0, 5);
   var topForeignSells = items.slice().sort(function(a, b) { return a.netVal - b.netVal; }).slice(0, 5);
 
-  var html = '<div class="space-y-4">'
-    + '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">'
+  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
     // Top Foreign Buys
-    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-emerald-900/40 shadow-md space-y-3">'
-    + '<div class="flex items-center justify-between border-b border-emerald-900/40 pb-2">'
-    + '<h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5"><i class="ti ti-arrow-up-right"></i> Top 5 Foreign Net Buy (Akumulasi Asing)</h3>'
-    + '<span class="text-[10px] text-emerald-300/80 font-mono">INFLOW</span>'
+    + '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-arrow-up-right"></i> TOP 5 FOREIGN NET BUY (AKUMULASI ASING)'
     + '</div>'
-    + '<div class="divide-y divide-slate-800/60">';
+    + '<span class="badge b-up" style="font-size:9px">INFLOW</span>'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column">';
 
   topForeignBuys.forEach(function(item) {
-    html += '<div class="py-2.5 flex items-center justify-between hover:bg-slate-800/40 px-1.5 rounded transition cursor-pointer" onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');">'
+    html += '<div onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" style="display:flex;justify-content:space-between;align-items:center;padding:10px 8px;border-bottom:1px solid var(--border2);cursor:pointer;border-radius:6px;transition:background 0.15s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'transparent\'">'
       + '<div>'
-      + '<div class="flex items-center gap-2">'
-      + '<span class="font-bold text-white font-mono">' + item.ticker + '</span>'
-      + '<span class="text-[10px] text-emerald-400 font-mono">' + item.chg + '</span>'
+      + '<div style="display:flex;align-items:center;gap:6px">'
+      + '<span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span>'
+      + '<span class="badge b-up" style="font-size:9px">' + item.chg + '</span>'
       + '</div>'
-      + '<div class="text-[10px] text-slate-400">Porsi Asing: ' + item.sharesPct + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Porsi Asing: ' + item.sharesPct + '</div>'
       + '</div>'
-      + '<div class="text-right">'
-      + '<div class="font-black font-mono text-emerald-400">' + item.netRp + '</div>'
-      + '<div class="text-[10px] text-slate-400 font-mono">' + item.price + '</div>'
+      + '<div style="text-align:right">'
+      + '<div class="mono up" style="font-weight:800;font-size:13px">' + item.netRp + '</div>'
+      + '<div class="mono" style="font-size:11px;color:var(--text3)">' + item.price + '</div>'
       + '</div>'
       + '</div>';
   });
@@ -2369,30 +2329,32 @@ function renderBandarmologyForeignFlowView(tk) {
   html += '</div></div>';
 
   // Top Foreign Sells
-  html += '<div class="bg-slate-900/90 p-4 rounded-xl border border-rose-900/40 shadow-md space-y-3">'
-    + '<div class="flex items-center justify-between border-b border-rose-900/40 pb-2">'
-    + '<h3 class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5"><i class="ti ti-arrow-down-right"></i> Top Foreign Net Sell (Distribusi Asing)</h3>'
-    + '<span class="text-[10px] text-rose-300/80 font-mono">OUTFLOW</span>'
+  html += '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--red);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-arrow-down-right"></i> TOP 5 FOREIGN NET SELL (DISTRIBUSI ASING)'
     + '</div>'
-    + '<div class="divide-y divide-slate-800/60">';
+    + '<span class="badge b-dn" style="font-size:9px">OUTFLOW</span>'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column">';
 
   topForeignSells.forEach(function(item) {
-    html += '<div class="py-2.5 flex items-center justify-between hover:bg-slate-800/40 px-1.5 rounded transition cursor-pointer" onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');">'
+    html += '<div onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" style="display:flex;justify-content:space-between;align-items:center;padding:10px 8px;border-bottom:1px solid var(--border2);cursor:pointer;border-radius:6px;transition:background 0.15s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'transparent\'">'
       + '<div>'
-      + '<div class="flex items-center gap-2">'
-      + '<span class="font-bold text-white font-mono">' + item.ticker + '</span>'
-      + '<span class="text-[10px] text-rose-400 font-mono">' + item.chg + '</span>'
+      + '<div style="display:flex;align-items:center;gap:6px">'
+      + '<span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span>'
+      + '<span class="badge b-dn" style="font-size:9px">' + item.chg + '</span>'
       + '</div>'
-      + '<div class="text-[10px] text-slate-400">Porsi Asing: ' + item.sharesPct + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Porsi Asing: ' + item.sharesPct + '</div>'
       + '</div>'
-      + '<div class="text-right">'
-      + '<div class="font-black font-mono text-rose-400">' + item.netRp + '</div>'
-      + '<div class="text-[10px] text-slate-400 font-mono">' + item.price + '</div>'
+      + '<div style="text-align:right">'
+      + '<div class="mono down" style="font-weight:800;font-size:13px">' + item.netRp + '</div>'
+      + '<div class="mono" style="font-size:11px;color:var(--text3)">' + item.price + '</div>'
       + '</div>'
       + '</div>';
   });
 
-  html += '</div></div></div></div>';
+  html += '</div></div></div>';
   return html;
 }
 
@@ -2429,38 +2391,38 @@ function renderBandarmologyAccumulationView() {
   accList.sort(function(a, b) { return b.t3Val - a.t3Val; });
   accList = accList.slice(0, 5);
 
-  var html = '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
-    + '<div class="flex items-center justify-between">'
-    + '<div>'
-    + '<h3 class="text-sm font-bold text-emerald-400 flex items-center gap-1.5"><i class="ti ti-circle-arrow-up"></i> Radar Saham Terakumulasi Smart Money &amp; Bandar</h3>'
-    + '<p class="text-[11px] text-slate-400">Saham dengan dominansi Top Buyer tinggi vs Top Seller yang terpecah (retail fragmentation)</p>'
+  var html = '<div class="card" style="padding:16px">'
+    + '<div style="margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-circle-arrow-up"></i> RADAR SAHAM TERAKUMULASI SMART MONEY &amp; BANDAR'
     + '</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Dominansi Top Buyer tinggi vs Top Seller terpecah (retail fragmentation)</div>'
     + '</div>'
-    + '<div class="overflow-x-auto">'
-    + '<table class="w-full text-xs text-left">'
-    + '<thead class="text-[10px] text-slate-400 uppercase bg-slate-950/80 border-b border-slate-800 font-mono">'
+    + '<div class="tbl-wrap" style="overflow-x:auto">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead>'
     + '<tr>'
-    + '<th class="p-2.5">Emiten</th>'
-    + '<th class="p-2.5">Status Bandar</th>'
-    + '<th class="p-2.5">Top 3 Konsentrasi</th>'
-    + '<th class="p-2.5">Top Broker Akumulator</th>'
-    + '<th class="p-2.5">Avg Buy Bandar</th>'
-    + '<th class="p-2.5">Harga Terkini</th>'
-    + '<th class="p-2.5">Aksi</th>'
+    + '<th>Emiten</th>'
+    + '<th>Status Bandar</th>'
+    + '<th style="text-align:right">Top 3 Konsentrasi</th>'
+    + '<th>Top Broker Akumulator</th>'
+    + '<th style="text-align:right">Avg Buy Bandar</th>'
+    + '<th style="text-align:right">Harga Terkini</th>'
+    + '<th style="text-align:center">Aksi</th>'
     + '</tr>'
     + '</thead>'
-    + '<tbody class="divide-y divide-slate-800/60 font-mono">';
+    + '<tbody>';
 
   accList.forEach(function(item) {
-    html += '<tr class="hover:bg-slate-800/40 transition">'
-      + '<td class="p-2.5 font-bold text-white">' + item.ticker + ' <span class="text-[10px] font-normal text-slate-400 font-sans block">' + item.name + '</span></td>'
-      + '<td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">' + item.status + '</span></td>'
-      + '<td class="p-2.5 text-emerald-400 font-bold">' + item.concTop3 + '</td>'
-      + '<td class="p-2.5 text-slate-200">' + item.topBrokers + '</td>'
-      + '<td class="p-2.5 text-slate-300">' + item.avgBuyPrice + '</td>'
-      + '<td class="p-2.5 text-white font-bold">' + item.lastPrice + '</td>'
-      + '<td class="p-2.5">'
-      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold font-sans transition">Detail Broker</button>'
+    html += '<tr>'
+      + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + item.name + '</div></td>'
+      + '<td><span class="badge b-up" style="font-size:9px">' + item.status + '</span></td>'
+      + '<td class="mono up" style="text-align:right;font-weight:700">' + item.concTop3 + '</td>'
+      + '<td class="mono" style="color:var(--text)">' + item.topBrokers + '</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text2)">' + item.avgBuyPrice + '</td>'
+      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">' + item.lastPrice + '</td>'
+      + '<td style="text-align:center">'
+      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-primary btn-xs">Detail Broker</button>'
       + '</td>'
       + '</tr>';
   });
@@ -2494,7 +2456,7 @@ function renderBandarmologyDistributionView() {
         topSellers: topSellers,
         avgSellPrice: 'Rp ' + Number(topSellerAvg || 0).toLocaleString('id-ID'),
         lastPrice: 'Rp ' + Number(bData.price || 0).toLocaleString('id-ID'),
-        warning: 'Heavy Institutional Outflow',
+        warning: 'Heavy Outflow',
         t3Val: t3
       });
     }
@@ -2503,40 +2465,40 @@ function renderBandarmologyDistributionView() {
   distList.sort(function(a, b) { return b.t3Val - a.t3Val; });
   distList = distList.slice(0, 5);
 
-  var html = '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-3">'
-    + '<div class="flex items-center justify-between">'
-    + '<div>'
-    + '<h3 class="text-sm font-bold text-rose-400 flex items-center gap-1.5"><i class="ti ti-circle-arrow-down"></i> Radar Saham Terdistribusi (Peringatan Tekanan Jual)</h3>'
-    + '<p class="text-[11px] text-slate-400">Saham dengan tekanan jual institusi/asing terkonsentrasi yang diserap oleh broker retail (YP, PD, XC)</p>'
+  var html = '<div class="card" style="padding:16px">'
+    + '<div style="margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--red);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-circle-arrow-down"></i> RADAR SAHAM TERDISTRIBUSI (PERINGATAN TEKANAN JUAL)'
     + '</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Tekanan jual institusi/asing terkonsentrasi diserap broker retail (YP, PD, XC)</div>'
     + '</div>'
-    + '<div class="overflow-x-auto">'
-    + '<table class="w-full text-xs text-left">'
-    + '<thead class="text-[10px] text-slate-400 uppercase bg-slate-950/80 border-b border-slate-800 font-mono">'
+    + '<div class="tbl-wrap" style="overflow-x:auto">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead>'
     + '<tr>'
-    + '<th class="p-2.5">Emiten</th>'
-    + '<th class="p-2.5">Status Bandar</th>'
-    + '<th class="p-2.5">Top 3 Seller Share</th>'
-    + '<th class="p-2.5">Top Broker Seller</th>'
-    + '<th class="p-2.5">Avg Sell Bandar</th>'
-    + '<th class="p-2.5">Harga Terkini</th>'
-    + '<th class="p-2.5">Peringatan</th>'
-    + '<th class="p-2.5">Aksi</th>'
+    + '<th>Emiten</th>'
+    + '<th>Status Bandar</th>'
+    + '<th style="text-align:right">Top 3 Seller Share</th>'
+    + '<th>Top Broker Seller</th>'
+    + '<th style="text-align:right">Avg Sell Bandar</th>'
+    + '<th style="text-align:right">Harga Terkini</th>'
+    + '<th>Peringatan</th>'
+    + '<th style="text-align:center">Aksi</th>'
     + '</tr>'
     + '</thead>'
-    + '<tbody class="divide-y divide-slate-800/60 font-mono">';
+    + '<tbody>';
 
   distList.forEach(function(item) {
-    html += '<tr class="hover:bg-slate-800/40 transition">'
-      + '<td class="p-2.5 font-bold text-white">' + item.ticker + ' <span class="text-[10px] font-normal text-slate-400 font-sans block">' + item.name + '</span></td>'
-      + '<td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">' + item.status + '</span></td>'
-      + '<td class="p-2.5 text-rose-400 font-bold">' + item.concTop3 + '</td>'
-      + '<td class="p-2.5 text-slate-200">' + item.topSellers + '</td>'
-      + '<td class="p-2.5 text-slate-300">' + item.avgSellPrice + '</td>'
-      + '<td class="p-2.5 text-white font-bold">' + item.lastPrice + '</td>'
-      + '<td class="p-2.5 text-[10px] text-amber-300 font-sans">' + item.warning + '</td>'
-      + '<td class="p-2.5">'
-      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="bandar-action-btn px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold font-sans border border-slate-700 transition">Detail Broker</button>'
+    html += '<tr>'
+      + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + item.name + '</div></td>'
+      + '<td><span class="badge b-dn" style="font-size:9px">' + item.status + '</span></td>'
+      + '<td class="mono down" style="text-align:right;font-weight:700">' + item.concTop3 + '</td>'
+      + '<td class="mono" style="color:var(--text)">' + item.topSellers + '</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text2)">' + item.avgSellPrice + '</td>'
+      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">' + item.lastPrice + '</td>'
+      + '<td><span class="badge b-amb" style="font-size:9px">' + item.warning + '</span></td>'
+      + '<td style="text-align:center">'
+      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-ghost btn-xs">Detail Broker</button>'
       + '</td>'
       + '</tr>';
   });
@@ -2578,41 +2540,42 @@ function renderBandarmologySmartMoneyRadarView(tk) {
   var divStatus = isBullishDivergence ? 'BULLISH DIVERGENCE (SMART MONEY INFLOW)' : (smNet < 0 && retNet > 0 ? 'BEARISH DIVERGENCE (DISTRIBUTION TO RETAIL)' : 'NEUTRAL ROTATION');
   var divDesc = isBullishDivergence ? 'Institusi menyerap barang konsisten sementara investor ritel melepas posisi' : 'Pergerakan harga sejalan dengan distribusi / akumulasi standar';
 
-  var html = '<div class="space-y-4">'
-    + '<div class="bg-slate-900/90 p-5 rounded-xl border border-slate-800 shadow-md space-y-4">'
-    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">'
+  var html = '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     + '<div>'
-    + '<h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="ti ti-radar-2 text-emerald-400 text-base"></i> Smart Money vs Retail Footprint: <span class="font-mono text-emerald-300">' + ticker + '</span></h3>'
-    + '<p class="text-xs text-slate-400">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs aliran ritel pasar reguler</p>'
+    + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-radar-2" style="color:var(--green)"></i> SMART MONEY VS RETAIL FOOTPRINT: <span class="mono" style="color:var(--accent)">' + ticker + '</span>'
     + '</div>'
-    + '<span class="px-3 py-1 rounded-lg text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">SMART MONEY SCORE: ' + smScore + '/100</span>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs aliran ritel reguler</div>'
     + '</div>'
-
-    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
-    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">1. Dominansi Institusi / Whale</div>'
-    + '<div class="text-base font-bold text-emerald-400">WHALE DOMINANT (' + smDominance + '%)</div>'
-    + '<div class="text-[11px] text-slate-400">Akumulator: <strong class="text-emerald-300 font-mono">' + smBuyBrokersText + '</strong> (Net +Rp ' + Math.abs(Math.round(smNet/1000000000)) + 'M)</div>'
+    + '<span class="badge b-up" style="font-size:10px;font-weight:700">SMART MONEY SCORE: ' + smScore + '/100</span>'
     + '</div>'
 
-    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">2. Retail Sentiment Footprint</div>'
-    + '<div class="text-base font-bold ' + (retNet < 0 ? 'text-amber-400' : 'text-rose-400') + '">' + (retNet < 0 ? 'RETAIL SELLING' : 'RETAIL ABSORBING') + '</div>'
-    + '<div class="text-[11px] text-slate-400">Broker Ritel: <strong class="text-slate-300 font-mono">' + retSellBrokersText + '</strong></div>'
+    + '<div class="row4" style="margin-bottom:12px">'
+    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="mlabel">1. DOMINANSI INSTITUSI / WHALE</div>'
+    + '<div class="mval up mono" style="font-size:16px">WHALE DOMINANT (' + smDominance + '%)</div>'
+    + '<div class="msub neu">Akumulator: <strong class="mono" style="color:var(--text)">' + smBuyBrokersText + '</strong> (+Rp ' + Math.abs(Math.round(smNet/1000000000)) + 'M)</div>'
     + '</div>'
 
-    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">3. Divergensi Smart Money</div>'
-    + '<div class="text-sm font-black ' + (isBullishDivergence ? 'text-emerald-400' : 'text-sky-400') + '">' + divStatus + '</div>'
-    + '<div class="text-[11px] text-slate-400">' + divDesc + '</div>'
+    + '<div class="metric" style="border-left:3px solid ' + (retNet < 0 ? 'var(--amber)' : 'var(--red)') + '">'
+    + '<div class="mlabel">2. RETAIL SENTIMENT FOOTPRINT</div>'
+    + '<div class="mval ' + (retNet < 0 ? 'amb' : 'down') + ' mono" style="font-size:16px">' + (retNet < 0 ? 'RETAIL SELLING' : 'RETAIL ABSORBING') + '</div>'
+    + '<div class="msub neu">Broker Ritel: <strong class="mono" style="color:var(--text)">' + retSellBrokersText + '</strong></div>'
+    + '</div>'
+
+    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="mlabel">3. DIVERGENSI SMART MONEY</div>'
+    + '<div class="mval ' + (isBullishDivergence ? 'up' : 'neu') + ' mono" style="font-size:14px">' + divStatus + '</div>'
+    + '<div class="msub neu">' + divDesc + '</div>'
     + '</div>'
     + '</div>'
 
-    + '<div class="p-4 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-emerald-200 text-xs leading-relaxed space-y-1.5">'
-    + '<div class="font-bold text-emerald-400 flex items-center gap-1.5"><i class="ti ti-bulb"></i> Kesimpulan AI Smart Money & Bandarmology:</div>'
-    + '<div>Smart Money terdeteksi aktif pada saham <strong class="font-mono text-white">' + ticker + '</strong> dengan net institutional flow <strong class="text-emerald-300">' + (smNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smNet/1000000000)).toLocaleString('id-ID') + ' Miliar</strong>. Broker institusi utama (<span class="font-mono text-white">' + smBuyBrokersText + '</span>) mendominasi konsentrasi akumulasi.</div>'
+    + '<div style="padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:12px;line-height:1.5;color:var(--text2)">'
+    + '<div style="font-weight:700;color:var(--green);margin-bottom:4px;display:flex;align-items:center;gap:4px"><i class="ti ti-bulb"></i> Kesimpulan AI Smart Money &amp; Bandarmology:</div>'
+    + 'Smart Money terdeteksi aktif pada saham <strong class="mono" style="color:var(--text)">' + ticker + '</strong> dengan net institutional flow <strong class="up mono">' + (smNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smNet/1000000000)).toLocaleString('id-ID') + ' Miliar</strong>. Broker institusi utama (<span class="mono" style="color:var(--text)">' + smBuyBrokersText + '</span>) mendominasi konsentrasi akumulasi.'
     + '</div>'
-    + '</div></div>';
+    + '</div>';
   return html;
 }
 
@@ -2651,65 +2614,65 @@ function renderBandarmologyBrokerTrailView() {
   trailData.sort(function(a, b) { return b.rawVal - a.rawVal; });
   trailData = trailData.slice(0, 10);
 
-  var html = '<div class="space-y-4">'
+  var html = '<div style="display:flex;flex-direction:column;gap:16px">'
     // Broker Selector Bar
-    + '<div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow-md space-y-2.5">'
-    + '<div class="flex items-center justify-between">'
-    + '<span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Pilih Kode Broker untuk Pelacakan Jejak Transaksi:</span>'
-    + '<span class="text-[10px] text-slate-400 font-mono">12 Kode Teratas BEI</span>'
+    + '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    + '<span style="font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase">Pilih Kode Broker untuk Pelacakan Jejak Transaksi:</span>'
+    + '<span class="badge b-neu" style="font-size:9px">12 KODE TERATAS BEI</span>'
     + '</div>'
-    + '<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">';
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px">';
 
   BANDARMOLOGY_BROKER_LIST.forEach(function(b) {
     var isSel = b.code === bCode;
-    html += '<button onclick="setBandarmologyBroker(\'' + b.code + '\')" class="bandar-broker-btn p-2 rounded-lg text-center transition font-mono font-bold ' + (isSel ? 'active bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/60') + '">'
-      + '<div class="text-xs">' + b.code + '</div>'
-      + '<div class="text-[9px] font-sans text-slate-400 truncate mt-0.5">' + b.type + '</div>'
+    html += '<button onclick="setBandarmologyBroker(\'' + b.code + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="flex-direction:column;padding:6px 4px;font-family:monospace;font-weight:700">'
+      + '<span style="font-size:12px">' + b.code + '</span>'
+      + '<span style="font-size:8px;font-family:sans-serif;opacity:0.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + b.type + '</span>'
       + '</button>';
   });
 
   html += '</div></div>';
 
   // Selected Broker Profile & Trail
-  html += '<div class="bg-slate-900/90 p-5 rounded-xl border border-slate-800 shadow-md space-y-4">'
-    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">'
-    + '<div class="flex items-center gap-3">'
-    + '<div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-black font-mono text-lg text-emerald-400">' + bInfo.code + '</div>'
+  html += '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
+    + '<div style="display:flex;align-items:center;gap:12px">'
+    + '<div style="width:38px;height:38px;border-radius:8px;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-weight:800;font-family:monospace;font-size:16px;color:var(--accent)">' + bInfo.code + '</div>'
     + '<div>'
-    + '<h3 class="text-sm font-bold text-white">' + bInfo.name + '</h3>'
-    + '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">' + bInfo.badge + '</span>'
+    + '<div style="font-size:13px;font-weight:700;color:var(--text)">' + bInfo.name + '</div>'
+    + '<span class="badge b-neu" style="font-size:9px">' + bInfo.badge + '</span>'
     + '</div>'
     + '</div>'
-    + '<button onclick="openStockChat(\'BBCA\', \'Analisa jejak transaksi broker ' + bInfo.code + ' (' + bInfo.name + ') hari ini di seluruh emiten BEI\')" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition flex items-center gap-1.5 self-start sm:self-auto">'
+    + '<button onclick="openStockChat(\'BBCA\', \'Analisa jejak transaksi broker ' + bInfo.code + ' (' + bInfo.name + ') hari ini di seluruh emiten BEI\')" class="btn btn-primary btn-xs">'
     + '<i class="ti ti-messages"></i> <span>Tanya AI tentang ' + bInfo.code + '</span>'
     + '</button>'
     + '</div>'
-    + '<div class="overflow-x-auto">'
-    + '<table class="w-full text-xs text-left">'
-    + '<thead class="text-[10px] text-slate-400 uppercase bg-slate-950/80 border-b border-slate-800 font-mono">'
+    + '<div class="tbl-wrap" style="overflow-x:auto">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead>'
     + '<tr>'
-    + '<th class="p-2.5">Emiten</th>'
-    + '<th class="p-2.5">Aksi ' + bInfo.code + '</th>'
-    + '<th class="p-2.5">Nilai Transaksi (Rp)</th>'
-    + '<th class="p-2.5">Volume (Lot)</th>'
-    + '<th class="p-2.5">Estimasi Avg Price</th>'
-    + '<th class="p-2.5">Waktu</th>'
-    + '<th class="p-2.5">Aksi</th>'
+    + '<th>Emiten</th>'
+    + '<th>Aksi ' + bInfo.code + '</th>'
+    + '<th style="text-align:right">Nilai Transaksi (Rp)</th>'
+    + '<th style="text-align:right">Volume (Lot)</th>'
+    + '<th style="text-align:right">Estimasi Avg Price</th>'
+    + '<th>Waktu</th>'
+    + '<th style="text-align:center">Aksi</th>'
     + '</tr>'
     + '</thead>'
-    + '<tbody class="divide-y divide-slate-800/60 font-mono">';
+    + '<tbody>';
 
   trailData.forEach(function(item) {
     var isBuy = item.action === 'NET BUY';
-    html += '<tr class="hover:bg-slate-800/40 transition">'
-      + '<td class="p-2.5 font-bold text-white">' + item.ticker + '</td>'
-      + '<td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ' + (isBuy ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40') + '">' + item.action + '</span></td>'
-      + '<td class="p-2.5 font-bold ' + (isBuy ? 'text-emerald-400' : 'text-rose-400') + '">' + item.netVal + '</td>'
-      + '<td class="p-2.5 text-slate-200">' + item.lots + '</td>'
-      + '<td class="p-2.5 text-slate-300">' + item.avgPrice + '</td>'
-      + '<td class="p-2.5 text-slate-400">' + item.date + '</td>'
-      + '<td class="p-2.5">'
-      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyTab(\'broker-flow\');" class="bandar-action-btn px-2 py-0.8 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold font-sans border border-slate-700 transition">Buka ' + item.ticker + '</button>'
+    html += '<tr>'
+      + '<td class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</td>'
+      + '<td><span class="badge ' + (isBuy ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + item.action + '</span></td>'
+      + '<td class="mono ' + (isBuy ? 'up' : 'down') + '" style="text-align:right;font-weight:700">' + item.netVal + '</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text)">' + item.lots + '</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text2)">' + item.avgPrice + '</td>'
+      + '<td style="color:var(--text3);font-size:11px">' + item.date + '</td>'
+      + '<td style="text-align:center">'
+      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-ghost btn-xs">Buka ' + item.ticker + '</button>'
       + '</td>'
       + '</tr>';
   });
@@ -2734,68 +2697,70 @@ function renderBandarmologySmartMoneyFlowView(tk) {
   var volSurge = isUp ? '2.4x (Heavy Inflow)' : '1.8x (Distribution Outflow)';
 
   var cmfStatus = cmfVal >= 0.15 ? 'STRONG ACCUMULATION (+ ' + (cmfVal * 100).toFixed(0) + '%)' : (cmfVal <= -0.10 ? 'STRONG DISTRIBUTION (' + (cmfVal * 100).toFixed(0) + '%)' : 'NEUTRAL ROTATION');
-  var cmfColor = cmfVal >= 0 ? 'text-emerald-400' : 'text-rose-400';
-  var cmfBg = cmfVal >= 0 ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' : 'bg-rose-500/20 border-rose-500/40 text-rose-300';
 
-  var html = '<div class="space-y-4">'
-    // Top Summary Banner
-    + '<div class="bg-slate-900/90 p-5 rounded-xl border border-slate-800 shadow-md space-y-4">'
-    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">'
+  var html = '<div style="display:flex;flex-direction:column;gap:16px">'
+    // Top Summary Banner (Opportunity Radar card)
+    + '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:14px;flex-wrap:wrap;gap:8px">'
     + '<div>'
-    + '<h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="ti ti-flame text-orange-400 text-base"></i> Smart Money Flow &amp; Volume Price Matrix: <span class="font-mono text-emerald-300">' + ticker + '</span></h3>'
-    + '<p class="text-xs text-slate-400">Analisis Chaikin Money Flow (CMF-20), Accumulation/Distribution Line, OBV, dan Institutional Multi-Period VWAP Bands</p>'
+    + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-flame" style="color:var(--amber)"></i> SMART MONEY FLOW &amp; VOLUME PRICE MATRIX: <span class="mono" style="color:var(--accent)">' + ticker + '</span>'
     + '</div>'
-    + '<span class="px-3 py-1 rounded-lg text-xs font-black border ' + cmfBg + '">' + cmfStatus + '</span>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Analisis Chaikin Money Flow (CMF-20), Accumulation/Distribution Line, OBV, dan Institutional Multi-Period VWAP Bands</div>'
     + '</div>'
-
-    // 4 Key Indicators Cards
-    + '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">'
-    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">1. Chaikin Money Flow (CMF-20)</div>'
-    + '<div class="text-lg font-black ' + cmfColor + '">' + (cmfVal >= 0 ? '+' : '') + cmfVal.toFixed(2) + '</div>'
-    + '<div class="text-[11px] text-slate-400">' + (cmfVal >= 0 ? 'Tekanan beli institusi konsisten' : 'Tekanan jual institusi terdeteksi') + '</div>'
+    + '<span class="badge ' + (cmfVal >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px;font-weight:700">' + cmfStatus + '</span>'
     + '</div>'
 
-    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">2. Volume Surge Ratio</div>'
-    + '<div class="text-lg font-black text-sky-400">' + volSurge + '</div>'
-    + '<div class="text-[11px] text-slate-400">Dibandingkan rata-rata 20 hari</div>'
+    // 4 Key Indicators Cards (Opportunity Radar row4/metric pattern)
+    + '<div class="row4" style="margin-bottom:14px">'
+    + '<div class="metric" style="border-left:3px solid ' + (cmfVal >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+    + '<div class="mlabel">1. CHAIKIN MONEY FLOW (CMF-20)</div>'
+    + '<div class="mval ' + (cmfVal >= 0 ? 'up' : 'down') + ' mono" style="font-size:18px">' + (cmfVal >= 0 ? '+' : '') + cmfVal.toFixed(2) + '</div>'
+    + '<div class="msub neu">' + (cmfVal >= 0 ? 'Tekanan beli konsisten' : 'Tekanan jual terdeteksi') + '</div>'
     + '</div>'
 
-    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">3. Session VWAP Anchor</div>'
-    + '<div class="text-lg font-black text-amber-300">Rp ' + vwapSession.toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[11px] text-slate-400">Jarak vs Harga: <strong class="' + (Number(distToVwap) >= 0 ? 'text-emerald-400' : 'text-rose-400') + '">' + (Number(distToVwap) >= 0 ? '+' : '') + distToVwap + '%</strong></div>'
+    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="mlabel">2. VOLUME SURGE RATIO</div>'
+    + '<div class="mval mono" style="font-size:18px;color:var(--blue)">' + volSurge + '</div>'
+    + '<div class="msub neu">Dibandingkan rata-rata 20 hari</div>'
     + '</div>'
 
-    + '<div class="bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-slate-400 uppercase font-mono">4. Accumulation Index (A/D)</div>'
-    + '<div class="text-lg font-black text-emerald-400">' + (isUp ? 'BULLISH SURGE' : 'DISTRIBUTION') + '</div>'
-    + '<div class="text-[11px] text-slate-400">' + (isUp ? 'Smart money menyerap saham' : 'Tekanan distribusi berlanjut') + '</div>'
+    + '<div class="metric" style="border-left:3px solid var(--amber)">'
+    + '<div class="mlabel">3. SESSION VWAP ANCHOR</div>'
+    + '<div class="mval amb mono" style="font-size:18px">Rp ' + vwapSession.toLocaleString('id-ID') + '</div>'
+    + '<div class="msub neu">Jarak vs Harga: <strong class="' + (Number(distToVwap) >= 0 ? 'up' : 'down') + ' mono">' + (Number(distToVwap) >= 0 ? '+' : '') + distToVwap + '%</strong></div>'
+    + '</div>'
+
+    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="mlabel">4. ACCUMULATION INDEX (A/D)</div>'
+    + '<div class="mval ' + (isUp ? 'up' : 'down') + ' mono" style="font-size:18px">' + (isUp ? 'BULLISH SURGE' : 'DISTRIBUTION') + '</div>'
+    + '<div class="msub neu">' + (isUp ? 'Smart money menyerap saham' : 'Tekanan distribusi') + '</div>'
     + '</div>'
     + '</div>'
 
     // Institutional VWAP Multi-Bands Table
-    + '<div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">'
-    + '<div class="flex items-center justify-between">'
-    + '<h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5"><i class="ti ti-chart-arrows text-sky-400"></i> Institutional VWAP Bands Zone: ' + ticker + '</h4>'
-    + '<span class="text-[10px] text-slate-400 font-mono">Algoritma Penetrasi Harga BEI</span>'
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:14px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-chart-arrows" style="color:var(--accent)"></i> INSTITUTIONAL VWAP BANDS ZONE: ' + ticker
     + '</div>'
-    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3 font-mono text-xs">'
-    + '<div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] text-rose-400 font-bold uppercase">Upper Band (+1 StdDev) - TP Zone</div>'
-    + '<div class="text-base font-black text-rose-300">Rp ' + vwapUpper.toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[10px] text-slate-400">Area take-profit & resisten institusi</div>'
+    + '<span class="badge b-neu" style="font-size:9px">ALGORITMA PENETRASI HARGA BEI</span>'
     + '</div>'
-    + '<div class="p-3 rounded-lg bg-slate-900 border border-amber-500/40 space-y-1">'
-    + '<div class="text-[10px] text-amber-400 font-bold uppercase">Benchmark VWAP Anchor</div>'
-    + '<div class="text-base font-black text-amber-300">Rp ' + vwapSession.toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[10px] text-slate-400">Harga rata-rata tertimbang volume pasar</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;font-size:12px">'
+    + '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:10px">'
+    + '<div style="font-size:10px;color:var(--red);font-weight:700;text-transform:uppercase">Upper Band (+1 StdDev) - TP Zone</div>'
+    + '<div class="mono down" style="font-size:15px;font-weight:800;margin-top:2px">Rp ' + vwapUpper.toLocaleString('id-ID') + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:2px">Area take-profit &amp; resisten institusi</div>'
     + '</div>'
-    + '<div class="p-3 rounded-lg bg-slate-900 border border-emerald-500/40 space-y-1">'
-    + '<div class="text-[10px] text-emerald-400 font-bold uppercase">Lower Band (-1 StdDev) - Buy Zone</div>'
-    + '<div class="text-base font-black text-emerald-300">Rp ' + vwapLower.toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[10px] text-slate-400">Area akumulasi / value buying smart money</div>'
+    + '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:10px">'
+    + '<div style="font-size:10px;color:var(--amber);font-weight:700;text-transform:uppercase">Benchmark VWAP Anchor</div>'
+    + '<div class="mono amb" style="font-size:15px;font-weight:800;margin-top:2px">Rp ' + vwapSession.toLocaleString('id-ID') + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:2px">Harga rata-rata tertimbang volume pasar</div>'
+    + '</div>'
+    + '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:10px">'
+    + '<div style="font-size:10px;color:var(--green);font-weight:700;text-transform:uppercase">Lower Band (-1 StdDev) - Buy Zone</div>'
+    + '<div class="mono up" style="font-size:15px;font-weight:800;margin-top:2px">Rp ' + vwapLower.toLocaleString('id-ID') + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:2px">Area akumulasi / value buying smart money</div>'
     + '</div>'
     + '</div>'
     + '</div>'
@@ -2803,64 +2768,64 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     // ============================================================
     // INTERACTIVE REAL-TIME CHART SUITE (PRICE, CMF, FOREIGN, VOL)
     // ============================================================
-    + '<div class="space-y-4 pt-1">'
-    + '<div class="flex items-center justify-between">'
-    + '<h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="ti ti-chart-line text-emerald-400"></i> Grafik Visual Interaktif Smart Money &amp; Penetrasi Bandar (' + ticker + ')</h4>'
-    + '<span class="text-[10px] text-slate-400 font-mono">Chart.js Engine (60 Candles)</span>'
+    + '<div style="display:flex;flex-direction:column;gap:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-chart-line" style="color:var(--green)"></i> GRAFIK VISUAL INTERAKTIF SMART MONEY &amp; PENETRASI BANDAR (' + ticker + ')'
+    + '</div>'
+    + '<span class="badge b-neu" style="font-size:9px">CHART ENGINE (60 CANDLES)</span>'
     + '</div>'
 
-    + '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">'
     // Chart 1: Price Action & Institutional VWAP Bands
-    + '<div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">'
-    + '<div class="flex items-center justify-between">'
-    + '<div class="text-xs font-bold text-slate-200 flex items-center gap-1.5"><i class="ti ti-chart-candle text-sky-400"></i> Pergerakan Harga &amp; Institutional VWAP Bands</div>'
-    + '<span class="text-[10px] text-sky-400 font-mono">Benchmark Anchor</span>'
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px"><i class="ti ti-chart-candle" style="color:var(--accent)"></i> Pergerakan Harga &amp; VWAP Bands</div>'
+    + '<span class="badge b-accent" style="font-size:8px">BENCHMARK</span>'
     + '</div>'
-    + '<div class="h-64 relative w-full"><canvas id="bandarSmartPriceChart"></canvas></div>'
+    + '<div style="height:220px;position:relative;width:100%"><canvas id="bandarSmartPriceChart"></canvas></div>'
     + '</div>'
 
     // Chart 2: Chaikin Money Flow (CMF-20) Histogram
-    + '<div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">'
-    + '<div class="flex items-center justify-between">'
-    + '<div class="text-xs font-bold text-emerald-400 flex items-center gap-1.5"><i class="ti ti-flame text-orange-400"></i> Histogram Chaikin Money Flow (CMF-20)</div>'
-    + '<span class="text-[10px] text-emerald-300 font-mono">Akumulasi (+) / Distribusi (-)</span>'
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px"><i class="ti ti-flame" style="color:var(--amber)"></i> Chaikin Money Flow (CMF-20)</div>'
+    + '<span class="badge b-up" style="font-size:8px">AKUMULASI / DISTRIBUSI</span>'
     + '</div>'
-    + '<div class="h-64 relative w-full"><canvas id="bandarSmartCmfChart"></canvas></div>'
+    + '<div style="height:220px;position:relative;width:100%"><canvas id="bandarSmartCmfChart"></canvas></div>'
     + '</div>'
 
     // Chart 3: Net Foreign Flow Daily Inflow/Outflow Bars
-    + '<div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">'
-    + '<div class="flex items-center justify-between">'
-    + '<div class="text-xs font-bold text-sky-300 flex items-center gap-1.5"><i class="ti ti-coin text-amber-400"></i> Arus Net Dana Asing Harian (Foreign Inflow/Outflow)</div>'
-    + '<span class="text-[10px] text-sky-300 font-mono">Juta Lembar</span>'
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px"><i class="ti ti-coin" style="color:var(--blue)"></i> Arus Net Dana Asing Harian</div>'
+    + '<span class="badge b-neu" style="font-size:8px">JUTA LEMBAR</span>'
     + '</div>'
-    + '<div class="h-56 relative w-full"><canvas id="bandarSmartForeignChart"></canvas></div>'
+    + '<div style="height:200px;position:relative;width:100%"><canvas id="bandarSmartForeignChart"></canvas></div>'
     + '</div>'
 
     // Chart 4: Volume Surge & Accumulation Profile
-    + '<div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">'
-    + '<div class="flex items-center justify-between">'
-    + '<div class="text-xs font-bold text-indigo-300 flex items-center gap-1.5"><i class="ti ti-chart-bar text-indigo-400"></i> Volume Transaksi &amp; Penyerapan Modal</div>'
-    + '<span class="text-[10px] text-slate-400 font-mono">Volume Surge</span>'
+    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px"><i class="ti ti-chart-bar" style="color:var(--accent)"></i> Volume Transaksi &amp; Penyerapan Modal</div>'
+    + '<span class="badge b-neu" style="font-size:8px">VOLUME SURGE</span>'
     + '</div>'
-    + '<div class="h-56 relative w-full"><canvas id="bandarSmartVolChart"></canvas></div>'
+    + '<div style="height:200px;position:relative;width:100%"><canvas id="bandarSmartVolChart"></canvas></div>'
     + '</div>'
     + '</div>'
     + '</div>'
 
     // Action Matrix Section
-    + '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between flex-wrap gap-3">'
-    + '<div class="space-y-0.5">'
-    + '<div class="text-xs font-bold text-white">Ingin melihat rincian broker yang mengakumulasi saham ' + ticker + '?</div>'
-    + '<div class="text-[11px] text-slate-400">Periksa Top 5 Buyer/Seller dan aliran dana asing pada tab Broker Flow.</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;flex-wrap:wrap;gap:8px;margin-top:6px">'
+    + '<div>'
+    + '<div style="font-size:12px;font-weight:700;color:var(--text)">Ingin melihat rincian broker yang mengakumulasi saham ' + ticker + '?</div>'
+    + '<div style="font-size:11px;color:var(--text3)">Periksa Top 5 Buyer/Seller dan aliran dana asing pada tab Broker Flow.</div>'
     + '</div>'
-    + '<div class="flex items-center gap-2">'
-    + '<button onclick="setBandarmologyTab(\'broker-flow\');" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5">'
-    + '<i class="ti ti-arrows-diff"></i> <span>Buka Broker Flow ' + ticker + '</span>'
-    + '</button>'
-    + '<button onclick="openStockChat(\'' + ticker + '\', \'Analisa detail pergerakan smart money flow CMF dan bandarmology saham ' + ticker + '\');" class="px-3.5 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition flex items-center gap-1.5">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<button onclick="openStockChat(\'' + ticker + '\', \'Analisa detail pergerakan smart money flow CMF dan bandarmology saham ' + ticker + '\');" class="btn btn-primary btn-xs">'
     + '<i class="ti ti-messages"></i> <span>Konsultasi AI</span>'
     + '</button>'
+    + '</div>'
     + '</div>'
     + '</div>'
     + '</div>';
@@ -3049,14 +3014,14 @@ function mountBandarmologySmartMoneyCharts(tk) {
 // 9. Heatmap & Live Scanner View (Smart Money Sector Map & Signal Scanner)
 function renderBandarmologyHeatmapScannerView() {
   var sectors = [
-    { name: 'Financials (Perbankan)', flowVal: '+Rp 583.9 M', count: 18, isAcc: true, intensity: 'bg-emerald-600 text-white' },
-    { name: 'Basic Materials (Tambang & Mineral)', flowVal: '+Rp 192.4 M', count: 14, isAcc: true, intensity: 'bg-emerald-700 text-white' },
-    { name: 'Energy (Minyak, Gas & Batubara)', flowVal: '+Rp 88.7 M', count: 12, isAcc: true, intensity: 'bg-emerald-800 text-emerald-200' },
-    { name: 'Infrastructure (Telko, Konstruksi, Toll)', flowVal: '-Rp 64.2 M', count: 9, isAcc: false, intensity: 'bg-rose-800 text-rose-200' },
-    { name: 'Consumer Non-Cyclical (Makanan & Minuman)', flowVal: '-Rp 115.0 M', count: 11, isAcc: false, intensity: 'bg-rose-700 text-white' },
-    { name: 'Technology & Digital Ecosystem', flowVal: '-Rp 48.3 M', count: 8, isAcc: false, intensity: 'bg-rose-800 text-rose-200' },
-    { name: 'Healthcare & Farmasi', flowVal: '+Rp 32.1 M', count: 6, isAcc: true, intensity: 'bg-emerald-800 text-emerald-200' },
-    { name: 'Property & Real Estate', flowVal: '+Rp 18.5 M', count: 7, isAcc: true, intensity: 'bg-emerald-900 text-emerald-300' }
+    { name: 'Financials (Perbankan)', flowVal: '+Rp 583.9 M', count: 18, isAcc: true, borderCol: 'var(--green)' },
+    { name: 'Basic Materials (Tambang)', flowVal: '+Rp 192.4 M', count: 14, isAcc: true, borderCol: 'var(--green)' },
+    { name: 'Energy (Migas & Batubara)', flowVal: '+Rp 88.7 M', count: 12, isAcc: true, borderCol: 'var(--green)' },
+    { name: 'Infrastructure (Telko, Toll)', flowVal: '-Rp 64.2 M', count: 9, isAcc: false, borderCol: 'var(--red)' },
+    { name: 'Consumer Non-Cyclical', flowVal: '-Rp 115.0 M', count: 11, isAcc: false, borderCol: 'var(--red)' },
+    { name: 'Technology & Digital', flowVal: '-Rp 48.3 M', count: 8, isAcc: false, borderCol: 'var(--red)' },
+    { name: 'Healthcare & Farmasi', flowVal: '+Rp 32.1 M', count: 6, isAcc: true, borderCol: 'var(--green)' },
+    { name: 'Property & Real Estate', flowVal: '+Rp 18.5 M', count: 7, isAcc: true, borderCol: 'var(--green)' }
   ];
 
   var scannerRows = [
@@ -3070,67 +3035,69 @@ function renderBandarmologyHeatmapScannerView() {
     { ticker: 'GOTO', sector: 'Technology', price: 54, chg: '-1.82%', cmf: '-0.18', verdict: 'BIG DISTRIBUTION', flowM: '-Rp 48.3 M', signal: 'Retail Heavy Selling' }
   ];
 
-  var html = '<div class="space-y-4">'
+  var html = '<div style="display:flex;flex-direction:column;gap:16px">'
     // Heatmap Section
-    + '<div class="bg-slate-900/90 p-5 rounded-xl border border-slate-800 shadow-md space-y-3">'
-    + '<div class="flex items-center justify-between">'
-    + '<h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5"><i class="ti ti-layout-grid text-emerald-400"></i> Heatmap Aliran Dana Smart Money Sektoral BEI</h3>'
-    + '<span class="text-[10px] text-slate-400 font-mono">Live Sektoral Pulse</span>'
+    + '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-layout-grid" style="color:var(--green)"></i> HEATMAP ALIRAN DANA SMART MONEY SEKTORAL BEI'
     + '</div>'
-    + '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-1">';
+    + '<span class="badge b-neu" style="font-size:9px">LIVE SEKTORAL PULSE</span>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">';
 
   sectors.forEach(function(s) {
-    html += '<div class="p-3.5 rounded-xl ' + s.intensity + ' shadow-md flex flex-col justify-between space-y-2">'
-      + '<div class="text-xs font-black truncate" title="' + s.name + '">' + s.name + '</div>'
-      + '<div class="flex items-end justify-between">'
-      + '<span class="text-base font-black font-mono">' + s.flowVal + '</span>'
-      + '<span class="text-[10px] font-bold opacity-80">' + s.count + ' Emiten</span>'
-      + '</div>'
+    html += '<div class="metric" style="border-left:3px solid ' + s.borderCol + ';padding:10px">'
+      + '<div class="mlabel" title="' + s.name + '">' + s.name + '</div>'
+      + '<div class="mval ' + (s.isAcc ? 'up' : 'down') + ' mono" style="font-size:16px;margin:4px 0">' + s.flowVal + '</div>'
+      + '<div class="msub neu">' + s.count + ' Emiten Teranalisis</div>'
       + '</div>';
   });
 
   html += '</div></div>'
 
     // Scanner Table Section
-    + '<div class="bg-slate-900/90 p-5 rounded-xl border border-slate-800 shadow-md space-y-4">'
-    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">'
+    + '<div class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     + '<div>'
-    + '<h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="ti ti-radar text-emerald-400 text-base"></i> Pemindai Real-Time Smart Money &amp; Bandar Radar</h3>'
-    + '<p class="text-xs text-slate-400">Deteksi otomatis saham dengan lonjakan CMF, akumulasi institusi masif, dan peringatan jebakan ritel</p>'
+    + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-radar" style="color:var(--green)"></i> PEMINDAI REAL-TIME SMART MONEY &amp; BANDAR RADAR'
     + '</div>'
-    + '<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">8 Saham Terpindai</span>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Deteksi otomatis saham dengan lonjakan CMF, akumulasi institusi masif, dan peringatan jebakan ritel</div>'
+    + '</div>'
+    + '<span class="badge b-neu" style="font-size:9px">8 SAHAM TERPINDAI</span>'
     + '</div>'
 
-    + '<div class="overflow-x-auto">'
-    + '<table class="w-full text-xs text-left">'
-    + '<thead class="text-[10px] text-slate-400 uppercase bg-slate-950/80 border-b border-slate-800 font-mono">'
+    + '<div class="tbl-wrap" style="overflow-x:auto">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead>'
     + '<tr>'
-    + '<th class="p-2.5">Emiten</th>'
-    + '<th class="p-2.5">Sektor</th>'
-    + '<th class="p-2.5 text-right">Harga</th>'
-    + '<th class="p-2.5 text-right">Chg %</th>'
-    + '<th class="p-2.5 text-right">CMF-20</th>'
-    + '<th class="p-2.5 text-center">Bandarmology</th>'
-    + '<th class="p-2.5 text-right">Smart Money Flow</th>'
-    + '<th class="p-2.5">Sinyal AI</th>'
-    + '<th class="p-2.5 text-center">Aksi</th>'
+    + '<th>Emiten</th>'
+    + '<th>Sektor</th>'
+    + '<th style="text-align:right">Harga</th>'
+    + '<th style="text-align:right">Chg %</th>'
+    + '<th style="text-align:right">CMF-20</th>'
+    + '<th style="text-align:center">Bandarmology</th>'
+    + '<th style="text-align:right">Smart Money Flow</th>'
+    + '<th>Sinyal AI</th>'
+    + '<th style="text-align:center">Aksi</th>'
     + '</tr>'
     + '</thead>'
-    + '<tbody class="divide-y divide-slate-800/60 font-mono">';
+    + '<tbody>';
 
   scannerRows.forEach(function(row) {
     var isAcc = row.verdict.includes('ACC');
-    html += '<tr class="hover:bg-slate-800/40 transition">'
-      + '<td class="p-2.5 font-bold text-white">' + row.ticker + '</td>'
-      + '<td class="p-2.5 font-sans text-slate-300">' + row.sector + '</td>'
-      + '<td class="p-2.5 text-right font-bold text-slate-200">Rp ' + row.price.toLocaleString('id-ID') + '</td>'
-      + '<td class="p-2.5 text-right font-bold ' + (row.chg.startsWith('+') ? 'text-emerald-400' : 'text-rose-400') + '">' + row.chg + '</td>'
-      + '<td class="p-2.5 text-right font-bold ' + (row.cmf.startsWith('+') ? 'text-emerald-400' : 'text-rose-400') + '">' + row.cmf + '</td>'
-      + '<td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ' + (isAcc ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40') + '">' + row.verdict + '</span></td>'
-      + '<td class="p-2.5 text-right font-bold ' + (isAcc ? 'text-emerald-400' : 'text-rose-400') + '">' + row.flowM + '</td>'
-      + '<td class="p-2.5 font-sans font-semibold text-slate-200">' + row.signal + '</td>'
-      + '<td class="p-2.5 text-center">'
-      + '<button onclick="selectStockChatTicker(\'' + row.ticker + '\');setBandarmologyTab(\'smart-money-flow\');" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold font-sans transition">Analisa ' + row.ticker + '</button>'
+    html += '<tr>'
+      + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + row.ticker + '</span></td>'
+      + '<td style="color:var(--text2)">' + row.sector + '</td>'
+      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">Rp ' + row.price.toLocaleString('id-ID') + '</td>'
+      + '<td class="mono ' + (row.chg.startsWith('+') ? 'up' : 'down') + '" style="text-align:right;font-weight:700">' + row.chg + '</td>'
+      + '<td class="mono ' + (row.cmf.startsWith('+') ? 'up' : 'down') + '" style="text-align:right;font-weight:700">' + row.cmf + '</td>'
+      + '<td style="text-align:center"><span class="badge ' + (isAcc ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + row.verdict + '</span></td>'
+      + '<td class="mono ' + (isAcc ? 'up' : 'down') + '" style="text-align:right;font-weight:700">' + row.flowM + '</td>'
+      + '<td style="color:var(--text);font-weight:600">' + row.signal + '</td>'
+      + '<td style="text-align:center">'
+      + '<button onclick="selectStockChatTicker(\'' + row.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-primary btn-xs">Analisa ' + row.ticker + '</button>'
       + '</td>'
       + '</tr>';
   });

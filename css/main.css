@@ -4350,6 +4350,54 @@ body.theme-light .stockchat-presets-box {
   box-shadow: var(--card-shadow);
 }
 
+/* STOCKCHAT AI INTERACTION & BUBBLES */
+.stockchat-chat-container {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: var(--card-shadow);
+}
+.stockchat-history-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+}
+.stockchat-bubble-ai {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 14px;
+  border-top-left-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.stockchat-bubble-user {
+  background: #2563EB;
+  color: #FFFFFF;
+  border-radius: 14px;
+  border-top-right-radius: 2px;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.25);
+}
+.stockchat-preset-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.stockchat-preset-card:hover {
+  background: var(--bg3);
+  border-color: #3B82F6;
+  transform: translateY(-1px);
+}
+.stockchat-widget-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}
+
 /* LIGHT THEME OVERRIDES */
 body.theme-light .bandar-card,
 body.theme-light .bandar-banner-card,
@@ -4358,16 +4406,26 @@ body.theme-light .bandar-table-box,
 body.theme-light .bandar-matrix-box,
 body.theme-light .stockchat-topbar,
 body.theme-light .stockchat-subtabs-bar,
-body.theme-light .bandar-ticker-bar {
+body.theme-light .bandar-ticker-bar,
+body.theme-light .stockchat-chat-container,
+body.theme-light .stockchat-preset-card,
+body.theme-light .stockchat-widget-card {
   background: #FFFFFF !important;
   border-color: #E2E8F0 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 body.theme-light .bandar-spectrum-box,
 body.theme-light .bandar-table thead th,
-body.theme-light .bandar-table-foot {
+body.theme-light .bandar-table-foot,
+body.theme-light .stockchat-history-box,
+body.theme-light #stockchat-history-box {
   background: #F8FAFC !important;
   border-color: #E2E8F0 !important;
+}
+body.theme-light .stockchat-bubble-ai {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
 }
 body.theme-light .bandar-ticker-btn {
   background: #F1F5F9 !important;
@@ -4391,10 +4449,6 @@ body.theme-light .stockchat-tab-btn:not(.active):hover {
   background: #F1F5F9 !important;
   color: #0F172A !important;
 }
-body.theme-light #stockchat-history-box {
-  background: #F8FAFC !important;
-  border-color: #E2E8F0 !important;
-}
 body.theme-light .stockchat-input-field {
   background: #FFFFFF !important;
   border-color: #CBD5E1 !important;
@@ -4403,6 +4457,7 @@ body.theme-light .stockchat-input-field {
 body.theme-light .stockchat-input-field::placeholder {
   color: #94A3B8 !important;
 }
+
 
 
 
