@@ -472,7 +472,7 @@ function renderDivCalMonthGrid(events, year, month) {
     html += '<div style="min-height:84px;border-radius:6px;padding:6px;display:flex;flex-direction:column;justify-content:space-between;transition:all 0.15s;' + cellBg + '">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;">'
       + '    <span style="font-size:12px;font-weight:' + (isToday ? '800' : '600') + ';color:' + (isToday ? 'var(--accent)' : 'var(--text-main)') + ';">'
-      +        day + (isToday ? ' <span style="font-size:9px;background:var(--accent);color:#000;padding:1px 4px;border-radius:3px;font-weight:700;">HARI INI</span>' : '')
+      +        day + (isToday ? ' <span style="font-size:9px;background:var(--accent);color:var(--accent-fg, #fff);padding:1px 4px;border-radius:3px;font-weight:700;">HARI INI</span>' : '')
       + '    </span>'
       + (dayEvents.length > 0 ? '<span style="font-size:9px;font-weight:700;color:var(--green);">' + dayEvents.length + ' event</span>' : '')
       + '  </div>'

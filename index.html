@@ -191,11 +191,11 @@
 <div id="auth-overlay">
   <div class="auth-box">
     <div class="auth-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="4" stroke="#2f6af3" stroke-width="1.5"/>
-        <path d="M7 14 L10 10 L13 13 L17 8" stroke="#2f6af3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="17" cy="8" r="1.5" fill="#2f6af3"/>
-        <path d="M7 17 H17" stroke="#2f6af3" stroke-width="1" stroke-dasharray="2 1.5" opacity="0.4"/>
+      <svg class="auth-logo-svg" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:var(--accent)">
+        <rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M7 14 L10 10 L13 13 L17 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="17" cy="8" r="1.5" fill="currentColor"/>
+        <path d="M7 17 H17" stroke="currentColor" stroke-width="1" stroke-dasharray="2 1.5" opacity="0.4"/>
       </svg>
       Money<span>Watch</span>
     </div>
@@ -282,7 +282,7 @@
         <path d="M7 14 L10 10 L13 13 L17 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="17" cy="8" r="1.5" fill="currentColor"/>
       </svg>
-      <span class="logo" style="color:var(--text);font-weight:800">MONEY<span style="color:var(--accent)">WATCH</span> <span style="font-size:10px;padding:1px 5px;background:rgba(59,130,246,0.18);border:1px solid rgba(59,130,246,0.3);border-radius:4px;color:var(--accent);font-weight:700">PRO</span></span>
+      <span class="logo" style="color:var(--text);font-weight:800">MONEY<span style="color:var(--accent)">WATCH</span> <span style="font-size:10px;padding:1px 5px;background:var(--brand-soft);border:1px solid var(--accent);border-radius:4px;color:var(--accent);font-weight:700">PRO</span></span>
     </div>
     <div class="ihsg-bar">
       <span style="font-size:10px;color:var(--text3);font-family:'Inter',sans-serif;font-weight:700">IHSG</span>
@@ -292,7 +292,7 @@
     <div class="live" style="margin-left:2px"><div class="dot"></div>LIVE</div>
     
     <!-- AI Status Indicator -->
-    <div class="hide-mobile" style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--accent);background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:20px;padding:2px 8px">
+    <div class="hide-mobile" style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--accent);background:var(--brand-soft);border:1px solid var(--accent);border-radius:20px;padding:2px 8px">
       <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981"></span>
       <span>AI Engine Live</span>
     </div>
@@ -327,7 +327,7 @@
     </button>
 
     <!-- UNIFIED SETTINGS HUB BUTTON -->
-    <button class="btn btn-ghost btn-xs" id="btn-settings-hub" onclick="openSettingsHub()" title="Buka Pusat Pengaturan & Data Hub (Cloud, Feed, Tampilan, Pajak, Audit, Akun)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.1);color:var(--text);padding:5px 10px;border-radius:6px">
+    <button class="btn btn-ghost btn-xs" id="btn-settings-hub" onclick="openSettingsHub()" title="Buka Pusat Pengaturan & Data Hub (Cloud, Feed, Tampilan, Pajak, Audit, Akun)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:var(--accent);background:var(--brand-soft);color:var(--text);padding:5px 10px;border-radius:6px">
       <i class="ti ti-settings" style="color:var(--accent);font-size:13px"></i>
       <span style="font-weight:600">Pengaturan &amp; Data</span>
       <span id="sh-topbar-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:2px" title="Firebase Cloud &amp; Live Feed Aktif"></span>

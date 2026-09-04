@@ -53,13 +53,16 @@
    WEALTH MODULE — LIGHT THEME OVERRIDES
    ══════════════════════════════════════════════ */
 body.theme-light .w-hero-value {
-  color: #2563EB !important;
+  color: #6001D2 !important;
 }
 body.theme-light .w-track {
   background: #E2E8F0 !important;
 }
 body.theme-light .w-bank-card {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1px solid #CBD5E1 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
 }
 body.theme-light .w-piu-row {
   border-bottom: 1px solid #E2E8F0 !important;
@@ -69,7 +72,7 @@ body.theme-light .w-insight {
   border: 1px solid #CBD5E1 !important;
 }
 body.theme-light .w-insight:hover {
-  border-color: #2563EB !important;
+  border-color: #6001D2 !important;
 }
 body.theme-light .w-mini {
   border-bottom: 1px solid #E2E8F0 !important;

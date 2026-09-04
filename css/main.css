@@ -1,48 +1,71 @@
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   /* ══════════════════════════════════════════════
-     YAHOO FINANCE THEME & DESIGN SYSTEM TOKENS (DARK MODE)
+     YAHOO FINANCE THEME & DESIGN SYSTEM TOKENS (DARK MODE - PURE BLACK)
      ══════════════════════════════════════════════ */
-  --bg-primary:#0F151B;
-  --bg-secondary:#182026;
-  --bg-tertiary:#212B35;
-  --bg:#0F151B;
-  --bg2:#182026;
-  --bg3:#212B35;
-  --bg4:#273440;
-  --bg5:#354453;
+  --bg-primary:#000000;
+  --bg-secondary:#0A0A0A;
+  --bg-tertiary:#141414;
+  --bg-elevated:#1A1A1A;
+  --bg-overlay:rgba(0,0,0,0.88);
+  --bg:#000000;
+  --bg2:#0A0A0A;
+  --bg3:#141414;
+  --bg4:#1A1A1A;
+  --bg5:#262626;
+  --bg-main:#000000;
+  --bg-card:#0A0A0A;
+  --bg-darker:#000000;
+  --bg-surface:#050505;
 
-  --surface-primary:#182026;
-  --surface-secondary:#212B35;
-  --surface-elevated:#273440;
-  --card-bg:#182026;
-  --card-border:#273440;
-  --card-shadow:0 6px 20px rgba(0,0,0,.45);
+  --surface-primary:#0A0A0A;
+  --surface-secondary:#141414;
+  --surface-elevated:#1A1A1A;
+  --surface-hover:rgba(155,81,224,0.15);
+  --surface-active:rgba(155,81,224,0.25);
+  --surface-selected:rgba(155,81,224,0.30);
+  --card-bg:#0A0A0A;
+  --card-border:#222222;
+  --card-shadow:0 6px 24px rgba(0,0,0,0.85);
 
   --text-primary:#FFFFFF;
   --text-secondary:#D2D8DF;
   --text-tertiary:#8F9AA6;
+  --text-muted:#8F9AA6;
   --text-disabled:#5B6672;
+  --text-inverse:#0F151B;
+  --text-link:#3B82F6;
   --text:#FFFFFF;
   --text2:#D2D8DF;
   --text3:#8F9AA6;
   --text-main:#FFFFFF;
-  --text-muted:#8F9AA6;
 
+  --border-subtle:rgba(255,255,255,0.08);
+  --border-default:#273440;
+  --border-strong:#354453;
+  --border-focus:#6001D2;
+  --border-divider:#212B35;
   --border-primary:#273440;
   --border-secondary:#354453;
   --border:#273440;
   --border2:#354453;
 
-  --brand-primary:#6001D2;
-  --brand-secondary:#5000B3;
-  --brand-hover:#430099;
-  --brand-soft:rgba(96,1,210,0.18);
-  --accent:#6001D2;
-  --accent2:#5000B3;
-  --accent-purple:#6001D2;
-  --accent-blue:#0F69FF;
+  --brand-primary:#9B51E0;
+  --brand-secondary:#7B2CBF;
+  --brand-hover:#B370F5;
+  --brand-soft:rgba(155,81,224,0.20);
+  --accent:#9B51E0;
+  --accent2:#7B2CBF;
+  --accent-purple:#9B51E0;
+  --accent-blue:#38BDF8;
   --accent-fg:#FFFFFF;
+
+  --financial-positive:#00C805;
+  --financial-negative:#FF333A;
+  --financial-neutral:#8F9AA6;
+  --financial-warning:#FF9E00;
+  --financial-info:#0F69FF;
+  --financial-accent:#6001D2;
 
   --semantic-success:#00C805;
   --semantic-danger:#FF333A;
@@ -59,6 +82,24 @@
   --neon-red:#FF333A;
   --neon-orange:#FF7000;
   --neon-purple:#8B3DFF;
+  --cyan-electric:#00c8ff;
+  --cyan-glow:rgba(0,200,255,0.15);
+
+  --icon-primary:#FFFFFF;
+  --icon-secondary:#D2D8DF;
+  --icon-muted:#8F9AA6;
+  --icon-disabled:#5B6672;
+  --icon-positive:#00C805;
+  --icon-negative:#FF333A;
+  --icon-warning:#FF9E00;
+  --icon-info:#0F69FF;
+  --icon-active:#6001D2;
+
+  --action-primary:#6001D2;
+  --action-hover:#5000B3;
+  --action-active:#430099;
+  --action-disabled:rgba(255,255,255,0.12);
+  --focus-ring:rgba(96,1,210,0.4);
 
   --button-primary-bg:#6001D2;
   --button-primary-hover:#5000B3;
@@ -102,15 +143,24 @@ body.theme-light {
   --bg-primary:#F5F7FA;
   --bg-secondary:#FFFFFF;
   --bg-tertiary:#EDF1F5;
+  --bg-elevated:#FFFFFF;
+  --bg-overlay:rgba(245,247,250,0.85);
   --bg:#F5F7FA;
   --bg2:#FFFFFF;
   --bg3:#EDF1F5;
   --bg4:#E0E4E9;
   --bg5:#CBD1D8;
+  --bg-main:#F5F7FA;
+  --bg-card:#FFFFFF;
+  --bg-darker:#EDF1F5;
+  --bg-surface:#FFFFFF;
 
   --surface-primary:#FFFFFF;
   --surface-secondary:#F5F7FA;
   --surface-elevated:#FFFFFF;
+  --surface-hover:rgba(96,1,210,0.05);
+  --surface-active:rgba(96,1,210,0.12);
+  --surface-selected:rgba(96,1,210,0.15);
   --card-bg:#FFFFFF;
   --card-border:#E0E4E9;
   --card-shadow:0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
@@ -118,13 +168,20 @@ body.theme-light {
   --text-primary:#1D252C;
   --text-secondary:#354453;
   --text-tertiary:#727B83;
+  --text-muted:#727B83;
   --text-disabled:#9CA5AF;
+  --text-inverse:#FFFFFF;
+  --text-link:#0F69FF;
   --text:#1D252C;
   --text2:#354453;
   --text3:#727B83;
   --text-main:#1D252C;
-  --text-muted:#727B83;
 
+  --border-subtle:#E0E4E9;
+  --border-default:#E0E4E9;
+  --border-strong:#CBD1D8;
+  --border-focus:#6001D2;
+  --border-divider:#EDF1F5;
   --border-primary:#E0E4E9;
   --border-secondary:#CBD1D8;
   --border:#E0E4E9;
@@ -140,6 +197,13 @@ body.theme-light {
   --accent-blue:#0F69FF;
   --accent-fg:#FFFFFF;
 
+  --financial-positive:#00873C;
+  --financial-negative:#D0163A;
+  --financial-neutral:#727B83;
+  --financial-warning:#B56900;
+  --financial-info:#0F69FF;
+  --financial-accent:#6001D2;
+
   --semantic-success:#00873C;
   --semantic-danger:#D0163A;
   --semantic-warning:#B56900;
@@ -149,6 +213,24 @@ body.theme-light {
   --amber:#B56900;
   --purple:#6001D2;
   --blue:#0F69FF;
+  --cyan-electric:#0284C7;
+  --cyan-glow:rgba(2,132,199,0.15);
+
+  --icon-primary:#1D252C;
+  --icon-secondary:#354453;
+  --icon-muted:#727B83;
+  --icon-disabled:#9CA5AF;
+  --icon-positive:#00873C;
+  --icon-negative:#D0163A;
+  --icon-warning:#B56900;
+  --icon-info:#0F69FF;
+  --icon-active:#6001D2;
+
+  --action-primary:#6001D2;
+  --action-hover:#5000B3;
+  --action-active:#430099;
+  --action-disabled:#E0E4E9;
+  --focus-ring:rgba(96,1,210,0.25);
 
   --button-primary-bg:#6001D2;
   --button-primary-hover:#5000B3;
@@ -479,6 +561,11 @@ body::after{display:none}
   color: #C084FC;
   border: 1px solid rgba(192, 132, 252, 0.35);
 }
+.b-accent {
+  background: var(--brand-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
 .b-teal {
   background: rgba(20, 184, 166, 0.14);
   color: #2DD4BF;
@@ -663,7 +750,8 @@ body.theme-light .sig-strong-buy {
   text-align: left;
   font-weight: 700;
   white-space: nowrap;
-  background: #0D121D;
+  background: var(--table-header-bg, #141C22);
+  color: var(--table-header-text, var(--text3));
   text-transform: uppercase;
   user-select: none;
   position: sticky;
@@ -673,14 +761,14 @@ body.theme-light .sig-strong-buy {
 }
 
 body.theme-light .tbl th {
-  background: #F1F5F9;
-  color: #475569;
-  box-shadow: 0 1px 0 #E2E8F0;
+  background: var(--table-header-bg, #EDF1F5);
+  color: var(--table-header-text, #4A5560);
+  box-shadow: 0 1px 0 var(--border);
 }
 
 .tbl td {
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.04));
   font-size: 12px;
   vertical-align: middle;
   white-space: nowrap;
@@ -691,7 +779,7 @@ body.theme-light .tbl th {
 }
 
 body.theme-light .tbl td {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--border-subtle, #E0E4E9);
 }
 
 .tbl tbody tr {
@@ -703,11 +791,11 @@ body.theme-light .tbl td {
 }
 
 .tbl tbody tr:hover td {
-  background: rgba(37, 99, 235, 0.08);
+  background: var(--table-row-hover, rgba(96, 1, 210, 0.08));
 }
 
 body.theme-light .tbl tbody tr:hover td {
-  background: rgba(37, 99, 235, 0.05);
+  background: var(--table-row-hover, #F5F7FA);
 }
 
 /* Monospaced Numeric & Text Alignment Utilities */
@@ -1168,7 +1256,7 @@ body.theme-light .drawer-panel {
   min-width:250px;
   max-width:250px;
   flex-shrink:0;
-  background:#0A0E17;
+  background:var(--bg2);
   border-right:1px solid var(--border);
   display:flex;
   flex-direction:column;
@@ -1203,7 +1291,7 @@ body.theme-light .drawer-panel {
   flex-shrink:0;
   width:18px;
   text-align:center;
-  color:var(--text3);
+  color:#FFFFFF;
   transition:color var(--spring), transform var(--spring);
 }
 .side-label{
@@ -1214,24 +1302,24 @@ body.theme-light .drawer-panel {
   min-width:0;
 }
 .side-nav button:hover{
-  color:#fff;
-  background:rgba(37,99,235,.12);
-  border-color:rgba(37,99,235,.25);
+  color:var(--text);
+  background:var(--brand-soft);
+  border-color:rgba(155,81,224,.3);
 }
 .side-nav button:hover i.ti{
-  color:var(--accent);
+  color: #FFFFFF;
   transform:scale(1.08);
 }
 /* Active — solid / highlighted card with indicator */
 .side-nav button.on{
-  background:rgba(37,99,235,.18);
-  color:#fff;
+  background:var(--brand-soft);
+  color:var(--text);
   font-weight:700;
-  border-color:rgba(37,99,235,.5);
+  border-color:var(--accent);
   box-shadow:inset 3px 0 0 var(--accent);
 }
 .side-nav button.on i.ti{
-  color:var(--accent);
+  color: #FFFFFF;
 }
 .nav-due-badge{
   margin-left:auto;
@@ -1262,7 +1350,7 @@ body.theme-light .drawer-panel {
   gap:6px;
   padding:8px 10px;
   flex-shrink:0;
-  background:#080B12;
+  background:var(--bg3);
   border-bottom:1px solid var(--border);
 }
 .side-collapse-btn{
@@ -1273,7 +1361,7 @@ body.theme-light .drawer-panel {
   width:28px;
   height:28px;
   border-radius:6px;
-  background:#101522;
+  background:var(--bg2);
   border:1px solid var(--border);
   color:var(--text3);
   cursor:pointer;
@@ -1281,8 +1369,8 @@ body.theme-light .drawer-panel {
   transition:all .15s;
 }
 .side-collapse-btn:hover{
-  color:#fff;
-  background:rgba(255,255,255,.08);
+  color:var(--text);
+  background:var(--bg4);
   border-color:var(--accent);
 }
 .side-search-wrap{
@@ -1291,7 +1379,7 @@ body.theme-light .drawer-panel {
   display:flex;
   align-items:center;
   gap:6px;
-  background:#04070D;
+  background:var(--bg);
   border:1px solid var(--border);
   border-radius:6px;
   padding:4px 8px;
@@ -1308,7 +1396,7 @@ body.theme-light .drawer-panel {
   background:none;
   border:none;
   outline:none;
-  color:#fff;
+  color:var(--text);
   font-size:11px;
   font-family:'Inter',sans-serif;
 }
@@ -1320,7 +1408,7 @@ body.theme-light .drawer-panel {
   font-size:8.5px;
   font-family:var(--font-mono);
   color:var(--text3);
-  background:rgba(255,255,255,.06);
+  background:var(--bg2);
   border:1px solid var(--border);
   border-radius:3px;
   padding:1px 4px;
@@ -1452,11 +1540,6 @@ body.theme-light .drawer-panel {
 /* ══════════════════════════════════════════════
    READABILITY OVERRIDES — Inter & Fira Code
    ══════════════════════════════════════════════ */
-:root{
-  --text:#F8FAFC;
-  --text2:#CBD5E1;
-  --text3:#94A3B8;
-}
 html,body{font-size:12.5px}
 .btn{font-size:11.5px;padding:6px 12px}
 .btn-sm{font-size:10.5px;padding:4px 9px}
@@ -1477,9 +1560,9 @@ html,body{font-size:12.5px}
 .pbtn{font-size:12px;padding:4px 12px}
 
 /* Kontrol ukuran tampilan (A− / A / A+) */
-.zoom-ctl{display:flex;gap:2px;background:#0B0F19;border:1px solid var(--border);border-radius:8px;padding:2px}
+.zoom-ctl{display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px}
 .zoom-ctl button{background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;font-family:'Inter',sans-serif;line-height:1.3}
-.zoom-ctl button:hover{background:rgba(59,130,246,.15);color:var(--accent)}
+.zoom-ctl button:hover{background:var(--brand-soft);color:var(--accent)}
 
 /* ══════════════════════════════════════════════
    RESPONSIVE — mobile (≤640px)
@@ -1811,16 +1894,6 @@ body.mode-executive .metric .mval {
 /* ══════════════════════════════════════════════════════════
    MONEY WATCH PRO V6: PERSONAL INVESTMENT OPERATING SYSTEM
    ══════════════════════════════════════════════════════════ */
-:root {
-  --bg-darker: #080B12;
-  --bg-surface: #0F141D;
-  --bg-elevated: #151B26;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: #00c8ff;
-  --cyan-electric: #00c8ff;
-  --cyan-glow: rgba(0, 200, 255, 0.15);
-}
-
 /* Command Center Header */
 .command-header {
   display: flex;
@@ -2473,7 +2546,7 @@ body.mode-executive .metric .mval {
   align-self: flex-start;
 }
 .bubble-user {
-  background: #2563EB;
+  background: var(--accent);
   color: #fff;
   align-self: flex-end;
 }
@@ -2502,29 +2575,6 @@ body.density-compact .kpi-exec-card {
 /* ══════════════════════════════════════════════════════════
    INSTITUTIONAL FINTECH TERMINAL THEME & DENSITY ENHANCEMENT
    ══════════════════════════════════════════════════════════ */
-:root {
-  --bg-main: #0B0E14;
-  --bg-card: #111722;
-  --bg: #0B0E14;
-  --bg2: #111722;
-  --bg3: #161F2E;
-  --bg4: #1C283B;
-  --bg5: #243248;
-  --accent: #6001D2;
-  --accent2: #5000B3;
-  --accent-blue: #0F69FF;
-  --green: #10B981;
-  --red: #EF4444;
-  --amber: #F59E0B;
-  --purple: #818CF8;
-  --border: #1E293B;
-  --border2: #2A3B52;
-  --text: #F8FAFC;
-  --text2: #CBD5E1;
-  --text3: #94A3B8;
-  --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
 /* Tabular numbers for all financial metrics and tables */
 .tbl td, .tbl th, .mono, .mval, .sih-price, .sih-chg, .tick-val, .tick-chg, .rdn-val, .ibar-val {
   font-feature-settings: 'tnum' on, 'zero' on, 'ss01' on;
@@ -3063,13 +3113,70 @@ body.theme-light .side-nav {
   border-right: 1px solid #E2E8F0 !important;
 }
 
-body.theme-light .side-nav button {
+body.theme-light .side-toolbar {
+  background: #F8FAFC !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+body.theme-light .side-collapse-btn {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
   color: #475569 !important;
 }
 
-body.theme-light .side-nav button:hover {
+body.theme-light .side-collapse-btn:hover {
   background: #F1F5F9 !important;
   color: #0F172A !important;
+  border-color: #6001D2 !important;
+}
+
+body.theme-light .side-search-wrap {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+}
+
+body.theme-light .side-search-wrap i.ti {
+  color: #64748B !important;
+}
+
+body.theme-light .side-kbd {
+  background: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+  color: #64748B !important;
+}
+
+body.theme-light .side-sec-toggle {
+  color: #64748B !important;
+}
+
+body.theme-light .side-sec-toggle:hover {
+  color: #0F172A !important;
+  background: #F1F5F9 !important;
+}
+
+body.theme-light .side-chevron {
+  color: #94A3B8 !important;
+}
+
+body.theme-light .side-group-items {
+  border-left-color: #E2E8F0 !important;
+}
+
+body.theme-light .side-nav button {
+  color: #354453 !important;
+}
+
+body.theme-light .side-nav button i.ti {
+  color: #64748B !important;
+}
+
+body.theme-light .side-nav button:hover {
+  background: #F5F7FA !important;
+  color: #1D252C !important;
+}
+
+body.theme-light .side-nav button:hover i.ti {
+  color: #6001D2 !important;
 }
 
 body.theme-light .side-nav button.on {
@@ -3079,13 +3186,17 @@ body.theme-light .side-nav button.on {
   border-color: #D8B4FE !important;
 }
 
+body.theme-light .side-nav button.on i.ti {
+  color: #6001D2 !important;
+}
+
 body.theme-light .side-label {
   color: #334155 !important;
 }
 
 body.theme-light .side-search-input {
-  background: #F1F5F9 !important;
-  border: 1px solid #CBD5E1 !important;
+  background: transparent !important;
+  border: none !important;
   color: #0F172A !important;
 }
 
@@ -4795,9 +4906,9 @@ svg {
   background: rgba(30, 41, 59, 0.6);
 }
 .stockchat-tab-btn.active {
-  background: #2563EB !important;
+  background: var(--accent) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(155, 81, 224, 0.35);
 }
 
 /* Timeframe buttons */
@@ -4827,7 +4938,7 @@ svg {
 }
 .stockchat-tf-btn.active,
 .bandar-tf-btn.active {
-  background: #2563EB !important;
+  background: var(--accent) !important;
   color: #FFFFFF !important;
 }
 
@@ -4861,10 +4972,10 @@ svg {
   background: #334155;
 }
 .bandar-ticker-btn.active {
-  background: #2563EB !important;
+  background: var(--accent) !important;
   color: #FFFFFF !important;
-  border-color: #2563EB !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  border-color: var(--accent) !important;
+  box-shadow: 0 2px 8px rgba(155, 81, 224, 0.35);
 }
 .bandar-input {
   background: #070A12;
@@ -4880,7 +4991,7 @@ svg {
   text-align: center;
 }
 .bandar-input:focus {
-  border-color: #2563EB;
+  border-color: var(--accent);
 }
 .bandar-btn-set {
   background: #1E293B;
@@ -4993,8 +5104,8 @@ svg {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 .stockchat-input-field:focus {
-  border-color: #2563EB;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--brand-soft);
 }
 .stockchat-send-btn {
   display: inline-flex;
@@ -5003,7 +5114,7 @@ svg {
   gap: 6px;
   padding: 12px 20px;
   border-radius: 12px;
-  background: #2563EB;
+  background: var(--accent);
   color: #FFFFFF;
   font-weight: 700;
   font-size: 12px;
@@ -5011,10 +5122,10 @@ svg {
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 12px rgba(155, 81, 224, 0.35);
 }
 .stockchat-send-btn:hover {
-  background: #1D4ED8;
+  filter: brightness(1.15);
 }
 .stockchat-send-btn:disabled {
   opacity: 0.5;
@@ -5313,11 +5424,11 @@ body.theme-light .stockchat-presets-box {
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 .stockchat-bubble-user {
-  background: #2563EB;
+  background: var(--accent);
   color: #FFFFFF;
   border-radius: 14px;
   border-top-right-radius: 2px;
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 2px 10px rgba(155, 81, 224, 0.25);
 }
 .stockchat-preset-card {
   background: var(--bg2);
