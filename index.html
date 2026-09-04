@@ -9,11 +9,63 @@
 <meta property="og:description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, visual dividend calendar, passive income tracking, net worth reporting, and PDF investment statement generation.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23131324'/><path d='M7 21 L13 13 L18 17 L25 8' stroke='%2334d399' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='25' cy='8' r='2' fill='%2334d399'/></svg>">
 <script>
+  // Safe circular-structure JSON stringifier patch
+  (function() {
+    var _nativeStringify = JSON.stringify;
+    function getSafeReplacer(customReplacer) {
+      var seen = new WeakSet();
+      return function(key, value) {
+        if (typeof value === 'object' && value !== null) {
+          if (typeof Node !== 'undefined' && value instanceof Node) return undefined;
+          if (typeof Window !== 'undefined' && value instanceof Window) return undefined;
+          if (seen.has(value)) {
+            return undefined;
+          }
+          seen.add(value);
+        }
+        if (typeof customReplacer === 'function') {
+          return customReplacer.call(this, key, value);
+        }
+        return value;
+      };
+    }
+
+    JSON.stringify = function(value, replacer, space) {
+      if (typeof replacer === 'function') {
+        try {
+          return _nativeStringify.call(JSON, value, getSafeReplacer(replacer), space);
+        } catch (e) {
+          return _nativeStringify.call(JSON, value, getSafeReplacer(), space);
+        }
+      } else if (Array.isArray(replacer)) {
+        try {
+          return _nativeStringify.call(JSON, value, replacer, space);
+        } catch (e) {
+          return _nativeStringify.call(JSON, value, getSafeReplacer(), space);
+        }
+      } else {
+        try {
+          return _nativeStringify.call(JSON, value, getSafeReplacer(), space);
+        } catch (e) {
+          return '{}';
+        }
+      }
+    };
+
+    window.safeJsonStringify = function(val, replacer, space) {
+      try {
+        return JSON.stringify(val, replacer, space);
+      } catch(e) {
+        return '{}';
+      }
+    };
+  })();
+
   // Global error safety shield for iframe and cross-origin environments
   window.onerror = function(msg, url, line, col, error) {
     var msgStr = (msg || '').toString();
-    if (!msg || msgStr === 'Script error.' || msgStr.indexOf('Script error') !== -1 || msgStr.indexOf('ResizeObserver') !== -1) {
-      console.warn('[MoneyWatch Shield] Suppressed cross-origin / ambient script error:', msg);
+    if (!msg || msgStr === 'Script error.' || msgStr.indexOf('Script error') !== -1 || msgStr.indexOf('ResizeObserver') !== -1 || msgStr.indexOf('circular') !== -1) {
+      console.warn('[MoneyWatch Shield] Handled script notification:', msg);
       return true; // Prevents the error from propagating to browser or parent iframe error monitors
     }
     if (url && (url.indexOf('chrome-extension') !== -1 || url.indexOf('moz-extension') !== -1)) {
@@ -25,8 +77,8 @@
   window.addEventListener('error', function(e) {
     if (!e) return;
     var msg = (e.message || (e.error && e.error.message) || '').toString();
-    if (!msg || msg === 'Script error.' || msg.indexOf('Script error') !== -1 || msg.indexOf('ResizeObserver') !== -1 || (e.filename && (e.filename.indexOf('chrome-extension') !== -1 || e.filename.indexOf('moz-extension') !== -1))) {
-      console.warn('[MoneyWatch Shield] Suppressed cross-origin script event:', msg);
+    if (!msg || msg === 'Script error.' || msg.indexOf('Script error') !== -1 || msg.indexOf('ResizeObserver') !== -1 || msg.indexOf('circular') !== -1 || (e.filename && (e.filename.indexOf('chrome-extension') !== -1 || e.filename.indexOf('moz-extension') !== -1))) {
+      console.warn('[MoneyWatch Shield] Handled error event:', msg);
       if (typeof e.preventDefault === 'function') e.preventDefault();
       if (typeof e.stopPropagation === 'function') e.stopPropagation();
       if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
@@ -37,7 +89,7 @@
   window.addEventListener('unhandledrejection', function(e) {
     if (!e) return;
     var reason = (e.reason ? (e.reason.message || e.reason) : '').toString();
-    if (reason.indexOf('Script error') !== -1 || reason.indexOf('ResizeObserver') !== -1) {
+    if (reason.indexOf('Script error') !== -1 || reason.indexOf('ResizeObserver') !== -1 || reason.indexOf('circular') !== -1) {
       console.warn('[MoneyWatch Shield] Handled async promise notice:', reason);
       if (typeof e.preventDefault === 'function') e.preventDefault();
       return true;

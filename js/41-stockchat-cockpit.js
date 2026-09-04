@@ -1074,16 +1074,15 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
   var price = Number(curPrice) || getAccurateStockPrice(tk);
   
   if (!price || price <= 0 || (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk))) {
-    return '<div class="bandar-card space-y-3 my-3">'
-      + '<div class="flex items-center gap-2 text-rose-400 font-bold text-sm">'
-      + '<i class="ti ti-alert-circle text-lg"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX (Nilai 0)'
+    return '<div class="card" style="padding:16px;margin-top:16px">'
+      + '<div style="display:flex;align-items:center;gap:8px;color:var(--red);font-weight:700;font-size:13px">'
+      + '<i class="ti ti-alert-circle" style="font-size:16px"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX (Nilai 0)'
       + '</div>'
-      + '<p class="text-xs" style="color:var(--text2)">Tidak ada riwayat transaksi broker 250D untuk ticker yang tidak terdaftar dalam Stock Universe pasar saham Indonesia.</p>'
+      + '<p style="font-size:12px;color:var(--text2);margin:6px 0 0 0">Tidak ada riwayat transaksi broker 250D untuk ticker yang tidak terdaftar dalam Stock Universe pasar saham Indonesia.</p>'
       + '</div>';
   }
 
   // Calculate 1-Year Historical VWAP from actual daily candles
-
   var vwap1Y = price;
   var high1Y = Math.round(price * 1.35);
   var low1Y = Math.round(price * 0.75);
@@ -1141,31 +1140,31 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
     var pnlPct = (((price - avg1Y) / (avg1Y || 1)) * 100).toFixed(1);
     var isPnlUp = Number(pnlPct) >= 0;
     var pnlBadge = isPnlUp 
-      ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono">+' + pnlPct + '% (Floating Profit)</span>'
-      : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/15 border border-rose-500/30 text-rose-400 font-mono">' + pnlPct + '% (Under Water)</span>';
+      ? '<span class="badge b-up font-mono" style="font-size:10px">+' + pnlPct + '% (Profit)</span>'
+      : '<span class="badge b-dn font-mono" style="font-size:10px">' + pnlPct + '% (Under Water)</span>';
 
     var typeBadge = b.type.includes('Asing') 
-      ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-sky-500/20 border border-sky-500/40 text-sky-400">ASING</span>'
-      : (b.type.includes('BUMN') ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-500/20 border border-amber-500/40 text-amber-400">BUMN</span>' : '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3)">RITEL</span>');
+      ? '<span class="badge b-amb" style="font-size:9px">ASING</span>'
+      : (b.type.includes('BUMN') ? '<span class="badge b-amb" style="font-size:9px">BUMN</span>' : '<span class="badge b-neu" style="font-size:9px">RITEL</span>');
 
-    return '<tr class="transition group">'
-      + '<td class="p-2.5 text-center text-xs font-mono font-bold" style="color:var(--text3)">' + (idx + 1) + '</td>'
-      + '<td class="p-2.5">'
-      + '<div class="flex items-center gap-1.5">'
-      + '<span class="px-2 py-0.5 rounded font-mono font-black text-xs ' + (b.type.includes('Asing') ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40' : 'bg-slate-800 text-white') + '">' + b.code + '</span>'
+    return '<tr>'
+      + '<td class="mono" style="text-align:center;font-size:11px;color:var(--text3)">' + (idx + 1) + '</td>'
+      + '<td>'
+      + '<div style="display:flex;align-items:center;gap:6px">'
+      + '<span class="badge ' + (b.type.includes('Asing') ? 'b-amb' : 'b-neu') + '" style="font-family:monospace;font-weight:800;font-size:10px">' + b.code + '</span>'
       + typeBadge
+      + '<span style="font-size:11px;color:var(--text);font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + b.name + '">' + b.name + '</span>'
       + '</div>'
-      + '<div class="text-[11px] truncate max-w-[160px]" style="color:var(--text3)">' + b.name + '</div>'
       + '</td>'
-      + '<td class="p-2.5 font-mono text-xs text-right" style="color:var(--text2)">' + (b1YVol / 1000000).toFixed(2) + ' Jt Lot</td>'
-      + '<td class="p-2.5 font-mono text-xs text-right font-bold" style="color:var(--text)">Rp ' + (b1YValRp >= 1e12 ? (b1YValRp / 1e12).toFixed(2) + ' T' : (b1YValRp / 1e9).toFixed(1) + ' M') + '</td>'
-      + '<td class="p-2.5 font-mono text-xs text-right" style="color:var(--text3)">Rp ' + avg1M.toLocaleString('id-ID') + '</td>'
-      + '<td class="p-2.5 font-mono text-xs text-right" style="color:var(--text3)">Rp ' + avg3M.toLocaleString('id-ID') + '</td>'
-      + '<td class="p-2.5 font-mono text-xs text-right" style="color:var(--text2)">Rp ' + avg6M.toLocaleString('id-ID') + '</td>'
-      + '<td class="p-2.5 font-mono text-sm text-right text-emerald-400 font-black">Rp ' + avg1Y.toLocaleString('id-ID') + '</td>'
-      + '<td class="p-2.5 text-right">' + pnlBadge + '</td>'
-      + '<td class="p-2.5 text-center">'
-      + '<button onclick="askAiAboutBrokerAction(\'' + b.code + '\', \'' + b.name.replace(/'/g, '') + '\', \'BUY\', \'' + tk + '\', ' + b1YVol + ', ' + avg1Y + ', ' + b1YValRp + ')" class="px-2.5 py-1 text-[10px] font-bold rounded transition flex items-center justify-center gap-1 mx-auto hover:bg-emerald-600 hover:text-white" style="background:var(--bg3);border:1px solid var(--border);color:var(--text)" title="Tanya AI">'
+      + '<td class="mono" style="text-align:right;color:var(--text2)">' + (b1YVol / 1000000).toFixed(2) + ' Jt Lot</td>'
+      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">Rp ' + (b1YValRp >= 1e12 ? (b1YValRp / 1e12).toFixed(2) + ' T' : (b1YValRp / 1e9).toFixed(1) + ' M') + '</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text3)">Rp ' + avg1M.toLocaleString('id-ID') + '</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text3)">Rp ' + avg3M.toLocaleString('id-ID') + '</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text2)">Rp ' + avg6M.toLocaleString('id-ID') + '</td>'
+      + '<td class="mono up" style="text-align:right;font-weight:800;font-size:13px">Rp ' + avg1Y.toLocaleString('id-ID') + '</td>'
+      + '<td style="text-align:right">' + pnlBadge + '</td>'
+      + '<td style="text-align:center">'
+      + '<button onclick="askAiAboutBrokerAction(\'' + b.code + '\', \'' + b.name.replace(/'/g, '') + '\', \'BUY\', \'' + tk + '\', ' + b1YVol + ', ' + avg1Y + ', ' + b1YValRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 6px" title="Tanya AI">'
       + '<i class="ti ti-messages"></i> Tanya AI'
       + '</button>'
       + '</td>'
@@ -1175,65 +1174,63 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
   var smartWhales1YAvg = Math.round(vwap1Y * 0.975);
   var bandarSpreadPct = (((price - smartWhales1YAvg) / (smartWhales1YAvg || 1)) * 100).toFixed(1);
 
-  return '<div class="bandar-card space-y-4">'
+  return '<div class="card" style="padding:16px">'
     // Header
-    + '<div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3" style="border-color:var(--border)">'
-    + '<div class="space-y-1">'
-    + '<div class="flex items-center gap-2">'
-    + '<span class="px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-400 text-xs font-black border border-sky-500/40 flex items-center gap-1.5"><i class="ti ti-history"></i> DATABASE 1 TAHUN (250D)</span>'
-    + '<h3 class="text-sm md:text-base font-black" style="color:var(--text)">Matriks Rata-Rata Harga Beli Broker Historis 1 Tahun</h3>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
+    + '<div>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    + '<span class="badge b-amb" style="font-size:10px;font-weight:700"><i class="ti ti-history"></i> DATABASE 1 TAHUN (250D)</span>'
+    + '<span style="font-size:14px;font-weight:800;color:var(--text)">Matriks Rata-Rata Harga Beli Broker Historis 1 Tahun</span>'
     + '</div>'
-    + '<p class="text-xs" style="color:var(--text2)">Pelacakan akumulasi multi-periode untuk mengetahui modal dasar (Cost of Bandarmology) dan posisi floating profit/loss whale ' + tk + '</p>'
+    + '<div style="font-size:12px;color:var(--text2)">Pelacakan akumulasi multi-periode untuk mengetahui modal dasar (Cost of Bandarmology) dan posisi floating profit/loss whale ' + tk + '</div>'
     + '</div>'
-    + '<div class="flex items-center gap-2">'
-    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + tk + '\')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5">'
+    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + tk + '\')" class="btn btn-primary btn-xs" style="display:flex;align-items:center;gap:6px">'
     + '<i class="ti ti-messages"></i> <span>Tanya AI Posisi Modal Whale</span>'
     + '</button>'
     + '</div>'
+
+    // 4 Key 1-Year Metrics Summary (Opportunity Radar .row4 & .metric layout)
+    + '<div class="row4" style="margin-bottom:14px">'
+    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="mlabel">1-YEAR VWAP (BENCHMARK BEI)</div>'
+    + '<div class="mval mono" style="font-size:20px">Rp ' + vwap1Y.toLocaleString('id-ID') + '</div>'
+    + '<div class="msub neu">Rata-rata tertimbang volume 250D</div>'
     + '</div>'
 
-    // 4 Key 1-Year Metrics Summary
-    + '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">'
-    + '<div class="bandar-kpi-card space-y-1">'
-    + '<div class="bandar-kpi-label">1-Year VWAP (Benchmark BEI)</div>'
-    + '<div class="bandar-kpi-val font-mono">Rp ' + vwap1Y.toLocaleString('id-ID') + '</div>'
-    + '<div class="bandar-kpi-sub">Rata-rata tertimbang volume 250D</div>'
+    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="mlabel">MODAL RATA-RATA SMART WHALES</div>'
+    + '<div class="mval mono up" style="font-size:20px">Rp ' + smartWhales1YAvg.toLocaleString('id-ID') + '</div>'
+    + '<div class="msub ' + (Number(bandarSpreadPct) >= 0 ? 'up' : 'down') + '">' + (Number(bandarSpreadPct) >= 0 ? '+' : '') + bandarSpreadPct + '% vs Harga Pasar</div>'
     + '</div>'
 
-    + '<div class="bandar-kpi-card space-y-1 border-emerald-500/30">'
-    + '<div class="bandar-kpi-label text-emerald-400">Modal Rata-Rata Smart Whales</div>'
-    + '<div class="bandar-kpi-val text-emerald-400 font-mono">Rp ' + smartWhales1YAvg.toLocaleString('id-ID') + '</div>'
-    + '<div class="bandar-kpi-sub text-emerald-400 font-semibold">' + (Number(bandarSpreadPct) >= 0 ? '+' : '') + bandarSpreadPct + '% vs Harga Pasar</div>'
+    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="mlabel">RENTANG HARGA 52-MINGGU</div>'
+    + '<div class="mval mono" style="font-size:18px;color:var(--blue)">Rp ' + low1Y.toLocaleString('id-ID') + ' — ' + high1Y.toLocaleString('id-ID') + '</div>'
+    + '<div class="msub neu">Low &amp; High 1 Tahun Terakhir</div>'
     + '</div>'
 
-    + '<div class="bandar-kpi-card space-y-1">'
-    + '<div class="bandar-kpi-label">Rentang Harga 52-Minggu</div>'
-    + '<div class="text-sm font-bold font-mono" style="color:var(--text)">Rp ' + low1Y.toLocaleString('id-ID') + ' — Rp ' + high1Y.toLocaleString('id-ID') + '</div>'
-    + '<div class="bandar-kpi-sub">Low &amp; High 1 Tahun Terakhir</div>'
-    + '</div>'
-
-    + '<div class="bandar-kpi-card space-y-1">'
-    + '<div class="bandar-kpi-label">Status Siklus Bandarmology</div>'
-    + '<div class="text-sm font-black text-sky-400">' + (Number(bandarSpreadPct) > 15 ? 'EXPANSION / MARKUP' : (Number(bandarSpreadPct) >= -3 ? 'ACCUMULATION BASE' : 'SHAKEOUT / DEFENDING')) + '</div>'
-    + '<div class="bandar-kpi-sub">Evaluasi Margin Modal Whales</div>'
+    + '<div class="metric" style="border-left:3px solid ' + (Number(bandarSpreadPct) > 15 ? 'var(--green)' : (Number(bandarSpreadPct) >= -3 ? 'var(--amber)' : 'var(--red)')) + '">'
+    + '<div class="mlabel">STATUS SIKLUS BANDARMOLOGY</div>'
+    + '<div class="mval ' + (Number(bandarSpreadPct) > 15 ? 'up' : (Number(bandarSpreadPct) >= -3 ? 'amb' : 'down')) + ' mono" style="font-size:18px">' + (Number(bandarSpreadPct) > 15 ? 'EXPANSION / MARKUP' : (Number(bandarSpreadPct) >= -3 ? 'ACCUMULATION BASE' : 'SHAKEOUT / DEFENDING')) + '</div>'
+    + '<div class="msub neu">Evaluasi Margin Modal Whales</div>'
     + '</div>'
     + '</div>'
 
     // Table Container
-    + '<div class="bandar-table-box overflow-x-auto">'
-    + '<table class="bandar-table">'
+    + '<div class="tbl-wrap" style="overflow-x:auto">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
     + '<thead>'
     + '<tr>'
-    + '<th class="p-2.5 text-center">#</th>'
-    + '<th class="p-2.5">Broker Sekuritas</th>'
-    + '<th class="p-2.5 text-right">Vol 1 Tahun</th>'
-    + '<th class="p-2.5 text-right">Nilai 1 Tahun</th>'
-    + '<th class="p-2.5 text-right">Avg 1 Bulan</th>'
-    + '<th class="p-2.5 text-right">Avg 3 Bulan</th>'
-    + '<th class="p-2.5 text-right">Avg 6 Bulan</th>'
-    + '<th class="p-2.5 text-right text-emerald-400">Avg 1 Tahun (Modal)</th>'
-    + '<th class="p-2.5 text-right">Floating PnL</th>'
-    + '<th class="p-2.5 text-center">Aksi</th>'
+    + '<th style="text-align:center;width:36px">#</th>'
+    + '<th>Broker Sekuritas</th>'
+    + '<th style="text-align:right">Vol 1 Tahun</th>'
+    + '<th style="text-align:right">Nilai 1 Tahun</th>'
+    + '<th style="text-align:right">Avg 1 Bulan</th>'
+    + '<th style="text-align:right">Avg 3 Bulan</th>'
+    + '<th style="text-align:right">Avg 6 Bulan</th>'
+    + '<th style="text-align:right;color:var(--green)">Avg 1 Tahun (Modal)</th>'
+    + '<th style="text-align:right">Floating PnL</th>'
+    + '<th style="text-align:center">Aksi</th>'
     + '</tr>'
     + '</thead>'
     + '<tbody>'
@@ -1246,55 +1243,53 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
 
 // Render Standalone Broker Flow & Bandarmology Card (Embeddable)
 function renderBrokerSummaryWidget(data) {
-  if (!data) return '<div class="p-4 text-center text-xs text-slate-400">Data broker summary tidak tersedia.</div>';
+  if (!data) return '<div class="card" style="padding:16px;text-align:center;color:var(--text3);font-size:12px">Data broker summary tidak tersedia.</div>';
 
   var b = data.bandarmology || {};
   var conc = b.concentration || {};
   var ff = b.foreignFlow || {};
   var rm = b.retailVsSmartMoney || {};
 
-  var verdictColor = b.verdict === 'BIG ACCUMULATION' ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800' :
-    (b.verdict === 'NORMAL ACCUMULATION' ? 'text-teal-400 bg-teal-950/60 border-teal-800' :
-    (b.verdict === 'BIG DISTRIBUTION' ? 'text-rose-400 bg-rose-950/60 border-rose-800' :
-    (b.verdict === 'NORMAL DISTRIBUTION' ? 'text-orange-400 bg-orange-950/60 border-orange-800' : 'text-amber-400 bg-amber-950/60 border-amber-800')));
+  var verdict = b.verdict || 'NEUTRAL';
+  var verdictBadge = 'b-neu';
+  if (verdict.includes('ACCUM')) verdictBadge = 'b-up';
+  else if (verdict.includes('DISTRIB')) verdictBadge = 'b-dn';
 
   var netForeignM = Math.round((ff.netValRp || 0) / 1000000000);
-  var netForeignBadge = netForeignM >= 0 
-    ? '<span class="text-emerald-400 font-semibold">+Rp ' + netForeignM.toLocaleString('id-ID') + ' M</span>' 
-    : '<span class="text-rose-400 font-semibold">-Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</span>';
+  var netForeignBadge = (netForeignM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netForeignM).toLocaleString('id-ID') + ' M';
 
-  var html = '<div class="stockchat-widget-card text-xs space-y-3 my-2">';
+  var html = '<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px">';
   
   // Header: Ticker, Verdict, Timeframe
-  html += '<div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2.5" style="border-color:var(--border)">'
-    + '<div class="flex items-center gap-2">'
-    + '<span class="px-2.5 py-1 rounded-md bg-blue-500/20 border border-blue-500/40 text-blue-400 font-black text-sm tracking-wider font-mono">' + data.ticker + '</span>'
-    + '<span class="font-bold text-sm" style="color:var(--text)">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</span>'
-    + '<span class="' + ((data.changePercent || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' font-semibold">(' + ((data.changePercent || 0) >= 0 ? '+' : '') + Number(data.changePercent || 0).toFixed(2) + '%)</span>'
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:8px;flex-wrap:wrap;gap:8px">'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<span class="badge b-accent" style="font-size:12px;font-weight:900;font-family:monospace">' + data.ticker + '</span>'
+    + '<span class="mono" style="font-weight:700;font-size:13px;color:var(--text)">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</span>'
+    + '<span class="mono ' + ((data.changePercent || 0) >= 0 ? 'up' : 'down') + '" style="font-size:11px;font-weight:700">(' + ((data.changePercent || 0) >= 0 ? '+' : '') + Number(data.changePercent || 0).toFixed(2) + '%)</span>'
     + '</div>'
-    + '<div class="flex items-center gap-2">'
-    + '<span class="px-2.5 py-1 rounded-full border text-[11px] font-bold ' + verdictColor + '">' + (b.verdict || 'NEUTRAL') + '</span>'
-    + '<span class="px-2 py-0.5 rounded text-[10px] font-mono" style="background:var(--bg3);color:var(--text3);border:1px solid var(--border)">' + (data.timeframe || '1D') + '</span>'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<span class="badge ' + verdictBadge + '" style="font-size:10px">' + verdict + '</span>'
+    + '<span class="badge b-neu mono" style="font-size:10px">' + (data.timeframe || '1D') + '</span>'
     + '</div>'
     + '</div>';
 
   // Bandarmology Highlights Grid
-  html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">'
-    + '<div class="p-2 rounded-lg border" style="background:var(--bg3);border-color:var(--border)">'
-    + '<div class="text-[10px] uppercase tracking-wider" style="color:var(--text3)">Top 3 Buyer Pct</div>'
-    + '<div class="text-emerald-400 font-bold text-sm mt-0.5">' + (conc.top3BuyPct || 0) + '%</div>'
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">'
+    + '<div class="metric" style="padding:8px;border-left:2px solid var(--green)">'
+    + '<div class="mlabel" style="font-size:9px">TOP 3 BUYER</div>'
+    + '<div class="mval up mono" style="font-size:14px">' + (conc.top3BuyPct || 0) + '%</div>'
     + '</div>'
-    + '<div class="p-2 rounded-lg border" style="background:var(--bg3);border-color:var(--border)">'
-    + '<div class="text-[10px] uppercase tracking-wider" style="color:var(--text3)">Top 3 Seller Pct</div>'
-    + '<div class="text-rose-400 font-bold text-sm mt-0.5">' + (conc.top3SellPct || 0) + '%</div>'
+    + '<div class="metric" style="padding:8px;border-left:2px solid var(--red)">'
+    + '<div class="mlabel" style="font-size:9px">TOP 3 SELLER</div>'
+    + '<div class="mval down mono" style="font-size:14px">' + (conc.top3SellPct || 0) + '%</div>'
     + '</div>'
-    + '<div class="p-2 rounded-lg border" style="background:var(--bg3);border-color:var(--border)">'
-    + '<div class="text-[10px] uppercase tracking-wider" style="color:var(--text3)">Net Foreign Flow</div>'
-    + '<div class="text-sm mt-0.5">' + netForeignBadge + '</div>'
+    + '<div class="metric" style="padding:8px;border-left:2px solid ' + (netForeignM >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+    + '<div class="mlabel" style="font-size:9px">FOREIGN FLOW</div>'
+    + '<div class="mval ' + (netForeignM >= 0 ? 'up' : 'down') + ' mono" style="font-size:14px">' + netForeignBadge + '</div>'
     + '</div>'
-    + '<div class="p-2 rounded-lg border" style="background:var(--bg3);border-color:var(--border)">'
-    + '<div class="text-[10px] uppercase tracking-wider" style="color:var(--text3)">Smart Money</div>'
-    + '<div class="text-sky-400 font-bold text-[11px] mt-0.5 truncate">' + (rm.smartMoneyStatus || 'NEUTRAL') + '</div>'
+    + '<div class="metric" style="padding:8px;border-left:2px solid var(--accent)">'
+    + '<div class="mlabel" style="font-size:9px">SMART MONEY</div>'
+    + '<div class="mval amb mono" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (rm.smartMoneyStatus || 'NEUTRAL') + '</div>'
     + '</div>'
     + '</div>';
 
@@ -1302,25 +1297,24 @@ function renderBrokerSummaryWidget(data) {
   var topBuyers = (data.topBuyers || []).slice(0, 5);
   var topSellers = (data.topSellers || []).slice(0, 5);
 
-  html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">'
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;padding-top:4px">'
     // Buyers Column
-    + '<div class="space-y-1.5">'
-    + '<div class="flex items-center justify-between text-[11px] font-bold text-emerald-400 border-b pb-1" style="border-color:rgba(16,185,129,0.3)">'
+    + '<div style="display:flex;flex-direction:column;gap:4px">'
+    + '<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--green);border-bottom:1px solid rgba(16,185,129,0.3);padding-bottom:4px">'
     + '<span>TOP BUYERS (AKUMULASI)</span>'
     + '<span>LOT / AVG</span>'
     + '</div>';
 
   topBuyers.forEach(function(bItem) {
     var isF = bItem.type === 'F';
-    html += '<div class="flex items-center justify-between py-1 border-b text-[11px]" style="border-color:var(--border)">'
-      + '<div class="flex items-center gap-1.5">'
-      + '<span class="font-bold font-mono px-1.5 py-0.5 rounded ' + (isF ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40' : 'bg-slate-800 text-slate-200') + '">' + bItem.broker + '</span>'
-      + '<span class="truncate max-w-[110px]" style="color:var(--text)" title="' + bItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
-      + (isF ? '<span class="text-[9px] px-1 bg-sky-500/20 text-sky-400 rounded">F</span>' : '')
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border2);font-size:11px">'
+      + '<div style="display:flex;align-items:center;gap:4px">'
+      + '<span class="badge ' + (isF ? 'b-amb' : 'b-neu') + '" style="font-family:monospace;font-size:9px;font-weight:700">' + bItem.broker + '</span>'
+      + '<span style="color:var(--text);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + bItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
       + '</div>'
-      + '<div class="text-right">'
-      + '<span class="font-mono font-medium" style="color:var(--text)">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
-      + '<span class="text-[10px] ml-1.5" style="color:var(--text3)">@' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
+      + '<div style="text-align:right">'
+      + '<span class="mono font-semibold" style="color:var(--text)">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
+      + '<span class="mono" style="font-size:10px;color:var(--text3);margin-left:4px">@' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
       + '</div>'
       + '</div>';
   });
@@ -1328,23 +1322,22 @@ function renderBrokerSummaryWidget(data) {
   html += '</div>';
 
   // Sellers Column
-  html += '<div class="space-y-1.5">'
-    + '<div class="flex items-center justify-between text-[11px] font-bold text-rose-400 border-b pb-1" style="border-color:rgba(244,63,94,0.3)">'
+  html += '<div style="display:flex;flex-direction:column;gap:4px">'
+    + '<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--red);border-bottom:1px solid rgba(244,63,94,0.3);padding-bottom:4px">'
     + '<span>TOP SELLERS (DISTRIBUSI)</span>'
     + '<span>LOT / AVG</span>'
     + '</div>';
 
   topSellers.forEach(function(sItem) {
     var isF = sItem.type === 'F';
-    html += '<div class="flex items-center justify-between py-1 border-b text-[11px]" style="border-color:var(--border)">'
-      + '<div class="flex items-center gap-1.5">'
-      + '<span class="font-bold font-mono px-1.5 py-0.5 rounded ' + (isF ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40' : 'bg-slate-800 text-slate-200') + '">' + sItem.broker + '</span>'
-      + '<span class="truncate max-w-[110px]" style="color:var(--text)" title="' + sItem.name + '">' + sItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
-      + (isF ? '<span class="text-[9px] px-1 bg-sky-500/20 text-sky-400 rounded">F</span>' : '')
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border2);font-size:11px">'
+      + '<div style="display:flex;align-items:center;gap:4px">'
+      + '<span class="badge ' + (isF ? 'b-amb' : 'b-neu') + '" style="font-family:monospace;font-size:9px;font-weight:700">' + sItem.broker + '</span>'
+      + '<span style="color:var(--text);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + sItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
       + '</div>'
-      + '<div class="text-right">'
-      + '<span class="font-mono font-medium" style="color:var(--text)">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
-      + '<span class="text-[10px] ml-1.5" style="color:var(--text3)">@' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
+      + '<div style="text-align:right">'
+      + '<span class="mono font-semibold" style="color:var(--text)">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
+      + '<span class="mono" style="font-size:10px;color:var(--text3);margin-left:4px">@' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
       + '</div>'
       + '</div>';
   });
@@ -1353,8 +1346,8 @@ function renderBrokerSummaryWidget(data) {
 
   // Interpretation Footer
   if (b.interpretation) {
-    html += '<div class="p-2.5 rounded-lg text-[11px] leading-relaxed" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2)">'
-      + '<span class="font-bold text-blue-400">💡 Analisa Bandarmology:</span> ' + b.interpretation
+    html += '<div class="metric" style="padding:10px;font-size:11px;line-height:1.5;color:var(--text2)">'
+      + '<span class="font-bold" style="color:var(--accent)">💡 Analisa Bandarmology:</span> ' + b.interpretation
       + '</div>';
   }
 
