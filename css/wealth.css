@@ -16,19 +16,19 @@
 .w-fill.amber{background:linear-gradient(90deg,var(--amber),#f59e0b)}
 .w-fill.red{background:linear-gradient(90deg,var(--red),#ef4444)}
 
-/* Kartu rekening bank (gradient ala Wealth OS) */
-.w-bank-card{border-radius:14px;padding:18px;margin-bottom:10px;color:#fff;position:relative;overflow:hidden;border:1px solid rgba(47,106,243,.2);box-shadow:0 8px 24px rgba(0,0,0,.35)}
-.w-bank-card::after{content:'';position:absolute;top:-30px;right:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.06);pointer-events:none}
+/* Kartu rekening bank (Institutional Dark Terminal) */
+.w-bank-card{border-radius:10px;padding:16px;margin-bottom:10px;color:#fff;position:relative;overflow:hidden;border:1px solid var(--border2);background:var(--bg3);box-shadow:0 6px 20px rgba(0,0,0,.45)}
+.w-bank-card::after{content:'';position:absolute;top:-30px;right:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.04);pointer-events:none}
 
 /* Baris piutang */
-.w-piu-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.w-piu-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
 .w-piu-row:last-child{border-bottom:none}
-.w-piu-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.w-piu-av{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
 
 /* Insight card */
-.w-insight{display:flex;gap:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:13px 14px;margin-bottom:8px;transition:all var(--spring)}
-.w-insight:hover{border-color:rgba(47,106,243,.3);transform:translateY(-1px)}
-.w-insight-ic{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px}
+.w-insight{display:flex;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;transition:all var(--spring)}
+.w-insight:hover{border-color:rgba(37,99,235,.4);transform:translateY(-1px)}
+.w-insight-ic{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
 
 /* Mini stat row */
 .w-mini{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}

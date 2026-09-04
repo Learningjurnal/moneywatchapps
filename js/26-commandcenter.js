@@ -950,15 +950,18 @@ function renderOpportunityRadarPage() {
   + '</div>'
 
   // In-Page Subtab Navigation
-  + '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px">'
-    + '<button class="btn btn-xs ' + (activeTab === 'screener' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'screener\')"><i class="ti ti-layout-grid"></i> 🎯 Radar Screener (950+)</button>'
+  + '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap">'
+    + '<button class="btn btn-xs ' + (activeTab === 'screener' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'screener\')"><i class="ti ti-layout-grid"></i> 🎯 Smart Pick (950+)</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'anomaly-ara' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'anomaly-ara\')"><i class="ti ti-bolt"></i> ⚡ Anomaly Structural &amp; ARA</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'scanner' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'scanner\')"><i class="ti ti-chart-arrows"></i> 🌊 Scanner Akumulasi &amp; Distribusi</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'flow-trail' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'flow-trail\')"><i class="ti ti-timeline"></i> ⚡ Visualisasi Alur Transaksi</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'corporate-actions' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'corporate-actions\')"><i class="ti ti-calendar-event"></i> 📅 Kalender Aksi Korporasi &amp; Dividen</button>'
   + '</div>';
 
   // Render Active Subtab Content
-  if (activeTab === 'screener') {
+  if (activeTab === 'anomaly-ara') {
+    html += renderRadarAnomalyAraSubTab();
+  } else if (activeTab === 'screener') {
     html += renderRadarScreenerSubTab();
   } else if (activeTab === 'scanner') {
     html += renderRadarScannerSubTab();
@@ -1545,7 +1548,184 @@ function renderDataConnPage() {
   c.innerHTML = html;
 }
 
+/**
+ * Subtab 2: Anomaly Structural & ARA Detector (Screen 1 Reference)
+ */
+function renderRadarAnomalyAraSubTab() {
+  var anomalyRows = [
+    { rank: 1, ticker: 'DMAS', name: 'Puradelta Lestari Tbk.', price: 199, chg: '+11.17%', chgCls: 'up', net: '+36236.2M', buys: '65%', bo: '9.2x', ats: '5.8M' },
+    { rank: 2, ticker: 'TAPG', name: 'Triputra Agro Persada Tbk.', price: 2030, chg: '-0.98%', chgCls: 'down', net: '+5285.5M', buys: '56%', bo: '81.5x', ats: '5.8M' },
+    { rank: 3, ticker: 'ELSA', name: 'Elnusa Tbk.', price: 690, chg: '-0.72%', chgCls: 'down', net: '+841.0M', buys: '64%', bo: '8.9x', ats: '3.8M' },
+    { rank: 4, ticker: 'WINS', name: 'Wintermar Offshore Marine Tbk.', price: 530, chg: '+2.91%', chgCls: 'up', net: '+606.3M', buys: '99%', bo: '4.2x', ats: '3.0M' },
+    { rank: 5, ticker: 'MSTI', name: 'Mastersystem Infotama Tbk.', price: 1345, chg: '-0.37%', chgCls: 'down', net: '+333.6M', buys: '95%', bo: '27.5x', ats: '2.6M' },
+    { rank: 6, ticker: 'OASA', name: 'Maharaksa Biru Energi Tbk.', price: 324, chg: '+0.00%', chgCls: 'neu', net: '+296.5M', buys: '56%', bo: '21.7x', ats: '2.9M' },
+    { rank: 7, ticker: 'MIKA', name: 'Mitra Keluarga Karyasehat Tbk.', price: 1875, chg: '+0.00%', chgCls: 'neu', net: '+1443.9M', buys: '68%', bo: '16.9x', ats: '3.9M' }
+  ];
+
+  var araCards = [
+    { ticker: 'AXIO', name: 'Tera Data Indonusa Tbk.', tags: ['BO 42x', 'ATS 0.41M'], desc: '100% BIG BUY +14M', px: '116', chg: '-0.8%', chgCls: 'down' },
+    { ticker: 'GRPM', name: 'Graha Prima Mentari Tbk.', tags: ['BO ∞', 'ATS 2.2M', 'NO SELL', 'C=H'], desc: '75% BIG BUY +184M', px: '192', chg: '+9.7%', chgCls: 'up' },
+    { ticker: 'MMIX', name: 'Multi Medika Internasional Tbk.', tags: ['BO 11x', 'ATS 13M'], desc: '86% BIG BUY +3202M', px: '800', chg: '+1.9%', chgCls: 'up' },
+    { ticker: 'MSTI', name: 'Mastersystem Infotama Tbk.', tags: ['BO 28x', 'ATS 2.6M'], desc: '95% BIG BUY +334M', px: '1.345', chg: '-0.4%', chgCls: 'down' },
+    { ticker: 'OASA', name: 'Maharaksa Biru Energi Tbk.', tags: ['BO 22x', 'ATS 2.9M'], desc: '56% BUY +297M', px: '324', chg: '+0.0%', chgCls: 'neu' }
+  ];
+
+  var swingCards = [
+    { ticker: 'STAA', name: 'Sumber Tani Agung Tbk.', tags: ['BO 3.8x', 'ATS 4.2M'], desc: '88% BIG ACCUMULATION +18.4B', px: '1.120', chg: '+3.2%', chgCls: 'up' },
+    { ticker: 'BSSR', name: 'Baramulti Suksessarana Tbk.', tags: ['BO 4.5x', 'ATS 5.1M'], desc: '92% BIG BUY +24.1B', px: '4.350', chg: '+1.8%', chgCls: 'up' },
+    { ticker: 'PWON', name: 'Pakuwon Jati Tbk.', tags: ['BO 5.2x', 'ATS 6.8M'], desc: '80% ACCUMULATION +32.0B', px: '480', chg: '+2.1%', chgCls: 'up' },
+    { ticker: 'BBHI', name: 'Allo Bank Indonesia Tbk.', tags: ['BO 8.1x', 'ATS 3.4M'], desc: '85% INSTITUTIONAL BUY +15.6B', px: '1.250', chg: '+0.8%', chgCls: 'up' },
+    { ticker: 'BBTN', name: 'Bank Tabungan Negara Tbk.', tags: ['BO 6.0x', 'ATS 9.2M'], desc: '78% BIG ACCUMULATION +45.2B', px: '1.480', chg: '+1.4%', chgCls: 'up' }
+  ];
+
+  var html = ''
+    // TOP DATE HISTORY STRIP
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+        + '<span style="font-size:11px;font-weight:700;color:var(--text3)">RIWAYAT:</span>'
+        + '<button class="btn btn-primary btn-xs" style="font-size:11px;padding:3px 10px">Jum, 28 Agu</button>'
+        + '<button class="btn btn-ghost btn-xs" style="font-size:11px;padding:3px 10px">Kam, 27 Agu</button>'
+        + '<button class="btn btn-ghost btn-xs" style="font-size:11px;padding:3px 10px">Rab, 26 Agu</button>'
+        + '<button class="btn btn-ghost btn-xs" style="font-size:11px;padding:3px 10px">Sen, 24 Agu</button>'
+        + '<button class="btn btn-ghost btn-xs" style="font-size:11px;padding:3px 10px">Jum, 21 Agu</button>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+        + '<input type="text" class="form-input" placeholder="Cari kode atau nama saham..." style="width:220px;height:30px;font-size:12px" oninput="filterAnomalyTable(this.value)">'
+      + '</div>'
+    + '</div>'
+
+    // SECTION 1: ANOMALY STRUCTURAL
+    + '<div class="card" style="padding:16px;margin-bottom:16px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;flex-wrap:wrap;gap:6px">'
+        + '<div>'
+          + '<h2 style="font-size:15px;font-weight:800;color:var(--text);margin:0;display:flex;align-items:center;gap:6px"><i class="ti ti-bolt" style="color:var(--accent)"></i> ANOMALY STRUCTURAL</h2>'
+          + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Bid tebal · Offer tipis · ATS tinggi · Net asing positif</div>'
+        + '</div>'
+        + '<span class="badge b-up" style="font-size:10px;font-weight:700">7 Emiten Terdeteksi</span>'
+      + '</div>'
+      + '<div style="overflow-x:auto">'
+        + '<table class="tbl" id="anomaly-struct-table" style="font-size:12px">'
+          + '<thead><tr>'
+            + '<th>#</th>'
+            + '<th>KODE</th>'
+            + '<th style="text-align:right">PRICE</th>'
+            + '<th style="text-align:right">CHG%</th>'
+            + '<th style="text-align:right">NET ASING</th>'
+            + '<th style="text-align:right">2M BUYS</th>'
+            + '<th style="text-align:right">B/O</th>'
+            + '<th style="text-align:right">ATS</th>'
+            + '<th style="text-align:center">AKSI</th>'
+          + '</tr></thead>'
+          + '<tbody>'
+            + anomalyRows.map(function(r) {
+              return '<tr style="cursor:pointer" onclick="switchIntelTicker(\'' + r.ticker + '\')">'
+                + '<td style="color:var(--text3);font-weight:700">' + r.rank + '</td>'
+                + '<td><strong style="color:var(--text)">' + r.ticker + '</strong> <span style="font-size:11px;color:var(--text3)">' + r.name + '</span></td>'
+                + '<td class="font-mono" style="text-align:right;font-weight:700">Rp ' + fmtK(r.price) + '</td>'
+                + '<td class="font-mono ' + r.chgCls + '" style="text-align:right;font-weight:700">' + r.chg + '</td>'
+                + '<td class="font-mono up" style="text-align:right;font-weight:700">' + r.net + '</td>'
+                + '<td class="font-mono" style="text-align:right">' + r.buys + '</td>'
+                + '<td class="font-mono" style="text-align:right;color:#38bdf8;font-weight:700">' + r.bo + '</td>'
+                + '<td class="font-mono" style="text-align:right">' + r.ats + '</td>'
+                + '<td style="text-align:center" onclick="event.stopPropagation()">'
+                  + '<button class="btn btn-ghost btn-xs" onclick="openBandarFlowModal(\'' + r.ticker + '\')" title="Buka Flow Modal">🌊 Flow</button>'
+                  + '<button class="btn btn-primary btn-xs" onclick="switchIntelTicker(\'' + r.ticker + '\')" style="margin-left:4px" title="Buka di Stock Intelligence">Cockpit →</button>'
+                + '</td>'
+              + '</tr>';
+            }).join('')
+          + '</tbody>'
+        + '</table>'
+      + '</div>'
+    + '</div>'
+
+    // SECTION 2: MOMENTUM / ARA DETECTOR (2-COL BENTO)
+    + '<div class="card" style="padding:16px;margin-bottom:16px">'
+      + '<div style="margin-bottom:12px">'
+        + '<h2 style="font-size:15px;font-weight:800;color:var(--text);margin:0;display:flex;align-items:center;gap:6px"><i class="ti ti-rocket" style="color:#10B981"></i> MOMENTUM / ARA DETECTOR</h2>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Saham berpotensi bergerak signifikan besok · pola perilaku asing + teknikal close</div>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
+        
+        // LEFT COLUMN: ARA CANDIDATE
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+            + '<span style="font-size:12px;font-weight:800;color:#10B981">ARA CANDIDATE</span>'
+            + '<span style="font-size:10px;color:var(--text3)">Small-mid · Close=High · Offer=0 · Belum ARA</span>'
+          + '</div>'
+          + '<div style="display:flex;flex-direction:column;gap:8px">'
+            + araCards.map(function(c) {
+              var tagsHtml = c.tags.map(function(tg) {
+                return '<span class="badge b-blue" style="font-size:9.5px;padding:1px 6px">' + tg + '</span>';
+              }).join(' ');
+              return '<div class="intel-anomaly-card" onclick="switchIntelTicker(\'' + c.ticker + '\')">'
+                + '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+                  + '<div>'
+                    + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+                      + '<strong style="font-size:13px;color:var(--text)">' + c.ticker + '</strong>'
+                      + tagsHtml
+                    + '</div>'
+                    + '<div style="font-size:11px;color:var(--text3);margin-top:4px">' + c.desc + '</div>'
+                  + '</div>'
+                  + '<div style="text-align:right">'
+                    + '<div class="font-mono" style="font-size:13px;font-weight:800;color:var(--text)">Rp ' + c.px + '</div>'
+                    + '<div class="font-mono ' + c.chgCls + '" style="font-size:11px;font-weight:700">' + c.chg + '</div>'
+                  + '</div>'
+                + '</div>'
+              + '</div>';
+            }).join('')
+          + '</div>'
+        + '</div>'
+
+        // RIGHT COLUMN: SWING BIG CAP
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+            + '<span style="font-size:12px;font-weight:800;color:#38BDF8">SWING BIG CAP</span>'
+            + '<span style="font-size:10px;color:var(--text3)">Likuiditas &gt; Rp10M · Big Accumulation</span>'
+          + '</div>'
+          + '<div style="display:flex;flex-direction:column;gap:8px">'
+            + swingCards.map(function(c) {
+              var tagsHtml = c.tags.map(function(tg) {
+                return '<span class="badge b-up" style="font-size:9.5px;padding:1px 6px">' + tg + '</span>';
+              }).join(' ');
+              return '<div class="intel-anomaly-card" onclick="switchIntelTicker(\'' + c.ticker + '\')">'
+                + '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+                  + '<div>'
+                    + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+                      + '<strong style="font-size:13px;color:var(--text)">' + c.ticker + '</strong>'
+                      + tagsHtml
+                    + '</div>'
+                    + '<div style="font-size:11px;color:var(--text3);margin-top:4px">' + c.desc + '</div>'
+                  + '</div>'
+                  + '<div style="text-align:right">'
+                    + '<div class="font-mono" style="font-size:13px;font-weight:800;color:var(--text)">Rp ' + c.px + '</div>'
+                    + '<div class="font-mono ' + c.chgCls + '" style="font-size:11px;font-weight:700">' + c.chg + '</div>'
+                  + '</div>'
+                + '</div>'
+              + '</div>';
+            }).join('')
+          + '</div>'
+        + '</div>'
+
+      + '</div>'
+    + '</div>';
+
+  return html;
+}
+
+function filterAnomalyTable(query) {
+  var q = (query || '').toLowerCase().trim();
+  var tbl = document.getElementById('anomaly-struct-table');
+  if (!tbl) return;
+  var rows = tbl.querySelectorAll('tbody tr');
+  rows.forEach(function(r) {
+    var txt = r.textContent.toLowerCase();
+    r.style.display = (!q || txt.includes(q)) ? '' : 'none';
+  });
+}
+
 // ── Global Aliases for Router Compatibility ──
+window.renderRadarAnomalyAraSubTab = renderRadarAnomalyAraSubTab;
+window.filterAnomalyTable = filterAnomalyTable;
 window.renderMarketRegimePage = renderMarketRegimePage;
 window.renderOpportunityRadarPage = renderOpportunityRadarPage;
 window.renderDataConnPage = renderDataConnPage;
