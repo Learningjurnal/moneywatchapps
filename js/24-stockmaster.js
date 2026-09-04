@@ -757,41 +757,50 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
   var cardsEl = document.getElementById('fund-synthesis-action-cards');
   if (!summaryEl || !tableEl) return;
 
-  // 1. Calculations based on Academic Literature & Financial Journals:
-  // (A) Benjamin Graham (1934, 1949 - Security Analysis & The Intelligent Investor): Margin of Safety & Solvency
-  var isGrahamMoSPositive = grahamDiff >= 0;
-  var isGrahamSolvent = dte <= 1.2 && cr >= 1.1;
-  var grahamVerdict = isGrahamMoSPositive && isGrahamSolvent ? 'DEFENSIVE VALUE (SANGAT SEHAT & UNDERVALUED)' : (isGrahamMoSPositive ? 'UNDERVALUED (LEVERAGE TERPANTAU)' : 'OVERVALUED / PREMIUM');
-  var grahamScore = (isGrahamMoSPositive ? 15 : (grahamDiff > -15 ? 8 : 0)) + (isGrahamSolvent ? 10 : 4);
+  // 1. Perhitungan Kuantitatif 5 Pilar Fundamental:
+  // (A) Konsensus Valuasi & Margin of Safety (MoS)
+  var validValuations = [];
+  if (fairPriceMoS > 0) validValuations.push(fairPriceMoS);
+  if (grahamVal > 0) validValuations.push(grahamVal);
+  if (lynchVal > 0) validValuations.push(lynchVal);
+  if (ddmVal > 0) validValuations.push(ddmVal);
+  var consensusFairPrice = validValuations.length > 0 ? (validValuations.reduce(function(a, b) { return a + b; }, 0) / validValuations.length) : curPrice;
+  var consensusMoSPct = consensusFairPrice > 0 ? ((consensusFairPrice - curPrice) / consensusFairPrice * 100) : 0;
+  var isValuationUndervalued = consensusMoSPct >= 10;
+  var isValuationFair = consensusMoSPct >= -10 && consensusMoSPct < 10;
+  var valuationVerdict = isValuationUndervalued ? 'UNDERVALUED (DISKON LEBAR +' + consensusMoSPct.toFixed(1) + '%)' : (isValuationFair ? 'FAIR VALUE (HARGA WAJAR ' + (consensusMoSPct >= 0 ? '+' : '') + consensusMoSPct.toFixed(1) + '%)' : 'OVERVALUED (PREMIUM ' + consensusMoSPct.toFixed(1) + '%)');
+  var valuationScore = isValuationUndervalued ? 25 : (isValuationFair ? 18 : 8);
 
-  // (B) Warren Buffett & Charlie Munger (1977-2023 - Berkshire Letters & Economic Moat Theory)
-  var isBuffettMoat = roe >= 0.15 && gm >= 0.30;
-  var buffettVerdict = (mosPct >= 15 && isBuffettMoat) ? 'WONDERFUL COMPANY AT DISCOUNT (MOAT KUAT)' : (isBuffettMoat ? 'HIGH QUALITY MOAT (VALUASI WAJAR)' : (mosPct >= 15 ? 'DEEP VALUE (MOAT MODERAT)' : 'EXPENSIVE / WEAK MOAT'));
-  var buffettScore = (roe >= 0.18 ? 20 : (roe >= 0.12 ? 14 : 6)) + (gm >= 0.35 ? 10 : 5);
+  // (B) Profitabilitas & Efisiensi Modal (ROE & Net Profit Margin)
+  var isRoeSuper = roe >= 0.15;
+  var isRoeGood = roe >= 0.10;
+  var isPmHealthy = pm >= 0.10;
+  var roeVerdict = (isRoeSuper && isPmHealthy) ? 'PROFITABILITAS PRIMA (ROE ' + (roe * 100).toFixed(1) + '%)' : (isRoeGood ? 'PROFITABILITAS MODERAT (ROE ' + (roe * 100).toFixed(1) + '%)' : 'EFISIENSI MODAL RENDAH (ROE ' + (roe * 100).toFixed(1) + '%)');
+  var roeScore = isRoeSuper ? 25 : (isRoeGood ? 18 : 8);
 
-  // (C) Prof. Aswath Damodaran (NYU Stern - DCF Intrinsic Value & Cost of Capital)
-  var dcfFair = (fairPriceMoS + (grahamVal || curPrice)) / 2;
-  var dcfDiff = ((dcfFair - curPrice) / dcfFair * 100);
-  var damodaranVerdict = dcfDiff > 15 ? 'SUBSTANTIAL INTRINSIC DISCOUNT (>15%)' : (dcfDiff >= 0 ? 'FAIRLY PRICED INTRINSIC VALUE' : 'TRADING AT INTRINSIC PREMIUM');
-  var damodaranScore = dcfDiff > 15 ? 15 : (dcfDiff >= 0 ? 10 : 4);
+  // (C) Kekuatan Margin & Pricing Power (Gross Profit Margin & Operating Margin)
+  var isMoatStrong = gm >= 0.35 && om >= 0.15;
+  var isMoatModerate = gm >= 0.20;
+  var moatVerdict = isMoatStrong ? 'PRICING POWER KUAT (GROSS MARGIN ' + (gm * 100).toFixed(1) + '%)' : (isMoatModerate ? 'MARGIN OPERASIONAL STABIL' : 'KOMPRESI MARGIN TINGGI');
+  var moatScore = isMoatStrong ? 20 : (isMoatModerate ? 14 : 6);
 
-  // (D) Peter Lynch (1989 - One Up on Wall Street & GARP)
-  var growthRate = Math.max(5, Math.min(25, roe * (1 - payout) * 100));
-  var peg = growthRate > 0 ? +(per / growthRate).toFixed(2) : 99;
-  var lynchVerdict = peg <= 1.0 ? 'UNDERVALUED GARP (PEG ≤ 1.0x)' : (peg <= 1.8 ? 'FAIR VALUE GROWTH (PEG 1.0-1.8x)' : 'HIGH VALUATION (PEG > 1.8x)');
-  var lynchScore = peg <= 1.0 ? 15 : (peg <= 1.8 ? 10 : 3);
+  // (D) Solvabilitas & Struktur Modal (DER & Current Ratio)
+  var isSolventSafe = dte <= 1.2 && cr >= 1.1;
+  var isSolventModerate = dte <= 2.0;
+  var solvencyVerdict = isSolventSafe ? 'NERACA SANGAT KOKOH (DER ' + dte.toFixed(2) + 'x)' : (isSolventModerate ? 'LEVERAGE TERKENDALI (DER ' + dte.toFixed(2) + 'x)' : 'WASPADA BEBAN UTANG TINGGI (DER ' + dte.toFixed(2) + 'x)');
+  var solvencyScore = isSolventSafe ? 15 : (isSolventModerate ? 10 : 4);
 
-  // (E) Prof. Joseph Piotroski (Stanford/Chicago, 2000 - F-Score) & Altman (1968 - Z-Score)
-  var isOcfHealthy = ocf > 0;
-  var isAccrualHighQuality = ocf >= (pm * rev * 0.6);
-  var piotroskiVerdict = (isOcfHealthy && isAccrualHighQuality && pm > 0) ? 'LABA RIIL BERSIH & ARUS KAS PRIMA' : (isOcfHealthy ? 'ARUS KAS OPERASI POSITIF' : 'PERINGATAN ARUS KAS NEGATIF');
-  var piotroskiScore = (isOcfHealthy && isAccrualHighQuality ? 15 : (isOcfHealthy ? 10 : 0)) + (cr >= 1.0 ? 5 : 0);
+  // (E) Kualitas Arus Kas Operasi (OCF) & Dividen
+  var isOcfPositive = ocf > 0;
+  var isAccrualGood = ocf >= (pm * rev * 0.5);
+  var cashVerdict = (isOcfPositive && isAccrualGood) ? 'KUALITAS LABA KAS RIIL SOLID' : (isOcfPositive ? 'ARUS KAS OPERASIONAL POSITIF' : 'ARUS KAS OPERASIONAL DEFISIT');
+  var cashScore = (isOcfPositive && isAccrualGood) ? 15 : (isOcfPositive ? 10 : 2);
 
-  // Composite Score (0 - 100)
-  var totalCompScore = Math.min(100, Math.max(10, Math.round(grahamScore + buffettScore + damodaranScore + lynchScore + piotroskiScore)));
-  
+  // Total Skor Fundamental Komposit (0 - 100)
+  var totalCompScore = Math.min(100, Math.max(10, Math.round(valuationScore + roeScore + moatScore + solvencyScore + cashScore)));
+
   var scoreGrade = 'A+';
-  var verdictTitle = 'STRONG BUY CONVICTION · UNDERVALUED';
+  var verdictTitle = 'STRONG ACCUMULATION · UNDERVALUED';
   var badgeClass = 'badge b-up';
   if (totalCompScore >= 80) {
     scoreGrade = 'A+ (Sangat Sehat & Undervalued)';
@@ -799,11 +808,11 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
     badgeClass = 'badge b-up';
   } else if (totalCompScore >= 65) {
     scoreGrade = 'B+ (Kualitas Baik · Fair Value)';
-    verdictTitle = 'ACCUMULATE ON DIP · FAIR VALUE';
+    verdictTitle = 'ACCUMULATE ON WEAKNESS · FAIR VALUE';
     badgeClass = 'badge b-neu';
   } else {
     scoreGrade = 'C / D (Waspada Valuasi & Risiko)';
-    verdictTitle = 'WAIT & SEE · VALUATION PRICED IN';
+    verdictTitle = 'WAIT & SEE / REDUCE · RISIKO TINGGI';
     badgeClass = 'badge b-dn';
   }
 
@@ -811,61 +820,87 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
     badgeEl.innerHTML = '<span class="' + badgeClass + '" style="font-size:12px;padding:5px 12px;font-weight:800">' + verdictTitle + ' (' + totalCompScore + '/100)</span>';
   }
 
-  // Executive Synthesis Summary Text
-  var moatDesc = isBuffettMoat ? 'memiliki <b>Economic Moat yang kokoh</b> dengan keunggulan pricing power (Gross Margin ' + (gm * 100).toFixed(1) + '%)' : 'memiliki keunggulan bersaing moderat di industrinya';
-  var mosText = mosPct >= 0 ? '<b style="color:#10B981">+' + mosPct.toFixed(1) + '% (Undervalued)</b>' : '<b style="color:#EF4444">' + mosPct.toFixed(1) + '% (Overvalued)</b>';
-  var ocfText = isOcfHealthy ? 'Arus kas operasional tercatat positif (<b>Rp ' + fundFmt(ocf) + '</b>), membuktikan laba riil yang dilaporkan bukan sekadar akrual semu (sesuai kaidah empiris Piotroski 2000).' : 'Perlu diperhatikan kualitas arus kas operasi untuk memitigasi risiko piutang.';
+  // Executive Summary Text (Strictly Data-Driven Calculations)
+  var growthRate = Math.max(5, Math.min(25, roe * (1 - payout) * 100));
+  var peg = growthRate > 0 ? +(per / growthRate).toFixed(2) : 99;
+  var mosFmt = consensusMoSPct >= 0 ? '<b style="color:#10B981">+' + consensusMoSPct.toFixed(1) + '% (Undervalued)</b>' : '<b style="color:#EF4444">' + consensusMoSPct.toFixed(1) + '% (Overvalued)</b>';
+  var ocfFormatted = ocf > 0 ? '<b>Rp ' + fundFmt(ocf) + '</b> (Kas Riil Positif)' : '<b style="color:#EF4444">Rp ' + fundFmt(ocf) + ' (Defisit)</b>';
 
-  summaryEl.innerHTML = 'Berdasarkan konsensus 5 literatur keuangan akademik (Benjamin Graham, Warren Buffett, Aswath Damodaran, Peter Lynch, dan Joseph Piotroski), emiten <b>' + (ticker || 'BBCA') + '</b> di sektor <b>' + sector + '</b> meraih skor komposit fundamental <b>' + totalCompScore + '/100 [' + scoreGrade + ']</b>. Model valuasi 9-Step Buffett dan Graham Number mengindikasikan Margin of Safety ' + mosText + ' terhadap harga pasar terkini (<b>Rp ' + Number(curPrice).toLocaleString('id-ID') + '</b>). Perusahaan ' + moatDesc + ' serta efisiensi modal ekuitas tinggi dengan ROE <b>' + (roe * 100).toFixed(1) + '%</b>. Struktur neraca terkendali (DER <b>' + dte.toFixed(2) + 'x</b>, Likuiditas Lancar <b>' + cr.toFixed(2) + 'x</b>). ' + ocfText;
+  summaryEl.innerHTML = 'Berdasarkan kalkulasi kuantitatif menyeluruh terhadap 5 pilar keuangan, emiten <b>' + (ticker || 'BBCA') + '</b> di sektor <b>' + sector + '</b> meraih skor total <b>' + totalCompScore + '/100 [' + scoreGrade + ']</b>. Rata-rata <b>Konsensus Nilai Wajar</b> tercatat di <b>Rp ' + Math.round(consensusFairPrice).toLocaleString('id-ID') + '</b>, memberikan Margin of Safety (MoS) sebesar ' + mosFmt + ' terhadap harga pasar terkini (<b>Rp ' + Number(curPrice).toLocaleString('id-ID') + '</b>). Perusahaan mencatatkan tingkat pengembalian ekuitas (ROE) <b>' + (roe * 100).toFixed(1) + '%</b>, Gross Profit Margin <b>' + (gm * 100).toFixed(1) + '%</b>, rasio utang terkendali (DER <b>' + dte.toFixed(2) + 'x</b>, Likuiditas Lancar <b>' + cr.toFixed(2) + 'x</b>), serta didukung arus kas operasional ' + ocfFormatted + '.';
 
-  // Table Body
+  // Automatic Extraction: 3 Key LTM Fundamental Bullet Points
+  var bulletsEl = document.getElementById('fund-ltm-bullets-list');
+  if (bulletsEl) {
+    var profitVerdict = pm >= 0.15 ? 'kapabilitas mencetak laba bersih yang sangat tebal (High Margin Moat)' : (pm >= 0.08 ? 'profitabilitas operasional stabil dan tangguh di industrinya' : 'margin laba bersih tertekan oleh beban pokok dan biaya operasional');
+    var balanceVerdict = dte <= 1.0 ? 'neraca sangat solid dan konservatif dengan bantalan likuiditas tinggi' : (dte <= 1.8 ? 'struktur permodalan terkendali dengan leverage utang yang sehat' : 'perlu kehati-hatian atas beban liabilitas berbunga terhadap ekuitas');
+    var efficiencyVerdict = roe >= 0.15 ? 'efisiensi penggandaan modal pemegang saham berkelas dunia (Compounder Prima)' : (roe >= 0.10 ? 'tingkat pengembalian ekuitas kompetitif di atas rata-rata suku bunga acuan' : 'efisiensi perputaran ekuitas perlu dioptimalkan untuk memacu imbal hasil');
+
+    bulletsEl.innerHTML = ''
+      + '<li>'
+      + '  <span style="display:inline-block;width:8px;height:8px;background:#3B82F6;border-radius:50%;margin-right:6px"></span>'
+      + '  <strong style="color:#F1F5F9">1. Profitabilitas (LTM):</strong> '
+      + '  Pendapatan tercatat sebesar <b style="color:#60A5FA">Rp ' + fundFmt(rev) + '</b> (' + (revG >= 0 ? '+' : '') + (revG * 100).toFixed(1) + '% YoY) dengan Gross Margin <b style="color:#F1F5F9">' + (gm * 100).toFixed(1) + '%</b>, Operating Margin <b style="color:#F1F5F9">' + (om * 100).toFixed(1) + '%</b>, serta Net Profit Margin <b style="color:#10B981">' + (pm * 100).toFixed(1) + '%</b> — menandakan ' + profitVerdict + '.'
+      + '</li>'
+      + '<li>'
+      + '  <span style="display:inline-block;width:8px;height:8px;background:#10B981;border-radius:50%;margin-right:6px"></span>'
+      + '  <strong style="color:#F1F5F9">2. Kesehatan Neraca (Solvabilitas &amp; Likuiditas):</strong> '
+      + '  Rasio utang terhadap ekuitas (DER) berada di level <b style="color:' + (dte <= 1.2 ? '#10B981' : '#F59E0B') + '">' + dte.toFixed(2) + 'x</b> dengan Current Ratio <b style="color:#10B981">' + cr.toFixed(2) + 'x</b> dan Nilai Buku (BVPS) <b style="color:#F1F5F9">Rp ' + Math.round(bvps).toLocaleString('id-ID') + '</b> — membuktikan ' + balanceVerdict + '.'
+      + '</li>'
+      + '<li>'
+      + '  <span style="display:inline-block;width:8px;height:8px;background:#8B5CF6;border-radius:50%;margin-right:6px"></span>'
+      + '  <strong style="color:#F1F5F9">3. Efisiensi Modal &amp; Alokasi Laba:</strong> '
+      + '  Menghasilkan Return on Equity (ROE) sebesar <b style="color:' + (roe >= 0.12 ? '#10B981' : '#F59E0B') + '">' + (roe * 100).toFixed(1) + '%</b> dan EPS <b style="color:#F1F5F9">Rp ' + Math.round(eps) + '</b>, dengan porsi dividen (DPR) <b style="color:#60A5FA">' + (payout * 100).toFixed(0) + '%</b> (Laba Ditahan ' + ((1 - payout) * 100).toFixed(0) + '%) — mencerminkan ' + efficiencyVerdict + '.'
+      + '</li>';
+  }
+
+  // Table Body (Purely Calculations & Interpretations)
   tableEl.innerHTML = ''
     + '<tr>'
-    + '  <td style="font-weight:700;color:#F1F5F9">1. Benjamin Graham &amp; David Dodd (1934, 1949)<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Security Analysis &amp; The Intelligent Investor</span></td>'
-    + '  <td style="color:#CBD5E1">Margin of Safety &amp; Graham Number: <code style="color:#60A5FA">√(22.5 × EPS × BVPS)</code>. Solvabilitas: DER &lt; 1.50x, CR &gt; 1.1x.</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (grahamDiff >= 0 ? '#10B981' : '#EF4444') + '">Graham: Rp ' + Math.round(grahamVal).toLocaleString('id-ID') + ' (' + (grahamDiff >= 0 ? '+' : '') + grahamDiff.toFixed(1) + '%)<br><span style="font-size:10px;color:#94A3B8;font-weight:400">DER: ' + dte.toFixed(2) + 'x | CR: ' + cr.toFixed(2) + 'x</span></td>'
-    + '  <td style="text-align:right"><span style="background:' + (isGrahamMoSPositive ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(239,68,68,0.2);color:#EF4444') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + grahamVerdict + '</span></td>'
+    + '  <td style="font-weight:700;color:#F1F5F9">1. Konsensus Valuasi &amp; Margin of Safety<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Rata-rata 4 Model Valuasi vs Harga Pasar</span></td>'
+    + '  <td style="color:#CBD5E1">Buffett 9-Step, Graham <code style="color:#60A5FA">√(22.5×E×B)</code>, Lynch PEG 1.0, dan DDM</td>'
+    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (consensusMoSPct >= 0 ? '#10B981' : '#EF4444') + '">Nilai Wajar: Rp ' + Math.round(consensusFairPrice).toLocaleString('id-ID') + '<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Harga Pasar: Rp ' + Math.round(curPrice).toLocaleString('id-ID') + ' (MoS: ' + (consensusMoSPct >= 0 ? '+' : '') + consensusMoSPct.toFixed(1) + '%)</span></td>'
+    + '  <td style="text-align:right"><span style="background:' + (isValuationUndervalued ? 'rgba(16,185,129,0.2);color:#10B981' : (isValuationFair ? 'rgba(59,130,246,0.2);color:#60A5FA' : 'rgba(239,68,68,0.2);color:#EF4444')) + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + valuationVerdict + '</span></td>'
     + '</tr>'
     + '<tr>'
-    + '  <td style="font-weight:700;color:#F1F5F9">2. Warren Buffett &amp; Charlie Munger (1977-2023)<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Berkshire Letters &amp; Economic Moat Theory</span></td>'
-    + '  <td style="color:#CBD5E1">Sustainable Competitive Advantage: ROE konsisten &gt; 15%, Pricing Power (Gross Margin &gt; 35%), Reinvestasi Laba Sehat.</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (roe >= 0.15 ? '#10B981' : '#60A5FA') + '">ROE: ' + (roe * 100).toFixed(1) + '% | Gross Margin: ' + (gm * 100).toFixed(1) + '%<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Fair Value MoS: Rp ' + Math.round(fairPriceMoS).toLocaleString('id-ID') + '</span></td>'
-    + '  <td style="text-align:right"><span style="background:' + (isBuffettMoat ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(59,130,246,0.2);color:#60A5FA') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + buffettVerdict + '</span></td>'
+    + '  <td style="font-weight:700;color:#F1F5F9">2. Efisiensi Modal &amp; Profitabilitas Laba<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Tingkat Pengembalian atas Ekuitas Bersih</span></td>'
+    + '  <td style="color:#CBD5E1">ROE = Laba Bersih / Ekuitas | Target Sehat: ROE &ge; 12.0%, NPM &gt; 10%</td>'
+    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (roe >= 0.12 ? '#10B981' : '#60A5FA') + '">ROE: ' + (roe * 100).toFixed(1) + '% | NPM: ' + (pm * 100).toFixed(1) + '%<br><span style="font-size:10px;color:#94A3B8;font-weight:400">EPS: Rp ' + Math.round(eps) + ' / saham</span></td>'
+    + '  <td style="text-align:right"><span style="background:' + (isRoeSuper ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(59,130,246,0.2);color:#60A5FA') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + roeVerdict + '</span></td>'
     + '</tr>'
     + '<tr>'
-    + '  <td style="font-weight:700;color:#F1F5F9">3. Prof. Aswath Damodaran (NYU Stern)<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Applied Corporate Finance &amp; DCF Valuation</span></td>'
-    + '  <td style="color:#CBD5E1">Discounted Cash Flow (DCF): Nilai intrinsik dari proyeksi Free Cash Flow (FCF) yang didiskontokan dengan WACC.</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (dcfDiff >= 0 ? '#10B981' : '#EF4444') + '">Estimasi FCF / Saham: Rp ' + Math.round(eps * 0.75) + '<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Diskon Intrinsik: ' + (dcfDiff >= 0 ? '+' : '') + dcfDiff.toFixed(1) + '%</span></td>'
-    + '  <td style="text-align:right"><span style="background:' + (dcfDiff >= 0 ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(239,68,68,0.2);color:#EF4444') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + damodaranVerdict + '</span></td>'
+    + '  <td style="font-weight:700;color:#F1F5F9">3. Keunggulan Margin &amp; Pricing Power<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Daya Saing Produk &amp; Margin Operasional</span></td>'
+    + '  <td style="color:#CBD5E1">Gross Margin = (Pendapatan - COGS) / Pendapatan | Oper. Margin</td>'
+    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (gm >= 0.35 ? '#10B981' : '#60A5FA') + '">Gross Margin: ' + (gm * 100).toFixed(1) + '%<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Operating Margin: ' + (om * 100).toFixed(1) + '%</span></td>'
+    + '  <td style="text-align:right"><span style="background:' + (isMoatStrong ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(59,130,246,0.2);color:#60A5FA') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + moatVerdict + '</span></td>'
     + '</tr>'
     + '<tr>'
-    + '  <td style="font-weight:700;color:#F1F5F9">4. Peter Lynch (1989)<br><span style="font-size:10px;color:#94A3B8;font-weight:400">One Up on Wall Street &amp; GARP Framework</span></td>'
-    + '  <td style="color:#CBD5E1">PEG Ratio (P/E to Growth Rate): Identifikasi saham compounder dengan valuasi rasional (Target PEG ≤ 1.0x).</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (peg <= 1.0 ? '#10B981' : (peg <= 1.8 ? '#60A5FA' : '#EF4444')) + '">P/E: ' + per.toFixed(1) + 'x | Growth: ' + growthRate.toFixed(1) + '%<br><span style="font-size:10px;color:#94A3B8;font-weight:400">PEG Ratio: ' + peg.toFixed(2) + 'x</span></td>'
-    + '  <td style="text-align:right"><span style="background:' + (peg <= 1.0 ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(59,130,246,0.2);color:#60A5FA') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + lynchVerdict + '</span></td>'
+    + '  <td style="font-weight:700;color:#F1F5F9">4. Solvabilitas &amp; Struktur Permodalan<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Tingkat Utang &amp; Ketahanan Likuiditas</span></td>'
+    + '  <td style="color:#CBD5E1">DER = Total Utang / Ekuitas (Target &lt; 1.5x) | Current Ratio &gt; 1.1x</td>'
+    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (dte <= 1.2 ? '#10B981' : (dte <= 2.0 ? '#60A5FA' : '#EF4444')) + '">DER: ' + dte.toFixed(2) + 'x | Likuiditas: ' + cr.toFixed(2) + 'x<br><span style="font-size:10px;color:#94A3B8;font-weight:400">BVPS: Rp ' + Math.round(bvps) + ' | PBV: ' + pbv.toFixed(2) + 'x</span></td>'
+    + '  <td style="text-align:right"><span style="background:' + (isSolventSafe ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(59,130,246,0.2);color:#60A5FA') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + solvencyVerdict + '</span></td>'
     + '</tr>'
     + '<tr>'
-    + '  <td style="font-weight:700;color:#F1F5F9">5. Prof. Joseph Piotroski (Stanford/Chicago, 2000)<br><span style="font-size:10px;color:#94A3B8;font-weight:400">F-Score: Separating Winners from Losers</span></td>'
-    + '  <td style="color:#CBD5E1">Kualitas Akrual &amp; Kesehatan Kas: Operating Cash Flow (OCF) positif melampaui Net Income, eliminasi value-trap.</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (isOcfHealthy ? '#10B981' : '#EF4444') + '">OCF: Rp ' + fundFmt(ocf) + '<br><span style="font-size:10px;color:#94A3B8;font-weight:400">NPM: ' + (pm * 100).toFixed(1) + '% | Likuiditas: Aman</span></td>'
-    + '  <td style="text-align:right"><span style="background:' + (isOcfHealthy ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(239,68,68,0.2);color:#EF4444') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + piotroskiVerdict + '</span></td>'
+    + '  <td style="font-weight:700;color:#F1F5F9">5. Kualitas Arus Kas &amp; Pembagian Dividen<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Realisasi Kas Operasi vs Laba Akrual</span></td>'
+    + '  <td style="color:#CBD5E1">Operating Cash Flow (OCF) &gt; 0, Dividend Yield &amp; Payout Ratio</td>'
+    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (isOcfPositive ? '#10B981' : '#EF4444') + '">OCF: Rp ' + fundFmt(ocf) + '<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Dividend Yield: ' + ((dps / Math.max(1, curPrice)) * 100).toFixed(2) + '% (DPR ' + (payout * 100).toFixed(0) + '%)</span></td>'
+    + '  <td style="text-align:right"><span style="background:' + (isOcfPositive ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(239,68,68,0.2);color:#EF4444') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + cashVerdict + '</span></td>'
     + '</tr>';
 
-  // Action Cards for 3 Investor Archetypes
+  // 3 Action Strategy Cards
   if (cardsEl) {
     cardsEl.innerHTML = ''
       + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px">'
-      + '  <div style="font-size:11px;font-weight:800;color:#60A5FA;margin-bottom:4px">💼 VALUE INVESTOR (Graham &amp; Buffett)</div>'
-      + '  <div style="font-size:12px;font-weight:700;color:#F1F5F9">' + (mosPct >= 15 ? '🟢 Strong Buy / Diskon Lebar' : (mosPct >= 0 ? '🟡 Akumulasi Bertahap (Fair Value)' : '🔴 Hold / Kurangi Porsi')) + '</div>'
-      + '  <div style="font-size:10px;color:#94A3B8;margin-top:2px">MoS: ' + (mosPct >= 0 ? '+' : '') + mosPct.toFixed(1) + '% | Graham: Rp ' + Math.round(grahamVal).toLocaleString('id-ID') + '</div>'
+      + '  <div style="font-size:11px;font-weight:800;color:#60A5FA;margin-bottom:4px">💼 STRATEGI VALUE &amp; MARGIN OF SAFETY</div>'
+      + '  <div style="font-size:12px;font-weight:700;color:#F1F5F9">' + (consensusMoSPct >= 15 ? '🟢 Strong Buy (Diskon Lebar)' : (consensusMoSPct >= 0 ? '🟡 Akumulasi Bertahap (Fair Value)' : '🔴 Hold / Kurangi Porsi')) + '</div>'
+      + '  <div style="font-size:10px;color:#94A3B8;margin-top:2px">MoS Konsensus: ' + (consensusMoSPct >= 0 ? '+' : '') + consensusMoSPct.toFixed(1) + '% | Fair Value: Rp ' + Math.round(consensusFairPrice).toLocaleString('id-ID') + '</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px">'
-      + '  <div style="font-size:11px;font-weight:800;color:#10B981;margin-bottom:4px">📈 GROWTH &amp; COMPOUNDER (Lynch &amp; Damodaran)</div>'
+      + '  <div style="font-size:11px;font-weight:800;color:#10B981;margin-bottom:4px">📈 STRATEGI PERTUMBUHAN &amp; COMPOUNDER</div>'
       + '  <div style="font-size:12px;font-weight:700;color:#F1F5F9">' + (peg <= 1.2 ? '🟢 High Conviction Compounder' : (peg <= 1.8 ? '🟡 Steady Growth Hold' : '🔴 Overextended Growth')) + '</div>'
-      + '  <div style="font-size:10px;color:#94A3B8;margin-top:2px">PEG: ' + peg.toFixed(2) + 'x | Pertumbuhan Laba: ' + growthRate.toFixed(1) + '%/thn</div>'
+      + '  <div style="font-size:10px;color:#94A3B8;margin-top:2px">PEG: ' + peg.toFixed(2) + 'x | Laju Pertumbuhan: ' + growthRate.toFixed(1) + '%/thn</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px">'
-      + '  <div style="font-size:11px;font-weight:800;color:#F59E0B;margin-bottom:4px">💰 DIVIDEND INCOME (Gordon Model &amp; OCF)</div>'
+      + '  <div style="font-size:11px;font-weight:800;color:#F59E0B;margin-bottom:4px">💰 STRATEGI ARUS KAS &amp; DIVIDEN</div>'
       + '  <div style="font-size:12px;font-weight:700;color:#F1F5F9">' + ((dps / curPrice) >= 0.04 ? '🟢 Cash Cow Dividend Play' : '🟡 Dividen Moderat / Reinvestasi Laba') + '</div>'
       + '  <div style="font-size:10px;color:#94A3B8;margin-top:2px">Yield: ' + ((dps / Math.max(1, curPrice)) * 100).toFixed(2) + '% | Payout: ' + (payout * 100).toFixed(0) + '%</div>'
       + '</div>';

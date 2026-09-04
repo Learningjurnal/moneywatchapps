@@ -2395,48 +2395,58 @@
           </div>
         </div>
 
-        <!-- SECTION EXECUTIVE SYNTHESIS & ACADEMIC LITERATURE VERDICT -->
+        <!-- SECTION TOTAL KESIMPULAN ANALISA FUNDAMENTAL (BERDASARKAN PERHITUNGAN) -->
         <div id="fund-sec-synthesis" style="scroll-margin-top:14px">
           <div class="sm-card" style="border-left:4px solid #3B82F6;background:linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95));padding:18px;margin-bottom:0">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:14px">
               <div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-                  <span style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);color:#FFF;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:800">SINTESIS EKSEKUTIF</span>
-                  <h2 style="font-size:16px;font-weight:800;color:#F1F5F9;margin:0">🏛️ Kesimpulan Analisa Fundamental Berbasis Literatur &amp; Jurnal</h2>
+                  <span style="background:linear-gradient(135deg,#3B82F6,#10B981);color:#FFF;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:800">TOTAL KESIMPULAN FUNDAMENTAL</span>
+                  <h2 style="font-size:16px;font-weight:800;color:#F1F5F9;margin:0">📊 Total Kesimpulan &amp; Konsensus Analisa Fundamental</h2>
                 </div>
-                <p style="font-size:11px;color:#94A3B8;margin:0">Sintesis multi-pilar merujuk pada metodologi Benjamin Graham (1934), Warren Buffett (1977-2023), Aswath Damodaran (NYU Stern), Peter Lynch (1989), dan Joseph Piotroski (2000).</p>
+                <p style="font-size:11px;color:#94A3B8;margin:0">Sintesis kuantitatif dari 4 Model Valuasi, Profitabilitas LTM (ROE &amp; Margin), Kesehatan Neraca (DER &amp; Likuiditas), dan Arus Kas Riil.</p>
               </div>
               <div id="fund-synthesis-overall-badge" style="text-align:right">
-                <span class="badge b-up" style="font-size:12px;padding:5px 12px;font-weight:800">MEMUAT KESIMPULAN...</span>
+                <span class="badge b-up" style="font-size:12px;padding:5px 12px;font-weight:800">MENGHITUNG KESIMPULAN...</span>
               </div>
             </div>
 
             <!-- Executive Summary Text Box -->
-            <div id="fund-synthesis-summary-text" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:#E2E8F0;line-height:1.75;margin-bottom:14px">
-              Menghubungkan data laporan keuangan dengan model valuasi akademik...
+            <div id="fund-synthesis-summary-text" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:#E2E8F0;line-height:1.75;margin-bottom:12px">
+              Menghitung konsensus nilai wajar dan mengevaluasi pilar fundamental emiten...
             </div>
 
-            <!-- 5 Academic Pillars Matrix -->
+            <!-- Ekstraksi Otomatis 3 Poin Kunci LTM (Profitabilitas, Kesehatan Neraca, Efisiensi Modal) -->
+            <div id="fund-ltm-key-bullets" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:800;color:#60A5FA;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                <i class="ti ti-list-check" style="font-size:14px"></i> Ekstraksi Otomatis 3 Poin Kunci Data LTM (Trailing Twelve Months)
+              </div>
+              <ul id="fund-ltm-bullets-list" style="margin:0;padding-left:18px;font-size:12px;color:#CBD5E1;line-height:1.75;display:flex;flex-direction:column;gap:6px">
+                <li><strong style="color:#F1F5F9">Memuat ekstraksi data LTM emiten...</strong></li>
+              </ul>
+            </div>
+
+            <!-- 5 Calculation Pillars Matrix -->
             <div style="margin-bottom:14px">
-              <h4 style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px">🔬 Matriks Evaluasi 5 Pilar Jurnal &amp; Literatur Akademis</h4>
+              <h4 style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px">📐 Matriks Perhitungan 5 Pilar Analisa Fundamental</h4>
               <div style="overflow-x:auto">
                 <table class="tbl" style="font-size:11px;text-align:left;width:100%">
                   <thead>
                     <tr style="background:var(--bg3);color:#94A3B8">
-                      <th style="padding:8px 10px">Literatur &amp; Penulis</th>
-                      <th style="padding:8px 10px">Metodologi &amp; Formula Acuan</th>
-                      <th style="padding:8px 10px">Kondisi Emiten Terkini</th>
-                      <th style="padding:8px 10px;text-align:right">Status / Verdict</th>
+                      <th style="padding:8px 10px;width:24%">Pilar Analisa</th>
+                      <th style="padding:8px 10px;width:32%">Parameter &amp; Formula Perhitungan</th>
+                      <th style="padding:8px 10px;width:26%">Hasil Kalkulasi Emiten</th>
+                      <th style="padding:8px 10px;text-align:right;width:18%">Status &amp; Sinyal</th>
                     </tr>
                   </thead>
                   <tbody id="fund-synthesis-table-body">
-                    <tr><td colspan="4" style="text-align:center;padding:12px;color:#94A3B8">Memuat matriks literatur...</td></tr>
+                    <tr><td colspan="4" style="text-align:center;padding:12px;color:#94A3B8">Memuat kalkulasi fundamental...</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <!-- Investor Profile Actionable Verdict -->
+            <!-- Actionable Investment Strategy Cards -->
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px" id="fund-synthesis-action-cards">
               <!-- Rendered via JS -->
             </div>
