@@ -2338,20 +2338,21 @@
       </div>
 
       <div class="sm-nav-cat">📊 Analisa Fundamental</div>
-      <a class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">1. Profil &amp; Ringkasan Saham</a>
-      <a class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)">2. Laba Rugi &amp; Margins LTM</a>
-      <a class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)">3. Valuasi 9-Step Buffett (MoS)</a>
-      <a class="sm-nav-item" id="fund-nav-4" onclick="fundSwitchTab(4)">4. Multi-Model Valuation Matrix</a>
-      <a class="sm-nav-item" id="fund-nav-5" onclick="fundSwitchTab(5)">5. Interactive DCF Simulator</a>
-      <a class="sm-nav-item" id="fund-nav-6" onclick="fundSwitchTab(6)">6. Financial Moat &amp; Management</a>
-      <a class="sm-nav-item" id="fund-nav-7" onclick="fundSwitchTab(7)">7. Quantitative Red Flag Detector</a>
+      <a class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">⚡ 1. Analisa Terpadu (1–7 &amp; 9)</a>
+      <a class="sm-nav-item" id="fund-nav-9" onclick="fundSwitchTab(9)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 9. Traffic Light Consensus</a>
+      <a class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 2. Laba Rugi &amp; Margins</a>
+      <a class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 3. Valuasi 9-Step Buffett</a>
+      <a class="sm-nav-item" id="fund-nav-4" onclick="fundSwitchTab(4)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 4. Multi-Model Matrix</a>
+      <a class="sm-nav-item" id="fund-nav-5" onclick="fundSwitchTab(5)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 5. DCF Simulator</a>
+      <a class="sm-nav-item" id="fund-nav-6" onclick="fundSwitchTab(6)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 6. Moat &amp; Management</a>
+      <a class="sm-nav-item" id="fund-nav-7" onclick="fundSwitchTab(7)" style="padding-left:24px;font-size:11px;opacity:0.9">↳ 7. Red Flag Detector</a>
+      <div class="sm-nav-cat" style="margin-top:10px">🔬 Modul Tambahan</div>
       <a class="sm-nav-item" id="fund-nav-8" onclick="fundSwitchTab(8)">8. Bull/Bear Debate &amp; 5-Pilar</a>
-      <a class="sm-nav-item" id="fund-nav-9" onclick="fundSwitchTab(9)">9. Traffic Light Consensus</a>
       <a class="sm-nav-item" id="fund-nav-10" onclick="fundSwitchTab(10)"><i class="ti ti-users-group" style="margin-right:4px"></i>10. Kepemilikan &amp; Free Float KSEI</a>
     </aside>
 
     <!-- MAIN WORKSPACE -->
-    <main class="sm-main">
+    <main class="sm-main" id="fund-main-scroll-container">
       <!-- TOP COMMAND BAR -->
       <div class="sm-top-bar">
         <div class="sm-input-group">
@@ -2373,161 +2374,198 @@
         <div id="fund-status" style="font-size:12px;font-weight:600;padding:10px 14px;border-radius:8px;display:none;width:100%"></div>
       </div>
 
-      <!-- TAB 1: Full Stock Report -->
-      <div id="fund-tab1" class="sm-tab-panel active">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">1. Profil &amp; Ringkasan Perusahaan</h2>
-        <div class="sm-card sm-grid-3">
-          <div class="sm-stat-box"><div class="sm-stat-label">Harga Saham Terakhir</div><div class="sm-stat-val" id="sm-d-price">-</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">Kapitalisasi Pasar (Market Cap)</div><div class="sm-stat-val" id="sm-d-mcap">-</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">Sektor Industri</div><div class="sm-stat-val sm-text-blue" id="sm-d-sector" style="font-size:13px">-</div></div>
-        </div>
-        <div class="sm-card">
-          <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:6px">Profil &amp; Keunggulan Bisnis Perusahaan</h3>
-          <p id="sm-d-profile" style="font-size:12px;color:#94A3B8;line-height:1.7">Memuat profil dan fundamental emiten...</p>
-        </div>
-
-        <!-- Quick KSEI Free Float Card in Tab 1 -->
-        <div id="sm-d-ksei-tab1-summary" class="sm-card" style="border-left:4px solid #10B981">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin:0">🏛️ Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
-            <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(10)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 10 →</button>
-          </div>
-          <div id="sm-d-ksei-tab1-content" style="font-size:12px;color:#94A3B8">Memuat data KSEI...</div>
-        </div>
-      </div>
-
-      <!-- TAB 2: Earnings Breakdown -->
-      <div id="fund-tab2" class="sm-tab-panel">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">2. Earnings &amp; Growth Breakdown (LTM)</h2>
-        <div class="sm-card sm-grid-3">
-          <div class="sm-stat-box"><div class="sm-stat-label">Total Revenue (Pendapatan)</div><div class="sm-stat-val sm-text-green" id="sm-d-rev">-</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">Revenue Growth (YoY)</div><div class="sm-stat-val" id="sm-d-revgrowth">-</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">EBITDA</div><div class="sm-stat-val" id="sm-d-ebitda">-</div></div>
-        </div>
-        <div class="sm-card sm-grid-3">
-          <div class="sm-stat-box"><div class="sm-stat-label">Gross Profit Margin</div><div class="sm-stat-val" id="sm-d-gmargin">-</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">Operating Margin</div><div class="sm-stat-val" id="sm-d-omargin">-</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">Net Profit Margin</div><div class="sm-stat-val" id="sm-d-pmargin">-</div></div>
-        </div>
-      </div>
-
-      <!-- TAB 3: 9-Step Buffett MoS Valuation -->
-      <div id="fund-tab3" class="sm-tab-panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-          <div>
-            <h2 style="font-size:16px;font-weight:800;color:#F1F5F9;margin-bottom:2px">3. Valuasi 9-Step Buffett (Margin of Safety)</h2>
-            <p style="font-size:11px;color:#94A3B8">Kalkulasi nilai intrinsik dan margin of safety otomatis berdasarkan harga pasar terkini dan proyeksi fundamental.</p>
-          </div>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-blue btn-sm" onclick="fundRecalcBuffett()">⚡ Hitung Ulang MoS</button>
-          </div>
-        </div>
+      <!-- COMBINED MASTER TAB: 1, 9, 2, 3, 4, 5, 6, 7 Unified -->
+      <div id="fund-tab1" class="sm-tab-panel active" style="gap:18px">
         
-        <div class="sm-grid-2" style="margin-bottom:16px">
-          <div class="sm-card">
-            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:10px">Parameter Model Valuasi</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <div class="fg">
-                <div class="flabel">Kode Emiten Teranalisis</div>
-                <div id="hw-active-ticker-display" style="display:flex;align-items:center;height:38px;padding:0 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--accent)">BBCA</div>
-              </div>
-              <div class="fg">
-                <div class="flabel" style="display:flex;justify-content:space-between">
-                  <span>Harga Pasar Terkini (Rp)</span>
-                  <span style="color:#10B981;font-size:10px;font-weight:700">● LIVE BURSA</span>
-                </div>
-                <input class="finput" id="hw-current-price" type="number" value="9500" oninput="fundRecalcBuffett()" style="font-family:var(--font-mono);font-weight:700;color:#10B981" title="Harga saham pasar terupdate otomatis">
-              </div>
-              <div class="fg">
-                <div class="flabel">Min Return (%/thn)</div>
-                <input class="finput" id="hw-min-return" type="number" value="8" step="0.5" oninput="fundRecalcBuffett()">
-              </div>
-              <div class="fg">
-                <div class="flabel">Proyeksi (Tahun)</div>
-                <input class="finput" id="hw-proj-years" type="number" value="5" step="1" oninput="fundRecalcBuffett()">
-              </div>
+        <!-- SECTION 1: Profil & Ringkasan Perusahaan -->
+        <div id="fund-sec-1" style="scroll-margin-top:14px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 1</span>
+            1. Profil &amp; Ringkasan Perusahaan
+          </h2>
+          <div class="sm-card sm-grid-3" style="margin-bottom:12px">
+            <div class="sm-stat-box"><div class="sm-stat-label">Harga Saham Terakhir</div><div class="sm-stat-val" id="sm-d-price">-</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Kapitalisasi Pasar (Market Cap)</div><div class="sm-stat-val" id="sm-d-mcap">-</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Sektor Industri</div><div class="sm-stat-val sm-text-blue" id="sm-d-sector" style="font-size:13px">-</div></div>
+          </div>
+          <div class="sm-card" style="margin-bottom:12px">
+            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:6px">Profil &amp; Keunggulan Bisnis Perusahaan</h3>
+            <p id="sm-d-profile" style="font-size:12px;color:#94A3B8;line-height:1.7">Memuat profil dan fundamental emiten...</p>
+          </div>
+
+          <!-- Quick KSEI Free Float Card in Tab 1 -->
+          <div id="sm-d-ksei-tab1-summary" class="sm-card" style="border-left:4px solid #10B981;margin-bottom:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin:0">🏛️ Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
+              <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(10)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 10 →</button>
+            </div>
+            <div id="sm-d-ksei-tab1-content" style="font-size:12px;color:#94A3B8">Memuat data KSEI...</div>
+          </div>
+        </div>
+
+        <!-- SECTION 9: Traffic Light Consensus -->
+        <div id="fund-sec-9" style="scroll-margin-top:14px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+            <span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 9</span>
+            9. Traffic Light Consensus Matrix (Valuasi · Bandar Flow · Quant)
+          </h2>
+          <div class="sm-card" id="hw-traffic-light-card" style="border-left:4px solid var(--accent);margin-bottom:0">
+            <div id="hw-tl-body">Memuat konsensus sinyal terpadu...</div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: Earnings Breakdown -->
+        <div id="fund-sec-2" style="scroll-margin-top:14px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 2</span>
+            2. Earnings &amp; Growth Breakdown (LTM)
+          </h2>
+          <div class="sm-card sm-grid-3" style="margin-bottom:12px">
+            <div class="sm-stat-box"><div class="sm-stat-label">Total Revenue (Pendapatan)</div><div class="sm-stat-val sm-text-green" id="sm-d-rev">-</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Revenue Growth (YoY)</div><div class="sm-stat-val" id="sm-d-revgrowth">-</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">EBITDA</div><div class="sm-stat-val" id="sm-d-ebitda">-</div></div>
+          </div>
+          <div class="sm-card sm-grid-3" style="margin-bottom:0">
+            <div class="sm-stat-box"><div class="sm-stat-label">Gross Profit Margin</div><div class="sm-stat-val" id="sm-d-gmargin">-</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Operating Margin</div><div class="sm-stat-val" id="sm-d-omargin">-</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Net Profit Margin</div><div class="sm-stat-val" id="sm-d-pmargin">-</div></div>
+          </div>
+        </div>
+
+        <!-- SECTION 3: 9-Step Buffett MoS Valuation -->
+        <div id="fund-sec-3" style="scroll-margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div>
+              <h2 style="font-size:16px;font-weight:800;color:#F1F5F9;margin-bottom:2px;display:flex;align-items:center;gap:8px">
+                <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 3</span>
+                3. Valuasi 9-Step Buffett (Margin of Safety)
+              </h2>
+              <p style="font-size:11px;color:#94A3B8">Kalkulasi nilai intrinsik dan margin of safety otomatis berdasarkan harga pasar terkini dan proyeksi fundamental.</p>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-blue btn-sm" onclick="fundRecalcBuffett()">⚡ Hitung Ulang MoS</button>
             </div>
           </div>
-          <div class="sm-card" style="text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center">
-            <div class="sm-stat-label">Estimasi Harga Wajar (Fair Value MoS)</div>
-            <div class="sm-stat-val sm-text-green" id="hw-verdict-fair-price" style="font-size:30px;margin:6px 0">Rp 11.200</div>
-            <div id="hw-verdict-badge-main" class="badge b-up" style="font-size:12px;padding:4px 12px">UNDERVALUED · MoS +18.5%</div>
+          
+          <div class="sm-grid-2" style="margin-bottom:12px">
+            <div class="sm-card" style="margin-bottom:0">
+              <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:10px">Parameter Model Valuasi</h3>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="fg">
+                  <div class="flabel">Kode Emiten Teranalisis</div>
+                  <div id="hw-active-ticker-display" style="display:flex;align-items:center;height:38px;padding:0 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--accent)">BBCA</div>
+                </div>
+                <div class="fg">
+                  <div class="flabel" style="display:flex;justify-content:space-between">
+                    <span>Harga Pasar Terkini (Rp)</span>
+                    <span style="color:#10B981;font-size:10px;font-weight:700">● LIVE BURSA</span>
+                  </div>
+                  <input class="finput" id="hw-current-price" type="number" value="9500" oninput="fundRecalcBuffett()" style="font-family:var(--font-mono);font-weight:700;color:#10B981" title="Harga saham pasar terupdate otomatis">
+                </div>
+                <div class="fg">
+                  <div class="flabel">Min Return (%/thn)</div>
+                  <input class="finput" id="hw-min-return" type="number" value="8" step="0.5" oninput="fundRecalcBuffett()">
+                </div>
+                <div class="fg">
+                  <div class="flabel">Proyeksi (Tahun)</div>
+                  <input class="finput" id="hw-proj-years" type="number" value="5" step="1" oninput="fundRecalcBuffett()">
+                </div>
+              </div>
+            </div>
+            <div class="sm-card" style="text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;margin-bottom:0">
+              <div class="sm-stat-label">Estimasi Harga Wajar (Fair Value MoS)</div>
+              <div class="sm-stat-val sm-text-green" id="hw-verdict-fair-price" style="font-size:30px;margin:6px 0">Rp 11.200</div>
+              <div id="hw-verdict-badge-main" class="badge b-up" style="font-size:12px;padding:4px 12px">UNDERVALUED · MoS +18.5%</div>
+            </div>
+          </div>
+
+          <div class="sm-card" id="hw-steps-card" style="margin-bottom:0">
+            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:10px">🔬 Rincian 9 Langkah Kalkulasi Buffett</h3>
+            <div id="hw-steps-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
           </div>
         </div>
 
-        <div class="sm-card" id="hw-steps-card">
-          <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:10px">🔬 Rincian 9 Langkah Kalkulasi Buffett</h3>
-          <div id="hw-steps-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+        <!-- SECTION 4: Multi-Model Valuation Matrix -->
+        <div id="fund-sec-4" style="scroll-margin-top:14px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 4</span>
+            4. Multi-Model Valuation Matrix &amp; 2D Sensitivity
+          </h2>
+          <div class="sm-card sm-grid-3" style="margin-bottom:12px">
+            <div class="sm-stat-box">
+              <div class="sm-stat-label">Benjamin Graham Number</div>
+              <div class="sm-stat-val sm-text-blue" id="hw-mm-graham-val">Rp 10.450</div>
+              <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-graham-pct">√(22.5 × EPS × BVPS)</div>
+            </div>
+            <div class="sm-stat-box">
+              <div class="sm-stat-label">Peter Lynch Fair Value</div>
+              <div class="sm-stat-val sm-text-blue" id="hw-mm-lynch-val">Rp 11.800</div>
+              <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-lynch-pct">EPS × Growth (PEG 1.0)</div>
+            </div>
+            <div class="sm-stat-box">
+              <div class="sm-stat-label">Dividend Discount (DDM)</div>
+              <div class="sm-stat-val sm-text-blue" id="hw-mm-ddm-val">Rp 9.900</div>
+              <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-ddm-pct">Gordon Growth Model</div>
+            </div>
+          </div>
+          <div class="sm-card" style="margin-bottom:0">
+            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:8px">🎯 2D Sensitivity Matrix (Target ROE vs Exit P/E)</h3>
+            <div style="overflow-x:auto">
+              <table class="tbl" style="font-size:11px;text-align:center">
+                <thead><tr><th>Target ROE \ Exit PER</th><th>Bear (10x)</th><th style="color:var(--accent)">Base (15x)</th><th>Bull (20x)</th></tr></thead>
+                <tbody id="hw-sm-tbody"><tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:12px">Memuat matriks sensitivitas...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- TAB 4: Multi-Model Valuation Matrix -->
-      <div id="fund-tab4" class="sm-tab-panel">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">4. Multi-Model Valuation Matrix &amp; 2D Sensitivity</h2>
-        <div class="sm-card sm-grid-3">
-          <div class="sm-stat-box">
-            <div class="sm-stat-label">Benjamin Graham Number</div>
-            <div class="sm-stat-val sm-text-blue" id="hw-mm-graham-val">Rp 10.450</div>
-            <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-graham-pct">√(22.5 × EPS × BVPS)</div>
+        <!-- SECTION 5: DCF Simulator -->
+        <div id="fund-sec-5" style="scroll-margin-top:14px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 5</span>
+            5. Interactive DCF (Discounted Cash Flow) Simulator
+          </h2>
+          <div class="sm-card sm-grid-2" style="margin-bottom:12px">
+            <div class="sm-input-group"><label>Free Cash Flow (FCF) Per Lembar Saham (Rp)</label><input type="number" id="sm-dcf-fcf" class="sm-input" value="450" step="10" oninput="smCalculateDCF()"></div>
+            <div class="sm-input-group"><label>Growth Rate 5 Tahun Ke Depan (%)</label><input type="number" id="sm-dcf-g" class="sm-input" value="10" step="0.5" oninput="smCalculateDCF()"></div>
+            <div class="sm-input-group"><label>Discount Rate / WACC (%)</label><input type="number" id="sm-dcf-r" class="sm-input" value="10" step="0.5" oninput="smCalculateDCF()"></div>
+            <div class="sm-input-group"><label>Terminal Growth Rate (%)</label><input type="number" id="sm-dcf-tg" class="sm-input" value="3.5" step="0.2" oninput="smCalculateDCF()"></div>
           </div>
-          <div class="sm-stat-box">
-            <div class="sm-stat-label">Peter Lynch Fair Value</div>
-            <div class="sm-stat-val sm-text-blue" id="hw-mm-lynch-val">Rp 11.800</div>
-            <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-lynch-pct">EPS × Growth (PEG 1.0)</div>
-          </div>
-          <div class="sm-stat-box">
-            <div class="sm-stat-label">Dividend Discount (DDM)</div>
-            <div class="sm-stat-val sm-text-blue" id="hw-mm-ddm-val">Rp 9.900</div>
-            <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-ddm-pct">Gordon Growth Model</div>
+          <div class="sm-card" style="text-align:center;padding:20px;margin-bottom:0">
+            <div class="sm-stat-label">Estimasi Nilai Wajar Intrinsik (Fair Value DCF) per Saham</div>
+            <div class="sm-stat-val sm-text-green" id="sm-dcf-result" style="font-size:30px;margin:6px 0">Rp 0</div>
+            <div id="sm-dcf-mos" style="font-size:12px;font-weight:700;color:#94A3B8">Margin of Safety: —</div>
           </div>
         </div>
-        <div class="sm-card">
-          <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:8px">🎯 2D Sensitivity Matrix (Target ROE vs Exit P/E)</h3>
-          <div style="overflow-x:auto">
-            <table class="tbl" style="font-size:11px;text-align:center">
-              <thead><tr><th>Target ROE \ Exit PER</th><th>Bear (10x)</th><th style="color:var(--accent)">Base (15x)</th><th>Bull (20x)</th></tr></thead>
-              <tbody id="hw-sm-tbody"><tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:12px">Memuat matriks sensitivitas...</td></tr></tbody>
+
+        <!-- SECTION 6: Moat & Management Quality -->
+        <div id="fund-sec-6" style="scroll-margin-top:14px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 6</span>
+            6. Financial Moat &amp; Management Capital Allocation
+          </h2>
+          <div class="sm-card sm-grid-2" style="margin-bottom:0">
+            <div class="sm-stat-box"><div class="sm-stat-label">Pricing Power (Gross Margin)</div><div class="sm-stat-val" id="sm-m-gmargin">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Daya tahan penetapan harga terhadap inflasi input</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Capital Efficiency (ROE)</div><div class="sm-stat-val" id="sm-m-roe">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Efisiensi pengembalian modal ekuitas pemegang saham</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Dividend Yield (%)</div><div class="sm-stat-val" id="sm-mq-div">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Imbal hasil dividen tahunan</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Dividend Payout Ratio (%)</div><div class="sm-stat-val" id="sm-mq-payout">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Porsi laba bersih dibagikan sebagai dividen</div></div>
+          </div>
+        </div>
+
+        <!-- SECTION 7: Red Flag Detector -->
+        <div id="fund-sec-7" style="scroll-margin-top:14px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+            <span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 7</span>
+            7. Quantitative Red Flag Detector
+          </h2>
+          <div class="sm-card" style="margin-bottom:0">
+            <table class="sm-table">
+              <thead><tr><th>Metrik Risiko Fundamental</th><th>Nilai Terkini</th><th>Batas Standar Aman</th><th>Status Evaluasi</th></tr></thead>
+              <tbody id="sm-t3-table"><tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:16px">Menunggu data fundamental...</td></tr></tbody>
             </table>
           </div>
         </div>
-      </div>
 
-      <!-- TAB 5: DCF Simulator -->
-      <div id="fund-tab5" class="sm-tab-panel">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">5. Interactive DCF (Discounted Cash Flow) Simulator</h2>
-        <div class="sm-card sm-grid-2">
-          <div class="sm-input-group"><label>Free Cash Flow (FCF) Per Lembar Saham (Rp)</label><input type="number" id="sm-dcf-fcf" class="sm-input" value="450" step="10" oninput="smCalculateDCF()"></div>
-          <div class="sm-input-group"><label>Growth Rate 5 Tahun Ke Depan (%)</label><input type="number" id="sm-dcf-g" class="sm-input" value="10" step="0.5" oninput="smCalculateDCF()"></div>
-          <div class="sm-input-group"><label>Discount Rate / WACC (%)</label><input type="number" id="sm-dcf-r" class="sm-input" value="10" step="0.5" oninput="smCalculateDCF()"></div>
-          <div class="sm-input-group"><label>Terminal Growth Rate (%)</label><input type="number" id="sm-dcf-tg" class="sm-input" value="3.5" step="0.2" oninput="smCalculateDCF()"></div>
-        </div>
-        <div class="sm-card" style="text-align:center;padding:24px">
-          <div class="sm-stat-label">Estimasi Nilai Wajar Intrinsik (Fair Value DCF) per Saham</div>
-          <div class="sm-stat-val sm-text-green" id="sm-dcf-result" style="font-size:32px;margin:8px 0">Rp 0</div>
-          <div id="sm-dcf-mos" style="font-size:12px;font-weight:700;color:#94A3B8">Margin of Safety: —</div>
-        </div>
-      </div>
-
-      <!-- TAB 6: Moat & Management Quality -->
-      <div id="fund-tab6" class="sm-tab-panel">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">6. Financial Moat &amp; Management Capital Allocation</h2>
-        <div class="sm-card sm-grid-2">
-          <div class="sm-stat-box"><div class="sm-stat-label">Pricing Power (Gross Margin)</div><div class="sm-stat-val" id="sm-m-gmargin">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Daya tahan penetapan harga terhadap inflasi input</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">Capital Efficiency (ROE)</div><div class="sm-stat-val" id="sm-m-roe">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Efisiensi pengembalian modal ekuitas pemegang saham</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">Dividend Yield (%)</div><div class="sm-stat-val" id="sm-mq-div">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Imbal hasil dividen tahunan</div></div>
-          <div class="sm-stat-box"><div class="sm-stat-label">Dividend Payout Ratio (%)</div><div class="sm-stat-val" id="sm-mq-payout">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Porsi laba bersih dibagikan sebagai dividen</div></div>
-        </div>
-      </div>
-
-      <!-- TAB 7: Red Flag Detector -->
-      <div id="fund-tab7" class="sm-tab-panel">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">7. Quantitative Red Flag Detector</h2>
-        <div class="sm-card">
-          <table class="sm-table">
-            <thead><tr><th>Metrik Risiko Fundamental</th><th>Nilai Terkini</th><th>Batas Standar Aman</th><th>Status Evaluasi</th></tr></thead>
-            <tbody id="sm-t3-table"><tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:16px">Menunggu data fundamental...</td></tr></tbody>
-          </table>
-        </div>
       </div>
 
       <!-- TAB 8: Algorithmic Debate & 5-Point Quality -->
@@ -2535,14 +2573,6 @@
         <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">8. Algorithmic Debate (Bull Case vs Bear Case) &amp; 5-Pilar Core Quality</h2>
         <div id="sm-bull-bear-container" style="margin-bottom:16px">Menunggu analisa emiten...</div>
         <div class="sm-card" id="sm-checklist-container">Menunggu data checklist...</div>
-      </div>
-
-      <!-- TAB 9: Traffic Light Consensus -->
-      <div id="fund-tab9" class="sm-tab-panel">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">9. Traffic Light Consensus Matrix (Valuasi · Bandar Flow · Quant)</h2>
-        <div class="sm-card" id="hw-traffic-light-card" style="border-left:4px solid var(--accent)">
-          <div id="hw-tl-body">Memuat konsensus sinyal terpadu...</div>
-        </div>
       </div>
 
       <!-- TAB 10: KSEI Shareholders & Free Float -->

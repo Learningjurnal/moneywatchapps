@@ -57,21 +57,47 @@ function fundInit() {
 
 function fundSwitchTab(idx) {
   var items = document.querySelectorAll('#page-fundamental .sm-nav-item');
-  items.forEach(function(el, i) {
-    el.classList.toggle('active', (i + 1) === idx);
+  items.forEach(function(el) {
+    el.classList.remove('active');
   });
-
-  var panels = document.querySelectorAll('#page-fundamental .sm-tab-panel');
-  panels.forEach(function(el, i) {
-    el.classList.toggle('active', (i + 1) === idx);
-  });
-
-  if (idx === 5) {
-    fundCalculateDCF();
+  var targetNav = document.getElementById('fund-nav-' + idx);
+  if (targetNav) {
+    targetNav.classList.add('active');
+  } else if (items[0]) {
+    items[0].classList.add('active');
   }
-  if (idx === 10) {
+
+  var tab1 = document.getElementById('fund-tab1');
+  var tab8 = document.getElementById('fund-tab8');
+  var tab10 = document.getElementById('fund-tab10');
+
+  if (idx === 8) {
+    if (tab1) tab1.classList.remove('active');
+    if (tab10) tab10.classList.remove('active');
+    if (tab8) tab8.classList.add('active');
+  } else if (idx === 10) {
+    if (tab1) tab1.classList.remove('active');
+    if (tab8) tab8.classList.remove('active');
+    if (tab10) tab10.classList.add('active');
     if (typeof renderKseiFundamentalWidget === 'function') {
-      renderKseiFundamentalWidget(FUND_DATA.ticker, 'fund-ksei-container');
+      renderKseiFundamentalWidget(FUND_DATA.ticker || 'BBCA', 'fund-ksei-container');
+    }
+  } else {
+    // Combined Master Analysis (Sections 1, 2, 3, 4, 5, 6, 7, 9)
+    if (tab8) tab8.classList.remove('active');
+    if (tab10) tab10.classList.remove('active');
+    if (tab1) tab1.classList.add('active');
+
+    if (idx === 5) {
+      fundCalculateDCF();
+    }
+
+    // Smooth scroll to selected subsection
+    var targetSec = document.getElementById('fund-sec-' + idx);
+    if (targetSec) {
+      setTimeout(function() {
+        targetSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
     }
   }
 }
