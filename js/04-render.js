@@ -111,10 +111,10 @@ function renderRdn(){
       +'<td>'+accBadge+'</td>'
       +'<td><span class="badge '+(typeColors[r.type]||'b-gray')+'">'+(typeLabels[r.type]||r.type)+'</span></td>'
       +'<td style="max-width:240px;color:var(--text2);font-size:11px">'+escHtml(r.ket)+'</td>'
-      +'<td class="mono up">'+(isin?'Rp '+fmtK(r.amount):'—')+'</td>'
-      +'<td class="mono dn">'+(!isin?'Rp '+fmtK(Math.abs(r.amount)):'—')+'</td>'
-      +'<td class="mono" style="font-weight:600">Rp '+fmtK(r.balance)+'</td>'
-      +'<td style="white-space:nowrap">'+auditBtn+delBtn+'</td>'
+      +'<td class="mono num text-right up">'+(isin?'Rp '+fmtK(r.amount):'—')+'</td>'
+      +'<td class="mono num text-right dn">'+(!isin?'Rp '+fmtK(Math.abs(r.amount)):'—')+'</td>'
+      +'<td class="mono num text-right" style="font-weight:600">Rp '+fmtK(r.balance)+'</td>'
+      +'<td class="text-center" style="white-space:nowrap">'+auditBtn+delBtn+'</td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Belum ada mutasi</td></tr>';
 
@@ -155,20 +155,20 @@ function renderTransaksi(){
     }
 
     return '<tr style="'+(_txSelected.has(tx.id)?'background:rgba(0,200,255,.05)':'')+'">'
-      +'<td><input type="checkbox" '+ (_txSelected.has(tx.id)?'checked':'')+' onmousedown="txCbMouseDown(event,'+tx.id+')" onmouseenter="txCbMouseEnter(event,'+tx.id+')" onclick="txCbClick(event,'+tx.id+')" style="cursor:pointer"></td>'
+      +'<td style="width:28px"><input type="checkbox" '+ (_txSelected.has(tx.id)?'checked':'')+' onmousedown="txCbMouseDown(event,'+tx.id+')" onmouseenter="txCbMouseEnter(event,'+tx.id+')" onclick="txCbClick(event,'+tx.id+')" style="cursor:pointer"></td>'
       +'<td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td>'
       +'<td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td>'
       +'<td><span class="tp" style="cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Lihat detail kalkulasi & rincian biaya">'+tx.ticker+'</span></td>'
       +'<td style="font-size:11px;color:var(--text2)">'+tx.sekuritas+'</td>'
-      +'<td class="mono">'+tx.lot+'</td>'
-      +'<td class="mono">'+tx.lot*100+'</td>'
-      +'<td class="mono">Rp '+fmt(tx.price)+'</td>'
-      +'<td class="mono">Rp '+fmtK(tx.gross)+'</td>'
-      +'<td class="mono amb" title="Komisi: Rp '+fmt(tx.komisi)+'">Rp '+fmtK(tx.komisi)+'</td>'
-      +'<td class="mono dn" title="PPN+Levy+PPh: Rp '+fmt(tx.tax)+'">Rp '+fmtK(tx.tax)+'</td>'
-      +'<td class="mono" style="font-weight:600;cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Klik untuk rincian formula bersih">Rp '+fmtK(tx.net)+'</td>'
-      +'<td>'+pnlHtml+'</td>'
-      +'<td style="display:flex;gap:4px;align-items:center">'
+      +'<td class="mono num text-right">'+tx.lot+'</td>'
+      +'<td class="mono num text-right">'+(tx.lot*100)+'</td>'
+      +'<td class="mono num text-right">Rp '+fmt(tx.price)+'</td>'
+      +'<td class="mono num text-right">Rp '+fmtK(tx.gross)+'</td>'
+      +'<td class="mono amb num text-right" title="Komisi: Rp '+fmt(tx.komisi)+'">Rp '+fmtK(tx.komisi)+'</td>'
+      +'<td class="mono dn num text-right" title="PPN+Levy+PPh: Rp '+fmt(tx.tax)+'">Rp '+fmtK(tx.tax)+'</td>'
+      +'<td class="mono num text-right" style="font-weight:600;cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Klik untuk rincian formula bersih">Rp '+fmtK(tx.net)+'</td>'
+      +'<td class="text-right">'+pnlHtml+'</td>'
+      +'<td class="text-center" style="white-space:nowrap">'
         +'<button class="btn btn-ghost btn-xs" style="color:var(--accent)" onclick="openTxDetailModal('+tx.id+')" title="Rincian kalkulasi transaksi" aria-label="Rincian transaksi">🔍</button>'
         +'<button class="btn btn-ghost btn-xs" style="color:var(--text2)" onclick="editTx('+tx.id+')" title="Edit transaksi" aria-label="Edit transaksi '+tx.type+' '+tx.ticker+' '+tx.date+'">✎</button>'
         +'<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delTx('+tx.id+')" title="Hapus transaksi" aria-label="Hapus transaksi '+tx.type+' '+tx.ticker+' '+tx.date+'">✕</button>'
@@ -357,7 +357,22 @@ function renderPortofolio(){
     var alloc=p.alloc, sig=p.sig;
     var sigCls=sig==='BUY'?'sig-buy':sig==='SELL'?'sig-sell':'sig-hold';
     var secColor=sectorColor(p.info.sector);
-    return '<tr><td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+COLORS[i%12]+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)"><i class="ti ti-bell"></i></button></div></td><td style="font-size:11px;color:var(--text2)">'+p.info.name+'</td><td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td><td class="mono">'+p.lot+'</td><td class="mono">'+p.shares+'</td><td class="mono">Rp '+fmt(p.avg)+'</td><td class="mono" style="color:var(--accent)">Rp '+fmt(p.mp)+'</td><td class="mono">Rp '+fmtK(p.mv)+'</td><td class="mono" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td><td class="mono '+(p.unreal>=0?'up':'dn')+'">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td><td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td><td><div class="prog" style="width:70px"><div class="progf" style="width:'+alloc.toFixed(1)+'%;background:'+COLORS[i%12]+'"></div></div><div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:2px">'+alloc.toFixed(1)+'%</div></td><td><span class="sig '+sigCls+'">'+sig+'</span></td></tr>';
+    var colorHex=COLORS[i%12] || '#2563EB';
+    return '<tr>'
+      +'<td class="tbl-sticky-left"><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+colorHex+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)"><i class="ti ti-bell"></i></button></div></td>'
+      +'<td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">'+p.info.name+'</td>'
+      +'<td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td>'
+      +'<td class="mono num text-right">'+p.lot+'</td>'
+      +'<td class="mono num text-right">'+p.shares+'</td>'
+      +'<td class="mono num text-right">Rp '+fmt(p.avg)+'</td>'
+      +'<td class="mono num text-right" style="color:var(--accent);font-weight:600">Rp '+fmt(p.mp)+'</td>'
+      +'<td class="mono num text-right" style="font-weight:600">Rp '+fmtK(p.mv)+'</td>'
+      +'<td class="mono num text-right" style="color:var(--text2)">Rp '+fmtK(p.cost)+'</td>'
+      +'<td class="mono num text-right '+(p.unreal>=0?'up':'dn')+'" style="font-weight:600">'+(p.unreal>=0?'+':'')+'Rp '+fmtK(p.unreal)+'</td>'
+      +'<td class="mono num text-right '+(p.ret>=0?'up':'dn')+'" style="font-weight:600">'+(p.ret>=0?'+':'')+p.ret.toFixed(2)+'%</td>'
+      +'<td class="text-right"><div class="tbl-alloc-wrap" style="margin-left:auto"><div class="tbl-alloc-bar"><div class="tbl-alloc-fill" style="width:'+Math.min(100, Math.max(2, alloc)).toFixed(1)+'%;background:'+colorHex+'"></div></div><div class="mono num text-right" style="font-size:10px;color:var(--text2)">'+alloc.toFixed(1)+'%</div></div></td>'
+      +'<td class="text-center"><span class="sig '+sigCls+'">'+sig+'</span></td>'
+      +'</tr>';
   }).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:16px;font-family:var(--font-mono)">'+(porto.length?'Tidak ada saham yang cocok dengan filter':'Belum ada posisi aktif')+'</td></tr>';
 }
 

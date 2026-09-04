@@ -1176,9 +1176,9 @@
         </select>
       </div>
     </div>
-    <div style="overflow-x:auto">
-      <table class="tbl">
-        <thead><tr><th>Tanggal</th><th>Rekening</th><th>Jenis</th><th>Keterangan</th><th>Masuk (+)</th><th>Keluar (-)</th><th>Saldo</th><th>Aksi</th></tr></thead>
+    <div style="overflow-x:auto" class="tbl-wrap">
+      <table class="tbl tbl-freeze-col">
+        <thead><tr><th>Tanggal</th><th>Rekening</th><th>Jenis</th><th>Keterangan</th><th class="text-right">Masuk (+)</th><th class="text-right">Keluar (-)</th><th class="text-right">Saldo</th><th class="text-center">Aksi</th></tr></thead>
         <tbody id="rdn-tbody"></tbody>
       </table>
     </div>
@@ -1224,13 +1224,13 @@
         <button class="btn btn-red btn-xs" onclick="txClearAll()">🗑 Hapus Semua</button>
       </div>
     </div>
-    <div style="overflow:auto;flex:1;min-height:0">
-      <table class="tbl">
+    <div style="overflow:auto;flex:1;min-height:0" class="tbl-wrap">
+      <table class="tbl tbl-freeze-col">
         <thead style="position:sticky;top:0;z-index:2;background:var(--bg3)"><tr>
-          <th><input type="checkbox" id="tx-check-all" onchange="txToggleAll(this.checked)" style="cursor:pointer"></th>
-          <th>Tanggal</th><th>Aksi</th><th>Ticker</th><th>Sekuritas</th><th>Lot</th><th>Lembar</th>
-          <th>Harga/Lbr</th><th>Nilai Kotor</th><th>Komisi</th><th>Pajak PPh</th>
-          <th>Total Bersih</th><th>P&amp;L</th><th></th>
+          <th style="width:28px"><input type="checkbox" id="tx-check-all" onchange="txToggleAll(this.checked)" style="cursor:pointer"></th>
+          <th>Tanggal</th><th>Aksi</th><th>Ticker</th><th>Sekuritas</th><th class="text-right">Lot</th><th class="text-right">Lembar</th>
+          <th class="text-right">Harga/Lbr</th><th class="text-right">Nilai Kotor</th><th class="text-right">Komisi</th><th class="text-right">Pajak PPh</th>
+          <th class="text-right">Total Bersih</th><th class="text-right">P&amp;L</th><th class="text-center">Aksi</th>
         </tr></thead>
         <tbody id="tx-tbody"></tbody>
       </table>
@@ -1354,21 +1354,21 @@
       <button class="btn btn-ghost btn-xs" onclick="resetPortoFilter()">↺ Reset</button>
       <span style="font-size:10px;color:var(--text3);margin-left:auto" id="porto-filter-count"></span>
     </div>
-    <div style="overflow-x:auto">
-      <table class="tbl">
+    <div style="overflow-x:auto" class="tbl-wrap">
+      <table class="tbl tbl-freeze-col">
         <thead><tr>
           <th onclick="sortPorto('name')" style="cursor:pointer;user-select:none">Ticker <span id="porto-sort-ico-name" style="font-size:9px;color:var(--text3)">↕</span></th>
           <th>Nama</th>
           <th onclick="sortPorto('sector')" style="cursor:pointer;user-select:none">Sektor <span id="porto-sort-ico-sector" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th onclick="sortPorto('lot')" style="cursor:pointer;user-select:none">Lot <span id="porto-sort-ico-lot" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th>Lembar</th>
-          <th>Avg Beli</th><th>Harga Pasar</th>
-          <th onclick="sortPorto('mv')" style="cursor:pointer;user-select:none">Nilai Pasar <span id="porto-sort-ico-mv" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th onclick="sortPorto('cost')" style="cursor:pointer;user-select:none">Modal <span id="porto-sort-ico-cost" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th onclick="sortPorto('unreal')" style="cursor:pointer;user-select:none">Unrealized P&amp;L <span id="porto-sort-ico-unreal" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th onclick="sortPorto('ret')" style="cursor:pointer;user-select:none">Return % <span id="porto-sort-ico-ret" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th onclick="sortPorto('alloc')" style="cursor:pointer;user-select:none">Alokasi <span id="porto-sort-ico-alloc" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th>Signal</th>
+          <th class="text-right" onclick="sortPorto('lot')" style="cursor:pointer;user-select:none">Lot <span id="porto-sort-ico-lot" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right">Lembar</th>
+          <th class="text-right">Avg Beli</th><th class="text-right">Harga Pasar</th>
+          <th class="text-right" onclick="sortPorto('mv')" style="cursor:pointer;user-select:none">Nilai Pasar <span id="porto-sort-ico-mv" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('cost')" style="cursor:pointer;user-select:none">Modal <span id="porto-sort-ico-cost" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('unreal')" style="cursor:pointer;user-select:none">Unrealized P&amp;L <span id="porto-sort-ico-unreal" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('ret')" style="cursor:pointer;user-select:none">Return % <span id="porto-sort-ico-ret" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('alloc')" style="cursor:pointer;user-select:none">Alokasi <span id="porto-sort-ico-alloc" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-center">Signal</th>
         </tr></thead>
         <tbody id="porto-tbody"></tbody>
       </table>
@@ -3700,23 +3700,34 @@
 </div><!-- /app -->
 
 <!-- MODAL -->
-<div class="overlay" id="modal">
-  <div class="modal">
+<div class="overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" role="dialog" aria-modal="true">
     <div class="mhead">
       <div class="mtitle" id="m-title">Modal</div>
-      <button class="mclose" id="m-close" aria-label="Tutup dialog">×</button>
+      <button class="mclose" id="m-close" onclick="closeModal()" aria-label="Tutup dialog">✕</button>
     </div>
     <div id="m-body"></div>
   </div>
 </div>
 
+<!-- INSTITUTIONAL SIDE DRAWER -->
+<div class="drawer-overlay" id="drawer" onclick="if(event.target===this)closeDrawer()">
+  <div class="drawer-panel" role="dialog" aria-modal="true">
+    <div class="drawer-head">
+      <div class="mtitle" id="drawer-title">Panel Samping</div>
+      <button class="mclose" onclick="closeDrawer()" aria-label="Tutup panel samping">✕</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+    <div class="drawer-foot" id="drawer-foot" style="display:none"></div>
+  </div>
+</div>
 
 <!-- WEALTH MODAL -->
-<div class="overlay" id="wmodal">
-  <div class="modal" style="width:480px">
+<div class="overlay" id="wmodal" onclick="if(event.target===this)wCloseModal()">
+  <div class="modal" style="width:500px" role="dialog" aria-modal="true">
     <div class="mhead">
       <div class="mtitle" id="wm-title">Wealth</div>
-      <button class="mclose" onclick="wCloseModal()" aria-label="Tutup dialog">×</button>
+      <button class="mclose" onclick="wCloseModal()" aria-label="Tutup dialog">✕</button>
     </div>
     <div id="wm-body"></div>
   </div>

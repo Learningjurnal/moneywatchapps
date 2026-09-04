@@ -1406,7 +1406,57 @@ function submitRdModal(type){
 
 
 
-function closeModal(){el('modal').classList.remove('on')}
+function closeModal(){
+  var m = el('modal');
+  if(m) m.classList.remove('on');
+}
+
+function openDrawer(title, bodyHtml, footHtml){
+  var d = el('drawer');
+  if(!d) return;
+  var titleEl = el('drawer-title');
+  var bodyEl = el('drawer-body');
+  var footEl = el('drawer-foot');
+  if(titleEl) titleEl.innerHTML = title || 'Panel Transaksi &amp; Data';
+  if(bodyEl) bodyEl.innerHTML = bodyHtml || '';
+  if(footEl) {
+    if(footHtml) {
+      footEl.innerHTML = footHtml;
+      footEl.style.display = 'flex';
+    } else {
+      footEl.style.display = 'none';
+      footEl.innerHTML = '';
+    }
+  }
+  d.classList.add('on');
+}
+
+function closeDrawer(){
+  var d = el('drawer');
+  if(d) d.classList.remove('on');
+}
+
+// Global ESC key listener for Institutional Modals & Drawers
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' || e.keyCode === 27) {
+      var d = el('drawer');
+      if(d && d.classList.contains('on')) {
+        closeDrawer();
+        return;
+      }
+      var m = el('modal');
+      if(m && m.classList.contains('on')) {
+        closeModal();
+        return;
+      }
+      var wm = el('wmodal');
+      if(wm && wm.classList.contains('on')) {
+        if(typeof wCloseModal === 'function') wCloseModal();
+      }
+    }
+  });
+}
 
 function updateAmtPreview(){
   var v=parseFloat(el('mf-amount').value||0);
