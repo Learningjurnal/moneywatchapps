@@ -473,7 +473,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
               ctx.lineWidth = 1.5;
               ctx.beginPath(); ctx.moveTo(leftX, yS1); ctx.lineTo(rightX, yS1); ctx.stroke();
               ctx.fillStyle = '#10B981';
-              ctx.font = 'bold 10px JetBrains Mono, monospace';
+              ctx.font = 'bold 10px Fira Code, monospace';
               ctx.fillText('SUP 1: Rp ' + fmtK(s1), leftX + 12, yS1 - 4);
             }
           }
@@ -485,7 +485,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
               ctx.lineWidth = 1.2;
               ctx.beginPath(); ctx.moveTo(leftX, yS2); ctx.lineTo(rightX, yS2); ctx.stroke();
               ctx.fillStyle = '#059669';
-              ctx.font = 'bold 10px JetBrains Mono, monospace';
+              ctx.font = 'bold 10px Fira Code, monospace';
               ctx.fillText('SUP 2: Rp ' + fmtK(s2), leftX + 12, yS2 - 4);
             }
           }
@@ -510,7 +510,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
               ctx.lineWidth = 1.5;
               ctx.beginPath(); ctx.moveTo(leftX, yR1); ctx.lineTo(rightX, yR1); ctx.stroke();
               ctx.fillStyle = '#EF4444';
-              ctx.font = 'bold 10px JetBrains Mono, monospace';
+              ctx.font = 'bold 10px Fira Code, monospace';
               ctx.fillText('RES 1: Rp ' + fmtK(r1), rightX - 110, yR1 - 4);
             }
           }
@@ -522,7 +522,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
               ctx.lineWidth = 1.2;
               ctx.beginPath(); ctx.moveTo(leftX, yR2); ctx.lineTo(rightX, yR2); ctx.stroke();
               ctx.fillStyle = '#DC2626';
-              ctx.font = 'bold 10px JetBrains Mono, monospace';
+              ctx.font = 'bold 10px Fira Code, monospace';
               ctx.fillText('RES 2: Rp ' + fmtK(r2), rightX - 110, yR2 - 4);
             }
           }
@@ -560,7 +560,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
             ctx.beginPath(); ctx.moveTo(leftX, yPixel); ctx.lineTo(rightX, yPixel); ctx.stroke();
 
             ctx.fillStyle = item.color;
-            ctx.font = (item.thick ? 'bold 10px' : '9px') + ' JetBrains Mono, monospace';
+            ctx.font = (item.thick ? 'bold 10px' : '9px') + ' Fira Code, monospace';
             ctx.fillText(item.name + ': Rp ' + fmtK(item.val), leftX + 120, yPixel - 3);
           }
         });
@@ -576,7 +576,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
             ctx.lineWidth = 1.5;
             ctx.beginPath(); ctx.moveTo(leftX, ySh); ctx.lineTo(rightX, ySh); ctx.stroke();
             ctx.fillStyle = '#F59E0B';
-            ctx.font = 'bold 9px JetBrains Mono, monospace';
+            ctx.font = 'bold 9px Fira Code, monospace';
             ctx.fillText('SWING HIGH / BOS: Rp ' + fmtK(aiStruct.lastSwingHigh), leftX + 10, ySh - 4);
           }
         }
@@ -588,7 +588,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
             ctx.lineWidth = 1.5;
             ctx.beginPath(); ctx.moveTo(leftX, ySlw); ctx.lineTo(rightX, ySlw); ctx.stroke();
             ctx.fillStyle = '#F97316';
-            ctx.font = 'bold 9px JetBrains Mono, monospace';
+            ctx.font = 'bold 9px Fira Code, monospace';
             ctx.fillText('SWING LOW / INVALIDATION: Rp ' + fmtK(aiStruct.lastSwingLow), rightX - 180, ySlw - 4);
           }
         }
@@ -601,7 +601,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
         ctx.strokeStyle = aiStruct.trend === 'BULLISH' ? '#10B981' : (aiStruct.trend === 'BEARISH' ? '#EF4444' : '#F59E0B');
         ctx.setLineDash([]);
         ctx.lineWidth = 1;
-        ctx.font = 'bold 10px JetBrains Mono, monospace';
+        ctx.font = 'bold 10px Fira Code, monospace';
         var textWidth = ctx.measureText(badgeText).width;
 
         ctx.beginPath();
@@ -622,7 +622,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
         ctx.strokeStyle = '#8B5CF6';
         ctx.setLineDash([]);
         ctx.lineWidth = 1;
-        ctx.font = 'bold 10px JetBrains Mono, monospace';
+        ctx.font = 'bold 10px Fira Code, monospace';
         var pWidth = ctx.measureText(patText).width;
 
         ctx.beginPath();
@@ -653,7 +653,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
           ctx.stroke();
 
           ctx.fillStyle = '#10B981';
-          ctx.font = 'bold 10px JetBrains Mono, monospace';
+          ctx.font = 'bold 10px Fira Code, monospace';
           ctx.fillText('ENTRY ZONE: Rp ' + fmtK(aiSetup.entryLow) + ' - ' + fmtK(aiSetup.entryHigh), leftX + 10, yEntryHigh - 4);
         }
 
@@ -668,7 +668,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
             ctx.stroke();
 
             ctx.fillStyle = '#EF4444';
-            ctx.font = 'bold 10px JetBrains Mono, monospace';
+            ctx.font = 'bold 10px Fira Code, monospace';
             ctx.fillText('STOP LOSS: Rp ' + fmtK(aiSetup.stopLoss), rightX - 130, ySl - 4);
           }
         }
@@ -684,14 +684,14 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
           if (yTp1 >= yScale.top && yTp1 <= yScale.bottom) {
             ctx.beginPath(); ctx.moveTo(leftX, yTp1); ctx.lineTo(rightX, yTp1); ctx.stroke();
             ctx.fillStyle = '#38BDF8';
-            ctx.font = 'bold 10px JetBrains Mono, monospace';
+            ctx.font = 'bold 10px Fira Code, monospace';
             ctx.fillText('TP1: Rp ' + fmtK(aiSetup.tp1), rightX - 110, yTp1 - 4);
           }
 
           if (yTp2 >= yScale.top && yTp2 <= yScale.bottom) {
             ctx.beginPath(); ctx.moveTo(leftX, yTp2); ctx.lineTo(rightX, yTp2); ctx.stroke();
             ctx.fillStyle = '#38BDF8';
-            ctx.font = 'bold 10px JetBrains Mono, monospace';
+            ctx.font = 'bold 10px Fira Code, monospace';
             ctx.fillText('TP2: Rp ' + fmtK(aiSetup.tp2), rightX - 110, yTp2 - 4);
           }
         }
@@ -779,8 +779,8 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
     // AI TOOLBAR BAR
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;flex-wrap:wrap;gap:8px">'
       + '<div style="display:flex;align-items:center;gap:10px">'
-        + '<span style="font-size:16px;font-weight:800;color:var(--text);font-family:JetBrains Mono,monospace">' + ticker + '</span>'
-        + '<span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:JetBrains Mono,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
+        + '<span style="font-size:16px;font-weight:800;color:var(--text);font-family:Fira Code,monospace">' + ticker + '</span>'
+        + '<span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
         + '<span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
       + '</div>'
 
@@ -854,7 +854,7 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
             
             + (setup.decision === 'NO_TRADE'
               ? '<div style="font-size:11px;color:var(--text2);line-height:1.4">' + setup.reasons.join('<br>• ') + '</div>'
-              : '<div style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-family:JetBrains Mono,monospace">'
+              : '<div style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-family:Fira Code,monospace">'
                 + '<div style="display:flex;justify-content:space-between"><span>Entry:</span><strong style="color:#10B981">' + setup.entryZone + '</strong></div>'
                 + '<div style="display:flex;justify-content:space-between"><span>Stop Loss:</span><strong style="color:#EF4444">Rp ' + fmtK(setup.stopLoss) + '</strong></div>'
                 + '<div style="display:flex;justify-content:space-between"><span>Target TP1:</span><strong style="color:#38BDF8">Rp ' + fmtK(setup.tp1) + '</strong></div>'
@@ -1014,7 +1014,7 @@ function openAiExplainModal(ticker) {
         + '<p style="margin-top:4px">' + setup.bearishScenario.trigger + '. Jika skenario ini terjadi, analisis dianggap gugur dan posisi harus segera di-cutloss.</p>'
       + '</div>'
 
-      + '<div style="background:var(--bg2);padding:12px;border-radius:8px;border:1px solid var(--border2);font-family:JetBrains Mono,monospace;font-size:12px">'
+      + '<div style="background:var(--bg2);padding:12px;border-radius:8px;border:1px solid var(--border2);font-family:Fira Code,monospace;font-size:12px">'
         + '<div style="font-weight:700;color:var(--accent);margin-bottom:4px">KEPUTUSAN KELAS INSTITUSI:</div>'
         + '<div>BIAS: ' + setup.bias + ' | CONFIDENCE: ' + conf.score + '/100 (' + conf.label + ')</div>'
         + '<div>REKOMENDASI EKSEKUSI: ' + setup.setupType + '</div>'

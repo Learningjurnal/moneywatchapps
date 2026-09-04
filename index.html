@@ -100,7 +100,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" crossorigin="anonymous"></script>
 <script src="js/00-config.js?v=20260902c"></script>
-<!-- Font sesuai invezgo.com: Figtree untuk judul/angka besar, Inter untuk isi — dibaca langsung dari computed style situsnya --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Figtree:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<!-- Yahoo Finance Design System: Yahoo Sans / Inter (primary typography), Public Sans / Fira Code (financial tabular numerals) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Public+Sans:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
 <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
 <script>
@@ -110,39 +113,62 @@
       theme: {
         extend: {
           colors: {
+            yahoo: {
+              purple: '#6001D2',
+              purpleHover: '#5000B3',
+              purpleLight: '#F3ECFC',
+              navy: '#1D252C',
+              darkBg: '#0F151B',
+              darkCard: '#182026',
+              darkCardElevated: '#212B35',
+              darkBorder: '#273440',
+              darkBorderLight: '#354453',
+              green: '#00873C',
+              greenDark: '#00C805',
+              greenBg: '#ECFDF3',
+              red: '#D0163A',
+              redDark: '#FF333A',
+              redBg: '#FFF1F3',
+              blue: '#0F69FF',
+              amber: '#FF9E00',
+              muted: '#727B83',
+              lightBg: '#F5F7FA',
+              lightCard: '#FFFFFF',
+              lightBorder: '#E0E4E9'
+            },
             terminal: {
-              bg: '#0A0D14',
-              surface: '#101522',
-              surface2: '#151C2C',
-              border: '#1E293B',
-              border2: '#26344E'
+              bg: '#0F151B',
+              surface: '#182026',
+              surface2: '#212B35',
+              border: '#273440',
+              border2: '#354453'
             },
             slate: {
-              950: '#06080D',
-              900: '#0A0D14',
-              850: '#0E131F',
-              800: '#101522',
-              750: '#151C2C',
-              700: '#1C263B',
-              600: '#26344E',
-              500: '#475569',
-              400: '#94A3B8'
+              950: '#0B0F13',
+              900: '#0F151B',
+              850: '#141C22',
+              800: '#182026',
+              750: '#212B35',
+              700: '#273440',
+              600: '#354453',
+              500: '#727B83',
+              400: '#9CA5AF'
             },
             neon: {
-              green: '#00F59B',
-              emerald: '#10B981',
-              blue: '#00D4FF',
-              cyan: '#38BDF8',
-              amber: '#FFB800',
-              orange: '#FF8800',
-              red: '#FF3B5C',
-              purple: '#C084FC'
+              green: '#00C805',
+              emerald: '#00873C',
+              blue: '#0F69FF',
+              cyan: '#00A3FF',
+              amber: '#FF9E00',
+              orange: '#FF7000',
+              red: '#FF333A',
+              purple: '#8B3DFF'
             }
           },
           fontFamily: {
-            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
-            display: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif']
+            mono: ['Fira Code', 'Public Sans', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'sans-serif'],
+            display: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'sans-serif']
           }
         }
       }
@@ -251,10 +277,10 @@
   <div style="display:flex;align-items:center;gap:12px">
     <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Buka/tutup menu navigasi">☰</button>
     <div class="logo" style="display:flex;align-items:center;gap:7px;cursor:pointer" onclick="goPage('dashboard')">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="4" stroke="#3B82F6" stroke-width="1.5"/>
-        <path d="M7 14 L10 10 L13 13 L17 8" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="17" cy="8" r="1.5" fill="#3B82F6"/>
+      <svg class="tb-logo-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M7 14 L10 10 L13 13 L17 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="17" cy="8" r="1.5" fill="currentColor"/>
       </svg>
       <span class="logo" style="color:var(--text);font-weight:800">MONEY<span style="color:var(--accent)">WATCH</span> <span style="font-size:10px;padding:1px 5px;background:rgba(59,130,246,0.18);border:1px solid rgba(59,130,246,0.3);border-radius:4px;color:var(--accent);font-weight:700">PRO</span></span>
     </div>
@@ -626,9 +652,17 @@
                         <!-- D3.js Portfolio Volatility vs Benchmark (IHSG) Chart (12 Bulan Terakhir) -->
                         <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px">
                             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-                                <span style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px">
-                                    📈 Volatility vs IHSG (12B)
-                                </span>
+                                <div style="display:flex;align-items:center;gap:6px">
+                                    <span style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px">
+                                        📈 Volatility vs IHSG (12B)
+                                    </span>
+                                    <!-- Zoom Controls -->
+                                    <div class="zoom-ctl" style="display:inline-flex;align-items:center;gap:2px;background:var(--bg2);border:1px solid var(--border2);border-radius:5px;padding:1px 3px" title="Zoom in/out untuk analisa periode stress pasar secara presisi">
+                                        <button id="btn-vol-zoom-in" onclick="zoomVolChart(1)" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:1px 5px;line-height:1;border-radius:3px;font-family:var(--font-mono);font-weight:700" title="Zoom In (+)">➕</button>
+                                        <button id="btn-vol-zoom-out" onclick="zoomVolChart(-1)" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:1px 5px;line-height:1;border-radius:3px;font-family:var(--font-mono);font-weight:700" title="Zoom Out (-)">➖</button>
+                                        <button id="btn-vol-zoom-reset" onclick="resetVolChartZoom()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:9.5px;padding:1px 4px;line-height:1;border-radius:3px;font-family:var(--font-mono);font-weight:600" title="Reset Zoom">1:1</button>
+                                    </div>
+                                </div>
                                 <div style="display:flex;align-items:center;gap:8px;font-size:9.5px;font-weight:600">
                                     <span style="display:flex;align-items:center;gap:4px;color:var(--accent-blue)">
                                         <span style="width:7px;height:7px;border-radius:2px;background:var(--accent-blue)"></span> Portofolio
@@ -2392,11 +2426,7 @@
     <!-- LEFT ASIDE / SUB-NAV -->
     <aside class="sm-aside">
       <div class="sm-brand">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2 17L12 22L22 17" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2 12L12 17L22 12" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <i class="ti ti-building-bank" style="font-size:18px;color:#3B82F6"></i>
         Fundamental <span style="color:#3B82F6">PRO</span>
       </div>
 
@@ -2712,11 +2742,7 @@
     <!-- LEFT ASIDE / SUB-NAV -->
     <aside class="sm-aside">
       <div class="sm-brand" style="border-bottom-color:rgba(247,147,26,0.3)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#f7931a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2 17L12 22L22 17" stroke="#f7931a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2 12L12 17L22 12" stroke="#f7931a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <i class="ti ti-currency-bitcoin" style="font-size:18px;color:#f7931a"></i>
         Crypto <span style="color:#f7931a">WHALE &amp; TECH</span>
       </div>
 
@@ -2807,9 +2833,7 @@
     <!-- LEFT ASIDE / SUB-NAV -->
     <aside class="sm-aside">
       <div class="sm-brand" style="border-bottom-color:#3B2D60">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M18 20V10M12 20V4M6 20V14" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <i class="ti ti-chart-candle" style="font-size:18px;color:#8B5CF6"></i>
         Technical <span style="color:#8B5CF6">PRO</span>
       </div>
 

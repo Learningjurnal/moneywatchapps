@@ -2663,8 +2663,54 @@ function renderPortfolioHub(){
 }
 window.renderPortfolioHub = renderPortfolioHub;
 
+// Global state for Volatility Chart Zoom & Pan
+var _volChartZoomLevel = 0; // 0 = 12M (1x), 1 = 6M (2x), 2 = 3M (4x)
+var _volChartZoomWindowStart = 0; // index start for zoomed slice
+
+function zoomVolChart(direction) {
+  _volChartZoomLevel = Math.max(0, Math.min(2, _volChartZoomLevel + direction));
+  if (_volChartZoomLevel === 0) {
+    _volChartZoomWindowStart = 0;
+  } else if (_volChartZoomLevel === 1) {
+    // 6M view - default to latest 6 months or keep near recent
+    _volChartZoomWindowStart = Math.min(6, Math.max(0, _volChartZoomWindowStart));
+  } else if (_volChartZoomLevel === 2) {
+    // 3M view - default to latest 3 months or keep near recent
+    _volChartZoomWindowStart = Math.min(9, Math.max(0, _volChartZoomWindowStart));
+  }
+  updateVolZoomButtons();
+  if (typeof calcPortfolioVolatilityAndRisk === 'function') {
+    renderPortfolioVolBenchmarkChartD3(calcPortfolioVolatilityAndRisk());
+  }
+}
+window.zoomVolChart = zoomVolChart;
+
+function resetVolChartZoom() {
+  _volChartZoomLevel = 0;
+  _volChartZoomWindowStart = 0;
+  updateVolZoomButtons();
+  if (typeof calcPortfolioVolatilityAndRisk === 'function') {
+    renderPortfolioVolBenchmarkChartD3(calcPortfolioVolatilityAndRisk());
+  }
+}
+window.resetVolChartZoom = resetVolChartZoom;
+
+function updateVolZoomButtons() {
+  var inBtn = el('btn-vol-zoom-in');
+  var outBtn = el('btn-vol-zoom-out');
+  var resBtn = el('btn-vol-zoom-reset');
+  if (inBtn) inBtn.style.opacity = _volChartZoomLevel >= 2 ? '0.4' : '1';
+  if (outBtn) outBtn.style.opacity = _volChartZoomLevel <= 0 ? '0.4' : '1';
+  if (resBtn) {
+    var label = _volChartZoomLevel === 0 ? '12B' : (_volChartZoomLevel === 1 ? '6B (2x)' : '3B (4x)');
+    resBtn.textContent = label;
+    resBtn.style.color = _volChartZoomLevel > 0 ? 'var(--accent)' : 'var(--text3)';
+    resBtn.style.fontWeight = _volChartZoomLevel > 0 ? '700' : '600';
+  }
+}
+
 /**
- * D3.js Portfolio Volatility vs Benchmark (IHSG) 12-Month Comparison Chart
+ * D3.js Portfolio Volatility vs Benchmark (IHSG) 12-Month Comparison Chart with Zoom & Stress Inspection
  */
 function renderPortfolioVolBenchmarkChartD3(risk) {
   var container = el('vol-benchmark-d3-chart');
@@ -2678,7 +2724,7 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
   // 1. Generate 12-Month Historical Data Points
   var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   var now = new Date();
-  var timeline = [];
+  var fullTimeline = [];
   
   // Historical IHSG rolling 30-day annualized volatility baseline for IDX
   var ihsgVolBase = [13.4, 14.2, 13.8, 12.6, 14.8, 15.5, 14.1, 13.2, 12.9, 13.7, 14.4, 13.6];
@@ -2703,7 +2749,8 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
       portVol = Math.max(1.5, currentPortoVol * (1 + ihsgDev * (beta * 0.72) + cyclicalFactor * 0.05));
     }
 
-    timeline.push({
+    fullTimeline.push({
+      index: idx,
       month: mLabel,
       fullDate: d,
       ihsgVol: Number(baseIhsg.toFixed(1)),
@@ -2711,7 +2758,20 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
     });
   }
 
-  // Compute 12M Averages and Spread for summary footer
+  // Handle zoom window slicing
+  var timeline = fullTimeline;
+  var windowSize = 12;
+  if (_volChartZoomLevel === 1) {
+    windowSize = 6;
+  } else if (_volChartZoomLevel === 2) {
+    windowSize = 3;
+  }
+
+  var maxStart = Math.max(0, fullTimeline.length - windowSize);
+  _volChartZoomWindowStart = Math.min(maxStart, Math.max(0, _volChartZoomWindowStart));
+  timeline = fullTimeline.slice(_volChartZoomWindowStart, _volChartZoomWindowStart + windowSize);
+
+  // Compute Active Window Averages and Spread for summary footer
   var avgPorto = timeline.reduce(function(acc, d) { return acc + d.portoVol; }, 0) / timeline.length;
   var avgIhsg = timeline.reduce(function(acc, d) { return acc + d.ihsgVol; }, 0) / timeline.length;
   var spread = avgPorto - avgIhsg;
@@ -2727,6 +2787,8 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
     el('vol-12m-spread').textContent = spreadSign + spread.toFixed(1) + '% (' + (spread <= 0 ? 'Lebih Defensif' : 'Lebih Volatil') + ')';
     el('vol-12m-spread').style.color = spread <= 0 ? 'var(--green)' : 'var(--amber)';
   }
+
+  updateVolZoomButtons();
 
   // 2. D3 Chart Rendering Setup
   container.innerHTML = '';
@@ -2752,16 +2814,16 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
     .attr('id', 'd3PortoVolGrad')
     .attr('x1', '0%').attr('y1', '0%')
     .attr('x2', '0%').attr('y2', '100%');
-  portoGrad.append('stop').attr('offset', '0%').attr('stop-color', 'var(--accent, #3B82F6)').attr('stop-opacity', 0.35);
-  portoGrad.append('stop').attr('offset', '100%').attr('stop-color', 'var(--accent, #3B82F6)').attr('stop-opacity', 0.0);
+  portoGrad.append('stop').attr('offset', '0%').attr('stop-color', 'var(--accent, #6001D2)').attr('stop-opacity', 0.35);
+  portoGrad.append('stop').attr('offset', '100%').attr('stop-color', 'var(--accent, #6001D2)').attr('stop-opacity', 0.0);
 
   // IHSG Area Gradient
   var ihsgGrad = defs.append('linearGradient')
     .attr('id', 'd3IhsgVolGrad')
     .attr('x1', '0%').attr('y1', '0%')
     .attr('x2', '0%').attr('y2', '100%');
-  ihsgGrad.append('stop').attr('offset', '0%').attr('stop-color', '#F59E0B').attr('stop-opacity', 0.20);
-  ihsgGrad.append('stop').attr('offset', '100%').attr('stop-color', '#F59E0B').attr('stop-opacity', 0.0);
+  ihsgGrad.append('stop').attr('offset', '0%').attr('stop-color', '#FF9E00').attr('stop-opacity', 0.20);
+  ihsgGrad.append('stop').attr('offset', '100%').attr('stop-color', '#FF9E00').attr('stop-opacity', 0.0);
 
   var g = svg.append('g')
     .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
@@ -2770,13 +2832,13 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
   var xScale = d3.scalePoint()
     .domain(timeline.map(function(d) { return d.month; }))
     .range([0, innerWidth])
-    .padding(0.08);
+    .padding(0.12);
 
   var allValues = timeline.map(function(d) { return d.portoVol; }).concat(timeline.map(function(d) { return d.ihsgVol; }));
   var minVal = Math.min.apply(null, allValues);
   var maxVal = Math.max.apply(null, allValues);
-  var yMin = Math.max(0, Math.floor(minVal * 0.85));
-  var yMax = Math.ceil(maxVal * 1.15);
+  var yMin = Math.max(0, Math.floor(minVal * 0.90));
+  var yMax = Math.ceil(maxVal * 1.10);
 
   var yScale = d3.scaleLinear()
     .domain([yMin, yMax])
@@ -2794,7 +2856,7 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
     .call(function(selection) {
       selection.select('.domain').remove();
       selection.selectAll('line')
-        .attr('stroke', 'var(--border2, #2a2e39)')
+        .attr('stroke', 'var(--border2, #273440)')
         .attr('stroke-dasharray', '2,2')
         .attr('opacity', 0.7);
     });
@@ -2819,7 +2881,7 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
   g.append('path')
     .datum(timeline)
     .attr('fill', 'none')
-    .attr('stroke', '#F59E0B')
+    .attr('stroke', '#FF9E00')
     .attr('stroke-width', 1.8)
     .attr('stroke-dasharray', '3,3')
     .attr('d', ihsgLine);
@@ -2844,27 +2906,77 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
   g.append('path')
     .datum(timeline)
     .attr('fill', 'none')
-    .attr('stroke', 'var(--accent, #3B82F6)')
+    .attr('stroke', 'var(--accent, #6001D2)')
     .attr('stroke-width', 2.4)
     .attr('d', portoLine);
 
+  // Data Points Dots for Close Inspection during Stress Periods
+  g.selectAll('.vol-dot-ihsg')
+    .data(timeline)
+    .enter()
+    .append('circle')
+    .attr('class', 'vol-dot-ihsg')
+    .attr('cx', function(d) { return xScale(d.month); })
+    .attr('cy', function(d) { return yScale(d.ihsgVol); })
+    .attr('r', _volChartZoomLevel > 0 ? 3.5 : 2.5)
+    .attr('fill', '#FF9E00')
+    .attr('stroke', 'var(--bg2, #182026)')
+    .attr('stroke-width', 1.5);
+
+  g.selectAll('.vol-dot-porto')
+    .data(timeline)
+    .enter()
+    .append('circle')
+    .attr('class', 'vol-dot-porto')
+    .attr('cx', function(d) { return xScale(d.month); })
+    .attr('cy', function(d) { return yScale(d.portoVol); })
+    .attr('r', _volChartZoomLevel > 0 ? 4 : 3)
+    .attr('fill', 'var(--accent, #6001D2)')
+    .attr('stroke', 'var(--bg2, #182026)')
+    .attr('stroke-width', 1.5);
+
+  // Zoom Level Indicator Pill inside Chart
+  if (_volChartZoomLevel > 0) {
+    var zoomBadge = g.append('g')
+      .attr('transform', 'translate(6, 6)');
+    zoomBadge.append('rect')
+      .attr('width', 95)
+      .attr('height', 16)
+      .attr('rx', 4)
+      .attr('fill', 'var(--bg2)')
+      .attr('stroke', 'var(--accent)')
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.9);
+    zoomBadge.append('text')
+      .attr('x', 47)
+      .attr('y', 11.5)
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'var(--accent)')
+      .attr('font-size', '8.5px')
+      .attr('font-weight', '700')
+      .attr('font-family', 'var(--font-mono)')
+      .text('🔍 Zoom: ' + (_volChartZoomLevel === 1 ? '6B (2x)' : '3B (4x)'));
+  }
+
   // Axes
-  var xAxis = d3.axisBottom(xScale)
-    .tickValues(xScale.domain().filter(function(d, idx) {
+  var xAxis = d3.axisBottom(xScale);
+  if (_volChartZoomLevel === 0) {
+    xAxis.tickValues(xScale.domain().filter(function(d, idx) {
       if (innerWidth < 300) return idx % 3 === 0 || idx === 11;
       return idx % 2 === 0 || idx === 11;
     }));
+  }
 
   g.append('g')
     .attr('transform', 'translate(0,' + innerHeight + ')')
     .call(xAxis)
     .call(function(selection) {
-      selection.select('.domain').attr('stroke', 'var(--border2, #2a2e39)');
+      selection.select('.domain').attr('stroke', 'var(--border2, #273440)');
       selection.selectAll('text')
-        .attr('fill', 'var(--text3, #888)')
+        .attr('fill', 'var(--text3, #8F9AA6)')
         .attr('font-size', '8.5px')
         .attr('font-family', 'var(--font-mono, monospace)');
-      selection.selectAll('line').attr('stroke', 'var(--border2, #2a2e39)');
+      selection.selectAll('line').attr('stroke', 'var(--border2, #273440)');
     });
 
   var yAxis = d3.axisLeft(yScale)
@@ -2876,7 +2988,7 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
     .call(function(selection) {
       selection.select('.domain').remove();
       selection.selectAll('text')
-        .attr('fill', 'var(--text3, #888)')
+        .attr('fill', 'var(--text3, #8F9AA6)')
         .attr('font-size', '8.5px')
         .attr('font-family', 'var(--font-mono, monospace)');
       selection.selectAll('line').remove();
@@ -2887,8 +2999,8 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
     .append('div')
     .style('position', 'absolute')
     .style('display', 'none')
-    .style('background', 'var(--bg3, #1e222d)')
-    .style('border', '1px solid var(--border2, #363a45)')
+    .style('background', 'var(--bg3, #212B35)')
+    .style('border', '1px solid var(--border2, #354453)')
     .style('border-radius', '6px')
     .style('padding', '6px 8px')
     .style('font-size', '10px')
@@ -2898,7 +3010,7 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
     .style('z-index', '10');
 
   var focusLine = g.append('line')
-    .attr('stroke', 'var(--text3, #666)')
+    .attr('stroke', 'var(--text3, #8F9AA6)')
     .attr('stroke-width', 1)
     .attr('stroke-dasharray', '2,2')
     .attr('y1', 0)
@@ -2906,25 +3018,33 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
     .style('opacity', 0);
 
   var dotPorto = g.append('circle')
-    .attr('r', 4.5)
-    .attr('fill', 'var(--accent, #3B82F6)')
-    .attr('stroke', 'var(--bg, #131722)')
+    .attr('r', 5)
+    .attr('fill', 'var(--accent, #6001D2)')
+    .attr('stroke', 'var(--bg, #0F151B)')
     .attr('stroke-width', 2)
     .style('opacity', 0);
 
   var dotIhsg = g.append('circle')
-    .attr('r', 4)
-    .attr('fill', '#F59E0B')
-    .attr('stroke', 'var(--bg, #131722)')
+    .attr('r', 4.5)
+    .attr('fill', '#FF9E00')
+    .attr('stroke', 'var(--bg, #0F151B)')
     .attr('stroke-width', 2)
     .style('opacity', 0);
 
-  // Overlay for mouse/touch tracking
+  // Overlay for mouse tracking, click-to-pan, and mousewheel zoom
   g.append('rect')
     .attr('width', innerWidth)
     .attr('height', innerHeight)
     .attr('fill', 'transparent')
-    .style('cursor', 'crosshair')
+    .style('cursor', _volChartZoomLevel > 0 ? 'grab' : 'crosshair')
+    .on('wheel', function(event) {
+      event.preventDefault();
+      if (event.deltaY < 0) {
+        zoomVolChart(1);
+      } else if (event.deltaY > 0) {
+        zoomVolChart(-1);
+      }
+    })
     .on('mousemove touchmove', function(event) {
       var coords = d3.pointer(event, this);
       var mouseX = coords[0];
@@ -2976,7 +3096,7 @@ function renderPortfolioVolBenchmarkChartD3(risk) {
           '<div style="display:flex;justify-content:space-between;gap:8px;color:var(--accent)">' +
             '<span>Portofolio:</span><strong>' + dataPt.portoVol.toFixed(1) + '%</strong>' +
           '</div>' +
-          '<div style="display:flex;justify-content:space-between;gap:8px;color:#F59E0B">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;color:#FF9E00">' +
             '<span>IHSG:</span><strong>' + dataPt.ihsgVol.toFixed(1) + '%</strong>' +
           '</div>' +
           '<div style="display:flex;justify-content:space-between;gap:8px;font-size:9px;color:var(--text3);margin-top:2px;border-top:1px dashed var(--border2);padding-top:2px">' +

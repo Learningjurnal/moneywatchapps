@@ -1049,6 +1049,101 @@ async function fireSaveAllData(){
   }
 }
 
+function _applyCloudPayload(cloudData, currentLocalState) {
+  if (!cloudData) return;
+  var localState = currentLocalState || {
+    transactions: transactions || [],
+    dividends: dividends || [],
+    rdnMutations: rdnMutations || [],
+    cryptoTx: cryptoTx || [],
+    etfTx: etfTx || [],
+    rdTx: rdTx || [],
+    divInvestData: divInvestData || [],
+    tradeStrategy: tradeStrategy || {},
+    theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
+    journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
+    wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
+    taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
+    cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
+    activeSekuritas: activeSekuritas || 'Stockbit',
+    rdnBalance: rdnBalance || 0
+  };
+
+  var merged = _mergeDatasets(localState, cloudData);
+
+  transactions = merged.transactions || [];
+  dividends = merged.dividends || [];
+  rdnMutations = merged.rdnMutations || [];
+  cryptoTx = merged.cryptoTx || [];
+  etfTx = merged.etfTx || [];
+  rdTx = merged.rdTx || [];
+  divInvestData = merged.divInvestData || [];
+  activeSekuritas = merged.activeSekuritas || 'Stockbit';
+
+  if(merged.taxSettings && typeof TAX_SETTINGS !== 'undefined'){
+    Object.assign(TAX_SETTINGS, merged.taxSettings);
+  }
+  if(merged.cashAccounts && typeof CASH_ACCOUNTS !== 'undefined'){
+    Object.assign(CASH_ACCOUNTS, merged.cashAccounts);
+  }
+
+  tradeStrategy = merged.tradeStrategy || {};
+  if(merged.theses && typeof MW_THESES !== 'undefined') MW_THESES = merged.theses;
+  if(merged.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = merged.journals;
+
+  if(merged.wealth && typeof WEALTH !== 'undefined'){
+    Object.keys(WEALTH).forEach(function(k){
+      if(merged.wealth[k] !== undefined) WEALTH[k] = merged.wealth[k];
+    });
+    if(typeof wUpdateDueBadge === 'function') wUpdateDueBadge();
+  }
+
+  if(cloudData.equityHistory && Array.isArray(cloudData.equityHistory) && cloudData.equityHistory.length > 0){
+    if(typeof equityHistorySave === 'function') equityHistorySave(cloudData.equityHistory);
+  } else if(typeof equityHistoryLoad === 'function') {
+    equityHistoryLoad();
+  }
+
+  if(cloudData.adminMeta && typeof ADMIN_META !== 'undefined') ADMIN_META = cloudData.adminMeta;
+  if(cloudData.adminExtra && typeof ADMIN_EXTRA !== 'undefined') ADMIN_EXTRA = cloudData.adminExtra;
+  if(cloudData.idxUniverse && typeof IDX_UNIVERSE !== 'undefined') IDX_UNIVERSE = cloudData.idxUniverse;
+  if(cloudData.idxUniverseInfo && typeof IDX_UNIVERSE_INFO !== 'undefined') IDX_UNIVERSE_INFO = cloudData.idxUniverseInfo;
+
+  nextTxId  = Math.max(cloudData.nextTxId || 1, _maxIdPlus1(transactions));
+  nextDivId = Math.max(cloudData.nextDivId || 1, _maxIdPlus1(dividends));
+  nextRdnId = Math.max(cloudData.nextRdnId || 1, _maxIdPlus1(rdnMutations));
+  nextCryptoId = Math.max(cloudData.nextCryptoId || 1, _maxIdPlus1(cryptoTx));
+  nextEtfId    = Math.max(cloudData.nextEtfId || 1, _maxIdPlus1(etfTx));
+  nextRdId     = Math.max(cloudData.nextRdId || 1, _maxIdPlus1(rdTx));
+
+  if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
+  else if(typeof sanitizeRdnMutations === 'function') sanitizeRdnMutations();
+  else if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+
+  try {
+    var mergedPayload = {
+      transactions: transactions,
+      dividends: dividends,
+      rdnMutations: rdnMutations,
+      cryptoTx: cryptoTx,
+      etfTx: etfTx,
+      rdTx: rdTx,
+      divInvestData: divInvestData,
+      tradeStrategy: tradeStrategy,
+      activeSekuritas: activeSekuritas,
+      rdnBalance: rdnBalance,
+      taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
+      cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
+      theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
+      journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
+      wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('mw_local_data_v2', JSON.stringify(mergedPayload));
+    localStorage.setItem('mw_emergency_backup_v2', JSON.stringify(mergedPayload));
+  } catch(e){}
+}
+
 async function fireLoadAllData(){
   var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
   var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_40gmail_com';
@@ -1059,11 +1154,11 @@ async function fireLoadAllData(){
     
     var snap = null;
     try {
-      // Ambil snapshot langsung dari Firestore
+      // Ambil snapshot langsung dari Firestore (dengan fallback cepat jika offline)
       snap = await Promise.race([
         mainDataRef.get(),
         new Promise(function(_, reject) {
-          setTimeout(function() { reject(new Error('Firestore connection timeout, checking fallback')); }, 4500);
+          setTimeout(function() { reject(new Error('Firestore connection timeout, checking cache')); }, 3500);
         })
       ]);
     } catch(fetchErr) {
@@ -1071,7 +1166,23 @@ async function fireLoadAllData(){
         snap = await mainDataRef.get({ source: 'cache' });
       } catch(cacheErr) {
         var msg = (fetchErr && fetchErr.message) ? fetchErr.message : String(fetchErr);
-        console.warn('Firestore load notice:', msg);
+        console.warn('Firestore offline cache notice:', msg);
+        // Fallback to server mirror if available
+        if (typeof fetch === 'function') {
+          try {
+            var srvRes = await fetch('/api/user-data/load?uid=' + encodeURIComponent(uid));
+            if (srvRes.ok) {
+              var srvJson = await srvRes.json();
+              if (srvJson && srvJson.data) {
+                _applyCloudPayload(srvJson.data);
+                if(typeof renderPage === 'function' && typeof currentPage !== 'undefined'){
+                  renderPage(currentPage);
+                }
+                return true;
+              }
+            }
+          } catch(e) {}
+        }
         return false;
       }
     }
@@ -1130,84 +1241,7 @@ async function fireLoadAllData(){
     }
 
     var cloudData = snap.data() || {};
-
-    // ── SMART BI-DIRECTIONAL MERGE ──
-    var merged = _mergeDatasets(currentLocalState, cloudData);
-
-    transactions = merged.transactions || [];
-    dividends = merged.dividends || [];
-    rdnMutations = merged.rdnMutations || [];
-    cryptoTx = merged.cryptoTx || [];
-    etfTx = merged.etfTx || [];
-    rdTx = merged.rdTx || [];
-    divInvestData = merged.divInvestData || [];
-    activeSekuritas = merged.activeSekuritas || 'Stockbit';
-
-    if(merged.taxSettings && typeof TAX_SETTINGS !== 'undefined'){
-      Object.assign(TAX_SETTINGS, merged.taxSettings);
-    }
-    if(merged.cashAccounts && typeof CASH_ACCOUNTS !== 'undefined'){
-      Object.assign(CASH_ACCOUNTS, merged.cashAccounts);
-    }
-
-    tradeStrategy = merged.tradeStrategy || {};
-    if(merged.theses && typeof MW_THESES !== 'undefined') MW_THESES = merged.theses;
-    if(merged.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = merged.journals;
-
-    if(merged.wealth && typeof WEALTH !== 'undefined'){
-      Object.keys(WEALTH).forEach(function(k){
-        if(merged.wealth[k] !== undefined) WEALTH[k] = merged.wealth[k];
-      });
-      if(typeof wUpdateDueBadge === 'function') wUpdateDueBadge();
-    }
-
-    if(cloudData.equityHistory && Array.isArray(cloudData.equityHistory) && cloudData.equityHistory.length > 0){
-      if(typeof equityHistorySave === 'function') equityHistorySave(cloudData.equityHistory);
-    } else if(typeof equityHistoryLoad === 'function') {
-      equityHistoryLoad();
-    }
-
-    if(cloudData.adminMeta && typeof ADMIN_META !== 'undefined') ADMIN_META = cloudData.adminMeta;
-    if(cloudData.adminExtra && typeof ADMIN_EXTRA !== 'undefined') ADMIN_EXTRA = cloudData.adminExtra;
-    if(cloudData.idxUniverse && typeof IDX_UNIVERSE !== 'undefined') IDX_UNIVERSE = cloudData.idxUniverse;
-    if(cloudData.idxUniverseInfo && typeof IDX_UNIVERSE_INFO !== 'undefined') IDX_UNIVERSE_INFO = cloudData.idxUniverseInfo;
-
-    nextTxId  = Math.max(cloudData.nextTxId || 1, _maxIdPlus1(transactions));
-    nextDivId = Math.max(cloudData.nextDivId || 1, _maxIdPlus1(dividends));
-    nextRdnId = Math.max(cloudData.nextRdnId || 1, _maxIdPlus1(rdnMutations));
-    nextCryptoId = Math.max(cloudData.nextCryptoId || 1, _maxIdPlus1(cryptoTx));
-    nextEtfId    = Math.max(cloudData.nextEtfId || 1, _maxIdPlus1(etfTx));
-    nextRdId     = Math.max(cloudData.nextRdId || 1, _maxIdPlus1(rdTx));
-
-    // Recalculate RDN ledger balance and synchronize
-    if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
-    else if(typeof sanitizeRdnMutations === 'function') sanitizeRdnMutations();
-    else if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
-
-    // Persist merged state to local storage & mirror
-    try {
-      var mergedPayload = {
-        transactions: transactions,
-        dividends: dividends,
-        rdnMutations: rdnMutations,
-        cryptoTx: cryptoTx,
-        etfTx: etfTx,
-        rdTx: rdTx,
-        divInvestData: divInvestData,
-        tradeStrategy: tradeStrategy,
-        activeSekuritas: activeSekuritas,
-        rdnBalance: rdnBalance,
-        taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
-        cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
-        theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
-        journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
-        wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
-        savedAt: new Date().toISOString()
-      };
-      localStorage.setItem('mw_local_data_v2', JSON.stringify(mergedPayload));
-      localStorage.setItem('mw_emergency_backup_v2', JSON.stringify(mergedPayload));
-      _syncToServerMirror(mergedPayload);
-    } catch(e){}
+    _applyCloudPayload(cloudData, currentLocalState);
 
     // If local state had new items not in cloud, push to Firestore (hanya jika data cloud tidak dalam status explicitly cleared)
     var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');

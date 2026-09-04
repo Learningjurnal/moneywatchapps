@@ -858,31 +858,31 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
     + '<tr>'
     + '  <td style="font-weight:700;color:#F1F5F9">1. Konsensus Valuasi &amp; Margin of Safety<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Rata-rata 4 Model Valuasi vs Harga Pasar</span></td>'
     + '  <td style="color:#CBD5E1">Buffett 9-Step, Graham <code style="color:#60A5FA">√(22.5×E×B)</code>, Lynch PEG 1.0, dan DDM</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (consensusMoSPct >= 0 ? '#10B981' : '#EF4444') + '">Nilai Wajar: Rp ' + Math.round(consensusFairPrice).toLocaleString('id-ID') + '<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Harga Pasar: Rp ' + Math.round(curPrice).toLocaleString('id-ID') + ' (MoS: ' + (consensusMoSPct >= 0 ? '+' : '') + consensusMoSPct.toFixed(1) + '%)</span></td>'
+    + '  <td style="font-family:Fira Code,monospace;font-weight:700;color:' + (consensusMoSPct >= 0 ? '#10B981' : '#EF4444') + '">Nilai Wajar: Rp ' + Math.round(consensusFairPrice).toLocaleString('id-ID') + '<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Harga Pasar: Rp ' + Math.round(curPrice).toLocaleString('id-ID') + ' (MoS: ' + (consensusMoSPct >= 0 ? '+' : '') + consensusMoSPct.toFixed(1) + '%)</span></td>'
     + '  <td style="text-align:right"><span style="background:' + (isValuationUndervalued ? 'rgba(16,185,129,0.2);color:#10B981' : (isValuationFair ? 'rgba(59,130,246,0.2);color:#60A5FA' : 'rgba(239,68,68,0.2);color:#EF4444')) + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + valuationVerdict + '</span></td>'
     + '</tr>'
     + '<tr>'
     + '  <td style="font-weight:700;color:#F1F5F9">2. Efisiensi Modal &amp; Profitabilitas Laba<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Tingkat Pengembalian atas Ekuitas Bersih</span></td>'
     + '  <td style="color:#CBD5E1">ROE = Laba Bersih / Ekuitas | Target Sehat: ROE &ge; 12.0%, NPM &gt; 10%</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (roe >= 0.12 ? '#10B981' : '#60A5FA') + '">ROE: ' + (roe * 100).toFixed(1) + '% | NPM: ' + (pm * 100).toFixed(1) + '%<br><span style="font-size:10px;color:#94A3B8;font-weight:400">EPS: Rp ' + Math.round(eps) + ' / saham</span></td>'
+    + '  <td style="font-family:Fira Code,monospace;font-weight:700;color:' + (roe >= 0.12 ? '#10B981' : '#60A5FA') + '">ROE: ' + (roe * 100).toFixed(1) + '% | NPM: ' + (pm * 100).toFixed(1) + '%<br><span style="font-size:10px;color:#94A3B8;font-weight:400">EPS: Rp ' + Math.round(eps) + ' / saham</span></td>'
     + '  <td style="text-align:right"><span style="background:' + (isRoeSuper ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(59,130,246,0.2);color:#60A5FA') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + roeVerdict + '</span></td>'
     + '</tr>'
     + '<tr>'
     + '  <td style="font-weight:700;color:#F1F5F9">3. Keunggulan Margin &amp; Pricing Power<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Daya Saing Produk &amp; Margin Operasional</span></td>'
     + '  <td style="color:#CBD5E1">Gross Margin = (Pendapatan - COGS) / Pendapatan | Oper. Margin</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (gm >= 0.35 ? '#10B981' : '#60A5FA') + '">Gross Margin: ' + (gm * 100).toFixed(1) + '%<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Operating Margin: ' + (om * 100).toFixed(1) + '%</span></td>'
+    + '  <td style="font-family:Fira Code,monospace;font-weight:700;color:' + (gm >= 0.35 ? '#10B981' : '#60A5FA') + '">Gross Margin: ' + (gm * 100).toFixed(1) + '%<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Operating Margin: ' + (om * 100).toFixed(1) + '%</span></td>'
     + '  <td style="text-align:right"><span style="background:' + (isMoatStrong ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(59,130,246,0.2);color:#60A5FA') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + moatVerdict + '</span></td>'
     + '</tr>'
     + '<tr>'
     + '  <td style="font-weight:700;color:#F1F5F9">4. Solvabilitas &amp; Struktur Permodalan<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Tingkat Utang &amp; Ketahanan Likuiditas</span></td>'
     + '  <td style="color:#CBD5E1">DER = Total Utang / Ekuitas (Target &lt; 1.5x) | Current Ratio &gt; 1.1x</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (dte <= 1.2 ? '#10B981' : (dte <= 2.0 ? '#60A5FA' : '#EF4444')) + '">DER: ' + dte.toFixed(2) + 'x | Likuiditas: ' + cr.toFixed(2) + 'x<br><span style="font-size:10px;color:#94A3B8;font-weight:400">BVPS: Rp ' + Math.round(bvps) + ' | PBV: ' + pbv.toFixed(2) + 'x</span></td>'
+    + '  <td style="font-family:Fira Code,monospace;font-weight:700;color:' + (dte <= 1.2 ? '#10B981' : (dte <= 2.0 ? '#60A5FA' : '#EF4444')) + '">DER: ' + dte.toFixed(2) + 'x | Likuiditas: ' + cr.toFixed(2) + 'x<br><span style="font-size:10px;color:#94A3B8;font-weight:400">BVPS: Rp ' + Math.round(bvps) + ' | PBV: ' + pbv.toFixed(2) + 'x</span></td>'
     + '  <td style="text-align:right"><span style="background:' + (isSolventSafe ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(59,130,246,0.2);color:#60A5FA') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + solvencyVerdict + '</span></td>'
     + '</tr>'
     + '<tr>'
     + '  <td style="font-weight:700;color:#F1F5F9">5. Kualitas Arus Kas &amp; Pembagian Dividen<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Realisasi Kas Operasi vs Laba Akrual</span></td>'
     + '  <td style="color:#CBD5E1">Operating Cash Flow (OCF) &gt; 0, Dividend Yield &amp; Payout Ratio</td>'
-    + '  <td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + (isOcfPositive ? '#10B981' : '#EF4444') + '">OCF: Rp ' + fundFmt(ocf) + '<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Dividend Yield: ' + ((dps / Math.max(1, curPrice)) * 100).toFixed(2) + '% (DPR ' + (payout * 100).toFixed(0) + '%)</span></td>'
+    + '  <td style="font-family:Fira Code,monospace;font-weight:700;color:' + (isOcfPositive ? '#10B981' : '#EF4444') + '">OCF: Rp ' + fundFmt(ocf) + '<br><span style="font-size:10px;color:#94A3B8;font-weight:400">Dividend Yield: ' + ((dps / Math.max(1, curPrice)) * 100).toFixed(2) + '% (DPR ' + (payout * 100).toFixed(0) + '%)</span></td>'
     + '  <td style="text-align:right"><span style="background:' + (isOcfPositive ? 'rgba(16,185,129,0.2);color:#10B981' : 'rgba(239,68,68,0.2);color:#EF4444') + ';padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">' + cashVerdict + '</span></td>'
     + '</tr>';
 
@@ -934,7 +934,7 @@ function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, 
       var fairMoS = futPrice / Math.pow(1 + minReturn, projYears);
       var diff = ((fairMoS - curPrice) / fairMoS * 100);
       var color = diff >= 15 ? '#10B981' : (diff >= 0 ? '#60A5FA' : '#EF4444');
-      rowsHtml += '<td style="font-family:JetBrains Mono,monospace;font-weight:700;color:' + color + '">Rp ' + Math.round(fairMoS).toLocaleString('id-ID') + '<br><span style="font-size:9px;font-weight:400">' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%</span></td>';
+      rowsHtml += '<td style="font-family:Fira Code,monospace;font-weight:700;color:' + color + '">Rp ' + Math.round(fairMoS).toLocaleString('id-ID') + '<br><span style="font-size:9px;font-weight:400">' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%</span></td>';
     });
     rowsHtml += '</tr>';
   });
@@ -1132,8 +1132,8 @@ function techRenderMainChart(ticker) {
   container.innerHTML = ''
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;flex-wrap:wrap;gap:8px">'
     + '  <div style="display:flex;align-items:center;gap:10px">'
-    + '    <span style="font-size:16px;font-weight:800;color:var(--text);font-family:JetBrains Mono,monospace">' + ticker + '</span>'
-    + '    <span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:JetBrains Mono,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
+    + '    <span style="font-size:16px;font-weight:800;color:var(--text);font-family:Fira Code,monospace">' + ticker + '</span>'
+    + '    <span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
     + '    <span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
     + '  </div>'
     + '  <div style="display:flex;gap:6px;align-items:center">'
@@ -1401,7 +1401,7 @@ function techRunFlowScanTab(ticker) {
     indGrid.innerHTML = indItems.map(function(item) {
       return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
         + '  <div style="font-size:11px;color:var(--text3);margin-bottom:4px">' + item.name + '</div>'
-        + '  <div style="font-size:16px;font-weight:700;color:' + (item.pass ? '#10B981' : '#EF4444') + ';font-family:JetBrains Mono,monospace;margin-bottom:4px">' + item.val + '</div>'
+        + '  <div style="font-size:16px;font-weight:700;color:' + (item.pass ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace;margin-bottom:4px">' + item.val + '</div>'
         + '  <div style="font-size:11px;color:var(--text2)">' + item.desc + '</div>'
         + '</div>';
     }).join('');
@@ -1587,7 +1587,7 @@ function techRenderLq45Heatmap() {
     var color = item.chg >= 0 ? '#10B981' : '#EF4444';
     return '<div onclick="techSetTicker(\'' + item.code + '\')" style="background:' + bg + ';border:1px solid ' + (item.chg >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') + ';border-radius:6px;padding:8px;text-align:center;cursor:pointer;transition:transform 0.15s" onmouseover="this.style.transform=\'scale(1.04)\'" onmouseout="this.style.transform=\'scale(1)\'">'
       + '<div style="font-weight:800;font-size:12px;color:var(--text)">' + item.code + '</div>'
-      + '<div style="font-size:11px;font-weight:700;font-family:JetBrains Mono,monospace;color:' + color + '">' + (item.chg >= 0 ? '+' : '') + item.chg.toFixed(2) + '%</div>'
+      + '<div style="font-size:11px;font-weight:700;font-family:Fira Code,monospace;color:' + color + '">' + (item.chg >= 0 ? '+' : '') + item.chg.toFixed(2) + '%</div>'
       + '<div style="font-size:9px;color:var(--text3);margin-top:2px">RSI ' + item.rsi + ' · ' + item.flow + '</div>'
       + '</div>';
   }).join('');

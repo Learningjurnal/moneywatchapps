@@ -23,8 +23,8 @@ function _configureDbSettings(db) {
   if (db && typeof db.settings === 'function') {
     try {
       db.settings({
-        experimentalForceLongPolling: true,
-        ignoreUndefinedProperties: true
+        ignoreUndefinedProperties: true,
+        cacheSizeBytes: (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.CACHE_SIZE_UNLIMITED) ? firebase.firestore.CACHE_SIZE_UNLIMITED : 40000000
       });
     } catch(e) {
       // Settings already frozen or already initialized
@@ -48,7 +48,7 @@ function getFirebaseDb() {
       try {
         _firebaseDb = firebase.firestore();
       } catch(e2) {
-        console.warn("Firestore fallback init:", e2);
+        console.warn("Firestore fallback init notice:", e2);
       }
     }
     if (_firebaseDb) {
@@ -87,7 +87,7 @@ try {
       try {
         _firebaseDb = firebase.firestore();
       } catch(e2) {
-        console.warn("Firestore fallback init:", e2);
+        console.warn("Firestore fallback init notice:", e2);
       }
     }
     if (_firebaseDb) {
@@ -96,9 +96,9 @@ try {
     if (_firebaseDb && typeof _firebaseDb.enablePersistence === 'function') {
       _firebaseDb.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
         if (err && err.code === 'failed-precondition') {
-          console.warn('Firestore persistence notice: multiple tabs open');
+          // Multiple tabs open, persistence can only be enabled in one tab at a time
         } else if (err && err.code === 'unimplemented') {
-          console.warn('Firestore persistence not supported in this browser environment');
+          // Browser does not support IndexedDB persistence
         }
       });
     }
