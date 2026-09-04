@@ -376,6 +376,153 @@ function togglePerfClosed(){
   _perfShowClosed = !_perfShowClosed;
   renderStockPerformance();
 }
+
+var _perfDetailExpanded = false;
+function togglePerfDetail(){
+  _perfDetailExpanded = !_perfDetailExpanded;
+  var wrap = el('perf-table-wrap');
+  var btn = el('btn-toggle-perf-detail');
+  var lbl = el('perf-toggle-label');
+  var arr = el('perf-toggle-arrow');
+  if(wrap){
+    wrap.style.display = _perfDetailExpanded ? 'block' : 'none';
+  }
+  if(btn){
+    btn.setAttribute('aria-expanded', _perfDetailExpanded ? 'true' : 'false');
+  }
+  if(lbl){
+    lbl.textContent = _perfDetailExpanded ? 'Sembunyikan Detail' : 'Lihat Detail';
+  }
+  if(arr){
+    arr.textContent = _perfDetailExpanded ? '▲' : '▼';
+  }
+}
+window.togglePerfDetail = togglePerfDetail;
+
+function renderRealizedVsPotensiChart(rows, totalRealized, totalUnreal, totalAll){
+  // Filter for stocks currently active in portfolio (lot > 0 / not closed)
+  var activeRows = (rows || []).filter(function(r){ return !r.closed && r.lot > 0; });
+
+  // Sort by net P&L descending
+  activeRows.sort(function(a, b){ return b.total - a.total; });
+
+  var totalNetActive = activeRows.reduce(function(a, r){ return a + r.total; }, 0);
+  var totalRealizedActive = activeRows.reduce(function(a, r){ return a + r.realized; }, 0);
+  var totalUnrealActive = activeRows.reduce(function(a, r){ return a + r.unreal; }, 0);
+
+  // Render summary pills
+  var pillBox = el('porto-pnl-summary-pills');
+  if(pillBox){
+    var netStr = (totalNetActive >= 0 ? '+' : '-') + 'Rp ' + fmtK(Math.abs(totalNetActive));
+    var relStr = (totalRealizedActive >= 0 ? '+' : '-') + 'Rp ' + fmtK(Math.abs(totalRealizedActive));
+    var unrStr = (totalUnrealActive >= 0 ? '+' : '-') + 'Rp ' + fmtK(Math.abs(totalUnrealActive));
+
+    pillBox.innerHTML = 
+      '<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);font-size:11px">'
+      + '<span style="color:var(--text3)">Saham Aktif:</span>'
+      + '<span class="mono" style="font-weight:700;color:var(--text)">' + activeRows.length + ' Emiten</span>'
+      + '</div>'
+      + '<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);font-size:11px">'
+      + '<span style="color:var(--text3)">Potensi:</span>'
+      + '<span class="mono ' + (totalUnrealActive >= 0 ? 'up' : 'dn') + '" style="font-weight:700">' + unrStr + '</span>'
+      + '</div>'
+      + '<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);font-size:11px">'
+      + '<span style="color:var(--text3)">Realized:</span>'
+      + '<span class="mono ' + (totalRealizedActive >= 0 ? 'up' : 'dn') + '" style="font-weight:700">' + relStr + '</span>'
+      + '</div>'
+      + '<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:rgba(' + (totalNetActive >= 0 ? '16,185,129' : '239,68,68') + ',.12);border:1px solid rgba(' + (totalNetActive >= 0 ? '16,185,129' : '239,68,68') + ',.35);font-size:11px">'
+      + '<span style="color:var(--text);font-weight:600">Nett Gain/Loss:</span>'
+      + '<span class="mono ' + (totalNetActive >= 0 ? 'up' : 'dn') + '" style="font-weight:800">' + netStr + '</span>'
+      + '</div>';
+  }
+
+  kc('portoRealizedVsPotensi');
+  var cv = el('portoRealizedVsPotensiChart');
+  if(!cv) return;
+
+  if(activeRows.length === 0){
+    var ctx = cv.getContext('2d');
+    if(ctx){
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.font = '12px "Plus Jakarta Sans", sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'center';
+      ctx.fillText('Belum ada saham aktif di portofolio', cv.width / 2, cv.height / 2);
+    }
+    return;
+  }
+
+  var labels = activeRows.map(function(r){ return r.ticker; });
+  var data = activeRows.map(function(r){ return r.total; });
+  var backgroundColors = activeRows.map(function(r){
+    return r.total >= 0 ? 'rgba(52, 211, 153, 0.75)' : 'rgba(244, 63, 94, 0.75)';
+  });
+  var borderColors = activeRows.map(function(r){
+    return r.total >= 0 ? '#10b981' : '#e11d48';
+  });
+
+  charts['portoRealizedVsPotensi'] = new Chart(cv, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Nett Gain / Loss',
+        data: data,
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 1.5,
+        borderRadius: 5,
+        maxBarThickness: Math.max(28, Math.min(54, Math.floor(480 / Math.max(1, activeRows.length))))
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: Object.assign({}, TT, {
+          callbacks: {
+            title: function(items){
+              var idx = items[0].dataIndex;
+              var r = activeRows[idx];
+              return (r ? r.ticker : '') + (r ? ' (' + r.lot + ' Lot)' : '');
+            },
+            label: function(c){
+              var idx = c.dataIndex;
+              var r = activeRows[idx];
+              if(!r) return '';
+              var v = r.total;
+              var sgn = v >= 0 ? '+' : '-';
+              return [
+                'Nett Gain/Loss: ' + sgn + 'Rp ' + fmtK(Math.abs(v)) + ' (' + fmt(Math.abs(v)) + ')',
+                'Potensi (Unrealized): ' + (r.unreal >= 0 ? '+' : '-') + 'Rp ' + fmtK(Math.abs(r.unreal)),
+                'Realized (Realisasi): ' + (r.realized >= 0 ? '+' : '-') + 'Rp ' + fmtK(Math.abs(r.realized))
+              ];
+            }
+          }
+        })
+      },
+      scales: {
+        x: {
+          grid: { color: GC, drawBorder: false },
+          ticks: Object.assign({}, TC, { font: { weight: '700', size: 11 } })
+        },
+        y: {
+          grid: { color: GC, drawBorder: true },
+          ticks: Object.assign({}, TC, {
+            callback: function(v){
+              if (v === 0) return 'Rp 0';
+              var sgn = v > 0 ? '+' : '-';
+              return sgn + 'Rp ' + fmtK(Math.abs(v));
+            }
+          }),
+          position: 'right'
+        }
+      }
+    }
+  });
+}
+
 function renderStockPerformance(){
   var box = el('perf-toolbar-body');
   if(!box) return;
@@ -383,6 +530,13 @@ function renderStockPerformance(){
   var totalRealized = rows.reduce(function(a,r){return a+r.realized;},0);
   var totalUnreal = rows.reduce(function(a,r){return a+r.unreal;},0);
   var totalAll = totalRealized+totalUnreal;
+
+  // Render Nett Gain/Loss per Saham Portofolio Bar Chart
+  try {
+    renderRealizedVsPotensiChart(rows, totalRealized, totalUnreal, totalAll);
+  } catch(e){
+    console.warn('RealizedVsPotensiChart error:', e);
+  }
 
   var sum = el('perf-summary');
   if(sum){
