@@ -3751,7 +3751,347 @@ body.theme-light #page-stockchat [class*="from-slate-900"] {
   border-color: #E2E8F0 !important;
 }
 
-/* ── STOCKCHAT & BANDARMOLOGY COCKPIT CONTROLS (LIGHT THEME) ── */
+/* ══════════════════════════════════════════════════════════
+   GLOBAL ANIMATIONS & SVG SAFETY CONSTRAINTS
+   ══════════════════════════════════════════════════════════ */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite !important;
+  display: inline-block;
+  flex-shrink: 0;
+}
+svg {
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* ══════════════════════════════════════════════════════════
+   STOCKCHAT AI & BANDARMOLOGY COCKPIT CORE STYLES (DARK & LIGHT)
+   ══════════════════════════════════════════════════════════ */
+#page-stockchat,
+#page-bandarmology {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Container & Spacing Fallbacks */
+.stockchat-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 40px;
+}
+
+/* Header & Controls */
+.stockchat-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: rgba(15, 23, 42, 0.85);
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid #1E293B;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.stockchat-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #1E293B;
+  color: #CBD5E1;
+  border: 1px solid #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.stockchat-action-btn:hover {
+  background: #334155;
+  color: #FFFFFF;
+  border-color: #475569;
+}
+
+/* Subtabs bar */
+.stockchat-subtabs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(30, 41, 59, 0.8);
+}
+
+.stockchat-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  color: #94A3B8;
+  background: transparent;
+  transition: all 0.15s ease;
+}
+.stockchat-tab-btn:hover {
+  color: #E2E8F0;
+  background: rgba(30, 41, 59, 0.6);
+}
+.stockchat-tab-btn.active {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+/* Timeframe buttons */
+.stockchat-tf-bar,
+.bandar-tf-bar {
+  display: inline-flex;
+  background: #070A12;
+  border: 1px solid #1E293B;
+  border-radius: 8px;
+  padding: 2px;
+}
+.stockchat-tf-btn,
+.bandar-tf-btn {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #94A3B8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.stockchat-tf-btn:hover,
+.bandar-tf-btn:hover {
+  color: #FFFFFF;
+}
+.stockchat-tf-btn.active,
+.bandar-tf-btn.active {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
+}
+
+/* Ticker Bar */
+.bandar-ticker-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.65);
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(30, 41, 59, 0.8);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.bandar-ticker-btn {
+  padding: 4px 9px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  border-radius: 6px;
+  background: #1E293B;
+  color: #94A3B8;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.bandar-ticker-btn:hover {
+  color: #FFFFFF;
+  background: #334155;
+}
+.bandar-ticker-btn.active {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
+  border-color: #2563EB !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+.bandar-input {
+  background: #070A12;
+  border: 1px solid #334155;
+  color: #FFFFFF;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  outline: none;
+  width: 70px;
+  text-align: center;
+}
+.bandar-input:focus {
+  border-color: #2563EB;
+}
+.bandar-btn-set {
+  background: #1E293B;
+  color: #CBD5E1;
+  border: 1px solid #334155;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bandar-btn-set:hover {
+  background: #334155;
+  color: #FFFFFF;
+}
+
+/* Preset Action Prompts */
+.stockchat-presets-box {
+  background: rgba(15, 23, 42, 0.65);
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(30, 41, 59, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stockchat-preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 0;
+}
+.stockchat-preset-btn:hover {
+  background: rgba(51, 65, 85, 0.8);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-1px);
+}
+.stockchat-preset-btn .preset-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #E2E8F0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+.stockchat-preset-btn .preset-desc {
+  font-size: 10px;
+  color: #94A3B8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  margin-top: 2px;
+}
+
+/* Chat History Box & Bubbles */
+#stockchat-history-box {
+  background: rgba(7, 10, 18, 0.85);
+  border: 1px solid #1E293B;
+  border-radius: 16px;
+  padding: 18px;
+  min-height: 420px;
+  max-height: 600px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.stockchat-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.stockchat-input-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.stockchat-input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid #334155;
+  color: #F8FAFC;
+  font-size: 12px;
+  outline: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.stockchat-input-field:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+.stockchat-send-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+.stockchat-send-btn:hover {
+  background: #1D4ED8;
+}
+.stockchat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── LIGHT THEME OVERRIDES ── */
+body.theme-light .stockchat-topbar {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+}
+body.theme-light .stockchat-topbar h1 {
+  color: #0F172A !important;
+}
+body.theme-light .stockchat-topbar p {
+  color: #64748B !important;
+}
+
 body.theme-light .stockchat-subtabs-bar,
 body.theme-light .bandar-ticker-bar,
 body.theme-light .stockchat-presets-box {
@@ -3774,7 +4114,6 @@ body.theme-light .stockchat-tf-bar {
   background: #F1F5F9 !important;
   border-color: #CBD5E1 !important;
 }
-
 body.theme-light .bandar-tf-btn:not(.active),
 body.theme-light .stockchat-tf-btn:not(.active) {
   color: #475569 !important;
@@ -3830,6 +4169,34 @@ body.theme-light .stockchat-label,
 body.theme-light .bandar-label {
   color: #475569 !important;
 }
+
+body.theme-light #stockchat-history-box {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03) !important;
+}
+body.theme-light .stockchat-input-field {
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+}
+body.theme-light .stockchat-input-field::placeholder {
+  color: #94A3B8 !important;
+}
+body.theme-light #page-stockchat .bg-slate-900 {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+body.theme-light #page-stockchat .text-slate-200,
+body.theme-light #page-stockchat .text-slate-300 {
+  color: #1E293B !important;
+}
+body.theme-light #page-stockchat .text-slate-400,
+body.theme-light #page-stockchat .text-slate-500 {
+  color: #64748B !important;
+}
+
 
 
 

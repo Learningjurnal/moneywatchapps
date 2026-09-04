@@ -509,7 +509,7 @@ async function loadAndRenderBrokerFlowTab() {
 
   STOCKCHAT_IS_LOADING_FLOW = true;
   container.innerHTML = '<div class="flex flex-col items-center justify-center p-12 space-y-3">'
-    + '<svg class="animate-spin h-8 w-8 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>'
+    + '<svg width="32" height="32" class="animate-spin text-emerald-500" style="width:32px;height:32px;min-width:32px;min-height:32px;display:inline-block;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>'
     + '<div class="text-sm font-semibold text-slate-300">Menghubungkan ke Feed Transaksi BEI & Broker Summary untuk ' + tk + '...</div>'
     + '<div class="text-xs text-slate-500">Mengkalkulasi konsentrasi Top Buyer/Seller, Foreign Flow, dan Smart Money Radar</div>'
     + '</div>';
@@ -1558,10 +1558,10 @@ function renderStockChatPage(containerId) {
     });
 
     if (STOCKCHAT_IS_BUSY) {
-      html += '<div class="flex items-start gap-3 justify-start">'
-        + '<div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black shrink-0 animate-pulse">AI</div>'
-        + '<div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 text-xs text-blue-400 flex items-center gap-2">'
-        + '<svg class="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>'
+      html += '<div class="flex items-start gap-3 justify-start stockchat-msg-busy">'
+        + '<div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black shrink-0 animate-pulse stockchat-avatar">AI</div>'
+        + '<div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 text-xs text-blue-400 flex items-center gap-2 stockchat-busy-bubble">'
+        + '<svg width="18" height="18" class="animate-spin text-blue-400" style="width:18px;height:18px;min-width:18px;min-height:18px;display:inline-block;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>'
         + '<span>Memproses kalkulasi Bandarmology, data KSEI & analitik pasar...</span>'
         + '</div>'
         + '</div>';
@@ -1570,14 +1570,14 @@ function renderStockChatPage(containerId) {
     html += '</div>';
 
     // Bottom Input Form
-    html += '<form onsubmit="handleStockChatSubmit(event)" class="relative flex items-center gap-2">'
+    html += '<form onsubmit="handleStockChatSubmit(event)" class="relative flex items-center gap-2 stockchat-input-form">'
       + '<div class="relative flex-1">'
       + '<input id="stockchat-input-text" type="text" placeholder="Tanyakan apa saja (misal: \'Cek broker summary ' + STOCKCHAT_SELECTED_TICKER + ' hari ini\', \'Review portofolio\', \'Simulasi risk reward\')..."'
-      + ' class="w-full pl-4 pr-12 py-3.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xl transition">'
+      + ' class="w-full pl-4 pr-12 py-3.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xl transition stockchat-input-field">'
       + '</div>'
-      + '<button type="submit" ' + (STOCKCHAT_IS_BUSY ? 'disabled' : '') + ' class="px-5 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center gap-1.5 shrink-0">'
+      + '<button type="submit" ' + (STOCKCHAT_IS_BUSY ? 'disabled' : '') + ' class="px-5 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center gap-1.5 shrink-0 stockchat-send-btn">'
       + '<span>Kirim</span>'
-      + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>'
+      + '<svg width="14" height="14" class="w-3.5 h-3.5" style="width:14px;height:14px;min-width:14px;min-height:14px;display:inline-block;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>'
       + '</button>'
       + '</form>';
   }
