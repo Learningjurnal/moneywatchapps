@@ -10,18 +10,37 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23131324'/><path d='M7 21 L13 13 L18 17 L25 8' stroke='%2334d399' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='25' cy='8' r='2' fill='%2334d399'/></svg>">
 <script>
   // Global error safety shield for iframe and cross-origin environments
+  window.onerror = function(msg, url, line, col, error) {
+    var msgStr = (msg || '').toString();
+    if (!msg || msgStr === 'Script error.' || msgStr.indexOf('Script error') !== -1 || msgStr.indexOf('ResizeObserver') !== -1) {
+      console.warn('[MoneyWatch Shield] Suppressed cross-origin / ambient script error:', msg);
+      return true; // Prevents the error from propagating to browser or parent iframe error monitors
+    }
+    if (url && (url.indexOf('chrome-extension') !== -1 || url.indexOf('moz-extension') !== -1)) {
+      return true;
+    }
+    return false;
+  };
+
   window.addEventListener('error', function(e) {
     if (!e) return;
-    if (e.message === 'Script error.' || (e.filename && e.filename.indexOf('chrome-extension') !== -1)) {
-      // Cross-origin script error or extension error suppressed safely
-      console.warn('[MoneyWatch Shield] Suppressed cross-origin script event:', e.message);
+    var msg = (e.message || (e.error && e.error.message) || '').toString();
+    if (!msg || msg === 'Script error.' || msg.indexOf('Script error') !== -1 || msg.indexOf('ResizeObserver') !== -1 || (e.filename && (e.filename.indexOf('chrome-extension') !== -1 || e.filename.indexOf('moz-extension') !== -1))) {
+      console.warn('[MoneyWatch Shield] Suppressed cross-origin script event:', msg);
       if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
       return true;
     }
   }, true);
+
   window.addEventListener('unhandledrejection', function(e) {
-    if (e && e.reason) {
-      console.warn('[MoneyWatch Shield] Handled async promise notice:', e.reason);
+    if (!e) return;
+    var reason = (e.reason ? (e.reason.message || e.reason) : '').toString();
+    if (reason.indexOf('Script error') !== -1 || reason.indexOf('ResizeObserver') !== -1) {
+      console.warn('[MoneyWatch Shield] Handled async promise notice:', reason);
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      return true;
     }
   });
 </script>
@@ -31,24 +50,26 @@
 <script src="js/00-config.js?v=20260902c"></script>
 <!-- Font sesuai invezgo.com: Figtree untuk judul/angka besar, Inter untuk isi — dibaca langsung dari computed style situsnya --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Figtree:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
 <script>
-  tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        colors: {
-          slate: {
-            950: '#070a12',
-            900: '#0B0F19',
-            850: '#0F1626',
-            800: '#131B2E',
-            700: '#232F4D',
-            600: '#334155'
+  if (typeof tailwind !== 'undefined') {
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              950: '#070a12',
+              900: '#0B0F19',
+              850: '#0F1626',
+              800: '#131B2E',
+              700: '#232F4D',
+              600: '#334155'
+            }
           }
         }
       }
-    }
+    };
   }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
@@ -3510,7 +3531,9 @@
     function toggleTheme() {
       document.body.classList.toggle('theme-light');
       const isLight = document.body.classList.contains('theme-light');
-      localStorage.setItem('mw_theme', isLight ? 'light' : 'dark');
+      try {
+        localStorage.setItem('mw_theme', isLight ? 'light' : 'dark');
+      } catch(e) {}
       const icon = document.getElementById('theme-icon');
       if (icon) icon.className = isLight ? 'ti ti-moon' : 'ti ti-sun';
 
@@ -3531,13 +3554,15 @@
       }, 50);
     }
     // Load theme on startup
-    if(localStorage.getItem('mw_theme') === 'light') {
-      document.body.classList.add('theme-light');
-      setTimeout(() => {
-        const icon = document.getElementById('theme-icon');
-        if(icon) icon.className = 'ti ti-moon';
-      }, 100);
-    }
+    try {
+      if(localStorage.getItem('mw_theme') === 'light') {
+        document.body.classList.add('theme-light');
+        setTimeout(() => {
+          const icon = document.getElementById('theme-icon');
+          if(icon) icon.className = 'ti ti-moon';
+        }, 100);
+      }
+    } catch(e) {}
   </script>
 
 </body>

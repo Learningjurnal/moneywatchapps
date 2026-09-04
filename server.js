@@ -706,10 +706,12 @@ function withTimeout(promise, ms = 15000) {
 async function callGeminiWithRetryAndFallback(ai, requestConfig, options = {}) {
   const timeoutMs = options.timeoutMs || 15000;
   const maxRetries = options.maxRetries ?? 2;
-  const primaryModel = requestConfig.model || 'gemini-3.7-flash';
+  const primaryModel = requestConfig.model || 'gemini-3.5-flash';
   // List of fallback models if primary model is unavailable
   const fallbackModels = [
-    primaryModel,
+    'gemini-3.5-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
     'gemini-flash-latest',
     'gemini-3.1-flash-lite'
   ].filter((v, idx, arr) => arr.indexOf(v) === idx);
@@ -1599,7 +1601,7 @@ app.post('/api/ai/agent-chat', async (req, res) => {
       let currentIteration = 0;
       const maxIterations = 5;
       let finalReply = '';
-      let activeEngineModel = 'gemini-3.7-flash';
+      let activeEngineModel = 'gemini-3.5-flash';
 
       while (currentIteration < maxIterations) {
         currentIteration++;
@@ -1607,7 +1609,7 @@ app.post('/api/ai/agent-chat', async (req, res) => {
         const { response, usedModel } = await callGeminiWithRetryAndFallback(
           ai,
           {
-            model: 'gemini-3.7-flash',
+            model: 'gemini-3.5-flash',
             contents: contents,
             config: {
               systemInstruction: SYSTEM_INSTRUCTION_MONEYWATCH_AI,
