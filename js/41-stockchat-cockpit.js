@@ -702,30 +702,30 @@ function renderAggregatedBrokerFlowView(data) {
         ? '🔴 DISTRIBUTION TO RETAIL (Institusi Distribusi ke Akun Ritel)' 
         : (smartMoneyNet > 0 ? '🟢 NET INSTITUTIONAL INFLOW' : '🟡 NEUTRAL / BALANCED ROTATION'));
 
-  var html = '<div class="space-y-5">'
+  var html = '<div class="space-y-4">'
     // Top Banner Card: Verdict & Key Averages
-    + '<div class="p-5 rounded-2xl border bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 shadow-xl ' + (verdict.includes('ACCUM') ? 'border-emerald-800/60' : (verdict.includes('DISTRIB') ? 'border-rose-800/60' : 'border-slate-800')) + '">'
+    + '<div class="bandar-banner-card ' + (verdict.includes('ACCUM') ? 'border-emerald-500/40' : (verdict.includes('DISTRIB') ? 'border-rose-500/40' : '')) + '">'
     + '<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">'
     + '<div class="space-y-1.5">'
     + '<div class="flex items-center gap-2.5 flex-wrap">'
-    + '<span class="px-3 py-1 rounded-lg bg-blue-600/20 border border-blue-500/50 text-blue-300 font-black text-lg tracking-wider font-mono">' + data.ticker + '</span>'
-    + '<span class="text-white font-black text-xl">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</span>'
-    + '<span class="text-xs px-2 py-0.5 rounded font-bold ' + ((data.changePercent || 0) >= 0 ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800' : 'bg-rose-950/60 text-rose-400 border border-rose-800') + '">'
+    + '<span class="px-3 py-1 rounded-lg bg-blue-500/15 border border-blue-500/40 text-blue-400 font-black text-lg tracking-wider font-mono">' + data.ticker + '</span>'
+    + '<span class="font-black text-xl" style="color:var(--text)">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</span>'
+    + '<span class="text-xs px-2 py-0.5 rounded font-bold ' + ((data.changePercent || 0) >= 0 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30') + '">'
     + ((data.changePercent || 0) >= 0 ? '+' : '') + Number(data.changePercent || 0).toFixed(2) + '%'
     + '</span>'
     + '<span class="px-3 py-1 rounded-full border text-xs font-black shadow-md ' + verdictColor + '">' + verdict + '</span>'
     + '</div>'
-    + '<p class="text-xs text-slate-300 max-w-3xl leading-relaxed">' + (b.interpretation || 'Arus transaksi broker terpantau berimbang.') + '</p>'
+    + '<p class="text-xs max-w-3xl leading-relaxed" style="color:var(--text2)">' + (b.interpretation || 'Arus transaksi broker terpantau berimbang.') + '</p>'
     + '</div>'
     + '<div class="flex items-center gap-2 flex-wrap shrink-0">'
     // Multi-Period Timeframe Switcher (1D to 1Y)
-    + '<div class="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 shadow-inner bandar-tf-bar">'
+    + '<div class="flex items-center gap-1 p-1 rounded-xl border shadow-inner bandar-tf-bar" style="background:var(--bg3);border-color:var(--border)">'
     + ['1D', '1W', '1M', '3M', '6M', '1Y'].map(function(tVal) {
         var isTfActive = (data.timeframe || '1D') === tVal;
-        return '<button onclick="setStockChatTimeframe(\'' + tVal + '\')" class="bandar-tf-btn px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition ' + (isTfActive ? 'active bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800/60') + '">' + (tVal === '1Y' ? '1Y (1 Tahun)' : tVal) + '</button>';
+        return '<button onclick="setStockChatTimeframe(\'' + tVal + '\')" class="bandar-tf-btn px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg transition ' + (isTfActive ? 'active bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white') + '">' + (tVal === '1Y' ? '1Y (1 Tahun)' : tVal) + '</button>';
       }).join('')
     + '</div>'
-    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + data.ticker + '\')" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-600/20 transition flex items-center gap-1.5">'
+    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + data.ticker + '\')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg transition flex items-center gap-1.5">'
     + '<i class="ti ti-messages"></i> <span>Tanya AI</span>'
     + '</button>'
     + '</div>'
@@ -735,43 +735,43 @@ function renderAggregatedBrokerFlowView(data) {
   // 4 Main Aggregated Metrics Cards Grid (Visualization)
   html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">'
     // Card 1: Volume & Turnover
-    + '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md space-y-1.5">'
-    + '<div class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center justify-between">'
+    + '<div class="bandar-kpi-card">'
+    + '<div class="bandar-kpi-label">'
     + '<span>Total Turnover (' + (data.timeframe || '1D') + ')</span>'
-    + '<span class="text-slate-500">💰</span>'
+    + '<span>💰</span>'
     + '</div>'
-    + '<div class="text-lg font-black text-white">Rp ' + Math.round((data.totalValueRp || 0) / 1000000000).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="text-[11px] text-slate-400 font-mono">' + Number(data.totalVolumeLot || 0).toLocaleString('id-ID') + ' Lot Traded</div>'
+    + '<div class="bandar-kpi-val">Rp ' + Math.round((data.totalValueRp || 0) / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="bandar-kpi-sub font-mono">' + Number(data.totalVolumeLot || 0).toLocaleString('id-ID') + ' Lot Traded</div>'
     + '</div>'
 
     // Card 2: Foreign Flow
-    + '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md space-y-1.5">'
-    + '<div class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center justify-between">'
+    + '<div class="bandar-kpi-card">'
+    + '<div class="bandar-kpi-label">'
     + '<span>Net Foreign Flow (Asing)</span>'
-    + '<span class="text-slate-500">🌐</span>'
+    + '<span>🌐</span>'
     + '</div>'
-    + '<div>' + netForeignBadge + '</div>'
-    + '<div class="text-[11px] text-slate-400">Partisipasi Asing: <span class="font-bold text-slate-200">' + (ff.participationPct || 0) + '%</span></div>'
+    + '<div class="bandar-kpi-val">' + netForeignBadge + '</div>'
+    + '<div class="bandar-kpi-sub">Partisipasi Asing: <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong></div>'
     + '</div>'
 
     // Card 3: Bandar Average Price
-    + '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md space-y-1.5">'
-    + '<div class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center justify-between">'
+    + '<div class="bandar-kpi-card">'
+    + '<div class="bandar-kpi-label">'
     + '<span>Top 1 Buyer Avg Price</span>'
-    + '<span class="text-slate-500">🎯</span>'
+    + '<span>🎯</span>'
     + '</div>'
-    + '<div class="text-lg font-black text-sky-400">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[11px] text-slate-400">Spread vs Harga: <span class="' + (Number(buyerSpreadPct) >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' font-semibold">' + (Number(buyerSpreadPct) >= 0 ? '+' : '') + buyerSpreadPct + '%</span></div>'
+    + '<div class="bandar-kpi-val text-sky-400">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</div>'
+    + '<div class="bandar-kpi-sub">Spread vs Harga: <span class="' + (Number(buyerSpreadPct) >= 0 ? 'text-emerald-400' : 'text-rose-400') + ' font-semibold">' + (Number(buyerSpreadPct) >= 0 ? '+' : '') + buyerSpreadPct + '%</span></div>'
     + '</div>'
 
     // Card 4: Smart Money Net Flow
-    + '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md space-y-1.5">'
-    + '<div class="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center justify-between">'
+    + '<div class="bandar-kpi-card">'
+    + '<div class="bandar-kpi-label">'
     + '<span>Smart Money Net Flow</span>'
-    + '<span class="text-slate-500">🏦</span>'
+    + '<span>🏦</span>'
     + '</div>'
-    + '<div class="text-base font-black ' + (smartMoneyNet >= 0 ? 'text-emerald-400' : 'text-rose-400') + '">' + (smartMoneyNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smartMoneyNet / 1000000000)).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="text-[11px] text-slate-400 truncate">' + (smartMoneyBuyBrokers.slice(0, 2).map(function(x){return x.broker;}).join(', ') || 'AK, BK') + ' Accumulating</div>'
+    + '<div class="bandar-kpi-val ' + (smartMoneyNet >= 0 ? 'text-emerald-400' : 'text-rose-400') + '">' + (smartMoneyNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smartMoneyNet / 1000000000)).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="bandar-kpi-sub truncate">' + (smartMoneyBuyBrokers.slice(0, 2).map(function(x){return x.broker;}).join(', ') || 'AK, BK') + ' Accumulating</div>'
     + '</div>'
     + '</div>';
 
@@ -779,39 +779,39 @@ function renderAggregatedBrokerFlowView(data) {
   var netMutationM = Math.round(Math.abs(smartMoneyNet) / 1000000000);
   var isInstAccum = smartMoneyNet >= 0;
 
-  html += '<div class="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-950 border border-slate-800 shadow-2xl space-y-4">'
+  html += '<div class="bandar-card space-y-4">'
     + '<div class="flex items-center justify-between flex-wrap gap-2">'
     + '<div class="flex items-center gap-2">'
     + '<span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/40 flex items-center gap-1.5"><i class="ti ti-chart-arrows"></i> ALUR MUTASI DANA BROKER</span>'
-    + '<span class="text-xs text-white font-bold">' + smartMoneySignal + '</span>'
+    + '<span class="text-xs font-bold" style="color:var(--text)">' + smartMoneySignal + '</span>'
     + '</div>'
-    + '<span class="text-[11px] text-slate-400 font-mono">Live Institutional Spectrum</span>'
+    + '<span class="text-[11px] font-mono" style="color:var(--text3)">Live Institutional Spectrum</span>'
     + '</div>'
 
     // Visual Flow Waterfall / Sankey Spectrum Diagram
-    + '<div class="p-4 rounded-xl bg-slate-950/90 border border-slate-800/80 space-y-3">'
+    + '<div class="bandar-spectrum-box space-y-3">'
     + '<div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4 text-center">'
     // Left Node: Smart Money Accumulation Pool
-    + '<div class="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/50 space-y-1.5">'
+    + '<div class="bandar-node-inst space-y-1.5">'
     + '<div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-center gap-1"><i class="ti ti-building-bank"></i> Tier-1 Institusi & Asing</div>'
-    + '<div class="text-lg font-black text-emerald-300 font-mono">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="text-[10px] text-slate-400 truncate">' + (smartMoneyBuyBrokers.map(function(x){return x.broker;}).join(', ') || 'AK, BK, ZP, CC') + '</div>'
+    + '<div class="text-lg font-black text-emerald-400 font-mono">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="text-[10px] truncate" style="color:var(--text3)">' + (smartMoneyBuyBrokers.map(function(x){return x.broker;}).join(', ') || 'AK, BK, ZP, CC') + '</div>'
     + '</div>'
 
     // Center Node: Capital Mutation Stream (Animated Arrow)
     + '<div class="flex flex-col items-center justify-center space-y-1.5 py-2">'
     + '<span class="text-[10px] font-bold uppercase tracking-wider ' + (isInstAccum ? 'text-emerald-400' : 'text-rose-400') + '">' + (isInstAccum ? 'Net Inflow Institusi' : 'Net Distribusi Institusi') + '</span>'
-    + '<div class="flex items-center gap-2 px-3 py-1.5 rounded-full ' + (isInstAccum ? 'bg-emerald-950/80 border border-emerald-600/60 text-emerald-300' : 'bg-rose-950/80 border border-rose-600/60 text-rose-300') + ' text-xs font-black shadow-lg">'
+    + '<div class="bandar-arrow-badge ' + (isInstAccum ? 'accum' : 'distrib') + '">'
     + '<span>' + (isInstAccum ? '➔ Rp ' : '⬅ Rp ') + netMutationM.toLocaleString('id-ID') + ' M ' + (isInstAccum ? '➔' : '⬅') + '</span>'
     + '</div>'
-    + '<span class="text-[10px] text-slate-400 font-mono">' + (isInstAccum ? 'Modal Ritel Terserap ke Institusi' : 'Institusi Melepas ke Ritel') + '</span>'
+    + '<span class="text-[10px] font-mono" style="color:var(--text3)">' + (isInstAccum ? 'Modal Ritel Terserap ke Institusi' : 'Institusi Melepas ke Ritel') + '</span>'
     + '</div>'
 
     // Right Node: Retail & Domestic Absorption Pool
-    + '<div class="p-3 rounded-xl bg-rose-950/40 border border-rose-800/50 space-y-1.5">'
+    + '<div class="bandar-node-retail space-y-1.5">'
     + '<div class="text-[10px] uppercase font-bold text-rose-400 flex items-center justify-center gap-1"><i class="ti ti-users"></i> Partisipasi Publik & Ritel</div>'
-    + '<div class="text-lg font-black text-rose-300 font-mono">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="text-[10px] text-slate-400 truncate">' + (retailSellBrokers.map(function(x){return x.broker;}).join(', ') || 'YP, PD, XC, XL') + '</div>'
+    + '<div class="text-lg font-black text-rose-400 font-mono">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '<div class="text-[10px] truncate" style="color:var(--text3)">' + (retailSellBrokers.map(function(x){return x.broker;}).join(', ') || 'YP, PD, XC, XL') + '</div>'
     + '</div>'
     + '</div>'
 
@@ -819,10 +819,10 @@ function renderAggregatedBrokerFlowView(data) {
     + '<div class="space-y-1 pt-2">'
     + '<div class="flex justify-between text-[11px] font-mono">'
     + '<span class="text-emerald-400 font-bold">Institusi: ' + (smartMoneyBuyVal > 0 ? Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
-    + '<span class="text-slate-400">Spektrum Distribusi Kepemilikan</span>'
+    + '<span style="color:var(--text3)">Spektrum Distribusi Kepemilikan</span>'
     + '<span class="text-rose-400 font-bold">Ritel: ' + (retailSellVal > 0 ? Math.round((retailSellVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
     + '</div>'
-    + '<div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden flex border border-slate-800">'
+    + '<div class="w-full rounded-full h-3 overflow-hidden flex border" style="background:var(--bg4);border-color:var(--border)">'
     + '<div class="bg-gradient-to-r from-emerald-600 to-teal-400 h-3 transition-all duration-700" style="width:' + (smartMoneyBuyVal > 0 ? Math.min(Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100), 95) : 50) + '%"></div>'
     + '<div class="bg-gradient-to-r from-rose-500 to-red-600 h-3 flex-1 transition-all duration-700"></div>'
     + '</div>'
@@ -831,32 +831,32 @@ function renderAggregatedBrokerFlowView(data) {
 
     // Concentration Meters (Top 1, 3, 5)
     + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">'
-    + '<div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5">'
+    + '<div class="p-3 rounded-xl border space-y-1.5" style="background:var(--bg3);border-color:var(--border)">'
     + '<div class="flex justify-between text-xs font-medium">'
     + '<span class="text-emerald-400 font-bold">Top 1 Buy: ' + t1b + '%</span>'
     + '<span class="text-rose-400 font-bold">Top 1 Sell: ' + t1s + '%</span>'
     + '</div>'
-    + '<div class="w-full bg-rose-950/60 rounded-full h-2 overflow-hidden flex">'
+    + '<div class="w-full rounded-full h-2 overflow-hidden flex" style="background:rgba(239,68,68,0.25)">'
     + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t1b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
 
-    + '<div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5">'
+    + '<div class="p-3 rounded-xl border space-y-1.5" style="background:var(--bg3);border-color:var(--border)">'
     + '<div class="flex justify-between text-xs font-medium">'
     + '<span class="text-emerald-400 font-bold">Top 3 Buy: ' + t3b + '%</span>'
     + '<span class="text-rose-400 font-bold">Top 3 Sell: ' + t3s + '%</span>'
     + '</div>'
-    + '<div class="w-full bg-rose-950/60 rounded-full h-2 overflow-hidden flex">'
+    + '<div class="w-full rounded-full h-2 overflow-hidden flex" style="background:rgba(239,68,68,0.25)">'
     + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t3b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
 
-    + '<div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5">'
+    + '<div class="p-3 rounded-xl border space-y-1.5" style="background:var(--bg3);border-color:var(--border)">'
     + '<div class="flex justify-between text-xs font-medium">'
     + '<span class="text-emerald-400 font-bold">Top 5 Buy: ' + t5b + '%</span>'
     + '<span class="text-rose-400 font-bold">Top 5 Sell: ' + t5s + '%</span>'
     + '</div>'
-    + '<div class="w-full bg-rose-950/60 rounded-full h-2 overflow-hidden flex">'
+    + '<div class="w-full rounded-full h-2 overflow-hidden flex" style="background:rgba(239,68,68,0.25)">'
     + '<div class="bg-emerald-500 h-2 transition-all duration-500" style="width:' + Math.min(t5b, 100) + '%"></div>'
     + '</div>'
     + '</div>'
@@ -894,7 +894,7 @@ function renderAggregatedBrokerFlowView(data) {
     var isActive = activeSort.field === field;
     var arrow = isActive ? (activeSort.order === 'asc' ? ' ▲' : ' ▼') : ' ↕';
     var alignmentClass = align === 'right' ? 'text-right justify-end' : (align === 'center' ? 'text-center justify-center' : 'text-left justify-start');
-    var activeClass = isActive ? (tableType === 'buyers' ? 'text-emerald-300 font-bold bg-emerald-950/40' : 'text-rose-300 font-bold bg-rose-950/40') : 'text-slate-400 hover:text-slate-200';
+    var activeClass = isActive ? (tableType === 'buyers' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold') : 'text-slate-400 hover:text-white';
 
     return '<th onclick="toggleStockChatTableSort(\'' + tableType + '\', \'' + field + '\')" class="p-2.5 cursor-pointer select-none transition ' + activeClass + '" title="Klik untuk mengurutkan berdasarkan ' + label + '">'
       + '<div class="flex items-center gap-1 ' + alignmentClass + '">'
@@ -916,28 +916,28 @@ function renderAggregatedBrokerFlowView(data) {
   var sellerWeightedAvg = sellerSubtotalLot > 0 ? Math.round(sellerSubtotalVal / (sellerSubtotalLot * 100)) : 0;
 
   // Header Controls for Sortable Table Section
-  html += '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-4">'
-    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">'
+  html += '<div class="bandar-card space-y-4">'
+    + '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3" style="border-color:var(--border)">'
     + '<div>'
-    + '<div class="text-sm font-black text-white flex items-center gap-2">'
+    + '<div class="text-sm font-black flex items-center gap-2" style="color:var(--text)">'
     + '<span>📊 Top ' + limit + ' Buying vs Top ' + limit + ' Selling Brokers (' + data.ticker + ')</span>'
-    + '<span class="text-[10px] px-2 py-0.5 rounded font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40">Sortable Table</span>'
+    + '<span class="text-[10px] px-2 py-0.5 rounded font-bold bg-blue-500/20 text-blue-400 border border-blue-500/40">Sortable Table</span>'
     + '</div>'
-    + '<p class="text-[11px] text-slate-400 mt-0.5">Klik pada header kolom tabel mana saja untuk menyortir (Volume, Nilai Rp, Avg Price, % Turnover, Rank).</p>'
+    + '<p class="text-[11px] mt-0.5" style="color:var(--text3)">Klik pada header kolom tabel mana saja untuk menyortir (Volume, Nilai Rp, Avg Price, % Turnover, Rank).</p>'
     + '</div>'
 
     + '<div class="flex items-center gap-2.5 flex-wrap">'
     // Limit Toggle (Top 5 / Top 10)
-    + '<div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px] bandar-filter-bar">'
-    + '<span class="text-slate-400 text-[10px] font-semibold px-1">Tampilkan:</span>'
+    + '<div class="flex items-center gap-1 p-1 rounded-lg border text-[11px] bandar-filter-bar" style="background:var(--bg3);border-color:var(--border)">'
+    + '<span class="text-[10px] font-semibold px-1" style="color:var(--text3)">Tampilkan:</span>'
     + '<button onclick="setStockChatTableLimit(5)" class="bandar-limit-btn px-2.5 py-1 rounded font-bold transition ' + (limit === 5 ? 'active bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">Top 5</button>'
     + '<button onclick="setStockChatTableLimit(10)" class="bandar-limit-btn px-2.5 py-1 rounded font-bold transition ' + (limit === 10 ? 'active bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white') + '">Top 10</button>'
     + '</div>'
 
     // Filter Toggle (All / Foreign / Domestic)
-    + '<div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[11px] bandar-filter-bar">'
-    + '<span class="text-slate-400 text-[10px] font-semibold px-1">Tipe:</span>'
-    + '<button onclick="setStockChatBrokerFilter(\'ALL\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'ALL' ? 'active bg-slate-700 text-white' : 'text-slate-400 hover:text-white') + '">Semua</button>'
+    + '<div class="flex items-center gap-1 p-1 rounded-lg border text-[11px] bandar-filter-bar" style="background:var(--bg3);border-color:var(--border)">'
+    + '<span class="text-[10px] font-semibold px-1" style="color:var(--text3)">Tipe:</span>'
+    + '<button onclick="setStockChatBrokerFilter(\'ALL\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'ALL' ? 'active bg-blue-600 text-white' : 'text-slate-400 hover:text-white') + '">Semua</button>'
     + '<button onclick="setStockChatBrokerFilter(\'F\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'F' ? 'active bg-amber-600 text-white' : 'text-slate-400 hover:text-white') + '">Asing (F)</button>'
     + '<button onclick="setStockChatBrokerFilter(\'D\')" class="bandar-filter-btn px-2.5 py-1 rounded font-bold transition ' + (STOCKCHAT_BROKER_FILTER === 'D' ? 'active bg-indigo-600 text-white' : 'text-slate-400 hover:text-white') + '">Domestik</button>'
     + '</div>'
@@ -948,19 +948,19 @@ function renderAggregatedBrokerFlowView(data) {
   html += '<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">'
 
     // ================= TABLE 1: TOP BUYERS =================
-    + '<div class="rounded-xl border border-emerald-900/40 bg-slate-950/70 overflow-hidden shadow-md flex flex-col justify-between">'
+    + '<div class="bandar-table-box flex flex-col justify-between">'
     + '<div>'
-    + '<div class="bg-gradient-to-r from-emerald-950/80 to-slate-900 p-3 border-b border-emerald-900/50 flex items-center justify-between">'
+    + '<div class="bandar-table-head-buy">'
     + '<div class="flex items-center gap-2">'
     + '<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>'
     + '<span class="font-black text-xs text-emerald-400 tracking-wider">TOP ' + limit + ' BUYING BROKERS (AKUMULASI)</span>'
     + '</div>'
-    + '<span class="text-[10px] text-emerald-300/80 font-mono">Sort: ' + STOCKCHAT_BUYERS_SORT.field.toUpperCase() + ' (' + STOCKCHAT_BUYERS_SORT.order.toUpperCase() + ')</span>'
+    + '<span class="text-[10px] text-emerald-400 font-mono">Sort: ' + STOCKCHAT_BUYERS_SORT.field.toUpperCase() + ' (' + STOCKCHAT_BUYERS_SORT.order.toUpperCase() + ')</span>'
     + '</div>'
 
     + '<div class="overflow-x-auto">'
-    + '<table class="w-full text-left text-[11px] border-collapse">'
-    + '<thead class="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-[10px] uppercase font-bold tracking-wider">'
+    + '<table class="bandar-table">'
+    + '<thead>'
     + '<tr>'
     + renderSortHeader('buyers', 'rank', '#', 'center')
     + renderSortHeader('buyers', 'broker', 'Broker', 'left')
@@ -968,10 +968,10 @@ function renderAggregatedBrokerFlowView(data) {
     + renderSortHeader('buyers', 'valueRp', 'Nilai (Rp)', 'right')
     + renderSortHeader('buyers', 'avgPrice', 'Avg Price', 'right')
     + renderSortHeader('buyers', 'pctOfTurnover', '% Share', 'right')
-    + '<th class="p-2.5 text-center text-slate-500">Tanya</th>'
+    + '<th class="p-2.5 text-center" style="color:var(--text3)">Tanya</th>'
     + '</tr>'
     + '</thead>'
-    + '<tbody class="divide-y divide-slate-800/60">';
+    + '<tbody>';
 
   if (displayBuyers.length === 0) {
     html += '<tr><td colspan="7" class="p-6 text-center text-slate-500 text-xs">Tidak ada data broker pembeli yang cocok dengan filter.</td></tr>';
@@ -984,35 +984,35 @@ function renderAggregatedBrokerFlowView(data) {
         ? '<span class="text-[9px] text-emerald-400 ml-1 font-semibold">+' + priceSpread + '%</span>'
         : '<span class="text-[9px] text-rose-400 ml-1 font-semibold">' + priceSpread + '%</span>';
 
-      html += '<tr class="hover:bg-slate-800/50 transition group">'
+      html += '<tr class="transition group">'
         // Rank
-        + '<td class="p-2.5 text-center font-mono font-bold text-slate-400 text-[10px]">' + bItem.rank + '</td>'
+        + '<td class="p-2.5 text-center font-mono font-bold text-[10px]" style="color:var(--text3)">' + bItem.rank + '</td>'
         // Broker Code & Info
         + '<td class="p-2.5">'
         + '<div class="flex items-center gap-1.5">'
-        + '<span class="font-black font-mono px-2 py-0.5 rounded text-xs ' + (isF ? 'bg-amber-950/80 text-amber-300 border border-amber-700/60' : 'bg-slate-800 text-slate-200 border border-slate-700/60') + '">' + bItem.broker + '</span>'
+        + '<span class="font-black font-mono px-2 py-0.5 rounded text-xs ' + (isF ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-200 border border-slate-700/60') + '">' + bItem.broker + '</span>'
         + '<div class="min-w-0">'
-        + '<div class="text-slate-200 font-semibold truncate text-[11px] max-w-[110px]" title="' + bItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</div>'
-        + '<div class="text-[9px] text-slate-400 truncate">' + (bItem.category || (isF ? 'Foreign' : 'Domestic')) + '</div>'
+        + '<div class="font-semibold truncate text-[11px] max-w-[110px]" style="color:var(--text)" title="' + bItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</div>'
+        + '<div class="text-[9px] truncate" style="color:var(--text3)">' + (bItem.category || (isF ? 'Foreign' : 'Domestic')) + '</div>'
         + '</div>'
         + '</div>'
         + '</td>'
         // Volume
-        + '<td class="p-2.5 text-right font-mono font-bold text-slate-200">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
+        + '<td class="p-2.5 text-right font-mono font-bold" style="color:var(--text)">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
         // Value
         + '<td class="p-2.5 text-right font-mono font-bold text-emerald-400">Rp ' + valM + ' M</td>'
         // Avg Price
-        + '<td class="p-2.5 text-right font-mono text-slate-200">Rp ' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
+        + '<td class="p-2.5 text-right font-mono" style="color:var(--text)">Rp ' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
         // % Turnover
         + '<td class="p-2.5 text-right">'
-        + '<div class="font-mono font-bold text-slate-200 text-xs">' + Number(bItem.pctOfTurnover || 0).toFixed(1) + '%</div>'
-        + '<div class="w-16 bg-slate-800 rounded-full h-1 mt-1 ml-auto overflow-hidden">'
+        + '<div class="font-mono font-bold text-xs" style="color:var(--text)">' + Number(bItem.pctOfTurnover || 0).toFixed(1) + '%</div>'
+        + '<div class="w-16 rounded-full h-1 mt-1 ml-auto overflow-hidden" style="background:var(--bg4)">'
         + '<div class="bg-emerald-500 h-1 rounded-full" style="width:' + Math.min(bItem.pctOfTurnover * 2.5, 100) + '%"></div>'
         + '</div>'
         + '</td>'
         // Action (Ask AI)
         + '<td class="p-2.5 text-center">'
-        + '<button onclick="askAiAboutBrokerAction(\'' + bItem.broker + '\', \'' + bItem.name.replace(/'/g, '') + '\', \'BUY\', \'' + data.ticker + '\', ' + bItem.volumeLot + ', ' + bItem.avgPrice + ', ' + bItem.valueRp + ')" class="p-1 rounded bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white transition" title="Tanya AI tentang broker ini">💬</button>'
+        + '<button onclick="askAiAboutBrokerAction(\'' + bItem.broker + '\', \'' + bItem.name.replace(/'/g, '') + '\', \'BUY\', \'' + data.ticker + '\', ' + bItem.volumeLot + ', ' + bItem.avgPrice + ', ' + bItem.valueRp + ')" class="p-1 rounded hover:bg-blue-600 transition" style="background:var(--bg3);border:1px solid var(--border)" title="Tanya AI tentang broker ini">💬</button>'
         + '</td>'
         + '</tr>';
     });
@@ -1021,30 +1021,30 @@ function renderAggregatedBrokerFlowView(data) {
   html += '</tbody></table></div></div>'
 
     // Buyer Table Footer / Subtotals
-    + '<div class="bg-slate-900/90 p-3 border-t border-emerald-900/40 text-[11px] flex items-center justify-between flex-wrap gap-2">'
-    + '<div class="text-slate-400 font-semibold">Subtotal Top ' + displayBuyers.length + ' Buyers:</div>'
+    + '<div class="bandar-table-foot flex items-center justify-between flex-wrap gap-2">'
+    + '<div class="font-semibold" style="color:var(--text3)">Subtotal Top ' + displayBuyers.length + ' Buyers:</div>'
     + '<div class="flex items-center gap-3 font-mono text-xs flex-wrap">'
-    + '<span><strong class="text-white">' + buyerSubtotalLot.toLocaleString('id-ID') + '</strong> lot</span>'
+    + '<span><strong style="color:var(--text)">' + buyerSubtotalLot.toLocaleString('id-ID') + '</strong> lot</span>'
     + '<span><strong class="text-emerald-400">Rp ' + (buyerSubtotalVal / 1000000000).toFixed(2) + ' M</strong> (' + buyerSubtotalPct.toFixed(1) + '%)</span>'
-    + '<span>Avg: <strong class="text-sky-300">Rp ' + buyerWeightedAvg.toLocaleString('id-ID') + '</strong></span>'
+    + '<span>Avg: <strong class="text-sky-400">Rp ' + buyerWeightedAvg.toLocaleString('id-ID') + '</strong></span>'
     + '</div>'
     + '</div>'
     + '</div>'
 
     // ================= TABLE 2: TOP SELLERS =================
-    + '<div class="rounded-xl border border-rose-900/40 bg-slate-950/70 overflow-hidden shadow-md flex flex-col justify-between">'
+    + '<div class="bandar-table-box flex flex-col justify-between">'
     + '<div>'
-    + '<div class="bg-gradient-to-r from-rose-950/80 to-slate-900 p-3 border-b border-rose-900/50 flex items-center justify-between">'
+    + '<div class="bandar-table-head-sell">'
     + '<div class="flex items-center gap-2">'
     + '<span class="w-2.5 h-2.5 rounded-full bg-rose-400 shadow-sm shadow-rose-400/50"></span>'
     + '<span class="font-black text-xs text-rose-400 tracking-wider">TOP ' + limit + ' SELLING BROKERS (DISTRIBUSI)</span>'
     + '</div>'
-    + '<span class="text-[10px] text-rose-300/80 font-mono">Sort: ' + STOCKCHAT_SELLERS_SORT.field.toUpperCase() + ' (' + STOCKCHAT_SELLERS_SORT.order.toUpperCase() + ')</span>'
+    + '<span class="text-[10px] text-rose-400 font-mono">Sort: ' + STOCKCHAT_SELLERS_SORT.field.toUpperCase() + ' (' + STOCKCHAT_SELLERS_SORT.order.toUpperCase() + ')</span>'
     + '</div>'
 
     + '<div class="overflow-x-auto">'
-    + '<table class="w-full text-left text-[11px] border-collapse">'
-    + '<thead class="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-[10px] uppercase font-bold tracking-wider">'
+    + '<table class="bandar-table">'
+    + '<thead>'
     + '<tr>'
     + renderSortHeader('sellers', 'rank', '#', 'center')
     + renderSortHeader('sellers', 'broker', 'Broker', 'left')
@@ -1052,10 +1052,10 @@ function renderAggregatedBrokerFlowView(data) {
     + renderSortHeader('sellers', 'valueRp', 'Nilai (Rp)', 'right')
     + renderSortHeader('sellers', 'avgPrice', 'Avg Price', 'right')
     + renderSortHeader('sellers', 'pctOfTurnover', '% Share', 'right')
-    + '<th class="p-2.5 text-center text-slate-500">Tanya</th>'
+    + '<th class="p-2.5 text-center" style="color:var(--text3)">Tanya</th>'
     + '</tr>'
     + '</thead>'
-    + '<tbody class="divide-y divide-slate-800/60">';
+    + '<tbody>';
 
   if (displaySellers.length === 0) {
     html += '<tr><td colspan="7" class="p-6 text-center text-slate-500 text-xs">Tidak ada data broker penjual yang cocok dengan filter.</td></tr>';
@@ -1068,35 +1068,35 @@ function renderAggregatedBrokerFlowView(data) {
         ? '<span class="text-[9px] text-emerald-400 ml-1 font-semibold">+' + priceSpread + '%</span>'
         : '<span class="text-[9px] text-rose-400 ml-1 font-semibold">' + priceSpread + '%</span>';
 
-      html += '<tr class="hover:bg-slate-800/50 transition group">'
+      html += '<tr class="transition group">'
         // Rank
-        + '<td class="p-2.5 text-center font-mono font-bold text-slate-400 text-[10px]">' + sItem.rank + '</td>'
+        + '<td class="p-2.5 text-center font-mono font-bold text-[10px]" style="color:var(--text3)">' + sItem.rank + '</td>'
         // Broker Code & Info
         + '<td class="p-2.5">'
         + '<div class="flex items-center gap-1.5">'
-        + '<span class="font-black font-mono px-2 py-0.5 rounded text-xs ' + (isF ? 'bg-amber-950/80 text-amber-300 border border-amber-700/60' : 'bg-slate-800 text-slate-200 border border-slate-700/60') + '">' + sItem.broker + '</span>'
+        + '<span class="font-black font-mono px-2 py-0.5 rounded text-xs ' + (isF ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-200 border border-slate-700/60') + '">' + sItem.broker + '</span>'
         + '<div class="min-w-0">'
-        + '<div class="text-slate-200 font-semibold truncate text-[11px] max-w-[110px]" title="' + sItem.name + '">' + sItem.name.replace(/ Sekuritas.*/i, '') + '</div>'
-        + '<div class="text-[9px] text-slate-400 truncate">' + (sItem.category || (isF ? 'Foreign' : 'Domestic')) + '</div>'
+        + '<div class="font-semibold truncate text-[11px] max-w-[110px]" style="color:var(--text)" title="' + sItem.name + '">' + sItem.name.replace(/ Sekuritas.*/i, '') + '</div>'
+        + '<div class="text-[9px] truncate" style="color:var(--text3)">' + (sItem.category || (isF ? 'Foreign' : 'Domestic')) + '</div>'
         + '</div>'
         + '</div>'
         + '</td>'
         // Volume
-        + '<td class="p-2.5 text-right font-mono font-bold text-slate-200">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
+        + '<td class="p-2.5 text-right font-mono font-bold" style="color:var(--text)">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
         // Value
         + '<td class="p-2.5 text-right font-mono font-bold text-rose-400">Rp ' + valM + ' M</td>'
         // Avg Price
-        + '<td class="p-2.5 text-right font-mono text-slate-200">Rp ' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
+        + '<td class="p-2.5 text-right font-mono" style="color:var(--text)">Rp ' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
         // % Turnover
         + '<td class="p-2.5 text-right">'
-        + '<div class="font-mono font-bold text-slate-200 text-xs">' + Number(sItem.pctOfTurnover || 0).toFixed(1) + '%</div>'
-        + '<div class="w-16 bg-slate-800 rounded-full h-1 mt-1 ml-auto overflow-hidden">'
+        + '<div class="font-mono font-bold text-xs" style="color:var(--text)">' + Number(sItem.pctOfTurnover || 0).toFixed(1) + '%</div>'
+        + '<div class="w-16 rounded-full h-1 mt-1 ml-auto overflow-hidden" style="background:var(--bg4)">'
         + '<div class="bg-rose-500 h-1 rounded-full" style="width:' + Math.min(sItem.pctOfTurnover * 2.5, 100) + '%"></div>'
         + '</div>'
         + '</td>'
         // Action (Ask AI)
         + '<td class="p-2.5 text-center">'
-        + '<button onclick="askAiAboutBrokerAction(\'' + sItem.broker + '\', \'' + sItem.name.replace(/'/g, '') + '\', \'SELL\', \'' + data.ticker + '\', ' + sItem.volumeLot + ', ' + sItem.avgPrice + ', ' + sItem.valueRp + ')" class="p-1 rounded bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white transition" title="Tanya AI tentang broker ini">💬</button>'
+        + '<button onclick="askAiAboutBrokerAction(\'' + sItem.broker + '\', \'' + sItem.name.replace(/'/g, '') + '\', \'SELL\', \'' + data.ticker + '\', ' + sItem.volumeLot + ', ' + sItem.avgPrice + ', ' + sItem.valueRp + ')" class="p-1 rounded hover:bg-blue-600 transition" style="background:var(--bg3);border:1px solid var(--border)" title="Tanya AI tentang broker ini">💬</button>'
         + '</td>'
         + '</tr>';
     });
@@ -1105,12 +1105,12 @@ function renderAggregatedBrokerFlowView(data) {
   html += '</tbody></table></div></div>'
 
     // Seller Table Footer / Subtotals
-    + '<div class="bg-slate-900/90 p-3 border-t border-rose-900/40 text-[11px] flex items-center justify-between flex-wrap gap-2">'
-    + '<div class="text-slate-400 font-semibold">Subtotal Top ' + displaySellers.length + ' Sellers:</div>'
+    + '<div class="bandar-table-foot flex items-center justify-between flex-wrap gap-2">'
+    + '<div class="font-semibold" style="color:var(--text3)">Subtotal Top ' + displaySellers.length + ' Sellers:</div>'
     + '<div class="flex items-center gap-3 font-mono text-xs flex-wrap">'
-    + '<span><strong class="text-white">' + sellerSubtotalLot.toLocaleString('id-ID') + '</strong> lot</span>'
+    + '<span><strong style="color:var(--text)">' + sellerSubtotalLot.toLocaleString('id-ID') + '</strong> lot</span>'
     + '<span><strong class="text-rose-400">Rp ' + (sellerSubtotalVal / 1000000000).toFixed(2) + ' M</strong> (' + sellerSubtotalPct.toFixed(1) + '%)</span>'
-    + '<span>Avg: <strong class="text-sky-300">Rp ' + sellerWeightedAvg.toLocaleString('id-ID') + '</strong></span>'
+    + '<span>Avg: <strong class="text-sky-400">Rp ' + sellerWeightedAvg.toLocaleString('id-ID') + '</strong></span>'
     + '</div>'
     + '</div>'
     + '</div>'
@@ -1118,14 +1118,14 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div></div>';
 
   // Tactical Bandarmology Takeaways
-  html += '<div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md space-y-2">'
-    + '<div class="text-xs font-bold text-sky-300 flex items-center gap-2">'
+  html += '<div class="bandar-card space-y-2">'
+    + '<div class="text-xs font-bold text-sky-400 flex items-center gap-2">'
     + '<span>💡 Rekomendasi & Catatan Taktis Bandarmology untuk ' + data.ticker + ':</span>'
     + '</div>'
-    + '<ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside leading-relaxed">'
-    + '<li>Level harga rata-rata Top Buyer (<strong class="text-white">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</strong>) dapat dijadikan area support kunci penahan penurunan harga.</li>'
-    + '<li>Arus investor asing saat ini mencatatkan ' + (netForeignM >= 0 ? '<strong class="text-emerald-400">Net Buy +Rp ' + netForeignM.toLocaleString('id-ID') + ' M</strong>' : '<strong class="text-rose-400">Net Sell -Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</strong>') + ' dengan partisipasi pasar sebesar <strong class="text-white">' + (ff.participationPct || 0) + '%</strong>.</li>'
-    + '<li>Karakteristik dominan pergerakan: <strong class="text-white">' + (rm.smartMoneyStatus || 'NORMAL') + '</strong> vs <strong class="text-white">' + (rm.retailStatus || 'NORMAL') + '</strong>.</li>'
+    + '<ul class="text-xs space-y-1.5 list-disc list-inside leading-relaxed" style="color:var(--text2)">'
+    + '<li>Level harga rata-rata Top Buyer (<strong style="color:var(--text)">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</strong>) dapat dijadikan area support kunci penahan penurunan harga.</li>'
+    + '<li>Arus investor asing saat ini mencatatkan ' + (netForeignM >= 0 ? '<strong class="text-emerald-400">Net Buy +Rp ' + netForeignM.toLocaleString('id-ID') + ' M</strong>' : '<strong class="text-rose-400">Net Sell -Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</strong>') + ' dengan partisipasi pasar sebesar <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong>.</li>'
+    + '<li>Karakteristik dominan pergerakan: <strong style="color:var(--text)">' + (rm.smartMoneyStatus || 'NORMAL') + '</strong> vs <strong style="color:var(--text)">' + (rm.retailStatus || 'NORMAL') + '</strong>.</li>'
     + '</ul>'
     + '</div>';
 
@@ -1154,11 +1154,11 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
   var price = Number(curPrice) || getAccurateStockPrice(tk);
   
   if (!price || price <= 0 || (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk))) {
-    return '<div class="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3 my-3">'
+    return '<div class="bandar-card space-y-3 my-3">'
       + '<div class="flex items-center gap-2 text-rose-400 font-bold text-sm">'
       + '<i class="ti ti-alert-circle text-lg"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX (Nilai 0)'
       + '</div>'
-      + '<p class="text-xs text-slate-400">Tidak ada riwayat transaksi broker 250D untuk ticker yang tidak terdaftar dalam Stock Universe pasar saham Indonesia.</p>'
+      + '<p class="text-xs" style="color:var(--text2)">Tidak ada riwayat transaksi broker 250D untuk ticker yang tidak terdaftar dalam Stock Universe pasar saham Indonesia.</p>'
       + '</div>';
   }
 
@@ -1221,31 +1221,31 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
     var pnlPct = (((price - avg1Y) / (avg1Y || 1)) * 100).toFixed(1);
     var isPnlUp = Number(pnlPct) >= 0;
     var pnlBadge = isPnlUp 
-      ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-950/80 border border-emerald-700/60 text-emerald-400 font-mono">+' + pnlPct + '% (Floating Profit)</span>'
-      : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-950/80 border border-rose-700/60 text-rose-400 font-mono">' + pnlPct + '% (Under Water)</span>';
+      ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono">+' + pnlPct + '% (Floating Profit)</span>'
+      : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/15 border border-rose-500/30 text-rose-400 font-mono">' + pnlPct + '% (Under Water)</span>';
 
     var typeBadge = b.type.includes('Asing') 
-      ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-sky-950 border border-sky-800 text-sky-400">ASING</span>'
-      : (b.type.includes('BUMN') ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-950 border border-amber-800 text-amber-400">BUMN</span>' : '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-slate-800 border border-slate-700 text-slate-400">RITEL</span>');
+      ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-sky-500/20 border border-sky-500/40 text-sky-400">ASING</span>'
+      : (b.type.includes('BUMN') ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-500/20 border border-amber-500/40 text-amber-400">BUMN</span>' : '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3)">RITEL</span>');
 
-    return '<tr class="border-b border-slate-800/60 hover:bg-slate-800/40 transition">'
-      + '<td class="py-2.5 px-3 text-center text-xs font-mono font-bold text-slate-400">' + (idx + 1) + '</td>'
-      + '<td class="py-2.5 px-3">'
+    return '<tr class="transition group">'
+      + '<td class="p-2.5 text-center text-xs font-mono font-bold" style="color:var(--text3)">' + (idx + 1) + '</td>'
+      + '<td class="p-2.5">'
       + '<div class="flex items-center gap-1.5">'
-      + '<span class="px-2 py-0.5 rounded font-mono font-black text-xs ' + (b.type.includes('Asing') ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-slate-800 text-white') + '">' + b.code + '</span>'
+      + '<span class="px-2 py-0.5 rounded font-mono font-black text-xs ' + (b.type.includes('Asing') ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40' : 'bg-slate-800 text-white') + '">' + b.code + '</span>'
       + typeBadge
       + '</div>'
-      + '<div class="text-[11px] text-slate-400 truncate max-w-[160px]">' + b.name + '</div>'
+      + '<div class="text-[11px] truncate max-w-[160px]" style="color:var(--text3)">' + b.name + '</div>'
       + '</td>'
-      + '<td class="py-2.5 px-3 font-mono text-xs text-right text-slate-300">' + (b1YVol / 1000000).toFixed(2) + ' Jt Lot</td>'
-      + '<td class="py-2.5 px-3 font-mono text-xs text-right text-white font-bold">Rp ' + (b1YValRp >= 1e12 ? (b1YValRp / 1e12).toFixed(2) + ' T' : (b1YValRp / 1e9).toFixed(1) + ' M') + '</td>'
-      + '<td class="py-2.5 px-3 font-mono text-xs text-right text-slate-400">Rp ' + avg1M.toLocaleString('id-ID') + '</td>'
-      + '<td class="py-2.5 px-3 font-mono text-xs text-right text-slate-400">Rp ' + avg3M.toLocaleString('id-ID') + '</td>'
-      + '<td class="py-2.5 px-3 font-mono text-xs text-right text-slate-300">Rp ' + avg6M.toLocaleString('id-ID') + '</td>'
-      + '<td class="py-2.5 px-3 font-mono text-sm text-right text-emerald-400 font-black">Rp ' + avg1Y.toLocaleString('id-ID') + '</td>'
-      + '<td class="py-2.5 px-3 text-right">' + pnlBadge + '</td>'
-      + '<td class="py-2.5 px-3 text-center">'
-      + '<button onclick="askAiAboutBrokerAction(\'' + b.code + '\', \'' + b.name.replace(/'/g, '') + '\', \'BUY\', \'' + tk + '\', ' + b1YVol + ', ' + avg1Y + ', ' + b1YValRp + ')" class="px-2.5 py-1 text-[10px] font-bold rounded bg-slate-800 hover:bg-emerald-700 text-slate-300 hover:text-white transition flex items-center justify-center gap-1 mx-auto">'
+      + '<td class="p-2.5 font-mono text-xs text-right" style="color:var(--text2)">' + (b1YVol / 1000000).toFixed(2) + ' Jt Lot</td>'
+      + '<td class="p-2.5 font-mono text-xs text-right font-bold" style="color:var(--text)">Rp ' + (b1YValRp >= 1e12 ? (b1YValRp / 1e12).toFixed(2) + ' T' : (b1YValRp / 1e9).toFixed(1) + ' M') + '</td>'
+      + '<td class="p-2.5 font-mono text-xs text-right" style="color:var(--text3)">Rp ' + avg1M.toLocaleString('id-ID') + '</td>'
+      + '<td class="p-2.5 font-mono text-xs text-right" style="color:var(--text3)">Rp ' + avg3M.toLocaleString('id-ID') + '</td>'
+      + '<td class="p-2.5 font-mono text-xs text-right" style="color:var(--text2)">Rp ' + avg6M.toLocaleString('id-ID') + '</td>'
+      + '<td class="p-2.5 font-mono text-sm text-right text-emerald-400 font-black">Rp ' + avg1Y.toLocaleString('id-ID') + '</td>'
+      + '<td class="p-2.5 text-right">' + pnlBadge + '</td>'
+      + '<td class="p-2.5 text-center">'
+      + '<button onclick="askAiAboutBrokerAction(\'' + b.code + '\', \'' + b.name.replace(/'/g, '') + '\', \'BUY\', \'' + tk + '\', ' + b1YVol + ', ' + avg1Y + ', ' + b1YValRp + ')" class="px-2.5 py-1 text-[10px] font-bold rounded transition flex items-center justify-center gap-1 mx-auto hover:bg-emerald-600 hover:text-white" style="background:var(--bg3);border:1px solid var(--border);color:var(--text)" title="Tanya AI">'
       + '<i class="ti ti-messages"></i> Tanya AI'
       + '</button>'
       + '</td>'
@@ -1255,18 +1255,18 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
   var smartWhales1YAvg = Math.round(vwap1Y * 0.975);
   var bandarSpreadPct = (((price - smartWhales1YAvg) / (smartWhales1YAvg || 1)) * 100).toFixed(1);
 
-  return '<div class="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-950 border border-slate-800 shadow-2xl space-y-4">'
+  return '<div class="bandar-card space-y-4">'
     // Header
-    + '<div class="flex flex-col md:flex-row md:items-center justify-between gap-3">'
+    + '<div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3" style="border-color:var(--border)">'
     + '<div class="space-y-1">'
     + '<div class="flex items-center gap-2">'
     + '<span class="px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-400 text-xs font-black border border-sky-500/40 flex items-center gap-1.5"><i class="ti ti-history"></i> DATABASE 1 TAHUN (250D)</span>'
-    + '<h3 class="text-sm md:text-base font-black text-white">Matriks Rata-Rata Harga Beli Broker Historis 1 Tahun</h3>'
+    + '<h3 class="text-sm md:text-base font-black" style="color:var(--text)">Matriks Rata-Rata Harga Beli Broker Historis 1 Tahun</h3>'
     + '</div>'
-    + '<p class="text-xs text-slate-400">Pelacakan akumulasi multi-periode untuk mengetahui modal dasar (Cost of Bandarmology) dan posisi floating profit/loss whale ' + tk + '</p>'
+    + '<p class="text-xs" style="color:var(--text2)">Pelacakan akumulasi multi-periode untuk mengetahui modal dasar (Cost of Bandarmology) dan posisi floating profit/loss whale ' + tk + '</p>'
     + '</div>'
     + '<div class="flex items-center gap-2">'
-    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + tk + '\')" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5">'
+    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + tk + '\')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5">'
     + '<i class="ti ti-messages"></i> <span>Tanya AI Posisi Modal Whale</span>'
     + '</button>'
     + '</div>'
@@ -1274,49 +1274,49 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
 
     // 4 Key 1-Year Metrics Summary
     + '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">'
-    + '<div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] uppercase font-bold text-slate-400">1-Year VWAP (Benchmark BEI)</div>'
-    + '<div class="text-lg font-black text-white font-mono">Rp ' + vwap1Y.toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[10px] text-slate-400">Rata-rata tertimbang volume 250D</div>'
+    + '<div class="bandar-kpi-card space-y-1">'
+    + '<div class="bandar-kpi-label">1-Year VWAP (Benchmark BEI)</div>'
+    + '<div class="bandar-kpi-val font-mono">Rp ' + vwap1Y.toLocaleString('id-ID') + '</div>'
+    + '<div class="bandar-kpi-sub">Rata-rata tertimbang volume 250D</div>'
     + '</div>'
 
-    + '<div class="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-900/50 space-y-1">'
-    + '<div class="text-[10px] uppercase font-bold text-emerald-400">Modal Rata-Rata Smart Whales</div>'
-    + '<div class="text-lg font-black text-emerald-300 font-mono">Rp ' + smartWhales1YAvg.toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[10px] text-emerald-400 font-semibold">' + (Number(bandarSpreadPct) >= 0 ? '+' : '') + bandarSpreadPct + '% vs Harga Pasar</div>'
+    + '<div class="bandar-kpi-card space-y-1 border-emerald-500/30">'
+    + '<div class="bandar-kpi-label text-emerald-400">Modal Rata-Rata Smart Whales</div>'
+    + '<div class="bandar-kpi-val text-emerald-400 font-mono">Rp ' + smartWhales1YAvg.toLocaleString('id-ID') + '</div>'
+    + '<div class="bandar-kpi-sub text-emerald-400 font-semibold">' + (Number(bandarSpreadPct) >= 0 ? '+' : '') + bandarSpreadPct + '% vs Harga Pasar</div>'
     + '</div>'
 
-    + '<div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] uppercase font-bold text-slate-400">Rentang Harga 52-Minggu</div>'
-    + '<div class="text-sm font-bold text-slate-200 font-mono">Rp ' + low1Y.toLocaleString('id-ID') + ' — Rp ' + high1Y.toLocaleString('id-ID') + '</div>'
-    + '<div class="text-[10px] text-slate-400">Low &amp; High 1 Tahun Terakhir</div>'
+    + '<div class="bandar-kpi-card space-y-1">'
+    + '<div class="bandar-kpi-label">Rentang Harga 52-Minggu</div>'
+    + '<div class="text-sm font-bold font-mono" style="color:var(--text)">Rp ' + low1Y.toLocaleString('id-ID') + ' — Rp ' + high1Y.toLocaleString('id-ID') + '</div>'
+    + '<div class="bandar-kpi-sub">Low &amp; High 1 Tahun Terakhir</div>'
     + '</div>'
 
-    + '<div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">'
-    + '<div class="text-[10px] uppercase font-bold text-slate-400">Status Siklus Bandarmology</div>'
+    + '<div class="bandar-kpi-card space-y-1">'
+    + '<div class="bandar-kpi-label">Status Siklus Bandarmology</div>'
     + '<div class="text-sm font-black text-sky-400">' + (Number(bandarSpreadPct) > 15 ? 'EXPANSION / MARKUP' : (Number(bandarSpreadPct) >= -3 ? 'ACCUMULATION BASE' : 'SHAKEOUT / DEFENDING')) + '</div>'
-    + '<div class="text-[10px] text-slate-400">Evaluasi Margin Modal Whales</div>'
+    + '<div class="bandar-kpi-sub">Evaluasi Margin Modal Whales</div>'
     + '</div>'
     + '</div>'
 
     // Table Container
-    + '<div class="overflow-x-auto rounded-xl border border-slate-800/80 scrollbar-thin">'
-    + '<table class="w-full text-left text-xs whitespace-nowrap">'
-    + '<thead class="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 font-mono">'
+    + '<div class="bandar-table-box overflow-x-auto">'
+    + '<table class="bandar-table">'
+    + '<thead>'
     + '<tr>'
-    + '<th class="py-3 px-3 text-center">#</th>'
-    + '<th class="py-3 px-3">Broker Sekuritas</th>'
-    + '<th class="py-3 px-3 text-right">Vol 1 Tahun</th>'
-    + '<th class="py-3 px-3 text-right">Nilai 1 Tahun</th>'
-    + '<th class="py-3 px-3 text-right">Avg 1 Bulan</th>'
-    + '<th class="py-3 px-3 text-right">Avg 3 Bulan</th>'
-    + '<th class="py-3 px-3 text-right">Avg 6 Bulan</th>'
-    + '<th class="py-3 px-3 text-right text-emerald-400">Avg 1 Tahun (Modal)</th>'
-    + '<th class="py-3 px-3 text-right">Floating PnL</th>'
-    + '<th class="py-3 px-3 text-center">Aksi</th>'
+    + '<th class="p-2.5 text-center">#</th>'
+    + '<th class="p-2.5">Broker Sekuritas</th>'
+    + '<th class="p-2.5 text-right">Vol 1 Tahun</th>'
+    + '<th class="p-2.5 text-right">Nilai 1 Tahun</th>'
+    + '<th class="p-2.5 text-right">Avg 1 Bulan</th>'
+    + '<th class="p-2.5 text-right">Avg 3 Bulan</th>'
+    + '<th class="p-2.5 text-right">Avg 6 Bulan</th>'
+    + '<th class="p-2.5 text-right text-emerald-400">Avg 1 Tahun (Modal)</th>'
+    + '<th class="p-2.5 text-right">Floating PnL</th>'
+    + '<th class="p-2.5 text-center">Aksi</th>'
     + '</tr>'
     + '</thead>'
-    + '<tbody class="divide-y divide-slate-800/40 bg-slate-900/40">'
+    + '<tbody>'
     + rowsHtml
     + '</tbody>'
     + '</table>'

@@ -4100,6 +4100,289 @@ body.theme-light .stockchat-presets-box {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
+/* ══════════════════════════════════════════════
+   STOCKCHAT & BANDARMOLOGY WORKSTATION THEME ENGINE
+   ══════════════════════════════════════════════ */
+.stockchat-topbar {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px 20px;
+  box-shadow: var(--card-shadow);
+}
+.stockchat-title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.3px;
+}
+.stockchat-sub {
+  color: var(--text3);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.stockchat-badge-live {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+}
+
+.stockchat-subtabs-bar {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 8px 12px;
+}
+.stockchat-tab-btn {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  background: transparent;
+  color: var(--text3);
+}
+.stockchat-tab-btn:hover {
+  color: var(--text);
+  background: var(--bg3);
+}
+.stockchat-tab-btn.active {
+  background: var(--brand-primary, #3B82F6);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+}
+
+.bandar-ticker-bar {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bandar-ticker-btn {
+  padding: 4px 9px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.bandar-ticker-btn:hover {
+  color: var(--text);
+  border-color: var(--brand-primary);
+  background: var(--bg4);
+}
+.bandar-ticker-btn.active {
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-color: var(--brand-primary);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+/* CARDS & PANELS */
+.bandar-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px;
+  box-shadow: var(--card-shadow);
+  color: var(--text);
+}
+.bandar-banner-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 18px 20px;
+  box-shadow: var(--card-shadow);
+}
+.bandar-kpi-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bandar-kpi-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bandar-kpi-val {
+  font-size: 17px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.bandar-kpi-sub {
+  font-size: 11px;
+  color: var(--text3);
+}
+
+/* SPECTRUM MUTATION */
+.bandar-spectrum-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 14px;
+}
+.bandar-node-inst {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 12px;
+}
+.bandar-node-retail {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 12px;
+}
+.bandar-arrow-badge {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.bandar-arrow-badge.accum {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.bandar-arrow-badge.distrib {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* TABLES IN BANDARMOLOGY */
+.bandar-table-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.bandar-table-head-buy {
+  background: rgba(16, 185, 129, 0.12);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bandar-table-head-sell {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bandar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.bandar-table thead th {
+  background: var(--bg3);
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.bandar-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+.bandar-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+.bandar-table-foot {
+  background: var(--bg3);
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+/* HISTORICAL 1-YEAR MATRIX */
+.bandar-matrix-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px;
+  box-shadow: var(--card-shadow);
+}
+
+/* LIGHT THEME OVERRIDES */
+body.theme-light .bandar-card,
+body.theme-light .bandar-banner-card,
+body.theme-light .bandar-kpi-card,
+body.theme-light .bandar-table-box,
+body.theme-light .bandar-matrix-box,
+body.theme-light .stockchat-topbar,
+body.theme-light .stockchat-subtabs-bar,
+body.theme-light .bandar-ticker-bar {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+body.theme-light .bandar-spectrum-box,
+body.theme-light .bandar-table thead th,
+body.theme-light .bandar-table-foot {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+body.theme-light .bandar-ticker-btn {
+  background: #F1F5F9 !important;
+  color: #334155 !important;
+  border-color: #CBD5E1 !important;
+}
+body.theme-light .bandar-ticker-btn:hover {
+  background: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+body.theme-light .bandar-ticker-btn.active {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
+  border-color: #2563EB !important;
+}
 body.theme-light .stockchat-tab-btn:not(.active) {
   color: #475569 !important;
   background: transparent !important;
@@ -4108,72 +4391,9 @@ body.theme-light .stockchat-tab-btn:not(.active):hover {
   background: #F1F5F9 !important;
   color: #0F172A !important;
 }
-
-body.theme-light .bandar-tf-bar,
-body.theme-light .stockchat-tf-bar {
-  background: #F1F5F9 !important;
-  border-color: #CBD5E1 !important;
-}
-body.theme-light .bandar-tf-btn:not(.active),
-body.theme-light .stockchat-tf-btn:not(.active) {
-  color: #475569 !important;
-}
-body.theme-light .bandar-tf-btn:not(.active):hover,
-body.theme-light .stockchat-tf-btn:not(.active):hover {
-  color: #0F172A !important;
-  background: #E2E8F0 !important;
-}
-
-body.theme-light .bandar-ticker-btn:not(.active) {
-  background: #F8FAFC !important;
-  color: #334155 !important;
-  border-color: #CBD5E1 !important;
-}
-body.theme-light .bandar-ticker-btn:not(.active):hover {
-  background: #E2E8F0 !important;
-  color: #0F172A !important;
-}
-
-body.theme-light .bandar-input {
-  background: #FFFFFF !important;
-  border-color: #CBD5E1 !important;
-  color: #0F172A !important;
-}
-body.theme-light .bandar-btn-set,
-body.theme-light .stockchat-action-btn {
-  background: #F1F5F9 !important;
-  color: #334155 !important;
-  border-color: #CBD5E1 !important;
-}
-body.theme-light .bandar-btn-set:hover,
-body.theme-light .stockchat-action-btn:hover {
-  background: #E2E8F0 !important;
-  color: #0F172A !important;
-}
-
-body.theme-light .stockchat-preset-btn {
-  background: #F8FAFC !important;
-  border-color: #E2E8F0 !important;
-}
-body.theme-light .stockchat-preset-btn:hover {
-  background: #F1F5F9 !important;
-  border-color: #93C5FD !important;
-}
-body.theme-light .stockchat-preset-btn .preset-title {
-  color: #1E293B !important;
-}
-body.theme-light .stockchat-preset-btn .preset-desc {
-  color: #64748B !important;
-}
-body.theme-light .stockchat-label,
-body.theme-light .bandar-label {
-  color: #475569 !important;
-}
-
 body.theme-light #stockchat-history-box {
   background: #F8FAFC !important;
   border-color: #E2E8F0 !important;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03) !important;
 }
 body.theme-light .stockchat-input-field {
   background: #FFFFFF !important;
@@ -4182,19 +4402,6 @@ body.theme-light .stockchat-input-field {
 }
 body.theme-light .stockchat-input-field::placeholder {
   color: #94A3B8 !important;
-}
-body.theme-light #page-stockchat .bg-slate-900 {
-  background: #FFFFFF !important;
-  border-color: #E2E8F0 !important;
-  color: #0F172A !important;
-}
-body.theme-light #page-stockchat .text-slate-200,
-body.theme-light #page-stockchat .text-slate-300 {
-  color: #1E293B !important;
-}
-body.theme-light #page-stockchat .text-slate-400,
-body.theme-light #page-stockchat .text-slate-500 {
-  color: #64748B !important;
 }
 
 

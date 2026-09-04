@@ -1431,12 +1431,12 @@ function sideToggleGroup(btn) {
 window.sideToggleGroup = sideToggleGroup;
 
 // ============================================================
-// STOCK LOGO HELPER (INVEZGO CDN + RESILIENT MULTI-TIER FALLBACKS)
+// STOCK LOGO HELPER (OFFICIAL IDX/STOCKBIT CDN + INSTANT FALLBACK)
 // ============================================================
 function getStockLogoUrl(ticker) {
   if (!ticker) return '';
   var t = String(ticker).trim().toUpperCase();
-  return 'https://invezgo.com/logos/' + t + '.png';
+  return 'https://assets.stockbit.com/logos/companies/' + t + '.png';
 }
 
 function getStockLogoHtml(ticker, size, extraStyle) {
@@ -1449,15 +1449,16 @@ function getStockLogoHtml(ticker, size, extraStyle) {
   // Palette warna monogram fallback
   var hash = 0;
   for (var i = 0; i < t.length; i++) hash = t.charCodeAt(i) + ((hash << 5) - hash);
-  var bgColors = ['#e0e7ff','#dbeafe','#e0f2fe','#ccfbf1','#dcfce7','#fef9c3','#ffedd5','#fee2e2','#f3e8ff','#fae8ff'];
-  var textColors = ['#3730a3','#1e40af','#075985','#115e59','#166534','#854d0e','#9a3412','#991b1b','#6b21a8','#86198f'];
+  var bgColors = ['#1e293b','#0f172a','#1e1b4b','#14532d','#064e3b','#713f12','#7c2d12','#7f1d1d','#581c87','#701a75'];
+  var textColors = ['#93c5fd','#a5f3fc','#c7d2fe','#86efac','#6ee7b7','#fde047','#fdba74','#fca5a5','#d8b4fe','#f0abfc'];
   var cIdx = Math.abs(hash) % bgColors.length;
   var fbBg = bgColors[cIdx];
   var fbColor = textColors[cIdx];
 
   return '<span class="stock-logo-wrap" style="width:' + s + 'px;height:' + s + 'px;' + (extraStyle || '') + '" title="' + t + '">'
-    + '<img src="https://invezgo.com/logos/' + t + '.png" alt="' + t + '" class="stock-logo-img" loading="lazy" '
-    + 'onerror="if(!this.dataset.fb1){this.dataset.fb1=\'1\';this.src=\'https://invezgo.com/assets/logos/' + t + '.png\';}else if(!this.dataset.fb2){this.dataset.fb2=\'1\';this.src=\'https://assets.stockbit.com/logos/companies/' + t + '.png\';}else if(!this.dataset.fb3){this.dataset.fb3=\'1\';this.src=\'https://financialmodelingprep.com/image-stock/' + t + '.JK.png\';}else{this.style.display=\'none\';var f=this.nextElementSibling;if(f){f.style.display=\'inline-flex\';}}"'
+    + '<img src="https://assets.stockbit.com/logos/companies/' + t + '.png" alt="" class="stock-logo-img" loading="lazy" '
+    + 'onerror="this.style.display=\'none\';var f=this.nextElementSibling;if(f){f.style.display=\'inline-flex\';}" '
+    + 'onload="this.style.display=\'block\';var f=this.nextElementSibling;if(f){f.style.display=\'none\';}" '
     + ' />'
     + '<span class="stock-logo-fallback" style="font-size:' + fs + 'px;background:' + fbBg + ';color:' + fbColor + '">' + fbText + '</span>'
     + '</span>';
