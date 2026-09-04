@@ -1090,8 +1090,10 @@ document.addEventListener('DOMContentLoaded',function(){
   buildTickerTape();
   fsInit();
 
-  // ── Yahoo Finance realtime init ──
+  // ── Yahoo Finance realtime init & 5-minute portfolio refresh background interval ──
   fhStart();
+  if(typeof startPortfolioBackgroundInterval==='function') startPortfolioBackgroundInterval();
+  if(typeof updateAllLastSyncTimestamps==='function') updateAllLastSyncTimestamps();
 
   // Wire buttons
   el('btn-setor').onclick=function(){openModal('setor')};

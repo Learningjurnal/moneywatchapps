@@ -913,12 +913,11 @@ function fhSetBadge(status, text){
   FH.status = status;
   fhUpdateLoadBanners(status);
   var dot = el('fh-dot'), lbl = el('fh-label'), badge = el('fh-badge');
-  // FIX: sebelumnya tidak ada indikator KAPAN harga terakhir benar-benar
-  // berhasil diambil — badge cuma bilang "LIVE"/"Simulasi" tanpa jejak waktu,
-  // jadi user tidak tahu apakah angka yang dilihat baru saja disegarkan atau
-  // sebenarnya sudah basi karena siklus refresh diam-diam gagal berulang kali.
-  if(status==='live') FH.lastSyncAt = Date.now();
-  if(typeof fhUpdateLastSyncLabel==='function') fhUpdateLastSyncLabel();
+  if(status==='live'){
+    FH.lastSyncAt = Date.now();
+    PORTFOLIO_LAST_UPDATED_AT = FH.lastSyncAt;
+  }
+  if(typeof updateAllLastSyncTimestamps==='function') updateAllLastSyncTimestamps();
   if(!dot||!lbl) return;
   var colors = { live:'#41f3a7', error:'#e21d48', off:'#4a5e82', loading:'#ffc107', limit:'#ffc107' };
   dot.style.background = colors[status]||'#4a5e82';
@@ -929,24 +928,148 @@ function fhSetBadge(status, text){
                               status==='limit'  ? 'rgba(255,193,7,.3)' : 'var(--border)';
   }
 }
-// ── Label relatif "diupdate X lalu" — dipanggil tiap detik dari updateClock()
-// supaya selalu segar tanpa perlu interval terpisah. ──
-function fhUpdateLastSyncLabel(){
+
+// Global portfolio sync timestamp & 5-minute background refresh state
+var PORTFOLIO_LAST_UPDATED_AT = Date.now();
+var PORTFOLIO_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 menit
+var _portfolioRefreshIntervalTimer = null;
+var _isPortfolioRefreshing = false;
+
+// ── Update semua tampilan label & timestamp "Last Updated" ──
+function updateAllLastSyncTimestamps(){
+  var ts = PORTFOLIO_LAST_UPDATED_AT || FH.lastSyncAt || Date.now();
+  var d = new Date(ts);
+  var timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  var fullStr = d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'medium' });
+  var secAgo = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+
+  var relTxt;
+  if(secAgo < 8) relTxt = 'baru saja';
+  else if(secAgo < 60) relTxt = secAgo + ' dtk lalu';
+  else if(secAgo < 3600) relTxt = Math.floor(secAgo / 60) + ' mnt lalu';
+  else relTxt = Math.floor(secAgo / 3600) + ' jam lalu';
+
+  // 1. Topbar last updated badge
+  var tbTime = el('topbar-last-updated-time');
+  if(tbTime){
+    tbTime.textContent = timeStr;
+    var tbBadge = el('topbar-last-sync-badge');
+    if(tbBadge) tbBadge.title = 'Terakhir diperbarui: ' + fullStr + ' (' + relTxt + '). Interval auto-refresh: 5 menit. Klik untuk refresh sekarang.';
+  }
+
+  // 2. Dashboard portfolio hub header
+  var dashStamp = el('dash-last-updated-stamp');
+  var dashRel = el('dash-last-updated-rel');
+  if(dashStamp){
+    dashStamp.textContent = timeStr;
+    dashStamp.title = 'Terakhir disinkronkan: ' + fullStr;
+  }
+  if(dashRel){
+    dashRel.textContent = '(' + relTxt + ')';
+    dashRel.style.color = secAgo > 600 ? 'var(--amber)' : 'var(--text3)';
+  }
+
+  // 3. Portofolio Saham page header
+  var portoStamp = el('porto-last-updated-stamp');
+  var portoRel = el('porto-last-updated-rel');
+  if(portoStamp){
+    portoStamp.textContent = timeStr;
+    portoStamp.title = 'Terakhir disinkronkan: ' + fullStr;
+  }
+  if(portoRel){
+    portoRel.textContent = '(' + relTxt + ')';
+    portoRel.style.color = secAgo > 600 ? 'var(--amber)' : 'var(--text3)';
+  }
+
+  // 4. Legacy fh-lastsync compatibility
   var el2 = el('fh-lastsync');
-  if(!el2) return;
-  if(!FH.lastSyncAt){ el2.textContent=''; return; }
-  var secAgo = Math.floor((Date.now()-FH.lastSyncAt)/1000);
-  var txt;
-  if(secAgo<5) txt='baru saja';
-  else if(secAgo<60) txt=secAgo+'dtk lalu';
-  else if(secAgo<3600) txt=Math.floor(secAgo/60)+'mnt lalu';
-  else txt=Math.floor(secAgo/3600)+'jam lalu';
-  el2.textContent = txt;
-  // Kalau sudah lama sekali (>10 menit) tanpa sinkron berhasil, kasih warna
-  // peringatan supaya kelihatan bukan cuma teks netral — data mungkin basi.
-  el2.style.color = secAgo>600 ? 'var(--amber)' : 'var(--text3)';
-  el2.title = 'Harga terakhir berhasil disinkronkan: '+new Date(FH.lastSyncAt).toLocaleString('id-ID');
+  if(el2){
+    el2.textContent = relTxt;
+    el2.style.color = secAgo > 600 ? 'var(--amber)' : 'var(--text3)';
+    el2.title = 'Harga terakhir berhasil disinkronkan: ' + fullStr;
+  }
 }
+
+function fhUpdateLastSyncLabel(){
+  updateAllLastSyncTimestamps();
+}
+
+// ── Refresh data pasar & portofolio secara komprehensif ──
+function refreshPortfolioMarketData(options){
+  options = options || {};
+  var isManual = !!options.isManual;
+  
+  if(_isPortfolioRefreshing) return;
+  _isPortfolioRefreshing = true;
+
+  // Animasi putar ikon refresh
+  var topbarIcon = el('topbar-sync-icon');
+  var dashIcon = el('dash-refresh-icon');
+  if(topbarIcon) topbarIcon.classList.add('animate-spin');
+  if(dashIcon) dashIcon.classList.add('animate-spin');
+
+  if(isManual && typeof showSaveStatus === 'function'){
+    showSaveStatus('⏳ Menyinkronkan data pasar portofolio...');
+  }
+
+  // 1. Fetch benchmark IHSG & kurs
+  fhFetchIHSG();
+  fhFetchKurs();
+
+  // 2. Fetch aset portofolio (Saham, Crypto, ETF)
+  fhFetchStocks();
+  fhFetchCrypto();
+  fhFetchEtf();
+
+  // 3. Rekalkulasi dan refresh antarmuka setelah fetch
+  setTimeout(function(){
+    PORTFOLIO_LAST_UPDATED_AT = Date.now();
+    if(FH) FH.lastSyncAt = PORTFOLIO_LAST_UPDATED_AT;
+
+    _invalidatePortoCache();
+    if(typeof calcPortfolioVolatilityAndRisk === 'function') calcPortfolioVolatilityAndRisk();
+    updatePrices();
+    updateTopbar();
+    buildTickerTape();
+
+    if(typeof renderPortfolioHub === 'function') renderPortfolioHub();
+    if(typeof renderPortoDonut === 'function') renderPortoDonut();
+
+    if(typeof currentPage !== 'undefined'){
+      if(currentPage === 'dashboard') { try{ renderDashboard(); }catch(e){} }
+      else if(currentPage === 'portofolio') { try{ renderPortofolio(); }catch(e){} }
+      else if(currentPage === 'performance') { try{ renderStockPerformance(); }catch(e){} }
+      else if(currentPage === 'wealth') { try{ if(typeof renderWealthOverview==='function') renderWealthOverview(); }catch(e){} }
+    }
+
+    updateAllLastSyncTimestamps();
+
+    if(topbarIcon) topbarIcon.classList.remove('animate-spin');
+    if(dashIcon) dashIcon.classList.remove('animate-spin');
+    _isPortfolioRefreshing = false;
+
+    if(isManual){
+      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data portofolio berhasil diperbarui');
+      if(typeof showToast === 'function') showToast('🔄 Data pasar portofolio berhasil disinkronkan');
+    }
+    if(typeof options.onComplete === 'function') options.onComplete();
+  }, 1200);
+}
+
+// ── Inisialisasi interval latar belakang 5 menit ──
+function startPortfolioBackgroundInterval(){
+  if(_portfolioRefreshIntervalTimer) clearInterval(_portfolioRefreshIntervalTimer);
+  _portfolioRefreshIntervalTimer = setInterval(function(){
+    console.log('[Portfolio Engine] Background 5-minute auto-refresh triggered at ' + new Date().toLocaleTimeString());
+    refreshPortfolioMarketData({ isBackground: true });
+  }, PORTFOLIO_REFRESH_INTERVAL_MS);
+}
+
+window.PORTFOLIO_LAST_UPDATED_AT = PORTFOLIO_LAST_UPDATED_AT;
+window.PORTFOLIO_REFRESH_INTERVAL_MS = PORTFOLIO_REFRESH_INTERVAL_MS;
+window.refreshPortfolioMarketData = refreshPortfolioMarketData;
+window.updateAllLastSyncTimestamps = updateAllLastSyncTimestamps;
+window.startPortfolioBackgroundInterval = startPortfolioBackgroundInterval;
 
 // ── Banner loading ringan di Dashboard & Portofolio Saham — status pengambilan harga live ──
 function fhUpdateLoadBanners(status){
