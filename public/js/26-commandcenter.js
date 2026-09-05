@@ -939,8 +939,8 @@ function renderOpportunityRadarPage() {
     + '</div>'
     + '<div class="metric" style="border-left:3px solid var(--blue)">'
       + '<div class="mlabel">AKUMULASI SMART MONEY</div>'
-      + '<div class="mval mono" style="font-size:22px;color:var(--blue)">' + (RADAR_STATE.accData?.counts?.accumulation || 15) + '</div>'
-      + '<div class="msub neu">Inflow Dominan Bandar</div>'
+      + '<div class="mval mono" style="font-size:22px;color:var(--blue)">' + (RADAR_STATE.accData ? (RADAR_STATE.accData.counts?.accumulation ?? 0) : '—') + '</div>'
+      + '<div class="msub neu">' + (RADAR_STATE.accData && RADAR_STATE.accData.isSimulated ? 'Data broker flow belum tersedia' : 'Inflow Dominan Bandar') + '</div>'
     + '</div>'
     + '<div class="metric" style="border-left:3px solid var(--amber)">'
       + '<div class="mlabel">AKSI KORPORASI AKTIF</div>'
@@ -1101,6 +1101,14 @@ function renderRadarScannerSubTab() {
   var accList = accData.accumulation || [];
   var distList = accData.distribution || [];
   var tf = RADAR_STATE.accTimeframe || '1D';
+
+  // No real broker-flow provider configured (see getUniverseAccumulationDistribution) -
+  // an honest empty state instead of the fabricated 20-ticker list this used to show.
+  if (accData.isSimulated && !accList.length && !distList.length) {
+    return '<div class="card" style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
+      + '⚠ ' + (accData.message || 'Data akumulasi/distribusi seluruh bursa belum tersedia.')
+      + '</div>';
+  }
 
   var html = '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
     + '<div>'
