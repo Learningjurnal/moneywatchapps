@@ -29,15 +29,23 @@
     selectedStrategyId: 'strat_pullback',
     filterSignal: 'all',
     searchQuery: '',
+    // No real market-regime classification engine exists yet (would need a
+    // sector-index feed and a trend/breadth model we haven't built). Every
+    // field below used to ship as a permanently fixed fake number shown as
+    // if live ("82% CONVICTION", "BULLISH RISK-ON", "+Rp 542 Miliar") right
+    // next to genuinely real numbers on the Cockpit — misleading because a
+    // user couldn't tell which was which. Left null on purpose; the render
+    // functions show "Belum Dihitung" instead of a number. Only `ihsg` is
+    // real (updated from the live IHSG price feed in syncAiPaperPortfolioLivePrices).
     marketRegime: {
-      regime: 'BULLISH RISK-ON',
-      confidence: 82,
-      ihsg: 7780,
-      ihsgChange: 0.84,
-      breadthPct: 68.4,
-      foreignFlowToday: '+Rp 542 Miliar',
-      sectorLeader: 'Financials & Energy',
-      regimeDescription: 'Pasar berada dalam tren bullish dengan partisipasi volume kuat & net buy investor asing. Strategi Trend Following & Pullback diprioritaskan.'
+      regime: null,
+      confidence: null,
+      ihsg: 0,
+      ihsgChange: null,
+      breadthPct: null,
+      foreignFlowToday: null,
+      sectorLeader: null,
+      regimeDescription: null
     },
     // ISOLATED VIRTUAL ACCOUNT (Rp 100 Juta Initial Capital) — starts
     // genuinely empty. The old version shipped with 3 fake open positions
@@ -63,53 +71,12 @@
       openPositions: [],
       closedTrades: []
     },
-    // AUTONOMOUS HYPOTHESIS LAB
-    hypotheses: [
-      {
-        id: 'HYPO-001',
-        title: 'Konfirmasi Volume > 2x pada Breakout Resistance',
-        statement: 'Breakout yang disertai volume > 2x average 20-hari dan EMA20 > EMA50 menghasilkan win rate 14.8% lebih tinggi dan expectancy positif dibanding breakout volume rendah.',
-        dataset: 'IDX LQ45 & Growth Universe (2024-2026)',
-        sampleSize: 142,
-        testResult: 'Win Rate: 64.2% vs 49.4% (Baseline). Profit Factor naik dari 1.12 menjadi 1.74.',
-        status: 'ACCEPTED',
-        statusCls: 'b-up',
-        date: '2026-08-20'
-      },
-      {
-        id: 'HYPO-002',
-        title: 'Mean Reversion saat Market Regime Bearish Memiliki EV Negatif',
-        statement: 'Membeli saham oversold (RSI < 30) saat IHSG berada di bawah EMA50 menghasilkan Expected Value negatif karena harga terus mengalami penurunan berkepanjangan (catching falling knives).',
-        dataset: 'Siklus Koreksi IHSG (180 Sesi)',
-        sampleSize: 86,
-        testResult: 'Expectancy: -Rp 115.000 per trade. Win rate hanya 42.1%. Max Drawdown melonjak ke 16.4%.',
-        status: 'ACCEPTED (RULE APPLIED: BAN MEAN REVERSION ON BEAR REGIME)',
-        statusCls: 'b-dn',
-        date: '2026-08-15'
-      },
-      {
-        id: 'HYPO-003',
-        title: 'Konsentrasi Top 3 Broker > 65% pada Fase Pullback',
-        statement: 'Saham yang mengalami pullback ke EMA20 dengan akumulasi Top 3 Broker > 65% total volume memiliki probabilitas rebound sukses > 72%.',
-        dataset: 'IDX Top 50 Market Cap (2025-2026)',
-        sampleSize: 68,
-        testResult: 'Win rate saat ini: 71.4%, Profit Factor: 2.12. Menunggu 32 trade tambahan untuk validasi out-of-sample.',
-        status: 'TESTING (NEED MORE DATA)',
-        statusCls: 'b-amb',
-        date: '2026-08-28'
-      },
-      {
-        id: 'HYPO-004',
-        title: 'Dynamic ATR Trailing Stop vs Fixed 1:2 Target',
-        statement: 'Menggunakan Trailing Stop 2.5x ATR pada emiten sektor komoditas (Energy & Basic Materials) menghasilkan total return 22% lebih tinggi daripada keluar di target tetap 1:2.',
-        dataset: 'Emiten Batubara & Logam (ADRO, PTBA, ANTM, MDKA)',
-        sampleSize: 54,
-        testResult: 'Average win naik dari +4.8% ke +8.6%. Profit Factor naik ke 1.95.',
-        status: 'ACCEPTED',
-        statusCls: 'b-up',
-        date: '2026-08-22'
-      }
-    ]
+    // AUTONOMOUS HYPOTHESIS LAB — empty on purpose. This used to ship with
+    // 4 permanently fixed fake hypothesis tests (invented win rates, sample
+    // sizes, p-values). There is no real hypothesis-generation/testing
+    // engine yet, so an empty list + honest empty-state message is shown
+    // instead of numbers that look computed but never were.
+    hypotheses: []
   };
 
   var AI_UNIVERSE = [];
@@ -273,16 +240,6 @@
       dataQuality: sig.dataQuality,
       isRealSignal: true
     };
-  }
-
-  // Honest disclaimer shown on tabs not yet rebuilt on real data this
-  // round (Strategy Lab win-rates, Backtest Lab metrics, Paper Portfolio
-  // trades, Journal entries) — Scanner & Deep Analysis above are real;
-  // these still show illustrative example content pending a follow-up.
-  function _demoDataBanner() {
-    return '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:var(--text)">'
-      + '⚠ <strong>Contoh Ilustratif, Bukan Data Riil:</strong> Tab ini belum tersambung ke mesin sinyal nyata (lihat tab Scanner &amp; Explainable AI untuk data real-time) — angka di bawah untuk ilustrasi struktur fitur.'
-      + '</div>';
   }
 
   function ensureFullUniverseLoaded() {
@@ -779,13 +736,17 @@
       + '<div class="row4" style="margin-bottom:18px">'
       + '  <div class="metric">'
       + '    <div class="mlabel">Market Regime IHSG</div>'
-      + '    <div class="mval up" style="font-size:18px">🟢 ' + r.regime + '</div>'
-      + '    <div class="msub neu">IHSG ' + r.ihsg + ' (+' + r.ihsgChange + '%) · Breadth ' + r.breadthPct + '%</div>'
+      + (r.regime
+          ? '    <div class="mval up" style="font-size:18px">🟢 ' + r.regime + '</div>'
+          : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
+      + '    <div class="msub neu">IHSG ' + (r.ihsg || '-') + (r.ihsgChange != null ? ' (+' + r.ihsgChange + '%)' : '') + (r.breadthPct != null ? ' · Breadth ' + r.breadthPct + '%' : ' · Breadth belum tersedia')  + '</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">AI Conviction &amp; Edge</div>'
-      + '    <div class="mval" style="color:#38bdf8;font-size:20px">' + r.confidence + '% CONVICTION</div>'
-      + '    <div class="msub neu">Foreign Flow: ' + r.foreignFlowToday + '</div>'
+      + (r.confidence != null
+          ? '    <div class="mval" style="color:#38bdf8;font-size:20px">' + r.confidence + '% CONVICTION</div>'
+          : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
+      + '    <div class="msub neu">Foreign Flow: ' + (r.foreignFlowToday || 'Belum tersedia') + '</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Sinyal Terkuat Saat Ini</div>'
@@ -1264,19 +1225,22 @@
   function renderAiHypothesisLab(state) {
     var hypos = state.hypotheses;
 
-    var html = _demoDataBanner()
-      + '<div class="card" style="padding:20px;margin-bottom:18px">'
-      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
-      + '    <div>'
-      + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-bulb" style="color:var(--amber)"></i> Autonomous Hypothesis Generation &amp; Testing Engine'
-      + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">AI secara mandiri merumuskan hipotesis pasar, menentukan dataset, menguji melalui Walk-Forward Backtesting, dan mengintegrasikannya ke dalam aturan trading.</div>'
+    var html = '<div class="card" style="padding:20px;margin-bottom:18px">'
+      + '  <div style="margin-bottom:16px">'
+      + '    <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
+      + '      <i class="ti ti-bulb" style="color:var(--amber)"></i> Hypothesis Lab'
       + '    </div>'
-      + '    <button class="btn btn-blue btn-sm" onclick="aiFormulateNewHypothesis()">⚡ Generate Hipotesis Baru</button>'
-      + '  </div>'
+      + '    <div style="font-size:12px;color:var(--text3)">Daftar hipotesis trading yang sudah diuji lewat Walk-Forward Backtest di Backtest Lab, dengan hasil riil dari histori harga aktual.</div>'
+      + '  </div>';
 
-      + '  <div style="display:flex;flex-direction:column;gap:14px">';
+    if (!hypos.length) {
+      html += '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
+        + 'Belum ada hipotesis.<br>Mesin perumusan hipotesis otomatis (yang secara mandiri mengusulkan aturan trading baru) belum dibangun di aplikasi ini.<br>Gunakan <strong>Strategy Lab</strong> untuk menguji ketiga strategi rule-based yang sudah tersedia dengan data riil.'
+        + '</div></div>';
+      return html;
+    }
+
+    html += '  <div style="display:flex;flex-direction:column;gap:14px">';
 
     hypos.forEach(function(h) {
       html += ''
@@ -1490,45 +1454,36 @@
   function renderAiMarketRegime(state) {
     var r = state.marketRegime;
 
-    var sectors = [
-      { name: 'Financials (IDXFINANCE)', chg: '+1.42%', flow: '+Rp 380 M', status: 'ACCUMULATION LEADER', statusCls: 'b-up' },
-      { name: 'Energy (IDXENERGY)', chg: '+1.85%', flow: '+Rp 145 M', status: 'BULLISH MOMENTUM', statusCls: 'b-up' },
-      { name: 'Basic Materials (IDXBASIC)', chg: '-0.45%', flow: '-Rp 25 M', status: 'NEUTRAL CONSOLIDATION', statusCls: 'b-amb' },
-      { name: 'Consumer Non-Cyclicals (IDXNONCYC)', chg: '+0.12%', flow: '+Rp 18 M', status: 'DEFENSIVE HOLD', statusCls: 'b-accent' },
-      { name: 'Technology (IDXTECHNO)', chg: '-1.80%', flow: '-Rp 88 M', status: 'DISTRIBUTION / AVOID', statusCls: 'b-dn' },
-      { name: 'Infrastructure (IDXINFRA)', chg: '+0.65%', flow: '+Rp 42 M', status: 'MODERATE ACCUMULATION', statusCls: 'b-up' }
-    ];
-
-    var stratEligibility = [
-      { strat: 'Strategy A: Trend Following Ribbon', regimeFit: 'OPTIMAL (Bullish Trend Alignment)', status: 'ACTIVE', cls: 'b-up' },
-      { strat: 'Strategy B: Volume Breakout', regimeFit: 'OPTIMAL (High Participation Volume)', status: 'ACTIVE', cls: 'b-up' },
-      { strat: 'Strategy C: Trend Pullback', regimeFit: 'BEST FIT (High Sharpe on Bullish Retracement)', status: 'ACTIVE', cls: 'b-up' },
-      { strat: 'Strategy D: Momentum Acceleration', regimeFit: 'GOOD (Focus on High Beta Outperformers)', status: 'ACTIVE', cls: 'b-up' },
-      { strat: 'Strategy E: Mean Reversion Oversold', regimeFit: 'RESTRICTED (Negative EV during Trend Regimes)', status: 'DISABLED', cls: 'b-dn' },
-      { strat: 'Strategy F: Volume Accumulation (OBV)', regimeFit: 'EXCELLENT (Early Institutional Inflow)', status: 'ACTIVE', cls: 'b-up' }
-    ];
-
+    // Sector rotation and per-strategy regime-fit both used to ship as fixed
+    // fake tables (invented % changes, invented flow figures, invented
+    // ACTIVE/DISABLED verdicts). There is no real sector-index feed or
+    // regime-classification model behind this app yet, so both are shown
+    // as an honest empty state instead of numbers that were never computed.
     var html = ''
       + '<div class="row4" style="margin-bottom:18px">'
       + '  <div class="metric">'
       + '    <div class="mlabel">Klasifikasi Market Regime</div>'
-      + '    <div class="mval up" style="font-size:18px">🟢 ' + r.regime + '</div>'
-      + '    <div class="msub neu">Probabilitas Konfirmasi: ' + r.confidence + '%</div>'
+      + (r.regime
+          ? '    <div class="mval up" style="font-size:18px">🟢 ' + r.regime + '</div>'
+          : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
+      + '    <div class="msub neu">' + (r.confidence != null ? 'Probabilitas Konfirmasi: ' + r.confidence + '%' : 'Model klasifikasi regime belum dibangun') + '</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Benchmark IHSG Composite</div>'
-      + '    <div class="mval" style="color:var(--green);font-size:20px">' + r.ihsg + '</div>'
-      + '    <div class="msub up">+' + r.ihsgChange + '% (Di atas EMA20, 50, &amp; 200)</div>'
+      + '    <div class="mval" style="color:var(--green);font-size:20px">' + (r.ihsg || '-') + '</div>'
+      + '    <div class="msub neu">' + (r.ihsgChange != null ? '+' + r.ihsgChange + '% (Di atas EMA20, 50, &amp; 200)' : 'Perubahan harian belum dihitung') + '</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Market Breadth Ratio</div>'
-      + '    <div class="mval" style="color:#38bdf8;font-size:20px">' + r.breadthPct + '% ADVANCE</div>'
-      + '    <div class="msub neu">340 Naik / 210 Turun / 180 Stagnan</div>'
+      + (r.breadthPct != null
+          ? '    <div class="mval" style="color:#38bdf8;font-size:20px">' + r.breadthPct + '% ADVANCE</div>'
+          : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
+      + '    <div class="msub neu">Perlu data breadth per-saham (naik/turun/stagnan) yang belum tersedia</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Foreign Institutional Net Flow</div>'
-      + '    <div class="mval up" style="font-size:18px">' + r.foreignFlowToday + '</div>'
-      + '    <div class="msub neu">Akumulasi Bersih 4 Sesi Beruntun</div>'
+      + '    <div class="mval" style="font-size:14px;color:var(--text3)">' + (r.foreignFlowToday || 'Belum Tersedia') + '</div>'
+      + '    <div class="msub neu">Perlu feed data broker summary/KSEI harian</div>'
       + '  </div>'
       + '</div>'
 
@@ -1537,26 +1492,9 @@
       + '  <!-- Sector Rotation Table -->'
       + '  <div class="card" style="padding:20px">'
       + '    <div class="cheader" style="margin-bottom:14px">'
-      + '      <span class="ctitle"><i class="ti ti-rotate" style="color:#38bdf8"></i> Rotasi Sektor &amp; Aliran Dana</span>'
+      + '      <span class="ctitle"><i class="ti ti-rotate" style="color:var(--accent)"></i> Rotasi Sektor &amp; Aliran Dana</span>'
       + '    </div>'
-      + '    <div style="display:flex;flex-direction:column;gap:8px">';
-
-    sectors.forEach(function(s) {
-      html += ''
-        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">'
-        + '  <div>'
-        + '    <div style="font-weight:700;font-size:12.5px;color:var(--text)">' + s.name + '</div>'
-        + '    <div style="font-size:11px;color:var(--text3)">Foreign Flow: <span style="font-family:var(--font-mono);color:' + (s.flow.includes('+') ? 'var(--green)' : 'var(--red)') + '">' + s.flow + '</span></div>'
-        + '  </div>'
-        + '  <div style="text-align:right">'
-        + '    <div style="font-family:var(--font-mono);font-weight:800;color:' + (s.chg.includes('+') ? 'var(--green)' : 'var(--red)') + '">' + s.chg + '</div>'
-        + '    <span class="badge ' + s.statusCls + '" style="font-size:9px">' + s.status + '</span>'
-        + '  </div>'
-        + '</div>';
-    });
-
-    html += ''
-      + '    </div>'
+      + '    <div style="padding:24px 8px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6">Data rotasi sektor belum tersedia.<br>Membutuhkan feed indeks sektoral (IDXFINANCE, IDXENERGY, dst) real-time yang belum diintegrasikan.</div>'
       + '  </div>'
 
       + '  <!-- Strategy Eligibility Engine Matrix -->'
@@ -1564,27 +1502,10 @@
       + '    <div class="cheader" style="margin-bottom:14px">'
       + '      <span class="ctitle"><i class="ti ti-adjustments-alt" style="color:var(--accent)"></i> Adaptasi Strategi Terhadap Regime Aktif</span>'
       + '    </div>'
-      + '    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">AI secara otomatis mengaktifkan strategi yang memiliki positive expectancy pada regime pasar saat ini dan menonaktifkan strategi berisiko tinggi.</div>'
-      + '    <div style="overflow-x:auto">'
-      + '      <table class="tbl">'
-      + '        <thead>'
-      + '          <tr>'
-      + '            <th>Nama Strategi</th>'
-      + '            <th>Kesesuaian Regime (' + r.regime + ')</th>'
-      + '            <th>Status Eksekusi</th>'
-      + '          </tr>'
-      + '        </thead>'
-      + '        <tbody>';
+      + '    <div style="padding:24px 8px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6">Belum ada mesin klasifikasi regime yang bisa menentukan strategi mana yang layak diaktifkan secara otomatis.<br>Gunakan hasil riil di <strong>Strategy Lab</strong> untuk membandingkan performa antar strategi.</div>'
+      + '  </div>'
+      + '</div>';
 
-    stratEligibility.forEach(function(se) {
-      html += '<tr>'
-        + '<td style="font-weight:700;font-size:12px;color:var(--text)">' + se.strat + '</td>'
-        + '<td style="font-size:11.5px;color:var(--text2)">' + se.regimeFit + '</td>'
-        + '<td><span class="badge ' + se.cls + '">' + se.status + '</span></td>'
-        + '</tr>';
-    });
-
-    html += '</tbody></table></div></div></div>';
     return html;
   }
 
@@ -1671,54 +1592,45 @@
   // 13. SUB-PAGE RENDERING: AI LEARNING LOG & WEIGHT CALIBRATION
   // ══════════════════════════════════════════════════════════
   function renderAiLearningLog(state) {
-    var auditQuestions = [
-      { num: 1, q: 'Apakah tesis trading terbukti benar saat pasar berjalan?', ans: 'Valid pada 26 dari 38 trade (68.4% akurasi tesis).' },
-      { num: 2, q: 'Apakah entry dilakukan terlalu cepat (menangkap falling knife)?', ans: 'Deviasi entry tercatat pada 2 trade ANTM & GOTO (sebelum candle konfirmasi close).' },
-      { num: 3, q: 'Apakah level Stop Loss terlalu sempit terhadap volatilitas ATR?', ans: 'Stop loss 1.5x ATR optimal untuk emiten Bluechip, komoditas membutuhkan 2.5x ATR.' },
-      { num: 4, q: 'Apakah terjadi pergeseran Market Regime saat posisi sedang terbuka?', ans: 'Regime stabil Bullish Risk-On sepanjang siklus trading Agustus 2026.' },
-      { num: 5, q: 'Apakah sinyal breakout terindikasi False Breakout?', ans: '2 sinyal false breakout berhasil dieliminasi berkat filter volume > 2x average.' },
-      { num: 6, q: 'Apakah volume dan likuiditas mengonfirmasi pergerakan harga?', ans: 'Korelasi volume dan kelanjutan tren mencapai koefisien 0.82.' },
-      { num: 7, q: 'Apakah aliran broker (Bandarmologi) berbalik arah secara mendadak?', ans: 'Top broker mempertahankan akumulasi pada 85% trade yang menang.' },
-      { num: 8, q: 'Apakah strategi menghasilkan edge yang konsisten dibanding buy-and-hold?', ans: 'Alpha +4.2% di atas performa benchmark IHSG bulanan.' },
-      { num: 9, q: 'Apakah ada pelanggaran aturan batasan risiko 1.0% virtual capital?', ans: '0 Pelanggaran. Seluruh position sizing dipatuhi 100% oleh Risk Engine.' },
-      { num: 10, q: 'Apakah bobot faktor komposit perlu dikalibrasi ulang?', ans: 'Bobot Broker Flow dinaikkan dari 15% ke 18% setelah konfirmasi akumulasi BBCA & BMRI.' }
-    ];
+    // The 10 audit answers and the 6-factor "adaptive weight" breakdown
+    // below used to be permanently fixed fake text/numbers - no post-mortem
+    // analysis engine reads the real closedTrades array, and the composite
+    // score never actually used those 6 factors (see idx-data-engine.js -
+    // it's technical*0.65 + fundamental*0.35, full stop). Replaced with an
+    // honest empty state for the audit, and the real weight for the one
+    // number we do know.
+    var p = state.paperAccount;
+    var trades = (p && p.closedTrades) || [];
 
-    var html = _demoDataBanner()
-      + '<div class="card" style="padding:20px;margin-bottom:18px">'
-      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
-      + '    <div>'
-      + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        10-Point Post-Mortem Self-Critique &amp; Learning Engine'
-      + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">Audit diagnostik berkala yang dijalankan AI setelah setiap siklus trading untuk mendeteksi deviasi dan menyempurnakan bobot scoring.</div>'
+    var html = '<div class="card" style="padding:20px;margin-bottom:18px">'
+      + '  <div style="margin-bottom:16px">'
+      + '    <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
+      + '      Post-Mortem Self-Critique Engine'
       + '    </div>'
-      + '  </div>'
+      + '    <div style="font-size:12px;color:var(--text3)">Audit otomatis dari trade yang benar-benar ditutup di Paper Portfolio. Belum ada analisis mendalam (pola kesalahan, korelasi entry/exit) karena butuh lebih banyak histori trade riil.</div>'
+      + '  </div>';
 
-      // 10 Audit Items Grid
-      + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">';
+    if (!trades.length) {
+      html += '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
+        + 'Belum ada data untuk dianalisis — belum ada trade yang ditutup di Paper Portfolio.<br>Buka dan tutup beberapa posisi dari sinyal BUY di tab <strong>AI Paper Portfolio</strong> untuk mulai mengisi audit ini.'
+        + '</div></div>';
+      return html;
+    }
 
-    auditQuestions.forEach(function(aq) {
-      html += ''
-        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
-        + '  <div style="font-size:11.5px;font-weight:700;color:#38bdf8;margin-bottom:4px">' + aq.num + '. ' + aq.q + '</div>'
-        + '  <div style="font-size:11px;color:var(--text2);line-height:1.4">' + aq.ans + '</div>'
-        + '</div>';
-    });
+    var wins = trades.filter(function(t) { return t.result === 'WIN'; }).length;
+    html += '<div style="padding:16px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text2);margin-bottom:18px">'
+      + 'Dari ' + trades.length + ' trade yang sudah ditutup, ' + wins + ' di antaranya profit (' + Math.round((wins / trades.length) * 100) + '%). Analisis pola kesalahan per-trade yang lebih rinci belum dibangun — lihat detail tiap trade di tab <strong>Journal</strong>.'
+      + '</div>';
 
     html += ''
-      + '  </div>'
-
-      // Weight Calibration Display
+      // Real weight actually used by the composite signal engine (not a
+      // fabricated "adaptive calibration" - it's a fixed formula).
       + '  <div style="border-top:1px solid var(--border2);padding-top:16px">'
-      + '    <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px"><i class="ti ti-sliders" style="color:var(--accent)"></i> Kalibrasi Bobot Scoring Terkini (Adaptive Weight Model)</div>'
-      + '    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px">'
-      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">TEKNIKAL</div><div style="font-size:16px;font-weight:800;color:#38bdf8">25%</div></div>'
-      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">TREND RIBBON</div><div style="font-size:16px;font-weight:800;color:#38bdf8">20%</div></div>'
-      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">MONEY FLOW</div><div style="font-size:16px;font-weight:800;color:#38bdf8">18%</div></div>'
-      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">BROKER ACCUM</div><div style="font-size:16px;font-weight:800;color:#38bdf8">17%</div></div>'
-      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">FUNDAMENTAL</div><div style="font-size:16px;font-weight:800;color:#38bdf8">12%</div></div>'
-      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">REGIME ADAPT</div><div style="font-size:16px;font-weight:800;color:#38bdf8">8%</div></div>'
+      + '    <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px"><i class="ti ti-sliders" style="color:var(--accent)"></i> Bobot Riil Mesin Sinyal</div>'
+      + '    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Ini formula tetap yang benar-benar dipakai (lihat computeStockSignal), bukan kalibrasi adaptif — mesin ini belum menyesuaikan bobotnya sendiri dari hasil trade.</div>'
+      + '    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">'
+      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">TEKNIKAL</div><div style="font-size:16px;font-weight:800;color:var(--accent)">65%</div></div>'
+      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">FUNDAMENTAL</div><div style="font-size:16px;font-weight:800;color:var(--accent)">35%</div></div>'
       + '    </div>'
       + '  </div>'
       + '</div>';
@@ -1830,12 +1742,6 @@
     });
   }
 
-  function aiFormulateNewHypothesis() {
-    if (typeof showToast === 'function') {
-      showToast('💡 Hipotesis #005 dirumuskan: "Volume Spike > 3x pada Saham LQ45 Saat Rebound Support". Menjalankan Walk-Forward Test...');
-    }
-  }
-
   // ══════════════════════════════════════════════════════════
   // 12. EXPOSE TO GLOBAL NAMESPACE
   // ══════════════════════════════════════════════════════════
@@ -1848,7 +1754,6 @@
   window.aiLoadTicker = aiLoadTicker;
   window.aiSetFilterSignal = aiSetFilterSignal;
   window.aiTriggerAutonomousCycle = aiTriggerAutonomousCycle;
-  window.aiFormulateNewHypothesis = aiFormulateNewHypothesis;
   window.syncAiPaperPortfolioLivePrices = syncAiPaperPortfolioLivePrices;
   window.aiRefreshPaperPortfolioQuotes = aiRefreshPaperPortfolioQuotes;
   window.aiOpenPositionFromSignal = aiOpenPositionFromSignal;
