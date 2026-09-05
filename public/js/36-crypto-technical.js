@@ -700,6 +700,7 @@
               <span style="font-size:20px;font-weight:800;color:var(--text);font-family:var(--font-mono)">${a.sym}/USDT</span>
               <span class="badge b-accent" style="font-size:10px;padding:2px 7px">${a.category}</span>
               <span class="badge ${a.signalBadge}" style="font-size:11px;font-weight:800;padding:3px 9px">${a.overallSignal}</span>
+              <span class="badge b-amb" style="font-size:9px;padding:2px 7px" title="Grafik candle, RSI, MACD, whale tracker, dan semua indikator di halaman ini dihasilkan dari deret harga simulasi (belum ada feed candle riil untuk crypto). Hanya harga pasar saat ini yang real.">⚠ Candle &amp; Indikator Simulasi</span>
             </div>
             <div style="font-size:12px;color:var(--text3);margin-top:2px">${a.name} • TradingView: <code>${a.tvSymbol}</code></div>
           </div>

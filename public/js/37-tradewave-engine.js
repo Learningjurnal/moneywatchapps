@@ -105,72 +105,36 @@
       return [];
     }
 
-    // Check if we have standard price in global prices
-    var basePrice = 5000;
-    if (typeof prices !== 'undefined' && prices[cleanTk]) {
-      basePrice = prices[cleanTk];
-    } else {
-      var item = TW_UNIVERSE.find(function(u) { return u.code === cleanTk; });
-      if (item) basePrice = item.base;
-    }
+    // No real candle history cached yet for this ticker. This used to
+    // generate a completely fake OHLCV series here: a seeded pseudo-random
+    // walk keyed off the ticker's own character codes (so "BBCA" always
+    // produced the exact same fake wave shape), styled with a sine-wave
+    // "trend + swing cycle" to look like a real chart, then rescaled to
+    // the real current price so only the shape - not the endpoint - gave
+    // it away. Every downstream Elliott Wave / SuperTrend / CMF number was
+    // computed from that invented series, with no disclosure.
+    // twAnalyzeWave() already has a proper "no data" error path for an
+    // empty array (checked right after calling this function), so the fix
+    // is simply to return empty here instead of fabricating, and kick off
+    // a real fetch in the background so a re-render shortly after picks
+    // up the genuine Yahoo Finance history once it lands.
+    twFetchRealHistoryInBackground(cleanTk);
+    return [];
+  }
 
-    // Seeded random walk for consistent wave generation if external candle unavailable
-    var seed = 0;
-    for (var i = 0; i < cleanTk.length; i++) {
-      seed = (seed * 31 + cleanTk.charCodeAt(i)) & 0xffffffff;
-    }
-    var rnd = function() {
-      seed = (seed * 1664525 + 1013904223) & 0xffffffff;
-      return (seed >>> 0) / 4294967296;
-    };
-
-    var series = [];
-    var p = basePrice * 0.88;
-    var now = new Date();
-
-    for (var j = 0; j < count; j++) {
-      var d = new Date(now);
-      d.setDate(d.getDate() - (count - 1 - j));
-      
-      // Multi-frequency wave pattern: trend + swing cycle + noise
-      var waveCycle = Math.sin(j * 0.22) * 0.025 + Math.sin(j * 0.08) * 0.04;
-      var step = (rnd() - 0.48) * 0.02 + waveCycle * 0.15;
-      
-      var open = p;
-      var close = Math.round(open * (1 + step));
-      var high = Math.round(Math.max(open, close) * (1 + rnd() * 0.015));
-      var low = Math.round(Math.min(open, close) * (1 - rnd() * 0.015));
-      var vol = Math.round(5000000 + rnd() * 15000000 + (Math.abs(close - open) / open) * 20000000);
-
-      // Money Flow Multiplier
-      var mfm = (high - low) > 0 ? ((close - low) - (high - close)) / (high - low) : 0;
-
-      series.push({
-        date: d,
-        open: open,
-        high: high,
-        low: low,
-        close: close,
-        volume: vol,
-        mfm: mfm,
-        mfv: mfm * vol
-      });
-
-      p = close;
-    }
-
-    // Sync latest close with base price
-    if (series.length && basePrice > 0) {
-      var ratio = basePrice / series[series.length - 1].close;
-      for (var k = 0; k < series.length; k++) {
-        series[k].open = Math.round(series[k].open * ratio);
-        series[k].high = Math.round(series[k].high * ratio);
-        series[k].low = Math.round(series[k].low * ratio);
-        series[k].close = Math.round(series[k].close * ratio);
+  var TW_FETCHING = {};
+  function twFetchRealHistoryInBackground(cleanTk) {
+    if (TW_FETCHING[cleanTk]) return;
+    if (typeof rdEnsure !== 'function') return;
+    TW_FETCHING[cleanTk] = true;
+    rdEnsure(cleanTk, function(err) {
+      TW_FETCHING[cleanTk] = false;
+      if (err) return; // stays on the honest "no data" state - never fall back to fake data
+      // Only re-render if the user is still looking at this same ticker.
+      if (TW_STATE.ticker === cleanTk && typeof renderTradeWavePage === 'function') {
+        renderTradeWavePage();
       }
-    }
-
-    return series;
+    });
   }
 
   /**

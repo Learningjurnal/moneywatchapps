@@ -172,7 +172,7 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
       el('bt-data-status') && (el('bt-data-status').textContent = '⚠️ Proxy gagal — pakai data simulasi');
       el('bt-src-label') && (el('bt-src-label').textContent = 'Simulasi');
       el('bt-src-label') && (el('bt-src-label').style.color = 'var(--amber)');
-      cb(null, qtGenSim(ticker, rangeDays));
+      cb(null, qtGenSim(ticker, rangeDays), 'simulasi');
       return;
     }
 
@@ -208,7 +208,7 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
         el('bt-src-price') && (el('bt-src-price').textContent = 'Rp ' + Math.round(data[data.length-1].close).toLocaleString('id-ID'));
       }
       el('bt-data-status') && (el('bt-data-status').textContent = '✅ Data live: ' + data.length + ' hari');
-      cb(null, data);
+      cb(null, data, 'real');
     })
     .catch(function(){
       tryProxy(idx + 1);
@@ -587,21 +587,47 @@ function runBacktest(){
 }
 
 // ── Screener ──
-function scBuildSim(){
-  QT.scData = LQ45_STOCKS.map(function(st){
-    var data = qtGenSim(st.t, 180);
-    var close = data.map(function(d){return d.close;});
-    var rsi2 = qtRSI(close, 14);
-    var ma50 = qtSMA(close, 50);
-    var rsiLast = rsi2[rsi2.length-1]||50;
-    var lc=close[close.length-1], lm=ma50[ma50.length-1];
-    var mom1m=(lc-close[close.length-22])/close[close.length-22]*100;
-    var mom3m=(lc-close[Math.max(0,close.length-66)])/close[Math.max(0,close.length-66)]*100;
-    var vol=Math.sqrt(close.slice(-30).slice(1).map(function(c,i){return Math.pow((c-close.slice(-30)[i])/close.slice(-30)[i]*100,2);}).reduce(function(a,b){return a+b;},0)/29);
-    var score=Math.round((50-Math.abs(rsiLast-50))/50*40+(mom1m>0?Math.min(mom1m*2,30):0)+(lc>lm?20:0));
-    return Object.assign({},st,{rsi:rsiLast,mom1m:mom1m,mom3m:mom3m,vol:vol,price:lc,aboveMa:lc>lm,score:score,live:false});
+// Used to call qtGenSim() directly for every LQ45 stock with no attempt at
+// real data first and no disclosure - the RSI/momentum/score columns were
+// always computed from a per-ticker seeded fake series unless some other
+// page happened to have already cached real history for that exact
+// ticker. Rewired through qtFetchOHLCV (same real-fetch-first, disclosed-
+// simulation-last-resort pipeline the Backtester already uses), staggered
+// so 45+ tickers don't all hit the proxy at once. `live` is now genuinely
+// set from the fetch outcome instead of being a hardcoded `false`.
+var QT_SC_BUILDING = false;
+function scBuildSim(onDone){
+  if (QT_SC_BUILDING) return; // a caller's onDone will still fire once the in-flight build finishes
+  QT_SC_BUILDING = true;
+  el('sc-status') && (el('sc-status').textContent = '📡 Memindai LQ45 (data live, fallback simulasi jika proxy gagal)...');
+  QT.scData = [];
+  var pending = LQ45_STOCKS.length;
+  LQ45_STOCKS.forEach(function(st, idx){
+    setTimeout(function(){
+      qtFetchOHLCV(st.t, 180, function(err, data, source){
+        pending--;
+        if (data && data.length > 30) {
+          var close = data.map(function(d){return d.close;});
+          var rsi2 = qtRSI(close, 14);
+          var ma50 = qtSMA(close, 50);
+          var rsiLast = rsi2[rsi2.length-1]||50;
+          var lc=close[close.length-1], lm=ma50[ma50.length-1]||lc;
+          var mom1m=close.length>22?(lc-close[close.length-22])/close[close.length-22]*100:0;
+          var mom3m=close.length>66?(lc-close[Math.max(0,close.length-66)])/close[Math.max(0,close.length-66)]*100:mom1m;
+          var last30 = close.slice(-30);
+          var vol = last30.length>1 ? Math.sqrt(last30.slice(1).map(function(c,i){return Math.pow((c-last30[i])/last30[i]*100,2);}).reduce(function(a,b){return a+b;},0)/(last30.length-1)) : 0;
+          var score=Math.round((50-Math.abs(rsiLast-50))/50*40+(mom1m>0?Math.min(mom1m*2,30):0)+(lc>lm?20:0));
+          QT.scData.push(Object.assign({},st,{rsi:rsiLast,mom1m:mom1m,mom3m:mom3m,vol:vol,price:lc,aboveMa:lc>lm,score:score,live:source==='real'}));
+        }
+        if (pending<=0) {
+          QT_SC_BUILDING = false;
+          el('sc-status') && (el('sc-status').textContent = '✅ Selesai — ' + QT.scData.length + '/' + LQ45_STOCKS.length + ' saham (● hijau = data live)');
+          scRenderTable();
+          if (typeof onDone === 'function') onDone();
+        }
+      });
+    }, idx * 250);
   });
-  scRenderTable();
 }
 
 function scFetchAndRun(){
@@ -629,11 +655,11 @@ function scFetchAndRun(){
 }
 
 function scRunFilter(){
+  if(!QT.scData.length){ scBuildSim(scRunFilter); return; } // re-run once real data lands
   var rsiMin=parseFloat(el('sc-rsi-min').value||0);
   var rsiMax=parseFloat(el('sc-rsi-max').value||100);
   var momMin=parseFloat(el('sc-mom-min').value||-99);
   var maPos=el('sc-ma-pos').value;
-  if(!QT.scData.length) scBuildSim();
   var filtered = QT.scData.filter(function(s){
     if(s.rsi<rsiMin||s.rsi>rsiMax) return false;
     if(s.mom1m<momMin) return false;
@@ -673,7 +699,7 @@ function scRenderTable(data2){
 
 // ── Factor Heatmap ──
 function fhmRender(){
-  if(!QT.scData.length) scBuildSim();
+  if(!QT.scData.length){ scBuildSim(fhmRender); return; } // re-run once real data lands
   var factor = (el('fhm-factor')&&el('fhm-factor').value)||'rsi';
   var sort2 = (el('fhm-sort')&&el('fhm-sort').value)||'sector';
   var fLabels={rsi:'RSI (14)',mom1m:'Momentum 1M (%)',mom3m:'Momentum 3M (%)',vol:'Volatilitas 30D (%)',score:'Composite Score'};
