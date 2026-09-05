@@ -10,7 +10,7 @@
  */
 
 var MW_SELECTED_INTEL_TICKER = 'BBCA';
-var INTEL_CHART_TIMEFRAME = 'D';
+var INTEL_CHART_TIMEFRAME = '1D';
 var INTEL_CHART_OVERLAYS = { level: true, ma: true, cci: true };
 var MW_INTEL_CACHE = {};
 var MW_INTEL_TIMESTAMPS = {};
@@ -351,11 +351,60 @@ function getIntelUniverse() {
 }
 
 /**
- * Switch chart timeframe
+ * Switch chart timeframe — forces a fresh history fetch for the new range
+ * since each timeframe (D/W/M/Y) maps to a different Yahoo Finance interval.
  */
 function setIntelTimeframe(tf) {
   INTEL_CHART_TIMEFRAME = tf;
   renderIntelPriceChart();
+}
+
+/**
+ * Read a resolved CSS custom property value from the current theme.
+ * Canvas 2D contexts cannot render `var(--x)` strings directly, so chart
+ * drawing code must resolve the actual color at render time — this makes
+ * the hand-drawn price chart follow the dark/light theme toggle correctly.
+ */
+function _intelChartColor(varName, fallback) {
+  try {
+    var v = getComputedStyle(document.body).getPropertyValue(varName);
+    return (v && v.trim()) || fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+/**
+ * Fetch real historical price series for the chart timeframe and re-render.
+ * Backed by /api/idx/history/:ticker (Yahoo Finance chart API) — real data
+ * only, never synthetic/random points.
+ */
+async function fetchIntelChartHistory(ticker, tf) {
+  var tk = String(ticker || '').toUpperCase().trim();
+  var cacheKey = tk + '_' + tf;
+  if (!MW_INTEL_CACHE[tk]) MW_INTEL_CACHE[tk] = {};
+  if (!MW_INTEL_CACHE[tk].history) MW_INTEL_CACHE[tk].history = {};
+
+  // Avoid duplicate concurrent fetches for the same ticker+timeframe
+  if (MW_INTEL_CACHE[tk].history[cacheKey + '_loading']) return;
+  MW_INTEL_CACHE[tk].history[cacheKey + '_loading'] = true;
+
+  try {
+    var resp = await fetch('/api/idx/history/' + encodeURIComponent(tk) + '?tf=' + tf);
+    var json = resp.ok ? await resp.json() : null;
+    MW_INTEL_CACHE[tk].history[tf] = (json && json.points && json.points.length) ? json.points : [];
+    MW_INTEL_CACHE[tk].history[tf + '_error'] = !json || !json.points || !json.points.length;
+  } catch (e) {
+    MW_INTEL_CACHE[tk].history[tf] = [];
+    MW_INTEL_CACHE[tk].history[tf + '_error'] = true;
+  } finally {
+    MW_INTEL_CACHE[tk].history[cacheKey + '_loading'] = false;
+    MW_INTEL_CACHE[tk].history[tf + '_fetched'] = true;
+    // Only redraw if user hasn't navigated away from this ticker/timeframe meanwhile
+    if (MW_SELECTED_INTEL_TICKER === tk && INTEL_CHART_TIMEFRAME === tf) {
+      renderIntelPriceChart();
+    }
+  }
 }
 
 /**
@@ -383,13 +432,21 @@ function renderIntelPriceChart() {
   canvas.height = h * dpr;
   ctx.scale(dpr, dpr);
 
+  // Resolve theme-aware colors once per render (canvas can't read CSS vars directly)
+  var cBg = _intelChartColor('--bg2', '#080D1A');
+  var cGrid = _intelChartColor('--border', '#151C2C');
+  var cMuted = _intelChartColor('--text3', '#64748B');
+  var cAccent = _intelChartColor('--blue', '#00D4FF');
+  var cGreen = _intelChartColor('--green', '#00C805');
+  var cRed = _intelChartColor('--red', '#FF333A');
+
   // Clear
-  ctx.fillStyle = '#080D1A';
+  ctx.fillStyle = cBg;
   ctx.fillRect(0, 0, w, h);
 
   var ticker = MW_SELECTED_INTEL_TICKER;
   if (!isRegisteredIdxTicker(ticker)) {
-    ctx.fillStyle = '#64748B';
+    ctx.fillStyle = cMuted;
     ctx.font = '12px var(--font-mono, monospace)';
     ctx.textAlign = 'center';
     ctx.fillText('Grafik tidak tersedia — Saham bukan konstituen resmi IDX.', w / 2, h / 2);
@@ -400,23 +457,48 @@ function renderIntelPriceChart() {
   var basePx = data.price;
 
   if (basePx <= 0) {
-    ctx.fillStyle = '#64748B';
+    ctx.fillStyle = cMuted;
     ctx.font = '12px var(--font-mono, monospace)';
     ctx.textAlign = 'center';
     ctx.fillText('Data harga realtime sedang disinkronisasi...', w / 2, h / 2);
     return;
   }
 
-  // Draw clean institutional chart with real price levels
-  var padL = 10, padR = 60, padT = 25, padB = 35;
+  var tf = INTEL_CHART_TIMEFRAME;
+  var histState = (MW_INTEL_CACHE[ticker] && MW_INTEL_CACHE[ticker].history) || {};
+  var points = histState[tf];
+
+  // Trigger a fetch if this ticker/timeframe hasn't been loaded yet
+  if (!histState[tf + '_fetched'] && !histState[tf + '_loading']) {
+    fetchIntelChartHistory(ticker, tf);
+  }
+
+  var padL = 10, padR = 60, padT = 25, padB = 44;
   var chartW = w - padL - padR;
   var chartH = h - padT - padB;
 
-  var minP = Math.round(basePx * 0.92);
-  var maxP = Math.round(basePx * 1.08);
+  if (!points || !points.length) {
+    // Loading / unavailable zero-state — never fabricate a fake data series
+    ctx.fillStyle = cMuted;
+    ctx.font = '12px var(--font-mono, monospace)';
+    ctx.textAlign = 'center';
+    var msg = histState[tf + '_fetched']
+      ? '⚠ Data historis ' + tf + ' tidak tersedia saat ini (feed offline/rate-limited)'
+      : 'Memuat data historis harga...';
+    ctx.fillText(msg, w / 2, h / 2);
+    return;
+  }
 
-  // Grid Lines
-  ctx.strokeStyle = '#151C2C';
+  // Draw real historical price line from Yahoo Finance data
+  var closes = points.map(function(p) { return p.c; });
+  var rawMin = Math.min.apply(null, closes);
+  var rawMax = Math.max.apply(null, closes);
+  var pad = (rawMax - rawMin) * 0.08 || (rawMax * 0.02) || 1;
+  var minP = rawMin - pad;
+  var maxP = rawMax + pad;
+
+  // Grid Lines + price axis labels
+  ctx.strokeStyle = cGrid;
   ctx.lineWidth = 1;
   ctx.setLineDash([]);
   for (var k = 0; k <= 4; k++) {
@@ -427,31 +509,59 @@ function renderIntelPriceChart() {
     ctx.stroke();
 
     var pVal = Math.round(maxP - ((maxP - minP) / 4) * k);
-    ctx.fillStyle = '#64748B';
+    ctx.fillStyle = cMuted;
     ctx.font = '10px var(--font-mono, monospace)';
     ctx.textAlign = 'left';
     ctx.fillText('Rp ' + fmtK(pVal), w - padR + 6, gy + 3);
   }
 
-  // Draw real current price level line
-  var curY = padT + (1 - (basePx - minP) / (maxP - minP)) * chartH;
-  ctx.strokeStyle = '#00D4FF';
+  // Plot the real price line
+  var isUp = closes[closes.length - 1] >= closes[0];
+  var lineColor = isUp ? cGreen : cRed;
+  ctx.strokeStyle = lineColor;
   ctx.lineWidth = 1.5;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  points.forEach(function(p, i) {
+    var px = padL + (chartW * i / Math.max(1, points.length - 1));
+    var py = padT + (1 - (p.c - minP) / (maxP - minP)) * chartH;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+
+  // Current price dashed reference line + tag
+  var curY = padT + (1 - (basePx - minP) / (maxP - minP)) * chartH;
+  ctx.strokeStyle = cAccent;
+  ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.moveTo(padL, curY);
   ctx.lineTo(w - padR, curY);
   ctx.stroke();
+  ctx.setLineDash([]);
 
-  // Price Tag Pill
-  ctx.fillStyle = '#00D4FF';
+  ctx.fillStyle = cAccent;
   ctx.fillRect(w - padR + 2, curY - 8, 56, 16);
-  ctx.fillStyle = '#080D1A';
+  ctx.fillStyle = cBg;
   ctx.font = 'bold 9.5px var(--font-mono, monospace)';
+  ctx.textAlign = 'left';
   ctx.fillText('Rp ' + fmtK(basePx), w - padR + 5, curY + 4);
 
+  // X-axis range labels (first / last point date)
+  ctx.fillStyle = cMuted;
+  ctx.font = '9px var(--font-mono, monospace)';
+  var fmtAxisDate = function(ts) {
+    var d = new Date(ts);
+    return tf === '1D' ? d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+      : d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+  };
+  ctx.textAlign = 'left';
+  ctx.fillText(fmtAxisDate(points[0].t), padL, h - padB + 12);
+  ctx.textAlign = 'right';
+  ctx.fillText(fmtAxisDate(points[points.length - 1].t), w - padR, h - padB + 12);
+
   // Bottom info badge
-  ctx.fillStyle = '#94A3B8';
+  ctx.fillStyle = cMuted;
   ctx.font = '10px var(--font-display, sans-serif)';
   ctx.textAlign = 'left';
   ctx.fillText('Status: Harga Realtime Terverifikasi BEI (IDR)', padL + 4, h - 12);
