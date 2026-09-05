@@ -846,7 +846,7 @@ function renderMarketRegimePage() {
   var r = getMarketRegime();
 
   var html = '<div style="margin-bottom:16px">'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-compass" style="color:var(--accent)"></i> Market Regime &amp; Tactical Allocation</div>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Market Regime &amp; Tactical Allocation</div>'
     + '<div class="psub">Analisis multi-faktor tren IHSG, Foreign Flow, Likuiditas, Volatilitas, dan Rotasi Sektoral untuk menentukan strategi ekuitas optimal.</div>'
   + '</div>'
 
@@ -915,7 +915,7 @@ function renderOpportunityRadarPage() {
   var html = '<div style="margin-bottom:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
       + '<div>'
-        + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-radar" style="color:var(--accent)"></i> Opportunity Radar (950+ Saham BEI)</div>'
+        + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Opportunity Radar (950+ Saham BEI)</div>'
         + '<div class="psub">Sistem evaluasi cerdas multi-faktor: Margin of Safety (35%), Bandarmology Flow (35%), ROE/Quality (20%), dan Momentum (10%) untuk seluruh emiten IHSG.</div>'
       + '</div>'
       + '<div style="display:flex;gap:8px">'
@@ -1501,7 +1501,7 @@ function renderDataConnPage() {
   var nowStr = new Date().toLocaleString('id-ID');
 
   var html = '<div style="margin-bottom:16px">'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-plug" style="color:var(--accent)"></i> Data Connection &amp; Trust System</div>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Data Connection &amp; Trust System</div>'
     + '<div class="psub">Transparansi sumber data, integritas feed harga pasar, dan penanda status (Live / Delayed / Simulasi) sesuai standar integritas finansial.</div>'
   + '</div>'
 

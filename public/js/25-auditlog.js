@@ -324,8 +324,7 @@ function renderRdnAudit() {
   // Header & Metrics
   var html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
     + '<div>'
-      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">'
-        + '<i class="ti ti-history" style="color:var(--accent)"></i>'
+      + '<div class="ptitle">'
         + '<span>Log Audit Transaksi &amp; Saldo RDN</span>'
       + '</div>'
       + '<div class="psub">Catatan kronologis &amp; jejak audit setiap perubahan saldo kas RDN dengan pemicu transaksi (Biaya Beli, Jual, Komisi Broker, PPN, Levy, PPh, Dividen)</div>'

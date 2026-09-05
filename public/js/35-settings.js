@@ -145,9 +145,7 @@
     var html = `
       <div style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
         <div>
-          <div class="ptitle" style="display:flex;align-items:center;gap:8px">
-            <i class="ti ti-settings" style="color:var(--accent)"></i>
-            Pusat Pengaturan &amp; Konfigurasi Sistem
+          <div class="ptitle" style="display:flex;align-items:center;gap:8px">Pusat Pengaturan &amp; Konfigurasi Sistem
           </div>
           <div class="psub">
             Kelola parameter pajak, komisi broker sekuritas, sasaran keuangan FIRE, rekening multi-bank, liabilitas, preferensi tampilan, dan cadangan data di satu tempat.

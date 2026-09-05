@@ -480,7 +480,7 @@
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '  <div>'
       + '    <div class="ptitle" style="display:flex;align-items:center;gap:8px">'
-      + '      <i class="ti ti-wave-sine" style="color:#00c8ff"></i> TradeWave PRO — Trend &amp; Wave Intelligence'
+      + '      TradeWave PRO'
       + '      <span class="badge b-accent" style="font-size:10px;padding:2px 8px">AI WAVE RADAR</span>'
       + '    </div>'
       + '    <div class="psub">Deteksi Siklus Elliott Wave, SuperTrend Ribbon, Smart Money Flow (CMF), dan Proyeksi Target Fibonacci 1-2-3 Berbasis Probabilitas.</div>'

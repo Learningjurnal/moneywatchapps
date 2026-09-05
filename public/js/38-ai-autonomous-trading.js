@@ -956,7 +956,7 @@
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">'
       + '  <div>'
       + '    <div class="ptitle" style="display:flex;align-items:center;gap:8px;font-size:22px">'
-      + '      <i class="ti ti-brain" style="color:#38bdf8"></i> Autonomous AI Trading Engine'
+      + '      Autonomous AI Trading'
       + '      <span class="badge b-accent" style="font-size:10px;padding:3px 9px">SELF-LEARNING QUANT</span>'
       + '      <span class="badge b-up" style="font-size:10px;padding:3px 9px">PAPER TRADING ONLY</span>'
       + '    </div>'

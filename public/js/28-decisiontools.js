@@ -57,7 +57,7 @@ function renderDailyBriefPage() {
   });
 
   var html = '<div style="margin-bottom:20px">'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-sun" style="color:var(--amber)"></i> Morning Brief &amp; 3 Things to Watch Today</div>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Morning Brief &amp; 3 Things to Watch Today</div>'
     + '<div class="psub">Ringkasan harian cerdas sebelum pembukaan pasar saham: Makro, Portfolio Delta, dan Evaluasi Seluruh ' + porto.length + ' Emiten Portofolio. · <span class="mono">' + dateStr + '</span></div>'
   + '</div>'
 
@@ -274,7 +274,7 @@ function renderThesisPage() {
 
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start">'
     + '<div>'
-      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-clipboard-list" style="color:var(--accent)"></i> Investment Thesis Tracker</div>'
+      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Investment Thesis Tracker</div>'
       + '<div class="psub">Dokumentasi rasional, target valuasi, batas invalidasi, dan evaluasi otomatis status thesis setiap saham di portofolio.</div>'
     + '</div>'
     + '<button class="btn btn-primary" onclick="openNewThesisModal()">+ Buat Investment Thesis Baru</button>'
@@ -419,7 +419,7 @@ function renderJournalPage() {
 
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start">'
     + '<div>'
-      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-book" style="color:var(--accent)"></i> Decision Journal &amp; Post-Trade Review</div>'
+      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Decision Journal &amp; Post-Trade Review</div>'
       + '<div class="psub">Catatan disiplin psikologi dan evaluasi kualitas keputusan transaksi untuk mencegah bias emosional (FOMO/Panic).</div>'
     + '</div>'
     + '<button class="btn btn-primary" onclick="openNewJournalModal()">+ Catat Transaksi di Jurnal</button>'
@@ -576,7 +576,7 @@ function renderScenarioPage() {
   }).join('');
 
   var html = '<div style="margin-bottom:16px">'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-variable" style="color:var(--accent)"></i> Scenario Engine ("What If?" Stress Tester)</div>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Scenario Engine ("What If?" Stress Tester)</div>'
     + '<div class="psub">Uji ketahanan portofolio terhadap guncangan pasar, koreksi saham individual, perubahan suku bunga, atau rotasi posisi sebelum mengeksekusi di pasar riil.</div>'
   + '</div>'
 
@@ -819,7 +819,7 @@ function renderRebalancePage() {
 
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
     + '<div>'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-scale" style="color:var(--accent)"></i> Smart Rebalancing Engine &amp; Order Sheet</div>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Smart Rebalancing Engine &amp; Order Sheet</div>'
     + '<div class="psub">Sistem otomatis menghitung rekomendasi transaksi beli/jual untuk mengembalikan alokasi portofolio ke target persentase ideal.</div>'
     + '</div>'
     + '<div style="display:flex;gap:6px">'
@@ -1022,7 +1022,7 @@ function renderCopilotPage() {
 
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">'
     + '<div>'
-      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-sparkles" style="color:#38bdf8"></i> MoneyWatch Pro AI — Institutional Analyst</div>'
+      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">MoneyWatch Pro AI</div>'
       + '<div class="psub">Asisten analis portofolio multi-aset berbasis model reasoning, kepatuhan regulasi BEI, kepemilikan KSEI &amp; kalkulasi pajak dividen bersih.</div>'
     + '</div>'
     + '<div style="display:flex;gap:8px">'

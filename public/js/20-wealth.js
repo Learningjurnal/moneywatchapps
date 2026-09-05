@@ -186,7 +186,7 @@ function wRenderNet(){
 
   el('page-wealth').innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
-    '<div><div class="ptitle">💼 Net Worth — Personal Family Office</div><div class="psub">Kekayaan bersih gabungan: portofolio Money Watch + aset pribadi</div></div>'+
+    '<div><div class="ptitle">💼 Net Worth</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
       '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">📥 Laporan Konsolidasi</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="wExport()">⬇ Export JSON</button>'+
