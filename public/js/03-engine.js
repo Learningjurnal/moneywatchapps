@@ -1604,27 +1604,6 @@ var TT = {
 };
 
 
-function genIHSG(n){
-  // Simulate realistic intraday IHSG from Open 6210 → Close 6195
-  // Open=6210, High=6264, Low=6143, Close=6195 (data real 2 Jun 2026)
-  var a=[];
-  var open=6210, high=6264.26, low=6143.63, close=6195.43;
-  var b=open;
-  for(var i=0;i<n;i++){
-    var prog=i/n;
-    // Morning spike → midday dip → afternoon recovery
-    var target;
-    if(prog<0.2) target=open+(high-open)*(prog/0.2);       // morning rally to high
-    else if(prog<0.5) target=high-(high-low)*((prog-0.2)/0.3); // pullback to low  
-    else if(prog<0.8) target=low+(close-low)*((prog-0.5)/0.3);  // recovery to close
-    else target=close;
-    b=b*0.85+target*0.15+(Math.random()*8-4); // smooth with noise
-    b=Math.max(low-20, Math.min(high+20, b));
-    a.push(Math.round(b*100)/100);
-  }
-  return a;
-}
-
 function buildModalPosisiChart(porto){
   kc('modalposisi');
   var cv=el('modalPosisiChart'); if(!cv||!porto.length) return;

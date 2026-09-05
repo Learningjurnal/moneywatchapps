@@ -1,6 +1,7 @@
 // ============================================================
 // FLOWSCAN — BIG MONEY ANALISA ENGINE (dari index.html)
 // ============================================================
+var FS_LAST_SIMULATED = {}; // tracks in-flight background real-data fetches per ticker (see fsGenData)
 var FS_UNIV=[
   {t:'BBCA',n:'Bank Central Asia',s:'Perbankan',cap:950},
   {t:'BBRI',n:'Bank Rakyat Indonesia',s:'Perbankan',cap:780},
@@ -112,6 +113,19 @@ function fsGenData(tk,days){
   // 2. Real SSOT Base Price Resolution (No Dummy Data)
   if (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
     return [];
+  }
+
+  // No real OHLCV cached for this ticker yet, so the seeded synthetic
+  // series below is about to be used (see the honesty note further down).
+  // Kick off a real fetch in the background so rdGetAny(tk) above starts
+  // returning real data on the next call for this ticker - shared with
+  // every other feature that also reads RD_STORE (TradeWave, Screener,
+  // Backtester), not a separate cache.
+  if (typeof rdEnsure === 'function') {
+    if (!FS_LAST_SIMULATED[tk]) {
+      FS_LAST_SIMULATED[tk] = true;
+      rdEnsure(tk, function() { FS_LAST_SIMULATED[tk] = false; });
+    }
   }
 
   var s = fsSd(tk);

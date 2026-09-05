@@ -345,7 +345,17 @@ function generateClientSideBrokerSummary(ticker, timeframe) {
     if (instBrokersList.includes(s.broker)) instNetVal -= s.valueRp;
   });
 
+  // This is the last-resort path after fetchBrokerSummaryData() already
+  // tried the real backend (which itself tries a real broker-flow
+  // provider) and a real live price fetch, both unsuccessful. Every top
+  // buyer/seller, concentration %, and Rupiah amount below is synthetic
+  // (a seeded volume estimate + fixed weight splits), not from a real
+  // broker-transaction feed - isSimulated is set so the renderer's
+  // existing disclosure banner (checked via `data.isSimulated`) actually
+  // fires here too, instead of only for the server-side fallback.
   return {
+    isSimulated: true,
+    dataSource: 'Simulasi (server & feed broker real tidak tersedia)',
     ticker: tk,
     timeframe: tf,
     reportDate: new Date().toISOString().slice(0, 10),
