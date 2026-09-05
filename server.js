@@ -2869,9 +2869,9 @@ app.get('/api/idx/opportunity-radar', (req, res) => {
 });
 
 // GET /api/idx/accumulation-distribution — Full Universe Accumulation & Distribution Scanner
-app.get('/api/idx/accumulation-distribution', (req, res) => {
+app.get('/api/idx/accumulation-distribution', async (req, res) => {
   try {
-    const data = getUniverseAccumulationDistribution(req.query);
+    const data = await getUniverseAccumulationDistribution(req.query);
     return res.json(data);
   } catch (err) {
     console.error('[IDX Acc/Dist Scanner Error]', err);
