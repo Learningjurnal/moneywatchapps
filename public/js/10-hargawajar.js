@@ -2071,12 +2071,12 @@ function hw_renderChart(rows) {
     var epsData = rows.map(function(r){ return parseFloat(r.eps)||null; });
     var perData = rows.map(function(r){ return parseFloat(r.per)||null; });
     datasets = [
-      { label: 'EPS (Rp)', data: epsData, backgroundColor: 'rgba(255,102,0,.55)', borderColor: 'rgba(255,102,0,.8)', borderWidth: 1, yAxisID: 'y', borderRadius: 2 },
+      { label: 'EPS (Rp)', data: epsData, backgroundColor: 'rgba(0,200,5,.55)', borderColor: 'rgba(0,200,5,.8)', borderWidth: 1, yAxisID: 'y', borderRadius: 2 },
       { label: 'PER (x)', data: perData, type: 'line', borderColor: '#0088ff', backgroundColor: 'transparent', yAxisID: 'y2', tension: .35, pointRadius: 4, pointBackgroundColor: '#0088ff', pointBorderColor: '#0a0a0f', pointBorderWidth: 1.5, borderWidth: 1.5 }
     ];
     scales = {
       x: { ticks: tickStyle, grid: gridStyle },
-      y: { position: 'left', ticks: Object.assign({}, tickStyle, { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v; } }), grid: gridStyle, title: { display: true, text: 'EPS (Rp)', color: '#ff6600', font: { size: 8 } } },
+      y: { position: 'left', ticks: Object.assign({}, tickStyle, { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v; } }), grid: gridStyle, title: { display: true, text: 'EPS (Rp)', color: '#00c805', font: { size: 8 } } },
       y2: { position: 'right', ticks: tickStyle, grid: { display: false }, title: { display: true, text: 'PER (x)', color: '#0088ff', font: { size: 8 } } }
     };
   } else {
@@ -2105,9 +2105,9 @@ function hw_renderChart(rows) {
           legend: legendOpts,
           tooltip: {
             backgroundColor: 'rgba(10,10,20,.92)',
-            titleColor: '#ff6600',
+            titleColor: '#0088ff',
             bodyColor: '#c0c0d8',
-            borderColor: 'rgba(255,102,0,.3)',
+            borderColor: 'rgba(0,136,255,.3)',
             borderWidth: 1,
             titleFont: { family: 'Menlo', size: 10 },
             bodyFont: { family: 'Menlo', size: 9 },
