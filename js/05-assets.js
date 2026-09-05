@@ -393,10 +393,17 @@ function loadSampleRd(){
 // ============================================================
 // CRYPTO FUNCTIONS
 // ============================================================
+// FIX: sebelumnya fungsi ini menambahkan noise Math.random() ±2.5% ke harga
+// dasar setiap kali dipanggil — memalsukan seolah harga bergerak live padahal
+// tidak. Fungsi ini hanya jalur FALLBACK yang jalan sekali saat init (lihat
+// 06-analysis-router.js); harga live sesungguhnya datang dari fhFetchCrypto()
+// (03-engine.js, Yahoo Finance real-time, berjalan tiap siklus fhStart()).
+// Sekarang fallback ini hanya set harga dasar apa adanya, TANPA fluktuasi
+// buatan, sambil menunggu fetch riil pertama selesai.
 function updateCryptoPrices(){
   Object.keys(CRYPTO_DB).forEach(function(c){
-    var base = CRYPTO_DB[c].baseIDR || cryptoPrices[c] || (CRYPTO_DB[c].baseUSD ? CRYPTO_DB[c].baseUSD*usdIdr : 1);
-    cryptoPrices[c] = base * (1 + (Math.random()*0.05 - 0.025));
+    if(cryptoPrices[c]) return; // sudah ada harga (live atau dari storage) — jangan timpa
+    cryptoPrices[c] = CRYPTO_DB[c].baseIDR || (CRYPTO_DB[c].baseUSD ? CRYPTO_DB[c].baseUSD*usdIdr : 1);
   });
 }
 
@@ -662,15 +669,39 @@ function renderCrypto(){
   el('crypto-leg').innerHTML = porto.slice(0,8).map(function(p){return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px"><div style="width:8px;height:8px;border-radius:2px;background:'+(p.info.color||'#4a5e82')+';flex-shrink:0"></div><span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);flex:1">'+p.coin+'</span><span style="font-family:var(--font-mono);font-size:11px">'+((p.mv/totV)*100).toFixed(1)+'%</span></div>'}).join('');
 
   // Price chart (BTC + ETH combined)
+  // FIX: sebelumnya 24 titik data chart ini dibangkitkan Math.random() di
+  // sekitar harga saat ini (bukan histori riil). Sekarang mengambil deret
+  // waktu 24 jam sungguhan dari Yahoo Finance via fhFetchCryptoHistory().
+  // Kalau fetch gagal (offline/rate-limit), chart TIDAK diisi data acak —
+  // ditampilkan badge "Data historis tidak tersedia" agar jujur ke user.
   kc('cryptoPrice');
   var cvP = el('cryptoPriceChart');
   if(cvP){
-    var labels = Array.from({length:24},function(_,i){return i+1+'h'});
-    var btcBase = (cryptoPrices['BTC']||1.3e9)/1e6;
-    var btcData = labels.map(function(){return +(btcBase*(1+(Math.random()*0.04-0.02))).toFixed(2)});
-    var ethBase = (cryptoPrices['ETH']||(3200*usdIdr))/1e6;
-    var ethData = labels.map(function(){return +(ethBase*(1+(Math.random()*0.04-0.02))).toFixed(2)});
-    charts['cryptoPrice'] = new Chart(cvP,{type:'line',data:{labels:labels,datasets:[{label:'BTC (jt)',data:btcData,borderColor:'#f7931a',borderWidth:2,fill:false,tension:.4,pointRadius:0},{label:'ETH (jt)',data:ethData,borderColor:'#627eea',borderWidth:2,fill:false,tension:.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8fa3c8',font:{size:9}}},tooltip:Object.assign({},TT)},scales:{x:{grid:{color:GC},ticks:Object.assign({},TC,{maxTicksLimit:8})},y:{grid:{color:GC},ticks:Object.assign({},TC,{callback:function(v){return 'Rp '+fmtK(v*1e6)}}),position:'right'}}}});
+    cvP.parentElement && cvP.parentElement.querySelectorAll('.cr-hist-badge').forEach(function(b){b.remove();});
+    var renderCryptoHistChart = function(btcPts, ethPts, errMsg){
+      if(errMsg){
+        var badge = document.createElement('div');
+        badge.className = 'cr-hist-badge';
+        badge.style.cssText = 'font-size:11px;color:var(--text3);text-align:center;padding:8px';
+        badge.textContent = '⚠ Data historis 24 jam tidak tersedia saat ini (' + errMsg + ')';
+        cvP.parentElement && cvP.parentElement.insertBefore(badge, cvP);
+        return;
+      }
+      var labels = btcPts.map(function(p){return new Date(p.t).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});});
+      var btcData = btcPts.map(function(p){return +(p.c/1e6).toFixed(2);});
+      var ethData = ethPts.map(function(p){return +(p.c/1e6).toFixed(2);});
+      charts['cryptoPrice'] = new Chart(cvP,{type:'line',data:{labels:labels,datasets:[{label:'BTC (jt)',data:btcData,borderColor:'#f7931a',borderWidth:2,fill:false,tension:.4,pointRadius:0},{label:'ETH (jt)',data:ethData,borderColor:'#627eea',borderWidth:2,fill:false,tension:.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8fa3c8',font:{size:9}}},tooltip:Object.assign({},TT)},scales:{x:{grid:{color:GC},ticks:Object.assign({},TC,{maxTicksLimit:8})},y:{grid:{color:GC},ticks:Object.assign({},TC,{callback:function(v){return 'Rp '+fmtK(v*1e6)}}),position:'right'}}}});
+    };
+    if(typeof fhFetchCryptoHistory === 'function'){
+      fhFetchCryptoHistory('BTC-USD', function(errB, btcPts){
+        fhFetchCryptoHistory('ETH-USD', function(errE, ethPts){
+          if(errB || errE || !btcPts || !ethPts){ renderCryptoHistChart(null, null, 'proxy offline/rate-limited'); return; }
+          renderCryptoHistChart(btcPts, ethPts, null);
+        });
+      });
+    } else {
+      renderCryptoHistChart(null, null, 'modul fetch belum dimuat');
+    }
   }
 
   // ── Isi dropdown filter kategori (pertahankan pilihan aktif) ──
@@ -895,9 +926,14 @@ function submitCryptoModal(type){
 // ============================================================
 // ETF FUNCTIONS
 // ============================================================
+// FIX: sama seperti updateCryptoPrices() — noise Math.random() dihapus.
+// Harga live sesungguhnya datang dari fhFetchEtf() (03-engine.js, Yahoo
+// Finance, siklus fhStart()). Ini cuma fallback awal, harga dasar apa
+// adanya tanpa fluktuasi buatan.
 function updateEtfPrices(){
   Object.keys(ETF_DB).forEach(function(e){
-    etfPrices[e] = ETF_DB[e].baseUSD * (1 + (Math.random()*0.04 - 0.02));
+    if(etfPrices[e]) return;
+    etfPrices[e] = ETF_DB[e].baseUSD;
   });
 }
 
@@ -1089,9 +1125,17 @@ function submitEtfModal(type){
 // ============================================================
 // REKSA DANA FUNCTIONS
 // ============================================================
+// CATATAN JUJUR (tidak bisa sepenuhnya dihilangkan, beda kasus dari Crypto/ETF
+// di atas): tidak ada API publik NAB real-time resmi untuk Reksa Dana
+// Indonesia yang bisa dipakai gratis dari client-side — tidak seperti Yahoo
+// Finance untuk saham/ETF/crypto. Noise Math.random() tetap dihapus supaya
+// tidak berpura-pura ada pergerakan live, tapi angka NAB di bawah ini
+// TETAP simulasi/statis. Badge "⚠ NAB Simulasi" di halaman Reksa Dana
+// (index.html) sudah memberi tahu user ini bukan data pasar sungguhan.
 function updateRdNAB(){
   Object.keys(RD_DB).forEach(function(r){
-    rdNAB[r] = RD_DB[r].baseNAB * (1 + (Math.random()*0.02 - 0.008));
+    if(rdNAB[r]) return;
+    rdNAB[r] = RD_DB[r].baseNAB;
   });
 }
 

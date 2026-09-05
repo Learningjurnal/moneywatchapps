@@ -6,13 +6,14 @@ Terminal investasi & manajemen kekayaan komprehensif untuk investor pasar modal 
 
 ## 🚀 Fitur Utama
 
-- **📊 Multi-Asset Portfolio Tracker**: Saham IDX (900+ emiten dengan harga live Yahoo Finance), Crypto (Binance/Indodax live quotes), Reksa Dana, ETF AS, Kas RDN, dan Logam Mulia.
+- **📊 Multi-Asset Portfolio Tracker**: Saham IDX (900+ emiten dengan harga live Yahoo Finance), Crypto (harga live Yahoo Finance, ticker BTC-USD/ETH-USD dst — *bukan Binance/Indodax*), Reksa Dana, ETF AS, Kas RDN, dan Logam Mulia.
 - **🏛️ Regulasi Pajak & Komisi Realtime**:
   - PPN Jasa Pialang efektif 11%.
   - PPh Final Transaksi Jual 0.1% (PP 14/1997).
   - PPh Dividen 0% Bebas Pajak Reinvestasi NKRI (PMK 18/2021) dengan opsi override manual.
   - Struktur Fee Sekuritas (Stockbit All-in 0.18% Beli / 0.28% Jual, IPOT, Mirae, Mandiri, Custom).
 - **👥 KSEI 5%+ Shareholder Intelligence**: Analisis kepemilikan pemegang saham di atas 5%, deteksi pergerakan konglomerat/asing, dan market scanner kepemilikan.
+- **📡 Broker Summary / Bandarmology**: Sumber data real memakai [Invezgo API](https://docs.invezgo.com/api) (butuh `INVEZGO_API_KEY` + langganan aktif di `.env`). Tanpa API key, otomatis fallback ke simulasi berlabel jelas (badge "⚠ Simulasi" di UI) — tidak pernah ditampilkan sebagai data real tanpa label.
 - **🔬 Quantitative & Decision Engine**: FlowScan (CMF, RSI, MA, VWAP), Valuasi Harga Wajar (Graham, DCF, Multiples), Backtester LQ45, Pairs Trading, dan Correlation Matrix.
 - **🌐 Wealth OS & Net Worth Management**: Neraca kekayaan keluarga, rasio likuiditas/dana darurat, kalkulator FIRE (Financial Independence Retire Early), strategi pelunasan hutang (Snowball/Avalanche).
 - **📥 Bulk Excel Import & Export**: Download template dan unggah transaksi beli/jual serta mutasi dividen secara masal via spreadsheet XLSX.
@@ -23,7 +24,7 @@ Terminal investasi & manajemen kekayaan komprehensif untuk investor pasar modal 
 
 ## 📁 Struktur Modul Sistem
 
-Aplikasi dibangun secara modular, terstruktur dalam 36 modul fungsional:
+Aplikasi dibangun secara modular, terstruktur dalam 43 modul fungsional:
 
 | Modul | Deskripsi |
 |---|---|
@@ -64,6 +65,13 @@ Aplikasi dibangun secara modular, terstruktur dalam 36 modul fungsional:
 | `js/34-ksei-shareholders.js` | Pemindai data kepemilikan institusi/asing KSEI 5%+ |
 | `js/35-settings.js` | Pengaturan preferensi, tarif pajak, & backup |
 | `js/36-crypto-technical.js` | Analisis teknikal & indikator pasar crypto |
+| `js/37-tradewave-engine.js` | TradeWave PRO & Wave Flow Intelligence Engine |
+| `js/38-ai-autonomous-trading.js` | Paper trading AI otonom terisolasi (virtual Rp 100M, tidak menyentuh portofolio asli) |
+| `js/39-knowledge-master-guide.js` | Panduan pengetahuan & confluence analysis terpusat |
+| `js/40-idx-pipeline.js` | Pipeline data IDX & integrasi stock universe (harga real Yahoo Finance, backend `/api/idx/*`) |
+| `js/41-stockchat-cockpit.js` | Cockpit StockChat AI & Bandarmology Broker Flow |
+| `js/42-dividend-calendar.js` | Kalender dividen visual & proyeksi passive income |
+| `js/43-ai-chart-intelligence.js` | Layer analisis chart AI (confluence, support/resistance, decision journal) |
 
 ---
 

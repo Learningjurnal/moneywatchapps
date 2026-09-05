@@ -1270,6 +1270,9 @@ function renderBrokerSummaryWidget(data) {
     + '<div style="display:flex;align-items:center;gap:6px">'
     + '<span class="badge ' + verdictBadge + '" style="font-size:10px">' + verdict + '</span>'
     + '<span class="badge b-neu mono" style="font-size:10px">' + (data.timeframe || '1D') + '</span>'
+    + (data.isSimulated
+        ? '<span class="badge b-amb" style="font-size:10px" title="' + (data.dataSource || 'Simulasi') + '">⚠ Simulasi</span>'
+        : '<span class="badge b-up" style="font-size:10px" title="Data real dari Invezgo API">✓ Data Real</span>')
     + '</div>'
     + '</div>';
 
