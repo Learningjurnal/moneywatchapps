@@ -630,8 +630,14 @@ function fsGenAlerts(){
   FS_RD.filter(function(r){return r.data[r.data.length-1].vr>=2;}).slice(0,3).forEach(function(r){als.push({t:'al-n',ic:'ti-bolt',title:'Volume anomali: '+r.t+' — '+r.data[r.data.length-1].vr.toFixed(1)+'× rata-rata',sub:'Aktivitas institusional tidak biasa. Pantau arah pergerakan harga.'});});
   als.sort(function(){return Math.random()-.5;});
   var alList=document.getElementById('al-list');
+  // FIX: sebelumnya jam alert dibangkitkan acak (09:00-15:00 palsu), bukan
+  // waktu deteksi sungguhan — seolah-olah alert punya histori jam kejadian
+  // padahal cuma dihitung ulang saat render. Sekarang pakai jam saat ini
+  // (waktu render/deteksi sesungguhnya), bukan angka fiktif.
+  var nowReal=new Date();
+  var hReal=String(nowReal.getHours()).padStart(2,'0'), mReal=String(nowReal.getMinutes()).padStart(2,'0');
   if(alList) alList.innerHTML=als.map(function(a){
-    var now=new Date();var h=String(9+Math.floor(Math.random()*6)).padStart(2,'0'),m=String(Math.floor(Math.random()*60)).padStart(2,'0');
+    var h=hReal, m=mReal;
     return '<div class="al-item"><div class="al-ico '+a.t+'"><i class="ti '+a.ic+'"></i></div>'
       +'<div style="flex:1"><div style="font-size:12px;font-weight:500;margin-bottom:2px">'+a.title+'</div>'
       +'<div style="font-size:11px;color:var(--text2)">'+a.sub+'</div></div>'
