@@ -16,6 +16,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const PUBLIC_DIR = path.join(__dirname, 'public');
 const PORT = process.env.PORT || 3000;
 const USER_STORES_DIR = path.join(__dirname, 'data', 'user-stores');
 
@@ -240,9 +241,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   let relativePath = pathname === '/' || pathname === '/app' ? 'index.html' : pathname.replace(/^\//, '');
-  let filePath = path.join(__dirname, relativePath);
+  let filePath = path.join(PUBLIC_DIR, relativePath);
 
-  if (!filePath.startsWith(__dirname)) {
+  if (!filePath.startsWith(PUBLIC_DIR)) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
     return;
@@ -261,7 +262,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const fallbackHtml = path.join(__dirname, 'index.html');
+  const fallbackHtml = path.join(PUBLIC_DIR, 'index.html');
   if (fs.existsSync(fallbackHtml)) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(fs.readFileSync(fallbackHtml));

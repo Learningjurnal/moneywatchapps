@@ -1,8 +1,9 @@
 {
   "version": 2,
+  "outputDirectory": "public",
   "functions": {
     "api/index.js": {
-      "includeFiles": "{data/**,js/01-data.js,lib/**,server.js}",
+      "includeFiles": "{data/**,public/js/01-data.js,lib/**,server.js}",
       "maxDuration": 30
     }
   },
