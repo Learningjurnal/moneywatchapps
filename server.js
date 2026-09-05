@@ -10,6 +10,9 @@ import {
   getYahooCrumb,
   computeStockSignal,
   computeStockSignalBatch,
+  runStrategyBacktest,
+  runAllStrategiesBacktest,
+  STRATEGY_DEFINITIONS,
   getIdxMarketSummary,
   getIdxCalendarData,
   getUniverseOpportunityRadar,
@@ -2617,6 +2620,43 @@ app.post('/api/idx/ai-scan', async (req, res) => {
     if (!tickers.length) return res.status(400).json({ success: false, error: 'tickers array required' });
     const signals = await computeStockSignalBatch(tickers);
     return res.json({ success: true, count: signals.length, signals });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+function getDefaultLq45Tickers() {
+  const universe = loadBaseUniverse();
+  return Object.values(universe).filter(u => u.indexes && u.indexes.lq45).map(u => u.code);
+}
+
+// GET /api/idx/strategies — list of real (rule-based) backtestable
+// strategy definitions (see lib/idx-data-engine.js#STRATEGY_DEFINITIONS).
+app.get('/api/idx/strategies', (req, res) => {
+  return res.json({ success: true, strategies: Object.values(STRATEGY_DEFINITIONS) });
+});
+
+// GET /api/idx/backtest/:strategyId — real walk-forward-style backtest of
+// one strategy across a ticker list (defaults to LQ45), simulated
+// bar-by-bar over 2 years of real daily OHLCV. Replaces the old "Run
+// Backtest" button that only displayed a toast.
+app.get('/api/idx/backtest/:strategyId', async (req, res) => {
+  try {
+    const tickers = req.query.tickers ? String(req.query.tickers).split(',') : getDefaultLq45Tickers();
+    const result = await runStrategyBacktest(req.params.strategyId, tickers);
+    return res.json({ success: true, result });
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/backtest-all — runs every implemented strategy (used by
+// Strategy Lab to show real, freshly-computed stats per strategy).
+app.get('/api/idx/backtest-all', async (req, res) => {
+  try {
+    const tickers = req.query.tickers ? String(req.query.tickers).split(',') : getDefaultLq45Tickers();
+    const results = await runAllStrategiesBacktest(tickers);
+    return res.json({ success: true, results });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
