@@ -506,12 +506,12 @@ var STOCK_FINANCIAL_DATABASE = {
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
+        "eps": "",
+        "equity": "",
         "shares": 3067,
-        "dps": 4.86,
-        "per": 15,
-        "netIncome": 3000
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -557,12 +557,12 @@ var STOCK_FINANCIAL_DATABASE = {
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
+        "eps": "",
+        "equity": "",
         "shares": 93389,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -572,48 +572,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -623,48 +623,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 12,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 12,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 85,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 25,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 30,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -674,48 +674,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 25,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 33,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 37,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 10.5,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 14.5,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -725,48 +725,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 6.5,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 3.5,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 25,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 15,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 35,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -776,48 +776,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -827,48 +827,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -878,48 +878,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -929,48 +929,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -980,48 +980,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -1031,48 +1031,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -1082,48 +1082,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -1133,48 +1133,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -1184,48 +1184,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -1235,48 +1235,48 @@ var STOCK_FINANCIAL_DATABASE = {
     "rows": [
       {
         "year": 2020,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2021,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2022,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2023,
-        "eps": 420,
-        "equity": 18000,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       },
       {
         "year": 2024,
-        "eps": 477,
-        "equity": 20025,
-        "shares": 40000,
-        "dps": 150,
-        "per": 15,
-        "netIncome": 3000
+        "eps": "",
+        "equity": "",
+        "shares": "",
+        "dps": "",
+        "per": "",
+        "netIncome": ""
       }
     ]
   },
@@ -1485,28 +1485,18 @@ function hw_loadStockData(tk) {
     hwData.currentPrice = 0;
     hwData.rows = [];
   } else {
-    // Universal stock lookup
+    // No real historical financials for this ticker (only 27 tickers have
+    // a hand-entered STOCK_FINANCIAL_DATABASE entry). This used to
+    // fabricate 5 years of "historical" EPS/Equity/DPS/Net Income from a
+    // formula (curPrice/12, a flat 15x PER, a 0.94^i decay curve) that
+    // had nothing to do with the company's real financials - for every
+    // one of the hundreds of other IDX tickers, silently. Real current
+    // price is still looked up, but the historical table is left honestly
+    // empty (matching hw_defaultRows) for the user to fill in themselves.
     var univ = (typeof FS_UNIV !== 'undefined') ? FS_UNIV.find(function(u){ return u.t === tk; }) : null;
     var curPrice = marketPrice > 0 ? marketPrice : (univ && univ.price > 0 ? univ.price : (typeof DB !== 'undefined' && DB[tk] ? DB[tk].base : 0));
     hwData.currentPrice = curPrice;
-    var baseEps = Math.max(50, Math.round(curPrice / 12));
-    var baseEq = Math.max(10000, Math.round(curPrice * 3.5));
-    var baseShares = 40000;
-    var currentYear = new Date().getFullYear();
-    hwData.rows = [];
-    for (var i = 4; i >= 0; i--) {
-      var yr = currentYear - i;
-      var factor = Math.pow(0.94, i);
-      hwData.rows.push({
-        year: yr,
-        eps: Math.round(baseEps * factor),
-        equity: Math.round(baseEq * factor),
-        shares: baseShares,
-        dps: Math.round(baseEps * 0.35 * factor),
-        per: 15.0,
-        netIncome: Math.round(baseEq * factor * 0.16)
-      });
-    }
+    hwData.rows = hw_defaultRows(tk);
   }
 }
 
@@ -1586,7 +1576,16 @@ function hw_renderTable() {
   if (ti) ti.value = hwData.ticker || 'BBCA';
 }
 
+// Both of these re-render the whole table straight from hwData.rows.
+// hwData.rows is only ever refreshed from the actual <input> values
+// inside hw_syncInputs(), which used to run only when "HITUNG" was
+// clicked - so editing a cell (e.g. retyping a year) and then clicking
+// "+ Tambah Tahun" or the row's "x" button read/rendered from stale
+// in-memory data, silently discarding whatever the user had just typed.
+// That's the "tidak bisa ditambah tahun" bug: it looked like the new
+// row (or the edit that was supposed to be there) never stuck.
 function hw_addYear() {
+  hw_syncInputs();
   var lastYear = hwData.rows.length ? hwData.rows[hwData.rows.length-1].year : new Date().getFullYear()-1;
   hwData.rows.push({ year: lastYear+1, eps:'', equity:'', shares:'', dps:'', per:'', netIncome:'' });
   hw_renderTable();
@@ -1594,6 +1593,7 @@ function hw_addYear() {
 window.hw_addYear = hw_addYear;
 
 function hw_removeRow(i) {
+  hw_syncInputs();
   hwData.rows.splice(i, 1);
   hw_renderTable();
   hw_clearResults();
