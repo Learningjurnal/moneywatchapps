@@ -1396,9 +1396,9 @@ function hw_switchChart(mode) {
   var btnEq = document.getElementById('hw-chart-btn-eq');
   if (btnEps) {
     if (mode === 'eps') {
-      btnEps.style.borderColor = 'rgba(255,102,0,.5)';
-      btnEps.style.color = 'var(--bb-orange)';
-      btnEps.style.background = 'rgba(255,102,0,.12)';
+      btnEps.style.borderColor = 'rgba(0,0,255,.5)';
+      btnEps.style.color = 'var(--accent)';
+      btnEps.style.background = 'rgba(0,0,255,.12)';
     } else {
       btnEps.style.borderColor = '';
       btnEps.style.color = '';
@@ -2181,7 +2181,7 @@ function hw_renderHistoryList() {
       var mos = h.mosPct || 0;
       var col = mos > 20 ? 'var(--green)' : mos > 0 ? 'var(--amber)' : 'var(--red)';
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="hw_loadStock(\''+h.ticker+'\')" style="transition:.1s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'transparent\'">'
-        + '<div><span style="font-weight:700;font-family:var(--font-mono);color:var(--bb-orange);font-size:11px">'+h.ticker+'</span> <span style="font-size:9px;color:var(--text3)">'+h.date+'</span></div>'
+        + '<div><span style="font-weight:700;font-family:var(--font-mono);color:var(--accent);font-size:11px">'+h.ticker+'</span> <span style="font-size:9px;color:var(--text3)">'+h.date+'</span></div>'
         + '<div style="text-align:right"><div style="font-size:10px;color:var(--text);font-family:var(--font-mono)">Rp '+Math.round(h.fairValue||0).toLocaleString('id-ID')+'</div>'
         + '<div style="font-size:9px;color:'+col+'">'+(mos>=0?'+':'')+mos.toFixed(1)+'% MoS</div></div>'
         + '</div>';

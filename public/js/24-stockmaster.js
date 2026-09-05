@@ -875,19 +875,19 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
 
     bulletsEl.innerHTML = ''
       + '<li>'
-      + '  <span style="display:inline-block;width:8px;height:8px;background:#3B82F6;border-radius:50%;margin-right:6px"></span>'
+      + '  <span style="display:inline-block;width:8px;height:8px;background:var(--blue);border-radius:50%;margin-right:6px"></span>'
       + '  <strong style="color:var(--text)">1. Profitabilitas (LTM):</strong> '
-      + '  Pendapatan tercatat sebesar <b style="color:#60A5FA">Rp ' + fundFmt(rev) + '</b> (' + (revG >= 0 ? '+' : '') + (revG * 100).toFixed(1) + '% YoY) dengan Gross Margin <b style="color:var(--text)">' + (gm * 100).toFixed(1) + '%</b>, Operating Margin <b style="color:var(--text)">' + (om * 100).toFixed(1) + '%</b>, serta Net Profit Margin <b style="color:#10B981">' + (pm * 100).toFixed(1) + '%</b> — menandakan ' + profitVerdict + '.'
+      + '  Pendapatan tercatat sebesar <b style="color:var(--blue)">Rp ' + fundFmt(rev) + '</b> (' + (revG >= 0 ? '+' : '') + (revG * 100).toFixed(1) + '% YoY) dengan Gross Margin <b style="color:var(--text)">' + (gm * 100).toFixed(1) + '%</b>, Operating Margin <b style="color:var(--text)">' + (om * 100).toFixed(1) + '%</b>, serta Net Profit Margin <b style="color:var(--green)">' + (pm * 100).toFixed(1) + '%</b> — menandakan ' + profitVerdict + '.'
       + '</li>'
       + '<li>'
-      + '  <span style="display:inline-block;width:8px;height:8px;background:#10B981;border-radius:50%;margin-right:6px"></span>'
+      + '  <span style="display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%;margin-right:6px"></span>'
       + '  <strong style="color:var(--text)">2. Kesehatan Neraca (Solvabilitas &amp; Likuiditas):</strong> '
-      + '  Rasio utang terhadap ekuitas (DER) berada di level <b style="color:' + (dte <= 1.2 ? '#10B981' : '#F59E0B') + '">' + dte.toFixed(2) + 'x</b> dengan Current Ratio <b style="color:#10B981">' + cr.toFixed(2) + 'x</b> dan Nilai Buku (BVPS) <b style="color:var(--text)">Rp ' + Math.round(bvps).toLocaleString('id-ID') + '</b> — membuktikan ' + balanceVerdict + '.'
+      + '  Rasio utang terhadap ekuitas (DER) berada di level <b style="color:' + (dte <= 1.2 ? 'var(--green)' : 'var(--amber)') + '">' + dte.toFixed(2) + 'x</b> dengan Current Ratio <b style="color:var(--green)">' + cr.toFixed(2) + 'x</b> dan Nilai Buku (BVPS) <b style="color:var(--text)">Rp ' + Math.round(bvps).toLocaleString('id-ID') + '</b> — membuktikan ' + balanceVerdict + '.'
       + '</li>'
       + '<li>'
-      + '  <span style="display:inline-block;width:8px;height:8px;background:#8B5CF6;border-radius:50%;margin-right:6px"></span>'
+      + '  <span style="display:inline-block;width:8px;height:8px;background:var(--accent);border-radius:50%;margin-right:6px"></span>'
       + '  <strong style="color:var(--text)">3. Efisiensi Modal &amp; Alokasi Laba:</strong> '
-      + '  Menghasilkan Return on Equity (ROE) sebesar <b style="color:' + (roe >= 0.12 ? '#10B981' : '#F59E0B') + '">' + (roe * 100).toFixed(1) + '%</b> dan EPS <b style="color:var(--text)">Rp ' + Math.round(eps) + '</b>, dengan porsi dividen (DPR) <b style="color:#60A5FA">' + (payout * 100).toFixed(0) + '%</b> (Laba Ditahan ' + ((1 - payout) * 100).toFixed(0) + '%) — mencerminkan ' + efficiencyVerdict + '.'
+      + '  Menghasilkan Return on Equity (ROE) sebesar <b style="color:' + (roe >= 0.12 ? 'var(--green)' : 'var(--amber)') + '">' + (roe * 100).toFixed(1) + '%</b> dan EPS <b style="color:var(--text)">Rp ' + Math.round(eps) + '</b>, dengan porsi dividen (DPR) <b style="color:var(--blue)">' + (payout * 100).toFixed(0) + '%</b> (Laba Ditahan ' + ((1 - payout) * 100).toFixed(0) + '%) — mencerminkan ' + efficiencyVerdict + '.'
       + '</li>';
   }
 

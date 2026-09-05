@@ -461,8 +461,8 @@ function runBacktest(){
       grd.addColorStop(0,'rgba(0,212,170,.2)');grd.addColorStop(1,'rgba(0,212,170,0)');
       QT.btCharts['eq'] = new Chart(ctx,{type:'line',data:{labels:sampDates,datasets:[
         {label:'Strategi',data:sampEq,borderColor:'#00d4aa',borderWidth:2,fill:true,backgroundColor:grd,tension:.3,pointRadius:0},
-        {label:'Buy & Hold',data:sampBah,borderColor:'rgba(255,102,0,.6)',borderWidth:1.5,borderDash:[5,3],fill:false,tension:.3,pointRadius:0}
-      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:10}}},tooltip:{backgroundColor:'rgba(10,10,20,.92)',titleColor:'#ff6600',bodyColor:'#c0c0d8'}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(255,102,0,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return 'Rp'+fmtK(v);}},grid:{color:'rgba(255,102,0,.05)'}}}}});
+        {label:'Buy & Hold',data:sampBah,borderColor:'rgba(0,0,255,.6)',borderWidth:1.5,borderDash:[5,3],fill:false,tension:.3,pointRadius:0}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:10}}},tooltip:{backgroundColor:'rgba(10,10,20,.92)',titleColor:'#0000FF',bodyColor:'#c0c0d8'}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return 'Rp'+fmtK(v);}},grid:{color:'rgba(0,0,255,.05)'}}}}});
     }
 
     // Drawdown chart
@@ -471,7 +471,7 @@ function runBacktest(){
     if(cvDd){
       var sampDD = ddFull.filter(function(_,i){return i%Math.max(1,Math.floor(dates.length/120))===0;});
       var sampDt = dates.filter(function(_,i){return i%Math.max(1,Math.floor(dates.length/120))===0;});
-      QT.btCharts['dd'] = new Chart(cvDd.getContext('2d'),{type:'line',data:{labels:sampDt,datasets:[{data:sampDD,borderColor:'#ff2244',borderWidth:1.5,fill:true,backgroundColor:'rgba(255,34,68,.1)',tension:.3,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:8},grid:{color:'rgba(255,102,0,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return v.toFixed(1)+'%'}},grid:{color:'rgba(255,102,0,.05)'}}}}});
+      QT.btCharts['dd'] = new Chart(cvDd.getContext('2d'),{type:'line',data:{labels:sampDt,datasets:[{data:sampDD,borderColor:'#ff2244',borderWidth:1.5,fill:true,backgroundColor:'rgba(255,34,68,.1)',tension:.3,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:8},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return v.toFixed(1)+'%'}},grid:{color:'rgba(0,0,255,.05)'}}}}});
     }
 
     // Candlestick SVG
@@ -656,7 +656,7 @@ function scRenderTable(data2){
     var sigClass = s.rsi<30?'sig-buy':s.rsi>70?'sig-sell':'sig-hold';
     var scoreCol = s.score>70?'var(--green)':s.score>40?'var(--amber)':'var(--red)';
     return '<tr>'
-      +'<td style="color:var(--bb-orange);font-weight:700">'+s.t+(s.live?'<span style="font-size:8px;color:var(--green);margin-left:4px">●</span>':'')+'</td>'
+      +'<td style="color:var(--accent);font-weight:700">'+s.t+(s.live?'<span style="font-size:8px;color:var(--green);margin-left:4px">●</span>':'')+'</td>'
       +'<td style="color:var(--text2)">'+s.n+'</td>'
       +'<td><span class="badge b-gray">'+s.s+'</span></td>'
       +'<td>Rp '+Math.round(s.price).toLocaleString('id-ID')+'</td>'
@@ -1124,7 +1124,7 @@ function mrRender(){
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: '#8a90ad', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: '#555d6e', font: { size: 9 }, callback: function(v){ return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; } }, grid: { color: 'rgba(255,102,0,.05)' } }
+          y: { ticks: { color: '#555d6e', font: { size: 9 }, callback: function(v){ return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; } }, grid: { color: 'rgba(0,0,255,.05)' } }
         }
       }
     });
@@ -1146,7 +1146,7 @@ function mrRender(){
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: '#8a90ad', font: { size: 10 } }, grid: { display: false } },
-          y: { min: 0, max: 100, ticks: { color: '#555d6e', font: { size: 9 }, callback: function(v){ return v + '%'; } }, grid: { color: 'rgba(255,102,0,.05)' } }
+          y: { min: 0, max: 100, ticks: { color: '#555d6e', font: { size: 9 }, callback: function(v){ return v + '%'; } }, grid: { color: 'rgba(0,0,255,.05)' } }
         }
       }
     });
@@ -1189,7 +1189,7 @@ function pairsAnalyzeWith(a,b,dataA,dataB){
   var corr=qtPearson(A,B);
 
   el('pt-stats').innerHTML=[
-    'Pair: <b style="color:var(--bb-orange)">'+a+' / '+b+'</b>',
+    'Pair: <b style="color:var(--accent)">'+a+' / '+b+'</b>',
     'Korelasi: <b style="color:'+(corr>0.7?'var(--green)':corr>0.4?'var(--amber)':'var(--red)')+'">'+corr.toFixed(3)+'</b>',
     'Z-Score terakhir: <b style="color:'+(Math.abs(lastZ)>2?'var(--red)':Math.abs(lastZ)>1?'var(--amber)':'var(--green)')+'">'+lastZ.toFixed(2)+'</b>',
     'Spread Mean: <b>'+Math.round(spreadMean).toLocaleString('id-ID')+'</b>',
@@ -1217,7 +1217,7 @@ function pairsAnalyzeWith(a,b,dataA,dataB){
       {data:sampZ.map(function(){return 2;}),borderColor:'rgba(255,34,68,.4)',borderWidth:1,borderDash:[5,3],fill:false,pointRadius:0,label:'+2σ'},
       {data:sampZ.map(function(){return -2;}),borderColor:'rgba(0,212,170,.4)',borderWidth:1,borderDash:[5,3],fill:false,pointRadius:0,label:'-2σ'},
       {data:sampZ.map(function(){return 0;}),borderColor:'rgba(255,255,255,.15)',borderWidth:1,fill:false,pointRadius:0,label:'Mean'}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:9}}}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(255,102,0,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9}},grid:{color:'rgba(255,102,0,.05)'}}}}}); 
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:9}}}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9}},grid:{color:'rgba(0,0,255,.05)'}}}}}); 
   }
 
   // Price chart normalized
@@ -1228,8 +1228,8 @@ function pairsAnalyzeWith(a,b,dataA,dataB){
     var sNA=normA.filter(function(_,i){return i%sampStep2===0;}), sNB=normB.filter(function(_,i){return i%sampStep2===0;}), sD=dates.filter(function(_,i){return i%sampStep2===0;});
     QT.btCharts['pt-price']=new Chart(cvP.getContext('2d'),{type:'line',data:{labels:sD,datasets:[
       {data:sNA,borderColor:'#00d4aa',borderWidth:2,fill:false,tension:.3,pointRadius:0,label:a},
-      {data:sNB,borderColor:'#ff6600',borderWidth:2,fill:false,tension:.3,pointRadius:0,label:b}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:10}}}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(255,102,0,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return v.toFixed(0);}},grid:{color:'rgba(255,102,0,.05)'}}}}});
+      {data:sNB,borderColor:'#0000FF',borderWidth:2,fill:false,tension:.3,pointRadius:0,label:b}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:10}}}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return v.toFixed(0);}},grid:{color:'rgba(0,0,255,.05)'}}}}});
   }
 }
 

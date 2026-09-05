@@ -794,7 +794,7 @@ function _createPdfReportModalDom() {
     + '</div>'
 
     // Export Action Toolbar
-    + '<div style="padding:10px 20px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6)">'
+    + '<div style="padding:10px 20px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:var(--bg3)">'
     + '  <div style="display:flex;align-items:center;gap:8px;color:var(--text2);font-size:11.5px">'
     + '    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981"></span>'
     + '    <span><b>1 Dokumen Lengkap</b> (Neraca + Portofolio + Kas + FIRE)</span>'

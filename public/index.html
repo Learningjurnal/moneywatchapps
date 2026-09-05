@@ -2506,8 +2506,8 @@
             </div>
 
             <!-- Ekstraksi Otomatis 3 Poin Kunci LTM (Profitabilitas, Kesehatan Neraca, Efisiensi Modal) -->
-            <div id="fund-ltm-key-bullets" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px 14px;margin-bottom:14px">
-              <div style="font-size:11px;font-weight:800;color:#60A5FA;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <div id="fund-ltm-key-bullets" style="background:var(--bg2);border:1px solid rgba(0,0,255,0.3);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
                 <i class="ti ti-list-check" style="font-size:14px"></i> Ekstraksi Otomatis 3 Poin Kunci Data LTM (Trailing Twelve Months)
               </div>
               <ul id="fund-ltm-bullets-list" style="margin:0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.75;display:flex;flex-direction:column;gap:6px">
@@ -3007,7 +3007,7 @@
           </div>
           <div style="display:flex;align-items:flex-end;padding-bottom:0">
             <button onclick="hw_recalc()" id="hw-hitung-btn"
-              style="height:38px;padding:0 22px;background:var(--bb-orange);border:none;border-radius:2px;color:#0a0a0f;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;white-space:nowrap;transition:opacity .15s"
+              style="height:38px;padding:0 22px;background:var(--brand-primary);border:none;border-radius:2px;color:#fff;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;white-space:nowrap;transition:opacity .15s"
               onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
               ⚡ HITUNG
             </button>
@@ -3024,7 +3024,7 @@
           <button type="button" onclick="hw_loadStock('ADRO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ADRO</button>
           <button type="button" onclick="hw_loadStock('ASII')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ASII</button>
           <button type="button" onclick="hw_loadStock('TLKM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">TLKM</button>
-          <button type="button" onclick="hw_loadStock('GGRM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--bb-orange);border-color:rgba(255,102,0,.4)">GGRM</button>
+          <button type="button" onclick="hw_loadStock('GGRM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(0,0,255,.4)">GGRM</button>
           <button type="button" onclick="hw_loadStock('SIDO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--green);border-color:rgba(0,212,170,.4)">SIDO</button>
           <button type="button" onclick="hw_loadStock('PGEO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--green);border-color:rgba(0,212,170,.4)">PGEO</button>
           <button type="button" onclick="hw_loadStock('ERAA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">ERAA</button>
@@ -3039,19 +3039,19 @@
       <div class="card" style="margin-bottom:16px">
         <div class="cheader">
           <span class="ctitle">📊 DATA KEUANGAN HISTORIS</span>
-          <button class="btn" onclick="hw_addYear()" style="font-size:9px;padding:3px 8px;border-color:rgba(255,102,0,.3);color:var(--bb-orange)">+ Tambah Tahun</button>
+          <button class="btn" onclick="hw_addYear()" style="font-size:9px;padding:3px 8px;border-color:rgba(0,0,255,.3);color:var(--accent)">+ Tambah Tahun</button>
         </div>
         <div style="overflow-x:auto">
           <table class="tbl" id="hw-data-table">
             <thead>
               <tr>
                 <th style="white-space:nowrap">Tahun</th>
-                <th style="white-space:nowrap">EPS <span style="color:var(--bb-orange);font-weight:400">(Rp/saham)</span></th>
-                <th style="white-space:nowrap">Total Equity <span style="color:var(--bb-orange);font-weight:400">(Miliar Rp)</span></th>
-                <th style="white-space:nowrap">Shares <span style="color:var(--bb-orange);font-weight:400">(Juta lembar)</span></th>
-                <th style="white-space:nowrap">DPS <span style="color:var(--bb-orange);font-weight:400">(Rp/saham)</span></th>
-                <th style="white-space:nowrap">PER <span style="color:var(--bb-orange);font-weight:400">(kali)</span></th>
-                <th style="white-space:nowrap">Net Income <span style="color:var(--bb-orange);font-weight:400">(Miliar Rp)</span></th>
+                <th style="white-space:nowrap">EPS <span style="color:var(--accent);font-weight:400">(Rp/saham)</span></th>
+                <th style="white-space:nowrap">Total Equity <span style="color:var(--accent);font-weight:400">(Miliar Rp)</span></th>
+                <th style="white-space:nowrap">Shares <span style="color:var(--accent);font-weight:400">(Juta lembar)</span></th>
+                <th style="white-space:nowrap">DPS <span style="color:var(--accent);font-weight:400">(Rp/saham)</span></th>
+                <th style="white-space:nowrap">PER <span style="color:var(--accent);font-weight:400">(kali)</span></th>
+                <th style="white-space:nowrap">Net Income <span style="color:var(--accent);font-weight:400">(Miliar Rp)</span></th>
                 <th></th>
               </tr>
             </thead>
@@ -3059,8 +3059,8 @@
           </table>
         </div>
         <!-- Panduan unit -->
-        <div style="margin-top:10px;background:var(--bg3);border-radius:2px;padding:10px 12px;border-left:3px solid rgba(255,102,0,.5)">
-          <div style="font-size:9px;color:var(--bb-orange);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-weight:700">📌 PANDUAN INPUT — SATUAN WAJIB</div>
+        <div style="margin-top:10px;background:var(--bg3);border-radius:2px;padding:10px 12px;border-left:3px solid rgba(0,0,255,.5)">
+          <div style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-weight:700">📌 PANDUAN INPUT — SATUAN WAJIB</div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 16px;font-size:9px;font-family:var(--font-mono)">
             <div><span style="color:var(--text3)">EPS &amp; DPS</span><br><b style="color:var(--text)">Rupiah per saham</b><br><span style="color:var(--text3)">contoh: 179 = Rp 179/saham</span></div>
             <div><span style="color:var(--text3)">Total Equity &amp; Net Income</span><br><b style="color:var(--text)">Miliar Rupiah</b><br><span style="color:var(--text3)">contoh: 150537 = Rp 150,5 Triliun</span></div>
@@ -3083,7 +3083,7 @@
         <div class="cheader">
           <span class="ctitle">📈 TREND HISTORIS</span>
           <div style="display:flex;gap:4px">
-            <button id="hw-chart-btn-eps" onclick="hw_switchChart('eps')" class="btn" style="font-size:9px;padding:2px 7px;border-color:rgba(255,102,0,.5);color:var(--bb-orange);background:rgba(255,102,0,.12)">EPS &amp; PER</button>
+            <button id="hw-chart-btn-eps" onclick="hw_switchChart('eps')" class="btn" style="font-size:9px;padding:2px 7px;border-color:rgba(0,0,255,.5);color:var(--accent);background:rgba(0,0,255,.12)">EPS &amp; PER</button>
             <button id="hw-chart-btn-eq" onclick="hw_switchChart('eq')" class="btn" style="font-size:9px;padding:2px 7px">Equity &amp; NI</button>
           </div>
         </div>
@@ -3108,7 +3108,7 @@
       <div class="card" id="hw-verdict-card" style="margin-bottom:16px;border-top-width:2px;border-top-color:var(--text3)">
         <div style="text-align:center;padding:10px 0">
           <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">VALUASI</div>
-          <div id="hw-ticker-display" style="font-size:22px;font-weight:700;font-family:var(--font-mono);color:var(--bb-orange);margin-bottom:4px">—</div>
+          <div id="hw-ticker-display" style="font-size:22px;font-weight:700;font-family:var(--font-mono);color:var(--accent);margin-bottom:4px">—</div>
           <div id="hw-verdict-badge" style="display:inline-block;padding:4px 14px;border-radius:2px;font-size:11px;font-weight:700;font-family:var(--font-mono);background:var(--bg4);color:var(--text3);border:1px solid var(--border)">BELUM DIHITUNG</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
@@ -3397,7 +3397,7 @@
         <div class="cheader"><span class="ctitle">📡 Data Sumber</span></div>
         <div id="bt-datasrc" style="font-size:10px;color:var(--text2);font-family:var(--font-mono);line-height:1.8">
           <div>Sumber: <span id="bt-src-label" style="color:var(--amber)">Simulasi</span></div>
-          <div>Ticker: <span id="bt-src-ticker" style="color:var(--bb-orange)">BBCA.JK</span></div>
+          <div>Ticker: <span id="bt-src-ticker" style="color:var(--accent)">BBCA.JK</span></div>
           <div>Data poin: <span id="bt-src-count" style="color:var(--text)">—</span></div>
           <div>Terbaru: <span id="bt-src-date" style="color:var(--text)">—</span></div>
           <div>Harga: <span id="bt-src-price" style="color:var(--green)">—</span></div>
@@ -3759,12 +3759,12 @@
 <script src="js/04-render.js?v=20260902c"></script>
 <script src="js/36-crypto-technical.js?v=20260902c"></script>
 <script src="js/05-assets.js?v=20260902c"></script>
-<script src="js/06-analysis-router.js?v=20260902c"></script>
+<script src="js/06-analysis-router.js?v=20260905i"></script>
 <script src="js/07-flowscan.js?v=20260902c"></script>
 <script src="js/08-auth.js?v=20260902c"></script>
 <script src="js/09-divinvest.js?v=20260902c"></script>
-<script src="js/10-hargawajar.js?v=20260902c"></script>
-<script src="js/11-quant.js?v=20260905a"></script>
+<script src="js/10-hargawajar.js?v=20260905i"></script>
+<script src="js/11-quant.js?v=20260905i"></script>
 <script src="js/12-clean.js?v=20260902c"></script>
 <script src="js/13-realdata.js?v=20260902c"></script>
 <script src="js/14-admin.js?v=20260902c"></script>
@@ -3773,7 +3773,7 @@
 <script src="js/21-performance.js?v=20260902c"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260902c"></script>
-<script src="js/24-stockmaster.js?v=20260905g"></script>
+<script src="js/24-stockmaster.js?v=20260905i"></script>
 <script src="js/25-auditlog.js?v=20260902c"></script>
 <script src="js/26-commandcenter.js?v=20260902c"></script>
 <script src="js/27-stockintel.js?v=20260905b"></script>
@@ -3781,7 +3781,7 @@
 <script src="js/29-institutional-ui.js?v=20260902c"></script>
 <script src="js/30-price-alerts.js?v=20260902c"></script>
 <script src="js/31-d3-networth.js?v=20260902c"></script>
-<script src="js/32-pdf-reports.js?v=20260902c"></script>
+<script src="js/32-pdf-reports.js?v=20260905i"></script>
 <script src="js/33-trending-news.js?v=20260902c"></script>
 <script src="js/34-ksei-shareholders.js?v=20260902c"></script>
 <script src="js/35-settings.js?v=20260902c"></script>
