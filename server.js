@@ -14,6 +14,7 @@ import {
   getTransactionFlowVisualizer,
   getBeiTickSize,
   generateBrokerSummary,
+  fetchIdxStockScreener,
   IDX_BROKERS
 } from './lib/idx-data-engine.js';
 
@@ -24,6 +25,39 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// FIX (bug, bukan keputusan sumber data): endpoint AI (Gemini) sebelumnya
+// TANPA rate limiting sama sekali — bisa dipakai membengkakkan biaya API
+// tanpa batas kalau ada traffic tinggi/disalahgunakan. Rate limiter
+// in-memory sederhana per-IP, tanpa dependency baru (tidak perlu npm
+// install tambahan). Reset otomatis tiap window habis.
+function createRateLimiter(windowMs, maxRequests) {
+  const hits = new Map(); // ip -> { count, resetAt }
+  return function rateLimiter(req, res, next) {
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+    const now = Date.now();
+    let entry = hits.get(ip);
+    if (!entry || now >= entry.resetAt) {
+      entry = { count: 0, resetAt: now + windowMs };
+      hits.set(ip, entry);
+    }
+    entry.count++;
+    if (entry.count > maxRequests) {
+      const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000);
+      res.set('Retry-After', String(retryAfterSec));
+      return res.status(429).json({
+        success: false,
+        error: `Terlalu banyak permintaan AI. Coba lagi dalam ${retryAfterSec} detik.`
+      });
+    }
+    // Bersihkan entry kedaluwarsa sesekali agar Map tidak bocor memori
+    if (hits.size > 5000) {
+      for (const [k, v] of hits) { if (now >= v.resetAt) hits.delete(k); }
+    }
+    next();
+  };
+}
+const aiRateLimiter = createRateLimiter(60 * 1000, 10); // 10 request/menit/IP
 
 // API health endpoint
 app.get('/api/health', (req, res) => {
@@ -970,7 +1004,7 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
 });
 
 // AI Portfolio Advisor endpoint powered by Gemini 3.7 Flash with Google Search Grounding
-app.post('/api/ai/portfolio-advice', async (req, res) => {
+app.post('/api/ai/portfolio-advice', aiRateLimiter, async (req, res) => {
   const { portfolioSummary, metrics, hfMetrics, ihsg } = req.body || {};
   const ai = getAiClient();
   if (!ai) {
@@ -1087,7 +1121,13 @@ const STOCK_REGISTRY = {
 };
 
 // Core Execution Tools Handlers
-function executeAgentTool(toolName, args, userContext = {}) {
+// FIX: sebelumnya cek_harga cuma bisa 15 ticker dari STOCK_REGISTRY statis,
+// padahal loadBaseUniverse() (900+ ticker dari js/01-data.js) dan
+// fetchYahooQuote() (Yahoo Finance real-time, server-side, tanpa CORS)
+// SUDAH ADA dan dipakai modul lain (IDX Pipeline) — cuma belum disambung ke
+// AI agent. Sekarang cek_harga pakai universe 900+ dulu + fetch live Yahoo;
+// STOCK_REGISTRY cuma fallback tambahan untuk beta/sektor 15 ticker populer.
+async function executeAgentTool(toolName, args, userContext = {}) {
   const holdings = userContext.holdings || [];
   const rdnCash = Number(userContext.rdnCash) || 0;
   const totalAum = Number(userContext.totalAum) || 0;
@@ -1096,10 +1136,11 @@ function executeAgentTool(toolName, args, userContext = {}) {
   switch (toolName) {
     case 'cek_harga': {
       const raw = (args.ticker || 'BBCA').trim().toUpperCase().replace('.JK', '').replace('.US', '');
-      const item = STOCK_REGISTRY[raw];
-      const livePrice = (userContext.livePrices && userContext.livePrices[raw]) || (item ? item.price : 0);
+      const universe = loadBaseUniverse();
+      const uItem = universe[raw];
+      const item = STOCK_REGISTRY[raw]; // fallback tambahan: beta/sektor untuk 15 ticker populer
 
-      if (!item && !livePrice) {
+      if (!uItem && !item) {
         return {
           found: false,
           ticker: raw,
@@ -1107,16 +1148,28 @@ function executeAgentTool(toolName, args, userContext = {}) {
         };
       }
 
-      const price = livePrice || (item ? item.price : 1000);
+      // Coba harga live Yahoo Finance dulu (server-side, real-time)
+      let livePrice = (userContext.livePrices && userContext.livePrices[raw]) || 0;
+      let priceSource = livePrice ? 'client_live' : null;
+      if (!livePrice) {
+        try {
+          const quote = await fetchYahooQuote(raw);
+          if (quote && quote.price > 0) { livePrice = quote.price; priceSource = 'yahoo_finance_server'; }
+        } catch (e) { /* fall through ke fallback statis */ }
+      }
+
+      const price = livePrice || (item ? item.price : (uItem ? uItem.basePrice : 1000)) || 1000;
+      if (!priceSource) priceSource = 'static_fallback';
       const beiCalc = BEI_RULES.getAraArb(price);
 
       return {
         found: true,
         ticker: raw,
-        name: item ? item.name : `${raw} Tbk.`,
+        name: item ? item.name : (uItem ? uItem.name : `${raw} Tbk.`),
         price: price,
-        sector: item ? item.sector : 'Pasar Reguler BEI',
-        beta: item ? item.beta : 1.0,
+        priceSource: priceSource, // transparansi: dari mana harga ini berasal
+        sector: item ? item.sector : (uItem ? uItem.sector : 'Pasar Reguler BEI'),
+        beta: item ? item.beta : (uItem ? uItem.beta : 1.0),
         tickSize: beiCalc.tickSize,
         maxStepChange: BEI_RULES.getMaxStepChange(price),
         araPrice: beiCalc.araPrice,
@@ -1128,10 +1181,18 @@ function executeAgentTool(toolName, args, userContext = {}) {
     }
 
     case 'cek_fundamental': {
+      // FIX: sebelumnya HANYA STOCK_REGISTRY (15 ticker statis). Sekarang
+      // coba IDX Stock Screener dulu (endpoint resmi idx.co.id, real,
+      // mencakup ~900 saham, di-cache 24 jam via fetchIdxStockScreener()).
+      // STOCK_REGISTRY tetap dipakai sebagai pelengkap untuk 15 ticker
+      // populer yang sudah punya data kualitatif manual (moat, dividend
+      // yield) yang tidak disediakan screener.
       const raw = (args.ticker || 'BBCA').trim().toUpperCase().replace('.JK', '').replace('.US', '');
       const item = STOCK_REGISTRY[raw];
+      const screener = await fetchIdxStockScreener();
+      const sItem = screener ? screener[raw] : null;
 
-      if (!item) {
+      if (!sItem && !item) {
         return {
           found: false,
           ticker: raw,
@@ -1139,26 +1200,54 @@ function executeAgentTool(toolName, args, userContext = {}) {
         };
       }
 
-      const mosPct = item.fairPrice > 0 ? Number(((item.fairPrice - item.price) / item.fairPrice * 100).toFixed(1)) : 0;
+      const source = sItem ? 'idx_screener_real' : 'static_fallback_15ticker';
+      const per = sItem ? sItem.per : item.per;
+      const pbv = sItem ? sItem.pbv : item.pbv;
+      const roe = sItem ? sItem.roe : item.roe;
+      const roa = sItem ? sItem.roa : item.roa;
+      const der = sItem ? sItem.der : item.der;
+      const npm = sItem ? sItem.npm : item.npm;
+      const name = sItem ? sItem.name : item.name;
+      const sector = sItem ? sItem.sector : item.sector;
+
+      let price = (userContext.livePrices && userContext.livePrices[raw]) || (item ? item.price : 0);
+      if (!price) {
+        try { const q = await fetchYahooQuote(raw); if (q && q.price > 0) price = q.price; } catch (e) { /* fallback di bawah */ }
+      }
+      if (!price) price = 1000;
+
+      // EPS/BVPS diturunkan dari rasio real per ticker (bukan hardcoded) kalau
+      // sumbernya screener; fair price pakai estimasi Graham sederhana
+      // (sqrt(22.5 × EPS × BVPS)) — LABELED sebagai estimasi, bukan data pasti.
+      // Kalau ticker ada di STOCK_REGISTRY, pakai eps/bvps/moat manual yang
+      // sudah tercatat di sana (lebih presisi) sebagai pelengkap/override.
+      const eps = item ? item.eps : (per > 0 ? Math.round(price / per) : 0);
+      const bvps = item ? item.bvps : (pbv > 0 ? Math.round(price / pbv) : 0);
+      const fairPriceEstimate = item ? item.fairPrice : (eps > 0 && bvps > 0 ? Math.round(Math.sqrt(22.5 * eps * bvps)) : 0);
+      const grossDivYield = item ? item.grossDivYield : null; // tidak tersedia dari screener
+      const moat = item ? item.moat : 'Belum ada analisis moat kualitatif untuk ticker ini (di luar 15 ticker populer)';
+
+      const mosPct = fairPriceEstimate > 0 ? Number(((fairPriceEstimate - price) / fairPriceEstimate * 100).toFixed(1)) : 0;
 
       return {
         found: true,
         ticker: raw,
-        name: item.name,
-        sector: item.sector,
-        currentPrice: item.price,
-        per: item.per,
-        pbv: item.pbv,
-        roe: `${item.roe}%`,
-        roa: `${item.roa}%`,
-        der: item.der,
-        npm: `${item.npm}%`,
-        eps: `Rp ${item.eps.toLocaleString('id-ID')}`,
-        bvps: `Rp ${item.bvps.toLocaleString('id-ID')}`,
-        grossDividendYield: `${item.grossDivYield}%`,
-        fairPriceGrahamBuffett: `Rp ${item.fairPrice.toLocaleString('id-ID')}`,
+        dataSource: source,
+        name: name,
+        sector: sector,
+        currentPrice: price,
+        per: per,
+        pbv: pbv,
+        roe: `${roe}%`,
+        roa: `${roa}%`,
+        der: der,
+        npm: `${npm}%`,
+        eps: `Rp ${eps.toLocaleString('id-ID')}`,
+        bvps: `Rp ${bvps.toLocaleString('id-ID')}`,
+        grossDividendYield: grossDivYield !== null ? `${grossDivYield}%` : 'Data tidak tersedia dari sumber real',
+        fairPriceGrahamBuffett: fairPriceEstimate > 0 ? `Rp ${fairPriceEstimate.toLocaleString('id-ID')}${item ? '' : ' (estimasi dari rasio real, bukan data pasti)'}` : 'Tidak dapat dihitung',
         marginOfSafety: `${mosPct}%`,
-        moatAnalysis: item.moat,
+        moatAnalysis: moat,
         valuationStatus: mosPct > 15 ? 'UNDERVALUED (Margin of Safety Kuat)' : (mosPct < -15 ? 'OVERVALUED' : 'FAIR VALUE')
       };
     }
@@ -1398,7 +1487,7 @@ function executeAgentTool(toolName, args, userContext = {}) {
       const raw = (args.ticker || 'BBCA').trim().toUpperCase();
       const timeframe = (args.timeframe || '1D').toUpperCase();
       const item = STOCK_REGISTRY[raw] || { price: 5000, changePercent: 0, volume: 5000000, value: 25000000000 };
-      const summary = generateBrokerSummary(raw, item, timeframe);
+      const summary = await generateBrokerSummary(raw, item, timeframe);
       return summary;
     }
 
@@ -1568,7 +1657,7 @@ ALUR KERJA (AGENTIC LOOP):
 - Evaluasi hasil data dan sajikan jawaban terstruktur yang mencakup data, strategi trading/investasi yang sesuai, kepatuhan BEI/pajak, analisis dua sisi (potensi vs risiko), dan disclaimer.`;
 
 // MoneyWatch Pro AI Agent Chat Endpoint (Multi-Turn Agentic Loop)
-app.post('/api/ai/agent-chat', async (req, res) => {
+app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
   const { message, history = [], userContext = {} } = req.body || {};
 
   if (!message || typeof message !== 'string' || !message.trim()) {
@@ -1634,7 +1723,7 @@ app.post('/api/ai/agent-chat', async (req, res) => {
 
           const responseParts = [];
           for (const call of functionCalls) {
-            const toolResult = executeAgentTool(call.name, call.args || {}, userContext);
+            const toolResult = await executeAgentTool(call.name, call.args || {}, userContext);
             executedTools.push({
               name: call.name,
               args: call.args,
@@ -1694,8 +1783,8 @@ app.post('/api/ai/agent-chat', async (req, res) => {
     let reply = '';
 
     if (pLower.includes('porto') || pLower.includes('aum') || pLower.includes('holding') || pLower.includes('posisi') || pLower.includes('konsentrasi') || pLower.includes('drawdown') || pLower.includes('rdn') || pLower.includes('kas') || pLower.includes('alokasi')) {
-      const resPorto = executeAgentTool('cek_portofolio_user', {}, userContext);
-      const resRdn = executeAgentTool('cek_saldo_rdn', {}, userContext);
+      const resPorto = await executeAgentTool('cek_portofolio_user', {}, userContext);
+      const resRdn = await executeAgentTool('cek_saldo_rdn', {}, userContext);
       executedTools.push({ name: 'cek_portofolio_user', args: {}, result: resPorto });
       executedTools.push({ name: 'cek_saldo_rdn', args: {}, result: resRdn });
 
@@ -1721,7 +1810,7 @@ app.post('/api/ai/agent-chat', async (req, res) => {
     else if (pLower.includes('dividen') || pLower.includes('yield') || pLower.includes('pajak')) {
       const item = STOCK_REGISTRY[matchedTicker] || STOCK_REGISTRY['BBCA'];
       const dps = Math.round((item.price * (item.grossDivYield / 100)));
-      const resDiv = executeAgentTool('hitung_pajak_dividen', { ticker: matchedTicker, dps: dps, isReinvested: false }, userContext);
+      const resDiv = await executeAgentTool('hitung_pajak_dividen', { ticker: matchedTicker, dps: dps, isReinvested: false }, userContext);
       executedTools.push({ name: 'hitung_pajak_dividen', args: { ticker: matchedTicker, dps: dps }, result: resDiv });
 
       reply = '### 💰 Kalkulasi Proyeksi Dividen Bersih: ' + matchedTicker + ' (MoneyWatch Pro AI)\n\n'
@@ -1737,7 +1826,7 @@ app.post('/api/ai/agent-chat', async (req, res) => {
     }
     else if (pLower.includes('simulasi') || pLower.includes('beli') || pLower.includes('jual') || pLower.includes('fraksi') || pLower.includes('ara') || pLower.includes('arb')) {
       const price = STOCK_REGISTRY[matchedTicker]?.price || 8900;
-      const resSim = executeAgentTool('hitung_simulasi_transaksi_bei', { ticker: matchedTicker, action: 'BUY', lot: 50, price: price }, userContext);
+      const resSim = await executeAgentTool('hitung_simulasi_transaksi_bei', { ticker: matchedTicker, action: 'BUY', lot: 50, price: price }, userContext);
       executedTools.push({ name: 'hitung_simulasi_transaksi_bei', args: { ticker: matchedTicker, action: 'BUY', lot: 50, price: price }, result: resSim });
 
       reply = '### 🏛️ Simulasi Transaksi Sesuai Kepatuhan Regulasi BEI: ' + matchedTicker + '\n\n'
@@ -1753,7 +1842,7 @@ app.post('/api/ai/agent-chat', async (req, res) => {
         + '*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
     }
     else if (pLower.includes('ksei') || pLower.includes('free float') || pLower.includes('pemegang') || pLower.includes('pengendali')) {
-      const resKsei = executeAgentTool('cek_kepemilikan_ksei', { ticker: matchedTicker }, userContext);
+      const resKsei = await executeAgentTool('cek_kepemilikan_ksei', { ticker: matchedTicker }, userContext);
       executedTools.push({ name: 'cek_kepemilikan_ksei', args: { ticker: matchedTicker }, result: resKsei });
 
       const holdersLines = (resKsei.topMajorHolders && resKsei.topMajorHolders.length > 0)
@@ -1776,9 +1865,9 @@ app.post('/api/ai/agent-chat', async (req, res) => {
     }
     else {
       // General Fundamental & Risk/Reward Analysis
-      const resPrice = executeAgentTool('cek_harga', { ticker: matchedTicker }, userContext);
-      const resFund = executeAgentTool('cek_fundamental', { ticker: matchedTicker }, userContext);
-      const resRisk = executeAgentTool('hitung_proyeksi_risiko_drawdown', {
+      const resPrice = await executeAgentTool('cek_harga', { ticker: matchedTicker }, userContext);
+      const resFund = await executeAgentTool('cek_fundamental', { ticker: matchedTicker }, userContext);
+      const resRisk = await executeAgentTool('hitung_proyeksi_risiko_drawdown', {
         ticker: matchedTicker,
         entryPrice: resPrice.price,
         targetPrice: Math.round(resPrice.price * 1.15),
@@ -2153,6 +2242,16 @@ function getStoredKseiData() {
   return _kseiCache || { metadata: { totalEmiten: 0, reportDate: 'Belum Sinkron' }, data: {} };
 }
 
+// FIX (bug, prioritas sedang): endpoint /api/idx/* dan /api/ksei/* memanggil
+// Yahoo Finance & idx.co.id pihak ketiga tanpa batas — trafik tinggi bisa
+// membuat IP server ini kena rate-limit/block dari Yahoo/IDX untuk SEMUA
+// pengguna aplikasi, bukan cuma yang membuat request tersebut. Limiter lebih
+// longgar dari endpoint AI (data harga wajar sering di-load banyak sekaligus
+// saat buka Dashboard/Screener), tapi tetap ada batas.
+const dataApiRateLimiter = createRateLimiter(60 * 1000, 60); // 60 request/menit/IP
+app.use('/api/idx', dataApiRateLimiter);
+app.use('/api/ksei', dataApiRateLimiter);
+
 // GET endpoint to return KSEI 5%+ shareholders and Free Float data
 app.get('/api/ksei/data', (req, res) => {
   try {
@@ -2456,7 +2555,7 @@ app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
 
     const quote = await fetchYahooQuote(ticker);
-    const summary = generateBrokerSummary(ticker, quote, timeframe);
+    const summary = await generateBrokerSummary(ticker, quote, timeframe);
 
     if (summary.isValidTicker === false || summary.price <= 0) {
       return res.json({

@@ -908,6 +908,58 @@ function yfFetch(symbol, cb, proxyIdx){
   });
 }
 
+// FIX: fungsi ini menggantikan data acak (Math.random) di chart 24 jam
+// BTC/ETH — sebelumnya seluruh titik data chart dibangkitkan dari noise
+// acak di sekitar harga saat ini, bukan histori sungguhan. Yahoo Finance
+// chart API sebenarnya SUDAH mengembalikan deret waktu penuh (timestamp[]
+// + indicators.quote[0].close[]) di respons yang sama dengan yang dipakai
+// yfFetch() — yfFetch() hanya membuang deret itu dan mengambil meta saja.
+// Fungsi ini memakai proxy chain (FH.PROXIES) yang sama, tapi interval=15m
+// range=1d agar dapat ~96 titik data 24 jam terakhir yang riil.
+function fhFetchCryptoHistory(symbol, cb, proxyIdx){
+  proxyIdx = proxyIdx || 0;
+  if(proxyIdx >= FH.PROXIES.length){ cb(new Error('ALL_PROXIES_FAILED'), null); return; }
+
+  var host = 'query1.finance.yahoo.com';
+  var yUrl = 'https://' + host + '/v8/finance/chart/' + symbol + '?interval=15m&range=1d';
+  var proxyConfig = FH.PROXIES[proxyIdx];
+  var url = proxyConfig.url(yUrl);
+
+  var controller = null, timeoutId = null;
+  if(typeof AbortController !== 'undefined'){
+    controller = new AbortController();
+    timeoutId = setTimeout(function(){ controller.abort(); }, 6000);
+  }
+
+  fetch(url, { signal: controller ? controller.signal : undefined })
+  .then(function(r){
+    if(timeoutId) clearTimeout(timeoutId);
+    if(!r.ok){ throw new Error('HTTP_' + r.status); }
+    return r.json();
+  })
+  .then(function(d){
+    var rawObj = d;
+    if(proxyConfig.isWrapped && d && d.contents){
+      try { rawObj = JSON.parse(d.contents); } catch(e){ throw new Error('PARSE_ERROR'); }
+    }
+    var result = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
+    var ts = result && result.timestamp;
+    var closes = result && result.indicators && result.indicators.quote && result.indicators.quote[0] && result.indicators.quote[0].close;
+    if(ts && closes && ts.length){
+      var points = [];
+      for(var i=0;i<ts.length;i++){
+        if(closes[i]!=null) points.push({t: ts[i]*1000, c: closes[i]});
+      }
+      if(points.length){ cb(null, points); return; }
+    }
+    throw new Error('NO_DATA');
+  })
+  .catch(function(){
+    if(timeoutId) clearTimeout(timeoutId);
+    fhFetchCryptoHistory(symbol, cb, proxyIdx + 1);
+  });
+}
+
 // ── Update badge UI ──
 function fhSetBadge(status, text){
   FH.status = status;

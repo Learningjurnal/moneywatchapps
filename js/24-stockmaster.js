@@ -546,7 +546,7 @@ function fundPopulateData() {
   // Sync active ticker display & auto-populate current market price in Tab 3
   var elActiveTk = document.getElementById('hw-active-ticker-display');
   if (elActiveTk) elActiveTk.innerText = FUND_DATA.ticker || 'BBCA';
-  var elCurPInp = document.getElementById('hw-current-price');
+  var elCurPInp = document.getElementById('hw-current-price-t3');
   if (elCurPInp) elCurPInp.value = Math.round(curPrice);
 
   // Auto-populate estimated DCF FCF in Tab 5 based on company EPS/OCF
@@ -612,7 +612,7 @@ function fundRecalcBuffett() {
   var s = FUND_DATA.stats || {};
   var d = FUND_DATA.detail || {};
 
-  var cpInp = document.getElementById('hw-current-price');
+  var cpInp = document.getElementById('hw-current-price-t3');
   var curPrice = (cpInp && parseFloat(cpInp.value) > 0) ? parseFloat(cpInp.value) : (f.currentPrice ? f.currentPrice.raw : (d.previousClose ? d.previousClose.raw : 5000));
   
   var eps = s.trailingEps ? s.trailingEps.raw : (curPrice / (d.trailingPE ? d.trailingPE.raw : 14));
@@ -622,8 +622,8 @@ function fundRecalcBuffett() {
   var payout = d.payoutRatio ? d.payoutRatio.raw : 0.45;
   var dps = eps * payout;
 
-  var mrInp = document.getElementById('hw-min-return');
-  var pyInp = document.getElementById('hw-proj-years');
+  var mrInp = document.getElementById('hw-min-return-t3');
+  var pyInp = document.getElementById('hw-proj-years-t3');
   var minReturn = ((mrInp && parseFloat(mrInp.value)) ? parseFloat(mrInp.value) : 8) / 100;
   var projYears = (pyInp && parseInt(pyInp.value)) ? parseInt(pyInp.value) : 5;
 
@@ -634,13 +634,13 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   // Sync display of current ticker and price
   var elActiveTk = document.getElementById('hw-active-ticker-display');
   if (elActiveTk) elActiveTk.innerText = FUND_DATA.ticker || 'BBCA';
-  var elCurPInp = document.getElementById('hw-current-price');
+  var elCurPInp = document.getElementById('hw-current-price-t3');
   if (elCurPInp && (!elCurPInp.value || document.activeElement !== elCurPInp)) {
     elCurPInp.value = Math.round(curPrice);
   }
 
-  var mrInp = document.getElementById('hw-min-return');
-  var pyInp = document.getElementById('hw-proj-years');
+  var mrInp = document.getElementById('hw-min-return-t3');
+  var pyInp = document.getElementById('hw-proj-years-t3');
   var minReturn = minReturnOpt !== undefined ? minReturnOpt : (((mrInp && parseFloat(mrInp.value)) ? parseFloat(mrInp.value) : 8) / 100);
   var projYears = projYearsOpt !== undefined ? projYearsOpt : ((pyInp && parseInt(pyInp.value)) ? parseInt(pyInp.value) : 5);
 
@@ -648,8 +648,8 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   var grahamVal = (eps > 0 && bvps > 0) ? Math.sqrt(22.5 * eps * bvps) : 0;
   var grahamDiff = grahamVal > 0 ? ((grahamVal - curPrice) / curPrice * 100) : 0;
 
-  var elGVal = document.getElementById('hw-mm-graham-val');
-  var elGPct = document.getElementById('hw-mm-graham-pct');
+  var elGVal = document.getElementById('hw-mm-graham-val-t3');
+  var elGPct = document.getElementById('hw-mm-graham-pct-t3');
   if (elGVal) elGVal.innerText = grahamVal > 0 ? 'Rp ' + Math.round(grahamVal).toLocaleString('id-ID') : 'N/A';
   if (elGPct) {
     elGPct.innerText = (grahamDiff >= 0 ? '+' : '') + grahamDiff.toFixed(1) + '% vs Pasar (Graham √(22.5×E×B))';
@@ -661,8 +661,8 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   var lynchVal = eps * growthRate;
   var lynchDiff = lynchVal > 0 ? ((lynchVal - curPrice) / curPrice * 100) : 0;
 
-  var elLVal = document.getElementById('hw-mm-lynch-val');
-  var elLPct = document.getElementById('hw-mm-lynch-pct');
+  var elLVal = document.getElementById('hw-mm-lynch-val-t3');
+  var elLPct = document.getElementById('hw-mm-lynch-pct-t3');
   if (elLVal) elLVal.innerText = lynchVal > 0 ? 'Rp ' + Math.round(lynchVal).toLocaleString('id-ID') : 'N/A';
   if (elLPct) {
     elLPct.innerText = (lynchDiff >= 0 ? '+' : '') + lynchDiff.toFixed(1) + '% vs Pasar (Lynch PEG 1.0)';
@@ -675,8 +675,8 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   var ddmVal = (dps > 0 && r > g) ? (dps * (1 + g) / (r - g)) : 0;
   var ddmDiff = ddmVal > 0 ? ((ddmVal - curPrice) / curPrice * 100) : 0;
 
-  var elDVal = document.getElementById('hw-mm-ddm-val');
-  var elDPct = document.getElementById('hw-mm-ddm-pct');
+  var elDVal = document.getElementById('hw-mm-ddm-val-t3');
+  var elDPct = document.getElementById('hw-mm-ddm-pct-t3');
   if (elDVal) elDVal.innerText = ddmVal > 0 ? 'Rp ' + Math.round(ddmVal).toLocaleString('id-ID') : 'N/A';
   if (elDPct) {
     elDPct.innerText = (ddmDiff >= 0 ? '+' : '') + ddmDiff.toFixed(1) + '% vs Pasar (Gordon Model)';
@@ -709,7 +709,7 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   }
 
   // 9 Steps Detail
-  var stepsBody = document.getElementById('hw-steps-body');
+  var stepsBody = document.getElementById('hw-steps-body-t3');
   if (stepsBody) {
     stepsBody.innerHTML = ''
       + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">1. EPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(eps) + '</b></div>'
@@ -908,7 +908,7 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
 }
 
 function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, baseRoe, projYears) {
-  var tbody = document.getElementById('hw-sm-tbody');
+  var tbody = document.getElementById('hw-sm-tbody-t3');
   if (!tbody) return;
   projYears = projYears || 5;
 
@@ -943,7 +943,7 @@ function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, 
 }
 
 function fundBuildTrafficLight(mosPct, roe, per, curPrice) {
-  var tlBody = document.getElementById('hw-tl-body');
+  var tlBody = document.getElementById('hw-tl-body-t3');
   if (!tlBody) return;
 
   var valScore = mosPct > 15 ? 2 : (mosPct > 0 ? 1 : 0);
@@ -1473,8 +1473,8 @@ function techRenderGaugesTab(ticker) {
 
 // ── Tab 4: Candlestick Pattern & Price Action ──
 function techRenderCandleTab(ticker) {
-  var head = document.getElementById('cd-head');
-  var psyco = document.getElementById('cd-psyco');
+  var head = document.getElementById('cd-head-t4');
+  var psyco = document.getElementById('cd-psyco-t4');
   if (!head || !psyco) return;
 
   var curPrice = (prices && prices[ticker]) || 5000;

@@ -2552,8 +2552,8 @@
             <span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 9</span>
             9. Traffic Light Consensus Matrix (Valuasi · Bandar Flow · Quant)
           </h2>
-          <div class="sm-card" id="hw-traffic-light-card" style="border-left:4px solid var(--accent);margin-bottom:0">
-            <div id="hw-tl-body">Memuat konsensus sinyal terpadu...</div>
+          <div class="sm-card" id="hw-traffic-light-card-t3" style="border-left:4px solid var(--accent);margin-bottom:0">
+            <div id="hw-tl-body-t3">Memuat konsensus sinyal terpadu...</div>
           </div>
         </div>
 
@@ -2603,15 +2603,15 @@
                     <span>Harga Pasar Terkini (Rp)</span>
                     <span style="color:#10B981;font-size:10px;font-weight:700">● LIVE BURSA</span>
                   </div>
-                  <input class="finput" id="hw-current-price" type="number" value="9500" oninput="fundRecalcBuffett()" style="font-family:var(--font-mono);font-weight:700;color:#10B981" title="Harga saham pasar terupdate otomatis">
+                  <input class="finput" id="hw-current-price-t3" type="number" value="9500" oninput="fundRecalcBuffett()" style="font-family:var(--font-mono);font-weight:700;color:#10B981" title="Harga saham pasar terupdate otomatis">
                 </div>
                 <div class="fg">
                   <div class="flabel">Min Return (%/thn)</div>
-                  <input class="finput" id="hw-min-return" type="number" value="8" step="0.5" oninput="fundRecalcBuffett()">
+                  <input class="finput" id="hw-min-return-t3" type="number" value="8" step="0.5" oninput="fundRecalcBuffett()">
                 </div>
                 <div class="fg">
                   <div class="flabel">Proyeksi (Tahun)</div>
-                  <input class="finput" id="hw-proj-years" type="number" value="5" step="1" oninput="fundRecalcBuffett()">
+                  <input class="finput" id="hw-proj-years-t3" type="number" value="5" step="1" oninput="fundRecalcBuffett()">
                 </div>
               </div>
             </div>
@@ -2622,9 +2622,9 @@
             </div>
           </div>
 
-          <div class="sm-card" id="hw-steps-card" style="margin-bottom:0">
+          <div class="sm-card" id="hw-steps-card-t3" style="margin-bottom:0">
             <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🔬 Rincian 9 Langkah Kalkulasi Buffett</h3>
-            <div id="hw-steps-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+            <div id="hw-steps-body-t3" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
           </div>
         </div>
 
@@ -2637,18 +2637,18 @@
           <div class="sm-card sm-grid-3" style="margin-bottom:12px">
             <div class="sm-stat-box">
               <div class="sm-stat-label">Benjamin Graham Number</div>
-              <div class="sm-stat-val sm-text-blue" id="hw-mm-graham-val">Rp 10.450</div>
-              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-graham-pct">√(22.5 × EPS × BVPS)</div>
+              <div class="sm-stat-val sm-text-blue" id="hw-mm-graham-val-t3">Rp 10.450</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-graham-pct-t3">√(22.5 × EPS × BVPS)</div>
             </div>
             <div class="sm-stat-box">
               <div class="sm-stat-label">Peter Lynch Fair Value</div>
-              <div class="sm-stat-val sm-text-blue" id="hw-mm-lynch-val">Rp 11.800</div>
-              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-lynch-pct">EPS × Growth (PEG 1.0)</div>
+              <div class="sm-stat-val sm-text-blue" id="hw-mm-lynch-val-t3">Rp 11.800</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-lynch-pct-t3">EPS × Growth (PEG 1.0)</div>
             </div>
             <div class="sm-stat-box">
               <div class="sm-stat-label">Dividend Discount (DDM)</div>
-              <div class="sm-stat-val sm-text-blue" id="hw-mm-ddm-val">Rp 9.900</div>
-              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-ddm-pct">Gordon Growth Model</div>
+              <div class="sm-stat-val sm-text-blue" id="hw-mm-ddm-val-t3">Rp 9.900</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-ddm-pct-t3">Gordon Growth Model</div>
             </div>
           </div>
           <div class="sm-card" style="margin-bottom:0">
@@ -2656,7 +2656,7 @@
             <div style="overflow-x:auto">
               <table class="tbl" style="font-size:11px;text-align:center">
                 <thead><tr><th>Target ROE \ Exit PER</th><th>Bear (10x)</th><th style="color:var(--accent)">Base (15x)</th><th>Bull (20x)</th></tr></thead>
-                <tbody id="hw-sm-tbody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Memuat matriks sensitivitas...</td></tr></tbody>
+                <tbody id="hw-sm-tbody-t3"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Memuat matriks sensitivitas...</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -2921,10 +2921,10 @@
         <!-- 2.3 Candlestick -->
         <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
           <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px">C. Candlestick Pattern &amp; Price Action Analysis</div>
-          <div class="row5" id="cd-head" style="margin-bottom:14px"></div>
+          <div class="row5" id="cd-head-t4" style="margin-bottom:14px"></div>
           <div class="sm-card">
             <h3 style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Psikologi Candle — 3 Sesi Terakhir</h3>
-            <div id="cd-psyco" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
+            <div id="cd-psyco-t4" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
           </div>
         </div>
 
