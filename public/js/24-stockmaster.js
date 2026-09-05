@@ -717,7 +717,7 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   var elDPct = document.getElementById('hw-mm-ddm-pct-t3');
   if (elDVal) elDVal.innerText = ddmVal > 0 ? 'Rp ' + Math.round(ddmVal).toLocaleString('id-ID') : 'N/A';
   if (elDPct) {
-    elDPct.innerText = (ddmDiff >= 0 ? '+' : '') + ddmDiff.toFixed(1) + '% vs Pasar (Gordon Model)';
+    elDPct.innerText = (ddmDiff >= 0 ? '+' : '') + ddmDiff.toFixed(1) + '% vs Pasar (Gordon Model, asumsi r=10% tetap)';
     elDPct.style.color = ddmDiff >= 0 ? '#10B981' : '#EF4444';
   }
 
@@ -752,7 +752,7 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
     stepsBody.innerHTML = ''
       + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">1. EPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(eps) + '</b></div>'
       + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">2. BVPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(bvps) + '</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">3. ROE Rata-rata:</span> <b style="color:#60A5FA">' + (roe * 100).toFixed(1) + '%</b></div>'
+      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">3. ROE (TTM):</span> <b style="color:#60A5FA">' + (roe * 100).toFixed(1) + '%</b></div>'
       + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">4. Payout Ratio:</span> <b style="color:#60A5FA">' + (payout * 100).toFixed(1) + '%</b></div>'
       + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">5. Proyeksi BVPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureBvps) + '</b></div>'
       + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">6. Proyeksi EPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureEps) + '</b></div>'
@@ -980,14 +980,20 @@ function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, 
   tbody.innerHTML = rowsHtml;
 }
 
+// `flowScore` used to be hardcoded to `1` (always "NEUTRAL/HOLD")
+// regardless of ticker - no broker-flow or foreign-flow data was ever
+// read, it just silently added a fixed +1 to every stock's total score
+// under a label ("FlowScan") that implied it was computed. Removed from
+// the score entirely; the pillar is now shown as an honest "Belum
+// Tersedia" instead of a number that was never real.
 function fundBuildTrafficLight(mosPct, roe, per, curPrice) {
   var tlBody = document.getElementById('hw-tl-body-t3');
   if (!tlBody) return;
 
   var valScore = mosPct > 15 ? 2 : (mosPct > 0 ? 1 : 0);
-  var flowScore = 1;
   var quantScore = roe > 0.15 ? 2 : (roe > 0.10 ? 1 : 0);
-  var totalScore = valScore + flowScore + quantScore;
+  var totalScore = valScore + quantScore;
+  var maxScore = 4;
 
   var getSignalBadge = function(score) {
     if (score === 2) return '<span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">🟢 BULLISH / BUY</span>';
@@ -1000,17 +1006,17 @@ function fundBuildTrafficLight(mosPct, roe, per, curPrice) {
     + '  <span style="font-size:11px;color:var(--text3)">1. Pilar Valuasi Fundamental (MoS / Multi-Model)</span>'
     + '  <div>' + getSignalBadge(valScore) + '</div>'
     + '</div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);opacity:.6">'
     + '  <span style="font-size:11px;color:var(--text3)">2. Pilar Arus Bandar &amp; Likuiditas Asing (FlowScan)</span>'
-    + '  <div>' + getSignalBadge(flowScore) + '</div>'
+    + '  <div><span style="background:var(--bg4);color:var(--text3);padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">Belum Tersedia</span></div>'
     + '</div>'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
     + '  <span style="font-size:11px;color:var(--text3)">3. Pilar Kualitas Ekuitas &amp; Profitabilitas (Quant ROE)</span>'
     + '  <div>' + getSignalBadge(quantScore) + '</div>'
     + '</div>'
     + '<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
-    + '  <span style="font-size:12px;font-weight:800;color:var(--text)">KONSENSUS FINAL SISTEM:</span>'
-    + '  <span style="font-size:12px;font-weight:800;color:' + (totalScore >= 4 ? '#10B981' : (totalScore >= 2 ? '#60A5FA' : '#EF4444')) + '">' + (totalScore >= 4 ? '🟢 STRONG BUY CONVICTION' : (totalScore >= 2 ? '🟡 ACCUMULATE ON WEAKNESS' : '🔴 WAIT & SEE / AVOID')) + '</span>'
+    + '  <span style="font-size:12px;font-weight:800;color:var(--text)">KONSENSUS (2 Pilar Riil):</span>'
+    + '  <span style="font-size:12px;font-weight:800;color:' + (totalScore >= 3 ? '#10B981' : (totalScore >= 1 ? '#60A5FA' : '#EF4444')) + '">' + (totalScore >= 3 ? '🟢 STRONG BUY CONVICTION' : (totalScore >= 1 ? '🟡 ACCUMULATE ON WEAKNESS' : '🔴 WAIT & SEE / AVOID')) + ' (' + totalScore + '/' + maxScore + ')</span>'
     + '</div>';
 }
 

@@ -2042,14 +2042,10 @@ function hw_recalc() {
     cEl.style.borderLeftColor = verdictColor;
   }
 
-  // Consensus Matrix
+  // Valuation-based signal (see the honesty note in renderTrafficLightMatrix
+  // for why this no longer claims a fake 3-pillar consensus).
   if (typeof renderTrafficLightMatrix === 'function') {
-    var flowSig = 'Netral';
-    if (typeof FS_STOCKS !== 'undefined' && FS_STOCKS[ticker]) {
-      flowSig = FS_STOCKS[ticker].signal || 'Netral';
-    }
-    var qScore = overallPass ? 82 : (irrPass || mosPass) ? 68 : 42;
-    renderTrafficLightMatrix(ticker, mosPct, flowSig, qScore);
+    renderTrafficLightMatrix(ticker, mosPct);
   }
 
   hwData._result = { fairValue: fairValue, mosPct: mosPct, irr: irr*100, futurePrice: futurePrice, futureEPS: futureEPS, avgROE: avgROE, avgDPR: avgDPR, avgPER: avgPER, roeAfterPayout: roeAfterPayout, equityPerShare: equityPerShare };
