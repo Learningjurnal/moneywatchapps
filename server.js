@@ -7,6 +7,7 @@ import {
   loadBaseUniverse,
   fetchYahooQuote,
   fetchYahooHistory,
+  getYahooCrumb,
   getIdxMarketSummary,
   getIdxCalendarData,
   getUniverseOpportunityRadar,
@@ -1977,26 +1978,54 @@ app.get('/api/proxy', async (req, res) => {
 
   try {
     const isYahoo = targetUrl.includes('finance.yahoo.com');
-    const fetchHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,application/json,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
-      'Sec-Fetch-Dest': 'empty',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Site': 'cross-site'
-    };
-    if (isYahoo) {
-      fetchHeaders['Origin'] = 'https://finance.yahoo.com';
-      fetchHeaders['Referer'] = 'https://finance.yahoo.com/';
-    }
+    // Yahoo gates these two endpoints behind a session cookie + crumb token
+    // (the v8 chart endpoint used for prices stayed open). Any client-side
+    // caller routing through this shared proxy — not just our own server
+    // code — benefits from the same auth handled once, here.
+    const needsCrumb = /\/v10\/finance\/quoteSummary\/|\/v7\/finance\/quote(\?|$)/.test(targetUrl);
 
-    let response = await fetch(targetUrl, { headers: fetchHeaders });
+    const buildHeaders = (auth) => {
+      const h = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,application/json,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site'
+      };
+      if (isYahoo) {
+        h['Origin'] = 'https://finance.yahoo.com';
+        h['Referer'] = 'https://finance.yahoo.com/';
+      }
+      if (auth) h['Cookie'] = auth.cookie;
+      return h;
+    };
+
+    const withCrumb = (url, crumb) => url + (url.includes('?') ? '&' : '?') + 'crumb=' + encodeURIComponent(crumb);
+
+    let response;
+    if (needsCrumb) {
+      let auth = await getYahooCrumb(false);
+      response = await fetch(withCrumb(targetUrl, auth.crumb), { headers: buildHeaders(auth) });
+      if (response.status === 401) {
+        auth = await getYahooCrumb(true);
+        response = await fetch(withCrumb(targetUrl, auth.crumb), { headers: buildHeaders(auth) });
+      }
+    } else {
+      response = await fetch(targetUrl, { headers: buildHeaders(null) });
+    }
 
     // Jika query1 gagal (404/429/500), coba alihkan otomatis ke query2
     if (!response.ok && targetUrl.includes('query1.finance.yahoo.com')) {
       const altUrl = targetUrl.replace('query1.finance.yahoo.com', 'query2.finance.yahoo.com');
       try {
-        const altResp = await fetch(altUrl, { headers: fetchHeaders });
+        let altResp;
+        if (needsCrumb) {
+          const auth = await getYahooCrumb(false); // cached — same session as above
+          altResp = await fetch(withCrumb(altUrl, auth.crumb), { headers: buildHeaders(auth) });
+        } else {
+          altResp = await fetch(altUrl, { headers: buildHeaders(null) });
+        }
         if (altResp.ok) {
           response = altResp;
         }
