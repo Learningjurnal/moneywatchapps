@@ -6,6 +6,7 @@ import { GoogleGenAI } from '@google/genai';
 import {
   loadBaseUniverse,
   fetchYahooQuote,
+  fetchYahooHistory,
   getIdxMarketSummary,
   getIdxCalendarData,
   getUniverseOpportunityRadar,
@@ -2426,6 +2427,22 @@ app.get('/api/idx/quote/:ticker', async (req, res) => {
         topHolders: kseiItem.investors?.slice(0, 5) || []
       } : null
     });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/history/:ticker?tf=D|W|M|Y — Real price history series for the
+// Grafik Harga Realtime chart (Stock Intelligence Cockpit). tf maps to Yahoo
+// Finance chart intervals: D=5m/1d, W=30m/5d, M=1d/1mo, Y=1wk/1y.
+app.get('/api/idx/history/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const tf = ['1D', '1W', '1M', '1Y'].includes(req.query.tf) ? req.query.tf : '1D';
+
+    const history = await fetchYahooHistory(ticker, tf);
+    return res.json({ success: !history.error, ...history });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

@@ -2417,8 +2417,8 @@
 <div id="page-fundamental" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px">
     <div>
-      <div class="ptitle" style="color:#F1F5F9;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px">🏛️ Mega Fundamental Suite — Riset &amp; Valuasi Komprehensif</div>
-      <div class="psub" style="color:#94A3B8;font-family:'Plus Jakarta Sans',sans-serif">Terminal Riset Terpadu: Profil Emiten, Laporan Laba Rugi LTM, 9-Step Buffett MoS, Multi-Model Valuation, DCF Simulator, Moat &amp; Mgmt, Red Flags, Bull/Bear Debate, 5-Point Quality &amp; Traffic Light Matrix</div>
+      <div class="ptitle" style="color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px">🏛️ Mega Fundamental Suite — Riset &amp; Valuasi Komprehensif</div>
+      <div class="psub" style="color:var(--text3);font-family:'Plus Jakarta Sans',sans-serif">Terminal Riset Terpadu: Profil Emiten, Laporan Laba Rugi LTM, 9-Step Buffett MoS, Multi-Model Valuation, DCF Simulator, Moat &amp; Mgmt, Red Flags, Bull/Bear Debate, 5-Point Quality &amp; Traffic Light Matrix</div>
     </div>
   </div>
 
@@ -2446,7 +2446,7 @@
         </div>
         <button class="sm-btn" onclick="fundFetchData()">⚡ Jalankan Analisa Fundamental</button>
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
-          <span style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase">Quick Tickers:</span>
+          <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
           <span class="sm-chip" onclick="fundSetTicker('BBCA.JK')">BBCA</span>
           <span class="sm-chip" onclick="fundSetTicker('BBRI.JK')">BBRI</span>
           <span class="sm-chip" onclick="fundSetTicker('BMRI.JK')">BMRI</span>
@@ -2464,7 +2464,7 @@
         
         <!-- SECTION 1: Profil & Ringkasan Perusahaan -->
         <div id="fund-sec-1" style="scroll-margin-top:14px">
-          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
             <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 1</span>
             1. Profil &amp; Ringkasan Perusahaan
           </h2>
@@ -2474,17 +2474,17 @@
             <div class="sm-stat-box"><div class="sm-stat-label">Sektor Industri</div><div class="sm-stat-val sm-text-blue" id="sm-d-sector" style="font-size:13px">-</div></div>
           </div>
           <div class="sm-card" style="margin-bottom:12px">
-            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:6px">Profil &amp; Keunggulan Bisnis Perusahaan</h3>
-            <p id="sm-d-profile" style="font-size:12px;color:#94A3B8;line-height:1.7">Memuat profil dan fundamental emiten...</p>
+            <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Profil &amp; Keunggulan Bisnis Perusahaan</h3>
+            <p id="sm-d-profile" style="font-size:12px;color:var(--text3);line-height:1.7">Memuat profil dan fundamental emiten...</p>
           </div>
 
           <!-- Quick KSEI Free Float Card in Tab 1 -->
           <div id="sm-d-ksei-tab1-summary" class="sm-card" style="border-left:4px solid #10B981;margin-bottom:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin:0">🏛️ Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
+              <h3 style="font-size:13px;font-weight:700;color:var(--text);margin:0">🏛️ Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
               <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(3)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 3 →</button>
             </div>
-            <div id="sm-d-ksei-tab1-content" style="font-size:12px;color:#94A3B8">Memuat data KSEI...</div>
+            <div id="sm-d-ksei-tab1-content" style="font-size:12px;color:var(--text3)">Memuat data KSEI...</div>
           </div>
         </div>
 
@@ -2495,9 +2495,9 @@
               <div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
                   <span style="background:linear-gradient(135deg,#3B82F6,#10B981);color:#FFF;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:800">TOTAL KESIMPULAN FUNDAMENTAL</span>
-                  <h2 style="font-size:16px;font-weight:800;color:#F1F5F9;margin:0">📊 Total Kesimpulan &amp; Konsensus Analisa Fundamental</h2>
+                  <h2 style="font-size:16px;font-weight:800;color:var(--text);margin:0">📊 Total Kesimpulan &amp; Konsensus Analisa Fundamental</h2>
                 </div>
-                <p style="font-size:11px;color:#94A3B8;margin:0">Sintesis kuantitatif dari 4 Model Valuasi, Profitabilitas LTM (ROE &amp; Margin), Kesehatan Neraca (DER &amp; Likuiditas), dan Arus Kas Riil.</p>
+                <p style="font-size:11px;color:var(--text3);margin:0">Sintesis kuantitatif dari 4 Model Valuasi, Profitabilitas LTM (ROE &amp; Margin), Kesehatan Neraca (DER &amp; Likuiditas), dan Arus Kas Riil.</p>
               </div>
               <div id="fund-synthesis-overall-badge" style="text-align:right">
                 <span class="badge b-up" style="font-size:12px;padding:5px 12px;font-weight:800">MENGHITUNG KESIMPULAN...</span>
@@ -2505,7 +2505,7 @@
             </div>
 
             <!-- Executive Summary Text Box -->
-            <div id="fund-synthesis-summary-text" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:#E2E8F0;line-height:1.75;margin-bottom:12px">
+            <div id="fund-synthesis-summary-text" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.75;margin-bottom:12px">
               Menghitung konsensus nilai wajar dan mengevaluasi pilar fundamental emiten...
             </div>
 
@@ -2514,18 +2514,18 @@
               <div style="font-size:11px;font-weight:800;color:#60A5FA;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
                 <i class="ti ti-list-check" style="font-size:14px"></i> Ekstraksi Otomatis 3 Poin Kunci Data LTM (Trailing Twelve Months)
               </div>
-              <ul id="fund-ltm-bullets-list" style="margin:0;padding-left:18px;font-size:12px;color:#CBD5E1;line-height:1.75;display:flex;flex-direction:column;gap:6px">
-                <li><strong style="color:#F1F5F9">Memuat ekstraksi data LTM emiten...</strong></li>
+              <ul id="fund-ltm-bullets-list" style="margin:0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.75;display:flex;flex-direction:column;gap:6px">
+                <li><strong style="color:var(--text)">Memuat ekstraksi data LTM emiten...</strong></li>
               </ul>
             </div>
 
             <!-- 5 Calculation Pillars Matrix -->
             <div style="margin-bottom:14px">
-              <h4 style="font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px">📐 Matriks Perhitungan 5 Pilar Analisa Fundamental</h4>
+              <h4 style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px">📐 Matriks Perhitungan 5 Pilar Analisa Fundamental</h4>
               <div style="overflow-x:auto">
                 <table class="tbl" style="font-size:11px;text-align:left;width:100%">
                   <thead>
-                    <tr style="background:var(--bg3);color:#94A3B8">
+                    <tr style="background:var(--bg3);color:var(--text3)">
                       <th style="padding:8px 10px;width:24%">Pilar Analisa</th>
                       <th style="padding:8px 10px;width:32%">Parameter &amp; Formula Perhitungan</th>
                       <th style="padding:8px 10px;width:26%">Hasil Kalkulasi Emiten</th>
@@ -2533,7 +2533,7 @@
                     </tr>
                   </thead>
                   <tbody id="fund-synthesis-table-body">
-                    <tr><td colspan="4" style="text-align:center;padding:12px;color:#94A3B8">Memuat kalkulasi fundamental...</td></tr>
+                    <tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Memuat kalkulasi fundamental...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -2548,7 +2548,7 @@
 
         <!-- SECTION 9: Traffic Light Consensus -->
         <div id="fund-sec-9" style="scroll-margin-top:14px">
-          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
             <span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 9</span>
             9. Traffic Light Consensus Matrix (Valuasi · Bandar Flow · Quant)
           </h2>
@@ -2559,7 +2559,7 @@
 
         <!-- SECTION 2: Earnings Breakdown -->
         <div id="fund-sec-2" style="scroll-margin-top:14px">
-          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
             <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 2</span>
             2. Earnings &amp; Growth Breakdown (LTM)
           </h2>
@@ -2579,11 +2579,11 @@
         <div id="fund-sec-3" style="scroll-margin-top:14px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div>
-              <h2 style="font-size:16px;font-weight:800;color:#F1F5F9;margin-bottom:2px;display:flex;align-items:center;gap:8px">
+              <h2 style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:2px;display:flex;align-items:center;gap:8px">
                 <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 3</span>
                 3. Valuasi 9-Step Buffett (Margin of Safety)
               </h2>
-              <p style="font-size:11px;color:#94A3B8">Kalkulasi nilai intrinsik dan margin of safety otomatis berdasarkan harga pasar terkini dan proyeksi fundamental.</p>
+              <p style="font-size:11px;color:var(--text3)">Kalkulasi nilai intrinsik dan margin of safety otomatis berdasarkan harga pasar terkini dan proyeksi fundamental.</p>
             </div>
             <div style="display:flex;gap:6px">
               <button class="btn btn-blue btn-sm" onclick="fundRecalcBuffett()">⚡ Hitung Ulang MoS</button>
@@ -2592,7 +2592,7 @@
           
           <div class="sm-grid-2" style="margin-bottom:12px">
             <div class="sm-card" style="margin-bottom:0">
-              <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:10px">Parameter Model Valuasi</h3>
+              <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Parameter Model Valuasi</h3>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                 <div class="fg">
                   <div class="flabel">Kode Emiten Teranalisis</div>
@@ -2623,14 +2623,14 @@
           </div>
 
           <div class="sm-card" id="hw-steps-card" style="margin-bottom:0">
-            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:10px">🔬 Rincian 9 Langkah Kalkulasi Buffett</h3>
+            <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🔬 Rincian 9 Langkah Kalkulasi Buffett</h3>
             <div id="hw-steps-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
           </div>
         </div>
 
         <!-- SECTION 4: Multi-Model Valuation Matrix -->
         <div id="fund-sec-4" style="scroll-margin-top:14px">
-          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
             <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 4</span>
             4. Multi-Model Valuation Matrix &amp; 2D Sensitivity
           </h2>
@@ -2638,25 +2638,25 @@
             <div class="sm-stat-box">
               <div class="sm-stat-label">Benjamin Graham Number</div>
               <div class="sm-stat-val sm-text-blue" id="hw-mm-graham-val">Rp 10.450</div>
-              <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-graham-pct">√(22.5 × EPS × BVPS)</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-graham-pct">√(22.5 × EPS × BVPS)</div>
             </div>
             <div class="sm-stat-box">
               <div class="sm-stat-label">Peter Lynch Fair Value</div>
               <div class="sm-stat-val sm-text-blue" id="hw-mm-lynch-val">Rp 11.800</div>
-              <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-lynch-pct">EPS × Growth (PEG 1.0)</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-lynch-pct">EPS × Growth (PEG 1.0)</div>
             </div>
             <div class="sm-stat-box">
               <div class="sm-stat-label">Dividend Discount (DDM)</div>
               <div class="sm-stat-val sm-text-blue" id="hw-mm-ddm-val">Rp 9.900</div>
-              <div style="font-size:10px;color:#94A3B8;margin-top:4px" id="hw-mm-ddm-pct">Gordon Growth Model</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px" id="hw-mm-ddm-pct">Gordon Growth Model</div>
             </div>
           </div>
           <div class="sm-card" style="margin-bottom:0">
-            <h3 style="font-size:13px;font-weight:700;color:#F1F5F9;margin-bottom:8px">🎯 2D Sensitivity Matrix (Target ROE vs Exit P/E)</h3>
+            <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">🎯 2D Sensitivity Matrix (Target ROE vs Exit P/E)</h3>
             <div style="overflow-x:auto">
               <table class="tbl" style="font-size:11px;text-align:center">
                 <thead><tr><th>Target ROE \ Exit PER</th><th>Bear (10x)</th><th style="color:var(--accent)">Base (15x)</th><th>Bull (20x)</th></tr></thead>
-                <tbody id="hw-sm-tbody"><tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:12px">Memuat matriks sensitivitas...</td></tr></tbody>
+                <tbody id="hw-sm-tbody"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px">Memuat matriks sensitivitas...</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -2664,7 +2664,7 @@
 
         <!-- SECTION 5: DCF Simulator -->
         <div id="fund-sec-5" style="scroll-margin-top:14px">
-          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
             <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 5</span>
             5. Interactive DCF (Discounted Cash Flow) Simulator
           </h2>
@@ -2677,34 +2677,34 @@
           <div class="sm-card" style="text-align:center;padding:20px;margin-bottom:0">
             <div class="sm-stat-label">Estimasi Nilai Wajar Intrinsik (Fair Value DCF) per Saham</div>
             <div class="sm-stat-val sm-text-green" id="sm-dcf-result" style="font-size:30px;margin:6px 0">Rp 0</div>
-            <div id="sm-dcf-mos" style="font-size:12px;font-weight:700;color:#94A3B8">Margin of Safety: —</div>
+            <div id="sm-dcf-mos" style="font-size:12px;font-weight:700;color:var(--text3)">Margin of Safety: —</div>
           </div>
         </div>
 
         <!-- SECTION 6: Moat & Management Quality -->
         <div id="fund-sec-6" style="scroll-margin-top:14px">
-          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
             <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 6</span>
             6. Financial Moat &amp; Management Capital Allocation
           </h2>
           <div class="sm-card sm-grid-2" style="margin-bottom:0">
-            <div class="sm-stat-box"><div class="sm-stat-label">Pricing Power (Gross Margin)</div><div class="sm-stat-val" id="sm-m-gmargin">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Daya tahan penetapan harga terhadap inflasi input</div></div>
-            <div class="sm-stat-box"><div class="sm-stat-label">Capital Efficiency (ROE)</div><div class="sm-stat-val" id="sm-m-roe">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Efisiensi pengembalian modal ekuitas pemegang saham</div></div>
-            <div class="sm-stat-box"><div class="sm-stat-label">Dividend Yield (%)</div><div class="sm-stat-val" id="sm-mq-div">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Imbal hasil dividen tahunan</div></div>
-            <div class="sm-stat-box"><div class="sm-stat-label">Dividend Payout Ratio (%)</div><div class="sm-stat-val" id="sm-mq-payout">-</div><div style="font-size:10px;color:#94A3B8;margin-top:4px">Porsi laba bersih dibagikan sebagai dividen</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Pricing Power (Gross Margin)</div><div class="sm-stat-val" id="sm-m-gmargin">-</div><div style="font-size:10px;color:var(--text3);margin-top:4px">Daya tahan penetapan harga terhadap inflasi input</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Capital Efficiency (ROE)</div><div class="sm-stat-val" id="sm-m-roe">-</div><div style="font-size:10px;color:var(--text3);margin-top:4px">Efisiensi pengembalian modal ekuitas pemegang saham</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Dividend Yield (%)</div><div class="sm-stat-val" id="sm-mq-div">-</div><div style="font-size:10px;color:var(--text3);margin-top:4px">Imbal hasil dividen tahunan</div></div>
+            <div class="sm-stat-box"><div class="sm-stat-label">Dividend Payout Ratio (%)</div><div class="sm-stat-val" id="sm-mq-payout">-</div><div style="font-size:10px;color:var(--text3);margin-top:4px">Porsi laba bersih dibagikan sebagai dividen</div></div>
           </div>
         </div>
 
         <!-- SECTION 7: Red Flag Detector -->
         <div id="fund-sec-7" style="scroll-margin-top:14px">
-          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:#F1F5F9;display:flex;align-items:center;gap:8px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
             <span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 7</span>
             7. Quantitative Red Flag Detector
           </h2>
           <div class="sm-card" style="margin-bottom:0">
             <table class="sm-table">
               <thead><tr><th>Metrik Risiko Fundamental</th><th>Nilai Terkini</th><th>Batas Standar Aman</th><th>Status Evaluasi</th></tr></thead>
-              <tbody id="sm-t3-table"><tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:16px">Menunggu data fundamental...</td></tr></tbody>
+              <tbody id="sm-t3-table"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Menunggu data fundamental...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -2713,7 +2713,7 @@
 
       <!-- TAB 8: Algorithmic Debate & 5-Point Quality -->
       <div id="fund-tab8" class="sm-tab-panel">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:#F1F5F9">8. Algorithmic Debate (Bull Case vs Bear Case) &amp; 5-Pilar Core Quality</h2>
+        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:var(--text)">8. Algorithmic Debate (Bull Case vs Bear Case) &amp; 5-Pilar Core Quality</h2>
         <div id="sm-bull-bear-container" style="margin-bottom:16px">Menunggu analisa emiten...</div>
         <div class="sm-card" id="sm-checklist-container">Menunggu data checklist...</div>
       </div>
@@ -2733,8 +2733,8 @@
 <div id="page-crypto-technical" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px">
     <div>
-      <div class="ptitle" style="color:#F1F5F9;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px">⚡ Crypto Technical Suite — Volume Breakout &amp; Whale Identifier</div>
-      <div class="psub" style="color:#94A3B8;font-family:'Plus Jakarta Sans',sans-serif">Terminal Analisis &amp; Sinyal Khusus Crypto Murni (Pure Technical): Volume Breakout Engine, Whale Accumulation Tracker, 15+ Indicator Gauges, Fibonacci S/R, Candlestick &amp; Multi-Coin Screener.</div>
+      <div class="ptitle" style="color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px">⚡ Crypto Technical Suite — Volume Breakout &amp; Whale Identifier</div>
+      <div class="psub" style="color:var(--text3);font-family:'Plus Jakarta Sans',sans-serif">Terminal Analisis &amp; Sinyal Khusus Crypto Murni (Pure Technical): Volume Breakout Engine, Whale Accumulation Tracker, 15+ Indicator Gauges, Fibonacci S/R, Candlestick &amp; Multi-Coin Screener.</div>
     </div>
   </div>
 
@@ -2770,7 +2770,7 @@
             <button class="pbtn on" data-tf="1D" onclick="cryptoTechSetTimeframe('1D')">1D</button>
             <button class="pbtn" data-tf="1W" onclick="cryptoTechSetTimeframe('1W')">1W</button>
           </div>
-          <span style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase">Quick:</span>
+          <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick:</span>
           <span class="sm-chip" onclick="cryptoTechSelectCoin('BTC',true)">BTC</span>
           <span class="sm-chip" onclick="cryptoTechSelectCoin('ETH',true)">ETH</span>
           <span class="sm-chip" onclick="cryptoTechSelectCoin('SOL',true)">SOL</span>
@@ -2824,8 +2824,8 @@
 <div id="page-technical" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px">
     <div>
-      <div class="ptitle" style="color:#F1F5F9;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px">📈 Mega Technical &amp; Flow Suite — Bandarmologi &amp; Trading Terminal</div>
-      <div class="psub" style="color:#94A3B8;font-family:'Plus Jakarta Sans',sans-serif">Terminal Trading Terpadu: TradingView Interactive Chart, FlowScan Bandarmologi, 20+ Technical Gauges, Candlestick Pattern, Support/Resistance/Pivot &amp; Momentum Scanner</div>
+      <div class="ptitle" style="color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px">📈 Mega Technical &amp; Flow Suite — Bandarmologi &amp; Trading Terminal</div>
+      <div class="psub" style="color:var(--text3);font-family:'Plus Jakarta Sans',sans-serif">Terminal Trading Terpadu: TradingView Interactive Chart, FlowScan Bandarmologi, 20+ Technical Gauges, Candlestick Pattern, Support/Resistance/Pivot &amp; Momentum Scanner</div>
     </div>
   </div>
 
@@ -2853,7 +2853,7 @@
         </div>
         <button class="sm-btn btn-tech" onclick="techFetchData()">⚡ Jalankan Analisa Teknikal &amp; Flow</button>
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
-          <span style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase">Quick Tickers:</span>
+          <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
           <span class="sm-chip" onclick="techSetTicker('BBCA')">BBCA</span>
           <span class="sm-chip" onclick="techSetTicker('BBRI')">BBRI</span>
           <span class="sm-chip" onclick="techSetTicker('BMRI')">BMRI</span>
@@ -2870,7 +2870,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div>
             <h2 style="font-size:16px;font-weight:800;color:#8B5CF6;margin-bottom:2px">1. Advanced Interactive Technical Chart</h2>
-            <p style="font-size:11px;color:#94A3B8">Chart interaktif real-time dengan multi-timeframe, indikator MA, MACD, RSI, Volume, dan drawing tools.</p>
+            <p style="font-size:11px;color:var(--text3)">Chart interaktif real-time dengan multi-timeframe, indikator MA, MACD, RSI, Volume, dan drawing tools.</p>
           </div>
         </div>
         <div class="sm-card-fill" id="sm-tv-chart-container"></div>
@@ -2881,7 +2881,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
           <div>
             <h2 style="font-size:16px;font-weight:800;color:#8B5CF6;margin-bottom:2px">2. Analisa Komprehensif (FlowScan, Gauges, Candle &amp; S/R)</h2>
-            <p style="font-size:11px;color:#94A3B8">Gabungan rincian Bandarmologi Flow, 20+ Indikator Oscillator/MA, Psikologi Candlestick, dan Kalkulator Support/Resistance.</p>
+            <p style="font-size:11px;color:var(--text3)">Gabungan rincian Bandarmologi Flow, 20+ Indikator Oscillator/MA, Psikologi Candlestick, dan Kalkulator Support/Resistance.</p>
           </div>
           <div style="display:flex;gap:4px">
             <button class="pbtn" id="tech-fs-p7" onclick="techFsSetPeriod(7,this)">1 Mgg</button>
@@ -2898,11 +2898,11 @@
           <div id="tech-fs-prob" style="margin-bottom:14px"></div>
           <div class="g2b" style="margin-bottom:14px">
             <div class="sm-card">
-              <h3 style="font-size:12px;font-weight:700;color:#F1F5F9;margin-bottom:8px">Chaikin Money Flow (CMF-20)</h3>
+              <h3 style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Chaikin Money Flow (CMF-20)</h3>
               <div class="cw" style="height:200px"><canvas id="techFsCCm"></canvas></div>
             </div>
             <div class="sm-card">
-              <h3 style="font-size:12px;font-weight:700;color:#F1F5F9;margin-bottom:8px">Net Flow Institusional (Juta)</h3>
+              <h3 style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Net Flow Institusional (Juta)</h3>
               <div class="cw" style="height:200px"><canvas id="techFsCNf"></canvas></div>
             </div>
           </div>
@@ -2923,7 +2923,7 @@
           <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px">C. Candlestick Pattern &amp; Price Action Analysis</div>
           <div class="row5" id="cd-head" style="margin-bottom:14px"></div>
           <div class="sm-card">
-            <h3 style="font-size:12px;font-weight:700;color:#F1F5F9;margin-bottom:8px">Psikologi Candle — 3 Sesi Terakhir</h3>
+            <h3 style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Psikologi Candle — 3 Sesi Terakhir</h3>
             <div id="cd-psyco" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
           </div>
         </div>
@@ -2933,11 +2933,11 @@
           <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px">D. Support, Resistance &amp; Pivot Point Calculator</div>
           <div class="sm-grid-2">
             <div class="sm-card">
-              <h3 style="font-size:12px;font-weight:700;color:#F1F5F9;margin-bottom:8px">Level Pivot Harian (Klasik &amp; Fib)</h3>
+              <h3 style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Level Pivot Harian (Klasik &amp; Fib)</h3>
               <div id="tech-pivot-table">Memuat level pivot...</div>
             </div>
             <div class="sm-card">
-              <h3 style="font-size:12px;font-weight:700;color:#F1F5F9;margin-bottom:8px">Risk:Reward &amp; Position Sizing Planner</h3>
+              <h3 style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Risk:Reward &amp; Position Sizing Planner</h3>
               <div id="tech-rr-planner">Memuat kalkulator risiko...</div>
             </div>
           </div>
@@ -2948,7 +2948,7 @@
       <div id="tech-tab3" class="sm-tab-panel">
         <div style="margin-bottom:10px">
           <h2 style="font-size:16px;font-weight:800;color:#8B5CF6;margin-bottom:2px">3. LQ45 Momentum Scanner &amp; Flow Heatmap</h2>
-          <p style="font-size:11px;color:#94A3B8">Screening momentum, RSI, dan composite score seluruh emiten LQ45.</p>
+          <p style="font-size:11px;color:var(--text3)">Screening momentum, RSI, dan composite score seluruh emiten LQ45.</p>
         </div>
         <div class="sm-card">
           <div id="hm-grid-tech" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:16px"></div>
@@ -3780,7 +3780,7 @@
 <script src="js/24-stockmaster.js?v=20260902c"></script>
 <script src="js/25-auditlog.js?v=20260902c"></script>
 <script src="js/26-commandcenter.js?v=20260902c"></script>
-<script src="js/27-stockintel.js?v=20260902c"></script>
+<script src="js/27-stockintel.js?v=20260905a"></script>
 <script src="js/28-decisiontools.js?v=20260902c"></script>
 <script src="js/29-institutional-ui.js?v=20260902c"></script>
 <script src="js/30-price-alerts.js?v=20260902c"></script>
@@ -3821,6 +3821,9 @@
         }
         if (typeof renderPortoDonut === 'function') {
           try { renderPortoDonut(); } catch(e) {}
+        }
+        if (typeof renderIntelPriceChart === 'function') {
+          try { renderIntelPriceChart(); } catch(e) {}
         }
         if (typeof renderAll === 'function') {
           try { renderAll(); } catch(e) {}
