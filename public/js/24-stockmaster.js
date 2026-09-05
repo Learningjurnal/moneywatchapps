@@ -139,22 +139,36 @@ async function fundFetchData(tickerOverride) {
   
   var cleanCode = rawTicker.replace('.JK', '').replace('.US', '');
   var isUsStock = ['AAPL','TSLA','NVDA','MSFT','GOOG','GOOGL','AMZN','META','NFLX','AMD','INTC','COIN','PLTR','BRK-B','SPY','QQQ'].includes(cleanCode);
-  var yahooTicker = cleanCode;
-  if (!rawTicker.includes('.')) {
-    yahooTicker = isUsStock ? cleanCode : (cleanCode + '.JK');
-  }
+  // Always derive the Yahoo ticker from the normalized cleanCode (with any
+  // .JK/.US suffix already stripped above), never from the raw input — a
+  // previous "if rawTicker has no dot" check meant typing the (default!)
+  // example value "BBCA.JK" verbatim skipped appending .JK, sending the
+  // bare ticker "BBCA" to Yahoo instead — which happens to resolve to an
+  // unrelated Canadian ETF, not Bank Central Asia.
+  var yahooTicker = isUsStock ? cleanCode : (cleanCode + '.JK');
   FUND_DATA.ticker = cleanCode;
   FUND_DATA.currency = isUsStock ? 'USD' : 'IDR';
 
   fundShowStatus('🔄 Memuat analisa fundamental &amp; konsensus valuasi <b>' + cleanCode + '</b>...', false);
 
-  // Helper fetcher yang mencoba seluruh proxy yang tersedia (lokal, corsproxy, allorigins, codetabs)
+  // Helper fetcher yang mencoba seluruh proxy yang tersedia (lokal, allorigins, codetabs).
+  // Server-side /api/proxy dicoba dulu — lebih stabil & sudah punya cache
+  // sendiri — baru fallback ke proxy CORS publik pihak ketiga kalau app
+  // berjalan di static host (GitHub Pages/Cloudflare Pages) tanpa backend.
   async function fetchWithProxyFallback(targetUrl, timeoutMs) {
     timeoutMs = timeoutMs || 6000;
-    var proxyList = [
+    var isStaticHost = typeof window !== 'undefined' && window.location && (
+      (window.location.hostname || '').indexOf('github.io') !== -1 ||
+      window.location.protocol === 'file:' ||
+      (window.location.hostname || '').indexOf('pages.dev') !== -1
+    );
+    var proxyList = isStaticHost ? [] : [
+      { name: 'local_proxy', isWrapped: false, url: function(u){ return '/api/proxy?url=' + encodeURIComponent(u); } }
+    ];
+    proxyList.push(
       { name: 'allorigins_get', isWrapped: true, url: function(u){ return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); } },
       { name: 'codetabs', isWrapped: false, url: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } }
-    ];
+    );
 
     for (var i = 0; i < proxyList.length; i++) {
       try {
@@ -207,10 +221,34 @@ async function fundFetchData(tickerOverride) {
     var result = rawJson && rawJson.quoteSummary && rawJson.quoteSummary.result;
     if (!result || result.length === 0) throw new Error('No data');
 
-    FUND_DATA.fin = result[0].financialData || {};
-    FUND_DATA.stats = result[0].defaultKeyStatistics || {};
-    FUND_DATA.detail = result[0].summaryDetail || {};
-    FUND_DATA.profile = result[0].summaryProfile || {};
+    var realFin = result[0].financialData || {};
+    var realStats = result[0].defaultKeyStatistics || {};
+    var realDetail = result[0].summaryDetail || {};
+    var realProfile = result[0].summaryProfile || {};
+
+    // Yahoo's quoteSummary modules frequently omit fields per-company, or
+    // report the key with an empty/no-`raw` value when data isn't available
+    // for that field (e.g. `currentRatio: {}` instead of leaving the key
+    // out entirely) — replacing FUND_DATA wholesale, or even a plain
+    // Object.assign, left gaps that crashed fundPopulateData() deeper in
+    // the rendering pipeline (it assumes every field in the curated/
+    // estimated shape always has a numeric `.raw`). Build that complete,
+    // safe baseline first, then overlay only the real Yahoo fields that
+    // actually carry a usable numeric value.
+    fundLoadFallbackData(cleanCode, liveMeta, livePrice);
+    var mergeRealFields = function(target, source) {
+      Object.keys(source || {}).forEach(function(key) {
+        var val = source[key];
+        if (val && typeof val.raw === 'number' && !isNaN(val.raw)) {
+          target[key] = val;
+        }
+      });
+    };
+    mergeRealFields(FUND_DATA.fin, realFin);
+    mergeRealFields(FUND_DATA.stats, realStats);
+    mergeRealFields(FUND_DATA.detail, realDetail);
+    if (realProfile && realProfile.sector) FUND_DATA.profile.sector = realProfile.sector;
+    if (realProfile && realProfile.longBusinessSummary) FUND_DATA.profile.longBusinessSummary = realProfile.longBusinessSummary;
 
     if (livePrice > 0) {
       if (!FUND_DATA.fin.currentPrice) FUND_DATA.fin.currentPrice = {};
@@ -218,7 +256,7 @@ async function fundFetchData(tickerOverride) {
     }
 
     fundPopulateData();
-    fundShowStatus('✅ Data Fundamental &amp; Konsensus Valuasi <b>' + cleanCode + '</b> siap!', false);
+    fundShowStatus('✅ Data Fundamental &amp; Konsensus Valuasi <b>' + cleanCode + '</b> siap! (Real: data keuangan Yahoo Finance)', false);
   } catch (e) {
     fundLoadFallbackData(cleanCode, liveMeta, livePrice);
   }

@@ -146,6 +146,12 @@ function getStockIntelData(ticker) {
   var fund = (typeof FUND_DATA !== 'undefined' && FUND_DATA[tk]) ? FUND_DATA[tk] : (cached.fund || null);
   var fs = (typeof FS_UNIV !== 'undefined' && Array.isArray(FS_UNIV)) ? FS_UNIV.find(function(u){ return u.t === tk; }) : null;
   var quote = cached.quote || {};
+  // Ratios live under quote.fundamentals (server-side quoteObj shape from
+  // lib/idx-data-engine.js), and the 52-week range under quote.fiftyTwoWeek —
+  // not at the top level of `quote` itself.
+  var qf = quote.fundamentals || {};
+  var q52 = quote.fiftyTwoWeek || {};
+  var isRealFund = qf.isReal === true;
 
   var perStr = '-';
   var pbvStr = '-';
@@ -154,40 +160,40 @@ function getStockIntelData(ticker) {
   var derStr = '-';
   var epsStr = '-';
 
-  if (quote.per && quote.per > 0) perStr = quote.per.toFixed(1) + 'x';
+  if (qf.per && qf.per > 0) perStr = qf.per.toFixed(1) + 'x';
   else if (fund && fund.per) perStr = typeof fund.per === 'number' ? fund.per.toFixed(1) + 'x' : String(fund.per);
   else if (fs && fs.pe) perStr = fs.pe.toFixed(1) + 'x';
 
-  if (quote.pbv && quote.pbv > 0) pbvStr = quote.pbv.toFixed(2) + 'x';
+  if (qf.pbv && qf.pbv > 0) pbvStr = qf.pbv.toFixed(2) + 'x';
   else if (fund && fund.pbv) pbvStr = typeof fund.pbv === 'number' ? fund.pbv.toFixed(2) + 'x' : String(fund.pbv);
   else if (fs && fs.pbv) pbvStr = fs.pbv.toFixed(2) + 'x';
 
-  if (quote.roe && quote.roe !== 0) roeStr = quote.roe.toFixed(1) + '%';
+  if (qf.roe && qf.roe !== 0) roeStr = qf.roe.toFixed(1) + '%';
   else if (fund && fund.roe) roeStr = typeof fund.roe === 'number' ? fund.roe.toFixed(1) + '%' : String(fund.roe);
   else if (fs && fs.roe) roeStr = fs.roe.toFixed(1) + '%';
 
-  if (quote.roa && quote.roa !== 0) roaStr = quote.roa.toFixed(1) + '%';
+  if (qf.roa && qf.roa !== 0) roaStr = qf.roa.toFixed(1) + '%';
   else if (fund && fund.roa) roaStr = typeof fund.roa === 'number' ? fund.roa.toFixed(1) + '%' : String(fund.roa);
 
-  if (quote.der !== undefined && quote.der !== null) derStr = quote.der.toFixed(2) + 'x';
+  if (qf.der !== undefined && qf.der !== null) derStr = qf.der.toFixed(2) + 'x';
   else if (fund && fund.der) derStr = typeof fund.der === 'number' ? fund.der.toFixed(2) + 'x' : String(fund.der);
 
-  if (quote.eps && quote.eps > 0) epsStr = 'Rp ' + Math.round(quote.eps).toLocaleString('id-ID');
+  if (qf.eps && qf.eps > 0) epsStr = 'Rp ' + Math.round(qf.eps).toLocaleString('id-ID');
   else if (fund && fund.eps) epsStr = 'Rp ' + Math.round(fund.eps).toLocaleString('id-ID');
 
   // 2. Real Support & Resistance (Pivot 5-bar / Fib from real quote if available)
   var levels = {
-    r2: quote.high52 || Math.round(price * 1.10),
+    r2: q52.high || Math.round(price * 1.10),
     r1: Math.round(price * 1.04),
     current: price,
     s1: Math.round(price * 0.96),
-    s2: quote.low52 || Math.round(price * 0.90),
+    s2: q52.low || Math.round(price * 0.90),
     distS1: price > 0 ? '-4.0%' : '-',
     method: 'Calculated Real Pivot Support/Resistance'
   };
 
   // 3. Real 52-week range & turnover
-  var range52 = (quote.low52 && quote.high52) ? ('Rp ' + fmtK(quote.low52) + ' - Rp ' + fmtK(quote.high52)) : (price > 0 ? 'Rp ' + fmtK(Math.round(price * 0.75)) + ' - Rp ' + fmtK(Math.round(price * 1.25)) : '-');
+  var range52 = (q52.low && q52.high) ? ('Rp ' + fmtK(q52.low) + ' - Rp ' + fmtK(q52.high)) : (price > 0 ? 'Rp ' + fmtK(Math.round(price * 0.75)) + ' - Rp ' + fmtK(Math.round(price * 1.25)) : '-');
   var turnover = quote.value ? ('Rp ' + (quote.value / 1e9).toFixed(2) + ' M') : (quote.volume ? ('Rp ' + ((quote.volume * price) / 1e9).toFixed(2) + ' M') : '-');
 
   // 4. Broker Flow & Bandarmology Real Data
@@ -232,14 +238,15 @@ function getStockIntelData(ticker) {
     conviction: score >= 70 ? 85 : 60,
     range52: range52,
     turnover: turnover,
-    pos52: quote.low52 && quote.high52 && quote.high52 > quote.low52 ? Math.round(((price - quote.low52) / (quote.high52 - quote.low52)) * 100) + '% dari batas bawah' : '-',
+    pos52: q52.low && q52.high && q52.high > q52.low ? Math.round(((price - q52.low) / (q52.high - q52.low)) * 100) + '% dari batas bawah' : '-',
     stats: {
       per: perStr,
       pbv: pbvStr,
       roe: roeStr,
       roa: roaStr,
       der: derStr,
-      eps: epsStr
+      eps: epsStr,
+      isReal: isRealFund
     },
     plan: {
       bias: score >= 70 ? 'BULLISH REBOUND' : (score >= 50 ? 'SIDEWAYS RANGE' : 'DEFENSIVE'),
@@ -489,10 +496,12 @@ function renderIntelPriceChart() {
     return;
   }
 
-  // Draw real historical price line from Yahoo Finance data
+  // Draw real historical OHLC data from Yahoo Finance as candlesticks —
+  // scale off the actual high/low range, not just closes, so wicks never
+  // clip outside the plot area.
   var closes = points.map(function(p) { return p.c; });
-  var rawMin = Math.min.apply(null, closes);
-  var rawMax = Math.max.apply(null, closes);
+  var rawMin = Math.min.apply(null, points.map(function(p) { return p.l != null ? p.l : p.c; }));
+  var rawMax = Math.max.apply(null, points.map(function(p) { return p.h != null ? p.h : p.c; }));
   var pad = (rawMax - rawMin) * 0.08 || (rawMax * 0.02) || 1;
   var minP = rawMin - pad;
   var maxP = rawMax + pad;
@@ -515,19 +524,37 @@ function renderIntelPriceChart() {
     ctx.fillText('Rp ' + fmtK(pVal), w - padR + 6, gy + 3);
   }
 
-  // Plot the real price line
-  var isUp = closes[closes.length - 1] >= closes[0];
-  var lineColor = isUp ? cGreen : cRed;
-  ctx.strokeStyle = lineColor;
-  ctx.lineWidth = 1.5;
+  // Plot real OHLC candlesticks — each candle: a thin wick (high-low) plus
+  // a filled body (open-close), green when close >= open, red otherwise.
+  var yFor = function(v) { return padT + (1 - (v - minP) / (maxP - minP)) * chartH; };
+  var slot = chartW / points.length;
+  var bodyW = Math.max(1, Math.min(10, slot * 0.6));
   ctx.setLineDash([]);
-  ctx.beginPath();
   points.forEach(function(p, i) {
-    var px = padL + (chartW * i / Math.max(1, points.length - 1));
-    var py = padT + (1 - (p.c - minP) / (maxP - minP)) * chartH;
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    var cx = padL + slot * (i + 0.5);
+    var hasOhlc = p.o != null && p.h != null && p.l != null;
+    var o = hasOhlc ? p.o : p.c;
+    var hi = hasOhlc ? p.h : p.c;
+    var lo = hasOhlc ? p.l : p.c;
+    var isCandleUp = p.c >= o;
+    var candleColor = isCandleUp ? cGreen : cRed;
+
+    // Wick
+    ctx.strokeStyle = candleColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, yFor(hi));
+    ctx.lineTo(cx, yFor(lo));
+    ctx.stroke();
+
+    // Body
+    var yOpen = yFor(o);
+    var yClose = yFor(p.c);
+    var bodyTop = Math.min(yOpen, yClose);
+    var bodyH = Math.max(1, Math.abs(yClose - yOpen));
+    ctx.fillStyle = candleColor;
+    ctx.fillRect(cx - bodyW / 2, bodyTop, bodyW, bodyH);
   });
-  ctx.stroke();
 
   // Current price dashed reference line + tag
   var curY = padT + (1 - (basePx - minP) / (maxP - minP)) * chartH;
@@ -744,7 +771,12 @@ function renderStockIntelPage() {
         + '</div>'
 
         // STATISTIK KUNCI (DATA RIIL, JIKA TIDAK TERSEDIA = '-')
-        + '<div class="intel-section-title" style="margin-top:8px"><span>STATISTIK FUNDAMENTAL RIIL</span></div>'
+        + '<div class="intel-section-title" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between">'
+          + '<span>STATISTIK FUNDAMENTAL RIIL</span>'
+          + (data.stats.isReal
+              ? '<span class="badge b-up" style="font-size:10px" title="Sumber: Yahoo Finance quoteSummary">✓ Data Real</span>'
+              : '<span class="badge b-amb" style="font-size:10px" title="Yahoo Finance belum punya data fundamental untuk emiten ini — nilai diestimasi dari harga pasar">⚠ Estimasi</span>')
+        + '</div>'
         + '<div class="intel-stats-grid">'
           + '<div class="intel-stat-item">'
             + '<div class="intel-stat-label">PER</div>'
@@ -857,6 +889,14 @@ function renderStockIntelPage() {
 
   // Render chart after DOM inject
   setTimeout(renderIntelPriceChart, 50);
+
+  // Auto-fetch the real quote/fundamentals/broker-summary bundle on mount —
+  // previously this only happened when the user manually clicked "Refresh
+  // Real-Time", so PER/PBV/ROE/ROA/DER/EPS silently stayed at '-' for every
+  // ticker until that click. Skip if already cached or a fetch is in flight.
+  if (isIdx && !(MW_INTEL_CACHE[ticker] && MW_INTEL_CACHE[ticker].quote) && !MW_INTEL_IS_LOADING) {
+    fetchRealStockIntelData(ticker);
+  }
 }
 
 /**

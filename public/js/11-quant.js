@@ -148,48 +148,40 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
   var sym = ticker.toUpperCase() + '.JK';
   var range = rangeDays <= 365 ? '1y' : (rangeDays <= 730 ? '2y' : (rangeDays <= 1095 ? '3y' : '5y'));
   var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + sym + '?interval=1d&range=' + range;
-  var proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(yUrl);
 
   el('bt-data-status') && (el('bt-data-status').textContent = '📡 Mengambil data live ' + sym + '...');
 
-  fetch(proxyUrl)
-  .then(function(r){ return r.json(); })
-  .then(function(d){
-    var result = d && d.chart && d.chart.result && d.chart.result[0];
-    if(!result || !result.timestamp) throw new Error('NO_DATA');
-    var quotes = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};
-    var qOpen = quotes.open || [], qHigh = quotes.high || [], qLow = quotes.low || [], qClose = quotes.close || [], qVol = quotes.volume || [];
-    var timestamps = result.timestamp;
-    var data = timestamps.map(function(ts, i){
-      return {
-        date: new Date(ts*1000).toISOString().slice(0,10),
-        open: qOpen[i] || 0,
-        high: qHigh[i] || 0,
-        low: qLow[i] || 0,
-        close: qClose[i] || 0,
-        volume: qVol[i] || 0
-      };
-    }).filter(function(d){ return d.close > 0; });
+  // Try proxies in order: server-side /api/proxy first (stable, cached),
+  // then public CORS proxies as fallback (for static hosts / if the
+  // backend proxy itself is unreachable), then simulation as last resort.
+  var isStaticHost = typeof window !== 'undefined' && window.location && (
+    (window.location.hostname || '').indexOf('github.io') !== -1 ||
+    window.location.protocol === 'file:' ||
+    (window.location.hostname || '').indexOf('pages.dev') !== -1
+  );
+  var proxies = isStaticHost ? [] : [
+    { isWrapped: false, url: '/api/proxy?url=' + encodeURIComponent(yUrl) }
+  ];
+  proxies.push(
+    { isWrapped: false, url: 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(yUrl) },
+    { isWrapped: true, url: 'https://api.allorigins.win/get?url=' + encodeURIComponent(yUrl) }
+  );
 
-    el('bt-src-label') && (el('bt-src-label').textContent = '● LIVE Yahoo Finance');
-    el('bt-src-label') && (el('bt-src-label').style.color = 'var(--green)');
-    el('bt-src-ticker') && (el('bt-src-ticker').textContent = sym);
-    el('bt-src-count') && (el('bt-src-count').textContent = data.length + ' baris');
-    if(data.length){
-      el('bt-src-date') && (el('bt-src-date').textContent = data[data.length-1].date);
-      el('bt-src-price') && (el('bt-src-price').textContent = 'Rp ' + Math.round(data[data.length-1].close).toLocaleString('id-ID'));
+  function tryProxy(idx){
+    if (idx >= proxies.length) {
+      el('bt-data-status') && (el('bt-data-status').textContent = '⚠️ Proxy gagal — pakai data simulasi');
+      el('bt-src-label') && (el('bt-src-label').textContent = 'Simulasi');
+      el('bt-src-label') && (el('bt-src-label').style.color = 'var(--amber)');
+      cb(null, qtGenSim(ticker, rangeDays));
+      return;
     }
-    el('bt-data-status') && (el('bt-data-status').textContent = '✅ Data live: ' + data.length + ' hari');
-    cb(null, data);
-  })
-  .catch(function(err){
-    // Try second proxy
-    var proxyUrl2 = 'https://api.allorigins.win/get?url=' + encodeURIComponent(yUrl);
-    fetch(proxyUrl2).then(function(r){ return r.json(); })
+
+    var proxy = proxies[idx];
+    fetch(proxy.url).then(function(r){ return r.json(); })
     .then(function(d){
       var rawObj = d;
-      if(d && d.contents){
-        try { rawObj = JSON.parse(d.contents); } catch(e){}
+      if (proxy.isWrapped && d && d.contents) {
+        try { rawObj = JSON.parse(d.contents); } catch(e){ throw new Error('PARSE_ERROR'); }
       }
       var result = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
       if(!result || !result.timestamp) throw new Error('NO_DATA');
@@ -197,23 +189,33 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
       var qOpen = quotes.open || [], qHigh = quotes.high || [], qLow = quotes.low || [], qClose = quotes.close || [], qVol = quotes.volume || [];
       var timestamps = result.timestamp;
       var data = timestamps.map(function(ts, i){
-        return { date: new Date(ts*1000).toISOString().slice(0,10), open: qOpen[i]||0, high: qHigh[i]||0, low: qLow[i]||0, close: qClose[i]||0, volume: qVol[i]||0 };
+        return {
+          date: new Date(ts*1000).toISOString().slice(0,10),
+          open: qOpen[i] || 0,
+          high: qHigh[i] || 0,
+          low: qLow[i] || 0,
+          close: qClose[i] || 0,
+          volume: qVol[i] || 0
+        };
       }).filter(function(d){ return d.close > 0; });
+
       el('bt-src-label') && (el('bt-src-label').textContent = '● LIVE Yahoo Finance');
       el('bt-src-label') && (el('bt-src-label').style.color = 'var(--green)');
+      el('bt-src-ticker') && (el('bt-src-ticker').textContent = sym);
       el('bt-src-count') && (el('bt-src-count').textContent = data.length + ' baris');
-      if(data.length){ el('bt-src-date') && (el('bt-src-date').textContent = data[data.length-1].date); el('bt-src-price') && (el('bt-src-price').textContent = 'Rp ' + Math.round(data[data.length-1].close).toLocaleString('id-ID')); }
-      el('bt-data-status') && (el('bt-data-status').textContent = '✅ Data live (proxy 2): ' + data.length + ' hari');
+      if(data.length){
+        el('bt-src-date') && (el('bt-src-date').textContent = data[data.length-1].date);
+        el('bt-src-price') && (el('bt-src-price').textContent = 'Rp ' + Math.round(data[data.length-1].close).toLocaleString('id-ID'));
+      }
+      el('bt-data-status') && (el('bt-data-status').textContent = '✅ Data live: ' + data.length + ' hari');
       cb(null, data);
     })
     .catch(function(){
-      // Fallback to simulation
-      el('bt-data-status') && (el('bt-data-status').textContent = '⚠️ Proxy gagal — pakai data simulasi');
-      el('bt-src-label') && (el('bt-src-label').textContent = 'Simulasi');
-      el('bt-src-label') && (el('bt-src-label').style.color = 'var(--amber)');
-      cb(null, qtGenSim(ticker, rangeDays));
+      tryProxy(idx + 1);
     });
-  });
+  }
+
+  tryProxy(0);
 }
 
 // ── Simulation fallback ──
