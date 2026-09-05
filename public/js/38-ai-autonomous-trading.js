@@ -97,6 +97,7 @@
   var AI_SCAN_LOADED_AT = null;
   var AI_SCAN_ERROR = null;
   var AI_DEEP_PENDING = {}; // tickers currently being fetched for Deep Analysis
+  var AI_DEEP_FAILED = {}; // tickers confirmed to have no real signal (invalid/unlisted) — stops retry loop
 
   // Real backtest results (Strategy Lab / Backtest Lab) — null until the
   // user explicitly runs one (server-side simulation over ~135 tickers x
@@ -980,13 +981,37 @@
     var tk = state.selectedTicker || 'BBCA';
     var data = AI_UNIVERSE.find(function(x) { return x.ticker === tk; });
 
+    // Reject tickers outside the IDX stock universe immediately — never
+    // fetch/spin for a code that cannot possibly have a real signal.
+    if (!data && typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
+      return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+        + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px"><i class="ti ti-alert-triangle"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
+        + '<p style="font-size:11px">Tidak ada sinyal AI yang bisa dihitung. Silakan pilih emiten terdaftar (Contoh: BBCA, BBRI, BMRI, TLKM, ASII).</p>'
+        + '</div>';
+    }
+
+    if (!data && AI_DEEP_FAILED[tk]) {
+      return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+        + '⚠ Sinyal real-time untuk <strong>' + tk + '</strong> tidak tersedia (data harga/fundamental tidak dapat dimuat). '
+        + '<button class="btn btn-ghost btn-xs" onclick="delete AI_DEEP_FAILED[\'' + tk + '\'];aiLoadTicker()">Coba Lagi</button>'
+        + '</div>';
+    }
+
     if (!data) {
       // Ticker not in the scanned universe yet (typed manually, or outside
       // LQ45) — fetch its real signal instead of fabricating placeholder
       // numbers, then re-render once it resolves.
       if (!AI_DEEP_PENDING[tk] && !AI_SCAN_LOADING) {
         AI_DEEP_PENDING[tk] = true;
-        fetchAiScanData([tk]).then(function() { delete AI_DEEP_PENDING[tk]; });
+        fetchAiScanData([tk]).then(function() {
+          delete AI_DEEP_PENDING[tk];
+          // If the fetch completed but this ticker still isn't in the
+          // universe, there is no real signal for it (e.g. delisted or
+          // upstream data unavailable) — stop retrying forever.
+          if (!AI_UNIVERSE.some(function(x) { return x.ticker === tk; })) {
+            AI_DEEP_FAILED[tk] = true;
+          }
+        });
       }
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
         + (AI_SCAN_ERROR

@@ -1489,12 +1489,27 @@ function techRunFlowScanTab(ticker) {
 }
 
 // ── Tab 3: 20+ Technical Oscillators & Moving Average Gauges ──
+// Shared block shown by the tabs below for a ticker outside the Stock
+// Universe. Matches the message techRunFlowScanTab() already used - these
+// three tabs never had the equivalent check, so a made-up ticker like
+// "FFFF" or "GGGG" fell straight through to the indicator tables below.
+function techInvalidTickerHtml(ticker) {
+  return '<div style="padding:24px;text-align:center;color:var(--text3)">'
+    + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px"><i class="ti ti-alert-triangle"></i> Ticker "' + ticker + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
+    + '<p style="font-size:11px">Seluruh data pada bagian ini bernilai 0/kosong. Silakan pilih emiten terdaftar (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM).</p>'
+    + '</div>';
+}
+
 function techRenderGaugesTab(ticker) {
   var container = document.getElementById('sm-tv-gauge-container') || document.getElementById('tech-tv-gauge-container');
   if (!container) return;
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(ticker)) {
+    container.innerHTML = techInvalidTickerHtml(ticker);
+    return;
+  }
 
   var curPrice = (prices && prices[ticker]) || 5000;
-  
+
   var indicators = [
     { name: 'RSI (14)', val: '58.4', action: 'BULLISH', color: '#10B981' },
     { name: 'Stochastic %K (14, 3, 3)', val: '64.2', action: 'BULLISH', color: '#10B981' },
@@ -1556,6 +1571,11 @@ function techRenderCandleTab(ticker) {
   var head = document.getElementById('cd-head-t4');
   var psyco = document.getElementById('cd-psyco-t4');
   if (!head || !psyco) return;
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(ticker)) {
+    head.innerHTML = techInvalidTickerHtml(ticker);
+    psyco.innerHTML = '';
+    return;
+  }
 
   var curPrice = (prices && prices[ticker]) || 5000;
   var stopLoss = Math.round(curPrice * 0.95);
@@ -1588,6 +1608,11 @@ function techRenderPivotsTab(ticker) {
   var pivTable = document.getElementById('tech-pivot-table');
   var rrPlanner = document.getElementById('tech-rr-planner');
   if (!pivTable || !rrPlanner) return;
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(ticker)) {
+    pivTable.innerHTML = techInvalidTickerHtml(ticker);
+    rrPlanner.innerHTML = '';
+    return;
+  }
 
   var curPrice = (prices && prices[ticker]) || 5000;
   var high = Math.round(curPrice * 1.02);

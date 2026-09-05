@@ -2690,6 +2690,12 @@ function renderBandarmologyBrokerTrailView() {
 // 8. Smart Money Flow View (Chaikin CMF, VWAP Bands, Volume Price Action)
 function renderBandarmologySmartMoneyFlowView(tk) {
   var ticker = (tk || STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
+  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(ticker)) {
+    return '<div class="card" style="padding:24px;text-align:center;color:var(--text3)">'
+      + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px"><i class="ti ti-alert-triangle"></i> Ticker "' + ticker + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
+      + '<p style="font-size:11px">CMF, VWAP Bands, dan seluruh metrik Smart Money Flow bernilai 0/kosong. Silakan pilih emiten terdaftar (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM).</p>'
+      + '</div>';
+  }
   var bData = generateClientSideBrokerSummary(ticker, '1D');
   var price = (bData && bData.price) ? bData.price : getAccurateStockPrice(ticker);
   var isUp = (bData.changePercent || 0) >= 0;
