@@ -43,7 +43,7 @@
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:12px">'
       + '  <div>'
       + '    <div class="ptitle" style="display:flex;align-items:center;gap:8px;font-size:22px">'
-      + '      <i class="ti ti-book-2" style="color:#38bdf8"></i> Knowledge &amp; Master Analysis Guide'
+      + '      Knowledge &amp; Master Guide'
       + '      <span class="badge b-accent" style="font-size:10px;padding:3px 9px">MASTER WORKFLOW</span>'
       + '      <span class="badge b-up" style="font-size:10px;padding:3px 9px">INTEGRATED ECOSYSTEM</span>'
       + '    </div>'
