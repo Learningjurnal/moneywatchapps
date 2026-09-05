@@ -2789,14 +2789,17 @@ app.get('/api/idx/calendar', (req, res) => {
   }
 });
 
-// Serve static assets from project root
-app.use(express.static(__dirname, {
+// Serve static assets from the public/ directory (client-facing files only —
+// keeps data/, lib/, server.js, etc. out of reach when running as a plain
+// Node server, matching Vercel's static/function split)
+const PUBLIC_DIR = path.join(__dirname, 'public');
+app.use(express.static(PUBLIC_DIR, {
   extensions: ['html', 'htm']
 }));
 
 // Route fallback for primary app entry point
 app.get('/app', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
 // Fallback for HTML5 client-side routing
@@ -2804,7 +2807,7 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API route not found' });
   }
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
 // Start HTTP server on 0.0.0.0:3000 (when not managed by Vercel serverless runtime)
