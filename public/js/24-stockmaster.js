@@ -1175,7 +1175,7 @@ function techRenderMainChart(ticker) {
     + '    <span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
     + '  </div>'
     + '  <div style="display:flex;gap:6px;align-items:center">'
-    + '    <button class="btn btn-ghost btn-xs" style="border-color:#8B5CF6;color:#8B5CF6" onclick="techToggleChartMode(\'tv\')"><i class="ti ti-external-link"></i> Buka TradingView Pro</button>'
+    + '    <button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')"><i class="ti ti-external-link"></i> Buka TradingView Pro</button>'
     + '  </div>'
     + '</div>'
     + '<div style="position:relative;height:380px;background:var(--bg2);padding:10px;border-radius:0 0 10px 10px">'
@@ -1198,7 +1198,7 @@ function techRenderMainChart(ticker) {
           {
             label: 'Close Price',
             data: closePrices,
-            borderColor: '#8B5CF6',
+            borderColor: '#0000FF',
             borderWidth: 2,
             backgroundColor: grad,
             fill: true,
@@ -1243,7 +1243,7 @@ function techLoadTradingViewWidget(ticker, container) {
   var tvTicker = techFormatTV(ticker);
   container.innerHTML = ''
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0">'
-    + '  <span style="font-size:12px;font-weight:700;color:#8B5CF6">TradingView Interactive Cloud Chart (' + tvTicker + ')</span>'
+    + '  <span style="font-size:12px;font-weight:700;color:var(--accent)">TradingView Interactive Cloud Chart (' + tvTicker + ')</span>'
     + '  <button class="btn btn-ghost btn-xs" onclick="techToggleChartMode(\'native\')">⚡ Switch to Native Fast Chart</button>'
     + '</div>'
     + '<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=' + encodeURIComponent(tvTicker) + '&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131B2E&theme=dark&style=1&timezone=Asia%2FJakarta&locale=id" style="width:100%;height:460px;border:none;border-radius:0 0 10px 10px" loading="lazy"></iframe>';
@@ -1567,7 +1567,7 @@ function techRenderPivotsTab(ticker) {
     + '    <tr><td style="color:#EF4444;font-weight:700">Resistance 3 (R3)</td><td class="mono">Rp ' + r3.toLocaleString('id-ID') + '</td><td class="mono">Rp ' + Math.round(p + 1.000 * (high - low)).toLocaleString('id-ID') + '</td><td><span class="badge b-dn">Overbought</span></td></tr>'
     + '    <tr><td style="color:#EF4444;font-weight:700">Resistance 2 (R2)</td><td class="mono">Rp ' + r2.toLocaleString('id-ID') + '</td><td class="mono">Rp ' + Math.round(p + 0.618 * (high - low)).toLocaleString('id-ID') + '</td><td><span class="badge b-dn">Target Jual</span></td></tr>'
     + '    <tr><td style="color:#F59E0B;font-weight:700">Resistance 1 (R1)</td><td class="mono">Rp ' + r1.toLocaleString('id-ID') + '</td><td class="mono">Rp ' + Math.round(p + 0.382 * (high - low)).toLocaleString('id-ID') + '</td><td><span class="badge b-neu">Uji Breakout</span></td></tr>'
-    + '    <tr style="background:rgba(139,92,246,0.15)"><td style="color:#8B5CF6;font-weight:800">PIVOT POINT (P)</td><td class="mono" style="font-weight:800">Rp ' + p.toLocaleString('id-ID') + '</td><td class="mono" style="font-weight:800">Rp ' + p.toLocaleString('id-ID') + '</td><td><span class="badge b-accent">Baseline</span></td></tr>'
+    + '    <tr style="background:rgba(0,0,255,0.15)"><td style="color:var(--accent);font-weight:800">PIVOT POINT (P)</td><td class="mono" style="font-weight:800">Rp ' + p.toLocaleString('id-ID') + '</td><td class="mono" style="font-weight:800">Rp ' + p.toLocaleString('id-ID') + '</td><td><span class="badge b-accent">Baseline</span></td></tr>'
     + '    <tr><td style="color:#10B981;font-weight:700">Support 1 (S1)</td><td class="mono">Rp ' + s1.toLocaleString('id-ID') + '</td><td class="mono">Rp ' + Math.round(p - 0.382 * (high - low)).toLocaleString('id-ID') + '</td><td><span class="badge b-up">Area Beli 1</span></td></tr>'
     + '    <tr><td style="color:#10B981;font-weight:700">Support 2 (S2)</td><td class="mono">Rp ' + s2.toLocaleString('id-ID') + '</td><td class="mono">Rp ' + Math.round(p - 0.618 * (high - low)).toLocaleString('id-ID') + '</td><td><span class="badge b-up">Area Beli 2</span></td></tr>'
     + '    <tr><td style="color:#10B981;font-weight:700">Support 3 (S3)</td><td class="mono">Rp ' + s3.toLocaleString('id-ID') + '</td><td class="mono">Rp ' + Math.round(p - 1.000 * (high - low)).toLocaleString('id-ID') + '</td><td><span class="badge b-up">Batas Invalidation</span></td></tr>'
