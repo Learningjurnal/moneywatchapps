@@ -8,6 +8,8 @@ import {
   fetchYahooQuote,
   fetchYahooHistory,
   getYahooCrumb,
+  computeStockSignal,
+  computeStockSignalBatch,
   getIdxMarketSummary,
   getIdxCalendarData,
   getUniverseOpportunityRadar,
@@ -2571,6 +2573,50 @@ app.get('/api/idx/history/:ticker', async (req, res) => {
 
     const history = await fetchYahooHistory(ticker, tf);
     return res.json({ success: !history.error, ...history });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/ai-signal/:ticker — Real composite technical+fundamental
+// signal for a single ticker (used by the AI Trading Deep Analysis tab).
+app.get('/api/idx/ai-signal/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const signal = await computeStockSignal(ticker);
+    return res.json({ success: !signal.error, signal });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET/POST /api/idx/ai-scan — Real composite signals across a list of
+// tickers (used by the AI Trading Scanner). Replaces the old client-side
+// charCodeAt(0) hash — every field here is computed from real Yahoo
+// Finance price history + fundamentals, capped at 80 tickers per request
+// (each one costs 2 upstream fetches) so a scan stays responsive; the
+// default list is the official LQ45 constituents when none is given.
+app.get('/api/idx/ai-scan', async (req, res) => {
+  try {
+    let tickers = req.query.tickers ? String(req.query.tickers).split(',') : null;
+    if (!tickers || !tickers.length) {
+      const universe = loadBaseUniverse();
+      tickers = Object.values(universe).filter(u => u.indexes && u.indexes.lq45).map(u => u.code);
+    }
+    const signals = await computeStockSignalBatch(tickers);
+    return res.json({ success: true, count: signals.length, signals });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/idx/ai-scan', async (req, res) => {
+  try {
+    const tickers = Array.isArray(req.body.tickers) ? req.body.tickers : [];
+    if (!tickers.length) return res.status(400).json({ success: false, error: 'tickers array required' });
+    const signals = await computeStockSignalBatch(tickers);
+    return res.json({ success: true, count: signals.length, signals });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
