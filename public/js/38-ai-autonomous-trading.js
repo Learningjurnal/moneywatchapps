@@ -39,296 +39,30 @@
       sectorLeader: 'Financials & Energy',
       regimeDescription: 'Pasar berada dalam tren bullish dengan partisipasi volume kuat & net buy investor asing. Strategi Trend Following & Pullback diprioritaskan.'
     },
-    // ISOLATED VIRTUAL ACCOUNT (Rp 100 Juta Initial Capital)
+    // ISOLATED VIRTUAL ACCOUNT (Rp 100 Juta Initial Capital) — starts
+    // genuinely empty. The old version shipped with 3 fake open positions
+    // and 3 fake closed trades baked in permanently; this one only ever
+    // holds positions the user (or the auto-scan, if triggered) actually
+    // opened from a real signal, persisted in localStorage so it survives
+    // reloads like a real account would.
     paperAccount: {
       initialCapital: 100000000,
-      cash: 76030500,
-      totalEquity: 106406500,
-      realizedPnL: 5200000,
-      unrealizedPnL: 1206500,
-      totalReturnPct: 6.41,
-      maxDrawdownPct: 2.10,
-      winRate: 68.4,
-      profitFactor: 1.82,
-      totalTrades: 38,
-      winningTrades: 26,
-      losingTrades: 12,
+      cash: 100000000,
+      totalEquity: 100000000,
+      realizedPnL: 0,
+      unrealizedPnL: 0,
+      totalReturnPct: 0,
+      maxDrawdownPct: 0,
+      winRate: 0,
+      profitFactor: null,
+      totalTrades: 0,
+      winningTrades: 0,
+      losingTrades: 0,
       riskPerTradePct: 1.0, // 1% virtual capital max risk per trade
-      openPositions: [
-        {
-          id: 'POS-01',
-          ticker: 'BBCA',
-          strategy: 'Trend Pullback',
-          entryDate: '2026-08-26',
-          entryPrice: 6475,
-          currentPrice: 6800,
-          lots: 15,
-          shares: 1500,
-          costBasis: 9712500,
-          currentValue: 10200000,
-          unrealizedPnL: 487500,
-          unrealizedPct: 5.02,
-          sl: 6250,
-          tp1: 6850,
-          tp2: 7100,
-          thesis: 'Pullback ke EMA20 support pada tren mingguan bullish dengan konvergensi net buy asing.',
-          confidence: 84,
-          ev: '+Rp 1.85M'
-        },
-        {
-          id: 'POS-02',
-          ticker: 'BMRI',
-          strategy: 'Volume Accumulation Breakout',
-          entryDate: '2026-08-27',
-          entryPrice: 4230,
-          currentPrice: 4460,
-          lots: 23,
-          shares: 2300,
-          costBasis: 9729000,
-          currentValue: 10258000,
-          unrealizedPnL: 529000,
-          unrealizedPct: 5.44,
-          sl: 4050,
-          tp1: 4500,
-          tp2: 4750,
-          thesis: 'Spike volume institusi > 2.4x rata-rata disertai ekspansi Chaikin Money Flow.',
-          confidence: 88,
-          ev: '+Rp 2.10M'
-        },
-        {
-          id: 'POS-03',
-          ticker: 'TLKM',
-          strategy: 'Mean Reversion Oversold',
-          entryDate: '2026-08-25',
-          entryPrice: 2560,
-          currentPrice: 2610,
-          lots: 38,
-          shares: 3800,
-          costBasis: 9728000,
-          currentValue: 9918000,
-          unrealizedPnL: 190000,
-          unrealizedPct: 1.95,
-          sl: 2450,
-          tp1: 2700,
-          tp2: 2850,
-          thesis: 'RSI-14 oversold bounce di batas bawah Bollinger Band + divergensi positif MACD.',
-          confidence: 76,
-          ev: '+Rp 1.15M'
-        }
-      ],
-      closedTrades: [
-        {
-          id: 'TRD-038',
-          ticker: 'ADRO',
-          strategy: 'Breakout Momentum',
-          entryDate: '2026-08-20',
-          exitDate: '2026-08-28',
-          entryPrice: 3450,
-          exitPrice: 3720,
-          lots: 25,
-          grossPnL: 6750000,
-          netPnL: 6682000,
-          returnPct: 7.83,
-          result: 'WIN',
-          rMultiple: 2.3,
-          thesis: 'Breakout all-time high resistance 3.450 didukung reli batubara global.',
-          lesson: 'Mempertahankan posisi melalui pullback intraday kecil memberikan R:R maksimal.',
-          mistake: 'Tidak ada deviasi, eksekusi disiplin sesuai trailing stop.',
-          improvement: 'Tambahkan alokasi saat retest breakout pertama kali berhasil.'
-        },
-        {
-          id: 'TRD-037',
-          ticker: 'ANTM',
-          strategy: 'Breakout Momentum',
-          entryDate: '2026-08-18',
-          exitDate: '2026-08-24',
-          entryPrice: 1580,
-          exitPrice: 1530,
-          lots: 40,
-          grossPnL: -2000000,
-          netPnL: -2042000,
-          returnPct: -3.16,
-          result: 'LOSS',
-          rMultiple: -1.0,
-          thesis: 'Breakout konsolidasi harga nikel.',
-          lesson: 'Breakout gagal karena konfirmasi volume harian di bawah 1.1x rata-rata.',
-          mistake: 'Entry terlalu cepat sebelum penutupan candle harian (terjebak wick atas).',
-          improvement: 'Wajibkan konfirmasi volume > 1.3x rata-rata sebelum entry breakout.'
-        },
-        {
-          id: 'TRD-036',
-          ticker: 'ASII',
-          strategy: 'Trend Pullback',
-          entryDate: '2026-08-12',
-          exitDate: '2026-08-22',
-          entryPrice: 4950,
-          exitPrice: 5200,
-          lots: 20,
-          grossPnL: 5000000,
-          netPnL: 4945000,
-          returnPct: 5.05,
-          result: 'WIN',
-          rMultiple: 1.8,
-          thesis: 'Support dinamis EMA50 bertahan kuat dengan net buy asing akumulasi 3 hari beruntun.',
-          lesson: 'Kombinasi EMA50 + net buy asing memberikan win rate konsisten pada emiten bluechip.',
-          mistake: 'Keluar terlalu awal di TP1, melewatkan kelanjutan reli hingga 5.350.',
-          improvement: 'Terapkan partial take profit 50% di TP1 dan trailing stop untuk 50% sisanya.'
-        }
-      ]
+      equityHistory: [], // [{date, equity}] snapshots, for a real drawdown calc
+      openPositions: [],
+      closedTrades: []
     },
-    // 10 STRATEGY LAB ARCHITECTURE
-    strategies: [
-      {
-        id: 'strat_pullback',
-        name: 'Strategy C: Trend Pullback',
-        type: 'Trend Following / Swing',
-        description: 'Membeli saat harga menguji support dinamis EMA20/EMA50 di tengah tren bullish yang terkonfirmasi.',
-        active: true,
-        trades: 112,
-        winRate: 68.4,
-        profitFactor: 1.82,
-        expectancy: '+Rp 680.000 / trade',
-        maxDD: 4.2,
-        sharpe: 1.88,
-        status: 'ACTIVE - BEST STRATEGY',
-        statusCls: 'b-up'
-      },
-      {
-        id: 'strat_breakout',
-        name: 'Strategy B: Volume Breakout',
-        type: 'Momentum / Breakout',
-        description: 'Membeli penembusan resistance 20-hari dengan konfirmasi volume spike > 2.0x rata-rata.',
-        active: true,
-        trades: 94,
-        winRate: 59.5,
-        profitFactor: 1.64,
-        expectancy: '+Rp 540.000 / trade',
-        maxDD: 6.8,
-        sharpe: 1.52,
-        status: 'ACTIVE',
-        statusCls: 'b-up'
-      },
-      {
-        id: 'strat_trend',
-        name: 'Strategy A: Trend Following Ribbon',
-        type: 'Trend Alignment',
-        description: 'Mengikuti keselarasan sempurna 4-EMA (9, 21, 50, 200) dengan filter SuperTrend positif.',
-        active: true,
-        trades: 85,
-        winRate: 63.2,
-        profitFactor: 1.71,
-        expectancy: '+Rp 610.000 / trade',
-        maxDD: 5.1,
-        sharpe: 1.65,
-        status: 'ACTIVE',
-        statusCls: 'b-up'
-      },
-      {
-        id: 'strat_vol_accum',
-        name: 'Strategy F: Volume Accumulation (OBV)',
-        type: 'Bandarmologi & Flow',
-        description: 'Mendeteksi akumulasi tersembunyi institusi melalui divergensi OBV & CMF-20 positif pada fase konsolidasi.',
-        active: true,
-        trades: 78,
-        winRate: 65.8,
-        profitFactor: 1.76,
-        expectancy: '+Rp 640.000 / trade',
-        maxDD: 4.9,
-        sharpe: 1.74,
-        status: 'ACTIVE',
-        statusCls: 'b-up'
-      },
-      {
-        id: 'strat_broker_accum',
-        name: 'Strategy G: Broker Concentration Flow',
-        type: 'Bandarmologi Institusi',
-        description: 'Membeli saat Top 3 Broker menguasai > 65% net accumulation value dengan broker persistensi > 3 hari.',
-        active: true,
-        trades: 66,
-        winRate: 62.1,
-        profitFactor: 1.58,
-        expectancy: '+Rp 490.000 / trade',
-        maxDD: 5.8,
-        sharpe: 1.48,
-        status: 'ACTIVE',
-        statusCls: 'b-up'
-      },
-      {
-        id: 'strat_multi_factor',
-        name: 'Strategy H: Multi-Factor Composite Quant',
-        type: 'Multi-Factor Model',
-        description: 'Kombinasi skor Teknikal (25%), Fundamental ROE/PER (20%), Aliran Dana (20%), dan Regime (15%).',
-        active: true,
-        trades: 88,
-        winRate: 67.0,
-        profitFactor: 1.79,
-        expectancy: '+Rp 660.000 / trade',
-        maxDD: 3.8,
-        sharpe: 1.92,
-        status: 'ACTIVE',
-        statusCls: 'b-up'
-      },
-      {
-        id: 'strat_regime_adaptive',
-        name: 'Strategy I: Market Regime Adaptive',
-        type: 'Adaptive Dynamic',
-        description: 'Secara dinamis beralih dari mode agresif (saat Bullish) ke mode defensif/cash (saat Bearish/Volatile).',
-        active: true,
-        trades: 72,
-        winRate: 66.2,
-        profitFactor: 1.75,
-        expectancy: '+Rp 620.000 / trade',
-        maxDD: 3.2,
-        sharpe: 1.98,
-        status: 'ACTIVE',
-        statusCls: 'b-up'
-      },
-      {
-        id: 'strat_ai_hybrid',
-        name: 'Strategy J: AI Hybrid Ensemble Model',
-        type: 'Machine Learning Ensemble',
-        description: 'Model ensemble dengan bobot adaptif yang mengkalibrasi probabilitas berdasarkan hasil walk-forward 30 hari.',
-        active: true,
-        trades: 90,
-        winRate: 69.1,
-        profitFactor: 1.86,
-        expectancy: '+Rp 710.000 / trade',
-        maxDD: 3.9,
-        sharpe: 2.05,
-        status: 'ACTIVE - HIGH ALPHA',
-        statusCls: 'b-accent'
-      },
-      {
-        id: 'strat_momentum',
-        name: 'Strategy D: Momentum Acceleration (ROC)',
-        type: 'High Beta Momentum',
-        description: 'Mengeksploitasi percepatan Rate of Change 10-hari dengan konfirmasi Golden Cross MACD histogram.',
-        active: true,
-        trades: 82,
-        winRate: 54.8,
-        profitFactor: 1.38,
-        expectancy: '+Rp 320.000 / trade',
-        maxDD: 8.5,
-        sharpe: 1.22,
-        status: 'MODERATE',
-        statusCls: 'b-amb'
-      },
-      {
-        id: 'strat_mean_reversion',
-        name: 'Strategy E: Mean Reversion Oversold',
-        type: 'Counter-Trend Mean Reversion',
-        description: 'Membeli saat RSI < 30 dan harga berada di luar Bollinger Band bawah pada saat pasar sideways.',
-        active: false,
-        trades: 64,
-        winRate: 48.4,
-        profitFactor: 0.94,
-        expectancy: '-Rp 85.000 / trade',
-        maxDD: 14.2,
-        sharpe: 0.78,
-        status: 'REJECTED (NEGATIVE EV)',
-        statusCls: 'b-dn'
-      }
-    ],
     // AUTONOMOUS HYPOTHESIS LAB
     hypotheses: [
       {
@@ -396,6 +130,62 @@
   var AI_SCAN_LOADED_AT = null;
   var AI_SCAN_ERROR = null;
   var AI_DEEP_PENDING = {}; // tickers currently being fetched for Deep Analysis
+
+  // Real backtest results (Strategy Lab / Backtest Lab) — null until the
+  // user explicitly runs one (server-side simulation over ~135 tickers x
+  // 2 years takes a few seconds, so it's on-demand, not auto-triggered).
+  var AI_BACKTEST_RESULTS = null;   // array from /api/idx/backtest-all
+  var AI_BACKTEST_LOADING = false;
+  var AI_BACKTEST_ERROR = null;
+  var AI_BACKTEST_LOADED_AT = null;
+  var AI_WALKFORWARD_RESULT = null; // single-strategy detail from /api/idx/backtest/:id
+  var AI_WALKFORWARD_STRATEGY = 'strat_pullback';
+  // Mirrors lib/idx-data-engine.js#STRATEGY_DEFINITIONS names — just for
+  // the dropdown label; the actual computation always happens server-side.
+  var STRATEGY_META = {
+    strat_pullback: 'Trend Pullback',
+    strat_breakout: 'Volume Breakout',
+    strat_mean_reversion: 'Mean Reversion Oversold'
+  };
+
+  async function fetchAllStrategyBacktests() {
+    if (AI_BACKTEST_LOADING) return;
+    AI_BACKTEST_LOADING = true;
+    AI_BACKTEST_ERROR = null;
+    if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+    try {
+      var resp = await fetch('/api/idx/backtest-all');
+      var json = await resp.json();
+      if (!json.success) throw new Error(json.error || 'Backtest gagal dijalankan');
+      AI_BACKTEST_RESULTS = json.results;
+      AI_BACKTEST_LOADED_AT = new Date();
+    } catch (err) {
+      AI_BACKTEST_ERROR = (err && err.message) || 'Gagal menjalankan backtest';
+    } finally {
+      AI_BACKTEST_LOADING = false;
+      if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+    }
+  }
+
+  async function fetchWalkForwardBacktest(strategyId) {
+    if (AI_BACKTEST_LOADING) return;
+    AI_WALKFORWARD_STRATEGY = strategyId || AI_WALKFORWARD_STRATEGY;
+    AI_BACKTEST_LOADING = true;
+    AI_BACKTEST_ERROR = null;
+    if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+    try {
+      var resp = await fetch('/api/idx/backtest/' + encodeURIComponent(AI_WALKFORWARD_STRATEGY));
+      var json = await resp.json();
+      if (!json.success) throw new Error(json.error || 'Backtest gagal dijalankan');
+      AI_WALKFORWARD_RESULT = json.result;
+      AI_BACKTEST_LOADED_AT = new Date();
+    } catch (err) {
+      AI_BACKTEST_ERROR = (err && err.message) || 'Gagal menjalankan backtest';
+    } finally {
+      AI_BACKTEST_LOADING = false;
+      if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+    }
+  }
 
   function _lookupTickerMeta(tk) {
     var name = tk + ' Tbk';
@@ -543,6 +333,67 @@
   // 3. UI RENDERING ENGINE & MODULAR COCKPIT
   // ══════════════════════════════════════════════════════════
 
+  // ══════════════════════════════════════════════════════════
+  // REAL PAPER TRADING EXECUTION — persisted, actually opens/closes
+  // positions against live prices instead of showing a permanently
+  // frozen example portfolio.
+  // ══════════════════════════════════════════════════════════
+  var AI_PAPER_STORAGE_KEY = 'mw_ai_paper_v3';
+
+  function savePaperAccountState() {
+    try {
+      localStorage.setItem(AI_PAPER_STORAGE_KEY, JSON.stringify(AI_TRADE_STATE.paperAccount));
+    } catch (e) {}
+  }
+
+  function loadPaperAccountState() {
+    try {
+      var raw = localStorage.getItem(AI_PAPER_STORAGE_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object' && Array.isArray(saved.openPositions) && Array.isArray(saved.closedTrades)) {
+        AI_TRADE_STATE.paperAccount = saved;
+      }
+    } catch (e) {}
+  }
+
+  // Restore any previously-persisted paper account (real positions/trades
+  // the user actually made) before anything renders. Called here — after
+  // AI_PAPER_STORAGE_KEY is actually assigned — because a `var` above only
+  // hoists the declaration, not its value; calling this earlier in the file
+  // (before line ~345 executes) silently read localStorage under key
+  // "undefined" and always no-opped.
+  loadPaperAccountState();
+
+  // Recomputes every aggregate stat from the real closedTrades array —
+  // never stored/incremented by hand, always derived fresh.
+  function recomputePaperStats() {
+    var p = AI_TRADE_STATE.paperAccount;
+    var trades = p.closedTrades || [];
+    var wins = trades.filter(function(t) { return t.result === 'WIN'; });
+    var losses = trades.filter(function(t) { return t.result === 'LOSS'; });
+    var grossWin = wins.reduce(function(s, t) { return s + Math.max(0, t.netPnL); }, 0);
+    var grossLoss = Math.abs(losses.reduce(function(s, t) { return s + Math.min(0, t.netPnL); }, 0));
+
+    p.totalTrades = trades.length;
+    p.winningTrades = wins.length;
+    p.losingTrades = losses.length;
+    p.winRate = trades.length ? Math.round((wins.length / trades.length) * 1000) / 10 : 0;
+    p.profitFactor = grossLoss > 0 ? Math.round((grossWin / grossLoss) * 100) / 100 : (grossWin > 0 ? null : 0);
+    p.realizedPnL = trades.reduce(function(s, t) { return s + t.netPnL; }, 0);
+
+    // Max drawdown from the real equity snapshot history (appended on
+    // every recompute below), not an invented percentage.
+    if (Array.isArray(p.equityHistory) && p.equityHistory.length) {
+      var peak = -Infinity, maxDD = 0;
+      p.equityHistory.forEach(function(e) {
+        peak = Math.max(peak, e.equity);
+        maxDD = Math.max(maxDD, peak > 0 ? ((peak - e.equity) / peak) * 100 : 0);
+      });
+      p.maxDrawdownPct = Math.round(maxDD * 100) / 100;
+    }
+  }
+
   function updateAiPaperPositionMetrics(pos, livePrice) {
     if (livePrice && Number(livePrice) > 0) {
       pos.currentPrice = Number(livePrice);
@@ -554,29 +405,166 @@
     pos.unrealizedPct = pos.costBasis > 0 ? Number(((pos.unrealizedPnL / pos.costBasis) * 100).toFixed(2)) : 0;
   }
 
+  // Closes a paper position at a given exit price, records the real
+  // outcome (never a fabricated narrative) in closedTrades, and returns
+  // cash to the virtual balance.
+  function aiClosePosition(posId, exitPrice, reason) {
+    var p = AI_TRADE_STATE.paperAccount;
+    var idx = p.openPositions.findIndex(function(x) { return x.id === posId; });
+    if (idx < 0) return;
+    var pos = p.openPositions[idx];
+    var px = Number(exitPrice) > 0 ? Number(exitPrice) : pos.currentPrice;
+
+    var grossPnL = (px - pos.entryPrice) * pos.shares;
+    var frictionCost = Math.round((pos.entryPrice + px) * pos.shares * 0.001); // ~0.1% each side, approximated
+    var netPnL = Math.round(grossPnL - frictionCost);
+    var returnPct = pos.costBasis > 0 ? Math.round((netPnL / pos.costBasis) * 10000) / 100 : 0;
+    var riskAmount = pos.entrySlDistance || Math.abs(pos.entryPrice - pos.sl) * pos.shares || 1;
+    var rMultiple = Math.round((netPnL / riskAmount) * 100) / 100;
+
+    var result = netPnL >= 0 ? 'WIN' : 'LOSS';
+    var lesson, mistake, improvement;
+    if (reason === 'TAKE PROFIT') {
+      lesson = 'Target profit tercapai sesuai rencana risk-reward yang ditetapkan saat entry.';
+      mistake = 'Tidak ada — keluar sesuai rencana.';
+      improvement = 'Pertimbangkan trailing stop untuk menangkap kelanjutan tren di luar TP awal.';
+    } else if (reason === 'STOP LOSS') {
+      lesson = 'Stop loss terpicu — kerugian dibatasi sesuai batas risiko 1% modal yang direncanakan.';
+      mistake = result === 'LOSS' ? 'Sinyal awal tidak berjalan sesuai tesis; perlu ditinjau apakah kondisi entry masih valid.' : '-';
+      improvement = 'Evaluasi apakah level stop terlalu ketat relatif terhadap volatilitas (ATR) saham ini.';
+    } else {
+      lesson = 'Ditutup manual oleh pengguna sebelum menyentuh SL/TP.';
+      mistake = '-';
+      improvement = '-';
+    }
+
+    p.cash += pos.currentValue;
+    p.openPositions.splice(idx, 1);
+    p.closedTrades.unshift({
+      id: pos.id,
+      ticker: pos.ticker,
+      strategy: pos.strategy,
+      entryDate: pos.entryDate,
+      exitDate: new Date().toISOString().slice(0, 10),
+      entryPrice: pos.entryPrice,
+      exitPrice: Math.round(px),
+      lots: pos.lots,
+      grossPnL: Math.round(grossPnL),
+      netPnL: netPnL,
+      returnPct: returnPct,
+      result: result,
+      rMultiple: rMultiple,
+      exitReason: reason,
+      thesis: pos.thesis,
+      lesson: lesson,
+      mistake: mistake,
+      improvement: improvement
+    });
+
+    recomputePaperStats();
+    p.equityHistory.push({ date: new Date().toISOString(), equity: p.cash + p.openPositions.reduce(function(s, x) { return s + x.currentValue; }, 0) });
+    savePaperAccountState();
+  }
+
+  // Opens a real paper position from the CURRENT scanned signal for a
+  // ticker (must exist in AI_UNIVERSE with a BUY/STRONG BUY signal) —
+  // sized by the account's stated 1% risk-per-trade policy divided by the
+  // real ATR-based stop distance, never a fabricated lot count.
+  async function aiOpenPositionFromSignal(ticker) {
+    var sig = AI_UNIVERSE.find(function(x) { return x.ticker === ticker; });
+    if (!sig) { if (typeof showToast === 'function') showToast('⚠ Sinyal untuk ' + ticker + ' belum tersedia — jalankan scan dulu.'); return; }
+    if (!sig.signal || (!sig.signal.includes('BUY'))) { if (typeof showToast === 'function') showToast('⚠ ' + ticker + ' sinyalnya "' + sig.signal + '", bukan BUY — tidak dibuka.'); return; }
+
+    var p = AI_TRADE_STATE.paperAccount;
+    if (p.openPositions.some(function(x) { return x.ticker === ticker; })) {
+      if (typeof showToast === 'function') showToast('⚠ Sudah ada posisi terbuka untuk ' + ticker + '.');
+      return;
+    }
+
+    // Re-fetch a fresh quote right before opening — the scan snapshot in
+    // AI_UNIVERSE could be several minutes old, and entry/SL/TP must all
+    // come from the same, current price source to avoid a mismatch
+    // against whatever the position's live-price check uses afterward.
+    var entry = sig.entry, atrOffset = { sl: sig.entry - sig.sl, tp1: sig.tp1 - sig.entry, tp2: sig.tp2 - sig.entry };
+    try {
+      var qResp = await fetch('/api/idx/quote/' + encodeURIComponent(ticker));
+      var qJson = await qResp.json();
+      if (qJson.success && qJson.quote && qJson.quote.price > 0) entry = qJson.quote.price;
+    } catch (e) { /* fall back to the scan's entry price */ }
+
+    var sl = Math.round(entry - atrOffset.sl);
+    var tp1 = Math.round(entry + atrOffset.tp1);
+    var tp2 = Math.round(entry + atrOffset.tp2);
+    var riskPerShare = entry - sl;
+    if (!(riskPerShare > 0)) { if (typeof showToast === 'function') showToast('⚠ Data SL tidak valid untuk ' + ticker + '.'); return; }
+
+    var riskBudget = p.totalEquity * (p.riskPerTradePct / 100);
+    var maxShares = Math.floor(riskBudget / riskPerShare);
+    var lots = Math.floor(maxShares / 100);
+    var affordableLots = Math.floor(p.cash / (entry * 100));
+    lots = Math.max(0, Math.min(lots, affordableLots));
+
+    if (lots < 1) {
+      if (typeof showToast === 'function') showToast('⚠ Modal/risiko tidak cukup untuk membuka posisi ' + ticker + ' minimal 1 lot.');
+      return;
+    }
+
+    var shares = lots * 100;
+    var costBasis = shares * entry;
+    p.cash -= costBasis;
+
+    p.openPositions.push({
+      id: 'POS-' + Date.now(),
+      ticker: ticker,
+      strategy: sig.strategy,
+      entryDate: new Date().toISOString().slice(0, 10),
+      entryPrice: entry,
+      currentPrice: entry,
+      lots: lots,
+      shares: shares,
+      costBasis: costBasis,
+      currentValue: costBasis,
+      unrealizedPnL: 0,
+      unrealizedPct: 0,
+      sl: sl,
+      tp1: tp1,
+      tp2: tp2,
+      entrySlDistance: riskPerShare * shares,
+      thesis: sig.thesis,
+      confidence: sig.confidence,
+      ev: sig.ev
+    });
+
+    savePaperAccountState();
+    if (typeof showToast === 'function') showToast('✓ Posisi dibuka: ' + lots + ' lot ' + ticker + ' @ Rp ' + Number(entry).toLocaleString('id-ID') + ' (risiko 1% = Rp ' + Math.round(riskBudget).toLocaleString('id-ID') + ')');
+    renderAiTradingPage();
+    // Reconcile the freshly-opened position's displayed price against the
+    // same authoritative source used to open it, so it doesn't briefly
+    // show a stale dashboard-cache price/PnL until the next refresh cycle.
+    aiRefreshPaperPortfolioQuotes(false);
+  }
+
+  // Cheap, render-time metric refresh only — NOT authoritative for SL/TP
+  // auto-execution. getGlobalMarketPrice()/prices[] is the dashboard's own
+  // ticker-tape cache, which can lag or hold a stale/placeholder value for
+  // a ticker that isn't in current rotation; using it to trigger a stop
+  // would risk closing a position on a false price mismatch rather than a
+  // real market move. Real SL/TP checks happen in
+  // aiRefreshPaperPortfolioQuotes() below, against a fresh /api/idx/quote
+  // fetch — the same source used to compute the signal in the first place.
   function syncAiPaperPortfolioLivePrices(forceFetch, onDone) {
     var p = AI_TRADE_STATE.paperAccount;
     if (!p || !Array.isArray(p.openPositions)) return;
 
-    var totalCurrentVal = 0;
-    var totalCostBasis = 0;
-    var totalUnrealized = 0;
+    var totalCurrentVal = 0, totalUnrealized = 0;
 
     p.openPositions.forEach(function(pos) {
       var px = 0;
-      if (typeof getGlobalMarketPrice === 'function') {
-        px = getGlobalMarketPrice(pos.ticker);
-      }
-      if (!px && typeof prices !== 'undefined' && prices[pos.ticker]) {
-        px = Number(prices[pos.ticker]);
-      }
-      if (px > 0) {
-        pos.currentPrice = px;
-      }
+      if (typeof getGlobalMarketPrice === 'function') px = getGlobalMarketPrice(pos.ticker);
+      if (!px && typeof prices !== 'undefined' && prices[pos.ticker]) px = Number(prices[pos.ticker]);
+      if (px > 0) pos.currentPrice = px;
       updateAiPaperPositionMetrics(pos, pos.currentPrice);
-
       totalCurrentVal += pos.currentValue;
-      totalCostBasis += pos.costBasis;
       totalUnrealized += pos.unrealizedPnL;
     });
 
@@ -585,7 +573,6 @@
     var netProfit = (p.realizedPnL || 0) + p.unrealizedPnL;
     p.totalReturnPct = p.initialCapital > 0 ? Number(((netProfit / p.initialCapital) * 100).toFixed(2)) : 0;
 
-    // Sync IHSG in market regime if available
     if (typeof prices !== 'undefined' && prices['^JKSE'] && prices['^JKSE'] > 0) {
       AI_TRADE_STATE.marketRegime.ihsg = Math.round(prices['^JKSE']);
     } else if (typeof ihsgCur !== 'undefined' && ihsgCur > 0) {
@@ -625,6 +612,16 @@
               updateAiPaperPositionMetrics(pos, q.price);
               updated++;
               fetchedQuotes.push(tk + ' (Rp ' + Number(q.price).toLocaleString('id-ID') + ')');
+
+              // Real auto-execution — only against this verified fresh
+              // quote (the same source used to compute the signal at
+              // entry), never the dashboard's own ticker-tape cache which
+              // can lag/placeholder for tickers outside its rotation.
+              if (pos.currentPrice <= pos.sl) {
+                aiClosePosition(pos.id, pos.sl, 'STOP LOSS');
+              } else if (pos.tp1 && pos.currentPrice >= pos.tp1) {
+                aiClosePosition(pos.id, pos.tp1, 'TAKE PROFIT');
+              }
             }
           }
         })
@@ -1186,54 +1183,78 @@
   // 7. SUB-PAGE RENDERING: 10 STRATEGY LAB & SCORECARDS
   // ══════════════════════════════════════════════════════════
   function renderAiStrategyLab(state) {
-    var strats = state.strategies;
-
-    var html = _demoDataBanner()
+    var html = ''
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
       + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-flask" style="color:#38bdf8"></i> 10 Quantitative Strategy Lab &amp; Performance Scorecard'
+      + '        Strategy Lab — Backtest Riil 2 Tahun (LQ45)'
       + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">Evaluasi berbasis Positive Expectancy, Profit Factor, Sharpe Ratio, dan Maximum Drawdown. Strategi dengan EV negatif otomatis dinonaktifkan.</div>'
+      + '      <div style="font-size:12px;color:var(--text3)">Setiap strategi disimulasikan bar-per-bar atas histori harga real 2 tahun terakhir. Win rate, profit factor, Sharpe, dan drawdown di bawah adalah hasil hitung asli — bukan asumsi.</div>'
       + '    </div>'
-      + '  </div>'
+      + '    <button class="btn btn-blue btn-sm" onclick="fetchAllStrategyBacktests()" ' + (AI_BACKTEST_LOADING ? 'disabled' : '') + '>' + (AI_BACKTEST_LOADING ? '⏳ Menjalankan Backtest...' : (AI_BACKTEST_RESULTS ? '🔄 Jalankan Ulang' : '⚡ Jalankan Backtest Riil')) + '</button>'
+      + '  </div>';
 
-      + '  <div style="overflow-x:auto">'
+    if (AI_BACKTEST_ERROR) {
+      html += '<div style="padding:16px;color:var(--red);font-size:12px">⚠ ' + AI_BACKTEST_ERROR + '</div>';
+    }
+
+    if (!AI_BACKTEST_RESULTS) {
+      html += '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px">'
+        + (AI_BACKTEST_LOADING ? '⏳ Mensimulasikan 3 strategi × ~45 saham LQ45 × 2 tahun data harian (~5-10 detik)...' : 'Klik "Jalankan Backtest Riil" untuk menghitung win rate, profit factor, dan drawdown yang sebenarnya dari histori harga.')
+        + '</div></div>';
+      return html;
+    }
+
+    html += '  <div style="overflow-x:auto">'
       + '    <table class="tbl">'
       + '      <thead>'
       + '        <tr>'
       + '          <th>Nama Strategi</th>'
-      + '          <th>Tipe Model</th>'
+      + '          <th>Aturan Riil</th>'
       + '          <th>Total Trade</th>'
       + '          <th>Win Rate</th>'
       + '          <th>Profit Factor</th>'
       + '          <th>Expectancy</th>'
-      + '          <th>Max Drawdown</th>'
-      + '          <th>Sharpe</th>'
-      + '          <th>Status Model</th>'
+      + '          <th>Max Drawdown*</th>'
+      + '          <th>Sharpe**</th>'
+      + '          <th></th>'
       + '        </tr>'
       + '      </thead>'
       + '      <tbody>';
 
-    strats.forEach(function(s) {
+    AI_BACKTEST_RESULTS.forEach(function(r) {
+      var s = r.overall;
+      var pf = s.profitFactor;
+      var isProfitable = pf != null && pf > 1.0 && s.expectancyR > 0;
       html += '<tr>'
-        + '<td style="font-weight:700;color:var(--text)">'
-        + '  ' + s.name
-        + '  <div style="font-size:10.5px;color:var(--text3);font-weight:normal;max-width:320px">' + s.description + '</div>'
-        + '</td>'
-        + '<td style="font-size:11px;color:var(--text2)">' + s.type + '</td>'
-        + '<td style="font-family:var(--font-mono)">' + s.trades + '</td>'
-        + '<td><strong style="font-family:var(--font-mono);color:' + (s.winRate >= 60 ? 'var(--green)' : s.winRate >= 50 ? 'var(--amber)' : 'var(--red)') + '">' + s.winRate + '%</strong></td>'
-        + '<td><strong style="font-family:var(--font-mono);color:' + (s.profitFactor >= 1.6 ? 'var(--green)' : s.profitFactor >= 1.0 ? 'var(--amber)' : 'var(--red)') + '">' + s.profitFactor + '</strong></td>'
-        + '<td style="font-family:var(--font-mono);font-size:11px;color:' + (s.expectancy.includes('+') ? 'var(--green)' : 'var(--red)') + '">' + s.expectancy + '</td>'
-        + '<td style="font-family:var(--font-mono);color:var(--red)">-' + s.maxDD + '%</td>'
-        + '<td style="font-family:var(--font-mono);font-weight:700">' + s.sharpe + '</td>'
-        + '<td><span class="badge ' + s.statusCls + '">' + s.status + '</span></td>'
+        + '<td style="font-weight:700;color:var(--text)">' + r.strategy.name + '<div style="font-size:10px;color:var(--text3);font-weight:normal">' + r.strategy.type + '</div></td>'
+        + '<td style="font-size:10.5px;color:var(--text2);max-width:280px">' + r.strategy.description + '</td>'
+        + '<td style="font-family:var(--font-mono)">' + s.totalTrades + '</td>'
+        + '<td><strong style="font-family:var(--font-mono);color:' + (s.winRate >= 55 ? 'var(--green)' : s.winRate >= 45 ? 'var(--amber)' : 'var(--red)') + '">' + s.winRate + '%</strong></td>'
+        + '<td><strong style="font-family:var(--font-mono);color:' + (pf == null ? 'var(--text3)' : pf >= 1.5 ? 'var(--green)' : pf >= 1.0 ? 'var(--amber)' : 'var(--red)') + '">' + (pf == null ? 'N/A' : pf) + '</strong></td>'
+        + '<td style="font-family:var(--font-mono);font-size:11px;color:' + (s.expectancyR > 0 ? 'var(--green)' : 'var(--red)') + '">' + (s.expectancyR > 0 ? '+' : '') + s.expectancyR + ' R/trade</td>'
+        + '<td style="font-family:var(--font-mono);color:var(--red)">-' + s.maxDrawdownPct + '%</td>'
+        + '<td style="font-family:var(--font-mono);font-weight:700">' + (s.sharpe == null ? 'N/A' : s.sharpe) + '</td>'
+        + '<td>' + (isProfitable
+            ? '<span class="badge b-up" style="font-size:10px">EDGE POSITIF</span>'
+            : '<span class="badge b-dn" style="font-size:10px">TIDAK PROFITABLE</span>') + '</td>'
         + '</tr>';
     });
 
-    html += '</tbody></table></div></div>';
+    html += '</tbody></table></div>'
+      + '  <div style="padding:12px 4px 0;font-size:10.5px;color:var(--text3);line-height:1.6">'
+      + '    * Drawdown dihitung dengan asumsi risiko 1% modal per trade (bukan compounding 100% modal). ** Sharpe per-trade disederhanakan, belum diannualisasi.<br>'
+      + '    Biaya transaksi (~0.2% round-trip: fee broker + PPN + levy) sudah dikurangkan dari setiap hasil trade.'
+      + (AI_BACKTEST_LOADED_AT ? '<br>Terakhir dijalankan: ' + AI_BACKTEST_LOADED_AT.toLocaleString('id-ID') + ' WIB' : '')
+      + '  </div>'
+      + '</div>';
+
+    html += '<div class="card" style="padding:16px 20px;margin-bottom:18px;background:rgba(148,163,184,0.05)">'
+      + '  <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">Strategi Lain (Belum Diimplementasikan)</div>'
+      + '  <div style="font-size:11px;color:var(--text3);line-height:1.6">Strategi berbasis Bandarmologi/broker flow historis, model ensemble ML, dan regime-adaptive switching sengaja belum ditambahkan — masing-masing butuh data historis broker per-transaksi atau pipeline training ML yang belum tersedia di aplikasi ini. Menampilkan angka untuk strategi tersebut tanpa data itu akan berarti mengarang lagi, jadi lebih baik jujur belum ada.</div>'
+      + '</div>';
+
     return html;
   }
 
@@ -1286,6 +1307,7 @@
   // ══════════════════════════════════════════════════════════
   function renderAiPaperPortfolio(state) {
     syncAiPaperPortfolioLivePrices(false);
+    ensureFullUniverseLoaded();
     var p = state.paperAccount;
 
     var totalPnL = (p.realizedPnL || 0) + (p.unrealizedPnL || 0);
@@ -1298,7 +1320,10 @@
     var returnClass = p.totalReturnPct >= 0 ? 'up' : 'down';
     var returnSign = p.totalReturnPct >= 0 ? '+' : '';
 
-    var html = _demoDataBanner()
+    var html = ''
+      + '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:11.5px;color:var(--text)">'
+      + '  ℹ️ Portofolio ini sungguhan (dalam arti benar-benar tereksekusi &amp; tersimpan) — bukan simulasi historis. Posisi baru terbuka saat Anda klik "Buka Posisi", dan otomatis tertutup saat harga live menyentuh SL/TP. Belum ada aktivitas = belum pernah dibuka posisi.'
+      + '</div>'
       + '<div class="row4" style="margin-bottom:18px">'
       + '  <div class="metric">'
       + '    <div class="mlabel">Modal Awal Virtual</div>'
@@ -1318,58 +1343,80 @@
       + '  <div class="metric">'
       + '    <div class="mlabel">Win Rate &amp; Profit Factor</div>'
       + '    <div class="mval" style="color:var(--green);font-size:20px">' + p.winRate + '% (' + p.winningTrades + 'W / ' + p.losingTrades + 'L)</div>'
-      + '    <div class="msub neu">Profit Factor: ' + p.profitFactor + ' · Max DD -' + p.maxDrawdownPct + '%</div>'
+      + '    <div class="msub neu">Profit Factor: ' + (p.profitFactor == null ? 'N/A' : p.profitFactor) + ' · Max DD -' + p.maxDrawdownPct + '%</div>'
       + '  </div>'
+      + '</div>'
+
+      // Open a position from a real current signal
+      + '<div class="card" style="padding:16px 20px;margin-bottom:18px">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+      + '    <span class="ctitle" style="font-size:13px">Buka Posisi dari Sinyal BUY Terkini</span>'
+      + '    <span style="font-size:10.5px;color:var(--text3);font-family:var(--font-mono)">Risk/trade: ' + p.riskPerTradePct + '% (≈Rp ' + Math.round(p.totalEquity * p.riskPerTradePct / 100).toLocaleString('id-ID') + ')</span>'
+      + '  </div>'
+      + (!AI_UNIVERSE.length
+          ? '<div style="font-size:11.5px;color:var(--text3)">⏳ Menunggu hasil scan (lihat tab Scanner)...</div>'
+          : (function() {
+              var candidates = AI_UNIVERSE.filter(function(x) { return x.signal && x.signal.includes('BUY') && !p.openPositions.some(function(o) { return o.ticker === x.ticker; }); })
+                .sort(function(a, b) { return b.compositeScore - a.compositeScore; }).slice(0, 6);
+              if (!candidates.length) return '<div style="font-size:11.5px;color:var(--text3)">Tidak ada sinyal BUY baru saat ini (di luar posisi yang sudah terbuka).</div>';
+              return '<div style="display:flex;gap:8px;flex-wrap:wrap">' + candidates.map(function(c) {
+                return '<button class="btn btn-ghost btn-xs" onclick="aiOpenPositionFromSignal(\'' + c.ticker + '\')" style="border-color:var(--green);color:var(--green)" title="' + c.strategy + ' · Skor ' + c.compositeScore + '">+ ' + c.ticker + ' (' + c.signal + ', skor ' + c.compositeScore + ')</button>';
+              }).join('') + '</div>';
+            })())
       + '</div>'
 
       // Open Positions Table
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div class="cheader" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
       + '    <div style="display:flex;align-items:center;gap:10px">'
-      + '      <span class="ctitle"><i class="ti ti-briefcase" style="color:#38bdf8"></i> Posisi Virtual Terbuka (Open Positions)</span>'
-      + '      <span class="badge b-up" style="font-size:10px;padding:2px 8px"><i class="ti ti-activity"></i> FEED PASAR REAL-TIME</span>'
+      + '      <span class="ctitle">Posisi Virtual Terbuka</span>'
+      + '      <span class="badge b-up" style="font-size:10px;padding:2px 8px">FEED PASAR REAL-TIME</span>'
       + '    </div>'
-      + '    <div style="display:flex;align-items:center;gap:10px">'
-      + '      <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Risk Per Trade: 1.0% Capital Max (Rp 1.000.000)</span>'
-      + '      <button class="btn btn-ghost btn-xs" onclick="aiRefreshPaperPortfolioQuotes(true)" style="font-size:11px;border-color:#38bdf8;color:#38bdf8;cursor:pointer"><i class="ti ti-refresh"></i> Refresh Harga Real-Time</button>'
-      + '    </div>'
-      + '  </div>'
-      + '  <div style="overflow-x:auto">'
-      + '    <table class="tbl">'
-      + '      <thead>'
-      + '        <tr>'
-      + '          <th>Ticker</th>'
-      + '          <th>Strategi</th>'
-      + '          <th>Tgl Entry</th>'
-      + '          <th>Lot &amp; Lembar</th>'
-      + '          <th>Harga Entry</th>'
-      + '          <th>Harga Terkini (Real Market)</th>'
-      + '          <th>Nilai Posisi</th>'
-      + '          <th>Floating PnL</th>'
-      + '          <th>Stop Loss / TP</th>'
-      + '        </tr>'
-      + '      </thead>'
-      + '      <tbody>';
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiRefreshPaperPortfolioQuotes(true)" style="font-size:11px;border-color:#38bdf8;color:#38bdf8">🔄 Refresh Harga</button>'
+      + '  </div>';
 
-    p.openPositions.forEach(function(pos) {
-      var pnlColor = pos.unrealizedPnL >= 0 ? 'var(--green)' : 'var(--red)';
-      var pnlSign = pos.unrealizedPnL >= 0 ? '+' : '';
-      var priceClass = pos.currentPrice > pos.entryPrice ? 'color:var(--green)' : pos.currentPrice < pos.entryPrice ? 'color:var(--red)' : 'color:var(--text)';
+    if (!p.openPositions.length) {
+      html += '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Belum ada posisi terbuka. Klik salah satu tombol sinyal BUY di atas untuk membuka posisi pertama.</div></div>';
+    } else {
+      html += '  <div style="overflow-x:auto">'
+        + '    <table class="tbl">'
+        + '      <thead>'
+        + '        <tr>'
+        + '          <th>Ticker</th>'
+        + '          <th>Strategi</th>'
+        + '          <th>Tgl Entry</th>'
+        + '          <th>Lot &amp; Lembar</th>'
+        + '          <th>Harga Entry</th>'
+        + '          <th>Harga Terkini (Real Market)</th>'
+        + '          <th>Nilai Posisi</th>'
+        + '          <th>Floating PnL</th>'
+        + '          <th>Stop Loss / TP1</th>'
+        + '          <th></th>'
+        + '        </tr>'
+        + '      </thead>'
+        + '      <tbody>';
 
-      html += '<tr>'
-        + '<td style="font-weight:800;font-family:var(--font-mono);color:#38bdf8">' + pos.ticker + '</td>'
-        + '<td style="font-size:11.5px">' + pos.strategy + '</td>'
-        + '<td style="font-size:11px;color:var(--text3)">' + pos.entryDate + '</td>'
-        + '<td style="font-family:var(--font-mono)">' + pos.lots + ' Lot (' + Number(pos.shares).toLocaleString('id-ID') + ')</td>'
-        + '<td style="font-family:var(--font-mono)">Rp ' + Number(pos.entryPrice).toLocaleString('id-ID') + '</td>'
-        + '<td style="font-family:var(--font-mono);' + priceClass + ';font-weight:700">Rp ' + Number(pos.currentPrice).toLocaleString('id-ID') + '</td>'
-        + '<td style="font-family:var(--font-mono)">Rp ' + Number(pos.currentValue).toLocaleString('id-ID') + '</td>'
-        + '<td><strong style="font-family:var(--font-mono);color:' + pnlColor + '">' + pnlSign + 'Rp ' + Number(pos.unrealizedPnL).toLocaleString('id-ID') + ' (' + pnlSign + pos.unrealizedPct + '%)</strong></td>'
-        + '<td style="font-family:var(--font-mono);font-size:10.5px">SL: <span style="color:var(--red)">Rp ' + Number(pos.sl).toLocaleString('id-ID') + '</span> | TP2: <span style="color:var(--green)">Rp ' + Number(pos.tp2).toLocaleString('id-ID') + '</span></td>'
-        + '</tr>';
-    });
+      p.openPositions.forEach(function(pos) {
+        var pnlColor = pos.unrealizedPnL >= 0 ? 'var(--green)' : 'var(--red)';
+        var pnlSign = pos.unrealizedPnL >= 0 ? '+' : '';
+        var priceClass = pos.currentPrice > pos.entryPrice ? 'color:var(--green)' : pos.currentPrice < pos.entryPrice ? 'color:var(--red)' : 'color:var(--text)';
 
-    html += '</tbody></table></div></div>';
+        html += '<tr>'
+          + '<td style="font-weight:800;font-family:var(--font-mono);color:#38bdf8">' + pos.ticker + '</td>'
+          + '<td style="font-size:11.5px">' + pos.strategy + '</td>'
+          + '<td style="font-size:11px;color:var(--text3)">' + pos.entryDate + '</td>'
+          + '<td style="font-family:var(--font-mono)">' + pos.lots + ' Lot (' + Number(pos.shares).toLocaleString('id-ID') + ')</td>'
+          + '<td style="font-family:var(--font-mono)">Rp ' + Number(pos.entryPrice).toLocaleString('id-ID') + '</td>'
+          + '<td style="font-family:var(--font-mono);' + priceClass + ';font-weight:700">Rp ' + Number(pos.currentPrice).toLocaleString('id-ID') + '</td>'
+          + '<td style="font-family:var(--font-mono)">Rp ' + Number(pos.currentValue).toLocaleString('id-ID') + '</td>'
+          + '<td><strong style="font-family:var(--font-mono);color:' + pnlColor + '">' + pnlSign + 'Rp ' + Number(pos.unrealizedPnL).toLocaleString('id-ID') + ' (' + pnlSign + pos.unrealizedPct + '%)</strong></td>'
+          + '<td style="font-family:var(--font-mono);font-size:10.5px">SL: <span style="color:var(--red)">Rp ' + Number(pos.sl).toLocaleString('id-ID') + '</span> | TP1: <span style="color:var(--green)">Rp ' + Number(pos.tp1).toLocaleString('id-ID') + '</span></td>'
+          + '<td><button class="btn btn-ghost btn-xs" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang di harga pasar?\'))aiClosePosition(\'' + pos.id + '\', ' + pos.currentPrice + ', \'MANUAL\')" style="color:var(--red);border-color:var(--red);font-size:10px">Tutup</button></td>'
+          + '</tr>';
+      });
+
+      html += '</tbody></table></div></div>';
+    }
     return html;
   }
 
@@ -1379,18 +1426,21 @@
   function renderAiJournal(state) {
     var trades = state.paperAccount.closedTrades;
 
-    var html = _demoDataBanner()
+    var html = ''
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
-      + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-book-2" style="color:var(--green)"></i> AI Post-Mortem &amp; Self-Critique Trading Journal'
-      + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">Setiap trade yang ditutup dianalisis melalui 10 pertanyaan diagnostik post-mortem untuk kalibrasi bobot strategi dan penghindaran kesalahan berulang.</div>'
+      + '      <div class="ctitle" style="font-size:16px">Post-Mortem &amp; Trading Journal</div>'
+      + '      <div style="font-size:12px;color:var(--text3)">Dibuat otomatis dari setiap posisi paper trading yang benar-benar ditutup (SL/TP tersentuh atau manual) — bukan narasi yang ditulis di muka.</div>'
       + '    </div>'
-      + '  </div>'
+      + '  </div>';
 
-      + '  <div style="display:flex;flex-direction:column;gap:14px">';
+    if (!trades.length) {
+      html += '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Belum ada trade yang ditutup. Buka posisi di tab AI Paper Portfolio — jurnal ini akan terisi otomatis begitu posisi tersebut selesai (SL/TP tersentuh atau ditutup manual).</div></div>';
+      return html;
+    }
+
+    html += '  <div style="display:flex;flex-direction:column;gap:14px">';
 
     trades.forEach(function(t) {
       var isWin = t.result === 'WIN';
@@ -1400,7 +1450,7 @@
         + '<div style="background:var(--bg3);border:1px solid ' + (isWin ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)') + ';border-radius:10px;padding:16px">'
         + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
         + '    <div>'
-        + '      <span style="font-size:10px;font-family:var(--font-mono);color:var(--text3)">' + t.id + ' · ' + t.entryDate + ' s.d ' + t.exitDate + '</span>'
+        + '      <span style="font-size:10px;font-family:var(--font-mono);color:var(--text3)">' + t.entryDate + ' s.d ' + t.exitDate + ' · Ditutup: ' + (t.exitReason || 'MANUAL') + '</span>'
         + '      <div style="font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">'
         + '        ' + t.ticker + ' — ' + t.strategy
         + '        <span class="badge ' + resCls + '">' + t.result + ' (' + (t.returnPct >= 0 ? '+' : '') + t.returnPct + '% / ' + t.rMultiple + 'R)</span>'
@@ -1542,83 +1592,78 @@
   // 12. SUB-PAGE RENDERING: REALISTIC BACKTEST LAB
   // ══════════════════════════════════════════════════════════
   function renderAiBacktestLab(state) {
-    var html = _demoDataBanner()
+    var strategyOptions = STRATEGY_META;
+
+    var html = ''
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">'
       + '    <div>'
       + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-chart-arrows-vertical" style="color:#38bdf8"></i> Walk-Forward Backtesting &amp; Friction-Adjusted Lab'
+      + '        Walk-Forward Split Test (In-Sample vs Out-of-Sample)'
       + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">Pengujian data historis realistis dengan Slippage (0.15%), Fee Broker (0.18% Beli / 0.28% Jual + PPN + Levy + PPh), dan Pembagian Walk-Forward (In-Sample Training 60%, Validation 20%, Out-of-Sample 20%).</div>'
+      + '      <div style="font-size:12px;color:var(--text3)">Simulasi bar-per-bar dari histori harga riil 2 tahun, dipecah kronologis: 70% periode awal (in-sample) vs 30% periode terakhir (out-of-sample). Karena aturan strategi tetap/tidak di-fit, perbandingan ini menunjukkan apakah edge-nya bertahan di data yang lebih baru — bukan overfitting yang disamarkan.</div>'
       + '    </div>'
-      + '    <div style="display:flex;gap:8px">'
-      + '      <button class="btn btn-blue btn-sm" onclick="showToast(\'⚡ Menjalankan Walk-Forward Engine pada 950+ Saham IDX (Periode 2024-2026)...\')">⚡ Jalankan Walk-Forward Test</button>'
+      + '    <div style="display:flex;gap:8px;align-items:center">'
+      + '      <select id="ai-wf-strategy-select" class="form-select" style="font-size:11px;height:30px">'
+      + Object.keys(strategyOptions).map(function(id) { return '<option value="' + id + '" ' + (id === AI_WALKFORWARD_STRATEGY ? 'selected' : '') + '>' + strategyOptions[id] + '</option>'; }).join('')
+      + '      </select>'
+      + '      <button class="btn btn-blue btn-sm" onclick="fetchWalkForwardBacktest(document.getElementById(\'ai-wf-strategy-select\').value)" ' + (AI_BACKTEST_LOADING ? 'disabled' : '') + '>' + (AI_BACKTEST_LOADING ? '⏳ Menjalankan...' : '⚡ Jalankan Walk-Forward Test') + '</button>'
       + '    </div>'
+      + '  </div>';
+
+    if (AI_BACKTEST_ERROR) {
+      html += '<div style="padding:12px;color:var(--red);font-size:12px">⚠ ' + AI_BACKTEST_ERROR + '</div>';
+    }
+
+    if (!AI_WALKFORWARD_RESULT) {
+      html += '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px">'
+        + (AI_BACKTEST_LOADING ? '⏳ Mensimulasikan histori 2 tahun...' : 'Pilih strategi lalu klik "Jalankan Walk-Forward Test" untuk hasil real.')
+        + '</div></div>';
+      return html;
+    }
+
+    var r = AI_WALKFORWARD_RESULT;
+    var renderStatBox = function(label, s) {
+      var pf = s.profitFactor;
+      return '<div class="metric">'
+        + '  <div class="mlabel">' + label + '</div>'
+        + '  <div class="mval" style="font-size:16px;color:' + (s.expectancyR > 0 ? 'var(--green)' : 'var(--red)') + '">' + s.totalTrades + ' trade · WR ' + s.winRate + '%</div>'
+        + '  <div class="msub neu">PF ' + (pf == null ? 'N/A' : pf) + ' · Sharpe ' + (s.sharpe == null ? 'N/A' : s.sharpe) + ' · DD -' + s.maxDrawdownPct + '%</div>'
+        + '</div>';
+    };
+
+    html += '  <div class="row3" style="margin-bottom:18px">'
+      + renderStatBox('Keseluruhan (2 Tahun)', r.overall)
+      + renderStatBox('In-Sample (70% Awal)', r.inSample)
+      + renderStatBox('Out-of-Sample (30% Akhir)', r.outOfSample)
       + '  </div>'
 
-      // 4 Realistic Metrics Box
-      + '  <div class="row4" style="margin-bottom:18px">'
-      + '    <div class="metric">'
-      + '      <div class="mlabel">Sharpe / Sortino Ratio</div>'
-      + '      <div class="mval" style="color:var(--green);font-size:18px">1.88 / 2.45</div>'
-      + '      <div class="msub neu">Recovery Factor: 3.82x</div>'
-      + '    </div>'
-      + '    <div class="metric">'
-      + '      <div class="mlabel">Out-of-Sample Alpha</div>'
-      + '      <div class="mval up" style="font-size:18px">+11.4% vs IHSG</div>'
-      + '      <div class="msub up">Benchmark IHSG: +7.0%</div>'
-      + '    </div>'
-      + '    <div class="metric">'
-      + '      <div class="mlabel">Avg Win / Avg Loss Ratio</div>'
-      + '      <div class="mval" style="color:#38bdf8;font-size:18px">2.34 : 1.0</div>'
-      + '      <div class="msub neu">Rata-rata Win +5.4% | Loss -2.3%</div>'
-      + '    </div>'
-      + '    <div class="metric">'
-      + '      <div class="mlabel">Max Drawdown Realistis</div>'
-      + '      <div class="mval" style="color:var(--red);font-size:18px">-4.2%</div>'
-      + '      <div class="msub neu">Durasi Pemulihan: 8 Hari Bursa</div>'
-      + '    </div>'
+      + '  <div style="background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text)">'
+      + '    <strong>' + r.strategy.name + ':</strong> ' + r.strategy.description
+      + '    <div style="margin-top:6px;color:var(--text3);font-size:11px">Disimulasikan atas ' + r.tickersScanned + ' saham LQ45. Biaya transaksi ~0.2% round-trip sudah dikurangkan dari tiap trade. Terakhir dijalankan: ' + (AI_BACKTEST_LOADED_AT ? AI_BACKTEST_LOADED_AT.toLocaleString('id-ID') : '-') + ' WIB.</div>'
       + '  </div>'
 
-      // Friction & Slippage Disclosure
-      + '  <div style="background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
-      + '    <div style="font-size:12px;color:var(--text)">'
-      + '      <strong>Jaminan Realisme Finansial:</strong> Backtest ini <em>TIDAK</em> menggunakan asumsi fills sempurna. Model memasukkan slippage spread 0.15% dan biaya transaksi regulasi BEI penuh.'
-      + '    </div>'
-      + '    <span class="badge b-up" style="font-size:10px">NO OVERFITTING GUARANTEE</span>'
-      + '  </div>'
-
-      // Detailed Backtest Table
       + '  <div style="overflow-x:auto">'
       + '    <table class="tbl">'
-      + '      <thead>'
-      + '        <tr>'
-      + '          <th>Strategi Kuantitatif</th>'
-      + '          <th>Sampel Trade</th>'
-      + '          <th>Win Rate</th>'
-      + '          <th>Profit Factor</th>'
-      + '          <th>Expectancy / Trade</th>'
-      + '          <th>Max DD</th>'
-      + '          <th>Sharpe</th>'
-      + '          <th>Out-of-Sample Validasi</th>'
-      + '        </tr>'
-      + '      </thead>'
-      + '      <tbody>';
+      + '      <thead><tr><th>Ticker</th><th>Entry</th><th>Exit</th><th>Return</th><th>R-Multiple</th><th>Alasan Keluar</th><th>Hasil</th></tr></thead>'
+      + '      <tbody>'
+      + r.trades.slice().reverse().map(function(t) {
+          return '<tr>'
+            + '<td style="font-family:var(--font-mono);font-weight:700">' + t.ticker + '</td>'
+            + '<td style="font-family:var(--font-mono)">Rp ' + Number(t.entryPrice).toLocaleString('id-ID') + '</td>'
+            + '<td style="font-family:var(--font-mono)">Rp ' + Number(t.exitPrice).toLocaleString('id-ID') + '</td>'
+            + '<td style="font-family:var(--font-mono);color:' + (t.returnPct >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (t.returnPct >= 0 ? '+' : '') + t.returnPct + '%</td>'
+            + '<td style="font-family:var(--font-mono)">' + (t.rMultiple >= 0 ? '+' : '') + t.rMultiple + 'R</td>'
+            + '<td style="font-size:11px;color:var(--text3)">' + t.exitReason + '</td>'
+            + '<td><span class="badge ' + (t.result === 'WIN' ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + t.result + '</span></td>'
+            + '</tr>';
+        }).join('')
+      + '      </tbody>'
+      + '    </table>'
+      + '  </div>'
+      + '  <div style="padding:8px 4px 0;font-size:10px;color:var(--text3)">Menampilkan 30 trade paling baru dari total ' + r.overall.totalTrades + ' trade.</div>'
+      + '</div>';
 
-    state.strategies.forEach(function(st) {
-      html += '<tr>'
-        + '<td style="font-weight:700;color:var(--text)">' + st.name + '</td>'
-        + '<td style="font-family:var(--font-mono)">' + st.trades + '</td>'
-        + '<td><strong style="font-family:var(--font-mono);color:' + (st.winRate >= 60 ? 'var(--green)' : st.winRate >= 50 ? 'var(--amber)' : 'var(--red)') + '">' + st.winRate + '%</strong></td>'
-        + '<td><strong style="font-family:var(--font-mono);color:' + (st.profitFactor >= 1.6 ? 'var(--green)' : 'var(--text)') + '">' + st.profitFactor + '</strong></td>'
-        + '<td style="font-family:var(--font-mono);color:' + (st.expectancy.includes('+') ? 'var(--green)' : 'var(--red)') + '">' + st.expectancy + '</td>'
-        + '<td style="font-family:var(--font-mono);color:var(--red)">-' + st.maxDD + '%</td>'
-        + '<td style="font-family:var(--font-mono);font-weight:700">' + st.sharpe + '</td>'
-        + '<td><span class="badge ' + (st.winRate >= 55 ? 'b-up' : 'b-dn') + '">' + (st.winRate >= 55 ? 'PASSED (STABLE)' : 'OVERFIT RISK') + '</span></td>'
-        + '</tr>';
-    });
-
-    html += '</tbody></table></div></div>';
     return html;
   }
 
@@ -1806,6 +1851,10 @@
   window.aiFormulateNewHypothesis = aiFormulateNewHypothesis;
   window.syncAiPaperPortfolioLivePrices = syncAiPaperPortfolioLivePrices;
   window.aiRefreshPaperPortfolioQuotes = aiRefreshPaperPortfolioQuotes;
+  window.aiOpenPositionFromSignal = aiOpenPositionFromSignal;
+  window.aiClosePosition = aiClosePosition;
   window.fetchAiScanData = fetchAiScanData;
+  window.fetchAllStrategyBacktests = fetchAllStrategyBacktests;
+  window.fetchWalkForwardBacktest = fetchWalkForwardBacktest;
 
 })(window, document);
