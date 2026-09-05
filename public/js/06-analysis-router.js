@@ -752,7 +752,7 @@ function fsRenderProb(a){
     // ── Indicator breakdown ──
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">'
     +'<div>'
-    +'<div style="font-size:9px;color:var(--bb-orange);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;font-family:var(--font-mono);border-bottom:1px solid rgba(255,102,0,.2);padding-bottom:4px">BOBOT INDIKATOR</div>'
+    +'<div style="font-size:9px;color:var(--accent);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;font-family:var(--font-mono);border-bottom:1px solid rgba(0,0,255,.2);padding-bottom:4px">BOBOT INDIKATOR</div>'
     +indRow('CMF-20 (30%)',cmfScore,'CMF: '+(a.cl||0).toFixed?(a.cl*100).toFixed(1)+'%':'—')
     +indRow('RSI-14 (20%)',rsiScore,'RSI: '+(a.rl||50).toFixed(1)+' · '+(a.rl>70?'Overbought':a.rl<30?'Oversold':'Netral'))
     +indRow('MA Cross (20%)',maScore,'Harga vs MA20: '+(a.ma20&&a.ma20.length?(last.c>a.ma20[a.ma20.length-1]?'Above ▲':'Below ▼'):'—'))
@@ -762,7 +762,7 @@ function fsRenderProb(a){
 
     // ── Statistical analysis ──
     +'<div>'
-    +'<div style="font-size:9px;color:var(--bb-orange);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;font-family:var(--font-mono);border-bottom:1px solid rgba(255,102,0,.2);padding-bottom:4px">STATISTIK HARGA</div>'
+    +'<div style="font-size:9px;color:var(--accent);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;font-family:var(--font-mono);border-bottom:1px solid rgba(0,0,255,.2);padding-bottom:4px">STATISTIK HARGA</div>'
     +'<div style="display:flex;flex-direction:column;gap:5px">'
     +'<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px"><span style="color:var(--text3)">Volatilitas/th</span><span style="color:var(--amber)">'+volAnn+'%</span></div>'
     +'<div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px"><span style="color:var(--text3)">Win Rate (% hari +)</span><span style="color:'+(parseInt(winRate)>=55?'var(--green)':'var(--text2)')+'">'+winRate+'%</span></div>'
