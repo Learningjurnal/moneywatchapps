@@ -236,11 +236,13 @@ async function fundFetchData(tickerOverride) {
     // safe baseline first, then overlay only the real Yahoo fields that
     // actually carry a usable numeric value.
     fundLoadFallbackData(cleanCode, liveMeta, livePrice);
+    var realFieldCount = 0;
     var mergeRealFields = function(target, source) {
       Object.keys(source || {}).forEach(function(key) {
         var val = source[key];
         if (val && typeof val.raw === 'number' && !isNaN(val.raw)) {
           target[key] = val;
+          realFieldCount++;
         }
       });
     };
@@ -255,15 +257,40 @@ async function fundFetchData(tickerOverride) {
       FUND_DATA.fin.currentPrice.raw = livePrice;
     }
 
-    fundPopulateData();
-    fundShowStatus('✅ Data Fundamental &amp; Konsensus Valuasi <b>' + cleanCode + '</b> siap! (Real: data keuangan Yahoo Finance)', false);
+    // This used to unconditionally claim "Real: data keuangan Yahoo
+    // Finance" the moment the request itself didn't throw - even when
+    // Yahoo's response carried zero usable fields and fundPopulateData()
+    // was rendering 100% off the fallback set just above. The message now
+    // reflects how many fields actually came back real, not just whether
+    // the HTTP call succeeded.
+    var prevSource = (FUND_DATA.dataQuality && FUND_DATA.dataQuality.source) || 'unavailable';
+    if (realFieldCount >= 4) {
+      FUND_DATA.dataQuality = { source: 'real', realFieldCount: realFieldCount };
+      fundPopulateData();
+      fundShowStatus('✅ Data Fundamental &amp; Konsensus Valuasi <b>' + cleanCode + '</b> siap! (Real: data keuangan Yahoo Finance)', false);
+    } else if (realFieldCount >= 1) {
+      FUND_DATA.dataQuality = { source: 'partial', realFieldCount: realFieldCount };
+      fundPopulateData();
+      fundShowStatus('⚠️ Data Fundamental <b>' + cleanCode + '</b> sebagian saja dari Yahoo Finance (' + realFieldCount + ' field) — sisanya ' + (prevSource === 'profile_snapshot' ? 'snapshot terkurasi (bukan real-time)' : 'estimasi, ditandai di ringkasan') + '.', false);
+    } else {
+      fundPopulateData();
+      fundShowStatus(prevSource === 'profile_snapshot'
+        ? '⚠️ Yahoo Finance tidak mengembalikan data untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
+        : '⚠️ Yahoo Finance tidak punya data fundamental untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
+    }
   } catch (e) {
     fundLoadFallbackData(cleanCode, liveMeta, livePrice);
+    fundPopulateData();
+    var src = (FUND_DATA.dataQuality && FUND_DATA.dataQuality.source) || 'unavailable';
+    fundShowStatus(src === 'profile_snapshot'
+      ? '⚠️ Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
+      : '⚠️ Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
   }
 }
 
 function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
   if (typeof isValidStockTicker === 'function' && !isValidStockTicker(code)) {
+    FUND_DATA.dataQuality = { source: 'invalid_ticker' };
     FUND_DATA.fin = {
       currentPrice: { raw: 0 },
       totalRevenue: { raw: 0 },
@@ -400,6 +427,10 @@ function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
   var pData = PROFILES[code];
 
   if (pData) {
+    // A hand-curated snapshot for this specific company, not live - still
+    // a real researched figure, but it can go stale silently since there's
+    // no "as of" date attached. Flagged so the UI can disclose it.
+    FUND_DATA.dataQuality = { source: 'profile_snapshot' };
     shares = pData.s || shares;
     rev = pData.rev || rev;
     sector = pData.sec || sector;
@@ -413,42 +444,22 @@ function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
     pm = pData.pm || pm;
     summary = pData.desc || summary;
   } else {
-    // Estimasi dinamis terkalibrasi untuk emiten lainnya berdasarkan sektor & harga pasar live
-    var estimatedShares = Math.max(1e9, Math.round(50e12 / Math.max(50, basePrice)));
+    // No curated profile and (by the time we get here) no usable Yahoo
+    // field either. This used to invent specific ROE/BVPS/EPS/margin
+    // numbers from a sector-average guess backed into the current market
+    // price (e.g. "financials always get ROE 16%, PBV 1.6x") - confident,
+    // specific-looking figures that were never real for this company, fed
+    // straight into the 9-step MoS, Graham/Lynch/DDM, and the composite
+    // score with no disclosure. Left at 0/blank instead: the valuation
+    // formulas downstream already treat 0 EPS/BVPS as "cannot compute"
+    // (see fundCalcMetrics's `eps > 0 && bvps > 0` guards), so this
+    // correctly surfaces as "N/A" rather than a specific fabricated verdict.
+    FUND_DATA.dataQuality = { source: 'unavailable' };
     if (typeof DB !== 'undefined' && DB[code]) {
       if (DB[code].sector) sector = DB[code].sector;
-      if (DB[code].name) summary = 'PT ' + DB[code].name + ' Tbk adalah perusahaan publik yang tercatat di Bursa Efek Indonesia sektor ' + sector + '.';
+      if (DB[code].name) summary = 'PT ' + DB[code].name + ' Tbk adalah perusahaan publik yang tercatat di Bursa Efek Indonesia sektor ' + sector + '. Data keuangan rinci belum tersedia dari Yahoo Finance untuk emiten ini.';
     }
-    shares = estimatedShares;
-    rev = Math.round(shares * basePrice * 0.35);
-
-    // Sesuaikan rasio berdasarkan sektor
-    if (sector.includes('Keuangan') || sector.includes('Bank')) {
-      roe = 0.16; pbv = 1.6; der = 5.2; gm = 0.80; om = 0.45; pm = 0.30;
-      bvps = Math.round(basePrice / pbv);
-      eps = Math.round(bvps * roe);
-      dps = Math.round(eps * 0.45);
-    } else if (sector.includes('Energi') || sector.includes('Tambang') || sector.includes('Baku')) {
-      roe = 0.18; pbv = 1.3; der = 0.55; gm = 0.35; om = 0.24; pm = 0.16;
-      bvps = Math.round(basePrice / pbv);
-      eps = Math.round(bvps * roe);
-      dps = Math.round(eps * 0.40);
-    } else if (sector.includes('Konsumer') || sector.includes('Kesehatan')) {
-      roe = 0.20; pbv = 2.4; der = 0.45; gm = 0.45; om = 0.18; pm = 0.12;
-      bvps = Math.round(basePrice / pbv);
-      eps = Math.round(bvps * roe);
-      dps = Math.round(eps * 0.50);
-    } else if (sector.includes('Teknologi')) {
-      roe = 0.05; pbv = 1.8; der = 0.25; gm = 0.45; om = 0.08; pm = 0.04;
-      bvps = Math.round(basePrice / pbv);
-      eps = Math.max(1, Math.round(bvps * roe));
-      dps = 0;
-    } else {
-      roe = 0.14; pbv = 1.5; der = 0.65; gm = 0.32; om = 0.16; pm = 0.10;
-      bvps = Math.round(basePrice / pbv);
-      eps = Math.round(bvps * roe);
-      dps = Math.round(eps * 0.35);
-    }
+    shares = 0; rev = 0; roe = 0; eps = 0; bvps = 0; dps = 0; der = 0; gm = 0; om = 0; pm = 0; per = 0; pbv = 0;
   }
 
   // Jika nama emiten tersedia dari Yahoo meta, gunakan nama resmi terbaru
@@ -795,6 +806,31 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
   var cardsEl = document.getElementById('fund-synthesis-action-cards');
   if (!summaryEl || !tableEl) return;
 
+  var dq = FUND_DATA.dataQuality || {};
+
+  // No real Yahoo fields and no curated profile: eps/bvps/roe/etc are all
+  // 0 at this point (see fundLoadFallbackData). Computing the composite
+  // score and a "FAIR VALUE +0.0%" verdict from zeros would look like a
+  // real, confident conclusion instead of "nothing to compute" - so this
+  // stops here with an honest insufficient-data message instead of
+  // falling through to the scoring below.
+  if (dq.source === 'unavailable') {
+    if (badgeEl) badgeEl.innerHTML = '<span class="badge b-dn" style="font-size:12px;padding:5px 12px;font-weight:800">DATA TIDAK CUKUP</span>';
+    summaryEl.innerHTML = 'Yahoo Finance tidak menyediakan data keuangan (ROE, EPS, BVPS, margin, dsb) untuk <b>' + (ticker || '-') + '</b>, dan tidak ada data terkurasi manual untuk emiten ini di aplikasi. Kesimpulan fundamental, konsensus valuasi, dan skor komposit tidak dapat dihitung — bukan 0/100 atau "fair value", melainkan benar-benar tidak tersedia. Cek laporan keuangan resmi (idx.co.id / laporan tahunan emiten) secara manual.';
+    tableEl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">Tidak ada data untuk dihitung.</td></tr>';
+    if (cardsEl) cardsEl.innerHTML = '';
+    var bulletsElEmpty = document.getElementById('fund-ltm-bullets-list');
+    if (bulletsElEmpty) bulletsElEmpty.innerHTML = '<li style="color:var(--text3)">Data tidak tersedia.</li>';
+    return;
+  }
+
+  var dqBanner = '';
+  if (dq.source === 'profile_snapshot') {
+    dqBanner = '<div style="background:rgba(255,187,0,.08);border:1px solid rgba(255,187,0,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)">⚠ Yahoo Finance tidak mengembalikan data untuk emiten ini — angka di bawah adalah snapshot yang dikurasi manual, <b>bukan data real-time</b>. Verifikasi ke laporan keuangan resmi sebelum mengambil keputusan.</div>';
+  } else if (dq.source === 'partial') {
+    dqBanner = '<div style="background:rgba(255,187,0,.08);border:1px solid rgba(255,187,0,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)">⚠ Hanya sebagian data dari Yahoo Finance yang tersedia untuk emiten ini (' + (dq.realFieldCount || 0) + ' field) — field yang kosong diisi dari snapshot/estimasi, bukan seluruhnya real-time.</div>';
+  }
+
   // 1. Perhitungan Kuantitatif 5 Pilar Fundamental:
   // (A) Konsensus Valuasi & Margin of Safety (MoS)
   var validValuations = [];
@@ -864,7 +900,7 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
   var mosFmt = consensusMoSPct >= 0 ? '<b style="color:#10B981">+' + consensusMoSPct.toFixed(1) + '% (Undervalued)</b>' : '<b style="color:#EF4444">' + consensusMoSPct.toFixed(1) + '% (Overvalued)</b>';
   var ocfFormatted = ocf > 0 ? '<b>Rp ' + fundFmt(ocf) + '</b> (Kas Riil Positif)' : '<b style="color:#EF4444">Rp ' + fundFmt(ocf) + ' (Defisit)</b>';
 
-  summaryEl.innerHTML = 'Berdasarkan kalkulasi kuantitatif menyeluruh terhadap 5 pilar keuangan, emiten <b>' + (ticker || 'BBCA') + '</b> di sektor <b>' + sector + '</b> meraih skor total <b>' + totalCompScore + '/100 [' + scoreGrade + ']</b>. Rata-rata <b>Konsensus Nilai Wajar</b> tercatat di <b>Rp ' + Math.round(consensusFairPrice).toLocaleString('id-ID') + '</b>, memberikan Margin of Safety (MoS) sebesar ' + mosFmt + ' terhadap harga pasar terkini (<b>Rp ' + Number(curPrice).toLocaleString('id-ID') + '</b>). Perusahaan mencatatkan tingkat pengembalian ekuitas (ROE) <b>' + (roe * 100).toFixed(1) + '%</b>, Gross Profit Margin <b>' + (gm * 100).toFixed(1) + '%</b>, rasio utang terkendali (DER <b>' + dte.toFixed(2) + 'x</b>, Likuiditas Lancar <b>' + cr.toFixed(2) + 'x</b>), serta didukung arus kas operasional ' + ocfFormatted + '.';
+  summaryEl.innerHTML = dqBanner + 'Berdasarkan kalkulasi kuantitatif menyeluruh terhadap 5 pilar keuangan, emiten <b>' + (ticker || 'BBCA') + '</b> di sektor <b>' + sector + '</b> meraih skor total <b>' + totalCompScore + '/100 [' + scoreGrade + ']</b>. Rata-rata <b>Konsensus Nilai Wajar</b> tercatat di <b>Rp ' + Math.round(consensusFairPrice).toLocaleString('id-ID') + '</b>, memberikan Margin of Safety (MoS) sebesar ' + mosFmt + ' terhadap harga pasar terkini (<b>Rp ' + Number(curPrice).toLocaleString('id-ID') + '</b>). Perusahaan mencatatkan tingkat pengembalian ekuitas (ROE) <b>' + (roe * 100).toFixed(1) + '%</b>, Gross Profit Margin <b>' + (gm * 100).toFixed(1) + '%</b>, rasio utang terkendali (DER <b>' + dte.toFixed(2) + 'x</b>, Likuiditas Lancar <b>' + cr.toFixed(2) + 'x</b>), serta didukung arus kas operasional ' + ocfFormatted + '.';
 
   // Automatic Extraction: 3 Key LTM Fundamental Bullet Points
   var bulletsEl = document.getElementById('fund-ltm-bullets-list');
@@ -1601,38 +1637,64 @@ function techRenderPivotsTab(ticker) {
 }
 
 // ── Tab 6: LQ45 Momentum Scanner ──
-function techRenderLq45Heatmap() {
+// Was a hardcoded array of 18 tickers with fixed %change/RSI/flow labels -
+// BBCA always "+1.25%, RSI 64, Accum" no matter when this tab was opened
+// or what the market actually did. Replaced with a real fetch to
+// /api/idx/ai-scan (the same endpoint the AI Trading Scanner uses),
+// which computes changePercent/RSI/volume-ratio from real Yahoo Finance
+// price history for the actual LQ45 constituents. "Accum/Dist" here is
+// derived from the real EMA trend + volume ratio (a defensible technical
+// proxy), not literal broker/bandar flow data - this app has no real
+// broker-transaction feed, so it never claims to be one.
+var TECH_LQ45_CACHE = null;
+var TECH_LQ45_LOADING = false;
+
+async function techRenderLq45Heatmap() {
   var grid = document.getElementById('hm-grid-tech');
   if (!grid) return;
 
-  var lq45List = [
-    { code: 'BBCA', chg: 1.25, rsi: 64, flow: 'Accum' },
-    { code: 'BBRI', chg: 0.85, rsi: 58, flow: 'Accum' },
-    { code: 'BMRI', chg: 1.75, rsi: 68, flow: 'Big Accum' },
-    { code: 'BBNI', chg: 0.50, rsi: 52, flow: 'Neutral' },
-    { code: 'TLKM', chg: -0.70, rsi: 44, flow: 'Dist' },
-    { code: 'ASII', chg: 2.10, rsi: 71, flow: 'Accum' },
-    { code: 'ICBP', chg: 0.20, rsi: 55, flow: 'Neutral' },
-    { code: 'INDF', chg: -0.40, rsi: 48, flow: 'Neutral' },
-    { code: 'ADRO', chg: 3.40, rsi: 76, flow: 'Big Accum' },
-    { code: 'PTBA', chg: 1.10, rsi: 61, flow: 'Accum' },
-    { code: 'UNTR', chg: 1.60, rsi: 65, flow: 'Accum' },
-    { code: 'KLBF', chg: -1.10, rsi: 39, flow: 'Dist' },
-    { code: 'MDKA', chg: 2.80, rsi: 73, flow: 'Accum' },
-    { code: 'AMMN', chg: 4.20, rsi: 82, flow: 'Big Accum' },
-    { code: 'GOTO', chg: -2.30, rsi: 36, flow: 'Dist' },
-    { code: 'BRIS', chg: 3.10, rsi: 78, flow: 'Big Accum' },
-    { code: 'ANTM', chg: 3.70, rsi: 74, flow: 'Big Accum' },
-    { code: 'PGAS', chg: 1.40, rsi: 59, flow: 'Accum' }
-  ];
+  if (TECH_LQ45_CACHE) {
+    techRenderLq45Grid(grid, TECH_LQ45_CACHE);
+    return;
+  }
+  if (TECH_LQ45_LOADING) return;
+  TECH_LQ45_LOADING = true;
+  grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text3);font-size:12px">⏳ Memindai LQ45 dengan data harga &amp; RSI real-time...</div>';
 
-  grid.innerHTML = lq45List.map(function(item) {
-    var bg = item.chg > 2 ? 'rgba(16, 185, 129, 0.35)' : item.chg > 0 ? 'rgba(16, 185, 129, 0.18)' : item.chg < -2 ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.18)';
-    var color = item.chg >= 0 ? '#10B981' : '#EF4444';
-    return '<div onclick="techSetTicker(\'' + item.code + '\')" style="background:' + bg + ';border:1px solid ' + (item.chg >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') + ';border-radius:6px;padding:8px;text-align:center;cursor:pointer;transition:transform 0.15s" onmouseover="this.style.transform=\'scale(1.04)\'" onmouseout="this.style.transform=\'scale(1)\'">'
-      + '<div style="font-weight:800;font-size:12px;color:var(--text)">' + item.code + '</div>'
-      + '<div style="font-size:11px;font-weight:700;font-family:Fira Code,monospace;color:' + color + '">' + (item.chg >= 0 ? '+' : '') + item.chg.toFixed(2) + '%</div>'
-      + '<div style="font-size:9px;color:var(--text3);margin-top:2px">RSI ' + item.rsi + ' · ' + item.flow + '</div>'
+  try {
+    var res = await fetch('/api/idx/ai-scan');
+    var json = await res.json();
+    if (!json.success || !Array.isArray(json.signals)) throw new Error(json.error || 'Scan gagal');
+    var valid = json.signals.filter(function(s) { return s.price > 0 && s.changePercent != null; });
+    valid.sort(function(a, b) { return (b.compositeScore || 0) - (a.compositeScore || 0); });
+    TECH_LQ45_CACHE = valid;
+    techRenderLq45Grid(grid, valid);
+  } catch (e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--red);font-size:12px">⚠ Gagal memuat data LQ45 real-time: ' + (e.message || 'error') + ' <button class="btn btn-ghost btn-xs" onclick="TECH_LQ45_CACHE=null;techRenderLq45Heatmap()">Coba Lagi</button></div>';
+  } finally {
+    TECH_LQ45_LOADING = false;
+  }
+}
+
+function techRenderLq45Grid(grid, signals) {
+  if (!signals.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text3);font-size:12px">Tidak ada data.</div>';
+    return;
+  }
+  grid.innerHTML = signals.map(function(item) {
+    var chg = item.changePercent || 0;
+    var rsi = item.rsi14 != null ? Math.round(item.rsi14) : null;
+    var flow = (item.trend === 'UPTREND' && item.volRatio >= 1.5) ? 'Big Accum'
+      : item.trend === 'UPTREND' ? 'Accum'
+      : (item.trend === 'DOWNTREND' && item.volRatio >= 1.5) ? 'Big Dist'
+      : item.trend === 'DOWNTREND' ? 'Dist'
+      : 'Neutral';
+    var bg = chg > 2 ? 'rgba(16, 185, 129, 0.35)' : chg > 0 ? 'rgba(16, 185, 129, 0.18)' : chg < -2 ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.18)';
+    var color = chg >= 0 ? '#10B981' : '#EF4444';
+    return '<div onclick="techSetTicker(\'' + item.ticker + '\')" style="background:' + bg + ';border:1px solid ' + (chg >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') + ';border-radius:6px;padding:8px;text-align:center;cursor:pointer;transition:transform 0.15s" onmouseover="this.style.transform=\'scale(1.04)\'" onmouseout="this.style.transform=\'scale(1)\'">'
+      + '<div style="font-weight:800;font-size:12px;color:var(--text)">' + item.ticker + '</div>'
+      + '<div style="font-size:11px;font-weight:700;font-family:Fira Code,monospace;color:' + color + '">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</div>'
+      + '<div style="font-size:9px;color:var(--text3);margin-top:2px">' + (rsi != null ? 'RSI ' + rsi : 'RSI —') + ' · ' + flow + '</div>'
       + '</div>';
   }).join('');
 }
