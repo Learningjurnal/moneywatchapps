@@ -21,9 +21,9 @@
   --surface-primary:#0A0A0A;
   --surface-secondary:#141414;
   --surface-elevated:#1A1A1A;
-  --surface-hover:rgba(155,81,224,0.15);
-  --surface-active:rgba(155,81,224,0.25);
-  --surface-selected:rgba(155,81,224,0.30);
+  --surface-hover:rgba(0,0,255,0.15);
+  --surface-active:rgba(0,0,255,0.25);
+  --surface-selected:rgba(0,0,255,0.30);
   --card-bg:#0A0A0A;
   --card-border:#222222;
   --card-shadow:0 6px 24px rgba(0,0,0,0.85);
@@ -43,20 +43,26 @@
   --border-subtle:rgba(255,255,255,0.08);
   --border-default:#273440;
   --border-strong:#354453;
-  --border-focus:#6001D2;
+  --border-focus:#0000FF;
   --border-divider:#212B35;
   --border-primary:#273440;
   --border-secondary:#354453;
   --border:#273440;
   --border2:#354453;
 
-  --brand-primary:#9B51E0;
-  --brand-secondary:#7B2CBF;
-  --brand-hover:#B370F5;
-  --brand-soft:rgba(155,81,224,0.20);
-  --accent:#9B51E0;
-  --accent2:#7B2CBF;
-  --accent-purple:#9B51E0;
+  /* Modern 2026 blue identity (replaces the old purple brand color).
+     --accent is for bare text/icons sitting directly on the page
+     background: a brighter blue (#5B8DEF) so it stays readable on
+     near-black, unlike pure #0000FF which nearly disappears there.
+     --brand-primary/--accent2 are for FILLED backgrounds (buttons,
+     active pills, badges) and are always paired with white text. */
+  --brand-primary:#0000FF;
+  --brand-secondary:#0000CC;
+  --brand-hover:#1A1AFF;
+  --brand-soft:rgba(0,0,255,0.20);
+  --accent:#5B8DEF;
+  --accent2:#0000CC;
+  --accent-purple:#0000FF;
   --accent-blue:#38BDF8;
   --accent-fg:#FFFFFF;
 
@@ -65,12 +71,12 @@
   --financial-neutral:#8F9AA6;
   --financial-warning:#FF9E00;
   --financial-info:#0F69FF;
-  --financial-accent:#6001D2;
+  --financial-accent:#0000FF;
 
   --semantic-success:#00C805;
   --semantic-danger:#FF333A;
   --semantic-warning:#FF9E00;
-  --semantic-info:#6001D2;
+  --semantic-info:#0000FF;
   --green:#00C805;
   --red:#FF333A;
   --amber:#FF9E00;
@@ -93,16 +99,16 @@
   --icon-negative:#FF333A;
   --icon-warning:#FF9E00;
   --icon-info:#0F69FF;
-  --icon-active:#6001D2;
+  --icon-active:#0000FF;
 
-  --action-primary:#6001D2;
-  --action-hover:#5000B3;
+  --action-primary:#0000FF;
+  --action-hover:#0000CC;
   --action-active:#430099;
   --action-disabled:rgba(255,255,255,0.12);
-  --focus-ring:rgba(96,1,210,0.4);
+  --focus-ring:rgba(0,0,255,0.4);
 
-  --button-primary-bg:#6001D2;
-  --button-primary-hover:#5000B3;
+  --button-primary-bg:#0000FF;
+  --button-primary-hover:#0000CC;
   --button-primary-text:#FFFFFF;
   --button-secondary-bg:#182026;
   --button-secondary-hover:#212B35;
@@ -117,7 +123,7 @@
   --table-header-bg:#141C22;
   --table-header-text:#8F9AA6;
   --table-border:#273440;
-  --table-row-hover:rgba(96,1,210,0.08);
+  --table-row-hover:rgba(0,0,255,0.08);
 
   --radius-sm:4px;
   --radius-md:6px;
@@ -125,7 +131,7 @@
   --radius-xl:12px;
   --radius:8px;
 
-  --bb-orange:#FF7000;--bb-grid:rgba(96,1,210,0.06);
+  --bb-orange:#FF7000;--bb-grid:rgba(0,0,255,0.06);
   --tv-buy:#00C805;--tv-sell:#FF333A;--tv-blue:#0F69FF;
   --glow-c:0 0 16px rgba(15,105,255,.25);
   --glow-g:0 0 16px rgba(0,200,5,.25);
@@ -158,9 +164,9 @@ body.theme-light {
   --surface-primary:#FFFFFF;
   --surface-secondary:#F5F7FA;
   --surface-elevated:#FFFFFF;
-  --surface-hover:rgba(96,1,210,0.05);
-  --surface-active:rgba(96,1,210,0.12);
-  --surface-selected:rgba(96,1,210,0.15);
+  --surface-hover:rgba(0,0,255,0.05);
+  --surface-active:rgba(0,0,255,0.12);
+  --surface-selected:rgba(0,0,255,0.15);
   --card-bg:#FFFFFF;
   --card-border:#E0E4E9;
   --card-shadow:0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
@@ -180,20 +186,20 @@ body.theme-light {
   --border-subtle:#E0E4E9;
   --border-default:#E0E4E9;
   --border-strong:#CBD1D8;
-  --border-focus:#6001D2;
+  --border-focus:#0000FF;
   --border-divider:#EDF1F5;
   --border-primary:#E0E4E9;
   --border-secondary:#CBD1D8;
   --border:#E0E4E9;
   --border2:#CBD1D8;
 
-  --brand-primary:#6001D2;
-  --brand-secondary:#5000B3;
-  --brand-hover:#430099;
-  --brand-soft:#F3ECFC;
-  --accent:#6001D2;
-  --accent2:#5000B3;
-  --accent-purple:#6001D2;
+  --brand-primary:#0000FF;
+  --brand-secondary:#0000CC;
+  --brand-hover:#0000AA;
+  --brand-soft:#E6ECFF;
+  --accent:#0000FF;
+  --accent2:#0000CC;
+  --accent-purple:#0000FF;
   --accent-blue:#0F69FF;
   --accent-fg:#FFFFFF;
 
@@ -202,12 +208,12 @@ body.theme-light {
   --financial-neutral:#727B83;
   --financial-warning:#B56900;
   --financial-info:#0F69FF;
-  --financial-accent:#6001D2;
+  --financial-accent:#0000FF;
 
   --semantic-success:#00873C;
   --semantic-danger:#D0163A;
   --semantic-warning:#B56900;
-  --semantic-info:#6001D2;
+  --semantic-info:#0000FF;
   --green:#00873C;
   --red:#D0163A;
   --amber:#B56900;
@@ -224,16 +230,16 @@ body.theme-light {
   --icon-negative:#D0163A;
   --icon-warning:#B56900;
   --icon-info:#0F69FF;
-  --icon-active:#6001D2;
+  --icon-active:#0000FF;
 
-  --action-primary:#6001D2;
-  --action-hover:#5000B3;
+  --action-primary:#0000FF;
+  --action-hover:#0000CC;
   --action-active:#430099;
   --action-disabled:#E0E4E9;
-  --focus-ring:rgba(96,1,210,0.25);
+  --focus-ring:rgba(0,0,255,0.25);
 
-  --button-primary-bg:#6001D2;
-  --button-primary-hover:#5000B3;
+  --button-primary-bg:#0000FF;
+  --button-primary-hover:#0000CC;
   --button-primary-text:#FFFFFF;
   --button-secondary-bg:#FFFFFF;
   --button-secondary-hover:#F5F7FA;
@@ -321,7 +327,7 @@ body::after{display:none}
 .nav{display:flex;gap:2px;background:transparent;padding:2px;overflow-x:auto;overflow-y:visible}
 .nav button{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--text3);background:none;border:none;font-family:'Inter',sans-serif;letter-spacing:0;text-transform:none;transition:all var(--spring);white-space:nowrap}
 .nav button:hover{color:#fff;background:rgba(37,99,235,.12)}
-.nav button.on{background:var(--accent);color:#fff;font-weight:700}
+.nav button.on{background:var(--brand-primary);color:#fff;font-weight:700}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .live{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green);font-family:'Inter',sans-serif;letter-spacing:.5px;font-weight:700}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite}
@@ -508,7 +514,7 @@ body::after{display:none}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid var(--border);font-family:'Inter',sans-serif;letter-spacing:0;text-transform:none;transition:all var(--spring);background:#151C2C;color:var(--text2)}
 .btn:hover{filter:brightness(1.15);transform:translateY(-1px);border-color:#3B82F6;color:#fff}
 .btn:active{transform:scale(.97)}
-.btn-blue{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:none;font-weight:700}
+.btn-blue{background:var(--brand-primary);color:#fff;border-color:var(--brand-primary);box-shadow:none;font-weight:700}
 .btn-blue:hover{background:#1D4ED8;filter:none}
 .btn-green{background:rgba(0,245,155,.15);color:var(--green);border-color:rgba(0,245,155,.35)}
 .btn-red{background:rgba(255,59,92,.15);color:var(--red);border-color:rgba(255,59,92,.35)}
@@ -566,15 +572,13 @@ body::after{display:none}
   border: 1px solid rgba(192, 132, 252, 0.35);
 }
 .b-accent {
-  /* Was color:var(--accent) (#9B51E0) on background:var(--brand-soft)
-     (the same purple at 20% opacity) — text and background were the same
-     hue at similar perceived lightness on a near-black page, so small
-     badge text (COCKPIT/RADAR/PRO tags) read as a muddy, low-contrast
-     blur. Use a distinctly brighter lavender for the text instead,
-     keeping the background tint as the "purple" cue. */
-  background: rgba(155, 81, 224, 0.16);
-  color: #C9A6FF;
-  border: 1px solid rgba(155, 81, 224, 0.45);
+  /* Soft blue tint background with the icon-safe accent blue as text
+     (var(--accent): #5B8DEF dark / #0000FF light) rather than the raw
+     brand blue, which is too dark to read at this size on a tinted
+     background of itself. Small badge text (COCKPIT/RADAR/PRO tags). */
+  background: rgba(0, 0, 255, 0.16);
+  color: var(--accent);
+  border: 1px solid rgba(0, 0, 255, 0.45);
 }
 .b-teal {
   background: rgba(20, 184, 166, 0.14);
@@ -801,7 +805,7 @@ body.theme-light .tbl td {
 }
 
 .tbl tbody tr:hover td {
-  background: var(--table-row-hover, rgba(96, 1, 210, 0.08));
+  background: var(--table-row-hover, rgba(0, 0, 255, 0.08));
 }
 
 body.theme-light .tbl tbody tr:hover td {
@@ -1246,7 +1250,7 @@ body.theme-light .drawer-panel {
 .auth-field label{display:block;font-size:11px;font-weight:500;color:var(--text2);margin-bottom:6px;font-family:'Inter',sans-serif}
 .auth-field input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:9px;padding:10px 13px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;box-sizing:border-box;transition:border-color .15s}
 .auth-field input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(47,106,243,.15)}
-.auth-btn{width:100%;padding:11px;background:var(--accent);border:none;border-radius:var(--radius);color:var(--accent-fg);font-weight:600;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;transition:all var(--spring);margin-top:6px;letter-spacing:0;box-shadow:none}
+.auth-btn{width:100%;padding:11px;background:var(--brand-primary);border:none;border-radius:var(--radius);color:var(--accent-fg);font-weight:600;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;transition:all var(--spring);margin-top:6px;letter-spacing:0;box-shadow:none}
 .auth-btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
 .auth-btn:disabled{opacity:.4;cursor:not-allowed}
 .auth-err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:9px;padding:8px 11px;font-size:12px;color:var(--red);margin-bottom:12px;display:none;font-family:'Inter',sans-serif}
@@ -1256,7 +1260,7 @@ body.theme-light .drawer-panel {
 #session-info{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);font-family:'Inter',sans-serif}
 #session-user{color:var(--accent);font-weight:600}
 .auth-timeout-bar{height:2px;background:var(--bg3);border-radius:0;margin-top:8px;overflow:hidden}
-.auth-timeout-fill{height:100%;background:var(--accent);border-radius:0;transition:width 1s linear}
+.auth-timeout-fill{height:100%;background:var(--brand-primary);border-radius:0;transition:width 1s linear}
 
 
 /* ── SIDEBAR NAV (Institutional Terminal Style) ── */
@@ -1314,7 +1318,7 @@ body.theme-light .drawer-panel {
 .side-nav button:hover{
   color:var(--text);
   background:var(--brand-soft);
-  border-color:rgba(155,81,224,.3);
+  border-color:rgba(0,0,255,.3);
 }
 .side-nav button:hover i.ti{
   color: #FFFFFF;
@@ -1613,7 +1617,7 @@ html,body{font-size:12.5px}
    ══════════════════════════════════════════════ */
 .view-mode-toggle{display:inline-flex;align-items:center;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:2px;gap:2px}
 .view-mode-toggle button{background:transparent;border:none;color:var(--text3);font-size:11px;padding:3px 9px;border-radius:6px;cursor:pointer;font-weight:600;font-family:'Inter',sans-serif;transition:all .15s}
-.view-mode-toggle button.on{background:var(--accent);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.view-mode-toggle button.on{background:var(--brand-primary);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 
 /* Sembunyikan elemen terlalu teknis di mode executive */
 body.mode-executive .dash-chart-row,
@@ -1721,16 +1725,12 @@ body.mode-executive .metric .mval {
   border: 1px solid transparent;
 }
 .sm-nav-item:hover {
-  background: rgba(59, 130, 246, 0.12);
+  background: rgba(0, 0, 255, 0.12);
   color: #fff;
 }
-.sm-nav-item.active {
-  background: #3B82F6;
-  color: #fff;
-  font-weight: 700;
-}
+.sm-nav-item.active,
 .sm-nav-item.active-tech {
-  background: #8B5CF6;
+  background: var(--brand-primary);
   color: #fff;
   font-weight: 700;
 }
@@ -1798,7 +1798,7 @@ body.mode-executive .metric .mval {
   gap: 6px;
 }
 .sm-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
-.sm-btn.btn-tech { background: #8B5CF6; }
+.sm-btn.btn-tech { background: var(--brand-primary); }
 
 .sm-chip {
   background: rgba(255,255,255,0.06);
@@ -1872,7 +1872,7 @@ body.mode-executive .metric .mval {
 .sm-text-red { color: #EF4444 !important; }
 .sm-text-blue { color: #3B82F6 !important; }
 .sm-text-yellow { color: #F59E0B !important; }
-.sm-text-purple { color: #8B5CF6 !important; }
+.sm-text-purple { color: var(--accent) !important; }
 
 .sm-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
 .sm-table th, .sm-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #232F4D; }
@@ -2556,7 +2556,7 @@ body.mode-executive .metric .mval {
   align-self: flex-start;
 }
 .bubble-user {
-  background: var(--accent);
+  background: var(--brand-primary);
   color: #fff;
   align-self: flex-end;
 }
@@ -2821,7 +2821,7 @@ body.density-compact .kpi-exec-card {
   min-width: 15px;
   height: 15px;
   border-radius: 10px;
-  background: var(--accent);
+  background: var(--brand-primary);
   color: #fff;
   font-size: 9px;
   font-weight: 800;
@@ -2886,10 +2886,10 @@ body.theme-light {
   --bg-elevated: #F5F7FA;
   
   --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-focus: #6001D2;
-  --accent: #6001D2;
-  --accent2: #5000B3;
-  --accent-purple: #6001D2;
+  --border-focus: #0000FF;
+  --accent: #0000FF;
+  --accent2: #0000CC;
+  --accent-purple: #0000FF;
   --accent-blue: #0F69FF;
   
   background: #F5F7FA !important;
@@ -3137,7 +3137,7 @@ body.theme-light .side-collapse-btn {
 body.theme-light .side-collapse-btn:hover {
   background: #F1F5F9 !important;
   color: #0F172A !important;
-  border-color: #6001D2 !important;
+  border-color: #0000FF !important;
 }
 
 body.theme-light .side-search-wrap {
@@ -3186,18 +3186,18 @@ body.theme-light .side-nav button:hover {
 }
 
 body.theme-light .side-nav button:hover i.ti {
-  color: #6001D2 !important;
+  color: #0000FF !important;
 }
 
 body.theme-light .side-nav button.on {
-  background: #F3ECFC !important;
-  color: #6001D2 !important;
+  background: #E6ECFF !important;
+  color: #0000FF !important;
   font-weight: 700 !important;
-  border-color: #D8B4FE !important;
+  border-color: #B3C2FF !important;
 }
 
 body.theme-light .side-nav button.on i.ti {
-  color: #6001D2 !important;
+  color: #0000FF !important;
 }
 
 body.theme-light .side-label {
@@ -3385,17 +3385,17 @@ body.theme-light .btn-outline:hover {
 
 body.theme-light .btn-primary,
 body.theme-light .btn-blue {
-  background: #6001D2 !important;
+  background: #0000FF !important;
   color: #FFFFFF !important;
-  border: 1px solid #6001D2 !important;
-  box-shadow: 0 2px 4px rgba(96, 1, 210, 0.2) !important;
+  border: 1px solid #0000FF !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 255, 0.2) !important;
 }
 
 body.theme-light .btn-primary:hover,
 body.theme-light .btn-blue:hover {
-  background: #5000B3 !important;
+  background: #0000CC !important;
   color: #FFFFFF !important;
-  border-color: #5000B3 !important;
+  border-color: #0000CC !important;
 }
 
 body.theme-light .btn-ghost {
@@ -3477,9 +3477,9 @@ body.theme-light .pbtn {
 }
 
 body.theme-light .pbtn.on {
-  background: #6001D2 !important;
+  background: #0000FF !important;
   color: #FFFFFF !important;
-  border-color: #6001D2 !important;
+  border-color: #0000FF !important;
 }
 
 /* FORMS, INPUTS, SELECTS */
@@ -3498,8 +3498,8 @@ body.theme-light select:focus,
 body.theme-light textarea:focus,
 body.theme-light .fin:focus,
 body.theme-light .finput:focus {
-  border-color: #6001D2 !important;
-  box-shadow: 0 0 0 3px rgba(96, 1, 210, 0.15) !important;
+  border-color: #0000FF !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 255, 0.15) !important;
 }
 
 body.theme-light input::placeholder,
@@ -3656,13 +3656,9 @@ body.theme-light .sm-nav-item:hover {
   color: #0F172A !important;
 }
 
-body.theme-light .sm-nav-item.active {
-  background: #2563EB !important;
-  color: #FFFFFF !important;
-}
-
+body.theme-light .sm-nav-item.active,
 body.theme-light .sm-nav-item.active-tech {
-  background: #7C3AED !important;
+  background: #0000FF !important;
   color: #FFFFFF !important;
 }
 
@@ -4916,9 +4912,9 @@ svg {
   background: rgba(30, 41, 59, 0.6);
 }
 .stockchat-tab-btn.active {
-  background: var(--accent) !important;
+  background: var(--brand-primary) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 4px 12px rgba(155, 81, 224, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 255, 0.35);
 }
 
 /* Timeframe buttons */
@@ -4948,7 +4944,7 @@ svg {
 }
 .stockchat-tf-btn.active,
 .bandar-tf-btn.active {
-  background: var(--accent) !important;
+  background: var(--brand-primary) !important;
   color: #FFFFFF !important;
 }
 
@@ -4982,10 +4978,10 @@ svg {
   background: #334155;
 }
 .bandar-ticker-btn.active {
-  background: var(--accent) !important;
+  background: var(--brand-primary) !important;
   color: #FFFFFF !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 2px 8px rgba(155, 81, 224, 0.35);
+  border-color: var(--brand-primary) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 255, 0.35);
 }
 .bandar-input {
   background: #070A12;
@@ -5124,7 +5120,7 @@ svg {
   gap: 6px;
   padding: 12px 20px;
   border-radius: 12px;
-  background: var(--accent);
+  background: var(--brand-primary);
   color: #FFFFFF;
   font-weight: 700;
   font-size: 12px;
@@ -5132,7 +5128,7 @@ svg {
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(155, 81, 224, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 255, 0.35);
 }
 .stockchat-send-btn:hover {
   filter: brightness(1.15);
@@ -5434,11 +5430,11 @@ body.theme-light .stockchat-presets-box {
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 .stockchat-bubble-user {
-  background: var(--accent);
+  background: var(--brand-primary);
   color: #FFFFFF;
   border-radius: 14px;
   border-top-right-radius: 2px;
-  box-shadow: 0 2px 10px rgba(155, 81, 224, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 0, 255, 0.25);
 }
 .stockchat-preset-card {
   background: var(--bg2);

@@ -300,12 +300,12 @@
       + '    </div>'
 
       // Strategy 3: Techno-Bandarmology Breakout
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid #8B5CF6;border-radius:10px;padding:18px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid var(--accent);border-radius:10px;padding:18px">'
       + '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-      + '        <span class="badge b-accent" style="font-size:10px;background:rgba(139,92,246,0.15);color:#8B5CF6;border-color:#8B5CF6">BREAKOUT MOMENTUM</span>'
+      + '        <span class="badge b-accent" style="font-size:10px">BREAKOUT MOMENTUM</span>'
       + '        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Horizon: 2-10 Hari</span>'
       + '      </div>'
-      + '      <div style="font-size:16px;font-weight:800;color:#8B5CF6;margin-bottom:8px">3. Techno-Bandarmology Breakout</div>'
+      + '      <div style="font-size:16px;font-weight:800;color:var(--accent);margin-bottom:8px">3. Techno-Bandarmology Breakout</div>'
       + '      <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">'
       + '        Menggabungkan penembusan pola resistensi teknikal dengan lonjakan volume tinggi dan konfirmasi akumulasi pasar.'
       + '      </div>'
@@ -392,8 +392,8 @@
       + '    </div>'
 
       // Pillar 2: Technical & Wave
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid #8B5CF6;border-radius:8px;padding:16px">'
-      + '      <div style="font-size:15px;font-weight:800;color:#8B5CF6;margin-bottom:6px;display:flex;align-items:center;gap:6px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid var(--accent);border-radius:8px;padding:16px">'
+      + '      <div style="font-size:15px;font-weight:800;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:6px">'
       + '        <i class="ti ti-wave-sine"></i> PILAR 2: TEKNIKAL &amp; WAVE'
       + '      </div>'
       + '      <div style="font-size:11px;color:var(--text3);font-weight:700;margin-bottom:10px">MENJAWAB PERTANYAAN: "KAPAN HARUS MEMBELI &amp; MENJUAL?"</div>'

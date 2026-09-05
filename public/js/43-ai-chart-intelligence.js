@@ -619,7 +619,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
         var p = aiPatterns[0];
         var patText = 'PATTERN: ' + p.name + ' [' + p.status + ' ' + (p.confidence || 75) + '%]';
         ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
-        ctx.strokeStyle = '#8B5CF6';
+        ctx.strokeStyle = '#0000FF';
         ctx.setLineDash([]);
         ctx.lineWidth = 1;
         ctx.font = 'bold 10px Fira Code, monospace';
@@ -786,17 +786,17 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
 
       // AI TOOLBAR BUTTONS
       + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
-        + '<button class="btn btn-primary btn-xs" onclick="runAiChartAnalysis(\'' + ticker + '\')" style="background:linear-gradient(135deg,#8B5CF6,#6366F1);border:none;box-shadow:0 0 10px rgba(139,92,246,0.3)">'
+        + '<button class="btn btn-primary btn-xs" onclick="runAiChartAnalysis(\'' + ticker + '\')" style="background:var(--brand-primary);border:none;box-shadow:0 0 10px rgba(0,0,255,0.3)">'
           + '<i class="ti ti-brain"></i> 🧠 AI ANALYZE'
         + '</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.sr ? 'on' : '') + '" onclick="toggleAiOverlay(\'sr\')">S/R</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.fib ? 'on' : '') + '" onclick="toggleAiOverlay(\'fib\')">FIB</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.pattern ? 'on' : '') + '" onclick="toggleAiOverlay(\'pattern\')">PATTERN</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.structure ? 'on' : '') + '" onclick="toggleAiOverlay(\'structure\')">STRUCTURE</button>'
-        + '<button class="btn btn-ghost btn-xs" style="border-color:#38BDF8;color:#38BDF8" onclick="openAiExplainModal(\'' + ticker + '\')">'
+        + '<button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="openAiExplainModal(\'' + ticker + '\')">'
           + '<i class="ti ti-message-dots"></i> Explain Chart'
         + '</button>'
-        + '<button class="btn btn-ghost btn-xs" style="border-color:#8B5CF6;color:#8B5CF6" onclick="techToggleChartMode(\'tv\')">'
+        + '<button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')">'
           + '<i class="ti ti-external-link"></i> TV Pro'
         + '</button>'
       + '</div>'
@@ -897,7 +897,7 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
           {
             label: 'Close Price',
             data: closePrices,
-            borderColor: '#8B5CF6',
+            borderColor: '#0000FF',
             borderWidth: 2,
             backgroundColor: grad,
             fill: true,
@@ -947,9 +947,9 @@ function toggleAiOverlay(key) {
       if (onclickAttr.includes("'" + key + "'") || onclickAttr.includes('"' + key + '"')) {
         if (AI_CHART_STATE.overlays[key]) {
           b.classList.add('on');
-          b.style.background = 'rgba(139, 92, 246, 0.25)';
-          b.style.borderColor = '#8B5CF6';
-          b.style.color = '#C4B5FD';
+          b.style.background = 'rgba(0, 0, 255, 0.25)';
+          b.style.borderColor = 'var(--accent)';
+          b.style.color = 'var(--accent)';
         } else {
           b.classList.remove('on');
           b.style.background = 'transparent';
@@ -994,8 +994,8 @@ function openAiExplainModal(ticker) {
   mTitle.innerHTML = '🧠 AI Chart Explanation — ' + ticker;
   mBody.innerHTML = ''
     + '<div class="space-y-4" style="font-size:13px;line-height:1.6;color:var(--text)">'
-      + '<div style="background:var(--bg3);border-left:4px solid #8B5CF6;padding:12px;border-radius:0 8px 8px 0">'
-        + '<strong style="color:#8B5CF6">WHAT I SEE (RINGKASAN DIAGNOSIS TERTENTU):</strong>'
+      + '<div style="background:var(--bg3);border-left:4px solid var(--accent);padding:12px;border-radius:0 8px 8px 0">'
+        + '<strong style="color:var(--accent)">WHAT I SEE (RINGKASAN DIAGNOSIS TERTENTU):</strong>'
         + '<ul style="margin-top:6px;padding-left:18px;list-style-type:disc">'
           + '<li><strong>Struktur Pasar:</strong> ' + struct.structure + ' (Kekuatan Tren: ' + struct.strength + '%)</li>'
           + '<li><strong>Level Kunci Fibonacci:</strong> Area Emas Fib 0.618 berada di Rp ' + fmtK(fib.levels.f618) + '</li>'

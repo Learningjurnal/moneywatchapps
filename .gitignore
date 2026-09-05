@@ -31,3 +31,6 @@ _test_import.xlsx
 data/user-stores/*.json
 !data/user-stores/.gitkeep
 
+# Local-only AI agent tooling (Claude Code skills, not part of the app)
+.claude/
+
