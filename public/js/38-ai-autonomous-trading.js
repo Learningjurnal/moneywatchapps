@@ -381,422 +381,163 @@
   var AI_UNIVERSE = [];
 
   // ══════════════════════════════════════════════════════════
-  // 2. COMPREHENSIVE QUANTITATIVE UNIVERSE DATASET & FULL UNIVERSE LOADER
+  // 2. REAL COMPOSITE SIGNAL ENGINE (server-computed from live price +
+  //    technical indicators + fundamentals — see /api/idx/ai-scan and
+  //    lib/idx-data-engine.js#computeStockSignal).
+  //
+  //    Previously this scored every non-seed ticker from
+  //    `ticker.charCodeAt(0)` (a fake hash with zero relation to actual
+  //    price action) and shipped ~8 tickers of hand-written "evidence" /
+  //    "thesis" narrative text as if it were live analysis. Replaced
+  //    entirely — nothing below is fabricated; fields that can't be
+  //    computed from real data are labeled as such instead of guessed.
   // ══════════════════════════════════════════════════════════
-  function syncAiUniverseWithRealPrices() {
-    if (!Array.isArray(AI_UNIVERSE)) return;
-    AI_UNIVERSE.forEach(function(item) {
-      if (!item || !item.ticker) return;
-      var px = 0;
-      if (typeof getGlobalMarketPrice === 'function') {
-        px = getGlobalMarketPrice(item.ticker);
-      }
-      if (!px && typeof prices !== 'undefined' && prices[item.ticker]) {
-        px = Number(prices[item.ticker]);
-      }
-      if (px > 0) {
-        item.price = px;
-        if (item.signal && !item.signal.includes('AVOID') && !item.signal.includes('EXIT')) {
-          item.entry = px;
-          item.sl = Math.round(px * 0.95);
-          item.tp1 = Math.round(px * 1.05);
-          item.tp2 = Math.round(px * 1.10);
-        }
-      }
-    });
+  var AI_SCAN_LOADING = false;
+  var AI_SCAN_LOADED_AT = null;
+  var AI_SCAN_ERROR = null;
+  var AI_DEEP_PENDING = {}; // tickers currently being fetched for Deep Analysis
+
+  function _lookupTickerMeta(tk) {
+    var name = tk + ' Tbk';
+    var sector = 'IDX Equities';
+    if (typeof DB !== 'undefined' && DB[tk]) {
+      if (DB[tk].name) name = DB[tk].name;
+      if (DB[tk].sector) sector = DB[tk].sector;
+    } else if (typeof FS_UNIV !== 'undefined' && Array.isArray(FS_UNIV)) {
+      var f = FS_UNIV.find(function(u) { return u.t === tk; });
+      if (f) { if (f.n) name = f.n; if (f.s) sector = f.s; }
+    }
+    return { name: name, sector: sector };
+  }
+
+  // Adapts a real /api/idx/ai-scan (or /api/idx/ai-signal) result into the
+  // shape the Cockpit/Scanner/Deep Analysis renderers expect, deriving
+  // presentational fields (strategy label, thesis sentence, evidence
+  // bullets) directly from the real computed numbers.
+  function _adaptRealSignal(sig) {
+    var meta = _lookupTickerMeta(sig.ticker);
+    var hasFund = sig.dataQuality && sig.dataQuality.fundamental;
+
+    var stratLabel = sig.trend === 'UPTREND' ? 'Trend Following (Uptrend)'
+      : sig.trend === 'DOWNTREND' ? 'Downtrend — Avoid/Wait'
+      : 'Range / Sideways Consolidation';
+
+    var evidence = [];
+    if (sig.trend === 'UPTREND') {
+      evidence.push('Harga berada di atas EMA20 (Rp ' + Number(sig.ema20).toLocaleString('id-ID') + ')' + (sig.ema50 ? ' dan EMA50 (Rp ' + Number(sig.ema50).toLocaleString('id-ID') + ')' : '') + ' — struktur tren naik.');
+    } else if (sig.trend === 'DOWNTREND') {
+      evidence.push('Harga berada di bawah EMA20' + (sig.ema50 ? '/EMA50' : '') + ' — struktur tren masih menurun.');
+    } else {
+      evidence.push('Harga bergerak di sekitar EMA20 (Rp ' + Number(sig.ema20).toLocaleString('id-ID') + ') tanpa arah tren yang jelas.');
+    }
+    if (sig.rsi14 != null) {
+      evidence.push('RSI-14 tercatat ' + sig.rsi14 + (sig.rsi14 >= 40 && sig.rsi14 <= 65 ? ' — momentum sehat, belum jenuh beli.' : sig.rsi14 < 30 ? ' — area oversold, potensi rebound teknikal.' : ' — mendekati/di area overbought, waspadai koreksi.'));
+    }
+    if (sig.volRatio != null) {
+      evidence.push('Volume hari ini ' + sig.volRatio + 'x rata-rata 20 hari' + (sig.volRatio >= 1.5 ? ' — konfirmasi partisipasi tinggi.' : sig.volRatio < 1 ? ' — partisipasi di bawah rata-rata, sinyal masih lemah.' : ' — partisipasi normal.'));
+    }
+    if (hasFund) {
+      evidence.push('Skor fundamental riil (ROE/PER/DER dari Yahoo Finance) ' + sig.fundamentalScore + '/100.');
+    }
+    if (!evidence.length) evidence.push('Data teknikal/fundamental untuk emiten ini masih terbatas.');
+
+    var against = [];
+    if (sig.rsi14 != null && sig.rsi14 >= 70) against.push('RSI-14 sudah di atas 70 (' + sig.rsi14 + ') — risiko koreksi jangka pendek meningkat.');
+    if (sig.trend === 'DOWNTREND') against.push('Struktur tren masih menurun (harga di bawah EMA20' + (sig.ema50 ? '/EMA50' : '') + ').');
+    if (sig.volRatio != null && sig.volRatio < 0.8) against.push('Volume di bawah rata-rata (' + sig.volRatio + 'x) — minat pasar belum kuat.');
+    if (!hasFund) against.push('Yahoo Finance belum punya data fundamental terverifikasi untuk emiten ini — skor fundamental memakai nilai netral (50/100), bukan hasil hitung riil.');
+
+    return {
+      ticker: sig.ticker,
+      name: meta.name,
+      sector: meta.sector,
+      price: sig.price,
+      chg: sig.changePercent || 0,
+      volume: sig.volume || 0,
+      volRatio: sig.volRatio,
+      signal: sig.signal,
+      strategy: stratLabel,
+      compositeScore: sig.compositeScore,
+      probability: sig.probability,
+      confidence: hasFund ? 75 : 55,
+      ev: (sig.evPerShare >= 0 ? '+' : '') + 'Rp ' + Number(sig.evPerShare).toLocaleString('id-ID') + ' / lembar',
+      entry: sig.entry,
+      sl: sig.sl,
+      tp1: sig.tp1,
+      tp2: sig.tp2,
+      rrRatio: sig.rrRatio != null ? ('1 : ' + sig.rrRatio) : 'N/A',
+      holdingPeriod: 'Indikatif — belum divalidasi backtest riil',
+      invalidation: sig.sl ? ('Penutupan harian di bawah Rp ' + Number(sig.sl).toLocaleString('id-ID')) : 'Tidak berlaku (sinyal AVOID)',
+      catalyst: '-',
+      riskScore: Math.max(0, 100 - (sig.compositeScore || 0)),
+      trendScore: sig.technicalScore,
+      momentumScore: sig.technicalScore,
+      moneyFlowScore: sig.technicalScore,
+      brokerScore: 50,
+      fundamentalScore: sig.fundamentalScore,
+      brokerStatus: 'Belum diintegrasikan ke skor komposit ini — cek halaman Bandarmology & Smart Money untuk data broker flow terpisah.',
+      thesis: 'Trend teknikal ' + sig.trend + (sig.rsi14 != null ? ', RSI-14 ' + sig.rsi14 : '') + (sig.volRatio != null ? ', volume ' + sig.volRatio + 'x rata-rata 20D' : '') + '. Skor komposit ' + sig.compositeScore + '/100 (teknikal ' + sig.technicalScore + ', fundamental ' + sig.fundamentalScore + (hasFund ? '' : ' — estimasi') + ').',
+      evidence: evidence,
+      against: against,
+      mainRisk: against[0] || 'Risiko pasar umum / sentimen makro.',
+      dataQuality: sig.dataQuality,
+      isRealSignal: true
+    };
+  }
+
+  // Honest disclaimer shown on tabs not yet rebuilt on real data this
+  // round (Strategy Lab win-rates, Backtest Lab metrics, Paper Portfolio
+  // trades, Journal entries) — Scanner & Deep Analysis above are real;
+  // these still show illustrative example content pending a follow-up.
+  function _demoDataBanner() {
+    return '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:var(--text)">'
+      + '⚠ <strong>Contoh Ilustratif, Bukan Data Riil:</strong> Tab ini belum tersambung ke mesin sinyal nyata (lihat tab Scanner &amp; Explainable AI untuk data real-time) — angka di bawah untuk ilustrasi struktur fitur.'
+      + '</div>';
   }
 
   function ensureFullUniverseLoaded() {
-    var existingTickers = {};
-    if (Array.isArray(AI_UNIVERSE)) {
-      AI_UNIVERSE.forEach(function(x) { existingTickers[x.ticker] = true; });
+    if (!AI_UNIVERSE.length && !AI_SCAN_LOADING) {
+      fetchAiScanData();
     }
-    
-    var sourceUniv = (typeof FS_UNIV !== 'undefined' && FS_UNIV.length) ? FS_UNIV : [];
-    if (!sourceUniv.length && typeof XLSX_DATA !== 'undefined' && XLSX_DATA.stocks) {
-      sourceUniv = XLSX_DATA.stocks.map(function(s) { return { t: s.code, n: s.name, s: s.sector || 'IDX Equities', cap: s.cap || 0 }; });
-    }
-
-    sourceUniv.forEach(function(u) {
-      var tk = u.t || u.code;
-      if (!tk || existingTickers[tk]) return;
-      existingTickers[tk] = true;
-      var pr = 0;
-      if (typeof getGlobalMarketPrice === 'function') pr = getGlobalMarketPrice(tk);
-      if (!pr && typeof prices !== 'undefined' && prices[tk]) pr = prices[tk];
-      if (!pr) pr = (u.price || u.base || 5000);
-
-      var sc = 60 + Math.floor((tk.charCodeAt(0) * 17) % 35);
-      var sig = sc >= 85 ? 'STRONG BUY' : sc >= 72 ? 'BUY' : sc >= 58 ? 'HOLD' : 'WATCH';
-      AI_UNIVERSE.push({
-        ticker: tk,
-        name: u.n || u.name || tk + ' Tbk',
-        sector: u.s || u.sector || 'IDX Equities',
-        price: pr,
-        chg: ((tk.charCodeAt(0) % 5) - 2) * 0.65,
-        volume: 15000000 + (tk.charCodeAt(0) * 100000),
-        volRatio: 1.2 + ((tk.charCodeAt(0) % 10) * 0.05),
-        signal: sig,
-        strategy: 'Quantitative Multi-Factor Alpha',
-        compositeScore: sc,
-        probability: 60 + Math.floor(sc * 0.15),
-        confidence: 65 + Math.floor(sc * 0.15),
-        ev: '+Rp ' + (sc * 30000).toLocaleString('id-ID'),
-        entry: pr,
-        sl: Math.round(pr * 0.95),
-        tp1: Math.round(pr * 1.05),
-        tp2: Math.round(pr * 1.10),
-        rrRatio: '1 : 2.0',
-        holdingPeriod: '5 - 15 Hari',
-        invalidation: 'Penutupan harian di bawah support terdekat',
-        catalyst: 'Peluang akumulasi institusi dan pergerakan tren harga positif',
-        riskScore: 30,
-        trendScore: sc,
-        momentumScore: sc - 4,
-        moneyFlowScore: sc,
-        brokerScore: sc - 2,
-        fundamentalScore: sc - 3,
-        brokerStatus: 'AKUMULASI AKTIF (Top 3 Broker terpantau masuk)',
-        thesis: 'Analisis universe penuh mendeteksi sinyal teknikal dan bandarmologi yang menjanjikan potensi kenaikan harga.',
-        evidence: [
-          'Volume transaksi mencerminkan likuiditas memadai untuk entry.',
-          'Indikator momentum menunjukkan ruang ekspansi harga.',
-          'Aliran dana bandar dan institusi terpantau mendukung tren.'
-        ],
-        against: ['Volatilitas pasar dapat mempengaruhi fluktuasi jangka pendek.'],
-        mainRisk: 'Sentimen makroekonomi.'
-      });
-    });
-
-    syncAiUniverseWithRealPrices();
   }
 
-  AI_UNIVERSE = [
-    {
-      ticker: 'BBCA',
-      name: 'Bank Central Asia Tbk',
-      sector: 'Financials',
-      price: 6800,
-      chg: 5.02,
-      volume: 48200000,
-      volRatio: 1.45,
-      signal: 'BUY',
-      strategy: 'Trend Pullback',
-      compositeScore: 91,
-      probability: 74,
-      confidence: 84,
-      ev: '+Rp 1.850.000',
-      entry: 6800,
-      sl: 6475,
-      tp1: 7100,
-      tp2: 7400,
-      rrRatio: '1 : 2.0',
-      holdingPeriod: '5 - 12 Hari',
-      invalidation: 'Penutupan harian di bawah support struktural Rp 6.450',
-      catalyst: 'Pertumbuhan kredit solid + Net buy asing Rp 180 M hari ini',
-      riskScore: 24, // Low risk
-      trendScore: 94,
-      momentumScore: 82,
-      moneyFlowScore: 89,
-      brokerScore: 88,
-      fundamentalScore: 95,
-      brokerStatus: 'AKUMULASI BESAR (Top 3: CC, ZP, AK menguasai 68%)',
-      thesis: 'Tren mingguan & harian bullish penuh (EMA 20>50>200). Mengalami pullback sehat ke area support dengan volume kontraksi sebelum rebound kembali.',
-      evidence: [
-        'Tren harga berada di atas seluruh rangkaian EMA 20, 50, 100, dan 200.',
-        'Net Buy Asing tercatat positif selama 4 hari bursa berturut-turut.',
-        'Chaikin Money Flow (CMF-20) tercatat +0.22 (indikasi aliran dana institusi masif).',
-        'Stochastic Oscillator membentuk Golden Cross di zona 45% (rebound momentum).',
-        'Top 3 Broker (CC, ZP, AK) menguasai 68% dari total akumulasi beli bersih.',
-        'Valuasi fundamental ROE 22.4% dengan NPL stabil di bawah 1.8%.'
-      ],
-      against: [
-        'RSI harian sudah mencapai 64 (mendekati area overbought jangka pendek).',
-        'Sentimen suku bunga The Fed / BI Rate dapat memicu volatilitas sektor perbankan.'
-      ],
-      mainRisk: 'Koreksi serentak indeks global / sentimen makro pembalikan pasar.'
-    },
-    {
-      ticker: 'BMRI',
-      name: 'Bank Mandiri (Persero) Tbk',
-      sector: 'Financials',
-      price: 4460,
-      chg: 5.44,
-      volume: 62400000,
-      volRatio: 2.15,
-      signal: 'STRONG BUY',
-      strategy: 'Volume Accumulation Breakout',
-      compositeScore: 89,
-      probability: 76,
-      confidence: 88,
-      ev: '+Rp 2.100.000',
-      entry: 4460,
-      sl: 4250,
-      tp1: 4700,
-      tp2: 4950,
-      rrRatio: '1 : 2.33',
-      holdingPeriod: '7 - 15 Hari',
-      invalidation: 'Penutupan di bawah level breakdown Rp 4.200',
-      catalyst: 'Laba bersih kuartalan melampaui konsensus analis + ekspansi margin bunga',
-      riskScore: 28,
-      trendScore: 92,
-      momentumScore: 88,
-      moneyFlowScore: 94,
-      brokerScore: 90,
-      fundamentalScore: 92,
-      brokerStatus: 'AKUMULASI SANGAT BESAR (Top Buyer: BK, RX, YU)',
-      thesis: 'Breakout resistance 4.400 dengan lonjakan volume 2.15x lipat dan aliran dana asing terkonsentrasi.',
-      evidence: [
-        'Volume transaksi melesat 215% di atas rata-rata 20 hari saat menembus resistance.',
-        'OBV (On-Balance Volume) menembus rekor tertinggi baru mendahului pergerakan harga.',
-        'Broker BK & RX mencatat akumulasi bersih lebih dari Rp 140 Miliar tanpa perlawanan penjual.',
-        'Market Regime Bullish mendukung kelanjutan tren perbankan BUMN.',
-        'ROE tercatat 20.8% dengan PER 10.4x (di bawah rata-rata historis 5 tahun).'
-      ],
-      against: [
-        'Kenaikan 3 hari terakhir sudah mencapai +5.8%, potensi aksi profit taking kilat.'
-      ],
-      mainRisk: 'False breakout jika pasar besok dibuka gap down akibat rilis data inflasi.'
-    },
-    {
-      ticker: 'TLKM',
-      name: 'Telkom Indonesia Tbk',
-      sector: 'Telecommunication',
-      price: 2610,
-      chg: 0.38,
-      volume: 38500000,
-      volRatio: 1.12,
-      signal: 'BUY',
-      strategy: 'Trend Pullback',
-      compositeScore: 81,
-      probability: 68,
-      confidence: 78,
-      ev: '+Rp 1.250.000',
-      entry: 2610,
-      sl: 2480,
-      tp1: 2760,
-      tp2: 2900,
-      rrRatio: '1 : 2.28',
-      holdingPeriod: '10 - 20 Hari',
-      invalidation: 'Penutupan di bawah support psikologis Rp 2.450',
-      catalyst: 'Monetisasi data center & ekspansi fiber optic B2B',
-      riskScore: 32,
-      trendScore: 78,
-      momentumScore: 76,
-      moneyFlowScore: 80,
-      brokerScore: 78,
-      fundamentalScore: 88,
-      brokerStatus: 'AKUMULASI MODERAT (Top Buyer: CS, BB)',
-      thesis: 'Pemulihan dari fase bottoming, membentuk higher low dengan dukungan dividen yield tinggi (>6%).',
-      evidence: [
-        'Struktur harga berhasil membentuk Higher Low di level 2.550.',
-        'MACD Histogram bergerak di teritori positif dengan pola Bullish Divergence.',
-        'Dividen yield diproyeksikan ~6.2% memberikan safety margin fundamental kuat.',
-        'Valuasi EV/EBITDA berada pada -1 Standar Deviasi historis (sangat murah).'
-      ],
-      against: [
-        'Kompetisi perang tarif data seluler masih membayangi pertumbuhan margin jangka pendek.'
-      ],
-      mainRisk: 'Perlambatan pertumbuhan segmen enterprise/indihome.'
-    },
-    {
-      ticker: 'ASII',
-      name: 'Astra International Tbk',
-      sector: 'Industrial',
-      price: 5000,
-      chg: 4.17,
-      volume: 24100000,
-      volRatio: 1.05,
-      signal: 'BUY',
-      strategy: 'Trend Following Ribbon',
-      compositeScore: 79,
-      probability: 66,
-      confidence: 76,
-      ev: '+Rp 980.000',
-      entry: 5000,
-      sl: 4780,
-      tp1: 5250,
-      tp2: 5500,
-      rrRatio: '1 : 2.27',
-      holdingPeriod: '10 - 25 Hari',
-      invalidation: 'Penutupan di bawah support EMA200 Rp 4.750',
-      catalyst: 'Peningkatan pangsa pasar otomotif & kontribusi dividen anak usaha UNTR',
-      riskScore: 35,
-      trendScore: 82,
-      momentumScore: 74,
-      moneyFlowScore: 75,
-      brokerScore: 76,
-      fundamentalScore: 86,
-      brokerStatus: 'AKUMULASI TERATUR',
-      thesis: 'Tren pembalikan arah jangka menengah didukung neraca kas bersih yang sangat kuat.',
-      evidence: [
-        'Pita EMA 20 dan 50 berhasil membentuk Golden Cross ke atas EMA 100.',
-        'Free Cash Flow yield sangat sehat (>9%) mendukung kelanjutan pembagian dividen besar.',
-        'Foreign Flow mencatat net buy 5 dari 7 sesi terakhir.'
-      ],
-      against: [
-        'Pertumbuhan penjualan mobil nasional masih cenderung moderat.'
-      ],
-      mainRisk: 'Fluktuasi harga komoditas tambang anak usaha.'
-    },
-    {
-      ticker: 'ADRO',
-      name: 'Adaro Energy Indonesia Tbk',
-      sector: 'Energy',
-      price: 2730,
-      chg: -3.87,
-      volume: 45200000,
-      volRatio: 1.85,
-      signal: 'HOLD',
-      strategy: 'Breakout Momentum',
-      compositeScore: 76,
-      probability: 62,
-      confidence: 72,
-      ev: '+Rp 750.000',
-      entry: 2730,
-      sl: 2580,
-      tp1: 2920,
-      tp2: 3100,
-      rrRatio: '1 : 2.18',
-      holdingPeriod: '3 - 8 Hari',
-      invalidation: 'Penutupan di bawah batas trailing stop Rp 2.550',
-      catalyst: 'Kenaikan harga batubara Newcastle ke level $145/ton',
-      riskScore: 42,
-      trendScore: 88,
-      momentumScore: 85,
-      moneyFlowScore: 78,
-      brokerScore: 72,
-      fundamentalScore: 82,
-      brokerStatus: 'DISTRIBUSI RINGAN / PROFIT TAKING LOKAL',
-      thesis: 'Posisi aktif sudah mencapai target profit pertama. Disarankan hold dengan trailing stop ketat.',
-      evidence: [
-        'Harga bergerak kuat dalam channel bullish di atas SuperTrend.',
-        'PER sangat rendah (4.8x) dengan cadangan kas melimpah.'
-      ],
-      against: [
-        'RSI harian sudah mencapai 74 (zona overbought ekstrim).',
-        'Top broker lokal mulai melakukan aksi ambil untung bertahap.'
-      ],
-      mainRisk: 'Koreksi tajam harga energi global.'
-    },
-    {
-      ticker: 'ANTM',
-      name: 'Aneka Tambang Tbk',
-      sector: 'Basic Materials',
-      price: 3130,
-      chg: 0.97,
-      volume: 29800000,
-      volRatio: 0.88,
-      signal: 'WATCH',
-      strategy: 'Volume Accumulation (OBV)',
-      compositeScore: 68,
-      probability: 56,
-      confidence: 65,
-      ev: '+Rp 320.000',
-      entry: 3130,
-      sl: 2980,
-      tp1: 3320,
-      tp2: 3480,
-      rrRatio: '1 : 2.0',
-      holdingPeriod: '7 - 14 Hari',
-      invalidation: 'Penembusan di bawah support kuat Rp 2.950',
-      catalyst: 'Progres proyek ekosistem baterai EV & smelter nikel',
-      riskScore: 48,
-      trendScore: 62,
-      momentumScore: 60,
-      moneyFlowScore: 70,
-      brokerScore: 68,
-      fundamentalScore: 74,
-      brokerStatus: 'NETRAL / WAIT AND SEE',
-      thesis: 'Sedang berkonsolidasi di atas support 3.000. Belum ada konfirmasi volume breakout yang valid.',
-      evidence: [
-        'Support psikologis 3.000 terbukti bertahan kuat pada pengujian 2 minggu lalu.',
-        'Harga komoditas emas stabil di level rekor tertinggi.'
-      ],
-      against: [
-        'Volume transaksi masih di bawah rata-rata 20 hari (kurang tenaga pendorong).',
-        'EMA20 masih berada di bawah EMA50 (struktur tren belum sepenuhnya matang).'
-      ],
-      mainRisk: 'Tekanan harga nikel dunia di bursa LME.'
-    },
-    {
-      ticker: 'GOTO',
-      name: 'GoTo Gojek Tokopedia Tbk',
-      sector: 'Technology',
-      price: 50,
-      chg: 0.00,
-      volume: 185000000,
-      volRatio: 0.72,
-      signal: 'AVOID / EXIT RISK',
-      strategy: 'NO TRADE (BEARISH STRUCTURE)',
-      compositeScore: 36,
-      probability: 32,
-      confidence: 78,
-      ev: '-Rp 650.000 (NEGATIVE EV)',
-      entry: 0,
-      sl: 0,
-      tp1: 0,
-      tp2: 0,
-      rrRatio: '0 : 0',
-      holdingPeriod: 'N/A',
-      invalidation: 'Struktur downtrend berkelanjutan di bawah seluruh EMA',
-      catalyst: 'Tekanan jual institusi dan likuiditas retail tinggi',
-      riskScore: 84, // High risk
-      trendScore: 28,
-      momentumScore: 35,
-      moneyFlowScore: 32,
-      brokerScore: 30,
-      fundamentalScore: 45,
-      brokerStatus: 'DISTRIBUSI KONSISTEN (Tekanan Jual Asing)',
-      thesis: 'Struktur harga berada dalam pola bearish lower highs dan lower lows. Expected Value negatif, risiko penurunan lanjutan tinggi.',
-      evidence: [
-        'Harga tertahan di bawah EMA 20, 50, dan 200 secara persisten.',
-        'Chaikin Money Flow mencatat -0.18 (indikasi distribusi modal keluar).',
-        'Top 5 broker mencatat akumulasi jual bersih (net distribution) dalam 10 hari terakhir.'
-      ],
-      against: [
-        'Valuasi Price-to-Sales berada di titik terendah historis.'
-      ],
-      mainRisk: 'Risiko likuiditas dan breakdown harga ke bawah level psikologis Rp 50.'
-    },
-    {
-      ticker: 'BUMI',
-      name: 'Bumi Resources Tbk',
-      sector: 'Energy',
-      price: 208,
-      chg: 8.33,
-      volume: 210000000,
-      volRatio: 1.10,
-      signal: 'AVOID / EXIT RISK',
-      strategy: 'NO TRADE (HIGH VOLATILITY)',
-      compositeScore: 38,
-      probability: 35,
-      confidence: 74,
-      ev: '-Rp 520.000 (NEGATIVE EV)',
-      entry: 0,
-      sl: 0,
-      tp1: 0,
-      tp2: 0,
-      rrRatio: '0 : 0',
-      holdingPeriod: 'N/A',
-      invalidation: 'Pembalikan arah tren di bawah batas SuperTrend',
-      catalyst: 'Volatilitas tinggi tanpa dukungan fundamental solid',
-      riskScore: 88,
-      trendScore: 34,
-      momentumScore: 42,
-      moneyFlowScore: 36,
-      brokerScore: 32,
-      fundamentalScore: 40,
-      brokerStatus: 'DISTRIBUSI DISTRIBUSI INTENSIF',
-      thesis: 'Volatilitas ekstrim dengan rasio Risk/Reward tidak menguntungkan bagi posisi swing trading terukur.',
-      evidence: [
-        'Spread bid/offer lebar dengan volatilitas intraday > 5%.',
-        'Expected Value negatif setelah memperhitungkan slippage dan potensi false breakout.'
-      ],
-      against: [],
-      mainRisk: 'Perubahan harga acuan energi dan perputaran spekulatif kilat.'
+  async function fetchAiScanData(tickersOverride) {
+    if (AI_SCAN_LOADING) return;
+    AI_SCAN_LOADING = true;
+    AI_SCAN_ERROR = null;
+    if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+    try {
+      var url = '/api/idx/ai-scan';
+      if (tickersOverride && tickersOverride.length) {
+        url += '?tickers=' + encodeURIComponent(tickersOverride.join(','));
+      }
+      var resp = await fetch(url);
+      var json = await resp.json();
+      if (!json.success || !Array.isArray(json.signals)) throw new Error('Scan gagal dijalankan');
+
+      var adapted = json.signals
+        .filter(function(s) { return s && !s.error && s.compositeScore != null; })
+        .map(_adaptRealSignal);
+
+      if (tickersOverride && tickersOverride.length) {
+        // Merge a targeted single/multi-ticker fetch into the existing
+        // scanned universe rather than replacing the whole set.
+        adapted.forEach(function(item) {
+          var idx = AI_UNIVERSE.findIndex(function(x) { return x.ticker === item.ticker; });
+          if (idx >= 0) AI_UNIVERSE[idx] = item; else AI_UNIVERSE.push(item);
+        });
+      } else {
+        AI_UNIVERSE = adapted;
+        window.AI_UNIVERSE = AI_UNIVERSE;
+      }
+      AI_SCAN_LOADED_AT = new Date();
+    } catch (err) {
+      AI_SCAN_ERROR = (err && err.message) || 'Gagal memuat data scan real-time';
+    } finally {
+      AI_SCAN_LOADING = false;
+      if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
     }
-  ];
+  }
 
   // ══════════════════════════════════════════════════════════
   // 3. UI RENDERING ENGINE & MODULAR COCKPIT
@@ -894,7 +635,6 @@
 
     Promise.all(promises).then(function() {
       syncAiPaperPortfolioLivePrices(false);
-      syncAiUniverseWithRealPrices();
 
       if (AI_TRADE_STATE.activeTab === 'paper' || AI_TRADE_STATE.activeTab === 'cockpit') {
         renderAiTradingPage();
@@ -912,28 +652,18 @@
     });
   }
 
+  // Was: load a localStorage snapshot up to 24h old, or rebuild + persist
+  // one. Removed — the server already caches quotes (30s) and history
+  // (15min-1h), so a client-side day-long cache only risked serving a
+  // stale/incompatible shape (e.g. from before this file's real-data
+  // rewrite) instead of a fresh scan. Real-time freshness matters more
+  // than saving a handful of requests for a trading tool.
   function checkAndRefreshDailyUniverseCache() {
     try {
-      var cachedDate = localStorage.getItem('mw_univ_cache_date_v2');
-      var todayStr = new Date().toISOString().slice(0, 10);
-      var cachedData = localStorage.getItem('mw_univ_cache_v2');
-      
-      if (cachedDate === todayStr && cachedData) {
-        var parsed = JSON.parse(cachedData);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          AI_UNIVERSE = parsed;
-          syncAiUniverseWithRealPrices();
-          return;
-        }
-      }
-      
-      ensureFullUniverseLoaded();
-      syncAiUniverseWithRealPrices();
-      localStorage.setItem('mw_univ_cache_v2', JSON.stringify(AI_UNIVERSE));
-      localStorage.setItem('mw_univ_cache_date_v2', todayStr);
-    } catch(e) {
-      console.warn('Daily universe cache error:', e);
-    }
+      localStorage.removeItem('mw_univ_cache_v2');
+      localStorage.removeItem('mw_univ_cache_date_v2');
+    } catch (e) {}
+    ensureFullUniverseLoaded();
   }
 
   function initAiAutonomousSuite() {
@@ -1031,9 +761,18 @@
     var p = state.paperAccount;
     var r = state.marketRegime;
 
-    var bestOpp = AI_UNIVERSE.find(function(x) { return x.ticker === 'BBCA'; }) || AI_UNIVERSE[0];
-    var topBull = AI_UNIVERSE.filter(function(x) { return x.signal.includes('BUY'); }).slice(0, 10);
-    var topBear = AI_UNIVERSE.filter(function(x) { return x.signal.includes('AVOID') || x.signal.includes('SELL'); }).slice(0, 5);
+    if (!AI_UNIVERSE.length) {
+      return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+        + (AI_SCAN_ERROR
+            ? '⚠ ' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()">Coba Lagi</button>'
+            : '⏳ Memindai LQ45 dengan data harga &amp; fundamental real-time Yahoo Finance...')
+        + '</div>';
+    }
+
+    var sorted = AI_UNIVERSE.slice().sort(function(a, b) { return b.compositeScore - a.compositeScore; });
+    var bestOpp = sorted[0];
+    var topBull = AI_UNIVERSE.filter(function(x) { return x.signal.includes('BUY'); }).sort(function(a, b) { return b.compositeScore - a.compositeScore; }).slice(0, 10);
+    var topBear = AI_UNIVERSE.filter(function(x) { return x.signal.includes('AVOID') || x.signal.includes('SELL'); }).sort(function(a, b) { return a.compositeScore - b.compositeScore; }).slice(0, 5);
 
     var eqClass = p.totalReturnPct >= 0 ? 'up' : 'down';
     var eqSign = p.totalReturnPct >= 0 ? '+' : '';
@@ -1052,9 +791,9 @@
       + '    <div class="msub neu">Foreign Flow: ' + r.foreignFlowToday + '</div>'
       + '  </div>'
       + '  <div class="metric">'
-      + '    <div class="mlabel">Best Active Strategy</div>'
-      + '    <div class="mval" style="color:var(--accent);font-size:18px">Strategy C: Trend Pullback</div>'
-      + '    <div class="msub neu">Win Rate 68.4% · Profit Factor 1.82 · Sharpe 1.88</div>'
+      + '    <div class="mlabel">Sinyal Terkuat Saat Ini</div>'
+      + '    <div class="mval" style="color:var(--accent);font-size:18px">' + bestOpp.strategy + '</div>'
+      + '    <div class="msub neu">' + bestOpp.ticker + ' · Skor ' + bestOpp.compositeScore + '/100 <span style="opacity:.7">(win-rate historis belum divalidasi backtest)</span></div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">AI Paper Portfolio Equity</div>'
@@ -1173,6 +912,15 @@
   // ══════════════════════════════════════════════════════════
   function renderAiScanner(state) {
     ensureFullUniverseLoaded();
+
+    if (!AI_UNIVERSE.length) {
+      return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+        + (AI_SCAN_ERROR
+            ? '⚠ ' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()">Coba Lagi</button>'
+            : '⏳ Memindai LQ45 dengan data harga, indikator teknikal &amp; fundamental real-time Yahoo Finance...')
+        + '</div>';
+    }
+
     var list = AI_UNIVERSE;
 
     if (state.filterSignal !== 'all') {
@@ -1199,9 +947,10 @@
       + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
       + '        <i class="ti ti-scan" style="color:#38bdf8"></i> Multi-Layer Quantitative Stock Scanner'
       + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">Pemindaian menyeluruh berdasarkan Expected Value, Probabilitas Historis, Bandarmologi &amp; Keselarasan Regime.</div>'
+      + '      <div style="font-size:12px;color:var(--text3)">Skor teknikal (EMA/RSI/Volume) + fundamental riil (ROE/PER/DER) untuk 45 saham LQ45. Belum mencakup data bandarmologi/broker flow.</div>'
       + '    </div>'
-      + '    <div style="display:flex;gap:6px;flex-wrap:wrap">'
+      + '    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
+      + '      <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()" title="Pindai ulang dengan harga terbaru">' + (AI_SCAN_LOADING ? '⏳ Memindai...' : '🔄 Scan Ulang') + '</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'all' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'all\')">Semua Sinyal (' + AI_UNIVERSE.length + ')</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'BUY' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'BUY\')">🟢 Buy / Accumulation</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'HOLD' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'HOLD\')">🟡 Hold / Trailing</button>'
@@ -1272,49 +1021,20 @@
     ensureFullUniverseLoaded();
     var tk = state.selectedTicker || 'BBCA';
     var data = AI_UNIVERSE.find(function(x) { return x.ticker === tk; });
-    var livePx = 0;
-    if (typeof getGlobalMarketPrice === 'function') livePx = getGlobalMarketPrice(tk);
-    if (!livePx && typeof prices !== 'undefined' && prices[tk]) livePx = Number(prices[tk]);
 
     if (!data) {
-      var initialPx = livePx > 0 ? livePx : 5000;
-      data = {
-        ticker: tk,
-        name: tk + ' Tbk',
-        sector: 'IDX Equities',
-        price: initialPx,
-        chg: 1.25,
-        volume: 20000000,
-        volRatio: 1.3,
-        signal: 'BUY',
-        strategy: 'Quantitative Multi-Factor Alpha',
-        compositeScore: 82,
-        probability: 72,
-        confidence: 78,
-        ev: '+Rp 1.500.000',
-        entry: initialPx,
-        sl: Math.round(initialPx * 0.95),
-        tp1: Math.round(initialPx * 1.05),
-        tp2: Math.round(initialPx * 1.10),
-        rrRatio: '1 : 2.0',
-        holdingPeriod: '5 - 15 Hari',
-        invalidation: 'Penutupan di bawah support harian',
-        catalyst: 'Aktivitas akumulasi institusi',
-        riskScore: 28,
-        trendScore: 82,
-        momentumScore: 80,
-        moneyFlowScore: 81,
-        brokerScore: 80,
-        fundamentalScore: 82,
-        brokerStatus: 'AKUMULASI POSITIF',
-        thesis: 'Analisis mendalam mendeteksi potensi penguatan berbasis kuantitatif.',
-        evidence: ['Volume transaksi stabil', 'Indikator momentum positif'],
-        against: ['Waspadai volatilitas jangka pendek'],
-        mainRisk: 'Risiko pasar umum'
-      };
-      AI_UNIVERSE.push(data);
-    } else if (livePx > 0) {
-      data.price = livePx;
+      // Ticker not in the scanned universe yet (typed manually, or outside
+      // LQ45) — fetch its real signal instead of fabricating placeholder
+      // numbers, then re-render once it resolves.
+      if (!AI_DEEP_PENDING[tk] && !AI_SCAN_LOADING) {
+        AI_DEEP_PENDING[tk] = true;
+        fetchAiScanData([tk]).then(function() { delete AI_DEEP_PENDING[tk]; });
+      }
+      return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+        + (AI_SCAN_ERROR
+            ? '⚠ ' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="aiLoadTicker()">Coba Lagi</button>'
+            : '⏳ Menghitung sinyal riil untuk <strong>' + tk + '</strong> (harga, EMA, RSI, fundamental)...')
+        + '</div>';
     }
 
     var badgeCls = data.signal.includes('BUY') ? 'b-up' : data.signal.includes('HOLD') ? 'b-amb' : data.signal.includes('WATCH') ? 'b-accent' : 'b-dn';
@@ -1336,7 +1056,7 @@
       + '    </div>'
       + '  </div>'
       + '  <div>'
-      + '    <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">DATA TIMESTAMP: <strong>30 AUG 2026 16:15 WIB (QUALITY SCORE 94/100)</strong></span>'
+      + '    <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">SCAN TERAKHIR: <strong>' + (AI_SCAN_LOADED_AT ? AI_SCAN_LOADED_AT.toLocaleString('id-ID') : '-') + ' WIB</strong> · Fundamental: <strong style="color:' + (data.dataQuality && data.dataQuality.fundamental ? 'var(--green)' : 'var(--amber)') + '">' + (data.dataQuality && data.dataQuality.fundamental ? 'REAL' : 'ESTIMASI') + '</strong></span>'
       + '  </div>'
       + '</div>'
 
@@ -1468,7 +1188,7 @@
   function renderAiStrategyLab(state) {
     var strats = state.strategies;
 
-    var html = ''
+    var html = _demoDataBanner()
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
@@ -1523,7 +1243,7 @@
   function renderAiHypothesisLab(state) {
     var hypos = state.hypotheses;
 
-    var html = ''
+    var html = _demoDataBanner()
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
@@ -1578,7 +1298,7 @@
     var returnClass = p.totalReturnPct >= 0 ? 'up' : 'down';
     var returnSign = p.totalReturnPct >= 0 ? '+' : '';
 
-    var html = ''
+    var html = _demoDataBanner()
       + '<div class="row4" style="margin-bottom:18px">'
       + '  <div class="metric">'
       + '    <div class="mlabel">Modal Awal Virtual</div>'
@@ -1659,7 +1379,7 @@
   function renderAiJournal(state) {
     var trades = state.paperAccount.closedTrades;
 
-    var html = ''
+    var html = _demoDataBanner()
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
@@ -1822,7 +1542,7 @@
   // 12. SUB-PAGE RENDERING: REALISTIC BACKTEST LAB
   // ══════════════════════════════════════════════════════════
   function renderAiBacktestLab(state) {
-    var html = ''
+    var html = _demoDataBanner()
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">'
       + '    <div>'
@@ -1919,12 +1639,12 @@
       { num: 10, q: 'Apakah bobot faktor komposit perlu dikalibrasi ulang?', ans: 'Bobot Broker Flow dinaikkan dari 15% ke 18% setelah konfirmasi akumulasi BBCA & BMRI.' }
     ];
 
-    var html = ''
+    var html = _demoDataBanner()
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
       + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-checklist" style="color:var(--green)"></i> 10-Point Post-Mortem Self-Critique &amp; Learning Engine'
+      + '        10-Point Post-Mortem Self-Critique &amp; Learning Engine'
       + '      </div>'
       + '      <div style="font-size:12px;color:var(--text3)">Audit diagnostik berkala yang dijalankan AI setelah setiap siklus trading untuk mendeteksi deviasi dan menyempurnakan bobot scoring.</div>'
       + '    </div>'
@@ -2054,12 +1774,15 @@
   }
 
   function aiTriggerAutonomousCycle() {
-    syncAiUniverseWithRealPrices();
     syncAiPaperPortfolioLivePrices(false);
     if (typeof showToast === 'function') {
-      showToast('⚡ Siklus Riset AI Selesai: Universe disinkronkan dengan feed pasar real-time & probabilitas dikalibrasi.');
+      showToast('⚡ Menjalankan pemindaian ulang LQ45 dengan harga & indikator terbaru...');
     }
-    renderAiTradingPage();
+    fetchAiScanData().then(function() {
+      if (typeof showToast === 'function') {
+        showToast('✓ Scan selesai — ' + AI_UNIVERSE.length + ' emiten diperbarui dari data real-time.');
+      }
+    });
   }
 
   function aiFormulateNewHypothesis() {
@@ -2083,6 +1806,6 @@
   window.aiFormulateNewHypothesis = aiFormulateNewHypothesis;
   window.syncAiPaperPortfolioLivePrices = syncAiPaperPortfolioLivePrices;
   window.aiRefreshPaperPortfolioQuotes = aiRefreshPaperPortfolioQuotes;
-  window.syncAiUniverseWithRealPrices = syncAiUniverseWithRealPrices;
+  window.fetchAiScanData = fetchAiScanData;
 
 })(window, document);
