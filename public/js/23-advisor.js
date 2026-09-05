@@ -326,37 +326,47 @@ function rebRecalculate() {
 
 
 // ══════════════════════════════════════════════════════════
-// 4. ACTIONABLE BUY/SELL SIGNAL MATRIX (TRAFFIC LIGHT)
+// 4. VALUATION-BASED SIGNAL (was "3-Pillar Traffic Light Matrix")
 // ══════════════════════════════════════════════════════════
-function renderTrafficLightMatrix(ticker, mosPct, flowSignal, quantScore) {
+// This used to claim a "3-pillar consensus" (Valuation + FlowScan +
+// Quant Trend & Quality) with a "Skor Konsensus: X/3" badge. In reality:
+//   - FlowScan always read `FS_STOCKS[ticker].signal`, but FS_STOCKS is
+//     never defined anywhere in the app - that lookup was permanently
+//     undefined, so this pillar was hardcoded to "Netral" for every
+//     ticker, forever.
+//   - "Quant Trend & Quality" was never an independent technical/quality
+//     score at all - it was `overallPass ? 82 : (irrPass||mosPass) ? 68 : 42`,
+//     i.e. the SAME valuation pass/fail booleans re-expressed as one of
+//     three fixed numbers. Two different stocks with the same MoS
+//     verdict always got the identical "82/100", regardless of any real
+//     trend or quality difference between them.
+// So the advertised "3 independent pillars" was actually one real signal
+// (valuation) counted three times over. Only the valuation pillar (which
+// is genuinely computed from the 9-step MoS above) is real, so that is
+// the only thing this now scores on; the other two are shown as an
+// honest "Belum Tersedia" rather than removed outright, so a future,
+// real FlowScan/quant-trend integration has an obvious place to land.
+function renderTrafficLightMatrix(ticker, mosPct) {
   var container = document.getElementById('hw-traffic-light-card');
   if (!container) return;
 
   var mosScore = mosPct > 20 ? 1 : mosPct > 0 ? 0 : -1;
-  var flowScore = (flowSignal && flowSignal.includes('AKUMULASI')) ? 1 : (flowSignal && flowSignal.includes('DISTRIBUSI')) ? -1 : 0;
-  var qScore = (quantScore && quantScore >= 65) ? 1 : (quantScore && quantScore <= 45) ? -1 : 0;
-
-  var totalScore = mosScore + flowScore + qScore;
   var overallVerdict = '';
   var verdictColor = '';
   var verdictDesc = '';
 
-  if (totalScore >= 2) {
-    overallVerdict = 'STRONG BUY / ACCUMULATE';
+  if (mosScore > 0) {
+    overallVerdict = 'UNDERVALUED (Valuasi Saja)';
     verdictColor = 'var(--green)';
-    verdictDesc = 'Konsensus 3 Pilar: Valuasi diskon wajar, didukung arus bandar/asing & skor teknikal sehat.';
-  } else if (totalScore === 1) {
-    overallVerdict = 'MODERATE BUY (BUY ON WEAKNESS)';
-    verdictColor = 'var(--accent)';
-    verdictDesc = 'Kondisi menarik, disarankan masuk bertahap pada area support/diskon MoS.';
-  } else if (totalScore === 0) {
-    overallVerdict = 'NEUTRAL / HOLD';
+    verdictDesc = 'Margin of Safety positif dan lebar berdasarkan metodologi MoS (9-step). Belum memperhitungkan arus bandar/asing atau tren teknikal — verifikasi manual sebelum entry.';
+  } else if (mosScore === 0) {
+    overallVerdict = 'FAIR VALUE (Valuasi Saja)';
     verdictColor = 'var(--amber)';
-    verdictDesc = 'Sinyal berimbang antara valuasi dan arus dana. Pantau konfirmasi breakout.';
+    verdictDesc = 'Harga mendekati nilai wajar menurut MoS. Belum memperhitungkan arus bandar/asing atau tren teknikal.';
   } else {
-    overallVerdict = 'AVOID / TAKE PROFIT / SELL';
+    overallVerdict = 'OVERVALUED (Valuasi Saja)';
     verdictColor = 'var(--red)';
-    verdictDesc = 'Saham mengalami overvaluation atau tertekan distribusi dana keluar.';
+    verdictDesc = 'Harga di atas nilai wajar menurut MoS. Belum memperhitungkan arus bandar/asing atau tren teknikal.';
   }
 
   container.style.display = 'block';
@@ -365,12 +375,9 @@ function renderTrafficLightMatrix(ticker, mosPct, flowSignal, quantScore) {
     body.innerHTML = ''
       + '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:6px;padding:12px 14px;margin-bottom:10px">'
       + '  <div>'
-      + '    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">KONSENSUS AKSI ' + ticker + '</div>'
+      + '    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">SINYAL VALUASI ' + ticker + '</div>'
       + '    <div style="font-size:16px;font-weight:800;font-family:var(--font-mono);color:' + verdictColor + ';margin-top:2px">' + overallVerdict + '</div>'
       + '    <div style="font-size:10px;color:var(--text2);margin-top:2px">' + verdictDesc + '</div>'
-      + '  </div>'
-      + '  <div style="text-align:right">'
-      + '    <span class="badge" style="background:var(--bg4);border:1px solid ' + verdictColor + ';color:' + verdictColor + ';font-size:12px;padding:4px 10px">Skor Konsensus: ' + totalScore + ' / 3</span>'
       + '  </div>'
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:10px">'
@@ -379,15 +386,13 @@ function renderTrafficLightMatrix(ticker, mosPct, flowSignal, quantScore) {
       + '    <div style="font-weight:700;margin-top:2px;' + (mosScore > 0 ? 'color:var(--green)' : mosScore < 0 ? 'color:var(--red)' : 'color:var(--amber)') + '">'
       + (mosPct !== null ? (mosPct > 0 ? '+' : '') + mosPct.toFixed(1) + '% MoS' : '—') + '</div>'
       + '  </div>'
-      + '  <div style="background:var(--bg3);padding:8px;border-radius:4px">'
+      + '  <div style="background:var(--bg3);padding:8px;border-radius:4px;opacity:.6">'
       + '    <div style="color:var(--text3)">2. FlowScan (Bandar/Asing)</div>'
-      + '    <div style="font-weight:700;margin-top:2px;' + (flowScore > 0 ? 'color:var(--green)' : flowScore < 0 ? 'color:var(--red)' : 'color:var(--amber)') + '">'
-      + (flowSignal || 'Netral') + '</div>'
+      + '    <div style="font-weight:700;margin-top:2px;color:var(--text3)">Belum Tersedia</div>'
       + '  </div>'
-      + '  <div style="background:var(--bg3);padding:8px;border-radius:4px">'
-      + '    <div style="color:var(--text3)">3. Quant Trend &amp; Quality</div>'
-      + '    <div style="font-weight:700;margin-top:2px;' + (qScore > 0 ? 'color:var(--green)' : qScore < 0 ? 'color:var(--red)' : 'color:var(--amber)') + '">'
-      + (quantScore !== undefined ? quantScore + ' / 100' : '72 / 100') + '</div>'
+      + '  <div style="background:var(--bg3);padding:8px;border-radius:4px;opacity:.6">'
+      + '    <div style="color:var(--text3)">3. Tren &amp; Kualitas Teknikal</div>'
+      + '    <div style="font-weight:700;margin-top:2px;color:var(--text3)">Belum Tersedia</div>'
       + '  </div>'
       + '</div>';
   }
