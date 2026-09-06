@@ -458,7 +458,7 @@ function renderKseiModalBody() {
 // 3. TAB 1: EMITEN SHAREHOLDER & FREE FLOAT ANALYSIS VIEW
 // ══════════════════════════════════════════════════════════════
 
-function renderKseiStockView(container, ticker) {
+function renderKseiStockView(container, ticker, embedded) {
   var stock = getKseiStock(ticker);
   var allTickers = Object.keys(KSEI_STATE.data || {}).sort();
 
@@ -571,7 +571,19 @@ function renderKseiStockView(container, ticker) {
     return `<button class="btn btn-xs ${isSel ? 'btn-primary' : 'btn-ghost'}" onclick="kseiSelectTicker('${qt}')" style="font-size:10px;padding:3px 8px">${qt}</button>`;
   }).join(' ');
 
-  container.innerHTML = `
+  // When embedded inside another page that already has its own ticker
+  // picker (e.g. the Fundamental Suite's top "KODE SAHAM" input, which
+  // already re-renders this widget on every fundFetchData() call — see
+  // fundFetchData()/fundSwitchTab() in 24-stockmaster.js), showing this
+  // view's own dropdown + search box + quick-ticker row again is a pure
+  // duplicate control for the exact same action. Standalone contexts
+  // (the dedicated KSEI Explorer modal) keep the full toolbar since
+  // there is no other ticker selector on screen there.
+  var toolbarHtml = embedded ? `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:6px">
+      <i class="ti ti-link"></i> Ticker mengikuti pilihan "Kode Saham" di atas — gunakan kolom itu untuk mengganti emiten.
+    </div>
+  ` : `
     <!-- TOP TOOLBAR TICKER SELECT -->
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1">
@@ -596,7 +608,10 @@ function renderKseiStockView(container, ticker) {
         </div>
       </div>
     </div>
+  `;
 
+  container.innerHTML = `
+    ${toolbarHtml}
     <!-- MAIN EMITEN OVERVIEW CARD -->
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:18px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:16px">
@@ -959,7 +974,12 @@ function renderKseiSettingsView(container) {
 function renderKseiFundamentalWidget(ticker, targetContainerId) {
   var target = document.getElementById(targetContainerId || 'fund-ksei-container');
   if (!target) return;
-  renderKseiStockView(target, ticker || FUND_DATA.ticker || 'BBCA');
+  // embedded=true: the Fundamental Suite already has its own top-level
+  // "KODE SAHAM" ticker input/button, which already re-renders this widget
+  // on every change (see fundFetchData()/fundSwitchTab() in
+  // 24-stockmaster.js) — so hide this view's own duplicate ticker
+  // dropdown/search/quick-buttons toolbar here.
+  renderKseiStockView(target, ticker || FUND_DATA.ticker || 'BBCA', true);
 }
 
 /**
@@ -1034,7 +1054,7 @@ function kseiRefreshActiveViews() {
   // Refresh fundamental tab if open
   var fundContainer = document.getElementById('fund-ksei-container');
   if (fundContainer) {
-    renderKseiStockView(fundContainer, FUND_DATA.ticker || 'BBCA');
+    renderKseiStockView(fundContainer, FUND_DATA.ticker || 'BBCA', true);
   }
 
   // Refresh intel page if open
