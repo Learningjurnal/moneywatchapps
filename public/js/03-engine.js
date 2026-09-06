@@ -1668,15 +1668,35 @@ function customChartTooltip(context) {
         tooltipEl.innerHTML = innerHtml;
     }
 
+    // #mw-tooltip is position:fixed (see main.css), so coordinates must
+    // stay viewport-relative — no window.pageXOffset/pageYOffset here,
+    // those are for position:absolute-in-document-flow and would push the
+    // tooltip further off-screen on any scrolled page.
     const position = context.chart.canvas.getBoundingClientRect();
-    let left = position.left + window.pageXOffset + tooltipModel.caretX;
-    let top = position.top + window.pageYOffset + tooltipModel.caretY;
-    
-    // basic overflow prevention
-    if (left + 250 > window.innerWidth) left = window.innerWidth - 260;
-    if (top + 100 > window.innerHeight) top = top - 80;
+    let left = position.left + tooltipModel.caretX;
+    let top = position.top + tooltipModel.caretY;
 
+    // Overflow prevention — the old version only nudged top/left by a
+    // fixed guess (top - 80, left = innerWidth - 260) instead of the
+    // tooltip's real measured size, so on a doughnut/pie (where the caret
+    // can sit anywhere around the ring, not just above a bar) the tooltip
+    // regularly ended up rendering fully below or past the viewport edge
+    // — invisible, even though it was technically "showing" (reported by
+    // user: hovering the donut showed nothing). Clamp against the
+    // tooltip's actual rendered width/height.
+    tooltipEl.style.left = '0px';
+    tooltipEl.style.top = '0px';
     tooltipEl.style.opacity = 1;
+    const ttW = tooltipEl.offsetWidth || 220;
+    const ttH = tooltipEl.offsetHeight || 60;
+    const margin = 8;
+    const minLeft = margin;
+    const maxLeft = window.innerWidth - ttW - margin;
+    const minTop = margin;
+    const maxTop = window.innerHeight - ttH - margin;
+    left = Math.min(Math.max(left, minLeft), Math.max(minLeft, maxLeft));
+    top = Math.min(Math.max(top - ttH - 12, minTop), Math.max(minTop, maxTop));
+
     tooltipEl.style.transform = 'translateY(0)';
     tooltipEl.style.left = left + 'px';
     tooltipEl.style.top = top + 'px';
@@ -1686,6 +1706,20 @@ var TT = {
     enabled: false,
     external: customChartTooltip
 };
+
+// Site-wide hover UX fix: by default Chart.js only shows a tooltip when
+// the cursor sits exactly on a drawn pixel (intersect:true) - on a thin
+// doughnut ring or a sparse bar chart this is easy to miss entirely,
+// making every chart look like it has no hover info at all (reported by
+// user - hovering the "Alokasi Portofolio" donut showed nothing because
+// the cursor was a few px off the ring). mode:'nearest'+intersect:false
+// shows the nearest data point's tooltip anywhere inside the chart area,
+// applied globally so every chart in the app benefits without needing to
+// touch each individual chart config.
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.interaction = { mode: 'nearest', intersect: false };
+  Chart.defaults.hover = Object.assign({}, Chart.defaults.hover, { mode: 'nearest', intersect: false });
+}
 
 
 function buildModalPosisiChart(porto){
