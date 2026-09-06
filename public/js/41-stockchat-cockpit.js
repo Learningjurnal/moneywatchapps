@@ -8,6 +8,19 @@
  * 4. Global Floating Modal & Quick Action Drawer
  */
 
+// Shared sector -> ticker groupings for the Bandarmology market-wide views
+// (Market Flow + Heatmap Scanner) — hoisted out of renderBandarmologyMarketFlowView()
+// so both views compute from the same real, simulated-broker-summary-based
+// aggregation instead of the Heatmap Scanner shipping its own separate,
+// fully hardcoded set of sector flow numbers (see renderBandarmologyHeatmapScannerView).
+var BANDAR_SECTOR_DEFS = [
+  { name: 'Financials (Perbankan & Keuangan)', tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BBTN'] },
+  { name: 'Basic Materials (Tambang & Mineral)', tickers: ['ANTM', 'AMMN', 'MDKA', 'INCO', 'BRMS', 'MBMA', 'INKP', 'TKIM'] },
+  { name: 'Energy (Minyak, Gas & Batubara)', tickers: ['ADRO', 'PTRO', 'MEDC', 'PGAS', 'PTBA', 'BUMI', 'DEWA', 'AADI'] },
+  { name: 'Infrastructure (Telko & Infrastruktur)', tickers: ['TLKM', 'BREN', 'TPIA', 'PGEO', 'JSMR', 'EXCL', 'WIFI'] },
+  { name: 'Consumer & Retail (Sektor Konsumer)', tickers: ['UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'CPIN', 'MYOR', 'ACES'] }
+];
+
 var STOCKCHAT_CONVERSATION = [
   {
     role: 'assistant',
@@ -2177,16 +2190,8 @@ function renderBandarmologyMarketFlowView(tk) {
     };
   });
 
-  var sectorDefinitions = [
-    { name: 'Financials (Perbankan & Keuangan)', tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BBTN'] },
-    { name: 'Basic Materials (Tambang & Mineral)', tickers: ['ANTM', 'AMMN', 'MDKA', 'INCO', 'BRMS', 'MBMA', 'INKP', 'TKIM'] },
-    { name: 'Energy (Minyak, Gas & Batubara)', tickers: ['ADRO', 'PTRO', 'MEDC', 'PGAS', 'PTBA', 'BUMI', 'DEWA', 'AADI'] },
-    { name: 'Infrastructure (Telko & Infrastruktur)', tickers: ['TLKM', 'BREN', 'TPIA', 'PGEO', 'JSMR', 'EXCL', 'WIFI'] },
-    { name: 'Consumer & Retail (Sektor Konsumer)', tickers: ['UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'CPIN', 'MYOR', 'ACES'] }
-  ];
-
   var totalMarketFlow = 0;
-  var sectors = sectorDefinitions.map(function(sec) {
+  var sectors = BANDAR_SECTOR_DEFS.map(function(sec) {
     var secNetVal = 0;
     sec.tickers.forEach(function(t) {
       var bd = generateClientSideBrokerSummary(t, '1D');
@@ -2203,14 +2208,33 @@ function renderBandarmologyMarketFlowView(tk) {
       name: sec.name,
       flowVal: (secM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(secM).toLocaleString('id-ID') + ' M',
       pct: pct,
-      isAcc: isAcc
+      isAcc: isAcc,
+      count: sec.tickers.length
     };
   });
 
   var totMarketM = Math.round(totalMarketFlow / 1000000000);
   var totBigBanksM = Math.round(totalBigBanksNetVal / 1000000000);
 
+  // "Foreign Participation 42.8%" and "Smart Money Dominancy 68/100" were
+  // hardcoded literals — always the exact same number regardless of the
+  // (already-simulated) bigBanks/sectors data computed above. Replaced
+  // with a real count of how many of the 9 tracked segments (4 banks + 5
+  // sectors) are actually showing accumulation in this run, so the figure
+  // at least responds to the data next to it instead of never moving.
+  var accCount = bigBanks.filter(function(b) { return b.isAcc; }).length + sectors.filter(function(s) { return s.isAcc; }).length;
+  var totalSegments = bigBanks.length + sectors.length;
+  var dominancyScore = Math.round((accCount / totalSegments) * 100);
+
   var html = '<div style="display:flex;flex-direction:column;gap:16px">'
+    // Broker-transaction volume/value figures throughout this view come
+    // from generateClientSideBrokerSummary(), which is disclosed elsewhere
+    // (StockChat) as simulated (isSimulated:true) since there's no real
+    // broker-transaction feed — this view aggregated that same simulated
+    // data under a "LIVE AGGREGATION" badge with no disclosure at all.
+    + '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px">'
+    + '<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> Agregasi ini dihitung dari simulasi transaksi broker (belum ada feed broker-flow real per-menit) — harga saham tetap real, tapi rincian buyer/seller &amp; nilai transaksi di bawah adalah estimasi.'
+    + '</div>'
     // Top Summary Metric Cards (Matching Opportunity Radar row4/metric)
     + '<div class="row4">'
     + '<div class="metric" style="border-left:3px solid var(--accent)">'
@@ -2221,9 +2245,9 @@ function renderBandarmologyMarketFlowView(tk) {
     + '<div class="msub neu">' + (totMarketM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totMarketM).toLocaleString('id-ID') + ' M Net Flow</div>'
     + '</div>'
     + '<div class="metric" style="border-left:3px solid var(--blue)">'
-    + '<div class="mlabel">FOREIGN PARTICIPATION</div>'
-    + '<div class="mval mono" style="font-size:20px;color:var(--blue)">42.8% <span style="font-size:12px;color:var(--text3)">of Volume</span></div>'
-    + '<div class="msub neu">Institusi Asing Aktif</div>'
+    + '<div class="mlabel">SEGMEN AKUMULASI</div>'
+    + '<div class="mval mono" style="font-size:20px;color:var(--blue)">' + accCount + ' / ' + totalSegments + '</div>'
+    + '<div class="msub neu">Big 4 Bank + Sektor menunjukkan akumulasi</div>'
     + '</div>'
     + '<div class="metric" style="border-left:3px solid var(--green)">'
     + '<div class="mlabel">BIG 4 BANKS INFLOW</div>'
@@ -2232,8 +2256,8 @@ function renderBandarmologyMarketFlowView(tk) {
     + '</div>'
     + '<div class="metric" style="border-left:3px solid var(--amber)">'
     + '<div class="mlabel">SMART MONEY DOMINANCY</div>'
-    + '<div class="mval amb mono" style="font-size:20px">68 / 100</div>'
-    + '<div class="msub neu">Institusional Kontrol Pasar</div>'
+    + '<div class="mval amb mono" style="font-size:20px">' + dominancyScore + ' / 100</div>'
+    + '<div class="msub neu">% segmen (bank+sektor) akumulasi</div>'
     + '</div>'
     + '</div>';
 
@@ -2243,7 +2267,7 @@ function renderBandarmologyMarketFlowView(tk) {
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
     + '<i class="ti ti-building-bank" style="color:var(--green)"></i> ALIRAN DANA BANDAR BIG 4 BANKS (MOTOR IHSG)'
     + '</div>'
-    + '<span class="badge b-neu" style="font-size:9px">LIVE AGGREGATION</span>'
+    + '<span class="badge b-amb" style="font-size:9px">⚠ SIMULASI</span>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">';
 
@@ -3033,27 +3057,60 @@ function mountBandarmologySmartMoneyCharts(tk) {
 
 // 9. Heatmap & Live Scanner View (Smart Money Sector Map & Signal Scanner)
 function renderBandarmologyHeatmapScannerView() {
-  var sectors = [
-    { name: 'Financials (Perbankan)', flowVal: '+Rp 583.9 M', count: 18, isAcc: true, borderCol: 'var(--green)' },
-    { name: 'Basic Materials (Tambang)', flowVal: '+Rp 192.4 M', count: 14, isAcc: true, borderCol: 'var(--green)' },
-    { name: 'Energy (Migas & Batubara)', flowVal: '+Rp 88.7 M', count: 12, isAcc: true, borderCol: 'var(--green)' },
-    { name: 'Infrastructure (Telko, Toll)', flowVal: '-Rp 64.2 M', count: 9, isAcc: false, borderCol: 'var(--red)' },
-    { name: 'Consumer Non-Cyclical', flowVal: '-Rp 115.0 M', count: 11, isAcc: false, borderCol: 'var(--red)' },
-    { name: 'Technology & Digital', flowVal: '-Rp 48.3 M', count: 8, isAcc: false, borderCol: 'var(--red)' },
-    { name: 'Healthcare & Farmasi', flowVal: '+Rp 32.1 M', count: 6, isAcc: true, borderCol: 'var(--green)' },
-    { name: 'Property & Real Estate', flowVal: '+Rp 18.5 M', count: 7, isAcc: true, borderCol: 'var(--green)' }
-  ];
+  // Was two fully hardcoded arrays — every sector flow number and every
+  // scanner row (ticker, PRICE included: BBCA=9800/BBRI=4780/BMRI=6850,
+  // none matching real prices shown anywhere else in the app) was a fixed
+  // literal that never changed. Sectors now reuse the same real
+  // BANDAR_SECTOR_DEFS aggregation as the Market Flow view (so the two
+  // views can't disagree with each other), and the scanner table now
+  // computes real price/change (getAccurateStockPrice/generateClientSideBrokerSummary)
+  // and real CMF-20 (fsGenData/fsCalcCMF, the same real-OHLCV pipeline
+  // FlowScan/Screener use) per ticker instead of inventing every column.
+  var sectorColors = ['var(--green)', 'var(--red)'];
+  var sectors = BANDAR_SECTOR_DEFS.map(function(sec) {
+    var secNetVal = 0;
+    sec.tickers.forEach(function(t) {
+      var bd = generateClientSideBrokerSummary(t, '1D');
+      if (bd && bd.isValidTicker !== false) {
+        secNetVal += (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
+      }
+    });
+    var secM = Math.round(secNetVal / 1000000000);
+    var isAcc = secM >= 0;
+    return {
+      name: sec.name,
+      flowVal: (secM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(secM).toLocaleString('id-ID') + ' M',
+      count: sec.tickers.length,
+      isAcc: isAcc,
+      borderCol: isAcc ? sectorColors[0] : sectorColors[1]
+    };
+  });
 
-  var scannerRows = [
-    { ticker: 'BBCA', sector: 'Financials', price: 9800, chg: '+1.55%', cmf: '+0.28', verdict: 'BIG ACCUMULATION', flowM: '+Rp 284.5 M', signal: 'Whale Accumulation' },
-    { ticker: 'BBRI', sector: 'Financials', price: 4780, chg: '+2.14%', cmf: '+0.22', verdict: 'ACCUMULATION', flowM: '+Rp 195.2 M', signal: 'Smart Money Rebound' },
-    { ticker: 'BMRI', sector: 'Financials', price: 6850, chg: '+0.74%', cmf: '+0.19', verdict: 'NORMAL ACC', flowM: '+Rp 142.8 M', signal: 'Institutional Inflow' },
-    { ticker: 'ANTM', sector: 'Basic Materials', price: 1585, chg: '+3.26%', cmf: '+0.24', verdict: 'BIG ACCUMULATION', flowM: '+Rp 78.4 M', signal: 'Volume Breakout' },
-    { ticker: 'ADRO', sector: 'Energy', price: 3680, chg: '+1.10%', cmf: '+0.16', verdict: 'ACCUMULATION', flowM: '+Rp 54.2 M', signal: 'Silent Accumulation' },
-    { ticker: 'PTRO', sector: 'Energy', price: 17200, chg: '+4.88%', cmf: '+0.26', verdict: 'BIG ACCUMULATION', flowM: '+Rp 46.8 M', signal: 'Momentum Inflow' },
-    { ticker: 'TLKM', sector: 'Infrastructure', price: 3140, chg: '-1.26%', cmf: '-0.14', verdict: 'DISTRIBUTION', flowM: '-Rp 64.2 M', signal: 'Retail Trap Warning' },
-    { ticker: 'GOTO', sector: 'Technology', price: 54, chg: '-1.82%', cmf: '-0.18', verdict: 'BIG DISTRIBUTION', flowM: '-Rp 48.3 M', signal: 'Retail Heavy Selling' }
-  ];
+  var scannerCandidates = ['BBCA', 'BBRI', 'BMRI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'GOTO'];
+  var sectorByTicker = {};
+  BANDAR_SECTOR_DEFS.forEach(function(sec) { sec.tickers.forEach(function(t) { sectorByTicker[t] = sec.name.split(' (')[0]; }); });
+
+  var scannerRows = scannerCandidates.map(function(t) {
+    var bd = generateClientSideBrokerSummary(t, '1D');
+    if (!bd || bd.isValidTicker === false) return null;
+    var cmfVal = 0;
+    if (typeof fsGenData === 'function' && typeof fsCalcCMF === 'function') {
+      var series = fsGenData(t, 30);
+      if (series && series.length) { var cmfArr = fsCalcCMF(series, 20); cmfVal = cmfArr[cmfArr.length - 1] || 0; }
+    }
+    var netM = Math.round(((bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0) / 1000000000);
+    var isAcc = netM >= 0;
+    return {
+      ticker: t,
+      sector: sectorByTicker[t] || '-',
+      price: bd.price,
+      chg: (bd.changePercent >= 0 ? '+' : '') + Number(bd.changePercent || 0).toFixed(2) + '%',
+      cmf: (cmfVal >= 0 ? '+' : '') + cmfVal.toFixed(2),
+      verdict: (bd.bandarmology && bd.bandarmology.verdict) || (isAcc ? 'ACCUMULATION' : 'DISTRIBUTION'),
+      flowM: (netM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netM).toLocaleString('id-ID') + ' M',
+      signal: (bd.bandarmology && bd.bandarmology.smartMoney && bd.bandarmology.smartMoney.signal) || '-'
+    };
+  }).filter(Boolean);
 
   var html = '<div style="display:flex;flex-direction:column;gap:16px">'
     // Heatmap Section
@@ -3062,7 +3119,7 @@ function renderBandarmologyHeatmapScannerView() {
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
     + '<i class="ti ti-layout-grid" style="color:var(--green)"></i> HEATMAP ALIRAN DANA SMART MONEY SEKTORAL BEI'
     + '</div>'
-    + '<span class="badge b-neu" style="font-size:9px">LIVE SEKTORAL PULSE</span>'
+    + '<span class="badge b-amb" style="font-size:9px" title="Harga real, rincian broker-flow per-sektor disimulasikan">⚠ SIMULASI FLOW</span>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">';
 
@@ -3081,11 +3138,11 @@ function renderBandarmologyHeatmapScannerView() {
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     + '<div>'
     + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-radar" style="color:var(--green)"></i> PEMINDAI REAL-TIME SMART MONEY &amp; BANDAR RADAR'
+    + '<i class="ti ti-radar" style="color:var(--green)"></i> PEMINDAI SMART MONEY &amp; BANDAR RADAR'
     + '</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Deteksi otomatis saham dengan lonjakan CMF, akumulasi institusi masif, dan peringatan jebakan ritel</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Harga &amp; CMF-20 real dari data harga historis · verdict bandar &amp; flow disimulasikan (belum ada feed broker real per-menit)</div>'
     + '</div>'
-    + '<span class="badge b-neu" style="font-size:9px">8 SAHAM TERPINDAI</span>'
+    + '<span class="badge b-neu" style="font-size:9px">' + scannerRows.length + ' SAHAM TERPINDAI</span>'
     + '</div>'
 
     + '<div class="tbl-wrap" style="overflow-x:auto">'
