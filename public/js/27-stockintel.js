@@ -100,11 +100,15 @@ function getIntelStockMeta(ticker) {
   else if (dbItem && dbItem.base > 0) price = dbItem.base;
   else if (rawItem && rawItem.base > 0) price = rawItem.base;
 
-  var chg = '0.00%';
-  if (typeof changes !== 'undefined' && changes[tk] !== undefined) {
-    var cVal = Number(changes[tk]) || 0;
-    chg = (cVal >= 0 ? '+' : '') + cVal.toFixed(2) + '%';
-  }
+  // Was: only read the `changes{}` cache and silently defaulted to a fake
+  // "0.00%" whenever it was empty — even though real OHLCV was already
+  // available via rdGetAny (which is exactly what getGlobalMarketChange()
+  // computes from as its own fallback). That mismatch is why the same
+  // ticker at the same moment could show 0.00% here while other features
+  // reading the real change showed something else entirely.
+  var cVal = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk)
+    : ((typeof changes !== 'undefined' && changes[tk] !== undefined) ? Number(changes[tk]) : 0);
+  var chg = (cVal >= 0 ? '+' : '') + cVal.toFixed(2) + '%';
 
   return {
     ticker: tk,
