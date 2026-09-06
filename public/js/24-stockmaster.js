@@ -1309,15 +1309,17 @@ function techRunFlowScanTab(ticker) {
 
   var data = (typeof fsGenData === 'function') ? fsGenData(tk, days) : [];
   if (!data || !data.length) {
-    var cContainer = document.getElementById('tech-tab2');
-    if (cContainer) {
-      var unkContent = '<div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-3 my-4">'
-        + '<div class="text-rose-400 font-bold text-base"><i class="ti ti-alert-triangle text-xl"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
-        + '<p class="text-xs text-slate-400">Seluruh data FlowScan dan Bandarmologi bernilai 0. Silakan pilih emiten terdaftar (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM).</p>'
-        + '</div>';
-      var flowRes = document.getElementById('fs-tab2-render');
-      if (flowRes) flowRes.innerHTML = unkContent;
-    }
+    // Clear the REAL containers this tab renders into (previously this
+    // wrote into a nonexistent '#fs-tab2-render' id, so the guard always
+    // silently no-opped and left the last valid ticker's data on screen).
+    var cardsEl0 = document.getElementById('tech-fs-cards');
+    if (cardsEl0) cardsEl0.innerHTML = techInvalidTickerHtml(tk);
+    var probEl0 = document.getElementById('tech-fs-prob');
+    if (probEl0) probEl0.innerHTML = '';
+    var indEl0 = document.getElementById('tech-fs-ind-grid');
+    if (indEl0) indEl0.innerHTML = '';
+    techKillChart('techFsCmf');
+    techKillChart('techFsNetFlow');
     return;
   }
 
