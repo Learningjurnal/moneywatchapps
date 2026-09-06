@@ -521,9 +521,14 @@
 
             <!-- Resume Metrics 4-Column Strip -->
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px">
-                <!-- Total Net Worth -->
+                <!-- Nilai Portofolio Investasi (BUKAN Net Worth — angka ini
+                     tidak memasukkan Saldo Kas RDN di sebelahnya maupun aset
+                     non-investasi/utang yang dihitung di halaman Wealth,
+                     jadi tidak boleh diberi label "Net Worth" agar tidak
+                     dikira sudah komprehensif padahal bukan. Lihat halaman
+                     Wealth untuk Total Net Worth yang sesungguhnya. -->
                 <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
-                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Total Net Worth (Semua Aset)</div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Nilai Portofolio Investasi</div>
                     <div style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px;font-variant-numeric:tabular-nums" id="hub-tot-val">Rp 0</div>
                     <div style="margin-top:8px">
                         <div class="badge-trend" id="hub-tot-pnl-pill" style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,245,155,0.15);color:var(--green);padding:3px 8px;border-radius:20px;font-weight:700;font-size:11px;border:1px solid rgba(0,245,155,0.3);font-family:var(--font-mono)">
@@ -3811,24 +3816,24 @@
 <script src="js/14-admin.js?v=20260902c"></script>
 <script src="js/15-txbulk.js?v=20260902c"></script>
 <script src="js/20-wealth.js?v=20260902c"></script>
-<script src="js/21-performance.js?v=20260902c"></script>
+<script src="js/21-performance.js?v=20260906a"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260905j"></script>
 <script src="js/24-stockmaster.js?v=20260906f"></script>
 <script src="js/25-auditlog.js?v=20260902c"></script>
 <script src="js/26-commandcenter.js?v=20260906c"></script>
-<script src="js/27-stockintel.js?v=20260906b"></script>
+<script src="js/27-stockintel.js?v=20260906e"></script>
 <script src="js/28-decisiontools.js?v=20260906a"></script>
 <script src="js/29-institutional-ui.js?v=20260902c"></script>
 <script src="js/30-price-alerts.js?v=20260902c"></script><script src="js/32-pdf-reports.js?v=20260905i"></script>
 <script src="js/33-trending-news.js?v=20260902c"></script>
 <script src="js/34-ksei-shareholders.js?v=20260906a"></script>
 <script src="js/35-settings.js?v=20260902c"></script>
-<script src="js/37-tradewave-engine.js?v=20260906d"></script>
+<script src="js/37-tradewave-engine.js?v=20260906e"></script>
 <script src="js/38-ai-autonomous-trading.js?v=20260906a"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260905g"></script>
 <script src="js/40-idx-pipeline.js?v=20260902c"></script>
-<script src="js/41-stockchat-cockpit.js?v=20260906e"></script>
+<script src="js/41-stockchat-cockpit.js?v=20260906f"></script>
 <script src="js/42-dividend-calendar.js?v=20260902c"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260905g"></script>
 

@@ -64,11 +64,17 @@ function perfRenderEquity(period){
   var latest = full[full.length-1].equity;
   if(valEl) valEl.textContent = 'Rp '+fmtK(latest);
 
-  if(filtered.length>=2){
+  if(filtered.length>=2 && filtered[0].equity>0){
     var base = filtered[0].equity;
-    var chg = latest-base, chgPct = base>0?(chg/base*100):0;
+    var chg = latest-base, chgPct = chg/base*100;
     if(subEl) subEl.innerHTML = '<span class="'+(chg>=0?'up':'dn')+'">'+(chg>=0?'▲ +':'▼ ')+'Rp '+fmtK(Math.abs(chg))+' ('+(chgPct>=0?'+':'')+chgPct.toFixed(2)+'%)</span> <span style="color:var(--text3)">periode '+period+'</span>';
   } else {
+    // Was: when the earliest snapshot in this period had equity=0 (e.g. the
+    // very first day tracking started, before any real value existed), the
+    // old `base>0?...:0` guard produced a contradictory "+Rp 732,1Jt
+    // (+0.00%)" — a 100%-of-value nominal change next to a 0% badge,
+    // because it silently swallowed the divide-by-zero instead of treating
+    // it the same as "not enough data yet" (which is what it actually is).
     if(subEl) subEl.innerHTML = '<span style="color:var(--text3)">Data periode ini belum cukup — coba periode lebih panjang</span>';
   }
   if(cntEl) cntEl.textContent = full.length+' hari tercatat';

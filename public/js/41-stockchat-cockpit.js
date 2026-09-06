@@ -196,7 +196,15 @@ function generateClientSideBrokerSummary(ticker, timeframe) {
     };
   }
 
-  var changePct = (typeof changes !== 'undefined' && changes[tk] !== undefined) ? Number(changes[tk]) : 0.85;
+  // Was a hardcoded `: 0.85` fallback — literally +0.85% for every ticker
+  // whenever `changes{}` wasn't already populated, regardless of whether
+  // the stock was actually up or down. Route through the same canonical
+  // getGlobalMarketChange() helper every other honest price-change display
+  // uses (it already falls back to computing from real rdGetAny OHLCV, and
+  // only returns 0 as a last resort) so this doesn't disagree with the rest
+  // of the app for the same ticker at the same moment.
+  var changePct = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk)
+    : ((typeof changes !== 'undefined' && changes[tk] !== undefined) ? Number(changes[tk]) : 0);
 
   var isUp = changePct >= 0;
 

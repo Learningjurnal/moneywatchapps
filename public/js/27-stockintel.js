@@ -100,11 +100,15 @@ function getIntelStockMeta(ticker) {
   else if (dbItem && dbItem.base > 0) price = dbItem.base;
   else if (rawItem && rawItem.base > 0) price = rawItem.base;
 
-  var chg = '0.00%';
-  if (typeof changes !== 'undefined' && changes[tk] !== undefined) {
-    var cVal = Number(changes[tk]) || 0;
-    chg = (cVal >= 0 ? '+' : '') + cVal.toFixed(2) + '%';
-  }
+  // Was: only read the `changes{}` cache and silently defaulted to a fake
+  // "0.00%" whenever it was empty — even though real OHLCV was already
+  // available via rdGetAny (which is exactly what getGlobalMarketChange()
+  // computes from as its own fallback). That mismatch is why the same
+  // ticker at the same moment could show 0.00% here while other features
+  // reading the real change showed something else entirely.
+  var cVal = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk)
+    : ((typeof changes !== 'undefined' && changes[tk] !== undefined) ? Number(changes[tk]) : 0);
+  var chg = (cVal >= 0 ? '+' : '') + cVal.toFixed(2) + '%';
 
   return {
     ticker: tk,
@@ -248,34 +252,83 @@ function getStockIntelData(ticker) {
       eps: epsStr,
       isReal: isRealFund
     },
-    plan: {
-      bias: score >= 70 ? 'BULLISH REBOUND' : (score >= 50 ? 'SIDEWAYS RANGE' : 'DEFENSIVE'),
-      biasClass: score >= 70 ? 'b-up' : (score >= 50 ? 'b-accent' : 'b-dn'),
-      kelayakan: price > 0 ? (score >= 60 ? 'LAYAK INVESTASI' : 'WAIT & SEE') : 'TIDAK TERSEDIA',
-      kelayakanClass: score >= 60 ? 'b-up' : 'b-neu',
-      entryZone: price > 0 ? (fmtK(levels.s1) + ' - ' + fmtK(price)) : '-',
-      target1: price > 0 ? (fmtK(levels.r1) + ' (+' + Math.round(((levels.r1 - price)/price)*100) + '%)') : '-',
-      stopLoss: price > 0 ? (fmtK(levels.s2) + ' (-' + Math.round(((price - levels.s2)/price)*100) + '%)') : '-',
-      rr: price > 0 ? '1 : 2.0' : '-',
-      entryNote: price > 0 ? 'Zona akumulasi di area support S1' : '-',
-      targetNote: price > 0 ? 'Target teknikal swing resistance R1' : '-'
-    },
+    plan: (function() {
+      if (!(price > 0)) {
+        return {
+          bias: score >= 70 ? 'BULLISH REBOUND' : (score >= 50 ? 'SIDEWAYS RANGE' : 'DEFENSIVE'),
+          biasClass: score >= 70 ? 'b-up' : (score >= 50 ? 'b-accent' : 'b-dn'),
+          kelayakan: 'TIDAK TERSEDIA',
+          kelayakanClass: 'b-neu',
+          entryZone: '-', target1: '-', stopLoss: '-', rr: '-',
+          entryNote: '-', targetNote: '-'
+        };
+      }
+      // Trading plan geometry: previously target1 was measured off the
+      // CURRENT price while stopLoss reused `levels.s2` (Support 2, i.e. the
+      // 52-week-low-based level also shown on its own in the S&R card) — two
+      // completely different bases with no relation to each other. Combined
+      // with a hardcoded "1 : 2.0" R:R badge, the plan could (and did, e.g.
+      // for BBRI) show a stop 10% away against a 4% target while still
+      // claiming a favorable 1:2 ratio.
+      //
+      // Now: entry is planned at the S1 support (the pullback-buy zone), the
+      // stop sits a tight ~3% below that same support (standard "stop just
+      // under the level you're buying near"), and reward/risk are both
+      // measured from that one entry reference — so the R:R shown is always
+      // the real ratio implied by the S1/R1 support-resistance distance for
+      // THIS ticker, not a fixed number. `levels.s2` keeps its own meaning
+      // (Support 2 / 52-week low) unchanged in the separate S&R card.
+      var entryRef = levels.s1;
+      var stopLossVal = Math.round(entryRef * 0.97);
+      var riskAmt = entryRef - stopLossVal;
+      var rewardAmt = levels.r1 - entryRef;
+      var rrRatio = riskAmt > 0 ? (rewardAmt / riskAmt) : 0;
+
+      return {
+        bias: score >= 70 ? 'BULLISH REBOUND' : (score >= 50 ? 'SIDEWAYS RANGE' : 'DEFENSIVE'),
+        biasClass: score >= 70 ? 'b-up' : (score >= 50 ? 'b-accent' : 'b-dn'),
+        kelayakan: score >= 60 ? 'LAYAK INVESTASI' : 'WAIT & SEE',
+        kelayakanClass: score >= 60 ? 'b-up' : 'b-neu',
+        entryZone: fmtK(levels.s1) + ' - ' + fmtK(price),
+        target1: fmtK(levels.r1) + ' (+' + Math.round(((levels.r1 - price) / price) * 100) + '%)',
+        stopLoss: fmtK(stopLossVal) + ' (-' + Math.round(((price - stopLossVal) / price) * 100) + '%)',
+        rr: '1 : ' + rrRatio.toFixed(1),
+        entryNote: 'Zona akumulasi di area support S1',
+        targetNote: 'Target teknikal swing resistance R1'
+      };
+    })(),
     levels: levels,
-    verdict: {
-      badge: bandar && bandar.status ? bandar.status : (score >= 70 ? 'AKUMULASI TERKONFIRMASI' : 'MONITORING'),
-      quote: meta.name + ' tercatat di BEI sektor ' + meta.sector + '. Data disinkronisasi langsung dari feed pasar modal.',
-      catalyst: 'Fundamental terverifikasi & likuiditas bursa',
-      risk: 'Fluktuasi harga pasar & batasan volatilitas',
-      pos52: range52,
-      liquidity: turnover
-    },
-    technical: {
-      ma20: price > 0 ? fmtK(Math.round(price * 0.98)) + ' (MA20)' : '-',
-      ma50: price > 0 ? fmtK(Math.round(price * 0.95)) + ' (MA50)' : '-',
-      ma200: price > 0 ? fmtK(Math.round(price * 0.90)) + ' (MA200)' : '-',
-      oscillator: price > 0 ? (meta.chg.startsWith('+') ? 'Bullish Rebound' : 'Konsolidasi') : '-',
-      signal: price > 0 ? 'Di atas batas support' : '-'
-    },
+    verdict: (function() {
+      // Was fixed boilerplate text identical for every ticker regardless of
+      // its actual ratios — now built from the same real stats already
+      // computed above (perStr/pbvStr/roeStr/derStr, bandar status), same
+      // conditions used for `score`, so it actually varies per emiten.
+      var catalystParts = [];
+      if (perStr !== '-' && parseFloat(perStr) < 15) catalystParts.push('PER murah (' + perStr + ')');
+      if (pbvStr !== '-' && parseFloat(pbvStr) < 2) catalystParts.push('PBV wajar (' + pbvStr + ')');
+      if (roeStr !== '-' && parseFloat(roeStr) > 12) catalystParts.push('ROE tinggi (' + roeStr + ')');
+      if (bandar && bandar.status && bandar.status.includes('Accumulation')) catalystParts.push('akumulasi broker terdeteksi');
+      var catalyst = catalystParts.length > 0
+        ? catalystParts.join(', ')
+        : 'Belum ada katalis fundamental/flow yang menonjol dari data saat ini';
+
+      var riskParts = [];
+      if (derStr !== '-' && parseFloat(derStr) > 1.5) riskParts.push('DER tinggi (' + derStr + ')');
+      if (perStr !== '-' && parseFloat(perStr) > 25) riskParts.push('valuasi PER premium (' + perStr + ')');
+      if (bandar && bandar.status && bandar.status.includes('Distribution')) riskParts.push('distribusi broker terdeteksi');
+      var risk = riskParts.length > 0
+        ? riskParts.join(', ') + ', di luar fluktuasi harga pasar umum'
+        : 'Fluktuasi harga pasar umum & batasan volatilitas — tidak ada red flag spesifik dari rasio yang tersedia';
+
+      return {
+        badge: bandar && bandar.status ? bandar.status : (score >= 70 ? 'AKUMULASI TERKONFIRMASI' : 'MONITORING'),
+        quote: meta.name + ' tercatat di BEI sektor ' + meta.sector + '. Data disinkronisasi langsung dari feed pasar modal.',
+        catalyst: catalyst,
+        risk: risk,
+        pos52: range52,
+        liquidity: turnover
+      };
+    })(),
     seasonality: seasonality,
     financials: financials,
     flow: {
