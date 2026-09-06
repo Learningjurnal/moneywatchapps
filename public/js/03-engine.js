@@ -960,6 +960,90 @@ function fhFetchCryptoHistory(symbol, cb, proxyIdx){
   });
 }
 
+// ── Real daily OHLCV cache for the Crypto Technical Terminal ──
+// FIX AUDIT (Crypto Technical Terminal): analyzeCryptoTechnical() in
+// 36-crypto-technical.js used to run 100% on a seeded pseudo-random walk
+// (generateCryptoOHLCV) for every candle, every volume bar, and every
+// "whale spike" — only the current spot price was ever real. RSI, MACD,
+// Whale Accumulation Score etc. were all computed from invented history.
+// This cache fetches genuine daily OHLCV from Yahoo Finance (SYMBOL-USD,
+// 1y range) via the same proxy chain as the rest of the app, so the daily/
+// weekly timeframe (the default, and what the Crypto Portfolio radar
+// banner uses) is backed by real prices and real volume.
+var CRYPTO_DAILY_STORE = {}; // { SYM: { rows: [{t,o,h,l,c,v}], fetchedAt } }
+var CRYPTO_DAILY_INFLIGHT = {};
+var CRYPTO_DAILY_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+function rdGetCryptoDaily(sym){
+  var e = CRYPTO_DAILY_STORE[sym];
+  return (e && e.rows && e.rows.length >= 20) ? e.rows : null;
+}
+
+function fhFetchCryptoDailyHistory(symbol, cb, proxyIdx){
+  proxyIdx = proxyIdx || 0;
+  if(proxyIdx >= FH.PROXIES.length){ cb(new Error('ALL_PROXIES_FAILED'), null); return; }
+
+  var host = 'query1.finance.yahoo.com';
+  var yUrl = 'https://' + host + '/v8/finance/chart/' + symbol + '-USD?interval=1d&range=1y';
+  var proxyConfig = FH.PROXIES[proxyIdx];
+  var url = proxyConfig.url(yUrl);
+
+  var controller = null, timeoutId = null;
+  if(typeof AbortController !== 'undefined'){
+    controller = new AbortController();
+    timeoutId = setTimeout(function(){ controller.abort(); }, 8000);
+  }
+
+  fetch(url, { signal: controller ? controller.signal : undefined })
+  .then(function(r){
+    if(timeoutId) clearTimeout(timeoutId);
+    if(!r.ok){ throw new Error('HTTP_' + r.status); }
+    return r.json();
+  })
+  .then(function(d){
+    var rawObj = d;
+    if(proxyConfig.isWrapped && d && d.contents){
+      try { rawObj = JSON.parse(d.contents); } catch(e){ throw new Error('PARSE_ERROR'); }
+    }
+    var result = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
+    var ts = result && result.timestamp;
+    var q = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
+    if(ts && q && q.close && ts.length){
+      var rows = [];
+      for(var i=0;i<ts.length;i++){
+        if(q.close[i]==null || q.open[i]==null) continue;
+        rows.push({ t: ts[i]*1000, o: q.open[i], h: q.high[i], l: q.low[i], c: q.close[i], v: q.volume[i] || 0 });
+      }
+      if(rows.length >= 20){ cb(null, rows); return; }
+    }
+    throw new Error('NO_DATA');
+  })
+  .catch(function(){
+    if(timeoutId) clearTimeout(timeoutId);
+    fhFetchCryptoDailyHistory(symbol, cb, proxyIdx + 1);
+  });
+}
+
+function rdEnsureCryptoDaily(sym, cb){
+  var cached = rdGetCryptoDaily(sym);
+  var entry = CRYPTO_DAILY_STORE[sym];
+  if(cached && entry && (Date.now() - entry.fetchedAt) < CRYPTO_DAILY_TTL_MS){
+    if(cb) cb(cached);
+    return;
+  }
+  if(CRYPTO_DAILY_INFLIGHT[sym]) return;
+  CRYPTO_DAILY_INFLIGHT[sym] = true;
+  fhFetchCryptoDailyHistory(sym, function(err, rows){
+    CRYPTO_DAILY_INFLIGHT[sym] = false;
+    if(!err && rows && rows.length){
+      CRYPTO_DAILY_STORE[sym] = { rows: rows, fetchedAt: Date.now() };
+      if(cb) cb(rows);
+    }
+  });
+}
+window.rdGetCryptoDaily = rdGetCryptoDaily;
+window.rdEnsureCryptoDaily = rdEnsureCryptoDaily;
+
 // ── Update badge UI ──
 function fhSetBadge(status, text){
   FH.status = status;

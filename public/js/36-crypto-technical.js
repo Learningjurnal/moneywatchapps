@@ -87,13 +87,77 @@
     return x - Math.floor(x);
   }
 
+  // ── 4a. REAL DAILY OHLCV (Yahoo Finance SYMBOL-USD, 1y) ──
+  // For the '1D'/'1W' timeframes — the default and what the Crypto
+  // Portfolio radar banner uses — prefer genuine fetched history over the
+  // synthetic generator below. Falls back to the synthetic walk (clearly
+  // flagged isSimulated:true) only while the real fetch is in flight or if
+  // Yahoo has no coverage for this symbol, mirroring the fsGenData()
+  // real-then-synthetic pattern already used for IDX stocks.
+  function realCryptoDailyOHLCV(sym, tf, barsCount) {
+    if (tf !== '1D' && tf !== '1W') return null;
+    if (typeof rdGetCryptoDaily !== 'function') return null;
+    var rows = rdGetCryptoDaily(sym);
+    if (!rows) {
+      if (typeof rdEnsureCryptoDaily === 'function') {
+        rdEnsureCryptoDaily(sym, function() {
+          if (typeof window.onCryptoRealDataReady === 'function') window.onCryptoRealDataReady(sym);
+        });
+      }
+      return null;
+    }
+    var daily = rows.map(function(r) {
+      var range = r.h - r.l;
+      var mfm = range > 0 ? ((r.c - r.l) - (r.h - r.c)) / range : 0;
+      return { date: new Date(r.t), open: r.o, high: r.h, low: r.l, close: r.c, volumeUSD: (r.v || 0) * r.c, volumeCoins: r.v || 0, mfm: mfm };
+    });
+
+    var series = daily;
+    if (tf === '1W') {
+      // Resample real daily bars into real weekly bars (no invented data —
+      // just aggregation of the same fetched rows).
+      series = [];
+      for (var i = 0; i < daily.length; i += 7) {
+        var chunk = daily.slice(i, i + 7);
+        if (!chunk.length) continue;
+        var vol = chunk.reduce(function(s, d) { return s + d.volumeUSD; }, 0);
+        var volC = chunk.reduce(function(s, d) { return s + d.volumeCoins; }, 0);
+        series.push({
+          date: chunk[chunk.length - 1].date,
+          open: chunk[0].open,
+          high: Math.max.apply(null, chunk.map(function(d) { return d.high; })),
+          low: Math.min.apply(null, chunk.map(function(d) { return d.low; })),
+          close: chunk[chunk.length - 1].close,
+          volumeUSD: vol, volumeCoins: volC,
+          mfm: chunk[chunk.length - 1].mfm
+        });
+      }
+    }
+
+    series = series.slice(-barsCount);
+    var obv = 0, ad = 0;
+    for (var j = 0; j < series.length; j++) {
+      var d = series[j], prevClose = j > 0 ? series[j - 1].close : d.open;
+      var volMultRef = 1; // real bars have no synthetic "expected volume" baseline
+      var isWhaleBar = j > 0 && series[j - 1].volumeUSD > 0 && d.volumeUSD > series[j - 1].volumeUSD * 2.2;
+      obv += (d.close >= prevClose ? d.volumeUSD : -d.volumeUSD);
+      ad += d.mfm * d.volumeUSD;
+      d.volMult = volMultRef; d.isWhaleBar = isWhaleBar; d.mfv = d.mfm * d.volumeUSD; d.obv = obv; d.ad = ad;
+    }
+    series.isReal = true;
+    return series;
+  }
+
   // ── 4. CRYPTO TIME-SERIES OHLCV GENERATOR (Deterministic & High Fidelity) ──
   function generateCryptoOHLCV(sym, tf, barsCount) {
     barsCount = barsCount || 60;
     var info = getCoinInfo(sym);
     var rate = getUsdIdrRate();
     var baseUSD = info.baseUSD;
-    
+
+    var real = realCryptoDailyOHLCV(sym, tf, barsCount);
+    if (real) return real;
+
     var isKnownCoin = CRYPTO_TECH_UNIVERSE.some(function(c) { return c.s === (sym || '').toUpperCase(); });
     if (!isKnownCoin && (!cryptoPrices || !cryptoPrices[sym])) {
       return [];
@@ -167,6 +231,9 @@
       curPrice = close;
     }
 
+    // Not a real fetched history — anchored to the real spot price only.
+    // Flagged so callers can disclose it rather than present it as live.
+    data.isReal = false;
     return data;
   }
 
@@ -533,6 +600,7 @@
       color: getCoinInfo(sym).color,
       tvSymbol: getCoinInfo(sym).tv,
       timeframe: tf,
+      isRealHistory: !!ohlcv.isReal,
       curPriceUSD: curPriceUSD,
       curPriceIDR: curPriceIDR,
       chg24hPct: chg24hPct,
@@ -700,7 +768,9 @@
               <span style="font-size:20px;font-weight:800;color:var(--text);font-family:var(--font-mono)">${a.sym}/USDT</span>
               <span class="badge b-accent" style="font-size:10px;padding:2px 7px">${a.category}</span>
               <span class="badge ${a.signalBadge}" style="font-size:11px;font-weight:800;padding:3px 9px">${a.overallSignal}</span>
-              <span class="badge b-amb" style="font-size:9px;padding:2px 7px" title="Grafik candle, RSI, MACD, whale tracker, dan semua indikator di halaman ini dihasilkan dari deret harga simulasi (belum ada feed candle riil untuk crypto). Hanya harga pasar saat ini yang real.">⚠ Candle &amp; Indikator Simulasi</span>
+              ${a.isRealHistory
+                ? '<span class="badge b-up" style="font-size:9px;padding:2px 7px" title="Candle, RSI, MACD, dan volume dihitung dari histori harga real Yahoo Finance (' + a.sym + '-USD).">✓ Data Riil (Yahoo Finance)</span>'
+                : '<span class="badge b-amb" style="font-size:9px;padding:2px 7px" title="Timeframe ini belum punya feed candle riil (hanya harga pasar saat ini yang real) — grafik, RSI, MACD, dan whale tracker di bawah dihasilkan dari deret harga simulasi. Pilih timeframe 1D atau 1W untuk data riil.">⚠ Candle &amp; Indikator Simulasi</span>'}
             </div>
             <div style="font-size:12px;color:var(--text3);margin-top:2px">${a.name} • TradingView: <code>${a.tvSymbol}</code></div>
           </div>
@@ -722,7 +792,7 @@
           </div>
 
           <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;text-align:right">
-            <div style="font-size:10px;font-weight:700;color:var(--text3)">WHALE TRACKER:</div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3)" title="Proxy dari lonjakan volume &amp; momentum harga — bukan data on-chain wallet riil.">WHALE TRACKER (proxy volume):</div>
             <div style="font-size:13px;font-weight:800;color:${a.whaleColor};margin-top:2px">${a.whaleStatus}</div>
             <div style="font-size:10px;color:var(--text3)">Score: <b style="color:${a.whaleColor}">${a.whaleScore}/100</b> · RVOL: <b>${a.rvol.toFixed(2)}x</b></div>
           </div>
@@ -1403,6 +1473,21 @@
     CRYPTO_TECH_STATE.searchQuery = '';
     renderCryptoScannerTab();
   }
+
+  // Real daily OHLCV for a coin just landed in the cache — re-render
+  // whatever is currently showing it instead of leaving stale/simulated
+  // output on screen until the next manual interaction.
+  function onCryptoRealDataReady(sym) {
+    try {
+      if (typeof currentPage !== 'undefined' && currentPage === 'crypto-technical' && CRYPTO_TECH_STATE.symbol === sym) {
+        cryptoTechSelectCoin(sym, false);
+      }
+      if (typeof currentPage !== 'undefined' && currentPage === 'crypto' && typeof renderCryptoRadarBanner === 'function' && typeof getCryptoPortfolio === 'function') {
+        renderCryptoRadarBanner(getCryptoPortfolio());
+      }
+    } catch (e) {}
+  }
+  window.onCryptoRealDataReady = onCryptoRealDataReady;
 
   // ── EXPOSE PUBLIC GLOBAL FUNCTIONS ──
   window.initCryptoTechnicalSuite = initCryptoTechnicalSuite;

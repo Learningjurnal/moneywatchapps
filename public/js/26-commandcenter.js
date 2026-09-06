@@ -193,6 +193,14 @@ function getMarketRegime() {
 
 /**
  * AI Action Center: Generate "WHAT SHOULD I DO TODAY?" Actionable Insights
+ *
+ * Every action below is derived from the user's real portfolio holdings and
+ * real price/flow data already cached by the app (rdGetAny/fsGenData/
+ * getGlobalMarketChange) — no fixed "confidence score", "explainability
+ * breakdown", or per-ticker thesis text is invented. Where a real series
+ * for a ticker isn't cached yet, the metric is shown as "Memuat..." (a
+ * background fetch is kicked off via rdEnsure) rather than a plausible-
+ * looking placeholder number.
  */
 function getAiActionRecommendations() {
   var porto = getPortfolio();
@@ -202,11 +210,37 @@ function getAiActionRecommendations() {
 
   var actions = [];
 
-  // 1. Cek Konsentrasi Portofolio (Trim risk)
+  // Real CMF-20 + volume-surge for a ticker, using whatever real OHLCV is
+  // already cached (rdGetAny via fsGenData). Kicks off a background real
+  // fetch and re-renders the dashboard once it lands if nothing is cached
+  // yet — never fabricates a number to fill the gap.
+  function realFlowSnapshot(tk) {
+    var hasReal = (typeof rdGetAny === 'function') && rdGetAny(tk) && rdGetAny(tk).length >= 25;
+    if (!hasReal) {
+      if (typeof rdEnsure === 'function') {
+        rdEnsure(tk, function() {
+          if (typeof currentPage !== 'undefined' && currentPage === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
+        });
+      }
+      return { ready: false };
+    }
+    var rows = fsGenData(tk, 40);
+    if (!rows || rows.length < 21) return { ready: false };
+    var cmfSeries = fsCalcCMF(rows, 20);
+    var cmf = cmfSeries[cmfSeries.length - 1] || 0;
+    var lastVol = rows[rows.length - 1].v;
+    var avgVol20 = rows.slice(-20).reduce(function(s, r) { return s + r.v; }, 0) / 20;
+    var volSurge = avgVol20 > 0 ? lastVol / avgVol20 : 1;
+    var chgPct = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk) : 0;
+    return { ready: true, cmf: cmf, volSurge: volSurge, chgPct: chgPct };
+  }
+
+  // 1. Cek Konsentrasi Portofolio (Trim risk) — 100% real: bobot dari MV riil.
   var sortedPorto = porto.slice().sort(function(a, b) { return b.mv - a.mv; });
   if (sortedPorto.length && (sortedPorto[0].mv / totalMV) > 0.15) {
     var topHolding = sortedPorto[0];
-    var weight = (topHolding.mv / totalMV * 100).toFixed(1);
+    var weight = (topHolding.mv / totalMV * 100);
+    var excessRatio = Math.min(1, (weight - 15) / 15); // 0 at threshold, 1 at 30%+
     actions.push({
       type: 'RISK',
       severity: 'high',
@@ -214,71 +248,66 @@ function getAiActionRecommendations() {
       badgeClass: 'b-dn',
       ticker: topHolding.ticker,
       title: topHolding.ticker + ' — CONCENTRATION RISK',
-      currentWeight: weight + '%',
-      targetWeight: '12.0%',
       recommendation: 'TRIM 15–20%',
       actionBtnText: 'Trim Posisi',
       actionPage: 'rebalance',
-      reason: 'Bobot posisi ' + topHolding.ticker + ' melampaui batas aman portofolio (15%). Lakukan rebalancing parsial untuk mengunci profit dan memitigasi risiko single-stock drawdown.',
+      reason: 'Bobot posisi ' + topHolding.ticker + ' (' + weight.toFixed(1) + '% dari total portofolio) melampaui batas aman 15%. Pertimbangkan rebalancing parsial untuk memitigasi risiko single-stock drawdown.',
       supportingMetrics: [
-        { label: 'Current Weight', value: weight + '%' },
+        { label: 'Bobot Saat Ini', value: weight.toFixed(1) + '%' },
         { label: 'Unrealized P&L', value: (topHolding.unreal >= 0 ? '+' : '') + 'Rp ' + fmtK(topHolding.unreal) },
-        { label: 'Target Allocation', value: '12.0%' }
+        { label: 'Ambang Aman', value: '15.0%' }
       ],
-      confidence: 88,
-      dataFreshness: '12 detik lalu',
-      risk: 'Medium (Single Stock Concentration)',
-      explainability: {
-        fundamental: +24,
-        technical: +18,
-        flow: +12,
-        valuation: +14,
-        risk: +20,
-        total: 88
-      }
+      confidence: Math.round(60 + excessRatio * 30), // real function of real excess weight, not a fixed number
+      dataFreshness: 'Dihitung dari portofolio Anda saat ini',
+      risk: 'Medium (Single Stock Concentration)'
     });
   }
 
-  // 2. Cek Saham Akumulasi / Momentum dari Portofolio atau Universe
+  // 2. Saham dengan momentum harga real tertinggi di portofolio (real flow bila tersedia).
   var topMoverStock = porto.slice().sort(function(a, b) { return (b.chgPct || 0) - (a.chgPct || 0); })[0];
-  var oppTicker = (topMoverStock && topMoverStock.chgPct > 0) ? topMoverStock.ticker : 'ANTM';
-  var oppWeight = (topMoverStock && totalMV > 0) ? (topMoverStock.mv / totalMV * 100).toFixed(1) : '8.4';
+  if (topMoverStock && topMoverStock.chgPct > 0) {
+    var oppTicker = topMoverStock.ticker;
+    var oppWeight = totalMV > 0 ? (topMoverStock.mv / totalMV * 100) : 0;
+    var flow = realFlowSnapshot(oppTicker);
 
-  actions.push({
-    type: 'OPPORTUNITY',
-    severity: 'opportunity',
-    icon: 'ti-trending-up',
-    badgeClass: 'b-up',
-    ticker: oppTicker,
-    title: oppTicker + ' — INSTITUTIONAL ACCUMULATION & MOMENTUM',
-    currentWeight: oppWeight + '%',
-    targetWeight: '10.0%',
-    recommendation: 'WATCH / ACCUMULATE',
-    actionBtnText: 'Analisa ' + oppTicker,
-    actionPage: 'stock-intel',
-    actionParam: oppTicker,
-    reason: 'Smart money flow positif dengan lonjakan volume di atas rata-rata 20 hari. Chaikin Money Flow (CMF) berada di teritori akumulasi dengan indikator momentum teknikal yang solid di portofolio Anda.',
-    supportingMetrics: [
-      { label: 'CMF Flow', value: '+0.24 (Strong)' },
-      { label: 'Volume Surge', value: '1.8x Avg' },
-      { label: 'Foreign Flow', value: '+Rp 42.8B (3D)' }
-    ],
-    confidence: 86,
-    dataFreshness: '15 detik lalu',
-    risk: 'Low-Medium',
-    explainability: {
-      fundamental: +28,
-      technical: +22,
-      flow: +22,
-      valuation: +14,
-      risk: +0,
-      total: 86
+    var metrics = [];
+    var reasonDetail;
+    var confidence2 = 65;
+    if (flow.ready) {
+      metrics.push({ label: 'CMF (20)', value: (flow.cmf >= 0 ? '+' : '') + flow.cmf.toFixed(2) + (flow.cmf > 0.05 ? ' (Akumulasi)' : flow.cmf < -0.05 ? ' (Distribusi)' : ' (Netral)') });
+      metrics.push({ label: 'Volume vs Avg 20D', value: flow.volSurge.toFixed(1) + 'x' });
+      metrics.push({ label: 'Perubahan Harian', value: (flow.chgPct >= 0 ? '+' : '') + flow.chgPct.toFixed(2) + '%' });
+      reasonDetail = 'Perubahan harga harian real +' + flow.chgPct.toFixed(2) + '% dengan Chaikin Money Flow (CMF-20) ' + flow.cmf.toFixed(2) + ' dan volume ' + flow.volSurge.toFixed(1) + 'x rata-rata 20 hari.';
+      confidence2 = Math.round(55 + Math.min(30, Math.max(0, flow.cmf * 100)) + Math.min(15, (flow.volSurge - 1) * 10));
+    } else {
+      metrics.push({ label: 'CMF (20)', value: 'Memuat…' });
+      metrics.push({ label: 'Volume vs Avg 20D', value: 'Memuat…' });
+      metrics.push({ label: 'Perubahan Harian', value: 'Memuat…' });
+      reasonDetail = 'Mengambil data harga &amp; volume real untuk ' + oppTicker + '…';
     }
-  });
 
-  // 3. Cek Posisi Kas RDN
-  var cashPct = (rdn / totalMV * 100).toFixed(1);
-  if (parseFloat(cashPct) > 12) {
+    actions.push({
+      type: 'OPPORTUNITY',
+      severity: 'opportunity',
+      icon: 'ti-trending-up',
+      badgeClass: 'b-up',
+      ticker: oppTicker,
+      title: oppTicker + ' — TOP MOMENTUM DI PORTOFOLIO ANDA',
+      recommendation: 'WATCH / ACCUMULATE',
+      actionBtnText: 'Analisa ' + oppTicker,
+      actionPage: 'stock-intel',
+      actionParam: oppTicker,
+      reason: reasonDetail,
+      supportingMetrics: metrics,
+      confidence: Math.min(95, Math.max(50, confidence2)),
+      dataFreshness: flow.ready ? 'Dihitung dari OHLCV real Yahoo Finance' : 'Menunggu data real…',
+      risk: 'Bobot saat ini ' + oppWeight.toFixed(1) + '% dari portofolio'
+    });
+  }
+
+  // 3. Cek Posisi Kas RDN — real dari saldo RDN vs total.
+  var cashPct = (rdn / totalMV * 100);
+  if (cashPct > 12) {
     actions.push({
       type: 'CASH',
       severity: 'info',
@@ -286,60 +315,45 @@ function getAiActionRecommendations() {
       badgeClass: 'b-amb',
       ticker: 'CASH',
       title: 'CASH POSITION ALLOCATION',
-      currentWeight: cashPct + '%',
-      targetWeight: '10.0%',
       recommendation: 'DEPLOY GRADUALLY',
       actionBtnText: 'Buka Radar Peluang',
       actionPage: 'radar',
-      reason: 'Porsi kas RDN sebesar ' + cashPct + '% berada di atas target alokasi (10%). Manfaatkan momentum Market Regime Risk-On untuk melakukan Dollar Cost Averaging (DCA) ke saham-saham Buy Zone dengan Margin of Safety tinggi.',
+      reason: 'Porsi kas RDN sebesar ' + cashPct.toFixed(1) + '% berada di atas target alokasi 10%. Pertimbangkan Dollar Cost Averaging (DCA) bertahap ke kandidat BUY ZONE di Opportunity Radar (skor real dari fundamental Yahoo Finance, LQ45/IDX30).',
       supportingMetrics: [
         { label: 'Saldo Kas', value: 'Rp ' + fmtK(rdn) },
-        { label: 'Cash Ratio', value: cashPct + '%' },
-        { label: 'Target Cash', value: '10.0%' }
+        { label: 'Cash Ratio', value: cashPct.toFixed(1) + '%' },
+        { label: 'Target Kas', value: '10.0%' }
       ],
-      confidence: 90,
-      dataFreshness: 'Realtime',
-      risk: 'Low',
-      explainability: {
-        fundamental: +20,
-        technical: +15,
-        flow: +20,
-        valuation: +25,
-        risk: +10,
-        total: 90
-      }
+      confidence: Math.round(60 + Math.min(30, (cashPct - 12))),
+      dataFreshness: 'Real-time dari saldo RDN Anda',
+      risk: 'Low'
     });
-  } else {
+  } else if (sortedPorto.length) {
+    // Real best-real-mover-in-portfolio fallback instead of a hardcoded
+    // unconditional "BBCA" thesis the user may not even hold.
+    var bestReal = sortedPorto.slice().sort(function(a, b) { return (b.chgPct || 0) - (a.chgPct || 0); })[0];
+    var bestFlow = realFlowSnapshot(bestReal.ticker);
+    var bestWeight = totalMV > 0 ? (bestReal.mv / totalMV * 100) : 0;
     actions.push({
       type: 'OPPORTUNITY',
       severity: 'opportunity',
       icon: 'ti-shield-check',
       badgeClass: 'b-up',
-      ticker: 'BBCA',
-      title: 'BBCA — QUALITY MOAT & THESIS INTACT',
-      currentWeight: '11.2%',
-      targetWeight: '12.0%',
+      ticker: bestReal.ticker,
+      title: bestReal.ticker + ' — POSISI TERBESAR DENGAN KAS SEHAT',
       recommendation: 'HOLD / ACCUMULATE ON PULLBACK',
       actionBtnText: 'Lihat Thesis',
       actionPage: 'stock-intel',
-      actionParam: 'BBCA',
-      reason: 'Valuasi wajar dengan ROE konsisten 22.4% dan NPL terendah di industri perbankan. Foreign inflow stabil dan target fundamental Rp 11.200 (Margin of Safety 18.5%).',
+      actionParam: bestReal.ticker,
+      reason: 'Alokasi kas Anda sudah sesuai target (≤10%). ' + bestReal.ticker + ' adalah posisi Anda dengan performa harga terbaik saat ini (' + (bestReal.chgPct >= 0 ? '+' : '') + (bestReal.chgPct || 0).toFixed(2) + '%). Cek Stock Intelligence Cockpit untuk analisa fundamental &amp; teknikal lengkap.',
       supportingMetrics: [
-        { label: 'Fair Value', value: 'Rp 11.200' },
-        { label: 'Margin of Safety', value: '18.5%' },
-        { label: 'ROE', value: '22.4%' }
+        { label: 'Bobot Posisi', value: bestWeight.toFixed(1) + '%' },
+        { label: 'Perubahan Harga', value: (bestReal.chgPct >= 0 ? '+' : '') + (bestReal.chgPct || 0).toFixed(2) + '%' },
+        { label: 'Unrealized P&L', value: (bestReal.unreal >= 0 ? '+' : '') + 'Rp ' + fmtK(bestReal.unreal) }
       ],
-      confidence: 92,
-      dataFreshness: '10 detik lalu',
-      risk: 'Low (Core Defensive Holding)',
-      explainability: {
-        fundamental: +35,
-        technical: +18,
-        flow: +16,
-        valuation: +15,
-        risk: +8,
-        total: 92
-      }
+      confidence: bestFlow.ready ? Math.min(90, Math.max(55, Math.round(60 + bestFlow.cmf * 100))) : 60,
+      dataFreshness: 'Dihitung dari portofolio &amp; harga real Anda',
+      risk: 'Low (Core Holding)'
     });
   }
 
@@ -359,7 +373,7 @@ var RADAR_STATE = {
   page: 1,
   pageSize: 25,
   items: [],
-  summary: { totalUniverse: 958, buyZoneCount: 20, watchlistCount: 14, avoidCount: 5, corpActionCount: 30, lq45Count: 48 },
+  summary: { totalUniverse: 0, buyZoneCount: 0, watchlistCount: 0, avoidCount: 0, corpActionCount: 0, lq45Count: 0, limitedDataCount: 0 },
   accData: null,
   accTimeframe: '1D',
   flowTicker: 'BBCA',
@@ -372,23 +386,13 @@ var RADAR_STATE = {
 };
 
 /**
- * Opportunity Radar Universe (Supports Live Backend + Fast In-Memory Fallback)
+ * Opportunity Radar Universe — reads whatever the real backend
+ * (getUniverseOpportunityRadar) returned. Returns an empty list rather than
+ * a fabricated placeholder while that fetch hasn't completed yet; callers
+ * must render their own "Memuat..." state by checking RADAR_STATE.isLoading.
  */
 function getOpportunityRadarItems() {
-  if (RADAR_STATE.items && RADAR_STATE.items.length > 0) {
-    return RADAR_STATE.items;
-  }
-  return [
-    { ticker: 'ADRO', name: 'Adaro Energy Indonesia', score: 95, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+32.0%', pe: '4.8x', roe: '24.5%', flow: 'High Dividend Inflow', verdict: 'Strong Buy', cat: 'Deep Value & Yield', corporateActions: [{ type: 'DIVIDEN', title: 'Dividen Rp 400', date: '2026-09-18' }] },
-    { ticker: 'BBCA', name: 'Bank Central Asia', score: 91, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+18.5%', pe: '21.4x', roe: '22.4%', flow: 'Strong Accumulation', verdict: 'Strong Buy', cat: 'Quality Large Cap', corporateActions: [{ type: 'DIVIDEN', title: 'Dividen Rp 120', date: '2026-09-15' }] },
-    { ticker: 'ANTM', name: 'Aneka Tambang', score: 87, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+24.2%', pe: '11.8x', roe: '16.5%', flow: 'High Institutional Volume', verdict: 'Accumulate', cat: 'Growth / Commodity' },
-    { ticker: 'BBRI', name: 'Bank Rakyat Indonesia', score: 88, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+26.0%', pe: '10.8x', roe: '19.8%', flow: 'Institutional Inflow', verdict: 'Strong Buy', cat: 'High ROE Banking' },
-    { ticker: 'TLKM', name: 'Telkom Indonesia', score: 83, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+21.0%', pe: '13.2x', roe: '18.2%', flow: 'Moderate Inflow', verdict: 'Value Buy', cat: 'Dividend / Defensive' },
-    { ticker: 'ITMG', name: 'Indo Tambangraya Megah', score: 87, zone: 'BUY ZONE', zoneClass: 'b-up', mos: '+24.0%', pe: '5.2x', roe: '28.0%', flow: 'High Dividend Inflow', verdict: 'Accumulate', cat: 'Energy Yield', corporateActions: [{ type: 'DIVIDEN', title: 'Dividen Rp 1.250', date: '2026-09-20' }] },
-    { ticker: 'BMRI', name: 'Bank Mandiri', score: 74, zone: 'WATCH', zoneClass: 'b-amb', mos: '+8.4%', pe: '10.5x', roe: '20.1%', flow: 'Neutral Distribution', verdict: 'Hold / Trim', cat: 'Quality Large Cap' },
-    { ticker: 'ASII', name: 'Astra International', score: 71, zone: 'WATCH', zoneClass: 'b-amb', mos: '+12.0%', pe: '7.2x', roe: '14.8%', flow: 'Consolidation', verdict: 'Watch Support', cat: 'Deep Value' },
-    { ticker: 'GOTO', name: 'GoTo Gojek Tokopedia', score: 46, zone: 'AVOID', zoneClass: 'b-dn', mos: '-15.4%', pe: 'N/A', roe: '-8.2%', flow: 'Foreign Outflow', verdict: 'Avoid / Sell', cat: 'Speculative Tech' }
-  ];
+  return RADAR_STATE.items || [];
 }
 
 /**
@@ -779,20 +783,11 @@ function renderAiActionCenter() {
       return '<div class="act-metric"><span class="m-k">' + m.label + ':</span> <strong class="m-v">' + m.value + '</strong></div>';
     }).join('');
 
-    var exp = act.explainability;
-    var explainHtml = '<div class="explain-bar" title="AI Explainability Score Breakdown">'
-      + '<span class="exp-pill">Fund +' + exp.fundamental + '</span>'
-      + '<span class="exp-pill">Tech +' + exp.technical + '</span>'
-      + '<span class="exp-pill">Flow +' + exp.flow + '</span>'
-      + '<span class="exp-pill">Val +' + exp.valuation + '</span>'
-      + '<span class="exp-total">Score ' + exp.total + '/100</span>'
-    + '</div>';
-
     html += '<div class="action-card action-' + act.severity + '">'
       + '<div class="action-card-top">'
         + '<div class="action-card-header">'
           + '<span class="badge ' + act.badgeClass + '"><i class="ti ' + act.icon + '"></i> ' + act.title + '</span>'
-          + '<span class="action-confidence" title="Model Confidence Score">Confidence: <strong>' + act.confidence + '%</strong></span>'
+          + '<span class="action-confidence" title="Skor berbasis aturan dari data riil (bukan model ML)">Skor: <strong>' + act.confidence + '%</strong></span>'
         + '</div>'
         + '<div class="action-rec-badge">'
           + '<span class="rec-label">Recommendation:</span>'
@@ -801,7 +796,6 @@ function renderAiActionCenter() {
       + '</div>'
       + '<div class="action-reason">' + act.reason + '</div>'
       + '<div class="action-metrics-row">' + metricsHtml + '</div>'
-      + explainHtml
       + '<div class="action-card-footer">'
         + '<div class="action-meta">'
           + '<span>Data Freshness: <strong>' + act.dataFreshness + '</strong></span> · '
@@ -822,14 +816,22 @@ function renderAiActionCenter() {
  * Render Opportunity Radar Preview on Dashboard
  */
 function renderOpportunityRadarWidget() {
+  if (RADAR_STATE.items.length === 0 && !RADAR_STATE.isLoading) loadOpportunityRadarUniverse();
   var items = getOpportunityRadarItems();
+
+  if (items.length === 0) {
+    return '<div class="command-card radar-preview-card">'
+      + '<div class="card-title-group"><i class="ti ti-radar" style="color:var(--accent)"></i><span class="card-title">OPPORTUNITY RADAR (LQ45/IDX30, DATA REAL)</span></div>'
+      + '<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px"><i class="ti ti-loader animate-spin"></i> Memuat data fundamental real dari Yahoo Finance…</div>'
+    + '</div>';
+  }
 
   var html = '<div class="command-card radar-preview-card">'
     + '<div class="card-head-between">'
       + '<div class="card-title-group">'
         + '<i class="ti ti-radar" style="color:var(--accent)"></i>'
         + '<span class="card-title">OPPORTUNITY RADAR (950+ IDX UNIVERSE)</span>'
-        + '<span class="badge b-up" style="font-size:10px">' + (RADAR_STATE.summary.buyZoneCount || 20) + ' Buy Zone</span>'
+        + '<span class="badge b-up" style="font-size:10px">' + (RADAR_STATE.summary.buyZoneCount || 0) + ' Buy Zone</span>'
       + '</div>'
       + '<div style="display:flex;gap:6px">'
         + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\');setRadarSubTab(\'scanner\');">🌊 Scanner Flow</button>'
@@ -849,11 +851,11 @@ function renderOpportunityRadarWidget() {
         + '<span class="badge ' + (it.zoneClass || 'b-up') + '" style="font-size:9px">' + it.zone + '</span>'
       + '</div>'
       + '<div class="rmc-score-wrap">'
-        + '<span class="rmc-score-val">' + it.score + '</span>'
+        + '<span class="rmc-score-val">' + (it.score != null ? it.score : '—') + '</span>'
         + '<span class="rmc-score-max">/ 100</span>'
       + '</div>'
       + '<div class="rmc-stats">'
-        + '<div><span>MoS:</span> <strong class="up">' + it.mos + '</strong></div>'
+        + '<div><span>MoS:</span> <strong class="up">' + (it.mos || 'N/A') + '</strong></div>'
         + '<div><span>PE:</span> <strong>' + (it.pe || 'N/A') + '</strong></div>'
       + '</div>'
       + '<div class="rmc-verdict">' + (it.flow || it.verdict) + '</div>'
@@ -941,13 +943,13 @@ function renderOpportunityRadarPage() {
   }
 
   var activeTab = RADAR_STATE.activeTab || 'screener';
-  var sum = RADAR_STATE.summary || { totalUniverse: 958, buyZoneCount: 20, watchlistCount: 14, corpActionCount: 30 };
+  var sum = RADAR_STATE.summary || { totalUniverse: 0, buyZoneCount: 0, watchlistCount: 0, corpActionCount: 0, limitedDataCount: 0 };
 
   var html = '<div style="margin-bottom:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
       + '<div>'
         + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Opportunity Radar (950+ Saham BEI)</div>'
-        + '<div class="psub">Sistem evaluasi cerdas multi-faktor: Margin of Safety (35%), Bandarmology Flow (35%), ROE/Quality (20%), dan Momentum (10%) untuk seluruh emiten IHSG.</div>'
+        + '<div class="psub">Skor real dari data fundamental Yahoo Finance (Margin of Safety proxy 65% + ROE 35% + bonus indeks) — saat ini hanya dihitung untuk saham LQ45/IDX30 (~' + (sum.lq45Count || 45) + ' emiten). Saham lain di luar itu ditandai "DATA TERBATAS" karena aplikasi ini belum punya feed fundamental real untuk seluruh ~950 emiten sekaligus — bukan angka karangan.</div>'
       + '</div>'
       + '<div style="display:flex;gap:8px">'
         + '<button class="btn btn-ghost btn-xs" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData();loadCorporateActionsData();showSaveStatus(\'✓ Data Radar diperbarui\');">🔄 Refresh Feed</button>'
@@ -960,23 +962,23 @@ function renderOpportunityRadarPage() {
   + '<div class="row4" style="margin-bottom:16px">'
     + '<div class="metric" style="border-left:3px solid var(--accent)">'
       + '<div class="mlabel">TOTAL STOCK UNIVERSE</div>'
-      + '<div class="mval mono" style="font-size:22px">' + (sum.totalUniverse || 958) + '</div>'
+      + '<div class="mval mono" style="font-size:22px">' + (sum.totalUniverse || 0) + '</div>'
       + '<div class="msub neu">Seluruh Emiten BEI / IDX</div>'
     + '</div>'
     + '<div class="metric" style="border-left:3px solid var(--green)">'
       + '<div class="mlabel">BUY ZONE CANDIDATES</div>'
-      + '<div class="mval up mono" style="font-size:22px">' + (sum.buyZoneCount || 20) + '</div>'
-      + '<div class="msub up">Composite Score ≥ 80</div>'
-    + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--blue)">'
-      + '<div class="mlabel">AKUMULASI SMART MONEY</div>'
-      + '<div class="mval mono" style="font-size:22px;color:var(--blue)">' + (RADAR_STATE.accData ? (RADAR_STATE.accData.counts?.accumulation ?? 0) : '—') + '</div>'
-      + '<div class="msub neu">' + (RADAR_STATE.accData && RADAR_STATE.accData.isSimulated ? 'Data broker flow belum tersedia' : 'Inflow Dominan Bandar') + '</div>'
+      + '<div class="mval up mono" style="font-size:22px">' + (sum.buyZoneCount || 0) + '</div>'
+      + '<div class="msub up">Composite Score ≥ 80 (fundamental real)</div>'
     + '</div>'
     + '<div class="metric" style="border-left:3px solid var(--amber)">'
       + '<div class="mlabel">AKSI KORPORASI AKTIF</div>'
-      + '<div class="mval amb mono" style="font-size:22px">' + (sum.corpActionCount || 30) + '</div>'
+      + '<div class="mval amb mono" style="font-size:22px">' + (sum.corpActionCount || 0) + '</div>'
       + '<div class="msub neu">Dividen / Split / Rights / RUPS</div>'
+    + '</div>'
+    + '<div class="metric" style="border-left:3px solid var(--text3)">'
+      + '<div class="mlabel">DATA TERBATAS</div>'
+      + '<div class="mval mono" style="font-size:22px;color:var(--text3)">' + (sum.limitedDataCount || 0) + '</div>'
+      + '<div class="msub neu">Di luar LQ45/IDX30 — belum ada fundamental real</div>'
     + '</div>'
   + '</div>'
 
@@ -1056,7 +1058,7 @@ function renderRadarScreenerSubTab() {
   + '<div class="card" style="padding:0;overflow:hidden">'
     + '<div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">'
       + '<span style="font-size:12px;color:var(--text2);font-weight:600">Menampilkan ' + items.length + ' kandidat saham terevaluasi</span>'
-      + '<span style="font-size:11px;color:var(--text3)">Formula: 35% MoS + 35% Flow + 20% ROE + 10% Momentum</span>'
+      + '<span style="font-size:11px;color:var(--text3)">Formula (LQ45/IDX30 saja): 65% MoS Proxy + 35% ROE, real dari Yahoo Finance</span>'
     + '</div>'
     + '<div style="overflow-x:auto">'
       + '<table class="tbl">'
@@ -1068,14 +1070,14 @@ function renderRadarScreenerSubTab() {
           + '<th style="text-align:right">Margin of Safety</th>'
           + '<th style="text-align:right">P/E</th>'
           + '<th style="text-align:right">ROE</th>'
-          + '<th>Bandarmology Flow</th>'
+          + '<th>Sumber Data</th>'
           + '<th>Aksi Korporasi</th>'
           + '<th style="text-align:center">Aksi &amp; Detail</th>'
         + '</tr></thead>'
         + '<tbody>';
 
   if (items.length === 0) {
-    html += '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text3)">Tidak ada saham yang sesuai dengan filter pencarian.</td></tr>';
+    html += '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text3)">' + (RADAR_STATE.isLoading ? '<i class="ti ti-loader animate-spin"></i> Memuat data real dari Yahoo Finance…' : 'Tidak ada saham yang sesuai dengan filter pencarian.') + '</td></tr>';
   } else {
     items.forEach(function(it) {
       var corpBadge = '-';
@@ -1084,26 +1086,26 @@ function renderRadarScreenerSubTab() {
         corpBadge = '<span class="badge b-accent" style="font-size:10px" title="' + (ca.details || ca.title) + '">📅 ' + ca.type + ' (' + ca.date + ')</span>';
       }
 
-      var mosVal = parseFloat(it.mos || '0');
-      var mosClass = mosVal >= 0 ? 'up' : 'dn';
+      var mosVal = parseFloat(it.mos || 'NaN');
+      var mosClass = isNaN(mosVal) ? '' : (mosVal >= 0 ? 'up' : 'dn');
 
       html += '<tr>'
         + '<td>'
           + '<div style="display:flex;align-items:center;gap:6px">'
             + '<strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong>'
-            + (it.isLQ45 ? '<span class="badge b-up" style="font-size:9px;padding:1px 4px">LQ45</span>' : '')
+            + (it.indexes && it.indexes.lq45 ? '<span class="badge b-up" style="font-size:9px;padding:1px 4px">LQ45</span>' : '')
           + '</div>'
           + '<div style="color:var(--text3);font-size:11px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.name + '</div>'
         + '</td>'
         + '<td style="text-align:center">'
-          + '<span class="mono" style="font-size:15px;font-weight:800;color:var(--accent)">' + it.score + '</span><span style="font-size:10px;color:var(--text3)">/100</span>'
+          + '<span class="mono" style="font-size:15px;font-weight:800;color:var(--accent)">' + (it.score != null ? it.score : '—') + '</span><span style="font-size:10px;color:var(--text3)">/100</span>'
         + '</td>'
-        + '<td><span class="badge ' + (it.zoneClass || 'b-up') + '">' + it.zone + '</span></td>'
-        + '<td class="mono" style="text-align:right;font-weight:600">Rp ' + Number(it.price || 0).toLocaleString('id-ID') + '</td>'
-        + '<td class="mono ' + mosClass + '" style="text-align:right;font-weight:700">' + it.mos + '</td>'
+        + '<td><span class="badge ' + (it.zoneClass || 'b-neu') + '">' + it.zone + '</span></td>'
+        + '<td class="mono" style="text-align:right;font-weight:600">' + (it.price ? 'Rp ' + Number(it.price).toLocaleString('id-ID') : 'N/A') + '</td>'
+        + '<td class="mono ' + mosClass + '" style="text-align:right;font-weight:700">' + (it.mos || 'N/A') + '</td>'
         + '<td class="mono" style="text-align:right">' + (it.pe || 'N/A') + '</td>'
         + '<td class="mono" style="text-align:right">' + (it.roe || 'N/A') + '</td>'
-        + '<td><span style="font-size:11px;color:var(--text2)">' + (it.flow || 'Normal Flow') + '</span></td>'
+        + '<td><span style="font-size:11px;color:' + (it.isRealFundamental ? 'var(--green)' : 'var(--text3)') + '">' + (it.flow || 'Data Terbatas') + '</span></td>'
         + '<td>' + corpBadge + '</td>'
         + '<td style="text-align:center;white-space:nowrap">'
           + '<div style="display:inline-flex;gap:4px">'

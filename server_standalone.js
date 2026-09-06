@@ -187,7 +187,7 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/idx/opportunity-radar') {
     try {
-      const data = getUniverseOpportunityRadar();
+      const data = await getUniverseOpportunityRadar();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch (err) {
