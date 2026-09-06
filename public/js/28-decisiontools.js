@@ -575,7 +575,9 @@ function renderScenarioPage() {
     return '<option value="' + p.ticker + '">' + p.ticker + ' — ' + (p.name || '') + ' (' + w + '% AUM · Rp ' + fmtK(p.mv) + ')</option>';
   }).join('');
 
-  var html = '<div style="margin-bottom:16px">'
+  var html = (typeof qlTabBarHtml === 'function' ? qlTabBarHtml('scenario') : '')
+
+  + '<div style="margin-bottom:16px">'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Scenario Engine ("What If?" Stress Tester)</div>'
     + '<div class="psub">Uji ketahanan portofolio terhadap guncangan pasar, koreksi saham individual, perubahan suku bunga, atau rotasi posisi sebelum mengeksekusi di pasar riil.</div>'
   + '</div>'

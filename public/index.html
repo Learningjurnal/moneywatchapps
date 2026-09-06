@@ -438,8 +438,6 @@
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-dots"></i><span class="side-label">MORE</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Quant Lab</span></button>
-      <button onclick="goPage('backtester',this)"><i class="ti ti-history"></i><span class="side-label">Backtester</span></button>
-      <button onclick="goPage('scenario',this)"><i class="ti ti-variable"></i><span class="side-label">Scenario</span></button>
       <button onclick="goPage('datahealth',this)"><i class="ti ti-stethoscope"></i><span class="side-label">Data Health</span></button>
       <button onclick="goPage('admin',this)"><i class="ti ti-user-shield"></i><span class="side-label">Admin</span></button>
       <button onclick="goPage('settings',this)"><i class="ti ti-settings"></i><span class="side-label">Settings</span></button>
@@ -3362,6 +3360,7 @@
 
 <!-- ===== BACKTESTER (from QuantTrader) ===== -->
 <div id="page-backtester" class="page">
+  <div id="ql-tabbar-backtester"></div>
   <div class="ptitle">⚡ Backtester Strategi</div>
   <div class="psub">Uji strategi MA Crossover / RSI / XGBoost Signal dengan data harga real Yahoo Finance. Data live jika koneksi aktif.</div>
   <div style="display:grid;grid-template-columns:300px 1fr;gap:12px;margin-top:12px">
@@ -3493,6 +3492,7 @@
 
 <!-- ===== SCREENER LQ45 ===== -->
 <div id="page-screener" class="page">
+  <div id="ql-tabbar-screener"></div>
   <div class="ptitle">🔍 Screener Saham LQ45</div>
   <div class="psub">Filter saham LQ45 berdasarkan indikator teknikal · Data harga live dari Yahoo Finance</div>
   <div class="card" style="margin:12px 0 10px">
@@ -3527,6 +3527,7 @@
 
 <!-- ===== PAIRS TRADING ===== -->
 <div id="page-pairs" class="page">
+  <div id="ql-tabbar-pairs"></div>
   <div class="ptitle">🔀 Pairs Trading</div>
   <div class="psub">Temukan pasangan saham berkorelasi tinggi untuk strategi long-short. Data real Yahoo Finance.</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
@@ -3563,6 +3564,7 @@
 
 <!-- ===== CORRELATION MATRIX (QuantTrader) ===== -->
 <div id="page-correlation" class="page">
+  <div id="ql-tabbar-correlation"></div>
   <div class="ptitle">📉 Correlation Matrix</div>
   <div class="psub">Matriks korelasi return antar saham di PORTOFOLIO ANDA (data harga riil) — jawab langsung apakah portofolio benar-benar terdiversifikasi</div>
   <div class="card" style="margin:12px 0 10px">
@@ -3602,6 +3604,7 @@
 
 <!-- ===== MONTHLY RETURNS (QuantTrader) ===== -->
 <div id="page-monthly-returns" class="page">
+  <div id="ql-tabbar-monthly-returns"></div>
   <div class="ptitle">📅 Monthly Return Calendar</div>
   <div class="psub">Pola return bulanan historis per saham (hijau = positif, merah = negatif). Terintegrasi dengan 950+ emiten IDX &amp; data live Yahoo Finance.</div>
   <div class="card" style="margin:12px 0 10px">
@@ -3797,12 +3800,12 @@
 <script src="js/04-render.js?v=20260902c"></script>
 <script src="js/36-crypto-technical.js?v=20260906d"></script>
 <script src="js/05-assets.js?v=20260902c"></script>
-<script src="js/06-analysis-router.js?v=20260906a"></script>
+<script src="js/06-analysis-router.js?v=20260906b"></script>
 <script src="js/07-flowscan.js?v=20260906f"></script>
 <script src="js/08-auth.js?v=20260902c"></script>
 <script src="js/09-divinvest.js?v=20260902c"></script>
 <script src="js/10-hargawajar.js?v=20260906a"></script>
-<script src="js/11-quant.js?v=20260906d"></script>
+<script src="js/11-quant.js?v=20260906e"></script>
 <script src="js/12-clean.js?v=20260902c"></script>
 <script src="js/13-realdata.js?v=20260902c"></script>
 <script src="js/14-admin.js?v=20260902c"></script>
@@ -3815,7 +3818,7 @@
 <script src="js/25-auditlog.js?v=20260902c"></script>
 <script src="js/26-commandcenter.js?v=20260906c"></script>
 <script src="js/27-stockintel.js?v=20260906b"></script>
-<script src="js/28-decisiontools.js?v=20260902c"></script>
+<script src="js/28-decisiontools.js?v=20260906a"></script>
 <script src="js/29-institutional-ui.js?v=20260902c"></script>
 <script src="js/30-price-alerts.js?v=20260902c"></script><script src="js/32-pdf-reports.js?v=20260905i"></script>
 <script src="js/33-trending-news.js?v=20260902c"></script>

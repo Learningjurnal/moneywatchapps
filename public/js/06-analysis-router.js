@@ -1007,7 +1007,7 @@ function renderPage(name){
     case 'hargawajar':if(typeof hw_init==='function') hw_init(); if(typeof hw_recalc==='function') hw_recalc();break;
     // ── QuantTrader pages ──
     case 'backtester':break; // wait for user action
-    case 'screener':if(typeof scRenderTable!=='undefined'){if(!QT.scData.length)scBuildSim();else scRenderTable();}break;
+    case 'screener':if(typeof scRenderTable!=='undefined'){if(!QT.scData.length)scBuildSim(scRenderTable);else scRenderTable();}break;
     case 'pairs':break;
     case 'correlation':if(typeof corrRender!=='undefined')setTimeout(corrRender,100);break;
     case 'monthly-returns':if(typeof mrInitTickers==='function') mrInitTickers(); if(typeof mrRender!=='undefined')setTimeout(mrRender,100);break;
