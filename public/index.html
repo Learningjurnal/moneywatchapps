@@ -3027,6 +3027,11 @@
         <!-- Quick Stock Selector Chips -->
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase">Quick Select Real Data:</span>
+          <!-- FIX: these 16 chips previously mixed three unrelated inline
+               color schemes (blue accent, green, plain gray) added ad hoc
+               over time with no meaning behind the difference - purely
+               inconsistent, not tied to any real state (reported by
+               user). Normalized to one consistent accent-outline style. -->
           <button type="button" onclick="hw_loadStock('BBCA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BBCA</button>
           <button type="button" onclick="hw_loadStock('BBRI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BBRI</button>
           <button type="button" onclick="hw_loadStock('BMRI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BMRI</button>
@@ -3035,14 +3040,14 @@
           <button type="button" onclick="hw_loadStock('ADRO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ADRO</button>
           <button type="button" onclick="hw_loadStock('ASII')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ASII</button>
           <button type="button" onclick="hw_loadStock('TLKM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">TLKM</button>
-          <button type="button" onclick="hw_loadStock('GGRM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(0,0,255,.4)">GGRM</button>
-          <button type="button" onclick="hw_loadStock('SIDO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--green);border-color:rgba(0,212,170,.4)">SIDO</button>
-          <button type="button" onclick="hw_loadStock('PGEO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--green);border-color:rgba(0,212,170,.4)">PGEO</button>
-          <button type="button" onclick="hw_loadStock('ERAA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">ERAA</button>
-          <button type="button" onclick="hw_loadStock('AADI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">AADI</button>
-          <button type="button" onclick="hw_loadStock('PTRO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">PTRO</button>
-          <button type="button" onclick="hw_loadStock('ADMR')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">ADMR</button>
-          <button type="button" onclick="hw_loadStock('DEWA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--text2)">DEWA</button>
+          <button type="button" onclick="hw_loadStock('GGRM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">GGRM</button>
+          <button type="button" onclick="hw_loadStock('SIDO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">SIDO</button>
+          <button type="button" onclick="hw_loadStock('PGEO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">PGEO</button>
+          <button type="button" onclick="hw_loadStock('ERAA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ERAA</button>
+          <button type="button" onclick="hw_loadStock('AADI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">AADI</button>
+          <button type="button" onclick="hw_loadStock('PTRO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">PTRO</button>
+          <button type="button" onclick="hw_loadStock('ADMR')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ADMR</button>
+          <button type="button" onclick="hw_loadStock('DEWA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">DEWA</button>
         </div>
       </div>
 
