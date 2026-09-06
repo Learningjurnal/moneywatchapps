@@ -742,6 +742,11 @@ function renderStockIntelPage() {
       + '</div>'
     + '</div>'
 
+    // KSEI OWNERSHIP & FREE FLOAT (real KSEI data — see renderKseiIntelWidget
+    // in 34-ksei-shareholders.js; built for this exact cockpit but was never
+    // wired in until now, so PER/PBV/ROE et al had no ownership context)
+    + (typeof renderKseiIntelWidget === 'function' ? renderKseiIntelWidget(ticker) : '')
+
     // 4-CARD BENTO GRID
     + '<div class="intel-bento-grid">'
       
