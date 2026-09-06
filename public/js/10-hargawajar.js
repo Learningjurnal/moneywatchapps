@@ -1384,7 +1384,15 @@ var STOCK_FINANCIAL_DATABASE = {
   }
 };
 
-var hwData = { rows: [], ticker: 'BBCA', currentPrice: 9850, minReturn: 6, projYears: 5 };
+// FIX AUDIT: defaulted to ticker:'BBCA', currentPrice:9850 (a hardcoded,
+// long-stale snapshot) — every fresh visit silently computed a real-
+// looking BBCA valuation before the user ever typed anything, and typing
+// a different ticker could still leave old numbers mixed with the new
+// ticker's label if the reload path was skipped (see hw_ensureTickerSynced
+// below). Blank default per user request — a valuation with no ticker
+// picked should show an empty prompt, not a phantom BBCA calculation.
+var hwData = { rows: [], ticker: '', currentPrice: 0, minReturn: 6, projYears: 5 };
+var HW_LAST_CONFIRMED_TICKER = null;
 window.hwData = hwData;
 window.STOCK_FINANCIAL_DATABASE = STOCK_FINANCIAL_DATABASE;
 var hwHistChart = null;
@@ -1423,7 +1431,7 @@ function hw_switchChart(mode) {
 window.hw_switchChart = hw_switchChart;
 
 function hw_defaultRows(ticker) {
-  var tk = (ticker || hwData.ticker || 'BBCA').toUpperCase();
+  var tk = (ticker || hwData.ticker || '').toUpperCase();
   if (STOCK_FINANCIAL_DATABASE[tk] && STOCK_FINANCIAL_DATABASE[tk].rows) {
     return JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[tk].rows));
   }
@@ -1436,22 +1444,27 @@ function hw_defaultRows(ticker) {
 }
 
 function hw_init() {
-  var tk = (hwData.ticker || 'BBCA').toUpperCase();
+  // Only restore a previously SAVED session (real prior user work) — a
+  // first-ever visit or a Reset should land on a blank form, not a
+  // phantom ticker auto-loaded on the user's behalf.
+  var tk = (hwData.ticker || '').toUpperCase();
   try {
     var saved = localStorage.getItem('hw_state');
     if (saved) {
       var s = JSON.parse(saved);
-      if (s && Array.isArray(s.rows) && s.rows.length > 0) {
+      if (s && Array.isArray(s.rows) && s.rows.length > 0 && s.ticker) {
         hwData = s;
-        if (!hwData.ticker) hwData.ticker = tk;
-      } else {
+        HW_LAST_CONFIRMED_TICKER = hwData.ticker;
+      } else if (tk) {
         hw_loadStockData(tk);
+        HW_LAST_CONFIRMED_TICKER = tk;
       }
-    } else {
+    } else if (tk) {
       hw_loadStockData(tk);
+      HW_LAST_CONFIRMED_TICKER = tk;
     }
   } catch(e) {
-    hw_loadStockData(tk);
+    if (tk) { hw_loadStockData(tk); HW_LAST_CONFIRMED_TICKER = tk; }
   }
 
   // Ensure current price is filled if missing
@@ -1463,6 +1476,7 @@ function hw_init() {
 
   hw_renderTable();
   hw_renderHistoryList();
+  if (!hwData.ticker) { hw_clearResults(); return; }
   setTimeout(function() {
     hw_recalc();
   }, 50);
@@ -1472,7 +1486,8 @@ window.hw_renderTable = hw_renderTable;
 
 
 function hw_loadStockData(tk) {
-  tk = (tk || 'BBCA').toUpperCase();
+  tk = (tk || '').toUpperCase();
+  if (!tk) { hwData.ticker = ''; hwData.rows = []; hwData.currentPrice = 0; return; }
   hwData.ticker = tk;
   
   // Resolve price from SSOT first (ensures 100% uniformity across all modules)
@@ -1573,7 +1588,7 @@ function hw_renderTable() {
   var py = document.getElementById('hw-proj-years');
   if (py) py.value = hwData.projYears || 5;
   var ti = document.getElementById('hw-ticker-input');
-  if (ti) ti.value = hwData.ticker || 'BBCA';
+  if (ti) ti.value = hwData.ticker || '';
 }
 
 // Both of these re-render the whole table straight from hwData.rows.
@@ -1602,9 +1617,12 @@ window.hw_removeRow = hw_removeRow;
 
 function hw_resetAll() {
   try { localStorage.removeItem('hw_state'); } catch(e) {}
-  hw_loadStockData('BBCA');
+  hwData = { rows: [], ticker: '', currentPrice: 0, minReturn: 6, projYears: 5 };
+  HW_LAST_CONFIRMED_TICKER = null;
+  var ti = document.getElementById('hw-ticker-input'); if (ti) ti.value = '';
+  var cp = document.getElementById('hw-current-price'); if (cp) cp.value = '';
   hw_renderTable();
-  hw_recalc();
+  hw_clearResults();
 }
 window.hw_resetAll = hw_resetAll;
 
@@ -1612,22 +1630,25 @@ function hw_onTickerChange() {
   var ti = document.getElementById('hw-ticker-input');
   var tk = ti ? ti.value.trim().toUpperCase() : '';
   if (!tk) return;
-  hwData.ticker = tk;
-  
-  // If in database, auto populate historical data & price
-  if (STOCK_FINANCIAL_DATABASE[tk]) {
-    hw_loadStockData(tk);
-    hw_renderTable();
-    hw_recalc();
-  }
+
+  // hw_recalc() runs hw_ensureTickerSynced() first, which loads real data
+  // for a curated ticker or blanks the table for an uncurated one — so
+  // the table on screen matches the ticker the moment you tab out of the
+  // field, instead of only correcting itself on the next HITUNG click.
+  hw_recalc();
 
   if (typeof rdFetchLivePrice === 'function') {
+    var priceBadge = document.getElementById('hw-verdict-badge');
+    var prevBadgeText = priceBadge ? priceBadge.textContent : null;
+    if (priceBadge) { priceBadge.textContent = '⏳ Memuat harga real...'; priceBadge.style.background = 'var(--bg4)'; priceBadge.style.color = 'var(--text3)'; priceBadge.style.borderColor = 'var(--border)'; }
     rdFetchLivePrice(tk, function(err, price){
-      if (!err && price && price > 0) {
+      if (!err && price && price > 0 && hwData.ticker === tk) {
         hwData.currentPrice = price;
         var cp = document.getElementById('hw-current-price');
         if (cp) cp.value = price;
         hw_recalc();
+      } else if (priceBadge && prevBadgeText) {
+        priceBadge.textContent = prevBadgeText;
       }
     });
   }
@@ -1636,10 +1657,14 @@ window.hw_onTickerChange = hw_onTickerChange;
 
 function hw_autoFill() {
   var ti = document.getElementById('hw-ticker-input');
-  var tk = (ti ? ti.value : hwData.ticker || 'BBCA').trim().toUpperCase();
-  if (!tk) tk = 'BBCA';
+  var tk = (ti ? ti.value : hwData.ticker || '').trim().toUpperCase();
+  if (!tk) {
+    if (typeof showSaveStatus === 'function') showSaveStatus('Isi kode saham dulu sebelum Auto-Fill', 'var(--amber)');
+    return;
+  }
 
   hw_loadStockData(tk);
+  HW_LAST_CONFIRMED_TICKER = tk;
   hw_renderTable();
 
   if (typeof rdFetchLivePrice === 'function') {
@@ -1661,7 +1686,7 @@ function hw_autoFill() {
 window.hw_autoFill = hw_autoFill;
 
 function hw_syncInputs() {
-  hwData.ticker = ((document.getElementById('hw-ticker-input')||{}).value || hwData.ticker || 'BBCA').toUpperCase();
+  hwData.ticker = ((document.getElementById('hw-ticker-input')||{}).value || hwData.ticker || '').toUpperCase();
   hwData.currentPrice = parseFloat((document.getElementById('hw-current-price')||{}).value) || hwData.currentPrice || 0;
   hwData.minReturn = parseFloat((document.getElementById('hw-min-return')||{}).value) || 6;
   hwData.projYears = parseInt((document.getElementById('hw-proj-years')||{}).value) || 5;
@@ -1680,7 +1705,56 @@ function hw_syncInputs() {
   });
 }
 
+// FIX AUDIT (root cause of the anomalies reported): the HITUNG button and
+// Enter-to-recalc paths called hw_syncInputs()+the valuation math directly
+// on whatever was already sitting in the financial-data table's <input>
+// fields — they never checked whether that table actually belonged to the
+// ticker just typed. Switching from GGRM to a ticker with no curated data
+// (or retyping quickly) left GGRM's real numbers in the table, which then
+// got computed and displayed under the NEW ticker's name/price — the
+// consolidated view showed a confident OVERVALUED/UNDERVALUED verdict
+// built from a different company's financials entirely. This guard runs
+// first, before any calculation, and makes sure the on-screen table
+// actually matches the currently-typed ticker before proceeding.
+function hw_ensureTickerSynced() {
+  var ti = document.getElementById('hw-ticker-input');
+  var tk = ti ? ti.value.trim().toUpperCase() : '';
+
+  if (!tk) {
+    hwData.ticker = '';
+    hwData.rows = [];
+    HW_LAST_CONFIRMED_TICKER = null;
+    return 'blank';
+  }
+  if (tk === HW_LAST_CONFIRMED_TICKER) return 'same';
+
+  hwData.ticker = tk;
+  if (STOCK_FINANCIAL_DATABASE[tk]) {
+    hw_loadStockData(tk);
+    hw_renderTable();
+    HW_LAST_CONFIRMED_TICKER = tk;
+    return 'loaded-real';
+  }
+
+  // No curated real financials for this ticker — reset the table to
+  // blank rather than silently keep whatever the PREVIOUS ticker's
+  // numbers were. The current-price lookup below is real (live cache /
+  // universe price), only the historical financial statement rows are
+  // left for the user to fill in themselves.
+  hwData.rows = hw_defaultRows(tk);
+  var marketPrice = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(tk) : 0;
+  var univ = (typeof FS_UNIV !== 'undefined') ? FS_UNIV.find(function(u){ return u.t === tk; }) : null;
+  hwData.currentPrice = marketPrice > 0 ? marketPrice : (univ && univ.price > 0 ? univ.price : 0);
+  var cp = document.getElementById('hw-current-price');
+  if (cp) cp.value = hwData.currentPrice || '';
+  hw_renderTable();
+  HW_LAST_CONFIRMED_TICKER = tk;
+  return 'blank-reset';
+}
+window.hw_ensureTickerSynced = hw_ensureTickerSynced;
+
 function hw_recalc() {
+  var tickerSyncState = hw_ensureTickerSynced();
   hw_syncInputs();
 
   var btn = document.getElementById('hw-hitung-btn');
@@ -1709,11 +1783,22 @@ function hw_recalc() {
   });
 
   if (rows.length < 2) {
-    // Load default stock data if rows were empty
+    // Load default stock data if rows were empty. FIX: this used to
+    // reassign `rows = hwData.rows` (the raw, UNfiltered reloaded rows)
+    // instead of re-running the same eps/equity/shares > 0 filter — so a
+    // curated ticker whose STOCK_FINANCIAL_DATABASE entry is itself just
+    // an empty stub (year rows with blank fields, no numbers ever filled
+    // in — e.g. RAJA) still counted as "5 valid rows" by length alone.
+    // The calculation then ran on NaN eps/equity/shares all the way
+    // through, producing garbage like "Fair Value: Rp —" and "Margin of
+    // Safety -Infinity%" while still rendering a confident OVERVALUED
+    // verdict box instead of the honest "data belum lengkap" notice.
     if (STOCK_FINANCIAL_DATABASE[hwData.ticker]) {
       hwData.rows = JSON.parse(JSON.stringify(STOCK_FINANCIAL_DATABASE[hwData.ticker].rows));
       hw_renderTable();
-      rows = hwData.rows;
+      rows = hwData.rows.filter(function(r) {
+        return parseFloat(r.eps) > 0 && parseFloat(r.equity) > 0 && parseFloat(r.shares) > 0;
+      });
     }
   }
 
