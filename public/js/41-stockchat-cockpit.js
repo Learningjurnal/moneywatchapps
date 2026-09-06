@@ -648,12 +648,23 @@ function setStockChatBrokerFilter(filter) {
 }
 
 // Ask AI about a specific broker row
+// FIX: this used to call setStockChatActiveTab('chat') directly, which
+// only sets state and re-renders #page-stockchat in place — it never
+// navigates there. Clicking "Tanya AI" from the Bandarmology page (where
+// #page-stockchat is hidden) generated a reply the user could never see,
+// looking exactly like the button did nothing (reported by user).
+// window.openStockChat() (defined below) does the same job but actually
+// calls goPage('stockchat') first.
 function askAiAboutBrokerAction(brokerCode, brokerName, side, ticker, volumeLot, avgPrice, valueRp) {
   var tk = ticker || STOCKCHAT_SELECTED_TICKER || 'BBCA';
   var sideText = side === 'BUY' ? 'membeli (akumulasi)' : 'menjual (distribusi)';
   var valM = (Number(valueRp || 0) / 1000000000).toFixed(2);
   var prompt = 'Tolong analisa motif dan pola transaksi broker ' + brokerCode + ' (' + brokerName + ') yang tercatat ' + sideText + ' saham ' + tk + ' sebanyak ' + Number(volumeLot || 0).toLocaleString('id-ID') + ' lot senilai Rp ' + valM + ' Miliar di harga rata-rata Rp ' + Number(avgPrice || 0).toLocaleString('id-ID') + '. Apakah ini indikasi smart money atau aksi distribusi?';
 
+  if (typeof window.openStockChat === 'function') {
+    window.openStockChat(tk, prompt, 'chat');
+    return;
+  }
   setStockChatActiveTab('chat');
   setTimeout(function() {
     sendStockChatPrompt(prompt);
@@ -943,6 +954,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '<div style="display:flex;align-items:center;gap:8px">'
     + '<span style="font-size:12px;font-weight:700;color:var(--text)">📊 Top ' + limit + ' Buying vs Top ' + limit + ' Selling Brokers (' + data.ticker + ')</span>'
     + '<span class="badge b-accent" style="font-size:10px">Sortable Table</span>'
+    + (data.isSimulated ? '<span class="badge b-dn" style="font-size:10px" title="BEI tidak menyediakan feed broker-level publik/gratis — daftar broker &amp; nilai transaksi di bawah adalah simulasi berjangkar harga pasar riil, bukan rekap transaksi broker sungguhan.">⚠ SIMULASI</span>' : '<span class="badge b-up" style="font-size:10px">● Data Riil</span>')
     + '</div>'
     + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
     + '<div class="btn-group" style="display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px">'
@@ -1102,10 +1114,18 @@ function renderAggregatedBrokerFlowView(data) {
 }
 
 // Ask AI specifically about the current broker flow data
+// FIX: same navigation bug as askAiAboutBrokerAction above — used to call
+// setStockChatActiveTab('chat') without ever navigating to the StockChat
+// page, so "Tanya AI Posisi Modal Whale" silently did nothing visible
+// when clicked from the Bandarmology page.
 function askAiAboutCurrentBrokerFlow(ticker) {
   var tk = ticker || STOCKCHAT_SELECTED_TICKER || 'BBCA';
-  setStockChatActiveTab('chat');
   var prompt = 'Tolong analisa mendalam Broker Summary dan Bandarmology saham ' + tk + ' untuk rentang ' + STOCKCHAT_TIMEFRAME + '. Bagaimana estimasi modal dasar (cost basis) pembelian rata-rata 1 tahun para whale dan potensi support/resistensinya?';
+  if (typeof window.openStockChat === 'function') {
+    window.openStockChat(tk, prompt, 'chat');
+    return;
+  }
+  setStockChatActiveTab('chat');
   setTimeout(function() {
     sendStockChatPrompt(prompt);
   }, 150);
@@ -1224,10 +1244,10 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
     + '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
     + '<div>'
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
-    + '<span class="badge b-amb" style="font-size:10px;font-weight:700"><i class="ti ti-history"></i> DATABASE 1 TAHUN (250D)</span>'
+    + '<span class="badge b-dn" style="font-size:10px;font-weight:700" title="BEI tidak menyediakan feed broker-level historis 1 tahun secara publik/gratis — daftar broker, bobot volume, dan bias harga di bawah ini adalah pola ilustratif, bukan hasil rekap transaksi riil."><i class="ti ti-alert-triangle"></i> ⚠ SIMULASI (Bukan Database Riil)</span>'
     + '<span style="font-size:14px;font-weight:800;color:var(--text)">Matriks Rata-Rata Harga Beli Broker Historis 1 Tahun</span>'
     + '</div>'
-    + '<div style="font-size:12px;color:var(--text2)">Pelacakan akumulasi multi-periode untuk mengetahui modal dasar (Cost of Bandarmology) dan posisi floating profit/loss whale ' + tk + '</div>'
+    + '<div style="font-size:12px;color:var(--text2)">VWAP 1 tahun &amp; rentang harga 52 minggu di bawah dihitung dari histori harga real ' + tk + '. Daftar broker, bobot volume, dan modal rata-rata per broker adalah simulasi ilustratif (bukan rekap transaksi broker riil) — BEI tidak menyediakan feed broker-level historis publik/gratis untuk ini.</div>'
     + '</div>'
     + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + tk + '\')" class="btn btn-primary btn-xs" style="display:flex;align-items:center;gap:6px">'
     + '<i class="ti ti-messages"></i> <span>Tanya AI Posisi Modal Whale</span>'
