@@ -1776,7 +1776,9 @@ function generateClientSideAiAgentResponse(message, userContext) {
     var netForeignFmt = (bVerdict.foreignFlow.netValueRp >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(bVerdict.foreignFlow.netValueRp / 1000000000)).toLocaleString('id-ID') + ' Miliar';
 
     reply = '### 📊 Analisa Broker Summary & Bandarmology: ' + matchedTicker + '\n\n'
-      + 'Berdasarkan feed data transaksi pasar reguler BEI (' + bData.timeframe + '):\n'
+      + (bData.isSimulated
+          ? '⚠️ **Catatan Data**: BEI tidak menyediakan feed broker-level flow publik gratis — angka top buyer/seller di bawah ini adalah **simulasi** yang diberi jangkar harga pasar riil ' + matchedTicker + ', bukan data transaksi broker sungguhan.\n\n'
+          : 'Berdasarkan feed data transaksi pasar reguler BEI (' + bData.timeframe + '):\n')
       + '- **Status Bandarmology**: **' + bVerdict.verdict + '** (Skor: ' + bVerdict.score + '/100)\n'
       + '- **Konsentrasi Top 3 Buyer**: **' + bVerdict.concentration.top3BuyerPct + '%** [' + topBuy3 + ']\n'
       + '- **Konsentrasi Top 3 Seller**: **' + bVerdict.concentration.top3SellerPct + '%** [' + topSell3 + ']\n'
@@ -1816,21 +1818,23 @@ function generateClientSideAiAgentResponse(message, userContext) {
       + '*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
   }
   else if (pLower.includes('valuasi') || pLower.includes('fundamental') || pLower.includes('fair value') || pLower.includes('mos') || pLower.includes('margin of safety') || pLower.includes('per') || pLower.includes('pbv') || pLower.includes('roe')) {
+    // FIX AUDIT (StockChat fallback engine): sebelumnya "Fair Value" dihitung
+    // dari formula tetap harga*1.20 (selalu +20% di atas harga pasar, apa pun
+    // tickernya) dan menampilkan "P/E ~12.5x | PBV ~1.8x | ROE ~16.5% | DER
+    // ~0.65x" — angka konstan yang sama untuk SETIAP saham, disajikan seolah
+    // hasil analisa fundamental riil. Chat ini tidak punya akses ke model
+    // valuasi multi-metode yang sesungguhnya (itu ada di halaman Valuation/
+    // Fundamental) — jadi sekarang hanya menampilkan harga real & sektor,
+    // dan mengarahkan ke halaman yang benar-benar menghitung MoS dari data
+    // fundamental riil, bukan mengarang angka valuasi di sini.
     var dbItem = (typeof DB !== 'undefined' && DB[matchedTicker]) ? DB[matchedTicker] : null;
     var price = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(matchedTicker) : getAccurateStockPrice(matchedTicker);
-    var fairValue = price > 0 ? Math.round(price * 1.20) : 0;
-    var mos = (price > 0 && fairValue > 0) ? (((fairValue - price) / fairValue) * 100).toFixed(1) : '—';
 
-    reply = '### 💎 Valuasi Fundamental & Fair Value Matrix: ' + matchedTicker + '\n\n'
-      + 'Analisis fundamental dan matriks valuasi emiten:\n'
+    reply = '### 💎 Valuasi Fundamental: ' + matchedTicker + '\n\n'
       + '- **Harga Pasar Terkini**: ' + (price > 0 ? 'Rp ' + price.toLocaleString('id-ID') : 'Rp — (Memuat data...)') + '\n'
-      + '- **Estimasi Nilai Wajar (Fair Value)**: **' + (fairValue > 0 ? 'Rp ' + fairValue.toLocaleString('id-ID') : 'Menghitung...') + '**\n'
-      + '- **Margin of Safety (MoS)**: **+' + mos + '%** ' + (Number(mos) > 15 ? '(Undervalued / Diskon Cukup)' : '(Fairly Valued)') + '\n'
-      + '- **Sektor Industri**: ' + (dbItem ? dbItem.sector : 'Equities') + '\n'
-      + '- **Metrik Kunci (Estimasi)**: P/E ~12.5x | PBV ~1.8x | ROE ~16.5% | DER ~0.65x\n\n'
-      + '**Pilar Fundamental:**\n'
-      + 'Struktur profitabilitas stabil dengan kemampuan menghasilkan arus kas operasional positif. Rasio leverage (DER) berada dalam batas sehat di bawah 1.5x.\n\n'
-      + '*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
+      + '- **Sektor Industri**: ' + (dbItem ? dbItem.sector : 'Equities') + '\n\n'
+      + '⚠️ **Catatan Data**: Chat ini belum bisa menghitung Fair Value/MoS/P/E/ROE di sini tanpa mengarang angka. Untuk valuasi 9-Step Margin of Safety, Multi-Model Graham/Lynch/DDM, dan rasio fundamental riil (EPS, BVPS, ROE, DER dari laporan keuangan), buka menu **Valuation** atau **Fundamental** untuk ' + matchedTicker + ' — halaman itu menghitung dari data riil, bukan estimasi generik.\n\n'
+      + '*Disclaimer: Keputusan investasi berada di tangan Anda.*';
   }
   else if (pLower.includes('dividen') || pLower.includes('pajak') || pLower.includes('yield') || pLower.includes('dps')) {
     var dbItem = (typeof DB !== 'undefined' && DB[matchedTicker]) ? DB[matchedTicker] : null;
@@ -1841,8 +1845,8 @@ function generateClientSideAiAgentResponse(message, userContext) {
     var netReg = gross - tax10;
 
     reply = '### 💰 Simulasi Penerimaan Dividen Bersih & Pajak: ' + matchedTicker + '\n\n'
-      + 'Kalkulasi simulasi hak dividen (Kepemilikan 50 Lot / 5.000 lembar):\n'
-      + '- **Estimasi DPS (Dividen per Lembar)**: ' + (estDps > 0 ? 'Rp ' + estDps.toLocaleString('id-ID') : 'Rp —') + '\n'
+      + '⚠️ Ini kalkulator ILUSTRASI dengan asumsi yield 5% (bukan DPS historis riil ' + matchedTicker + ') untuk skenario kepemilikan 50 Lot / 5.000 lembar — tujuannya menjelaskan mekanisme pajak, bukan memprediksi dividen sungguhan. Cek DPS riil di menu **Dividend** atau **Fundamental**.\n\n'
+      + '- **Estimasi DPS (asumsi yield 5%)**: ' + (estDps > 0 ? 'Rp ' + estDps.toLocaleString('id-ID') : 'Rp —') + '\n'
       + '- **Dividen Kotor (Gross)**: ' + (gross > 0 ? 'Rp ' + gross.toLocaleString('id-ID') : 'Rp —') + '\n'
       + '- **Potongan Pajak Reguler (PPh Final 10%)**: -Rp ' + tax10.toLocaleString('id-ID') + '\n'
       + '- **Dividen Bersih Reguler**: **' + (netReg > 0 ? 'Rp ' + netReg.toLocaleString('id-ID') : 'Rp —') + '**\n\n'
@@ -1875,11 +1879,12 @@ function generateClientSideAiAgentResponse(message, userContext) {
       + '- **Fraksi Harga (Tick Size)**: **Rp ' + tick + ' / step**\n'
       + '- **Batas ARA (+ ' + (araPct * 100) + '%)**: **' + (araPrice > 0 ? 'Rp ' + araPrice.toLocaleString('id-ID') : '—') + '**\n'
       + '- **Batas ARB (- ' + (araPct * 100) + '%)**: **' + (arbPrice > 0 ? 'Rp ' + arbPrice.toLocaleString('id-ID') : '—') + '**\n\n'
-      + '**🎯 Trading Plan & Risk/Reward Ratio (1 : 2.5):**\n'
+      + '**🎯 Contoh Kerangka Risk/Reward Umum (bukan rekomendasi personal untuk ' + matchedTicker + '):**\n'
       + '- **Area Beli (Entry Zone)**: ' + (price > 0 ? 'Rp ' + price.toLocaleString('id-ID') : 'Rp —') + '\n'
-      + '- **Stop Loss Disiplin**: ' + (sl > 0 ? 'Rp ' + sl.toLocaleString('id-ID') + ' (-6.0%)' : '—') + '\n'
-      + '- **Target Profit 1 (TP1)**: ' + (tp1 > 0 ? 'Rp ' + tp1.toLocaleString('id-ID') + ' (+8.0%)' : '—') + '\n'
-      + '- **Target Profit 2 (TP2)**: ' + (tp2 > 0 ? 'Rp ' + tp2.toLocaleString('id-ID') + ' (+15.0%)' : '—') + '\n\n'
+      + '- **Stop Loss Contoh (-6%)**: ' + (sl > 0 ? 'Rp ' + sl.toLocaleString('id-ID') : '—') + '\n'
+      + '- **Target Profit 1 Contoh (+8%)**: ' + (tp1 > 0 ? 'Rp ' + tp1.toLocaleString('id-ID') : '—') + '\n'
+      + '- **Target Profit 2 Contoh (+15%)**: ' + (tp2 > 0 ? 'Rp ' + tp2.toLocaleString('id-ID') : '—') + '\n\n'
+      + '⚠️ Persentase SL/TP di atas adalah kerangka umum manajemen risiko, bukan hasil analisa teknikal/volatilitas khusus ' + matchedTicker + '. Untuk level support/resistance riil, cek menu **Technical**.\n\n'
       + '*Disclaimer: Keputusan transaksi sepenuhnya tanggung jawab investor.*';
   }
   else {
@@ -1891,17 +1896,19 @@ function generateClientSideAiAgentResponse(message, userContext) {
     var chgVal = typeof getGlobalMarketChange === 'function' ? getGlobalMarketChange(matchedTicker) : (typeof changes !== 'undefined' && changes[matchedTicker] !== undefined ? Number(changes[matchedTicker]) : 0);
     var chg = (chgVal >= 0 ? '+' : '') + chgVal.toFixed(2) + '%';
 
-    reply = '### 🚀 Tearsheet Analisa Universal Saham: ' + matchedTicker + ' (' + name + ')\n\n'
-      + 'Ringkasan komprehensif data pasar BEI:\n'
+    // FIX AUDIT (StockChat fallback engine): sebelumnya branch default ini
+    // menampilkan "Skor Konfluensi 5-Pillar: 84/100 (HIGH CONVICTION /
+    // ACCUMULATE)" dengan breakdown "Fundamental (88) | Teknikal (80) |
+    // Bandarmology (84) | Valuasi (82) | Risiko (85)" — teks & angka yang
+    // 100% IDENTIK untuk setiap ticker yang ditanyakan, tidak peduli
+    // fundamentalnya seperti apa. Ini persis pola fabrikasi yang sama
+    // dengan bug Opportunity Radar/AI Action Center yang sudah diperbaiki
+    // — dihapus, diganti data real (harga/sektor/chg%) + arahan ke halaman
+    // yang benar-benar menghitung skor dari data real per kategori.
+    reply = '### 🚀 Ringkasan Cepat: ' + matchedTicker + ' (' + name + ')\n\n'
       + '- **Sektor**: ' + sector + '\n'
-      + '- **Harga Terkini**: Rp ' + price.toLocaleString('id-ID') + ' (' + chg + ')\n'
-      + '- **Skor Konfluensi 5-Pillar**: **84/100 (HIGH CONVICTION / ACCUMULATE)**\n'
-      + '- **Pilar Skor**: Fundamental (88) | Teknikal (80) | Bandarmology (84) | Valuasi (82) | Risiko (85)\n\n'
-      + '**Katalis & Potensi:**\n'
-      + '• Tren likuiditas transaksi solid dengan minat beli institusi terjaga.\n'
-      + '• Struktur permodalan sehat dan valuasi berada di area wajar dengan potensi ekspansi margin.\n\n'
-      + '**Tindakan Cepat:**\n'
-      + 'Gunakan tombol **"📊 Broker Flow"** di atas untuk melihat detail Top Buyer/Seller atau tanyakan pertanyaan spesifik mengenai valuasi, dividen, dan risiko.\n\n'
+      + '- **Harga Terkini**: Rp ' + price.toLocaleString('id-ID') + ' (' + chg + ')\n\n'
+      + 'Chat ini belum bisa menghitung skor konfluensi multi-pilar (fundamental/teknikal/bandarmology/valuasi/risiko) tanpa mengarang angka untuk ticker di luar konteks pertanyaan Anda. Untuk analisa 5-pilar yang benar-benar dihitung dari data real per ' + matchedTicker + ', buka **Stock Intelligence Cockpit** atau tanyakan hal spesifik (broker flow, valuasi, dividen, risiko) di sini.\n\n'
       + '*Disclaimer: Keputusan investasi berada di tangan Anda.*';
   }
 
