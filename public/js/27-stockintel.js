@@ -329,13 +329,6 @@ function getStockIntelData(ticker) {
         liquidity: turnover
       };
     })(),
-    technical: {
-      ma20: price > 0 ? fmtK(Math.round(price * 0.98)) + ' (MA20)' : '-',
-      ma50: price > 0 ? fmtK(Math.round(price * 0.95)) + ' (MA50)' : '-',
-      ma200: price > 0 ? fmtK(Math.round(price * 0.90)) + ' (MA200)' : '-',
-      oscillator: price > 0 ? (meta.chg.startsWith('+') ? 'Bullish Rebound' : 'Konsolidasi') : '-',
-      signal: price > 0 ? 'Di atas batas support' : '-'
-    },
     seasonality: seasonality,
     financials: financials,
     flow: {
