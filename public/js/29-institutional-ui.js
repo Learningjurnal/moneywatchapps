@@ -407,7 +407,14 @@
   // ── Inject Density Switchers into Toolbars on DOM Load ──
   function initInstitutionalUI() {
     // 1. Injeksi Table Density Switcher di Portofolio Table Toolbar
-    var portoToolbar = document.querySelector('#page-portofolio .card > div:first-child');
+    // FIX: was '#page-portofolio .card > div:first-child', which matches
+    // the FIRST .card in the whole page in document order — that's the
+    // "Alokasi Portofolio Real-Time" donut chart card's header (Sektor/
+    // Kelas Aset toggle), not the intended "Performa per Saham" table
+    // toolbar. The two toolbars ended up visually merged/overlapping in
+    // the donut card's header (reported by user). Target the correct
+    // toolbar by id instead.
+    var portoToolbar = document.getElementById('perf-toolbar-header');
     if (portoToolbar && !document.getElementById('porto-density-ctl')) {
       var densityDiv = document.createElement('div');
       densityDiv.id = 'porto-density-ctl';

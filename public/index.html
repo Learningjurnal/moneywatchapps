@@ -290,19 +290,6 @@
       <span class="ibar-chg" id="tb-chg"></span>
     </div>
     <div class="live" style="margin-left:2px"><div class="dot"></div>LIVE</div>
-    
-    <!-- AI Status Indicator -->
-    <div class="hide-mobile" style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--accent);background:var(--brand-soft);border:1px solid var(--accent);border-radius:20px;padding:2px 8px">
-      <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981"></span>
-      <span>AI Engine Live</span>
-    </div>
-
-    <!-- Global Portfolio Refresh & Last Updated Timestamp -->
-    <div id="topbar-last-sync-badge" class="hide-mobile" style="display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:2px 10px;cursor:pointer;transition:all .2s ease" onclick="if(typeof refreshPortfolioMarketData==='function') refreshPortfolioMarketData({isManual:true})" title="Auto-refresh tiap 5 menit. Klik untuk sinkronkan data pasar portofolio sekarang">
-      <i class="ti ti-refresh" id="topbar-sync-icon" style="font-size:11px;color:var(--accent);transition:transform 0.5s ease"></i>
-      <span style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.3px">Last Updated:</span>
-      <span id="topbar-last-updated-time" style="font-family:var(--font-mono);font-weight:700;color:var(--text)">--:--:--</span>
-    </div>
   </div>
 
   <div class="topbar-right" style="display:flex;align-items:center;gap:8px">
@@ -326,20 +313,6 @@
       <span id="tb-alert-dot" style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--red);display:none"></span>
     </button>
 
-    <!-- UNIFIED SETTINGS HUB BUTTON -->
-    <button class="btn btn-ghost btn-xs" id="btn-settings-hub" onclick="openSettingsHub()" title="Buka Pusat Pengaturan & Data Hub (Cloud, Feed, Tampilan, Pajak, Audit, Akun)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:var(--accent);background:var(--brand-soft);color:var(--text);padding:5px 10px;border-radius:6px">
-      <i class="ti ti-settings" style="color:var(--accent);font-size:13px"></i>
-      <span style="font-weight:600">Pengaturan &amp; Data</span>
-      <span id="sh-topbar-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:2px" title="Firebase Cloud &amp; Live Feed Aktif"></span>
-    </button>
-
-    <div class="clock hide-mobile" id="clock">--:--:--</div>
-
-    <!-- Session info / Profile -->
-    <div id="session-info" style="display:none;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer" onclick="openSettingsHub('account')">
-      <span style="color:var(--green)">●</span>
-      <span id="session-user" style="color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
-    </div>
   </div>
 </div><!-- /topbar -->
 
@@ -1344,7 +1317,7 @@
 
   <!-- ═══ TOOLBAR PERFORMA PER SAHAM — realized + unrealized per kode, termasuk yang sudah ditutup ═══ -->
   <div class="card" style="margin-bottom:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div id="perf-toolbar-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
         <div class="ptitle" style="font-size:14px">📊 Performa per Saham</div>
         <div class="psub">Ringkasan hasil investasi per emiten</div>
@@ -3763,6 +3736,39 @@
   <div id="backup-modal-body"></div>
 </div>
 
+<!-- ===== BOTTOM TOOLBAR — status, jam, pengaturan & akun ===== -->
+<!-- Dipindah dari topbar (yang tadinya menumpuk/berantakan di layar sempit)
+     ke satu baris status ringkas di bagian bawah, sesuai permintaan user. -->
+<div class="bottom-toolbar" id="bottom-toolbar">
+  <div style="display:flex;align-items:center;gap:10px;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--accent)">
+      <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;flex-shrink:0;forced-color-adjust:none"></span>
+      <span class="hide-mobile">AI Engine Live</span>
+    </div>
+    <div id="topbar-last-sync-badge" style="display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;color:var(--text2);cursor:pointer" onclick="if(typeof refreshPortfolioMarketData==='function') refreshPortfolioMarketData({isManual:true})" title="Auto-refresh tiap 5 menit. Klik untuk sinkronkan data pasar portofolio sekarang">
+      <i class="ti ti-refresh" id="topbar-sync-icon" style="font-size:11px;color:var(--accent);transition:transform 0.5s ease"></i>
+      <span class="hide-mobile" style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.3px">Last Updated:</span>
+      <span id="topbar-last-updated-time" style="font-family:var(--font-mono);font-weight:700;color:var(--text)">--:--:--</span>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="clock hide-mobile" id="clock">--:--:--</div>
+
+    <button class="btn btn-ghost btn-xs" id="btn-settings-hub" onclick="openSettingsHub()" title="Buka Pusat Pengaturan & Data Hub (Cloud, Feed, Tampilan, Pajak, Audit, Akun)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:var(--accent);background:var(--brand-soft);color:var(--text);padding:4px 10px;border-radius:6px">
+      <i class="ti ti-settings" style="color:var(--accent);font-size:13px"></i>
+      <span style="font-weight:600">Pengaturan &amp; Data</span>
+      <span id="sh-topbar-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:2px;forced-color-adjust:none" title="Firebase Cloud &amp; Live Feed Aktif"></span>
+    </button>
+
+    <!-- Session info / Profile -->
+    <div id="session-info" style="display:none;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer" onclick="openSettingsHub('account')">
+      <span style="color:var(--green)">●</span>
+      <span id="session-user" style="color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+    </div>
+  </div>
+</div><!-- /bottom-toolbar -->
+
 </div><!-- /app -->
 
 <!-- MODAL -->
@@ -3802,7 +3808,7 @@
 <script src="js/01-data.js?v=20260902c"></script>
 <script src="js/02-storage.js?v=20260902c"></script>
 <script src="js/03-engine.js?v=20260906e"></script>
-<script src="js/04-render.js?v=20260902c"></script>
+<script src="js/04-render.js?v=20260906a"></script>
 <script src="js/36-crypto-technical.js?v=20260906e"></script>
 <script src="js/05-assets.js?v=20260902c"></script>
 <script src="js/06-analysis-router.js?v=20260906b"></script>
@@ -3824,7 +3830,7 @@
 <script src="js/26-commandcenter.js?v=20260906g"></script>
 <script src="js/27-stockintel.js?v=20260906e"></script>
 <script src="js/28-decisiontools.js?v=20260906c"></script>
-<script src="js/29-institutional-ui.js?v=20260902c"></script>
+<script src="js/29-institutional-ui.js?v=20260906a"></script>
 <script src="js/30-price-alerts.js?v=20260902c"></script><script src="js/32-pdf-reports.js?v=20260905i"></script>
 <script src="js/33-trending-news.js?v=20260902c"></script>
 <script src="js/34-ksei-shareholders.js?v=20260906a"></script>

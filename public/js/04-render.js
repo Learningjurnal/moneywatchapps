@@ -298,8 +298,15 @@ function renderPortofolio(){
         var val = dataVals[idx];
         var pct = (val / totalVal * 100).toFixed(1);
         var col = backgroundColors[idx];
+        // forced-color-adjust:none — without it, Windows/Chrome "Forced
+        // Colors" (high-contrast) mode strips custom background colors
+        // from plain divs and substitutes system button colors, which
+        // made every sector swatch render as a pale, checkbox-looking
+        // square (reported by user) even though the color was correctly
+        // set here — the donut chart canvas next to it was unaffected
+        // since canvas pixels aren't touched by forced-colors mode.
         return '<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;background:var(--bg3)">'
-          + '<div style="width:8px;height:8px;border-radius:2px;background:'+col+';flex-shrink:0"></div>'
+          + '<div style="width:10px;height:10px;border-radius:3px;background:'+col+';border:1px solid '+col+';flex-shrink:0;forced-color-adjust:none"></div>'
           + '<span style="color:var(--text2);flex:1;font-weight:500">'+lbl+'</span>'
           + '<span style="font-family:var(--font-mono);font-weight:600;color:'+col+'">'+pct+'%</span>'
           + '<span style="font-family:var(--font-mono);color:var(--text3);min-width:70px;text-align:right">Rp '+fmtK(val)+'</span>'
