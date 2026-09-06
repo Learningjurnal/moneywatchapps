@@ -400,7 +400,14 @@ function generateClientSideBrokerSummary(ticker, timeframe) {
         buyValueRp: foreignBuyVal,
         sellValueRp: foreignSellVal,
         netValueRp: foreignBuyVal - foreignSellVal,
-        status: foreignBuyVal >= foreignSellVal ? 'NET FOREIGN BUY (INFLOW)' : 'NET FOREIGN SELL (OUTFLOW)'
+        status: foreignBuyVal >= foreignSellVal ? 'NET FOREIGN BUY (INFLOW)' : 'NET FOREIGN SELL (OUTFLOW)',
+        // Was read in 4 places (always falling back to a hardcoded 0 or 50)
+        // because this field was never actually set here — "Porsi Asing"
+        // showed literally 50% for every single ticker. Now derived from
+        // the foreign vs domestic broker split already computed above.
+        participationPct: (foreignBuyVal + domesticBuyVal + foreignSellVal + domesticSellVal) > 0
+          ? Math.round(((foreignBuyVal + foreignSellVal) / (foreignBuyVal + domesticBuyVal + foreignSellVal + domesticSellVal)) * 1000) / 10
+          : 0
       },
       domesticFlow: {
         buyValueRp: domesticBuyVal,
