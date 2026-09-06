@@ -522,12 +522,19 @@ function setStockChatActiveTab(tabName) {
 }
 
 // Change Broker Summary Timeframe
+// FIX: this timeframe switcher is shared by two different pages —
+// StockChat's own "Broker Flow" tab AND the Bandarmology & Smart Money
+// page's "Analisis Full Emiten" view (both render into the same
+// #stockchat-flow-tab-content container). The old code only refreshed
+// that container when STOCKCHAT_ACTIVE_TAB === 'broker-flow', a StockChat-
+// page-only state variable that stays 'chat' by default — so on the
+// Bandarmology page, clicking 1D/1W/1M/3M/6M/1Y silently did nothing.
+// loadAndRenderBrokerFlowTab() already no-ops safely if the container
+// isn't present, so it's safe to always call it here.
 function setStockChatTimeframe(tf) {
   STOCKCHAT_TIMEFRAME = tf || '1D';
-  renderStockChatPage();
-  if (STOCKCHAT_ACTIVE_TAB === 'broker-flow') {
-    loadAndRenderBrokerFlowTab();
-  }
+  if (typeof currentPage !== 'undefined' && currentPage === 'stockchat') renderStockChatPage();
+  loadAndRenderBrokerFlowTab();
 }
 
 // Load and refresh Broker Flow Tab data
