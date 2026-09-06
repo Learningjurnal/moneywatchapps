@@ -552,10 +552,55 @@ function saveNewJournalFromModal() {
 // ══════════════════════════════════════════════════════════
 // 4. SCENARIO ENGINE ("WHAT IF?" SIMULATOR)
 // ══════════════════════════════════════════════════════════
+
+// Real portfolio Beta + parametric VaR — every scenario branch below used
+// to carry its own hardcoded "VaR 95%: X%" / "Beta Portofolio: X" literal,
+// a different fixed number per scenario type with no connection to the
+// user's actual holdings or real market volatility. Reuses the same real
+// regression-against-IHSG the Performance page's "Risk Beta (Real)" panel
+// already computes (perfComputeRealBeta()/PERF_BETA_STATE in
+// 21-performance.js) instead of inventing a second, fake risk figure.
+// Beta/VaR are properties of the CURRENT portfolio's real volatility, not
+// something a single hypothetical shock scenario would change, so the
+// same real value is shown as context across scenarios (rather than
+// fabricating a plausible-looking drift per scenario type).
+function scenarioGetRealRisk() {
+  if (typeof PERF_BETA_STATE !== 'undefined' && PERF_BETA_STATE.loaded && PERF_BETA_STATE.data && PERF_BETA_STATE.data.results) {
+    var ok = PERF_BETA_STATE.data.results.filter(function(r) { return r.ok; });
+    var okMV = ok.reduce(function(a, r) { return a + r.mv; }, 0);
+    if (ok.length && okMV > 0) {
+      var beta = ok.reduce(function(a, r) { return a + r.beta * (r.mv / okMV); }, 0);
+      var ihsgVol = PERF_BETA_STATE.data.ihsgDailyVolPct || 0;
+      var var95 = 1.645 * Math.abs(beta) * ihsgVol;
+      return { beta: beta, var95: var95, ready: true };
+    }
+  }
+  if (typeof PERF_BETA_STATE !== 'undefined' && !PERF_BETA_STATE.loading && typeof perfComputeRealBeta === 'function') {
+    PERF_BETA_STATE.loading = true;
+    perfComputeRealBeta(function(err, data) {
+      PERF_BETA_STATE.loading = false;
+      if (!err && data) { PERF_BETA_STATE.loaded = true; PERF_BETA_STATE.data = data; }
+      // Re-render whichever scenario result is currently on screen once the
+      // real numbers land, instead of leaving the "menghitung..." label.
+      if (typeof currentPage !== 'undefined' && currentPage === 'scenario' && typeof renderScenarioPage === 'function') {
+        renderScenarioPage();
+      }
+    });
+  }
+  return { beta: null, var95: null, ready: false };
+}
+function scenarioBetaLabel(risk) {
+  return risk.ready ? 'Beta Portofolio: ' + risk.beta.toFixed(2) + ' (real)' : 'Beta Portofolio: menghitung dari data real…';
+}
+function scenarioVarLabel(risk) {
+  return risk.ready ? 'VaR 95% (1 Hari): ' + risk.var95.toFixed(2) + '%' : 'VaR 95%: menghitung dari data real…';
+}
+
 function renderScenarioPage() {
   var c = el('page-scenario');
   if (!c) return;
 
+  var baselineRisk = scenarioGetRealRisk();
   var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
   var sortedPorto = porto.slice().sort(function(a, b) { return (b.mv || 0) - (a.mv || 0); });
   var totalMV = porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
@@ -614,8 +659,8 @@ function renderScenarioPage() {
       aumDeltaRp: 0,
       aumDeltaPct: '0.00%',
       newAum: totalAUM,
-      varDelta: 'VaR 95% (1 Hari): 1.42%',
-      betaDelta: 'Beta Portofolio: 0.98',
+      varDelta: scenarioVarLabel(baselineRisk),
+      betaDelta: scenarioBetaLabel(baselineRisk),
       concentrationDelta: 'Top Holding: ' + topTicker + ' (' + topWeight + '%)',
       cashRatioDelta: (rdn / (totalAUM || 1) * 100).toFixed(1) + '%',
       analysis: 'Pilih salah satu preset skenario atau gunakan custom simulator di atas untuk menguji ketahanan portofolio Anda secara instan.'
@@ -675,6 +720,7 @@ function runScenarioSimulation(scenarioType) {
   var topWeight = (top1 && totalAUM > 0) ? (top1.mv / totalAUM * 100).toFixed(1) : '0.0';
 
   var res = {};
+  var risk = scenarioGetRealRisk();
 
   if (!porto || porto.length === 0) {
     res = {
@@ -696,25 +742,30 @@ function runScenarioSimulation(scenarioType) {
       aumDeltaRp: -loss,
       aumDeltaPct: '-' + (loss / (totalAUM || 1) * 100).toFixed(2) + '%',
       newAum: newAum,
-      varDelta: 'VaR 95% naik ke 1.68%',
-      betaDelta: 'Beta Portofolio: 0.92',
+      varDelta: scenarioVarLabel(risk),
+      betaDelta: scenarioBetaLabel(risk),
       concentrationDelta: 'Konsentrasi ' + topTicker + ' berkurang ke ' + ((top1.mv - loss) / newAum * 100).toFixed(1) + '%',
       cashRatioDelta: (rdn / (newAum || 1) * 100).toFixed(1) + '%',
       analysis: 'Karena <strong>' + topTicker + '</strong> memiliki bobot terbesar di portofolio Anda (' + topWeight + '% AUM / Nilai Rp ' + fmtK(top1.mv) + '), penurunan -20% akan menggerus AUM sebesar <strong>Rp ' + fmtK(loss) + '</strong>. Pastikan memasang stop loss disiplin atau mengamankan profit bertahap (trailing profit).'
     };
   } else if (scenarioType === 'ihsg-drop') {
-    var loss = totalMV * 0.10 * 0.95; // Beta ~0.95
+    // Was a fixed "Beta ~0.95" assumption baked into the loss math itself,
+    // while the risk cards above now show the real regressed beta (which
+    // can differ meaningfully, e.g. 1.05) — used the real one when ready so
+    // the loss estimate and the Beta card actually agree with each other.
+    var scenarioBeta = risk.ready ? risk.beta : 0.95;
+    var loss = totalMV * 0.10 * scenarioBeta;
     var newAum = totalAUM - loss;
     res = {
       title: 'Skenario: IHSG Mengalami Koreksi Pasar Umum -10%',
       aumDeltaRp: -loss,
       aumDeltaPct: '-' + (loss / (totalAUM || 1) * 100).toFixed(2) + '%',
       newAum: newAum,
-      varDelta: 'VaR 95% melonjak ke 1.85%',
-      betaDelta: 'Beta Portofolio: 0.96',
+      varDelta: scenarioVarLabel(risk),
+      betaDelta: scenarioBetaLabel(risk),
       concentrationDelta: 'Alokasi Bergeser ke Kas',
       cashRatioDelta: (rdn / (newAum || 1) * 100).toFixed(1) + '%',
-      analysis: 'Dengan perkiraan beta pasar ~0.95, penurunan IHSG 10% akan menyebabkan koreksi AUM sebesar ~Rp ' + fmtK(loss) + '. Cadangan kas RDN Anda (Rp ' + fmtK(rdn) + ') bertindak sebagai shock-absorber yang menahan drawdown portofolio.'
+      analysis: 'Dengan ' + (risk.ready ? 'beta portofolio real ' + scenarioBeta.toFixed(2) : 'perkiraan beta pasar ~0.95') + ', penurunan IHSG 10% akan menyebabkan koreksi AUM sebesar ~Rp ' + fmtK(loss) + '. Cadangan kas RDN Anda (Rp ' + fmtK(rdn) + ') bertindak sebagai shock-absorber yang menahan drawdown portofolio.'
     };
   } else if (scenarioType === 'sector-drop' || scenarioType === 'bank-drop') {
     var sectorHoldings = porto.filter(function(p) { return p.info && p.info.sector === topSector; });
@@ -727,8 +778,8 @@ function runScenarioSimulation(scenarioType) {
       aumDeltaRp: -loss,
       aumDeltaPct: '-' + (loss / (totalAUM || 1) * 100).toFixed(2) + '%',
       newAum: newAum,
-      varDelta: 'VaR 95%: 1.74%',
-      betaDelta: 'Beta Portofolio: 0.94',
+      varDelta: scenarioVarLabel(risk),
+      betaDelta: scenarioBetaLabel(risk),
       concentrationDelta: 'Sektor ' + topSector + ' menyusut',
       cashRatioDelta: (rdn / (newAum || 1) * 100).toFixed(1) + '%',
       analysis: 'Penurunan 15% pada sektor <strong>' + topSector + '</strong> (eksposur Rp ' + fmtK(sectorMV) + ') menyebabkan kontraksi AUM sebesar <strong>Rp ' + fmtK(loss) + '</strong>. Diversifikasi lintas sektor membantu meredam volatilitas portofolio.'
@@ -739,8 +790,12 @@ function runScenarioSimulation(scenarioType) {
       aumDeltaRp: 0,
       aumDeltaPct: '0.00% (Capital Reallocated)',
       newAum: totalAUM,
-      varDelta: 'VaR 95% Turun (Lebih Stabil)',
-      betaDelta: 'Beta Portofolio Lebih Rendah (~0.89)',
+      // Was a fabricated "improved" VaR/Beta implying the hypothetical swap
+      // already lowered risk — but nothing was actually traded, so the real
+      // portfolio risk hasn't changed yet. Show today's real numbers with a
+      // note instead of inventing a plausible-looking post-trade estimate.
+      varDelta: scenarioVarLabel(risk) + ' (saat ini)',
+      betaDelta: scenarioBetaLabel(risk) + ' — hitung ulang setelah eksekusi',
       concentrationDelta: 'Konsentrasi ' + topTicker + ' turun ke batas ideal',
       cashRatioDelta: (rdn / (totalAUM || 1) * 100).toFixed(1) + '%',
       analysis: 'Strategi rotasi modal dengan memangkas bobot ' + topTicker + ' berhasil mendiversifikasi risiko single-stock dan meningkatkan ketahanan modal menghadapi fluktuasi pasar.'
@@ -780,7 +835,7 @@ function runCustomScenarioSimulation() {
     aumDeltaRp: deltaRp,
     aumDeltaPct: (isGain ? '+' : '') + deltaPctStr,
     newAum: newAum,
-    varDelta: isGain ? 'VaR 95%: 1.35% (Stabil)' : 'VaR 95%: 1.62% (Naik)',
+    varDelta: scenarioVarLabel(scenarioGetRealRisk()),
     betaDelta: 'Sensitivitas: ' + ((targetPos.info && targetPos.info.beta) || 1.0).toFixed(2),
     concentrationDelta: 'Bobot Baru: ' + ((targetPos.mv + deltaRp) / newAum * 100).toFixed(1) + '%',
     cashRatioDelta: (rdn / (newAum || 1) * 100).toFixed(1) + '%',

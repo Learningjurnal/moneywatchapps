@@ -687,6 +687,11 @@ function perfComputeRealBeta(cb){
     rdFetchIhsgDaily(function(err, ihsgRows){
       if(err || !ihsgRows){ cb(new Error('IHSG_UNAVAILABLE'), null); return; }
       var ihsgRets = perfDailyReturns(ihsgRows);
+      // Real daily volatility of IHSG returns — exposed so other features
+      // (Scenario Engine's stress tests) can derive a real parametric VaR
+      // instead of a hardcoded "VaR 95%: X%" literal.
+      var ihsgRetVals = Object.keys(ihsgRets).map(function(d){ return ihsgRets[d] * 100; });
+      var ihsgDailyVolPct = (typeof techStdDev === 'function') ? techStdDev(ihsgRetVals) : 0;
       var ihsgClose = {}; ihsgRows.forEach(function(r){ ihsgClose[r.date]=r.close; });
       var rf = 0.065; // BI rate approx — konsisten dengan computeRiskMetrics()/computeHedgeFundMetrics()
       var results=[];
@@ -705,7 +710,7 @@ function perfComputeRealBeta(cb){
         results.push({ticker:p.ticker, mv:p.mv, ok:true, beta:reg.beta, r2:reg.r2, n:reg.n,
           alpha:alpha, stockRet:stockRetPeriod, ihsgRet:ihsgRetPeriod, from:d0, to:d1});
       });
-      cb(null, {results:results, failed:failed});
+      cb(null, {results:results, failed:failed, ihsgDailyVolPct:ihsgDailyVolPct});
     });
   });
 }
