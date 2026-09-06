@@ -154,6 +154,37 @@
   }
 
   /**
+   * RSI (Wilder, period 14 by default) — standard formula from real closes.
+   * Replaces a previous "rsiVal = 55 + (cmf*30) + (chgPct*2)" placeholder
+   * that was labeled RSI in the UI (and used to gate the Wave 5 Climax /
+   * waveScore thresholds) but was never an actual RSI calculation.
+   */
+  function twCalcRsi(closes, period) {
+    period = period || 14;
+    var rsi = [];
+    if (closes.length < 2) return closes.map(function() { return 50; });
+    var gains = 0, losses = 0;
+    for (var i = 1; i <= period && i < closes.length; i++) {
+      var d = closes[i] - closes[i - 1];
+      if (d > 0) gains += d; else losses -= d;
+    }
+    var avgGain = gains / period, avgLoss = losses / period;
+    for (var i = 0; i < closes.length; i++) {
+      if (i <= period) {
+        rsi.push(avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss)));
+        continue;
+      }
+      var delta = closes[i] - closes[i - 1];
+      var gain = delta > 0 ? delta : 0;
+      var loss = delta < 0 ? -delta : 0;
+      avgGain = (avgGain * (period - 1) + gain) / period;
+      avgLoss = (avgLoss * (period - 1) + loss) / period;
+      rsi.push(avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss)));
+    }
+    return rsi;
+  }
+
+  /**
    * ATR (Average True Range) & SuperTrend
    */
   function twCalcSuperTrend(ohlcv, period, factor) {
@@ -302,8 +333,8 @@
     var waveBadge = 'b-up';
 
     var chgPct = prev.close > 0 ? ((cur.close - prev.close) / prev.close * 100) : 0;
-    var rsiVal = 55 + (cmf * 30) + (chgPct * 2);
-    rsiVal = Math.min(95, Math.max(10, rsiVal));
+    var rsiArr = twCalcRsi(closes, 14);
+    var rsiVal = rsiArr[rsiArr.length - 1];
 
     if (ribbonBullish && curSt.dir === 1) {
       if (rsiVal > 72) {
@@ -533,8 +564,8 @@
     return ''
       // Top 4 Metrics Summary
       + '<div class="row4" style="margin-bottom:18px">'
-      + '  <div class="metric">'
-      + '    <div class="mlabel">Fase Siklus Elliott Wave</div>'
+      + '  <div class="metric" title="Klasifikasi heuristik dari EMA ribbon (9/21/50), arah SuperTrend, dan RSI-14 riil — bukan hasil hitung ulang siklus Elliott Wave multi-swing penuh (5 gelombang impulsif + 3 korektif berbasis rasio Fibonacci antar-gelombang).">'
+      + '    <div class="mlabel">Fase Siklus Elliott Wave <i class="ti ti-info-circle" style="font-size:10px;color:var(--text3)"></i></div>'
       + '    <div class="mval" style="color:' + data.waveColor + ';font-size:18px">' + data.wavePhase + '</div>'
       + '    <div class="msub neu">' + data.waveLabel + '</div>'
       + '  </div>'
