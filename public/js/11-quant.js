@@ -15,6 +15,46 @@ var QT = {
 };
 
 // ============================================================
+// QUANT LAB — SHARED SUB-NAV TAB BAR
+// The 6 quant/testing tools (Correlation, Monthly Returns, Pairs,
+// Screener, Backtester, Scenario) used to be reached via 3 separate
+// sidebar entries (Quant Lab → correlation only, plus Backtester and
+// Scenario) — monthly-returns/pairs/screener had NO nav path at all
+// (confirmed via grep: nothing anywhere calls goPage('monthly-returns'
+// / 'pairs' / 'screener')), so those pages were completely unreachable.
+// Consolidated into a single "Quant Lab" sidebar entry; this tab bar
+// (rendered identically at the top of all 6 pages) is what lets users
+// move between them, same pattern as the Technical/Fundamental Suite
+// tabs.
+var QL_TABS = [
+  { key: 'correlation', icon: '📉', label: 'Correlation' },
+  { key: 'monthly-returns', icon: '📅', label: 'Monthly Returns' },
+  { key: 'pairs', icon: '🔀', label: 'Pairs Trading' },
+  { key: 'screener', icon: '🔍', label: 'Screener' },
+  { key: 'backtester', icon: '⚡', label: 'Backtester' },
+  { key: 'scenario', icon: '🎯', label: 'Scenario' }
+];
+
+function qlTabBarHtml(active) {
+  return '<div class="card" style="padding:10px 14px;margin-bottom:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
+    + '<span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-right:2px">Quant Lab:</span>'
+    + QL_TABS.map(function(t) {
+        return '<button class="pbtn' + (t.key === active ? ' on' : '') + '" onclick="goPage(\'' + t.key + '\')">' + t.icon + ' ' + t.label + '</button>';
+      }).join('')
+    + '</div>';
+}
+
+function qlInitTabBars() {
+  QL_TABS.forEach(function(t) {
+    var el2 = document.getElementById('ql-tabbar-' + t.key);
+    if (el2) el2.innerHTML = qlTabBarHtml(t.key);
+  });
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', qlInitTabBars);
+}
+
+// ============================================================
 // XGBoost Signal Model — inferensi ONNX asli di browser
 // (dilatih offline via ml/train_xgb_signal.py, lihat ml/README.md)
 // ============================================================
