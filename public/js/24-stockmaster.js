@@ -1490,6 +1490,187 @@ function techRunFlowScanTab(ticker) {
   }
 }
 
+// ── Real technical indicator engine for tabs B/C/D below ──
+// These three tabs (Gauges, Candlestick, Pivots) used to show 12+
+// hardcoded literal values (RSI 58.4, MACD +45.2, "BUY ZONE", "1.65×
+// Volume Spike", etc.) completely unrelated to the selected ticker or
+// real price data — identical for every valid stock, always bullish.
+// Everything below computes the same indicators for real from the app's
+// shared real-OHLCV cache (fsGenData()/rdGetAny(), the same pipeline
+// FlowScan/TradeWave/Screener already use), triggering a background
+// fetch + re-render via rdEnsure() when a ticker's history isn't cached
+// yet, instead of falling back to a formula dressed up as real data.
+var TECH_IND_FETCHING = {};
+
+function techEnsureRealSeries(ticker, days) {
+  var data = (typeof fsGenData === 'function') ? fsGenData(ticker, days || 220) : [];
+  if (data && data.length >= 30) return data;
+
+  if (!TECH_IND_FETCHING[ticker] && typeof rdEnsure === 'function') {
+    TECH_IND_FETCHING[ticker] = true;
+    rdEnsure(ticker, function() {
+      TECH_IND_FETCHING[ticker] = false;
+      // Only re-render if the user is still looking at this ticker's tab 2
+      if (TECH_DATA.ticker === ticker && TECH_DATA.activeTab === 2) {
+        techRenderGaugesTab(ticker);
+        techRenderCandleTab(ticker);
+        techRenderPivotsTab(ticker);
+      }
+    });
+  }
+  return null; // signals "still loading" to callers
+}
+
+function techLoadingHtml(ticker) {
+  return '<div style="padding:24px;text-align:center;color:var(--text3)">'
+    + '<i class="ti ti-loader" style="font-size:18px;color:var(--accent)"></i> Menghitung indikator real untuk <strong>' + ticker + '</strong> dari data harga historis...'
+    + '</div>';
+}
+
+function techEma(closes, period) {
+  var k = 2 / (period + 1), out = [], prev = closes[0];
+  out.push(prev);
+  for (var i = 1; i < closes.length; i++) { var v = closes[i] * k + prev * (1 - k); out.push(v); prev = v; }
+  return out;
+}
+
+function techStdDev(arr) {
+  var n = arr.length;
+  if (!n) return 0;
+  var mean = arr.reduce(function(a, b) { return a + b; }, 0) / n;
+  var variance = arr.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / n;
+  return Math.sqrt(variance);
+}
+
+// Wilder ATR + SuperTrend(period, factor) from real OHLC
+function techSuperTrend(data, period, factor) {
+  var n = data.length;
+  var tr = data.map(function(d, i) {
+    if (i === 0) return d.h - d.l;
+    return Math.max(d.h - d.l, Math.abs(d.h - data[i - 1].c), Math.abs(d.l - data[i - 1].c));
+  });
+  var atr = []; var sum = 0;
+  for (var i = 0; i < n; i++) {
+    if (i < period) { sum += tr[i]; atr.push(sum / (i + 1)); }
+    else { atr.push((atr[i - 1] * (period - 1) + tr[i]) / period); }
+  }
+  var st = [], dir = [];
+  var finalUpper = 0, finalLower = 0;
+  for (var i = 0; i < n; i++) {
+    var mid = (data[i].h + data[i].l) / 2;
+    var basicUpper = mid + factor * atr[i];
+    var basicLower = mid - factor * atr[i];
+    if (i === 0) { finalUpper = basicUpper; finalLower = basicLower; dir.push(1); st.push(finalLower); continue; }
+    finalUpper = (basicUpper < finalUpper || data[i - 1].c > finalUpper) ? basicUpper : finalUpper;
+    finalLower = (basicLower > finalLower || data[i - 1].c < finalLower) ? basicLower : finalLower;
+    var prevDir = dir[i - 1];
+    var d = prevDir;
+    if (prevDir === 1 && data[i].c < finalLower) d = -1;
+    else if (prevDir === -1 && data[i].c > finalUpper) d = 1;
+    dir.push(d);
+    st.push(d === 1 ? finalLower : finalUpper);
+  }
+  return { superTrend: st, dir: dir, atr: atr };
+}
+
+// Wilder ADX(14) from real OHLC
+function techAdx(data, period) {
+  var n = data.length;
+  var plusDM = [0], minusDM = [0], tr = [0];
+  for (var i = 1; i < n; i++) {
+    var upMove = data[i].h - data[i - 1].h;
+    var downMove = data[i - 1].l - data[i].l;
+    plusDM.push(upMove > downMove && upMove > 0 ? upMove : 0);
+    minusDM.push(downMove > upMove && downMove > 0 ? downMove : 0);
+    tr.push(Math.max(data[i].h - data[i].l, Math.abs(data[i].h - data[i - 1].c), Math.abs(data[i].l - data[i - 1].c)));
+  }
+  function wilderSmooth(arr) {
+    var out = [arr[0]];
+    for (var i = 1; i < arr.length; i++) out.push(out[i - 1] - (out[i - 1] / period) + arr[i]);
+    return out;
+  }
+  var smTr = wilderSmooth(tr), smPlus = wilderSmooth(plusDM), smMinus = wilderSmooth(minusDM);
+  var dx = [];
+  for (var i = 0; i < n; i++) {
+    var plusDi = smTr[i] > 0 ? (smPlus[i] / smTr[i]) * 100 : 0;
+    var minusDi = smTr[i] > 0 ? (smMinus[i] / smTr[i]) * 100 : 0;
+    var sum = plusDi + minusDi;
+    dx.push(sum > 0 ? (Math.abs(plusDi - minusDi) / sum) * 100 : 0);
+  }
+  // ADX = Wilder-smoothed average of DX
+  var adx = [dx[0]];
+  for (var i = 1; i < n; i++) adx.push((adx[i - 1] * (period - 1) + dx[i]) / period);
+  return adx[n - 1] || 0;
+}
+
+function techCalcIndicators(data) {
+  var closes = data.map(function(d) { return d.c; });
+  var n = closes.length;
+  var last = data[n - 1];
+
+  var rsi = (typeof fsCalcRSI === 'function') ? fsCalcRSI(data, 14) : [];
+  var cmfArr = (typeof fsCalcCMF === 'function') ? fsCalcCMF(data, 20) : [];
+  var sma20Arr = (typeof fsCalcMA === 'function') ? fsCalcMA(closes, 20) : [];
+  var sma50Arr = (typeof fsCalcMA === 'function') ? fsCalcMA(closes, 50) : [];
+  var sma200Arr = (typeof fsCalcMA === 'function') ? fsCalcMA(closes, 200) : [];
+  var ema12 = techEma(closes, 12), ema26 = techEma(closes, 26);
+  var ema20Arr = techEma(closes, 20);
+  var macdLine = ema12.map(function(v, i) { return v - ema26[i]; });
+  var signalLine = techEma(macdLine, 9);
+  var macdHist = macdLine[n - 1] - signalLine[n - 1];
+
+  // Stochastic %K(14) + %D(3)
+  var stochPeriod = Math.min(14, n);
+  var kVals = [];
+  for (var i = Math.max(0, n - 30); i < n; i++) {
+    var s = data.slice(Math.max(0, i - stochPeriod + 1), i + 1);
+    var hh = Math.max.apply(null, s.map(function(d) { return d.h; }));
+    var ll = Math.min.apply(null, s.map(function(d) { return d.l; }));
+    kVals.push(hh > ll ? ((data[i].c - ll) / (hh - ll)) * 100 : 50);
+  }
+  var kNow = kVals[kVals.length - 1];
+  var dNow = kVals.slice(-3).reduce(function(a, b) { return a + b; }, 0) / Math.min(3, kVals.length);
+
+  // Williams %R(14)
+  var wr14 = data.slice(-14);
+  var wrHigh = Math.max.apply(null, wr14.map(function(d) { return d.h; }));
+  var wrLow = Math.min.apply(null, wr14.map(function(d) { return d.l; }));
+  var williamsR = wrHigh > wrLow ? ((wrHigh - last.c) / (wrHigh - wrLow)) * -100 : -50;
+
+  // Awesome Oscillator (5/34 SMA of midpoint)
+  var mids = data.map(function(d) { return (d.h + d.l) / 2; });
+  var aoFast = (typeof fsCalcMA === 'function') ? fsCalcMA(mids, 5) : [];
+  var aoSlow = (typeof fsCalcMA === 'function') ? fsCalcMA(mids, 34) : [];
+  var ao = (aoFast[n - 1] != null && aoSlow[n - 1] != null) ? (aoFast[n - 1] - aoSlow[n - 1]) : 0;
+
+  // Bollinger Bands (20, 2)
+  var bbSlice = closes.slice(-20);
+  var sma20Now = sma20Arr[n - 1];
+  var bbStd = techStdDev(bbSlice);
+  var bbUpper = sma20Now + 2 * bbStd, bbLower = sma20Now - 2 * bbStd;
+
+  var st = techSuperTrend(data, 10, 3.0);
+  var adx = techAdx(data, 14);
+
+  return {
+    rsi: rsi[n - 1] || 50,
+    stochK: kNow, stochD: dNow,
+    macd: macdHist,
+    adx: adx,
+    ao: ao,
+    williamsR: williamsR,
+    ema20: ema20Arr[n - 1],
+    sma50: sma50Arr[n - 1],
+    sma200: sma200Arr[n - 1],
+    bbUpper: bbUpper, bbLower: bbLower, bbMid: sma20Now,
+    cmf: cmfArr[n - 1] || 0,
+    superTrend: st.superTrend[n - 1], superTrendDir: st.dir[n - 1],
+    atr: st.atr[n - 1],
+    lastClose: last.c, lastHigh: last.h, lastLow: last.l, lastVolume: last.v,
+    prev: data[n - 2] || last
+  };
+}
+
 // ── Tab 3: 20+ Technical Oscillators & Moving Average Gauges ──
 // Shared block shown by the tabs below for a ticker outside the Stock
 // Universe. Matches the message techRunFlowScanTab() already used - these
@@ -1510,21 +1691,46 @@ function techRenderGaugesTab(ticker) {
     return;
   }
 
-  var curPrice = (prices && prices[ticker]) || 5000;
+  var series = techEnsureRealSeries(ticker);
+  if (!series) {
+    container.innerHTML = techLoadingHtml(ticker);
+    return;
+  }
+
+  var ind = techCalcIndicators(series);
+  var curPrice = ind.lastClose;
+  var buyColor = '#10B981', sellColor = '#EF4444', neuColor = '#94A3B8', trendColor = '#60A5FA';
+
+  function aboveBelow(level) {
+    return curPrice >= level
+      ? { val: 'Rp ' + Math.round(level).toLocaleString('id-ID'), action: 'ABOVE (BUY)', color: buyColor }
+      : { val: 'Rp ' + Math.round(level).toLocaleString('id-ID'), action: 'BELOW (SELL)', color: sellColor };
+  }
+  var sma50Row = ind.sma50 != null ? aboveBelow(ind.sma50) : { val: '-', action: 'DATA KURANG', color: neuColor };
+  var sma200Row = ind.sma200 != null ? aboveBelow(ind.sma200) : { val: '-', action: 'DATA KURANG', color: neuColor };
+  var ema20Row = ind.ema20 != null ? aboveBelow(ind.ema20) : { val: '-', action: 'DATA KURANG', color: neuColor };
+
+  var bbPos = curPrice > ind.bbUpper ? { val: 'Upper Band (Overbought)', action: 'SELL', color: sellColor }
+    : curPrice < ind.bbLower ? { val: 'Lower Band (Oversold)', action: 'BUY', color: buyColor }
+    : { val: 'Middle Band', action: 'NEUTRAL', color: neuColor };
+
+  var stRow = ind.superTrendDir === 1
+    ? { val: 'Rp ' + Math.round(ind.superTrend).toLocaleString('id-ID'), action: 'BULLISH', color: buyColor }
+    : { val: 'Rp ' + Math.round(ind.superTrend).toLocaleString('id-ID'), action: 'BEARISH', color: sellColor };
 
   var indicators = [
-    { name: 'RSI (14)', val: '58.4', action: 'BULLISH', color: '#10B981' },
-    { name: 'Stochastic %K (14, 3, 3)', val: '64.2', action: 'BULLISH', color: '#10B981' },
-    { name: 'MACD Level (12, 26)', val: '+45.2', action: 'BUY', color: '#10B981' },
-    { name: 'ADX Trend Strength (14)', val: '28.6', action: 'STRONG TREND', color: '#60A5FA' },
-    { name: 'Awesome Oscillator (AO)', val: '+12.8', action: 'BUY', color: '#10B981' },
-    { name: 'Williams %R (14)', val: '-32.1', action: 'NEUTRAL', color: '#94A3B8' },
-    { name: 'EMA (20)', val: 'Rp ' + Math.round(curPrice * 0.98), action: 'ABOVE (BUY)', color: '#10B981' },
-    { name: 'SMA (50)', val: 'Rp ' + Math.round(curPrice * 0.95), action: 'ABOVE (BUY)', color: '#10B981' },
-    { name: 'SMA (200)', val: 'Rp ' + Math.round(curPrice * 0.91), action: 'GOLDEN CROSS', color: '#10B981' },
-    { name: 'Bollinger Bands (20, 2)', val: 'Middle Band', action: 'NEUTRAL', color: '#94A3B8' },
-    { name: 'Chaikin Money Flow (CMF)', val: '+0.18', action: 'ACCUMULATION', color: '#10B981' },
-    { name: 'SuperTrend (10, 3)', val: 'Rp ' + Math.round(curPrice * 0.94), action: 'BULLISH', color: '#10B981' }
+    { name: 'RSI (14)', val: ind.rsi.toFixed(1), action: ind.rsi > 70 ? 'OVERBOUGHT' : ind.rsi < 30 ? 'OVERSOLD (BUY)' : 'NEUTRAL', color: ind.rsi > 70 ? sellColor : ind.rsi < 30 ? buyColor : neuColor },
+    { name: 'Stochastic %K (14, 3)', val: ind.stochK.toFixed(1), action: ind.stochK > 80 ? 'OVERBOUGHT' : ind.stochK < 20 ? 'OVERSOLD (BUY)' : (ind.stochK > ind.stochD ? 'BULLISH' : 'BEARISH'), color: ind.stochK > 80 ? sellColor : ind.stochK < 20 ? buyColor : (ind.stochK > ind.stochD ? buyColor : sellColor) },
+    { name: 'MACD Histogram (12, 26, 9)', val: (ind.macd >= 0 ? '+' : '') + Math.round(ind.macd).toLocaleString('id-ID'), action: ind.macd >= 0 ? 'BUY' : 'SELL', color: ind.macd >= 0 ? buyColor : sellColor },
+    { name: 'ADX Trend Strength (14)', val: ind.adx.toFixed(1), action: ind.adx >= 25 ? 'STRONG TREND' : 'WEAK / RANGING', color: ind.adx >= 25 ? trendColor : neuColor },
+    { name: 'Awesome Oscillator (AO)', val: (ind.ao >= 0 ? '+' : '') + Math.round(ind.ao).toLocaleString('id-ID'), action: ind.ao >= 0 ? 'BUY' : 'SELL', color: ind.ao >= 0 ? buyColor : sellColor },
+    { name: 'Williams %R (14)', val: ind.williamsR.toFixed(1), action: ind.williamsR > -20 ? 'OVERBOUGHT' : ind.williamsR < -80 ? 'OVERSOLD (BUY)' : 'NEUTRAL', color: ind.williamsR > -20 ? sellColor : ind.williamsR < -80 ? buyColor : neuColor },
+    { name: 'EMA (20)', val: ema20Row.val, action: ema20Row.action, color: ema20Row.color },
+    { name: 'SMA (50)', val: sma50Row.val, action: sma50Row.action, color: sma50Row.color },
+    { name: 'SMA (200)', val: sma200Row.val, action: sma200Row.action, color: sma200Row.color },
+    { name: 'Bollinger Bands (20, 2)', val: bbPos.val, action: bbPos.action, color: bbPos.color },
+    { name: 'Chaikin Money Flow (CMF-20)', val: (ind.cmf >= 0 ? '+' : '') + ind.cmf.toFixed(2), action: ind.cmf > 0.05 ? 'ACCUMULATION' : ind.cmf < -0.05 ? 'DISTRIBUTION' : 'NEUTRAL', color: ind.cmf > 0.05 ? buyColor : ind.cmf < -0.05 ? sellColor : neuColor },
+    { name: 'SuperTrend (10, 3)', val: stRow.val, action: stRow.action, color: stRow.color }
   ];
 
   var buyCount = indicators.filter(function(i) { return i.action.includes('BUY') || i.action.includes('BULL') || i.action.includes('ACCUM'); }).length;
@@ -1569,6 +1775,27 @@ function techRenderGaugesTab(ticker) {
 }
 
 // ── Tab 4: Candlestick Pattern & Price Action ──
+function techClassifyCandle(c) {
+  var body = Math.abs(c.c - c.o);
+  var range = Math.max(1, c.h - c.l);
+  var upperShadow = c.h - Math.max(c.o, c.c);
+  var lowerShadow = Math.min(c.o, c.c) - c.l;
+  var isBullish = c.c >= c.o;
+  if (lowerShadow > body * 2 && isBullish) {
+    return { label: 'BUYER REJECTION', badge: 'b-up', desc: 'Lower shadow panjang menandakan penolakan harga murah — pembeli masuk di area bawah.' };
+  }
+  if (upperShadow > body * 2 && !isBullish) {
+    return { label: 'SELLER REJECTION', badge: 'b-dn', desc: 'Upper shadow panjang menandakan penjual menolak harga tinggi — tekanan jual di area atas.' };
+  }
+  if (body > range * 0.6 && isBullish) {
+    return { label: 'BUYER CONTROL', badge: 'b-up', desc: 'Bullish body solid menutup dekat High harian — partisipasi pembeli kuat.' };
+  }
+  if (body > range * 0.6 && !isBullish) {
+    return { label: 'SELLER CONTROL', badge: 'b-dn', desc: 'Bearish body solid menutup dekat Low harian — tekanan jual mendominasi.' };
+  }
+  return { label: 'INDECISION', badge: 'b-neu', desc: 'Body kecil relatif terhadap range harian — pasar ragu, belum ada dominasi jelas.' };
+}
+
 function techRenderCandleTab(ticker) {
   var head = document.getElementById('cd-head-t4');
   var psyco = document.getElementById('cd-psyco-t4');
@@ -1579,30 +1806,47 @@ function techRenderCandleTab(ticker) {
     return;
   }
 
-  var curPrice = (prices && prices[ticker]) || 5000;
-  var stopLoss = Math.round(curPrice * 0.95);
-  var tp1 = Math.round(curPrice * 1.05);
+  var series = techEnsureRealSeries(ticker);
+  if (!series) {
+    head.innerHTML = techLoadingHtml(ticker);
+    psyco.innerHTML = '';
+    return;
+  }
+
+  var ind = techCalcIndicators(series);
+  var curPrice = ind.lastClose;
+  var n = series.length;
+  var last3 = series.slice(-3);
+  var todayClass = techClassifyCandle(last3[last3.length - 1]);
+
+  // Stop/target from real ATR(10) instead of a flat ±5% for every ticker
+  // regardless of how volatile it actually trades.
+  var atr = ind.atr || (curPrice * 0.02);
+  var stopLoss = Math.round(curPrice - 1.5 * atr);
+  var tp1 = Math.round(curPrice + 2 * atr);
+  var slPct = ((curPrice - stopLoss) / curPrice * 100).toFixed(1);
+  var tpPct = ((tp1 - curPrice) / curPrice * 100).toFixed(1);
+
+  var vol20 = series.slice(-20).reduce(function(s, d) { return s + d.v; }, 0) / Math.min(20, n);
+  var volRatio = vol20 > 0 ? (ind.lastVolume / vol20) : 1;
+
+  var signalCls = todayClass.label.includes('BUYER') ? 'up' : todayClass.label.includes('SELLER') ? 'dn' : 'amb';
 
   head.innerHTML = ''
     + '<div class="metric"><div class="mlabel">Harga Terakhir</div><div class="mval">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</div><div class="msub neu">' + ticker + '</div></div>'
-    + '<div class="metric"><div class="mlabel">Sinyal Candle</div><div class="mval up">BUY ZONE</div><div class="msub neu">rebound support</div></div>'
-    + '<div class="metric"><div class="mlabel">Stop Loss Proteksi</div><div class="mval dn">Rp ' + Number(stopLoss).toLocaleString('id-ID') + '</div><div class="msub neu">-5.0%</div></div>'
-    + '<div class="metric"><div class="mlabel">Target Profit (TP1)</div><div class="mval up">Rp ' + Number(tp1).toLocaleString('id-ID') + '</div><div class="msub neu">+5.0%</div></div>'
-    + '<div class="metric"><div class="mlabel">Volume Spike</div><div class="mval amb">1.65×</div><div class="msub neu">di atas rata-rata</div></div>';
+    + '<div class="metric"><div class="mlabel">Sinyal Candle</div><div class="mval ' + signalCls + '">' + todayClass.label + '</div><div class="msub neu">real, dari candle hari ini</div></div>'
+    + '<div class="metric"><div class="mlabel">Stop Loss Proteksi (1.5×ATR)</div><div class="mval dn">Rp ' + Number(stopLoss).toLocaleString('id-ID') + '</div><div class="msub neu">-' + slPct + '%</div></div>'
+    + '<div class="metric"><div class="mlabel">Target Profit (2×ATR)</div><div class="mval up">Rp ' + Number(tp1).toLocaleString('id-ID') + '</div><div class="msub neu">+' + tpPct + '%</div></div>'
+    + '<div class="metric"><div class="mlabel">Volume vs Rata-rata 20D</div><div class="mval amb">' + volRatio.toFixed(2) + '×</div><div class="msub neu">' + (volRatio >= 1.5 ? 'di atas rata-rata' : volRatio <= 0.7 ? 'di bawah rata-rata' : 'sekitar rata-rata') + '</div></div>';
 
-  psyco.innerHTML = ''
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
-    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:var(--text3)">3 Hari Lalu</span><span class="badge b-up">BUYER CONTROL</span></div>'
-    + '  <div style="font-size:11px;color:var(--text2)">Bullish body solid menutup di dekat High harian dengan partisipasi volume kuat.</div>'
-    + '</div>'
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
-    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:var(--text3)">Kemarin</span><span class="badge b-neu">DEFENSIVE BUY</span></div>'
-    + '  <div style="font-size:11px;color:var(--text2)">Lower shadow panjang menandakan penolakan harga murah di area support dinamis.</div>'
-    + '</div>'
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
-    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:var(--text3)">Hari Ini</span><span class="badge b-up">ACCUMULATION</span></div>'
-    + '  <div style="font-size:11px;color:var(--text2)">Tekanan beli mendominasi, harga berkonsolidasi di atas Pivot Point mingguan.</div>'
-    + '</div>';
+  var dayLabels = ['3 Hari Lalu', 'Kemarin', 'Hari Ini'];
+  psyco.innerHTML = last3.map(function(c, i) {
+    var cls = techClassifyCandle(c);
+    return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;color:var(--text3)">' + (dayLabels[i] || c.dt) + '</span><span class="badge ' + cls.badge + '">' + cls.label + '</span></div>'
+      + '  <div style="font-size:11px;color:var(--text2)">' + cls.desc + '</div>'
+      + '</div>';
+  }).join('');
 }
 
 // ── Tab 5: Support, Resistance & Pivot Calculator ──
@@ -1616,10 +1860,21 @@ function techRenderPivotsTab(ticker) {
     return;
   }
 
-  var curPrice = (prices && prices[ticker]) || 5000;
-  var high = Math.round(curPrice * 1.02);
-  var low = Math.round(curPrice * 0.98);
-  var close = curPrice;
+  var series = techEnsureRealSeries(ticker);
+  if (!series) {
+    pivTable.innerHTML = techLoadingHtml(ticker);
+    rrPlanner.innerHTML = '';
+    return;
+  }
+
+  // Pivot math itself (classic + Fibonacci) was already real — only the
+  // high/low/close feeding it were a flat ±2% guess off the current price.
+  // Now uses the actual previous trading day's real H/L/C.
+  var lastBar = series[series.length - 1];
+  var curPrice = lastBar.c;
+  var high = lastBar.h;
+  var low = lastBar.l;
+  var close = lastBar.c;
 
   var p = Math.round((high + low + close) / 3);
   var r1 = Math.round((2 * p) - low);
