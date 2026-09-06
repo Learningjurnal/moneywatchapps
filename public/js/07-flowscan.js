@@ -864,8 +864,12 @@ function fsRunAI(){
 function fsBuildQaChips(){
   var chips=['BBCA','BBRI','BMRI','ADRO','PGEO','ARCI','TLKM','ANTM','CDIA','SMDR'];
   var el=document.getElementById('wl-qa-chips');
-  if(el) el.innerHTML=chips.map(function(t){
-    return '<span class="wl-chip" onclick="fsTgWl(\''+t+'\');fsRenderWlPage()">'+t+'</span>';
+  if(!el) return;
+  el.innerHTML=chips.map(function(t){
+    var inWl=FS_WL.some(function(w){return w.t===t;});
+    var style='display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-family:var(--font-mono);cursor:pointer;font-weight:700;'
+      +(inWl?'background:var(--accent);color:#fff':'background:var(--bg3);color:var(--text2);border:1px solid var(--border2)');
+    return '<span style="'+style+'" onclick="fsTgWl(\''+t+'\');fsBuildQaChips();fsRenderWlPage()">'+(inWl?'✓ ':'')+t+'</span>';
   }).join('');
 }
 
