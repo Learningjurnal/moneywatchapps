@@ -128,7 +128,12 @@ window.GLOBAL_STOCK_CONTEXT = {
     // Sync into known subsystem globals
     try {
       if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = clean;
-      if (typeof STOCK_INTEL_STATE !== 'undefined' && STOCK_INTEL_STATE) STOCK_INTEL_STATE.selectedTicker = clean;
+      // NOTE: was `STOCK_INTEL_STATE.selectedTicker = clean` — STOCK_INTEL_STATE
+      // never existed anywhere in the codebase (27-stockintel.js's actual state
+      // var is the plain string MW_SELECTED_INTEL_TICKER), so this sync branch
+      // silently did nothing and the Stock Intelligence Cockpit never received
+      // cross-page ticker updates.
+      if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = clean;
       if (typeof AI_TRADE_STATE !== 'undefined' && AI_TRADE_STATE) AI_TRADE_STATE.selectedTicker = clean;
       if (typeof KSEI_STATE !== 'undefined' && KSEI_STATE) KSEI_STATE.selectedTicker = clean;
     } catch(e) {}

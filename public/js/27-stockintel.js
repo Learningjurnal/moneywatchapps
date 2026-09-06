@@ -742,6 +742,11 @@ function renderStockIntelPage() {
       + '</div>'
     + '</div>'
 
+    // KSEI OWNERSHIP & FREE FLOAT (real KSEI data — see renderKseiIntelWidget
+    // in 34-ksei-shareholders.js; built for this exact cockpit but was never
+    // wired in until now, so PER/PBV/ROE et al had no ownership context)
+    + (typeof renderKseiIntelWidget === 'function' ? renderKseiIntelWidget(ticker) : '')
+
     // 4-CARD BENTO GRID
     + '<div class="intel-bento-grid">'
       
@@ -883,6 +888,33 @@ function renderStockIntelPage() {
         + '</div>'
       + '</div>'
 
+    + '</div>'
+
+    // DEEP-DIVE QUICK ACCESS — one-click handoff into the specialized suites
+    // (Fundamental, Technical, Valuation), each pre-loading this cockpit's
+    // ticker via the same fundSetTicker/techSetTicker/hw_loadStock helpers
+    // those pages already expose, so switching suites never means re-typing
+    // the ticker. The dedicated pages stay fully intact — this is a
+    // navigation shortcut, not a replacement.
+    + '<div class="card" style="padding:16px;margin-top:16px">'
+      + '<div class="intel-section-title" style="margin-bottom:10px"><span>LANJUTKAN ANALISA MENDALAM</span></div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">'
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
+          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-building-bank" style="color:var(--accent)"></i> Fundamental Suite</div>'
+          + '<div style="font-size:11px;color:var(--text2)">PER ' + data.stats.per + ' · PBV ' + data.stats.pbv + ' · ROE ' + data.stats.roe + ' — DCF, konsensus Graham/Lynch/DDM, Bull/Bear Debate &amp; KSEI.</div>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof fundSetTicker===\'function\')fundSetTicker(\'' + ticker + '\');goPage(\'fundamental\')">Buka Analisa Fundamental →</button>'
+        + '</div>'
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
+          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-chart-candle" style="color:var(--accent)"></i> Technical Suite</div>'
+          + '<div style="font-size:11px;color:var(--text2)">Bias ' + data.plan.bias + ' · Entry ' + data.plan.entryZone + ' — FlowScan Bandarmologi, 20+ gauge, candlestick &amp; pivot S/R.</div>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof techSetTicker===\'function\')techSetTicker(\'' + ticker + '\');goPage(\'technical\')">Buka Analisa Teknikal →</button>'
+        + '</div>'
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
+          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-calculator" style="color:var(--accent)"></i> Valuation (Margin of Safety)</div>'
+          + '<div style="font-size:11px;color:var(--text2)">Hitung harga wajar 9-langkah dari data keuangan historis riil (EPS, BVPS, DPS) untuk ' + ticker + '.</div>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof hw_loadStock===\'function\')hw_loadStock(\'' + ticker + '\');goPage(\'hargawajar\')">Buka Kalkulator MoS →</button>'
+        + '</div>'
+      + '</div>'
     + '</div>';
 
   c.innerHTML = html;
@@ -905,6 +937,13 @@ function renderStockIntelPage() {
 function selectStockIntelTicker(ticker) {
   if (!ticker) return;
   MW_SELECTED_INTEL_TICKER = ticker.toUpperCase().replace(/\.JK$/i, '').trim();
+  // Broadcast so other features sharing GLOBAL_STOCK_CONTEXT (StockChat, AI
+  // Trading, KSEI) pick up the same ticker on their next render, matching
+  // the sync this cockpit now also receives (see setTicker() in
+  // 00-config.js).
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(MW_SELECTED_INTEL_TICKER, 'stock-intel');
+  }
   renderStockIntelPage();
 }
 
