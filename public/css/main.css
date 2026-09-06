@@ -279,6 +279,21 @@ body::after{display:none}
 .tick-chg{font-weight:700;font-family:var(--font-mono)}
 .app{display:flex;flex-direction:column;height:100vh}
 
+/* CUSTOM CHART.JS TOOLTIP (#mw-tooltip, built by customChartTooltip() in
+   03-engine.js) — this element previously had NO css at all anywhere in
+   the app: it was appended to <body> and positioned via inline left/top,
+   but without position:fixed/absolute those are no-ops, so it just
+   rendered as a plain static block at the very bottom of the page,
+   invisible below the fold on every chart in the app (reported by user:
+   hovering any chart showed no numbers). */
+#mw-tooltip{position:fixed;left:0;top:0;z-index:9999;pointer-events:none;opacity:0;transition:opacity .12s ease;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:11px;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:260px;color:var(--text)}
+#mw-tooltip .mw-tt-title{font-weight:700;color:var(--text);margin-bottom:3px;white-space:nowrap}
+#mw-tooltip .mw-tt-body{display:flex;align-items:center;gap:6px;color:var(--text2);white-space:nowrap}
+#mw-tooltip .mw-tt-indicator{width:8px;height:8px;border-radius:2px;flex-shrink:0;forced-color-adjust:none}
+body.theme-light #mw-tooltip{background:#fff;border-color:#E2E8F0;color:#0F172A;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+body.theme-light #mw-tooltip .mw-tt-title{color:#0F172A}
+body.theme-light #mw-tooltip .mw-tt-body{color:#354453}
+
 /* TOPBAR — StockMaster PRO Command Bar Style */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:44px;background:#0E131F;border-bottom:1px solid var(--border);flex-shrink:0;z-index:100;gap:12px;position:relative}
 
