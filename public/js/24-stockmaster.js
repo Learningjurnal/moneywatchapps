@@ -611,6 +611,21 @@ function fundPopulateData() {
   // 6. Bull / Bear Algorithmic Debate
   var debateBox = document.getElementById('sm-bull-bear-container');
   if (debateBox) {
+    // Bear case was 3 generic macro bullets identical for every ticker
+    // (interest rate, tariff competition, foreign outflow) — same red-flag
+    // checks already computed above for the Red Flag Diagnostics table
+    // (DER/current ratio/OCF) now surface as ticker-specific bullets first,
+    // when they actually trip, before the generic macro risks.
+    var bearSpecific = [];
+    if (dte >= 1.5) bearSpecific.push('Beban utang tinggi: DER <b>' + dte.toFixed(2) + 'x</b> melebihi ambang aman (&lt;1.50x), menambah risiko saat suku bunga naik.');
+    if (cr < 1.0) bearSpecific.push('Likuiditas ketat: Current Ratio <b>' + cr.toFixed(2) + 'x</b> di bawah 1.00x — kewajiban jangka pendek mendekati/melebihi aset lancar.');
+    if (ocf <= 0) bearSpecific.push('Arus kas operasi negatif (Rp ' + fundFmt(ocf) + ') — laba akuntansi belum tentu diikuti uang kas riil masuk.');
+    if (revG < 0) bearSpecific.push('Pertumbuhan pendapatan negatif (' + fundFmt(revG, true) + ') — tekanan permintaan atau kehilangan pangsa pasar.');
+
+    var bearHtml = bearSpecific.length > 0
+      ? bearSpecific.map(function(b) { return '<li>' + b + '</li>'; }).join('')
+      : '<li>Tidak ada red flag spesifik dari rasio DER/Current Ratio/Arus Kas/Pertumbuhan yang tersedia saat ini.</li>';
+
     debateBox.innerHTML = ''
       + '<div class="sm-card" style="margin-bottom:14px;border-left:4px solid #10B981">'
       + '  <div style="font-size:14px;font-weight:800;color:#10B981;display:flex;align-items:center;gap:6px">🐂 THE BULL CASE (Kekuatan &amp; Katalis Positif)</div>'
@@ -623,9 +638,8 @@ function fundPopulateData() {
       + '<div class="sm-card" style="border-left:4px solid #EF4444">'
       + '  <div style="font-size:14px;font-weight:800;color:#EF4444;display:flex;align-items:center;gap:6px">🐻 THE BEAR CASE (Risiko &amp; Skenario Negatif)</div>'
       + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2)">'
-      + '    <li>Sensitivitas perputaran suku bunga BI &amp; Federal Reserve yang dapat mempengaruhi likuiditas perbankan dan belanja modal.</li>'
-      + '    <li>Potensi kompresi margin akibat persaingan tarif industri dan kenaikan ongkos operasional harian.</li>'
-      + '    <li>Risiko rotasi dana asing (Foreign Outflow) di bursa berkembang ke pasar obligasi global.</li>'
+      + bearHtml
+      + '    <li style="color:var(--text3)">Risiko makro umum: sensitivitas suku bunga BI/Fed, kompresi margin akibat persaingan, dan potensi rotasi dana asing keluar dari bursa berkembang.</li>'
       + '  </ul>'
       + '</div>';
   }
