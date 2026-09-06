@@ -2858,9 +2858,9 @@ app.get('/api/idx/indices', async (req, res) => {
 });
 
 // GET /api/idx/opportunity-radar — Dynamic Opportunity Radar across 950+ IDX Universe
-app.get('/api/idx/opportunity-radar', (req, res) => {
+app.get('/api/idx/opportunity-radar', async (req, res) => {
   try {
-    const data = getUniverseOpportunityRadar(req.query);
+    const data = await getUniverseOpportunityRadar(req.query);
     return res.json(data);
   } catch (err) {
     console.error('[IDX Opportunity Radar Error]', err);
