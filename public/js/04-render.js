@@ -224,6 +224,7 @@ function renderPortofolio(){
     var labels = [];
     var dataVals = [];
     var backgroundColors = [];
+    var icons = [];
     var totalVal = 0;
 
     if(_portoChartMode === 'sector'){
@@ -238,6 +239,7 @@ function renderPortofolio(){
       labels = sortedSec.map(function(x){return x.sector;});
       dataVals = sortedSec.map(function(x){return x.mv;});
       backgroundColors = sortedSec.map(function(x,i){return sectorColor(x.sector) || COLORS[i%COLORS.length];});
+      icons = sortedSec.map(function(x){return typeof sectorIcon==='function' ? sectorIcon(x.sector) : '📊';});
     } else {
       var sahamMV = porto.reduce(function(a,p){return a+(p.mv||0);},0);
       var cryptoPorto = typeof getCryptoPortfolio==='function'?getCryptoPortfolio():[];
@@ -250,17 +252,18 @@ function renderPortofolio(){
       var kasRdn = Math.max(0, rdn);
 
       var classItems = [
-        {label:'Saham IDX', val:sahamMV, color:'#41f3a7'},
-        {label:'Crypto', val:crMV, color:'#f7931a'},
-        {label:'ETF AS', val:etfMV, color:'#00c8ff'},
-        {label:'Reksa Dana', val:rdMV, color:'#8070d2'},
-        {label:'Kas RDN', val:kasRdn, color:'#ffc107'}
+        {label:'Saham IDX', val:sahamMV, color:'#41f3a7', icon:'📈'},
+        {label:'Crypto', val:crMV, color:'#f7931a', icon:'₿'},
+        {label:'ETF AS', val:etfMV, color:'#00c8ff', icon:'🌐'},
+        {label:'Reksa Dana', val:rdMV, color:'#8070d2', icon:'💰'},
+        {label:'Kas RDN', val:kasRdn, color:'#ffc107', icon:'🏦'}
       ].filter(function(x){return x.val > 0;});
 
       totalVal = classItems.reduce(function(a,x){return a+x.val;},0) || 1;
       labels = classItems.map(function(x){return x.label;});
       dataVals = classItems.map(function(x){return x.val;});
       backgroundColors = classItems.map(function(x){return x.color;});
+      icons = classItems.map(function(x){return x.icon;});
     }
 
     charts['portoDonut'] = new Chart(cvPorto,{
@@ -298,14 +301,18 @@ function renderPortofolio(){
         var val = dataVals[idx];
         var pct = (val / totalVal * 100).toFixed(1);
         var col = backgroundColors[idx];
-        // forced-color-adjust:none — without it, Windows/Chrome "Forced
-        // Colors" (high-contrast) mode strips custom background colors
-        // from plain divs and substitutes system button colors, which
-        // made every sector swatch render as a pale, checkbox-looking
-        // square (reported by user) even though the color was correctly
-        // set here — the donut chart canvas next to it was unaffected
-        // since canvas pixels aren't touched by forced-colors mode.
+        var icon = icons[idx] || '📊';
+        // A plain colored <div> swatch turned out unreliable as the color
+        // cue: besides Windows/Chrome "Forced Colors" mode, some browser
+        // color-management extensions also rewrite inline background
+        // colors on generic divs (the donut CHART is immune since it's
+        // canvas pixels, not styled DOM). The sector/asset-class emoji
+        // icon is a font glyph, not a CSS color, so it survives both —
+        // it's now the primary way to tell each legend row apart, with
+        // the colored square kept only as a secondary visual match to
+        // the donut slice for anyone whose browser renders it normally.
         return '<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;background:var(--bg3)">'
+          + '<span style="font-size:13px;flex-shrink:0;line-height:1" title="Sesuai warna donat">'+icon+'</span>'
           + '<div style="width:10px;height:10px;border-radius:3px;background:'+col+';border:1px solid '+col+';flex-shrink:0;forced-color-adjust:none"></div>'
           + '<span style="color:var(--text2);flex:1;font-weight:500">'+lbl+'</span>'
           + '<span style="font-family:var(--font-mono);font-weight:600;color:'+col+'">'+pct+'%</span>'
