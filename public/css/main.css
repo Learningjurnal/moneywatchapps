@@ -281,6 +281,13 @@ body::after{display:none}
 
 /* TOPBAR — StockMaster PRO Command Bar Style */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:44px;background:#0E131F;border-bottom:1px solid var(--border);flex-shrink:0;z-index:100;gap:12px;position:relative}
+
+/* BOTTOM TOOLBAR — status/jam/pengaturan/akun, dipindah dari topbar agar
+   tidak menumpuk di layar sempit. Flex child biasa dari .app (bukan
+   position:fixed) sehingga .main-row otomatis menyusut untuk memberi
+   ruang, tanpa menutupi konten halaman. */
+.bottom-toolbar{display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:32px;background:#0E131F;border-top:1px solid var(--border);flex-shrink:0;gap:12px;overflow-x:auto}
+body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px solid #E2E8F0!important;box-shadow:0 -1px 3px rgba(0,0,0,0.05)}
 .topbar::after{display:none}
 .logo{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.02em;font-family:var(--font-display);flex-shrink:0;text-transform:none;text-shadow:none;display:flex;align-items:center;gap:6px}
 .logo span{color:var(--accent)}
