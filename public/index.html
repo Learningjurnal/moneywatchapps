@@ -388,6 +388,7 @@
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goPage('ranking',this)"><i class="ti ti-trophy"></i><span class="side-label">Market Radar</span></button>
+      <button onclick="goPage('watchlist',this)"><i class="ti ti-star"></i><span class="side-label">Watchlist</span><span id="fs-wl-count" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">0</span></button>
     </div>
   </div>
 
@@ -2958,6 +2959,41 @@
 <div id="page-stockmaster" class="page" style="display:none"></div>
 
 <!-- Watchlist -->
+<div id="page-watchlist" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div class="ptitle">⭐ Watchlist</div>
+      <div class="psub">Saham yang Anda pantau — tambah dari sini, dari toggle ☆ di Market Radar, atau sinkronkan otomatis dari portofolio.</div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-blue" onclick="fsSyncWithPortfolio(true)" style="font-size:10px">🔄 Sinkronkan Portofolio</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="wl-add-input" type="text" placeholder="Tambah kode saham (e.g. BBCA)" maxlength="6"
+        style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;padding:6px 10px;border-radius:6px;text-transform:uppercase;width:200px"
+        oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fsAddFromInput()">
+      <button class="btn btn-blue btn-sm" onclick="fsAddFromInput()">+ Tambah</button>
+      <div id="wl-qa-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:8px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cheader" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <span class="ctitle">📋 Daftar Watchlist</span>
+      <div id="wl-sort-row" style="display:flex;gap:4px">
+        <button class="btn btn-blue btn-sm" onclick="fsSetWlSort('default',this)">Default</button>
+        <button class="btn btn-ghost btn-sm" onclick="fsSetWlSort('score',this)">Skor</button>
+        <button class="btn btn-ghost btn-sm" onclick="fsSetWlSort('chg',this)">Chg%</button>
+        <button class="btn btn-ghost btn-sm" onclick="fsSetWlSort('signal',this)">Sinyal</button>
+      </div>
+    </div>
+    <div id="wl-page-list" style="margin-top:10px">Memuat watchlist...</div>
+  </div>
+</div>
+
 <!-- ===== HARGA WAJAR (MoS Valuasi) ===== -->
 <div id="page-hargawajar" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px">
@@ -3762,8 +3798,8 @@
 <script src="js/04-render.js?v=20260902c"></script>
 <script src="js/36-crypto-technical.js?v=20260906d"></script>
 <script src="js/05-assets.js?v=20260902c"></script>
-<script src="js/06-analysis-router.js?v=20260905i"></script>
-<script src="js/07-flowscan.js?v=20260906d"></script>
+<script src="js/06-analysis-router.js?v=20260906a"></script>
+<script src="js/07-flowscan.js?v=20260906f"></script>
 <script src="js/08-auth.js?v=20260902c"></script>
 <script src="js/09-divinvest.js?v=20260902c"></script>
 <script src="js/10-hargawajar.js?v=20260906a"></script>
@@ -3782,9 +3818,7 @@
 <script src="js/27-stockintel.js?v=20260905b"></script>
 <script src="js/28-decisiontools.js?v=20260902c"></script>
 <script src="js/29-institutional-ui.js?v=20260902c"></script>
-<script src="js/30-price-alerts.js?v=20260902c"></script>
-<script src="js/31-d3-networth.js?v=20260902c"></script>
-<script src="js/32-pdf-reports.js?v=20260905i"></script>
+<script src="js/30-price-alerts.js?v=20260902c"></script><script src="js/32-pdf-reports.js?v=20260905i"></script>
 <script src="js/33-trending-news.js?v=20260902c"></script>
 <script src="js/34-ksei-shareholders.js?v=20260902c"></script>
 <script src="js/35-settings.js?v=20260902c"></script>

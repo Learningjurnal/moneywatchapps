@@ -995,6 +995,10 @@ function renderPage(name){
     case 'crypto-technical':if(typeof initCryptoTechnicalSuite==='function') initCryptoTechnicalSuite();break;
     case 'flowscan':if(typeof goBandarmology==='function') goBandarmology('smart-money-flow'); else if(typeof techInit==='function') techInit(); else fsRunAnalysis();break;
     case 'ranking':fsRenderRanking();break;
+    case 'watchlist':
+      if(typeof fsBuildQaChips==='function') fsBuildQaChips();
+      if(typeof fsRenderWlPage==='function') fsRenderWlPage();
+      break;
     case 'heatmap':fsRenderHeatmap();break;
     case 'scanner':break;
     case 'alerts':fsGenAlerts();break;

@@ -285,17 +285,10 @@ function fsRunAnalysis(){
   var vwapTab = document.getElementById('fs-st-vwap');
   try{ fsRenderVWAP(); }catch(e){} // always render so VWAP data is ready
 
-  // Hanya reset AI box jika ticker berubah (bukan hanya period change)
-  var prevTk = FS_G._prevTk;
-  var aiBox=document.getElementById('fs-ai-box');
-  if(aiBox && tk !== prevTk){
-    aiBox.innerHTML='<div style="text-align:center;padding:18px 0;color:var(--text3)"><i class="ti ti-brain" style="font-size:22px;display:block;margin-bottom:7px"></i>Tekan Generate untuk analisa AI mendalam.</div>';
-  }
   // Kesimpulan probabilitas + tampilkan semua bila tab Analisa aktif
   fsRenderProb(a);
   var tblOpen=document.getElementById('fs-st-tbl'); tblOpen=tblOpen&&tblOpen.style.display!=='none';
-  var aiOpen=document.getElementById('fs-st-ai'); aiOpen=aiOpen&&aiOpen.style.display!=='none';
-  if(!tblOpen && !aiOpen){
+  if(!tblOpen){
     ['ov','vol','ind','vwap'].forEach(function(t){var e=document.getElementById('fs-st-'+t);if(e)e.style.display='block';});
     var pb=document.getElementById('fs-prob'); if(pb)pb.style.display='block';
     fsRenderVWAP();
@@ -791,81 +784,16 @@ function fsRenderWlPage(){
     }).join('')+'</tbody></table></div>';
 }
 
-// ── AI Analysis ──
-function fsRunAI(){
-  var data=FS_G.data,a=FS_G.a,tk=FS_G.tk;
-  if(!data) return;
-  var last=a.last,prev=a.prev;
-  var chg=((last.c-prev.c)/prev.c*100);
-  var mode=document.getElementById('fs-ai-mode')&&document.getElementById('fs-ai-mode').value||'standard';
-  var rec=data.slice(-20);
-  var bvBuy=rec.filter(function(d){return d.sig==='ACC';}).reduce(function(s,d){return s+d.buyVol;},0);
-  var bvSell=rec.filter(function(d){return d.sig==='DIST';}).reduce(function(s,d){return s+d.sellVol;},0);
-  var net=bvBuy-bvSell;
-  var ma20L=a.ma20[a.ma20.length-1],ma50L=a.ma50[a.ma50.length-1];
-  var p20=ma20L?((last.c-ma20L)/ma20L*100):0;
-  var p50=ma50L?((last.c-ma50L)/ma50L*100):0;
-  var info=FS_UNIV.find(function(u){return u.t===tk;})||{n:tk,s:'IHSG'};
-  var box=document.getElementById('fs-ai-box');
-  var btn=document.getElementById('fs-ai-btn');
-  btn.disabled=true;btn.textContent='Generating...';
-  box.innerHTML='<div style="text-align:center;padding:14px"><i class="ti ti-loader" style="font-size:20px;color:var(--accent);animation:spin 1s linear infinite"></i><div style="font-size:12px;color:var(--text2);margin-top:8px">Menganalisa big money flow...</div></div>';
-
-  // Add spin animation
-  if(!document.getElementById('fs-spin-style')){
-    var st=document.createElement('style');st.id='fs-spin-style';
-    st.textContent='@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
-    document.head.appendChild(st);
-  }
-
-  setTimeout(function(){
-    var s1,s2,s3,s4,s5;
-    // reuse logic from index.html adapted
-    if(a.sig==='AKUMULASI'){
-      s1='Saham <strong>'+tk+'</strong> ('+info.s+') menunjukkan pola <strong style="color:#41f3a7">akumulasi institusional</strong> yang '+(a.sc>=70?'sangat kuat':'cukup signifikan')+' dengan skor '+a.sc+'/100. Dalam 20 hari terakhir, tercatat <strong>'+a.bu+' hari big volume pada hari harga naik</strong> vs '+a.bd+' hari big volume turun. CMF-20 di <strong style="color:#41f3a7">+'+(a.cl*100).toFixed(1)+'%</strong> mengkonfirmasi aliran uang besar masuk secara konsisten.';
-      s4='<strong>Skenario Bullish</strong>: CMF tetap positif + volume beli dominan — target resistance sekitar <strong>'+fsP(last.h*1.03)+'</strong>.<br><br><strong>Skenario Bearish</strong>: Jika CMF berbalik negatif di bawah -10%, waspadai exit institusi. Break MA20 ke bawah adalah sinyal peringatan.';
-    } else if(a.sig==='DISTRIBUSI'){
-      s1='Analisa volume flow <strong>'+tk+'</strong> ('+info.s+') mengungkap <strong style="color:#e21d48">distribusi institusional</strong>. Tercatat <strong>'+a.bd+' hari big volume pada hari harga turun</strong> vs '+a.bu+' hari naik. CMF-20 di <strong style="color:#e21d48">'+(a.cl*100).toFixed(1)+'%</strong> mengkonfirmasi aliran uang keluar.';
-      s4='<strong>Skenario Bearish</strong>: Distribusi dapat mendorong harga ke support MA50 '+fsP(ma50L||last.c*.92)+'.<br><br><strong>Skenario Reversal</strong>: Big volume bullish + CMF berbalik positif bisa tanda akumulasi baru dimulai.';
-    } else {
-      s1='Saham <strong>'+tk+'</strong> ('+info.s+') berada dalam <strong>fase konsolidasi netral</strong> (skor '+a.sc+'/100). Big volume hampir seimbang: '+a.bu+' hari naik vs '+a.bd+' hari turun. CMF '+(a.cl*100).toFixed(1)+'% belum memberikan sinyal arah yang jelas.';
-      s4='<strong>Skenario Breakout</strong>: Big volume >2× + harga tembus resistance + CMF >+10% → sinyal akumulasi.<br><br><strong>Skenario Breakdown</strong>: Big vol hari turun + CMF <-10% → distribusi tahap awal.';
-    }
-    s2='Net volume beli institusional 20 hari: <span style="color:'+(net>=0?'#41f3a7':'#e21d48')+'">'+(net>=0?'+':'')+fsV(Math.abs(net))+(net>=0?' (net beli)':' (net jual)')+'</span>. '+(a.obvT?'OBV naik — tekanan beli dominan.':'OBV turun — tekanan jual masih dominan.')+' '+(a.adT?'A/D Line naik — uang kumulatif masuk.':'A/D Line turun — distribusi berlangsung.');
-    s3='Harga '+fsP(last.c)+' berada <strong style="color:'+(p20>0?'#41f3a7':'#e21d48')+'">'+Math.abs(p20).toFixed(1)+'% '+(p20>0?'di atas':'di bawah')+'</strong> MA20 ('+fsP(ma20L)+') dan <strong style="color:'+(p50>0?'#41f3a7':'#e21d48')+'">'+Math.abs(p50).toFixed(1)+'% '+(p50>0?'di atas':'di bawah')+'</strong> MA50 ('+fsP(ma50L)+'). RSI-14: '+(a.rl>70?'<span style="color:#e21d48">overbought ('+a.rl.toFixed(1)+')</span>':a.rl<30?'<span style="color:#41f3a7">oversold ('+a.rl.toFixed(1)+')</span>':'<span>'+a.rl.toFixed(1)+'</span>')+'.';
-    if(mode==='trade') s5=(a.sig==='AKUMULASI'?'Entry ideal: pullback ke MA20 '+fsP(ma20L||last.c*.97)+'. Stop loss di bawah MA50. R/R minimal 1:2. Target: '+fsP(last.h*1.03)+'.':a.sig==='DISTRIBUSI'?'Sudah holding: pertimbangkan reduce position. Belum masuk: <strong>hindari entry</strong> — tunggu reversal berupa big vol bullish + CMF positif 3 hari.':'<strong>Wait and see.</strong> Set alert di '+fsP(last.h*1.02)+' (buy) dan '+fsP(ma20L||last.c*.96)+' (stop).');
-    else if(mode==='deep') s5=(a.sig==='AKUMULASI'?'Pola stealth accumulation terdeteksi — institusi mengisi posisi diam-diam. Investor retail yang masuk sekarang berpotensi ikut tren institusional sejak awal.':a.sig==='DISTRIBUSI'?'Distribusi bertahap bisa berlangsung mingguan. Retail sering terjebak beli saat institusi justru jual.':'Institusi belum menunjukkan posisi jelas. Bisa berarti base building sebelum rally.');
-    else s5=(a.sig==='AKUMULASI'?'Saham ini layak dipantau. Konfirmasi dengan fundamental sebelum masuk. Pantau CMF dan big vol sebagai konfirmasi.':a.sig==='DISTRIBUSI'?'Ekstra hati-hati. Tunggu reversal volume yang jelas sebelum entry.':'Bersabar. Gunakan capital untuk saham dengan sinyal lebih jelas.');
-
-    var html='<div style="display:flex;align-items:center;gap:9px;margin-bottom:13px;padding-bottom:12px;border-bottom:1px solid var(--border)">';
-    html+=fsMkBdg(a.sig);
-    html+='<span style="font-size:11px;color:var(--text2)">Skor: <span class="mono" style="color:'+fsScColor(a.sc)+'">'+a.sc+'/100</span></span>';
-    html+='<span style="font-size:11px;color:var(--text2)">CMF: <span class="mono" style="color:'+(a.cl>0?'#41f3a7':'#e21d48')+'">'+(a.cl*100).toFixed(1)+'%</span></span>';
-    html+='</div>';
-    var sections=[
-      {t:'01 — Ringkasan Sinyal',ic:'ti-radar',b:s1},
-      {t:'02 — Volume Institusional',ic:'ti-chart-bar',b:s2},
-      {t:'03 — Level Teknikal',ic:'ti-chart-line',b:s3},
-      {t:'04 — Skenario',ic:'ti-arrows-split-2',b:s4},
-      {t:'05 — Strategi',ic:'ti-user-check',b:s5}
-    ];
-    sections.forEach(function(sec){
-      html+='<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">';
-      html+='<div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px"><i class="ti '+sec.ic+'"></i> '+sec.t+'</div>';
-      html+='<div style="font-size:13px;color:#c8d8ea;line-height:1.85">'+sec.b+'</div></div>';
-    });
-    html+='<div style="font-size:11px;color:var(--text3);padding:9px 12px;background:var(--bg);border-radius:6px;border-left:2px solid var(--border2);margin-top:4px;line-height:1.6"><i class="ti ti-alert-circle" style="font-size:11px;vertical-align:-1px;margin-right:4px"></i>Analisa otomatis berbasis indikator teknikal. Bukan rekomendasi investasi. Selalu lakukan riset mandiri.</div>';
-    box.innerHTML=html;
-    btn.disabled=false;btn.textContent='Generate ↗';
-  },900);
-}
-
 // ── quick add chips ──
 function fsBuildQaChips(){
   var chips=['BBCA','BBRI','BMRI','ADRO','PGEO','ARCI','TLKM','ANTM','CDIA','SMDR'];
   var el=document.getElementById('wl-qa-chips');
-  if(el) el.innerHTML=chips.map(function(t){
-    return '<span class="wl-chip" onclick="fsTgWl(\''+t+'\');fsRenderWlPage()">'+t+'</span>';
+  if(!el) return;
+  el.innerHTML=chips.map(function(t){
+    var inWl=FS_WL.some(function(w){return w.t===t;});
+    var style='display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-family:var(--font-mono);cursor:pointer;font-weight:700;'
+      +(inWl?'background:var(--accent);color:#fff':'background:var(--bg3);color:var(--text2);border:1px solid var(--border2)');
+    return '<span style="'+style+'" onclick="fsTgWl(\''+t+'\');fsBuildQaChips();fsRenderWlPage()">'+(inWl?'✓ ':'')+t+'</span>';
   }).join('');
 }
 
