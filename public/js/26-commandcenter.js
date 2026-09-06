@@ -119,47 +119,75 @@ function calcPortfolioHealthScore() {
 /**
  * Hitung Status Market Regime Terkini
  */
+// Was fully hardcoded — ihsgVal/ihsgChg/foreignFlowToday/breadth were fixed
+// literals that never moved (ihsgVal=6845.20 didn't even match the real
+// IHSG shown everywhere else in the app), yet this function drives the
+// "how much of your portfolio should be equity vs cash today"
+// recommendation. Now reads the real IHSG daily-close history already
+// cached by rdFetchIhsgDaily()/rdGetAny('IHSG_DAILY') (same real feed
+// perfComputeRealBeta() uses for portfolio Beta), computing real
+// ihsgVal/ihsgChg/volatility from it, and triggers a background fetch +
+// re-render when that history isn't cached yet instead of guessing.
+// Foreign capital flow and market-breadth (advance/decline) have no real
+// feed in this app (Bandarmology's foreign-flow figures are already
+// disclosed elsewhere as simulated) — rather than fabricate numbers for
+// them, they're now openly marked unavailable and dropped from the
+// regime classification logic, which is based on real IHSG trend alone.
+var MR_FETCHING = false;
 function getMarketRegime() {
-  // Indikator IHSG & Flow
-  var ihsgVal = 6845.20;
-  var ihsgChg = +0.65; // %
-  var foreignFlowToday = +342.5; // Miliar IDR
-  var breadthAdvancing = 284;
-  var breadthDeclining = 192;
-  var volatility = 'LOW (12.4%)';
+  var ihsgRows = (typeof rdGetAny === 'function') ? rdGetAny('IHSG_DAILY') : null;
 
-  var status = 'BULLISH';
-  var statusBadge = 'b-up';
-  var strategy = 'RISK-ON';
-  var equityTarget = '70% – 85%';
-  var cashTarget = '15% – 30%';
+  if (!ihsgRows || ihsgRows.length < 2) {
+    if (!MR_FETCHING && typeof rdFetchIhsgDaily === 'function') {
+      MR_FETCHING = true;
+      rdFetchIhsgDaily(function() {
+        MR_FETCHING = false;
+        if (typeof currentPage !== 'undefined' && currentPage === 'market-regime' && typeof renderMarketRegimePage === 'function') {
+          renderMarketRegimePage();
+        }
+      });
+    }
+    return {
+      ready: false,
+      status: 'MEMUAT DATA REAL…', statusBadge: 'b-neu', strategy: '-',
+      equityTarget: '-', cashTarget: '-',
+      ihsgVal: '-', ihsgChg: 0, volatility: '-',
+      foreignFlow: null, breadthAdv: null, breadthDec: null
+    };
+  }
 
-  if (ihsgChg < -0.8 && foreignFlowToday < -200) {
-    status = 'BEARISH';
-    statusBadge = 'b-dn';
-    strategy = 'CAPITAL PRESERVATION';
-    equityTarget = '40% – 55%';
-    cashTarget = '45% – 60%';
-  } else if (Math.abs(ihsgChg) <= 0.4) {
-    status = 'NEUTRAL / ACCUMULATION';
-    statusBadge = 'b-amb';
-    strategy = 'SELECTIVE ACCUMULATION';
-    equityTarget = '60% – 75%';
-    cashTarget = '25% – 40%';
+  var last = ihsgRows[ihsgRows.length - 1];
+  var prev = ihsgRows[ihsgRows.length - 2];
+  var ihsgVal = last.close;
+  var ihsgChg = prev.close > 0 ? ((last.close - prev.close) / prev.close * 100) : 0;
+
+  var recent = ihsgRows.slice(-21);
+  var rets = [];
+  for (var i = 1; i < recent.length; i++) {
+    if (recent[i - 1].close > 0) rets.push((recent[i].close - recent[i - 1].close) / recent[i - 1].close * 100);
+  }
+  var dailyVol = (typeof techStdDev === 'function') ? techStdDev(rets) : 0;
+
+  var status = 'NEUTRAL / ACCUMULATION', statusBadge = 'b-amb', strategy = 'SELECTIVE ACCUMULATION', equityTarget = '60% – 75%', cashTarget = '25% – 40%';
+  if (ihsgChg <= -0.8) {
+    status = 'BEARISH'; statusBadge = 'b-dn'; strategy = 'CAPITAL PRESERVATION'; equityTarget = '40% – 55%'; cashTarget = '45% – 60%';
+  } else if (ihsgChg >= 0.8) {
+    status = 'BULLISH'; statusBadge = 'b-up'; strategy = 'RISK-ON'; equityTarget = '70% – 85%'; cashTarget = '15% – 30%';
   }
 
   return {
+    ready: true,
     status: status,
     statusBadge: statusBadge,
     strategy: strategy,
     equityTarget: equityTarget,
     cashTarget: cashTarget,
-    ihsgVal: ihsgVal,
-    ihsgChg: ihsgChg,
-    foreignFlow: foreignFlowToday,
-    breadthAdv: breadthAdvancing,
-    breadthDec: breadthDeclining,
-    volatility: volatility
+    ihsgVal: ihsgVal.toFixed(2),
+    ihsgChg: Math.round(ihsgChg * 100) / 100,
+    volatility: dailyVol.toFixed(2) + '% (harian, realisasi 20 hari)',
+    foreignFlow: null,
+    breadthAdv: null,
+    breadthDec: null
   };
 }
 
@@ -685,7 +713,7 @@ function renderHealthAndRegimeSection() {
           + '<i class="ti ti-compass" style="color:var(--accent)"></i>'
           + '<span class="card-title">MARKET REGIME &amp; STRATEGY</span>'
         + '</div>'
-        + '<span class="badge ' + regime.statusBadge + '">🟢 ' + regime.status + '</span>'
+        + '<span class="badge ' + regime.statusBadge + '">' + (regime.statusBadge === 'b-up' ? '🟢' : regime.statusBadge === 'b-dn' ? '🔴' : regime.statusBadge === 'b-amb' ? '🟡' : '⏳') + ' ' + regime.status + '</span>'
       + '</div>'
       + '<div class="regime-body">'
         + '<div class="regime-strategy-banner">'
@@ -706,19 +734,19 @@ function renderHealthAndRegimeSection() {
         + '</div>'
         + '<div class="regime-metrics-strip">'
           + '<div class="reg-stat">'
-            + '<div class="reg-k">IHSG Trend</div>'
-            + '<div class="reg-v up">6.845 (+0.65%)</div>'
+            + '<div class="reg-k">IHSG (Real)</div>'
+            + '<div class="reg-v ' + (regime.ready ? (regime.ihsgChg >= 0 ? 'up' : 'dn') : '') + '">' + (regime.ready ? (regime.ihsgVal + ' (' + (regime.ihsgChg >= 0 ? '+' : '') + regime.ihsgChg + '%)') : 'Memuat…') + '</div>'
           + '</div>'
-          + '<div class="reg-stat">'
+          + '<div class="reg-stat" title="Belum ada feed data arus dana asing real-time">'
             + '<div class="reg-k">Foreign Flow</div>'
-            + '<div class="reg-v up">+Rp 342.5B</div>'
+            + '<div class="reg-v" style="color:var(--text3)">Belum Tersedia</div>'
           + '</div>'
-          + '<div class="reg-stat">'
+          + '<div class="reg-stat" title="Belum ada feed harga real-time seluruh emiten BEI">'
             + '<div class="reg-k">Market Breadth</div>'
-            + '<div class="reg-v">284 Adv / 192 Dec</div>'
+            + '<div class="reg-v" style="color:var(--text3)">Belum Tersedia</div>'
           + '</div>'
           + '<div class="reg-stat">'
-            + '<div class="reg-k">Volatility (VIX)</div>'
+            + '<div class="reg-k">Volatility IHSG (Real)</div>'
             + '<div class="reg-v">' + regime.volatility + '</div>'
           + '</div>'
         + '</div>'
@@ -844,17 +872,20 @@ function renderMarketRegimePage() {
   if (!c) return;
 
   var r = getMarketRegime();
+  var regimeEmoji = r.statusBadge === 'b-up' ? '🟢' : r.statusBadge === 'b-dn' ? '🔴' : r.statusBadge === 'b-amb' ? '🟡' : '⏳';
+  var regimeCls = r.statusBadge === 'b-up' ? 'up' : r.statusBadge === 'b-dn' ? 'dn' : 'neu';
+  var regimeColor = r.statusBadge === 'b-up' ? 'var(--green)' : r.statusBadge === 'b-dn' ? 'var(--red)' : 'var(--amber)';
 
   var html = '<div style="margin-bottom:16px">'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Market Regime &amp; Tactical Allocation</div>'
-    + '<div class="psub">Analisis multi-faktor tren IHSG, Foreign Flow, Likuiditas, Volatilitas, dan Rotasi Sektoral untuk menentukan strategi ekuitas optimal.</div>'
+    + '<div class="psub">Klasifikasi berbasis tren &amp; volatilitas riil IHSG untuk menentukan strategi ekuitas optimal. Foreign Flow &amp; Market Breadth belum tersedia dari feed real (lihat catatan di bawah), sehingga tidak dipakai dalam klasifikasi ini.</div>'
   + '</div>'
 
   + '<div class="row3" style="margin-bottom:16px">'
-    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="metric" style="border-left:3px solid ' + regimeColor + '">'
       + '<div class="mlabel">STATUS MARKET REGIME</div>'
-      + '<div class="mval up" style="font-size:24px">🟢 ' + r.status + '</div>'
-      + '<div class="msub up">Strategi: ' + r.strategy + '</div>'
+      + '<div class="mval ' + regimeCls + '" style="font-size:24px">' + regimeEmoji + ' ' + r.status + '</div>'
+      + '<div class="msub ' + regimeCls + '">Strategi: ' + r.strategy + '</div>'
     + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">REKOMENDASI ALOKASI EKUITAS</div>'
@@ -872,24 +903,24 @@ function renderMarketRegimePage() {
     + '<div class="ctitle" style="font-size:14px;margin-bottom:12px">Pilar Penentu Market Regime (Multi-Factor Breakdown)</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">'
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-        + '<div style="font-size:11px;color:var(--text3);font-weight:700">1. TREN IHSG &amp; MOVING AVERAGE</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--green)">Bullish (Above MA50 &amp; MA200)</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">IHSG ' + r.ihsgVal + ' (' + (r.ihsgChg >= 0 ? '+' : '') + r.ihsgChg + '%), support 6.780, resist 6.920.</div>'
+        + '<div style="font-size:11px;color:var(--text3);font-weight:700">1. TREN IHSG (REAL)</div>'
+        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:' + (r.ready ? (r.ihsgChg >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)') + '">' + (r.ready ? (r.ihsgChg >= 0 ? 'Bullish' : 'Bearish') + ' Harian' : 'Memuat…') + '</div>'
+        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">' + (r.ready ? ('IHSG ' + r.ihsgVal + ' (' + (r.ihsgChg >= 0 ? '+' : '') + r.ihsgChg + '% vs penutupan sebelumnya).') : 'Mengambil data historis IHSG real…') + '</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
         + '<div style="font-size:11px;color:var(--text3);font-weight:700">2. FOREIGN CAPITAL FLOW</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--green)">Net Inflow (+Rp ' + r.foreignFlow + 'B)</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Arus dana asing terakumulasi di Big 4 Banks &amp; Komoditas.</div>'
+        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--text3)">Belum Tersedia</div>'
+        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Aplikasi ini belum punya feed data arus dana asing real-time — tidak ditampilkan agar tidak menampilkan angka karangan. Tidak dipakai dalam penentuan regime di atas.</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
         + '<div style="font-size:11px;color:var(--text3);font-weight:700">3. MARKET BREADTH &amp; ADVANCE/DECLINE</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--accent)">Broad Participation (' + r.breadthRatio + 'x)</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">' + r.breadthAdv + ' saham menguat berbanding ' + r.breadthDec + ' melemah.</div>'
+        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--text3)">Belum Tersedia</div>'
+        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Butuh data harga real-time seluruh ~950 emiten BEI sekaligus, belum ada feed untuk ini — tidak ditampilkan agar tidak menampilkan angka karangan. Tidak dipakai dalam penentuan regime di atas.</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-        + '<div style="font-size:11px;color:var(--text3);font-weight:700">4. VOLATILITAS &amp; SENTIMEN PASAR</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--green)">' + r.volatility + '</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Kondisi pasar stabil tanpa tekanan likuiditas ekstrem.</div>'
+        + '<div style="font-size:11px;color:var(--text3);font-weight:700">4. VOLATILITAS IHSG (REAL, 20 HARI)</div>'
+        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:' + (r.ready ? 'var(--accent)' : 'var(--text3)') + '">' + r.volatility + '</div>'
+        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Deviasi standar return harian IHSG riil, bukan estimasi.</div>'
       + '</div>'
     + '</div>'
   + '</div>';
