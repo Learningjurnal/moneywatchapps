@@ -345,7 +345,7 @@
   };
 
   /**
-   * Mengganti Mode Tampilan Visual (D3 Bar vs Kuadran vs List)
+   * Mengganti Mode Tampilan Visual (D3 Bar vs Sectoral Cycle Matrix vs List)
    */
   window.siSetViewMode = function(mode) {
     if (!['bar', 'quadrant', 'list'].includes(mode)) return;
@@ -354,6 +354,21 @@
     document.querySelectorAll('.si-view-btn').forEach(function(btn) {
       btn.classList.toggle('on', btn.getAttribute('data-view') === mode);
     });
+
+    var titleEl = document.getElementById('si-visual-card-title');
+    var subEl = document.getElementById('si-visual-card-sub');
+    if (titleEl) {
+      if (mode === 'quadrant') {
+        titleEl.textContent = 'Sectoral Cycle Matrix (Rotasi 4 Kuadran Siklus Pasar)';
+        if (subEl) subEl.textContent = 'Memetakan 11 sektor IDX dalam 4 fase siklus (Akumulasi, Markup, Distribusi, Markdown) berdasarkan CMF & Performa Harga.';
+      } else if (mode === 'list') {
+        titleEl.textContent = 'Daftar Ringkas Aliran Sektoral';
+        if (subEl) subEl.textContent = 'Ringkasan kartu status aliran modal dan performa masing-masing sektor IDX.';
+      } else {
+        titleEl.textContent = 'Pergerakan Aliran Modal Sektoral';
+        if (subEl) subEl.textContent = 'Urut dari Akumulasi Terkuat (atas) ke Distribusi Terberat (bawah). Klik bar untuk menyaring berita terkait.';
+      }
+    }
 
     siRenderVisualPane();
   };
@@ -657,32 +672,45 @@
       .attr('letter-spacing', '0.5px')
       .text('AKUMULASI (INFLOW) ▶');
 
-    // Garis Ambang Signifikansi (+0.05 dan -0.05)
+    // Garis Ambang Signifikansi (+0.05 dan -0.05) dengan animasi fade-in
     var threshPos = xScale(0.05);
     var threshNeg = xScale(-0.05);
 
     g.append('line')
+      .attr('class', 'si-d3-thresh-line')
       .attr('x1', threshPos).attr('x2', threshPos)
       .attr('y1', 0).attr('y2', innerH)
       .attr('stroke', '#10b981')
       .attr('stroke-width', 1)
       .attr('stroke-dasharray', '3,3')
+      .attr('opacity', 0)
+      .transition()
+      .duration(450)
       .attr('opacity', 0.45);
 
     g.append('line')
+      .attr('class', 'si-d3-thresh-line')
       .attr('x1', threshNeg).attr('x2', threshNeg)
       .attr('y1', 0).attr('y2', innerH)
       .attr('stroke', '#ef4444')
       .attr('stroke-width', 1)
       .attr('stroke-dasharray', '3,3')
+      .attr('opacity', 0)
+      .transition()
+      .duration(450)
       .attr('opacity', 0.45);
 
-    // Garis Tengah Netral 0.00 (Solid)
+    // Garis Tengah Netral 0.00 (Solid) dengan transisi mulus
     g.append('line')
+      .attr('class', 'si-d3-zero-line')
       .attr('x1', x0).attr('x2', x0)
       .attr('y1', 0).attr('y2', innerH)
       .attr('stroke', 'var(--border, #475569)')
-      .attr('stroke-width', 1.5);
+      .attr('stroke-width', 1.5)
+      .attr('opacity', 0)
+      .transition()
+      .duration(350)
+      .attr('opacity', 1);
 
     // X Axis
     var xAxis = d3.axisBottom(xScale)
@@ -708,7 +736,9 @@
       .data(data)
       .enter()
       .append('g')
-      .attr('class', 'si-d3-row')
+      .attr('class', function(d) {
+        return 'si-d3-row' + (d.cmf >= 0 ? ' is-positive' : ' is-negative') + (selKey === d.key ? ' is-selected' : '');
+      })
       .attr('transform', function(d) { return 'translate(0,' + yScale(d.key) + ')'; })
       .style('cursor', 'pointer');
 
@@ -722,11 +752,19 @@
       .attr('fill', function(d) {
         return (selKey === d.key) ? 'var(--brand-soft, rgba(59,130,246,0.12))' : 'transparent';
       })
+      .attr('stroke', function(d) {
+        return (selKey === d.key) ? 'var(--accent, #3b82f6)' : 'transparent';
+      })
+      .attr('stroke-width', function(d) {
+        return (selKey === d.key) ? 1 : 0;
+      })
       .attr('rx', 4);
 
-    // Batang Bar CMF (Diverging Bar)
+    // Batang Bar CMF (Diverging Bar) dengan Entrance Staggered Animation & Hover State
     rows.append('rect')
-      .attr('class', 'si-d3-bar')
+      .attr('class', function(d) {
+        return 'si-d3-bar ' + (d.cmf >= 0 ? 'is-positive-bar' : 'is-negative-bar');
+      })
       .attr('y', 0)
       .attr('height', yScale.bandwidth())
       .attr('rx', 4)
@@ -744,28 +782,34 @@
       .attr('stroke-width', function(d) {
         return (selKey === d.key) ? 2 : 0;
       })
-      .attr('opacity', function(d) {
-        return (selKey !== null && selKey !== d.key) ? 0.38 : 1;
-      })
-      // Animasi transisi masuk
+      .attr('opacity', 0.2)
+      // Posisi awal tepat di sumbu 0 (origin)
       .attr('x', x0)
       .attr('width', 0)
+      // Animasi transisi bertingkat (staggered cascade dari akumulator terkuat ke distributor terberat)
       .transition()
-      .duration(420)
+      .delay(function(d, i) { return 60 + (i * 42); })
+      .duration(540)
+      .ease(d3.easeCubicOut)
       .attr('x', function(d) {
         return d.cmf >= 0 ? x0 : xScale(d.cmf);
       })
       .attr('width', function(d) {
         var w = d.cmf >= 0 ? (xScale(d.cmf) - x0) : (x0 - xScale(d.cmf));
         return Math.max(3, w);
+      })
+      .attr('opacity', function(d) {
+        return (selKey !== null && selKey !== d.key) ? 0.38 : 1;
       });
 
-    // Label Y-Axis (Ikon + Nama Sektor)
+    // Label Y-Axis (Ikon + Nama Sektor) dengan Entrance Slide-in
     var labelG = rows.append('g')
       .attr('class', 'si-d3-label-group')
-      .attr('transform', 'translate(-8,' + (yScale.bandwidth() / 2) + ')');
+      .attr('transform', 'translate(-18,' + (yScale.bandwidth() / 2) + ')')
+      .attr('opacity', 0);
 
     labelG.append('text')
+      .attr('class', 'si-d3-label-text')
       .attr('text-anchor', 'end')
       .attr('dominant-baseline', 'central')
       .attr('fill', function(d) {
@@ -779,7 +823,14 @@
         return d.icon + ' ' + (isMobile ? d.name.substring(0, 11) : d.name);
       });
 
-    // Label Nilai CMF di Ujung Bar
+    labelG.transition()
+      .delay(function(d, i) { return i * 35; })
+      .duration(380)
+      .ease(d3.easeCubicOut)
+      .attr('transform', 'translate(-8,' + (yScale.bandwidth() / 2) + ')')
+      .attr('opacity', 1);
+
+    // Label Nilai CMF di Ujung Bar dengan Entrance Staggered & Floating Animation
     rows.append('text')
       .attr('class', 'si-d3-val-label')
       .attr('y', yScale.bandwidth() / 2)
@@ -798,21 +849,68 @@
         var sign = d.cmf >= 0 ? '+' : '';
         return sign + d.cmf.toFixed(2);
       })
+      .attr('x', x0)
+      .transition()
+      .delay(function(d, i) { return 180 + (i * 42); })
+      .duration(420)
+      .ease(d3.easeCubicOut)
       .attr('x', function(d) {
         return d.cmf >= 0 ? (xScale(d.cmf) + 6) : (xScale(d.cmf) - 6);
       })
-      .transition()
-      .delay(200)
-      .duration(300)
       .attr('opacity', function(d) {
         return (selKey !== null && selKey !== d.key) ? 0.38 : 1;
       });
 
-    // Event Interaksi (Hover & Click)
+    // Event Interaksi (Hover, Focus Dimming & Click Micro-interactions)
     rows
       .on('mouseenter', function(event, d) {
+        // Sibling Dimming: redupkan sektor lain agar fokus ke sektor yang disorot
+        rows.filter(function(r) { return r.key !== d.key; })
+          .transition()
+          .duration(180)
+          .attr('opacity', 0.28);
+
+        // Pertahankan dan tegaskan baris aktif
+        d3.select(this)
+          .transition()
+          .duration(180)
+          .attr('opacity', 1);
+
+        // Highlight baris latar
         d3.select(this).select('.si-d3-row-bg')
-          .attr('fill', 'var(--brand-soft, rgba(59,130,246,0.18))');
+          .transition()
+          .duration(180)
+          .attr('fill', d.cmf >= 0 ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)')
+          .attr('stroke', d.cmf >= 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)')
+          .attr('stroke-width', 1);
+
+        // Animasi Hover Bar: sedikit membesar secara vertikal + glow outline
+        d3.select(this).select('.si-d3-bar')
+          .transition()
+          .duration(180)
+          .ease(d3.easeQuadOut)
+          .attr('y', -2)
+          .attr('height', yScale.bandwidth() + 4)
+          .attr('rx', 5)
+          .attr('ry', 5)
+          .attr('stroke', d.cmf >= 0 ? '#34d399' : '#f87171')
+          .attr('stroke-width', 2);
+
+        // Perbesar dan terangkan label angka CMF
+        d3.select(this).select('.si-d3-val-label')
+          .transition()
+          .duration(180)
+          .attr('font-size', '11.5px')
+          .attr('font-weight', '800')
+          .attr('fill', d.cmf >= 0 ? '#34d399' : '#f87171')
+          .attr('x', d.cmf >= 0 ? (xScale(d.cmf) + 8) : (xScale(d.cmf) - 8));
+
+        // Sorot nama sektor
+        d3.select(this).select('.si-d3-label-text')
+          .transition()
+          .duration(180)
+          .attr('font-weight', '700')
+          .attr('fill', d.cmf >= 0 ? '#10b981' : '#ef4444');
 
         var cmfSign = d.cmf >= 0 ? '+' : '';
         var retSign = d.retPct >= 0 ? '+' : '';
@@ -830,6 +928,10 @@
           }).join('');
         }
 
+        // Mini CMF Position Track inside tooltip
+        var cmfNorm = Math.max(-1, Math.min(1, d.cmf));
+        var cmfPct = ((cmfNorm + 1) / 2) * 100;
+
         var ttHtml = 
           '<div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
             '<span>' + d.icon + ' ' + d.name + '</span>' +
@@ -840,38 +942,133 @@
             '<span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:' + cmfColor + '">CMF: ' + cmfSign + d.cmf.toFixed(2) + '</span>' +
             '<span style="font-family:var(--font-mono);font-size:11px;color:' + retColor + '">Ret: ' + retSign + d.retPct.toFixed(2) + '%</span>' +
           '</div>' +
+          // Mini visual gauge
+          '<div style="margin-bottom:8px">' +
+            '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:2px;font-family:var(--font-mono)">' +
+              '<span>-1.00 (Distribusi)</span><span>0.00</span><span>+1.00 (Akumulasi)</span>' +
+            '</div>' +
+            '<div style="position:relative;width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">' +
+              '<div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border2)"></div>' +
+              '<div style="position:absolute;top:0;bottom:0;border-radius:2px;' + 
+                (d.cmf >= 0 ? ('left:50%;width:' + Math.min(50, (d.cmf * 50)).toFixed(1) + '%;background:#10b981') : ('right:50%;width:' + Math.min(50, (Math.abs(d.cmf) * 50)).toFixed(1) + '%;background:#ef4444')) + 
+              '"></div>' +
+            '</div>' +
+          '</div>' +
           '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">' +
             'Saham Penggerak: ' + (moversHtml || '-') +
           '</div>' +
-          '<div style="font-size:9.5px;color:var(--accent);border-top:1px dashed var(--border2);padding-top:4px">' +
-            '💡 Klik bar untuk menyaring berita sektor ' + d.name +
+          '<div style="font-size:9.5px;color:var(--accent);border-top:1px dashed var(--border2);padding-top:4px;display:flex;align-items:center;gap:4px">' +
+            '<span>💡</span> <span>' + (selKey === d.key ? 'Sektor sedang aktif difilter. Klik untuk melepas filter.' : 'Klik bar untuk memfilter berita sektor ' + d.name) + '</span>' +
           '</div>';
 
         tooltip
           .html(ttHtml)
           .style('display', 'block')
+          .style('opacity', '0')
+          .style('transform', 'translateY(4px)')
           .style('left', (event.clientX + 16) + 'px')
           .style('top', (event.clientY - 20) + 'px');
+
+        // Smooth fade-in
+        requestAnimationFrame(function() {
+          tooltip
+            .style('opacity', '1')
+            .style('transform', 'translateY(0)');
+        });
       })
       .on('mousemove', function(event) {
         var x = event.clientX + 16;
         var y = event.clientY - 20;
-        if (x + 280 > window.innerWidth) {
-          x = event.clientX - 290;
+        if (x + 300 > window.innerWidth) {
+          x = event.clientX - 310;
         }
         tooltip
           .style('left', x + 'px')
           .style('top', y + 'px');
       })
       .on('mouseleave', function(event, d) {
+        // Kembalikan opasitas seluruh baris
+        rows.transition()
+          .duration(220)
+          .attr('opacity', function(r) {
+            return (selKey !== null && selKey !== r.key) ? 0.38 : 1;
+          });
+
+        // Kembalikan baris latar
         d3.select(this).select('.si-d3-row-bg')
+          .transition()
+          .duration(220)
           .attr('fill', function() {
             return (selKey === d.key) ? 'var(--brand-soft, rgba(59,130,246,0.12))' : 'transparent';
+          })
+          .attr('stroke', function() {
+            return (selKey === d.key) ? 'var(--accent, #3b82f6)' : 'transparent';
+          })
+          .attr('stroke-width', function() {
+            return (selKey === d.key) ? 1 : 0;
           });
-        tooltip.style('display', 'none');
+
+        // Kembalikan dimensi bar ke ukuran normal
+        d3.select(this).select('.si-d3-bar')
+          .transition()
+          .duration(220)
+          .ease(d3.easeQuadOut)
+          .attr('y', 0)
+          .attr('height', yScale.bandwidth())
+          .attr('rx', 4)
+          .attr('ry', 4)
+          .attr('stroke', function() {
+            return (selKey === d.key) ? 'var(--accent, #3b82f6)' : 'none';
+          })
+          .attr('stroke-width', function() {
+            return (selKey === d.key) ? 2 : 0;
+          });
+
+        // Kembalikan font & posisi nilai CMF
+        d3.select(this).select('.si-d3-val-label')
+          .transition()
+          .duration(220)
+          .attr('font-size', '10px')
+          .attr('font-weight', '700')
+          .attr('fill', d.cmf >= 0 ? '#10b981' : '#ef4444')
+          .attr('x', function() {
+            return d.cmf >= 0 ? (xScale(d.cmf) + 6) : (xScale(d.cmf) - 6);
+          });
+
+        // Kembalikan label sektor
+        d3.select(this).select('.si-d3-label-text')
+          .transition()
+          .duration(220)
+          .attr('font-weight', function() {
+            return (selKey === d.key) ? '700' : '600';
+          })
+          .attr('fill', function() {
+            return (selKey === d.key) ? 'var(--accent, #3b82f6)' : 'var(--text, #f8fafc)';
+          });
+
+        tooltip
+          .style('opacity', '0')
+          .style('transform', 'translateY(4px)');
+        
+        setTimeout(function() {
+          if (tooltip.style('opacity') === '0') {
+            tooltip.style('display', 'none');
+          }
+        }, 160);
       })
       .on('click', function(event, d) {
         event.stopPropagation();
+        
+        // Micro-interaction tactile click pulse
+        var clickedRow = d3.select(this);
+        clickedRow.select('.si-d3-bar')
+          .transition()
+          .duration(90)
+          .attr('stroke-width', 3)
+          .transition()
+          .duration(120)
+          .attr('stroke-width', 2);
+
         tooltip.style('display', 'none');
         siSelectSector(d.key);
       });
@@ -955,61 +1152,695 @@
   }
 
   /**
-   * Visualisasi Matriks Kuadran Siklus (Cycle Rotation Matrix)
+   * Klasifikasi Sektor ke dalam 4 Kuadran Siklus Pasar (Wyckoff / Sector Rotation Cycle)
+   * 1. MARKUP       : CMF > 0 & Return > 0   (Arus modal deras mengiringi kenaikan harga)
+   * 2. ACCUMULATION : CMF > 0 & Return <= 0  (Smart money akumulasi di area bawah/diskon)
+   * 3. DISTRIBUTION : CMF <= 0 & Return > 0  (Bearish Divergence: harga naik tapi modal keluar)
+   * 4. MARKDOWN     : CMF <= 0 & Return <= 0 (Tekanan jual institusi dan downtrend berlanjut)
+   */
+  function siClassifySectorQuadrant(sec) {
+    var isCmfPos = (sec.cmf > 0);
+    var isRetPos = (sec.retPct > 0);
+
+    if (isCmfPos && isRetPos) {
+      return {
+        id: 'markup',
+        name: 'Markup',
+        titleId: '2. MARKUP (Ekspansi Bullish)',
+        subId: 'CMF Inflow > 0 · Return Positif > 0%',
+        color: '#10b981',
+        bgTint: 'rgba(16, 185, 129, 0.05)',
+        borderClr: 'rgba(16, 185, 129, 0.35)',
+        badgeClass: 'b-up',
+        icon: '🚀',
+        quadrantNum: 'I',
+        tactic: 'Trend Following · Ride the Winners · Trailing Stop Ketat',
+        rationale: 'Arus modal institusional positif mengiringi reli harga. Permintaan mendominasi suplai pasar.'
+      };
+    } else if (isCmfPos && !isRetPos) {
+      return {
+        id: 'accumulation',
+        name: 'Accumulation',
+        titleId: '1. ACCUMULATION (Akumulasi Awal)',
+        subId: 'CMF Inflow > 0 · Return Terdiskon <= 0%',
+        color: '#06b6d4',
+        bgTint: 'rgba(6, 182, 212, 0.05)',
+        borderClr: 'rgba(6, 182, 212, 0.35)',
+        badgeClass: 'b-accent',
+        icon: '📥',
+        quadrantNum: 'IV',
+        tactic: 'Buy on Weakness · Bottom Fishing · Margin of Safety',
+        rationale: 'Smart money mulai menyerap likuiditas di harga dasar sebelum breakout ekspansi harga.'
+      };
+    } else if (!isCmfPos && isRetPos) {
+      return {
+        id: 'distribution',
+        name: 'Distribution',
+        titleId: '3. DISTRIBUTION (Distribusi Pucuk)',
+        subId: 'CMF Outflow < 0 · Return Masih Naik >= 0%',
+        color: '#f59e0b',
+        bgTint: 'rgba(245, 158, 11, 0.05)',
+        borderClr: 'rgba(245, 158, 11, 0.35)',
+        badgeClass: 'b-warn',
+        icon: '📤',
+        quadrantNum: 'II',
+        tactic: 'Take Profit Bertahap · Waspada Bull Trap · Stop Loss Ketat',
+        rationale: 'Bearish Divergence: Kinerja harga masih di pucuk namun arus modal institusional mengalami pelemahan keluar.'
+      };
+    } else {
+      return {
+        id: 'markdown',
+        name: 'Markdown',
+        titleId: '4. MARKDOWN (Penurunan Bearish)',
+        subId: 'CMF Outflow < 0 · Return Negatif < 0%',
+        color: '#ef4444',
+        bgTint: 'rgba(239, 68, 68, 0.05)',
+        borderClr: 'rgba(239, 68, 68, 0.35)',
+        badgeClass: 'b-dn',
+        icon: '📉',
+        quadrantNum: 'III',
+        tactic: 'Defensive · Jaga RDN Cash Buffer 15-20% · Hindari Pisau Jatuh',
+        rationale: 'Tekanan jual institusi dan likuidasi mendominasi, harga terus tertekan ke bawah.'
+      };
+    }
+  }
+
+  /**
+   * Visualisasi Sectoral Cycle Matrix (Rotasi 4 Kuadran Siklus Pasar)
+   * Berbasis Chaikin Money Flow (CMF) dan Performa Harga (% Return)
    */
   function siRenderQuadrantView(container) {
     var m = _siState.metrics;
+    if (!container || !m || m.length === 0) {
+      if (container) container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3)">Memuat data rotasi siklus sektoral...</div>';
+      return;
+    }
+
     var selKey = _siState.selectedSectorKey;
 
-    var leading = [];
-    var weakening = [];
-    var lagging = [];
-    var improving = [];
+    // Klasifikasi seluruh sektor ke dalam 4 kuadran
+    var quadBuckets = {
+      accumulation: [],
+      markup: [],
+      distribution: [],
+      markdown: []
+    };
 
-    m.forEach(function(s) {
-      if (s.cmf >= 0 && s.retPct >= 0) leading.push(s);
-      else if (s.cmf < 0 && s.retPct >= 0) weakening.push(s);
-      else if (s.cmf < 0 && s.retPct < 0) lagging.push(s);
-      else improving.push(s);
+    m.forEach(function(sec) {
+      var q = siClassifySectorQuadrant(sec);
+      sec._quadrant = q;
+      quadBuckets[q.id].push(sec);
     });
 
-    function renderQuadBox(title, sub, items, badgeColor, borderClr) {
-      var boxHtml = '<div style="background:var(--bg2);border:1px solid ' + borderClr + ';border-radius:8px;padding:12px;display:flex;flex-direction:column;min-height:160px">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-          '<div>' +
-            '<div style="font-size:12px;font-weight:700;color:' + badgeColor + '">' + title + '</div>' +
-            '<div style="font-size:10px;color:var(--text3)">' + sub + '</div>' +
+    container.innerHTML = '';
+
+    // ── 1. Top Ribbon: Ringkasan 4 Fase Rotasi Siklus ──
+    var ribbonEl = document.createElement('div');
+    ribbonEl.className = 'si-matrix-ribbon';
+    ribbonEl.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 2px 10px 2px;margin-bottom:8px;border-bottom:1px dashed var(--border2);flex-wrap:wrap;gap:8px';
+
+    var ribbonHtml = 
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+        '<span style="font-size:11px;font-weight:700;color:var(--text);margin-right:2px">Distribusi Fase:</span>' +
+        '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:4px;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3);color:#06b6d4">' +
+          '📥 <strong>Akumulasi</strong>: ' + quadBuckets.accumulation.length +
+        '</span>' +
+        '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:4px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#10b981">' +
+          '🚀 <strong>Markup</strong>: ' + quadBuckets.markup.length +
+        '</span>' +
+        '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#f59e0b">' +
+          '📤 <strong>Distribusi</strong>: ' + quadBuckets.distribution.length +
+        '</span>' +
+        '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:4px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#ef4444">' +
+          '📉 <strong>Markdown</strong>: ' + quadBuckets.markdown.length +
+        '</span>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px">' +
+        (selKey ? '<span class="badge b-accent" style="font-size:9.5px;padding:1px 6px">Filter Aktif</span><button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="padding:1px 6px;font-size:10px;color:var(--text2)">Reset</button>' : '<span style="font-size:10.5px;color:var(--text3);font-style:italic">Klik node kuadran untuk menyaring berita</span>') +
+      '</div>';
+    ribbonEl.innerHTML = ribbonHtml;
+    container.appendChild(ribbonEl);
+
+    // ── 2. D3.js 2D Scatter Matrix Graph ──
+    var chartWrapper = document.createElement('div');
+    chartWrapper.id = 'si-matrix-chart-wrapper';
+    chartWrapper.style.cssText = 'position:relative;width:100%;height:370px;user-select:none;margin-bottom:14px';
+    container.appendChild(chartWrapper);
+
+    if (window.d3) {
+      var width = chartWrapper.clientWidth || container.clientWidth || 520;
+      var height = 370;
+
+      var isMobile = width < 480;
+      var margin = {
+        top: 26,
+        right: isMobile ? 22 : 36,
+        bottom: 34,
+        left: isMobile ? 38 : 50
+      };
+
+      var innerW = Math.max(160, width - margin.left - margin.right);
+      var innerH = Math.max(160, height - margin.top - margin.bottom);
+
+      var svg = d3.select(chartWrapper)
+        .append('svg')
+        .attr('id', 'si-matrix-svg')
+        .attr('width', '100%')
+        .attr('height', height)
+        .attr('viewBox', '0 0 ' + width + ' ' + height)
+        .style('display', 'block');
+
+      // Shared Tooltip
+      var tooltip = d3.select('body').select('#si-d3-tooltip');
+      if (tooltip.empty()) {
+        tooltip = d3.select('body').append('div')
+          .attr('id', 'si-d3-tooltip')
+          .style('position', 'fixed')
+          .style('z-index', '99999')
+          .style('display', 'none')
+          .style('pointer-events', 'none')
+          .style('background', 'var(--bg2, #181826)')
+          .style('border', '1px solid var(--border, #2d2d42)')
+          .style('box-shadow', '0 8px 24px rgba(0,0,0,0.5)')
+          .style('border-radius', '8px')
+          .style('padding', '10px 12px')
+          .style('font-size', '11.5px')
+          .style('color', 'var(--text, #f8fafc)')
+          .style('line-height', '1.4');
+      }
+
+      // Hitung Skala Dinamis Simetris (X = CMF, Y = Return %)
+      var maxAbsCmf = d3.max(m, function(d) { return Math.abs(d.cmf); }) || 0.20;
+      var domainCmf = Math.max(0.24, Math.ceil(maxAbsCmf * 1.25 * 20) / 20);
+
+      var maxAbsRet = d3.max(m, function(d) { return Math.abs(d.retPct); }) || 3.0;
+      var domainRet = Math.max(3.5, Math.ceil(maxAbsRet * 1.2));
+
+      var xScale = d3.scaleLinear()
+        .domain([-domainCmf, domainCmf])
+        .range([0, innerW]);
+
+      var yScale = d3.scaleLinear()
+        .domain([-domainRet, domainRet])
+        .range([innerH, 0]); // Y naik ke atas
+
+      var g = svg.append('g')
+        .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+      var x0 = xScale(0);
+      var y0 = yScale(0);
+
+      // Defs untuk filter bayangan & gradien
+      var defs = svg.append('defs');
+      var filterGlow = defs.append('filter')
+        .attr('id', 'si-glow')
+        .attr('x', '-30%').attr('y', '-30%')
+        .attr('width', '160%').attr('height', '160%');
+      filterGlow.append('feGaussianBlur')
+        .attr('stdDeviation', '3')
+        .attr('result', 'blur');
+      filterGlow.append('feComposite')
+        .attr('in', 'SourceGraphic')
+        .attr('in2', 'blur')
+        .attr('operator', 'over');
+
+      // ── 4 Background Quadrant Regions ──
+      // 1. Top-Right: MARKUP (CMF > 0, Return > 0)
+      g.append('rect')
+        .attr('x', x0)
+        .attr('y', 0)
+        .attr('width', Math.max(0, innerW - x0))
+        .attr('height', Math.max(0, y0))
+        .attr('fill', '#10b981')
+        .attr('opacity', 0.05);
+
+      // 2. Bottom-Right: ACCUMULATION (CMF > 0, Return <= 0)
+      g.append('rect')
+        .attr('x', x0)
+        .attr('y', y0)
+        .attr('width', Math.max(0, innerW - x0))
+        .attr('height', Math.max(0, innerH - y0))
+        .attr('fill', '#06b6d4')
+        .attr('opacity', 0.05);
+
+      // 3. Top-Left: DISTRIBUTION (CMF <= 0, Return > 0)
+      g.append('rect')
+        .attr('x', 0)
+        .attr('y', 0)
+        .attr('width', Math.max(0, x0))
+        .attr('height', Math.max(0, y0))
+        .attr('fill', '#f59e0b')
+        .attr('opacity', 0.05);
+
+      // 4. Bottom-Left: MARKDOWN (CMF <= 0, Return <= 0)
+      g.append('rect')
+        .attr('x', 0)
+        .attr('y', y0)
+        .attr('width', Math.max(0, x0))
+        .attr('height', Math.max(0, innerH - y0))
+        .attr('fill', '#ef4444')
+        .attr('opacity', 0.05);
+
+      // Garis Kisi Bantu Pembagi Kuadran (Gridlines)
+      g.append('line')
+        .attr('x1', 0).attr('x2', innerW)
+        .attr('y1', y0).attr('y2', y0)
+        .attr('stroke', 'var(--border, #475569)')
+        .attr('stroke-width', 1.5)
+        .attr('opacity', 0.85);
+
+      g.append('line')
+        .attr('x1', x0).attr('x2', x0)
+        .attr('y1', 0).attr('y2', innerH)
+        .attr('stroke', 'var(--border, #475569)')
+        .attr('stroke-width', 1.5)
+        .attr('opacity', 0.85);
+
+      // Titik Pusat Origin (0,0)
+      g.append('circle')
+        .attr('cx', x0)
+        .attr('cy', y0)
+        .attr('r', 3)
+        .attr('fill', 'var(--text3, #94a3b8)')
+        .attr('opacity', 0.8);
+
+      // Label Header & Judul Kuadran di Tiap Sudut
+      var quadLabels = [
+        {
+          x: innerW - 8,
+          y: 14,
+          anchor: 'end',
+          title: '🚀 2. MARKUP',
+          sub: 'CMF+ · Return+',
+          color: '#10b981'
+        },
+        {
+          x: innerW - 8,
+          y: innerH - 12,
+          anchor: 'end',
+          title: '📥 1. ACCUMULATION',
+          sub: 'CMF+ · Return-',
+          color: '#06b6d4'
+        },
+        {
+          x: 8,
+          y: 14,
+          anchor: 'start',
+          title: '📤 3. DISTRIBUTION',
+          sub: 'CMF- · Return+',
+          color: '#f59e0b'
+        },
+        {
+          x: 8,
+          y: innerH - 12,
+          anchor: 'start',
+          title: '📉 4. MARKDOWN',
+          sub: 'CMF- · Return-',
+          color: '#ef4444'
+        }
+      ];
+
+      quadLabels.forEach(function(ql) {
+        var lblG = g.append('g').attr('opacity', 0.85);
+        lblG.append('text')
+          .attr('x', ql.x)
+          .attr('y', ql.y)
+          .attr('text-anchor', ql.anchor)
+          .attr('fill', ql.color)
+          .attr('font-size', isMobile ? '9.5px' : '11px')
+          .attr('font-weight', '700')
+          .attr('letter-spacing', '0.4px')
+          .text(ql.title);
+
+        lblG.append('text')
+          .attr('x', ql.x)
+          .attr('y', ql.y + 11)
+          .attr('text-anchor', ql.anchor)
+          .attr('fill', 'var(--text3, #94a3b8)')
+          .attr('font-size', '8.5px')
+          .attr('font-family', 'var(--font-mono, monospace)')
+          .text(ql.sub);
+      });
+
+      // Indikator Siklus Rotasi (Clockwise Cycle Rotation Arrow Cue)
+      var cycleRadius = Math.min(innerW, innerH) * 0.42;
+      var arcGenerator = d3.arc()
+        .innerRadius(cycleRadius - 1)
+        .outerRadius(cycleRadius)
+        .startAngle(0.35)
+        .endAngle(1.45);
+
+      g.append('path')
+        .attr('transform', 'translate(' + x0 + ',' + y0 + ')')
+        .attr('d', arcGenerator)
+        .attr('fill', 'var(--text3)')
+        .attr('opacity', 0.15)
+        .attr('stroke-dasharray', '3,3');
+
+      // X Axis (CMF)
+      var xAxis = d3.axisBottom(xScale)
+        .ticks(Math.min(6, Math.floor(innerW / 70)))
+        .tickFormat(function(d) {
+          if (d === 0) return '0.00';
+          return (d > 0 ? '+' : '') + d.toFixed(2);
+        });
+
+      var xAxisG = g.append('g')
+        .attr('transform', 'translate(0,' + innerH + ')')
+        .call(xAxis);
+
+      xAxisG.select('.domain').attr('stroke', 'var(--border2, #334155)');
+      xAxisG.selectAll('.tick line').attr('stroke', 'var(--border2, #334155)').attr('stroke-dasharray', '2,2');
+      xAxisG.selectAll('.tick text')
+        .attr('fill', 'var(--text3, #94a3b8)')
+        .attr('font-size', '9.5px')
+        .attr('font-family', 'var(--font-mono, monospace)');
+
+      // Label X-Axis
+      g.append('text')
+        .attr('x', innerW)
+        .attr('y', innerH + 24)
+        .attr('text-anchor', 'end')
+        .attr('fill', 'var(--text3, #94a3b8)')
+        .attr('font-size', '9.5px')
+        .text('Arus Modal Institusional (CMF) ▶');
+
+      // Y Axis (Return %)
+      var yAxis = d3.axisLeft(yScale)
+        .ticks(Math.min(6, Math.floor(innerH / 45)))
+        .tickFormat(function(d) {
+          if (d === 0) return '0%';
+          return (d > 0 ? '+' : '') + d.toFixed(1) + '%';
+        });
+
+      var yAxisG = g.append('g')
+        .call(yAxis);
+
+      yAxisG.select('.domain').attr('stroke', 'var(--border2, #334155)');
+      yAxisG.selectAll('.tick line').attr('stroke', 'var(--border2, #334155)').attr('stroke-dasharray', '2,2');
+      yAxisG.selectAll('.tick text')
+        .attr('fill', 'var(--text3, #94a3b8)')
+        .attr('font-size', '9.5px')
+        .attr('font-family', 'var(--font-mono, monospace)');
+
+      // Label Y-Axis
+      g.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', 0)
+        .attr('y', -34)
+        .attr('text-anchor', 'end')
+        .attr('fill', 'var(--text3, #94a3b8)')
+        .attr('font-size', '9.5px')
+        .text('Performa Harga (% Return) ▶');
+
+      // ── Plotting Sector Nodes (Bubbles) ──
+      var nodes = g.selectAll('.si-matrix-node')
+        .data(m)
+        .enter()
+        .append('g')
+        .attr('class', function(d) {
+          var isSel = (selKey === d.key);
+          return 'si-matrix-node' + (isSel ? ' is-selected' : '');
+        })
+        .attr('transform', function(d) {
+          return 'translate(' + xScale(d.cmf) + ',' + yScale(d.retPct) + ')';
+        })
+        .style('cursor', 'pointer')
+        .attr('opacity', function(d) {
+          return (selKey !== null && selKey !== d.key) ? 0.35 : 1;
+        });
+
+      // Halo Lingkaran untuk Sektor yang Sedang Terpilih
+      nodes.append('circle')
+        .attr('class', 'si-node-halo')
+        .attr('r', 20)
+        .attr('fill', 'none')
+        .attr('stroke', function(d) { return d._quadrant.color; })
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '3,3')
+        .attr('opacity', function(d) { return (selKey === d.key) ? 1 : 0; });
+
+      // Lingkaran Node Utama
+      nodes.append('circle')
+        .attr('class', 'si-node-circle')
+        .attr('r', function(d) { return (selKey === d.key) ? 15 : 13; })
+        .attr('fill', function(d) { return d._quadrant.color; })
+        .attr('stroke', '#ffffff')
+        .attr('stroke-width', function(d) { return (selKey === d.key) ? 2.5 : 1.5; })
+        .attr('opacity', 0.95);
+
+      // Ikon di Tengah Lingkaran Node
+      nodes.append('text')
+        .attr('class', 'si-node-icon')
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'central')
+        .attr('font-size', '11px')
+        .text(function(d) { return d.icon; });
+
+      // Label Teks Singkat Nama Sektor di Sebelah Node
+      nodes.append('text')
+        .attr('class', 'si-node-label')
+        .attr('x', function(d) { return (d.cmf >= 0) ? 17 : -17; })
+        .attr('y', 4)
+        .attr('text-anchor', function(d) { return (d.cmf >= 0) ? 'start' : 'end'; })
+        .attr('fill', 'var(--text, #f8fafc)')
+        .attr('font-size', '10px')
+        .attr('font-weight', function(d) { return (selKey === d.key) ? '800' : '600'; })
+        .text(function(d) { return d.name; });
+
+      // Interaksi Hover & Click pada Node
+      nodes
+        .on('mouseenter', function(event, d) {
+          // Dimming Sibling
+          nodes.filter(function(n) { return n.key !== d.key; })
+            .transition()
+            .duration(160)
+            .attr('opacity', 0.22);
+
+          // Sorot Node Aktif
+          d3.select(this)
+            .transition()
+            .duration(160)
+            .attr('opacity', 1);
+
+          d3.select(this).select('.si-node-circle')
+            .transition()
+            .duration(160)
+            .attr('r', 17)
+            .attr('stroke-width', 2.5);
+
+          d3.select(this).select('.si-node-label')
+            .transition()
+            .duration(160)
+            .attr('font-size', '11px')
+            .attr('font-weight', '800')
+            .attr('fill', d._quadrant.color);
+
+          var q = d._quadrant;
+          var cmfSign = d.cmf >= 0 ? '+' : '';
+          var retSign = d.retPct >= 0 ? '+' : '';
+          var retColor = d.retPct >= 0 ? '#10b981' : '#ef4444';
+          var cmfColor = d.cmf >= 0 ? '#10b981' : '#ef4444';
+
+          var moversHtml = '';
+          if (Array.isArray(d.constituentStats)) {
+            moversHtml = d.constituentStats.slice(0, 3).map(function(st) {
+              var r = (st.retPct >= 0 ? '+' : '') + st.retPct.toFixed(1) + '%';
+              var c = st.retPct >= 0 ? '#10b981' : '#ef4444';
+              return '<span style="font-family:var(--font-mono);font-size:10px;padding:1px 5px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;margin-right:4px">' +
+                st.ticker + ' <span style="color:' + c + '">' + r + '</span>' +
+              '</span>';
+            }).join('');
+          }
+
+          var ttHtml = 
+            '<div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
+              '<span>' + d.icon + ' ' + d.name + '</span>' +
+              '<span style="font-size:10px;color:var(--text3)">(' + d.labelId + ')</span>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+              '<span class="badge" style="background:' + q.bgTint + ';border:1px solid ' + q.color + ';color:' + q.color + ';font-size:10px;font-weight:700">' + q.titleId + '</span>' +
+              '<span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:' + cmfColor + '">CMF: ' + cmfSign + d.cmf.toFixed(2) + '</span>' +
+              '<span style="font-family:var(--font-mono);font-size:11px;color:' + retColor + '">Ret: ' + retSign + d.retPct.toFixed(2) + '%</span>' +
+            '</div>' +
+            '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px 8px;margin-bottom:8px;font-size:10.5px;color:var(--text2);line-height:1.4">' +
+              '<strong style="color:var(--text)">Strategi:</strong> ' + q.tactic + '<br>' +
+              '<span style="font-size:9.5px;color:var(--text3)">' + q.rationale + '</span>' +
+            '</div>' +
+            '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">' +
+              'Saham Penggerak: ' + (moversHtml || '-') +
+            '</div>' +
+            '<div style="font-size:9.5px;color:var(--accent);border-top:1px dashed var(--border2);padding-top:4px;display:flex;align-items:center;gap:4px">' +
+              '<span>💡</span> <span>' + (selKey === d.key ? 'Sektor sedang aktif difilter. Klik untuk melepas filter.' : 'Klik node untuk memfilter berita sektor ' + d.name) + '</span>' +
+            '</div>';
+
+          tooltip
+            .html(ttHtml)
+            .style('display', 'block')
+            .style('opacity', '1')
+            .style('left', (event.pageX + 14) + 'px')
+            .style('top', (event.pageY - 12) + 'px');
+        })
+        .on('mousemove', function(event) {
+          tooltip
+            .style('left', (event.pageX + 14) + 'px')
+            .style('top', (event.pageY - 12) + 'px');
+        })
+        .on('mouseleave', function() {
+          // Kembalikan semua node
+          nodes
+            .transition()
+            .duration(200)
+            .attr('opacity', function(d) {
+              return (selKey !== null && selKey !== d.key) ? 0.35 : 1;
+            });
+
+          d3.select(this).select('.si-node-circle')
+            .transition()
+            .duration(200)
+            .attr('r', function(d) { return (selKey === d.key) ? 15 : 13; })
+            .attr('stroke-width', function(d) { return (selKey === d.key) ? 2.5 : 1.5; });
+
+          d3.select(this).select('.si-node-label')
+            .transition()
+            .duration(200)
+            .attr('font-size', '10px')
+            .attr('font-weight', function(d) { return (selKey === d.key) ? '800' : '600'; })
+            .attr('fill', 'var(--text, #f8fafc)');
+
+          tooltip
+            .style('opacity', '0')
+            .style('transform', 'translateY(4px)');
+
+          setTimeout(function() {
+            if (tooltip.style('opacity') === '0') {
+              tooltip.style('display', 'none');
+            }
+          }, 160);
+        })
+        .on('click', function(event, d) {
+          event.stopPropagation();
+
+          var clickedNode = d3.select(this);
+          clickedNode.select('.si-node-circle')
+            .transition()
+            .duration(90)
+            .attr('r', 18)
+            .transition()
+            .duration(120)
+            .attr('r', 15);
+
+          tooltip.style('display', 'none');
+          siSelectSector(d.key);
+        });
+
+      // ResizeObserver untuk responsivitas visual otomatis
+      if (_siResizeObserver) {
+        try { _siResizeObserver.disconnect(); } catch (e) {}
+      }
+
+      var resizeTimer = null;
+      _siResizeObserver = new ResizeObserver(function(entries) {
+        if (!entries || entries.length === 0) return;
+        var newW = entries[0].contentRect.width;
+        if (Math.abs(newW - width) > 15) {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(function() {
+            if (_siState.viewMode === 'quadrant') {
+              siRenderQuadrantView(container);
+            }
+          }, 150);
+        }
+      });
+      _siResizeObserver.observe(container);
+    }
+
+    // ── 3. Tactical 4-Quadrant Cards Grid (Rincian Sektor & Taktik) ──
+    var cardsGrid = document.createElement('div');
+    cardsGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:12px';
+
+    function renderQuadCard(quadMeta, items) {
+      var isHighlighted = items.some(function(it) { return it.key === selKey; });
+      var cardBorder = isHighlighted ? ('border:1.5px solid ' + quadMeta.color) : ('border:1px solid ' + quadMeta.borderClr);
+      var cardBg = isHighlighted ? 'background:var(--bg2)' : 'background:var(--bg2)';
+
+      var cardHtml = 
+        '<div class="si-matrix-quad-card" style="' + cardBg + ';' + cardBorder + ';border-radius:8px;padding:12px;display:flex;flex-direction:column;min-height:165px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;border-bottom:1px solid var(--border2);padding-bottom:8px">' +
+            '<div>' +
+              '<div style="font-size:12px;font-weight:700;color:' + quadMeta.color + ';display:flex;align-items:center;gap:5px">' +
+                '<span>' + quadMeta.icon + '</span> <span>' + quadMeta.titleId + '</span>' +
+              '</div>' +
+              '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + quadMeta.subId + '</div>' +
+            '</div>' +
+            '<span class="badge" style="background:' + quadMeta.bgTint + ';border:1px solid ' + quadMeta.color + ';color:' + quadMeta.color + ';font-size:10px;font-weight:700">' +
+              items.length + ' Sektor' +
+            '</span>' +
           '</div>' +
-          '<span class="badge" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:10px">' + items.length + ' Sektor</span>' +
-        '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:5px;flex:1">';
+
+          // Tactical guidance note
+          '<div style="font-size:10px;color:var(--text2);background:var(--bg3);border-radius:5px;padding:5px 8px;margin-bottom:8px;line-height:1.4">' +
+            '<strong style="color:var(--text)">Taktik:</strong> ' + quadMeta.tactic +
+          '</div>' +
+
+          // List of sectors
+          '<div style="display:flex;flex-direction:column;gap:5px;flex:1">';
 
       if (items.length === 0) {
-        boxHtml += '<div style="font-size:11px;color:var(--text3);text-align:center;margin:auto">Tidak ada sektor di kuadran ini</div>';
+        cardHtml += '<div style="font-size:11px;color:var(--text3);text-align:center;margin:auto;padding:12px 0">Tidak ada sektor pada fase ini</div>';
       } else {
         items.forEach(function(sec) {
           var isSel = (selKey === sec.key);
-          boxHtml += '<div onclick="siSelectSector(\'' + sec.key + '\')" style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-radius:5px;background:' + (isSel ? 'var(--brand-soft)' : 'var(--bg3)') + ';border:1px solid ' + (isSel ? 'var(--accent)' : 'var(--border2)') + ';cursor:pointer">' +
-            '<span style="font-size:11px;font-weight:600;color:var(--text)">' + sec.icon + ' ' + sec.name + '</span>' +
-            '<span style="font-size:10.5px;font-family:var(--font-mono);color:' + (sec.retPct >= 0 ? '#10b981' : '#ef4444') + '">' +
-              (sec.retPct >= 0 ? '+' : '') + sec.retPct.toFixed(1) + '% · CMF ' + (sec.cmf >= 0 ? '+' : '') + sec.cmf.toFixed(2) +
-            '</span>' +
-          '</div>';
+          var chipBg = isSel ? 'var(--brand-soft)' : 'var(--bg3)';
+          var chipBorder = isSel ? ('border:1px solid ' + quadMeta.color) : 'border:1px solid var(--border2)';
+
+          var moverPreview = '';
+          if (Array.isArray(sec.constituentStats) && sec.constituentStats.length > 0) {
+            moverPreview = sec.constituentStats.slice(0, 2).map(function(s) {
+              var r = (s.retPct >= 0 ? '+' : '') + s.retPct.toFixed(1) + '%';
+              var c = s.retPct >= 0 ? '#10b981' : '#ef4444';
+              return s.ticker + ' <span style="color:' + c + '">' + r + '</span>';
+            }).join(' · ');
+          }
+
+          cardHtml += 
+            '<div class="si-matrix-sector-chip" onclick="siSelectSector(\'' + sec.key + '\')" style="display:flex;flex-direction:column;gap:3px;padding:6px 8px;border-radius:5px;background:' + chipBg + ';' + chipBorder + ';cursor:pointer" title="Klik untuk memfilter berita sektor ' + sec.name + '">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                '<div style="display:flex;align-items:center;gap:6px">' +
+                  '<span style="font-size:12px">' + sec.icon + '</span>' +
+                  '<span style="font-size:11px;font-weight:600;color:' + (isSel ? quadMeta.color : 'var(--text)') + '">' + sec.name + '</span>' +
+                  (isSel ? '<span class="badge b-accent" style="font-size:8.5px;padding:0 4px">AKTIF</span>' : '') +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:6px">' +
+                  '<span style="font-size:10px;font-family:var(--font-mono);color:' + (sec.retPct >= 0 ? '#10b981' : '#ef4444') + '">' +
+                    (sec.retPct >= 0 ? '+' : '') + sec.retPct.toFixed(1) + '%' +
+                  '</span>' +
+                  '<span style="font-size:10px;font-family:var(--font-mono);font-weight:700;color:' + (sec.cmf >= 0 ? '#10b981' : '#ef4444') + '">' +
+                    'CMF ' + (sec.cmf >= 0 ? '+' : '') + sec.cmf.toFixed(2) +
+                  '</span>' +
+                '</div>' +
+              '</div>' +
+              (moverPreview ? '<div style="font-size:9px;color:var(--text3);padding-left:18px">Penggerak: ' + moverPreview + '</div>' : '') +
+            '</div>';
         });
       }
 
-      boxHtml += '</div></div>';
-      return boxHtml;
+      cardHtml += '</div></div>';
+      return cardHtml;
     }
 
-    var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
-      renderQuadBox('1. LEADING (Akumulasi & Menguat)', 'CMF Positif & Return Positif', leading, '#10b981', 'rgba(16,185,129,0.3)') +
-      renderQuadBox('2. WEAKENING (Divergensi Melemah)', 'CMF Negatif tapi Return Masih Naik', weakening, '#f59e0b', 'rgba(245,158,11,0.3)') +
-      renderQuadBox('4. IMPROVING (Rebound & Akumulasi Bawah)', 'CMF Positif tapi Return Masih Tertekan', improving, '#38bdf8', 'rgba(56,189,248,0.3)') +
-      renderQuadBox('3. LAGGING (Distribusi & Tertekan)', 'CMF Negatif & Return Negatif', lagging, '#ef4444', 'rgba(239,68,68,0.3)') +
-    '</div>';
+    var qMarkup = siClassifySectorQuadrant({ cmf: 0.1, retPct: 1 });
+    var qAcc = siClassifySectorQuadrant({ cmf: 0.1, retPct: -1 });
+    var qDist = siClassifySectorQuadrant({ cmf: -0.1, retPct: 1 });
+    var qMark = siClassifySectorQuadrant({ cmf: -0.1, retPct: -1 });
 
-    container.innerHTML = html;
+    cardsGrid.innerHTML = 
+      renderQuadCard(qDist, quadBuckets.distribution) +
+      renderQuadCard(qMarkup, quadBuckets.markup) +
+      renderQuadCard(qMark, quadBuckets.markdown) +
+      renderQuadCard(qAcc, quadBuckets.accumulation);
+
+    container.appendChild(cardsGrid);
   }
 
   /**

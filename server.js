@@ -178,10 +178,14 @@ app.post('/api/user-data/save', (req, res) => {
     if (rawPayload.length > 10 * 1024 * 1024) {
       return res.status(413).json({ success: false, error: 'Payload exceeds maximum limit (10MB)' });
     }
-    const uid = body.uid || body.email || 'global_user';
+    const uid = (body.uid || body.email || '').trim();
+    if (!uid) {
+      return res.status(400).json({ success: false, error: 'User ID (uid) is required to save data' });
+    }
+
+    const isDemo = (uid === 'demo_guest_user' || uid === 'guest_user');
     const safeKey = getSafeFileKey(uid);
     const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
-    const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
 
     const record = {
       uid: uid,
@@ -193,20 +197,20 @@ app.post('/api/user-data/save', (req, res) => {
 
     const jsonStr = JSON.stringify(record, null, 2);
     fs.writeFileSync(filePath, jsonStr, 'utf8');
-    fs.writeFileSync(backupPath, jsonStr, 'utf8');
 
-    // Asynchronously replicate to Firestore Cloud
-    syncRecordToFirestoreCloud(uid, record.data);
-
-    // Broadcast realtime update to all connected multi-device client sessions
-    broadcastSyncUpdate(uid, record.data, req.headers['x-device-session-id'] || null);
+    // NEVER save to a shared backup file (prevents cross-tenant data leakage)
+    // NEVER replicate demo accounts to Firestore Cloud or broadcast across devices
+    if (!isDemo) {
+      syncRecordToFirestoreCloud(uid, record.data);
+      broadcastSyncUpdate(uid, record.data, req.headers['x-device-session-id'] || null);
+    }
 
     const txCount = (record.data && Array.isArray(record.data.transactions)) ? record.data.transactions.length : 0;
     const rdnCount = (record.data && Array.isArray(record.data.rdnMutations)) ? record.data.rdnMutations.length : 0;
 
     return res.json({
       success: true,
-      message: 'Data successfully persisted to server mirror and Firebase Cloud',
+      message: isDemo ? 'Demo session saved locally to isolated demo store' : 'Data successfully persisted to server mirror and Firebase Cloud',
       savedAt: record.savedAt,
       stats: { transactions: txCount, rdnMutations: rdnCount }
     });
@@ -223,7 +227,16 @@ app.post('/api/user-data/save', (req, res) => {
 // Endpoint audit langsung ke Firebase Firestore Cloud
 app.get('/api/sync/firebase-audit', async (req, res) => {
   try {
-    const uid = req.query.uid || 'u_andry_zuma_musa_40gmail_com';
+    const uid = (req.query.uid || '').trim();
+    if (!uid || uid === 'demo_guest_user' || uid === 'guest_user') {
+      return res.json({
+        success: true,
+        cloudConnected: true,
+        hasDocument: false,
+        stats: { transactions: 0, dividends: 0, rdnMutations: 0, rdnBalance: 0 },
+        message: 'Demo / Guest session operates locally without cloud persistence'
+      });
+    }
     const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.firestoreDatabaseId}/documents/users/${uid}/data/main?key=${FIREBASE_CONFIG.apiKey}`;
 
     const resp = await fetch(url);
@@ -302,19 +315,44 @@ app.get('/api/sync/firebase-audit', async (req, res) => {
 
 app.get('/api/user-data/load', (req, res) => {
   try {
-    const uid = req.query.uid || req.query.email || '';
-    let targetPath = null;
-
-    if (uid) {
-      const safeKey = getSafeFileKey(uid);
-      const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
-      if (fs.existsSync(filePath)) {
-        targetPath = filePath;
-      }
+    const uid = (req.query.uid || req.query.email || '').trim();
+    if (!uid) {
+      return res.status(400).json({
+        success: false,
+        error: 'User ID (uid) is required'
+      });
     }
 
-    // Check alternative key (e.g. without _40 or normalized)
-    if (!targetPath && uid) {
+    // Demo/Guest account operates strictly in an isolated clean session with 0 initial positions
+    if (uid === 'demo_guest_user' || uid === 'guest_user') {
+      const demoKey = getSafeFileKey('demo_guest_user');
+      const demoPath = path.join(USER_STORES_DIR, `user_${demoKey}.json`);
+      if (fs.existsSync(demoPath)) {
+        const raw = fs.readFileSync(demoPath, 'utf8');
+        const record = JSON.parse(raw);
+        return res.json({
+          success: true,
+          found: true,
+          record: record
+        });
+      }
+      return res.json({
+        success: true,
+        found: false,
+        record: null,
+        message: 'Demo account operates in isolated clean session'
+      });
+    }
+
+    let targetPath = null;
+    const safeKey = getSafeFileKey(uid);
+    const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
+    if (fs.existsSync(filePath)) {
+      targetPath = filePath;
+    }
+
+    // Check exact normalized key
+    if (!targetPath) {
       const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
       const altPath = path.join(USER_STORES_DIR, `user_${altKey}.json`);
       if (fs.existsSync(altPath)) {
@@ -322,23 +360,29 @@ app.get('/api/user-data/load', (req, res) => {
       }
     }
 
-    if (!targetPath) {
-      const backupPath = path.join(USER_STORES_DIR, 'latest_backup.json');
-      if (fs.existsSync(backupPath)) {
-        targetPath = backupPath;
-      }
-    }
-
+    // CRITICAL SECURITY ENFORCEMENT:
+    // NEVER fall back to latest_backup.json or any other user's file.
     if (!targetPath) {
       return res.json({
-        success: false,
+        success: true,
         found: false,
-        message: 'No server persistence record found yet'
+        record: null,
+        message: 'No server persistence record found for this user'
       });
     }
 
     const raw = fs.readFileSync(targetPath, 'utf8');
     const record = JSON.parse(raw);
+
+    // Verify tenant ownership matches requested UID
+    const recordUidNorm = String(record.uid || '').toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+    const requestedUidNorm = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+    if (recordUidNorm && recordUidNorm !== requestedUidNorm) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied: tenant isolation mismatch'
+      });
+    }
 
     return res.json({
       success: true,
@@ -358,21 +402,20 @@ app.get('/api/user-data/load', (req, res) => {
 app.post('/api/user-data/clear', (req, res) => {
   try {
     const body = req.body || {};
-    const uid = body.uid || body.email || req.query.uid || req.query.email || '';
-    const purgeAll = body.purgeAll === true || !uid;
+    const uid = (body.uid || body.email || req.query.uid || req.query.email || '').trim();
+    if (!uid) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+
+    const safeKey = getSafeFileKey(uid);
+    const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
 
     if (fs.existsSync(USER_STORES_DIR)) {
       const files = fs.readdirSync(USER_STORES_DIR);
       for (const file of files) {
         if (!file.endsWith('.json')) continue;
-        if (purgeAll) {
+        if (file.includes(safeKey) || file.includes(altKey)) {
           try { fs.unlinkSync(path.join(USER_STORES_DIR, file)); } catch(e){}
-        } else {
-          const safeKey = getSafeFileKey(uid);
-          const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
-          if (file.includes(safeKey) || file.includes(altKey) || file === 'latest_backup.json') {
-            try { fs.unlinkSync(path.join(USER_STORES_DIR, file)); } catch(e){}
-          }
         }
       }
     }
@@ -436,6 +479,9 @@ const syncClients = new Map(); // Map<string (clientId), { uid: string, res: Res
 
 function broadcastSyncUpdate(targetUid, dataObj, originDeviceId) {
   if (!targetUid || !dataObj) return;
+  // Never broadcast demo data or to demo accounts
+  if (targetUid === 'demo_guest_user' || targetUid === 'guest_user') return;
+
   const normalizedTargetUid = String(targetUid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
   
   const payloadStr = JSON.stringify({
@@ -448,9 +494,12 @@ function broadcastSyncUpdate(targetUid, dataObj, originDeviceId) {
 
   let recipientCount = 0;
   for (const [clientId, client] of syncClients.entries()) {
-    const clientNormalizedUid = String(client.uid || '').toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
-    // Send to all client sessions belonging to the same user
-    if (clientNormalizedUid === normalizedTargetUid || client.uid === targetUid || !client.uid) {
+    // STRICT TENANT ISOLATION: client.uid MUST be valid, non-empty, and strictly match targetUid
+    if (!client.uid || client.uid === 'demo_guest_user' || client.uid === 'guest_user') {
+      continue;
+    }
+    const clientNormalizedUid = String(client.uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+    if (clientNormalizedUid === normalizedTargetUid) {
       if (originDeviceId && client.deviceId === originDeviceId) {
         // Skip echo to the exact same device that originated the save
         continue;
@@ -472,7 +521,7 @@ function broadcastSyncUpdate(targetUid, dataObj, originDeviceId) {
 
 // Server-Sent Events endpoint for multi-device realtime sync
 app.get('/api/sync/stream', (req, res) => {
-  const uid = req.query.uid || req.query.email || '';
+  const uid = (req.query.uid || req.query.email || '').trim();
   const deviceId = req.query.deviceId || req.headers['x-device-session-id'] || 'device_' + Math.random().toString(36).slice(2, 9);
   const clientId = 'conn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
 
@@ -481,6 +530,23 @@ app.get('/api/sync/stream', (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders && res.flushHeaders();
+
+  // If unauthenticated or demo account, do not attach to multi-device sync listener
+  if (!uid || uid === 'demo_guest_user' || uid === 'guest_user') {
+    res.write(`data: ${JSON.stringify({ type: 'CONNECTED', clientId, deviceId, mode: 'isolated_demo', timestamp: new Date().toISOString() })}\n\n`);
+    const heartbeatTimer = setInterval(() => {
+      try {
+        res.write(': heartbeat\n\n');
+      } catch (err) {
+        clearInterval(heartbeatTimer);
+      }
+    }, 20000);
+    req.on('close', () => {
+      clearInterval(heartbeatTimer);
+      try { res.end(); } catch (e) {}
+    });
+    return;
+  }
 
   syncClients.set(clientId, { uid, deviceId, res });
   console.log(`[SSE Sync Bus] Device connected: ${clientId} (uid: ${uid}, deviceId: ${deviceId}). Total active: ${syncClients.size}`);
@@ -1608,6 +1674,19 @@ async function executeAgentTool(toolName, args, userContext = {}) {
 
       if (filter === 'saham') {
         activeHoldings = activeHoldings.filter(h => !h.type || h.type === 'saham');
+      }
+
+      if (activeHoldings.length === 0 && (!rdnCash || rdnCash === 0)) {
+        return {
+          totalPositionsCount: 0,
+          totalHoldingsValue: 0,
+          totalAum: 0,
+          cashRdn: 0,
+          cashRatioPct: 0,
+          positions: [],
+          concentrationWarning: 'Portofolio saat ini masih kosong / mode demo (0 aset tercatat).',
+          message: 'Portofolio pengguna saat ini belum memiliki transaksi atau posisi aset aktif.'
+        };
       }
 
       const totalVal = activeHoldings.reduce((sum, h) => sum + (Number(h.mv) || ((Number(h.lot) || 0) * 100 * (Number(h.last || h.avg) || 0))), 0);

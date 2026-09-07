@@ -5774,6 +5774,77 @@ body.theme-light .stockchat-input-field::placeholder {
   font-weight: 700;
 }
 
+/* ── D3 SECTORAL CMF BAR CHART: ENTRANCE, HOVER & TOOLTIP POLISH ── */
+.si-d3-row {
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+.si-d3-row-bg {
+  transition: fill 0.18s ease, stroke 0.18s ease;
+}
+.si-d3-bar {
+  transition: filter 0.22s ease, opacity 0.22s ease;
+  will-change: transform, width, height, y;
+}
+.si-d3-row:hover .si-d3-bar.is-positive-bar {
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.45));
+}
+.si-d3-row:hover .si-d3-bar.is-negative-bar {
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.45));
+}
+.si-d3-label-group text {
+  transition: fill 0.2s ease, font-weight 0.2s ease;
+}
+.si-d3-val-label {
+  transition: fill 0.2s ease, font-size 0.2s ease;
+}
+#si-d3-tooltip {
+  transition: opacity 0.16s ease, transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity, left, top;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+@keyframes siBarClickPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+.si-bar-clicked {
+  animation: siBarClickPulse 0.28s ease-out;
+}
+
+/* ── Sectoral Cycle Matrix (4-Quadrant) ── */
+.si-matrix-node {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  will-change: transform, opacity;
+}
+.si-matrix-node circle {
+  transition: r 0.2s ease, filter 0.2s ease, stroke-width 0.2s ease;
+}
+.si-matrix-node:hover circle {
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.6));
+}
+.si-matrix-quad-card {
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.si-matrix-quad-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+.si-matrix-sector-chip {
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.si-matrix-sector-chip:hover {
+  transform: translateX(2px);
+  border-color: var(--accent);
+}
+.si-matrix-quad-label {
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 
 
 

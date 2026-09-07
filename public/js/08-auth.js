@@ -173,38 +173,25 @@ function authDoLogin(){
 // ── Login Mode Tamu / Demo Offline ──
 function authDoGuestLogin(){
   _currentUser = {
-    uid: 'guest_user',
+    uid: 'demo_guest_user',
     email: 'tamu@moneywatch.pro',
     displayName: 'Tamu / Demo',
-    isGuest: true
+    isGuest: true,
+    isDemo: true
   };
   try {
     sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
     localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+    localStorage.removeItem('mw_explicit_logout');
   } catch(e){}
   
-  if(_firebaseAuth){
-    _firebaseAuth.signInAnonymously().then(function(res){
-      if(res && res.user) _currentUser.uid = res.user.uid;
-      safeCloudBoot().then(function(){
-        authShowApp('Mode Tamu (Demo)');
-      }).catch(function(){
-        authShowApp('Mode Tamu (Demo)');
-      });
-    }).catch(function(){
-      safeCloudBoot().then(function(){
-        authShowApp('Mode Tamu (Demo)');
-      }).catch(function(){
-        authShowApp('Mode Tamu (Demo)');
-      });
-    });
-  } else {
-    safeCloudBoot().then(function(){
-      authShowApp('Mode Tamu (Demo)');
-    }).catch(function(){
-      authShowApp('Mode Tamu (Demo)');
-    });
+  if (typeof resetUserPortfolioState === 'function') {
+    resetUserPortfolioState();
   }
+  if (typeof loadData === 'function') {
+    loadData();
+  }
+  authShowApp('Mode Tamu (Demo)');
 }
 
 // ── Daftar akun baru via Firebase Auth ──
@@ -312,6 +299,9 @@ function authLogout(){
   }
   function _doLogoutUI(){
     _currentUser=null;
+    if(typeof resetUserPortfolioState === 'function'){
+      resetUserPortfolioState();
+    }
     try {
       sessionStorage.removeItem('mw_session_user');
       localStorage.removeItem('mw_session_user');

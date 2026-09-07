@@ -11,17 +11,8 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == userId ||
         (request.auth.token.email != null && (
-          request.auth.token.email == 'Andry.Zuma.Musa@gmail.com' ||
-          request.auth.token.email == 'andry.zuma.musa@gmail.com' ||
           userId == 'u_' + request.auth.token.email.replace('@', '_40').replace('[^a-zA-Z0-9_]', '_')
         ))
-      );
-    }
-
-    function isPortfolioAdmin() {
-      return isSignedIn() && request.auth.token.email != null && (
-        request.auth.token.email == 'Andry.Zuma.Musa@gmail.com' ||
-        request.auth.token.email == 'andry.zuma.musa@gmail.com'
       );
     }
 
@@ -30,12 +21,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // User private data: strictly isolated to the authenticated owner & portfolio admin
+    // User private data: strictly isolated to the authenticated owner
+    // User A can never read User B's portfolio data; Demo/Guest cannot read any user's document
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isPortfolioAdmin();
+      allow read, write: if isOwner(userId);
       
       match /{allSubcollections=**} {
-        allow read, write: if isOwner(userId) || isPortfolioAdmin();
+        allow read, write: if isOwner(userId);
       }
     }
 

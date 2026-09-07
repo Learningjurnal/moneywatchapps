@@ -1710,7 +1710,7 @@
       <!-- View switch -->
       <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px">
         <button class="btn btn-ghost btn-xs si-view-btn on" data-view="bar" onclick="siSetViewMode('bar')" title="Visualisasi D3.js CMF Bar Flow (Akumulasi vs Distribusi)"><i class="ti ti-chart-bar"></i> D3 CMF Bar</button>
-        <button class="btn btn-ghost btn-xs si-view-btn" data-view="quadrant" onclick="siSetViewMode('quadrant')" title="Tampilan Matriks 4 Kuadran Siklus"><i class="ti ti-layout-grid"></i> Kuadran</button>
+        <button class="btn btn-ghost btn-xs si-view-btn" data-view="quadrant" onclick="siSetViewMode('quadrant')" title="Visualisasi 4 Kuadran Sectoral Cycle Matrix (Akumulasi, Markup, Distribusi, Markdown)"><i class="ti ti-layout-grid"></i> Sectoral Cycle Matrix</button>
         <button class="btn btn-ghost btn-xs si-view-btn" data-view="list" onclick="siSetViewMode('list')" title="Tampilan Kartu Ringkas"><i class="ti ti-list"></i> Kartu</button>
       </div>
 
@@ -1764,8 +1764,8 @@
     <div class="card" style="margin:0;display:flex;flex-direction:column">
       <div class="cheader" style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:12px">
         <div>
-          <span class="ctitle" style="font-size:13.5px;font-weight:700">Pergerakan Aliran Modal Sektoral</span>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">Urut dari Akumulasi Terkuat (atas) ke Distribusi Terberat (bawah). Klik bar untuk menyaring berita terkait.</div>
+          <span class="ctitle" id="si-visual-card-title" style="font-size:13.5px;font-weight:700">Pergerakan Aliran Modal Sektoral</span>
+          <div id="si-visual-card-sub" style="font-size:11px;color:var(--text3);margin-top:2px">Urut dari Akumulasi Terkuat (atas) ke Distribusi Terberat (bawah). Klik bar untuk menyaring berita terkait.</div>
         </div>
       </div>
       <div id="si-visual-container" style="min-height:380px">

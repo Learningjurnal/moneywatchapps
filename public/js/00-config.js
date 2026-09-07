@@ -68,13 +68,16 @@ function getFirestoreUserUid(user) {
     } catch(e){}
   }
   if (u) {
+    if (u.isGuest || u.isDemo || u.uid === 'guest_user' || u.uid === 'demo_guest_user' || u.email === 'tamu@moneywatch.pro' || u.email === 'demo@moneywatch.pro') {
+      return 'demo_guest_user';
+    }
     if (u.email) {
       return 'u_' + encodeURIComponent(u.email.toLowerCase()).replace(/[^a-z0-9_]/g, '_');
     }
-    if (u.uid && u.uid !== 'global_user' && u.uid !== 'guest_user') return u.uid;
+    if (u.uid && u.uid !== 'global_user') return u.uid;
     if (u.id) return u.id;
   }
-  return 'u_' + encodeURIComponent(PRIMARY_USER_EMAIL.toLowerCase()).replace(/[^a-z0-9_]/g, '_');
+  return null;
 }
 
 try {
