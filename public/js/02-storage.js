@@ -1476,7 +1476,26 @@ async function fireLoadAllData(){
       }
     }
 
-    // Capture current local state before applying cloud data
+    // FIX AUDIT (CRITICAL, data loss): currentLocalState used to carry no
+    // savedAt/updatedAt at all, so _mergeDatasets() computed localTime as
+    // new Date(undefined||undefined||0).getTime() === 0 on EVERY load,
+    // no matter how much real data was just saved locally (e.g. right
+    // after restoreFromBackup()). Combined with a stale
+    // isExplicitlyEmpty:true on the cloud doc, the cloudIsExplicitlyEmpty
+    // branch's "!localTime || cloudTime >= localTime" check always won
+    // (0 is falsy), silently wiping fresh local data back to empty on the
+    // very next load - regardless of how recently it was saved. Read the
+    // real last-saved timestamp back from the local persisted record so
+    // the timestamp comparison actually reflects reality; leave it
+    // undefined (localTime stays 0) only when there truly is no prior
+    // local save, so a genuinely fresh device still correctly defers to
+    // cloud data instead of a fabricated "now".
+    var _localSavedRecord = null;
+    try {
+      var _localRawForTime = localStorage.getItem(getUserStorageKey('mw_local_data_v3'));
+      if (_localRawForTime) _localSavedRecord = JSON.parse(_localRawForTime);
+    } catch(e){}
+
     var currentLocalState = {
       transactions: transactions || [],
       dividends: dividends || [],
@@ -1492,7 +1511,9 @@ async function fireLoadAllData(){
       taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
       cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
       activeSekuritas: activeSekuritas || 'Stockbit',
-      rdnBalance: rdnBalance || 0
+      rdnBalance: rdnBalance || 0,
+      savedAt: _localSavedRecord && _localSavedRecord.savedAt,
+      updatedAt: _localSavedRecord && _localSavedRecord.updatedAt
     };
 
     // Jika dokumen belum ada di Firestore tapi ada data lokal, migrasikan jika bukan data kosong/reset
@@ -1536,9 +1557,23 @@ async function fireLoadAllData(){
 
     _applyCloudPayload(cloudData, currentLocalState);
 
-    // If local state had new items not in cloud, push to Firestore (hanya jika data cloud tidak dalam status explicitly cleared)
+    // If local state had new items not in cloud, push to Firestore.
+    // FIX AUDIT (CRITICAL, data loss): this used to also require
+    // !cloudData.isExplicitlyEmpty, on the theory that a cloud doc marked
+    // explicitly-empty must not be fought. But once _mergeDatasets() (with
+    // the localTime fix above) has already decided local genuinely has
+    // more/newer real data and _applyCloudPayload() applied that decision
+    // to the in-memory state, that stale cloud flag is exactly what needs
+    // to be self-healed - skipping the push-up here left a
+    // once-poisoned cloud doc (isExplicitlyEmpty:true) permanently stuck,
+    // silently re-wiping correct local data on every subsequent load
+    // forever, since nothing ever pushed the corrected state back up. The
+    // transactions.length>0 + count-comparison checks below already do
+    // the real safety job (a genuine user-initiated clear empties
+    // transactions locally too, so this branch naturally does not fire
+    // for that case).
     var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
-    if(!cloudData.isExplicitlyEmpty && !isDataCleared){
+    if(!isDataCleared){
       var localTxCount = (currentLocalState.transactions || []).length;
       var cloudTxCount = (cloudData.transactions || []).length;
       if((transactions.length > cloudTxCount || localTxCount > cloudTxCount) && transactions.length > 0){
