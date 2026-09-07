@@ -1115,6 +1115,13 @@ async function migrateLocalDataToFirebaseCloud(force){
       taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : (parsedLocal && parsedLocal.taxSettings) || {},
       sekTaxOverride: sekTaxOverride || (parsedLocal && parsedLocal.sekTaxOverride) || {},
       tradeStrategy: tradeStrategy || (parsedLocal && parsedLocal.tradeStrategy) || {},
+      // FIX AUDIT (CRITICAL, sticky-empty-flag data loss): clear any stale
+      // isExplicitlyEmpty:true left on this doc by a prior clear/incident -
+      // see the matching note in saveData(). Without this, a fresh
+      // migration/save can leave the flag true while updatedAt moves
+      // forward, and _mergeDatasets() reads that combination as "cloud was
+      // JUST confirmed empty", wiping the very data this call just wrote.
+      isExplicitlyEmpty: false,
       migratedFromLocalAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -1215,6 +1222,13 @@ async function fireSaveAllData(){
     nextCryptoId: Math.max(nextCryptoId || 1, _maxIdPlus1(cryptoTx)),
     nextEtfId: Math.max(nextEtfId || 1, _maxIdPlus1(etfTx)),
     nextRdId: Math.max(nextRdId || 1, _maxIdPlus1(rdTx)),
+    // FIX AUDIT (CRITICAL, sticky-empty-flag data loss): see matching note
+    // in saveData() - a normal save must always clear any stale
+    // isExplicitlyEmpty:true left by a prior clear/incident, otherwise
+    // _mergeDatasets() reads the fresh updatedAt below alongside the old
+    // true flag as "cloud was JUST confirmed empty" and wipes the data
+    // this very call just wrote, on the very next load.
+    isExplicitlyEmpty: false,
     updatedAt: new Date().toISOString()
   };
 
@@ -1544,7 +1558,7 @@ async function fireLoadAllData(){
 // ============================================================
 function saveData(){
   if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
-  
+
   var payloadObj = {
     transactions: transactions || [],
     dividends: dividends || [],
@@ -1563,8 +1577,29 @@ function saveData(){
     theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
     journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
     equityHistory: (typeof equityHistoryLoad === 'function') ? equityHistoryLoad() : [],
+    // FIX AUDIT (CRITICAL, sticky-empty-flag data loss): saveData() is the
+    // general "persist current app state" path - it is NOT the explicit
+    // "user chose to wipe everything" path (that is
+    // resetAllDatabaseAndTransactions(), which sets this itself). If a
+    // prior clear/incident ever left isExplicitlyEmpty:true on this
+    // account's stored record, every future normal save must explicitly
+    // clear it here - otherwise _mergeDatasets() sees a stale
+    // isExplicitlyEmpty:true alongside a fresh updatedAt timestamp (from
+    // THIS save) and treats that as "cloud/local was JUST confirmed
+    // empty", wiping out real data the user just entered or restored on
+    // the very next load, even though the save itself succeeded.
+    isExplicitlyEmpty: false,
     savedAt: new Date().toISOString()
   };
+
+  // Bersihkan sisa flag "data pernah dihapus eksplisit" dari sesi
+  // sebelumnya - saveData() sedang menyimpan state nyata saat ini, jadi
+  // flag lama itu sudah tidak relevan dan tidak boleh lagi memaksa kosong
+  // di pemuatan berikutnya (lihat _mergeDatasets()).
+  try {
+    localStorage.removeItem('mw_data_cleared');
+    localStorage.removeItem('mw_empty_state_explicit');
+  } catch(e){}
 
   // 1. Simpan ke local cache sebagai offline fallback scoped per user
   try {
