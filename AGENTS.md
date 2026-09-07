@@ -21,7 +21,6 @@ StockChat AI is equipped with 5 institutional trading and investing frameworks:
 # 3. AUTONOMOUS AI TRADING ENGINE — OPERATING SPECIFICATION
 
 ## 3.1 Mission
-
 The Autonomous AI Trading Engine is a **decision engine**, not a blind prediction engine.
 
 Its job is to:
@@ -36,13 +35,12 @@ Its job is to:
 9. record the complete reasoning/evidence trail;
 10. learn from outcomes without rewriting its own rules without validation.
 
-The engine must prefer **NO TRADE** over a low-confidence trade.
+The engine must prefer **NO TRADE** over a low-confidence trade, but it must never use NO TRADE to suppress a necessary risk-management exit for an already-open position.
 
 ---
 
 # 4. AUTONOMOUS TRADING DECISION PIPELINE
-
-The engine must follow this order:
+The engine follows:
 
 ```text
 DATA INGESTION
@@ -76,14 +74,12 @@ OUTCOME JOURNAL
 PERFORMANCE ANALYSIS
 ```
 
-**Never bypass a previous stage.**
+**Never bypass a previous stage for a NEW ENTRY.** Existing-position emergency/risk exits are governed by the Exit Safety Override in Section 12.
 
 ---
 
 # 5. DATA QUALITY GATE
-
-Before generating any BUY/SELL/HOLD decision, verify:
-
+For a **new trade entry**, verify:
 - ticker exists in valid IDX universe;
 - quote timestamp is available;
 - OHLCV history is sufficient;
@@ -91,12 +87,12 @@ Before generating any BUY/SELL/HOLD decision, verify:
 - price is positive and internally consistent;
 - volume is non-negative;
 - no impossible OHLC relationship exists;
-- broker data has a known source and timestamp;
-- fundamental data has a known reporting period;
-- corporate-action adjustment state is known;
+- broker data has a known source and timestamp when broker evidence is required by the selected strategy;
+- fundamental data has a known reporting period when fundamental evidence is required;
+- corporate-action adjustment state is known when relevant;
 - data is not beyond the configured freshness threshold.
 
-If a required input is missing or stale:
+If a **mandatory entry input** is missing or stale:
 
 ```text
 NO TRADE / BLOCKED
@@ -105,13 +101,12 @@ reason = DATA_QUALITY_FAILURE
 
 Do not estimate or invent the missing value.
 
+For an **already-open position**, stale or unavailable data must not automatically force HOLD. The system must enter `RISK_MANAGEMENT_DEGRADED` mode and apply the safest available validated exit/risk controls. If a reliable emergency exit price/order path is unavailable, raise `EXECUTION_RISK` and alert rather than inventing a price.
+
 ---
 
 # 6. MARKET REGIME ENGINE
-
-The AI must classify the current environment before stock-level decisions.
-
-Minimum regime states:
+Minimum states:
 - BULL_TREND
 - BEAR_TREND
 - SIDEWAYS
@@ -119,83 +114,68 @@ Minimum regime states:
 - RISK_OFF
 - UNKNOWN
 
-Regime evidence may include:
-- IHSG trend;
-- breadth;
-- volatility;
-- market volume;
-- foreign flow;
-- sector rotation;
-- index moving averages;
-- correlation and dispersion.
+Evidence may include IHSG trend, breadth, volatility, market volume, foreign flow, sector rotation, index moving averages, correlation and dispersion.
 
-If regime is `UNKNOWN`, reduce confidence and do not allow aggressive autonomous entries.
-
-The engine must distinguish:
+If regime is `UNKNOWN`, reduce confidence and do not allow aggressive autonomous **new entries**.
 
 ```text
-MARKET REGIME
-≠
-STOCK SIGNAL
+MARKET REGIME ≠ STOCK SIGNAL
 ```
 
-A bullish stock signal inside a risk-off market must receive a regime penalty unless evidence justifies the exception.
+A bullish stock signal inside a risk-off market receives a regime penalty unless evidence justifies the exception.
 
 ---
 
 # 7. SIGNAL GENERATION
-
 Candidate signals may use:
 
 ### Technical
-- trend structure;
-- EMA/SMA alignment;
-- RSI;
-- ATR;
-- SuperTrend;
-- VWAP;
-- support/resistance;
-- breakout/retest;
-- volume expansion;
-- volatility;
-- momentum;
-- relative strength.
+- trend structure
+- EMA/SMA alignment
+- RSI
+- ATR
+- SuperTrend
+- VWAP
+- support/resistance
+- breakout/retest
+- volume expansion
+- volatility
+- momentum
+- relative strength
 
 ### Broker / Smart Money
-- Top 3 broker concentration;
-- broker accumulation/distribution;
-- foreign net flow;
-- foreign inflow streak;
-- average broker price;
-- unusual broker activity.
+- Top 3 broker concentration
+- broker accumulation/distribution
+- foreign net flow
+- foreign inflow streak
+- average broker price
+- unusual broker activity
 
 ### Fundamental
-- valuation;
-- earnings growth;
-- ROE;
-- DER;
-- cash flow;
-- dividend yield;
-- margin of safety;
-- historical valuation range.
+- valuation
+- earnings growth
+- ROE
+- DER
+- cash flow
+- dividend yield
+- margin of safety
+- historical valuation range
 
 ### Market Context
-- IHSG regime;
-- sector regime;
-- liquidity;
-- market breadth;
-- event/corporate-action risk.
+- IHSG regime
+- sector regime
+- liquidity
+- market breadth
+- event/corporate-action risk
 
-No single indicator is sufficient for autonomous trading.
+No single indicator is sufficient for autonomous **new-entry approval**.
 
 ---
 
 # 8. CONFLUENCE ENGINE
+The engine scores independent evidence rather than simply counting indicators.
 
-The engine must score independent evidence rather than count duplicate indicators.
-
-Suggested evidence groups:
-
+Evidence groups:
 ```text
 TREND
 MOMENTUM
@@ -212,12 +192,11 @@ LIQUIDITY
 Indicators from the same group should not be treated as fully independent evidence.
 
 Example:
-- RSI bullish + MACD bullish is not two independent confirmations if both represent momentum.
-- Broker accumulation + foreign inflow is stronger as separate flow evidence.
-- Breakout + volume expansion + broker accumulation is stronger than breakout alone.
+- RSI bullish + MACD bullish = one momentum group, not two independent confirmations.
+- Broker accumulation + foreign inflow = stronger separate flow evidence.
+- Breakout + volume expansion + broker accumulation = stronger than breakout alone.
 
-The engine should output:
-
+Output:
 ```text
 confidenceScore
 confluenceScore
@@ -229,11 +208,9 @@ missingEvidence[]
 ---
 
 # 9. TRADING HYPOTHESIS
-
-Every autonomous trade candidate must have a structured hypothesis.
+Every autonomous **new trade candidate** must have a structured, falsifiable hypothesis.
 
 Required fields:
-
 ```text
 symbol
 side
@@ -259,22 +236,14 @@ dataTimestamp
 strategyVersion
 ```
 
-The hypothesis must be falsifiable.
+Bad: `BUY because the stock looks strong.`
 
-Bad:
-`BUY because the stock looks strong.`
-
-Good:
-`BUY because price reclaimed resistance, volume expanded above baseline, broker accumulation increased, and the setup is invalidated if price closes below the defined support.`
+Good: `BUY because price reclaimed resistance, volume expanded above baseline, broker accumulation increased, and the setup is invalidated if price closes below the defined support.`
 
 ---
 
 # 10. ENTRY RULES
-
-Do not enter simply because a stock is bullish.
-
-Entry requires:
-
+New entry requires:
 1. valid ticker;
 2. valid and sufficiently fresh data;
 3. acceptable liquidity;
@@ -282,40 +251,31 @@ Entry requires:
 5. defined entry zone;
 6. defined stop loss;
 7. defined target;
-8. Risk:Reward >= 1:2 unless an explicitly configured strategy says otherwise;
+8. Risk:Reward >= 1:2 unless explicitly configured otherwise;
 9. portfolio exposure passes limits;
 10. market-regime gate passes;
 11. no unresolved critical data contradiction;
 12. no duplicate open order/position conflict.
 
-If any mandatory gate fails:
-
-`NO TRADE`.
+If any mandatory gate fails: `NO TRADE`.
 
 ---
 
 # 11. POSITION SIZING & RISK ENGINE
-
-Default institutional controls:
-
+Default controls:
 - risk per trade: approximately 1% of trading capital;
 - Big Cap single-stock allocation: maximum 10-15% unless strategy configuration explicitly allows another limit;
 - RDN cash buffer: 15-20%;
 - minimum Risk:Reward: 1:2;
 - never increase position size because confidence is emotionally high;
-- never average down automatically unless the strategy explicitly defines it and the risk engine approves it;
+- never average down automatically unless explicitly defined and approved by the risk engine;
 - stop loss must be defined before order submission.
 
-Position size must be derived from:
-
+Position size is derived from:
 ```text
-allowedRiskCapital
-÷
-riskPerShare
+allowedRiskCapital ÷ riskPerShare
 ```
-
 Then constrained by:
-
 ```text
 cashAvailable
 portfolioExposureLimit
@@ -328,10 +288,8 @@ All calculations must use the canonical financial engine.
 
 ---
 
-# 12. EXIT ENGINE
-
-The engine must manage:
-
+# 12. EXIT ENGINE & SAFETY OVERRIDE
+The engine manages:
 - initial stop loss;
 - take profit;
 - trailing stop where strategy permits;
@@ -346,12 +304,22 @@ A position must be exited when the thesis is invalidated even if the AI still ha
 
 Do not move a stop loss farther away merely to avoid realizing a loss.
 
+## Exit Safety Override
+Risk-management exits for existing positions are **not treated as new trade entries**.
+
+When market/broker/fundamental data becomes stale or unavailable:
+1. do not invent a price;
+2. do not create a new BUY;
+3. continue monitoring the last validated state;
+4. use only validated execution/market-status information available;
+5. if a predefined stop/target can be safely evaluated and executed, allow it;
+6. if execution data is unavailable, mark `EXECUTION_RISK` and alert;
+7. never convert missing data into a bullish HOLD decision.
+
 ---
 
 # 13. SELL DECISION
-
-SELL decisions must identify the reason:
-
+SELL decisions must identify a reason:
 ```text
 TARGET_REACHED
 STOP_LOSS
@@ -369,10 +337,7 @@ Never generate an unexplained SELL.
 ---
 
 # 14. PORTFOLIO-LEVEL AI
-
-The AI must analyze the portfolio before opening a new position.
-
-Check:
+Before a new position, check:
 - total equity;
 - available cash;
 - cash buffer;
@@ -391,11 +356,9 @@ A good stock setup can still be rejected if the portfolio is already overexposed
 ---
 
 # 15. EXECUTION SAFETY
+Autonomous execution is disabled by default unless the production gate has explicitly passed.
 
-Autonomous execution is disabled by default unless the production gate has been explicitly passed.
-
-Supported modes:
-
+Modes:
 ```text
 RESEARCH
 PAPER
@@ -404,19 +367,16 @@ LIVE_GATED
 LIVE
 ```
 
-Default mode:
-`PAPER`
+Default: `PAPER`.
 
-Transition to `LIVE_GATED` requires all security, data, financial, testing, and risk gates to pass.
+`LIVE_GATED` means live-capable execution remains subject to every server-side safety gate; it is not permission to bypass risk controls.
 
-The AI must never silently transition from PAPER to LIVE.
+The AI must never silently transition from PAPER to LIVE or LIVE_GATED.
 
 ---
 
 # 16. ORDER SAFETY
-
-Before creating an order:
-
+Before creating a new order:
 - verify authenticated user;
 - verify trading mode;
 - verify symbol;
@@ -436,25 +396,16 @@ Duplicate order submission must be rejected safely.
 ---
 
 # 17. FINANCIAL CALCULATION RULE
-
 All fees, taxes, cost basis, realized P/L, unrealized P/L, net worth, position sizing, and performance calculations must use a **single canonical financial engine**.
 
-Never duplicate financial formulas across:
-- UI;
-- AI;
-- backtester;
-- broker adapter;
-- portfolio module;
-- test suite.
+Never duplicate financial formulas across UI, AI, backtester, broker adapter, portfolio module, or test suite.
 
-The test suite must validate the production calculation functions rather than merely reproduce the same formula independently.
+The test suite must validate production calculation functions rather than merely reproducing the same formula independently.
 
 ---
 
 # 18. BACKTESTING RULES
-
-Backtests must clearly identify:
-
+Backtests must identify:
 ```text
 DATA_SOURCE
 DATA_VERSION
@@ -497,7 +448,6 @@ Evaluate at minimum:
 ---
 
 # 19. AI / ML MODEL GOVERNANCE
-
 Models such as XGBoost are research components, not unquestionable authorities.
 
 The AI must:
@@ -512,16 +462,14 @@ The AI must:
 - be evaluated out-of-sample;
 - be monitored for drift.
 
-A model must not be promoted to autonomous execution based only on high historical accuracy.
+A model must not be promoted to autonomous execution based only on historical accuracy.
 
 ---
 
 # 20. CONTRADICTION & UNCERTAINTY ENGINE
-
 The AI must explicitly detect conflicting evidence.
 
 Example:
-
 ```text
 TECHNICAL = BULLISH
 BROKER_FLOW = BEARISH
@@ -529,11 +477,11 @@ FOREIGN_FLOW = BEARISH
 REGIME = RISK_OFF
 ```
 
-Expected behaviour:
+Expected:
 - lower confidence;
 - identify contradiction;
 - avoid forced BUY;
-- prefer WAIT/NO TRADE if risk is not justified.
+- prefer WAIT/NO_TRADE if risk is not justified.
 
 Unknown is not bullish.
 Missing data is not neutral evidence.
@@ -541,11 +489,9 @@ Missing data is not neutral evidence.
 ---
 
 # 21. EXPLAINABILITY / AUDIT TRAIL
-
 Every autonomous decision must be reproducible from its recorded snapshot.
 
 Store:
-
 ```text
 decisionId
 userId
@@ -574,14 +520,12 @@ reason
 
 Do not store only the final BUY/SELL result.
 
-The audit trail must explain **why the decision happened** and **what data the AI saw at that time**.
+The audit trail must explain why the decision happened and what data the AI saw at that time.
 
 ---
 
 # 22. LEARNING / JOURNAL ENGINE
-
 After every completed trade, record:
-
 - original hypothesis;
 - actual entry;
 - actual exit;
@@ -597,7 +541,6 @@ After every completed trade, record:
 - error classification.
 
 Classify mistakes:
-
 ```text
 DATA_ERROR
 SIGNAL_ERROR
@@ -614,9 +557,7 @@ The learning layer may update analytics and recommendations, but must not autono
 ---
 
 # 23. AUTONOMOUS AGENT BEHAVIOUR
-
-The agent should operate as a finite-state decision system:
-
+The agent operates as:
 ```text
 OBSERVE
 → VALIDATE
@@ -631,7 +572,6 @@ OBSERVE
 ```
 
 Allowed final decisions:
-
 ```text
 BUY
 SELL
@@ -643,12 +583,12 @@ BLOCKED
 
 `NO_TRADE` is a valid successful decision, not a failure.
 
+For an existing position, risk-management exits take priority over a generic HOLD decision.
+
 ---
 
 # 24. TEST HARNESS REQUIREMENTS
-
-The autonomous engine must be tested against at least:
-
+Test at least:
 - normal market;
 - bull market;
 - bear market;
@@ -673,16 +613,15 @@ The autonomous engine must be tested against at least:
 - API timeout;
 - provider failure;
 - AI signal failure;
-- model feature failure.
+- model feature failure;
+- existing-position emergency exit during stale/unavailable data.
 
 Critical failures must block autonomous execution.
 
 ---
 
 # 25. PRODUCTION GATE
-
 Autonomous LIVE trading must remain BLOCKED until all are true:
-
 - P0 security findings = 0;
 - authentication/authorization verified;
 - no cross-user data leakage;
@@ -700,18 +639,17 @@ Autonomous LIVE trading must remain BLOCKED until all are true:
 - API provider passes data-quality acceptance testing;
 - paper/shadow performance is monitored before live promotion.
 
-Until then, the correct behaviour is:
-
-`PAPER / SHADOW / NO_TRADE`
+Until then:
+```text
+PAPER / SHADOW / NO_TRADE
+```
 
 ---
 
 # 26. CODING AGENT TOKEN-EFFICIENCY PROTOCOL
-
 The coding AI must NOT read the entire repository to solve a local problem.
 
-Use this sequence:
-
+Use:
 ```text
 1. IDENTIFY TARGET FILE
 2. SEARCH TARGET SYMBOL
@@ -725,7 +663,6 @@ Use this sequence:
 ```
 
 Default code-reading window:
-
 ```text
 40–80 lines before target
 +
@@ -743,9 +680,7 @@ Before opening another file, state why it is a direct dependency.
 ---
 
 # 27. CHANGE CONTROL
-
 For every modification:
-
 ```text
 TASK
 FILE
@@ -770,7 +705,6 @@ Do not combine P0, P1, P2, and P3 changes into one uncontrolled patch.
 ---
 
 # 28. ABSOLUTE RULES
-
 Never:
 - invent stock prices;
 - invent broker flow;
@@ -782,7 +716,7 @@ Never:
 - allow cross-user portfolio state;
 - bypass risk limits because AI confidence is high;
 - average down automatically without an approved strategy;
-- remove stop loss to protect a losing trade;
+- move a stop loss farther away merely to avoid a loss;
 - submit duplicate orders;
 - execute live trading before production gates pass;
 - promote an ML model based only on accuracy;
