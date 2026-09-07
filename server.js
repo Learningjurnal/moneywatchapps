@@ -102,10 +102,22 @@ function getSafeFileKey(uidOrEmail) {
   return String(uidOrEmail).toLowerCase().replace(/[^a-z0-9_]/g, '_');
 }
 
+// FIX AUDIT (CRITICAL, cross-database mismatch): this used to default to a
+// separate, NAMED Firestore database ('ai-studio-moneywatchpro-...') while
+// the client SDK everywhere else in the app (getFirebaseDb(), used
+// throughout public/js/02-storage.js) reads/writes the project's DEFAULT
+// database. The two never shared any data - a save through this server's
+// REST endpoints (/api/user-data/save's Firestore replication,
+// /api/sync/firebase-audit) landed in a database the live app never reads,
+// and the audit endpoint's "verified synced to cloud" result reflected
+// that wrong database's (usually empty) state, not what users actually see.
+// '(default)' is Firestore REST's literal path segment for a project's
+// default database - the same one the client SDK targets with no
+// databaseId override.
 const FIREBASE_CONFIG = {
   projectId: process.env.FIREBASE_PROJECT_ID || 'zinc-snowfall-6lcf1',
   apiKey: process.env.FIREBASE_API_KEY || 'AIzaSyAjO1QrHyIuR8T0NM07NWxAgbwjnrbSYXk',
-  firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || 'ai-studio-moneywatchpro-088bcbd5-b0c7-48cf-baee-be4279fd2091'
+  firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || '(default)'
 };
 
 function toFirestoreValue(val) {
