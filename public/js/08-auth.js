@@ -111,6 +111,13 @@ function authDoLogin(){
   if(btn){ btn.disabled=true; btn.textContent='Masuk...'; }
 
   function _performDirectSession(emailStr){
+    if (typeof resetUserPortfolioState === 'function') {
+      resetUserPortfolioState();
+    }
+    try {
+      localStorage.removeItem('mw_local_data_v2');
+      localStorage.removeItem('mw_emergency_backup_v2');
+    } catch(e){}
     _currentUser = {
       uid: 'u_' + encodeURIComponent(emailStr.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
       email: emailStr,
@@ -139,6 +146,13 @@ function authDoLogin(){
   _firebaseAuth.signInWithEmailAndPassword(uInput, pInput)
     .then(function(userCredential){
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
+      if (typeof resetUserPortfolioState === 'function') {
+        resetUserPortfolioState();
+      }
+      try {
+        localStorage.removeItem('mw_local_data_v2');
+        localStorage.removeItem('mw_emergency_backup_v2');
+      } catch(e){}
       _currentUser = userCredential.user;
       var sessData = { uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName };
       try {
@@ -183,6 +197,8 @@ function authDoGuestLogin(){
     sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
     localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
     localStorage.removeItem('mw_explicit_logout');
+    localStorage.removeItem('mw_local_data_v2');
+    localStorage.removeItem('mw_emergency_backup_v2');
   } catch(e){}
   
   if (typeof resetUserPortfolioState === 'function') {
@@ -192,6 +208,10 @@ function authDoGuestLogin(){
     loadData();
   }
   authShowApp('Mode Tamu (Demo)');
+  if (typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
+  if (typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
+  if (typeof renderCashWidgets === 'function') renderCashWidgets();
+  if (typeof buildTickerTape === 'function') buildTickerTape();
 }
 
 // ── Daftar akun baru via Firebase Auth ──
@@ -306,6 +326,8 @@ function authLogout(){
       sessionStorage.removeItem('mw_session_user');
       localStorage.removeItem('mw_session_user');
       localStorage.setItem('mw_explicit_logout', '1');
+      localStorage.removeItem('mw_local_data_v2');
+      localStorage.removeItem('mw_emergency_backup_v2');
     } catch(e){}
     if(AUTH._sesTimer){ clearInterval(AUTH._sesTimer); AUTH._sesTimer=null; }
     if(AUTH._barTimer){ clearInterval(AUTH._barTimer); AUTH._barTimer=null; }

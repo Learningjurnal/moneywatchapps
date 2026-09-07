@@ -1226,6 +1226,262 @@
   }
 
   /**
+   * Helper: Membuat Chips Sektor Interaktif untuk Legenda Kuadran
+   */
+  function siRenderLegendSectorChips(items, selKey) {
+    if (!items || items.length === 0) {
+      return '<span style="font-size:10px;color:var(--text3);font-style:italic">Tidak ada sektor pada fase ini saat ini</span>';
+    }
+    return items.map(function(s) {
+      var isSel = (s.key === selKey);
+      var border = isSel ? 'border:1.5px solid var(--accent)' : 'border:1px solid var(--border2)';
+      var bg = isSel ? 'var(--brand-soft)' : 'var(--bg3)';
+      var retCol = s.retPct >= 0 ? '#10b981' : '#ef4444';
+      return '<button type="button" onclick="siSelectSector(\'' + s.key + '\');siToggleMatrixLegend(false);" class="btn btn-ghost btn-xs" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;font-size:10px;border-radius:4px;background:' + bg + ';' + border + ';color:var(--text)" title="Klik untuk filter berita sektor ' + s.name + '">' +
+        '<span>' + s.icon + '</span> ' +
+        '<strong>' + s.name + '</strong> ' +
+        '<span style="font-family:var(--font-mono);font-size:9.5px;color:' + retCol + '">' + (s.retPct >= 0 ? '+' : '') + s.retPct.toFixed(1) + '%</span>' +
+      '</button>';
+    }).join('');
+  }
+
+  /**
+   * Generator HTML untuk Overlay Legenda Lengkap 4 Kuadran
+   */
+  function siBuildQuadrantLegendOverlayHtml(quadBuckets, selKey) {
+    var distSectors = siRenderLegendSectorChips(quadBuckets.distribution, selKey);
+    var markupSectors = siRenderLegendSectorChips(quadBuckets.markup, selKey);
+    var markdownSectors = siRenderLegendSectorChips(quadBuckets.markdown, selKey);
+    var accSectors = siRenderLegendSectorChips(quadBuckets.accumulation, selKey);
+
+    return '' +
+      // Header Overlay
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:10px;flex-shrink:0">' +
+        '<div>' +
+          '<div style="font-size:13.5px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">' +
+            '<i class="ti ti-compass" style="color:var(--accent);font-size:17px"></i>' +
+            '<span>Legenda &amp; Panduan 4 Kuadran Sectoral Cycle Matrix</span>' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-top:2px">' +
+            'Model Siklus Wyckoff &amp; Chaikin Money Flow: Memetakan makna akumulasi, ekspansi markup, distribusi, dan markdown 11 sektor BEI.' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="btn btn-ghost btn-xs" onclick="siToggleMatrixLegend(false)" style="color:var(--text2);display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;border:1px solid var(--border2)" title="Tutup Legenda (Esc)">' +
+          '<i class="ti ti-x"></i> <strong>Tutup</strong>' +
+        '</button>' +
+      '</div>' +
+
+      // 2x2 Grid Kuadran (Sesuai Posisi Koordinat Chart X/Y)
+      '<div class="si-matrix-legend-grid">' +
+
+        // 1. TOP-LEFT: DISTRIBUTION (Kuadran II)
+        '<div class="si-matrix-legend-card" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.35)">' +
+          '<div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+              '<div style="font-size:12px;font-weight:800;color:#f59e0b;display:flex;align-items:center;gap:5px">' +
+                '<span>📤</span> <span>3. DISTRIBUTION (Distribusi Pucuk)</span>' +
+              '</div>' +
+              '<span class="badge" style="background:rgba(245,158,11,0.18);color:#f59e0b;border:1px solid rgba(245,158,11,0.45);font-size:9.5px;font-weight:700">Kuadran II · Kiri-Atas</span>' +
+            '</div>' +
+            '<div style="display:inline-block;padding:2px 7px;border-radius:4px;background:var(--bg3);border:1px solid var(--border2);font-family:var(--font-mono);font-size:10px;font-weight:700;color:#f59e0b;margin-bottom:6px">' +
+              'CMF ≤ 0 (Outflow) · Return > 0% (Harga di Pucuk)' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text);margin-bottom:5px;line-height:1.45">' +
+              '<strong>Makna Siklus:</strong> Terjadi fenomena <em>Bearish Divergence</em>. Kinerja harga sektor masih tampak kuat di area pucuk, namun aliran dana institusional (smart money) sudah diam-diam keluar (outflow). Likuiditas ritel yang sedang FOMO dimanfaatkan institusi untuk melepas muatan secara bertahap tanpa menjatuhkan harga secara langsung (<em>churning</em>).' +
+            '</div>' +
+            '<div style="font-size:10.5px;color:var(--text2);margin-bottom:6px;line-height:1.4">' +
+              '<strong>Ciri Khas:</strong> Volatilitas di pucuk tinggi, volume beli murni memudar, sering terjadi jebakan kenaikan semu (<em>upthrust / bull trap</em>).' +
+            '</div>' +
+            '<div style="background:rgba(245,158,11,0.12);border-left:3px solid #f59e0b;padding:5px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:var(--text);margin-bottom:6px">' +
+              '<strong>Taktik &amp; Aksi:</strong> <strong>Take Profit Bertahap</strong> · Pasang Trailing Stop ketat · Hindari menambah posisi beli baru.' +
+            '</div>' +
+          '</div>' +
+          '<div style="border-top:1px dashed var(--border2);padding-top:6px;margin-top:4px">' +
+            '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600">Sektor Terkini (' + quadBuckets.distribution.length + '):</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px">' + distSectors + '</div>' +
+          '</div>' +
+        '</div>' +
+
+        // 2. TOP-RIGHT: MARKUP (Kuadran I)
+        '<div class="si-matrix-legend-card" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.35)">' +
+          '<div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+              '<div style="font-size:12px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px">' +
+                '<span>🚀</span> <span>2. MARKUP (Ekspansi Bullish)</span>' +
+              '</div>' +
+              '<span class="badge" style="background:rgba(16,185,129,0.18);color:#10b981;border:1px solid rgba(16,185,129,0.45);font-size:9.5px;font-weight:700">Kuadran I · Kanan-Atas</span>' +
+            '</div>' +
+            '<div style="display:inline-block;padding:2px 7px;border-radius:4px;background:var(--bg3);border:1px solid var(--border2);font-family:var(--font-mono);font-size:10px;font-weight:700;color:#10b981;margin-bottom:6px">' +
+              'CMF > 0 (Inflow Masuk) · Return > 0% (Reli Positif)' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text);margin-bottom:5px;line-height:1.45">' +
+              '<strong>Makna Siklus:</strong> Fase ekspansi tren naik (<em>Bullish Expansion</em>). Akumulasi institusi yang telah matang mendorong reli harga menembus resistensi (<em>breakout</em>). Minat beli institusi didukung partisipasi pasar luas. Kekuatan permintaan (<em>demand</em>) mendominasi total penawaran (<em>supply</em>).' +
+            '</div>' +
+            '<div style="font-size:10.5px;color:var(--text2);margin-bottom:6px;line-height:1.4">' +
+              '<strong>Ciri Khas:</strong> Terbentuk struktur <em>higher highs</em> dan <em>higher lows</em>, kenaikan harga terkonfirmasi lonjakan volume (<em>volume expansion</em>).' +
+            '</div>' +
+            '<div style="background:rgba(16,185,129,0.12);border-left:3px solid #10b981;padding:5px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:var(--text);margin-bottom:6px">' +
+              '<strong>Taktik &amp; Aksi:</strong> <strong>Trend Following</strong> · <strong>Ride the Winners</strong> · Akumulasi saat pullback ke support dinamis.' +
+            '</div>' +
+          '</div>' +
+          '<div style="border-top:1px dashed var(--border2);padding-top:6px;margin-top:4px">' +
+            '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600">Sektor Terkini (' + quadBuckets.markup.length + '):</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px">' + markupSectors + '</div>' +
+          '</div>' +
+        '</div>' +
+
+        // 3. BOTTOM-LEFT: MARKDOWN (Kuadran III)
+        '<div class="si-matrix-legend-card" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.35)">' +
+          '<div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+              '<div style="font-size:12px;font-weight:800;color:#ef4444;display:flex;align-items:center;gap:5px">' +
+                '<span>📉</span> <span>4. MARKDOWN (Penurunan Bearish)</span>' +
+              '</div>' +
+              '<span class="badge" style="background:rgba(239,68,68,0.18);color:#ef4444;border:1px solid rgba(239,68,68,0.45);font-size:9.5px;font-weight:700">Kuadran III · Kiri-Bawah</span>' +
+            '</div>' +
+            '<div style="display:inline-block;padding:2px 7px;border-radius:4px;background:var(--bg3);border:1px solid var(--border2);font-family:var(--font-mono);font-size:10px;font-weight:700;color:#ef4444;margin-bottom:6px">' +
+              'CMF ≤ 0 (Outflow Berlanjut) · Return ≤ 0% (Downtrend)' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text);margin-bottom:5px;line-height:1.45">' +
+              '<strong>Makna Siklus:</strong> Fase tren turun terbuka (<em>Bearish Markdown</em>). Pasokan barang berlebih membanjiri bursa diiringi aksi likuidasi dan <em>cut loss</em> institusi. Tekanan jual mendominasi pasar secara mutlak, mendorong harga terus tergerus ke bawah.' +
+            '</div>' +
+            '<div style="font-size:10.5px;color:var(--text2);margin-bottom:6px;line-height:1.4">' +
+              '<strong>Ciri Khas:</strong> Terbentuk struktur <em>lower lows</em> dan <em>lower highs</em>, pantulan harga bersifat sementara (<em>dead cat bounce</em>), minim minat beli institusi.' +
+            '</div>' +
+            '<div style="background:rgba(239,68,68,0.12);border-left:3px solid #ef4444;padding:5px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:var(--text);margin-bottom:6px">' +
+              '<strong>Taktik &amp; Aksi:</strong> <strong>Capital Preservation</strong> · Amankan Cash Buffer RDN (15-20%) · Disiplin Stop Loss · Hindari menangkap pisau jatuh.' +
+            '</div>' +
+          '</div>' +
+          '<div style="border-top:1px dashed var(--border2);padding-top:6px;margin-top:4px">' +
+            '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600">Sektor Terkini (' + quadBuckets.markdown.length + '):</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px">' + markdownSectors + '</div>' +
+          '</div>' +
+        '</div>' +
+
+        // 4. BOTTOM-RIGHT: ACCUMULATION (Kuadran IV)
+        '<div class="si-matrix-legend-card" style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.35)">' +
+          '<div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+              '<div style="font-size:12px;font-weight:800;color:#06b6d4;display:flex;align-items:center;gap:5px">' +
+                '<span>📥</span> <span>1. ACCUMULATION (Akumulasi Awal)</span>' +
+              '</div>' +
+              '<span class="badge" style="background:rgba(6,182,212,0.18);color:#06b6d4;border:1px solid rgba(6,182,212,0.45);font-size:9.5px;font-weight:700">Kuadran IV · Kanan-Bawah</span>' +
+            '</div>' +
+            '<div style="display:inline-block;padding:2px 7px;border-radius:4px;background:var(--bg3);border:1px solid var(--border2);font-family:var(--font-mono);font-size:10px;font-weight:700;color:#06b6d4;margin-bottom:6px">' +
+              'CMF > 0 (Inflow Masuk) · Return ≤ 0% (Harga Terdiskon)' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text);margin-bottom:5px;line-height:1.45">' +
+              '<strong>Makna Siklus:</strong> Fase awal pembentukan siklus baru. Smart money dan institusi mulai menyerap likuiditas di harga dasar (<em>bottoming</em>) secara tenang saat publik masih pesimistis, sebelum harga merangkak naik (<em>markup</em>). Terjadi <strong>Bullish Divergence</strong> di mana modal institusi positif mendahului harga.' +
+            '</div>' +
+            '<div style="font-size:10.5px;color:var(--text2);margin-bottom:6px;line-height:1.4">' +
+              '<strong>Ciri Khas:</strong> Harga mendatar (<em>sideways</em>) di support kuat, volume akumulasi senyap meningkat tanpa lonjakan harga agresif (<em>stealth buying</em>).' +
+            '</div>' +
+            '<div style="background:rgba(6,182,212,0.12);border-left:3px solid #06b6d4;padding:5px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:var(--text);margin-bottom:6px">' +
+              '<strong>Taktik &amp; Aksi:</strong> <strong>Buy on Weakness</strong> · Cicil beli bertahap (DCA) · Manfaatkan Margin of Safety tinggi · Sabar menunggu fase ekspansi.' +
+            '</div>' +
+          '</div>' +
+          '<div style="border-top:1px dashed var(--border2);padding-top:6px;margin-top:4px">' +
+            '<div style="font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600">Sektor Terkini (' + quadBuckets.accumulation.length + '):</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px">' + accSectors + '</div>' +
+          '</div>' +
+        '</div>' +
+
+      '</div>' +
+
+      // Footer Overlay: Cyclical Breadcrumbs & Close Action
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px dashed var(--border2);flex-wrap:wrap;gap:8px;flex-shrink:0">' +
+        '<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);flex-wrap:wrap">' +
+          '<strong style="color:var(--text)">Siklus Rotasi Alami:</strong>' +
+          '<span style="color:#06b6d4;font-weight:700">📥 1. Akumulasi</span> ➔ ' +
+          '<span style="color:#10b981;font-weight:700">🚀 2. Markup</span> ➔ ' +
+          '<span style="color:#f59e0b;font-weight:700">📤 3. Distribusi</span> ➔ ' +
+          '<span style="color:#ef4444;font-weight:700">📉 4. Markdown</span> ➔ ' +
+          '<span style="color:var(--text3);font-style:italic">Rotasi Siklus Baru</span>' +
+        '</div>' +
+        '<button type="button" class="btn btn-primary btn-xs" onclick="siToggleMatrixLegend(false)" style="padding:4px 14px;font-weight:700">' +
+          'Tutup &amp; Lihat Chart Matrix' +
+        '</button>' +
+      '</div>';
+  }
+
+  /**
+   * Helper: Membuat Horizontal Summary Legend Strip yang Selalu Terlihat di Bawah Chart
+   */
+  function siBuildSummaryStripHtml(quadBuckets) {
+    return '' +
+      // 1. Akumulasi
+      '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.35)" title="Klik untuk membuka penjelasan lengkap Akumulasi">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
+          '<span style="font-size:11.5px;font-weight:800;color:#06b6d4">📥 1. Akumulasi</span>' +
+          '<span class="badge" style="background:rgba(6,182,212,0.2);color:#06b6d4;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.accumulation.length + ' Sektor</span>' +
+        '</div>' +
+        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#06b6d4;font-weight:700;margin-bottom:2px">CMF > 0 · Ret ≤ 0%</div>' +
+        '<div style="font-size:10px;color:var(--text2);line-height:1.3">Smart money serap likuiditas di harga dasar sebelum fase markup.</div>' +
+      '</div>' +
+
+      // 2. Markup
+      '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.35)" title="Klik untuk membuka penjelasan lengkap Markup">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
+          '<span style="font-size:11.5px;font-weight:800;color:#10b981">🚀 2. Markup</span>' +
+          '<span class="badge" style="background:rgba(16,185,129,0.2);color:#10b981;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.markup.length + ' Sektor</span>' +
+        '</div>' +
+        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#10b981;font-weight:700;margin-bottom:2px">CMF > 0 · Ret > 0%</div>' +
+        '<div style="font-size:10px;color:var(--text2);line-height:1.3">Reli ekspansi tren naik didukung arus modal institusional kuat.</div>' +
+      '</div>' +
+
+      // 3. Distribusi
+      '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.35)" title="Klik untuk membuka penjelasan lengkap Distribusi">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
+          '<span style="font-size:11.5px;font-weight:800;color:#f59e0b">📤 3. Distribusi</span>' +
+          '<span class="badge" style="background:rgba(245,158,11,0.2);color:#f59e0b;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.distribution.length + ' Sektor</span>' +
+        '</div>' +
+        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#f59e0b;font-weight:700;margin-bottom:2px">CMF ≤ 0 · Ret > 0%</div>' +
+        '<div style="font-size:10px;color:var(--text2);line-height:1.3">Bearish divergence: harga di pucuk tapi modal institusi keluar (exit).</div>' +
+      '</div>' +
+
+      // 4. Markdown
+      '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.35)" title="Klik untuk membuka penjelasan lengkap Markdown">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
+          '<span style="font-size:11.5px;font-weight:800;color:#ef4444">📉 4. Markdown</span>' +
+          '<span class="badge" style="background:rgba(239,68,68,0.2);color:#ef4444;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.markdown.length + ' Sektor</span>' +
+        '</div>' +
+        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#ef4444;font-weight:700;margin-bottom:2px">CMF ≤ 0 · Ret ≤ 0%</div>' +
+        '<div style="font-size:10px;color:var(--text2);line-height:1.3">Tekanan jual dominan dan downtrend berlanjut, utamakan defensif.</div>' +
+      '</div>';
+  }
+
+  /**
+   * Toggle Legenda 4 Kuadran Sectoral Cycle Matrix
+   */
+  window.siToggleMatrixLegend = function(forceState) {
+    var overlay = document.getElementById('si-matrix-legend-overlay');
+    if (!overlay) return;
+    var isOpen = overlay.classList.contains('is-open');
+    var shouldOpen = (typeof forceState === 'boolean') ? forceState : !isOpen;
+    if (shouldOpen) {
+      overlay.classList.add('is-open');
+      _siState.showQuadrantLegend = true;
+    } else {
+      overlay.classList.remove('is-open');
+      _siState.showQuadrantLegend = false;
+    }
+  };
+
+  // Keyboard shortcut (Escape) untuk menutup legenda overlay
+  if (!window._siMatrixLegendKeyBound) {
+    window._siMatrixLegendKeyBound = true;
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        var overlay = document.getElementById('si-matrix-legend-overlay');
+        if (overlay && overlay.classList.contains('is-open')) {
+          overlay.classList.remove('is-open');
+          _siState.showQuadrantLegend = false;
+        }
+      }
+    });
+  }
+
+  /**
    * Visualisasi Sectoral Cycle Matrix (Rotasi 4 Kuadran Siklus Pasar)
    * Berbasis Chaikin Money Flow (CMF) dan Performa Harga (% Return)
    */
@@ -1254,7 +1510,7 @@
 
     container.innerHTML = '';
 
-    // ── 1. Top Ribbon: Ringkasan 4 Fase Rotasi Siklus ──
+    // ── 1. Top Ribbon: Ringkasan 4 Fase Rotasi Siklus & Tombol Legenda ──
     var ribbonEl = document.createElement('div');
     ribbonEl.className = 'si-matrix-ribbon';
     ribbonEl.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:0 2px 10px 2px;margin-bottom:8px;border-bottom:1px dashed var(--border2);flex-wrap:wrap;gap:8px';
@@ -1276,20 +1532,39 @@
         '</span>' +
       '</div>' +
       '<div style="display:flex;align-items:center;gap:6px">' +
-        (selKey ? '<span class="badge b-accent" style="font-size:9.5px;padding:1px 6px">Filter Aktif</span><button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="padding:1px 6px;font-size:10px;color:var(--text2)">Reset</button>' : '<span style="font-size:10.5px;color:var(--text3);font-style:italic">Klik node kuadran untuk menyaring berita</span>') +
+        '<button id="si-ribbon-legend-btn" type="button" class="btn btn-ghost btn-xs" onclick="siToggleMatrixLegend()" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10.5px;color:var(--accent);border:1px solid rgba(59,130,246,0.3);background:rgba(59,130,246,0.08);border-radius:4px" title="Buka penjelasan 4 kuadran siklus pasar (Akumulasi, Markup, Distribusi, Markdown)">' +
+          '<i class="ti ti-compass"></i> <strong>Legenda Kuadran</strong>' +
+        '</button>' +
+        (selKey ? '<span class="badge b-accent" style="font-size:9.5px;padding:1px 6px">Filter Aktif</span><button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="padding:1px 6px;font-size:10px;color:var(--text2)">Reset</button>' : '<span style="font-size:10.5px;color:var(--text3);font-style:italic">Klik node untuk menyaring berita</span>') +
       '</div>';
     ribbonEl.innerHTML = ribbonHtml;
     container.appendChild(ribbonEl);
 
-    // ── 2. D3.js 2D Scatter Matrix Graph ──
+    // ── 2. D3.js 2D Scatter Matrix Graph & Legend Overlay Container ──
     var chartWrapper = document.createElement('div');
     chartWrapper.id = 'si-matrix-chart-wrapper';
-    chartWrapper.style.cssText = 'position:relative;width:100%;height:370px;user-select:none;margin-bottom:14px';
+    chartWrapper.style.cssText = 'position:relative;width:100%;height:385px;user-select:none;margin-bottom:12px';
     container.appendChild(chartWrapper);
+
+    // Floating Trigger Button pada Pojok Atas-Kanan Chart
+    var triggerBtn = document.createElement('button');
+    triggerBtn.className = 'si-matrix-legend-trigger-btn';
+    triggerBtn.setAttribute('type', 'button');
+    triggerBtn.onclick = function() { window.siToggleMatrixLegend(true); };
+    triggerBtn.title = 'Buka penjelasan lengkap 4 kuadran siklus pasar (Akumulasi, Markup, Distribusi, Markdown)';
+    triggerBtn.innerHTML = '<i class="ti ti-compass"></i> <span>Legenda Kuadran</span>';
+    chartWrapper.appendChild(triggerBtn);
+
+    // Clear Legend Overlay Element di Atas Chart
+    var overlayEl = document.createElement('div');
+    overlayEl.id = 'si-matrix-legend-overlay';
+    overlayEl.className = 'si-matrix-legend-overlay' + (_siState.showQuadrantLegend ? ' is-open' : '');
+    overlayEl.innerHTML = siBuildQuadrantLegendOverlayHtml(quadBuckets, selKey);
+    chartWrapper.appendChild(overlayEl);
 
     if (window.d3) {
       var width = chartWrapper.clientWidth || container.clientWidth || 520;
-      var height = 370;
+      var height = 385;
 
       var isMobile = width < 480;
       var margin = {
@@ -1461,7 +1736,24 @@
       ];
 
       quadLabels.forEach(function(ql) {
-        var lblG = g.append('g').attr('opacity', 0.85);
+        var lblG = g.append('g')
+          .attr('opacity', 0.88)
+          .style('cursor', 'pointer')
+          .attr('title', 'Klik untuk membuka penjelasan lengkap kuadran ' + ql.title);
+
+        lblG.on('click', function(event) {
+          if (event) event.stopPropagation();
+          if (typeof window.siToggleMatrixLegend === 'function') {
+            window.siToggleMatrixLegend(true);
+          }
+        });
+
+        lblG.on('mouseenter', function() {
+          lblG.transition().duration(120).attr('opacity', 1);
+        }).on('mouseleave', function() {
+          lblG.transition().duration(120).attr('opacity', 0.88);
+        });
+
         lblG.append('text')
           .attr('x', ql.x)
           .attr('y', ql.y)
@@ -1755,7 +2047,13 @@
       _siResizeObserver.observe(container);
     }
 
-    // ── 3. Tactical 4-Quadrant Cards Grid (Rincian Sektor & Taktik) ──
+    // ── 3. Horizontal Summary Legend Strip (Penjelasan Cepat 4 Kuadran) ──
+    var summaryStrip = document.createElement('div');
+    summaryStrip.className = 'si-matrix-summary-strip';
+    summaryStrip.innerHTML = siBuildSummaryStripHtml(quadBuckets);
+    container.appendChild(summaryStrip);
+
+    // ── 4. Tactical 4-Quadrant Cards Grid (Rincian Sektor & Taktik) ──
     var cardsGrid = document.createElement('div');
     cardsGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:12px';
 

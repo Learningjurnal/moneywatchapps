@@ -88,85 +88,81 @@ function resetUserPortfolioState() {
 window.resetUserPortfolioState = resetUserPortfolioState;
 
 // ============================================================
+// DEMO SANDBOX DEFAULT STATE (DATA SIMULASI TERISOLASI)
 // ============================================================
-// DATA PORTOFOLIO & TRANSAKSI STOCK B (22 SAHAM SEKURITAS STOCKBIT)
-// ============================================================
-var INITIAL_PORTO_2026 = [
-  { id: 1, date: '2026-09-02', type: 'BUY', ticker: 'GGRM', lot: 6, shares: 600, price: 77464, gross: 46478309, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 46478309, sekuritas: 'Stockbit' },
-  { id: 2, date: '2026-09-02', type: 'BUY', ticker: 'BBNI', lot: 73, shares: 7300, price: 4795, gross: 35005891, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 35005891, sekuritas: 'Stockbit' },
-  { id: 3, date: '2026-09-02', type: 'BUY', ticker: 'CPRI', lot: 90, shares: 9000, price: 136, gross: 1224792, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 1224792, sekuritas: 'Stockbit' },
-  { id: 4, date: '2026-09-02', type: 'BUY', ticker: 'BBCA', lot: 68, shares: 6800, price: 7395, gross: 50282840, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 50282840, sekuritas: 'Stockbit' },
-  { id: 5, date: '2026-09-02', type: 'BUY', ticker: 'BMRI', lot: 72, shares: 7200, price: 5085, gross: 36611126, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 36611126, sekuritas: 'Stockbit' },
-  { id: 6, date: '2026-09-02', type: 'BUY', ticker: 'BBRI', lot: 223, shares: 22300, price: 4277, gross: 95379245, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 95379245, sekuritas: 'Stockbit' },
-  { id: 7, date: '2026-09-02', type: 'BUY', ticker: 'UNVR', lot: 60, shares: 6000, price: 5631, gross: 33783526, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 33783526, sekuritas: 'Stockbit' },
-  { id: 8, date: '2026-09-02', type: 'BUY', ticker: 'ADRO', lot: 112, shares: 11200, price: 2685, gross: 30071411, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 30071411, sekuritas: 'Stockbit' },
-  { id: 9, date: '2026-09-02', type: 'BUY', ticker: 'SIDO', lot: 330, shares: 33000, price: 631, gross: 20821181, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 20821181, sekuritas: 'Stockbit' },
-  { id: 10, date: '2026-09-02', type: 'BUY', ticker: 'PGEO', lot: 823, shares: 82300, price: 1426, gross: 117354354, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 117354354, sekuritas: 'Stockbit' },
-  { id: 11, date: '2026-09-02', type: 'BUY', ticker: 'PMMP', lot: 38, shares: 3800, price: 260, gross: 989659, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 989659, sekuritas: 'Stockbit' },
-  { id: 12, date: '2026-09-02', type: 'BUY', ticker: 'BUMI', lot: 523, shares: 52300, price: 314, gross: 16444154, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 16444154, sekuritas: 'Stockbit' },
-  { id: 13, date: '2026-09-02', type: 'BUY', ticker: 'SMDR', lot: 710, shares: 71000, price: 395, gross: 28057533, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 28057533, sekuritas: 'Stockbit' },
-  { id: 14, date: '2026-09-02', type: 'BUY', ticker: 'CDIA', lot: 198, shares: 19800, price: 1859, gross: 36804194, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 36804194, sekuritas: 'Stockbit' },
-  { id: 15, date: '2026-09-02', type: 'BUY', ticker: 'RAJA', lot: 225, shares: 22500, price: 868, gross: 19526715, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 19526715, sekuritas: 'Stockbit' },
-  { id: 16, date: '2026-09-02', type: 'BUY', ticker: 'ADMR', lot: 223, shares: 22300, price: 1395, gross: 31117939, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 31117939, sekuritas: 'Stockbit' },
-  { id: 17, date: '2026-09-02', type: 'BUY', ticker: 'DEWA', lot: 135, shares: 13500, price: 730, gross: 9851114, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 9851114, sekuritas: 'Stockbit' },
-  { id: 18, date: '2026-09-02', type: 'BUY', ticker: 'MBMA', lot: 92, shares: 9200, price: 543, gross: 4996779, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 4996779, sekuritas: 'Stockbit' },
-  { id: 19, date: '2026-09-02', type: 'BUY', ticker: 'WIFI', lot: 57, shares: 5700, price: 3298, gross: 18797336, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 18797336, sekuritas: 'Stockbit' },
-  { id: 20, date: '2026-09-02', type: 'BUY', ticker: 'ARCI', lot: 240, shares: 24000, price: 1860, gross: 44638873, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 44638873, sekuritas: 'Stockbit' },
-  { id: 21, date: '2026-09-02', type: 'BUY', ticker: 'PRDL', lot: 31, shares: 3100, price: 356, gross: 1104985, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 1104985, sekuritas: 'Stockbit' },
-  { id: 22, date: '2026-09-02', type: 'BUY', ticker: 'GMFI', lot: 120, shares: 12000, price: 64, gross: 773390, komisi: 0, ppn: 0, levy: 0, pph: 0, tax: 0, net: 773390, sekuritas: 'Stockbit' }
-];
+// Data demo bersifat simulasi netral, fiktif, dan 100% terisolasi dari akun pribadi pengguna.
+var DEMO_SANDBOX_SAMPLE = {
+  isDemoSandbox: true,
+  transactions: [
+    {
+      id: 1,
+      date: '2026-09-01',
+      type: 'BUY',
+      ticker: 'BBCA',
+      lot: 10,
+      shares: 1000,
+      price: 9800,
+      gross: 9800000,
+      komisi: 0,
+      ppn: 0,
+      levy: 0,
+      pph: 0,
+      tax: 0,
+      net: 9800000,
+      sekuritas: 'Stockbit'
+    }
+  ],
+  rdnMutations: [
+    {
+      id: 1,
+      date: '2026-09-01',
+      type: 'TOPUP',
+      ket: 'Modal Awal Simulasi Demo',
+      amount: 15000000,
+      balance: 15000000,
+      sekuritas: 'Stockbit',
+      linkedTxId: null,
+      account: 'saham'
+    },
+    {
+      id: 2,
+      date: '2026-09-01',
+      type: 'BUY',
+      ket: 'Beli 10 lot BBCA @ Rp 9.800 (Simulasi)',
+      amount: -9800000,
+      balance: 5200000,
+      sekuritas: 'Stockbit',
+      linkedTxId: 1,
+      account: 'saham'
+    }
+  ],
+  dividends: [],
+  rdnBalance: 5200000,
+  activeSekuritas: 'Stockbit'
+};
 
-function initPortfolio2026(force){
-  if(!force) return;
-  if(typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user')) {
-    return;
-  }
-  if(transactions && transactions.length > 0) return;
-  
-  transactions = JSON.parse(JSON.stringify(INITIAL_PORTO_2026));
-  rdnMutations = [];
+function initDemoSandbox(force){
+  var isDemo = (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user'));
+  if(!isDemo && !force) return;
+
+  transactions = JSON.parse(JSON.stringify(DEMO_SANDBOX_SAMPLE.transactions));
+  rdnMutations = JSON.parse(JSON.stringify(DEMO_SANDBOX_SAMPLE.rdnMutations));
   dividends = [];
   cryptoTx = [];
   etfTx = [];
   rdTx = [];
   divInvestData = [];
-  nextTxId = 23;
-  nextRdnId = 1;
+  nextTxId = 2;
+  nextRdnId = 3;
   nextDivId = 1;
   nextCryptoId = 1;
   nextEtfId = 1;
   nextRdId = 1;
-  activeSekuritas = 'Stockbit';
-  rdnBalance = 52016390;
-
-  // Initial RDN balance deposit mutation (Modal Pokok Awal = 729.807.630 + Dividen BBRI 2.324.106 - Beli 22 Saham 680.115.346 = Sisa Kas RDN 52.016.390)
-  rdnMutations.push({
-    id: nextRdnId++,
-    date: '2026-09-02',
-    type: 'TOPUP',
-    ket: 'Setoran Modal Awal Investasi',
-    amount: 729807630,
-    balance: 729807630,
-    sekuritas: 'Stockbit',
-    linkedTxId: null,
-    account: 'saham'
-  });
-
-  // Dividen YTD 2026 jika ada
-  dividends.push({
-    id: nextDivId++,
-    date: '2026-09-02',
-    ticker: 'BBRI',
-    shares: 22300,
-    dps: 104.22,
-    gross: 2324106,
-    tax: 0,
-    net: 2324106,
-    pphRate: 0
-  });
+  activeSekuritas = DEMO_SANDBOX_SAMPLE.activeSekuritas || 'Stockbit';
+  rdnBalance = DEMO_SANDBOX_SAMPLE.rdnBalance;
 
   if(typeof CASH_ACCOUNTS !== 'undefined'){
-    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 52016390;
+    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = rdnBalance;
     if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = 0;
     if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
   }
@@ -175,7 +171,28 @@ function initPortfolio2026(force){
 
   if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
   if (typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
-  if (typeof saveData === 'function') saveData();
+
+  try {
+    var payloadObj = {
+      transactions: transactions,
+      dividends: dividends,
+      rdnMutations: rdnMutations,
+      cryptoTx: cryptoTx,
+      etfTx: etfTx,
+      rdTx: rdTx,
+      divInvestData: divInvestData,
+      tradeStrategy: tradeStrategy,
+      activeSekuritas: activeSekuritas,
+      rdnBalance: rdnBalance,
+      isDemoSandbox: true,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('mw_local_data_v3_demo', JSON.stringify(payloadObj));
+  } catch(e){}
+}
+
+function initPortfolio2026(force){
+  return initDemoSandbox(force);
 }
 
 function resetAllDatabaseAndTransactions(){
@@ -1022,8 +1039,9 @@ async function migrateLocalDataToFirebaseCloud(force){
   try {
     if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Memindahkan data lokal ke Firebase Cloud Firestore...', 'var(--accent)', true);
 
-    // Ambil data lokal dari localStorage untuk memastikan tidak ada yang terlewat
-    var rawLocal = localStorage.getItem('mw_local_data_v2') || localStorage.getItem('mw_emergency_backup_v2');
+    // Ambil data lokal dari scoped storage untuk memastikan tidak ada kebocoran antar akun
+    var storageKey = getUserStorageKey('mw_local_data_v3');
+    var rawLocal = localStorage.getItem(storageKey);
     var parsedLocal = null;
     if(rawLocal){
       try { parsedLocal = JSON.parse(rawLocal); } catch(e){}
@@ -1262,8 +1280,12 @@ function _applyCloudPayload(cloudData, currentLocalState) {
       wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
       savedAt: new Date().toISOString()
     };
-    localStorage.setItem('mw_local_data_v2', JSON.stringify(mergedPayload));
-    localStorage.setItem('mw_emergency_backup_v2', JSON.stringify(mergedPayload));
+    var storageKey = getUserStorageKey('mw_local_data_v3');
+    localStorage.setItem(storageKey, JSON.stringify(mergedPayload));
+    try {
+      localStorage.removeItem('mw_local_data_v2');
+      localStorage.removeItem('mw_emergency_backup_v2');
+    } catch(e){}
   } catch(e){}
 }
 
@@ -1448,13 +1470,15 @@ function saveData(){
     savedAt: new Date().toISOString()
   };
 
-  // 1. Simpan ke local cache sebagai offline fallback
+  // 1. Simpan ke local cache sebagai offline fallback scoped per user
   try {
     var storageKey = getUserStorageKey('mw_local_data_v3');
     var payloadStr = JSON.stringify(payloadObj);
     localStorage.setItem(storageKey, payloadStr);
-    localStorage.setItem('mw_local_data_v2', payloadStr);
-    localStorage.setItem('mw_emergency_backup_v2', payloadStr);
+    try {
+      localStorage.removeItem('mw_local_data_v2');
+      localStorage.removeItem('mw_emergency_backup_v2');
+    } catch(e){}
     localStorage.setItem('mw_trade_strategy', JSON.stringify(tradeStrategy || {}));
   } catch(e) {
     console.warn('LocalStorage save notice:', e);
@@ -1521,8 +1545,10 @@ function safeCloudBoot(){
 
 function loadData(){
   try {
+    var isDemoSession = (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user' || _currentUser.email === 'tamu@moneywatch.pro' || _currentUser.email === 'demo@moneywatch.pro'));
+
     var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
-    if(isDataCleared){
+    if(isDataCleared && !isDemoSession){
       resetUserPortfolioState();
       return true;
     }
@@ -1534,8 +1560,42 @@ function loadData(){
         tradeStrategy = Object.assign({}, tradeStrategy, parsedStrat);
       }
     }
-    var storageKey = getUserStorageKey('mw_local_data_v3');
-    var raw = localStorage.getItem(storageKey) || localStorage.getItem('mw_local_data_v2') || localStorage.getItem('mw_emergency_backup_v2');
+
+    var raw = null;
+    if(isDemoSession){
+      // STRICT SECURITY ENFORCEMENT:
+      // Mode Tamu / Demo HANYA boleh membaca sandbox demo lokalnya sendiri.
+      // DILARANG KERAS membaca atau fallback ke key data user mana pun!
+      var demoKey = 'mw_local_data_v3_demo';
+      var rawDemo = localStorage.getItem(demoKey);
+      var isDemoValid = false;
+      if(rawDemo){
+        try {
+          var parsedDemo = JSON.parse(rawDemo);
+          if(parsedDemo && parsedDemo.isDemoSandbox === true){
+            var hasPrivateTickers = (parsedDemo.transactions || []).some(function(t){
+              return t.ticker === 'GGRM' || t.ticker === 'PGEO' || t.ticker === 'SMDR' || t.ticker === 'CDIA' || t.ticker === 'ADRO';
+            });
+            if(!hasPrivateTickers){
+              isDemoValid = true;
+              raw = rawDemo;
+            }
+          }
+        } catch(e){}
+      }
+      if(!isDemoValid){
+        try { localStorage.removeItem(demoKey); } catch(e){}
+        resetUserPortfolioState();
+        if(typeof initDemoSandbox === 'function'){
+          initDemoSandbox(true);
+        }
+        return true;
+      }
+    } else {
+      var storageKey = getUserStorageKey('mw_local_data_v3');
+      raw = localStorage.getItem(storageKey);
+    }
+
     if(raw){
       var d = JSON.parse(raw);
       if(d && typeof d === 'object'){
@@ -1690,8 +1750,12 @@ async function clearData(skipConfirm){
       savedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    localStorage.setItem('mw_local_data_v2', JSON.stringify(emptyRecord));
-    localStorage.setItem('mw_emergency_backup_v2', JSON.stringify(emptyRecord));
+    var storageKey = getUserStorageKey('mw_local_data_v3');
+    localStorage.setItem(storageKey, JSON.stringify(emptyRecord));
+    try {
+      localStorage.removeItem('mw_local_data_v2');
+      localStorage.removeItem('mw_emergency_backup_v2');
+    } catch(e){}
     localStorage.setItem('mw_data_cleared', '1');
     localStorage.setItem('mw_empty_state_explicit', '1');
   } catch(e){}
@@ -1860,8 +1924,11 @@ async function checkFirebaseLiveSyncStatus(){
   var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
   if (!uid || uid === 'demo_guest_user') {
     box.innerHTML = `
-      <div style="color:var(--text2);font-weight:600;margin-bottom:6px">ℹ️ Mode Tamu / Belum Login</div>
-      <div style="color:var(--text3);font-size:11.5px">Anda berada dalam mode tamu offline. Silakan masuk dengan akun Google untuk mengaktifkan audit Firebase Firestore.</div>
+      <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">🛡️ Mode Tamu / Demo Sandbox</div>
+      <div style="color:var(--text2);font-size:11.5px;line-height:1.6">
+        Pada Mode Tamu, seluruh data portofolio tersimpan lokal secara mandiri dan <b>tidak dikirim ke Firebase Firestore</b> untuk melindungi privasi.
+        Silakan masuk dengan akun email Anda untuk mengaktifkan audit dan sinkronisasi Cloud Firestore.
+      </div>
     `;
     return;
   }
@@ -1871,8 +1938,13 @@ async function checkFirebaseLiveSyncStatus(){
 
     if(!json.success || !json.hasDocument){
       box.innerHTML = `
-        <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">⚠️ Dokumen di Firestore belum terbuat atau kosong</div>
-        <div style="color:var(--text2);font-size:11.5px;margin-bottom:8px">Silakan klik tombol <b>"Pindahkan / Sinkronkan Data ke Firebase Cloud Sekarang"</b> di atas.</div>
+        <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">ℹ️ Data Tersimpan Lokal, Dokumen Cloud Belum Tersinkron</div>
+        <div style="color:var(--text2);font-size:11.5px;line-height:1.6;margin-bottom:10px">
+          Portofolio Anda saat ini aktif dan tersimpan di penyimpanan lokal peramban &amp; server mirror, namun dokumen di Cloud Firestore untuk akun <b>${escHtml(uid)}</b> belum dibuat.
+        </div>
+        <button class="btn btn-blue btn-sm" onclick="migrateLocalDataToFirebaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="padding:6px 14px;font-size:11.5px">
+          🚀 Sinkronkan ke Firebase Firestore Sekarang
+        </button>
       `;
       return;
     }
@@ -1953,12 +2025,27 @@ function shRenderContent(tab){
   var c = el('sh-content');
   if(!c) return;
 
-  var userEmail = (_currentUser && _currentUser.email) || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
+  var isDemoSession = (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user' || _currentUser.email === 'tamu@moneywatch.pro' || _currentUser.email === 'demo@moneywatch.pro'));
+  var userEmail = (_currentUser && _currentUser.email) || (isDemoSession ? 'tamu@moneywatch.pro' : (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com'));
   var nTx = (transactions || []).length;
   var nRdn = (rdnMutations || []).length;
   var nDiv = (dividends || []).length;
 
   if(tab === 'cloud'){
+    var demoBanner = isDemoSession ? `
+      <div style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-weight:700;color:#eab308;font-size:13px;display:flex;align-items:center;gap:6px">
+          🛡️ Sesi Mode Tamu / Demo Terisolasi
+        </div>
+        <div style="font-size:12px;color:var(--text);margin-top:6px;line-height:1.6">
+          Anda berada dalam <b>Mode Tamu (Demo Sandbox)</b>. Seluruh data transaksi di sesi ini tersimpan secara lokal dan <b>terisolasi 100% dari akun email pribadi Anda</b> untuk menjamin kerahasiaan data pengguna.
+        </div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:6px">
+          Sinkronisasi cloud Firestore dinonaktifkan pada akun demo. Untuk mengaktifkan sinkronisasi cloud real-time antar perangkat, silakan login dengan akun email pribadi Anda.
+        </div>
+      </div>
+    ` : '';
+
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display);display:flex;align-items:center;gap:6px">
@@ -1967,14 +2054,16 @@ function shRenderContent(tab){
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Seluruh data transaksi dan kas tersimpan di cloud database real-time tanpa resiko hilang saat hard-refresh atau ganti device.</div>
       </div>
 
+      ${demoBanner}
+
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <span style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px">
-            <span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>
-            Koneksi Firestore Cloud
+            <span style="width:8px;height:8px;border-radius:50%;background:${isDemoSession ? '#eab308' : 'var(--green)'}"></span>
+            ${isDemoSession ? 'Demo Sandbox (Lokal)' : 'Koneksi Firestore Cloud'}
           </span>
-          <span style="background:rgba(16,185,129,0.15);color:var(--green);font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid rgba(16,185,129,0.3)">
-            ONLINE &amp; TERSINKRON
+          <span style="background:${isDemoSession ? 'rgba(234,179,8,0.15)' : 'rgba(16,185,129,0.15)'};color:${isDemoSession ? '#eab308' : 'var(--green)'};font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid ${isDemoSession ? 'rgba(234,179,8,0.3)' : 'rgba(16,185,129,0.3)'}">
+            ${isDemoSession ? 'DEMO SANDBOX' : 'ONLINE &amp; TERSINKRON'}
           </span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">
@@ -1992,7 +2081,7 @@ function shRenderContent(tab){
           </div>
         </div>
         <div style="font-size:11.5px;color:var(--text2);line-height:1.6">
-          Setiap perubahan (tambah transaksi baru, update saldo kas, dividen, dan jurnal) otomatis disimpan secara instan ke Cloud Firestore.
+          ${isDemoSession ? 'Data pada mode demo terisolasi secara mandiri di penyimpanan lokal peramban.' : 'Setiap perubahan (tambah transaksi baru, update saldo kas, dividen, dan jurnal) otomatis disimpan secara instan ke Cloud Firestore.'}
         </div>
       </div>
 
