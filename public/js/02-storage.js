@@ -1021,6 +1021,55 @@ function setupFirestoreRealtimeListener(uid){
   }
 }
 
+// ── FIRESTORE 1 MiB DOCUMENT-SIZE GUARD ──
+// FIX AUDIT (CRITICAL): a Firestore document is hard-capped at 1 MiB.
+// transactions/rdnMutations are the two arrays that grow unbounded with
+// account age (a real multi-year trading history reaches thousands of
+// rows) and are exactly what pushed a real account's main doc past that
+// cap - fireSaveAllData()/migrateLocalDataToFirebaseCloud() writing them
+// inline meant save could NEVER succeed once a portfolio grew large
+// enough, no matter what else was fixed. Every other field stays inline
+// on 'main'; only these two get split into numbered sub-documents
+// (users/{uid}/data/tx_0, tx_1, ... and rdn_0, rdn_1, ...), with a small
+// chunk-count manifest left on 'main' so a load knows how many to fetch.
+var FIRE_CHUNK_SIZE = 800;
+function _chunkArray(arr, size){
+  var out = [];
+  var a = arr || [];
+  for (var i = 0; i < a.length; i += size) out.push(a.slice(i, i + size));
+  return out;
+}
+async function _writeChunkedField(dataColRef, fieldPrefix, arr, prevChunkCount){
+  var chunks = _chunkArray(arr, FIRE_CHUNK_SIZE);
+  var writes = chunks.map(function(chunk, i){
+    return dataColRef.doc(fieldPrefix + '_' + i).set({ items: chunk, updatedAt: new Date().toISOString() });
+  });
+  // Hapus sisa chunk lama jika array baru lebih pendek dari sebelumnya
+  // (mis. setelah user menghapus banyak transaksi sekaligus)
+  if (typeof prevChunkCount === 'number') {
+    for (var j = chunks.length; j < prevChunkCount; j++){
+      writes.push(dataColRef.doc(fieldPrefix + '_' + j).delete().catch(function(){}));
+    }
+  }
+  await Promise.all(writes);
+  return chunks.length;
+}
+async function _readChunkedField(dataColRef, fieldPrefix, count){
+  var reads = [];
+  for (var i = 0; i < (count || 0); i++){
+    reads.push(dataColRef.doc(fieldPrefix + '_' + i).get().catch(function(){ return null; }));
+  }
+  var snaps = await Promise.all(reads);
+  var out = [];
+  snaps.forEach(function(snap){
+    if (snap && snap.exists) {
+      var d = snap.data();
+      if (d && Array.isArray(d.items)) out = out.concat(d.items);
+    }
+  });
+  return out;
+}
+
 // ── MIGRASI TOTAL DATA LOKAL KE FIREBASE FIRESTORE ──
 async function migrateLocalDataToFirebaseCloud(force){
   var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
@@ -1071,12 +1120,27 @@ async function migrateLocalDataToFirebaseCloud(force){
     };
 
     var userRef = db.collection('users').doc(uid);
-    var mainDataRef = userRef.collection('data').doc('main');
+    var dataColRef = userRef.collection('data');
+    var mainDataRef = dataColRef.doc('main');
 
-    // 1. Simpan dokumen utama (full bundle) ke Firestore
-    await mainDataRef.set(localPayload, { merge: true });
+    // 1. Tulis transactions/rdnMutations sebagai sub-dokumen terpisah (lihat
+    //    catatan FIRESTORE 1 MiB DOCUMENT-SIZE GUARD di atas)
+    var txChunkCount = await _writeChunkedField(dataColRef, 'tx', localPayload.transactions);
+    var rdnChunkCount = await _writeChunkedField(dataColRef, 'rdn', localPayload.rdnMutations);
 
-    // 2. Simpan metadata profil user
+    // 2. Simpan dokumen utama (sisa bundle + manifest chunk) ke Firestore -
+    //    FieldValue.delete() membersihkan field inline lama (jika ada) agar
+    //    dokumen tidak menumpuk data ganda
+    var mainPayload = Object.assign({}, localPayload);
+    mainPayload.transactions = firebase.firestore.FieldValue.delete();
+    mainPayload.rdnMutations = firebase.firestore.FieldValue.delete();
+    mainPayload.txChunkCount = txChunkCount;
+    mainPayload.rdnChunkCount = rdnChunkCount;
+    mainPayload.txCount = localPayload.transactions.length;
+    mainPayload.rdnCount = localPayload.rdnMutations.length;
+    await mainDataRef.set(mainPayload, { merge: true });
+
+    // 3. Simpan metadata profil user
     await userRef.set({
       email: email,
       storageMode: 'FIREBASE_FIRESTORE_CLOUD',
@@ -1161,9 +1225,26 @@ async function fireSaveAllData(){
 
   try {
     var userRef = db.collection('users').doc(uid);
-    var mainDataRef = userRef.collection('data').doc('main');
-    
-    await mainDataRef.set(payload, { merge: true });
+    var dataColRef = userRef.collection('data');
+    var mainDataRef = dataColRef.doc('main');
+
+    // Baca manifest chunk sebelumnya dulu agar chunk lama yang lebih
+    // banyak dari sekarang (mis. setelah user hapus banyak transaksi
+    // sekaligus) benar-benar dibersihkan, bukan cuma ditimpa sebagian
+    var prevSnap = await mainDataRef.get().catch(function(){ return null; });
+    var prevData = (prevSnap && prevSnap.exists) ? prevSnap.data() : null;
+    var txChunkCount = await _writeChunkedField(dataColRef, 'tx', payload.transactions, prevData && prevData.txChunkCount);
+    var rdnChunkCount = await _writeChunkedField(dataColRef, 'rdn', payload.rdnMutations, prevData && prevData.rdnChunkCount);
+
+    var mainPayload = Object.assign({}, payload);
+    mainPayload.transactions = firebase.firestore.FieldValue.delete();
+    mainPayload.rdnMutations = firebase.firestore.FieldValue.delete();
+    mainPayload.txChunkCount = txChunkCount;
+    mainPayload.rdnChunkCount = rdnChunkCount;
+    mainPayload.txCount = payload.transactions.length;
+    mainPayload.rdnCount = payload.rdnMutations.length;
+
+    await mainDataRef.set(mainPayload, { merge: true });
     await userRef.set({
       email: email,
       storageMode: 'FIREBASE_FIRESTORE_CLOUD',
@@ -1174,7 +1255,10 @@ async function fireSaveAllData(){
     var altUid = uid.replace(/_40/g, '_');
     if(altUid !== uid){
       try {
-        db.collection('users').doc(altUid).collection('data').doc('main').set(payload, { merge: true });
+        var altDataColRef = db.collection('users').doc(altUid).collection('data');
+        _writeChunkedField(altDataColRef, 'tx', payload.transactions).catch(function(){});
+        _writeChunkedField(altDataColRef, 'rdn', payload.rdnMutations).catch(function(){});
+        altDataColRef.doc('main').set(mainPayload, { merge: true }).catch(function(){});
       } catch(e){}
     }
 
@@ -1388,6 +1472,18 @@ async function fireLoadAllData(){
     }
 
     var cloudData = snap.data() || {};
+
+    // Rakit ulang transactions/rdnMutations dari sub-dokumen chunk jika
+    // dokumen ini ditulis oleh fireSaveAllData()/migrateLocalDataToFirebaseCloud()
+    // versi chunked (lihat FIRESTORE 1 MiB DOCUMENT-SIZE GUARD)
+    var dataColRefForRead = db.collection('users').doc(uid).collection('data');
+    if (typeof cloudData.txChunkCount === 'number') {
+      try { cloudData.transactions = await _readChunkedField(dataColRefForRead, 'tx', cloudData.txChunkCount); } catch(e){}
+    }
+    if (typeof cloudData.rdnChunkCount === 'number') {
+      try { cloudData.rdnMutations = await _readChunkedField(dataColRefForRead, 'rdn', cloudData.rdnChunkCount); } catch(e){}
+    }
+
     _applyCloudPayload(cloudData, currentLocalState);
 
     // If local state had new items not in cloud, push to Firestore (hanya jika data cloud tidak dalam status explicitly cleared)
