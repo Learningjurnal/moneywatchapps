@@ -936,8 +936,15 @@ async function migrateLocalDataToFirebaseCloud(force){
     var userRef = db.collection('users').doc(uid);
     var mainDataRef = userRef.collection('data').doc('main');
 
-    // 1. Simpan dokumen utama (full bundle) ke Firestore
-    await mainDataRef.set(localPayload, { merge: true });
+    // 1. Simpan transaksi & mutasi RDN dalam dokumen chunk terpisah (lihat
+    // fireSaveAllData - satu dokumen Firestore dibatasi 1MiB, riwayat multi-
+    // tahun bisa jauh melebihi itu) lalu sisanya ke dokumen utama.
+    var txChunkCount = await _writeChunkedField(userRef, 'tx', localPayload.transactions, undefined);
+    var rdnChunkCount = await _writeChunkedField(userRef, 'rdn', localPayload.rdnMutations, undefined);
+    var mainPayload = Object.assign({}, localPayload, { txChunkCount: txChunkCount, rdnChunkCount: rdnChunkCount, txCount: localPayload.transactions.length });
+    delete mainPayload.transactions;
+    delete mainPayload.rdnMutations;
+    await mainDataRef.set(mainPayload, { merge: false });
 
     // 2. Simpan metadata profil user
     await userRef.set({
@@ -970,6 +977,58 @@ async function migrateLocalDataToFirebaseCloud(force){
 }
 window.migrateLocalDataToFirebaseCloud = migrateLocalDataToFirebaseCloud;
 
+// FIX AUDIT (CRITICAL, discovered restoring a real 8-year/4464-transaction
+// history): Firestore hard-caps every document at 1 MiB. A single account
+// with a realistic multi-year trading history serialises transactions+
+// rdnMutations well past that (1.55MB measured for this account) - the
+// old single-document fireSaveAllData() write would fail outright for any
+// sufficiently active account, and (since the failure is only logged to
+// console + an easy-to-miss amber toast) look like a successful save.
+// Transactions and rdnMutations - the two fields that grow unbounded with
+// account age - are now split into fixed-size chunk documents
+// (users/{uid}/data/tx_N, rdn_N) instead of living inline in the 'main'
+// document; fireLoadAllData() reassembles them. Everything else (settings,
+// wealth, dividends, etc.) stays in 'main' since those don't grow this way.
+var FIRE_CHUNK_SIZE = 800; // ≈150-250KB/chunk pre-Firestore-overhead for this schema - safe margin under 1MiB
+
+function _chunkArray(arr, size){
+  var out = [];
+  for(var i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out.length ? out : [[]];
+}
+
+async function _readChunkedField(userRef, fieldPrefix, chunkCount){
+  if(!chunkCount || chunkCount <= 0) return [];
+  var reads = [];
+  for(var i = 0; i < chunkCount; i++){
+    reads.push(userRef.collection('data').doc(fieldPrefix + '_' + i).get());
+  }
+  var snaps = await Promise.all(reads);
+  var out = [];
+  snaps.forEach(function(s){
+    if(s && s.exists){
+      var d = s.data();
+      if(d && Array.isArray(d.items)) out = out.concat(d.items);
+    }
+  });
+  return out;
+}
+
+async function _writeChunkedField(userRef, fieldPrefix, arr, previousChunkCount){
+  var chunks = _chunkArray(arr || []);
+  var writes = chunks.map(function(chunk, i){
+    return userRef.collection('data').doc(fieldPrefix + '_' + i).set({ items: chunk, updatedAt: new Date().toISOString() });
+  });
+  // Clean up now-unused trailing chunks if the array shrank since last save
+  if(typeof previousChunkCount === 'number' && previousChunkCount > chunks.length){
+    for(var j = chunks.length; j < previousChunkCount; j++){
+      writes.push(userRef.collection('data').doc(fieldPrefix + '_' + j).delete().catch(function(){}));
+    }
+  }
+  await Promise.all(writes);
+  return chunks.length;
+}
+
 async function fireSaveAllData(){
   var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
   var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : 'u_andry_zuma_musa_40gmail_com';
@@ -981,7 +1040,9 @@ async function fireSaveAllData(){
   var currentAlerts = (typeof mwGetPriceAlerts === 'function') ? mwGetPriceAlerts() : [];
   var currentEqHist = (typeof equityHistoryLoad === 'function') ? equityHistoryLoad() : [];
 
-  var payload = {
+  // Full, unchunked payload for the local disk mirror (no 1MB ceiling there,
+  // and /api/user-data/load expects one flat JSON blob).
+  var serverMirrorPayload = {
     transactions: transactions || [],
     dividends: dividends || [],
     rdnMutations: rdnMutations || [],
@@ -1014,28 +1075,45 @@ async function fireSaveAllData(){
   };
 
   // Always mirror to server disk storage for 100% hard-refresh resilience
-  _syncToServerMirror(payload);
+  _syncToServerMirror(serverMirrorPayload);
 
   if(!db) return true;
 
   try {
     var userRef = db.collection('users').doc(uid);
     var mainDataRef = userRef.collection('data').doc('main');
-    
-    await mainDataRef.set(payload, { merge: true });
+
+    // Read the previous chunk counts first so a shrinking history (deleted
+    // transactions) cleans up its now-orphaned trailing chunk documents.
+    var prevTxChunks, prevRdnChunks;
+    try {
+      var prevSnap = await mainDataRef.get();
+      var prevData = prevSnap && prevSnap.exists ? prevSnap.data() : null;
+      prevTxChunks = prevData ? prevData.txChunkCount : undefined;
+      prevRdnChunks = prevData ? prevData.rdnChunkCount : undefined;
+    } catch(e){}
+
+    var txChunkCount = await _writeChunkedField(userRef, 'tx', transactions || [], prevTxChunks);
+    var rdnChunkCount = await _writeChunkedField(userRef, 'rdn', rdnMutations || [], prevRdnChunks);
+
+    var mainPayload = Object.assign({}, serverMirrorPayload, {
+      transactions: undefined,
+      rdnMutations: undefined,
+      txChunkCount: txChunkCount,
+      rdnChunkCount: rdnChunkCount,
+      txCount: (transactions || []).length
+    });
+    // Firestore rejects explicit `undefined` field values - drop them so
+    // the chunked fields are simply absent from 'main' instead of erroring.
+    delete mainPayload.transactions;
+    delete mainPayload.rdnMutations;
+
+    await mainDataRef.set(mainPayload, { merge: false });
     await userRef.set({
       email: email,
       storageMode: 'FIREBASE_FIRESTORE_CLOUD',
       lastActiveAt: new Date().toISOString()
     }, { merge: true });
-
-    // Sync to alternative UID alias if applicable
-    var altUid = uid.replace(/_40/g, '_');
-    if(altUid !== uid){
-      try {
-        db.collection('users').doc(altUid).collection('data').doc('main').set(payload, { merge: true });
-      } catch(e){}
-    }
 
     return true;
   } catch(err) {
@@ -1241,6 +1319,25 @@ async function fireLoadAllData(){
     }
 
     var cloudData = snap.data() || {};
+
+    // Reassemble transactions/rdnMutations from their chunk documents when
+    // present (see fireSaveAllData) - a 'main' doc saved before chunking
+    // existed still carries them inline, so only override when chunk
+    // counts are actually present.
+    if(typeof cloudData.txChunkCount === 'number' || typeof cloudData.rdnChunkCount === 'number'){
+      try {
+        var chunkUserRef = db.collection('users').doc(uid);
+        if(typeof cloudData.txChunkCount === 'number'){
+          cloudData.transactions = await _readChunkedField(chunkUserRef, 'tx', cloudData.txChunkCount);
+        }
+        if(typeof cloudData.rdnChunkCount === 'number'){
+          cloudData.rdnMutations = await _readChunkedField(chunkUserRef, 'rdn', cloudData.rdnChunkCount);
+        }
+      } catch(chunkErr){
+        console.warn('Firestore chunk reassembly notice:', chunkErr);
+      }
+    }
+
     _applyCloudPayload(cloudData, currentLocalState);
 
     // If local state had new items not in cloud, push to Firestore (hanya jika data cloud tidak dalam status explicitly cleared)
@@ -1424,10 +1521,23 @@ function loadData(){
           if(typeof equityHistorySave === 'function') equityHistorySave(d.equityHistory);
         }
 
-        // ── AUTO-HEAL & MIGRASI SCHEMA: 22 Saham Portofolio Stockbit (Total 4.449 Lot) ──
+        // ── AUTO-HEAL & MIGRASI SCHEMA (khusus 1x, saham yang SUDAH ADA) ──
+        // FIX AUDIT (CRITICAL): the OR-clause below used to also fire this
+        // migration whenever `transactions` was simply empty — with NO
+        // relation to the specific corrupted-schema signature this block
+        // exists to repair. Any time the user's real data hadn't loaded
+        // yet (a slow Firestore read, a cleared local cache, a fresh
+        // device) this silently overwrote it in memory with a HARDCODED
+        // demo 22-stock "Stockbit" portfolio (INITIAL_PORTO_2026) and then
+        // called saveData() a few lines below — persisting that fake
+        // portfolio back to Firestore/server, permanently clobbering the
+        // user's real transactions with fabricated ones (reported by user:
+        // "data yang sudah saya isi hilang semua"). This block must only
+        // ever repair the ONE known bad schema it was written for — an
+        // empty/not-yet-loaded state must never trigger it.
         var curVer = localStorage.getItem('mw_data_version');
         var isCorrupted = false;
-        if(d.transactions && Array.isArray(d.transactions)){
+        if(d.transactions && Array.isArray(d.transactions) && d.transactions.length > 0){
           var ggrm = d.transactions.find(function(t){ return t && t.ticker === 'GGRM'; });
           var bbri = d.transactions.find(function(t){ return t && t.ticker === 'BBRI'; });
           if(ggrm && (ggrm.lot === 3 || ggrm.lot === 600 || ggrm.price === 134605)) isCorrupted = true;
@@ -1435,7 +1545,7 @@ function loadData(){
         }
         if(typeof d.rdnBalance === 'number' && d.rdnBalance < -100000000) isCorrupted = true;
 
-        if((curVer !== '2026.09.03_v5_lot4449' && isCorrupted) || (!transactions || transactions.length === 0)){
+        if(curVer !== '2026.09.03_v5_lot4449' && isCorrupted){
           console.log('[Auto-Heal] Migrating portfolio to authoritative 22-stock portfolio (4.449 Lot, Modal Rp 680jt, RDN Rp 52jt)...');
           transactions = JSON.parse(JSON.stringify(INITIAL_PORTO_2026));
           activeSekuritas = 'Stockbit';
@@ -1485,10 +1595,17 @@ function loadData(){
       }
     }
 
-    if(!transactions || transactions.length === 0){
-      initPortfolio2026(true);
-    }
-
+    // FIX AUDIT (CRITICAL, same root cause as above): this ran
+    // SYNCHRONOUSLY, before the async server-mirror fallback fetch further
+    // below even starts — so on every load where the local cache was
+    // simply empty or not-yet-populated (slow network, cleared cache, new
+    // device/browser), it force(true)-replaced transactions with the
+    // hardcoded INITIAL_PORTO_2026 demo portfolio immediately, and by the
+    // time the real async check could have found and restored the user's
+    // actual data, saveData() calls elsewhere may already have persisted
+    // the fake portfolio over it. An empty portfolio is now left honestly
+    // empty here; the async fallback below (and any real cloud data) is
+    // what's allowed to populate it.
     if(typeof equityHistoryLoad === 'function') equityHistoryLoad();
     nextTxId  = Math.max(nextTxId || 1, _maxIdPlus1(transactions));
     nextDivId = Math.max(nextDivId || 1, _maxIdPlus1(dividends));
@@ -1622,6 +1739,13 @@ async function clearData(skipConfirm){
   } catch(e){}
 
   // 3. Bersihkan server storage mirror secara sinkron/menunggu
+  // FIX AUDIT (CRITICAL, multi-tenant isolation): this always sent
+  // purgeAll:true regardless of whether a uid was actually known - and
+  // server-side, purgeAll:true deletes EVERY user's local storage-mirror
+  // file, not just the caller's. Any single account clicking "Reset Data"
+  // wiped every other account's server-mirror copy too. purgeAll must
+  // only ever be true as a last-resort when no uid/email identifies the
+  // caller at all - never as the default for an identified user.
   var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
   var email = (typeof PRIMARY_USER_EMAIL !== 'undefined') ? PRIMARY_USER_EMAIL : '';
   if(typeof fetch === 'function'){
@@ -1629,7 +1753,7 @@ async function clearData(skipConfirm){
       await fetch('/api/user-data/clear', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: uid, email: email, purgeAll: true })
+        body: JSON.stringify({ uid: uid, email: email, purgeAll: !uid && !email })
       });
     } catch(e){
       console.warn('Server storage clear notice:', e);

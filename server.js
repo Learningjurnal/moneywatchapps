@@ -30,7 +30,17 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+// FIX AUDIT: express.json()'s default body-size limit is 100kb - a
+// portfolio with a realistic number of transactions (hundreds to
+// thousands, as a multi-year trading history accumulates) easily exceeds
+// that, well under the route's own explicit 10MB check further down in
+// /api/user-data/save. Express's body-parser middleware rejects the
+// request with a 413 BEFORE it ever reaches that route handler, and the
+// client's fire-and-forget fetch (no response handling) swallows the
+// failure silently - saveData() reports success while nothing was
+// actually persisted server-side. Raised to match the route's own
+// documented 10MB ceiling.
+app.use(express.json({ limit: '10mb' }));
 
 // FIX (bug, bukan keputusan sumber data): endpoint AI (Gemini) sebelumnya
 // TANPA rate limiting sama sekali — bisa dipakai membengkakkan biaya API
@@ -356,7 +366,13 @@ app.post('/api/user-data/clear', (req, res) => {
   try {
     const body = req.body || {};
     const uid = body.uid || body.email || req.query.uid || req.query.email || '';
-    const purgeAll = body.purgeAll === true || !uid;
+    // FIX AUDIT (CRITICAL, multi-tenant isolation): previously trusted a
+    // client-supplied `purgeAll:true` even when a uid/email WAS present,
+    // deleting every account's local storage-mirror file instead of just
+    // the caller's. A full purge is only ever justified when the request
+    // genuinely carries no identifier at all - never as a client-chosen
+    // flag for an identified user's own "clear my data" action.
+    const purgeAll = !uid;
 
     if (fs.existsSync(USER_STORES_DIR)) {
       const files = fs.readdirSync(USER_STORES_DIR);
