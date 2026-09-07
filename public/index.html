@@ -3044,10 +3044,13 @@
           <button type="button" onclick="hw_loadStock('SIDO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">SIDO</button>
           <button type="button" onclick="hw_loadStock('PGEO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">PGEO</button>
           <button type="button" onclick="hw_loadStock('ERAA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ERAA</button>
-          <button type="button" onclick="hw_loadStock('AADI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">AADI</button>
-          <button type="button" onclick="hw_loadStock('PTRO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">PTRO</button>
-          <button type="button" onclick="hw_loadStock('ADMR')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ADMR</button>
-          <button type="button" onclick="hw_loadStock('DEWA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">DEWA</button>
+          <!-- AADI/PTRO/ADMR/DEWA removed from this row: audited
+               STOCK_FINANCIAL_DATABASE and their entries are empty stubs
+               (price only, zero real eps/equity/shares/dps/per/netIncome
+               across all 5 years) - keeping them under a "Real Data"
+               label was itself misleading, even though clicking one no
+               longer produces a fabricated verdict (see hw_ensureTickerSynced). -->
+          <button type="button" onclick="hw_loadStock('CPRI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">CPRI</button>
         </div>
       </div>
 
