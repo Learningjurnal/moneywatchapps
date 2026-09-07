@@ -655,6 +655,27 @@ function _makeTxSig(t){
   return (t.date || '') + '|' + (t.type || '') + '|' + (t.ticker || '') + '|' + (t.lot || 0) + '|' + (t.price || 0) + '|' + (t.sekuritas || '');
 }
 
+// FIX AUDIT (CRITICAL, data loss): every caller that builds a "current
+// local state" object for _mergeDatasets() without a real savedAt/
+// updatedAt makes _mergeDatasets() compute localTime as
+// new Date(0).getTime() === 0, no matter how much real data was just
+// saved - which then always loses to a stale isExplicitlyEmpty:true cloud
+// doc's "!localTime || cloudTime >= localTime" check (0 is falsy). Shared
+// here so every call site (fireLoadAllData(), _applyCloudPayload()'s
+// single-argument fallback used by the realtime/SSE listeners, and any
+// future one) reads the SAME real last-saved timestamp instead of each
+// silently defaulting to none.
+function _getLocalSavedTimestamps(){
+  try {
+    var raw = localStorage.getItem(getUserStorageKey('mw_local_data_v3'));
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed) return { savedAt: parsed.savedAt, updatedAt: parsed.updatedAt };
+    }
+  } catch(e){}
+  return { savedAt: undefined, updatedAt: undefined };
+}
+
 function _mergeDatasets(localObj, cloudObj){
   var local = localObj || {};
   var cloud = cloudObj || {};
@@ -1314,23 +1335,28 @@ async function fireSaveAllData(){
 
 function _applyCloudPayload(cloudData, currentLocalState) {
   if (!cloudData) return;
-  var localState = currentLocalState || {
-    transactions: transactions || [],
-    dividends: dividends || [],
-    rdnMutations: rdnMutations || [],
-    cryptoTx: cryptoTx || [],
-    etfTx: etfTx || [],
-    rdTx: rdTx || [],
-    divInvestData: divInvestData || [],
-    tradeStrategy: tradeStrategy || {},
-    theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
-    journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
-    wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
-    taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
-    cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
-    activeSekuritas: activeSekuritas || 'Stockbit',
-    rdnBalance: rdnBalance || 0
-  };
+  var localState = currentLocalState || (function(){
+    var ts = _getLocalSavedTimestamps();
+    return {
+      transactions: transactions || [],
+      dividends: dividends || [],
+      rdnMutations: rdnMutations || [],
+      cryptoTx: cryptoTx || [],
+      etfTx: etfTx || [],
+      rdTx: rdTx || [],
+      divInvestData: divInvestData || [],
+      tradeStrategy: tradeStrategy || {},
+      theses: (typeof MW_THESES !== 'undefined') ? MW_THESES : [],
+      journals: (typeof MW_JOURNALS !== 'undefined') ? MW_JOURNALS : [],
+      wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
+      taxSettings: (typeof TAX_SETTINGS !== 'undefined') ? TAX_SETTINGS : {},
+      cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
+      activeSekuritas: activeSekuritas || 'Stockbit',
+      rdnBalance: rdnBalance || 0,
+      savedAt: ts.savedAt,
+      updatedAt: ts.updatedAt
+    };
+  })();
 
   var merged = _mergeDatasets(localState, cloudData);
 
@@ -1485,16 +1511,13 @@ async function fireLoadAllData(){
     // branch's "!localTime || cloudTime >= localTime" check always won
     // (0 is falsy), silently wiping fresh local data back to empty on the
     // very next load - regardless of how recently it was saved. Read the
-    // real last-saved timestamp back from the local persisted record so
-    // the timestamp comparison actually reflects reality; leave it
-    // undefined (localTime stays 0) only when there truly is no prior
-    // local save, so a genuinely fresh device still correctly defers to
-    // cloud data instead of a fabricated "now".
-    var _localSavedRecord = null;
-    try {
-      var _localRawForTime = localStorage.getItem(getUserStorageKey('mw_local_data_v3'));
-      if (_localRawForTime) _localSavedRecord = JSON.parse(_localRawForTime);
-    } catch(e){}
+    // real last-saved timestamp back from the local persisted record (via
+    // the shared _getLocalSavedTimestamps() helper - see its definition
+    // for why this must be shared) so the timestamp comparison actually
+    // reflects reality; leave it undefined (localTime stays 0) only when
+    // there truly is no prior local save, so a genuinely fresh device
+    // still correctly defers to cloud data instead of a fabricated "now".
+    var _localTs = _getLocalSavedTimestamps();
 
     var currentLocalState = {
       transactions: transactions || [],
@@ -1512,8 +1535,8 @@ async function fireLoadAllData(){
       cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
       activeSekuritas: activeSekuritas || 'Stockbit',
       rdnBalance: rdnBalance || 0,
-      savedAt: _localSavedRecord && _localSavedRecord.savedAt,
-      updatedAt: _localSavedRecord && _localSavedRecord.updatedAt
+      savedAt: _localTs.savedAt,
+      updatedAt: _localTs.updatedAt
     };
 
     // Jika dokumen belum ada di Firestore tapi ada data lokal, migrasikan jika bukan data kosong/reset
