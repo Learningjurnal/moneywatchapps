@@ -985,6 +985,10 @@ function renderPage(name){
       if(typeof renderDividendCalendarComponent==='function') renderDividendCalendarComponent();
       break;
     case 'divinvest':renderDivInvest();break;
+    case 'sectoral-insight':
+      if(typeof renderSectoralInsightPage==='function') renderSectoralInsightPage();
+      else renderSektoral();
+      break;
     case 'sektoral':renderSektoral();break;
     case 'pajak':renderPajak();break;
     case 'knowledge':if(typeof initKnowledgeSuite==='function') initKnowledgeSuite();break;

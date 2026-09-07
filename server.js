@@ -198,6 +198,9 @@ app.post('/api/user-data/save', (req, res) => {
     // Asynchronously replicate to Firestore Cloud
     syncRecordToFirestoreCloud(uid, record.data);
 
+    // Broadcast realtime update to all connected multi-device client sessions
+    broadcastSyncUpdate(uid, record.data, req.headers['x-device-session-id'] || null);
+
     const txCount = (record.data && Array.isArray(record.data.transactions)) ? record.data.transactions.length : 0;
     const rdnCount = (record.data && Array.isArray(record.data.rdnMutations)) ? record.data.rdnMutations.length : 0;
 
@@ -424,6 +427,82 @@ app.post('/api/user-data/clear', (req, res) => {
       message: err.message
     });
   }
+});
+
+// ══════════════════════════════════════════════════════════
+// REALTIME MULTI-DEVICE SYNCHRONIZATION BUS (SSE STREAM)
+// ══════════════════════════════════════════════════════════
+const syncClients = new Map(); // Map<string (clientId), { uid: string, res: Response, deviceId: string }>
+
+function broadcastSyncUpdate(targetUid, dataObj, originDeviceId) {
+  if (!targetUid || !dataObj) return;
+  const normalizedTargetUid = String(targetUid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+  
+  const payloadStr = JSON.stringify({
+    type: 'PORTFOLIO_SYNC_UPDATE',
+    uid: targetUid,
+    updatedAt: dataObj.updatedAt || new Date().toISOString(),
+    data: dataObj,
+    originDeviceId: originDeviceId || null
+  });
+
+  let recipientCount = 0;
+  for (const [clientId, client] of syncClients.entries()) {
+    const clientNormalizedUid = String(client.uid || '').toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
+    // Send to all client sessions belonging to the same user
+    if (clientNormalizedUid === normalizedTargetUid || client.uid === targetUid || !client.uid) {
+      if (originDeviceId && client.deviceId === originDeviceId) {
+        // Skip echo to the exact same device that originated the save
+        continue;
+      }
+      try {
+        client.res.write(`data: ${payloadStr}\n\n`);
+        recipientCount++;
+      } catch (err) {
+        console.warn(`Error writing SSE to client ${clientId}:`, err.message);
+        try { client.res.end(); } catch (e) {}
+        syncClients.delete(clientId);
+      }
+    }
+  }
+  if (recipientCount > 0) {
+    console.log(`[SSE Sync Bus] Broadcasted portfolio update for ${targetUid} to ${recipientCount} other active device session(s).`);
+  }
+}
+
+// Server-Sent Events endpoint for multi-device realtime sync
+app.get('/api/sync/stream', (req, res) => {
+  const uid = req.query.uid || req.query.email || '';
+  const deviceId = req.query.deviceId || req.headers['x-device-session-id'] || 'device_' + Math.random().toString(36).slice(2, 9);
+  const clientId = 'conn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders && res.flushHeaders();
+
+  syncClients.set(clientId, { uid, deviceId, res });
+  console.log(`[SSE Sync Bus] Device connected: ${clientId} (uid: ${uid}, deviceId: ${deviceId}). Total active: ${syncClients.size}`);
+
+  // Send initial handshake
+  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', clientId, deviceId, timestamp: new Date().toISOString() })}\n\n`);
+
+  // Periodic heartbeat every 20s to keep connection alive through reverse proxies
+  const heartbeatTimer = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch (err) {
+      clearInterval(heartbeatTimer);
+      syncClients.delete(clientId);
+    }
+  }, 20000);
+
+  req.on('close', () => {
+    clearInterval(heartbeatTimer);
+    syncClients.delete(clientId);
+    console.log(`[SSE Sync Bus] Device disconnected: ${clientId}. Remaining: ${syncClients.size}`);
+  });
 });
 
 // ══════════════════════════════════════════════════════════
@@ -1009,7 +1088,272 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
   }
 });
 
-// AI Portfolio Advisor endpoint powered by Gemini 3.7 Flash with Google Search Grounding
+// ══════════════════════════════════════════════════════════
+// SECTORAL MARKET NEWS & CATALYST INTELLIGENCE ENDPOINT
+// ══════════════════════════════════════════════════════════
+const SECTOR_NEWS_FALLBACK = [
+  {
+    id: "sec_fin_1",
+    sector: "Financials",
+    sectorName: "Keuangan",
+    title: "Akumulasi Asing Mengalir ke Bank KBMI 4, Pertumbuhan Kredit Perbankan Diproyeksi Capai 10-12%",
+    summary: "Investor institusi dan asing melanjutkan net buy pada saham bank berkapitalisasi besar (BBCA, BMRI, BBRI, BBNI) seiring solidnya pertumbuhan kredit produktif serta rasio kecukupan modal (CAR) perbankan nasional yang kuat di atas 26%.",
+    source: "CNBC Indonesia",
+    url: "https://www.cnbcindonesia.com/market",
+    category: "Perbankan & Moneter",
+    impact: "BULLISH",
+    impactReason: "Foreign Inflow & Margin Bunga Stabil",
+    tickers: ["BBCA", "BBRI", "BMRI", "BBNI"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_ene_1",
+    sector: "Energy",
+    sectorName: "Energi",
+    title: "Permintaan Musiman Batubara & Ekspansi Panas Bumi Pacu Likuiditas Emiten Energi",
+    summary: "Emiten sektor energi seperti ADRO, PTBA, dan PGEO mencatatkan peningkatan volume sejalan dengan penguatan harga batubara termal di pasar Asia serta percepatan komisioning proyek geothermal ramah lingkungan.",
+    source: "Bisnis.com",
+    url: "https://market.bisnis.com",
+    category: "Energi & Komoditas",
+    impact: "BULLISH",
+    impactReason: "Katalis Dividen Yield & EBT",
+    tickers: ["ADRO", "PTBA", "PGEO", "PGAS"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_bas_1",
+    sector: "Basic Materials",
+    sectorName: "Barang Baku",
+    title: "Harga Emas Rekor dan Prospek Hilirisasi Mineral Topang Kinerja Saham Tambang",
+    summary: "Penguatan harga emas spot global memberikan dorongan marjin bagi ANTM, sementara emiten nikel seperti INCO dan MDKA terus mengoptimalkan efisiensi smelter HPAL di tengah fluktuasi harga komoditas logam dasar global.",
+    source: "Kontan",
+    url: "https://investasi.kontan.co.id",
+    category: "Mineral & Tambang",
+    impact: "NEUTRAL",
+    impactReason: "Emas Bullish vs Volatilitas Nikel",
+    tickers: ["ANTM", "INCO", "MDKA"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_cno_1",
+    sector: "Consumer Non-Cyclicals",
+    sectorName: "Konsumer Primer",
+    title: "Stabilisasi Harga Bahan Baku Gandum dan CPO Jaga Profitabilitas Industri Makanan Minuman",
+    summary: "Emiten konsumen primer ICBP, INDF, dan UNVR mempertahankan margin laba kotor yang sehat berkat moderasi biaya input komoditas serta daya beli masyarakat segmen mass-market yang tetap tangguh.",
+    source: "Investor Daily",
+    url: "https://investor.id",
+    category: "Konsumsi Domestik",
+    impact: "BULLISH",
+    impactReason: "Margin Laba Kotor Terjaga",
+    tickers: ["ICBP", "INDF", "UNVR"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_inf_1",
+    sector: "Infrastructures",
+    sectorName: "Infrastruktur",
+    title: "Konsolidasi Capex dan Monetisasi Fiber Optik Dorong Arus Kas Emiten Telekomunikasi",
+    summary: "Operator telekomunikasi TLKM dan EXCL fokus pada efisiensi belanja modal (capex) 5G dan monetisasi portofolio infrastruktur menara serta data center untuk memperkuat arus kas bebas (free cash flow).",
+    source: "Bloomberg Technoz",
+    url: "https://www.bloombergtechnoz.com",
+    category: "Infrastruktur & Telco",
+    impact: "BULLISH",
+    impactReason: "Monetisasi Fixed Mobile Convergence",
+    tickers: ["TLKM", "EXCL", "ISAT"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_tec_1",
+    sector: "Technology",
+    sectorName: "Teknologi",
+    title: "Emiten Teknologi Fokus Cetak Profitabilitas Operasional & Rasio Take Rate Berkelanjutan",
+    summary: "Saham teknologi digital seperti GOTO dan BUKA memperketat efisiensi promosi terarah guna mempertahankan perbaikan adjusted EBITDA positif, di tengah selektivitas investor terhadap pertumbuhan kualitas tinggi.",
+    source: "Katadata",
+    url: "https://katadata.co.id",
+    category: "Teknologi Digital",
+    impact: "NEUTRAL",
+    impactReason: "Transisi Profitabilitas Berjalan",
+    tickers: ["GOTO", "BUKA", "EMTK"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_pro_1",
+    sector: "Properties & Real Estate",
+    sectorName: "Properti",
+    title: "Perpanjangan Insentif PPN DTP Dorong Prapenjualan (Marketing Sales) Pengembang Properti",
+    summary: "Pengembang properti terkemuka (BSDE, PWON, CTRA) mencatat minat tinggi pembeli rumah pertama menyusul kelanjutan stimulus pembebasan pajak PPN ditanggung pemerintah serta peluncuran klaster township baru.",
+    source: "Bisnis.com",
+    url: "https://market.bisnis.com",
+    category: "Properti & Residensial",
+    impact: "BULLISH",
+    impactReason: "Stimulus PPN DTP & Permintaan Residensial",
+    tickers: ["BSDE", "PWON", "CTRA"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_hea_1",
+    sector: "Healthcare",
+    sectorName: "Kesehatan",
+    title: "Belanja Preventif & Penetrasi Produk Farmasi Herbal Dorong Pendapatan Stabil Sektor Kesehatan",
+    summary: "Emiten farmasi dan jamu seperti KLBF dan SIDO mempertahankan marjin operasi yang defensif didukung oleh kestabilan rantai pasok bahan baku dan perluasan penetrasi pasar ekspor regional.",
+    source: "Kontan",
+    url: "https://investasi.kontan.co.id",
+    category: "Farmasi & Kesehatan",
+    impact: "NEUTRAL",
+    impactReason: "Defensif & Cash Flow Sehat",
+    tickers: ["KLBF", "SIDO"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_ind_1",
+    sector: "Industrials",
+    sectorName: "Perindustrian",
+    title: "Permintaan Alat Berat dan Otomotif Komersial Menunjukkan Tren Pemulihan Bertahap",
+    summary: "Grup Astra (ASII) dan distributor alat berat mempertahankan portofolio bisnis terdiversifikasi dengan kontribusi dividen yang solid dari lini jasa pertambangan dan agribisnis.",
+    source: "CNBC Indonesia",
+    url: "https://www.cnbcindonesia.com/market",
+    category: "Otomotif & Alat Berat",
+    impact: "BULLISH",
+    impactReason: "Dividen Yield Tinggi & Neraca Kas Tebal",
+    tickers: ["ASII", "UNTR"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_tra_1",
+    sector: "Transportation & Logistics",
+    sectorName: "Transportasi & Logistik",
+    title: "Efisiensi Rute Logistik Maritim dan Kenaikan Volume Kargo Domestik",
+    summary: "Emiten pelayaran peti kemas seperti SMDR dan TMAS mempertahankan utilisasi kapal logistik nusantara yang tinggi guna mendukung kelancaran rantai distribusi antarpulau.",
+    source: "Bisnis.com",
+    url: "https://market.bisnis.com",
+    category: "Transportasi Laut",
+    impact: "NEUTRAL",
+    impactReason: "Utilisasi Armada Domestik Tinggi",
+    tickers: ["SMDR", "TMAS", "BIRD"],
+    time: "Terbaru"
+  },
+  {
+    id: "sec_ccy_1",
+    sector: "Consumer Cyclicals",
+    sectorName: "Konsumer Non-Primer",
+    title: "Pusat Perbelanjaan & Ritel Gaya Hidup Catat Kenaikan Trafik Pengunjung",
+    summary: "Emiten ritel modern seperti ACES, MAPI, dan ERAA membukukan pertumbuhan penjualan toko yang sama (SSSG) yang solid menjelang periode liburan dan promosi musiman.",
+    source: "Investor Daily",
+    url: "https://investor.id",
+    category: "Ritel & Gaya Hidup",
+    impact: "BULLISH",
+    impactReason: "Trafik Pengunjung Mall Tinggi",
+    tickers: ["ACES", "MAPI", "ERAA"],
+    time: "Terbaru"
+  }
+];
+
+let sectoralNewsCache = {
+  data: null,
+  timestamp: 0,
+  rateLimitedUntil: 0
+};
+
+app.get('/api/sectoral-news', async (req, res) => {
+  const targetSector = (req.query.sector || '').trim().toLowerCase();
+  const force = req.query.force === 'true';
+  const now = Date.now();
+  const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+  let newsList = SECTOR_NEWS_FALLBACK;
+
+  // Check cache
+  if (!force && sectoralNewsCache.data && (now - sectoralNewsCache.timestamp < CACHE_TTL_MS)) {
+    newsList = sectoralNewsCache.data;
+  } else {
+    // Attempt Gemini search grounding if AI client is available and not rate limited
+    const ai = getAiClient();
+    if (ai && now > sectoralNewsCache.rateLimitedUntil) {
+      try {
+        const prompt = `Cari berita pasar modal terbaru dari Google Search untuk sektor-sektor Bursa Efek Indonesia (IDX/IHSG) terkini:
+Fokus pada sektor perbankan (BBCA, BMRI, BBRI), energi (ADRO, PTBA, PGEO), barang baku (ANTM, INCO), konsumer, dan infrastruktur.
+Kembalikan persis format JSON array tanpa markdown:
+[
+  {
+    "id": "sec_1",
+    "sector": "Financials",
+    "sectorName": "Keuangan",
+    "title": "Judul berita riil dan akurat",
+    "summary": "Ringkasan 1-2 kalimat dampak ke saham/sektor",
+    "source": "Nama media (CNBC Indonesia/Bisnis/Kontan/Bloomberg)",
+    "url": "https://...",
+    "category": "Kategori berita",
+    "impact": "BULLISH" atau "BEARISH" atau "NEUTRAL",
+    "impactReason": "Alasan singkat",
+    "tickers": ["BBCA", "BMRI"],
+    "time": "Terbaru"
+  }
+]`;
+        const { response } = await callGeminiWithRetryAndFallback(
+          ai,
+          {
+            model: 'gemini-3.7-flash',
+            contents: prompt,
+            config: { tools: [{ googleSearch: {} }] }
+          },
+          { timeoutMs: 15000, maxRetries: 1 }
+        );
+
+        const rawText = response.text || '';
+        let clean = rawText.trim().replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        const first = clean.indexOf('[');
+        const last = clean.lastIndexOf(']');
+        if (first !== -1 && last !== -1) {
+          const parsed = JSON.parse(clean.substring(first, last + 1));
+          if (Array.isArray(parsed) && parsed.length >= 3) {
+            // Merge with fallback items for missing sectors
+            const merged = [...parsed];
+            SECTOR_NEWS_FALLBACK.forEach(fb => {
+              if (!merged.some(m => String(m.sector).toLowerCase() === String(fb.sector).toLowerCase())) {
+                merged.push(fb);
+              }
+            });
+            sectoralNewsCache = {
+              data: merged,
+              timestamp: now,
+              rateLimitedUntil: 0
+            };
+            newsList = merged;
+          }
+        }
+      } catch (err) {
+        const msg = (err && err.message) ? err.message : String(err);
+        if (msg.includes('429') || msg.includes('quota')) {
+          sectoralNewsCache.rateLimitedUntil = now + 120000;
+        }
+        newsList = SECTOR_NEWS_FALLBACK;
+      }
+    }
+  }
+
+  // Filter by sector if requested
+  if (targetSector && targetSector !== 'all') {
+    const filtered = newsList.filter(item => {
+      const s1 = String(item.sector || '').toLowerCase();
+      const s2 = String(item.sectorName || '').toLowerCase();
+      return s1.includes(targetSector) || s2.includes(targetSector) || targetSector.includes(s1);
+    });
+    return res.json({
+      success: true,
+      sector: targetSector,
+      count: filtered.length,
+      timestamp: now,
+      headlines: filtered.length > 0 ? filtered : newsList.slice(0, 5)
+    });
+  }
+
+  return res.json({
+    success: true,
+    count: newsList.length,
+    timestamp: now,
+    headlines: newsList
+  });
+});
 app.post('/api/ai/portfolio-advice', aiRateLimiter, async (req, res) => {
   const { portfolioSummary, metrics, hfMetrics, ihsg } = req.body || {};
   const ai = getAiClient();

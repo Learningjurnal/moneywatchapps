@@ -34,3 +34,9 @@ data/user-stores/*.json
 # Local-only AI agent tooling (Claude Code skills, not part of the app)
 .claude/
 
+# Bun lockfile & Root static duplicates (authoritative app lives in public/)
+bun.lock
+/index.html
+/css/
+/js/
+

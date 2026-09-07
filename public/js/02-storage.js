@@ -786,6 +786,21 @@ var _syncInFlight = false;
 var _syncQueued = false;
 var _realtimeListenerUnsub = null;
 var _isApplyingCloudSnapshot = false;
+var _sseSyncSource = null;
+
+// Unique Device / Session Identifier across tabs and devices
+var _DEVICE_SESSION_ID = (function(){
+  try {
+    var id = sessionStorage.getItem('mw_device_session_id');
+    if(!id){
+      id = 'dev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+      sessionStorage.setItem('mw_device_session_id', id);
+    }
+    return id;
+  } catch(e){
+    return 'dev_' + Date.now();
+  }
+})();
 
 function _syncToServerMirror(payload){
   try {
@@ -801,7 +816,10 @@ function _syncToServerMirror(payload){
     if(typeof fetch === 'function'){
       fetch('/api/user-data/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Device-Session-Id': _DEVICE_SESSION_ID
+        },
         keepalive: true,
         body: JSON.stringify({
           uid: uid,
@@ -814,8 +832,60 @@ function _syncToServerMirror(payload){
   } catch(e){}
 }
 
+// ── SETUP REALTIME MULTI-DEVICE SYNCHRONIZATION BUS ──
+function setupMultiDeviceSyncListener(uid){
+  if(typeof window === 'undefined' || !window.EventSource) return;
+  if(_sseSyncSource){
+    try { _sseSyncSource.close(); } catch(e){}
+    _sseSyncSource = null;
+  }
+
+  var targetUid = uid || (typeof getFirestoreUserUid === 'function' ? getFirestoreUserUid() : 'u_andry_zuma_musa_40gmail_com');
+  var streamUrl = '/api/sync/stream?uid=' + encodeURIComponent(targetUid) + '&deviceId=' + encodeURIComponent(_DEVICE_SESSION_ID);
+
+  try {
+    _sseSyncSource = new EventSource(streamUrl);
+    _sseSyncSource.onmessage = function(event){
+      if(!event || !event.data) return;
+      try {
+        var msg = JSON.parse(event.data);
+        if(msg.type === 'PORTFOLIO_SYNC_UPDATE' && msg.data){
+          // Ignore if broadcast originated from this exact device session
+          if(msg.originDeviceId && msg.originDeviceId === _DEVICE_SESSION_ID) return;
+          if(_syncInFlight || _isApplyingCloudSnapshot) return;
+
+          console.log('[Multi-Device Sync] Incoming portfolio reconcile from another device session:', msg.updatedAt);
+          _isApplyingCloudSnapshot = true;
+          try {
+            _applyCloudPayload(msg.data);
+            if(typeof renderPage === 'function' && typeof currentPage !== 'undefined'){
+              renderPage(currentPage);
+            }
+            if(typeof showSaveStatus === 'function'){
+              showSaveStatus('⚡ Sinkronisasi realtime diterima dari perangkat lain', 'var(--blue)');
+            }
+          } finally {
+            _isApplyingCloudSnapshot = false;
+          }
+        }
+      } catch(err){
+        console.warn('SSE stream message parse error:', err);
+      }
+    };
+
+    _sseSyncSource.onerror = function(){
+      // EventSource automatically reconnects on error
+    };
+  } catch(e){
+    console.warn('Unable to initialize EventSource multi-device sync:', e);
+  }
+}
+
 // ── SETUP REALTIME FIRESTORE CROSS-DEVICE SYNC ──
 function setupFirestoreRealtimeListener(uid){
+  // Always connect multi-device SSE sync channel for instantaneous cross-session synchronization
+  setupMultiDeviceSyncListener(uid);
+
   var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
   if(!db || !uid) return;
   if(_realtimeListenerUnsub){
@@ -833,50 +903,10 @@ function setupFirestoreRealtimeListener(uid){
       var cData = docSnap.data();
       if(!cData) return;
 
-      // Cek apakah updatedAt dari cloud lebih baru atau berbeda dari state saat ini
-      var currentTxLen = (transactions || []).length;
-      var cloudTxLen = (cData.transactions || []).length;
-      
       // Terapkan update dari cloud ke memori perangkat
       _isApplyingCloudSnapshot = true;
       try {
-        if(Array.isArray(cData.transactions)) transactions = cData.transactions;
-        if(Array.isArray(cData.dividends)) dividends = cData.dividends;
-        if(Array.isArray(cData.rdnMutations)) rdnMutations = cData.rdnMutations;
-        if(Array.isArray(cData.cryptoTx)) cryptoTx = cData.cryptoTx;
-        if(Array.isArray(cData.etfTx)) etfTx = cData.etfTx;
-        if(Array.isArray(cData.rdTx)) rdTx = cData.rdTx;
-        if(Array.isArray(cData.divInvestData)) divInvestData = cData.divInvestData;
-        if(cData.activeSekuritas) activeSekuritas = cData.activeSekuritas;
-        if(typeof cData.rdnBalance === 'number') rdnBalance = cData.rdnBalance;
-        if(cData.taxSettings && typeof TAX_SETTINGS !== 'undefined') Object.assign(TAX_SETTINGS, cData.taxSettings);
-        if(cData.cashAccounts && typeof CASH_ACCOUNTS !== 'undefined') Object.assign(CASH_ACCOUNTS, cData.cashAccounts);
-        if(cData.tradeStrategy) tradeStrategy = Object.assign({}, tradeStrategy, cData.tradeStrategy);
-        if(cData.theses && typeof MW_THESES !== 'undefined') MW_THESES = cData.theses;
-        if(cData.journals && typeof MW_JOURNALS !== 'undefined') MW_JOURNALS = cData.journals;
-        if(cData.wealth && typeof WEALTH !== 'undefined') Object.assign(WEALTH, cData.wealth);
-
-        // Simpan salinan terbaru ke local storage perangkat ini agar offline-ready
-        try {
-          var snapshotPayload = {
-            transactions: transactions,
-            dividends: dividends,
-            rdnMutations: rdnMutations,
-            cryptoTx: cryptoTx,
-            etfTx: etfTx,
-            rdTx: rdTx,
-            divInvestData: divInvestData,
-            tradeStrategy: tradeStrategy,
-            activeSekuritas: activeSekuritas,
-            rdnBalance: rdnBalance,
-            wealth: (typeof WEALTH !== 'undefined') ? WEALTH : null,
-            savedAt: cData.updatedAt || new Date().toISOString()
-          };
-          localStorage.setItem('mw_local_data_v2', JSON.stringify(snapshotPayload));
-          localStorage.setItem('mw_emergency_backup_v2', JSON.stringify(snapshotPayload));
-        } catch(e){}
-
-        if(typeof reconcileRdnWithTransactions === 'function') reconcileRdnWithTransactions(true);
+        _applyCloudPayload(cData);
         if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
       } finally {
         _isApplyingCloudSnapshot = false;
@@ -1271,6 +1301,27 @@ async function fireLoadAllData(){
   } catch(err) {
     var errStr = (err && err.message) ? err.message : String(err);
     console.warn('Firebase Firestore load notice:', errStr);
+    // Fallback to server mirror if available
+    if (typeof fetch === 'function') {
+      try {
+        var srvRes = await fetch('/api/user-data/load?uid=' + encodeURIComponent(uid));
+        if (srvRes.ok) {
+          var srvJson = await srvRes.json();
+          if (srvJson && srvJson.data) {
+            _applyCloudPayload(srvJson.data);
+            setupFirestoreRealtimeListener(uid);
+            if(typeof validateAndSyncEquityHistory === 'function'){
+              try { validateAndSyncEquityHistory(false); } catch(e){}
+            }
+            if(typeof renderPage === 'function' && typeof currentPage !== 'undefined'){
+              renderPage(currentPage);
+            }
+            return true;
+          }
+        }
+      } catch(e) {}
+    }
+    setupFirestoreRealtimeListener(uid);
     return false;
   }
 }
@@ -1435,7 +1486,8 @@ function loadData(){
         }
         if(typeof d.rdnBalance === 'number' && d.rdnBalance < -100000000) isCorrupted = true;
 
-        if((curVer !== '2026.09.03_v5_lot4449' && isCorrupted) || (!transactions || transactions.length === 0)){
+        var isCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
+        if(!isCleared && ((curVer !== '2026.09.03_v5_lot4449' && isCorrupted) || (!transactions || transactions.length === 0))){
           console.log('[Auto-Heal] Migrating portfolio to authoritative 22-stock portfolio (4.449 Lot, Modal Rp 680jt, RDN Rp 52jt)...');
           transactions = JSON.parse(JSON.stringify(INITIAL_PORTO_2026));
           activeSekuritas = 'Stockbit';
@@ -1485,7 +1537,8 @@ function loadData(){
       }
     }
 
-    if(!transactions || transactions.length === 0){
+    var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
+    if(!isDataCleared && (!transactions || transactions.length === 0)){
       initPortfolio2026(true);
     }
 

@@ -4432,16 +4432,25 @@ body.theme-light button.bg-emerald-700[onclick*="selectBrokerTrail"] {
    ============================================================ */
 .side-nav button i.ti,
 .side-sec-toggle i.ti {
-  color: var(--text3);
+  color: #FFFFFF !important;
   transition: color var(--spring);
 }
 .side-nav button:hover i.ti,
 .side-sec-toggle:hover i.ti {
-  color: var(--accent) !important;
+  color: #FFFFFF !important;
 }
 .side-nav button.on i.ti,
 .side-group.has-active .side-sec-toggle i.ti {
-  color: var(--accent) !important;
+  color: #FFFFFF !important;
+}
+
+.toolbar i.ti,
+.toolbar svg,
+.asset-toolbar i.ti,
+.asset-toolbar svg,
+.topbar i.ti,
+.topbar svg {
+  color: #FFFFFF !important;
 }
 
 body.theme-light .side-nav button i.ti,
@@ -5744,6 +5753,25 @@ body.theme-light .stockchat-input-field::placeholder {
   background: var(--bg4);
   border-color: #38bdf8;
   transform: translateX(2px);
+}
+
+/* ══════════════════════════════════════════════
+   SECTORAL INSIGHT FLOW & ROTATION STYLES
+   ══════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .grid-flow-news {
+    grid-template-columns: 1fr !important;
+  }
+}
+.si-flow-row:hover {
+  border-color: var(--accent) !important;
+  background: var(--bg3) !important;
+}
+.si-tf-btn.on,
+.si-view-btn.on {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  font-weight: 700;
 }
 
 

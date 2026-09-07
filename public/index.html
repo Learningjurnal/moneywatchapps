@@ -180,7 +180,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20260905g">
+<link rel="stylesheet" href="css/main.css?v=20260907a">
 <link rel="stylesheet" href="css/wealth.css?v=20260813j">
 </head>
 <body>
@@ -356,6 +356,7 @@
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope"></i><span class="side-label">INTELLIGENCE</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar"></i><span class="side-label">Stock Intelligence</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">COCKPIT</span></button>
+      <button onclick="goPage('sectoral-insight',this)"><i class="ti ti-chart-arcs"></i><span class="side-label">Sectoral Insight</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">FLOW</span></button>
       <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine"></i><span class="side-label">Research</span><span class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">PRO</span></button>
       <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank"></i><span class="side-label">Fundamental</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
@@ -1684,6 +1685,136 @@
   <div class="card">
     <div class="cheader"><span class="ctitle">Saham Per Sektor</span></div>
     <div id="sector-stocks"></div>
+  </div>
+</div>
+
+<!-- ===== SECTORAL INSIGHT (ROTASI SEKTORAL & CAPITAL FLOW) ===== -->
+<div id="page-sectoral-insight" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+    <div>
+      <div class="ptitle" style="margin-bottom:2px;display:flex;align-items:center;gap:8px">
+        <i class="ti ti-chart-arcs" style="color:var(--accent)"></i>
+        <span>Sectoral Insight</span>
+        <span class="badge b-accent" style="font-size:10px;padding:2px 7px">FLOW &amp; ROTATION</span>
+      </div>
+      <div class="psub">Visualisasi pergerakan akumulasi vs distribusi 11 sektor IDX berbasis Chaikin Money Flow &amp; intelijen berita pasar</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <!-- Timeframe selector -->
+      <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px">
+        <button class="btn btn-ghost btn-xs si-tf-btn on" data-tf="1D" onclick="siSetTimeframe('1D')" style="padding:3px 9px;border-radius:4px">1H (Harian)</button>
+        <button class="btn btn-ghost btn-xs si-tf-btn" data-tf="1W" onclick="siSetTimeframe('1W')" style="padding:3px 9px;border-radius:4px">1M (Mingguan)</button>
+        <button class="btn btn-ghost btn-xs si-tf-btn" data-tf="1M" onclick="siSetTimeframe('1M')" style="padding:3px 9px;border-radius:4px">1B (Bulanan)</button>
+      </div>
+
+      <!-- View switch -->
+      <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px">
+        <button class="btn btn-ghost btn-xs si-view-btn on" data-view="bar" onclick="siSetViewMode('bar')" title="Visualisasi D3.js CMF Bar Flow (Akumulasi vs Distribusi)"><i class="ti ti-chart-bar"></i> D3 CMF Bar</button>
+        <button class="btn btn-ghost btn-xs si-view-btn" data-view="quadrant" onclick="siSetViewMode('quadrant')" title="Tampilan Matriks 4 Kuadran Siklus"><i class="ti ti-layout-grid"></i> Kuadran</button>
+        <button class="btn btn-ghost btn-xs si-view-btn" data-view="list" onclick="siSetViewMode('list')" title="Tampilan Kartu Ringkas"><i class="ti ti-list"></i> Kartu</button>
+      </div>
+
+      <!-- Refresh button -->
+      <button class="btn btn-ghost btn-xs" onclick="siRefreshAll()" title="Segarkan Data Aliran &amp; Berita Terkini" style="padding:4px 10px;border-color:var(--border);color:var(--text2)">
+        <i class="ti ti-refresh"></i> Segarkan
+      </button>
+    </div>
+  </div>
+
+  <!-- Metodologi & Transparansi Data Banner (Jujur, Tanpa Dummy) -->
+  <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;font-size:11.5px;color:var(--text2);line-height:1.5">
+    <i class="ti ti-shield-check" style="font-size:18px;color:var(--accent);flex-shrink:0;margin-top:2px"></i>
+    <div>
+      <strong style="color:var(--text)">Integritas &amp; Metodologi Data Riil:</strong>
+      Data harga, return, dan volume dihitung 100% dari kuotasi riil konstituen Big Caps terdaftar di Bursa Efek Indonesia (BEI/Yahoo Finance).
+      Status <strong>Akumulasi vs Distribusi</strong> dihitung secara matematis menggunakan formula institusional <strong>Chaikin Money Flow (CMF 20)</strong> dan <strong>Money Flow Multiplier (MFM)</strong> constituent harian.
+      <span style="color:var(--text3);display:block;margin-top:2px">
+        <em>Catatan Transparansi:</em> BEI tidak menyediakan feed kode broker internal publik gratis; indikator ini mengukur tekanan beli/jual riil volume transaksi pasar, bukan data simulasi tanpa dasar.
+      </span>
+    </div>
+  </div>
+
+  <!-- 4 KPI Metrics -->
+  <div class="row4" style="margin-bottom:16px">
+    <div class="metric" id="si-kpi-top-acc">
+      <div class="mlabel">Sektor Akumulasi Terkuat</div>
+      <div class="mval up" style="font-size:16px">Memuat...</div>
+      <div class="msub neu">Berdasarkan skor CMF</div>
+    </div>
+    <div class="metric" id="si-kpi-top-dist">
+      <div class="mlabel">Sektor Distribusi Terberat</div>
+      <div class="mval dn" style="font-size:16px">Memuat...</div>
+      <div class="msub neu">Berdasarkan skor CMF</div>
+    </div>
+    <div class="metric" id="si-kpi-breadth">
+      <div class="mlabel">Breadth Aliran Pasar IDX</div>
+      <div class="mval neu" style="font-size:16px">Memuat...</div>
+      <div class="msub neu">11 Sektor Resmi</div>
+    </div>
+    <div class="metric" id="si-kpi-news">
+      <div class="mlabel">Sentimen Berita Sektoral</div>
+      <div class="mval" style="font-size:16px;color:var(--accent)">Memuat...</div>
+      <div class="msub neu">Grounded Finansial</div>
+    </div>
+  </div>
+
+  <!-- DUAL-PANE WORKSPACE: Kiri = Visualisasi Sektor, Kanan = Live News & Katalis -->
+  <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-bottom:18px" class="grid-flow-news">
+    <!-- KOLOM KIRI: Visualisasi Aliran Sektor -->
+    <div class="card" style="margin:0;display:flex;flex-direction:column">
+      <div class="cheader" style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:12px">
+        <div>
+          <span class="ctitle" style="font-size:13.5px;font-weight:700">Pergerakan Aliran Modal Sektoral</span>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Urut dari Akumulasi Terkuat (atas) ke Distribusi Terberat (bawah). Klik bar untuk menyaring berita terkait.</div>
+        </div>
+      </div>
+      <div id="si-visual-container" style="min-height:380px">
+        <div style="padding:40px;text-align:center;color:var(--text3)">Memuat visualisasi aliran modal sektoral...</div>
+      </div>
+    </div>
+
+    <!-- KOLOM KANAN: Berita Terkoneksi & Katalis Pasar -->
+    <div class="card" style="margin:0;display:flex;flex-direction:column">
+      <div class="cheader" style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:12px">
+        <div>
+          <span class="ctitle" style="font-size:13.5px;font-weight:700">Berita Pasar &amp; Katalis Terkoneksi</span>
+          <div id="si-active-sector-filter" style="margin-top:2px">
+            <span style="font-size:11px;color:var(--text3)">Menampilkan berita seluruh 11 sektor IDX</span>
+          </div>
+        </div>
+      </div>
+      <div id="si-news-list" style="min-height:380px;max-height:560px;overflow-y:auto;padding-right:4px">
+        <div style="padding:40px;text-align:center;color:var(--text3)">Memuat berita pasar terkoneksi...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABEL RINCIAN 11 SEKTOR IDX & KONSTITUEN -->
+  <div class="card">
+    <div class="cheader" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div>
+        <span class="ctitle" style="font-size:14px;font-weight:700">Matriks Kinerja &amp; Aliran 11 Sektor Resmi BEI</span>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Performa harga, skor akumulasi CMF, dan saham-saham penggerak utama (Big Caps)</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl" style="width:100%">
+        <thead>
+          <tr>
+            <th style="width:30px">#</th>
+            <th>Sektor IDX</th>
+            <th>% Return</th>
+            <th>Skor CMF</th>
+            <th>Status Aliran</th>
+            <th>Top Constituent Movers</th>
+            <th style="text-align:right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="si-table-tbody">
+          <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Memuat tabel sektoral...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -3758,6 +3889,10 @@
   </div>
 
   <div style="display:flex;align-items:center;gap:10px">
+    <button class="btn btn-ghost btn-xs hide-mobile" onclick="goPage('sectoral-insight')" title="Buka Sectoral Insight (Rotasi Sektoral & Capital Flow)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:var(--border);color:var(--text2);padding:4px 8px;border-radius:6px">
+      <i class="ti ti-chart-arcs" style="color:var(--accent);font-size:13px"></i>
+      <span>Sectoral Insight</span>
+    </button>
     <div class="clock hide-mobile" id="clock">--:--:--</div>
 
     <button class="btn btn-ghost btn-xs" id="btn-settings-hub" onclick="openSettingsHub()" title="Buka Pusat Pengaturan & Data Hub (Cloud, Feed, Tampilan, Pajak, Audit, Akun)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:var(--accent);background:var(--brand-soft);color:var(--text);padding:4px 10px;border-radius:6px">
@@ -3847,6 +3982,7 @@
 <script src="js/41-stockchat-cockpit.js?v=20260906k"></script>
 <script src="js/42-dividend-calendar.js?v=20260902c"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260905g"></script>
+<script src="js/44-sectoral-insight.js?v=20260907a"></script>
 
   <!-- Theme Toggle Floating Button -->
   <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#2563eb;color:#ffffff;border:none;box-shadow:0 4px 15px rgba(0,0,0,0.25);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
