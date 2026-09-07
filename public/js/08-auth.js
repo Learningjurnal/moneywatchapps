@@ -184,6 +184,87 @@ function authDoLogin(){
     });
 }
 
+// Normalisasi standar Gmail: titik di local-part diabaikan Google (dan alias
+// "+apa saja" di-strip) - "andry.zuma.musa@gmail.com" dan
+// "andryzumamusa@gmail.com" adalah kotak surat yang SAMA menurut Google.
+// getFirestoreUserUid() menurunkan UID langsung dari string email apa
+// adanya, jadi tanpa normalisasi ini, login Google & login email/password
+// untuk akun Gmail yang sama bisa mendarat di UID Firestore yang BERBEDA.
+// Hanya diterapkan untuk domain gmail.com/googlemail.com - domain lain
+// (yang memang membedakan titik) dibiarkan apa adanya.
+function _gmailCanonical(email){
+  if(!email) return '';
+  var parts = String(email).toLowerCase().trim().split('@');
+  if(parts.length !== 2) return String(email).toLowerCase().trim();
+  var local = parts[0], domain = parts[1];
+  if(domain === 'gmail.com' || domain === 'googlemail.com'){
+    local = local.split('+')[0].replace(/\./g, '');
+    domain = 'gmail.com';
+  }
+  return local + '@' + domain;
+}
+
+// ── Login via Google (Firebase Auth GoogleAuthProvider) ──
+function authDoGoogleLogin(){
+  if(typeof firebase === 'undefined' || !firebase.auth || !firebase.auth.GoogleAuthProvider || !_firebaseAuth){
+    authShowErr('Login Google tidak tersedia saat ini.');
+    return;
+  }
+  var btn = el('auth-google-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menghubungkan ke Google...'; }
+
+  var provider = new firebase.auth.GoogleAuthProvider();
+  _firebaseAuth.signInWithPopup(provider)
+    .then(function(result){
+      if (typeof resetUserPortfolioState === 'function') {
+        resetUserPortfolioState();
+      }
+      try {
+        localStorage.removeItem('mw_local_data_v2');
+        localStorage.removeItem('mw_emergency_backup_v2');
+      } catch(e){}
+
+      var googleUser = result.user;
+      var resolvedEmail = googleUser.email;
+
+      // Jika akun Google ini (setelah normalisasi Gmail) adalah pengguna
+      // utama aplikasi, pakai bentuk email kanonik yang SAMA persis dengan
+      // yang sudah dipakai login email/password selama ini - supaya
+      // getFirestoreUserUid() menghasilkan UID yang identik dan data lama
+      // (transaksi, dividen, dll) tetap terhubung, bukan dianggap akun baru.
+      if (typeof PRIMARY_USER_EMAIL !== 'undefined' && PRIMARY_USER_EMAIL &&
+          _gmailCanonical(resolvedEmail) === _gmailCanonical(PRIMARY_USER_EMAIL)) {
+        resolvedEmail = PRIMARY_USER_EMAIL;
+      }
+
+      _currentUser = {
+        uid: 'u_' + encodeURIComponent(resolvedEmail.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
+        email: resolvedEmail,
+        displayName: googleUser.displayName || resolvedEmail.split('@')[0],
+        photoURL: googleUser.photoURL || null
+      };
+      var sessData = { uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName };
+      try {
+        localStorage.removeItem('mw_explicit_logout');
+        sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
+        localStorage.setItem('mw_session_user', JSON.stringify(sessData));
+      } catch(e){}
+
+      safeCloudBoot().then(function(){
+        if(btn){ btn.disabled = false; btn.textContent = 'Masuk dengan Google'; }
+        authShowApp(_currentUser.displayName || _currentUser.email);
+      }).catch(function(){
+        if(btn){ btn.disabled = false; btn.textContent = 'Masuk dengan Google'; }
+        authShowApp(_currentUser.displayName || _currentUser.email);
+      });
+    })
+    .catch(function(err){
+      if(btn){ btn.disabled = false; btn.textContent = 'Masuk dengan Google'; }
+      if(err && (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request')) return;
+      authShowErr('Gagal login dengan Google: ' + (err && err.message || 'unknown'));
+    });
+}
+
 // ── Login Mode Tamu / Demo Offline ──
 function authDoGuestLogin(){
   _currentUser = {
