@@ -687,26 +687,7 @@ function _mergeDatasets(localObj, cloudObj){
   var localIsExplicitlyEmpty = local.isExplicitlyEmpty === true || (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
   var cloudIsExplicitlyEmpty = cloud.isExplicitlyEmpty === true;
 
-  // TEMP DIAGNOSTIC (remove once the "restore reverts to 0 on reload" bug
-  // is confirmed fixed in production) — prints exactly which branch of the
-  // merge decision fires and why, since the timestamp/flag math alone
-  // hasn't matched the observed behavior.
-  try {
-    console.log('[MW DIAG] _mergeDatasets called', {
-      localTxLen: Array.isArray(local.transactions) ? local.transactions.length : null,
-      cloudTxLen: Array.isArray(cloud.transactions) ? cloud.transactions.length : null,
-      localSavedAt: local.savedAt, localUpdatedAt: local.updatedAt, localTime: localTime,
-      cloudSavedAt: cloud.savedAt, cloudUpdatedAt: cloud.updatedAt, cloudTime: cloudTime,
-      localIsExplicitlyEmpty: localIsExplicitlyEmpty,
-      cloudIsExplicitlyEmpty: cloudIsExplicitlyEmpty,
-      local_isExplicitlyEmpty_field: local.isExplicitlyEmpty,
-      cloud_isExplicitlyEmpty_field: cloud.isExplicitlyEmpty,
-      mw_data_cleared_flag: (typeof localStorage !== 'undefined') ? localStorage.getItem('mw_data_cleared') : null
-    });
-  } catch(e){}
-
   if(localIsExplicitlyEmpty && (!cloudTime || localTime >= cloudTime)){
-    try { console.log('[MW DIAG] branch: LOCAL_EMPTY_WINS'); } catch(e){}
     return Object.assign({}, cloud, local, {
       transactions: [],
       dividends: [],
@@ -721,7 +702,6 @@ function _mergeDatasets(localObj, cloudObj){
   }
 
   if(cloudIsExplicitlyEmpty && (!localTime || cloudTime >= localTime)){
-    try { console.log('[MW DIAG] branch: CLOUD_EMPTY_WINS'); } catch(e){}
     return Object.assign({}, local, cloud, {
       transactions: [],
       dividends: [],
@@ -736,7 +716,6 @@ function _mergeDatasets(localObj, cloudObj){
   }
 
   if(localIsExplicitlyEmpty && cloudIsExplicitlyEmpty){
-    try { console.log('[MW DIAG] branch: BOTH_EMPTY'); } catch(e){}
     return Object.assign({}, cloud, local, {
       transactions: [],
       dividends: [],
@@ -755,7 +734,6 @@ function _mergeDatasets(localObj, cloudObj){
   var isCloudMuchNewer = cloudTime > 0 && (cloudTime - localTime > 10000);
 
   if (isLocalMuchNewer && Array.isArray(local.transactions) && local.transactions.length >= 0) {
-    try { console.log('[MW DIAG] branch: LOCAL_MUCH_NEWER'); } catch(e){}
     return Object.assign({}, cloud, local, {
       transactions: local.transactions,
       dividends: local.dividends || cloud.dividends || [],
@@ -766,7 +744,6 @@ function _mergeDatasets(localObj, cloudObj){
   }
 
   if (isCloudMuchNewer && Array.isArray(cloud.transactions) && cloud.transactions.length >= 0) {
-    try { console.log('[MW DIAG] branch: CLOUD_MUCH_NEWER'); } catch(e){}
     return Object.assign({}, local, cloud, {
       transactions: cloud.transactions,
       dividends: cloud.dividends || local.dividends || [],
@@ -778,7 +755,6 @@ function _mergeDatasets(localObj, cloudObj){
 
   // Jika perangkat baru / device lain (local transaksi kosong) dan cloud memiliki transaksi, adopsi data cloud secara penuh
   if ((!local.transactions || local.transactions.length === 0) && Array.isArray(cloud.transactions) && cloud.transactions.length > 0) {
-    try { console.log('[MW DIAG] branch: NEW_DEVICE_ADOPT_CLOUD'); } catch(e){}
     return Object.assign({}, local, cloud, {
       transactions: cloud.transactions,
       dividends: cloud.dividends || [],
@@ -1542,7 +1518,6 @@ async function fireLoadAllData(){
     // Jika dokumen belum ada di Firestore tapi ada data lokal, migrasikan jika bukan data kosong/reset
     if(!snap || !snap.exists){
       var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
-      try { console.log('[MW DIAG] fireLoadAllData(): doc does NOT exist at uid', uid, '- localTxLen:', currentLocalState.transactions.length, 'isDataCleared:', isDataCleared); } catch(e){}
       if(currentLocalState.transactions.length > 0 && !isDataCleared){
         try {
           await migrateLocalDataToFirebaseCloud(true);
@@ -1566,17 +1541,6 @@ async function fireLoadAllData(){
     if (typeof cloudData.rdnChunkCount === 'number') {
       try { cloudData.rdnMutations = await _readChunkedField(dataColRefForRead, 'rdn', cloudData.rdnChunkCount); } catch(e){}
     }
-
-    try {
-      console.log('[MW DIAG] fireLoadAllData(): doc exists at uid', uid, {
-        txChunkCount: cloudData.txChunkCount, rdnChunkCount: cloudData.rdnChunkCount,
-        reassembledTxLen: Array.isArray(cloudData.transactions) ? cloudData.transactions.length : null,
-        reassembledRdnLen: Array.isArray(cloudData.rdnMutations) ? cloudData.rdnMutations.length : null,
-        cloud_isExplicitlyEmpty: cloudData.isExplicitlyEmpty,
-        cloud_savedAt: cloudData.savedAt, cloud_updatedAt: cloudData.updatedAt,
-        local_currentTxLen: currentLocalState.transactions.length
-      });
-    } catch(e){}
 
     _applyCloudPayload(cloudData, currentLocalState);
 
@@ -1774,7 +1738,6 @@ function loadData(){
 
     var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
     if(isDataCleared && !isDemoSession){
-      try { console.log('[MW DIAG] loadData(): mw_data_cleared flag set -> resetUserPortfolioState() and early return'); } catch(e){}
       resetUserPortfolioState();
       return true;
     }
