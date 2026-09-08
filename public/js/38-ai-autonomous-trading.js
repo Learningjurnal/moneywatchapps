@@ -1607,7 +1607,7 @@
             ? ('  <div style="font-size:11px;color:var(--amber);background:rgba(245,158,11,0.08);border-radius:6px;padding:8px;margin-bottom:8px"><strong>⚠ Gate yang Gagal:</strong> ' + h.gateFailures.join(' ') + '</div>')
             : '')
         + '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border2);padding-top:10px">'
-        + '    <span style="font-size:11px;color:var(--text3)">Confluence <strong style="color:var(--text)">' + h.confluence + '/100</strong> · Keyakinan <strong style="color:var(--text)">' + h.confidence + '%</strong></span>'
+        + '    <span style="font-size:11px;color:var(--text3)">Confluence <strong style="color:var(--text)">' + h.confluence + '/100</strong> · Keyakinan <strong style="color:var(--text)">' + h.confidence + '%</strong>' + (h.uncertainty != null ? ' · Uncertainty <strong style="color:' + (h.uncertainty >= 66 ? 'var(--red)' : h.uncertainty >= 40 ? 'var(--amber)' : 'var(--text)') + '">' + h.uncertainty + '/100</strong>' : '') + '</span>'
         + (isBuy ? ('    <button class="btn btn-primary btn-sm" onclick="aiOpenPositionFromHypothesis(\'' + h.id + '\')">📥 Buka Posisi Paper</button>') : '')
         + '  </div>'
         + '</div>';
@@ -1773,7 +1773,7 @@
         + '  <div class="row4" style="margin-bottom:10px">'
         + '    <div class="metric"><div class="mlabel">Harga Terkini</div><div class="mval" style="font-size:14px">Rp ' + Number(h.currentPrice).toLocaleString('id-ID') + '</div></div>'
         + '    <div class="metric"><div class="mlabel">Floating PnL</div><div class="mval ' + (isSell ? 'down' : 'up') + '" style="font-size:14px">' + pnlSign + 'Rp ' + Number(h.unrealizedPnL || 0).toLocaleString('id-ID') + ' (' + pnlSign + (h.unrealizedPct || 0) + '%)</div></div>'
-        + '    <div class="metric"><div class="mlabel">Confluence</div><div class="mval" style="font-size:14px">' + h.confluence + '/100</div></div>'
+        + '    <div class="metric"><div class="mlabel">Confluence / Uncertainty</div><div class="mval" style="font-size:14px">' + h.confluence + '/100 <span style="font-size:11px;color:' + (h.uncertainty >= 66 ? 'var(--red)' : h.uncertainty >= 40 ? 'var(--amber)' : 'var(--text3)') + '">(' + h.uncertainty + ')</span></div></div>'
         + '    <div class="metric"><div class="mlabel">Rekomendasi</div><div class="mval" style="font-size:12px">' + h.recommendedAction + '</div></div>'
         + '  </div>'
         + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">'
