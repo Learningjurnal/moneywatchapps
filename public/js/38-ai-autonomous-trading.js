@@ -503,6 +503,19 @@
     }
   }
 
+  // Lightweight regime fetch for stamping onto a position's post-mortem
+  // fields (regimeAtEntry/regimeAtExit, roadmap 3.1) — separate from
+  // fetchAiMarketRegime() above, which mutates the whole Market Regime
+  // tab's display state; this just returns the value, or null on failure
+  // (never a fabricated regime label).
+  async function fetchCurrentRegimeLabel() {
+    try {
+      var resp = await fetch('/api/idx/regime');
+      var json = await resp.json();
+      return (json.success && json.regime) ? json.regime.regime : null;
+    } catch (e) { return null; }
+  }
+
   // Opens a paper position from a generated hypothesis by upserting it into
   // AI_UNIVERSE in the exact shape aiOpenPositionFromSignal() already
   // expects, then delegating to that existing function — no new
@@ -599,6 +612,15 @@
   function updateAiPaperPositionMetrics(pos, livePrice) {
     if (livePrice && Number(livePrice) > 0) {
       pos.currentPrice = Number(livePrice);
+      // Real MFE/MAE (Maximum Favorable/Adverse Excursion) — running
+      // max/min of every live price this app actually observed while the
+      // position was open (roadmap 3.1). Not fabricated, but limited to
+      // the price points actually checked — a spike between refreshes
+      // could be missed, which is an honest limitation, not a gap this
+      // app pretends not to have. `|| pos.entryPrice` seeds it for
+      // positions opened before this field existed (backward compat).
+      pos.mfePrice = Math.max(pos.mfePrice || pos.entryPrice, pos.currentPrice);
+      pos.maePrice = Math.min(pos.maePrice != null ? pos.maePrice : pos.entryPrice, pos.currentPrice);
     }
     pos.shares = (pos.lots || 0) * 100;
     pos.costBasis = pos.shares * (pos.entryPrice || pos.currentPrice);
@@ -610,7 +632,22 @@
   // Closes a paper position at a given exit price, records the real
   // outcome (never a fabricated narrative) in closedTrades, and returns
   // cash to the virtual balance.
-  function aiClosePosition(posId, exitPrice, reason) {
+  // Real, deterministic post-mortem classification (roadmap 3.1, AGENTS.md
+  // §22) — derived from the already-known exit reason and outcome, not a
+  // fabricated diagnosis of what "really" happened.
+  function classifyTradeOutcome(reason, result) {
+    if (reason === 'TAKE PROFIT') return 'TARGET_ACHIEVED';
+    if (reason === 'STOP LOSS') return result === 'WIN' ? 'STOP_TRIGGERED_PROFITABLE' : 'RISK_MANAGEMENT_TRIGGERED';
+    if (reason === 'SIGNAL EXIT') return 'THESIS_INVALIDATED';
+    if (reason === 'MANUAL') return 'DISCRETIONARY_EXIT';
+    return 'UNCLASSIFIED';
+  }
+
+  // knownRegimeAtExit is optional — the exit-hypothesis flow already has a
+  // fresh regime reading from the exact moment "Cek Exit" ran and passes
+  // it through to avoid a redundant fetch; every other caller (manual
+  // Tutup, auto SL/TP) leaves it undefined and this fetches fresh itself.
+  async function aiClosePosition(posId, exitPrice, reason, knownRegimeAtExit) {
     var p = AI_TRADE_STATE.paperAccount;
     var idx = p.openPositions.findIndex(function(x) { return x.id === posId; });
     if (idx < 0) return;
@@ -625,6 +662,20 @@
     var rMultiple = Math.round((netPnL / riskAmount) * 100) / 100;
 
     var result = netPnL >= 0 ? 'WIN' : 'LOSS';
+
+    // Real MFE/MAE from the running trackers (roadmap 3.1) — fold in this
+    // exact exit price first, in case the position closes on a price this
+    // call observed that a live-refresh tick never recorded.
+    var mfePrice = Math.max(pos.mfePrice || pos.entryPrice, px);
+    var maePrice = Math.min(pos.maePrice != null ? pos.maePrice : pos.entryPrice, px);
+    var mfe = Math.round(mfePrice - pos.entryPrice);
+    var mfePct = pos.entryPrice > 0 ? Math.round((mfe / pos.entryPrice) * 10000) / 100 : 0;
+    var mae = Math.round(pos.entryPrice - maePrice);
+    var maePct = pos.entryPrice > 0 ? Math.round((mae / pos.entryPrice) * 10000) / 100 : 0;
+
+    // Real regime at exit — never fabricated; null if the fetch fails.
+    var regimeAtExit = knownRegimeAtExit || await fetchCurrentRegimeLabel();
+
     var lesson, mistake, improvement;
     if (reason === 'TAKE PROFIT') {
       lesson = 'Target profit tercapai sesuai rencana risk-reward yang ditetapkan saat entry.';
@@ -634,11 +685,17 @@
       lesson = 'Stop loss terpicu — kerugian dibatasi sesuai batas risiko 1% modal yang direncanakan.';
       mistake = result === 'LOSS' ? 'Sinyal awal tidak berjalan sesuai tesis; perlu ditinjau apakah kondisi entry masih valid.' : '-';
       improvement = 'Evaluasi apakah level stop terlalu ketat relatif terhadap volatilitas (ATR) saham ini.';
+    } else if (reason === 'SIGNAL EXIT') {
+      lesson = 'Ditutup berdasarkan sinyal exit dari Confluence Engine — tesis awal terdeteksi melemah sebelum SL/TP tersentuh.';
+      mistake = result === 'LOSS' ? 'Entry mungkin terlalu dini relatif terhadap kekuatan tesis saat itu.' : '-';
+      improvement = 'Bandingkan waktu sinyal exit ini dengan pergerakan harga berikutnya untuk menilai apakah keluar lebih awal dari SL memberi hasil lebih baik.';
     } else {
       lesson = 'Ditutup manual oleh pengguna sebelum menyentuh SL/TP.';
       mistake = '-';
       improvement = '-';
     }
+
+    var errorClassification = classifyTradeOutcome(reason, result);
 
     p.cash += pos.currentValue;
     p.openPositions.splice(idx, 1);
@@ -656,6 +713,11 @@
       returnPct: returnPct,
       result: result,
       rMultiple: rMultiple,
+      mfe: mfe, mfePct: mfePct,
+      mae: mae, maePct: maePct,
+      regimeAtEntry: pos.regimeAtEntry || null,
+      regimeAtExit: regimeAtExit,
+      errorClassification: errorClassification,
       exitReason: reason,
       thesis: pos.thesis,
       lesson: lesson,
@@ -693,12 +755,20 @@
     // AI_UNIVERSE could be several minutes old, and entry/SL/TP must all
     // come from the same, current price source to avoid a mismatch
     // against whatever the position's live-price check uses afterward.
+    // Also fetch the real regime at this exact moment (roadmap 3.1's
+    // regimeAtEntry post-mortem field) — in parallel, since neither
+    // depends on the other.
     var entry = sig.entry, atrOffset = { sl: sig.entry - sig.sl, tp1: sig.tp1 - sig.entry, tp2: sig.tp2 - sig.entry };
+    var regimeAtEntry = null;
     try {
-      var qResp = await fetch('/api/idx/quote/' + encodeURIComponent(ticker));
-      var qJson = await qResp.json();
-      if (qJson.success && qJson.quote && qJson.quote.price > 0) entry = qJson.quote.price;
-    } catch (e) { /* fall back to the scan's entry price */ }
+      var results = await Promise.all([
+        fetch('/api/idx/quote/' + encodeURIComponent(ticker)).then(function(r) { return r.json(); }).catch(function() { return null; }),
+        fetchCurrentRegimeLabel()
+      ]);
+      var qJson = results[0];
+      regimeAtEntry = results[1];
+      if (qJson && qJson.success && qJson.quote && qJson.quote.price > 0) entry = qJson.quote.price;
+    } catch (e) { /* fall back to the scan's entry price; regimeAtEntry stays null */ }
 
     var sl = Math.round(entry - atrOffset.sl);
     var tp1 = Math.round(entry + atrOffset.tp1);
@@ -738,6 +808,9 @@
       tp1: tp1,
       tp2: tp2,
       entrySlDistance: riskPerShare * shares,
+      mfePrice: entry, // Maximum Favorable Excursion tracker, seeded at entry (roadmap 3.1)
+      maePrice: entry, // Maximum Adverse Excursion tracker, seeded at entry
+      regimeAtEntry: regimeAtEntry, // real regime at the moment this position opened, or null if the fetch failed
       thesis: sig.thesis,
       confidence: sig.confidence,
       ev: sig.ev
@@ -1790,7 +1863,7 @@
             ? ('  <div style="font-size:11px;color:var(--text3);border-top:1px solid var(--border2);padding-top:8px;margin-bottom:8px"><strong>Bukti Belum Tersedia:</strong> ' + h.missingEvidence.join(' ') + '</div>')
             : '')
         + '  <div style="display:flex;justify-content:flex-end;border-top:1px solid var(--border2);padding-top:10px">'
-        + (isSell ? ('    <button class="btn btn-primary btn-sm" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang berdasarkan sinyal exit?\'))aiClosePosition(\'' + pos.id + '\', ' + h.currentPrice + ', \'SIGNAL EXIT\')" style="background:var(--red);border-color:var(--red)">🚪 Tutup Posisi Sekarang</button>') : '')
+        + (isSell ? ('    <button class="btn btn-primary btn-sm" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang berdasarkan sinyal exit?\'))aiClosePosition(\'' + pos.id + '\', ' + h.currentPrice + ', \'SIGNAL EXIT\', \'' + h.regime + '\')" style="background:var(--red);border-color:var(--red)">🚪 Tutup Posisi Sekarang</button>') : '')
         + '  </div>'
         + '</div>';
     });
@@ -1860,6 +1933,17 @@
         + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:2px">🔧 STRATEGY IMPROVEMENT (ADAPTASI)</div>'
         + '      <div style="font-size:11.5px;color:var(--text2);line-height:1.4">' + t.improvement + '</div>'
         + '    </div>'
+        + '  </div>'
+
+        // Extended post-mortem fields (roadmap 3.1) — MFE/MAE, regime at
+        // entry/exit, structured classification. Trades closed before this
+        // was added won't have these fields; shown as "N/A" rather than
+        // hidden, so it's visible which trades predate the richer journal.
+        + '  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px;font-size:10.5px;color:var(--text3)">'
+        + '    <div><span style="color:var(--text2)">MFE:</span> ' + (t.mfePct != null ? '+' + t.mfePct + '% (Rp ' + Number(t.mfe).toLocaleString('id-ID') + ')' : 'N/A') + '</div>'
+        + '    <div><span style="color:var(--text2)">MAE:</span> ' + (t.maePct != null ? '-' + t.maePct + '% (Rp ' + Number(t.mae).toLocaleString('id-ID') + ')' : 'N/A') + '</div>'
+        + '    <div><span style="color:var(--text2)">Regime Entry→Exit:</span> ' + (t.regimeAtEntry || 'N/A') + ' → ' + (t.regimeAtExit || 'N/A') + '</div>'
+        + '    <div><span style="color:var(--text2)">Klasifikasi:</span> ' + (t.errorClassification || 'N/A') + '</div>'
         + '  </div>'
         + '</div>';
     });
