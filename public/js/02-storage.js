@@ -1959,6 +1959,30 @@ function restoreFromBackup(file){
       var d = JSON.parse(e.target.result);
       if(!d) throw new Error('File tidak valid');
 
+      // FIX (CRITICAL, restore corrupted by real-time echo): restoring a
+      // backup is a deliberate "this is the complete, authoritative state
+      // — discard anything else" action, but the save this triggers below
+      // still goes out over the same Supabase Realtime / multi-device SSE
+      // channels every normal save uses. If a cloud-update notification
+      // for THIS SAME save (or a slightly stale one still in flight,
+      // queued from before the restore) arrives back at this tab while
+      // _syncInFlight has already reset to false — a real, observed
+      // timing gap between a save's HTTP response and its separate
+      // Realtime replication event — _applyCloudPayload() would run
+      // _mergeDatasets() between the just-restored state and that
+      // (possibly older) cloud payload. _mergeDatasets()'s default
+      // fallback is a non-destructive UNION merge (preserve every
+      // transaction from both sides) specifically so normal saves never
+      // lose data — but for a restore, that union is exactly the bug:
+      // it can silently add old, pre-restore transactions back on top of
+      // the file's own set, growing the count past what the file
+      // actually contains. Reusing the SAME reentrancy flag both
+      // setupMultiDeviceSyncListener() and setupCloudRealtimeListener()
+      // already check (_isApplyingCloudSnapshot) makes this tab ignore
+      // any incoming cloud payload — echo or stale — for a few seconds
+      // while the restore's own save settles, instead of merging it in.
+      _isApplyingCloudSnapshot = true;
+
       transactions = d.transactions || [];
       dividends = d.dividends || [];
       rdnMutations = d.rdnMutations || [];
@@ -1966,7 +1990,6 @@ function restoreFromBackup(file){
       etfTx = d.etfTx || [];
       rdTx = d.rdTx || [];
       activeSekuritas = d.activeSekuritas || 'Stockbit';
-      rdnBalance = d.rdnBalance || 0;
       tradeStrategy = d.tradeStrategy || {};
       sekTaxOverride = d.sekTaxOverride || {};
 
@@ -1981,12 +2004,40 @@ function restoreFromBackup(file){
       nextDivId = _maxIdPlus1(dividends);
       nextRdnId = _maxIdPlus1(rdnMutations);
 
-      saveData();
+      // FIX: this used to trust the backup file's own `rdnBalance` number
+      // verbatim (rdnBalance = d.rdnBalance || 0) and never invalidated
+      // any cached portfolio calculation — clearData() right above this
+      // function already does both correctly for its own bulk data
+      // change, but restoreFromBackup() never did. If the file's stored
+      // balance ever didn't match what its own rdnMutations/transactions
+      // actually compute to under the app's CURRENT calculation logic
+      // (e.g. a backup taken before the transaction-fee fix, or a
+      // hand-edited file), the restored balance/portfolio numbers would
+      // silently disagree with the file's own transaction data.
+      // recalculateAllStoredData() derives rdnBalance fresh from the
+      // restored data, fixes any transaction whose komisi/ppn/levy/pph
+      // was computed under an older formula, clears the portfolio cache,
+      // and saves — the same recovery path already used by Settings'
+      // "Rekalkulasi Data" button.
+      if(typeof recalculateAllStoredData === 'function') {
+        recalculateAllStoredData(true);
+      } else {
+        rdnBalance = d.rdnBalance || 0;
+        saveData();
+      }
+
       if(typeof renderAll === 'function') renderAll();
       if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
       closeBackupModal();
-      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data backup JSON berhasil dipulihkan & disimpan ke Supabase');
+      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data backup JSON berhasil dipulihkan, dihitung ulang, & disimpan ke Supabase');
+
+      // Give the restore's own save (and any delayed Realtime replication
+      // echo of it) a few seconds to fully settle before this tab starts
+      // listening to cloud updates again — see the note above where this
+      // flag was set.
+      setTimeout(function(){ _isApplyingCloudSnapshot = false; }, 5000);
     } catch(err) {
+      _isApplyingCloudSnapshot = false;
       alert('Gagal memulihkan backup: ' + err.message);
     }
   };
