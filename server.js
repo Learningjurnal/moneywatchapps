@@ -2680,16 +2680,33 @@ app.get('/api/idx/quote/:ticker', async (req, res) => {
   }
 });
 
-// GET /api/idx/history/:ticker?tf=D|W|M|Y — Real price history series for the
-// Grafik Harga Realtime chart (Stock Intelligence Cockpit). tf maps to Yahoo
-// Finance chart intervals: D=5m/1d, W=30m/5d, M=1d/1mo, Y=1wk/1y.
+// GET /api/idx/history/:ticker?tf=D|W|M|Y|DAILY_MAX&market=id|us|crypto — Real
+// price history series. tf maps to Yahoo Finance chart intervals: D=5m/1d,
+// W=30m/5d, M=1d/1mo, Y=1wk/1y — used by the Grafik Harga Realtime chart
+// (Stock Intelligence Cockpit) — plus DAILY_MAX=1d/10y, used to reconstruct
+// real day-by-day portfolio equity across a user's full holding period
+// (rebuildEquityHistoryFromTransactions() in public/js/03-engine.js). market
+// selects how :ticker is shaped into a Yahoo symbol: 'id' (default) appends
+// .JK for Indonesian stocks, 'us' is used raw for US-listed tickers (ETF),
+// 'crypto' appends -USD (Yahoo has no historical CODE-IDR chart — confirmed
+// 404 for BTC-IDR/ADA-IDR) — callers must convert to IDR themselves using a
+// historical USD/IDR series (market=us on 'USDIDR=X'), which is exactly
+// what rebuildEquityHistoryFromTransactions() does.
 app.get('/api/idx/history/:ticker', async (req, res) => {
   try {
     const ticker = req.params.ticker;
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
-    const tf = ['1D', '1W', '1M', '1Y'].includes(req.query.tf) ? req.query.tf : '1D';
+    // Bound the symbol before it reaches the upstream Yahoo URL — this is a
+    // user-controlled value on an externally-reachable route. `=` is allowed
+    // for FX pairs (e.g. USDIDR=X, used to convert historical crypto/ETF
+    // values to IDR).
+    if (!/^[A-Z0-9^.=\-]{1,15}$/i.test(ticker)) {
+      return res.status(400).json({ success: false, error: 'Invalid ticker format' });
+    }
+    const tf = ['1D', '1W', '1M', '1Y', 'DAILY_MAX'].includes(req.query.tf) ? req.query.tf : '1D';
+    const market = ['id', 'us', 'crypto'].includes(req.query.market) ? req.query.market : 'id';
 
-    const history = await fetchYahooHistory(ticker, tf);
+    const history = await fetchYahooHistory(ticker, tf, market);
     return res.json({ success: !history.error, ...history });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

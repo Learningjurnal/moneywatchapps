@@ -237,6 +237,150 @@ function perfNearestIhsgClose(rows, dateStr){
   return result ? result.close : null;
 }
 
+// ── Real daily price history per symbol (stocks/crypto/ETF) — used to
+// mark-to-market rebuildEquityHistoryFromTransactions() (03-engine.js) for
+// the days BETWEEN transactions, instead of freezing at that ticker's last
+// transacted price (the bug that made this chart's Portfolio line look flat
+// for long stretches). Routed through the server's /api/idx/history route
+// (which does the .JK/-USD/^ symbol shaping and its own 6h cache) rather
+// than the client-side CORS-proxy chain (FH.PROXIES) — one canonical
+// response shape, no third-party rate limits for a 40-symbol burst. ──
+var PERF_HIST_INFLIGHT = {};
+function perfHistCacheKey(assetClass, code){
+  var prefix = assetClass==='crypto' ? 'PXH_CRY_' : (assetClass==='etf' ? 'PXH_ETF_' : (assetClass==='fx' ? 'PXH_FX_' : 'PXH_STK_'));
+  return prefix + code;
+}
+// Fetch (or serve from TODAY's cache) a real daily {date, close, ...} series
+// for one symbol. `assetClass` picks both the rdSave/rdGet cache namespace
+// (perfHistCacheKey — deliberately NOT the raw ticker, which would collide
+// with rdFetchYahoo()'s own 1y stock cache in 13-realdata.js) and the
+// server `market` param: 'stock'->id (.JK), 'etf'->us (raw ticker),
+// 'crypto'->crypto (CODE-USD — Yahoo has no historical CODE-IDR chart,
+// confirmed), 'fx'->us (raw 'USDIDR=X', used to convert crypto/ETF USD
+// closes to IDR per historical day instead of today's flat rate).
+function perfFetchDailyHistory(assetClass, code, cb){
+  var key = perfHistCacheKey(assetClass, code);
+
+  // rdGet() — NOT rdGetAny() — so only a cache written TODAY short-circuits
+  // the fetch. rdGetAny() also accepts yesterday's cache, which is the
+  // latent bug rdFetchIhsgDaily() above has: once cached, that series is
+  // never refetched again. Gating on rdGet() gives exactly one network
+  // fetch per symbol per calendar day with no bespoke trading-calendar logic.
+  var cachedToday = (typeof rdGet==='function') ? rdGet(key) : null;
+  if(cachedToday && cachedToday.length>=20){ cb(null, cachedToday); return; }
+
+  if(PERF_HIST_INFLIGHT[key]){ PERF_HIST_INFLIGHT[key].push(cb); return; }
+  PERF_HIST_INFLIGHT[key] = [cb];
+  function settle(err, rows){
+    var cbs = PERF_HIST_INFLIGHT[key] || [];
+    delete PERF_HIST_INFLIGHT[key];
+    cbs.forEach(function(fn){ fn(err, rows); });
+  }
+
+  var market = assetClass==='etf' ? 'us' : (assetClass==='crypto' ? 'crypto' : (assetClass==='fx' ? 'us' : 'id'));
+  fetch('/api/idx/history/'+encodeURIComponent(code)+'?tf=DAILY_MAX&market='+market)
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(json){
+      var pts = (json && json.success && json.points && json.points.length) ? json.points : null;
+      if(!pts) throw new Error('NO_DATA');
+      var rows = pts.map(function(p){
+        return {date:new Date(p.t).toISOString().slice(0,10), open:p.o, high:p.h, low:p.l, close:p.c, volume:p.v};
+      }).filter(function(r){ return r.close>0; });
+      if(rows.length<20) throw new Error('TOO_FEW');
+      if(typeof rdSave==='function') rdSave(key, rows);
+      settle(null, rows);
+    })
+    .catch(function(){
+      var stale = (typeof rdGetAny==='function') ? rdGetAny(key) : null;
+      if(stale && stale.length) settle(null, stale);
+      else settle(new Error('FETCH_FAILED'), null);
+    });
+}
+// Fetch many symbols with bounded concurrency (the server does one upstream
+// Yahoo call per uncached symbol — an unbounded burst invites rate limiting).
+// cb(histMap, failedList) — histMap keyed by perfHistCacheKey(), failedList
+// is the subset of `requests` that produced no usable series.
+function perfFetchManyDailyHistory(requests, cb){
+  var histMap = {}, failed = [];
+  if(!requests.length){ cb(histMap, failed); return; }
+  var CONCURRENCY = 4, idx = 0, doneCount = 0;
+  function next(){
+    if(idx>=requests.length) return;
+    var req = requests[idx++];
+    perfFetchDailyHistory(req.assetClass, req.code, function(err, rows){
+      doneCount++;
+      if(!err && rows && rows.length) histMap[perfHistCacheKey(req.assetClass, req.code)] = rows;
+      else failed.push(req);
+      if(doneCount>=requests.length) cb(histMap, failed);
+      else next();
+    });
+  }
+  for(var i=0;i<Math.min(CONCURRENCY, requests.length);i++) next();
+}
+// Every distinct symbol ever transacted (stock/crypto/ETF) — NOT just
+// current holdings (unlike perfFetchHoldingsHistory() below, used for Real
+// Beta): a position bought in 2021 and fully sold in 2023 still needs real
+// prices for 2021-2023 to reconstruct that stretch of the equity curve.
+// Capped, most-recently-transacted first, so a bulk-imported portfolio
+// doesn't fire an unbounded burst of fetches — symbols beyond the cap
+// simply fall back to the existing lastPrice chain (degrade, don't fail).
+function perfCollectTransactedSymbols(){
+  var CAP = 40;
+  var seen = {}, out = [];
+  function addFrom(arr, field, assetClass){
+    if(!Array.isArray(arr)) return;
+    for(var i=arr.length-1;i>=0;i--){
+      var code = arr[i] && arr[i][field];
+      if(!code) continue;
+      var key = assetClass+':'+code;
+      if(seen[key]) continue;
+      seen[key] = true;
+      out.push({assetClass:assetClass, code:code});
+    }
+  }
+  addFrom(typeof transactions!=='undefined'?transactions:null, 'ticker', 'stock');
+  addFrom(typeof cryptoTx!=='undefined'?cryptoTx:null, 'coin', 'crypto');
+  addFrom(typeof etfTx!=='undefined'?etfTx:null, 'ticker', 'etf');
+  return out.slice(0, CAP);
+}
+// Prefetch real price history for every transacted symbol, then rebuild
+// equityHistory with real mark-to-market valuation (priceHist — see
+// rebuildEquityHistoryFromTransactions() in 03-engine.js) and persist it.
+// cb(rebuilt, failedSymbols) — `rebuilt` is null when nothing could be
+// improved (no symbols, or every fetch failed) so the caller can fall back
+// to the already-loaded (lastPrice-based) history without regressing it.
+function perfPrefetchAndRebuildEquity(cb){
+  var symbols = perfCollectTransactedSymbols();
+  if(!symbols.length){ cb(null, []); return; }
+
+  var requests = symbols.slice();
+  requests.push({assetClass:'fx', code:'USDIDR=X'}); // converts crypto/ETF USD closes to IDR per historical day
+
+  perfFetchManyDailyHistory(requests, function(histMap, failed){
+    if(!Object.keys(histMap).length){ MW_PRICE_HIST = null; cb(null, symbols); return; }
+
+    var priceHist = { stocks:{}, crypto:{}, etf:{}, fx:null };
+    symbols.forEach(function(s){
+      var rows = histMap[perfHistCacheKey(s.assetClass, s.code)];
+      if(!rows) return;
+      if(s.assetClass==='stock') priceHist.stocks[s.code] = rows;
+      else if(s.assetClass==='crypto') priceHist.crypto[s.code] = rows;
+      else if(s.assetClass==='etf') priceHist.etf[s.code] = rows;
+    });
+    priceHist.fx = histMap[perfHistCacheKey('fx','USDIDR=X')] || null;
+
+    MW_PRICE_HIST = priceHist; // in-memory only — see its declaration in 03-engine.js
+
+    var existing = (typeof equityHistoryLoad==='function') ? equityHistoryLoad() : [];
+    var rebuilt = rebuildEquityHistoryFromTransactions(existing, true, priceHist);
+
+    if(typeof equityHistorySave==='function') equityHistorySave(rebuilt);
+
+    var failedSymbols = failed.filter(function(f){ return f.assetClass!=='fx'; });
+    cb(rebuilt, failedSymbols);
+  });
+}
+
 // ── Kinerja Kumulatif Portofolio vs IHSG (% return, dari data riil) ──
 function perfRenderBenchmark(){
   var hist = (typeof equityHistoryLoad==='function') ? equityHistoryLoad() : [];
@@ -247,7 +391,49 @@ function perfRenderBenchmark(){
     el('perf-bench-porto-val').textContent='—'; el('perf-bench-ihsg-val').textContent='—';
     return;
   }
-  if(noteEl) noteEl.innerHTML = 'Portofolio dihitung dari '+hist.length+' snapshot ekuitas harian aplikasi (tercatat tiap kali Anda buka Dashboard/Performance). IHSG dari data historis riil Yahoo Finance. Titik portofolio akan makin rapat seiring Anda rutin membuka aplikasi.';
+  if(noteEl) noteEl.innerHTML = 'Portofolio direkonstruksi harian dari transaksi riil, ditandai ke harga pasar riil tiap hari (bukan hanya harga transaksi terakhir). IHSG dari data historis riil Yahoo Finance.';
+
+  // Prefetch real daily prices for every transacted symbol and rebuild the
+  // equity curve mark-to-market before rendering — see
+  // perfPrefetchAndRebuildEquity() above. Falls back to the already-loaded
+  // `hist` (unchanged) if nothing could be fetched, so the chart never goes
+  // blank because of a network hiccup.
+  perfPrefetchAndRebuildEquity(function(rebuilt, failed){
+    var useHist = (rebuilt && rebuilt.length>=2) ? rebuilt : hist;
+    if(rebuilt && rebuilt.length>=2 && typeof perfRenderEquity==='function'){
+      perfRenderEquity(PERF_STATE.eqPeriod); // keep the Total Equity chart/table in sync with the corrected series
+    }
+    if(failed && failed.length>0 && noteEl){
+      noteEl.innerHTML += ' <span style="color:var(--text3)">('+failed.length+' simbol tanpa data historis riil — nilainya memakai harga transaksi terakhir.)</span>';
+    }
+    perfRenderBenchmarkWith(useHist, noteEl);
+  });
+}
+function perfRenderBenchmarkWith(hist, noteEl){
+  // Defensive trim: rebuildEquityHistoryFromTransactions() (03-engine.js)
+  // can produce one or more LEADING entries with equity<=0 — most notably,
+  // its day-generation (`new Date(dateStr+'T00:00:00')` parsed as local
+  // time, then re-read via `.toISOString()`) rolls back to the previous UTC
+  // calendar day for any positive-UTC-offset timezone, which is every
+  // Indonesian user's browser (WIB/WITA/WIT) — so the reconstructed history
+  // systematically starts one phantom day before the real first
+  // transaction, with no holdings yet and equity=0. Below, `base =
+  // hist[0].equity` would then be 0, and its own `base>0 ? ... : 0` guard
+  // would silently flatten the ENTIRE Portfolio line at exactly 0% —
+  // masking real performance instead of just being wrong for one day. This
+  // is a separate, pre-existing bug in the date-generation itself (out of
+  // scope to fix at its root here — it touches every stored equity-history
+  // date for every existing user) but this chart must not let a corrupted
+  // leading day wreck its entire baseline, so trim any leading
+  // non-positive-equity entries before computing `base`.
+  var firstGoodIdx = hist.findIndex(function(h){ return h && h.equity > 0; });
+  if(firstGoodIdx > 0) hist = hist.slice(firstGoodIdx);
+  if(hist.length < 2){
+    kc('perfBench');
+    if(noteEl) noteEl.innerHTML = 'Riwayat ekuitas belum cukup (min. 2 hari tercatat) untuk membandingkan dengan IHSG.';
+    el('perf-bench-porto-val').textContent='—'; el('perf-bench-ihsg-val').textContent='—';
+    return;
+  }
   rdFetchIhsgDaily(function(err, ihsgRows){
     kc('perfBench');
     var cv = el('perfBenchChart');
