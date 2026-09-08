@@ -106,6 +106,15 @@
   var AI_DEEP_PENDING = {}; // tickers currently being fetched for Deep Analysis
   var AI_DEEP_FAILED = {}; // tickers confirmed to have no real signal (invalid/unlisted) — stops retry loop
 
+  // Data Quality Monitor state — see /api/idx/data-quality/:ticker (real
+  // assessDataQuality() from lib/idx-data-engine.js). Null until the tab is
+  // actually opened; the render function shows an honest "Belum Dihitung"
+  // placeholder rather than a fixed table of fabricated feed scores.
+  var AI_DQ_RESULT = null;   // { ticker: <assessDataQuality result>, ihsg: <assessDataQuality result>, checkedAt }
+  var AI_DQ_LOADING = false;
+  var AI_DQ_ERROR = null;
+  var AI_DQ_TICKER = null;   // ticker AI_DQ_RESULT was computed for
+
   // Real backtest results (Strategy Lab / Backtest Lab) — null until the
   // user explicitly runs one (server-side simulation over ~135 tickers x
   // 2 years takes a few seconds, so it's on-demand, not auto-triggered).
@@ -403,6 +412,35 @@
     AI_TRADE_STATE.hypotheses = AI_TRADE_STATE.hypotheses.filter(function(h) { return h.id !== id; });
     saveHypothesesState();
     renderAiTradingPage();
+  }
+
+  // Calls the real /api/idx/data-quality/:ticker endpoint (assessDataQuality
+  // in lib/idx-data-engine.js) for the Data Quality Monitor tab. Replaces a
+  // permanently fixed 5-row table of fabricated quality scores/status
+  // badges — never fabricates a result on failure, shows the real error
+  // instead.
+  async function fetchAiDataQuality(tickerOverride) {
+    var tk = String(tickerOverride || AI_TRADE_STATE.selectedTicker || '').toUpperCase().trim();
+    if (!tk) { if (typeof showToast === 'function') showToast('⚠ Masukkan kode ticker terlebih dahulu.'); return; }
+    if (AI_DQ_LOADING) return;
+
+    AI_DQ_LOADING = true;
+    AI_DQ_ERROR = null;
+    renderAiTradingPage();
+    try {
+      var resp = await fetch('/api/idx/data-quality/' + encodeURIComponent(tk));
+      var json = await resp.json();
+      if (!json.success) throw new Error(json.error || 'Gagal memuat status kualitas data');
+
+      AI_DQ_RESULT = { ticker: json.dataQuality, ihsg: json.ihsgDataQuality, checkedAt: new Date() };
+      AI_DQ_TICKER = tk;
+    } catch (err) {
+      AI_DQ_ERROR = (err && err.message) || 'Gagal memuat status kualitas data';
+      if (typeof showToast === 'function') showToast('⚠ ' + AI_DQ_ERROR);
+    } finally {
+      AI_DQ_LOADING = false;
+      renderAiTradingPage();
+    }
   }
 
   // Opens a paper position from a generated hypothesis by upserting it into
@@ -1821,59 +1859,94 @@
   // ══════════════════════════════════════════════════════════
   // 14. SUB-PAGE RENDERING: DATA QUALITY & FRESHNESS MONITOR
   // ══════════════════════════════════════════════════════════
-  function renderAiDataQuality(state) {
-    var dataFeeds = [
-      { name: 'Live Stock Quotes & OHLCV Feed', source: 'IDX / Yahoo Finance Real-Time', score: 98, freshness: '< 15 Detik', status: 'ONLINE & VERIFIED', cls: 'b-up' },
-      { name: 'Volume & Orderbook Liquidity Feed', source: 'Indonesia Stock Exchange (IDX)', score: 97, freshness: '< 15 Detik', status: 'ONLINE & VERIFIED', cls: 'b-up' },
-      { name: 'Broker Flow & Bandarmologi Dataset', source: 'KSEI & Top Broker Consolidation', score: 72, freshness: 'Daily EOD + Fallback', status: 'ACTIVE (FALLBACK READY)', cls: 'b-amb' },
-      { name: 'Fundamental Statements & Ratios', source: 'Laporan Keuangan Emiten Q2 2026', score: 91, freshness: 'Quarterly Audited', status: 'ONLINE & VERIFIED', cls: 'b-up' },
-      { name: 'Macroeconomic & Sector News Stream', source: 'Bank Indonesia & Financial Feeds', score: 84, freshness: '< 1 Jam', status: 'ONLINE & VERIFIED', cls: 'b-up' }
-    ];
+  // Real Data Quality Gate status via /api/idx/data-quality/:ticker (see
+  // assessDataQuality() in lib/idx-data-engine.js — the same gate that
+  // already decides NO_TRADE for /api/idx/hypothesis/:ticker). Previously
+  // this rendered a permanently fixed 5-row table of invented quality
+  // scores (98/100, 97/100, ...), freshness strings, and "ONLINE &
+  // VERIFIED" badges for datasets that were never actually checked. Now it
+  // shows the real REAL/STALE/UNAVAILABLE/SIMULATION/INVALID status (with
+  // reasons) for the selected ticker and the IHSG regime feed — or an
+  // honest "Belum Dihitung" state before any assessment has run.
+  var AI_DQ_STATUS_META = {
+    REAL: { cls: 'b-up', label: 'REAL & LULUS GATE' },
+    STALE: { cls: 'b-amb', label: 'STALE (Data Basi)' },
+    SIMULATION: { cls: 'b-amb', label: 'SIMULATION (Bukan Data Riil)' },
+    UNAVAILABLE: { cls: 'b-dn', label: 'UNAVAILABLE' },
+    INVALID: { cls: 'b-dn', label: 'INVALID' }
+  };
 
+  function renderAiDataQualityRow(label, dq) {
+    var meta = AI_DQ_STATUS_META[dq.status] || { cls: 'b-dn', label: dq.status || 'UNKNOWN' };
+    var lastUpdated = dq.lastUpdated ? new Date(dq.lastUpdated).toLocaleString('id-ID') : '-';
+    return '<tr>'
+      + '<td style="font-weight:700;color:var(--text);font-family:var(--font-mono)">' + label + '</td>'
+      + '<td><span class="badge ' + meta.cls + '">' + meta.label + '</span></td>'
+      + '<td style="font-family:var(--font-mono);font-size:11px">' + dq.candleCount + ' / ' + dq.minRequired + ' candle</td>'
+      + '<td style="font-family:var(--font-mono);font-size:11px">' + lastUpdated + '</td>'
+      + '<td style="font-size:11px;color:var(--text2)">' + dq.source + '</td>'
+      + '<td style="font-size:11px;color:' + (dq.reasons.length ? 'var(--amber)' : 'var(--text3)') + '">' + (dq.reasons.length ? dq.reasons.join(' ') : 'Tidak ada masalah — lulus semua pemeriksaan.') + '</td>'
+      + '</tr>';
+  }
+
+  function renderAiDataQuality(state) {
     var html = ''
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
       + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-shield-check" style="color:var(--green)"></i> Data Quality, Freshness, &amp; Anti-Hallucination Monitor'
+      + '        <i class="ti ti-shield-check" style="color:var(--green)"></i> Data Quality &amp; Anti-Hallucination Gate'
       + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">AI secara ketat menerapkan kebijakan Anti-Hallucination: Tidak ada harga, volume, atau data broker yang dikarang. Jika data tidak lengkap, confidence score otomatis diturunkan dengan graceful fallback.</div>'
+      + '      <div style="font-size:12px;color:var(--text3)">Status riil dari Data Quality Gate (lihat assessDataQuality di lib/idx-data-engine.js) — gate yang sama yang menentukan apakah Hypothesis Lab boleh mengeluarkan sinyal BUY atau wajib NO_TRADE. Tidak ada skor atau status yang dikarang di sini.</div>'
       + '    </div>'
-      + '  </div>'
+      + '    <button class="btn btn-ghost btn-sm" ' + (AI_DQ_LOADING ? 'disabled' : '') + ' onclick="fetchAiDataQuality()" style="font-size:11px;border-color:#38bdf8;color:#38bdf8">' + (AI_DQ_LOADING ? '⏳ Memeriksa...' : '🔄 Periksa Ulang (' + (state.selectedTicker || '-') + ')') + '</button>'
+      + '  </div>';
 
-      + '  <div style="overflow-x:auto;margin-bottom:18px">'
+    if (AI_DQ_ERROR) {
+      html += '  <div style="margin-bottom:14px;font-size:11.5px;color:var(--red)">⚠ ' + AI_DQ_ERROR + '</div>';
+    }
+
+    if (!AI_DQ_RESULT) {
+      html += '  <div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
+        + (AI_DQ_LOADING
+            ? '⏳ Memeriksa histori harga ' + (state.selectedTicker || '') + ' &amp; IHSG terhadap Data Quality Gate...'
+            : 'Belum Dihitung — klik "Periksa Ulang" di atas untuk menjalankan Data Quality Gate terhadap ticker yang sedang dipilih (' + (state.selectedTicker || '-') + ') dan feed regime IHSG.')
+        + '  </div></div>';
+      return html;
+    }
+
+    var dq = AI_DQ_RESULT;
+    if (AI_DQ_TICKER && state.selectedTicker && AI_DQ_TICKER !== state.selectedTicker) {
+      html += '  <div style="margin-bottom:14px;font-size:11.5px;color:var(--amber)">ℹ️ Menampilkan hasil untuk <strong>' + AI_DQ_TICKER + '</strong> — ticker yang sedang dipilih sekarang adalah <strong>' + state.selectedTicker + '</strong>. Klik "Periksa Ulang" untuk memeriksa ticker tersebut.</div>';
+    }
+    html += '  <div style="overflow-x:auto;margin-bottom:14px">'
       + '    <table class="tbl">'
       + '      <thead>'
       + '        <tr>'
-      + '          <th>Nama Dataset Feeds</th>'
-      + '          <th>Sumber Data Terverifikasi</th>'
-      + '          <th>Skor Kualitas (Quality Score)</th>'
-      + '          <th>Freshness / Update</th>'
-      + '          <th>Status Pipeline</th>'
+      + '          <th>Ticker / Feed</th>'
+      + '          <th>Status Gate</th>'
+      + '          <th>Candle Tersedia / Minimum</th>'
+      + '          <th>Candle Terakhir</th>'
+      + '          <th>Sumber</th>'
+      + '          <th>Catatan</th>'
       + '        </tr>'
       + '      </thead>'
-      + '      <tbody>';
-
-    dataFeeds.forEach(function(df) {
-      html += '<tr>'
-        + '<td style="font-weight:700;color:var(--text)">' + df.name + '</td>'
-        + '<td style="font-size:11.5px;color:var(--text2)">' + df.source + '</td>'
-        + '<td><strong style="font-family:var(--font-mono);color:' + (df.score >= 90 ? 'var(--green)' : 'var(--amber)') + '">' + df.score + ' / 100</strong></td>'
-        + '<td style="font-family:var(--font-mono);font-size:11px">' + df.freshness + '</td>'
-        + '<td><span class="badge ' + df.cls + '">' + df.status + '</span></td>'
-        + '</tr>';
-    });
-
-    html += ''
+      + '      <tbody>'
+      + (dq.ticker ? renderAiDataQualityRow(dq.ticker.ticker, dq.ticker) : '')
+      + (dq.ihsg ? renderAiDataQualityRow('^JKSE (Regime)', dq.ihsg) : '')
       + '      </tbody>'
       + '    </table>'
       + '  </div>'
+      + '  <div style="font-size:10.5px;color:var(--text3);margin-bottom:14px">Terakhir diperiksa: ' + dq.checkedAt.toLocaleString('id-ID') + ' WIB.</div>'
 
-      // Confidence Degradation Explanation Card
+      // Confidence Degradation Explanation Card — describes the real
+      // renormalization in computeConfluence() (confidenceScore =
+      // evidence.length / (evidence.length + missingEvidence.length)), not
+      // a specific measured before/after number.
       + '  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">'
       + '    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px"><i class="ti ti-info-circle" style="color:#38bdf8"></i> Kebijakan Penyesuaian Keyakinan (Confidence Degradation Protocol):</div>'
       + '    <div style="font-size:11.5px;color:var(--text2);line-height:1.5">'
-      + '      Jika dataset broker-flow atau berita tidak tersedia untuk suatu emiten, skor keyakinan (*confidence score*) AI secara transparan didegradasi (contoh: 82% → 64%). Nilai komposit dihitung kembali dengan normalisasi bobot pada faktor yang aktif. <strong>Tidak akan pernah dihasilkan halaman kosong (*blank page*), angka NaN, atau grafik rusak.</strong>'
+      + '      Jika suatu kategori bukti (mis. broker flow, fundamental) tidak tersedia untuk suatu emiten, kategori itu masuk ke daftar "Bukti Belum Tersedia" (lihat Hypothesis Lab) dan skor keyakinan dihitung ulang hanya dari bukti yang benar-benar aktif — bukan angka tetap yang dikarang. <strong>Tidak akan pernah dihasilkan halaman kosong (*blank page*), angka NaN, atau status BUY dari data yang gagal Data Quality Gate.</strong>'
       + '    </div>'
       + '  </div>'
       + '</div>';
@@ -1890,6 +1963,9 @@
     if (tabName === 'paper' || tabName === 'cockpit') {
       syncAiPaperPortfolioLivePrices(false);
       aiRefreshPaperPortfolioQuotes(false);
+    }
+    if (tabName === 'dataquality' && !AI_DQ_RESULT && !AI_DQ_LOADING) {
+      fetchAiDataQuality();
     }
     renderAiTradingPage();
   }
@@ -1944,5 +2020,6 @@
   window.aiGenerateHypothesis = aiGenerateHypothesis;
   window.aiRemoveHypothesis = aiRemoveHypothesis;
   window.aiOpenPositionFromHypothesis = aiOpenPositionFromHypothesis;
+  window.fetchAiDataQuality = fetchAiDataQuality;
 
 })(window, document);

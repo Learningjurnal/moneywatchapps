@@ -22,7 +22,9 @@ import {
   generateBrokerSummary,
   fetchIdxStockScreener,
   IDX_BROKERS,
-  generateTradingHypothesis
+  generateTradingHypothesis,
+  assessDataQuality,
+  classifyMarketRegime
 } from './lib/idx-data-engine.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -2752,6 +2754,30 @@ app.get('/api/idx/hypothesis/:ticker', async (req, res) => {
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
     const hypothesis = await generateTradingHypothesis(ticker);
     return res.json({ success: true, hypothesis });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/data-quality/:ticker — real Data Quality Gate status
+// (assessDataQuality) for one ticker's OHLCV history, plus the same
+// assessment already computed for the IHSG regime feed
+// (classifyMarketRegime's ^JKSE history). Backs the Data Quality Monitor
+// page, which used to show a fixed 5-row table of fabricated quality
+// scores unrelated to any real ticker — this returns the same
+// REAL/STALE/UNAVAILABLE/SIMULATION/INVALID status (with reasons) that
+// already gates /api/idx/hypothesis/:ticker, without paying for the full
+// confluence computation (signal + broker summary) just to read it.
+app.get('/api/idx/data-quality/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const [history, regime] = await Promise.all([
+      fetchYahooHistory(ticker, 'SCAN'),
+      classifyMarketRegime()
+    ]);
+    const dataQuality = assessDataQuality(ticker, history);
+    return res.json({ success: true, dataQuality, ihsgDataQuality: regime.dataQuality });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
