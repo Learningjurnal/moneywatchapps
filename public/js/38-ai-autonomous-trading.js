@@ -570,6 +570,12 @@
     recomputePaperStats();
     p.equityHistory.push({ date: new Date().toISOString(), equity: p.cash + p.openPositions.reduce(function(s, x) { return s + x.currentValue; }, 0) });
     savePaperAccountState();
+
+    if (typeof showToast === 'function') {
+      var pnlSign = netPnL >= 0 ? '+' : '';
+      showToast((result === 'WIN' ? '✓' : '⚠') + ' Posisi ' + pos.ticker + ' ditutup (' + reason + '): ' + pnlSign + 'Rp ' + Number(netPnL).toLocaleString('id-ID') + ' (' + pnlSign + returnPct + '%)');
+    }
+    if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
   }
 
   // Opens a real paper position from the CURRENT scanned signal for a
