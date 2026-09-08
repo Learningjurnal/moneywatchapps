@@ -2781,11 +2781,25 @@ app.post('/api/idx/ai-scan', async (req, res) => {
 // side:'NO_TRADE' — never a fabricated BUY — whenever the Data Quality
 // Gate, R:R, regime, or contradiction checks fail; every reason is listed
 // in the response's gateFailures. No real order is ever placed from this.
+//
+// Optional ?cash=&equity=&riskPct= query params carry the caller's REAL
+// current paper-account numbers (AI_TRADE_STATE.paperAccount client-side)
+// through to generateTradingHypothesis() so suggestedPositionSizing in the
+// response reflects what would actually happen on "Buka Posisi Paper" —
+// not a fabricated reference-account number. Omitted/invalid values are
+// left undefined rather than coerced to 0, so the engine's own "account
+// unavailable" fallback applies honestly instead of sizing against Rp0.
 app.get('/api/idx/hypothesis/:ticker', async (req, res) => {
   try {
     const ticker = req.params.ticker;
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
-    const hypothesis = await generateTradingHypothesis(ticker);
+    const cash = req.query.cash != null && req.query.cash !== '' ? Number(req.query.cash) : undefined;
+    const equity = req.query.equity != null && req.query.equity !== '' ? Number(req.query.equity) : undefined;
+    const riskPct = req.query.riskPct != null && req.query.riskPct !== '' ? Number(req.query.riskPct) : undefined;
+    const accountContext = (Number.isFinite(cash) && Number.isFinite(equity) && Number.isFinite(riskPct))
+      ? { cash, totalEquity: equity, riskPerTradePct: riskPct }
+      : undefined;
+    const hypothesis = await generateTradingHypothesis(ticker, accountContext);
     return res.json({ success: true, hypothesis });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
