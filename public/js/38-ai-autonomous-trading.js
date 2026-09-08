@@ -96,6 +96,13 @@
   var AI_SCAN_LOADING = false;
   var AI_SCAN_LOADED_AT = null;
   var AI_SCAN_ERROR = null;
+
+  // Hypothesis Lab loading state — see generateTradingHypothesis() in
+  // lib/idx-data-engine.js (/api/idx/hypothesis/:ticker). Separate from the
+  // scanner's loading flags since a hypothesis is generated one ticker at a
+  // time, on demand, not as a batch scan.
+  var AI_HYPO_LOADING = false;
+  var AI_HYPO_ERROR = null;
   var AI_DEEP_PENDING = {}; // tickers currently being fetched for Deep Analysis
   var AI_DEEP_FAILED = {}; // tickers confirmed to have no real signal (invalid/unlisted) — stops retry loop
 
@@ -322,6 +329,109 @@
   // (before line ~345 executes) silently read localStorage under key
   // "undefined" and always no-opped.
   loadPaperAccountState();
+
+  // ══════════════════════════════════════════════════════════
+  // HYPOTHESIS LAB PERSISTENCE — mirrors AI_PAPER_STORAGE_KEY exactly.
+  // Stays isolated research/paper data (localStorage only), never routed
+  // through the Supabase-synced saveData() payload — same isolation
+  // guarantee as the rest of this page's paper-trading state.
+  // ══════════════════════════════════════════════════════════
+  var AI_HYPO_STORAGE_KEY = 'mw_ai_hypotheses_v1';
+
+  function saveHypothesesState() {
+    try {
+      localStorage.setItem(AI_HYPO_STORAGE_KEY, JSON.stringify(AI_TRADE_STATE.hypotheses));
+    } catch (e) {}
+  }
+
+  function loadHypothesesState() {
+    try {
+      var raw = localStorage.getItem(AI_HYPO_STORAGE_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (Array.isArray(saved)) AI_TRADE_STATE.hypotheses = saved;
+    } catch (e) {}
+  }
+
+  loadHypothesesState();
+
+  // Calls the real /api/idx/hypothesis/:ticker endpoint (Signal & Confluence
+  // Engine, PAPER/research mode only — see lib/idx-data-engine.js) and
+  // stores the structured result. Never fabricates a result on failure —
+  // shows the real error instead.
+  async function aiGenerateHypothesis(tickerOverride) {
+    var input = document.getElementById('ai-hypo-ticker-input');
+    var tk = String(tickerOverride || (input ? input.value : '') || AI_TRADE_STATE.selectedTicker || '').toUpperCase().trim();
+    if (!tk) { if (typeof showToast === 'function') showToast('⚠ Masukkan kode ticker terlebih dahulu.'); return; }
+    if (AI_HYPO_LOADING) return;
+
+    AI_HYPO_LOADING = true;
+    AI_HYPO_ERROR = null;
+    renderAiTradingPage();
+    try {
+      var resp = await fetch('/api/idx/hypothesis/' + encodeURIComponent(tk));
+      var json = await resp.json();
+      if (!json.success || !json.hypothesis) throw new Error(json.error || 'Gagal menghasilkan hipotesis');
+
+      var record = Object.assign({
+        id: 'HYPO-' + Date.now(),
+        generatedAt: new Date().toISOString()
+      }, json.hypothesis);
+
+      // Replace any existing hypothesis for the same ticker rather than
+      // stacking duplicates — only the latest read for a ticker is useful.
+      AI_TRADE_STATE.hypotheses = AI_TRADE_STATE.hypotheses.filter(function(h) { return h.symbol !== record.symbol; });
+      AI_TRADE_STATE.hypotheses.unshift(record);
+      saveHypothesesState();
+
+      if (record.side === 'BUY' && record.confidence >= 60) {
+        if (typeof showToast === 'function') showToast('💡 Hipotesis BUY baru: ' + record.symbol + ' (confluence ' + record.confluence + '/100, keyakinan ' + record.confidence + '%)');
+        if (typeof mwSendBrowserNotification === 'function') mwSendBrowserNotification('💡 Hipotesis Trading Baru: ' + record.symbol, 'Sinyal BUY dengan confluence ' + record.confluence + '/100. Lihat Hypothesis Lab untuk detail.', 'ai-hypo-' + record.symbol);
+      } else if (typeof showToast === 'function') {
+        showToast(record.side === 'NO_TRADE' ? 'ℹ️ ' + record.symbol + ': NO_TRADE — lihat alasan di kartu hipotesis.' : '✓ Hipotesis ' + record.symbol + ' dihasilkan.');
+      }
+    } catch (err) {
+      AI_HYPO_ERROR = (err && err.message) || 'Gagal menghasilkan hipotesis';
+      if (typeof showToast === 'function') showToast('⚠ ' + AI_HYPO_ERROR);
+    } finally {
+      AI_HYPO_LOADING = false;
+      renderAiTradingPage();
+    }
+  }
+
+  function aiRemoveHypothesis(id) {
+    AI_TRADE_STATE.hypotheses = AI_TRADE_STATE.hypotheses.filter(function(h) { return h.id !== id; });
+    saveHypothesesState();
+    renderAiTradingPage();
+  }
+
+  // Opens a paper position from a generated hypothesis by upserting it into
+  // AI_UNIVERSE in the exact shape aiOpenPositionFromSignal() already
+  // expects, then delegating to that existing function — no new
+  // paper-execution logic, just an adapter between the two data shapes.
+  function aiOpenPositionFromHypothesis(id) {
+    var h = AI_TRADE_STATE.hypotheses.find(function(x) { return x.id === id; });
+    if (!h) return;
+    if (h.side !== 'BUY' || h.entryZone == null || h.stopLoss == null) {
+      if (typeof showToast === 'function') showToast('⚠ Hipotesis ini berstatus ' + h.side + ' — tidak bisa dibuka sebagai posisi paper.');
+      return;
+    }
+    var adapted = {
+      ticker: h.symbol,
+      signal: 'BUY',
+      strategy: 'Signal & Confluence Engine (' + h.regime + ')',
+      thesis: h.entryReason,
+      confidence: h.confidence,
+      ev: 'Confluence ' + h.confluence + '/100',
+      entry: h.entryZone,
+      sl: h.stopLoss,
+      tp1: h.takeProfit ? h.takeProfit.tp1 : null,
+      tp2: h.takeProfit ? h.takeProfit.tp2 : null
+    };
+    var idx = AI_UNIVERSE.findIndex(function(x) { return x.ticker === adapted.ticker; });
+    if (idx >= 0) AI_UNIVERSE[idx] = Object.assign({}, AI_UNIVERSE[idx], adapted); else AI_UNIVERSE.push(adapted);
+    return aiOpenPositionFromSignal(adapted.ticker);
+  }
 
   // Recomputes every aggregate stat from the real closedTrades array —
   // never stored/incremented by hand, always derived fresh.
@@ -1247,6 +1357,13 @@
   // ══════════════════════════════════════════════════════════
   // 8. SUB-PAGE RENDERING: AUTONOMOUS HYPOTHESIS LAB
   // ══════════════════════════════════════════════════════════
+  // Real Hypothesis Lab — calls /api/idx/hypothesis/:ticker (Signal &
+  // Confluence Engine, PAPER/research mode only; see
+  // lib/idx-data-engine.js#generateTradingHypothesis). Previously this
+  // tab was a permanent honest-empty-state placeholder since no
+  // hypothesis-generation engine existed; now it renders real structured
+  // hypotheses with bull/bear case, evidence groups, contradictions, and
+  // an honest NO_TRADE (never a fabricated BUY) when any gate fails.
   function renderAiHypothesisLab(state) {
     var hypos = state.hypotheses;
 
@@ -1255,39 +1372,77 @@
       + '    <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
       + '      <i class="ti ti-bulb" style="color:var(--amber)"></i> Hypothesis Lab'
       + '    </div>'
-      + '    <div style="font-size:12px;color:var(--text3)">Daftar hipotesis trading yang sudah diuji lewat Walk-Forward Backtest di Backtest Lab, dengan hasil riil dari histori harga aktual.</div>'
-      + '  </div>';
+      + '    <div style="font-size:12px;color:var(--text3)">Hipotesis trading terstruktur dari Signal &amp; Confluence Engine — menggabungkan teknikal, fundamental, regime pasar IHSG, dan (jika tersedia) broker flow riil. Mode PAPER/riset saja — tidak ada order riil yang dieksekusi dari sini.</div>'
+      + '  </div>'
+      + '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">'
+      + '    <input id="ai-hypo-ticker-input" type="text" placeholder="Kode ticker (mis. BBCA)" value="' + (state.selectedTicker || '') + '" style="flex:1;min-width:160px;padding:8px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--font-mono);text-transform:uppercase" onkeydown="if(event.key===\'Enter\'){aiGenerateHypothesis()}">'
+      + '    <button class="btn btn-primary btn-sm" ' + (AI_HYPO_LOADING ? 'disabled' : '') + ' onclick="aiGenerateHypothesis()">' + (AI_HYPO_LOADING ? '⏳ Menghitung...' : '💡 Hasilkan Hipotesis') + '</button>'
+      + '  </div>'
+      + (AI_HYPO_ERROR ? '  <div style="margin-top:8px;font-size:11.5px;color:var(--red)">⚠ ' + AI_HYPO_ERROR + '</div>' : '')
+      + '</div>';
 
     if (!hypos.length) {
-      html += '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
-        + 'Belum ada hipotesis.<br>Mesin perumusan hipotesis otomatis (yang secara mandiri mengusulkan aturan trading baru) belum dibangun di aplikasi ini.<br>Gunakan <strong>Strategy Lab</strong> untuk menguji ketiga strategi rule-based yang sudah tersedia dengan data riil.'
-        + '</div></div>';
+      html += '<div class="card" style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
+        + 'Belum ada hipotesis dihasilkan.<br>Masukkan kode ticker di atas dan klik "Hasilkan Hipotesis" untuk menjalankan Confluence Engine terhadap data riil emiten tersebut.'
+        + '</div>';
       return html;
     }
 
-    html += '  <div style="display:flex;flex-direction:column;gap:14px">';
+    html += '<div style="display:flex;flex-direction:column;gap:14px">';
 
     hypos.forEach(function(h) {
+      var isBuy = h.side === 'BUY';
+      var sideColor = isBuy ? 'var(--green)' : 'var(--text3)';
+      var sideBg = isBuy ? 'rgba(16,185,129,0.12)' : 'rgba(148,163,184,0.12)';
+      var dq = h.dataQuality || {};
+
       html += ''
-        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:16px">'
+        + '<div style="background:var(--bg3);border:1px solid ' + (isBuy ? 'rgba(16,185,129,0.35)' : 'var(--border2)') + ';border-radius:10px;padding:16px">'
         + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
         + '    <div>'
-        + '      <span style="font-size:10px;font-family:var(--font-mono);color:var(--accent);font-weight:700">' + h.id + ' · TANGGAL: ' + h.date + '</span>'
-        + '      <div style="font-size:15px;font-weight:800;color:var(--text);margin-top:2px">' + h.title + '</div>'
+        + '      <span style="font-size:10px;font-family:var(--font-mono);color:var(--text3)">' + new Date(h.generatedAt).toLocaleString('id-ID') + ' · Regime: ' + (h.regime || 'N/A') + ' · DQ: ' + (dq.status || 'N/A') + '</span>'
+        + '      <div style="font-size:16px;font-weight:800;color:var(--text);margin-top:2px">' + h.symbol + '</div>'
         + '    </div>'
-        + '    <span class="badge ' + h.statusCls + '">' + h.status + '</span>'
+        + '    <div style="display:flex;align-items:center;gap:8px">'
+        + '      <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:' + sideBg + ';color:' + sideColor + '">' + h.side + '</span>'
+        + '      <button class="btn btn-ghost btn-xs" title="Hapus" onclick="aiRemoveHypothesis(\'' + h.id + '\')"><i class="ti ti-x"></i></button>'
+        + '    </div>'
         + '  </div>'
         + '  <div style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:10px;background:rgba(255,255,255,0.02);padding:10px;border-radius:6px">'
-        + '    <strong>Pernyataan Hipotesis:</strong> "' + h.statement + '"'
+        + '    <strong>' + (isBuy ? 'Alasan Entry:' : 'Alasan NO_TRADE:') + '</strong> ' + (h.entryReason || '-')
         + '  </div>'
-        + '  <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;font-size:11.5px;color:var(--text3);border-top:1px solid var(--border2);padding-top:10px">'
-        + '    <div><strong>Dataset &amp; Sampel:</strong> ' + h.dataset + ' (' + h.sampleSize + ' Sampel)</div>'
-        + '    <div><strong>Hasil Pengujian Backtest:</strong> <span style="color:var(--text)">' + h.testResult + '</span></div>'
+        + (isBuy
+            ? ('  <div class="row4" style="margin-bottom:10px">'
+              + '    <div class="metric"><div class="mlabel">Entry</div><div class="mval" style="font-size:14px">Rp ' + Number(h.entryZone).toLocaleString('id-ID') + '</div></div>'
+              + '    <div class="metric"><div class="mlabel">Stop Loss</div><div class="mval down" style="font-size:14px">Rp ' + Number(h.stopLoss).toLocaleString('id-ID') + '</div></div>'
+              + '    <div class="metric"><div class="mlabel">Take Profit (TP1 / TP2)</div><div class="mval up" style="font-size:14px">Rp ' + (h.takeProfit ? (Number(h.takeProfit.tp1).toLocaleString('id-ID') + ' / ' + Number(h.takeProfit.tp2).toLocaleString('id-ID')) : '-') + '</div></div>'
+              + '    <div class="metric"><div class="mlabel">Risk:Reward (ke TP2)</div><div class="mval" style="font-size:14px">1 : ' + (h.riskReward != null ? h.riskReward : 'N/A') + '</div></div>'
+              + '  </div>')
+            : '')
+        + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">'
+        + '    <div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:4px">✓ BULL CASE</div>'
+        + (h.bullCase && h.bullCase.length ? h.bullCase.map(function(b) { return '<div style="font-size:11.5px;color:var(--text2);margin-bottom:3px">• ' + b + '</div>'; }).join('') : '<div style="font-size:11.5px;color:var(--text3)">Tidak ada bukti bullish.</div>')
+        + '    </div>'
+        + '    <div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:4px">✗ BEAR CASE / KONTRADIKSI</div>'
+        + (h.bearCase && h.bearCase.length ? h.bearCase.map(function(b) { return '<div style="font-size:11.5px;color:var(--text2);margin-bottom:3px">• ' + b + '</div>'; }).join('') : '<div style="font-size:11.5px;color:var(--text3)">Tidak ada bukti bearish/kontradiksi.</div>')
+        + '    </div>'
+        + '  </div>'
+        + (h.missingEvidence && h.missingEvidence.length
+            ? ('  <div style="font-size:11px;color:var(--text3);border-top:1px solid var(--border2);padding-top:8px;margin-bottom:8px"><strong>Bukti Belum Tersedia:</strong> ' + h.missingEvidence.join(' ') + '</div>')
+            : '')
+        + (!isBuy && h.gateFailures && h.gateFailures.length
+            ? ('  <div style="font-size:11px;color:var(--amber);background:rgba(245,158,11,0.08);border-radius:6px;padding:8px;margin-bottom:8px"><strong>⚠ Gate yang Gagal:</strong> ' + h.gateFailures.join(' ') + '</div>')
+            : '')
+        + '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border2);padding-top:10px">'
+        + '    <span style="font-size:11px;color:var(--text3)">Confluence <strong style="color:var(--text)">' + h.confluence + '/100</strong> · Keyakinan <strong style="color:var(--text)">' + h.confidence + '%</strong></span>'
+        + (isBuy ? ('    <button class="btn btn-primary btn-sm" onclick="aiOpenPositionFromHypothesis(\'' + h.id + '\')">📥 Buka Posisi Paper</button>') : '')
         + '  </div>'
         + '</div>';
     });
 
-    html += '</div></div>';
+    html += '</div>';
     return html;
   }
 
@@ -1786,5 +1941,8 @@
   window.fetchAiScanData = fetchAiScanData;
   window.fetchAllStrategyBacktests = fetchAllStrategyBacktests;
   window.fetchWalkForwardBacktest = fetchWalkForwardBacktest;
+  window.aiGenerateHypothesis = aiGenerateHypothesis;
+  window.aiRemoveHypothesis = aiRemoveHypothesis;
+  window.aiOpenPositionFromHypothesis = aiOpenPositionFromHypothesis;
 
 })(window, document);
