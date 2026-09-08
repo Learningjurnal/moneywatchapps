@@ -102,6 +102,28 @@ function authShowErr(msg){
   e.style.display='block'; e.textContent='⚠️ '+msg;
 }
 
+// Terjemahkan pesan error umum Supabase Auth ke Bahasa Indonesia yang lebih
+// jelas untuk pengguna - Supabase mengembalikan pesan bahasa Inggris apa
+// adanya (mis. "Email not confirmed", "email rate limit exceeded").
+function _translateSupabaseAuthError(err){
+  var raw = (err && err.message) || '';
+  var code = (err && err.code) || '';
+  var lower = raw.toLowerCase();
+  if(code === 'email_not_confirmed' || lower.indexOf('email not confirmed') !== -1){
+    return 'Email belum dikonfirmasi. Cek inbox Anda dan klik link konfirmasi dari Supabase sebelum login.';
+  }
+  if(lower.indexOf('rate limit') !== -1){
+    return 'Terlalu banyak percobaan dalam waktu singkat (batas pengiriman email Supabase). Tunggu beberapa saat lalu coba lagi.';
+  }
+  if(code === 'invalid_credentials' || lower.indexOf('invalid login credentials') !== -1){
+    return 'Email atau password salah.';
+  }
+  if(lower.indexOf('user already registered') !== -1 || lower.indexOf('already registered') !== -1){
+    return 'Email ini sudah terdaftar. Coba login, atau gunakan "Reset via kode" jika lupa password.';
+  }
+  return raw || 'Terjadi kesalahan tidak diketahui.';
+}
+
 // ── Login via Supabase Auth ──
 // FIX AUDIT: was Firebase Auth with a "direct session" fallback for when
 // the Email/Password provider was disabled. That fallback is exactly what
@@ -155,8 +177,7 @@ function authDoLogin(){
     })
     .catch(function(err){
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
-      var msg = err && err.message ? err.message : 'Email atau password salah';
-      authShowErr('Gagal login: ' + msg);
+      authShowErr('Gagal login: ' + _translateSupabaseAuthError(err));
     });
 }
 
@@ -224,24 +245,49 @@ function authDoSetup(){
       if(result.error) throw result.error;
       var user = result.data.user;
       var hasSession = !!result.data.session;
+      var msg=el('auth-setup-msg');
+      var sf=el('auth-setup-form');
+
+      // FIX AUDIT: this used to set _currentUser and add a working "Masuk
+      // ke Aplikasi" button regardless of hasSession. When the project
+      // requires email confirmation (true here - confirmed directly
+      // against this project), signUp() creates the account but grants NO
+      // session at all: clicking that button called safeCloudBoot() with
+      // an id that looks valid but has no real Supabase JWT behind it, so
+      // every Supabase read/write silently failed RLS, and the user landed
+      // in the app believing they were logged in and synced when they
+      // were not. Only treat this as "logged in" when a real session
+      // actually exists.
+      if(!hasSession){
+        if(msg){
+          msg.style.color='var(--green)';
+          msg.style.background='rgba(0,229,160,.08)';
+          msg.style.border='1px solid rgba(0,229,160,.2)';
+          msg.innerHTML='✅ Akun berhasil dibuat!<br><br>Cek email Anda dan klik link konfirmasi, lalu kembali ke sini dan login dengan email &amp; password yang baru saja Anda buat.';
+        }
+        if(sf){
+          var btnBack=document.createElement('button');
+          btnBack.className='auth-btn';
+          btnBack.style.marginTop='12px';
+          btnBack.textContent='← Kembali ke Login';
+          btnBack.setAttribute('data-added','1');
+          btnBack.onclick=function(){ authShowLogin(); };
+          sf.appendChild(btnBack);
+        }
+        return;
+      }
+
       _currentUser = { id: user.id, email: user.email, displayName: user.email.split('@')[0] };
       try {
         sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
         localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
       } catch(e){}
-      var msg=el('auth-setup-msg');
       if(msg){
         msg.style.color='var(--green)';
         msg.style.background='rgba(0,229,160,.08)';
         msg.style.border='1px solid rgba(0,229,160,.2)';
-        // Kalau project Supabase mensyaratkan konfirmasi email, signUp()
-        // berhasil membuat akun tapi belum memberi session aktif - jujurkan
-        // itu daripada berjanji langsung bisa masuk.
-        msg.innerHTML = hasSession
-          ? '✅ Akun berhasil dibuat!<br><br>Klik tombol di bawah untuk langsung masuk.'
-          : '✅ Akun berhasil dibuat!<br><br>Cek email Anda untuk konfirmasi (jika diminta), lalu klik tombol di bawah untuk masuk.';
+        msg.innerHTML='✅ Akun berhasil dibuat!<br><br>Klik tombol di bawah untuk langsung masuk.';
       }
-      var sf=el('auth-setup-form');
       if(sf){
         var btn2=document.createElement('button');
         btn2.className='auth-btn';
@@ -258,7 +304,7 @@ function authDoSetup(){
     })
     .catch(function(err){
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
-      authShowErr('Gagal membuat akun: ' + (err && err.message || 'unknown'));
+      authShowErr('Gagal membuat akun: ' + _translateSupabaseAuthError(err));
     });
 }
 
@@ -278,7 +324,7 @@ function authDoReset(){
       e.textContent='✅ Email instruksi reset password telah dikirim.';
     }
   }).catch(function(err){
-    authShowErr('Gagal kirim reset: ' + (err && err.message || 'unknown'));
+    authShowErr('Gagal kirim reset: ' + _translateSupabaseAuthError(err));
   });
 }
 
