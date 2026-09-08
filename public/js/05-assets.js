@@ -132,26 +132,31 @@ function openModal(type, targetAccount){
     el('m-title').style.color='var(--accent)';
     el('m-body').innerHTML='<div style="margin-bottom:12px"><select class="finput fsel" id="mf-sec-choose">'+Object.keys(SEKURITAS).map(function(s){return '<option value="'+s+'"'+(s===activeSekuritas?' selected':'')+'>'+s+'</option>'}).join('')+'</select></div><div id="sec-fee-preview"></div><div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeModal()">Batal</button><button class="btn btn-blue" onclick="saveSecuritas()">Simpan</button></div>';
     function updateSecPreview(){
-      var s=el('mf-sec-choose').value; var sf=SEKURITAS[s];
-      var ovr=sekTaxOverride[s]||{};
-      var bFee=(ovr.beli!=null?ovr.beli:sf.buyFee);
-      var jFee=(ovr.jual!=null?ovr.jual:sf.sellFee);
+      var s=el('mf-sec-choose').value;
       var ppn=TAX_SETTINGS.ppn, levy=TAX_SETTINGS.levy, pphJ=TAX_SETTINGS.pphJual;
-      // per 100 saham @ Rp 5000 (gross=500000) untuk representasi persentase
-      var totBrate=((bFee*(1+ppn)+levy)*100).toFixed(3);
-      var totJrate=((jFee*(1+ppn)+levy+pphJ)*100).toFixed(3);
+      // Pakai calcTxComponents() langsung (bukan hitung ulang manual di sini)
+      // supaya preview ini tidak pernah berbeda dari kalkulasi transaksi
+      // sungguhan — sebelumnya modal ini punya rumus sendiri yang menambah
+      // PPN/levy/PPh DI ATAS rate all-in, dobel-hitung pajak yang sudah
+      // termasuk di dalamnya (lihat catatan di calcTxComponents, 01-data.js).
+      // Gross Rp 500.000 (100 lembar @ Rp 5.000) hanya representasi untuk
+      // menurunkan persentase, hasilnya identik untuk gross berapapun.
+      var gRef=500000;
+      var cBuy=calcTxComponents(gRef, true, s);
+      var cSell=calcTxComponents(gRef, false, s);
+      var pct=function(v){ return (v/gRef*100).toFixed(3); };
       el('sec-fee-preview').innerHTML=
         '<div class="taxbox">'
-        +'<div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px">RINCIAN BIAYA TOTAL</div>'
-        +'<div class="taxrow"><span>Komisi Beli</span><span class="mono amb">'+(bFee*100).toFixed(3)+'%</span></div>'
-        +'<div class="taxrow"><span>PPN '+( ppn*100).toFixed(0)+'% × Komisi</span><span class="mono dn">'+(bFee*ppn*100).toFixed(4)+'%</span></div>'
-        +'<div class="taxrow"><span>Levy '+( levy*100).toFixed(3)+'%</span><span class="mono dn">'+(levy*100).toFixed(3)+'%</span></div>'
-        +'<div class="taxrow tot"><span>Total Biaya Beli</span><span class="mono amb">'+totBrate+'%</span></div>'
-        +'<div class="taxrow" style="margin-top:6px"><span>Komisi Jual</span><span class="mono amb">'+(jFee*100).toFixed(3)+'%</span></div>'
-        +'<div class="taxrow"><span>PPN '+( ppn*100).toFixed(0)+'% × Komisi</span><span class="mono dn">'+(jFee*ppn*100).toFixed(4)+'%</span></div>'
-        +'<div class="taxrow"><span>Levy '+( levy*100).toFixed(3)+'%</span><span class="mono dn">'+(levy*100).toFixed(3)+'%</span></div>'
-        +'<div class="taxrow"><span>PPh Final Jual '+(pphJ*100).toFixed(1)+'%</span><span class="mono dn">'+(pphJ*100).toFixed(1)+'%</span></div>'
-        +'<div class="taxrow tot"><span>Total Biaya Jual</span><span class="mono dn">'+totJrate+'%</span></div>'
+        +'<div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px">RINCIAN BIAYA TOTAL (All-in)</div>'
+        +'<div class="taxrow"><span>Komisi Beli</span><span class="mono amb">'+pct(cBuy.komisi)+'%</span></div>'
+        +'<div class="taxrow"><span>PPN '+( ppn*100).toFixed(0)+'% × Komisi</span><span class="mono dn">'+pct(cBuy.ppn)+'%</span></div>'
+        +'<div class="taxrow"><span>Levy '+( levy*100).toFixed(3)+'%</span><span class="mono dn">'+pct(cBuy.levy)+'%</span></div>'
+        +'<div class="taxrow tot"><span>Total Biaya Beli</span><span class="mono amb">'+pct(cBuy.totalFee)+'%</span></div>'
+        +'<div class="taxrow" style="margin-top:6px"><span>Komisi Jual</span><span class="mono amb">'+pct(cSell.komisi)+'%</span></div>'
+        +'<div class="taxrow"><span>PPN '+( ppn*100).toFixed(0)+'% × Komisi</span><span class="mono dn">'+pct(cSell.ppn)+'%</span></div>'
+        +'<div class="taxrow"><span>Levy '+( levy*100).toFixed(3)+'%</span><span class="mono dn">'+pct(cSell.levy)+'%</span></div>'
+        +'<div class="taxrow"><span>PPh Final Jual '+(pphJ*100).toFixed(1)+'%</span><span class="mono dn">'+pct(cSell.pph)+'%</span></div>'
+        +'<div class="taxrow tot"><span>Total Biaya Jual</span><span class="mono dn">'+pct(cSell.totalFee)+'%</span></div>'
         +'</div>';
     }
     el('mf-sec-choose').onchange=updateSecPreview;
