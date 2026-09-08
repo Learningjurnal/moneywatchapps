@@ -1959,6 +1959,30 @@ function restoreFromBackup(file){
       var d = JSON.parse(e.target.result);
       if(!d) throw new Error('File tidak valid');
 
+      // FIX (CRITICAL, restore corrupted by real-time echo): restoring a
+      // backup is a deliberate "this is the complete, authoritative state
+      // — discard anything else" action, but the save this triggers below
+      // still goes out over the same Supabase Realtime / multi-device SSE
+      // channels every normal save uses. If a cloud-update notification
+      // for THIS SAME save (or a slightly stale one still in flight,
+      // queued from before the restore) arrives back at this tab while
+      // _syncInFlight has already reset to false — a real, observed
+      // timing gap between a save's HTTP response and its separate
+      // Realtime replication event — _applyCloudPayload() would run
+      // _mergeDatasets() between the just-restored state and that
+      // (possibly older) cloud payload. _mergeDatasets()'s default
+      // fallback is a non-destructive UNION merge (preserve every
+      // transaction from both sides) specifically so normal saves never
+      // lose data — but for a restore, that union is exactly the bug:
+      // it can silently add old, pre-restore transactions back on top of
+      // the file's own set, growing the count past what the file
+      // actually contains. Reusing the SAME reentrancy flag both
+      // setupMultiDeviceSyncListener() and setupCloudRealtimeListener()
+      // already check (_isApplyingCloudSnapshot) makes this tab ignore
+      // any incoming cloud payload — echo or stale — for a few seconds
+      // while the restore's own save settles, instead of merging it in.
+      _isApplyingCloudSnapshot = true;
+
       transactions = d.transactions || [];
       dividends = d.dividends || [];
       rdnMutations = d.rdnMutations || [];
@@ -2006,7 +2030,14 @@ function restoreFromBackup(file){
       if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
       closeBackupModal();
       if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data backup JSON berhasil dipulihkan, dihitung ulang, & disimpan ke Supabase');
+
+      // Give the restore's own save (and any delayed Realtime replication
+      // echo of it) a few seconds to fully settle before this tab starts
+      // listening to cloud updates again — see the note above where this
+      // flag was set.
+      setTimeout(function(){ _isApplyingCloudSnapshot = false; }, 5000);
     } catch(err) {
+      _isApplyingCloudSnapshot = false;
       alert('Gagal memulihkan backup: ' + err.message);
     }
   };
