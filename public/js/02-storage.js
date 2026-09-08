@@ -919,6 +919,20 @@ var _DEVICE_SESSION_ID = (function(){
   }
 })();
 
+// FIX: this used to be treated (in the "✓ Tersimpan lokal & server"
+// status message below) as if it durably persisted data server-side.
+// It never has on this host — Vercel's serverless functions run on a
+// read-only filesystem outside /tmp, so /api/user-data/save's disk write
+// always throws EROFS. That failure was silently swallowed here
+// (.catch(function(e){})) and the endpoint itself returned success even
+// when the write failed, so the claim was never actually verified.
+// This call still has real value as a multi-device push-sync trigger
+// (broadcastSyncUpdate, a pure in-memory relay unrelated to the disk
+// write), so it's kept — it just no longer backs any "saved on the
+// server" claim. Supabase Cloud (see fireSaveAllData()) is the only real
+// durable off-device storage; local storage on this device is the only
+// other one. Returns a promise resolving to whether the server actually
+// reports disk persistence, purely for diagnostics/logging.
 function _syncToServerMirror(payload){
   try {
     var isStaticHost = typeof window !== 'undefined' && window.location && (
@@ -926,20 +940,20 @@ function _syncToServerMirror(payload){
       window.location.protocol === 'file:' ||
       (window.location.hostname || '').indexOf('pages.dev') !== -1
     );
-    if(isStaticHost) return; // GitHub Pages is static host, bypass /api/user-data/save
+    if(isStaticHost) return Promise.resolve(null); // GitHub Pages is static host, bypass /api/user-data/save
 
     var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
     if(!uid || uid === 'demo_guest_user' || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
-      return; // Do not mirror demo or unauthenticated sessions to server
+      return Promise.resolve(null); // Do not mirror demo or unauthenticated sessions to server
     }
 
     var email = (_currentUser && _currentUser.email) || '';
-    if(!email) return;
+    if(!email) return Promise.resolve(null);
 
     if(typeof fetch === 'function'){
-      fetch('/api/user-data/save', {
+      return fetch('/api/user-data/save', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'X-Device-Session-Id': _DEVICE_SESSION_ID
         },
@@ -950,9 +964,15 @@ function _syncToServerMirror(payload){
           savedAt: new Date().toISOString(),
           data: payload
         })
-      }).catch(function(e){});
+      }).then(function(r){ return r.json(); }).then(function(json){
+        if (json && json.diskPersisted === false) {
+          console.warn('Server mirror notice: disk persistence unavailable on this host (' + json.diskError + '); relying on localStorage + Supabase Cloud only.');
+        }
+        return json;
+      }).catch(function(e){ return null; });
     }
-  } catch(e){}
+    return Promise.resolve(null);
+  } catch(e){ return Promise.resolve(null); }
 }
 
 // ── SETUP REALTIME MULTI-DEVICE SYNCHRONIZATION BUS ──
@@ -1544,7 +1564,10 @@ function saveData(){
     console.warn('LocalStorage save notice:', e);
   }
 
-  // 2. Simpan ke Server Persistence Mirror (Tahan Hard Refresh & Tab Close)
+  // 2. Picu siaran multi-device real-time (SSE) — BUKAN cadangan permanen,
+  // lihat catatan di _syncToServerMirror(). Supabase Cloud di langkah 3
+  // adalah satu-satunya lapisan penyimpanan permanen selain localStorage
+  // perangkat ini.
   _syncToServerMirror(payloadObj);
 
   // 3. Simpan dan sinkronkan seketika ke Supabase Cloud
@@ -1552,7 +1575,7 @@ function saveData(){
   if(client){
     _syncToCloud(true);
   } else {
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data tersimpan di server & perangkat', 'var(--green)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Tersimpan di perangkat ini saja (lokal) — Supabase Cloud tidak terkonfigurasi', 'var(--amber)');
   }
 }
 
@@ -1576,7 +1599,12 @@ function _syncToCloud(allowRetry){
     console.warn('Supabase sync notice:', e);
     _cloudSyncFailed = true;
     var _errMsg = (e && e.message) ? e.message : String(e);
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan lokal & server (Cloud: ' + _errMsg + ')', 'var(--amber)');
+    // FIX: previously claimed "& server" here too — the on-disk server
+    // mirror never actually persists on this host (see
+    // _syncToServerMirror()), so only localStorage on this device is
+    // genuinely holding this save until Supabase Cloud succeeds (it
+    // retries automatically below).
+    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Tersimpan di perangkat ini saja (lokal) — Supabase Cloud gagal: ' + _errMsg, 'var(--amber)');
     if(_syncQueued){
       _syncQueued = false;
       return _syncToCloud(allowRetry);
@@ -1999,7 +2027,7 @@ async function checkFirebaseLiveSyncStatus(){
       box.innerHTML = `
         <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">ℹ️ Data Tersimpan Lokal, Baris Cloud Belum Tersinkron</div>
         <div style="color:var(--text2);font-size:11.5px;line-height:1.6;margin-bottom:10px">
-          Portofolio Anda saat ini aktif dan tersimpan di penyimpanan lokal peramban &amp; server mirror, namun baris di Supabase untuk akun ini belum dibuat.
+          Portofolio Anda saat ini aktif dan tersimpan di penyimpanan lokal peramban ini, namun baris di Supabase untuk akun ini belum dibuat — belum ada cadangan cloud yang permanen.
         </div>
         <button class="btn btn-blue btn-sm" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="padding:6px 14px;font-size:11.5px">
           🚀 Sinkronkan ke Supabase Sekarang

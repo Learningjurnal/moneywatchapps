@@ -117,56 +117,72 @@ function getSafeFileKey(uidOrEmail) {
 // fireSaveAllData()) - this server route's job is only the local-disk
 // mirror below, which stays database-agnostic.
 app.post('/api/user-data/save', (req, res) => {
-  try {
-    const body = req.body || {};
-    const rawPayload = JSON.stringify(body);
-    if (rawPayload.length > 10 * 1024 * 1024) {
-      return res.status(413).json({ success: false, error: 'Payload exceeds maximum limit (10MB)' });
-    }
-    const uid = (body.uid || body.email || '').trim();
-    if (!uid) {
-      return res.status(400).json({ success: false, error: 'User ID (uid) is required to save data' });
-    }
+  const body = req.body || {};
+  const rawPayload = JSON.stringify(body);
+  if (rawPayload.length > 10 * 1024 * 1024) {
+    return res.status(413).json({ success: false, error: 'Payload exceeds maximum limit (10MB)' });
+  }
+  const uid = (body.uid || body.email || '').trim();
+  if (!uid) {
+    return res.status(400).json({ success: false, error: 'User ID (uid) is required to save data' });
+  }
 
-    const isDemo = (uid === 'demo_guest_user' || uid === 'guest_user');
+  const isDemo = (uid === 'demo_guest_user' || uid === 'guest_user');
+  const record = {
+    uid: uid,
+    email: body.email || '',
+    savedAt: body.savedAt || new Date().toISOString(),
+    serverReceivedAt: new Date().toISOString(),
+    data: body.data || body
+  };
+
+  // FIX: this handler's on-disk write ALWAYS fails on Vercel — its
+  // serverless functions run on a read-only filesystem outside /tmp, so
+  // every fs.writeFileSync() call here throws EROFS. The old code let that
+  // throw abort the whole handler (including the broadcast below) and
+  // still told the client "Data successfully persisted to server mirror"
+  // whenever it happened not to throw — meaning the client's "✓ Tersimpan
+  // lokal & server" message never actually verified the "server" half.
+  // Persisting real per-user server-side storage isn't possible on this
+  // platform without a real database, which is exactly what Supabase now
+  // is — so this write is now best-effort/diagnostic only, and the
+  // response honestly reports whether it actually landed on disk.
+  let diskPersisted = false;
+  let diskError = null;
+  try {
     const safeKey = getSafeFileKey(uid);
     const filePath = path.join(USER_STORES_DIR, `user_${safeKey}.json`);
-
-    const record = {
-      uid: uid,
-      email: body.email || '',
-      savedAt: body.savedAt || new Date().toISOString(),
-      serverReceivedAt: new Date().toISOString(),
-      data: body.data || body
-    };
-
-    const jsonStr = JSON.stringify(record, null, 2);
-    fs.writeFileSync(filePath, jsonStr, 'utf8');
-
-    // NEVER save to a shared backup file (prevents cross-tenant data leakage)
-    // Broadcast to other connected devices (DB-agnostic - unrelated to
-    // which cloud database is authoritative for this account)
-    if (!isDemo) {
-      broadcastSyncUpdate(uid, record.data, req.headers['x-device-session-id'] || null);
-    }
-
-    const txCount = (record.data && Array.isArray(record.data.transactions)) ? record.data.transactions.length : 0;
-    const rdnCount = (record.data && Array.isArray(record.data.rdnMutations)) ? record.data.rdnMutations.length : 0;
-
-    return res.json({
-      success: true,
-      message: isDemo ? 'Demo session saved locally to isolated demo store' : 'Data successfully persisted to server mirror',
-      savedAt: record.savedAt,
-      stats: { transactions: txCount, rdnMutations: rdnCount }
-    });
+    fs.writeFileSync(filePath, JSON.stringify(record, null, 2), 'utf8');
+    diskPersisted = true;
   } catch (err) {
-    console.error('Server save data error:', err);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to persist user data on server',
-      message: err.message
-    });
+    diskError = err.message;
   }
+
+  // Broadcast to other connected devices regardless of the disk write's
+  // outcome — this is a pure in-memory relay (see broadcastSyncUpdate),
+  // it has no dependency on the filesystem and shouldn't be held hostage
+  // to a write that structurally can never succeed here.
+  if (!isDemo) {
+    try {
+      broadcastSyncUpdate(uid, record.data, req.headers['x-device-session-id'] || null);
+    } catch (err) {
+      console.warn('SSE broadcast notice:', err.message);
+    }
+  }
+
+  const txCount = (record.data && Array.isArray(record.data.transactions)) ? record.data.transactions.length : 0;
+  const rdnCount = (record.data && Array.isArray(record.data.rdnMutations)) ? record.data.rdnMutations.length : 0;
+
+  return res.json({
+    success: true,
+    diskPersisted: diskPersisted,
+    diskError: diskError,
+    message: diskPersisted
+      ? (isDemo ? 'Demo session saved locally to isolated demo store' : 'Data successfully persisted to server mirror')
+      : 'Multi-device broadcast sent; on-disk mirror unavailable on this host (Supabase Cloud is the real persistence layer)',
+    savedAt: record.savedAt,
+    stats: { transactions: txCount, rdnMutations: rdnCount }
+  });
 });
 
 app.get('/api/user-data/load', (req, res) => {
