@@ -196,36 +196,24 @@ function perfRenderAllocation(mode){
   }).join('') : '<div style="color:var(--text3);font-size:11px;text-align:center;padding:16px">Belum ada posisi saham</div>';
 }
 
-// ── Fetch historis harian IHSG (^JKSE) via Yahoo — infrastruktur sama dengan
-// rdFetchYahoo() di 13-realdata.js, TAPI simbolnya TIDAK boleh diberi akhiran
-// .JK (itu cuma berlaku untuk ticker saham individual, bukan indeks). ──
-function rdFetchIhsgDaily(cb, pi){
-  pi = pi||0;
-  var cached = (typeof rdGetAny==='function') ? rdGetAny('IHSG_DAILY') : null;
-  if(cached){ cb(null, cached); return; }
-  if(!window.FH || !FH.PROXIES || pi >= FH.PROXIES.length){ cb(new Error('ALL_PROXIES_FAILED'), null); return; }
-  var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/'+FH.IHSG_SYM+'?interval=1d&range=2y';
-  var proxyConfig = FH.PROXIES[pi];
-  var url = typeof proxyConfig === 'function' ? proxyConfig(yUrl) : (proxyConfig && proxyConfig.url ? proxyConfig.url(yUrl) : yUrl);
-  fetch(url)
-    .then(function(r){ if(!r.ok) throw new Error('HTTP_'+r.status); return r.json(); })
-    .then(function(d){
-      var rawObj = d;
-      if(proxyConfig && proxyConfig.isWrapped && d && d.contents){
-        try { rawObj = JSON.parse(d.contents); } catch(e){ throw new Error('PARSE_ERROR'); }
-      }
-      var res = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
-      if(!res || !res.timestamp) throw new Error('NO_DATA');
-      var q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
-      var qClose = q.close || [];
-      var rows = res.timestamp.map(function(ts,i){
-        return {date:new Date(ts*1000).toISOString().slice(0,10), close:qClose[i]||0};
-      }).filter(function(r){ return r.close>0; });
-      if(rows.length<20) throw new Error('TOO_FEW');
-      if(typeof rdSave==='function') rdSave('IHSG_DAILY', rows);
-      cb(null, rows);
-    })
-    .catch(function(){ rdFetchIhsgDaily(cb, pi+1); });
+// ── Fetch historis harian IHSG (^JKSE) — dulu fetch ad-hoc langsung dari
+// Yahoo lewat rantai CORS-proxy client-side (FH.PROXIES) dan dibatasi
+// range=2y. Dua masalah: (1) begitu Portfolio line di atas mulai memakai
+// FULL riwayat transaksi (bisa 7+ tahun, lihat perfPrefetchAndRebuildEquity),
+// garis IHSG-nya cuma 2 tahun — jadi kosong untuk rentang lebih tua dari itu
+// (perfNearestIhsgClose mengembalikan null sebelum baris pertama seri),
+// padahal Portfolio line di titik yang sama sudah ada datanya; (2) cache-nya
+// digerbang oleh rdGetAny() (menerima cache KEMARIN juga) alih-alih rdGet()
+// (hari ini saja) — begitu tersimpan sekali, seri IHSG tidak pernah
+// di-refetch lagi. Sekarang jadi wrapper tipis di atas perfFetchDailyHistory()
+// (infrastruktur DAILY_MAX/10y yang sama dipakai untuk histori
+// saham/crypto/ETF di atas) — lewat server (bukan CORS-proxy), dan gerbang
+// cache-nya sudah rdGet()-only lewat perfFetchDailyHistory() itu sendiri.
+// assetClass 'index' dipakai supaya cache key-nya (PXH_IDX_^JKSE) tidak
+// pernah bentrok dengan kode saham riil, dan market-nya otomatis 'id' (lihat
+// perfFetchDailyHistory) yang TIDAK memberi akhiran .JK ke simbol indeks. ──
+function rdFetchIhsgDaily(cb){
+  perfFetchDailyHistory('index', '^JKSE', cb);
 }
 // Cari close IHSG pada tanggal tertentu — kalau tidak ada (weekend/libur bursa
 // saat snapshot ekuitas tercatat), pakai closing hari bursa terakhir sebelumnya.
@@ -247,25 +235,29 @@ function perfNearestIhsgClose(rows, dateStr){
 // response shape, no third-party rate limits for a 40-symbol burst. ──
 var PERF_HIST_INFLIGHT = {};
 function perfHistCacheKey(assetClass, code){
-  var prefix = assetClass==='crypto' ? 'PXH_CRY_' : (assetClass==='etf' ? 'PXH_ETF_' : (assetClass==='fx' ? 'PXH_FX_' : 'PXH_STK_'));
+  var prefix = assetClass==='crypto' ? 'PXH_CRY_' : (assetClass==='etf' ? 'PXH_ETF_' : (assetClass==='fx' ? 'PXH_FX_' : (assetClass==='index' ? 'PXH_IDX_' : 'PXH_STK_')));
   return prefix + code;
 }
 // Fetch (or serve from TODAY's cache) a real daily {date, close, ...} series
 // for one symbol. `assetClass` picks both the rdSave/rdGet cache namespace
 // (perfHistCacheKey — deliberately NOT the raw ticker, which would collide
 // with rdFetchYahoo()'s own 1y stock cache in 13-realdata.js) and the
-// server `market` param: 'stock'->id (.JK), 'etf'->us (raw ticker),
-// 'crypto'->crypto (CODE-USD — Yahoo has no historical CODE-IDR chart,
-// confirmed), 'fx'->us (raw 'USDIDR=X', used to convert crypto/ETF USD
-// closes to IDR per historical day instead of today's flat rate).
+// server `market` param: 'stock'/'index'->id (.JK for stocks, ^ left as-is
+// for the index — see shapeYahooSymbol() in lib/idx-data-engine.js),
+// 'etf'->us (raw ticker), 'crypto'->crypto (CODE-USD — Yahoo has no
+// historical CODE-IDR chart, confirmed), 'fx'->us (raw 'USDIDR=X', used to
+// convert crypto/ETF USD closes to IDR per historical day instead of
+// today's flat rate). rdFetchIhsgDaily() above is just this function called
+// with assetClass 'index'.
 function perfFetchDailyHistory(assetClass, code, cb){
   var key = perfHistCacheKey(assetClass, code);
 
   // rdGet() — NOT rdGetAny() — so only a cache written TODAY short-circuits
-  // the fetch. rdGetAny() also accepts yesterday's cache, which is the
-  // latent bug rdFetchIhsgDaily() above has: once cached, that series is
-  // never refetched again. Gating on rdGet() gives exactly one network
-  // fetch per symbol per calendar day with no bespoke trading-calendar logic.
+  // the fetch. rdGetAny() also accepts yesterday's cache, which would leave
+  // a series never refetched again once cached once (the bug this function
+  // fixed for the IHSG series above vs. the old ad-hoc rdFetchIhsgDaily()).
+  // Gating on rdGet() gives exactly one network fetch per symbol per
+  // calendar day with no bespoke trading-calendar logic.
   var cachedToday = (typeof rdGet==='function') ? rdGet(key) : null;
   if(cachedToday && cachedToday.length>=20){ cb(null, cachedToday); return; }
 
@@ -447,8 +439,15 @@ function perfRenderBenchmarkWith(hist, noteEl){
     if(ihsgRows){
       var baseIhsg = perfNearestIhsgClose(ihsgRows, hist[0].date);
       if(baseIhsg){
+        // hist is chronologically ascending (day-by-day rebuild), so a
+        // forward-only makePriceAdvancer() pointer (02b-price-index.js) can
+        // walk ihsgRows once instead of perfNearestIhsgClose() rescanning it
+        // from the start on every one of hist.length lookups — matters now
+        // that ihsgRows is a full DAILY_MAX (10y, ~2500-row) series against a
+        // `hist` that can itself span years of daily snapshots.
+        var ihsgAdvance = (typeof makePriceAdvancer==='function') ? makePriceAdvancer(ihsgRows) : null;
         ihsgPct = hist.map(function(h){
-          var c = perfNearestIhsgClose(ihsgRows, h.date);
+          var c = ihsgAdvance ? ihsgAdvance(h.date) : perfNearestIhsgClose(ihsgRows, h.date);
           return c ? ((c/baseIhsg-1)*100) : null;
         });
       }

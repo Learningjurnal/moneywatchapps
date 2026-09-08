@@ -124,10 +124,14 @@ function calcPortfolioHealthScore() {
 // IHSG shown everywhere else in the app), yet this function drives the
 // "how much of your portfolio should be equity vs cash today"
 // recommendation. Now reads the real IHSG daily-close history already
-// cached by rdFetchIhsgDaily()/rdGetAny('IHSG_DAILY') (same real feed
-// perfComputeRealBeta() uses for portfolio Beta), computing real
-// ihsgVal/ihsgChg/volatility from it, and triggers a background fetch +
-// re-render when that history isn't cached yet instead of guessing.
+// cached by rdFetchIhsgDaily() (same real feed perfComputeRealBeta() uses
+// for portfolio Beta), computing real ihsgVal/ihsgChg/volatility from it,
+// and triggers a background fetch + re-render when that history isn't
+// cached yet instead of guessing. Cache key comes from perfHistCacheKey()
+// (21-performance.js) rather than the old literal 'IHSG_DAILY' — that was
+// rdFetchIhsgDaily()'s own ad-hoc cache key before it became a thin wrapper
+// over perfFetchDailyHistory()'s DAILY_MAX (10y) infrastructure, which
+// namespaces its cache under 'PXH_IDX_^JKSE' instead.
 // Foreign capital flow and market-breadth (advance/decline) have no real
 // feed in this app (Bandarmology's foreign-flow figures are already
 // disclosed elsewhere as simulated) — rather than fabricate numbers for
@@ -135,7 +139,8 @@ function calcPortfolioHealthScore() {
 // regime classification logic, which is based on real IHSG trend alone.
 var MR_FETCHING = false;
 function getMarketRegime() {
-  var ihsgRows = (typeof rdGetAny === 'function') ? rdGetAny('IHSG_DAILY') : null;
+  var ihsgKey = (typeof perfHistCacheKey === 'function') ? perfHistCacheKey('index', '^JKSE') : 'IHSG_DAILY';
+  var ihsgRows = (typeof rdGetAny === 'function') ? rdGetAny(ihsgKey) : null;
 
   if (!ihsgRows || ihsgRows.length < 2) {
     if (!MR_FETCHING && typeof rdFetchIhsgDaily === 'function') {
