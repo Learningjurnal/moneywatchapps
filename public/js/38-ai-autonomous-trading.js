@@ -79,7 +79,9 @@
     // sizes, p-values). There is no real hypothesis-generation/testing
     // engine yet, so an empty list + honest empty-state message is shown
     // instead of numbers that look computed but never were.
-    hypotheses: []
+    hypotheses: [],
+    // Audit Trail / Decision Log (roadmap 3.2) — see logDecision() below.
+    decisionLog: []
   };
 
   var AI_UNIVERSE = [];
@@ -381,6 +383,53 @@
 
   loadHypothesesState();
 
+  // ══════════════════════════════════════════════════════════
+  // AUDIT TRAIL / DECISION LOG (roadmap 3.2, AGENTS.md §21) — a durable,
+  // append-only record of every decision the engine actually made,
+  // separate from AI_TRADE_STATE.hypotheses (which only keeps the LATEST
+  // hypothesis per ticker, overwriting older ones) and from closedTrades
+  // (which only records realized trades). This exists so a NO_TRADE or
+  // HOLD decision the engine made is still visible afterward, not just
+  // the ones that happened to result in a paper trade. Entries are never
+  // edited once written — an action taken later (opening/closing a
+  // position) is logged as a NEW event, not a mutation of the original
+  // decision record, matching how a real audit trail works.
+  // ══════════════════════════════════════════════════════════
+  var AI_DECISION_LOG_KEY = 'mw_ai_decision_log_v1';
+  var AI_DECISION_LOG_MAX = 500; // bounded like equityHistory (730) — a research log, not unlimited storage
+
+  function saveDecisionLog() {
+    try {
+      localStorage.setItem(AI_DECISION_LOG_KEY, JSON.stringify(AI_TRADE_STATE.decisionLog));
+    } catch (e) {}
+  }
+
+  function loadDecisionLog() {
+    try {
+      var raw = localStorage.getItem(AI_DECISION_LOG_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (Array.isArray(saved)) AI_TRADE_STATE.decisionLog = saved;
+    } catch (e) {}
+  }
+
+  loadDecisionLog();
+
+  // Appends one event and persists immediately — every field here comes
+  // from an already-computed real value (a hypothesis result or an actual
+  // trade action), nothing invented for the log entry itself.
+  function logDecision(entry) {
+    if (!Array.isArray(AI_TRADE_STATE.decisionLog)) AI_TRADE_STATE.decisionLog = [];
+    AI_TRADE_STATE.decisionLog.unshift(Object.assign({
+      id: 'DEC-' + Date.now() + '-' + Math.round(Math.random() * 1000),
+      timestamp: new Date().toISOString()
+    }, entry));
+    if (AI_TRADE_STATE.decisionLog.length > AI_DECISION_LOG_MAX) {
+      AI_TRADE_STATE.decisionLog.length = AI_DECISION_LOG_MAX;
+    }
+    saveDecisionLog();
+  }
+
   // Calls the real /api/idx/hypothesis/:ticker endpoint (Signal & Confluence
   // Engine, PAPER/research mode only — see lib/idx-data-engine.js) and
   // stores the structured result. Never fabricates a result on failure —
@@ -419,6 +468,21 @@
       AI_TRADE_STATE.hypotheses = AI_TRADE_STATE.hypotheses.filter(function(h) { return h.symbol !== record.symbol; });
       AI_TRADE_STATE.hypotheses.unshift(record);
       saveHypothesesState();
+
+      // Log this decision permanently — including NO_TRADE, which
+      // AI_TRADE_STATE.hypotheses itself would otherwise silently
+      // overwrite the next time this ticker is checked.
+      logDecision({
+        type: 'ENTRY_HYPOTHESIS',
+        ticker: record.symbol,
+        side: record.side,
+        confluence: record.confluence,
+        confidence: record.confidence,
+        uncertainty: record.uncertainty,
+        regime: record.regime,
+        dataQualityStatus: record.dataQuality ? record.dataQuality.status : null,
+        reasons: record.side === 'NO_TRADE' ? record.gateFailures : []
+      });
 
       if (record.side === 'BUY' && record.confidence >= 60) {
         if (typeof showToast === 'function') showToast('💡 Hipotesis BUY baru: ' + record.symbol + ' (confluence ' + record.confluence + '/100, keyakinan ' + record.confidence + '%)');
@@ -567,6 +631,18 @@
       if (!json.success || !json.hypothesis) throw new Error(json.error || 'Gagal menghasilkan exit hypothesis');
 
       AI_EXIT_HYPO[posId] = { loading: false, error: null, result: json.hypothesis };
+      logDecision({
+        type: 'EXIT_HYPOTHESIS',
+        ticker: pos.ticker,
+        positionId: posId,
+        side: json.hypothesis.side,
+        confluence: json.hypothesis.confluence,
+        confidence: json.hypothesis.confidence,
+        uncertainty: json.hypothesis.uncertainty,
+        regime: json.hypothesis.regime,
+        dataQualityStatus: json.hypothesis.dataQuality ? json.hypothesis.dataQuality.status : null,
+        reasons: json.hypothesis.side === 'SELL' ? json.hypothesis.exitTriggers : []
+      });
       if (typeof showToast === 'function') {
         showToast(json.hypothesis.side === 'SELL'
           ? '⚠ ' + pos.ticker + ': sinyal SELL terdeteksi — lihat detail di kartu exit hypothesis.'
@@ -729,6 +805,19 @@
     p.equityHistory.push({ date: new Date().toISOString(), equity: p.cash + p.openPositions.reduce(function(s, x) { return s + x.currentValue; }, 0) });
     savePaperAccountState();
 
+    logDecision({
+      type: 'ACTION',
+      action: 'POSITION_CLOSED',
+      ticker: pos.ticker,
+      positionId: pos.id,
+      exitPrice: Math.round(px),
+      exitReason: reason,
+      result: result,
+      netPnL: netPnL,
+      errorClassification: errorClassification,
+      regime: regimeAtExit
+    });
+
     if (typeof showToast === 'function') {
       var pnlSign = netPnL >= 0 ? '+' : '';
       showToast((result === 'WIN' ? '✓' : '⚠') + ' Posisi ' + pos.ticker + ' ditutup (' + reason + '): ' + pnlSign + 'Rp ' + Number(netPnL).toLocaleString('id-ID') + ' (' + pnlSign + returnPct + '%)');
@@ -814,6 +903,19 @@
       thesis: sig.thesis,
       confidence: sig.confidence,
       ev: sig.ev
+    });
+
+    // Log the real action taken — a NEW event, not a mutation of whatever
+    // ENTRY_HYPOTHESIS decision (if any) preceded it, since this position
+    // can also be opened directly from a Scanner signal with no
+    // hypothesis involved at all.
+    logDecision({
+      type: 'ACTION',
+      action: 'POSITION_OPENED',
+      ticker: ticker,
+      entryPrice: entry,
+      lots: lots,
+      regime: regimeAtEntry
     });
 
     savePaperAccountState();
@@ -2123,7 +2225,10 @@
       html += '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
         + 'Belum ada data untuk dianalisis — belum ada trade yang ditutup di Paper Portfolio.<br>Buka dan tutup beberapa posisi dari sinyal BUY di tab <strong>AI Paper Portfolio</strong> untuk mulai mengisi audit ini.'
         + '</div></div>';
-      return html;
+      // Decision Log below is intentionally independent of closedTrades —
+      // it also records NO_TRADE/HOLD decisions that never became a
+      // trade, so it must still render even when no trade exists yet.
+      return html + renderAiDecisionLog(state);
     }
 
     var wins = trades.filter(function(t) { return t.result === 'WIN'; }).length;
@@ -2142,9 +2247,90 @@
       + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">FUNDAMENTAL</div><div style="font-size:16px;font-weight:800;color:var(--accent)">35%</div></div>'
       + '    </div>'
       + '  </div>'
-      + '</div>';
+      + '</div>'
+      + renderAiDecisionLog(state);
 
     return html;
+  }
+
+  // Audit Trail / Decision Log (roadmap 3.2, AGENTS.md §21) — every
+  // decision the engine actually made (ENTRY_HYPOTHESIS, EXIT_HYPOTHESIS,
+  // and the real ACTION taken afterward), independent of whether a trade
+  // resulted. Unlike AI_TRADE_STATE.hypotheses (latest-per-ticker only)
+  // this is a durable, append-only history — a NO_TRADE decision from
+  // last week is still visible here, not silently overwritten.
+  function renderAiDecisionLog(state) {
+    var log = state.decisionLog || [];
+    var html = '<div class="card" style="padding:20px">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">'
+      + '    <div>'
+      + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px"><i class="ti ti-history" style="color:var(--accent)"></i> Audit Trail — Riwayat Keputusan</div>'
+      + '      <div style="font-size:12px;color:var(--text3)">Catatan permanen setiap hipotesis (BUY/NO_TRADE/SELL/HOLD) yang pernah dihasilkan dan setiap aksi riil yang diambil — termasuk yang tidak berujung transaksi. Maks ' + AI_DECISION_LOG_MAX + ' entri terbaru.</div>'
+      + '    </div>'
+      + (log.length ? '    <button class="btn btn-ghost btn-xs" onclick="aiExportDecisionLogCsv()" style="border-color:var(--accent);color:var(--accent)">⬇️ Export CSV</button>' : '')
+      + '  </div>';
+
+    if (!log.length) {
+      html += '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Belum ada keputusan tercatat — hasilkan hipotesis di tab Hypothesis Lab atau cek exit di AI Paper Portfolio untuk mulai mengisi audit trail ini.</div></div>';
+      return html;
+    }
+
+    html += '<div style="overflow-x:auto"><table class="tbl"><thead><tr>'
+      + '<th>Waktu</th><th>Ticker</th><th>Tipe</th><th>Sisi / Aksi</th><th>Confluence / Uncertainty</th><th>Regime</th><th>Alasan</th>'
+      + '</tr></thead><tbody>';
+
+    log.slice(0, 100).forEach(function(d) {
+      var sideOrAction = d.type === 'ACTION' ? d.action : d.side;
+      var sideColor = (sideOrAction === 'BUY' || sideOrAction === 'POSITION_OPENED') ? 'var(--green)'
+        : (sideOrAction === 'SELL' || sideOrAction === 'POSITION_CLOSED') ? 'var(--red)'
+        : 'var(--text3)';
+      var reasonText = (d.reasons && d.reasons.length) ? d.reasons.join(' ') : (d.errorClassification || '-');
+      html += '<tr>'
+        + '<td style="font-size:10.5px;color:var(--text3);font-family:var(--font-mono);white-space:nowrap">' + new Date(d.timestamp).toLocaleString('id-ID') + '</td>'
+        + '<td style="font-weight:700;font-family:var(--font-mono)">' + d.ticker + '</td>'
+        + '<td style="font-size:11px;color:var(--text3)">' + d.type + '</td>'
+        + '<td><span style="font-weight:700;color:' + sideColor + '">' + sideOrAction + '</span></td>'
+        + '<td style="font-family:var(--font-mono);font-size:11px">' + (d.confluence != null ? d.confluence + '/100 (' + d.uncertainty + ')' : '-') + '</td>'
+        + '<td style="font-size:11px">' + (d.regime || '-') + '</td>'
+        + '<td style="font-size:10.5px;color:var(--text2);max-width:320px">' + reasonText + '</td>'
+        + '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    if (log.length > 100) {
+      html += '<div style="font-size:10.5px;color:var(--text3);margin-top:8px">Menampilkan 100 dari ' + log.length + ' entri terbaru — export CSV untuk melihat semuanya.</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // Exports the full decision log (not just the 100 shown on-screen) as a
+  // CSV file — a genuinely durable copy the user can keep outside
+  // localStorage, which can be cleared or lost on this device.
+  function aiExportDecisionLogCsv() {
+    var log = AI_TRADE_STATE.decisionLog || [];
+    if (!log.length) { if (typeof showToast === 'function') showToast('⚠ Belum ada entri untuk diekspor.'); return; }
+
+    var headers = ['timestamp', 'ticker', 'type', 'side', 'action', 'confluence', 'confidence', 'uncertainty', 'regime', 'dataQualityStatus', 'errorClassification', 'result', 'netPnL', 'reasons'];
+    var rows = log.map(function(d) {
+      return headers.map(function(k) {
+        var v = k === 'reasons' ? (d.reasons ? d.reasons.join(' | ') : '') : d[k];
+        if (v == null) return '';
+        return '"' + String(v).replace(/"/g, '""') + '"';
+      }).join(',');
+    });
+    var csv = headers.join(',') + '\n' + rows.join('\n');
+
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'ai-decision-log-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    if (typeof showToast === 'function') showToast('✓ Audit trail diekspor (' + log.length + ' entri).');
   }
 
   // ══════════════════════════════════════════════════════════
@@ -2315,6 +2501,7 @@
   window.aiRemoveHypothesis = aiRemoveHypothesis;
   window.aiOpenPositionFromHypothesis = aiOpenPositionFromHypothesis;
   window.aiGenerateExitHypothesis = aiGenerateExitHypothesis;
+  window.aiExportDecisionLogCsv = aiExportDecisionLogCsv;
   window.fetchAiDataQuality = fetchAiDataQuality;
   window.fetchAiMarketRegime = fetchAiMarketRegime;
 
