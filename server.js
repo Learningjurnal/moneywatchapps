@@ -21,7 +21,8 @@ import {
   getBeiTickSize,
   generateBrokerSummary,
   fetchIdxStockScreener,
-  IDX_BROKERS
+  IDX_BROKERS,
+  generateTradingHypothesis
 } from './lib/idx-data-engine.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -2732,6 +2733,25 @@ app.post('/api/idx/ai-scan', async (req, res) => {
     if (!tickers.length) return res.status(400).json({ success: false, error: 'tickers array required' });
     const signals = await computeStockSignalBatch(tickers);
     return res.json({ success: true, count: signals.length, signals });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/hypothesis/:ticker — Signal & Confluence Engine (Paper/
+// Research mode only, see AGENTS.md §3-11). Combines the real composite
+// signal, a real IHSG-derived market regime classification, and real
+// broker/smart-money evidence (excluded from scoring whenever it's
+// simulated) into one structured trading hypothesis. Returns
+// side:'NO_TRADE' — never a fabricated BUY — whenever the Data Quality
+// Gate, R:R, regime, or contradiction checks fail; every reason is listed
+// in the response's gateFailures. No real order is ever placed from this.
+app.get('/api/idx/hypothesis/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const hypothesis = await generateTradingHypothesis(ticker);
+    return res.json({ success: true, hypothesis });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
