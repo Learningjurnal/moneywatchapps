@@ -608,14 +608,57 @@ test('Bandarmology: 1-Year Multi-Period Broker Cost Basis & VWAP Math', () => {
 // raw source as a script, exactly like a browser <script> tag does, so the
 // same file is exercised under test with zero test-only forks of the logic.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-function loadMakePriceAdvancer() {
+function loadPriceIndexHelpers() {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/02b-price-index.js'), 'utf8');
   const sandbox = {};
   vm.createContext(sandbox);
   vm.runInContext(src, sandbox, { filename: '02b-price-index.js' });
-  return sandbox.makePriceAdvancer;
+  return { makePriceAdvancer: sandbox.makePriceAdvancer, generateUtcDateRange: sandbox.generateUtcDateRange };
 }
-const makePriceAdvancer = loadMakePriceAdvancer();
+const { makePriceAdvancer, generateUtcDateRange } = loadPriceIndexHelpers();
+
+// ── TEST: generateUtcDateRange (equity-history timezone fix) ──
+// Regression coverage for the bug: local-midnight date parsing followed by
+// a toISOString() (UTC) read silently shifted every generated date back by
+// one day for any positive-UTC-offset timezone (WIB/WITA/WIT — this app's
+// whole userbase), prepending a phantom pre-transaction day with equity=0
+// and dropping the true last day ("today") off the end. This CI machine's
+// own TZ is not guaranteed to reproduce that (the bug only manifests on a
+// positive-offset machine), so these tests assert the UTC-based CONTRACT
+// directly — day count, first/last labels, no gaps/dupes — which holds
+// regardless of the host's timezone, rather than relying on incidentally
+// running on a WIB-offset CI runner.
+// vm.createContext() runs the sandbox in its own realm, so arrays it
+// returns have a different Array constructor/prototype than this file's —
+// assert.deepStrictEqual treats that as "not reference-equal" even when the
+// contents are identical. Array.from(...), called from THIS realm,
+// normalizes the sandbox array into a plain main-realm array first.
+function callGenerateUtcDateRange(startStr, endStr) {
+  return Array.from(generateUtcDateRange(startStr, endStr));
+}
+test('generateUtcDateRange: inclusive of both start and end, correct day count', () => {
+  const range = callGenerateUtcDateRange('2024-01-05', '2024-01-08');
+  assert.deepStrictEqual(range, ['2024-01-05', '2024-01-06', '2024-01-07', '2024-01-08']);
+});
+test('generateUtcDateRange: single-day range returns exactly that one day', () => {
+  assert.deepStrictEqual(callGenerateUtcDateRange('2024-03-01', '2024-03-01'), ['2024-03-01']);
+});
+test('generateUtcDateRange: end before start returns an empty range, never throws', () => {
+  assert.deepStrictEqual(callGenerateUtcDateRange('2024-03-05', '2024-03-01'), []);
+  assert.deepStrictEqual(callGenerateUtcDateRange('', '2024-03-01'), []);
+  assert.deepStrictEqual(callGenerateUtcDateRange('2024-03-01', ''), []);
+});
+test('generateUtcDateRange: crosses a month/year boundary without skipping or duplicating a day', () => {
+  const range = callGenerateUtcDateRange('2023-12-30', '2024-01-02');
+  assert.deepStrictEqual(range, ['2023-12-30', '2023-12-31', '2024-01-01', '2024-01-02']);
+});
+test('generateUtcDateRange: the real first transaction date is always the first element (no phantom leading day)', () => {
+  // This is the exact regression this fix targets: previously, the first
+  // element of the generated range could be `startStr` minus one day.
+  const range = callGenerateUtcDateRange('2018-10-31', '2018-11-03');
+  assert.strictEqual(range[0], '2018-10-31', 'The first element must be the literal firstDateStr, never a day earlier');
+  assert.strictEqual(range[range.length - 1], '2018-11-03', 'The last element must be the literal endStr ("today"), never a day earlier');
+});
 
 test('makePriceAdvancer: forward-fills weekend/holiday gaps from prior trading day', () => {
   // Fri close 100, Mon close 110 — Sat/Sun (no trading rows) must carry Friday's close.

@@ -411,21 +411,22 @@ function perfRenderBenchmark(){
 }
 function perfRenderBenchmarkWith(hist, noteEl){
   // Defensive trim: rebuildEquityHistoryFromTransactions() (03-engine.js)
-  // can produce one or more LEADING entries with equity<=0 — most notably,
-  // its day-generation (`new Date(dateStr+'T00:00:00')` parsed as local
-  // time, then re-read via `.toISOString()`) rolls back to the previous UTC
-  // calendar day for any positive-UTC-offset timezone, which is every
-  // Indonesian user's browser (WIB/WITA/WIT) — so the reconstructed history
-  // systematically starts one phantom day before the real first
-  // transaction, with no holdings yet and equity=0. Below, `base =
+  // could produce one or more LEADING entries with equity<=0 — most
+  // notably, its day-generation used to parse dates as local time then
+  // re-read them via `.toISOString()` (UTC), which rolled back to the
+  // previous UTC calendar day for any positive-UTC-offset timezone (every
+  // Indonesian user's browser — WIB/WITA/WIT), prepending a phantom day
+  // before the real first transaction with equity=0. Below, `base =
   // hist[0].equity` would then be 0, and its own `base>0 ? ... : 0` guard
   // would silently flatten the ENTIRE Portfolio line at exactly 0% —
-  // masking real performance instead of just being wrong for one day. This
-  // is a separate, pre-existing bug in the date-generation itself (out of
-  // scope to fix at its root here — it touches every stored equity-history
-  // date for every existing user) but this chart must not let a corrupted
-  // leading day wreck its entire baseline, so trim any leading
-  // non-positive-equity entries before computing `base`.
+  // masking real performance instead of just being wrong for one day. That
+  // root cause is now fixed (generateUtcDateRange(), 02b-price-index.js,
+  // does everything in UTC — see rebuildEquityHistoryFromTransactions()'s
+  // own comment), so this trim is no longer load-bearing for freshly
+  // rebuilt history. It stays as defense-in-depth for `localStorage`
+  // 'equityHistory' entries persisted by a pre-fix build of the app —
+  // equityHistoryLoad()'s own needsRebuild check self-heals those on next
+  // load, but this trim protects the chart even before that happens.
   var firstGoodIdx = hist.findIndex(function(h){ return h && h.equity > 0; });
   if(firstGoodIdx > 0) hist = hist.slice(firstGoodIdx);
   if(hist.length < 2){

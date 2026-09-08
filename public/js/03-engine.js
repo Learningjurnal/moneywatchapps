@@ -324,8 +324,15 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild, pr
     return d !== 0 ? d : ((a.id || 0) - (b.id || 0));
   });
 
-  var curDate = new Date(firstDateStr + 'T00:00:00');
-  var endDate = new Date(todayStr + 'T00:00:00');
+  // FIX: date generation used to parse firstDateStr/todayStr as LOCAL
+  // midnight and read the day back via toISOString() (UTC) — for any
+  // positive-UTC-offset browser (WIB/WITA/WIT, this app's whole userbase)
+  // that silently shifted every generated date back by one day, prepending
+  // a phantom zero-equity day and dropping the real "today" off the end
+  // (so the live-price branch below never fired). generateUtcDateRange()
+  // (02b-price-index.js) does everything in UTC, immune to this. See its
+  // own comment for the full explanation.
+  var dateRange = (typeof generateUtcDateRange === 'function') ? generateUtcDateRange(firstDateStr, todayStr) : [];
   var result = [];
 
   // Build a real-price "advancer" per symbol (if priceHist was provided) —
@@ -369,8 +376,8 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild, pr
   var etfHoldings = {}; // ticker -> { shares, costUSD, costIdr, lastPrice }
   var rdHoldings = {}; // code -> { units, cost, lastNAB }
 
-  while (curDate <= endDate) {
-    var dStr = curDate.toISOString().slice(0, 10);
+  for (var __dateIdx = 0; __dateIdx < dateRange.length; __dateIdx++) {
+    var dStr = dateRange[__dateIdx];
 
     // 1. Transaksi Saham sampai dStr
     var dayTxs = sortedTxs.filter(function(t) { return t.date === dStr; });
@@ -544,8 +551,6 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild, pr
       date: dStr,
       equity: Math.round(calculatedEquity)
     });
-
-    curDate.setDate(curDate.getDate() + 1);
   }
 
   return result;
