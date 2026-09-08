@@ -102,7 +102,14 @@ function authShowErr(msg){
   e.style.display='block'; e.textContent='⚠️ '+msg;
 }
 
-// ── Login via Firebase Auth (dengan Auto-Fallback jika Provider Belum Aktif di Firebase Console) ──
+// ── Login via Supabase Auth ──
+// FIX AUDIT: was Firebase Auth with a "direct session" fallback for when
+// the Email/Password provider was disabled. That fallback is exactly what
+// was silently producing unauthenticated sessions with no real write
+// access - moved to Supabase, which has Email/Password enabled by default
+// on a project the user actually owns, so no fallback is needed: a login
+// failure is now a real, reportable error instead of a fake session
+// pretending to work.
 function authDoLogin(){
   var uInput=(el('auth-username')&&el('auth-username').value||'').trim();
   var pInput=(el('auth-password')&&el('auth-password').value||'');
@@ -110,42 +117,18 @@ function authDoLogin(){
   var btn=el('auth-login-btn');
   if(btn){ btn.disabled=true; btn.textContent='Masuk...'; }
 
-  function _performDirectSession(emailStr){
-    if (typeof resetUserPortfolioState === 'function') {
-      resetUserPortfolioState();
-    }
-    try {
-      localStorage.removeItem('mw_local_data_v2');
-      localStorage.removeItem('mw_emergency_backup_v2');
-    } catch(e){}
-    _currentUser = {
-      uid: 'u_' + encodeURIComponent(emailStr.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
-      email: emailStr,
-      displayName: emailStr.split('@')[0],
-      isDirect: true
-    };
-    try {
-      localStorage.removeItem('mw_explicit_logout');
-      sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
-      localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
-    } catch(e){}
-    safeCloudBoot().then(function(){
-      if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
-      authShowApp(_currentUser.displayName || _currentUser.email);
-    }).catch(function(){
-      if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
-      authShowApp(_currentUser.displayName || _currentUser.email);
-    });
-  }
-
-  if(!_firebaseAuth){
-    _performDirectSession(uInput);
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  if(!client){
+    if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
+    authShowErr('Supabase belum siap. Coba muat ulang halaman.');
     return;
   }
 
-  _firebaseAuth.signInWithEmailAndPassword(uInput, pInput)
-    .then(function(userCredential){
+  client.auth.signInWithPassword({ email: uInput, password: pInput })
+    .then(function(result){
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
+      if(result.error) throw result.error;
+      var user = result.data.user;
       if (typeof resetUserPortfolioState === 'function') {
         resetUserPortfolioState();
       }
@@ -153,117 +136,39 @@ function authDoLogin(){
         localStorage.removeItem('mw_local_data_v2');
         localStorage.removeItem('mw_emergency_backup_v2');
       } catch(e){}
-      _currentUser = userCredential.user;
-      var sessData = { uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName };
+      _currentUser = {
+        id: user.id,
+        email: user.email,
+        displayName: (user.user_metadata && user.user_metadata.displayName) || user.email.split('@')[0]
+      };
       try {
         localStorage.removeItem('mw_explicit_logout');
-        sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
-        localStorage.setItem('mw_session_user', JSON.stringify(sessData));
+        sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+        localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
       } catch(e){}
-      var displayName = _currentUser.displayName || _currentUser.email || 'User';
+      var displayName = _currentUser.displayName || _currentUser.email;
       safeCloudBoot().then(function(){
         authShowApp(displayName);
-      }).catch(function(loadErr){
+      }).catch(function(){
         authShowApp(displayName);
       });
     })
     .catch(function(err){
-      // Jika Email/Password provider belum di-enable di Firebase Console, atau terjadi kendala auth eksternal
-      if(err && (err.code === 'auth/operation-not-allowed' || (err.message && err.message.indexOf('operation-not-allowed') !== -1))){
-        console.warn('Firebase Email/Password provider disabled di console, auto-fallback ke direct session:', uInput);
-        _performDirectSession(uInput);
-        return;
-      }
-      
       if(btn){ btn.disabled=false; btn.textContent='Masuk \u2192'; }
       var msg = err && err.message ? err.message : 'Email atau password salah';
-      if(err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
-        msg = 'Email atau password salah. Pastikan akun sudah terdaftar di Firebase.';
-      }
       authShowErr('Gagal login: ' + msg);
     });
 }
 
-// Normalisasi standar Gmail: titik di local-part diabaikan Google (dan alias
-// "+apa saja" di-strip) - "andry.zuma.musa@gmail.com" dan
-// "andryzumamusa@gmail.com" adalah kotak surat yang SAMA menurut Google.
-// getFirestoreUserUid() menurunkan UID langsung dari string email apa
-// adanya, jadi tanpa normalisasi ini, login Google & login email/password
-// untuk akun Gmail yang sama bisa mendarat di UID Firestore yang BERBEDA.
-// Hanya diterapkan untuk domain gmail.com/googlemail.com - domain lain
-// (yang memang membedakan titik) dibiarkan apa adanya.
-function _gmailCanonical(email){
-  if(!email) return '';
-  var parts = String(email).toLowerCase().trim().split('@');
-  if(parts.length !== 2) return String(email).toLowerCase().trim();
-  var local = parts[0], domain = parts[1];
-  if(domain === 'gmail.com' || domain === 'googlemail.com'){
-    local = local.split('+')[0].replace(/\./g, '');
-    domain = 'gmail.com';
-  }
-  return local + '@' + domain;
-}
-
-// ── Login via Google (Firebase Auth GoogleAuthProvider) ──
-function authDoGoogleLogin(){
-  if(typeof firebase === 'undefined' || !firebase.auth || !firebase.auth.GoogleAuthProvider || !_firebaseAuth){
-    authShowErr('Login Google tidak tersedia saat ini.');
-    return;
-  }
-  var btn = el('auth-google-btn');
-  if(btn){ btn.disabled = true; btn.textContent = 'Menghubungkan ke Google...'; }
-
-  var provider = new firebase.auth.GoogleAuthProvider();
-  _firebaseAuth.signInWithPopup(provider)
-    .then(function(result){
-      if (typeof resetUserPortfolioState === 'function') {
-        resetUserPortfolioState();
-      }
-      try {
-        localStorage.removeItem('mw_local_data_v2');
-        localStorage.removeItem('mw_emergency_backup_v2');
-      } catch(e){}
-
-      var googleUser = result.user;
-      var resolvedEmail = googleUser.email;
-
-      // Jika akun Google ini (setelah normalisasi Gmail) adalah pengguna
-      // utama aplikasi, pakai bentuk email kanonik yang SAMA persis dengan
-      // yang sudah dipakai login email/password selama ini - supaya
-      // getFirestoreUserUid() menghasilkan UID yang identik dan data lama
-      // (transaksi, dividen, dll) tetap terhubung, bukan dianggap akun baru.
-      if (typeof PRIMARY_USER_EMAIL !== 'undefined' && PRIMARY_USER_EMAIL &&
-          _gmailCanonical(resolvedEmail) === _gmailCanonical(PRIMARY_USER_EMAIL)) {
-        resolvedEmail = PRIMARY_USER_EMAIL;
-      }
-
-      _currentUser = {
-        uid: 'u_' + encodeURIComponent(resolvedEmail.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
-        email: resolvedEmail,
-        displayName: googleUser.displayName || resolvedEmail.split('@')[0],
-        photoURL: googleUser.photoURL || null
-      };
-      var sessData = { uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName };
-      try {
-        localStorage.removeItem('mw_explicit_logout');
-        sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
-        localStorage.setItem('mw_session_user', JSON.stringify(sessData));
-      } catch(e){}
-
-      safeCloudBoot().then(function(){
-        if(btn){ btn.disabled = false; btn.textContent = 'Masuk dengan Google'; }
-        authShowApp(_currentUser.displayName || _currentUser.email);
-      }).catch(function(){
-        if(btn){ btn.disabled = false; btn.textContent = 'Masuk dengan Google'; }
-        authShowApp(_currentUser.displayName || _currentUser.email);
-      });
-    })
-    .catch(function(err){
-      if(btn){ btn.disabled = false; btn.textContent = 'Masuk dengan Google'; }
-      if(err && (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request')) return;
-      authShowErr('Gagal login dengan Google: ' + (err && err.message || 'unknown'));
-    });
-}
+// REMOVED (Firebase→Supabase migration): _gmailCanonical()/
+// authDoGoogleLogin() existed to reconcile Google Sign-In's email with the
+// app's Firebase-derived UID and only worked against Firebase's Google
+// provider (which was itself tied to the wrong account and blocked by an
+// unauthorized-domain error). Supabase identity is a real UUID
+// (auth.uid()), not derived from the email string, so this whole concern
+// no longer applies. A Supabase-OAuth version of Google Sign-In can be
+// re-added later if the user sets up a Google provider in the Supabase
+// dashboard (Authentication → Providers → Google).
 
 // ── Login Mode Tamu / Demo Offline ──
 function authDoGuestLogin(){
@@ -295,7 +200,7 @@ function authDoGuestLogin(){
   if (typeof buildTickerTape === 'function') buildTickerTape();
 }
 
-// ── Daftar akun baru via Firebase Auth ──
+// ── Daftar akun baru via Supabase Auth ──
 function authDoSetup(){
   var u=(el('auth-new-user')&&el('auth-new-user').value||'').trim();
   var p=(el('auth-new-pass')&&el('auth-new-pass').value||'');
@@ -306,46 +211,35 @@ function authDoSetup(){
   var setupBtn=document.querySelector('#auth-setup-form .auth-btn:not([data-added])');
   if(setupBtn){ setupBtn.disabled=true; setupBtn.textContent='Membuat akun...'; }
 
-  function _performDirectRegister(emailStr){
-    _currentUser = {
-      uid: 'u_' + encodeURIComponent(emailStr.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
-      email: emailStr,
-      displayName: emailStr.split('@')[0],
-      isDirect: true
-    };
-    try {
-      sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
-      localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
-    } catch(e){}
-    safeCloudBoot().then(function(){
-      if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
-      authShowApp(_currentUser.displayName || _currentUser.email);
-    }).catch(function(){
-      if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
-      authShowApp(_currentUser.displayName || _currentUser.email);
-    });
-  }
-
-  if(!_firebaseAuth){
-    _performDirectRegister(u);
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  if(!client){
+    if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
+    authShowErr('Supabase belum siap. Coba muat ulang halaman.');
     return;
   }
 
-  _firebaseAuth.createUserWithEmailAndPassword(u, p)
-    .then(function(userCredential){
+  client.auth.signUp({ email: u, password: p })
+    .then(function(result){
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
-      _currentUser = userCredential.user;
-      var sessData = { uid: _currentUser.uid, email: _currentUser.email, displayName: _currentUser.displayName };
+      if(result.error) throw result.error;
+      var user = result.data.user;
+      var hasSession = !!result.data.session;
+      _currentUser = { id: user.id, email: user.email, displayName: user.email.split('@')[0] };
       try {
-        sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
-        localStorage.setItem('mw_session_user', JSON.stringify(sessData));
+        sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+        localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
       } catch(e){}
       var msg=el('auth-setup-msg');
       if(msg){
         msg.style.color='var(--green)';
         msg.style.background='rgba(0,229,160,.08)';
         msg.style.border='1px solid rgba(0,229,160,.2)';
-        msg.innerHTML='✅ Akun Firebase berhasil dibuat!<br><br>Klik tombol di bawah untuk langsung masuk.';
+        // Kalau project Supabase mensyaratkan konfirmasi email, signUp()
+        // berhasil membuat akun tapi belum memberi session aktif - jujurkan
+        // itu daripada berjanji langsung bisa masuk.
+        msg.innerHTML = hasSession
+          ? '✅ Akun berhasil dibuat!<br><br>Klik tombol di bawah untuk langsung masuk.'
+          : '✅ Akun berhasil dibuat!<br><br>Cek email Anda untuk konfirmasi (jika diminta), lalu klik tombol di bawah untuk masuk.';
       }
       var sf=el('auth-setup-form');
       if(sf){
@@ -363,23 +257,20 @@ function authDoSetup(){
       }
     })
     .catch(function(err){
-      if(err && (err.code === 'auth/operation-not-allowed' || (err.message && err.message.indexOf('operation-not-allowed') !== -1))){
-        console.warn('Firebase createUser provider disabled di console, auto-fallback:', u);
-        _performDirectRegister(u);
-        return;
-      }
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
       authShowErr('Gagal membuat akun: ' + (err && err.message || 'unknown'));
     });
 }
 
-// ── Reset password via Firebase ──
+// ── Reset password via Supabase Auth ──
 function authDoReset(){
   var email=(el('auth-reset-code')&&el('auth-reset-code').value||'').trim();
   if(!email||!email.includes('@')){ authShowErr('Masukkan alamat email yang terdaftar.'); return; }
-  if(!_firebaseAuth){ authShowErr('Firebase Auth belum siap.'); return; }
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  if(!client){ authShowErr('Supabase belum siap.'); return; }
 
-  _firebaseAuth.sendPasswordResetEmail(email).then(function(){
+  client.auth.resetPasswordForEmail(email).then(function(result){
+    if(result.error) throw result.error;
     var e=el('auth-err');
     if(e){
       e.style.display='block';
@@ -422,83 +313,59 @@ function authLogout(){
     authShowLogin();
   }
 
-  if(_firebaseAuth){
-    _firebaseAuth.signOut().then(function(){ _doLogoutUI(); }).catch(function(){ _doLogoutUI(); });
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  if(client){
+    client.auth.signOut().then(function(){ _doLogoutUI(); }).catch(function(){ _doLogoutUI(); });
   } else {
     _doLogoutUI();
   }
 }
 
-// ── Init auth — cek Firebase session & direct session ──
+// ── Init auth — pulihkan sesi Supabase yang masih aktif ──
 function authInit(){
   var emailField = el('auth-username');
   if(emailField && !emailField.value && typeof PRIMARY_USER_EMAIL !== 'undefined'){
     emailField.value = PRIMARY_USER_EMAIL;
   }
 
-  var savedSession = null;
-  var isExplicitLogout = false;
-  try {
-    isExplicitLogout = localStorage.getItem('mw_explicit_logout') === '1';
-    var rawSess = sessionStorage.getItem('mw_session_user') || localStorage.getItem('mw_session_user');
-    savedSession = JSON.parse(rawSess || 'null');
-  } catch(e){}
-
-  if(savedSession && (savedSession.email || savedSession.uid)){
-    _currentUser = savedSession;
-    var displayName = _currentUser.displayName || _currentUser.email || 'User';
-    safeCloudBoot().then(function(){
-      authShowApp(displayName);
-    }).catch(function(){
-      authShowApp(displayName);
-    });
-    return;
-  }
-
-  // Cross-device auto-init: Jika belum ada session di perangkat ini dan belum logout eksplisit,
-  // hubungkan langsung ke akun utama Firebase agar data langsung termuat tanpa layar kosong
-  if(!isExplicitLogout && typeof PRIMARY_USER_EMAIL !== 'undefined' && PRIMARY_USER_EMAIL){
-    _currentUser = {
-      uid: 'u_' + encodeURIComponent(PRIMARY_USER_EMAIL.toLowerCase()).replace(/[^a-z0-9_]/g, '_'),
-      email: PRIMARY_USER_EMAIL,
-      displayName: PRIMARY_USER_EMAIL.split('@')[0],
-      isPrimary: true
-    };
-    try {
-      sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
-      localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
-    } catch(e){}
-
-    safeCloudBoot().then(function(){
-      authShowApp(_currentUser.displayName || _currentUser.email);
-    }).catch(function(){
-      authShowApp(_currentUser.displayName || _currentUser.email);
-    });
-    return;
-  }
-
-  if(!_firebaseAuth){
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  if(!client){
     authShowLogin();
     return;
   }
-  _firebaseAuth.onAuthStateChanged(function(user){
-    if(user){
-      _currentUser = user;
-      var sessData = { uid: user.uid, email: user.email, displayName: user.displayName };
+
+  // FIX AUDIT (security, Firebase→Supabase migration): this used to have a
+  // "cross-device auto-init" shortcut that, absent an explicit-logout flag,
+  // silently became the primary user with a fabricated uid - no real
+  // authentication involved. That cannot work with Supabase (there is no
+  // way to fabricate a valid auth.uid() for RLS), and it was a real
+  // security gap anyway: any browser that ever visited the app without
+  // logging out first operated AS the primary account. Supabase's own
+  // getSession() is now the single source of truth for "is anyone actually
+  // logged in" - no session means the login screen, always.
+  client.auth.getSession().then(function(result){
+    var session = result.data && result.data.session;
+    if(session && session.user){
+      var user = session.user;
+      _currentUser = {
+        id: user.id,
+        email: user.email,
+        displayName: (user.user_metadata && user.user_metadata.displayName) || user.email.split('@')[0]
+      };
       try {
-        sessionStorage.setItem('mw_session_user', JSON.stringify(sessData));
-        localStorage.setItem('mw_session_user', JSON.stringify(sessData));
+        sessionStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
+        localStorage.setItem('mw_session_user', JSON.stringify(_currentUser));
       } catch(e){}
-      var displayName = _currentUser.displayName || _currentUser.email || 'User';
+      var displayName = _currentUser.displayName || _currentUser.email;
       safeCloudBoot().then(function(){
         authShowApp(displayName);
       }).catch(function(){
-        authShowLogin();
+        authShowApp(displayName);
       });
     } else {
-      if(!_currentUser){
-        authShowLogin();
-      }
+      authShowLogin();
     }
+  }).catch(function(){
+    authShowLogin();
   });
 }

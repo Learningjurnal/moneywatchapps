@@ -265,24 +265,28 @@ function resetAllDatabaseAndTransactions(){
     } catch(e){}
   }
 
-  // Purge Firebase Firestore doc if connected
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var fireUid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
-  if(db && fireUid){
+  // Purge Supabase row if connected
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  var cloudUid = typeof getAppUserId === 'function' ? getAppUserId() : null;
+  if(client && cloudUid){
     try {
-      var mainDoc = db.collection('users').doc(fireUid).collection('data').doc('main');
-      mainDoc.set({
-        transactions: [],
-        dividends: [],
-        rdnMutations: [],
-        cryptoTx: [],
-        etfTx: [],
-        rdTx: [],
-        divInvestData: [],
-        tradeStrategy: {},
-        rdnBalance: 0,
-        updatedAt: new Date().toISOString()
-      }, { merge: false }).catch(function(){});
+      client.from('user_data').upsert({
+        user_id: cloudUid,
+        data: {
+          transactions: [],
+          dividends: [],
+          rdnMutations: [],
+          cryptoTx: [],
+          etfTx: [],
+          rdTx: [],
+          divInvestData: [],
+          tradeStrategy: {},
+          rdnBalance: 0,
+          isExplicitlyEmpty: true,
+          updatedAt: new Date().toISOString()
+        },
+        updated_at: new Date().toISOString()
+      }).then(function(){}, function(){});
     } catch(e){}
   }
 
@@ -584,7 +588,7 @@ async function syncRdnDatabase(notify){
     // 1. Jalankan rekonsiliasi lokal & backend
     reconcileRdnWithTransactions(true);
     
-    // 2. Simpan ke LocalStorage dan Firebase Firestore Cloud
+    // 2. Simpan ke LocalStorage dan Supabase Cloud
     saveData();
     
     // 3. Render ulang UI
@@ -610,7 +614,7 @@ async function syncRdnDatabase(notify){
         '• Transaksi Crypto: <strong>' + (cryptoTx||[]).length + ' transaksi</strong> tersinkronisasi<br>' +
         '• Reksa Dana: <strong>' + (rdTx||[]).length + ' transaksi</strong> tersinkronisasi<br>' +
         '• Total Mutasi Kas RDN: <strong>' + (rdnMutations||[]).length + ' baris</strong> tersimpan &amp; terverifikasi.<br><br>' +
-        '<span style="color:var(--green);font-weight:600">Saldo kas dan mutasi berjalan di Firestore &amp; lokal kini 100% konsisten.</span>' +
+        '<span style="color:var(--green);font-weight:600">Saldo kas dan mutasi berjalan di Supabase &amp; lokal kini 100% konsisten.</span>' +
         '</div>',
         function(){},
         'Tutup',
@@ -1005,109 +1009,71 @@ function setupMultiDeviceSyncListener(uid){
 }
 
 // ── SETUP REALTIME FIRESTORE CROSS-DEVICE SYNC ──
-function setupFirestoreRealtimeListener(uid){
+// FIX AUDIT (Firebase→Supabase migration): was a Firestore onSnapshot
+// listener on users/{uid}/data/main. Supabase Realtime subscribes to
+// Postgres change events on a table/row instead - same job (push a cloud
+// update into this device's memory the instant another device saves),
+// different transport. The chunking guard that used to live here
+// (_writeChunkedField/_readChunkedField/_chunkArray/FIRE_CHUNK_SIZE) is
+// gone entirely: it existed only to work around Firestore's 1 MiB
+// per-document cap, and Postgres JSONB has no equivalent limit.
+function setupCloudRealtimeListener(uid){
   // Always connect multi-device SSE sync channel for instantaneous cross-session synchronization
   setupMultiDeviceSyncListener(uid);
 
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  if(!db || !uid) return;
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  if(!client || !uid) return;
   if(_realtimeListenerUnsub){
     try { _realtimeListenerUnsub(); } catch(e){}
     _realtimeListenerUnsub = null;
   }
 
   try {
-    var mainDocRef = db.collection('users').doc(uid).collection('data').doc('main');
-    _realtimeListenerUnsub = mainDocRef.onSnapshot(function(docSnap){
-      if(!docSnap || !docSnap.exists) return;
-      // Jangan timpa jika perubahan berasal dari save lokal yang sedang berlangsung
-      if(_syncInFlight || _isApplyingCloudSnapshot) return;
+    var channel = client
+      .channel('user_data_changes_' + uid)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'user_data',
+        filter: 'user_id=eq.' + uid
+      }, function(payload){
+        // Jangan timpa jika perubahan berasal dari save lokal yang sedang berlangsung
+        if(_syncInFlight || _isApplyingCloudSnapshot) return;
+        var cData = payload && payload.new && payload.new.data;
+        if(!cData) return;
 
-      var cData = docSnap.data();
-      if(!cData) return;
-
-      // Terapkan update dari cloud ke memori perangkat
-      _isApplyingCloudSnapshot = true;
-      try {
-        _applyCloudPayload(cData);
-        if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
-      } finally {
-        _isApplyingCloudSnapshot = false;
-      }
-    }, function(err){
-      console.warn('Realtime Firestore snapshot notice:', err);
-    });
+        _isApplyingCloudSnapshot = true;
+        try {
+          _applyCloudPayload(cData);
+          if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
+        } finally {
+          _isApplyingCloudSnapshot = false;
+        }
+      })
+      .subscribe();
+    _realtimeListenerUnsub = function(){ client.removeChannel(channel); };
   } catch(e){
-    console.warn('Gagal mengaktifkan Realtime Firestore Listener:', e);
+    console.warn('Gagal mengaktifkan Supabase Realtime Listener:', e);
   }
 }
 
-// ── FIRESTORE 1 MiB DOCUMENT-SIZE GUARD ──
-// FIX AUDIT (CRITICAL): a Firestore document is hard-capped at 1 MiB.
-// transactions/rdnMutations are the two arrays that grow unbounded with
-// account age (a real multi-year trading history reaches thousands of
-// rows) and are exactly what pushed a real account's main doc past that
-// cap - fireSaveAllData()/migrateLocalDataToFirebaseCloud() writing them
-// inline meant save could NEVER succeed once a portfolio grew large
-// enough, no matter what else was fixed. Every other field stays inline
-// on 'main'; only these two get split into numbered sub-documents
-// (users/{uid}/data/tx_0, tx_1, ... and rdn_0, rdn_1, ...), with a small
-// chunk-count manifest left on 'main' so a load knows how many to fetch.
-var FIRE_CHUNK_SIZE = 800;
-function _chunkArray(arr, size){
-  var out = [];
-  var a = arr || [];
-  for (var i = 0; i < a.length; i += size) out.push(a.slice(i, i + size));
-  return out;
-}
-async function _writeChunkedField(dataColRef, fieldPrefix, arr, prevChunkCount){
-  var chunks = _chunkArray(arr, FIRE_CHUNK_SIZE);
-  var writes = chunks.map(function(chunk, i){
-    return dataColRef.doc(fieldPrefix + '_' + i).set({ items: chunk, updatedAt: new Date().toISOString() });
-  });
-  // Hapus sisa chunk lama jika array baru lebih pendek dari sebelumnya
-  // (mis. setelah user menghapus banyak transaksi sekaligus)
-  if (typeof prevChunkCount === 'number') {
-    for (var j = chunks.length; j < prevChunkCount; j++){
-      writes.push(dataColRef.doc(fieldPrefix + '_' + j).delete().catch(function(){}));
-    }
-  }
-  await Promise.all(writes);
-  return chunks.length;
-}
-async function _readChunkedField(dataColRef, fieldPrefix, count){
-  var reads = [];
-  for (var i = 0; i < (count || 0); i++){
-    reads.push(dataColRef.doc(fieldPrefix + '_' + i).get().catch(function(){ return null; }));
-  }
-  var snaps = await Promise.all(reads);
-  var out = [];
-  snaps.forEach(function(snap){
-    if (snap && snap.exists) {
-      var d = snap.data();
-      if (d && Array.isArray(d.items)) out = out.concat(d.items);
-    }
-  });
-  return out;
-}
-
-// ── MIGRASI TOTAL DATA LOKAL KE FIREBASE FIRESTORE ──
-async function migrateLocalDataToFirebaseCloud(force){
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
-  if(!uid || uid === 'demo_guest_user' || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
+// ── MIGRASI TOTAL DATA LOKAL KE SUPABASE ──
+async function migrateLocalDataToSupabaseCloud(force){
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  var uid = typeof getAppUserId === 'function' ? getAppUserId() : null;
+  if(!uid || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
     return false;
   }
   var email = (_currentUser && _currentUser.email) || '';
   if(!email) return false;
 
-  if(!db){
-    console.warn('Firebase Firestore belum terhubung, migrasi ditunda.');
+  if(!client){
+    console.warn('Supabase belum terhubung, migrasi ditunda.');
     return false;
   }
 
   try {
-    if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Memindahkan data lokal ke Firebase Cloud Firestore...', 'var(--accent)', true);
+    if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Memindahkan data lokal ke Supabase Cloud...', 'var(--accent)', true);
 
     // Ambil data lokal dari scoped storage untuk memastikan tidak ada kebocoran antar akun
     var storageKey = getUserStorageKey('mw_local_data_v3');
@@ -1147,62 +1113,39 @@ async function migrateLocalDataToFirebaseCloud(force){
       updatedAt: new Date().toISOString()
     };
 
-    var userRef = db.collection('users').doc(uid);
-    var dataColRef = userRef.collection('data');
-    var mainDataRef = dataColRef.doc('main');
+    var result = await client.from('user_data').upsert({
+      user_id: uid,
+      data: localPayload,
+      updated_at: new Date().toISOString()
+    });
+    if(result.error) throw result.error;
 
-    // 1. Tulis transactions/rdnMutations sebagai sub-dokumen terpisah (lihat
-    //    catatan FIRESTORE 1 MiB DOCUMENT-SIZE GUARD di atas)
-    var txChunkCount = await _writeChunkedField(dataColRef, 'tx', localPayload.transactions);
-    var rdnChunkCount = await _writeChunkedField(dataColRef, 'rdn', localPayload.rdnMutations);
-
-    // 2. Simpan dokumen utama (sisa bundle + manifest chunk) ke Firestore -
-    //    FieldValue.delete() membersihkan field inline lama (jika ada) agar
-    //    dokumen tidak menumpuk data ganda
-    var mainPayload = Object.assign({}, localPayload);
-    mainPayload.transactions = firebase.firestore.FieldValue.delete();
-    mainPayload.rdnMutations = firebase.firestore.FieldValue.delete();
-    mainPayload.txChunkCount = txChunkCount;
-    mainPayload.rdnChunkCount = rdnChunkCount;
-    mainPayload.txCount = localPayload.transactions.length;
-    mainPayload.rdnCount = localPayload.rdnMutations.length;
-    await mainDataRef.set(mainPayload, { merge: true });
-
-    // 3. Simpan metadata profil user
-    await userRef.set({
-      email: email,
-      storageMode: 'FIREBASE_FIRESTORE_CLOUD',
-      isMigrated: true,
-      lastMigratedAt: new Date().toISOString(),
-      lastActiveAt: new Date().toISOString()
-    }, { merge: true });
-
-    window._firebaseMigrated = true;
+    window._cloudMigrated = true;
     _syncToServerMirror(localPayload);
 
     // Aktifkan realtime listener lintas perangkat
-    setupFirestoreRealtimeListener(uid);
+    setupCloudRealtimeListener(uid);
 
     var countTx = localPayload.transactions.length;
     var countRdn = localPayload.rdnMutations.length;
     var countDiv = localPayload.dividends.length;
 
-    var msg = '🔥 Sukses! ' + countTx + ' Transaksi, ' + countRdn + ' Mutasi RDN & ' + countDiv + ' Dividen telah dipindahkan ke Firebase Firestore Cloud';
+    var msg = '🔥 Sukses! ' + countTx + ' Transaksi, ' + countRdn + ' Mutasi RDN & ' + countDiv + ' Dividen telah dipindahkan ke Supabase Cloud';
     if(typeof showSaveStatus === 'function') showSaveStatus(msg, 'var(--green)');
-    
+
     return true;
   } catch(err){
-    console.error('Error saat memindahkan data lokal ke Firebase:', err);
-    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Gagal migrasi Firebase: ' + err.message, 'var(--red)', true);
+    console.error('Error saat memindahkan data lokal ke Supabase:', err);
+    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Gagal migrasi Supabase: ' + (err && err.message), 'var(--red)', true);
     return false;
   }
 }
-window.migrateLocalDataToFirebaseCloud = migrateLocalDataToFirebaseCloud;
+window.migrateLocalDataToSupabaseCloud = migrateLocalDataToSupabaseCloud;
 
 async function fireSaveAllData(){
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
-  if(!uid || uid === 'demo_guest_user' || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  var uid = typeof getAppUserId === 'function' ? getAppUserId() : null;
+  if(!uid || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
     return false;
   }
   var email = (_currentUser && _currentUser.email) || '';
@@ -1256,55 +1199,18 @@ async function fireSaveAllData(){
   // Always mirror to server disk storage for 100% hard-refresh resilience
   _syncToServerMirror(payload);
 
-  if(!db) return true;
+  if(!client) return true;
 
   try {
-    var userRef = db.collection('users').doc(uid);
-    var dataColRef = userRef.collection('data');
-    var mainDataRef = dataColRef.doc('main');
-
-    // Baca manifest chunk sebelumnya dulu agar chunk lama yang lebih
-    // banyak dari sekarang (mis. setelah user hapus banyak transaksi
-    // sekaligus) benar-benar dibersihkan, bukan cuma ditimpa sebagian
-    var prevSnap = await mainDataRef.get().catch(function(){ return null; });
-    var prevData = (prevSnap && prevSnap.exists) ? prevSnap.data() : null;
-    var txChunkCount = await _writeChunkedField(dataColRef, 'tx', payload.transactions, prevData && prevData.txChunkCount);
-    var rdnChunkCount = await _writeChunkedField(dataColRef, 'rdn', payload.rdnMutations, prevData && prevData.rdnChunkCount);
-
-    var mainPayload = Object.assign({}, payload);
-    mainPayload.transactions = firebase.firestore.FieldValue.delete();
-    mainPayload.rdnMutations = firebase.firestore.FieldValue.delete();
-    mainPayload.txChunkCount = txChunkCount;
-    mainPayload.rdnChunkCount = rdnChunkCount;
-    mainPayload.txCount = payload.transactions.length;
-    mainPayload.rdnCount = payload.rdnMutations.length;
-
-    await mainDataRef.set(mainPayload, { merge: true });
-    await userRef.set({
-      email: email,
-      storageMode: 'FIREBASE_FIRESTORE_CLOUD',
-      lastActiveAt: new Date().toISOString()
-    }, { merge: true });
-
-    // Sync to alternative UID alias if applicable
-    var altUid = uid.replace(/_40/g, '_');
-    if(altUid !== uid){
-      try {
-        var altDataColRef = db.collection('users').doc(altUid).collection('data');
-        _writeChunkedField(altDataColRef, 'tx', payload.transactions).catch(function(){});
-        _writeChunkedField(altDataColRef, 'rdn', payload.rdnMutations).catch(function(){});
-        altDataColRef.doc('main').set(mainPayload, { merge: true }).catch(function(){});
-      } catch(e){}
-    }
-
+    var result = await client.from('user_data').upsert({
+      user_id: uid,
+      data: payload,
+      updated_at: new Date().toISOString()
+    });
+    if(result.error) throw result.error;
     return true;
   } catch(err) {
-    var errStr = (err && err.message) ? err.message : String(err);
-    if (errStr.indexOf('offline') !== -1 || errStr.indexOf('unavailable') !== -1) {
-      console.warn('Firebase Firestore offline save queued:', errStr);
-    } else {
-      console.warn('Firebase Firestore save notice:', errStr);
-    }
+    console.warn('Supabase save notice:', (err && err.message) || err);
     throw err;
   }
 }
@@ -1414,69 +1320,45 @@ function _applyCloudPayload(cloudData, currentLocalState) {
 }
 
 async function fireLoadAllData(){
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
-  if(!db || !uid || uid === 'demo_guest_user' || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  var uid = typeof getAppUserId === 'function' ? getAppUserId() : null;
+  if(!client || !uid || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
     return false;
   }
 
   try {
-    var mainDataRef = db.collection('users').doc(uid).collection('data').doc('main');
-    
-    var snap = null;
+    var result = null;
     try {
-      // Ambil snapshot langsung dari Firestore (dengan fallback cepat jika offline)
-      snap = await Promise.race([
-        mainDataRef.get(),
+      // Ambil baris langsung dari Supabase (dengan timeout cepat jika koneksi lambat)
+      result = await Promise.race([
+        client.from('user_data').select('data').eq('user_id', uid).maybeSingle(),
         new Promise(function(_, reject) {
-          setTimeout(function() { reject(new Error('Firestore connection timeout, checking cache')); }, 3500);
+          setTimeout(function() { reject(new Error('Supabase connection timeout')); }, 3500);
         })
       ]);
     } catch(fetchErr) {
-      try {
-        snap = await mainDataRef.get({ source: 'cache' });
-      } catch(cacheErr) {
-        var msg = (fetchErr && fetchErr.message) ? fetchErr.message : String(fetchErr);
-        console.warn('Firestore offline cache notice:', msg);
-        // Fallback to server mirror if available
-        if (typeof fetch === 'function') {
-          try {
-            var srvRes = await fetch('/api/user-data/load?uid=' + encodeURIComponent(uid));
-            if (srvRes.ok) {
-              var srvJson = await srvRes.json();
-              if (srvJson && srvJson.data) {
-                _applyCloudPayload(srvJson.data);
-                if(typeof renderPage === 'function' && typeof currentPage !== 'undefined'){
-                  renderPage(currentPage);
-                }
-                return true;
-              }
-            }
-          } catch(e) {}
-        }
-        return false;
-      }
-    }
-
-    // Jika dokumen tidak ditemukan di UID utama, periksa alias UID alternatif
-    if(!snap || !snap.exists){
-      var candidateUids = [];
-      var alt1 = uid.replace(/_40/g, '_');
-      var alt2 = uid.includes('_40') ? uid : uid.replace('@', '_40');
-      if (alt1 !== uid) candidateUids.push(alt1);
-      if (alt2 !== uid && !candidateUids.includes(alt2)) candidateUids.push(alt2);
-
-      for (var i = 0; i < candidateUids.length; i++) {
+      var msg = (fetchErr && fetchErr.message) ? fetchErr.message : String(fetchErr);
+      console.warn('Supabase offline notice:', msg);
+      // Fallback to server mirror if available
+      if (typeof fetch === 'function') {
         try {
-          var candSnap = await db.collection('users').doc(candidateUids[i]).collection('data').doc('main').get();
-          if (candSnap && candSnap.exists) {
-            snap = candSnap;
-            uid = candidateUids[i];
-            break;
+          var srvRes = await fetch('/api/user-data/load?uid=' + encodeURIComponent(uid));
+          if (srvRes.ok) {
+            var srvJson = await srvRes.json();
+            if (srvJson && srvJson.data) {
+              _applyCloudPayload(srvJson.data);
+              if(typeof renderPage === 'function' && typeof currentPage !== 'undefined'){
+                renderPage(currentPage);
+              }
+              return true;
+            }
           }
-        } catch(e){}
+        } catch(e) {}
       }
+      return false;
     }
+
+    if(result.error) throw result.error;
 
     // FIX AUDIT (CRITICAL, data loss): currentLocalState used to carry no
     // savedAt/updatedAt at all, so _mergeDatasets() computed localTime as
@@ -1515,36 +1397,25 @@ async function fireLoadAllData(){
       updatedAt: _localTs.updatedAt
     };
 
-    // Jika dokumen belum ada di Firestore tapi ada data lokal, migrasikan jika bukan data kosong/reset
-    if(!snap || !snap.exists){
+    // Jika baris belum ada di Supabase tapi ada data lokal, migrasikan jika bukan data kosong/reset
+    if(!result.data){
       var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
       if(currentLocalState.transactions.length > 0 && !isDataCleared){
         try {
-          await migrateLocalDataToFirebaseCloud(true);
+          await migrateLocalDataToSupabaseCloud(true);
         } catch(saveErr) {
-          console.warn('Initial migrateLocalDataToFirebaseCloud deferred:', saveErr);
+          console.warn('Initial migrateLocalDataToSupabaseCloud deferred:', saveErr);
         }
       }
-      setupFirestoreRealtimeListener(uid);
+      setupCloudRealtimeListener(uid);
       return true;
     }
 
-    var cloudData = snap.data() || {};
-
-    // Rakit ulang transactions/rdnMutations dari sub-dokumen chunk jika
-    // dokumen ini ditulis oleh fireSaveAllData()/migrateLocalDataToFirebaseCloud()
-    // versi chunked (lihat FIRESTORE 1 MiB DOCUMENT-SIZE GUARD)
-    var dataColRefForRead = db.collection('users').doc(uid).collection('data');
-    if (typeof cloudData.txChunkCount === 'number') {
-      try { cloudData.transactions = await _readChunkedField(dataColRefForRead, 'tx', cloudData.txChunkCount); } catch(e){}
-    }
-    if (typeof cloudData.rdnChunkCount === 'number') {
-      try { cloudData.rdnMutations = await _readChunkedField(dataColRefForRead, 'rdn', cloudData.rdnChunkCount); } catch(e){}
-    }
+    var cloudData = result.data.data || {};
 
     _applyCloudPayload(cloudData, currentLocalState);
 
-    // If local state had new items not in cloud, push to Firestore.
+    // If local state had new items not in cloud, push to cloud.
     // FIX AUDIT (CRITICAL, data loss): this used to also require
     // !cloudData.isExplicitlyEmpty, on the theory that a cloud doc marked
     // explicitly-empty must not be fought. But once _mergeDatasets() (with
@@ -1571,7 +1442,7 @@ async function fireLoadAllData(){
     }
 
     // Aktifkan realtime listener untuk sinkronisasi antar perangkat
-    setupFirestoreRealtimeListener(uid);
+    setupCloudRealtimeListener(uid);
 
     // Pastikan riwayat ekuitas divalidasi setelah semua portofolio & mutasi RDN termuat
     if(typeof validateAndSyncEquityHistory === 'function'){
@@ -1585,7 +1456,7 @@ async function fireLoadAllData(){
     return true;
   } catch(err) {
     var errStr = (err && err.message) ? err.message : String(err);
-    console.warn('Firebase Firestore load notice:', errStr);
+    console.warn('Supabase load notice:', errStr);
     // Fallback to server mirror if available
     if (typeof fetch === 'function') {
       try {
@@ -1594,7 +1465,7 @@ async function fireLoadAllData(){
           var srvJson = await srvRes.json();
           if (srvJson && srvJson.data) {
             _applyCloudPayload(srvJson.data);
-            setupFirestoreRealtimeListener(uid);
+            setupCloudRealtimeListener(uid);
             if(typeof validateAndSyncEquityHistory === 'function'){
               try { validateAndSyncEquityHistory(false); } catch(e){}
             }
@@ -1606,7 +1477,7 @@ async function fireLoadAllData(){
         }
       } catch(e) {}
     }
-    setupFirestoreRealtimeListener(uid);
+    setupCloudRealtimeListener(uid);
     return false;
   }
 }
@@ -1676,9 +1547,9 @@ function saveData(){
   // 2. Simpan ke Server Persistence Mirror (Tahan Hard Refresh & Tab Close)
   _syncToServerMirror(payloadObj);
 
-  // 3. Simpan dan sinkronkan seketika ke Firebase Firestore Cloud
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  if(db){
+  // 3. Simpan dan sinkronkan seketika ke Supabase Cloud
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  if(client){
     _syncToCloud(true);
   } else {
     if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data tersimpan di server & perangkat', 'var(--green)');
@@ -1699,10 +1570,10 @@ function _syncToCloud(allowRetry){
       _syncQueued = false;
       return _syncToCloud(allowRetry);
     }
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan ke Firebase Firestore Cloud', 'var(--green)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan ke Supabase Cloud', 'var(--green)');
   }).catch(function(e){
     _syncInFlight = false;
-    console.warn('Firebase sync notice:', e);
+    console.warn('Supabase sync notice:', e);
     _cloudSyncFailed = true;
     var _errMsg = (e && e.message) ? e.message : String(e);
     if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan lokal & server (Cloud: ' + _errMsg + ')', 'var(--amber)');
@@ -1718,15 +1589,15 @@ function _syncToCloud(allowRetry){
 
 function safeCloudBoot(){
   loadData();
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
-  if (!uid || uid === 'demo_guest_user' || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
+  var uid = typeof getAppUserId === 'function' ? getAppUserId() : null;
+  if (!uid || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
     return Promise.resolve(true);
   }
   return fireLoadAllData().then(function(ok){
-    // Pastikan data lokal termigrasi ke Firebase jika belum dan bukan dalam status cleared
+    // Pastikan data lokal termigrasi ke Supabase jika belum dan bukan dalam status cleared
     var isDataCleared = (typeof localStorage !== 'undefined' && localStorage.getItem('mw_data_cleared') === '1');
-    if(!window._firebaseMigrated && !isDataCleared && transactions && transactions.length > 0){
-      migrateLocalDataToFirebaseCloud();
+    if(!window._cloudMigrated && !isDataCleared && transactions && transactions.length > 0){
+      migrateLocalDataToSupabaseCloud();
     }
     return ok;
   });
@@ -1859,7 +1730,7 @@ function loadData(){
 
 async function clearData(skipConfirm){
   if(!skipConfirm){
-    var confirmed = confirm('⚠️ PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH data transaksi dan portofolio menjadi 0?\n\nTindakan ini akan menghapus semua riwayat transaksi di Firebase Firestore Cloud, server, dan browser lokal.');
+    var confirmed = confirm('⚠️ PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH data transaksi dan portofolio menjadi 0?\n\nTindakan ini akan menghapus semua riwayat transaksi di Supabase Cloud, server, dan browser lokal.');
     if(!confirmed) return false;
   }
   
@@ -1951,10 +1822,10 @@ async function clearData(skipConfirm){
 
   // 3. Bersihkan server storage mirror secara sinkron/menunggu (hanya untuk user terautentikasi)
   var isDemoSession = (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user'));
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
+  var uid = typeof getAppUserId === 'function' ? getAppUserId() : '';
   var email = (_currentUser && _currentUser.email) || '';
 
-  if(!isDemoSession && uid && uid !== 'demo_guest_user' && typeof fetch === 'function'){
+  if(!isDemoSession && uid && typeof fetch === 'function'){
     try {
       await fetch('/api/user-data/clear', {
         method: 'POST',
@@ -1966,18 +1837,13 @@ async function clearData(skipConfirm){
     }
   }
 
-  // 4. Bersihkan Firebase Firestore Cloud (hanya jika terautentikasi dan bukan demo)
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : _firebaseDb;
-  var fireUid = uid || (typeof getFirestoreUserUid === 'function' ? getFirestoreUserUid() : null);
-  
-  if(db && !isDemoSession && fireUid && fireUid !== 'demo_guest_user'){
-    if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Menghapus & mengosongkan data di Firestore Cloud...', 'var(--amber)', true);
-    
-    var uidsToClear = new Set();
-    uidsToClear.add(fireUid);
+  // 4. Bersihkan Supabase Cloud (hanya jika terautentikasi dan bukan demo)
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
 
-    var clearPromises = [];
-    var emptyCloudDoc = {
+  if(client && !isDemoSession && uid){
+    if(typeof showSaveStatus === 'function') showSaveStatus('⏳ Menghapus & mengosongkan data di Supabase Cloud...', 'var(--amber)', true);
+
+    var emptyCloudData = {
       transactions: [],
       dividends: [],
       rdnMutations: [],
@@ -1999,20 +1865,15 @@ async function clearData(skipConfirm){
       savedAt: new Date().toISOString()
     };
 
-    uidsToClear.forEach(function(targetUid){
-      try {
-        var userRef = db.collection('users').doc(targetUid);
-        var mainDataRef = userRef.collection('data').doc('main');
-        
-        clearPromises.push(mainDataRef.set(emptyCloudDoc, { merge: false }));
-        clearPromises.push(userRef.set({ isCleared: true, lastResetAt: new Date().toISOString() }, { merge: true }));
-      } catch(docErr){}
-    });
-
     try {
-      await Promise.all(clearPromises);
+      var clearResult = await client.from('user_data').upsert({
+        user_id: uid,
+        data: emptyCloudData,
+        updated_at: new Date().toISOString()
+      });
+      if(clearResult.error) throw clearResult.error;
     } catch(err){
-      console.warn('Firestore cloud clear note:', err);
+      console.warn('Supabase cloud clear note:', err);
     }
   }
 
@@ -2021,7 +1882,7 @@ async function clearData(skipConfirm){
   if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
   if(typeof renderAll === 'function') renderAll();
   if(typeof renderSettingsPage === 'function') renderSettingsPage();
-  if(typeof showSaveStatus === 'function') showSaveStatus('✓ Seluruh data transaksi di Firestore & lokal telah dikosongkan 100% (0 Transaksi)', 'var(--green)');
+  if(typeof showSaveStatus === 'function') showSaveStatus('✓ Seluruh data transaksi di Supabase & lokal telah dikosongkan 100% (0 Transaksi)', 'var(--green)');
 
   return true;
 }
@@ -2096,7 +1957,7 @@ function restoreFromBackup(file){
       if(typeof renderAll === 'function') renderAll();
       if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
       closeBackupModal();
-      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data backup JSON berhasil dipulihkan & disimpan ke Firestore');
+      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data backup JSON berhasil dipulihkan & disimpan ke Supabase');
     } catch(err) {
       alert('Gagal memulihkan backup: ' + err.message);
     }
@@ -2104,47 +1965,57 @@ function restoreFromBackup(file){
   reader.readAsText(file);
 }
 
+// FIX AUDIT (Firebase→Supabase migration): was a server-side REST audit
+// route (/api/sync/firebase-audit) using a raw API key with no user auth
+// context - it could never see a real, RLS-protected answer anyway (see
+// today's earlier finding that this exact endpoint's "hasDocument:false"
+// was a false negative from an unauthenticated read against tightened
+// security rules). Reading the client's own row directly with the
+// already-authenticated Supabase client is both simpler and actually
+// authoritative.
 async function checkFirebaseLiveSyncStatus(){
   var box = el('sh-firebase-audit-box');
   if(!box) return;
   box.style.display = 'block';
-  box.innerHTML = '<div style="color:var(--text3);display:flex;align-items:center;gap:6px"><span>⏳ Mengaudit koneksi & data langsung ke Firebase Firestore Cloud...</span></div>';
+  box.innerHTML = '<div style="color:var(--text3);display:flex;align-items:center;gap:6px"><span>⏳ Mengaudit koneksi & data langsung ke Supabase Cloud...</span></div>';
 
-  var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : null;
-  if (!uid || uid === 'demo_guest_user') {
+  var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+  var uid = typeof getAppUserId === 'function' ? getAppUserId() : null;
+  if (!client || !uid) {
     box.innerHTML = `
       <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">🛡️ Mode Tamu / Demo Sandbox</div>
       <div style="color:var(--text2);font-size:11.5px;line-height:1.6">
-        Pada Mode Tamu, seluruh data portofolio tersimpan lokal secara mandiri dan <b>tidak dikirim ke Firebase Firestore</b> untuk melindungi privasi.
-        Silakan masuk dengan akun email Anda untuk mengaktifkan audit dan sinkronisasi Cloud Firestore.
+        Pada Mode Tamu, seluruh data portofolio tersimpan lokal secara mandiri dan <b>tidak dikirim ke Supabase</b> untuk melindungi privasi.
+        Silakan masuk dengan akun email Anda untuk mengaktifkan audit dan sinkronisasi Cloud.
       </div>
     `;
     return;
   }
   try {
-    var res = await fetch('/api/sync/firebase-audit?uid=' + encodeURIComponent(uid));
-    var json = await res.json();
+    var result = await client.from('user_data').select('data, updated_at').eq('user_id', uid).maybeSingle();
+    if(result.error) throw result.error;
 
-    if(!json.success || !json.hasDocument){
+    if(!result.data){
       box.innerHTML = `
-        <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">ℹ️ Data Tersimpan Lokal, Dokumen Cloud Belum Tersinkron</div>
+        <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">ℹ️ Data Tersimpan Lokal, Baris Cloud Belum Tersinkron</div>
         <div style="color:var(--text2);font-size:11.5px;line-height:1.6;margin-bottom:10px">
-          Portofolio Anda saat ini aktif dan tersimpan di penyimpanan lokal peramban &amp; server mirror, namun dokumen di Cloud Firestore untuk akun <b>${escHtml(uid)}</b> belum dibuat.
+          Portofolio Anda saat ini aktif dan tersimpan di penyimpanan lokal peramban &amp; server mirror, namun baris di Supabase untuk akun ini belum dibuat.
         </div>
-        <button class="btn btn-blue btn-sm" onclick="migrateLocalDataToFirebaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="padding:6px 14px;font-size:11.5px">
-          🚀 Sinkronkan ke Firebase Firestore Sekarang
+        <button class="btn btn-blue btn-sm" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="padding:6px 14px;font-size:11.5px">
+          🚀 Sinkronkan ke Supabase Sekarang
         </button>
       `;
       return;
     }
 
+    var cloudData = result.data.data || {};
     var localTx = (transactions || []).length;
     var localRdn = (rdnMutations || []).length;
     var localDiv = (dividends || []).length;
 
-    var cloudTx = (json.stats && json.stats.transactions) || 0;
-    var cloudRdn = (json.stats && json.stats.rdnMutations) || 0;
-    var cloudDiv = (json.stats && json.stats.dividends) || 0;
+    var cloudTx = (cloudData.transactions || []).length;
+    var cloudRdn = (cloudData.rdnMutations || []).length;
+    var cloudDiv = (cloudData.dividends || []).length;
 
     var isIdentical = (localTx === cloudTx && localRdn === cloudRdn && localDiv === cloudDiv);
     var badgeColor = isIdentical ? 'var(--green)' : 'var(--yellow)';
@@ -2154,7 +2025,7 @@ async function checkFirebaseLiveSyncStatus(){
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
         <span style="font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
           <span style="width:8px;height:8px;border-radius:50%;background:${badgeColor}"></span>
-          Status Sinkronisasi Cloud Firestore
+          Status Sinkronisasi Supabase Cloud
         </span>
         <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(16,185,129,0.15);color:${badgeColor};border:1px solid ${badgeColor}">
           ${badgeText}
@@ -2166,20 +2037,18 @@ async function checkFirebaseLiveSyncStatus(){
           <div style="font-weight:700;color:var(--text);margin-top:2px">${localTx} Saham · ${localRdn} Kas RDN · ${localDiv} Dividen</div>
         </div>
         <div style="background:var(--bg2);padding:8px;border-radius:6px;border:1px solid var(--border)">
-          <div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:700">Data di Firestore Cloud</div>
+          <div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:700">Data di Supabase Cloud</div>
           <div style="font-weight:700;color:${badgeColor};margin-top:2px">${cloudTx} Saham · ${cloudRdn} Kas RDN · ${cloudDiv} Dividen</div>
         </div>
       </div>
       <div style="font-size:11px;color:var(--text3);line-height:1.5">
-        <div>• Project ID: <b style="color:var(--text2)">${json.projectId}</b></div>
-        <div>• Database: <b style="color:var(--text2)">${json.firestoreDatabaseId}</b></div>
-        <div>• Waktu Update Cloud: <b style="color:var(--text2)">${new Date(json.savedAt).toLocaleString('id-ID')}</b></div>
+        <div>• Waktu Update Cloud: <b style="color:var(--text2)">${new Date(result.data.updated_at).toLocaleString('id-ID')}</b></div>
         <div style="color:var(--green);font-weight:600;margin-top:4px">✓ Aman dibuka di perangkat lain (laptop, HP, tablet). Data akan langsung termuat otomatis saat login.</div>
       </div>
     `;
     box.innerHTML = html;
   } catch(e) {
-    box.innerHTML = '<div style="color:var(--red);font-size:11.5px">Gagal memeriksa status Firestore: ' + (e.message || e) + '</div>';
+    box.innerHTML = '<div style="color:var(--red);font-size:11.5px">Gagal memeriksa status Supabase: ' + (e.message || e) + '</div>';
   }
 }
 window.checkFirebaseLiveSyncStatus = checkFirebaseLiveSyncStatus;
@@ -2230,7 +2099,7 @@ function shRenderContent(tab){
           Anda berada dalam <b>Mode Tamu (Demo Sandbox)</b>. Seluruh data transaksi di sesi ini tersimpan secara lokal dan <b>terisolasi 100% dari akun email pribadi Anda</b> untuk menjamin kerahasiaan data pengguna.
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:6px">
-          Sinkronisasi cloud Firestore dinonaktifkan pada akun demo. Untuk mengaktifkan sinkronisasi cloud real-time antar perangkat, silakan login dengan akun email pribadi Anda.
+          Sinkronisasi cloud Supabase dinonaktifkan pada akun demo. Untuk mengaktifkan sinkronisasi cloud real-time antar perangkat, silakan login dengan akun email pribadi Anda.
         </div>
       </div>
     ` : '';
@@ -2238,7 +2107,7 @@ function shRenderContent(tab){
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display);display:flex;align-items:center;gap:6px">
-          🔥 Firebase Cloud Firestore &amp; Sinkronisasi Data
+          🔥 Supabase Cloud &amp; Sinkronisasi Data
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Seluruh data transaksi dan kas tersimpan di cloud database real-time tanpa resiko hilang saat hard-refresh atau ganti device.</div>
       </div>
@@ -2249,7 +2118,7 @@ function shRenderContent(tab){
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <span style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px">
             <span style="width:8px;height:8px;border-radius:50%;background:${isDemoSession ? '#eab308' : 'var(--green)'}"></span>
-            ${isDemoSession ? 'Demo Sandbox (Lokal)' : 'Koneksi Firestore Cloud'}
+            ${isDemoSession ? 'Demo Sandbox (Lokal)' : 'Koneksi Supabase Cloud'}
           </span>
           <span style="background:${isDemoSession ? 'rgba(234,179,8,0.15)' : 'rgba(16,185,129,0.15)'};color:${isDemoSession ? '#eab308' : 'var(--green)'};font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid ${isDemoSession ? 'rgba(234,179,8,0.3)' : 'rgba(16,185,129,0.3)'}">
             ${isDemoSession ? 'DEMO SANDBOX' : 'ONLINE &amp; TERSINKRON'}
@@ -2270,17 +2139,17 @@ function shRenderContent(tab){
           </div>
         </div>
         <div style="font-size:11.5px;color:var(--text2);line-height:1.6">
-          ${isDemoSession ? 'Data pada mode demo terisolasi secara mandiri di penyimpanan lokal peramban.' : 'Setiap perubahan (tambah transaksi baru, update saldo kas, dividen, dan jurnal) otomatis disimpan secara instan ke Cloud Firestore.'}
+          ${isDemoSession ? 'Data pada mode demo terisolasi secara mandiri di penyimpanan lokal peramban.' : 'Setiap perubahan (tambah transaksi baru, update saldo kas, dividen, dan jurnal) otomatis disimpan secara instan ke Supabase Cloud.'}
         </div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-        <button class="btn btn-blue" onclick="migrateLocalDataToFirebaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="justify-content:center;padding:11px;font-weight:700;font-size:12.5px">
-          🚀 Pindahkan / Sinkronkan Data ke Firebase Cloud Sekarang
+        <button class="btn btn-blue" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="justify-content:center;padding:11px;font-weight:700;font-size:12.5px">
+          🚀 Pindahkan / Sinkronkan Data ke Supabase Cloud Sekarang
         </button>
 
         <button class="btn btn-ghost" onclick="checkFirebaseLiveSyncStatus()" style="justify-content:center;padding:10px;border-color:var(--accent);color:var(--accent);font-weight:600">
-          🔍 Periksa Status Sinkronisasi Firebase Cloud (Live Audit)
+          🔍 Periksa Status Sinkronisasi Supabase Cloud (Live Audit)
         </button>
 
         <div id="sh-firebase-audit-box" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px">
@@ -2288,7 +2157,7 @@ function shRenderContent(tab){
         </div>
 
         <button class="btn btn-ghost" onclick="fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function') showSaveStatus('✓ Data terbaru dimuat dari Cloud','var(--green)'); closeSettingsHub(); })" style="justify-content:center;padding:10px;border-color:var(--border)">
-          🔄 Muat Ulang Data dari Firebase Cloud
+          🔄 Muat Ulang Data dari Supabase Cloud
         </button>
 
         <div style="display:flex;gap:10px">
@@ -2482,7 +2351,7 @@ function shRenderContent(tab){
           </span>
         </div>
         <div style="font-size:12px;color:var(--text2);line-height:1.7">
-          ✓ Seluruh data tersimpan terenkripsi di Google Firebase Firestore.<br>
+          ✓ Seluruh data tersimpan terenkripsi di Supabase Cloud.<br>
           ✓ Tidak ada mutasi RDN anomali atau referensi transaksi ganda.<br>
           ✓ Jurnal transaksi terhubung ke saldo kas dan harga beli rata-rata secara presisi.
         </div>
@@ -2542,7 +2411,7 @@ function shRenderContent(tab){
           </div>
         </div>
         <div style="font-size:11.5px;color:var(--text3);line-height:1.6">
-          Sesi aktif diamankan dengan otentikasi Firebase. Seluruh pencatatan transaksi terhubung langsung ke ID akun Anda.
+          Sesi aktif diamankan dengan otentikasi Supabase. Seluruh pencatatan transaksi terhubung langsung ke ID akun Anda.
         </div>
       </div>
 
