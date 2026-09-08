@@ -3449,9 +3449,27 @@ body.theme-light .btn-ghost {
   box-shadow: none !important;
 }
 
+/* Active/selected tab state (class "on", used by e.g. the AI Trading tab
+   bar) — without this, the light-theme .btn-ghost rule above's !important
+   flattens every tab to the same gray, so the currently-open tab was
+   visually indistinguishable from the rest. Matches the app's existing
+   light-theme blue accent palette (see .b-accent above). */
+body.theme-light .btn-ghost.on {
+  background: #EFF6FF !important;
+  color: #2563EB !important;
+  border: 1px solid #BFDBFE !important;
+}
+
 body.theme-light .btn-ghost:hover {
   background: #F1F5F9 !important;
   color: #0F172A !important;
+}
+
+/* Keep the active tab's blue tint while hovering it, instead of the hover
+   rule above briefly flashing it gray. */
+body.theme-light .btn-ghost.on:hover {
+  background: #DBEAFE !important;
+  color: #2563EB !important;
 }
 
 body.theme-light .btn-secondary {
