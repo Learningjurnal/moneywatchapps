@@ -1966,7 +1966,6 @@ function restoreFromBackup(file){
       etfTx = d.etfTx || [];
       rdTx = d.rdTx || [];
       activeSekuritas = d.activeSekuritas || 'Stockbit';
-      rdnBalance = d.rdnBalance || 0;
       tradeStrategy = d.tradeStrategy || {};
       sekTaxOverride = d.sekTaxOverride || {};
 
@@ -1981,11 +1980,32 @@ function restoreFromBackup(file){
       nextDivId = _maxIdPlus1(dividends);
       nextRdnId = _maxIdPlus1(rdnMutations);
 
-      saveData();
+      // FIX: this used to trust the backup file's own `rdnBalance` number
+      // verbatim (rdnBalance = d.rdnBalance || 0) and never invalidated
+      // any cached portfolio calculation — clearData() right above this
+      // function already does both correctly for its own bulk data
+      // change, but restoreFromBackup() never did. If the file's stored
+      // balance ever didn't match what its own rdnMutations/transactions
+      // actually compute to under the app's CURRENT calculation logic
+      // (e.g. a backup taken before the transaction-fee fix, or a
+      // hand-edited file), the restored balance/portfolio numbers would
+      // silently disagree with the file's own transaction data.
+      // recalculateAllStoredData() derives rdnBalance fresh from the
+      // restored data, fixes any transaction whose komisi/ppn/levy/pph
+      // was computed under an older formula, clears the portfolio cache,
+      // and saves — the same recovery path already used by Settings'
+      // "Rekalkulasi Data" button.
+      if(typeof recalculateAllStoredData === 'function') {
+        recalculateAllStoredData(true);
+      } else {
+        rdnBalance = d.rdnBalance || 0;
+        saveData();
+      }
+
       if(typeof renderAll === 'function') renderAll();
       if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
       closeBackupModal();
-      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data backup JSON berhasil dipulihkan & disimpan ke Supabase');
+      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data backup JSON berhasil dipulihkan, dihitung ulang, & disimpan ke Supabase');
     } catch(err) {
       alert('Gagal memulihkan backup: ' + err.message);
     }
