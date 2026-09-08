@@ -29,14 +29,17 @@
     selectedStrategyId: 'strat_pullback',
     filterSignal: 'all',
     searchQuery: '',
-    // No real market-regime classification engine exists yet (would need a
-    // sector-index feed and a trend/breadth model we haven't built). Every
-    // field below used to ship as a permanently fixed fake number shown as
-    // if live ("82% CONVICTION", "BULLISH RISK-ON", "+Rp 542 Miliar") right
-    // next to genuinely real numbers on the Cockpit — misleading because a
-    // user couldn't tell which was which. Left null on purpose; the render
-    // functions show "Belum Dihitung" instead of a number. Only `ihsg` is
-    // real (updated from the live IHSG price feed in syncAiPaperPortfolioLivePrices).
+    // regime/confidence/ihsg/ihsgChange/regimeDescription are populated from
+    // the real classifyMarketRegime() engine (lib/idx-data-engine.js) via
+    // fetchAiMarketRegime() -> GET /api/idx/regime, triggered when the Market
+    // Regime tab is opened (see aiSwitchTab). breadthPct/foreignFlowToday/
+    // sectorLeader have no real data source yet (would need per-stock
+    // breadth and a sector-index/broker-summary feed we haven't built) —
+    // every field below used to ship as a permanently fixed fake number
+    // shown as if live ("82% CONVICTION", "BULLISH RISK-ON", "+Rp 542
+    // Miliar"), misleading because a user couldn't tell which was which.
+    // These three are left null on purpose; the render functions show
+    // "Belum Dihitung" instead of a fabricated number.
     marketRegime: {
       regime: null,
       confidence: null,
@@ -114,6 +117,12 @@
   var AI_DQ_LOADING = false;
   var AI_DQ_ERROR = null;
   var AI_DQ_TICKER = null;   // ticker AI_DQ_RESULT was computed for
+
+  // Market Regime tab loading state — see /api/idx/regime (real
+  // classifyMarketRegime() from lib/idx-data-engine.js, same classifier
+  // generateTradingHypothesis()/computeConfluence() already use server-side).
+  var AI_REGIME_LOADING = false;
+  var AI_REGIME_ERROR = null;
 
   // Real backtest results (Strategy Lab / Backtest Lab) — null until the
   // user explicitly runs one (server-side simulation over ~135 tickers x
@@ -439,6 +448,39 @@
       if (typeof showToast === 'function') showToast('⚠ ' + AI_DQ_ERROR);
     } finally {
       AI_DQ_LOADING = false;
+      renderAiTradingPage();
+    }
+  }
+
+  // Fetches the real market regime classification (/api/idx/regime, backed by
+  // classifyMarketRegime() in lib/idx-data-engine.js) and maps it into
+  // AI_TRADE_STATE.marketRegime for the Market Regime tab, translating the
+  // field names that differ between the engine's response and the render
+  // function's shape (ihsgChangePct -> ihsgChange, description ->
+  // regimeDescription). breadthPct/foreignFlowToday/sectorLeader have no real
+  // data source and are intentionally left untouched (null).
+  async function fetchAiMarketRegime() {
+    if (AI_REGIME_LOADING) return;
+
+    AI_REGIME_LOADING = true;
+    AI_REGIME_ERROR = null;
+    renderAiTradingPage();
+    try {
+      var resp = await fetch('/api/idx/regime');
+      var json = await resp.json();
+      if (!json.success) throw new Error(json.error || 'Gagal memuat klasifikasi market regime');
+
+      var r = json.regime;
+      AI_TRADE_STATE.marketRegime.regime = r.regime;
+      AI_TRADE_STATE.marketRegime.confidence = r.confidence;
+      AI_TRADE_STATE.marketRegime.ihsg = r.ihsg;
+      AI_TRADE_STATE.marketRegime.ihsgChange = r.ihsgChangePct;
+      AI_TRADE_STATE.marketRegime.regimeDescription = r.description;
+    } catch (err) {
+      AI_REGIME_ERROR = (err && err.message) || 'Gagal memuat klasifikasi market regime';
+      if (typeof showToast === 'function') showToast('⚠ ' + AI_REGIME_ERROR);
+    } finally {
+      AI_REGIME_LOADING = false;
       renderAiTradingPage();
     }
   }
@@ -861,6 +903,26 @@
     c.innerHTML = html;
   }
 
+  // Regime display helpers — shared by renderAiCockpit and
+  // renderAiMarketRegime. classifyMarketRegime() can genuinely return a
+  // bearish/risk-off regime, so the icon/color must follow r.regime instead
+  // of a single hardcoded bullish "up"/🟢 presentation; and ihsgChange can be
+  // negative, so the sign must not be hardcoded to "+".
+  var REGIME_DISPLAY = {
+    BULL_TREND: { icon: '🟢', cls: 'up' },
+    BEAR_TREND: { icon: '🔴', cls: 'down' },
+    RISK_OFF: { icon: '🔴', cls: 'down' },
+    HIGH_VOLATILITY: { icon: '🟠', cls: 'down' },
+    SIDEWAYS: { icon: '🟡', cls: 'neu' },
+    UNKNOWN: { icon: '⚪', cls: 'neu' }
+  };
+  function regimeDisplay(regime) {
+    return REGIME_DISPLAY[regime] || { icon: '⚪', cls: 'neu' };
+  }
+  function signedPct(n) {
+    return (n >= 0 ? '+' : '') + n;
+  }
+
   // ══════════════════════════════════════════════════════════
   // 4. SUB-PAGE RENDERING: COCKPIT UTAMA (OVERVIEW)
   // ══════════════════════════════════════════════════════════
@@ -892,9 +954,9 @@
       + '  <div class="metric">'
       + '    <div class="mlabel">Market Regime IHSG</div>'
       + (r.regime
-          ? '    <div class="mval up" style="font-size:18px">🟢 ' + r.regime + '</div>'
+          ? '    <div class="mval ' + regimeDisplay(r.regime).cls + '" style="font-size:18px">' + regimeDisplay(r.regime).icon + ' ' + r.regime + '</div>'
           : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
-      + '    <div class="msub neu">IHSG ' + (r.ihsg || '-') + (r.ihsgChange != null ? ' (+' + r.ihsgChange + '%)' : '') + (r.breadthPct != null ? ' · Breadth ' + r.breadthPct + '%' : ' · Breadth belum tersedia')  + '</div>'
+      + '    <div class="msub neu">IHSG ' + (r.ihsg || '-') + (r.ihsgChange != null ? ' (' + signedPct(r.ihsgChange) + '%)' : '') + (r.breadthPct != null ? ' · Breadth ' + r.breadthPct + '%' : ' · Breadth belum tersedia')  + '</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">AI Conviction &amp; Edge</div>'
@@ -1678,24 +1740,29 @@
   function renderAiMarketRegime(state) {
     var r = state.marketRegime;
 
+    var errHtml = AI_REGIME_ERROR
+      ? '<div style="margin-bottom:14px;font-size:11.5px;color:var(--red)">⚠ ' + AI_REGIME_ERROR + '</div>'
+      : '';
+
     // Sector rotation and per-strategy regime-fit both used to ship as fixed
     // fake tables (invented % changes, invented flow figures, invented
-    // ACTIVE/DISABLED verdicts). There is no real sector-index feed or
-    // regime-classification model behind this app yet, so both are shown
-    // as an honest empty state instead of numbers that were never computed.
-    var html = ''
+    // ACTIVE/DISABLED verdicts). There is no real sector-index feed, and no
+    // engine that maps the real regime (r.regime, from classifyMarketRegime)
+    // to which strategies should be auto-enabled, so both are shown as an
+    // honest empty state instead of numbers that were never computed.
+    var html = errHtml
       + '<div class="row4" style="margin-bottom:18px">'
       + '  <div class="metric">'
       + '    <div class="mlabel">Klasifikasi Market Regime</div>'
       + (r.regime
-          ? '    <div class="mval up" style="font-size:18px">🟢 ' + r.regime + '</div>'
+          ? '    <div class="mval ' + regimeDisplay(r.regime).cls + '" style="font-size:18px">' + regimeDisplay(r.regime).icon + ' ' + r.regime + '</div>'
           : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
-      + '    <div class="msub neu">' + (r.confidence != null ? 'Probabilitas Konfirmasi: ' + r.confidence + '%' : 'Model klasifikasi regime belum dibangun') + '</div>'
+      + '    <div class="msub neu">' + (r.confidence != null ? 'Probabilitas Konfirmasi: ' + r.confidence + '%' : 'Model klasifikasi regime belum dibangun') + (r.regimeDescription ? '<br>' + r.regimeDescription : '') + '</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Benchmark IHSG Composite</div>'
       + '    <div class="mval" style="color:var(--green);font-size:20px">' + (r.ihsg || '-') + '</div>'
-      + '    <div class="msub neu">' + (r.ihsgChange != null ? '+' + r.ihsgChange + '% (Di atas EMA20, 50, &amp; 200)' : 'Perubahan harian belum dihitung') + '</div>'
+      + '    <div class="msub neu">' + (r.ihsgChange != null ? signedPct(r.ihsgChange) + '% harian' : 'Perubahan harian belum dihitung') + '</div>'
       + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Market Breadth Ratio</div>'
@@ -1973,6 +2040,9 @@
     if (tabName === 'dataquality' && !AI_DQ_RESULT && !AI_DQ_LOADING) {
       fetchAiDataQuality();
     }
+    if (tabName === 'regime' && !AI_REGIME_LOADING) {
+      fetchAiMarketRegime();
+    }
     renderAiTradingPage();
   }
 
@@ -2027,5 +2097,6 @@
   window.aiRemoveHypothesis = aiRemoveHypothesis;
   window.aiOpenPositionFromHypothesis = aiOpenPositionFromHypothesis;
   window.fetchAiDataQuality = fetchAiDataQuality;
+  window.fetchAiMarketRegime = fetchAiMarketRegime;
 
 })(window, document);
