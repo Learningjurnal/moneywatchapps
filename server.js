@@ -2816,6 +2816,20 @@ app.get('/api/idx/data-quality/:ticker', async (req, res) => {
   }
 });
 
+// GET /api/idx/regime — real market regime classification (classifyMarketRegime,
+// already used server-side by generateTradingHypothesis()/computeConfluence() and
+// by /api/idx/data-quality/:ticker above) for the AI Trading page's Market Regime
+// tab, which used to only show honest "Belum Dihitung" placeholders because no
+// route exposed this classifier to the client.
+app.get('/api/idx/regime', async (req, res) => {
+  try {
+    const regime = await classifyMarketRegime();
+    return res.json({ success: true, regime });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 function getDefaultLq45Tickers() {
   const universe = loadBaseUniverse();
   return Object.values(universe).filter(u => u.indexes && u.indexes.lq45).map(u => u.code);
