@@ -23,6 +23,7 @@ import {
   fetchIdxStockScreener,
   IDX_BROKERS,
   generateTradingHypothesis,
+  generateExitHypothesis,
   assessDataQuality,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
@@ -2800,6 +2801,43 @@ app.get('/api/idx/hypothesis/:ticker', async (req, res) => {
       ? { cash, totalEquity: equity, riskPerTradePct: riskPct }
       : undefined;
     const hypothesis = await generateTradingHypothesis(ticker, accountContext);
+    return res.json({ success: true, hypothesis });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/exit-hypothesis/:ticker — Sell/Exit Hypothesis for an
+// already-open paper position (the other half of /api/idx/hypothesis's
+// BUY/NO_TRADE — see generateExitHypothesis in lib/idx-data-engine.js).
+// The server has no state of its own about what's open; the caller
+// (the client's paper account) supplies the position context via query
+// params. currentPrice is re-fetched fresh server-side when not supplied,
+// matching the freshness pattern already used when a position is opened.
+app.get('/api/idx/exit-hypothesis/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const num = (v) => (v != null && v !== '' && Number.isFinite(Number(v))) ? Number(v) : null;
+    let currentPrice = num(req.query.currentPrice);
+    if (currentPrice == null) {
+      try {
+        const q = await fetchYahooQuote(ticker);
+        if (q && q.price > 0) currentPrice = q.price;
+      } catch (e) { /* fall back to no currentPrice — generateExitHypothesis degrades honestly */ }
+    }
+
+    const position = {
+      entryPrice: num(req.query.entry),
+      currentPrice,
+      sl: num(req.query.sl),
+      tp1: num(req.query.tp1),
+      tp2: num(req.query.tp2),
+      lots: num(req.query.lots)
+    };
+
+    const hypothesis = await generateExitHypothesis(ticker, position);
     return res.json({ success: true, hypothesis });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

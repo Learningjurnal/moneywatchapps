@@ -106,6 +106,14 @@
   // time, on demand, not as a batch scan.
   var AI_HYPO_LOADING = false;
   var AI_HYPO_ERROR = null;
+
+  // Exit Hypothesis state for AI Paper Portfolio — see generateExitHypothesis()
+  // in lib/idx-data-engine.js (/api/idx/exit-hypothesis/:ticker). Kept
+  // ephemeral (render-on-demand, keyed by open-position id) rather than
+  // persisted to localStorage like entry hypotheses — an exit check only
+  // makes sense against the position's live current state, a stale one
+  // from a previous session would be misleading.
+  var AI_EXIT_HYPO = {}; // posId -> { loading, error, result }
   var AI_DEEP_PENDING = {}; // tickers currently being fetched for Deep Analysis
   var AI_DEEP_FAILED = {}; // tickers confirmed to have no real signal (invalid/unlisted) — stops retry loop
 
@@ -521,6 +529,42 @@
     var idx = AI_UNIVERSE.findIndex(function(x) { return x.ticker === adapted.ticker; });
     if (idx >= 0) AI_UNIVERSE[idx] = Object.assign({}, AI_UNIVERSE[idx], adapted); else AI_UNIVERSE.push(adapted);
     return aiOpenPositionFromSignal(adapted.ticker);
+  }
+
+  // Calls the real /api/idx/exit-hypothesis/:ticker endpoint (the other
+  // half of the Signal & Confluence Engine — see generateExitHypothesis()
+  // in lib/idx-data-engine.js) for one already-open paper position, using
+  // that position's real entry/SL/TP so the SELL/HOLD decision is checked
+  // against the exact levels the position was actually opened with.
+  async function aiGenerateExitHypothesis(posId) {
+    var pos = AI_TRADE_STATE.paperAccount.openPositions.find(function(x) { return x.id === posId; });
+    if (!pos) return;
+
+    AI_EXIT_HYPO[posId] = { loading: true, error: null, result: AI_EXIT_HYPO[posId] ? AI_EXIT_HYPO[posId].result : null };
+    renderAiTradingPage();
+    try {
+      var qs = 'entry=' + encodeURIComponent(pos.entryPrice)
+        + '&sl=' + encodeURIComponent(pos.sl)
+        + '&tp1=' + encodeURIComponent(pos.tp1)
+        + (pos.tp2 != null ? '&tp2=' + encodeURIComponent(pos.tp2) : '')
+        + '&lots=' + encodeURIComponent(pos.lots)
+        + '&currentPrice=' + encodeURIComponent(pos.currentPrice);
+      var resp = await fetch('/api/idx/exit-hypothesis/' + encodeURIComponent(pos.ticker) + '?' + qs);
+      var json = await resp.json();
+      if (!json.success || !json.hypothesis) throw new Error(json.error || 'Gagal menghasilkan exit hypothesis');
+
+      AI_EXIT_HYPO[posId] = { loading: false, error: null, result: json.hypothesis };
+      if (typeof showToast === 'function') {
+        showToast(json.hypothesis.side === 'SELL'
+          ? '⚠ ' + pos.ticker + ': sinyal SELL terdeteksi — lihat detail di kartu exit hypothesis.'
+          : '✓ ' + pos.ticker + ': belum ada pemicu exit, disarankan HOLD.');
+      }
+    } catch (err) {
+      AI_EXIT_HYPO[posId] = { loading: false, error: (err && err.message) || 'Gagal menghasilkan exit hypothesis', result: null };
+      if (typeof showToast === 'function') showToast('⚠ ' + AI_EXIT_HYPO[posId].error);
+    } finally {
+      renderAiTradingPage();
+    }
   }
 
   // Recomputes every aggregate stat from the real closedTrades array —
@@ -1682,12 +1726,81 @@
           + '<td style="font-family:var(--font-mono)">Rp ' + Number(pos.currentValue).toLocaleString('id-ID') + '</td>'
           + '<td><strong style="font-family:var(--font-mono);color:' + pnlColor + '">' + pnlSign + 'Rp ' + Number(pos.unrealizedPnL).toLocaleString('id-ID') + ' (' + pnlSign + pos.unrealizedPct + '%)</strong></td>'
           + '<td style="font-family:var(--font-mono);font-size:10.5px">SL: <span style="color:var(--red)">Rp ' + Number(pos.sl).toLocaleString('id-ID') + '</span> | TP1: <span style="color:var(--green)">Rp ' + Number(pos.tp1).toLocaleString('id-ID') + '</span></td>'
-          + '<td><button class="btn btn-ghost btn-xs" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang di harga pasar?\'))aiClosePosition(\'' + pos.id + '\', ' + pos.currentPrice + ', \'MANUAL\')" style="color:var(--red);border-color:var(--red);font-size:10px">Tutup</button></td>'
+          + '<td style="display:flex;gap:6px;flex-wrap:wrap">'
+          + '<button class="btn btn-ghost btn-xs" ' + (AI_EXIT_HYPO[pos.id] && AI_EXIT_HYPO[pos.id].loading ? 'disabled' : '') + ' onclick="aiGenerateExitHypothesis(\'' + pos.id + '\')" style="color:#38bdf8;border-color:#38bdf8;font-size:10px">' + (AI_EXIT_HYPO[pos.id] && AI_EXIT_HYPO[pos.id].loading ? '⏳' : '🔍 Cek Exit') + '</button>'
+          + '<button class="btn btn-ghost btn-xs" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang di harga pasar?\'))aiClosePosition(\'' + pos.id + '\', ' + pos.currentPrice + ', \'MANUAL\')" style="color:var(--red);border-color:var(--red);font-size:10px">Tutup</button>'
+          + '</td>'
           + '</tr>';
       });
 
       html += '</tbody></table></div></div>';
     }
+
+    // Real Sell/Exit Hypothesis cards — rendered on-demand per open
+    // position that was checked via "🔍 Cek Exit" above. Ephemeral by
+    // design (see AI_EXIT_HYPO's declaration) — not persisted, always
+    // reflects the position's live state at the moment it was checked.
+    var exitCardsHtml = '';
+    p.openPositions.forEach(function(pos) {
+      var eh = AI_EXIT_HYPO[pos.id];
+      if (!eh || (!eh.result && !eh.error)) return;
+
+      if (eh.error) {
+        exitCardsHtml += '<div class="card" style="padding:14px 16px;margin-bottom:12px;border-color:var(--red)">'
+          + '<div style="font-size:12px;color:var(--red)">⚠ Exit Hypothesis ' + pos.ticker + ': ' + eh.error + '</div>'
+          + '</div>';
+        return;
+      }
+
+      var h = eh.result;
+      var isSell = h.side === 'SELL';
+      var sideColor = isSell ? 'var(--red)' : 'var(--green)';
+      var sideBg = isSell ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)';
+      var pnlSign = (h.unrealizedPnL || 0) >= 0 ? '+' : '';
+
+      exitCardsHtml += ''
+        + '<div style="background:var(--bg3);border:1px solid ' + (isSell ? 'rgba(239,68,68,0.35)' : 'var(--border2)') + ';border-radius:10px;padding:16px;margin-bottom:12px">'
+        + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
+        + '    <div>'
+        + '      <span style="font-size:10px;font-family:var(--font-mono);color:var(--text3)">Exit Check · ' + new Date(h.dataTimestamp).toLocaleString('id-ID') + ' · Regime: ' + (h.regime || 'N/A') + '</span>'
+        + '      <div style="font-size:16px;font-weight:800;color:var(--text);margin-top:2px">' + h.symbol + ' <span style="font-size:11px;font-weight:400;color:var(--text3)">(' + pos.lots + ' lot @ Rp ' + Number(h.entryPrice).toLocaleString('id-ID') + ')</span></div>'
+        + '    </div>'
+        + '    <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:' + sideBg + ';color:' + sideColor + '">' + h.side + '</span>'
+        + '  </div>'
+        + '  <div style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:10px;background:rgba(255,255,255,0.02);padding:10px;border-radius:6px">'
+        + '    <strong>' + (isSell ? 'Pemicu Exit:' : 'Status:') + '</strong> ' + (h.exitReason || '-')
+        + '  </div>'
+        + '  <div class="row4" style="margin-bottom:10px">'
+        + '    <div class="metric"><div class="mlabel">Harga Terkini</div><div class="mval" style="font-size:14px">Rp ' + Number(h.currentPrice).toLocaleString('id-ID') + '</div></div>'
+        + '    <div class="metric"><div class="mlabel">Floating PnL</div><div class="mval ' + (isSell ? 'down' : 'up') + '" style="font-size:14px">' + pnlSign + 'Rp ' + Number(h.unrealizedPnL || 0).toLocaleString('id-ID') + ' (' + pnlSign + (h.unrealizedPct || 0) + '%)</div></div>'
+        + '    <div class="metric"><div class="mlabel">Confluence</div><div class="mval" style="font-size:14px">' + h.confluence + '/100</div></div>'
+        + '    <div class="metric"><div class="mlabel">Rekomendasi</div><div class="mval" style="font-size:12px">' + h.recommendedAction + '</div></div>'
+        + '  </div>'
+        + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">'
+        + '    <div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:4px">✓ BULL CASE</div>'
+        + (h.bullCase && h.bullCase.length ? h.bullCase.map(function(b) { return '<div style="font-size:11.5px;color:var(--text2);margin-bottom:3px">• ' + b + '</div>'; }).join('') : '<div style="font-size:11.5px;color:var(--text3)">Tidak ada bukti bullish.</div>')
+        + '    </div>'
+        + '    <div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:4px">✗ BEAR CASE / KONTRADIKSI</div>'
+        + (h.bearCase && h.bearCase.length ? h.bearCase.map(function(b) { return '<div style="font-size:11.5px;color:var(--text2);margin-bottom:3px">• ' + b + '</div>'; }).join('') : '<div style="font-size:11.5px;color:var(--text3)">Tidak ada bukti bearish/kontradiksi.</div>')
+        + '    </div>'
+        + '  </div>'
+        + (h.missingEvidence && h.missingEvidence.length
+            ? ('  <div style="font-size:11px;color:var(--text3);border-top:1px solid var(--border2);padding-top:8px;margin-bottom:8px"><strong>Bukti Belum Tersedia:</strong> ' + h.missingEvidence.join(' ') + '</div>')
+            : '')
+        + '  <div style="display:flex;justify-content:flex-end;border-top:1px solid var(--border2);padding-top:10px">'
+        + (isSell ? ('    <button class="btn btn-primary btn-sm" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang berdasarkan sinyal exit?\'))aiClosePosition(\'' + pos.id + '\', ' + h.currentPrice + ', \'SIGNAL EXIT\')" style="background:var(--red);border-color:var(--red)">🚪 Tutup Posisi Sekarang</button>') : '')
+        + '  </div>'
+        + '</div>';
+    });
+    if (exitCardsHtml) {
+      html += '<div style="margin-top:6px">'
+        + '  <div class="ctitle" style="font-size:13px;margin-bottom:10px">Hasil Cek Exit</div>'
+        + exitCardsHtml
+        + '</div>';
+    }
+
     return html;
   }
 
@@ -2117,6 +2230,7 @@
   window.aiGenerateHypothesis = aiGenerateHypothesis;
   window.aiRemoveHypothesis = aiRemoveHypothesis;
   window.aiOpenPositionFromHypothesis = aiOpenPositionFromHypothesis;
+  window.aiGenerateExitHypothesis = aiGenerateExitHypothesis;
   window.fetchAiDataQuality = fetchAiDataQuality;
   window.fetchAiMarketRegime = fetchAiMarketRegime;
 
