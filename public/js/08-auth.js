@@ -239,7 +239,16 @@ function authDoSetup(){
     return;
   }
 
-  client.auth.signUp({ email: u, password: p })
+  // FIX AUDIT: without an explicit emailRedirectTo, Supabase falls back to
+  // the project's dashboard-configured "Site URL" (Authentication → URL
+  // Configuration) for the confirmation link's redirect target, NOT the
+  // page's actual current origin - confirmed directly by a real user
+  // whose confirmation email redirected to http://localhost:3000/ while
+  // signing up from the production domain, because the dashboard's Site
+  // URL was still left on localhost from earlier development. Passing the
+  // real running origin here makes the link correct regardless of what
+  // the dashboard happens to be set to.
+  client.auth.signUp({ email: u, password: p, options: { emailRedirectTo: window.location.origin } })
     .then(function(result){
       if(setupBtn){ setupBtn.disabled=false; setupBtn.textContent='Buat Akun \u2192'; }
       if(result.error) throw result.error;
@@ -315,7 +324,7 @@ function authDoReset(){
   var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
   if(!client){ authShowErr('Supabase belum siap.'); return; }
 
-  client.auth.resetPasswordForEmail(email).then(function(result){
+  client.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin }).then(function(result){
     if(result.error) throw result.error;
     var e=el('auth-err');
     if(e){
@@ -374,9 +383,33 @@ function authInit(){
     emailField.value = PRIMARY_USER_EMAIL;
   }
 
+  // FIX AUDIT: a confirmation/reset link that's expired, already used, or
+  // otherwise rejected lands back here with #error=...&error_code=...&
+  // error_description=... in the URL hash - this used to be silently
+  // dropped (Supabase's client just fails to establish a session from it),
+  // leaving the user staring at a blank login screen with no idea their
+  // click did anything at all. Captured here and shown further below,
+  // AFTER authShowLogin() runs - authShowLogin() itself clears auth-err,
+  // so showing it before would just have it wiped out immediately.
+  var linkErrorMsg = null;
+  try {
+    var hash = (window.location.hash || '').replace(/^#/, '');
+    if (hash.indexOf('error=') !== -1) {
+      var hashParams = new URLSearchParams(hash);
+      var errCode = hashParams.get('error_code');
+      var errDesc = hashParams.get('error_description');
+      linkErrorMsg = (errCode === 'otp_expired')
+        ? 'Link konfirmasi/reset sudah kadaluarsa atau tidak valid lagi. Silakan daftar ulang atau minta link baru.'
+        : (errDesc ? errDesc.replace(/\+/g, ' ') : 'Link tidak valid.');
+      // Bersihkan hash dari address bar supaya tidak terus muncul saat reload
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  } catch(e){}
+
   var client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
   if(!client){
     authShowLogin();
+    if(linkErrorMsg) authShowErr(linkErrorMsg);
     return;
   }
 
@@ -410,8 +443,10 @@ function authInit(){
       });
     } else {
       authShowLogin();
+      if(linkErrorMsg) authShowErr(linkErrorMsg);
     }
   }).catch(function(){
     authShowLogin();
+    if(linkErrorMsg) authShowErr(linkErrorMsg);
   });
 }
