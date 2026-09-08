@@ -114,6 +114,38 @@ try {
 window._schemaOutdated = false;
 
 // ══════════════════════════════════════════════════════════
+// SUPABASE (per-user data + auth) — see AGENTS.md / migration notes for why
+// ══════════════════════════════════════════════════════════
+// FIX AUDIT: the Firebase project above (zinc-snowfall-6lcf1) is a shared
+// Google AI Studio "Starter Tier" backend used by several unrelated apps -
+// the account operating this app only has narrow IAM roles on it (Firebase
+// Viewer / Firebase User (Free Tier), no Owner/Editor), so the
+// Email/Password sign-in provider can never be added and the app's own
+// OAuth redirect domain can never be authorized. Per-user data + auth were
+// moved to a Supabase project the user fully owns, where none of that
+// applies. FIREBASE_CONFIG/getFirebaseDb() above are left in place only for
+// the KSEI shareholder-data feature (34-ksei-shareholders.js), which is a
+// global, non-per-user cache unrelated to this migration.
+var SUPABASE_URL = "https://kpvteaqnjwkxkhenfqyu.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_IpA86ua5CkZ1UettBXR-tw_LUQFTyu0";
+var _supabaseClient = null;
+function getSupabaseClient() {
+  if (_supabaseClient) return _supabaseClient;
+  if (typeof supabase !== 'undefined' && supabase.createClient) {
+    _supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return _supabaseClient;
+}
+
+// New identity source of truth for the Supabase-backed save/load path in
+// 02-storage.js. Supabase's auth.uid() is a real UUID tied to an actual
+// authenticated session (unlike getFirestoreUserUid()'s email-string
+// derivation), so there's no dot/case-normalization concern here.
+function getAppUserId() {
+  return (_currentUser && _currentUser.id) || null;
+}
+
+// ══════════════════════════════════════════════════════════
 // GLOBAL STOCK CONTEXT & UNIFIED DISPATCH SYSTEM
 // ══════════════════════════════════════════════════════════
 window.GLOBAL_STOCK_CONTEXT = {

@@ -494,7 +494,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:6px">
               <div>
                 <div style="font-weight:700;font-size:12.5px;color:var(--red)">Reset Data Transaksi (0 Transaksi)</div>
-                <div style="font-size:11px;color:var(--text3)">Kosongkan seluruh riwayat portofolio &amp; transaksi di Cloud Firestore dan perangkat lokal.</div>
+                <div style="font-size:11px;color:var(--text3)">Kosongkan seluruh riwayat portofolio &amp; transaksi di Supabase Cloud dan perangkat lokal.</div>
               </div>
               <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);border-color:rgba(239,68,68,0.3)" onclick="MW_SETTINGS.confirmDataReset()">
                 <i class="ti ti-refresh"></i> Reset Data
@@ -743,19 +743,19 @@
   }
 
   async function confirmDataReset() {
-    if (!confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH data transaksi dan portofolio menjadi 0?\n\nTindakan ini akan menghapus permanen seluruh riwayat transaksi di Firebase Firestore Cloud, server mirror, dan browser lokal.')) {
+    if (!confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH data transaksi dan portofolio menjadi 0?\n\nTindakan ini akan menghapus permanen seluruh riwayat transaksi di Supabase Cloud, server mirror, dan browser lokal.')) {
       return;
     }
     try {
       if (typeof showSaveStatus === 'function') {
-        showSaveStatus('⏳ Menghapus transaksi di Firestore Cloud & Server...', 'var(--amber)', true);
+        showSaveStatus('⏳ Menghapus transaksi di Supabase Cloud & Server...', 'var(--amber)', true);
       }
       if (typeof clearData === 'function') {
         await clearData(true);
       } else if (typeof resetAllDatabaseAndTransactions === 'function') {
         await resetAllDatabaseAndTransactions();
       }
-      alert('✓ Berhasil! Seluruh transaksi dan saldo telah di-reset menjadi 0 di Firestore Cloud dan lokal.');
+      alert('✓ Berhasil! Seluruh transaksi dan saldo telah di-reset menjadi 0 di Supabase Cloud dan lokal.');
       renderSettingsPage();
     } catch(err) {
       console.error('Reset error:', err);

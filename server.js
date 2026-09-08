@@ -102,97 +102,17 @@ function getSafeFileKey(uidOrEmail) {
   return String(uidOrEmail).toLowerCase().replace(/[^a-z0-9_]/g, '_');
 }
 
-// FIX AUDIT (CRITICAL, cross-database mismatch): this used to default to a
-// separate, NAMED Firestore database ('ai-studio-moneywatchpro-...') while
-// the client SDK everywhere else in the app (getFirebaseDb(), used
-// throughout public/js/02-storage.js) reads/writes the project's DEFAULT
-// database. The two never shared any data - a save through this server's
-// REST endpoints (/api/user-data/save's Firestore replication,
-// /api/sync/firebase-audit) landed in a database the live app never reads,
-// and the audit endpoint's "verified synced to cloud" result reflected
-// that wrong database's (usually empty) state, not what users actually see.
-// '(default)' is Firestore REST's literal path segment for a project's
-// default database - the same one the client SDK targets with no
-// databaseId override.
-const FIREBASE_CONFIG = {
-  projectId: process.env.FIREBASE_PROJECT_ID || 'zinc-snowfall-6lcf1',
-  apiKey: process.env.FIREBASE_API_KEY || 'AIzaSyAjO1QrHyIuR8T0NM07NWxAgbwjnrbSYXk',
-  firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || '(default)'
-};
-
-function toFirestoreValue(val) {
-  if (val === null || val === undefined) return { nullValue: null };
-  if (typeof val === 'boolean') return { booleanValue: val };
-  if (typeof val === 'number') {
-    if (Number.isInteger(val)) return { integerValue: String(val) };
-    return { doubleValue: val };
-  }
-  if (typeof val === 'string') return { stringValue: val };
-  if (Array.isArray(val)) {
-    return { arrayValue: { values: val.map(toFirestoreValue) } };
-  }
-  if (typeof val === 'object') {
-    const fields = {};
-    for (const k of Object.keys(val)) {
-      if (val[k] !== undefined) {
-        fields[k] = toFirestoreValue(val[k]);
-      }
-    }
-    return { mapValue: { fields } };
-  }
-  return { stringValue: String(val) };
-}
-
-function fromFirestoreValue(val) {
-  if (!val) return null;
-  if ('nullValue' in val) return null;
-  if ('booleanValue' in val) return val.booleanValue;
-  if ('integerValue' in val) return parseInt(val.integerValue, 10);
-  if ('doubleValue' in val) return val.doubleValue;
-  if ('stringValue' in val) return val.stringValue;
-  if ('timestampValue' in val) return val.timestampValue;
-  if ('arrayValue' in val) return (val.arrayValue.values || []).map(fromFirestoreValue);
-  if ('mapValue' in val) {
-    const res = {};
-    const fields = val.mapValue.fields || {};
-    for (const k of Object.keys(fields)) {
-      res[k] = fromFirestoreValue(fields[k]);
-    }
-    return res;
-  }
-  return null;
-}
-
-async function syncRecordToFirestoreCloud(uid, dataObj) {
-  if (!uid || !dataObj) return false;
-  try {
-    const fsFields = {};
-    for (const k of Object.keys(dataObj)) {
-      if (dataObj[k] !== undefined) {
-        fsFields[k] = toFirestoreValue(dataObj[k]);
-      }
-    }
-    fsFields.updatedAt = { stringValue: new Date().toISOString() };
-
-    const uidsToSync = [uid];
-    const altUid = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
-    if (altUid !== uid) uidsToSync.push(altUid);
-
-    for (const targetUid of uidsToSync) {
-      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.firestoreDatabaseId}/documents/users/${targetUid}/data/main?key=${FIREBASE_CONFIG.apiKey}`;
-      fetch(url, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: fsFields })
-      }).catch(err => console.warn(`Firestore background patch notice (${targetUid}):`, err.message));
-    }
-    return true;
-  } catch (err) {
-    console.warn('syncRecordToFirestoreCloud error:', err.message);
-    return false;
-  }
-}
-
+// FIX AUDIT (Firebase→Supabase migration): this file used to also
+// replicate every save to a Firestore document via raw REST calls
+// (syncRecordToFirestoreCloud, toFirestoreValue/fromFirestoreValue, a
+// FIREBASE_CONFIG constant, and a /api/sync/firebase-audit route - all
+// removed) against a project the account operating this app never had
+// Owner/Editor access to, using a bare PATCH with no updateMask that could
+// silently full-replace the document with whatever partial payload
+// happened to be in flight. Per-user data now lives in Supabase, written
+// directly by the authenticated client (see public/js/02-storage.js's
+// fireSaveAllData()) - this server route's job is only the local-disk
+// mirror below, which stays database-agnostic.
 app.post('/api/user-data/save', (req, res) => {
   try {
     const body = req.body || {};
@@ -221,9 +141,9 @@ app.post('/api/user-data/save', (req, res) => {
     fs.writeFileSync(filePath, jsonStr, 'utf8');
 
     // NEVER save to a shared backup file (prevents cross-tenant data leakage)
-    // NEVER replicate demo accounts to Firestore Cloud or broadcast across devices
+    // Broadcast to other connected devices (DB-agnostic - unrelated to
+    // which cloud database is authoritative for this account)
     if (!isDemo) {
-      syncRecordToFirestoreCloud(uid, record.data);
       broadcastSyncUpdate(uid, record.data, req.headers['x-device-session-id'] || null);
     }
 
@@ -232,7 +152,7 @@ app.post('/api/user-data/save', (req, res) => {
 
     return res.json({
       success: true,
-      message: isDemo ? 'Demo session saved locally to isolated demo store' : 'Data successfully persisted to server mirror and Firebase Cloud',
+      message: isDemo ? 'Demo session saved locally to isolated demo store' : 'Data successfully persisted to server mirror',
       savedAt: record.savedAt,
       stats: { transactions: txCount, rdnMutations: rdnCount }
     });
@@ -242,95 +162,6 @@ app.post('/api/user-data/save', (req, res) => {
       success: false,
       error: 'Failed to persist user data on server',
       message: err.message
-    });
-  }
-});
-
-// Endpoint audit langsung ke Firebase Firestore Cloud
-app.get('/api/sync/firebase-audit', async (req, res) => {
-  try {
-    const uid = (req.query.uid || '').trim();
-    if (!uid || uid === 'demo_guest_user' || uid === 'guest_user') {
-      return res.json({
-        success: true,
-        cloudConnected: true,
-        hasDocument: false,
-        stats: { transactions: 0, dividends: 0, rdnMutations: 0, rdnBalance: 0 },
-        message: 'Demo / Guest session operates locally without cloud persistence'
-      });
-    }
-    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.firestoreDatabaseId}/documents/users/${uid}/data/main?key=${FIREBASE_CONFIG.apiKey}`;
-
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      // Cek apakah fallback key ada
-      const altUid = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
-      const altUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.firestoreDatabaseId}/documents/users/${altUid}/data/main?key=${FIREBASE_CONFIG.apiKey}`;
-      const altResp = await fetch(altUrl);
-      if (!altResp.ok) {
-        return res.json({
-          success: true,
-          cloudConnected: true,
-          hasDocument: false,
-          projectId: FIREBASE_CONFIG.projectId,
-          firestoreDatabaseId: FIREBASE_CONFIG.firestoreDatabaseId,
-          stats: { transactions: 0, dividends: 0, rdnMutations: 0, rdnBalance: 0 },
-          message: 'Dokumen pengguna belum ditemukan di Firestore'
-        });
-      }
-      const altJson = await altResp.json();
-      const altData = {};
-      for (const k of Object.keys(altJson.fields || {})) {
-        altData[k] = fromFirestoreValue(altJson.fields[k]);
-      }
-      return res.json({
-        success: true,
-        cloudConnected: true,
-        hasDocument: true,
-        projectId: FIREBASE_CONFIG.projectId,
-        firestoreDatabaseId: FIREBASE_CONFIG.firestoreDatabaseId,
-        uid: altUid,
-        savedAt: altData.updatedAt || altJson.updateTime,
-        stats: {
-          transactions: Array.isArray(altData.transactions) ? altData.transactions.length : 0,
-          dividends: Array.isArray(altData.dividends) ? altData.dividends.length : 0,
-          rdnMutations: Array.isArray(altData.rdnMutations) ? altData.rdnMutations.length : 0,
-          rdnBalance: typeof altData.rdnBalance === 'number' ? altData.rdnBalance : 0,
-          tickers: (altData.transactions || []).slice(0, 10).map(t => t.ticker)
-        },
-        message: 'Data terverifikasi tersinkron di Firebase Cloud'
-      });
-    }
-
-    const json = await resp.json();
-    const data = {};
-    for (const k of Object.keys(json.fields || {})) {
-      data[k] = fromFirestoreValue(json.fields[k]);
-    }
-
-    return res.json({
-      success: true,
-      cloudConnected: true,
-      hasDocument: true,
-      projectId: FIREBASE_CONFIG.projectId,
-      firestoreDatabaseId: FIREBASE_CONFIG.firestoreDatabaseId,
-      uid: uid,
-      savedAt: data.updatedAt || json.updateTime,
-      stats: {
-        transactions: Array.isArray(data.transactions) ? data.transactions.length : 0,
-        dividends: Array.isArray(data.dividends) ? data.dividends.length : 0,
-        rdnMutations: Array.isArray(data.rdnMutations) ? data.rdnMutations.length : 0,
-        rdnBalance: typeof data.rdnBalance === 'number' ? data.rdnBalance : 0,
-        tickers: (data.transactions || []).slice(0, 10).map(t => t.ticker)
-      },
-      message: 'Data terverifikasi tersinkron di Firebase Cloud'
-    });
-  } catch (err) {
-    console.error('Firebase audit error:', err);
-    return res.status(500).json({
-      success: false,
-      cloudConnected: false,
-      error: err.message
     });
   }
 });
