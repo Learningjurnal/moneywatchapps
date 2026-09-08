@@ -1,6 +1,6 @@
 // ╔══════════════════════════════════════════════════════════╗
-// ║                   AUTH SYSTEM (FIREBASE)                ║
-// ║  Firebase Authentication · session token · safe cloud    ║
+// ║                   AUTH SYSTEM (SUPABASE)                 ║
+// ║  Supabase Authentication · session token · safe cloud    ║
 // ╚══════════════════════════════════════════════════════════╝
 
 var AUTH = { SESSION_MS: 60 * 60 * 1000, _sesTimer: null, _barTimer: null, _sesStart: 0, _sesExp: 0 };

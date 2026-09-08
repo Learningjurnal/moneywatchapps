@@ -310,11 +310,19 @@
         var data = await res.json();
         if (data && Array.isArray(data.headlines)) {
           _siState.newsData = data.headlines;
+          // FIX AUDIT (fabricated data): server used to always substitute
+          // 11 hardcoded fake headlines when real search-grounded news
+          // wasn't available, with no disclosure. It now returns an
+          // honest empty list + dataUnavailable/message instead - surface
+          // that message rather than silently showing zero news.
+          if (data.headlines.length === 0 && data.dataUnavailable) {
+            _siState.newsError = data.message || 'Belum ada berita real-time yang tersedia saat ini.';
+          }
         }
       }
     } catch (e) {
       console.warn('Gagal memuat berita sektoral dari API:', e);
-      _siState.newsError = 'Gagal menghubungi server berita. Menampilkan arsip kurasi berita terverifikasi.';
+      _siState.newsError = 'Gagal menghubungi server berita.';
     } finally {
       _siState.isFetchingNews = false;
       _siState.lastUpdated = new Date();
@@ -2191,10 +2199,17 @@
     }
 
     if (displayNews.length === 0) {
+      var isGenuinelyEmpty = allNews.length === 0;
+      var emptyMsg = (isGenuinelyEmpty && _siState.newsError)
+        ? _siState.newsError
+        : 'Belum ada berita spesifik untuk sektor ini dalam periode berjalan.';
+      var emptyBtn = isGenuinelyEmpty
+        ? '<button onclick="siRefreshAll()" class="btn btn-ghost btn-xs" style="margin-top:8px">🔄 Coba Lagi</button>'
+        : '<button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="margin-top:8px">Lihat Semua Berita</button>';
       container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">' +
         '<i class="ti ti-news-off" style="font-size:24px;display:block;margin-bottom:6px"></i>' +
-        'Belum ada berita spesifik untuk sektor ini dalam periode berjalan.<br>' +
-        '<button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="margin-top:8px">Lihat Semua Berita</button>' +
+        emptyMsg + '<br>' +
+        emptyBtn +
       '</div>';
       return;
     }
