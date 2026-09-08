@@ -387,7 +387,17 @@
     AI_HYPO_ERROR = null;
     renderAiTradingPage();
     try {
-      var resp = await fetch('/api/idx/hypothesis/' + encodeURIComponent(tk));
+      // Pass the REAL current paper-account numbers so the server sizes
+      // suggestedPositionSizing against what would actually happen on
+      // "Buka Posisi Paper" for this hypothesis, not a fabricated reference
+      // account — see generateTradingHypothesis() in lib/idx-data-engine.js.
+      var p = AI_TRADE_STATE.paperAccount || {};
+      var qsParts = [];
+      if (typeof p.cash === 'number') qsParts.push('cash=' + encodeURIComponent(p.cash));
+      if (typeof p.totalEquity === 'number') qsParts.push('equity=' + encodeURIComponent(p.totalEquity));
+      if (typeof p.riskPerTradePct === 'number') qsParts.push('riskPct=' + encodeURIComponent(p.riskPerTradePct));
+      var qs = qsParts.length ? ('?' + qsParts.join('&')) : '';
+      var resp = await fetch('/api/idx/hypothesis/' + encodeURIComponent(tk) + qs);
       var json = await resp.json();
       if (!json.success || !json.hypothesis) throw new Error(json.error || 'Gagal menghasilkan hipotesis');
 
@@ -1523,7 +1533,18 @@
               + '    <div class="metric"><div class="mlabel">Stop Loss</div><div class="mval down" style="font-size:14px">Rp ' + Number(h.stopLoss).toLocaleString('id-ID') + '</div></div>'
               + '    <div class="metric"><div class="mlabel">Take Profit (TP1 / TP2)</div><div class="mval up" style="font-size:14px">Rp ' + (h.takeProfit ? (Number(h.takeProfit.tp1).toLocaleString('id-ID') + ' / ' + Number(h.takeProfit.tp2).toLocaleString('id-ID')) : '-') + '</div></div>'
               + '    <div class="metric"><div class="mlabel">Risk:Reward (ke TP2)</div><div class="mval" style="font-size:14px">1 : ' + (h.riskReward != null ? h.riskReward : 'N/A') + '</div></div>'
-              + '  </div>')
+              + '  </div>'
+              // Ukuran posisi RIIL terhadap akun paper Anda saat ini — bukan
+              // ilustrasi. Sama persis dengan yang akan terbuka jika "Buka
+              // Posisi Paper" ditekan sekarang (lihat generateTradingHypothesis()).
+              + (h.suggestedPositionSizing
+                  ? ('  <div style="font-size:11.5px;color:var(--text2);background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:6px;padding:8px 10px;margin-bottom:10px">'
+                    + (h.suggestedPositionSizing.suggestedLots
+                        ? ('    <strong>Ukuran Posisi (riil, akun paper Anda):</strong> ' + h.suggestedPositionSizing.suggestedLots + ' lot (' + Number(h.suggestedPositionSizing.suggestedShares).toLocaleString('id-ID') + ' lembar) · Risk budget Rp ' + Number(h.suggestedPositionSizing.riskBudgetRp).toLocaleString('id-ID')
+                          + '<div style="color:var(--text3);margin-top:2px">' + h.suggestedPositionSizing.note + '</div>')
+                        : ('    <span style="color:var(--amber)">⚠ ' + h.suggestedPositionSizing.note + '</span>'))
+                    + '  </div>')
+                  : ''))
             : '')
         + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">'
         + '    <div>'
