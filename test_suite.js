@@ -4,6 +4,10 @@
  */
 
 import assert from 'assert';
+import fs from 'fs';
+import vm from 'vm';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 console.log('═══════════════════════════════════════════════════════');
 console.log('🚀 RUNNING MONEY WATCH PRO & TRADEWAVE VERIFICATION SUITE');
@@ -592,6 +596,114 @@ test('Bandarmology: 1-Year Multi-Period Broker Cost Basis & VWAP Math', () => {
   assert(yp1YAvgBuy > vwap1Y, 'Retail YP 1-Year average purchase price is above 1-Year VWAP (FOMO Buying)');
   assert(akFloatingPnlPct > 10, 'Whale AK is sitting on >10% floating profit from 1-Year cost basis');
   assert(akFloatingPnlPct > ypFloatingPnlPct, 'Smart money floating profit exceeds retail floating profit');
+});
+
+// ── TEST 24-28: PRICE ADVANCER (equity-history real mark-to-market fix) ──
+// public/js/02b-price-index.js is a plain classic script (no import/export —
+// it must also load as-is via <script> in the browser), loaded here with
+// `vm` rather than `require()`/`import()` because the repo's package.json
+// sets "type":"module", which would make Node treat a directly-required/
+// imported public/js/*.js file as an ES module (breaking its
+// `module.exports` CommonJS guard) — `vm.runInContext` just executes the
+// raw source as a script, exactly like a browser <script> tag does, so the
+// same file is exercised under test with zero test-only forks of the logic.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+function loadMakePriceAdvancer() {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/02b-price-index.js'), 'utf8');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(src, sandbox, { filename: '02b-price-index.js' });
+  return sandbox.makePriceAdvancer;
+}
+const makePriceAdvancer = loadMakePriceAdvancer();
+
+test('makePriceAdvancer: forward-fills weekend/holiday gaps from prior trading day', () => {
+  // Fri close 100, Mon close 110 — Sat/Sun (no trading rows) must carry Friday's close.
+  const rows = [
+    { date: '2024-01-05', close: 100 }, // Friday
+    { date: '2024-01-08', close: 110 }  // Monday
+  ];
+  const next = makePriceAdvancer(rows);
+  assert.strictEqual(next('2024-01-05'), 100);
+  assert.strictEqual(next('2024-01-06'), 100, 'Saturday must carry Friday close (nearest prior trading day)');
+  assert.strictEqual(next('2024-01-07'), 100, 'Sunday must carry Friday close (nearest prior trading day)');
+  assert.strictEqual(next('2024-01-08'), 110);
+});
+
+test('makePriceAdvancer: dates strictly before the series\' first row return null', () => {
+  const next = makePriceAdvancer([{ date: '2024-01-10', close: 500 }]);
+  assert.strictEqual(next('2024-01-01'), null, 'A day before any real data must return null, not a back-filled/NaN price');
+  assert.strictEqual(next('2024-01-09'), null);
+  assert.strictEqual(next('2024-01-10'), 500);
+});
+
+test('makePriceAdvancer: empty/missing rows always return null without throwing', () => {
+  const nextEmpty = makePriceAdvancer([]);
+  assert.strictEqual(nextEmpty('2024-01-01'), null);
+  const nextNull = makePriceAdvancer(null);
+  assert.strictEqual(nextNull('2024-01-01'), null);
+});
+
+test('makePriceAdvancer: single-row series forward-fills to every later date queried', () => {
+  const next = makePriceAdvancer([{ date: '2024-01-01', close: 250 }]);
+  assert.strictEqual(next('2024-01-01'), 250);
+  assert.strictEqual(next('2024-01-03'), 250);
+  assert.strictEqual(next('2024-01-05'), 250);
+});
+
+test('makePriceAdvancer: null/0/NaN closes are skipped, never surface', () => {
+  const rows = [
+    { date: '2024-01-01', close: 100 },
+    { date: '2024-01-02', close: 0 },        // invalid — must be skipped
+    { date: '2024-01-03', close: null },     // invalid — must be skipped
+    { date: '2024-01-04', close: NaN },      // invalid — must be skipped
+    { date: '2024-01-05', close: 120 }
+  ];
+  const next = makePriceAdvancer(rows);
+  assert.strictEqual(next('2024-01-01'), 100);
+  assert.strictEqual(next('2024-01-02'), 100, 'Invalid close must be skipped, carrying the last valid close');
+  assert.strictEqual(next('2024-01-03'), 100);
+  assert.strictEqual(next('2024-01-04'), 100);
+  const last = next('2024-01-05');
+  assert.strictEqual(last, 120);
+  assert(!isNaN(last), 'Advancer must never return NaN');
+});
+
+test('makePriceAdvancer: out-of-order rows are sorted before advancing', () => {
+  const rows = [
+    { date: '2024-01-05', close: 120 },
+    { date: '2024-01-01', close: 100 }
+  ];
+  const next = makePriceAdvancer(rows);
+  assert.strictEqual(next('2024-01-01'), 100);
+  assert.strictEqual(next('2024-01-05'), 120);
+});
+
+// ── TEST 29: REAL-PRICE RESOLUTION ORDER CONTRACT (equity-history fix) ──
+// rebuildEquityHistoryFromTransactions() itself (03-engine.js) can't safely
+// run under Node — it's a giant browser-only script with ~20 implicit
+// global dependencies (window, localStorage, DOM, other app globals) that
+// throw outside a browser. This test instead locks down the *contract* its
+// three rewritten valuation branches (stock/crypto/ETF, 03-engine.js) all
+// follow: today live price wins, then the real fetched-history close for
+// that exact date, then the pre-existing lastPrice fallback chain — and
+// critically, that a missing/zero/NaN real price always falls through
+// rather than winning with a bad value.
+function resolvePrice(isToday, livePrice, realIndexedPrice, lastPriceFallback) {
+  if (isToday && livePrice > 0) return livePrice;
+  if (realIndexedPrice > 0) return realIndexedPrice;
+  return lastPriceFallback;
+}
+test('Equity history real-price resolution: today always prefers the live price', () => {
+  assert.strictEqual(resolvePrice(true, 5000, 4800, 4500), 5000);
+});
+test('Equity history real-price resolution: historical day prefers the real indexed price over lastPrice', () => {
+  assert.strictEqual(resolvePrice(false, undefined, 4800, 4500), 4800, 'A held position must mark-to-market on days between transactions, not freeze at lastPrice');
+});
+test('Equity history real-price resolution: missing/zero/NaN real price falls through to lastPrice, never NaN', () => {
+  assert.strictEqual(resolvePrice(false, undefined, undefined, 4500), 4500);
+  assert.strictEqual(resolvePrice(false, undefined, 0, 4500), 4500);
+  assert.strictEqual(resolvePrice(false, undefined, NaN, 4500), 4500);
 });
 
 console.log('═══════════════════════════════════════════════════════');

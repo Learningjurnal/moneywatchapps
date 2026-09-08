@@ -251,7 +251,33 @@ function isPortfolioDataReady(){
   return hasTx || hasRdn;
 }
 
-function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild){
+// In-memory (never localStorage-persisted, never blocking) cache of the
+// real price-history maps fetched by perfPrefetchAndRebuildEquity()
+// (21-performance.js), populated only after the Performance page's
+// benchmark chart successfully prefetches them. validateAndSyncEquityHistory()
+// below reads this as a plain variable — zero network, zero JSON.parse, zero
+// added latency — so that once real prices exist for this session, routine
+// autosave/cloud-load rebuilds (02-storage.js) don't clobber them back down
+// to the flat lastPrice curve. Starts null: before the Performance page has
+// ever been opened this session, every rebuild behaves exactly as before.
+var MW_PRICE_HIST = null;
+
+// `priceHist` (optional, 4th arg) carries real fetched daily closes so
+// historical (non-today, non-transaction-day) valuation can mark-to-market
+// instead of freezing at the last transacted price — see the FIX comment at
+// the stock/crypto/ETF valuation branches below for why that mattered.
+// Shape: { stocks:{TICKER:rows}, crypto:{COIN:rows}, etf:{TICKER:rows}, fx:rows }
+// where each `rows` is an ascending [{date, close}] series — stocks already
+// in IDR, crypto/etf in USD (Yahoo has no historical CODE-IDR crypto chart,
+// only CODE-USD — see shapeYahooSymbol() server-side), `fx` is USDIDR=X
+// (IDR per USD) used to convert both to IDR per-day. ALL FOUR ARE OPTIONAL —
+// when `priceHist` is omitted (every existing caller except the Performance
+// page's benchmark chart prefetch, see perfPrefetchAndRebuildEquity() in
+// 21-performance.js), every index below is empty and this function resolves
+// prices exactly as it always has: this keeps the synchronous hot-path
+// callers (equitySnapshotToday, validateAndSyncEquityHistory's autosave
+// call sites) byte-for-byte unchanged, with zero added latency.
+function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild, priceHist){
   var txs = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
   var rdns = (typeof rdnMutations !== 'undefined' && Array.isArray(rdnMutations)) ? rdnMutations : [];
   var divs = (typeof dividends !== 'undefined' && Array.isArray(dividends)) ? dividends : [];
@@ -302,6 +328,42 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild){
   var endDate = new Date(todayStr + 'T00:00:00');
   var result = [];
 
+  // Build a real-price "advancer" per symbol (if priceHist was provided) —
+  // see makePriceAdvancer() (02b-price-index.js). Each is a stateful
+  // forward-only pointer over that symbol's fetched series: called once per
+  // day IN THE SAME ORDER as the day loop below advances `dStr`, so a
+  // multi-year rebuild costs O(days × symbols) pointer advances total,
+  // instead of O(days × symbols × rows in each series) from rescanning each
+  // series from the start on every lookup — tens of millions of comparisons
+  // for a 7-year, 10-symbol portfolio. Deliberately NOT a pre-built
+  // {dateStr: close} map keyed by an independently-generated calendar
+  // sequence: `dStr` below is produced via a local-midnight-parse +
+  // toISOString() round-trip, which is timezone-sensitive — regenerating
+  // that same sequence a second time here risked silently drifting a day
+  // apart from it in any positive-UTC-offset timezone. Consuming the loop's
+  // own `dStr` values instead makes drift structurally impossible.
+  var stockAdv = {}, cryptoAdvUSD = {}, etfAdvUSD = {}, fxAdv = null;
+  if (priceHist && typeof makePriceAdvancer === 'function') {
+    if (priceHist.stocks) {
+      Object.keys(priceHist.stocks).forEach(function(tk){
+        stockAdv[tk] = makePriceAdvancer(priceHist.stocks[tk]);
+      });
+    }
+    if (priceHist.crypto) {
+      Object.keys(priceHist.crypto).forEach(function(c){
+        cryptoAdvUSD[c] = makePriceAdvancer(priceHist.crypto[c]);
+      });
+    }
+    if (priceHist.etf) {
+      Object.keys(priceHist.etf).forEach(function(tk){
+        etfAdvUSD[tk] = makePriceAdvancer(priceHist.etf[tk]);
+      });
+    }
+    if (priceHist.fx) {
+      fxAdv = makePriceAdvancer(priceHist.fx);
+    }
+  }
+
   var stockHoldings = {}; // ticker -> { lot, shares, cost, lastPrice }
   var cryptoHoldings = {}; // coin -> { qty, cost, lastPrice }
   var etfHoldings = {}; // ticker -> { shares, costUSD, costIdr, lastPrice }
@@ -337,9 +399,20 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild){
     Object.keys(stockHoldings).forEach(function(ticker) {
       var h = stockHoldings[ticker];
       if (h.shares > 0) {
+        // FIX: historical (non-today) days used to always fall through to
+        // h.lastPrice — the price from this ticker's most recent
+        // transaction — so a held position's reconstructed value never
+        // moved between trades, even though its real market value did.
+        // When real daily closes were fetched (priceHist/stockAdv, see
+        // perfPrefetchAndRebuildEquity() in 21-performance.js), use the
+        // real close for this exact date first; only fall back to the old
+        // chain when no real data covers this date (e.g. before the
+        // fetched series starts, or the fetch failed for this ticker).
+        var realPr = stockAdv[ticker] && stockAdv[ticker](dStr);
         var pr = (dStr === todayStr && typeof prices !== 'undefined' && prices[ticker])
           ? prices[ticker]
-          : (h.lastPrice || (typeof prices !== 'undefined' && prices[ticker]) || ((typeof DB !== 'undefined' && DB[ticker] && DB[ticker].base) ? DB[ticker].base : (h.cost / h.shares)));
+          : ((realPr > 0) ? realPr
+            : (h.lastPrice || (typeof prices !== 'undefined' && prices[ticker]) || ((typeof DB !== 'undefined' && DB[ticker] && DB[ticker].base) ? DB[ticker].base : (h.cost / h.shares))));
         stockVal += h.shares * pr;
       }
     });
@@ -366,9 +439,18 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild){
       var ch = cryptoHoldings[coin];
       if (ch.qty > 0.000001) {
         var info = (typeof CRYPTO_DB !== 'undefined' && CRYPTO_DB[coin]) ? CRYPTO_DB[coin] : null;
+        // FIX: see the stock branch above — same bug, same fix. Crypto's
+        // fetched series is in USD (Yahoo has no historical CODE-IDR chart,
+        // only CODE-USD), so convert with that same date's real USD/IDR
+        // close (fxAdv) rather than today's usdIdr rate — a 2021 BTC
+        // position priced at 2026's exchange rate would still be wrong.
+        var realUsd = cryptoAdvUSD[coin] && cryptoAdvUSD[coin](dStr);
+        var realFx = fxAdv && fxAdv(dStr);
+        var realPr = (realUsd > 0 && realFx > 0) ? (realUsd * realFx) : null;
         var pr = (dStr === todayStr && typeof cryptoPrices !== 'undefined' && cryptoPrices[coin])
           ? cryptoPrices[coin]
-          : (ch.lastPrice || (typeof cryptoPrices !== 'undefined' && cryptoPrices[coin]) || (info && (info.baseIDR || (info.baseUSD ? info.baseUSD * usdIdr : 0))) || (ch.cost / ch.qty));
+          : ((realPr > 0) ? realPr
+            : (ch.lastPrice || (typeof cryptoPrices !== 'undefined' && cryptoPrices[coin]) || (info && (info.baseIDR || (info.baseUSD ? info.baseUSD * usdIdr : 0))) || (ch.cost / ch.qty)));
         cryptoVal += ch.qty * pr;
       }
     });
@@ -398,10 +480,17 @@ function rebuildEquityHistoryFromTransactions(existingHist, forceFullRebuild){
       var eh = etfHoldings[ticker];
       if (eh.shares > 0) {
         var info = (typeof ETF_DB !== 'undefined' && ETF_DB[ticker]) ? ETF_DB[ticker] : null;
+        // FIX: see the stock branch above — same bug, same fix. Also uses
+        // that same date's real USD/IDR close (fxAdv) instead of today's
+        // usdIdr for the conversion, for the same reason as crypto above.
+        var realUsd = etfAdvUSD[ticker] && etfAdvUSD[ticker](dStr);
         var prUSD = (dStr === todayStr && typeof etfPrices !== 'undefined' && etfPrices[ticker])
           ? etfPrices[ticker]
-          : (eh.lastPrice || (typeof etfPrices !== 'undefined' && etfPrices[ticker]) || (info && info.baseUSD) || (eh.costUSD / eh.shares));
-        etfVal += eh.shares * prUSD * (typeof usdIdr !== 'undefined' ? usdIdr : 16000);
+          : ((realUsd > 0) ? realUsd
+            : (eh.lastPrice || (typeof etfPrices !== 'undefined' && etfPrices[ticker]) || (info && info.baseUSD) || (eh.costUSD / eh.shares)));
+        var realFx = (dStr !== todayStr) && fxAdv && fxAdv(dStr);
+        var fxRate = (realFx > 0) ? realFx : (typeof usdIdr !== 'undefined' ? usdIdr : 16000);
+        etfVal += eh.shares * prUSD * fxRate;
       }
     });
 
@@ -489,7 +578,7 @@ function equityHistoryLoad(){
     }
 
     if (needsRebuild) {
-      var rebuilt = rebuildEquityHistoryFromTransactions(raw, true);
+      var rebuilt = rebuildEquityHistoryFromTransactions(raw, true, MW_PRICE_HIST);
       if (rebuilt && rebuilt.length > 0) {
         equityHistorySave(rebuilt);
         return rebuilt;
@@ -517,7 +606,7 @@ function equitySnapshotToday(){
   var hist=equityHistoryLoad();
 
   if(!hist || hist.length===0){
-    hist = rebuildEquityHistoryFromTransactions([{date:today, equity:aum}], true);
+    hist = rebuildEquityHistoryFromTransactions([{date:today, equity:aum}], true, MW_PRICE_HIST);
   } else {
     var last=hist[hist.length-1];
     if(last && last.date===today) {
@@ -535,7 +624,11 @@ function equitySnapshotToday(){
 function validateAndSyncEquityHistory(forceRebuild){
   var currentAum = computeCurrentAUM();
   var hist = equityHistoryLoad();
-  var rebuilt = rebuildEquityHistoryFromTransactions(hist, true);
+  // Pass along MW_PRICE_HIST (if the Performance page already fetched real
+  // prices this session) so this rebuild doesn't regress a real-priced
+  // history back down to the flat lastPrice curve — see the comment above
+  // MW_PRICE_HIST's declaration.
+  var rebuilt = rebuildEquityHistoryFromTransactions(hist, true, MW_PRICE_HIST);
   
   var today = new Date().toISOString().slice(0,10);
   if(rebuilt.length > 0 && currentAum > 0){
