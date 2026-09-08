@@ -102,6 +102,34 @@
   var AI_SCAN_LOADED_AT = null;
   var AI_SCAN_ERROR = null;
 
+  // Tier 4 automation, step 1 (deliberately minimal — user-approved scope:
+  // scan refresh only, no auto-generated hypotheses and no auto-execution).
+  // Client-side timer only — there is no server-side state for this
+  // feature (the whole paper account lives in this browser's localStorage
+  // only), so this can only ever run while this browser tab stays open;
+  // it cannot run "in the background" once the tab/device is closed. Once
+  // started (on first visit to the AI Trading page), keeps running for
+  // the rest of the session even if the user navigates to another page —
+  // 15 minutes matches the server's own SCAN cache TTL (see
+  // HISTORY_TF_MAP in lib/idx-data-engine.js), so this doesn't add real
+  // load beyond what that cache already rotates on its own.
+  var AI_AUTO_REFRESH_TIMER = null;
+  var AI_AUTO_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+
+  function startAiAutoRefresh() {
+    if (AI_AUTO_REFRESH_TIMER) return; // already running — never stack duplicate intervals
+    AI_AUTO_REFRESH_TIMER = setInterval(function() {
+      fetchAiScanData();
+    }, AI_AUTO_REFRESH_INTERVAL_MS);
+  }
+
+  function stopAiAutoRefresh() {
+    if (AI_AUTO_REFRESH_TIMER) {
+      clearInterval(AI_AUTO_REFRESH_TIMER);
+      AI_AUTO_REFRESH_TIMER = null;
+    }
+  }
+
   // Hypothesis Lab loading state — see generateTradingHypothesis() in
   // lib/idx-data-engine.js (/api/idx/hypothesis/:ticker). Separate from the
   // scanner's loading flags since a hypothesis is generated one ticker at a
@@ -1051,6 +1079,7 @@
     syncAiPaperPortfolioLivePrices(false);
     renderAiTradingPage();
     aiRefreshPaperPortfolioQuotes(false);
+    startAiAutoRefresh(); // Tier 4 step 1 — no-ops if already running
   }
 
   function renderAiTradingPage() {
@@ -2495,6 +2524,8 @@
   window.aiOpenPositionFromSignal = aiOpenPositionFromSignal;
   window.aiClosePosition = aiClosePosition;
   window.fetchAiScanData = fetchAiScanData;
+  window.startAiAutoRefresh = startAiAutoRefresh;
+  window.stopAiAutoRefresh = stopAiAutoRefresh;
   window.fetchAllStrategyBacktests = fetchAllStrategyBacktests;
   window.fetchWalkForwardBacktest = fetchWalkForwardBacktest;
   window.aiGenerateHypothesis = aiGenerateHypothesis;
