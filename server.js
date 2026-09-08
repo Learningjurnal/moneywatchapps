@@ -796,47 +796,15 @@ async function callGeminiWithRetryAndFallback(ai, requestConfig, options = {}) {
   throw lastError || new Error('Semua model Gemini mengalami lonjakan permintaan (503/429).');
 }
 
-// Fallback high-impact Indonesian stock market news headlines
-function getFallbackHeadlines() {
-  return [
-    {
-      id: 1,
-      title: "IHSG Menguat Ditopang Arus Dana Asing (Net Buy) pada Saham Big Cap Perbankan",
-      summary: "Indeks Harga Saham Gabungan (IHSG) bergerak positif didorong oleh berlanjutnya akumulasi investor asing pada saham-saham perbankan berkapitalisasi besar seperti BBCA, BBRI, dan BMRI menjelang rilis kinerja kuartalan.",
-      source: "CNBC Indonesia",
-      url: "https://www.cnbcindonesia.com/market",
-      category: "IHSG & Perbankan",
-      impact: "BULLISH",
-      impactReason: "Foreign Inflow Kuat",
-      tickers: ["BBCA", "BBRI", "BMRI"],
-      time: "Terbaru"
-    },
-    {
-      id: 2,
-      title: "Sektor Energi & Transisi Hijau: PGEO Perluas Ekspansi Kapasitas Pembangkit Geothermal",
-      summary: "PT Pertamina Geothermal Energy Tbk (PGEO) mempercepat peningkatan kapasitas terpasang pembangkit listrik tenaga panas bumi guna memenuhi target dekarbonisasi dan meningkatkan pendapatan berulang jangka panjang.",
-      source: "Bisnis.com",
-      url: "https://market.bisnis.com",
-      category: "Energi Baru Terbarukan",
-      impact: "BULLISH",
-      impactReason: "Ekspansi Kapasitas",
-      tickers: ["PGEO"],
-      time: "Terbaru"
-    },
-    {
-      id: 3,
-      title: "Bank Indonesia Pertahankan BI-Rate, Stabilitas Rupiah dan Kebijakan Makroprudensial Terjaga",
-      summary: "Bank Indonesia mempertahankan suku bunga acuan BI-Rate untuk memperkuat stabilisasi nilai tukar Rupiah serta menjaga laju inflasi dalam sasaran target, memberikan sentimen kepastian bagi emiten domestik.",
-      source: "Kontan",
-      url: "https://investasi.kontan.co.id",
-      category: "Makroekonomi & Moneter",
-      impact: "NEUTRAL",
-      impactReason: "Suku Bunga Stabil",
-      tickers: ["TLKM", "ASII", "BBRI"],
-      time: "Terbaru"
-    }
-  ];
-}
+// FIX AUDIT (CRITICAL, fabricated data): getFallbackHeadlines() used to
+// return 3 entirely invented news items attributed to real publishers
+// (CNBC Indonesia, Bisnis.com, Kontan) with generic homepage URLs, served
+// whenever Gemini's search-grounded fetch was unavailable/rate-limited/
+// failed. The client (33-trending-news.js) only distinguished grounded
+// results with a distinct badge - the fallback case showed a neutral
+// "Top Market Headlines" badge with no indication the content was not
+// real, live news. Removed entirely; every call site below now returns
+// an honest empty list with a clear reason instead.
 
 // News cache (TTL 5 minutes)
 let newsCache = {
@@ -865,29 +833,31 @@ app.get('/api/trending-news', async (req, res) => {
     });
   }
 
-  // If rate limited recently (within backoff window), return cached or fallback news without calling API
+  // If rate limited recently (within backoff window), return cached real data if any, otherwise an honest empty result
   if (now < newsCache.rateLimitedUntil) {
-    const fallback = newsCache.data || getFallbackHeadlines();
     return res.json({
       success: true,
-      cached: true,
+      cached: !!newsCache.data,
       grounded: false,
-      isFallback: true,
+      isFallback: !newsCache.data,
+      dataUnavailable: !newsCache.data,
+      message: newsCache.data ? undefined : 'Kuota AI harian tercapai, coba lagi nanti.',
       timestamp: now,
-      headlines: fallback
+      headlines: newsCache.data || []
     });
   }
 
   const ai = getAiClient();
   if (!ai) {
-    const fallback = getFallbackHeadlines();
     return res.json({
       success: true,
       cached: false,
       grounded: false,
       isFallback: true,
+      dataUnavailable: true,
+      message: 'AI belum dikonfigurasi di server.',
       timestamp: now,
-      headlines: fallback
+      headlines: []
     });
   }
 
@@ -942,8 +912,10 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
       console.warn('JSON parse notice on grounded news response:', parseErr.message);
     }
 
+    let groundedUnavailable = false;
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      parsed = getFallbackHeadlines();
+      parsed = [];
+      groundedUnavailable = true;
     } else {
       parsed = parsed.slice(0, 3).map((item, idx) => {
         if (!item.id) item.id = idx + 1;
@@ -965,44 +937,47 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
       });
     }
 
-    newsCache = {
-      data: parsed,
-      grounded: groundingChunks.length > 0,
-      groundingCount: groundingChunks.length,
-      timestamp: now,
-      rateLimitedUntil: 0
-    };
+    if (!groundedUnavailable) {
+      newsCache = {
+        data: parsed,
+        grounded: groundingChunks.length > 0,
+        groundingCount: groundingChunks.length,
+        timestamp: now,
+        rateLimitedUntil: 0
+      };
+    }
 
     return res.json({
       success: true,
       cached: false,
-      grounded: true,
+      grounded: !groundedUnavailable,
       groundingCount: groundingChunks.length,
+      dataUnavailable: groundedUnavailable,
+      message: groundedUnavailable ? 'Respons AI tidak valid atau kosong.' : undefined,
       timestamp: now,
       headlines: parsed
     });
   } catch (err) {
     const errMessage = (err && err.message) ? err.message : String(err);
     // Backoff 2 minutes on 429 quota exhaustion
-    if (errMessage.includes('429') || errMessage.includes('RESOURCE_EXHAUSTED') || errMessage.includes('quota')) {
-      console.warn('Gemini API notice: Quota limit reached. Serving fallback market news.');
+    const quotaExhausted = errMessage.includes('429') || errMessage.includes('RESOURCE_EXHAUSTED') || errMessage.includes('quota');
+    if (quotaExhausted) {
+      console.warn('Gemini API notice: Quota limit reached.');
       newsCache.rateLimitedUntil = now + 120000;
     } else {
       console.warn('Gemini grounded news notice:', errMessage);
     }
-
-    const fallback = getFallbackHeadlines();
-    newsCache.data = fallback;
-    newsCache.timestamp = now;
 
     return res.json({
       success: true,
       cached: false,
       grounded: false,
       isFallback: true,
-      quotaExhausted: errMessage.includes('429') || errMessage.includes('RESOURCE_EXHAUSTED'),
+      dataUnavailable: true,
+      quotaExhausted: quotaExhausted,
+      message: quotaExhausted ? 'Kuota AI harian tercapai, coba lagi nanti.' : 'Gagal menghubungi layanan pencarian berita.',
       timestamp: now,
-      headlines: fallback
+      headlines: []
     });
   }
 });
@@ -1010,180 +985,36 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
 // ══════════════════════════════════════════════════════════
 // SECTORAL MARKET NEWS & CATALYST INTELLIGENCE ENDPOINT
 // ══════════════════════════════════════════════════════════
-const SECTOR_NEWS_FALLBACK = [
-  {
-    id: "sec_fin_1",
-    sector: "Financials",
-    sectorName: "Keuangan",
-    title: "Akumulasi Asing Mengalir ke Bank KBMI 4, Pertumbuhan Kredit Perbankan Diproyeksi Capai 10-12%",
-    summary: "Investor institusi dan asing melanjutkan net buy pada saham bank berkapitalisasi besar (BBCA, BMRI, BBRI, BBNI) seiring solidnya pertumbuhan kredit produktif serta rasio kecukupan modal (CAR) perbankan nasional yang kuat di atas 26%.",
-    source: "CNBC Indonesia",
-    url: "https://www.cnbcindonesia.com/market",
-    category: "Perbankan & Moneter",
-    impact: "BULLISH",
-    impactReason: "Foreign Inflow & Margin Bunga Stabil",
-    tickers: ["BBCA", "BBRI", "BMRI", "BBNI"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_ene_1",
-    sector: "Energy",
-    sectorName: "Energi",
-    title: "Permintaan Musiman Batubara & Ekspansi Panas Bumi Pacu Likuiditas Emiten Energi",
-    summary: "Emiten sektor energi seperti ADRO, PTBA, dan PGEO mencatatkan peningkatan volume sejalan dengan penguatan harga batubara termal di pasar Asia serta percepatan komisioning proyek geothermal ramah lingkungan.",
-    source: "Bisnis.com",
-    url: "https://market.bisnis.com",
-    category: "Energi & Komoditas",
-    impact: "BULLISH",
-    impactReason: "Katalis Dividen Yield & EBT",
-    tickers: ["ADRO", "PTBA", "PGEO", "PGAS"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_bas_1",
-    sector: "Basic Materials",
-    sectorName: "Barang Baku",
-    title: "Harga Emas Rekor dan Prospek Hilirisasi Mineral Topang Kinerja Saham Tambang",
-    summary: "Penguatan harga emas spot global memberikan dorongan marjin bagi ANTM, sementara emiten nikel seperti INCO dan MDKA terus mengoptimalkan efisiensi smelter HPAL di tengah fluktuasi harga komoditas logam dasar global.",
-    source: "Kontan",
-    url: "https://investasi.kontan.co.id",
-    category: "Mineral & Tambang",
-    impact: "NEUTRAL",
-    impactReason: "Emas Bullish vs Volatilitas Nikel",
-    tickers: ["ANTM", "INCO", "MDKA"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_cno_1",
-    sector: "Consumer Non-Cyclicals",
-    sectorName: "Konsumer Primer",
-    title: "Stabilisasi Harga Bahan Baku Gandum dan CPO Jaga Profitabilitas Industri Makanan Minuman",
-    summary: "Emiten konsumen primer ICBP, INDF, dan UNVR mempertahankan margin laba kotor yang sehat berkat moderasi biaya input komoditas serta daya beli masyarakat segmen mass-market yang tetap tangguh.",
-    source: "Investor Daily",
-    url: "https://investor.id",
-    category: "Konsumsi Domestik",
-    impact: "BULLISH",
-    impactReason: "Margin Laba Kotor Terjaga",
-    tickers: ["ICBP", "INDF", "UNVR"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_inf_1",
-    sector: "Infrastructures",
-    sectorName: "Infrastruktur",
-    title: "Konsolidasi Capex dan Monetisasi Fiber Optik Dorong Arus Kas Emiten Telekomunikasi",
-    summary: "Operator telekomunikasi TLKM dan EXCL fokus pada efisiensi belanja modal (capex) 5G dan monetisasi portofolio infrastruktur menara serta data center untuk memperkuat arus kas bebas (free cash flow).",
-    source: "Bloomberg Technoz",
-    url: "https://www.bloombergtechnoz.com",
-    category: "Infrastruktur & Telco",
-    impact: "BULLISH",
-    impactReason: "Monetisasi Fixed Mobile Convergence",
-    tickers: ["TLKM", "EXCL", "ISAT"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_tec_1",
-    sector: "Technology",
-    sectorName: "Teknologi",
-    title: "Emiten Teknologi Fokus Cetak Profitabilitas Operasional & Rasio Take Rate Berkelanjutan",
-    summary: "Saham teknologi digital seperti GOTO dan BUKA memperketat efisiensi promosi terarah guna mempertahankan perbaikan adjusted EBITDA positif, di tengah selektivitas investor terhadap pertumbuhan kualitas tinggi.",
-    source: "Katadata",
-    url: "https://katadata.co.id",
-    category: "Teknologi Digital",
-    impact: "NEUTRAL",
-    impactReason: "Transisi Profitabilitas Berjalan",
-    tickers: ["GOTO", "BUKA", "EMTK"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_pro_1",
-    sector: "Properties & Real Estate",
-    sectorName: "Properti",
-    title: "Perpanjangan Insentif PPN DTP Dorong Prapenjualan (Marketing Sales) Pengembang Properti",
-    summary: "Pengembang properti terkemuka (BSDE, PWON, CTRA) mencatat minat tinggi pembeli rumah pertama menyusul kelanjutan stimulus pembebasan pajak PPN ditanggung pemerintah serta peluncuran klaster township baru.",
-    source: "Bisnis.com",
-    url: "https://market.bisnis.com",
-    category: "Properti & Residensial",
-    impact: "BULLISH",
-    impactReason: "Stimulus PPN DTP & Permintaan Residensial",
-    tickers: ["BSDE", "PWON", "CTRA"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_hea_1",
-    sector: "Healthcare",
-    sectorName: "Kesehatan",
-    title: "Belanja Preventif & Penetrasi Produk Farmasi Herbal Dorong Pendapatan Stabil Sektor Kesehatan",
-    summary: "Emiten farmasi dan jamu seperti KLBF dan SIDO mempertahankan marjin operasi yang defensif didukung oleh kestabilan rantai pasok bahan baku dan perluasan penetrasi pasar ekspor regional.",
-    source: "Kontan",
-    url: "https://investasi.kontan.co.id",
-    category: "Farmasi & Kesehatan",
-    impact: "NEUTRAL",
-    impactReason: "Defensif & Cash Flow Sehat",
-    tickers: ["KLBF", "SIDO"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_ind_1",
-    sector: "Industrials",
-    sectorName: "Perindustrian",
-    title: "Permintaan Alat Berat dan Otomotif Komersial Menunjukkan Tren Pemulihan Bertahap",
-    summary: "Grup Astra (ASII) dan distributor alat berat mempertahankan portofolio bisnis terdiversifikasi dengan kontribusi dividen yang solid dari lini jasa pertambangan dan agribisnis.",
-    source: "CNBC Indonesia",
-    url: "https://www.cnbcindonesia.com/market",
-    category: "Otomotif & Alat Berat",
-    impact: "BULLISH",
-    impactReason: "Dividen Yield Tinggi & Neraca Kas Tebal",
-    tickers: ["ASII", "UNTR"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_tra_1",
-    sector: "Transportation & Logistics",
-    sectorName: "Transportasi & Logistik",
-    title: "Efisiensi Rute Logistik Maritim dan Kenaikan Volume Kargo Domestik",
-    summary: "Emiten pelayaran peti kemas seperti SMDR dan TMAS mempertahankan utilisasi kapal logistik nusantara yang tinggi guna mendukung kelancaran rantai distribusi antarpulau.",
-    source: "Bisnis.com",
-    url: "https://market.bisnis.com",
-    category: "Transportasi Laut",
-    impact: "NEUTRAL",
-    impactReason: "Utilisasi Armada Domestik Tinggi",
-    tickers: ["SMDR", "TMAS", "BIRD"],
-    time: "Terbaru"
-  },
-  {
-    id: "sec_ccy_1",
-    sector: "Consumer Cyclicals",
-    sectorName: "Konsumer Non-Primer",
-    title: "Pusat Perbelanjaan & Ritel Gaya Hidup Catat Kenaikan Trafik Pengunjung",
-    summary: "Emiten ritel modern seperti ACES, MAPI, dan ERAA membukukan pertumbuhan penjualan toko yang sama (SSSG) yang solid menjelang periode liburan dan promosi musiman.",
-    source: "Investor Daily",
-    url: "https://investor.id",
-    category: "Ritel & Gaya Hidup",
-    impact: "BULLISH",
-    impactReason: "Trafik Pengunjung Mall Tinggi",
-    tickers: ["ACES", "MAPI", "ERAA"],
-    time: "Terbaru"
-  }
-];
-
 let sectoralNewsCache = {
   data: null,
   timestamp: 0,
   rateLimitedUntil: 0
 };
 
+// FIX AUDIT (CRITICAL, fabricated data): this route used to fall back to
+// SECTOR_NEWS_FALLBACK - 11 entirely invented news headlines (fake CAR
+// figures, fake gold-price claims, fake stimulus details) attributed to
+// real news organizations (CNBC Indonesia, Bisnis.com, Kontan, Bloomberg)
+// with generic homepage URLs standing in for real article links, served
+// with NO disclosure that they were not live data whenever the Gemini
+// search-grounded fetch was unavailable, rate-limited, or failed. Removed
+// entirely - when real grounded news isn't available, this now returns an
+// honest empty list with a clear message instead of invented content
+// wearing a real publisher's byline.
 app.get('/api/sectoral-news', async (req, res) => {
   const targetSector = (req.query.sector || '').trim().toLowerCase();
   const force = req.query.force === 'true';
   const now = Date.now();
   const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-  let newsList = SECTOR_NEWS_FALLBACK;
+  let newsList = [];
+  let dataUnavailable = true;
+  let unavailableReason = 'AI belum dikonfigurasi di server.';
 
   // Check cache
   if (!force && sectoralNewsCache.data && (now - sectoralNewsCache.timestamp < CACHE_TTL_MS)) {
     newsList = sectoralNewsCache.data;
+    dataUnavailable = false;
   } else {
     // Attempt Gemini search grounding if AI client is available and not rate limited
     const ai = getAiClient();
@@ -1225,27 +1056,27 @@ Kembalikan persis format JSON array tanpa markdown:
         if (first !== -1 && last !== -1) {
           const parsed = JSON.parse(clean.substring(first, last + 1));
           if (Array.isArray(parsed) && parsed.length >= 3) {
-            // Merge with fallback items for missing sectors
-            const merged = [...parsed];
-            SECTOR_NEWS_FALLBACK.forEach(fb => {
-              if (!merged.some(m => String(m.sector).toLowerCase() === String(fb.sector).toLowerCase())) {
-                merged.push(fb);
-              }
-            });
             sectoralNewsCache = {
-              data: merged,
+              data: parsed,
               timestamp: now,
               rateLimitedUntil: 0
             };
-            newsList = merged;
+            newsList = parsed;
+            dataUnavailable = false;
+          } else {
+            unavailableReason = 'Respons AI tidak valid atau terlalu sedikit hasil.';
           }
+        } else {
+          unavailableReason = 'Respons AI tidak dapat diproses.';
         }
       } catch (err) {
         const msg = (err && err.message) ? err.message : String(err);
         if (msg.includes('429') || msg.includes('quota')) {
           sectoralNewsCache.rateLimitedUntil = now + 120000;
+          unavailableReason = 'Kuota AI harian tercapai, coba lagi nanti.';
+        } else {
+          unavailableReason = 'Gagal menghubungi layanan pencarian berita.';
         }
-        newsList = SECTOR_NEWS_FALLBACK;
       }
     }
   }
@@ -1262,7 +1093,9 @@ Kembalikan persis format JSON array tanpa markdown:
       sector: targetSector,
       count: filtered.length,
       timestamp: now,
-      headlines: filtered.length > 0 ? filtered : newsList.slice(0, 5)
+      dataUnavailable: dataUnavailable,
+      message: dataUnavailable ? unavailableReason : undefined,
+      headlines: filtered
     });
   }
 
@@ -1270,6 +1103,8 @@ Kembalikan persis format JSON array tanpa markdown:
     success: true,
     count: newsList.length,
     timestamp: now,
+    dataUnavailable: dataUnavailable,
+    message: dataUnavailable ? unavailableReason : undefined,
     headlines: newsList
   });
 });

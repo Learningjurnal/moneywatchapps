@@ -1,6 +1,6 @@
 // ╔══════════════════════════════════════════════════════════╗
 // ║  FRESH START — Bersihkan semua sisa localStorage lama    ║
-// ║  Penyimpanan 100% menggunakan Firebase Firestore Cloud   ║
+// ║  Penyimpanan 100% menggunakan Supabase Cloud             ║
 // ╚══════════════════════════════════════════════════════════╝
 
 function mwPurgeLocalState(force) {

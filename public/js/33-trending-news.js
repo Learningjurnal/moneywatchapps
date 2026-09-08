@@ -11,41 +11,7 @@
   var _lastFetchTime = null;
   var _fetchError = null;
 
-  // Curated live market headlines fallback with active IDX emiten tickers & verified links
-  var CURATED_MARKET_NEWS = [
-    {
-      title: 'IHSG Menguat Ditopang Aliran Dana Asing pada Sektor Perbankan Big-4',
-      summary: 'Indeks Harga Saham Gabungan (IHSG) bergerak positif didorong akumulasi investor institusi pada saham bank berkapitalisasi besar seperti BBCA, BBRI, dan BMRI menjelang rilis kinerja kuartalan.',
-      source: 'CNBC Indonesia',
-      url: 'https://www.cnbcindonesia.com/market',
-      category: 'Pasar Saham',
-      impact: 'BULLISH',
-      impactReason: 'Inflow asing mendorong likuiditas dan stabilitas IHSG',
-      tickers: ['BBCA', 'BBRI', 'BMRI', 'IHSG']
-    },
-    {
-      title: 'Sektor Energi & Komoditas Bergerak Dinamis Menyusul Permintaan Ekspor',
-      summary: 'Emiten batubara dan mineral seperti ADRO, PTBA, ANTM, dan PGEO mencatatkan kenaikan volume transaksi seiring penyesuaian harga komoditas acuan global dan diversifikasi energi hijau.',
-      source: 'Bisnis.com',
-      url: 'https://market.bisnis.com',
-      category: 'Komoditas & Energi',
-      impact: 'BULLISH',
-      impactReason: 'Katalis positif dividen yield dan tren transisi energi terbarukan',
-      tickers: ['ADRO', 'PGEO', 'ANTM', 'PTBA']
-    },
-    {
-      title: 'Konsumsi Domestik & Sektor Ritel Catatkan Pertumbuhan Stabil di Tengah Inflasi',
-      summary: 'Saham sektor konsumer primer dan barang baku termasuk ICBP, UNVR, dan ASII menunjukkan ketahanan laba operasional dengan proyeksi margin laba yang terjaga di semester berjalan.',
-      source: 'Kontan Market',
-      url: 'https://investasi.kontan.co.id',
-      category: 'Konsumer & Industri',
-      impact: 'NEUTRAL',
-      impactReason: 'Pertumbuhan laba stabil dengan valuasi wajar jangka panjang',
-      tickers: ['UNVR', 'ICBP', 'ASII']
-    }
-  ];
-
-  // Function to load trending news from backend endpoint or client-side fallback
+  // Function to load trending news from the backend's Google-Search-grounded endpoint
   window.fetchTrendingNews = async function(forceRefresh) {
     if (_isLoadingNews) return;
     _isLoadingNews = true;
@@ -54,65 +20,36 @@
     // Render loading state in container if mounted
     renderTrendingNews();
 
-    var isStatic = typeof window !== 'undefined' && window.location && (
-      (window.location.hostname || '').indexOf('github.io') !== -1 ||
-      window.location.protocol === 'file:' ||
-      (window.location.hostname || '').indexOf('pages.dev') !== -1
-    );
-
     try {
-      var serverFetched = false;
-      
-      // Jika bukan static host atau jika server ada, coba endpoint /api/trending-news
-      if (!isStatic || forceRefresh) {
-        try {
-          var url = '/api/trending-news' + (forceRefresh ? '?force=true' : '');
-          var res = await fetch(url);
-          if (res.ok) {
-            var json = await res.json();
-            if (json && json.headlines && Array.isArray(json.headlines) && json.headlines.length > 0) {
-              _newsData = {
-                headlines: json.headlines,
-                grounded: json.grounded !== false,
-                groundingCount: json.groundingCount || 0,
-                cached: !!json.cached,
-                isFallback: !!json.isFallback,
-                timestamp: json.timestamp || Date.now()
-              };
-              _lastFetchTime = new Date(_newsData.timestamp);
-              serverFetched = true;
-            }
-          }
-        } catch (eServer) {
-          // Silent fallback for static hosting / GitHub Pages
-        }
-      }
+      var url = '/api/trending-news' + (forceRefresh ? '?force=true' : '');
+      var res = await fetch(url);
+      var json = res.ok ? await res.json() : null;
 
-      if (!serverFetched) {
-        // Fallback cerdas untuk GitHub Pages / mode statis / server offline:
-        // Gunakan curated verified market news dengan timestamp terkini
+      // FIX AUDIT (CRITICAL, fabricated data): this used to fall back to a
+      // hardcoded CURATED_MARKET_NEWS array - 3 entirely invented headlines
+      // attributed to real publishers (CNBC Indonesia, Bisnis.com, Kontan)
+      // - and marked it grounded:true, isFallback:false whenever the real
+      // endpoint returned nothing, LYING that fabricated content was
+      // live-verified search-grounded news. Now: no real headlines means
+      // an honest unavailable state, never invented content.
+      if (json && Array.isArray(json.headlines) && json.headlines.length > 0) {
         _newsData = {
-          headlines: CURATED_MARKET_NEWS,
-          grounded: true,
-          groundingCount: 3,
-          cached: false,
-          isFallback: false,
-          timestamp: Date.now()
+          headlines: json.headlines,
+          grounded: json.grounded !== false,
+          groundingCount: json.groundingCount || 0,
+          cached: !!json.cached,
+          isFallback: !!json.isFallback,
+          timestamp: json.timestamp || Date.now()
         };
         _lastFetchTime = new Date(_newsData.timestamp);
+      } else {
+        _newsData = null;
+        _fetchError = (json && json.message) || 'Belum ada berita real-time yang tersedia saat ini.';
       }
     } catch (err) {
       console.warn('Gagal memuat berita pasar grounded:', err);
-      // Jangan pernah biarkan tampilan rusak: selalu gunakan berita terverifikasi
-      _newsData = {
-        headlines: CURATED_MARKET_NEWS,
-        grounded: false,
-        groundingCount: 0,
-        cached: true,
-        isFallback: true,
-        timestamp: Date.now()
-      };
-      _lastFetchTime = new Date();
+      _newsData = null;
+      _fetchError = 'Gagal menghubungi server berita.';
     } finally {
       _isLoadingNews = false;
       renderTrendingNews();
