@@ -99,6 +99,22 @@ function getPphDividen()    { return TAX_SETTINGS.dividenExempt ? 0 : (TAX_SETTI
 function getPphBeli()       { return 0; }
 
 // Hitung semua komponen biaya transaksi — sumber tunggal kebenaran (dibulatkan ke integer rupiah utuh per broker)
+//
+// PENTING (fix): SEKURITAS[x].buyFee/sellFee adalah tarif ALL-IN — sudah
+// mencakup komisi broker + PPN atas komisi + levy bursa (BEI/KPEI/KSEI) +
+// PPh Final (khusus jual). Ini tertulis eksplisit di komentar preset
+// SEKURITAS ("Total Tax/Fee: ... All-in") dan terbukti dari nota transaksi
+// riil broker — mis. Stockbit: Broker Fee + Exchange Fee pada nota SELL
+// persis sama dengan gross × 0.28% (rate all-in yang dikonfigurasi),
+// TANPA ada PPN/levy/PPh tambahan di atasnya.
+//
+// Versi sebelumnya JUSTRU MENAMBAHKAN PPN+levy+PPh di atas rate all-in
+// itu, sehingga total fee jual membengkak dari 0.28% (riil) menjadi
+// 0.454% — pajak yang sudah termasuk di dalam rate dihitung dobel. Levy &
+// PPh Final adalah pungutan/pajak dengan tarif tetap (regulasi, bukan
+// bagian yang dinegosiasikan broker), jadi keduanya dihitung sebagai
+// nominal riil dari gross; komisi broker + PPN-nya diturunkan dari SISA
+// rate all-in setelah dikurangi levy & PPh — bukan ditambahkan di atasnya.
 function calcTxComponents(gross, isBuy, sekuritas){
   var secName = sekuritas || (typeof activeSekuritas !== 'undefined' ? activeSekuritas : 'Stockbit');
   var sec    = SEKURITAS[secName] || SEKURITAS['Stockbit'] || {buyFee:0.0018, sellFee:0.0028, color:'#ff6b6b'};
@@ -106,13 +122,18 @@ function calcTxComponents(gross, isBuy, sekuritas){
   var ovr    = (typeof sekTaxOverride!=='undefined') ? (sekTaxOverride[secName]||{}) : {};
   var buyFee = ovr.beli!=null ? ovr.beli : sec.buyFee;
   var selFee = ovr.jual!=null ? ovr.jual : sec.sellFee;
-  var rate   = isBuy ? buyFee : selFee;
+  var rate   = isBuy ? buyFee : selFee; // tarif ALL-IN, lihat catatan di atas
 
-  var komisi = Math.round(gross * rate);
-  var ppn    = Math.round(komisi * (TAX_SETTINGS.ppn || 0.11));
-  var levy   = Math.round(gross * (TAX_SETTINGS.levy || 0.00043));
-  var pph    = isBuy ? 0 : Math.round(gross * (TAX_SETTINGS.pphJual || 0.001));
-  var svc    = Math.round(gross * (TAX_SETTINGS.serviceFee || 0));
+  var levy = Math.round(gross * (TAX_SETTINGS.levy || 0.00043));
+  var pph  = isBuy ? 0 : Math.round(gross * (TAX_SETTINGS.pphJual || 0.001));
+  var svc  = Math.round(gross * (TAX_SETTINGS.serviceFee || 0));
+
+  var totalFeeFromRate = Math.round(gross * rate);
+  // Komisi broker + PPN-nya = sisa tarif all-in setelah levy & PPh
+  // (keduanya pungutan/pajak bursa yang tetap, bukan bagian komisi broker).
+  var komisiPlusPpn = Math.max(0, totalFeeFromRate - levy - pph);
+  var komisi = Math.round(komisiPlusPpn / (1 + (TAX_SETTINGS.ppn || 0.11)));
+  var ppn    = komisiPlusPpn - komisi;
   var totalFee = komisi + ppn + levy + pph + svc;
   var net    = isBuy ? (gross + totalFee) : (gross - totalFee);
 
