@@ -1,4 +1,47 @@
 // ============================================================
+// GENERIC IN-APP TOAST NOTIFICATION
+// ============================================================
+// `showToast(message)` is referenced (defensively, behind `typeof
+// showToast === 'function'` guards) from ~20 call sites across the app —
+// AI Trading paper-trading actions, KSEI, TradeWave, AI Chart Intelligence
+// — but was never actually implemented anywhere, so every one of those
+// calls silently no-opped: users clicking "Buka Posisi Paper", closing a
+// position, hitting a scan error, etc. got zero visual feedback of any
+// kind, success or failure. Reuses the same floating #mw-toast-container
+// mwShowPriceAlertToast() already renders into (30-price-alerts.js) so
+// there's one consistent toast style app-wide, not two competing ones.
+function showToast(message, opts) {
+  opts = opts || {};
+  var toastContainer = document.getElementById('mw-toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'mw-toast-container';
+    toastContainer.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:10050;display:flex;flex-direction:column;gap:10px;max-width:380px;width:calc(100vw - 48px);pointer-events:none;';
+    document.body.appendChild(toastContainer);
+  }
+
+  var toast = document.createElement('div');
+  toast.style.cssText = 'background:#101726;border:1px solid rgba(255,255,255,0.12);box-shadow:0 15px 35px rgba(0,0,0,0.6);border-radius:10px;padding:12px 14px;pointer-events:auto;animation:toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);transition:all 0.2s ease;';
+  toast.innerHTML = ''
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
+    + '  <div style="font-size:12.5px;color:#fff;line-height:1.4">' + (typeof escHtml === 'function' ? escHtml(message) : String(message == null ? '' : message)) + '</div>'
+    + '  <button onclick="this.closest(\'div\').parentElement.remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px;line-height:1;flex-shrink:0">×</button>'
+    + '</div>';
+
+  toastContainer.appendChild(toast);
+
+  var duration = opts.durationMs || 4500;
+  setTimeout(function() {
+    if (toast && toast.parentElement) {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      setTimeout(function() { if (toast.parentElement) toast.remove(); }, 250);
+    }
+  }, duration);
+}
+window.showToast = showToast;
+
+// ============================================================
 // STATE INITIALIZATION & CLEAN RESET
 // ============================================================
 function loadSample(){
