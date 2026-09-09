@@ -43,31 +43,31 @@ var STOCKCHAT_BROKER_FILTER = 'ALL'; // 'ALL' | 'F' | 'D'
 // Pre-defined quick prompt templates
 var STOCKCHAT_PROMPT_PRESETS = [
   {
-    title: '🔥 Broker Flow & Bandar',
+    title: 'Broker Flow & Bandar',
     prompt: 'Tolong analisa Broker Summary dan Bandarmology saham BBCA hari ini. Siapa Top Buyer dan Top Seller, bagaimana Foreign Flow dan konsentrasinya?'
   },
   {
-    title: '💼 Review Portofolio',
+    title: 'Review Portofolio',
     prompt: 'Cek portofolio saya saat ini, bagaimana floating profit/loss, alokasi sektor, dan rasio kas RDN saya?'
   },
   {
-    title: '💎 Valuasi & Fair Value',
+    title: 'Valuasi & Fair Value',
     prompt: 'Bagaimana valuasi fundamental dan rasio keuangan saham BBRI saat ini? Apakah masih ada Margin of Safety (MoS)?'
   },
   {
-    title: '🏛️ Free Float & KSEI',
+    title: 'Free Float & KSEI',
     prompt: 'Cek struktur kepemilikan saham BMRI di KSEI. Berapa porsi institusi lokal vs asing dan berapa estimasi free float publik?'
   },
   {
-    title: '📊 Simulasi Risk/Reward',
+    title: 'Simulasi Risk/Reward',
     prompt: 'Hitung proyeksi risiko dan drawdown jika saya beli saham ANTM di harga saat ini dengan target profit +15% dan stop loss -7%.'
   },
   {
-    title: '💰 Pajak Dividen Bersih',
+    title: 'Pajak Dividen Bersih',
     prompt: 'Hitung simulasi penerimaan dividen bersih saham BBRI dengan DPS Rp 185 per lembar untuk 100 lot kepemilikan sesuai aturan pajak PPh Final.'
   },
   {
-    title: '📅 Aksi Korporasi & Dividen',
+    title: 'Aksi Korporasi & Dividen',
     prompt: 'Tolong periksa jadwal aksi korporasi terdekat untuk saham ADRO, BBCA, dan ITMG. Berapa estimasi dividen per lembar (DPS) dan kapan batas cum-date nya?'
   }
 ];
@@ -677,13 +677,13 @@ function renderAggregatedBrokerFlowView(data) {
     var unknownTk = (data && data.ticker) ? data.ticker : 'UNKNOWN';
     return '<div class="p-6 rounded-2xl bg-rose-950/30 border border-rose-800/80 text-rose-200 space-y-3 my-4 shadow-xl">'
       + '<div class="flex items-center gap-2.5 text-rose-400 font-black text-base md:text-lg">'
-      + '<i class="ti ti-alert-triangle text-2xl"></i> Ticker "' + unknownTk + '" Tidak Terdaftar dalam Stock Universe IDX'
+      + 'Ticker "' + unknownTk + '" Tidak Terdaftar dalam Stock Universe IDX'
       + '</div>'
       + '<p class="text-xs text-slate-300 leading-relaxed max-w-2xl">'
       + 'Saham <strong>' + unknownTk + '</strong> tidak teridentifikasi pada database pasar saham Indonesia (IDX) atau tidak memiliki riwayat transaksi riil. Sesuai prinsip integritas data pasar, tidak ada data dummy yang ditampilkan (Seluruh metrik Turnover, Foreign Flow, Top Buyer/Seller, dan Matriks Historis bernilai 0).'
       + '</p>'
       + '<div class="pt-2 text-[11px] text-slate-400 font-mono">'
-      + '💡 Silakan gunakan ticker emiten IDX yang valid (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM, ADRO, GOTO).'
+      + 'Silakan gunakan ticker emiten IDX yang valid (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM, ADRO, GOTO).'
       + '</div>'
       + '</div>';
   }
@@ -781,7 +781,7 @@ function renderAggregatedBrokerFlowView(data) {
       }).join('')
     + '</div>'
     + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + data.ticker + '\')" class="btn btn-primary btn-xs flex items-center gap-1">'
-    + '<i class="ti ti-messages"></i> <span>Tanya AI</span>'
+    + '<span>Tanya AI</span>'
     + '</button>'
     + '</div>'
     + '</div>'
@@ -825,7 +825,7 @@ function renderAggregatedBrokerFlowView(data) {
   html += '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'
     + '<div style="display:flex;align-items:center;gap:8px">'
-    + '<span class="badge b-up" style="font-size:10px;font-weight:700"><i class="ti ti-chart-arrows"></i> ALUR MUTASI MODAL BROKER</span>'
+    + '<span class="badge b-up" style="font-size:10px;font-weight:700">ALUR MUTASI MODAL BROKER</span>'
     + '<span style="font-size:12px;font-weight:700;color:var(--text)">' + smartMoneySignal + '</span>'
     + '</div>'
     + '<span style="font-size:11px;color:var(--text3);font-family:monospace">Live Institutional Spectrum</span>'
@@ -836,7 +836,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:center;text-align:center">'
     // Left Node: Institutional
     + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px">'
-    + '<div style="font-size:10px;text-transform:uppercase;font-weight:700;color:var(--green)"><i class="ti ti-building-bank"></i> Tier-1 Institusi &amp; Asing</div>'
+    + '<div style="font-size:10px;text-transform:uppercase;font-weight:700;color:var(--green)">Tier-1 Institusi &amp; Asing</div>'
     + '<div style="font-size:16px;font-weight:800;color:var(--green);font-family:monospace;margin:4px 0">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
     + '<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (smartMoneyBuyBrokers.map(function(x){return x.broker;}).join(', ') || 'AK, BK, ZP, CC') + '</div>'
     + '</div>'
@@ -852,7 +852,7 @@ function renderAggregatedBrokerFlowView(data) {
 
     // Right Node: Retail
     + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px">'
-    + '<div style="font-size:10px;text-transform:uppercase;font-weight:700;color:var(--red)"><i class="ti ti-users"></i> Partisipasi Publik &amp; Ritel</div>'
+    + '<div style="font-size:10px;text-transform:uppercase;font-weight:700;color:var(--red)">Partisipasi Publik &amp; Ritel</div>'
     + '<div style="font-size:16px;font-weight:800;color:var(--red);font-family:monospace;margin:4px 0">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
     + '<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (retailSellBrokers.map(function(x){return x.broker;}).join(', ') || 'YP, PD, XC, XL') + '</div>'
     + '</div>'
@@ -952,9 +952,9 @@ function renderAggregatedBrokerFlowView(data) {
   html += '<div class="card" style="padding:0;overflow:hidden">'
     + '<div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
     + '<div style="display:flex;align-items:center;gap:8px">'
-    + '<span style="font-size:12px;font-weight:700;color:var(--text)">📊 Top ' + limit + ' Buying vs Top ' + limit + ' Selling Brokers (' + data.ticker + ')</span>'
+    + '<span style="font-size:12px;font-weight:700;color:var(--text)">Top ' + limit + ' Buying vs Top ' + limit + ' Selling Brokers (' + data.ticker + ')</span>'
     + '<span class="badge b-accent" style="font-size:10px">Sortable Table</span>'
-    + (data.isSimulated ? '<span class="badge b-dn" style="font-size:10px" title="BEI tidak menyediakan feed broker-level publik/gratis — daftar broker &amp; nilai transaksi di bawah adalah simulasi berjangkar harga pasar riil, bukan rekap transaksi broker sungguhan.">⚠ SIMULASI</span>' : '<span class="badge b-up" style="font-size:10px">● Data Riil</span>')
+    + (data.isSimulated ? '<span class="badge b-dn" style="font-size:10px" title="BEI tidak menyediakan feed broker-level publik/gratis — daftar broker &amp; nilai transaksi di bawah adalah simulasi berjangkar harga pasar riil, bukan rekap transaksi broker sungguhan.">SIMULASI</span>' : '<span class="badge b-up" style="font-size:10px">● Data Riil</span>')
     + '</div>'
     + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
     + '<div class="btn-group" style="display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px">'
@@ -976,7 +976,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '<div style="border-right:1px solid var(--border2);display:flex;flex-direction:column;justify-content:space-between">'
     + '<div>'
     + '<div style="padding:8px 12px;background:rgba(16,185,129,0.08);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">'
-    + '<span class="up" style="font-size:11px;font-weight:700">🟢 TOP ' + limit + ' BUYING BROKERS (AKUMULASI)</span>'
+    + '<span class="up" style="font-size:11px;font-weight:700">TOP ' + limit + ' BUYING BROKERS (AKUMULASI)</span>'
     + '<span class="mono up" style="font-size:10px">Sort: ' + STOCKCHAT_BUYERS_SORT.field.toUpperCase() + '</span>'
     + '</div>'
     + '<div style="overflow-x:auto">'
@@ -1016,7 +1016,7 @@ function renderAggregatedBrokerFlowView(data) {
         + '<td class="mono" style="text-align:right">' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
         + '<td class="mono" style="text-align:right;font-weight:700">' + Number(bItem.pctOfTurnover || 0).toFixed(1) + '%</td>'
         + '<td style="text-align:center">'
-        + '<button onclick="askAiAboutBrokerAction(\'' + bItem.broker + '\', \'' + bItem.name.replace(/'/g, '') + '\', \'BUY\', \'' + data.ticker + '\', ' + bItem.volumeLot + ', ' + bItem.avgPrice + ', ' + bItem.valueRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 4px" title="Tanya AI">💬</button>'
+        + '<button onclick="askAiAboutBrokerAction(\'' + bItem.broker + '\', \'' + bItem.name.replace(/'/g, '') + '\', \'BUY\', \'' + data.ticker + '\', ' + bItem.volumeLot + ', ' + bItem.avgPrice + ', ' + bItem.valueRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 4px;font-size:10px" title="Tanya AI">Tanya AI</button>'
         + '</td>'
         + '</tr>';
     });
@@ -1036,7 +1036,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '<div style="display:flex;flex-direction:column;justify-content:space-between">'
     + '<div>'
     + '<div style="padding:8px 12px;background:rgba(239,68,68,0.08);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">'
-    + '<span class="dn" style="font-size:11px;font-weight:700">🔴 TOP ' + limit + ' SELLING BROKERS (DISTRIBUSI)</span>'
+    + '<span class="dn" style="font-size:11px;font-weight:700">TOP ' + limit + ' SELLING BROKERS (DISTRIBUSI)</span>'
     + '<span class="mono dn" style="font-size:10px">Sort: ' + STOCKCHAT_SELLERS_SORT.field.toUpperCase() + '</span>'
     + '</div>'
     + '<div style="overflow-x:auto">'
@@ -1076,7 +1076,7 @@ function renderAggregatedBrokerFlowView(data) {
         + '<td class="mono" style="text-align:right">' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
         + '<td class="mono" style="text-align:right;font-weight:700">' + Number(sItem.pctOfTurnover || 0).toFixed(1) + '%</td>'
         + '<td style="text-align:center">'
-        + '<button onclick="askAiAboutBrokerAction(\'' + sItem.broker + '\', \'' + sItem.name.replace(/'/g, '') + '\', \'SELL\', \'' + data.ticker + '\', ' + sItem.volumeLot + ', ' + sItem.avgPrice + ', ' + sItem.valueRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 4px" title="Tanya AI">💬</button>'
+        + '<button onclick="askAiAboutBrokerAction(\'' + sItem.broker + '\', \'' + sItem.name.replace(/'/g, '') + '\', \'SELL\', \'' + data.ticker + '\', ' + sItem.volumeLot + ', ' + sItem.avgPrice + ', ' + sItem.valueRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 4px;font-size:10px" title="Tanya AI">Tanya AI</button>'
         + '</td>'
         + '</tr>';
     });
@@ -1097,7 +1097,7 @@ function renderAggregatedBrokerFlowView(data) {
   // Tactical Bandarmology Takeaways
   html += '<div class="card" style="padding:14px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px;margin-bottom:8px">'
-    + '<i class="ti ti-bulb"></i> Rekomendasi &amp; Catatan Taktis Bandarmology untuk ' + data.ticker + ':'
+    + 'Rekomendasi &amp; Catatan Taktis Bandarmology untuk ' + data.ticker + ':'
     + '</div>'
     + '<ul style="margin:0;padding-left:20px;font-size:12px;color:var(--text2);line-height:1.6">'
     + '<li>Level harga rata-rata Top Buyer (<strong style="color:var(--text)">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</strong>) dapat dijadikan area support kunci penahan penurunan harga.</li>'
@@ -1141,7 +1141,7 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
   if (!price || price <= 0 || (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk))) {
     return '<div class="card" style="padding:16px;margin-top:16px">'
       + '<div style="display:flex;align-items:center;gap:8px;color:var(--red);font-weight:700;font-size:13px">'
-      + '<i class="ti ti-alert-circle" style="font-size:16px"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX (Nilai 0)'
+      + 'Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX (Nilai 0)'
       + '</div>'
       + '<p style="font-size:12px;color:var(--text2);margin:6px 0 0 0">Tidak ada riwayat transaksi broker 250D untuk ticker yang tidak terdaftar dalam Stock Universe pasar saham Indonesia.</p>'
       + '</div>';
@@ -1230,7 +1230,7 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
       + '<td style="text-align:right">' + pnlBadge + '</td>'
       + '<td style="text-align:center">'
       + '<button onclick="askAiAboutBrokerAction(\'' + b.code + '\', \'' + b.name.replace(/'/g, '') + '\', \'BUY\', \'' + tk + '\', ' + b1YVol + ', ' + avg1Y + ', ' + b1YValRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 6px" title="Tanya AI">'
-      + '<i class="ti ti-messages"></i> Tanya AI'
+      + 'Tanya AI'
       + '</button>'
       + '</td>'
       + '</tr>';
@@ -1244,13 +1244,13 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
     + '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
     + '<div>'
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
-    + '<span class="badge b-dn" style="font-size:10px;font-weight:700" title="BEI tidak menyediakan feed broker-level historis 1 tahun secara publik/gratis — daftar broker, bobot volume, dan bias harga di bawah ini adalah pola ilustratif, bukan hasil rekap transaksi riil."><i class="ti ti-alert-triangle"></i> ⚠ SIMULASI (Bukan Database Riil)</span>'
+    + '<span class="badge b-dn" style="font-size:10px;font-weight:700" title="BEI tidak menyediakan feed broker-level historis 1 tahun secara publik/gratis — daftar broker, bobot volume, dan bias harga di bawah ini adalah pola ilustratif, bukan hasil rekap transaksi riil.">SIMULASI (Bukan Database Riil)</span>'
     + '<span style="font-size:14px;font-weight:800;color:var(--text)">Matriks Rata-Rata Harga Beli Broker Historis 1 Tahun</span>'
     + '</div>'
     + '<div style="font-size:12px;color:var(--text2)">VWAP 1 tahun &amp; rentang harga 52 minggu di bawah dihitung dari histori harga real ' + tk + '. Daftar broker, bobot volume, dan modal rata-rata per broker adalah simulasi ilustratif (bukan rekap transaksi broker riil) — BEI tidak menyediakan feed broker-level historis publik/gratis untuk ini.</div>'
     + '</div>'
     + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + tk + '\')" class="btn btn-primary btn-xs" style="display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-messages"></i> <span>Tanya AI Posisi Modal Whale</span>'
+    + '<span>Tanya AI Posisi Modal Whale</span>'
     + '</button>'
     + '</div>'
 
@@ -1336,8 +1336,8 @@ function renderBrokerSummaryWidget(data) {
     + '<span class="badge ' + verdictBadge + '" style="font-size:10px">' + verdict + '</span>'
     + '<span class="badge b-neu mono" style="font-size:10px">' + (data.timeframe || '1D') + '</span>'
     + (data.isSimulated
-        ? '<span class="badge b-amb" style="font-size:10px" title="' + (data.dataSource || 'Simulasi') + '">⚠ Simulasi</span>'
-        : '<span class="badge b-up" style="font-size:10px" title="Data real dari Invezgo API">✓ Data Real</span>')
+        ? '<span class="badge b-amb" style="font-size:10px" title="' + (data.dataSource || 'Simulasi') + '">Simulasi</span>'
+        : '<span class="badge b-up" style="font-size:10px" title="Data real dari Invezgo API">Data Real</span>')
     + '</div>'
     + '</div>';
 
@@ -1415,7 +1415,7 @@ function renderBrokerSummaryWidget(data) {
   // Interpretation Footer
   if (b.interpretation) {
     html += '<div class="metric" style="padding:10px;font-size:11px;line-height:1.5;color:var(--text2)">'
-      + '<span class="font-bold" style="color:var(--accent)">💡 Analisa Bandarmology:</span> ' + b.interpretation
+      + '<span class="font-bold" style="color:var(--accent)">Analisa Bandarmology:</span> ' + b.interpretation
       + '</div>';
   }
 
@@ -1453,9 +1453,9 @@ function renderStockChatPage(containerId) {
     + '<div class="psub">Asisten Analis Broker Summary, Aliran Dana Asing, Valuasi Fundamental, dan Deteksi Akumulasi Smart Money BEI.</div>'
     + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    + '<button class="btn btn-ghost btn-xs" onclick="clearStockChatHistory();if(typeof showSaveStatus===\'function\')showSaveStatus(\'✓ Sesi obrolan baru dimulai\');">🔄 Sesi Baru</button>'
-    + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\')">🎯 Opportunity Radar →</button>'
-    + '<button class="btn btn-primary btn-xs" onclick="openStockIntelForTicker(\'' + curTk + '\')">🚀 Stock Intelligence →</button>'
+    + '<button class="btn btn-ghost btn-xs" onclick="clearStockChatHistory();if(typeof showSaveStatus===\'function\')showSaveStatus(\'Sesi obrolan baru dimulai\');">Sesi Baru</button>'
+    + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\')">Opportunity Radar →</button>'
+    + '<button class="btn btn-primary btn-xs" onclick="openStockIntelForTicker(\'' + curTk + '\')">Stock Intelligence →</button>'
     + '</div>'
     + '</div>';
 
@@ -1490,10 +1490,10 @@ function renderStockChatPage(containerId) {
   html += '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
     + '<button onclick="setStockChatActiveTab(\'chat\')" class="btn btn-xs ' + (isChatTab ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700">'
-    + '<i class="ti ti-messages"></i> 💬 StockChat AI Assistant'
+    + 'StockChat AI Assistant'
     + '</button>'
     + '<button onclick="setStockChatActiveTab(\'broker-flow\')" class="btn btn-xs ' + (isFlowTab ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700">'
-    + '<i class="ti ti-chart-arrows"></i> 📊 Aggregated Broker Flow: <strong class="mono" style="color:var(--accent);margin:0 4px">' + curTk + '</strong>'
+    + 'Aggregated Broker Flow: <strong class="mono" style="color:var(--accent);margin:0 4px">' + curTk + '</strong>'
     + '<span class="badge b-accent" style="font-size:9px">BANDAR</span>'
     + '</button>'
     + '</div>'
@@ -1513,7 +1513,7 @@ function renderStockChatPage(containerId) {
   // Ticker Quick Selector Bar Card
   html += '<div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
     + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-    + '<span style="font-size:11px;font-weight:700;color:var(--text3)"><i class="ti ti-bolt" style="color:var(--accent)"></i> Ticker Aktif:</span>'
+    + '<span style="font-size:11px;font-weight:700;color:var(--text3)">Ticker Aktif:</span>'
     + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
     + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(tk) {
         var isAct = tk === curTk;
@@ -1533,7 +1533,7 @@ function renderStockChatPage(containerId) {
     // Quick Action Matrix Chips
     html += '<div class="card" style="padding:12px 14px;margin-bottom:14px">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-      + '<span style="font-size:11px;font-weight:700;color:var(--text2)"><i class="ti ti-sparkles" style="color:var(--accent)"></i> Quick Prompts Rekomendasi untuk <strong style="color:var(--accent);font-family:monospace">' + curTk + '</strong>:</span>'
+      + '<span style="font-size:11px;font-weight:700;color:var(--text2)">Quick Prompts Rekomendasi untuk <strong style="color:var(--accent);font-family:monospace">' + curTk + '</strong>:</span>'
       + '<span style="font-size:10px;color:var(--text3)">5 Framework Institusional</span>'
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">';
@@ -1564,7 +1564,7 @@ function renderStockChatPage(containerId) {
             html += renderBrokerSummaryWidget(tc.result);
           } else {
             html += '<div style="margin-top:8px;padding:6px 10px;border-radius:6px;font-size:10px;font-family:monospace;background:var(--bg4);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;gap:6px">'
-              + '<span style="color:var(--accent);font-weight:700">⚡ Tool Executed:</span> ' + tc.toolName
+              + '<span style="color:var(--accent);font-weight:700">Tool Executed:</span> ' + tc.toolName
               + '</div>';
           }
         });
@@ -1579,7 +1579,6 @@ function renderStockChatPage(containerId) {
       html += '<div style="display:flex;justify-content:flex-start;align-items:flex-start;gap:8px">'
         + '<div style="width:28px;height:28px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#ffffff;flex-shrink:0">AI</div>'
         + '<div style="background:var(--bg3);border:1px solid var(--border2);padding:10px 14px;border-radius:12px 12px 12px 2px;font-size:12px;color:var(--accent);display:flex;align-items:center;gap:8px">'
-        + '<i class="ti ti-loader animate-spin" style="font-size:16px;color:var(--accent)"></i>'
         + '<span>Memproses kalkulasi Bandarmology, data KSEI &amp; analitik pasar...</span>'
         + '</div>'
         + '</div>';
@@ -1593,7 +1592,7 @@ function renderStockChatPage(containerId) {
       + '<input id="stockchat-input-text" type="text" placeholder="Tanyakan apa saja (misal: \'Cek broker summary ' + curTk + ' hari ini\', \'Review portofolio\', \'Simulasi risk reward\')..."'
       + ' class="form-input" style="flex:1;height:38px;font-size:12px">'
       + '<button type="submit" ' + (STOCKCHAT_IS_BUSY ? 'disabled' : '') + ' class="btn btn-primary" style="height:38px;padding:0 18px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:6px">'
-      + '<span>Kirim</span> <i class="ti ti-send"></i>'
+      + '<span>Kirim</span> '
       + '</button>'
       + '</form>'
       + '</div>';
@@ -1602,7 +1601,7 @@ function renderStockChatPage(containerId) {
   // TAB 2: Dedicated Aggregated Broker Flow View
   if (isFlowTab) {
     html += '<div id="stockchat-flow-tab-content" style="min-height:460px">'
-      + '<div style="display:flex;align-items:center;justify-content:center;padding:48px;font-size:12px;color:var(--text3)"><i class="ti ti-loader animate-spin" style="margin-right:6px"></i> Memuat data broker flow...</div>'
+      + '<div style="display:flex;align-items:center;justify-content:center;padding:48px;font-size:12px;color:var(--text3)">Memuat data broker flow...</div>'
       + '</div>';
   }
 
@@ -1752,7 +1751,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
   // STRICT ZERO DUMMY DATA CHECK FOR UNKNOWN TICKERS
   if (typeof isValidStockTicker === 'function' && !isValidStockTicker(matchedTicker)) {
     return {
-      reply: '### ⚠️ Ticker Tidak Terdaftar dalam Stock Universe IDX\n\n'
+      reply: '### Ticker Tidak Terdaftar dalam Stock Universe IDX\n\n'
         + 'Kode ticker **' + matchedTicker + '** tidak teridentifikasi pada database pasar saham Indonesia (IDX) atau tidak memiliki riwayat transaksi riil.\n\n'
         + 'Sesuai prinsip integritas data pasar:\n'
         + '- Seluruh nilai kalkulasi (Turnover, Foreign Flow, Top Buyers/Sellers, Bandarmology, dan Valuasi) bernilai **0**.\n'
@@ -1767,7 +1766,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
   var reply = '';
 
   if (pLower.includes('strategi') || pLower.includes('playbook') || pLower.includes('metode') || pLower.includes('resep') || pLower.includes('cara trading') || pLower.includes('aturan trading')) {
-    reply = '### 📈 Playbook Strategi Trading & Investasi (MoneyWatch Pro AI)\n\n'
+    reply = '### Playbook Strategi Trading & Investasi (MoneyWatch Pro AI)\n\n'
       + 'Berikut adalah **5 Strategi Utama Kelas Institusi** yang tertanam dalam Knowledge Base StockChat AI:\n\n'
       + '1. **Smart Money & Bandarmology Momentum (Swing Trading)**\n'
       + '   - *Prinsip*: Membeli saham dengan status **Big Accumulation** (Top 3 Broker > 60%) & Net Foreign Buy konsisten.\n'
@@ -1786,7 +1785,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
       + '5. **Institutional Risk Control & Portfolio Sizing**\n'
       + '   - *Sizing*: Maksimal 10-15% Total AUM per Big Cap, maks 5% per Mid/Small Cap.\n'
       + '   - *Kas RDN*: Jaga cadangan Kas RDN minimal **15-20%** untuk mengambil peluang *Buy on Weakness*.\n\n'
-      + '💡 *Panduan Lengkap*: Anda dapat membuka menu **Knowledge & Master Guide** untuk simulasi skor konfluensi dan mempelajari alur kerja lengkap.\n\n'
+      + '*Panduan Lengkap*: Anda dapat membuka menu **Knowledge & Master Guide** untuk simulasi skor konfluensi dan mempelajari alur kerja lengkap.\n\n'
       + '*Disclaimer: Keputusan investasi berada di tangan Anda.*';
   }
   else if (pLower.includes('broker') || pLower.includes('flow') || pLower.includes('bandar') || pLower.includes('smart money') || pLower.includes('foreign') || pLower.includes('asing') || pLower.includes('akumulasi') || pLower.includes('distribusi')) {
@@ -1802,9 +1801,9 @@ function generateClientSideAiAgentResponse(message, userContext) {
     var topSell3 = bData.topSellers.slice(0, 3).map(function(s) { return s.broker + ' (' + s.pctOfTurnover + '%)'; }).join(', ');
     var netForeignFmt = (bVerdict.foreignFlow.netValueRp >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(bVerdict.foreignFlow.netValueRp / 1000000000)).toLocaleString('id-ID') + ' Miliar';
 
-    reply = '### 📊 Analisa Broker Summary & Bandarmology: ' + matchedTicker + '\n\n'
+    reply = '### Analisa Broker Summary & Bandarmology: ' + matchedTicker + '\n\n'
       + (bData.isSimulated
-          ? '⚠️ **Catatan Data**: BEI tidak menyediakan feed broker-level flow publik gratis — angka top buyer/seller di bawah ini adalah **simulasi** yang diberi jangkar harga pasar riil ' + matchedTicker + ', bukan data transaksi broker sungguhan.\n\n'
+          ? '**Catatan Data**: BEI tidak menyediakan feed broker-level flow publik gratis — angka top buyer/seller di bawah ini adalah **simulasi** yang diberi jangkar harga pasar riil ' + matchedTicker + ', bukan data transaksi broker sungguhan.\n\n'
           : 'Berdasarkan feed data transaksi pasar reguler BEI (' + bData.timeframe + '):\n')
       + '- **Status Bandarmology**: **' + bVerdict.verdict + '** (Skor: ' + bVerdict.score + '/100)\n'
       + '- **Konsentrasi Top 3 Buyer**: **' + bVerdict.concentration.top3BuyerPct + '%** [' + topBuy3 + ']\n'
@@ -1832,7 +1831,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
 
     var cashPct = aum > 0 ? ((rdn / aum) * 100).toFixed(1) : '0.0';
 
-    reply = '### 💼 Review Teardown Portofolio & Alokasi Modal (AI Cockpit)\n\n'
+    reply = '### Review Teardown Portofolio & Alokasi Modal (AI Cockpit)\n\n'
       + 'Ringkasan posisi aset terintegrasi Anda:\n'
       + '- **Total AUM**: Rp ' + Math.round(aum).toLocaleString('id-ID') + '\n'
       + '- **Kas RDN Tersedia**: Rp ' + Math.round(rdn).toLocaleString('id-ID') + ' (' + cashPct + '% dari total modal)\n'
@@ -1857,10 +1856,10 @@ function generateClientSideAiAgentResponse(message, userContext) {
     var dbItem = (typeof DB !== 'undefined' && DB[matchedTicker]) ? DB[matchedTicker] : null;
     var price = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(matchedTicker) : getAccurateStockPrice(matchedTicker);
 
-    reply = '### 💎 Valuasi Fundamental: ' + matchedTicker + '\n\n'
+    reply = '### Valuasi Fundamental: ' + matchedTicker + '\n\n'
       + '- **Harga Pasar Terkini**: ' + (price > 0 ? 'Rp ' + price.toLocaleString('id-ID') : 'Rp — (Memuat data...)') + '\n'
       + '- **Sektor Industri**: ' + (dbItem ? dbItem.sector : 'Equities') + '\n\n'
-      + '⚠️ **Catatan Data**: Chat ini belum bisa menghitung Fair Value/MoS/P/E/ROE di sini tanpa mengarang angka. Untuk valuasi 9-Step Margin of Safety, Multi-Model Graham/Lynch/DDM, dan rasio fundamental riil (EPS, BVPS, ROE, DER dari laporan keuangan), buka menu **Valuation** atau **Fundamental** untuk ' + matchedTicker + ' — halaman itu menghitung dari data riil, bukan estimasi generik.\n\n'
+      + '**Catatan Data**: Chat ini belum bisa menghitung Fair Value/MoS/P/E/ROE di sini tanpa mengarang angka. Untuk valuasi 9-Step Margin of Safety, Multi-Model Graham/Lynch/DDM, dan rasio fundamental riil (EPS, BVPS, ROE, DER dari laporan keuangan), buka menu **Valuation** atau **Fundamental** untuk ' + matchedTicker + ' — halaman itu menghitung dari data riil, bukan estimasi generik.\n\n'
       + '*Disclaimer: Keputusan investasi berada di tangan Anda.*';
   }
   else if (pLower.includes('dividen') || pLower.includes('pajak') || pLower.includes('yield') || pLower.includes('dps')) {
@@ -1871,13 +1870,13 @@ function generateClientSideAiAgentResponse(message, userContext) {
     var tax10 = Math.round(gross * 0.10);
     var netReg = gross - tax10;
 
-    reply = '### 💰 Simulasi Penerimaan Dividen Bersih & Pajak: ' + matchedTicker + '\n\n'
-      + '⚠️ Ini kalkulator ILUSTRASI dengan asumsi yield 5% (bukan DPS historis riil ' + matchedTicker + ') untuk skenario kepemilikan 50 Lot / 5.000 lembar — tujuannya menjelaskan mekanisme pajak, bukan memprediksi dividen sungguhan. Cek DPS riil di menu **Dividend** atau **Fundamental**.\n\n'
+    reply = '### Simulasi Penerimaan Dividen Bersih & Pajak: ' + matchedTicker + '\n\n'
+      + 'Ini kalkulator ILUSTRASI dengan asumsi yield 5% (bukan DPS historis riil ' + matchedTicker + ') untuk skenario kepemilikan 50 Lot / 5.000 lembar — tujuannya menjelaskan mekanisme pajak, bukan memprediksi dividen sungguhan. Cek DPS riil di menu **Dividend** atau **Fundamental**.\n\n'
       + '- **Estimasi DPS (asumsi yield 5%)**: ' + (estDps > 0 ? 'Rp ' + estDps.toLocaleString('id-ID') : 'Rp —') + '\n'
       + '- **Dividen Kotor (Gross)**: ' + (gross > 0 ? 'Rp ' + gross.toLocaleString('id-ID') : 'Rp —') + '\n'
       + '- **Potongan Pajak Reguler (PPh Final 10%)**: -Rp ' + tax10.toLocaleString('id-ID') + '\n'
       + '- **Dividen Bersih Reguler**: **' + (netReg > 0 ? 'Rp ' + netReg.toLocaleString('id-ID') : 'Rp —') + '**\n\n'
-      + '**🌟 Fasilitas Insentif Bebas Pajak (PMK 18/PMK.03/2021):**\n'
+      + '**Fasilitas Insentif Bebas Pajak (PMK 18/PMK.03/2021):**\n'
       + 'Jika dividen diinvestasikan kembali (reinvestasi) pada instrumen keuangan di wilayah NKRI minimal selama 3 tahun pajak, dividen Anda menjadi **Bebas Pajak (PPh 0%)** sehingga Anda menerima utuh **Rp ' + gross.toLocaleString('id-ID') + '**.\n\n'
       + '*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data perpajakan pasar modal.*';
   }
@@ -1901,17 +1900,17 @@ function generateClientSideAiAgentResponse(message, userContext) {
     var tp1 = price > 0 ? Math.round(price * 1.08 / tick) * tick : 0;
     var tp2 = price > 0 ? Math.round(price * 1.15 / tick) * tick : 0;
 
-    reply = '### 🏛️ Simulasi Kepatuhan Transaksi BEI & Risk Planner: ' + matchedTicker + '\n\n'
+    reply = '### Simulasi Kepatuhan Transaksi BEI & Risk Planner: ' + matchedTicker + '\n\n'
       + 'Parameter regulasi perdagangan bursa untuk harga ' + (price > 0 ? 'Rp ' + price.toLocaleString('id-ID') : 'Rp —') + ':\n'
       + '- **Fraksi Harga (Tick Size)**: **Rp ' + tick + ' / step**\n'
       + '- **Batas ARA (+ ' + (araPct * 100) + '%)**: **' + (araPrice > 0 ? 'Rp ' + araPrice.toLocaleString('id-ID') : '—') + '**\n'
       + '- **Batas ARB (- ' + (araPct * 100) + '%)**: **' + (arbPrice > 0 ? 'Rp ' + arbPrice.toLocaleString('id-ID') : '—') + '**\n\n'
-      + '**🎯 Contoh Kerangka Risk/Reward Umum (bukan rekomendasi personal untuk ' + matchedTicker + '):**\n'
+      + '**Contoh Kerangka Risk/Reward Umum (bukan rekomendasi personal untuk ' + matchedTicker + '):**\n'
       + '- **Area Beli (Entry Zone)**: ' + (price > 0 ? 'Rp ' + price.toLocaleString('id-ID') : 'Rp —') + '\n'
       + '- **Stop Loss Contoh (-6%)**: ' + (sl > 0 ? 'Rp ' + sl.toLocaleString('id-ID') : '—') + '\n'
       + '- **Target Profit 1 Contoh (+8%)**: ' + (tp1 > 0 ? 'Rp ' + tp1.toLocaleString('id-ID') : '—') + '\n'
       + '- **Target Profit 2 Contoh (+15%)**: ' + (tp2 > 0 ? 'Rp ' + tp2.toLocaleString('id-ID') : '—') + '\n\n'
-      + '⚠️ Persentase SL/TP di atas adalah kerangka umum manajemen risiko, bukan hasil analisa teknikal/volatilitas khusus ' + matchedTicker + '. Untuk level support/resistance riil, cek menu **Technical**.\n\n'
+      + 'Persentase SL/TP di atas adalah kerangka umum manajemen risiko, bukan hasil analisa teknikal/volatilitas khusus ' + matchedTicker + '. Untuk level support/resistance riil, cek menu **Technical**.\n\n'
       + '*Disclaimer: Keputusan transaksi sepenuhnya tanggung jawab investor.*';
   }
   else {
@@ -1932,7 +1931,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
     // dengan bug Opportunity Radar/AI Action Center yang sudah diperbaiki
     // — dihapus, diganti data real (harga/sektor/chg%) + arahan ke halaman
     // yang benar-benar menghitung skor dari data real per kategori.
-    reply = '### 🚀 Ringkasan Cepat: ' + matchedTicker + ' (' + name + ')\n\n'
+    reply = '### Ringkasan Cepat: ' + matchedTicker + ' (' + name + ')\n\n'
       + '- **Sektor**: ' + sector + '\n'
       + '- **Harga Terkini**: Rp ' + price.toLocaleString('id-ID') + ' (' + chg + ')\n\n'
       + 'Chat ini belum bisa menghitung skor konfluensi multi-pilar (fundamental/teknikal/bandarmology/valuasi/risiko) tanpa mengarang angka untuk ticker di luar konteks pertanyaan Anda. Untuk analisa 5-pilar yang benar-benar dihitung dari data real per ' + matchedTicker + ', buka **Stock Intelligence Cockpit** atau tanyakan hal spesifik (broker flow, valuasi, dividen, risiko) di sini.\n\n'
@@ -2135,13 +2134,13 @@ function renderBandarmologyCockpitPage(containerId) {
     + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
     + '<button onclick="openStockChat(\'' + tk + '\', \'Analisa menyeluruh bandarmology, broker summary, smart money CMF dan foreign flow saham ' + tk + '\')" class="btn btn-primary btn-xs flex items-center gap-1">'
-    + '<i class="ti ti-messages"></i> <span>Tanya StockChat AI</span>'
+    + '<span>Tanya StockChat AI</span>'
     + '</button>'
     + '<button onclick="goPage(\'radar\')" class="btn btn-ghost btn-xs">'
-    + '🎯 Opportunity Radar →'
+    + 'Opportunity Radar →'
     + '</button>'
     + '<button onclick="goPage(\'stock-intel\')" class="btn btn-ghost btn-xs flex items-center gap-1">'
-    + '<i class="ti ti-radar"></i> <span>Stock Intelligence</span>'
+    + '<span>Stock Intelligence</span>'
     + '</button>'
     + '</div>'
     + '</div>';
@@ -2149,10 +2148,10 @@ function renderBandarmologyCockpitPage(containerId) {
   // Master 2-Mode Power Toolbar (Matching Opportunity Radar .tab-row)
   html += '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap;align-items:center;justify-content:center">'
     + '<button onclick="setBandarmologyMode(\'stock\')" class="btn btn-xs ' + (isStockMode ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700;padding:6px 16px">'
-    + '<i class="ti ti-chart-candle"></i> <span>🏢 ANALISIS FULL EMITEN (' + tk + ')</span>'
+    + '<span>ANALISIS FULL EMITEN (' + tk + ')</span>'
     + '</button>'
     + '<button onclick="setBandarmologyMode(\'market\')" class="btn btn-xs ' + (!isStockMode ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700;padding:6px 16px">'
-    + '<i class="ti ti-world-download"></i> <span>🌐 ANALISIS FULL MARKET (SEKTORAL &amp; HEATMAP)</span>'
+    + '<span>ANALISIS FULL MARKET (SEKTORAL &amp; HEATMAP)</span>'
     + '</button>'
     + '</div>';
 
@@ -2161,7 +2160,7 @@ function renderBandarmologyCockpitPage(containerId) {
     // Mode 1: Full Emiten Suite
     html += '<div class="card" style="padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-      + '<span style="font-size:11px;font-weight:700;color:var(--text3)"><i class="ti ti-bolt" style="color:var(--accent)"></i> Fokus Emiten:</span>'
+      + '<span style="font-size:11px;font-weight:700;color:var(--text3)">Fokus Emiten:</span>'
       + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
       + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(itemTk) {
         var isAct = itemTk === tk;
@@ -2179,7 +2178,7 @@ function renderBandarmologyCockpitPage(containerId) {
     html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
       + '<div id="stockchat-flow-tab-content">'
       + '<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;display:flex;align-items:center;justify-content:center;gap:8px">'
-      + '<i class="ti ti-loader animate-spin" style="color:var(--accent);font-size:18px"></i> Memuat Analisis Broker Flow &amp; Smart Money ' + tk + '...'
+      + 'Memuat Analisis Broker Flow &amp; Smart Money ' + tk + '...'
       + '</div>'
       + '</div>'
       + renderBandarmologySmartMoneyFlowView(tk)
@@ -2274,14 +2273,14 @@ function renderBandarmologyMarketFlowView(tk) {
     // broker-transaction feed — this view aggregated that same simulated
     // data under a "LIVE AGGREGATION" badge with no disclosure at all.
     + '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px">'
-    + '<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> Agregasi ini dihitung dari simulasi transaksi broker (belum ada feed broker-flow real per-menit) — harga saham tetap real, tapi rincian buyer/seller &amp; nilai transaksi di bawah adalah estimasi.'
+    + 'Agregasi ini dihitung dari simulasi transaksi broker (belum ada feed broker-flow real per-menit) — harga saham tetap real, tapi rincian buyer/seller &amp; nilai transaksi di bawah adalah estimasi.'
     + '</div>'
     // Top Summary Metric Cards (Matching Opportunity Radar row4/metric)
     + '<div class="row4">'
     + '<div class="metric" style="border-left:3px solid var(--accent)">'
     + '<div class="mlabel">IHSG BANDAR PULSE</div>'
     + '<div class="mval ' + (totMarketM >= 0 ? 'up' : 'down') + ' mono" style="font-size:20px">'
-    + '<i class="ti ti-' + (totMarketM >= 0 ? 'trending-up' : 'trending-down') + '"></i> ' + (totMarketM >= 0 ? 'NET ACCUMULATION' : 'NET DISTRIBUTION')
+    + (totMarketM >= 0 ? 'NET ACCUMULATION' : 'NET DISTRIBUTION')
     + '</div>'
     + '<div class="msub neu">' + (totMarketM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totMarketM).toLocaleString('id-ID') + ' M Net Flow</div>'
     + '</div>'
@@ -2306,9 +2305,9 @@ function renderBandarmologyMarketFlowView(tk) {
   html += '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-building-bank" style="color:var(--green)"></i> ALIRAN DANA BANDAR BIG 4 BANKS (MOTOR IHSG)'
+    + 'ALIRAN DANA BANDAR BIG 4 BANKS (MOTOR IHSG)'
     + '</div>'
-    + '<span class="badge b-amb" style="font-size:9px">⚠ SIMULASI</span>'
+    + '<span class="badge b-amb" style="font-size:9px">SIMULASI</span>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">';
 
@@ -2331,7 +2330,7 @@ function renderBandarmologyMarketFlowView(tk) {
   // Sectoral Flow Breakdown (Opportunity Radar pattern)
   html += '<div class="card" style="padding:16px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;margin-bottom:14px">'
-    + '<i class="ti ti-layout-grid" style="color:var(--accent)"></i> DISTRIBUSI ARUS DANA SMART MONEY PER SEKTOR'
+    + 'DISTRIBUSI ARUS DANA SMART MONEY PER SEKTOR'
     + '</div>'
     + '<div style="display:flex;flex-direction:column;gap:12px">';
 
@@ -2383,7 +2382,7 @@ function renderBandarmologyForeignFlowView(tk) {
     + '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-arrow-up-right"></i> TOP 5 FOREIGN NET BUY (AKUMULASI ASING)'
+    + 'TOP 5 FOREIGN NET BUY (AKUMULASI ASING)'
     + '</div>'
     + '<span class="badge b-up" style="font-size:9px">INFLOW</span>'
     + '</div>'
@@ -2411,7 +2410,7 @@ function renderBandarmologyForeignFlowView(tk) {
   html += '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--red);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-arrow-down-right"></i> TOP 5 FOREIGN NET SELL (DISTRIBUSI ASING)'
+    + 'TOP 5 FOREIGN NET SELL (DISTRIBUSI ASING)'
     + '</div>'
     + '<span class="badge b-dn" style="font-size:9px">OUTFLOW</span>'
     + '</div>'
@@ -2473,7 +2472,7 @@ function renderBandarmologyAccumulationView() {
   var html = '<div class="card" style="padding:16px">'
     + '<div style="margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-circle-arrow-up"></i> RADAR SAHAM TERAKUMULASI SMART MONEY &amp; BANDAR'
+    + 'RADAR SAHAM TERAKUMULASI SMART MONEY &amp; BANDAR'
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Dominansi Top Buyer tinggi vs Top Seller terpecah (retail fragmentation)</div>'
     + '</div>'
@@ -2547,7 +2546,7 @@ function renderBandarmologyDistributionView() {
   var html = '<div class="card" style="padding:16px">'
     + '<div style="margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--red);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-circle-arrow-down"></i> RADAR SAHAM TERDISTRIBUSI (PERINGATAN TEKANAN JUAL)'
+    + 'RADAR SAHAM TERDISTRIBUSI (PERINGATAN TEKANAN JUAL)'
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Tekanan jual institusi/asing terkonsentrasi diserap broker retail (YP, PD, XC)</div>'
     + '</div>'
@@ -2623,7 +2622,7 @@ function renderBandarmologySmartMoneyRadarView(tk) {
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     + '<div>'
     + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-radar-2" style="color:var(--green)"></i> SMART MONEY VS RETAIL FOOTPRINT: <span class="mono" style="color:var(--accent)">' + ticker + '</span>'
+    + 'SMART MONEY VS RETAIL FOOTPRINT: <span class="mono" style="color:var(--accent)">' + ticker + '</span>'
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs aliran ritel reguler</div>'
     + '</div>'
@@ -2651,7 +2650,7 @@ function renderBandarmologySmartMoneyRadarView(tk) {
     + '</div>'
 
     + '<div style="padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:12px;line-height:1.5;color:var(--text2)">'
-    + '<div style="font-weight:700;color:var(--green);margin-bottom:4px;display:flex;align-items:center;gap:4px"><i class="ti ti-bulb"></i> Kesimpulan AI Smart Money &amp; Bandarmology:</div>'
+    + '<div style="font-weight:700;color:var(--green);margin-bottom:4px;display:flex;align-items:center;gap:4px">Kesimpulan AI Smart Money &amp; Bandarmology:</div>'
     + 'Smart Money terdeteksi aktif pada saham <strong class="mono" style="color:var(--text)">' + ticker + '</strong> dengan net institutional flow <strong class="up mono">' + (smNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smNet/1000000000)).toLocaleString('id-ID') + ' Miliar</strong>. Broker institusi utama (<span class="mono" style="color:var(--text)">' + smBuyBrokersText + '</span>) mendominasi konsentrasi akumulasi.'
     + '</div>'
     + '</div>';
@@ -2723,7 +2722,7 @@ function renderBandarmologyBrokerTrailView() {
     + '</div>'
     + '</div>'
     + '<button onclick="openStockChat(\'BBCA\', \'Analisa jejak transaksi broker ' + bInfo.code + ' (' + bInfo.name + ') hari ini di seluruh emiten BEI\')" class="btn btn-primary btn-xs">'
-    + '<i class="ti ti-messages"></i> <span>Tanya AI tentang ' + bInfo.code + '</span>'
+    + '<span>Tanya AI tentang ' + bInfo.code + '</span>'
     + '</button>'
     + '</div>'
     + '<div class="tbl-wrap" style="overflow-x:auto">'
@@ -2765,7 +2764,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
   var ticker = (tk || STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
   if (typeof isValidStockTicker === 'function' && !isValidStockTicker(ticker)) {
     return '<div class="card" style="padding:24px;text-align:center;color:var(--text3)">'
-      + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px"><i class="ti ti-alert-triangle"></i> Ticker "' + ticker + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
+      + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px">Ticker "' + ticker + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
       + '<p style="font-size:11px">CMF, VWAP Bands, dan seluruh metrik Smart Money Flow bernilai 0/kosong. Silakan pilih emiten terdaftar (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM).</p>'
       + '</div>';
   }
@@ -2789,7 +2788,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:14px;flex-wrap:wrap;gap:8px">'
     + '<div>'
     + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-flame" style="color:var(--amber)"></i> SMART MONEY FLOW &amp; VOLUME PRICE MATRIX: <span class="mono" style="color:var(--accent)">' + ticker + '</span>'
+    + 'SMART MONEY FLOW &amp; VOLUME PRICE MATRIX: <span class="mono" style="color:var(--accent)">' + ticker + '</span>'
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Analisis Chaikin Money Flow (CMF-20), Accumulation/Distribution Line, OBV, dan Institutional Multi-Period VWAP Bands</div>'
     + '</div>'
@@ -2827,7 +2826,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:14px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
     + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-chart-arrows" style="color:var(--accent)"></i> INSTITUTIONAL VWAP BANDS ZONE: ' + ticker
+    + 'INSTITUTIONAL VWAP BANDS ZONE: ' + ticker
     + '</div>'
     + '<span class="badge b-neu" style="font-size:9px">ALGORITMA PENETRASI HARGA BEI</span>'
     + '</div>'
@@ -2856,7 +2855,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     + '<div style="display:flex;flex-direction:column;gap:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center">'
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-chart-line" style="color:var(--green)"></i> GRAFIK VISUAL INTERAKTIF SMART MONEY &amp; PENETRASI BANDAR (' + ticker + ')'
+    + 'GRAFIK VISUAL INTERAKTIF SMART MONEY &amp; PENETRASI BANDAR (' + ticker + ')'
     + '</div>'
     + '<span class="badge b-neu" style="font-size:9px">CHART ENGINE (60 CANDLES)</span>'
     + '</div>'
@@ -2865,7 +2864,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     // Chart 1: Price Action & Institutional VWAP Bands
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px"><i class="ti ti-chart-candle" style="color:var(--accent)"></i> Pergerakan Harga &amp; VWAP Bands</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Pergerakan Harga &amp; VWAP Bands</div>'
     + '<span class="badge b-accent" style="font-size:8px">BENCHMARK</span>'
     + '</div>'
     + '<div style="height:220px;position:relative;width:100%"><canvas id="bandarSmartPriceChart"></canvas></div>'
@@ -2874,7 +2873,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     // Chart 2: Chaikin Money Flow (CMF-20) Histogram
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px"><i class="ti ti-flame" style="color:var(--amber)"></i> Chaikin Money Flow (CMF-20)</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Chaikin Money Flow (CMF-20)</div>'
     + '<span class="badge b-up" style="font-size:8px">AKUMULASI / DISTRIBUSI</span>'
     + '</div>'
     + '<div style="height:220px;position:relative;width:100%"><canvas id="bandarSmartCmfChart"></canvas></div>'
@@ -2883,7 +2882,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     // Chart 3: Net Foreign Flow Daily Inflow/Outflow Bars
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px"><i class="ti ti-coin" style="color:var(--blue)"></i> Arus Net Dana Asing Harian</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Arus Net Dana Asing Harian</div>'
     + '<span class="badge b-neu" style="font-size:8px">JUTA LEMBAR</span>'
     + '</div>'
     + '<div style="height:200px;position:relative;width:100%"><canvas id="bandarSmartForeignChart"></canvas></div>'
@@ -2892,7 +2891,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     // Chart 4: Volume Surge & Accumulation Profile
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px"><i class="ti ti-chart-bar" style="color:var(--accent)"></i> Volume Transaksi &amp; Penyerapan Modal</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Volume Transaksi &amp; Penyerapan Modal</div>'
     + '<span class="badge b-neu" style="font-size:8px">VOLUME SURGE</span>'
     + '</div>'
     + '<div style="height:200px;position:relative;width:100%"><canvas id="bandarSmartVolChart"></canvas></div>'
@@ -2908,7 +2907,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     + '</div>'
     + '<div style="display:flex;align-items:center;gap:8px">'
     + '<button onclick="openStockChat(\'' + ticker + '\', \'Analisa detail pergerakan smart money flow CMF dan bandarmology saham ' + ticker + '\');" class="btn btn-primary btn-xs">'
-    + '<i class="ti ti-messages"></i> <span>Konsultasi AI</span>'
+    + '<span>Konsultasi AI</span>'
     + '</button>'
     + '</div>'
     + '</div>'
@@ -3158,9 +3157,9 @@ function renderBandarmologyHeatmapScannerView() {
     + '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-layout-grid" style="color:var(--green)"></i> HEATMAP ALIRAN DANA SMART MONEY SEKTORAL BEI'
+    + 'HEATMAP ALIRAN DANA SMART MONEY SEKTORAL BEI'
     + '</div>'
-    + '<span class="badge b-amb" style="font-size:9px" title="Harga real, rincian broker-flow per-sektor disimulasikan">⚠ SIMULASI FLOW</span>'
+    + '<span class="badge b-amb" style="font-size:9px" title="Harga real, rincian broker-flow per-sektor disimulasikan">SIMULASI FLOW</span>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">';
 
@@ -3179,7 +3178,7 @@ function renderBandarmologyHeatmapScannerView() {
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     + '<div>'
     + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + '<i class="ti ti-radar" style="color:var(--green)"></i> PEMINDAI SMART MONEY &amp; BANDAR RADAR'
+    + 'PEMINDAI SMART MONEY &amp; BANDAR RADAR'
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Harga &amp; CMF-20 real dari data harga historis · verdict bandar &amp; flow disimulasikan (belum ada feed broker real per-menit)</div>'
     + '</div>'

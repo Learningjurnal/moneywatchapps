@@ -1204,8 +1204,8 @@
           <option value="all">Semua</option><option value="BUY">Beli</option><option value="SELL">Jual</option>
         </select>
         <button class="btn btn-ghost btn-xs" onclick="txSelectAll()" id="tx-sel-all-btn">☑ Pilih</button>
-        <button class="btn btn-red btn-xs" onclick="txDeleteSelected()" id="tx-del-sel-btn" style="display:none">🗑 Hapus Terpilih</button>
-        <button class="btn btn-red btn-xs" onclick="txClearAll()">🗑 Hapus Semua</button>
+        <button class="btn btn-red btn-xs" onclick="txDeleteSelected()" id="tx-del-sel-btn" style="display:none">Hapus Terpilih</button>
+        <button class="btn btn-red btn-xs" onclick="txClearAll()">Hapus Semua</button>
       </div>
     </div>
     <div style="overflow:auto;flex:1;min-height:0" class="tbl-wrap">
@@ -1232,23 +1232,22 @@
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <!-- Last Updated Badge in Portfolio Page -->
       <div id="porto-last-updated-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);padding:5px 12px;border-radius:8px;font-size:11px">
-        <i class="ti ti-clock" style="color:var(--accent);font-size:12px"></i>
-        <span style="color:var(--text3);font-size:10px">Last Updated:</span>
+                <span style="color:var(--text3);font-size:10px">Last Updated:</span>
         <strong id="porto-last-updated-stamp" style="color:var(--accent);font-family:var(--font-mono);font-weight:800">--:--:--</strong>
         <span id="porto-last-updated-rel" style="color:var(--text3);font-size:10px"></span>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="if(typeof refreshPortfolioMarketData==='function') refreshPortfolioMarketData({isManual:true});" title="Perbarui harga pasar portofolio sekarang" style="font-size:11px"><i class="ti ti-refresh"></i> Refresh</button>
-      <button class="btn btn-ghost btn-sm" onclick="openMarketSyncModal()" title="Sinkronisasi & Penyesuaian Manual Harga Pasar & IHSG" style="border-color:var(--accent);color:var(--accent);font-size:11px"><i class="ti ti-adjustments-horizontal"></i> Sesuaikan Harga &amp; IHSG</button>
-      <button class="btn btn-ghost btn-sm" onclick="mwOpenPdfReportModal()" title="Buka Laporan Konsolidasi Finansial Terpadu (Excel CSV, PDF, Teks &amp; FIRE)"><i class="ti ti-file-analytics"></i> Laporan Konsolidasi</button>
-      <button class="btn btn-blue" id="btn-beli2"><i class="ti ti-plus"></i> Beli Saham</button>
+      <button class="btn btn-ghost btn-sm" onclick="if(typeof refreshPortfolioMarketData==='function') refreshPortfolioMarketData({isManual:true});" title="Perbarui harga pasar portofolio sekarang" style="font-size:11px">Refresh</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMarketSyncModal()" title="Sinkronisasi & Penyesuaian Manual Harga Pasar & IHSG" style="border-color:var(--accent);color:var(--accent);font-size:11px">Sesuaikan Harga &amp; IHSG</button>
+      <button class="btn btn-ghost btn-sm" onclick="mwOpenPdfReportModal()" title="Buka Laporan Konsolidasi Finansial Terpadu (Excel CSV, PDF, Teks &amp; FIRE)">Laporan Konsolidasi</button>
+      <button class="btn btn-blue" id="btn-beli2">Beli Saham</button>
     </div>
   </div>
   <!-- Cash widget saham -->
   <div id="cash-saham-banner" class="cash-sync-banner cash-saham" style="background:rgba(0,0,0,.15);border:1px solid #41f3a733;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#41f3a7;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-wallet"></i> KAS AKUN SAHAM (RDN)</span>
+    <span style="font-size:10px;font-weight:700;color:#41f3a7;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px">KAS AKUN SAHAM (RDN)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#41f3a7" id="cash-saham-disp">Rp 0</span>
-    <button class="btn btn-ghost btn-xs" style="color:#41f3a7;border-color:#41f3a744" onclick="openModal('setor', 'saham')" title="Top-up / Mutasi Kas Saham"><i class="ti ti-plus"></i> Top Up / Mutasi</button>
-    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'saham')" title="Sesuaikan saldo riil via mutasi RDN"><i class="ti ti-adjustments-horizontal"></i> Sesuaikan</button>
+    <button class="btn btn-ghost btn-xs" style="color:#41f3a7;border-color:#41f3a744" onclick="openModal('setor', 'saham')" title="Top-up / Mutasi Kas Saham">Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'saham')" title="Sesuaikan saldo riil via mutasi RDN">Sesuaikan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Dana tersedia di rekening sekuritas (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
   <div class="row4" style="margin-bottom:16px">
@@ -1262,12 +1261,12 @@
   <div class="card" style="margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
-        <div class="ptitle" style="font-size:14px">🍩 Alokasi Portofolio Real-Time</div>
+        <div class="ptitle" style="font-size:14px">Alokasi Portofolio Real-Time</div>
         <div class="psub">Persentase distribusi nilai pasar berdasarkan Sektor atau Kelas Aset</div>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost btn-sm active" id="porto-tab-sector" onclick="setPortoChartMode('sector')" style="font-size:11px">📊 Berdasarkan Sektor</button>
-        <button class="btn btn-ghost btn-sm" id="porto-tab-class" onclick="setPortoChartMode('class')" style="font-size:11px">💼 Berdasarkan Kelas Aset</button>
+        <button class="btn btn-ghost btn-sm active" id="porto-tab-sector" onclick="setPortoChartMode('sector')" style="font-size:11px">Berdasarkan Sektor</button>
+        <button class="btn btn-ghost btn-sm" id="porto-tab-class" onclick="setPortoChartMode('class')" style="font-size:11px">Berdasarkan Kelas Aset</button>
       </div>
     </div>
     <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
@@ -1282,7 +1281,7 @@
   <div class="card" style="margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
-        <div class="ptitle" style="font-size:14px">📊 Nett Gain / Loss per Saham Portofolio</div>
+        <div class="ptitle" style="font-size:14px">Nett Gain / Loss per Saham Portofolio</div>
         <div class="psub">Akumulasi Realized + Potensi P&amp;L per emiten aktif dalam portofolio</div>
       </div>
       <div id="porto-pnl-summary-pills" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
@@ -1296,7 +1295,7 @@
   <div class="card" style="margin-bottom:16px">
     <div id="perf-toolbar-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
-        <div class="ptitle" style="font-size:14px">📊 Performa per Saham</div>
+        <div class="ptitle" style="font-size:14px">Performa per Saham</div>
         <div class="psub">Ringkasan hasil investasi per emiten</div>
       </div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -1369,8 +1368,8 @@
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-xs" onclick="selectAllDiv()" id="div-sel-all-btn">☑ Pilih Semua</button>
-      <button class="btn btn-red btn-xs" onclick="deleteSelectedDiv()" id="div-del-sel-btn" style="display:none">🗑 Hapus Terpilih</button>
-      <button class="btn btn-red btn-xs" onclick="clearAllDiv()">🗑 Hapus Semua</button>
+      <button class="btn btn-red btn-xs" onclick="deleteSelectedDiv()" id="div-del-sel-btn" style="display:none">Hapus Terpilih</button>
+      <button class="btn btn-red btn-xs" onclick="clearAllDiv()">Hapus Semua</button>
       <button class="btn btn-blue" id="btn-div">+ Catat Dividen</button>
       <button class="btn btn-ghost" onclick="divDownloadTemplate()" style="border-color:rgba(167,139,250,.35);color:var(--purple)" title="Unduh template Excel siap isi">⬇ Download Template</button>
       <button class="btn btn-ghost" onclick="divImportExcel()" style="border-color:rgba(52,211,153,.3);color:var(--green)" title="Upload banyak dividen sekaligus dari file Excel">📤 Upload Excel</button>
@@ -1380,17 +1379,17 @@
   <!-- Subtabs: Kalender Dividen / Analisis / Riwayat -->
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;flex-wrap:wrap;">
     <button class="btn btn-xs btn-green" id="div-subtab-btn-cal" onclick="switchDivSubTab('calendar')">
-      <i class="ti ti-calendar-event"></i> 📅 Kalender Dividen &amp; Expected Passive Income
+      Kalender Dividen &amp; Expected Passive Income
       <span class="badge b-up" style="font-size:9px;padding:1px 5px;margin-left:4px;">RADAR</span>
     </button>
     <button class="btn btn-xs btn-ghost" id="div-subtab-btn-analytics" onclick="switchDivSubTab('analytics')">
-      <i class="ti ti-chart-pie"></i> 📊 Analisis &amp; Proyeksi 5 Tahun
+      Analisis &amp; Proyeksi 5 Tahun
     </button>
     <button class="btn btn-xs btn-ghost" id="div-subtab-btn-ledger" onclick="switchDivSubTab('ledger')">
-      <i class="ti ti-receipt"></i> 📋 Riwayat Pembukuan Transaksi
+      Riwayat Pembukuan Transaksi
     </button>
     <button class="btn btn-xs btn-ghost" id="div-subtab-btn-all" onclick="switchDivSubTab('all')" style="margin-left:auto;color:var(--text3);">
-      <i class="ti ti-layout-grid"></i> Tampilkan Semua
+      Tampilkan Semua
     </button>
   </div>
 
@@ -1436,7 +1435,7 @@
     <!-- Proyeksi 5 tahun -->
     <div class="card" style="margin-bottom:18px">
       <div class="cheader">
-        <span class="ctitle">📈 Proyeksi Dividen 5 Tahun (2027–2031)</span>
+        <span class="ctitle">Proyeksi Dividen 5 Tahun (2027–2031)</span>
         <div style="display:flex;gap:6px;align-items:center">
           <span style="font-size:10px;color:var(--text3)">Asumsi pertumbuhan:</span>
           <select class="finput fsel" id="div-growth-sel" onchange="renderDividen()" style="padding:3px 7px;font-size:10px">
@@ -1489,12 +1488,12 @@
 <div id="page-divinvest" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
     <div>
-      <div class="ptitle">💹 Dividen Investing Dashboard</div>
+      <div class="ptitle">Dividen Investing Dashboard</div>
       <div class="psub">Analisa DPR · Proyeksi Probabilistik · Rating Profesional · Rencana Dividen Tahun Depan</div>
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap">
       <button class="btn btn-green" onclick="openDivInvestForm()">+ Input Dividen</button>
-      <button class="btn btn-ghost btn-xs" onclick="renderDivInvest()" title="Refresh">🔄 Refresh</button>
+      <button class="btn btn-ghost btn-xs" onclick="renderDivInvest()" title="Refresh">Refresh</button>
     </div>
   </div>
 
@@ -1509,8 +1508,8 @@
   <!-- Input History Dividen Form (hidden by default) -->
   <div id="di-form-box" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
     <div class="cheader" style="margin-bottom:16px">
-      <span class="ctitle">📝 Input History Dividen Payment</span>
-      <button class="btn btn-ghost btn-xs" onclick="closeDivInvestForm()">✕ Tutup</button>
+      <span class="ctitle">Input History Dividen Payment</span>
+      <button class="btn btn-ghost btn-xs" onclick="closeDivInvestForm()">Tutup</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px">
       <div class="fg"><label class="flabel">Ticker</label>
@@ -1525,22 +1524,22 @@
         <input class="finput" type="number" id="di-inp-avgprice" placeholder="8500" min="0" title="Untuk kalkulasi yield on cost"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-green" onclick="saveDivInvestEntry()">💾 Simpan</button>
-      <button class="btn btn-ghost btn-xs" onclick="openDivBatchInput()">📋 Input Batch Multi-tahun</button>
+      <button class="btn btn-green" onclick="saveDivInvestEntry()">Simpan</button>
+      <button class="btn btn-ghost btn-xs" onclick="openDivBatchInput()">Input Batch Multi-tahun</button>
       <span style="font-size:10px;color:var(--text3)">PPh 10% dipotong otomatis · Yield on Cost dihitung dari harga beli</span>
     </div>
     <!-- Batch input area -->
     <div id="di-batch-box" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text2);margin-bottom:6px">Batch: Satu baris per pembayaran, format → <code style="background:var(--bg3);padding:2px 5px;border-radius:3px">TICKER,YYYY-MM-DD,DPS,LEMBAR,HARGA_BELI</code></div>
       <textarea class="finput" id="di-batch-text" rows="6" style="font-family:var(--font-mono);font-size:11px;resize:vertical;width:100%" placeholder="BBCA,2023-06-15,150,10000,9500&#10;TLKM,2023-08-10,100,5000,3800&#10;BMRI,2022-07-01,200,3000,5500"></textarea>
-      <button class="btn btn-amber btn-xs" style="margin-top:6px" onclick="saveDivBatch()">📥 Import Semua</button>
+      <button class="btn btn-amber btn-xs" style="margin-top:6px" onclick="saveDivBatch()">Import Semua</button>
     </div>
   </div>
 
   <!-- Rating Overview Cards -->
   <div class="card" style="margin-bottom:18px">
     <div class="cheader">
-      <span class="ctitle">🏅 Rating Emiten Dividen (Analisa Profesional)</span>
+      <span class="ctitle">Rating Emiten Dividen (Analisa Profesional)</span>
       <div style="display:flex;gap:5px;align-items:center">
         <span style="font-size:10px;color:var(--text3)">Urutkan:</span>
         <select class="finput fsel" id="di-sort-sel" onchange="renderDivInvest()" style="padding:3px 7px;font-size:10px">
@@ -1558,7 +1557,7 @@
   <!-- DPR Table per emiten -->
   <div class="g2c" style="margin-bottom:18px">
     <div class="card">
-      <div class="cheader"><span class="ctitle">📊 Realisasi Pendapatan per Emiten</span></div>
+      <div class="cheader"><span class="ctitle">Realisasi Pendapatan per Emiten</span></div>
       <div style="overflow-x:auto">
         <table class="tbl" id="di-real-tbl">
           <thead><tr><th>Emiten</th><th>Tahun Bayar</th><th>Total Net (Rp)</th><th>Avg DPS</th><th>YoC%</th><th>Konsistensi</th></tr></thead>
@@ -1567,7 +1566,7 @@
       </div>
     </div>
     <div class="card">
-      <div class="cheader"><span class="ctitle">📉 Tidak Membayar Dividen</span><span class="badge b-dn" id="di-no-div-cnt">0</span></div>
+      <div class="cheader"><span class="ctitle">Tidak Membayar Dividen</span><span class="badge b-dn" id="di-no-div-cnt">0</span></div>
       <div id="di-no-div-list" style="padding:6px 0"></div>
     </div>
   </div>
@@ -1575,7 +1574,7 @@
   <!-- Proyeksi Next Year Detail -->
   <div class="card" style="margin-bottom:18px">
     <div class="cheader">
-      <span class="ctitle">🔮 Proyeksi Dividen Tahun Depan (Probabilistik)</span>
+      <span class="ctitle">Proyeksi Dividen Tahun Depan (Probabilistik)</span>
       <div style="display:flex;gap:6px;align-items:center">
         <span style="font-size:10px;color:var(--text3)">Skenario:</span>
         <select class="finput fsel" id="di-scenario" onchange="renderDivInvest()" style="padding:3px 7px;font-size:10px">
@@ -1593,7 +1592,7 @@
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <div style="font-size:11px;color:var(--text2)">
-        <span>📐 Metodologi: P(bayar) × E[DPS] berdasarkan CAGR 3-tahun terakhir &amp; skor konsistensi historis (2019–kini)</span>
+        <span>Metodologi: P(bayar) × E[DPS] berdasarkan CAGR 3-tahun terakhir &amp; skor konsistensi historis (2019–kini)</span>
       </div>
       <div style="text-align:right">
         <div style="font-size:10px;color:var(--text3)">Total Proyeksi (Net setelah PPh 10%)</div>
@@ -1605,7 +1604,7 @@
   <!-- History chart per tahun per emiten -->
   <div class="card" style="margin-bottom:18px">
     <div class="cheader">
-      <span class="ctitle">📅 History DPS per Tahun per Emiten</span>
+      <span class="ctitle">History DPS per Tahun per Emiten</span>
       <select class="finput fsel" id="di-history-ticker" onchange="renderDivHistoryChart()" style="padding:3px 7px;font-size:10px"><option value="ALL">Semua Emiten</option></select>
     </div>
     <div class="cw" style="height:200px"><canvas id="diHistChart"></canvas></div>
@@ -1614,7 +1613,7 @@
   <!-- Riwayat input -->
   <div class="card">
     <div class="cheader">
-      <span class="ctitle">📋 Riwayat History Dividen (Input Manual)</span>
+      <span class="ctitle">Riwayat History Dividen (Input Manual)</span>
       <div style="display:flex;gap:5px">
         <select class="finput fsel" id="di-hist-year" onchange="renderDivInvest()" style="padding:3px 7px;font-size:10px">
           <option value="all">Semua</option>
@@ -1622,7 +1621,7 @@
           <option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option>
           <option value="2020">2020</option><option value="2019">2019</option>
         </select>
-        <button class="btn btn-red btn-xs" onclick="clearDivInvestData()">🗑 Hapus Semua</button>
+        <button class="btn btn-red btn-xs" onclick="clearDivInvestData()">Hapus Semua</button>
       </div>
     </div>
     <div style="overflow-x:auto">
