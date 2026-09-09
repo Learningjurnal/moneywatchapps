@@ -1669,9 +1669,7 @@
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:12px">
     <div>
       <div class="ptitle" style="margin-bottom:2px;display:flex;align-items:center;gap:8px">
-        <i class="ti ti-chart-arcs" style="color:var(--accent)"></i>
         <span>Sectoral Insight</span>
-        <span class="badge b-accent" style="font-size:10px;padding:2px 7px">FLOW &amp; ROTATION</span>
       </div>
       <div class="psub">Visualisasi pergerakan akumulasi vs distribusi 11 sektor IDX berbasis Chaikin Money Flow &amp; intelijen berita pasar</div>
     </div>
@@ -1685,21 +1683,20 @@
 
       <!-- View switch -->
       <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px">
-        <button class="btn btn-ghost btn-xs si-view-btn on" data-view="bar" onclick="siSetViewMode('bar')" title="Visualisasi D3.js CMF Bar Flow (Akumulasi vs Distribusi)"><i class="ti ti-chart-bar"></i> D3 CMF Bar</button>
-        <button class="btn btn-ghost btn-xs si-view-btn" data-view="quadrant" onclick="siSetViewMode('quadrant')" title="Visualisasi 4 Kuadran Sectoral Cycle Matrix (Akumulasi, Markup, Distribusi, Markdown)"><i class="ti ti-layout-grid"></i> Sectoral Cycle Matrix</button>
-        <button class="btn btn-ghost btn-xs si-view-btn" data-view="list" onclick="siSetViewMode('list')" title="Tampilan Kartu Ringkas"><i class="ti ti-list"></i> Kartu</button>
+        <button class="btn btn-ghost btn-xs si-view-btn on" data-view="bar" onclick="siSetViewMode('bar')" title="Visualisasi D3.js CMF Bar Flow (Akumulasi vs Distribusi)">D3 CMF Bar</button>
+        <button class="btn btn-ghost btn-xs si-view-btn" data-view="quadrant" onclick="siSetViewMode('quadrant')" title="Visualisasi 4 Kuadran Sectoral Cycle Matrix (Akumulasi, Markup, Distribusi, Markdown)">Sectoral Cycle Matrix</button>
+        <button class="btn btn-ghost btn-xs si-view-btn" data-view="list" onclick="siSetViewMode('list')" title="Tampilan Kartu Ringkas">Kartu</button>
       </div>
 
       <!-- Refresh button -->
       <button class="btn btn-ghost btn-xs" onclick="siRefreshAll()" title="Segarkan Data Aliran &amp; Berita Terkini" style="padding:4px 10px;border-color:var(--border);color:var(--text2)">
-        <i class="ti ti-refresh"></i> Segarkan
+        Segarkan
       </button>
     </div>
   </div>
 
   <!-- Metodologi & Transparansi Data Banner (Jujur, Tanpa Dummy) -->
-  <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;font-size:11.5px;color:var(--text2);line-height:1.5">
-    <i class="ti ti-shield-check" style="font-size:18px;color:var(--accent);flex-shrink:0;margin-top:2px"></i>
+  <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:11.5px;color:var(--text2);line-height:1.5">
     <div>
       <strong style="color:var(--text)">Integritas &amp; Metodologi Data Riil:</strong>
       Data harga, return, dan volume dihitung 100% dari kuotasi riil konstituen Big Caps terdaftar di Bursa Efek Indonesia (BEI/Yahoo Finance).
@@ -2480,7 +2477,7 @@
 
 <!-- Alerts -->
 <div id="page-alerts" class="page">
-  <div class="ptitle">🔔 Signal Alerts</div>
+  <div class="ptitle">Signal Alerts</div>
   <div class="psub">Notifikasi otomatis: akumulasi kuat, distribusi, anomali volume</div>
   <div class="card" style="margin-top:11px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">

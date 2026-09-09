@@ -259,14 +259,14 @@ function fsRunAnalysis(){
   var pLbl=document.getElementById('fs-price-lbl');
   var periodLabel = FS_G.days===7?'1 Minggu':FS_G.days===30?'1 Bulan':FS_G.days===90?'3 Bulan':'1 Tahun';
   if(pLbl) pLbl.innerHTML = 'Harga terakhir: <strong>'+fsP(last.c)+'</strong> &nbsp;·&nbsp; Periode: <strong style="color:var(--accent)">'+periodLabel+'</strong> ('+FS_G.days+' hari)'+
-    (FS_G.days<=7?' &nbsp;<span style="color:var(--amber);font-size:10px">⚠️ Indikator diadaptasi ke data pendek</span>':'');
+    (FS_G.days<=7?' &nbsp;<span style="color:var(--amber);font-size:10px">Indikator diadaptasi ke data pendek</span>':'');
 
   // Notice bar untuk timeframe pendek
   var noticeEl = document.getElementById('fs-period-notice');
   if(noticeEl){
     if(FS_G.days<=7){
       noticeEl.style.display='flex';
-      noticeEl.innerHTML='<span style="color:var(--amber)">⚠️</span> <span style="font-size:11px;color:var(--text2)">Periode <strong>1 Minggu (7 hari)</strong> — periode indikator diadaptasi otomatis (CMF-'+a.cmfP+', RSI-'+a.rsiP+', MA'+a.maFP+'/'+a.maSP+'). Sinyal kurang akurat dibanding periode lebih panjang.</span>';
+      noticeEl.innerHTML='<span style="font-size:11px;color:var(--text2)">Periode <strong>1 Minggu (7 hari)</strong> — periode indikator diadaptasi otomatis (CMF-'+a.cmfP+', RSI-'+a.rsiP+', MA'+a.maFP+'/'+a.maSP+'). Sinyal kurang akurat dibanding periode lebih panjang.</span>';
     } else {
       noticeEl.style.display='none';
     }
@@ -276,7 +276,7 @@ function fsRunAnalysis(){
   var wlBtn=document.getElementById('fs-wl-btn');
   var inWl=FS_WL.some(function(w){return w.t===tk;});
   if(wlBar) wlBar.textContent=inWl?tk+' sudah ada di watchlist Anda':'Tambah '+tk+' ke watchlist untuk memantau secara rutin';
-  if(wlBtn){wlBtn.textContent=inWl?'✓ Ada di Watchlist':'⭐ Tambah ke Watchlist';wlBtn.className='btn '+(inWl?'btn-ghost':'btn-blue')+' btn-sm';}
+  if(wlBtn){wlBtn.textContent=inWl?'Ada di Watchlist':'Tambah ke Watchlist';wlBtn.className='btn '+(inWl?'btn-ghost':'btn-blue')+' btn-sm';}
 
   fsRenderCharts();
   fsRenderInd();
@@ -392,7 +392,7 @@ function fsRenderDailyTable(){
   data.slice(-60).reverse().forEach(function(d){
     var chg=d.o>0?((d.c-d.o)/d.o*100):0;
     var vc=d.vr>=2?'#41f3a7':d.vr>=1.5?'rgba(0,229,160,.7)':d.vr<0.7?'#e21d48':'#8fa3c8';
-    var sig=d.sig==='ACC'?'<span class="badge b-up"><i class="ti ti-trending-up"></i> Akumulasi</span>':d.sig==='DIST'?'<span class="badge b-dn"><i class="ti ti-trending-down"></i> Distribusi</span>':'';
+    var sig=d.sig==='ACC'?'<span class="badge b-up">Akumulasi</span>':d.sig==='DIST'?'<span class="badge b-dn">Distribusi</span>':'';
     var cc=d.cmf>0.1?'#41f3a7':d.cmf<-0.1?'#e21d48':'#8fa3c8';
     var tr=document.createElement('tr');
     if(d.sig==='ACC')tr.style.background='rgba(0,229,160,.04)';
@@ -492,13 +492,13 @@ function fsRenderVWAP(){
   }).join('');
   // Signal text
   var sig='';
-  if(last.c>uL) sig='<span style="color:#e21d48">⚠️ Di atas Upper Band (+'+sigma+'σ)</span><br>Kondisi <strong>overbought</strong>. Potensi pullback ke VWAP ('+fsP(vL)+').';
-  else if(last.c<lL) sig='<span style="color:#41f3a7">🎯 Di bawah Lower Band (−'+sigma+'σ)</span><br>Kondisi <strong>oversold</strong>. Zona akumulasi, potensi bounce ke VWAP.';
-  else if(last.c>vL) sig='<span style="color:#41f3a7">✅ Di atas VWAP</span><br>Tren <strong>bullish</strong>. VWAP '+fsP(vL)+' sebagai support dinamis.';
-  else sig='<span style="color:#e21d48">📉 Di bawah VWAP</span><br>Tren <strong>bearish</strong>. VWAP '+fsP(vL)+' sebagai resistance.';
+  if(last.c>uL) sig='<span style="color:#e21d48">Di atas Upper Band (+'+sigma+'σ)</span><br>Kondisi <strong>overbought</strong>. Potensi pullback ke VWAP ('+fsP(vL)+').';
+  else if(last.c<lL) sig='<span style="color:#41f3a7">Di bawah Lower Band (−'+sigma+'σ)</span><br>Kondisi <strong>oversold</strong>. Zona akumulasi, potensi bounce ke VWAP.';
+  else if(last.c>vL) sig='<span style="color:#41f3a7">Di atas VWAP</span><br>Tren <strong>bullish</strong>. VWAP '+fsP(vL)+' sebagai support dinamis.';
+  else sig='<span style="color:#e21d48">Di bawah VWAP</span><br>Tren <strong>bearish</strong>. VWAP '+fsP(vL)+' sebagai resistance.';
   var v5L=vwap5[vwap5.length-1],v20L=vwap20[vwap20.length-1];
-  if(last.c>vL&&last.c>v5L&&last.c>v20L) sig+='<br><br>🔥 <strong>Triple VWAP Confluence Bullish</strong> — buyer dominan di semua timeframe.';
-  if(last.c<vL&&last.c<v5L&&last.c<v20L) sig+='<br><br>❄️ <strong>Triple VWAP Confluence Bearish</strong> — seller dominan di semua timeframe.';
+  if(last.c>vL&&last.c>v5L&&last.c>v20L) sig+='<br><br><strong>Triple VWAP Confluence Bullish</strong> — buyer dominan di semua timeframe.';
+  if(last.c<vL&&last.c<v5L&&last.c<v20L) sig+='<br><br><strong>Triple VWAP Confluence Bearish</strong> — seller dominan di semua timeframe.';
   var sE=document.getElementById('vwap-signal'); if(sE) sE.innerHTML=sig;
 }
 
@@ -546,7 +546,7 @@ function fsRenderRanking(){
     var isReal = typeof rdIsReal === 'function' ? rdIsReal(r.t) : false;
     var srcDot = isReal
       ? '<span title="Data riil Yahoo Finance" style="color:#41f3a7;font-size:9px;margin-left:4px">●</span>'
-      : '<span title="⚠ SIMULASI — data acak, bukan harga pasar. Klik Refresh di Kelola Daftar Saham." style="color:#e21d48;font-size:9px;margin-left:4px;cursor:help">○ SIM</span>';
+      : '<span title="SIMULASI — data acak, bukan harga pasar. Klik Refresh di Kelola Daftar Saham." style="color:#e21d48;font-size:9px;margin-left:4px;cursor:help">○ SIM</span>';
     return '<tr style="'+(r.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':r.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+(isReal?'':';outline:1px solid rgba(255,61,90,.15)')+'">'
       +'<td class="mono" style="color:var(--text3)">'+(i+1)+'</td>'
       +'<td class="mono" style="font-weight:600;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+r.t+'\')">'+r.t+'</td>'
@@ -708,7 +708,7 @@ function fsSyncWithPortfolio(showToast){
   if(cnt) cnt.textContent = FS_WL.length;
 
   if(showToast && typeof showSaveStatus==='function'){
-    showSaveStatus('✓ Watchlist berhasil diselaraskan dengan ' + portoTickers.length + ' saham portofolio Anda!');
+    showSaveStatus('Watchlist berhasil diselaraskan dengan ' + portoTickers.length + ' saham portofolio Anda!');
   }
   return true;
 }
@@ -751,7 +751,7 @@ function fsRenderWlPage(){
   var el=document.getElementById('wl-page-list');
   if(!el) return;
   if(list.length===0){
-    el.innerHTML='<div style="text-align:center;padding:28px;color:var(--text3)">Watchlist kosong. <button class="btn btn-ghost btn-xs" onclick="fsSyncWithPortfolio(true)" style="margin-left:6px;color:var(--accent)">🔄 Sinkronkan Portofolio</button> atau tambah dari input di atas.</div>';
+    el.innerHTML='<div style="text-align:center;padding:28px;color:var(--text3)">Watchlist kosong. <button class="btn btn-ghost btn-xs" onclick="fsSyncWithPortfolio(true)" style="margin-left:6px;color:var(--accent)">Sinkronkan Portofolio</button> atau tambah dari input di atas.</div>';
     return;
   }
   var porto = (typeof getPortfolio==='function') ? getPortfolio() : [];
@@ -765,7 +765,7 @@ function fsRenderWlPage(){
       var chg=((last.c-prev.c)/prev.c*100);
       var pItem = portoMap[w.t];
       var portoBadge = pItem
-        ? '<div style="display:inline-flex;flex-direction:column;gap:2px"><span class="badge b-up" style="font-size:10px;font-weight:700;letter-spacing:0.3px"><i class="ti ti-briefcase"></i> '+pItem.lot+' Lot</span><span style="font-size:9px;color:var(--text2);font-family:var(--font-mono)">Avg Rp '+fmt(pItem.avg)+'</span></div>'
+        ? '<div style="display:inline-flex;flex-direction:column;gap:2px"><span class="badge b-up" style="font-size:10px;font-weight:700;letter-spacing:0.3px">'+pItem.lot+' Lot</span><span style="font-size:9px;color:var(--text2);font-family:var(--font-mono)">Avg Rp '+fmt(pItem.avg)+'</span></div>'
         : '<span class="badge b-neu" style="font-size:9px;color:var(--text3)">Pantau</span>';
 
       return '<tr style="'+(w.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':w.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+'">'
@@ -793,7 +793,7 @@ function fsBuildQaChips(){
     var inWl=FS_WL.some(function(w){return w.t===t;});
     var style='display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-family:var(--font-mono);cursor:pointer;font-weight:700;'
       +(inWl?'background:var(--accent);color:#fff':'background:var(--bg3);color:var(--text2);border:1px solid var(--border2)');
-    return '<span style="'+style+'" onclick="fsTgWl(\''+t+'\');fsBuildQaChips();fsRenderWlPage()">'+(inWl?'✓ ':'')+t+'</span>';
+    return '<span style="'+style+'" onclick="fsTgWl(\''+t+'\');fsBuildQaChips();fsRenderWlPage()">'+t+'</span>';
   }).join('');
 }
 
@@ -814,7 +814,7 @@ function saveCashInput(account){
   }
   renderCashWidgets();
   updateTopbar();
-  showSaveStatus('✓ Saldo kas ' + account + ' disesuaikan ke Rp ' + fmtK(val));
+  showSaveStatus('Saldo kas ' + account + ' disesuaikan ke Rp ' + fmtK(val));
 }
 function renderCashWidgets(){
   // Semua saldo kas akun (Saham, Crypto, Reksa Dana) bersumber dari mutasi RDN
