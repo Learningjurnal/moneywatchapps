@@ -121,40 +121,75 @@ async function diCalcFromTransactionHistory(){
 
   if (statusEl) statusEl.textContent = 'Mengambil riwayat pembagian dividen resmi dari Yahoo Finance untuk ' + uniqueTickers.length + ' saham...';
 
+  // Diagnostik per-ticker (bukan cuma jumlah akhir) — supaya kalau suatu
+  // periode "hilang" (mis. tidak ada entri sebelum tahun tertentu), sebabnya
+  // langsung terlihat: tidak ada event dividen resmi, ATAU ada event tapi
+  // lembar yang dipegang = 0 pada ex-date itu (berarti riwayat transaksi
+  // Beli/Jual untuk ticker itu di aplikasi ini belum mencakup periode
+  // tersebut), ATAU sudah pernah tercatat sebelumnya (di-skip, bukan hilang).
+  var diag = [];
   var candidates = [];
   for (var i = 0; i < uniqueTickers.length; i++) {
     var ticker = uniqueTickers[i];
+    var d = { ticker: ticker, totalEvents: 0, noSharesHeld: 0, alreadyRecorded: 0, newCandidates: 0, earliestTxDate: null, error: null };
+    var txDates = (transactions || []).filter(function(t){ return t.ticker === ticker && (t.type === 'BUY' || t.type === 'SELL'); }).map(function(t){ return t.date; }).sort();
+    d.earliestTxDate = txDates.length ? txDates[0] : null;
     try {
       var divs = await fetchYahooDividendHistory(ticker);
+      d.totalEvents = divs.length;
       divs.forEach(function(ev){
         var shares = diSharesHeldOnDate(ticker, ev.date);
-        if (shares <= 0) return; // belum/sudah tidak memegang saham pada ex-date ini
-        var alreadyExists = dividends.some(function(d){ return d.ticker === ticker && d.date === ev.date; });
-        if (alreadyExists) return;
+        if (shares <= 0) { d.noSharesHeld++; return; } // belum/sudah tidak memegang saham pada ex-date ini
+        var alreadyExists = dividends.some(function(dv){ return dv.ticker === ticker && dv.date === ev.date; });
+        if (alreadyExists) { d.alreadyRecorded++; return; }
         var year = parseInt(ev.date.slice(0, 4), 10);
         candidates.push({ ticker: ticker, date: ev.date, dps: ev.dps, shares: shares, year: year, pphRate: diPphRateForYear(year) });
+        d.newCandidates++;
       });
     } catch (e) {
+      d.error = e && e.message || String(e);
       console.warn('Gagal mengambil riwayat dividen untuk ' + ticker + ':', e);
     }
+    diag.push(d);
   }
 
   _diCalcCandidates = candidates;
-  renderDivCalcPreview(candidates);
+  renderDivCalcPreview(candidates, diag);
   if (statusEl) {
     statusEl.textContent = candidates.length
       ? 'Ditemukan ' + candidates.length + ' event dividen baru dari riwayat transaksi Anda. Periksa lalu klik "Import ke Data Dividen".'
-      : 'Tidak ditemukan event dividen baru (kemungkinan sudah tercatat semua, atau emiten tidak membagikan dividen selama periode Anda memegangnya).';
+      : 'Tidak ditemukan event dividen baru — lihat rincian per saham di bawah untuk penyebabnya.';
   }
 }
 
-function renderDivCalcPreview(candidates){
+function renderDivDiagTable(diag){
+  if (!diag || !diag.length) return '';
+  return '<div style="margin-bottom:14px;overflow-x:auto"><table class="tbl"><thead><tr>'
+    + '<th>Ticker</th><th>Transaksi Tercatat Sejak</th><th>Event Dividen Resmi</th><th>Tanpa Kepemilikan</th><th>Sudah Tercatat</th><th>Baru</th>'
+    + '</tr></thead><tbody>'
+    + diag.map(function(d){
+        var earliest = d.earliestTxDate || '<span style="color:var(--text3)">tidak ada transaksi</span>';
+        var status = d.error ? '<span style="color:var(--red)">Gagal: ' + d.error + '</span>' : '';
+        return '<tr><td class="mono" style="font-weight:700">' + d.ticker + '</td>'
+          + '<td class="mono">' + earliest + '</td>'
+          + '<td class="mono">' + d.totalEvents + '</td>'
+          + '<td class="mono" title="Event dividen ditemukan, tapi lembar yang dipegang = 0 pada ex-date (periode sebelum transaksi Beli pertama tercatat)">' + d.noSharesHeld + '</td>'
+          + '<td class="mono">' + d.alreadyRecorded + '</td>'
+          + '<td class="mono" style="font-weight:700;color:var(--green)">' + d.newCandidates + '</td>'
+          + (status ? '<td>' + status + '</td>' : '') + '</tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + '<div style="margin-bottom:14px;font-size:10.5px;color:var(--text3);line-height:1.5">Kolom "Tanpa Kepemilikan" tinggi berarti: emiten membagikan dividen resmi, tapi riwayat transaksi Beli/Jual Anda di aplikasi ini belum mencakup periode itu — bukan bug kalkulator, tapi transaksi lama (sebelum tanggal di kolom "Transaksi Tercatat Sejak") belum diinput. Input/upload transaksi Beli lama itu dulu di halaman Transaksi Saham, lalu jalankan kalkulator ini lagi.</div>';
+}
+
+function renderDivCalcPreview(candidates, diag){
   var box = el('di-calc-preview');
   if (!box) return;
-  if (!candidates.length) { box.innerHTML = ''; return; }
+  var diagHtml = renderDivDiagTable(diag);
+  if (!candidates.length) { box.innerHTML = diagHtml; return; }
   var totalGross = candidates.reduce(function(a, c){ return a + Math.round(c.dps * c.shares); }, 0);
   var totalTax = candidates.reduce(function(a, c){ return a + Math.round(c.dps * c.shares * c.pphRate); }, 0);
-  box.innerHTML = '<div style="overflow-x:auto"><table class="tbl"><thead><tr>'
+  box.innerHTML = diagHtml + '<div style="overflow-x:auto"><table class="tbl"><thead><tr>'
     + '<th>Ticker</th><th>Ex-Date</th><th>Div/Lembar</th><th>Lembar Dimiliki</th><th>Kotor</th><th>Tarif PPh</th><th>Bersih</th>'
     + '</tr></thead><tbody>'
     + candidates.map(function(c){
@@ -187,9 +222,19 @@ function diImportCalculatedDividends(){
   _diCalcCandidates = [];
   var box = el('di-calc-preview'); if (box) box.innerHTML = '';
   var statusEl = el('di-calc-status'); if (statusEl) statusEl.textContent = '';
+  // Dividen → mutasi RDN sudah tersambung lewat addDiv()->addRdn() di atas
+  // (data-nya sudah benar begitu addDiv selesai), tapi setiap halaman yang
+  // menampilkan saldo/mutasi RDN punya render function-nya sendiri yang
+  // TIDAK otomatis dipanggil ulang dari sini — sebelumnya hanya Dividen yang
+  // di-refresh, jadi saldo di halaman Mutasi RDN & Kas Portofolio bisa
+  // terlihat belum bertambah sampai halaman itu dibuka ulang secara manual.
   if (typeof renderDividen === 'function') renderDividen();
   if (typeof renderDivInvest === 'function') renderDivInvest();
-  if (typeof showSaveStatus === 'function') showSaveStatus('✓ ' + n + ' data dividen berhasil diimport dari riwayat transaksi');
+  if (typeof renderRdn === 'function') renderRdn();
+  if (typeof renderCashWidgets === 'function') renderCashWidgets();
+  if (typeof renderTransaksi === 'function') renderTransaksi();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof showSaveStatus === 'function') showSaveStatus('✓ ' + n + ' data dividen berhasil diimport — saldo RDN diperbarui otomatis');
 }
 
 // ── Gabungkan semua sumber dividen (global + manual) ──
