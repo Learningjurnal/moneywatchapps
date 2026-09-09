@@ -1,14 +1,15 @@
 # Model XGBoost Signal — Training & Update
 
 Strategi **"XGBoost"** di halaman Backtester berjalan di browser lewat model
-ONNX yang sudah dilatih (`models/xgb_signal.onnx`) — bukan simulasi lagi.
-Tidak ada server Python yang perlu menyala; browser cukup memuat file model
-statis lewat `onnxruntime-web`, persis seperti memuat file gambar/JSON.
+ONNX yang sudah dilatih (`public/models/xgb_signal.onnx`) — bukan simulasi
+lagi. Tidak ada server Python yang perlu menyala; browser cukup memuat file
+model statis lewat `onnxruntime-web`, persis seperti memuat file gambar/JSON.
 
 Yang **butuh Python** hanyalah proses **training** model itu sendiri, dan itu
-cukup dijalankan sesekali di komputer Anda — bukan komponen yang hidup terus.
+cukup dijalankan sesekali — baik manual di komputer Anda, atau otomatis lewat
+GitHub Actions terjadwal (lihat bagian "Retrain otomatis" di bawah).
 
-## Melatih ulang / update model
+## Melatih ulang / update model secara manual
 
 ```bash
 cd ml
@@ -22,16 +23,26 @@ pip install -r requirements.txt
 python train_xgb_signal.py
 ```
 
-Output:
-- `../models/xgb_signal.onnx` — model terlatih (di-load browser)
-- `../models/xgb_signal_meta.json` — urutan fitur, threshold sinyal, metrik akurasi
+Skrip ini menghitung path output-nya relatif terhadap lokasi filenya sendiri
+(bukan direktori kerja saat ini), jadi aman dijalankan dari `ml/` maupun dari
+root repo. Output:
+- `public/models/xgb_signal.onnx` — model terlatih (di-load browser)
+- `public/models/xgb_signal_meta.json` — urutan fitur, threshold sinyal, metrik akurasi
 
 Commit kedua file itu ke repo lalu push — Backtester akan otomatis memakai
 model terbaru saat aplikasi di-reload (tidak perlu ubah kode JS apa pun,
 kecuali Anda mengubah daftar fitur — lihat di bawah).
 
-Disarankan retrain **~tiap 1-3 bulan** dengan data terbaru supaya model tidak
-"basi" terhadap kondisi pasar terkini.
+## Retrain otomatis (GitHub Actions)
+
+Workflow terjadwal `.github/workflows/retrain-model.yml` menjalankan skrip
+ini otomatis **tiap tanggal 1 setiap bulan** (dan bisa dipicu manual kapan
+saja lewat tab Actions → "Retrain XGBoost Signal Model" → "Run workflow").
+Kalau hasil retrain menghasilkan file yang berbeda dari sebelumnya, workflow
+langsung meng-commit & push `public/models/xgb_signal.onnx` dan
+`public/models/xgb_signal_meta.json` ke `main` — tidak perlu approval manual.
+Kalau tidak ada perubahan berarti (mis. gagal ambil data), workflow tidak
+melakukan commit apa pun.
 
 ## Bagaimana cara kerjanya
 
