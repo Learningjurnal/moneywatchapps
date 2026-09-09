@@ -594,8 +594,8 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
         }
 
         var badgeText = 'STRUCTURE: ' + (aiStruct.trend || 'NEUTRAL') + ' (' + (aiStruct.structure || 'RANGE') + ')';
-        if (aiStruct.bos) badgeText += ' | BOS CONFIRMED ⚡';
-        if (aiStruct.choch) badgeText += ' | CHoCH REVERSAL 🔄';
+        if (aiStruct.bos) badgeText += ' | BOS CONFIRMED ';
+        if (aiStruct.choch) badgeText += ' | CHoCH REVERSAL ';
 
         ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
         ctx.strokeStyle = aiStruct.trend === 'BULLISH' ? '#10B981' : (aiStruct.trend === 'BEARISH' ? '#EF4444' : '#F59E0B');
@@ -761,7 +761,6 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
     var msg = (ctx && ctx.error) || 'Ticker "' + unk + '" tidak terdaftar dalam Stock Universe IDX atau Yahoo Finance.';
     container.innerHTML = ''
       + '<div style="padding:28px 20px;border-radius:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);color:var(--text);text-align:center;margin:10px 0;">'
-      + '  <div style="font-size:28px;margin-bottom:8px">⚠️</div>'
       + '  <div style="font-size:16px;font-weight:800;color:var(--red);margin-bottom:6px">TICKER INVALID: ' + unk + '</div>'
       + '  <div style="font-size:12px;color:var(--text2);max-width:560px;margin:0 auto 12px;line-height:1.6">'
       + '    ' + msg + '<br>'
@@ -779,6 +778,7 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
     // AI TOOLBAR BAR
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;flex-wrap:wrap;gap:8px">'
       + '<div style="display:flex;align-items:center;gap:10px">'
+        + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(ticker, 22) : '')
         + '<span style="font-size:16px;font-weight:800;color:var(--text);font-family:Fira Code,monospace">' + ticker + '</span>'
         + '<span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
         + '<span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
@@ -787,17 +787,17 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
       // AI TOOLBAR BUTTONS
       + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
         + '<button class="btn btn-primary btn-xs" onclick="runAiChartAnalysis(\'' + ticker + '\')" style="background:var(--brand-primary);border:none;box-shadow:0 0 10px rgba(0,0,255,0.3)">'
-          + '<i class="ti ti-brain"></i> 🧠 AI ANALYZE'
+          + 'AI ANALYZE'
         + '</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.sr ? 'on' : '') + '" onclick="toggleAiOverlay(\'sr\')">S/R</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.fib ? 'on' : '') + '" onclick="toggleAiOverlay(\'fib\')">FIB</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.pattern ? 'on' : '') + '" onclick="toggleAiOverlay(\'pattern\')">PATTERN</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.structure ? 'on' : '') + '" onclick="toggleAiOverlay(\'structure\')">STRUCTURE</button>'
         + '<button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="openAiExplainModal(\'' + ticker + '\')">'
-          + '<i class="ti ti-message-dots"></i> Explain Chart'
+          + 'Explain Chart'
         + '</button>'
         + '<button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')">'
-          + '<i class="ti ti-external-link"></i> TV Pro'
+          + 'TV Pro'
         + '</button>'
       + '</div>'
     + '</div>'
@@ -849,7 +849,7 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
           // Trade Setup Details Box
           + '<div style="background:var(--bg2);border:1px solid ' + (setup.decision === 'NO_TRADE' ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)') + ';border-radius:8px;padding:10px;margin-bottom:12px">'
             + '<div style="font-size:11px;font-weight:800;color:' + (setup.decision === 'NO_TRADE' ? '#EF4444' : '#10B981') + ';margin-bottom:6px;display:flex;align-items:center;gap:4px">'
-              + '<i class="ti ti-' + (setup.decision === 'NO_TRADE' ? 'shield-x' : 'target-arrow') + '"></i> ' + setup.setupType
+              + setup.setupType
             + '</div>'
             
             + (setup.decision === 'NO_TRADE'
@@ -866,8 +866,8 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
 
         // Action Buttons
         + '<div style="display:flex;gap:6px;margin-top:auto">'
-          + '<button class="btn btn-ghost btn-xs" style="flex:1" onclick="openAiExplainModal(\'' + ticker + '\')">🧠 Detail Alasan</button>'
-          + '<button class="btn btn-primary btn-xs" style="flex:1" onclick="saveAiSetupToJournal(\'' + ticker + '\')">📝 Save Journal</button>'
+          + '<button class="btn btn-ghost btn-xs" style="flex:1" onclick="openAiExplainModal(\'' + ticker + '\')">Detail Alasan</button>'
+          + '<button class="btn btn-primary btn-xs" style="flex:1" onclick="saveAiSetupToJournal(\'' + ticker + '\')">Save Journal</button>'
         + '</div>'
       + '</div>'
     + '</div>';
@@ -991,7 +991,7 @@ function openAiExplainModal(ticker) {
   var conf = last.confluence;
   var setup = last.setup;
 
-  mTitle.innerHTML = '🧠 AI Chart Explanation — ' + ticker;
+  mTitle.innerHTML = 'AI Chart Explanation — ' + ticker;
   mBody.innerHTML = ''
     + '<div class="space-y-4" style="font-size:13px;line-height:1.6;color:var(--text)">'
       + '<div style="background:var(--bg3);border-left:4px solid var(--accent);padding:12px;border-radius:0 8px 8px 0">'
@@ -1021,7 +1021,7 @@ function openAiExplainModal(ticker) {
       + '</div>'
 
       + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'
-        + '<button class="btn btn-primary btn-sm" onclick="saveAiSetupToJournal(\'' + ticker + '\');closeModal();">📝 Catat Rencana Trade ke Journal</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="saveAiSetupToJournal(\'' + ticker + '\');closeModal();">Catat Rencana Trade ke Journal</button>'
       + '</div>'
     + '</div>';
 
@@ -1052,9 +1052,9 @@ function saveAiSetupToJournal(ticker) {
   }
 
   if (typeof showToast === 'function') {
-    showToast('✓ Rencana Trade AI untuk ' + ticker + ' berhasil dicatat ke Decision Journal!');
+    showToast('Rencana Trade AI untuk ' + ticker + ' berhasil dicatat ke Decision Journal!');
   } else {
-    alert('✓ Rencana Trade AI untuk ' + ticker + ' berhasil dicatat ke Decision Journal!');
+    alert('Rencana Trade AI untuk ' + ticker + ' berhasil dicatat ke Decision Journal!');
   }
 }
 

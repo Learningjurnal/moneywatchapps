@@ -776,6 +776,7 @@ function renderStockIntelPage() {
     + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
       + '<div>'
         + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+          + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(ticker, 26) : '')
           + '<span style="font-size:18px;font-weight:800;color:var(--text);font-family:var(--font-display)">' + data.name + '</span>'
           + '<span class="badge b-blue" style="font-size:12px;font-weight:800;font-family:var(--font-mono)">' + ticker + ' (IDX)</span>'
           + '<span style="font-size:12px;color:var(--text3)">' + data.sector + '</span>'
