@@ -163,23 +163,23 @@
 
     // 2. Modul & Halaman Aplikasi
     var pages = [
-      { id: 'dashboard', title: 'Command Center (Executive Dashboard)', sub: 'Ringkasan portofolio, AUM, alokasi, dan pergerakan aset' },
-      { id: 'stock-intel', title: 'Stock Intelligence Cockpit', sub: 'Deep cockpit analisis 360°, valuasi, teknikal & bandarmologi' },
-      { id: 'portofolio', title: 'Portofolio Saham IDX', sub: 'Posisi aktif, lot, average price, unrealized P&L, dan alokasi' },
-      { id: 'fundamental', title: 'Fundamental Suite & Health Score', sub: 'Rasio valuasi, ROE, PER, PBV, Altman Z-Score, dan margin' },
-      { id: 'bandarmology', title: 'Bandarmology & Smart Money Cockpit', sub: 'Broker flow, Chaikin CMF, foreign flow, dan deteksi akumulasi/distribusi big player' },
-      { id: 'technical', title: 'Technical Indicators & Flow Scanner', sub: 'RSI, MACD, Stochastic, MA 20/50/200, dan support resistance' },
-      { id: 'hargawajar', title: 'Fair Value & Valuation Model', sub: 'Graham Number, DCF Model, Peter Lynch & Relative Valuation' },
-      { id: 'screener', title: 'Screener Saham LQ45 / Kompas100', sub: 'Filter saham berbasis kriteria fundamental dan momentum' },
-      { id: 'market-regime', title: 'Market Regime & Macro Radar', sub: 'Deteksi siklus Bull/Bear, VIX, suku bunga, dan yield bond' },
+      { id: 'dashboard', title: 'Ringkasan Portofolio', sub: 'Ringkasan portofolio, AUM, alokasi, dan pergerakan aset' },
+      { id: 'stock-intel', title: 'Stock Intel', sub: 'Analisis 360° per saham — valuasi, teknikal & bandarmologi dalam satu tampilan' },
+      { id: 'portofolio', title: 'Portofolio Saham', sub: 'Posisi aktif, lot, average price, unrealized P&L, dan alokasi' },
+      { id: 'fundamental', title: 'Analisis Fundamental', sub: 'Rasio valuasi, ROE, PER, PBV, Altman Z-Score, dan margin' },
+      { id: 'bandarmology', title: 'Bandarmology', sub: 'Broker flow, Chaikin CMF, foreign flow, dan deteksi akumulasi/distribusi big player' },
+      { id: 'technical', title: 'Analisis Teknikal & Flow', sub: 'RSI, MACD, Stochastic, MA 20/50/200, dan support resistance' },
+      { id: 'hargawajar', title: 'Harga Wajar', sub: 'Graham Number, DCF Model, Peter Lynch & Relative Valuation' },
+      { id: 'screener', title: 'Screener Saham LQ45', sub: 'Filter saham berbasis kriteria fundamental dan momentum' },
+      { id: 'market-regime', title: 'Market Regime', sub: 'Deteksi siklus Bull/Bear, VIX, suku bunga, dan yield bond' },
       { id: 'radar', title: 'Opportunity Radar', sub: 'Peluang breakout, dividend trap, dan value turnaround' },
-      { id: 'scenario', title: 'Scenario & What-If Engine', sub: 'Stress testing portofolio jika IHSG crash atau komoditas turun' },
-      { id: 'backtester', title: 'Backtester Strategi Investasi', sub: 'Uji historis kinerja DCA, momentum, atau value investing' },
-      { id: 'transaksi', title: 'Buku Transaksi', sub: 'Catatan seluruh transaksi beli, jual, dan dividen saham' },
-      { id: 'dividen', title: 'Dashboard & Tracker Dividen', sub: 'Riwayat dividen, Dividend Yield, dan kalender cum-date' },
-      { id: 'rebalance', title: 'Smart Rebalancing Portfolio', sub: 'Optimalisasi bobot portofolio kembali ke alokasi ideal' },
-      { id: 'wealth', title: 'Net Worth & Money Map', sub: 'Total kekayaan bersih lintas bank, properti, kas, dan utang' },
-      { id: 'rdn', title: 'Kas & Rekening Dana Nasabah (RDN)', sub: 'Mutasi saldo, top up, tarik dana, dan rekonsiliasi fee' }
+      { id: 'scenario', title: 'Skenario Stress Test', sub: 'Simulasi dampak ke portofolio jika IHSG crash atau komoditas turun' },
+      { id: 'backtester', title: 'Backtester Strategi', sub: 'Uji historis kinerja DCA, momentum, atau value investing' },
+      { id: 'transaksi', title: 'Transaksi Saham', sub: 'Catatan seluruh transaksi beli, jual, dan dividen saham' },
+      { id: 'dividen', title: 'Dividen & Passive Income', sub: 'Riwayat dividen, Dividend Yield, dan kalender cum-date' },
+      { id: 'rebalance', title: 'Rebalancing Portofolio', sub: 'Optimalisasi bobot portofolio kembali ke alokasi ideal' },
+      { id: 'wealth', title: 'Net Worth', sub: 'Total kekayaan bersih lintas bank, properti, kas, dan utang' },
+      { id: 'rdn', title: 'Kas RDN', sub: 'Mutasi saldo, top up, tarik dana, dan rekonsiliasi fee' }
     ];
 
     pages.forEach(function(pg) {
@@ -212,7 +212,7 @@
     items.push({
       type: 'action',
       category: 'Aksi Cepat',
-      title: '🔔 Pasang Price Alert Target Baru',
+      title: 'Pasang Price Alert Baru',
       sub: 'Set alarm take profit atau stop loss dengan audio chime dan web notification',
       badge: 'Price Alert',
       badgeColor: 'var(--amber)',
@@ -224,7 +224,7 @@
     items.push({
       type: 'action',
       category: 'Aksi Cepat',
-      title: '🔔 Kelola Price Alerts & Monitoring Target',
+      title: 'Kelola Price Alerts',
       sub: 'Buka dashboard pemantauan target harga dan status pemicu alert',
       badge: 'Monitoring',
       badgeColor: 'var(--accent)',
@@ -236,7 +236,7 @@
     items.push({
       type: 'action',
       category: 'Aksi Cepat',
-      title: '💾 Backup Data & Restore JSON',
+      title: 'Backup / Restore Data',
       sub: 'Simpan snapshot data portofolio lokal atau pulihkan backup',
       badge: 'Backup',
       badgeColor: 'var(--amber)',
@@ -248,7 +248,7 @@
     items.push({
       type: 'action',
       category: 'Aksi Cepat',
-      title: '⚡ Toggle View Mode (Terminal vs Executive)',
+      title: 'Ganti Mode Tampilan',
       sub: 'Beralih antara tampilan instrumen lengkap vs ringkasan eksekutif',
       badge: 'Tampilan',
       badgeColor: 'var(--purple)',
@@ -263,7 +263,7 @@
     items.push({
       type: 'action',
       category: 'Aksi Cepat',
-      title: '📑 Ubah Kerapatan Tabel: Compact / Rapat',
+      title: 'Tabel: Kerapatan Compact',
       sub: 'Format baris tabel rapat hemat ruang untuk multi-monitoring',
       badge: 'Density',
       badgeColor: 'var(--accent)',
@@ -275,7 +275,7 @@
     items.push({
       type: 'action',
       category: 'Aksi Cepat',
-      title: '📑 Ubah Kerapatan Tabel: Pro / Expanded dengan Sparklines',
+      title: 'Tabel: Kerapatan Lengkap (Sparklines)',
       sub: 'Format baris tabel detail lengkap dengan grafik sparkline mini',
       badge: 'Density',
       badgeColor: 'var(--accent)',
@@ -322,12 +322,8 @@
         html += '<div class="cmd-category-label">' + lastCat + '</div>';
       }
 
-      var iconClass = item.type === 'stock' ? 'ti ti-chart-candle' :
-                      item.type === 'page' ? 'ti ti-layout' : 'ti ti-bolt';
-
       html += '<div class="cmd-item ' + (idx === 0 ? 'active' : '') + '" id="cmd-item-' + idx + '" onclick="mwExecuteCmdIndex(' + idx + ')">' +
         '<div class="cmd-item-left">' +
-          '<div class="cmd-item-icon"><i class="' + iconClass + '"></i></div>' +
           '<div>' +
             '<div class="cmd-item-title">' + item.title + '</div>' +
             '<div class="cmd-item-sub">' + item.sub + '</div>' +

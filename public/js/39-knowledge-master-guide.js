@@ -388,7 +388,7 @@
       + '          <li><strong>Net Profit Margin &amp; FCF Positif</strong>: Arus kas operasional riil bertumbuh.</li>'
       + '        </ul>'
       + '      </div>'
-      + '      <div style="margin-top:12px"><button class="btn btn-ghost btn-xs" onclick="goPage(\'fundamental\')">Buka Fundamental Suite →</button></div>'
+      + '      <div style="margin-top:12px"><button class="btn btn-ghost btn-xs" onclick="goPage(\'fundamental\')">Buka Analisis Fundamental →</button></div>'
       + '    </div>'
 
       // Pillar 2: Technical & Wave
