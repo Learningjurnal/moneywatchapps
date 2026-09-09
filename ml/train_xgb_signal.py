@@ -13,19 +13,23 @@ Cara pakai:
     pip install -r ml/requirements.txt
     python ml/train_xgb_signal.py
 
-Hasil:
-    models/xgb_signal.onnx        — model terlatih, siap dipakai browser
-    models/xgb_signal_meta.json   — urutan fitur, threshold sinyal, metrik training
+Hasil (path selalu dihitung relatif terhadap lokasi skrip ini, jadi aman
+dijalankan dari direktori mana pun — repo root atau dari dalam ml/):
+    public/models/xgb_signal.onnx        — model terlatih, siap dipakai browser
+    public/models/xgb_signal_meta.json   — urutan fitur, threshold sinyal, metrik training
 
 PENTING: fitur di sini (lihat FEATURE_NAMES) harus identik urutan & rumusnya
 dengan fungsi xgbComputeFeatures() di js/11-quant.js. Kalau Anda mengubah
 salah satu, ubah juga yang satunya.
 
 Jalankan ulang skrip ini secara berkala (mis. tiap bulan) dengan data
-terbaru, lalu commit ulang models/xgb_signal.onnx supaya model tetap relevan.
+terbaru, lalu commit ulang public/models/xgb_signal.onnx supaya model tetap
+relevan — atau biarkan workflow terjadwal (.github/workflows/retrain-model.yml)
+melakukannya otomatis tiap bulan.
 Ini BUKAN rekomendasi investasi — signal murni hasil model statistik.
 """
 import json
+import os
 import sys
 import warnings
 from datetime import datetime
@@ -60,8 +64,19 @@ SELL_THRESHOLD = 0.35     # probabilitas di bawah ini -> sinyal SELL/exit
 
 FEATURE_NAMES = ["sma_ratio", "rsi14", "mom20", "vol_ratio", "volatility20", "dist_high20"]
 
-MODEL_PATH = "models/xgb_signal.onnx"
-META_PATH = "models/xgb_signal_meta.json"
+# FIX: harus resolve ke public/models/ (tempat sebenarnya index.html memuat
+# file ini via fetch('models/...') relatif terhadap public/) dan tidak
+# tergantung dari direktori mana skrip ini dijalankan — sebelumnya ini
+# hardcode "models/..." relatif ke cwd, yang menulis ke ml/models/ (kalau
+# dijalankan dari dalam ml/, sesuai instruksi README) atau ./models/ di
+# root repo (kalau dijalankan sebagai `python ml/train_xgb_signal.py` sesuai
+# docstring di atas) — DUA-DUANYA salah, bukan public/models/ yang sebenarnya
+# dibaca browser. File model yang ada sekarang di public/models/ hanya bisa
+# sampai di sana lewat penempatan manual terpisah, bukan dari skrip ini.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.dirname(_SCRIPT_DIR)
+MODEL_PATH = os.path.join(_REPO_ROOT, "public", "models", "xgb_signal.onnx")
+META_PATH = os.path.join(_REPO_ROOT, "public", "models", "xgb_signal_meta.json")
 
 
 # ── Feature engineering (harus sama persis dengan versi JS) ────────────────
@@ -190,8 +205,7 @@ def main():
         model,
         initial_types=[("input", FloatTensorType([None, len(FEATURE_NAMES)]))],
     )
-    import os
-    os.makedirs("models", exist_ok=True)
+    os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     with open(MODEL_PATH, "wb") as f:
         f.write(onnx_model.SerializeToString())
     print(f"\n✓ Model ONNX disimpan: {MODEL_PATH}")
@@ -215,7 +229,7 @@ def main():
     with open(META_PATH, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2, ensure_ascii=False)
     print(f"✓ Metadata disimpan: {META_PATH}")
-    print("\nSelesai. Commit models/xgb_signal.onnx dan models/xgb_signal_meta.json ke repo,")
+    print("\nSelesai. Commit public/models/xgb_signal.onnx dan public/models/xgb_signal_meta.json ke repo,")
     print("lalu reload aplikasi — Backtester akan otomatis memakai model ini untuk strategi XGBoost.")
 
 

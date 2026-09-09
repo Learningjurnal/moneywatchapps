@@ -1,0 +1,49 @@
+name: Retrain XGBoost Signal Model
+
+# Melatih ulang model XGBoost yang dipakai strategi "XGBoost" di Backtester
+# (lihat ml/README.md untuk detail lengkap & cara jalankan manual). Jalan
+# otomatis tiap tanggal 1 setiap bulan supaya model tidak "basi" terhadap
+# data pasar terbaru, dan bisa dipicu manual kapan saja lewat tab Actions.
+# Kalau hasil retrain berbeda dari model yang sudah ada, workflow ini
+# langsung commit & push ke main — tidak ada approval manual di tengah.
+on:
+  schedule:
+    - cron: '0 3 1 * *'   # 03:00 UTC, tanggal 1 tiap bulan
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r ml/requirements.txt
+
+      - name: Train model
+        run: python ml/train_xgb_signal.py
+
+      - name: Commit & push updated model if changed
+        run: |
+          set -e
+          if git diff --quiet -- public/models/xgb_signal.onnx public/models/xgb_signal_meta.json; then
+            echo "Tidak ada perubahan pada model — melewati commit."
+            exit 0
+          fi
+
+          VERSION=$(python -c "import json; print(json.load(open('public/models/xgb_signal_meta.json'))['version'])")
+          ACCURACY=$(python -c "import json; print(round(json.load(open('public/models/xgb_signal_meta.json'))['test_accuracy']*100, 1))")
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/models/xgb_signal.onnx public/models/xgb_signal_meta.json
+          git commit -m "chore: automated monthly XGBoost model retrain ($VERSION, akurasi test ${ACCURACY}%)"
+          git push
