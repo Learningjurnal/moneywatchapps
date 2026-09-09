@@ -805,14 +805,34 @@ function _mergeDatasets(localObj, cloudObj){
   });
 
   // Extract distinct transactions
+  // FIX AUDIT (CRITICAL, data loss -> phantom holdings): the old logic
+  // dropped a transaction whenever its _makeTxSig() collided with ANOTHER
+  // transaction's signature, even when both had their own distinct, valid
+  // `id`. Two separate real trades (e.g. two BUY orders of the same lot/
+  // price/ticker/sekuritas on the same day, or two SELL orders closing a
+  // position in parts) legitimately share an identical signature — they
+  // are not duplicates. Reproduced directly against a real backup: a
+  // plain self-merge of IDENTICAL data (local === cloud, nothing actually
+  // changed) silently dropped 242 real transactions, mostly SELL orders,
+  // which left several already fully-closed positions with a phantom
+  // leftover lot > 0 — this is what turned 22 held stocks into 41
+  // "holdings" overnight with zero real trading. Fix: an item WITH a
+  // valid id is always kept (id is authoritative and unique) — signature
+  // matching is now only a fallback for legacy items that have no id at
+  // all, where it is still needed to avoid re-duplicating the exact same
+  // no-id entry present on both local and cloud.
   var seenIds = new Set();
   var seenSigs = new Set();
   txMap.forEach(function(t){
-    var sig = _makeTxSig(t);
     var idKey = t.id != null ? String(t.id) : null;
-    if(idKey && seenIds.has(idKey)) return;
+    if(idKey){
+      if(seenIds.has(idKey)) return;
+      seenIds.add(idKey);
+      mergedTx.push(t);
+      return;
+    }
+    var sig = _makeTxSig(t);
     if(sig && seenSigs.has(sig)) return;
-    if(idKey) seenIds.add(idKey);
     if(sig) seenSigs.add(sig);
     mergedTx.push(t);
   });
@@ -824,59 +844,63 @@ function _mergeDatasets(localObj, cloudObj){
     return ((a.id || 0) - (b.id || 0));
   });
 
+  // FIX AUDIT (CRITICAL, data loss — same class of bug as the transaction
+  // dedup above): dividends/RDN mutations/crypto/RD entries all carry
+  // their own unique `id`, but the dedup below used to match by content
+  // signature alone, so two genuinely separate real entries that happen
+  // to share the same date/amount/etc (e.g. two dividend payouts of the
+  // same ticker/shares/dps in different periods, or two identical manual
+  // RDN adjustments) silently collapsed into one. Shared helper: an item
+  // WITH a valid id is always kept (id is authoritative); signature
+  // matching is only a fallback for legacy items with no id, to avoid
+  // re-duplicating the exact same no-id entry present on both sides.
+  function _mergeByIdOrSig(cloudArr, localArr, sigFn){
+    var seenIds = new Set(), seenSigs = new Set(), out = [];
+    [].concat(Array.isArray(cloudArr) ? cloudArr : [], Array.isArray(localArr) ? localArr : []).forEach(function(item){
+      if(!item) return;
+      var idKey = item.id != null ? String(item.id) : null;
+      if(idKey){
+        if(seenIds.has(idKey)) return;
+        seenIds.add(idKey);
+        out.push(item);
+        return;
+      }
+      var sig = sigFn(item);
+      if(sig && seenSigs.has(sig)) return;
+      if(sig) seenSigs.add(sig);
+      out.push(item);
+    });
+    return out;
+  }
+
   // 2. Merge Dividends
-  var divMap = new Map();
-  var lDiv = Array.isArray(local.dividends) ? local.dividends : [];
-  var cDiv = Array.isArray(cloud.dividends) ? cloud.dividends : [];
-  [].concat(cDiv, lDiv).forEach(function(d){
-    if(!d) return;
-    var sig = (d.date || '') + '|' + (d.ticker || '') + '|' + (d.shares || 0) + '|' + (d.dps || 0);
-    if(!divMap.has(sig)) divMap.set(sig, d);
-  });
-  var mergedDiv = Array.from(divMap.values()).sort(function(a, b){
+  var mergedDiv = _mergeByIdOrSig(cloud.dividends, local.dividends, function(d){
+    return (d.date || '') + '|' + (d.ticker || '') + '|' + (d.shares || 0) + '|' + (d.dps || 0);
+  }).sort(function(a, b){
     return (a.date || '').localeCompare(b.date || '') || ((a.id || 0) - (b.id || 0));
   });
 
   // 3. Merge RDN Mutations (Preserve all manual entries: SETOR, TARIK, PENYESUAIAN, BIAYA)
-  var lMut = Array.isArray(local.rdnMutations) ? local.rdnMutations : [];
-  var cMut = Array.isArray(cloud.rdnMutations) ? cloud.rdnMutations : [];
-  var mutMap = new Map();
-
-  [].concat(cMut, lMut).forEach(function(m){
-    if(!m) return;
-    var sig = (m.date || '') + '|' + (m.type || '') + '|' + Number(m.amount || 0) + '|' + (m.ket || '') + '|' + (m.account || 'saham') + '|' + (m.linkedTxId || '');
-    if(!mutMap.has(sig)){
-      mutMap.set(sig, m);
-    }
+  var mergedMutations = _mergeByIdOrSig(cloud.rdnMutations, local.rdnMutations, function(m){
+    return (m.date || '') + '|' + (m.type || '') + '|' + Number(m.amount || 0) + '|' + (m.ket || '') + '|' + (m.account || 'saham') + '|' + (m.linkedTxId || '');
   });
-  var mergedMutations = Array.from(mutMap.values());
 
   // 4. Merge Other Assets
-  var lCrypto = Array.isArray(local.cryptoTx) ? local.cryptoTx : [];
-  var cCrypto = Array.isArray(cloud.cryptoTx) ? cloud.cryptoTx : [];
-  var cryptoMap = new Map();
-  [].concat(cCrypto, lCrypto).forEach(function(c){
-    if(!c) return;
-    var sig = (c.date||'')+'|'+(c.coin||'')+'|'+(c.qty||0)+'|'+(c.priceIdr||0);
-    if(!cryptoMap.has(sig)) cryptoMap.set(sig, c);
+  var mergedCrypto = _mergeByIdOrSig(cloud.cryptoTx, local.cryptoTx, function(c){
+    return (c.date||'')+'|'+(c.coin||'')+'|'+(c.qty||0)+'|'+(c.priceIdr||0);
   });
 
-  var lRd = Array.isArray(local.rdTx) ? local.rdTx : [];
-  var cRd = Array.isArray(cloud.rdTx) ? cloud.rdTx : [];
-  var rdMap = new Map();
-  [].concat(cRd, lRd).forEach(function(r){
-    if(!r) return;
-    var sig = (r.date||'')+'|'+(r.code||'')+'|'+(r.amount||0)+'|'+(r.nab||0);
-    if(!rdMap.has(sig)) rdMap.set(sig, r);
+  var mergedRd = _mergeByIdOrSig(cloud.rdTx, local.rdTx, function(r){
+    return (r.date||'')+'|'+(r.code||'')+'|'+(r.amount||0)+'|'+(r.nab||0);
   });
 
   return {
     transactions: mergedTx,
     dividends: mergedDiv,
     rdnMutations: mergedMutations,
-    cryptoTx: Array.from(cryptoMap.values()),
+    cryptoTx: mergedCrypto,
     etfTx: (local.etfTx && local.etfTx.length) ? local.etfTx : (cloud.etfTx || []),
-    rdTx: Array.from(rdMap.values()),
+    rdTx: mergedRd,
     divInvestData: (local.divInvestData && local.divInvestData.length) ? local.divInvestData : (cloud.divInvestData || []),
     theses: (local.theses && local.theses.length) ? local.theses : (cloud.theses || []),
     journals: (local.journals && local.journals.length) ? local.journals : (cloud.journals || []),
