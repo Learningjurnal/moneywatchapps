@@ -2367,7 +2367,7 @@
 
 <!-- Ranking -->
 <div id="page-ranking" class="page">
-  <div class="ptitle">🏆 Ranking 30 Saham Terbesar IHSG</div>
+  <div class="ptitle">Ranking 30 Saham Terbesar IHSG</div>
   <div class="psub">Diurutkan berdasarkan skor akumulasi big money • Klik Lihat untuk analisa detail • <span style="color:#41f3a7">●</span> = data riil Yahoo &nbsp;·&nbsp; <span style="color:#e21d48">○ SIM</span> = data simulasi, harga tidak akurat — perbaiki di <a href="#" onclick="goPage('admin');return false" style="color:var(--accent)">🛠 Kelola Daftar Saham</a></div>
   <div class="card" style="margin-top:11px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px">
@@ -2495,7 +2495,7 @@
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">
     <div>
       <div class="ptitle" style="color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:8px">
-        🏛️ Mega Fundamental Suite
+        Mega Fundamental Suite
         <span class="badge b-accent" style="font-size:10px;padding:3px 9px">QUANT &amp; VALUE</span>
         <span class="badge b-up" style="font-size:10px;padding:3px 9px">VALUATION MATRIX</span>
       </div>
@@ -2509,13 +2509,12 @@
     <!-- TOP HORIZONTAL SUB-NAV -->
     <div class="sm-suite-header">
       <div class="sm-suite-brand">
-        <i class="ti ti-building-bank" style="font-size:18px;color:#3B82F6"></i>
-        <span>Fundamental <span style="color:#3B82F6">PRO</span></span>
+                <span>Fundamental <span style="color:#3B82F6">PRO</span></span>
       </div>
       <div class="sm-suite-tabs">
-        <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)"><i class="ti ti-chart-dots"></i> 1. Analisa Terpadu &amp; Valuasi Saham</button>
-        <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)"><i class="ti ti-scale"></i> 2. Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
-        <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)"><i class="ti ti-users-group"></i> 3. Kepemilikan &amp; Free Float KSEI</button>
+        <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">1. Analisa Terpadu &amp; Valuasi Saham</button>
+        <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)">2. Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
+        <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)">3. Kepemilikan &amp; Free Float KSEI</button>
       </div>
     </div>
 
@@ -2527,7 +2526,7 @@
           <label>Kode Saham (Contoh: BBCA.JK, BBRI.JK, BMRI.JK)</label>
           <input type="text" id="fundTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA.JK" onkeydown="if(event.key==='Enter')fundFetchData()">
         </div>
-        <button class="sm-btn" onclick="fundFetchData()">⚡ Jalankan Analisa Fundamental</button>
+        <button class="sm-btn" onclick="fundFetchData()">Jalankan Analisa Fundamental</button>
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
           <span class="sm-chip" onclick="fundSetTicker('BBCA.JK')">BBCA</span>
@@ -2564,7 +2563,7 @@
           <!-- Quick KSEI Free Float Card in Tab 1 -->
           <div id="sm-d-ksei-tab1-summary" class="sm-card" style="border-left:4px solid #10B981;margin-bottom:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <h3 style="font-size:13px;font-weight:700;color:var(--text);margin:0">🏛️ Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
+              <h3 style="font-size:13px;font-weight:700;color:var(--text);margin:0">Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
               <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(3)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 3 →</button>
             </div>
             <div id="sm-d-ksei-tab1-content" style="font-size:12px;color:var(--text3)">Memuat data KSEI...</div>
@@ -2578,7 +2577,7 @@
               <div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
                   <span style="background:linear-gradient(135deg,#3B82F6,#10B981);color:#FFF;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:800">TOTAL KESIMPULAN FUNDAMENTAL</span>
-                  <h2 style="font-size:16px;font-weight:800;color:var(--text);margin:0">📊 Total Kesimpulan &amp; Konsensus Analisa Fundamental</h2>
+                  <h2 style="font-size:16px;font-weight:800;color:var(--text);margin:0">Total Kesimpulan &amp; Konsensus Analisa Fundamental</h2>
                 </div>
                 <p style="font-size:11px;color:var(--text3);margin:0">Sintesis kuantitatif dari 4 Model Valuasi, Profitabilitas LTM (ROE &amp; Margin), Kesehatan Neraca (DER &amp; Likuiditas), dan Arus Kas Riil.</p>
               </div>
@@ -2595,7 +2594,7 @@
             <!-- Ekstraksi Otomatis 3 Poin Kunci LTM (Profitabilitas, Kesehatan Neraca, Efisiensi Modal) -->
             <div id="fund-ltm-key-bullets" style="background:var(--bg2);border:1px solid rgba(0,0,255,0.3);border-radius:8px;padding:12px 14px;margin-bottom:14px">
               <div style="font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-                <i class="ti ti-list-check" style="font-size:14px"></i> Ekstraksi Otomatis 3 Poin Kunci Data LTM (Trailing Twelve Months)
+                Ekstraksi Otomatis 3 Poin Kunci Data LTM (Trailing Twelve Months)
               </div>
               <ul id="fund-ltm-bullets-list" style="margin:0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.75;display:flex;flex-direction:column;gap:6px">
                 <li><strong style="color:var(--text)">Memuat ekstraksi data LTM emiten...</strong></li>
@@ -2604,7 +2603,7 @@
 
             <!-- 5 Calculation Pillars Matrix -->
             <div style="margin-bottom:14px">
-              <h4 style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px">📐 Matriks Perhitungan 5 Pilar Analisa Fundamental</h4>
+              <h4 style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px">Matriks Perhitungan 5 Pilar Analisa Fundamental</h4>
               <div style="overflow-x:auto">
                 <table class="tbl" style="font-size:11px;text-align:left;width:100%">
                   <thead>
@@ -2669,7 +2668,7 @@
               <p style="font-size:11px;color:var(--text3)">Kalkulasi nilai intrinsik dan margin of safety otomatis berdasarkan harga pasar terkini dan proyeksi fundamental.</p>
             </div>
             <div style="display:flex;gap:6px">
-              <button class="btn btn-blue btn-sm" onclick="fundRecalcBuffett()">⚡ Hitung Ulang MoS</button>
+              <button class="btn btn-blue btn-sm" onclick="fundRecalcBuffett()">Hitung Ulang MoS</button>
             </div>
           </div>
           
@@ -2706,7 +2705,7 @@
           </div>
 
           <div class="sm-card" id="hw-steps-card-t3" style="margin-bottom:0">
-            <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🔬 Rincian 9 Langkah Kalkulasi Buffett</h3>
+            <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Rincian 9 Langkah Kalkulasi Buffett</h3>
             <div id="hw-steps-body-t3" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
           </div>
         </div>
@@ -2735,7 +2734,7 @@
             </div>
           </div>
           <div class="sm-card" style="margin-bottom:0">
-            <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">🎯 2D Sensitivity Matrix (Target ROE vs Exit P/E)</h3>
+            <h3 style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">2D Sensitivity Matrix (Target ROE vs Exit P/E)</h3>
             <div style="overflow-x:auto">
               <table class="tbl" style="font-size:11px;text-align:center">
                 <thead><tr><th>Target ROE \ Exit PER</th><th>Bear (10x)</th><th style="color:var(--accent)">Base (15x)</th><th>Bull (20x)</th></tr></thead>
@@ -2914,7 +2913,7 @@
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">
     <div>
       <div class="ptitle" style="color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:8px">
-        📈 Mega Technical &amp; Flow Suite
+        Mega Technical &amp; Flow Suite
         <span class="badge b-accent" style="font-size:10px;padding:3px 9px">TECHNICAL PRO</span>
         <span class="badge b-up" style="font-size:10px;padding:3px 9px">BANDARMOLOGY FLOW</span>
       </div>
@@ -2928,13 +2927,12 @@
     <!-- TOP HORIZONTAL SUB-NAV -->
     <div class="sm-suite-header">
       <div class="sm-suite-brand">
-        <i class="ti ti-chart-candle" style="font-size:18px;color:var(--accent)"></i>
-        <span>Technical <span style="color:var(--accent)">PRO</span></span>
+                <span>Technical <span style="color:var(--accent)">PRO</span></span>
       </div>
       <div class="sm-suite-tabs">
-        <button type="button" class="sm-nav-item active-tech" id="tech-nav-1" onclick="techSwitchTab(1)"><i class="ti ti-chart-candle"></i> 1. Advanced Live Chart (TV)</button>
-        <button type="button" class="sm-nav-item" id="tech-nav-2" onclick="techSwitchTab(2)"><i class="ti ti-activity"></i> 2. Analisa Komprehensif (FlowScan, Gauges, Candle, S/R)</button>
-        <button type="button" class="sm-nav-item" id="tech-nav-3" onclick="techSwitchTab(3)"><i class="ti ti-flame"></i> 3. LQ45 Momentum Scanner</button>
+        <button type="button" class="sm-nav-item active-tech" id="tech-nav-1" onclick="techSwitchTab(1)">1. Advanced Live Chart (TV)</button>
+        <button type="button" class="sm-nav-item" id="tech-nav-2" onclick="techSwitchTab(2)">2. Analisa Komprehensif (FlowScan, Gauges, Candle, S/R)</button>
+        <button type="button" class="sm-nav-item" id="tech-nav-3" onclick="techSwitchTab(3)">3. LQ45 Momentum Scanner</button>
       </div>
     </div>
 
@@ -2946,7 +2944,7 @@
           <label>Kode Saham (Contoh: BBCA, BBRI, BMRI, TLKM, ASII)</label>
           <input type="text" id="techTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA" onkeydown="if(event.key==='Enter')techFetchData()">
         </div>
-        <button class="sm-btn btn-tech" onclick="techFetchData()">⚡ Jalankan Analisa Teknikal &amp; Flow</button>
+        <button class="sm-btn btn-tech" onclick="techFetchData()">Jalankan Analisa Teknikal &amp; Flow</button>
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
           <span class="sm-chip" onclick="techSetTicker('BBCA')">BBCA</span>
@@ -3002,7 +3000,7 @@
             </div>
           </div>
           <div class="sm-card">
-            <div class="cheader"><span class="ctitle">🔍 Rincian Indikator Deteksi Arus Bandar (Smart Money)</span></div>
+            <div class="cheader"><span class="ctitle">Rincian Indikator Deteksi Arus Bandar (Smart Money)</span></div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px" id="tech-fs-ind-grid"></div>
           </div>
         </div>
@@ -3064,7 +3062,7 @@
       <div class="psub">Saham yang Anda pantau — tambah dari sini, dari toggle ☆ di Market Radar, atau sinkronkan otomatis dari portofolio.</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-blue" onclick="fsSyncWithPortfolio(true)" style="font-size:10px">🔄 Sinkronkan Portofolio</button>
+      <button class="btn btn-blue" onclick="fsSyncWithPortfolio(true)" style="font-size:10px">Sinkronkan Portofolio</button>
     </div>
   </div>
 
@@ -3080,7 +3078,7 @@
 
   <div class="card">
     <div class="cheader" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <span class="ctitle">📋 Daftar Watchlist</span>
+      <span class="ctitle">Daftar Watchlist</span>
       <div id="wl-sort-row" style="display:flex;gap:4px">
         <button class="btn btn-blue btn-sm" onclick="fsSetWlSort('default',this)">Default</button>
         <button class="btn btn-ghost btn-sm" onclick="fsSetWlSort('score',this)">Skor</button>
@@ -3096,13 +3094,13 @@
 <div id="page-hargawajar" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px">
     <div>
-      <div class="ptitle">💎 Harga Wajar</div>
+      <div class="ptitle">Harga Wajar</div>
       <div class="psub">Input data keuangan historis → hitung Margin of Safety · metodologi: EPS-based IRR + Future Stock Price (9-step)</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-green" onclick="hw_autoFill()" style="font-size:10px;border-color:rgba(52,211,153,.4);color:var(--green)">⚡ Hitung Otomatis (Auto-Fill)</button>
-      <button class="btn btn-blue" onclick="hw_resetAll()" style="font-size:10px">🔄 Reset</button>
-      <button class="btn" onclick="hw_saveToStorage()" style="font-size:10px;border-color:rgba(0,212,170,.35);color:var(--green)">💾 Simpan</button>
+      <button class="btn btn-green" onclick="hw_autoFill()" style="font-size:10px;border-color:rgba(52,211,153,.4);color:var(--green)">Hitung Otomatis (Auto-Fill)</button>
+      <button class="btn btn-blue" onclick="hw_resetAll()" style="font-size:10px">Reset</button>
+      <button class="btn" onclick="hw_saveToStorage()" style="font-size:10px;border-color:rgba(0,212,170,.35);color:var(--green)">Simpan</button>
     </div>
   </div>
 
@@ -3113,7 +3111,7 @@
     <div>
       <!-- Header input: ticker + parameter -->
       <div class="card" style="margin-bottom:16px">
-        <div class="cheader"><span class="ctitle">⚙️ PARAMETER</span></div>
+        <div class="cheader"><span class="ctitle">PARAMETER</span></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
           <div style="min-width:120px">
             <div style="font-size:9px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Kode Saham</div>
@@ -3143,7 +3141,7 @@
             <button onclick="hw_recalc()" id="hw-hitung-btn"
               style="height:38px;padding:0 22px;background:var(--brand-primary);border:none;border-radius:2px;color:#fff;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;white-space:nowrap;transition:opacity .15s"
               onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-              ⚡ HITUNG
+              HITUNG
             </button>
           </div>
         </div>
@@ -3177,7 +3175,7 @@
       <!-- Data table -->
       <div class="card" style="margin-bottom:16px">
         <div class="cheader">
-          <span class="ctitle">📊 DATA KEUANGAN HISTORIS</span>
+          <span class="ctitle">DATA KEUANGAN HISTORIS</span>
           <button class="btn" onclick="hw_addYear()" style="font-size:9px;padding:3px 8px;border-color:rgba(0,0,255,.3);color:var(--accent)">+ Tambah Tahun</button>
         </div>
         <div style="overflow-x:auto">
@@ -3199,28 +3197,28 @@
         </div>
         <!-- Panduan unit -->
         <div style="margin-top:10px;background:var(--bg3);border-radius:2px;padding:10px 12px;border-left:3px solid rgba(0,0,255,.5)">
-          <div style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-weight:700">📌 PANDUAN INPUT — SATUAN WAJIB</div>
+          <div style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-weight:700">PANDUAN INPUT — SATUAN WAJIB</div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 16px;font-size:9px;font-family:var(--font-mono)">
             <div><span style="color:var(--text3)">EPS &amp; DPS</span><br><b style="color:var(--text)">Rupiah per saham</b><br><span style="color:var(--text3)">contoh: 179 = Rp 179/saham</span></div>
             <div><span style="color:var(--text3)">Total Equity &amp; Net Income</span><br><b style="color:var(--text)">Miliar Rupiah</b><br><span style="color:var(--text3)">contoh: 150537 = Rp 150,5 Triliun</span></div>
             <div><span style="color:var(--text3)">Shares</span><br><b style="color:var(--text)">Juta lembar saham</b><br><span style="color:var(--text3)">contoh: 99062 = 99,06 miliar lembar</span></div>
             <div><span style="color:var(--text3)">PER</span><br><b style="color:var(--text)">Kali (x) — tanpa satuan</b><br><span style="color:var(--text3)">contoh: 16.5 = PER 16,5x</span></div>
             <div><span style="color:var(--text3)">Harga Saham</span><br><b style="color:var(--text)">Rupiah per saham</b><br><span style="color:var(--text3)">contoh: 2810 = Rp 2.810/saham</span></div>
-            <div><span style="color:var(--amber)">⚠️ Sel oranye</span><br><b style="color:var(--amber)">= nilai perlu dicek</b><br><span style="color:var(--text3)">hover sel untuk petunjuk</span></div>
+            <div><span style="color:var(--amber)">Sel oranye</span><br><b style="color:var(--amber)">= nilai perlu dicek</b><br><span style="color:var(--text3)">hover sel untuk petunjuk</span></div>
           </div>
         </div>
       </div>
 
       <!-- Calculation Steps Display -->
       <div class="card" id="hw-steps-card" style="margin-bottom:16px;display:none">
-        <div class="cheader"><span class="ctitle">🔬 LANGKAH KALKULASI MoS</span></div>
+        <div class="cheader"><span class="ctitle">LANGKAH KALKULASI MoS</span></div>
         <div id="hw-steps-body" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
       </div>
 
       <!-- Historical chart -->
       <div class="card" id="hw-chart-card" style="display:none">
         <div class="cheader">
-          <span class="ctitle">📈 TREND HISTORIS</span>
+          <span class="ctitle">TREND HISTORIS</span>
           <div style="display:flex;gap:4px">
             <button id="hw-chart-btn-eps" onclick="hw_switchChart('eps')" class="btn" style="font-size:9px;padding:2px 7px;border-color:rgba(0,0,255,.5);color:var(--accent);background:rgba(0,0,255,.12)">EPS &amp; PER</button>
             <button id="hw-chart-btn-eq" onclick="hw_switchChart('eq')" class="btn" style="font-size:9px;padding:2px 7px">Equity &amp; NI</button>
@@ -3240,7 +3238,7 @@
            (23-advisor.js). Now labeled for what it actually is. -->
       <div class="card" id="hw-traffic-light-card" style="margin-bottom:16px;display:none;border-left:4px solid var(--accent)">
         <div class="cheader">
-          <span class="ctitle">🚦 SINYAL BERBASIS VALUASI</span>
+          <span class="ctitle">SINYAL BERBASIS VALUASI</span>
           <span class="badge b-neu" style="font-size:9px">MoS 9-Step Only</span>
         </div>
         <div id="hw-tl-body"></div>
@@ -3289,7 +3287,7 @@
 
       <!-- Multi-Model Valuation Comparison -->
       <div class="card" id="hw-multimodel-card" style="margin-bottom:16px">
-        <div class="cheader"><span class="ctitle">⚖️ KOMPARASI MODEL VALUASI</span></div>
+        <div class="cheader"><span class="ctitle">KOMPARASI MODEL VALUASI</span></div>
         <div style="display:flex;flex-direction:column;gap:6px">
           <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
             <div>
@@ -3337,7 +3335,7 @@
       <!-- 2D Sensitivity Matrix: ROE Target vs Exit PER -->
       <div class="card" id="hw-sensitivity-card" style="margin-bottom:16px">
         <div class="cheader">
-          <span class="ctitle">🎯 2D SENSITIVITY MATRIX (BEAR · BASE · BULL)</span>
+          <span class="ctitle">2D SENSITIVITY MATRIX (BEAR · BASE · BULL)</span>
           <span class="badge b-neu" style="font-size:9px">Target ROE × Exit PER</span>
         </div>
         <div style="font-size:9px;color:var(--text3);margin-bottom:8px">Matriks estimasi harga wajar (MoS) jika ROE dan kelipatan P/E berubah:</div>
@@ -3360,7 +3358,7 @@
 
       <!-- Metrics grid -->
       <div class="card" style="margin-bottom:16px">
-        <div class="cheader"><span class="ctitle">📋 METRIC VALUASI</span></div>
+        <div class="cheader"><span class="ctitle">METRIC VALUASI</span></div>
         <div id="hw-metrics-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
           <div class="metric" id="hw-m-roe"><div class="mlabel">Avg ROE</div><div class="mval" id="hw-v-roe">—</div></div>
           <div class="metric" id="hw-m-dpr"><div class="mlabel">Avg DPR</div><div class="mval" id="hw-v-dpr">—</div></div>
@@ -3375,7 +3373,7 @@
 
       <!-- Saved analyses list -->
       <div class="card">
-        <div class="cheader"><span class="ctitle">📚 HISTORI ANALISA</span>
+        <div class="cheader"><span class="ctitle">HISTORI ANALISA</span>
           <button class="btn" onclick="hw_clearHistory()" style="font-size:9px;padding:2px 7px;border-color:rgba(255,34,68,.3);color:var(--red)">Hapus Semua</button>
         </div>
         <div id="hw-history-list" style="max-height:200px;overflow-y:auto">
