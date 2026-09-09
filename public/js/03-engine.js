@@ -41,35 +41,6 @@ function showToast(message, opts) {
 }
 window.showToast = showToast;
 
-// ============================================================
-// STATE INITIALIZATION & CLEAN RESET
-// ============================================================
-function loadSample(){
-  // Reset state murni — kosong tanpa data transaksi/portofolio palsu/bawaan
-  transactions = [];
-  rdnMutations = [];
-  dividends = [];
-  nextTxId = 1;
-  nextRdnId = 1;
-  nextDivId = 1;
-  activeSekuritas = 'Stockbit';
-  rdnBalance = 0;
-
-  if (typeof rebuildRdnBalance === 'function') {
-    rebuildRdnBalance();
-  }
-
-  if (typeof setCash === 'function') {
-    setCash('saham', 0);
-  }
-  
-  if (typeof _invalidatePortoCache === 'function') {
-    _invalidatePortoCache();
-  }
-}
-
-
-
 // ── Deteksi sekuritas aktif dari transaksi portofolio ──
 // Returns sekuritas yang paling sering dipakai pada transaksi BUY terbaru (30 hari terakhir),
 // atau jika tidak ada, sekuritas dengan total lot terbanyak.
@@ -894,71 +865,6 @@ function calcRdnBalance(account){
 }
 
 // ============================================================
-// MARKET
-// ── HIDE/SHOW METRIC VALUES ──────────────────────────────────
-var _hiddenMetrics = {};
-var MASK = '••••••••';
-
-function loadHiddenMetrics(){
-  try{ _hiddenMetrics=JSON.parse(localStorage.getItem('ihsg_hidden_metrics')||'{}'); }catch(e){}
-}
-function saveHiddenMetrics(){
-  try{ localStorage.setItem('ihsg_hidden_metrics', JSON.stringify(_hiddenMetrics)); }catch(e){}
-}
-
-// Called after renderDashboard to re-apply masks
-function applyMetricMasks(){
-  ['aum','unreal','real','rdn','div'].forEach(function(k){
-    if(_hiddenMetrics[k]) _maskMetric(k);
-    else _unmaskMetric(k);
-  });
-}
-
-function _maskMetric(k){
-  var val=el('d-'+k), eye=el('eye-'+k);
-  if(!val) return;
-  if(!val._rv) val._rv=val.innerHTML;
-  val.innerHTML='<span style="letter-spacing:3px;color:var(--text3)">••••••••</span>';
-  if(eye) eye.textContent='🚫';
-  // Hide sub-elements for AUM
-  if(k==='aum'){
-    var s=el('d-aum-sub'),b=el('d-aum-badges');
-    if(s&&!s._rv){s._rv=s.innerHTML;s.innerHTML='';}
-    if(b&&!b._rv){b._rv=b.innerHTML;b.innerHTML='';}
-  }
-  if(k==='unreal'){
-    var s2=el('d-unreal-sub'); if(s2&&!s2._rv){s2._rv=s2.innerHTML;s2.innerHTML='';}
-  }
-}
-
-function _unmaskMetric(k){
-  var val=el('d-'+k), eye=el('eye-'+k);
-  if(!val) return;
-  if(val._rv){val.innerHTML=val._rv; delete val._rv;}
-  if(eye) eye.textContent='👁';
-  if(k==='aum'){
-    var s=el('d-aum-sub'),b=el('d-aum-badges');
-    if(s&&s._rv){s.innerHTML=s._rv; delete s._rv;}
-    if(b&&b._rv){b.innerHTML=b._rv; delete b._rv;}
-  }
-  if(k==='unreal'){
-    var s2=el('d-unreal-sub'); if(s2&&s2._rv){s2.innerHTML=s2._rv; delete s2._rv;}
-  }
-}
-
-function toggleMetric(k){
-  _hiddenMetrics[k]=!_hiddenMetrics[k];
-  saveHiddenMetrics();
-  if(_hiddenMetrics[k]) _maskMetric(k);
-  else {
-    // Force renderDashboard to repopulate, then unmask
-    delete el('d-'+k)._rv;
-    renderDashboard();
-    // renderDashboard will call applyMetricMasks() which leaves this one unmasked
-  }
-}
-
-// ============================================================
 // YAHOO FINANCE REALTIME ENGINE (tanpa API key)
 // ============================================================
 var FH = {
@@ -1549,13 +1455,6 @@ function fhFetchCrypto(){
 // buat user yang lebih mementingkan stabilitas daripada kecepatan update.
 var FH_REFRESH_KEY = 'mw_fh_refresh_mode_v1';
 FH.mode = (function(){ try{ return localStorage.getItem(FH_REFRESH_KEY)||'fast'; }catch(e){ return 'fast'; } })();
-function fhSetRefreshMode(mode){
-  FH.mode = (mode==='slow') ? 'slow' : 'fast';
-  try{ localStorage.setItem(FH_REFRESH_KEY, FH.mode); }catch(e){}
-  if(FH.timer) fhStart(); // restart supaya interval baru langsung berlaku
-  if(typeof showSaveStatus==='function') showSaveStatus('✓ Mode refresh: '+(FH.mode==='slow'?'Hemat (15 menit)':'Real-time (15 detik)'));
-  if(el('m-title') && el('m-title').textContent.indexOf('Harga Realtime')>=0) openFinnhubSettings(); // refresh tampilan tombol aktif
-}
 
 // ── Start Yahoo Finance realtime engine ──
 function fhStart(){
@@ -1672,19 +1571,6 @@ function openFinnhubSettings(){
       '<button class="btn btn-ghost" onclick="closeModal()">Tutup</button>'+
     '</div>';
   el('modal').classList.add('on');
-}
-
-function fhConnect(){
-  closeModal();
-  fhStart();
-  showSaveStatus('Menghubungkan ke Yahoo Finance...');
-}
-
-function fhDisconnect(){
-  if(FH.timer){ clearInterval(FH.timer); FH.timer=null; }
-  closeModal();
-  fhStop();
-  showSaveStatus('Mode simulasi aktif');
 }
 
 function updateTopbar(){
@@ -1862,51 +1748,6 @@ if (typeof Chart !== 'undefined') {
   Chart.defaults.hover = Object.assign({}, Chart.defaults.hover, { mode: 'nearest', intersect: false });
 }
 
-
-function buildModalPosisiChart(porto){
-  kc('modalposisi');
-  var cv=el('modalPosisiChart'); if(!cv||!porto.length) return;
-  var labels=porto.map(function(p){return p.ticker});
-  // Stacked: bottom=retained(min), top-red=loss, top-green=gain
-  var retained=porto.map(function(p){return Math.round(Math.min(p.cost,p.mv))});
-  var loss=porto.map(function(p){return p.unreal<0?Math.round(Math.abs(p.unreal)):0});
-  var gain=porto.map(function(p){return p.unreal>=0?Math.round(p.unreal):0});
-  var ctx=cv.getContext('2d');
-  charts['modalposisi']=new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:labels,
-      datasets:[
-        {label:'Nilai Pasar',data:retained,backgroundColor:'rgba(45,212,191,.6)',borderColor:'#2dd4bf',borderWidth:1,stack:'s'},
-        {label:'Rugi',      data:loss,    backgroundColor:'rgba(255,61,90,.7)',  borderColor:'#e21d48',borderWidth:1,stack:'s'},
-        {label:'Untung',    data:gain,    backgroundColor:'rgba(0,229,160,.7)',  borderColor:'#41f3a7',borderWidth:1,stack:'s'}
-      ]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{
-        legend:{
-          display:true,
-          labels:{color:'#8fa3c8',font:{size:10},boxWidth:12,padding:16}
-        },
-        tooltip:Object.assign({},TT,{mode:'index',intersect:false,callbacks:{
-          label:function(c){
-            var pf=porto[c.dataIndex];
-            if(c.datasetIndex===0) return 'Nilai Pasar: Rp '+fmtK(pf.mv)+' (Modal: Rp '+fmtK(pf.cost)+')';
-            if(c.datasetIndex===1&&pf.unreal<0) return 'Rugi: -Rp '+fmtK(Math.abs(pf.unreal))+' ('+pf.ret.toFixed(2)+'%)';
-            if(c.datasetIndex===2&&pf.unreal>=0) return 'Untung: +Rp '+fmtK(pf.unreal)+' (+'+pf.ret.toFixed(2)+'%)';
-            return null;
-          },
-          filter:function(item){ return item.parsed.y>0; }
-        }})
-      },
-      scales:{
-        x:{stacked:true,grid:{color:GC},ticks:Object.assign({},TC,{maxRotation:45,font:{size:9}})},
-        y:{stacked:true,grid:{color:GC},ticks:Object.assign({},TC,{callback:function(v){return 'Rp'+fmtK(v)}}),position:'right'}
-      }
-    }
-  });
-}
 
 // ── IHSG Market-Accurate Lightweight SVG Chart ──
 function buildIhsgChart(tf){
@@ -2193,16 +2034,6 @@ function buildIhsgChart(tf){
   };
 }
 
-function buildDonut(porto){
-  kc('donut');var cv=el('donutChart');if(!cv||!porto.length)return;
-  charts['donut']=new Chart(cv,{type:'doughnut',data:{labels:porto.map(function(p){return p.ticker}),datasets:[{data:porto.map(function(p){return p.mv}),backgroundColor:COLORS.slice(0,porto.length),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.label+': Rp '+fmtK(c.parsed)}}})}}});
-}
-
-function buildDivCharts(){
-  // Charts are now built directly inside renderDividen()
-  // This function is kept as stub for backward compatibility
-}
-
 // Plugin ringan: tulis teks di tengah donut (jumlah sektor + sektor teratas)
 // — dipakai khusus untuk sectorChart lewat opsi `plugins:[...]` per-chart,
 // tidak didaftarkan global supaya tidak memengaruhi donut/pie lain.
@@ -2269,26 +2100,6 @@ function buildRdnChart(){
     if(r.amount>0)inM[m]+=r.amount;else outM[m]+=Math.abs(r.amount);
   });
   charts['rdnf']=new Chart(cv,{type:'bar',data:{labels:months,datasets:[{label:'Masuk',data:inM,backgroundColor:'rgba(0,229,160,.6)',borderRadius:3},{label:'Keluar',data:outM,backgroundColor:'rgba(255,61,90,.5)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.dataset.label+': Rp '+fmtK(c.parsed.y)}}})},scales:{x:{grid:{color:GC},ticks:TC},y:{grid:{color:GC},ticks:Object.assign({},TC,{callback:function(v){return 'Rp '+fmtK(v)}}),position:'right'}}}});
-}
-
-function buildPnlChart(){
-  kc('pnl');var cv=el('pnlChart');if(!cv)return;
-  var cum=0;var data=[0];var labels=['Mulai'];
-  var pos={};
-  transactions.slice().sort(function(a,b){return a.date.localeCompare(b.date)}).forEach(function(tx){
-    if(!pos[tx.ticker])pos[tx.ticker]={lot:0,cost:0};
-    var p=pos[tx.ticker];
-    if(tx.type==='BUY'){p.lot+=tx.lot;p.cost+=tx.gross;}
-    if(tx.type==='SELL'&&p.lot>0){
-      var avg=p.cost/(p.lot*100);cum+=(tx.gross-avg*tx.lot*100);
-      data.push(Math.round(cum));labels.push(tx.date.slice(5));
-      p.lot-=tx.lot;p.cost=Math.max(0,p.cost-avg*tx.lot*100);
-    }
-  });
-  var last=data[data.length-1];var col=last>=0?'#41f3a7':'#e21d48';
-  var ctx=cv.getContext('2d');var g=ctx.createLinearGradient(0,0,0,190);
-  g.addColorStop(0,last>=0?'rgba(0,229,160,.18)':'rgba(255,61,90,.18)');g.addColorStop(1,'rgba(0,0,0,0)');
-  charts['pnl']=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{data:data,borderColor:col,borderWidth:2,backgroundColor:g,fill:true,tension:.4,pointRadius:3,pointBackgroundColor:col}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return 'P&L: Rp '+fmt(c.parsed.y)}}})},scales:{x:{grid:{color:GC},ticks:Object.assign({},TC,{maxTicksLimit:7})},y:{grid:{color:GC},ticks:Object.assign({},TC,{callback:function(v){return 'Rp '+fmtK(v)}}),position:'right'}}}});
 }
 
 function buildRetDistChart(porto){

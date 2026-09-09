@@ -798,14 +798,6 @@ function fsBuildQaChips(){
 }
 
 // ── init FlowScan ──
-function setCashDisp(account){
-  var input = el('cash-'+account+'-input');
-  var disp = el('cash-'+account+'-disp');
-  if(!input||!disp) return;
-  var val = parseFloat(input.value)||0;
-  var isUsd = CASH_ACCOUNTS[account] && CASH_ACCOUNTS[account].isUsd;
-  disp.textContent = (isUsd?'$':'Rp ')+fmt(val);
-}
 function saveCashInput(account){
   var input = el('cash-'+account+'-input');
   if(!input) return;
@@ -844,22 +836,6 @@ function renderCashWidgets(){
   }
 }
 
-function toggleDD(id, btn){
-  var dropdown = document.getElementById(id);
-  var menu = dropdown.querySelector('.nav-dd-menu');
-  var isOpen = menu.classList.contains('open');
-  // Close all first
-  document.querySelectorAll('.nav-dd-menu').forEach(function(m){ m.classList.remove('open'); });
-  document.querySelectorAll('.nav-dd-btn').forEach(function(b){ b.classList.remove('on'); });
-  if(!isOpen){
-    // Position using fixed coords from button bounding rect
-    var rect = btn.getBoundingClientRect();
-    menu.style.top = (rect.bottom + 4) + 'px';
-    menu.style.left = rect.left + 'px';
-    menu.classList.add('open');
-    btn.classList.add('on');
-  }
-}
 function closeDD(){
   document.querySelectorAll('.nav-dd-menu').forEach(function(m){ m.classList.remove('open'); });
   document.querySelectorAll('.nav-dd-btn').forEach(function(b){ b.classList.remove('on'); });

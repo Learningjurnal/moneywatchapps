@@ -121,35 +121,6 @@ function idxUniqueSectors(){
   return Object.keys(set).sort();
 }
 
-// ══════════════════════════════════════════════
-// SINKRONISASI LINTAS PERANGKAT — dipanggil dari supaLoadAllData() (02-storage.js)
-// setelah login, supaya universe & override yang diimpor di satu device
-// otomatis muncul di device lain. Mengembalikan true bila ada perubahan
-// (supaya caller tahu perlu rebuild FS_RD/Screener/dsb).
-// ══════════════════════════════════════════════
-function idxApplyFromCloud(rows, info){
-  if(!rows || !rows.length) return false;
-  var same = IDX_UNIVERSE && IDX_UNIVERSE_INFO && info &&
-             IDX_UNIVERSE_INFO.importedAt===info.importedAt && IDX_UNIVERSE.length===rows.length;
-  if(same) return false;
-  IDX_UNIVERSE = rows;
-  IDX_UNIVERSE_INFO = info || {fileName:'(disinkronkan dari cloud)', importedAt:new Date().toISOString(), count:rows.length};
-  idxSaveUniverse(IDX_UNIVERSE, IDX_UNIVERSE_INFO);
-  idxApplyUniverse();
-  return true;
-}
-
-function adminApplyFromCloud(meta, extra){
-  var changed = false;
-  if(meta && typeof meta==='object' && JSON.stringify(meta)!==JSON.stringify(ADMIN_META)){
-    ADMIN_META = meta; adminSaveMeta(); changed = true;
-  }
-  if(extra && Array.isArray(extra) && JSON.stringify(extra)!==JSON.stringify(ADMIN_EXTRA)){
-    ADMIN_EXTRA = extra; adminSaveExtra(); changed = true;
-  }
-  if(changed) adminApplyOverrides();
-  return changed;
-}
 
 function idxImportFile(){
   var inp = el('adm-import-file');

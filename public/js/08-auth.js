@@ -6,11 +6,7 @@
 var AUTH = { SESSION_MS: 60 * 60 * 1000, _sesTimer: null, _barTimer: null, _sesStart: 0, _sesExp: 0 };
 
 // ── Auth stubs ──
-function authLoadAcc(){ return _currentUser ? {user: _currentUser.email} : null; }
-function authSaveAcc(obj){}
-function authSaveSession(u){ return {}; }
 function authLoadSession(){ return _currentUser ? {user:_currentUser.email, exp: AUTH._sesExp} : null; }
-function authClearSession(){ _currentUser=null; AUTH._sesExp=0; }
 function authBumpSession(){ if(_currentUser){ AUTH._sesExp = Date.now() + AUTH.SESSION_MS; } }
 
 // ── Show / Hide app ──

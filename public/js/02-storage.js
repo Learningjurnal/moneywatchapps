@@ -191,10 +191,6 @@ function initDemoSandbox(force){
   } catch(e){}
 }
 
-function initPortfolio2026(force){
-  return initDemoSandbox(force);
-}
-
 function resetAllDatabaseAndTransactions(){
   transactions = [];
   rdnMutations = [];
@@ -2536,10 +2532,8 @@ function showSaveStatus(msg, color, persist){
 function fmt(n){return Math.round(n||0).toLocaleString('id-ID')}
 function fmtK(n){var a=Math.abs(n||0);if(a>=1e12)return(n/1e12).toFixed(2)+'T';if(a>=1e9)return(n/1e9).toFixed(2)+'M';if(a>=1e6)return(n/1e6).toFixed(1)+'Jt';return fmt(n)}
 function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-function rnd(b,p){p=p||0.025;return b*(1+(Math.random()*p*2-p))}
 function today(){return new Date().toISOString().split('T')[0]}
 function el(id){return document.getElementById(id)}
-function dAgo(n){var d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0]}
 
 // ============================================================
 // METADATA PASAR & ACUAN DATA

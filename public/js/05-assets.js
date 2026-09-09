@@ -349,29 +349,6 @@ var nextRdId = 1;
 // ============================================================
 // LOAD DATA REAL — CRYPTO, ETF, REKSA DANA
 // ============================================================
-function loadSampleCrypto(){
-  usdIdr = XLSX_DATA.kurs_usd || 17823.65;
-  XLSX_DATA.crypto.forEach(function(c){
-    if(c.lot > 0){
-      // Injeksi transaksi crypto contoh DIHAPUS — hanya daftarkan metadata coin
-      var avgIdr = c.avg_idr || (c.modal > 0 && c.lot > 0 ? Math.round(c.modal/c.lot) : 0);
-      CRYPTO_DB[c.code] = {
-        name: c.name || c.code,
-        category: 'Layer 1',
-        baseIDR: c.price_idr || avgIdr || 1,
-        color: c.code==='BTC' ? '#f7931a' : '#0033ad',
-        icon: c.code[0]
-      };
-      // Set current price — LANGSUNG DALAM IDR (tanpa kurs USD)
-      cryptoPrices[c.code] = c.price_idr;
-    }
-  });
-}
-
-function loadSampleEtf(){
-  // Data ETF di jurnal kosong — skip
-}
-
 function loadSampleRd(){
   // Semua reksa dana SUDAH DICAIRKAN — tidak ada posisi aktif
   // Hanya daftarkan ke RD_DB untuk tampilan di tab Reksa Dana (mode riwayat)
@@ -1460,26 +1437,6 @@ function closeModal(){
   if(m) m.classList.remove('on');
 }
 
-function openDrawer(title, bodyHtml, footHtml){
-  var d = el('drawer');
-  if(!d) return;
-  var titleEl = el('drawer-title');
-  var bodyEl = el('drawer-body');
-  var footEl = el('drawer-foot');
-  if(titleEl) titleEl.innerHTML = title || 'Panel Transaksi &amp; Data';
-  if(bodyEl) bodyEl.innerHTML = bodyHtml || '';
-  if(footEl) {
-    if(footHtml) {
-      footEl.innerHTML = footHtml;
-      footEl.style.display = 'flex';
-    } else {
-      footEl.style.display = 'none';
-      footEl.innerHTML = '';
-    }
-  }
-  d.classList.add('on');
-}
-
 function closeDrawer(){
   var d = el('drawer');
   if(d) d.classList.remove('on');
@@ -2052,35 +2009,6 @@ window.delDiv = delDiv;
 
 // === EMBEDDED DATA: Mutasi_Final.xlsx (transaksi historis + candle ADMR) ===
 var MUTASI_DATA={codes:[],sek:[],summary:{},totals:{r:0,f:0,bv:0,sv:0,n:0,db:0,ds:0,disc_b:0,disc_s:0,first:0,last:0},raw:[]};
-function importMutasi(force){
-  // FIX: mutToTx/registerMutPrices tidak pernah didefinisikan di file asli —
-  // panggilan tanpa guard membuat init DOMContentLoaded mati diam-diam.
-  if(typeof mutToTx!=='function') return false;
-  var has=transactions.some(function(t){return t._mutasi;});
-  if(has && !force) return false;
-  if(force) transactions=transactions.filter(function(t){return !t._mutasi;});
-  var tx=mutToTx();
-  tx.forEach(function(t){t.id=nextTxId++;});
-  transactions=transactions.concat(tx);
-  if(typeof registerMutPrices==='function') registerMutPrices();
-  saveData();
-  return true;
-}
-function importMutasiUI(){
-  var n=transactions.filter(function(t){return t._mutasi;}).length;
-  var msg = n>0
-    ? 'Mutasi sudah diimpor ('+fmt(n)+' transaksi). Impor ulang akan mengganti dengan data terbaru dari Mutasi_Final.xlsx. Lanjutkan?'
-    : 'Impor '+fmt(MUTASI_DATA.totals.n)+' transaksi saham historis (2018–2026)?\n\nPajak diambil per-transaksi (termasuk diskon 0,18%/0,28%); program pajak global tidak diterapkan.';
-  if(!confirm(msg)) return;
-  importMutasi(true);
-  if(typeof rebuildRdnBalance==='function') rebuildRdnBalance();
-  if(typeof saveData==='function') saveData();
-  if(typeof showSaveStatus==='function') showSaveStatus('✓ '+fmt(MUTASI_DATA.totals.n)+' transaksi mutasi diimpor','#41f3a7');
-  if(typeof updatePrices==='function') updatePrices();
-  renderTransaksi();
-  if(typeof renderDashboard==='function') renderDashboard();
-}
-
 // ── DETAIL PERHITUNGAN TRANSAKSI (Modal Breakdown) ──
 function openTxDetailModal(txId){
   var tx = transactions.find(function(t){ return t.id === txId; });
