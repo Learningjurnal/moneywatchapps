@@ -277,58 +277,13 @@ function renderCandle(){
 
 
 // ============================================================
-// STRATEGI PER-EMITEN + RISK STRIP + SARAN AI + PROBABILITAS FLOWSCAN
+// (removed) STRATEGI PER-EMITEN panel — dead code: its container element
+// (#d-tradetype) was never present in index.html, so renderStrategyPanel()
+// always no-op'd and this UI was never actually reachable anywhere in the
+// app. stratOf()/tradeStrategy still silently defaulted every stock to
+// 'Core Long' wherever it was read (e.g. the PDF/CSV reports), which is
+// what made that column look permanently un-settable — removed there too.
 // ============================================================
-var TRADE_TYPES=['Core Long','Swing Trade','Fast Trade'];
-var TRADE_COLOR={'Core Long':'#00c8ff','Swing Trade':'#8070d2','Fast Trade':'#ffc107'};
-function stratOf(tk){ if(tradeStrategy[tk]) return tradeStrategy[tk]; return (DB[tk]&&DB[tk].tradeType)||'Core Long'; }
-function setStockStrategy(tk,val){
-  if(!tk) return;
-  tradeStrategy[tk]=val;
-  if(typeof saveData==='function') saveData();
-  if(typeof showSaveStatus==='function') showSaveStatus('✓ Strategi ' + tk + ' disimpan (' + val + ')', 'var(--green)');
-  renderStrategyPanel();
-}
-function renderStrategyPanel(){
-  var box=el('d-tradetype'); if(!box) return;
-  var porto=(typeof getPortfolio==='function')?getPortfolio():[];
-  var sahamMV=porto.reduce(function(a,p){return a+p.mv},0);
-  var cryptoMV=(typeof getCryptoPortfolio==='function')?getCryptoPortfolio().reduce(function(a,p){return a+(p.mv||0)},0):0;
-  var etfMV=(typeof getEtfPortfolio==='function')?getEtfPortfolio().reduce(function(a,p){return a+(p.mvIdr||0)},0):0;
-  var rdMV=(typeof getRdPortfolio==='function')?getRdPortfolio().reduce(function(a,p){return a+(p.mv||0)},0):0;
-  var grand=sahamMV+cryptoMV+etfMV+rdMV;
-  if(!porto.length){ box.innerHTML='<div style="color:var(--text3);font-size:11px;padding:14px 0;text-align:center">Belum ada posisi saham. Input transaksi untuk mengatur strategi & melihat alokasi.</div>'; kc('stratPie'); return; }
-  var agg={'Core Long':0,'Swing Trade':0,'Fast Trade':0};
-  porto.forEach(function(p){var s=stratOf(p.ticker); agg[s]=(agg[s]||0)+p.mv;});
-  var totalMV=sahamMV||1;
-  var legend=TRADE_TYPES.map(function(n){var pct=agg[n]/totalMV*100;
-    return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="width:9px;height:9px;border-radius:2px;background:'+TRADE_COLOR[n]+'"></span><span style="font-size:11px;color:var(--text2);flex:1">'+n+'</span><span style="font-family:var(--font-mono);font-size:11px"><b style="color:'+TRADE_COLOR[n]+'">'+pct.toFixed(1)+'%</b> <span style="color:var(--text3);font-size:9px">'+fmtK(agg[n])+'</span></span></div>';
-  }).join('');
-  var asset=function(lbl,v,c){return '<div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0"><span style="color:var(--text3)">'+lbl+'</span><span style="font-family:var(--font-mono);color:'+c+'">Rp '+fmtK(v)+'</span></div>';};
-  var ringkasan='<div style="margin-top:10px;padding-top:9px;border-top:1px solid var(--border2)"><div style="font-size:9px;color:var(--text3);letter-spacing:.6px;font-family:var(--font-mono);margin-bottom:5px">RINGKASAN SEMUA ASET</div>'
-    +asset('📈 Saham',sahamMV,'var(--green)')+asset('🪙 Crypto',cryptoMV,'#f7931a')+asset('📊 ETF',etfMV,'var(--accent)')+asset('🏦 Reksa Dana',rdMV,'var(--purple)')
-    +'<div style="display:flex;justify-content:space-between;font-size:11px;padding:5px 0 0;margin-top:3px;border-top:1px solid var(--border);font-weight:700"><span>Total Aset</span><span style="font-family:var(--font-mono)">Rp '+fmtK(grand)+'</span></div></div>';
-  var rows=porto.slice().sort(function(a,b){return b.mv-a.mv}).map(function(p){
-    var cur=stratOf(p.ticker);
-    var opts=TRADE_TYPES.map(function(t){return '<option value="'+t+'"'+(t===cur?' selected':'')+'>'+t+'</option>'}).join('');
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)"><div style="display:flex;align-items:center;gap:7px;min-width:0"><span style="font-weight:700;color:var(--accent);font-size:11px">'+p.ticker+'</span><span style="font-size:9px;color:var(--text3);font-family:var(--font-mono)">'+(p.mv/totalMV*100).toFixed(1)+'%</span></div><select class="finput fsel" style="width:118px;padding:3px 7px;font-size:10px;border-color:'+TRADE_COLOR[cur]+'" onchange="setStockStrategy(\''+p.ticker+'\',this.value)">'+opts+'</select></div>';
-  }).join('');
-  box.innerHTML='<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">'
-    +'<div style="flex:1;min-width:220px">'
-      +'<div style="display:flex;gap:12px;align-items:center"><div style="position:relative;width:100px;height:100px;flex-shrink:0"><canvas id="stratPie"></canvas></div><div style="flex:1;min-width:0"><div style="font-size:9px;color:var(--text3);letter-spacing:.6px;font-family:var(--font-mono);margin-bottom:6px">ALOKASI STRATEGI (saham)</div>'+legend+'</div></div>'
-      +ringkasan
-    +'</div>'
-    +'<div style="flex:1.3;min-width:240px;border-left:1px solid var(--border2);padding-left:16px">'
-      +'<div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);letter-spacing:.6px;margin-bottom:6px">STRATEGI PER EMITEN — atur manual</div>'
-      +'<div style="max-height:260px;overflow-y:auto">'+rows+'</div>'
-    +'</div>'
-  +'</div>';
-  kc('stratPie');
-  var cv=el('stratPie');
-  if(cv && typeof Chart!=='undefined'){
-    charts['stratPie']=new Chart(cv,{type:'doughnut',data:{labels:TRADE_TYPES,datasets:[{data:TRADE_TYPES.map(function(n){return Math.round(agg[n])}),backgroundColor:TRADE_TYPES.map(function(n){return TRADE_COLOR[n]}),borderColor:'#0c1524',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.label+': Rp '+fmt(c.parsed)}}})}}});
-  }
-}
 
 // ── Risk metrics (dipakai dashboard & saran AI) ──
 function computeRiskMetrics(){
@@ -353,22 +308,6 @@ function computeRiskMetrics(){
   return {porto:porto,n:porto.length,totalMV:totalMV,totalCost:totalCost,beta:beta,volAnn:volAnn,var95:var95,
     sharpe:sharpe,real:real,unreal:unreal,totalReturn:totalReturn,secCnt:secCnt,topSecPct:topSecPct,topSec:topSec,score:score,bySec:bySec};
 }
-function renderDashRisk(){
-  var box=el('d-risk-strip'); if(!box) return;
-  var m=computeRiskMetrics();
-  if(!m.n){ box.innerHTML='<div style="grid-column:1/-1;color:var(--text3);font-size:11px;text-align:center;padding:10px">Belum ada posisi saham — input transaksi untuk melihat analisis risiko instan.</div>'; return; }
-  var lvl=m.score>=70?{t:'TINGGI',c:'dn'}:m.score>=40?{t:'SEDANG',c:'amb'}:{t:'RENDAH',c:'up'};
-  function card(lbl,val,cls,sub){return '<div class="metric" style="padding:9px 11px"><div class="mlabel">'+lbl+'</div><div class="mval" style="font-size:17px" '+(cls?'':'')+'>'+val+'</div><div class="msub neu">'+(sub||'')+'</div></div>';}
-  var html='';
-  html+='<div class="metric" style="padding:9px 11px"><div class="mlabel">Skor Risiko</div><div class="mval '+lvl.c+'" style="font-size:17px">'+m.score+'</div><div class="msub '+lvl.c+'">'+lvl.t+'</div></div>';
-  html+='<div class="metric" style="padding:9px 11px"><div class="mlabel">Beta vs IHSG</div><div class="mval '+(m.beta<=1?'up':m.beta<=1.3?'amb':'dn')+'" style="font-size:17px">'+m.beta.toFixed(2)+'</div><div class="msub neu">'+(m.beta>1?'lebih volatil':'lebih defensif')+'</div></div>';
-  html+='<div class="metric" style="padding:9px 11px"><div class="mlabel">Volatilitas/th</div><div class="mval '+(m.volAnn<=15?'up':m.volAnn<=25?'amb':'dn')+'" style="font-size:17px">'+m.volAnn.toFixed(1)+'%</div><div class="msub neu">estimasi</div></div>';
-  html+='<div class="metric" style="padding:9px 11px"><div class="mlabel">VaR 95% harian</div><div class="mval dn" style="font-size:17px">-Rp '+fmtK(m.var95)+'</div><div class="msub neu">potensi rugi 1 hari</div></div>';
-  html+='<div class="metric" style="padding:9px 11px"><div class="mlabel">Sharpe</div><div class="mval '+(m.sharpe>=1?'up':m.sharpe>=0?'amb':'dn')+'" style="font-size:17px">'+m.sharpe.toFixed(2)+'</div><div class="msub neu">return vs risiko</div></div>';
-  html+='<div class="metric" style="padding:9px 11px"><div class="mlabel">Konsentrasi Sektor</div><div class="mval '+(m.topSecPct>60?'dn':m.topSecPct>40?'amb':'up')+'" style="font-size:15px">'+m.topSec+'</div><div class="msub neu">'+m.topSecPct.toFixed(0)+'% · '+m.secCnt+' sektor · '+m.n+' emiten</div></div>';
-  box.innerHTML=html;
-}
-
 // ══════════════════════════════════════════════════════════
 // METRIK GAYA HEDGE FUND — dihitung dari riwayat ekuitas harian
 // sungguhan (equityHistory), bukan estimasi statis per-saham.
@@ -561,7 +500,6 @@ function aiDisclaimer(src){
   return '<div style="font-size:10px;color:var(--text3);padding:8px 11px;background:var(--bg);border-radius:6px;border-left:2px solid var(--border2);margin-top:4px;line-height:1.6"><i class="ti ti-alert-circle"></i> Sumber: '+src+'. Bukan rekomendasi investasi — selalu riset mandiri.</div>';
 }
 function aiLoading(msg){ return '<div style="text-align:center;padding:16px"><i class="ti ti-loader" style="font-size:20px;color:var(--accent);animation:spin 1s linear infinite"></i><div style="font-size:12px;color:var(--text2);margin-top:8px">'+msg+'</div></div>'; }
-function aiRunHeuristic(){ var box=el('ai-box'); if(!box)return; box.dataset.live=''; box.innerHTML=aiHeuristicHtml(aiBuildContext()); }
 function aiFmtText(t){
   var esc=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   esc=esc.replace(/\*\*(.+?)\*\*/g,'<b style="color:#dce8ff">$1</b>');
@@ -611,37 +549,6 @@ function aiRunGemini(){
   });
 }
 window.aiRunGemini = aiRunGemini;
-
-// ── Saran aksi per saham (Buy/Hold/Trim/Cut-Loss) — heuristik aturan sederhana ──
-function aiPerHoldingAction(p,totalMV){
-  var weight = totalMV>0 ? (p.mv/totalMV*100) : 0;
-  var ret = p.ret;
-  if(ret<=-20) return {action:'TINJAU / CUT LOSS',cls:'b-dn',note:'Rugi '+ret.toFixed(0)+'% — evaluasi ulang tesis awal; cut-loss hanya jika fundamental memburuk, bukan sekadar harga turun.'};
-  if(weight>=25) return {action:'KURANGI BOBOT',cls:'b-amb',note:'Bobot '+weight.toFixed(0)+'% dari portofolio — konsentrasi tinggi di satu saham, pertimbangkan trim untuk diversifikasi.'};
-  if(ret>=40 && weight>=10) return {action:'TRIM / AMBIL UNTUNG',cls:'b-amb',note:'Untung '+ret.toFixed(0)+'% dengan bobot besar — pertimbangkan ambil untung sebagian, biarkan sisanya berjalan.'};
-  if(ret<=-10) return {action:'PANTAU KETAT',cls:'b-amb',note:'Rugi '+ret.toFixed(0)+'% — pantau ketat & siapkan rencana keluar bila tesis tidak berubah.'};
-  if(ret>=15) return {action:'HOLD',cls:'b-up',note:'Kinerja baik ('+(ret>=0?'+':'')+ret.toFixed(0)+'%) — pertahankan selama tesis awal masih valid.'};
-  return {action:'HOLD',cls:'b-gray',note:'Performa wajar ('+(ret>=0?'+':'')+ret.toFixed(0)+'%) — tidak ada aksi mendesak.'};
-}
-function aiRenderPerHoldingReco(){
-  var box=el('ai-holding-reco'); if(!box) return;
-  var porto=getPortfolio();
-  var totalMV=porto.reduce(function(a,p){return a+p.mv},0);
-  var totalCost=porto.reduce(function(a,p){return a+p.cost},0)||1;
-  if(!porto.length){ box.innerHTML='<div style="color:var(--text3);font-size:11px;text-align:center;padding:16px">Belum ada posisi saham untuk dianalisis.</div>'; return; }
-  var rows=porto.slice().sort(function(a,b){return (b.unreal/totalCost)-(a.unreal/totalCost);}).map(function(p){
-    var r=aiPerHoldingAction(p,totalMV);
-    var contrib=(p.unreal/totalCost)*100;
-    return '<tr><td><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 18)+'<span class="tp">'+p.ticker+'</span></div></td>'
-      +'<td class="mono">'+(totalMV>0?(p.mv/totalMV*100).toFixed(1):'0.0')+'%</td>'
-      +'<td class="mono '+(p.ret>=0?'up':'dn')+'">'+(p.ret>=0?'+':'')+p.ret.toFixed(1)+'%</td>'
-      +'<td class="mono '+(contrib>=0?'up':'dn')+'" title="Kontribusi posisi ini terhadap total return portofolio">'+(contrib>=0?'+':'')+contrib.toFixed(2)+' poin%</td>'
-      +'<td><span class="badge '+r.cls+'">'+r.action+'</span></td>'
-      +'<td style="font-size:11px;color:var(--text2)">'+r.note+'</td></tr>';
-  }).join('');
-  box.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Saham</th><th>Bobot</th><th>Return</th><th>Kontribusi</th><th>Aksi</th><th>Catatan</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
-    +'<div style="font-size:10px;color:var(--text3);padding:8px 2px 0;line-height:1.6">"Kontribusi" = seberapa besar posisi ini menggerakkan return TOTAL portofolio (unrealized ÷ modal total) — beda dari "Return" yang cuma performa posisi itu sendiri; posisi kecil dengan return tinggi bisa tetap berkontribusi kecil ke portofolio. Aksi di atas adalah heuristik aturan otomatis — bukan rekomendasi investasi, selalu riset mandiri.</div>';
-}
 
 // ── Probabilitas kesimpulan FlowScan ──
 function fsProbability(a){
@@ -791,46 +698,9 @@ function fsRenderProb(a){
 // ============================================================
 // PPh per sekuritas mengikuti tarif global (tab Pajak). Override khusus jika tarif berbeda dari global.
 var sekTaxOverride = {};
-function pphBeliFor(sek){ var o=sekTaxOverride[sek]; return (o&&o.beli!=null)?o.beli:getPphBeli(); }
-function pphJualFor(sek){ var o=sekTaxOverride[sek]; return (o&&o.jual!=null)?o.jual:getPphJual(); }
 
 // ── Impor dividen dari lampiran (XLSX_DATA.dividends) ──
 // total dividen TIDAK menambah saldo RDN (sudah terealisasi untuk beli saham) → tanpa addRdn
-function importDividends(force){
-  if(typeof XLSX_DATA==='undefined' || !XLSX_DATA.dividends) return false;
-  var has=dividends.some(function(d){return d._src==='lampiran';});
-  if(has && !force) return false;
-  if(force) dividends=dividends.filter(function(d){return d._src!=='lampiran';});
-  XLSX_DATA.dividends.forEach(function(e){
-    var total=e.total||0; if(total<=0) return;
-    var avg=e.avg_per_year||total;
-    var years=Math.max(1,Math.round(avg>0?total/avg:1));
-    var per=Math.round(total/years), acc=0, endY=2025;
-    for(var i=0;i<years;i++){
-      var amt=(i===years-1)?(total-acc):per; acc+=amt;
-      var y=endY-(years-1)+i;
-      // _src:'lampiran' — tidak menambah saldo RDN (realisasi historis)
-      dividends.push({id:nextDivId++,date:y+'-12-30',ticker:e.code,shares:0,dps:0,
-        gross:amt,tax:0,net:amt,pphRate:0,_src:'lampiran'});
-    }
-  });
-  // lampiran tidak rebuild RDN balance — hanya metadata historis
-  saveData();
-  return true;
-}
-function importDividendsUI(){
-  var n=dividends.filter(function(d){return d._src==='lampiran';}).length;
-  var tot=(XLSX_DATA.dividends||[]).reduce(function(a,e){return a+(e.total||0)},0);
-  var msg = n>0
-    ? 'Dividen lampiran sudah diimpor. Impor ulang akan mengganti '+n+' catatan dengan data lampiran terbaru. Lanjut?'
-    : 'Impor dividen historis dari lampiran senilai total Rp '+fmt(tot)+' (per emiten, 2018–2026)?\n\nCatatan: nilai ini TIDAK menambah saldo RDN karena sudah terealisasi untuk pembelian saham.';
-  if(!confirm(msg)) return;
-  importDividends(true);
-  if(typeof showSaveStatus==='function') showSaveStatus('✓ Dividen lampiran diimpor (tanpa menambah RDN)');
-  renderDividen();
-  if(typeof renderDashboard==='function') renderDashboard();
-}
-
 // ── Override Komisi per Sekuritas ──
 // sekTaxOverride menyimpan override komisi (beli/jual). PPh Final & Levy = tarif tetap.
 function renderSekTaxPanel(){
@@ -875,14 +745,6 @@ function resetSekTax(){
 
 // Watchlist & Manajemen Risiko dipindahkan menjadi bagian dari Dashboard —
 // helper ini membawa user ke Dashboard lalu scroll ke section terkait.
-function goDashSection(sectionId,btn){
-  goPage('dashboard',btn);
-  setTimeout(function(){
-    var t=document.getElementById(sectionId);
-    if(t) t.scrollIntoView({behavior:'smooth',block:'start'});
-  },60);
-}
-
 var currentPage='dashboard';
 function goPage(name,btn){
   // Auth guard — redirect to login if session expired
@@ -1018,52 +880,6 @@ function renderPage(name){
   }
 }
 
-function setPeriod(btn,tf){
-  var row = btn.parentElement;
-  if(row) row.querySelectorAll('.pbtn').forEach(function(b){b.classList.remove('on')});
-  btn.classList.add('on');
-  buildIhsgChart(tf);
-}
-
-// ============================================================
-// IMPORT PORTOFOLIO DARI DATA REAL (sekali jalan)
-// ============================================================
-// PORTO_DATA DIKOSONGKAN — data kepemilikan pribadi dihapus (aman untuk publikasi)
-var PORTO_DATA = [];
-
-function importPortfolioData(){
-  return; // DINONAKTIFKAN — tidak ada lagi injeksi portofolio contoh; user mengisi data real sendiri
-  if(window._portoImportDone) return; // in-session guard
-  if(localStorage.getItem('porto_imported_v1')){ window._portoImportDone=true; return; } // sudah pernah diimpor
-  var today2 = new Date().toISOString().slice(0,10);
-  var sec = 'Stockbit';
-  // Pastikan semua ticker ada di DB dengan sektor yang benar
-  PORTO_DATA.forEach(function(p){
-    DB[p.ticker]={name:p.ticker, base:p.price, sector:p.sector||'Lainnya', beta:1.0};
-    prices[p.ticker] = p.price;
-  });
-  // Tambahkan transaksi BUY — bypass saveData per-item untuk efisiensi
-  var _origSave = window._txNoSave; // flag sementara
-  PORTO_DATA.forEach(function(p){
-    var isBuy=true;
-    var gross=p.lot*100*p.price;
-    var c=calcTxComponents(gross,isBuy,sec);
-    var txId=nextTxId++;
-    transactions.push({id:txId,date:today2,type:'BUY',ticker:p.ticker,lot:p.lot,price:p.price,
-      gross:gross,komisi:c.komisi,ppn:c.ppn,levy:c.levy,pph:c.pph,
-      tax:c.ppn+c.levy+c.pph,net:c.net,sekuritas:sec});
-    rdnBalance+=-c.net;
-    rdnMutations.push({id:nextRdnId++,date:today2,type:'BUY',
-      ket:'Beli '+p.lot+' lot '+p.ticker+' @ Rp '+fmt(p.price),
-      amount:-c.net,balance:rdnBalance,sekuritas:sec,linkedTxId:txId});
-  });
-  window._portoImportDone=true;
-  localStorage.setItem('porto_imported_v1','1');
-  saveData();
-  console.log('✅ Porto import selesai: '+PORTO_DATA.length+' emiten, total lot: '+
-    PORTO_DATA.reduce(function(a,p){return a+p.lot;},0));
-}
-
 // ============================================================
 // INIT
 // ============================================================
@@ -1074,7 +890,6 @@ document.addEventListener('DOMContentLoaded',function(){
   if(typeof normalizeSekLabels==='function') normalizeSekLabels();
   loadTaxSettings();
   loadCashAccounts();
-  loadHiddenMetrics();
 
   // ── MULAI KOSONG — tidak ada injeksi data apa pun; semua data diisi manual oleh user ──
   // Selalu pastikan DB & RD_DB terisi dari XLSX (hanya metadata, bukan transaksi)

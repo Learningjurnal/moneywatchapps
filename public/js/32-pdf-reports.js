@@ -100,7 +100,6 @@ function buildConsolidatedReportHtml() {
     stockRows = sortedPorto.map(function(p, idx) {
       var weight = a.invTotal > 0 ? (p.mv / a.invTotal * 100).toFixed(1) + '%' : '0%';
       var pnlColor = p.unreal >= 0 ? '#047857' : '#b91c1c';
-      var strat = (typeof stratOf === 'function') ? stratOf(p.ticker) : ((typeof DB !== 'undefined' && DB[p.ticker] && DB[p.ticker].tradeType) || 'Core Long');
       var sector = (p.info && p.info.sector) || (typeof DB !== 'undefined' && DB[p.ticker] && DB[p.ticker].sector) || 'Lainnya';
       var name = (p.info && p.info.name) || (typeof DB !== 'undefined' && DB[p.ticker] && DB[p.ticker].name) || p.ticker;
 
@@ -114,11 +113,10 @@ function buildConsolidatedReportHtml() {
         + '<td style="padding:6px 8px;text-align:right;font-family:monospace;font-weight:700;color:#0f172a">' + _mwPdfRp(p.mv) + '</td>'
         + '<td style="padding:6px 8px;text-align:right;font-family:monospace;font-weight:700;color:' + pnlColor + '">' + _mwPdfRp(p.unreal) + '<br><span style="font-size:9px">' + _mwPdfPct(p.ret) + '</span></td>'
         + '<td style="padding:6px 8px;text-align:center;font-family:monospace;font-size:9.5px">' + weight + '</td>'
-        + '<td style="padding:6px 8px;text-align:center"><span style="display:inline-block;padding:2px 5px;border-radius:4px;font-size:8.5px;font-weight:600;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">' + strat + '</span></td>'
         + '</tr>';
     }).join('');
   } else {
-    stockRows = '<tr><td colspan="10" style="text-align:center;padding:16px;color:#64748b">Belum ada posisi saham aktif dalam portofolio.</td></tr>';
+    stockRows = '<tr><td colspan="9" style="text-align:center;padding:16px;color:#64748b">Belum ada posisi saham aktif dalam portofolio.</td></tr>';
   }
 
   // Multi-Asset Rows
@@ -332,7 +330,6 @@ function buildConsolidatedReportHtml() {
     + '        <th style="padding:6px 8px;text-align:right">NILAI PASAR</th>'
     + '        <th style="padding:6px 8px;text-align:right">UNREALIZED P&amp;L</th>'
     + '        <th style="padding:6px 8px;text-align:center">BOBOT</th>'
-    + '        <th style="padding:6px 8px;text-align:center">STRATEGI</th>'
     + '      </tr>'
     + '    </thead>'
     + '    <tbody>' + stockRows + '</tbody>'
@@ -472,10 +469,9 @@ function exportConsolidatedPortfolioCsv() {
   csvLines.push('');
 
   csvLines.push('=== 2. RINCIAN PORTOFOLIO SAHAM IDX ===');
-  csvLines.push('Kode;Nama Emiten;Sektor;Lot;Lembar;Harga Beli Avg (IDR);Harga Pasar (IDR);Modal Tertanam (IDR);Nilai Pasar (IDR);Floating P&L (IDR);Return (%);Bobot (%);Strategi');
+  csvLines.push('Kode;Nama Emiten;Sektor;Lot;Lembar;Harga Beli Avg (IDR);Harga Pasar (IDR);Modal Tertanam (IDR);Nilai Pasar (IDR);Floating P&L (IDR);Return (%);Bobot (%)');
   if (porto.length > 0) {
     porto.forEach(function(p) {
-      var strat = (typeof stratOf === 'function') ? stratOf(p.ticker) : ((typeof DB !== 'undefined' && DB[p.ticker] && DB[p.ticker].tradeType) || 'Core Long');
       var sector = (p.info && p.info.sector) || (typeof DB !== 'undefined' && DB[p.ticker] && DB[p.ticker].sector) || 'Lainnya';
       var name = (p.info && p.info.name) || (typeof DB !== 'undefined' && DB[p.ticker] && DB[p.ticker].name) || p.ticker;
       var weight = a.invTotal > 0 ? (p.mv / a.invTotal * 100).toFixed(1) : '0';
@@ -491,12 +487,11 @@ function exportConsolidatedPortfolioCsv() {
         Math.round(p.mv || 0),
         Math.round(p.unreal || 0),
         (p.ret || 0).toFixed(2) + '%',
-        weight + '%',
-        _mwCsvEsc(strat)
+        weight + '%'
       ].join(';'));
     });
   } else {
-    csvLines.push('Belum ada data posisi saham aktif;;;;;;;;;;;');
+    csvLines.push('Belum ada data posisi saham aktif;;;;;;;;;;');
   }
   csvLines.push('');
 

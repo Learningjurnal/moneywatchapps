@@ -18,12 +18,6 @@ var SEKURITAS = {
 
 // ── SORT STATE untuk tabel Ringkasan Semua Aset ──
 var _assetSort = {key:'mv', asc:false};
-function sortAssets(key){
-  if(_assetSort.key===key) _assetSort.asc=!_assetSort.asc;
-  else { _assetSort.key=key; _assetSort.asc=key==='name'; }
-  renderDashboard();
-}
-
 // ── SORT & FILTER STATE untuk tabel Portofolio Saham ──
 var _portoSort = {key:'mv', asc:false};
 function sortPorto(key){
@@ -90,14 +84,6 @@ var TAX_SETTINGS = {
   dividenExempt: true,    // Toggle: true => 0% (PMK 18/2021), false => 10% tarif PPh Final reguler
   serviceFee:    0.00     // Parameter service fee dinamis (mis. komunitas / referral, default 0)
 };
-// Helper functions
-function getLevy()          { return TAX_SETTINGS.levy; }
-function getPpn()           { return TAX_SETTINGS.ppn; }
-function getPphJual()       { return TAX_SETTINGS.pphJual; }
-function getPphDividen()    { return TAX_SETTINGS.dividenExempt ? 0 : (TAX_SETTINGS.pphDividen || 0.10); }
-// Legacy compat — pphBeli di Indonesia = 0 (tidak ada PPh atas pembelian saham)
-function getPphBeli()       { return 0; }
-
 // Hitung semua komponen biaya transaksi — sumber tunggal kebenaran (dibulatkan ke integer rupiah utuh per broker)
 //
 // PENTING (fix): SEKURITAS[x].buyFee/sellFee adalah tarif ALL-IN — sudah
@@ -181,11 +167,6 @@ var CASH_ACCOUNTS = {
   etf:       {label:'Kas ETF (USD)',       color:'#00c8ff', balance:0, isUsd:true},
   reksadana: {label:'Kas Reksa Dana',      color:'#8070d2', balance:0},
 };
-function saveCashAccounts(){
-  if(typeof saveData==='function') saveData();
-}
-function setCash(account, amount){ if(!CASH_ACCOUNTS[account]) return; CASH_ACCOUNTS[account].balance=parseFloat(amount)||0; saveCashAccounts(); }
-function addCash(account, amount){ if(!CASH_ACCOUNTS[account]) return; CASH_ACCOUNTS[account].balance+=parseFloat(amount)||0; saveCashAccounts(); }
 function loadCashAccounts(){}
 
 // IDX SECTORS (11 sektor resmi IDX) — key Indonesia DAN alias Inggris
