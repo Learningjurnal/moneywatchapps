@@ -989,7 +989,18 @@ function renderRadarFlowTrailSubTab() {
     + '<div class="card" style="padding:16px">'
       + '<div class="ctitle" style="font-size:13px;margin-bottom:12px"><i class="ti ti-timeline"></i> Alur Akumulasi Smart Money 10 Sesi Terakhir</div>'
       + '<div style="display:flex;flex-direction:column;gap:8px">'
-        + timeline.map(function(t, idx) {
+        + (timeline.length === 0
+          // Data historis harian (per-Rp broker flow) belum bisa ditampilkan
+          // secara jujur: provider tidak punya endpoint riwayat multi-hari
+          // yang skemanya sudah terverifikasi. Sebelumnya panel ini
+          // menampilkan kurva 10-hari yang sebenarnya dihitung dari rumus
+          // (bukan data riil) — sekarang jujur menyatakan tidak tersedia.
+          ? '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11px;line-height:1.6">'
+            + '<i class="ti ti-alert-circle" style="font-size:20px;display:block;margin-bottom:6px"></i>'
+            + 'Riwayat alur transaksi harian belum tersedia' + (flow.flowTimelineStatus === 'UNAVAILABLE_SIMULATED_SOURCE' ? ' (data broker untuk ' + flow.ticker + ' saat ini simulasi, bukan real)' : ' — provider belum menyediakan breakdown historis per-hari yang terverifikasi') + '.'
+            + '<br>Snapshot broker hari ini tetap tampil di panel kanan.'
+          + '</div>'
+          : timeline.map(function(t, idx) {
           var isPositive = t.smartMoneyDailyRp >= 0;
           var inM = Math.round(t.smartMoneyDailyRp / 1000000000);
           var cumM = Math.round(t.smartMoneyCumulativeRp / 1000000000);
@@ -1004,7 +1015,7 @@ function renderRadarFlowTrailSubTab() {
             + '<span class="mono ' + (isPositive ? 'up' : 'dn') + '" style="width:70px;text-align:right;font-weight:700">' + (isPositive ? '+' : '') + inM + ' M</span>'
             + '<span class="mono" style="width:75px;text-align:right;color:var(--text3)" title="Kumulatif">Σ ' + cumM + ' M</span>'
           + '</div>';
-        }).join('')
+        }).join(''))
       + '</div>'
     + '</div>'
 
