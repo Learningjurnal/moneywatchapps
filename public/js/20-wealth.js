@@ -157,11 +157,11 @@ function wKillChart(id){ if(wCharts[id]){ try{wCharts[id].destroy();}catch(e){} 
 
 function wSubNav(activePage){
   var tabs = [
-    {id:'wealth', label:'💼 Ringkasan Net Worth'},
-    {id:'wbank', label:'🏦 Rekening Bank & Kas'},
-    {id:'wdebt', label:'💳 Hutang & Cicilan'},
-    {id:'wpiutang', label:'🧾 Piutang'},
-    {id:'wfire', label:'🔥 Proyeksi FIRE'}
+    {id:'wealth', label:'Ringkasan Net Worth'},
+    {id:'wbank', label:'Rekening Bank & Kas'},
+    {id:'wdebt', label:'Hutang & Cicilan'},
+    {id:'wpiutang', label:'Piutang'},
+    {id:'wfire', label:'Proyeksi FIRE'}
   ];
   var html = '<div style="display:flex;gap:6px;margin:12px 0 16px;background:var(--bg2);padding:4px;border-radius:10px;border:1px solid var(--border);width:fit-content;max-width:100%;overflow-x:auto">';
   tabs.forEach(function(t){
@@ -186,12 +186,12 @@ function wRenderNet(){
 
   el('page-wealth').innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
-    '<div><div class="ptitle">💼 Net Worth</div></div>'+
+    '<div><div class="ptitle">Net Worth</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">📥 Laporan Konsolidasi</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">Laporan Konsolidasi</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="wExport()">⬇ Export JSON</button>'+
       '<button class="btn btn-ghost btn-sm" onclick="wImport()">⬆ Import JSON</button>'+
-      '<button class="btn btn-blue btn-sm" onclick="wModalSettings()">⚙ Asumsi & Aset Lain</button>'+
+      '<button class="btn btn-blue btn-sm" onclick="wModalSettings()">Asumsi & Aset Lain</button>'+
     '</div>'+
   '</div>'+
   wSubNav('wealth')+
@@ -202,7 +202,7 @@ function wRenderNet(){
   '</div>'+
   '<div class="row4">'+
     '<div class="metric"><div class="mlabel">Portofolio Investasi</div><div class="mval">'+wRp(a.invTotal)+'</div><div class="msub neu">saham + crypto + ETF + RD + kas</div></div>'+
-    '<div class="metric"><div class="mlabel">Kas & Bank</div><div class="mval">'+wRp(a.bankTotal)+'</div><div class="msub '+(a.emMonths>=6?'up':a.emMonths>=3?'amb':'dn')+'">Dana darurat '+a.emMonths.toFixed(1)+' bln '+(a.emMonths>=6?'✓':'⚠')+'</div></div>'+
+    '<div class="metric"><div class="mlabel">Kas & Bank</div><div class="mval">'+wRp(a.bankTotal)+'</div><div class="msub '+(a.emMonths>=6?'up':a.emMonths>=3?'amb':'dn')+'">Dana darurat '+a.emMonths.toFixed(1)+' bln '+(a.emMonths>=6?'':'')+'</div></div>'+
     '<div class="metric"><div class="mlabel">Passive Income</div><div class="mval up">'+wRp(a.passive/12)+'<span style="font-size:11px;color:var(--text3)">/bln</span></div><div class="msub neu">dividen 12 bln: '+wRp(a.div12)+'</div></div>'+
     '<div class="metric" style="display:flex;align-items:center;gap:12px">'+
       '<div class="w-ring"><svg width="84" height="84" style="transform:rotate(-90deg)">'+
@@ -235,14 +235,14 @@ function wRenderNet(){
   '</div>'+
   '<div class="g2c">'+
     '<div class="card"><div class="cheader"><span class="ctitle">CRITICAL INSIGHTS</span></div>'+wInsights(a)+'</div>'+
-    '<div class="card"><div class="cheader"><span class="ctitle">🔬 ANALISA PRA-BELI (QUANT TOOLKIT)</span></div>'+
+    '<div class="card"><div class="cheader"><span class="ctitle">ANALISA PRA-BELI (QUANT TOOLKIT)</span></div>'+
       '<div style="font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6">Checklist ala quant trader sebelum membeli saham — jalankan berurutan:</div>'+
-      [['hargawajar','💎 1. Harga Wajar','Valuasi & Margin of Safety'],
-       ['flowscan','🔬 2. FlowScan','Aliran dana besar, CMF, RSI, VWAP'],
-       ['candle','🕯 3. Candle Analysis','Pola candlestick & timing entry'],
-       ['backtester','⚡ 4. Backtester','Uji strategi pada data historis'],
-       ['screener','🔍 5. Screener LQ45','Bandingkan dengan alternatif'],
-       ['risiko','⚠️ 6. Manajemen Risiko','Position sizing & risk per trade']]
+      [['hargawajar','1. Harga Wajar','Valuasi & Margin of Safety'],
+       ['flowscan','2. FlowScan','Aliran dana besar, CMF, RSI, VWAP'],
+       ['candle','3. Candle Analysis','Pola candlestick & timing entry'],
+       ['backtester','4. Backtester','Uji strategi pada data historis'],
+       ['screener','5. Screener LQ45','Bandingkan dengan alternatif'],
+       ['risiko','6. Manajemen Risiko','Position sizing & risk per trade']]
       .map(function(t){ return '<div class="w-mini" style="cursor:pointer" onclick="goPage(\''+t[0]+'\')"><span><b>'+t[1]+'</b> <span style="color:var(--text3)">— '+t[2]+'</span></span><span style="color:var(--accent)">→</span></div>'; }).join('')+
     '</div>'+
   '</div>';
@@ -322,25 +322,25 @@ function wRenderNetWorthHistory(currentNet){
 function wInsights(a){
   var ins = [];
   var cc = WEALTH.debt.filter(function(x){return x.bunga>20}).sort(function(x,y){return y.bunga-x.bunga})[0];
-  if(cc) ins.push({ic:'🔥', bg:'rgba(248,113,113,.12)', title:'Hutang bunga tinggi '+cc.bunga+'% p.a.', desc:cc.nama+': '+wRp(cc.outstanding)+'. Lunasi paling dulu (avalanche) untuk hemat bunga terbesar.', badge:'Prioritas 1', cls:'b-dn'});
+  if(cc) ins.push({ic:'', bg:'rgba(248,113,113,.12)', title:'Hutang bunga tinggi '+cc.bunga+'% p.a.', desc:cc.nama+': '+wRp(cc.outstanding)+'. Lunasi paling dulu (avalanche) untuk hemat bunga terbesar.', badge:'Prioritas 1', cls:'b-dn'});
   WEALTH.piutang.filter(function(x){return x.status==='Telat'||x.status==='Macet'}).slice(0,2).forEach(function(x){
     ins.push({ic:'⏰', bg:'rgba(251,191,36,.12)', title:'Piutang '+x.status.toLowerCase()+': '+x.nama, desc:'Sisa '+wRp((x.pokok||0)-(x.terbayar||0))+(x.jatuhTempo?' · jatuh tempo '+new Date(x.jatuhTempo).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):''), badge:'Tindak lanjut', cls:'b-dn'});
   });
-  if(WEALTH.expense>0 && a.emMonths<3) ins.push({ic:'🛡', bg:'rgba(251,191,36,.12)', title:'Dana darurat kritis', desc:'Hanya '+a.emMonths.toFixed(1)+' bulan pengeluaran. Target minimal 3 bulan ('+wRp(WEALTH.expense*3)+').', badge:'Urgent', cls:'b-dn'});
+  if(WEALTH.expense>0 && a.emMonths<3) ins.push({ic:'', bg:'rgba(251,191,36,.12)', title:'Dana darurat kritis', desc:'Hanya '+a.emMonths.toFixed(1)+' bulan pengeluaran. Target minimal 3 bulan ('+wRp(WEALTH.expense*3)+').', badge:'Urgent', cls:'b-dn'});
   // FIX AUDIT F5: tampilkan RDN minus sebagai liabilitas, jangan disembunyikan
-  if(a.inv && a.inv.kas<0) ins.push({ic:'💳', bg:'rgba(248,113,113,.12)', title:'Saldo RDN minus '+wRp(Math.abs(a.inv.kas)), desc:'Anda membeli saham melebihi kas yang tercatat. Nilai ini sudah dikurangkan dari Net Worth sebagai liabilitas — segera setor dana untuk menutupinya.', badge:'Liabilitas', cls:'b-dn'});
+  if(a.inv && a.inv.kas<0) ins.push({ic:'', bg:'rgba(248,113,113,.12)', title:'Saldo RDN minus '+wRp(Math.abs(a.inv.kas)), desc:'Anda membeli saham melebihi kas yang tercatat. Nilai ini sudah dikurangkan dari Net Worth sebagai liabilitas — segera setor dana untuk menutupinya.', badge:'Liabilitas', cls:'b-dn'});
   try{
     if(typeof getPortfolio==='function'){
       var losers = getPortfolio().filter(function(p){return p.ret<=-25}).sort(function(x,y){return x.ret-y.ret}).slice(0,2);
       losers.forEach(function(p){
-        ins.push({ic:'📉', bg:'rgba(248,113,113,.12)', title:p.ticker+' rugi '+Math.abs(p.ret).toFixed(0)+'%', desc:'Floating loss '+wRp(p.unreal)+'. Evaluasi via Harga Wajar & FlowScan: hold, average down, atau cut loss.', badge:'Review', cls:'b-gray'});
+        ins.push({ic:'', bg:'rgba(248,113,113,.12)', title:p.ticker+' rugi '+Math.abs(p.ret).toFixed(0)+'%', desc:'Floating loss '+wRp(p.unreal)+'. Evaluasi via Harga Wajar & FlowScan: hold, average down, atau cut loss.', badge:'Review', cls:'b-gray'});
       });
     }
   }catch(e){}
-  if(WEALTH.expense===0 && WEALTH.income===0) ins.push({ic:'⚙️', bg:'rgba(129,140,248,.12)', title:'Lengkapi asumsi keuangan', desc:'Isi pemasukan & pengeluaran bulanan di "Asumsi & Aset Lain" agar dana darurat, FIRE, dan Wealth Score akurat.', badge:'Setup', cls:'b-gray'});
-  if(!ins.length) ins.push({ic:'✅', bg:'rgba(52,211,153,.12)', title:'Kondisi keuangan sehat', desc:'Tidak ada masalah kritis terdeteksi. Pantau berkala & disiplin pada rencana.', badge:'Baik', cls:'b-up'});
+  if(WEALTH.expense===0 && WEALTH.income===0) ins.push({ic:'', bg:'rgba(129,140,248,.12)', title:'Lengkapi asumsi keuangan', desc:'Isi pemasukan & pengeluaran bulanan di "Asumsi & Aset Lain" agar dana darurat, FIRE, dan Wealth Score akurat.', badge:'Setup', cls:'b-gray'});
+  if(!ins.length) ins.push({ic:'', bg:'rgba(52,211,153,.12)', title:'Kondisi keuangan sehat', desc:'Tidak ada masalah kritis terdeteksi. Pantau berkala & disiplin pada rencana.', badge:'Baik', cls:'b-up'});
   return ins.slice(0,4).map(function(x){
-    return '<div class="w-insight"><div class="w-insight-ic" style="background:'+x.bg+'">'+x.ic+'</div>'+
+    return '<div class="w-insight">'+
       '<div style="flex:1"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:3px">'+
       '<b style="font-size:12px">'+x.title+'</b><span class="badge '+x.cls+'">'+x.badge+'</span></div>'+
       '<div style="font-size:11px;color:var(--text2);line-height:1.55">'+x.desc+'</div></div></div>';
@@ -358,13 +358,13 @@ function wRenderBank(){
 
   el('page-wbank').innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
-    '<div><div class="ptitle">🏦 Bank & Dana Darurat</div><div class="psub">Rekening di luar RDN — RDN & kas trading dikelola di menu Keuangan</div></div>'+
+    '<div><div class="ptitle">Bank & Dana Darurat</div><div class="psub">Rekening di luar RDN — RDN & kas trading dikelola di menu Keuangan</div></div>'+
     '<button class="btn btn-blue btn-sm" onclick="wModalBank()">＋ Tambah Rekening</button>'+
   '</div>'+
   wSubNav('wbank')+
   '<div class="row4">'+
     '<div class="metric"><div class="mlabel">Total Saldo Bank</div><div class="mval">'+wRp(a.bankTotal)+'</div></div>'+
-    '<div class="metric"><div class="mlabel">Dana Darurat</div><div class="mval '+(a.emMonths>=6?'up':a.emMonths>=3?'amb':'dn')+'">'+a.emMonths.toFixed(1)+' bln</div><div class="msub neu">'+(a.emMonths>=6?'✓ Ideal':'target 6 bln')+'</div></div>'+
+    '<div class="metric"><div class="mlabel">Dana Darurat</div><div class="mval '+(a.emMonths>=6?'up':a.emMonths>=3?'amb':'dn')+'">'+a.emMonths.toFixed(1)+' bln</div><div class="msub neu">'+(a.emMonths>=6?'Ideal':'target 6 bln')+'</div></div>'+
     '<div class="metric"><div class="mlabel">Target 6 Bulan</div><div class="mval">'+wRp(t6)+'</div><div class="msub neu">'+wRp(WEALTH.expense)+'/bln × 6</div></div>'+
     '<div class="metric"><div class="mlabel">'+(a.bankTotal>=t6?'Surplus':'Kekurangan')+'</div><div class="mval '+(a.bankTotal>=t6?'up':'dn')+'">'+wRp(Math.abs(a.bankTotal-t6))+'</div></div>'+
   '</div>'+
@@ -389,9 +389,9 @@ function wRenderBank(){
     '<div style="margin-top:14px;font-size:11px;color:var(--text2);line-height:1.9">'+
       '<div>• Standar: <b>6 bulan</b> pengeluaran (single income), <b>3 bulan</b> (dual income)</div>'+
       '<div>• Pisahkan rekening dana darurat dari rekening operasional & RDN</div>'+
-      (WEALTH.expense<=0 ? '<div class="amb" style="margin-top:6px">⚠ Isi pengeluaran bulanan di menu Net Worth → Asumsi & Aset Lain</div>'
-        : a.emMonths<6 ? '<div class="amb" style="margin-top:6px">⚠ Perlu tambah <b>'+wRp(t6-a.bankTotal)+'</b> untuk mencapai 6 bulan</div>'
-        : '<div class="up" style="margin-top:6px">✓ Dana darurat memadai — surplus bisa dialokasikan ke investasi</div>')+
+      (WEALTH.expense<=0 ? '<div class="amb" style="margin-top:6px">Isi pengeluaran bulanan di menu Net Worth → Asumsi & Aset Lain</div>'
+        : a.emMonths<6 ? '<div class="amb" style="margin-top:6px">Perlu tambah <b>'+wRp(t6-a.bankTotal)+'</b> untuk mencapai 6 bulan</div>'
+        : '<div class="up" style="margin-top:6px">Dana darurat memadai — surplus bisa dialokasikan ke investasi</div>')+
     '</div>'+
   '</div></div>';
 }
@@ -416,14 +416,14 @@ function wRenderDebt(){
 
   el('page-wdebt').innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
-    '<div><div class="ptitle">💳 Hutang & Kewajiban</div><div class="psub">Strategi pelunasan avalanche (hemat bunga) vs snowball (motivasi)</div></div>'+
+    '<div><div class="ptitle">Hutang & Kewajiban</div><div class="psub">Strategi pelunasan avalanche (hemat bunga) vs snowball (motivasi)</div></div>'+
     '<button class="btn btn-blue btn-sm" onclick="wModalDebt()">＋ Tambah Hutang</button>'+
   '</div>'+
   wSubNav('wdebt')+
   '<div class="row4">'+
     '<div class="metric"><div class="mlabel">Total Hutang</div><div class="mval dn">'+wRp(a.debt.t)+'</div></div>'+
     '<div class="metric"><div class="mlabel">Debt Ratio</div><div class="mval '+(wPct(a.debt.t,a.aset)>40?'dn':'neu')+'">'+wPct(a.debt.t,a.aset).toFixed(1)+'%</div><div class="msub neu">dari total aset · target &lt;40%</div></div>'+
-    '<div class="metric"><div class="mlabel">Debt-to-Income</div><div class="mval '+(dti>40?'dn':'up')+'">'+(WEALTH.income>0?dti.toFixed(1)+'%':'—')+'</div><div class="msub neu">'+(WEALTH.income>0?(dti>40?'⚠ di atas batas aman':'✓ aman (<40%)'):'isi pemasukan di Asumsi')+'</div></div>'+
+    '<div class="metric"><div class="mlabel">Debt-to-Income</div><div class="mval '+(dti>40?'dn':'up')+'">'+(WEALTH.income>0?dti.toFixed(1)+'%':'—')+'</div><div class="msub neu">'+(WEALTH.income>0?(dti>40?'di atas batas aman':'aman (<40%)'):'isi pemasukan di Asumsi')+'</div></div>'+
     '<div class="metric"><div class="mlabel">Cicilan / bln</div><div class="mval">'+wRp(a.debt.c)+'</div></div>'+
   '</div>'+
   '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">'+
@@ -437,8 +437,8 @@ function wRenderDebt(){
       '<td class="dn"><b>'+(x.bunga||0)+'%</b></td>'+
       '<td>'+wRp(x.cicilan)+'</td>'+
       '<td><span class="badge '+(i===0?'b-dn':i===1?'b-gray':'b-up')+'">'+(i===0?'Lunasi dulu':'P'+(i+1))+'</span></td>'+
-      '<td style="white-space:nowrap"><button class="btn btn-blue btn-xs" onclick="wModalDebtPay('+x.id+')" title="Catat pembayaran">💰 Bayar</button> <button class="btn btn-ghost btn-xs" onclick="wModalDebt('+x.id+')" aria-label="Edit hutang '+(x.nama||'')+'">✎</button> <button class="btn btn-red btn-xs" onclick="wConfirmDelete(\'debt\','+x.id+',\''+(x.nama||'')+'\')" aria-label="Hapus hutang '+(x.nama||'')+'">🗑</button></td></tr>';
-    }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Belum ada hutang tercatat 🎉</td></tr>')+
+      '<td style="white-space:nowrap"><button class="btn btn-blue btn-xs" onclick="wModalDebtPay('+x.id+')" title="Catat pembayaran">Bayar</button> <button class="btn btn-ghost btn-xs" onclick="wModalDebt('+x.id+')" aria-label="Edit hutang '+(x.nama||'')+'">✎</button> <button class="btn btn-red btn-xs" onclick="wConfirmDelete(\'debt\','+x.id+',\''+(x.nama||'')+'\')" aria-label="Hapus hutang '+(x.nama||'')+'">🗑</button></td></tr>';
+    }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Belum ada hutang tercatat </td></tr>')+
     '</tbody></table></div>'+
   '</div>'+
   '<div class="g2c">'+
@@ -470,7 +470,7 @@ function wRenderPiutang(){
 
   el('page-wpiutang').innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
-    '<div><div class="ptitle">🧾 Piutang</div><div class="psub">Uang yang dipinjamkan ke pihak lain — pantau progres pembayarannya</div></div>'+
+    '<div><div class="ptitle">Piutang</div><div class="psub">Uang yang dipinjamkan ke pihak lain — pantau progres pembayarannya</div></div>'+
     '<button class="btn btn-blue btn-sm" onclick="wModalPiutang()">＋ Tambah Piutang</button>'+
   '</div>'+
   wSubNav('wpiutang')+
@@ -499,7 +499,7 @@ function wRenderPiutang(){
           '<div style="font-size:9px;color:var(--text3)">sisa</div>'+
           '<span class="badge '+badgeCls+'" style="margin-top:4px;display:inline-block">'+x.status+'</span>'+
           '<div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end">'+
-            (x.status!=='Lunas' ? '<button class="btn btn-blue btn-xs" onclick="wModalPiutangPay('+x.id+')" title="Catat pembayaran diterima">💰 Terima</button>' : '')+
+            (x.status!=='Lunas' ? '<button class="btn btn-blue btn-xs" onclick="wModalPiutangPay('+x.id+')" title="Catat pembayaran diterima">Terima</button>' : '')+
             '<button class="btn btn-ghost btn-xs" onclick="wModalPiutang('+x.id+')" aria-label="Edit piutang '+(x.nama||'')+'">✎</button>'+
             '<button class="btn btn-red btn-xs" onclick="wConfirmDelete(\'piutang\','+x.id+',\''+(x.nama||'')+'\')" aria-label="Hapus piutang '+(x.nama||'')+'">🗑</button>'+
           '</div>'+
@@ -520,10 +520,10 @@ function wRenderFire(){
 
   el('page-wfire').innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
-    '<div><div class="ptitle">🔥 FIRE & Proyeksi Kekayaan</div><div class="psub">Financial Independence, Retire Early — aturan 25× pengeluaran tahunan & 4% withdrawal</div></div>'+
+    '<div><div class="ptitle">FIRE & Proyeksi Kekayaan</div><div class="psub">Financial Independence, Retire Early — aturan 25× pengeluaran tahunan & 4% withdrawal</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">📥 Laporan Konsolidasi</button>'+
-      '<button class="btn btn-ghost btn-sm" onclick="wModalSettings()">⚙ Ubah Asumsi</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">Laporan Konsolidasi</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="wModalSettings()">Ubah Asumsi</button>'+
     '</div>'+
   '</div>'+
   wSubNav('wfire')+
@@ -531,7 +531,7 @@ function wRenderFire(){
     '<div class="metric"><div class="mlabel">Net Worth</div><div class="mval">'+wRp(a.net)+'</div></div>'+
     '<div class="metric"><div class="mlabel">FIRE Number (25×)</div><div class="mval">'+(target>0?wRp(target):'—')+'</div><div class="msub neu">'+wRp(annualExp)+'/thn × 25</div></div>'+
     '<div class="metric"><div class="mlabel">Progress</div><div class="mval up">'+pct.toFixed(1)+'%</div></div>'+
-    '<div class="metric"><div class="mlabel">4% Withdrawal</div><div class="mval">'+wRp(a.net*0.04/12)+'<span style="font-size:11px;color:var(--text3)">/bln</span></div><div class="msub '+(WEALTH.expense>0&&a.net*0.04/12>=WEALTH.expense?'up':'neu')+'">'+(WEALTH.expense>0&&a.net*0.04/12>=WEALTH.expense?'✓ sudah menutup pengeluaran':'vs pengeluaran '+wRp(WEALTH.expense)+'/bln')+'</div></div>'+
+    '<div class="metric"><div class="mlabel">4% Withdrawal</div><div class="mval">'+wRp(a.net*0.04/12)+'<span style="font-size:11px;color:var(--text3)">/bln</span></div><div class="msub '+(WEALTH.expense>0&&a.net*0.04/12>=WEALTH.expense?'up':'neu')+'">'+(WEALTH.expense>0&&a.net*0.04/12>=WEALTH.expense?'sudah menutup pengeluaran':'vs pengeluaran '+wRp(WEALTH.expense)+'/bln')+'</div></div>'+
   '</div>'+
   '<div class="card" style="margin-bottom:10px">'+
     '<div class="cheader"><span class="ctitle">PROYEKSI 20 TAHUN</span>'+
@@ -551,7 +551,7 @@ function wRenderFire(){
        {n:'Fat FIRE', t:target*2, d:'Gaya hidup premium (2×)'}].map(function(s){
         var sp = s.t>0 ? Math.min(100, a.net/s.t*100) : 0;
         return '<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'+
-          '<b>'+s.n+'</b><span class="'+(a.net>=s.t&&s.t>0?'up':'neu')+'">'+(s.t>0?(a.net>=s.t?'✓ Tercapai':wRp(s.t)):'—')+'</span></div>'+
+          '<b>'+s.n+'</b><span class="'+(a.net>=s.t&&s.t>0?'up':'neu')+'">'+(s.t>0?(a.net>=s.t?'Tercapai':wRp(s.t)):'—')+'</span></div>'+
           '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">'+s.d+'</div>'+
           '<div class="w-track" style="height:7px"><div class="w-fill" style="width:'+sp.toFixed(0)+'%"></div></div></div>';
       }).join('')+
@@ -703,7 +703,7 @@ function wPaymentHistoryHtml(payments){
 }
 function wModalDebtPay(id){
   var it = wFind('debt', id); if(!it) return;
-  wOpenModal('💰 Bayar Hutang — '+it.nama,
+  wOpenModal('Bayar Hutang — '+it.nama,
     '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Outstanding saat ini: <b style="color:var(--text)">'+wRp(it.outstanding)+'</b></div>'+
     '<div class="w-frow">'+wField('Jumlah Pembayaran (Rp)','wf-pay-amt','',it.cicilan||'','number')+wField('Tanggal','wf-pay-date',new Date().toISOString().slice(0,10),'','date')+'</div>'+
     wFooter('wSaveDebtPay('+id+')')+
@@ -744,7 +744,7 @@ function wSavePiutang(id){
 function wModalPiutangPay(id){
   var it = wFind('piutang', id); if(!it) return;
   var sisa = Math.max(0, (it.pokok||0)-(it.terbayar||0));
-  wOpenModal('💰 Terima Pembayaran — '+it.nama,
+  wOpenModal('Terima Pembayaran — '+it.nama,
     '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Sisa piutang: <b style="color:var(--text)">'+wRp(sisa)+'</b></div>'+
     '<div class="w-frow">'+wField('Jumlah Diterima (Rp)','wf-pay-amt','',sisa||'','number')+wField('Tanggal','wf-pay-date',new Date().toISOString().slice(0,10),'','date')+'</div>'+
     wFooter('wSavePiutangPay('+id+')')+

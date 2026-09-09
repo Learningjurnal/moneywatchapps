@@ -465,7 +465,7 @@
   async function aiGenerateHypothesis(tickerOverride) {
     var input = document.getElementById('ai-hypo-ticker-input');
     var tk = String(tickerOverride || (input ? input.value : '') || AI_TRADE_STATE.selectedTicker || '').toUpperCase().trim();
-    if (!tk) { if (typeof showToast === 'function') showToast('⚠ Masukkan kode ticker terlebih dahulu.'); return; }
+    if (!tk) { if (typeof showToast === 'function') showToast('Masukkan kode ticker terlebih dahulu.'); return; }
     if (AI_HYPO_LOADING) return;
 
     AI_HYPO_LOADING = true;
@@ -513,14 +513,14 @@
       });
 
       if (record.side === 'BUY' && record.confidence >= 60) {
-        if (typeof showToast === 'function') showToast('💡 Hipotesis BUY baru: ' + record.symbol + ' (confluence ' + record.confluence + '/100, keyakinan ' + record.confidence + '%)');
-        if (typeof mwSendBrowserNotification === 'function') mwSendBrowserNotification('💡 Hipotesis Trading Baru: ' + record.symbol, 'Sinyal BUY dengan confluence ' + record.confluence + '/100. Lihat Hypothesis Lab untuk detail.', 'ai-hypo-' + record.symbol);
+        if (typeof showToast === 'function') showToast('Hipotesis BUY baru: ' + record.symbol + ' (confluence ' + record.confluence + '/100, keyakinan ' + record.confidence + '%)');
+        if (typeof mwSendBrowserNotification === 'function') mwSendBrowserNotification('Hipotesis Trading Baru: ' + record.symbol, 'Sinyal BUY dengan confluence ' + record.confluence + '/100. Lihat Hypothesis Lab untuk detail.', 'ai-hypo-' + record.symbol);
       } else if (typeof showToast === 'function') {
-        showToast(record.side === 'NO_TRADE' ? 'ℹ️ ' + record.symbol + ': NO_TRADE — lihat alasan di kartu hipotesis.' : '✓ Hipotesis ' + record.symbol + ' dihasilkan.');
+        showToast(record.side === 'NO_TRADE' ? '' + record.symbol + ': NO_TRADE — lihat alasan di kartu hipotesis.' : 'Hipotesis ' + record.symbol + ' dihasilkan.');
       }
     } catch (err) {
       AI_HYPO_ERROR = (err && err.message) || 'Gagal menghasilkan hipotesis';
-      if (typeof showToast === 'function') showToast('⚠ ' + AI_HYPO_ERROR);
+      if (typeof showToast === 'function') showToast('' + AI_HYPO_ERROR);
     } finally {
       AI_HYPO_LOADING = false;
       renderAiTradingPage();
@@ -540,7 +540,7 @@
   // instead.
   async function fetchAiDataQuality(tickerOverride) {
     var tk = String(tickerOverride || AI_TRADE_STATE.selectedTicker || '').toUpperCase().trim();
-    if (!tk) { if (typeof showToast === 'function') showToast('⚠ Masukkan kode ticker terlebih dahulu.'); return; }
+    if (!tk) { if (typeof showToast === 'function') showToast('Masukkan kode ticker terlebih dahulu.'); return; }
     if (AI_DQ_LOADING) return;
 
     AI_DQ_LOADING = true;
@@ -555,7 +555,7 @@
       AI_DQ_TICKER = tk;
     } catch (err) {
       AI_DQ_ERROR = (err && err.message) || 'Gagal memuat status kualitas data';
-      if (typeof showToast === 'function') showToast('⚠ ' + AI_DQ_ERROR);
+      if (typeof showToast === 'function') showToast('' + AI_DQ_ERROR);
     } finally {
       AI_DQ_LOADING = false;
       renderAiTradingPage();
@@ -588,7 +588,7 @@
       AI_TRADE_STATE.marketRegime.regimeDescription = r.description;
     } catch (err) {
       AI_REGIME_ERROR = (err && err.message) || 'Gagal memuat klasifikasi market regime';
-      if (typeof showToast === 'function') showToast('⚠ ' + AI_REGIME_ERROR);
+      if (typeof showToast === 'function') showToast('' + AI_REGIME_ERROR);
     } finally {
       AI_REGIME_LOADING = false;
       renderAiTradingPage();
@@ -616,7 +616,7 @@
     var h = AI_TRADE_STATE.hypotheses.find(function(x) { return x.id === id; });
     if (!h) return;
     if (h.side !== 'BUY' || h.entryZone == null || h.stopLoss == null) {
-      if (typeof showToast === 'function') showToast('⚠ Hipotesis ini berstatus ' + h.side + ' — tidak bisa dibuka sebagai posisi paper.');
+      if (typeof showToast === 'function') showToast('Hipotesis ini berstatus ' + h.side + ' — tidak bisa dibuka sebagai posisi paper.');
       return;
     }
     var adapted = {
@@ -673,12 +673,12 @@
       });
       if (typeof showToast === 'function') {
         showToast(json.hypothesis.side === 'SELL'
-          ? '⚠ ' + pos.ticker + ': sinyal SELL terdeteksi — lihat detail di kartu exit hypothesis.'
-          : '✓ ' + pos.ticker + ': belum ada pemicu exit, disarankan HOLD.');
+          ? '' + pos.ticker + ': sinyal SELL terdeteksi — lihat detail di kartu exit hypothesis.'
+          : '' + pos.ticker + ': belum ada pemicu exit, disarankan HOLD.');
       }
     } catch (err) {
       AI_EXIT_HYPO[posId] = { loading: false, error: (err && err.message) || 'Gagal menghasilkan exit hypothesis', result: null };
-      if (typeof showToast === 'function') showToast('⚠ ' + AI_EXIT_HYPO[posId].error);
+      if (typeof showToast === 'function') showToast('' + AI_EXIT_HYPO[posId].error);
     } finally {
       renderAiTradingPage();
     }
@@ -848,7 +848,7 @@
 
     if (typeof showToast === 'function') {
       var pnlSign = netPnL >= 0 ? '+' : '';
-      showToast((result === 'WIN' ? '✓' : '⚠') + ' Posisi ' + pos.ticker + ' ditutup (' + reason + '): ' + pnlSign + 'Rp ' + Number(netPnL).toLocaleString('id-ID') + ' (' + pnlSign + returnPct + '%)');
+      showToast((result === 'WIN' ? '' : '') + ' Posisi ' + pos.ticker + ' ditutup (' + reason + '): ' + pnlSign + 'Rp ' + Number(netPnL).toLocaleString('id-ID') + ' (' + pnlSign + returnPct + '%)');
     }
     if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
   }
@@ -859,12 +859,12 @@
   // real ATR-based stop distance, never a fabricated lot count.
   async function aiOpenPositionFromSignal(ticker) {
     var sig = AI_UNIVERSE.find(function(x) { return x.ticker === ticker; });
-    if (!sig) { if (typeof showToast === 'function') showToast('⚠ Sinyal untuk ' + ticker + ' belum tersedia — jalankan scan dulu.'); return; }
-    if (!sig.signal || (!sig.signal.includes('BUY'))) { if (typeof showToast === 'function') showToast('⚠ ' + ticker + ' sinyalnya "' + sig.signal + '", bukan BUY — tidak dibuka.'); return; }
+    if (!sig) { if (typeof showToast === 'function') showToast('Sinyal untuk ' + ticker + ' belum tersedia — jalankan scan dulu.'); return; }
+    if (!sig.signal || (!sig.signal.includes('BUY'))) { if (typeof showToast === 'function') showToast('' + ticker + ' sinyalnya "' + sig.signal + '", bukan BUY — tidak dibuka.'); return; }
 
     var p = AI_TRADE_STATE.paperAccount;
     if (p.openPositions.some(function(x) { return x.ticker === ticker; })) {
-      if (typeof showToast === 'function') showToast('⚠ Sudah ada posisi terbuka untuk ' + ticker + '.');
+      if (typeof showToast === 'function') showToast('Sudah ada posisi terbuka untuk ' + ticker + '.');
       return;
     }
 
@@ -891,7 +891,7 @@
     var tp1 = Math.round(entry + atrOffset.tp1);
     var tp2 = Math.round(entry + atrOffset.tp2);
     var riskPerShare = entry - sl;
-    if (!(riskPerShare > 0)) { if (typeof showToast === 'function') showToast('⚠ Data SL tidak valid untuk ' + ticker + '.'); return; }
+    if (!(riskPerShare > 0)) { if (typeof showToast === 'function') showToast('Data SL tidak valid untuk ' + ticker + '.'); return; }
 
     var riskBudget = p.totalEquity * (p.riskPerTradePct / 100);
     var maxShares = Math.floor(riskBudget / riskPerShare);
@@ -900,7 +900,7 @@
     lots = Math.max(0, Math.min(lots, affordableLots));
 
     if (lots < 1) {
-      if (typeof showToast === 'function') showToast('⚠ Modal/risiko tidak cukup untuk membuka posisi ' + ticker + ' minimal 1 lot.');
+      if (typeof showToast === 'function') showToast('Modal/risiko tidak cukup untuk membuka posisi ' + ticker + ' minimal 1 lot.');
       return;
     }
 
@@ -947,7 +947,7 @@
     });
 
     savePaperAccountState();
-    if (typeof showToast === 'function') showToast('✓ Posisi dibuka: ' + lots + ' lot ' + ticker + ' @ Rp ' + Number(entry).toLocaleString('id-ID') + ' (risiko 1% = Rp ' + Math.round(riskBudget).toLocaleString('id-ID') + ')');
+    if (typeof showToast === 'function') showToast('Posisi dibuka: ' + lots + ' lot ' + ticker + ' @ Rp ' + Number(entry).toLocaleString('id-ID') + ' (risiko 1% = Rp ' + Math.round(riskBudget).toLocaleString('id-ID') + ')');
     renderAiTradingPage();
     // Reconcile the freshly-opened position's displayed price against the
     // same authoritative source used to open it, so it doesn't briefly
@@ -1050,9 +1050,9 @@
 
       if (showNotification && typeof showToast === 'function') {
         if (updated > 0) {
-          showToast('✓ Harga real-time pasar diperbarui: ' + fetchedQuotes.join(', '));
+          showToast('Harga real-time pasar diperbarui: ' + fetchedQuotes.join(', '));
         } else {
-          showToast('✓ Harga posisi virtual sudah sesuai dengan feed pasar real-time.');
+          showToast('Harga posisi virtual sudah sesuai dengan feed pasar real-time.');
         }
       }
 
@@ -1104,17 +1104,17 @@
       + '    </div>'
       + '  </div>'
       + '  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'cockpit' ? 'on' : '') + '" onclick="aiSwitchTab(\'cockpit\')" style="' + (state.activeTab === 'cockpit' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">📊 Cockpit</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'regime' ? 'on' : '') + '" onclick="aiSwitchTab(\'regime\')" style="' + (state.activeTab === 'regime' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">🌐 Market Regime</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'scanner' ? 'on' : '') + '" onclick="aiSwitchTab(\'scanner\')" style="' + (state.activeTab === 'scanner' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">🔍 Scanner &amp; EV</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'deep' ? 'on' : '') + '" onclick="aiSwitchTab(\'deep\')" style="' + (state.activeTab === 'deep' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">🧠 Explainable AI</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'strategylab' ? 'on' : '') + '" onclick="aiSwitchTab(\'strategylab\')" style="' + (state.activeTab === 'strategylab' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">🧪 10 Strategy Lab</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'hypotheses' ? 'on' : '') + '" onclick="aiSwitchTab(\'hypotheses\')" style="' + (state.activeTab === 'hypotheses' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">💡 Hypothesis Lab</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'backtest' ? 'on' : '') + '" onclick="aiSwitchTab(\'backtest\')" style="' + (state.activeTab === 'backtest' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">📈 Backtest Lab</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'paper' ? 'on' : '') + '" onclick="aiSwitchTab(\'paper\')" style="' + (state.activeTab === 'paper' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">💼 AI Paper Portfolio</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'journal' ? 'on' : '') + '" onclick="aiSwitchTab(\'journal\')" style="' + (state.activeTab === 'journal' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">📝 Post-Mortem Journal</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'learning' ? 'on' : '') + '" onclick="aiSwitchTab(\'learning\')" style="' + (state.activeTab === 'learning' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">🎯 Self-Learning</button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'dataquality' ? 'on' : '') + '" onclick="aiSwitchTab(\'dataquality\')" style="' + (state.activeTab === 'dataquality' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">🛡️ Data Quality</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'cockpit' ? 'on' : '') + '" onclick="aiSwitchTab(\'cockpit\')" style="' + (state.activeTab === 'cockpit' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Cockpit</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'regime' ? 'on' : '') + '" onclick="aiSwitchTab(\'regime\')" style="' + (state.activeTab === 'regime' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Market Regime</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'scanner' ? 'on' : '') + '" onclick="aiSwitchTab(\'scanner\')" style="' + (state.activeTab === 'scanner' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Scanner &amp; EV</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'deep' ? 'on' : '') + '" onclick="aiSwitchTab(\'deep\')" style="' + (state.activeTab === 'deep' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Explainable AI</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'strategylab' ? 'on' : '') + '" onclick="aiSwitchTab(\'strategylab\')" style="' + (state.activeTab === 'strategylab' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">10 Strategy Lab</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'hypotheses' ? 'on' : '') + '" onclick="aiSwitchTab(\'hypotheses\')" style="' + (state.activeTab === 'hypotheses' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Hypothesis Lab</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'backtest' ? 'on' : '') + '" onclick="aiSwitchTab(\'backtest\')" style="' + (state.activeTab === 'backtest' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Backtest Lab</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'paper' ? 'on' : '') + '" onclick="aiSwitchTab(\'paper\')" style="' + (state.activeTab === 'paper' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">AI Paper Portfolio</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'journal' ? 'on' : '') + '" onclick="aiSwitchTab(\'journal\')" style="' + (state.activeTab === 'journal' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Post-Mortem Journal</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'learning' ? 'on' : '') + '" onclick="aiSwitchTab(\'learning\')" style="' + (state.activeTab === 'learning' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Self-Learning</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'dataquality' ? 'on' : '') + '" onclick="aiSwitchTab(\'dataquality\')" style="' + (state.activeTab === 'dataquality' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Data Quality</button>'
       + '  </div>'
       + '</div>';
 
@@ -1122,14 +1122,14 @@
     html += ''
       + '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.25);border-left:4px solid #38bdf8;border-radius:10px;padding:12px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
       + '  <div style="display:flex;align-items:center;gap:10px">'
-      + '    <i class="ti ti-shield-lock" style="font-size:20px;color:#38bdf8"></i>'
+      + '    '
       + '    <div style="font-size:12.5px;color:var(--text);line-height:1.4">'
       + '      <strong>Prinsip Kemandirian &amp; Keamanan Portofolio:</strong> AI Engine beroperasi 100% pada <strong>Virtual Paper Account</strong> terisolasi. Seluruh keputusan BUY/SELL/HOLD dieksekusi secara otonom tanpa menyentuh atau mencampurkan portofolio riil pengguna.'
       + '    </div>'
       + '  </div>'
       + '  <div style="display:flex;gap:8px;align-items:center">'
       + '    <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">STATUS MESIN: <strong style="color:var(--green)">ONLINE &amp; SCANNING</strong></span>'
-      + '    <button class="btn btn-ghost btn-xs" onclick="aiTriggerAutonomousCycle()" style="font-size:11px;font-weight:700;border-color:#38bdf8;color:#38bdf8">⚡ Jalankan Research Loop</button>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiTriggerAutonomousCycle()" style="font-size:11px;font-weight:700;border-color:#38bdf8;color:#38bdf8">Jalankan Research Loop</button>'
       + '  </div>'
       + '</div>';
 
@@ -1164,18 +1164,18 @@
   // Regime display helpers — shared by renderAiCockpit and
   // renderAiMarketRegime. classifyMarketRegime() can genuinely return a
   // bearish/risk-off regime, so the icon/color must follow r.regime instead
-  // of a single hardcoded bullish "up"/🟢 presentation; and ihsgChange can be
+  // of a single hardcoded bullish "up"/presentation; and ihsgChange can be
   // negative, so the sign must not be hardcoded to "+".
   var REGIME_DISPLAY = {
-    BULL_TREND: { icon: '🟢', cls: 'up' },
-    BEAR_TREND: { icon: '🔴', cls: 'down' },
-    RISK_OFF: { icon: '🔴', cls: 'down' },
-    HIGH_VOLATILITY: { icon: '🟠', cls: 'down' },
-    SIDEWAYS: { icon: '🟡', cls: 'neu' },
-    UNKNOWN: { icon: '⚪', cls: 'neu' }
+    BULL_TREND: { icon: '', cls: 'up' },
+    BEAR_TREND: { icon: '', cls: 'down' },
+    RISK_OFF: { icon: '', cls: 'down' },
+    HIGH_VOLATILITY: { icon: '', cls: 'down' },
+    SIDEWAYS: { icon: '', cls: 'neu' },
+    UNKNOWN: { icon: '', cls: 'neu' }
   };
   function regimeDisplay(regime) {
-    return REGIME_DISPLAY[regime] || { icon: '⚪', cls: 'neu' };
+    return REGIME_DISPLAY[regime] || { icon: '', cls: 'neu' };
   }
   function signedPct(n) {
     return (n >= 0 ? '+' : '') + n;
@@ -1193,7 +1193,7 @@
     if (!AI_UNIVERSE.length) {
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
         + (AI_SCAN_ERROR
-            ? '⚠ ' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()">Coba Lagi</button>'
+            ? '' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()">Coba Lagi</button>'
             : '⏳ Memindai LQ45 dengan data harga &amp; fundamental real-time Yahoo Finance...')
         + '</div>';
     }
@@ -1212,7 +1212,7 @@
       + '  <div class="metric">'
       + '    <div class="mlabel">Market Regime IHSG</div>'
       + (r.regime
-          ? '    <div class="mval ' + regimeDisplay(r.regime).cls + '" style="font-size:18px">' + regimeDisplay(r.regime).icon + ' ' + r.regime + '</div>'
+          ? '    <div class="mval ' + regimeDisplay(r.regime).cls + '" style="font-size:18px">' + r.regime + '</div>'
           : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
       + '    <div class="msub neu">IHSG ' + (r.ihsg || '-') + (r.ihsgChange != null ? ' (' + signedPct(r.ihsgChange) + '%)' : '') + (r.breadthPct != null ? ' · Breadth ' + r.breadthPct + '%' : ' · Breadth belum tersedia')  + '</div>'
       + '  </div>'
@@ -1280,8 +1280,8 @@
       + '    </div>'
 
       + '    <div style="display:flex;justify-content:space-between;align-items:center">'
-      + '      <span style="font-size:11px;color:var(--text3)"><i class="ti ti-clock"></i> Holding Period: <strong>' + bestOpp.holdingPeriod + '</strong></span>'
-      + '      <button class="btn btn-blue btn-sm" onclick="aiSelectTicker(\'' + bestOpp.ticker + '\');aiSwitchTab(\'deep\')">🔍 Lihat Bukti &amp; Penalaran Lengkap →</button>'
+      + '      <span style="font-size:11px;color:var(--text3)">Holding Period: <strong>' + bestOpp.holdingPeriod + '</strong></span>'
+      + '      <button class="btn btn-blue btn-sm" onclick="aiSelectTicker(\'' + bestOpp.ticker + '\');aiSwitchTab(\'deep\')">Lihat Bukti &amp; Penalaran Lengkap →</button>'
       + '    </div>'
       + '  </div>'
 
@@ -1289,7 +1289,7 @@
       + '  <div class="card" style="padding:20px;display:flex;flex-direction:column;justify-content:space-between">'
       + '    <div>'
       + '      <div class="cheader" style="margin-bottom:12px">'
-      + '        <span class="ctitle"><i class="ti ti-list-check" style="color:#38bdf8"></i> Ranking Sinyal AI Terkini</span>'
+      + '        <span class="ctitle">Ranking Sinyal AI Terkini</span>'
       + '      </div>'
       + '      <div style="font-size:11px;color:var(--text3);font-weight:700;margin-bottom:6px">TOP 3 BULLISH (BUY / ACCUMULATION)</div>'
       + '      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">';
@@ -1349,7 +1349,7 @@
     if (!AI_UNIVERSE.length) {
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
         + (AI_SCAN_ERROR
-            ? '⚠ ' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()">Coba Lagi</button>'
+            ? '' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()">Coba Lagi</button>'
             : '⏳ Memindai LQ45 dengan data harga, indikator teknikal &amp; fundamental real-time Yahoo Finance...')
         + '</div>';
     }
@@ -1378,17 +1378,17 @@
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">'
       + '    <div>'
       + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-scan" style="color:#38bdf8"></i> Multi-Layer Quantitative Stock Scanner'
+      + '        Multi-Layer Quantitative Stock Scanner'
       + '      </div>'
       + '      <div style="font-size:12px;color:var(--text3)">Skor teknikal (EMA/RSI/Volume) + fundamental riil (ROE/PER/DER) untuk 45 saham LQ45. Belum mencakup data bandarmologi/broker flow.</div>'
       + '    </div>'
       + '    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
-      + '      <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()" title="Pindai ulang dengan harga terbaru">' + (AI_SCAN_LOADING ? '⏳ Memindai...' : '🔄 Scan Ulang') + '</button>'
+      + '      <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()" title="Pindai ulang dengan harga terbaru">' + (AI_SCAN_LOADING ? '⏳ Memindai...' : 'Scan Ulang') + '</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'all' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'all\')">Semua Sinyal (' + AI_UNIVERSE.length + ')</button>'
-      + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'BUY' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'BUY\')">🟢 Buy / Accumulation</button>'
-      + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'HOLD' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'HOLD\')">🟡 Hold / Trailing</button>'
-      + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'WATCH' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'WATCH\')">🔵 Watchlist</button>'
-      + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'AVOID' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'AVOID\')">🔴 Avoid / Risk</button>'
+      + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'BUY' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'BUY\')">Buy / Accumulation</button>'
+      + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'HOLD' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'HOLD\')">Hold / Trailing</button>'
+      + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'WATCH' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'WATCH\')">Watchlist</button>'
+      + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'AVOID' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'AVOID\')">Avoid / Risk</button>'
       + '    </div>'
       + '  </div>'
 
@@ -1459,14 +1459,14 @@
     // fetch/spin for a code that cannot possibly have a real signal.
     if (!data && typeof isValidStockTicker === 'function' && !isValidStockTicker(tk)) {
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
-        + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px"><i class="ti ti-alert-triangle"></i> Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
+        + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px">Ticker "' + tk + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
         + '<p style="font-size:11px">Tidak ada sinyal AI yang bisa dihitung. Silakan pilih emiten terdaftar (Contoh: BBCA, BBRI, BMRI, TLKM, ASII).</p>'
         + '</div>';
     }
 
     if (!data && AI_DEEP_FAILED[tk]) {
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
-        + '⚠ Sinyal real-time untuk <strong>' + tk + '</strong> tidak tersedia (data harga/fundamental tidak dapat dimuat). '
+        + 'Sinyal real-time untuk <strong>' + tk + '</strong> tidak tersedia (data harga/fundamental tidak dapat dimuat). '
         + '<button class="btn btn-ghost btn-xs" onclick="delete AI_DEEP_FAILED[\'' + tk + '\'];aiLoadTicker()">Coba Lagi</button>'
         + '</div>';
     }
@@ -1489,7 +1489,7 @@
       }
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
         + (AI_SCAN_ERROR
-            ? '⚠ ' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="aiLoadTicker()">Coba Lagi</button>'
+            ? '' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="aiLoadTicker()">Coba Lagi</button>'
             : '⏳ Menghitung sinyal riil untuk <strong>' + tk + '</strong> (harga, EMA, RSI, fundamental)...')
         + '</div>';
     }
@@ -1500,10 +1500,10 @@
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '  <div style="display:flex;align-items:center;gap:10px">'
       + '    <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px">'
-      + '      <i class="ti ti-search" style="color:var(--text3)"></i>'
+      + '      '
       + '      <input type="text" id="ai-deep-input" value="' + tk + '" style="background:none;border:none;outline:none;color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;width:90px;text-transform:uppercase" onkeydown="if(event.key===\'Enter\')aiLoadTicker()">'
       + '    </div>'
-      + '    <button class="btn btn-blue btn-sm" onclick="aiLoadTicker()">⚡ Analisa Emiten</button>'
+      + '    <button class="btn btn-blue btn-sm" onclick="aiLoadTicker()">Analisa Emiten</button>'
       + '    <div style="display:flex;gap:4px;margin-left:6px">'
       + '      <button class="btn btn-ghost btn-xs" onclick="aiSelectTicker(\'BBCA\')">BBCA</button>'
       + '      <button class="btn btn-ghost btn-xs" onclick="aiSelectTicker(\'BMRI\')">BMRI</button>'
@@ -1569,13 +1569,13 @@
       // Trade Rules & Invalidation
       + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">'
       + '    <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:12px">'
-      + '      <div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:4px"><i class="ti ti-target"></i> PLAN EKSEKUSI &amp; RISK-REWARD</div>'
+      + '      <div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:4px">PLAN EKSEKUSI &amp; RISK-REWARD</div>'
       + '      <div style="font-size:12px;color:var(--text);font-family:var(--font-mono)">'
       + '        Entry: <strong>Rp ' + Number(data.entry).toLocaleString('id-ID') + '</strong> | Stop Loss: <strong style="color:var(--red)">Rp ' + Number(data.sl).toLocaleString('id-ID') + '</strong> | TP1: <strong style="color:var(--green)">Rp ' + Number(data.tp1).toLocaleString('id-ID') + '</strong> | TP2: <strong style="color:var(--green)">Rp ' + Number(data.tp2).toLocaleString('id-ID') + '</strong>'
       + '      </div>'
       + '    </div>'
       + '    <div style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px">'
-      + '      <div style="font-size:11px;font-weight:800;color:var(--red);margin-bottom:4px"><i class="ti ti-alert-triangle"></i> KONDISI PEMBATALAN (INVALIDATION RULE)</div>'
+      + '      <div style="font-size:11px;font-weight:800;color:var(--red);margin-bottom:4px">KONDISI PEMBATALAN (INVALIDATION RULE)</div>'
       + '      <div style="font-size:12px;color:var(--text2)">' + data.invalidation + '</div>'
       + '    </div>'
       + '  </div>'
@@ -1584,7 +1584,7 @@
       + '  <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px">'
       + '    <div>'
       + '      <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:8px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-circle-check"></i> 6 BUKTI UTAMA PENDUKUNG KEPUTUSAN (EVIDENCE)'
+      + '        6 BUKTI UTAMA PENDUKUNG KEPUTUSAN (EVIDENCE)'
       + '      </div>'
       + '      <div style="display:flex;flex-direction:column;gap:6px">';
 
@@ -1601,7 +1601,7 @@
       + '    </div>'
       + '    <div>'
       + '      <div style="font-size:13px;font-weight:800;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-shield-alert"></i> FAKTOR KONTRA &amp; RISIKO (AGAINST &amp; RISK)'
+      + '        FAKTOR KONTRA &amp; RISIKO (AGAINST &amp; RISK)'
       + '      </div>'
       + '      <div style="display:flex;flex-direction:column;gap:6px">';
 
@@ -1628,7 +1628,7 @@
       // Broker Flow Diagnostic Fallback Box (No Blank Page Policy)
       + '  <div style="margin-top:16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px">'
       + '    <div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-      + '      <i class="ti ti-file-analytics" style="color:#38bdf8"></i> Status Bandarmologi &amp; Broker Ingestion:'
+      + '      Status Bandarmologi &amp; Broker Ingestion:'
       + '    </div>'
       + '    <div style="font-size:11.5px;color:var(--text2);margin-top:4px">'
       + '      ' + data.brokerStatus + ' · <em>Pemeriksaan redundansi data aktif: Seluruh perhitungan memiliki fallback harga, volume, foreign net flow, dan momentum jika dataset broker tidak lengkap.</em>'
@@ -1652,11 +1652,11 @@
       + '      </div>'
       + '      <div style="font-size:12px;color:var(--text3)">Setiap strategi disimulasikan bar-per-bar atas histori harga real 2 tahun terakhir. Win rate, profit factor, Sharpe, dan drawdown di bawah adalah hasil hitung asli — bukan asumsi.</div>'
       + '    </div>'
-      + '    <button class="btn btn-blue btn-sm" onclick="fetchAllStrategyBacktests()" ' + (AI_BACKTEST_LOADING ? 'disabled' : '') + '>' + (AI_BACKTEST_LOADING ? '⏳ Menjalankan Backtest...' : (AI_BACKTEST_RESULTS ? '🔄 Jalankan Ulang' : '⚡ Jalankan Backtest Riil')) + '</button>'
+      + '    <button class="btn btn-blue btn-sm" onclick="fetchAllStrategyBacktests()" ' + (AI_BACKTEST_LOADING ? 'disabled' : '') + '>' + (AI_BACKTEST_LOADING ? '⏳ Menjalankan Backtest...' : (AI_BACKTEST_RESULTS ? 'Jalankan Ulang' : 'Jalankan Backtest Riil')) + '</button>'
       + '  </div>';
 
     if (AI_BACKTEST_ERROR) {
-      html += '<div style="padding:16px;color:var(--red);font-size:12px">⚠ ' + AI_BACKTEST_ERROR + '</div>';
+      html += '<div style="padding:16px;color:var(--red);font-size:12px">' + AI_BACKTEST_ERROR + '</div>';
     }
 
     if (!AI_BACKTEST_RESULTS) {
@@ -1734,15 +1734,15 @@
     var html = '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="margin-bottom:16px">'
       + '    <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '      <i class="ti ti-bulb" style="color:var(--amber)"></i> Hypothesis Lab'
+      + '      Hypothesis Lab'
       + '    </div>'
       + '    <div style="font-size:12px;color:var(--text3)">Hipotesis trading terstruktur dari Signal &amp; Confluence Engine — menggabungkan teknikal, fundamental, regime pasar IHSG, dan (jika tersedia) broker flow riil. Mode PAPER/riset saja — tidak ada order riil yang dieksekusi dari sini.</div>'
       + '  </div>'
       + '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">'
       + '    <input id="ai-hypo-ticker-input" type="text" placeholder="Kode ticker (mis. BBCA)" value="' + (state.selectedTicker || '') + '" style="flex:1;min-width:160px;padding:8px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--font-mono);text-transform:uppercase" onkeydown="if(event.key===\'Enter\'){aiGenerateHypothesis()}">'
-      + '    <button class="btn btn-primary btn-sm" ' + (AI_HYPO_LOADING ? 'disabled' : '') + ' onclick="aiGenerateHypothesis()">' + (AI_HYPO_LOADING ? '⏳ Menghitung...' : '💡 Hasilkan Hipotesis') + '</button>'
+      + '    <button class="btn btn-primary btn-sm" ' + (AI_HYPO_LOADING ? 'disabled' : '') + ' onclick="aiGenerateHypothesis()">' + (AI_HYPO_LOADING ? '⏳ Menghitung...' : 'Hasilkan Hipotesis') + '</button>'
       + '  </div>'
-      + (AI_HYPO_ERROR ? '  <div style="margin-top:8px;font-size:11.5px;color:var(--red)">⚠ ' + AI_HYPO_ERROR + '</div>' : '')
+      + (AI_HYPO_ERROR ? '  <div style="margin-top:8px;font-size:11.5px;color:var(--red)">' + AI_HYPO_ERROR + '</div>' : '')
       + '</div>';
 
     if (!hypos.length) {
@@ -1769,7 +1769,7 @@
         + '    </div>'
         + '    <div style="display:flex;align-items:center;gap:8px">'
         + '      <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:' + sideBg + ';color:' + sideColor + '">' + h.side + '</span>'
-        + '      <button class="btn btn-ghost btn-xs" title="Hapus" onclick="aiRemoveHypothesis(\'' + h.id + '\')"><i class="ti ti-x"></i></button>'
+        + '      <button class="btn btn-ghost btn-xs" title="Hapus" onclick="aiRemoveHypothesis(\'' + h.id + '\')">✕</button>'
         + '    </div>'
         + '  </div>'
         + '  <div style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:10px;background:rgba(255,255,255,0.02);padding:10px;border-radius:6px">'
@@ -1790,17 +1790,17 @@
                     + (h.suggestedPositionSizing.suggestedLots
                         ? ('    <strong>Ukuran Posisi (riil, akun paper Anda):</strong> ' + h.suggestedPositionSizing.suggestedLots + ' lot (' + Number(h.suggestedPositionSizing.suggestedShares).toLocaleString('id-ID') + ' lembar) · Risk budget Rp ' + Number(h.suggestedPositionSizing.riskBudgetRp).toLocaleString('id-ID')
                           + '<div style="color:var(--text3);margin-top:2px">' + h.suggestedPositionSizing.note + '</div>')
-                        : ('    <span style="color:var(--amber)">⚠ ' + h.suggestedPositionSizing.note + '</span>'))
+                        : ('    <span style="color:var(--amber)">' + h.suggestedPositionSizing.note + '</span>'))
                     + '  </div>')
                   : ''))
             : '')
         + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">'
         + '    <div>'
-        + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:4px">✓ BULL CASE</div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:4px">BULL CASE</div>'
         + (h.bullCase && h.bullCase.length ? h.bullCase.map(function(b) { return '<div style="font-size:11.5px;color:var(--text2);margin-bottom:3px">• ' + b + '</div>'; }).join('') : '<div style="font-size:11.5px;color:var(--text3)">Tidak ada bukti bullish.</div>')
         + '    </div>'
         + '    <div>'
-        + '      <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:4px">✗ BEAR CASE / KONTRADIKSI</div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:4px">BEAR CASE / KONTRADIKSI</div>'
         + (h.bearCase && h.bearCase.length ? h.bearCase.map(function(b) { return '<div style="font-size:11.5px;color:var(--text2);margin-bottom:3px">• ' + b + '</div>'; }).join('') : '<div style="font-size:11.5px;color:var(--text3)">Tidak ada bukti bearish/kontradiksi.</div>')
         + '    </div>'
         + '  </div>'
@@ -1808,11 +1808,11 @@
             ? ('  <div style="font-size:11px;color:var(--text3);border-top:1px solid var(--border2);padding-top:8px;margin-bottom:8px"><strong>Bukti Belum Tersedia:</strong> ' + h.missingEvidence.join(' ') + '</div>')
             : '')
         + (!isBuy && h.gateFailures && h.gateFailures.length
-            ? ('  <div style="font-size:11px;color:var(--amber);background:rgba(245,158,11,0.08);border-radius:6px;padding:8px;margin-bottom:8px"><strong>⚠ Gate yang Gagal:</strong> ' + h.gateFailures.join(' ') + '</div>')
+            ? ('  <div style="font-size:11px;color:var(--amber);background:rgba(245,158,11,0.08);border-radius:6px;padding:8px;margin-bottom:8px"><strong>Gate yang Gagal:</strong> ' + h.gateFailures.join(' ') + '</div>')
             : '')
         + '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--border2);padding-top:10px">'
         + '    <span style="font-size:11px;color:var(--text3)">Confluence <strong style="color:var(--text)">' + h.confluence + '/100</strong> · Keyakinan <strong style="color:var(--text)">' + h.confidence + '%</strong>' + (h.uncertainty != null ? ' · Uncertainty <strong style="color:' + (h.uncertainty >= 66 ? 'var(--red)' : h.uncertainty >= 40 ? 'var(--amber)' : 'var(--text)') + '">' + h.uncertainty + '/100</strong>' : '') + '</span>'
-        + (isBuy ? ('    <button class="btn btn-primary btn-sm" onclick="aiOpenPositionFromHypothesis(\'' + h.id + '\')">📥 Buka Posisi Paper</button>') : '')
+        + (isBuy ? ('    <button class="btn btn-primary btn-sm" onclick="aiOpenPositionFromHypothesis(\'' + h.id + '\')">Buka Posisi Paper</button>') : '')
         + '  </div>'
         + '</div>';
     });
@@ -1841,7 +1841,7 @@
 
     var html = ''
       + '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:11.5px;color:var(--text)">'
-      + '  ℹ️ Portofolio ini sungguhan (dalam arti benar-benar tereksekusi &amp; tersimpan) — bukan simulasi historis. Posisi baru terbuka saat Anda klik "Buka Posisi", dan otomatis tertutup saat harga live menyentuh SL/TP. Belum ada aktivitas = belum pernah dibuka posisi.'
+      + '  Portofolio ini sungguhan (dalam arti benar-benar tereksekusi &amp; tersimpan) — bukan simulasi historis. Posisi baru terbuka saat Anda klik "Buka Posisi", dan otomatis tertutup saat harga live menyentuh SL/TP. Belum ada aktivitas = belum pernah dibuka posisi.'
       + '</div>'
       + '<div class="row4" style="margin-bottom:18px">'
       + '  <div class="metric">'
@@ -1891,7 +1891,7 @@
       + '      <span class="ctitle">Posisi Virtual Terbuka</span>'
       + '      <span class="badge b-up" style="font-size:10px;padding:2px 8px">FEED PASAR REAL-TIME</span>'
       + '    </div>'
-      + '    <button class="btn btn-ghost btn-xs" onclick="aiRefreshPaperPortfolioQuotes(true)" style="font-size:11px;border-color:#38bdf8;color:#38bdf8">🔄 Refresh Harga</button>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiRefreshPaperPortfolioQuotes(true)" style="font-size:11px;border-color:#38bdf8;color:#38bdf8">Refresh Harga</button>'
       + '  </div>';
 
     if (!p.openPositions.length) {
@@ -1931,7 +1931,7 @@
           + '<td><strong style="font-family:var(--font-mono);color:' + pnlColor + '">' + pnlSign + 'Rp ' + Number(pos.unrealizedPnL).toLocaleString('id-ID') + ' (' + pnlSign + pos.unrealizedPct + '%)</strong></td>'
           + '<td style="font-family:var(--font-mono);font-size:10.5px">SL: <span style="color:var(--red)">Rp ' + Number(pos.sl).toLocaleString('id-ID') + '</span> | TP1: <span style="color:var(--green)">Rp ' + Number(pos.tp1).toLocaleString('id-ID') + '</span></td>'
           + '<td style="display:flex;gap:6px;flex-wrap:wrap">'
-          + '<button class="btn btn-ghost btn-xs" ' + (AI_EXIT_HYPO[pos.id] && AI_EXIT_HYPO[pos.id].loading ? 'disabled' : '') + ' onclick="aiGenerateExitHypothesis(\'' + pos.id + '\')" style="color:#38bdf8;border-color:#38bdf8;font-size:10px">' + (AI_EXIT_HYPO[pos.id] && AI_EXIT_HYPO[pos.id].loading ? '⏳' : '🔍 Cek Exit') + '</button>'
+          + '<button class="btn btn-ghost btn-xs" ' + (AI_EXIT_HYPO[pos.id] && AI_EXIT_HYPO[pos.id].loading ? 'disabled' : '') + ' onclick="aiGenerateExitHypothesis(\'' + pos.id + '\')" style="color:#38bdf8;border-color:#38bdf8;font-size:10px">' + (AI_EXIT_HYPO[pos.id] && AI_EXIT_HYPO[pos.id].loading ? '⏳' : 'Cek Exit') + '</button>'
           + '<button class="btn btn-ghost btn-xs" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang di harga pasar?\'))aiClosePosition(\'' + pos.id + '\', ' + pos.currentPrice + ', \'MANUAL\')" style="color:var(--red);border-color:var(--red);font-size:10px">Tutup</button>'
           + '</td>'
           + '</tr>';
@@ -1941,7 +1941,7 @@
     }
 
     // Real Sell/Exit Hypothesis cards — rendered on-demand per open
-    // position that was checked via "🔍 Cek Exit" above. Ephemeral by
+    // position that was checked via "Cek Exit" above. Ephemeral by
     // design (see AI_EXIT_HYPO's declaration) — not persisted, always
     // reflects the position's live state at the moment it was checked.
     var exitCardsHtml = '';
@@ -1951,7 +1951,7 @@
 
       if (eh.error) {
         exitCardsHtml += '<div class="card" style="padding:14px 16px;margin-bottom:12px;border-color:var(--red)">'
-          + '<div style="font-size:12px;color:var(--red)">⚠ Exit Hypothesis ' + pos.ticker + ': ' + eh.error + '</div>'
+          + '<div style="font-size:12px;color:var(--red)">Exit Hypothesis ' + pos.ticker + ': ' + eh.error + '</div>'
           + '</div>';
         return;
       }
@@ -1982,11 +1982,11 @@
         + '  </div>'
         + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">'
         + '    <div>'
-        + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:4px">✓ BULL CASE</div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:4px">BULL CASE</div>'
         + (h.bullCase && h.bullCase.length ? h.bullCase.map(function(b) { return '<div style="font-size:11.5px;color:var(--text2);margin-bottom:3px">• ' + b + '</div>'; }).join('') : '<div style="font-size:11.5px;color:var(--text3)">Tidak ada bukti bullish.</div>')
         + '    </div>'
         + '    <div>'
-        + '      <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:4px">✗ BEAR CASE / KONTRADIKSI</div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:4px">BEAR CASE / KONTRADIKSI</div>'
         + (h.bearCase && h.bearCase.length ? h.bearCase.map(function(b) { return '<div style="font-size:11.5px;color:var(--text2);margin-bottom:3px">• ' + b + '</div>'; }).join('') : '<div style="font-size:11.5px;color:var(--text3)">Tidak ada bukti bearish/kontradiksi.</div>')
         + '    </div>'
         + '  </div>'
@@ -1994,7 +1994,7 @@
             ? ('  <div style="font-size:11px;color:var(--text3);border-top:1px solid var(--border2);padding-top:8px;margin-bottom:8px"><strong>Bukti Belum Tersedia:</strong> ' + h.missingEvidence.join(' ') + '</div>')
             : '')
         + '  <div style="display:flex;justify-content:flex-end;border-top:1px solid var(--border2);padding-top:10px">'
-        + (isSell ? ('    <button class="btn btn-primary btn-sm" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang berdasarkan sinyal exit?\'))aiClosePosition(\'' + pos.id + '\', ' + h.currentPrice + ', \'SIGNAL EXIT\', \'' + h.regime + '\')" style="background:var(--red);border-color:var(--red)">🚪 Tutup Posisi Sekarang</button>') : '')
+        + (isSell ? ('    <button class="btn btn-primary btn-sm" onclick="if(confirm(\'Tutup posisi ' + pos.ticker + ' sekarang berdasarkan sinyal exit?\'))aiClosePosition(\'' + pos.id + '\', ' + h.currentPrice + ', \'SIGNAL EXIT\', \'' + h.regime + '\')" style="background:var(--red);border-color:var(--red)">Tutup Posisi Sekarang</button>') : '')
         + '  </div>'
         + '</div>';
     });
@@ -2053,15 +2053,15 @@
         + '  <!-- 3 Post-Mortem Takeaways -->'
         + '  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:rgba(255,255,255,0.02);border:1px solid var(--border2);border-radius:8px;padding:12px">'
         + '    <div>'
-        + '      <div style="font-size:10px;font-weight:700;color:var(--accent);margin-bottom:2px">💡 LESSON LEARNED (PELAJARAN)</div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--accent);margin-bottom:2px">LESSON LEARNED (PELAJARAN)</div>'
         + '      <div style="font-size:11.5px;color:var(--text2);line-height:1.4">' + t.lesson + '</div>'
         + '    </div>'
         + '    <div>'
-        + '      <div style="font-size:10px;font-weight:700;color:var(--amber);margin-bottom:2px">⚠️ MISTAKE / DEVIASI</div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--amber);margin-bottom:2px">MISTAKE / DEVIASI</div>'
         + '      <div style="font-size:11.5px;color:var(--text2);line-height:1.4">' + t.mistake + '</div>'
         + '    </div>'
         + '    <div>'
-        + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:2px">🔧 STRATEGY IMPROVEMENT (ADAPTASI)</div>'
+        + '      <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:2px">STRATEGY IMPROVEMENT (ADAPTASI)</div>'
         + '      <div style="font-size:11.5px;color:var(--text2);line-height:1.4">' + t.improvement + '</div>'
         + '    </div>'
         + '  </div>'
@@ -2090,7 +2090,7 @@
     var r = state.marketRegime;
 
     var errHtml = AI_REGIME_ERROR
-      ? '<div style="margin-bottom:14px;font-size:11.5px;color:var(--red)">⚠ ' + AI_REGIME_ERROR + '</div>'
+      ? '<div style="margin-bottom:14px;font-size:11.5px;color:var(--red)">' + AI_REGIME_ERROR + '</div>'
       : '';
 
     // Sector rotation and per-strategy regime-fit both used to ship as fixed
@@ -2104,7 +2104,7 @@
       + '  <div class="metric">'
       + '    <div class="mlabel">Klasifikasi Market Regime</div>'
       + (r.regime
-          ? '    <div class="mval ' + regimeDisplay(r.regime).cls + '" style="font-size:18px">' + regimeDisplay(r.regime).icon + ' ' + r.regime + '</div>'
+          ? '    <div class="mval ' + regimeDisplay(r.regime).cls + '" style="font-size:18px">' + r.regime + '</div>'
           : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
       + '    <div class="msub neu">' + (r.confidence != null ? 'Probabilitas Konfirmasi: ' + r.confidence + '%' : 'Model klasifikasi regime belum dibangun') + (r.regimeDescription ? '<br>' + r.regimeDescription : '') + '</div>'
       + '  </div>'
@@ -2132,7 +2132,7 @@
       + '  <!-- Sector Rotation Table -->'
       + '  <div class="card" style="padding:20px">'
       + '    <div class="cheader" style="margin-bottom:14px">'
-      + '      <span class="ctitle"><i class="ti ti-rotate" style="color:var(--accent)"></i> Rotasi Sektor &amp; Aliran Dana</span>'
+      + '      <span class="ctitle">Rotasi Sektor &amp; Aliran Dana</span>'
       + '    </div>'
       + '    <div style="padding:24px 8px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6">Data rotasi sektor belum tersedia.<br>Membutuhkan feed indeks sektoral (IDXFINANCE, IDXENERGY, dst) real-time yang belum diintegrasikan.</div>'
       + '  </div>'
@@ -2140,7 +2140,7 @@
       + '  <!-- Strategy Eligibility Engine Matrix -->'
       + '  <div class="card" style="padding:20px">'
       + '    <div class="cheader" style="margin-bottom:14px">'
-      + '      <span class="ctitle"><i class="ti ti-adjustments-alt" style="color:var(--accent)"></i> Adaptasi Strategi Terhadap Regime Aktif</span>'
+      + '      <span class="ctitle">Adaptasi Strategi Terhadap Regime Aktif</span>'
       + '    </div>'
       + '    <div style="padding:24px 8px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6">Belum ada mesin klasifikasi regime yang bisa menentukan strategi mana yang layak diaktifkan secara otomatis.<br>Gunakan hasil riil di <strong>Strategy Lab</strong> untuk membandingkan performa antar strategi.</div>'
       + '  </div>'
@@ -2168,12 +2168,12 @@
       + '      <select id="ai-wf-strategy-select" class="form-select" style="font-size:11px;height:30px">'
       + Object.keys(strategyOptions).map(function(id) { return '<option value="' + id + '" ' + (id === AI_WALKFORWARD_STRATEGY ? 'selected' : '') + '>' + strategyOptions[id] + '</option>'; }).join('')
       + '      </select>'
-      + '      <button class="btn btn-blue btn-sm" onclick="fetchWalkForwardBacktest(document.getElementById(\'ai-wf-strategy-select\').value)" ' + (AI_BACKTEST_LOADING ? 'disabled' : '') + '>' + (AI_BACKTEST_LOADING ? '⏳ Menjalankan...' : '⚡ Jalankan Walk-Forward Test') + '</button>'
+      + '      <button class="btn btn-blue btn-sm" onclick="fetchWalkForwardBacktest(document.getElementById(\'ai-wf-strategy-select\').value)" ' + (AI_BACKTEST_LOADING ? 'disabled' : '') + '>' + (AI_BACKTEST_LOADING ? '⏳ Menjalankan...' : 'Jalankan Walk-Forward Test') + '</button>'
       + '    </div>'
       + '  </div>';
 
     if (AI_BACKTEST_ERROR) {
-      html += '<div style="padding:12px;color:var(--red);font-size:12px">⚠ ' + AI_BACKTEST_ERROR + '</div>';
+      html += '<div style="padding:12px;color:var(--red);font-size:12px">' + AI_BACKTEST_ERROR + '</div>';
     }
 
     if (!AI_WALKFORWARD_RESULT) {
@@ -2269,7 +2269,7 @@
       // Real weight actually used by the composite signal engine (not a
       // fabricated "adaptive calibration" - it's a fixed formula).
       + '  <div style="border-top:1px solid var(--border2);padding-top:16px">'
-      + '    <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px"><i class="ti ti-sliders" style="color:var(--accent)"></i> Bobot Riil Mesin Sinyal</div>'
+      + '    <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">Bobot Riil Mesin Sinyal</div>'
       + '    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Ini formula tetap yang benar-benar dipakai (lihat computeStockSignal), bukan kalibrasi adaptif — mesin ini belum menyesuaikan bobotnya sendiri dari hasil trade.</div>'
       + '    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">'
       + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">TEKNIKAL</div><div style="font-size:16px;font-weight:800;color:var(--accent)">65%</div></div>'
@@ -2293,7 +2293,7 @@
     var html = '<div class="card" style="padding:20px">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
-      + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px"><i class="ti ti-history" style="color:var(--accent)"></i> Audit Trail — Riwayat Keputusan</div>'
+      + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">Audit Trail — Riwayat Keputusan</div>'
       + '      <div style="font-size:12px;color:var(--text3)">Catatan permanen setiap hipotesis (BUY/NO_TRADE/SELL/HOLD) yang pernah dihasilkan dan setiap aksi riil yang diambil — termasuk yang tidak berujung transaksi. Maks ' + AI_DECISION_LOG_MAX + ' entri terbaru.</div>'
       + '    </div>'
       + (log.length ? '    <button class="btn btn-ghost btn-xs" onclick="aiExportDecisionLogCsv()" style="border-color:var(--accent);color:var(--accent)">⬇️ Export CSV</button>' : '')
@@ -2338,7 +2338,7 @@
   // localStorage, which can be cleared or lost on this device.
   function aiExportDecisionLogCsv() {
     var log = AI_TRADE_STATE.decisionLog || [];
-    if (!log.length) { if (typeof showToast === 'function') showToast('⚠ Belum ada entri untuk diekspor.'); return; }
+    if (!log.length) { if (typeof showToast === 'function') showToast('Belum ada entri untuk diekspor.'); return; }
 
     var headers = ['timestamp', 'ticker', 'type', 'side', 'action', 'confluence', 'confidence', 'uncertainty', 'regime', 'dataQualityStatus', 'errorClassification', 'result', 'netPnL', 'reasons'];
     var rows = log.map(function(d) {
@@ -2359,7 +2359,7 @@
     a.click();
     document.body.removeChild(a);
     setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-    if (typeof showToast === 'function') showToast('✓ Audit trail diekspor (' + log.length + ' entri).');
+    if (typeof showToast === 'function') showToast('Audit trail diekspor (' + log.length + ' entri).');
   }
 
   // ══════════════════════════════════════════════════════════
@@ -2401,15 +2401,15 @@
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
       + '    <div>'
       + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-shield-check" style="color:var(--green)"></i> Data Quality &amp; Anti-Hallucination Gate'
+      + '        Data Quality &amp; Anti-Hallucination Gate'
       + '      </div>'
       + '      <div style="font-size:12px;color:var(--text3)">Status riil dari Data Quality Gate (lihat assessDataQuality di lib/idx-data-engine.js) — gate yang sama yang menentukan apakah Hypothesis Lab boleh mengeluarkan sinyal BUY atau wajib NO_TRADE. Tidak ada skor atau status yang dikarang di sini.</div>'
       + '    </div>'
-      + '    <button class="btn btn-ghost btn-sm" ' + (AI_DQ_LOADING ? 'disabled' : '') + ' onclick="fetchAiDataQuality()" style="font-size:11px;border-color:#38bdf8;color:#38bdf8">' + (AI_DQ_LOADING ? '⏳ Memeriksa...' : '🔄 Periksa Ulang (' + (state.selectedTicker || '-') + ')') + '</button>'
+      + '    <button class="btn btn-ghost btn-sm" ' + (AI_DQ_LOADING ? 'disabled' : '') + ' onclick="fetchAiDataQuality()" style="font-size:11px;border-color:#38bdf8;color:#38bdf8">' + (AI_DQ_LOADING ? '⏳ Memeriksa...' : 'Periksa Ulang (' + (state.selectedTicker || '-') + ')') + '</button>'
       + '  </div>';
 
     if (AI_DQ_ERROR) {
-      html += '  <div style="margin-bottom:14px;font-size:11.5px;color:var(--red)">⚠ ' + AI_DQ_ERROR + '</div>';
+      html += '  <div style="margin-bottom:14px;font-size:11.5px;color:var(--red)">' + AI_DQ_ERROR + '</div>';
     }
 
     if (!AI_DQ_RESULT) {
@@ -2423,7 +2423,7 @@
 
     var dq = AI_DQ_RESULT;
     if (AI_DQ_TICKER && state.selectedTicker && AI_DQ_TICKER !== state.selectedTicker) {
-      html += '  <div style="margin-bottom:14px;font-size:11.5px;color:var(--amber)">ℹ️ Menampilkan hasil untuk <strong>' + AI_DQ_TICKER + '</strong> — ticker yang sedang dipilih sekarang adalah <strong>' + state.selectedTicker + '</strong>. Klik "Periksa Ulang" untuk memeriksa ticker tersebut.</div>';
+      html += '  <div style="margin-bottom:14px;font-size:11.5px;color:var(--amber)">Menampilkan hasil untuk <strong>' + AI_DQ_TICKER + '</strong> — ticker yang sedang dipilih sekarang adalah <strong>' + state.selectedTicker + '</strong>. Klik "Periksa Ulang" untuk memeriksa ticker tersebut.</div>';
     }
     html += '  <div style="overflow-x:auto;margin-bottom:14px">'
       + '    <table class="tbl">'
@@ -2450,7 +2450,7 @@
       // evidence.length / (evidence.length + missingEvidence.length)), not
       // a specific measured before/after number.
       + '  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">'
-      + '    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px"><i class="ti ti-info-circle" style="color:#38bdf8"></i> Kebijakan Penyesuaian Keyakinan (Confidence Degradation Protocol):</div>'
+      + '    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">Kebijakan Penyesuaian Keyakinan (Confidence Degradation Protocol):</div>'
       + '    <div style="font-size:11.5px;color:var(--text2);line-height:1.5">'
       + '      Jika suatu kategori bukti (mis. broker flow, fundamental) tidak tersedia untuk suatu emiten, kategori itu masuk ke daftar "Bukti Belum Tersedia" (lihat Hypothesis Lab) dan skor keyakinan dihitung ulang hanya dari bukti yang benar-benar aktif — bukan angka tetap yang dikarang. <strong>Tidak akan pernah dihasilkan halaman kosong (*blank page*), angka NaN, atau status BUY dari data yang gagal Data Quality Gate.</strong>'
       + '    </div>'
@@ -2498,11 +2498,11 @@
   function aiTriggerAutonomousCycle() {
     syncAiPaperPortfolioLivePrices(false);
     if (typeof showToast === 'function') {
-      showToast('⚡ Menjalankan pemindaian ulang LQ45 dengan harga & indikator terbaru...');
+      showToast('Menjalankan pemindaian ulang LQ45 dengan harga & indikator terbaru...');
     }
     fetchAiScanData().then(function() {
       if (typeof showToast === 'function') {
-        showToast('✓ Scan selesai — ' + AI_UNIVERSE.length + ' emiten diperbarui dari data real-time.');
+        showToast('Scan selesai — ' + AI_UNIVERSE.length + ' emiten diperbarui dari data real-time.');
       }
     });
   }

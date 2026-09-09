@@ -558,7 +558,6 @@ function renderMarketRegimePage() {
   if (!c) return;
 
   var r = getMarketRegime();
-  var regimeEmoji = r.statusBadge === 'b-up' ? '🟢' : r.statusBadge === 'b-dn' ? '🔴' : r.statusBadge === 'b-amb' ? '🟡' : '⏳';
   var regimeCls = r.statusBadge === 'b-up' ? 'up' : r.statusBadge === 'b-dn' ? 'dn' : 'neu';
   var regimeColor = r.statusBadge === 'b-up' ? 'var(--green)' : r.statusBadge === 'b-dn' ? 'var(--red)' : 'var(--amber)';
 
@@ -570,7 +569,7 @@ function renderMarketRegimePage() {
   + '<div class="row3" style="margin-bottom:16px">'
     + '<div class="metric" style="border-left:3px solid ' + regimeColor + '">'
       + '<div class="mlabel">STATUS MARKET REGIME</div>'
-      + '<div class="mval ' + regimeCls + '" style="font-size:24px">' + regimeEmoji + ' ' + r.status + '</div>'
+      + '<div class="mval ' + regimeCls + '" style="font-size:24px">' + r.status + '</div>'
       + '<div class="msub ' + regimeCls + '">Strategi: ' + r.strategy + '</div>'
     + '</div>'
     + '<div class="metric">'
@@ -636,8 +635,8 @@ function renderOpportunityRadarPage() {
         + '<div class="psub">Skor real dari data fundamental Yahoo Finance (Margin of Safety proxy 65% + ROE 35% + bonus indeks) — saat ini hanya dihitung untuk saham LQ45/IDX30 (~' + (sum.lq45Count || 45) + ' emiten). Saham lain di luar itu ditandai "DATA TERBATAS" karena aplikasi ini belum punya feed fundamental real untuk seluruh ~950 emiten sekaligus — bukan angka karangan.</div>'
       + '</div>'
       + '<div style="display:flex;gap:8px">'
-        + '<button class="btn btn-ghost btn-xs" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData();loadCorporateActionsData();showSaveStatus(\'✓ Data Radar diperbarui\');">🔄 Refresh Feed</button>'
-        + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\')">🚀 Buka StockChat Cockpit →</button>'
+        + '<button class="btn btn-ghost btn-xs" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData();loadCorporateActionsData();showSaveStatus(\'Data Radar diperbarui\');">Refresh Feed</button>'
+        + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\')">Buka StockChat Cockpit →</button>'
       + '</div>'
     + '</div>'
   + '</div>'
@@ -668,11 +667,11 @@ function renderOpportunityRadarPage() {
 
   // In-Page Subtab Navigation
   + '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap">'
-    + '<button class="btn btn-xs ' + (activeTab === 'screener' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'screener\')"><i class="ti ti-layout-grid"></i> 🎯 Smart Pick (950+)</button>'
-    + '<button class="btn btn-xs ' + (activeTab === 'anomaly-ara' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'anomaly-ara\')"><i class="ti ti-bolt"></i> ⚡ Anomaly Structural &amp; ARA</button>'
-    + '<button class="btn btn-xs ' + (activeTab === 'scanner' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'scanner\')"><i class="ti ti-chart-arrows"></i> 🌊 Scanner Akumulasi &amp; Distribusi</button>'
-    + '<button class="btn btn-xs ' + (activeTab === 'flow-trail' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'flow-trail\')"><i class="ti ti-timeline"></i> ⚡ Visualisasi Alur Transaksi</button>'
-    + '<button class="btn btn-xs ' + (activeTab === 'corporate-actions' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'corporate-actions\')"><i class="ti ti-calendar-event"></i> 📅 Kalender Aksi Korporasi &amp; Dividen</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'screener' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'screener\')">Smart Pick (950+)</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'anomaly-ara' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'anomaly-ara\')">Anomaly Structural &amp; ARA</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'scanner' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'scanner\')">Scanner Akumulasi &amp; Distribusi</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'flow-trail' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'flow-trail\')">Visualisasi Alur Transaksi</button>'
+    + '<button class="btn btn-xs ' + (activeTab === 'corporate-actions' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'corporate-actions\')">Kalender Aksi Korporasi &amp; Dividen</button>'
   + '</div>';
 
   // Render Active Subtab Content
@@ -719,10 +718,10 @@ function renderRadarScreenerSubTab() {
         + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Zona Radar</label>'
         + '<select class="form-select" style="width:100%;height:32px;font-size:12px" onchange="updateRadarFilter(\'zone\', this.value)">'
           + '<option value="ALL"' + (RADAR_STATE.zone === 'ALL' ? ' selected' : '') + '>Semua Zona</option>'
-          + '<option value="BUY ZONE"' + (RADAR_STATE.zone === 'BUY ZONE' ? ' selected' : '') + '>🟢 BUY ZONE (Score ≥80)</option>'
-          + '<option value="WATCHLIST"' + (RADAR_STATE.zone === 'WATCHLIST' ? ' selected' : '') + '>🟡 WATCHLIST (Score 70-79)</option>'
-          + '<option value="NEUTRAL"' + (RADAR_STATE.zone === 'NEUTRAL' ? ' selected' : '') + '>⚪ NEUTRAL (Score 50-69)</option>'
-          + '<option value="AVOID"' + (RADAR_STATE.zone === 'AVOID' ? ' selected' : '') + '>🔴 AVOID (Score &lt;50)</option>'
+          + '<option value="BUY ZONE"' + (RADAR_STATE.zone === 'BUY ZONE' ? ' selected' : '') + '>BUY ZONE (Score ≥80)</option>'
+          + '<option value="WATCHLIST"' + (RADAR_STATE.zone === 'WATCHLIST' ? ' selected' : '') + '>WATCHLIST (Score 70-79)</option>'
+          + '<option value="NEUTRAL"' + (RADAR_STATE.zone === 'NEUTRAL' ? ' selected' : '') + '>NEUTRAL (Score 50-69)</option>'
+          + '<option value="AVOID"' + (RADAR_STATE.zone === 'AVOID' ? ' selected' : '') + '>AVOID (Score &lt;50)</option>'
         + '</select>'
       + '</div>'
       + '<div>'
@@ -761,13 +760,13 @@ function renderRadarScreenerSubTab() {
         + '<tbody>';
 
   if (items.length === 0) {
-    html += '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text3)">' + (RADAR_STATE.isLoading ? '<i class="ti ti-loader animate-spin"></i> Memuat data real dari Yahoo Finance…' : 'Tidak ada saham yang sesuai dengan filter pencarian.') + '</td></tr>';
+    html += '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text3)">' + (RADAR_STATE.isLoading ? 'Memuat data real dari Yahoo Finance…' : 'Tidak ada saham yang sesuai dengan filter pencarian.') + '</td></tr>';
   } else {
     items.forEach(function(it) {
       var corpBadge = '-';
       if (it.corporateActions && it.corporateActions.length > 0) {
         var ca = it.corporateActions[0];
-        corpBadge = '<span class="badge b-accent" style="font-size:10px" title="' + (ca.details || ca.title) + '">📅 ' + ca.type + ' (' + ca.date + ')</span>';
+        corpBadge = '<span class="badge b-accent" style="font-size:10px" title="' + (ca.details || ca.title) + '">' + ca.type + ' (' + ca.date + ')</span>';
       }
 
       var mosVal = parseFloat(it.mos || 'NaN');
@@ -793,7 +792,7 @@ function renderRadarScreenerSubTab() {
         + '<td>' + corpBadge + '</td>'
         + '<td style="text-align:center;white-space:nowrap">'
           + '<div style="display:inline-flex;gap:4px">'
-            + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi &amp; Bandar"><i class="ti ti-timeline"></i> Alur</button>'
+            + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi &amp; Bandar">Alur</button>'
             + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\');if(typeof selectStockIntelTicker===\'function\')selectStockIntelTicker(\'' + it.ticker + '\');" title="Buka Cockpit Analisis Lengkap">Cockpit →</button>'
           + '</div>'
         + '</td>'
@@ -812,7 +811,7 @@ function renderRadarScannerSubTab() {
   var accData = RADAR_STATE.accData;
   if (!accData) {
     loadAccumulationDistributionData();
-    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)"><i class="ti ti-loader animate-spin"></i> Memuat data scanner akumulasi &amp; distribusi seluruh IHSG...</div>';
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">Memuat data scanner akumulasi &amp; distribusi seluruh IHSG...</div>';
   }
 
   var accList = accData.accumulation || [];
@@ -823,7 +822,7 @@ function renderRadarScannerSubTab() {
   // an honest empty state instead of the fabricated 20-ticker list this used to show.
   if (accData.isSimulated && !accList.length && !distList.length) {
     return '<div class="card" style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
-      + '⚠ ' + (accData.message || 'Data akumulasi/distribusi seluruh bursa belum tersedia.')
+      + (accData.message || 'Data akumulasi/distribusi seluruh bursa belum tersedia.')
       + '</div>';
   }
 
@@ -848,7 +847,6 @@ function renderRadarScannerSubTab() {
     + '<div class="card" style="padding:0;overflow:hidden">'
       + '<div style="padding:12px 16px;background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.2);display:flex;justify-content:space-between;align-items:center">'
         + '<div style="display:flex;align-items:center;gap:8px">'
-          + '<i class="ti ti-arrow-big-up-lines" style="color:var(--green);font-size:18px"></i>'
           + '<strong style="color:var(--green);font-size:13px">TOP AKUMULASI (SMART MONEY INFLOW)</strong>'
         + '</div>'
         + '<span class="badge b-up">' + accList.length + ' Saham</span>'
@@ -878,7 +876,7 @@ function renderRadarScannerSubTab() {
       + '<td class="mono up" style="text-align:right;font-weight:700">+Rp ' + inflowM.toLocaleString('id-ID') + ' M</td>'
       + '<td class="mono ' + (foreignM >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (foreignM >= 0 ? '+' : '') + foreignM.toLocaleString('id-ID') + ' M</td>'
       + '<td style="text-align:center">'
-        + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">⚡</button>'
+        + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button>'
       + '</td>'
     + '</tr>';
   });
@@ -889,7 +887,6 @@ function renderRadarScannerSubTab() {
     + '<div class="card" style="padding:0;overflow:hidden">'
       + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);display:flex;justify-content:space-between;align-items:center">'
         + '<div style="display:flex;align-items:center;gap:8px">'
-          + '<i class="ti ti-arrow-big-down-lines" style="color:var(--red);font-size:18px"></i>'
           + '<strong style="color:var(--red);font-size:13px">TOP DISTRIBUSI (TEKANAN JUAL / RETAIL TRAP)</strong>'
         + '</div>'
         + '<span class="badge b-dn">' + distList.length + ' Saham</span>'
@@ -918,7 +915,7 @@ function renderRadarScannerSubTab() {
       + '<td class="mono dn" style="text-align:right;font-weight:700">-Rp ' + Math.abs(outflowM).toLocaleString('id-ID') + ' M</td>'
       + '<td class="mono dn" style="text-align:right">' + foreignM.toLocaleString('id-ID') + ' M</td>'
       + '<td style="text-align:center">'
-        + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">⚡</button>'
+        + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button>'
       + '</td>'
     + '</tr>';
   });
@@ -936,7 +933,7 @@ function renderRadarFlowTrailSubTab() {
 
   if (!flow || flow.ticker !== currentTicker) {
     loadTransactionFlowData(currentTicker, RADAR_STATE.flowTimeframe);
-    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)"><i class="ti ti-loader animate-spin"></i> Memuat visualisasi alur transaksi untuk <strong>' + currentTicker + '</strong>...</div>';
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">Memuat visualisasi alur transaksi untuk <strong>' + currentTicker + '</strong>...</div>';
   }
 
   var popularTickers = ['BBCA', 'BBRI', 'BMRI', 'ANTM', 'ADRO', 'ADMR', 'ARCI', 'ITMG', 'TLKM', 'MDKA', 'HRUM', 'GOTO', 'GMFI', 'PTRO'];
@@ -987,9 +984,19 @@ function renderRadarFlowTrailSubTab() {
   + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px">'
     // Left: 10-Session Inflow / Outflow Flow Trail Timeline
     + '<div class="card" style="padding:16px">'
-      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px"><i class="ti ti-timeline"></i> Alur Akumulasi Smart Money 10 Sesi Terakhir</div>'
+      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">Alur Akumulasi Smart Money 10 Sesi Terakhir</div>'
       + '<div style="display:flex;flex-direction:column;gap:8px">'
-        + timeline.map(function(t, idx) {
+        + (timeline.length === 0
+          // Data historis harian (per-Rp broker flow) belum bisa ditampilkan
+          // secara jujur: provider tidak punya endpoint riwayat multi-hari
+          // yang skemanya sudah terverifikasi. Sebelumnya panel ini
+          // menampilkan kurva 10-hari yang sebenarnya dihitung dari rumus
+          // (bukan data riil) — sekarang jujur menyatakan tidak tersedia.
+          ? '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11px;line-height:1.6">'
+            + 'Riwayat alur transaksi harian belum tersedia' + (flow.flowTimelineStatus === 'UNAVAILABLE_SIMULATED_SOURCE' ? ' (data broker untuk ' + flow.ticker + ' saat ini simulasi, bukan real)' : ' — provider belum menyediakan breakdown historis per-hari yang terverifikasi') + '.'
+            + '<br>Snapshot broker hari ini tetap tampil di panel kanan.'
+          + '</div>'
+          : timeline.map(function(t, idx) {
           var isPositive = t.smartMoneyDailyRp >= 0;
           var inM = Math.round(t.smartMoneyDailyRp / 1000000000);
           var cumM = Math.round(t.smartMoneyCumulativeRp / 1000000000);
@@ -1004,13 +1011,13 @@ function renderRadarFlowTrailSubTab() {
             + '<span class="mono ' + (isPositive ? 'up' : 'dn') + '" style="width:70px;text-align:right;font-weight:700">' + (isPositive ? '+' : '') + inM + ' M</span>'
             + '<span class="mono" style="width:75px;text-align:right;color:var(--text3)" title="Kumulatif">Σ ' + cumM + ' M</span>'
           + '</div>';
-        }).join('')
+        }).join(''))
       + '</div>'
     + '</div>'
 
     // Right: Top Buyers vs Sellers Broker Matrix
     + '<div class="card" style="padding:16px">'
-      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px"><i class="ti ti-users"></i> Top 5 Broker Accumulator vs Distributor</div>'
+      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">Top 5 Broker Accumulator vs Distributor</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
         + '<div>'
           + '<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">TOP BUYERS (AKUMULATOR)</div>'
@@ -1050,7 +1057,7 @@ function renderRadarFlowTrailSubTab() {
 
   // Active Corporate Actions Timeline for this Ticker
   + '<div class="card" style="padding:16px">'
-    + '<div class="ctitle" style="font-size:13px;margin-bottom:10px"><i class="ti ti-calendar"></i> Aksi Korporasi Terjadwal untuk ' + flow.ticker + '</div>'
+    + '<div class="ctitle" style="font-size:13px;margin-bottom:10px">Aksi Korporasi Terjadwal untuk ' + flow.ticker + '</div>'
     + ((flow.corporateActions && flow.corporateActions.length > 0)
       ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">'
           + flow.corporateActions.map(function(ca) {
@@ -1078,7 +1085,7 @@ function renderRadarCorporateActionsSubTab() {
   var corpData = RADAR_STATE.corpData;
   if (!corpData) {
     loadCorporateActionsData();
-    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)"><i class="ti ti-loader animate-spin"></i> Memuat Kalender Aksi Korporasi Seluruh BEI...</div>';
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">Memuat Kalender Aksi Korporasi Seluruh BEI...</div>';
   }
 
   var activeFilter = RADAR_STATE.corpFilter || 'ALL';
@@ -1095,11 +1102,11 @@ function renderRadarCorporateActionsSubTab() {
     + '</div>'
     + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
       + '<button class="btn btn-xs ' + (activeFilter === 'ALL' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'ALL\').then(renderOpportunityRadarPage)">Semua (' + (divs.length + splits.length + rights.length + rups.length + susps.length) + ')</button>'
-      + '<button class="btn btn-xs ' + (activeFilter === 'DIVIDEN' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'DIVIDEN\').then(renderOpportunityRadarPage)">💰 Dividen (' + divs.length + ')</button>'
-      + '<button class="btn btn-xs ' + (activeFilter === 'SPLIT' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'SPLIT\').then(renderOpportunityRadarPage)">✂️ Stock Split (' + splits.length + ')</button>'
-      + '<button class="btn btn-xs ' + (activeFilter === 'RIGHTS' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'RIGHTS\').then(renderOpportunityRadarPage)">📜 Rights Issue (' + rights.length + ')</button>'
-      + '<button class="btn btn-xs ' + (activeFilter === 'RUPS' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'RUPS\').then(renderOpportunityRadarPage)">🏛️ RUPS (' + rups.length + ')</button>'
-      + '<button class="btn btn-xs ' + (activeFilter === 'SUSPENSI' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'SUSPENSI\').then(renderOpportunityRadarPage)">⚠️ Suspensi (' + susps.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'DIVIDEN' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'DIVIDEN\').then(renderOpportunityRadarPage)">Dividen (' + divs.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'SPLIT' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'SPLIT\').then(renderOpportunityRadarPage)">Stock Split (' + splits.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'RIGHTS' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'RIGHTS\').then(renderOpportunityRadarPage)">Rights Issue (' + rights.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'RUPS' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'RUPS\').then(renderOpportunityRadarPage)">RUPS (' + rups.length + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'SUSPENSI' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'SUSPENSI\').then(renderOpportunityRadarPage)">Suspensi (' + susps.length + ')</button>'
     + '</div>'
   + '</div>';
 
@@ -1107,7 +1114,7 @@ function renderRadarCorporateActionsSubTab() {
   if (activeFilter === 'ALL' || activeFilter === 'DIVIDEN') {
     html += '<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">'
       + '<div style="padding:12px 16px;background:rgba(56,189,248,0.08);border-bottom:1px solid rgba(56,189,248,0.2);display:flex;justify-content:space-between;align-items:center">'
-        + '<strong style="color:var(--accent);font-size:13px">💰 KALENDER DIVIDEN TUNAI (CASH DIVIDEND)</strong>'
+        + '<strong style="color:var(--accent);font-size:13px">KALENDER DIVIDEN TUNAI (CASH DIVIDEND)</strong>'
         + '<span class="badge b-accent">' + divs.length + ' Emiten</span>'
       + '</div>'
       + '<div style="overflow-x:auto">'
@@ -1131,7 +1138,7 @@ function renderRadarCorporateActionsSubTab() {
                 + '<td class="mono" style="text-align:center">' + d.exDate + '</td>'
                 + '<td class="mono" style="text-align:center">' + d.paymentDate + '</td>'
                 + '<td style="text-align:center">'
-                  + '<button class="btn btn-primary btn-xs" onclick="selectRadarFlowTicker(\'' + d.ticker + '\')">⚡ Alur Transaksi</button>'
+                  + '<button class="btn btn-primary btn-xs" onclick="selectRadarFlowTicker(\'' + d.ticker + '\')">Alur Transaksi</button>'
                 + '</td>'
               + '</tr>';
             }).join('')
@@ -1147,7 +1154,7 @@ function renderRadarCorporateActionsSubTab() {
 
     if (activeFilter === 'ALL' || activeFilter === 'SPLIT') {
       html += '<div class="card" style="padding:0;overflow:hidden">'
-        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">✂️ JADWAL STOCK SPLIT &amp; REVERSE SPLIT</div>'
+        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">JADWAL STOCK SPLIT &amp; REVERSE SPLIT</div>'
         + '<table class="tbl"><thead><tr><th>Ticker</th><th>Rasio</th><th>Effective Date</th></tr></thead><tbody>'
           + splits.map(function(s) {
             return '<tr>'
@@ -1161,7 +1168,7 @@ function renderRadarCorporateActionsSubTab() {
 
     if (activeFilter === 'ALL' || activeFilter === 'RIGHTS') {
       html += '<div class="card" style="padding:0;overflow:hidden">'
-        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">📜 JADWAL RIGHTS ISSUE (HMETD)</div>'
+        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">JADWAL RIGHTS ISSUE (HMETD)</div>'
         + '<table class="tbl"><thead><tr><th>Ticker</th><th>Rasio</th><th>Harga Tebus</th><th>Cum Date</th></tr></thead><tbody>'
           + rights.map(function(r) {
             return '<tr>'
@@ -1183,13 +1190,13 @@ function renderRadarCorporateActionsSubTab() {
 
     if (activeFilter === 'ALL' || activeFilter === 'RUPS') {
       html += '<div class="card" style="padding:0;overflow:hidden">'
-        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">🏛️ JADWAL RUPS / EGMS</div>'
+        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">JADWAL RUPS / EGMS</div>'
         + '<table class="tbl"><thead><tr><th>Ticker &amp; Jenis</th><th>Tanggal</th><th>Agenda &amp; Lokasi</th></tr></thead><tbody>'
           + rups.map(function(u) {
             return '<tr>'
               + '<td><strong>' + u.ticker + '</strong> <div class="badge b-accent" style="font-size:9px">' + u.type + '</div></td>'
               + '<td class="mono">' + u.date + '</td>'
-              + '<td style="font-size:11px;color:var(--text2)">' + u.agenda + '<div style="color:var(--text3);font-size:10px">📍 ' + u.venue + '</div></td>'
+              + '<td style="font-size:11px;color:var(--text2)">' + u.agenda + '<div style="color:var(--text3);font-size:10px">' + u.venue + '</div></td>'
             + '</tr>';
           }).join('')
         + '</tbody></table></div>';
@@ -1197,7 +1204,7 @@ function renderRadarCorporateActionsSubTab() {
 
     if (activeFilter === 'ALL' || activeFilter === 'SUSPENSI') {
       html += '<div class="card" style="padding:0;overflow:hidden">'
-        + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);color:var(--red);font-weight:700;font-size:13px">⚠️ STATUS SUSPENSI &amp; UNUSUAL MARKET ACTIVITY (UMA)</div>'
+        + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);color:var(--red);font-weight:700;font-size:13px">STATUS SUSPENSI &amp; UNUSUAL MARKET ACTIVITY (UMA)</div>'
         + '<table class="tbl"><thead><tr><th>Ticker</th><th>Status</th><th>Tanggal Suspensi</th><th>Alasan</th></tr></thead><tbody>'
           + susps.map(function(sp) {
             return '<tr>'
@@ -1233,7 +1240,7 @@ function renderDataConnPage() {
   + '<div class="row3" style="margin-bottom:16px">'
     + '<div class="metric">'
       + '<div class="mlabel">FEED STATUS</div>'
-      + '<div class="mval up" style="font-size:22px">🟢 LIVE PROXY</div>'
+      + '<div class="mval up" style="font-size:22px">LIVE PROXY</div>'
       + '<div class="msub up">Connected to IDX Realtime Proxy</div>'
     + '</div>'
     + '<div class="metric">'
@@ -1265,8 +1272,8 @@ function renderDataConnPage() {
       + '</div>'
     + '</div>'
     + '<div style="margin-top:16px;display:flex;gap:10px">'
-      + '<button class="btn btn-primary" onclick="if(typeof fetchLivePrices===\'function\'){fetchLivePrices();showSaveStatus(\'✓ Harga pasar diperbarui\');}">🔄 Perbarui Harga Pasar Sekarang</button>'
-      + '<button class="btn btn-ghost" onclick="openFinnhubSettings()">⚙️ Pengaturan API Proxy</button>'
+      + '<button class="btn btn-primary" onclick="if(typeof fetchLivePrices===\'function\'){fetchLivePrices();showSaveStatus(\'Harga pasar diperbarui\');}">Perbarui Harga Pasar Sekarang</button>'
+      + '<button class="btn btn-ghost" onclick="openFinnhubSettings()">Pengaturan API Proxy</button>'
     + '</div>'
   + '</div>';
 
@@ -1323,7 +1330,7 @@ function renderRadarAnomalyAraSubTab() {
     + '<div class="card" style="padding:16px;margin-bottom:16px">'
       + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;flex-wrap:wrap;gap:6px">'
         + '<div>'
-          + '<h2 style="font-size:15px;font-weight:800;color:var(--text);margin:0;display:flex;align-items:center;gap:6px"><i class="ti ti-bolt" style="color:var(--accent)"></i> ANOMALY STRUCTURAL</h2>'
+          + '<h2 style="font-size:15px;font-weight:800;color:var(--text);margin:0;display:flex;align-items:center;gap:6px">ANOMALY STRUCTURAL</h2>'
           + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Bid tebal · Offer tipis · ATS tinggi · Net asing positif</div>'
         + '</div>'
         + '<span class="badge b-up" style="font-size:10px;font-weight:700">7 Emiten Terdeteksi</span>'
@@ -1353,7 +1360,7 @@ function renderRadarAnomalyAraSubTab() {
                 + '<td class="font-mono" style="text-align:right;color:#38bdf8;font-weight:700">' + r.bo + '</td>'
                 + '<td class="font-mono" style="text-align:right">' + r.ats + '</td>'
                 + '<td style="text-align:center" onclick="event.stopPropagation()">'
-                  + '<button class="btn btn-ghost btn-xs" onclick="openBandarFlowModal(\'' + r.ticker + '\')" title="Buka Flow Modal">🌊 Flow</button>'
+                  + '<button class="btn btn-ghost btn-xs" onclick="openBandarFlowModal(\'' + r.ticker + '\')" title="Buka Flow Modal">Flow</button>'
                   + '<button class="btn btn-primary btn-xs" onclick="switchIntelTicker(\'' + r.ticker + '\')" style="margin-left:4px" title="Buka di Stock Intelligence">Cockpit →</button>'
                 + '</td>'
               + '</tr>';
@@ -1366,7 +1373,7 @@ function renderRadarAnomalyAraSubTab() {
     // SECTION 2: MOMENTUM / ARA DETECTOR (2-COL BENTO)
     + '<div class="card" style="padding:16px;margin-bottom:16px">'
       + '<div style="margin-bottom:12px">'
-        + '<h2 style="font-size:15px;font-weight:800;color:var(--text);margin:0;display:flex;align-items:center;gap:6px"><i class="ti ti-rocket" style="color:#10B981"></i> MOMENTUM / ARA DETECTOR</h2>'
+        + '<h2 style="font-size:15px;font-weight:800;color:var(--text);margin:0;display:flex;align-items:center;gap:6px">MOMENTUM / ARA DETECTOR</h2>'
         + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Saham berpotensi bergerak signifikan besok · pola perilaku asing + teknikal close</div>'
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'

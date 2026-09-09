@@ -64,7 +64,7 @@ function renderDailyBriefPage() {
   + '<div class="row3" style="margin-bottom:18px">'
     + '<div class="metric">'
       + '<div class="mlabel">MARKET REGIME HARI INI</div>'
-      + '<div class="mval ' + (isBullish ? 'up' : 'dn') + '" style="font-size:22px">' + (isBullish ? '🟢 RISK-ON BULLISH' : '🔴 BEARISH CORRECTION') + '</div>'
+      + '<div class="mval ' + (isBullish ? 'up' : 'dn') + '" style="font-size:22px">' + (isBullish ? 'RISK-ON BULLISH' : 'BEARISH CORRECTION') + '</div>'
       + '<div class="msub ' + (isBullish ? 'up' : 'dn') + '">IHSG ' + curIhsg.toLocaleString('id-ID', {minimumFractionDigits:2}) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%) · Real-time Feed</div>'
     + '</div>'
     + '<div class="metric">'
@@ -82,7 +82,7 @@ function renderDailyBriefPage() {
   // Dynamic 3 Things to Watch Today across Portfolio
   + '<div class="card" style="padding:22px;margin-bottom:18px">'
     + '<div class="ctitle" style="font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:6px">'
-      + '<i class="ti ti-target" style="color:var(--accent)"></i> 3 HAL KRUSIAL YANG HARUS DIPERHATIKAN HARI INI (3 THINGS TO WATCH):'
+      + '3 HAL KRUSIAL YANG HARUS DIPERHATIKAN HARI INI (3 THINGS TO WATCH):'
     + '</div>'
     + '<div style="display:flex;flex-direction:column;gap:14px">';
 
@@ -156,16 +156,15 @@ function renderDailyBriefPage() {
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
       + '<div>'
         + '<div class="ctitle" style="font-size:15px;display:flex;align-items:center;gap:6px">'
-          + '<i class="ti ti-list-check" style="color:var(--accent)"></i> Evaluasi Komprehensif Seluruh Saham Portofolio (' + porto.length + ' Emiten Terdaftar)'
+          + 'Evaluasi Komprehensif Seluruh Saham Portofolio (' + porto.length + ' Emiten Terdaftar)'
         + '</div>'
         + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Pemindaian kesehatan fundamental, valuasi, momentum harian, dan rekomendasi aksi untuk setiap aset di portofolio Anda.</div>'
       + '</div>'
-      + '<button class="btn btn-outline btn-sm" onclick="goPage(\'portofolio\',null)"><i class="ti ti-briefcase"></i> Kelola Portofolio</button>'
+      + '<button class="btn btn-outline btn-sm" onclick="goPage(\'portofolio\',null)">Kelola Portofolio</button>'
     + '</div>';
 
   if (!porto.length) {
     html += '<div class="empty" style="padding:32px;text-align:center">'
-      + '<i class="ti ti-briefcase-off" style="font-size:32px;color:var(--text3);margin-bottom:8px"></i>'
       + '<p style="color:var(--text2)">Belum ada data saham di portofolio Anda.</p>'
       + '<button class="btn btn-primary btn-sm" onclick="goPage(\'transaksi\',null)" style="margin-top:8px">+ Tambah Transaksi Saham</button>'
     + '</div>';
@@ -246,7 +245,7 @@ function renderDailyBriefPage() {
           + '<span class="badge ' + signalBadge + '" style="font-size:10px">' + signal + '</span>'
         + '</td>'
         + '<td style="text-align:center">'
-          + '<button class="btn btn-outline btn-sm" onclick="switchIntelTicker(\'' + p.ticker + '\')" style="padding:3px 8px;font-size:10.5px" title="Buka Cockpit Analisis ' + p.ticker + '"><i class="ti ti-radar"></i> Cockpit</button>'
+          + '<button class="btn btn-outline btn-sm" onclick="switchIntelTicker(\'' + p.ticker + '\')" style="padding:3px 8px;font-size:10.5px" title="Buka Cockpit Analisis ' + p.ticker + '">Cockpit</button>'
         + '</td>'
       + '</tr>';
     });
@@ -282,7 +281,6 @@ function renderThesisPage() {
 
   if (!MW_THESES || MW_THESES.length === 0) {
     html += '<div class="card" style="text-align:center;padding:48px 20px;color:var(--text3)">'
-      + '<i class="ti ti-clipboard-list" style="font-size:40px;color:var(--text3);margin-bottom:12px;display:block"></i>'
       + '<strong style="font-size:15px;color:var(--text2)">Belum Ada Investment Thesis Tersimpan</strong>'
       + '<div style="font-size:12px;margin-top:6px;max-width:480px;margin-left:auto;margin-right:auto">'
         + 'Dokumentasikan alasan beli, target harga, dan kriteria invalidasi untuk setiap emiten Anda agar keputusan investasi tetap objektif dan terukur.'
@@ -299,7 +297,7 @@ function renderThesisPage() {
               + '<strong style="font-size:16px;color:var(--text)">' + th.ticker + '</strong>'
               + '<span style="font-size:11px;color:var(--text3)">' + th.date + '</span>'
             + '</div>'
-            + '<span class="badge ' + (th.statusClass || 'b-up') + '">🟢 THESIS ' + (th.status || 'INTACT') + '</span>'
+            + '<span class="badge ' + (th.statusClass || 'b-up') + '">THESIS ' + (th.status || 'INTACT') + '</span>'
           + '</div>'
           + '<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px;background:var(--bg3);border-left:3px solid var(--accent);padding:8px 12px;border-radius:0 6px 6px 0">'
             + '<strong>Why Bought:</strong> ' + th.whyBought
@@ -315,7 +313,7 @@ function renderThesisPage() {
             + '</div>'
           + '</div>'
           + '<div style="font-size:11px;color:var(--red);line-height:1.4;margin-bottom:12px">'
-            + '<strong>⚠ Invalidation Criteria:</strong> ' + th.invalidation
+            + '<strong>Invalidation Criteria:</strong> ' + th.invalidation
           + '</div>'
         + '</div>'
         + '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border)">'
@@ -336,7 +334,7 @@ function openNewThesisModal(defaultTicker) {
   var mBody = el('m-body');
   if (!modal || !mBody) return;
 
-  mTitle.textContent = '📝 Buat Investment Thesis Baru';
+  mTitle.textContent = 'Buat Investment Thesis Baru';
   mBody.innerHTML = ''
     + '<div style="display:flex;flex-direction:column;gap:12px">'
       + '<div class="form-group">'
@@ -393,7 +391,7 @@ function saveNewThesisFromModal() {
   saveThesesToStorage();
   closeModal();
   renderThesisPage();
-  if (typeof showSaveStatus === 'function') showSaveStatus('✓ Thesis tersimpan');
+  if (typeof showSaveStatus === 'function') showSaveStatus('Thesis tersimpan');
 }
 
 function deleteThesis(idx) {
@@ -440,7 +438,6 @@ function renderJournalPage() {
 
   if (!MW_JOURNALS || MW_JOURNALS.length === 0) {
     html += '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px 20px">'
-      + '<i class="ti ti-book" style="font-size:32px;color:var(--text3);margin-bottom:8px;display:block"></i>'
       + '<strong style="color:var(--text2);font-size:14px">Belum Ada Catatan Jurnal Transaksi</strong>'
       + '<div style="font-size:12px;margin-top:4px">Klik tombol &ldquo;+ Catat Transaksi di Jurnal&rdquo; untuk mencatat evaluasi psikologi &amp; rasional eksekusi trade Anda.</div>'
       + '</td></tr>';
@@ -468,7 +465,7 @@ function openNewJournalModal() {
   var mBody = el('m-body');
   if (!modal || !mBody) return;
 
-  mTitle.textContent = '📖 Catat Jurnal Keputusan Baru';
+  mTitle.textContent = 'Catat Jurnal Keputusan Baru';
   mBody.innerHTML = ''
     + '<div style="display:flex;flex-direction:column;gap:12px">'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
@@ -546,7 +543,7 @@ function saveNewJournalFromModal() {
   saveJournalsToStorage();
   closeModal();
   renderJournalPage();
-  if (typeof showSaveStatus === 'function') showSaveStatus('✓ Jurnal tersimpan');
+  if (typeof showSaveStatus === 'function') showSaveStatus('Jurnal tersimpan');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -628,17 +625,17 @@ function renderScenarioPage() {
   + '</div>'
 
   + '<div class="card" style="padding:20px;margin-bottom:18px">'
-    + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">⚡ PILIH PRESET SKENARIO UJI STRES (BERDASARKAN PORTOFOLIO AKTIF):</div>'
+    + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">PILIH PRESET SKENARIO UJI STRES (BERDASARKAN PORTOFOLIO AKTIF):</div>'
     + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'
-      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'top-drop\')">📉 ' + topTicker + ' (Holding Terbesar ' + topWeight + '%) Koreksi -20%</button>'
-      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'ihsg-drop\')">📉 IHSG Koreksi Pasar -10%</button>'
-      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'sector-drop\')">🏦 Sektor ' + topSector + ' Koreksi -15%</button>'
-      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'swap-top\')">🔄 Rotasi: Trim 30% ' + topTicker + ' → Beli ' + top2Ticker + ' / Kas</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'top-drop\')">' + topTicker + ' (Holding Terbesar ' + topWeight + '%) Koreksi -20%</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'ihsg-drop\')">IHSG Koreksi Pasar -10%</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'sector-drop\')">Sektor ' + topSector + ' Koreksi -15%</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="runScenarioSimulation(\'swap-top\')">Rotasi: Trim 30% ' + topTicker + ' → Beli ' + top2Ticker + ' / Kas</button>'
     + '</div>'
 
     + (sortedPorto.length > 0 ? (
       '<div style="border-top:1px solid var(--border);padding-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'
-        + '<span style="font-size:12px;font-weight:700;color:var(--text2)">🎯 Custom Skenario Interaktif:</span>'
+        + '<span style="font-size:12px;font-weight:700;color:var(--text2)">Custom Skenario Interaktif:</span>'
         + '<select id="sc-custom-ticker" class="finput fsel" style="max-width:280px;padding:5px 10px;font-size:12px">' + stockOptions + '</select>'
         + '<select id="sc-custom-shock" class="finput fsel" style="max-width:140px;padding:5px 10px;font-size:12px">'
           + '<option value="-30">-30% Crash</option>'
@@ -648,7 +645,7 @@ function renderScenarioPage() {
           + '<option value="20">+20% Breakout</option>'
           + '<option value="30">+30% Super Rally</option>'
         + '</select>'
-        + '<button class="btn btn-primary btn-sm" onclick="runCustomScenarioSimulation()">⚡ Simulasikan</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="runCustomScenarioSimulation()">Simulasikan</button>'
       + '</div>'
     ) : '')
   + '</div>'
@@ -699,7 +696,7 @@ function renderScenarioResultBox(res) {
       + '</div>'
     + '</div>'
     + '<div style="background:rgba(0,200,255,0.04);border-left:3px solid var(--accent);padding:12px 16px;border-radius:0 8px 8px 0">'
-      + '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px">💡 AI SCENARIO DIAGNOSIS:</div>'
+      + '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px">AI SCENARIO DIAGNOSIS:</div>'
       + '<div style="font-size:12px;color:var(--text2);line-height:1.5">' + res.analysis + '</div>'
     + '</div>'
   + '</div>';
@@ -880,14 +877,13 @@ function renderRebalancePage() {
     + '<div class="psub">Sistem otomatis menghitung rekomendasi transaksi beli/jual untuk mengembalikan alokasi portofolio ke target persentase ideal.</div>'
     + '</div>'
     + '<div style="display:flex;gap:6px">'
-    + '<button class="btn btn-ghost btn-sm ' + (_rebalanceMode==='equal'?'active':'') + '" onclick="setRebalanceMode(\'equal\')">⚖️ Equal Weight</button>'
-    + '<button class="btn btn-ghost btn-sm ' + (_rebalanceMode==='custom'?'active':'') + '" onclick="setRebalanceMode(\'custom\')">🎯 Target Kustom</button>'
+    + '<button class="btn btn-ghost btn-sm ' + (_rebalanceMode==='equal'?'active':'') + '" onclick="setRebalanceMode(\'equal\')">Equal Weight</button>'
+    + '<button class="btn btn-ghost btn-sm ' + (_rebalanceMode==='custom'?'active':'') + '" onclick="setRebalanceMode(\'custom\')">Target Kustom</button>'
     + '</div>'
     + '</div>';
 
   if (!porto || porto.length === 0) {
     html += '<div class="card" style="text-align:center;padding:48px 20px;color:var(--text3)">'
-      + '<i class="ti ti-scale" style="font-size:40px;color:var(--text3);margin-bottom:12px;display:block"></i>'
       + '<strong style="font-size:15px;color:var(--text2)">Belum Ada Posisi Portofolio Aktif</strong>'
       + '<div style="font-size:12px;margin-top:6px;max-width:480px;margin-left:auto;margin-right:auto">'
         + 'Portofolio saat ini kosong (Rp 0). Masukkan transaksi beli atau upload file data portofolio baru Anda untuk mengaktifkan kalkulator rebalancing alokasi target otomatis.'
@@ -933,7 +929,7 @@ function renderRebalancePage() {
 
   html += '<div class="card" style="margin-bottom:16px;background:rgba(0,200,255,0.02);border:1px solid rgba(0,200,255,0.15)">'
     + '<div class="ctitle" style="font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">'
-      + '<i class="ti ti-route" style="color:var(--accent)"></i> Alur Kerja Step-by-Step Eksekusi Rebalancing'
+      + 'Alur Kerja Step-by-Step Eksekusi Rebalancing'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">'
       + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
@@ -985,7 +981,7 @@ function renderRebalancePage() {
         + '</div>'
       + '</div>'
       + '<div style="display:flex;gap:8px">'
-        + '<button class="btn btn-primary btn-sm" onclick="alert(\'Lembar instruksi order rebalance berhasil disiapkan. Salin atau catat untuk eksekusi di sekuritas.\')">📋 Salin Order Sheet</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="alert(\'Lembar instruksi order rebalance berhasil disiapkan. Salin atau catat untuk eksekusi di sekuritas.\')">Salin Order Sheet</button>'
         + (_rebalanceMode === 'custom' ? '<button class="btn btn-ghost btn-sm" onclick="_rebalanceCustomWeights={};renderRebalancePage()">Reset Target</button>' : '')
       + '</div>'
     + '</div>'
@@ -993,7 +989,7 @@ function renderRebalancePage() {
 
   + '<div class="card" style="padding:0;overflow:hidden">'
     + '<div class="cheader" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-      + '<span class="ctitle">📋 Rebalance Order Calculator (Rekomendasi Beli / Jual Otomatis)</span>'
+      + '<span class="ctitle">Rebalance Order Calculator (Rekomendasi Beli / Jual Otomatis)</span>'
       + '<span class="badge b-accent">REAL-TIME CALCULATION</span>'
     + '</div>'
     + '<table class="tbl">'
@@ -1025,7 +1021,7 @@ function renderRebalancingPage() {
 var MW_COPILOT_HISTORY = [
   {
     role: 'assistant',
-    text: 'Halo! Saya adalah **MoneyWatch Pro AI**, asisten analis portofolio multi-aset kelas institusional yang berfokus pada pasar modal Indonesia (IHSG/BEI).\n\nSaya siap membantu Anda dalam:\n- 📊 **Analisa Portofolio & Risiko**: Evaluasi konsentrasi AUM, alokasi kas RDN, dan Maximum Drawdown.\n- 🏛️ **Kepatuhan Regulasi BEI**: Validasi simulasi transaksi sesuai fraksi harga (tick size) dan batas ARA/ARB simetris.\n- 💰 **Kalkulasi Pajak Dividen**: Proyeksi imbal hasil dividen bersih setelah dipotong PPh Final 10% (atau 0% reinvestasi PMK 18/2021).\n- 🔍 **Rasio Fundamental & Valuasi**: P/E, P/BV, ROE, DER, NPM, dan Margin of Safety tanpa halusinasi.\n- 👥 **Kepemilikan KSEI**: Pantau data pemegang saham institusi >5% dan estimasi free float publik.\n\n*Silakan tanyakan tentang portofolio Anda atau kode saham spesifik di BEI (misal: BBCA, BBRI, BMRI, PGEO).*',
+    text: 'Halo! Saya adalah **MoneyWatch Pro AI**, asisten analis portofolio multi-aset kelas institusional yang berfokus pada pasar modal Indonesia (IHSG/BEI).\n\nSaya siap membantu Anda dalam:\n- **Analisa Portofolio & Risiko**: Evaluasi konsentrasi AUM, alokasi kas RDN, dan Maximum Drawdown.\n- **Kepatuhan Regulasi BEI**: Validasi simulasi transaksi sesuai fraksi harga (tick size) dan batas ARA/ARB simetris.\n- **Kalkulasi Pajak Dividen**: Proyeksi imbal hasil dividen bersih setelah dipotong PPh Final 10% (atau 0% reinvestasi PMK 18/2021).\n- **Rasio Fundamental & Valuasi**: P/E, P/BV, ROE, DER, NPM, dan Margin of Safety tanpa halusinasi.\n- **Kepemilikan KSEI**: Pantau data pemegang saham institusi >5% dan estimasi free float publik.\n\n*Silakan tanyakan tentang portofolio Anda atau kode saham spesifik di BEI (misal: BBCA, BBRI, BMRI, PGEO).*',
     toolCalls: []
   }
 ];
@@ -1049,8 +1045,7 @@ function renderCopilotPage() {
     if (m.toolCalls && m.toolCalls.length > 0) {
       toolHtml = '<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px">'
         + m.toolCalls.map(function(tc) {
-          return '<span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:10px;padding:2px 6px;border-radius:4px">'
-            + '⚡ ' + escapeHtml(tc.name) + '(' + escapeHtml(JSON.stringify(tc.args || {})) + ')'
+          return '<span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:10px;padding:2px 6px;border-radius:4px">' + escapeHtml(tc.name) + '(' + escapeHtml(JSON.stringify(tc.args || {})) + ')'
           + '</span>';
         }).join('')
       + '</div>';
@@ -1059,7 +1054,7 @@ function renderCopilotPage() {
     return '<div class="copilot-bubble bubble-' + m.role + '" style="margin-bottom:12px;background:' + (isAssistant ? 'var(--bg2)' : 'rgba(56,189,248,0.12)') + ';border:1px solid ' + (isAssistant ? 'var(--border)' : 'rgba(56,189,248,0.3)') + ';border-radius:8px;padding:14px">'
       + '<div class="cb-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
         + '<span class="cb-role" style="font-weight:700;font-size:12px;color:' + (isAssistant ? '#38bdf8' : 'var(--accent)') + '">'
-          + (isAssistant ? '🤖 MoneyWatch Pro AI' : '👤 Anda')
+          + (isAssistant ? 'MoneyWatch Pro AI' : 'Anda')
         + '</span>'
         + (isAssistant ? '<span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:1px 6px;border-radius:4px">BEI Institutional Analyst</span>' : '')
       + '</div>'
@@ -1083,7 +1078,7 @@ function renderCopilotPage() {
       + '<div class="psub">Asisten analis portofolio multi-aset berbasis model reasoning, kepatuhan regulasi BEI, kepemilikan KSEI &amp; kalkulasi pajak dividen bersih.</div>'
     + '</div>'
     + '<div style="display:flex;gap:8px">'
-      + '<button class="btn btn-ghost btn-sm" onclick="clearCopilotHistory()"><i class="ti ti-trash"></i> Bersihkan Sesi</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="clearCopilotHistory()">Bersihkan Sesi</button>'
     + '</div>'
   + '</div>'
 
@@ -1093,11 +1088,11 @@ function renderCopilotPage() {
     + '</div>'
 
     + '<div class="copilot-chips-wrap" style="padding:8px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,0.2);display:flex;gap:8px;overflow-x:auto;white-space:nowrap">'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Analisa konsentrasi portofolio, alokasi kas RDN, dan risiko Maximum Drawdown saya saat ini\')">📊 Analisa Portofolio & Konsentrasi</button>'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Cek rasio fundamental, MoS, dan analisa dua sisi potensi vs risiko saham ' + topTicker + '\')">🔍 Fundamental & MoS ' + topTicker + '</button>'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Simulasikan beli 50 lot ' + secondTicker + ' dan validasi fraksi harga BEI serta batas ARA/ARB\')">🏛️ Simulasi Transaksi ' + secondTicker + '</button>'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Hitung proyeksi dividen bersih saham ' + topTicker + ' dengan potongan pajak final 10%\')">💰 Hitung Pajak Dividen ' + topTicker + '</button>'
-      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Cek struktur pemegang saham institusi >5% dan estimasi free float KSEI saham BMRI\')">👥 Kepemilikan KSEI BMRI</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Analisa konsentrasi portofolio, alokasi kas RDN, dan risiko Maximum Drawdown saya saat ini\')">Analisa Portofolio & Konsentrasi</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Cek rasio fundamental, MoS, dan analisa dua sisi potensi vs risiko saham ' + topTicker + '\')">Fundamental & MoS ' + topTicker + '</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Simulasikan beli 50 lot ' + secondTicker + ' dan validasi fraksi harga BEI serta batas ARA/ARB\')">Simulasi Transaksi ' + secondTicker + '</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Hitung proyeksi dividen bersih saham ' + topTicker + ' dengan potongan pajak final 10%\')">Hitung Pajak Dividen ' + topTicker + '</button>'
+      + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Cek struktur pemegang saham institusi >5% dan estimasi free float KSEI saham BMRI\')">Kepemilikan KSEI BMRI</button>'
     + '</div>'
 
     + '<div class="copilot-input-bar" style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:10px;background:var(--bg2)">'
@@ -1170,7 +1165,7 @@ async function sendCopilotPrompt(text) {
     } else {
       MW_COPILOT_HISTORY.push({
         role: 'assistant',
-        text: '⚠️ Terjadi kendala saat memproses analisa: ' + (data.error || 'Server tidak merespons.'),
+        text: 'Terjadi kendala saat memproses analisa: ' + (data.error || 'Server tidak merespons.'),
         toolCalls: []
       });
     }
@@ -1178,7 +1173,7 @@ async function sendCopilotPrompt(text) {
     console.error('Agent chat client error:', err);
     MW_COPILOT_HISTORY.push({
       role: 'assistant',
-      text: '⚠️ Gagal terhubung ke engine MoneyWatch Pro AI. Silakan coba kembali sesaat lagi.',
+      text: 'Gagal terhubung ke engine MoneyWatch Pro AI. Silakan coba kembali sesaat lagi.',
       toolCalls: []
     });
   } finally {

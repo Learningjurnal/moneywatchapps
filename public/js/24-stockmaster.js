@@ -149,7 +149,7 @@ async function fundFetchData(tickerOverride) {
   FUND_DATA.ticker = cleanCode;
   FUND_DATA.currency = isUsStock ? 'USD' : 'IDR';
 
-  fundShowStatus('🔄 Memuat analisa fundamental &amp; konsensus valuasi <b>' + cleanCode + '</b>...', false);
+  fundShowStatus('Memuat analisa fundamental &amp; konsensus valuasi <b>' + cleanCode + '</b>...', false);
 
   // Helper fetcher yang mencoba seluruh proxy yang tersedia (lokal, allorigins, codetabs).
   // Server-side /api/proxy dicoba dulu — lebih stabil & sudah punya cache
@@ -271,20 +271,20 @@ async function fundFetchData(tickerOverride) {
     } else if (realFieldCount >= 1) {
       FUND_DATA.dataQuality = { source: 'partial', realFieldCount: realFieldCount };
       fundPopulateData();
-      fundShowStatus('⚠️ Data Fundamental <b>' + cleanCode + '</b> sebagian saja dari Yahoo Finance (' + realFieldCount + ' field) — sisanya ' + (prevSource === 'profile_snapshot' ? 'snapshot terkurasi (bukan real-time)' : 'estimasi, ditandai di ringkasan') + '.', false);
+      fundShowStatus('Data Fundamental <b>' + cleanCode + '</b> sebagian saja dari Yahoo Finance (' + realFieldCount + ' field) — sisanya ' + (prevSource === 'profile_snapshot' ? 'snapshot terkurasi (bukan real-time)' : 'estimasi, ditandai di ringkasan') + '.', false);
     } else {
       fundPopulateData();
       fundShowStatus(prevSource === 'profile_snapshot'
-        ? '⚠️ Yahoo Finance tidak mengembalikan data untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
-        : '⚠️ Yahoo Finance tidak punya data fundamental untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
+        ? 'Yahoo Finance tidak mengembalikan data untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
+        : 'Yahoo Finance tidak punya data fundamental untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
     }
   } catch (e) {
     fundLoadFallbackData(cleanCode, liveMeta, livePrice);
     fundPopulateData();
     var src = (FUND_DATA.dataQuality && FUND_DATA.dataQuality.source) || 'unavailable';
     fundShowStatus(src === 'profile_snapshot'
-      ? '⚠️ Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
-      : '⚠️ Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
+      ? 'Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
+      : 'Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
   }
 }
 
@@ -309,7 +309,7 @@ function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
     FUND_DATA.detail = { marketCap: { raw: 0 }, trailingPE: { raw: 0 }, forwardPE: { raw: 0 }, dividendYield: { raw: 0 }, payoutRatio: { raw: 0 } };
     FUND_DATA.profile = { sector: 'Tidak Ditemukan', longBusinessSummary: 'Ticker "' + code + '" tidak terdaftar dalam Stock Universe IDX. Seluruh parameter fundamental bernilai 0.' };
     fundPopulateData();
-    fundShowStatus('⚠️ Ticker <b>' + code + '</b> tidak terdaftar dalam Stock Universe pasar saham Indonesia. Data = 0.', true);
+    fundShowStatus('Ticker <b>' + code + '</b> tidak terdaftar dalam Stock Universe pasar saham Indonesia. Data = 0.', true);
     return;
   }
 
@@ -581,9 +581,9 @@ function fundPopulateData() {
   var t3 = document.getElementById('sm-t3-table');
   if (t3) {
     t3.innerHTML = ''
-      + '<tr><td style="font-weight:600">Debt to Equity Ratio (DER)</td><td class="mono">' + dte.toFixed(2) + 'x</td><td style="color:var(--text3)">&lt; 1.50x</td><td>' + (dte < 1.5 ? '<span class="sm-badge sm-bg-green">✓ Sehat &amp; Aman</span>' : '<span class="sm-badge sm-bg-red">⚠ Waspada Utang</span>') + '</td></tr>'
-      + '<tr><td style="font-weight:600">Current Ratio (Likuiditas Lancar)</td><td class="mono">' + cr.toFixed(2) + 'x</td><td style="color:var(--text3)">&gt; 1.00x</td><td>' + (cr >= 1.0 ? '<span class="sm-badge sm-bg-green">✓ Likuiditas Kuat</span>' : '<span class="sm-badge sm-bg-red">⚠ Likuiditas Ketat</span>') + '</td></tr>'
-      + '<tr><td style="font-weight:600">Operating Cash Flow (Arus Kas Operasi)</td><td class="mono">Rp ' + fundFmt(ocf) + '</td><td style="color:var(--text3)">Positif (&gt;0)</td><td>' + (ocf > 0 ? '<span class="sm-badge sm-bg-green">✓ Uang Masuk Positif</span>' : '<span class="sm-badge sm-bg-red">⚠ Kas Terbakar</span>') + '</td></tr>';
+      + '<tr><td style="font-weight:600">Debt to Equity Ratio (DER)</td><td class="mono">' + dte.toFixed(2) + 'x</td><td style="color:var(--text3)">&lt; 1.50x</td><td>' + (dte < 1.5 ? '<span class="sm-badge sm-bg-green">Sehat &amp; Aman</span>' : '<span class="sm-badge sm-bg-red">Waspada Utang</span>') + '</td></tr>'
+      + '<tr><td style="font-weight:600">Current Ratio (Likuiditas Lancar)</td><td class="mono">' + cr.toFixed(2) + 'x</td><td style="color:var(--text3)">&gt; 1.00x</td><td>' + (cr >= 1.0 ? '<span class="sm-badge sm-bg-green">Likuiditas Kuat</span>' : '<span class="sm-badge sm-bg-red">Likuiditas Ketat</span>') + '</td></tr>'
+      + '<tr><td style="font-weight:600">Operating Cash Flow (Arus Kas Operasi)</td><td class="mono">Rp ' + fundFmt(ocf) + '</td><td style="color:var(--text3)">Positif (&gt;0)</td><td>' + (ocf > 0 ? '<span class="sm-badge sm-bg-green">Uang Masuk Positif</span>' : '<span class="sm-badge sm-bg-red">Kas Terbakar</span>') + '</td></tr>';
   }
 
   // 4. Moat & Multiples
@@ -628,7 +628,7 @@ function fundPopulateData() {
 
     debateBox.innerHTML = ''
       + '<div class="sm-card" style="margin-bottom:14px;border-left:4px solid #10B981">'
-      + '  <div style="font-size:14px;font-weight:800;color:#10B981;display:flex;align-items:center;gap:6px">🐂 THE BULL CASE (Kekuatan &amp; Katalis Positif)</div>'
+      + '  <div style="font-size:14px;font-weight:800;color:#10B981;display:flex;align-items:center;gap:6px">THE BULL CASE (Kekuatan &amp; Katalis Positif)</div>'
       + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2)">'
       + '    <li>Fundamental solid di sektor <b>' + sector + '</b> dengan ROE <b>' + fundFmt(roe, true) + '</b> dan profit margin <b>' + fundFmt(pm, true) + '</b>.</li>'
       + '    <li>Penetrasi pangsa pasar luas dan daya beli pelanggan tangguh (Pricing Power terbukti dari gross margin ' + fundFmt(gm, true) + ').</li>'
@@ -636,7 +636,7 @@ function fundPopulateData() {
       + '  </ul>'
       + '</div>'
       + '<div class="sm-card" style="border-left:4px solid #EF4444">'
-      + '  <div style="font-size:14px;font-weight:800;color:#EF4444;display:flex;align-items:center;gap:6px">🐻 THE BEAR CASE (Risiko &amp; Skenario Negatif)</div>'
+      + '  <div style="font-size:14px;font-weight:800;color:#EF4444;display:flex;align-items:center;gap:6px">THE BEAR CASE (Risiko &amp; Skenario Negatif)</div>'
       + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2)">'
       + bearHtml
       + '    <li style="color:var(--text3)">Risiko makro umum: sensitivitas suku bunga BI/Fed, kompresi margin akibat persaingan, dan potensi rotasi dana asing keluar dari bursa berkembang.</li>'
@@ -840,9 +840,9 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
 
   var dqBanner = '';
   if (dq.source === 'profile_snapshot') {
-    dqBanner = '<div style="background:rgba(255,187,0,.08);border:1px solid rgba(255,187,0,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)">⚠ Yahoo Finance tidak mengembalikan data untuk emiten ini — angka di bawah adalah snapshot yang dikurasi manual, <b>bukan data real-time</b>. Verifikasi ke laporan keuangan resmi sebelum mengambil keputusan.</div>';
+    dqBanner = '<div style="background:rgba(255,187,0,.08);border:1px solid rgba(255,187,0,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)">Yahoo Finance tidak mengembalikan data untuk emiten ini — angka di bawah adalah snapshot yang dikurasi manual, <b>bukan data real-time</b>. Verifikasi ke laporan keuangan resmi sebelum mengambil keputusan.</div>';
   } else if (dq.source === 'partial') {
-    dqBanner = '<div style="background:rgba(255,187,0,.08);border:1px solid rgba(255,187,0,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)">⚠ Hanya sebagian data dari Yahoo Finance yang tersedia untuk emiten ini (' + (dq.realFieldCount || 0) + ' field) — field yang kosong diisi dari snapshot/estimasi, bukan seluruhnya real-time.</div>';
+    dqBanner = '<div style="background:rgba(255,187,0,.08);border:1px solid rgba(255,187,0,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)">Hanya sebagian data dari Yahoo Finance yang tersedia untuk emiten ini (' + (dq.realFieldCount || 0) + ' field) — field yang kosong diisi dari snapshot/estimasi, bukan seluruhnya real-time.</div>';
   }
 
   // 1. Perhitungan Kuantitatif 5 Pilar Fundamental:
@@ -978,18 +978,18 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
   if (cardsEl) {
     cardsEl.innerHTML = ''
       + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px">'
-      + '  <div style="font-size:11px;font-weight:800;color:#60A5FA;margin-bottom:4px">💼 STRATEGI VALUE &amp; MARGIN OF SAFETY</div>'
-      + '  <div style="font-size:12px;font-weight:700;color:var(--text)">' + (consensusMoSPct >= 15 ? '🟢 Strong Buy (Diskon Lebar)' : (consensusMoSPct >= 0 ? '🟡 Akumulasi Bertahap (Fair Value)' : '🔴 Hold / Kurangi Porsi')) + '</div>'
+      + '  <div style="font-size:11px;font-weight:800;color:#60A5FA;margin-bottom:4px">STRATEGI VALUE &amp; MARGIN OF SAFETY</div>'
+      + '  <div style="font-size:12px;font-weight:700;color:' + (consensusMoSPct >= 15 ? 'var(--green)' : (consensusMoSPct >= 0 ? 'var(--amber)' : 'var(--red)')) + '">' + (consensusMoSPct >= 15 ? 'Strong Buy (Diskon Lebar)' : (consensusMoSPct >= 0 ? 'Akumulasi Bertahap (Fair Value)' : 'Hold / Kurangi Porsi')) + '</div>'
       + '  <div style="font-size:10px;color:var(--text3);margin-top:2px">MoS Konsensus: ' + (consensusMoSPct >= 0 ? '+' : '') + consensusMoSPct.toFixed(1) + '% | Fair Value: Rp ' + Math.round(consensusFairPrice).toLocaleString('id-ID') + '</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px">'
-      + '  <div style="font-size:11px;font-weight:800;color:#10B981;margin-bottom:4px">📈 STRATEGI PERTUMBUHAN &amp; COMPOUNDER</div>'
-      + '  <div style="font-size:12px;font-weight:700;color:var(--text)">' + (peg <= 1.2 ? '🟢 High Conviction Compounder' : (peg <= 1.8 ? '🟡 Steady Growth Hold' : '🔴 Overextended Growth')) + '</div>'
+      + '  <div style="font-size:11px;font-weight:800;color:#10B981;margin-bottom:4px">STRATEGI PERTUMBUHAN &amp; COMPOUNDER</div>'
+      + '  <div style="font-size:12px;font-weight:700;color:' + (peg <= 1.2 ? 'var(--green)' : (peg <= 1.8 ? 'var(--amber)' : 'var(--red)')) + '">' + (peg <= 1.2 ? 'High Conviction Compounder' : (peg <= 1.8 ? 'Steady Growth Hold' : 'Overextended Growth')) + '</div>'
       + '  <div style="font-size:10px;color:var(--text3);margin-top:2px">PEG: ' + peg.toFixed(2) + 'x | Laju Pertumbuhan: ' + growthRate.toFixed(1) + '%/thn</div>'
       + '</div>'
       + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px">'
-      + '  <div style="font-size:11px;font-weight:800;color:#F59E0B;margin-bottom:4px">💰 STRATEGI ARUS KAS &amp; DIVIDEN</div>'
-      + '  <div style="font-size:12px;font-weight:700;color:var(--text)">' + ((dps / curPrice) >= 0.04 ? '🟢 Cash Cow Dividend Play' : '🟡 Dividen Moderat / Reinvestasi Laba') + '</div>'
+      + '  <div style="font-size:11px;font-weight:800;color:#F59E0B;margin-bottom:4px">STRATEGI ARUS KAS &amp; DIVIDEN</div>'
+      + '  <div style="font-size:12px;font-weight:700;color:' + ((dps / curPrice) >= 0.04 ? 'var(--green)' : 'var(--amber)') + '">' + ((dps / curPrice) >= 0.04 ? 'Cash Cow Dividend Play' : 'Dividen Moderat / Reinvestasi Laba') + '</div>'
       + '  <div style="font-size:10px;color:var(--text3);margin-top:2px">Yield: ' + ((dps / Math.max(1, curPrice)) * 100).toFixed(2) + '% | Payout: ' + (payout * 100).toFixed(0) + '%</div>'
       + '</div>';
   }
@@ -1046,9 +1046,9 @@ function fundBuildTrafficLight(mosPct, roe, per, curPrice) {
   var maxScore = 4;
 
   var getSignalBadge = function(score) {
-    if (score === 2) return '<span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">🟢 BULLISH / BUY</span>';
-    if (score === 1) return '<span style="background:rgba(59,130,246,0.2);color:#60A5FA;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">🟡 NEUTRAL / HOLD</span>';
-    return '<span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">🔴 BEARISH / TRIM</span>';
+    if (score === 2) return '<span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">BULLISH / BUY</span>';
+    if (score === 1) return '<span style="background:rgba(59,130,246,0.2);color:#60A5FA;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">NEUTRAL / HOLD</span>';
+    return '<span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">BEARISH / TRIM</span>';
   };
 
   tlBody.innerHTML = ''
@@ -1066,7 +1066,7 @@ function fundBuildTrafficLight(mosPct, roe, per, curPrice) {
     + '</div>'
     + '<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
     + '  <span style="font-size:12px;font-weight:800;color:var(--text)">KONSENSUS (2 Pilar Riil):</span>'
-    + '  <span style="font-size:12px;font-weight:800;color:' + (totalScore >= 3 ? '#10B981' : (totalScore >= 1 ? '#60A5FA' : '#EF4444')) + '">' + (totalScore >= 3 ? '🟢 STRONG BUY CONVICTION' : (totalScore >= 1 ? '🟡 ACCUMULATE ON WEAKNESS' : '🔴 WAIT & SEE / AVOID')) + ' (' + totalScore + '/' + maxScore + ')</span>'
+    + '  <span style="font-size:12px;font-weight:800;color:' + (totalScore >= 3 ? '#10B981' : (totalScore >= 1 ? '#60A5FA' : '#EF4444')) + '">' + (totalScore >= 3 ? 'STRONG BUY CONVICTION' : (totalScore >= 1 ? 'ACCUMULATE ON WEAKNESS' : 'WAIT & SEE / AVOID')) + ' (' + totalScore + '/' + maxScore + ')</span>'
     + '</div>';
 }
 
@@ -1231,7 +1231,7 @@ function techRenderMainChart(ticker) {
     + '    <span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
     + '  </div>'
     + '  <div style="display:flex;gap:6px;align-items:center">'
-    + '    <button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')"><i class="ti ti-external-link"></i> Buka TradingView Pro</button>'
+    + '    <button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')">Buka TradingView Pro</button>'
     + '  </div>'
     + '</div>'
     + '<div style="position:relative;height:380px;background:var(--bg2);padding:10px;border-radius:0 0 10px 10px">'
@@ -1300,7 +1300,7 @@ function techLoadTradingViewWidget(ticker, container) {
   container.innerHTML = ''
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0">'
     + '  <span style="font-size:12px;font-weight:700;color:var(--accent)">TradingView Interactive Cloud Chart (' + tvTicker + ')</span>'
-    + '  <button class="btn btn-ghost btn-xs" onclick="techToggleChartMode(\'native\')">⚡ Switch to Native Fast Chart</button>'
+    + '  <button class="btn btn-ghost btn-xs" onclick="techToggleChartMode(\'native\')">Switch to Native Fast Chart</button>'
     + '</div>'
     + '<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=' + encodeURIComponent(tvTicker) + '&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131B2E&theme=dark&style=1&timezone=Asia%2FJakarta&locale=id" style="width:100%;height:460px;border:none;border-radius:0 0 10px 10px" loading="lazy"></iframe>';
 }
@@ -1537,7 +1537,7 @@ function techEnsureRealSeries(ticker, days) {
 
 function techLoadingHtml(ticker) {
   return '<div style="padding:24px;text-align:center;color:var(--text3)">'
-    + '<i class="ti ti-loader" style="font-size:18px;color:var(--accent)"></i> Menghitung indikator real untuk <strong>' + ticker + '</strong> dari data harga historis...'
+    + 'Menghitung indikator real untuk <strong>' + ticker + '</strong> dari data harga historis...'
     + '</div>';
 }
 
@@ -1692,7 +1692,7 @@ function techCalcIndicators(data) {
 // "FFFF" or "GGGG" fell straight through to the indicator tables below.
 function techInvalidTickerHtml(ticker) {
   return '<div style="padding:24px;text-align:center;color:var(--text3)">'
-    + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px"><i class="ti ti-alert-triangle"></i> Ticker "' + ticker + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
+    + '<div style="color:#EF4444;font-weight:800;font-size:14px;margin-bottom:6px">Ticker "' + ticker + '" Tidak Terdaftar dalam Stock Universe IDX</div>'
     + '<p style="font-size:11px">Seluruh data pada bagian ini bernilai 0/kosong. Silakan pilih emiten terdaftar (Contoh: BBCA, BBRI, BMRI, BBNI, ANTM, TLKM).</p>'
     + '</div>';
 }
@@ -1927,7 +1927,7 @@ function techRenderPivotsTab(ticker) {
     + '    <div style="background:var(--bg2);padding:10px;border-radius:6px"><div style="font-size:10px;color:var(--text3)">Risk to Reward Ratio</div><div class="mono" style="font-size:15px;font-weight:700;color:#60A5FA">1 : ' + rr + '</div></div>'
     + '  </div>'
     + '  <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);padding:10px;border-radius:6px;font-size:11px;color:var(--text2)">'
-    + '    💡 <b>Money Management Rule:</b> Batasi risiko maksimal 1-2% dari total ekuitas RDN per transaksi. Pada rasio 1:' + rr + ', skenario trading memiliki ekspektasi matematis positif.'
+    + '    <b>Money Management Rule:</b> Batasi risiko maksimal 1-2% dari total ekuitas RDN per transaksi. Pada rasio 1:' + rr + ', skenario trading memiliki ekspektasi matematis positif.'
     + '  </div>'
     + '</div>';
 }
@@ -1966,7 +1966,7 @@ async function techRenderLq45Heatmap() {
     TECH_LQ45_CACHE = valid;
     techRenderLq45Grid(grid, valid);
   } catch (e) {
-    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--red);font-size:12px">⚠ Gagal memuat data LQ45 real-time: ' + (e.message || 'error') + ' <button class="btn btn-ghost btn-xs" onclick="TECH_LQ45_CACHE=null;techRenderLq45Heatmap()">Coba Lagi</button></div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--red);font-size:12px">Gagal memuat data LQ45 real-time: ' + (e.message || 'error') + ' <button class="btn btn-ghost btn-xs" onclick="TECH_LQ45_CACHE=null;techRenderLq45Heatmap()">Coba Lagi</button></div>';
   } finally {
     TECH_LQ45_LOADING = false;
   }

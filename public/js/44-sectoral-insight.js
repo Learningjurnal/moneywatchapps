@@ -23,7 +23,7 @@
       name: 'Financials',
       labelId: 'Keuangan',
       color: '#3b82f6',
-      icon: '🏦',
+      icon: 'FIN',
       desc: 'Bank BUKU IV, Asuransi, Pembiayaan & Multifinance',
       constituents: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BBTN', 'BRIS', 'BDMN']
     },
@@ -32,7 +32,7 @@
       name: 'Energy',
       labelId: 'Energi',
       color: '#f97316',
-      icon: '⚡',
+      icon: 'NRG',
       desc: 'Batubara, Minyak & Gas, Energi Baru Terbarukan (EBT)',
       constituents: ['ADRO', 'PTBA', 'PGEO', 'PGAS', 'MEDC', 'BUMI', 'INDY']
     },
@@ -41,7 +41,7 @@
       name: 'Basic Materials',
       labelId: 'Barang Baku',
       color: '#eab308',
-      icon: '⛏️',
+      icon: 'MAT',
       desc: 'Tambang Emas, Nikel, Tembaga, Kimia & Kertas',
       constituents: ['ANTM', 'INCO', 'MDKA', 'BRPT', 'SMGR', 'INKP', 'TPIA']
     },
@@ -50,7 +50,7 @@
       name: 'Consumer Non-Cyclicals',
       labelId: 'Konsumer Primer',
       color: '#10b981',
-      icon: '🛒',
+      icon: 'CNC',
       desc: 'FMCG, Makanan & Minuman, Rokok & Kebutuhan Pokok',
       constituents: ['ICBP', 'INDF', 'UNVR', 'MYOR', 'CPIN', 'GGRM', 'HMSP']
     },
@@ -59,7 +59,7 @@
       name: 'Consumer Cyclicals',
       labelId: 'Konsumer Non-Primer',
       color: '#22c55e',
-      icon: '🛍️',
+      icon: 'CYC',
       desc: 'Ritel Modern, Gaya Hidup, Hiburan & Otomotif Ritel',
       constituents: ['ACES', 'MAPI', 'ERAA', 'AMRT', 'MAPA', 'RALS']
     },
@@ -68,7 +68,7 @@
       name: 'Healthcare',
       labelId: 'Kesehatan',
       color: '#14b8a6',
-      icon: '🏥',
+      icon: 'HLT',
       desc: 'Farmasi, Rumah Sakit, Herbal & Alat Kesehatan',
       constituents: ['KLBF', 'SIDO', 'MIKA', 'HEAL', 'SILO', 'PRDA']
     },
@@ -77,7 +77,7 @@
       name: 'Technology',
       labelId: 'Teknologi',
       color: '#d946ef',
-      icon: '💻',
+      icon: 'TEK',
       desc: 'Ekosistem Digital, E-Commerce, Software & Cloud',
       constituents: ['GOTO', 'BUKA', 'EMTK', 'WIRG', 'BELI', 'MTDL']
     },
@@ -86,7 +86,7 @@
       name: 'Infrastructures',
       labelId: 'Infrastruktur',
       color: '#f43f5e',
-      icon: '🏗️',
+      icon: 'INF',
       desc: 'Telekomunikasi, Menara, Jalan Tol & Utilitas',
       constituents: ['TLKM', 'EXCL', 'ISAT', 'JSMR', 'TOWR', 'TBIG']
     },
@@ -95,7 +95,7 @@
       name: 'Properties & Real Estate',
       labelId: 'Properti',
       color: '#8b5cf6',
-      icon: '🏢',
+      icon: 'PRO',
       desc: 'Township, Real Estat Residensial, Mall & Konstruksi',
       constituents: ['BSDE', 'PWON', 'CTRA', 'SMRA', 'ASRI', 'APLN']
     },
@@ -104,7 +104,7 @@
       name: 'Industrials',
       labelId: 'Perindustrian',
       color: '#84cc16',
-      icon: '⚙️',
+      icon: 'IND',
       desc: 'Alat Berat, Mesin, Fabrikasi & Komponen Otomotif',
       constituents: ['ASII', 'UNTR', 'HEXA', 'ARNA', 'MARK', 'AUTO']
     },
@@ -113,7 +113,7 @@
       name: 'Transportation & Logistics',
       labelId: 'Transportasi & Logistik',
       color: '#06b6d4',
-      icon: '🚢',
+      icon: 'TRA',
       desc: 'Pelayaran Peti Kemas, Logistik Maritim & Transportasi Darat',
       constituents: ['SMDR', 'TMAS', 'BIRD', 'ASSA', 'GIAA']
     }
@@ -966,7 +966,7 @@
             'Saham Penggerak: ' + (moversHtml || '-') +
           '</div>' +
           '<div style="font-size:9.5px;color:var(--accent);border-top:1px dashed var(--border2);padding-top:4px;display:flex;align-items:center;gap:4px">' +
-            '<span>💡</span> <span>' + (selKey === d.key ? 'Sektor sedang aktif difilter. Klik untuk melepas filter.' : 'Klik bar untuk memfilter berita sektor ' + d.name) + '</span>' +
+            '<span>' + (selKey === d.key ? 'Sektor sedang aktif difilter. Klik untuk melepas filter.' : 'Klik bar untuk memfilter berita sektor ' + d.name) + '</span>' +
           '</div>';
 
         tooltip
@@ -1180,7 +1180,7 @@
         bgTint: 'rgba(16, 185, 129, 0.05)',
         borderClr: 'rgba(16, 185, 129, 0.35)',
         badgeClass: 'b-up',
-        icon: '🚀',
+        icon: '',
         quadrantNum: 'I',
         tactic: 'Trend Following · Ride the Winners · Trailing Stop Ketat',
         rationale: 'Arus modal institusional positif mengiringi reli harga. Permintaan mendominasi suplai pasar.'
@@ -1195,7 +1195,7 @@
         bgTint: 'rgba(6, 182, 212, 0.05)',
         borderClr: 'rgba(6, 182, 212, 0.35)',
         badgeClass: 'b-accent',
-        icon: '📥',
+        icon: '',
         quadrantNum: 'IV',
         tactic: 'Buy on Weakness · Bottom Fishing · Margin of Safety',
         rationale: 'Smart money mulai menyerap likuiditas di harga dasar sebelum breakout ekspansi harga.'
@@ -1210,7 +1210,7 @@
         bgTint: 'rgba(245, 158, 11, 0.05)',
         borderClr: 'rgba(245, 158, 11, 0.35)',
         badgeClass: 'b-warn',
-        icon: '📤',
+        icon: '',
         quadrantNum: 'II',
         tactic: 'Take Profit Bertahap · Waspada Bull Trap · Stop Loss Ketat',
         rationale: 'Bearish Divergence: Kinerja harga masih di pucuk namun arus modal institusional mengalami pelemahan keluar.'
@@ -1225,7 +1225,7 @@
         bgTint: 'rgba(239, 68, 68, 0.05)',
         borderClr: 'rgba(239, 68, 68, 0.35)',
         badgeClass: 'b-dn',
-        icon: '📉',
+        icon: '',
         quadrantNum: 'III',
         tactic: 'Defensive · Jaga RDN Cash Buffer 15-20% · Hindari Pisau Jatuh',
         rationale: 'Tekanan jual institusi dan likuidasi mendominasi, harga terus tertekan ke bawah.'
@@ -1267,7 +1267,7 @@
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:10px;flex-shrink:0">' +
         '<div>' +
           '<div style="font-size:13.5px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">' +
-            '<i class="ti ti-compass" style="color:var(--accent);font-size:17px"></i>' +
+            '' +
             '<span>Legenda &amp; Panduan 4 Kuadran Sectoral Cycle Matrix</span>' +
           '</div>' +
           '<div style="font-size:11px;color:var(--text3);margin-top:2px">' +
@@ -1275,7 +1275,7 @@
           '</div>' +
         '</div>' +
         '<button type="button" class="btn btn-ghost btn-xs" onclick="siToggleMatrixLegend(false)" style="color:var(--text2);display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:4px;border:1px solid var(--border2)" title="Tutup Legenda (Esc)">' +
-          '<i class="ti ti-x"></i> <strong>Tutup</strong>' +
+          '<strong>Tutup</strong>' +
         '</button>' +
       '</div>' +
 
@@ -1287,7 +1287,7 @@
           '<div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
               '<div style="font-size:12px;font-weight:800;color:#f59e0b;display:flex;align-items:center;gap:5px">' +
-                '<span>📤</span> <span>3. DISTRIBUTION (Distribusi Pucuk)</span>' +
+                '<span>3. DISTRIBUTION (Distribusi Pucuk)</span>' +
               '</div>' +
               '<span class="badge" style="background:rgba(245,158,11,0.18);color:#f59e0b;border:1px solid rgba(245,158,11,0.45);font-size:9.5px;font-weight:700">Kuadran II · Kiri-Atas</span>' +
             '</div>' +
@@ -1315,7 +1315,7 @@
           '<div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
               '<div style="font-size:12px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px">' +
-                '<span>🚀</span> <span>2. MARKUP (Ekspansi Bullish)</span>' +
+                '<span>2. MARKUP (Ekspansi Bullish)</span>' +
               '</div>' +
               '<span class="badge" style="background:rgba(16,185,129,0.18);color:#10b981;border:1px solid rgba(16,185,129,0.45);font-size:9.5px;font-weight:700">Kuadran I · Kanan-Atas</span>' +
             '</div>' +
@@ -1343,7 +1343,7 @@
           '<div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
               '<div style="font-size:12px;font-weight:800;color:#ef4444;display:flex;align-items:center;gap:5px">' +
-                '<span>📉</span> <span>4. MARKDOWN (Penurunan Bearish)</span>' +
+                '<span>4. MARKDOWN (Penurunan Bearish)</span>' +
               '</div>' +
               '<span class="badge" style="background:rgba(239,68,68,0.18);color:#ef4444;border:1px solid rgba(239,68,68,0.45);font-size:9.5px;font-weight:700">Kuadran III · Kiri-Bawah</span>' +
             '</div>' +
@@ -1371,7 +1371,7 @@
           '<div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
               '<div style="font-size:12px;font-weight:800;color:#06b6d4;display:flex;align-items:center;gap:5px">' +
-                '<span>📥</span> <span>1. ACCUMULATION (Akumulasi Awal)</span>' +
+                '<span>1. ACCUMULATION (Akumulasi Awal)</span>' +
               '</div>' +
               '<span class="badge" style="background:rgba(6,182,212,0.18);color:#06b6d4;border:1px solid rgba(6,182,212,0.45);font-size:9.5px;font-weight:700">Kuadran IV · Kanan-Bawah</span>' +
             '</div>' +
@@ -1400,10 +1400,10 @@
       '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px dashed var(--border2);flex-wrap:wrap;gap:8px;flex-shrink:0">' +
         '<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);flex-wrap:wrap">' +
           '<strong style="color:var(--text)">Siklus Rotasi Alami:</strong>' +
-          '<span style="color:#06b6d4;font-weight:700">📥 1. Akumulasi</span> ➔ ' +
-          '<span style="color:#10b981;font-weight:700">🚀 2. Markup</span> ➔ ' +
-          '<span style="color:#f59e0b;font-weight:700">📤 3. Distribusi</span> ➔ ' +
-          '<span style="color:#ef4444;font-weight:700">📉 4. Markdown</span> ➔ ' +
+          '<span style="color:#06b6d4;font-weight:700">1. Akumulasi</span> ➔ ' +
+          '<span style="color:#10b981;font-weight:700">2. Markup</span> ➔ ' +
+          '<span style="color:#f59e0b;font-weight:700">3. Distribusi</span> ➔ ' +
+          '<span style="color:#ef4444;font-weight:700">4. Markdown</span> ➔ ' +
           '<span style="color:var(--text3);font-style:italic">Rotasi Siklus Baru</span>' +
         '</div>' +
         '<button type="button" class="btn btn-primary btn-xs" onclick="siToggleMatrixLegend(false)" style="padding:4px 14px;font-weight:700">' +
@@ -1420,7 +1420,7 @@
       // 1. Akumulasi
       '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.35)" title="Klik untuk membuka penjelasan lengkap Akumulasi">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="font-size:11.5px;font-weight:800;color:#06b6d4">📥 1. Akumulasi</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:#06b6d4">1. Akumulasi</span>' +
           '<span class="badge" style="background:rgba(6,182,212,0.2);color:#06b6d4;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.accumulation.length + ' Sektor</span>' +
         '</div>' +
         '<div style="font-size:9.5px;font-family:var(--font-mono);color:#06b6d4;font-weight:700;margin-bottom:2px">CMF > 0 · Ret ≤ 0%</div>' +
@@ -1430,7 +1430,7 @@
       // 2. Markup
       '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.35)" title="Klik untuk membuka penjelasan lengkap Markup">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="font-size:11.5px;font-weight:800;color:#10b981">🚀 2. Markup</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:#10b981">2. Markup</span>' +
           '<span class="badge" style="background:rgba(16,185,129,0.2);color:#10b981;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.markup.length + ' Sektor</span>' +
         '</div>' +
         '<div style="font-size:9.5px;font-family:var(--font-mono);color:#10b981;font-weight:700;margin-bottom:2px">CMF > 0 · Ret > 0%</div>' +
@@ -1440,7 +1440,7 @@
       // 3. Distribusi
       '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.35)" title="Klik untuk membuka penjelasan lengkap Distribusi">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="font-size:11.5px;font-weight:800;color:#f59e0b">📤 3. Distribusi</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:#f59e0b">3. Distribusi</span>' +
           '<span class="badge" style="background:rgba(245,158,11,0.2);color:#f59e0b;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.distribution.length + ' Sektor</span>' +
         '</div>' +
         '<div style="font-size:9.5px;font-family:var(--font-mono);color:#f59e0b;font-weight:700;margin-bottom:2px">CMF ≤ 0 · Ret > 0%</div>' +
@@ -1450,7 +1450,7 @@
       // 4. Markdown
       '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.35)" title="Klik untuk membuka penjelasan lengkap Markdown">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="font-size:11.5px;font-weight:800;color:#ef4444">📉 4. Markdown</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:#ef4444">4. Markdown</span>' +
           '<span class="badge" style="background:rgba(239,68,68,0.2);color:#ef4444;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.markdown.length + ' Sektor</span>' +
         '</div>' +
         '<div style="font-size:9.5px;font-family:var(--font-mono);color:#ef4444;font-weight:700;margin-bottom:2px">CMF ≤ 0 · Ret ≤ 0%</div>' +
@@ -1527,21 +1527,21 @@
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
         '<span style="font-size:11px;font-weight:700;color:var(--text);margin-right:2px">Distribusi Fase:</span>' +
         '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:4px;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3);color:#06b6d4">' +
-          '📥 <strong>Akumulasi</strong>: ' + quadBuckets.accumulation.length +
+          '<strong>Akumulasi</strong>: ' + quadBuckets.accumulation.length +
         '</span>' +
         '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:4px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#10b981">' +
-          '🚀 <strong>Markup</strong>: ' + quadBuckets.markup.length +
+          '<strong>Markup</strong>: ' + quadBuckets.markup.length +
         '</span>' +
         '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:4px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#f59e0b">' +
-          '📤 <strong>Distribusi</strong>: ' + quadBuckets.distribution.length +
+          '<strong>Distribusi</strong>: ' + quadBuckets.distribution.length +
         '</span>' +
         '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 8px;border-radius:4px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#ef4444">' +
-          '📉 <strong>Markdown</strong>: ' + quadBuckets.markdown.length +
+          '<strong>Markdown</strong>: ' + quadBuckets.markdown.length +
         '</span>' +
       '</div>' +
       '<div style="display:flex;align-items:center;gap:6px">' +
         '<button id="si-ribbon-legend-btn" type="button" class="btn btn-ghost btn-xs" onclick="siToggleMatrixLegend()" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10.5px;color:var(--accent);border:1px solid rgba(59,130,246,0.3);background:rgba(59,130,246,0.08);border-radius:4px" title="Buka penjelasan 4 kuadran siklus pasar (Akumulasi, Markup, Distribusi, Markdown)">' +
-          '<i class="ti ti-compass"></i> <strong>Legenda Kuadran</strong>' +
+          '<strong>Legenda Kuadran</strong>' +
         '</button>' +
         (selKey ? '<span class="badge b-accent" style="font-size:9.5px;padding:1px 6px">Filter Aktif</span><button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="padding:1px 6px;font-size:10px;color:var(--text2)">Reset</button>' : '<span style="font-size:10.5px;color:var(--text3);font-style:italic">Klik node untuk menyaring berita</span>') +
       '</div>';
@@ -1560,7 +1560,7 @@
     triggerBtn.setAttribute('type', 'button');
     triggerBtn.onclick = function() { window.siToggleMatrixLegend(true); };
     triggerBtn.title = 'Buka penjelasan lengkap 4 kuadran siklus pasar (Akumulasi, Markup, Distribusi, Markdown)';
-    triggerBtn.innerHTML = '<i class="ti ti-compass"></i> <span>Legenda Kuadran</span>';
+    triggerBtn.innerHTML = '<span>Legenda Kuadran</span>';
     chartWrapper.appendChild(triggerBtn);
 
     // Clear Legend Overlay Element di Atas Chart
@@ -1713,7 +1713,7 @@
           x: innerW - 8,
           y: 14,
           anchor: 'end',
-          title: '🚀 2. MARKUP',
+          title: '2. MARKUP',
           sub: 'CMF+ · Return+',
           color: '#10b981'
         },
@@ -1721,7 +1721,7 @@
           x: innerW - 8,
           y: innerH - 12,
           anchor: 'end',
-          title: '📥 1. ACCUMULATION',
+          title: '1. ACCUMULATION',
           sub: 'CMF+ · Return-',
           color: '#06b6d4'
         },
@@ -1729,7 +1729,7 @@
           x: 8,
           y: 14,
           anchor: 'start',
-          title: '📤 3. DISTRIBUTION',
+          title: '3. DISTRIBUTION',
           sub: 'CMF- · Return+',
           color: '#f59e0b'
         },
@@ -1737,7 +1737,7 @@
           x: 8,
           y: innerH - 12,
           anchor: 'start',
-          title: '📉 4. MARKDOWN',
+          title: '4. MARKDOWN',
           sub: 'CMF- · Return-',
           color: '#ef4444'
         }
@@ -1971,7 +1971,7 @@
               'Saham Penggerak: ' + (moversHtml || '-') +
             '</div>' +
             '<div style="font-size:9.5px;color:var(--accent);border-top:1px dashed var(--border2);padding-top:4px;display:flex;align-items:center;gap:4px">' +
-              '<span>💡</span> <span>' + (selKey === d.key ? 'Sektor sedang aktif difilter. Klik untuk melepas filter.' : 'Klik node untuk memfilter berita sektor ' + d.name) + '</span>' +
+              '<span>' + (selKey === d.key ? 'Sektor sedang aktif difilter. Klik untuk melepas filter.' : 'Klik node untuk memfilter berita sektor ' + d.name) + '</span>' +
             '</div>';
 
           tooltip
@@ -2075,7 +2075,7 @@
           '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;border-bottom:1px solid var(--border2);padding-bottom:8px">' +
             '<div>' +
               '<div style="font-size:12px;font-weight:700;color:' + quadMeta.color + ';display:flex;align-items:center;gap:5px">' +
-                '<span>' + quadMeta.icon + '</span> <span>' + quadMeta.titleId + '</span>' +
+                '<span>' + quadMeta.titleId + '</span>' +
               '</div>' +
               '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + quadMeta.subId + '</div>' +
             '</div>' +
@@ -2204,10 +2204,10 @@
         ? _siState.newsError
         : 'Belum ada berita spesifik untuk sektor ini dalam periode berjalan.';
       var emptyBtn = isGenuinelyEmpty
-        ? '<button onclick="siRefreshAll()" class="btn btn-ghost btn-xs" style="margin-top:8px">🔄 Coba Lagi</button>'
+        ? '<button onclick="siRefreshAll()" class="btn btn-ghost btn-xs" style="margin-top:8px">Coba Lagi</button>'
         : '<button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="margin-top:8px">Lihat Semua Berita</button>';
       container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">' +
-        '<i class="ti ti-news-off" style="font-size:24px;display:block;margin-bottom:6px"></i>' +
+        '' +
         emptyMsg + '<br>' +
         emptyBtn +
       '</div>';

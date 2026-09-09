@@ -133,15 +133,24 @@ def build_dataset():
             df.columns = df.columns.get_level_values(0)
 
         feats = compute_features(df)
+        # INV-011 (audit): the last FWD_DAYS rows of every ticker have no
+        # future price to look at, so shift(-FWD_DAYS) is NaN there. The old
+        # code did `(fwd_ret > TARGET_RETURN).astype(int)` BEFORE dropna() —
+        # pandas evaluates `NaN > x` as False, and astype(int) then turns
+        # that False into a hard 0, so every one of those "unknown outcome"
+        # rows got silently trained as a real negative label. Keep fwd_ret
+        # as NaN, dropna() first (drops those rows for real), THEN binarize.
         fwd_ret = df["Close"].shift(-FWD_DAYS) / df["Close"] - 1
-        label = (fwd_ret > TARGET_RETURN).astype(int)
 
         data = feats.copy()
-        data["label"] = label
+        data["fwd_ret"] = fwd_ret
         data = data.dropna()
         if len(data) < 50:
             print(f"  ! {tk}: baris valid terlalu sedikit setelah dropna, dilewati")
             continue
+        data["label"] = (data["fwd_ret"] > TARGET_RETURN).astype(int)
+        data = data.drop(columns=["fwd_ret"])
+        label = data["label"]
 
         # split waktu per-ticker supaya tidak ada kebocoran antar periode
         split = int(len(data) * (1 - TEST_FRACTION))

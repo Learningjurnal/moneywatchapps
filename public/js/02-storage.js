@@ -300,7 +300,7 @@ function resetAllDatabaseAndTransactions(){
   if(typeof renderAll === 'function') renderAll();
 
   if(typeof showSaveStatus === 'function'){
-    showSaveStatus('✓ Seluruh data transaksi & lokal berhasil dikosongkan 100% (Bersih)', 'var(--green)');
+    showSaveStatus('Seluruh data transaksi & lokal berhasil dikosongkan 100% (Bersih)', 'var(--green)');
   }
 }
 window.resetAllDatabaseAndTransactions = resetAllDatabaseAndTransactions;
@@ -564,14 +564,14 @@ function reconcileRdnWithTransactions(silent){
         return (ct && ct.indexOf('application/json') !== -1) ? res.json() : null;
       }).then(function(backendResult){
         if(backendResult && backendResult.success){
-          console.log('✓ Backend RDN sync & audit verified:', backendResult.stats);
+          console.log('Backend RDN sync & audit verified:', backendResult.stats);
         }
       }).catch(function(beErr){});
     }
   } catch(netErr){}
 
   if(!silent && typeof showSaveStatus === 'function'){
-    showSaveStatus('✓ Database mutasi RDN berhasil disinkronkan 100%', 'var(--green)');
+    showSaveStatus('Database mutasi RDN berhasil disinkronkan 100%', 'var(--green)');
   }
 
   return true;
@@ -598,13 +598,13 @@ async function syncRdnDatabase(notify){
     if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
 
     if(typeof showSaveStatus === 'function'){
-      showSaveStatus('✓ Database Mutasi RDN telah 100% selaras dengan Transaksi & Cloud', 'var(--green)');
+      showSaveStatus('Database Mutasi RDN telah 100% selaras dengan Transaksi & Cloud', 'var(--green)');
     }
 
     if(notify && typeof mwConfirm === 'function'){
       mwConfirm('Sinkronisasi Database RDN Berhasil', 
         '<div style="line-height:1.6">' +
-        '✅ <strong>Data mutasi RDN di database telah diselaraskan dengan kondisi terkini:</strong><br><br>' +
+        '<strong>Data mutasi RDN di database telah diselaraskan dengan kondisi terkini:</strong><br><br>' +
         '• Transaksi Saham IDX: <strong>' + (transactions||[]).length + ' transaksi</strong> tersinkronisasi<br>' +
         '• Dividen Saham: <strong>' + (dividends||[]).length + ' penerimaan</strong> tersinkronisasi<br>' +
         '• Transaksi Crypto: <strong>' + (cryptoTx||[]).length + ' transaksi</strong> tersinkronisasi<br>' +
@@ -618,7 +618,7 @@ async function syncRdnDatabase(notify){
       );
     }
   } catch(err) {
-    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Gagal sinkronisasi: ' + err.message, 'var(--red)', true);
+    if(typeof showSaveStatus === 'function') showSaveStatus('Gagal sinkronisasi: ' + err.message, 'var(--red)', true);
   }
 }
 window.syncRdnDatabase = syncRdnDatabase;
@@ -939,7 +939,7 @@ var _DEVICE_SESSION_ID = (function(){
   }
 })();
 
-// FIX: this used to be treated (in the "✓ Tersimpan lokal & server"
+// FIX: this used to be treated (in the "Tersimpan lokal & server"
 // status message below) as if it durably persisted data server-side.
 // It never has on this host — Vercel's serverless functions run on a
 // read-only filesystem outside /tmp, so /api/user-data/save's disk write
@@ -1029,7 +1029,7 @@ function setupMultiDeviceSyncListener(uid){
               renderPage(currentPage);
             }
             if(typeof showSaveStatus === 'function'){
-              showSaveStatus('⚡ Sinkronisasi realtime diterima dari perangkat lain', 'var(--blue)');
+              showSaveStatus('Sinkronisasi realtime diterima dari perangkat lain', 'var(--blue)');
             }
           } finally {
             _isApplyingCloudSnapshot = false;
@@ -1170,13 +1170,13 @@ async function migrateLocalDataToSupabaseCloud(force){
     var countRdn = localPayload.rdnMutations.length;
     var countDiv = localPayload.dividends.length;
 
-    var msg = '🔥 Sukses! ' + countTx + ' Transaksi, ' + countRdn + ' Mutasi RDN & ' + countDiv + ' Dividen telah dipindahkan ke Supabase Cloud';
+    var msg = 'Sukses! ' + countTx + ' Transaksi, ' + countRdn + ' Mutasi RDN & ' + countDiv + ' Dividen telah dipindahkan ke Supabase Cloud';
     if(typeof showSaveStatus === 'function') showSaveStatus(msg, 'var(--green)');
 
     return true;
   } catch(err){
     console.error('Error saat memindahkan data lokal ke Supabase:', err);
-    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Gagal migrasi Supabase: ' + (err && err.message), 'var(--red)', true);
+    if(typeof showSaveStatus === 'function') showSaveStatus('Gagal migrasi Supabase: ' + (err && err.message), 'var(--red)', true);
     return false;
   }
 }
@@ -1595,7 +1595,7 @@ function saveData(){
   if(client){
     _syncToCloud(true);
   } else {
-    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Tersimpan di perangkat ini saja (lokal) — Supabase Cloud tidak terkonfigurasi', 'var(--amber)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('Tersimpan di perangkat ini saja (lokal) — Supabase Cloud tidak terkonfigurasi', 'var(--amber)');
   }
 }
 
@@ -1613,7 +1613,7 @@ function _syncToCloud(allowRetry){
       _syncQueued = false;
       return _syncToCloud(allowRetry);
     }
-    if(typeof showSaveStatus === 'function') showSaveStatus('✓ Tersimpan ke Supabase Cloud', 'var(--green)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('Tersimpan ke Supabase Cloud', 'var(--green)');
   }).catch(function(e){
     _syncInFlight = false;
     console.warn('Supabase sync notice:', e);
@@ -1624,7 +1624,7 @@ function _syncToCloud(allowRetry){
     // _syncToServerMirror()), so only localStorage on this device is
     // genuinely holding this save until Supabase Cloud succeeds (it
     // retries automatically below).
-    if(typeof showSaveStatus === 'function') showSaveStatus('⚠ Tersimpan di perangkat ini saja (lokal) — Supabase Cloud gagal: ' + _errMsg, 'var(--amber)');
+    if(typeof showSaveStatus === 'function') showSaveStatus('Tersimpan di perangkat ini saja (lokal) — Supabase Cloud gagal: ' + _errMsg, 'var(--amber)');
     if(_syncQueued){
       _syncQueued = false;
       return _syncToCloud(allowRetry);
@@ -1778,7 +1778,7 @@ function loadData(){
 
 async function clearData(skipConfirm){
   if(!skipConfirm){
-    var confirmed = confirm('⚠️ PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH data transaksi dan portofolio menjadi 0?\n\nTindakan ini akan menghapus semua riwayat transaksi di Supabase Cloud, server, dan browser lokal.');
+    var confirmed = confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH data transaksi dan portofolio menjadi 0?\n\nTindakan ini akan menghapus semua riwayat transaksi di Supabase Cloud, server, dan browser lokal.');
     if(!confirmed) return false;
   }
   
@@ -1930,7 +1930,7 @@ async function clearData(skipConfirm){
   if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
   if(typeof renderAll === 'function') renderAll();
   if(typeof renderSettingsPage === 'function') renderSettingsPage();
-  if(typeof showSaveStatus === 'function') showSaveStatus('✓ Seluruh data transaksi di Supabase & lokal telah dikosongkan 100% (0 Transaksi)', 'var(--green)');
+  if(typeof showSaveStatus === 'function') showSaveStatus('Seluruh data transaksi di Supabase & lokal telah dikosongkan 100% (0 Transaksi)', 'var(--green)');
 
   return true;
 }
@@ -1968,7 +1968,7 @@ function downloadBackup(){
   a.download = 'moneywatch_backup_' + new Date().toISOString().split('T')[0] + '.json';
   a.click();
   URL.revokeObjectURL(url);
-  if(typeof showSaveStatus === 'function') showSaveStatus('✓ File backup JSON berhasil diunduh');
+  if(typeof showSaveStatus === 'function') showSaveStatus('File backup JSON berhasil diunduh');
 }
 
 function restoreFromBackup(file){
@@ -2049,7 +2049,7 @@ function restoreFromBackup(file){
       if(typeof renderAll === 'function') renderAll();
       if(typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
       closeBackupModal();
-      if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data backup JSON berhasil dipulihkan, dihitung ulang, & disimpan ke Supabase');
+      if(typeof showSaveStatus === 'function') showSaveStatus('Data backup JSON berhasil dipulihkan, dihitung ulang, & disimpan ke Supabase');
 
       // Give the restore's own save (and any delayed Realtime replication
       // echo of it) a few seconds to fully settle before this tab starts
@@ -2082,7 +2082,7 @@ async function checkFirebaseLiveSyncStatus(){
   var uid = typeof getAppUserId === 'function' ? getAppUserId() : null;
   if (!client || !uid) {
     box.innerHTML = `
-      <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">🛡️ Mode Tamu / Demo Sandbox</div>
+      <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">Mode Tamu / Demo Sandbox</div>
       <div style="color:var(--text2);font-size:11.5px;line-height:1.6">
         Pada Mode Tamu, seluruh data portofolio tersimpan lokal secara mandiri dan <b>tidak dikirim ke Supabase</b> untuk melindungi privasi.
         Silakan masuk dengan akun email Anda untuk mengaktifkan audit dan sinkronisasi Cloud.
@@ -2101,7 +2101,7 @@ async function checkFirebaseLiveSyncStatus(){
           Portofolio Anda saat ini aktif dan tersimpan di penyimpanan lokal peramban ini, namun baris di Supabase untuk akun ini belum dibuat — belum ada cadangan cloud yang permanen.
         </div>
         <button class="btn btn-blue btn-sm" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="padding:6px 14px;font-size:11.5px">
-          🚀 Sinkronkan ke Supabase Sekarang
+          Sinkronkan ke Supabase Sekarang
         </button>
       `;
       return;
@@ -2118,7 +2118,7 @@ async function checkFirebaseLiveSyncStatus(){
 
     var isIdentical = (localTx === cloudTx && localRdn === cloudRdn && localDiv === cloudDiv);
     var badgeColor = isIdentical ? 'var(--green)' : 'var(--yellow)';
-    var badgeText = isIdentical ? '✓ 100% IDENTIK & TERSINKRON' : '⚠️ SINKRONISASI PARSIAL';
+    var badgeText = isIdentical ? '100% IDENTIK & TERSINKRON' : 'SINKRONISASI PARSIAL';
 
     var html = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
@@ -2142,7 +2142,7 @@ async function checkFirebaseLiveSyncStatus(){
       </div>
       <div style="font-size:11px;color:var(--text3);line-height:1.5">
         <div>• Waktu Update Cloud: <b style="color:var(--text2)">${new Date(result.data.updated_at).toLocaleString('id-ID')}</b></div>
-        <div style="color:var(--green);font-weight:600;margin-top:4px">✓ Aman dibuka di perangkat lain (laptop, HP, tablet). Data akan langsung termuat otomatis saat login.</div>
+        <div style="color:var(--green);font-weight:600;margin-top:4px">Aman dibuka di perangkat lain (laptop, HP, tablet). Data akan langsung termuat otomatis saat login.</div>
       </div>
     `;
     box.innerHTML = html;
@@ -2192,7 +2192,7 @@ function shRenderContent(tab){
     var demoBanner = isDemoSession ? `
       <div style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:10px;padding:14px;margin-bottom:16px">
         <div style="font-weight:700;color:#eab308;font-size:13px;display:flex;align-items:center;gap:6px">
-          🛡️ Sesi Mode Tamu / Demo Terisolasi
+          Sesi Mode Tamu / Demo Terisolasi
         </div>
         <div style="font-size:12px;color:var(--text);margin-top:6px;line-height:1.6">
           Anda berada dalam <b>Mode Tamu (Demo Sandbox)</b>. Seluruh data transaksi di sesi ini tersimpan secara lokal dan <b>terisolasi 100% dari akun email pribadi Anda</b> untuk menjamin kerahasiaan data pengguna.
@@ -2206,7 +2206,7 @@ function shRenderContent(tab){
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display);display:flex;align-items:center;gap:6px">
-          🔥 Supabase Cloud &amp; Sinkronisasi Data
+          Supabase Cloud &amp; Sinkronisasi Data
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Seluruh data transaksi dan kas tersimpan di cloud database real-time tanpa resiko hilang saat hard-refresh atau ganti device.</div>
       </div>
@@ -2244,19 +2244,19 @@ function shRenderContent(tab){
 
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
         <button class="btn btn-blue" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="justify-content:center;padding:11px;font-weight:700;font-size:12.5px">
-          🚀 Pindahkan / Sinkronkan Data ke Supabase Cloud Sekarang
+          Pindahkan / Sinkronkan Data ke Supabase Cloud Sekarang
         </button>
 
         <button class="btn btn-ghost" onclick="checkFirebaseLiveSyncStatus()" style="justify-content:center;padding:10px;border-color:var(--accent);color:var(--accent);font-weight:600">
-          🔍 Periksa Status Sinkronisasi Supabase Cloud (Live Audit)
+          Periksa Status Sinkronisasi Supabase Cloud (Live Audit)
         </button>
 
         <div id="sh-firebase-audit-box" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px">
           <!-- Injected dynamically by checkFirebaseLiveSyncStatus() -->
         </div>
 
-        <button class="btn btn-ghost" onclick="fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function') showSaveStatus('✓ Data terbaru dimuat dari Cloud','var(--green)'); closeSettingsHub(); })" style="justify-content:center;padding:10px;border-color:var(--border)">
-          🔄 Muat Ulang Data dari Supabase Cloud
+        <button class="btn btn-ghost" onclick="fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function') showSaveStatus('Data terbaru dimuat dari Cloud','var(--green)'); closeSettingsHub(); })" style="justify-content:center;padding:10px;border-color:var(--border)">
+          Muat Ulang Data dari Supabase Cloud
         </button>
 
         <div style="display:flex;gap:10px">
@@ -2272,18 +2272,18 @@ function shRenderContent(tab){
 
       <div style="padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
         <button class="btn btn-ghost btn-sm" onclick="clearData()" style="color:var(--red);border-color:rgba(239,68,68,0.3);font-size:11px">
-          🗑 Reset Data Portofolio
+          Reset Data Portofolio
         </button>
         <span style="font-size:11px;color:var(--text3)">ID Applet: 088bcbd5-b0c7-48cf-baee-be4279fd2091</span>
       </div>
     `;
   } else if(tab === 'feed'){
     var sc = priceEngineMode==='static'?'var(--text3)':FH.status==='live'?'var(--green)':FH.status==='error'?'var(--red)':'var(--text3)';
-    var st = priceEngineMode==='static'?'🔒 Kunci Statis (Harga Tetap)':FH.status==='live'?'● Real-time Live (Yahoo Finance)':FH.status==='error'?'● Error Reconnect':'○ Simulasi';
+    var st = priceEngineMode==='static'?'Kunci Statis (Harga Tetap)':FH.status==='live'?'● Real-time Live (Yahoo Finance)':FH.status==='error'?'● Error Reconnect':'○ Simulasi';
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
-          📡 Feed Pasar &amp; Pembaruan Harga Real-time
+          Feed Pasar &amp; Pembaruan Harga Real-time
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Pilih bagaimana harga pasar bursa IDX diperbarui secara berkala pada portofolio dan dashboard.</div>
       </div>
@@ -2293,19 +2293,19 @@ function shRenderContent(tab){
         <div style="display:flex;flex-direction:column;gap:8px">
           <button class="btn ${priceEngineMode==='live'?'btn-blue':'btn-ghost'}" onclick="setPriceEngineMode('live'); shRenderContent('feed');" style="text-align:left;justify-content:flex-start;padding:10px 14px">
             <div>
-              <div style="font-weight:700">📡 Real-time Live (Yahoo Finance)</div>
+              <div style="font-weight:700">Real-time Live (Yahoo Finance)</div>
               <div style="font-size:11px;opacity:0.85;margin-top:2px">Update otomatis harga saham IDX real-time saat jam bursa BEI aktif.</div>
             </div>
           </button>
           <button class="btn ${priceEngineMode==='static'?'btn-blue':'btn-ghost'}" onclick="setPriceEngineMode('static'); shRenderContent('feed');" style="text-align:left;justify-content:flex-start;padding:10px 14px">
             <div>
-              <div style="font-weight:700">🔒 Kunci Statis (Harga Tetap)</div>
+              <div style="font-weight:700">Kunci Statis (Harga Tetap)</div>
               <div style="font-size:11px;opacity:0.85;margin-top:2px">Harga dan nilai pasar tidak bergerak sendiri secara otomatis (statis).</div>
             </div>
           </button>
           <button class="btn ${priceEngineMode==='sim'?'btn-blue':'btn-ghost'}" onclick="setPriceEngineMode('sim'); shRenderContent('feed');" style="text-align:left;justify-content:flex-start;padding:10px 14px">
             <div>
-              <div style="font-weight:700">🎲 Simulasi Fluktuasi Pasar</div>
+              <div style="font-weight:700">Simulasi Fluktuasi Pasar</div>
               <div style="font-size:11px;opacity:0.85;margin-top:2px">Mensimulasikan fluktuasi acak untuk keperluan testing dan demo offline.</div>
             </div>
           </button>
@@ -2317,8 +2317,8 @@ function shRenderContent(tab){
           <div style="font-size:11px;color:var(--text3)">Status Feed Saat Ini:</div>
           <div style="font-size:13px;font-weight:700;color:${sc};margin-top:2px">${st}</div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="if(typeof rdLoadUniverse==='function'){ rdLoadUniverse(true); showSaveStatus('✓ Cache harga diperbarui','var(--green)'); }" style="font-size:11.5px">
-          🔄 Refresh Feed Saham
+        <button class="btn btn-ghost btn-sm" onclick="if(typeof rdLoadUniverse==='function'){ rdLoadUniverse(true); showSaveStatus('Cache harga diperbarui','var(--green)'); }" style="font-size:11.5px">
+          Refresh Feed Saham
         </button>
       </div>
     `;
@@ -2328,7 +2328,7 @@ function shRenderContent(tab){
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
-          🎨 Tampilan, Skala &amp; Mode Kerja
+          Tampilan, Skala &amp; Mode Kerja
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Sesuaikan ukuran font, kerapatan tabel data, dan mode terminal agar nyaman di mata.</div>
       </div>
@@ -2391,7 +2391,7 @@ function shRenderContent(tab){
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
-          ⚖️ Tarif Pajak &amp; Komisi Broker Sekuritas
+          Tarif Pajak &amp; Komisi Broker Sekuritas
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Konfigurasi biaya transaksi resmi pasar modal Indonesia dan fee sekuritas.</div>
       </div>
@@ -2426,7 +2426,7 @@ function shRenderContent(tab){
 
       <div style="display:flex;justify-content:space-between;align-items:center">
         <button class="btn btn-primary btn-sm" onclick="closeSettingsHub(); goPage('settings');">
-          ⚙️ Buka Pusat Pengaturan Lengkap (Settings Pillar) →
+          Buka Pusat Pengaturan Lengkap (Settings Pillar) →
         </button>
         <button class="btn btn-ghost btn-sm" onclick="closeSettingsHub(); goPage('pajak');">
           Halaman Pajak &amp; PPh Final →
@@ -2437,7 +2437,7 @@ function shRenderContent(tab){
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
-          🏥 Integritas Data &amp; Audit Trail Transaksi
+          Integritas Data &amp; Audit Trail Transaksi
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Pemantauan kesehatan relasi data saldo kas, urutan transaksi saham, dan jurnal audit.</div>
       </div>
@@ -2450,18 +2450,18 @@ function shRenderContent(tab){
           </span>
         </div>
         <div style="font-size:12px;color:var(--text2);line-height:1.7">
-          ✓ Seluruh data tersimpan terenkripsi di Supabase Cloud.<br>
-          ✓ Tidak ada mutasi RDN anomali atau referensi transaksi ganda.<br>
-          ✓ Jurnal transaksi terhubung ke saldo kas dan harga beli rata-rata secara presisi.
+          Seluruh data tersimpan terenkripsi di Supabase Cloud.<br>
+          Tidak ada mutasi RDN anomali atau referensi transaksi ganda.<br>
+          Jurnal transaksi terhubung ke saldo kas dan harga beli rata-rata secara presisi.
         </div>
       </div>
 
       <div style="display:flex;gap:10px">
         <button class="btn btn-blue" onclick="closeSettingsHub(); goPage('rdn-audit');" style="flex:1;justify-content:center;padding:10px;font-size:12px">
-          📋 Buka Log Audit Transaksi
+          Buka Log Audit Transaksi
         </button>
         <button class="btn btn-ghost" onclick="closeSettingsHub(); goPage('datahealth');" style="flex:1;justify-content:center;padding:10px;font-size:12px;border-color:var(--border)">
-          🩺 Buka Diagnostik Data Health
+          Buka Diagnostik Data Health
         </button>
       </div>
     `;
@@ -2470,7 +2470,7 @@ function shRenderContent(tab){
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
-          📊 Kelola Universe Saham &amp; Sektor IDX
+          Kelola Universe Saham &amp; Sektor IDX
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Database ${totalDB} emiten bursa efek Indonesia dengan klasifikasi 11 sektor resmi.</div>
       </div>
@@ -2479,7 +2479,7 @@ function shRenderContent(tab){
         <div style="font-weight:700;color:var(--text);font-size:12.5px;margin-bottom:6px">Impor Data Universe Saham (Excel .xlsx)</div>
         <div style="font-size:11.5px;color:var(--text3);margin-bottom:12px">Perbarui daftar saham dan sektor secara massal via file Excel IDX.</div>
         <label class="btn btn-blue btn-sm" style="display:inline-flex;cursor:pointer">
-          📁 Pilih File Excel (.xlsx)
+          Pilih File Excel (.xlsx)
           <input type="file" accept=".xlsx,.xls" onchange="if(typeof adminImportXlsx==='function')adminImportXlsx(this.files[0]);" style="display:none">
         </label>
       </div>
@@ -2494,16 +2494,13 @@ function shRenderContent(tab){
     c.innerHTML = `
       <div style="margin-bottom:16px">
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
-          👤 Akun Pengguna &amp; Sesi Login
+          Akun Pengguna &amp; Sesi Login
         </div>
         <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Informasi otentikasi dan sesi aktif Money Watch Pro.</div>
       </div>
 
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-          <div style="width:42px;height:42px;border-radius:50%;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--accent)">
-            👤
-          </div>
           <div>
             <div style="font-weight:700;color:var(--text);font-size:13.5px">${escHtml(userEmail)}</div>
             <div style="font-size:11px;color:var(--green);font-weight:600">● Portfolio Owner · Full Cloud Sync</div>
@@ -2516,7 +2513,7 @@ function shRenderContent(tab){
 
       <div style="display:flex;justify-content:space-between;align-items:center">
         <button class="btn btn-red" onclick="closeSettingsHub(); if(typeof authLogout==='function')authLogout();" style="padding:8px 16px;font-size:12px;font-weight:700">
-          🚪 Keluar / Logout
+          Keluar / Logout
         </button>
         <button class="btn btn-ghost btn-sm" onclick="closeSettingsHub()">Tutup</button>
       </div>

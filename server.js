@@ -27,6 +27,7 @@ import {
   assessDataQuality,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
+import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA } from './lib/invezgo-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1278,7 +1279,14 @@ async function executeAgentTool(toolName, args, userContext = {}) {
       if (!livePrice) {
         try {
           const quote = await fetchYahooQuote(raw);
-          if (quote && quote.price > 0) { livePrice = quote.price; priceSource = 'yahoo_finance_server'; }
+          // INV-004 follow-up: fetchYahooQuote() can return a fabricated
+          // last-resort price (isSimulated:true) that is still > 0 — a
+          // plain `quote.price > 0` check can't tell it apart from a real
+          // Yahoo price, so it would get labeled priceSource
+          // 'yahoo_finance_server' (implying real, live, server-fetched)
+          // when it's actually a synthetic placeholder. Exclude it here so
+          // the AI's own price-lookup tool doesn't misreport its source.
+          if (quote && !quote.isSimulated && quote.price > 0) { livePrice = quote.price; priceSource = 'yahoo_finance_server'; }
         } catch (e) { /* fall through ke fallback statis */ }
       }
 
@@ -1336,7 +1344,9 @@ async function executeAgentTool(toolName, args, userContext = {}) {
 
       let price = (userContext.livePrices && userContext.livePrices[raw]) || (item ? item.price : 0);
       if (!price) {
-        try { const q = await fetchYahooQuote(raw); if (q && q.price > 0) price = q.price; } catch (e) { /* fallback di bawah */ }
+        // INV-004 follow-up: exclude a simulated/fabricated quote — same
+        // reasoning as cek_harga above.
+        try { const q = await fetchYahooQuote(raw); if (q && !q.isSimulated && q.price > 0) price = q.price; } catch (e) { /* fallback di bawah */ }
       }
       if (!price) price = 1000;
 
@@ -1353,6 +1363,12 @@ async function executeAgentTool(toolName, args, userContext = {}) {
 
       const mosPct = fairPriceEstimate > 0 ? Number(((fairPriceEstimate - price) / fairPriceEstimate * 100).toFixed(1)) : 0;
 
+      // INV-009: per/pbv/roe/roa/der/npm can now be null (unreported by IDX
+      // screener for this ticker), not a fabricated 0 — format that
+      // honestly instead of printing "null%"/"null" to the user/AI.
+      const fmtPct = (v) => (v === null || v === undefined) ? 'Data tidak tersedia' : `${v}%`;
+      const fmtNum = (v) => (v === null || v === undefined) ? 'Data tidak tersedia' : v;
+
       return {
         found: true,
         ticker: raw,
@@ -1360,12 +1376,12 @@ async function executeAgentTool(toolName, args, userContext = {}) {
         name: name,
         sector: sector,
         currentPrice: price,
-        per: per,
-        pbv: pbv,
-        roe: `${roe}%`,
-        roa: `${roa}%`,
-        der: der,
-        npm: `${npm}%`,
+        per: fmtNum(per),
+        pbv: fmtNum(pbv),
+        roe: fmtPct(roe),
+        roa: fmtPct(roa),
+        der: fmtNum(der),
+        npm: fmtPct(npm),
         eps: `Rp ${eps.toLocaleString('id-ID')}`,
         bvps: `Rp ${bvps.toLocaleString('id-ID')}`,
         grossDividendYield: grossDivYield !== null ? `${grossDivYield}%` : 'Data tidak tersedia dari sumber real',
@@ -2024,9 +2040,14 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
         + '- **Beta Pasar**: ' + resPrice.beta + '\n\n'
         + '**2. Rasio Keuangan & Valuasi Objektif:**\n'
         + (resFund.found
-          ? '- **PER / PBV**: ' + resFund.per + 'x / ' + resFund.pbv + 'x\n'
+          // INV-009: resFund.per/pbv/der can now be the string "Data tidak
+          // tersedia" (screener didn't report that ratio) instead of a
+          // fabricated number — only append the "x" multiplier suffix when
+          // it's an actual number, otherwise the sentence would read
+          // "Data tidak tersediax".
+          ? '- **PER / PBV**: ' + (typeof resFund.per === 'number' ? resFund.per + 'x' : resFund.per) + ' / ' + (typeof resFund.pbv === 'number' ? resFund.pbv + 'x' : resFund.pbv) + '\n'
             + '- **Profitabilitas (ROE / ROA / NPM)**: ' + resFund.roe + ' / ' + resFund.roa + ' / ' + resFund.npm + '\n'
-            + '- **Leverage (DER)**: ' + resFund.der + 'x\n'
+            + '- **Leverage (DER)**: ' + (typeof resFund.der === 'number' ? resFund.der + 'x' : resFund.der) + '\n'
             + '- **Estimasi Fair Value (Graham/Buffett)**: ' + resFund.fairPriceGrahamBuffett + ' (MoS: ' + resFund.marginOfSafety + ' — ' + resFund.valuationStatus + ')\n'
             + '- **Keunggulan Kompetitif (Moat)**: ' + resFund.moatAnalysis + '\n\n'
           : '_Data rasio fundamental tidak tersedia._\n\n')
@@ -2824,7 +2845,13 @@ app.get('/api/idx/exit-hypothesis/:ticker', async (req, res) => {
     if (currentPrice == null) {
       try {
         const q = await fetchYahooQuote(ticker);
-        if (q && q.price > 0) currentPrice = q.price;
+        // INV-004 follow-up: a fabricated/simulated quote must not become
+        // "currentPrice" for an exit-hypothesis decision on a real open
+        // position (SL/TP-hit checks, unrealized P&L) — fall through to no
+        // currentPrice instead, same as a hard fetch failure, so
+        // generateExitHypothesis degrades honestly rather than deciding
+        // off a fake price.
+        if (q && !q.isSimulated && q.price > 0) currentPrice = q.price;
       } catch (e) { /* fall back to no currentPrice — generateExitHypothesis degrades honestly */ }
     }
 
@@ -2947,6 +2974,35 @@ app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
   }
 });
 
+// GET /api/idx/invezgo-status — Quota/cache/error observability for the
+// Invezgo integration (audit doc `observability.metrics` + `production_gate.
+// operations`: quota telemetry, cache ratio, error rate must be observable).
+// Aggregate counters only — no financial/user data exposed.
+app.get('/api/idx/invezgo-status', async (req, res) => {
+  try {
+    const [quota, metrics] = await Promise.all([getQuotaUsage(), getMetricsToday()]);
+    const cacheTotal = (metrics.cache_hits || 0) + (metrics.cache_misses || 0);
+    return res.json({
+      success: true,
+      quota: {
+        used: quota.used,
+        monthlyBudget: MONTHLY_QUOTA,
+        remaining: quota.remaining,
+        usagePct: Math.round(quota.pct * 1000) / 10,
+        alert80: quota.pct >= 0.8,
+        alert90: quota.pct >= 0.9
+      },
+      today: {
+        ...metrics,
+        cacheHitRatioPct: cacheTotal > 0 ? Math.round((metrics.cache_hits / cacheTotal) * 1000) / 10 : null
+      },
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/idx/brokers — Master list of Indonesian brokers
 app.get('/api/idx/brokers', (req, res) => {
   try {
@@ -3020,14 +3076,23 @@ app.get('/api/idx/screener', async (req, res) => {
         board: base.board,
         price: q?.price || base.basePrice || 0,
         changePercent: q?.changePercent || 0,
-        marketCap: q?.marketCap || ((base.basePrice || 1000) * (base.shares || 5000000000)),
+        // INV-010: no static 5-billion-share default — null when the share
+        // count isn't verified, rather than a fabricated market cap.
+        marketCap: q?.marketCap ?? (base.shares ? (base.basePrice || 1000) * base.shares : null),
         volume: q?.volume || 0,
-        per: q?.fundamentals?.per || 12.5,
-        pbv: q?.fundamentals?.pbv || 1.5,
-        roe: q?.fundamentals?.roe || 14.0,
-        der: q?.fundamentals?.der || 0.8,
-        npm: q?.fundamentals?.npm || 12.0,
-        dividendYield: q?.fundamentals?.dividendYield || 3.0
+        // INV-004/INV-009: when the quote itself is simulated (Yahoo
+        // unreachable, no cache — see fetchYahooQuote's isSimulated flag),
+        // its fundamentals are fabricated too. Previously this fell back to
+        // hardcoded constants (PER 12.5/PBV 1.5/ROE 14.0/DER 0.8/NPM 12.0)
+        // indistinguishable from real ratios in a screener result. Null
+        // them out instead — isSimulated below tells the caller why.
+        per: (q && !q.isSimulated) ? (q.fundamentals?.per ?? null) : null,
+        pbv: (q && !q.isSimulated) ? (q.fundamentals?.pbv ?? null) : null,
+        roe: (q && !q.isSimulated) ? (q.fundamentals?.roe ?? null) : null,
+        der: (q && !q.isSimulated) ? (q.fundamentals?.der ?? null) : null,
+        npm: (q && !q.isSimulated) ? (q.fundamentals?.npm ?? null) : null,
+        dividendYield: (q && !q.isSimulated) ? (q.fundamentals?.dividendYield ?? null) : null,
+        isSimulated: !q || !!q.isSimulated
       };
     });
 
@@ -3040,12 +3105,18 @@ app.get('/api/idx/screener', async (req, res) => {
     if (minRoe !== undefined) filtered = filtered.filter(x => x.roe >= parseFloat(minRoe));
     if (maxDer !== undefined) filtered = filtered.filter(x => x.der <= parseFloat(maxDer));
 
-    // Sort
+    // Sort. marketCap (and, in principle, any other field) can now be null
+    // (INV-010: unverified share count is never treated as zero) — null
+    // always sorts to the bottom regardless of direction, rather than
+    // getting coerced to 0 and outranking legitimately low-but-real values.
     const sortField = sort || 'marketCap';
     const isDesc = order !== 'asc';
     filtered.sort((a, b) => {
-      const vA = a[sortField] !== undefined ? a[sortField] : 0;
-      const vB = b[sortField] !== undefined ? b[sortField] : 0;
+      const vA = a[sortField];
+      const vB = b[sortField];
+      if (vA == null && vB == null) return 0;
+      if (vA == null) return 1;
+      if (vB == null) return -1;
       return isDesc ? (vB > vA ? 1 : -1) : (vA > vB ? 1 : -1);
     });
 

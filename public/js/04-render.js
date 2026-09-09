@@ -239,7 +239,7 @@ function renderPortofolio(){
       labels = sortedSec.map(function(x){return x.sector;});
       dataVals = sortedSec.map(function(x){return x.mv;});
       backgroundColors = sortedSec.map(function(x,i){return sectorColor(x.sector) || COLORS[i%COLORS.length];});
-      icons = sortedSec.map(function(x){return typeof sectorIcon==='function' ? sectorIcon(x.sector) : '📊';});
+      icons = sortedSec.map(function(x){return typeof sectorIcon==='function' ? sectorIcon(x.sector) : '';});
     } else {
       var sahamMV = porto.reduce(function(a,p){return a+(p.mv||0);},0);
       var cryptoPorto = typeof getCryptoPortfolio==='function'?getCryptoPortfolio():[];
@@ -301,7 +301,7 @@ function renderPortofolio(){
         var val = dataVals[idx];
         var pct = (val / totalVal * 100).toFixed(1);
         var col = backgroundColors[idx];
-        var icon = icons[idx] || '📊';
+        var icon = icons[idx] || '';
         // A plain colored <div> swatch turned out unreliable as the color
         // cue: besides Windows/Chrome "Forced Colors" mode, some browser
         // color-management extensions also rewrite inline background
@@ -373,7 +373,7 @@ function renderPortofolio(){
     var secColor=sectorColor(p.info.sector);
     var colorHex=COLORS[i%12] || '#2563EB';
     return '<tr>'
-      +'<td class="tbl-sticky-left"><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+colorHex+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)"><i class="ti ti-bell"></i></button></div></td>'
+      +'<td class="tbl-sticky-left"><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+colorHex+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)">Alert</button></div></td>'
       +'<td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">'+p.info.name+'</td>'
       +'<td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td>'
       +'<td class="mono num text-right">'+p.lot+'</td>'
@@ -746,7 +746,7 @@ function deleteSelectedDiv(){
       _divSelected.clear();
       rebuildRdnBalance();
       saveData();
-      showSaveStatus('✓ Dividen terpilih berhasil dihapus', 'var(--green)');
+      showSaveStatus('Dividen terpilih berhasil dihapus', 'var(--green)');
       renderDividen();
     });
   } else {
@@ -757,13 +757,13 @@ function deleteSelectedDiv(){
     _divSelected.clear();
     rebuildRdnBalance();
     saveData();
-    showSaveStatus('✓ Dividen terpilih berhasil dihapus', 'var(--green)');
+    showSaveStatus('Dividen terpilih berhasil dihapus', 'var(--green)');
     renderDividen();
   }
 }
 function clearAllDiv(){
   if(typeof mwConfirm === 'function'){
-    mwConfirm('Hapus Semua Dividen', '⚠️ Apakah Anda yakin ingin menghapus <strong>SEMUA</strong> catatan dividen? Tindakan ini tidak dapat dibatalkan.', function(){
+    mwConfirm('Hapus Semua Dividen', 'Apakah Anda yakin ingin menghapus <strong>SEMUA</strong> catatan dividen? Tindakan ini tidak dapat dibatalkan.', function(){
       var ids = dividends.map(function(d){return d.id});
       ids.forEach(function(id){
         rdnMutations = rdnMutations.filter(function(r){return String(r.linkedTxId)!=='div-'+id && r.linkedTxId!=='div-'+String(id)});
@@ -772,7 +772,7 @@ function clearAllDiv(){
       _divSelected.clear();
       rebuildRdnBalance();
       saveData();
-      showSaveStatus('✓ Semua dividen berhasil dihapus', 'var(--green)');
+      showSaveStatus('Semua dividen berhasil dihapus', 'var(--green)');
       renderDividen();
     });
   } else {
@@ -784,7 +784,7 @@ function clearAllDiv(){
     _divSelected.clear();
     rebuildRdnBalance();
     saveData();
-    showSaveStatus('✓ Semua dividen berhasil dihapus', 'var(--green)');
+    showSaveStatus('Semua dividen berhasil dihapus', 'var(--green)');
     renderDividen();
   }
 }
@@ -813,7 +813,7 @@ function editDiv(id){
     '</div>'+
     '<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">'+
       '<button class="btn btn-ghost" onclick="closeModal()">Batal</button>'+
-      '<button class="btn btn-green" onclick="submitEditDiv('+id+')">💾 Simpan</button>'+
+      '<button class="btn btn-green" onclick="submitEditDiv('+id+')">Simpan</button>'+
     '</div>';
   setTimeout(function(){ edDivCalc(); }, 50);
   el('modal').classList.add('on');
@@ -840,7 +840,7 @@ function submitEditDiv(id){
   addRdn(date,'DIVIDEN','Dividen '+ticker+' Rp '+fmt(dps)+'/lbr',net,'—','div-'+id);
   rebuildRdnBalance();
   saveData();
-  showSaveStatus('✓ Dividen '+ticker+' diperbarui');
+  showSaveStatus('Dividen '+ticker+' diperbarui');
   closeModal(); renderDividen();
 }
 
@@ -905,8 +905,7 @@ function renderSektoral(){
     return '<div style="margin-bottom:12px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'
         +'<div style="display:flex;align-items:center;gap:8px">'
-          +'<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;font-size:13px;flex-shrink:0;filter:grayscale(1);opacity:.8">'+sInfo.icon+'</span>'
-          +'<span class="sec-dot" style="background:'+sInfo.color+'"></span>'
+                    +'<span class="sec-dot" style="background:'+sInfo.color+'"></span>'
           +'<span style="font-size:12px;font-weight:600">'+s+'</span>'
           +'<span class="badge '+(sv.ret>=0?'b-up':'b-dn')+'" style="font-size:9px">'+(sv.ret>=0?'+':'')+sv.ret.toFixed(1)+'%</span>'
         +'</div>'
@@ -921,8 +920,7 @@ function renderSektoral(){
     var sv=byS[s];var sInfo=IDX_SECTORS[s]||{color:sectorColor(s),icon:sectorIcon(s),desc:''};
     return '<div style="margin-bottom:14px">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'
-        +'<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;font-size:13px;flex-shrink:0;filter:grayscale(1);opacity:.8">'+sInfo.icon+'</span>'
-        +'<span class="sec-dot" style="background:'+sInfo.color+'"></span>'
+                +'<span class="sec-dot" style="background:'+sInfo.color+'"></span>'
         +'<span style="font-size:12px;font-weight:600">'+s+'</span>'
         +'<span class="badge b-gray" style="margin-left:auto">'+sInfo.desc+'</span>'
       +'</div>'
@@ -1051,17 +1049,17 @@ function renderRisiko(){
 
   // Recommendations
   var recos=[];
-  if(porto.length<5)recos.push({icon:'⚠️',text:'Diversifikasi lebih lanjut — portofolio Anda hanya '+porto.length+' saham. Ideal minimal 8−12 saham.',cls:'alert-warn'});
-  if(portoBeta>1.2)recos.push({icon:'📊',text:'Beta tinggi ('+portoBeta.toFixed(2)+') — portofolio lebih volatile dari IHSG. Pertimbangkan tambah saham defensif.',cls:'alert-warn'});
+  if(porto.length<5)recos.push({icon:'',text:'Diversifikasi lebih lanjut — portofolio Anda hanya '+porto.length+' saham. Ideal minimal 8−12 saham.',cls:'alert-warn'});
+  if(portoBeta>1.2)recos.push({icon:'',text:'Beta tinggi ('+portoBeta.toFixed(2)+') — portofolio lebih volatile dari IHSG. Pertimbangkan tambah saham defensif.',cls:'alert-warn'});
   var byS2={};porto.forEach(function(p){byS2[p.info.sector]=(byS2[p.info.sector]||0)+p.mv});
   var secCnt2=Object.keys(byS2).length;
-  if(secCnt2<4)recos.push({icon:'🔴',text:'Hanya '+secCnt2+' sektor — risiko sektoral tinggi. Tambah saham dari sektor berbeda.',cls:'alert-warn'});
+  if(secCnt2<4)recos.push({icon:'',text:'Hanya '+secCnt2+' sektor — risiko sektoral tinggi. Tambah saham dari sektor berbeda.',cls:'alert-warn'});
   var maxSec=Object.values(byS2).reduce(function(a,b){return Math.max(a,b)},0);
-  if(maxSec/totalMV>0.6)recos.push({icon:'⚡',text:'Satu sektor mendominasi >'+(maxSec/totalMV*100).toFixed(0)+'% portofolio. Rebalancing disarankan.',cls:'alert-warn'});
-  if(parseFloat(sharpe)<0)recos.push({icon:'📉',text:'Sharpe Ratio negatif — return tidak sepadan dengan risiko yang diambil.',cls:'alert-warn'});
-  if(recos.length===0)recos.push({icon:'✅',text:'Profil risiko portofolio dalam kondisi baik. Pertahankan strategi saat ini.',cls:'alert-ok'});
+  if(maxSec/totalMV>0.6)recos.push({icon:'',text:'Satu sektor mendominasi >'+(maxSec/totalMV*100).toFixed(0)+'% portofolio. Rebalancing disarankan.',cls:'alert-warn'});
+  if(parseFloat(sharpe)<0)recos.push({icon:'',text:'Sharpe Ratio negatif — return tidak sepadan dengan risiko yang diambil.',cls:'alert-warn'});
+  if(recos.length===0)recos.push({icon:'',text:'Profil risiko portofolio dalam kondisi baik. Pertahankan strategi saat ini.',cls:'alert-ok'});
 
-  el('risk-reco').innerHTML=recos.map(function(r){return '<div class="alert '+r.cls+'" style="margin-bottom:7px">'+r.icon+' '+r.text+'</div>'}).join('');
+  el('risk-reco').innerHTML=recos.map(function(r){return '<div class="alert '+r.cls+'" style="margin-bottom:7px">'+r.text+'</div>'}).join('');
 
   buildRetDistChart(porto);
 }
@@ -1201,7 +1199,7 @@ function applyTaxPreset(ppn, pphJual, levy){
   taxPreviewLive();
   saveTaxSettings();
   saveData(); // FIX SINKRONISASI: kirim juga ke cloud — tanpa ini, login berikutnya menimpa balik dengan tarif lama
-  showSaveStatus('✓ Preset pajak: PPN '+(TAX_SETTINGS.ppn*100).toFixed(0)+'% · Levy '+(TAX_SETTINGS.levy*100).toFixed(3)+'% · PPh Final Jual '+(TAX_SETTINGS.pphJual*100).toFixed(2)+'%');
+  showSaveStatus('Preset pajak: PPN '+(TAX_SETTINGS.ppn*100).toFixed(0)+'% · Levy '+(TAX_SETTINGS.levy*100).toFixed(3)+'% · PPh Final Jual '+(TAX_SETTINGS.pphJual*100).toFixed(2)+'%');
 }
 
 function saveTaxFromUI(){
@@ -1211,7 +1209,7 @@ function saveTaxFromUI(){
   TAX_SETTINGS.ppn=ppn; TAX_SETTINGS.levy=levy; TAX_SETTINGS.pphJual=j;
   saveTaxSettings();
   saveData(); // FIX SINKRONISASI: kirim juga ke cloud — tanpa ini, login berikutnya menimpa balik dengan tarif lama
-  showSaveStatus('✓ Pajak disimpan: PPN '+(ppn*100).toFixed(0)+'% · Levy '+(levy*100).toFixed(3)+'% · PPh Jual '+(j*100).toFixed(2)+'%');
+  showSaveStatus('Pajak disimpan: PPN '+(ppn*100).toFixed(0)+'% · Levy '+(levy*100).toFixed(3)+'% · PPh Jual '+(j*100).toFixed(2)+'%');
   renderPajak();
 }
 
@@ -1220,7 +1218,7 @@ function openMarketSyncModal(){
   var html = '<div class="modal-backdrop" id="market-sync-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">'
     + '<div class="card" style="width:100%;max-width:550px;max-height:90vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--border)">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    + '<div class="ptitle" style="font-size:15px">⚙️ Sinkronisasi &amp; Penyesuaian Harga Pasar (IHSG &amp; Saham)</div>'
+    + '<div class="ptitle" style="font-size:15px">Sinkronisasi &amp; Penyesuaian Harga Pasar (IHSG &amp; Saham)</div>'
     + '<button class="btn btn-ghost btn-xs" onclick="document.getElementById(\'market-sync-modal\').remove()">✕</button>'
     + '</div>'
     + '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Jika data Yahoo Finance terlambat atau berbeda dari aplikasi sekuritas Anda (Stockbit, IPOT, Mandiri Sekuritas, dll), Anda dapat memperbarui level IHSG dan menyesuaikan harga pasar per saham secara manual di sini.</div>'

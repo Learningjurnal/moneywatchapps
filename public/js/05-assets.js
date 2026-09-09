@@ -2349,7 +2349,7 @@ function calcPortfolioVolatilityAndRisk(){
       diversificationScore: 100,
       riskScore: 0,
       needleAngle: -90,
-      riskCategory: '🟢 Konservatif (Kas / Kosong)',
+      riskCategory: 'Konservatif (Kas / Kosong)',
       riskColor: '#10B981',
       narrative: 'Portofolio saat ini tidak memiliki aset aktif yang menanggung risiko volatilitas pasar.',
       assets: [],
@@ -2394,19 +2394,19 @@ function calcPortfolioVolatilityAndRisk(){
   var riskScore = Math.round(Math.min(100, Math.max(5, volPts + betaPts + concPts)));
 
   // Risk Classification
-  var riskCategory = '🟢 Konservatif';
+  var riskCategory = 'Konservatif';
   var riskColor = '#10B981';
   if (riskScore > 80) {
-    riskCategory = '🔴 Agresif & Spekulatif';
+    riskCategory = 'Agresif & Spekulatif';
     riskColor = '#EF4444';
   } else if (riskScore > 60) {
-    riskCategory = '🟠 Pertumbuhan Tinggi (Aggressive)';
+    riskCategory = 'Pertumbuhan Tinggi (Aggressive)';
     riskColor = '#F59E0B';
   } else if (riskScore > 40) {
-    riskCategory = '🟡 Moderat Dinamis';
+    riskCategory = 'Moderat Dinamis';
     riskColor = '#3B82F6';
   } else if (riskScore > 20) {
-    riskCategory = '🔵 Moderat Rendah (Balanced)';
+    riskCategory = 'Moderat Rendah (Balanced)';
     riskColor = '#06B6D4';
   }
 
@@ -2425,13 +2425,13 @@ function calcPortfolioVolatilityAndRisk(){
   var topRiskAsset = assets.slice().sort(function(a,b){ return (b.weight * b.vol) - (a.weight * a.vol); })[0];
   var narrative = '';
   if (cryptoWeight > 0.3) {
-    narrative = '⚠️ Portofolio didominasi aset kripto (' + (cryptoWeight * 100).toFixed(1) + '%). Fluktuasi jangka pendek tinggi dengan potensi deviasi tajam.';
+    narrative = 'Portofolio didominasi aset kripto (' + (cryptoWeight * 100).toFixed(1) + '%). Fluktuasi jangka pendek tinggi dengan potensi deviasi tajam.';
   } else if (activeClasses >= 3 && sumSqWeights < 0.35) {
-    narrative = '✨ Diversifikasi aset lintas kelas berjalan optimal. Risiko terdistribusi sehat dengan volatilitas terukur (' + (annualVol * 100).toFixed(1) + '% p.a.).';
+    narrative = 'Diversifikasi aset lintas kelas berjalan optimal. Risiko terdistribusi sehat dengan volatilitas terukur (' + (annualVol * 100).toFixed(1) + '% p.a.).';
   } else if (topRiskAsset && (topRiskAsset.weight * topRiskAsset.vol) > (weightedVol * 0.45)) {
-    narrative = '📌 ' + topRiskAsset.name + ' menyumbang kontribusi volatilitas terbesar. Pantau pergerakan harga untuk menjaga batas risiko.';
+    narrative = topRiskAsset.name + ' menyumbang kontribusi volatilitas terbesar. Pantau pergerakan harga untuk menjaga batas risiko.';
   } else {
-    narrative = '💡 Profil risiko portofolio berimbang. Estimasi Value at Risk harian 95% berkisar di Rp ' + fmt(Math.round(var1DIdr)) + ' (' + var1DPercent.toFixed(2) + '%).';
+    narrative = 'Profil risiko portofolio berimbang. Estimasi Value at Risk harian 95% berkisar di Rp ' + fmt(Math.round(var1DIdr)) + ' (' + var1DPercent.toFixed(2) + '%).';
   }
 
   return {
@@ -2498,16 +2498,16 @@ function renderPortfolioHub(){
 
     var badgesHtml = '';
     if (hubBreakouts.length > 0) {
-      badgesHtml += '<span class="badge sig-breakout" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px"><span class="crypto-pulse-dot" style="background:#f7931a"></span> 🔥 ' + hubBreakouts.map(function(b){ return b.coin; }).join(', ') + ' Breakout</span>';
+      badgesHtml += '<span class="badge sig-breakout" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px"><span class="crypto-pulse-dot" style="background:#f7931a"></span> ' + hubBreakouts.map(function(b){ return b.coin; }).join(', ') + ' Breakout</span>';
     }
     if (hubWhales.length > 0) {
-      badgesHtml += '<span class="badge sig-whale" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px">🐋 ' + hubWhales.map(function(w){ return w.coin; }).join(', ') + ' Inflow</span>';
+      badgesHtml += '<span class="badge sig-whale" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px">' + hubWhales.map(function(w){ return w.coin; }).join(', ') + ' Inflow</span>';
     }
     if (hubOversold.length > 0) {
-      badgesHtml += '<span class="badge sig-oversold" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px">🛡️ ' + hubOversold.map(function(o){ return o.coin; }).join(', ') + ' Oversold</span>';
+      badgesHtml += '<span class="badge sig-oversold" style="font-size:10px;padding:2px 7px;display:inline-flex;align-items:center;gap:3px">' + hubOversold.map(function(o){ return o.coin; }).join(', ') + ' Oversold</span>';
     }
     if (!badgesHtml) {
-      badgesHtml = '<span class="badge" style="background:rgba(247,147,26,0.12);color:#f7931a;border:1px solid rgba(247,147,26,0.25);font-size:9.5px;padding:2px 6px">⚡ Pure Tech &amp; Whale Radar</span>';
+      badgesHtml = '<span class="badge" style="background:rgba(247,147,26,0.12);color:#f7931a;border:1px solid rgba(247,147,26,0.25);font-size:9.5px;padding:2px 6px">Tidak ada sinyal aktif</span>';
     }
     el('hub-crypto-signals').innerHTML = badgesHtml;
   }

@@ -1760,7 +1760,7 @@ function hw_recalc() {
   var btn = document.getElementById('hw-hitung-btn');
   if (btn) { btn.textContent = '⏳ Menghitung...'; btn.style.opacity = '.7'; btn.disabled = true; }
 
-  function done() { if (btn) { btn.textContent = '⚡ HITUNG'; btn.style.opacity = '1'; btn.disabled = false; } }
+  function done() { if (btn) { btn.textContent = 'HITUNG'; btn.style.opacity = '1'; btn.disabled = false; } }
 
   function fmt(n) { return (n === null || n === undefined || isNaN(n)) ? '—' : Math.round(n).toLocaleString('id-ID'); }
   function fmtD(n, dec) { return (n === null || n === undefined || isNaN(n)) ? '—' : n.toFixed(dec !== undefined ? dec : 1); }
@@ -1810,7 +1810,7 @@ function hw_recalc() {
   if (errors.length) {
     hw_clearResults();
     var badge = document.getElementById('hw-verdict-badge');
-    if (badge) { badge.textContent = '⚠️ DATA TIDAK LENGKAP'; badge.style.background = 'rgba(255,187,0,.12)'; badge.style.color = 'var(--amber)'; badge.style.borderColor = 'rgba(255,187,0,.3)'; }
+    if (badge) { badge.textContent = 'DATA TIDAK LENGKAP'; badge.style.background = 'rgba(255,187,0,.12)'; badge.style.color = 'var(--amber)'; badge.style.borderColor = 'rgba(255,187,0,.3)'; }
     var cEl = document.getElementById('hw-conclusion'); var cTx = document.getElementById('hw-conclusion-text');
     if (cEl && cTx) { cEl.style.display = 'block'; cEl.style.borderLeftColor = 'var(--amber)'; cTx.innerHTML = '<b style="color:var(--amber)">Lengkapi data berikut:</b><br>' + errors.map(function(e){ return '• ' + e; }).join('<br>'); }
     done(); return;
@@ -1913,19 +1913,19 @@ function hw_recalc() {
   var verdCard = document.getElementById('hw-verdict-card');
   if (badge) {
     if (overallPass) {
-      badge.textContent = '✅ UNDERVALUED — LAYAK BELI';
+      badge.textContent = 'UNDERVALUED — LAYAK BELI';
       badge.style.background = 'rgba(0,212,170,.15)';
       badge.style.color = 'var(--green)';
       badge.style.borderColor = 'rgba(0,212,170,.4)';
       if (verdCard) verdCard.style.borderTopColor = 'var(--green)';
     } else if (!irrPass && !mosPass) {
-      badge.textContent = '🚫 OVERVALUED — HINDARI';
+      badge.textContent = 'OVERVALUED — HINDARI';
       badge.style.background = 'rgba(255,34,68,.12)';
       badge.style.color = 'var(--red)';
       badge.style.borderColor = 'rgba(255,34,68,.3)';
       if (verdCard) verdCard.style.borderTopColor = 'var(--red)';
     } else {
-      badge.textContent = '⚠️ PERHATIKAN — BORDERLINE';
+      badge.textContent = 'PERHATIKAN — BORDERLINE';
       badge.style.background = 'rgba(255,187,0,.12)';
       badge.style.color = 'var(--amber)';
       badge.style.borderColor = 'rgba(255,187,0,.3)';
@@ -2072,9 +2072,9 @@ function hw_recalc() {
   if (stepsCard && stepsBody) {
     stepsCard.style.display = 'block';
     var steps = [
-      { label: 'Step 1 — IRR Awal', val: fmtPct(irr*100) + (irrPass ? ' ✅' : ' ❌'), desc: 'EPS terkini ÷ Harga Saham', ok: irrPass },
+      { label: 'Step 1 — IRR Awal', val: fmtPct(irr*100), desc: 'EPS terkini ÷ Harga Saham', ok: irrPass },
       { label: 'Step 2a — Avg ROE', val: fmtPct(avgROE*100), desc: roeList.length + ' tahun data historis real', ok: avgROE > 0 },
-      { label: 'Step 2b — Avg DPR', val: fmtPct(avgDPR*100), desc: dprList.length + ' tahun' + (dprWarning ? ' ⚠️ Di-cap 100%' : ''), ok: true },
+      { label: 'Step 2b — Avg DPR', val: fmtPct(avgDPR*100), desc: dprList.length + ' tahun' + (dprWarning ? ' Di-cap 100%' : ''), ok: true },
       { label: 'Step 2c — ROE after Payout', val: fmtPct(roeAfterPayout*100), desc: 'Avg ROE × (1 − Avg DPR)', ok: roeAfterPayout > 0 },
       { label: 'Step 3a — Equity / Share kini', val: fmtRp(equityPerShare), desc: equityMiliar.toLocaleString('id-ID') + 'M ÷ ' + sharesJuta.toLocaleString('id-ID') + 'jt lbr', ok: equityPerShare > 0 },
       { label: 'Step 3b — Future Equity/Share', val: fmtRp(futureEquityPerShare), desc: 'Proyeksi ' + N + ' tahun ke depan', ok: futureEquityPerShare > 0 },

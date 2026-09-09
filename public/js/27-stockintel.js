@@ -543,7 +543,7 @@ function renderIntelPriceChart() {
     ctx.font = '12px var(--font-mono, monospace)';
     ctx.textAlign = 'center';
     var msg = histState[tf + '_fetched']
-      ? '⚠ Data historis ' + tf + ' tidak tersedia saat ini (feed offline/rate-limited)'
+      ? 'Data historis ' + tf + ' tidak tersedia saat ini (feed offline/rate-limited)'
       : 'Memuat data historis harga...';
     ctx.fillText(msg, w / 2, h / 2);
     return;
@@ -672,7 +672,7 @@ function renderStockIntelPage() {
   });
   optionsHtml += '</optgroup>';
 
-  optionsHtml += '<optgroup label="🏛️ Semua Emiten Bursa Efek Indonesia">';
+  optionsHtml += '<optgroup label="Semua Emiten Bursa Efek Indonesia">';
   universe.all.forEach(function(t) {
     if (!universe.top.includes(t)) {
       var m = getIntelStockMeta(t);
@@ -703,7 +703,7 @@ function renderStockIntelPage() {
           + '</div>'
           + '<div style="display:flex;gap:4px">'
             + '<input type="text" id="intel-search-input" class="form-input" placeholder="Kode IDX..." value="' + ticker + '" style="width:100px;height:30px;font-size:12px;text-transform:uppercase;font-family:var(--font-mono)" onkeydown="if(event.key===\'Enter\')handleIntelSearchSubmit(event)">'
-            + '<button class="btn btn-primary btn-xs" onclick="handleIntelSearchSubmit(event)">🔍 Periksa</button>'
+            + '<button class="btn btn-primary btn-xs" onclick="handleIntelSearchSubmit(event)">Periksa</button>'
           + '</div>'
         + '</div>'
         + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
@@ -715,7 +715,6 @@ function renderStockIntelPage() {
       // ZERO-STATE COMPLIANCE WARNING CARD
       + '<div style="background:var(--bg2);border:1px solid rgba(255, 59, 92, 0.4);border-radius:12px;padding:32px 24px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.5);margin-top:10px">'
         + '<div style="width:54px;height:54px;border-radius:50%;background:rgba(255, 59, 92, 0.15);color:#FF3B5C;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px auto;border:1px solid rgba(255, 59, 92, 0.3)">'
-          + '⚠️'
         + '</div>'
         + '<div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:6px;font-family:var(--font-display)">'
           + 'Ticker "' + ticker + '" Tidak Terdaftar di Bursa Efek Indonesia (IDX)'
@@ -724,10 +723,10 @@ function renderStockIntelPage() {
           + 'Sesuai aturan kepatuhan dan integritas data pasar modal MoneyWatch Pro, <strong>seluruh data dummy dan saham fiktif dilarang</strong>. Modul Stock Intelligence hanya menampilkan data riil emiten yang tercatat secara resmi di BEI / IDX.'
         + '</div>'
         + '<div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">'
-          + '<button class="btn btn-primary btn-sm" onclick="selectStockIntelTicker(\'BBCA\')">📈 Buka Saham BBCA</button>'
-          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'BBRI\')">📈 Buka Saham BBRI</button>'
-          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'TLKM\')">📈 Buka Saham TLKM</button>'
-          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'ASII\')">📈 Buka Saham ASII</button>'
+          + '<button class="btn btn-primary btn-sm" onclick="selectStockIntelTicker(\'BBCA\')">Buka Saham BBCA</button>'
+          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'BBRI\')">Buka Saham BBRI</button>'
+          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'TLKM\')">Buka Saham TLKM</button>'
+          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'ASII\')">Buka Saham ASII</button>'
         + '</div>'
       + '</div>';
 
@@ -755,17 +754,17 @@ function renderStockIntelPage() {
         + '</div>'
         + '<div style="display:flex;gap:4px">'
           + '<input type="text" id="intel-search-input" class="form-input" placeholder="Ketik kode IDX..." value="' + ticker + '" style="width:90px;height:30px;font-size:12px;text-transform:uppercase;font-family:var(--font-mono)" onkeydown="if(event.key===\'Enter\')handleIntelSearchSubmit(event)">'
-          + '<button class="btn btn-primary btn-xs" onclick="handleIntelSearchSubmit(event)">🔍 Buka</button>'
+          + '<button class="btn btn-primary btn-xs" onclick="handleIntelSearchSubmit(event)">Buka</button>'
         + '</div>'
       + '</div>'
 
       // Real-time Controls & Timestamp Badge
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge b-neu" style="font-size:10px;font-family:var(--font-mono);border:1px solid var(--border2);display:flex;align-items:center;gap:4px" title="Waktu sinkronisasi data pasar">'
-          + '🕒 <span id="intel-timestamp-val">' + data.timestamp + '</span>'
+          + '<span id="intel-timestamp-val">' + data.timestamp + '</span>'
         + '</span>'
         + '<button id="intel-refresh-btn" class="btn btn-ghost btn-xs" onclick="fetchRealStockIntelData(\'' + ticker + '\')" style="border-color:#00D4FF;color:#00D4FF" title="Ambil pembaruan quote & orderbook realtime">'
-          + '🔄 Refresh Real-Time'
+          + 'Refresh Real-Time'
         + '</button>'
         + '<div style="display:flex;align-items:center;gap:4px">'
           + quickChipsHtml
@@ -789,9 +788,9 @@ function renderStockIntelPage() {
         + '</div>'
       + '</div>'
       + '<div style="display:flex;gap:6px">'
-        + '<button class="btn btn-ghost btn-xs" onclick="openBandarFlowModal(\'' + ticker + '\')" style="border-color:#38bdf8;color:#38bdf8">🌊 Bandar Flow</button>'
-        + '<button class="btn btn-ghost btn-xs" onclick="openCreatePriceAlertModal(\'' + ticker + '\', ' + data.price + ')">🔔 Alert</button>'
-        + '<button class="btn btn-primary btn-xs" onclick="if(typeof openStockChat===\'function\'){openStockChat(\'' + ticker + '\');}else{goPage(\'stockchat\');}">💬 Tanya AI StockChat</button>'
+        + '<button class="btn btn-ghost btn-xs" onclick="openBandarFlowModal(\'' + ticker + '\')" style="border-color:#38bdf8;color:#38bdf8">Bandar Flow</button>'
+        + '<button class="btn btn-ghost btn-xs" onclick="openCreatePriceAlertModal(\'' + ticker + '\', ' + data.price + ')">Alert</button>'
+        + '<button class="btn btn-primary btn-xs" onclick="if(typeof openStockChat===\'function\'){openStockChat(\'' + ticker + '\');}else{goPage(\'stockchat\');}">Tanya AI StockChat</button>'
       + '</div>'
     + '</div>'
 
@@ -832,8 +831,8 @@ function renderStockIntelPage() {
         + '<div class="intel-section-title" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between">'
           + '<span>STATISTIK FUNDAMENTAL RIIL</span>'
           + (data.stats.isReal
-              ? '<span class="badge b-up" style="font-size:10px" title="Sumber: Yahoo Finance quoteSummary">✓ Data Real</span>'
-              : '<span class="badge b-amb" style="font-size:10px" title="Yahoo Finance belum punya data fundamental untuk emiten ini — nilai diestimasi dari harga pasar">⚠ Estimasi</span>')
+              ? '<span class="badge b-up" style="font-size:10px" title="Sumber: Yahoo Finance quoteSummary">Data Real</span>'
+              : '<span class="badge b-amb" style="font-size:10px" title="Yahoo Finance belum punya data fundamental untuk emiten ini — nilai diestimasi dari harga pasar">Estimasi</span>')
         + '</div>'
         + '<div class="intel-stats-grid">'
           + '<div class="intel-stat-item">'
@@ -953,17 +952,17 @@ function renderStockIntelPage() {
       + '<div class="intel-section-title" style="margin-bottom:10px"><span>LANJUTKAN ANALISA MENDALAM</span></div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">'
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
-          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-building-bank" style="color:var(--accent)"></i> Fundamental Suite</div>'
+          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Analisis Fundamental</div>'
           + '<div style="font-size:11px;color:var(--text2)">PER ' + data.stats.per + ' · PBV ' + data.stats.pbv + ' · ROE ' + data.stats.roe + ' — DCF, konsensus Graham/Lynch/DDM, Bull/Bear Debate &amp; KSEI.</div>'
           + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof fundSetTicker===\'function\')fundSetTicker(\'' + ticker + '\');goPage(\'fundamental\')">Buka Analisa Fundamental →</button>'
         + '</div>'
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
-          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-chart-candle" style="color:var(--accent)"></i> Technical Suite</div>'
+          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Analisis Teknikal</div>'
           + '<div style="font-size:11px;color:var(--text2)">Bias ' + data.plan.bias + ' · Entry ' + data.plan.entryZone + ' — FlowScan Bandarmologi, 20+ gauge, candlestick &amp; pivot S/R.</div>'
           + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof techSetTicker===\'function\')techSetTicker(\'' + ticker + '\');goPage(\'technical\')">Buka Analisa Teknikal →</button>'
         + '</div>'
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
-          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-calculator" style="color:var(--accent)"></i> Valuation (Margin of Safety)</div>'
+          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Valuation (Margin of Safety)</div>'
           + '<div style="font-size:11px;color:var(--text2)">Hitung harga wajar 9-langkah dari data keuangan historis riil (EPS, BVPS, DPS) untuk ' + ticker + '.</div>'
           + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof hw_loadStock===\'function\')hw_loadStock(\'' + ticker + '\');goPage(\'hargawajar\')">Buka Kalkulator MoS →</button>'
         + '</div>'
@@ -1096,8 +1095,8 @@ function openBandarFlowModal(ticker) {
       // Action Buttons
       + '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;border-top:1px solid var(--border2);padding-top:14px">'
         + '<button class="btn btn-ghost btn-sm" onclick="closeBandarFlowModal()">Tutup</button>'
-        + '<button class="btn btn-secondary btn-sm" onclick="closeBandarFlowModal();if(typeof openCreatePriceAlertModal===\'function\'){openCreatePriceAlertModal(\'' + tk + '\', ' + meta.price + ');}">🔔 Pasang Alert</button>'
-        + '<button class="btn btn-primary btn-sm" onclick="closeBandarFlowModal();switchIntelTicker(\'' + tk + '\');">🚀 Buka di Cockpit</button>'
+        + '<button class="btn btn-secondary btn-sm" onclick="closeBandarFlowModal();if(typeof openCreatePriceAlertModal===\'function\'){openCreatePriceAlertModal(\'' + tk + '\', ' + meta.price + ');}">Pasang Alert</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="closeBandarFlowModal();switchIntelTicker(\'' + tk + '\');">Buka di Cockpit</button>'
       + '</div>'
 
     + '</div>';
