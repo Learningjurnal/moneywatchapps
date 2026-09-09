@@ -795,15 +795,15 @@
 <div id="page-performance" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px">
     <div>
-      <div class="ptitle" style="margin-bottom:2px">📊 Portfolio Performance &amp; Advisory</div>
+      <div class="ptitle" style="margin-bottom:2px">Portfolio Performance &amp; Advisory</div>
       <div class="psub" style="margin-bottom:0">Analisa lengkap kinerja portofolio — GIPS return (TWR vs XIRR), ekuitas, alokasi, dan laporan tear sheet investor</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-blue btn-sm" onclick="openInvestorTearSheet()" title="Buka ringkasan 1 lembar siap cetak untuk investor / nasabah">
-        📄 Investor Tear Sheet (PDF)
+        Investor Tear Sheet (PDF)
       </button>
       <button class="btn btn-bb btn-sm" onclick="openRebalancingModal()" title="Kalkulator penetapan target alokasi aset & instruksi eksekusi">
-        ⚖️ Smart Rebalancer
+        Smart Rebalancer
       </button>
     </div>
   </div>
@@ -831,7 +831,7 @@
         <span class="ctitle">Riwayat Ekuitas</span>
         <div style="display:flex;align-items:center;gap:6px">
           <button class="btn btn-ghost btn-xs" title="Validasi dan Sinkronkan Riwayat Ekuitas dengan Data Transaksi Riil" onclick="perfSyncEquityHistory()" style="padding:2px 7px;font-size:10px;border:1px solid var(--border2);border-radius:5px">
-            <span style="color:var(--accent)">🔄 Validasi</span>
+            <span style="color:var(--accent)">Validasi</span>
           </button>
           <span class="badge b-gray" id="perf-eq-table-count">0 hari</span>
         </div>
@@ -865,7 +865,7 @@
   <!-- ROW 1b: Dual Return Engine (GIPS Compliant): TWR (Time-Weighted) vs MWR/XIRR (Money-Weighted) -->
   <div class="card" style="margin-bottom:18px">
     <div class="cheader">
-      <span class="ctitle">⚡ Dual Return Engine — TWR (Time-Weighted) vs MWR/XIRR (Money-Weighted)</span>
+      <span class="ctitle">Dual Return Engine — TWR (Time-Weighted) vs MWR/XIRR (Money-Weighted)</span>
       <span class="badge b-neu" title="Standar GIPS (Global Investment Performance Standards): TWR mengukur murni keahlian pemilihan aset tanpa dipengaruhi waktu injeksi/penarikan modal, sedangkan MWR/XIRR mengukur hasil finansial aktual investor termasuk dampak timing setoran.">GIPS Compliant</span>
     </div>
     <div class="row4" style="margin-bottom:8px">
@@ -909,7 +909,7 @@
 
   <!-- ROW 3: Ringkasan Trading -->
   <div style="margin-bottom:18px">
-    <div class="cheader" style="border:none;padding:0;margin-bottom:14px"><span class="ctitle" style="font-size:14px;color:var(--text)">🎯 Ringkasan Trading</span></div>
+    <div class="cheader" style="border:none;padding:0;margin-bottom:14px"><span class="ctitle" style="font-size:14px;color:var(--text)">Ringkasan Trading</span></div>
     <div class="g3">
       <div class="card" style="margin:0;display:flex;align-items:center;gap:14px">
         <div style="position:relative;width:110px;height:70px;flex-shrink:0">
@@ -1003,7 +1003,7 @@
 
   <!-- ROW 6: Kinerja Aset Lain (Crypto/ETF/Reksa Dana) -->
   <div style="margin-bottom:18px">
-    <div class="cheader" style="border:none;padding:0;margin-bottom:14px"><span class="ctitle" style="font-size:14px;color:var(--text)">🪙 Kinerja Aset Lain</span></div>
+    <div class="cheader" style="border:none;padding:0;margin-bottom:14px"><span class="ctitle" style="font-size:14px;color:var(--text)">Kinerja Aset Lain</span></div>
     <div class="g3" id="perf-other-assets"></div>
   </div>
 
@@ -1018,7 +1018,7 @@
 
   <!-- ===== MANAJEMEN RISIKO (dipindahkan dari Dashboard) ===== -->
   <div id="dash-risiko-section" style="margin-top:8px;padding-top:18px;border-top:1px solid var(--border)">
-    <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">⚠️ Analisa Risiko Portofolio</div>
+    <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Analisa Risiko Portofolio</div>
     <div style="font-size:11px;color:var(--text3);margin-top:2px;margin-bottom:18px">Volatilitas, Value at Risk (VaR), korelasi, dan metrik risiko lainnya</div>
     <div class="row4">
       <div class="metric">
@@ -1096,12 +1096,12 @@
       <div class="psub">Catatan arus kas terpadu untuk RDN Saham IDX, Wallet Crypto, dan Reksa Dana</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-ghost" id="btn-sync-rdn" onclick="syncRdnDatabase(true)" style="border-color:rgba(52,211,153,.4);color:var(--green)" title="Sinkronkan mutasi RDN di database dengan transaksi terkini"><i class="ti ti-refresh"></i> ⚡ Sinkronkan Database</button>
+      <button class="btn btn-ghost" id="btn-sync-rdn" onclick="syncRdnDatabase(true)" style="border-color:rgba(52,211,153,.4);color:var(--green)" title="Sinkronkan mutasi RDN di database dengan transaksi terkini">Sinkronkan Database</button>
       <button class="btn btn-green" id="btn-setor">+ Setor / Top Up</button>
       <button class="btn btn-red" id="btn-tarik">− Tarik Dana</button>
-      <button class="btn btn-ghost" id="btn-adjust" onclick="openModal('adjust')" style="border-color:rgba(0,200,255,.4);color:var(--accent)" title="Sesuaikan saldo kas riil via mutasi">⚖️ Penyesuaian Saldo</button>
-      <button class="btn btn-ghost" id="btn-fee" style="border-color:rgba(255,193,7,.4);color:var(--amber)">📋 Catat Biaya</button>
-      <button class="btn btn-ghost" onclick="goPage('rdn-audit')" style="border-color:rgba(0,200,255,.4);color:var(--accent)"><i class="ti ti-history"></i> Log Audit Transaksi</button>
+      <button class="btn btn-ghost" id="btn-adjust" onclick="openModal('adjust')" style="border-color:rgba(0,200,255,.4);color:var(--accent)" title="Sesuaikan saldo kas riil via mutasi">Penyesuaian Saldo</button>
+      <button class="btn btn-ghost" id="btn-fee" style="border-color:rgba(255,193,7,.4);color:var(--amber)">Catat Biaya</button>
+      <button class="btn btn-ghost" onclick="goPage('rdn-audit')" style="border-color:rgba(0,200,255,.4);color:var(--accent)">Log Audit Transaksi</button>
     </div>
   </div>
   <div class="row4" style="margin-bottom:12px">
@@ -1146,8 +1146,8 @@
         <select class="finput fsel" id="rdn-acc-filter" style="width:160px;padding:4px 9px;font-size:10px" onchange="renderRdn()">
           <option value="all">Semua Rekening</option>
           <option value="saham">🇮🇩 Saham IDX (RDN)</option>
-          <option value="crypto">🪙 Crypto (Wallet/Exch)</option>
-          <option value="reksadana">💼 Reksa Dana</option>
+          <option value="crypto">Crypto (Wallet/Exch)</option>
+          <option value="reksadana">Reksa Dana</option>
         </select>
         <select class="finput fsel" id="rdn-filter" style="width:150px;padding:4px 9px;font-size:10px" onchange="renderRdn()">
           <option value="all">Semua Mutasi</option>
@@ -2367,7 +2367,7 @@
 <!-- Ranking -->
 <div id="page-ranking" class="page">
   <div class="ptitle">Ranking 30 Saham Terbesar IHSG</div>
-  <div class="psub">Diurutkan berdasarkan skor akumulasi big money • Klik Lihat untuk analisa detail • <span style="color:#41f3a7">●</span> = data riil Yahoo &nbsp;·&nbsp; <span style="color:#e21d48">○ SIM</span> = data simulasi, harga tidak akurat — perbaiki di <a href="#" onclick="goPage('admin');return false" style="color:var(--accent)">🛠 Kelola Daftar Saham</a></div>
+  <div class="psub">Diurutkan berdasarkan skor akumulasi big money • Klik Lihat untuk analisa detail • <span style="color:#41f3a7">●</span> = data riil Yahoo &nbsp;·&nbsp; <span style="color:#e21d48">○ SIM</span> = data simulasi, harga tidak akurat — perbaiki di <a href="#" onclick="goPage('admin');return false" style="color:var(--accent)">Kelola Daftar Saham</a></div>
   <div class="card" style="margin-top:11px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px">
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;flex:1" id="rk-sum"></div>
@@ -3464,13 +3464,13 @@
 <!-- ===== BACKTESTER (from QuantTrader) ===== -->
 <div id="page-backtester" class="page">
   <div id="ql-tabbar-backtester"></div>
-  <div class="ptitle">⚡ Backtester Strategi</div>
+  <div class="ptitle">Backtester Strategi</div>
   <div class="psub">Uji strategi MA Crossover / RSI / XGBoost Signal dengan data harga real Yahoo Finance. Data live jika koneksi aktif.</div>
   <div style="display:grid;grid-template-columns:300px 1fr;gap:12px;margin-top:12px">
     <!-- Sidebar config -->
     <div>
       <div class="card" style="margin-bottom:16px">
-        <div class="cheader"><span class="ctitle">⚙️ Konfigurasi Strategi</span></div>
+        <div class="cheader"><span class="ctitle">Konfigurasi Strategi</span></div>
         <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
           <button class="pbtn on" id="bt-strat-ma" onclick="btSetStrat('ma',this)">MA Cross</button>
           <button class="pbtn" id="bt-strat-rsi" onclick="btSetStrat('rsi',this)">RSI Rev.</button>
@@ -3480,9 +3480,9 @@
           <div class="flabel">Ticker IDX</div>
           <div style="display:flex;gap:6px">
             <input class="finput" id="bt-ticker" list="idx-all-tickers-datalist" value="BBCA" style="flex:1;text-transform:uppercase" placeholder="BBCA, TLKM...">
-            <button class="btn btn-bb btn-xs" onclick="btFetchLive()" title="Ambil data live Yahoo Finance">📡</button>
+            <button class="btn btn-bb btn-xs" onclick="btFetchLive()" title="Ambil data live Yahoo Finance">Live</button>
           </div>
-          <div style="font-size:9px;color:var(--text3);margin-top:3px;font-family:var(--font-mono)">Tambahkan .JK otomatis · Tekan 📡 untuk data live</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:3px;font-family:var(--font-mono)">Tambahkan .JK otomatis · Klik Live untuk data terkini</div>
         </div>
         <div class="fg" style="margin-bottom:8px">
           <div class="flabel">Periode Backtest</div>
@@ -3534,7 +3534,7 @@
 
       <!-- Live data panel -->
       <div class="card">
-        <div class="cheader"><span class="ctitle">📡 Data Sumber</span></div>
+        <div class="cheader"><span class="ctitle">Data Sumber</span></div>
         <div id="bt-datasrc" style="font-size:10px;color:var(--text2);font-family:var(--font-mono);line-height:1.8">
           <div>Sumber: <span id="bt-src-label" style="color:var(--amber)">Simulasi</span></div>
           <div>Ticker: <span id="bt-src-ticker" style="color:var(--accent)">BBCA.JK</span></div>
@@ -3548,7 +3548,6 @@
     <!-- Results -->
     <div>
       <div id="bt-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:var(--text3);gap:10px">
-        <div style="font-size:36px">⚡</div>
         <div style="font-size:12px">Konfigurasi strategi dan klik Jalankan Backtest</div>
       </div>
       <div id="bt-results" style="display:none">
@@ -3596,10 +3595,10 @@
 <!-- ===== SCREENER LQ45 ===== -->
 <div id="page-screener" class="page">
   <div id="ql-tabbar-screener"></div>
-  <div class="ptitle">🔍 Screener Saham LQ45</div>
+  <div class="ptitle">Screener Saham LQ45</div>
   <div class="psub">Filter saham LQ45 berdasarkan indikator teknikal · Data harga live dari Yahoo Finance</div>
   <div class="card" style="margin:12px 0 10px">
-    <div class="cheader"><span class="ctitle">⚙️ Filter</span><button class="btn btn-bb btn-xs" onclick="scFetchAndRun()">📡 Ambil Data Live + Scan</button></div>
+    <div class="cheader"><span class="ctitle">Filter</span><button class="btn btn-bb btn-xs" onclick="scFetchAndRun()">Ambil Data Live + Scan</button></div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
       <div class="fg"><div class="flabel">RSI Min</div><input class="finput" id="sc-rsi-min" type="number" value="0"></div>
       <div class="fg"><div class="flabel">RSI Max</div><input class="finput" id="sc-rsi-max" type="number" value="100"></div>
@@ -3613,7 +3612,7 @@
       </div>
     </div>
     <div style="margin-top:8px">
-      <button class="btn btn-green" onclick="scRunFilter()">🔍 Scan Sekarang</button>
+      <button class="btn btn-green" onclick="scRunFilter()">Scan Sekarang</button>
       <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-left:10px" id="sc-status">—</span>
     </div>
   </div>
@@ -3631,11 +3630,11 @@
 <!-- ===== PAIRS TRADING ===== -->
 <div id="page-pairs" class="page">
   <div id="ql-tabbar-pairs"></div>
-  <div class="ptitle">🔀 Pairs Trading</div>
+  <div class="ptitle">Pairs Trading</div>
   <div class="psub">Temukan pasangan saham berkorelasi tinggi untuk strategi long-short. Data real Yahoo Finance.</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
     <div class="card">
-      <div class="cheader"><span class="ctitle">⚙️ Konfigurasi</span><button class="btn btn-bb btn-xs" onclick="pairsFetch()">📡 Live</button></div>
+      <div class="cheader"><span class="ctitle">Konfigurasi</span><button class="btn btn-bb btn-xs" onclick="pairsFetch()">Live</button></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
         <div class="fg"><div class="flabel">Saham A</div><input class="finput" id="pt-a" list="idx-all-tickers-datalist" value="BBCA" style="text-transform:uppercase"></div>
         <div class="fg"><div class="flabel">Saham B</div><input class="finput" id="pt-b" list="idx-all-tickers-datalist" value="BBRI" style="text-transform:uppercase"></div>
@@ -3668,10 +3667,10 @@
 <!-- ===== CORRELATION MATRIX (QuantTrader) ===== -->
 <div id="page-correlation" class="page">
   <div id="ql-tabbar-correlation"></div>
-  <div class="ptitle">📉 Correlation Matrix</div>
+  <div class="ptitle">Correlation Matrix</div>
   <div class="psub">Matriks korelasi return antar saham di PORTOFOLIO ANDA (data harga riil) — jawab langsung apakah portofolio benar-benar terdiversifikasi</div>
   <div class="card" style="margin:12px 0 10px">
-    <div class="cheader"><span class="ctitle">⚙️ Pengaturan</span><button class="btn btn-bb btn-xs" onclick="corrRender()">🔄 Refresh</button></div>
+    <div class="cheader"><span class="ctitle">Pengaturan</span><button class="btn btn-bb btn-xs" onclick="corrRender()">Refresh</button></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <div class="fg">
         <div class="flabel">Periode Return</div>
@@ -3708,13 +3707,13 @@
 <!-- ===== MONTHLY RETURNS (QuantTrader) ===== -->
 <div id="page-monthly-returns" class="page">
   <div id="ql-tabbar-monthly-returns"></div>
-  <div class="ptitle">📅 Monthly Return Calendar</div>
+  <div class="ptitle">Monthly Return Calendar</div>
   <div class="psub">Pola return bulanan historis per saham (hijau = positif, merah = negatif). Terintegrasi dengan 950+ emiten IDX &amp; data live Yahoo Finance.</div>
   <div class="card" style="margin:12px 0 10px">
     <div class="cheader">
-      <span class="ctitle">⚙️ Pilih Saham</span>
+      <span class="ctitle">Pilih Saham</span>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-bb btn-xs" onclick="mrFetch()" title="Ambil data live historis Yahoo Finance">📡 Data Live</button>
+        <button class="btn btn-bb btn-xs" onclick="mrFetch()" title="Ambil data live historis Yahoo Finance">Data Live</button>
         <span id="mr-data-badge" class="badge b-gray" style="font-size:10px">—</span>
       </div>
     </div>

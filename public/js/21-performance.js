@@ -148,7 +148,7 @@ function perfSyncEquityHistory(){
       saveData();
     }
     if(typeof showSaveStatus === 'function'){
-      showSaveStatus('✓ Riwayat Ekuitas divalidasi & disinkronkan dengan data transaksi riil');
+      showSaveStatus('Riwayat Ekuitas divalidasi & disinkronkan dengan data transaksi riil');
     }
   }
 }
@@ -431,7 +431,7 @@ function perfRenderBenchmarkWith(hist, noteEl){
     kc('perfBench');
     var cv = el('perfBenchChart');
     if(err || !ihsgRows){
-      if(noteEl) noteEl.innerHTML += ' <span class="dn">⚠ Gagal ambil data historis IHSG — hanya menampilkan kurva portofolio.</span>';
+      if(noteEl) noteEl.innerHTML += ' <span class="dn">Gagal ambil data historis IHSG — hanya menampilkan kurva portofolio.</span>';
     }
     var base = hist[0].equity;
     var portoPct = hist.map(function(h){ return base>0 ? ((h.equity/base-1)*100) : 0; });
@@ -592,9 +592,9 @@ function perfRenderDisposition(){
   }
   var ratio = d.avgHoldLoss / (d.avgHoldWin||1);
   if(ratio>=1.3){
-    box.innerHTML = '⚠️ Anda menahan saham <b class="dn">rugi ' + ratio.toFixed(1) + 'x lebih lama</b> daripada saham untung ('+Math.round(d.avgHoldLoss)+' vs '+Math.round(d.avgHoldWin)+' hari) — pola klasik <i>disposition effect</i> (enggan realisasi rugi, buru-buru kunci untung). Pertimbangkan aturan cut-loss yang lebih disiplin.';
+    box.innerHTML = 'Anda menahan saham <b class="dn">rugi ' + ratio.toFixed(1) + 'x lebih lama</b> daripada saham untung ('+Math.round(d.avgHoldLoss)+' vs '+Math.round(d.avgHoldWin)+' hari) — pola klasik <i>disposition effect</i> (enggan realisasi rugi, buru-buru kunci untung). Pertimbangkan aturan cut-loss yang lebih disiplin.';
   } else if(ratio<=0.77){
-    box.innerHTML = '✅ Anda justru menahan saham <b class="up">untung lebih lama</b> daripada rugi ('+Math.round(d.avgHoldWin)+' vs '+Math.round(d.avgHoldLoss)+' hari) — pola yang lebih sehat, membiarkan pemenang berkembang (let winners run).';
+    box.innerHTML = 'Anda justru menahan saham <b class="up">untung lebih lama</b> daripada rugi ('+Math.round(d.avgHoldWin)+' vs '+Math.round(d.avgHoldLoss)+' hari) — pola yang lebih sehat, membiarkan pemenang berkembang (let winners run).';
   } else {
     box.innerHTML = 'Pola tahan-lepas relatif seimbang antara saham untung ('+Math.round(d.avgHoldWin)+' hari) dan rugi ('+Math.round(d.avgHoldLoss)+' hari) — tidak ada indikasi disposition effect yang signifikan.';
   }
@@ -660,7 +660,7 @@ function perfRenderActivity(){
       if(r==null || isNaN(r)){
         box.innerHTML = '<span style="color:var(--text3)">Korelasi tidak dapat dihitung (variasi data terlalu kecil).</span>';
       } else if(r<=-0.3){
-        box.innerHTML = '⚠️ Korelasi <b class="dn">negatif</b> (r='+r.toFixed(2)+') antara jumlah order per bulan dan hasil realized P&L — bulan dengan lebih banyak transaksi cenderung hasilnya lebih buruk, indikasi kemungkinan <i>overtrading</i>.';
+        box.innerHTML = 'Korelasi <b class="dn">negatif</b> (r='+r.toFixed(2)+') antara jumlah order per bulan dan hasil realized P&L — bulan dengan lebih banyak transaksi cenderung hasilnya lebih buruk, indikasi kemungkinan <i>overtrading</i>.';
       } else if(r>=0.3){
         box.innerHTML = 'Korelasi <b class="up">positif</b> (r='+r.toFixed(2)+') antara frekuensi trading dan hasil — belum ada indikasi overtrading dari data ini.';
       } else {
@@ -700,21 +700,21 @@ function perfRenderOtherAssets(){
   var cMV=cp.reduce(function(a,p){return a+p.mv;},0), cCost=cp.reduce(function(a,p){return a+p.cost;},0);
   var cUnreal=cMV-cCost;
   var cReal = perfRealizedGeneric(cryptoTx, 'BUY','SELL','coin', function(tx){return {qty:tx.qty, amount:tx.total};});
-  cards.push(perfAssetCard('🪙 Crypto', cMV, cCost, cUnreal, cReal, cp.length));
+  cards.push(perfAssetCard('Crypto', cMV, cCost, cUnreal, cReal, cp.length));
 
   // ETF
   var ep = (typeof getEtfPortfolio==='function') ? getEtfPortfolio() : [];
   var eMV=ep.reduce(function(a,p){return a+p.mvIdr;},0), eCost=ep.reduce(function(a,p){return a+p.costIdr;},0);
   var eUnreal=eMV-eCost;
   var eReal = perfRealizedGeneric(etfTx, 'BUY','SELL','ticker', function(tx){return {qty:tx.shares, amount:tx.totalIdr};});
-  cards.push(perfAssetCard('📊 ETF AS', eMV, eCost, eUnreal, eReal, ep.length));
+  cards.push(perfAssetCard('ETF AS', eMV, eCost, eUnreal, eReal, ep.length));
 
   // Reksa Dana
   var rp = (typeof getRdPortfolio==='function') ? getRdPortfolio() : [];
   var rMV=rp.reduce(function(a,p){return a+p.mv;},0), rCost=rp.reduce(function(a,p){return a+p.cost;},0);
   var rUnreal=rMV-rCost;
   var rReal = perfRealizedGeneric((rdTx||[]).filter(function(t){return t._userInput===true;}), 'BELI','JUAL','code', function(tx){return {qty:tx.units, amount:tx.amount};});
-  cards.push(perfAssetCard('🏦 Reksa Dana', rMV, rCost, rUnreal, rReal, rp.length));
+  cards.push(perfAssetCard('Reksa Dana', rMV, rCost, rUnreal, rReal, rp.length));
 
   box.innerHTML = cards.join('');
 }
@@ -911,7 +911,7 @@ function perfRenderRealBeta(){
   perfComputeRealBeta(function(err, data){
     PERF_BETA_STATE.loading = false;
     if(err || !data){
-      box.innerHTML = '<div class="alert alert-warn">⚠ Gagal mengambil data historis IHSG untuk regresi — coba lagi beberapa saat. Beta di kartu "Manajemen Risiko" di bawah (estimasi statis) tetap berjalan normal.</div>';
+      box.innerHTML = '<div class="alert alert-warn">Gagal mengambil data historis IHSG untuk regresi — coba lagi beberapa saat. Beta di kartu "Manajemen Risiko" di bawah (estimasi statis) tetap berjalan normal.</div>';
       return;
     }
     PERF_BETA_STATE.loaded = true;
@@ -929,7 +929,7 @@ function perfPaintRealBeta(data){
   var totalMV = data.results.reduce(function(a,r){return a+r.mv;},0)||1;
   var okMV = ok.reduce(function(a,r){return a+r.mv;},0);
   if(!ok.length){
-    box.innerHTML = '<div class="alert alert-warn">⚠ Belum ada riwayat harga riil yang cukup panjang (min. 20 hari overlap dengan IHSG) untuk saham manapun di portofolio Anda. Coba lagi setelah beberapa siklus refresh harga otomatis berjalan.</div>';
+    box.innerHTML = '<div class="alert alert-warn">Belum ada riwayat harga riil yang cukup panjang (min. 20 hari overlap dengan IHSG) untuk saham manapun di portofolio Anda. Coba lagi setelah beberapa siklus refresh harga otomatis berjalan.</div>';
     return;
   }
   var portBeta = ok.reduce(function(a,r){return a+r.beta*(r.mv/okMV);},0);
@@ -1126,7 +1126,7 @@ function perfRenderXirr(){
   valEl.className='mval '+(xr.rate>=0?'up':'dn');
   var note='Dihitung dari '+muts.length+' transaksi Setor/Tarik RDN selama '+Math.round(xr.days)+' hari ('+flows[0].date+' → '+today()+'), plus nilai saham+RDN saat ini (Rp '+fmtK(terminalValue)+') sebagai arus kas terakhir. XIRR disetahunkan (annualized) — beda dari return sederhana yang tidak memperhitungkan kapan tiap setoran terjadi.';
   if(xr.days<30){
-    note += ' <span class="amb">⚠ Periode data baru '+Math.round(xr.days)+' hari — angka yang disetahunkan dari periode sependek ini bisa terlihat ekstrem (naik/turun tajam) padahal cuma pergerakan wajar dalam beberapa minggu. Perlakukan sebagai indikasi awal, bukan gambaran tahunan yang mantap.</span>';
+    note += ' <span class="amb">Periode data baru '+Math.round(xr.days)+' hari — angka yang disetahunkan dari periode sependek ini bisa terlihat ekstrem (naik/turun tajam) padahal cuma pergerakan wajar dalam beberapa minggu. Perlakukan sebagai indikasi awal, bukan gambaran tahunan yang mantap.</span>';
   }
   noteEl.innerHTML = note;
 }

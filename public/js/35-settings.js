@@ -117,7 +117,7 @@
     if (secSelect) secSelect.value = presetKey;
 
     if (typeof showSaveStatus === 'function') {
-      showSaveStatus('✓ Preset broker diatur ke ' + preset.name);
+      showSaveStatus('Preset broker diatur ke ' + preset.name);
     }
   }
 
@@ -153,10 +153,10 @@
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-sm" onclick="MW_SETTINGS.exportJsonBackup()">
-            <i class="ti ti-download"></i> Ekspor Cadangan JSON
+            Ekspor Cadangan JSON
           </button>
           <label class="btn btn-ghost btn-sm" style="cursor:pointer">
-            <i class="ti ti-upload"></i> Impor JSON
+            Impor JSON
             <input type="file" accept=".json" onchange="MW_SETTINGS.handleFileImport(event)" style="display:none">
           </label>
         </div>
@@ -193,8 +193,7 @@
         <div class="card" style="padding:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
             <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-              <i class="ti ti-scale" style="color:var(--amber)"></i>
-              Tarif Pajak &amp; Komisi Broker Sekuritas
+                            Tarif Pajak &amp; Komisi Broker Sekuritas
             </div>
             <span class="badge b-up">Configurable</span>
           </div>
@@ -270,10 +269,10 @@
 
             <div style="display:flex;gap:8px">
               <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center">
-                <i class="ti ti-device-floppy"></i> Simpan Tarif Pajak
+                Simpan Tarif Pajak
               </button>
               <button type="button" class="btn btn-ghost" onclick="MW_SETTINGS.triggerRecalculate()" title="Koreksi ulang seluruh angka transaksi &amp; pajak yang tersimpan tanpa menghapus riwayat transaksi">
-                <i class="ti ti-refresh"></i> Rekalkulasi Data
+                Rekalkulasi Data
               </button>
             </div>
           </form>
@@ -283,8 +282,7 @@
         <div class="card" style="padding:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
             <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-              <i class="ti ti-flame" style="color:var(--red)"></i>
-              Sasaran Keuangan &amp; Parameter FIRE
+                            Sasaran Keuangan &amp; Parameter FIRE
             </div>
             <span class="badge b-up">FIRE Engine</span>
           </div>
@@ -327,7 +325,7 @@
             </div>
 
             <button type="submit" class="btn btn-secondary" style="width:100%;justify-content:center">
-              <i class="ti ti-target"></i> Simpan Parameter Sasaran Keuangan &amp; FIRE
+              Simpan Parameter Sasaran Keuangan &amp; FIRE
             </button>
           </form>
         </div>
@@ -340,8 +338,7 @@
         <div class="card" style="padding:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
             <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-              <i class="ti ti-building-bank" style="color:#38bdf8"></i>
-              Manajemen Rekening Bank &amp; Kas Likuid
+                            Manajemen Rekening Bank &amp; Kas Likuid
             </div>
             <span class="badge b-up">${accounts.length} Rekening</span>
           </div>
@@ -359,8 +356,7 @@
                   <div style="display:flex;align-items:center;gap:10px">
                     <span class="mono" style="font-weight:700;color:#38bdf8">Rp ${fmt(acc.saldo || acc.balance || 0)}</span>
                     <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 6px" onclick="MW_SETTINGS.deleteBankAccount(${idx})">
-                      <i class="ti ti-trash"></i>
-                    </button>
+                                          </button>
                   </div>
                 </div>
               `;
@@ -382,7 +378,7 @@
               <input type="number" id="new-v6-bank-saldo" class="form-input mono" placeholder="Saldo (Rp)" required>
             </div>
             <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center">
-              <i class="ti ti-plus"></i> Tambahkan Rekening Bank
+              Tambahkan Rekening Bank
             </button>
           </form>
         </div>
@@ -391,8 +387,7 @@
         <div class="card" style="padding:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
             <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-              <i class="ti ti-credit-card-off" style="color:var(--red)"></i>
-              Manajemen Liabilitas &amp; Kewajiban
+                            Manajemen Liabilitas &amp; Kewajiban
             </div>
             <span class="badge b-dn">${debts.length} Pos Hutang</span>
           </div>
@@ -410,8 +405,7 @@
                   <div style="display:flex;align-items:center;gap:10px">
                     <span class="mono dn" style="font-weight:700">-Rp ${fmt(d.outstanding || d.amount || 0)}</span>
                     <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 6px" onclick="MW_SETTINGS.deleteDebt(${idx})">
-                      <i class="ti ti-trash"></i>
-                    </button>
+                                          </button>
                   </div>
                 </div>
               `;
@@ -432,7 +426,7 @@
               <input type="number" id="new-v6-debt-amount" class="form-input mono" placeholder="Sisa Pokok (Rp)" required>
             </div>
             <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;color:var(--red);border-color:rgba(239,68,68,0.3)">
-              <i class="ti ti-plus"></i> Tambahkan Pos Liabilitas
+              Tambahkan Pos Liabilitas
             </button>
           </form>
         </div>
@@ -445,8 +439,7 @@
         <div class="card" style="padding:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
             <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-              <i class="ti ti-database" style="color:#38bdf8"></i>
-              Cadangan Data, Pemulihan &amp; Database Cloud
+                            Cadangan Data, Pemulihan &amp; Database Cloud
             </div>
             <span class="badge b-up">Data Vault</span>
           </div>
@@ -458,7 +451,7 @@
                 <div style="font-size:11px;color:var(--text3)">Gabungkan seluruh hasil, saham, crypto, ETF, RD, kas, hutang, dan proyeksi FIRE.</div>
               </div>
               <button type="button" class="btn btn-green btn-sm" style="background:#059669;color:#fff;border-color:#047857;font-weight:700" onclick="if(typeof exportConsolidatedPortfolioCsv==='function')exportConsolidatedPortfolioCsv();">
-                <i class="ti ti-file-spreadsheet"></i> Ekspor CSV
+                Ekspor CSV
               </button>
             </div>
 
@@ -468,7 +461,7 @@
                 <div style="font-size:11px;color:var(--text3)">Pratinjau dan cetak dokumen resmi Family Office A4.</div>
               </div>
               <button type="button" class="btn btn-blue btn-sm" style="font-weight:700" onclick="if(typeof mwOpenPdfReportModal==='function')mwOpenPdfReportModal('consolidated');">
-                <i class="ti ti-file-text"></i> Buka Pusat Laporan
+                Buka Pusat Laporan
               </button>
             </div>
 
@@ -478,7 +471,7 @@
                 <div style="font-size:11px;color:var(--text3)">Unduh berkas portofolio, mutasi kas RDN, dividen, dan rekening.</div>
               </div>
               <button type="button" class="btn btn-ghost btn-sm" onclick="MW_SETTINGS.exportJsonBackup()">
-                <i class="ti ti-download"></i> Ekspor JSON
+                Ekspor JSON
               </button>
             </div>
 
@@ -486,7 +479,7 @@
               <div style="font-weight:700;font-size:12.5px;color:var(--text);margin-bottom:2px">Pulihkan Data dari JSON</div>
               <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Unggah berkas cadangan MoneyWatch Pro.</div>
               <label class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;cursor:pointer">
-                <i class="ti ti-upload"></i> Pilih Berkas JSON untuk Dipulihkan...
+                Pilih Berkas JSON untuk Dipulihkan...
                 <input type="file" accept=".json" onchange="MW_SETTINGS.handleFileImport(event)" style="display:none">
               </label>
             </div>
@@ -497,7 +490,7 @@
                 <div style="font-size:11px;color:var(--text3)">Kosongkan seluruh riwayat portofolio &amp; transaksi di Supabase Cloud dan perangkat lokal.</div>
               </div>
               <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);border-color:rgba(239,68,68,0.3)" onclick="MW_SETTINGS.confirmDataReset()">
-                <i class="ti ti-refresh"></i> Reset Data
+                Reset Data
               </button>
             </div>
           </div>
@@ -507,8 +500,7 @@
         <div class="card" style="padding:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
             <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-              <i class="ti ti-palette" style="color:#38bdf8"></i>
-              Tampilan, Kerapatan &amp; Skala Antarmuka
+                            Tampilan, Kerapatan &amp; Skala Antarmuka
             </div>
             <span class="badge b-up">UI Control</span>
           </div>
@@ -582,7 +574,7 @@
       recalculateAllStoredData(true);
     }
     if (typeof showSaveStatus === 'function') {
-      showSaveStatus('✓ Tarif Pajak & Komisi Broker berhasil disimpan & data direkalkulasi');
+      showSaveStatus('Tarif Pajak & Komisi Broker berhasil disimpan & data direkalkulasi');
     }
     renderSettingsPage();
   }
@@ -610,7 +602,7 @@
 
     saveSettings();
     if (typeof showSaveStatus === 'function') {
-      showSaveStatus('✓ Sasaran Keuangan & Parameter FIRE berhasil disimpan');
+      showSaveStatus('Sasaran Keuangan & Parameter FIRE berhasil disimpan');
     }
     renderSettingsPage();
   }
@@ -635,7 +627,7 @@
     }
 
     if (typeof showSaveStatus === 'function') {
-      showSaveStatus('✓ Rekening ' + name + ' berhasil ditambahkan');
+      showSaveStatus('Rekening ' + name + ' berhasil ditambahkan');
     }
     renderSettingsPage();
   }
@@ -647,7 +639,7 @@
         if (typeof wSave === 'function') wSave();
       }
       if (typeof showSaveStatus === 'function') {
-        showSaveStatus('✓ Rekening bank dihapus');
+        showSaveStatus('Rekening bank dihapus');
       }
       renderSettingsPage();
     }
@@ -674,7 +666,7 @@
     }
 
     if (typeof showSaveStatus === 'function') {
-      showSaveStatus('✓ Pos liabilitas ' + name + ' ditambahkan');
+      showSaveStatus('Pos liabilitas ' + name + ' ditambahkan');
     }
     renderSettingsPage();
   }
@@ -686,7 +678,7 @@
         if (typeof wSave === 'function') wSave();
       }
       if (typeof showSaveStatus === 'function') {
-        showSaveStatus('✓ Pos liabilitas dihapus');
+        showSaveStatus('Pos liabilitas dihapus');
       }
       renderSettingsPage();
     }
@@ -713,7 +705,7 @@
     a.download = 'moneywatch_v6_backup_' + (new Date().toISOString().slice(0, 10)) + '.json';
     a.click();
     if (typeof showSaveStatus === 'function') {
-      showSaveStatus('✓ Cadangan JSON berhasil diunduh');
+      showSaveStatus('Cadangan JSON berhasil diunduh');
     }
   }
 
@@ -755,7 +747,7 @@
       } else if (typeof resetAllDatabaseAndTransactions === 'function') {
         await resetAllDatabaseAndTransactions();
       }
-      alert('✓ Berhasil! Seluruh transaksi dan saldo telah di-reset menjadi 0 di Supabase Cloud dan lokal.');
+      alert('Berhasil! Seluruh transaksi dan saldo telah di-reset menjadi 0 di Supabase Cloud dan lokal.');
       renderSettingsPage();
     } catch(err) {
       console.error('Reset error:', err);

@@ -88,7 +88,7 @@ function dhCheckRdnDatabaseSync(){
     status: 'warn',
     title: 'Sinkronisasi Database RDN Perlu Dijalankan',
     detail: 'Ditemukan selisih data: ' + details.join(', ') + '. '
-      + '<div style="margin-top:8px"><button class="btn btn-green btn-xs" onclick="syncRdnDatabase(true)" style="cursor:pointer">⚡ Sinkronkan & Rekonsiliasi Database Sekarang</button></div>',
+      + '<div style="margin-top:8px"><button class="btn btn-green btn-xs" onclick="syncRdnDatabase(true)" style="cursor:pointer">Sinkronkan & Rekonsiliasi Database Sekarang</button></div>',
     count: totalSelisih
   };
 }
@@ -107,7 +107,7 @@ function dhCheckMissingSector(){
   var missing=porto.filter(function(p){ return !p.info || !p.info.sector || p.info.sector==='Lainnya'; });
   if(!porto.length) return {status:'ok', title:'Sektor Saham', detail:'Belum ada posisi saham.'};
   if(!missing.length) return {status:'ok', title:'Sektor Saham', detail:'Semua '+porto.length+' saham yang dipegang punya data sektor lengkap.'};
-  return {status:'warn', title:'Saham Tanpa Sektor Jelas', detail:missing.length+' dari '+porto.length+' saham tercatat sektor "Lainnya" (generik) — analisa Sektoral & Konsentrasi Risiko untuk saham ini kurang akurat: '+missing.map(function(p){return p.ticker;}).join(', ')+'. Perbaiki lewat 🛠 Kelola Daftar Saham.', count:missing.length};
+  return {status:'warn', title:'Saham Tanpa Sektor Jelas', detail:missing.length+' dari '+porto.length+' saham tercatat sektor "Lainnya" (generik) — analisa Sektoral & Konsentrasi Risiko untuk saham ini kurang akurat: '+missing.map(function(p){return p.ticker;}).join(', ')+'. Perbaiki lewat Kelola Daftar Saham.', count:missing.length};
 }
 
 function dhCheckIdCounters(){
@@ -156,21 +156,20 @@ function renderDataHealth(){
   var errCnt=results.filter(function(r){return r.status==='error';}).length;
   var warnCnt=results.filter(function(r){return r.status==='warn';}).length;
   var okCnt=results.filter(function(r){return r.status==='ok';}).length;
-  var overall = errCnt>0 ? {label:'Perlu Perhatian', cls:'dn', icon:'🔴'} : warnCnt>0 ? {label:'Ada Catatan', cls:'amb', icon:'🟡'} : {label:'Sehat', cls:'up', icon:'🟢'};
+  var overall = errCnt>0 ? {label:'Perlu Perhatian', cls:'dn'} : warnCnt>0 ? {label:'Ada Catatan', cls:'amb'} : {label:'Sehat', cls:'up'};
 
-  var html = '<div class="ptitle">🩺 Cek Kesehatan Data</div>'
+  var html = '<div class="ptitle">Cek Kesehatan Data</div>'
     +'<div class="psub">Pemindaian anomali data lokal — saldo RDN, transaksi duplikat, konsistensi ID, dan kewajaran nilai. Semua instan (tidak ada koneksi ke luar), aman dijalankan kapan saja.</div>'
     +'<div class="row3" style="margin-bottom:18px">'
-      +'<div class="metric" style="margin:0"><div class="mlabel">Status Keseluruhan</div><div class="mval '+overall.cls+'" style="font-size:18px">'+overall.icon+' '+overall.label+'</div><div class="msub neu">'+results.length+' pemeriksaan dijalankan</div></div>'
+      +'<div class="metric" style="margin:0"><div class="mlabel">Status Keseluruhan</div><div class="mval '+overall.cls+'" style="font-size:18px">'+overall.label+'</div><div class="msub neu">'+results.length+' pemeriksaan dijalankan</div></div>'
       +'<div class="metric" style="margin:0"><div class="mlabel">Perlu Perhatian</div><div class="mval '+(errCnt>0?'dn':'up')+'" style="font-size:18px">'+errCnt+'</div><div class="msub neu">masalah serius</div></div>'
       +'<div class="metric" style="margin:0"><div class="mlabel">Catatan</div><div class="mval '+(warnCnt>0?'amb':'up')+'" style="font-size:18px">'+warnCnt+'</div><div class="msub neu">'+okCnt+' pemeriksaan bersih</div></div>'
     +'</div>'
     +'<div class="card">'
-      +'<div class="cheader"><span class="ctitle">Hasil Pemeriksaan</span><button class="btn btn-ghost btn-xs" onclick="renderDataHealth()">🔄 Jalankan Ulang</button></div>'
+      +'<div class="cheader"><span class="ctitle">Hasil Pemeriksaan</span><button class="btn btn-ghost btn-xs" onclick="renderDataHealth()">Jalankan Ulang</button></div>'
       +results.map(function(r){
-        var icon = r.status==='error' ? '🔴' : r.status==='warn' ? '🟡' : '🟢';
         var cls = r.status==='error' ? 'alert-warn' : r.status==='warn' ? 'alert-warn' : 'alert-ok';
-        return '<div class="alert '+cls+'" style="margin-bottom:8px"><b>'+icon+' '+r.title+'</b><div style="margin-top:4px;font-weight:400">'+r.detail+'</div></div>';
+        return '<div class="alert '+cls+'" style="margin-bottom:8px"><b>'+r.title+'</b><div style="margin-top:4px;font-weight:400">'+r.detail+'</div></div>';
       }).join('')
     +'</div>';
 

@@ -27,12 +27,12 @@ var QT = {
 // move between them, same pattern as the Technical/Fundamental Suite
 // tabs.
 var QL_TABS = [
-  { key: 'correlation', icon: '📉', label: 'Correlation' },
-  { key: 'monthly-returns', icon: '📅', label: 'Monthly Returns' },
-  { key: 'pairs', icon: '🔀', label: 'Pairs Trading' },
-  { key: 'screener', icon: '🔍', label: 'Screener' },
-  { key: 'backtester', icon: '⚡', label: 'Backtester' },
-  { key: 'scenario', icon: '🎯', label: 'Scenario' }
+  { key: 'correlation', icon: '', label: 'Correlation' },
+  { key: 'monthly-returns', icon: '', label: 'Monthly Returns' },
+  { key: 'pairs', icon: '', label: 'Pairs Trading' },
+  { key: 'screener', icon: '', label: 'Screener' },
+  { key: 'backtester', icon: '', label: 'Backtester' },
+  { key: 'scenario', icon: '', label: 'Scenario' }
 ];
 
 function qlTabBarHtml(active) {
@@ -143,10 +143,10 @@ function xgbUpdateStatusUI(){
   xgbEnsureLoaded().then(function(ok){
     if(ok && QT.xgb.meta){
       box.className = 'alert alert-ok';
-      box.textContent = '✓ Model XGBoost ONNX aktif — akurasi test '+(QT.xgb.meta.test_accuracy*100).toFixed(1)+'% (dilatih '+QT.xgb.meta.version+', '+QT.xgb.meta.tickers_used.length+' saham). Bukan rekomendasi investasi.';
+      box.textContent = 'Model XGBoost ONNX aktif — akurasi test '+(QT.xgb.meta.test_accuracy*100).toFixed(1)+'% (dilatih '+QT.xgb.meta.version+', '+QT.xgb.meta.tickers_used.length+' saham). Bukan rekomendasi investasi.';
     } else {
       box.className = 'alert alert-warn';
-      box.textContent = '⚠ Model ONNX belum ditemukan — pakai simulasi momentum sementara. Jalankan ml/train_xgb_signal.py (lihat ml/README.md) untuk model asli.';
+      box.textContent = 'Model ONNX belum ditemukan — pakai simulasi momentum sementara. Jalankan ml/train_xgb_signal.py (lihat ml/README.md) untuk model asli.';
     }
   });
 }
@@ -189,7 +189,7 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
   var range = rangeDays <= 365 ? '1y' : (rangeDays <= 730 ? '2y' : (rangeDays <= 1095 ? '3y' : '5y'));
   var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + sym + '?interval=1d&range=' + range;
 
-  el('bt-data-status') && (el('bt-data-status').textContent = '📡 Mengambil data live ' + sym + '...');
+  el('bt-data-status') && (el('bt-data-status').textContent = 'Mengambil data live ' + sym + '...');
 
   // Try proxies in order: server-side /api/proxy first (stable, cached),
   // then public CORS proxies as fallback (for static hosts / if the
@@ -209,7 +209,7 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
 
   function tryProxy(idx){
     if (idx >= proxies.length) {
-      el('bt-data-status') && (el('bt-data-status').textContent = '⚠️ Proxy gagal — pakai data simulasi');
+      el('bt-data-status') && (el('bt-data-status').textContent = 'Proxy gagal — pakai data simulasi');
       el('bt-src-label') && (el('bt-src-label').textContent = 'Simulasi');
       el('bt-src-label') && (el('bt-src-label').style.color = 'var(--amber)');
       cb(null, qtGenSim(ticker, rangeDays), 'simulasi');
@@ -247,7 +247,7 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
         el('bt-src-date') && (el('bt-src-date').textContent = data[data.length-1].date);
         el('bt-src-price') && (el('bt-src-price').textContent = 'Rp ' + Math.round(data[data.length-1].close).toLocaleString('id-ID'));
       }
-      el('bt-data-status') && (el('bt-data-status').textContent = '✅ Data live: ' + data.length + ' hari');
+      el('bt-data-status') && (el('bt-data-status').textContent = 'Data live: ' + data.length + ' hari');
       cb(null, data, 'real');
     })
     .catch(function(){
@@ -601,12 +601,12 @@ function runBacktest(){
   function proceedWithData(data){
     if(QT.btStrat !== 'xgb'){ doBacktest(data); return; }
     xgbUpdateStatusUI();
-    el('bt-data-status').textContent = '🤖 Memuat model XGBoost...';
+    el('bt-data-status').textContent = 'Memuat model XGBoost...';
     xgbEnsureLoaded().then(function(ok){
       if(!ok){ QT.xgb.lastRows=null; QT.xgb.lastProbs=null; doBacktest(data); return; }
       var rows = xgbComputeFeatures(data);
       if(!rows.length){ QT.xgb.lastRows=null; QT.xgb.lastProbs=null; doBacktest(data); return; }
-      el('bt-data-status').textContent = '🤖 Menjalankan inferensi model ('+rows.length+' bar)...';
+      el('bt-data-status').textContent = 'Menjalankan inferensi model ('+rows.length+' bar)...';
       xgbPredictBatch(QT.xgb.session, rows).then(function(probs){
         QT.xgb.lastRows = rows; QT.xgb.lastProbs = probs;
         doBacktest(data);
@@ -639,7 +639,7 @@ var QT_SC_BUILDING = false;
 function scBuildSim(onDone){
   if (QT_SC_BUILDING) return; // a caller's onDone will still fire once the in-flight build finishes
   QT_SC_BUILDING = true;
-  el('sc-status') && (el('sc-status').textContent = '📡 Memindai LQ45 (data live, fallback simulasi jika proxy gagal)...');
+  el('sc-status') && (el('sc-status').textContent = 'Memindai LQ45 (data live, fallback simulasi jika proxy gagal)...');
   QT.scData = [];
   var pending = LQ45_STOCKS.length;
   LQ45_STOCKS.forEach(function(st, idx){
@@ -661,7 +661,7 @@ function scBuildSim(onDone){
         }
         if (pending<=0) {
           QT_SC_BUILDING = false;
-          el('sc-status') && (el('sc-status').textContent = '✅ Selesai — ' + QT.scData.length + '/' + LQ45_STOCKS.length + ' saham (● hijau = data live)');
+          el('sc-status') && (el('sc-status').textContent = 'Selesai — ' + QT.scData.length + '/' + LQ45_STOCKS.length + ' saham (● hijau = data live)');
           scRenderTable();
           if (typeof onDone === 'function') onDone();
         }
@@ -671,7 +671,7 @@ function scBuildSim(onDone){
 }
 
 function scFetchAndRun(){
-  el('sc-status').textContent='📡 Mengambil data live...';
+  el('sc-status').textContent='Mengambil data live...';
   var pending = LQ45_STOCKS.length;
   var results = {};
   LQ45_STOCKS.forEach(function(st, idx){
@@ -687,7 +687,7 @@ function scFetchAndRun(){
             if(results[s.t]) s.price = results[s.t];
           });
           scRenderTable();
-          el('sc-status').textContent='✅ Data live per '+(new Date().toLocaleTimeString('id-ID'));
+          el('sc-status').textContent='Data live per '+(new Date().toLocaleTimeString('id-ID'));
         }
       });
     }, idx * 800);
@@ -807,7 +807,7 @@ function corrRender(){
   }
   if(CORR_STATE.loading) return;
   if(typeof perfFetchHoldingsHistory!=='function'){
-    mEl.innerHTML = '<div class="alert alert-warn">⚠ Modul data riil belum termuat.</div>';
+    mEl.innerHTML = '<div class="alert alert-warn">Modul data riil belum termuat.</div>';
     return;
   }
   CORR_STATE.loading=true;
@@ -818,7 +818,7 @@ function corrRender(){
     CORR_STATE.loading=false;
     var tickers = Object.keys(histMap);
     if(tickers.length<2){
-      mEl.innerHTML = '<div class="alert alert-warn">⚠ Data harga riil belum cukup untuk minimal 2 saham ('+tickers.length+' berhasil, '+failed.length+' gagal) — coba lagi setelah beberapa siklus refresh harga otomatis, atau klik 🔄 Refresh.</div>';
+      mEl.innerHTML = '<div class="alert alert-warn">Data harga riil belum cukup untuk minimal 2 saham ('+tickers.length+' berhasil, '+failed.length+' gagal) — coba lagi setelah beberapa siklus refresh harga otomatis, atau klik Refresh.</div>';
       return;
     }
     var returns={};
@@ -843,7 +843,7 @@ function corrRender(){
       });
     });
     h+='</div></div>';
-    if(failed.length) h += '<div style="font-size:10px;color:var(--text3);margin-top:8px">⚠ '+failed.length+' saham belum punya data riil cukup dan tidak ikut dihitung: '+failed.join(', ')+'</div>';
+    if(failed.length) h += '<div style="font-size:10px;color:var(--text3);margin-top:8px">'+failed.length+' saham belum punya data riil cukup dan tidak ikut dihitung: '+failed.join(', ')+'</div>';
     mEl.innerHTML=h;
 
     var pairs2=[]; tickers.forEach(function(a,i){tickers.forEach(function(b,j){if(j>i)pairs2.push({a:a,b:b,v:matrix[i][j]});});});
@@ -942,7 +942,7 @@ function mrInitTickers(currentVal){
     var html = '';
     // Group 1: Portofolio
     if(portoTickers.length){
-      html += '<optgroup label="📌 Saham Portofolio Anda">';
+      html += '<optgroup label="Saham Portofolio Anda">';
       portoTickers.forEach(function(t){
         var st = DB[t] || {name: t, sector: 'IHSG'};
         html += '<option value="' + t + '"' + (t === curr ? ' selected' : '') + '>' + t + ' — ' + (st.name || st.n || t) + '</option>';
@@ -959,7 +959,7 @@ function mrInitTickers(currentVal){
     html += '</optgroup>';
 
     // Group 3: Semua Emiten IDX Lengkap (950+ saham)
-    html += '<optgroup label="🏢 Semua Saham IDX (' + allStocks.length + ' Emiten A–Z)">';
+    html += '<optgroup label="Semua Saham IDX (' + allStocks.length + ' Emiten A–Z)">';
     allStocks.forEach(function(st){
       html += '<option value="' + st.t + '"' + (st.t === curr ? ' selected' : '') + '>' + st.t + ' — ' + st.n + ' (' + st.s + ')</option>';
     });
@@ -1046,7 +1046,7 @@ function mrFetch(){
     badge.className = 'badge b-neu';
     badge.style.color = 'var(--accent)';
   }
-  el('mr-title') && (el('mr-title').textContent = 'Monthly Return — ' + ticker + ' (📡 Live Fetching...)');
+  el('mr-title') && (el('mr-title').textContent = 'Monthly Return — ' + ticker + ' (Live Fetching...)');
   
   qtFetchOHLCV(ticker, 1825, function(err, data){
     if(!err && data && data.length){
@@ -1058,7 +1058,7 @@ function mrFetch(){
       }
     } else {
       if(badge){
-        badge.textContent = '⚠️ Gagal Live, Menggunakan Model Historis';
+        badge.textContent = 'Gagal Live, Menggunakan Model Historis';
         badge.className = 'badge b-dn';
         badge.style.color = 'var(--red)';
       }
@@ -1100,7 +1100,7 @@ function mrRender(){
   if(!QT.mrData[ticker]){
     var badge = el('mr-data-badge');
     if(badge){
-      badge.textContent = '● Simulasi Historis (Klik 📡 untuk Live)';
+      badge.textContent = '● Simulasi Historis (Klik untuk Live)';
       badge.className = 'badge b-gray';
       badge.style.color = 'var(--amber)';
     }
@@ -1222,7 +1222,7 @@ function mrRender(){
 // ── Pairs Trading ──
 function pairsFetch(){
   var a=(el('pt-a').value||'BBCA').toUpperCase(), b=(el('pt-b').value||'BBRI').toUpperCase();
-  el('pt-stats').innerHTML='📡 Mengambil data live...';
+  el('pt-stats').innerHTML='Mengambil data live...';
   var dataA, dataB, done=0;
   function tryDone(){
     done++;

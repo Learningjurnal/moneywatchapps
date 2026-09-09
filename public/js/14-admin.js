@@ -49,14 +49,14 @@ function adminResolve(code){
 }
 
 function adminStatusFor(code){
-  if(ADMIN_META[code] && ADMIN_META[code].excluded) return {label:'⛔ Dikecualikan', cls:'b-neu'};
+  if(ADMIN_META[code] && ADMIN_META[code].excluded) return {label:'Dikecualikan', cls:'b-neu'};
   if(typeof rdIsReal==='function' && rdIsReal(code)){
     var rows = typeof rdGetAny==='function' ? rdGetAny(code) : null;
     var d = rows && rows.length ? rows[rows.length-1].date : '';
-    return {label:'✓ REAL · '+d, cls:'b-up'};
+    return {label:'REAL · '+d, cls:'b-up'};
   }
-  if(typeof RD_FAILED!=='undefined' && RD_FAILED[code]) return {label:'✗ Gagal — SIMULASI', cls:'b-dn'};
-  if(typeof RD_META!=='undefined' && RD_META.loading) return {label:'⏳ Antre...', cls:'b-neu'};
+  if(typeof RD_FAILED!=='undefined' && RD_FAILED[code]) return {label:'Gagal — SIMULASI', cls:'b-dn'};
+  if(typeof RD_META!=='undefined' && RD_META.loading) return {label:'Antre...', cls:'b-neu'};
   return {label:'○ SIMULASI', cls:'b-dn'};
 }
 
@@ -125,11 +125,11 @@ function idxUniqueSectors(){
 function idxImportFile(){
   var inp = el('adm-import-file');
   var f = inp && inp.files && inp.files[0];
-  if(!f){ if(typeof showSaveStatus==='function') showSaveStatus('⚠ Pilih file Excel dulu','var(--red)'); return; }
-  if(typeof XLSX==='undefined'){ if(typeof showSaveStatus==='function') showSaveStatus('⚠ Pustaka pembaca Excel belum termuat, coba lagi sebentar','var(--red)'); return; }
-  if(!confirm('⚠️ RESET TOTAL daftar saham?\n\nSeluruh universe bawaan, Screener LQ45, dan semua saham/override yang pernah Anda tambahkan akan DIHAPUS dan diganti total dengan isi file:\n\n"'+f.name+'"\n\nPortofolio & watchlist Anda TIDAK ikut terhapus. Lanjutkan?')) return;
+  if(!f){ if(typeof showSaveStatus==='function') showSaveStatus('Pilih file Excel dulu','var(--red)'); return; }
+  if(typeof XLSX==='undefined'){ if(typeof showSaveStatus==='function') showSaveStatus('Pustaka pembaca Excel belum termuat, coba lagi sebentar','var(--red)'); return; }
+  if(!confirm('RESET TOTAL daftar saham?\n\nSeluruh universe bawaan, Screener LQ45, dan semua saham/override yang pernah Anda tambahkan akan DIHAPUS dan diganti total dengan isi file:\n\n"'+f.name+'"\n\nPortofolio & watchlist Anda TIDAK ikut terhapus. Lanjutkan?')) return;
 
-  if(typeof showSaveStatus==='function') showSaveStatus('📥 Membaca '+f.name+'...');
+  if(typeof showSaveStatus==='function') showSaveStatus('Membaca '+f.name+'...');
   var reader = new FileReader();
   reader.onload = function(e){
     try{
@@ -150,7 +150,7 @@ function idxImportFile(){
       }).filter(function(x){ return x.t; });
 
       if(!parsed.length){
-        if(typeof showSaveStatus==='function') showSaveStatus('⚠ Tidak ada baris valid — pastikan file punya kolom "Kode Saham"','var(--red)');
+        if(typeof showSaveStatus==='function') showSaveStatus('Tidak ada baris valid — pastikan file punya kolom "Kode Saham"','var(--red)');
         return;
       }
 
@@ -172,10 +172,10 @@ function idxImportFile(){
       try{ rdLoadUniverse(true); }catch(err){}
 
       if(typeof saveData==='function') saveData(); // sinkron ke cloud — ikut ke perangkat lain
-      if(typeof showSaveStatus==='function') showSaveStatus('✓ '+parsed.length+' saham diimpor dari '+f.name+' — universe direset total & disinkronkan');
+      if(typeof showSaveStatus==='function') showSaveStatus(''+parsed.length+' saham diimpor dari '+f.name+' — universe direset total & disinkronkan');
       adminRenderPage();
     }catch(err){
-      if(typeof showSaveStatus==='function') showSaveStatus('⚠ Gagal membaca Excel: '+err.message,'var(--red)');
+      if(typeof showSaveStatus==='function') showSaveStatus('Gagal membaca Excel: '+err.message,'var(--red)');
     }
   };
   reader.readAsArrayBuffer(f);
@@ -216,32 +216,32 @@ function adminRenderPage(){
 
   pg.innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
-    '<div><div class="ptitle">🛠 Kelola Daftar Saham</div><div class="psub">Perbaiki nama/sektor yang salah, tambah ticker baru, kecualikan yang tidak relevan, atau paksa muat ulang data riil per saham</div></div>'+
-    '<button class="btn btn-blue btn-sm" onclick="rdLoadUniverse(true)">📡 Muat Ulang SEMUA Data Riil</button>'+
+    '<div><div class="ptitle">Kelola Daftar Saham</div><div class="psub">Perbaiki nama/sektor yang salah, tambah ticker baru, kecualikan yang tidak relevan, atau paksa muat ulang data riil per saham</div></div>'+
+    '<button class="btn btn-blue btn-sm" onclick="rdLoadUniverse(true)">Muat Ulang SEMUA Data Riil</button>'+
   '</div>'+
   '<div class="row4" style="margin-top:11px">'+
     '<div class="metric"><div class="mlabel">Total Saham Dipantau</div><div class="mval">'+totalAll+'</div></div>'+
     '<div class="metric"><div class="mlabel">Data Riil</div><div class="mval up">'+realN+'</div></div>'+
     '<div class="metric"><div class="mlabel">Simulasi / Gagal</div><div class="mval dn">'+(totalAll-realN)+'</div></div>'+
-    '<div class="metric"><div class="mlabel">Status Muat</div><div class="mval" style="font-size:14px">'+(RD_META.loading?'⏳ Sedang memuat...':'✓ Selesai')+'</div></div>'+
+    '<div class="metric"><div class="mlabel">Status Muat</div><div class="mval" style="font-size:14px">'+(RD_META.loading?'Sedang memuat...':'Selesai')+'</div></div>'+
   '</div>'+
   '<div class="card" style="margin-top:11px">'+
-    '<div class="cheader"><span class="ctitle">📄 SUMBER DAFTAR SAHAM</span></div>'+
+    '<div class="cheader"><span class="ctitle">SUMBER DAFTAR SAHAM</span></div>'+
     (IDX_UNIVERSE && IDX_UNIVERSE.length
       ? '<div style="font-size:11.5px;color:var(--text2);line-height:1.8;margin-bottom:10px">'+
-          '<span class="badge b-up" style="font-size:9px">✓ IMPOR EXCEL AKTIF</span> — <b>'+(IDX_UNIVERSE_INFO?IDX_UNIVERSE_INFO.fileName:'')+'</b> · '+(IDX_UNIVERSE_INFO?IDX_UNIVERSE_INFO.count:IDX_UNIVERSE.length)+' saham · diimpor '+(IDX_UNIVERSE_INFO?new Date(IDX_UNIVERSE_INFO.importedAt).toLocaleString('id-ID'):'')+'<br>'+
+          '<span class="badge b-up" style="font-size:9px">IMPOR EXCEL AKTIF</span> — <b>'+(IDX_UNIVERSE_INFO?IDX_UNIVERSE_INFO.fileName:'')+'</b> · '+(IDX_UNIVERSE_INFO?IDX_UNIVERSE_INFO.count:IDX_UNIVERSE.length)+' saham · diimpor '+(IDX_UNIVERSE_INFO?new Date(IDX_UNIVERSE_INFO.importedAt).toLocaleString('id-ID'):'')+'<br>'+
           'Universe bawaan sudah DIHAPUS TOTAL dan digantikan file ini. Screener LQ45 otomatis mengikuti kolom Index di file.'+
         '</div>'+
         '<button class="btn btn-ghost btn-sm" onclick="idxResetToDefault()">↺ Kembalikan ke Daftar Bawaan</button>'
       : '<div style="font-size:11.5px;color:var(--text2);line-height:1.7;margin-bottom:10px">Saat ini memakai <b>universe bawaan</b> ('+totalAll+' saham). Upload file Excel IDX Stock Screener di bawah untuk mengganti total daftar ini dengan data resmi IDX terbaru.</div>')+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid var(--border);padding-top:11px;margin-top:2px">'+
       '<div class="fg" style="width:280px"><label class="flabel">File Excel (.xlsx) — kolom wajib: Kode Saham, Nama Perusahaan, Sektor</label><input class="finput" type="file" id="adm-import-file" accept=".xlsx,.xls"></div>'+
-      '<button class="btn btn-red btn-sm" onclick="idxImportFile()">📥 Import &amp; RESET TOTAL</button>'+
+      '<button class="btn btn-red btn-sm" onclick="idxImportFile()">Import &amp; RESET TOTAL</button>'+
     '</div>'+
   '</div>'+
   '<div class="card" style="margin-top:11px">'+
-    '<div class="cheader"><span class="ctitle">⚠️ KENAPA HARGA BISA SALAH</span></div>'+
-    '<div style="font-size:11.5px;color:var(--text2);line-height:1.7">Saham dengan status <span class="badge b-dn" style="font-size:9px">○ SIMULASI</span> menampilkan harga acak, BUKAN harga pasar — biasanya karena belum sempat dimuat, gagal terhubung ke Yahoo Finance, atau baru ditambahkan. Klik <b>↻</b> pada baris tersebut untuk memuat ulang, atau <b>📡 Muat Ulang SEMUA</b> di atas.</div>'+
+    '<div class="cheader"><span class="ctitle">KENAPA HARGA BISA SALAH</span></div>'+
+    '<div style="font-size:11.5px;color:var(--text2);line-height:1.7">Saham dengan status <span class="badge b-dn" style="font-size:9px">○ SIMULASI</span> menampilkan harga acak, BUKAN harga pasar — biasanya karena belum sempat dimuat, gagal terhubung ke Yahoo Finance, atau baru ditambahkan. Klik <b>↻</b> pada baris tersebut untuk memuat ulang, atau <b>Muat Ulang SEMUA</b> di atas.</div>'+
   '</div>'+
   '<div class="card" style="margin-top:11px">'+
     '<div class="cheader"><span class="ctitle">TAMBAH SAHAM BARU</span></div>'+
@@ -255,7 +255,7 @@ function adminRenderPage(){
   '<div class="card" style="margin-top:11px">'+
     '<div class="cheader"><span class="ctitle">DAFTAR SAHAM DIPANTAU ('+totalMatch+')</span>'+
       '<input class="finput" id="adm-search" placeholder="Cari kode / nama..." style="width:200px" oninput="adminRenderPage()" value="'+q.replace(/"/g,'&quot;')+'"></div>'+
-    (capped ? '<div style="font-size:10.5px;color:var(--amber);margin-bottom:8px">⚠ Menampilkan '+ADMIN_RENDER_LIMIT+' dari '+totalMatch+' saham — ketik kode/nama di kolom pencarian untuk mempersempit.</div>' : '')+
+    (capped ? '<div style="font-size:10.5px;color:var(--amber);margin-bottom:8px">Menampilkan '+ADMIN_RENDER_LIMIT+' dari '+totalMatch+' saham — ketik kode/nama di kolom pencarian untuk mempersempit.</div>' : '')+
     '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Kode</th><th>Nama</th><th>Sektor</th><th>Sumber</th><th>Status</th><th>Aksi</th></tr></thead><tbody>'+
     (display.length ? display.map(function(x){
       var code = x.t, key = adminKey(code);
@@ -269,10 +269,10 @@ function adminRenderPage(){
         '<td style="font-size:10.5px;color:var(--text3)">'+(srcLbl[x.src]||x.src)+'</td>'+
         '<td><span class="badge '+st.cls+'" style="font-size:10px">'+st.label+'</span></td>'+
         '<td style="white-space:nowrap"><div style="display:flex;gap:4px">'+
-          '<button class="btn btn-ghost btn-xs" onclick="adminSaveRow(\''+code+'\')" title="Simpan nama/sektor" aria-label="Simpan nama/sektor '+code+'">💾</button>'+
+          '<button class="btn btn-ghost btn-xs" onclick="adminSaveRow(\''+code+'\')" title="Simpan nama/sektor" aria-label="Simpan nama/sektor '+code+'">Simpan</button>'+
           '<button class="btn btn-ghost btn-xs" onclick="adminRefreshRow(\''+code+'\')" title="Muat ulang data riil dari Yahoo" aria-label="Muat ulang data '+code+' dari Yahoo Finance">↻</button>'+
-          '<button class="btn '+(excluded?'btn-green':'btn-amber')+' btn-xs" onclick="adminToggleExclude(\''+code+'\')" title="'+(excluded?'Sertakan kembali ke analisa':'Kecualikan dari semua analisa')+'">'+(excluded?'✓ Sertakan':'⛔ Kecualikan')+'</button>'+
-          (x.src==='custom' ? '<button class="btn btn-red btn-xs" onclick="adminDeleteCustom(\''+code+'\')" title="Hapus dari daftar" aria-label="Hapus '+code+' dari daftar">🗑</button>' : '')+
+          '<button class="btn '+(excluded?'btn-green':'btn-amber')+' btn-xs" onclick="adminToggleExclude(\''+code+'\')" title="'+(excluded?'Sertakan kembali ke analisa':'Kecualikan dari semua analisa')+'">'+(excluded?'Sertakan':'Kecualikan')+'</button>'+
+          (x.src==='custom' ? '<button class="btn btn-red btn-xs" onclick="adminDeleteCustom(\''+code+'\')" title="Hapus dari daftar" aria-label="Hapus '+code+' dari daftar">Hapus</button>' : '')+
         '</div></td>'+
       '</tr>';
     }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Tidak ada saham cocok pencarian.</td></tr>')+
@@ -284,14 +284,14 @@ function adminAddTicker(){
   var code = (el('adm-new-code').value||'').toUpperCase().trim().replace(/\.JK$/,'');
   var name = (el('adm-new-name').value||'').trim();
   var sector = el('adm-new-sector').value;
-  if(!code){ if(typeof showSaveStatus==='function') showSaveStatus('⚠ Kode saham wajib diisi','var(--red)'); return; }
+  if(!code){ if(typeof showSaveStatus==='function') showSaveStatus('Kode saham wajib diisi','var(--red)'); return; }
   if(ADMIN_EXTRA.indexOf(code)===-1 && !FS_UNIV.some(function(u){ return u.t===code; })) ADMIN_EXTRA.push(code);
   ADMIN_META[code] = Object.assign({}, ADMIN_META[code]||{}, {name:name||code, sector:sector, excluded:false});
   adminSaveExtra(); adminSaveMeta();
   adminApplyOverrides();
   if(typeof saveData==='function') saveData();
   el('adm-new-code').value=''; el('adm-new-name').value='';
-  if(typeof showSaveStatus==='function') showSaveStatus('✓ '+code+' ditambahkan — memuat data riil...');
+  if(typeof showSaveStatus==='function') showSaveStatus(''+code+' ditambahkan — memuat data riil...');
   adminRenderPage();
   rdRetryTicker(code, function(){ adminRenderPage(); });
 }
@@ -307,14 +307,14 @@ function adminSaveRow(code){
   adminApplyOverrides();
   if(typeof saveData==='function') saveData();
   try{ rdRebuildFromReal(); }catch(e){}
-  if(typeof showSaveStatus==='function') showSaveStatus('✓ '+code+' disimpan');
+  if(typeof showSaveStatus==='function') showSaveStatus(''+code+' disimpan');
   adminRenderPage();
 }
 
 function adminRefreshRow(code){
-  if(typeof showSaveStatus==='function') showSaveStatus('📡 Memuat ulang '+code+'...');
+  if(typeof showSaveStatus==='function') showSaveStatus('Memuat ulang '+code+'...');
   rdRetryTicker(code, function(err){
-    if(typeof showSaveStatus==='function') showSaveStatus(err ? '⚠ '+code+' gagal — tetap simulasi' : '✓ '+code+' data riil termuat');
+    if(typeof showSaveStatus==='function') showSaveStatus(err ? ''+code+' gagal — tetap simulasi' : ''+code+' data riil termuat');
     adminRenderPage();
   });
 }
