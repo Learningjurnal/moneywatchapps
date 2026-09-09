@@ -1395,40 +1395,8 @@ var hwData = { rows: [], ticker: '', currentPrice: 0, minReturn: 6, projYears: 5
 var HW_LAST_CONFIRMED_TICKER = null;
 window.hwData = hwData;
 window.STOCK_FINANCIAL_DATABASE = STOCK_FINANCIAL_DATABASE;
-var hwHistChart = null;
-var hwChartMode = 'eps';
-
-function hw_switchChart(mode) {
-  hwChartMode = mode;
-  var btnEps = document.getElementById('hw-chart-btn-eps');
-  var btnEq = document.getElementById('hw-chart-btn-eq');
-  if (btnEps) {
-    if (mode === 'eps') {
-      btnEps.style.borderColor = 'rgba(0,0,255,.5)';
-      btnEps.style.color = 'var(--accent)';
-      btnEps.style.background = 'rgba(0,0,255,.12)';
-    } else {
-      btnEps.style.borderColor = '';
-      btnEps.style.color = '';
-      btnEps.style.background = '';
-    }
-  }
-  if (btnEq) {
-    if (mode === 'eq') {
-      btnEq.style.borderColor = 'rgba(0,212,170,.5)';
-      btnEq.style.color = '#00d4aa';
-      btnEq.style.background = 'rgba(0,212,170,.12)';
-    } else {
-      btnEq.style.borderColor = '';
-      btnEq.style.color = '';
-      btnEq.style.background = '';
-    }
-  }
-  if (hwData && hwData._lastRows) {
-    hw_renderChart(hwData._lastRows);
-  }
-}
-window.hw_switchChart = hw_switchChart;
+var hwHistChartEps = null;
+var hwHistChartEq = null;
 
 function hw_defaultRows(ticker) {
   var tk = (ticker || hwData.ticker || '').toUpperCase();
@@ -2140,77 +2108,72 @@ function hw_recalc() {
 }
 window.hw_recalc = hw_recalc;
 
+// Kartu terpisah untuk EPS & PER vs Equity & Net Income (bukan satu chart
+// dengan tombol toggle) — masing-masing kartu digambar ke canvas-nya sendiri.
 function hw_renderChart(rows) {
   hwData._lastRows = rows;
-  var chartCard = document.getElementById('hw-chart-card');
-  if (!chartCard) return;
-  chartCard.style.display = 'block';
-  var ctx = document.getElementById('hw-history-chart');
-  if (!ctx) return;
-  if (hwHistChart) { hwHistChart.destroy(); hwHistChart = null; }
   var labels = rows.map(function(r){ return r.year; });
   var tickStyle = { color: '#b8bdd4', font: { size: 9, family: 'Menlo' } };
   var gridStyle = { color: 'rgba(255,255,255,0.06)' };
   var legendOpts = { labels: { color: '#b8bdd4', font: { family: 'Menlo', size: 9 }, boxWidth: 10, padding: 10 } };
+  var tooltipBase = {
+    backgroundColor: 'rgba(10,10,20,.92)',
+    titleColor: '#0088ff',
+    bodyColor: '#c0c0d8',
+    borderColor: 'rgba(0,136,255,.3)',
+    borderWidth: 1,
+    titleFont: { family: 'Menlo', size: 10 },
+    bodyFont: { family: 'Menlo', size: 9 },
+    callbacks: {
+      label: function(ctx) {
+        var v = ctx.parsed.y;
+        if (v === null) return ctx.dataset.label + ': N/A';
+        return ctx.dataset.label + ': ' + (v >= 1000 ? v.toLocaleString('id-ID') : v);
+      }
+    }
+  };
 
-  var datasets, scales;
-  if (hwChartMode === 'eps') {
-    var epsData = rows.map(function(r){ return parseFloat(r.eps)||null; });
-    var perData = rows.map(function(r){ return parseFloat(r.per)||null; });
-    datasets = [
-      { label: 'EPS (Rp)', data: epsData, backgroundColor: 'rgba(0,200,5,.55)', borderColor: 'rgba(0,200,5,.8)', borderWidth: 1, yAxisID: 'y', borderRadius: 2 },
-      { label: 'PER (x)', data: perData, type: 'line', borderColor: '#0088ff', backgroundColor: 'transparent', yAxisID: 'y2', tension: .35, pointRadius: 4, pointBackgroundColor: '#0088ff', pointBorderColor: '#0a0a0f', pointBorderWidth: 1.5, borderWidth: 1.5 }
-    ];
-    scales = {
-      x: { ticks: tickStyle, grid: gridStyle },
-      y: { position: 'left', ticks: Object.assign({}, tickStyle, { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v; } }), grid: gridStyle, title: { display: true, text: 'EPS (Rp)', color: '#00c805', font: { size: 8 } } },
-      y2: { position: 'right', ticks: tickStyle, grid: { display: false }, title: { display: true, text: 'PER (x)', color: '#0088ff', font: { size: 8 } } }
-    };
-  } else {
-    var eqData = rows.map(function(r){ return parseFloat(r.equity)||null; });
-    var niData = rows.map(function(r){ return parseFloat(r.netIncome)||null; });
-    datasets = [
-      { label: 'Total Equity (M Rp)', data: eqData, backgroundColor: 'rgba(0,212,170,.45)', borderColor: 'rgba(0,212,170,.8)', borderWidth: 1, yAxisID: 'y', borderRadius: 2 },
-      { label: 'Net Income (M Rp)', data: niData, type: 'line', borderColor: '#ffc107', backgroundColor: 'transparent', yAxisID: 'y2', tension: .35, pointRadius: 4, pointBackgroundColor: '#ffc107', pointBorderColor: '#0a0a0f', pointBorderWidth: 1.5, borderWidth: 1.5 }
-    ];
-    scales = {
-      x: { ticks: tickStyle, grid: gridStyle },
-      y: { position: 'left', ticks: Object.assign({}, tickStyle, { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(0)+'k' : v; } }), grid: gridStyle, title: { display: true, text: 'Equity (M)', color: '#00d4aa', font: { size: 8 } } },
-      y2: { position: 'right', ticks: Object.assign({}, tickStyle, { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(0)+'k' : v; } }), grid: { display: false }, title: { display: true, text: 'Net Inc (M)', color: '#ffc107', font: { size: 8 } } }
-    };
-  }
-
-  if(typeof Chart !== 'undefined'){
-    hwHistChart = new Chart(ctx, {
+  function drawChart(cardId, canvasId, prevChart, datasets, scales) {
+    var card = document.getElementById(cardId);
+    var ctx = document.getElementById(canvasId);
+    if (!card || !ctx) return prevChart;
+    card.style.display = 'block';
+    if (prevChart) { prevChart.destroy(); }
+    if (typeof Chart === 'undefined') return null;
+    return new Chart(ctx, {
       type: 'bar',
       data: { labels: labels, datasets: datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: { duration: 300 },
-        plugins: {
-          legend: legendOpts,
-          tooltip: {
-            backgroundColor: 'rgba(10,10,20,.92)',
-            titleColor: '#0088ff',
-            bodyColor: '#c0c0d8',
-            borderColor: 'rgba(0,136,255,.3)',
-            borderWidth: 1,
-            titleFont: { family: 'Menlo', size: 10 },
-            bodyFont: { family: 'Menlo', size: 9 },
-            callbacks: {
-              label: function(ctx) {
-                var v = ctx.parsed.y;
-                if (v === null) return ctx.dataset.label + ': N/A';
-                return ctx.dataset.label + ': ' + (v >= 1000 ? v.toLocaleString('id-ID') : v);
-              }
-            }
-          }
-        },
+        plugins: { legend: legendOpts, tooltip: tooltipBase },
         scales: scales
       }
     });
   }
+
+  var epsData = rows.map(function(r){ return parseFloat(r.eps)||null; });
+  var perData = rows.map(function(r){ return parseFloat(r.per)||null; });
+  hwHistChartEps = drawChart('hw-chart-card-eps', 'hw-history-chart-eps', hwHistChartEps, [
+    { label: 'EPS (Rp)', data: epsData, backgroundColor: 'rgba(0,200,5,.55)', borderColor: 'rgba(0,200,5,.8)', borderWidth: 1, yAxisID: 'y', borderRadius: 2 },
+    { label: 'PER (x)', data: perData, type: 'line', borderColor: '#0088ff', backgroundColor: 'transparent', yAxisID: 'y2', tension: .35, pointRadius: 4, pointBackgroundColor: '#0088ff', pointBorderColor: '#0a0a0f', pointBorderWidth: 1.5, borderWidth: 1.5 }
+  ], {
+    x: { ticks: tickStyle, grid: gridStyle },
+    y: { position: 'left', ticks: Object.assign({}, tickStyle, { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(1)+'k' : v; } }), grid: gridStyle, title: { display: true, text: 'EPS (Rp)', color: '#00c805', font: { size: 8 } } },
+    y2: { position: 'right', ticks: tickStyle, grid: { display: false }, title: { display: true, text: 'PER (x)', color: '#0088ff', font: { size: 8 } } }
+  });
+
+  var eqData = rows.map(function(r){ return parseFloat(r.equity)||null; });
+  var niData = rows.map(function(r){ return parseFloat(r.netIncome)||null; });
+  hwHistChartEq = drawChart('hw-chart-card-eq', 'hw-history-chart-eq', hwHistChartEq, [
+    { label: 'Total Equity (M Rp)', data: eqData, backgroundColor: 'rgba(0,212,170,.45)', borderColor: 'rgba(0,212,170,.8)', borderWidth: 1, yAxisID: 'y', borderRadius: 2 },
+    { label: 'Net Income (M Rp)', data: niData, type: 'line', borderColor: '#ffc107', backgroundColor: 'transparent', yAxisID: 'y2', tension: .35, pointRadius: 4, pointBackgroundColor: '#ffc107', pointBorderColor: '#0a0a0f', pointBorderWidth: 1.5, borderWidth: 1.5 }
+  ], {
+    x: { ticks: tickStyle, grid: gridStyle },
+    y: { position: 'left', ticks: Object.assign({}, tickStyle, { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(0)+'k' : v; } }), grid: gridStyle, title: { display: true, text: 'Equity (M)', color: '#00d4aa', font: { size: 8 } } },
+    y2: { position: 'right', ticks: Object.assign({}, tickStyle, { callback: function(v){ return v >= 1000 ? (v/1000).toFixed(0)+'k' : v; } }), grid: { display: false }, title: { display: true, text: 'Net Inc (M)', color: '#ffc107', font: { size: 8 } } }
+  });
 }
 
 function hw_clearResults() {
@@ -2223,8 +2186,9 @@ function hw_clearResults() {
   var badge = document.getElementById('hw-verdict-badge');
   if (badge) { badge.textContent = 'BELUM DIHITUNG'; badge.style.background='var(--bg4)'; badge.style.color='var(--text3)'; badge.style.borderColor='var(--border)'; }
   if (document.getElementById('hw-steps-card')) document.getElementById('hw-steps-card').style.display = 'none';
-  if (document.getElementById('hw-chart-card')) document.getElementById('hw-chart-card').style.display = 'none';
-  hwChartMode = 'eps'; hwData._lastRows = null;
+  if (document.getElementById('hw-chart-card-eps')) document.getElementById('hw-chart-card-eps').style.display = 'none';
+  if (document.getElementById('hw-chart-card-eq')) document.getElementById('hw-chart-card-eq').style.display = 'none';
+  hwData._lastRows = null;
   if (document.getElementById('hw-mos-bar')) document.getElementById('hw-mos-bar').style.width = '50%';
   if (document.getElementById('hw-conclusion')) document.getElementById('hw-conclusion').style.display = 'none';
   if (document.getElementById('hw-verdict-card')) document.getElementById('hw-verdict-card').style.borderTopColor = 'var(--text3)';

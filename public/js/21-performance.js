@@ -7,7 +7,7 @@
 // ada simulasi, kecuali dicatat jelas (lihat catatan benchmark IHSG).
 // ============================================================
 
-var PERF_STATE = { eqPeriod:'YTD', allocMode:'saham' };
+var PERF_STATE = { eqPeriod:'YTD', allocMode:'saham', benchPeriod:'YTD' };
 
 function renderPerformance(){
   if(typeof equitySnapshotToday==='function') equitySnapshotToday(); // jaga-jaga kalau user langsung buka halaman ini tanpa lewat Dashboard dulu
@@ -32,6 +32,7 @@ function perfFilterByPeriod(hist, period){
   if(period==='1W') cutoff.setDate(cutoff.getDate()-7);
   else if(period==='1M') cutoff.setMonth(cutoff.getMonth()-1);
   else if(period==='3M') cutoff.setMonth(cutoff.getMonth()-3);
+  else if(period==='6M') cutoff.setMonth(cutoff.getMonth()-6);
   else if(period==='YTD') cutoff = new Date(last.getFullYear(),0,1);
   else if(period==='1Y') cutoff.setFullYear(cutoff.getFullYear()-1);
   var cutoffStr = cutoff.toISOString().slice(0,10);
@@ -44,6 +45,14 @@ function perfSetEqPeriod(period, btn){
   if(box) box.querySelectorAll('.pbtn').forEach(function(b){ b.classList.remove('on'); });
   if(btn) btn.classList.add('on');
   perfRenderEquity(period);
+}
+
+function perfSetBenchPeriod(period, btn){
+  PERF_STATE.benchPeriod = period;
+  var box = el('perf-bench-period');
+  if(box) box.querySelectorAll('.pbtn').forEach(function(b){ b.classList.remove('on'); });
+  if(btn) btn.classList.add('on');
+  perfRenderBenchmark();
 }
 
 // ── Total Equity: hero + chart + tabel riwayat (data riil equityHistory) ──
@@ -424,6 +433,16 @@ function perfRenderBenchmarkWith(hist, noteEl){
   if(hist.length < 2){
     kc('perfBench');
     if(noteEl) noteEl.innerHTML = 'Riwayat ekuitas belum cukup (min. 2 hari tercatat) untuk membandingkan dengan IHSG.';
+    el('perf-bench-porto-val').textContent='—'; el('perf-bench-ihsg-val').textContent='—';
+    return;
+  }
+  // Batasi ke periode terpilih (1M/3M/6M/YTD/All) — % kumulatif dihitung
+  // ulang relatif terhadap awal periode tersebut, bukan awal seluruh riwayat.
+  var benchPeriod = PERF_STATE.benchPeriod || 'YTD';
+  hist = perfFilterByPeriod(hist, benchPeriod);
+  if(hist.length < 2){
+    kc('perfBench');
+    if(noteEl) noteEl.innerHTML = 'Riwayat ekuitas belum cukup pada periode '+benchPeriod+' untuk membandingkan dengan IHSG — coba periode lebih panjang.';
     el('perf-bench-porto-val').textContent='—'; el('perf-bench-ihsg-val').textContent='—';
     return;
   }

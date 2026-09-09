@@ -17,6 +17,181 @@ function diSaveData(){
   try{localStorage.setItem(DI_KEY,JSON.stringify({entries:divInvestData,nextId:_divInvestId}));}catch(e){}
 }
 
+// ============================================================
+// HITUNG DIVIDEN OTOMATIS DARI RIWAYAT TRANSAKSI PORTOFOLIO
+// Menggabungkan riwayat BUY/SELL yang sudah tercatat di aplikasi ini
+// dengan riwayat pembagian dividen resmi (corporate actions) dari Yahoo
+// Finance untuk tiap ticker, lalu menghitung berapa dividen yang benar-benar
+// diterima berdasarkan jumlah lembar yang dipegang pada ex-dividend date.
+// ============================================================
+var _diCalcCandidates = [];
+
+async function diFetchJsonViaProxy(targetUrl, timeoutMs){
+  timeoutMs = timeoutMs || 8000;
+  var isStaticHost = typeof window !== 'undefined' && window.location && (
+    (window.location.hostname || '').indexOf('github.io') !== -1 ||
+    window.location.protocol === 'file:' ||
+    (window.location.hostname || '').indexOf('pages.dev') !== -1
+  );
+  var proxyList = isStaticHost ? [] : [
+    { name: 'local_proxy', isWrapped: false, url: function(u){ return '/api/proxy?url=' + encodeURIComponent(u); } }
+  ];
+  proxyList.push(
+    { name: 'allorigins_get', isWrapped: true, url: function(u){ return 'https://api.allorigins.win/get?url=' + encodeURIComponent(u); } },
+    { name: 'codetabs', isWrapped: false, url: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } }
+  );
+  for (var i = 0; i < proxyList.length; i++) {
+    try {
+      var proxiedUrl = proxyList[i].url(targetUrl);
+      var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs) : null;
+      var resp = await fetch(proxiedUrl, { signal: controller ? controller.signal : undefined });
+      if (timer) clearTimeout(timer);
+      if (resp.ok) {
+        var data = await resp.json();
+        if (proxyList[i].isWrapped && data && data.contents) {
+          try { return JSON.parse(data.contents); } catch(e){}
+        }
+        return data;
+      }
+    } catch (errProxy) { /* coba proxy berikutnya */ }
+  }
+  throw new Error('Semua proxy tidak dapat menjangkau ' + targetUrl);
+}
+
+// Riwayat pembagian dividen resmi (corporate action) per ticker, dari Yahoo
+// Finance chart API dengan events=div — bukan data buatan/estimasi.
+async function fetchYahooDividendHistory(rawTicker){
+  var cleanCode = String(rawTicker || '').replace('.JK', '').replace('.US', '').toUpperCase();
+  var isUsStock = ['AAPL','TSLA','NVDA','MSFT','GOOG','GOOGL','AMZN','META','NFLX','AMD','INTC','COIN','PLTR','BRK-B','SPY','QQQ'].includes(cleanCode);
+  var yahooTicker = isUsStock ? cleanCode : (cleanCode + '.JK');
+  var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooTicker) + '?range=10y&interval=1d&events=div';
+  var json = await diFetchJsonViaProxy(url, 8000);
+  var result = json && json.chart && json.chart.result && json.chart.result[0];
+  var divEvents = result && result.events && result.events.dividends;
+  if (!divEvents) return [];
+  return Object.keys(divEvents).map(function(ts){
+    var ev = divEvents[ts];
+    var d = new Date((ev.date ? ev.date : Number(ts)) * 1000);
+    return { date: d.toISOString().slice(0, 10), dps: Number(ev.amount) || 0 };
+  }).filter(function(ev){ return ev.dps > 0; }).sort(function(a, b){ return a.date.localeCompare(b.date); });
+}
+
+// Jumlah lembar yang dipegang pada suatu tanggal, dihitung dari riwayat
+// transaksi BUY/SELL yang sudah ada di aplikasi ini (pendekatan: dividen
+// dihitung dari posisi pada ex-date, recording date resmi bisa berbeda
+// beberapa hari kerja).
+function diSharesHeldOnDate(ticker, dateStr){
+  var list = (transactions || []).filter(function(t){
+    return t.ticker === ticker && (t.type === 'BUY' || t.type === 'SELL') && t.date && t.date <= dateStr;
+  }).sort(function(a, b){ return a.date.localeCompare(b.date); });
+  var shares = 0;
+  list.forEach(function(t){
+    var mult = (typeof getTxMultiplier === 'function') ? getTxMultiplier(t) : 100;
+    var sh = (t.lot || 0) * mult;
+    shares += (t.type === 'BUY') ? sh : -sh;
+  });
+  return Math.max(0, shares);
+}
+
+// Tarif PPh Final atas dividen sesuai tahun kejadian — PMK 18/PMK.03/2021
+// (bebas pajak untuk WP OP DN yang memenuhi syarat reinvestasi) baru
+// berlaku sejak 2021; sebelum itu dividen individu selalu kena PPh Final
+// 10% terlepas dari pengaturan "Bebas PPh Dividen" pengguna saat ini.
+function diPphRateForYear(year){
+  if (year < 2021) return 0.10;
+  if (typeof TAX_SETTINGS === 'undefined') return 0.10;
+  if (TAX_SETTINGS.dividenExempt) return 0;
+  return (TAX_SETTINGS.pphDividen && TAX_SETTINGS.pphDividen > 0) ? TAX_SETTINGS.pphDividen : 0.10;
+}
+
+async function diCalcFromTransactionHistory(){
+  var uniqueTickers = Array.from(new Set((transactions || [])
+    .filter(function(t){ return t.type === 'BUY' || t.type === 'SELL'; })
+    .map(function(t){ return t.ticker; })));
+
+  var statusEl = el('di-calc-status');
+  var box = el('di-calc-preview');
+  if (box) box.innerHTML = '';
+
+  if (!uniqueTickers.length) {
+    if (statusEl) statusEl.textContent = 'Tidak ada riwayat transaksi saham untuk dihitung. Catat transaksi Beli/Jual di halaman Portofolio terlebih dahulu.';
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = 'Mengambil riwayat pembagian dividen resmi dari Yahoo Finance untuk ' + uniqueTickers.length + ' saham...';
+
+  var candidates = [];
+  for (var i = 0; i < uniqueTickers.length; i++) {
+    var ticker = uniqueTickers[i];
+    try {
+      var divs = await fetchYahooDividendHistory(ticker);
+      divs.forEach(function(ev){
+        var shares = diSharesHeldOnDate(ticker, ev.date);
+        if (shares <= 0) return; // belum/sudah tidak memegang saham pada ex-date ini
+        var alreadyExists = dividends.some(function(d){ return d.ticker === ticker && d.date === ev.date; });
+        if (alreadyExists) return;
+        var year = parseInt(ev.date.slice(0, 4), 10);
+        candidates.push({ ticker: ticker, date: ev.date, dps: ev.dps, shares: shares, year: year, pphRate: diPphRateForYear(year) });
+      });
+    } catch (e) {
+      console.warn('Gagal mengambil riwayat dividen untuk ' + ticker + ':', e);
+    }
+  }
+
+  _diCalcCandidates = candidates;
+  renderDivCalcPreview(candidates);
+  if (statusEl) {
+    statusEl.textContent = candidates.length
+      ? 'Ditemukan ' + candidates.length + ' event dividen baru dari riwayat transaksi Anda. Periksa lalu klik "Import ke Data Dividen".'
+      : 'Tidak ditemukan event dividen baru (kemungkinan sudah tercatat semua, atau emiten tidak membagikan dividen selama periode Anda memegangnya).';
+  }
+}
+
+function renderDivCalcPreview(candidates){
+  var box = el('di-calc-preview');
+  if (!box) return;
+  if (!candidates.length) { box.innerHTML = ''; return; }
+  var totalGross = candidates.reduce(function(a, c){ return a + Math.round(c.dps * c.shares); }, 0);
+  var totalTax = candidates.reduce(function(a, c){ return a + Math.round(c.dps * c.shares * c.pphRate); }, 0);
+  box.innerHTML = '<div style="overflow-x:auto"><table class="tbl"><thead><tr>'
+    + '<th>Ticker</th><th>Ex-Date</th><th>Div/Lembar</th><th>Lembar Dimiliki</th><th>Kotor</th><th>Tarif PPh</th><th>Bersih</th>'
+    + '</tr></thead><tbody>'
+    + candidates.map(function(c){
+        var gross = Math.round(c.dps * c.shares);
+        var tax = Math.round(gross * c.pphRate);
+        var net = gross - tax;
+        var rateNote = c.year < 2021 ? ' (standar, pra-PMK 18/2021)' : (c.pphRate === 0 ? ' (bebas, PMK 18/2021)' : '');
+        return '<tr><td class="mono" style="font-weight:700">' + c.ticker + '</td><td>' + c.date + '</td>'
+          + '<td class="mono">Rp ' + c.dps.toFixed(2) + '</td>'
+          + '<td class="mono">' + c.shares.toLocaleString('id-ID') + '</td>'
+          + '<td class="mono">Rp ' + fmt(gross) + '</td>'
+          + '<td class="mono">' + (c.pphRate * 100).toFixed(0) + '%' + rateNote + '</td>'
+          + '<td class="mono" style="font-weight:700">Rp ' + fmt(net) + '</td></tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + '<div style="margin-top:10px;font-size:11px;color:var(--text2)">Total Kotor: <b>Rp ' + fmt(totalGross) + '</b> · Total PPh: <b>Rp ' + fmt(totalTax) + '</b> · Total Bersih: <b>Rp ' + fmt(totalGross - totalTax) + '</b></div>'
+    + '<div style="margin-top:8px;font-size:10.5px;color:var(--text3);line-height:1.5">Dihitung dari jumlah lembar saham yang Anda miliki pada ex-dividend date (pendekatan; recording date resmi bisa berbeda beberapa hari kerja). Sumber Div/Lembar: corporate action resmi Yahoo Finance. Tarif PPh otomatis: sebelum 2021 selalu PPh Final 10% (PMK 18/2021 belum berlaku), 2021 ke atas mengikuti pengaturan "Bebas PPh Dividen" Anda di Pengaturan Pajak.</div>'
+    + '<button class="btn btn-blue btn-sm" style="margin-top:10px" onclick="diImportCalculatedDividends()">Import ke Data Dividen (' + candidates.length + ' entri)</button>';
+}
+
+function diImportCalculatedDividends(){
+  if (!_diCalcCandidates || !_diCalcCandidates.length) return;
+  var n = 0;
+  _diCalcCandidates.forEach(function(c){
+    var alreadyExists = dividends.some(function(d){ return d.ticker === c.ticker && d.date === c.date; });
+    if (alreadyExists) return;
+    addDiv(c.date, c.ticker, c.shares, c.dps, c.pphRate);
+    n++;
+  });
+  _diCalcCandidates = [];
+  var box = el('di-calc-preview'); if (box) box.innerHTML = '';
+  var statusEl = el('di-calc-status'); if (statusEl) statusEl.textContent = '';
+  if (typeof renderDividen === 'function') renderDividen();
+  if (typeof renderDivInvest === 'function') renderDivInvest();
+  if (typeof showSaveStatus === 'function') showSaveStatus('✓ ' + n + ' data dividen berhasil diimport dari riwayat transaksi');
+}
+
 // ── Gabungkan semua sumber dividen (global + manual) ──
 function diGetAllDividends(){
   var all=[];

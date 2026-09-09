@@ -181,7 +181,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20260908a">
+<link rel="stylesheet" href="css/main.css?v=20260909b">
 <link rel="stylesheet" href="css/wealth.css?v=20260813j">
 </head>
 <body>
@@ -907,7 +907,16 @@
   <div class="card" style="margin-bottom:18px">
     <div class="cheader">
       <span class="ctitle">Kinerja Kumulatif vs IHSG</span>
-      <span class="badge b-gray" title="Dihitung dari riwayat ekuitas harian aplikasi vs data historis IHSG riil (Yahoo Finance) — makin sering Anda buka aplikasi, makin rapat & akurat kurva ini">ⓘ metodologi</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div id="perf-bench-period" style="display:flex;gap:3px;background:var(--bg);border-radius:7px;padding:3px">
+          <button class="pbtn" onclick="perfSetBenchPeriod('1M',this)">1M</button>
+          <button class="pbtn" onclick="perfSetBenchPeriod('3M',this)">3M</button>
+          <button class="pbtn" onclick="perfSetBenchPeriod('6M',this)">6M</button>
+          <button class="pbtn on" onclick="perfSetBenchPeriod('YTD',this)">YTD</button>
+          <button class="pbtn" onclick="perfSetBenchPeriod('ALL',this)">All</button>
+        </div>
+        <span class="badge b-gray" title="Dihitung dari riwayat ekuitas harian aplikasi vs data historis IHSG riil (Yahoo Finance) — makin sering Anda buka aplikasi, makin rapat & akurat kurva ini">ⓘ metodologi</span>
+      </div>
     </div>
     <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent);display:inline-block"></span><span style="font-size:11px;color:var(--text2)">Portofolio</span><span class="mono" id="perf-bench-porto-val" style="font-size:12px;font-weight:700;margin-left:4px">0.00%</span></div>
@@ -1464,6 +1473,17 @@
 
   <!-- Tab 3: Tabel Riwayat Dividen -->
   <div id="div-section-ledger" style="display:block;">
+    <div class="card" style="margin-bottom:16px">
+      <div class="cheader">
+        <span class="ctitle">Hitung Dividen dari Riwayat Transaksi</span>
+      </div>
+      <div class="psub" style="margin-bottom:10px">Mencocokkan riwayat Beli/Jual saham Anda dengan riwayat pembagian dividen resmi (corporate action) per emiten, lalu menghitung dividen yang benar-benar diterima berdasarkan lembar saham yang dipegang pada ex-dividend date.</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn btn-blue btn-sm" onclick="diCalcFromTransactionHistory()">Hitung dari Riwayat Transaksi</button>
+        <span id="di-calc-status" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div id="di-calc-preview"></div>
+    </div>
     <div class="card">
       <div class="cheader">
         <span class="ctitle">Riwayat Dividen</span>
@@ -2505,7 +2525,7 @@
         Analisis Fundamental
       </div>
       <div class="psub" style="color:var(--text3);font-family:'Plus Jakarta Sans',sans-serif;max-width:920px;margin-top:4px">
-        Terminal Riset Fundamental Terpadu: 4 Model Valuasi Konsensus (Graham, Lynch, DDM, DCF), Margin of Safety, Bull/Bear Debate, Analisis 5-Pilar Kualitas, dan Data Kepemilikan KSEI.
+        Valuasi saham, margin of safety, dan profil kepemilikan pemegang saham dari data fundamental terkini.
       </div>
     </div>
   </div>
@@ -2517,9 +2537,9 @@
                 <span>Fundamental <span style="color:#3B82F6">PRO</span></span>
       </div>
       <div class="sm-suite-tabs">
-        <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">1. Analisa Terpadu &amp; Valuasi Saham</button>
-        <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)">2. Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
-        <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)">3. Kepemilikan &amp; Free Float KSEI</button>
+        <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">Analisa Terpadu &amp; Valuasi Saham</button>
+        <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)">Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
+        <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)">Kepemilikan &amp; Free Float KSEI</button>
       </div>
     </div>
 
@@ -2911,7 +2931,7 @@
         Analisis Teknikal &amp; Flow
       </div>
       <div class="psub" style="color:var(--text3);font-family:'Plus Jakarta Sans',sans-serif;max-width:920px;margin-top:4px">
-        Terminal Trading Terpadu: TradingView Interactive Chart, FlowScan Bandarmologi, 20+ Technical Gauges, Candlestick Pattern, Support/Resistance/Pivot &amp; LQ45 Momentum Scanner.
+        Chart trading, deteksi flow bandar, dan scanner momentum saham IDX.
       </div>
     </div>
   </div>
@@ -2923,9 +2943,9 @@
                 <span>Technical <span style="color:var(--accent)">PRO</span></span>
       </div>
       <div class="sm-suite-tabs">
-        <button type="button" class="sm-nav-item active-tech" id="tech-nav-1" onclick="techSwitchTab(1)">1. Advanced Live Chart (TV)</button>
-        <button type="button" class="sm-nav-item" id="tech-nav-2" onclick="techSwitchTab(2)">2. Analisa Komprehensif (FlowScan, Gauges, Candle, S/R)</button>
-        <button type="button" class="sm-nav-item" id="tech-nav-3" onclick="techSwitchTab(3)">3. LQ45 Momentum Scanner</button>
+        <button type="button" class="sm-nav-item active-tech" id="tech-nav-1" onclick="techSwitchTab(1)">Live Chart (TradingView)</button>
+        <button type="button" class="sm-nav-item" id="tech-nav-2" onclick="techSwitchTab(2)">Analisa Komprehensif</button>
+        <button type="button" class="sm-nav-item" id="tech-nav-3" onclick="techSwitchTab(3)">LQ45 Momentum Scanner</button>
       </div>
     </div>
 
@@ -3208,17 +3228,23 @@
         <div id="hw-steps-body" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
       </div>
 
-      <!-- Historical chart -->
-      <div class="card" id="hw-chart-card" style="display:none">
+      <!-- Historical chart — EPS & PER (kartu terpisah, 1.5x ukuran semula) -->
+      <div class="card" id="hw-chart-card-eps" style="display:none;margin-bottom:16px">
         <div class="cheader">
-          <span class="ctitle">TREND HISTORIS</span>
-          <div style="display:flex;gap:4px">
-            <button id="hw-chart-btn-eps" onclick="hw_switchChart('eps')" class="btn" style="font-size:9px;padding:2px 7px;border-color:rgba(0,0,255,.5);color:var(--accent);background:rgba(0,0,255,.12)">EPS &amp; PER</button>
-            <button id="hw-chart-btn-eq" onclick="hw_switchChart('eq')" class="btn" style="font-size:9px;padding:2px 7px">Equity &amp; NI</button>
-          </div>
+          <span class="ctitle">Trend Historis EPS &amp; PER</span>
         </div>
-        <div style="position:relative;height:160px;width:100%">
-          <canvas id="hw-history-chart"></canvas>
+        <div style="position:relative;height:240px;width:100%">
+          <canvas id="hw-history-chart-eps"></canvas>
+        </div>
+      </div>
+
+      <!-- Historical chart — Equity & Net Income (kartu terpisah, 1.5x ukuran semula) -->
+      <div class="card" id="hw-chart-card-eq" style="display:none">
+        <div class="cheader">
+          <span class="ctitle">Trend Historis Equity &amp; Net Income</span>
+        </div>
+        <div style="position:relative;height:240px;width:100%">
+          <canvas id="hw-history-chart-eq"></canvas>
         </div>
       </div>
     </div>
@@ -3927,15 +3953,15 @@
 <script src="js/06-analysis-router.js?v=20260909a"></script>
 <script src="js/07-flowscan.js?v=20260909a"></script>
 <script src="js/08-auth.js?v=20260909a"></script>
-<script src="js/09-divinvest.js?v=20260902c"></script>
-<script src="js/10-hargawajar.js?v=20260906b"></script>
+<script src="js/09-divinvest.js?v=20260909a"></script>
+<script src="js/10-hargawajar.js?v=20260909a"></script>
 <script src="js/11-quant.js?v=20260906e"></script>
 <script src="js/12-clean.js?v=20260908a"></script>
 <script src="js/13-realdata.js?v=20260902c"></script>
 <script src="js/14-admin.js?v=20260909a"></script>
 <script src="js/15-txbulk.js?v=20260902c"></script>
 <script src="js/20-wealth.js?v=20260902c"></script>
-<script src="js/21-performance.js?v=20260908a"></script>
+<script src="js/21-performance.js?v=20260909a"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260905j"></script>
 <script src="js/24-stockmaster.js?v=20260906h"></script>
