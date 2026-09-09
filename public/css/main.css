@@ -1679,7 +1679,8 @@ html,body{font-size:12.5px}
 /* Sembunyikan elemen terlalu teknis di mode executive */
 body.mode-executive .dash-chart-row,
 body.mode-executive #hw-steps-card,
-body.mode-executive #hw-chart-card,
+body.mode-executive #hw-chart-card-eps,
+body.mode-executive #hw-chart-card-eq,
 body.mode-executive #hw-multimodel-card,
 body.mode-executive #dash-ai-section {
   display: none !important;
