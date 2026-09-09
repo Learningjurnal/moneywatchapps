@@ -569,10 +569,13 @@ function renderStockPerformance(){
 
   var sum = el('perf-summary');
   if(sum){
+    var winners = rows.filter(function(r){return r.total>0;}).length;
+    var winRate = rows.length ? (winners/rows.length*100) : 0;
     sum.innerHTML =
       '<div class="metric"><div class="mlabel">Realized P&amp;L (semua saham)</div><div class="mval '+(totalRealized>=0?'up':'dn')+'">'+(totalRealized>=0?'+':'')+'Rp '+fmtK(totalRealized)+'</div></div>'+
       '<div class="metric"><div class="mlabel">Unrealized P&amp;L (posisi aktif)</div><div class="mval '+(totalUnreal>=0?'up':'dn')+'">'+(totalUnreal>=0?'+':'')+'Rp '+fmtK(totalUnreal)+'</div></div>'+
-      '<div class="metric"><div class="mlabel">Total P&amp;L Akun</div><div class="mval '+(totalAll>=0?'up':'dn')+'">'+(totalAll>=0?'+':'')+'Rp '+fmtK(totalAll)+'</div></div>';
+      '<div class="metric"><div class="mlabel">Total P&amp;L Akun</div><div class="mval '+(totalAll>=0?'up':'dn')+'">'+(totalAll>=0?'+':'')+'Rp '+fmtK(totalAll)+'</div></div>'+
+      '<div class="metric"><div class="mlabel">Win Rate ('+rows.length+' Emiten)</div><div class="mval '+(winRate>=50?'up':'dn')+'">'+winRate.toFixed(0)+'%</div></div>';
   }
 
   var view = _perfShowClosed ? rows : rows.filter(function(r){return !r.closed;});

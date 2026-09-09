@@ -769,7 +769,7 @@ function fsRenderWlPage(){
         : '<span class="badge b-neu" style="font-size:9px;color:var(--text3)">Pantau</span>';
 
       return '<tr style="'+(w.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':w.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+'">'
-        +'<td class="mono" style="font-weight:700;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+w.t+'\')" title="Buka analisa detail FlowScan">'+w.t+'</td>'
+        +'<td class="mono" style="font-weight:700;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+w.t+'\')" title="Buka analisa detail FlowScan"><div style="display:flex;align-items:center;gap:6px">'+(typeof getStockLogoHtml==='function'?getStockLogoHtml(w.t,16):'')+w.t+'</div></td>'
         +'<td><div style="font-size:12px;font-weight:500">'+w.n+'</div><span class="badge b-neu" style="font-size:9px">'+w.s+'</span></td>'
         +'<td>'+portoBadge+'</td>'
         +'<td class="mono" style="font-weight:600">'+fsP(livePrice)+'</td>'

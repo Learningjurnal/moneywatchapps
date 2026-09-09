@@ -2090,14 +2090,14 @@ function openTxReconciliationModal(){
 
     '<!-- Nav Tabs Inside Modal -->'+
     '<div style="display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:14px;padding-bottom:6px">'+
-      '<button class="btn btn-blue btn-xs" id="rec-tab-sim-btn" onclick="recSwitchTab(\'sim\')">⚡ Simulator &amp; Tester Cepat</button>'+
-      '<button class="btn btn-ghost btn-xs" id="rec-tab-guide-btn" onclick="recSwitchTab(\'guide\')">📖 5 Penyebab Selisih &amp; Formula Resmi</button>'+
+      '<button class="btn btn-blue btn-xs" id="rec-tab-sim-btn" onclick="recSwitchTab(\'sim\')">Simulator &amp; Tester Cepat</button>'+
+      '<button class="btn btn-ghost btn-xs" id="rec-tab-guide-btn" onclick="recSwitchTab(\'guide\')">5 Penyebab Selisih &amp; Formula Resmi</button>'+
     '</div>'+
 
     '<!-- TAB 1: SIMULATOR -->' +
     '<div id="rec-tab-sim">'+
       '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">'+
-        '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px">🧪 UJI COBA TRANSAKSI (COCOKKAN DENGAN BARIS DI SHEET ANDA)</div>'+
+        '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px">UJI COBA TRANSAKSI (COCOKKAN DENGAN BARIS DI SHEET ANDA)</div>'+
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;align-items:flex-end">'+
           '<div>'+
             '<label style="font-size:9px;color:var(--text3);display:block;margin-bottom:2px">AKSI</label>'+
@@ -2151,13 +2151,13 @@ function openTxReconciliationModal(){
     '</div>'+
 
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">'+
-      '<button class="btn btn-ghost btn-sm" onclick="closeModal();showTaxSettingsModal()" style="color:var(--accent);font-size:11px">⚙️ Atur Tarif Komisi Sekuritas</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="closeModal();showTaxSettingsModal()" style="color:var(--accent);font-size:11px">Atur Tarif Komisi Sekuritas</button>'+
       '<div style="display:flex;gap:8px">'+
         '<button class="btn btn-ghost btn-sm" onclick="closeModal()">Tutup</button>'+
       '</div>'+
     '</div>';
 
-  el('m-title').textContent = '🔬 Rekonsiliasi Perhitungan Transaksi ("Stock B")';
+  el('m-title').textContent = 'Rekonsiliasi Perhitungan Transaksi ("Stock B")';
   el('m-title').style.color = 'var(--accent)';
   el('m-body').innerHTML = body;
   el('modal').classList.add('on');

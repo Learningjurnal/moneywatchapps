@@ -1463,7 +1463,7 @@ function renderStockChatPage(containerId) {
   html += '<div class="row4" style="margin-bottom:16px">'
     + '<div class="metric" style="border-left:3px solid var(--accent)">'
     + '<div class="mlabel">ACTIVE TICKER &amp; PRICE</div>'
-    + '<div class="mval mono" style="font-size:22px">' + curTk + ' <span style="font-size:16px;color:var(--text);font-weight:600">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span></div>'
+    + '<div class="mval mono" style="font-size:22px;display:flex;align-items:center;gap:8px">' + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(curTk, 22) : '') + curTk + ' <span style="font-size:16px;color:var(--text);font-weight:600">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span></div>'
     + '<div class="msub ' + (chgPct >= 0 ? 'up' : 'down') + '">' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '% Hari Ini</div>'
     + '</div>'
 

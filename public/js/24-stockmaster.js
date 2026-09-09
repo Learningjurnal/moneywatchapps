@@ -535,6 +535,12 @@ function fundPopulateData() {
   var dps = eps * payout;
 
   // 1. Header & Overview
+  var elLogo = document.getElementById('fund-sel-logo');
+  if (elLogo) {
+    var fundLogoTicker = (FUND_DATA.ticker || '').replace('.JK', '').replace('.US', '');
+    elLogo.innerHTML = (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(fundLogoTicker, 22) : '')
+      + '<span style="font-size:13px;font-weight:700;color:var(--text3)">' + fundLogoTicker + '</span>';
+  }
   var elP = document.getElementById('sm-d-price'); if (elP) elP.innerText = 'Rp ' + Number(curPrice).toLocaleString('id-ID');
   var elM = document.getElementById('sm-d-mcap'); if (elM) elM.innerText = fundFmt(mcap);
   var elS = document.getElementById('sm-d-sector'); if (elS) elS.innerText = sector;
