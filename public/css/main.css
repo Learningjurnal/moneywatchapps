@@ -1854,6 +1854,9 @@ body.mode-executive .metric .mval {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 .sm-chip:hover {
   background: rgba(59, 130, 246, 0.2);
@@ -3701,6 +3704,10 @@ body.theme-light .sm-suite-header {
 }
 
 body.theme-light .sm-suite-brand {
+  color: #0F172A !important;
+}
+
+body.theme-light .sm-suite-brand > span {
   color: #0F172A !important;
 }
 
