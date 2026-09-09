@@ -219,7 +219,7 @@
         <input type="password" id="auth-password" placeholder="Masukkan password..." autocomplete="current-password" onkeydown="if(event.key==='Enter')authDoLogin()">
       </div>
       <button class="auth-btn" id="auth-login-btn" onclick="authDoLogin()">Masuk →</button>
-      <button class="auth-btn" style="margin-top:8px;background:rgba(47,106,243,.15);color:var(--accent);border:1px solid rgba(47,106,243,.35)" id="auth-guest-btn" onclick="authDoGuestLogin()">⚡ Masuk Mode Tamu / Demo Offline →</button>
+      <button class="auth-btn" style="margin-top:8px;background:rgba(47,106,243,.15);color:var(--accent);border:1px solid rgba(47,106,243,.35)" id="auth-guest-btn" onclick="authDoGuestLogin()">Masuk Mode Tamu / Demo Offline →</button>
       <div class="auth-info" style="margin-top:14px">
         Sesi aktif selama <strong style="color:var(--text2)">30 menit</strong> · Auto-logout jika tidak aktif<br>
         Lupa password? <span style="color:var(--blue);cursor:pointer" onclick="authShowReset()">Reset via kode</span>
@@ -1183,9 +1183,9 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-green" id="btn-beli">+ Beli Saham</button>
         <button class="btn btn-red" id="btn-jual">− Jual Saham</button>
-        <button class="btn btn-ghost" onclick="openTxReconciliationModal()" style="border-color:rgba(0,200,255,.4);color:var(--accent)" title="Penjelasan & kalkulator pencocokan perhitungan transaksi, komisi, PPN, levy, dan modal rata-rata vs sheet catatan">🔬 Rekonsiliasi Perhitungan ("Stock B")</button>
+        <button class="btn btn-ghost" onclick="openTxReconciliationModal()" style="border-color:rgba(0,200,255,.4);color:var(--accent)" title="Penjelasan & kalkulator pencocokan perhitungan transaksi, komisi, PPN, levy, dan modal rata-rata vs sheet catatan">Rekonsiliasi Perhitungan ("Stock B")</button>
         <button class="btn btn-ghost" onclick="txDownloadTemplate()" style="border-color:rgba(129,140,248,.3);color:var(--accent)" title="Unduh template Excel siap isi">⬇ Download Template</button>
-        <button class="btn btn-ghost" onclick="txImportExcel()" style="border-color:rgba(52,211,153,.3);color:var(--green)" title="Upload banyak transaksi sekaligus dari file Excel">📤 Upload Excel</button>
+        <button class="btn btn-ghost" onclick="txImportExcel()" style="border-color:rgba(52,211,153,.3);color:var(--green)" title="Upload banyak transaksi sekaligus dari file Excel">Upload Excel</button>
       </div>
     </div>
     <div class="row4">
@@ -1372,7 +1372,7 @@
       <button class="btn btn-red btn-xs" onclick="clearAllDiv()">Hapus Semua</button>
       <button class="btn btn-blue" id="btn-div">+ Catat Dividen</button>
       <button class="btn btn-ghost" onclick="divDownloadTemplate()" style="border-color:rgba(167,139,250,.35);color:var(--purple)" title="Unduh template Excel siap isi">⬇ Download Template</button>
-      <button class="btn btn-ghost" onclick="divImportExcel()" style="border-color:rgba(52,211,153,.3);color:var(--green)" title="Upload banyak dividen sekaligus dari file Excel">📤 Upload Excel</button>
+      <button class="btn btn-ghost" onclick="divImportExcel()" style="border-color:rgba(52,211,153,.3);color:var(--green)" title="Upload banyak dividen sekaligus dari file Excel">Upload Excel</button>
     </div>
   </div>
 
@@ -1798,7 +1798,7 @@
       <div class="ptitle" style="margin-bottom:2px">Pajak &amp; Biaya Transaksi</div>
       <div class="psub">Rekap PPh &amp; komisi broker — tarif dapat disesuaikan manual di panel Pengaturan</div>
     </div>
-    <button class="btn btn-ghost no-print" onclick="window.print()" style="border-color:rgba(129,140,248,.3);color:var(--accent);flex-shrink:0" title="Cetak atau simpan sebagai PDF untuk lampiran SPT Tahunan">🖨 Cetak / Simpan PDF</button>
+    <button class="btn btn-ghost no-print" onclick="window.print()" style="border-color:rgba(129,140,248,.3);color:var(--accent);flex-shrink:0" title="Cetak atau simpan sebagai PDF untuk lampiran SPT Tahunan">Cetak / Simpan PDF</button>
   </div>
   <div id="pj-print-header" class="print-only" style="display:none">
     <h1 style="font-size:18px;margin-bottom:2px">Rekap Pajak &amp; Biaya Transaksi Saham</h1>
@@ -1833,11 +1833,11 @@
       <div id="pj-by-sec"></div>
     </div>
     <div class="no-print" style="display:flex;flex-direction:column;gap:16px">
-      <!-- ⚙️ Pengaturan Tarif Pajak -->
+      <!-- Pengaturan Tarif Pajak -->
       <div class="card" style="border-color:rgba(255,193,7,.3)">
         <div class="cheader">
-          <span class="ctitle" style="color:var(--amber)">⚙️ Pengaturan Tarif Pajak</span>
-          <button class="btn btn-amber btn-xs" onclick="saveTaxFromUI()">💾 Simpan</button>
+          <span class="ctitle" style="color:var(--amber)">Pengaturan Tarif Pajak</span>
+          <button class="btn btn-amber btn-xs" onclick="saveTaxFromUI()">Simpan</button>
         </div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:16px">Sesuai regulasi: PMK 131/2024 (PPN 12%), PP 14/1997 (PPh Final 0,1% jual), BEI+KPEI+KSEI Levy 0,043%. PPh Beli tidak ada dalam hukum Indonesia.</div>
         <div class="fgrid" style="grid-template-columns:1fr 1fr 1fr">
@@ -1869,7 +1869,7 @@
         <div style="margin-top:10px">
           <div style="font-size:10px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px">Preset Regulasi</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-xs" onclick="applyTaxPreset(0.12,0.001,0.00043)" style="border-color:rgba(255,193,7,.4);color:var(--amber)">✅ PPN12% + PPh0,1% + Levy0,043% (Resmi)</button>
+            <button class="btn btn-ghost btn-xs" onclick="applyTaxPreset(0.12,0.001,0.00043)" style="border-color:rgba(255,193,7,.4);color:var(--amber)">PPN12% + PPh0,1% + Levy0,043% (Resmi)</button>
             <button class="btn btn-ghost btn-xs" onclick="applyTaxPreset(0.11,0.001,0.00043)">PPN11% (sebelum Jan 2025)</button>
             <button class="btn btn-ghost btn-xs" onclick="applyTaxPreset(0.12,0,0)">PPN saja (0% PPh/Levy)</button>
           </div>
@@ -1881,9 +1881,9 @@
           <div class="taxrow tot"><span>Total Keduanya</span><span class="mono" id="tax-prev-diff">Rp 0</span></div>
         </div>
       </div>
-      <!-- 🏦 Tarif PPh per Sekuritas -->
+      <!-- Tarif PPh per Sekuritas -->
       <div class="card">
-        <div class="cheader"><span class="ctitle">🏦 Tarif PPh per Sekuritas</span><div style="display:flex;gap:5px"><button class="btn btn-ghost btn-xs" onclick="resetSekTax()">Reset</button><button class="btn btn-amber btn-xs" onclick="saveSekTax()">💾 Simpan</button></div></div>
+        <div class="cheader"><span class="ctitle">Tarif PPh per Sekuritas</span><div style="display:flex;gap:5px"><button class="btn btn-ghost btn-xs" onclick="resetSekTax()">Reset</button><button class="btn btn-amber btn-xs" onclick="saveSekTax()">Simpan</button></div></div>
         <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Override komisi per sekuritas jika berbeda dari SEKURITAS data. PPh Final (0,1%) dan Levy (0,043%) adalah tarif tetap — tidak bisa di-override per broker.</div>
         <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:7px;font-size:9px;color:var(--text3);letter-spacing:.6px;font-family:var(--font-mono);padding-bottom:4px;border-bottom:1px solid var(--border2)"><span>SEKURITAS</span><span>KOMISI BELI %</span><span>KOMISI JUAL %</span></div>
         <div id="sek-tax-rows" style="max-height:230px;overflow-y:auto"></div>
@@ -1939,17 +1939,17 @@
       <div class="psub">Tracking aset kripto dengan harga dalam Rupiah (IDR) — real-time simulasi</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-ghost" onclick="goPage('crypto-technical')" style="border-color:#f7931a66;color:#f7931a;font-weight:700"><i class="ti ti-chart-candle"></i> Analisa &amp; Sinyal Crypto</button>
-      <button class="btn btn-blue" onclick="openCryptoModal('buy')"><i class="ti ti-plus"></i> Beli Crypto</button>
-      <button class="btn btn-red" onclick="openCryptoModal('sell')"><i class="ti ti-minus"></i> Jual Crypto</button>
+      <button class="btn btn-ghost" onclick="goPage('crypto-technical')" style="border-color:#f7931a66;color:#f7931a;font-weight:700">Analisa &amp; Sinyal Crypto</button>
+      <button class="btn btn-blue" onclick="openCryptoModal('buy')">Beli Crypto</button>
+      <button class="btn btn-red" onclick="openCryptoModal('sell')">Jual Crypto</button>
     </div>
   </div>
     <!-- Cash widget crypto -->
   <div id="cash-crypto-banner" class="cash-sync-banner cash-crypto" style="background:rgba(0,0,0,.15);border:1px solid #f7931a33;border-radius:9px;padding:8px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#f7931a;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-wallet"></i> KAS CRYPTO (WALLET/EXCHANGE)</span>
+    <span style="font-size:10px;font-weight:700;color:#f7931a;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px">KAS CRYPTO (WALLET/EXCHANGE)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#f7931a" id="cash-crypto-disp">Rp 0</span>
-    <button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44" onclick="openModal('setor', 'crypto')" title="Top-up Saldo Crypto via Mutasi RDN"><i class="ti ti-plus"></i> Top Up / Mutasi</button>
-    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'crypto')" title="Sesuaikan saldo riil via mutasi RDN"><i class="ti ti-adjustments-horizontal"></i> Sesuaikan</button>
+    <button class="btn btn-ghost btn-xs" style="color:#f7931a;border-color:#f7931a44" onclick="openModal('setor', 'crypto')" title="Top-up Saldo Crypto via Mutasi RDN">Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'crypto')" title="Sesuaikan saldo riil via mutasi RDN">Sesuaikan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di exchange crypto (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
 
@@ -1983,12 +1983,12 @@
       <select class="finput fsel" id="cr-filter-cat" onchange="renderCrypto()" style="padding:5px 8px;font-size:11px"><option value="">Semua Kategori</option></select>
       <select class="finput fsel" id="cr-filter-signal" onchange="renderCrypto()" style="padding:5px 8px;font-size:11px">
         <option value="">Semua Sinyal</option>
-        <option value="breakout">🔥 Bullish Breakout (Volume Surge)</option>
-        <option value="whale">🐋 Whale Accumulation</option>
-        <option value="buy">🟢 Strong Buy / Buy</option>
-        <option value="oversold">🛡️ Oversold Bounce</option>
+        <option value="breakout">Bullish Breakout (Volume Surge)</option>
+        <option value="whale">Whale Accumulation</option>
+        <option value="buy">Strong Buy / Buy</option>
+        <option value="oversold">Oversold Bounce</option>
         <option value="squeeze">⏳ Volatility Squeeze</option>
-        <option value="sell">🔴 Sell / Bearish</option>
+        <option value="sell">Sell / Bearish</option>
       </select>
       <select class="finput fsel" id="cr-filter-pnl" onchange="renderCrypto()" style="padding:5px 8px;font-size:11px">
         <option value="">Semua P&amp;L</option><option value="profit">Profit saja</option><option value="loss">Rugi saja</option>
@@ -2036,16 +2036,16 @@
       <div class="psub">Tracking ETF US dengan konversi harga USD → IDR otomatis</div>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-blue" onclick="openEtfModal('buy')"><i class="ti ti-plus"></i> Beli ETF</button>
-      <button class="btn btn-red" onclick="openEtfModal('sell')"><i class="ti ti-minus"></i> Jual ETF</button>
+      <button class="btn btn-blue" onclick="openEtfModal('buy')">Beli ETF</button>
+      <button class="btn btn-red" onclick="openEtfModal('sell')">Jual ETF</button>
     </div>
   </div>
     <!-- Cash widget etf -->
   <div id="cash-etf-banner" class="cash-sync-banner cash-etf" style="background:rgba(0,0,0,.15);border:1px solid #00c8ff33;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#00c8ff;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-wallet"></i> KAS ETF (USD ACCOUNT)</span>
+    <span style="font-size:10px;font-weight:700;color:#00c8ff;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px">KAS ETF (USD ACCOUNT)</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#00c8ff" id="cash-etf-disp">$ 0</span>
     <input type="number" id="cash-etf-input" placeholder="Set kas..." class="finput" style="width:140px;padding:4px 9px;font-size:11px">
-    <button class="btn btn-ghost btn-xs" style="color:#00c8ff;border-color:#00c8ff44" onclick="saveCashInput('etf')"><i class="ti ti-device-floppy"></i> Simpan</button>
+    <button class="btn btn-ghost btn-xs" style="color:#00c8ff;border-color:#00c8ff44" onclick="saveCashInput('etf')">Simpan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Saldo USD di broker internasional (IBKR, dll)</span>
   </div>
   <div class="row5">
@@ -2123,27 +2123,26 @@
     </div>
     <div style="display:flex;gap:6px;align-self:center">
       <span class="badge b-amb" style="font-size:11px;padding:5px 12px">Posisi Aktif: 0 produk</span>
-      <span class="badge b-dn" style="font-size:11px;padding:5px 12px" title="Tidak ada API NAB real-time publik untuk reksa dana Indonesia — nilai NAB posisi aktif memakai simulasi, bukan data pasar sungguhan">⚠ NAB Simulasi</span>
+      <span class="badge b-dn" style="font-size:11px;padding:5px 12px" title="Tidak ada API NAB real-time publik untuk reksa dana Indonesia — nilai NAB posisi aktif memakai simulasi, bukan data pasar sungguhan">NAB Simulasi</span>
     </div>
   </div>
 
   <!-- Info banner -->
   <div style="background:rgba(255,193,7,.07);border:1px solid rgba(255,193,7,.25);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">
-    <span style="font-size:22px">📋</span>
     <div>
       <div style="font-size:12px;font-weight:700;color:var(--amber)">Semua reksa dana sudah dicairkan</div>
       <div style="font-size:11px;color:var(--text2);margin-top:2px">Data berikut adalah <strong>riwayat historis</strong> transaksi reksa dana. Gunakan tombol + Beli RD untuk mulai mencatat posisi aktif baru.</div>
     </div>
-    <button class="btn btn-green btn-sm" onclick="openRdModal('beli')" style="flex-shrink:0"><i class="ti ti-plus"></i> Beli RD Baru</button>
+    <button class="btn btn-green btn-sm" onclick="openRdModal('beli')" style="flex-shrink:0">Beli RD Baru</button>
   </div>
 
   <!-- Summary metrics -->
     <!-- Cash widget reksadana -->
   <div id="cash-rd-banner" class="cash-sync-banner cash-rd" style="background:rgba(0,0,0,.15);border:1px solid #8070d233;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#8070d2;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-wallet"></i> KAS REKSA DANA</span>
+    <span style="font-size:10px;font-weight:700;color:#8070d2;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px">KAS REKSA DANA</span>
     <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#8070d2" id="cash-reksadana-disp">Rp 0</span>
-    <button class="btn btn-ghost btn-xs" style="color:#8070d2;border-color:#8070d244" onclick="openModal('setor', 'reksadana')" title="Top-up Saldo Reksa Dana via Mutasi RDN"><i class="ti ti-plus"></i> Top Up / Mutasi</button>
-    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'reksadana')" title="Sesuaikan saldo riil via mutasi RDN"><i class="ti ti-adjustments-horizontal"></i> Sesuaikan</button>
+    <button class="btn btn-ghost btn-xs" style="color:#8070d2;border-color:#8070d244" onclick="openModal('setor', 'reksadana')" title="Top-up Saldo Reksa Dana via Mutasi RDN">Top Up / Mutasi</button>
+    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'reksadana')" title="Sesuaikan saldo riil via mutasi RDN">Sesuaikan</button>
     <span style="font-size:10px;color:var(--text3);flex:1">Saldo IDR di platform reksa dana (Otomatis tersinkron dari Mutasi RDN)</span>
   </div>
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:18px">
@@ -2170,8 +2169,8 @@
     <div class="cheader">
       <span class="ctitle">Posisi Aktif (Input Manual)</span>
       <div style="display:flex;gap:7px">
-        <button class="btn btn-green btn-xs" onclick="openRdModal('beli')"><i class="ti ti-plus"></i> Beli</button>
-        <button class="btn btn-red btn-xs" onclick="openRdModal('jual')"><i class="ti ti-minus"></i> Jual</button>
+        <button class="btn btn-green btn-xs" onclick="openRdModal('beli')">Beli</button>
+        <button class="btn btn-red btn-xs" onclick="openRdModal('jual')">Jual</button>
       </div>
     </div>
     <div class="filter-toolbar">
@@ -2238,13 +2237,12 @@
 <div id="page-flowscan" class="page">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
     <div>
-      <div class="ptitle">🔬 FlowScan</div>
+      <div class="ptitle">FlowScan</div>
       <div class="psub">Deteksi akumulasi & distribusi institusional via volume flow analysis</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 10px">
-        <i class="ti ti-search" style="color:var(--text3);font-size:13px"></i>
-        <input id="fs-ticker-input" placeholder="Cari kode saham..." value="BBCA"
+                <input id="fs-ticker-input" placeholder="Cari kode saham..." value="BBCA"
           style="background:none;border:none;outline:none;color:var(--text);font-family:var(--font-mono);font-size:12px;text-transform:uppercase;width:140px;letter-spacing:.8px"
           onkeydown="if(event.key==='Enter')fsRunAnalysis()"/>
       </div>
@@ -2272,7 +2270,7 @@
 
   <!-- Analysis tabs -->
   <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:13px;overflow-x:auto">
-    <button class="tab on" onclick="fsSt('all',this)">📊 Analisa Lengkap</button>
+    <button class="tab on" onclick="fsSt('all',this)">Analisa Lengkap</button>
     <button class="tab" onclick="fsSt('tbl',this)">Data Harian</button>
   </div>
 
@@ -2394,13 +2392,13 @@
 
 <!-- Heatmap -->
 <div id="page-heatmap" class="page">
-  <div class="ptitle">🌡 Heatmap & Factor Analysis</div>
+  <div class="ptitle">Heatmap & Factor Analysis</div>
   <div class="psub">Visualisasi akumulasi/distribusi & faktor fundamental saham LQ45</div>
 
   <!-- Tab switcher -->
   <div style="display:flex;gap:4px;margin-bottom:12px">
-    <button class="pbtn on" id="hm-tab-flow" onclick="hmSwitchTab('flow',this)">🌡 Flow Heatmap</button>
-    <button class="pbtn" id="hm-tab-factor" onclick="hmSwitchTab('factor',this)">📐 Factor Heatmap</button>
+    <button class="pbtn on" id="hm-tab-flow" onclick="hmSwitchTab('flow',this)">Flow Heatmap</button>
+    <button class="pbtn" id="hm-tab-factor" onclick="hmSwitchTab('factor',this)">Factor Heatmap</button>
   </div>
 
   <!-- Flow Heatmap panel -->
@@ -2424,7 +2422,7 @@
   <!-- Factor Heatmap panel -->
   <div id="hm-panel-factor" style="display:none">
     <div class="card" style="margin-bottom:16px">
-      <div class="cheader"><span class="ctitle">⚙️ Pengaturan</span><button class="btn btn-bb btn-xs" onclick="fhmRender()">🔄 Refresh</button></div>
+      <div class="cheader"><span class="ctitle">Pengaturan</span><button class="btn btn-bb btn-xs" onclick="fhmRender()">Refresh</button></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div class="fg">
           <div class="flabel">Faktor</div>
@@ -2458,7 +2456,7 @@
 
 <!-- Scanner -->
 <div id="page-scanner" class="page">
-  <div class="ptitle">📡 Big Money Scanner</div>
+  <div class="ptitle">Big Money Scanner</div>
   <div class="psub">Filter saham dengan kriteria CMF, skor akumulasi, dan volume ratio</div>
   <div class="card" style="margin-top:11px">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
@@ -2815,7 +2813,7 @@
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">
     <div>
       <div class="ptitle" style="color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:8px">
-        ⚡ Crypto Technical Suite
+        Crypto Technical Suite
         <span class="badge" style="background:#f7931a;color:#000;font-size:10px;padding:3px 9px;font-weight:800">WHALE &amp; TECH</span>
         <span class="badge b-accent" style="font-size:10px;padding:3px 9px">VOLUME BREAKOUT</span>
       </div>
@@ -2829,13 +2827,12 @@
     <!-- TOP HORIZONTAL SUB-NAV -->
     <div class="sm-suite-header" style="border-bottom-color:rgba(247,147,26,0.25)">
       <div class="sm-suite-brand">
-        <i class="ti ti-currency-bitcoin" style="font-size:18px;color:#f7931a"></i>
-        <span>Crypto <span style="color:#f7931a">WHALE &amp; TECH</span></span>
+                <span>Crypto <span style="color:#f7931a">WHALE &amp; TECH</span></span>
       </div>
       <div class="sm-suite-tabs">
-        <button type="button" class="sm-nav-item active-tech" id="cr-tech-nav-1" onclick="cryptoTechSwitchTab(1)"><i class="ti ti-chart-candle"></i> 1. Interactive Chart &amp; Whale Overlay</button>
-        <button type="button" class="sm-nav-item" id="cr-tech-nav-2" onclick="cryptoTechSwitchTab(2)"><i class="ti ti-radar"></i> 2. Whale Tracker &amp; 15+ Indikator</button>
-        <button type="button" class="sm-nav-item" id="cr-tech-nav-3" onclick="cryptoTechSwitchTab(3)"><i class="ti ti-flame"></i> 3. Multi-Coin Signal &amp; Breakout Scanner</button>
+        <button type="button" class="sm-nav-item active-tech" id="cr-tech-nav-1" onclick="cryptoTechSwitchTab(1)">1. Interactive Chart &amp; Whale Overlay</button>
+        <button type="button" class="sm-nav-item" id="cr-tech-nav-2" onclick="cryptoTechSwitchTab(2)">2. Whale Tracker &amp; 15+ Indikator</button>
+        <button type="button" class="sm-nav-item" id="cr-tech-nav-3" onclick="cryptoTechSwitchTab(3)">3. Multi-Coin Signal &amp; Breakout Scanner</button>
       </div>
     </div>
 
@@ -2847,7 +2844,7 @@
           <label>Koin Crypto (Contoh: BTC, ETH, SOL, BNB, XRP, SUI, NEAR, PEPE)</label>
           <input type="text" id="crTechTickerInput" class="sm-input" value="BTC" onkeydown="if(event.key==='Enter')cryptoTechSelectCoin(this.value,true)" placeholder="BTC">
         </div>
-        <button class="sm-btn" onclick="cryptoTechSelectCoin(document.getElementById('crTechTickerInput').value,true)" style="background:#f7931a;color:#000;font-weight:800">⚡ Jalankan Analisa Crypto</button>
+        <button class="sm-btn" onclick="cryptoTechSelectCoin(document.getElementById('crTechTickerInput').value,true)" style="background:#f7931a;color:#000;font-weight:800">Jalankan Analisa Crypto</button>
         
         <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap">
           <div style="display:flex;gap:4px;margin-right:8px" id="cr-tech-tf-group">
@@ -3387,18 +3384,17 @@
 <div id="page-candle" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px">
     <div>
-      <div class="ptitle">🕯 Candle Analysis</div>
+      <div class="ptitle">Candle Analysis</div>
       <div class="psub">Klasifikasi psikologi candle, sinyal entry/exit zona, position sizing &amp; backtest equity · saham aktif: <b style="color:var(--accent)" id="cd-ticker">ADMR</b></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 10px">
-        <i class="ti ti-search" style="color:var(--text3);font-size:13px"></i>
-        <input id="cd-tk-input" placeholder="Kode saham..." value="ADMR"
+                <input id="cd-tk-input" placeholder="Kode saham..." value="ADMR"
           style="background:none;border:none;outline:none;color:var(--text);font-family:var(--font-mono);font-size:12px;text-transform:uppercase;width:110px;letter-spacing:.8px"
           onkeydown="if(event.key==='Enter')cdLoadInput()"/>
       </div>
       <button class="btn btn-blue" onclick="cdLoadInput()" style="font-size:12px">Muat ↗</button>
-      <button class="btn btn-ghost" onclick="cdAutoZona()" style="font-size:12px;border-color:rgba(45,212,191,.35);color:var(--teal)" title="Hitung ulang zona/stop/TP otomatis dari struktur harga">🎯 Auto Zona</button>
+      <button class="btn btn-ghost" onclick="cdAutoZona()" style="font-size:12px;border-color:rgba(45,212,191,.35);color:var(--teal)" title="Hitung ulang zona/stop/TP otomatis dari struktur harga">Auto Zona</button>
       <button class="btn btn-ghost" onclick="cdRecalc()" style="font-size:12px">↻ Hitung Ulang</button>
     </div>
   </div>
@@ -3804,7 +3800,6 @@
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0">
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:18px">⚙️</span>
         <div>
           <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--font-display)">Pusat Pengaturan &amp; Data Hub</div>
           <div style="font-size:11px;color:var(--text3)">Konfigurasi Cloud Database, Feed Pasar, Tampilan, Pajak/Komisi, Integritas Data, dan Akun</div>
@@ -3818,32 +3813,25 @@
       <!-- Tabs Nav -->
       <div style="width:220px;background:var(--bg3);border-right:1px solid var(--border);padding:10px 8px;display:flex;flex-direction:column;gap:3px;flex-shrink:0;overflow-y:auto" id="sh-tabs">
         <button class="sh-tab on" data-tab="cloud" onclick="shSwitchTab('cloud',this)">
-          <i class="ti ti-cloud" style="color:var(--accent)"></i>
-          <span>Supabase Cloud &amp; Sync</span>
+                    <span>Supabase Cloud &amp; Sync</span>
         </button>
         <button class="sh-tab" data-tab="feed" onclick="shSwitchTab('feed',this)">
-          <i class="ti ti-activity" style="color:var(--green)"></i>
-          <span>Feed Pasar Real-time</span>
+                    <span>Feed Pasar Real-time</span>
         </button>
         <button class="sh-tab" data-tab="display" onclick="shSwitchTab('display',this)">
-          <i class="ti ti-palette" style="color:#38bdf8"></i>
-          <span>Tampilan &amp; Layout</span>
+                    <span>Tampilan &amp; Layout</span>
         </button>
         <button class="sh-tab" data-tab="tax" onclick="shSwitchTab('tax',this)">
-          <i class="ti ti-scale" style="color:var(--amber)"></i>
-          <span>Pajak &amp; Komisi Broker</span>
+                    <span>Pajak &amp; Komisi Broker</span>
         </button>
         <button class="sh-tab" data-tab="health" onclick="shSwitchTab('health',this)">
-          <i class="ti ti-stethoscope" style="color:#f43f5e"></i>
-          <span>Integritas &amp; Audit Trail</span>
+                    <span>Integritas &amp; Audit Trail</span>
         </button>
         <button class="sh-tab" data-tab="universe" onclick="shSwitchTab('universe',this)">
-          <i class="ti ti-list-details" style="color:#8b5cf6"></i>
-          <span>Kelola Universe Saham</span>
+                    <span>Kelola Universe Saham</span>
         </button>
         <button class="sh-tab" data-tab="account" onclick="shSwitchTab('account',this)">
-          <i class="ti ti-user" style="color:var(--text2)"></i>
-          <span>Akun &amp; Sesi Login</span>
+                    <span>Akun &amp; Sesi Login</span>
         </button>
       </div>
 
