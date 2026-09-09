@@ -495,6 +495,7 @@
       + '      <i class="ti ti-search" style="color:var(--text3)"></i>'
       + '      <input type="text" id="tw-ticker-input" list="idx-all-tickers-datalist" value="' + ticker + '" placeholder="Ketik kode saham..." style="background:none;border:none;outline:none;color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;width:120px;text-transform:uppercase" onkeydown="if(event.key===\'Enter\')twLoadTicker()">'
       + '    </div>'
+      + '    <div style="display:flex;align-items:center;gap:6px">' + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(ticker, 22) : '') + '<span class="mono" style="font-size:13px;font-weight:800;color:var(--text)">' + ticker + '</span></div>'
       + '    <button class="btn btn-blue btn-sm" onclick="twLoadTicker()">⚡ Analisa Wave</button>'
       + '    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-left:6px">'
       + '      <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">QUICK:</span>'

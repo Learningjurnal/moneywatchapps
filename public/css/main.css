@@ -445,6 +445,36 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
   width:100%;
   vertical-align:top;
 }
+
+/* Analytics row: the two content-heavy cards (Volatilitas & Risiko,
+   Komposisi & Alokasi Aset) side by side, equal-height via grid. */
+.dash-analytics-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  align-items:stretch;
+}
+.dash-analytics-row .dash-masonry-item{margin-bottom:0}
+.dash-analytics-row .dash-masonry-item > div{height:100%}
+
+/* Asset-class row: Saham/Crypto/Reksa Dana/ETF share one compact template,
+   so a plain equal-width grid packs them with no leftover space. */
+.dash-assetclass-row{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:16px;
+  align-items:stretch;
+}
+.dash-assetclass-row .dash-masonry-item{margin-bottom:0}
+.dash-assetclass-row .dash-masonry-item > div{height:100%}
+
+@media (max-width:1100px){
+  .dash-assetclass-row{grid-template-columns:repeat(2, 1fr)}
+}
+@media (max-width:768px){
+  .dash-analytics-row{grid-template-columns:1fr}
+  .dash-assetclass-row{grid-template-columns:1fr}
+}
 @supports (grid-template-rows: masonry){
   .dash-masonry-grid-native{
     display:grid;

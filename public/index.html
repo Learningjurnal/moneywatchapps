@@ -524,7 +524,13 @@
             </div>
         </div>
 
-        <!-- 2. DASHBOARD MASONRY GRID (TALL & SHORT CARDS PACKED SEAMLESSLY) -->
+        <!-- 2. DASHBOARD ASSET GRID — split into an analytics row (Volatilitas
+             & Risiko + Komposisi & Alokasi, the two content-heavy cards) and
+             an even asset-class row below (Saham/Crypto/Reksa Dana/ETF share
+             the same compact template, so a plain equal-height grid packs
+             them with no leftover space) instead of column-based masonry,
+             which left dead space under the shorter cards next to the tall
+             Volatilitas gauge+chart card. -->
         <div class="dash-masonry-container">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
                 <div style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">
@@ -532,7 +538,7 @@
                 </div>
             </div>
 
-            <div class="dash-masonry-columns cols-3">
+            <div class="dash-analytics-row">
 
                 <!-- MASONRY ITEM 1: PORTFOLIO VOLATILITY & RISK ASSESSMENT (TALL CARD) -->
                 <div class="dash-masonry-item">
@@ -694,7 +700,11 @@
                     </div>
                 </div>
 
-                <!-- MASONRY ITEM 3: SAHAM INDONESIA (IDX) CARD -->
+            </div>
+
+            <div class="dash-assetclass-row">
+
+                <!-- SAHAM INDONESIA (IDX) CARD -->
                 <div class="dash-masonry-item">
                     <div id="card-landing-stock" class="asset-card card-blue" onclick="goPage('portofolio')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(37, 99, 235, 0.35);box-shadow:0 4px 16px rgba(0,0,0,0.35)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(37, 99, 235, 0.25)';this.style.borderColor='var(--accent)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.35)';this.style.borderColor='rgba(37, 99, 235, 0.35)'">
                         <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
@@ -741,30 +751,7 @@
                     </div>
                 </div>
 
-                <!-- MASONRY ITEM 5: ETF US & GLOBAL CARD -->
-                <div class="dash-masonry-item">
-                    <div id="card-landing-etf" class="asset-card card-red" onclick="goPage('etf')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(255, 59, 92, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(255, 59, 92, 0.25)';this.style.borderColor='var(--red)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.35)';this.style.borderColor='rgba(255, 59, 92, 0.3)'">
-                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
-                            <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255, 59, 92, 0.12);color:var(--red);border:1px solid rgba(255, 59, 92, 0.3)">
-                                GLOBAL ETF
-                            </div>
-                        </div>
-                        <div style="margin-bottom:14px;flex:1">
-                            <div style="font-size:15px;color:var(--text);font-weight:800;margin-bottom:2px;font-family:var(--font-display)">ETF US &amp; Global</div>
-                            <div style="font-size:10.5px;color:var(--text3);margin-bottom:8px" id="hub-etf-count">0 ETF aktif</div>
-                            <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-etf-val">Rp 0</div>
-                            <div style="font-size:11.5px;margin-top:5px;color:var(--text3)">
-                                P&amp;L: <span style="font-weight:700;font-family:var(--font-mono)" id="hub-etf-pnl">Rp 0 (0.00%)</span>
-                            </div>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border-top:1px solid var(--border2);padding-top:10px;color:var(--red);font-weight:700">
-                            <span>Kelola ETF</span>
-                            <span>→</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- MASONRY ITEM 6: REKSA DANA & SBN CARD -->
+                <!-- MASONRY ITEM 5: REKSA DANA & SBN CARD -->
                 <div class="dash-masonry-item">
                     <div id="card-landing-fund" class="asset-card card-purple" onclick="goPage('reksadana')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(192, 132, 252, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(192, 132, 252, 0.25)';this.style.borderColor='var(--purple)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.35)';this.style.borderColor='rgba(192, 132, 252, 0.3)'">
                         <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
@@ -782,6 +769,29 @@
                         </div>
                         <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border-top:1px solid var(--border2);padding-top:10px;color:var(--purple);font-weight:700">
                             <span>Kelola Reksa Dana</span>
+                            <span>→</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MASONRY ITEM 6: ETF US & GLOBAL CARD -->
+                <div class="dash-masonry-item">
+                    <div id="card-landing-etf" class="asset-card card-red" onclick="goPage('etf')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(255, 59, 92, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(255, 59, 92, 0.25)';this.style.borderColor='var(--red)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.35)';this.style.borderColor='rgba(255, 59, 92, 0.3)'">
+                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
+                            <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255, 59, 92, 0.12);color:var(--red);border:1px solid rgba(255, 59, 92, 0.3)">
+                                GLOBAL ETF
+                            </div>
+                        </div>
+                        <div style="margin-bottom:14px;flex:1">
+                            <div style="font-size:15px;color:var(--text);font-weight:800;margin-bottom:2px;font-family:var(--font-display)">ETF US &amp; Global</div>
+                            <div style="font-size:10.5px;color:var(--text3);margin-bottom:8px" id="hub-etf-count">0 ETF aktif</div>
+                            <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-etf-val">Rp 0</div>
+                            <div style="font-size:11.5px;margin-top:5px;color:var(--text3)">
+                                P&amp;L: <span style="font-weight:700;font-family:var(--font-mono)" id="hub-etf-pnl">Rp 0 (0.00%)</span>
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border-top:1px solid var(--border2);padding-top:10px;color:var(--red);font-weight:700">
+                            <span>Kelola ETF</span>
                             <span>→</span>
                         </div>
                     </div>
@@ -2518,20 +2528,20 @@
       <!-- TOP COMMAND BAR -->
       <div class="sm-top-bar">
         <div class="sm-input-group">
-          <label>Kode Saham (Contoh: BBCA.JK, BBRI.JK, BMRI.JK)</label>
-          <input type="text" id="fundTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA.JK" onkeydown="if(event.key==='Enter')fundFetchData()">
+          <label>Kode Saham</label>
+          <input type="text" id="fundTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA.JK" placeholder="Contoh: BBCA.JK, BBRI.JK, BMRI.JK" onkeydown="if(event.key==='Enter')fundFetchData()">
         </div>
         <button class="sm-btn" onclick="fundFetchData()">Jalankan Analisa Fundamental</button>
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
-          <span class="sm-chip" onclick="fundSetTicker('BBCA.JK')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBCA"><img src="https://assets.stockbit.com/logos/companies/BBCA.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBCA</span>
-          <span class="sm-chip" onclick="fundSetTicker('BBRI.JK')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBRI"><img src="https://assets.stockbit.com/logos/companies/BBRI.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBRI</span>
-          <span class="sm-chip" onclick="fundSetTicker('BMRI.JK')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BMRI"><img src="https://assets.stockbit.com/logos/companies/BMRI.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BM</span></span>BMRI</span>
-          <span class="sm-chip" onclick="fundSetTicker('TLKM.JK')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="TLKM"><img src="https://assets.stockbit.com/logos/companies/TLKM.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">TL</span></span>TLKM</span>
-          <span class="sm-chip" onclick="fundSetTicker('ASII.JK')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ASII"><img src="https://assets.stockbit.com/logos/companies/ASII.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AS</span></span>ASII</span>
-          <span class="sm-chip" onclick="fundSetTicker('ICBP.JK')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ICBP"><img src="https://assets.stockbit.com/logos/companies/ICBP.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">IC</span></span>ICBP</span>
-          <span class="sm-chip" onclick="fundSetTicker('ADRO.JK')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ADRO"><img src="https://assets.stockbit.com/logos/companies/ADRO.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AD</span></span>ADRO</span>
-          <span class="sm-chip" onclick="fundSetTicker('AAPL')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="AAPL"><img src="https://assets.stockbit.com/logos/companies/AAPL.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AA</span></span>AAPL</span>
+          <span class="sm-chip" onclick="fundSetTicker('BBCA.JK')">BBCA</span>
+          <span class="sm-chip" onclick="fundSetTicker('BBRI.JK')">BBRI</span>
+          <span class="sm-chip" onclick="fundSetTicker('BMRI.JK')">BMRI</span>
+          <span class="sm-chip" onclick="fundSetTicker('TLKM.JK')">TLKM</span>
+          <span class="sm-chip" onclick="fundSetTicker('ASII.JK')">ASII</span>
+          <span class="sm-chip" onclick="fundSetTicker('ICBP.JK')">ICBP</span>
+          <span class="sm-chip" onclick="fundSetTicker('ADRO.JK')">ADRO</span>
+          <span class="sm-chip" onclick="fundSetTicker('AAPL')">AAPL</span>
         </div>
         <div id="fund-status" style="font-size:12px;font-weight:600;padding:10px 14px;border-radius:8px;display:none;width:100%"></div>
       </div>
@@ -2542,7 +2552,7 @@
         <!-- SECTION 1: Profil & Ringkasan Perusahaan -->
         <div id="fund-sec-1" style="scroll-margin-top:14px">
           <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
-            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 1</span>
+            <span id="fund-sel-logo" style="display:flex;align-items:center;gap:8px"></span>
             Profil &amp; Ringkasan Perusahaan
           </h2>
           <div class="sm-card sm-grid-3" style="margin-bottom:12px">
@@ -2623,21 +2633,9 @@
           </div>
         </div>
 
-        <!-- SECTION 9: Traffic Light Consensus -->
-        <div id="fund-sec-9" style="scroll-margin-top:14px">
-          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
-            <span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 9</span>
-            Traffic Light Consensus Matrix (Valuasi · Bandar Flow · Quant)
-          </h2>
-          <div class="sm-card" id="hw-traffic-light-card-t3" style="border-left:4px solid var(--accent);margin-bottom:0">
-            <div id="hw-tl-body-t3">Memuat konsensus sinyal terpadu...</div>
-          </div>
-        </div>
-
         <!-- SECTION 2: Earnings Breakdown -->
         <div id="fund-sec-2" style="scroll-margin-top:14px">
           <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
-            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 2</span>
             Earnings &amp; Growth Breakdown (LTM)
           </h2>
           <div class="sm-card sm-grid-3" style="margin-bottom:12px">
@@ -2657,7 +2655,6 @@
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div>
               <h2 style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:2px;display:flex;align-items:center;gap:8px">
-                <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 3</span>
                 Valuasi 9-Step Buffett (Margin of Safety)
               </h2>
               <p style="font-size:11px;color:var(--text3)">Kalkulasi nilai intrinsik dan margin of safety otomatis berdasarkan harga pasar terkini dan proyeksi fundamental.</p>
@@ -2708,7 +2705,6 @@
         <!-- SECTION 4: Multi-Model Valuation Matrix -->
         <div id="fund-sec-4" style="scroll-margin-top:14px">
           <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
-            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 4</span>
             Multi-Model Valuation Matrix &amp; 2D Sensitivity
           </h2>
           <div class="sm-card sm-grid-3" style="margin-bottom:12px">
@@ -2742,7 +2738,6 @@
         <!-- SECTION 5: DCF Simulator -->
         <div id="fund-sec-5" style="scroll-margin-top:14px">
           <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
-            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 5</span>
             Interactive DCF (Discounted Cash Flow) Simulator
           </h2>
           <div class="sm-card sm-grid-2" style="margin-bottom:12px">
@@ -2761,7 +2756,6 @@
         <!-- SECTION 6: Moat & Management Quality -->
         <div id="fund-sec-6" style="scroll-margin-top:14px">
           <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
-            <span style="background:rgba(59,130,246,0.2);color:#3B82F6;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 6</span>
             Financial Moat &amp; Management Capital Allocation
           </h2>
           <div class="sm-card sm-grid-2" style="margin-bottom:0">
@@ -2775,7 +2769,6 @@
         <!-- SECTION 7: Red Flag Detector -->
         <div id="fund-sec-7" style="scroll-margin-top:14px">
           <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
-            <span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:2px 8px;border-radius:4px;font-size:12px">BAGIAN 7</span>
             Quantitative Red Flag Detector
           </h2>
           <div class="sm-card" style="margin-bottom:0">
@@ -2786,11 +2779,21 @@
           </div>
         </div>
 
+        <!-- Traffic Light Consensus — kesimpulan/verdict, ditempatkan terakhir setelah semua analisa individual -->
+        <div id="fund-sec-9" style="scroll-margin-top:14px">
+          <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
+            Traffic Light Consensus Matrix (Valuasi · Bandar Flow · Quant)
+          </h2>
+          <div class="sm-card" id="hw-traffic-light-card-t3" style="border-left:4px solid var(--accent);margin-bottom:0">
+            <div id="hw-tl-body-t3">Memuat konsensus sinyal terpadu...</div>
+          </div>
+        </div>
+
       </div>
 
       <!-- TAB 8: Algorithmic Debate & 5-Point Quality -->
       <div id="fund-tab8" class="sm-tab-panel">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:var(--text)">8. Algorithmic Debate (Bull Case vs Bear Case) &amp; 5-Pilar Core Quality</h2>
+        <h2 style="font-size:16px;font-weight:800;margin-bottom:14px;color:var(--text)">Algorithmic Debate (Bull Case vs Bear Case) &amp; 5-Pilar Core Quality</h2>
         <div id="sm-bull-bear-container" style="margin-bottom:16px">Menunggu analisa emiten...</div>
         <div class="sm-card" id="sm-checklist-container">Menunggu data checklist...</div>
       </div>
@@ -2931,19 +2934,19 @@
       <!-- TOP COMMAND BAR -->
       <div class="sm-top-bar">
         <div class="sm-input-group">
-          <label>Kode Saham (Contoh: BBCA, BBRI, BMRI, TLKM, ASII)</label>
-          <input type="text" id="techTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA" onkeydown="if(event.key==='Enter')techFetchData()">
+          <label>Kode Saham</label>
+          <input type="text" id="techTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA" placeholder="Contoh: BBCA, BBRI, BMRI, TLKM, ASII" onkeydown="if(event.key==='Enter')techFetchData()">
         </div>
         <button class="sm-btn btn-tech" onclick="techFetchData()">Jalankan Analisa Teknikal &amp; Flow</button>
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
-          <span class="sm-chip" onclick="techSetTicker('BBCA')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBCA"><img src="https://assets.stockbit.com/logos/companies/BBCA.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBCA</span>
-          <span class="sm-chip" onclick="techSetTicker('BBRI')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBRI"><img src="https://assets.stockbit.com/logos/companies/BBRI.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBRI</span>
-          <span class="sm-chip" onclick="techSetTicker('BMRI')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BMRI"><img src="https://assets.stockbit.com/logos/companies/BMRI.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BM</span></span>BMRI</span>
-          <span class="sm-chip" onclick="techSetTicker('TLKM')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="TLKM"><img src="https://assets.stockbit.com/logos/companies/TLKM.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">TL</span></span>TLKM</span>
-          <span class="sm-chip" onclick="techSetTicker('ASII')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ASII"><img src="https://assets.stockbit.com/logos/companies/ASII.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AS</span></span>ASII</span>
-          <span class="sm-chip" onclick="techSetTicker('ADRO')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ADRO"><img src="https://assets.stockbit.com/logos/companies/ADRO.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AD</span></span>ADRO</span>
-          <span class="sm-chip" onclick="techSetTicker('ANTM')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ANTM"><img src="https://assets.stockbit.com/logos/companies/ANTM.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AN</span></span>ANTM</span>
+          <span class="sm-chip" onclick="techSetTicker('BBCA')">BBCA</span>
+          <span class="sm-chip" onclick="techSetTicker('BBRI')">BBRI</span>
+          <span class="sm-chip" onclick="techSetTicker('BMRI')">BMRI</span>
+          <span class="sm-chip" onclick="techSetTicker('TLKM')">TLKM</span>
+          <span class="sm-chip" onclick="techSetTicker('ASII')">ASII</span>
+          <span class="sm-chip" onclick="techSetTicker('ADRO')">ADRO</span>
+          <span class="sm-chip" onclick="techSetTicker('ANTM')">ANTM</span>
         </div>
         <div id="tech-status" style="font-size:12px;font-weight:600;padding:10px 14px;border-radius:8px;display:none;width:100%"></div>
       </div>
@@ -3238,7 +3241,10 @@
       <div class="card" id="hw-verdict-card" style="margin-bottom:16px;border-top-width:2px;border-top-color:var(--text3)">
         <div style="text-align:center;padding:10px 0">
           <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">VALUASI</div>
-          <div id="hw-ticker-display" style="font-size:22px;font-weight:700;font-family:var(--font-mono);color:var(--accent);margin-bottom:4px">—</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px">
+            <span id="hw-ticker-logo"></span>
+            <div id="hw-ticker-display" style="font-size:22px;font-weight:700;font-family:var(--font-mono);color:var(--accent)">—</div>
+          </div>
           <div id="hw-verdict-badge" style="display:inline-block;padding:4px 14px;border-radius:2px;font-size:11px;font-weight:700;font-family:var(--font-mono);background:var(--bg4);color:var(--text3);border:1px solid var(--border)">BELUM DIHITUNG</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">

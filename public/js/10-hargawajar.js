@@ -1909,6 +1909,8 @@ function hw_recalc() {
   // === Render Verdict & Badges ===
   var elTkDisp = document.getElementById('hw-ticker-display');
   if (elTkDisp) elTkDisp.textContent = ticker;
+  var elTkLogo = document.getElementById('hw-ticker-logo');
+  if (elTkLogo) elTkLogo.innerHTML = (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(ticker, 22) : '');
   var badge = document.getElementById('hw-verdict-badge');
   var verdCard = document.getElementById('hw-verdict-card');
   if (badge) {
