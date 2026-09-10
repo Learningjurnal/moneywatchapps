@@ -918,6 +918,31 @@ test('REGRESSION GUARD: dashboard HTML must still have both new zone containers'
     'AI Opportunity Radar card is missing the list container renderDashboardRadarPreview() writes into');
 });
 
+// ── TEST 35: Command Center P0 slice 3 (Alerts & Actions zone) —
+// UIUX_ROADMAP_AUDIT.md §6/§7. Deliberately reuses window.mwGetPriceAlerts()
+// (30-price-alerts.js, real user-set price targets checked against real
+// live prices) rather than the FS_RD-based alerts on the `alerts` page
+// (KNOWN_ISSUES.md #2 documents that path can show fabricated signals
+// with no disclosure) — this guard exists specifically so that choice
+// doesn't silently drift back to the unsafe source later.
+test('REGRESSION GUARD: renderDashboard() must call renderDashboardAlertsPreview(), reusing the REAL mwGetPriceAlerts()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  assert(/function renderDashboardAlertsPreview\(\)/.test(src), 'renderDashboardAlertsPreview() is missing');
+  const dashboardFn = src.match(/function renderDashboard\(\)\{[\s\S]*?\n\}/);
+  assert(dashboardFn, 'renderDashboard() function not found');
+  assert(dashboardFn[0].includes('renderDashboardAlertsPreview'),
+    'renderDashboard() no longer calls renderDashboardAlertsPreview() — the Alerts & Actions zone would silently stop updating');
+  assert(/mwGetPriceAlerts\(\)/.test(src),
+    'renderDashboardAlertsPreview() must reuse the REAL window.mwGetPriceAlerts() (30-price-alerts.js) — reading directly from FS_RD/fsGenAlerts() would reintroduce the fabricated-data risk documented in KNOWN_ISSUES.md #2');
+  assert(!/fsGenAlerts\(\)/.test(src.match(/function renderDashboardAlertsPreview\(\)\{[\s\S]*?\n\}/)?.[0] || ''),
+    'renderDashboardAlertsPreview() must not call the FS_RD-based fsGenAlerts() — see KNOWN_ISSUES.md #2');
+});
+test('REGRESSION GUARD: dashboard HTML must still have the Alerts zone container', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(src.includes('id="card-dash-alerts"'), '#card-dash-alerts container missing from index.html');
+  assert(src.includes('id="dash-alerts-list"'), 'Alerts card is missing the list container renderDashboardAlertsPreview() writes into');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

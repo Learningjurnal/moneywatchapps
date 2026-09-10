@@ -330,3 +330,38 @@ mendegradasi jujur (regime "BELUM DIKETAHUI" + alasan nyata dari
 halaman lengkap) — bukan crash, bukan data karangan. Di produksi
 (Vercel, Yahoo Finance terjangkau) kedua kartu akan menampilkan
 klasifikasi regime & top picks nyata.
+
+**Update 2026-09-10 — Investigasi Heatmap/Smart Money Flow, P0 slice 3
+EXECUTED (Alerts & Actions)**: sebelum melanjutkan ke 2 zona berikutnya
+(Market Heatmap, Smart Money Flow), ditemukan keduanya bergantung pada
+data yang **bisa jadi karangan tanpa disclosure** — dicatat sebagai
+`KNOWN_ISSUES.md` #2 (`fsGenData()`/`FS_RD`, dipakai Market Heatmap &
+alert "Akumulasi kuat" di halaman `alerts`) dan #3
+(`generateClientSideBrokerSummary()`, dipakai mode "Analisis Full
+Market" Bandarmology/Smart Money Flow — volume transaksinya dihitung
+dari hash nama ticker, bukan data broker riil). **Keduanya sengaja
+TIDAK dijadikan dasar kartu Command Center** — membuat preview di
+homepage akan memperbesar paparan ke sinyal yang berpotensi karangan,
+bukan menguranginya. Kedua zona ini ditunda sampai masalah datanya
+diperbaiki di sumbernya.
+
+Sebagai gantinya, **Alerts & Actions** (menjawab pertanyaan #5 "apa
+tindakan yang relevan") dibangun memakai sistem yang bersih:
+`window.mwGetPriceAlerts()` (`30-price-alerts.js`) — target harga yang
+di-set user sendiri, dicek ke harga live nyata setiap 10 detik oleh
+modul itu sendiri, sinkron (tidak perlu fetch tambahan dari dashboard).
+Kartu baru `#card-dash-alerts` menampilkan alert yang TERPICU (perlu
+ditinjau) di atas, plus ringkasan jumlah alert aktif dipantau. Diverifikasi
+end-to-end lewat server lokal + Playwright — termasuk skenario alert
+sungguhan terpicu (bukan cuma mock statis): dibuat 1 alert BBCA yang
+target-nya sudah terlampaui via fungsi asli `mwAddPriceAlert()`, kartu
+benar menampilkan badge "TERPICU" dan detail yang sesuai, klik kartu
+membawa ke halaman `alerts`, data test dibersihkan lagi di akhir. Nol
+error JS baru.
+
+Dengan ini, **3 dari 5 zona Command Center** yang aman untuk dibangun
+sekarang sudah selesai (Market Regime, AI Opportunity Radar, Alerts &
+Actions). Sisa 2 (Market Heatmap, Smart Money Flow) menunggu perbaikan
+data di `KNOWN_ISSUES.md` #2/#3. **AI Insight** (zona ke-6, sintesis
+"apa yang penting sekarang") belum dikerjakan — bukan soal data
+karangan, tapi memang logika baru yang belum ada bentuknya sama sekali.
