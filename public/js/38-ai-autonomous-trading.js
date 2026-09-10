@@ -861,6 +861,86 @@
     if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
   }
 
+  // Risk Engine / Risk Gate — FINANCIAL_POLICY.md §7 (values APPROVED by
+  // the owner, but until now zero enforcing code anywhere — see
+  // AUDIT_MASTER_REVIEW_2026-09-10_MAPPING.md, Master Review roadmap item
+  // 3 "Risk Engine / Risk Gate"). Checked inside aiOpenPositionFromSignal()
+  // below — the ONE real position-opening function; aiOpenPositionFromHypothesis()
+  // (the Hypothesis Lab's "Buka Posisi Paper" button) already funnels into
+  // it too, so this single gate covers both entry points at once, closing
+  // the gap where Scanner-direct opens skipped the R:R check that
+  // Hypothesis Lab's server-side gate (MIN_RR_RATIO in
+  // lib/idx-data-engine.js) already enforced.
+  //
+  // Full-enforcement from day one — NOT staged like MW-P0-001/Data Quality
+  // Gate. Those guarded a real user's real data/session; this guards a
+  // fabricated paper-trading balance. There is no "real user gets locked
+  // out of their own account" failure mode to observe first here, so an
+  // audit-only telemetry phase would only delay a fix already approved,
+  // with no corresponding safety benefit.
+  var RISK_POLICY = {
+    MAX_POSITION_PCT: 15,          // §7: Maximum single-stock position
+    MIN_CASH_BUFFER_PCT: 20,       // §7: Minimum RDN/cash buffer
+    MIN_RR_RATIO: 2,               // §7: Minimum Risk:Reward (to TP2 — matches
+                                    // generateTradingHypothesis()'s server-side gate)
+    MAX_DRAWDOWN_PCT: 15,          // §7: Maximum portfolio drawdown gate
+    MAX_CONCURRENT_POSITIONS: 10   // §7: Maximum concurrent new positions
+    // "Maximum capital at risk per trade" (1%) is already enforced via
+    // p.riskPerTradePct feeding the position-sizing formula below — not
+    // repeated here as a separate gate, just cross-checked by name in the
+    // comment so all six §7 limits are accounted for somewhere.
+  };
+
+  /**
+   * Evaluates a proposed new position against every §7 limit BEFORE it is
+   * allowed to open. Two kinds of outcome:
+   *  - Hard block (failures[] non-empty): portfolio-level conditions that
+   *    no amount of resizing can fix (already too many open positions,
+   *    already in deep drawdown, or the trade's own R:R never clears the
+   *    minimum regardless of size).
+   *  - Silent resize (cappedLots < proposedLots, no failure): concentration
+   *    and cash-buffer limits are enforced by shrinking the position to fit
+   *    — consistent with how affordableLots (cash affordability) already
+   *    caps sizing today — rather than an all-or-nothing rejection.
+   */
+  function assessRiskGate(p, entry, sl, tp2, proposedLots) {
+    var failures = [];
+    var cappedLots = proposedLots;
+
+    if (p.maxDrawdownPct != null && p.maxDrawdownPct >= RISK_POLICY.MAX_DRAWDOWN_PCT) {
+      failures.push('Portfolio sedang drawdown ' + p.maxDrawdownPct.toFixed(1) + '% (limit ' + RISK_POLICY.MAX_DRAWDOWN_PCT + '%) — posisi baru diblokir sampai drawdown pulih.');
+    }
+
+    if (p.openPositions.length >= RISK_POLICY.MAX_CONCURRENT_POSITIONS) {
+      failures.push('Sudah ada ' + p.openPositions.length + ' posisi terbuka (limit ' + RISK_POLICY.MAX_CONCURRENT_POSITIONS + ') — tutup salah satu dulu sebelum membuka posisi baru.');
+    }
+
+    var riskPerShare = entry - sl;
+    var rewardToTp2 = (tp2 != null) ? (tp2 - entry) : null;
+    var rrToTp2 = (riskPerShare > 0 && rewardToTp2 != null) ? (rewardToTp2 / riskPerShare) : null;
+    if (rrToTp2 == null || rrToTp2 < RISK_POLICY.MIN_RR_RATIO) {
+      failures.push('Rasio risk:reward ke TP2 (' + (rrToTp2 != null ? rrToTp2.toFixed(2) : 'N/A') + ') di bawah minimum 1:' + RISK_POLICY.MIN_RR_RATIO + '.');
+    }
+
+    if (riskPerShare > 0 && cappedLots > 0) {
+      var maxValueByConcentration = p.totalEquity * (RISK_POLICY.MAX_POSITION_PCT / 100);
+      var maxLotsByConcentration = Math.floor(maxValueByConcentration / (entry * 100));
+      if (maxLotsByConcentration < cappedLots) cappedLots = Math.max(0, maxLotsByConcentration);
+
+      var minCashRequired = p.totalEquity * (RISK_POLICY.MIN_CASH_BUFFER_PCT / 100);
+      var cashAvailableForThisTrade = Math.max(0, p.cash - minCashRequired);
+      var maxLotsByCashBuffer = Math.floor(cashAvailableForThisTrade / (entry * 100));
+      if (maxLotsByCashBuffer < cappedLots) cappedLots = Math.max(0, maxLotsByCashBuffer);
+    }
+
+    return {
+      passed: failures.length === 0 && cappedLots > 0,
+      failures: failures,
+      cappedLots: cappedLots,
+      wasCapped: cappedLots < proposedLots && failures.length === 0
+    };
+  }
+
   // Opens a real paper position from the CURRENT scanned signal for a
   // ticker (must exist in AI_UNIVERSE with a BUY/STRONG BUY signal) —
   // sized by the account's stated 1% risk-per-trade policy divided by the
@@ -911,6 +991,19 @@
       if (typeof showToast === 'function') showToast('Modal/risiko tidak cukup untuk membuka posisi ' + ticker + ' minimal 1 lot.');
       return;
     }
+
+    // Risk Engine / Risk Gate (FINANCIAL_POLICY.md §7) — see assessRiskGate()
+    // above. Hard-blocks on drawdown/concurrent-position/R:R violations;
+    // silently resizes `lots` down for concentration/cash-buffer violations.
+    var riskGate = assessRiskGate(p, entry, sl, tp2, lots);
+    if (!riskGate.passed) {
+      if (typeof showToast === 'function') showToast('Risk Gate menolak posisi ' + ticker + ': ' + riskGate.failures.join(' '));
+      return;
+    }
+    if (riskGate.wasCapped) {
+      if (typeof showToast === 'function') showToast('Ukuran posisi ' + ticker + ' dipangkas ' + lots + ' → ' + riskGate.cappedLots + ' lot untuk mematuhi limit konsentrasi/cash buffer (FINANCIAL_POLICY.md §7).');
+    }
+    lots = riskGate.cappedLots;
 
     var shares = lots * 100;
     var costBasis = shares * entry;
