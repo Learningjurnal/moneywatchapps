@@ -6,6 +6,7 @@ function renderDashboard(){
   if(typeof renderDashboardMarketRegime === 'function') renderDashboardMarketRegime();
   if(typeof renderDashboardRadarPreview === 'function') renderDashboardRadarPreview();
   if(typeof renderDashboardAlertsPreview === 'function') renderDashboardAlertsPreview();
+  if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
 }
 
 // ============================================================
@@ -18,6 +19,14 @@ function renderDashboard(){
 // AI Trading/Radar pages, so a dashboard visit never triggers an
 // unrelated re-render of those pages.
 // ============================================================
+
+// Shared state the AI Insight zone (further below) reads from, written by
+// the Market Regime and AI Opportunity Radar fetches as they complete —
+// see renderDashboardAIInsight()'s own comment for why this is a
+// rule-based aggregation of the other zones' already-fetched real data,
+// not a fourth independent fetch or a live LLM call.
+var _dashInsightRegime = null; // last real regime result, or null while loading/failed
+var _dashInsightTopPick = null; // top BUY ZONE radar item, or null
 
 var _dashRegimeLoading = false;
 var DASH_REGIME_DISPLAY = {
@@ -53,6 +62,7 @@ async function renderDashboardMarketRegime(){
       el('dash-regime-ihsg-chg').style.color = (chg != null && chg < 0) ? 'var(--red)' : 'var(--green)';
     }
     if(el('dash-regime-desc')) el('dash-regime-desc').textContent = r.description || '';
+    _dashInsightRegime = r;
   } catch(err){
     if(el('dash-regime-badge')){
       el('dash-regime-badge').textContent = 'Gagal Memuat';
@@ -60,8 +70,10 @@ async function renderDashboardMarketRegime(){
       el('dash-regime-badge').style.background = 'var(--bg3)';
     }
     if(el('dash-regime-desc')) el('dash-regime-desc').textContent = 'Tidak bisa memuat klasifikasi market regime saat ini: ' + ((err && err.message) || 'error jaringan') + '.';
+    _dashInsightRegime = null;
   } finally {
     _dashRegimeLoading = false;
+    if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
   }
 }
 
@@ -82,6 +94,7 @@ async function renderDashboardRadarPreview(){
       .sort(function(a,b){ return (b.score || 0) - (a.score || 0); })
       .slice(0, 5);
     if(!el('dash-radar-list')) return;
+    _dashInsightTopPick = top[0] || null;
     if(!top.length){
       el('dash-radar-list').innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0;grid-column:1/-1">Belum ada saham di BUY ZONE saat ini — cek halaman Radar untuk daftar lengkap.</div>';
       return;
@@ -98,8 +111,10 @@ async function renderDashboardRadarPreview(){
     }).join('');
   } catch(err){
     if(el('dash-radar-list')) el('dash-radar-list').innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0;grid-column:1/-1">Gagal memuat AI Opportunity Radar: ' + escHtml((err && err.message) || 'error jaringan') + '.</div>';
+    _dashInsightTopPick = null;
   } finally {
     _dashRadarLoading = false;
+    if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
   }
 }
 
@@ -141,6 +156,89 @@ function renderDashboardAlertsPreview(){
     list.innerHTML = html;
   } catch(err){
     list.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal memuat Price Alerts: ' + escHtml((err && err.message) || 'error') + '.</div>';
+  }
+}
+
+// Command Center zone: AI Insight. This is a RULE-BASED synthesis of the
+// three zones already built above — it makes no fetch of its own and
+// calls no LLM. Deliberately not a live AI call: this function runs on
+// every renderDashboard() (and again whenever Market Regime/AI Radar
+// finish loading), so a real per-request LLM call here would be slow and
+// costly for something that fires this often. Per the roadmap's own
+// AI Insight guidance (§10) — "Bedakan fakta, model output, dan opini/
+// hipotesis AI" — every line below is labeled with which real module it
+// came from, so nothing here is presented as if it were a live AI
+// judgment call it isn't. Reads:
+//   - _dashInsightRegime (set by renderDashboardMarketRegime())
+//   - _dashInsightTopPick (set by renderDashboardRadarPreview())
+//   - the Portfolio Snapshot risk gauge's own DOM output (renderPortfolioHub()
+//     already ran earlier in renderDashboard() and populated these, no
+//     recomputation needed)
+//   - window.mwGetPriceAlerts() (30-price-alerts.js), same real source as
+//     the Alerts & Actions card
+function renderDashboardAIInsight(){
+  var box = el('dash-insight-body');
+  if(!box) return;
+  try {
+    var lines = [];
+
+    // 1. Kondisi market — dari Market Regime (real, /api/idx/regime)
+    if(_dashInsightRegime){
+      lines.push({
+        label: 'Kondisi Market',
+        text: _dashInsightRegime.description || 'Regime: ' + _dashInsightRegime.regime,
+        source: 'Market Regime'
+      });
+    } else {
+      lines.push({ label: 'Kondisi Market', text: 'Memuat klasifikasi regime market…', source: 'Market Regime' });
+    }
+
+    // 2. Risiko utama — dari gauge Volatilitas & Risiko (Portfolio Snapshot,
+    // sudah dirender lebih dulu oleh renderPortfolioHub() di atas) + jumlah
+    // alert yang terpicu (Alerts & Actions)
+    var riskCat = el('vol-risk-category') ? el('vol-risk-category').textContent.trim() : '';
+    var riskScore = el('vol-risk-score') ? el('vol-risk-score').textContent.trim() : '';
+    var alerts = (typeof mwGetPriceAlerts === 'function') ? mwGetPriceAlerts() : [];
+    var triggeredCount = alerts.filter(function(a){ return a.status === 'TRIGGERED'; }).length;
+    var riskParts = [];
+    if(riskCat) riskParts.push('Profil risiko portofolio: ' + riskCat + (riskScore ? ' (skor ' + riskScore + '/100)' : ''));
+    if(triggeredCount > 0) riskParts.push(triggeredCount + ' price alert sedang terpicu, perlu ditinjau');
+    lines.push({
+      label: 'Risiko Utama',
+      text: riskParts.length ? riskParts.join(' · ') : 'Belum ada indikasi risiko mendesak dari portofolio atau alert saat ini.',
+      source: 'Portfolio Snapshot + Alerts'
+    });
+
+    // 3. Tindakan direkomendasikan — dari top pick AI Opportunity Radar,
+    // jatuh ke saran umum berbasis regime kalau belum ada BUY ZONE pick
+    if(_dashInsightTopPick){
+      lines.push({
+        label: 'Tindakan Direkomendasikan',
+        text: 'Pertimbangkan ' + _dashInsightTopPick.ticker + ' (' + (_dashInsightTopPick.verdict || 'BUY ZONE') + ', skor ' + _dashInsightTopPick.score + '/100) — lihat evidence lengkapnya sebelum memutuskan.',
+        source: 'AI Opportunity Radar'
+      });
+    } else if(_dashInsightRegime && (_dashInsightRegime.regime === 'BEAR_TREND' || _dashInsightRegime.regime === 'RISK_OFF')) {
+      lines.push({
+        label: 'Tindakan Direkomendasikan',
+        text: 'Belum ada saham di BUY ZONE dan regime market sedang ' + (_dashInsightRegime.regime === 'RISK_OFF' ? 'risk-off' : 'bearish') + ' — pertimbangkan wait-and-see, bukan menambah posisi baru.',
+        source: 'Market Regime + AI Opportunity Radar'
+      });
+    } else {
+      lines.push({
+        label: 'Tindakan Direkomendasikan',
+        text: 'Belum ada saham di BUY ZONE saat ini — pantau Opportunity Radar secara berkala.',
+        source: 'AI Opportunity Radar'
+      });
+    }
+
+    box.innerHTML = lines.map(function(l){
+      return '<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0">'
+        + '<span style="font-size:10px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;min-width:150px">' + escHtml(l.label) + '</span>'
+        + '<span style="flex:1;font-size:12px;color:var(--text2);line-height:1.5">' + escHtml(l.text) + ' <span style="color:var(--text3);font-size:10px">(' + escHtml(l.source) + ')</span></span>'
+        + '</div>';
+    }).join('');
+  } catch(err){
+    box.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal menyusun ringkasan: ' + escHtml((err && err.message) || 'error') + '.</div>';
   }
 }
 

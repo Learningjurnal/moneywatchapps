@@ -365,3 +365,38 @@ Actions). Sisa 2 (Market Heatmap, Smart Money Flow) menunggu perbaikan
 data di `KNOWN_ISSUES.md` #2/#3. **AI Insight** (zona ke-6, sintesis
 "apa yang penting sekarang") belum dikerjakan — bukan soal data
 karangan, tapi memang logika baru yang belum ada bentuknya sama sekali.
+
+**Update 2026-09-10 — P0 slice 4 EXECUTED (AI Insight)**: zona terakhir
+yang bisa dibangun tanpa menunggu perbaikan data karangan di
+`KNOWN_ISSUES.md` #2/#3. Berbeda dari 3 zona sebelumnya, **AI Insight
+bukan reuse data mentah dari satu sumber** — ini sintesis berbasis
+ATURAN (bukan panggilan LLM/AI langsung) dari 3 zona yang sudah
+dibangun: Market Regime, Portfolio Snapshot (gauge risiko yang sudah
+ada), dan AI Opportunity Radar, ditambah Alerts & Actions. Sengaja
+BUKAN panggilan AI per-request — fungsi ini jalan tiap kali Dashboard
+dirender, jadi panggilan LLM sungguhan di sini akan lambat & mahal
+untuk sesuatu yang sesering itu dipanggil. Setiap baris diberi label
+sumber datanya secara eksplisit (mis. "(Market Regime)",
+"(Portfolio Snapshot + Alerts)") — sesuai panduan roadmap §10 sendiri:
+*"Bedakan fakta, model output, dan opini/hipotesis AI"* — supaya tidak
+ada satu pun klaim yang terlihat seperti keputusan AI langsung padahal
+sebenarnya agregasi aturan dari data yang sudah ditampilkan di tempat
+lain.
+
+Kartu baru `#card-dash-insight` menampilkan 3 baris: **Kondisi Market**
+(dari regime), **Risiko Utama** (dari profil risiko portofolio + jumlah
+alert terpicu), **Tindakan Direkomendasikan** (dari top pick radar,
+atau saran umum berbasis regime kalau belum ada BUY ZONE). Diverifikasi
+end-to-end lewat server lokal + Playwright: kartu ter-update otomatis
+begitu Market Regime & AI Radar selesai fetch (bukan cuma sekali saat
+load awal dengan data kosong), dan begitu 1 alert BBCA sungguhan
+dibuat lewat `mwAddPriceAlert()` sampai terpicu, baris "Risiko Utama"
+langsung mencerminkannya ("1 price alert sedang terpicu, perlu
+ditinjau") tanpa refresh manual. Nol error JS baru.
+
+**Command Center sekarang punya 4 dari 6 zona roadmap** (Market Regime,
+Portfolio Snapshot [sudah ada sejak awal], AI Opportunity Radar,
+Alerts & Actions, plus AI Insight sebagai lapisan sintesis di atas
+semuanya). 2 zona sisa (Market Heatmap, Smart Money Flow) menunggu
+perbaikan data di `KNOWN_ISSUES.md` #2/#3 sebelum bisa dibangun dengan
+aman.
