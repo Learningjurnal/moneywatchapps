@@ -127,3 +127,50 @@ was added afterward to make the same class of bug harder to ship again.
     incident that prompted it: the same rule, applied as a search
     pattern rather than a checklist item, found a second real instance
     before it ever reached production logs.
+
+---
+
+## #4 — No double-submit guard on 7 of 8 modal "Konfirmasi/Simpan" buttons
+
+- **Date:** 2026-09-10 (same day)
+- **Found by:** a proactive sweep for a different bug pattern class — not
+  from a user report or a log symptom. Noticed `submitDivModal()`
+  (`public/js/05-assets.js`) already has a duplicate-detection fix (see its
+  own `FIX AUDIT` comment: "dividen tercatat 2x") but the other 7 modal
+  submit functions (Buy/Sell saham, crypto, ETF, reksa dana, Setor/Tarik,
+  Penyesuaian Saldo, Biaya) had no equivalent protection at all.
+- **Impact (latent, not yet confirmed to have fired in production):** a
+  fast double-click or double-tap on any "Konfirmasi"/"Simpan" button would
+  fire two separate, fully-completed `click` handler invocations. Each one
+  writes an unconditional new transaction/mutation with zero duplicate
+  detection (`addTx()`, `addCryptoTx()`, `addEtfTx()`, `addRdTx()`,
+  `addRdn()` all just `.push()` unconditionally) — a real double-submit
+  would silently double the shares, double the cash debit/credit, and
+  double the fees on the user's own portfolio data, with no error and no
+  indication anything went wrong.
+- **Root cause:** `closeModal()` only removes a CSS class (`.on`) from the
+  modal — it never disables the confirm `<button>` or otherwise blocks a
+  second `click` event already in flight. Because click targets for a
+  physical double-click are resolved from the original pointer
+  down/up coordinates (not re-checked against DOM visibility at dispatch
+  time), a queued second `click` still reaches the same handler even after
+  the first invocation has already run to completion and hidden the modal.
+  An in-function "isSubmitting" flag reset at the end of the function
+  cannot catch this either — JS's single-threaded event loop means the
+  first invocation always finishes (flag back to false) before the second
+  one starts, so the two calls never literally overlap for a boolean flag
+  to guard against.
+- **Fix:** a shared timestamp-cooldown guard, `_modalSubmitAllowed()`
+  (800ms), called once in each of the 8 submit functions right after field
+  validation passes and right before the actual data write — so a failed
+  validation never consumes the cooldown, but two valid submits within
+  800ms only let the first one through.
+- **Prevention added:**
+  - `test_suite.js` TEST 32: a pure contract test for
+    `_modalSubmitAllowed()`'s cooldown-boundary behavior, plus a
+    regression guard that greps `05-assets.js` for exactly 8
+    `if(!_modalSubmitAllowed()) return;` call sites — catches both a
+    dropped guard and a new modal submit function added without one.
+    Verified to actually fail (with a clear message naming the missing
+    count) when one guard call site is removed, before being added to
+    `npm test`.

@@ -806,6 +806,38 @@ test('REGRESSION GUARD: 41-stockchat-cockpit.js broker tables must guard avgPric
   assert.strictEqual(guardedCount, 2, 'Expected both the Top Buyer and Top Seller table price-spread calcs to carry the avgPrice>0 guard');
 });
 
+// ── TEST 32: double-submit guard on every modal "Konfirmasi/Simpan" button ──
+// public/js/05-assets.js can't safely run under Node either (same ~20
+// implicit-global problem as TEST 29-31), so this locks down the contract
+// of _modalSubmitAllowed() instead: a fast double-click/double-tap fires
+// two SEPARATE, fully-completed synchronous click-handler invocations (JS's
+// single-threaded event loop means they never literally overlap), so an
+// in-function "isSubmitting" flag reset at the end of the function can't
+// catch it — only a timestamp cooldown checked at call time can. Before
+// this fix, submitTxModal()/submitCryptoModal()/submitEtfModal()/
+// submitRdModal()/submitRdn()/submitAdjustRdn()/submitFee()/submitDivModal()
+// had zero protection against this (unlike submitDivModal()'s existing
+// isDividendAlreadyRecorded() 45-day dedup, which catches the dividend
+// case of this same class of bug but was never applied to the other 7).
+function modalSubmitAllowedContract(lastSubmitAt, cooldownMs, now) {
+  return (now - lastSubmitAt) >= cooldownMs;
+}
+test('_modalSubmitAllowed() contract: rejects a second submit within the cooldown window, allows one after', () => {
+  const cooldownMs = 800;
+  let lastSubmitAt = 1000;
+  assert.strictEqual(modalSubmitAllowedContract(lastSubmitAt, cooldownMs, 1000), false, 'First real submit already recorded — a call at the SAME instant (the double-click case) must be rejected');
+  assert.strictEqual(modalSubmitAllowedContract(lastSubmitAt, cooldownMs, 1799), false, 'Still inside the 800ms cooldown window — must stay rejected');
+  assert.strictEqual(modalSubmitAllowedContract(lastSubmitAt, cooldownMs, 1800), true, 'Exactly at the cooldown boundary — must be allowed again');
+});
+test('REGRESSION GUARD: every modal submit function in 05-assets.js must call _modalSubmitAllowed() before writing data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/05-assets.js'), 'utf8');
+  assert(/function _modalSubmitAllowed\(\)/.test(src), 'The shared _modalSubmitAllowed() guard function itself is missing');
+  const guardCallCount = (src.match(/if\(!_modalSubmitAllowed\(\)\) return;/g) || []).length;
+  assert.strictEqual(guardCallCount, 8,
+    'Expected the double-submit guard in exactly 8 places (submitCryptoModal, submitEtfModal, submitRdModal, submitFee, submitAdjustRdn, submitRdn, submitTxModal, submitDivModal) — got ' + guardCallCount + '. If a new modal submit function was added, give it the guard too; if this dropped, a real double-click/double-tap can silently write a duplicate transaction/mutation with no automatic dedup.'
+  );
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
