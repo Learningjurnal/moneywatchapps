@@ -2,6 +2,34 @@
 // MODAL
 // ============================================================
 var modalType='';
+
+// Shared double-submit guard for every modal "Konfirmasi/Simpan" button
+// (Beli/Jual saham, crypto, ETF, reksa dana, Setor/Tarik, Penyesuaian
+// Saldo, Biaya, Dividen). A fast double-click/double-tap dispatches two
+// separate, fully-completed synchronous click-handler runs — JS's
+// single-threaded event loop means they never literally overlap, so an
+// in-function "isSubmitting" flag reset at the end of the function can't
+// catch it (the first call has already finished, flag back to false,
+// before the second call even starts). The guard has to be a short
+// timestamp cooldown instead — same pattern as the auto-retry cooldowns
+// in 27-stockintel.js/38-ai-autonomous-trading.js (INCIDENT_LOG.md #2/#3),
+// applied here against a different failure mode: not an infinite loop,
+// but a single duplicate transaction/mutation with no automatic dedup
+// (unlike submitDivModal(), which already has isDividendAlreadyRecorded()
+// — see the FIX AUDIT comment there for the dividend case of this exact
+// class of bug). Call _modalSubmitAllowed() once, right before the actual
+// addTx()/addRdn()/etc. write, after all field validation has passed —
+// a validation failure (missing/invalid input) must never consume the
+// cooldown, so the user can fix the field and retry immediately.
+var _lastModalSubmitAt = 0;
+var MODAL_SUBMIT_COOLDOWN_MS = 800;
+function _modalSubmitAllowed(){
+  var now = Date.now();
+  if (now - _lastModalSubmitAt < MODAL_SUBMIT_COOLDOWN_MS) return false;
+  _lastModalSubmitAt = now;
+  return true;
+}
+
 function openModal(type, targetAccount){
   modalType=type;
   var targetAcc = targetAccount || 'saham';
@@ -899,6 +927,7 @@ function submitCryptoModal(type){
   var date=el('mf-date').value;var coin=el('cr-coin').value;
   var qty=parseFloat(el('cr-qty').value||0);var price=parseFloat(el('cr-price').value||0);
   if(!date||!coin||qty<=0||price<=0){alert('Lengkapi semua data!');return;}
+  if(!_modalSubmitAllowed()) return;
   addCryptoTx(date,type.toUpperCase(),coin,qty,price);
   saveData();
   showSaveStatus('✓ Transaksi crypto '+coin+' tersimpan');
@@ -1098,6 +1127,7 @@ function submitEtfModal(type){
   var shares=parseFloat(el('etf-shares').value||0);var price=parseFloat(el('etf-price').value||0);
   var kursInp=parseFloat(el('etf-kurs-inp').value||usdIdr);
   if(!date||!ticker||shares<=0||price<=0){alert('Lengkapi semua data!');return;}
+  if(!_modalSubmitAllowed()) return;
   addEtfTx(date,type.toUpperCase(),ticker,shares,price,kursInp);
   saveData();
   showSaveStatus('✓ Transaksi ETF '+ticker+' tersimpan');
@@ -1420,6 +1450,7 @@ function submitRdModal(type){
   var date=el('mf-date').value;var code=el('rd-code').value;
   var amount=parseFloat(el('rd-amount').value||0);var nab=parseFloat(el('rd-nab').value||0);
   if(!date||!code||amount<=0||nab<=0){alert('Lengkapi semua data!');return;}
+  if(!_modalSubmitAllowed()) return;
   addRdTx(date,type.toUpperCase(),code,amount,nab);
   saveData();
   showSaveStatus('✓ Reksa dana tersimpan — dashboard diperbarui');
@@ -1545,6 +1576,7 @@ function submitFee(){
   var sek=(el('mf-fee-sec')&&el('mf-fee-sec').value)||activeSekuritas;
   var ket=el('mf-ket')&&el('mf-ket').value||'';
   if(!date||amount<=0){alert('Lengkapi tanggal dan jumlah biaya!');return;}
+  if(!_modalSubmitAllowed()) return;
   var ft=FEE_TYPES.find(function(f){return f.value===feeType;})||{label:'Biaya Lainnya'};
   var keterangan=ft.label+(ket?' — '+ket:'');
   // Catat sebagai mutasi RDN keluar dengan type = feeType
@@ -1600,6 +1632,8 @@ function submitAdjustRdn(){
     return;
   }
 
+  if(!_modalSubmitAllowed()) return;
+
   var isIn = diff > 0;
   var absDiff = Math.abs(diff);
   var defaultKet = 'Penyesuaian Saldo ' + (acc === 'crypto' ? 'Kas Crypto' : acc === 'reksadana' ? 'Kas Reksa Dana' : 'Kas Saham IDX') + ' (' + (isIn ? '+' : '-') + 'Rp ' + fmt(Math.round(absDiff)) + ')';
@@ -1621,6 +1655,7 @@ function submitRdn(){
   var sek=(acc==='saham' ? (el('mf-sec')&&el('mf-sec').value||activeSekuritas) : (acc==='crypto'?'Crypto Exchange':'Platform RD'));
 
   if(!date||amount<=0){alert('Lengkapi tanggal dan jumlah dana!');return;}
+  if(!_modalSubmitAllowed()) return;
   var isIn=modalType==='setor';
   var accLabel = acc==='crypto'?'Kas Crypto':acc==='reksadana'?'Kas Reksa Dana':'RDN Saham';
   addRdn(date,isIn?'SETOR':'TARIK',ket||((isIn?'Setoran dana ':'Penarikan dana ')+accLabel),isIn?amount:-amount,sek,null,acc);
@@ -1635,6 +1670,7 @@ function submitTxModal(){
   var date=el('mf-date').value;var sec=el('mf-sec').value;var ticker=el('mf-ticker').value;
   var lot=parseFloat(el('mf-lot').value||0);var price=parsePrice(el('mf-price')&&el('mf-price').value||'0');
   if(!date||!ticker||lot<=0||price<=0){alert('Lengkapi semua data!');return;}
+  if(!_modalSubmitAllowed()) return;
   addTx(date,modalType==='buy'?'BUY':'SELL',ticker,lot,price,sec);
   showSaveStatus('✓ Transaksi '+(modalType==='buy'?'Beli':'Jual')+' '+ticker+' tersimpan');
   closeModal();renderPage(currentPage);
@@ -1657,6 +1693,7 @@ function submitDivModal(){
   if(typeof isDividendAlreadyRecorded==='function' && isDividendAlreadyRecorded(ticker,date)){
     if(!confirm('Dividen '+ticker+' untuk periode ini sepertinya sudah tercatat (ada entri dalam rentang 45 hari dari tanggal ini). Tetap tambahkan sebagai entri baru?')) return;
   }
+  if(!_modalSubmitAllowed()) return;
   addDiv(date,ticker,shares,dps);
   showSaveStatus('✓ Dividen '+ticker+' tersimpan');
   closeModal();renderPage(currentPage);
