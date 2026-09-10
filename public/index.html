@@ -474,6 +474,28 @@
             </div>
         </div>
 
+        <!-- 0. MARKET REGIME (Command Center zone — UIUX_ROADMAP_AUDIT.md §6/§7,
+             P0 slice 2). Real classifyMarketRegime() via GET /api/idx/regime —
+             same endpoint the Market Regime tab (AI Trading) and
+             fetchAiMarketRegime() already use; this is an independent fetch
+             (not sharing AI_TRADE_STATE) so a dashboard visit never triggers
+             an unrelated re-render of the AI Trading page. Answers roadmap
+             question #1 ("bagaimana kondisi market") at the top of the page,
+             before portfolio specifics. -->
+        <div id="card-dash-regime" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+          <div style="display:flex;align-items:center;gap:10px;min-width:180px">
+            <span id="dash-regime-badge" class="badge" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;background:var(--bg3);color:var(--text3)">Memuat…</span>
+            <span id="dash-regime-confidence" style="font-size:10.5px;color:var(--text3);font-family:var(--font-mono)"></span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:8px;min-width:140px">
+            <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">IHSG</span>
+            <span id="dash-regime-ihsg" style="font-size:16px;font-weight:800;font-family:var(--font-mono);color:var(--text)">—</span>
+            <span id="dash-regime-ihsg-chg" style="font-size:11.5px;font-weight:700;font-family:var(--font-mono)"></span>
+          </div>
+          <div id="dash-regime-desc" style="flex:1;min-width:220px;font-size:11.5px;color:var(--text2);line-height:1.4">Memuat klasifikasi regime pasar…</div>
+          <button class="btn btn-ghost btn-xs" onclick="goPage('market-regime')" style="font-size:11px;font-weight:700;white-space:nowrap">Lihat Detail →</button>
+        </div>
+
         <!-- 1. MANAGE ASSET CARD (EXECUTIVE SUMMARY STRIP) -->
         <div id="card-manage-asset" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:14px">
@@ -809,6 +831,23 @@
                 </div>
 
             </div>
+        </div>
+
+        <!-- 3. AI OPPORTUNITY RADAR PREVIEW (Command Center zone — same slice
+             as Market Regime above). Reuses the REAL loadOpportunityRadarUniverse()
+             /RADAR_STATE from 26-commandcenter.js (the same data the full
+             Opportunity Radar page uses) rather than a separate fetch/scoring
+             logic — visiting the dashboard also warms the cache for when the
+             user opens the full Radar page next. Answers roadmap question #3
+             ("apa peluang terbaik"). -->
+        <div id="card-dash-radar" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Opportunity Radar</span>
+            <button class="btn btn-ghost btn-xs" onclick="goPage('radar')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
+          </div>
+          <div id="dash-radar-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:10px">
+            <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat peluang teratas…</div>
+          </div>
         </div>
   </div>
 
@@ -3934,7 +3973,7 @@
 <script src="js/02-storage.js?v=20260909b"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
 <script src="js/03-engine.js?v=20260910a"></script>
-<script src="js/04-render.js?v=20260906b"></script>
+<script src="js/04-render.js?v=20260910a"></script>
 <script src="js/36-crypto-technical.js?v=20260906e"></script>
 <script src="js/05-assets.js?v=20260910a"></script>
 <script src="js/06-analysis-router.js?v=20260909a"></script>

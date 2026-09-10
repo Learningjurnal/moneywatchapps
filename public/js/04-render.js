@@ -3,6 +3,103 @@
 // ============================================================
 function renderDashboard(){
   if(typeof renderPortfolioHub === 'function') renderPortfolioHub();
+  if(typeof renderDashboardMarketRegime === 'function') renderDashboardMarketRegime();
+  if(typeof renderDashboardRadarPreview === 'function') renderDashboardRadarPreview();
+}
+
+// ============================================================
+// COMMAND CENTER ZONES (P0 slice 2, UIUX_ROADMAP_AUDIT.md §6/§7) — the
+// dashboard's existing content already covers "Portfolio Snapshot"
+// thoroughly (renderPortfolioHub() above); these two functions add the
+// two market-wide zones the roadmap calls for and that had zero
+// dashboard presence before: Market Regime and an AI Opportunity Radar
+// preview. Both are independent fetches, not shared state with the full
+// AI Trading/Radar pages, so a dashboard visit never triggers an
+// unrelated re-render of those pages.
+// ============================================================
+
+var _dashRegimeLoading = false;
+var DASH_REGIME_DISPLAY = {
+  BULL_TREND: { label: 'BULL TREND', color: 'var(--green)', bg: 'rgba(0,245,155,0.15)' },
+  BEAR_TREND: { label: 'BEAR TREND', color: 'var(--red)', bg: 'rgba(255,61,90,0.15)' },
+  HIGH_VOLATILITY: { label: 'HIGH VOLATILITY', color: 'var(--amber)', bg: 'rgba(255,184,0,0.15)' },
+  RISK_OFF: { label: 'RISK OFF', color: 'var(--red)', bg: 'rgba(255,61,90,0.15)' },
+  SIDEWAYS: { label: 'SIDEWAYS', color: 'var(--text3)', bg: 'var(--bg3)' },
+  UNKNOWN: { label: 'BELUM DIKETAHUI', color: 'var(--text3)', bg: 'var(--bg3)' }
+};
+async function renderDashboardMarketRegime(){
+  var badge = el('dash-regime-badge');
+  if(!badge || _dashRegimeLoading) return;
+  _dashRegimeLoading = true;
+  try {
+    var resp = await fetch('/api/idx/regime');
+    var json = await resp.json();
+    if(!json.success || !json.regime) throw new Error(json.error || 'Gagal memuat regime');
+    var r = json.regime;
+    // Page may have navigated away while this fetch was in flight — bail
+    // out rather than writing into elements that no longer matter (or, in
+    // a hash collision, belong to a different page now).
+    if(!el('dash-regime-badge')) return;
+    var display = DASH_REGIME_DISPLAY[r.regime] || { label: r.regime || '—', color: 'var(--text3)', bg: 'var(--bg3)' };
+    el('dash-regime-badge').textContent = display.label;
+    el('dash-regime-badge').style.color = display.color;
+    el('dash-regime-badge').style.background = display.bg;
+    if(el('dash-regime-confidence')) el('dash-regime-confidence').textContent = r.confidence != null ? ('Confidence ' + r.confidence + '%') : '';
+    if(el('dash-regime-ihsg')) el('dash-regime-ihsg').textContent = r.ihsg ? Number(r.ihsg).toLocaleString('id-ID', {maximumFractionDigits:2}) : '—';
+    if(el('dash-regime-ihsg-chg')){
+      var chg = r.ihsgChangePct;
+      el('dash-regime-ihsg-chg').textContent = chg != null ? ((chg >= 0 ? '+' : '') + chg.toFixed(2) + '%') : '';
+      el('dash-regime-ihsg-chg').style.color = (chg != null && chg < 0) ? 'var(--red)' : 'var(--green)';
+    }
+    if(el('dash-regime-desc')) el('dash-regime-desc').textContent = r.description || '';
+  } catch(err){
+    if(el('dash-regime-badge')){
+      el('dash-regime-badge').textContent = 'Gagal Memuat';
+      el('dash-regime-badge').style.color = 'var(--red)';
+      el('dash-regime-badge').style.background = 'var(--bg3)';
+    }
+    if(el('dash-regime-desc')) el('dash-regime-desc').textContent = 'Tidak bisa memuat klasifikasi market regime saat ini: ' + ((err && err.message) || 'error jaringan') + '.';
+  } finally {
+    _dashRegimeLoading = false;
+  }
+}
+
+var _dashRadarLoading = false;
+async function renderDashboardRadarPreview(){
+  var list = el('dash-radar-list');
+  if(!list || _dashRadarLoading) return;
+  _dashRadarLoading = true;
+  try {
+    // Reuses the REAL RADAR_STATE/loadOpportunityRadarUniverse() from
+    // 26-commandcenter.js — the same data the full Opportunity Radar page
+    // renders — rather than a second, separately-maintained fetch+scoring
+    // path. Its own 60s freshness check means this is a no-op if the
+    // Radar page was already visited recently.
+    if(typeof loadOpportunityRadarUniverse === 'function') await loadOpportunityRadarUniverse();
+    var items = (typeof getOpportunityRadarItems === 'function') ? getOpportunityRadarItems() : ((typeof RADAR_STATE !== 'undefined' && RADAR_STATE.items) || []);
+    var top = items.filter(function(it){ return it.zone === 'BUY ZONE'; })
+      .sort(function(a,b){ return (b.score || 0) - (a.score || 0); })
+      .slice(0, 5);
+    if(!el('dash-radar-list')) return;
+    if(!top.length){
+      el('dash-radar-list').innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0;grid-column:1/-1">Belum ada saham di BUY ZONE saat ini — cek halaman Radar untuk daftar lengkap.</div>';
+      return;
+    }
+    el('dash-radar-list').innerHTML = top.map(function(it){
+      return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;cursor:pointer" onclick="goPage(\'radar\')">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+        + '<span style="font-weight:800;font-family:var(--font-mono);font-size:13px;color:var(--text)">' + escHtml(it.ticker) + '</span>'
+        + '<span class="badge b-up" style="font-size:9px;padding:1px 6px">' + (it.score != null ? it.score : '—') + '</span>'
+        + '</div>'
+        + '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(it.name || '') + '</div>'
+        + '<div style="font-size:10px;color:var(--green);font-weight:700;margin-top:3px">' + escHtml(it.verdict || '') + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(err){
+    if(el('dash-radar-list')) el('dash-radar-list').innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0;grid-column:1/-1">Gagal memuat AI Opportunity Radar: ' + escHtml((err && err.message) || 'error jaringan') + '.</div>';
+  } finally {
+    _dashRadarLoading = false;
+  }
 }
 
 function renderRdn(){
