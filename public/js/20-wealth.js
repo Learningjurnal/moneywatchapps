@@ -242,7 +242,7 @@ function wRenderNet(){
        ['candle','3. Candle Analysis','Pola candlestick & timing entry'],
        ['backtester','4. Backtester','Uji strategi pada data historis'],
        ['screener','5. Screener LQ45','Bandingkan dengan alternatif'],
-       ['risiko','6. Manajemen Risiko','Position sizing & risk per trade']]
+       ['rebalance','6. Manajemen Risiko','Position sizing & risk per trade']]
       .map(function(t){ return '<div class="w-mini" style="cursor:pointer" onclick="goPage(\''+t[0]+'\')"><span><b>'+t[1]+'</b> <span style="color:var(--text3)">— '+t[2]+'</span></span><span style="color:var(--accent)">→</span></div>'; }).join('')+
     '</div>'+
   '</div>';

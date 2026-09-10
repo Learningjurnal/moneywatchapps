@@ -851,7 +851,6 @@ function renderPage(name){
       if(typeof renderSectoralInsightPage==='function') renderSectoralInsightPage();
       else renderSektoral();
       break;
-    case 'sektoral':renderSektoral();break;
     case 'pajak':renderPajak();break;
     case 'knowledge':if(typeof initKnowledgeSuite==='function') initKnowledgeSuite();break;
     case 'ai-trading':if(typeof initAiAutonomousSuite==='function') initAiAutonomousSuite();break;
@@ -869,7 +868,6 @@ function renderPage(name){
     case 'scanner':break;
     case 'alerts':fsGenAlerts();break;
     case 'candle':if(typeof techInit==='function') techInit(); else renderCandle();break;
-    case 'stockmaster':if(typeof fundInit==='function') fundInit(); else if(typeof smFetchData==='function') smFetchData();break;
     case 'hargawajar':if(typeof hw_init==='function') hw_init(); if(typeof hw_recalc==='function') hw_recalc();break;
     // ── QuantTrader pages ──
     case 'backtester':break; // wait for user action
