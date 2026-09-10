@@ -28,6 +28,7 @@ import {
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA } from './lib/invezgo-client.js';
+import { logAuthMismatchTelemetry } from './lib/auth-verify.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -118,7 +119,7 @@ function getSafeFileKey(uidOrEmail) {
 // directly by the authenticated client (see public/js/02-storage.js's
 // fireSaveAllData()) - this server route's job is only the local-disk
 // mirror below, which stays database-agnostic.
-app.post('/api/user-data/save', (req, res) => {
+app.post('/api/user-data/save', async (req, res) => {
   const body = req.body || {};
   const rawPayload = JSON.stringify(body);
   if (rawPayload.length > 10 * 1024 * 1024) {
@@ -130,6 +131,14 @@ app.post('/api/user-data/save', (req, res) => {
   }
 
   const isDemo = (uid === 'demo_guest_user' || uid === 'guest_user');
+
+  // MW-P0-001 Stage 1 (telemetry only — does not check or block anything
+  // here): logs, elsewhere, whether the caller's real Supabase session
+  // matches the identity it claims via body.uid/email. See the
+  // lib/auth-*.js identity module's file header for the staged-rollout
+  // rationale (never trust a keyword match alone — read the code).
+  logAuthMismatchTelemetry(req, uid, body.email, isDemo);
+
   const record = {
     uid: uid,
     email: body.email || '',
@@ -196,6 +205,11 @@ app.get('/api/user-data/load', (req, res) => {
         error: 'User ID (uid) is required'
       });
     }
+
+    // MW-P0-001 Stage 1: observe (never blocks) whether the caller's real
+    // Supabase session matches the identity it claims via query.uid/email.
+    const isDemoLoad = (uid === 'demo_guest_user' || uid === 'guest_user');
+    logAuthMismatchTelemetry(req, uid, req.query.email, isDemoLoad);
 
     // Demo/Guest account operates strictly in an isolated clean session with 0 initial positions
     if (uid === 'demo_guest_user' || uid === 'guest_user') {
@@ -280,6 +294,13 @@ app.post('/api/user-data/clear', (req, res) => {
     if (!uid) {
       return res.status(400).json({ success: false, error: 'User ID is required' });
     }
+
+    // MW-P0-001 Stage 1: observe (never blocks) whether the caller's real
+    // Supabase session matches the identity it claims. /clear is the most
+    // dangerous of the three endpoints (it deletes another user's data if
+    // uid is spoofed), so this signal matters most here.
+    const isDemoClear = (uid === 'demo_guest_user' || uid === 'guest_user');
+    logAuthMismatchTelemetry(req, uid, body.email || req.query.email, isDemoClear);
 
     const safeKey = getSafeFileKey(uid);
     const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');

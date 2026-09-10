@@ -145,6 +145,34 @@ function getAppUserId() {
   return (_currentUser && _currentUser.id) || null;
 }
 
+// MW-P0-001 Stage 1 (see lib/auth-verify.js): the /api/user-data/* calls in
+// 02-storage.js never sent an Authorization header at all, so the server
+// had nothing to verify identity against even in principle. This exposes
+// the current Supabase session's access token (JWT) so those calls can
+// start attaching `Authorization: Bearer <token>`. Returns null for
+// guest/demo mode (no real Supabase session exists) or if the SDK/session
+// isn't available yet — callers must treat null as "send no header", not
+// an error, since Stage 1 never blocks on a missing token anyway.
+var _cachedSupabaseSession = null;
+try {
+  var _sbClientForToken = getSupabaseClient();
+  if (_sbClientForToken && _sbClientForToken.auth && _sbClientForToken.auth.onAuthStateChange) {
+    _sbClientForToken.auth.onAuthStateChange(function(_event, session) {
+      _cachedSupabaseSession = session || null;
+    });
+  }
+} catch (err) {
+  console.warn('Supabase auth state listener notice:', err);
+}
+function getSupabaseAccessToken() {
+  try {
+    if (_cachedSupabaseSession && _cachedSupabaseSession.access_token) {
+      return _cachedSupabaseSession.access_token;
+    }
+  } catch (err) { /* fall through to null */ }
+  return null;
+}
+
 // ══════════════════════════════════════════════════════════
 // GLOBAL STOCK CONTEXT & UNIFIED DISPATCH SYSTEM
 // ══════════════════════════════════════════════════════════
