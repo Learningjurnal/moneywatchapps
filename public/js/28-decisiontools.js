@@ -561,6 +561,31 @@ function saveNewJournalFromModal() {
 // something a single hypothetical shock scenario would change, so the
 // same real value is shown as context across scenarios (rather than
 // fabricating a plausible-looking drift per scenario type).
+// INCIDENT_LOG.md #9: scenarioGetRealRisk()'s completion callback used to
+// call renderScenarioPage() directly and synchronously, and
+// renderScenarioPage() calls scenarioGetRealRisk() again at its very top —
+// a self-re-triggering pair (AGENTS.md §29's named bug class, same as
+// INCIDENT_LOG.md #2/#3). Normally a real Yahoo fetch takes real time, so
+// the callback fires on a later tick and the recursion never nests inside
+// its own call stack. But rdEnsure() (13-realdata.js) has a SYNCHRONOUS
+// fast path — `if(RD_FAILED[tk]){ cb('failed'); return; }` — for any
+// ticker that already failed once this session. Once every portfolio
+// ticker + IHSG has failed once (a real, reachable state — a Yahoo/proxy
+// outage, or just this sandbox's blocked network), the entire
+// scenarioGetRealRisk → perfComputeRealBeta → perfFetchHoldingsHistory →
+// rdEnsure chain resolves synchronously, so the "re-render" call lands
+// inside the ORIGINAL renderScenarioPage() call's own stack frame —
+// unbounded recursion, "Maximum call stack size exceeded", crashing the
+// tab. Two independent guards now prevent this, matching the
+// cooldown-guard prevention AGENTS.md §29 calls for:
+var SCENARIO_RISK_LAST_ATTEMPT = 0;
+var SCENARIO_RISK_RETRY_COOLDOWN_MS = 30000;
+function scenarioShouldRetryRisk() {
+  if (typeof PERF_BETA_STATE === 'undefined') return false;
+  if (PERF_BETA_STATE.loaded && PERF_BETA_STATE.data) return false; // already have real data, no retry needed
+  if (PERF_BETA_STATE.loading) return false; // an attempt is already in flight
+  return (Date.now() - SCENARIO_RISK_LAST_ATTEMPT) > SCENARIO_RISK_RETRY_COOLDOWN_MS;
+}
 function scenarioGetRealRisk() {
   if (typeof PERF_BETA_STATE !== 'undefined' && PERF_BETA_STATE.loaded && PERF_BETA_STATE.data && PERF_BETA_STATE.data.results) {
     var ok = PERF_BETA_STATE.data.results.filter(function(r) { return r.ok; });
@@ -572,16 +597,24 @@ function scenarioGetRealRisk() {
       return { beta: beta, var95: var95, ready: true };
     }
   }
-  if (typeof PERF_BETA_STATE !== 'undefined' && !PERF_BETA_STATE.loading && typeof perfComputeRealBeta === 'function') {
+  if (scenarioShouldRetryRisk() && typeof perfComputeRealBeta === 'function') {
+    // 1) Cooldown guard (SCENARIO_RISK_LAST_ATTEMPT) — stops this from
+    //    re-attempting perfComputeRealBeta() on every single render while
+    //    the underlying fetch keeps failing.
+    SCENARIO_RISK_LAST_ATTEMPT = Date.now();
     PERF_BETA_STATE.loading = true;
     perfComputeRealBeta(function(err, data) {
       PERF_BETA_STATE.loading = false;
       if (!err && data) { PERF_BETA_STATE.loaded = true; PERF_BETA_STATE.data = data; }
-      // Re-render whichever scenario result is currently on screen once the
-      // real numbers land, instead of leaving the "menghitung..." label.
-      if (typeof currentPage !== 'undefined' && currentPage === 'scenario' && typeof renderScenarioPage === 'function') {
-        renderScenarioPage();
-      }
+      // 2) setTimeout defer — the actual fix for the synchronous-resolution
+      //    stack overflow above: guarantees this re-render can never nest
+      //    inside the call stack of the render that triggered it, no
+      //    matter how fast perfComputeRealBeta()'s callback fires.
+      setTimeout(function() {
+        if (typeof currentPage !== 'undefined' && currentPage === 'scenario' && typeof renderScenarioPage === 'function') {
+          renderScenarioPage();
+        }
+      }, 0);
     });
   }
   return { beta: null, var95: null, ready: false };
