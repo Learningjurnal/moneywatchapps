@@ -828,7 +828,11 @@
         return (selKey === d.key) ? '700' : '600';
       })
       .text(function(d) {
-        return d.icon + ' ' + (isMobile ? d.name.substring(0, 11) : d.name);
+        // Nama sektor saja, tanpa kode 3-huruf (INF/HLT/CYC/dst) — kode
+        // singkatan itu berguna sebagai penanda visual kecil di badge/chip
+        // lain, tapi di sumbu grafik ini cukup membingungkan karena
+        // terlihat seperti bagian dari nama sektor.
+        return isMobile ? d.name.substring(0, 14) : d.name;
       });
 
     labelG.transition()
