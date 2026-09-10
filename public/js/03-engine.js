@@ -202,7 +202,13 @@ function getPortfolio(){
       p.buyNet += netVal;
     } else {
       var sold = txShares;
-      var avg = p.shares > 0 ? (p.cost / p.shares) : (tx.gross / sold);
+      // Guard against a SELL landing on an empty/never-bought position with
+      // sold===0 (only reachable with corrupted/hand-edited storage data —
+      // every real entry point, manual/edit/bulk-import, already rejects
+      // lot<=0 — but tx.gross/0 would otherwise produce NaN/Infinity here
+      // and corrupt p.cost for the rest of this reduce). Matches the same
+      // p.qty>0 ? ... : 0 pattern already used by getCryptoPortfolio().
+      var avg = p.shares > 0 ? (p.cost / p.shares) : 0;
       p.lot = Math.max(0, p.lot - tx.lot);
       p.shares = Math.max(0, p.shares - sold);
       p.cost = Math.max(0, p.cost - (avg * sold));
