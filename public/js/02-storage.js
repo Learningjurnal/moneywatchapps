@@ -17,6 +17,26 @@ var nextCryptoId = 1;
 var nextEtfId = 1;
 var nextRdId = 1;
 
+// MW-P0-001 Stage 1 (see lib/auth-verify.js / public/js/00-config.js's
+// getSupabaseAccessToken()): attaches the current real Supabase session's
+// access token to /api/user-data/* calls so the server can start
+// verifying caller identity instead of trusting the uid/email body fields
+// blindly. Never throws, never blocks — a missing token (guest/demo mode,
+// SDK not ready yet) just means no header is sent, exactly like before
+// this change; the server-side Stage 1 check treats "no token" as
+// expected/non-blocking, not an error.
+function _authHeaders(extra) {
+  var h = { 'Content-Type': 'application/json' };
+  try {
+    var tok = (typeof getSupabaseAccessToken === 'function') ? getSupabaseAccessToken() : null;
+    if (tok) h['Authorization'] = 'Bearer ' + tok;
+  } catch (e) { /* no-op — omit header */ }
+  if (extra) {
+    for (var k in extra) { if (Object.prototype.hasOwnProperty.call(extra, k)) h[k] = extra[k]; }
+  }
+  return h;
+}
+
 // Helper bersama: id berikutnya yang AMAN untuk sebuah array {id,...}
 function _maxIdPlus1(arr){ var m=0; (arr||[]).forEach(function(x){ if(x.id>m) m=x.id; }); return m+1; }
 
@@ -255,7 +275,7 @@ function resetAllDatabaseAndTransactions(){
       var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
       fetch('/api/user-data/clear', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: _authHeaders(),
         body: JSON.stringify({ uid: uid })
       }).catch(function(){});
     } catch(e){}
@@ -973,10 +993,7 @@ function _syncToServerMirror(payload){
     if(typeof fetch === 'function'){
       return fetch('/api/user-data/save', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Device-Session-Id': _DEVICE_SESSION_ID
-        },
+        headers: _authHeaders({ 'X-Device-Session-Id': _DEVICE_SESSION_ID }),
         keepalive: true,
         body: JSON.stringify({
           uid: uid,
@@ -1382,7 +1399,7 @@ async function fireLoadAllData(){
       // Fallback to server mirror if available
       if (typeof fetch === 'function') {
         try {
-          var srvRes = await fetch('/api/user-data/load?uid=' + encodeURIComponent(uid));
+          var srvRes = await fetch('/api/user-data/load?uid=' + encodeURIComponent(uid), { headers: _authHeaders() });
           if (srvRes.ok) {
             var srvJson = await srvRes.json();
             if (srvJson && srvJson.data) {
@@ -1749,7 +1766,7 @@ function loadData(){
     var isDemoSession = (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user'));
     var uid = (typeof getFirestoreUserUid === 'function') ? getFirestoreUserUid() : '';
     if(typeof fetch === 'function' && (!transactions || transactions.length === 0) && !isDataCleared && !isDemoSession && uid && uid !== 'demo_guest_user'){
-      fetch('/api/user-data/load?uid=' + encodeURIComponent(uid))
+      fetch('/api/user-data/load?uid=' + encodeURIComponent(uid), { headers: _authHeaders() })
         .then(function(res){ return res.json(); })
         .then(function(resData){
           if(resData && resData.found && resData.record && resData.record.data){
@@ -1877,7 +1894,7 @@ async function clearData(skipConfirm){
     try {
       await fetch('/api/user-data/clear', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: _authHeaders(),
         body: JSON.stringify({ uid: uid, email: email, purgeAll: false })
       });
     } catch(e){
