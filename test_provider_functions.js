@@ -252,6 +252,95 @@ await asyncTest('INCIDENT #3: aiShouldAutoLoadUniverse() blocks re-entrant auto-
 });
 
 // ============================================================
+// INCIDENT #4 (2026-09-10): found proactively during a post-session QA
+// sweep across all 52 routable pages (not from a user report — see
+// AGENTS.md §29's "self-re-triggering function pattern" rule this class
+// of bug is named after). scenarioGetRealRisk() (public/js/28-decisiontools.js)
+// calls perfComputeRealBeta(), whose completion callback used to call
+// renderScenarioPage() directly and synchronously — and renderScenarioPage()
+// calls scenarioGetRealRisk() again at its own top. Normally a real Yahoo
+// fetch takes real time, so the callback fires on a later tick and this
+// never nests inside its own call stack. But rdEnsure() (13-realdata.js)
+// has a synchronous fast path for any ticker that already failed once
+// this session (`if(RD_FAILED[tk]){ cb('failed'); return; }`) — once every
+// portfolio ticker + IHSG has failed once (a real, reachable state: a
+// Yahoo/proxy outage, or this sandbox's blocked network), the whole chain
+// resolves synchronously, so the "re-render" call lands inside the
+// ORIGINAL render's own stack frame — unbounded recursion, "Maximum call
+// stack size exceeded", crashing the tab. Same bug class as INCIDENT #2/#3,
+// fixed the same way (a cooldown guard, scenarioShouldRetryRisk()) plus a
+// setTimeout defer, since unlike those two incidents this one's completion
+// callback CAN fire synchronously.
+// ============================================================
+test('INCIDENT #4: scenarioShouldRetryRisk() blocks re-entrant risk computation within the cooldown window, and allows it again after', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null, addEventListener: () => {} },
+    console,
+    setTimeout,
+    // PERF_BETA_STATE is defined by the sibling public/js/21-performance.js
+    // file — both are plain top-level <script> tags sharing one global
+    // scope in the browser, not modules, so pre-seed it here the same way
+    // it's already defined by the time this script runs for real.
+    PERF_BETA_STATE: { loaded: false, loading: false },
+    Date, Math, JSON, Array, Object, String, Number, Set, Map, Promise,
+    isNaN, parseFloat, parseInt, encodeURIComponent
+  };
+  sandbox.window = sandbox;
+  sandbox.self = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '28-decisiontools.js (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.scenarioShouldRetryRisk, 'function',
+    'scenarioShouldRetryRisk() not found in public/js/28-decisiontools.js — has it been renamed/removed?');
+
+  // No prior attempt, not loading, not loaded -> first check should allow.
+  assert.strictEqual(ctx.scenarioShouldRetryRisk(), true,
+    'First-ever check with no prior attempt should be allowed to compute real risk');
+
+  // Simulate the exact incident: perfComputeRealBeta()'s callback fired
+  // synchronously (every ticker + IHSG already failed this session) and
+  // recorded the attempt, same as scenarioGetRealRisk() does.
+  ctx.SCENARIO_RISK_LAST_ATTEMPT = Date.now();
+
+  // Immediately re-check (as a synchronously-resolving retry would) —
+  // before the fix, there was no cooldown at all, so an unbounded
+  // synchronous retry (combined with the un-deferred re-render) is what
+  // let the recursion run until the stack overflowed.
+  assert.strictEqual(ctx.scenarioShouldRetryRisk(), false,
+    'REGRESSION: scenarioShouldRetryRisk() allowed an immediate re-attempt with no cooldown elapsed — this is the same infinite-recursion bug class as the Stock Intel (INCIDENT #2) and AI Trading (INCIDENT #3) incidents');
+
+  // Cooldown elapsed -> self-heals, allowed again.
+  ctx.SCENARIO_RISK_LAST_ATTEMPT = Date.now() - (ctx.SCENARIO_RISK_RETRY_COOLDOWN_MS + 1000);
+  assert.strictEqual(ctx.scenarioShouldRetryRisk(), true,
+    'Risk computation should be allowed again once the cooldown window has elapsed');
+
+  // Real data already loaded -> should never retry, cooldown or not.
+  ctx.PERF_BETA_STATE.loaded = true;
+  ctx.PERF_BETA_STATE.data = { results: [] };
+  assert.strictEqual(ctx.scenarioShouldRetryRisk(), false,
+    'Already-loaded real risk data should never trigger another computation');
+});
+
+test("REGRESSION GUARD: scenarioGetRealRisk() must defer its re-render via setTimeout, never call renderScenarioPage() synchronously from perfComputeRealBeta()'s callback", () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const fn = src.match(/function scenarioGetRealRisk\(\) \{[\s\S]*?\n\}/);
+  assert(fn, 'scenarioGetRealRisk() body not found');
+  const body = fn[0];
+  // The actual fix for the stack-overflow half of the bug — the cooldown
+  // guard alone only slows a synchronous-resolution retry storm across
+  // separate renders, it doesn't stop one nested recursive call from
+  // overflowing the stack the very first time everything resolves
+  // synchronously in the same tick.
+  const callbackMatch = body.match(/perfComputeRealBeta\(function\(err, data\) \{[\s\S]*?\n {4}\}\);/);
+  assert(callbackMatch, "perfComputeRealBeta()'s completion callback not found in scenarioGetRealRisk()");
+  assert(/setTimeout\(function\(\) \{[\s\S]*?renderScenarioPage\(\)/.test(callbackMatch[0]),
+    "REGRESSION: renderScenarioPage() is no longer deferred via setTimeout inside perfComputeRealBeta()'s callback — this reintroduces the synchronous self-recursion stack overflow (INCIDENT_LOG.md #9)");
+});
+
+// ============================================================
 // FEATURE (2026-09-10): AI Trading Scanner universe selector — user
 // reported the Scanner only ever shows 45 signals ("Semua Sinyal (45)")
 // and asked how to scan beyond LQ45. aiSetScanUniverse()/fetchAiScanData()

@@ -496,3 +496,40 @@ tapi memenuhi tujuan intinya: kontinuitas ticker lintas suite analisis
 tanpa navigasi berulang). P2 (design system §11, density selector §12)
 dan P3 (workspace/personalization) belum disentuh. Tahap 8 (UAT dengan
 user riil, §17) tidak bisa dilakukan dari sandbox ini.
+
+**Update 2026-09-10 — Tahap 7 (QA & Regression, §17) EXECUTED**: sebelum
+menutup sesi ini, dijalankan sweep Playwright terhadap **seluruh 52
+halaman yang bisa dinavigasi** (bukan cuma halaman yang disentuh hari
+ini) — mengecek `pageerror`, toggle dark/light mode, dan overflow
+horizontal di lebar mobile (390px) untuk 7 halaman representatif. Hasil:
+- Semua 52 halaman berhasil dibuka (kontainer `.on` yang benar, termasuk
+  6 route yang ternyata alias/sub-tab dari halaman lain — bukan bug,
+  dikonfirmasi lewat pembacaan router).
+- Toggle dark/light berfungsi tanpa error.
+- Tidak ada overflow horizontal di 390px pada Dashboard/Stock
+  Intel/Bandarmology/Fundamental (Technical & 2 lainnya tidak sempat
+  dicek karena crash di bawah menghentikan sweep sebelum sampai ke situ).
+- **Ditemukan 1 bug produksi nyata**: halaman Scenario Engine bisa
+  crash/freeze tab dengan `Maximum call stack size exceeded` — dicatat &
+  diperbaiki sebagai `INCIDENT_LOG.md` #9 (kelas bug yang sama dengan
+  #2/#3: fungsi yang re-trigger dirinya sendiri tanpa cooldown, kali ini
+  bermanifestasi sebagai stack overflow sinkron, bukan retry-loop
+  asinkron, karena jalur resolusinya bisa sinkron).
+- 3 error lain yang awalnya terdeteksi (`candle`, `technical`,
+  `crypto-technical` — semuanya terkait pemanggilan API Chart.js)
+  dikonfirmasi **bukan bug**, murni artefak stub Chart.js minimal yang
+  dipakai skrip pengujian ini (CDN Chart.js diblokir kebijakan jaringan
+  sandbox) — diverifikasi ulang dengan stub yang lebih setia ke API asli,
+  ketiganya lolos tanpa error.
+
+Dengan Tahap 7 selesai (minus cakupan visual/screenshot review yang
+butuh mata manusia) dan Tahap 8 (UAT) yang memang tidak bisa dilakukan
+dari sandbox ini, sesi eksekusi roadmap hari ini berakhir di titik ini.
+**Yang masih terbuka untuk sesi berikutnya**: P0's "homepage hanya
+Command Center" (§5.1, restrukturisasi konten lama ke halaman detail —
+sengaja tidak dikerjakan di sesi ini, risiko regresi terlalu tinggi untuk
+dikerjakan tanpa review manusia), P2 (design system §11 — token
+warna/tipografi formal, density selector §12 — ini murni keputusan
+desain/selera, bukan bug, sebaiknya direview manusia sebelum diterapkan
+ke seluruh app), P3 (workspace/personalization), dan Tahap 8 (UAT
+dengan user riil).

@@ -373,3 +373,78 @@ were hardcoded literals, not computed from anything
   since this sandbox has no real Yahoo access (all 3 tickers' underlying
   series were the honestly-disclosed synthetic fallback). Zero page
   errors.
+
+---
+
+## #9 — Scenario Engine crashed the tab ("Maximum call stack size
+exceeded") once every portfolio ticker + IHSG had failed to fetch once
+
+- **Date:** 2026-09-10 (same day), found proactively during a post-session
+  QA sweep of all 52 routable pages (Tahap 7 — QA & Regression,
+  `UIUX_ROADMAP_AUDIT.md` §17) — not from a user report.
+- **Found by:** a Playwright sweep visiting every page and collecting
+  `pageerror` events; the Scenario Engine page (`goPage('scenario')`)
+  threw `RangeError: Maximum call stack size exceeded` with a stack trace
+  repeating `renderScenarioPage → scenarioGetRealRisk →
+  perfComputeRealBeta → perfFetchHoldingsHistory` over and over.
+- **Impact:** opening (or revisiting) the Scenario Engine page while every
+  portfolio ticker's and IHSG's real-data fetch has already failed once
+  this session crashes/freezes the tab outright — worse than a hung
+  request, since a stack overflow is synchronous and blocks the main
+  thread immediately. This is a real, reachable production state (a
+  Yahoo/proxy outage that day, not just this sandbox's permanently-blocked
+  network), not a sandbox-only artifact.
+- **Root cause:** the exact same self-re-triggering pattern as
+  `INCIDENT_LOG.md` #2 and #3 (`AGENTS.md` §29 names this bug class
+  explicitly), but manifesting as a stack overflow instead of an infinite
+  async retry storm, because the completion callback here CAN resolve
+  synchronously. `scenarioGetRealRisk()`'s call to `perfComputeRealBeta()`
+  had its completion callback call `renderScenarioPage()` directly, and
+  `renderScenarioPage()` calls `scenarioGetRealRisk()` again at its own
+  top. A real Yahoo fetch takes real time, so normally the callback fires
+  on a later tick and this never nests inside its own call stack. But
+  `rdEnsure()` (`13-realdata.js`) has a synchronous fast path —
+  `if(RD_FAILED[tk]){ cb('failed'); return; }` — for any ticker that
+  already failed once this session. Once every portfolio ticker + IHSG
+  hits that fast path, the entire `scenarioGetRealRisk → perfComputeRealBeta
+  → perfFetchHoldingsHistory → rdEnsure` chain resolves synchronously, so
+  the "re-render" lands inside the ORIGINAL render's own stack frame —
+  unbounded recursion.
+- **Fix:** two independent guards, both required (verified: removing
+  either one alone still leaves a real bug — the cooldown alone doesn't
+  stop the *first* synchronous recursive call from overflowing the stack,
+  and the defer alone doesn't stop a synchronous-resolution retry storm
+  across separate renders from spinning in a tight `setTimeout(0)` loop):
+  1. `scenarioShouldRetryRisk()` — a 30s cooldown guard
+     (`SCENARIO_RISK_LAST_ATTEMPT`/`SCENARIO_RISK_RETRY_COOLDOWN_MS`),
+     same pattern as `intelShouldAutoFetch()` (#2) and
+     `aiShouldAutoLoadUniverse()` (#3).
+  2. The `renderScenarioPage()` re-render call is now wrapped in
+     `setTimeout(fn, 0)` — guarantees it can never nest inside the call
+     stack of the render that triggered it, regardless of how fast
+     `perfComputeRealBeta()`'s callback fires.
+- **Prevention added:**
+  - `test_provider_functions.js` INCIDENT #4 case: loads the real
+    `public/js/28-decisiontools.js` in a sandboxed VM context (same
+    technique as #2/#3) and calls the real `scenarioShouldRetryRisk()`,
+    asserting a simulated synchronous-failure attempt is blocked within
+    the cooldown window and allowed again after — added to `npm test`.
+  - A second regression guard specifically asserts the `setTimeout(...)`
+    wrapper around the `renderScenarioPage()` call survives future edits
+    — the cooldown test alone wouldn't catch someone removing just the
+    defer while leaving the cooldown intact, which would still leave the
+    first-call stack-overflow half of this bug live.
+  - Both guards verified to actually fail (clear message) with the fix
+    reverted, before being restored and finalized.
+- **Verification:** live Playwright reproduction — forced
+  `RD_FAILED[ticker]=true` for every portfolio ticker + IHSG (the exact
+  triggering state), visited the Scenario Engine page (previously
+  crashed here), then revisited it 3 more times rapidly (would tight-loop
+  without the cooldown): survived all of it with zero page errors.
+- **Also checked, not bugs:** the same sweep flagged errors on
+  `candle`/`technical` (`chartInstance.update is not a function`) and
+  `crypto-technical` (`Chart.getChart is not a function`) — re-verified
+  with a more faithful Chart.js stub (real Chart.js instances expose
+  `update()`/`getChart()`; this sandbox's CDN-blocked network means the
+  sweep's minimal stub only had `destroy()`) and all 3 pages loaded with
+  zero errors — confirmed test-stub artifacts, not application bugs.
