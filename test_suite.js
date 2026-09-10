@@ -873,6 +873,51 @@ test('REGRESSION GUARD: 28-decisiontools.js Copilot tool-call badges must still 
   );
 });
 
+// ── TEST 34: Command Center P0 slice 2 (Market Regime + AI Opportunity
+// Radar zones added to the dashboard) — UIUX_ROADMAP_AUDIT.md §6/§7.
+// public/js/04-render.js can't safely run under Node either (same
+// implicit-global problem as TEST 29-33), so this locks down two things
+// via source inspection: the regime label/color mapping's contract (pure
+// function, replicated to test the mapping logic itself) and that the new
+// render functions are actually wired into renderDashboard() and reuse
+// the REAL existing data sources (loadOpportunityRadarUniverse() from
+// 26-commandcenter.js) rather than a second, separately-maintained fetch.
+function regimeDisplayContract(regime, table) {
+  return table[regime] || { label: regime || '—', color: 'var(--text3)', bg: 'var(--bg3)' };
+}
+test('regimeDisplayContract(): known regimes map to their label, unknown/missing falls back honestly', () => {
+  const table = {
+    BULL_TREND: { label: 'BULL TREND', color: 'var(--green)', bg: 'rgba(0,245,155,0.15)' },
+    BEAR_TREND: { label: 'BEAR TREND', color: 'var(--red)', bg: 'rgba(255,61,90,0.15)' }
+  };
+  assert.deepStrictEqual(regimeDisplayContract('BULL_TREND', table), { label: 'BULL TREND', color: 'var(--green)', bg: 'rgba(0,245,155,0.15)' });
+  assert.deepStrictEqual(regimeDisplayContract('SOME_NEW_REGIME_SERVER_ADDED', table), { label: 'SOME_NEW_REGIME_SERVER_ADDED', color: 'var(--text3)', bg: 'var(--bg3)' },
+    'An unrecognized regime value must fall back to displaying the raw value, never silently disappear or crash');
+  assert.deepStrictEqual(regimeDisplayContract(null, table), { label: '—', color: 'var(--text3)', bg: 'var(--bg3)' });
+});
+test('REGRESSION GUARD: renderDashboard() must call both new Command Center zone renderers', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  assert(/function renderDashboardMarketRegime\(\)/.test(src), 'renderDashboardMarketRegime() is missing');
+  assert(/function renderDashboardRadarPreview\(\)/.test(src), 'renderDashboardRadarPreview() is missing');
+  const dashboardFn = src.match(/function renderDashboard\(\)\{[\s\S]*?\n\}/);
+  assert(dashboardFn, 'renderDashboard() function not found');
+  assert(dashboardFn[0].includes('renderDashboardMarketRegime'),
+    'renderDashboard() no longer calls renderDashboardMarketRegime() — the Market Regime zone would silently stop updating');
+  assert(dashboardFn[0].includes('renderDashboardRadarPreview'),
+    'renderDashboard() no longer calls renderDashboardRadarPreview() — the AI Opportunity Radar zone would silently stop updating');
+  assert(/loadOpportunityRadarUniverse\(\)/.test(src),
+    'renderDashboardRadarPreview() must reuse the REAL loadOpportunityRadarUniverse() (26-commandcenter.js) — a separate/duplicate fetch would diverge from the full Radar page\'s scoring');
+});
+test('REGRESSION GUARD: dashboard HTML must still have both new zone containers', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(src.includes('id="card-dash-regime"'), '#card-dash-regime container missing from index.html');
+  assert(src.includes('id="card-dash-radar"'), '#card-dash-radar container missing from index.html');
+  assert(src.includes('id="dash-regime-badge"') && src.includes('id="dash-regime-desc"'),
+    'Market Regime card is missing the badge/description elements renderDashboardMarketRegime() writes into');
+  assert(src.includes('id="dash-radar-list"'),
+    'AI Opportunity Radar card is missing the list container renderDashboardRadarPreview() writes into');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
