@@ -1132,7 +1132,7 @@
       html += '<div class="si-flow-row" onclick="siSelectSector(\'' + sec.key + '\')" style="padding:10px 14px;border-radius:8px;cursor:pointer;transition:all 0.2s;' + borderStyle + opacityStyle + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
-            '<span style="font-size:16px">' + sec.icon + '</span>' +
+            '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.02em;color:' + sec.color + ';background:' + sec.color + '1a;border:1px solid ' + sec.color + '40;border-radius:4px;padding:2px 5px">' + sec.icon + '</span>' +
             '<span style="font-weight:700;font-size:13px;color:var(--text)">' + sec.name + '</span>' +
             '<span style="font-size:11px;color:var(--text3)">(' + sec.labelId + ')</span>' +
             (isSelected ? '<span class="badge b-accent" style="font-size:9px;padding:1px 6px">TERPILIH</span>' : '') +
@@ -2299,7 +2299,12 @@
         '<td style="font-family:var(--font-mono);color:var(--text3)">' + (idx + 1) + '</td>' +
         '<td>' +
           '<div style="display:flex;align-items:center;gap:8px">' +
-            '<span style="font-size:16px">' + sec.icon + '</span>' +
+            // Kode 3-huruf sebagai badge kecil bertinta warna sektor — tadinya
+            // teks polos 16px (LEBIH BESAR dari nama sektornya sendiri di
+            // 12.5px), sehingga kode singkatan justru terlihat lebih dominan
+            // daripada nama sektor. Sekarang jadi elemen sekunder yang jelas
+            // (pill kecil, monospace, ~9px) supaya nama sektor yang menonjol.
+            '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.02em;color:' + sec.color + ';background:' + sec.color + '1a;border:1px solid ' + sec.color + '40;border-radius:4px;padding:2px 5px;flex-shrink:0">' + sec.icon + '</span>' +
             '<div>' +
               '<div style="font-weight:700;font-size:12.5px;color:var(--text)">' + sec.name + '</div>' +
               '<div style="font-size:10.5px;color:var(--text3)">' + sec.labelId + ' · ' + sec.desc + '</div>' +
