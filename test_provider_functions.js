@@ -193,7 +193,7 @@ test('INCIDENT #2: intelShouldAutoFetch() blocks re-entrant auto-fetch within th
 // same way: extracted aiShouldAutoLoadUniverse() (pure, no DOM/network)
 // with a 30s cooldown via AI_SCAN_LAST_ATTEMPT/AI_SCAN_RETRY_COOLDOWN_MS.
 // ============================================================
-test('INCIDENT #3: aiShouldAutoLoadUniverse() blocks re-entrant auto-load within the cooldown window, and allows it again after', async () => {
+await asyncTest('INCIDENT #3: aiShouldAutoLoadUniverse() blocks re-entrant auto-load within the cooldown window, and allows it again after', async () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
 
   // This file is wrapped in `(function(window, document) {...})(window,
@@ -249,6 +249,87 @@ test('INCIDENT #3: aiShouldAutoLoadUniverse() blocks re-entrant auto-load within
   mockNow += 31000;
   assert.strictEqual(ctx.aiShouldAutoLoadUniverse(), true,
     'Auto-load should be allowed again once the cooldown window has elapsed');
+});
+
+// ============================================================
+// FEATURE (2026-09-10): AI Trading Scanner universe selector — user
+// reported the Scanner only ever shows 45 signals ("Semua Sinyal (45)")
+// and asked how to scan beyond LQ45. aiSetScanUniverse()/fetchAiScanData()
+// now support 'idx80'/'kompas100' by resolving a ticker list from
+// /api/idx/stocks?index=... and scanning it in sequential batches of
+// AI_SCAN_BATCH_SIZE (80) against /api/idx/ai-scan, merging all batches
+// into AI_UNIVERSE. This locks down that the batching/merging actually
+// works end-to-end through the real functions, not a re-implementation.
+// ============================================================
+await asyncTest('aiSetScanUniverse(): a universe larger than one batch is fetched in sequential batches and merged into AI_UNIVERSE', async () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+
+  // 127 fake Kompas100 tickers — deliberately > AI_SCAN_BATCH_SIZE (80) so
+  // this must split into 2 batches to be handled correctly.
+  const fakeTickers = [];
+  for (let i = 0; i < 127; i++) fakeTickers.push('T' + String(i).padStart(3, '0'));
+  const LQ45_FAKE_TICKERS = [];
+  for (let i = 0; i < 45; i++) LQ45_FAKE_TICKERS.push('L' + String(i).padStart(3, '0'));
+
+  const fetchCalls = [];
+  function fakeSignalFor(ticker) {
+    return {
+      ticker, price: 5000, changePercent: 1.2, volume: 1000000,
+      signal: 'BUY', trend: 'UPTREND', compositeScore: 70,
+      technicalScore: 75, fundamentalScore: 60, rsi14: 55, ema20: 4900, ema50: 4800,
+      volRatio: 1.3, probability: 60, evPerShare: 50,
+      entry: 5000, sl: 4800, tp1: 5300, tp2: 5500, rrRatio: 1.5,
+      dataQuality: { price: true, technical: true, fundamental: true },
+      gateStatus: { status: 'REAL', reasons: [] }
+    };
+  }
+
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null, addEventListener: () => {}, querySelectorAll: () => [] },
+    console,
+    fetch: async (url) => {
+      fetchCalls.push(url);
+      if (url.indexOf('/api/idx/stocks') === 0) {
+        return { json: async () => ({ success: true, data: fakeTickers.map(t => ({ code: t })) }) };
+      }
+      // /api/idx/ai-scan?tickers=A,B,C,... — no ?tickers= at all means the
+      // 'lq45' case (server default), simulated here as 45 fake tickers.
+      const qs = url.split('?')[1] || '';
+      const params = new URLSearchParams(qs);
+      const requested = qs ? (params.get('tickers') || '').split(',').filter(Boolean) : LQ45_FAKE_TICKERS;
+      return { json: async () => ({ success: true, signals: requested.map(fakeSignalFor) }) };
+    },
+    setTimeout, setInterval: () => {}, clearInterval: () => {},
+    localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    Date, Math, JSON, Array, Object, String, Number, Set, Map, Promise, URLSearchParams,
+    isNaN, parseFloat, parseInt, encodeURIComponent, decodeURIComponent
+  };
+  sandbox.window = sandbox;
+  sandbox.self = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '38-ai-autonomous-trading.js (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.aiSetScanUniverse, 'function',
+    'aiSetScanUniverse() not found — has it been renamed/removed?');
+
+  await ctx.aiSetScanUniverse('kompas100');
+
+  assert.strictEqual(ctx.AI_UNIVERSE.length, 127,
+    'All 127 tickers across both batches should end up merged into AI_UNIVERSE, not just the first batch');
+
+  const stocksCall = fetchCalls.find(u => u.indexOf('/api/idx/stocks') === 0);
+  assert(stocksCall && stocksCall.indexOf('index=kompas100') !== -1,
+    'Should have fetched the Kompas100 ticker list via /api/idx/stocks?index=kompas100');
+
+  const scanCalls = fetchCalls.filter(u => u.indexOf('/api/idx/ai-scan') === 0);
+  assert.strictEqual(scanCalls.length, 2,
+    'REGRESSION: 127 tickers at AI_SCAN_BATCH_SIZE=80 must split into exactly 2 /api/idx/ai-scan requests, not 1 (which would silently truncate to 80) or more');
+
+  // Switching back to LQ45 must not carry over the Kompas100-sized result.
+  await ctx.aiSetScanUniverse('lq45');
+  assert.strictEqual(ctx.AI_UNIVERSE.length, 45,
+    'Switching the universe back to LQ45 must produce a clean 45-ticker result, not the previous Kompas100 scan left mixed in');
 });
 
 // ============================================================
