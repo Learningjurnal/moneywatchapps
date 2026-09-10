@@ -62,6 +62,7 @@ function test(name, fn) {
 const policyText = fs.readFileSync(path.join(__dirname, 'FINANCIAL_POLICY.md'), 'utf8');
 const dataText = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
 const engineText = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+const aiTradingText = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
 
 // ── Helper: extract the real TAX_SETTINGS literal from 01-data.js and
 // evaluate ONLY that isolated snippet (not the whole browser-oriented
@@ -184,6 +185,57 @@ test('Policy §7: "Maximum capital at risk per trade" approved value matches RIS
   assert.strictEqual(codePct, docPct,
     `Doc approves ${docPct}% max capital at risk per trade but RISK_PER_TRADE_PCT in lib/idx-data-engine.js = ${codePct}% — ` +
     `either the code's default needs to change to match the approved value, or a policy-change-control step (§15) is needed before changing the doc.`);
+});
+
+// ── Helper: extract the real RISK_POLICY literal from
+// public/js/38-ai-autonomous-trading.js (assessRiskGate()'s Risk Engine —
+// see that file for the enforcement itself) and evaluate ONLY that
+// isolated snippet, same "run the real source, don't re-type it"
+// principle as loadRealTaxSettings() above. Its values contain inline `//`
+// comments, which are valid inside the object literal being eval'd. ──
+function loadRealRiskPolicy() {
+  const m = aiTradingText.match(/var RISK_POLICY = (\{[\s\S]*?\n  \};)/);
+  assert(m, 'Could not locate `var RISK_POLICY = {...};` in public/js/38-ai-autonomous-trading.js — has assessRiskGate() been renamed/restructured?');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext('RISK_POLICY = ' + m[1], sandbox, { filename: '38-ai-autonomous-trading.js (RISK_POLICY extract)' });
+  return sandbox.RISK_POLICY;
+}
+const RISK_POLICY = loadRealRiskPolicy();
+
+test('Policy §7: "Maximum single-stock position" approved value matches RISK_POLICY.MAX_POSITION_PCT enforced by assessRiskGate()', () => {
+  const m = policyText.match(/\|\s*Maximum single-stock position\s*\|\s*(\d+)%\s*\|/);
+  assert(m, 'Could not find the "Maximum single-stock position" row in FINANCIAL_POLICY.md §7 table');
+  assert.strictEqual(RISK_POLICY.MAX_POSITION_PCT, parseFloat(m[1]),
+    `Doc approves ${m[1]}% but RISK_POLICY.MAX_POSITION_PCT in public/js/38-ai-autonomous-trading.js = ${RISK_POLICY.MAX_POSITION_PCT}%`);
+});
+
+test('Policy §7: "Minimum RDN/cash buffer" approved value matches RISK_POLICY.MIN_CASH_BUFFER_PCT enforced by assessRiskGate()', () => {
+  const m = policyText.match(/\|\s*Minimum RDN\/cash buffer\s*\|\s*(\d+)%\s*\|/);
+  assert(m, 'Could not find the "Minimum RDN/cash buffer" row in FINANCIAL_POLICY.md §7 table');
+  assert.strictEqual(RISK_POLICY.MIN_CASH_BUFFER_PCT, parseFloat(m[1]),
+    `Doc approves ${m[1]}% but RISK_POLICY.MIN_CASH_BUFFER_PCT in public/js/38-ai-autonomous-trading.js = ${RISK_POLICY.MIN_CASH_BUFFER_PCT}%`);
+});
+
+test('Policy §7: "Minimum Risk:Reward" approved value matches RISK_POLICY.MIN_RR_RATIO enforced by assessRiskGate()', () => {
+  const m = policyText.match(/\|\s*Minimum Risk:Reward\s*\|\s*1:(\d+)\s*\|/);
+  assert(m, 'Could not find the "Minimum Risk:Reward" row in FINANCIAL_POLICY.md §7 table');
+  assert.strictEqual(RISK_POLICY.MIN_RR_RATIO, parseFloat(m[1]),
+    `Doc approves 1:${m[1]} but RISK_POLICY.MIN_RR_RATIO in public/js/38-ai-autonomous-trading.js = ${RISK_POLICY.MIN_RR_RATIO}`);
+});
+
+test('Policy §7: "Maximum portfolio drawdown gate" approved value matches RISK_POLICY.MAX_DRAWDOWN_PCT enforced by assessRiskGate()', () => {
+  const m = policyText.match(/\|\s*Maximum portfolio drawdown gate\s*\|\s*(\d+)%\s*\|/);
+  assert(m, 'Could not find the "Maximum portfolio drawdown gate" row in FINANCIAL_POLICY.md §7 table');
+  assert.strictEqual(RISK_POLICY.MAX_DRAWDOWN_PCT, parseFloat(m[1]),
+    `Doc approves ${m[1]}% but RISK_POLICY.MAX_DRAWDOWN_PCT in public/js/38-ai-autonomous-trading.js = ${RISK_POLICY.MAX_DRAWDOWN_PCT}%`);
+});
+
+test('Policy §7: "Maximum concurrent new positions" approved value matches RISK_POLICY.MAX_CONCURRENT_POSITIONS enforced by assessRiskGate()', () => {
+  const m = policyText.match(/\|\s*Maximum concurrent new positions\s*\|\s*(\d+)\s*\|/);
+  assert(m, 'Could not find the "Maximum concurrent new positions" row in FINANCIAL_POLICY.md §7 table');
+  assert.strictEqual(RISK_POLICY.MAX_CONCURRENT_POSITIONS, parseFloat(m[1]),
+    `Doc approves ${m[1]} but RISK_POLICY.MAX_CONCURRENT_POSITIONS in public/js/38-ai-autonomous-trading.js = ${RISK_POLICY.MAX_CONCURRENT_POSITIONS}`);
 });
 
 // ============================================================
