@@ -1004,6 +1004,19 @@ function renderStockIntelPage() {
           + '<div style="font-size:11px;color:var(--text2)">Hitung harga wajar 9-langkah dari data keuangan historis riil (EPS, BVPS, DPS) untuk ' + ticker + '.</div>'
           + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof hw_loadStock===\'function\')hw_loadStock(\'' + ticker + '\');goPage(\'hargawajar\')">Buka Kalkulator MoS →</button>'
         + '</div>'
+        // UIUX_ROADMAP_AUDIT.md §8 (Stock Cockpit) lists a "Smart Money" tab
+        // (flow, accumulation/distribution, institutional activity) — the
+        // other 3 handoff cards here already covered Fundamental/Technical/
+        // Valuation, but Bandarmology had no link from this cockpit at all.
+        // Same pre-load-then-navigate pattern as the other 3: explicitly set
+        // the ticker (selectStockChatTicker(), same call this file's own
+        // "Tanya AI StockChat" button above already uses) before navigating,
+        // rather than relying only on the passive GLOBAL_STOCK_CONTEXT sync.
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
+          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Smart Money / Bandarmology</div>'
+          + '<div style="font-size:11px;color:var(--text2)">Broker flow lengkap, foreign flow, dan sinyal CMF/VWAP untuk ' + ticker + '.</div>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + ticker + '\');if(typeof goBandarmology===\'function\')goBandarmology(\'stock\',null);">Buka Bandarmology →</button>'
+        + '</div>'
       + '</div>'
     + '</div>';
 
