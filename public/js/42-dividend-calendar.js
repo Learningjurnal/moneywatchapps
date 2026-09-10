@@ -81,13 +81,41 @@ function getEnrichedDividendEvents() {
     eventMap[key] = Object.assign({}, item);
   });
 
+  // FIX AUDIT (tombol "+Catat Riil" tidak pernah ter-nonaktif -> dividen
+  // bisa dicatat 2x): sebelumnya pencocokan ke sini pakai exact key
+  // ticker+date, padahal tanggal dividen di `dividends[]` (ex-date, kalau
+  // asalnya dari kalkulator riwayat transaksi) dan `paymentDate`/`cumDate`
+  // di master registry kalender untuk DISTRIBUSI YANG SAMA bisa berjarak
+  // beberapa minggu — exact match nyaris tidak pernah ketemu, jadi
+  // ev.userRecorded selalu false meski dividennya sudah tercatat, dan
+  // tombolnya tetap aktif. Sekarang pakai jendela toleransi 45 hari
+  // (sama seperti isDividendAlreadyRecorded() di 03-engine.js).
+  var DIV_MATCH_WINDOW_MS = 45 * 86400000;
+  function findMatchingEventKey(ticker, dateStr) {
+    var target = new Date(dateStr + 'T00:00:00').getTime();
+    if (isNaN(target)) return null;
+    var bestKey = null, bestDiff = Infinity;
+    Object.keys(eventMap).forEach(function(k) {
+      var ev = eventMap[k];
+      if (ev.code !== ticker) return;
+      var evDateStr = ev.paymentDate || ev.cumDate || ev.exDate;
+      if (!evDateStr) return;
+      var evTime = new Date(evDateStr + 'T00:00:00').getTime();
+      if (isNaN(evTime)) return;
+      var diff = Math.abs(evTime - target);
+      if (diff <= DIV_MATCH_WINDOW_MS && diff < bestDiff) { bestDiff = diff; bestKey = k; }
+    });
+    return bestKey;
+  }
+
   // Tambahkan catatan dividen riil yang ada di user storage jika belum ada
   var userDivs = typeof dividends !== 'undefined' && Array.isArray(dividends) ? dividends : [];
   userDivs.forEach(function(ud) {
     if (!ud.ticker || !ud.date) return;
-    var key = ud.ticker + '|' + ud.date;
-    if (!eventMap[key]) {
+    var matchedKey = findMatchingEventKey(ud.ticker, ud.date);
+    if (!matchedKey) {
       var mp = (typeof prices !== 'undefined' && prices[ud.ticker]) || 1;
+      var key = ud.ticker + '|' + ud.date;
       eventMap[key] = {
         id: 'usr-div-' + (ud.id || Math.random().toString(36).substr(2, 5)),
         code: ud.ticker,
@@ -106,8 +134,8 @@ function getEnrichedDividendEvents() {
         actualNet: ud.net || 0
       };
     } else {
-      eventMap[key].userRecorded = true;
-      eventMap[key].actualNet = ud.net || 0;
+      eventMap[matchedKey].userRecorded = true;
+      eventMap[matchedKey].actualNet = ud.net || 0;
     }
   });
 
@@ -640,9 +668,9 @@ function renderTimelineCard(ev, isUpcoming) {
     + '  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding-top:6px;border-top:1px solid var(--border);">'
     + '    <button class="btn btn-ghost btn-xs" onclick="openDivCalDetailModal(\'' + ev.id + '\')" style="font-size:11px;"><i class="ti ti-info-circle"></i> Detail Info</button>'
     + (ev.isHeld
-        ? '    <button class="btn btn-green btn-xs" onclick="divCalRecordToDividends(\'' + ev.code + '\',' + ev.dps + ',\'' + (ev.paymentDate || ev.cumDate) + '\',' + ev.heldShares + ')" style="font-size:11px;" title="Catat langsung ke buku transaksi dividen">'
-          + '      <i class="ti ti-plus"></i> ' + (ev.userRecorded ? 'Sudah Tercatat ✓' : '+ Catat Riil')
-          + '    </button>'
+        ? (ev.userRecorded
+            ? '    <span class="badge b-gray" style="font-size:10px;padding:3px 8px;" title="Sudah tercatat di Riwayat Dividen & tersinkron ke Mutasi RDN">Sudah Tercatat ✓</span>'
+            : '    <button class="btn btn-green btn-xs" onclick="divCalRecordToDividends(\'' + ev.code + '\',' + ev.dps + ',\'' + (ev.paymentDate || ev.cumDate) + '\',' + ev.heldShares + ')" style="font-size:11px;" title="Catat langsung ke buku transaksi dividen">+ Catat Riil</button>')
         : '')
     + '  </div>'
     + '</div>';
@@ -771,7 +799,9 @@ function renderDivCalTableView(events) {
         + '    <div style="display:flex;gap:4px;">'
         + '      <button class="btn btn-ghost btn-xs" onclick="openDivCalDetailModal(\'' + ev.id + '\')" title="Detail"><i class="ti ti-eye"></i></button>'
         + (ev.isHeld
-            ? '<button class="btn btn-green btn-xs" onclick="divCalRecordToDividends(\'' + ev.code + '\',' + ev.dps + ',\'' + (ev.paymentDate || ev.cumDate) + '\',' + ev.heldShares + ')" title="Catat ke Dividen Riil"><i class="ti ti-plus"></i></button>'
+            ? (ev.userRecorded
+                ? '<span class="badge b-gray" style="font-size:9px;padding:2px 6px;" title="Sudah tercatat">✓</span>'
+                : '<button class="btn btn-green btn-xs" onclick="divCalRecordToDividends(\'' + ev.code + '\',' + ev.dps + ',\'' + (ev.paymentDate || ev.cumDate) + '\',' + ev.heldShares + ')" title="Catat ke Dividen Riil">+</button>')
             : '')
         + '    </div>'
         + '  </td>'
@@ -860,9 +890,9 @@ function openDivCalDetailModal(eventId) {
     + '    <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:12px;border-top:1px solid var(--border);">'
     + '      <button class="btn btn-ghost" onclick="closeDivCalModal()">Tutup</button>'
     + (ev.isHeld
-        ? '      <button class="btn btn-green" onclick="divCalRecordToDividends(\'' + ev.code + '\',' + ev.dps + ',\'' + (ev.paymentDate || ev.cumDate) + '\',' + ev.heldShares + ');closeDivCalModal();">'
-          + '        <i class="ti ti-file-text"></i> ' + (ev.userRecorded ? 'Simpan Ulang ke Riwayat' : 'Catat ke Buku Dividen Riil')
-          + '      </button>'
+        ? (ev.userRecorded
+            ? '      <span class="badge b-gray" style="padding:6px 12px;font-size:11px;" title="Sudah tercatat di Riwayat Dividen & tersinkron ke Mutasi RDN">Sudah Tercatat ✓</span>'
+            : '      <button class="btn btn-green" onclick="divCalRecordToDividends(\'' + ev.code + '\',' + ev.dps + ',\'' + (ev.paymentDate || ev.cumDate) + '\',' + ev.heldShares + ');closeDivCalModal();">Catat ke Buku Dividen Riil</button>')
         : '')
     + '    </div>'
     + '  </div>'
@@ -883,25 +913,44 @@ function divCalRecordToDividends(ticker, dps, date, shares) {
     return;
   }
 
-  // Cek apakah sudah ada transaksi dividen dengan ticker & tanggal yang sama
-  var exists = (typeof dividends !== 'undefined' && Array.isArray(dividends))
-    ? dividends.some(function(d) { return d.ticker === ticker && d.date === date; })
-    : false;
+  // FIX AUDIT (dividen tercatat 2x): dulu exists-check di sini pakai exact
+  // date match terhadap payment-date/cum-date kalender — beda field tanggal
+  // dari yang dipakai kalkulator riwayat transaksi (ex-date resmi Yahoo
+  // Finance) untuk distribusi dividen yang SAMA, jadi tidak pernah
+  // terdeteksi sebagai duplikat. Sekarang pakai isDividendAlreadyRecorded()
+  // (jendela toleransi 45 hari) — satu sumber kebenaran yang sama dipakai
+  // di semua entry point. Kalau sudah tercatat, BLOKIR langsung (bukan
+  // sekadar tanya "tambah lagi?") — tombolnya sendiri juga sudah
+  // disembunyikan di render kalau ev.userRecorded true, jadi klik ganda ke
+  // sini seharusnya jarang terjadi kecuali render belum sempat refresh.
+  var alreadyRecorded = (typeof isDividendAlreadyRecorded === 'function')
+    ? isDividendAlreadyRecorded(ticker, date)
+    : ((typeof dividends !== 'undefined' && Array.isArray(dividends)) ? dividends.some(function(d) { return d.ticker === ticker && d.date === date; }) : false);
+
+  if (alreadyRecorded) {
+    alert('Dividen ' + ticker + ' untuk periode ini sudah tercatat di Riwayat Dividen (dan sudah tersinkron ke Mutasi RDN). Tidak perlu dicatat ulang.');
+    if (typeof renderDividen === 'function') renderDividen();
+    renderDividendCalendarComponent();
+    return;
+  }
 
   var gross = Math.round(dps * shares);
   var divTaxRate = (typeof TAX_SETTINGS !== 'undefined' && TAX_SETTINGS.dividenExempt) ? 0 : 0.10;
-  var tax = Math.round(gross * divTaxRate);
-  var net = gross - tax;
 
-  if (exists) {
-    if (!confirm('Dividen ' + ticker + ' pada tanggal ' + date + ' sudah tercatat sebelumnya. Tambahkan lagi?')) {
-      return;
-    }
-  }
-
-  if (typeof addDividend === 'function') {
-    addDividend(date, ticker, shares, dps, gross, tax, net);
+  // FIX AUDIT (RDN tidak tersinkron): sebelumnya kode ini memanggil
+  // addDividend() — fungsi yang TIDAK PERNAH ADA di codebase ini — sehingga
+  // selalu jatuh ke fallback dividends.push() manual yang tidak pernah
+  // memanggil addRdn(). Akibatnya dividen yang dicatat lewat tombol
+  // "+Catat Riil" di halaman ini tidak pernah masuk ke Mutasi RDN & Kas
+  // Portofolio sama sekali. addDiv() (03-engine.js) adalah fungsi yang
+  // benar — sama seperti yang dipakai form manual & kalkulator riwayat
+  // transaksi — dan sudah menghitung gross/tax/net serta memanggil addRdn()
+  // sendiri.
+  if (typeof addDiv === 'function') {
+    addDiv(date, ticker, shares, dps, divTaxRate);
   } else if (typeof dividends !== 'undefined' && Array.isArray(dividends)) {
+    var tax = Math.round(gross * divTaxRate);
+    var net = gross - tax;
     var nextId = (typeof nextDivId !== 'undefined') ? nextDivId++ : Date.now();
     dividends.push({
       id: nextId,
@@ -917,12 +966,19 @@ function divCalRecordToDividends(ticker, dps, date, shares) {
     if (typeof saveData === 'function') saveData();
   }
 
+  var netForToast = gross - Math.round(gross * divTaxRate);
   if (typeof showSaveStatus === 'function') {
-    showSaveStatus('✓ Dividen ' + ticker + ' sebesar Rp ' + fmtK(net) + ' berhasil dibukukan ke riwayat!');
+    showSaveStatus('✓ Dividen ' + ticker + ' sebesar Rp ' + fmtK(netForToast) + ' berhasil dibukukan ke riwayat & Mutasi RDN!');
   }
 
-  // Re-render dividend views
+  // Re-render dividend views + RDN (addDiv() sudah update data-nya, tapi
+  // setiap halaman punya render function sendiri yang perlu dipanggil ulang
+  // agar saldo/tabel yang tampil ikut ter-refresh).
   if (typeof renderDividen === 'function') renderDividen();
+  if (typeof renderDivInvest === 'function') renderDivInvest();
+  if (typeof renderRdn === 'function') renderRdn();
+  if (typeof renderCashWidgets === 'function') renderCashWidgets();
+  if (typeof renderDashboard === 'function') renderDashboard();
   renderDividendCalendarComponent();
 }
 

@@ -1649,6 +1649,14 @@ function submitDivModal(){
   var date=el('mf-date').value;var ticker=el('mf-ticker').value;
   var shares=parseFloat(el('mf-shares').value||0);var dps=parseFloat(el('mf-dps').value||0);
   if(!date||!ticker||shares<=0||dps<=0){alert('Lengkapi semua data dividen!');return;}
+  // FIX AUDIT (dividen tercatat 2x): form manual ini sebelumnya tidak punya
+  // pengecekan duplikat sama sekali. isDividendAlreadyRecorded() (jendela
+  // toleransi 45 hari, sama dipakai Kalender Dividen & kalkulator riwayat
+  // transaksi) menangkap dividen yang sama meski tanggalnya sedikit
+  // berbeda antar sumber.
+  if(typeof isDividendAlreadyRecorded==='function' && isDividendAlreadyRecorded(ticker,date)){
+    if(!confirm('Dividen '+ticker+' untuk periode ini sepertinya sudah tercatat (ada entri dalam rentang 45 hari dari tanggal ini). Tetap tambahkan sebagai entri baru?')) return;
+  }
   addDiv(date,ticker,shares,dps);
   showSaveStatus('✓ Dividen '+ticker+' tersimpan');
   closeModal();renderPage(currentPage);

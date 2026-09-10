@@ -140,7 +140,13 @@ async function diCalcFromTransactionHistory(){
       divs.forEach(function(ev){
         var shares = diSharesHeldOnDate(ticker, ev.date);
         if (shares <= 0) { d.noSharesHeld++; return; } // belum/sudah tidak memegang saham pada ex-date ini
-        var alreadyExists = dividends.some(function(dv){ return dv.ticker === ticker && dv.date === ev.date; });
+        // Jendela toleransi (bukan exact date match) — dividen yang sama
+        // bisa sudah tercatat dengan tanggal berbeda (mis. lewat tombol
+        // "+Catat Riil" di Kalender Dividen yang pakai payment-date, bukan
+        // ex-date). Lihat isDividendAlreadyRecorded() di 03-engine.js.
+        var alreadyExists = (typeof isDividendAlreadyRecorded === 'function')
+          ? isDividendAlreadyRecorded(ticker, ev.date)
+          : dividends.some(function(dv){ return dv.ticker === ticker && dv.date === ev.date; });
         if (alreadyExists) { d.alreadyRecorded++; return; }
         var year = parseInt(ev.date.slice(0, 4), 10);
         candidates.push({ ticker: ticker, date: ev.date, dps: ev.dps, shares: shares, year: year, pphRate: diPphRateForYear(year) });
@@ -214,7 +220,9 @@ function diImportCalculatedDividends(){
   if (!_diCalcCandidates || !_diCalcCandidates.length) return;
   var n = 0;
   _diCalcCandidates.forEach(function(c){
-    var alreadyExists = dividends.some(function(d){ return d.ticker === c.ticker && d.date === c.date; });
+    var alreadyExists = (typeof isDividendAlreadyRecorded === 'function')
+      ? isDividendAlreadyRecorded(c.ticker, c.date)
+      : dividends.some(function(d){ return d.ticker === c.ticker && d.date === c.date; });
     if (alreadyExists) return;
     addDiv(c.date, c.ticker, c.shares, c.dps, c.pphRate);
     n++;
@@ -235,6 +243,144 @@ function diImportCalculatedDividends(){
   if (typeof renderTransaksi === 'function') renderTransaksi();
   if (typeof renderDashboard === 'function') renderDashboard();
   if (typeof showSaveStatus === 'function') showSaveStatus('✓ ' + n + ' data dividen berhasil diimport — saldo RDN diperbarui otomatis');
+}
+
+// ============================================================
+// DETEKSI & BERSIHKAN DUPLIKAT DIVIDEN
+// Membersihkan entri dividen yang sudah terlanjur tercatat lebih dari
+// sekali akibat bug lama: entry point berbeda (form manual, tombol
+// "+Catat Riil" di Kalender Dividen, kalkulator riwayat transaksi) memakai
+// pengecekan duplikat yang tidak konsisten sebelum diperbaiki (lihat
+// isDividendAlreadyRecorded() di 03-engine.js). Alat ini HANYA
+// mengelompokkan kandidat dan menampilkannya untuk ditinjau — tidak ada
+// yang dihapus tanpa konfirmasi eksplisit, karena dividen interim & final
+// yang genuinely berbeda untuk emiten yang sama bisa saja jatuh berdekatan.
+// ============================================================
+var _diDupGroups = [];
+
+function diFindDuplicateDividends(){
+  var box = el('di-dedup-preview');
+  var statusEl = el('di-dedup-status');
+  if (box) box.innerHTML = '';
+  if (!Array.isArray(dividends) || dividends.length < 2) {
+    if (statusEl) statusEl.textContent = 'Belum ada cukup data dividen untuk dicek.';
+    _diDupGroups = [];
+    return;
+  }
+
+  var WINDOW_MS = 45 * 86400000;
+  var byTicker = {};
+  dividends.forEach(function(d){
+    if (!d.ticker) return;
+    (byTicker[d.ticker] = byTicker[d.ticker] || []).push(d);
+  });
+
+  var groups = [];
+  var consumed = {};
+  Object.keys(byTicker).forEach(function(ticker){
+    var list = byTicker[ticker].slice().sort(function(a, b){ return (a.date || '').localeCompare(b.date || ''); });
+    for (var i = 0; i < list.length; i++) {
+      var a = list[i];
+      if (consumed[a.id]) continue;
+      var cluster = [a];
+      var aTime = new Date(a.date + 'T00:00:00').getTime();
+      for (var j = i + 1; j < list.length; j++) {
+        var b = list[j];
+        if (consumed[b.id]) continue;
+        var bTime = new Date(b.date + 'T00:00:00').getTime();
+        if (isNaN(aTime) || isNaN(bTime) || Math.abs(bTime - aTime) > WINDOW_MS) continue;
+        // DPS harus mendekati sama (toleransi 2%) — dividen interim vs final
+        // untuk emiten yang sama biasanya nilainya berbeda jauh, sedangkan
+        // duplikat murni dari bug ini punya DPS identik (sumber data sama).
+        var dpsA = Number(a.dps) || 0, dpsB = Number(b.dps) || 0;
+        var dpsDiffPct = dpsA > 0 ? Math.abs(dpsB - dpsA) / dpsA : (dpsB === 0 ? 0 : 1);
+        if (dpsDiffPct > 0.02) continue;
+        cluster.push(b);
+      }
+      if (cluster.length > 1) {
+        cluster.forEach(function(c){ consumed[c.id] = true; });
+        // Simpan entri dengan id terkecil (paling awal dicatat), tandai sisanya untuk dihapus
+        var sortedById = cluster.slice().sort(function(x, y){ return (x.id || 0) - (y.id || 0); });
+        groups.push({ ticker: ticker, keep: sortedById[0], remove: sortedById.slice(1) });
+      }
+    }
+  });
+
+  _diDupGroups = groups;
+  renderDupPreview(groups);
+  if (statusEl) {
+    statusEl.textContent = groups.length
+      ? 'Ditemukan ' + groups.length + ' grup duplikat (total ' + groups.reduce(function(a, g){ return a + g.remove.length; }, 0) + ' entri berlebih). Periksa lalu klik "Hapus Duplikat Terpilih".'
+      : 'Tidak ditemukan duplikat berdasarkan ticker + tanggal berdekatan (±45 hari) + DPS yang sama.';
+  }
+}
+
+function renderDupPreview(groups){
+  var box = el('di-dedup-preview');
+  if (!box) return;
+  if (!groups.length) { box.innerHTML = ''; return; }
+  var idx = 0;
+  box.innerHTML = '<div style="overflow-x:auto"><table class="tbl"><thead><tr>'
+    + '<th></th><th>Ticker</th><th>Tanggal</th><th>Lembar</th><th>Div/Lbr</th><th>Bersih</th><th>Status</th>'
+    + '</tr></thead><tbody>'
+    + groups.map(function(g){
+        var keepRow = '<tr style="background:rgba(0,229,160,.05)"><td></td><td class="mono" style="font-weight:700">' + g.ticker + '</td>'
+          + '<td class="mono">' + g.keep.date + '</td><td class="mono">' + (g.keep.shares || 0).toLocaleString('id-ID') + '</td>'
+          + '<td class="mono">Rp ' + (Number(g.keep.dps) || 0).toFixed(2) + '</td><td class="mono">Rp ' + fmt(g.keep.net || 0) + '</td>'
+          + '<td><span class="badge b-up" style="font-size:9px">Dipertahankan</span></td></tr>';
+        var removeRows = g.remove.map(function(r, ri){
+          var cbId = 'dedup-cb-' + idx + '-' + ri;
+          return '<tr><td><input type="checkbox" id="' + cbId + '" data-div-id="' + r.id + '" checked></td>'
+            + '<td class="mono">' + g.ticker + '</td><td class="mono">' + r.date + '</td><td class="mono">' + (r.shares || 0).toLocaleString('id-ID') + '</td>'
+            + '<td class="mono">Rp ' + (Number(r.dps) || 0).toFixed(2) + '</td><td class="mono">Rp ' + fmt(r.net || 0) + '</td>'
+            + '<td><span class="badge b-dn" style="font-size:9px">Akan Dihapus</span></td></tr>';
+        }).join('');
+        idx++;
+        return keepRow + removeRows;
+      }).join('')
+    + '</tbody></table></div>'
+    + '<div style="margin-top:8px;font-size:10.5px;color:var(--text3);line-height:1.5">Untuk tiap grup, entri dengan ID tercatat paling awal dipertahankan; sisanya ditandai untuk dihapus (centang bisa dilepas kalau Anda yakin itu bukan duplikat, mis. dividen interim &amp; final yang kebetulan berdekatan). Menghapus entri dividen juga menghapus mutasi RDN yang terhubung dan menghitung ulang saldo.</div>'
+    + '<button class="btn btn-red btn-sm" style="margin-top:10px" onclick="diRemoveSelectedDuplicates()">Hapus Duplikat Terpilih</button>';
+}
+
+function diRemoveSelectedDuplicates(){
+  var checkboxes = document.querySelectorAll('#di-dedup-preview input[type="checkbox"][data-div-id]:checked');
+  var idsToRemove = Array.prototype.map.call(checkboxes, function(cb){ return cb.getAttribute('data-div-id'); });
+  if (!idsToRemove.length) { alert('Tidak ada entri yang dicentang untuk dihapus.'); return; }
+
+  var idSet = {};
+  idsToRemove.forEach(function(id){ idSet[String(id)] = true; });
+
+  var removedCount = 0;
+  dividends = dividends.filter(function(d){
+    if (idSet[String(d.id)]) {
+      removedCount++;
+      return false;
+    }
+    return true;
+  });
+
+  // Hapus mutasi RDN yang terhubung ke dividen yang dihapus (linkedTxId = 'div-'+id)
+  if (Array.isArray(rdnMutations)) {
+    rdnMutations = rdnMutations.filter(function(m){
+      return !idsToRemove.some(function(id){ return m.linkedTxId === ('div-' + id); });
+    });
+  }
+
+  if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+  if (typeof saveData === 'function') saveData();
+
+  _diDupGroups = [];
+  var box = el('di-dedup-preview'); if (box) box.innerHTML = '';
+  var statusEl = el('di-dedup-status'); if (statusEl) statusEl.textContent = '';
+
+  if (typeof renderDividen === 'function') renderDividen();
+  if (typeof renderDivInvest === 'function') renderDivInvest();
+  if (typeof renderRdn === 'function') renderRdn();
+  if (typeof renderCashWidgets === 'function') renderCashWidgets();
+  if (typeof renderTransaksi === 'function') renderTransaksi();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof showSaveStatus === 'function') showSaveStatus('✓ ' + removedCount + ' entri dividen duplikat dihapus & saldo RDN diperbarui');
 }
 
 // ── Gabungkan semua sumber dividen (global + manual) ──

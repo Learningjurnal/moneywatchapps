@@ -1484,6 +1484,17 @@
       </div>
       <div id="di-calc-preview"></div>
     </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="cheader">
+        <span class="ctitle">Deteksi &amp; Bersihkan Duplikat Dividen</span>
+      </div>
+      <div class="psub" style="margin-bottom:10px">Mencari dividen yang tercatat lebih dari sekali untuk emiten &amp; periode yang sama (bisa terjadi kalau dividen yang sama dicatat lewat lebih dari satu cara — form manual, Kalender Dividen, atau kalkulator riwayat transaksi). Tidak ada yang dihapus tanpa Anda tinjau &amp; konfirmasi dulu.</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn btn-ghost btn-sm" style="border-color:rgba(255,193,7,.4);color:var(--amber)" onclick="diFindDuplicateDividends()">Cek Duplikat Dividen</button>
+        <span id="di-dedup-status" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div id="di-dedup-preview"></div>
+    </div>
     <div class="card">
       <div class="cheader">
         <span class="ctitle">Riwayat Dividen</span>
@@ -3946,14 +3957,14 @@
 <script src="js/01-data.js?v=20260909a"></script>
 <script src="js/02-storage.js?v=20260909b"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
-<script src="js/03-engine.js?v=20260909a"></script>
+<script src="js/03-engine.js?v=20260910a"></script>
 <script src="js/04-render.js?v=20260906b"></script>
 <script src="js/36-crypto-technical.js?v=20260906e"></script>
-<script src="js/05-assets.js?v=20260909a"></script>
+<script src="js/05-assets.js?v=20260910a"></script>
 <script src="js/06-analysis-router.js?v=20260909a"></script>
 <script src="js/07-flowscan.js?v=20260909a"></script>
 <script src="js/08-auth.js?v=20260909a"></script>
-<script src="js/09-divinvest.js?v=20260909b"></script>
+<script src="js/09-divinvest.js?v=20260910a"></script>
 <script src="js/10-hargawajar.js?v=20260909a"></script>
 <script src="js/11-quant.js?v=20260906e"></script>
 <script src="js/12-clean.js?v=20260908a"></script>
@@ -3979,7 +3990,7 @@
 <script src="js/39-knowledge-master-guide.js?v=20260905g"></script>
 <script src="js/40-idx-pipeline.js?v=20260902c"></script>
 <script src="js/41-stockchat-cockpit.js?v=20260906k"></script>
-<script src="js/42-dividend-calendar.js?v=20260902c"></script>
+<script src="js/42-dividend-calendar.js?v=20260910a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260905g"></script>
 <script src="js/44-sectoral-insight.js?v=20260908a"></script>
 
