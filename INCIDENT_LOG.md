@@ -174,3 +174,47 @@ was added afterward to make the same class of bug harder to ship again.
     Verified to actually fail (with a clear message naming the missing
     count) when one guard call site is removed, before being added to
     `npm test`.
+
+---
+
+## #5 — `escapeHtml is not defined` in AI Copilot, newly reachable after
+activating its navigation
+
+- **Date:** 2026-09-10 (same day)
+- **Found by:** live headless-browser click-through (server run locally,
+  Chromium/Playwright) while wiring up real sidebar navigation for the
+  `copilot` page (`UIUX_ROADMAP_AUDIT.md` §1.3 had flagged it as a fully-
+  built feature — real AI chat UI, real `/api/ai/agent-chat` backend —
+  with zero navigation entry point anywhere in the app). The bug had
+  always existed in the code but was unreachable through the UI, so it
+  never surfaced until this session's audit gave it a way in.
+- **Impact:** `public/js/28-decisiontools.js`'s Copilot message renderer
+  calls `escapeHtml()` when the AI's reply includes tool calls (badges
+  like `cek_harga({"ticker":"BBCA"})`) — a common, expected path, not an
+  edge case, since the AI agent routinely uses tools. `escapeHtml` was
+  never defined anywhere in the entire codebase. Sending any message that
+  produced a tool-call response threw `pageerror: escapeHtml is not
+  defined`, confirmed with a real click-through against the real backend
+  endpoint (not a source-only read) — the AI actually invoked
+  `cek_harga`/`cek_fundamental`/`hitung_proyeksi_risiko_drawdown` and the
+  render crashed on the badge markup for each one.
+- **Root cause:** the function was presumably assumed to exist (maybe
+  copied from a reference implementation that had one) when this file was
+  written, and since the page had no navigation entry point, nobody —
+  human or automated — ever exercised this code path to notice.
+- **Fix:** added a real `escapeHtml()` to `public/js/01-data.js` (loaded
+  first, already proven safely loadable standalone via `vm` — see
+  `lib/universe.js`'s `loadBaseUniverse()`) — escapes all 5 HTML-special
+  characters (`& < > " '`), coerces `null`/`undefined` to an empty string
+  rather than the literal text `"null"`/`"undefined"`.
+- **Prevention added:**
+  - `test_suite.js` TEST 33: loads the real `01-data.js` via the same `vm`
+    sandbox technique `lib/universe.js` already uses in production,
+    asserts `escapeHtml()`'s actual escaping behavior, plus a regression
+    guard counting `escapeHtml(` call sites in `28-decisiontools.js`.
+    Verified to actually fail (clear message) when the function is
+    removed again, before being added to `npm test`.
+  - Confirms the value of navigation-audit work as a bug-finding method in
+    its own right: activating a previously-unreachable page is itself a
+    form of test coverage — dead code paths can hide real bugs that no
+    amount of source reading catches, only actually running them does.

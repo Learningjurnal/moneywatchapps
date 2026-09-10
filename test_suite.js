@@ -838,6 +838,41 @@ test('REGRESSION GUARD: every modal submit function in 05-assets.js must call _m
   );
 });
 
+// ── TEST 33: escapeHtml() — added when 'copilot'/'dataconn' got real nav ──
+// Both pages existed fully-built but unreachable (no nav button anywhere —
+// see UIUX_ROADMAP_AUDIT.md §1.3) until now. Wiring up real navigation to
+// 'copilot' surfaced a live bug that had never been reachable before:
+// public/js/28-decisiontools.js calls escapeHtml() when rendering AI
+// tool-call badges, but escapeHtml() was never defined ANYWHERE in the
+// codebase — confirmed via `pageerror: escapeHtml is not defined` when
+// actually sending a message that triggers a tool call (verified with a
+// real headless-browser click-through against the real /api/ai/agent-chat
+// endpoint, not just a source read). Added escapeHtml() to 01-data.js
+// (loaded first, already proven loadable standalone via vm — see
+// lib/universe.js's loadBaseUniverse(), reused here) as a shared utility.
+test('escapeHtml() (public/js/01-data.js, loaded via the real vm sandbox technique) escapes all 5 HTML-special characters', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
+  const sandbox = { window: {}, document: { getElementById: () => null } };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '01-data.js (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.escapeHtml, 'function',
+    'escapeHtml() not found in public/js/01-data.js — has it been renamed/removed?');
+  assert.strictEqual(ctx.escapeHtml('<script>alert(1)</script>'), '&lt;script&gt;alert(1)&lt;/script&gt;');
+  assert.strictEqual(ctx.escapeHtml('Tom & Jerry "quoted" \'single\''), 'Tom &amp; Jerry &quot;quoted&quot; &#39;single&#39;');
+  assert.strictEqual(ctx.escapeHtml(null), '', 'null must escape to empty string, not "null"');
+  assert.strictEqual(ctx.escapeHtml(undefined), '', 'undefined must escape to empty string, not "undefined"');
+  assert.strictEqual(ctx.escapeHtml(123), '123', 'non-string input must be coerced, not throw');
+});
+test('REGRESSION GUARD: 28-decisiontools.js Copilot tool-call badges must still call escapeHtml()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const callCount = (src.match(/escapeHtml\(/g) || []).length;
+  assert(callCount >= 2,
+    'Expected at least 2 escapeHtml() calls (tool name + tool args) in the Copilot tool-call badge renderer — got ' + callCount + '. If this dropped, AI-controlled tool-call text renders unescaped into innerHTML again.'
+  );
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

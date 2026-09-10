@@ -160,6 +160,20 @@ function parsePrice(val){
   return parseFloat(s)||0;
 }
 
+// Escape teks bebas (nama tool AI, argumen JSON, dsb.) sebelum dimasukkan ke
+// innerHTML — mencegah karakter HTML-special (<, >, &, ", ') merusak markup
+// atau (kalau sumbernya bisa dipengaruhi user/AI) membuka celah HTML/script
+// injection. Dibuat di sini (dimuat paling awal) karena ini utilitas string
+// generik yang dipakai lintas file, bukan spesifik satu halaman.
+function escapeHtml(str){
+  return String(str==null?'':str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
 // ── KAS PER AKUN PORTOFOLIO ──
 var CASH_ACCOUNTS = {
   saham:     {label:'Kas Saham (RDN)',     color:'#41f3a7', balance:0},
