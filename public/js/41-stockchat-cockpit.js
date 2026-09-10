@@ -2203,6 +2203,21 @@ function renderBandarmologyCockpitPage(containerId) {
   target.innerHTML = html;
 }
 
+// KNOWN_ISSUES.md #3 — shared disclosure banner for every Bandarmology view
+// that reads generateClientSideBrokerSummary() (client-side simulated
+// per-broker transaction volume/value — BEI has no free/public per-broker
+// feed, so this is always a seeded estimate, not a real broker-flow feed;
+// see that function's own comment). Market Flow / Heatmap Scanner already
+// carried this disclosure (added 2026-09-06, before this issue was even
+// filed); Foreign Flow, Accumulation, Distribution, Smart Money Radar and
+// Broker Trail read the exact same fabricated figures with none — this adds
+// it there too instead of leaving some views honest and others not.
+function bandarSimBanner(extraNote) {
+  return '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;margin-bottom:12px">'
+    + (extraNote || 'Rincian buyer/seller &amp; nilai transaksi di bawah dihitung dari simulasi transaksi broker (belum ada feed broker-flow real per-menit) — harga saham tetap real, tapi angka volume/nilai transaksi adalah estimasi.')
+    + '</div>';
+}
+
 // 1. Market Flow View
 function renderBandarmologyMarketFlowView(tk) {
   var bigBanksTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI'];
@@ -2377,7 +2392,8 @@ function renderBandarmologyForeignFlowView(tk) {
   var topForeignBuys = items.slice().sort(function(a, b) { return b.netVal - a.netVal; }).slice(0, 5);
   var topForeignSells = items.slice().sort(function(a, b) { return a.netVal - b.netVal; }).slice(0, 5);
 
-  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
+  var html = bandarSimBanner('Estimasi Foreign Net Buy/Sell di bawah dihitung dari simulasi transaksi broker (belum ada feed broker-flow real per-menit) — harga saham tetap real.')
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
     // Top Foreign Buys
     + '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
@@ -2469,7 +2485,8 @@ function renderBandarmologyAccumulationView() {
   accList.sort(function(a, b) { return b.t3Val - a.t3Val; });
   accList = accList.slice(0, 5);
 
-  var html = '<div class="card" style="padding:16px">'
+  var html = bandarSimBanner()
+    + '<div class="card" style="padding:16px">'
     + '<div style="margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:6px">'
     + 'RADAR SAHAM TERAKUMULASI SMART MONEY &amp; BANDAR'
@@ -2543,7 +2560,8 @@ function renderBandarmologyDistributionView() {
   distList.sort(function(a, b) { return b.t3Val - a.t3Val; });
   distList = distList.slice(0, 5);
 
-  var html = '<div class="card" style="padding:16px">'
+  var html = bandarSimBanner()
+    + '<div class="card" style="padding:16px">'
     + '<div style="margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--red);display:flex;align-items:center;gap:6px">'
     + 'RADAR SAHAM TERDISTRIBUSI (PERINGATAN TEKANAN JUAL)'
@@ -2618,7 +2636,8 @@ function renderBandarmologySmartMoneyRadarView(tk) {
   var divStatus = isBullishDivergence ? 'BULLISH DIVERGENCE (SMART MONEY INFLOW)' : (smNet < 0 && retNet > 0 ? 'BEARISH DIVERGENCE (DISTRIBUTION TO RETAIL)' : 'NEUTRAL ROTATION');
   var divDesc = isBullishDivergence ? 'Institusi menyerap barang konsisten sementara investor ritel melepas posisi' : 'Pergerakan harga sejalan dengan distribusi / akumulasi standar';
 
-  var html = '<div class="card" style="padding:16px">'
+  var html = bandarSimBanner()
+    + '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     + '<div>'
     + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
@@ -2692,7 +2711,8 @@ function renderBandarmologyBrokerTrailView() {
   trailData.sort(function(a, b) { return b.rawVal - a.rawVal; });
   trailData = trailData.slice(0, 10);
 
-  var html = '<div style="display:flex;flex-direction:column;gap:16px">'
+  var html = bandarSimBanner()
+    + '<div style="display:flex;flex-direction:column;gap:16px">'
     // Broker Selector Bar
     + '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
@@ -2782,7 +2802,18 @@ function renderBandarmologySmartMoneyFlowView(tk) {
 
   var cmfStatus = cmfVal >= 0.15 ? 'STRONG ACCUMULATION (+ ' + (cmfVal * 100).toFixed(0) + '%)' : (cmfVal <= -0.10 ? 'STRONG DISTRIBUTION (' + (cmfVal * 100).toFixed(0) + '%)' : 'NEUTRAL ROTATION');
 
-  var html = '<div style="display:flex;flex-direction:column;gap:16px">'
+  // KNOWN_ISSUES.md #4 (new, found while fixing #3): unlike the other
+  // Bandarmology views, cmfVal/vwapSession/volSurge below aren't even
+  // computed from generateClientSideBrokerSummary()'s simulated volume —
+  // they're two hardcoded literals picked by isUp (cmfVal is either exactly
+  // 0.24 or exactly -0.18, nothing else) and fixed % offsets off price, with
+  // no real CMF/VWAP calculation despite the "ALGORITMA PENETRASI HARGA
+  // BEI"/"CHART ENGINE (60 CANDLES)" badges implying one. 07-flowscan.js's
+  // fsCalcCMF()/rdGetAny() already compute a REAL CMF from cached OHLCV for
+  // the exact same tickers — replacing this view's math with that is the
+  // real fix, deferred as its own issue rather than folded into this pass.
+  var html = bandarSimBanner('CMF, VWAP Bands &amp; Volume Surge di bawah adalah pola ilustratif tetap (bukan hasil hitung candle riil) — lihat KNOWN_ISSUES.md #4.')
+    + '<div style="display:flex;flex-direction:column;gap:16px">'
     // Top Summary Banner (Opportunity Radar card)
     + '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:14px;flex-wrap:wrap;gap:8px">'
