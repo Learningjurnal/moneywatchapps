@@ -116,6 +116,18 @@
   var AI_SCAN_LAST_ATTEMPT = 0;
   var AI_SCAN_RETRY_COOLDOWN_MS = 30000;
 
+  // Scan universe selector — default LQ45 (45 tickers, a single request,
+  // byte-for-byte the original behavior). A broader universe is fetched as
+  // a ticker-code list first (GET /api/idx/stocks?index=...), then scanned
+  // in sequential batches of AI_SCAN_BATCH_SIZE (matches the server's own
+  // per-request cap — see the comment above /api/idx/ai-scan in
+  // server.js) rather than one huge request, and sequentially rather than
+  // in parallel to stay gentle on Yahoo Finance's rate limits.
+  var AI_SCAN_UNIVERSE_KEY = 'lq45'; // 'lq45' | 'idx80' | 'kompas100'
+  var AI_SCAN_UNIVERSE_LABELS = { lq45: 'LQ45 (45)', idx80: 'IDX80 (~85)', kompas100: 'Kompas100 (~127)' };
+  var AI_SCAN_BATCH_SIZE = 80;
+  var AI_SCAN_PROGRESS = null; // { done, total } while a multi-batch scan is running, else null
+
   // Tier 4 automation, step 1 (deliberately minimal — user-approved scope:
   // scan refresh only, no auto-generated hypotheses and no auto-execution).
   // Client-side timer only — there is no server-side state for this
@@ -345,41 +357,123 @@
     }
   }
 
+  // Splits an array into chunks of at most `size` — used to respect
+  // /api/idx/ai-scan's 80-ticker-per-request cap when the selected
+  // universe (idx80/kompas100) is larger than that.
+  function _chunkArray(arr, size) {
+    var out = [];
+    for (var i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
+  // Resolves the ticker-code list for a scan universe key. Returns null for
+  // 'lq45' — the server already defaults to LQ45 when /api/idx/ai-scan is
+  // called with no ?tickers= param, so that case stays a single request
+  // exactly as before, with no extra round trip.
+  async function fetchTickerListForUniverse(universeKey) {
+    if (!universeKey || universeKey === 'lq45') return null;
+    var resp = await fetch('/api/idx/stocks?index=' + encodeURIComponent(universeKey));
+    var json = await resp.json();
+    if (!json.success || !Array.isArray(json.data)) {
+      throw new Error('Gagal memuat daftar saham ' + (AI_SCAN_UNIVERSE_LABELS[universeKey] || universeKey));
+    }
+    return json.data.map(function(x) { return x.code; }).filter(Boolean);
+  }
+
+  // Switches the scan universe (called from the Scanner tab's selector) and
+  // immediately kicks off a fresh full-universe scan. Clears AI_UNIVERSE
+  // first so a scan from the previous, differently-sized universe never
+  // lingers mixed in with the new one, and resets the cooldown so this
+  // explicit user action isn't throttled by AI_SCAN_RETRY_COOLDOWN_MS.
+  // Shared loading-state label — used by the two empty-state placeholders
+  // (Cockpit/Scanner) and the "Scan Ulang" button so all three always
+  // agree on which universe is being scanned and how far a multi-batch
+  // scan has progressed.
+  function aiScanLoadingLabel(short) {
+    var universeLabel = AI_SCAN_UNIVERSE_LABELS[AI_SCAN_UNIVERSE_KEY] || AI_SCAN_UNIVERSE_KEY;
+    if (short) {
+      return AI_SCAN_PROGRESS ? ('⏳ Batch ' + (AI_SCAN_PROGRESS.done + 1) + '/' + AI_SCAN_PROGRESS.total + '...') : '⏳ Memindai...';
+    }
+    var progressSuffix = AI_SCAN_PROGRESS ? (' (batch ' + (AI_SCAN_PROGRESS.done + 1) + '/' + AI_SCAN_PROGRESS.total + ')') : '';
+    return '⏳ Memindai ' + universeLabel + progressSuffix + ' dengan data harga, indikator teknikal &amp; fundamental real-time Yahoo Finance...';
+  }
+
+  function aiSetScanUniverse(universeKey) {
+    if (universeKey === AI_SCAN_UNIVERSE_KEY || AI_SCAN_LOADING) return;
+    AI_SCAN_UNIVERSE_KEY = universeKey;
+    AI_UNIVERSE = [];
+    window.AI_UNIVERSE = AI_UNIVERSE;
+    AI_SCAN_LAST_ATTEMPT = 0;
+    return fetchAiScanData(); // returned so callers (tests included) can await the scan finishing
+  }
+
   async function fetchAiScanData(tickersOverride) {
     if (AI_SCAN_LOADING) return;
     AI_SCAN_LAST_ATTEMPT = Date.now();
     AI_SCAN_LOADING = true;
     AI_SCAN_ERROR = null;
+    AI_SCAN_PROGRESS = null;
     if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
     try {
-      var url = '/api/idx/ai-scan';
       if (tickersOverride && tickersOverride.length) {
-        url += '?tickers=' + encodeURIComponent(tickersOverride.join(','));
-      }
-      var resp = await fetch(url);
-      var json = await resp.json();
-      if (!json.success || !Array.isArray(json.signals)) throw new Error('Scan gagal dijalankan');
-
-      var adapted = json.signals
-        .filter(function(s) { return s && !s.error && s.compositeScore != null; })
-        .map(_adaptRealSignal);
-
-      if (tickersOverride && tickersOverride.length) {
-        // Merge a targeted single/multi-ticker fetch into the existing
-        // scanned universe rather than replacing the whole set.
-        adapted.forEach(function(item) {
-          var idx = AI_UNIVERSE.findIndex(function(x) { return x.ticker === item.ticker; });
-          if (idx >= 0) AI_UNIVERSE[idx] = item; else AI_UNIVERSE.push(item);
-        });
+        // Targeted single/multi-ticker refresh (e.g. searching a ticker
+        // outside the current scan universe) — merges into the existing
+        // scanned universe rather than replacing it, and is unaffected by
+        // the AI_SCAN_UNIVERSE_KEY selector below.
+        var url = '/api/idx/ai-scan?tickers=' + encodeURIComponent(tickersOverride.join(','));
+        var resp = await fetch(url);
+        var json = await resp.json();
+        if (!json.success || !Array.isArray(json.signals)) throw new Error('Scan gagal dijalankan');
+        json.signals
+          .filter(function(s) { return s && !s.error && s.compositeScore != null; })
+          .map(_adaptRealSignal)
+          .forEach(function(item) {
+            var idx = AI_UNIVERSE.findIndex(function(x) { return x.ticker === item.ticker; });
+            if (idx >= 0) AI_UNIVERSE[idx] = item; else AI_UNIVERSE.push(item);
+          });
+        AI_SCAN_LOADED_AT = new Date();
       } else {
-        AI_UNIVERSE = adapted;
+        // Full-universe (re)scan — replaces AI_UNIVERSE entirely. LQ45
+        // stays a single request; a broader universe (idx80/kompas100) is
+        // resolved to a ticker list first, then scanned in sequential
+        // batches of AI_SCAN_BATCH_SIZE so a slow/failed batch never wipes
+        // out results already fetched from the others.
+        var tickerList = await fetchTickerListForUniverse(AI_SCAN_UNIVERSE_KEY);
+        var batches = tickerList ? _chunkArray(tickerList, AI_SCAN_BATCH_SIZE) : [null];
+
+        var merged = [];
+        var failedBatches = 0;
+        for (var b = 0; b < batches.length; b++) {
+          AI_SCAN_PROGRESS = batches.length > 1 ? { done: b, total: batches.length } : null;
+          if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+          var batchUrl = '/api/idx/ai-scan' + (batches[b] ? ('?tickers=' + encodeURIComponent(batches[b].join(','))) : '');
+          try {
+            var bResp = await fetch(batchUrl);
+            var bJson = await bResp.json();
+            if (!bJson.success || !Array.isArray(bJson.signals)) throw new Error('Scan gagal dijalankan');
+            bJson.signals
+              .filter(function(s) { return s && !s.error && s.compositeScore != null; })
+              .map(_adaptRealSignal)
+              .forEach(function(item) { merged.push(item); });
+          } catch (batchErr) {
+            failedBatches++; // keep scanning the remaining batches — a partial universe beats none
+          }
+        }
+        AI_SCAN_PROGRESS = null;
+
+        if (!merged.length) throw new Error('Scan gagal dijalankan');
+        AI_UNIVERSE = merged;
         window.AI_UNIVERSE = AI_UNIVERSE;
+        AI_SCAN_LOADED_AT = new Date();
+        if (failedBatches > 0 && typeof showToast === 'function') {
+          showToast('Sebagian batch scan gagal (' + failedBatches + '/' + batches.length + ') — hasil di bawah tidak mencakup seluruh ' + (AI_SCAN_UNIVERSE_LABELS[AI_SCAN_UNIVERSE_KEY] || AI_SCAN_UNIVERSE_KEY) + '. Coba "Scan Ulang".', 'var(--amber)');
+        }
       }
-      AI_SCAN_LOADED_AT = new Date();
     } catch (err) {
       AI_SCAN_ERROR = (err && err.message) || 'Gagal memuat data scan real-time';
     } finally {
       AI_SCAN_LOADING = false;
+      AI_SCAN_PROGRESS = null;
       if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
     }
   }
@@ -1321,7 +1415,7 @@
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
         + (AI_SCAN_ERROR
             ? '' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()">Coba Lagi</button>'
-            : '⏳ Memindai LQ45 dengan data harga &amp; fundamental real-time Yahoo Finance...')
+            : aiScanLoadingLabel(false))
         + '</div>';
     }
 
@@ -1477,7 +1571,7 @@
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
         + (AI_SCAN_ERROR
             ? '' + AI_SCAN_ERROR + ' <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()">Coba Lagi</button>'
-            : '⏳ Memindai LQ45 dengan data harga, indikator teknikal &amp; fundamental real-time Yahoo Finance...')
+            : aiScanLoadingLabel(false))
         + '</div>';
     }
 
@@ -1507,16 +1601,23 @@
       + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
       + '        Multi-Layer Quantitative Stock Scanner'
       + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">Skor teknikal (EMA/RSI/Volume) + fundamental riil (ROE/PER/DER) untuk 45 saham LQ45. Belum mencakup data bandarmologi/broker flow.</div>'
+      + '      <div style="font-size:12px;color:var(--text3)">Skor teknikal (EMA/RSI/Volume) + fundamental riil (ROE/PER/DER) untuk universe terpilih di bawah. Belum mencakup data bandarmologi/broker flow.</div>'
       + '    </div>'
       + '    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
-      + '      <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()" title="Pindai ulang dengan harga terbaru">' + (AI_SCAN_LOADING ? '⏳ Memindai...' : 'Scan Ulang') + '</button>'
+      + '      <button class="btn btn-ghost btn-xs" onclick="fetchAiScanData()" title="Pindai ulang dengan harga terbaru">' + (AI_SCAN_LOADING ? aiScanLoadingLabel(true) : 'Scan Ulang') + '</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'all' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'all\')">Semua Sinyal (' + AI_UNIVERSE.length + ')</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'BUY' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'BUY\')">Buy / Accumulation</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'HOLD' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'HOLD\')">Hold / Trailing</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'WATCH' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'WATCH\')">Watchlist</button>'
       + '      <button class="btn btn-ghost btn-xs ' + (state.filterSignal === 'AVOID' ? 'on' : '') + '" onclick="aiSetFilterSignal(\'AVOID\')">Avoid / Risk</button>'
       + '    </div>'
+      + '  </div>'
+
+      + '  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding-top:12px;border-top:1px solid var(--border2)">'
+      + '    <span style="font-size:11px;color:var(--text3);font-weight:700">UNIVERSE SCAN:</span>'
+      + '    <button class="btn btn-ghost btn-xs ' + (AI_SCAN_UNIVERSE_KEY === 'lq45' ? 'on' : '') + '" ' + (AI_SCAN_LOADING ? 'disabled' : '') + ' onclick="aiSetScanUniverse(\'lq45\')" title="45 saham blue-chip LQ45 — 1 request, tercepat">LQ45 (45)</button>'
+      + '    <button class="btn btn-ghost btn-xs ' + (AI_SCAN_UNIVERSE_KEY === 'idx80' ? 'on' : '') + '" ' + (AI_SCAN_LOADING ? 'disabled' : '') + ' onclick="aiSetScanUniverse(\'idx80\')" title="~85 saham LQ45 + mid-cap likuid — masih 1 request">IDX80 (~85)</button>'
+      + '    <button class="btn btn-ghost btn-xs ' + (AI_SCAN_UNIVERSE_KEY === 'kompas100' ? 'on' : '') + '" ' + (AI_SCAN_LOADING ? 'disabled' : '') + ' onclick="aiSetScanUniverse(\'kompas100\')" title="~127 saham termasuk second-liner populer — 2 batch request, sedikit lebih lama">Kompas100 (~127)</button>'
       + '  </div>'
 
       + '  <div style="overflow-x:auto">'
@@ -2671,6 +2772,7 @@
   window.aiClosePosition = aiClosePosition;
   window.fetchAiScanData = fetchAiScanData;
   window.aiShouldAutoLoadUniverse = aiShouldAutoLoadUniverse;
+  window.aiSetScanUniverse = aiSetScanUniverse;
   window.startAiAutoRefresh = startAiAutoRefresh;
   window.stopAiAutoRefresh = stopAiAutoRefresh;
   window.fetchAllStrategyBacktests = fetchAllStrategyBacktests;
