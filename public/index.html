@@ -667,28 +667,28 @@
                             </span>
                         </div>
 
-                        <!-- Donut Chart & Legend -->
-                        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">
-                            <div class="donut-chart" style="width:96px;height:96px;border-radius:50%;background:conic-gradient(#3B82F6 0% 25%, #10B981 25% 50%, #EF4444 50% 75%, #8B5CF6 75% 100%);position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.3);flex-shrink:0" id="hub-donut">
-                                <div class="donut-inner" style="width:64px;height:64px;border-radius:50%;background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--border);text-align:center;padding:2px">
-                                    <span style="font-size:8px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3)">Alokasi</span>
-                                    <span id="hub-donut-center-val" style="font-size:10.5px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:1px">4 Aset</span>
+                        <!-- Donut Chart & Legend — diperbesar agar sepadan dengan tinggi card di sebelahnya (Volatilitas & Risiko) yang punya gauge+chart -->
+                        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px;flex:1">
+                            <div class="donut-chart" style="width:150px;height:150px;border-radius:50%;background:conic-gradient(#3B82F6 0% 25%, #10B981 25% 50%, #EF4444 50% 75%, #8B5CF6 75% 100%);position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.3);flex-shrink:0" id="hub-donut">
+                                <div class="donut-inner" style="width:106px;height:106px;border-radius:50%;background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--border);text-align:center;padding:4px">
+                                    <span style="font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text3)">Alokasi</span>
+                                    <span id="hub-donut-center-val" style="font-size:15px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:2px">4 Aset</span>
                                 </div>
                             </div>
 
                             <!-- Legend -->
-                            <div style="display:grid;grid-template-columns:repeat(2, minmax(90px, 1fr));gap:6px 10px;flex:1">
-                                <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2);font-weight:600">
-                                    <span style="width:7px;height:7px;border-radius:50%;background:#3B82F6;display:inline-block"></span> Saham IDX
+                            <div style="display:grid;grid-template-columns:repeat(2, minmax(100px, 1fr));gap:10px 14px;flex:1">
+                                <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);font-weight:600">
+                                    <span style="width:9px;height:9px;border-radius:50%;background:#3B82F6;display:inline-block;flex-shrink:0"></span> Saham IDX
                                 </div>
-                                <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2);font-weight:600">
-                                    <span style="width:7px;height:7px;border-radius:50%;background:#00F59B;display:inline-block"></span> Crypto
+                                <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);font-weight:600">
+                                    <span style="width:9px;height:9px;border-radius:50%;background:#00F59B;display:inline-block;flex-shrink:0"></span> Crypto
                                 </div>
-                                <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2);font-weight:600">
-                                    <span style="width:7px;height:7px;border-radius:50%;background:#FF3B5C;display:inline-block"></span> Global ETF
+                                <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);font-weight:600">
+                                    <span style="width:9px;height:9px;border-radius:50%;background:#FF3B5C;display:inline-block;flex-shrink:0"></span> Global ETF
                                 </div>
-                                <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2);font-weight:600">
-                                    <span style="width:7px;height:7px;border-radius:50%;background:#C084FC;display:inline-block"></span> Reksa Dana
+                                <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);font-weight:600">
+                                    <span style="width:9px;height:9px;border-radius:50%;background:#C084FC;display:inline-block;flex-shrink:0"></span> Reksa Dana
                                 </div>
                             </div>
                         </div>
