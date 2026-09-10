@@ -450,9 +450,49 @@ Yang BELUM dikerjakan dari P0: homepage belum benar-benar "hanya Command
 Center" (§5.1) — konten Dashboard lama (Ringkasan Aset, Kelas Aset, dll.)
 sengaja dipertahankan apa adanya di sesi ini untuk membatasi risiko,
 bukan dipindah ke halaman detail terpisah lewat progressive disclosure
-seperti visi akhir roadmap. P1 (Stock Cockpit — §8, menyatukan
-Fundamental/Technical/Valuation/Smart Money/AI Research/Risk per saham
-jadi satu halaman tab) **belum dimulai sama sekali**. P2 (design system
-§11, density selector §12) dan P3 (workspace/personalization) juga belum
-disentuh. Tahap 8 (UAT dengan user riil, §17) tidak bisa dilakukan dari
-sandbox ini.
+seperti visi akhir roadmap.
+
+**Koreksi 2026-09-10**: entri di atas sebelumnya menyatakan P1/Stock
+Cockpit (§8) "belum dimulai sama sekali" — ini **keliru**, ditemukan saat
+mulai mengerjakannya. Halaman `#page-stock-intel` ("Stock Intel" di
+sidebar Research) **sudah** implementasi Stock Cockpit §8 secara
+substansial — dibangun di sesi-sesi sebelum audit roadmap ini ada,
+sehingga tidak pernah tercatat sebagai itu: satu ticker selector (dropdown
+IDX lengkap + pencarian + quick chips) → overview terpadu (harga
+real-time, chart, support/resistance, trading plan bias/entry/target/
+stoploss/R:R, snapshot fundamental PER/PBV/ROE, tabel top broker buyer
+data riil, verdict AI + katalis/risiko) → section "LANJUTKAN ANALISA
+MENDALAM" dengan tombol *handoff* satu-klik ke suite khusus
+(Fundamental, Technical, Valuation/"Kalkulator MoS") yang masing-masing
+PRE-LOAD ticker yang sama lewat `fundSetTicker()`/`techSetTicker()`/
+`hw_loadStock()` — jadi pindah suite tidak pernah berarti ketik ulang
+ticker, persis visi §8 "user memilih satu ticker → mendapatkan unified
+view → dapat memperdalam setiap dimension tanpa kehilangan konteks
+ticker".
+
+**Update 2026-09-10 — Gap Stock Cockpit DITUTUP (handoff Bandarmology)**:
+satu-satunya kekosongan nyata dari 6 tab target §8 (Overview, Fundamental,
+Technical, Valuation, Smart Money, AI Research, Risk) — tidak ada tombol
+handoff ke Bandarmology/Smart Money sama sekali. Ditambahkan kartu
+handoff ke-4 dengan pola pre-load-lalu-navigasi yang sama persis dengan 3
+kartu lain (`selectStockChatTicker(ticker)` lalu `goBandarmology('stock',
+null)`). AI Research sudah tercakup lewat tombol "Tanya AI StockChat"
+yang sudah ada di header halaman ini. Risk sudah tercakup memadai lewat
+panel "Parameter Trading & Risk Reward" (bias, entry zone, target,
+stop-loss, R:R) yang sudah ada — dinilai cukup untuk versi ini,
+membangun kalkulator risk/position-sizing terpisah dianggap scope baru,
+bukan menutup gap yang ada. Diverifikasi lewat server lokal + Playwright:
+4 kartu handoff ada di DOM, klik handoff Bandarmology untuk ticker ANTM
+benar men-set `STOCKCHAT_SELECTED_TICKER='ANTM'` dan halaman Bandarmology
+menampilkan konten ANTM (bukan default BBCA), handoff Fundamental (yang
+sudah ada sebelumnya) tetap berfungsi sebagai regresi-check, nol error JS
+baru. TEST 38 menambah regression guard, dibuktikan menangkap regresi
+sebelum difinalkan.
+
+**Dengan ini, Stock Cockpit (P1 roadmap §8) dinilai selesai** untuk
+tujuan audit ini — 4 dari nominal 6-7 tab tercakup lewat pola handoff
+(bukan tab literal ter-embed dalam satu halaman seperti visi akhir §8,
+tapi memenuhi tujuan intinya: kontinuitas ticker lintas suite analisis
+tanpa navigasi berulang). P2 (design system §11, density selector §12)
+dan P3 (workspace/personalization) belum disentuh. Tahap 8 (UAT dengan
+user riil, §17) tidak bisa dilakukan dari sandbox ini.

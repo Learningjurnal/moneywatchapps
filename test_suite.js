@@ -1032,6 +1032,30 @@ test('REGRESSION GUARD: dashboard HTML must still have both new zone containers'
   assert(src.includes('id="dash-smartflow-body"'), 'Smart Money Flow card is missing the body container renderDashboardSmartFlowPreview() writes into');
 });
 
+// ── TEST 38: Stock Cockpit (UIUX_ROADMAP_AUDIT.md §8) — discovered this
+// session that #page-stock-intel ("Stock Intelligence") already IS almost
+// exactly the roadmap's Stock Cockpit concept (single ticker → unified
+// overview → one-click handoff to Fundamental/Technical/Valuation, each
+// pre-loading the ticker via fundSetTicker()/techSetTicker()/hw_loadStock()
+// so switching suites never means re-typing it) — built in an earlier
+// session, before this roadmap audit tracked it as such. The one real gap
+// was no handoff to Bandarmology/Smart Money. Guards that the 4th handoff
+// card (added this session) stays wired to the same ticker-preload pattern
+// the other 3 already use, not silently dropped in a future edit.
+test('REGRESSION GUARD: Stock Intelligence cockpit must keep its Bandarmology/Smart Money handoff card', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(/Smart Money \/ Bandarmology/.test(src), 'Smart Money / Bandarmology handoff card heading is missing from 27-stockintel.js');
+  assert(/selectStockChatTicker\(/.test(src), 'Handoff card no longer pre-loads the ticker via selectStockChatTicker() before navigating to Bandarmology');
+  assert(/goBandarmology\(\\'stock\\',null\)/.test(src) || /goBandarmology\('stock',null\)/.test(src),
+    'Handoff card no longer navigates to Bandarmology in stock mode');
+  // The other 3 pre-existing handoff cards must still be there too — this
+  // guard would also catch someone removing the whole "LANJUTKAN ANALISA
+  // MENDALAM" section by accident while editing something else nearby.
+  ['fundSetTicker', 'techSetTicker', 'hw_loadStock'].forEach(fn => {
+    assert(src.includes(fn + '('), `Expected the ${fn}() handoff call to still exist in 27-stockintel.js`);
+  });
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
