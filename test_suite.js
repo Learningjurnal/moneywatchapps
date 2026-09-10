@@ -943,10 +943,52 @@ test('REGRESSION GUARD: dashboard HTML must still have the Alerts zone container
   assert(src.includes('id="dash-alerts-list"'), 'Alerts card is missing the list container renderDashboardAlertsPreview() writes into');
 });
 
+// ── TEST 36: Command Center P0 slice 4 (AI Insight zone) —
+// UIUX_ROADMAP_AUDIT.md §6/§7/§10. This is a rule-based synthesis of the
+// three real zones already built (Market Regime, Portfolio Snapshot,
+// AI Opportunity Radar) plus Alerts — no fetch of its own, no LLM call.
+// Guards that (a) it stays wired into renderDashboard() and into the
+// other two zones' completion callbacks (so it updates once their async
+// fetches resolve, not just once at page load with stale/empty data),
+// and (b) every line it renders still carries a source label — the
+// roadmap's own AI Insight guidance (§10) requires distinguishing fact
+// from AI opinion, and an unlabeled line would silently violate that.
+test('REGRESSION GUARD: renderDashboard() and the other two zone renderers must all trigger renderDashboardAIInsight()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  assert(/function renderDashboardAIInsight\(\)/.test(src), 'renderDashboardAIInsight() is missing');
+  const dashboardFn = src.match(/function renderDashboard\(\)\{[\s\S]*?\n\}/);
+  assert(dashboardFn && dashboardFn[0].includes('renderDashboardAIInsight'),
+    'renderDashboard() no longer calls renderDashboardAIInsight() directly');
+  const regimeFn = src.match(/async function renderDashboardMarketRegime\(\)\{[\s\S]*?\n\}/);
+  assert(regimeFn && regimeFn[0].includes('renderDashboardAIInsight'),
+    'renderDashboardMarketRegime() no longer calls renderDashboardAIInsight() when it finishes — AI Insight would keep showing stale/loading regime text after the real fetch resolves');
+  const radarFn = src.match(/async function renderDashboardRadarPreview\(\)\{[\s\S]*?\n\}/);
+  assert(radarFn && radarFn[0].includes('renderDashboardAIInsight'),
+    'renderDashboardRadarPreview() no longer calls renderDashboardAIInsight() when it finishes — AI Insight would keep showing a stale/loading top pick after the real fetch resolves');
+});
+test('REGRESSION GUARD: every AI Insight line must carry a source label (roadmap §10: distinguish fact from AI opinion)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  const insightFn = src.match(/function renderDashboardAIInsight\(\)\{[\s\S]*?\n\}/);
+  assert(insightFn, 'renderDashboardAIInsight() body not found');
+  const body = insightFn[0];
+  ['Kondisi Market', 'Risiko Utama', 'Tindakan Direkomendasikan'].forEach(label => {
+    assert(body.includes(label), `Expected line "${label}" to still exist in renderDashboardAIInsight()`);
+  });
+  // Every lines.push({...}) call must include a `source:` field — the
+  // template literally renders `l.source` for each line, so a pushed
+  // entry missing it would silently print "undefined" instead of a
+  // real module reference.
+  const pushCount = (body.match(/lines\.push\(\{/g) || []).length;
+  const sourceCount = (body.match(/source:\s*'/g) || []).length;
+  assert.strictEqual(sourceCount, pushCount,
+    `Expected every one of the ${pushCount} lines.push() calls to include a source: field — got ${sourceCount}`);
+});
+test('REGRESSION GUARD: dashboard HTML must still have the AI Insight zone container', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(src.includes('id="card-dash-insight"'), '#card-dash-insight container missing from index.html');
+  assert(src.includes('id="dash-insight-body"'), 'AI Insight card is missing the body container renderDashboardAIInsight() writes into');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
-
-
-
-
