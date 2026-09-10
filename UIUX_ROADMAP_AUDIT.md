@@ -98,14 +98,37 @@ tidak ada tombol/tab/command-palette yang memicunya di manapun yang saya
 temukan) — `[BELUM DIKONFIRMASI, KANDIDAT ORPHAN]`:
 `copilot`, `dataconn`, `stockmaster`, `sektoral`, `knowledge`.
 
-> **Catatan penting untuk kandidat orphan**: saya baru men-grep pola
-> `goPage('<nama>'` dan `'<nama>'` literal di `public/js/*.js` — bukan
-> menelusuri setiap kemungkinan (mis. link dinamis yang dibangun dari
-> variabel, bukan string literal). Sebelum halaman-halaman ini dianggap mati
-> dan dihapus dari IA baru, **wajib dicek manual di browser** (klik-klik
-> langsung atau ketik URL/hash-nya kalau app mendukung deep link) — ini
-> persis item checklist di roadmap §17 Tahap 1: *"Identifikasi duplicate
-> component dan duplicate capability"* sebelum refactor, bukan tebak-tebakan.
+### 1.3 — Hasil Konfirmasi Manual (server lokal + Chromium/Playwright, 2026-09-10)
+
+Server aplikasi dijalankan lokal (`node server.js`) dan diperiksa langsung
+lewat browser headless: DOM diperiksa untuk elemen `onclick` yang benar-benar
+memanggil tiap target, ditelusuri sampai ke file & baris sumbernya. Tidak ada
+data pribadi/dummy yang ditulis ke database mana pun — server lokal ini
+sepenuhnya terisolasi, tidak pernah connect ke Supabase produksi.
+
+| Halaman | Status | Bukti |
+|---|---|---|
+| `knowledge` | ✅ **Real** — tombol footer sidebar, selalu terlihat | `index.html:424` |
+| `rdn-audit` | ✅ **Real** — tombol "Log Audit Transaksi" di halaman Cash (`rdn`) | `index.html:1123` |
+| `pajak` | ✅ **Real** — tombol di panel Settings Hub | `02-storage.js:2448` |
+| `flowscan` | ✅ **Real** — link ticker di banyak tempat (`fsQuickLoad()`) + item checklist "Quant Toolkit" di halaman Wealth | `07-flowscan.js:230`, `20-wealth.js:242` |
+| `candle` | ✅ **Real** — item checklist "Quant Toolkit" di halaman Wealth (bukan navigasi utama — technical analysis dilink dari Net Worth, agak tidak terduga tapi sengaja) | `20-wealth.js:242` |
+| `heatmap` | ✅ **Real** — tombol di dalam Knowledge Base guide (`39-knowledge-master-guide.js`), bukan navigasi utama | `39-knowledge-master-guide.js:519` |
+| `sektoral` | ❌ **Kandidat mati terkonfirmasi** — halaman punya konten asli (~2KB, "Memuat visualisasi aliran modal sektoral...") dan fungsi `renderSektoral()` real, TAPI nol referensi `goPage('sektoral'...)` ditemukan di seluruh `public/js/*.js` maupun `index.html`. `sectoral-insight` (di sidebar, sudah kita perbaiki tampilannya awal sesi ini) tampak seperti pengganti modernnya. |
+| `stockmaster` | ❌ **Kandidat mati terkonfirmasi, kemungkinan legacy route** — `id="page-stockmaster"` bahkan punya `style="display:none"` inline di HTML-nya sendiri. Router-nya (`case 'stockmaster'`) memanggil `fundInit()` — **fungsi yang sama persis** dipanggil `case 'fundamental'` (yang ADA di sidebar). Sangat mungkin `stockmaster` adalah nama route lama sebelum di-rename jadi `fundamental`, tidak pernah dibersihkan. |
+| `copilot` | ❌ **Fitur lengkap tanpa jalan masuk** — `28-decisiontools.js` (`renderCopilotPage()`) membangun UI chat AI penuh (bubble pesan, input bar, tombol kirim `sendCopilotPrompt()`) — bukan stub kosong. Tapi nol tombol/link di manapun yang memanggil `goPage('copilot')`. Ini fitur jadi yang **tidak terlihat sama sekali oleh user saat ini** — perlu keputusan produk: sengaja disembunyikan (belum rilis) atau kelewatan waktu reorganisasi nav. |
+| `dataconn` | ❌ **Fitur lengkap tanpa jalan masuk** — sama seperti `copilot`: `renderDataConnPage()` (`26-commandcenter.js`) membangun konten nyata, nol titik akses. |
+
+**Temuan sampingan (di luar cakupan audit UI/UX, tapi ditemukan sebagai efek
+langsung dari verifikasi ini — bug navigasi nyata)**: item checklist ke-6
+"Manajemen Risiko" di widget "Quant Toolkit" halaman Wealth memanggil
+`goPage('risiko')` (`20-wealth.js:242`) — **`page-risiko` tidak ada** di
+54 halaman manapun (halaman Risk yang benar adalah `rebalance`). `goPage()`
+diam-diam `return` kalau target tidak ditemukan (`06-analysis-router.js:762`,
+`if(!pg) return;`) — jadi klik tombol ini **tidak melakukan apa-apa sama
+sekali**, tanpa error, tanpa indikasi ke user. Fix-nya trivial (ganti string
+`'risiko'` → `'rebalance'`, 1 baris, nol risiko ke logika lain) — dilaporkan
+di sini, belum diperbaiki karena di luar scope Tahap 1 (murni audit).
 
 ---
 
@@ -115,10 +138,11 @@ temukan) — `[BELUM DIKONFIRMASI, KANDIDAT ORPHAN]`:
    nyaris identik. `sectoral-insight` ada di sidebar (Intelligence → Sector
    Insight, file `44-sectoral-insight.js`, ini yang kita perbaiki tampilan
    labelnya awal sesi ini). `sektoral` memanggil fungsi `renderSektoral()`
-   yang berbeda, tidak ada di sidebar, titik aksesnya `[BELUM DIKONFIRMASI]`.
-   **Ini kandidat duplikasi paling jelas** — perlu dikonfirmasi apakah
-   `sektoral` legacy/dead code yang aman dihapus, atau masih dipakai dari
-   suatu tempat sebelum diputuskan.
+   yang berbeda. **[Terkonfirmasi lewat browser, lihat §1.3]**: `sektoral`
+   tidak punya titik akses navigasi manapun — kandidat legacy/dead code kuat,
+   `sectoral-insight` tampak seperti pengganti modernnya. Keputusan
+   menghapus tetap perlu persetujuan eksplisit sebelum dieksekusi (bukan
+   otomatis dari audit ini).
 2. **Analisis satu saham tersebar di 6+ halaman terpisah** — `stock-intel`,
    `fundamental`, `technical`, `hargawajar`, `bandarmology`, dan bagian AI
    di `stockchat`/`ai-trading` semuanya menganalisis saham yang sama dari
@@ -229,21 +253,34 @@ komponen harus dipetakan kembali sebelum refactor."*
 
 ## 7. Rekomendasi Langkah Berikutnya
 
-1. **Konfirmasi manual** 5 kandidat orphan (`copilot`, `dataconn`,
-   `stockmaster`, `sektoral`, `knowledge`) dan 6 halaman `[BELUM
-   DIKONFIRMASI]` lain di atas — klik langsung di browser (dev/staging),
-   bukan ditebak dari kode. Saya bisa jalankan aplikasi ini secara lokal
-   (server + Playwright/Chromium) untuk membantu menelusuri ini secara
-   visual kalau diinginkan.
-2. **Putuskan status `sektoral` vs `sectoral-insight`** sebelum IA baru
-   dibangun di atas salah satunya.
-3. Setelah dua hal di atas beres, dokumen §6 (pemetaan domain) di atas siap
-   dijadikan dasar keputusan **P0 mana yang dieksekusi lebih dulu** —
-   sesuai mitigasi risiko roadmap sendiri (§20: *"Refactor terlalu besar →
-   Lakukan P0 → review → P1 → review"*).
+**Update 2026-09-10**: konfirmasi manual (§1.3) sudah selesai dijalankan via
+server lokal + Chromium/Playwright. 8 dari 11 halaman yang tadinya "belum
+dikonfirmasi" ternyata **real** (punya jalan masuk navigasi yang sah, hanya
+tidak lewat sidebar utama). 4 halaman (`sektoral`, `stockmaster`, `copilot`,
+`dataconn`) **terkonfirmasi tidak punya jalan masuk navigasi apa pun** dan
+butuh keputusan produk eksplisit.
+
+1. **Putuskan nasib 4 halaman tanpa jalan masuk** (bukan dihapus otomatis
+   dari audit ini — ini keputusan Anda):
+   - `sektoral` — kemungkinan besar aman dihapus (`sectoral-insight` adalah
+     penggantinya).
+   - `stockmaster` — kemungkinan besar aman dihapus (route legacy, mesinnya
+     [`fundInit()`] sudah dipakai `fundamental`).
+   - `copilot`, `dataconn` — **ini beda kasus**: fitur sudah jadi penuh (UI
+     chat AI lengkap untuk `copilot`), cuma tidak ada tombol yang
+     mengaktifkannya. Perlu diputuskan: aktifkan (tambah 1 tombol nav) atau
+     memang sengaja belum dirilis.
+2. **Perbaiki dead-link `goPage('risiko')`** (§1.3, ditemukan sebagai efek
+   samping audit) — 1 baris, `'risiko'` → `'rebalance'`, nol risiko. Bisa
+   dikerjakan kapan saja, tidak terkait roadmap UI/UX ini.
+3. Setelah keputusan §1 di atas, dokumen §6 (pemetaan domain) siap dijadikan
+   dasar keputusan **P0 mana yang dieksekusi lebih dulu** — sesuai mitigasi
+   risiko roadmap sendiri (§20: *"Refactor terlalu besar → Lakukan P0 →
+   review → P1 → review"*).
 4. Potongan P0 paling kecil & paling aman untuk dicoba lebih dulu (usulan,
    belum dieksekusi): restrukturisasi **markup sidebar saja** (grouping
    visual ke 6 domain) **tanpa** memindahkan konten/JS satu pun — ini
    murni perubahan `index.html` + CSS, risiko sangat rendah, dan langsung
    memberi gambaran nyata "rasanya seperti apa" sebelum Command Center
-   sungguhan dibangun.
+   sungguhan dibangun. Bisa diverifikasi visual dengan cara yang sama
+   seperti §1.3 (server lokal + Playwright) sebelum di-push.
