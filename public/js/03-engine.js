@@ -127,6 +127,31 @@ function addDiv(date,ticker,shares,dps,pphRate){
   saveData();
 }
 
+// FIX AUDIT (dividen bisa tercatat 2x): satu-satunya sumber kebenaran untuk
+// cek "sudah pernah dicatat?" di SEMUA entry point (form manual, Kalender
+// Dividen tombol "+Catat Riil", kalkulator riwayat transaksi). Akar masalah
+// sebelumnya: tiap entry point pakai field tanggal yang berbeda untuk
+// distribusi dividen yang SAMA — kalkulator memakai ex-date resmi Yahoo
+// Finance, sedangkan Kalender Dividen memakai payment-date/cum-date dari
+// registry — dan keduanya bisa berjarak beberapa minggu untuk emiten IDX.
+// Exact-date-match jadi gagal mendeteksi duplikat lintas sumber ini. Dengan
+// jendela toleransi (default 45 hari, mencakup rentang cum-date s/d
+// payment-date yang wajar), dividen yang sama dari sumber manapun akan
+// terdeteksi sebagai duplikat.
+function isDividendAlreadyRecorded(ticker, dateStr, windowDays){
+  windowDays = windowDays || 45;
+  if (!Array.isArray(dividends) || !ticker || !dateStr) return false;
+  var target = new Date(dateStr + 'T00:00:00').getTime();
+  if (isNaN(target)) return false;
+  return dividends.some(function(d){
+    if (d.ticker !== ticker || !d.date) return false;
+    var dt = new Date(d.date + 'T00:00:00').getTime();
+    if (isNaN(dt)) return false;
+    return Math.abs(dt - target) <= windowDays * 86400000;
+  });
+}
+window.isDividendAlreadyRecorded = isDividendAlreadyRecorded;
+
 // ============================================================
 // PORTFOLIO CALC
 // ============================================================
