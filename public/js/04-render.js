@@ -5,6 +5,7 @@ function renderDashboard(){
   if(typeof renderPortfolioHub === 'function') renderPortfolioHub();
   if(typeof renderDashboardMarketRegime === 'function') renderDashboardMarketRegime();
   if(typeof renderDashboardRadarPreview === 'function') renderDashboardRadarPreview();
+  if(typeof renderDashboardAlertsPreview === 'function') renderDashboardAlertsPreview();
 }
 
 // ============================================================
@@ -99,6 +100,47 @@ async function renderDashboardRadarPreview(){
     if(el('dash-radar-list')) el('dash-radar-list').innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0;grid-column:1/-1">Gagal memuat AI Opportunity Radar: ' + escHtml((err && err.message) || 'error jaringan') + '.</div>';
   } finally {
     _dashRadarLoading = false;
+  }
+}
+
+// Command Center zone: Alerts & Actions. Reuses the REAL
+// window.mwGetPriceAlerts() (30-price-alerts.js) — user-defined price
+// targets checked against real live prices every 10s by that module's own
+// mwCheckPriceAlerts() — synchronous, no network call needed here.
+// Deliberately NOT the FS_RD-based alerts on the `alerts` page
+// (fsGenAlerts(), 07-flowscan.js): KNOWN_ISSUES.md #2 documents that path
+// can display signals derived from fabricated data with no disclosure.
+function renderDashboardAlertsPreview(){
+  var list = el('dash-alerts-list');
+  if(!list) return;
+  try {
+    var alerts = (typeof mwGetPriceAlerts === 'function') ? mwGetPriceAlerts() : [];
+    if(!alerts.length){
+      list.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Belum ada Price Alert. <a href="javascript:void(0)" onclick="goPage(\'alerts\')" style="color:var(--accent)">Buat alert target harga →</a></div>';
+      return;
+    }
+    var triggered = alerts.filter(function(a){ return a.status === 'TRIGGERED'; });
+    var activeCount = alerts.filter(function(a){ return a.status === 'ACTIVE'; }).length;
+    var html = '';
+    if(triggered.length){
+      html += triggered.slice(0, 5).map(function(a){
+        var dirLabel = a.condition === 'GTE' ? 'naik ke' : 'turun ke';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,61,90,0.08);border:1px solid rgba(255,61,90,0.25);border-radius:8px;padding:8px 12px;cursor:pointer" onclick="goPage(\'alerts\')">'
+          + '<div>'
+          + '<span style="font-weight:800;font-family:var(--font-mono);font-size:12.5px;color:var(--text)">' + escHtml(a.ticker) + '</span>'
+          + '<span style="font-size:10.5px;color:var(--text2);margin-left:8px">' + escHtml(a.tag || '') + ' — ' + dirLabel + ' Rp ' + Number(a.targetPrice).toLocaleString('id-ID') + '</span>'
+          + '</div>'
+          + '<span class="badge b-dn" style="font-size:9px">TERPICU</span>'
+          + '</div>';
+      }).join('');
+    } else {
+      html += '<div style="color:var(--text2);font-size:11.5px;padding:6px 0">Tidak ada alert yang terpicu — semua target harga masih dipantau.</div>';
+    }
+    html += '<div style="font-size:10px;color:var(--text3);border-top:1px solid var(--border2);padding-top:8px;margin-top:2px">'
+      + activeCount + ' alert aktif dipantau' + (triggered.length ? ', ' + triggered.length + ' perlu ditinjau' : '') + '.</div>';
+    list.innerHTML = html;
+  } catch(err){
+    list.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal memuat Price Alerts: ' + escHtml((err && err.message) || 'error') + '.</div>';
   }
 }
 
