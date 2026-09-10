@@ -174,17 +174,16 @@ test('Policy §5: BUY pays no PPh Final (document explicitly states 0% for Buy, 
 });
 
 // ============================================================
-// SECTION 7 — Portfolio risk policy (provisional defaults)
+// SECTION 7 — Portfolio risk policy (approved values — see §16)
 // ============================================================
-test('Policy §7: "Maximum capital at risk per trade" proposed default matches RISK_PER_TRADE_PCT already hardcoded in the backtest engine', () => {
+test('Policy §7: "Maximum capital at risk per trade" approved value matches RISK_PER_TRADE_PCT already hardcoded in the backtest engine', () => {
   const m = policyText.match(/\|\s*Maximum capital at risk per trade\s*\|\s*(\d+)% of portfolio\s*\|/);
   assert(m, 'Could not find the "Maximum capital at risk per trade" row in FINANCIAL_POLICY.md §7 table — has the wording/table layout changed?');
   const docPct = parseFloat(m[1]);
   const codePct = extractConst(engineText, 'RISK_PER_TRADE_PCT', 'lib/idx-data-engine.js');
   assert.strictEqual(codePct, docPct,
-    `Doc proposes ${docPct}% max capital at risk per trade but RISK_PER_TRADE_PCT in lib/idx-data-engine.js = ${codePct}% — ` +
-    `this proposed default is marked PROVISIONAL/owner-approval-required in the doc, but the code already implements it as if approved. ` +
-    `Either the owner has approved ${docPct}% (uncheck the PROVISIONAL marker in the doc) or the code's default needs to change to match whatever gets approved.`);
+    `Doc approves ${docPct}% max capital at risk per trade but RISK_PER_TRADE_PCT in lib/idx-data-engine.js = ${codePct}% — ` +
+    `either the code's default needs to change to match the approved value, or a policy-change-control step (§15) is needed before changing the doc.`);
 });
 
 // ============================================================
