@@ -302,6 +302,14 @@
       against: against,
       mainRisk: against[0] || 'Risiko pasar umum / sentimen makro.',
       dataQuality: sig.dataQuality,
+      // Data Quality Gate — Stage 1 / non-blocking (roadmap B.5 Temuan 2).
+      // sig.dataQuality above only ever meant "is there a real price/tech/
+      // fundamental read at all" — it never checked candle staleness/OHLC
+      // corruption. sig.gateStatus is the same assessDataQuality() gate
+      // that already governs whether Hypothesis Lab can output BUY; it's
+      // carried through here purely for display (see the badge in the
+      // scanner table below) without changing signal/compositeScore.
+      gateStatus: sig.gateStatus || null,
       isRealSignal: true
     };
   }
@@ -1425,7 +1433,18 @@
         + '  Rp ' + Number(item.price).toLocaleString('id-ID')
         + '  <div style="font-size:10px;color:' + (item.chg >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (item.chg >= 0 ? '+' : '') + item.chg.toFixed(2) + '% · Vol ' + item.volRatio + 'x</div>'
         + '</td>'
-        + '<td><span class="badge ' + badgeCls + '">' + item.signal + '</span></td>'
+        + '<td><span class="badge ' + badgeCls + '">' + item.signal + '</span>'
+        // Data Quality Gate indicator — Stage 1 / non-blocking (roadmap B.5
+        // Temuan 2). Signal/compositeScore above are unchanged either way;
+        // this only warns when the underlying history failed the same
+        // assessDataQuality() gate that governs Hypothesis Lab's BUY/
+        // NO_TRADE call, so a "STRONG BUY" computed from stale/corrupted
+        // data isn't presented as indistinguishable from one computed from
+        // REAL data.
+        + (item.gateStatus && item.gateStatus.status !== 'REAL'
+            ? ('<span title="Data Quality Gate: ' + item.gateStatus.status + ' — ' + (item.gateStatus.reasons || []).join(' ').replace(/"/g, '&quot;') + '" style="margin-left:4px;font-size:9px;font-weight:700;color:var(--amber);border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 4px">⚠ ' + item.gateStatus.status + '</span>')
+            : '')
+        + '</td>'
         + '<td style="font-size:11.5px">' + item.strategy + '</td>'
         + '<td>'
         + '  <strong style="font-family:var(--font-mono);color:' + (item.probability >= 70 ? 'var(--green)' : item.probability >= 55 ? 'var(--amber)' : 'var(--red)') + '">' + item.probability + '%</strong>'
@@ -1971,6 +1990,14 @@
         + '    </div>'
         + '    <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:' + sideBg + ';color:' + sideColor + '">' + h.side + '</span>'
         + '  </div>'
+        // Data Quality Gate warning (non-blocking, roadmap B.5 Temuan 1) —
+        // this recommendation is NOT withheld when data quality fails; it's
+        // flagged so the user can judge it accordingly rather than trusting
+        // it the same as a REAL-data call. See generateExitHypothesis()'s
+        // dataQualityWarning in lib/idx-data-engine.js.
+        + (h.dataQualityWarning
+            ? ('  <div style="font-size:11px;color:var(--amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:8px 10px;margin-bottom:10px">⚠️ ' + h.dataQualityWarning + '</div>')
+            : '')
         + '  <div style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:10px;background:rgba(255,255,255,0.02);padding:10px;border-radius:6px">'
         + '    <strong>' + (isSell ? 'Pemicu Exit:' : 'Status:') + '</strong> ' + (h.exitReason || '-')
         + '  </div>'
