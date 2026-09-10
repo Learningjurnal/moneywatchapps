@@ -28,7 +28,7 @@ import {
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA } from './lib/invezgo-client.js';
-import { logAuthMismatchTelemetry } from './lib/auth-verify.js';
+import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -139,6 +139,11 @@ app.post('/api/user-data/save', async (req, res) => {
   // rationale (never trust a keyword match alone — read the code).
   logAuthMismatchTelemetry(req, uid, body.email, isDemo);
 
+  // Stage 2 — off by default (AUTH_ENFORCE_STAGE2 env flag unset); becomes
+  // a real 401/403 only once explicitly turned on after reviewing Stage 1's
+  // logs above in production. See lib/auth-*.js for the rollout rationale.
+  if (await enforceIdentityStage2(req, res, uid, body.email, isDemo)) return;
+
   const record = {
     uid: uid,
     email: body.email || '',
@@ -196,7 +201,7 @@ app.post('/api/user-data/save', async (req, res) => {
   });
 });
 
-app.get('/api/user-data/load', (req, res) => {
+app.get('/api/user-data/load', async (req, res) => {
   try {
     const uid = (req.query.uid || req.query.email || '').trim();
     if (!uid) {
@@ -210,6 +215,10 @@ app.get('/api/user-data/load', (req, res) => {
     // Supabase session matches the identity it claims via query.uid/email.
     const isDemoLoad = (uid === 'demo_guest_user' || uid === 'guest_user');
     logAuthMismatchTelemetry(req, uid, req.query.email, isDemoLoad);
+
+    // Stage 2 — off by default (AUTH_ENFORCE_STAGE2 env flag unset). See
+    // lib/auth-*.js for the rollout rationale.
+    if (await enforceIdentityStage2(req, res, uid, req.query.email, isDemoLoad)) return;
 
     // Demo/Guest account operates strictly in an isolated clean session with 0 initial positions
     if (uid === 'demo_guest_user' || uid === 'guest_user') {
@@ -287,7 +296,7 @@ app.get('/api/user-data/load', (req, res) => {
   }
 });
 
-app.post('/api/user-data/clear', (req, res) => {
+app.post('/api/user-data/clear', async (req, res) => {
   try {
     const body = req.body || {};
     const uid = (body.uid || body.email || req.query.uid || req.query.email || '').trim();
@@ -301,6 +310,12 @@ app.post('/api/user-data/clear', (req, res) => {
     // uid is spoofed), so this signal matters most here.
     const isDemoClear = (uid === 'demo_guest_user' || uid === 'guest_user');
     logAuthMismatchTelemetry(req, uid, body.email || req.query.email, isDemoClear);
+
+    // Stage 2 — off by default (AUTH_ENFORCE_STAGE2 env flag unset). This
+    // is the highest-priority endpoint to eventually enforce on (it
+    // DELETES another user's data if uid is spoofed) — see lib/auth-*.js
+    // for the rollout rationale on why it isn't flipped on yet.
+    if (await enforceIdentityStage2(req, res, uid, body.email || req.query.email, isDemoClear)) return;
 
     const safeKey = getSafeFileKey(uid);
     const altKey = String(uid).toLowerCase().replace(/_40/g, '_').replace(/[^a-z0-9_]/g, '_');
