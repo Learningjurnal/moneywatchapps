@@ -2792,27 +2792,44 @@ function renderBandarmologySmartMoneyFlowView(tk) {
   var price = (bData && bData.price) ? bData.price : getAccurateStockPrice(ticker);
   var isUp = (bData.changePercent || 0) >= 0;
 
-  // Calculate CMF, VWAP & Smart Money Metrics
-  var cmfVal = isUp ? 0.24 : -0.18;
-  var vwapSession = Math.round(price * (isUp ? 0.992 : 1.008));
-  var vwapUpper = Math.round(vwapSession * 1.025);
-  var vwapLower = Math.round(vwapSession * 0.975);
+  // KNOWN_ISSUES.md #4 fix: CMF/VWAP/Volume Surge were two hardcoded
+  // literals picked only by isUp (cmfVal was exactly 0.24 or -0.18, nothing
+  // else). mountBandarmologySmartMoneyCharts() below already computes REAL
+  // CMF/VWAP for this same ticker's charts via fsGenData()/fsProcess()/
+  // fsCalcVWAP() — reusing that here instead of a second, fake calculation
+  // for the summary cards sitting right above those charts. fsGenData()
+  // itself (KNOWN_ISSUES.md #2 fix) tags .simulated when no real OHLCV is
+  // cached yet for this ticker, so isSimFlow below is exact, not guessed.
+  var flowData = (typeof fsGenData === 'function') ? fsGenData(ticker, 60) : [];
+  var isSimFlow = !!(flowData && flowData.simulated);
+  var flowA = (flowData && flowData.length >= 5 && typeof fsProcess === 'function') ? fsProcess(flowData) : null;
+
+  var cmfVal = flowA ? flowA.cl : 0;
+  var volRatio = (flowA && flowA.last && flowA.last.vr) ? flowA.last.vr : 1;
+  var volSurgeLabel = volRatio >= 2 ? 'Sangat Tinggi' : volRatio >= 1.5 ? 'Tinggi' : volRatio <= 0.7 ? 'Rendah' : 'Normal';
+  var volSurge = volRatio.toFixed(1) + 'x (' + volSurgeLabel + ')';
+  // Accumulation/Distribution line trend (fsProcess()'s adT) — whether the
+  // real cumulative A/D value is higher now than ~5 bars back. This is the
+  // actual "A/D" the 4th card is labeled for, not a repeat of isUp (price
+  // direction) — the two can disagree, which is the point of the card.
+  var adTrendUp = flowA ? flowA.adT : isUp;
+
+  var vwapArr = (flowData && flowData.length >= 5 && typeof fsCalcVWAP === 'function') ? fsCalcVWAP(flowData) : [];
+  var vwapSession = vwapArr.length ? Math.round(vwapArr[vwapArr.length - 1]) : Math.round(price);
+  var vwapStdArr = (vwapArr.length && typeof fsCalcVWAPStdDev === 'function') ? fsCalcVWAPStdDev(flowData, vwapArr) : [];
+  var vwapStd = vwapStdArr.length ? vwapStdArr[vwapStdArr.length - 1] : (vwapSession * 0.025);
+  var vwapUpper = Math.round(vwapSession + 2 * vwapStd);
+  var vwapLower = Math.round(vwapSession - 2 * vwapStd);
   var distToVwap = (((price - vwapSession) / (vwapSession || 1)) * 100).toFixed(2);
-  var volSurge = isUp ? '2.4x (Heavy Inflow)' : '1.8x (Distribution Outflow)';
 
   var cmfStatus = cmfVal >= 0.15 ? 'STRONG ACCUMULATION (+ ' + (cmfVal * 100).toFixed(0) + '%)' : (cmfVal <= -0.10 ? 'STRONG DISTRIBUTION (' + (cmfVal * 100).toFixed(0) + '%)' : 'NEUTRAL ROTATION');
 
-  // KNOWN_ISSUES.md #4 (new, found while fixing #3): unlike the other
-  // Bandarmology views, cmfVal/vwapSession/volSurge below aren't even
-  // computed from generateClientSideBrokerSummary()'s simulated volume —
-  // they're two hardcoded literals picked by isUp (cmfVal is either exactly
-  // 0.24 or exactly -0.18, nothing else) and fixed % offsets off price, with
-  // no real CMF/VWAP calculation despite the "ALGORITMA PENETRASI HARGA
-  // BEI"/"CHART ENGINE (60 CANDLES)" badges implying one. 07-flowscan.js's
-  // fsCalcCMF()/rdGetAny() already compute a REAL CMF from cached OHLCV for
-  // the exact same tickers — replacing this view's math with that is the
-  // real fix, deferred as its own issue rather than folded into this pass.
-  var html = bandarSimBanner('CMF, VWAP Bands &amp; Volume Surge di bawah adalah pola ilustratif tetap (bukan hasil hitung candle riil) — lihat KNOWN_ISSUES.md #4.')
+  // Only disclose when the underlying 60-day series is actually the
+  // synthetic fallback (no real OHLCV cached yet for this ticker) — mirrors
+  // the per-ticker disclosure pattern used everywhere else fsGenData() feeds
+  // into (Ranking/Heatmap/Watchlist, KNOWN_ISSUES.md #2), rather than a
+  // blanket "always simulated" banner that would now be wrong on a cache hit.
+  var html = (isSimFlow ? bandarSimBanner('CMF, VWAP Bands &amp; Volume Surge di bawah dihitung dari data candle SIMULASI — belum ada OHLCV riil ter-cache untuk ' + ticker + '.') : '')
     + '<div style="display:flex;flex-direction:column;gap:16px">'
     // Top Summary Banner (Opportunity Radar card)
     + '<div class="card" style="padding:16px">'
@@ -2848,8 +2865,8 @@ function renderBandarmologySmartMoneyFlowView(tk) {
 
     + '<div class="metric" style="border-left:3px solid var(--green)">'
     + '<div class="mlabel">4. ACCUMULATION INDEX (A/D)</div>'
-    + '<div class="mval ' + (isUp ? 'up' : 'down') + ' mono" style="font-size:18px">' + (isUp ? 'BULLISH SURGE' : 'DISTRIBUTION') + '</div>'
-    + '<div class="msub neu">' + (isUp ? 'Smart money menyerap saham' : 'Tekanan distribusi') + '</div>'
+    + '<div class="mval ' + (adTrendUp ? 'up' : 'down') + ' mono" style="font-size:18px">' + (adTrendUp ? 'BULLISH SURGE' : 'DISTRIBUTION') + '</div>'
+    + '<div class="msub neu">' + (adTrendUp ? 'Smart money menyerap saham' : 'Tekanan distribusi') + '</div>'
     + '</div>'
     + '</div>'
 
