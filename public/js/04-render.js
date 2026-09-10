@@ -5,6 +5,8 @@ function renderDashboard(){
   if(typeof renderPortfolioHub === 'function') renderPortfolioHub();
   if(typeof renderDashboardMarketRegime === 'function') renderDashboardMarketRegime();
   if(typeof renderDashboardRadarPreview === 'function') renderDashboardRadarPreview();
+  if(typeof renderDashboardHeatmapPreview === 'function') renderDashboardHeatmapPreview();
+  if(typeof renderDashboardSmartFlowPreview === 'function') renderDashboardSmartFlowPreview();
   if(typeof renderDashboardAlertsPreview === 'function') renderDashboardAlertsPreview();
   if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
 }
@@ -115,6 +117,76 @@ async function renderDashboardRadarPreview(){
   } finally {
     _dashRadarLoading = false;
     if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
+  }
+}
+
+// Command Center zone: Market Heatmap (P0 slice 5, UIUX_ROADMAP_AUDIT.md
+// §7 — deferred until KNOWN_ISSUES.md #2 was fixed). Reuses FS_RD
+// (07-flowscan.js), already populated app-wide at boot (fsInit() runs from
+// 06-analysis-router.js's init sequence) — no separate fetch/scoring for
+// this preview, synchronous. Per-cell real-vs-simulated disclosure via
+// fsSrcDot() — the same marker Ranking/Heatmap/Watchlist use — so a
+// cache-miss ticker's score never looks identical to a real one here
+// either.
+function renderDashboardHeatmapPreview(){
+  var grid = el('dash-heatmap-grid');
+  if(!grid) return;
+  try {
+    if(typeof FS_RD === 'undefined' || !FS_RD.length){
+      grid.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Heatmap belum siap — <a href="javascript:void(0)" onclick="goPage(\'heatmap\')" style="color:var(--accent)">buka halaman lengkap</a>.</div>';
+      return;
+    }
+    var top = [].concat(FS_RD).sort(function(a,b){ return (b.cap||0)-(a.cap||0); }).slice(0, 10);
+    grid.innerHTML = top.map(function(r){
+      var isSim = !!(r.data && r.data.simulated);
+      var vc = r.a.sig === 'AKUMULASI' ? '#41f3a7' : r.a.sig === 'DISTRIBUSI' ? '#e21d48' : '#8fa3c8';
+      var cls = r.a.sig === 'AKUMULASI' ? 'fs-hm-acc' : r.a.sig === 'DISTRIBUSI' ? 'fs-hm-dist' : 'fs-hm-neut';
+      return '<div class="fs-hm-cell ' + cls + '" onclick="goPage(\'heatmap\')" title="' + escHtml(r.n) + ' — ' + r.a.sig + (isSim ? ' — SIMULASI, data acak' : '') + '" style="' + (isSim ? 'outline:1px solid rgba(255,61,90,.25)' : '') + '">'
+        + '<div class="mono" style="font-size:12px;font-weight:600;color:var(--text)">' + r.t + (typeof fsSrcDot === 'function' ? fsSrcDot(isSim) : '') + '</div>'
+        + '<div class="mono" style="font-size:15px;font-weight:700;margin-top:2px;color:' + vc + '">' + r.a.sc + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(err){
+    grid.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal memuat heatmap: ' + escHtml((err && err.message) || 'error') + '.</div>';
+  }
+}
+
+// Command Center zone: Smart Money Flow (P0 slice 5, UIUX_ROADMAP_AUDIT.md
+// §7 — deferred until KNOWN_ISSUES.md #3 was fixed). Reuses
+// generateClientSideBrokerSummary() (41-stockchat-cockpit.js) for the same
+// Big 4 Banks renderBandarmologyMarketFlowView() reads — synchronous, no
+// separate fetch. Transaction volume/value from that function are
+// estimates (BEI has no free/public per-broker feed), so this card shows
+// the same SIMULASI disclosure badge the full Bandarmology market views
+// carry, rather than presenting them as real institutional flow.
+function renderDashboardSmartFlowPreview(){
+  var box = el('dash-smartflow-body');
+  if(!box) return;
+  try {
+    if(typeof generateClientSideBrokerSummary !== 'function'){
+      box.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Modul Bandarmology belum termuat.</div>';
+      return;
+    }
+    var tickers = ['BBCA','BBRI','BMRI','BBNI'];
+    var totalNet = 0, accCount = 0;
+    tickers.forEach(function(tk){
+      var bd = generateClientSideBrokerSummary(tk, '1D');
+      var netVal = (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
+      totalNet += netVal;
+      if(netVal >= 0) accCount++;
+    });
+    var totalM = Math.round(totalNet / 1000000000);
+    var verdict = totalM >= 0 ? 'NET ACCUMULATION' : 'NET DISTRIBUTION';
+    var vc = totalM >= 0 ? '#41f3a7' : '#e21d48';
+    box.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      + '<div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Big 4 Banks Net Flow</div>'
+      + '<div class="mono" style="font-size:18px;font-weight:800;color:' + vc + '">' + (totalM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totalM).toLocaleString('id-ID') + ' M</div></div>'
+      + '<span class="badge b-amb" style="font-size:9px" title="Nilai transaksi &amp; volume adalah estimasi — belum ada feed broker-flow real per-menit untuk BEI">SIMULASI</span>'
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--text2)">' + verdict + ' — ' + accCount + ' dari 4 bank besar menunjukkan akumulasi.</div>';
+  } catch(err){
+    box.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal memuat smart money flow: ' + escHtml((err && err.message) || 'error') + '.</div>';
   }
 }
 
