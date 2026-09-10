@@ -80,6 +80,18 @@ function fsMkBdg(sig,sm){
   return '<span class="badge '+cls+'" style="'+(sm?'padding:2px 6px;font-size:10px':'')+
     '"><i class="ti '+ic+'"></i> '+sig+'</span>';
 }
+// KNOWN_ISSUES.md #2 — shared disclosure marker for whether the Big Money
+// score/signal shown was computed from real cached OHLCV (fsGenData()'s
+// rdGetAny() branch) or the seeded random-walk fallback used while real data
+// hasn't been fetched yet for that ticker (data.simulated, set by
+// fsGenData()). Reused by Ranking, Heatmap, Watchlist and the single-ticker
+// analysis view so a fabricated score is never shown indistinguishably from
+// a real one anywhere FS_RD/FS_WL/FS_G feed into.
+function fsSrcDot(isSimulated){
+  return isSimulated
+    ? '<span title="SIMULASI — data acak, bukan harga/volume pasar riil. Klik Refresh di Kelola Daftar Saham." style="color:#e21d48;font-size:9px;margin-left:4px;cursor:help">○ SIM</span>'
+    : '<span title="Data riil (cache OHLCV)" style="color:#41f3a7;font-size:9px;margin-left:4px">●</span>';
+}
 
 // ── data engine ──
 // ── data engine ──
@@ -106,7 +118,11 @@ function fsGenData(tk,days){
           big: v > 10000000, up: c >= o, mfm: mfm
         };
       });
-      if (out.length >= 5) return out;
+      // KNOWN_ISSUES.md #2: tag the returned array itself with whether it's
+      // real OHLCV or about to fall through to the synthetic branch below —
+      // every render function that reads FS_RD/FS_WL/FS_G off this array
+      // checks .simulated to decide whether to show a "SIM" disclosure.
+      if (out.length >= 5) { out.simulated = false; return out; }
     }
   }
 
@@ -151,6 +167,7 @@ function fsGenData(tk,days){
     data.push({dt:dt, o:o, h:h, l:l, c:c, v:v, obv:obv, ad:ad, mfv:mfm*v, big:big, up:c>=o, mfm:mfm});
     price = c;
   }
+  data.simulated = true; // KNOWN_ISSUES.md #2 — this whole series is the seeded random-walk fallback, not real OHLCV
   return data;
 }
 function fsCalcCMF(data,p){p=p||20;return data.map(function(_,i){if(i<p-1)return 0;var sm=0,sv=0;for(var j=i-p+1;j<=i;j++){sm+=data[j].mfv;sv+=data[j].v;}return sv>0?sm/sv:0;});}
@@ -248,9 +265,14 @@ function fsRunAnalysis(){
   var bvSell=rec.filter(function(d){return d.sig==='DIST';}).reduce(function(s,d){return s+d.sellVol;},0);
   var net=bvBuy-bvSell;
 
+  // KNOWN_ISSUES.md #2: the single-ticker deep-dive view reads the exact
+  // same fsGenData()/fsProcess() output as Ranking/Heatmap/Watchlist, so it
+  // carries the exact same fabricated-data exposure — disclose it here too.
+  var isSim=!!(data && data.simulated);
+
   var cards=document.getElementById('fs-cards');
   if(cards) cards.innerHTML=
-    '<div class="metric"><div class="mlabel">Saham</div><div class="mval" style="font-size:20px">'+tk+'</div><div class="msub neu">'+info.s+'</div></div>'+
+    '<div class="metric"><div class="mlabel">Saham</div><div class="mval" style="font-size:20px">'+tk+fsSrcDot(isSim)+'</div><div class="msub neu">'+info.s+'</div></div>'+
     '<div class="metric"><div class="mlabel">Harga</div><div class="mval" style="font-size:18px">'+fsP(last.c)+'</div><div class="msub '+(chg>=0?'up':'dn')+'">'+fsPct(chg)+' hari ini</div></div>'+
     '<div class="metric"><div class="mlabel">Sinyal</div><div style="margin-top:6px">'+fsMkBdg(a.sig)+'</div><div class="msub neu">'+a.str+'</div></div>'+
     '<div class="metric"><div class="mlabel">Skor Big Money</div><div class="mval" style="color:'+fsScColor(a.sc)+'">'+a.sc+'/100</div><div class="msub"><div class="prog"><div class="progf" style="width:'+a.sc+'%;background:'+fsScColor(a.sc)+'"></div></div></div></div>'+
@@ -259,7 +281,8 @@ function fsRunAnalysis(){
   var pLbl=document.getElementById('fs-price-lbl');
   var periodLabel = FS_G.days===7?'1 Minggu':FS_G.days===30?'1 Bulan':FS_G.days===90?'3 Bulan':'1 Tahun';
   if(pLbl) pLbl.innerHTML = 'Harga terakhir: <strong>'+fsP(last.c)+'</strong> &nbsp;·&nbsp; Periode: <strong style="color:var(--accent)">'+periodLabel+'</strong> ('+FS_G.days+' hari)'+
-    (FS_G.days<=7?' &nbsp;<span style="color:var(--amber);font-size:10px">Indikator diadaptasi ke data pendek</span>':'');
+    (FS_G.days<=7?' &nbsp;<span style="color:var(--amber);font-size:10px">Indikator diadaptasi ke data pendek</span>':'')+
+    (isSim?' &nbsp;<span style="color:#e21d48;font-size:10px" title="Belum ada data OHLCV riil ter-cache untuk saham ini — semua angka di halaman ini sementara berbasis simulasi.">⚠ SIMULASI — bukan data pasar riil</span>':'');
 
   // Notice bar untuk timeframe pendek
   var noticeEl = document.getElementById('fs-period-notice');
@@ -540,14 +563,16 @@ function fsRenderRanking(){
   if(rkBody) rkBody.innerHTML=list.map(function(r,i){
     var last=r.data[r.data.length-1];
     var inWl=FS_WL.some(function(w){return w.t===r.t;});
-    // FIX: tandai per-baris apakah harga ini RIIL (Yahoo) atau SIMULASI —
-    // sebelumnya tidak ada indikator sama sekali sehingga harga fiktif
-    // tampil identik dengan harga riil (sumber "kesalahan penafsiran saham").
-    var isReal = typeof rdIsReal === 'function' ? rdIsReal(r.t) : false;
-    var srcDot = isReal
-      ? '<span title="Data riil Yahoo Finance" style="color:#41f3a7;font-size:9px;margin-left:4px">●</span>'
-      : '<span title="SIMULASI — data acak, bukan harga pasar. Klik Refresh di Kelola Daftar Saham." style="color:#e21d48;font-size:9px;margin-left:4px;cursor:help">○ SIM</span>';
-    return '<tr style="'+(r.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':r.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+(isReal?'':';outline:1px solid rgba(255,61,90,.15)')+'">'
+    // FIX (KNOWN_ISSUES.md #2): tandai per-baris apakah harga ini RIIL atau
+    // SIMULASI — sebelumnya tidak ada indikator sama sekali sehingga harga
+    // fiktif tampil identik dengan harga riil (sumber "kesalahan penafsiran
+    // saham"). Was rdIsReal(r.t) (checks the raw cache only — imprecise:
+    // could be true while fsGenData() still used the synthetic branch, e.g.
+    // <5 cached rows); now reads r.data.simulated, the exact flag fsGenData()
+    // itself set on this row's data.
+    var isSim = !!(r.data && r.data.simulated);
+    var srcDot = fsSrcDot(isSim);
+    return '<tr style="'+(r.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':r.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+(isSim?';outline:1px solid rgba(255,61,90,.15)':'')+'">'
       +'<td class="mono" style="color:var(--text3)">'+(i+1)+'</td>'
       +'<td class="mono" style="font-weight:600;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+r.t+'\')">'+r.t+'</td>'
       +'<td><div style="font-size:12px">'+r.n+'</div><span class="badge b-neu" style="font-size:9px">'+r.s+'</span></td>'
@@ -592,8 +617,12 @@ function fsRenderHeatmap(){
     var cls=r.a.sig==='AKUMULASI'?'fs-hm-acc':r.a.sig==='DISTRIBUSI'?'fs-hm-dist':'fs-hm-neut';
     var vc=r.a.sig==='AKUMULASI'?'#41f3a7':r.a.sig==='DISTRIBUSI'?'#e21d48':'#8fa3c8';
     var inWl=FS_WL.some(function(w){return w.t===r.t;});
-    return '<div class="fs-hm-cell '+cls+'" onclick="fsQuickLoad(\''+r.t+'\')" title="'+(inWl?'★ ':'')+r.n+' — '+r.a.sig+'">'
-      +'<div class="mono" style="font-size:13px;font-weight:600;color:var(--text)">'+(inWl?'★ ':'')+r.t+'</div>'
+    // KNOWN_ISSUES.md #2: this cell's score/signal can be entirely computed
+    // from fsGenData()'s synthetic random-walk fallback with zero prior
+    // disclosure — surface it via the shared SIM marker + outline.
+    var isSim=!!(r.data && r.data.simulated);
+    return '<div class="fs-hm-cell '+cls+'" onclick="fsQuickLoad(\''+r.t+'\')" title="'+(inWl?'★ ':'')+r.n+' — '+r.a.sig+(isSim?' — SIMULASI, data acak (belum ada OHLCV riil ter-cache)':'')+'" style="'+(isSim?'outline:1px solid rgba(255,61,90,.25)':'')+'">'
+      +'<div class="mono" style="font-size:13px;font-weight:600;color:var(--text)">'+(inWl?'★ ':'')+r.t+fsSrcDot(isSim)+'</div>'
       +'<div class="mono" style="font-size:17px;font-weight:700;margin-top:3px;color:'+vc+'">'+disp+'</div>'
       +'<div class="mono" style="font-size:12px;margin-top:3px;color:'+(r.a.chgPct>=0?'#41f3a7':'#e21d48')+'">'+fsPct(r.a.chgPct)+'</div>'
       +'</div>';
@@ -632,9 +661,24 @@ function fsRunScanner(){
 // ── alerts ──
 function fsGenAlerts(){
   var als=[];
-  FS_RD.filter(function(r){return r.a.sc>=70;}).slice(0,3).forEach(function(r){als.push({t:'al-a',ic:'ti-trending-up',title:'Akumulasi kuat: '+r.t,sub:'Skor '+r.a.sc+'/100 • CMF '+(r.a.cl*100).toFixed(1)+'% • '+r.a.bu+' hari big vol naik'});});
-  FS_RD.filter(function(r){return r.a.sc<=32;}).slice(0,2).forEach(function(r){als.push({t:'al-d',ic:'ti-trending-down',title:'Distribusi terdeteksi: '+r.t,sub:'Skor '+r.a.sc+'/100 • CMF '+(r.a.cl*100).toFixed(1)+'% • '+r.a.bd+' hari big vol turun'});});
-  FS_RD.filter(function(r){return r.data[r.data.length-1].vr>=2;}).slice(0,3).forEach(function(r){als.push({t:'al-n',ic:'ti-bolt',title:'Volume anomali: '+r.t+' — '+r.data[r.data.length-1].vr.toFixed(1)+'× rata-rata',sub:'Aktivitas institusional tidak biasa. Pantau arah pergerakan harga.'});});
+  // KNOWN_ISSUES.md #2: any of these three signals can be computed entirely
+  // from fsGenData()'s synthetic random-walk fallback (r.data.simulated) with
+  // zero disclosure. Per the issue's own "Next step" — disclose, don't
+  // silently hide (hiding would remove most alerts for any ticker without a
+  // cache hit yet) — every title/sub below is tagged "[Estimasi]" plus an
+  // explicit "bukan konfirmasi pasar riil" note when simulated.
+  FS_RD.filter(function(r){return r.a.sc>=70;}).slice(0,3).forEach(function(r){
+    var isSim=!!(r.data && r.data.simulated);
+    als.push({t:'al-a',ic:'ti-trending-up',title:(isSim?'[Estimasi] ':'')+'Akumulasi kuat: '+r.t,sub:'Skor '+r.a.sc+'/100 • CMF '+(r.a.cl*100).toFixed(1)+'% • '+r.a.bu+' hari big vol naik'+(isSim?' — data simulasi, bukan konfirmasi pasar riil':'')});
+  });
+  FS_RD.filter(function(r){return r.a.sc<=32;}).slice(0,2).forEach(function(r){
+    var isSim=!!(r.data && r.data.simulated);
+    als.push({t:'al-d',ic:'ti-trending-down',title:(isSim?'[Estimasi] ':'')+'Distribusi terdeteksi: '+r.t,sub:'Skor '+r.a.sc+'/100 • CMF '+(r.a.cl*100).toFixed(1)+'% • '+r.a.bd+' hari big vol turun'+(isSim?' — data simulasi, bukan konfirmasi pasar riil':'')});
+  });
+  FS_RD.filter(function(r){return r.data[r.data.length-1].vr>=2;}).slice(0,3).forEach(function(r){
+    var isSim=!!(r.data && r.data.simulated);
+    als.push({t:'al-n',ic:'ti-bolt',title:(isSim?'[Estimasi] ':'')+'Volume anomali: '+r.t+' — '+r.data[r.data.length-1].vr.toFixed(1)+'× rata-rata',sub:(isSim?'Data simulasi, bukan konfirmasi pasar riil. ':'')+'Aktivitas institusional tidak biasa. Pantau arah pergerakan harga.'});
+  });
   als.sort(function(){return Math.random()-.5;});
   var alList=document.getElementById('al-list');
   // FIX: sebelumnya jam alert dibangkitkan acak (09:00-15:00 palsu), bukan
@@ -768,8 +812,11 @@ function fsRenderWlPage(){
         ? '<div style="display:inline-flex;flex-direction:column;gap:2px"><span class="badge b-up" style="font-size:10px;font-weight:700;letter-spacing:0.3px">'+pItem.lot+' Lot</span><span style="font-size:9px;color:var(--text2);font-family:var(--font-mono)">Avg Rp '+fmt(pItem.avg)+'</span></div>'
         : '<span class="badge b-neu" style="font-size:9px;color:var(--text3)">Pantau</span>';
 
-      return '<tr style="'+(w.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':w.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+'">'
-        +'<td class="mono" style="font-weight:700;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+w.t+'\')" title="Buka analisa detail FlowScan"><div style="display:flex;align-items:center;gap:6px">'+(typeof getStockLogoHtml==='function'?getStockLogoHtml(w.t,16):'')+w.t+'</div></td>'
+      // KNOWN_ISSUES.md #2: same disclosure as Ranking/Heatmap — this row's
+      // score/signal can be entirely synthetic (fsGenData()'s fallback).
+      var isSim=!!(w.data && w.data.simulated);
+      return '<tr style="'+(w.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':w.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+(isSim?';outline:1px solid rgba(255,61,90,.15)':'')+'">'
+        +'<td class="mono" style="font-weight:700;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+w.t+'\')" title="Buka analisa detail FlowScan"><div style="display:flex;align-items:center;gap:6px">'+(typeof getStockLogoHtml==='function'?getStockLogoHtml(w.t,16):'')+w.t+fsSrcDot(isSim)+'</div></td>'
         +'<td><div style="font-size:12px;font-weight:500">'+w.n+'</div><span class="badge b-neu" style="font-size:9px">'+w.s+'</span></td>'
         +'<td>'+portoBadge+'</td>'
         +'<td class="mono" style="font-weight:600">'+fsP(livePrice)+'</td>'

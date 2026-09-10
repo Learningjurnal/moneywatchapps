@@ -218,3 +218,107 @@ activating its navigation
     its own right: activating a previously-unreachable page is itself a
     form of test coverage — dead code paths can hide real bugs that no
     amount of source reading catches, only actually running them does.
+
+---
+
+## #6 — FlowScan's fabricated random-walk fallback (`fsGenData()`) shown
+with no simulation disclosure across 5 views
+
+- **Date:** 2026-09-10 (same day), moved here from `KNOWN_ISSUES.md` #2
+  once fixed.
+- **Found by:** code audit while checking whether `07-flowscan.js`'s
+  `FS_RD` data was safe to reuse for a Dashboard Command Center card
+  (`UIUX_ROADMAP_AUDIT.md` §6/§7) — not a user report.
+- **Impact:** `fsGenData(tk, days)` prioritizes real cached OHLCV
+  (`rdGetAny(tk)`) but falls through to a seeded random-walk series
+  (`fsSr()`) when none is cached yet for a ticker. Every "Big Money
+  Score"/"AKUMULASI"/"DISTRIBUSI" signal derived from that series was
+  shown identically to one derived from real data, with the sole
+  exception of the Ranking table (which already had a green-dot/red-"○
+  SIM" marker, but keyed off `rdIsReal(r.t)` — whether *any* real cache
+  exists at all — rather than whether this specific call actually used
+  it, so it could read real for a ticker with 1-4 cached rows while
+  `fsGenData()` had still used the synthetic branch). Heatmap, Alerts,
+  Watchlist, and the single-ticker FlowScan deep-dive view had no
+  disclosure at all.
+- **Root cause:** `fsGenData()`'s synthetic fallback branch never tagged
+  its output as simulated, so nothing downstream could tell real and
+  fabricated data apart — the same class of gap `isSimulated`/
+  `assessDataQuality()` were built elsewhere in this app to close, never
+  applied to this code path.
+- **Fix:** `fsGenData()` now sets `.simulated` (`true`/`false`) directly
+  on the array it returns — the array object itself carries the flag, so
+  every consumer holding a reference to `r.data`/`w.data`/the local
+  `data` var can read it with no extra plumbing through the
+  `Object.assign({...}, {data, a})` wrapper objects built in `fsInit()`,
+  `fsSyncWithPortfolio()`, `fsTgWl()`, `fsRunAnalysis()`. A shared
+  `fsSrcDot(isSimulated)` helper renders the marker consistently; applied
+  to `fsRenderRanking()` (upgraded from `rdIsReal()` to the exact flag),
+  `fsRenderHeatmap()`, `fsGenAlerts()` (disclosed via an "[Estimasi]"
+  prefix + sub-text note rather than hidden — hiding would remove most
+  alerts for any ticker without a cache hit yet), `fsRenderWlPage()`, and
+  `fsRunAnalysis()`'s cards/price label.
+- **Prevention added:** none yet — no automated test covers this path
+  (would need to force the synthetic branch and assert the marker
+  appears in the rendered HTML); deferred, not blocking, since the fix
+  itself was verified live via Playwright (see below).
+- **Verification:** `npm test` (all passing), `npm run lint` clean, live
+  Playwright check with a ticker that has no cached OHLCV confirmed the
+  red "○ SIM" marker + outline on Ranking/Heatmap/Watchlist/single-ticker
+  view and the "[Estimasi]" prefix on its alerts; a ticker with real
+  cached data showed the green "●" marker and no alert prefix.
+
+---
+
+## #7 — 5 of 8 Bandarmology views showed simulated broker-flow figures
+with no disclosure (2 already did)
+
+- **Date:** 2026-09-10 (same day), moved here from `KNOWN_ISSUES.md` #3
+  once fixed.
+- **Found by:** code audit, same investigation pass as #6 above — checking
+  whether Bandarmology's data was safe to reuse for a Dashboard Command
+  Center "Smart Money Flow" card.
+- **Correction to the original finding:** the investigation's initial
+  claim — that `renderBandarmologyMarketFlowView()` ("Analisis Full
+  Market") had no simulation disclosure anywhere — was wrong. `git log -S`
+  shows that view's amber disclosure banner and "SIMULASI" badge (which
+  replaced a misleading "LIVE AGGREGATION" label) were added in commit
+  `21e7132` on 2026-09-06, four days before this was filed as an issue,
+  and were already on `main`. `renderBandarmology1YearBrokerCostMatrix()`
+  and `renderBandarmologyHeatmapScannerView()` also already had
+  disclosure badges. This was an investigation error, not a regression —
+  recorded here so it isn't repeated.
+- **Impact (the real gap):** `generateClientSideBrokerSummary(ticker,
+  timeframe)` (`41-stockchat-cockpit.js:176`) computes transaction volume
+  from a per-market-cap-tier constant times a pseudo-random offset seeded
+  from the ticker string's own character codes — not real broker/exchange
+  data (price and % change are real; volume and everything derived from
+  it is not). Five Bandarmology views read this with zero disclosure:
+  `renderBandarmologyForeignFlowView()` (Top 5 Foreign Buy/Sell),
+  `renderBandarmologyAccumulationView()`, `renderBandarmologyDistributionView()`,
+  `renderBandarmologySmartMoneyRadarView()` (Smart Money vs Retail
+  Footprint), `renderBandarmologyBrokerTrailView()`.
+- **Root cause:** the disclosure banner added to Market Flow (commit
+  `21e7132`) was never propagated to the other views built on the same
+  `generateClientSideBrokerSummary()` function — each view was written
+  independently rather than through a shared "this data might be
+  simulated" render path.
+- **Fix:** added a shared `bandarSimBanner(extraNote)` helper (same
+  amber-banner visual pattern already proven in Market Flow) and
+  prepended it to all five views' returned HTML.
+- **New issue found while fixing this, not folded in:** during the audit,
+  `renderBandarmologySmartMoneyFlowView()` turned out to have a deeper,
+  distinct problem — its CMF/VWAP/Volume Surge figures aren't computed
+  from `generateClientSideBrokerSummary()` or anything at all; they're
+  two hardcoded literals selected by `isUp` (`cmfVal` is either exactly
+  `0.24` or exactly `-0.18`), under badges ("ALGORITMA PENETRASI HARGA
+  BEI", "CHART ENGINE (60 CANDLES)") that imply a real calculation. Given
+  its own `bandarSimBanner()` disclosure for now; filed as
+  `KNOWN_ISSUES.md` #4 for the real fix (replace with `07-flowscan.js`'s
+  actual `fsCalcCMF()` against real cached OHLCV).
+- **Prevention added:** none yet — same gap as #6 (no automated test
+  covers Bandarmology view HTML output); deferred, not blocking, verified
+  live instead.
+- **Verification:** `npm test`, `npm run lint` clean, live Playwright
+  check that all five previously-undisclosed tabs (plus Smart Money Flow)
+  now render the amber disclosure banner.
