@@ -301,3 +301,32 @@ lewat server lokal + Playwright: 6 header grup benar & berurutan, isi tiap
 grup cocok 100% dengan mapping di atas, jumlah tombol sidebar tidak
 berubah (39), klik nyata ke item yang paling banyak berpindah (Sector
 Insight, Bandarmology) tetap berfungsi, nol error JS baru.
+
+**Update 2026-09-10 — P0 slice 2 EXECUTED**: dua zona Command Center
+ditambahkan ke halaman Dashboard — sebelumnya nol zona market-wide/AI ada
+di sana sama sekali, hanya "Portfolio Snapshot" (yang sudah sangat
+lengkap: ringkasan aset, gauge volatilitas & risiko, grafik vs IHSG,
+donut alokasi — tidak disentuh).
+- **Market Regime** (roadmap §6, menjawab pertanyaan #1 "bagaimana
+  kondisi market") — kartu baru di atas Ringkasan Aset, fetch langsung ke
+  `/api/idx/regime` (endpoint nyata yang sudah dipakai tab Market Regime
+  di AI Trading), independen dari state AI Trading supaya kunjungan ke
+  Dashboard tidak memicu re-render halaman lain yang tidak terkait.
+- **AI Opportunity Radar preview** (roadmap §6, menjawab pertanyaan #3
+  "apa peluang terbaik") — kartu baru menampilkan top 5 saham BUY ZONE,
+  memakai ULANG `loadOpportunityRadarUniverse()`/`RADAR_STATE` yang sama
+  persis dengan halaman Radar penuh (bukan fetch/skoring terpisah) —
+  sesuai prinsip "agregator tampilan" di §4 dokumen ini. Kunjungan ke
+  Dashboard bahkan menghangatkan cache untuk saat user buka halaman Radar
+  penuh berikutnya.
+
+Diverifikasi lewat server lokal + Playwright: kedua kartu ada di DOM,
+tombol "Lihat Detail"/"Lihat Semua" masing-masing benar menuju halaman
+`market-regime`/`radar`, konten Dashboard lama (Ringkasan Aset dkk) tidak
+rusak, nol error JS baru — termasuk diuji dalam kondisi Yahoo Finance
+tidak terjangkau dari sandbox ini (network egress terblokir): kedua kartu
+mendegradasi jujur (regime "BELUM DIKETAHUI" + alasan nyata dari
+`assessDataQuality()`, radar "Belum ada saham di BUY ZONE" + link ke
+halaman lengkap) — bukan crash, bukan data karangan. Di produksi
+(Vercel, Yahoo Finance terjangkau) kedua kartu akan menampilkan
+klasifikasi regime & top picks nyata.
