@@ -181,6 +181,77 @@ test('INCIDENT #2: intelShouldAutoFetch() blocks re-entrant auto-fetch within th
 });
 
 // ============================================================
+// INCIDENT #3 (2026-09-10): found proactively via a sweep for the same
+// `finally { ...; render() }` pattern across public/js — not from a
+// reported symptom. lib/38-ai-autonomous-trading.js's
+// ensureFullUniverseLoaded() had the identical bug to Stock Intel's:
+// fetchAiScanData()'s `finally` block always calls renderAiTradingPage(),
+// which re-enters ensureFullUniverseLoaded()'s "fetch if AI_UNIVERSE is
+// still empty" check. On failure, AI_UNIVERSE is never populated (the
+// catch block only sets AI_SCAN_ERROR), so without a cooldown, the very
+// next render would re-fire the fetch immediately, forever. Fixed the
+// same way: extracted aiShouldAutoLoadUniverse() (pure, no DOM/network)
+// with a 30s cooldown via AI_SCAN_LAST_ATTEMPT/AI_SCAN_RETRY_COOLDOWN_MS.
+// ============================================================
+test('INCIDENT #3: aiShouldAutoLoadUniverse() blocks re-entrant auto-load within the cooldown window, and allows it again after', async () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+
+  // This file is wrapped in `(function(window, document) {...})(window,
+  // document)` (unlike 27-stockintel.js) — AI_SCAN_LAST_ATTEMPT and
+  // AI_UNIVERSE are closure-private, not reachable as ctx.AI_SCAN_LAST_
+  // ATTEMPT from outside. So this test drives time through a controllable
+  // Date.now() and state through the REAL fetchAiScanData()/
+  // aiShouldAutoLoadUniverse() functions instead of poking internals —
+  // closer to what actually happens in the browser, and doesn't depend on
+  // this file's variables staying accessible from outside the IIFE.
+  let mockNow = 1700000000000;
+  class ControllableDate extends Date {
+    static now() { return mockNow; }
+  }
+
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null, addEventListener: () => {}, querySelectorAll: () => [] },
+    console,
+    fetch: async () => { throw new Error('simulated network failure'); },
+    setTimeout, setInterval: () => {}, clearInterval: () => {},
+    localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    Date: ControllableDate, Math, JSON, Array, Object, String, Number, Set, Map, Promise,
+    isNaN, parseFloat, parseInt, encodeURIComponent, decodeURIComponent
+  };
+  sandbox.window = sandbox;
+  sandbox.self = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '38-ai-autonomous-trading.js (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.aiShouldAutoLoadUniverse, 'function',
+    'aiShouldAutoLoadUniverse() not found in public/js/38-ai-autonomous-trading.js — has it been renamed/removed?');
+  assert.strictEqual(typeof ctx.fetchAiScanData, 'function',
+    'fetchAiScanData() not found — has it been renamed/removed?');
+
+  // Empty universe, never attempted before -> first visit should load.
+  assert.strictEqual(ctx.aiShouldAutoLoadUniverse(), true,
+    'First-ever check with an empty universe and no prior attempt should be allowed to auto-load');
+
+  // Run the REAL fetchAiScanData() against the always-failing mocked
+  // fetch — this is exactly what ensureFullUniverseLoaded() would have
+  // triggered, and exactly what recorded AI_SCAN_LAST_ATTEMPT in the
+  // real incident.
+  await ctx.fetchAiScanData();
+
+  // Immediately re-check at the SAME mocked instant (as renderAiTradingPage()
+  // does in the `finally` block, with zero real delay) — before the fix,
+  // this returned true forever.
+  assert.strictEqual(ctx.aiShouldAutoLoadUniverse(), false,
+    'REGRESSION: aiShouldAutoLoadUniverse() allowed an immediate re-load right after a failed scan with no cooldown elapsed — this is the same infinite-loop bug class as the Stock Intel incident');
+
+  // Advance the mocked clock past the cooldown -> should self-heal.
+  mockNow += 31000;
+  assert.strictEqual(ctx.aiShouldAutoLoadUniverse(), true,
+    'Auto-load should be allowed again once the cooldown window has elapsed');
+});
+
+// ============================================================
 console.log('═══════════════════════════════════════════════════════');
 if (passedTests === totalTests) {
   console.log(`🎉 ALL ${passedTests}/${totalTests} PROVIDER FUNCTION TESTS PASSED`);
