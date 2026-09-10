@@ -998,7 +998,7 @@ function renderAggregatedBrokerFlowView(data) {
     displayBuyers.forEach(function(bItem) {
       var isF = bItem.type === 'F';
       var valM = (bItem.valueRp / 1000000000).toFixed(2);
-      var priceSpread = data.price ? (((data.price - bItem.avgPrice) / bItem.avgPrice) * 100).toFixed(1) : 0;
+      var priceSpread = (data.price && bItem.avgPrice > 0) ? (((data.price - bItem.avgPrice) / bItem.avgPrice) * 100).toFixed(1) : 0;
       var priceSpreadHtml = Number(priceSpread) >= 0 
         ? '<span class="up" style="font-size:9px;margin-left:3px;font-weight:700">+' + priceSpread + '%</span>'
         : '<span class="dn" style="font-size:9px;margin-left:3px;font-weight:700">' + priceSpread + '%</span>';
@@ -1058,7 +1058,7 @@ function renderAggregatedBrokerFlowView(data) {
     displaySellers.forEach(function(sItem) {
       var isF = sItem.type === 'F';
       var valM = (sItem.valueRp / 1000000000).toFixed(2);
-      var priceSpread = data.price ? (((data.price - sItem.avgPrice) / sItem.avgPrice) * 100).toFixed(1) : 0;
+      var priceSpread = (data.price && sItem.avgPrice > 0) ? (((data.price - sItem.avgPrice) / sItem.avgPrice) * 100).toFixed(1) : 0;
       var priceSpreadHtml = Number(priceSpread) >= 0 
         ? '<span class="up" style="font-size:9px;margin-left:3px;font-weight:700">+' + priceSpread + '%</span>'
         : '<span class="dn" style="font-size:9px;margin-left:3px;font-weight:700">' + priceSpread + '%</span>';

@@ -749,6 +749,63 @@ test('Equity history real-price resolution: missing/zero/NaN real price falls th
   assert.strictEqual(resolvePrice(false, undefined, NaN, 4500), 4500);
 });
 
+// ── TEST 30: getPortfolio() SELL-on-empty-position never produces NaN cost ──
+// getPortfolio() (03-engine.js) has the same "can't safely run under Node"
+// problem as TEST 29 above (implicit globals: transactions, prices, DB,
+// _txHash, getTxMultiplier...), so this locks down the contract of its SELL
+// branch instead: a SELL landing on a position with p.shares<=0 (only
+// reachable with corrupted/hand-edited storage data — every real entry
+// point already rejects lot<=0) must resolve `avg` to a finite number,
+// never NaN/Infinity from a 0/0 or x/0 division, so `p.cost` can never be
+// corrupted by a 0/0 * 0 = NaN propagating through Math.max(0, ...).
+function resolveSellAvg(sharesHeld, costBasis, sold) {
+  return sharesHeld > 0 ? (costBasis / sharesHeld) : 0;
+}
+test('getPortfolio() SELL-avg contract: a SELL on an empty/never-bought position (sold=0) resolves avg to 0, never NaN/Infinity', () => {
+  const avg = resolveSellAvg(0, 0, 0);
+  assert.strictEqual(avg, 0);
+  assert(!isNaN(avg), 'avg must never be NaN');
+  const costAfter = Math.max(0, 0 - (avg * 0));
+  assert.strictEqual(costAfter, 0, 'p.cost must stay a clean 0, never NaN, after an empty-position SELL');
+});
+test('getPortfolio() SELL-avg contract: a normal SELL still computes pro-rata avg cost correctly', () => {
+  assert.strictEqual(resolveSellAvg(100, 15000, 40), 150);
+});
+test('REGRESSION GUARD: 03-engine.js getPortfolio() SELL branch must not divide by `sold` when shares<=0', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(
+    !/p\.shares > 0 \? \(p\.cost \/ p\.shares\) : \(tx\.gross \/ sold\)/.test(src),
+    'The unguarded `tx.gross / sold` fallback (NaN/Infinity when sold===0) has come back into getPortfolio() — see the fix at the same line for why it must resolve to 0 instead'
+  );
+});
+
+// ── TEST 31: broker-table price-spread never divides by a zero avgPrice ──
+// 41-stockchat-cockpit.js's Top Buyer/Seller tables (renderBandarmologyBrokerTrailView
+// and friends) compute a "% spread vs broker avg price" badge. If the
+// broker-summary API ever returns avgPrice: 0 for a broker (incomplete
+// upstream data), dividing by it produced +-Infinity%, displayed as a
+// literal "Infinity%" badge instead of a graceful "—"/0%.
+function priceSpreadPct(currentPrice, avgPrice) {
+  return (currentPrice && avgPrice > 0) ? (((currentPrice - avgPrice) / avgPrice) * 100) : 0;
+}
+test('priceSpreadPct(): a zero avgPrice resolves to 0, never Infinity/-Infinity/NaN', () => {
+  const spread = priceSpreadPct(5000, 0);
+  assert.strictEqual(spread, 0);
+  assert(isFinite(spread), 'spread must be finite, never Infinity');
+});
+test('priceSpreadPct(): a normal case still computes the real percentage', () => {
+  assert.strictEqual(priceSpreadPct(5100, 5000), 2);
+});
+test('REGRESSION GUARD: 41-stockchat-cockpit.js broker tables must guard avgPrice>0 before dividing', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(
+    !/data\.price \? \(\(\(data\.price - [a-zA-Z]+\.avgPrice\) \/ [a-zA-Z]+\.avgPrice\) \* 100\)\.toFixed\(1\) : 0/.test(src),
+    'The unguarded avgPrice division (Infinity% when avgPrice===0) has come back into the broker Top Buyer/Seller tables'
+  );
+  const guardedCount = (src.match(/\(data\.price && [a-zA-Z]+\.avgPrice > 0\)/g) || []).length;
+  assert.strictEqual(guardedCount, 2, 'Expected both the Top Buyer and Top Seller table price-spread calcs to carry the avgPrice>0 guard');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
