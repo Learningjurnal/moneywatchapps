@@ -850,7 +850,45 @@
           </div>
         </div>
 
-        <!-- 4. AI INSIGHT (Command Center zone — P0 slice 4). RULE-BASED
+        <!-- 4. MARKET HEATMAP (Command Center zone — P0 slice 5). Reuses
+             FS_RD (07-flowscan.js), already populated app-wide at boot by
+             fsInit() (06-analysis-router.js init) — no separate fetch/
+             scoring for this preview. Per-cell disclosure via fsSrcDot()
+             so a ticker whose OHLCV isn't cached yet (KNOWN_ISSUES.md #2,
+             fixed) never looks identical to a real one here either.
+             Deferred until that fix landed — see UIUX_ROADMAP_AUDIT.md
+             §7. Answers roadmap §6 "Market Heatmap" zone (breadth &
+             rotation). -->
+        <div id="card-dash-heatmap" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Market Heatmap</span>
+            <button class="btn btn-ghost btn-xs" onclick="goPage('heatmap')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
+          </div>
+          <div id="dash-heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(84px, 1fr));gap:8px">
+            <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat heatmap…</div>
+          </div>
+        </div>
+
+        <!-- 5. SMART MONEY FLOW (Command Center zone — P0 slice 5). Reuses
+             generateClientSideBrokerSummary() (41-stockchat-cockpit.js) for
+             the same Big 4 Banks renderBandarmologyMarketFlowView() reads —
+             synchronous, no separate fetch. KNOWN_ISSUES.md #3 fix: shown
+             with an honest SIMULASI disclosure (transaction volume/value
+             are estimates — BEI has no free/public per-broker feed), not
+             presented as real institutional data. Deferred until that fix
+             landed — see UIUX_ROADMAP_AUDIT.md §7. Answers roadmap §6
+             "Smart Money Flow" zone (institutional activity). -->
+        <div id="card-dash-smartflow" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Smart Money Flow</span>
+            <button class="btn btn-ghost btn-xs" onclick="goBandarmology('market',null)" style="font-size:11px;font-weight:700">Lihat Detail →</button>
+          </div>
+          <div id="dash-smartflow-body">
+            <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat aliran dana…</div>
+          </div>
+        </div>
+
+        <!-- 6. AI INSIGHT (Command Center zone — P0 slice 4). RULE-BASED
              synthesis of the Market Regime, Portfolio Snapshot, AI
              Opportunity Radar and Alerts zones above — no fetch of its
              own, no LLM call (see renderDashboardAIInsight()'s comment for
@@ -868,7 +906,7 @@
           </div>
         </div>
 
-        <!-- 5. ALERTS / ACTIONS (Command Center zone — P0 slice 3). Reuses
+        <!-- 7. ALERTS / ACTIONS (Command Center zone — P0 slice 3). Reuses
              the REAL window.mwGetPriceAlerts() (public/js/30-price-alerts.js)
              — user-defined price targets checked against real live prices —
              deliberately NOT the FS_RD-based alerts on the `alerts` page
@@ -4009,7 +4047,7 @@
 <script src="js/02-storage.js?v=20260909b"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
 <script src="js/03-engine.js?v=20260910a"></script>
-<script src="js/04-render.js?v=20260910c"></script>
+<script src="js/04-render.js?v=20260910d"></script>
 <script src="js/36-crypto-technical.js?v=20260906e"></script>
 <script src="js/05-assets.js?v=20260910a"></script>
 <script src="js/06-analysis-router.js?v=20260909a"></script>

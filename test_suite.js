@@ -989,6 +989,49 @@ test('REGRESSION GUARD: dashboard HTML must still have the AI Insight zone conta
   assert(src.includes('id="dash-insight-body"'), 'AI Insight card is missing the body container renderDashboardAIInsight() writes into');
 });
 
+// ── TEST 37: Command Center P0 slice 5 (Market Heatmap + Smart Money Flow
+// zones) — UIUX_ROADMAP_AUDIT.md §6/§7. These were deliberately deferred
+// after P0 slice 3 because both depended on FS_RD/generateClientSideBrokerSummary()
+// data that could be fabricated with no disclosure (KNOWN_ISSUES.md #2/#3).
+// Now that both are fixed, guards that (a) renderDashboard() still wires
+// both preview renderers in, and (b) neither preview silently drops the
+// real-vs-simulated disclosure the underlying fix added — a preview
+// re-hiding that disclosure would recreate exactly the KNOWN_ISSUES.md
+// #2/#3 problem on the homepage, the one place the audit was most worried
+// about amplifying exposure to it.
+test('REGRESSION GUARD: renderDashboard() must call renderDashboardHeatmapPreview() and renderDashboardSmartFlowPreview()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  assert(/function renderDashboardHeatmapPreview\(\)/.test(src), 'renderDashboardHeatmapPreview() is missing');
+  assert(/function renderDashboardSmartFlowPreview\(\)/.test(src), 'renderDashboardSmartFlowPreview() is missing');
+  const dashboardFn = src.match(/function renderDashboard\(\)\{[\s\S]*?\n\}/);
+  assert(dashboardFn && dashboardFn[0].includes('renderDashboardHeatmapPreview'),
+    'renderDashboard() no longer calls renderDashboardHeatmapPreview()');
+  assert(dashboardFn && dashboardFn[0].includes('renderDashboardSmartFlowPreview'),
+    'renderDashboard() no longer calls renderDashboardSmartFlowPreview()');
+});
+test('REGRESSION GUARD: Market Heatmap preview must keep the real-vs-simulated disclosure marker (KNOWN_ISSUES.md #2)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  const fn = src.match(/function renderDashboardHeatmapPreview\(\)\{[\s\S]*?\n\}/);
+  assert(fn, 'renderDashboardHeatmapPreview() body not found');
+  assert(/data\s*&&\s*r\.data\.simulated/.test(fn[0]) || /r\.data\.simulated/.test(fn[0]),
+    'renderDashboardHeatmapPreview() no longer reads .simulated off FS_RD rows — would show a fabricated score identically to a real one');
+  assert(/fsSrcDot\(/.test(fn[0]), 'renderDashboardHeatmapPreview() no longer calls fsSrcDot() — the SIM marker would be missing from this preview');
+});
+test('REGRESSION GUARD: Smart Money Flow preview must keep the SIMULASI disclosure badge (KNOWN_ISSUES.md #3)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  const fn = src.match(/function renderDashboardSmartFlowPreview\(\)\{[\s\S]*?\n\}/);
+  assert(fn, 'renderDashboardSmartFlowPreview() body not found');
+  assert(/generateClientSideBrokerSummary\(/.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer reuses generateClientSideBrokerSummary()');
+  assert(/>SIMULASI</.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer shows the SIMULASI disclosure badge');
+});
+test('REGRESSION GUARD: dashboard HTML must still have both new zone containers', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(src.includes('id="card-dash-heatmap"'), '#card-dash-heatmap container missing from index.html');
+  assert(src.includes('id="dash-heatmap-grid"'), 'Heatmap card is missing the grid container renderDashboardHeatmapPreview() writes into');
+  assert(src.includes('id="card-dash-smartflow"'), '#card-dash-smartflow container missing from index.html');
+  assert(src.includes('id="dash-smartflow-body"'), 'Smart Money Flow card is missing the body container renderDashboardSmartFlowPreview() writes into');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

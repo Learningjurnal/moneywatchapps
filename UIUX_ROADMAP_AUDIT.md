@@ -400,3 +400,59 @@ Alerts & Actions, plus AI Insight sebagai lapisan sintesis di atas
 semuanya). 2 zona sisa (Market Heatmap, Smart Money Flow) menunggu
 perbaikan data di `KNOWN_ISSUES.md` #2/#3 sebelum bisa dibangun dengan
 aman.
+
+**Update 2026-09-10 — KNOWN_ISSUES.md #2/#3/#4 FIXED, P0 slice 5 EXECUTED
+(Market Heatmap + Smart Money Flow, Command Center lengkap 6/6)**: setelah
+`fsGenData()` (#2) dan `generateClientSideBrokerSummary()`/Bandarmology
+views (#3) diperbaiki agar mendisclosure data simulasi secara eksplisit
+(lihat `INCIDENT_LOG.md` #6/#7/#8), 2 zona terakhir yang tadinya ditunda
+sekarang aman dibangun:
+- **Market Heatmap** — kartu `#card-dash-heatmap` menampilkan 10 saham
+  teratas by market cap dari `FS_RD` (`07-flowscan.js`), yang SUDAH
+  ter-populate app-wide sejak boot (`fsInit()` dipanggil dari init sequence
+  di `06-analysis-router.js`) — preview ini murni membaca state yang sudah
+  ada, tidak ada fetch/skoring terpisah. Setiap sel memakai marker
+  disclosure `fsSrcDot()` yang sama dengan Ranking/Heatmap/Watchlist
+  (● riil / ○ SIM), sehingga skor yang berasal dari fallback sintetis tidak
+  pernah tampil identik dengan skor riil, bahkan di preview sekalipun.
+- **Smart Money Flow** — kartu `#card-dash-smartflow` menghitung net flow
+  Big 4 Bank (BBCA/BBRI/BMRI/BBNI) dari `generateClientSideBrokerSummary()`
+  — sumber yang sama dengan `renderBandarmologyMarketFlowView()` — dan
+  menampilkan badge disclosure "SIMULASI" yang sama (nilai transaksi
+  adalah estimasi, BEI tidak punya feed broker-flow publik/gratis).
+
+Diverifikasi lewat server lokal + Playwright: kedua kartu ada di DOM,
+render otomatis saat Dashboard dibuka (sinkron, tanpa fetch tambahan),
+klik "Lihat Semua"/"Lihat Detail" masing-masing benar menuju halaman
+`heatmap`/Bandarmology mode market (dengan banner disclosure-nya sendiri
+tetap tampil di sana), nol error JS baru. TEST 37 (4 test baru) menambah
+regression guard yang dibuktikan menangkap dua kelas regresi: (a) kartu
+lepas dari `renderDashboard()`, dan (b) marker/badge disclosure hilang
+dari preview-nya — kelas regresi paling berbahaya di sini, karena preview
+yang kehilangan disclosure akan mengulang persis masalah
+`KNOWN_ISSUES.md` #2/#3 di homepage, tempat yang paling dikhawatirkan
+audit ini untuk memperbesar paparan ke data karangan.
+
+**Command Center sekarang punya 6 dari 6 zona roadmap §6** (Market
+Regime, Portfolio Snapshot, AI Opportunity Radar, Market Heatmap, Smart
+Money Flow, AI Insight — plus Alerts & Actions sebagai zona ke-7 yang
+tidak eksplisit di §6 tapi menjawab pertanyaan #5 roadmap). "Global
+Market Header" (§6, baris pertama) tidak dibuatkan kartu Dashboard
+terpisah — topbar aplikasi (IHSG value + change + indikator LIVE, tampil
+di SEMUA halaman, bukan cuma Dashboard) sudah memenuhi tujuan "orientasi
+cepat" zona ini; LQ45/FX dan badge data-health eksplisit belum ada di
+sana, dicatat sebagai gap kecil, bukan zona baru yang perlu dibangun dari
+nol.
+
+P0 (§16 roadmap: "Command Center + navigation + hierarchy") sekarang
+secara substansial selesai dari sisi Command Center + navigasi 6-domain.
+Yang BELUM dikerjakan dari P0: homepage belum benar-benar "hanya Command
+Center" (§5.1) — konten Dashboard lama (Ringkasan Aset, Kelas Aset, dll.)
+sengaja dipertahankan apa adanya di sesi ini untuk membatasi risiko,
+bukan dipindah ke halaman detail terpisah lewat progressive disclosure
+seperti visi akhir roadmap. P1 (Stock Cockpit — §8, menyatukan
+Fundamental/Technical/Valuation/Smart Money/AI Research/Risk per saham
+jadi satu halaman tab) **belum dimulai sama sekali**. P2 (design system
+§11, density selector §12) dan P3 (workspace/personalization) juga belum
+disentuh. Tahap 8 (UAT dengan user riil, §17) tidak bisa dilakukan dari
+sandbox ini.
