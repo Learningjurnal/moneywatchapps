@@ -58,33 +58,12 @@ new, separate issue in the process — see #4 below.
 
 ---
 
-## #4 — `renderBandarmologySmartMoneyFlowView()`'s CMF/VWAP/Volume Surge
-are hardcoded literals, not computed from anything
+## #4 — ~~`renderBandarmologySmartMoneyFlowView()`'s CMF/VWAP/Volume Surge were hardcoded literals, not computed from anything~~ FIXED, moved to `INCIDENT_LOG.md` #8
 
-- **Found:** 2026-09-10, while fixing #3 above (`INCIDENT_LOG.md` #7).
-- **Evidence:** `public/js/41-stockchat-cockpit.js`'s
-  `renderBandarmologySmartMoneyFlowView(tk)` (the per-ticker "Smart Money
-  Flow & Volume Price Matrix" tab) sets `cmfVal = isUp ? 0.24 : -0.18;` —
-  exactly one of two possible values, selected only by whether the
-  ticker's price is up or down today, not computed from any OHLCV/volume
-  data at all. `vwapSession`/`vwapUpper`/`vwapLower` are fixed percentage
-  offsets off the current price (`price * (isUp ? 0.992 : 1.008)`, etc.),
-  and `volSurge` is one of two fixed strings ("2.4x (Heavy Inflow)" /
-  "1.8x (Distribution Outflow)"). None of this reads
-  `generateClientSideBrokerSummary()`'s (simulated) volume either — it's
-  independent of that function's fabrication, a separate hardcode.
-- **Suspected impact:** the view's own badges — "ALGORITMA PENETRASI
-  HARGA BEI", "CHART ENGINE (60 CANDLES)" — imply a real calculation
-  against 60 candles of data; in reality CMF can only ever display as
-  `+0.24` or `-0.18` for every ticker, every day, forever. A user reading
-  this as a real Chaikin Money Flow reading would be misled regardless of
-  which stock or day they check.
-- **Status:** deferred — not fixed. A `bandarSimBanner()` disclosure was
-  added as an interim measure (`INCIDENT_LOG.md` #7), but that only warns
-  the number isn't real; it doesn't make the number real.
-- **Next step when picked up:** `07-flowscan.js` already computes a real
-  CMF from cached OHLCV (`fsCalcCMF()`, `rdGetAny()`) for the same
-  tickers — replace this view's hardcoded `cmfVal`/`vwapSession` with a
-  real call into that (or equivalent), falling back honestly (not to a
-  fabricated number) when no cached OHLCV exists yet for the ticker, the
-  same pattern used everywhere else `rdGetAny()` is the real-data source.
+The view's summary cards now reuse the same real `fsGenData()`/
+`fsProcess()`/`fsCalcVWAP()`/`fsCalcVWAPStdDev()` computation its own
+charts (`mountBandarmologySmartMoneyCharts()`, in the same file) already
+used — CMF, VWAP bands and Volume Surge are real per-ticker values now,
+not 2 hardcoded constants, and the disclosure banner is conditional on
+`fsGenData()`'s own `.simulated` flag instead of always showing. Full
+writeup, root cause and verification: `INCIDENT_LOG.md` #8.

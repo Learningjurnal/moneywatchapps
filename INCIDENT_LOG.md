@@ -322,3 +322,54 @@ with no disclosure (2 already did)
 - **Verification:** `npm test`, `npm run lint` clean, live Playwright
   check that all five previously-undisclosed tabs (plus Smart Money Flow)
   now render the amber disclosure banner.
+
+---
+
+## #8 — `renderBandarmologySmartMoneyFlowView()`'s CMF/VWAP/Volume Surge
+were hardcoded literals, not computed from anything
+
+- **Date:** 2026-09-10 (same day), moved here from `KNOWN_ISSUES.md` #4
+  once fixed.
+- **Found by:** code audit while fixing #7 above.
+- **Impact:** `cmfVal = isUp ? 0.24 : -0.18;` — exactly one of two possible
+  values, chosen only by whether the ticker's price was up or down that
+  day, not computed from any OHLCV/volume data. `vwapSession`/`vwapUpper`/
+  `vwapLower` were fixed percentage offsets off the current price, and
+  `volSurge` was one of two fixed strings. The view's own badges
+  ("ALGORITMA PENETRASI HARGA BEI", "CHART ENGINE (60 CANDLES)") implied a
+  real calculation against 60 candles; in reality CMF could only ever
+  display as `+0.24` or `-0.18`, for every ticker, every day.
+- **Root cause:** the summary cards at the top of the view were written
+  independently of `mountBandarmologySmartMoneyCharts()` — the chart-
+  drawing function immediately below them in the same file — which
+  already computed a real CMF/VWAP for the exact same ticker via
+  `fsGenData()`/`fsProcess()`/`fsCalcVWAP()`/`fsCalcVWAPStdDev()` for its
+  charts. The cards never reused that real computation.
+- **Fix:** replaced the hardcoded literals with the same real computation
+  the chart already used: `fsGenData(ticker, 60)` → `fsProcess(data)` for
+  `cmfVal` (`a.cl`, the real last-bar CMF-20) and `volSurge` (`a.last.vr`,
+  real volume vs 20-day average); `fsCalcVWAP(data)`/
+  `fsCalcVWAPStdDev(data, vwap)` for `vwapSession`/`vwapUpper`/
+  `vwapLower` (last value ± 2σ, matching the chart's own band formula
+  exactly). The 4th card ("ACCUMULATION INDEX (A/D)") was also silently
+  wrong in a second way — it displayed `isUp` (price direction) under an
+  "A/D" (Accumulation/Distribution line) label; switched to `fsProcess()`'s
+  real `adT` (whether the cumulative A/D value actually trended up over
+  the last ~5 bars), which can and does disagree with price direction.
+  `fsGenData()`'s `.simulated` flag (`KNOWN_ISSUES.md` #2's fix) is now
+  read directly (`isSimFlow`), so the disclosure banner only shows when
+  the underlying 60-day series really is the synthetic fallback — a
+  blanket "always simulated" banner would now be wrong on a real cache
+  hit.
+- **Prevention added:** none yet — same gap as #6/#7 (no automated test
+  covers Bandarmology view HTML output); deferred, verified live instead.
+- **Verification:** `npm test` (75/75), `npm run lint` clean, live
+  Playwright check across 3 tickers (BBCA, ANTM, TLKM) confirming the
+  card's displayed CMF and VWAP exactly match an independent
+  `fsGenData()`/`fsProcess()`/`fsCalcVWAP()` recomputation for that same
+  ticker (previously only 2 possible CMF values existed across all
+  tickers; now 3 different tickers produced 3 different real values:
+  `+0.20`, `+0.13`, `-0.03`), and the disclosure banner correctly appears
+  since this sandbox has no real Yahoo access (all 3 tickers' underlying
+  series were the honestly-disclosed synthetic fallback). Zero page
+  errors.
