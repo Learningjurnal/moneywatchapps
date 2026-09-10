@@ -341,9 +341,16 @@
   </div>
   <div class="side-nav-scroll" id="side-nav-scroll">
 
-  <!-- 1. HOME -->
-  <div class="side-group open" data-group="home">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-home"></i><span class="side-label">HOME</span><span class="side-chevron">▾</span></button>
+  <!-- 1. COMMAND CENTER -->
+  <!-- P0 roadmap slice (UIUX_ROADMAP_AUDIT.md §6/§7): sidebar markup
+       regrouped into the roadmap's 6 target domains (Command Center /
+       Markets / Research / AI Trading / Portfolio / Wealth). Deliberately
+       scoped to ONLY the 29 buttons already in the sidebar before this
+       change — no page moved, no goPage()/routing target changed, no page
+       from the other 25 (sub-tab/command-palette-only) added. That's a
+       separate, larger decision for a later slice, not this one. -->
+  <div class="side-group open" data-group="command-center">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-home"></i><span class="side-label">COMMAND CENTER</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goPage('daily-brief',this)"><i class="ti ti-sun"></i><span class="side-label">Market Pulse</span></button>
       <button onclick="goPage('radar',this)"><i class="ti ti-target"></i><span class="side-label">Opportunity Radar</span></button>
@@ -352,36 +359,38 @@
     </div>
   </div>
 
-  <!-- 2. INTELLIGENCE -->
-  <div class="side-group open" data-group="intelligence">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope"></i><span class="side-label">INTELLIGENCE</span><span class="side-chevron">▾</span></button>
+  <!-- 2. MARKETS -->
+  <div class="side-group open" data-group="markets">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-chart-bar"></i><span class="side-label">MARKETS</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar"></i><span class="side-label">Stock Intel</span></button>
-      <button onclick="goPage('sectoral-insight',this)"><i class="ti ti-chart-arcs"></i><span class="side-label">Sector Insight</span></button>
-      <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine"></i><span class="side-label">Research</span></button>
-      <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank"></i><span class="side-label">Fundamental</span></button>
-      <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
-      <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goPage('ranking',this)"><i class="ti ti-trophy"></i><span class="side-label">Market Radar</span></button>
       <button onclick="goPage('watchlist',this)"><i class="ti ti-star"></i><span class="side-label">Watchlist</span><span id="fs-wl-count" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">0</span></button>
+      <button onclick="goPage('sectoral-insight',this)"><i class="ti ti-chart-arcs"></i><span class="side-label">Sector Insight</span></button>
     </div>
   </div>
 
-  <!-- 3. AUTONOMOUS AI TRADING & QUANT SUITE -->
-  <div class="side-group open" data-group="ai-engine">
+  <!-- 3. RESEARCH (single-stock analysis + bandarmology, folded from the
+       former standalone BANDARMOLOGY group — still calls goBandarmology(),
+       unchanged, just regrouped) -->
+  <div class="side-group open" data-group="research">
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope"></i><span class="side-label">RESEARCH</span><span class="side-chevron">▾</span></button>
+    <div class="side-group-items">
+      <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar"></i><span class="side-label">Stock Intel</span></button>
+      <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank"></i><span class="side-label">Fundamental</span></button>
+      <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
+      <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
+      <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
+      <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine"></i><span class="side-label">Research</span></button>
+    </div>
+  </div>
+
+  <!-- 4. AI TRADING -->
+  <div class="side-group open" data-group="ai-trading">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-brain"></i><span class="side-label">AI TRADING</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goPage('ai-trading',this)"><i class="ti ti-robot"></i><span class="side-label">AI Trading</span></button>
       <button onclick="goPage('stockchat',this)"><i class="ti ti-terminal-2"></i><span class="side-label">StockChat AI</span></button>
       <button onclick="goPage('copilot',this)"><i class="ti ti-message-chatbot"></i><span class="side-label">AI Copilot</span></button>
-    </div>
-  </div>
-
-  <!-- 4. BANDARMOLOGY & SMART MONEY COCKPIT -->
-  <div class="side-group open" data-group="bandarmology">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-chart-arrows"></i><span class="side-label">BANDARMOLOGY</span><span class="side-chevron">▾</span></button>
-    <div class="side-group-items">
-      <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Bandarmology</span></button>
     </div>
   </div>
 

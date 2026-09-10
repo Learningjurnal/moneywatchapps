@@ -284,3 +284,20 @@ butuh keputusan produk eksplisit.
    memberi gambaran nyata "rasanya seperti apa" sebelum Command Center
    sungguhan dibangun. Bisa diverifikasi visual dengan cara yang sama
    seperti §1.3 (server lokal + Playwright) sebelum di-push.
+
+**Update 2026-09-10 — P0 slice 1 EXECUTED**: sidebar dirombak dari 7 grup
+lama (Home/Intelligence/AI Trading/Bandarmology/Portfolio/Wealth/More) ke
+struktur 6-domain roadmap: **Command Center** (Market Pulse, Opportunity
+Radar, Portfolio Snapshot, Alerts) · **Markets** (Market Radar, Watchlist,
+Sector Insight) · **Research** (Stock Intel, Fundamental, Technical,
+Valuation, Bandarmology, Research — Bandarmology dilebur ke sini dari grup
+standalone-nya) · **AI Trading** (tidak berubah) · **Portfolio** (tidak
+berubah) · **Wealth** (tidak berubah), plus grup **More** (util/admin, di
+luar 6 domain, sesuai §6) tetap ada. Sengaja dibatasi HANYA meregroup 32
+tombol yang sudah ada di sidebar sebelum perubahan ini — nol halaman
+dipindah, nol target `goPage()` diubah, nol dari 25 halaman non-sidebar
+(§1.2) ditambahkan (itu keputusan terpisah untuk slice lain). Diverifikasi
+lewat server lokal + Playwright: 6 header grup benar & berurutan, isi tiap
+grup cocok 100% dengan mapping di atas, jumlah tombol sidebar tidak
+berubah (39), klik nyata ke item yang paling banyak berpindah (Sector
+Insight, Bandarmology) tetap berfungsi, nol error JS baru.
