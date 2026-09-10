@@ -1,11 +1,14 @@
 # MoneyWatchPro — Financial Policy
 
-**Document status:** DRAFT — Financial Owner Approval Required  
-**Version:** 1.0.0-draft  
+**Document status:** APPROVED — Financial policy control values approved by the Financial Owner  
+**Version:** 1.1.0  
+**Approved by / basis:** MoneyWatchPro Master Review, review basis 10 Sep 2026 (Section 5, "Financial Policy — Approved Control Targets")  
 **Scope:** MoneyWatchPro AI analysis, backtesting, paper trading, and future live trading  
 **Authority:** Financial Owner / Strategy Owner  
 
-> This document is the single source of truth for financial rules used by the application. Engineering must implement these rules as written and must not silently change financial thresholds. Values marked **PROVISIONAL** are proposed defaults for owner review and are NOT approval to enable live trading.
+> This document is the single source of truth for financial rules used by the application. Engineering must implement these rules as written and must not silently change financial thresholds.
+>
+> **Approving these control VALUES is not the same as clearing the system for live trading.** Per the Master Review's own Go/No-Go (Section 10), MoneyWatchPro remains classified as research / paper / decision-support until the separate P0/P1 items (server-side authentication, real-data contract verification, synthetic-data isolation, ML governance, CI/CD quality gates) are implemented and demonstrably passing — see the approval status line at the end of this document.
 
 ---
 
@@ -125,18 +128,20 @@ Dividend tax treatment must be implemented according to the applicable Indonesia
 
 ## 7. Portfolio Risk Policy
 
-The following are **PROVISIONAL — OWNER APPROVAL REQUIRED**:
+The following are **APPROVED**:
 
-| Rule | Proposed default | Owner decision |
-|---|---:|---|
-| Maximum single Big Cap position | 10–15% | ☐ Approve ☐ Change |
-| Minimum RDN/cash buffer | 15–20% | ☐ Approve ☐ Change |
-| Minimum Risk:Reward | 1:2 | ☐ Approve ☐ Change |
-| Maximum portfolio drawdown gate | 15% | ☐ Approve ☐ Change |
-| Maximum concurrent new positions | 10 | ☐ Approve ☐ Change |
-| Maximum capital at risk per trade | 1% of portfolio | ☐ Approve ☐ Change |
+| Rule | Approved value |
+|---|---:|
+| Maximum single-stock position | 15% |
+| Minimum RDN/cash buffer | 20% |
+| Minimum Risk:Reward | 1:2 |
+| Maximum portfolio drawdown gate | 15% |
+| Maximum concurrent new positions | 10 |
+| Maximum capital at risk per trade | 1% of portfolio |
 
 **Hard limits must be enforced server-side.** AI-generated recommendations cannot override them.
+
+**Implementation status (as of this approval):** none of the six limits above are enforced anywhere in the codebase yet — there is no position-concentration check, no cash-buffer check, and no concurrent-position cap in `lib/idx-data-engine.js` or elsewhere. `RISK_PER_TRADE_PCT = 1.0` (the "maximum capital at risk per trade" value) is the only one of the six already present in code, hardcoded into the backtest engine's equity-curve simulation — not yet a server-enforced gate on live/paper decisions. Building the actual Risk Engine that enforces all six is tracked separately (Master Review roadmap item 3, "Risk Engine / Risk Gate") and must follow its audit-only → compare → feature-flag → full-enforcement migration rule, not a direct hard cutover.
 
 ---
 
@@ -243,20 +248,23 @@ A financial backtest must **BLOCK** if required REAL historical data is unavaila
 
 ## 12. ML / AI Model Promotion Policy
 
-Model promotion thresholds below are **PROVISIONAL — OWNER APPROVAL REQUIRED**.
+Model promotion thresholds below are **APPROVED**.
 
-### Minimum proposed gates
+### Minimum approved gates
 
-| Metric | Proposed gate | Owner decision |
-|---|---:|---|
-| OOS Profit Factor | ≥ 1.30 | ☐ Approve ☐ Change |
-| OOS Win Rate | ≥ 55% | ☐ Approve ☐ Change |
-| Maximum Drawdown | ≤ 15% | ☐ Approve ☐ Change |
-| Minimum Risk:Reward | ≥ 1:2 | ☐ Approve ☐ Change |
-| Minimum OOS trades | ≥ 100 | ☐ Approve ☐ Change |
-| Champion improvement | ≥ 0% after costs | ☐ Approve ☐ Change |
+| Metric | Approved gate |
+|---|---:|
+| OOS Profit Factor | ≥ 1.30 |
+| OOS Win Rate | ≥ 55% |
+| Maximum Drawdown | ≤ 15% |
+| Minimum Risk:Reward | ≥ 1:2 |
+| Minimum OOS trades | ≥ 100 |
+| Champion improvement | ≥ 0% after costs |
+| Automatic model promotion | **NO** — every promotion decision requires a human gate; no pipeline may commit a model to production unattended |
 
 Statistical metrics such as accuracy/AUC are supplementary. **Economic performance after fees, taxes, and realistic execution assumptions is mandatory.**
+
+**Implementation status (as of this approval):** no champion/challenger promotion pipeline exists in the codebase yet — model training does not currently branch through the gates below at all. These gates apply to whatever promotion pipeline is eventually built (Master Review roadmap item 7, "Backtest + ML Governance"); they are not yet enforced by any code today.
 
 Promotion flow:
 
@@ -299,8 +307,10 @@ The system must return **NO_TRADE / BLOCKED** for a new entry when any applicabl
 - risk/reward below minimum;
 - contradictory/fatal signal state;
 - missing required broker/foreign/fundamental data;
+- **broker/Invezgo data unavailable for a Bandarmology/Smart Money strategy** (explicit case of the rule above — Bandarmology declares broker data REQUIRED per Section 4, so its unavailability is NO_TRADE, never a degraded-but-still-scored verdict);
 - corporate-action state cannot be safely resolved;
 - provider/API failure for decision-critical data;
+- **fundamentals that were estimated/inferred rather than provider-reported** (e.g. a fallback that fills a missing fundamental field) — treat as **Block LIVE**, equivalent to SIMULATION for that field, never silently substituted into a Value/DCF/Dividend strategy's REQUIRED fundamentals;
 - model/feature validation failure;
 - duplicate order detected;
 - financial calculation validation failure.
@@ -365,26 +375,26 @@ Engineering may refactor implementation without approval only when the observabl
 
 ### Financial policy
 
-- [ ] Maximum position size approved
-- [ ] RDN/cash buffer approved
-- [ ] Maximum capital-at-risk approved
-- [ ] Maximum portfolio drawdown approved
-- [ ] Risk:Reward minimum approved
-- [ ] Maximum concurrent positions approved
+- [x] Maximum position size approved — 15%
+- [x] RDN/cash buffer approved — 20%
+- [x] Maximum capital-at-risk approved — 1%
+- [x] Maximum portfolio drawdown approved — 15%
+- [x] Risk:Reward minimum approved — 1:2
+- [x] Maximum concurrent positions approved — 10
 
 ### AI / ML
 
-- [ ] Minimum OOS win rate approved
-- [ ] Minimum Profit Factor approved
-- [ ] Maximum drawdown for model approved
-- [ ] Minimum OOS sample size approved
-- [ ] Champion-vs-Challenger promotion rule approved
+- [x] Minimum OOS win rate approved — 55%
+- [x] Minimum Profit Factor approved — 1.30
+- [x] Maximum drawdown for model approved — 15%
+- [x] Minimum OOS sample size approved — 100 trades
+- [x] Champion-vs-Challenger promotion rule approved — manual/gated, no automatic promotion
 
 ### Data
 
 - [ ] Decision-critical data by strategy approved
-- [ ] REAL/STALE/UNAVAILABLE behavior approved
-- [ ] Synthetic-data restriction approved
+- [x] REAL/STALE/UNAVAILABLE behavior approved — data unavailable → NO_TRADE; data stale for new entries → NO_TRADE; broker unavailable for Bandarmology → NO_TRADE (see Section 13)
+- [x] Synthetic-data restriction approved — simulation data → Block LIVE; estimated fundamentals → Block LIVE (see Section 13)
 - [ ] Provider hierarchy approved
 
 ### Execution
@@ -393,6 +403,8 @@ Engineering may refactor implementation without approval only when the observabl
 - [ ] Slippage assumption approved
 - [ ] IDX lot/tick implementation verified
 - [ ] Emergency exit behavior approved
+
+Only the **Financial policy**, **AI / ML**, and the two checked **Data** items above were part of this approval round (Master Review, 10 Sep 2026). The remaining unchecked items — decision-critical data by strategy, provider hierarchy, and everything under **Execution** — stay open; do not treat them as approved just because the rest of this document reads as APPROVED.
 
 ---
 
@@ -404,4 +416,4 @@ No autonomous LIVE trading should be enabled while any mandatory owner-approved 
 
 ---
 
-**Approval status:** `DRAFT / NOT YET APPROVED FOR LIVE TRADING`
+**Approval status:** `FINANCIAL POLICY VALUES APPROVED (Sections 7, 12, and the Data items noted in Section 16) / SYSTEM NOT YET APPROVED FOR LIVE TRADING` — the numeric control values in this document are final per the Master Review (10 Sep 2026). Live trading itself stays blocked until the separate P0/P1 engineering gates in that review (server-side authentication, verified real-data contracts, synthetic-data isolation at every consumer, ML promotion governance, CI/CD quality gates) are implemented and passing — most of the numeric values above also have **no enforcing code yet** (see the "Implementation status" notes under Sections 7 and 12); approving a value here is not the same as it being enforced by the running application today.
