@@ -101,6 +101,20 @@
   var AI_SCAN_LOADING = false;
   var AI_SCAN_LOADED_AT = null;
   var AI_SCAN_ERROR = null;
+  // Cooldown guard against the same class of bug fixed in
+  // public/js/27-stockintel.js on 2026-09-10 (see INCIDENT_LOG.md #2 /
+  // AGENTS.md §29): fetchAiScanData()'s `finally` block always calls
+  // renderAiTradingPage(), which (via ensureFullUniverseLoaded(), called
+  // from every tab's render path) re-enters the exact same "fetch if
+  // AI_UNIVERSE is still empty" trigger. On failure, AI_UNIVERSE is never
+  // populated (see the catch block below, which only sets AI_SCAN_ERROR),
+  // so without this cooldown the very next render would immediately
+  // re-fire the fetch with zero delay — an unthrottled infinite loop
+  // hammering /api/idx/ai-scan for as long as the AI Trading page stayed
+  // open, identical in shape to the Stock Intel incident. Found via a
+  // proactive sweep for this exact pattern, not from a reported symptom.
+  var AI_SCAN_LAST_ATTEMPT = 0;
+  var AI_SCAN_RETRY_COOLDOWN_MS = 30000;
 
   // Tier 4 automation, step 1 (deliberately minimal — user-approved scope:
   // scan refresh only, no auto-generated hypotheses and no auto-execution).
@@ -314,14 +328,26 @@
     };
   }
 
+  // Pure decision function (no DOM, no network) — see
+  // AI_SCAN_LAST_ATTEMPT's declaration above for why this cooldown check
+  // exists. Only gates the AUTOMATIC re-trigger from render; the
+  // "Scan Ulang" button and the Coba Lagi retry link call
+  // fetchAiScanData() directly and are unaffected by this cooldown.
+  function aiShouldAutoLoadUniverse() {
+    if (AI_UNIVERSE.length) return false;
+    if (AI_SCAN_LOADING) return false;
+    return (Date.now() - AI_SCAN_LAST_ATTEMPT) > AI_SCAN_RETRY_COOLDOWN_MS;
+  }
+
   function ensureFullUniverseLoaded() {
-    if (!AI_UNIVERSE.length && !AI_SCAN_LOADING) {
+    if (aiShouldAutoLoadUniverse()) {
       fetchAiScanData();
     }
   }
 
   async function fetchAiScanData(tickersOverride) {
     if (AI_SCAN_LOADING) return;
+    AI_SCAN_LAST_ATTEMPT = Date.now();
     AI_SCAN_LOADING = true;
     AI_SCAN_ERROR = null;
     if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
@@ -2644,6 +2670,7 @@
   window.aiOpenPositionFromSignal = aiOpenPositionFromSignal;
   window.aiClosePosition = aiClosePosition;
   window.fetchAiScanData = fetchAiScanData;
+  window.aiShouldAutoLoadUniverse = aiShouldAutoLoadUniverse;
   window.startAiAutoRefresh = startAiAutoRefresh;
   window.stopAiAutoRefresh = stopAiAutoRefresh;
   window.fetchAllStrategyBacktests = fetchAllStrategyBacktests;
