@@ -725,3 +725,24 @@ Never:
 - perform unrelated refactors during targeted fixes.
 
 The system must always prefer **data integrity, capital preservation, security, and reproducibility over trade frequency**.
+
+---
+
+# 29. CROSS-FILE REFACTOR SAFETY
+
+Added after two real production incidents on 2026-09-10 (see `INCIDENT_LOG.md`): a provider-adapter refactor moved a function into a different file than its caller, without updating the caller's imports — `node --check` and the existing test suite both passed, and it broke live quotes for every ticker in production until a user found it in the logs.
+
+Before merging any change that moves, renames, or splits a function/const across files in `lib/**` or `server.js`:
+
+1. `npm run lint` **must** be run and pass — it now runs `eslint lib server.js` with the `no-undef` rule (see `eslint.config.js`), which statically catches "this name isn't actually imported/declared" without needing a test or a live request to surface it. `node --check` alone is NOT sufficient for this class of bug: it only parses syntax, it does not resolve whether a referenced identifier is actually in scope.
+2. This lint rule is deliberately scoped to `lib/**` and `server.js` only (real ES modules with explicit `import`/`export`) — NOT `public/js/**`, whose ~50 files share one implicit browser global scope by design (a function declared in one file is legitimately callable from another via the DOM global object, with no import statement). Do not "fix" this by disabling or loosening the rule for `lib/**`; extend coverage to `public/js/**` only via a separate, explicitly-scoped config block that accounts for that architecture, if that work is ever undertaken.
+3. If the change touches provider functions (`lib/providers/**`, `lib/invezgo-client.js`) that have no live-network test coverage, add or extend a case in `test_provider_functions.js` using a mocked `global.fetch` — do not ship a provider-layer change whose only verification was "it parses" and "the unrelated pre-existing tests still pass."
+
+## Self-re-triggering function pattern (the second 2026-09-10 incident)
+
+Any function whose completion callback (`finally`, `.then()`, a promise-chain continuation) triggers a re-render or re-entry into the SAME decision path that called it in the first place is a latent infinite-loop risk — it only takes that decision path failing to reach its "stop" condition (e.g., a cache that never gets populated because the underlying fetch keeps failing) for it to retry itself with no delay, forever, for as long as the page/tab/process stays alive.
+
+Before shipping such a pattern:
+- The re-entry's trigger condition must have an explicit cooldown, backoff, or max-attempt cap — not just "not already cached, not already loading." A failure state must count as "already tried recently," not as "safe to retry immediately."
+- Prefer extracting the trigger/guard condition into its own small, pure (no DOM, no network) function, exported for direct testing — see `intelShouldAutoFetch()` in `public/js/27-stockintel.js` and its test in `test_provider_functions.js` as the reference pattern.
+- Manually verify the loop actually terminates under a sustained-failure scenario (mock the dependency to always fail, simulate N rapid re-entries, assert the call count stays bounded) before considering the fix complete — do not assume a cooldown constant alone is proof; test it the way `test_provider_functions.js`'s INCIDENT #2 case does.

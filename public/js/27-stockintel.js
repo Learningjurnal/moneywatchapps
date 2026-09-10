@@ -28,6 +28,27 @@ var MW_INTEL_IS_LOADING = false;
 var MW_INTEL_LAST_ATTEMPT = {};
 var MW_INTEL_RETRY_COOLDOWN_MS = 30000;
 
+// Pure decision function (no DOM, no network) for whether
+// renderStockIntelPage() should trigger an auto-fetch for `ticker` right
+// now — pulled out of that render function specifically so it can be
+// tested directly (see test_provider_functions.js) without needing to
+// execute a real DOM render. Fixes the 2026-09-10 incident: without the
+// cooldown check, fetchRealStockIntelData()'s own `finally` block calls
+// renderStockIntelPage(), which re-enters this same auto-fetch decision
+// — a fetch that keeps failing (Yahoo outage, rate limit, or any bug in
+// the fetch path) retried itself with zero delay, forever, for as long
+// as the tab stayed open (observed: ~2-9 requests/second, sustained,
+// hammering both this endpoint and Yahoo Finance).
+function intelShouldAutoFetch(ticker, isIdxTicker) {
+  if (!isIdxTicker) return false;
+  var alreadyCached = !!(MW_INTEL_CACHE[ticker] && MW_INTEL_CACHE[ticker].quote);
+  if (alreadyCached) return false;
+  if (MW_INTEL_IS_LOADING) return false;
+  var lastAttempt = MW_INTEL_LAST_ATTEMPT[ticker] || 0;
+  var cooledDown = (Date.now() - lastAttempt) > MW_INTEL_RETRY_COOLDOWN_MS;
+  return cooledDown;
+}
+
 /**
  * Format timestamp in Indonesian locale (WIB)
  */
@@ -994,19 +1015,12 @@ function renderStockIntelPage() {
   // Auto-fetch the real quote/fundamentals/broker-summary bundle on mount —
   // previously this only happened when the user manually clicked "Refresh
   // Real-Time", so PER/PBV/ROE/ROA/DER/EPS silently stayed at '-' for every
-  // ticker until that click. Skip if already cached or a fetch is in flight —
-  // and skip if the last attempt (successful or not) for this ticker was
-  // too recent. That cooldown check is the fix for a real production
-  // incident (2026-09-10): fetchRealStockIntelData()'s own finally block
-  // calls this same render function, which re-enters this auto-fetch path
-  // — with no cooldown, a fetch that keeps failing (Yahoo outage, rate
-  // limit, or any bug in the fetch path) retried itself with zero delay,
-  // forever, for as long as the tab stayed open (observed: ~2-9
-  // requests/second, sustained, hammering both this endpoint and Yahoo
-  // Finance). See MW_INTEL_RETRY_COOLDOWN_MS's declaration for detail.
-  var lastAttempt = MW_INTEL_LAST_ATTEMPT[ticker] || 0;
-  var cooledDown = (Date.now() - lastAttempt) > MW_INTEL_RETRY_COOLDOWN_MS;
-  if (isIdx && !(MW_INTEL_CACHE[ticker] && MW_INTEL_CACHE[ticker].quote) && !MW_INTEL_IS_LOADING && cooledDown) {
+  // ticker until that click. See intelShouldAutoFetch()'s own comment for
+  // why this now also requires a cooldown — pulled into a standalone pure
+  // function (no DOM/network access) specifically so test_provider_
+  // functions.js can exercise this exact decision logic directly, the way
+  // the original bug's silent regression could have been caught.
+  if (intelShouldAutoFetch(ticker, isIdx)) {
     fetchRealStockIntelData(ticker);
   }
 }
@@ -1150,4 +1164,5 @@ window.renderStockIntelCockpit = renderStockIntelPage;
 window.getStockIntelData = getStockIntelData;
 window.getIntelStockMeta = getIntelStockMeta;
 window.fetchRealStockIntelData = fetchRealStockIntelData;
+window.intelShouldAutoFetch = intelShouldAutoFetch;
 window.isRegisteredIdxTicker = isRegisteredIdxTicker;
