@@ -2213,3 +2213,13 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (123+18+6+5+9), `npm run lint` bersih.
 
 **Catatan jujur untuk user:** jalur 2-file-mentah TERVALIDASI terhadap data Agustus 2026 Anda sendiri — tapi ini bukan jaminan berlaku selamanya kalau IDX suatu saat mengubah format laporannya secara signifikan (nama kolom, bukan cuma urutan — pencarian kolom saya berbasis nama landmark, jadi perubahan URUTAN aman, tapi perubahan NAMA kolom akan membuat file ditolak eksplisit, bukan salah kalkulasi diam-diam). Kalau itu terjadi, upload akan gagal dengan pesan jelas, bukan menghasilkan angka yang salah.
+
+## 2026-09-11 — Tombol shortcut ke KSEI Explorer di halaman Settings
+
+- **Konteks:** user bertanya "Diamana tombil upload datanya" — tombol upload KSEI (dari PR #147/#148) cuma bisa diakses dari halaman detail saham (Fundamental Suite/Bandarmology/TradeWave), berputar-putar (buka saham dulu → cari widget KSEI → klik → baru ketemu tab upload).
+- **Perbaikan:** tombol baru "Buka KSEI Explorer & Upload Data" di halaman Settings (`public/js/35-settings.js`, kartu baru di GRID 3) — klik langsung membuka modal KSEI Explorer DAN langsung pindah ke tab upload (`sync-settings`), tanpa perlu buka saham apa pun dulu.
+- **Prevention added:** 1 regression guard baru di `test_suite.js` — memastikan tombol memanggil `openKseiModal()` DAN `kseiSwitchTab('sync-settings')` (bukan cuma buka modal ke tab default). Dibuktikan gagal saat panggilan `kseiSwitchTab` sengaja dihapus, lalu direstore.
+- **Live verification (Playwright, server lokal):** buka halaman Settings → klik tombol baru → modal KSEI terbuka (`display:flex`) langsung di tab upload (`KSEI_STATE.activeTab === 'sync-settings'`), kedua input file (Kepemilikan + Free Float) terlihat di DOM.
+- Cache-bust `35-settings.js` → `?v=20260911b`.
+
+`npm test` (124+18+6+5+9), `npm run lint` bersih.
