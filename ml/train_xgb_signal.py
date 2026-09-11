@@ -2,8 +2,12 @@
 Money Watch Pro — Training XGBoost Signal Model
 ==================================================
 Melatih model XGBoost untuk memprediksi probabilitas "sinyal BUY yang bagus"
-(harga naik >3% dalam 10 hari ke depan) dari fitur teknikal harian saham IDX,
-lalu mengekspornya ke ONNX supaya bisa dijalankan LANGSUNG di browser
+-- didefinisikan sebagai TP1 tersentuh SEBELUM Stop Loss, memakai formula
+ATR SL/TP yang SAMA PERSIS dengan computeStockSignal() produksi
+(lib/idx-data-engine.js: sl=price-ATR*1.5, tp1=price+ATR*2.5), bukan lagi
+sekadar "harga naik >3% dalam 10 hari" yang tidak peduli risiko -- dari
+fitur teknikal harian saham IDX, lalu mengekspornya ke ONNX supaya bisa
+dijalankan LANGSUNG di browser
 (lihat js/11-quant.js, fungsi xgbLoadModel/xgbPredict) — tanpa server Python
 yang harus menyala terus-menerus.
 
@@ -56,11 +60,21 @@ TICKERS = [
     "EXCL.JK", "JSMR.JK",
 ]
 PERIOD = "5y"            # rentang data historis
-FWD_DAYS = 10             # horizon prediksi (hari ke depan)
-TARGET_RETURN = 0.03      # ambang "sinyal bagus" = naik >3% dalam FWD_DAYS
 TEST_FRACTION = 0.2       # 20% terakhir (per ticker, berurutan waktu) untuk test
 BUY_THRESHOLD = 0.60      # probabilitas minimum untuk sinyal BUY di app
 SELL_THRESHOLD = 0.35     # probabilitas di bawah ini -> sinyal SELL/exit
+
+# LABEL: sinkron dengan SL/TP1 riil yang dipakai computeStockSignal() di
+# lib/idx-data-engine.js (2026-09-11 fix) -- BUKAN lagi "naik >3% dalam 10
+# hari" generik yang tidak peduli risiko sama sekali. sl_mult/tp_mult HARUS
+# sama persis dengan `sl = price - atr*1.5` / `tp1 = price + atr*2.5` di
+# sana; kalau App mengubah pengali itu, ubah juga MAX_HOLD_DAYS/SL_ATR_MULT/
+# TP_ATR_MULT di bawah supaya label training tetap merepresentasikan trade
+# yang benar-benar akan dieksekusi sistem.
+SL_ATR_MULT = 1.5
+TP_ATR_MULT = 2.5
+ATR_PERIOD = 14           # sama dengan computeATR(points, 14) di JS
+MAX_HOLD_DAYS = 20        # horizon maksimum menunggu TP/SL tersentuh (hari bursa)
 
 FEATURE_NAMES = ["sma_ratio", "rsi14", "mom20", "vol_ratio", "volatility20", "dist_high20"]
 
@@ -117,6 +131,66 @@ def compute_features(df):
     return feats
 
 
+# ── ATR (harus sama persis dengan computeATR() di lib/idx-data-engine.js:
+# rata-rata SEDERHANA True Range 14 hari, BUKAN Wilder's smoothing) ────────
+def compute_atr(df, period=ATR_PERIOD):
+    high, low, close = df["High"], df["Low"], df["Close"]
+    prev_close = close.shift(1)
+    tr = pd.concat([
+        high - low,
+        (high - prev_close).abs(),
+        (low - prev_close).abs(),
+    ], axis=1).max(axis=1)
+    return tr.rolling(period).mean()
+
+
+# ── Label SL/TP-aware: 1 kalau TP1 tersentuh SEBELUM SL dalam
+# MAX_HOLD_DAYS hari bursa ke depan, 0 kalau SL tersentuh duluan (atau di
+# hari yang sama dengan TP -- diasumsikan SL duluan, skenario konservatif
+# karena urutan intraday tidak diketahui dari data harian), NaN (baris
+# dibuang) kalau KEDUANYA belum tersentuh sampai akhir horizon -- outcome
+# belum diketahui, bukan otomatis "gagal" (lihat INV-011 di build_dataset()
+# untuk alasan yang sama kenapa NaN tidak boleh diam-diam jadi 0).
+#
+# Ini menggantikan label lama "harga naik >3% dalam 10 hari" yang sama
+# sekali tidak peduli risiko (SL) -- model lama bisa saja "benar" soal arah
+# harga naik tapi tetap kena stop out duluan sebelum sempat naik.
+def compute_sl_tp_label(df):
+    close = df["Close"].to_numpy()
+    high = df["High"].to_numpy()
+    low = df["Low"].to_numpy()
+    atr = compute_atr(df).to_numpy()
+
+    n = len(df)
+    label = np.full(n, np.nan)
+
+    for i in range(n):
+        entry = close[i]
+        a = atr[i]
+        if not np.isfinite(entry) or not np.isfinite(a) or a <= 0:
+            continue  # ATR belum bisa dihitung (14 hari pertama) -- baris dibuang lewat dropna()
+
+        sl = entry - a * SL_ATR_MULT
+        tp1 = entry + a * TP_ATR_MULT
+
+        end = min(i + 1 + MAX_HOLD_DAYS, n)
+        for j in range(i + 1, end):
+            hit_tp = high[j] >= tp1
+            hit_sl = low[j] <= sl
+            if hit_tp and hit_sl:
+                label[i] = 0  # ambigu di hari yang sama -- konservatif, anggap SL duluan
+                break
+            elif hit_tp:
+                label[i] = 1
+                break
+            elif hit_sl:
+                label[i] = 0
+                break
+        # tidak ada break sampai `end` -> label[i] tetap NaN (belum diketahui, dibuang)
+
+    return pd.Series(label, index=df.index)
+
+
 def build_dataset():
     all_X, all_y = [], []
     used_tickers = []
@@ -133,23 +207,22 @@ def build_dataset():
             df.columns = df.columns.get_level_values(0)
 
         feats = compute_features(df)
-        # INV-011 (audit): the last FWD_DAYS rows of every ticker have no
-        # future price to look at, so shift(-FWD_DAYS) is NaN there. The old
-        # code did `(fwd_ret > TARGET_RETURN).astype(int)` BEFORE dropna() —
-        # pandas evaluates `NaN > x` as False, and astype(int) then turns
-        # that False into a hard 0, so every one of those "unknown outcome"
-        # rows got silently trained as a real negative label. Keep fwd_ret
-        # as NaN, dropna() first (drops those rows for real), THEN binarize.
-        fwd_ret = df["Close"].shift(-FWD_DAYS) / df["Close"] - 1
+        # INV-011 (audit, masih berlaku): baris yang outcome-nya belum
+        # diketahui (ATR belum bisa dihitung, ATAU TP/SL belum tersentuh
+        # sampai akhir MAX_HOLD_DAYS) harus dibuang lewat dropna() SEBELUM
+        # dibinarisasi -- bukan diam-diam jadi label 0 seperti bug lama.
+        # compute_sl_tp_label() sudah mengembalikan NaN untuk kasus itu,
+        # bukan hasil biner, persis untuk menghindari pengulangan bug INV-011.
+        sl_tp_label = compute_sl_tp_label(df)
 
         data = feats.copy()
-        data["fwd_ret"] = fwd_ret
+        data["label_raw"] = sl_tp_label
         data = data.dropna()
         if len(data) < 50:
             print(f"  ! {tk}: baris valid terlalu sedikit setelah dropna, dilewati")
             continue
-        data["label"] = (data["fwd_ret"] > TARGET_RETURN).astype(int)
-        data = data.drop(columns=["fwd_ret"])
+        data["label"] = data["label_raw"].astype(int)
+        data = data.drop(columns=["label_raw"])
         label = data["label"]
 
         # split waktu per-ticker supaya tidak ada kebocoran antar periode
@@ -223,8 +296,11 @@ def main():
         "version": datetime.now().strftime("%Y%m%d"),
         "trained_at": datetime.now().isoformat(),
         "feature_names": FEATURE_NAMES,
-        "fwd_days": FWD_DAYS,
-        "target_return": TARGET_RETURN,
+        "label_definition": "TP1 tersentuh sebelum SL (ATR-based, sinkron dengan computeStockSignal())",
+        "sl_atr_mult": SL_ATR_MULT,
+        "tp_atr_mult": TP_ATR_MULT,
+        "atr_period": ATR_PERIOD,
+        "max_hold_days": MAX_HOLD_DAYS,
         "buy_threshold": BUY_THRESHOLD,
         "sell_threshold": SELL_THRESHOLD,
         "tickers_used": used_tickers,
