@@ -1063,3 +1063,31 @@ one of them is the same class of defect as a real incident above.
   Screenshots (top of page showing table first, and the 3 cards now
   below it) sent to the user. `npm test` (75/75 + 6/6 provider), `npm
   run lint` clean.
+
+### Nested cards in "Proyeksi Dividen 5 Tahun" — 5 mini-cards stacked inside the already-bordered parent card
+
+- **Found by:** the user-submitted deep-dive design review, flagged as
+  requiring an explicit design decision. User confirmed proceeding.
+- **Impact:** in the Dividen page's "Proyeksi Dividen 5 Tahun
+  (2027–2031)" card, each of the 5 yearly projection figures
+  (`#div-proj-cards`) rendered as its own bordered, background-tinted
+  box (`border:1px solid rgba(0,229,160,.15);
+  background:rgba(0,229,160,.06);border-radius:9px`) — a card-shaped box
+  nested inside the already-bordered parent card, doubling up visible
+  borders around a short 3-line stat (year / value / % vs base) instead
+  of reading as one clean row of related figures.
+- **Fix:** flattened each yearly cell to plain stacked text with no own
+  border/background/radius, separated by a thin `border-left:1px solid
+  var(--border)` divider on all but the first column — a "stat strip"
+  pattern, not 5 nested cards. Purely a CSS-in-JS-template change inside
+  one render function (`renderDividen()` in `04-render.js`); no DOM IDs,
+  structure, or other logic touched.
+- **Prevention added:** `test_suite.js` TEST 53 — asserts the render
+  block no longer emits the old per-cell border/background, and that
+  the divider style is present. Verified to fail (clear message) when
+  reverted, before being restored.
+- **Verification:** live Playwright — read `getComputedStyle()` on all 5
+  rendered cells: transparent background on every one, `border-left`
+  only (not a full 4-side border) on the 4 non-first columns. Screenshot
+  confirms a clean flat stat strip. `npm test` (76/76 + 6/6 provider),
+  `npm run lint` clean.

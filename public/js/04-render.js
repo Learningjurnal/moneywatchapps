@@ -977,10 +977,22 @@ function renderDividen(){
   var baseYr = totalNet > 0 ? totalNet : (ytdNet||1000000);
   var projYears=[2027,2028,2029,2030,2031];
   var projVals = projYears.map(function(y,i){ return Math.round(baseYr*Math.pow(1+growthRate,i+1)); });
+  // FIX (2026-09-11, user-submitted deep-dive review — "nested cards"):
+  // each of these 5 yearly figures used to be its own bordered,
+  // background-tinted box (border:1px solid...;border-radius:9px;
+  // background:rgba(...)) stacked inside the already-bordered "Proyeksi
+  // Dividen 5 Tahun" parent card — a card nested inside a card, doubling
+  // up borders around the same short 3-line stat instead of just reading
+  // as one clean stat strip. Flattened to plain stacked text (no own
+  // border/background/radius), separated by a thin left divider on all
+  // but the first column — a "stat strip" pattern already used elsewhere
+  // in this app (e.g. .row4/.metric) for a row of related figures that
+  // don't each need their own card chrome.
   var cards = el('div-proj-cards');
   if(cards) cards.innerHTML = projYears.map(function(y,i){
     var val=projVals[i]; var pct=((val-baseYr)/baseYr*100).toFixed(0);
-    return '<div style="background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.15);border-radius:9px;padding:10px;text-align:center">'+
+    var divider = i>0 ? 'border-left:1px solid var(--border);' : '';
+    return '<div style="'+divider+'padding:4px 10px;text-align:center">'+
       '<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:4px">'+y+'</div>'+
       '<div style="font-family:var(--font-mono);font-size:13px;font-weight:600">Rp '+fmtK(val)+'</div>'+
       '<div style="font-size:10px;color:var(--text3);margin-top:2px">+'+pct+'% vs base</div>'+
