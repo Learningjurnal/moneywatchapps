@@ -1620,3 +1620,59 @@ dibungkus try/catch dengan console.warn).
   sudah teratasi dan berapa lift precision aktualnya di data BBCA nyata.
 
 `npm test` (89/89 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — Opsi C: 4 fitur baru untuk model XGBoost (mengatasi lift 1.09x)
+
+- **Konteks:** setelah Opsi A (kalibrasi threshold persentil) mengatasi
+  masalah "0 sinyal", diagnostik jujur di titik threshold hasil kalibrasi
+  hanya menunjukkan **lift 1,09x** vs base rate (di bawah ambang 1,15x) —
+  konfirmasi bahwa 6 fitur teknikal lama memang tidak cukup untuk target
+  SL/TP-aware, bukan cuma soal kalibrasi threshold.
+- **Analisis:** 6 fitur lama (`sma_ratio`, `rsi14`, `mom20`, `vol_ratio`,
+  `volatility20`, `dist_high20`) semuanya soal ARAH/MOMENTUM harga —
+  tidak ada satu pun yang menangkap REZIM VOLATILITAS, padahal target
+  SL/TP itu sendiri ATR-scaled (`sl=price-ATR*1.5`, `tp1=price+ATR*2.5`),
+  jadi volatilitas relatif terhadap harga langsung menentukan seberapa
+  "jauh" target itu secara persentase.
+- **Fix (Opsi C):** 4 fitur baru ditambahkan ke `FEATURE_NAMES`
+  (Python)/`XGB_FEATURES` (JS), total jadi 10 fitur:
+  - `atr_pct` = ATR(14)/close — volatilitas relatif terhadap harga.
+  - `ema20_slope5` = percepatan tren jangka pendek dari EMA20 (lebih
+    halus dari `mom20` mentah).
+  - `dist_ema20` = seberapa jauh harga "meregang" dari EMA20 — sinyal
+    mean-reversion vs trend-continuation.
+  - `atr_ratio_20` = ATR(14) sekarang vs 20 hari lalu — rezim
+    volatilitas melebar/menyempit.
+- **Keputusan desain kritis (train/serve skew):** EMA20 dihitung dari
+  jendela TETAP 60 candle terakhir (`EMA_LOOKBACK`/`XGB_EMA_LOOKBACK`),
+  BUKAN direkursi dari seluruh histori — meniru persis pola
+  `computeEMA(closes.slice(-40), 20)` yang sudah ada di
+  `lib/idx-data-engine.js`. Kalau direkursi dari histori penuh, nilai EMA
+  akan berbeda antara training (histori 5 tahun) dan inferensi live di
+  browser (mungkin cuma dapat histori 1 tahun) untuk tanggal yang sama —
+  bug train/serve skew yang tidak pernah muncul sebagai error, cuma diam-
+  diam merusak akurasi. `xgbComputeFeatures()` (JS) sekarang mulai loop
+  dari baris ke-60 (dulu ke-30) supaya jendela EMA selalu penuh.
+- **Verifikasi parity numerik (bukan cuma baca kode):** data OHLCV
+  sintetis identik di-generate sekali di Python, dimuat ulang di kedua
+  sisi (Python `compute_features()` dan Node yang menjalankan salinan
+  persis `xgbComputeFeatures()`) — **seluruh 10 fitur di 240 baris cocok
+  persis, diff 0.0** untuk semua fitur termasuk 4 fitur baru.
+- **Prevention added:** `test_suite.js` TEST 67 — mengekstrak
+  `FEATURE_NAMES` (Python) dan `XGB_FEATURES` (JS) lewat regex, memastikan
+  isinya identik persis (nama + urutan), memastikan 4 fitur baru ada di
+  kedua sisi, memastikan `EMA_LOOKBACK`/`XGB_EMA_LOOKBACK` bernilai sama,
+  dan memastikan loop JS mulai dari `XGB_EMA_LOOKBACK` bukan konstanta
+  tetap lama. Terbukti gagal dengan pesan jelas saat JS di-revert ke 6
+  fitur lama (simulasi desync) sebelum dikembalikan.
+- **Verifikasi tambahan:** pipeline training penuh dijalankan ulang
+  dengan data sintetis (3 ticker random-walk) — 10 fitur, training,
+  ekspor ONNX, `meta.json` semua berhasil tanpa error.
+- Cache-bust `11-quant.js` → `?v=20260911a`.
+- **Batasan jujur:** data sintetis TIDAK bisa membuktikan apakah 4 fitur
+  baru ini benar-benar menambah sinyal prediktif nyata di data pasar —
+  cuma membuktikan pipeline & parity Python↔JS benar. Validasi kualitas
+  sesungguhnya (apakah lift naik di atas 1,15x) baru bisa dilihat setelah
+  retrain sungguhan lewat GitHub Actions dengan data Yahoo Finance riil.
+
+`npm test` (90/90 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.

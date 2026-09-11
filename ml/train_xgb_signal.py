@@ -98,7 +98,10 @@ TP_ATR_MULT = 2.5
 ATR_PERIOD = 14           # sama dengan computeATR(points, 14) di JS
 MAX_HOLD_DAYS = 20        # horizon maksimum menunggu TP/SL tersentuh (hari bursa)
 
-FEATURE_NAMES = ["sma_ratio", "rsi14", "mom20", "vol_ratio", "volatility20", "dist_high20"]
+FEATURE_NAMES = [
+    "sma_ratio", "rsi14", "mom20", "vol_ratio", "volatility20", "dist_high20",
+    "atr_pct", "ema20_slope5", "dist_ema20", "atr_ratio_20",
+]
 
 # FIX: harus resolve ke public/models/ (tempat sebenarnya index.html memuat
 # file ini via fetch('models/...') relatif terhadap public/) dan tidak
@@ -113,6 +116,46 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(_SCRIPT_DIR)
 MODEL_PATH = os.path.join(_REPO_ROOT, "public", "models", "xgb_signal.onnx")
 META_PATH = os.path.join(_REPO_ROOT, "public", "models", "xgb_signal_meta.json")
+
+
+# ── ATR (harus sama persis dengan computeATR() di lib/idx-data-engine.js:
+# rata-rata SEDERHANA True Range 14 hari, BUKAN Wilder's smoothing) ────────
+def compute_atr(df, period=ATR_PERIOD):
+    high, low, close = df["High"], df["Low"], df["Close"]
+    prev_close = close.shift(1)
+    tr = pd.concat([
+        high - low,
+        (high - prev_close).abs(),
+        (low - prev_close).abs(),
+    ], axis=1).max(axis=1)
+    return tr.rolling(period).mean()
+
+
+# EMA_LOOKBACK: jendela tetap (BUKAN rekursi dari seluruh histori yang
+# tersedia) untuk menghitung EMA di setiap baris -- meniru PERSIS pola
+# computeEMA(closes.slice(-40), 20) yang sudah dipakai di
+# lib/idx-data-engine.js. Kalau EMA direkursi dari histori penuh, nilainya
+# akan berbeda antara training (histori 5 tahun) dan inferensi live di
+# browser (mungkin cuma dapat histori 1 tahun untuk rentang backtest
+# pendek) untuk TANGGAL YANG SAMA -- train/serve skew yang tidak pernah
+# muncul sebagai error, cuma diam-diam merusak akurasi model. Jendela
+# tetap menghilangkan ketergantungan pada panjang histori yang kebetulan
+# tersedia.
+EMA_LOOKBACK = 60
+
+
+def compute_ema_windowed(close_series, period=20, lookback=EMA_LOOKBACK):
+    vals = close_series.to_numpy()
+    n = len(vals)
+    out = np.full(n, np.nan)
+    k = 2.0 / (period + 1)
+    for i in range(lookback - 1, n):
+        window = vals[i - lookback + 1:i + 1]
+        ema = window[0]
+        for v in window[1:]:
+            ema = v * k + ema * (1 - k)
+        out[i] = ema
+    return pd.Series(out, index=close_series.index)
 
 
 # ── Feature engineering (harus sama persis dengan versi JS) ────────────────
@@ -142,6 +185,35 @@ def compute_features(df):
     high20 = high.rolling(20).max()
     dist_high20 = (close - high20) / high20
 
+    # ── Fitur baru (2026-09-11, Opsi C): relevan ke path-dependency SL/TP
+    # yang tidak ditangkap 6 fitur di atas (semuanya soal arah/momentum
+    # harga, tidak ada yang menangkap REZIM VOLATILITAS terhadap SL/TP
+    # yang justru ATR-scaled). Ditambahkan setelah retrain dengan label
+    # SL/TP-aware menunjukkan lift cuma 1.09x vs base rate (AUC 0.522,
+    # nyaris tebak acak) -- indikasi kuat 6 fitur lama tidak cukup.
+    atr = compute_atr(df)
+    ema20w = compute_ema_windowed(close, period=20, lookback=EMA_LOOKBACK)
+
+    # atr_pct: volatilitas RELATIF terhadap harga -- SL/TP dihitung
+    # ATR*1.5/2.5, jadi seberapa besar ATR dibanding harga langsung
+    # mempengaruhi seberapa "jauh" target itu secara persentase.
+    atr_pct = atr / close
+
+    # ema20_slope5: percepatan tren jangka pendek dari garis rata-rata
+    # (lebih halus dari mom20 mentah karena EMA sudah menyaring noise
+    # harian).
+    ema20_slope5 = (ema20w - ema20w.shift(5)) / ema20w.shift(5)
+
+    # dist_ema20: seberapa jauh harga "meregang" dari rata-rata bergerak
+    # -- sinyal mean-reversion vs trend-continuation.
+    dist_ema20 = (close - ema20w) / ema20w
+
+    # atr_ratio_20: apakah volatilitas sedang MELEBAR atau MENYEMPIT
+    # dibanding 20 hari lalu -- rezim volatilitas yang berubah punya
+    # implikasi langsung ke kecepatan harga menyentuh TP/SL yang
+    # ATR-scaled itu sendiri.
+    atr_ratio_20 = atr / atr.shift(20) - 1
+
     feats = pd.DataFrame({
         "sma_ratio": sma_ratio,
         "rsi14": rsi14,
@@ -149,21 +221,12 @@ def compute_features(df):
         "vol_ratio": vol_ratio,
         "volatility20": volatility20,
         "dist_high20": dist_high20,
+        "atr_pct": atr_pct,
+        "ema20_slope5": ema20_slope5,
+        "dist_ema20": dist_ema20,
+        "atr_ratio_20": atr_ratio_20,
     })
     return feats
-
-
-# ── ATR (harus sama persis dengan computeATR() di lib/idx-data-engine.js:
-# rata-rata SEDERHANA True Range 14 hari, BUKAN Wilder's smoothing) ────────
-def compute_atr(df, period=ATR_PERIOD):
-    high, low, close = df["High"], df["Low"], df["Close"]
-    prev_close = close.shift(1)
-    tr = pd.concat([
-        high - low,
-        (high - prev_close).abs(),
-        (low - prev_close).abs(),
-    ], axis=1).max(axis=1)
-    return tr.rolling(period).mean()
 
 
 # ── Label SL/TP-aware: 1 kalau TP1 tersentuh SEBELUM SL dalam

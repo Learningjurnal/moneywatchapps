@@ -1844,6 +1844,58 @@ test('REGRESSION GUARD: XGBoost BUY/SELL threshold must be percentile-calibrated
   assert(/"buy_precision_at_threshold"/.test(pySrc) && /"base_rate"/.test(pySrc), 'REGRESSION: meta.json no longer exposes the honest precision-vs-base-rate diagnostic for the calibrated threshold — silently shipping a threshold without knowing if it beats chance');
 });
 
+// ── TEST 67: XGBoost feature set (Opsi C, 2026-09-11) — after threshold
+// calibration (TEST 66) still showed only 1.09x lift (near-random, AUC
+// 0.522), 4 new ATR/EMA-based features were added to capture volatility
+// regime / path-dependency the old 6 direction-only features missed.
+// FEATURE_NAMES (Python) and XGB_FEATURES (JS) must stay IDENTICAL in
+// content and order, or the ONNX model receives silently-misaligned
+// inputs (wrong column = wrong feature) with no runtime error. This is
+// exactly the failure mode ml/README.md's "PENTING" section warns about.
+test('REGRESSION GUARD: XGBoost FEATURE_NAMES (Python) and XGB_FEATURES (JS) must stay identical in content and order', () => {
+  const pyPath = path.join(__dirname, 'ml/train_xgb_signal.py');
+  const jsPath = path.join(__dirname, 'public/js/11-quant.js');
+  const pySrc = fs.readFileSync(pyPath, 'utf8');
+  const jsSrc = fs.readFileSync(jsPath, 'utf8');
+
+  const pyMatch = pySrc.match(/FEATURE_NAMES = \[([\s\S]*?)\]/);
+  const jsMatch = jsSrc.match(/var XGB_FEATURES = \[([\s\S]*?)\];/);
+  assert(pyMatch, 'sanity: could not locate FEATURE_NAMES in train_xgb_signal.py');
+  assert(jsMatch, 'sanity: could not locate XGB_FEATURES in 11-quant.js');
+
+  const extractNames = (s) => (s.match(/['"]([a-z0-9_]+)['"]/g) || []).map(x => x.slice(1, -1));
+  const pyNames = extractNames(pyMatch[1]);
+  const jsNames = extractNames(jsMatch[1]);
+
+  assert(pyNames.length === 10 && jsNames.length === 10,
+    `REGRESSION: expected exactly 10 features on both sides after Opsi C, got Python=${pyNames.length} JS=${jsNames.length}`);
+  assert(JSON.stringify(pyNames) === JSON.stringify(jsNames),
+    `REGRESSION: FEATURE_NAMES/XGB_FEATURES diverged — Python=[${pyNames.join(',')}] vs JS=[${jsNames.join(',')}]. A silent order/name mismatch feeds the ONNX model wrong-column inputs with no runtime error.`);
+
+  // The 4 new Opsi C features must actually exist as real computed values
+  // in both files, not just listed as names.
+  ['atr_pct', 'ema20_slope5', 'dist_ema20', 'atr_ratio_20'].forEach(name => {
+    assert(pyNames.includes(name), `REGRESSION: ${name} missing from Python FEATURE_NAMES`);
+    assert(jsNames.includes(name), `REGRESSION: ${name} missing from JS XGB_FEATURES`);
+  });
+
+  // EMA lookback window must match exactly between both sides (this is
+  // what prevents train/serve skew — see ml/README.md's "EMA pakai
+  // jendela TETAP" note).
+  const pyLookback = pySrc.match(/EMA_LOOKBACK = (\d+)/);
+  const jsLookback = jsSrc.match(/XGB_EMA_LOOKBACK = (\d+)/);
+  assert(pyLookback && jsLookback, 'REGRESSION: EMA_LOOKBACK (Python) or XGB_EMA_LOOKBACK (JS) constant is gone');
+  assert(pyLookback[1] === jsLookback[1],
+    `REGRESSION: EMA lookback window diverged — Python EMA_LOOKBACK=${pyLookback[1]} vs JS XGB_EMA_LOOKBACK=${jsLookback[1]}. This causes train/serve skew (EMA value depends on how much price history happens to be available) without any runtime error.`);
+
+  // JS loop must start at the lookback window, not the old fixed 30 —
+  // otherwise ema20_slope5/dist_ema20 would be computed from a
+  // partially-warmed EMA in early rows, diverging from Python's dropna()
+  // behavior on the same dates.
+  assert(/for\(var i=XGB_EMA_LOOKBACK;i<n;i\+\+\)/.test(jsSrc),
+    'REGRESSION: xgbComputeFeatures() loop no longer starts at XGB_EMA_LOOKBACK — early rows would use an under-warmed EMA, diverging from Python');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
