@@ -1341,3 +1341,37 @@ Follow-up to the sessions above.
   still renders correctly.
 
 `npm test` (83/83 + 16/16 policy + 6/6 provider), `npm run lint` clean.
+
+## 2026-09-11 — AI Trading Win Rate made prominent (user request)
+
+- **User request:** make the AI's real paper-trading win rate more
+  visible ("latih AI untuk melihat winrate trading AI" → clarified with
+  the user as: surface the existing, already-real win rate more
+  prominently, not build a new training pipeline).
+- **Before:** `AI_TRADE_STATE.paperAccount.winRate` was real (computed
+  in `recomputePaperStats()` purely from closed paper trades, never
+  fabricated) but only ever shown inside the "AI Paper Portfolio" tab's
+  own KPI row and the Strategy Lab scorecards — invisible on the other 9
+  tabs of the AI Trading page (Cockpit, Market Regime, Scanner, etc.).
+- **Fix:** added a persistent Win Rate banner in `renderAiTradingPage()`
+  (`38-ai-autonomous-trading.js`), placed BEFORE the `activeTab`
+  dispatcher so it renders unconditionally on every tab. Shows Win Rate
+  (W/L breakdown), Profit Factor, and Net Return; clicking it jumps to
+  the "AI Paper Portfolio" tab for full detail. When
+  `paper.totalTrades === 0`, shows an explicit "BELUM ADA TRADE" label
+  instead of a bare "0%" — a 0% win rate with zero real trades would
+  misleadingly read as "the AI always loses" rather than "no data yet".
+- **Prevention added:** `test_suite.js` TEST 61 — asserts the banner
+  string appears before the `activeTab` dispatcher in source order (so a
+  future edit can't accidentally move it back inside one tab's branch),
+  and asserts the honest empty-state text and the totalTrades>0 branch
+  condition are both present. Verified to fail with a clear message when
+  reverted, before being restored.
+- **Verification:** live Playwright — confirmed the banner renders on
+  initial Cockpit load (honest "BELUM ADA TRADE" state, since this
+  sandbox has no real paper trades), persists after switching to the
+  Market Regime tab via `aiSwitchTab('regime')`, and that clicking the
+  banner correctly sets `AI_TRADE_STATE.activeTab` to `'paper'`.
+  Screenshot sent to user.
+
+`npm test` (84/84 + 16/16 policy + 6/6 provider), `npm run lint` clean.
