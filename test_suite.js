@@ -1056,6 +1056,37 @@ test('REGRESSION GUARD: Stock Intelligence cockpit must keep its Bandarmology/Sm
   });
 });
 
+// ── TEST 39: FlowScan sector fallback (found via user screenshot,
+// 2026-09-11) — Ranking/Heatmap/Watchlist showed the literal string
+// "IHSG" as a sector badge for any portfolio ticker with no sector data
+// of its own (bulk-imported holdings without curated metadata). 'IHSG' is
+// the composite index, not a sector — a nonsensical label next to real
+// ones like "Konsumer"/"Tambang". Fixed by falling back to DB[tk].sector
+// (already backfilled from _IDX_RAW_LIST by 01-data.js when available),
+// then 'Lainnya' — the "sector unknown" convention used everywhere else
+// in this app (01-data.js, 06-analysis-router.js, 22-datahealth.js).
+test('REGRESSION GUARD: FlowScan must never fall back to the literal "IHSG" as a sector label', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  assert(!/s\s*:\s*'IHSG'/.test(src),
+    'REGRESSION: 07-flowscan.js has a `s:\'IHSG\'` sector fallback again — IHSG is the composite index, not a sector, and users see this literally as a sector badge on Ranking/Heatmap/Watchlist');
+  assert(/function fsFallbackInfo\(tk\)/.test(src), 'fsFallbackInfo() helper is missing — was it renamed/removed?');
+  const fn = src.match(/function fsFallbackInfo\(tk\)\{[\s\S]*?\n\}/);
+  assert(fn, 'fsFallbackInfo() body not found');
+  assert(/DB\[tk\]/.test(fn[0]), 'fsFallbackInfo() no longer tries DB[tk].sector before falling back');
+  assert(/'Lainnya'/.test(fn[0]), 'fsFallbackInfo() no longer falls back to \'Lainnya\'');
+  // Every "ticker not found in FS_UNIV" lookup must use the shared helper,
+  // not a re-typed inline fallback object (which is exactly how the
+  // original bug had 5 duplicate copies of the same wrong literal).
+  const fallbackCallCount = (src.match(/\|\|\s*fsFallbackInfo\(/g) || []).length;
+  assert(fallbackCallCount >= 5, `Expected at least 5 call sites using fsFallbackInfo() as the FS_UNIV.find() fallback, found ${fallbackCallCount} — a fallback may have reverted to an inline literal`);
+  // FS_UNIV's own construction (from the user's real portfolio import)
+  // must prefer DB[code].sector over the raw import row before 'Lainnya'.
+  const univFn = src.match(/XLSX_DATA\.stocks\.forEach\(function\(s\)\{[\s\S]*?\n\}\);/);
+  assert(univFn, 'FS_UNIV construction from XLSX_DATA.stocks not found');
+  assert(/s\.sector\s*\|\|\s*\(dbInfo\s*&&\s*dbInfo\.sector\)\s*\|\|\s*'Lainnya'/.test(univFn[0]),
+    'FS_UNIV construction no longer tries dbInfo.sector before falling back to \'Lainnya\'');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
