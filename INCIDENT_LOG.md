@@ -1211,3 +1211,82 @@ fixed root cause. See conversation for full methodology.
   (`lib/invezgo-client.js`, paid IDX market data API) and
   `GEMINI_API_KEY` (`server.js`, Google AI) — both gracefully degrade
   when unset and must not be touched.
+
+---
+
+## Dead-feature cleanup: Investment Thesis Tracker nav entry added, dead Bandarmology shortcuts removed (user-requested, 2026-09-11)
+
+Follow-up to the performance investigation above. User asked specifically
+about `thesis` and the 3 dead Bandarmology sub-modes; confirmed by reading
+the actual code (not guessing) that neither was a missing-data/incomplete
+stub — both were fully-functional code with zero navigation entry point.
+
+### Investment Thesis Tracker — nav entry added
+
+- **Confirmed via code reading:** `renderThesisPage()` (add/view/delete
+  investment thesis: ticker, why-bought rationale, target price,
+  invalidation criteria) was fully built and wired into the complete
+  save/load system (`02-storage.js` — Firebase sync, local backup,
+  export/import all already handle `theses`). Zero dependency on any
+  external API or live market data — 100% user-typed content. The only
+  thing missing was a way to reach it.
+- **Fix:** added a sidebar button (`goPage('thesis', this)`) under the
+  PORTFOLIO group, alongside Transactions/Dividend/Performance — grouped
+  there since it's inherently about individual portfolio positions.
+- **Honesty fix found along the way:** the page's own subtitle promised
+  "evaluasi otomatis status thesis" (automatic thesis-status evaluation)
+  — no such automatic checker exists anywhere in the file; the status
+  badge is set once, manually, at creation time and never re-evaluated.
+  Since this page is now actually reachable by real users, corrected the
+  subtitle to describe only what's implemented, and corrected a matching
+  overclaim in the file's own header comment ("AI Intact/Warning/Broken
+  checker" → noted as never implemented).
+- **Prevention added:** `test_suite.js` TEST 57 — asserts the sidebar
+  has a `goPage('thesis'...)` button. Verified to fail when reverted,
+  before being restored.
+- **Verification:** live Playwright — clicked the real sidebar button,
+  confirmed the page activates with the corrected subtitle; created a
+  thesis via the actual modal form, confirmed it renders as a card;
+  deleted it via `deleteThesis()` (with a dialog auto-accept handler,
+  since it uses a native `confirm()` — a headless test without one
+  silently rejects the dialog, which is not itself a bug), confirmed the
+  empty state returns. Full CRUD cycle confirmed working end-to-end.
+
+### Dead Bandarmology deep-link shortcuts removed
+
+- **Confirmed via code reading:** `broker-flow`, `foreign-flow`, and
+  `smart-money-radar` were never separate pages — `setBandarmologyTab()`
+  always renders the SAME full Bandarmology Cockpit page regardless of
+  which of these values it's called with; the "sub-mode" is only which
+  section it auto-scrolls to afterward. All 3 had zero call sites
+  anywhere in the app (confirmed via full-codebase search, including
+  dynamic `goPage()` calls via variables) — not incomplete features, just
+  named shortcuts nothing ever triggered. `smart-money-flow` (the 4th
+  member of the same list) IS real and reachable, via the `flowscan`
+  page route, and was kept working throughout this cleanup.
+- **Fix:** removed the 3 dead names from every list that referenced
+  them — the router's `case` statements and `targetPageName` mapping in
+  `06-analysis-router.js`, and the dispatch/scroll-to logic in
+  `goBandarmology()`/`setBandarmologyTab()` in `41-stockchat-cockpit.js`
+  — while explicitly keeping `smart-money-flow` working in each of those
+  same spots.
+- **Prevention added:** `test_suite.js` TEST 58 — asserts the 3 dead
+  router cases are gone, while `smart-money-flow`'s router case, its
+  `targetPageName` redirect, its `goBandarmology()` dispatch, and its
+  `setBandarmologyTab()` scroll-to branch are all still present.
+  Verified to fail (clear message) when one of the dead cases was
+  reintroduced, before being restored.
+- **Verification:** live Playwright — navigated via `goPage('flowscan')`
+  (the real entry point) and confirmed it still lands on the
+  Bandarmology page with the correct mode set.
+- **Separate pre-existing issue found, NOT fixed (out of scope for this
+  request):** `setBandarmologyTab()`'s `smart-money-flow` scroll-to
+  branch targets `#bandarSmartMoneyChart` with a fallback to
+  `#bandar-tab-content` — neither ID exists anywhere in the rendered
+  HTML. This silently no-ops (the `if (el)` guard prevents a crash) and
+  predates this cleanup; the page navigation itself still works
+  correctly, only the "auto-scroll to the smart money section" behavior
+  has never actually worked. Left as-is since it wasn't part of what was
+  asked; noted here for whenever it's worth revisiting.
+
+`npm test` (81/81 + 16/16 policy + 6/6 provider), `npm run lint` clean.

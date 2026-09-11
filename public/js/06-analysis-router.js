@@ -756,8 +756,8 @@ function goPage(name,btn){
   document.querySelectorAll('.nav button, .nav-dd-btn, .nav-dd-menu button, .side-nav button').forEach(function(b){b.classList.remove('on')});
   document.querySelectorAll('.side-group').forEach(function(g){ g.classList.remove('has-active'); });
 
-  var targetPageName = name === 'dividen-calendar' ? 'dividen' 
-    : (['broker-flow', 'smart-money-flow', 'foreign-flow', 'smart-money-radar'].includes(name) ? 'bandarmology' : name);
+  var targetPageName = name === 'dividen-calendar' ? 'dividen'
+    : (name === 'smart-money-flow' ? 'bandarmology' : name);
   var pg = el('page-'+targetPageName);
   if(!pg) return;
   pg.classList.add('on');
@@ -820,10 +820,15 @@ function renderPage(name){
     case 'bandarmology':
       if(typeof renderBandarmologyCockpitPage==='function') renderBandarmologyCockpitPage();
       break;
-    case 'broker-flow':
+    // FIX (2026-09-11, user-requested cleanup): 'broker-flow',
+    // 'foreign-flow', and 'smart-money-radar' were removed here - these
+    // 3 router cases had zero call sites anywhere in the app (verified
+    // via full-codebase search, including dynamic goPage() calls); they
+    // were never separate pages, just named deep-link shortcuts meant to
+    // auto-scroll straight to a section of the Bandarmology Cockpit that
+    // page already shows in full when opened normally. 'smart-money-flow'
+    // is real and reachable (via the 'flowscan' case below), so it's kept.
     case 'smart-money-flow':
-    case 'foreign-flow':
-    case 'smart-money-radar':
       if(typeof setBandarmologyTab==='function') setBandarmologyTab(name);
       else if(typeof renderBandarmologyCockpitPage==='function') renderBandarmologyCockpitPage();
       break;

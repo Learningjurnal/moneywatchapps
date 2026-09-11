@@ -2,7 +2,9 @@
  * 28-decisiontools.js — Money Watch Pro V6: Decision Systems & Scenario Engine
  * 
  * 1. Morning / Daily Brief (Market brief, portfolio today vs IHSG, 3 Things to Watch)
- * 2. Investment Thesis Tracker (Why bought, Target, Invalidation, AI Intact/Warning/Broken checker)
+ * 2. Investment Thesis Tracker (Why bought, Target, Invalidation — status
+ *    badge is set manually at creation time; the "AI Intact/Warning/
+ *    Broken checker" this originally described was never implemented)
  * 3. Decision Journal & Post-Trade Review (Log rationale, emotion, confidence, post-trade review)
  * 4. Scenario Engine ("What If?" Stress Test & Impact on AUM, VaR, Beta, Dividend, Cash)
  * 5. Rebalancing Simulator (Current vs Target, Sharpe/Beta/Drawdown impact, Order Sheet)
@@ -274,7 +276,15 @@ function renderThesisPage() {
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start">'
     + '<div>'
       + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Investment Thesis Tracker</div>'
-      + '<div class="psub">Dokumentasi rasional, target valuasi, batas invalidasi, dan evaluasi otomatis status thesis setiap saham di portofolio.</div>'
+      // FIX (2026-09-11, found while giving this page its first real
+      // nav entry point): was "...dan evaluasi otomatis status thesis
+      // setiap saham" (and automatic thesis-status evaluation) - no such
+      // automatic checker exists anywhere in this file or the app; the
+      // THESIS ___ badge is only ever set once, manually, at creation
+      // time (see saveNewThesisFromModal() below) and never re-evaluated.
+      // Wording corrected to match what's actually implemented, now that
+      // real users can reach this page.
+      + '<div class="psub">Dokumentasi rasional, target valuasi, dan batas invalidasi untuk setiap saham di portofolio.</div>'
     + '</div>'
     + '<button class="btn btn-primary" onclick="openNewThesisModal()">+ Buat Investment Thesis Baru</button>'
   + '</div>';
