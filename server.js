@@ -28,6 +28,7 @@ import {
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA } from './lib/invezgo-client.js';
+import { GEMINI_FALLBACK_MODELS, recordGeminiAttempt, recordGeminiOutcome, getGeminiQuotaStatus } from './lib/gemini-quota.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -803,14 +804,10 @@ async function callGeminiWithRetryAndFallback(ai, requestConfig, options = {}) {
   const timeoutMs = options.timeoutMs || 15000;
   const maxRetries = options.maxRetries ?? 2;
   const primaryModel = requestConfig.model || 'gemini-3.5-flash';
-  // List of fallback models if primary model is unavailable
-  const fallbackModels = [
-    'gemini-3.5-flash',
-    'gemini-3.7-flash',
-    'gemini-3.6-flash',
-    'gemini-flash-latest',
-    'gemini-3.1-flash-lite'
-  ].filter((v, idx, arr) => arr.indexOf(v) === idx);
+  // List of fallback models if primary model is unavailable — canonical
+  // list lives in lib/gemini-quota.js so the quota status endpoint can
+  // never drift out of sync with what's actually called here.
+  const fallbackModels = GEMINI_FALLBACK_MODELS;
 
   let lastError = null;
 
@@ -822,22 +819,27 @@ async function callGeminiWithRetryAndFallback(ai, requestConfig, options = {}) {
     };
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      // Fire-and-forget quota counter — must never delay or block the real
+      // call (see lib/gemini-quota.js: observability only, no enforcement).
+      recordGeminiAttempt(candidateModel);
       try {
         const response = await withTimeout(
           ai.models.generateContent(candidateConfig),
           timeoutMs
         );
+        recordGeminiOutcome('success');
         return { response, usedModel: candidateModel };
       } catch (err) {
         lastError = err;
         const errMsg = String(err?.message || err || '');
+        const isRateLimited = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED');
         const isUnavailableOrRateLimited =
           errMsg.includes('503') ||
           errMsg.includes('UNAVAILABLE') ||
-          errMsg.includes('429') ||
-          errMsg.includes('RESOURCE_EXHAUSTED') ||
+          isRateLimited ||
           errMsg.includes('high demand') ||
           errMsg.includes('AI_REQUEST_TIMEOUT');
+        recordGeminiOutcome(isRateLimited ? 'rate_limited' : 'error');
 
         if (isUnavailableOrRateLimited && attempt < maxRetries) {
           const delay = (attempt + 1) * 400 + Math.floor(Math.random() * 250);
@@ -3247,6 +3249,23 @@ app.get('/api/idx/invezgo-status', async (req, res) => {
       },
       updatedAt: new Date().toISOString()
     });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/ai/gemini-status — Usage observability for the Gemini API key
+// (per-model requests-today/this-minute, plus today's success/rate-limited/
+// error totals). Added alongside /api/idx/invezgo-status for the same
+// reason: callGeminiWithRetryAndFallback() already retries/falls back on
+// 429 reactively, but there was no proactive visibility into usage before
+// that happens. Real per-model daily limits are operator-supplied via
+// GEMINI_RPD_LIMITS (see lib/gemini-quota.js) — until configured,
+// dailyLimit/usagePct/alert flags come back null rather than guessed.
+app.get('/api/ai/gemini-status', async (req, res) => {
+  try {
+    const status = await getGeminiQuotaStatus();
+    return res.json({ success: true, ...status });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
