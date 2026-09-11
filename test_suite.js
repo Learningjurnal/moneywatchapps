@@ -1611,6 +1611,38 @@ test('REGRESSION GUARD: dead Bandarmology shortcuts (broker-flow/foreign-flow/sm
     'REGRESSION: dead scroll-to branches for \'broker-flow\'/\'foreign-flow\' are back in setBandarmologyTab()');
 });
 
+// ── TEST 59: the 'dividen-calendar' dead route must stay removed (found
+// via the same dead-feature audit) — a redundant, unreachable alias with
+// zero call sites anywhere in the app, rendering the exact same content
+// the 'dividen' case already produces (the Dividen page defaults to its
+// Calendar sub-tab — see INCIDENT_LOG.md's "ghost stacking" fix).
+test('REGRESSION GUARD: dead \'dividen-calendar\' route must stay removed', () => {
+  const routerJs = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(!routerJs.includes("case 'dividen-calendar':"),
+    'REGRESSION: the dead \'dividen-calendar\' router case is back — it has zero call sites anywhere in the app and duplicates what \'dividen\' already renders (see INCIDENT_LOG.md)');
+  assert(!routerJs.includes("name === 'dividen-calendar'"),
+    'REGRESSION: goPage()\'s targetPageName mapping still special-cases the dead \'dividen-calendar\' name');
+  assert(routerJs.includes("case 'dividen':"),
+    'REGRESSION: the real \'dividen\' router case was removed along with the dead alias');
+});
+
+// ── TEST 60: #bandarSmartMoneyChart must be a real element id, not a
+// pre-existing broken scroll target (found via the same audit) —
+// setBandarmologyTab()'s 'smart-money-flow' scroll-to used to target
+// getElementById('bandarSmartMoneyChart') with a
+// getElementById('bandar-tab-content') fallback, and NEITHER id existed
+// anywhere in the rendered HTML — the FlowScan -> Bandarmology deep-link
+// scroll-to-section behavior had never actually worked. Fixed by giving
+// the actual Smart Money Flow chart section that real id, and removing
+// the now-pointless fallback to the other, equally nonexistent id.
+test('REGRESSION GUARD: #bandarSmartMoneyChart must exist as a real element id in the rendered Bandarmology cockpit markup', () => {
+  const cockpitJs = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/id="bandarSmartMoneyChart"/.test(cockpitJs),
+    'REGRESSION: no element in 41-stockchat-cockpit.js\'s rendered HTML carries id="bandarSmartMoneyChart" anymore — setBandarmologyTab()\'s scroll-to for \'smart-money-flow\' will silently no-op again (see INCIDENT_LOG.md)');
+  assert(!cockpitJs.includes("getElementById('bandar-tab-content')"),
+    'REGRESSION: the dead getElementById(\'bandar-tab-content\') fallback is back — that id never existed anywhere in the rendered HTML');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
