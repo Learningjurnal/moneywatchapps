@@ -778,3 +778,74 @@ search box next to it down to ~18px
   values; 600px collapses to 4 distinct rows (1 column, stacked), as
   intended for mobile. Screenshot at 1920px sent to the user. `npm test`
   (67/67 + 16/16 policy + 6/6 provider), `npm run lint` clean.
+
+---
+
+## Proactive Maintainability Fixes (not user-reported incidents)
+
+Lower-risk cleanups found during a deep-dive design/code review
+(2026-09-11), not from a live bug report. Documented here anyway because
+one of them is the same class of defect as a real incident above.
+
+### Duplicate `body.theme-light {}` custom-property block in `main.css`
+
+- **Found by:** proactive review of `main.css`'s theme-variable
+  structure, prompted by a user-submitted aesthetic/architecture
+  analysis flagging CSS-cascade risk in general terms.
+- **What was wrong:** two separate `body.theme-light { ... }` rule
+  blocks existed in the file — one near the top ("YAHOO FINANCE THEME &
+  DESIGN SYSTEM TOKENS"), one much further down ("COMPREHENSIVE LIGHT
+  THEME ENGINE"). Same selector, identical specificity, so the later
+  block always silently won the cascade for every variable it
+  redeclared. One variable, `--border-subtle`, actually held a
+  **different value** in each block (`#E0E4E9` vs `rgba(0,0,0,0.06)`)
+  with no visual signal anywhere that two competing definitions existed
+  — the same class of bug as **#14** above (a duplicate light-theme CSS
+  rule silently overriding another), just not yet visibly broken.
+- **Fix:** consolidated into the single top block, keeping the value
+  that was actually winning (`rgba(0,0,0,0.06)`) so the fix changes zero
+  rendered output; the redundant `background`/`color` declarations from
+  the removed block were merged in too (they duplicate
+  `html,body{background:var(--bg);color:var(--text)}` elsewhere in the
+  file, so they were dead weight either way, but kept as-is rather than
+  dropped to avoid any behavior change from this cleanup).
+- **Prevention added:** `test_suite.js` TEST 45 — asserts exactly one
+  `body.theme-light {` block exists in `main.css`. Verified to fail
+  (clear message) when a second block was temporarily reintroduced,
+  before being restored.
+- **Verification:** live Playwright — read every relevant CSS custom
+  property via `getComputedStyle()` in light theme before and after the
+  change; all values identical (`--bg`, `--bg2`, `--text`, `--text3`,
+  `--border-subtle`, `--accent`, body's rendered `background`/`color`).
+  `npm test` (68/68 + 6/6 provider), `npm run lint` clean.
+
+### "Aksi" action-icon column not sticky-right in Riwayat Transaksi Saham & Mutasi RDN tables
+
+- **Found by:** the same user-submitted analysis, verified directly
+  against `04-render.js` and `main.css` before acting on it (no
+  `position:sticky;right:*` rule existed anywhere in the stylesheet —
+  only the existing `.tbl-sticky-left` for the ticker column).
+- **What was wrong:** the rightmost "Aksi" column (detail/edit/delete
+  icon buttons) in `#tx-tbody` and `#rdn-tbody` scrolled out of view
+  along with the rest of the row whenever the table was scrolled
+  horizontally on a medium-width screen, forcing the user to scroll
+  right to reach the buttons and then back left to see which row they
+  were acting on.
+- **Fix:** added a `.tbl-sticky-right` CSS class (dark + light theme +
+  row-hover variants, mirroring the existing `.tbl-sticky-left` pattern
+  exactly but pinned to `right:0`) and applied it to both tables' "Aksi"
+  `<th>` (in `index.html`) and each row's action `<td>` (in
+  `04-render.js`).
+- **Prevention added:** `test_suite.js` TEST 46 — asserts the
+  `.tbl-sticky-right` CSS rule exists, and that both tables' header
+  `<th>` and row `<td>` still carry the class. Verified to fail (clear
+  message, one failure per removed class) when each of the three
+  places — `04-render.js`'s `<td>`, `index.html`'s tx-table `<th>` —
+  was independently reverted, before being restored.
+- **Verification:** live Playwright at a 900px viewport (narrow enough
+  to force horizontal scroll) — seeded one transaction, scrolled
+  `#page-transaksi .tbl-wrap` fully to `scrollWidth`, and confirmed via
+  `getBoundingClientRect()` that the action `<td>` stayed within the
+  wrapper's visible bounds instead of scrolling off. Screenshot
+  confirms the 🔍 ✎ ✕ icons visible and pinned to the right edge.
+  `npm test` (69/69 + 16/16 policy + 6/6 provider), `npm run lint` clean.

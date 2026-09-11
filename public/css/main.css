@@ -183,7 +183,13 @@ body.theme-light {
   --text3:#727B83;
   --text-main:#1D252C;
 
-  --border-subtle:#E0E4E9;
+  /* NOTE: was #E0E4E9 here, but a second (now-removed) duplicate
+     `body.theme-light {}` block further down the file redefined this same
+     variable to rgba(0,0,0,0.06) and — being later in source order at
+     identical specificity — silently won the cascade, so rgba(0,0,0,0.06)
+     is what actually rendered. Kept that value here after consolidating
+     into this single block, to avoid any visual change. */
+  --border-subtle:rgba(0,0,0,0.06);
   --border-default:#E0E4E9;
   --border-strong:#CBD1D8;
   --border-focus:#0000FF;
@@ -255,6 +261,16 @@ body.theme-light {
   --table-header-text:#4A5560;
   --table-border:#E0E4E9;
   --table-row-hover:#F5F7FA;
+
+  /* Merged in from a second, now-removed duplicate `body.theme-light {}`
+     block ("COMPREHENSIVE LIGHT THEME ENGINE") further down this file —
+     redundant with `html,body{background:var(--bg);color:var(--text)}`
+     above (var(--bg)/var(--text) already resolve to these exact values in
+     this theme) since nothing more specific competes for body's
+     background/color, but kept as-is (including !important) rather than
+     dropped, to avoid any behavior change from this cleanup. */
+  background:#F5F7FA !important;
+  color:#1D252C !important;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;font-size:12.5px;overflow:hidden;-webkit-font-smoothing:antialiased}
 body{background:var(--bg)}
@@ -917,6 +933,37 @@ body.theme-light .tbl td.tbl-sticky-left {
 
 body.theme-light .tbl-freeze-col tbody tr:hover td:first-child,
 body.theme-light .tbl tbody tr:hover td.tbl-sticky-left {
+  background: #F8FAFC !important;
+}
+
+/* Sticky Action Column (Freeze Right) — mirrors .tbl-sticky-left above.
+   Added for the "Aksi" icon-button column in Riwayat Transaksi Saham and
+   Mutasi RDN tables (found via deep-dive review, 2026-09-11, not a
+   user-reported bug): on a horizontally scrolled table at medium screen
+   widths, the edit/delete/detail buttons in the rightmost column used to
+   scroll out of view along with the rest of the row, forcing the user to
+   scroll right just to reach them and then back left to see which row
+   they were acting on. */
+.tbl th.tbl-sticky-right,
+.tbl td.tbl-sticky-right {
+  position: sticky;
+  right: 0;
+  z-index: 6;
+  background: #0D121D;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.35);
+}
+
+body.theme-light .tbl th.tbl-sticky-right,
+body.theme-light .tbl td.tbl-sticky-right {
+  background: #FFFFFF;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.06);
+}
+
+.tbl tbody tr:hover td.tbl-sticky-right {
+  background: #131A2B !important;
+}
+
+body.theme-light .tbl tbody tr:hover td.tbl-sticky-right {
   background: #F8FAFC !important;
 }
 
@@ -2951,39 +2998,18 @@ body.density-compact .kpi-exec-card {
 
 /* ══════════════════════════════════════════════════════════════
    COMPREHENSIVE LIGHT THEME ENGINE (MoneyWatch Pro V6 - Yahoo Finance Theme)
-   ══════════════════════════════════════════════════════════════ */
-body.theme-light {
-  --bg-main: #F5F7FA;
-  --bg-card: #FFFFFF;
-  --bg: #F5F7FA;
-  --bg2: #FFFFFF;
-  --bg3: #EDF1F5;
-  --bg4: #E0E4E9;
-  --bg5: #CBD1D8;
-  
-  --text-main: #1D252C;
-  --text: #1D252C;
-  --text2: #354453;
-  --text3: #727B83;
-  --text-muted: #727B83;
-  
-  --border: #E0E4E9;
-  --border2: #CBD1D8;
-  
-  --bg-darker: #EDF1F5;
-  --bg-surface: #FFFFFF;
-  --bg-elevated: #F5F7FA;
-  
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-focus: #0000FF;
-  --accent: #0000FF;
-  --accent2: #0000CC;
-  --accent-purple: #0000FF;
-  --accent-blue: #0F69FF;
-  
-  background: #F5F7FA !important;
-  color: #1D252C !important;
-}
+   ══════════════════════════════════════════════════════════════
+   The `body.theme-light {}` custom-property block that used to be here
+   was a full duplicate of the one declared near the top of this file
+   (search "YAHOO FINANCE THEME & DESIGN SYSTEM TOKENS (LIGHT MODE)") —
+   same selector, so identical specificity, so this later block silently
+   won the cascade for every variable it redeclared. One of them
+   (--border-subtle) actually had a DIFFERENT value in each block
+   (#E0E4E9 vs rgba(0,0,0,0.06)), with no visual indication anywhere that
+   two competing definitions existed — the exact same class of bug fixed
+   in INCIDENT_LOG.md #14 (a duplicate light-theme CSS rule silently
+   overriding another). Consolidated into the single block up top; see
+   the comment there for the resolved --border-subtle value. ── */
 
 /* Force light style on any element with dark hardcoded background or inline style in theme-light */
 body.theme-light [style*="background: #131B2E"],
