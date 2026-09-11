@@ -1984,3 +1984,31 @@ tunggu penggunaan normal secara bertahap memicu eviction.
   `41-stockchat-cockpit.js` → `?v=20260911e`.
 
 `npm test` (99/99 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — Fitur baru: AI Copilot/StockChat bisa menganalisa kinerja & memberi saran perbaikan dari histori AI Paper Trading riil
+
+- **Konteks:** user bertanya bagaimana menerapkan ML supaya AI chat "menganalisa data, memberi saran perbaikan, dan jadi copilot trading". Setelah diskusi jujur (ML terlatih butuh data historis yang belum cukup — sama seperti pengalaman XGBoost minggu lalu), user memilih item #1: perkaya konteks Copilot dengan data real (context engineering, bukan ML terlatih).
+- **Root gap:** AI Copilot & StockChat (keduanya lewat `/api/ai/agent-chat`) sebelumnya TIDAK PERNAH punya akses ke rekam jejak AI Paper Trading (`AI_TRADE_STATE.paperAccount`, `38-ai-autonomous-trading.js`) — data itu murni client-side/localStorage, server tidak tahu apa-apa soal itu, dan tidak ada tool yang mengeksposnya ke Gemini. Akibatnya pertanyaan "beri saran perbaikan" tidak bisa dijawab dari data nyata pengguna.
+- **Fix (fitur baru):**
+  - `public/js/28-decisiontools.js` — `sendCopilotPrompt()` sekarang membangun `userContext.aiPaperTrading` (win rate, profit factor, realized PnL, max drawdown, 5 trade terakhir + lesson/mistake/improvement dari mesin Post-Mortem 10-Point yang sudah ada) dari `AI_TRADE_STATE.paperAccount`, typeof-guarded.
+  - `server.js` — tool baru `cek_kinerja_ai_trading` (Gemini function-calling) + case di `executeAgentTool()` yang membaca `userContext.aiPaperTrading` dan mengembalikannya apa adanya — TIDAK PERNAH mengarang win rate/lesson kalau data kosong (Zero Dummy Data, sama seperti tool lain). `SYSTEM_INSTRUCTION_MONEYWATCH_AI` diupdate (aturan #8) supaya Gemini wajib panggil tool ini untuk pertanyaan kinerja/saran perbaikan, bukan mengarang saran generik.
+  - Fallback deterministik (non-Gemini) dan fallback client-side (`generateClientSideAiAgentResponse()` di `41-stockchat-cockpit.js`) — keduanya dapat cabang baru yang sama, supaya perilaku konsisten di ketiga lapis (Gemini → deterministik server → client-side).
+- **Bug tambahan ditemukan & diperbaiki saat live-verify:**
+  1. `pLower.includes('kas')` di branch portofolio server.js DAN client-side cocok sebagai substring kata umum **"kasih"** — "kasih saran perbaikan..." salah dialihkan ke branch portofolio. Diperbaiki jadi `\bkas\b` (word boundary) di kedua file.
+  2. `pLower.includes('ara')` di branch simulasi/ARA-ARB server.js cocok sebagai substring **"saran"** (s-**ara**-n) — kolisi yang sama menimpa branch baru dari sisi lain. Diperbaiki dengan memindahkan branch `cek_kinerja_ai_trading` ke urutan PALING AWAL di rantai if/else server.js (kata kunci multi-kata yang lebih khas, mengurangi risiko tabrakan dengan short-keyword branch lain) — bukan memperbaiki setiap short-keyword lama satu-satu (di luar cakupan kerja ini).
+- **Prevention added:**
+  - `test_suite.js` TEST 77 — `executeAgentTool('cek_kinerja_ai_trading')` lewat vm sandbox: no-data → `hasData:false` tanpa fabrikasi, data asli → semua field (termasuk lesson/mistake/improvement) diteruskan utuh.
+  - `test_suite.js` TEST 78 — fallback deterministik server.js merutekan pertanyaan kinerja AI ke tool baru, DAN posisinya lebih dulu dari branch catch-all umum (bukan dead code).
+  - `test_suite.js` TEST 79 — `generateClientSideAiAgentResponse()` (client-side) menjawab dari `userContext.aiPaperTrading` tanpa terjebak gerbang validasi ticker, tanpa fabrikasi.
+  - `test_suite.js` TEST 80 — `sendCopilotPrompt()` benar membangun `userContext.aiPaperTrading` dari `window.AI_TRADE_STATE.paperAccount`, dan degradasi aman ke `null` kalau modul AI Trading belum termuat.
+  - Semua 4 test terbukti gagal saat masing-masing fix direvert.
+- **Live verification (server lokal, `GEMINI_API_KEY` tidak diset → jalur fallback deterministik):**
+  - "kasih saran perbaikan trading saya" tanpa data → honest empty state via `cek_kinerja_ai_trading` (bukan lagi nyasar ke branch portofolio).
+  - "apa pelajaran dari trading saya" tanpa data → honest empty state (bukan nyasar ke branch simulasi ARA/ARB).
+  - "analisa portofolio saya" dan "cek kas saya" → tetap ke `cek_portofolio_user` seperti semula (tidak ada regresi).
+  - Payload dengan data AI Paper Trading realistis → jawaban mengutip win rate/PnL/lesson/mistake/improvement asli dengan benar.
+- Cache-bust `28-decisiontools.js` → `?v=20260911d`, `41-stockchat-cockpit.js` → `?v=20260911f`. `server.js` tidak perlu cache-bust (server-side only).
+
+`npm test` (103/103 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+**Catatan untuk user:** ini BUKAN machine learning terlatih — ini context engineering (menyuntikkan data real yang sudah ada ke prompt AI). Rencana untuk item #2-4 (saran berbasis aturan, pipeline data untuk ML copilot sungguhan, integrasi XGBoost sebagai tool) akan didokumentasikan terpisah sesuai permintaan.

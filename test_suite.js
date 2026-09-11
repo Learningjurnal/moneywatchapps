@@ -2490,6 +2490,218 @@ test('REGRESSION GUARD: generateClientSideAiAgentResponse() must not let a stray
   assert(!/Ticker Tidak Terdaftar/.test(r4.reply), 'REGRESSION: a valid ticker (BBCA) is now incorrectly rejected');
 });
 
+// ── TEST 77: executeAgentTool('cek_kinerja_ai_trading', ...) (server.js) —
+// new capability (2026-09-11) giving the AI Copilot access to the user's
+// REAL AI Paper Trading track record (win rate, profit factor, realized
+// PnL, max drawdown) and the genuine lesson/mistake/improvement text the
+// existing Post-Mortem engine already computes per closed trade — instead
+// of the AI having zero visibility into trading history and, when asked
+// "beri saran perbaikan", either refusing or inventing generic advice.
+// Must NEVER fabricate a win rate when userContext carries no
+// aiPaperTrading data (Zero Dummy Data principle every other tool here
+// already follows).
+await asyncTest("REGRESSION GUARD: executeAgentTool('cek_kinerja_ai_trading') must pass through real AI Paper Trading stats and never fabricate them when absent", async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const start = fullSrc.indexOf('async function executeAgentTool');
+  assert(start !== -1, 'sanity: executeAgentTool() not found — has it been renamed/moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Function Declarations for Gemini Function Calling');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after executeAgentTool() — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/case 'cek_kinerja_ai_trading':/.test(src), "REGRESSION: the 'cek_kinerja_ai_trading' case is gone from executeAgentTool()");
+  assert(/hasData: false/.test(src), 'REGRESSION: the no-data honest-empty-state branch is gone');
+
+  const sandbox = { window: {} };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: 'server.js executeAgentTool() (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.executeAgentTool, 'function', 'executeAgentTool not exposed on the sandbox context');
+
+  // 1. No aiPaperTrading in userContext at all — must NOT fabricate.
+  const r1 = await ctx.executeAgentTool('cek_kinerja_ai_trading', {}, {});
+  assert.strictEqual(r1.hasData, false, 'REGRESSION: missing aiPaperTrading must report hasData:false, not invent stats');
+  assert.strictEqual(r1.winRatePct, undefined, 'REGRESSION: a winRatePct field leaked into the no-data response — looks like fabricated data');
+
+  // 2. aiPaperTrading present but zero trades — same honest empty state.
+  const r2 = await ctx.executeAgentTool('cek_kinerja_ai_trading', {}, { aiPaperTrading: { totalTrades: 0 } });
+  assert.strictEqual(r2.hasData, false, 'REGRESSION: zero trades must still report hasData:false');
+
+  // 3. Real data — every field must pass through unmodified (no rounding,
+  // relabeling, or silent drop of the lesson/mistake/improvement text the
+  // Post-Mortem engine already computed).
+  const fakeApt = {
+    totalTrades: 12, winningTrades: 7, losingTrades: 5, winRate: 58.3,
+    profitFactor: 1.85, realizedPnL: 4250000, maxDrawdownPct: 8.4, openPositionsCount: 2,
+    recentClosedTrades: [
+      { ticker: 'BBCA', result: 'LOSS', netPnL: -150000, exitReason: 'SL_HIT', lesson: 'Entry terlalu awal sebelum konfirmasi breakout.', mistake: 'Mengabaikan volume rendah saat entry.', improvement: 'Tunggu volume >1.5x rata-rata sebelum entry.' }
+    ]
+  };
+  const r3 = await ctx.executeAgentTool('cek_kinerja_ai_trading', {}, { aiPaperTrading: fakeApt });
+  assert.strictEqual(r3.hasData, true);
+  assert.strictEqual(r3.winRatePct, 58.3, 'REGRESSION: winRatePct does not match the real winRate passed in userContext');
+  assert.strictEqual(r3.profitFactor, 1.85);
+  assert.strictEqual(r3.realizedPnL, 4250000);
+  assert.strictEqual(r3.maxDrawdownPct, 8.4);
+  assert.deepStrictEqual(r3.recentClosedTrades, fakeApt.recentClosedTrades,
+    'REGRESSION: recentClosedTrades (including lesson/mistake/improvement) was not passed through unmodified');
+});
+
+// ── TEST 78: the deterministic (non-Gemini) fallback branch in
+// /api/ai/agent-chat (server.js) must route "bagaimana performa AI
+// trading saya" / "saran perbaikan" style questions to the new
+// cek_kinerja_ai_trading tool, and must show the same honest empty state
+// when there is no data — not fall through to the generic single-ticker
+// analysis branch (which would answer about a bogus/default ticker
+// instead of the user's actual question).
+test('REGRESSION GUARD: the deterministic AI fallback must route AI-performance questions to cek_kinerja_ai_trading, not the generic ticker-analysis branch', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const start = fullSrc.indexOf("// 2. DETERMINISTIC AGENTIC ENGINE FALLBACK");
+  assert(start !== -1, 'sanity: the deterministic fallback block not found — has it moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf("\n  } catch (err) {\n    console.error('MoneyWatch AI fallback error:'");
+  assert(relEnd !== -1, 'sanity: could not find the end of the deterministic fallback block');
+  src = src.slice(0, relEnd);
+
+  assert(/pLower\.includes\('kinerja ai'\)/.test(src),
+    'REGRESSION: the deterministic fallback no longer checks for AI-performance keywords — questions about AI trading performance will fall through to the generic ticker-analysis branch');
+  assert(/cek_kinerja_ai_trading/.test(src),
+    'REGRESSION: the deterministic fallback no longer calls cek_kinerja_ai_trading');
+
+  // Confirm the AI-performance branch is checked BEFORE the generic
+  // catch-all `else {` — otherwise it's dead code (same class of ordering
+  // bug as the CUAN ticker-short-circuit incident).
+  const aiPerfIdx = src.indexOf("pLower.includes('kinerja ai')");
+  const genericElseIdx = src.indexOf('// General Fundamental & Risk/Reward Analysis');
+  assert(aiPerfIdx !== -1 && genericElseIdx !== -1 && aiPerfIdx < genericElseIdx,
+    'REGRESSION: the AI-performance branch is positioned after (or missing relative to) the generic catch-all branch — it will never be reached');
+});
+
+// ── TEST 79: generateClientSideAiAgentResponse()'s new isAiPerformanceIntent
+// branch (public/js/41-stockchat-cockpit.js) — the client-side mirror of
+// TEST 77/78, exercised when the server is unreachable (network failure,
+// or Copilot's fallback per the earlier 2026-09-11 fix). Must read
+// userContext.aiPaperTrading directly (no server round-trip) and never
+// fabricate stats when it's absent.
+await asyncTest('REGRESSION GUARD: client-side generateClientSideAiAgentResponse() must answer AI-performance questions from real userContext.aiPaperTrading, never fabricate', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const startMarker = 'function generateClientSideAiAgentResponse(message, userContext) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: generateClientSideAiAgentResponse() not found');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Clear history');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after generateClientSideAiAgentResponse()');
+  src = src.slice(0, relEnd);
+
+  assert(/isAiPerformanceIntent/.test(src),
+    'REGRESSION: isAiPerformanceIntent guard is gone from the client-side fallback engine');
+
+  const sandbox = {
+    window: {},
+    DB: { BBCA: { name: 'Bank Central Asia', sector: 'Perbankan' } },
+    isValidStockTicker: (tk) => tk === 'BBCA',
+    STOCKCHAT_SELECTED_TICKER: 'BBCA',
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '41-stockchat-cockpit.js generateClientSideAiAgentResponse() (sandboxed load for test)' });
+
+  // 1. No aiPaperTrading data at all — honest empty state, no fabrication,
+  // and must NOT bounce off the ticker-validity gate (this is exactly the
+  // "SAYA"-style false-ticker bug's sibling — a message like "bagaimana
+  // performa AI trading saya" has no real ticker in it either).
+  const r1 = ctx.generateClientSideAiAgentResponse('bagaimana performa AI trading saya', {});
+  assert(!/Ticker Tidak Terdaftar/.test(r1.reply), 'REGRESSION: an AI-performance question with no ticker bounces off the invalid-ticker gate');
+  assert(/Belum ada data trade/.test(r1.reply), 'REGRESSION: missing AI paper trading data no longer produces the honest empty state');
+  assert(!/Win Rate/.test(r1.reply), 'REGRESSION: a win rate appeared in the reply even though no data was provided — fabrication');
+
+  // 2. Real data — must surface the actual win rate and lesson text, not a
+  // generic message.
+  const fakeApt = {
+    totalTrades: 5, winningTrades: 3, losingTrades: 2, winRate: 60,
+    profitFactor: 2.1, realizedPnL: 900000, maxDrawdownPct: 4.2,
+    recentClosedTrades: [{ ticker: 'ANTM', result: 'WIN', netPnL: 300000, exitReason: 'TP_HIT', mistake: '-', improvement: '-' }]
+  };
+  const r2 = ctx.generateClientSideAiAgentResponse('kasih saran perbaikan trading saya', { aiPaperTrading: fakeApt });
+  assert(/60%/.test(r2.reply), 'REGRESSION: the real win rate (60%) is not reflected in the reply');
+  assert(/ANTM/.test(r2.reply), 'REGRESSION: the real recent trade (ANTM) is not reflected in the reply');
+});
+
+// ── TEST 80: sendCopilotPrompt() (public/js/28-decisiontools.js) must
+// build userContext.aiPaperTrading from window.AI_TRADE_STATE.paperAccount
+// and send it to the server — the client-side half of the
+// cek_kinerja_ai_trading feature (TEST 77-79). Without this wiring, the
+// server-side tool and the client-side fallback branch both exist but
+// NEVER actually receive real data — degrading silently to the honest
+// "no data" state on every single request, even for a user with a long
+// AI Paper Trading history.
+await asyncTest('REGRESSION GUARD: sendCopilotPrompt() must attach a real userContext.aiPaperTrading summary from AI_TRADE_STATE.paperAccount', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const startMarker = 'async function sendCopilotPrompt(text) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: sendCopilotPrompt() not found');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Markdown Formatter for Institutional Agent Output');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after sendCopilotPrompt()');
+  src = src.slice(0, relEnd);
+
+  assert(/AI_TRADE_STATE\.paperAccount/.test(src),
+    'REGRESSION: sendCopilotPrompt() no longer reads AI_TRADE_STATE.paperAccount — aiPaperTrading will always be null, even for users with real trading history');
+  assert(/aiPaperTrading:\s*aiPaperTrading/.test(src),
+    'REGRESSION: the built aiPaperTrading summary is no longer attached to userContext sent to the server');
+
+  let capturedBody = null;
+  const fakePaperAccount = {
+    totalTrades: 4, winningTrades: 3, losingTrades: 1, winRate: 75,
+    profitFactor: 3.2, realizedPnL: 620000, maxDrawdownPct: 2.1,
+    openPositions: [{}], // length used, not contents
+    closedTrades: [
+      { ticker: 'TLKM', result: 'WIN', netPnL: 200000, exitReason: 'TP_HIT', lesson: 'l1', mistake: '-', improvement: '-' },
+    ],
+  };
+  const sandbox = {
+    window: {},
+    MW_COPILOT_HISTORY: [],
+    MW_AI_IS_LOADING: false,
+    el: () => null,
+    renderCopilotPage: () => {},
+    getPortfolio: () => [],
+    computeCurrentAUM: () => 0,
+    calcRdnBalance: () => 0,
+    AI_TRADE_STATE: { paperAccount: fakePaperAccount },
+    fetch: (url, opts) => {
+      capturedBody = JSON.parse(opts.body);
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, reply: 'ok', toolCalls: [] }) });
+    },
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '28-decisiontools.js sendCopilotPrompt() (sandboxed load for test)' });
+
+  await ctx.sendCopilotPrompt('kinerja AI trading saya bagaimana');
+
+  assert(capturedBody, 'sanity: fetch was never called');
+  const apt = capturedBody.userContext && capturedBody.userContext.aiPaperTrading;
+  assert(apt, 'REGRESSION: userContext.aiPaperTrading is missing from the request body sent to the server');
+  assert.strictEqual(apt.totalTrades, 4, 'REGRESSION: totalTrades does not match AI_TRADE_STATE.paperAccount');
+  assert.strictEqual(apt.winRate, 75, 'REGRESSION: winRate does not match AI_TRADE_STATE.paperAccount');
+  assert.strictEqual(apt.recentClosedTrades.length, 1);
+  assert.strictEqual(apt.recentClosedTrades[0].ticker, 'TLKM', 'REGRESSION: recentClosedTrades ticker does not match the real closedTrades data');
+
+  // AI_TRADE_STATE not loaded at all (module hasn't initialized this
+  // session) — must degrade to null, never throw.
+  capturedBody = null;
+  const sandbox2 = Object.assign({}, sandbox, { AI_TRADE_STATE: undefined });
+  sandbox2.window = sandbox2;
+  const ctx2 = vm.createContext(sandbox2);
+  vm.runInContext(src, ctx2, { filename: '28-decisiontools.js sendCopilotPrompt() no-AI_TRADE_STATE (sandboxed load for test)' });
+  await ctx2.sendCopilotPrompt('halo');
+  assert(capturedBody, 'sanity: fetch was never called (no-AI_TRADE_STATE case)');
+  assert.strictEqual(capturedBody.userContext.aiPaperTrading, null,
+    'REGRESSION: aiPaperTrading should degrade to null (not throw) when AI_TRADE_STATE is unavailable');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

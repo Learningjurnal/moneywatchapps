@@ -1742,9 +1742,15 @@ function generateClientSideAiAgentResponse(message, userContext) {
   // actual portfolio question never reached the porto/aum branch further
   // down at all. Reported by the user (2026-09-11): "analisa portofolio
   // saya" answered with "Kode ticker SAYA tidak teridentifikasi...".
-  var isPortfolioIntent = pLower.includes('porto') || pLower.includes('aum') || pLower.includes('holding') || pLower.includes('posisi') || pLower.includes('alokasi') || pLower.includes('rdn') || pLower.includes('kas');
+  // \bkas\b (word boundary), not includes('kas') — see server.js's
+  // identical fix for why (matches "kasih" as a false positive otherwise).
+  var isPortfolioIntent = pLower.includes('porto') || pLower.includes('aum') || pLower.includes('holding') || pLower.includes('posisi') || pLower.includes('alokasi') || pLower.includes('rdn') || /\bkas\b/.test(pLower);
   var isStrategyIntent = pLower.includes('strategi') || pLower.includes('playbook') || pLower.includes('metode') || pLower.includes('resep') || pLower.includes('cara trading') || pLower.includes('aturan trading');
-  var isTickerIndependentIntent = isPortfolioIntent || isStrategyIntent;
+  // Same class of question as isPortfolioIntent — doesn't need a resolved
+  // ticker, reads userContext.aiPaperTrading directly (client-side mirror
+  // of server.js's cek_kinerja_ai_trading tool, added together with it).
+  var isAiPerformanceIntent = pLower.includes('kinerja ai') || pLower.includes('kinerja trading') || pLower.includes('performa ai') || pLower.includes('performa trading') || pLower.includes('ai trading') || pLower.includes('win rate') || pLower.includes('winrate') || pLower.includes('paper trading') || pLower.includes('lesson') || pLower.includes('pelajaran') || pLower.includes('post-mortem') || pLower.includes('post mortem') || pLower.includes('saran perbaikan') || pLower.includes('pola kesalahan');
+  var isTickerIndependentIntent = isPortfolioIntent || isStrategyIntent || isAiPerformanceIntent;
 
   var matchedTicker = words.find(function(w) {
     return (typeof DB !== 'undefined' && DB[w]) ||
@@ -1781,7 +1787,37 @@ function generateClientSideAiAgentResponse(message, userContext) {
 
   var reply = '';
 
-  if (isStrategyIntent) {
+  if (isAiPerformanceIntent) {
+    // Zero Dummy Data: this data lives entirely client-side
+    // (AI_TRADE_STATE, 38-ai-autonomous-trading.js) — never invent a
+    // plausible win rate/trade history when userContext.aiPaperTrading
+    // wasn't provided or has zero trades.
+    var apt = userContext && userContext.aiPaperTrading;
+    if (!apt || !apt.totalTrades) {
+      reply = '### Kinerja AI Paper Trading\n\n'
+        + 'Belum ada data trade AI Paper Trading yang tercatat (0 trade tertutup), atau modul AI Trading belum pernah dibuka di sesi browser ini. Tidak dapat menganalisa performa/pola kesalahan tanpa data riil.\n\n'
+        + '_Buka menu **AI Trading** minimal sekali, dan tunggu beberapa trade tertutup, supaya chat ini punya data riil untuk dianalisa._';
+    } else {
+      var lessonLines = (apt.recentClosedTrades || []).map(function(t, i) {
+        var parts = [(i + 1) + '. **' + t.ticker + '** — ' + t.result + ' (Rp ' + Number(t.netPnL || 0).toLocaleString('id-ID') + ')'];
+        if (t.exitReason) parts.push('   - Exit: ' + t.exitReason);
+        if (t.mistake && t.mistake !== '-') parts.push('   - Kesalahan: ' + t.mistake);
+        if (t.improvement && t.improvement !== '-') parts.push('   - Perbaikan: ' + t.improvement);
+        return parts.join('\n');
+      }).join('\n');
+
+      reply = '### Kinerja AI Paper Trading & Saran Perbaikan\n\n'
+        + 'Berdasarkan rekam jejak riil AI Paper Trading Anda (modal virtual terisolasi Rp 100 Juta, bukan uang riil):\n'
+        + '- **Win Rate**: **' + apt.winRate + '%** (' + apt.winningTrades + 'W / ' + apt.losingTrades + 'L dari ' + apt.totalTrades + ' trade)\n'
+        + '- **Profit Factor**: ' + (apt.profitFactor === null || apt.profitFactor === undefined ? '— (belum ada trade untung)' : apt.profitFactor) + '\n'
+        + '- **Realized PnL**: Rp ' + Number(apt.realizedPnL || 0).toLocaleString('id-ID') + '\n'
+        + '- **Max Drawdown**: ' + (apt.maxDrawdownPct || 0) + '%\n\n'
+        + '**Beberapa Trade Terakhir (dari mesin Post-Mortem 10-Point):**\n'
+        + (lessonLines || '_Belum ada trade tertutup._') + '\n\n'
+        + '*Disclaimer: Ini data paper trading (simulasi), bukan trading nyata. Keputusan investasi berada di tangan Anda.*';
+    }
+  }
+  else if (isStrategyIntent) {
     reply = '### Playbook Strategi Trading & Investasi (MoneyWatch Pro AI)\n\n'
       + 'Berikut adalah **5 Strategi Utama Kelas Institusi** yang tertanam dalam Knowledge Base StockChat AI:\n\n'
       + '1. **Smart Money & Bandarmology Momentum (Swing Trading)**\n'

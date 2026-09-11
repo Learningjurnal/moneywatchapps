@@ -1680,6 +1680,37 @@ async function executeAgentTool(toolName, args, userContext = {}) {
       return summary;
     }
 
+    // AI Paper Trading performance & lessons-learned — this data lives
+    // entirely client-side (localStorage/AI_TRADE_STATE, 38-ai-autonomous-
+    // trading.js), so unlike every other tool above the server has ZERO
+    // independent access to it: it can only report exactly what the
+    // browser sent in userContext.aiPaperTrading (28-decisiontools.js
+    // builds it fresh on every Copilot message). Never invent a plausible-
+    // looking win rate/trade history when this is absent — matches the
+    // Zero Dummy Data principle every other tool here already follows.
+    case 'cek_kinerja_ai_trading': {
+      const apt = userContext.aiPaperTrading;
+      if (!apt || !apt.totalTrades) {
+        return {
+          hasData: false,
+          message: 'Belum ada data trade AI Paper Trading yang tercatat (0 trade tertutup), atau modul AI Trading belum pernah dibuka di sesi browser pengguna. Tidak dapat menganalisa performa/pola kesalahan tanpa data riil — jangan mengarang.'
+        };
+      }
+      return {
+        hasData: true,
+        totalTrades: apt.totalTrades,
+        winningTrades: apt.winningTrades,
+        losingTrades: apt.losingTrades,
+        winRatePct: apt.winRate,
+        profitFactor: apt.profitFactor,
+        realizedPnL: apt.realizedPnL,
+        maxDrawdownPct: apt.maxDrawdownPct,
+        openPositionsCount: apt.openPositionsCount,
+        recentClosedTrades: apt.recentClosedTrades || [],
+        note: 'AI Paper Trading berjalan di modal virtual terisolasi Rp 100 Juta — bukan trading nyata dengan uang pengguna. lesson/mistake/improvement per trade berasal dari mesin Post-Mortem 10-Point yang sama dipakai di halaman AI Trading > Journal.'
+      };
+    }
+
     default:
       return { error: `Alat ${toolName} tidak dikenal.` };
   }
@@ -1792,6 +1823,14 @@ const AGENT_TOOL_DECLARATIONS = [
       },
       required: ['ticker', 'entryPrice', 'targetPrice', 'stopLossPrice']
     }
+  },
+  {
+    name: 'cek_kinerja_ai_trading',
+    description: 'Mengambil rekam jejak riil AI Paper Trading milik pengguna (Win Rate, Profit Factor, Realized PnL, Max Drawdown, jumlah trade) BESERTA hikmah/kesalahan/perbaikan (lesson/mistake/improvement) dari mesin Post-Mortem untuk beberapa trade terakhir yang sudah ditutup. Gunakan ini ketika pengguna bertanya soal performa AI trading, hasil paper trading, pola kesalahan trading, atau minta saran perbaikan strategi berdasarkan histori nyata — jangan mengarang saran generik kalau tool ini tersedia dan punya data.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {}
+    }
   }
 ];
 
@@ -1834,6 +1873,7 @@ ATURAN PERILAKU & ANALISA:
 5. KALKULASI PAJAK: Saat menghitung proyeksi imbal hasil dividen (dividend yield), Anda WAJIB memotongnya dengan tarif pajak dividen final yang berlaku di Indonesia (10% PPh Final atau 0% PMK 18/2021) sebelum menyajikan angka bersih (Net Dividend).
 6. NO HALLUCINATION: Gunakan selalu alat (tools/functions) yang tersedia untuk menarik data kuotasi, fundamental, dan broker summary.
 7. WAJIB CEK FLAG isSimulated: BEI tidak menyediakan feed broker-level flow (top buyer/seller, akumulasi/distribusi) publik gratis. Setiap hasil "cek_broker_summary" membawa field isSimulated (true/false). Jika isSimulated bernilai true, Anda WAJIB menyampaikan secara eksplisit di awal jawaban bahwa angka broker/bandarmology tersebut adalah SIMULASI berbasis harga pasar riil — BUKAN data transaksi broker sungguhan — sebelum menguraikan detailnya. Jangan pernah menyajikan data isSimulated:true seolah-olah itu feed broker riil.
+8. KINERJA & SARAN PERBAIKAN BERBASIS HISTORI RIIL: Jika pengguna bertanya soal performa AI trading/paper trading, win rate, atau minta saran perbaikan strategi berdasarkan kesalahan masa lalu, Anda WAJIB memanggil alat "cek_kinerja_ai_trading" TERLEBIH DAHULU sebelum menjawab — JANGAN pernah mengarang win rate atau pola kesalahan generik. Field hasData:false berarti belum ada trade tercatat sama sekali — sampaikan itu apa adanya, jangan buat-buat angka. Kalau hasData:true, dasarkan saran perbaikan Anda pada field lesson/mistake/improvement trade-trade terakhir (recentClosedTrades) — itu hasil mesin Post-Mortem riil aplikasi, bukan opini Anda sendiri. AI Paper Trading ini modal virtual terisolasi (bukan uang riil pengguna) — jangan pernah membingungkannya dengan portofolio riil dari cek_portofolio_user.
 
 FORMAT RESPON:
 - Gunakan bahasa Indonesia yang profesional, ringkas, bersahabat, dan mudah dipahami.
@@ -1842,7 +1882,7 @@ FORMAT RESPON:
 "*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis, fundamental, dan bandarmology pasar.*"
 
 ALUR KERJA (AGENTIC LOOP):
-- Saat menerima pertanyaan, tentukan alat/functions yang relevan (misalnya: cek_broker_summary, cek_harga, cek_fundamental, cek_portofolio_user, cek_saldo_rdn, cek_kepemilikan_ksei, hitung_simulasi_transaksi_bei, hitung_pajak_dividen, hitung_proyeksi_risiko_drawdown).
+- Saat menerima pertanyaan, tentukan alat/functions yang relevan (misalnya: cek_broker_summary, cek_harga, cek_fundamental, cek_portofolio_user, cek_saldo_rdn, cek_kepemilikan_ksei, hitung_simulasi_transaksi_bei, hitung_pajak_dividen, hitung_proyeksi_risiko_drawdown, cek_kinerja_ai_trading).
 - Panggil alat tersebut.
 - Evaluasi hasil data dan sajikan jawaban terstruktur yang mencakup data, strategi trading/investasi yang sesuai, kepatuhan BEI/pajak, analisis dua sisi (potensi vs risiko), dan disclaimer.`;
 
@@ -1972,7 +2012,47 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
 
     let reply = '';
 
-    if (pLower.includes('porto') || pLower.includes('aum') || pLower.includes('holding') || pLower.includes('posisi') || pLower.includes('konsentrasi') || pLower.includes('drawdown') || pLower.includes('rdn') || pLower.includes('kas') || pLower.includes('alokasi')) {
+    // Checked FIRST, ahead of every other branch below: those branches use
+    // short, common-word-colliding substrings (\bkas\b still isn't the
+    // only one — pLower.includes('ara') also matches inside "saran", so
+    // "kasih SARan perbaikan..." would route to the ARA/ARB simulasi
+    // branch if this were checked after it, found while adding this
+    // branch, 2026-09-11). This branch's keywords are distinctive
+    // multi-word phrases, so putting it first avoids that whole class of
+    // collision without having to audit every short keyword below.
+    if (pLower.includes('kinerja ai') || pLower.includes('kinerja trading') || pLower.includes('performa ai') || pLower.includes('performa trading') || pLower.includes('ai trading') || pLower.includes('win rate') || pLower.includes('winrate') || pLower.includes('paper trading') || pLower.includes('lesson') || pLower.includes('pelajaran') || pLower.includes('post-mortem') || pLower.includes('post mortem') || pLower.includes('saran perbaikan') || pLower.includes('pola kesalahan')) {
+      const resApt = await executeAgentTool('cek_kinerja_ai_trading', {}, userContext);
+      executedTools.push({ name: 'cek_kinerja_ai_trading', args: {}, result: resApt });
+
+      if (!resApt.hasData) {
+        reply = '### 🤖 Kinerja AI Paper Trading\n\n' + resApt.message + '\n\n'
+          + '_Buka menu **AI Trading** minimal sekali di sesi browser ini, dan tunggu beberapa trade tertutup, supaya Copilot punya data riil untuk dianalisa._';
+      } else {
+        const lessonLines = (resApt.recentClosedTrades || []).map(function(t, i) {
+          const parts = [(i + 1) + '. **' + t.ticker + '** — ' + t.result + ' (Rp ' + Number(t.netPnL || 0).toLocaleString('id-ID') + ')'];
+          if (t.exitReason) parts.push('   - Exit: ' + t.exitReason);
+          if (t.mistake && t.mistake !== '-') parts.push('   - Kesalahan: ' + t.mistake);
+          if (t.improvement && t.improvement !== '-') parts.push('   - Perbaikan: ' + t.improvement);
+          return parts.join('\n');
+        }).join('\n');
+
+        reply = '### 🤖 Kinerja AI Paper Trading & Saran Perbaikan\n\n'
+          + 'Berdasarkan rekam jejak riil AI Paper Trading Anda (modal virtual terisolasi Rp 100 Juta, bukan uang riil):\n'
+          + '- **Win Rate**: **' + resApt.winRatePct + '%** (' + resApt.winningTrades + 'W / ' + resApt.losingTrades + 'L dari ' + resApt.totalTrades + ' trade)\n'
+          + '- **Profit Factor**: ' + (resApt.profitFactor === null ? '— (belum ada trade untung)' : resApt.profitFactor) + '\n'
+          + '- **Realized PnL**: Rp ' + Number(resApt.realizedPnL || 0).toLocaleString('id-ID') + '\n'
+          + '- **Max Drawdown**: ' + resApt.maxDrawdownPct + '%\n'
+          + '- **Posisi Terbuka**: ' + resApt.openPositionsCount + '\n\n'
+          + '**Beberapa Trade Terakhir (dari mesin Post-Mortem 10-Point):**\n'
+          + (lessonLines || '_Belum ada trade tertutup._') + '\n\n'
+          + '*Disclaimer: Ini data paper trading (simulasi), bukan trading nyata. Keputusan investasi berada di tangan Anda.*';
+      }
+    }
+    // \bkas\b (word boundary), not includes('kas') — "kas" as a bare
+    // substring false-positives on ordinary words like "kasih" ("kasih
+    // saran perbaikan..." was silently misrouted here instead of reaching
+    // the AI-performance branch above, found while adding it, 2026-09-11).
+    else if (pLower.includes('porto') || pLower.includes('aum') || pLower.includes('holding') || pLower.includes('posisi') || pLower.includes('konsentrasi') || pLower.includes('drawdown') || pLower.includes('rdn') || /\bkas\b/.test(pLower) || pLower.includes('alokasi')) {
       const resPorto = await executeAgentTool('cek_portofolio_user', {}, userContext);
       const resRdn = await executeAgentTool('cek_saldo_rdn', {}, userContext);
       executedTools.push({ name: 'cek_portofolio_user', args: {}, result: resPorto });
