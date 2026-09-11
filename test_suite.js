@@ -1499,6 +1499,28 @@ test('REGRESSION GUARD: Proyeksi Dividen 5 Tahun yearly cells must not each have
     'REGRESSION: the thin column-divider (border-left) that replaced the individual card borders is missing');
 });
 
+// ── TEST 54: .g2c and .g3 (card grids hosting fixed-height charts like
+// #divYearChart and #perfEquityChart) must keep a max-width cap (found
+// via user-submitted deep-dive review — "fixed canvas height vs dynamic
+// container"). Without one, each grid column stretches proportionally
+// with the full viewport width on a genuinely ultrawide monitor while
+// chart height stays a fixed 185px-220px, turning normal charts into
+// extremely flat, hard-to-read ones. The cap (1600px) sits just above a
+// typical 1920px viewport's content area, so normal laptop/desktop
+// widths are unaffected.
+test('REGRESSION GUARD: .g2c and .g3 grids must keep a max-width cap for ultrawide viewports', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  const g2cMatch = css.match(/\.g2c\s*\{[^}]*\}/);
+  assert(g2cMatch, 'REGRESSION: ".g2c {...}" rule not found in main.css — has it been renamed/removed?');
+  assert(/max-width:\s*1600px/.test(g2cMatch[0]),
+    'REGRESSION: .g2c lost its max-width cap — on an ultrawide monitor, fixed-height charts inside it (e.g. #divYearChart) will stretch into an extremely flat, hard-to-read shape (see INCIDENT_LOG.md)');
+
+  const g3Match = css.match(/\.g3\s*\{[^}]*\}/);
+  assert(g3Match, 'REGRESSION: ".g3 {...}" rule not found in main.css — has it been renamed/removed?');
+  assert(/max-width:\s*1600px/.test(g3Match[0]),
+    'REGRESSION: .g3 lost its max-width cap — on an ultrawide monitor, fixed-height charts inside it (e.g. #perfEquityChart) will stretch into an extremely flat, hard-to-read shape (see INCIDENT_LOG.md)');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
