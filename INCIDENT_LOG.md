@@ -2183,3 +2183,33 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 2. Alur manual Anda (download IDX → bersihkan) **tidak berubah** — yang berubah cuma bentuk akhirnya (template kolom-tetap, lihat file yang dikirim) dan cara mengirim ke app (upload file, bukan URL Google Sheets).
 3. Sekali upload pertama berhasil, data itu aman di Supabase selamanya — hilangnya file Excel di komputer Anda nanti TIDAK menghapus data yang sudah tersimpan, hanya menghalangi upload BERIKUTNYA.
 4. Versi SheetJS (`xlsx@0.18.5`) yang dipakai (sudah ada sejak fitur Admin Panel, bukan ditambahkan task ini) tergolong lama dan punya CVE prototype-pollution yang sudah diperbaiki di rilis lebih baru — di luar cakupan task ini untuk di-upgrade, ditandai untuk keputusan terpisah kalau Anda mau.
+
+## 2026-09-11 — KSEI: upload 2 file mentah IDX (Kepemilikan + Free Float) tanpa perlu buat Master manual, + perbaikan metodologi Free Float
+
+- **Konteks:** setelah PR #147 (upload 1 file template), user menjelaskan proses aslinya: data IDX punya 2 sumber terpisah (Kepemilikan >5% & Free Float), dan selama ini digabung manual jadi satu sheet "Master Data Kepemilikan" sebelum dipakai. User minta ditest dulu metodenya, lalu bertanya apakah 2 file mentah bisa diupload langsung tanpa bikin Master manual.
+- **User mengirim file Excel asli** (`Owner Agustus` = raw KSEI Kepemilikan >5%, `FF Agustus` = raw IDX Free Float, `Master Data Kepemilikan` = hasil gabungan manual yang sudah mereka buat sendiri sebagai ground truth) — kesempatan langka untuk validasi metodologi terhadap hasil yang sudah diverifikasi manusia, bukan asumsi.
+- **Temuan metodologi penting (dikonfirmasi lewat data asli):**
+  - **Free Float BUKAN `100% − kepemilikan mayoritas`** — itu angka resmi terpisah dari IDX (laporan kepatuhan free float). Contoh nyata: satu emiten kepemilikan mayoritas 62,30% tapi Free Float resmi 18,62% (bukan komplemen 37,70%). Formula lama (`100-totalMajorPercent`), yang dipakai baik di parser lama server.js MAUPUN yang sempat saya bangun di PR #147, secara metodologis salah.
+  - Baris "Kepemilikan Per Investor" di raw KSEI SUDAH punya total gabungan per investor ("Saham Gabungan Per Investor"/"Persentase Kepemilikan Per Investor (%)") — tidak perlu dijumlah ulang dari baris sub-akun kustodian.
+- **Validasi (sebelum ada kode app apa pun) — prototipe Python dulu, lalu port ke JS produksi:**
+  - 1.043-1.044 dari 1.046 bucket (ticker × status Lokal/Asing) di "Master Data Kepemilikan" user cocok **PERSIS** (0 selisih) pada Persentase Kepemilikan, Papan Pencatatan, Kapitalisasi Pasar, Jumlah Pemegang Saham, DAN Free Float %.
+  - 2 selisih sisa (DIVA-Asing, PALM-Asing) ditelusuri ke bug data mentah KSEI sendiri (baris sub-akun kustodian yang salah label status L/A dibanding baris utama investornya) — dan di Master user pun bucket itu tetap 0% (tidak memengaruhi hasil), jadi bukan masalah metodologi.
+  - Ditemukan juga: satu ticker asli ("TRUE") terbaca sebagai boolean JS `true` oleh SheetJS (Excel/spreadsheet mengubah teks "TRUE" jadi boolean) — dipagari dengan `_kseiCellText()`.
+- **Perubahan (`public/js/34-ksei-shareholders.js`):**
+  - **Fix metodologi** di `kseiParseWorkbook()` (jalur 1-file dari PR #147): tambah kolom opsional "Persentase Free Float (%)" di template — kalau diisi, dipakai apa adanya (`freeFloatIsEstimated:false`); kalau kosong, fallback ke estimasi `100-mayoritas` TAPI ditandai jelas `freeFloatIsEstimated:true` (sebelumnya diam-diam dianggap sama dengan angka resmi).
+  - **Jalur baru (utama, direkomendasikan)**: `kseiParseOwnershipRaw()` + `kseiParseFreeFloatRaw()` + `kseiCombineRawSheets()` — parse 2 file MENTAH IDX apa adanya (header multi-baris, kolom periode ganda, baris lanjutan sub-akun kustodian), kolom dicari via nama landmark (bukan posisi tetap) sehingga robust kalau IDX ubah/tambah kolom periode bulan depan. Baris landmark tidak ditemukan → ditolak eksplisit, tidak pernah menebak.
+  - `kseiImportRawFiles()` — baca 2 file bersamaan (`Promise.all`), gabungkan HANYA kalau kedua file lolos validasi (satu file rusak tidak boleh diam-diam apply dataset yang Free Float-nya semua estimasi).
+  - UI Settings tab: 2 input file + tombol "Gabungkan & Import" sebagai **cara utama** (ditandai ⭐), upload 1-file-template tetap ada sebagai alternatif (sesuai pilihan user "sediakan keduanya").
+  - Panel detail KSEI menampilkan badge jelas "FREE FLOAT RESMI IDX" vs "ESTIMASI FREE FLOAT (BUKAN ANGKA RESMI)" tergantung `freeFloatIsEstimated`.
+- **Prevention added (`test_suite.js`, 5 test baru):**
+  - Kombinasi 2 file sintetis (mirip struktur asli: header 2-baris, baris lanjutan kustodian, 1 ticker match FF, 1 ticker tidak match) — memverifikasi FF resmi dipakai (bukan komplemen), baris lanjutan tidak dobel dihitung, dan ticker boolean `true` tetap terbaca sebagai "TRUE".
+  - Reject eksplisit kalau "per tanggal" atau "Kode Efek" tidak ditemukan (Kepemilikan), atau "Kode" tidak ditemukan (Free Float).
+  - `kseiParseWorkbook()`: kolom Free Float opsional dipakai kalau ada, fallback estimasi jelas ditandai kalau tidak ada.
+  - REGRESSION GUARD diperluas: fungsi/wiring raw-2-file harus tetap ada.
+  - Dibuktikan gagal saat FF join sengaja dirusak manual (`ff = null` paksa) → test FAIL, lalu direstore → PASS.
+- **Live validation (data asli, JS produksi — bukan cuma prototipe):** 1.044/1.044 bucket yang match dengan "Master Data Kepemilikan" user COCOK SEMPURNA (0 selisih persentase, 0 selisih Papan/Kapitalisasi/JPS/Free Float%) — bahkan lebih baik dari prototipe Python (bug ticker "TRUE" ikut teratasi otomatis lewat `_kseiCellText()`).
+- Cache-bust `34-ksei-shareholders.js` → `?v=20260911c`.
+
+`npm test` (123+18+6+5+9), `npm run lint` bersih.
+
+**Catatan jujur untuk user:** jalur 2-file-mentah TERVALIDASI terhadap data Agustus 2026 Anda sendiri — tapi ini bukan jaminan berlaku selamanya kalau IDX suatu saat mengubah format laporannya secara signifikan (nama kolom, bukan cuma urutan — pencarian kolom saya berbasis nama landmark, jadi perubahan URUTAN aman, tapi perubahan NAMA kolom akan membuat file ditolak eksplisit, bukan salah kalkulasi diam-diam). Kalau itu terjadi, upload akan gagal dengan pesan jelas, bukan menghasilkan angka yang salah.

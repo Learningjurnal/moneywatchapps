@@ -3244,6 +3244,144 @@ function _loadKseiParseWorkbook() {
   return ctx.kseiParseWorkbook;
 }
 
+// Same source range as _loadKseiParseWorkbook() above — the raw-file
+// parsers (kseiParseOwnershipRaw/kseiParseFreeFloatRaw/kseiCombineRawSheets)
+// live between KSEI_TEMPLATE_REQUIRED_COLUMNS and kseiImportExcelFile too,
+// added 2026-09-11 (user-requested: upload the raw Kepemilikan + Free
+// Float files straight from IDX, no manual "build Master" step). Validated
+// against a real 840-emiten KSEI dataset cross-checked against the user's
+// own hand-built reference table: 1,044/1,046 (ticker,status) buckets
+// matched EXACTLY (percentage AND Papan/Kapitalisasi/JPS/Free Float%) —
+// see INCIDENT_LOG.md.
+function _loadKseiRawParsers() {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/34-ksei-shareholders.js'), 'utf8');
+  const startMarker = 'var KSEI_TEMPLATE_REQUIRED_COLUMNS';
+  const endMarker = '\nfunction kseiImportExcelFile(';
+  const start = fullSrc.indexOf(startMarker);
+  const end = fullSrc.indexOf(endMarker);
+  assert(start !== -1 && end !== -1 && end > start, 'sanity: extraction range for the raw KSEI parsers not found — has the upload pipeline moved?');
+  const src = fullSrc.slice(start, end);
+
+  const sandbox = { window: {} };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '34-ksei-shareholders.js raw parsers (sandboxed load for test)' });
+  ['_kseiCellText', 'kseiParseOwnershipRaw', 'kseiParseFreeFloatRaw', 'kseiCombineRawSheets'].forEach(name => {
+    assert.strictEqual(typeof ctx[name], 'function', `${name} not exposed on the sandbox context`);
+  });
+  return ctx;
+}
+
+test('KSEI raw-file upload: kseiParseOwnershipRaw()/kseiParseFreeFloatRaw()/kseiCombineRawSheets() correctly combine 2 unmodified IDX files, joining the OFFICIAL free float % (never the naive 100%-minus-majority complement) for a matched ticker, and honestly flagging an unmatched ticker as estimated', () => {
+  const ctx = _loadKseiRawParsers();
+
+  // Mirrors the REAL raw KSEI "Kepemilikan >5%" export structure: title
+  // row with "per tanggal", 2 header rows (Kode Efek/Nama Emiten/.../
+  // Status on row 1, Jumlah Saham/Saham Gabungan Per Investor/Persentase
+  // Kepemilikan Per Investor (%) on row 2), then data rows where a new
+  // investor group starts whenever "Nama Pemegang Saham" (col 4) is
+  // non-blank; a blank one is a continuation row (another custodian
+  // sub-account for the investor directly above it).
+  const ownershipRows = [
+    ['KEPEMILIKAN EFEK DIATAS 5% BERDASARKAN SID (PUBLIK) per tanggal 1 Sep 2026 '],
+    [],
+    ['No', 'Kode Efek', 'Nama Emiten', 'Nama Pemegang Rekening Efek', 'Nama Pemegang Saham', 'Nama Rekening Efek', 'Alamat', 'Alamat (Lanjutan)', 'Kebangsaan', 'Domisili', 'Status (Lokal/Asing)', 'Kepemilikan Per 1-SEP-2026'],
+    [null, null, null, null, null, null, null, null, null, null, null, 'Jumlah Saham', 'Saham Gabungan Per Investor', 'Persentase Kepemilikan Per Investor (%)'],
+    [1, 'AAAA', 'Test Emiten Satu Tbk', 'Custodian X', 'Investor One', 'Acct A', 'x', 'x', null, 'INDONESIA', 'L', 1000000, 1000000, 40.5],
+    [2, 'AAAA', 'Test Emiten Satu Tbk', 'Custodian Y', 'Investor Two', 'Acct B', 'x', 'x', null, 'INDONESIA', 'A', 500000, 800000, 32.1],
+    [null, 'AAAA', null, 'Custodian Z', null, 'Acct C', 'x', 'x', null, 'INDONESIA', 'A', 300000, null, null], // continuation row, same investor — must NOT be double-counted
+    [3, true, 'Second Co Tbk', 'Custodian W', 'Investor Three', 'Acct D', 'x', 'x', null, 'INDONESIA', 'L', 2000000, 2000000, 55.0] // ticker cell is the boolean `true` — same real-world quirk as ticker "TRUE" being auto-coerced
+  ];
+
+  // Mirrors the REAL raw IDX Free Float report: several note/footnote
+  // rows, then a 2-row header (row 1: No/Kode/Nama Perusahaan Tercatat/
+  // Papan Pencatatan; row 2: Kapitalisasi Pasar (Rp)/% Saham Free Float
+  // (FF)/Jumlah Pemegang Saham (JPS)), a couple of blank spacer rows,
+  // then data. Only ticker AAAA appears here — BBBB (via boolean-ticker
+  // row above, which normalizes to "TRUE") deliberately has no match.
+  const ffRows = [
+    [null, 'Catatan:'],
+    [null, 'beberapa baris footnote lain'],
+    [], [], [], [], [], [], [],
+    [null, 'No', 'Kode', 'Nama Perusahaan Tercatat', 'Papan Pencatatan (Tanpa Pemantauan Khusus)'],
+    [null, null, null, null, null, 'Kapitalisasi Pasar (Rp)', '% Saham Free Float (FF)', 'Jumlah Pemegang Saham (JPS)'],
+    [],
+    [],
+    [null, 1, 'AAAA', 'Test Emiten Satu Tbk', 'Utama', '1.000.000.000', '25,50%', '100']
+  ];
+
+  const ownershipResult = ctx.kseiParseOwnershipRaw(ownershipRows);
+  assert.strictEqual(ownershipResult.errors.length, 0, 'well-formed raw ownership rows must parse without error: ' + JSON.stringify(ownershipResult.errors));
+  assert.strictEqual(ownershipResult.reportDate, '1 Sep 2026');
+  assert.strictEqual(ownershipResult.investors.length, 3, 'REGRESSION: must produce exactly 3 investor records (One, Two, Three) — the continuation row (Custodian Z) must NOT become a 4th');
+
+  const ffResult = ctx.kseiParseFreeFloatRaw(ffRows);
+  assert.strictEqual(ffResult.errors.length, 0, 'well-formed raw FF rows must parse without error: ' + JSON.stringify(ffResult.errors));
+  assert.strictEqual(ffResult.byTicker.AAAA.freeFloatPct, 25.5);
+
+  const combined = ctx.kseiCombineRawSheets(ownershipResult, ffResult);
+  const aaaa = combined.data.AAAA;
+  assert.strictEqual(aaaa.investors.length, 2, 'AAAA must have exactly 2 investors (One + Two), the continuation row merged away, not counted separately');
+  assert.strictEqual(aaaa.totalMajorPercent, 72.6, '40.5 + 32.1, summed once each — REGRESSION if the continuation row silently added a 3rd 32.1%-ish figure');
+  assert.strictEqual(aaaa.localPercent, 40.5);
+  assert.strictEqual(aaaa.foreignPercent, 32.1);
+  assert.strictEqual(aaaa.freeFloat, 25.5, 'REGRESSION: AAAA has an official Free Float match (25.5%) — must use it, NOT the naive complement (100-72.6=27.4)');
+  assert.strictEqual(aaaa.freeFloatIsEstimated, false);
+
+  const bbbb = combined.data.TRUE;
+  assert(bbbb, 'REGRESSION: a ticker cell holding the literal boolean `true` (the real-world "TRUE" ticker quirk) must still be read as the string ticker "TRUE", not silently dropped or crash the parser');
+  assert.strictEqual(bbbb.investors.length, 1);
+  assert.strictEqual(bbbb.freeFloatIsEstimated, true, 'TRUE has no match in the FF file — must be honestly flagged as estimated, never silently treated as if it had an official figure');
+  assert.strictEqual(bbbb.freeFloat, 45.0, 'no FF match -> falls back to 100 - totalMajorPercent (100-55=45), same documented estimate formula as the single-template path');
+});
+
+test('KSEI raw-file upload: kseiParseOwnershipRaw() rejects a file missing the "per tanggal" title or the "Kode Efek" header, never guesses a date/column', () => {
+  const ctx = _loadKseiRawParsers();
+  const noTitleDate = ctx.kseiParseOwnershipRaw([
+    ['Some other title with no date pattern'],
+    [],
+    ['No', 'Kode Efek', 'Nama Emiten', 'x', 'Nama Pemegang Saham', 'x', 'x', 'x', 'x', 'x', 'Status (Lokal/Asing)'],
+    [],
+    []
+  ]);
+  assert.strictEqual(noTitleDate.investors, null);
+  assert(/per tanggal/i.test(noTitleDate.errors[0]), 'expected a "per tanggal" error, got: ' + JSON.stringify(noTitleDate.errors));
+
+  const noKodeEfek = ctx.kseiParseOwnershipRaw([
+    ['KEPEMILIKAN EFEK DIATAS 5% ... per tanggal 1 Sep 2026'],
+    [],
+    ['No', 'Kolom Salah', 'Nama Emiten'],
+    [],
+    []
+  ]);
+  assert.strictEqual(noKodeEfek.investors, null);
+  assert(/Kode Efek/.test(noKodeEfek.errors[0]), 'expected a "Kode Efek" error, got: ' + JSON.stringify(noKodeEfek.errors));
+});
+
+test('KSEI raw-file upload: kseiParseFreeFloatRaw() rejects a file missing the "Kode" header, never guesses column positions', () => {
+  const ctx = _loadKseiRawParsers();
+  const result = ctx.kseiParseFreeFloatRaw([[null, 'Catatan:'], [], [], [], [], [], [], [], [], [], [null, 'No', 'Bukan Kode', 'Nama']]);
+  assert.strictEqual(result.byTicker, null);
+  assert(/Kode/.test(result.errors[0]));
+});
+
+test('KSEI upload template: kseiParseWorkbook() joins the optional "Persentase Free Float (%)" column when present (freeFloatIsEstimated:false), falls back to the 100%-minus-majority estimate when absent (freeFloatIsEstimated:true)', () => {
+  const kseiParseWorkbook = _loadKseiParseWorkbook();
+  const withFf = kseiParseWorkbook([
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'X', 'Nama Investor': 'A', 'Status': 'Lokal', 'Persentase (%)': 30, 'Jumlah Saham': 100, 'Tanggal Laporan': '1 Sep 2026', 'Persentase Free Float (%)': '18,62%' }
+  ]);
+  assert.strictEqual(withFf.errors.length, 0);
+  assert.strictEqual(withFf.data.BBCA.freeFloat, 18.62, 'REGRESSION: the optional Free Float column must be used verbatim, not overridden by the 100-majority estimate');
+  assert.strictEqual(withFf.data.BBCA.freeFloatIsEstimated, false);
+
+  const withoutFf = kseiParseWorkbook([
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'X', 'Nama Investor': 'A', 'Status': 'Lokal', 'Persentase (%)': 30, 'Jumlah Saham': 100, 'Tanggal Laporan': '1 Sep 2026' }
+  ]);
+  assert.strictEqual(withoutFf.errors.length, 0);
+  assert.strictEqual(withoutFf.data.BBCA.freeFloat, 70, 'without the optional column, must fall back to 100 - totalMajorPercent (100-30=70)');
+  assert.strictEqual(withoutFf.data.BBCA.freeFloatIsEstimated, true, 'REGRESSION: an estimated free float must be honestly flagged, never presented the same as an official IDX figure');
+});
+
 test('KSEI upload template: kseiParseWorkbook() correctly groups rows into per-ticker records, computing free float/local/foreign splits and merging repeated-investor rows into one investor with multiple custodian accounts', () => {
   const kseiParseWorkbook = _loadKseiParseWorkbook();
   const rows = [
@@ -3352,6 +3490,17 @@ test('REGRESSION GUARD: the old Google-Sheets-sync + Firestore KSEI mechanism mu
   assert(/function kseiParseWorkbook/.test(kseiClientSrc), 'kseiParseWorkbook() must exist');
   assert(/scheduleKseiCloudSync\(\)/.test(kseiClientSrc), "REGRESSION: kseiImportExcelFile() no longer calls scheduleKseiCloudSync() — an upload would only persist to localStorage, silently losing durability across devices/browsers");
   assert(/client\.from\(['"]ksei_ownership['"]\)/.test(kseiClientSrc), 'REGRESSION: the dedicated public.ksei_ownership Supabase table wiring is gone');
+
+  // Raw 2-file upload path (added 2026-09-11, alongside the single-
+  // template path above) — same wiring guarantees.
+  assert(/function kseiParseOwnershipRaw/.test(kseiClientSrc), 'kseiParseOwnershipRaw() must exist');
+  assert(/function kseiParseFreeFloatRaw/.test(kseiClientSrc), 'kseiParseFreeFloatRaw() must exist');
+  assert(/function kseiCombineRawSheets/.test(kseiClientSrc), 'kseiCombineRawSheets() must exist');
+  assert(/function kseiImportRawFiles/.test(kseiClientSrc), 'kseiImportRawFiles() (the raw-2-file upload entry point) must exist');
+  assert(/getElementById\(\s*ownershipInputId \|\| ['"]ksei-import-ownership-file['"]\s*\)/.test(kseiClientSrc), 'ksei-import-ownership-file input wiring is gone');
+  assert(/getElementById\(\s*ffInputId \|\| ['"]ksei-import-ff-file['"]\s*\)/.test(kseiClientSrc), 'ksei-import-ff-file input wiring is gone');
+  assert(/id="ksei-import-ownership-file"/.test(kseiClientSrc) && /id="ksei-import-ff-file"/.test(kseiClientSrc), 'REGRESSION: the 2 raw-file upload input elements are missing from the Settings tab markup');
+  assert(/onclick="kseiImportRawFiles\(/.test(kseiClientSrc), 'REGRESSION: the raw-2-file "Gabungkan & Import" button no longer calls kseiImportRawFiles()');
 });
 
 console.log('═══════════════════════════════════════════════════════');
