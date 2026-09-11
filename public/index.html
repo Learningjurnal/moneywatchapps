@@ -1540,8 +1540,23 @@
     <div id="dividend-calendar-mount"></div>
   </div>
 
-  <!-- Tab 2: Analytics & Projections -->
-  <div id="div-section-analytics" style="display:block;">
+  <!-- Tab 2: Analytics & Projections.
+       FIX (2026-09-11, found via deep-dive review, not a user-reported
+       bug): was `display:block` here too, same as section 1 above and
+       section 3 below — so navigating to this page via the sidebar's
+       "Dividend" link (goPage('dividen'), the only real entry point;
+       06-analysis-router.js's 'dividen' case never calls
+       switchDivSubTab()) rendered all three sub-tab sections stacked at
+       once, while the "Kalender Dividen" button right above was already
+       marked active (btn-green) in this same static markup — a visible
+       mismatch between the highlighted tab and what was actually shown.
+       Defaulting this to display:none (and section 3 below) makes the
+       static markup consistent with its own pre-selected Calendar tab
+       from the very first paint, with no dependency on switchDivSubTab()
+       running first; clicking any sub-tab (including "Tampilkan Semua")
+       still works exactly as before via switchDivSubTab()'s explicit
+       display toggles. -->
+  <div id="div-section-analytics" style="display:none;">
     <div class="row4">
       <div class="metric"><div class="mlabel">Total Dividen Bersih</div><div class="mval" id="dv-total">Rp 0</div><div class="msub neu" id="dv-total-sub"></div></div>
       <div class="metric"><div class="mlabel">Dividen YTD 2026</div><div class="mval" id="dv-ytd">Rp 0</div><div class="msub neu" id="dv-ytd-sub"></div></div>
@@ -1594,8 +1609,10 @@
     </div>
   </div>
 
-  <!-- Tab 3: Tabel Riwayat Dividen -->
-  <div id="div-section-ledger" style="display:block;">
+  <!-- Tab 3: Tabel Riwayat Dividen. See the FIX note on
+       #div-section-analytics above — same default-visibility mismatch,
+       same fix. -->
+  <div id="div-section-ledger" style="display:none;">
     <div class="card" style="margin-bottom:16px">
       <div class="cheader">
         <span class="ctitle">Hitung Dividen dari Riwayat Transaksi</span>
