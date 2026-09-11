@@ -1083,8 +1083,14 @@ test('REGRESSION GUARD: FlowScan must never fall back to the literal "IHSG" as a
   // must prefer DB[code].sector over the raw import row before 'Lainnya'.
   const univFn = src.match(/XLSX_DATA\.stocks\.forEach\(function\(s\)\{[\s\S]*?\n\}\);/);
   assert(univFn, 'FS_UNIV construction from XLSX_DATA.stocks not found');
-  assert(/s\.sector\s*\|\|\s*\(dbInfo\s*&&\s*dbInfo\.sector\)\s*\|\|\s*'Lainnya'/.test(univFn[0]),
-    'FS_UNIV construction no longer tries dbInfo.sector before falling back to \'Lainnya\'');
+  assert(/fsSectorLabel\(s\.sector\)\s*\|\|\s*fsSectorLabel\(dbInfo\s*&&\s*dbInfo\.sector\)\s*\|\|\s*'Lainnya'/.test(univFn[0]),
+    'FS_UNIV construction no longer tries dbInfo.sector (via fsSectorLabel()) before falling back to \'Lainnya\'');
+  // dbInfo.sector can be an English _IDX_RAW_LIST classification
+  // ("Consumer Cyclicals", "Energy", ...) while every other sector badge
+  // in this app is Indonesian — fsSectorLabel() must translate it, not
+  // pass it through raw, or a stub ticker would show a raw English label
+  // sitting next to Indonesian ones in the same table.
+  assert(/function fsSectorLabel\(raw\)/.test(src), 'fsSectorLabel() translation helper is missing — was it renamed/removed?');
 });
 
 console.log('═══════════════════════════════════════════════════════');

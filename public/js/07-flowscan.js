@@ -35,6 +35,22 @@ var FS_UNIV=[
   {t:'WIFI',n:'Solusi Sinergi Digital',s:'Teknologi',cap:48},
 ];
 
+// Same English->Indonesian sector-label map 06-analysis-router.js's init()
+// applies when it builds DB[] from XLSX_DATA.stocks (kept as a small
+// duplicated lookup table here rather than a shared export, since it's
+// static and rarely changes — hoisting it would touch that file's init()
+// too for no behavioral gain). Needed because _IDX_RAW_LIST's own sector
+// classification (what DB[tk].sector falls back to below) is in English
+// ("Consumer Cyclicals", "Energy", ...) while every sector badge elsewhere
+// in this app (Portfolio, Sector Insight, Wealth) is Indonesian — without
+// this, a bulk-imported ticker with no sector of its own would show a raw
+// English label sitting next to Indonesian ones in the same table.
+var FS_SECTOR_MAP={'Financials':'Keuangan','Energy':'Energi','Infrastructures':'Infrastruktur',
+  'Consumer Non-Cyclicals':'Konsumer Primer','Basic Materials':'Barang Baku',
+  'Consumer Cyclicals':'Konsumer Non-Primer','Healthcare':'Kesehatan',
+  'Transportation & Logistic':'Infrastruktur','Properties & Real Estate':'Properti','Properties':'Properti'};
+function fsSectorLabel(raw){ return raw ? (FS_SECTOR_MAP[raw]||raw) : null; }
+
 // Tambahkan saham dari portofolio real — gunakan nama dari DB jika ada
 XLSX_DATA.stocks.forEach(function(s){
   if(!FS_UNIV.find(function(u){return u.t===s.code})){
@@ -47,7 +63,7 @@ XLSX_DATA.stocks.forEach(function(s){
     // (01-data.js sudah membackfill-nya dari _IDX_RAW_LIST kalau ada),
     // baru jatuh ke 'Lainnya' — konvensi "sektor tidak diketahui" yang
     // sama dipakai di 01-data.js/06-analysis-router.js/22-datahealth.js.
-    FS_UNIV.push({t:s.code,n:nama,s:s.sector||(dbInfo&&dbInfo.sector)||'Lainnya',cap:Math.round(s.amount/1e9)||1});
+    FS_UNIV.push({t:s.code,n:nama,s:fsSectorLabel(s.sector)||fsSectorLabel(dbInfo&&dbInfo.sector)||'Lainnya',cap:Math.round(s.amount/1e9)||1});
   }
 });
 // Untuk semua entry di FS_UNIV, update nama dari DB jika tersedia dan lebih baik
@@ -90,7 +106,7 @@ function fsScColor(s){return s>=58?'#41f3a7':s<=42?'#e21d48':'#8fa3c8';}
 // this app.
 function fsFallbackInfo(tk){
   var dbSector = (typeof DB !== 'undefined' && DB[tk] && DB[tk].sector) ? DB[tk].sector : null;
-  return { t: tk, n: tk, s: dbSector || 'Lainnya', cap: 0 };
+  return { t: tk, n: tk, s: fsSectorLabel(dbSector) || 'Lainnya', cap: 0 };
 }
 function fsMkBdg(sig,sm){
   var cls=sig==='AKUMULASI'?'b-up':sig==='DISTRIBUSI'?'b-dn':'b-neu';

@@ -495,3 +495,23 @@ portfolio holdings with no sector data
   page render (`fsRenderWlPage()`, via the real `fsTgWl()` add-to-watchlist
   function) shows the `Lainnya` badge, not `IHSG`, in the DOM. Zero page
   errors. `npm test` (61/61 + 6/6 provider), `npm run lint` clean.
+- **Follow-up (same day, found while re-checking the fix live at the
+  user's request):** re-ran the exact ticker mix from the user's original
+  screenshot (UNVR, ERAA, GGRM, BBNI, CPRI, SIDO, PMMP, BUMI, RAJA, ADMR,
+  DEWA, MBMA, WIFI, PRDL, GMFI). The literal `"IHSG"` was gone, but 6 of
+  the no-sector tickers (ERAA, GGRM, CPRI, PMMP, RAJA, DEWA, MBMA, GMFI)
+  now resolved to `DB[tk].sector` correctly — except that value is
+  `_IDX_RAW_LIST`'s raw English classification ("Consumer Cyclicals",
+  "Energy", "Basic Materials", "Infrastructures", ...), while every other
+  sector badge in this app is Indonesian. So the fix above traded a
+  nonsensical label for an inconsistent-language one in the same table.
+  Added `fsSectorLabel(raw)` — the same English→Indonesian map
+  `06-analysis-router.js`'s `init()` already applies when it builds
+  `DB[]` from the user's own portfolio rows (duplicated here rather than
+  shared, since it's a small static lookup table and hoisting it would
+  touch that file's init() for no behavioral gain) — and routed both
+  `FS_UNIV`'s construction and `fsFallbackInfo()` through it before the
+  `'Lainnya'` fallback. `test_suite.js` TEST 39 updated to assert the
+  translation call sites exist. Re-verified live with the same 15-ticker
+  mix: all 21 rows (6 hardcoded top holdings + the 15 test tickers) now
+  show Indonesian sector labels, zero English ones, zero `"IHSG"`.
