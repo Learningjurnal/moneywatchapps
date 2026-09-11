@@ -1,5 +1,15 @@
 # Model XGBoost Signal — Training & Update
 
+> **STATUS: EKSPERIMEN EDUKASI, bukan alat prediksi yang terbukti bekerja.**
+> Setelah 3 iterasi perbaikan berturut-turut (label SL/TP-aware → kalibrasi
+> threshold persentil → 10 fitur teknikal termasuk ATR/EMA), model ini
+> **tidak pernah menunjukkan sinyal prediktif yang jelas di atas
+> tebak-tebakan acak** — lift-nya justru turun dari 1,09x ke 0,98x setelah
+> fitur ditambah. Keputusan sadar (2026-09-11): **berhenti mengiterasi**
+> fitur/threshold lebih lanjut. Lihat bagian "Kesimpulan" di bawah untuk
+> rinciannya sebelum menganggap angka akurasi apa pun di sini berarti
+> model ini bisa dipakai untuk keputusan trading nyata.
+
 Strategi **"XGBoost"** di halaman Backtester berjalan di browser lewat model
 ONNX yang sudah dilatih (`public/models/xgb_signal.onnx`) — bukan simulasi
 lagi. Tidak ada server Python yang perlu menyala; browser cukup memuat file
@@ -165,13 +175,41 @@ tidak, model akan menerima input yang salah dan prediksinya jadi tidak
 berarti — lakukan verifikasi numerik silang seperti di atas, bukan cuma
 baca kode, sebelum mempercayai hasilnya.
 
+## Kesimpulan (2026-09-11) — kenapa iterasi dihentikan
+
+Tiga perbaikan berturut-turut dicoba, masing-masing diukur dengan
+diagnostik precision-vs-base-rate yang sama (bukan cuma accuracy mentah,
+yang gampang tinggi kalau model cuma menebak kelas mayoritas):
+
+| Iterasi | Perubahan | Lift vs base rate |
+|---|---|---|
+| 1 | Label diganti dari "naik >3%/10 hari" ke SL/TP-aware (ATR-based) | Recall kelas BUY 3,1% pada threshold tetap 0,60 → **0 sinyal** di backtest |
+| 2 (Opsi A) | Threshold dikalibrasi dari persentil keluaran model sendiri | **1,09x** (di bawah ambang 1,15x yang ditetapkan sebagai "ada sinyal nyata") |
+| 3 (Opsi C) | +4 fitur teknikal baru (ATR relatif, slope EMA, jarak EMA, rasio ATR) | **0,98x** — turun, bukan naik |
+
+Trennya **menurun**, bukan mendekati ambang yang diharapkan. Ini bukti
+empiris (bukan cuma disclaimer template "efficient market") bahwa 10 fitur
+teknikal harian yang ada memang tidak menyimpan sinyal yang cukup untuk
+menebak "TP tersentuh sebelum SL dalam 20 hari" dari data harga OHLCV
+harian saja. Menambah fitur teknikal turunan lagi kemungkinan besar punya
+ROI yang sama (menurun/nol), bukan solusi.
+
+**Kalau suatu saat ingin melanjutkan**, jalan yang tersisa berbeda scope-nya
+secara fundamental, bukan lagi "tambah 1-2 fitur":
+1. Ubah dari klasifikasi biner (TP vs SL) ke regresi (prediksi R-multiple).
+2. Perbanyak data secara drastis — ratusan saham dan/atau data intraday,
+   bukan 20 saham harian.
+3. Terima sebagai batas metode ini dan biarkan strategi ini murni untuk
+   pembelajaran cara kerja pipeline ML end-to-end (fitur → label → training
+   → ONNX → inferensi browser), bukan untuk mengejar akurasi prediksi.
+
 ## Keterbatasan & disclaimer
 
-- Akurasi test-set saat model pertama dilatih (lihat `xgb_signal_meta.json`
-  untuk angka terbaru): sekitar 70% accuracy / ROC AUC ~0.56 — sedikit di
-  atas tebak-tebakan acak untuk masalah prediksi arah harga jangka pendek,
-  yang memang secara teori sangat sulit ("efficient market"). Ini murni
-  model statistik untuk edukasi/backtesting.
+- **Ini eksperimen edukasi, sudah terbukti (bukan diasumsikan) tidak
+  punya sinyal prediktif yang jelas** — lihat tabel "Kesimpulan" di atas.
+  Akurasi test-set (lihat `xgb_signal_meta.json` untuk angka terbaru,
+  ~59-61%) TIDAK berarti model ini berguna — precision-nya pada threshold
+  operasional nyaris sama atau lebih buruk dari base rate.
 - **Bukan rekomendasi investasi.** Selalu lakukan riset mandiri.
 - Model dilatih dari 19-20 saham blue-chip/likuid IDX — sinyal untuk ticker
   di luar itu (atau saham yang baru IPO) kemungkinan kurang akurat karena

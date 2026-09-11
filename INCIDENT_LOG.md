@@ -1676,3 +1676,53 @@ dibungkus try/catch dengan console.warn).
   retrain sungguhan lewat GitHub Actions dengan data Yahoo Finance riil.
 
 `npm test` (90/90 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — XGBoost strategy didokumentasikan jujur sebagai eksperimen edukasi (iterasi dihentikan)
+
+- **Konteks:** setelah 3 iterasi perbaikan berturut-turut (label SL/TP-
+  aware → kalibrasi threshold persentil/Opsi A → 10 fitur teknikal/Opsi
+  C), lift vs base rate justru MENURUN (1,09x → 0,98x) alih-alih naik ke
+  ambang 1,15x yang ditetapkan sebagai "ada sinyal nyata". User memutuskan
+  berhenti mengiterasi dan mendokumentasikan strategi ini apa adanya.
+- **Masalah honesty yang diperbaiki sekaligus:** sebelumnya UI menampilkan
+  badge hijau "alert-ok" dan teks "akurasi test X%" — secara teknis benar
+  tapi menyesatkan, karena accuracy tinggi gampang dicapai model yang
+  cuma menebak kelas mayoritas terus-menerus (persis situasi model ini).
+  Tombol strategi juga bertuliskan "XGBoost*" dengan tanda bintang yang
+  **tidak pernah punya footnote** di mana pun di aplikasi — dangling
+  reference yang sudah lama ada, ditemukan & diperbaiki sekalian.
+- **Fix:**
+  - `public/index.html`: tombol strategi Backtester diubah dari
+    "XGBoost*" → **"XGBoost (Eksperimen)"** dengan tooltip yang mengarah
+    ke `ml/README.md`.
+  - `public/js/11-quant.js` (`xgbUpdateStatusUI()`): badge status diubah
+    dari hijau (`alert-ok`) ke amber (`alert-warn`); teks sekarang
+    eksplisit "EKSPERIMEN/EDUKASI" dan menampilkan **precision vs base
+    rate langsung dari `meta.json`** (`buy_precision_at_threshold`/
+    `base_rate`) — bukan cuma accuracy mentah yang menyesatkan.
+  - `ml/README.md`: callout "STATUS: EKSPERIMEN EDUKASI" di paling atas
+    file, plus bagian "Kesimpulan" baru berisi tabel 3 iterasi (0 sinyal
+    → 1,09x → 0,98x) dan penjelasan kenapa iterasi dihentikan, plus 3
+    opsi lanjutan (scope besar) kalau suatu saat ingin dilanjutkan.
+- **Prevention added:** `test_suite.js` TEST 68 — memastikan label tombol
+  "XGBoost (Eksperimen)" ada, badge status tetap amber (bukan hijau),
+  teks "EKSPERIMEN/EDUKASI" dan diagnostik precision/base_rate tetap
+  ditampilkan, dan `ml/README.md` tetap mendokumentasikan angka lift
+  1,09x/0,98x serta status eksperimen di bagian atas. Terbukti gagal saat
+  fix di-revert ke versi lama (badge hijau + teks accuracy polos) sebelum
+  dikembalikan.
+- **Verifikasi live (Playwright, mocked `ort`/fetch model karena CDN
+  onnxruntime-web & jaringan diblokir di sandbox ini):** tombol strategi
+  menampilkan "XGBoost (Eksperimen)" dengan tooltip benar; status box
+  menampilkan badge amber dan teks lengkap "Model XGBoost ONNX aktif
+  (v20260911, 20 saham) — EKSPERIMEN/EDUKASI... precision 36,5% vs base
+  rate 37,1% — TIDAK ada bukti sinyal prediktif jelas..." — persis sesuai
+  desain.
+- Cache-bust `11-quant.js` → `?v=20260911b`.
+
+`npm test` (91/91 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+**Status akhir topik "AI trading / machine learning untuk sinyal XGBoost":
+ditutup sebagai keputusan sadar user** — model tetap ada dan berfungsi
+teknis, tapi sekarang jujur melabeli dirinya sebagai eksperimen edukasi
+tanpa bukti sinyal prediktif, bukan alat yang diklaim bekerja.

@@ -1896,6 +1896,38 @@ test('REGRESSION GUARD: XGBoost FEATURE_NAMES (Python) and XGB_FEATURES (JS) mus
     'REGRESSION: xgbComputeFeatures() loop no longer starts at XGB_EMA_LOOKBACK — early rows would use an under-warmed EMA, diverging from Python');
 });
 
+// ── TEST 68: XGBoost strategy must be honestly labeled as an educational
+// experiment, not presented as a proven predictive tool (user decision,
+// 2026-09-11, after 3 iterations — label fix, threshold calibration,
+// feature engineering — showed lift declining from 1.09x to 0.98x, never
+// clearing the 1.15x "real signal" bar). The status box must surface the
+// precision-vs-base-rate numbers directly from meta.json when available,
+// not just a bare accuracy percentage (which stays misleadingly high even
+// for a model that just predicts the majority class).
+test('REGRESSION GUARD: XGBoost strategy must be honestly labeled as an educational experiment with no proven predictive edge', () => {
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const readme = fs.readFileSync(path.join(__dirname, 'ml/README.md'), 'utf8');
+
+  assert(/XGBoost \(Eksperimen\)/.test(htmlSrc),
+    'REGRESSION: the Backtester strategy button no longer honestly labels XGBoost as experimental (reverted to the old bare "XGBoost*" with a dangling, unexplained footnote marker)');
+
+  const fnStart = jsSrc.indexOf('function xgbUpdateStatusUI()');
+  assert(fnStart !== -1, 'sanity: xgbUpdateStatusUI() not found');
+  const fnBody = jsSrc.slice(fnStart, fnStart + 1500);
+  assert(/alert-warn/.test(fnBody) && !/alert-ok/.test(fnBody),
+    'REGRESSION: xgbUpdateStatusUI() shows a green "alert-ok" badge again for a model with no proven predictive edge — should stay amber (alert-warn)');
+  assert(/EKSPERIMEN\/EDUKASI/.test(fnBody),
+    'REGRESSION: the status box no longer honestly labels the model as an educational experiment');
+  assert(/buy_precision_at_threshold/.test(fnBody) && /base_rate/.test(fnBody),
+    'REGRESSION: the status box no longer surfaces the precision-vs-base-rate diagnostic from meta.json — reverted to a bare accuracy number that stays misleadingly high for a majority-class-predicting model');
+
+  assert(/0[.,]98x/.test(readme) && /1[.,]09x/.test(readme),
+    'REGRESSION: ml/README.md no longer documents the actual lift results across iterations (1.09x -> 0.98x) — the honest empirical conclusion for stopping iteration is gone');
+  assert(/EKSPERIMEN EDUKASI/.test(readme),
+    'REGRESSION: ml/README.md no longer states upfront that this is an educational experiment, not a proven tool');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

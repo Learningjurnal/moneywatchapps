@@ -192,12 +192,28 @@ function xgbPredictBatch(session, rows){
   });
 }
 
+// Status box honesty note (2026-09-11): setelah 3 iterasi perbaikan
+// berturut-turut (label SL/TP-aware -> kalibrasi threshold persentil ->
+// 10 fitur teknikal termasuk ATR/EMA) TIDAK menghasilkan lift yang jelas
+// di atas base rate (1.09x -> 0.98x, lihat INCIDENT_LOG.md), keputusan
+// sadar: berhenti iterasi dan dokumentasikan strategi ini sebagai
+// eksperimen edukasi apa adanya, BUKAN klaim "model X% akurat" yang
+// terdengar meyakinkan padahal precision-nya nyaris sama dengan tebakan
+// acak. Pesan status sekarang menampilkan angka precision-vs-base-rate
+// itu langsung dari meta.json (kalau tersedia) alih-alih hanya
+// menampilkan accuracy mentah yang menyesatkan (accuracy tinggi mudah
+// dicapai model yang selalu menebak kelas mayoritas).
 function xgbUpdateStatusUI(){
   var box = el('bt-xgb-status'); if(!box) return;
   xgbEnsureLoaded().then(function(ok){
     if(ok && QT.xgb.meta){
-      box.className = 'alert alert-ok';
-      box.textContent = 'Model XGBoost ONNX aktif — akurasi test '+(QT.xgb.meta.test_accuracy*100).toFixed(1)+'% (dilatih '+QT.xgb.meta.version+', '+QT.xgb.meta.tickers_used.length+' saham). Bukan rekomendasi investasi.';
+      var m = QT.xgb.meta;
+      box.className = 'alert alert-warn'; // amber, bukan hijau -- model ini tidak terbukti punya edge nyata
+      var hasLiftInfo = (m.buy_precision_at_threshold != null && m.base_rate != null);
+      var liftText = hasLiftInfo
+        ? ' Pada threshold BUY saat ini, precision '+(m.buy_precision_at_threshold*100).toFixed(1)+'% vs base rate '+(m.base_rate*100).toFixed(1)+'% — TIDAK ada bukti sinyal prediktif jelas di atas tebak-tebakan acak setelah 3 iterasi perbaikan (lihat ml/README.md).'
+        : '';
+      box.textContent = 'Model XGBoost ONNX aktif (v'+m.version+', '+m.tickers_used.length+' saham) — EKSPERIMEN/EDUKASI, bukan rekomendasi investasi.'+liftText;
     } else {
       box.className = 'alert alert-warn';
       box.textContent = 'Model ONNX belum ditemukan — pakai simulasi momentum sementara. Jalankan ml/train_xgb_signal.py (lihat ml/README.md) untuk model asli.';
