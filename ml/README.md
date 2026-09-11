@@ -120,24 +120,50 @@ operasi itu — akar masalahnya di fitur/model, bukan angka threshold, dan
 Opsi A saja tidak cukup (perlu evaluasi fitur tambahan atau penanganan
 class-imbalance saat training).
 
+## Fitur tambahan (2026-09-11 — "Opsi C")
+
+Retrain dengan kalibrasi threshold persentil (Opsi A) mengatasi masalah
+"0 sinyal", tapi diagnostik jujur di titik itu menunjukkan **lift cuma
+1,09x** vs base rate (AUC 0,522, nyaris tebak acak) — 6 fitur lama semuanya
+soal ARAH/MOMENTUM harga, tidak ada yang menangkap REZIM VOLATILITAS
+terhadap target SL/TP yang justru ATR-scaled. Ditambahkan 4 fitur baru
+yang relevan ke path-dependency itu:
+
+| # | Nama | Rumus | Alasan |
+|---|------|-------|--------|
+| 7 | `atr_pct` | ATR(14) / close[i] | Volatilitas relatif — SL/TP dihitung ATR×1.5/2.5, jadi seberapa besar ATR dibanding harga langsung mempengaruhi jarak target secara persentase |
+| 8 | `ema20_slope5` | (EMA20[i] − EMA20[i-5]) / EMA20[i-5] | Percepatan tren jangka pendek, lebih halus dari `mom20` mentah |
+| 9 | `dist_ema20` | (close[i] − EMA20[i]) / EMA20[i] | Seberapa jauh harga "meregang" dari rata-rata — sinyal mean-reversion vs trend-continuation |
+| 10 | `atr_ratio_20` | ATR(14)[i] / ATR(14)[i-20] − 1 | Rezim volatilitas melebar/menyempit — mempengaruhi kecepatan harga menyentuh TP/SL |
+
+**Catatan desain kritis — EMA pakai jendela TETAP, bukan histori penuh:**
+EMA20 di atas dihitung dari `EMA_LOOKBACK=60` candle terakhir saja (dihitung
+ulang per baris), BUKAN direkursi dari seluruh histori yang tersedia —
+meniru persis pola `computeEMA(closes.slice(-40), 20)` yang sudah dipakai
+di `lib/idx-data-engine.js`. Kalau EMA direkursi dari histori penuh,
+nilainya akan berbeda antara training (histori 5 tahun) dan inferensi live
+di browser (mungkin cuma dapat histori 1 tahun untuk rentang backtest
+pendek) untuk TANGGAL YANG SAMA — **train/serve skew** yang tidak pernah
+muncul sebagai error, cuma diam-diam merusak akurasi model.
+
+Karena jendela EMA butuh 60 hari pemanasan, `xgbComputeFeatures()` di JS
+sekarang mulai loop-nya dari baris ke-60 (dulu ke-30).
+
 ## PENTING — fitur harus sinkron Python ↔ JavaScript
 
 Fitur yang dipakai model (`FEATURE_NAMES` di `train_xgb_signal.py` dan
-`XGB_FEATURES` di `js/11-quant.js`) harus **identik urutan dan rumusnya**:
-
-| # | Nama | Rumus |
-|---|------|-------|
-| 1 | `sma_ratio` | SMA(10)/SMA(30) − 1 |
-| 2 | `rsi14` | RSI(14) / 100 |
-| 3 | `mom20` | (close[i] − close[i-20]) / close[i-20] |
-| 4 | `vol_ratio` | volume[i] / SMA(volume, 20)[i] |
-| 5 | `volatility20` | stdev harian return, jendela 20 hari |
-| 6 | `dist_high20` | (close[i] − max(high, 20 hari)) / max(high, 20 hari) |
+`XGB_FEATURES` di `js/11-quant.js`) harus **identik urutan dan rumusnya**
+— sekarang 10 fitur (6 lama + 4 di atas). Verifikasi kesamaan ini bukan
+cuma dibaca sekilas: kedua sisi sudah diuji numerik memakai data OHLCV
+sintetis identik (di-generate sekali di Python, dimuat ulang di kedua
+sisi) — **seluruh 10 fitur di 240 baris cocok persis (diff 0.0)**.
 
 Kalau Anda menambah/mengubah fitur di skrip Python, **ubah juga**
-`xgbComputeFeatures()` di `js/11-quant.js` dengan rumus yang sama persis,
-kalau tidak, model akan menerima input yang salah dan prediksinya jadi tidak
-berarti.
+`xgbComputeFeatures()` di `js/11-quant.js` dengan rumus yang sama persis
+(termasuk `EMA_LOOKBACK`/`XGB_EMA_LOOKBACK` kalau itu yang diubah), kalau
+tidak, model akan menerima input yang salah dan prediksinya jadi tidak
+berarti — lakukan verifikasi numerik silang seperti di atas, bukan cuma
+baca kode, sebelum mempercayai hasilnya.
 
 ## Keterbatasan & disclaimer
 

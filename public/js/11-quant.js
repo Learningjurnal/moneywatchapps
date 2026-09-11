@@ -58,7 +58,44 @@ if (typeof document !== 'undefined') {
 // XGBoost Signal Model — inferensi ONNX asli di browser
 // (dilatih offline via ml/train_xgb_signal.py, lihat ml/README.md)
 // ============================================================
-var XGB_FEATURES = ['sma_ratio','rsi14','mom20','vol_ratio','volatility20','dist_high20'];
+var XGB_FEATURES = ['sma_ratio','rsi14','mom20','vol_ratio','volatility20','dist_high20','atr_pct','ema20_slope5','dist_ema20','atr_ratio_20'];
+
+// EMA_LOOKBACK: HARUS sama persis dengan EMA_LOOKBACK di
+// ml/train_xgb_signal.py -- jendela tetap (bukan rekursi seluruh histori)
+// untuk menghindari train/serve skew antara training (histori 5 tahun)
+// dan inferensi live di browser (bisa cuma dapat histori 1 tahun untuk
+// rentang backtest pendek), meniru pola computeEMA(closes.slice(-40),20)
+// yang sudah ada di lib/idx-data-engine.js.
+var XGB_EMA_LOOKBACK = 60;
+
+function xgbEmaWindowed(closes, i, period, lookback){
+  if(i < lookback-1) return null;
+  var k = 2/(period+1);
+  var start = i-lookback+1;
+  var ema = closes[start];
+  for(var j=start+1;j<=i;j++) ema = closes[j]*k + ema*(1-k);
+  return ema;
+}
+
+// ATR -- HARUS sama persis dengan computeATR() di lib/idx-data-engine.js
+// dan compute_atr() di ml/train_xgb_signal.py: rata-rata SEDERHANA True
+// Range 14 hari (bukan Wilder's smoothing). Dihitung sekali untuk seluruh
+// array, bukan per-baris, lalu diindeks langsung di xgbComputeFeatures().
+function xgbComputeAtrSeries(high, low, close, period){
+  period = period || 14;
+  var n = close.length;
+  var tr = new Array(n).fill(null);
+  for(var i=1;i<n;i++){
+    tr[i] = Math.max(high[i]-low[i], Math.abs(high[i]-close[i-1]), Math.abs(low[i]-close[i-1]));
+  }
+  var atr = new Array(n).fill(null);
+  for(var i2=period;i2<n;i2++){
+    var s=0, ok=true;
+    for(var k=i2-period+1;k<=i2;k++){ if(tr[k]==null){ ok=false; break; } s+=tr[k]; }
+    atr[i2] = ok ? s/period : null;
+  }
+  return atr;
+}
 
 function xgbEnsureLoaded(){
   if(QT.xgb.loadPromise) return QT.xgb.loadPromise;
@@ -86,9 +123,14 @@ function xgbSMA(arr, n, i){ var s=0; for(var k=i-n+1;k<=i;k++) s+=arr[k]; return
 function xgbComputeFeatures(data){
   var close = data.map(function(d){return d.close;});
   var high = data.map(function(d){return d.high;});
+  var low = data.map(function(d){return d.low;});
   var volume = data.map(function(d){return d.volume;});
+  var atrSeries = xgbComputeAtrSeries(high, low, close, 14);
   var n = close.length, rows = [];
-  for(var i=30;i<n;i++){
+  // Loop mulai di XGB_EMA_LOOKBACK (60), bukan 30 -- fitur ema20_slope5/
+  // dist_ema20 butuh jendela EMA 60-hari penuh sebelum baris pertama bisa
+  // dihitung (lihat xgbEmaWindowed()).
+  for(var i=XGB_EMA_LOOKBACK;i<n;i++){
     var sma10=xgbSMA(close,10,i), sma30=xgbSMA(close,30,i);
     if(!sma30) continue;
     var smaRatio = sma10/sma30-1;
@@ -116,7 +158,19 @@ function xgbComputeFeatures(data){
     var hh=-Infinity; for(var k3=i-19;k3<=i;k3++) if(high[k3]>hh) hh=high[k3];
     var distHigh20 = (close[i]-hh)/hh;
 
-    var feat=[smaRatio, rsi14, mom20, volRatio, volatility20, distHigh20];
+    // ── Fitur baru (Opsi C, 2026-09-11) — HARUS identik rumus dengan
+    // compute_features() di ml/train_xgb_signal.py, termasuk jendela EMA
+    // tetap (XGB_EMA_LOOKBACK) supaya tidak ada train/serve skew.
+    var atrPct = atrSeries[i]!=null ? atrSeries[i]/close[i] : null;
+
+    var ema20Now = xgbEmaWindowed(close, i, 20, XGB_EMA_LOOKBACK);
+    var ema20Prev5 = xgbEmaWindowed(close, i-5, 20, XGB_EMA_LOOKBACK);
+    var ema20Slope5 = (ema20Now!=null && ema20Prev5!=null) ? (ema20Now-ema20Prev5)/ema20Prev5 : null;
+    var distEma20 = ema20Now!=null ? (close[i]-ema20Now)/ema20Now : null;
+
+    var atrRatio20 = (atrSeries[i]!=null && atrSeries[i-20]!=null) ? (atrSeries[i]/atrSeries[i-20]-1) : null;
+
+    var feat=[smaRatio, rsi14, mom20, volRatio, volatility20, distHigh20, atrPct, ema20Slope5, distEma20, atrRatio20];
     if(feat.some(function(v){return v==null||isNaN(v)||!isFinite(v);})) continue;
     rows.push({i:i, feat:feat});
   }
