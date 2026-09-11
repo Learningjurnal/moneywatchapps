@@ -1598,7 +1598,28 @@ function saveData(){
     } catch(e){}
     localStorage.setItem('mw_trade_strategy', JSON.stringify(tradeStrategy || {}));
   } catch(e) {
+    // FIX (2026-09-11, incident: localStorage origin penuh, QuotaExceededError
+    // di sini terlewat diam-diam lewat console.warn saja) — kegagalan
+    // menyimpan data PORTOFOLIO RIIL ke cache lokal harus terlihat oleh user,
+    // bukan cuma tercatat di console yang hampir tidak pernah dibuka. Cloud
+    // sync (langkah 3 di bawah) masih berjalan terpisah dan biasanya tetap
+    // berhasil, tapi cache offline device ini sendiri TIDAK ter-update --
+    // kalau device ini offline nanti, data yang tampil bisa basi. Akar
+    // penyebab paling umum (cache harga mw_rd_* yang tidak dibatasi) sudah
+    // diperbaiki di rdSave()/13-realdata.js, tapi peringatan ini tetap perlu
+    // ada untuk skenario lain yang bisa menghabiskan kuota localStorage.
     console.warn('LocalStorage save notice:', e);
+    if (typeof showSaveStatus === 'function') {
+      var isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+      showSaveStatus(
+        isQuota
+          ? '⚠️ Penyimpanan lokal browser penuh — data Anda tersimpan ke Cloud, tapi cache offline perangkat ini TIDAK ter-update. Bersihkan data situs (Site Settings → Clear Data) kalau berulang.'
+          : '⚠️ Gagal menyimpan cache lokal (' + (e && e.message ? e.message : 'unknown') + ') — Cloud sync tetap dicoba terpisah.',
+        'var(--red)',
+        true,
+        10 // prioritas tinggi -- jangan sampai tertimpa pesan sukses "Tersimpan ke Supabase Cloud" yang rutin muncul beberapa saat setelahnya
+      );
+    }
   }
 
   // 2. Picu siaran multi-device real-time (SSE) — BUKAN cadangan permanen,
@@ -2547,7 +2568,25 @@ function closeBackupModal(){
 }
 
 var _saveStatusTimer = null;
-function showSaveStatus(msg, color, persist){
+// FIX (2026-09-11, same incident as the localStorage-quota fix in
+// rdSave()/13-realdata.js): a quota-exceeded warning shown here used to
+// get silently stomped within ~1 second by the routine "Tersimpan ke
+// Supabase Cloud" success message _syncToCloud() shows right after —
+// cloud sync succeeding is unrelated to whether THIS device's local
+// cache write succeeded, but both share the same status bar with no
+// priority concept, so the more important (and rarer) warning never got
+// a chance to actually be read. `priority` (default 0) lets a caller
+// protect its message from being overwritten by a lower-priority one
+// until its own display duration has elapsed; existing call sites that
+// don't pass it are unaffected (priority 0 vs 0 still allows the normal
+// "last call wins" behavior for routine status messages).
+var _saveStatusPriority = 0;
+var _saveStatusExpiresAt = 0;
+function showSaveStatus(msg, color, persist, priority){
+  priority = priority || 0;
+  var now = Date.now();
+  if (now < _saveStatusExpiresAt && priority < _saveStatusPriority) return;
+
   var bar = el('save-status-bar');
   if(!bar) return;
   if(_saveStatusTimer){
@@ -2558,6 +2597,8 @@ function showSaveStatus(msg, color, persist){
   bar.style.color = color || 'var(--green)';
   bar.style.opacity = '1';
   var duration = persist ? 4500 : 2500;
+  _saveStatusPriority = priority;
+  _saveStatusExpiresAt = now + duration;
   _saveStatusTimer = setTimeout(function(){
     bar.style.opacity = '0';
     setTimeout(function(){ if(bar.style.opacity === '0') bar.textContent = ''; }, 600);

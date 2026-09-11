@@ -11,12 +11,60 @@ var RD_FAILED = {};   // tk → true bila fetch gagal sesi ini
 var RD_META   = { loading:false, universeLoaded:false, scLiveDone:false };
 var RD_TODAY  = new Date().toISOString().slice(0,10);
 
+// FIX (2026-09-11, incident: user localStorage penuh 4.99/5MB, penyimpanan
+// portofolio riil gagal dengan QuotaExceededError saat logout): rdSave()
+// adalah satu-satunya titik tulis untuk SEMUA cache harga bernama mw_rd_*
+// -- dipakai baik oleh fungsi di file ini sendiri (cache 1 tahun per
+// ticker, key mw_rd_<TICKER>) MAUPUN oleh perfFetchDailyHistory() di
+// 21-performance.js (cache DAILY_MAX/10 TAHUN via perfHistCacheKey(), key
+// mw_rd_PXH_STK_<TICKER>/mw_rd_PXH_IDX_<INDEX>/dst -- ~100-130KB per
+// entry). Sebelum fix ini, key baru ditambahkan permanen setiap kali user
+// menganalisis saham/index/crypto/ETF baru, TIDAK PERNAH dihapus --
+// diagnosis langsung dari localStorage user nyata menunjukkan 6+ entry
+// PXH_STK_* @ ~100KB masing-masing plus cache lain, total localStorage
+// origin (~5MB kuota Chrome) nyaris habis, dan penulisan data PORTOFOLIO
+// RIIL (mw_local_data_v3_<user>, via saveData() di 02-storage.js) mulai
+// gagal diam-diam karena kuota sudah habis oleh cache harga yang
+// sebenarnya disposable (bisa di-refetch Yahoo Finance kapan saja).
+var RD_CACHE_BUDGET_BYTES = 2 * 1024 * 1024; // 2MB gabungan untuk seluruh keluarga mw_rd_* -- sisakan ruang untuk data user yang tidak boleh hilang
+
+// Menjaga total ukuran seluruh cache mw_rd_* tetap di bawah
+// RD_CACHE_BUDGET_BYTES sebelum menulis entry baru. Field `d` (tanggal
+// entry itu terakhir ditulis/direfresh) dipakai sebagai proksi recency --
+// entry yang paling lama TIDAK di-refresh dihapus duluan (LRU sederhana
+// tanpa perlu index terpisah, karena `d` sudah tersimpan di tiap entry).
+function _rdEvictIfNeeded(newKey, newPayloadLen){
+  try{
+    var entries = [];
+    var totalLen = newPayloadLen;
+    for(var i=0;i<localStorage.length;i++){
+      var k = localStorage.key(i);
+      if(!k || k.indexOf('mw_rd_')!==0 || k===newKey) continue;
+      var raw = localStorage.getItem(k) || '';
+      totalLen += raw.length;
+      var d = '';
+      try{ d = JSON.parse(raw).d || ''; }catch(e){}
+      entries.push({key:k, len:raw.length, d:d});
+    }
+    if(totalLen <= RD_CACHE_BUDGET_BYTES) return;
+    entries.sort(function(a,b){ return a.d < b.d ? -1 : (a.d > b.d ? 1 : 0); }); // paling basi (d terkecil) duluan
+    var idx=0;
+    while(totalLen > RD_CACHE_BUDGET_BYTES && idx<entries.length){
+      localStorage.removeItem(entries[idx].key);
+      totalLen -= entries[idx].len;
+      idx++;
+    }
+  }catch(e){}
+}
+
 // ── Cache localStorage per hari ──
 function rdSave(tk, rows){
   RD_STORE[tk] = rows;
   try{
     var compact = rows.map(function(r){ return [r.date, r.open, r.high, r.low, r.close, r.volume]; });
-    localStorage.setItem('mw_rd_'+tk, JSON.stringify({d:RD_TODAY, r:compact}));
+    var payload = JSON.stringify({d:RD_TODAY, r:compact});
+    _rdEvictIfNeeded('mw_rd_'+tk, payload.length);
+    localStorage.setItem('mw_rd_'+tk, payload);
   }catch(e){}
 }
 function _rdExpand(c){ return c.map(function(a){ return {date:a[0], open:a[1], high:a[2], low:a[3], close:a[4], volume:a[5]}; }); }

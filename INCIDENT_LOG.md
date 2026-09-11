@@ -1726,3 +1726,81 @@ dibungkus try/catch dengan console.warn).
 ditutup sebagai keputusan sadar user** — model tetap ada dan berfungsi
 teknis, tapi sekarang jujur melabeli dirinya sebagai eksperimen edukasi
 tanpa bukti sinyal prediktif, bukan alat yang diklaim bekerja.
+
+## 2026-09-11 — localStorage origin penuh (4.99/5MB): cache harga tak dibatasi menghabiskan kuota data portofolio riil
+
+- **Ditemukan dari:** console browser user nyata — `QuotaExceededError:
+  Failed to execute 'setItem' on 'Storage'... exceeded the quota` saat
+  `authLogout()` memanggil `saveData()`.
+- **Diagnosis (via skrip yang dijalankan user di Console browsernya
+  sendiri):** total localStorage origin **4,99 MB dari kuota ~5 MB
+  Chrome, ~0 MB tersisa**. 10 key terbesar didominasi oleh:
+  - `mw_local_data_v3_u_<user>` (1,66 MB) — blob data portofolio riil
+    user (via `saveData()`), termasuk `equityHistory` ter-nested dobel.
+  - `MW_KSEI_DATA_CACHE` (890 KB) — cache data pemegang saham KSEI.
+  - Deretan `mw_rd_PXH_STK_<TICKER>`/`mw_rd_PXH_IDX_<INDEX>`, masing-
+    masing ~90-130 KB — cache histori harga **10 tahun (DAILY_MAX)** per
+    simbol, ditulis oleh `perfFetchDailyHistory()` (`21-performance.js`)
+    lewat `rdSave()` (`13-realdata.js`).
+- **Root cause:** `rdSave()` adalah satu-satunya titik tulis untuk
+  SELURUH keluarga cache `mw_rd_*` — dipakai baik oleh cache 1-tahun
+  miliknya sendiri maupun cache 10-tahun `perfFetchDailyHistory()`.
+  **Tidak ada mekanisme penghapusan sama sekali** — setiap saham/index/
+  crypto/ETF baru yang pernah dianalisis user (Bandarmology, Stock Intel,
+  FlowScan, Screener, Correlation, Heatmap, Ranking — semua modul yang
+  pernah menyentuh histori harga) menambah key permanen baru, tidak
+  pernah dibersihkan. Untuk user aktif jangka panjang, akumulasi ini
+  akhirnya menghabiskan kuota origin, dan korbannya adalah penulisan
+  **data portofolio riil user sendiri** — yang justru paling tidak boleh
+  gagal diam-diam.
+- **Fix 1 — `rdSave()`/`13-realdata.js`:** `RD_CACHE_BUDGET_BYTES` (2MB
+  gabungan untuk seluruh keluarga `mw_rd_*`) + `_rdEvictIfNeeded()` —
+  sebelum menulis entry baru, hitung total ukuran semua key `mw_rd_*`
+  yang ada; kalau akan melebihi budget, hapus entry paling basi (field
+  `d` = tanggal terakhir di-refresh, dipakai sebagai proksi recency)
+  duluan sampai muat. LRU sederhana tanpa index terpisah.
+- **Fix 2 — `showSaveStatus()`/`02-storage.js`, celah yang ditemukan
+  SAAT memverifikasi fix 1 secara live:** peringatan quota-exceeded yang
+  sudah ditambahkan sebelumnya (catch block `saveData()` step 1) ternyata
+  **langsung tertimpa** dalam ~1 detik oleh pesan sukses rutin "Tersimpan
+  ke Supabase Cloud" dari `_syncToCloud()` — keduanya berbagi status bar
+  yang sama tanpa konsep prioritas, jadi peringatan langka yang penting
+  itu praktis tidak pernah sempat terbaca user. Ditambahkan parameter
+  `priority` (opsional, default 0, backward-compatible) — pesan
+  prioritas lebih tinggi tidak bisa ditimpa pesan prioritas lebih rendah
+  sebelum durasi tampilnya habis. Peringatan quota sekarang dikirim
+  dengan `priority=10`.
+- **Prevention added:**
+  - `test_suite.js` TEST 69 — memuat `rdSave()`/`_rdEvictIfNeeded()`
+    lewat vm sandbox dengan mock localStorage in-memory, menulis 40 entry
+    ~10 tahun (2500 baris) berturut-turut dengan tanggal `d` yang naik
+    strict, membuktikan: (a) eviction benar-benar terjadi, (b) total
+    footprint tetap di bawah budget, (c) entry TERLAMA yang dihapus
+    duluan (bukan sembarang urutan). Terbukti gagal saat pemanggilan
+    `_rdEvictIfNeeded()` di-revert sebelum dikembalikan.
+  - `test_suite.js` TEST 70 — reimplementasi setia gate prioritas
+    `showSaveStatus()`, membuktikan: pesan prioritas rendah tidak bisa
+    menimpa pesan prioritas tinggi yang masih aktif, tapi BISA menimpa
+    setelah pesan itu genuinely expired (status bar tidak macet
+    selamanya), dan pesan prioritas SAMA tetap bisa saling gantian.
+    Terbukti gagal saat parameter `priority=10` di-revert dari
+    pemanggilan di `saveData()`.
+- **Verifikasi live Playwright:**
+  - `saveData()` dengan `localStorage.setItem` di-mock melempar
+    `QuotaExceededError` → status bar menampilkan peringatan merah yang
+    benar.
+  - Peringatan itu **bertahan** walau `showSaveStatus()` prioritas rendah
+    dipanggil segera setelahnya (simulasi pesan sukses Supabase) —
+    sebelumnya tertimpa, sekarang tidak.
+- Cache-bust `02-storage.js` → `?v=20260911a`, `13-realdata.js` →
+  `?v=20260911a`.
+
+`npm test` (93/93 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+**Catatan untuk user yang melaporkan insiden ini:** setelah fix ini aktif
+(reload aplikasi), cache harga lama yang sudah terlanjur menumpuk di
+browser Anda TIDAK otomatis dibersihkan sampai `rdSave()` dipanggil lagi
+(mis. membuka analisis saham baru) — eviction baru berjalan saat ada
+penulisan baru yang memicunya. Kalau ingin bersih seketika, bisa hapus
+manual key `mw_rd_*` lewat DevTools → Application → Local Storage, atau
+tunggu penggunaan normal secara bertahap memicu eviction.

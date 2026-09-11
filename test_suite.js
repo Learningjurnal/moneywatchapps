@@ -1928,6 +1928,182 @@ test('REGRESSION GUARD: XGBoost strategy must be honestly labeled as an educatio
     'REGRESSION: ml/README.md no longer states upfront that this is an educational experiment, not a proven tool');
 });
 
+// ── TEST 69: rdSave() (public/js/13-realdata.js) must evict old price-
+// history cache entries once the shared mw_rd_* budget is exceeded —
+// found from a REAL user's browser (2026-09-11 incident): localStorage
+// origin usage hit 4.99/~5MB Chrome quota, dominated by unbounded
+// mw_rd_PXH_STK_<TICKER>/mw_rd_PXH_IDX_<INDEX> entries (~100-130KB each,
+// written by perfFetchDailyHistory() in 21-performance.js — DAILY_MAX/10y
+// history per symbol, NEVER evicted before this fix) plus rdSave()'s own
+// 1-year mw_rd_<TICKER> cache. The user's actual real-portfolio save
+// (mw_local_data_v3_<user>, via saveData() in 02-storage.js) started
+// throwing QuotaExceededError on logout because disposable, re-fetchable
+// price-history cache had consumed nearly the entire origin quota.
+// Loaded via the real vm sandbox technique (same pattern as the
+// escapeHtml() test above) with a minimal in-memory localStorage mock,
+// since this module references the browser global directly.
+test('REGRESSION GUARD: rdSave() must evict oldest mw_rd_* cache entries once the shared budget is exceeded (real user localStorage-quota incident)', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/13-realdata.js'), 'utf8');
+  // Extract ONLY the RD_STORE/RD_CACHE_BUDGET_BYTES/_rdEvictIfNeeded/rdSave
+  // block (up to but not including the next section's own comment banner)
+  // rather than running the whole file through vm — the rest of
+  // 13-realdata.js overrides several functions from OTHER, earlier-loaded
+  // production files at module top level (fsGenData/qtFetchOHLCV/
+  // fsRunAnalysis/FS_UNIV/...), which would need an ever-growing list of
+  // stubs having nothing to do with what this test actually verifies.
+  const startMarker = 'var RD_STORE';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: RD_STORE declaration not found — has this section moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\nfunction _rdExpand');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after rdSave() (next function _rdExpand) — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  // In-memory localStorage mock — Web Storage API surface rdSave()/
+  // _rdEvictIfNeeded() actually use (length, key(i), getItem, setItem,
+  // removeItem). setItem throws QuotaExceededError past a small fake cap
+  // so a genuinely-broken eviction (or one that evicts too little) still
+  // surfaces as a thrown error here, not a silently-passing no-op.
+  function makeFakeLocalStorage(quotaBytes) {
+    const store = new Map();
+    return {
+      get length() { return store.size; },
+      key(i) { return Array.from(store.keys())[i] ?? null; },
+      getItem(k) { return store.has(k) ? store.get(k) : null; },
+      setItem(k, v) {
+        const currentTotal = Array.from(store.entries()).reduce((s, [ek, ev]) => s + (ek === k ? 0 : ev.length), 0);
+        if (currentTotal + String(v).length > quotaBytes) {
+          const err = new Error('Quota exceeded (fake)'); err.name = 'QuotaExceededError'; throw err;
+        }
+        store.set(k, String(v));
+      },
+      removeItem(k) { store.delete(k); },
+      _store: store, // test-only escape hatch to inspect state directly
+    };
+  }
+
+  const fakeLS = makeFakeLocalStorage(50 * 1024 * 1024); // generous fake browser quota — RD_CACHE_BUDGET_BYTES (2MB) is what should actually gate eviction, not this
+  const sandbox = { window: {}, document: { getElementById: () => null }, localStorage: fakeLS };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '13-realdata.js (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.rdSave, 'function', 'rdSave() not found — has it been renamed/removed?');
+  assert(/RD_CACHE_BUDGET_BYTES/.test(src), 'REGRESSION: RD_CACHE_BUDGET_BYTES cap is gone — mw_rd_* cache is unbounded again, this is exactly the incident that filled the real user\'s localStorage');
+  assert(/function _rdEvictIfNeeded\(/.test(src), 'REGRESSION: _rdEvictIfNeeded() eviction helper is gone');
+  assert(/_rdEvictIfNeeded\('mw_rd_'\+tk, payload\.length\)/.test(src), 'REGRESSION: rdSave() no longer calls _rdEvictIfNeeded() before writing — eviction logic exists but is unwired');
+
+  // Functional proof, not just source-text presence: write enough ~10KB
+  // rows-array entries (mimicking real PXH_STK_* sizes, scaled down) to
+  // exceed ctx.RD_CACHE_BUDGET_BYTES several times over, in oldest-first
+  // order, then confirm (a) total mw_rd_* footprint stays under budget,
+  // and (b) the OLDEST entries were the ones evicted (LRU-by-refresh-date
+  // behaves correctly), not an arbitrary/newest-first eviction that would
+  // defeat the whole purpose.
+  // 2500 rows ≈ 10 years of daily bars — matches the real PXH_STK_*/
+  // PXH_IDX_* entries observed in the field (~100-130KB each via
+  // perfFetchDailyHistory()'s DAILY_MAX/10y fetch), so 40 of them (~4MB)
+  // genuinely exceeds the 2MB budget the way the real incident did,
+  // rather than a toy size that never triggers eviction at all.
+  const rowsFor = (n) => Array.from({ length: n }, (_, i) => ({ date: '2020-01-01', open: 100, high: 101, low: 99, close: 100.5, volume: 1000 }));
+  // Strictly increasing dates (2020-01-01, 2020-01-02, ...) — never wraps
+  // around, so every entry's `d` is unique and the oldest-vs-newest
+  // assertions below can't accidentally pass on a tie.
+  const dateForIdx = (i) => { const d = new Date(Date.UTC(2020, 0, 1)); d.setUTCDate(d.getUTCDate() + i); return d.toISOString().slice(0, 10); };
+  const tickers = [];
+  for (let i = 0; i < 40; i++) {
+    const tk = 'PXH_STK_FAKE' + i;
+    tickers.push(tk);
+    // Backdate RD_TODAY per write so entries have distinct, increasing
+    // "last refreshed" dates — otherwise every entry ties at today's date
+    // and recency ordering can't be tested.
+    ctx.RD_TODAY = dateForIdx(i);
+    ctx.rdSave(tk, rowsFor(2500));
+  }
+
+  const survivingKeys = Array.from(fakeLS._store.keys()).filter(k => k.indexOf('mw_rd_') === 0);
+  const totalBytes = survivingKeys.reduce((s, k) => s + fakeLS._store.get(k).length, 0);
+
+  assert(survivingKeys.length < tickers.length,
+    'REGRESSION: no eviction happened at all — wrote ' + tickers.length + ' entries, all ' + survivingKeys.length + ' still present. RD_CACHE_BUDGET_BYTES should have forced some out.');
+  assert(totalBytes <= ctx.RD_CACHE_BUDGET_BYTES,
+    'REGRESSION: total mw_rd_* footprint (' + totalBytes + ' bytes) exceeds RD_CACHE_BUDGET_BYTES (' + ctx.RD_CACHE_BUDGET_BYTES + ') even after eviction ran — budget is not actually being enforced');
+
+  // The earliest-written tickers (oldest `d`) must be gone; the
+  // last-written ones (newest `d`, i.e. most recently refreshed) must
+  // have survived — proves eviction is oldest-first, not arbitrary.
+  assert(!survivingKeys.includes('mw_rd_' + tickers[0]),
+    'REGRESSION: the OLDEST entry survived eviction while newer ones were evicted — recency ordering is broken (should evict least-recently-refreshed first)');
+  assert(survivingKeys.includes('mw_rd_' + tickers[tickers.length - 1]),
+    'REGRESSION: the MOST RECENTLY written entry was evicted — eviction is evicting the wrong end of the recency order');
+});
+
+// ── TEST 70: showSaveStatus() priority — same incident as TEST 69. A
+// localStorage-quota warning (priority 10) shown synchronously by
+// saveData()'s catch block used to get silently overwritten within ~1
+// second by the routine "Tersimpan ke Supabase Cloud" success message
+// _syncToCloud() shows right after (both default priority 0) — the rare,
+// important warning never had a real chance to be read. A higher-
+// priority message must survive being overwritten by a lower-priority
+// one until its own display duration elapses; a message at the SAME (or
+// higher) priority must still be allowed through, or the status bar
+// would get stuck forever on one message.
+function makeShowSaveStatusSandbox() {
+  const state = { text: '', color: '', priority: 0, expiresAt: 0, timerActive: false };
+  // Minimal re-implementation matching 02-storage.js's actual contract
+  // (priority gate + expiry), run directly here rather than through vm —
+  // this function's only real dependency is a DOM element + setTimeout,
+  // both trivial to fake, and the logic under test is the priority/expiry
+  // gate itself, not DOM plumbing.
+  function showSaveStatus(msg, color, persist, priority, nowFn) {
+    priority = priority || 0;
+    const now = nowFn ? nowFn() : Date.now();
+    if (now < state.expiresAt && priority < state.priority) return;
+    state.text = msg;
+    state.color = color || 'var(--green)';
+    state.priority = priority;
+    state.expiresAt = now + (persist ? 4500 : 2500);
+  }
+  return { showSaveStatus, state };
+}
+test('REGRESSION GUARD: showSaveStatus() priority must protect a critical quota warning from being overwritten by a routine lower-priority message', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/02-storage.js'), 'utf8');
+  assert(/function showSaveStatus\(msg, color, persist, priority\)/.test(src),
+    'REGRESSION: showSaveStatus() no longer accepts a priority parameter — the quota-warning-gets-stomped bug is back');
+  assert(/if \(now < _saveStatusExpiresAt && priority < _saveStatusPriority\) return;/.test(src),
+    'REGRESSION: the priority gate logic is gone from showSaveStatus()');
+  assert(/showSaveStatus\(\s*[\s\S]*?,\s*'var\(--red\)',\s*true,\s*10/.test(src),
+    'REGRESSION: the localStorage-quota warning in saveData() no longer passes priority 10 — it will get silently overwritten by the routine Supabase-success message again');
+
+  // Functional proof against a faithful re-implementation of the gate.
+  const { showSaveStatus, state } = makeShowSaveStatusSandbox();
+  let t = 1000;
+  const now = () => t;
+
+  showSaveStatus('⚠️ Kuota penuh', 'var(--red)', true, 10, now);
+  assert.strictEqual(state.text, '⚠️ Kuota penuh', 'sanity: the warning itself did not get set');
+
+  t += 200; // a moment later, well within the 4500ms persist window
+  showSaveStatus('Tersimpan ke Supabase Cloud', 'var(--green)', false, 0, now); // routine, priority 0
+  assert.strictEqual(state.text, '⚠️ Kuota penuh',
+    'REGRESSION: a routine priority-0 message overwrote the still-active priority-10 quota warning');
+
+  t += 5000; // now past the quota warning's 4500ms display window
+  showSaveStatus('Tersimpan ke Supabase Cloud', 'var(--green)', false, 0, now);
+  assert.strictEqual(state.text, 'Tersimpan ke Supabase Cloud',
+    'REGRESSION: once the high-priority message has genuinely expired, a routine message should be allowed through — the status bar must not get stuck forever');
+
+  // A second warning of EQUAL priority must still be allowed to replace
+  // the first (e.g. two quota errors in a row) — the gate must only
+  // block STRICTLY LOWER priority, not equal.
+  t = 1000; state.text = ''; state.priority = 0; state.expiresAt = 0;
+  showSaveStatus('⚠️ Kuota penuh #1', 'var(--red)', true, 10, now);
+  t += 200;
+  showSaveStatus('⚠️ Kuota penuh #2', 'var(--red)', true, 10, now);
+  assert.strictEqual(state.text, '⚠️ Kuota penuh #2',
+    'REGRESSION: an equal-priority message can no longer replace an earlier one of the same priority — the gate is too strict (should only block strictly-lower priority)');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
