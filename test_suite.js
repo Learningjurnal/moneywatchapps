@@ -2845,6 +2845,205 @@ test("REGRESSION GUARD: client-side portfolio branch must compute real Risk Gate
   assert(/Tidak ada pelanggaran Risk Gate/.test(r2.reply), 'REGRESSION: a compliant portfolio does not get the honest "no violation" message');
 });
 
+// ── TEST 84: executeAgentTool('cek_prediksi_xgboost') (server.js) — item
+// #3 of the AI Copilot roadmap (2026-09-11, INCIDENT_LOG.md): expose the
+// XGBoost ONNX model (client-side inference only, via 11-quant.js'
+// xgbPredictLatest()) as a Copilot tool. Must never fabricate a
+// prediction when the browser hasn't computed one, and — critically,
+// given the model's own documented lack of proven signal (ml/README.md)
+// — must always carry an honest disclaimer distinguishing the proven
+// vs. not-yet-proven case.
+await asyncTest("REGRESSION GUARD: executeAgentTool('cek_prediksi_xgboost') must pass through real predictions with an honest disclaimer, never fabricate when absent", async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const start = fullSrc.indexOf('async function executeAgentTool');
+  assert(start !== -1, 'sanity: executeAgentTool() not found — has it been renamed/moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Function Declarations for Gemini Function Calling');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after executeAgentTool() — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/case 'cek_prediksi_xgboost':/.test(src), "REGRESSION: the 'cek_prediksi_xgboost' case is gone from executeAgentTool()");
+
+  const sandbox = { window: {} };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: 'server.js executeAgentTool() cek_prediksi_xgboost (sandboxed load for test)' });
+
+  // 1. No prediction computed client-side — must NOT fabricate one.
+  const r1 = await ctx.executeAgentTool('cek_prediksi_xgboost', {}, {});
+  assert.strictEqual(r1.hasData, false, 'REGRESSION: missing xgboostPrediction must report hasData:false, not invent a signal');
+  assert.strictEqual(r1.signal, undefined, 'REGRESSION: a signal field leaked into the no-data response — looks like fabricated data');
+
+  // 2. Real prediction, hasProvenSignal:false (the model's actual current
+  // status) — must surface the strong "eksperimen, tidak terbukti" wording.
+  const fakePredUnproven = {
+    ticker: 'BBCA', signal: 'BUY', probability: 0.72, buyThreshold: 0.6, sellThreshold: 0.35,
+    modelVersion: '20260911', asOfDate: '2026-09-10', isSimulatedData: false, hasProvenSignal: false,
+    liftInfo: { precisionAtThreshold: 0.62, baseRate: 0.6 }
+  };
+  const r2 = await ctx.executeAgentTool('cek_prediksi_xgboost', {}, { xgboostPrediction: fakePredUnproven });
+  assert.strictEqual(r2.hasData, true);
+  assert.strictEqual(r2.ticker, 'BBCA');
+  assert.strictEqual(r2.probability, 0.72, 'REGRESSION: probability does not match the real prediction passed in userContext');
+  assert(/tidak terbukti/i.test(r2.disclaimer), 'REGRESSION: an unproven model (hasProvenSignal:false) no longer gets the strong "tidak terbukti" disclaimer');
+
+  // 3. hasProvenSignal:true (hypothetical future state, not the current
+  // reality) — must get the DIFFERENT, lighter disclaimer wording, proving
+  // the tool actually branches on this field rather than hardcoding one
+  // message.
+  const fakePredProven = Object.assign({}, fakePredUnproven, { hasProvenSignal: true });
+  const r3 = await ctx.executeAgentTool('cek_prediksi_xgboost', {}, { xgboostPrediction: fakePredProven });
+  assert(!/tidak terbukti/i.test(r3.disclaimer), 'REGRESSION: hasProvenSignal:true still gets the "tidak terbukti" wording — the disclaimer does not actually branch on this field');
+});
+
+// ── TEST 85: the deterministic AI fallback (server.js) must route
+// sinyal/prediksi/xgboost/rekomendasi questions to cek_prediksi_xgboost,
+// checked before the short-keyword branches below it (same
+// "kasih"/"saran" collision class as TEST 78's ordering fix).
+test('REGRESSION GUARD: the deterministic AI fallback must route prediction questions to cek_prediksi_xgboost, positioned before short-keyword branches', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const start = fullSrc.indexOf("// 2. DETERMINISTIC AGENTIC ENGINE FALLBACK");
+  assert(start !== -1, 'sanity: the deterministic fallback block not found — has it moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf("\n  } catch (err) {\n    console.error('MoneyWatch AI fallback error:'");
+  assert(relEnd !== -1, 'sanity: could not find the end of the deterministic fallback block');
+  src = src.slice(0, relEnd);
+
+  assert(/cek_prediksi_xgboost/.test(src), 'REGRESSION: the deterministic fallback no longer calls cek_prediksi_xgboost');
+
+  const predIdx = src.indexOf('sinyal|prediksi|xgboost|rekomendasi');
+  const portoIdx = src.indexOf("pLower.includes('porto')");
+  const simulasiIdx = src.indexOf("pLower.includes('simulasi')");
+  assert(predIdx !== -1 && portoIdx !== -1 && simulasiIdx !== -1 && predIdx < portoIdx && predIdx < simulasiIdx,
+    'REGRESSION: the prediction branch is positioned after short-keyword branches (porto/kas, simulasi/ara/arb) — a message like "prediksi ARA" could get misrouted before reaching it');
+});
+
+// ── TEST 86: generateClientSideAiAgentResponse()'s isPredictionIntent
+// branch (public/js/41-stockchat-cockpit.js) reads userContext.
+// xgboostPrediction directly (no ONNX inference here — that only runs in
+// sendCopilotPrompt() before the request), and must never fabricate.
+await asyncTest('REGRESSION GUARD: client-side prediction branch must read the real xgboostPrediction from userContext, never fabricate, never bounce off the ticker gate', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const startMarker = 'function generateClientSideAiAgentResponse(message, userContext) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: generateClientSideAiAgentResponse() not found');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Clear history');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after generateClientSideAiAgentResponse()');
+  src = src.slice(0, relEnd);
+
+  assert(/isPredictionIntent/.test(src), 'REGRESSION: isPredictionIntent guard is gone from the client-side fallback engine');
+
+  const sandbox = {
+    window: {},
+    DB: { BBCA: { name: 'Bank Central Asia', sector: 'Perbankan' } },
+    isValidStockTicker: (tk) => tk === 'BBCA',
+    STOCKCHAT_SELECTED_TICKER: 'BBCA',
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '41-stockchat-cockpit.js generateClientSideAiAgentResponse() prediction (sandboxed load for test)' });
+
+  // No prediction available — honest empty state, no invalid-ticker bounce
+  // (this message has no real ticker in it either).
+  const r1 = ctx.generateClientSideAiAgentResponse('apakah ada sinyal beli hari ini', {});
+  assert(!/Ticker Tidak Terdaftar/.test(r1.reply), 'REGRESSION: a prediction question with no ticker bounces off the invalid-ticker gate');
+  assert(/Belum ada hasil inferensi/.test(r1.reply), 'REGRESSION: missing xgboostPrediction no longer produces the honest empty state');
+
+  // Real prediction, unproven model — disclaimer and real numbers must
+  // both appear.
+  const r2 = ctx.generateClientSideAiAgentResponse('prediksi BBCA gimana', {
+    xgboostPrediction: {
+      ticker: 'BBCA', signal: 'HOLD', probability: 0.48, buyThreshold: 0.6, sellThreshold: 0.35,
+      modelVersion: '20260911', asOfDate: '2026-09-10', isSimulatedData: false, hasProvenSignal: false, liftInfo: null
+    }
+  });
+  assert(/tidak terbukti/i.test(r2.reply), 'REGRESSION: an unproven prediction no longer carries the disclaimer in the client-side reply');
+  assert(/48\.0%/.test(r2.reply), 'REGRESSION: the real probability (48.0%) is not reflected in the reply');
+});
+
+// ── TEST 87: sendCopilotPrompt() (public/js/28-decisiontools.js) must run
+// xgbPredictLatest() (client-side ONNX inference, 11-quant.js) and attach
+// the result to userContext.xgboostPrediction — but ONLY when the message
+// both mentions a real ticker AND looks like a prediction/signal
+// question; every other message must skip inference entirely (it's slow:
+// ONNX load + a live OHLCV fetch — must not tax every single Copilot
+// message). Must also degrade to null on timeout/failure, never throw or
+// hang the whole request.
+await asyncTest('REGRESSION GUARD: sendCopilotPrompt() must run xgbPredictLatest() only for prediction-intent messages with a real ticker, and degrade to null on timeout', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const startMarker = 'async function sendCopilotPrompt(text) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: sendCopilotPrompt() not found');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Markdown Formatter for Institutional Agent Output');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after sendCopilotPrompt()');
+  src = src.slice(0, relEnd);
+
+  assert(/xgbPredictLatest/.test(src), 'REGRESSION: sendCopilotPrompt() no longer calls xgbPredictLatest() — xgboostPrediction will always be null');
+  assert(/xgboostPrediction:\s*xgboostPrediction/.test(src), 'REGRESSION: the computed prediction is no longer attached to userContext sent to the server');
+
+  function makeSandbox(xgbPredictLatestImpl) {
+    let capturedBody = null;
+    const calls = { xgbPredictLatest: 0 };
+    const sandbox = {
+      window: {},
+      MW_COPILOT_HISTORY: [],
+      MW_AI_IS_LOADING: false,
+      el: () => null,
+      renderCopilotPage: () => {},
+      getPortfolio: () => [],
+      computeCurrentAUM: () => 0,
+      calcRdnBalance: () => 0,
+      DB: { BBCA: { name: 'Bank Central Asia' } },
+      xgbPredictLatest: xgbPredictLatestImpl ? (tk, cb) => { calls.xgbPredictLatest++; xgbPredictLatestImpl(tk, cb); } : undefined,
+      fetch: (url, opts) => {
+        capturedBody = JSON.parse(opts.body);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, reply: 'ok', toolCalls: [] }) });
+      },
+      setTimeout, // real timers — the 8s race timeout must actually work; tests below use tiny delays well under it
+    };
+    sandbox.window = sandbox;
+    const ctx = vm.createContext(sandbox);
+    vm.runInContext(src, ctx, { filename: '28-decisiontools.js sendCopilotPrompt() xgboost (sandboxed load for test)' });
+    return { ctx, calls, getBody: () => capturedBody };
+  }
+
+  // 1. Prediction-intent message WITH a real ticker — must call
+  // xgbPredictLatest() and attach its result.
+  {
+    const { ctx, calls, getBody } = makeSandbox((tk, cb) => cb({ ticker: tk, signal: 'BUY', probability: 0.7, hasProvenSignal: false }));
+    await ctx.sendCopilotPrompt('apakah ada sinyal beli BBCA');
+    assert.strictEqual(calls.xgbPredictLatest, 1, 'REGRESSION: xgbPredictLatest() was not called for a prediction-intent message with a real ticker');
+    assert.strictEqual(getBody().userContext.xgboostPrediction.ticker, 'BBCA', 'REGRESSION: the computed prediction is not attached to the request body');
+  }
+
+  // 2. Ordinary message (no prediction keyword, no ticker) — must NOT
+  // trigger inference at all (performance: don't tax every message).
+  {
+    const { ctx, calls, getBody } = makeSandbox((tk, cb) => cb({ ticker: tk }));
+    await ctx.sendCopilotPrompt('hitung pajak dividen saya');
+    assert.strictEqual(calls.xgbPredictLatest, 0, 'REGRESSION: xgbPredictLatest() ran for a message with no prediction intent — wasted latency on every Copilot message');
+    assert.strictEqual(getBody().userContext.xgboostPrediction, null);
+  }
+
+  // 3. Prediction-intent keyword but NO real ticker mentioned — must not
+  // call the (expensive) inference with a garbage ticker.
+  {
+    const { ctx, calls } = makeSandbox((tk, cb) => cb({ ticker: tk }));
+    await ctx.sendCopilotPrompt('apakah ada sinyal bagus hari ini');
+    assert.strictEqual(calls.xgbPredictLatest, 0, 'REGRESSION: xgbPredictLatest() was called even though no real ticker was mentioned');
+  }
+
+  // 4. xgbPredictLatest() never calling back (hung ONNX load / stuck
+  // fetch) must not hang the request forever — verified structurally
+  // (Promise.race against a timeout) rather than by actually waiting out
+  // the real 8s in this test suite.
+  assert(/Promise\.race/.test(src), 'REGRESSION: the xgbPredictLatest() call is no longer raced against a timeout — a hung ONNX load/fetch would hang every Copilot message that mentions a ticker');
+  assert(/8000/.test(src), 'REGRESSION: the prediction timeout duration is gone');
+  assert(/catch \(e\) \{\s*console\.warn\('\[Copilot\] xgbPredictLatest/.test(src), 'REGRESSION: a thrown error from xgbPredictLatest() is no longer caught — it would crash sendCopilotPrompt() instead of degrading to null');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

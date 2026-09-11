@@ -192,6 +192,53 @@ function xgbPredictBatch(session, rows){
   });
 }
 
+// Item #3 dari roadmap AI Copilot (2026-09-11, INCIDENT_LOG.md): jalankan
+// inferensi XGBoost untuk SATU bar TERBARU dari satu ticker, supaya AI
+// Copilot bisa mengutipnya sebagai salah satu tool — sebelumnya
+// xgbPredictBatch()/xgbComputeFeatures() cuma pernah dipakai untuk batch
+// backtest historis (proceedWithData() di atas), tidak pernah untuk
+// prediksi "hari ini" satu ticker. Reuse pipeline yang SAMA persis (model
+// ONNX, fitur, threshold) — bukan re-implementasi terpisah — supaya angka
+// yang dikutip AI selalu identik dengan yang tampil di halaman Backtester.
+// callback(result|null) — null kalau model belum termuat/gagal/data
+// historis tidak cukup (JANGAN PERNAH menebak angka pengganti).
+function xgbPredictLatest(ticker, callback){
+  xgbEnsureLoaded().then(function(ok){
+    if(!ok || !QT.xgb.session){ callback(null); return; }
+    // XGB_EMA_LOOKBACK (60) + margin fitur teknikal lain (mom20/volatility20)
+    // + beberapa bar ekstra supaya baris terakhir yang valid benar-benar
+    // bar TERBARU, bukan terpotong karena histori terlalu pas-pasan.
+    qtFetchOHLCV(ticker, 400, function(err, data, source){
+      if(err || !data || data.length < XGB_EMA_LOOKBACK + 30){ callback(null); return; }
+      var rows = xgbComputeFeatures(data);
+      if(!rows.length){ callback(null); return; }
+      var lastRow = rows[rows.length - 1];
+      xgbPredictBatch(QT.xgb.session, [lastRow]).then(function(probs){
+        var p = probs[0];
+        var m = QT.xgb.meta || {};
+        var buyTh = (m.buy_threshold != null) ? m.buy_threshold : 0.6;
+        var sellTh = (m.sell_threshold != null) ? m.sell_threshold : 0.35;
+        var signal = p >= buyTh ? 'BUY' : (p <= sellTh ? 'SELL' : 'HOLD');
+        callback({
+          ticker: ticker,
+          probability: Math.round(p * 1000) / 1000,
+          signal: signal,
+          buyThreshold: buyTh,
+          sellThreshold: sellTh,
+          modelVersion: m.version || null,
+          asOfDate: data[data.length - 1].date,
+          isSimulatedData: source === 'simulasi', // histori OHLCV yang jadi input model ini sendiri simulasi, bukan data pasar riil — prediksi otomatis tidak berarti apa-apa kalau ini true
+          hasProvenSignal: !!(m.buy_precision_at_threshold != null && m.base_rate != null && (m.buy_precision_at_threshold / m.base_rate) >= 1.15),
+          liftInfo: (m.buy_precision_at_threshold != null && m.base_rate != null) ? {
+            precisionAtThreshold: m.buy_precision_at_threshold,
+            baseRate: m.base_rate
+          } : null
+        });
+      }).catch(function(){ callback(null); });
+    });
+  });
+}
+
 // Status box honesty note (2026-09-11): setelah 3 iterasi perbaikan
 // berturut-turut (label SL/TP-aware -> kalibrasi threshold persentil ->
 // 10 fitur teknikal termasuk ATR/EMA) TIDAK menghasilkan lift yang jelas
