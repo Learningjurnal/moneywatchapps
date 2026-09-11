@@ -2073,7 +2073,11 @@ window.goBandarmology = function(subTabOrMode, btn) {
 
   renderBandarmologyCockpitPage();
 
-  if (['broker-flow', 'smart-money-flow', 'foreign-flow', 'smart-money-radar'].includes(subTabOrMode)) {
+  // FIX (2026-09-11, user-requested cleanup): 'broker-flow',
+  // 'foreign-flow', 'smart-money-radar' removed from this list - dead,
+  // unreachable shortcut names (see the matching note in
+  // 06-analysis-router.js). 'smart-money-flow' is real and reachable.
+  if (subTabOrMode === 'smart-money-flow') {
     setTimeout(function() {
       setBandarmologyTab(subTabOrMode);
     }, 80);
@@ -2092,19 +2096,14 @@ window.setBandarmologyTab = function(subTab) {
     BANDARMOLOGY_MASTER_MODE = 'stock';
   }
   renderBandarmologyCockpitPage();
-  if (subTab === 'broker-flow') {
-    setTimeout(function() {
-      var el = document.getElementById('stockchat-flow-tab-content');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 120);
-  } else if (subTab === 'smart-money-flow') {
+  // FIX (2026-09-11, user-requested cleanup): the 'broker-flow' and
+  // 'foreign-flow' scroll-to branches that used to be here were dead -
+  // nothing anywhere ever calls setBandarmologyTab() with those values
+  // (see the matching note on goBandarmology() above). 'smart-money-flow'
+  // is real and reachable (via the 'flowscan' page route), so it's kept.
+  if (subTab === 'smart-money-flow') {
     setTimeout(function() {
       var el = document.getElementById('bandarSmartMoneyChart') || document.getElementById('bandar-tab-content');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 120);
-  } else if (subTab === 'foreign-flow') {
-    setTimeout(function() {
-      var el = document.getElementById('bandarForeignFlowChart');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
   }

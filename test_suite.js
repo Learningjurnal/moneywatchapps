@@ -1570,6 +1570,47 @@ test('REGRESSION GUARD: no chart config may override the global Chart.defaults.a
   });
 });
 
+// ── TEST 57: Investment Thesis Tracker (#page-thesis) must have a real
+// sidebar navigation entry (found via a user-requested dead-feature
+// audit, 2026-09-11) — renderThesisPage() was a fully built, working
+// feature (add/view/delete thesis, persisted through the full save/load
+// system) with zero navigation entry point anywhere in the app.
+test('REGRESSION GUARD: sidebar must have a goPage(\'thesis\') entry for the Investment Thesis Tracker', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(/onclick="goPage\('thesis'/.test(html),
+    'REGRESSION: no sidebar button calls goPage(\'thesis\') anymore — the Investment Thesis Tracker page is unreachable again (see INCIDENT_LOG.md)');
+});
+
+// ── TEST 58: dead Bandarmology deep-link shortcuts ('broker-flow',
+// 'foreign-flow', 'smart-money-radar') must stay removed, while the real,
+// reachable 'smart-money-flow' shortcut must keep working (found via the
+// same dead-feature audit). These 3 had zero call sites anywhere in the
+// app (verified via full-codebase search including dynamic goPage()
+// calls) — they were never separate pages, just named deep-link
+// shortcuts meant to auto-scroll to a section of the Bandarmology
+// Cockpit that page already shows in full when opened normally.
+test('REGRESSION GUARD: dead Bandarmology shortcuts (broker-flow/foreign-flow/smart-money-radar) must stay removed; smart-money-flow must still work', () => {
+  const routerJs = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  const cockpitJs = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  ['broker-flow', 'foreign-flow', 'smart-money-radar'].forEach(function(name) {
+    assert(!routerJs.includes("case '" + name + "':"),
+      'REGRESSION: dead router case \'' + name + '\' is back in 06-analysis-router.js — this route has zero call sites anywhere in the app (see INCIDENT_LOG.md)');
+  });
+
+  assert(routerJs.includes("case 'smart-money-flow':"),
+    'REGRESSION: the real, reachable \'smart-money-flow\' router case (used by the \'flowscan\' page) was removed along with the dead ones');
+  assert(/name === 'smart-money-flow' \? 'bandarmology'/.test(routerJs),
+    'REGRESSION: goPage()\'s targetPageName mapping no longer redirects \'smart-money-flow\' to the bandarmology page container');
+
+  assert(/subTabOrMode === 'smart-money-flow'/.test(cockpitJs),
+    'REGRESSION: goBandarmology() no longer dispatches \'smart-money-flow\' to setBandarmologyTab() — the real flowscan deep-link is broken');
+  assert(/subTab === 'smart-money-flow'/.test(cockpitJs),
+    'REGRESSION: setBandarmologyTab() no longer scrolls to #bandarSmartMoneyChart for \'smart-money-flow\' — the real flowscan deep-link is broken');
+  assert(!/subTab === 'broker-flow'/.test(cockpitJs) && !/subTab === 'foreign-flow'/.test(cockpitJs),
+    'REGRESSION: dead scroll-to branches for \'broker-flow\'/\'foreign-flow\' are back in setBandarmologyTab()');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
