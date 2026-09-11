@@ -2104,6 +2104,65 @@ test('REGRESSION GUARD: showSaveStatus() priority must protect a critical quota 
     'REGRESSION: an equal-priority message can no longer replace an earlier one of the same priority — the gate is too strict (should only block strictly-lower priority)');
 });
 
+// ── TEST 71: fsFallbackInfo() (public/js/07-flowscan.js) must resolve the
+// real company name from DB[tk] for any ticker outside FS_UNIV's static
+// 30-entry curated list, not echo the ticker code back as the name — found
+// from a real user report (2026-09-11): CUAN (and any other ticker not in
+// FS_UNIV) showed with "nama dan kode sama" (name identical to code) on
+// Ranking/Heatmap/Watchlist, even though DB['CUAN'].name already holds the
+// real company name ('Petrindo Jaya Kreasi Tbk.'). The sibling `s`
+// (sector) field already had this exact fallback-to-DB fix from an
+// earlier incident; `n` (name) never got the same treatment.
+// Loaded via the real vm sandbox technique (same pattern as TEST 69) —
+// extracts the FS_UNIV/FS_SECTOR_MAP/fsSectorLabel/fsFallbackInfo block
+// only, stubbing DB/XLSX_DATA (the two top-level statements this slice
+// depends on) rather than running the whole file, which overrides several
+// functions from other, earlier-loaded production files at module scope.
+test('REGRESSION GUARD: fsFallbackInfo() must use DB[tk].name for tickers outside FS_UNIV, not echo the ticker code as the name', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  const startMarker = 'var FS_UNIV=[';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: FS_UNIV declaration not found — has this section moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\nfunction fsMkBdg');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after fsFallbackInfo() (next function fsMkBdg) — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/function fsFallbackInfo\(tk\)/.test(src), 'fsFallbackInfo() not found — has it been renamed/removed?');
+  assert(/dbInfo && dbInfo\.name && dbInfo\.name !== tk/.test(src),
+    'REGRESSION: fsFallbackInfo() no longer checks DB[tk].name — tickers outside FS_UNIV will show their code as the name again (the CUAN bug)');
+  assert(!/return \{ t: tk, n: tk, s:/.test(src),
+    'REGRESSION: fsFallbackInfo() hardcodes n: tk again — the name-equals-code bug is back');
+
+  const sandbox = {
+    window: {},
+    DB: {
+      'CUAN': { name: 'Petrindo Jaya Kreasi Tbk.', sector: 'Energi', base: 6800 },
+      'UNKN': { sector: 'Energi' }, // has a sector but no usable name — must still fall back to the code, not throw
+    },
+    XLSX_DATA: { stocks: [] }, // no real-portfolio tickers to merge in for this test
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '07-flowscan.js (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.fsFallbackInfo, 'function', 'fsFallbackInfo not exposed on the sandbox context');
+
+  const cuan = ctx.fsFallbackInfo('CUAN');
+  assert.strictEqual(cuan.n, 'Petrindo Jaya Kreasi Tbk.',
+    'REGRESSION: fsFallbackInfo("CUAN") did not resolve the real name from DB — got "' + cuan.n + '" instead');
+  assert.strictEqual(cuan.s, 'Energi', 'sanity: sector fallback (already-fixed behavior) must still work');
+
+  // A ticker with no DB entry at all (or DB.name missing/absent) must still
+  // degrade gracefully to the ticker code — never throw, never show
+  // "undefined".
+  const noDb = ctx.fsFallbackInfo('ZZZZ');
+  assert.strictEqual(noDb.n, 'ZZZZ', 'REGRESSION: a ticker entirely absent from DB must fall back to its own code as the name, not throw or show undefined');
+
+  const noName = ctx.fsFallbackInfo('UNKN');
+  assert.strictEqual(noName.n, 'UNKN', 'REGRESSION: a DB entry with a sector but no name must still fall back to the ticker code as the name');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

@@ -104,9 +104,17 @@ function fsScColor(s){return s>=58?'#41f3a7':s<=42?'#e21d48':'#8fa3c8';}
 // _IDX_RAW_LIST by 01-data.js when available) before falling back to
 // 'Lainnya', the "sector unknown" convention used everywhere else in
 // this app.
+// The `n` (name) field had the same class of bug: it was hardcoded to the
+// ticker code itself, so any stock outside FS_UNIV's static 30-ticker list
+// (e.g. CUAN) showed its code twice instead of a company name on
+// Ranking/Heatmap/Watchlist, even though DB[tk].name already has the real
+// name. Mirrors the DB[tk].sector fallback right below, and the same
+// "!== tk" guard getIntelStockMeta() in 27-stockintel.js uses.
 function fsFallbackInfo(tk){
-  var dbSector = (typeof DB !== 'undefined' && DB[tk] && DB[tk].sector) ? DB[tk].sector : null;
-  return { t: tk, n: tk, s: fsSectorLabel(dbSector) || 'Lainnya', cap: 0 };
+  var dbInfo = (typeof DB !== 'undefined') ? DB[tk] : null;
+  var dbSector = (dbInfo && dbInfo.sector) ? dbInfo.sector : null;
+  var dbName = (dbInfo && dbInfo.name && dbInfo.name !== tk) ? dbInfo.name : tk;
+  return { t: tk, n: dbName, s: fsSectorLabel(dbSector) || 'Lainnya', cap: 0 };
 }
 function fsMkBdg(sig,sm){
   var cls=sig==='AKUMULASI'?'b-up':sig==='DISTRIBUSI'?'b-dn':'b-neu';

@@ -1804,3 +1804,39 @@ browser Anda TIDAK otomatis dibersihkan sampai `rdSave()` dipanggil lagi
 penulisan baru yang memicunya. Kalau ingin bersih seketika, bisa hapus
 manual key `mw_rd_*` lewat DevTools → Application → Local Storage, atau
 tunggu penggunaan normal secara bertahap memicu eviction.
+
+## 2026-09-11 — FlowScan Ranking/Watchlist/Heatmap: nama emiten = kode ticker untuk saham di luar FS_UNIV (mis. CUAN)
+
+- **Reported by:** user, via screenshot daftar saham bernomor (kolom
+  kode/nama/badge sektor/harga) — baris CUAN tampil hanya 2 baris teks
+  (kode + sektor/harga) alih-alih 3 baris seperti baris lain, karena nama
+  yang ditampilkan sama persis dengan kodenya.
+- **Root cause:** `fsFallbackInfo(tk)` di `public/js/07-flowscan.js` —
+  fallback bersama untuk ticker yang TIDAK ada di `FS_UNIV` (daftar
+  statis kurasi hanya 30 saham blue-chip; CUAN bukan salah satunya) —
+  selalu mengembalikan `n: tk` (nama = kode ticker itu sendiri), meski
+  `DB[tk].name` sudah punya nama perusahaan yang benar ('Petrindo Jaya
+  Kreasi Tbk.' untuk CUAN, dari `01-data.js`). Field `s` (sektor) di
+  fungsi yang sama SUDAH diperbaiki lebih dulu (insiden sebelumnya) untuk
+  jatuh ke `DB[tk].sector` — tapi perbaikan yang sama tidak pernah
+  diterapkan ke field `n`. Dipakai oleh `fsRunAnalysis()`,
+  `fsToogleWatchlistCurrent()`, `fsSyncWithPortfolio()`, `fsTgWl()`, dan
+  `fsInit()` — jadi bug ini muncul di Ranking, Heatmap, dan Watchlist
+  FlowScan untuk SETIAP ticker di luar 30 saham `FS_UNIV`, bukan cuma
+  CUAN.
+- **Fix:** `fsFallbackInfo()` sekarang membaca `DB[tk].name` (dengan
+  guard `!== tk`, sama seperti pola yang sudah dipakai
+  `getIntelStockMeta()` di `27-stockintel.js`) sebelum jatuh ke kode
+  ticker sebagai nama.
+- **Prevention added:**
+  - `test_suite.js` TEST 71 — memuat `fsFallbackInfo()` lewat vm sandbox
+    (irisan `FS_UNIV`...`fsFallbackInfo` saja, DB/XLSX_DATA di-stub),
+    membuktikan: (a) ticker dengan `DB[tk].name` valid (CUAN) menghasilkan
+    nama perusahaan asli bukan kode, (b) sektor (perilaku lama yang sudah
+    benar) tetap bekerja, (c) ticker tanpa entri DB sama sekali, atau
+    dengan sektor tapi tanpa nama, tetap fallback ke kode tanpa error.
+    Terbukti gagal (assertion regresi + assertion nilai `n`) saat fix
+    di-revert ke versi lama `{t:tk, n:tk, ...}`.
+- Cache-bust `07-flowscan.js` → `?v=20260911c`.
+
+`npm test` (94/94 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
