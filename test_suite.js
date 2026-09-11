@@ -1299,6 +1299,33 @@ test('REGRESSION GUARD: transaction & RDN table "Aksi" column must stay sticky-r
     'REGRESSION: the RDN row\'s action-icons <td> (rdn-tbody) lost its tbl-sticky-right class');
 });
 
+// ── TEST 47: Portfolio table "Alert" button must be reveal-on-hover
+// (found via deep-dive review, 2026-09-11, not a user-reported bug) —
+// #porto-tbody has no dedicated Aksi column, so this button used to sit
+// permanently inline in the sticky-left ticker cell, widening that
+// pinned column and crowding the ticker+logo on every single row. Also
+// guards against a real accessibility regression found while building
+// this exact fix: hiding the button via `display:none`/`visibility:
+// hidden` (the "obvious" way to reveal-on-hover) also removes it from
+// the keyboard tab order entirely, making it unreachable without a
+// mouse — this must use opacity/width instead, which stay focusable.
+test('REGRESSION GUARD: Portfolio table Alert button must collapse via opacity/width, never display:none/visibility:hidden (would break keyboard access)', () => {
+  const renderJs = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  assert(/class="btn btn-ghost btn-xs porto-alert-btn"/.test(renderJs),
+    'REGRESSION: the Alert button in the Portfolio table\'s ticker cell (04-render.js, renderPortofolio) lost its "porto-alert-btn" class');
+
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  const hoverMediaMatch = css.match(/@media \(hover: hover\) \{[\s\S]*?\n\}\n/);
+  assert(hoverMediaMatch, 'REGRESSION: no "@media (hover: hover)" block found — the reveal-on-hover rule for .porto-alert-btn is missing entirely, or the button is unconditionally hidden on ALL devices including touch (which have no hover state to reveal it with)');
+  const block = hoverMediaMatch[0];
+  assert(/\.porto-alert-btn\s*\{/.test(block),
+    'REGRESSION: ".porto-alert-btn" rule missing from the @media (hover: hover) block');
+  assert(!/\.porto-alert-btn\s*\{[^}]*display:\s*none/.test(block) && !/\.porto-alert-btn\s*\{[^}]*visibility:\s*hidden/.test(block),
+    'REGRESSION: .porto-alert-btn is hidden via display:none or visibility:hidden — both remove the element from the keyboard tab order, making it unreachable without a mouse; use opacity/width instead (see the comment above this rule in main.css)');
+  assert(/:focus-visible/.test(block),
+    'REGRESSION: no :focus-visible rule reveals .porto-alert-btn for keyboard navigation — only :hover is covered, so keyboard-only users can never reach this button');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

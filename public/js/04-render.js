@@ -682,7 +682,7 @@ function renderPortofolio(){
     var secColor=sectorColor(p.info.sector);
     var colorHex=COLORS[i%12] || '#2563EB';
     return '<tr>'
-      +'<td class="tbl-sticky-left"><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+colorHex+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)">Alert</button></div></td>'
+      +'<td class="tbl-sticky-left"><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+colorHex+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs porto-alert-btn" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)">Alert</button></div></td>'
       +'<td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">'+p.info.name+'</td>'
       +'<td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td>'
       +'<td class="mono num text-right">'+p.lot+'</td>'

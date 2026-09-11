@@ -849,3 +849,47 @@ one of them is the same class of defect as a real incident above.
   wrapper's visible bounds instead of scrolling off. Screenshot
   confirms the 🔍 ✎ ✕ icons visible and pinned to the right edge.
   `npm test` (69/69 + 16/16 policy + 6/6 provider), `npm run lint` clean.
+
+### "Alert" button crowding the sticky-left ticker column in Portfolio table
+
+- **Found by:** the same user-submitted deep-dive analysis, verified
+  directly against `04-render.js` (`renderPortofolio()`) — confirmed the
+  Portfolio table (`#porto-tbody`) has no dedicated "Aksi" column at all
+  (13 columns total: ticker, name, sector, lot, shares, avg, price,
+  market value, cost, unrealized, return%, allocation, signal), so the
+  "Alert" shortcut button had nowhere to go except inline inside the
+  sticky-left ticker cell, permanently widening that pinned column and
+  crowding the ticker/logo on every single row.
+- **Fix:** collapse the button to zero width/opacity by default, reveal
+  it on row hover. Scoped to `@media (hover: hover)` — only devices with
+  an actual pointer that can hover (mouse/trackpad) — so touch devices,
+  which have no hover state to reveal it with, keep the button always
+  visible exactly as before this change (zero behavior change for
+  mobile/tablet). Uses `opacity`/`width`, deliberately NOT
+  `display:none`/`visibility:hidden`: both of those also remove an
+  element from the keyboard tab order, which would have made the button
+  completely unreachable without a mouse — a real accessibility
+  regression that surfaced while building this exact fix (an earlier
+  draft using `display:none` combined with a `:focus-visible` reveal
+  rule looked reasonable but the `:focus-visible` selector could never
+  actually fire, since a `display:none` element is never focusable in
+  the first place).
+- **Prevention added:** `test_suite.js` TEST 47 — asserts the button
+  keeps its `porto-alert-btn` class, that a `@media (hover: hover)`
+  block exists scoping the collapse, that the collapse never uses
+  `display:none`/`visibility:hidden`, and that a `:focus-visible` rule
+  reveals it for keyboard navigation. Verified to fail (three separate
+  failures, one per broken variant) when each of the three ways to break
+  this was tried in turn — missing class, `display:none` instead of
+  opacity/width, and a missing `:focus-visible` rule — before being
+  restored.
+- **Verification:** live Playwright — measured the button's actual
+  `getBoundingClientRect()` width and `getComputedStyle().opacity`
+  through a full mouse-hover/unhover cycle on a real row (collapsed →
+  hover → collapsed again). Separately, drove real keyboard `Tab`
+  key-presses (not a scripted `.focus()` call, which does not reliably
+  trigger `:focus-visible` the same way) until landing on the button,
+  confirming `:focus-visible` actually matches and the button becomes
+  visible and clickable. Screenshots (before/during hover) sent to the
+  user. `npm test` (70/70 + 16/16 policy + 6/6 provider), `npm run lint`
+  clean.
