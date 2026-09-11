@@ -515,3 +515,58 @@ portfolio holdings with no sector data
   translation call sites exist. Re-verified live with the same 15-ticker
   mix: all 21 rows (6 hardcoded top holdings + the 15 test tickers) now
   show Indonesian sector labels, zero English ones, zero `"IHSG"`.
+
+---
+
+## #11 — Live crypto prices never updated from real data — always fetched
+a Yahoo Finance pair that doesn't exist
+
+- **Date:** 2026-09-11, moved here from `KNOWN_ISSUES.md` #1 once
+  root-caused and fixed. Originally found 2026-09-10 from a routine
+  Vercel log check (not a user report) — 9/9 requests to `/api/proxy` for
+  a `*-IDR` crypto symbol returned HTTP 404 in one log window, deferred
+  at the user's request to investigate later.
+- **Found by (this pass):** grepped every code path constructing a
+  `-IDR` Yahoo symbol per the deferred issue's own "next step" note.
+  Found `fhFetchCrypto()` (`public/js/03-engine.js`) — the live-price
+  refresh engine's crypto tick, called every refresh cycle from
+  `fhStart()` — fetching `code+'-IDR'` directly.
+- **Impact:** Yahoo Finance has no crypto→IDR trading pairs at all (only
+  `CODE-USD`) — confirmed by comments already present elsewhere in this
+  codebase (`server.js:2765`, `03-engine.js:273`/`452`,
+  `21-performance.js:257`) documenting the exact same 404 for historical
+  crypto-IDR charts, fixed there by fetching `-USD` and converting.
+  `fhFetchCrypto()` was never updated to match — every single live-price
+  tick for every crypto holding failed by construction, not
+  intermittently. `cryptoPrices[code]` (read as a direct IDR value
+  throughout `03-engine.js`/`05-assets.js`/`36-crypto-technical.js`) was
+  silently stuck on whatever fallback/import value it started with,
+  for the life of the session — a portfolio holding BTC/ETH/etc. never
+  saw a real live price update, with no visible error to the user (the
+  fetch failure was swallowed the same way any single-symbol `yfFetch()`
+  failure is, by design, for the other symbols that DO succeed).
+- **Root cause:** the direct-to-IDR fetch pattern was presumably written
+  before the `-USD`-plus-conversion pattern was established elsewhere in
+  this codebase (or copied from an assumption that never held), and
+  never revisited once that pattern proved out for historical crypto
+  charts.
+- **Fix:** `fhFetchCrypto()` now fetches `code+'-USD'` (Yahoo's real
+  symbol) and converts with `usdIdr` — the live USD/IDR rate
+  `fhFetchKurs()` already fetches earlier in the same `fhStart()`
+  sequence (2s vs. crypto's 6s delay), with a sane default
+  (`usdIdr = 17823.65`, `05-assets.js`) so the very first tick before
+  `fhFetchKurs()` resolves still produces a real (if slightly stale-rate)
+  IDR price rather than skipping the update.
+- **Prevention added:** `test_suite.js` TEST 40 — asserts
+  `fhFetchCrypto()` never fetches `code+'-IDR'` again, does fetch
+  `code+'-USD'`, and converts through `usdIdr`. Verified to actually fail
+  (clear message) when reverted to the old pattern, before being
+  restored.
+- **Verification:** live Playwright — intercepted the `/api/proxy`
+  requests `fhFetchCrypto()` makes, returning a controlled fake USD price
+  only for `-USD` symbols (404 for anything ending `-IDR`, matching
+  Yahoo's real behavior) and confirmed: the function requests `BTC-USD`
+  (never `BTC-IDR`), and `cryptoPrices['BTC']` ends up as
+  `regularMarketPrice * usdIdr` exactly (`67000 * 15800 = 1058600000`).
+  Zero page errors. `npm test` (62/62 + 6/6 provider), `npm run lint`
+  clean.

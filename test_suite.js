@@ -1093,6 +1093,28 @@ test('REGRESSION GUARD: FlowScan must never fall back to the literal "IHSG" as a
   assert(/function fsSectorLabel\(raw\)/.test(src), 'fsSectorLabel() translation helper is missing — was it renamed/removed?');
 });
 
+// ── TEST 40: KNOWN_ISSUES.md #1 — fhFetchCrypto() used to fetch
+// 'CODE-IDR' directly from Yahoo Finance for every live crypto price
+// update. Yahoo has no crypto->IDR pairs at all (confirmed 404 for every
+// pair, see server.js:2765's own comment and 03-engine.js:273/452) — every
+// single call failed 100% of the time by construction, so cryptoPrices[]
+// (used as a direct IDR value everywhere it's read) never got a real
+// update from this engine. Fixed to fetch 'CODE-USD' (Yahoo's real
+// symbol) and convert with usdIdr (the live rate fhFetchKurs() already
+// fetches earlier in the same fhStart() sequence).
+test('REGRESSION GUARD: fhFetchCrypto() must fetch CODE-USD, never CODE-IDR (KNOWN_ISSUES.md #1)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  const fn = src.match(/function fhFetchCrypto\(\)\{[\s\S]*?\n\}/);
+  assert(fn, 'fhFetchCrypto() body not found — has it been renamed/removed?');
+  const body = fn[0];
+  assert(!/code\s*\+\s*'-IDR'/.test(body),
+    "REGRESSION: fhFetchCrypto() fetches 'CODE-IDR' again — Yahoo has no crypto->IDR pairs, this fails 100% of the time (KNOWN_ISSUES.md #1)");
+  assert(/code\s*\+\s*'-USD'/.test(body),
+    "fhFetchCrypto() no longer fetches 'CODE-USD' — the only crypto pair Yahoo actually publishes");
+  assert(/usdIdr/.test(body),
+    'fhFetchCrypto() no longer converts the fetched USD price to IDR via usdIdr — cryptoPrices[] is read as a direct IDR value everywhere else in this app');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
