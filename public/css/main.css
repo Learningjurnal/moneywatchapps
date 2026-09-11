@@ -1424,7 +1424,18 @@ body.theme-light .drawer-panel {
   background:var(--bg3);
   border-bottom:1px solid var(--border);
 }
-.side-collapse-btn{
+/* FIX: `.side-nav button{width:100%;...}` (below) has HIGHER specificity
+   (one class + one element, 0-1-1) than `.side-collapse-btn` alone (one
+   class, 0-1-0) — and .side-collapse-btn IS a <button> inside .side-nav,
+   so that generic rule (meant for the actual nav item buttons like
+   "Market Pulse") was winning and stretching this icon-only button to
+   width:100% of the toolbar (measured ~229px instead of the intended
+   28px), squeezing the search input next to it down to ~18px — visually
+   just an icon + text cursor with the "Cari fitur (Ctrl+K)..." placeholder
+   and Ctrl-K badge invisible. Scoped selector below (.side-toolbar
+   .side-collapse-btn = 0-2-0) now reliably outranks .side-nav button
+   regardless of source order. */
+.side-toolbar .side-collapse-btn{
   flex-shrink:0;
   display:flex;
   align-items:center;
@@ -1439,7 +1450,7 @@ body.theme-light .drawer-panel {
   font-size:14px;
   transition:all .15s;
 }
-.side-collapse-btn:hover{
+.side-toolbar .side-collapse-btn:hover{
   color:var(--text);
   background:var(--bg4);
   border-color:var(--accent);
