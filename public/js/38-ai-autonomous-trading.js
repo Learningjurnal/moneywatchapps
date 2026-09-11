@@ -493,6 +493,7 @@
     try {
       localStorage.setItem(AI_PAPER_STORAGE_KEY, JSON.stringify(AI_TRADE_STATE.paperAccount));
     } catch (e) {}
+    scheduleAiCloudSync();
   }
 
   function loadPaperAccountState() {
@@ -516,9 +517,10 @@
 
   // ══════════════════════════════════════════════════════════
   // HYPOTHESIS LAB PERSISTENCE — mirrors AI_PAPER_STORAGE_KEY exactly.
-  // Stays isolated research/paper data (localStorage only), never routed
-  // through the Supabase-synced saveData() payload — same isolation
-  // guarantee as the rest of this page's paper-trading state.
+  // Isolated research/paper data — never routed through the Supabase
+  // user_data blob saveData() uses for real portfolio data (different
+  // table entirely, see AI CLOUD SYNC below), same isolation guarantee
+  // as the rest of this page's paper-trading state.
   // ══════════════════════════════════════════════════════════
   var AI_HYPO_STORAGE_KEY = 'mw_ai_hypotheses_v1';
 
@@ -526,6 +528,7 @@
     try {
       localStorage.setItem(AI_HYPO_STORAGE_KEY, JSON.stringify(AI_TRADE_STATE.hypotheses));
     } catch (e) {}
+    scheduleAiCloudSync();
   }
 
   function loadHypothesesState() {
@@ -558,6 +561,7 @@
     try {
       localStorage.setItem(AI_DECISION_LOG_KEY, JSON.stringify(AI_TRADE_STATE.decisionLog));
     } catch (e) {}
+    scheduleAiCloudSync();
   }
 
   function loadDecisionLog() {
@@ -570,6 +574,107 @@
   }
 
   loadDecisionLog();
+
+  // ══════════════════════════════════════════════════════════
+  // AI PAPER TRADING — SUPABASE CLOUD SYNC (2026-09-11, user-requested)
+  //
+  // Everything above this point (paperAccount/hypotheses/decisionLog) used
+  // to live in localStorage ONLY — real per-device data with no way to
+  // see a consistent Win Rate across a phone and a laptop. This adds sync
+  // to a DEDICATED `ai_paper_trading` table (sql/schema_migration.sql) —
+  // deliberately NOT the `user_data` blob saveData() uses for the user's
+  // real portfolio, matching this module's own stated isolation principle
+  // ("Complete Isolation: Zero Mixing with User's Personal Portfolio",
+  // see file header) and keeping this feature's sync bugs (if any) unable
+  // to touch real financial data or user_data's own merge logic
+  // (isExplicitlyEmpty — see 02-storage.js's incident history).
+  //
+  // Deliberately simple (user-chosen scope, not realtime): save-on-change
+  // + load-on-page-open, no live cross-tab listener. localStorage stays
+  // the immediate/offline write in every save*State() above; this is an
+  // ADDITIONAL best-effort cloud mirror for signed-in (non-guest/demo)
+  // users only — getAppUserId() already returns null for guest/demo (no
+  // `.id` field on that user object, see authDoGuestLogin() in
+  // 08-auth.js), so this silently no-ops for them exactly like
+  // fireSaveAllData() does for real portfolio data.
+  // ══════════════════════════════════════════════════════════
+  var AI_CLOUD_SYNC_DEBOUNCE_MS = 2000; // batches rapid successive saves (e.g. opening several positions back-to-back) into one network call
+  var _aiCloudSyncTimer = null;
+  var _aiCloudLoadedOnce = false; // guards against loadAiCloudState() re-firing on every initAiAutonomousSuite() call (page re-opened within one session)
+
+  function scheduleAiCloudSync() {
+    var uid = (typeof getAppUserId === 'function') ? getAppUserId() : null;
+    if (!uid) return; // guest/demo/not signed in — localStorage-only, unchanged from before this fix
+    if (_aiCloudSyncTimer) clearTimeout(_aiCloudSyncTimer);
+    _aiCloudSyncTimer = setTimeout(function() { flushAiCloudSync(uid); }, AI_CLOUD_SYNC_DEBOUNCE_MS);
+  }
+
+  async function flushAiCloudSync(uid) {
+    _aiCloudSyncTimer = null;
+    var client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (!client) return; // Supabase not configured (e.g. local dev) — localStorage already has the real write
+    try {
+      var payload = {
+        paperAccount: AI_TRADE_STATE.paperAccount,
+        hypotheses: AI_TRADE_STATE.hypotheses,
+        decisionLog: AI_TRADE_STATE.decisionLog
+      };
+      var result = await client.from('ai_paper_trading').upsert({
+        user_id: uid,
+        data: payload,
+        updated_at: new Date().toISOString()
+      });
+      if (result && result.error) console.warn('[AI Trading Cloud Sync]', result.error.message);
+    } catch (e) {
+      console.warn('[AI Trading Cloud Sync]', e && e.message);
+    }
+  }
+
+  // Called once per session from initAiAutonomousSuite() (AI Trading page
+  // opened). Cloud, when present, is treated as the source of truth for a
+  // signed-in user (per the user's chosen "mulai bersih" migration
+  // approach — no attempt to merge against whatever this device's
+  // localStorage happened to hold). A brand-new user (no cloud row yet)
+  // keeps their current in-memory/local state and pushes it up to
+  // establish that row, so a truly fresh account isn't reset to empty.
+  async function loadAiCloudState() {
+    if (_aiCloudLoadedOnce) return;
+    var uid = (typeof getAppUserId === 'function') ? getAppUserId() : null;
+    var client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (!uid || !client) return; // guest/demo or Supabase unconfigured — keep whatever localStorage already loaded
+    _aiCloudLoadedOnce = true;
+
+    try {
+      var result = await client.from('ai_paper_trading').select('data').eq('user_id', uid).maybeSingle();
+      if (result.error) { console.warn('[AI Trading Cloud Load]', result.error.message); return; }
+
+      var cloud = result.data && result.data.data;
+      if (cloud) {
+        var changed = false;
+        if (cloud.paperAccount && typeof cloud.paperAccount === 'object' && Array.isArray(cloud.paperAccount.openPositions) && Array.isArray(cloud.paperAccount.closedTrades)) {
+          AI_TRADE_STATE.paperAccount = cloud.paperAccount;
+          try { localStorage.setItem(AI_PAPER_STORAGE_KEY, JSON.stringify(cloud.paperAccount)); } catch (e) {}
+          changed = true;
+        }
+        if (Array.isArray(cloud.hypotheses)) {
+          AI_TRADE_STATE.hypotheses = cloud.hypotheses;
+          try { localStorage.setItem(AI_HYPO_STORAGE_KEY, JSON.stringify(cloud.hypotheses)); } catch (e) {}
+          changed = true;
+        }
+        if (Array.isArray(cloud.decisionLog)) {
+          AI_TRADE_STATE.decisionLog = cloud.decisionLog;
+          try { localStorage.setItem(AI_DECISION_LOG_KEY, JSON.stringify(cloud.decisionLog)); } catch (e) {}
+          changed = true;
+        }
+        if (changed && typeof renderAiTradingPage === 'function') renderAiTradingPage();
+      } else {
+        // No cloud row yet for this user — establish one from current state.
+        scheduleAiCloudSync();
+      }
+    } catch (e) {
+      console.warn('[AI Trading Cloud Load]', e && e.message);
+    }
+  }
 
   // Appends one event and persists immediately — every field here comes
   // from an already-computed real value (a hypothesis result or an actual
@@ -1301,6 +1406,11 @@
     renderAiTradingPage();
     aiRefreshPaperPortfolioQuotes(false);
     startAiAutoRefresh(); // Tier 4 step 1 — no-ops if already running
+    // Cloud sync (2026-09-11): fire-and-forget — re-renders itself once the
+    // fetch resolves (see loadAiCloudState()) rather than blocking this
+    // synchronous init path. No-ops after the first call this session, and
+    // no-ops entirely for guest/demo or when Supabase isn't configured.
+    loadAiCloudState();
   }
 
   function renderAiTradingPage() {
