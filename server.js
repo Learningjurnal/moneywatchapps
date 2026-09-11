@@ -1282,6 +1282,59 @@ const STOCK_REGISTRY = {
 };
 
 // Core Execution Tools Handlers
+// Item #2 dari roadmap AI Copilot (2026-09-11, INCIDENT_LOG.md): saran
+// perbaikan berbasis ATURAN (bukan ML) — deteksi kondisi objektif dari
+// data portofolio yang sudah dikirim client, dibandingkan ke Risk Gate
+// resmi aplikasi. Nilai di sini HARUS sama persis dengan
+// RISK_POLICY.MAX_POSITION_PCT/MIN_CASH_BUFFER_PCT (public/js/
+// 38-ai-autonomous-trading.js, dipakai assessRiskGate() untuk AI Paper
+// Trading) dan FINANCIAL_POLICY.md §7 — dijaga oleh drift-detector test
+// di test_financial_policy.js. server.js tidak bisa require() file
+// browser itu langsung, jadi nilainya diduplikasi di sini secara sengaja
+// (bukan diimpor) dan diverifikasi tetap sinkron lewat test.
+//
+// Catatan disclosure: cek_portofolio_user's `concentrationWarning` (di
+// bawah) dan cek_saldo_rdn's `liquidityStatus` sudah lebih dulu punya
+// ambang batas SENDIRI (25% / <5%-nya>30%) untuk kategorisasi umum gaya
+// institusional — BUKAN diubah di sini (di luar cakupan kerja ini,
+// mengubahnya adalah keputusan kebijakan tersendiri). riskGateFindings
+// di bawah adalah pemeriksaan BARU yang eksplisit dibandingkan ke angka
+// Risk Gate yang benar-benar disetujui/ditegakkan (§7), bukan pengganti.
+const PORTFOLIO_RISK_POLICY = {
+  MAX_POSITION_PCT: 15,   // must equal RISK_POLICY.MAX_POSITION_PCT
+  MIN_CASH_BUFFER_PCT: 20 // must equal RISK_POLICY.MIN_CASH_BUFFER_PCT
+};
+
+function computePortfolioRiskGateFindings(positions, computedAum, rdnCash) {
+  const findings = [];
+  if (computedAum <= 0) return findings;
+
+  (positions || []).forEach(p => {
+    const weightPct = Number(p.aumWeightPct || p.weightPct || 0);
+    if (weightPct > PORTFOLIO_RISK_POLICY.MAX_POSITION_PCT) {
+      findings.push({
+        type: 'concentration',
+        ticker: p.ticker,
+        weightPct: weightPct,
+        limitPct: PORTFOLIO_RISK_POLICY.MAX_POSITION_PCT,
+        message: `${p.ticker} mencapai ${weightPct}% dari AUM, melebihi batas maksimum posisi tunggal Risk Gate (${PORTFOLIO_RISK_POLICY.MAX_POSITION_PCT}%). Pertimbangkan trim sebagian untuk kembali ke batas aman.`
+      });
+    }
+  });
+
+  const cashPct = (Math.max(0, rdnCash) / computedAum) * 100;
+  if (cashPct < PORTFOLIO_RISK_POLICY.MIN_CASH_BUFFER_PCT) {
+    findings.push({
+      type: 'cash_buffer',
+      cashPct: Number(cashPct.toFixed(2)),
+      limitPct: PORTFOLIO_RISK_POLICY.MIN_CASH_BUFFER_PCT,
+      message: `Kas RDN hanya ${cashPct.toFixed(1)}% dari AUM, di bawah batas minimum bantalan kas Risk Gate (${PORTFOLIO_RISK_POLICY.MIN_CASH_BUFFER_PCT}%). Portofolio kurang siap menyerap koreksi atau peluang Buy on Weakness.`
+    });
+  }
+
+  return findings;
+}
+
 // FIX: sebelumnya cek_harga cuma bisa 15 ticker dari STOCK_REGISTRY statis,
 // padahal loadBaseUniverse() (900+ ticker dari js/01-data.js) dan
 // fetchYahooQuote() (Yahoo Finance real-time, server-side, tanpa CORS)
@@ -1445,6 +1498,7 @@ async function executeAgentTool(toolName, args, userContext = {}) {
           cashRatioPct: 0,
           positions: [],
           concentrationWarning: 'Portofolio saat ini masih kosong / mode demo (0 aset tercatat).',
+          riskGateFindings: [],
           message: 'Portofolio pengguna saat ini belum memiliki transaksi atau posisi aset aktif.'
         };
       }
@@ -1486,7 +1540,11 @@ async function executeAgentTool(toolName, args, userContext = {}) {
         cashRdn: rdnCash,
         cashRatioPct: computedAum > 0 ? Number((rdnCash / computedAum * 100).toFixed(2)) : 0,
         positions: mapped,
-        concentrationWarning: top1Weight > 25 ? `Posisi terbesar (${mapped[0]?.ticker}) mencakup ${top1Weight}% AUM (di atas batas diversifikasi institusi 20-25%).` : 'Konsentrasi aset dalam batas diversifikasi yang wajar (<25%).'
+        concentrationWarning: top1Weight > 25 ? `Posisi terbesar (${mapped[0]?.ticker}) mencakup ${top1Weight}% AUM (di atas batas diversifikasi institusi 20-25%).` : 'Konsentrasi aset dalam batas diversifikasi yang wajar (<25%).',
+        // Item #2: pemeriksaan EKSPLISIT terhadap Risk Gate resmi (§7),
+        // terpisah dari concentrationWarning di atas (ambang 25% institusi
+        // umum, bukan angka Risk Gate yang disetujui).
+        riskGateFindings: computePortfolioRiskGateFindings(mapped, computedAum, rdnCash)
       };
     }
 
@@ -1874,6 +1932,7 @@ ATURAN PERILAKU & ANALISA:
 6. NO HALLUCINATION: Gunakan selalu alat (tools/functions) yang tersedia untuk menarik data kuotasi, fundamental, dan broker summary.
 7. WAJIB CEK FLAG isSimulated: BEI tidak menyediakan feed broker-level flow (top buyer/seller, akumulasi/distribusi) publik gratis. Setiap hasil "cek_broker_summary" membawa field isSimulated (true/false). Jika isSimulated bernilai true, Anda WAJIB menyampaikan secara eksplisit di awal jawaban bahwa angka broker/bandarmology tersebut adalah SIMULASI berbasis harga pasar riil — BUKAN data transaksi broker sungguhan — sebelum menguraikan detailnya. Jangan pernah menyajikan data isSimulated:true seolah-olah itu feed broker riil.
 8. KINERJA & SARAN PERBAIKAN BERBASIS HISTORI RIIL: Jika pengguna bertanya soal performa AI trading/paper trading, win rate, atau minta saran perbaikan strategi berdasarkan kesalahan masa lalu, Anda WAJIB memanggil alat "cek_kinerja_ai_trading" TERLEBIH DAHULU sebelum menjawab — JANGAN pernah mengarang win rate atau pola kesalahan generik. Field hasData:false berarti belum ada trade tercatat sama sekali — sampaikan itu apa adanya, jangan buat-buat angka. Kalau hasData:true, dasarkan saran perbaikan Anda pada field lesson/mistake/improvement trade-trade terakhir (recentClosedTrades) — itu hasil mesin Post-Mortem riil aplikasi, bukan opini Anda sendiri. AI Paper Trading ini modal virtual terisolasi (bukan uang riil pengguna) — jangan pernah membingungkannya dengan portofolio riil dari cek_portofolio_user.
+9. SARAN PERBAIKAN OTOMATIS RISK GATE (berbasis aturan, bukan ML): setiap kali Anda memanggil "cek_portofolio_user", hasilnya membawa field riskGateFindings (array) — daftar pelanggaran OBJEKTIF terhadap Risk Gate resmi aplikasi (posisi tunggal maks 15% AUM, kas RDN minimal 20% AUM, FINANCIAL_POLICY.md §7). Kalau array itu TIDAK KOSONG, Anda WAJIB menyampaikan setiap finding.message-nya sebagai saran perbaikan — proaktif, bukan cuma kalau ditanya eksplisit. Kalau array itu kosong, sampaikan bahwa portofolio saat ini sudah sesuai Risk Gate. Jangan pernah mengarang ambang batas sendiri di luar 15%/20% ini.
 
 FORMAT RESPON:
 - Gunakan bahasa Indonesia yang profesional, ringkas, bersahabat, dan mudah dipahami.
@@ -2064,6 +2123,14 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
           }).join('\n')
         : '_Belum ada posisi saham aktif yang tercatat di portofolio._';
 
+      // Item #2 (2026-09-11): saran perbaikan berbasis ATURAN, bukan ML —
+      // muncul otomatis di setiap analisa portofolio, bukan cuma saat
+      // ditanya eksplisit, sesuai riskGateFindings dari cek_portofolio_user.
+      const riskGateFindings = resPorto.riskGateFindings || [];
+      const riskGateLines = riskGateFindings.length > 0
+        ? riskGateFindings.map(function(f) { return '- ⚠️ ' + f.message; }).join('\n')
+        : '- ✅ Tidak ada pelanggaran Risk Gate terdeteksi (posisi tunggal ≤ ' + PORTFOLIO_RISK_POLICY.MAX_POSITION_PCT + '% AUM, kas ≥ ' + PORTFOLIO_RISK_POLICY.MIN_CASH_BUFFER_PCT + '% AUM).';
+
       reply = '### 📊 Analisa Portofolio & Konsentrasi AUM (MoneyWatch Pro AI)\n\n'
         + 'Berdasarkan pencatatan data riil portofolio Anda:\n'
         + '- **Total AUM**: Rp ' + Number(resPorto.totalAum || 0).toLocaleString('id-ID') + '\n'
@@ -2072,6 +2139,8 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
         + '- **Status Likuiditas**: ' + resRdn.liquidityStatus + '\n\n'
         + '**Daftar Kepemilikan & Bobot AUM:**\n'
         + posLines + '\n\n'
+        + '**Saran Perbaikan (Risk Gate §7 FINANCIAL_POLICY.md):**\n'
+        + riskGateLines + '\n\n'
         + '**Evaluasi Risiko Dua Sisi:**\n'
         + '- **Sisi Potensi**: Likuiditas kas ' + resRdn.cashAllocationPct + '% memberi fleksibilitas untuk menyerap peluang jika terjadi koreksi pasar.\n'
         + '- **Sisi Risiko (Max Drawdown)**: ' + resPorto.concentrationWarning + '\n\n'

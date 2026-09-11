@@ -238,6 +238,36 @@ test('Policy §7: "Maximum concurrent new positions" approved value matches RISK
     `Doc approves ${m[1]} but RISK_POLICY.MAX_CONCURRENT_POSITIONS in public/js/38-ai-autonomous-trading.js = ${RISK_POLICY.MAX_CONCURRENT_POSITIONS}`);
 });
 
+// ── Item #2 (AI Copilot roadmap, 2026-09-11, INCIDENT_LOG.md): server.js
+// and 41-stockchat-cockpit.js each have their OWN hardcoded copy of the
+// approved position/cash Risk Gate thresholds (can't import the browser
+// RISK_POLICY object directly — one is a Node CommonJS server file, the
+// other loads only in a browser context). These two tests keep both
+// copies honest against RISK_POLICY (already verified above against
+// FINANCIAL_POLICY.md §7), so a change to the approved policy can't
+// silently desync the AI Copilot's own risk-gate saran perbaikan. ──
+const serverText = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+const stockchatText = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+test('Policy §7: server.js PORTFOLIO_RISK_POLICY (AI Copilot risk-gate saran perbaikan) matches RISK_POLICY', () => {
+  const m = serverText.match(/const PORTFOLIO_RISK_POLICY = \{\s*MAX_POSITION_PCT:\s*(\d+),[^}]*MIN_CASH_BUFFER_PCT:\s*(\d+)/);
+  assert(m, 'Could not locate `const PORTFOLIO_RISK_POLICY = {...}` in server.js — has it been renamed/restructured?');
+  assert.strictEqual(parseFloat(m[1]), RISK_POLICY.MAX_POSITION_PCT,
+    `server.js PORTFOLIO_RISK_POLICY.MAX_POSITION_PCT = ${m[1]}% but RISK_POLICY.MAX_POSITION_PCT (38-ai-autonomous-trading.js) = ${RISK_POLICY.MAX_POSITION_PCT}%`);
+  assert.strictEqual(parseFloat(m[2]), RISK_POLICY.MIN_CASH_BUFFER_PCT,
+    `server.js PORTFOLIO_RISK_POLICY.MIN_CASH_BUFFER_PCT = ${m[2]}% but RISK_POLICY.MIN_CASH_BUFFER_PCT (38-ai-autonomous-trading.js) = ${RISK_POLICY.MIN_CASH_BUFFER_PCT}%`);
+});
+
+test('Policy §7: 41-stockchat-cockpit.js client-side risk-gate thresholds (AI chat fallback saran perbaikan) match RISK_POLICY', () => {
+  const mMax = stockchatText.match(/PORTFOLIO_RISK_POLICY_MAX_POSITION_PCT = (\d+)/);
+  const mMin = stockchatText.match(/PORTFOLIO_RISK_POLICY_MIN_CASH_BUFFER_PCT = (\d+)/);
+  assert(mMax && mMin, 'Could not locate the PORTFOLIO_RISK_POLICY_MAX_POSITION_PCT/MIN_CASH_BUFFER_PCT constants in 41-stockchat-cockpit.js — has this section been renamed/restructured?');
+  assert.strictEqual(parseFloat(mMax[1]), RISK_POLICY.MAX_POSITION_PCT,
+    `41-stockchat-cockpit.js PORTFOLIO_RISK_POLICY_MAX_POSITION_PCT = ${mMax[1]}% but RISK_POLICY.MAX_POSITION_PCT (38-ai-autonomous-trading.js) = ${RISK_POLICY.MAX_POSITION_PCT}%`);
+  assert.strictEqual(parseFloat(mMin[1]), RISK_POLICY.MIN_CASH_BUFFER_PCT,
+    `41-stockchat-cockpit.js PORTFOLIO_RISK_POLICY_MIN_CASH_BUFFER_PCT = ${mMin[1]}% but RISK_POLICY.MIN_CASH_BUFFER_PCT (38-ai-autonomous-trading.js) = ${RISK_POLICY.MIN_CASH_BUFFER_PCT}%`);
+});
+
 // ============================================================
 console.log('═══════════════════════════════════════════════════════');
 if (passedTests === totalTests) {

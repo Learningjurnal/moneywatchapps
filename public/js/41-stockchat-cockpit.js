@@ -1883,6 +1883,33 @@ function generateClientSideAiAgentResponse(message, userContext) {
 
     var cashPct = aum > 0 ? ((rdn / aum) * 100).toFixed(1) : '0.0';
 
+    // Item #2 (2026-09-11): saran perbaikan berbasis ATURAN, bukan ML —
+    // pemeriksaan EKSPLISIT per-ticker terhadap Risk Gate resmi
+    // (FINANCIAL_POLICY.md §7 / RISK_POLICY di 38-ai-autonomous-
+    // trading.js), bukan lagi kalimat generik "pastikan tidak ada saham
+    // yang melebihi 15%" tanpa pernah benar-benar mengeceknya. Nilai
+    // 15/20 di sini HARUS sama dengan PORTFOLIO_RISK_POLICY di server.js
+    // dan RISK_POLICY.MAX_POSITION_PCT/MIN_CASH_BUFFER_PCT — dijaga oleh
+    // drift-detector test di test_financial_policy.js.
+    var PORTFOLIO_RISK_POLICY_MAX_POSITION_PCT = 15;
+    var PORTFOLIO_RISK_POLICY_MIN_CASH_BUFFER_PCT = 20;
+    var riskGateFindingLines = [];
+    if (aum > 0) {
+      porto.forEach(function(p) {
+        var mv = Number(p.marketValue || p.mv || (p.lot * 100 * (p.lastPrice || p.avgPrice || 1000)));
+        var weightPct = (mv / aum) * 100;
+        if (weightPct > PORTFOLIO_RISK_POLICY_MAX_POSITION_PCT) {
+          riskGateFindingLines.push('- ⚠️ ' + p.ticker + ' mencapai ' + weightPct.toFixed(1) + '% dari AUM, melebihi batas maksimum posisi tunggal Risk Gate (' + PORTFOLIO_RISK_POLICY_MAX_POSITION_PCT + '%). Pertimbangkan trim sebagian untuk kembali ke batas aman.');
+        }
+      });
+      if (Number(cashPct) < PORTFOLIO_RISK_POLICY_MIN_CASH_BUFFER_PCT) {
+        riskGateFindingLines.push('- ⚠️ Kas RDN hanya ' + cashPct + '% dari AUM, di bawah batas minimum bantalan kas Risk Gate (' + PORTFOLIO_RISK_POLICY_MIN_CASH_BUFFER_PCT + '%). Portofolio kurang siap menyerap koreksi atau peluang Buy on Weakness.');
+      }
+    }
+    var riskGateLines = riskGateFindingLines.length > 0
+      ? riskGateFindingLines.join('\n')
+      : '- ✅ Tidak ada pelanggaran Risk Gate terdeteksi (posisi tunggal ≤ ' + PORTFOLIO_RISK_POLICY_MAX_POSITION_PCT + '% AUM, kas ≥ ' + PORTFOLIO_RISK_POLICY_MIN_CASH_BUFFER_PCT + '% AUM).';
+
     reply = '### Review Teardown Portofolio & Alokasi Modal (AI Cockpit)\n\n'
       + 'Ringkasan posisi aset terintegrasi Anda:\n'
       + '- **Total AUM**: Rp ' + Math.round(aum).toLocaleString('id-ID') + '\n'
@@ -1890,9 +1917,8 @@ function generateClientSideAiAgentResponse(message, userContext) {
       + '- **Jumlah Posisi Aktif**: ' + porto.length + ' emiten\n\n'
       + '**Daftar Kepemilikan & Bobot Portofolio:**\n'
       + posLines + '\n\n'
-      + '**Evaluasi Manajemen Risiko:**\n'
-      + '- **Likuiditas Kas**: Porsi kas ' + cashPct + '% ' + (Number(cashPct) >= 15 ? 'sangat sehat untuk mengambil peluang reaktif.' : 'tergolong ketat (<15%), pertimbangkan menjaga bantalan kas.') + '\n'
-      + '- **Aturan Diversifikasi**: Pastikan tidak ada saham tunggal yang melebihi batas 15% dari total AUM untuk membatasi risiko unsystematic risk.\n\n'
+      + '**Saran Perbaikan (Risk Gate §7 FINANCIAL_POLICY.md):**\n'
+      + riskGateLines + '\n\n'
       + '*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
   }
   else if (pLower.includes('valuasi') || pLower.includes('fundamental') || pLower.includes('fair value') || pLower.includes('mos') || pLower.includes('margin of safety') || pLower.includes('per') || pLower.includes('pbv') || pLower.includes('roe')) {

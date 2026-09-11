@@ -2012,3 +2012,21 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (103/103 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
 
 **Catatan untuk user:** ini BUKAN machine learning terlatih — ini context engineering (menyuntikkan data real yang sudah ada ke prompt AI). Rencana untuk item #2-4 (saran berbasis aturan, pipeline data untuk ML copilot sungguhan, integrasi XGBoost sebagai tool) akan didokumentasikan terpisah sesuai permintaan.
+
+## 2026-09-11 — Fitur item #2: AI Copilot/StockChat otomatis beri saran perbaikan berbasis Risk Gate (rule-based, bukan ML)
+
+- **Konteks:** lanjutan roadmap "ML untuk AI chat" — item #2 (saran perbaikan berbasis aturan). Sesuai catatan sebelumnya, tool `cek_portofolio_user`/`cek_saldo_rdn` yang sudah ada punya ambang batas kategorisasi umum sendiri (25% konsentrasi, <5%/>30% kas) — TIDAK diubah (keputusan kebijakan tersendiri, di luar cakupan). Item #2 menambahkan pemeriksaan BARU yang eksplisit terhadap Risk Gate resmi yang benar-benar disetujui (§7: posisi tunggal maks 15% AUM, kas minimal 20% AUM), berdampingan dengan kategorisasi lama, bukan menggantikannya.
+- **Fitur:**
+  - `server.js` — `PORTFOLIO_RISK_POLICY` (15%/20%, harus sinkron dengan `RISK_POLICY` di `38-ai-autonomous-trading.js`) + `computePortfolioRiskGateFindings()`: mengecek SETIAP posisi (bukan cuma yang terbesar) terhadap batas 15%, dan kas terhadap batas 20%. Hasilnya ditambahkan sebagai field `riskGateFindings` di `cek_portofolio_user`. `SYSTEM_INSTRUCTION_MONEYWATCH_AI` diupdate (aturan #9) — Gemini WAJIB menyampaikan setiap finding secara proaktif, bukan cuma kalau diminta eksplisit.
+  - Fallback deterministik (server.js) dan fallback client-side (`41-stockchat-cockpit.js`) — keduanya menyisipkan bagian "Saran Perbaikan (Risk Gate §7)" otomatis di SETIAP analisa portofolio (bukan gated di belakang keyword terpisah), menggantikan kalimat generik lama yang tidak pernah benar-benar dicek ("pastikan tidak ada saham yang melebihi 15%...").
+- **Prevention added:**
+  - `test_suite.js` TEST 81 — `computePortfolioRiskGateFindings()` lewat vm sandbox: portofolio compliant → 0 finding, 1 posisi over-limit → 1 finding bernama ticker+15%, BEBERAPA posisi over-limit → SEMUA diflag (bukan cuma terbesar), kas rendah → 1 finding bernama 20%, AUM nol → tidak divide-by-zero.
+  - `test_suite.js` TEST 82 — reply portofolio deterministik menyertakan bagian Saran Perbaikan otomatis.
+  - `test_suite.js` TEST 83 — cabang portofolio client-side menghitung finding riil (bukan lagi kalimat generik).
+  - `test_financial_policy.js` — 2 drift-detector test baru: `PORTFOLIO_RISK_POLICY` (server.js) dan konstanta client-side (`41-stockchat-cockpit.js`) harus sinkron dengan `RISK_POLICY` (38-...) yang sudah diverifikasi sinkron dengan `FINANCIAL_POLICY.md` §7 — total jadi 18/18 test kebijakan.
+  - Semua 5 test (81-83 + 2 drift-detector) terbukti gagal saat masing-masing bagian direvert.
+- **Catatan teknis test:** ditemukan bug di test itu sendiri (bukan kode produksi) saat menulis TEST 81 — `assert.deepStrictEqual` gagal untuk array yang dibuat DI DALAM vm sandbox dibanding array literal biasa (beda realm/prototype Array meski isinya identik struktural). Diperbaiki dengan `.length` check / `Array.from()` sebelum deepStrictEqual, dicatat sebagai pola untuk test vm-sandbox berikutnya yang membandingkan array hasil komputasi (bukan array yang di-passthrough dari luar sandbox).
+- **Live verification (server lokal):** portofolio dengan 1 posisi 91.94% AUM + kas 8.1% → dua finding tampil benar; portofolio kas cukup tapi 1 posisi pas di atas 15% → tetap diflag; portofolio benar-benar compliant → pesan "✅ Tidak ada pelanggaran" tampil; item #1 (kinerja AI) dipastikan tidak keserempet perubahan ini.
+- Cache-bust `41-stockchat-cockpit.js` → `?v=20260911g`. `server.js` tidak perlu cache-bust.
+
+`npm test` (106/106 + 18/18 kebijakan + 6/6 provider), `npm run lint` bersih.
