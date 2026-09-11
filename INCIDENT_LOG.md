@@ -1091,3 +1091,34 @@ one of them is the same class of defect as a real incident above.
   only (not a full 4-side border) on the 4 non-first columns. Screenshot
   confirms a clean flat stat strip. `npm test` (76/76 + 6/6 provider),
   `npm run lint` clean.
+
+### Fixed-height charts stretched into extremely flat shapes on ultrawide monitors
+
+- **Found by:** the user-submitted deep-dive design review, flagged as
+  requiring an explicit design decision. User confirmed proceeding.
+  Verified the specific charts named (`#perfEquityChart`, `#divYearChart`)
+  are real and confirmed the actual root cause by measuring on a live
+  3000px-wide Playwright viewport before deciding on a fix, rather than
+  guessing: the root cause isn't really "fixed canvas height" in
+  isolation, it's that the `.g3`/`.g2c` card grids hosting these charts
+  had **no max-width at all**, so each grid column stretches
+  proportionally with the full viewport width while the chart height
+  stays a fixed 185px–220px — at 3000px viewport, `#perfEquityChart`'s
+  wrapper measured 852px wide × 190px tall (~4.5:1 aspect ratio, quite
+  flat).
+- **Fix:** added `max-width:1600px;margin-left:auto;margin-right:auto`
+  to `.g2c` and `.g3` (the two grid classes hosting the flagged charts).
+  1600px sits just above a typical 1920px viewport's content area (after
+  the sidebar), so normal laptop/desktop widths are essentially
+  unaffected — only genuinely ultrawide viewports get constrained and
+  centered. Confirmed live: at 3000px viewport, `#perfEquityChart`'s
+  wrapper aspect ratio improved from ~4.5:1 to ~2.55:1.
+- **Prevention added:** `test_suite.js` TEST 54 — asserts both `.g2c`
+  and `.g3` keep the `max-width:1600px` declaration. Verified to fail
+  (clear message) when reverted, before being restored.
+- **Verification:** live Playwright at a 3000px viewport — measured
+  `.g3`'s `getBoundingClientRect()` (exactly 1600px wide, centered) and
+  `#perfEquityChart`'s wrapper aspect ratio before/after; separately
+  confirmed `.g2c` (Dividen page's `#divYearChart`) also computes to
+  exactly 1600px via `getComputedStyle()`. Screenshot sent to the user.
+  `npm test` (77/77 + 6/6 provider), `npm run lint` clean.

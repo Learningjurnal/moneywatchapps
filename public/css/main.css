@@ -433,8 +433,18 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
 .row5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px}
 .g2{display:grid;grid-template-columns:1fr 280px;gap:16px;margin-bottom:18px}
 .g2b{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:18px}
-.g2c{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px}
+/* FIX (2026-09-11, user-submitted deep-dive review — "fixed canvas
+   height vs dynamic container"): .g2c and .g3 host card grids whose
+   charts (e.g. #divYearChart, #perfEquityChart) use a fixed pixel
+   height (185px-220px) but no width cap at all — on a genuinely
+   ultrawide monitor each column stretches proportionally with the full
+   viewport width while the chart height stays fixed, turning a normal
+   chart into an extremely flat, hard-to-read one. max-width caps this
+   at a value close to a normal 1920px viewport's content area (after
+   the sidebar), so typical laptop/desktop widths are unaffected and
+   only genuinely ultrawide viewports are constrained. */
+.g2c{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;max-width:1600px;margin-left:auto;margin-right:auto}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px;max-width:1600px;margin-left:auto;margin-right:auto}
 
 /* ── MASONRY DASHBOARD GRID ── */
 .dash-masonry-container{display:flex;flex-direction:column;gap:16px;width:100%}
