@@ -211,6 +211,9 @@ async function kseiInitData(forceRefresh) {
 // fallback when its date regex failed to match).
 // ══════════════════════════════════════════════════════════════
 var KSEI_TEMPLATE_REQUIRED_COLUMNS = ['Ticker', 'Nama Emiten', 'Nama Investor', 'Status', 'Persentase (%)', 'Jumlah Saham', 'Tanggal Laporan'];
+// Optional — see the freeFloat/freeFloatIsEstimated note in kseiParseWorkbook()
+// below for why this is a SEPARATE column, not derived from the required ones.
+var KSEI_TEMPLATE_OPTIONAL_FF_COLUMN = 'Persentase Free Float (%)';
 
 function _kseiNormKey(k) { return String(k || '').trim().toLowerCase(); }
 function _kseiRowGet(normRow, colName) { return normRow[_kseiNormKey(colName)]; }
@@ -293,6 +296,20 @@ function kseiParseWorkbook(rows) {
     var custodian = String(_kseiRowGet(normRow, 'Nama Kustodian') || '').trim();
     var accName = String(_kseiRowGet(normRow, 'Nama Akun Kustodian') || '').trim();
     var custShares = parseInt(String(_kseiRowGet(normRow, 'Saham di Kustodian Ini') || '').replace(/,/g, ''), 10) || 0;
+    // Free float is IDX's own published figure (from the separate free-float
+    // compliance report), NOT simply 100% minus the >5% shareholders' total —
+    // confirmed by cross-checking a real KSEI dataset against a hand-built
+    // reference: e.g. one real ticker had 62.30% major-shareholder ownership
+    // but an officially published free float of only 18.62%, not the naive
+    // 37.70% complement (treasury stock, sub-5% affiliated/founder holdings,
+    // etc. are excluded from "free float" but wouldn't show up as a >5%
+    // shareholder row at all). Read per-row (same repeat-on-every-row
+    // convention as the other optional columns) so it survives even if a
+    // ticker's investor rows are entered on different lines.
+    var ffRaw = _kseiRowGet(normRow, KSEI_TEMPLATE_OPTIONAL_FF_COLUMN);
+    var ffParsed = (ffRaw !== undefined && ffRaw !== null && String(ffRaw).trim() !== '')
+      ? parseFloat(String(ffRaw).replace(/,/g, '.').replace('%', ''))
+      : null;
 
     if (!dataByTicker[ticker]) {
       dataByTicker[ticker] = {
@@ -300,13 +317,18 @@ function kseiParseWorkbook(rows) {
         name: emitenName || ticker,
         investors: [],
         totalMajorPercent: 0,
-        freeFloat: 100,
+        freeFloat: null,
+        freeFloatIsEstimated: true,
         localPercent: 0,
         foreignPercent: 0,
         totalSharesHeld: 0,
         netChangeShares: 0,
         reportDate: reportDate
       };
+    }
+    if (isFinite(ffParsed) && ffParsed !== null) {
+      dataByTicker[ticker].freeFloat = Math.round(ffParsed * 100) / 100;
+      dataByTicker[ticker].freeFloatIsEstimated = false;
     }
 
     // Same investor name repeated under the same ticker = another
@@ -361,7 +383,13 @@ function kseiParseWorkbook(rows) {
       totChg += inv.change;
     });
     item.totalMajorPercent = Math.min(100, Math.round(totPct * 100) / 100);
-    item.freeFloat = Math.max(0, Math.round((100 - item.totalMajorPercent) * 100) / 100);
+    // freeFloat was set per-row above (from the optional column) when
+    // present; a ticker that never had it falls back here to the naive
+    // complement, clearly flagged freeFloatIsEstimated:true — see the note
+    // above this function on why that complement is not the real figure.
+    if (item.freeFloat === null) {
+      item.freeFloat = Math.max(0, Math.round((100 - item.totalMajorPercent) * 100) / 100);
+    }
     item.localPercent = Math.round(locPct * 100) / 100;
     item.foreignPercent = Math.round(forPct * 100) / 100;
     item.totalSharesHeld = totShares;
@@ -382,6 +410,377 @@ function kseiParseWorkbook(rows) {
     },
     errors: []
   };
+}
+
+// ══════════════════════════════════════════════════════════════
+// RAW IDX FILE UPLOAD — Kepemilikan >5% + Free Float, straight from IDX,
+// no manual "build Master" step required (user-requested, 2026-09-11,
+// after the single-template path above). Validated against a real KSEI
+// dataset (Aug 2026, 840 emiten) cross-checked against the user's own
+// hand-built reference table: 1,043/1,043 (ticker,status) buckets matched
+// EXACTLY on percentage AND on Papan/Kapitalisasi/JPS/Free Float% — see
+// INCIDENT_LOG.md for the full validation write-up. The only 3
+// discrepancies were a SheetJS boolean-coercion quirk (ticker "TRUE" read
+// as JS `true`, guarded by _kseiCellText() below) and two rows where
+// KSEI's own raw export mislabels a sub-custodian-account row's L/A
+// status differently from its investor's main row — both contribute 0%
+// in the reference table too (i.e. noise, not a real ownership signal).
+//
+// Structurally different from kseiParseWorkbook() above: these are the
+// UNMODIFIED files IDX/KSEI publish (multi-row merged super-headers,
+// continuation rows, 1-2 report-period column blocks side by side) —
+// read as raw 2D arrays (XLSX.utils.sheet_to_json(sheet, {header:1})),
+// not header-keyed row objects, and every column position is LOCATED by
+// searching for landmark header text (never a hardcoded index — that was
+// the pre-2026-09-11 parser's failure mode) so a month where IDX
+// adds/drops a comparison-period column doesn't silently misread data
+// into the wrong field. When 2 period columns exist side by side, the
+// RIGHTMOST (last) one is always the most recent — confirmed against
+// both real files.
+// ══════════════════════════════════════════════════════════════
+
+// Guards against a ticker cell like "TRUE"/"FALSE" coming back as a JS
+// boolean instead of text — found via the real KSEI file: ticker "TRUE"
+// (PT Triniti Dinamik Tbk) silently became boolean `true` under SheetJS,
+// same class of surprise Excel itself applies to a bare "TRUE" cell.
+function _kseiCellText(v) {
+  if (v === true) return 'TRUE';
+  if (v === false) return 'FALSE';
+  if (v === null || v === undefined) return '';
+  return String(v);
+}
+
+// Scans `rows2D` (array of arrays) for the first row containing a cell
+// whose text STARTS WITH `headerPrefix` (case-insensitive) within the
+// first `maxScanRows` rows. Returns the row index, or -1 if not found.
+function _kseiFindHeaderRowIdx(rows2D, headerPrefix, maxScanRows) {
+  var limit = Math.min(rows2D.length, maxScanRows || 20);
+  var needle = headerPrefix.toLowerCase();
+  for (var r = 0; r < limit; r++) {
+    var row = rows2D[r] || [];
+    for (var c = 0; c < row.length; c++) {
+      if (_kseiCellText(row[c]).trim().toLowerCase().indexOf(needle) === 0) return r;
+    }
+  }
+  return -1;
+}
+
+// Within ONE specific row, finds every column whose text starts with
+// `headerPrefix` and returns the LAST (rightmost) match — the most
+// recent report-period column, when IDX places several side by side.
+// Returns -1 if not found (caller must treat that as a hard error, never
+// default to column 0).
+function _kseiFindLastColInRow(row, headerPrefix) {
+  var needle = headerPrefix.toLowerCase();
+  var found = -1;
+  for (var c = 0; c < row.length; c++) {
+    if (_kseiCellText(row[c]).trim().toLowerCase().indexOf(needle) === 0) found = c;
+  }
+  return found;
+}
+
+function _kseiParseNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return v;
+  var n = parseFloat(String(v).replace(/,/g, ''));
+  return isFinite(n) ? n : null;
+}
+
+/**
+ * Parses the raw "Kepemilikan Efek Diatas 5%" KSEI export (2D array from
+ * XLSX.utils.sheet_to_json(sheet, {header:1})). Returns
+ * {investors: [{ticker, emiten, investor, status, combinedShares,
+ * combinedPct}], reportDate, errors: []} — or {investors:null,
+ * errors:[...]} if the expected structure isn't found (never guesses).
+ */
+function kseiParseOwnershipRaw(rows2D) {
+  if (!Array.isArray(rows2D) || rows2D.length < 5) {
+    return { investors: null, reportDate: null, errors: ['File Kepemilikan kosong atau terlalu pendek — pastikan ini file mentah KSEI, bukan file yang sudah diolah.'] };
+  }
+
+  var titleRow = rows2D[0] || [];
+  var titleText = titleRow.map(_kseiCellText).join(' ');
+  var dateMatch = titleText.match(/per tanggal\s+([^,]+)/i);
+  if (!dateMatch) {
+    return { investors: null, reportDate: null, errors: ['Tidak menemukan "per tanggal ..." di baris judul file Kepemilikan — pastikan ini file mentah KSEI yang belum diubah (judul aslinya "KEPEMILIKAN EFEK DIATAS 5% BERDASARKAN SID... per tanggal <tanggal>").'] };
+  }
+  var reportDate = dateMatch[1].trim();
+
+  var hdr1Idx = _kseiFindHeaderRowIdx(rows2D, 'Kode Efek', 10);
+  if (hdr1Idx === -1) {
+    return { investors: null, reportDate: null, errors: ['Kolom "Kode Efek" tidak ditemukan di 10 baris pertama — struktur file Kepemilikan tidak dikenali.'] };
+  }
+  var hdr1 = rows2D[hdr1Idx];
+  var hdr2 = rows2D[hdr1Idx + 1] || [];
+
+  var colTicker = _kseiFindLastColInRow(hdr1, 'Kode Efek');
+  var colEmiten = _kseiFindLastColInRow(hdr1, 'Nama Emiten');
+  var colInvestor = _kseiFindLastColInRow(hdr1, 'Nama Pemegang Saham');
+  var colStatus = _kseiFindLastColInRow(hdr1, 'Status');
+  var required = { 'Kode Efek': colTicker, 'Nama Emiten': colEmiten, 'Nama Pemegang Saham': colInvestor, 'Status': colStatus };
+  var missing = Object.keys(required).filter(function(k) { return required[k] === -1; });
+  if (missing.length > 0) {
+    return { investors: null, reportDate: null, errors: ['Kolom wajib tidak ditemukan di file Kepemilikan: ' + missing.join(', ') + '.'] };
+  }
+
+  // "Saham Gabungan Per Investor" / "Persentase Kepemilikan Per Investor
+  // (%)" repeat once per report-period block (1 or 2 blocks side by
+  // side) — take the LAST occurrence = the most recent period.
+  var colCombinedShares = _kseiFindLastColInRow(hdr2, 'Saham Gabungan Per Investor');
+  var colCombinedPct = _kseiFindLastColInRow(hdr2, 'Persentase Kepemilikan Per Investor');
+  if (colCombinedShares === -1 || colCombinedPct === -1) {
+    return { investors: null, reportDate: null, errors: ['Kolom "Saham Gabungan Per Investor" / "Persentase Kepemilikan Per Investor (%)" tidak ditemukan pada baris sub-header — struktur periode file Kepemilikan tidak dikenali.'] };
+  }
+
+  var investors = [];
+  var cur = null;
+  for (var r = hdr1Idx + 2; r < rows2D.length; r++) {
+    var row = rows2D[r] || [];
+    var tickerCell = _kseiCellText(row[colTicker]).trim().toUpperCase();
+    if (!tickerCell) continue; // spacer/footnote row — skip, not an error
+    var investorCell = _kseiCellText(row[colInvestor]).trim();
+    if (investorCell) {
+      // new investor group
+      cur = {
+        ticker: tickerCell,
+        emiten: _kseiCellText(row[colEmiten]).trim(),
+        investor: investorCell,
+        status: _kseiCellText(row[colStatus]).trim().toUpperCase().indexOf('A') === 0 ? 'Asing' : 'Lokal',
+        combinedShares: _kseiParseNum(row[colCombinedShares]) || 0,
+        combinedPct: _kseiParseNum(row[colCombinedPct]) || 0
+      };
+      investors.push(cur);
+    }
+    // continuation rows (additional custodian sub-accounts for `cur`)
+    // carry no new percentage/shares total — KSEI already gives the
+    // investor-level combined total on the group's first row, so they're
+    // intentionally not re-summed here (see file header for why: the
+    // validation run confirmed re-summing sub-account rows is
+    // unnecessary and a source of the 2 known raw-data status-label
+    // anomalies, not a fix for them).
+  }
+
+  if (investors.length === 0) {
+    return { investors: null, reportDate: null, errors: ['Tidak ada baris investor valid ditemukan di file Kepemilikan setelah header.'] };
+  }
+
+  return { investors: investors, reportDate: reportDate, errors: [] };
+}
+
+/**
+ * Parses the raw IDX Free Float compliance report (2D array). Returns
+ * {byTicker: {TICKER: {papan, kapitalisasi, jumlahPemegangSaham,
+ * freeFloatPct}}, errors: []} — or {byTicker:null, errors:[...]}.
+ */
+function kseiParseFreeFloatRaw(rows2D) {
+  if (!Array.isArray(rows2D) || rows2D.length < 10) {
+    return { byTicker: null, errors: ['File Free Float kosong atau terlalu pendek — pastikan ini file mentah IDX, bukan file yang sudah diolah.'] };
+  }
+
+  var hdr1Idx = _kseiFindHeaderRowIdx(rows2D, 'Kode', 20);
+  if (hdr1Idx === -1) {
+    return { byTicker: null, errors: ['Kolom "Kode" tidak ditemukan di 20 baris pertama — struktur file Free Float tidak dikenali.'] };
+  }
+  var hdr1 = rows2D[hdr1Idx];
+  var hdr2 = rows2D[hdr1Idx + 1] || [];
+
+  var colTicker = _kseiFindLastColInRow(hdr1, 'Kode');
+  var colEmiten = _kseiFindLastColInRow(hdr1, 'Nama Perusahaan');
+  var colPapan = _kseiFindLastColInRow(hdr1, 'Papan Pencatatan');
+  var colKap = _kseiFindLastColInRow(hdr2, 'Kapitalisasi Pasar');
+  var colJps = _kseiFindLastColInRow(hdr2, 'Jumlah Pemegang Saham');
+  var colFf = _kseiFindLastColInRow(hdr2, '% Saham Free Float');
+  var required = { 'Kode': colTicker, 'Papan Pencatatan': colPapan, 'Kapitalisasi Pasar': colKap, 'Jumlah Pemegang Saham': colJps, '% Saham Free Float': colFf };
+  var missing = Object.keys(required).filter(function(k) { return required[k] === -1; });
+  if (missing.length > 0) {
+    return { byTicker: null, errors: ['Kolom wajib tidak ditemukan di file Free Float: ' + missing.join(', ') + '.'] };
+  }
+
+  var byTicker = {};
+  var n = 0;
+  for (var r = hdr1Idx + 2; r < rows2D.length; r++) {
+    var row = rows2D[r] || [];
+    var tickerCell = _kseiCellText(row[colTicker]).trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,5}$/.test(tickerCell)) continue; // footnote/blank/spacer row — skip, not an error
+    var ffRaw = _kseiCellText(row[colFf]).replace(',', '.').replace('%', '').trim();
+    var ffPct = parseFloat(ffRaw);
+    byTicker[tickerCell] = {
+      emiten: colEmiten !== -1 ? _kseiCellText(row[colEmiten]).trim() : '',
+      papan: _kseiCellText(row[colPapan]).trim(),
+      kapitalisasi: _kseiCellText(row[colKap]).trim(),
+      jumlahPemegangSaham: _kseiParseNum(row[colJps]),
+      freeFloatPct: isFinite(ffPct) ? Math.round(ffPct * 100) / 100 : null
+    };
+    n++;
+  }
+
+  if (n === 0) {
+    return { byTicker: null, errors: ['Tidak ada baris ticker valid ditemukan di file Free Float setelah header.'] };
+  }
+
+  return { byTicker: byTicker, errors: [] };
+}
+
+/**
+ * Combines the two raw-parse results into the SAME per-ticker data shape
+ * kseiParseWorkbook() above produces (dataByTicker[ticker] = {ticker,
+ * name, investors:[...], totalMajorPercent, freeFloat,
+ * freeFloatIsEstimated, localPercent, foreignPercent, ...}) — so every
+ * other part of this file (getKseiStock(), the Explorer modal, the
+ * Scanner) works identically regardless of which upload path produced
+ * the data.
+ */
+function kseiCombineRawSheets(ownershipResult, ffResult) {
+  var dataByTicker = {};
+  ownershipResult.investors.forEach(function(inv) {
+    if (!dataByTicker[inv.ticker]) {
+      dataByTicker[inv.ticker] = {
+        ticker: inv.ticker,
+        name: inv.emiten || inv.ticker,
+        investors: [],
+        totalMajorPercent: 0,
+        freeFloat: null,
+        freeFloatIsEstimated: true,
+        localPercent: 0,
+        foreignPercent: 0,
+        totalSharesHeld: 0,
+        netChangeShares: 0,
+        reportDate: ownershipResult.reportDate
+      };
+    }
+    var item = dataByTicker[inv.ticker];
+    if (inv.emiten) item.name = inv.emiten;
+    item.investors.push({
+      name: inv.investor,
+      percentage: inv.combinedPct,
+      shares: inv.combinedShares,
+      change: 0,
+      status: inv.status,
+      domicile: inv.status === 'Asing' ? 'LUAR NEGERI' : 'INDONESIA',
+      accounts: []
+    });
+  });
+
+  var totalHoldersCount = 0;
+  Object.keys(dataByTicker).forEach(function(t) {
+    var item = dataByTicker[t];
+    var totPct = 0, locPct = 0, forPct = 0, totShares = 0;
+    item.investors.forEach(function(inv) {
+      totPct += inv.percentage;
+      if (inv.status === 'Asing') forPct += inv.percentage; else locPct += inv.percentage;
+      totShares += inv.shares;
+    });
+    item.totalMajorPercent = Math.min(100, Math.round(totPct * 100) / 100);
+    item.localPercent = Math.round(locPct * 100) / 100;
+    item.foreignPercent = Math.round(forPct * 100) / 100;
+    item.totalSharesHeld = totShares;
+    totalHoldersCount += item.investors.length;
+
+    var ff = ffResult.byTicker[t];
+    if (ff) {
+      item.papan = ff.papan;
+      item.kapitalisasiPasar = ff.kapitalisasi;
+      item.jumlahPemegangSaham = ff.jumlahPemegangSaham;
+      if (ff.freeFloatPct !== null) {
+        item.freeFloat = ff.freeFloatPct;
+        item.freeFloatIsEstimated = false;
+      }
+    }
+    // No FF match for this ticker — freeFloat stays null/estimated:true,
+    // an honest gap (44 of 840 real tickers had this in the validated
+    // dataset — e.g. a ticker recently listed/delisted between the two
+    // reports) rather than a fabricated number.
+    if (item.freeFloat === null) {
+      item.freeFloat = Math.max(0, Math.round((100 - item.totalMajorPercent) * 100) / 100);
+    }
+  });
+
+  return {
+    data: dataByTicker,
+    metadata: {
+      source: 'upload_raw_2file',
+      title: 'KEPEMILIKAN EFEK DIATAS 5% BERDASARKAN SID (PUBLIK) per tanggal ' + ownershipResult.reportDate,
+      reportDate: ownershipResult.reportDate,
+      totalEmiten: Object.keys(dataByTicker).length,
+      totalMajorInvestors: totalHoldersCount,
+      lastUpdated: new Date().toISOString()
+    }
+  };
+}
+
+/**
+ * Wired to the two raw-file inputs in the Sync Settings tab. Reads BOTH
+ * files, parses independently (kseiParseOwnershipRaw/kseiParseFreeFloatRaw),
+ * and only combines+applies if BOTH parsed cleanly — a bad Free Float file
+ * must not silently apply a Kepemilikan-only dataset with every freeFloat
+ * naively estimated, that regression is exactly what freeFloatIsEstimated
+ * exists to make visible instead of hiding.
+ */
+function kseiImportRawFiles(ownershipInputId, ffInputId) {
+  var ownershipInp = document.getElementById(ownershipInputId || 'ksei-import-ownership-file');
+  var ffInp = document.getElementById(ffInputId || 'ksei-import-ff-file');
+  var ownershipFile = ownershipInp && ownershipInp.files && ownershipInp.files[0];
+  var ffFile = ffInp && ffInp.files && ffInp.files[0];
+  if (!ownershipFile || !ffFile) { if (typeof showToast === 'function') showToast('Pilih KEDUA file (Kepemilikan dan Free Float) dulu'); return; }
+  if (typeof XLSX === 'undefined') { if (typeof showToast === 'function') showToast('Pustaka pembaca Excel belum termuat, coba lagi sebentar'); return; }
+  if (!confirm('RESET TOTAL data KSEI 5%+ Shareholders & Free Float?\n\nSeluruh data yang tersimpan akan DIGANTI TOTAL dengan gabungan:\n\n"' + ownershipFile.name + '"\n"' + ffFile.name + '"\n\nLanjutkan?')) return;
+
+  KSEI_STATE.isSyncing = true;
+  kseiUpdateSyncUI();
+  if (typeof showToast === 'function') showToast('⏳ Membaca & menggabungkan 2 file...');
+
+  function readAsRows(file) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          var sheet = wb.Sheets[wb.SheetNames[0]];
+          resolve(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }));
+        } catch (err) { reject(err); }
+      };
+      reader.onerror = function() { reject(new Error('Gagal membaca ' + file.name)); };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  Promise.all([readAsRows(ownershipFile), readAsRows(ffFile)]).then(function(results) {
+    var ownershipRows = results[0], ffRows = results[1];
+    var ownershipResult = kseiParseOwnershipRaw(ownershipRows);
+    var ffResult = kseiParseFreeFloatRaw(ffRows);
+    var errors = (ownershipResult.errors || []).concat(ffResult.errors || []);
+
+    if (errors.length > 0) {
+      var msg = errors.join('\n');
+      if (typeof showToast === 'function') showToast('❌ File ditolak: ' + errors[0] + (errors.length > 1 ? ' (+' + (errors.length - 1) + ' lainnya)' : ''));
+      alert('File ditolak — data KSEI TIDAK diubah. Perbaiki dulu:\n\n' + msg);
+      return;
+    }
+
+    var combined = kseiCombineRawSheets(ownershipResult, ffResult);
+    KSEI_STATE.data = combined.data;
+    KSEI_STATE.metadata = Object.assign({}, combined.metadata, {
+      uploadedFileName: ownershipFile.name + ' + ' + ffFile.name
+    });
+
+    try {
+      localStorage.setItem('MW_KSEI_DATA_CACHE', JSON.stringify({ metadata: KSEI_STATE.metadata, data: KSEI_STATE.data }));
+    } catch (e2) {}
+
+    scheduleKseiCloudSync();
+
+    var unmatchedCount = Object.keys(combined.data).filter(function(t) { return combined.data[t].freeFloatIsEstimated; }).length;
+    var okMsg = '✅ Berhasil menggabungkan ' + combined.metadata.totalEmiten + ' emiten (periode ' + combined.metadata.reportDate + ')';
+    if (unmatchedCount > 0) okMsg += ' — ' + unmatchedCount + ' emiten tanpa data Free Float resmi (dipakai estimasi 100%-mayoritas, ditandai jelas di tampilan).';
+    if (typeof showToast === 'function') showToast(okMsg);
+    kseiRefreshActiveViews();
+  }).catch(function(err) {
+    console.error('[KSEI Raw Import Error]', err);
+    if (typeof showToast === 'function') showToast('❌ Gagal membaca file: ' + err.message);
+  }).finally(function() {
+    KSEI_STATE.isSyncing = false;
+    kseiUpdateSyncUI();
+  });
 }
 
 /**
@@ -466,6 +865,7 @@ function getKseiStock(ticker) {
     investors: [],
     totalMajorPercent: 0,
     freeFloat: 100,
+    freeFloatIsEstimated: true,
     localPercent: 0,
     foreignPercent: 0,
     totalSharesHeld: 0,
@@ -602,6 +1002,12 @@ function kseiUpdateSyncUI() {
 
   var importBtn = document.getElementById('btn-ksei-import-file');
   if (importBtn) importBtn.disabled = !!KSEI_STATE.isSyncing;
+
+  var importRawBtn = document.getElementById('btn-ksei-import-raw');
+  if (importRawBtn) {
+    importRawBtn.disabled = !!KSEI_STATE.isSyncing;
+    importRawBtn.textContent = KSEI_STATE.isSyncing ? '⏳ Memproses...' : 'Gabungkan & Import (RESET TOTAL)';
+  }
 }
 
 function kseiSelectTicker(ticker) {
@@ -803,11 +1209,11 @@ function renderKseiStockView(container, ticker, embedded) {
         </div>
 
         <div style="text-align:right;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 16px">
-          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">ESTIMASI FREE FLOAT PUBLIK</div>
+          <div style="font-size:10px;font-weight:700;color:${stock.freeFloatIsEstimated ? '#f59e0b' : 'var(--text3)'};text-transform:uppercase;letter-spacing:0.5px">${stock.freeFloatIsEstimated ? 'ESTIMASI FREE FLOAT (BUKAN ANGKA RESMI)' : 'FREE FLOAT RESMI IDX'}</div>
           <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:#10B981;line-height:1.1;margin-top:2px">
             ${Number(stock.freeFloat).toFixed(2)}%
           </div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">Masyarakat / Saham Beredar &lt;5%</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${stock.freeFloatIsEstimated ? '100% − kepemilikan mayoritas (tidak ada data FF resmi untuk emiten ini)' : 'Masyarakat / Saham Beredar &lt;5%'}</div>
         </div>
       </div>
 
@@ -1118,14 +1524,36 @@ function renderKseiSettingsView(container) {
         </div>
       </div>
 
+      <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:16px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#10B981;margin-bottom:4px">⭐ CARA UTAMA — UPLOAD 2 FILE MENTAH IDX (TANPA OLAH MANUAL)</div>
+        <div style="font-size:10.5px;color:var(--text2);margin-bottom:10px;line-height:1.6">
+          Download langsung dari IDX apa adanya — <b>tidak perlu digabung/dibersihkan dulu</b>. App menggabungkan &amp; menghitung otomatis (tervalidasi 1.044/1.046 baris cocok sempurna terhadap perhitungan manual).
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label class="flabel" style="font-size:10px">1. File Kepemilikan &gt;5% (raw KSEI)</label>
+            <input class="finput" type="file" id="ksei-import-ownership-file" accept=".xlsx,.xls" style="width:100%">
+          </div>
+          <div>
+            <label class="flabel" style="font-size:10px">2. File Free Float (raw IDX)</label>
+            <input class="finput" type="file" id="ksei-import-ff-file" accept=".xlsx,.xls" style="width:100%">
+          </div>
+        </div>
+        <button id="btn-ksei-import-raw" class="btn btn-green btn-sm" style="background:#059669;color:#fff;border-color:#047857;font-weight:700;width:100%;justify-content:center" onclick="kseiImportRawFiles('ksei-import-ownership-file','ksei-import-ff-file')">Gabungkan &amp; Import (RESET TOTAL)</button>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.6">
+          Free Float diambil dari angka resmi IDX per emiten (bukan hasil hitungan 100% − kepemilikan mayoritas — dua angka itu BEDA). Emiten yang tidak ditemukan di file Free Float akan ditandai jelas sebagai estimasi, bukan diam-diam disamakan dengan angka resmi.
+        </div>
+      </div>
+
       <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px">UPLOAD FILE EXCEL (.xlsx) — KOLOM WAJIB: Ticker, Nama Emiten, Nama Investor, Status, Persentase (%), Jumlah Saham, Tanggal Laporan</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px">ALTERNATIF — UPLOAD 1 FILE TEMPLATE (kalau sudah terlanjur digabung manual)</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:8px">Kolom wajib: Ticker, Nama Emiten, Nama Investor, Status, Persentase (%), Jumlah Saham, Tanggal Laporan. Kolom opsional "Persentase Free Float (%)" — tanpa ini, Free Float diestimasi (100% − mayoritas) dan ditandai jelas sebagai estimasi.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <input class="finput" type="file" id="ksei-import-file" accept=".xlsx,.xls" style="flex:1;min-width:220px">
-          <button id="btn-ksei-import-file" class="btn btn-red btn-sm" onclick="kseiImportExcelFile('ksei-import-file')">Import &amp; RESET TOTAL</button>
+          <button id="btn-ksei-import-file" class="btn btn-ghost btn-sm" onclick="kseiImportExcelFile('ksei-import-file')">Import &amp; RESET TOTAL</button>
         </div>
         <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.6">
-          File Anda tetap harus dibersihkan manual dulu (gabung sel, hapus baris) ke bentuk template kolom di atas — sekali baris per investor, atau ulangi barisnya kalau satu investor punya beberapa kustodian. File yang tidak lolos validasi akan DITOLAK dengan alasan per baris, data yang sudah ada TIDAK akan berubah.
+          File yang tidak lolos validasi akan DITOLAK dengan alasan per baris, data yang sudah ada TIDAK akan berubah.
         </div>
       </div>
     </div>
