@@ -1362,6 +1362,35 @@ test('REGRESSION GUARD: Dividen page sub-tab sections must default to only the p
     'REGRESSION: the "Kalender Dividen" sub-tab button is no longer marked active (btn-green) by default — the section-visibility defaults above assume it still is');
 });
 
+// ── TEST 49: .badge must keep font-variant-numeric:tabular-nums (found
+// via deep-dive review, 2026-09-11, not a user-reported bug) — .badge is
+// reused for both plain-text labels (BUY/SELL/RADAR/sector names/etc.)
+// and live-updating numeric content (e.g. #vol-risk-badge's volatility
+// percentage, set in 05-assets.js). Without digit-width normalization, a
+// badge showing a live percentage visibly shifts width as its digits
+// change (e.g. "9.5%" -> "10.2%") since it inherits the page's default
+// proportional 'Inter' font. tabular-nums has zero visual effect on
+// non-numeric badge text, so this applies safely to every badge.
+test('REGRESSION GUARD: .badge must have font-variant-numeric:tabular-nums so numeric badges (e.g. volatility %) don\'t jitter on update', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  // .badge legitimately has several rule blocks in this file by design:
+  // a base rule ("INSTITUTIONAL SIGNAL BADGES & MARKET STATES"), a later
+  // deliberate override under "READABILITY OVERRIDES" (which similarly
+  // re-tightens .btn, .tbl th/td, .finput, etc. — intentional layering,
+  // not an accidental duplicate), several MORE specific scoped selectors
+  // (.side-nav .badge, body.theme-light .badge, etc. — different rules
+  // entirely, not competing for the bare .badge cascade), and one inside
+  // @media print (a separate, non-screen context). Rather than guess
+  // which one "wins" by source order, match the specific bare-.badge
+  // rule this fix touched by its distinctive font-size:10px;padding:2px
+  // 7px declaration, which uniquely identifies it regardless of what
+  // else is added around it later.
+  const targetRule = css.match(/\.badge\{font-size:10px;padding:2px 7px[^}]*\}/);
+  assert(targetRule, 'REGRESSION: the ".badge{font-size:10px;padding:2px 7px...}" rule (under READABILITY OVERRIDES) is missing or was reformatted beyond recognition — has it been restructured?');
+  assert(/font-variant-numeric:\s*tabular-nums/.test(targetRule[0]),
+    'REGRESSION: .badge lost font-variant-numeric:tabular-nums — numeric badges like #vol-risk-badge (volatility %) will jitter in width as their digits change');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

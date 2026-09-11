@@ -943,3 +943,36 @@ one of them is the same class of defect as a real incident above.
   source). Screenshot of the fixed initial state sent to the user.
   `npm test` (71/71 + 16/16 policy + 6/6 provider), `npm run lint`
   clean.
+
+### `.badge` missing `tabular-nums`, causing numeric badges to jitter in width on update
+
+- **Found by:** the same user-submitted deep-dive analysis. On closer
+  investigation, most of the codebase's numeric text was already
+  correctly covered by `tabular-nums` via `.mval`, `.mono`,
+  `.up`/`.dn`/`.amb` (contradicting the analysis's broader claim of
+  widespread missing coverage) — but `.badge`, reused for both
+  plain-text labels (`BUY`, `RADAR`, sector names) and live-updating
+  numeric content (e.g. `#vol-risk-badge`'s volatility percentage, set
+  in `05-assets.js`), had no digit-width normalization at all and
+  inherits the page's default proportional `Inter` font.
+- **Impact:** a badge showing a live percentage (e.g. annualized
+  volatility) visibly shifts width as its digits change from one update
+  to the next (e.g. "9.5%" → "10.2%").
+- **Fix:** added `font-variant-numeric:tabular-nums` to `.badge`.
+  `.badge` legitimately has multiple rule blocks in this file by
+  design — a base rule and a later, deliberate override under a
+  "READABILITY OVERRIDES" section that similarly re-tightens `.btn`,
+  `.tbl th/td`, `.finput`, etc. (an intentional layering pattern, unlike
+  the accidental `body.theme-light` and `#porto-donut-legend div`
+  duplicates fixed earlier) — added to the override block, which is the
+  one that actually wins the cascade. `tabular-nums` has zero visual
+  effect on non-numeric glyphs, so this is safe for every badge in the
+  app, not just the numeric ones — confirmed live (screenshot below).
+- **Prevention added:** `test_suite.js` TEST 49 — asserts the specific
+  `.badge` rule block gained `font-variant-numeric:tabular-nums`.
+  Verified to fail (clear message) when reverted, before being restored.
+- **Verification:** live Playwright — read `getComputedStyle().fontVariantNumeric`
+  on the first 5 `.badge` elements on the dashboard (a mix of numeric and
+  plain-text badges) and confirmed all report `tabular-nums`. Screenshot
+  confirms no visual regression on either type. `npm test` (72/72 + 6/6
+  provider), `npm run lint` clean.
