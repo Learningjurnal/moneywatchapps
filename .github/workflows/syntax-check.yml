@@ -35,3 +35,26 @@ jobs:
             exit 1
           fi
           echo "Semua file JS lolos syntax check."
+
+  # Sebelumnya CI hanya cek syntax (node --check) — test_suite.js,
+  # test_financial_policy.js, test_provider_functions.js, dan
+  # test_security_regressions.js (114+18+6+5 assertion) HANYA dijalankan
+  # manual, tidak pernah otomatis. Job ini menutup celah itu: menjalankan
+  # `npm test` yang sama persis dengan yang dijalankan manual sebelum setiap
+  # commit selama pengembangan ini. Semua file test hanya memakai Node
+  # builtin (assert/fs/vm/path/url, lihat header masing-masing file) dan
+  # membaca source lewat `vm`/teks statis, bukan boot server.js sungguhan —
+  # jadi tidak perlu `npm install`/credentials Supabase/Redis/GenAI untuk
+  # jalan di CI.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run test suite (npm test)
+        run: npm test
