@@ -41,11 +41,13 @@ jobs:
   # test_security_regressions.js (114+18+6+5 assertion) HANYA dijalankan
   # manual, tidak pernah otomatis. Job ini menutup celah itu: menjalankan
   # `npm test` yang sama persis dengan yang dijalankan manual sebelum setiap
-  # commit selama pengembangan ini. Semua file test hanya memakai Node
-  # builtin (assert/fs/vm/path/url, lihat header masing-masing file) dan
-  # membaca source lewat `vm`/teks statis, bukan boot server.js sungguhan —
-  # jadi tidak perlu `npm install`/credentials Supabase/Redis/GenAI untuk
-  # jalan di CI.
+  # commit selama pengembangan ini. Tidak boot server.js sungguhan (tidak
+  # butuh credentials Supabase/Redis/GenAI) — tapi beberapa file test
+  # MEMUAT modul lain lewat `vm`/import yang pada gilirannya require()
+  # dependency npm asli (mis. test_financial_policy.js -> lib/idx-data-
+  # engine.js -> lib/invezgo-client.js -> @upstash/redis), jadi `npm ci`
+  # tetap wajib sebelum `npm test` — ketahuan gagal (ERR_MODULE_NOT_FOUND)
+  # di run pertama job ini sebelum langkah ini ditambahkan.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -55,6 +57,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run test suite (npm test)
         run: npm test
