@@ -1188,12 +1188,51 @@ async function sendCopilotPrompt(text) {
   var sekuritasName = (typeof activeSekuritas !== 'undefined') ? activeSekuritas : 'Stockbit';
   var livePrices = window.prices || {};
 
+  // AI Paper Trading performance summary — real, derived stats from
+  // AI_TRADE_STATE.paperAccount (38-ai-autonomous-trading.js), never
+  // fabricated. This is what actually lets the Copilot "menganalisa data
+  // & memberi saran perbaikan" from real trading history instead of just
+  // reasoning over static portfolio holdings: recentClosedTrades carries
+  // the SAME lesson/mistake/improvement text the 10-Point Post-Mortem
+  // engine already computed per trade (classifyTradeOutcome()), so the
+  // AI can cite genuine past mistakes instead of inventing generic advice.
+  // typeof-guarded: AI_TRADE_STATE is only populated once
+  // initAiAutonomousSuite() has run at least once this session.
+  var aiPaperTrading = null;
+  if (typeof AI_TRADE_STATE !== 'undefined' && AI_TRADE_STATE && AI_TRADE_STATE.paperAccount) {
+    var pa = AI_TRADE_STATE.paperAccount;
+    aiPaperTrading = {
+      totalTrades: pa.totalTrades || 0,
+      winningTrades: pa.winningTrades || 0,
+      losingTrades: pa.losingTrades || 0,
+      winRate: pa.winRate || 0,
+      profitFactor: (pa.profitFactor === null || pa.profitFactor === undefined) ? null : pa.profitFactor,
+      realizedPnL: pa.realizedPnL || 0,
+      maxDrawdownPct: pa.maxDrawdownPct || 0,
+      openPositionsCount: (pa.openPositions || []).length,
+      // closedTrades is unshift()-ordered (index 0 = most recent) — no
+      // reverse needed.
+      recentClosedTrades: (pa.closedTrades || []).slice(0, 5).map(function(t) {
+        return {
+          ticker: t.ticker,
+          result: t.result,
+          netPnL: t.netPnL,
+          exitReason: t.exitReason || null,
+          lesson: t.lesson || null,
+          mistake: t.mistake || null,
+          improvement: t.improvement || null
+        };
+      })
+    };
+  }
+
   var userContext = {
     holdings: porto,
     totalAum: totalAum,
     rdnCash: rdn,
     sekuritas: sekuritasName,
-    livePrices: livePrices
+    livePrices: livePrices,
+    aiPaperTrading: aiPaperTrading
   };
 
   // Was: any failure here (network error, non-2xx, or a response body that
