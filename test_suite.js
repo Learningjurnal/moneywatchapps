@@ -1481,6 +1481,24 @@ test('REGRESSION GUARD: Portfolio page table must appear before the Donut/Bar-ch
     'REGRESSION: the Portfolio table (#porto-tbody) is back to appearing AFTER the Performa per Saham toolbar card — see INCIDENT_LOG.md ("card clutter")');
 });
 
+// ── TEST 53: the 5 yearly figures in "Proyeksi Dividen 5 Tahun"
+// (#div-proj-cards) must not each render as their own bordered/
+// background-tinted box (found via user-submitted deep-dive review —
+// "nested cards": a card nested inside the already-bordered parent
+// "Proyeksi Dividen 5 Tahun" card, doubling up borders around a short
+// 3-line stat). Flattened to a stat-strip layout: plain stacked text
+// with a thin divider between columns instead of individual card chrome.
+test('REGRESSION GUARD: Proyeksi Dividen 5 Tahun yearly cells must not each have their own border+background (nested-card pattern)', () => {
+  const renderJs = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  const fnStart = renderJs.indexOf("var cards = el('div-proj-cards');");
+  assert(fnStart !== -1, "REGRESSION: el('div-proj-cards') render block not found in 04-render.js — has it been renamed/restructured?");
+  const body = renderJs.slice(fnStart, fnStart + 800);
+  assert(!/border:1px solid rgba\(0,229,160/.test(body) && !/background:rgba\(0,229,160,\.06\)/.test(body),
+    'REGRESSION: each yearly cell in "Proyeksi Dividen 5 Tahun" is back to having its own border+background — this nests a card-like box inside the already-bordered parent card (see INCIDENT_LOG.md, "nested cards")');
+  assert(/border-left:1px solid var\(--border\)/.test(body),
+    'REGRESSION: the thin column-divider (border-left) that replaced the individual card borders is missing');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
