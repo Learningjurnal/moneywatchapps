@@ -313,6 +313,27 @@
       tp1: sig.tp1,
       tp2: sig.tp2,
       rrRatio: sig.rrRatio != null ? ('1 : ' + sig.rrRatio) : 'N/A',
+      // Item #4 groundwork (2026-09-11) bugfix: featureSnapshot (see
+      // aiOpenPositionFromSignal() below) needs the RAW numeric values
+      // computeStockSignal() actually computed — technicalScore, rsi14,
+      // trend, evPerShare — none of which this function used to expose on
+      // its own (only derived presentational fields: trendScore/
+      // momentumScore/moneyFlowScore all duplicate technicalScore for UI
+      // use; `ev`/`rrRatio` above are formatted STRINGS, not the raw
+      // numbers). A real user's live browser session caught this: every
+      // featureSnapshot captured from a Scanner-sourced position had
+      // technicalScore/rsi14/trend/evPerShare stuck at null even though
+      // the server-side signal genuinely computed them — silently
+      // defeating the whole point of the item #4 dataset. Added here
+      // (not read from `sig` again in aiOpenPositionFromSignal(), which
+      // only ever sees this ALREADY-ADAPTED object from AI_UNIVERSE, never
+      // the raw server response) rather than duplicating field-mapping
+      // logic in two places.
+      technicalScore: sig.technicalScore,
+      rsi14: sig.rsi14,
+      trend: sig.trend,
+      evPerShareRaw: sig.evPerShare,
+      rrRatioNum: sig.rrRatio,
       holdingPeriod: 'Indikatif — belum divalidasi backtest riil',
       invalidation: sig.sl ? ('Penutupan harian di bawah Rp ' + Number(sig.sl).toLocaleString('id-ID')) : 'Tidak berlaku (sinyal AVOID)',
       catalyst: '-',
@@ -1266,8 +1287,13 @@
       rsi14: sig.rsi14 != null ? sig.rsi14 : null,
       volRatio: sig.volRatio != null ? sig.volRatio : null,
       probability: sig.probability != null ? sig.probability : null,
-      evPerShare: sig.evPerShare != null ? sig.evPerShare : null,
-      rrRatio: sig.rrRatio != null ? sig.rrRatio : null,
+      // sig.evPerShare/sig.rrRatio on the AI_UNIVERSE entry are FORMATTED
+      // DISPLAY STRINGS ('+Rp 120 / lembar', '1 : 1.9') — not the raw
+      // numbers a training feature needs. _adaptRealSignal() (above) now
+      // carries the raw values through separately as evPerShareRaw/
+      // rrRatioNum specifically for this.
+      evPerShare: sig.evPerShareRaw != null ? sig.evPerShareRaw : null,
+      rrRatio: sig.rrRatioNum != null ? sig.rrRatioNum : null,
       regimeAtEntry: regimeAtEntry
     };
 

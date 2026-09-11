@@ -3066,15 +3066,26 @@ test('REGRESSION GUARD: featureSnapshot correctly captures the composite-signal 
   const buildSnapshot = new Function('sig', 'regimeAtEntry', src + '\nreturn featureSnapshot;');
 
   // 1. Full Scanner signal (compositeScore present) — 'scanner' sourcing,
-  // every field passed through.
+  // every field passed through. Uses evPerShareRaw/rrRatioNum (the RAW
+  // numeric fields _adaptRealSignal() carries) — NOT evPerShare/rrRatio,
+  // which on a real AI_UNIVERSE entry are formatted display STRINGS
+  // ('+Rp 120 / lembar', '1 : 1.9'), not numbers. A real user's live
+  // browser session caught this exact mismatch (2026-09-11): every
+  // featureSnapshot from a real Scanner signal had technicalScore/rsi14/
+  // trend/evPerShare stuck at null because sig.technicalScore/sig.rsi14/
+  // sig.trend/sig.evPerShare never existed on the actual adapted object.
   const fromScanner = buildSnapshot({
     compositeScore: 78, technicalScore: 82, fundamentalScore: 70, trend: 'UPTREND',
-    rsi14: 61.2, volRatio: 1.8, probability: 65, evPerShare: 120, rrRatio: 1.9
+    rsi14: 61.2, volRatio: 1.8, probability: 65, evPerShareRaw: 120, rrRatioNum: 1.9
   }, 'BULL_TREND');
   assert.strictEqual(fromScanner.sourceEngine, 'scanner');
   assert.strictEqual(fromScanner.hasFullFeatureSet, true);
   assert.strictEqual(fromScanner.compositeScore, 78);
+  assert.strictEqual(fromScanner.technicalScore, 82, 'REGRESSION: technicalScore not read from sig — check this is the corrected field name (not a nonexistent field on real AI_UNIVERSE entries)');
   assert.strictEqual(fromScanner.rsi14, 61.2);
+  assert.strictEqual(fromScanner.trend, 'UPTREND');
+  assert.strictEqual(fromScanner.evPerShare, 120, 'REGRESSION: evPerShare must come from sig.evPerShareRaw (the raw number), not sig.evPerShare (a formatted display string on real AI_UNIVERSE entries)');
+  assert.strictEqual(fromScanner.rrRatio, 1.9, 'REGRESSION: rrRatio must come from sig.rrRatioNum (the raw number), not sig.rrRatio (a formatted "1 : X" display string on real AI_UNIVERSE entries)');
   assert.strictEqual(fromScanner.regimeAtEntry, 'BULL_TREND');
 
   // 2. Hypothesis-Lab-only signal for a ticker never scanned (no
@@ -3146,6 +3157,62 @@ test('REGRESSION GUARD: aiBuildTrainingDataset() must correctly label WIN/LOSS, 
   assert.strictEqual(bbri.label, 0, 'REGRESSION: a LOSS trade must map to label 0');
   assert.strictEqual(bbca.features.compositeScore, 75, 'REGRESSION: the featureSnapshot is not passed through as `features` in the sample');
   assert(!dataset.samples.some(s => s.ticker === 'TLKM'), 'REGRESSION: the featureSnapshot-less trade leaked into samples instead of being skipped');
+});
+
+// ── TEST 91: _adaptRealSignal() (public/js/38-ai-autonomous-trading.js) —
+// found via a REAL user's live browser session (2026-09-11): every
+// featureSnapshot captured from a genuine Scanner BUY signal had
+// technicalScore/rsi14/trend/evPerShare/rrRatio stuck at null, even
+// though the server-side computeStockSignal() genuinely computed real
+// values for all of them. Root cause: _adaptRealSignal() — which
+// transforms the raw server response into what AI_UNIVERSE actually
+// stores — only ever exposed DERIVED/FORMATTED fields (trendScore/
+// momentumScore/moneyFlowScore all duplicating technicalScore under
+// other names; `ev`/`rrRatio` as display STRINGS like '+Rp 120 / lembar'
+// / '1 : 1.9') and silently dropped the raw technicalScore/rsi14/trend/
+// evPerShare entirely. aiOpenPositionFromSignal() (TEST 88) only ever
+// sees this already-adapted object, never the raw server response, so
+// there was no way for it to recover the missing values downstream —
+// this had to be fixed at the source.
+test("REGRESSION GUARD: _adaptRealSignal() must preserve the raw technicalScore/rsi14/trend/evPerShare/rrRatio values, not just derived display strings", () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  const start = fullSrc.indexOf('function _lookupTickerMeta(tk) {');
+  assert(start !== -1, 'sanity: _lookupTickerMeta() not found — has this section moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n\n  // Pure decision function (no DOM, no network)');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after _adaptRealSignal() — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  const sandbox = { window: {} };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '38-ai-autonomous-trading.js _adaptRealSignal() (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx._adaptRealSignal, 'function', '_adaptRealSignal not exposed on the sandbox context');
+
+  const realServerSignal = {
+    ticker: 'BBCA', price: 9500, changePercent: 1.2, volume: 5000000,
+    signal: 'BUY', trend: 'UPTREND', compositeScore: 78, technicalScore: 82,
+    fundamentalScore: 70, rsi14: 61.2, ema20: 9300, ema50: 9100, volRatio: 1.8,
+    probability: 65, evPerShare: 120, entry: 9500, sl: 9200, tp1: 9800, tp2: 10100,
+    rrRatio: 1.9, dataQuality: { fundamental: true }, gateStatus: { status: 'REAL' }
+  };
+  const adapted = ctx._adaptRealSignal(realServerSignal);
+
+  assert.strictEqual(adapted.technicalScore, 82, 'REGRESSION: technicalScore is no longer carried through raw — featureSnapshot will silently go back to null for every real Scanner signal');
+  assert.strictEqual(adapted.rsi14, 61.2, 'REGRESSION: rsi14 is no longer carried through raw');
+  assert.strictEqual(adapted.trend, 'UPTREND', 'REGRESSION: trend is no longer carried through raw');
+  assert.strictEqual(adapted.evPerShareRaw, 120, 'REGRESSION: the raw evPerShare number (evPerShareRaw) is gone — only the formatted display string remains');
+  assert.strictEqual(adapted.rrRatioNum, 1.9, 'REGRESSION: the raw rrRatio number (rrRatioNum) is gone — only the formatted "1 : X" display string remains');
+
+  // The existing presentational fields (used by other renderers, e.g. the
+  // Scanner table and Opportunity cards) must still work exactly as
+  // before — this fix must be additive, not a breaking rename.
+  assert.strictEqual(adapted.ev, '+Rp 120 / lembar', 'REGRESSION: the formatted `ev` display string changed — other UI renderers depend on this exact format');
+  assert.strictEqual(adapted.rrRatio, '1 : 1.9', 'REGRESSION: the formatted `rrRatio` display string changed — other UI renderers (Scanner table, Opportunity cards) depend on this exact format');
+  assert.strictEqual(adapted.trendScore, 82, 'REGRESSION: trendScore (pre-existing UI field) broke');
+  assert.strictEqual(adapted.momentumScore, 82, 'REGRESSION: momentumScore (pre-existing UI field) broke');
+  assert.strictEqual(adapted.moneyFlowScore, 82, 'REGRESSION: moneyFlowScore (pre-existing UI field) broke');
 });
 
 console.log('═══════════════════════════════════════════════════════');
