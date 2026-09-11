@@ -815,7 +815,7 @@ function renderCrypto(){
     }
     if(isBuy){pos3[tx.coin].qty+=tx.qty;pos3[tx.coin].cost+=tx.total;}
     var qtyDisp2 = tx.qty<0.001?tx.qty.toFixed(6):tx.qty<1?tx.qty.toFixed(4):tx.qty.toFixed(2);
-    return '<tr><td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td><td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td><td><span class="tp">'+ tx.coin+'</span></td><td class="mono">'+qtyDisp2+'</td><td class="mono">Rp '+fmt(Math.round(tx.priceIdr))+'</td><td class="mono">Rp '+fmtK(tx.total)+'</td><td>'+pnlHtml+'</td><td><button class="btn btn-ghost btn-xs" style="color:var(--accent)" onclick="editCryptoTx('+tx.id+')" title="Edit transaksi" aria-label="Edit transaksi '+tx.type+' '+tx.coin+' '+tx.date+'">✎</button> <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delCryptoTx('+tx.id+')" title="Hapus transaksi" aria-label="Hapus transaksi '+tx.type+' '+tx.coin+' '+tx.date+'">✕</button></td></tr>';
+    return '<tr><td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td><td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td><td><span class="tp">'+ tx.coin+'</span></td><td class="mono">'+qtyDisp2+'</td><td class="mono">Rp '+fmt(Math.round(tx.priceIdr))+'</td><td class="mono">Rp '+fmtK(tx.total)+'</td><td>'+pnlHtml+'</td><td class="tbl-sticky-right"><button class="btn btn-ghost btn-xs" style="color:var(--accent)" onclick="editCryptoTx('+tx.id+')" title="Edit transaksi" aria-label="Edit transaksi '+tx.type+' '+tx.coin+' '+tx.date+'">✎</button> <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delCryptoTx('+tx.id+')" title="Hapus transaksi" aria-label="Hapus transaksi '+tx.type+' '+tx.coin+' '+tx.date+'">✕</button></td></tr>';
   }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:14px">Belum ada transaksi</td></tr>';
 }
 
@@ -1081,7 +1081,7 @@ function renderEtf(){
       pnlHtml='<span class="'+(pnlIdr>=0?'up':'dn')+'">'+(pnlIdr>=0?'+':'')+'Rp '+fmtK(pnlIdr)+'</span>';
     }
     if(isBuy){posE[tx.ticker].shares+=tx.shares;posE[tx.ticker].costUSD+=tx.totalUSD;}
-    return '<tr><td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td><td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td><td><span class="tp">'+tx.ticker+'</span></td><td class="mono">'+tx.shares+'</td><td class="mono">$'+tx.priceUSD.toFixed(2)+'</td><td class="mono">$'+tx.totalUSD.toFixed(2)+'</td><td class="mono">Rp '+fmtK(tx.totalIdr)+'</td><td class="mono" style="color:var(--text2)">'+fmt(Math.round(tx.kurs))+'</td><td>'+pnlHtml+'</td><td><button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delEtfTx('+tx.id+')">✕</button></td></tr>';
+    return '<tr><td class="mono" style="color:var(--text2);font-size:11px">'+tx.date+'</td><td><span class="badge '+(isBuy?'b-up':'b-dn')+'">'+tx.type+'</span></td><td><span class="tp">'+tx.ticker+'</span></td><td class="mono">'+tx.shares+'</td><td class="mono">$'+tx.priceUSD.toFixed(2)+'</td><td class="mono">$'+tx.totalUSD.toFixed(2)+'</td><td class="mono">Rp '+fmtK(tx.totalIdr)+'</td><td class="mono" style="color:var(--text2)">'+fmt(Math.round(tx.kurs))+'</td><td>'+pnlHtml+'</td><td class="tbl-sticky-right"><button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delEtfTx('+tx.id+')">✕</button></td></tr>';
   }).join('')||'<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:14px">Belum ada transaksi</td></tr>';
 }
 
@@ -1329,7 +1329,7 @@ function renderReksaDana(){
       +'<td class="mono">Rp '+fmt(Math.round(tx.nab))+'</td>'
       +'<td class="mono">Rp '+fmtK(tx.amount)+'</td>'
       +'<td>'+pnlHtml+'</td>'
-      +'<td><button class="btn btn-ghost btn-xs" style="color:var(--amber)" onclick="editRdTx('+tx.id+')" title="Edit transaksi" aria-label="Edit transaksi '+tx.type+' '+rdInfo.name+'">✎</button> <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delRdTx('+tx.id+')" aria-label="Hapus transaksi '+tx.type+' '+rdInfo.name+'">✕</button></td>'
+      +'<td class="tbl-sticky-right"><button class="btn btn-ghost btn-xs" style="color:var(--amber)" onclick="editRdTx('+tx.id+')" title="Edit transaksi" aria-label="Edit transaksi '+tx.type+' '+rdInfo.name+'">✎</button> <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delRdTx('+tx.id+')" aria-label="Hapus transaksi '+tx.type+' '+rdInfo.name+'">✕</button></td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:14px">Belum ada transaksi manual</td></tr>';
 }

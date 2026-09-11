@@ -1391,6 +1391,39 @@ test('REGRESSION GUARD: .badge must have font-variant-numeric:tabular-nums so nu
     'REGRESSION: .badge lost font-variant-numeric:tabular-nums — numeric badges like #vol-risk-badge (volatility %) will jitter in width as their digits change');
 });
 
+// ── TEST 50: sticky-right "Aksi" column extended to Crypto/ETF/Reksa
+// Dana transaction tables, for consistency with the Saham (#tx-tbody)
+// and RDN (#rdn-tbody) tables fixed earlier (found via deep-dive review,
+// 2026-09-11, not a user-reported bug) — same issue, same fix, same
+// .tbl-sticky-right class (defined once in main.css and already
+// verified there by an earlier test).
+test('REGRESSION GUARD: Crypto/ETF/Reksa Dana transaction tables\' action column must stay sticky-right', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const assetsJs = fs.readFileSync(path.join(__dirname, 'public/js/05-assets.js'), 'utf8');
+
+  const cryptoHeader = html.match(/<th>P&amp;L<\/th><th[^>]*><\/th><\/tr><\/thead>\s*<tbody id="crypto-tx-tbody">/);
+  assert(cryptoHeader, 'could not find the Crypto transaction table header\'s final empty <th> — has the table been restructured?');
+  assert(/tbl-sticky-right/.test(cryptoHeader[0]),
+    'REGRESSION: Crypto transaction table\'s action-icons header <th> lost its tbl-sticky-right class');
+
+  const etfHeader = html.match(/<th>P&amp;L \(IDR\)<\/th><th[^>]*><\/th><\/tr><\/thead>\s*<tbody id="etf-tx-tbody">/);
+  assert(etfHeader, 'could not find the ETF transaction table header\'s final empty <th> — has the table been restructured?');
+  assert(/tbl-sticky-right/.test(etfHeader[0]),
+    'REGRESSION: ETF transaction table\'s action-icons header <th> lost its tbl-sticky-right class');
+
+  const rdHeaderMatches = html.match(/<th>P&amp;L<\/th><th[^>]*><\/th><\/tr><\/thead>\s*<tbody id="rd-tx-tbody">/);
+  assert(rdHeaderMatches, 'could not find the Reksa Dana transaction table header\'s final empty <th> — has the table been restructured?');
+  assert(/tbl-sticky-right/.test(rdHeaderMatches[0]),
+    'REGRESSION: Reksa Dana transaction table\'s action-icons header <th> lost its tbl-sticky-right class');
+
+  assert(/tbl-sticky-right[^"]*"[^>]*>[\s\S]{0,120}editCryptoTx/.test(assetsJs),
+    'REGRESSION: the Crypto row\'s action-icons <td> lost its tbl-sticky-right class');
+  assert(/tbl-sticky-right[^"]*"[^>]*>[\s\S]{0,120}delEtfTx/.test(assetsJs),
+    'REGRESSION: the ETF row\'s action-icons <td> lost its tbl-sticky-right class');
+  assert(/tbl-sticky-right[^"]*"[^>]*>[\s\S]{0,120}editRdTx/.test(assetsJs),
+    'REGRESSION: the Reksa Dana row\'s action-icons <td> lost its tbl-sticky-right class');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
