@@ -1465,14 +1465,26 @@ function fhFetchEtf(){
   });
 }
 
-// ── Fetch harga crypto LANGSUNG dalam IDR via Yahoo Finance (pair -IDR) ──
+// ── Fetch harga crypto via Yahoo Finance (pair -USD, dikonversi ke IDR) ──
+// FIX (KNOWN_ISSUES.md #1): sebelumnya fetch langsung 'CODE-IDR' — Yahoo
+// tidak punya pair kripto->IDR sama sekali (dikonfirmasi 404 untuk semua
+// pasangan kripto elsewhere in this codebase — lihat komentar di
+// server.js:2765 dan baris 273/452 file ini), jadi setiap panggilan di
+// sini gagal 100% by construction, bukan sesekali — cryptoPrices[]
+// (dipakai sebagai harga IDR langsung di 03-engine.js/05-assets.js/
+// 36-crypto-technical.js) tidak pernah ter-update dari data riil, diam-
+// diam terjebak di harga fallback statis. Sekarang fetch 'CODE-USD'
+// (simbol Yahoo yang benar-benar ada) lalu dikonversi pakai usdIdr (kurs
+// live dari fhFetchKurs(), yang sudah dipanggil lebih dulu di fhStart())
+// — pola konversi yang sama persis dengan fallback yang sudah dipakai di
+// 05-assets.js.
 function fhFetchCrypto(){
   var codes = Object.keys(CRYPTO_DB);
   codes.forEach(function(code, i){
     setTimeout(function(){
-      yfFetch(code+'-IDR', function(err, meta){
-        if(!err && meta && meta.regularMarketPrice > 0){
-          cryptoPrices[code] = meta.regularMarketPrice;
+      yfFetch(code+'-USD', function(err, meta){
+        if(!err && meta && meta.regularMarketPrice > 0 && usdIdr > 0){
+          cryptoPrices[code] = meta.regularMarketPrice * usdIdr;
         }
       });
     }, i*1500);
