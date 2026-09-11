@@ -28,6 +28,23 @@ function test(name, fn) {
   }
 }
 
+// Same pattern as test_provider_functions.js's asyncTest() — test() above
+// calls fn() synchronously and never awaits it, so a test whose assertions
+// run after an `await` (e.g. sendCopilotPrompt()'s vm sandbox test) would
+// report a false PASS immediately and any failure would surface only as an
+// unhandled rejection, not a clean ❌ FAIL line.
+async function asyncTest(name, fn) {
+  totalTests++;
+  try {
+    await fn();
+    console.log(`  ✅ [PASS] ${name}`);
+    passedTests++;
+  } catch (err) {
+    console.error(`  ❌ [FAIL] ${name}: ${err.message}`);
+    process.exitCode = 1;
+  }
+}
+
 // ── TEST 1: TAX & BROKER COMMISSION ENGINE ──
 test('Tax & Broker Fee Computation (Stockbit Preset)', () => {
   const gross = 10 * 100 * 5000; // 10 lot @ Rp 5.000 = Rp 5.000.000
@@ -2252,6 +2269,105 @@ test('REGRESSION GUARD: getKseiStock() fallback must prefer DB[tk].name over the
   // the generic placeholder — never throw, never show "undefined Tbk.".
   const noName = ctx.getKseiStock('UNKN');
   assert.strictEqual(noName.name, 'UNKN Tbk.', 'REGRESSION: a ticker with no usable DB name must still fall back to the generic "<TICKER> Tbk." placeholder');
+});
+
+// ── TEST 74: sendCopilotPrompt() (public/js/28-decisiontools.js) must fall
+// back to generateClientSideAiAgentResponse() — the same client-side
+// reasoning engine 41-stockchat-cockpit.js already uses for the identical
+// /api/ai/agent-chat endpoint — on ANY server failure (network error,
+// non-2xx, or malformed JSON body), instead of showing a dead-end "Gagal
+// terhubung ke engine MoneyWatch Pro AI" message with no diagnostic value
+// and no way forward — reported by the user via screenshot (2026-09-11):
+// the AI Copilot chat showed that exact message twice in a row and was
+// unusable.
+await asyncTest('REGRESSION GUARD: sendCopilotPrompt() must degrade to the client-side AI reasoning engine on server failure, not a dead-end error message', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const startMarker = 'async function sendCopilotPrompt(text) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: sendCopilotPrompt() not found — has it been renamed/moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Markdown Formatter for Institutional Agent Output');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after sendCopilotPrompt() (next comment banner) — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/generateClientSideAiAgentResponse\(prompt, userContext\)/.test(src),
+    'REGRESSION: sendCopilotPrompt() no longer calls generateClientSideAiAgentResponse() as a fallback — the dead-end error message is back');
+
+  function makeSandbox(fetchImpl, withClientEngine) {
+    const MW_COPILOT_HISTORY = [];
+    const calls = { clientEngine: 0 };
+    const sandbox = {
+      window: {},
+      MW_COPILOT_HISTORY,
+      MW_AI_IS_LOADING: false,
+      el: () => null, // no DOM in this test — every el() call site already null-checks
+      renderCopilotPage: () => {},
+      getPortfolio: () => [],
+      computeCurrentAUM: () => 0,
+      calcRdnBalance: () => 0,
+      fetch: fetchImpl,
+      generateClientSideAiAgentResponse: withClientEngine
+        ? (msg, ctx) => { calls.clientEngine++; return { reply: 'FALLBACK: ' + msg, toolCalls: [] }; }
+        : undefined,
+    };
+    sandbox.window = sandbox;
+    const ctx = vm.createContext(sandbox);
+    vm.runInContext(src, ctx, { filename: '28-decisiontools.js (sandboxed load for test)' });
+    return { ctx, MW_COPILOT_HISTORY, calls };
+  }
+
+  // 1. Network error (fetch rejects) — must fall back, not show the dead-end message.
+    {
+      const { ctx, MW_COPILOT_HISTORY, calls } = makeSandbox(() => Promise.reject(new Error('network down')), true);
+      await ctx.sendCopilotPrompt('Analisa portofolio saya');
+      const lastMsg = MW_COPILOT_HISTORY[MW_COPILOT_HISTORY.length - 1];
+      assert.strictEqual(calls.clientEngine, 1, 'REGRESSION: generateClientSideAiAgentResponse() was not called after a network error');
+      assert.strictEqual(lastMsg.text, 'FALLBACK: Analisa portofolio saya',
+        'REGRESSION: a network error still shows the dead-end message instead of the client-side fallback reply');
+    }
+
+    // 2. Non-2xx response (e.g. Vercel function timeout / 500) — must also fall back.
+    {
+      const { ctx, MW_COPILOT_HISTORY, calls } = makeSandbox(() => Promise.resolve({ ok: false, status: 504, statusText: 'Gateway Timeout' }), true);
+      await ctx.sendCopilotPrompt('Cek fundamental BBCA');
+      const lastMsg = MW_COPILOT_HISTORY[MW_COPILOT_HISTORY.length - 1];
+      assert.strictEqual(calls.clientEngine, 1, 'REGRESSION: a non-2xx response did not trigger the client-side fallback');
+      assert.strictEqual(lastMsg.text, 'FALLBACK: Cek fundamental BBCA');
+    }
+
+    // 3. res.ok but malformed JSON body (res.json() throws) — must also fall back,
+    // not bubble up as an uncaught rejection or a dead-end message.
+    {
+      const { ctx, MW_COPILOT_HISTORY, calls } = makeSandbox(() => Promise.resolve({ ok: true, json: () => Promise.reject(new SyntaxError('Unexpected token <')) }), true);
+      await ctx.sendCopilotPrompt('Simulasi beli ADRO');
+      const lastMsg = MW_COPILOT_HISTORY[MW_COPILOT_HISTORY.length - 1];
+      assert.strictEqual(calls.clientEngine, 1, 'REGRESSION: a malformed (non-JSON) response body did not trigger the client-side fallback');
+      assert.strictEqual(lastMsg.text, 'FALLBACK: Simulasi beli ADRO');
+    }
+
+    // 4. Real success — the server reply must be used, and the client-side
+    // fallback must NOT be invoked (it's a fallback, not a double-answer).
+    {
+      const { ctx, MW_COPILOT_HISTORY, calls } = makeSandbox(
+        () => Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, reply: 'Jawaban server asli.', toolCalls: [] }) }),
+        true
+      );
+      await ctx.sendCopilotPrompt('Halo');
+      const lastMsg = MW_COPILOT_HISTORY[MW_COPILOT_HISTORY.length - 1];
+      assert.strictEqual(calls.clientEngine, 0, 'REGRESSION: the client-side fallback ran even though the server call succeeded');
+      assert.strictEqual(lastMsg.text, 'Jawaban server asli.');
+    }
+
+    // 5. Client-side engine itself unavailable (e.g. 41-stockchat-cockpit.js
+    // failed to load) — must still degrade gracefully with a message that
+    // actually explains what happened, never throw.
+    {
+      const { ctx, MW_COPILOT_HISTORY } = makeSandbox(() => Promise.reject(new Error('network down')), false);
+      await ctx.sendCopilotPrompt('Analisa portofolio saya');
+      const lastMsg = MW_COPILOT_HISTORY[MW_COPILOT_HISTORY.length - 1];
+      assert(/engine cadangan client-side tidak tersedia/.test(lastMsg.text),
+        'REGRESSION: when the client-side fallback itself is unavailable, the last-resort message no longer explains the real cause');
+    }
 });
 
 console.log('═══════════════════════════════════════════════════════');

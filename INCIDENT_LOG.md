@@ -1885,3 +1885,45 @@ tunggu penggunaan normal secara bertahap memicu eviction.
   `34-ksei-shareholders.js` → `?v=20260911a`.
 
 `npm test` (96/96 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — AI Copilot ("MoneyWatch Pro AI") menampilkan pesan error mati jalan, tidak berguna, saat server AI gagal
+
+- **Reported by:** user, via screenshot — halaman Copilot menampilkan
+  "Gagal terhubung ke engine MoneyWatch Pro AI. Silakan coba kembali
+  sesaat lagi." dua kali berturut-turut, tanpa detail apa pun dan tanpa
+  jalan keluar.
+- **Root cause:** `sendCopilotPrompt()` (`public/js/28-decisiontools.js`)
+  memanggil `POST /api/ai/agent-chat` lalu langsung `await res.json()`
+  tanpa cek `res.ok` — kalau server merespons non-2xx (mis. 504 Gateway
+  Timeout dari fungsi serverless Vercel yang timeout) dengan body HTML,
+  `res.json()` melempar exception, jatuh ke `catch` yang menampilkan
+  pesan generik tetap tanpa status HTTP atau penyebab nyata. Tidak ada
+  fallback sama sekali — begitu request gagal (jaringan, timeout, atau
+  body bukan JSON), user benar-benar mentok.
+  Bandingkan dengan `sendStockChatMessage()` di `41-stockchat-cockpit.js`
+  yang memanggil endpoint YANG SAMA: fungsi itu sudah lebih dulu punya
+  fallback `generateClientSideAiAgentResponse()` — engine deterministik
+  client-side yang SELALU memberi jawaban berguna, apa pun penyebab
+  kegagalan server. Copilot tidak pernah mengadopsi pola yang sama.
+- **Fix:** `sendCopilotPrompt()` sekarang mengecek `res.ok` sebelum parse
+  JSON, dan pada KEGAGALAN APA PUN (network error, non-2xx, body bukan
+  JSON, atau `{success:false}`) jatuh ke `generateClientSideAiAgentResponse()`
+  — engine cadangan yang sama seperti StockChat — sehingga user selalu
+  dapat analisa yang berguna, bukan pesan mati jalan. Hanya kalau engine
+  cadangan itu sendiri juga tidak ter-load, pesan terakhir sekarang
+  menyebutkan penyebab sebenarnya (bukan pesan generik "coba lagi").
+- **Prevention added:**
+  - `test_suite.js` TEST 74 — memuat `sendCopilotPrompt()` lewat vm
+    sandbox dengan `fetch` di-mock 5 skenario (network error, HTTP
+    non-2xx, JSON body malformed, sukses normal, engine cadangan tidak
+    tersedia), membuktikan: (a) 3 skenario kegagalan pertama semuanya
+    jatuh ke `generateClientSideAiAgentResponse()` bukan pesan mati
+    jalan, (b) saat server sukses, engine cadangan TIDAK ikut dipanggil
+    (bukan jawaban ganda), (c) saat engine cadangan sendiri tidak ada,
+    pesan terakhir tetap menyebutkan penyebab nyata. Ditambahkan helper
+    `asyncTest()` ke `test_suite.js` (pola sama seperti
+    `test_provider_functions.js`) karena `test()` yang ada tidak
+    meng-`await` fungsi test. Terbukti gagal saat fix direvert.
+- Cache-bust `28-decisiontools.js` → `?v=20260911b`.
+
+`npm test` (97/97 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
