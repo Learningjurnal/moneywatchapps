@@ -3503,6 +3503,19 @@ test('REGRESSION GUARD: the old Google-Sheets-sync + Firestore KSEI mechanism mu
   assert(/onclick="kseiImportRawFiles\(/.test(kseiClientSrc), 'REGRESSION: the raw-2-file "Gabungkan & Import" button no longer calls kseiImportRawFiles()');
 });
 
+// TEST added 2026-09-11 (user-requested: "Diamana tombil upload datanya" —
+// the KSEI upload UI was only reachable from a stock's Fundamental Suite
+// page, buried behind several clicks with no direct path). Adds a
+// shortcut button on the Settings page that opens the KSEI Explorer
+// modal straight to the upload tab — live-verified via Playwright
+// (Settings page -> click button -> modal open on sync-settings tab with
+// both raw-file inputs visible) before this test was written.
+test('REGRESSION GUARD: Settings page must have a shortcut button that opens the KSEI Explorer directly on the upload tab', () => {
+  const settingsSrc = fs.readFileSync(path.join(__dirname, 'public/js/35-settings.js'), 'utf8');
+  assert(/openKseiModal\(\)/.test(settingsSrc), 'REGRESSION: the Settings page KSEI shortcut no longer calls openKseiModal()');
+  assert(/kseiSwitchTab\(['"]sync-settings['"]\)/.test(settingsSrc), "REGRESSION: the Settings page KSEI shortcut no longer switches to the 'sync-settings' (upload) tab — clicking it would land on the read-only stock-view tab instead");
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

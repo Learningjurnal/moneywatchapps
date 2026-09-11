@@ -536,6 +536,25 @@
           </div>
         </div>
 
+        <!-- 7. KSEI Ownership & Free Float shortcut -->
+        <div class="card" style="padding:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
+            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
+                            Struktur Kepemilikan &amp; Free Float (KSEI)
+            </div>
+            <span class="badge b-up">Upload Excel</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:11.5px;color:var(--text2);line-height:1.6">
+              Update data Kepemilikan &gt;5% &amp; Free Float dari file Excel IDX (2 file mentah, atau 1 file template) tanpa perlu buka halaman saham dulu.
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" style="width:100%;justify-content:center" onclick="if(typeof openKseiModal==='function')openKseiModal();if(typeof kseiSwitchTab==='function')kseiSwitchTab('sync-settings');">
+              Buka KSEI Explorer &amp; Upload Data
+            </button>
+          </div>
+        </div>
+
       </div>
 
       <!-- GRID 4: API Quota Monitor (Invezgo + Gemini) -->
