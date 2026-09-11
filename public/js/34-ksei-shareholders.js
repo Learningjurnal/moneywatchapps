@@ -1,27 +1,61 @@
 /**
  * 34-ksei-shareholders.js — MoneyWatch Pro: KSEI 5%+ Shareholders & Free Float Intelligence
- * 
+ *
  * 1. Real KSEI Shareholder & Free Float Database (840+ IDX Stocks)
- * 2. On-demand & Periodic Auto-Sync from Google Sheets / KSEI Data Feed
+ * 2. Manual Excel upload (user cleans the raw IDX download into a fixed
+ *    template, app parses + validates + persists — see kseiParseWorkbook())
  * 3. Free Float Calculation: 100% - Total Major Shareholders (>5%)
  * 4. Local vs Foreign Ownership Breakdown & Custodian Account Tracing
  * 5. Integrated across Fundamental Suite, Stock Intelligence Cockpit & Dedicated KSEI Explorer
+ *
+ * ARCHITECTURE (rewritten 2026-09-11, user-requested — "data ini harus
+ * diolah dulu, dan apabila sumber data spreadsheet hilang maka data hilang
+ * juga"): this used to fetch a Google Sheet as CSV via POST /api/ksei/sync,
+ * which fs.writeFileSync()'d the result on the SERVER — on Vercel
+ * serverless that filesystem is read-only outside /tmp, so the write
+ * always threw EROFS in production (same failure class already fixed for
+ * /api/user-data/save; see that handler's comment in server.js). The
+ * "Update Data" button was effectively non-functional. It also kept a
+ * THIRD copy of the data in Firebase Firestore, on top of localStorage and
+ * the (broken) server file — redundant now, and Firestore is otherwise
+ * unused for real app data since the Supabase migration.
+ *
+ * New flow: the user still does the manual cleanup work (IDX's raw export
+ * needs human judgment — merged cells, stray rows — that a parser
+ * shouldn't guess at), but now into a FIXED, named-column Excel template
+ * instead of an ad-hoc Google Sheet, then uploads the .xlsx directly here.
+ * Parsed client-side with the SheetJS `XLSX` library already loaded for
+ * the Admin Panel's stock-universe import (public/js/14-admin.js's
+ * idxImportFile() — same library, same header-name-based approach, not a
+ * new dependency), validated explicitly (missing required column / bad
+ * ticker / inconsistent report date => a clear rejection naming the
+ * row, never a silent wrong default), then upserted to a DEDICATED
+ * Supabase table (public.ksei_ownership, sql/schema_migration.sql) — same
+ * isolation rationale as AI Paper Trading's own dedicated table: large,
+ * infrequently-changing reference data must not ride along on every save
+ * of frequently-changing personal transaction data (the user_data blob
+ * saveData() uses).
+ *
+ * This directly answers the "kalau sheet hilang" worry: once uploaded,
+ * the data lives in Supabase independent of the source file's continued
+ * existence — only the NEXT re-upload needs a working source file, never
+ * the data already stored. A bundled default snapshot (data/ksei-
+ * shareholders.json, served read-only by GET /api/ksei/data — no write
+ * involved, so no EROFS risk) is still used as the "belum ada data
+ * ter-upload" starting point, mirroring the Admin Panel's own "universe
+ * bawaan" fallback before a first Excel import.
  */
-
-var KSEI_DEFAULT_SHEET_ID = '1GYz3TymfqJCITTWm4QKncRaw2uYLPnyq-VlnVyU8Udg';
-var KSEI_DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1GYz3TymfqJCITTWm4QKncRaw2uYLPnyq-VlnVyU8Udg/edit?gid=123456789#gid=123456789';
 
 var KSEI_STATE = {
   data: {},
   metadata: {
-    source: 'KSEI (Kustodian Sentral Efek Indonesia) via Google Sheets',
-    sheetId: KSEI_DEFAULT_SHEET_ID,
-    sheetUrl: KSEI_DEFAULT_SHEET_URL,
+    source: 'default_bundled', // 'default_bundled' | 'upload'
     title: 'KEPEMILIKAN EFEK DIATAS 5% BERDASARKAN SID (PUBLIK)',
-    reportDate: '26 Aug 2026',
-    totalEmiten: 840,
-    totalMajorInvestors: 1920,
-    lastUpdated: null
+    reportDate: null,
+    totalEmiten: 0,
+    totalMajorInvestors: 0,
+    lastUpdated: null,
+    uploadedFileName: null
   },
   selectedTicker: 'ADRO',
   activeTab: 'stock-view', // 'stock-view' | 'market-scanner' | 'sync-settings'
@@ -32,106 +66,50 @@ var KSEI_STATE = {
 };
 
 // ══════════════════════════════════════════════════════════════
-// 1. DATA INITIALIZATION & FIREBASE FIRESTORE SYNC ENGINE
+// 1. DATA INITIALIZATION & SUPABASE CLOUD SYNC (public.ksei_ownership)
 // ══════════════════════════════════════════════════════════════
 
-/**
- * Handle Firestore Error with standardized format
- */
-function handleKseiFirestoreError(error, operationType, path) {
-  var errInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    operationType: operationType,
-    path: path,
-    timestamp: new Date().toISOString()
-  };
-  console.warn('[KSEI Firestore Error]', JSON.stringify(errInfo));
+// Debounce is mostly moot here (upload is a deliberate one-click action,
+// not a rapid-fire stream of edits like AI Paper Trading positions) but
+// kept for the same "batch rapid successive calls into one network call"
+// reason and to match the established pattern exactly.
+var KSEI_CLOUD_SYNC_DEBOUNCE_MS = 1500;
+var _kseiCloudSyncTimer = null;
+
+function scheduleKseiCloudSync() {
+  var uid = (typeof getAppUserId === 'function') ? getAppUserId() : null;
+  if (!uid) return; // guest/demo/not signed in — localStorage-only, same as AI Paper Trading's own guard
+  if (_kseiCloudSyncTimer) clearTimeout(_kseiCloudSyncTimer);
+  _kseiCloudSyncTimer = setTimeout(function() { flushKseiCloudSync(uid); }, KSEI_CLOUD_SYNC_DEBOUNCE_MS);
 }
 
-/**
- * Save KSEI dataset and metadata to Firebase Firestore
- */
-async function kseiSaveSnapshotToFirestore(dataMap, metadata) {
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : (typeof _firebaseDb !== 'undefined' ? _firebaseDb : null);
-  if (!db) {
-    console.warn('[KSEI Firebase] Firestore instance not available yet');
-    return false;
-  }
-
-  var updatedIso = new Date().toISOString();
-  var userEmail = (typeof _currentUser !== 'undefined' && _currentUser && _currentUser.email) 
-    || (typeof PRIMARY_USER_EMAIL !== 'undefined' ? PRIMARY_USER_EMAIL : 'Andry.Zuma.Musa@gmail.com');
-
-  var metaObj = Object.assign({}, metadata || {}, {
-    source: 'KSEI (Kustodian Sentral Efek Indonesia) via Google Sheets',
-    lastUpdated: updatedIso,
-    updatedBy: userEmail,
-    totalEmiten: Object.keys(dataMap || {}).length,
-    sheetId: (metadata && metadata.sheetId) || KSEI_DEFAULT_SHEET_ID,
-    sheetUrl: (metadata && metadata.sheetUrl) || KSEI_DEFAULT_SHEET_URL
-  });
-
+async function flushKseiCloudSync(uid) {
+  _kseiCloudSyncTimer = null;
+  var client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+  if (!client) return; // Supabase not configured (e.g. local dev) — localStorage already has the real write
   try {
-    // 1. Save metadata to collection 'ksei_metadata', doc 'main'
-    await db.collection('ksei_metadata').doc('main').set(metaObj, { merge: true });
-
-    // 2. Save full snapshot to collection 'ksei_snapshots', doc 'latest'
-    var snapshotObj = {
-      snapshotId: 'latest',
-      reportDate: metaObj.reportDate || 'Terbaru',
-      totalEmiten: metaObj.totalEmiten,
-      totalMajorInvestors: metaObj.totalMajorInvestors || 0,
-      metadata: metaObj,
-      stocks: dataMap,
-      updatedAt: updatedIso,
-      updatedBy: userEmail
-    };
-    await db.collection('ksei_snapshots').doc('latest').set(snapshotObj);
-
-    console.log('[KSEI Firebase] Successfully saved snapshot to Firestore (ksei_snapshots/latest & ksei_metadata/main)');
-    return true;
-  } catch (err) {
-    handleKseiFirestoreError(err, 'write', 'ksei_snapshots/latest');
-    return false;
+    var result = await client.from('ksei_ownership').upsert({
+      user_id: uid,
+      data: KSEI_STATE.data,
+      metadata: KSEI_STATE.metadata,
+      updated_at: new Date().toISOString()
+    });
+    if (result && result.error) console.warn('[KSEI Cloud Sync]', result.error.message);
+  } catch (e) {
+    console.warn('[KSEI Cloud Sync]', e && e.message);
   }
 }
 
-/**
- * Load KSEI dataset from Firebase Firestore
- */
-async function kseiLoadFromFirestore() {
-  var db = (typeof getFirebaseDb === 'function') ? getFirebaseDb() : (typeof _firebaseDb !== 'undefined' ? _firebaseDb : null);
-  if (!db) return null;
-
-  try {
-    var snapDoc = await db.collection('ksei_snapshots').doc('latest').get();
-    if (snapDoc.exists) {
-      var data = snapDoc.data();
-      if (data && data.stocks && Object.keys(data.stocks).length > 0) {
-        console.log('[KSEI Firebase] Successfully loaded KSEI dataset from Firestore (' + Object.keys(data.stocks).length + ' emiten)');
-        return {
-          data: data.stocks,
-          metadata: data.metadata || {
-            source: 'KSEI (Kustodian Sentral Efek Indonesia)',
-            reportDate: data.reportDate,
-            totalEmiten: data.totalEmiten,
-            lastUpdated: data.updatedAt
-          }
-        };
-      }
-    }
-  } catch (err) {
-    handleKseiFirestoreError(err, 'get', 'ksei_snapshots/latest');
-  }
-  return null;
-}
+var _kseiCloudLoadedOnce = false;
 
 /**
- * Load KSEI dataset:
- * 1. Fast local cache (Instant)
- * 2. If empty, load from Firebase Firestore
- * 3. Fallback to server snapshot
- * (No continuous pulling/polling — data updates only when user explicitly clicks Update)
+ * Load priority:
+ * 1. Fast local cache (instant paint while cloud/default load in background)
+ * 2. Supabase ksei_ownership row for the signed-in user, if any (their own
+ *    last uploaded dataset — the real source of truth once they've
+ *    uploaded at least once)
+ * 3. Bundled default snapshot (GET /api/ksei/data — read-only, static
+ *    file bundled with the deploy) as the pre-upload starting point
  */
 async function kseiInitData(forceRefresh) {
   // 1. Check local cache first for instant response
@@ -139,10 +117,10 @@ async function kseiInitData(forceRefresh) {
     try {
       var cached = localStorage.getItem('MW_KSEI_DATA_CACHE');
       if (cached) {
-        var parsed = JSON.parse(cached);
-        if (parsed && parsed.data && Object.keys(parsed.data).length > 0) {
-          KSEI_STATE.data = parsed.data;
-          if (parsed.metadata) KSEI_STATE.metadata = parsed.metadata;
+        var parsedCache = JSON.parse(cached);
+        if (parsedCache && parsedCache.data && Object.keys(parsedCache.data).length > 0) {
+          KSEI_STATE.data = parsedCache.data;
+          if (parsedCache.metadata) KSEI_STATE.metadata = parsedCache.metadata;
           return;
         }
       }
@@ -152,27 +130,31 @@ async function kseiInitData(forceRefresh) {
     }
   }
 
-  // 2. If forceRefresh or no cache, try Firestore first
-  if (!forceRefresh) {
-    try {
-      var fsResult = await kseiLoadFromFirestore();
-      if (fsResult && fsResult.data && Object.keys(fsResult.data).length > 0) {
-        KSEI_STATE.data = fsResult.data;
-        if (fsResult.metadata) KSEI_STATE.metadata = fsResult.metadata;
-        try {
-          localStorage.setItem('MW_KSEI_DATA_CACHE', JSON.stringify({
-            metadata: KSEI_STATE.metadata,
-            data: KSEI_STATE.data
-          }));
-        } catch (e) {}
-        return;
+  // 2. Try the user's own uploaded dataset from Supabase
+  if (!forceRefresh && !_kseiCloudLoadedOnce) {
+    _kseiCloudLoadedOnce = true;
+    var uid = (typeof getAppUserId === 'function') ? getAppUserId() : null;
+    var client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (uid && client) {
+      try {
+        var result = await client.from('ksei_ownership').select('data, metadata').eq('user_id', uid).maybeSingle();
+        if (result.error) {
+          console.warn('[KSEI Cloud Load]', result.error.message);
+        } else if (result.data && result.data.data && Object.keys(result.data.data).length > 0) {
+          KSEI_STATE.data = result.data.data;
+          if (result.data.metadata) KSEI_STATE.metadata = result.data.metadata;
+          try {
+            localStorage.setItem('MW_KSEI_DATA_CACHE', JSON.stringify({ metadata: KSEI_STATE.metadata, data: KSEI_STATE.data }));
+          } catch (e) {}
+          return;
+        }
+      } catch (e) {
+        console.warn('[KSEI Cloud Load]', e && e.message);
       }
-    } catch (e) {
-      console.warn('[KSEI] Firestore read fallback:', e);
     }
   }
 
-  // 3. Fallback: Fetch from backend API / static snapshot
+  // 3. Fallback: bundled default snapshot (read-only, no write involved)
   try {
     KSEI_STATE.isLoading = true;
     var resp = await fetch('/api/ksei/data');
@@ -188,7 +170,7 @@ async function kseiInitData(forceRefresh) {
           map = json.data;
         }
         KSEI_STATE.data = map;
-        if (json.metadata) KSEI_STATE.metadata = json.metadata;
+        if (json.metadata) KSEI_STATE.metadata = Object.assign({ source: 'default_bundled' }, json.metadata);
 
         // Persist to localStorage for ultra-fast startup
         try {
@@ -197,20 +179,17 @@ async function kseiInitData(forceRefresh) {
             data: KSEI_STATE.data
           }));
         } catch (e) {}
-
-        // Also push initial snapshot to Firebase if not yet existing
-        kseiSaveSnapshotToFirestore(KSEI_STATE.data, KSEI_STATE.metadata);
       }
     }
   } catch (err) {
-    console.warn('[KSEI] Error fetching /api/ksei/data, falling back to local snapshot or direct sheet fetch:', err);
+    console.warn('[KSEI] Error fetching /api/ksei/data, falling back to bundled JSON file:', err);
     try {
       var fResp = await fetch('data/ksei-shareholders.json');
       if (fResp.ok) {
         var fJson = await fResp.json();
         if (fJson && fJson.data) {
           KSEI_STATE.data = fJson.data;
-          if (fJson.metadata) KSEI_STATE.metadata = fJson.metadata;
+          if (fJson.metadata) KSEI_STATE.metadata = Object.assign({ source: 'default_bundled' }, fJson.metadata);
         }
       }
     } catch (e) {}
@@ -219,61 +198,249 @@ async function kseiInitData(forceRefresh) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// EXCEL UPLOAD TEMPLATE — fixed, named columns (header-based lookup,
+// case/whitespace-insensitive), NOT positional like the old CSV parser
+// this replaces. One row = one investor, OR one row per custodian
+// sub-account for an investor that has more than one (repeat Ticker/Nama
+// Investor/Persentase/Jumlah Saham identically on each such row — see
+// template shared with the user). Every required column missing, or any
+// row failing validation, REJECTS THE WHOLE FILE with a specific row-
+// numbered reason — never silently falls back to a guessed default
+// (the old parser's worst flaw: a hardcoded "26 Aug 2026" reportDate
+// fallback when its date regex failed to match).
+// ══════════════════════════════════════════════════════════════
+var KSEI_TEMPLATE_REQUIRED_COLUMNS = ['Ticker', 'Nama Emiten', 'Nama Investor', 'Status', 'Persentase (%)', 'Jumlah Saham', 'Tanggal Laporan'];
+
+function _kseiNormKey(k) { return String(k || '').trim().toLowerCase(); }
+function _kseiRowGet(normRow, colName) { return normRow[_kseiNormKey(colName)]; }
+
 /**
- * Trigger manual on-demand sync from Google Sheets & save to Firebase Firestore
- * (Only runs when user clicks the "Update Data" button)
+ * Pure function: takes the row-object array XLSX.utils.sheet_to_json()
+ * produces (keyed by header text) and returns either
+ * {data, metadata, errors:[]} on success, or {data:null, metadata:null,
+ * errors:[...]} on any validation failure (never a partial/best-effort
+ * result — a half-imported dataset silently replacing a good one would be
+ * worse than refusing outright).
  */
-async function kseiSyncFromSheets(customSheetUrl, customSheetId) {
+function kseiParseWorkbook(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { data: null, metadata: null, errors: ['File kosong atau tidak punya baris data.'] };
+  }
+
+  var normRows = rows.map(function(r) {
+    var out = {};
+    Object.keys(r).forEach(function(k) { out[_kseiNormKey(k)] = r[k]; });
+    return out;
+  });
+
+  var presentKeys = Object.keys(normRows[0]);
+  var missingCols = KSEI_TEMPLATE_REQUIRED_COLUMNS.filter(function(c) {
+    return presentKeys.indexOf(_kseiNormKey(c)) === -1;
+  });
+  if (missingCols.length > 0) {
+    return { data: null, metadata: null, errors: ['Kolom wajib tidak ditemukan di file: ' + missingCols.join(', ') + '. Pastikan nama kolom persis sama dengan template.'] };
+  }
+
+  var dataByTicker = {};
+  var reportDates = {};
+  var rowErrors = [];
+
+  normRows.forEach(function(normRow, idx) {
+    var rowNum = idx + 2; // header is row 1
+    var ticker = String(_kseiRowGet(normRow, 'Ticker') || '').trim().toUpperCase();
+    var emitenName = String(_kseiRowGet(normRow, 'Nama Emiten') || '').trim();
+    var investorName = String(_kseiRowGet(normRow, 'Nama Investor') || '').trim();
+    var statusRaw = String(_kseiRowGet(normRow, 'Status') || '').trim();
+    var pctRaw = _kseiRowGet(normRow, 'Persentase (%)');
+    var sharesRaw = _kseiRowGet(normRow, 'Jumlah Saham');
+    var reportDate = String(_kseiRowGet(normRow, 'Tanggal Laporan') || '').trim();
+
+    // Skip a fully blank row (trailing empty rows are common in exports)
+    if (!ticker && !emitenName && !investorName) return;
+
+    if (!/^[A-Z0-9]{4,5}$/.test(ticker)) {
+      rowErrors.push('Baris ' + rowNum + ': Ticker "' + ticker + '" tidak valid (harus 4-5 huruf/angka).');
+      return;
+    }
+    if (!investorName) {
+      rowErrors.push('Baris ' + rowNum + ' (' + ticker + '): Nama Investor kosong.');
+      return;
+    }
+    var statusLower = statusRaw.toLowerCase();
+    if (statusLower !== 'lokal' && statusLower !== 'asing') {
+      rowErrors.push('Baris ' + rowNum + ' (' + ticker + '/' + investorName + '): Status harus "Lokal" atau "Asing", ditemukan "' + statusRaw + '".');
+      return;
+    }
+    var pct = parseFloat(String(pctRaw).replace(/,/g, '').replace('%', ''));
+    if (!isFinite(pct) || pct <= 0) {
+      rowErrors.push('Baris ' + rowNum + ' (' + ticker + '/' + investorName + '): Persentase (%) tidak valid: "' + pctRaw + '".');
+      return;
+    }
+    var shares = parseInt(String(sharesRaw).replace(/,/g, ''), 10);
+    if (!isFinite(shares) || shares < 0) {
+      rowErrors.push('Baris ' + rowNum + ' (' + ticker + '/' + investorName + '): Jumlah Saham tidak valid: "' + sharesRaw + '".');
+      return;
+    }
+    if (!reportDate) {
+      rowErrors.push('Baris ' + rowNum + ' (' + ticker + '/' + investorName + '): Tanggal Laporan kosong.');
+      return;
+    }
+    reportDates[reportDate] = (reportDates[reportDate] || 0) + 1;
+
+    var change = parseInt(String(_kseiRowGet(normRow, 'Perubahan Saham') || '0').replace(/,/g, ''), 10) || 0;
+    var domicile = String(_kseiRowGet(normRow, 'Domisili') || '').trim() || 'INDONESIA';
+    var custodian = String(_kseiRowGet(normRow, 'Nama Kustodian') || '').trim();
+    var accName = String(_kseiRowGet(normRow, 'Nama Akun Kustodian') || '').trim();
+    var custShares = parseInt(String(_kseiRowGet(normRow, 'Saham di Kustodian Ini') || '').replace(/,/g, ''), 10) || 0;
+
+    if (!dataByTicker[ticker]) {
+      dataByTicker[ticker] = {
+        ticker: ticker,
+        name: emitenName || ticker,
+        investors: [],
+        totalMajorPercent: 0,
+        freeFloat: 100,
+        localPercent: 0,
+        foreignPercent: 0,
+        totalSharesHeld: 0,
+        netChangeShares: 0,
+        reportDate: reportDate
+      };
+    }
+
+    // Same investor name repeated under the same ticker = another
+    // custodian sub-account for that investor (per the template's
+    // documented convention), not a duplicate holding to add twice.
+    var existingInvestor = dataByTicker[ticker].investors.filter(function(inv) { return inv.name === investorName; })[0];
+    if (existingInvestor) {
+      if (custodian || accName) {
+        existingInvestor.accounts.push({ custodian: custodian, accountName: accName, shares: custShares, domicile: domicile });
+      }
+    } else {
+      var investor = {
+        name: investorName,
+        percentage: pct,
+        shares: shares,
+        change: change,
+        status: statusLower === 'asing' ? 'Asing' : 'Lokal',
+        domicile: domicile,
+        accounts: []
+      };
+      if (custodian || accName) {
+        investor.accounts.push({ custodian: custodian, accountName: accName, shares: custShares, domicile: domicile });
+      }
+      dataByTicker[ticker].investors.push(investor);
+    }
+  });
+
+  if (rowErrors.length > 0) {
+    return { data: null, metadata: null, errors: rowErrors };
+  }
+
+  var reportDateKeys = Object.keys(reportDates);
+  if (reportDateKeys.length > 1) {
+    return {
+      data: null, metadata: null,
+      errors: ['Kolom "Tanggal Laporan" tidak konsisten — ditemukan ' + reportDateKeys.length + ' tanggal berbeda dalam satu file (' + reportDateKeys.join(', ') + '). Pastikan semua baris memakai tanggal laporan yang sama sebelum upload.']
+    };
+  }
+  if (reportDateKeys.length === 0 || Object.keys(dataByTicker).length === 0) {
+    return { data: null, metadata: null, errors: ['Tidak ada baris valid ditemukan setelah validasi.'] };
+  }
+  var finalReportDate = reportDateKeys[0];
+
+  var totalHoldersCount = 0;
+  Object.keys(dataByTicker).forEach(function(t) {
+    var item = dataByTicker[t];
+    var totPct = 0, locPct = 0, forPct = 0, totShares = 0, totChg = 0;
+    item.investors.forEach(function(inv) {
+      totPct += inv.percentage;
+      if (inv.status === 'Asing') forPct += inv.percentage; else locPct += inv.percentage;
+      totShares += inv.shares;
+      totChg += inv.change;
+    });
+    item.totalMajorPercent = Math.min(100, Math.round(totPct * 100) / 100);
+    item.freeFloat = Math.max(0, Math.round((100 - item.totalMajorPercent) * 100) / 100);
+    item.localPercent = Math.round(locPct * 100) / 100;
+    item.foreignPercent = Math.round(forPct * 100) / 100;
+    item.totalSharesHeld = totShares;
+    item.netChangeShares = totChg;
+    item.reportDate = finalReportDate;
+    totalHoldersCount += item.investors.length;
+  });
+
+  return {
+    data: dataByTicker,
+    metadata: {
+      source: 'upload',
+      title: 'KEPEMILIKAN EFEK DIATAS 5% BERDASARKAN SID (PUBLIK) per tanggal ' + finalReportDate,
+      reportDate: finalReportDate,
+      totalEmiten: Object.keys(dataByTicker).length,
+      totalMajorInvestors: totalHoldersCount,
+      lastUpdated: new Date().toISOString()
+    },
+    errors: []
+  };
+}
+
+/**
+ * Wired to the file input in the Sync Settings tab. Reads the selected
+ * .xlsx with the SheetJS `XLSX` library already loaded for the Admin
+ * Panel's stock-universe import (same library, no new dependency),
+ * validates via kseiParseWorkbook(), and on success REPLACES the entire
+ * KSEI dataset (localStorage cache immediately + debounced Supabase
+ * upsert — see scheduleKseiCloudSync()). A validation failure changes
+ * nothing — the file is rejected with the specific row-level reasons.
+ */
+function kseiImportExcelFile(inputElId) {
+  var inp = document.getElementById(inputElId || 'ksei-import-file');
+  var f = inp && inp.files && inp.files[0];
+  if (!f) { if (typeof showToast === 'function') showToast('Pilih file Excel dulu'); return; }
+  if (typeof XLSX === 'undefined') { if (typeof showToast === 'function') showToast('Pustaka pembaca Excel belum termuat, coba lagi sebentar'); return; }
+  if (!confirm('RESET TOTAL data KSEI 5%+ Shareholders & Free Float?\n\nSeluruh data yang tersimpan akan DIGANTI TOTAL dengan isi file:\n\n"' + f.name + '"\n\nLanjutkan?')) return;
+
   KSEI_STATE.isSyncing = true;
   kseiUpdateSyncUI();
+  if (typeof showToast === 'function') showToast('⏳ Membaca ' + f.name + '...');
 
-  if (typeof showToast === 'function') {
-    showToast('⏳ Menghubungi Google Sheets KSEI & memperbarui data ke Firebase Firestore...');
-  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      var sheet = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      var result = kseiParseWorkbook(rows);
 
-  var payload = {};
-  if (customSheetUrl) payload.sheetUrl = customSheetUrl;
-  if (customSheetId) payload.sheetId = customSheetId;
-
-  try {
-    var resp = await fetch('/api/ksei/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!resp.ok) {
-      throw new Error('Server returned HTTP ' + resp.status);
-    }
-
-    var result = await resp.json();
-    if (result.success) {
-      if (result.metadata) KSEI_STATE.metadata = result.metadata;
-      
-      // Re-fetch fresh data from API
-      await kseiInitData(true);
-
-      // Save latest snapshot directly to Firebase Firestore
-      await kseiSaveSnapshotToFirestore(KSEI_STATE.data, KSEI_STATE.metadata);
-
-      if (typeof showToast === 'function') {
-        showToast('✅ Berhasil memperbarui data KSEI & Free Float ke Firebase (' + (KSEI_STATE.metadata.totalEmiten || '840+') + ' emiten, ' + (KSEI_STATE.metadata.reportDate || 'terbaru') + ')');
+      if (result.errors && result.errors.length > 0) {
+        var msg = result.errors.slice(0, 8).join('\n') + (result.errors.length > 8 ? '\n... (' + (result.errors.length - 8) + ' error lainnya)' : '');
+        if (typeof showToast === 'function') showToast('❌ File ditolak: ' + result.errors[0] + (result.errors.length > 1 ? ' (+' + (result.errors.length - 1) + ' lainnya)' : ''));
+        alert('File "' + f.name + '" ditolak — data KSEI TIDAK diubah. Perbaiki dulu:\n\n' + msg);
+        return;
       }
 
-      // Re-render open modals or components
+      KSEI_STATE.data = result.data;
+      KSEI_STATE.metadata = Object.assign({}, result.metadata, { uploadedFileName: f.name });
+
+      try {
+        localStorage.setItem('MW_KSEI_DATA_CACHE', JSON.stringify({ metadata: KSEI_STATE.metadata, data: KSEI_STATE.data }));
+      } catch (e2) {}
+
+      scheduleKseiCloudSync();
+
+      if (typeof showToast === 'function') {
+        showToast('✅ Berhasil mengimpor ' + KSEI_STATE.metadata.totalEmiten + ' emiten dari ' + f.name + ' (periode ' + KSEI_STATE.metadata.reportDate + ')');
+      }
       kseiRefreshActiveViews();
-    } else {
-      throw new Error(result.error || 'Gagal sinkronisasi');
+    } catch (err) {
+      console.error('[KSEI Import Error]', err);
+      if (typeof showToast === 'function') showToast('❌ Gagal membaca file Excel: ' + err.message);
+    } finally {
+      KSEI_STATE.isSyncing = false;
+      kseiUpdateSyncUI();
     }
-  } catch (err) {
-    console.error('[KSEI Sync Error]', err);
-    if (typeof showToast === 'function') {
-      showToast('❌ Gagal sinkronisasi data KSEI: ' + err.message);
-    }
-  } finally {
-    KSEI_STATE.isSyncing = false;
-    kseiUpdateSyncUI();
-  }
+  };
+  reader.readAsArrayBuffer(f);
 }
 
 /**
@@ -335,7 +502,7 @@ function openKseiModal(ticker) {
               <div>
                 <div style="font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">
                   KSEI 5%+ Shareholders &amp; Free Float Explorer
-                  <span class="badge b-up" style="font-size:10px">FIREBASE STORED</span>
+                  <span class="badge b-up" style="font-size:10px">SUPABASE STORED</span>
                 </div>
                 <div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px" id="ksei-modal-meta-bar">
                   <span>Memuat data KSEI...</span>
@@ -345,8 +512,8 @@ function openKseiModal(ticker) {
 
             <!-- MODAL ACTION BUTTONS -->
             <div style="display:flex;align-items:center;gap:8px">
-              <button id="btn-ksei-sync" class="btn btn-blue btn-xs" onclick="kseiSyncFromSheets()" style="display:flex;align-items:center;gap:5px;font-size:11px;padding:6px 12px;font-weight:700">
-                🔄 Update Data ke Firebase
+              <button id="btn-ksei-sync" class="btn btn-blue btn-xs" onclick="kseiSwitchTab('sync-settings')" style="display:flex;align-items:center;gap:5px;font-size:11px;padding:6px 12px;font-weight:700">
+                📤 Update Data (Upload Excel)
               </button>
               <button class="mclose" onclick="closeKseiModal()" style="font-size:22px;line-height:1;background:none;border:none;color:var(--text3);cursor:pointer;padding:4px 8px" aria-label="Tutup dialog">×</button>
             </div>
@@ -361,7 +528,7 @@ function openKseiModal(ticker) {
               📊 Market-Wide Free Float Scanner (840 Saham)
             </button>
             <button id="ksei-tab-btn-settings" class="btn btn-xs btn-ghost" onclick="kseiSwitchTab('sync-settings')" style="font-size:11px;padding:5px 12px;border-radius:6px">
-              🔥 Database Firebase &amp; Sumber Data
+              📤 Upload Excel &amp; Sumber Data
             </button>
           </div>
 
@@ -423,14 +590,18 @@ function kseiUpdateMetaBar() {
 
 function kseiUpdateSyncUI() {
   var btn = document.getElementById('btn-ksei-sync');
-  if (!btn) return;
-  if (KSEI_STATE.isSyncing) {
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Menyinkronkan ke Firebase...';
-  } else {
-    btn.disabled = false;
-    btn.innerHTML = '🔄 Update Data ke Firebase';
+  if (btn) {
+    if (KSEI_STATE.isSyncing) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Memproses...';
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '📤 Update Data (Upload Excel)';
+    }
   }
+
+  var importBtn = document.getElementById('btn-ksei-import-file');
+  if (importBtn) importBtn.disabled = !!KSEI_STATE.isSyncing;
 }
 
 function kseiSelectTicker(ticker) {
@@ -901,35 +1072,33 @@ function kseiOnScannerSearch(val) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 5. TAB 3: GOOGLE SHEETS SETTINGS & SYNC VIEW
+// 5. TAB 3: EXCEL UPLOAD & SUMBER DATA
 // ══════════════════════════════════════════════════════════════
 
 function renderKseiSettingsView(container) {
   var m = KSEI_STATE.metadata || {};
-  var lastUpdatedStr = m.lastUpdated ? new Date(m.lastUpdated).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Tersimpan di Cloud';
-  
+  var lastUpdatedStr = m.lastUpdated ? new Date(m.lastUpdated).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+  var isUploaded = m.source === 'upload';
+
   container.innerHTML = `
     <div style="max-width:760px;margin:0 auto;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:24px">
       <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px">
-        <span>🔥 Firebase Firestore Database &amp; Manajemen Data KSEI</span>
-        <span class="badge b-up" style="font-size:10px">ON-DEMAND SYNC</span>
+        <span>📤 Upload Excel &amp; Manajemen Data KSEI</span>
+        <span class="badge ${isUploaded ? 'b-up' : 'b-neu'}" style="font-size:10px">${isUploaded ? 'DATA HASIL UPLOAD ANDA' : 'DATA BAWAAN (BELUM ADA UPLOAD)'}</span>
       </div>
       <p style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:20px">
-        Data <b>Shareholder &gt;5% &amp; Free Float Publik</b> tersimpan permanen di <b>Firebase Firestore</b> (koleksi <code>ksei_snapshots</code> &amp; <code>ksei_metadata</code>). Aplikasi <b>tidak akan terus-menerus menarik data</b> di latar belakang secara otomatis, melainkan membaca data tersimpan. Klik tombol <b>"Update Data ke Firebase"</b> di bawah kapan saja Anda ingin menyinkronkan data terbaru dari Google Sheets.
+        Data <b>Shareholder &gt;5% &amp; Free Float Publik</b> tersimpan permanen di <b>Supabase</b> (tabel <code>ksei_ownership</code>, terpisah dari data portofolio Anda), begitu Anda upload minimal sekali — sehingga kalau file sumber di komputer Anda hilang, data yang SUDAH ter-upload tetap aman. Aplikasi tidak menarik data otomatis dari mana pun; Anda yang mengunggah file Excel kapan pun ada laporan KSEI terbaru yang sudah Anda bersihkan.
       </p>
 
-      <!-- FIREBASE STATUS CARD -->
+      <!-- STATUS CARD -->
       <div style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--text3);display:flex;align-items:center;gap:6px">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981"></span>
-            FIRESTORE DATABASE STATUS:
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isUploaded ? '#10B981' : '#f59e0b'};box-shadow:0 0 6px ${isUploaded ? '#10B981' : '#f59e0b'}"></span>
+            SUMBER DATA SAAT INI:
           </div>
-          <div style="font-size:12px;font-weight:800;color:var(--text);font-family:var(--font-mono);margin-top:2px">
-            ai-studio-moneywatchpro-088bcbd5-b0c7-48cf-baee-be4279fd2091
-          </div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">
-            Koleksi: <code>ksei_snapshots/latest</code> · <code>ksei_metadata/main</code>
+          <div style="font-size:12px;font-weight:800;color:var(--text);margin-top:2px">
+            ${isUploaded ? escHtml(m.uploadedFileName || 'File hasil upload') : 'Snapshot bawaan (belum pernah upload)'}
           </div>
         </div>
         <div style="text-align:right">
@@ -938,32 +1107,26 @@ function renderKseiSettingsView(container) {
         </div>
       </div>
 
-      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px;margin-bottom:20px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px">URL GOOGLE SPREADSHEET SUMBER KSEI:</div>
-        <input type="text" id="ksei-custom-sheet-url" class="finput" style="width:100%;font-size:12px;padding:8px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--font-mono)" value="${m.sheetUrl || KSEI_DEFAULT_SHEET_URL}">
-        <div style="font-size:10px;color:var(--text3);margin-top:6px">
-          💡 Tips: Pastikan dokumen Google Sheets diatur ke mode akses publik ("Anyone with the link can view").
-        </div>
-      </div>
-
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px">
         <div style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:12px">
           <div style="font-size:10px;color:var(--text3);font-weight:700">TANGGAL LAPORAN KSEI:</div>
-          <div style="font-size:14px;font-weight:800;color:var(--accent);margin-top:4px">${m.reportDate || '26 Aug 2026'}</div>
+          <div style="font-size:14px;font-weight:800;color:var(--accent);margin-top:4px">${m.reportDate || '-'}</div>
         </div>
         <div style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:12px">
           <div style="font-size:10px;color:var(--text3);font-weight:700">JUMLAH SAHAM TERCATAT:</div>
-          <div style="font-size:14px;font-weight:800;color:#10B981;margin-top:4px">${m.totalEmiten || '840'} Emiten IDX</div>
+          <div style="font-size:14px;font-weight:800;color:#10B981;margin-top:4px">${m.totalEmiten || 0} Emiten IDX</div>
         </div>
       </div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-        <button class="btn btn-ghost" onclick="document.getElementById('ksei-custom-sheet-url').value='${KSEI_DEFAULT_SHEET_URL}'" style="font-size:11px">
-          Reset ke URL Standar
-        </button>
-        <button class="btn btn-blue" onclick="kseiSyncFromSheets(document.getElementById('ksei-custom-sheet-url').value)" style="font-size:12px;padding:9px 18px;font-weight:800;display:flex;align-items:center;gap:6px">
-          🔄 Update Data &amp; Simpan ke Firebase
-        </button>
+      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px">UPLOAD FILE EXCEL (.xlsx) — KOLOM WAJIB: Ticker, Nama Emiten, Nama Investor, Status, Persentase (%), Jumlah Saham, Tanggal Laporan</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input class="finput" type="file" id="ksei-import-file" accept=".xlsx,.xls" style="flex:1;min-width:220px">
+          <button id="btn-ksei-import-file" class="btn btn-red btn-sm" onclick="kseiImportExcelFile('ksei-import-file')">Import &amp; RESET TOTAL</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.6">
+          File Anda tetap harus dibersihkan manual dulu (gabung sel, hapus baris) ke bentuk template kolom di atas — sekali baris per investor, atau ulangi barisnya kalau satu investor punya beberapa kustodian. File yang tidak lolos validasi akan DITOLAK dengan alasan per baris, data yang sudah ada TIDAK akan berubah.
+        </div>
       </div>
     </div>
   `;

@@ -2141,3 +2141,45 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (114+18+6+5+9), `npm run lint` bersih.
 
 **Catatan jujur untuk user:** panel Gemini akan menampilkan jumlah pemakaian riil per model mulai sekarang, tapi TIDAK menampilkan persentase/alert sampai Anda mengisi `GEMINI_RPD_LIMITS` di environment variable server (Vercel) dengan angka RPD asli dari Google AI Studio — saya sengaja tidak menebak angka itu. Baik panel Invezgo maupun Gemini murni observability, tidak ada yang memblokir panggilan API — kalau kuota habis, perilaku existing (Invezgo: fallback simulasi berlabel jujur; Gemini: fallback model berikutnya lalu error) tetap sama seperti sebelumnya.
+
+## 2026-09-11 — Rombak total persistence KSEI 5%+ Shareholders & Free Float: Google Sheets/Firebase → Upload Excel/Supabase
+
+- **Konteks:** user bertanya soal tab "STRUKTUR KEPEMILIKAN & FREE FLOAT (KSEI)" — sumber data spreadsheet yang harus diolah dulu, dan risiko data hilang kalau spreadsheet-nya hilang.
+- **Audit ditemukan (sebelum ada perubahan apa pun) — masalahnya lebih mendesak dari yang dikhawatirkan user:**
+  - Parser CSV lama (`parseKseiCsv()`, server.js) membaca kolom berdasarkan **posisi tetap** (`r[0]`...`r[17]`, mulai baris ke-4), dengan tanggal laporan diambil dari regex satu sel spesifik yang **fallback diam-diam ke hardcode `"26 Aug 2026"`** kalau gagal cocok — kalau struktur sheet berubah, data salah tanpa peringatan.
+  - **Lebih penting**: `POST /api/ksei/sync` menulis hasil parse ke `data/ksei-shareholders.json` lewat `fs.writeFileSync()`. Di Vercel serverless, filesystem itu **read-only** di production (kecuali `/tmp`) — persis kelas kegagalan yang SUDAH didokumentasikan & diperbaiki untuk `/api/user-data/save` sebelumnya (lihat komentar di handler itu: "this handler's on-disk write ALWAYS fails on Vercel... EROFS"). `/api/ksei/sync` belum pernah dapat perbaikan yang sama — tombol "Update Data" di modal KSEI kemungkinan besar **sudah gagal di production** setiap kali dicoba, bukan skenario hipotetis.
+  - Data KSEI production selama ini murni snapshot JSON yang di-commit ke git terakhir kali seseorang sync lokal (per 26 Agustus 2026) — aman dari "sheet hilang" (sudah tersalin), tapi tidak bisa diperbarui lewat UI sama sekali.
+  - Ada JUGA salinan ketiga di Firebase Firestore (`kseiSaveSnapshotToFirestore`/`kseiLoadFromFirestore`) — redundan, sisa dari sebelum migrasi Supabase, tidak dipakai fitur lain.
+- **Keputusan (dikonfirmasi user via beberapa pertanyaan klarifikasi):**
+  - Alur manual TIDAK berubah — user tetap download dari web IDX lalu bersihkan manual (gabung sel, hapus baris) sebelum data siap dipakai; itu tetap tugas manusia, bukan sesuatu yang bisa ditebak otomatis.
+  - Yang berubah: dibersihkan ke **template Excel kolom-tetap** (bukan Google Sheet ad-hoc), lalu **upload file .xlsx langsung** ke app (bukan app fetch URL Google Sheets).
+  - Google Sheets sync + Firebase Firestore **dihapus total**, diganti satu jalur: upload → parse client-side → simpan ke Supabase.
+- **Perubahan:**
+  - **Tidak ada dependency baru.** Ditemukan app SUDAH punya library SheetJS (`XLSX`, dimuat di `index.html`) dipakai untuk fitur "Kelola Daftar Saham" (Admin Panel, `14-admin.js`'s `idxImportFile()`) — pola baca-Excel-di-browser-dengan-header-nama dipakai ulang persis, bukan dibangun dari nol.
+  - **Tidak ada endpoint upload baru, tidak ada base64/multipart.** Ditemukan app SUDAH punya pola tabel Supabase khusus terisolasi untuk data besar/jarang-berubah (`ai_paper_trading`, sengaja terpisah dari `user_data` blob transaksi harian). Dipakai ulang persis untuk KSEI: tabel baru `public.ksei_ownership` (`sql/schema_migration.sql`, RLS select/insert/update-own, sama seperti `ai_paper_trading`).
+  - `public/js/34-ksei-shareholders.js` — **ditulis ulang signifikan**:
+    - `kseiSaveSnapshotToFirestore()`/`kseiLoadFromFirestore()`/`handleKseiFirestoreError()` **dihapus** (Firestore bukan lagi sumber kebenaran untuk fitur ini).
+    - `kseiSyncFromSheets()` **dihapus**, diganti `kseiParseWorkbook(rows)` (fungsi murni, tervalidasi ketat, HEADER-BASED bukan posisi — kolom wajib dicek nama-nya, baris invalid ditolak dengan pesan bernomor baris, seluruh file ditolak kalau ada satu error — tidak pernah partial-import) + `kseiImportExcelFile()` (baca file via `FileReader`/`XLSX.read`/`sheet_to_json`, panggil `kseiParseWorkbook()`, konfirmasi RESET TOTAL sebelum apply — pola persis `idxImportFile()`).
+    - `scheduleKseiCloudSync()`/`flushKseiCloudSync()` — debounced upsert ke `ksei_ownership` (pola persis AI Paper Trading's `scheduleAiCloudSync()`/`flushAiCloudSync()`).
+    - `kseiInitData()` — urutan prioritas baru: localStorage cache → Supabase `ksei_ownership` milik user (kalau sudah pernah upload) → snapshot bawaan bundled (`GET /api/ksei/data`, read-only, tidak ada risiko EROFS karena tidak pernah menulis).
+    - UI tab Settings dirombak: URL Google Sheets input dihapus, diganti input file `.xlsx` + tombol "Import & RESET TOTAL", badge status "DATA HASIL UPLOAD ANDA" vs "DATA BAWAAN (BELUM ADA UPLOAD)".
+  - `server.js` — `POST /api/ksei/sync` dan `parseKseiCsv()` **dihapus total** (satu-satunya sumber EROFS untuk fitur ini). `GET /api/ksei/data`/`/stock/:ticker`/`/summary` **dipertahankan** (read-only, melayani snapshot bawaan sebagai starting point sebelum upload pertama — mirror pola "universe bawaan" Admin Panel).
+  - Template resmi (`.xlsx`, 2 sheet: contoh data + petunjuk pengisian) dikirim langsung ke user sebagai starting point nyata, bukan cuma deskripsi di chat.
+- **Prevention added (`test_suite.js`, 6 test baru — TEST 92-97):**
+  - `kseiParseWorkbook()` mengelompokkan baris per-ticker dengan benar, menghitung free float/lokal/asing, dan MENGGABUNGKAN baris investor yang sama (multi-kustodian) jadi satu entri — bukan duplikat.
+  - File dengan kolom wajib hilang → ditolak total, pesan menyebut kolom spesifik.
+  - Baris dengan Status/Ticker/Persentase tidak valid → ditolak dengan nomor baris spesifik, tidak pernah di-coerce diam-diam (mis. Persentase non-numerik jadi NaN/0 lalu tetap diimpor).
+  - File dengan `Tanggal Laporan` tidak konsisten antar baris → ditolak total.
+  - REGRESSION GUARD: `POST /api/ksei/sync` dan `parseKseiCsv()` harus tetap hilang dari `server.js`; `GET /api/ksei/data` harus tetap ada. Dibuktikan gagal saat sengaja dikembalikan (`app.post('/api/ksei/sync', ...)` ditambahkan manual) → test FAIL, lalu direstore → PASS.
+  - REGRESSION GUARD: fungsi Google-Sheets/Firestore lama harus tetap hilang dari `34-ksei-shareholders.js`; `kseiImportExcelFile()`/`kseiParseWorkbook()`/`scheduleKseiCloudSync()`/wiring tabel `ksei_ownership` harus tetap ada.
+  - Catatan teknis: satu assersi sempat false-fail karena gotcha vm-sandbox cross-realm array (`assert.deepStrictEqual([], sandboxArray)` — sudah didokumentasikan sesi ini sebelumnya) — diperbaiki jadi cek `.length`.
+- **Live verification (server lokal):** `GET /api/ksei/data` dan `GET /api/ksei/summary` tetap 200 (snapshot bawaan masih terlayani apa adanya). `POST /api/ksei/sync` sekarang 404 (dikonfirmasi benar-benar terhapus, bukan cuma diam-diam gagal seperti sebelumnya).
+- Cache-bust `34-ksei-shareholders.js` → `?v=20260911b`.
+
+`npm test` (119+18+6+5+9), `npm run lint` bersih.
+
+**Catatan penting untuk user:**
+1. Migrasi SQL (`sql/schema_migration.sql`, bagian `ksei_ownership`) **harus dijalankan manual** di Supabase SQL Editor sebelum upload pertama bisa tersimpan ke cloud — sama seperti migrasi-migrasi sebelumnya di file ini.
+2. Alur manual Anda (download IDX → bersihkan) **tidak berubah** — yang berubah cuma bentuk akhirnya (template kolom-tetap, lihat file yang dikirim) dan cara mengirim ke app (upload file, bukan URL Google Sheets).
+3. Sekali upload pertama berhasil, data itu aman di Supabase selamanya — hilangnya file Excel di komputer Anda nanti TIDAK menghapus data yang sudah tersimpan, hanya menghalangi upload BERIKUTNYA.
+4. Versi SheetJS (`xlsx@0.18.5`) yang dipakai (sudah ada sejak fitur Admin Panel, bukan ditambahkan task ini) tergolong lama dan punya CVE prototype-pollution yang sudah diperbaiki di rilis lebih baru — di luar cakupan task ini untuk di-upgrade, ditandai untuk keputusan terpisah kalau Anda mau.
