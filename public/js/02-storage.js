@@ -1515,9 +1515,17 @@ async function fireLoadAllData(){
     var errStr = (err && err.message) ? err.message : String(err);
     console.warn('Supabase load notice:', errStr);
     // Fallback to server mirror if available
+    // MW-P0-001: this call was missing _authHeaders() — every other
+    // /api/user-data/* call site attaches the real Supabase session token
+    // so the server's Stage 1/2 identity check (lib/auth-verify.js) has
+    // something to verify against; this one silently sent none, which
+    // would read as "no token" (Stage 1: logged as expected-for-guest;
+    // Stage 2, once enabled: a 401 for every real user hitting this
+    // fallback path). Found auditing all four /api/user-data/* call sites
+    // in this file before wiring test_security_regressions.js into CI.
     if (typeof fetch === 'function') {
       try {
-        var srvRes = await fetch('/api/user-data/load?uid=' + encodeURIComponent(uid));
+        var srvRes = await fetch('/api/user-data/load?uid=' + encodeURIComponent(uid), { headers: _authHeaders() });
         if (srvRes.ok) {
           var srvJson = await srvRes.json();
           if (srvJson && srvJson.data) {

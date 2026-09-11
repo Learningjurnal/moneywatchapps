@@ -7,7 +7,7 @@
     "dev": "node server.js",
     "build": "echo 'Build complete'",
     "start": "node server.js",
-    "test": "node test_suite.js && node test_financial_policy.js && node test_provider_functions.js",
+    "test": "node test_suite.js && node test_financial_policy.js && node test_provider_functions.js && node test_security_regressions.js",
     "test:policy": "node test_financial_policy.js",
     "test:providers": "node test_provider_functions.js",
     "test:security": "node test_security_regressions.js",
