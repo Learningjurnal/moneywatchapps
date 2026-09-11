@@ -2030,3 +2030,24 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - Cache-bust `41-stockchat-cockpit.js` → `?v=20260911g`. `server.js` tidak perlu cache-bust.
 
 `npm test` (106/106 + 18/18 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — Fitur item #3: AI Copilot/StockChat bisa mengutip prediksi model XGBoost (dengan disclaimer wajib)
+
+- **Konteks:** lanjutan roadmap AI Copilot — item #3 (integrasikan XGBoost sebagai tool tambahan). Model ONNX yang ada sebelumnya HANYA pernah dipakai untuk batch backtest historis (`proceedWithData()` di Backtester, `11-quant.js`) — tidak pernah ada jalur "prediksi 1 bar terbaru untuk 1 ticker", jadi tidak ada apa pun untuk AI Copilot kutip.
+- **Fitur:**
+  - `public/js/11-quant.js` — `xgbPredictLatest(ticker, callback)`: reuse pipeline ONNX yang SAMA persis dipakai Backtester (`xgbEnsureLoaded()`, `xgbComputeFeatures()`, `xgbPredictBatch()`) tapi untuk satu bar TERBARU satu ticker, bukan batch historis — supaya angka yang dikutip AI selalu identik dengan yang tampil di Backtester. Menyertakan `hasProvenSignal` (dihitung dari lift precision/base_rate ≥ 1.15x — SELALU false untuk model saat ini, lift 0.98x) dan `isSimulatedData` (kalau histori OHLCV input-nya sendiri simulasi, bukan data pasar riil).
+  - `server.js` — tool baru `cek_prediksi_xgboost` + case di `executeAgentTool()` (membaca `userContext.xgboostPrediction`, sama seperti pola `aiPaperTrading`/`cek_kinerja_ai_trading` — data ini murni client-side, server tidak punya endpoint ML). `SYSTEM_INSTRUCTION_MONEYWATCH_AI` diupdate (aturan #10) — Gemini WAJIB baca `hasProvenSignal` dan menyampaikan disclaimer "model ini eksperimen edukasi, TIDAK terbukti prediktif" SEBELUM menyebut angka apa pun, kondisi saat ini SELALU begitu.
+  - `public/js/28-decisiontools.js` — `sendCopilotPrompt()` mendeteksi ticker riil + kata kunci prediksi (sinyal/prediksi/xgboost/rekomendasi/dst), menjalankan `xgbPredictLatest()` DI BROWSER sebelum mengirim ke server (dengan timeout 8 detik via `Promise.race`, gagal diam-diam ke null — tidak boleh menahan SETIAP pesan chat), hasilnya dikirim sebagai `userContext.xgboostPrediction`. Hanya jalan kalau benar-benar relevan (deteksi keyword) supaya tidak membebani setiap pesan Copilot dengan inferensi ONNX + fetch data yang mahal.
+  - Fallback deterministik (server.js) & fallback client-side (`41-stockchat-cockpit.js`) — cabang baru yang sama, dicek LEBIH AWAL di rantai if/else (pola yang sama seperti fix ordering item #1/#2 kemarin, mencegah kolisi short-keyword).
+- **Prevention added:**
+  - `test_suite.js` TEST 84 — `executeAgentTool('cek_prediksi_xgboost')` lewat vm sandbox: no-data → `hasData:false` tanpa fabrikasi, `hasProvenSignal:false` (kondisi nyata model saat ini) → disclaimer "TIDAK terbukti" WAJIB muncul, `hasProvenSignal:true` (hipotetis) → disclaimer BEDA (membuktikan disclaimer benar-benar bercabang pada field ini, bukan hardcode satu pesan).
+  - `test_suite.js` TEST 85 — branch prediksi di fallback deterministik diposisikan SEBELUM branch short-keyword (porto/kas, simulasi/ara/arb) — mencegah kolisi seperti bug "kasih"/"saran" kemarin.
+  - `test_suite.js` TEST 86 — cabang client-side membaca `userContext.xgboostPrediction` apa adanya, tidak fabrikasi, tidak terjebak gerbang validasi ticker.
+  - `test_suite.js` TEST 87 — `sendCopilotPrompt()` HANYA memanggil `xgbPredictLatest()` kalau pesan benar-benar berniat tanya prediksi DAN menyebut ticker riil (bukan di setiap pesan — mahal), dan struktur timeout/catch-nya diverifikasi (tanpa benar-benar menunggu 8 detik nyata di test suite).
+  - Semua 4 test terbukti gagal saat masing-masing bagian direvert.
+- **Live verification (server lokal, data realistis dari `models/xgb_signal_meta.json` asli — buy_threshold 44.7%, precision 36.5% vs base rate 37.1%, lift 0.98x):** prediksi tanpa data browser → honest empty state; prediksi dengan data realistis → disclaimer "TIDAK terbukti" tampil SEBELUM angka, precision vs base rate dikutip akurat; item #1 (kinerja AI) dan item #2 (portofolio/Risk Gate) dipastikan tidak keserempet.
+- Cache-bust `11-quant.js` → `?v=20260911c`, `28-decisiontools.js` → `?v=20260911e`, `41-stockchat-cockpit.js` → `?v=20260911h`.
+
+`npm test` (110/110 + 18/18 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+**Catatan jujur untuk user:** fitur ini secara teknis berfungsi dan sudah live, tapi NILAINYA TERBATAS — sesuai yang disampaikan saat merencanakan item #3, model XGBoost yang ada belum terbukti punya sinyal prediktif (lift 0.98x, di bawah ambang 1.15x). Setiap kali AI Copilot mengutip prediksi ini, disclaimer "eksperimen edukasi, tidak terbukti" akan SELALU muncul (bukan sesekali) sampai model ini benar-benar diperbaiki di masa depan (butuh iterasi ML baru, bukan sekadar wiring seperti ini).

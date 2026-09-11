@@ -1750,7 +1750,15 @@ function generateClientSideAiAgentResponse(message, userContext) {
   // ticker, reads userContext.aiPaperTrading directly (client-side mirror
   // of server.js's cek_kinerja_ai_trading tool, added together with it).
   var isAiPerformanceIntent = pLower.includes('kinerja ai') || pLower.includes('kinerja trading') || pLower.includes('performa ai') || pLower.includes('performa trading') || pLower.includes('ai trading') || pLower.includes('win rate') || pLower.includes('winrate') || pLower.includes('paper trading') || pLower.includes('lesson') || pLower.includes('pelajaran') || pLower.includes('post-mortem') || pLower.includes('post mortem') || pLower.includes('saran perbaikan') || pLower.includes('pola kesalahan');
-  var isTickerIndependentIntent = isPortfolioIntent || isStrategyIntent || isAiPerformanceIntent;
+  // Item #3 (2026-09-11): reads userContext.xgboostPrediction directly —
+  // this branch never computes the prediction itself (only
+  // sendCopilotPrompt(), 28-decisiontools.js, runs the ONNX inference
+  // before sending); here it's a passthrough for when the server call
+  // that would have used cek_prediksi_xgboost fails and this client-side
+  // engine takes over. Doesn't need a resolved matchedTicker either — the
+  // ticker (if any) comes from the prediction object itself.
+  var isPredictionIntent = /\b(sinyal|prediksi|xgboost|rekomendasi|layak beli|worth buy|apakah bagus|apakah layak)\b/i.test(message);
+  var isTickerIndependentIntent = isPortfolioIntent || isStrategyIntent || isAiPerformanceIntent || isPredictionIntent;
 
   var matchedTicker = words.find(function(w) {
     return (typeof DB !== 'undefined' && DB[w]) ||
@@ -1787,7 +1795,31 @@ function generateClientSideAiAgentResponse(message, userContext) {
 
   var reply = '';
 
-  if (isAiPerformanceIntent) {
+  if (isPredictionIntent) {
+    // Zero Dummy Data: inferensi ONNX hanya jalan di sendCopilotPrompt()
+    // sebelum request server — kalau tidak ada (server tidak dipanggil
+    // sama sekali dari awal, atau memang bukan pertanyaan prediksi saat
+    // itu dievaluasi), jangan pernah mengarang sinyal.
+    var pred = userContext && userContext.xgboostPrediction;
+    if (!pred) {
+      reply = '### Prediksi Model XGBoost\n\n'
+        + 'Belum ada hasil inferensi XGBoost untuk pesan ini. Buka menu **Quant Lab > Backtester**, pilih strategi XGBoost supaya model ONNX termuat di browser, lalu tanyakan lagi dengan menyebut kode ticker.';
+    } else {
+      var disclaimer = pred.hasProvenSignal
+        ? 'Model ini masih berstatus eksperimen — verifikasi ulang berkala tetap wajib.'
+        : 'EKSPERIMEN EDUKASI: model ini TIDAK terbukti punya sinyal prediktif di atas tebak-tebakan acak (lihat ml/README.md). Jangan jadikan rekomendasi investasi.';
+      reply = '### Prediksi Model XGBoost: ' + pred.ticker + '\n\n'
+        + '⚠️ **' + disclaimer + '**\n\n'
+        + 'Berdasarkan inferensi model ONNX (versi ' + (pred.modelVersion || '-') + ', per ' + pred.asOfDate + '):\n'
+        + '- **Sinyal**: ' + pred.signal + '\n'
+        + '- **Probability (kelas naik)**: ' + (pred.probability * 100).toFixed(1) + '%\n'
+        + '- **Threshold BUY/SELL**: ' + (pred.buyThreshold * 100).toFixed(0) + '% / ' + (pred.sellThreshold * 100).toFixed(0) + '%\n'
+        + (pred.liftInfo ? '- **Precision vs Base Rate**: ' + (pred.liftInfo.precisionAtThreshold * 100).toFixed(1) + '% vs ' + (pred.liftInfo.baseRate * 100).toFixed(1) + '%\n' : '')
+        + (pred.isSimulatedData ? '- ⚠️ **Data historis input model ini SIMULASI**, bukan data pasar riil.\n' : '')
+        + '\n*Disclaimer: Ini bukan rekomendasi investasi. Keputusan investasi berada di tangan Anda.*';
+    }
+  }
+  else if (isAiPerformanceIntent) {
     // Zero Dummy Data: this data lives entirely client-side
     // (AI_TRADE_STATE, 38-ai-autonomous-trading.js) — never invent a
     // plausible win rate/trade history when userContext.aiPaperTrading

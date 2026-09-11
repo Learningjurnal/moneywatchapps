@@ -1226,13 +1226,44 @@ async function sendCopilotPrompt(text) {
     };
   }
 
+  // Item #3 dari roadmap AI Copilot (2026-09-11, INCIDENT_LOG.md): kalau
+  // pesan menyebut ticker riil DAN tampak menanyakan sinyal/prediksi,
+  // jalankan inferensi XGBoost (xgbPredictLatest(), 11-quant.js — pipeline
+  // ONNX YANG SAMA dipakai Backtester, bukan re-implementasi) di browser
+  // sebelum mengirim ke server, supaya AI Copilot bisa mengutip prediksi
+  // model nyata alih-alih menebak "kelihatannya bullish". Model ini SENDIRI
+  // belum terbukti prediktif (lihat ml/README.md) — hasData/hasProvenSignal
+  // di bawah memastikan server & AI tidak pernah menyajikannya seolah
+  // sinyal yang solid. Timeout 8s: inferensi ONNX + fetch histori tidak
+  // boleh menahan SETIAP pesan chat kalau lambat/macet — gagal diam-diam
+  // ke null (server lalu jawab tanpa prediksi ini, bukan error).
+  var xgboostPrediction = null;
+  var isPredictionIntent = /\b(sinyal|prediksi|xgboost|rekomendasi|layak beli|worth buy|apakah bagus|apakah layak)\b/i.test(prompt);
+  if (isPredictionIntent && typeof xgbPredictLatest === 'function') {
+    var predTicker = prompt.toUpperCase().split(/[^A-Z0-9]/).filter(Boolean).find(function(w) {
+      return typeof DB !== 'undefined' && DB[w];
+    });
+    if (predTicker) {
+      try {
+        xgboostPrediction = await Promise.race([
+          new Promise(function(resolve) { xgbPredictLatest(predTicker, resolve); }),
+          new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 8000); })
+        ]);
+      } catch (e) {
+        console.warn('[Copilot] xgbPredictLatest() gagal, lanjut tanpa prediksi:', e);
+        xgboostPrediction = null;
+      }
+    }
+  }
+
   var userContext = {
     holdings: porto,
     totalAum: totalAum,
     rdnCash: rdn,
     sekuritas: sekuritasName,
     livePrices: livePrices,
-    aiPaperTrading: aiPaperTrading
+    aiPaperTrading: aiPaperTrading,
+    xgboostPrediction: xgboostPrediction
   };
 
   // Was: any failure here (network error, non-2xx, or a response body that

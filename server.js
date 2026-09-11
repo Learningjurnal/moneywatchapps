@@ -1769,6 +1769,39 @@ async function executeAgentTool(toolName, args, userContext = {}) {
       };
     }
 
+    // Item #3 (2026-09-11): sama seperti aiPaperTrading, inferensi
+    // XGBoost berjalan 100% di browser (ONNX runtime, tidak ada endpoint
+    // ML di server) — server cuma bisa melaporkan apa yang browser sudah
+    // hitung dan kirim via userContext.xgboostPrediction sebelum pesan ini
+    // dikirim (sendCopilotPrompt(), 28-decisiontools.js). Kalau kosong,
+    // berarti pesan bukan pertanyaan sinyal/prediksi, atau model ONNX
+    // belum termuat di browser pengguna — bukan galat.
+    case 'cek_prediksi_xgboost': {
+      const pred = userContext.xgboostPrediction;
+      if (!pred) {
+        return {
+          hasData: false,
+          message: 'Browser pengguna belum menjalankan inferensi XGBoost untuk pesan ini (bukan pertanyaan sinyal/prediksi eksplisit, ticker tidak dikenali, atau model ONNX belum termuat). Jangan mengarang prediksi.'
+        };
+      }
+      return {
+        hasData: true,
+        ticker: pred.ticker,
+        signal: pred.signal,
+        probability: pred.probability,
+        buyThreshold: pred.buyThreshold,
+        sellThreshold: pred.sellThreshold,
+        asOfDate: pred.asOfDate,
+        modelVersion: pred.modelVersion,
+        isSimulatedInputData: pred.isSimulatedData,
+        hasProvenSignal: pred.hasProvenSignal,
+        liftInfo: pred.liftInfo,
+        disclaimer: pred.hasProvenSignal
+          ? 'Model ini masih berstatus eksperimen — verifikasi ulang berkala tetap wajib.'
+          : 'EKSPERIMEN EDUKASI: model ini TIDAK terbukti punya sinyal prediktif di atas tebak-tebakan acak (lihat ml/README.md). Jangan menyajikan probability/signal ini sebagai rekomendasi investasi.'
+      };
+    }
+
     default:
       return { error: `Alat ${toolName} tidak dikenal.` };
   }
@@ -1889,6 +1922,14 @@ const AGENT_TOOL_DECLARATIONS = [
       type: 'OBJECT',
       properties: {}
     }
+  },
+  {
+    name: 'cek_prediksi_xgboost',
+    description: 'Mengambil hasil inferensi model machine learning XGBoost ONNX (dilatih offline, sama persis dipakai fitur Backtester) untuk satu ticker BEI, kalau browser pengguna sudah menjalankannya untuk pesan ini. Model ini adalah EKSPERIMEN EDUKASI — 3 iterasi perbaikan tidak pernah menghasilkan bukti sinyal prediktif jelas di atas tebak-tebakan acak (lihat ml/README.md). WAJIB baca field hasProvenSignal SEBELUM menjawab: kalau false, Anda WAJIB menyatakan eksplisit bahwa model ini belum terbukti prediktif sebelum menyebut angka apa pun — JANGAN PERNAH menyajikan probability/signal-nya seolah rekomendasi yang solid. hasData:false berarti browser belum menjalankan model untuk ticker ini (pengguna tidak sedang bertanya soal prediksi/sinyal, atau model ONNX belum termuat) — jangan mengarang prediksi.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {}
+    }
   }
 ];
 
@@ -1933,6 +1974,7 @@ ATURAN PERILAKU & ANALISA:
 7. WAJIB CEK FLAG isSimulated: BEI tidak menyediakan feed broker-level flow (top buyer/seller, akumulasi/distribusi) publik gratis. Setiap hasil "cek_broker_summary" membawa field isSimulated (true/false). Jika isSimulated bernilai true, Anda WAJIB menyampaikan secara eksplisit di awal jawaban bahwa angka broker/bandarmology tersebut adalah SIMULASI berbasis harga pasar riil — BUKAN data transaksi broker sungguhan — sebelum menguraikan detailnya. Jangan pernah menyajikan data isSimulated:true seolah-olah itu feed broker riil.
 8. KINERJA & SARAN PERBAIKAN BERBASIS HISTORI RIIL: Jika pengguna bertanya soal performa AI trading/paper trading, win rate, atau minta saran perbaikan strategi berdasarkan kesalahan masa lalu, Anda WAJIB memanggil alat "cek_kinerja_ai_trading" TERLEBIH DAHULU sebelum menjawab — JANGAN pernah mengarang win rate atau pola kesalahan generik. Field hasData:false berarti belum ada trade tercatat sama sekali — sampaikan itu apa adanya, jangan buat-buat angka. Kalau hasData:true, dasarkan saran perbaikan Anda pada field lesson/mistake/improvement trade-trade terakhir (recentClosedTrades) — itu hasil mesin Post-Mortem riil aplikasi, bukan opini Anda sendiri. AI Paper Trading ini modal virtual terisolasi (bukan uang riil pengguna) — jangan pernah membingungkannya dengan portofolio riil dari cek_portofolio_user.
 9. SARAN PERBAIKAN OTOMATIS RISK GATE (berbasis aturan, bukan ML): setiap kali Anda memanggil "cek_portofolio_user", hasilnya membawa field riskGateFindings (array) — daftar pelanggaran OBJEKTIF terhadap Risk Gate resmi aplikasi (posisi tunggal maks 15% AUM, kas RDN minimal 20% AUM, FINANCIAL_POLICY.md §7). Kalau array itu TIDAK KOSONG, Anda WAJIB menyampaikan setiap finding.message-nya sebagai saran perbaikan — proaktif, bukan cuma kalau ditanya eksplisit. Kalau array itu kosong, sampaikan bahwa portofolio saat ini sudah sesuai Risk Gate. Jangan pernah mengarang ambang batas sendiri di luar 15%/20% ini.
+10. PREDIKSI XGBOOST — WAJIB DISCLAIMER: kalau pengguna bertanya soal sinyal/prediksi/rekomendasi beli untuk saham tertentu, panggil alat "cek_prediksi_xgboost". Kalau hasData:false, sampaikan bahwa belum ada prediksi model untuk ticker ini — JANGAN mengarang sinyal sendiri. Kalau hasData:true: BACA field hasProvenSignal SEBELUM menjawab — kalau false (kondisi saat ini), Anda WAJIB menyampaikan kalimat disclaimer eksplisit ("model ini eksperimen edukasi, belum terbukti prediktif") SEBELUM menyebut angka probability/signal apa pun, dan JANGAN PERNAH memframing hasilnya sebagai rekomendasi solid. Kalau isSimulatedInputData:true, tambahkan bahwa data harga historis input model ini sendiri simulasi (bukan data pasar riil) — prediksinya lebih tidak bisa diandalkan lagi.
 
 FORMAT RESPON:
 - Gunakan bahasa Indonesia yang profesional, ringkas, bersahabat, dan mudah dipahami.
@@ -1941,7 +1983,7 @@ FORMAT RESPON:
 "*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis, fundamental, dan bandarmology pasar.*"
 
 ALUR KERJA (AGENTIC LOOP):
-- Saat menerima pertanyaan, tentukan alat/functions yang relevan (misalnya: cek_broker_summary, cek_harga, cek_fundamental, cek_portofolio_user, cek_saldo_rdn, cek_kepemilikan_ksei, hitung_simulasi_transaksi_bei, hitung_pajak_dividen, hitung_proyeksi_risiko_drawdown, cek_kinerja_ai_trading).
+- Saat menerima pertanyaan, tentukan alat/functions yang relevan (misalnya: cek_broker_summary, cek_harga, cek_fundamental, cek_portofolio_user, cek_saldo_rdn, cek_kepemilikan_ksei, hitung_simulasi_transaksi_bei, hitung_pajak_dividen, hitung_proyeksi_risiko_drawdown, cek_kinerja_ai_trading, cek_prediksi_xgboost).
 - Panggil alat tersebut.
 - Evaluasi hasil data dan sajikan jawaban terstruktur yang mencakup data, strategi trading/investasi yang sesuai, kepatuhan BEI/pajak, analisis dua sisi (potensi vs risiko), dan disclaimer.`;
 
@@ -2105,6 +2147,28 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
           + '**Beberapa Trade Terakhir (dari mesin Post-Mortem 10-Point):**\n'
           + (lessonLines || '_Belum ada trade tertutup._') + '\n\n'
           + '*Disclaimer: Ini data paper trading (simulasi), bukan trading nyata. Keputusan investasi berada di tangan Anda.*';
+      }
+    }
+    // Item #3 (2026-09-11): sama seperti cek_kinerja_ai_trading, dicek
+    // lebih dulu (keyword multi-kata khas: sinyal/prediksi/xgboost/
+    // rekomendasi) supaya tidak tertimpa branch short-keyword di bawah.
+    else if (/\b(sinyal|prediksi|xgboost|rekomendasi|layak beli|worth buy|apakah bagus|apakah layak)\b/i.test(message)) {
+      const resPred = await executeAgentTool('cek_prediksi_xgboost', {}, userContext);
+      executedTools.push({ name: 'cek_prediksi_xgboost', args: {}, result: resPred });
+
+      if (!resPred.hasData) {
+        reply = '### 🧪 Prediksi Model XGBoost\n\n' + resPred.message + '\n\n'
+          + '_Buka menu **Quant Lab > Backtester**, pilih strategi XGBoost, supaya model ONNX termuat di browser — lalu tanyakan lagi dengan menyebut kode ticker._';
+      } else {
+        reply = '### 🧪 Prediksi Model XGBoost: ' + resPred.ticker + '\n\n'
+          + '⚠️ **' + resPred.disclaimer + '**\n\n'
+          + 'Berdasarkan inferensi model ONNX (versi ' + (resPred.modelVersion || '-') + ', per ' + resPred.asOfDate + '):\n'
+          + '- **Sinyal**: ' + resPred.signal + '\n'
+          + '- **Probability (kelas naik)**: ' + (resPred.probability * 100).toFixed(1) + '%\n'
+          + '- **Threshold BUY/SELL**: ' + (resPred.buyThreshold * 100).toFixed(0) + '% / ' + (resPred.sellThreshold * 100).toFixed(0) + '%\n'
+          + (resPred.liftInfo ? '- **Precision vs Base Rate**: ' + (resPred.liftInfo.precisionAtThreshold * 100).toFixed(1) + '% vs ' + (resPred.liftInfo.baseRate * 100).toFixed(1) + '%\n' : '')
+          + (resPred.isSimulatedInputData ? '- ⚠️ **Data historis input model ini SIMULASI**, bukan data pasar riil — prediksi ini lebih tidak bisa diandalkan lagi.\n' : '')
+          + '\n*Disclaimer: Ini bukan rekomendasi investasi. Keputusan investasi berada di tangan Anda.*';
       }
     }
     // \bkas\b (word boundary), not includes('kas') — "kas" as a bare
