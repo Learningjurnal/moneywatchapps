@@ -288,9 +288,14 @@ function getKseiStock(ticker) {
   }
 
   // Fallback defaults if stock has no major >5% shareholders (100% free float or widely held)
+  // Same class of bug as the CUAN incident (07-flowscan.js's
+  // fsFallbackInfo()): this used to build a generic "<TICKER> Tbk."
+  // placeholder without ever checking DB[tk].name first, even when the
+  // real company name is already available there.
+  var dbName = (typeof DB !== 'undefined' && DB[tk] && DB[tk].name && DB[tk].name !== tk) ? DB[tk].name : null;
   return {
     ticker: tk,
-    name: tk + ' Tbk.',
+    name: dbName || (tk + ' Tbk.'),
     investors: [],
     totalMajorPercent: 0,
     freeFloat: 100,

@@ -2163,6 +2163,97 @@ test('REGRESSION GUARD: fsFallbackInfo() must use DB[tk].name for tickers outsid
   assert.strictEqual(noName.n, 'UNKN', 'REGRESSION: a DB entry with a sector but no name must still fall back to the ticker code as the name');
 });
 
+// ── TEST 72: rdRebuildFromReal()'s watchlist-rebuild path (public/js/
+// 13-realdata.js) must reuse fsFallbackInfo() for a ticker outside
+// FS_UNIV, not a hardcoded {t,n:t,s:'IHSG',cap:0} duplicate of that
+// helper's OLD (buggy) fallback — found while auditing for other
+// instances of the CUAN name-bug (2026-09-11): this watchlist-preserving
+// forEach in rdRebuildFromReal() had its own copy of the exact same
+// bug (name=code, sector='IHSG' the composite index instead of a real
+// sector) that fsFallbackInfo() itself was already fixed for. A user
+// with CUAN in their watchlist would get it silently reverted back to
+// showing "CUAN" as both code and name every time real data reloads.
+test('REGRESSION GUARD: rdRebuildFromReal() watchlist rebuild must call fsFallbackInfo() for tickers outside FS_UNIV, not a hardcoded name=code/sector=IHSG duplicate', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/13-realdata.js'), 'utf8');
+  assert(!/\{t:t, n:t, s:'IHSG', cap:0\}/.test(src),
+    'REGRESSION: the hardcoded name=code/sector=IHSG fallback is back in rdRebuildFromReal()');
+  assert(/FS_UNIV\.find\(function\(u\)\{ return u\.t===t; \}\) \|\| fsFallbackInfo\(t\)/.test(src),
+    'REGRESSION: rdRebuildFromReal() no longer reuses fsFallbackInfo() for the watchlist-rebuild fallback');
+
+  // Functional proof: extract just the wlTks.forEach block and run it with
+  // mocked dependencies, rather than the whole rdRebuildFromReal() (which
+  // pulls in fsInit/ADMIN_META/rdBuildScData/getPortfolio/renderPage — a
+  // large unrelated dependency surface for what this test actually checks).
+  const startMarker = 'wlTks.forEach(function(t){';
+  const start = src.indexOf(startMarker);
+  assert(start !== -1, 'sanity: wlTks.forEach block not found — has rdRebuildFromReal() moved/been renamed?');
+  let block = src.slice(start);
+  const relEnd = block.indexOf('\n  });\n');
+  assert(relEnd !== -1, 'sanity: could not find the end of the wlTks.forEach block');
+  block = block.slice(0, relEnd + '\n  });'.length);
+
+  const FS_UNIV = [{ t: 'BBCA', n: 'Bank Central Asia', s: 'Perbankan', cap: 950 }];
+  const FS_WL = [];
+  const fsFallbackInfo = (tk) => ({ t: tk, n: 'Petrindo Jaya Kreasi Tbk.', s: 'Energi', cap: 0 }); // stands in for the already-fixed real helper
+  const fsGenData = () => [{ c: 100 }];
+  const fsProcess = () => ({});
+  const wlTks = ['BBCA', 'CUAN'];
+
+  // eslint-disable-next-line no-new-func
+  const runBlock = new Function('FS_UNIV', 'FS_WL', 'fsFallbackInfo', 'fsGenData', 'fsProcess', 'wlTks', block + '\nreturn FS_WL;');
+  const result = runBlock(FS_UNIV, FS_WL, fsFallbackInfo, fsGenData, fsProcess, wlTks);
+
+  const cuanEntry = result.find(w => w.t === 'CUAN');
+  assert(cuanEntry, 'sanity: CUAN watchlist entry was not rebuilt at all');
+  assert.strictEqual(cuanEntry.n, 'Petrindo Jaya Kreasi Tbk.',
+    'REGRESSION: CUAN watchlist entry got its name from the hardcoded fallback (=code), not from fsFallbackInfo()');
+  assert.strictEqual(cuanEntry.s, 'Energi',
+    'REGRESSION: CUAN watchlist entry got sector "IHSG" from the hardcoded fallback instead of the real sector via fsFallbackInfo()');
+});
+
+// ── TEST 73: getKseiStock() (public/js/34-ksei-shareholders.js) must use
+// DB[tk].name when available, not always synthesize a generic "<TICKER>
+// Tbk." placeholder — same audit as TEST 72. A stock with no KSEI
+// shareholder data (100% free float / not yet synced) would show this
+// generic placeholder as its name even when the real company name was
+// already known from DB.
+test('REGRESSION GUARD: getKseiStock() fallback must prefer DB[tk].name over the generic "<TICKER> Tbk." placeholder', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/34-ksei-shareholders.js'), 'utf8');
+  const startMarker = 'function getKseiStock(ticker) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: getKseiStock() not found — has it been renamed/moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n}');
+  assert(relEnd !== -1, 'sanity: could not find the end of getKseiStock()');
+  src = src.slice(0, relEnd + 2);
+
+  assert(/dbName \|\| \(tk \+ ' Tbk\.'\)/.test(src),
+    'REGRESSION: getKseiStock() no longer prefers DB[tk].name over the generic placeholder');
+
+  const sandbox = {
+    window: {},
+    KSEI_STATE: { data: {} }, // force the fallback path (no KSEI shareholder data cached)
+    DB: {
+      'CUAN': { name: 'Petrindo Jaya Kreasi Tbk.', sector: 'Energi' },
+      'UNKN': {}, // DB entry exists but has no usable name
+    },
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '34-ksei-shareholders.js (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.getKseiStock, 'function', 'getKseiStock not exposed on the sandbox context');
+
+  const cuan = ctx.getKseiStock('CUAN');
+  assert.strictEqual(cuan.name, 'Petrindo Jaya Kreasi Tbk.',
+    'REGRESSION: getKseiStock("CUAN") did not resolve the real name from DB — got "' + cuan.name + '" instead');
+
+  // A ticker with no usable DB name at all must still degrade gracefully to
+  // the generic placeholder — never throw, never show "undefined Tbk.".
+  const noName = ctx.getKseiStock('UNKN');
+  assert.strictEqual(noName.name, 'UNKN Tbk.', 'REGRESSION: a ticker with no usable DB name must still fall back to the generic "<TICKER> Tbk." placeholder');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

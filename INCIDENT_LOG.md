@@ -1840,3 +1840,48 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - Cache-bust `07-flowscan.js` → `?v=20260911c`.
 
 `npm test` (94/94 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — Audit lanjutan: 2 instance lain dari bug "nama = kode ticker" ditemukan & diperbaiki (rdRebuildFromReal, getKseiStock)
+
+- **Trigger:** setelah fix `fsFallbackInfo()` di atas (CUAN), diaudit apakah
+  ada pola bug serupa di tempat lain — DB (`01-data.js`, 958 ticker) dan
+  `FS_UNIV` sendiri sudah bersih (tidak ada nama kosong/sama dengan kode),
+  tapi ditemukan DUA tempat lain yang membangun fallback nama secara
+  independen tanpa mengecek `DB[tk].name` lebih dulu:
+- **1) `rdRebuildFromReal()` (`public/js/13-realdata.js`):** forEach yang
+  merekonstruksi entry watchlist (`FS_WL`) setelah data riil dimuat ulang
+  punya salinan sendiri dari fallback LAMA `fsFallbackInfo()` (sebelum
+  diperbaiki hari ini): `{t:t, n:t, s:'IHSG', cap:0}` — nama = kode DAN
+  sektor = 'IHSG' (indeks komposit, bukan sektor). Ticker apa pun di
+  watchlist user yang berada di luar `FS_UNIV` (mis. CUAN) akan
+  kembali kehilangan nama & sektor aslinya setiap kali data riil di-reload.
+  **Fix:** reuse `fsFallbackInfo(t)` (helper yang sudah diperbaiki),
+  bukan duplikasi logika.
+- **2) `getKseiStock()` (`public/js/34-ksei-shareholders.js`):** fallback
+  untuk saham tanpa data pemegang saham KSEI (free float 100%/belum
+  disync) selalu membuat nama generik `"<TICKER> Tbk."` tanpa pernah
+  mengecek `DB[tk].name` — jadi kartu detail emiten KSEI bisa menampilkan
+  nama generik walau nama asli sudah tersedia di DB.
+  **Fix:** cek `DB[tk].name` (guard `!== tk`) dulu, baru jatuh ke
+  placeholder generik.
+- **Yang SUDAH diverifikasi bersih (tidak perlu fix):**
+  - `DB` (`01-data.js`, 958 ticker) — 0 nama kosong, 0 nama = kode.
+  - `FS_UNIV` (30 ticker statis) — 0 nama = kode.
+  - `11-quant.js:1162` — fallback `{name: ticker, sector:'IHSG'}` HANYA
+    terpicu kalau `DB[ticker]` DAN `FS_UNIV` sama-sama tidak menemukan
+    ticker sama sekali (ticker benar-benar tidak dikenal) — DB mencakup
+    958 ticker jadi jalur ini praktis tidak terpicu untuk saham IDX asli.
+- **Prevention added:**
+  - `test_suite.js` TEST 72 — mengekstrak blok `wlTks.forEach` dari
+    `rdRebuildFromReal()` lewat `new Function()` dengan dependency
+    di-mock, membuktikan entry CUAN di watchlist mendapat nama & sektor
+    asli lewat `fsFallbackInfo()`, bukan fallback hardcoded lama. Terbukti
+    gagal saat direvert.
+  - `test_suite.js` TEST 73 — memuat `getKseiStock()` lewat vm sandbox
+    dengan `DB`/`KSEI_STATE` di-mock, membuktikan CUAN mendapat nama asli
+    dari DB, dan ticker tanpa nama DB tetap fallback ke placeholder
+    generik tanpa error. Terbukti gagal saat direvert.
+- Cache-bust `13-realdata.js` → `?v=20260911b`,
+  `34-ksei-shareholders.js` → `?v=20260911a`.
+
+`npm test` (96/96 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
