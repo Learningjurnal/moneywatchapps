@@ -1399,8 +1399,53 @@
     <div class="metric"><div class="mlabel">Return Terbaik</div><div class="mval" id="p-best">-</div><div class="msub" id="p-best-sub"></div></div>
   </div>
 
+  <!-- ═══ TABEL PORTOFOLIO UTAMA ═══
+       FIX (2026-09-11, user-submitted deep-dive review — "card
+       clutter"): this table used to sit BELOW the Donut Chart, Gain/Loss
+       Bar Chart, and Performa per Saham toolbar cards (moved below,
+       further down this page) — forcing a scroll past 3 large chart/
+       toolbar cards before reaching the page's primary function (the
+       actual list of active stock positions). Moved to right after the
+       4 summary metric cards, so it's the first substantial content the
+       user sees; the 3 supporting cards are still fully present and in
+       the same relative order to each other, just after the table now
+       instead of before it. -->
+  <div class="card">
+    <div class="filter-toolbar">
+      <input id="porto-filter-search" placeholder="Cari ticker / nama..." class="finput" style="padding:5px 10px;font-size:11px;width:160px" oninput="renderPortofolio()"/>
+      <select class="finput fsel" id="porto-filter-sector" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px"><option value="">Semua Sektor</option></select>
+      <select class="finput fsel" id="porto-filter-signal" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px">
+        <option value="">Semua Sinyal</option><option value="BUY">BUY</option><option value="HOLD">HOLD</option><option value="SELL">SELL</option>
+      </select>
+      <select class="finput fsel" id="porto-filter-pnl" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px">
+        <option value="">Semua P&amp;L</option><option value="profit">Profit saja</option><option value="loss">Rugi saja</option>
+      </select>
+      <button class="btn btn-ghost btn-xs" onclick="resetPortoFilter()">↺ Reset</button>
+      <span style="font-size:10px;color:var(--text3);margin-left:auto" id="porto-filter-count"></span>
+    </div>
+    <div style="overflow-x:auto" class="tbl-wrap">
+      <table class="tbl tbl-freeze-col">
+        <thead><tr>
+          <th onclick="sortPorto('name')" style="cursor:pointer;user-select:none">Ticker <span id="porto-sort-ico-name" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th>Nama</th>
+          <th onclick="sortPorto('sector')" style="cursor:pointer;user-select:none">Sektor <span id="porto-sort-ico-sector" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('lot')" style="cursor:pointer;user-select:none">Lot <span id="porto-sort-ico-lot" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right">Lembar</th>
+          <th class="text-right">Avg Beli</th><th class="text-right">Harga Pasar</th>
+          <th class="text-right" onclick="sortPorto('mv')" style="cursor:pointer;user-select:none">Nilai Pasar <span id="porto-sort-ico-mv" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('cost')" style="cursor:pointer;user-select:none">Modal <span id="porto-sort-ico-cost" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('unreal')" style="cursor:pointer;user-select:none">Unrealized P&amp;L <span id="porto-sort-ico-unreal" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('ret')" style="cursor:pointer;user-select:none">Return % <span id="porto-sort-ico-ret" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPorto('alloc')" style="cursor:pointer;user-select:none">Alokasi <span id="porto-sort-ico-alloc" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-center">Signal</th>
+        </tr></thead>
+        <tbody id="porto-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ═══ DONUT CHART ALOKASI PORTOFOLIO REAL-TIME ═══ -->
-  <div class="card" style="margin-bottom:16px">
+  <div class="card" style="margin-top:16px;margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
         <div class="ptitle" style="font-size:14px">Alokasi Portofolio Real-Time</div>
@@ -1434,7 +1479,7 @@
   </div>
 
   <!-- ═══ TOOLBAR PERFORMA PER SAHAM — realized + unrealized per kode, termasuk yang sudah ditutup ═══ -->
-  <div class="card" style="margin-bottom:16px">
+  <div class="card">
     <div id="perf-toolbar-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
         <div class="ptitle" style="font-size:14px">Performa per Saham</div>
@@ -1462,40 +1507,6 @@
           <th>Riwayat</th>
         </tr></thead>
         <tbody id="perf-toolbar-body"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="filter-toolbar">
-      <input id="porto-filter-search" placeholder="Cari ticker / nama..." class="finput" style="padding:5px 10px;font-size:11px;width:160px" oninput="renderPortofolio()"/>
-      <select class="finput fsel" id="porto-filter-sector" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px"><option value="">Semua Sektor</option></select>
-      <select class="finput fsel" id="porto-filter-signal" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px">
-        <option value="">Semua Sinyal</option><option value="BUY">BUY</option><option value="HOLD">HOLD</option><option value="SELL">SELL</option>
-      </select>
-      <select class="finput fsel" id="porto-filter-pnl" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px">
-        <option value="">Semua P&amp;L</option><option value="profit">Profit saja</option><option value="loss">Rugi saja</option>
-      </select>
-      <button class="btn btn-ghost btn-xs" onclick="resetPortoFilter()">↺ Reset</button>
-      <span style="font-size:10px;color:var(--text3);margin-left:auto" id="porto-filter-count"></span>
-    </div>
-    <div style="overflow-x:auto" class="tbl-wrap">
-      <table class="tbl tbl-freeze-col">
-        <thead><tr>
-          <th onclick="sortPorto('name')" style="cursor:pointer;user-select:none">Ticker <span id="porto-sort-ico-name" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th>Nama</th>
-          <th onclick="sortPorto('sector')" style="cursor:pointer;user-select:none">Sektor <span id="porto-sort-ico-sector" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th class="text-right" onclick="sortPorto('lot')" style="cursor:pointer;user-select:none">Lot <span id="porto-sort-ico-lot" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th class="text-right">Lembar</th>
-          <th class="text-right">Avg Beli</th><th class="text-right">Harga Pasar</th>
-          <th class="text-right" onclick="sortPorto('mv')" style="cursor:pointer;user-select:none">Nilai Pasar <span id="porto-sort-ico-mv" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th class="text-right" onclick="sortPorto('cost')" style="cursor:pointer;user-select:none">Modal <span id="porto-sort-ico-cost" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th class="text-right" onclick="sortPorto('unreal')" style="cursor:pointer;user-select:none">Unrealized P&amp;L <span id="porto-sort-ico-unreal" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th class="text-right" onclick="sortPorto('ret')" style="cursor:pointer;user-select:none">Return % <span id="porto-sort-ico-ret" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th class="text-right" onclick="sortPorto('alloc')" style="cursor:pointer;user-select:none">Alokasi <span id="porto-sort-ico-alloc" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th class="text-center">Signal</th>
-        </tr></thead>
-        <tbody id="porto-tbody"></tbody>
       </table>
     </div>
   </div>

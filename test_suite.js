@@ -1449,6 +1449,38 @@ test('REGRESSION GUARD: .sm-table th and .rmc-verdict must keep letter-spacing, 
     'REGRESSION: .rmc-verdict lost its letter-spacing again');
 });
 
+// ── TEST 52: the Portfolio page's main table (#porto-tbody) must appear
+// before the 3 supporting cards (Donut Chart Alokasi, Gain/Loss Bar
+// Chart, Performa per Saham toolbar) in the DOM, not after (found via
+// user-submitted deep-dive review — "card clutter": the table, the
+// page's primary function, used to sit below 3 large chart/toolbar
+// cards, forcing a scroll past all of them before reaching the actual
+// list of active stock positions).
+test('REGRESSION GUARD: Portfolio page table must appear before the Donut/Bar-chart/Performa cards, not after', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const pageStart = html.indexOf('<div id="page-portofolio"');
+  assert(pageStart !== -1, 'could not find #page-portofolio — has the page been restructured?');
+  const pageEnd = html.indexOf('<!-- ===== DIVIDEN ===== -->', pageStart);
+  assert(pageEnd !== -1, 'could not find the end of the Portofolio page (DIVIDEN section marker) — has the page order changed?');
+  const pageHtml = html.slice(pageStart, pageEnd);
+
+  const tbodyIdx = pageHtml.indexOf('id="porto-tbody"');
+  assert(tbodyIdx !== -1, 'REGRESSION: #porto-tbody not found inside the Portofolio page — has the main table been removed or renamed?');
+
+  const donutIdx = pageHtml.indexOf('id="portoDonutChart"');
+  const barIdx = pageHtml.indexOf('id="portoRealizedVsPotensiChart"');
+  const perfIdx = pageHtml.indexOf('id="perf-toolbar-header"');
+  assert(donutIdx !== -1 && barIdx !== -1 && perfIdx !== -1,
+    'could not find one of the 3 supporting cards (donut chart / bar chart / performa toolbar) — have they been removed or renamed?');
+
+  assert(tbodyIdx < donutIdx,
+    'REGRESSION: the Portfolio table (#porto-tbody) is back to appearing AFTER the Donut Chart Alokasi card — this is the "card clutter" bug: users must scroll past chart/toolbar cards before reaching the actual position list, the page\'s primary function (see INCIDENT_LOG.md)');
+  assert(tbodyIdx < barIdx,
+    'REGRESSION: the Portfolio table (#porto-tbody) is back to appearing AFTER the Gain/Loss Bar Chart card — see INCIDENT_LOG.md ("card clutter")');
+  assert(tbodyIdx < perfIdx,
+    'REGRESSION: the Portfolio table (#porto-tbody) is back to appearing AFTER the Performa per Saham toolbar card — see INCIDENT_LOG.md ("card clutter")');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

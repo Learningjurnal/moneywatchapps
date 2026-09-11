@@ -1028,3 +1028,38 @@ one of them is the same class of defect as a real incident above.
   `getComputedStyle().letterSpacing` on its header cell (0.5px, matching
   0.05em at 10px). Screenshot confirms visibly less cramped tracking.
   `npm test` (74/74 + 6/6 provider), `npm run lint` clean.
+
+### Card clutter on the Portfolio page — main table sat below 3 large chart/toolbar cards
+
+- **Found by:** the user-submitted deep-dive design review — flagged as
+  requiring an explicit design decision (unlike the earlier low-risk CSS
+  fixes) since it's a structural DOM reorder, not a scoped style change.
+  User confirmed proceeding with this specific reorder.
+- **Impact:** on the Portfolio page (`#page-portofolio`), the order was:
+  cash banner → 4 summary metric cards → Donut Chart Alokasi card → Bar
+  Chart Gain/Loss card → Performa per Saham toolbar card → **the main
+  position table** (`#porto-tbody`, the page's primary function). Users
+  had to scroll past 3 large chart/toolbar cards before reaching the
+  actual list of active stock positions.
+- **Fix:** moved the main table's `<div class="card">` block to right
+  after the 4 summary metric cards; the 3 supporting cards (donut chart,
+  bar chart, performa toolbar) now follow the table instead of preceding
+  it, keeping their own relative order to each other unchanged. Pure DOM
+  reorder — no IDs, classes, or JS logic changed; verified beforehand
+  that no CSS (`nth-child`/`+`/`~`) or JS (`nextElementSibling` etc.)
+  in the app depends on these cards' specific sibling order.
+- **Prevention added:** `test_suite.js` TEST 52 — asserts
+  `#porto-tbody` appears before `#portoDonutChart`,
+  `#portoRealizedVsPotensiChart`, and `#perf-toolbar-header` within the
+  Portfolio page's HTML. Verified to fail (clear message) against the
+  pre-fix `index.html` from `main`, before the fix was confirmed in
+  place.
+- **Verification:** live Playwright — confirmed DOM order via element
+  position indices; confirmed the table still renders real rows (2
+  seeded transactions → 2 rows); confirmed the ticker search filter
+  still works (narrows to 1 row); confirmed the donut chart's
+  Sektor/Kelas Aset tab switch still re-renders its legend; confirmed
+  the Performa per Saham "Lihat Detail" toggle still shows its table.
+  Screenshots (top of page showing table first, and the 3 cards now
+  below it) sent to the user. `npm test` (75/75 + 6/6 provider), `npm
+  run lint` clean.
