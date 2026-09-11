@@ -967,6 +967,41 @@ body.theme-light .tbl tbody tr:hover td.tbl-sticky-right {
   background: #F8FAFC !important;
 }
 
+/* Portfolio table "Alert" button, reveal-on-row-hover (found via
+   deep-dive review, 2026-09-11, not a user-reported bug) — the Portfolio
+   table (#porto-tbody) has no dedicated Aksi column, so this button sits
+   inline inside the sticky-left ticker cell alongside the logo and
+   ticker symbol, permanently widening that pinned column and crowding
+   the ticker on every row even when the user has no intent to set an
+   alert. Collapsed to zero width by default and revealed on row hover —
+   scoped to `@media (hover: hover)` (devices with an actual pointer that
+   can hover, i.e. mouse/trackpad) so touch devices, which have no hover
+   state to reveal it with, keep the button always visible exactly as
+   before this change. Uses opacity+width, NOT display:none/visibility:
+   hidden — both of those also remove an element from the keyboard tab
+   order, which would make this unreachable without a mouse; opacity/width
+   keep it focusable, so Tab still reaches it and :focus-visible reveals
+   it, same as a mouse hover does. */
+@media (hover: hover) {
+  .tbl tbody tr .porto-alert-btn {
+    display: inline-flex;
+    width: 0;
+    padding: 1px 0;
+    border-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .tbl tbody tr:hover .porto-alert-btn,
+  .tbl tbody tr .porto-alert-btn:focus-visible {
+    width: auto;
+    padding: 1px 4px;
+    opacity: 1;
+    overflow: visible;
+    pointer-events: auto;
+  }
+}
+
 /* Micro Data Bars & Allocation Heatmaps */
 .tbl-alloc-wrap {
   display: flex;
