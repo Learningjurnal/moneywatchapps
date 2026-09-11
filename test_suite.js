@@ -1747,6 +1747,52 @@ test('REGRESSION GUARD: generateBrokerSummary() must vary the Invezgo date range
     'REGRESSION: Bandarmology/StockChat Broker Flow tab timeframe keys (1W/1M/3M/6M/1Y) no longer map to a real day count');
 });
 
+// ── TEST 64: AI Paper Trading cloud sync (user-requested 2026-09-11) —
+// paperAccount/hypotheses/decisionLog must sync to a DEDICATED Supabase
+// table (ai_paper_trading), never the user_data blob saveData() uses for
+// real portfolio data, preserving this module's own "Complete Isolation"
+// principle. Save-on-change (debounced) + load-on-page-open, guest/demo
+// and unconfigured-Supabase must both silently no-op (never throw).
+test('REGRESSION GUARD: AI Paper Trading must sync to its own dedicated Supabase table, isolated from user_data', () => {
+  const aiJs = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  const sqlMigration = fs.readFileSync(path.join(__dirname, 'sql/schema_migration.sql'), 'utf8');
+
+  // The dedicated table must exist in the migration, with RLS scoped to
+  // auth.uid() = user_id — never mixed into user_data/user_settings.
+  assert(/create table if not exists public\.ai_paper_trading/.test(sqlMigration),
+    'REGRESSION: the dedicated ai_paper_trading table is gone from sql/schema_migration.sql');
+  assert(/alter table public\.ai_paper_trading enable row level security/.test(sqlMigration),
+    'REGRESSION: RLS is no longer enabled on ai_paper_trading — every user could read/write every other user\'s paper trading data');
+  assert((sqlMigration.match(/auth\.uid\(\) = user_id/g) || []).length >= 3,
+    'REGRESSION: expected an auth.uid() = user_id policy for select/insert/update on ai_paper_trading');
+
+  // Client-side wiring: cloud sync functions exist and are actually
+  // invoked by the three existing local-save functions + page init.
+  assert(/function scheduleAiCloudSync\(\)/.test(aiJs), 'REGRESSION: scheduleAiCloudSync() helper is gone');
+  assert(/async function flushAiCloudSync\(uid\)/.test(aiJs), 'REGRESSION: flushAiCloudSync() helper is gone');
+  assert(/async function loadAiCloudState\(\)/.test(aiJs), 'REGRESSION: loadAiCloudState() helper is gone');
+  assert(/client\.from\('ai_paper_trading'\)\.upsert/.test(aiJs),
+    'REGRESSION: flushAiCloudSync() no longer upserts into the dedicated ai_paper_trading table');
+  assert(!/client\.from\('user_data'\)/.test(aiJs),
+    'REGRESSION: AI Trading cloud sync is writing into the user_data table — this breaks the module\'s own isolation principle and risks the isExplicitlyEmpty merge bug history in 02-storage.js');
+
+  ['savePaperAccountState', 'saveHypothesesState', 'saveDecisionLog'].forEach(function(fnName) {
+    const fnStart = aiJs.indexOf('function ' + fnName + '()');
+    assert(fnStart !== -1, 'sanity: ' + fnName + '() not found');
+    const fnBody = aiJs.slice(fnStart, fnStart + 300);
+    assert(/scheduleAiCloudSync\(\);/.test(fnBody),
+      'REGRESSION: ' + fnName + '() no longer schedules a cloud sync — changes would stop propagating to Supabase');
+  });
+
+  assert(/loadAiCloudState\(\);/.test(aiJs.slice(aiJs.indexOf('function initAiAutonomousSuite'), aiJs.indexOf('function initAiAutonomousSuite') + 600)),
+    'REGRESSION: initAiAutonomousSuite() no longer calls loadAiCloudState() — opening the AI Trading page would never pull the cloud copy');
+
+  // Guest/demo and unconfigured-Supabase must both be a silent no-op, not
+  // a thrown error visible to the user.
+  assert(/if \(!uid\) return;/.test(aiJs), 'REGRESSION: scheduleAiCloudSync() no longer guards against a missing (guest/demo) uid');
+  assert(/if \(!uid \|\| !client\) return;/.test(aiJs), 'REGRESSION: loadAiCloudState() no longer guards against guest/demo or an unconfigured Supabase client');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

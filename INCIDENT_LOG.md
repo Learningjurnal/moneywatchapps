@@ -1454,3 +1454,66 @@ Follow-up to the sessions above.
   verifikasi ini membuktikan logikanya benar, bukan perilaku live saat ini.
 
 `npm test` (86/86 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — AI Paper Trading disinkron ke Supabase (tabel terpisah)
+
+- **User request:** pindahkan data paper trading AI dari localStorage-only
+  ke Supabase, supaya Win Rate konsisten lintas device. Konfirmasi desain
+  dari user: (1) sync sederhana (simpan-saat-berubah + muat-saat-halaman-
+  dibuka, BUKAN realtime), (2) mulai bersih dari Supabase (tidak ada
+  migrasi otomatis localStorage lama, karena akun paper trading saat ini
+  memang masih kosong).
+- **Keputusan desain kunci:** dibuat tabel Supabase BARU (`ai_paper_trading`),
+  BUKAN kolom tambahan di tabel `user_data` yang dipakai portofolio riil.
+  Alasan: modul AI Trading punya prinsip tertulis "Complete Isolation:
+  Zero Mixing with User's Personal Portfolio" (header
+  `38-ai-autonomous-trading.js`), dan `user_data` sudah punya sejarah bug
+  merge (`isExplicitlyEmpty`, lihat entri incident sebelumnya di file
+  ini) — menggabungkan berisiko menambah blast radius bug ke data
+  finansial riil pengguna.
+- **Implementasi:**
+  - `sql/schema_migration.sql`: tabel baru `ai_paper_trading` (`user_id`
+    PK → `auth.users`, kolom `data` jsonb, `updated_at`), RLS aktif
+    dengan policy `auth.uid() = user_id` untuk select/insert/update.
+  - `38-ai-autonomous-trading.js`: `scheduleAiCloudSync()` (debounce 2
+    detik, upsert ke `ai_paper_trading`) dipanggil dari
+    `savePaperAccountState()`/`saveHypothesesState()`/`saveDecisionLog()`;
+    `loadAiCloudState()` (dipanggil sekali per sesi dari
+    `initAiAutonomousSuite()`) menarik data cloud dan menimpa state lokal
+    + localStorage (cloud jadi sumber utama untuk user yang login, sesuai
+    keputusan "mulai bersih"). Guest/demo (`getAppUserId()` return null
+    karena tidak ada field `.id` di objek user tamu) dan Supabase yang
+    belum dikonfigurasi keduanya no-op diam-diam — localStorage tetap
+    jalan seperti sebelumnya, tidak ada regresi untuk kasus itu.
+- **Batasan yang harus diketahui:** migrasi SQL ini **harus dijalankan
+  manual oleh user** di Supabase SQL Editor — sesi ini tidak punya akses
+  eksekusi SQL ke project Supabase user maupun akses jaringan ke Supabase
+  API (sandbox network diblokir), jadi verifikasi hanya bisa dilakukan
+  dengan me-mock `getSupabaseClient()`/`getAppUserId()` di browser
+  (Playwright), bukan terhadap Supabase asli.
+- **Prevention added:** `test_suite.js` TEST 64 — memastikan tabel &
+  RLS policy ada di SQL, ketiga fungsi save lokal memanggil
+  `scheduleAiCloudSync()`, `initAiAutonomousSuite()` memanggil
+  `loadAiCloudState()`, sync menulis ke `ai_paper_trading` (bukan
+  `user_data`), dan guard guest/demo tetap ada. Terbukti gagal saat fix
+  di-revert sebelum dikembalikan.
+- **Verifikasi (mocked, live Playwright, jalur produksi asli):**
+  - Guest/demo: `initAiAutonomousSuite()` tidak pernah menyentuh
+    `getSupabaseClient()` dan tidak melempar error.
+  - Signed-in: `aiOpenPositionFromSignal()` (jalur nyata membuka posisi)
+    → `savePaperAccountState()` dipanggil 2x berturut → tepat **1** upsert
+    ke tabel `ai_paper_trading` (debounce bekerja), payload memuat posisi
+    yang baru dibuka.
+  - `initAiAutonomousSuite()` dengan data cloud tiruan → state lokal DAN
+    localStorage ter-update sesuai data cloud (openPositions/
+    closedTrades/winRate/hypotheses/decisionLog semua benar).
+
+`npm test` (87/87 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+**LANGKAH LANJUTAN UNTUK USER (wajib sebelum fitur ini aktif):** jalankan
+`sql/schema_migration.sql` (bagian terbaru, "AI PAPER TRADING CLOUD SYNC")
+di Supabase SQL Editor project Anda. Tanpa ini, `getSupabaseClient()`
+tetap ada tapi upsert/select ke `ai_paper_trading` akan gagal (tabel
+belum ada) — aplikasi akan diam-diam fallback ke localStorage-only
+seperti sebelumnya (tidak crash, karena semua panggilan Supabase di atas
+dibungkus try/catch dengan console.warn).

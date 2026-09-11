@@ -117,3 +117,47 @@ end $$;
 alter table public.div_invest
   drop constraint if exists div_invest_user_unique,
   add constraint div_invest_user_unique unique (user_id);
+
+-- ══════════════════════════════════════════════════════════
+-- AI PAPER TRADING CLOUD SYNC (2026-09-11, user-requested)
+-- ══════════════════════════════════════════════════════════
+-- Sengaja tabel BARU dan TERPISAH dari user_data/user_settings — modul AI
+-- Trading punya prinsip tertulis sendiri ("Complete Isolation: Zero
+-- Mixing with User's Personal Portfolio", lihat header
+-- public/js/38-ai-autonomous-trading.js), dan user_data sudah punya
+-- sejarah bug merge (isExplicitlyEmpty, lihat catatan di atas) yang tidak
+-- perlu ditambah risikonya oleh fitur paper-trading yang secara konsep
+-- memang harus terisolasi dari data finansial riil pengguna.
+--
+-- Sebelum ini, paperAccount/hypotheses/decisionLog AI Trading HANYA ada
+-- di localStorage browser (mw_ai_paper_v3/mw_ai_hypotheses_v1/
+-- mw_ai_decision_log_v1) — tidak sinkron lintas device, jadi Win Rate
+-- yang terlihat di HP dan laptop bisa beda-beda. Tabel ini jadi sumber
+-- utama begitu user login (bukan tamu/demo); localStorage tetap dipakai
+-- sebagai cache offline — lihat scheduleAiCloudSync()/loadAiCloudState()
+-- di 38-ai-autonomous-trading.js.
+--
+-- Desain sengaja sederhana (bukan realtime, sesuai keputusan user):
+-- simpan-saat-berubah (upsert, di-debounce 2 detik) + muat-saat-halaman-
+-- dibuka. Tidak ada migrasi otomatis dari localStorage lama — akun paper
+-- trading baru dianggap mulai bersih dari cloud sejak fitur ini aktif.
+
+create table if not exists public.ai_paper_trading (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.ai_paper_trading enable row level security;
+
+drop policy if exists "ai_paper_trading_select_own" on public.ai_paper_trading;
+create policy "ai_paper_trading_select_own" on public.ai_paper_trading
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "ai_paper_trading_insert_own" on public.ai_paper_trading;
+create policy "ai_paper_trading_insert_own" on public.ai_paper_trading
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "ai_paper_trading_update_own" on public.ai_paper_trading;
+create policy "ai_paper_trading_update_own" on public.ai_paper_trading
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
