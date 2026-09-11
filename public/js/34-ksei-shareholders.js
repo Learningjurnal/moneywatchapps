@@ -621,6 +621,59 @@ function kseiParseFreeFloatRaw(rows2D) {
   return { byTicker: byTicker, errors: [] };
 }
 
+// ══════════════════════════════════════════════════════════════
+// SAME-INVESTOR DEDUPLICATION (added 2026-09-11, user-requested audit —
+// "cek kalau ada emiten lain yang datanya aneh"). Found scanning all 840
+// real emiten: KSEI's raw export lists the SAME beneficial owner under 2+
+// slightly different name strings within one ticker (e.g. "PERUSAHAAN
+// PERSEROAN (PERSERO) PT ASABRI" vs "...PT. ASABRI" — one extra period —
+// across 17 different tickers; "BANK PAN INDONESIA TBK, PT" vs "Panin
+// Bank Tbk, PT", its own brand name, across 5 more), each row carrying
+// IDENTICAL percentage/shares — summing both as if they were 2 distinct
+// holders inflates totalMajorPercent (one ticker, ASJT, hit a
+// mathematically impossible 154.78% this way) and, for tickers without an
+// official Free Float match, deflates the naive freeFloat estimate. This
+// exact inflated figure was independently confirmed in the user's own
+// hand-built "Master Data Kepemilikan" reference too — a real KSEI/IDX
+// data quality gap, not something this parser introduced.
+//
+// Deliberately conservative: only merges when BOTH (a) the percentage AND
+// share count are EXACTLY identical between the two rows (the actual
+// signal that this is one real holding double-listed, not a coincidence)
+// AND (b) the names resolve to the same entity after stripping legal
+// noise (PT/PT./Tbk/punctuation/case) or via the small known-alias table
+// below. A same-ticker scan found ~70 OTHER pairs with identical percent/
+// shares but genuinely different-looking names (e.g. 5 different named
+// siblings/heirs each holding an exactly equal split) — those are NOT
+// touched here; merging them would risk hiding real distinct
+// shareholders, which is worse than leaving a rare KSEI duplicate
+// unmerged. See INCIDENT_LOG.md for the full audit and the specific
+// ticker lists in both categories.
+var KSEI_KNOWN_INVESTOR_ALIASES = [
+  // [substring found in one name, substring found in the alias, both after normalization]
+  ['bank pan indonesia', 'panin bank']
+];
+
+function _kseiNormalizeInvestorName(name) {
+  var n = String(name || '').toLowerCase();
+  // Legal-form noise: "pt"/"tbk" as standalone words (not inside another
+  // word), then punctuation, then collapse whitespace.
+  n = n.replace(/\bpt\b/g, '').replace(/\btbk\b/g, '').replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+  return n;
+}
+
+// True only when both names, after normalization, are either IDENTICAL,
+// or match one of the known brand-name aliases above.
+function _kseiSameInvestorEntity(nameA, nameB) {
+  var a = _kseiNormalizeInvestorName(nameA);
+  var b = _kseiNormalizeInvestorName(nameB);
+  if (a === b) return true;
+  return KSEI_KNOWN_INVESTOR_ALIASES.some(function(pair) {
+    return (a.indexOf(pair[0]) !== -1 && b.indexOf(pair[1]) !== -1) ||
+           (b.indexOf(pair[0]) !== -1 && a.indexOf(pair[1]) !== -1);
+  });
+}
+
 /**
  * Combines the two raw-parse results into the SAME per-ticker data shape
  * kseiParseWorkbook() above produces (dataByTicker[ticker] = {ticker,
@@ -650,15 +703,31 @@ function kseiCombineRawSheets(ownershipResult, ffResult) {
     }
     var item = dataByTicker[inv.ticker];
     if (inv.emiten) item.name = inv.emiten;
-    item.investors.push({
-      name: inv.investor,
-      percentage: inv.combinedPct,
-      shares: inv.combinedShares,
-      change: 0,
-      status: inv.status,
-      domicile: inv.status === 'Asing' ? 'LUAR NEGERI' : 'INDONESIA',
-      accounts: []
-    });
+
+    // Same-investor dedup (see KSEI_KNOWN_INVESTOR_ALIASES note above) —
+    // only when status/percentage/shares all match exactly AND the names
+    // resolve to the same entity; otherwise always a new investor row,
+    // same as before.
+    var dupOf = item.investors.filter(function(existing) {
+      return existing.status === inv.status &&
+        existing.percentage === inv.combinedPct &&
+        existing.shares === inv.combinedShares &&
+        _kseiSameInvestorEntity(existing.name, inv.investor);
+    })[0];
+    if (dupOf) {
+      if (!dupOf.mergedAliasNames) dupOf.mergedAliasNames = [];
+      dupOf.mergedAliasNames.push(inv.investor);
+    } else {
+      item.investors.push({
+        name: inv.investor,
+        percentage: inv.combinedPct,
+        shares: inv.combinedShares,
+        change: 0,
+        status: inv.status,
+        domicile: inv.status === 'Asing' ? 'LUAR NEGERI' : 'INDONESIA',
+        accounts: []
+      });
+    }
   });
 
   var totalHoldersCount = 0;
