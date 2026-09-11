@@ -997,3 +997,34 @@ one of them is the same class of defect as a real incident above.
   confirmed via `getBoundingClientRect()` the action column stays within
   the visible wrapper bounds. `npm test` (73/73 + 6/6 provider), `npm
   run lint` clean.
+
+### Uppercase table headers/labels with zero letter-spacing
+
+- **Found by:** the same user-submitted deep-dive analysis. On full
+  inventory (every `text-transform: uppercase` rule in `main.css`, 19
+  total), the codebase turned out to be substantially better than the
+  broad claim: 17 rules already carry a deliberate letter-spacing value
+  in a fairly tight, reasonable range (0.03em–0.08em / 0.5px — all
+  roughly equivalent at these small font sizes) — not the rampant
+  inconsistency originally described. Only two rules had genuinely
+  **zero** letter-spacing at all: `.sm-table th` (a real, visible table
+  header — "Metrik Risiko Fundamental" / "Nilai Terkini" / "Batas
+  Standar Aman" in the Quantitative Red Flag Detector table on the
+  Fundamental page) and `.rmc-verdict` (currently unused, dead CSS with
+  no references anywhere in `index.html` or the JS files — fixed anyway
+  so it doesn't silently regress if reactivated later).
+- **Fix:** added `letter-spacing: 0.05em` to both — matching the value
+  already used by `.kpi-label` and `.health-score-label`, the two other
+  10px/9px all-caps label classes in this file, rather than inventing a
+  new value. Left every other already-tracked uppercase rule untouched:
+  renumbering 17 already-reasonable, deliberate values to one "correct"
+  number is a style opinion with no clear bug behind it, not something
+  to change unilaterally.
+- **Prevention added:** `test_suite.js` TEST 51 — asserts both rules
+  keep a `letter-spacing` declaration. Verified to fail (clear message)
+  when reverted, before being restored.
+- **Verification:** live Playwright — navigated to the Fundamental
+  page's Red Flag Detector table and read
+  `getComputedStyle().letterSpacing` on its header cell (0.5px, matching
+  0.05em at 10px). Screenshot confirms visibly less cramped tracking.
+  `npm test` (74/74 + 6/6 provider), `npm run lint` clean.
