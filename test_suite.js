@@ -1793,6 +1793,35 @@ test('REGRESSION GUARD: AI Paper Trading must sync to its own dedicated Supabase
   assert(/if \(!uid \|\| !client\) return;/.test(aiJs), 'REGRESSION: loadAiCloudState() no longer guards against guest/demo or an unconfigured Supabase client');
 });
 
+// ── TEST 65: ml/train_xgb_signal.py's label must be SL/TP-aware (ATR-based,
+// synced with computeStockSignal()'s real sl=price-ATR*1.5/tp1=price+ATR*2.5
+// formula), not the old "price up >3% in 10 days" label that ignored risk
+// entirely (user-requested 2026-09-11: "perbaiki label XGBoost"). Source-text
+// checks only (Python, can't run through the JS test runner) — the actual
+// label logic (compute_atr/compute_sl_tp_label) was independently verified
+// against 4 synthetic OHLCV scenarios (TP-hit / SL-hit / neither-hit / both-
+// same-day) with a standalone script before this test was added, and the
+// full pipeline (build_dataset -> train -> ONNX export -> meta.json) was run
+// end-to-end against synthetic random-walk data to confirm no wiring broke.
+test('REGRESSION GUARD: ml/train_xgb_signal.py label must be SL/TP-aware (ATR-based), matching computeStockSignal()', () => {
+  const pyPath = path.join(__dirname, 'ml/train_xgb_signal.py');
+  const pySrcRaw = fs.readFileSync(pyPath, 'utf8');
+  const pySrc = pySrcRaw.split('\n').map(l => l.replace(/#.*$/, '')).join('\n'); // strip comments (this fix's own comments quote the old approach as documentation)
+
+  assert(/SL_ATR_MULT\s*=\s*1\.5/.test(pySrc), 'REGRESSION: SL_ATR_MULT no longer matches computeStockSignal()\'s sl=price-ATR*1.5');
+  assert(/TP_ATR_MULT\s*=\s*2\.5/.test(pySrc), 'REGRESSION: TP_ATR_MULT no longer matches computeStockSignal()\'s tp1=price+ATR*2.5');
+  assert(/def compute_atr\(/.test(pySrc), 'REGRESSION: compute_atr() helper is gone');
+  assert(/def compute_sl_tp_label\(/.test(pySrc), 'REGRESSION: compute_sl_tp_label() helper is gone — label may have reverted to the old fixed-% target');
+  assert(!/TARGET_RETURN/.test(pySrc), 'REGRESSION: the old TARGET_RETURN (fixed % target, ignores risk) constant is back');
+  assert(!/shift\(-\d+\)/.test(pySrc), 'REGRESSION: a fixed-forward-day shift() (the old fwd_ret approach) is back in the labeling logic');
+  // Must be the CALL site (`= compute_sl_tp_label(df)`), not just the `def`
+  // line — matching only `compute_sl_tp_label\(df\)` would false-pass even
+  // if build_dataset() stopped calling it, since that substring also
+  // appears in the function's own signature.
+  assert(/=\s*compute_sl_tp_label\(df\)/.test(pySrc), 'REGRESSION: build_dataset() no longer calls compute_sl_tp_label() to produce the label');
+  assert(/label_definition/.test(pySrc) && /sl_atr_mult/.test(pySrc), 'REGRESSION: meta.json no longer documents the SL/TP label definition/hyperparameters');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

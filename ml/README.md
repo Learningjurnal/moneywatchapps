@@ -48,7 +48,8 @@ melakukan commit apa pun.
 
 1. `train_xgb_signal.py` mengambil data harga historis 20 saham IDX (5 tahun,
    via `yfinance`), menghitung 6 fitur teknikal harian, lalu melabeli tiap
-   baris: `1` jika harga naik >3% dalam 10 hari ke depan, `0` jika tidak.
+   baris berdasarkan **hasil trade SL/TP**, bukan sekadar arah harga (lihat
+   "Definisi label" di bawah).
 2. XGBoost classifier dilatih dengan split waktu (bukan acak) — 80% data
    awal untuk training, 20% data terbaru untuk test — supaya tidak ada
    "bocoran" informasi masa depan ke training set.
@@ -58,6 +59,39 @@ melakukan commit apa pun.
    menghitung fitur yang SAMA PERSIS dari data harga live (fungsi
    `xgbComputeFeatures`), lalu menjalankan inferensi langsung di browser
    pengguna — tanpa data terkirim ke server mana pun.
+
+## Definisi label (2026-09-11 — diperbaiki)
+
+Sebelumnya label training adalah "harga naik >3% dalam 10 hari ke depan" —
+sederhana, tapi **sama sekali tidak peduli risiko**: model bisa saja "benar"
+soal arah harga naik, padahal di dunia nyata posisi itu sudah kena Stop Loss
+duluan sebelum sempat naik. Model jadi belajar memprediksi sesuatu yang
+berbeda dari apa yang benar-benar akan terjadi kalau sinyalnya dieksekusi.
+
+Label sekarang disinkronkan dengan formula SL/TP **riil** yang dipakai
+`computeStockSignal()` di `lib/idx-data-engine.js` untuk setiap sinyal yang
+ditampilkan di aplikasi:
+
+- `SL = harga_entry − ATR(14) × 1.5`
+- `TP1 = harga_entry + ATR(14) × 2.5`
+- ATR(14) dihitung sebagai rata-rata sederhana True Range 14 hari (bukan
+  Wilder's smoothing) — lihat `compute_atr()` di `train_xgb_signal.py`,
+  harus sama persis dengan `computeATR()` di JS.
+- Label `1` = TP1 tersentuh **sebelum** SL dalam `MAX_HOLD_DAYS` (20 hari
+  bursa) ke depan. Label `0` = SL tersentuh duluan (atau di hari yang sama
+  dengan TP — diasumsikan SL duluan, skenario konservatif). Baris di mana
+  **keduanya belum tersentuh** sampai akhir horizon **dibuang**, bukan
+  diam-diam dianggap `0` (lihat komentar `INV-011` di `build_dataset()`).
+
+Kalau Anda mengubah pengali SL/TP di `computeStockSignal()` (JS), **ubah
+juga** `SL_ATR_MULT`/`TP_ATR_MULT`/`MAX_HOLD_DAYS` di `train_xgb_signal.py`
+supaya model tetap belajar dari trade yang benar-benar akan dieksekusi
+sistem — sama seperti aturan sinkronisasi fitur di bawah.
+
+**Model yang saat ini ada di `public/models/xgb_signal.onnx` masih dilatih
+dengan label LAMA** (lihat `trained_at`/`fwd_days` di
+`xgb_signal_meta.json`) — perbaikan ini baru berlaku setelah training ulang
+dijalankan (manual, atau menunggu jadwal bulanan `retrain-model.yml`).
 
 ## PENTING — fitur harus sinkron Python ↔ JavaScript
 

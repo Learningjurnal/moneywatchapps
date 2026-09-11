@@ -1517,3 +1517,52 @@ tetap ada tapi upsert/select ke `ai_paper_trading` akan gagal (tabel
 belum ada) — aplikasi akan diam-diam fallback ke localStorage-only
 seperti sebelumnya (tidak crash, karena semua panggilan Supabase di atas
 dibungkus try/catch dengan console.warn).
+
+## 2026-09-11 — Label training XGBoost diganti jadi SL/TP-aware (ATR-based)
+
+- **User request:** perbaiki label training model XGBoost supaya konsisten
+  dengan SL/TP yang sungguhan dipakai sistem, bukan target harga generik.
+- **Masalah:** `ml/train_xgb_signal.py` melabeli tiap baris training
+  sebagai "1 kalau harga naik >3% dalam 10 hari ke depan" — tidak peduli
+  risiko sama sekali. Model bisa "benar" soal arah harga naik, padahal di
+  eksekusi nyata posisi itu sudah kena Stop Loss duluan sebelum sempat
+  naik. Definisi label ini sama sekali tidak terhubung ke SL/TP riil
+  (`sl=price-ATR*1.5`, `tp1=price+ATR*2.5`) yang dipakai
+  `computeStockSignal()` untuk setiap sinyal yang ditampilkan di aplikasi.
+- **Fix:** `compute_atr()` (rata-rata sederhana True Range 14 hari, sama
+  persis dengan `computeATR()` di `lib/idx-data-engine.js`) +
+  `compute_sl_tp_label()` — label `1` kalau TP1 tersentuh SEBELUM SL dalam
+  `MAX_HOLD_DAYS` (20 hari bursa), `0` kalau SL duluan (atau ambigu di
+  hari yang sama — konservatif), baris dibuang (bukan diam-diam `0`)
+  kalau keduanya belum tersentuh sampai akhir horizon (mengikuti pola
+  `INV-011` yang sudah ada). `SL_ATR_MULT=1.5`/`TP_ATR_MULT=2.5`
+  eksplisit disamakan dengan konstanta produksi. `meta.json` sekarang
+  mencatat `label_definition`/`sl_atr_mult`/`tp_atr_mult`/`atr_period`/
+  `max_hold_days`, menggantikan `fwd_days`/`target_return` lama.
+  `ml/README.md` diperbarui dengan penjelasan lengkap + peringatan bahwa
+  model yang ada di `public/models/` masih dilatih dengan label lama
+  sampai retrain berikutnya dijalankan.
+- **Prevention added:** `test_suite.js` TEST 65 — memastikan
+  `SL_ATR_MULT`/`TP_ATR_MULT` cocok dengan produksi, helper `compute_atr`/
+  `compute_sl_tp_label` ada dan BENAR-BENAR dipanggil di `build_dataset()`
+  (bukan cuma dicek lewat nama fungsi di definisi — celah ini sempat lolos
+  di percobaan pertama test, diperbaiki), konstanta lama `TARGET_RETURN`
+  dan pola `shift(-N)` generik tidak boleh kembali. Terbukti gagal dengan
+  pesan jelas saat fix di-revert dua kali (skenario berbeda) sebelum
+  dikembalikan.
+- **Verifikasi (Python, di luar `npm test`):**
+  - `compute_atr()`/`compute_sl_tp_label()` diuji terpisah terhadap 4
+    skenario OHLCV sintetis dengan hasil yang diketahui: TP tersentuh →
+    label 1.0 ✓, SL tersentuh → label 0.0 ✓, tidak ada yang tersentuh →
+    NaN (dibuang) ✓, keduanya tersentuh hari sama → konservatif 0.0 ✓.
+  - Pipeline penuh (`build_dataset` → training XGBoost → ekspor ONNX →
+    `meta.json`) dijalankan end-to-end memakai data OHLCV sintetis
+    (random walk, 3 ticker palsu, network Yahoo Finance diblokir di
+    sandbox ini) — tidak ada error, `meta.json` berisi field label baru
+    dengan benar.
+  - **Belum bisa dijalankan dengan data Yahoo Finance sungguhan** dari
+    sandbox ini (jaringan diblokir) — retrain sungguhan untuk
+    `public/models/xgb_signal.onnx` harus dijalankan manual oleh user
+    atau menunggu jadwal bulanan `retrain-model.yml`.
+
+`npm test` (88/88 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
