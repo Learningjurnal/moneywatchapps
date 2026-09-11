@@ -2908,13 +2908,14 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     + '<span class="badge b-neu" style="font-size:9px">CHART ENGINE (60 CANDLES)</span>'
     + '</div>'
 
-    // FIX: was minmax(320px,1fr) with auto-fit — on a typical desktop-width
-    // container this fit all 4 charts in one row, squeezing each one too
-    // small to read (reported by user via screenshot). minmax(480px,1fr)
-    // fits exactly 2 per row at normal desktop/laptop widths (2x2 grid,
-    // charts nearly twice as wide) and still collapses to 1 column on
-    // narrow/mobile viewports.
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:12px">'
+    // FIX: was inline `grid-template-columns:repeat(auto-fit,minmax(320px,1fr))`,
+    // then `minmax(480px,1fr)` — both still let auto-fit pack a 3rd column
+    // into a wide-enough container before wrapping (reported by the user
+    // via screenshot: 3 charts on top, 1 alone below, instead of 2+2).
+    // `.bandar-smart-chart-grid` (main.css) forces exactly 2 columns via a
+    // fixed `repeat(2,1fr)` and only collapses to 1 column via a real media
+    // query below 760px — something a plain inline style can't express.
+    + '<div class="bandar-smart-chart-grid">'
     // Chart 1: Price Action & Institutional VWAP Bands
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
