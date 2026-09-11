@@ -756,8 +756,7 @@ function goPage(name,btn){
   document.querySelectorAll('.nav button, .nav-dd-btn, .nav-dd-menu button, .side-nav button').forEach(function(b){b.classList.remove('on')});
   document.querySelectorAll('.side-group').forEach(function(g){ g.classList.remove('has-active'); });
 
-  var targetPageName = name === 'dividen-calendar' ? 'dividen'
-    : (name === 'smart-money-flow' ? 'bandarmology' : name);
+  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : name;
   var pg = el('page-'+targetPageName);
   if(!pg) return;
   pg.classList.add('on');
@@ -842,13 +841,16 @@ function renderPage(name){
     case 'crypto':renderCrypto();break;
     case 'etf':renderEtf();break;
     case 'reksadana':renderReksaDana();break;
+    // FIX (2026-09-11, user-requested dead-feature cleanup): the
+    // 'dividen-calendar' case that used to be here was a redundant,
+    // unreachable alias — zero call sites anywhere in the app (verified
+    // via full-codebase search). It rendered the exact same thing this
+    // 'dividen' case already does: the Dividen page defaults to showing
+    // its Calendar sub-tab (see INCIDENT_LOG.md's "ghost stacking" fix),
+    // so switchDivSubTab('calendar') was never actually adding anything
+    // this case didn't already produce.
     case 'dividen':
       renderDividen();
-      if(typeof renderDividendCalendarComponent==='function') renderDividendCalendarComponent();
-      break;
-    case 'dividen-calendar':
-      renderDividen();
-      if(typeof switchDivSubTab==='function') switchDivSubTab('calendar');
       if(typeof renderDividendCalendarComponent==='function') renderDividendCalendarComponent();
       break;
     case 'divinvest':renderDivInvest();break;

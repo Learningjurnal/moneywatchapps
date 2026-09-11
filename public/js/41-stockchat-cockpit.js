@@ -2103,7 +2103,12 @@ window.setBandarmologyTab = function(subTab) {
   // is real and reachable (via the 'flowscan' page route), so it's kept.
   if (subTab === 'smart-money-flow') {
     setTimeout(function() {
-      var el = document.getElementById('bandarSmartMoneyChart') || document.getElementById('bandar-tab-content');
+      // '|| getElementById(\'bandar-tab-content\')' fallback removed - that
+      // id never existed anywhere in the rendered HTML either, and
+      // #bandarSmartMoneyChart is now a real element (see
+      // renderBandarmologySmartMoneyFlowView() above), so the fallback was
+      // permanently unreachable dead code.
+      var el = document.getElementById('bandarSmartMoneyChart');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
   }
@@ -2899,7 +2904,14 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     // ============================================================
     // INTERACTIVE REAL-TIME CHART SUITE (PRICE, CMF, FOREIGN, VOL)
     // ============================================================
-    + '<div style="display:flex;flex-direction:column;gap:12px">'
+    // FIX (2026-09-11, found during a dead-feature audit): this section
+    // had no id at all, so setBandarmologyTab()'s 'smart-money-flow'
+    // scroll-to (in this same file) was silently targeting a
+    // getElementById('bandarSmartMoneyChart') that never existed anywhere
+    // in the rendered HTML — the scroll-to-section behavior for the
+    // FlowScan -> Bandarmology deep-link has never actually worked.
+    // Added the matching id here instead of touching the scroll-to code.
+    + '<div id="bandarSmartMoneyChart" style="display:flex;flex-direction:column;gap:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center">'
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
     + 'GRAFIK VISUAL INTERAKTIF SMART MONEY &amp; PENETRASI BANDAR (' + ticker + ')'

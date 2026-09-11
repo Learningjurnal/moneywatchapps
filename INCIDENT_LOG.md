@@ -1290,3 +1290,54 @@ stub — both were fully-functional code with zero navigation entry point.
   asked; noted here for whenever it's worth revisiting.
 
 `npm test` (81/81 + 16/16 policy + 6/6 provider), `npm run lint` clean.
+
+---
+
+## Remaining dead-feature cleanup: dividen-calendar route removed, broken FlowScan scroll-to fixed (user-requested, 2026-09-11)
+
+Follow-up to the sessions above.
+
+### `dividen-calendar` dead route removed
+
+- **Confirmed via code reading:** zero call sites anywhere in the app
+  (verified via full-codebase search). It rendered exactly what the
+  `dividen` case already produces — the Dividen page defaults to
+  showing its Calendar sub-tab (see the "ghost stacking" fix above), so
+  the extra `switchDivSubTab('calendar')` call this route made was never
+  adding anything the plain `dividen` route didn't already do.
+- **Fix:** removed the `case 'dividen-calendar':` router branch and its
+  `targetPageName` special-case mapping in `06-analysis-router.js`.
+- **Prevention added:** `test_suite.js` TEST 59. Verified to fail when
+  reverted, before being restored.
+
+### Pre-existing broken FlowScan → Bandarmology scroll-to, now fixed
+
+- **Root cause confirmed:** `setBandarmologyTab()`'s `smart-money-flow`
+  branch scrolled to `getElementById('bandarSmartMoneyChart')` with a
+  `getElementById('bandar-tab-content')` fallback — **neither id existed
+  anywhere** in the rendered HTML. The deep-link from FlowScan still
+  correctly navigated to the Bandarmology page, but the "auto-scroll
+  straight to the Smart Money Flow chart section" behavior had silently
+  no-op'd (guarded by `if (el)`, so no crash, just nothing happened)
+  since this code was written.
+- **Fix:** added `id="bandarSmartMoneyChart"` to the actual Smart Money
+  Flow chart section's wrapping `<div>` in
+  `renderBandarmologySmartMoneyFlowView()` — matching the id the
+  scroll-to code was already looking for, rather than changing the
+  scroll-to code itself. Removed the now-pointless
+  `getElementById('bandar-tab-content')` fallback (that id never existed
+  either).
+- **Prevention added:** `test_suite.js` TEST 60 — asserts the real id
+  exists in the rendered markup and the dead fallback lookup is gone.
+  Verified to fail (clear message) when reverted, before being restored.
+- **Verification:** live Playwright — navigated via `goPage('flowscan')`
+  (the real deep-link entry point) and measured the target element's
+  actual position after the scroll settled: its vertical center landed
+  at ~468px vs. the viewport's center at 450px — the `block:'center'`
+  scroll now genuinely works. Screenshot confirms the Smart Money Flow
+  chart section (with its 2x2 chart grid) is what's actually visible
+  after navigating from FlowScan, not the top of the page. Also
+  confirmed the Dividen page (which shared no code path with this fix)
+  still renders correctly.
+
+`npm test` (83/83 + 16/16 policy + 6/6 provider), `npm run lint` clean.
