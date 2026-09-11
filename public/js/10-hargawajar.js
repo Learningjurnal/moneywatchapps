@@ -2146,7 +2146,10 @@ function hw_renderChart(rows) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 300 },
+        // animation:{duration:300} removed — this chart is recreated from
+        // scratch on every visit (prevChart.destroy() right above), so it
+        // now inherits the global Chart.defaults.animation=false set in
+        // 03-engine.js (tab-switch performance fix, 2026-09-11).
         plugins: { legend: legendOpts, tooltip: tooltipBase },
         scales: scales
       }

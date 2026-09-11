@@ -1122,3 +1122,92 @@ one of them is the same class of defect as a real incident above.
   confirmed `.g2c` (Dividen page's `#divYearChart`) also computes to
   exactly 1600px via `getComputedStyle()`. Screenshot sent to the user.
   `npm test` (77/77 + 6/6 provider), `npm run lint` clean.
+
+---
+
+## Performance investigation: "app feels heavy switching between tabs" (user-requested, 2026-09-11)
+
+Comprehensive live-profiling investigation via Playwright, not guesswork.
+Summary of what was checked, what was ruled out, and the one confirmed,
+fixed root cause. See conversation for full methodology.
+
+### Ruled out (verified NOT the cause)
+
+- **Render function execution time**: measured all 32 page routes'
+  synchronous `goPage()` call time — all under 30ms, even the heaviest
+  (Sectoral Insight 28ms).
+- **Chart.js instance leaks**: audited every one of the ~51 `new Chart(`
+  call sites across the codebase — every single one is preceded by a
+  proper destroy-before-recreate guard (`kc()`, `techKillChart()`,
+  `wKillChart()`, `twKillChart()`, or an inline `.destroy()` — different
+  local naming per module, but the pattern holds everywhere).
+- **DOM node growth on repeated tab revisits**: an initial test looked
+  like a leak (+512 nodes revisiting 9 pages twice), but isolating with a
+  12s warm-up first showed growth plateaus completely after the 2nd visit
+  to a set of pages (0 further growth on a 3rd round) — this is one-time
+  async/deferred content settling, not a compounding leak that gets worse
+  the longer a session runs.
+- **Redundant network fetches on tab revisit**: an initial test (Stock
+  Intel, insufficient warm-up) looked like 8+ requests per revisit; after
+  isolating with proper warm-up, real per-page data endpoints
+  (quote/history/broker-summary) fired **once** across 3 rapid revisits
+  on every page tested (Stock Intel, Bandarmology, FlowScan, StockChat,
+  TradeWave) — existing caching/cooldown mechanisms are working
+  correctly. Only third-party logo images re-requested per visit (normal
+  `<img>` behavior, browser-cacheable, outside this app's control).
+
+### Confirmed and fixed: Chart.js draw-in animation on every tab switch
+
+- **Root cause**: every Chart.js instance in the app (~51 across the
+  codebase) is destroyed and recreated from scratch on every visit to its
+  page — there is no "just update the data" path anywhere, only
+  destroy-then-recreate. None of those 51 chart configs disabled Chart.js's
+  default ~1000ms draw-in animation. On chart-heavy pages (Bandarmology
+  Smart Money Flow: 4 charts, FlowScan: up to 8 across its views,
+  Quant/Backtester: 7), switching to that tab paid the full animation
+  cost for every chart on it, simultaneously, every single time — a real,
+  well-established Chart.js performance cost, independent of network
+  conditions (so still real even though the network-storm hypothesis
+  above was ruled out).
+- **Fix**: set `Chart.defaults.animation = false` globally in
+  `03-engine.js`, in the same block that already sets
+  `Chart.defaults.interaction`/`.hover` globally (an established pattern
+  in this codebase — "applied globally so every chart in the app benefits
+  without needing to touch each individual chart config"). Also removed
+  two per-chart `animation:` overrides that would have defeated the new
+  global default for those two specific charts (Dashboard's sector
+  allocation donut, `animation:{animateRotate:true, duration:600}`; Harga
+  Wajar's valuation bar chart, `animation:{duration:300}`) — a per-instance
+  Chart.js option always overrides the global default for that chart, so
+  both had to go for the fix to actually apply everywhere.
+- **Prevention added:** `test_suite.js` TEST 55 (asserts
+  `Chart.defaults.animation = false` exists in the global defaults block)
+  and TEST 56 (asserts no chart config anywhere still sets its own
+  `animation:` object, which would silently defeat the global default for
+  that one chart — checked with comments stripped first, since an
+  explanatory comment quoting the old removed code would otherwise
+  false-positive as live code). Both verified to fail with a clear
+  message when reverted, before being restored.
+- **Verification:** live Playwright with a Chart.js stub that tracks
+  each instance's *effective* merged options (stub `.defaults` object +
+  per-instance config, mimicking Chart.js's own merge behavior) —
+  confirmed `Chart.defaults.animation` is `false` after app init, and a
+  real chart created on the Performance page inherits `animation: false`
+  with zero page errors. `npm test` (79/79 + 16/16 policy + 6/6
+  provider), `npm run lint` clean.
+
+### Genuinely reachable, well-verified dead-feature candidates found during this investigation (not yet acted on — pending product decision)
+
+- `thesis` route (`renderThesisPage()`, "Investment Thesis Tracker") —
+  fully built, zero navigation entry point anywhere in the app.
+- `broker-flow`, `foreign-flow`, `smart-money-radar` Bandarmology
+  sub-modes — implemented router cases, zero call sites anywhere
+  (`smart-money-flow` is the only one of this group actually reachable,
+  via the `flowscan` route).
+- `dividen-calendar` route — redundant alias, zero call sites (the
+  `dividen` route + manually clicking the Kalender sub-tab already covers
+  the same behavior).
+- Confirmed genuinely API-pending and NOT dead: `INVEZGO_API_KEY`
+  (`lib/invezgo-client.js`, paid IDX market data API) and
+  `GEMINI_API_KEY` (`server.js`, Google AI) — both gracefully degrade
+  when unset and must not be touched.

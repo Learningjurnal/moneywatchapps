@@ -1789,6 +1789,22 @@ var TT = {
 if (typeof Chart !== 'undefined') {
   Chart.defaults.interaction = { mode: 'nearest', intersect: false };
   Chart.defaults.hover = Object.assign({}, Chart.defaults.hover, { mode: 'nearest', intersect: false });
+
+  // Performance fix (2026-09-11, user-reported: app feels heavy switching
+  // between tabs). Every one of this app's ~51 Chart.js instances is
+  // destroyed and recreated FROM SCRATCH on every single visit to its page
+  // (see the various *KillChart()/kc() helpers throughout the codebase) -
+  // there is no "just update the data" path anywhere. None of those 51
+  // chart configs disable Chart.js's default draw-in animation, so every
+  // tab switch to a chart-bearing page pays the cost of animating every
+  // chart on it (up to 4-8 on some pages, e.g. Bandarmology Smart Money
+  // Flow, FlowScan) over Chart.js's default ~1000ms duration, every single
+  // time - pure animation cost with no functional benefit for a page the
+  // user is actively trying to read data from immediately. Disabled
+  // globally, same pattern as the interaction/hover fix above, so every
+  // chart benefits without editing 51 individual configs (and any future
+  // chart added to the app gets this for free too).
+  Chart.defaults.animation = false;
 }
 
 
@@ -2122,7 +2138,11 @@ function buildSectorChart(porto){
     options:{
       responsive:true, maintainAspectRatio:false, cutout:'68%',
       centerText:{top:topLabel, bottom:labels.length+' SEKTOR', color:cols[0]||'#f5f5fa'},
-      animation:{animateRotate:true, duration:600},
+      // animation:{animateRotate:true, duration:600} removed — this chart
+      // is recreated from scratch on every Dashboard visit (kc('sector')
+      // before this call), so it now inherits the global
+      // Chart.defaults.animation=false set in the "Site-wide hover UX fix"
+      // block above (tab-switch performance fix, 2026-09-11).
       plugins:{
         legend:{display:false},
         tooltip:Object.assign({},TT,{callbacks:{
