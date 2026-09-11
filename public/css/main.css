@@ -1708,7 +1708,17 @@ html,body{font-size:12.5px}
 .btn{font-size:11.5px;padding:6px 12px}
 .btn-sm{font-size:10.5px;padding:4px 9px}
 .btn-xs{font-size:9.5px;padding:3px 7px}
-.badge{font-size:10px;padding:2px 7px}
+/* FIX (2026-09-11, found via deep-dive review, not a user-reported bug):
+   .badge is reused for both plain-text labels (e.g. "BUY", "RADAR",
+   sector names) and live-updating numeric content (e.g. #vol-risk-badge's
+   volatility percentage in 05-assets.js). It inherits the page's default
+   proportional 'Inter' font with no digit-width normalization, so a
+   badge showing a live percentage would visually shift width as its
+   digits changed (e.g. "9.5%" -> "10.2%"). tabular-nums only affects
+   how numeral glyphs are shaped/spaced — it has zero visual effect on
+   non-numeric text, so this is safe to apply to every badge, not just
+   the numeric ones. */
+.badge{font-size:10px;padding:2px 7px;font-variant-numeric:tabular-nums}
 .tbl th{font-size:10px;padding:7px 10px}
 .tbl td{font-size:12px;padding:8px 10px}
 .finput{font-size:12px;padding:7px 10px}
