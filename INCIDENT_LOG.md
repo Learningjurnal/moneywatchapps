@@ -616,3 +616,118 @@ search box next to it down to ~18px
   Screenshot sent to the user for confirmation. `npm test` (63/63 + 6/6
   provider) — `npm run lint` doesn't cover CSS in this project, so this
   fix relied on the new TEST 41 plus live visual verification instead.
+
+---
+
+## #13 — TradeWave "Wave Scanner" button appeared unresponsive; Bandarmology Smart Money Flow charts too small
+
+- **Date:** 2026-09-11.
+- **Found by:** the user, from a screenshot (2x2-worth charts squeezed
+  into a single row) plus a direct report: "pada toolbar trade wave pro,
+  tombol Wave Scanner tidak berfungsi/merespon".
+- **Impact (Wave Scanner):** whenever the currently-selected ticker's own
+  wave analysis was invalid (e.g. no 65-day OHLCV cached yet for it — a
+  real, reachable state, not just an unregistered ticker), clicking
+  "Wave Scanner" correctly switched `TW_STATE.activeTab` to 2 and
+  highlighted the button, but the page kept showing the *other* tab's
+  single-ticker "TICKER INVALID" error card instead of the scanner —
+  looking exactly like the button did nothing. Root cause #1:
+  `renderTradeWavePage()` ran that single-ticker validity gate
+  unconditionally before checking which tab was active, even though Tab 2
+  (Wave Scanner) scans its own multi-ticker universe and never reads that
+  ticker's data at all. Root cause #2 (found while verifying the fix for
+  #1): `renderTab2WaveScanner()` itself would then throw
+  (`TypeError: Cannot read properties of undefined (reading 'toFixed')`)
+  the moment ANY ticker in its scan universe (`TW_UNIVERSE`) was still
+  `{isValid:false}` — because `twAnalyzeWave()`'s invalid-entry shape
+  omits `changePct`/`waveScore`/`superTrend`/`flow`/`targets` entirely,
+  but the row-rendering loop read those fields unconditionally. A single
+  invalid ticker anywhere in the universe silently aborted the whole
+  scanner render — which is what actually made the tab still look "dead"
+  even after fixing root cause #1 alone.
+- **Impact (chart grid):** the 4-chart "INTERACTIVE REAL-TIME CHART
+  SUITE" inside Bandarmology → Smart Money Flow used
+  `grid-template-columns:repeat(auto-fit,minmax(320px,1fr))`, which fit
+  all 4 charts into a single row on typical desktop widths, squeezing
+  each one too small to read comfortably.
+- **Fix:**
+  1. In `renderTradeWavePage()`, moved the `TW_STATE.activeTab === 2`
+     dispatch (render `renderTab2WaveScanner()` and return) to run
+     *before* the `!data || data.isValid === false` gate, since Tab 2 has
+     no dependency on it. Removed the now-dead `else if (activeTab === 2)`
+     branch further down.
+  2. In `renderTab2WaveScanner()`, filter the mapped list to
+     `x.isValid !== false` right after building it, before the wave-phase
+     and search filters — dropping invalid entries instead of crashing on
+     them. Also distinguished the "no rows" empty state: "data belum
+     tersedia, sedang menyinkronkan" when zero tickers are valid yet vs.
+     "tidak cocok dengan filter" when valid tickers exist but none match
+     the active phase/search filter.
+  3. Changed the Smart Money Flow chart grid to
+     `minmax(480px,1fr)` — fits exactly 2 charts per row (2x2) at normal
+     desktop/laptop widths, still collapses to 1 column on narrow/mobile.
+- **Prevention added:** `test_suite.js` TEST 42 (tab-2 dispatch runs
+  before the validity gate — matched via the specific
+  `if (TW_STATE.activeTab === 2) {...return;}` statement, not a bare
+  substring search, since that substring also appears in the button's
+  active-highlight style earlier in the same function), TEST 42b
+  (`renderTab2WaveScanner()` filters `isValid !== false` before
+  rendering row fields), and TEST 43 (chart grid uses `minmax(480px,1fr)`
+  scoped to `renderBandarmologySmartMoneyFlowView()`, not the whole file,
+  since other unrelated grids elsewhere legitimately use `minmax(320px,1fr)`).
+  All three verified to actually fail with a clear message when reverted
+  to the pre-fix code, before being restored.
+- **Verification:** live Playwright — clicked the real "Wave Scanner"
+  button with the default ticker (BBCA) in an invalid state (no cached
+  OHLCV, as is always true in this network-blocked sandbox) and confirmed
+  the tab now renders real "Setup Detector" scanner content instead of
+  the TICKER INVALID error card. Measured the chart grid's 4 children's
+  `getBoundingClientRect()` and confirmed exactly 2 distinct row offsets
+  (2x2 layout) at 1440px viewport width. Screenshot sent to the user.
+  `npm test` (66/66 + 16/16 policy + 6/6 provider), `npm run lint` clean.
+
+---
+
+## #14 — Portfolio Allocation legend showed no color indicator in light theme
+
+- **Date:** 2026-09-11.
+- **Found by:** the user: "pada tema terang alokasi porotoflio legend
+  tidak ada indikator warna".
+- **Impact:** in the "Alokasi Portofolio Real-Time" card's legend
+  (`#porto-donut-legend`, `04-render.js` `renderPortofolio()`), every
+  row's small 10x10 color swatch — meant to match its slice's color on
+  the donut chart — rendered as a uniform flat #F8FAFC/light-gray square
+  in light theme regardless of the row's actual sector/asset-class color,
+  making the legend indistinguishable by color (the emoji icon added in
+  an earlier fix for a similar "color cue unreliable" issue was the only
+  thing still differentiating rows).
+- **Root cause:** two near-duplicate CSS rules exist for styling this
+  legend's rows in light theme — one correctly scoped to
+  `#porto-donut-legend > div` (direct children only — the row
+  containers), and a second, added independently later in the file,
+  using a bare descendant selector `#porto-donut-legend div` (no `>`).
+  The bare version also matched the small color-swatch `<div>` nested
+  *inside* each row, and its `background: #F8FAFC !important` won over
+  the swatch's own inline `background:<hex color>` because an
+  `!important` declaration in an author stylesheet always outranks a
+  plain (non-`!important`) inline style — erasing every row's distinct
+  color regardless of what `sectorColor()` or the class-color palette
+  actually returned.
+- **Fix:** scoped the duplicate rule to `#porto-donut-legend > div`
+  (matching the already-correct rule above it), so it reaches only the
+  row containers and no longer touches the nested swatch.
+- **Prevention added:** `test_suite.js` TEST 44 — asserts the bare
+  descendant selector `body.theme-light #porto-donut-legend div {` is
+  absent and the scoped `> div` version is present. Verified to actually
+  fail (clear message) when reverted to the bare selector, before being
+  restored.
+- **Verification:** live Playwright — switched to light theme, seeded a
+  3-sector portfolio, rendered the legend, and walked
+  `document.styleSheets` to find every CSS rule actually matching the
+  swatch element via `.matches()` (confirming the exact duplicate rule
+  responsible) before the fix, then re-measured each swatch's
+  `getComputedStyle().backgroundColor` after the fix: three rows, three
+  distinct colors (`rgb(59,130,246)` blue, `rgb(244,63,94)` red,
+  `rgb(234,179,8)` yellow) matching their sectors. Screenshot sent to the
+  user. `npm test` (67/67 + 16/16 policy + 6/6 provider), `npm run lint`
+  clean.
