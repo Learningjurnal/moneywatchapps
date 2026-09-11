@@ -893,3 +893,53 @@ one of them is the same class of defect as a real incident above.
   visible and clickable. Screenshots (before/during hover) sent to the
   user. `npm test` (70/70 + 16/16 policy + 6/6 provider), `npm run lint`
   clean.
+
+### "Ghost stacking" — all 3 Dividen sub-tab sections rendered at once on every real page load
+
+- **Found by:** the same user-submitted deep-dive analysis, verified by
+  tracing the actual navigation path — the sidebar's only real entry
+  point into this page (`goPage('dividen')` →
+  `06-analysis-router.js`'s `case 'dividen':`) calls `renderDividen()`
+  and `renderDividendCalendarComponent()` directly and **never** calls
+  `switchDivSubTab()` at all (unlike the sibling `'dividen-calendar'`
+  case, which does).
+- **Impact:** `#div-section-calendar`, `#div-section-analytics`, and
+  `#div-section-ledger` all defaulted to `style="display:block"` in the
+  static HTML, while the "Kalender Dividen" sub-tab button was already
+  marked active (`btn-green`) in that same markup. Every real navigation
+  to the Dividen page (there is no other way in) rendered all three
+  sub-tab sections stacked vertically at once — Kalender, Analisis &
+  Proyeksi 5 Tahun, and Riwayat Pembukuan Transaksi all visible
+  simultaneously — while the UI visually implied only "Kalender" was
+  selected. Not a hypothetical race condition: this happened on 100% of
+  page loads via the only real entry point, with no dependency on script
+  timing.
+- **Fix:** changed the static default of `#div-section-analytics` and
+  `#div-section-ledger` to `display:none`, matching the calendar tab
+  that's already marked active by default — so the markup is
+  self-consistent with itself from first paint, with no dependency on
+  `switchDivSubTab()` running before the user sees the page.
+  `switchDivSubTab()` itself (unchanged) still toggles all three
+  sections explicitly on every click, including "Tampilkan Semua"
+  (which intentionally shows all three — a real, deliberate feature, not
+  part of this bug).
+- **Prevention added:** `test_suite.js` TEST 48 — asserts
+  `#div-section-calendar` defaults to `display:block`,
+  `#div-section-analytics`/`#div-section-ledger` default to
+  `display:none`, and the Calendar sub-tab button is still the one
+  marked active by default (so the fix isn't just "consistently
+  defaulting to the wrong tab"). Verified to fail (clear message) when
+  reverted to `display:block`, before being restored.
+- **Verification:** live Playwright — navigated via `goPage('dividen')`
+  (the real entry point, not the calendar-specific route) and confirmed
+  only the Calendar section is visible with the Calendar button active;
+  then drove through all four sub-tabs (Analisis, Riwayat, Tampilkan
+  Semua, back to Kalender) via `switchDivSubTab()` and confirmed each
+  correctly shows/hides sections including "Tampilkan Semua" still
+  showing all three together, and that the Analytics tab's Chart.js
+  projection canvas (`#divProjChart`) isn't stuck invisible after having
+  been created while its container was hidden (`kc('divProj')` destroys
+  and recreates the chart fresh on every tab visit, confirmed in the
+  source). Screenshot of the fixed initial state sent to the user.
+  `npm test` (71/71 + 16/16 policy + 6/6 provider), `npm run lint`
+  clean.

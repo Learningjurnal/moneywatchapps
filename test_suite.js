@@ -1326,6 +1326,42 @@ test('REGRESSION GUARD: Portfolio table Alert button must collapse via opacity/w
     'REGRESSION: no :focus-visible rule reveals .porto-alert-btn for keyboard navigation — only :hover is covered, so keyboard-only users can never reach this button');
 });
 
+// ── TEST 48: Dividen page's 3 sub-tab sections (Kalender/Analisis/
+// Riwayat) must default to only the pre-selected tab visible, matching
+// the "Kalender Dividen" button already marked active (btn-green) in
+// the same static markup (found via deep-dive review, 2026-09-11, not a
+// user-reported bug). All 3 sections used to default to
+// `display:block`, and the sidebar's only real entry point to this page
+// (goPage('dividen') -> 06-analysis-router.js's 'dividen' case) never
+// calls switchDivSubTab() — so every real navigation to this page
+// rendered all three sections stacked at once while the Calendar tab
+// looked selected, a visible mismatch between the highlighted tab and
+// what was actually shown ("ghost stacking").
+test('REGRESSION GUARD: Dividen page sub-tab sections must default to only the pre-selected (Calendar) tab visible', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  const calMatch = html.match(/<div id="div-section-calendar" style="([^"]*)"/);
+  assert(calMatch, 'could not find #div-section-calendar — has the Dividen page been restructured?');
+  assert(/display:\s*block/.test(calMatch[1]),
+    'REGRESSION: #div-section-calendar (the tab already marked active by default) no longer defaults to display:block');
+
+  const anaMatch = html.match(/<div id="div-section-analytics" style="([^"]*)"/);
+  assert(anaMatch, 'could not find #div-section-analytics — has the Dividen page been restructured?');
+  assert(/display:\s*none/.test(anaMatch[1]),
+    'REGRESSION: #div-section-analytics defaults to visible again, alongside the Calendar tab that\'s already marked active by default — this is the "ghost stacking" bug (see INCIDENT_LOG.md)');
+
+  const ledMatch = html.match(/<div id="div-section-ledger" style="([^"]*)"/);
+  assert(ledMatch, 'could not find #div-section-ledger — has the Dividen page been restructured?');
+  assert(/display:\s*none/.test(ledMatch[1]),
+    'REGRESSION: #div-section-ledger defaults to visible again, alongside the Calendar tab that\'s already marked active by default — this is the "ghost stacking" bug (see INCIDENT_LOG.md)');
+
+  // The pre-selected button itself must still actually be the Calendar
+  // one (btn-green = active styling), or the fix above would be
+  // "consistently defaulting to the wrong tab" rather than a real fix.
+  assert(/id="div-subtab-btn-cal" onclick="switchDivSubTab\('calendar'\)"[^>]*class="btn btn-xs btn-green"|class="btn btn-xs btn-green" id="div-subtab-btn-cal"/.test(html),
+    'REGRESSION: the "Kalender Dividen" sub-tab button is no longer marked active (btn-green) by default — the section-visibility defaults above assume it still is');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
