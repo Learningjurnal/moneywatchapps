@@ -381,6 +381,12 @@ var RADAR_STATE = {
   summary: { totalUniverse: 0, buyZoneCount: 0, watchlistCount: 0, avoidCount: 0, corpActionCount: 0, lq45Count: 0, limitedDataCount: 0 },
   accData: null,
   accTimeframe: '1D',
+  // Cache-per-timeframe for loadAccumulationDistributionData() — see that
+  // function below (INCIDENT_LOG.md 2026-09-11: this scanner had zero
+  // client-side cache, unlike loadOpportunityRadarUniverse's 60s check,
+  // so every timeframe-button click re-fired the scan even seconds after
+  // the last one).
+  accDataCache: {}, // { [timeframe]: { data, fetchedAt } }
   flowTicker: 'BBCA',
   flowTimeframe: '1D',
   flowData: null,
@@ -435,17 +441,36 @@ async function loadOpportunityRadarUniverse(force) {
   }
 }
 
+var ACC_DIST_CACHE_TTL_MS = 300000; // 5 minutes — matches invezgo-client.js's server-side cache TTL
+
 /**
- * Fetch Accumulation / Distribution Scanner Data
+ * Fetch Accumulation / Distribution Scanner Data — cache-first per
+ * timeframe, TTL matches INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC (5 minutes,
+ * lib/invezgo-client.js) since re-fetching sooner than that would only
+ * ever re-read what the server's own Redis cache already holds — this
+ * just saves the round trip and the 45-ticker Yahoo-quote fan-out that
+ * runs unconditionally server-side before the (possibly cached) Invezgo
+ * call (getUniverseAccumulationDistribution, lib/idx-data-engine.js).
+ * Every existing call site keeps working unchanged (tf-only, 1 arg) —
+ * `force` is opt-in and only passed by the two explicit "Refresh"
+ * buttons, which must bypass the cache on purpose.
  */
-async function loadAccumulationDistributionData(tf) {
+async function loadAccumulationDistributionData(tf, force) {
   var timeframe = tf || RADAR_STATE.accTimeframe || '1D';
   RADAR_STATE.accTimeframe = timeframe;
+
+  var cached = RADAR_STATE.accDataCache[timeframe];
+  if (!force && cached && (Date.now() - cached.fetchedAt) < ACC_DIST_CACHE_TTL_MS) {
+    RADAR_STATE.accData = cached.data;
+    return cached.data;
+  }
+
   try {
     var res = await fetch('/api/idx/accumulation-distribution?timeframe=' + encodeURIComponent(timeframe));
     var data = await res.json();
     if (data && data.success) {
       RADAR_STATE.accData = data;
+      RADAR_STATE.accDataCache[timeframe] = { data: data, fetchedAt: Date.now() };
       return data;
     }
   } catch (err) {
@@ -635,7 +660,7 @@ function renderOpportunityRadarPage() {
         + '<div class="psub">Skor real dari data fundamental Yahoo Finance (Margin of Safety proxy 65% + ROE 35% + bonus indeks) — saat ini hanya dihitung untuk saham LQ45/IDX30 (~' + (sum.lq45Count || 45) + ' emiten). Saham lain di luar itu ditandai "DATA TERBATAS" karena aplikasi ini belum punya feed fundamental real untuk seluruh ~950 emiten sekaligus — bukan angka karangan.</div>'
       + '</div>'
       + '<div style="display:flex;gap:8px">'
-        + '<button class="btn btn-ghost btn-xs" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData();loadCorporateActionsData();showSaveStatus(\'Data Radar diperbarui\');">Refresh Feed</button>'
+        + '<button class="btn btn-ghost btn-xs" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData(RADAR_STATE.accTimeframe, true);loadCorporateActionsData();showSaveStatus(\'Data Radar diperbarui\');">Refresh Feed</button>'
         + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\')">Buka StockChat Cockpit →</button>'
       + '</div>'
     + '</div>'
@@ -1307,7 +1332,7 @@ function renderRadarAnomalyAraSubTab() {
       + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
         + '<span style="font-size:11px;font-weight:700;color:var(--text3)">DATA PER:</span>'
         + '<span class="badge b-up" style="font-size:11px">' + updatedLabel + '</span>'
-        + '<button class="btn btn-ghost btn-xs" style="font-size:11px" onclick="loadAccumulationDistributionData(RADAR_STATE.accTimeframe).then(renderOpportunityRadarPage)">Refresh</button>'
+        + '<button class="btn btn-ghost btn-xs" style="font-size:11px" onclick="loadAccumulationDistributionData(RADAR_STATE.accTimeframe, true).then(renderOpportunityRadarPage)">Refresh</button>'
       + '</div>'
       + '<div style="display:flex;align-items:center;gap:8px">'
         + '<input type="text" class="form-input" placeholder="Cari kode atau nama saham..." style="width:220px;height:30px;font-size:12px" oninput="filterAnomalyTable(this.value)">'
