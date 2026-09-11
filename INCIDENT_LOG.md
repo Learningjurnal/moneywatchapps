@@ -2223,3 +2223,25 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - Cache-bust `35-settings.js` → `?v=20260911b`.
 
 `npm test` (124+18+6+5+9), `npm run lint` bersih.
+
+## 2026-09-11 — Audit menyeluruh KSEI: ditemukan bug duplikasi investor di data mentah, 57 emiten diperbaiki
+
+- **Konteks:** user minta cek apakah ada emiten lain yang datanya "aneh" setelah upload 2-file berhasil untuk AADI/ADRO. Dilakukan pemindaian otomatis ke seluruh 840 emiten (bukan cuma sampel), bukan menunggu laporan manual.
+- **Temuan:** raw file KSEI "Kepemilikan >5%" mencantumkan investor YANG SAMA dua kali di bawah nama sedikit berbeda, dengan persentase & jumlah saham IDENTIK — menyebabkan dobel hitung. Contoh paling ekstrem: **ASJT** (Asuransi Jasa Tania) — "DANA PENSIUN PERKEBUNAN" muncul 2x (beda 1 huruf: "PENSIUN" vs "PENSUN") masing-masing 77,39% → totalMajorPercent jadi **154,78%**, mustahil secara matematis.
+  - **Dikonfirmasi bug di data sumber, BUKAN di kode saya**: angka 154,78% yang sama PERSIS juga muncul di "Master Data Kepemilikan" milik user sendiri — siapa pun/proses apa pun yang membangun Master sebelumnya juga tidak menangkap duplikasi ini.
+  - Pola paling sering: **"PERUSAHAAN PERSEROAN (PERSERO) PT ASABRI" vs "...PT. ASABRI"** (cuma beda satu titik) — muncul di **17 emiten berbeda**. Juga **"BANK PAN INDONESIA TBK, PT" vs nama mereknya sendiri "Panin Bank Tbk, PT"** — di **5 emiten**.
+  - Pemindaian penuh menemukan **146 pasangan mencurigakan** (persentase & jumlah saham identik, nama beda) di seluruh dataset. Diklasifikasi jadi 3 kelompok:
+    - **57 kasus keyakinan tinggi** (52 identik setelah dibersihkan dari "PT"/"PT."/tanda baca/kapital, + 5 alias "Bank Pan Indonesia"="Panin Bank") — **diperbaiki**.
+    - **~70 kasus tidak pasti** (nama benar-benar berbeda, persentase kebetulan sama — pola keluarga/ahli waris memecah kepemilikan rata, mis. 10 nama berbeda di ticker HAIS semuanya 5,60%) — **SENGAJA TIDAK DISENTUH**, sesuai keputusan user: menggabungkan ini berisiko menyembunyikan pemegang saham yang benar-benar berbeda.
+    - Sisa kasus (termasuk ASJT sendiri, typo huruf bukan tanda baca) — tetap tidak disentuh, di luar cakupan yang disetujui.
+- **Perbaikan (`public/js/34-ksei-shareholders.js`):** `kseiCombineRawSheets()` sekarang mendeteksi & menggabungkan investor duplikat HANYA kalau (a) status+persentase+jumlah saham identik PERSIS, DAN (b) nama sama setelah dinormalisasi (strip PT/PT./Tbk/tanda baca/kapital) ATAU cocok tabel alias kecil yang sudah dikenal (`KSEI_KNOWN_INVESTOR_ALIASES`). Nama yang tergabung dicatat di `mergedAliasNames` untuk transparansi.
+- **Prevention added (`test_suite.js`):** 1 test baru dengan data sintetis mirip pola asli (ASABRI, Bank Pan Indonesia/Panin) DAN kasus keluarga (Budi Hartono/Bambang Hartono, persentase sama tapi orang beda) — membuktikan yang pertama digabung, yang kedua TETAP terpisah. Dibuktikan gagal saat logika penggabungan sengaja dirusak, lalu direstore.
+- **Live validation (data asli, 840 emiten):**
+  - Sebelum fix: 41 emiten dengan total kepemilikan+FF > 105% (indikasi dobel hitung).
+  - Sesudah fix: turun jadi 18 (23 emiten teratasi tepat sesuai 52+5 kasus yang disetujui; sisanya seperti ASJT sengaja tidak disentuh karena bukan variasi tanda baca, tapi typo huruf).
+  - Dibandingkan ulang ke "Master Data Kepemilikan" user: **57 baris sekarang SENGAJA berbeda** dari Master (persentase app lebih RENDAH & lebih benar — Master masih membawa bug dobel-hitung yang sama), 987 baris lain tetap cocok persis seperti sebelumnya.
+- Cache-bust `34-ksei-shareholders.js` → `?v=20260911d`.
+
+`npm test` (125+18+6+5+9), `npm run lint` bersih.
+
+**Catatan jujur untuk user:** ini BUKAN daftar lengkap semua "keanehan" di data KSEI — cuma kategori duplikasi investor yang bisa dideteksi dengan aman secara otomatis. Kategori lain yang saya temukan tapi TIDAK diutak-atik (sesuai instruksi): ~70 pasangan persentase-sama-nama-beda (kemungkinan besar sah, bukan bug), 43 emiten tanpa data Free Float resmi (sudah ditandai "ESTIMASI" di UI), 3 emiten dengan satu investor >99% (kemungkinan besar sah untuk anak perusahaan yang hampir sepenuhnya dimiliki). Kalau Anda mau saya tinjau kategori lain itu satu per satu, tinggal bilang.

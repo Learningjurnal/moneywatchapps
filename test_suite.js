@@ -3335,6 +3335,70 @@ test('KSEI raw-file upload: kseiParseOwnershipRaw()/kseiParseFreeFloatRaw()/ksei
   assert.strictEqual(bbbb.freeFloat, 45.0, 'no FF match -> falls back to 100 - totalMajorPercent (100-55=45), same documented estimate formula as the single-template path');
 });
 
+// TEST added 2026-09-11 (user-requested full audit — "cek kalau ada emiten
+// lain yang datanya aneh"): scanning all 840 real emiten found KSEI's raw
+// export listing the SAME beneficial owner twice under near-identical
+// name strings within one ticker (e.g. "...PT ASABRI" vs "...PT. ASABRI",
+// "BANK PAN INDONESIA TBK, PT" vs its own brand name "Panin Bank Tbk,
+// PT"), each row carrying IDENTICAL percentage/shares — summing both
+// inflated one real ticker (ASJT) to a mathematically impossible 154.78%,
+// confirmed present in the user's own hand-built reference table too (a
+// real KSEI/IDX data gap, not introduced by this parser). Fixed for the
+// two safely-identifiable cases (exact match after stripping PT/Tbk/
+// punctuation/case; or a small known brand-alias table) — deliberately
+// NOT for ~70 other same-percentage pairs found where the names are
+// genuinely different-looking (real distinct co-holders splitting a
+// stake equally, e.g. siblings/heirs) — merging those would risk hiding
+// real shareholders, worse than leaving a rare duplicate unmerged.
+test('KSEI raw-file upload: kseiCombineRawSheets() merges the SAME investor listed twice under near-identical name strings (real KSEI data quirk), but never merges two genuinely different investors that merely happen to hold an identical percentage', () => {
+  const ctx = _loadKseiRawParsers();
+  const ownershipRows = [
+    ['KEPEMILIKAN EFEK DIATAS 5% BERDASARKAN SID (PUBLIK) per tanggal 1 Sep 2026 '],
+    [],
+    ['No', 'Kode Efek', 'Nama Emiten', 'Nama Pemegang Rekening Efek', 'Nama Pemegang Saham', 'Nama Rekening Efek', 'Alamat', 'Alamat (Lanjutan)', 'Kebangsaan', 'Domisili', 'Status (Lokal/Asing)', 'Kepemilikan Per 1-SEP-2026'],
+    [null, null, null, null, null, null, null, null, null, null, null, 'Jumlah Saham', 'Saham Gabungan Per Investor', 'Persentase Kepemilikan Per Investor (%)'],
+    // Same real ASABRI pension fund, punctuation-only name variant, identical pct/shares -> must merge into ONE investor
+    [1, 'ZZZZ', 'Test Duplikat Tbk', 'Custodian X', 'PERUSAHAAN PERSEROAN (PERSERO) PT ASABRI', 'Acct A', 'x', 'x', null, 'INDONESIA', 'L', 1000000, 1000000, 20.0],
+    [2, 'ZZZZ', 'Test Duplikat Tbk', 'Custodian Y', 'PERUSAHAAN PERSEROAN (PERSERO) PT. ASABRI', 'Acct B', 'x', 'x', null, 'INDONESIA', 'L', 1000000, 1000000, 20.0],
+    // Known brand alias (legal name vs brand name), identical pct/shares -> must merge into ONE investor
+    [3, 'ZZZZ', 'Test Duplikat Tbk', 'Custodian Z', 'BANK PAN INDONESIA TBK, PT', 'Acct C', 'x', 'x', null, 'INDONESIA', 'L', 500000, 500000, 10.0],
+    [4, 'ZZZZ', 'Test Duplikat Tbk', 'Custodian W', 'Panin Bank Tbk, PT', 'Acct D', 'x', 'x', null, 'INDONESIA', 'L', 500000, 500000, 10.0],
+    // Two genuinely different heirs, coincidentally equal split -> must stay 2 SEPARATE investors
+    [5, 'ZZZZ', 'Test Duplikat Tbk', 'Custodian V', 'BUDI HARTONO', 'Acct E', 'x', 'x', null, 'INDONESIA', 'L', 300000, 300000, 5.0],
+    [6, 'ZZZZ', 'Test Duplikat Tbk', 'Custodian U', 'BAMBANG HARTONO', 'Acct F', 'x', 'x', null, 'INDONESIA', 'L', 300000, 300000, 5.0]
+  ];
+  const ffRows = [
+    [null, 'Catatan:'], [], [], [], [], [], [], [], [],
+    [null, 'No', 'Kode', 'Nama Perusahaan Tercatat', 'Papan Pencatatan (Tanpa Pemantauan Khusus)'],
+    [null, null, null, null, null, 'Kapitalisasi Pasar (Rp)', '% Saham Free Float (FF)', 'Jumlah Pemegang Saham (JPS)'],
+    [null, 1, 'OTHR', 'Unrelated Co Tbk', 'Utama', '1.000.000.000', '10,00%', '50'] // unrelated ticker, just to satisfy "at least one valid row" — ZZZZ deliberately has no FF match
+  ];
+
+  const ownershipResult = ctx.kseiParseOwnershipRaw(ownershipRows);
+  assert.strictEqual(ownershipResult.errors.length, 0, JSON.stringify(ownershipResult.errors));
+  const ffResult = ctx.kseiParseFreeFloatRaw(ffRows);
+  assert.strictEqual(ffResult.errors.length, 0, JSON.stringify(ffResult.errors));
+
+  const combined = ctx.kseiCombineRawSheets(ownershipResult, ffResult);
+  const zzzz = combined.data.ZZZZ;
+
+  assert.strictEqual(zzzz.investors.length, 4, 'REGRESSION: expected 4 investor rows (ASABRI merged, Panin merged, Budi Hartono, Bambang Hartono) — got ' + zzzz.investors.length);
+
+  const asabri = zzzz.investors.filter(inv => /ASABRI/.test(inv.name))[0];
+  assert(asabri, 'the merged ASABRI investor is missing entirely');
+  assert.strictEqual(asabri.percentage, 20.0, 'REGRESSION: ASABRI listed twice under a punctuation-only name variant must merge into ONE investor at 20%, not double-count to 40%');
+  assert.deepStrictEqual(Array.from(asabri.mergedAliasNames || []).length, 1, 'the merged duplicate name should be tracked in mergedAliasNames for transparency');
+
+  const panin = zzzz.investors.filter(inv => /Panin|Pan Indonesia/i.test(inv.name))[0];
+  assert(panin, 'the merged Panin/Bank Pan Indonesia investor is missing entirely');
+  assert.strictEqual(panin.percentage, 10.0, 'REGRESSION: Bank Pan Indonesia / Panin Bank (same bank, brand-name alias) must merge into ONE investor at 10%, not double-count to 20%');
+
+  const heirs = zzzz.investors.filter(inv => inv.name === 'BUDI HARTONO' || inv.name === 'BAMBANG HARTONO');
+  assert.strictEqual(heirs.length, 2, 'REGRESSION: two genuinely different people (coincidentally equal 5% split) must NEVER be merged just because their percentage matches — that would silently hide a real distinct shareholder');
+
+  assert.strictEqual(zzzz.totalMajorPercent, 40.0, '20 (ASABRI) + 10 (Panin) + 5 + 5 = 40, not 65 if the two duplicate pairs had gone uncaught (40+25)');
+});
+
 test('KSEI raw-file upload: kseiParseOwnershipRaw() rejects a file missing the "per tanggal" title or the "Kode Efek" header, never guesses a date/column', () => {
   const ctx = _loadKseiRawParsers();
   const noTitleDate = ctx.kseiParseOwnershipRaw([
