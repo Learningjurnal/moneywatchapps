@@ -40,7 +40,14 @@ XLSX_DATA.stocks.forEach(function(s){
   if(!FS_UNIV.find(function(u){return u.t===s.code})){
     var dbInfo = DB[s.code];
     var nama = (dbInfo && dbInfo.name) ? dbInfo.name : s.code;
-    FS_UNIV.push({t:s.code,n:nama,s:s.sector||'IHSG',cap:Math.round(s.amount/1e9)||1});
+    // FIX: fallback dulu 'IHSG' — itu nama indeks komposit, bukan sektor,
+    // jadi tampil sebagai badge sektor yang tidak masuk akal untuk saham
+    // hasil bulk-import Excel tanpa data sektor sendiri (lihat KODE →
+    // badge di halaman Watchlist/Ranking). DB[s.code].sector dicoba dulu
+    // (01-data.js sudah membackfill-nya dari _IDX_RAW_LIST kalau ada),
+    // baru jatuh ke 'Lainnya' — konvensi "sektor tidak diketahui" yang
+    // sama dipakai di 01-data.js/06-analysis-router.js/22-datahealth.js.
+    FS_UNIV.push({t:s.code,n:nama,s:s.sector||(dbInfo&&dbInfo.sector)||'Lainnya',cap:Math.round(s.amount/1e9)||1});
   }
 });
 // Untuk semua entry di FS_UNIV, update nama dari DB jika tersedia dan lebih baik
@@ -74,6 +81,17 @@ function fsP(n){if(!n||isNaN(n))return'—';return'Rp '+Math.round(n).toString()
 function fsD(d){return new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short'});}
 function fsPct(n){return(n>=0?'▲':'▼')+Math.abs(n).toFixed(2)+'%';}
 function fsScColor(s){return s>=58?'#41f3a7':s<=42?'#e21d48':'#8fa3c8';}
+// Shared fallback for a ticker not found in FS_UNIV at all — was
+// `{t:tk,n:tk,cap:0}` plus a sector field literally set to "IHSG" (the composite
+// index, not a sector) as a sector badge for these tickers on Ranking/
+// Heatmap/Watchlist. Tries DB[tk]'s own sector (already backfilled from
+// _IDX_RAW_LIST by 01-data.js when available) before falling back to
+// 'Lainnya', the "sector unknown" convention used everywhere else in
+// this app.
+function fsFallbackInfo(tk){
+  var dbSector = (typeof DB !== 'undefined' && DB[tk] && DB[tk].sector) ? DB[tk].sector : null;
+  return { t: tk, n: tk, s: dbSector || 'Lainnya', cap: 0 };
+}
 function fsMkBdg(sig,sm){
   var cls=sig==='AKUMULASI'?'b-up':sig==='DISTRIBUSI'?'b-dn':'b-neu';
   var ic=sig==='AKUMULASI'?'ti-trending-up':sig==='DISTRIBUSI'?'ti-trending-down':'ti-minus';
@@ -259,7 +277,7 @@ function fsRunAnalysis(){
   FS_G.data=data; FS_G.a=a;
   var last=a.last,prev=a.prev;
   var chg=((last.c-prev.c)/prev.c*100);
-  var info=FS_UNIV.find(function(u){return u.t===tk;})||{n:tk,s:'IHSG'};
+  var info=FS_UNIV.find(function(u){return u.t===tk;})||fsFallbackInfo(tk);
   var rec=data.slice(-20);
   var bvBuy=rec.filter(function(d){return d.sig==='ACC';}).reduce(function(s,d){return s+d.buyVol;},0);
   var bvSell=rec.filter(function(d){return d.sig==='DIST';}).reduce(function(s,d){return s+d.sellVol;},0);
@@ -324,7 +342,7 @@ function fsToogleWatchlistCurrent(){
   if(FS_WL.some(function(w){return w.t===tk;})){
     FS_WL=FS_WL.filter(function(w){return w.t!==tk;});
   } else {
-    var info=FS_UNIV.find(function(u){return u.t===tk;})||{t:tk,n:tk,s:'IHSG',cap:0};
+    var info=FS_UNIV.find(function(u){return u.t===tk;})||fsFallbackInfo(tk);
     var data=fsGenData(tk,60);var a=fsProcess(data);
     FS_WL.push(Object.assign({},info,{data:data,a:a}));
   }
@@ -732,7 +750,7 @@ function fsSyncWithPortfolio(showToast){
   portoTickers.forEach(function(tk){
     if(!tk || seen[tk]) return;
     seen[tk] = true;
-    var info = FS_UNIV.find(function(u){ return u.t===tk; }) || {t:tk, n:tk, s:'IHSG', cap:0};
+    var info = FS_UNIV.find(function(u){ return u.t===tk; }) || fsFallbackInfo(tk);
     var data = fsGenData(tk, 60);
     var a = fsProcess(data);
     newWl.push(Object.assign({}, info, {data:data, a:a}));
@@ -761,7 +779,7 @@ function fsTgWl(tk){
   if(FS_WL.some(function(w){return w.t===tk;})){
     FS_WL=FS_WL.filter(function(w){return w.t!==tk;});
   } else {
-    var info=FS_UNIV.find(function(u){return u.t===tk;})||{t:tk,n:tk,s:'IHSG',cap:0};
+    var info=FS_UNIV.find(function(u){return u.t===tk;})||fsFallbackInfo(tk);
     var data=fsGenData(tk,60);var a=fsProcess(data);
     FS_WL.push(Object.assign({},info,{data:data,a:a}));
   }
@@ -925,7 +943,7 @@ function fsInit(){
   targetTickers.forEach(function(code){
     if(!code || seenTk[code]) return;
     seenTk[code] = true;
-    var info = FS_UNIV.find(function(u){ return u.t===code; }) || {t:code, n:code, s:'IHSG', cap:0};
+    var info = FS_UNIV.find(function(u){ return u.t===code; }) || fsFallbackInfo(code);
     var data = fsGenData(code, 60);
     var a = fsProcess(data);
     FS_WL.push(Object.assign({}, info, {data:data, a:a}));

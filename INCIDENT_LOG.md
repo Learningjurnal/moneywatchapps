@@ -448,3 +448,50 @@ exceeded") once every portfolio ticker + IHSG had failed to fetch once
   `update()`/`getChart()`; this sandbox's CDN-blocked network means the
   sweep's minimal stub only had `destroy()`) and all 3 pages loaded with
   zero errors — confirmed test-stub artifacts, not application bugs.
+
+---
+
+## #10 — FlowScan showed the literal string "IHSG" as a sector badge for
+portfolio holdings with no sector data
+
+- **Date:** 2026-09-11.
+- **Found by:** the user, from a screenshot of the FlowScan Watchlist
+  table — several rows (ERAA, GGRM, CPRI, PMMP, RAJA, DEWA, MBMA, PRDL,
+  GMFI) showed "IHSG" as their sector badge, next to other rows correctly
+  showing "Konsumer"/"Tambang"/"Energi"/etc.
+- **Impact:** "IHSG" is the composite index (Indeks Harga Saham
+  Gabungan), not a sector — showing it as one is nonsensical and reads as
+  a data-sync bug (which is exactly how the user described it: "daftar
+  watchlist sectoralnya tidak sinkron"). Affected any portfolio holding
+  bulk-imported without its own sector metadata, across Ranking, Heatmap,
+  Watchlist, and the single-ticker FlowScan view — anywhere `07-flowscan.js`
+  looks up a ticker's sector.
+- **Root cause:** `public/js/07-flowscan.js` had 6 separate places
+  falling back to the sector-shaped placeholder `"IHSG"` when a ticker's
+  own `sector` field was empty — both `FS_UNIV`'s construction from
+  `XLSX_DATA.stocks` (the user's real portfolio import) and 5 duplicate
+  "ticker not found in `FS_UNIV`" fallback objects. None of them checked
+  `DB[tk].sector`, which `01-data.js` already backfills from
+  `_IDX_RAW_LIST` for real IDX tickers at script-load time — nor did any
+  of them use `'Lainnya'`, the "sector unknown" convention already
+  established everywhere else in this app (`01-data.js`,
+  `06-analysis-router.js`, `22-datahealth.js`).
+- **Fix:** `FS_UNIV`'s construction now tries `s.sector` → `DB[s.code].sector`
+  → `'Lainnya'`, in that order. The 5 duplicate fallback objects were
+  replaced with a single shared `fsFallbackInfo(tk)` helper (tries
+  `DB[tk].sector` → `'Lainnya'`) so there's one place to get this right
+  instead of five copies that can drift.
+- **Prevention added:** `test_suite.js` TEST 39 — asserts no `s:'IHSG'`
+  literal exists anywhere in the file, `fsFallbackInfo()` exists and
+  checks `DB[tk]` before falling back to `'Lainnya'`, at least 5 call
+  sites use the shared helper (not a re-typed inline fallback), and
+  `FS_UNIV`'s own construction tries `dbInfo.sector` before `'Lainnya'`.
+  Verified to actually fail (clear message) when the fix is reverted,
+  before being restored and finalized.
+- **Verification:** live Playwright — injected a portfolio ticker with no
+  sector field (as real bulk-imported holdings have) and confirmed it
+  resolves to `'Lainnya'` (not `'IHSG'`), a ticker whose `DB[]` entry has
+  a real sector resolves to that real sector, and the actual Watchlist
+  page render (`fsRenderWlPage()`, via the real `fsTgWl()` add-to-watchlist
+  function) shows the `Lainnya` badge, not `IHSG`, in the DOM. Zero page
+  errors. `npm test` (61/61 + 6/6 provider), `npm run lint` clean.
