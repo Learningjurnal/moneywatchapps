@@ -1094,15 +1094,24 @@ function renderCopilotPage() {
       + '</div>';
     }
 
+    // Bubble text colors: the CSS class .bubble-user (main.css) always
+    // renders on a solid blue background in light theme (`!important
+    // background:#2563EB`) — but that !important only affects the bubble
+    // DIV's OWN color, never a child's own explicit inline color. cb-role
+    // and cb-text below used to inherit var(--accent)/var(--text), which in
+    // light theme resolve to near-black/dark-blue — dark text on a solid
+    // blue bubble, exactly the low-contrast bug the user reported via
+    // screenshot (2026-09-11). User-bubble text is now hardcoded white,
+    // since a "Anda" bubble is blue-on-some-shade in every theme.
     return '<div class="copilot-bubble bubble-' + m.role + '" style="margin-bottom:12px;background:' + (isAssistant ? 'var(--bg2)' : 'rgba(56,189,248,0.12)') + ';border:1px solid ' + (isAssistant ? 'var(--border)' : 'rgba(56,189,248,0.3)') + ';border-radius:8px;padding:14px">'
       + '<div class="cb-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-        + '<span class="cb-role" style="font-weight:700;font-size:12px;color:' + (isAssistant ? '#38bdf8' : 'var(--accent)') + '">'
+        + '<span class="cb-role" style="font-weight:700;font-size:12px;color:' + (isAssistant ? '#38bdf8' : '#FFFFFF') + '">'
           + (isAssistant ? 'MoneyWatch Pro AI' : 'Anda')
         + '</span>'
         + (isAssistant ? '<span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:1px 6px;border-radius:4px">BEI Institutional Analyst</span>' : '')
       + '</div>'
       + toolHtml
-      + '<div class="cb-text" style="font-size:12.5px;line-height:1.6;color:var(--text)">' + formattedText + '</div>'
+      + '<div class="cb-text" style="font-size:12.5px;line-height:1.6;color:' + (isAssistant ? 'var(--text)' : '#FFFFFF') + '">' + formattedText + '</div>'
     + '</div>';
   }).join('');
 

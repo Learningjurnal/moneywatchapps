@@ -1732,24 +1732,40 @@ function generateClientSideAiAgentResponse(message, userContext) {
   var pLower = String(message || '').toLowerCase();
   var words = String(message || '').toUpperCase().split(/[^A-Z0-9]/).filter(Boolean);
 
+  // Ticker-independent intents (portfolio/AUM/cash review, strategy
+  // playbook) — checked BEFORE any ticker extraction/validity gate below.
+  // Was: the ticker-validity check ran unconditionally first, so a stray
+  // word in the message (e.g. "SAYA" in "analisa portofolio SAYA", or
+  // "KAS" in "cek KAS saya") got misread as a candidate ticker code by the
+  // possibleCode heuristic, failed the IDX-universe check, and short-
+  // circuited into a bogus "Ticker Tidak Terdaftar" error — the user's
+  // actual portfolio question never reached the porto/aum branch further
+  // down at all. Reported by the user (2026-09-11): "analisa portofolio
+  // saya" answered with "Kode ticker SAYA tidak teridentifikasi...".
+  var isPortfolioIntent = pLower.includes('porto') || pLower.includes('aum') || pLower.includes('holding') || pLower.includes('posisi') || pLower.includes('alokasi') || pLower.includes('rdn') || pLower.includes('kas');
+  var isStrategyIntent = pLower.includes('strategi') || pLower.includes('playbook') || pLower.includes('metode') || pLower.includes('resep') || pLower.includes('cara trading') || pLower.includes('aturan trading');
+  var isTickerIndependentIntent = isPortfolioIntent || isStrategyIntent;
+
   var matchedTicker = words.find(function(w) {
     return (typeof DB !== 'undefined' && DB[w]) ||
            (typeof _IDX_RAW_LIST !== 'undefined' && _IDX_RAW_LIST[w]) ||
            ((userContext && userContext.holdings) || []).some(function(h) { return h.ticker === w; });
   });
 
-  if (!matchedTicker) {
+  if (!matchedTicker && !isTickerIndependentIntent) {
     var possibleCode = words.find(function(w) {
       return w.length >= 3 && w.length <= 6 && !['DATA','STOCK','BROKER','FLOW','BUY','SELL','HELP','ASING','RITEL','PORTO','VALUASI','DIVIDEN'].includes(w);
     });
     if (possibleCode) matchedTicker = possibleCode;
-    else matchedTicker = (userContext && userContext.selectedTicker) || STOCKCHAT_SELECTED_TICKER || 'BBCA';
   }
+  if (!matchedTicker) matchedTicker = (userContext && userContext.selectedTicker) || STOCKCHAT_SELECTED_TICKER || 'BBCA';
 
   matchedTicker = matchedTicker.toUpperCase();
 
-  // STRICT ZERO DUMMY DATA CHECK FOR UNKNOWN TICKERS
-  if (typeof isValidStockTicker === 'function' && !isValidStockTicker(matchedTicker)) {
+  // STRICT ZERO DUMMY DATA CHECK FOR UNKNOWN TICKERS — skipped for intents
+  // that never need a resolved single ticker in the first place (see
+  // isTickerIndependentIntent above).
+  if (!isTickerIndependentIntent && typeof isValidStockTicker === 'function' && !isValidStockTicker(matchedTicker)) {
     return {
       reply: '### Ticker Tidak Terdaftar dalam Stock Universe IDX\n\n'
         + 'Kode ticker **' + matchedTicker + '** tidak teridentifikasi pada database pasar saham Indonesia (IDX) atau tidak memiliki riwayat transaksi riil.\n\n'
@@ -1765,7 +1781,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
 
   var reply = '';
 
-  if (pLower.includes('strategi') || pLower.includes('playbook') || pLower.includes('metode') || pLower.includes('resep') || pLower.includes('cara trading') || pLower.includes('aturan trading')) {
+  if (isStrategyIntent) {
     reply = '### Playbook Strategi Trading & Investasi (MoneyWatch Pro AI)\n\n'
       + 'Berikut adalah **5 Strategi Utama Kelas Institusi** yang tertanam dalam Knowledge Base StockChat AI:\n\n'
       + '1. **Smart Money & Bandarmology Momentum (Swing Trading)**\n'
@@ -1816,7 +1832,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
       + (bVerdict.score >= 70 ? '• Akumulasi terkonfirmasi: Pertimbangkan *Buy on Weakness* di sekitar area support/VWAP Rp ' + bData.topBuyers[0].avgPrice.toLocaleString('id-ID') + '.' : '• Tekanan distribusi: Hindari menangkap pisau jatuh. Tunggu terbentuknya base harga solid.') + '\n\n'
       + '*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan bandarmology pasar.*';
   }
-  else if (pLower.includes('porto') || pLower.includes('aum') || pLower.includes('holding') || pLower.includes('posisi') || pLower.includes('alokasi') || pLower.includes('rdn') || pLower.includes('kas')) {
+  else if (isPortfolioIntent) {
     var porto = (userContext && userContext.holdings) || (typeof getPortfolio === 'function' ? getPortfolio() : []);
     var aum = (userContext && userContext.totalAum) || (typeof computeCurrentAUM === 'function' ? computeCurrentAUM() : 0);
     var rdn = (userContext && userContext.rdnCash) || (typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0);
