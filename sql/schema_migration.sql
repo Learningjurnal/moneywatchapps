@@ -161,3 +161,58 @@ create policy "ai_paper_trading_insert_own" on public.ai_paper_trading
 drop policy if exists "ai_paper_trading_update_own" on public.ai_paper_trading;
 create policy "ai_paper_trading_update_own" on public.ai_paper_trading
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ══════════════════════════════════════════════════════════
+-- KSEI 5%+ Shareholders & Free Float — dedicated table (2026-09-11,
+-- user-requested: "apa rekomendasi anda, karena data ini harus diolah
+-- dulu, dan apabila sumber data spreadsheet hilang maka data hilang juga")
+-- ══════════════════════════════════════════════════════════
+-- Replaces TWO broken/fragile mechanisms at once:
+--   1. POST /api/ksei/sync (server.js) used to fetch a Google Sheet as CSV
+--      and fs.writeFileSync() the parsed result to data/ksei-shareholders
+--      .json — on Vercel serverless the filesystem is read-only outside
+--      /tmp, so that write ALWAYS threw EROFS in production (same failure
+--      class already fixed for /api/user-data/save — see that handler's
+--      comment). The "Update Data" button was effectively non-functional.
+--   2. Client-side kseiSaveSnapshotToFirestore()/kseiLoadFromFirestore()
+--      (34-ksei-shareholders.js) used Firebase Firestore as a THIRD copy
+--      of truth alongside localStorage and the server file — redundant
+--      now that this table is the real source of truth, and Firestore is
+--      otherwise unused for real app data since the Supabase migration.
+--
+-- New flow: user downloads/cleans data into an Excel file (unchanged —
+-- still their manual judgment work, IDX's raw export needs it), uploads
+-- the .xlsx directly in the KSEI Explorer (parsed client-side with the
+-- SheetJS `XLSX` library already loaded for the Admin Panel's stock-
+-- universe import, header-name-based + explicitly validated — see
+-- kseiParseWorkbook() in 34-ksei-shareholders.js), and the parsed result
+-- is upserted here. Answers the "kalau sheet hilang" worry structurally:
+-- once uploaded, the data lives here independent of the source file/
+-- sheet's continued existence — only the NEXT re-upload needs a working
+-- source, never the data already stored.
+--
+-- Dedicated table (not the user_data blob saveData() uses), same
+-- isolation rationale as ai_paper_trading above: KSEI data is large
+-- (840+ emiten) and changes rarely (per KSEI's own periodic report
+-- cadence), so it must not ride along on every save of frequently-
+-- changing personal transaction data.
+create table if not exists public.ksei_ownership (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  metadata jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.ksei_ownership enable row level security;
+
+drop policy if exists "ksei_ownership_select_own" on public.ksei_ownership;
+create policy "ksei_ownership_select_own" on public.ksei_ownership
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "ksei_ownership_insert_own" on public.ksei_ownership;
+create policy "ksei_ownership_insert_own" on public.ksei_ownership
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "ksei_ownership_update_own" on public.ksei_ownership;
+create policy "ksei_ownership_update_own" on public.ksei_ownership
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);

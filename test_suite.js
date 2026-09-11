@@ -3215,6 +3215,145 @@ test("REGRESSION GUARD: _adaptRealSignal() must preserve the raw technicalScore/
   assert.strictEqual(adapted.moneyFlowScore, 82, 'REGRESSION: moneyFlowScore (pre-existing UI field) broke');
 });
 
+// ── TEST 92-96: KSEI Excel-upload pipeline (public/js/34-ksei-
+// shareholders.js) — replaces the old Google-Sheets-fetch + server
+// fs.writeFileSync() mechanism (removed: it always threw EROFS on
+// Vercel's read-only production filesystem — same failure class as the
+// /api/user-data/save incident, see server.js). User-requested
+// (2026-09-11): "data ini harus diolah dulu, dan apabila sumber data
+// spreadsheet hilang maka data hilang juga". kseiParseWorkbook() is a
+// pure function (no DOM/XLSX-global dependency — it takes the row-object
+// array XLSX.utils.sheet_to_json() would have already produced), so it's
+// extracted into the vm sandbox on its own, same technique as TEST 73's
+// getKseiStock() extraction just below it in the real file.
+function _loadKseiParseWorkbook() {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/34-ksei-shareholders.js'), 'utf8');
+  const startMarker = 'var KSEI_TEMPLATE_REQUIRED_COLUMNS';
+  const endMarker = '\nfunction kseiImportExcelFile(';
+  const start = fullSrc.indexOf(startMarker);
+  const end = fullSrc.indexOf(endMarker);
+  assert(start !== -1, 'sanity: KSEI_TEMPLATE_REQUIRED_COLUMNS not found — has the upload pipeline moved/been renamed?');
+  assert(end !== -1 && end > start, 'sanity: could not find the boundary right after kseiParseWorkbook() (kseiImportExcelFile) — extraction range may need updating');
+  const src = fullSrc.slice(start, end);
+
+  const sandbox = { window: {} };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '34-ksei-shareholders.js kseiParseWorkbook() (sandboxed load for test)' });
+  assert.strictEqual(typeof ctx.kseiParseWorkbook, 'function', 'kseiParseWorkbook not exposed on the sandbox context');
+  return ctx.kseiParseWorkbook;
+}
+
+test('KSEI upload template: kseiParseWorkbook() correctly groups rows into per-ticker records, computing free float/local/foreign splits and merging repeated-investor rows into one investor with multiple custodian accounts', () => {
+  const kseiParseWorkbook = _loadKseiParseWorkbook();
+  const rows = [
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'Bank Central Asia Tbk', 'Nama Investor': 'Anthoni Salim', 'Status': 'Lokal', 'Domisili': 'INDONESIA', 'Persentase (%)': 5.13, 'Jumlah Saham': 1250000000, 'Perubahan Saham': -50000, 'Nama Kustodian': '', 'Nama Akun Kustodian': '', 'Saham di Kustodian Ini': '', 'Tanggal Laporan': '26 Aug 2026' },
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'Bank Central Asia Tbk', 'Nama Investor': 'Robert Budi Hartono', 'Status': 'Lokal', 'Domisili': 'INDONESIA', 'Persentase (%)': 25.9, 'Jumlah Saham': 6300000000, 'Perubahan Saham': 0, 'Nama Kustodian': 'Bank Kustodian A', 'Nama Akun Kustodian': 'PT Djarum QQ', 'Saham di Kustodian Ini': 3150000000, 'Tanggal Laporan': '26 Aug 2026' },
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'Bank Central Asia Tbk', 'Nama Investor': 'Robert Budi Hartono', 'Status': 'Lokal', 'Domisili': 'INDONESIA', 'Persentase (%)': 25.9, 'Jumlah Saham': 6300000000, 'Perubahan Saham': 0, 'Nama Kustodian': 'Bank Kustodian B', 'Nama Akun Kustodian': 'PT Djarum QQ 2', 'Saham di Kustodian Ini': 3150000000, 'Tanggal Laporan': '26 Aug 2026' },
+    { 'Ticker': 'TLKM', 'Nama Emiten': 'Telkom Indonesia Tbk', 'Nama Investor': 'Vanguard Total International Stock Index Fund', 'Status': 'Asing', 'Domisili': 'AMERIKA SERIKAT', 'Persentase (%)': 5.02, 'Jumlah Saham': 5120000000, 'Perubahan Saham': 120000, 'Nama Kustodian': 'Citibank NA S/A', 'Nama Akun Kustodian': 'Vanguard Custodian Account', 'Saham di Kustodian Ini': 5120000000, 'Tanggal Laporan': '26 Aug 2026' }
+  ];
+
+  const result = kseiParseWorkbook(rows);
+  // .length check, not deepStrictEqual(result.errors, []) — result.errors
+  // is an array constructed inside the vm sandbox's own realm, which
+  // deepStrictEqual treats as unequal to a main-realm [] literal even when
+  // both are empty (different Array.prototype per realm; see test_suite.js's
+  // other vm-sandboxed tests for the same documented gotcha).
+  assert.strictEqual(result.errors.length, 0, 'a well-formed template must produce zero validation errors, got: ' + JSON.stringify(result.errors));
+  assert(result.data, 'result.data must not be null on success');
+
+  const bbca = result.data.BBCA;
+  assert.strictEqual(bbca.investors.length, 2, 'REGRESSION: two rows for the same investor (Robert Budi Hartono, two custodians) must merge into ONE investor entry, not two duplicate holdings');
+  const rbh = bbca.investors.filter(inv => inv.name === 'Robert Budi Hartono')[0];
+  assert.strictEqual(rbh.accounts.length, 2, 'REGRESSION: the two custodian rows must both land in accounts[], not overwrite each other');
+  assert.strictEqual(rbh.accounts[0].custodian, 'Bank Kustodian A');
+  assert.strictEqual(rbh.accounts[1].custodian, 'Bank Kustodian B');
+
+  assert.strictEqual(bbca.totalMajorPercent, 31.03, 'totalMajorPercent must sum every investor exactly once (5.13 + 25.9)');
+  assert.strictEqual(bbca.freeFloat, 68.97, 'freeFloat must be 100 - totalMajorPercent');
+  assert.strictEqual(bbca.localPercent, 31.03, 'BBCA has only Lokal investors here');
+  assert.strictEqual(bbca.foreignPercent, 0);
+
+  const tlkm = result.data.TLKM;
+  assert.strictEqual(tlkm.foreignPercent, 5.02, 'REGRESSION: an "Asing" status investor must count toward foreignPercent, not localPercent');
+  assert.strictEqual(tlkm.localPercent, 0);
+
+  assert.strictEqual(result.metadata.totalEmiten, 2);
+  assert.strictEqual(result.metadata.reportDate, '26 Aug 2026');
+  assert.strictEqual(result.metadata.source, 'upload', 'REGRESSION: a successful upload must be tagged source:"upload", distinguishing it from the bundled default snapshot in the UI');
+});
+
+test('KSEI upload template: kseiParseWorkbook() rejects the whole file when a required column is missing, never partially imports', () => {
+  const kseiParseWorkbook = _loadKseiParseWorkbook();
+  const rows = [
+    // Missing "Tanggal Laporan" entirely
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'Bank Central Asia Tbk', 'Nama Investor': 'Anthoni Salim', 'Status': 'Lokal', 'Persentase (%)': 5.13, 'Jumlah Saham': 1250000000 }
+  ];
+  const result = kseiParseWorkbook(rows);
+  assert.strictEqual(result.data, null, 'a file missing a required column must not produce any data');
+  assert(result.errors.length > 0);
+  assert(/Tanggal Laporan/.test(result.errors[0]), 'the error must name the specific missing column, not a generic failure');
+});
+
+test('KSEI upload template: kseiParseWorkbook() rejects a row with an invalid Status/Ticker/Persentase with a row-numbered reason, never silently drops or guesses', () => {
+  const kseiParseWorkbook = _loadKseiParseWorkbook();
+  const badStatusRows = [
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'Bank Central Asia Tbk', 'Nama Investor': 'Anthoni Salim', 'Status': 'Warga Negara Asing', 'Persentase (%)': 5.13, 'Jumlah Saham': 1250000000, 'Tanggal Laporan': '26 Aug 2026' }
+  ];
+  const r1 = kseiParseWorkbook(badStatusRows);
+  assert.strictEqual(r1.data, null);
+  assert(/Baris 2/.test(r1.errors[0]), 'REGRESSION: the error must cite the actual row number (row 2 = first data row after the header) so the user can find and fix it');
+  assert(/Status/.test(r1.errors[0]));
+
+  const badTickerRows = [
+    { 'Ticker': 'TOOLONGTICKER', 'Nama Emiten': 'X', 'Nama Investor': 'Y', 'Status': 'Lokal', 'Persentase (%)': 5, 'Jumlah Saham': 100, 'Tanggal Laporan': '26 Aug 2026' }
+  ];
+  const r2 = kseiParseWorkbook(badTickerRows);
+  assert.strictEqual(r2.data, null);
+  assert(/Ticker/.test(r2.errors[0]));
+
+  const badPctRows = [
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'X', 'Nama Investor': 'Y', 'Status': 'Lokal', 'Persentase (%)': 'lima persen', 'Jumlah Saham': 100, 'Tanggal Laporan': '26 Aug 2026' }
+  ];
+  const r3 = kseiParseWorkbook(badPctRows);
+  assert.strictEqual(r3.data, null, 'REGRESSION: a non-numeric Persentase (%) must be rejected, never silently coerced to 0 or NaN and imported anyway');
+});
+
+test('KSEI upload template: kseiParseWorkbook() rejects a file whose "Tanggal Laporan" is inconsistent across rows', () => {
+  const kseiParseWorkbook = _loadKseiParseWorkbook();
+  const rows = [
+    { 'Ticker': 'BBCA', 'Nama Emiten': 'X', 'Nama Investor': 'A', 'Status': 'Lokal', 'Persentase (%)': 5, 'Jumlah Saham': 100, 'Tanggal Laporan': '26 Aug 2026' },
+    { 'Ticker': 'TLKM', 'Nama Emiten': 'Y', 'Nama Investor': 'B', 'Status': 'Lokal', 'Persentase (%)': 6, 'Jumlah Saham': 200, 'Tanggal Laporan': '25 Aug 2026' }
+  ];
+  const result = kseiParseWorkbook(rows);
+  assert.strictEqual(result.data, null, 'REGRESSION: mixing two different report dates in one file must be rejected, not silently take the first/last one');
+  assert(/Tanggal Laporan/.test(result.errors[0]));
+});
+
+// ── TEST 97: REGRESSION GUARD — the old Google-Sheets-fetch + Firebase
+// Firestore KSEI mechanism (POST /api/ksei/sync, parseKseiCsv(),
+// kseiSyncFromSheets(), kseiSaveSnapshotToFirestore()/kseiLoadFromFirestore())
+// must stay removed. Its server-side write always threw EROFS on Vercel
+// (read-only production filesystem outside /tmp) — reintroducing any part
+// of it would silently reopen that same non-functional "Update Data"
+// button. The GET-only /api/ksei/data|stock|summary endpoints (serving
+// the bundled default snapshot, no write involved) must remain.
+test('REGRESSION GUARD: the old Google-Sheets-sync + Firestore KSEI mechanism must stay removed; the bundled-default GET endpoints must remain', () => {
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(!/app\.post\(['"]\/api\/ksei\/sync['"]/.test(serverSrc), 'REGRESSION: POST /api/ksei/sync is back — it always threw EROFS on Vercel production (read-only filesystem outside /tmp)');
+  assert(!/function parseKseiCsv/.test(serverSrc), 'REGRESSION: parseKseiCsv() (fragile positional-column CSV parser) is back');
+  assert(/app\.get\(['"]\/api\/ksei\/data['"]/.test(serverSrc), 'GET /api/ksei/data (bundled default snapshot, read-only) must still exist');
+
+  const kseiClientSrc = fs.readFileSync(path.join(__dirname, 'public/js/34-ksei-shareholders.js'), 'utf8');
+  assert(!/function kseiSyncFromSheets/.test(kseiClientSrc), 'REGRESSION: kseiSyncFromSheets() is back');
+  assert(!/function kseiSaveSnapshotToFirestore/.test(kseiClientSrc), 'REGRESSION: kseiSaveSnapshotToFirestore() is back — Firestore must not become a third copy of truth again');
+  assert(!/function kseiLoadFromFirestore/.test(kseiClientSrc), 'REGRESSION: kseiLoadFromFirestore() is back');
+  assert(/function kseiImportExcelFile/.test(kseiClientSrc), 'kseiImportExcelFile() (the Excel-upload entry point) must exist');
+  assert(/function kseiParseWorkbook/.test(kseiClientSrc), 'kseiParseWorkbook() must exist');
+  assert(/scheduleKseiCloudSync\(\)/.test(kseiClientSrc), "REGRESSION: kseiImportExcelFile() no longer calls scheduleKseiCloudSync() — an upload would only persist to localStorage, silently losing durability across devices/browsers");
+  assert(/client\.from\(['"]ksei_ownership['"]\)/.test(kseiClientSrc), 'REGRESSION: the dedicated public.ksei_ownership Supabase table wiring is gone');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
