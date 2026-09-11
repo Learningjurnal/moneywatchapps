@@ -1424,6 +1424,31 @@ test('REGRESSION GUARD: Crypto/ETF/Reksa Dana transaction tables\' action column
     'REGRESSION: the Reksa Dana row\'s action-icons <td> lost its tbl-sticky-right class');
 });
 
+// ── TEST 51: uppercase all-caps table headers/labels must never have
+// zero letter-spacing (found via deep-dive review, 2026-09-11, not a
+// user-reported bug). A full inventory of every `text-transform:
+// uppercase` rule in main.css found 19 rules; 17 already carry a
+// deliberate letter-spacing value in a fairly tight, reasonable range
+// (0.03em-0.08em / 0.5px) — contradicting the broader claim that
+// tracking was rampantly inconsistent app-wide. Only two rules had
+// genuinely NO letter-spacing at all: `.sm-table th` (a real, visible
+// table — "Metrik Risiko Fundamental" in the Quantitative Red Flag
+// Detector, Fundamental page) and `.rmc-verdict` (currently unused
+// dead CSS, fixed anyway so it doesn't regress silently if reactivated).
+test('REGRESSION GUARD: .sm-table th and .rmc-verdict must keep letter-spacing, matching every other uppercase label in main.css', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+
+  const smTableMatch = css.match(/\.sm-table th\s*\{[^}]*\}/);
+  assert(smTableMatch, 'REGRESSION: ".sm-table th {...}" rule not found in main.css — has it been renamed/removed?');
+  assert(/letter-spacing:/.test(smTableMatch[0]),
+    'REGRESSION: .sm-table th lost its letter-spacing again — this is the "Metrik Risiko Fundamental" table header on the Fundamental page, and every other uppercase table header (.tbl th) in the app uses letter-spacing:0.06em');
+
+  const rmcMatch = css.match(/\.rmc-verdict\s*\{[^}]*\}/);
+  assert(rmcMatch, 'REGRESSION: ".rmc-verdict {...}" rule not found in main.css — has it been renamed/removed?');
+  assert(/letter-spacing:/.test(rmcMatch[0]),
+    'REGRESSION: .rmc-verdict lost its letter-spacing again');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
