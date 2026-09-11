@@ -1375,3 +1375,43 @@ Follow-up to the sessions above.
   Screenshot sent to user.
 
 `npm test` (84/84 + 16/16 policy + 6/6 provider), `npm run lint` clean.
+
+## 2026-09-11 — Scanner Akumulasi & Distribusi: cache client-side per timeframe (Invezgo quota audit)
+
+- **Konteks:** saat menganalisis kebutuhan kuota Invezgo bersama user untuk
+  memilih paket berlangganan, ditemukan bahwa `loadAccumulationDistributionData()`
+  (Scanner Akumulasi & Distribusi, Opportunity Radar) sama sekali **tidak
+  punya cache sisi-klien** — beda dengan `loadOpportunityRadarUniverse()`
+  yang sudah punya cache 60 detik. Setiap klik tombol timeframe (1D/3D/5D/
+  20D), atau membuka ulang tab Scanner/Anomaly, langsung menembak
+  `/api/idx/accumulation-distribution` lagi walau baru saja dimuat.
+- **Dampak:** endpoint ini memicu hingga 45 panggilan `generateBrokerSummary()`
+  (LQ45) di server, masing-masing berpotensi memakai 1 unit kuota Invezgo
+  (`fetchInvezgoBrokerSummary`) kalau cache server-side (Redis, TTL 300
+  detik) sudah kedaluwarsa — jadi navigasi bolak-balik antar timeframe
+  atau tab bisa memicu pemborosan permintaan HTTP yang sebenarnya tidak
+  perlu.
+- **Catatan tambahan (bukan bagian dari fix ini, dilaporkan ke user
+  terpisah):** `generateBrokerSummary()` ternyata SELALU memakai
+  `fromDate=toDate=hari-ini` ke Invezgo terlepas dari parameter
+  `timeframe` yang dikirim — jadi 1D/3D/5D/20D saat ini secara teknis
+  mengembalikan data Invezgo yang identik untuk hari yang sama. Ini bug
+  terpisah di luar scope permintaan cache client-side dan belum diperbaiki
+  di sini.
+- **Fix:** `RADAR_STATE.accDataCache` (per-timeframe, TTL 5 menit — selaras
+  dengan TTL cache server-side `INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC`,
+  supaya klien tidak pernah bertanya ulang lebih cepat dari yang bisa
+  dijawab lebih segar oleh cache server sendiri). `loadAccumulationDistributionData(tf, force)`
+  sekarang cache-first; parameter `force` (opsional, default false) dipakai
+  HANYA oleh dua tombol "Refresh"/"Refresh Feed" eksplisit yang memang
+  harus melewati cache.
+- **Prevention added:** `test_suite.js` TEST 62 — memastikan cache store,
+  pengecekan TTL, dan parameter `force` semuanya ada, serta kedua tombol
+  Refresh tetap mengirim `force:true`. Terbukti gagal saat fix di-revert
+  sebelum dikembalikan.
+- **Verifikasi:** live Playwright — memanggil timeframe yang sama 2x
+  berturut-turut hanya memicu 1 network request (cache hit terbukti),
+  memanggil timeframe berbeda memicu request baru (cache key benar per
+  timeframe), dan `force:true` berhasil melewati cache.
+
+`npm test` (85/85 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.

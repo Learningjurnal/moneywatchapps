@@ -1670,6 +1670,40 @@ test('REGRESSION GUARD: persistent Win Rate banner must render on every AI Tradi
     'REGRESSION: the banner no longer links through to the AI Paper Portfolio tab for full detail');
 });
 
+// ── TEST 62: Scanner Akumulasi & Distribusi (Opportunity Radar) must
+// cache client-side per timeframe before re-hitting
+// /api/idx/accumulation-distribution — found during an Invezgo quota
+// audit (user request 2026-09-11): this scanner fires up to 45 Invezgo
+// calls per fetch (LQ45 universe), yet had ZERO client-side cache, unlike
+// loadOpportunityRadarUniverse's 60s check just above it — every
+// timeframe-button click (or re-opening the tab) re-triggered a full
+// scan even seconds after the last identical one. Fixed with a
+// per-timeframe cache (TTL matches invezgo-client.js's own 5-minute
+// server-side cache, so nothing sooner than that would ever return
+// fresher data anyway), bypassed only by the two explicit "Refresh"
+// buttons.
+test('REGRESSION GUARD: Scanner Akumulasi & Distribusi must cache client-side per timeframe, bypassed only by explicit Refresh', () => {
+  const ccJs = fs.readFileSync(path.join(__dirname, 'public/js/26-commandcenter.js'), 'utf8');
+
+  assert(/accDataCache\s*:\s*\{\}/.test(ccJs),
+    'REGRESSION: RADAR_STATE.accDataCache cache store is gone from 26-commandcenter.js');
+  assert(/function loadAccumulationDistributionData\(tf,\s*force\)/.test(ccJs),
+    'REGRESSION: loadAccumulationDistributionData() no longer accepts a `force` parameter to bypass the cache');
+
+  const fnStart = ccJs.indexOf('async function loadAccumulationDistributionData(tf, force)');
+  assert(fnStart !== -1, 'sanity: loadAccumulationDistributionData() not found');
+  const fnBody = ccJs.slice(fnStart, fnStart + 900);
+  assert(/if \(!force && cached/.test(fnBody),
+    'REGRESSION: the function no longer checks the per-timeframe cache before fetching — every call would hit the network again');
+  assert(/ACC_DIST_CACHE_TTL_MS/.test(fnBody),
+    'REGRESSION: the cache TTL check is gone from loadAccumulationDistributionData()');
+
+  // The two explicit "Refresh" buttons must still pass force:true, or the
+  // fix above would make manual refresh silently no-op against stale cache.
+  assert(/loadAccumulationDistributionData\(RADAR_STATE\.accTimeframe,\s*true\)/.test(ccJs),
+    'REGRESSION: no caller passes force:true anymore — the explicit "Refresh"/"Refresh Feed" buttons would be stuck showing cached data');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
