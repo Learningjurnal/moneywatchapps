@@ -1129,6 +1129,97 @@ test('REGRESSION GUARD: sidebar collapse button CSS must stay scoped so .side-na
     'REGRESSION: .side-toolbar .side-collapse-btn scoped rule is missing — a bare .side-collapse-btn selector has LOWER specificity than .side-nav button (which sets width:100%) and would be overridden by it again, stretching this icon button and squeezing the search input next to it (see INCIDENT_LOG.md)');
 });
 
+// ── TEST 42: TradeWave "Wave Scanner" tab must render before the
+// single-ticker validity gate (found by the user, 2026-09-11) — Tab 2
+// (Wave Scanner) scans its own multi-ticker universe and never depends on
+// TW_STATE.ticker's own analysis, but renderTradeWavePage() used to run
+// the `if (!data || data.isValid === false)` TICKER INVALID gate
+// unconditionally before checking which tab was active. Whenever the
+// currently-selected ticker had no valid analysis (e.g. <65 days of
+// cached OHLCV — a real, reachable state, not just an unregistered
+// ticker), clicking "Wave Scanner" correctly switched TW_STATE.activeTab
+// to 2 and highlighted the button, but the page kept showing the
+// single-ticker error card instead of the scanner — looking exactly like
+// the button "does nothing".
+test('REGRESSION GUARD: TradeWave Wave Scanner (tab 2) must render before the single-ticker TICKER INVALID gate', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
+  const fn = src.match(/function renderTradeWavePage\(\) \{[\s\S]*?\n  \}\n/);
+  assert(fn, 'renderTradeWavePage() body not found — has it been renamed/removed?');
+  const body = fn[0];
+  // NOTE: "TW_STATE.activeTab === 2" also appears earlier in this function
+  // inside the Wave Scanner *button*'s active-highlight style — that's not
+  // the routing branch, so match the specific `if (...) { ... return; }`
+  // dispatch statement instead of the bare substring.
+  const tab2Match = body.match(/if\s*\(\s*TW_STATE\.activeTab\s*===\s*2\s*\)\s*\{[\s\S]*?return;\s*\}/);
+  const gateIdx = body.indexOf('data.isValid === false');
+  assert(tab2Match, 'REGRESSION: no early-return `if (TW_STATE.activeTab === 2) {...return;}` dispatch found in renderTradeWavePage()');
+  const tab2Idx = body.indexOf(tab2Match[0]);
+  assert(gateIdx !== -1, 'REGRESSION: no data.isValid === false gate found in renderTradeWavePage()');
+  assert(tab2Idx < gateIdx,
+    'REGRESSION: the TICKER INVALID gate runs before the Wave Scanner (tab 2) check again — Wave Scanner will show the single-ticker error card instead of scanning whenever the currently-selected ticker\'s own analysis is invalid, even though Tab 2 never reads that data (see INCIDENT_LOG.md)');
+});
+
+// ── TEST 43: Bandarmology Smart Money Flow chart grid must fit 2 charts
+// per row, not 4 (found by the user via screenshot, 2026-09-11) — the
+// 4-chart "INTERACTIVE REAL-TIME CHART SUITE" used
+// minmax(320px,1fr) with auto-fit, which packed all 4 charts into one row
+// on a typical desktop-width container, squeezing each one too small to
+// read.
+// ── TEST 42b: Wave Scanner (renderTab2WaveScanner) must not crash when
+// twAnalyzeWave() returns an invalid entry (found while verifying TEST 42,
+// 2026-09-11) — twAnalyzeWave() returns a minimal {isValid:false, ticker,
+// error} shape (no changePct/waveScore/superTrend/flow/targets) whenever a
+// ticker has no 65-day OHLCV cached yet, a real reachable state for any
+// ticker whose background fetch hasn't landed. The row-rendering loop used
+// to read those fields unconditionally (e.g. `row.changePct.toFixed(2)`),
+// throwing a TypeError and aborting the ENTIRE scanner render the moment a
+// single ticker in TW_UNIVERSE was still invalid — which is exactly what
+// made the Wave Scanner tab look totally unresponsive after fixing the
+// render-order bug in TEST 42 alone.
+test('REGRESSION GUARD: renderTab2WaveScanner() must filter out isValid:false entries before rendering row fields', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
+  const fnStart = src.indexOf('function renderTab2WaveScanner()');
+  assert(fnStart !== -1, 'renderTab2WaveScanner() not found — has it been renamed/removed?');
+  const fnEnd = src.indexOf('\n  function renderTab3RiskPlanner', fnStart);
+  assert(fnEnd !== -1, 'could not find the end of renderTab2WaveScanner() (renderTab3RiskPlanner marker missing)');
+  const body = src.slice(fnStart, fnEnd);
+  assert(/isValid\s*!==\s*false/.test(body),
+    'REGRESSION: renderTab2WaveScanner() no longer filters out {isValid:false} entries — a single ticker in TW_UNIVERSE with no cached OHLCV yet will throw (e.g. undefined.toFixed()) and silently abort the whole scanner render');
+});
+
+test('REGRESSION GUARD: Bandarmology Smart Money Flow chart grid must use a 2-per-row minmax, not the old cramped 320px one', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnStart = src.indexOf('function renderBandarmologySmartMoneyFlowView');
+  assert(fnStart !== -1, 'renderBandarmologySmartMoneyFlowView() not found — has it been renamed/removed?');
+  // scope to this function only — other grids elsewhere in this file
+  // legitimately use minmax(320px,1fr) for unrelated card layouts.
+  const body = src.slice(fnStart, fnStart + 15000);
+  assert(!/grid-template-columns:repeat\(auto-fit,\s*minmax\(320px,\s*1fr\)\)/.test(body),
+    'REGRESSION: the Smart Money Flow chart grid is back to minmax(320px,1fr), which fits all 4 charts in a single cramped row on desktop widths');
+  assert(/grid-template-columns:repeat\(auto-fit,\s*minmax\(480px,\s*1fr\)\)/.test(body),
+    'the Smart Money Flow chart grid no longer uses minmax(480px,1fr) — that value is what fits exactly 2 charts per row (2x2 layout) at normal desktop/laptop widths');
+});
+
+// ── TEST 44: Portfolio Allocation donut legend color swatches must
+// survive light theme (found by the user, 2026-09-11: "pada tema terang
+// alokasi porotoflio legend tidak ada indikator warna"). Two overlapping
+// CSS rules exist for "body.theme-light #porto-donut-legend div": one
+// correctly scoped to `> div` (direct children — the row containers),
+// and a duplicate using a plain descendant selector with no `>`, which
+// also matches the tiny 10x10 color-swatch <div> nested inside each row
+// and forces it to a flat #F8FAFC background with !important — erasing
+// every row's distinct sector/asset-class color regardless of its own
+// inline `background:<color>`, since author-stylesheet !important always
+// outranks a plain inline style.
+test('REGRESSION GUARD: light-theme CSS for #porto-donut-legend must not force-override the nested color swatch', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  const bareDescendantRule = /body\.theme-light\s+#porto-donut-legend\s+div\s*\{/;
+  assert(!bareDescendantRule.test(css),
+    'REGRESSION: "body.theme-light #porto-donut-legend div {...}" (a bare descendant selector, no ">") is back — it also matches the color-swatch <div> nested inside each legend row and !important-overrides its inline color, wiping out every color indicator in light theme');
+  assert(/body\.theme-light\s+#porto-donut-legend\s*>\s*div\s*\{/.test(css),
+    'the correctly scoped "body.theme-light #porto-donut-legend > div {...}" (direct children only) rule is missing');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

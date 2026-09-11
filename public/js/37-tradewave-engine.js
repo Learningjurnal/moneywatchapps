@@ -515,6 +515,25 @@
       + '</div>';
 
     // ── ACTIVE TAB RENDERING ──
+    // FIX: Wave Scanner (tab 2) scans its own multi-ticker universe — it
+    // never reads `data` (the single currently-selected ticker's wave
+    // analysis) at all (see renderTab2WaveScanner(), called with no args).
+    // But the invalid-ticker gate right below used to run unconditionally
+    // before this tab check, so whenever TW_STATE.ticker's own analysis
+    // was invalid (e.g. a ticker with no 65-day OHLCV cached yet — a real,
+    // reachable state, not just an unregistered ticker despite the error
+    // card's "TICKER INVALID" heading), clicking "Wave Scanner" correctly
+    // switched TW_STATE.activeTab to 2 and highlighted the button, but the
+    // page kept showing that same single-ticker error card instead of the
+    // scanner — looking exactly like the button "does nothing" (reported
+    // by the user). Tab 2 is now rendered before that gate is even
+    // reached, since it has no dependency on it.
+    if (TW_STATE.activeTab === 2) {
+      html += renderTab2WaveScanner();
+      c.innerHTML = html;
+      return;
+    }
+
     if (!data || data.isValid === false) {
       var unkTk = (data && data.ticker) || ticker || 'UNKNOWN';
       var errMsg = (data && data.error) || 'Ticker "' + unkTk + '" tidak terdaftar dalam Stock Universe IDX atau Yahoo Finance.';
@@ -542,11 +561,11 @@
 
     if (TW_STATE.activeTab === 1) {
       html += renderTab1WaveCockpit(data);
-    } else if (TW_STATE.activeTab === 2) {
-      html += renderTab2WaveScanner();
     } else if (TW_STATE.activeTab === 3) {
       html += renderTab3RiskPlanner(data);
     }
+    // NOTE: activeTab === 2 (Wave Scanner) is handled and returned earlier
+    // above, before the single-ticker validity gate — it never reaches here.
 
     c.innerHTML = html;
 
@@ -667,6 +686,20 @@
       return twAnalyzeWave(item.code);
     });
 
+    // FIX: twAnalyzeWave() returns a minimal { isValid:false, ticker, error }
+    // shape (no changePct/waveScore/superTrend/flow/targets) whenever a
+    // ticker has no 65-day OHLCV cached yet (a real, reachable state for
+    // any ticker whose background fetch hasn't landed, not just a sandbox
+    // artifact). The row-rendering loop below reads those fields
+    // unconditionally (e.g. `chg.toFixed(2)`), so a single invalid entry
+    // in TW_UNIVERSE used to throw and abort this entire render — making
+    // the whole "Wave Scanner" tab appear completely unresponsive even
+    // though its button click handler ran correctly. Drop invalid entries
+    // here instead of crashing on them; the existing "no rows" empty state
+    // below already covers the case where none are valid yet.
+    list = list.filter(function(x) { return x.isValid !== false; });
+    var validCount = list.length;
+
     if (TW_STATE.filterWave !== 'all') {
       list = list.filter(function(x) {
         return x.wavePhase === TW_STATE.filterWave;
@@ -720,7 +753,10 @@
       + '      <tbody>';
 
     if (!list.length) {
-      html += '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">Tidak ada emiten yang cocok dengan filter fase wave saat ini.</td></tr>';
+      var emptyMsg = validCount === 0
+        ? 'Data harga/candle real-time belum tersedia untuk emiten dalam universe scan. Sedang menyinkronkan data pasar...'
+        : 'Tidak ada emiten yang cocok dengan filter fase wave saat ini.';
+      html += '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">' + emptyMsg + '</td></tr>';
     } else {
       list.forEach(function(row) {
         var chg = row.changePct;

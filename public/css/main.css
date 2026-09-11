@@ -4819,8 +4819,18 @@ body.theme-light div[style*="#8070d233"] button {
   background: #FFFFFF !important;
 }
 
-/* ── PORTOFOLIO DONUT CHART & LEGEND ── */
-body.theme-light #porto-donut-legend div {
+/* ── PORTOFOLIO DONUT CHART & LEGEND ──
+   FIX (2026-09-11, user report: "legend tidak ada indikator warna" in
+   light theme): this rule used a plain descendant selector (`div`, no
+   `>`), so besides the intended legend ROW container it also matched the
+   tiny 10x10 color-swatch <div> nested inside each row (see
+   04-render.js renderPortofolio()) — forcing every swatch to the same
+   #F8FAFC row background regardless of its own inline sector/asset-class
+   color, so the legend showed no color cue at all in light theme. Scoped
+   to `> div` (direct children only, matching the identical, correctly
+   scoped rule already above at "Donut Chart Legend in Portfolio") so it
+   no longer reaches into the swatch. */
+body.theme-light #porto-donut-legend > div {
   background: #F8FAFC !important;
   border: 1px solid #E2E8F0 !important;
 }
