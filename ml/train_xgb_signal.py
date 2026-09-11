@@ -61,8 +61,30 @@ TICKERS = [
 ]
 PERIOD = "5y"            # rentang data historis
 TEST_FRACTION = 0.2       # 20% terakhir (per ticker, berurutan waktu) untuk test
-BUY_THRESHOLD = 0.60      # probabilitas minimum untuk sinyal BUY di app
-SELL_THRESHOLD = 0.35     # probabilitas di bawah ini -> sinyal SELL/exit
+
+# THRESHOLD BUY/SELL: dikalibrasi dari PERSENTIL distribusi probabilitas
+# model itu sendiri di test set, BUKAN lagi angka absolut tetap (0.60/0.35).
+#
+# Kenapa: retrain 2026-09-11 dengan label SL/TP-aware (lihat
+# compute_sl_tp_label() di bawah) menghasilkan model dengan recall kelas
+# BUY cuma 3.1% pada threshold default 0.5 -- artinya probabilitas
+# prediksi model nyaris TIDAK PERNAH menembus 0.60, dan backtest user
+# menghasilkan 0 sinyal sepanjang 2 tahun untuk BBCA. Target SL/TP-aware
+# ini jauh lebih sulit ditebak daripada target arah-harga sederhana
+# sebelumnya, jadi skala probabilitas mentah model tidak lagi berarti
+# "60% = yakin" seperti asumsi threshold absolut lama.
+#
+# Solusi: ambil ambang dari PERSENTIL keluaran model sendiri di test set
+# -- BUY_PERCENTILE tertinggi (paling yakin versi model, apa pun skala
+# absolutnya) dan SELL_PERCENTILE terendah. Ini menjamin model SELALU
+# menghasilkan sinyal pada kasus-kasus paling meyakinkan menurut dirinya
+# sendiri, tapi TIDAK menjamin sinyal itu akurat -- lihat print
+# diagnostik "precision pada threshold ini vs base rate" di main() untuk
+# itu. Kalau precision di titik itu tidak jauh dari base rate, artinya
+# model memang tidak punya sinyal nyata (bukan cuma soal kalibrasi
+# threshold) -- root cause-nya di fitur/model, bukan angka threshold.
+BUY_PERCENTILE = 80       # top 20% probabilitas tertinggi -> sinyal BUY
+SELL_PERCENTILE = 20      # bottom 20% probabilitas terendah -> sinyal AVOID/SELL
 
 # LABEL: sinkron dengan SL/TP1 riil yang dipakai computeStockSignal() di
 # lib/idx-data-engine.js (2026-09-11 fix) -- BUKAN lagi "naik >3% dalam 10
@@ -282,6 +304,28 @@ def main():
     importance = dict(zip(FEATURE_NAMES, model.feature_importances_.tolist()))
     print("Feature importance:", json.dumps(importance, indent=2))
 
+    # ── Kalibrasi threshold BUY/SELL dari persentil (lihat catatan
+    # BUY_PERCENTILE/SELL_PERCENTILE di atas) + diagnostik jujur: apakah
+    # sinyal di titik ini benar-benar lebih baik dari base rate, atau
+    # model cuma "menyerah" ke kelas mayoritas dan persentil ini tidak
+    # menyaring apa pun yang berarti.
+    base_rate = float(y_test.mean())
+    buy_threshold = float(np.percentile(proba, BUY_PERCENTILE))
+    sell_threshold = float(np.percentile(proba, SELL_PERCENTILE))
+
+    buy_mask = proba >= buy_threshold
+    n_buy = int(buy_mask.sum())
+    buy_precision = float(y_test.to_numpy()[buy_mask].mean()) if n_buy > 0 else float("nan")
+    lift = (buy_precision / base_rate) if (n_buy > 0 and base_rate > 0) else float("nan")
+
+    print(f"\n── Kalibrasi Threshold (persentil ke-{BUY_PERCENTILE}/{SELL_PERCENTILE}) ──")
+    print(f"Base rate label positif di test set : {base_rate*100:.1f}%")
+    print(f"BUY threshold (persentil {BUY_PERCENTILE})  : {buy_threshold:.4f} -> {n_buy}/{len(proba)} baris test terpicu BUY")
+    print(f"Precision pada threshold ini          : {buy_precision*100:.1f}%" if n_buy > 0 else "Precision pada threshold ini          : N/A (0 baris terpicu)")
+    if n_buy > 0:
+        print(f"Lift vs base rate                     : {lift:.2f}x" + (" -- model TIDAK menambah nilai nyata di titik ini, cuma kalibrasi threshold, bukan solusi." if lift < 1.15 else " -- ada sinyal nyata di atas base rate."))
+    print(f"SELL threshold (persentil {SELL_PERCENTILE}) : {sell_threshold:.4f}")
+
     # ── Ekspor ke ONNX (zipmap=False -> output tensor float polos, gampang dibaca JS) ──
     onnx_model = convert_xgboost(
         model,
@@ -301,8 +345,13 @@ def main():
         "tp_atr_mult": TP_ATR_MULT,
         "atr_period": ATR_PERIOD,
         "max_hold_days": MAX_HOLD_DAYS,
-        "buy_threshold": BUY_THRESHOLD,
-        "sell_threshold": SELL_THRESHOLD,
+        "buy_threshold": buy_threshold,
+        "sell_threshold": sell_threshold,
+        "buy_percentile": BUY_PERCENTILE,
+        "sell_percentile": SELL_PERCENTILE,
+        "base_rate": base_rate,
+        "buy_precision_at_threshold": buy_precision if n_buy > 0 else None,
+        "buy_signal_rate_test": n_buy / len(proba) if len(proba) > 0 else None,
         "tickers_used": used_tickers,
         "n_train": int(len(X_train)),
         "n_test": int(len(X_test)),

@@ -1822,6 +1822,28 @@ test('REGRESSION GUARD: ml/train_xgb_signal.py label must be SL/TP-aware (ATR-ba
   assert(/label_definition/.test(pySrc) && /sl_atr_mult/.test(pySrc), 'REGRESSION: meta.json no longer documents the SL/TP label definition/hyperparameters');
 });
 
+// ── TEST 66: BUY/SELL threshold must be calibrated from the model's own
+// predicted-probability PERCENTILE on the test set, not a fixed absolute
+// constant (user-requested 2026-09-11, "Opsi A" after the SL/TP label
+// retrain produced 0.031 recall at the old fixed 0.60 threshold — meaning
+// live backtests got 0 signals for 2 years straight on BBCA). A dynamic
+// percentile threshold guarantees the model always signals on its own most-
+// confident cases, whatever its raw probability scale happens to be.
+test('REGRESSION GUARD: XGBoost BUY/SELL threshold must be percentile-calibrated from the test-set probability distribution, not a fixed constant', () => {
+  const pyPath = path.join(__dirname, 'ml/train_xgb_signal.py');
+  const pySrcRaw = fs.readFileSync(pyPath, 'utf8');
+  const pySrc = pySrcRaw.split('\n').map(l => l.replace(/#.*$/, '')).join('\n');
+
+  assert(!/BUY_THRESHOLD\s*=\s*0\.6/.test(pySrc), 'REGRESSION: the old fixed BUY_THRESHOLD=0.60 constant is back — this is exactly what caused 0 backtest signals after the SL/TP label change');
+  assert(!/SELL_THRESHOLD\s*=\s*0\.35/.test(pySrc), 'REGRESSION: the old fixed SELL_THRESHOLD=0.35 constant is back');
+  assert(/BUY_PERCENTILE\s*=\s*80/.test(pySrc), 'REGRESSION: BUY_PERCENTILE=80 is gone');
+  assert(/SELL_PERCENTILE\s*=\s*20/.test(pySrc), 'REGRESSION: SELL_PERCENTILE=20 is gone');
+  assert(/np\.percentile\(proba,\s*BUY_PERCENTILE\)/.test(pySrc), 'REGRESSION: buy_threshold is no longer computed from np.percentile(proba, BUY_PERCENTILE) — threshold calibration is gone');
+  assert(/np\.percentile\(proba,\s*SELL_PERCENTILE\)/.test(pySrc), 'REGRESSION: sell_threshold is no longer computed from np.percentile(proba, SELL_PERCENTILE)');
+  assert(/"buy_threshold":\s*buy_threshold/.test(pySrc), 'REGRESSION: meta.json no longer writes the CALIBRATED buy_threshold variable (may have reverted to the old fixed constant)');
+  assert(/"buy_precision_at_threshold"/.test(pySrc) && /"base_rate"/.test(pySrc), 'REGRESSION: meta.json no longer exposes the honest precision-vs-base-rate diagnostic for the calibrated threshold — silently shipping a threshold without knowing if it beats chance');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
