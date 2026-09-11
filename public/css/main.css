@@ -6081,3 +6081,23 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
 
 
 
+
+/* ── Bandarmology Smart Money Flow: 4-chart grid, always exactly 2 per
+   row on desktop/tablet (2x2), collapsing to 1 column only on narrow
+   mobile viewports. A plain `repeat(auto-fit,minmax(Npx,1fr))` inline
+   style can't express "always exactly 2" — on a wide enough container
+   auto-fit still packs in a 3rd column before wrapping (reported by the
+   user via screenshot: 3 charts on top, 1 alone on the second row,
+   instead of the intended 2+2), and a fixed `repeat(2,1fr)` alone would
+   never collapse to 1 column on phones. This class does both via a
+   media query, which an inline style cannot do. ── */
+.bandar-smart-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (max-width: 760px) {
+  .bandar-smart-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}

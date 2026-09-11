@@ -1159,12 +1159,21 @@ test('REGRESSION GUARD: TradeWave Wave Scanner (tab 2) must render before the si
     'REGRESSION: the TICKER INVALID gate runs before the Wave Scanner (tab 2) check again — Wave Scanner will show the single-ticker error card instead of scanning whenever the currently-selected ticker\'s own analysis is invalid, even though Tab 2 never reads that data (see INCIDENT_LOG.md)');
 });
 
-// ── TEST 43: Bandarmology Smart Money Flow chart grid must fit 2 charts
-// per row, not 4 (found by the user via screenshot, 2026-09-11) — the
-// 4-chart "INTERACTIVE REAL-TIME CHART SUITE" used
-// minmax(320px,1fr) with auto-fit, which packed all 4 charts into one row
-// on a typical desktop-width container, squeezing each one too small to
-// read.
+// ── TEST 43: Bandarmology Smart Money Flow chart grid must fit exactly
+// 2 charts per row, not 4 and not 3 (found by the user via screenshot,
+// 2026-09-11, TWICE — first report: the 4-chart "INTERACTIVE REAL-TIME
+// CHART SUITE" used `repeat(auto-fit,minmax(320px,1fr))`, which packed
+// all 4 charts into one cramped row on desktop widths; after bumping
+// that to `minmax(480px,1fr)`, a second screenshot showed 3 charts on
+// top and 1 alone below on a wide-enough viewport, because `auto-fit`
+// still greedily packs in as many `>=480px` columns as fit — there is no
+// minmax() width that yields "always exactly 2" for every container
+// width, since auto-fit's column count depends on container-width /
+// min-width, not a fixed count). Fixed by switching to a dedicated
+// `.bandar-smart-chart-grid` CSS class (main.css) using a fixed
+// `repeat(2,1fr)` with a real media query to collapse to 1 column on
+// narrow/mobile — something a single inline auto-fit/minmax value
+// cannot express.
 // ── TEST 42b: Wave Scanner (renderTab2WaveScanner) must not crash when
 // twAnalyzeWave() returns an invalid entry (found while verifying TEST 42,
 // 2026-09-11) — twAnalyzeWave() returns a minimal {isValid:false, ticker,
@@ -1187,17 +1196,36 @@ test('REGRESSION GUARD: renderTab2WaveScanner() must filter out isValid:false en
     'REGRESSION: renderTab2WaveScanner() no longer filters out {isValid:false} entries — a single ticker in TW_UNIVERSE with no cached OHLCV yet will throw (e.g. undefined.toFixed()) and silently abort the whole scanner render');
 });
 
-test('REGRESSION GUARD: Bandarmology Smart Money Flow chart grid must use a 2-per-row minmax, not the old cramped 320px one', () => {
+test('REGRESSION GUARD: Bandarmology Smart Money Flow chart grid must use the fixed-2-column class, not an auto-fit/minmax that can pack in a 3rd column', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
   const fnStart = src.indexOf('function renderBandarmologySmartMoneyFlowView');
   assert(fnStart !== -1, 'renderBandarmologySmartMoneyFlowView() not found — has it been renamed/removed?');
   // scope to this function only — other grids elsewhere in this file
-  // legitimately use minmax(320px,1fr) for unrelated card layouts.
+  // legitimately use auto-fit/minmax inline styles for unrelated card
+  // layouts (e.g. the KSEI/broker summary cards further down in this same
+  // function), so this check targets the specific chart-suite container
+  // (identified by its neighboring canvas id) rather than banning
+  // auto-fit/minmax anywhere in the function.
   const body = src.slice(fnStart, fnStart + 15000);
-  assert(!/grid-template-columns:repeat\(auto-fit,\s*minmax\(320px,\s*1fr\)\)/.test(body),
-    'REGRESSION: the Smart Money Flow chart grid is back to minmax(320px,1fr), which fits all 4 charts in a single cramped row on desktop widths');
-  assert(/grid-template-columns:repeat\(auto-fit,\s*minmax\(480px,\s*1fr\)\)/.test(body),
-    'the Smart Money Flow chart grid no longer uses minmax(480px,1fr) — that value is what fits exactly 2 charts per row (2x2 layout) at normal desktop/laptop widths');
+  const chartCanvasIdx = body.indexOf('bandarSmartPriceChart');
+  assert(chartCanvasIdx !== -1, 'REGRESSION: "bandarSmartPriceChart" canvas not found — has the chart suite been restructured?');
+  // Look at the grid-container <div> that wraps all 4 charts: search back
+  // from the canvas for the nearest `class="bandar-smart-chart-grid"` or
+  // an inline `grid-template-columns:repeat(auto-fit,minmax(` — whichever
+  // is closer tells us which one is actually in use.
+  const beforeCanvas = body.slice(0, chartCanvasIdx);
+  const classIdx = beforeCanvas.lastIndexOf('class="bandar-smart-chart-grid"');
+  const autoFitIdx = beforeCanvas.lastIndexOf('grid-template-columns:repeat(auto-fit,minmax(');
+  assert(classIdx !== -1 && classIdx > autoFitIdx,
+    'REGRESSION: the Smart Money Flow chart grid is back to an auto-fit/minmax inline style (or the "bandar-smart-chart-grid" class is missing) — auto-fit packs in as many columns as fit the container width, so on a wide enough viewport it can pack a 3rd chart into the first row instead of the intended fixed 2x2 layout');
+
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  const cssFnMatch = css.match(/\.bandar-smart-chart-grid\s*\{[^}]*\}/);
+  assert(cssFnMatch, 'REGRESSION: ".bandar-smart-chart-grid" rule missing from main.css');
+  assert(/grid-template-columns:\s*repeat\(2,\s*1fr\)/.test(cssFnMatch[0]),
+    '.bandar-smart-chart-grid no longer forces a fixed 2-column grid (repeat(2,1fr))');
+  assert(/@media[^{]*\{\s*\.bandar-smart-chart-grid\s*\{[^}]*grid-template-columns:\s*1fr/.test(css),
+    'REGRESSION: no media query collapses .bandar-smart-chart-grid to 1 column on narrow/mobile viewports');
 });
 
 // ── TEST 44: Portfolio Allocation donut legend color swatches must

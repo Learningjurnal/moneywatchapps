@@ -731,3 +731,50 @@ search box next to it down to ~18px
   `rgb(234,179,8)` yellow) matching their sectors. Screenshot sent to the
   user. `npm test` (67/67 + 16/16 policy + 6/6 provider), `npm run lint`
   clean.
+
+---
+
+## Follow-up to #13 — Smart Money Flow chart grid still showed 3+1, not 2+2, on wide viewports
+
+- **Date:** 2026-09-11 (same day as #13, second screenshot from the user
+  on the SAME grid after the first fix had already shipped).
+- **Found by:** the user, screenshot showing 3 charts on the top row and
+  1 alone on the second row, with the explicit ask "dibagi menjadi 2
+  card (atas 2 dan bawah 2)".
+- **Impact:** the #13 fix changed the inline
+  `grid-template-columns:repeat(auto-fit,minmax(320px,1fr))` to
+  `minmax(480px,1fr)`, which does fit exactly 2 per row on a "normal"
+  ~1440px laptop viewport — but `auto-fit` always packs in as many
+  `>= min-width` columns as the container can hold. On a wider screen
+  (the user's screenshot shows a viewport wide enough for 3 columns of
+  480px+gap to fit), it packed a 3rd chart into the first row instead of
+  wrapping after 2, leaving only 1 chart on the second row. There is no
+  single `minmax(Npx,1fr)` value that yields "always exactly 2" for
+  every possible container width — the column count from `auto-fit` is
+  inherently `floor(containerWidth / minWidth)`, not a fixed number.
+- **Fix:** replaced the inline auto-fit/minmax style with a dedicated
+  `.bandar-smart-chart-grid` CSS class (`main.css`) using a **fixed**
+  `grid-template-columns: repeat(2, 1fr)` — always exactly 2 columns
+  regardless of container width — plus a real `@media (max-width:
+  760px)` query collapsing it to `1fr` (1 column) on narrow/mobile
+  viewports. A plain inline style has no way to express "fixed 2, but 1
+  below a breakpoint"; only an actual media query can, which requires an
+  external/embedded stylesheet rule rather than an inline `style=`.
+- **Prevention added:** updated `test_suite.js` TEST 43 — now asserts
+  (a) the specific chart-suite container (identified by its neighboring
+  `bandarSmartPriceChart` canvas id, since other unrelated grids in the
+  same function legitimately use auto-fit/minmax) uses the
+  `bandar-smart-chart-grid` class rather than any inline
+  auto-fit/minmax style, and (b) `main.css` actually defines that class
+  with a fixed `repeat(2,1fr)` plus a media query collapsing it to 1
+  column. Verified to actually fail (clear message) when reverted to the
+  inline `minmax(480px,1fr)` style, before being restored.
+- **Verification:** live Playwright at three viewport widths — 1920px
+  (matching the user's wide-screen report), 1440px (typical laptop), and
+  600px (mobile). Measured all 4 chart children's
+  `getBoundingClientRect()` at each width: 1920px and 1440px both now
+  show exactly 2 distinct row offsets (true 2x2) with
+  `getComputedStyle().gridTemplateColumns` reporting exactly 2 track
+  values; 600px collapses to 4 distinct rows (1 column, stacked), as
+  intended for mobile. Screenshot at 1920px sent to the user. `npm test`
+  (67/67 + 16/16 policy + 6/6 provider), `npm run lint` clean.
