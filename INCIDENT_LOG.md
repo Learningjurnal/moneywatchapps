@@ -570,3 +570,49 @@ a Yahoo Finance pair that doesn't exist
   `regularMarketPrice * usdIdr` exactly (`67000 * 15800 = 1058600000`).
   Zero page errors. `npm test` (62/62 + 6/6 provider), `npm run lint`
   clean.
+
+---
+
+## #12 — Sidebar collapse button stretched to ~229px, squeezing the
+search box next to it down to ~18px
+
+- **Date:** 2026-09-11.
+- **Found by:** the user, from a screenshot showing what looked like a
+  wide pill-shaped button with just an icon and a bare text cursor —
+  described as "ada card yang terpotong" (a card that's cut off).
+- **Impact:** the sidebar's top toolbar (`.side-toolbar`, above "COMMAND
+  CENTER") has a collapse/expand icon button next to the "Cari fitur
+  (Ctrl+K)..." search box. The button was rendering at ~229px wide
+  instead of its intended 28px, leaving the search box only ~18px —
+  wide enough to show its border and a blinking text cursor, but not its
+  icon, placeholder text, or the "Ctrl K" keyboard-shortcut badge next to
+  it. The feature itself (sidebar collapse, feature search) still worked
+  if clicked/typed into blind — this was a pure visual/layout bug, not a
+  functional break.
+- **Root cause:** CSS specificity. `.side-nav button{width:100%; ...}`
+  (a broad rule meant for the actual navigation item buttons, like
+  "Market Pulse") has specificity `(0,1,1)` — one class plus one element.
+  `.side-collapse-btn{width:28px; ...}` alone has specificity `(0,1,0)` —
+  one class only, which is LOWER regardless of the two rules' order in
+  the file. Since `.side-collapse-btn` is literally a `<button>` element
+  inside `.side-nav`, the generic rule's selector matched it too, and its
+  higher specificity made `width:100%` win over the button's own intended
+  `width:28px` — stretching it to fill the whole toolbar and leaving the
+  `flex:1` search box next to it almost nothing to occupy.
+- **Fix:** scoped the selector to `.side-toolbar .side-collapse-btn`
+  (two classes, specificity `(0,2,0)`) for both the base rule and its
+  `:hover` variant — this reliably outranks `.side-nav button`'s
+  `(0,1,1)` regardless of source order, rather than relying on a
+  same-specificity source-order tiebreak that a future edit could easily
+  disturb.
+- **Prevention added:** `test_suite.js` TEST 41 — asserts the scoped
+  `.side-toolbar .side-collapse-btn` selector exists in `main.css`.
+  Verified to actually fail (clear message) when reverted to the bare
+  `.side-collapse-btn` selector, before being restored.
+- **Verification:** live Playwright — measured the actual rendered
+  `getBoundingClientRect()` of both elements before and after: collapse
+  button went from 229px → 28px, search box went from 18px → 195px
+  (its placeholder text and keyboard-shortcut badge now visible).
+  Screenshot sent to the user for confirmation. `npm test` (63/63 + 6/6
+  provider) — `npm run lint` doesn't cover CSS in this project, so this
+  fix relied on the new TEST 41 plus live visual verification instead.

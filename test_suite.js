@@ -1115,6 +1115,20 @@ test('REGRESSION GUARD: fhFetchCrypto() must fetch CODE-USD, never CODE-IDR (KNO
     'fhFetchCrypto() no longer converts the fetched USD price to IDR via usdIdr — cryptoPrices[] is read as a direct IDR value everywhere else in this app');
 });
 
+// ── TEST 41: sidebar collapse-button CSS specificity (found by the user
+// via screenshot, 2026-09-11) — .side-nav button{width:100%;...} has
+// higher specificity (1 class + 1 element) than .side-collapse-btn alone
+// (1 class), and .side-collapse-btn IS a <button> inside .side-nav, so
+// that generic nav-item rule was winning and stretching the icon-only
+// collapse button to ~229px (should be 28px), squeezing the sidebar
+// search input down to ~18px — visually just an icon + text cursor with
+// the "Cari fitur (Ctrl+K)..." placeholder and Ctrl-K badge invisible.
+test('REGRESSION GUARD: sidebar collapse button CSS must stay scoped so .side-nav button can\'t override its width', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  assert(/\.side-toolbar\s+\.side-collapse-btn\s*\{/.test(css),
+    'REGRESSION: .side-toolbar .side-collapse-btn scoped rule is missing — a bare .side-collapse-btn selector has LOWER specificity than .side-nav button (which sets width:100%) and would be overridden by it again, stretching this icon button and squeezing the search input next to it (see INCIDENT_LOG.md)');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
