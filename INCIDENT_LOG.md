@@ -976,3 +976,24 @@ one of them is the same class of defect as a real incident above.
   plain-text badges) and confirmed all report `tabular-nums`. Screenshot
   confirms no visual regression on either type. `npm test` (72/72 + 6/6
   provider), `npm run lint` clean.
+
+### Sticky-right "Aksi" column extended to Crypto/ETF/Reksa Dana transaction tables
+
+- **Found by:** consistency check while addressing the earlier
+  Saham/RDN sticky-right fix — the Crypto, ETF, and Reksa Dana
+  transaction tables (`#crypto-tx-tbody`, `#etf-tx-tbody`,
+  `#rd-tx-tbody`) had the exact same unpinned action-icon column issue,
+  just not explicitly named in the original analysis.
+- **Fix:** applied the same, already-proven `.tbl-sticky-right` class
+  (no new CSS — reuses the rule added for Saham/RDN) to these three
+  tables' header `<th>` and row `<td>` in `index.html` and
+  `05-assets.js`.
+- **Prevention added:** `test_suite.js` TEST 50 — same pattern as TEST
+  46, asserting the class on all 3 header cells and all 3 row templates.
+  Verified to fail (clear message) when one instance was reverted,
+  before being restored.
+- **Verification:** live Playwright at a 900px viewport — seeded one
+  crypto transaction, scrolled `#crypto-tx-tbody`'s wrapper fully right,
+  confirmed via `getBoundingClientRect()` the action column stays within
+  the visible wrapper bounds. `npm test` (73/73 + 6/6 provider), `npm
+  run lint` clean.
