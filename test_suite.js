@@ -1521,6 +1521,55 @@ test('REGRESSION GUARD: .g2c and .g3 grids must keep a max-width cap for ultrawi
     'REGRESSION: .g3 lost its max-width cap — on an ultrawide monitor, fixed-height charts inside it (e.g. #perfEquityChart) will stretch into an extremely flat, hard-to-read shape (see INCIDENT_LOG.md)');
 });
 
+// ── TEST 55: Chart.defaults.animation must be disabled globally
+// (found via a user-requested performance investigation, 2026-09-11:
+// "apa yang membuat aplikasi menjadi berat untuk pindah antar tab").
+// Every one of this app's ~51 Chart.js instances is destroyed and
+// recreated FROM SCRATCH on every visit to its page (no "just update the
+// data" path exists anywhere) — none of those configs disabled Chart.js's
+// default ~1000ms draw-in animation, so every tab switch to a
+// chart-bearing page (up to 4-8 charts on some pages) paid that
+// animation cost again, every single time, with zero functional benefit.
+// Disabled globally in 03-engine.js, the same pattern already used there
+// for the interaction/hover fix, so every current and future chart
+// benefits without editing dozens of individual configs.
+test('REGRESSION GUARD: Chart.defaults.animation must be set to false globally', () => {
+  const engineJs = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  const interactionIdx = engineJs.indexOf('Chart.defaults.interaction');
+  assert(interactionIdx !== -1, 'REGRESSION: the "Chart.defaults.interaction" global-defaults block is missing — has it been restructured?');
+  const nearby = engineJs.slice(interactionIdx, interactionIdx + 1500);
+  assert(/Chart\.defaults\.animation\s*=\s*false/.test(nearby),
+    'REGRESSION: "Chart.defaults.animation = false" is missing from the global Chart.js defaults block — every chart in the app will pay Chart.js\'s default ~1000ms draw-in animation cost again on every tab switch (see INCIDENT_LOG.md)');
+});
+
+// ── TEST 56: no individual chart config may re-enable Chart.js animation
+// (found in the same investigation) — a per-instance `animation:` option
+// on a specific chart's own config overrides the global default set in
+// TEST 55 for that one chart, silently defeating the fix for just that
+// chart. Two such overrides existed (a Dashboard sector-allocation donut
+// and the Harga Wajar valuation bar chart) and were removed.
+test('REGRESSION GUARD: no chart config may override the global Chart.defaults.animation=false with its own animation option', () => {
+  const files = ['public/js/03-engine.js', 'public/js/10-hargawajar.js'];
+  files.forEach(function(f) {
+    const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
+    // Strip single-line `//` comments first — an explanatory comment that
+    // quotes the old, now-removed code (e.g. "// animation:{...} removed")
+    // would otherwise false-positive as if it were still live code.
+    const codeOnly = src.split('\n').map(function(line) {
+      var idx = line.indexOf('//');
+      return idx === -1 ? line : line.slice(0, idx);
+    }).join('\n');
+    // Match a real Chart.js `animation:` option (object or non-false value),
+    // not the unrelated CSS `animation:` property (e.g. toast/spinner
+    // keyframe names) which never looks like `animation:{...}` or
+    // `animation: true/<number>`.
+    const badMatch = codeOnly.match(/animation:\s*\{[^}]*\}/g) || [];
+    const trulyBad = badMatch.filter(function(m) { return !/duration:\s*0\b/.test(m); });
+    assert(trulyBad.length === 0,
+      'REGRESSION: ' + f + ' has a per-chart `animation:` override (' + JSON.stringify(trulyBad) + ') that defeats the global Chart.defaults.animation=false fix for that specific chart (see INCIDENT_LOG.md)');
+  });
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
