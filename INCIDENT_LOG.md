@@ -1566,3 +1566,57 @@ dibungkus try/catch dengan console.warn).
     atau menunggu jadwal bulanan `retrain-model.yml`.
 
 `npm test` (88/88 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — XGBoost BUY/SELL threshold dikalibrasi dari persentil (Opsi A)
+
+- **Konteks:** setelah retrain XGBoost dengan label SL/TP-aware (entri
+  incident sebelumnya) dijalankan lewat GitHub Actions dan model baru
+  di-deploy, user menjalankan Backtester dengan strategi XGBoost pada
+  BBCA (2 tahun) — hasilnya **0 trade sepanjang periode**, equity curve
+  flat total, 0 sinyal.
+- **Root cause ditemukan dari log training GitHub Actions:** classification
+  report menunjukkan recall kelas BUY (label 1) cuma **3,1%** pada
+  threshold default 0,5 — model baru nyaris selalu memprediksi "0" apa
+  pun kondisinya. `BUY_THRESHOLD=0.60` (tetap) nyaris tidak pernah
+  tertembus, konsisten persis dengan 0 sinyal yang dilaporkan user.
+  Precision kelas BUY juga cuma 29,7% (base rate test set 37,6%) —
+  indikasi kuat model tidak menemukan sinyal nyata dari 6 fitur teknikal
+  yang ada untuk target SL/TP-aware yang baru (jauh lebih sulit dari
+  target arah-harga lama).
+- **Fix (Opsi A, dipilih user dari 3 opsi yang diajukan — Opsi B/C lebih
+  besar scope-nya):** `BUY_THRESHOLD`/`SELL_THRESHOLD` (konstanta tetap
+  0.60/0.35) diganti `BUY_PERCENTILE=80`/`SELL_PERCENTILE=20` —
+  `buy_threshold`/`sell_threshold` yang ditulis ke `xgb_signal_meta.json`
+  sekarang dihitung sebagai persentil ke-80/ke-20 dari distribusi
+  probabilitas prediksi model SENDIRI di test set, bukan angka absolut.
+  Ini menjamin model selalu memberi sinyal pada kasus paling meyakinkan
+  menurut dirinya sendiri (tidak lagi 0 sinyal), tapi TIDAK menjamin
+  sinyal itu akurat.
+- **Transparansi ditambahkan (bukan cuma fix diam-diam):** skrip sekarang
+  mencetak & menyimpan diagnostik jujur setiap training — precision pada
+  threshold hasil kalibrasi vs base rate label positif, plus "lift"
+  (rasio keduanya). Field baru di `xgb_signal_meta.json`:
+  `buy_percentile`/`sell_percentile`/`base_rate`/
+  `buy_precision_at_threshold`/`buy_signal_rate_test`. Kalau lift <1.15x
+  di retrain berikutnya, itu tanda Opsi A saja tidak cukup dan Opsi B
+  (class-weighting) atau Opsi C (fitur tambahan) perlu dipertimbangkan —
+  didokumentasikan eksplisit di `ml/README.md`.
+- **Prevention added:** `test_suite.js` TEST 66 — memastikan konstanta
+  tetap lama tidak kembali, `BUY_PERCENTILE=80`/`SELL_PERCENTILE=20` ada,
+  `np.percentile(proba, ...)` benar-benar dipanggil untuk kedua threshold,
+  dan `meta.json` menulis variabel PERHITUNGAN (bukan konstanta lama) plus
+  field diagnostik precision/base_rate. Terbukti gagal dengan pesan jelas
+  saat fix di-revert ke konstanta tetap sebelum dikembalikan.
+- **Verifikasi:** pipeline penuh dijalankan ulang dengan data sintetis
+  (Yahoo Finance diblokir di sandbox ini) — diagnostik tercetak dengan
+  benar (base rate 27,6%, threshold persentil-80 = 0,559, precision di
+  titik itu 36,7%, lift 1,33x "ada sinyal nyata di atas base rate" pada
+  data sintetis ini), `meta.json` berisi semua field baru dengan nilai
+  yang konsisten dengan output training.
+- **Belum bisa diverifikasi di data BBCA riil dari sandbox ini** (Yahoo
+  Finance & CDN onnxruntime-web sama-sama diblokir) — user perlu
+  menjalankan ulang retrain (GitHub Actions manual atau tunggu jadwal
+  bulanan) lalu uji ulang di Backtester untuk melihat apakah 0-sinyal
+  sudah teratasi dan berapa lift precision aktualnya di data BBCA nyata.
+
+`npm test` (89/89 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.

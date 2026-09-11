@@ -88,10 +88,37 @@ juga** `SL_ATR_MULT`/`TP_ATR_MULT`/`MAX_HOLD_DAYS` di `train_xgb_signal.py`
 supaya model tetap belajar dari trade yang benar-benar akan dieksekusi
 sistem — sama seperti aturan sinkronisasi fitur di bawah.
 
-**Model yang saat ini ada di `public/models/xgb_signal.onnx` masih dilatih
-dengan label LAMA** (lihat `trained_at`/`fwd_days` di
-`xgb_signal_meta.json`) — perbaikan ini baru berlaku setelah training ulang
-dijalankan (manual, atau menunggu jadwal bulanan `retrain-model.yml`).
+Retrain pertama dengan label ini (2026-09-11, lewat GitHub Actions manual)
+sudah jalan — `public/models/xgb_signal.onnx` sekarang memakai label baru
+ini (cek `trained_at`/`label_definition` di `xgb_signal_meta.json` untuk
+konfirmasi versi terbaru).
+
+## Kalibrasi threshold BUY/SELL (2026-09-11 — "Opsi A")
+
+Retrain pertama dengan label SL/TP di atas ternyata menghasilkan model
+dengan **recall kelas BUY cuma 3,1%** pada threshold default 0,5 — artinya
+probabilitas prediksi model nyaris tidak pernah menembus `BUY_THRESHOLD`
+lama (0,60), dan Backtester menghasilkan **0 sinyal** sepanjang 2 tahun
+untuk BBCA. Target SL/TP-aware jauh lebih sulit ditebak daripada target
+arah-harga lama, jadi skala probabilitas mentah model tidak lagi berarti
+"60% = yakin" seperti asumsi threshold absolut sebelumnya.
+
+**Threshold sekarang dikalibrasi dari PERSENTIL keluaran model itu sendiri
+di test set**, bukan angka absolut tetap:
+- `BUY_PERCENTILE = 80` — top 20% probabilitas tertinggi versi model →
+  sinyal BUY.
+- `SELL_PERCENTILE = 20` — bottom 20% probabilitas terendah → sinyal
+  AVOID/SELL.
+
+Ini menjamin model **selalu** memberi sinyal pada kasus paling meyakinkan
+menurut dirinya sendiri — tapi **tidak menjamin sinyal itu akurat**. Skrip
+mencetak diagnostik jujur setiap kali training (dan menyimpannya ke
+`xgb_signal_meta.json` sebagai `buy_precision_at_threshold`/`base_rate`):
+kalau precision di titik threshold itu tidak jauh dari base rate (lift
+<1.15x), itu tanda model **memang tidak punya sinyal nyata** di titik
+operasi itu — akar masalahnya di fitur/model, bukan angka threshold, dan
+Opsi A saja tidak cukup (perlu evaluasi fitur tambahan atau penanganan
+class-imbalance saat training).
 
 ## PENTING — fitur harus sinkron Python ↔ JavaScript
 
