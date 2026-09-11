@@ -1248,6 +1248,57 @@ test('REGRESSION GUARD: light-theme CSS for #porto-donut-legend must not force-o
     'the correctly scoped "body.theme-light #porto-donut-legend > div {...}" (direct children only) rule is missing');
 });
 
+// ── TEST 45: only one `body.theme-light {}` custom-property block may
+// exist in main.css (found during a proactive maintainability review,
+// 2026-09-11, not a user-reported bug) — a second, later duplicate of
+// this exact selector used to exist ("COMPREHENSIVE LIGHT THEME ENGINE"),
+// redeclaring ~20 of the same CSS custom properties. Same selector means
+// same specificity, so the later block always silently wins the cascade
+// for whichever variables both declare — and one variable
+// (--border-subtle) actually held a DIFFERENT value in each block
+// (#E0E4E9 vs rgba(0,0,0,0.06)) with no visual signal anywhere that two
+// competing definitions existed. This is the same class of bug as
+// INCIDENT_LOG.md #14 (a duplicate light-theme rule silently overriding
+// another) — a future edit to either block alone would silently stop
+// having any effect, or silently start conflicting again.
+test('REGRESSION GUARD: only one `body.theme-light {}` custom-property block may exist in main.css', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  const matches = css.match(/^body\.theme-light\s*\{/gm) || [];
+  assert.strictEqual(matches.length, 1,
+    `REGRESSION: found ${matches.length} "body.theme-light {" blocks in main.css (expected exactly 1) — a second block silently wins the cascade for any variable both declare, and can silently disagree on others (see INCIDENT_LOG.md, follow-up to #14)`);
+});
+
+// ── TEST 46: the "Aksi" icon-button column in Riwayat Transaksi Saham
+// (#tx-tbody) and Mutasi RDN (#rdn-tbody) tables must stay sticky-right,
+// so it stays reachable while the table is scrolled horizontally at
+// medium screen widths (found during a proactive review, 2026-09-11, not
+// a user-reported bug — a low-risk companion to the existing
+// .tbl-sticky-left ticker column).
+test('REGRESSION GUARD: transaction & RDN table "Aksi" column must stay sticky-right (header and row cells)', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const renderJs = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+
+  assert(/\.tbl\s+(?:th|td)\.tbl-sticky-right[\s\S]{0,60}position:\s*sticky;\s*right:\s*0/.test(css) ||
+    /\.tbl th\.tbl-sticky-right,\s*\n\.tbl td\.tbl-sticky-right\s*\{\s*position:\s*sticky;\s*right:\s*0;/.test(css),
+    'REGRESSION: ".tbl-sticky-right" CSS rule (position:sticky;right:0) is missing from main.css');
+
+  const txHeaderMatch = html.match(/<th class="text-right">Total Bersih<\/th><th class="text-right">P&amp;L<\/th><th[^>]*>Aksi<\/th>/);
+  assert(txHeaderMatch, 'could not find the Riwayat Transaksi Saham table header\'s final "Aksi" <th> — has the table been restructured?');
+  assert(/tbl-sticky-right/.test(txHeaderMatch[0]),
+    'REGRESSION: Riwayat Transaksi Saham table\'s "Aksi" header lost its tbl-sticky-right class');
+
+  const rdnHeaderMatch = html.match(/<th class="text-right">Saldo<\/th><th[^>]*>Aksi<\/th>/);
+  assert(rdnHeaderMatch, 'could not find the Mutasi RDN table header\'s final "Aksi" <th> — has the table been restructured?');
+  assert(/tbl-sticky-right/.test(rdnHeaderMatch[0]),
+    'REGRESSION: Mutasi RDN table\'s "Aksi" header lost its tbl-sticky-right class');
+
+  assert(/text-center tbl-sticky-right[^"]*"[^>]*>[\s\S]{0,200}openTxDetailModal/.test(renderJs),
+    'REGRESSION: the transaction row\'s action-icons <td> (tx-tbody) lost its tbl-sticky-right class');
+  assert(/text-center tbl-sticky-right[^"]*"[^>]*>'\+auditBtn\+delBtn/.test(renderJs),
+    'REGRESSION: the RDN row\'s action-icons <td> (rdn-tbody) lost its tbl-sticky-right class');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

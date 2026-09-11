@@ -423,7 +423,7 @@ function renderRdn(){
       +'<td class="mono num text-right up">'+(isin?'Rp '+fmtK(r.amount):'—')+'</td>'
       +'<td class="mono num text-right dn">'+(!isin?'Rp '+fmtK(Math.abs(r.amount)):'—')+'</td>'
       +'<td class="mono num text-right" style="font-weight:600">Rp '+fmtK(r.balance)+'</td>'
-      +'<td class="text-center" style="white-space:nowrap">'+auditBtn+delBtn+'</td>'
+      +'<td class="text-center tbl-sticky-right" style="white-space:nowrap">'+auditBtn+delBtn+'</td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Belum ada mutasi</td></tr>';
 
@@ -477,7 +477,7 @@ function renderTransaksi(){
       +'<td class="mono dn num text-right" title="PPN+Levy+PPh: Rp '+fmt(tx.tax)+'">Rp '+fmtK(tx.tax)+'</td>'
       +'<td class="mono num text-right" style="font-weight:600;cursor:pointer" onclick="openTxDetailModal('+tx.id+')" title="Klik untuk rincian formula bersih">Rp '+fmtK(tx.net)+'</td>'
       +'<td class="text-right">'+pnlHtml+'</td>'
-      +'<td class="text-center" style="white-space:nowrap">'
+      +'<td class="text-center tbl-sticky-right" style="white-space:nowrap">'
         +'<button class="btn btn-ghost btn-xs" style="color:var(--accent)" onclick="openTxDetailModal('+tx.id+')" title="Rincian kalkulasi transaksi" aria-label="Rincian transaksi">🔍</button>'
         +'<button class="btn btn-ghost btn-xs" style="color:var(--text2)" onclick="editTx('+tx.id+')" title="Edit transaksi" aria-label="Edit transaksi '+tx.type+' '+tx.ticker+' '+tx.date+'">✎</button>'
         +'<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delTx('+tx.id+')" title="Hapus transaksi" aria-label="Hapus transaksi '+tx.type+' '+tx.ticker+' '+tx.date+'">✕</button>'
