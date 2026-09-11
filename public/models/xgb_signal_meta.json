@@ -1,6 +1,6 @@
 {
   "version": "20260911",
-  "trained_at": "2026-09-11T06:10:17.819552",
+  "trained_at": "2026-09-11T06:27:15.444530",
   "feature_names": [
     "sma_ratio",
     "rsi14",
@@ -14,8 +14,13 @@
   "tp_atr_mult": 2.5,
   "atr_period": 14,
   "max_hold_days": 20,
-  "buy_threshold": 0.6,
-  "sell_threshold": 0.35,
+  "buy_threshold": 0.41176000237464905,
+  "sell_threshold": 0.318154901266098,
+  "buy_percentile": 80,
+  "sell_percentile": 20,
+  "base_rate": 0.37596996245306635,
+  "buy_precision_at_threshold": 0.40801001251564456,
+  "buy_signal_rate_test": 0.2,
   "tickers_used": [
     "BBCA.JK",
     "BBRI.JK",
@@ -38,17 +43,17 @@
     "EXCL.JK",
     "JSMR.JK"
   ],
-  "n_train": 15936,
-  "n_test": 3994,
-  "test_accuracy": 0.6084126189283926,
-  "test_roc_auc": 0.5223610787085919,
+  "n_train": 15940,
+  "n_test": 3995,
+  "test_accuracy": 0.6085106382978723,
+  "test_roc_auc": 0.5298143723864904,
   "feature_importance": {
-    "sma_ratio": 0.18820418417453766,
-    "rsi14": 0.1380438208580017,
-    "mom20": 0.1609983593225479,
-    "vol_ratio": 0.14713019132614136,
-    "volatility20": 0.19747811555862427,
-    "dist_high20": 0.1681453436613083
+    "sma_ratio": 0.1832815408706665,
+    "rsi14": 0.13850755989551544,
+    "mom20": 0.16206194460391998,
+    "vol_ratio": 0.14519920945167542,
+    "volatility20": 0.190095454454422,
+    "dist_high20": 0.18085427582263947
   },
   "disclaimer": "Model statistik untuk edukasi/backtesting — bukan rekomendasi investasi."
 }
