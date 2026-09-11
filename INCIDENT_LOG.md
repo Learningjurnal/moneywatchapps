@@ -1415,3 +1415,42 @@ Follow-up to the sessions above.
   timeframe), dan `force:true` berhasil melewati cache.
 
 `npm test` (85/85 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — generateBrokerSummary() sekarang menghormati parameter timeframe
+
+- **Konteks:** kelanjutan dari temuan sampingan di PR #126 (cache Scanner
+  Akumulasi & Distribusi) — user secara eksplisit meminta bug ini
+  diperbaiki juga.
+- **Bug:** `generateBrokerSummary()` selalu memanggil
+  `fetchInvezgoBrokerSummary(clean, today, today)` — mengabaikan
+  parameter `timeframe` sepenuhnya. Semua nilai timeframe yang dipakai di
+  seluruh aplikasi (`1D/3D/5D/20D` di Opportunity Radar Scanner & Flow
+  Trail, `1D/1W/1M/3M/6M/1Y` di Bandarmology/StockChat Broker Flow tab)
+  menghasilkan request Invezgo yang identik persis (hari ini saja).
+  Hanya SIMULASI fallback sisi-klien (`generateClientSideBrokerSummary`,
+  41-stockchat-cockpit.js) yang benar-benar membedakan berdasarkan
+  timeframe — begitu Invezgo API key aktif, data REAL yang ditampilkan
+  justru tidak berubah walau tombol timeframe diklik.
+- **Fix:** `BROKER_SUMMARY_TIMEFRAME_DAYS` (tabel pemetaan timeframe →
+  jumlah hari kalender) + `brokerSummaryDateRange(timeframe)` helper
+  (`lib/idx-data-engine.js`), menghitung `fromDate`/`toDate` riil
+  berdasarkan timeframe yang diminta, dikirim ke
+  `fetchInvezgoBrokerSummary()`. Field `reportDate` pada respons
+  (sebelumnya `today`, format tanpa dash) diganti `toDateDisplay` (format
+  `YYYY-MM-DD`, konsisten dengan `reportDate` lain di file yang sama).
+- **Prevention added:** `test_suite.js` TEST 63 — memastikan tabel
+  pemetaan & helper masih ada, panggilan lama
+  `fetchInvezgoBrokerSummary(clean, today, today)` tidak kembali, DAN
+  memvalidasi isi tabel pemetaan (1D=0 hari, 3D/5D/20D sesuai, 1W/1M/3M/
+  6M/1Y semuanya >0 hari). Terbukti gagal dengan pesan jelas saat fix
+  di-revert sebelum dikembalikan.
+- **Verifikasi:** skrip Node terpisah (INVEZGO_API_KEY diset sementara +
+  `global.fetch` di-stub untuk menangkap URL request) — memanggil
+  `generateBrokerSummary()` dengan timeframe 1D/20D/1Y menghasilkan 3 URL
+  Invezgo yang BERBEDA (`from_date=20260911` / `20260822` / `20250911`),
+  membuktikan rentang tanggal benar-benar berubah sesuai timeframe.
+  Catatan: karena `INVEZGO_API_KEY` belum dikonfigurasi di production,
+  jalur kode ini masih belum aktif sampai API key sungguhan disetel —
+  verifikasi ini membuktikan logikanya benar, bukan perilaku live saat ini.
+
+`npm test` (86/86 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.

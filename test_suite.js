@@ -1704,6 +1704,49 @@ test('REGRESSION GUARD: Scanner Akumulasi & Distribusi must cache client-side pe
     'REGRESSION: no caller passes force:true anymore — the explicit "Refresh"/"Refresh Feed" buttons would be stuck showing cached data');
 });
 
+// ── TEST 63: generateBrokerSummary() must honor the `timeframe` argument
+// when querying Invezgo, instead of always requesting fromDate=toDate=
+// today regardless of which timeframe (1D/3D/5D/20D/1W/1M/3M/6M/1Y) was
+// requested — found during the same Invezgo quota audit (user-reported,
+// 2026-09-11) as TEST 62. Load the real module via the vm sandbox
+// technique (same pattern as the escapeHtml() test above) since this
+// file has top-level side effects unsafe for a plain require() in a test
+// runner.
+test('REGRESSION GUARD: generateBrokerSummary() must vary the Invezgo date range by timeframe, not always fromDate=toDate=today', () => {
+  const enginePath = path.join(__dirname, 'lib/idx-data-engine.js');
+  const engineSrcRaw = fs.readFileSync(enginePath, 'utf8');
+  // Strip //-comments before matching — this fix's own explanatory comment
+  // quotes the OLD buggy call verbatim as documentation, which would
+  // otherwise false-positive the "must not be back" assertion below (same
+  // false-positive class as TEST 56's Chart.defaults.animation check).
+  const engineSrc = engineSrcRaw.split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+
+  assert(/BROKER_SUMMARY_TIMEFRAME_DAYS/.test(engineSrc),
+    'REGRESSION: the per-timeframe day-count table is gone — generateBrokerSummary() likely reverted to a fixed today-only date range');
+  assert(/function brokerSummaryDateRange\(timeframe\)/.test(engineSrc),
+    'REGRESSION: brokerSummaryDateRange() helper is gone');
+  assert(!/fetchInvezgoBrokerSummary\(clean,\s*today,\s*today\)/.test(engineSrc),
+    'REGRESSION: generateBrokerSummary() is back to calling fetchInvezgoBrokerSummary(clean, today, today) unconditionally — the timeframe argument is ignored again');
+  assert(/fetchInvezgoBrokerSummary\(clean,\s*fromDate,\s*toDate\)/.test(engineSrc),
+    'REGRESSION: generateBrokerSummary() no longer passes the computed fromDate/toDate through to fetchInvezgoBrokerSummary()');
+
+  // Functional check on the actual date-math, independent of the source
+  // text above: 1D must resolve to the same fromDate/toDate (today-only,
+  // preserving old behavior), while a multi-day timeframe like 20D must
+  // resolve to a genuinely earlier fromDate — proving the argument is
+  // actually wired into the computation, not just present as dead code.
+  const days = {};
+  const tableMatch = engineSrc.match(/const BROKER_SUMMARY_TIMEFRAME_DAYS = \{([\s\S]*?)\};/);
+  assert(tableMatch, 'sanity: could not locate BROKER_SUMMARY_TIMEFRAME_DAYS table source');
+  const parsed = JSON.parse('{' + tableMatch[1].replace(/'/g, '"').replace(/,\s*$/, '').trim().replace(/,\}$/, '}') + '}');
+  Object.assign(days, parsed);
+  assert(days['1D'] === 0, 'REGRESSION: 1D no longer maps to 0 days — would change today-only behavior');
+  assert(days['20D'] === 20 && days['3D'] === 3 && days['5D'] === 5,
+    'REGRESSION: Opportunity Radar Scanner timeframe keys (3D/5D/20D) no longer map to their expected day counts');
+  assert(days['1W'] > 0 && days['1M'] > 0 && days['3M'] > 0 && days['6M'] > 0 && (days['1Y'] > 0 || days['YTD'] > 0),
+    'REGRESSION: Bandarmology/StockChat Broker Flow tab timeframe keys (1W/1M/3M/6M/1Y) no longer map to a real day count');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
