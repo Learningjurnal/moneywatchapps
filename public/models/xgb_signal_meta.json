@@ -1,6 +1,6 @@
 {
-  "version": "20260724",
-  "trained_at": "2026-07-24T09:12:45.967458",
+  "version": "20260911",
+  "trained_at": "2026-09-11T06:10:17.819552",
   "feature_names": [
     "sma_ratio",
     "rsi14",
@@ -9,8 +9,11 @@
     "volatility20",
     "dist_high20"
   ],
-  "fwd_days": 10,
-  "target_return": 0.03,
+  "label_definition": "TP1 tersentuh sebelum SL (ATR-based, sinkron dengan computeStockSignal())",
+  "sl_atr_mult": 1.5,
+  "tp_atr_mult": 2.5,
+  "atr_period": 14,
+  "max_hold_days": 20,
   "buy_threshold": 0.6,
   "sell_threshold": 0.35,
   "tickers_used": [
@@ -26,6 +29,7 @@
     "KLBF.JK",
     "ADRO.JK",
     "ANTM.JK",
+    "PGAS.JK",
     "SMGR.JK",
     "GOTO.JK",
     "MDKA.JK",
@@ -34,17 +38,17 @@
     "EXCL.JK",
     "JSMR.JK"
   ],
-  "n_train": 17661,
-  "n_test": 4420,
-  "test_accuracy": 0.7131221719457014,
-  "test_roc_auc": 0.5642657331032169,
+  "n_train": 15936,
+  "n_test": 3994,
+  "test_accuracy": 0.6084126189283926,
+  "test_roc_auc": 0.5223610787085919,
   "feature_importance": {
-    "sma_ratio": 0.1722370684146881,
-    "rsi14": 0.15313869714736938,
-    "mom20": 0.15498293936252594,
-    "vol_ratio": 0.13466870784759521,
-    "volatility20": 0.21579903364181519,
-    "dist_high20": 0.16917353868484497
+    "sma_ratio": 0.18820418417453766,
+    "rsi14": 0.1380438208580017,
+    "mom20": 0.1609983593225479,
+    "vol_ratio": 0.14713019132614136,
+    "volatility20": 0.19747811555862427,
+    "dist_high20": 0.1681453436613083
   },
   "disclaimer": "Model statistik untuk edukasi/backtesting — bukan rekomendasi investasi."
 }
