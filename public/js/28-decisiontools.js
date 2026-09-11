@@ -1187,6 +1187,16 @@ async function sendCopilotPrompt(text) {
     livePrices: livePrices
   };
 
+  // Was: any failure here (network error, non-2xx, or a response body that
+  // wasn't valid JSON — e.g. a Vercel function-timeout HTML error page)
+  // fell straight into a dead-end "Gagal terhubung ke engine..." message
+  // with zero diagnostic value and no way forward for the user, even
+  // though 41-stockchat-cockpit.js's sendStockChatMessage() already solved
+  // this exact problem for the SAME /api/ai/agent-chat endpoint: on ANY
+  // failure it silently degrades to generateClientSideAiAgentResponse(), a
+  // deterministic client-side reasoning engine, so the user always gets a
+  // real, useful analysis instead of an error. Copilot now does the same.
+  var serverSucceeded = false;
   try {
     var res = await fetch('/api/ai/agent-chat', {
       method: 'POST',
@@ -1198,33 +1208,49 @@ async function sendCopilotPrompt(text) {
       })
     });
 
-    var data = await res.json();
-    if (data && data.success) {
+    if (res.ok) {
+      var data = await res.json();
+      if (data && data.success) {
+        MW_COPILOT_HISTORY.push({
+          role: 'assistant',
+          text: data.reply || 'Analisa berhasil diproses.',
+          toolCalls: data.toolCalls || []
+        });
+        serverSucceeded = true;
+      } else {
+        console.warn('[Copilot] Server AI responded without success:', data && data.error);
+      }
+    } else {
+      console.warn('[Copilot] Server AI responded with HTTP ' + res.status + ' ' + res.statusText);
+    }
+  } catch (err) {
+    console.warn('[Copilot] Server AI API unavailable, engaging client-side AI Agent Reasoning Engine:', err);
+  }
+
+  if (!serverSucceeded) {
+    if (typeof generateClientSideAiAgentResponse === 'function') {
+      var clientAiResult = generateClientSideAiAgentResponse(prompt, userContext);
       MW_COPILOT_HISTORY.push({
         role: 'assistant',
-        text: data.reply || 'Analisa berhasil diproses.',
-        toolCalls: data.toolCalls || []
+        text: clientAiResult.reply,
+        toolCalls: clientAiResult.toolCalls || []
       });
     } else {
+      // generateClientSideAiAgentResponse() not loaded (41-stockchat-cockpit.js
+      // missing/failed) — last-resort message, now naming the actual cause
+      // instead of a generic "coba lagi" with no diagnostic value.
       MW_COPILOT_HISTORY.push({
         role: 'assistant',
-        text: 'Terjadi kendala saat memproses analisa: ' + (data.error || 'Server tidak merespons.'),
+        text: 'Gagal terhubung ke engine MoneyWatch Pro AI, dan engine cadangan client-side tidak tersedia. Silakan muat ulang halaman lalu coba lagi.',
         toolCalls: []
       });
     }
-  } catch (err) {
-    console.error('Agent chat client error:', err);
-    MW_COPILOT_HISTORY.push({
-      role: 'assistant',
-      text: 'Gagal terhubung ke engine MoneyWatch Pro AI. Silakan coba kembali sesaat lagi.',
-      toolCalls: []
-    });
-  } finally {
-    MW_AI_IS_LOADING = false;
-    renderCopilotPage();
-    var b = el('copilot-history-box');
-    if (b) b.scrollTop = b.scrollHeight;
   }
+
+  MW_AI_IS_LOADING = false;
+  renderCopilotPage();
+  var b = el('copilot-history-box');
+  if (b) b.scrollTop = b.scrollHeight;
 }
 
 // Markdown Formatter for Institutional Agent Output
