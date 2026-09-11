@@ -1643,6 +1643,33 @@ test('REGRESSION GUARD: #bandarSmartMoneyChart must exist as a real element id i
     'REGRESSION: the dead getElementById(\'bandar-tab-content\') fallback is back — that id never existed anywhere in the rendered HTML');
 });
 
+// ── TEST 61: Win Rate track record banner must be persistent across ALL
+// AI Trading tabs (not buried only inside the 'paper' tab's own KPI row)
+// — user-requested: make the AI's real paper-trading win rate more
+// prominent. Placed in renderAiTradingPage() BEFORE the activeTab
+// dispatcher (`if (state.activeTab === 'cockpit') { html += ... }`), so it
+// renders unconditionally regardless of which sub-tab is open. Must stay
+// honest when totalTrades is 0 — showing "0%" then would misleadingly
+// read as "the AI always loses" rather than "no trade has been recorded
+// yet".
+test('REGRESSION GUARD: persistent Win Rate banner must render on every AI Trading tab, with an honest empty state', () => {
+  const aiJs = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+
+  const dispatcherIdx = aiJs.indexOf("if (state.activeTab === 'cockpit')");
+  const bannerIdx = aiJs.indexOf('WIN RATE AI TRADING (PAPER, REAL)');
+  assert(bannerIdx !== -1, 'REGRESSION: the persistent Win Rate banner is missing from 38-ai-autonomous-trading.js');
+  assert(dispatcherIdx !== -1, 'sanity: activeTab dispatcher not found (renderAiTradingPage structure changed)');
+  assert(bannerIdx < dispatcherIdx,
+    'REGRESSION: Win Rate banner is placed AFTER the activeTab dispatcher (or inside a specific tab branch) — it would only show on some tabs, not persistently on all of them');
+
+  assert(aiJs.includes("BELUM ADA TRADE"),
+    'REGRESSION: the honest "belum ada trade" empty state is gone — a 0% win rate with zero real trades would misleadingly read as the AI always losing');
+  assert(/paper\.totalTrades > 0/.test(aiJs),
+    'REGRESSION: the banner no longer branches on paper.totalTrades > 0 before showing a percentage');
+  assert(/onclick="aiSwitchTab\(\\?'paper\\?'\)"/.test(aiJs),
+    'REGRESSION: the banner no longer links through to the AI Paper Portfolio tab for full detail');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

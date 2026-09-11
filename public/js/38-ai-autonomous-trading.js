@@ -1354,6 +1354,31 @@
       + '  </div>'
       + '</div>';
 
+    // ── WIN RATE TRACK RECORD (persistent di semua tab, bukan cuma tab
+    //    "AI Paper Portfolio") — dihitung murni dari paper.closedTrades
+    //    real via recomputePaperStats(), tidak pernah dikarang. Ketika
+    //    belum ada trade yang ditutup sama sekali, "0%" akan terbaca
+    //    seolah AI selalu kalah padahal cuma belum ada data — jadi
+    //    ditampilkan status "BELUM ADA TRADE" secara eksplisit, bukan 0%.
+    //    onclick("aiSwitchTab('paper')") membawa user langsung ke rincian.
+    (function() {
+      var wr = paper.totalTrades > 0
+        ? '<span style="color:' + (paper.winRate >= 55 ? 'var(--green)' : paper.winRate >= 45 ? 'var(--amber)' : 'var(--red)') + '">' + paper.winRate + '%</span> <span style="color:var(--text3);font-weight:500">(' + paper.winningTrades + 'W / ' + paper.losingTrades + 'L dari ' + paper.totalTrades + ' trade)</span>'
+        : '<span style="color:var(--text3)">BELUM ADA TRADE</span>';
+      html += ''
+        + '<div class="card" style="padding:12px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;cursor:pointer" onclick="aiSwitchTab(\'paper\')" title="Lihat rincian di tab AI Paper Portfolio">'
+        + '  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        + '    <span style="font-size:10.5px;color:var(--text3);font-weight:700;letter-spacing:0.05em">WIN RATE AI TRADING (PAPER, REAL)</span>'
+        + '    <span style="font-size:18px;font-weight:800;font-family:var(--font-mono)">' + wr + '</span>'
+        + '  </div>'
+        + '  <div style="display:flex;gap:16px;align-items:center;font-size:11px;color:var(--text3);font-family:var(--font-mono)">'
+        + '    <span>Profit Factor: <strong style="color:var(--text)">' + (paper.profitFactor == null ? 'N/A' : paper.profitFactor) + '</strong></span>'
+        + '    <span>Net Return: <strong style="color:' + (paper.totalReturnPct >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (paper.totalReturnPct >= 0 ? '+' : '') + paper.totalReturnPct + '%</strong></span>'
+        + '    <span style="color:#38bdf8">Detail →</span>'
+        + '  </div>'
+        + '</div>';
+    })();
+
     // ── TAB CONTENT DISPATCHER ──
     if (state.activeTab === 'cockpit') {
       html += renderAiCockpit(state);
