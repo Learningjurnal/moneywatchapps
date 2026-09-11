@@ -1059,7 +1059,13 @@
       thesis: pos.thesis,
       lesson: lesson,
       mistake: mistake,
-      improvement: improvement
+      improvement: improvement,
+      // Item #4 groundwork — carried through from position-open time (see
+      // aiOpenPositionFromSignal()). `|| null` for positions opened before
+      // this field existed (backward compat) — aiExportTrainingDataset()
+      // skips those rather than treating a missing snapshot as all-zero
+      // features.
+      featureSnapshot: pos.featureSnapshot || null
     });
 
     recomputePaperStats();
@@ -1234,6 +1240,37 @@
     var costBasis = shares * entry;
     p.cash -= costBasis;
 
+    // Item #4 groundwork (2026-09-11, INCIDENT_LOG.md): snapshot the
+    // DECISION-TIME feature breakdown — not a re-derivation after the
+    // fact (which would be lossy/fragile: indicators computed later can
+    // legitimately differ from what they were at entry), but exactly what
+    // `sig` (the AI_UNIVERSE entry that triggered this BUY) already
+    // carries right now. This is the composite-signal system's OWN
+    // feature space (computeStockSignal(), lib/idx-data-engine.js —
+    // 65% technical + 35% fundamental, see that file's comment on the
+    // weights not yet being self-calibrating) — a DIFFERENT feature set
+    // than the separate, unrelated XGBoost model's 10 technical features
+    // (XGB_FEATURES, 11-quant.js). Do not conflate the two.
+    // hasFullFeatureSet is false when this position was opened via
+    // aiOpenPositionFromHypothesis() for a ticker never scanned by the
+    // Scanner engine — sig then only carries the Confluence Engine's own
+    // (differently-shaped) fields, not compositeScore/technicalScore/
+    // fundamentalScore. Both cases are recorded, never silently dropped.
+    var featureSnapshot = {
+      sourceEngine: sig.compositeScore != null ? 'scanner' : 'confluence_hypothesis',
+      hasFullFeatureSet: sig.compositeScore != null,
+      compositeScore: sig.compositeScore != null ? sig.compositeScore : null,
+      technicalScore: sig.technicalScore != null ? sig.technicalScore : null,
+      fundamentalScore: sig.fundamentalScore != null ? sig.fundamentalScore : null,
+      trend: sig.trend || null,
+      rsi14: sig.rsi14 != null ? sig.rsi14 : null,
+      volRatio: sig.volRatio != null ? sig.volRatio : null,
+      probability: sig.probability != null ? sig.probability : null,
+      evPerShare: sig.evPerShare != null ? sig.evPerShare : null,
+      rrRatio: sig.rrRatio != null ? sig.rrRatio : null,
+      regimeAtEntry: regimeAtEntry
+    };
+
     p.openPositions.push({
       id: 'POS-' + Date.now(),
       ticker: ticker,
@@ -1256,7 +1293,8 @@
       regimeAtEntry: regimeAtEntry, // real regime at the moment this position opened, or null if the fetch failed
       thesis: sig.thesis,
       confidence: sig.confidence,
-      ev: sig.ev
+      ev: sig.ev,
+      featureSnapshot: featureSnapshot
     });
 
     // Log the real action taken — a NEW event, not a mutation of whatever
@@ -2403,6 +2441,10 @@
       + '      <div class="ctitle" style="font-size:16px">Post-Mortem &amp; Trading Journal</div>'
       + '      <div style="font-size:12px;color:var(--text3)">Dibuat otomatis dari setiap posisi paper trading yang benar-benar ditutup (SL/TP tersentuh atau manual) — bukan narasi yang ditulis di muka.</div>'
       + '    </div>'
+      // Item #4 groundwork — persiapan pipeline ML copilot sesungguhnya
+      // (BUKAN model-nya sendiri). Lihat aiExportTrainingDataset() untuk
+      // detail skema.
+      + (trades.length ? '    <button class="btn btn-ghost btn-xs" onclick="aiExportTrainingDataset()" style="border-color:var(--accent);color:var(--accent)" title="Ekspor dataset (X, y) siap-training dari trade yang sudah ditutup — persiapan untuk model ML copilot masa depan, bukan model itu sendiri">⬇️ Export Dataset ML (JSON)</button>' : '')
       + '  </div>';
 
     if (!trades.length) {
@@ -2744,6 +2786,74 @@
     if (typeof showToast === 'function') showToast('Audit trail diekspor (' + log.length + ' entri).');
   }
 
+  // Item #4 groundwork (AI Copilot roadmap, 2026-09-11, INCIDENT_LOG.md) —
+  // PERSIAPAN untuk pipeline ML copilot yang sesungguhnya, BUKAN model itu
+  // sendiri. Kumpulkan closedTrades yang punya featureSnapshot (lihat
+  // aiOpenPositionFromSignal()) menjadi dataset (X, y) siap-training:
+  // X = breakdown skor komposit saat entry (technicalScore/
+  // fundamentalScore/compositeScore/dst dari computeStockSignal(),
+  // lib/idx-data-engine.js), y = hasil riil (WIN=1/LOSS=0). Trade lama
+  // dari sebelum featureSnapshot ada (featureSnapshot:null/undefined)
+  // dilewati apa adanya, BUKAN diisi angka nol yang menyesatkan model.
+  // Pisah dari fungsi export (di bawah) supaya bisa diuji langsung tanpa
+  // DOM/Blob/download.
+  function aiBuildTrainingDataset() {
+    var trades = (AI_TRADE_STATE.paperAccount && AI_TRADE_STATE.paperAccount.closedTrades) || [];
+    var samples = trades
+      .filter(function(t) { return t.featureSnapshot != null; })
+      .map(function(t) {
+        return {
+          ticker: t.ticker,
+          entryDate: t.entryDate,
+          exitDate: t.exitDate,
+          label: t.result === 'WIN' ? 1 : 0,
+          netPnL: t.netPnL,
+          rMultiple: t.rMultiple,
+          exitReason: t.exitReason,
+          errorClassification: t.errorClassification,
+          features: t.featureSnapshot
+        };
+      });
+    return {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      source: 'MoneyWatch Pro — AI Paper Trading (modal virtual terisolasi, bukan trading nyata)',
+      featureSpace: 'composite_signal_v1', // computeStockSignal() breakdown — BEDA dari XGB_FEATURES (model XGBoost terpisah, 11-quant.js); jangan dicampur.
+      totalClosedTrades: trades.length,
+      totalSamplesWithFeatures: samples.length,
+      skippedNoFeatureSnapshot: trades.length - samples.length,
+      samples: samples
+    };
+  }
+
+  // Downloads aiBuildTrainingDataset() as a JSON file — same download
+  // pattern as aiExportDecisionLogCsv() above.
+  function aiExportTrainingDataset() {
+    var dataset = aiBuildTrainingDataset();
+    if (!dataset.samples.length) {
+      if (typeof showToast === 'function') {
+        showToast(dataset.totalClosedTrades > 0
+          ? 'Ada ' + dataset.totalClosedTrades + ' trade tertutup, tapi semuanya dari sebelum fitur ini ada (tidak punya featureSnapshot) — belum bisa diekspor.'
+          : 'Belum ada trade tertutup untuk diekspor.');
+      }
+      return;
+    }
+
+    var json = JSON.stringify(dataset, null, 2);
+    var blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'ai-paper-trading-dataset-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    if (typeof showToast === 'function') {
+      showToast('Dataset ML diekspor (' + dataset.samples.length + ' sampel' + (dataset.skippedNoFeatureSnapshot > 0 ? ', ' + dataset.skippedNoFeatureSnapshot + ' trade lama dilewati karena belum punya feature snapshot' : '') + ').');
+    }
+  }
+
   // ══════════════════════════════════════════════════════════
   // 14. SUB-PAGE RENDERING: DATA QUALITY & FRESHNESS MONITOR
   // ══════════════════════════════════════════════════════════
@@ -2917,6 +3027,8 @@
   window.aiOpenPositionFromHypothesis = aiOpenPositionFromHypothesis;
   window.aiGenerateExitHypothesis = aiGenerateExitHypothesis;
   window.aiExportDecisionLogCsv = aiExportDecisionLogCsv;
+  window.aiBuildTrainingDataset = aiBuildTrainingDataset;
+  window.aiExportTrainingDataset = aiExportTrainingDataset;
   window.fetchAiDataQuality = fetchAiDataQuality;
   window.fetchAiMarketRegime = fetchAiMarketRegime;
 

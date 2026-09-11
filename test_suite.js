@@ -3044,6 +3044,110 @@ await asyncTest('REGRESSION GUARD: sendCopilotPrompt() must run xgbPredictLatest
   assert(/catch \(e\) \{\s*console\.warn\('\[Copilot\] xgbPredictLatest/.test(src), 'REGRESSION: a thrown error from xgbPredictLatest() is no longer caught — it would crash sendCopilotPrompt() instead of degrading to null');
 });
 
+// ── TEST 88: featureSnapshot construction (aiOpenPositionFromSignal(),
+// public/js/38-ai-autonomous-trading.js) — item #4 groundwork (2026-09-11,
+// INCIDENT_LOG.md / ml/PAPER_TRADING_DATASET.md): captures the DECISION-
+// TIME feature breakdown (computeStockSignal()'s composite_signal_v1
+// space, a DIFFERENT feature set than the unrelated XGBoost model) so a
+// future training pass doesn't need to reconstruct it later. Must
+// correctly distinguish a real Scanner-sourced signal (full feature set)
+// from a Hypothesis-Lab-only signal (partial), and never throw on a
+// signal missing optional fields.
+test('REGRESSION GUARD: featureSnapshot correctly captures the composite-signal breakdown at entry, distinguishing scanner vs confluence_hypothesis sourcing', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  const start = fullSrc.indexOf('var featureSnapshot = {');
+  assert(start !== -1, 'sanity: featureSnapshot construction not found — has aiOpenPositionFromSignal() been restructured?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n\n    p.openPositions.push({');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after featureSnapshot construction');
+  src = src.slice(0, relEnd);
+
+  // eslint-disable-next-line no-new-func
+  const buildSnapshot = new Function('sig', 'regimeAtEntry', src + '\nreturn featureSnapshot;');
+
+  // 1. Full Scanner signal (compositeScore present) — 'scanner' sourcing,
+  // every field passed through.
+  const fromScanner = buildSnapshot({
+    compositeScore: 78, technicalScore: 82, fundamentalScore: 70, trend: 'UPTREND',
+    rsi14: 61.2, volRatio: 1.8, probability: 65, evPerShare: 120, rrRatio: 1.9
+  }, 'BULL_TREND');
+  assert.strictEqual(fromScanner.sourceEngine, 'scanner');
+  assert.strictEqual(fromScanner.hasFullFeatureSet, true);
+  assert.strictEqual(fromScanner.compositeScore, 78);
+  assert.strictEqual(fromScanner.rsi14, 61.2);
+  assert.strictEqual(fromScanner.regimeAtEntry, 'BULL_TREND');
+
+  // 2. Hypothesis-Lab-only signal for a ticker never scanned (no
+  // compositeScore at all) — must be tagged 'confluence_hypothesis' with
+  // hasFullFeatureSet:false, and must NOT throw on the missing fields.
+  const fromHypothesis = buildSnapshot({}, 'SIDEWAYS');
+  assert.strictEqual(fromHypothesis.sourceEngine, 'confluence_hypothesis');
+  assert.strictEqual(fromHypothesis.hasFullFeatureSet, false);
+  assert.strictEqual(fromHypothesis.compositeScore, null, 'REGRESSION: a missing compositeScore should become null, not undefined/NaN — undefined would be silently dropped by JSON.stringify() in the dataset export');
+  assert.strictEqual(fromHypothesis.rsi14, null);
+
+  // 3. regimeAtEntry fetch failure (null) — must degrade to null, not throw.
+  const noRegime = buildSnapshot({ compositeScore: 60 }, null);
+  assert.strictEqual(noRegime.regimeAtEntry, null);
+});
+
+// ── TEST 89: closedTrades must carry featureSnapshot through from the
+// position it closes (aiClosePosition()) — without this, TEST 88's
+// snapshot is captured at entry but discarded at exit, and the dataset
+// export (TEST 90) would have nothing to work with.
+test('REGRESSION GUARD: aiClosePosition() must carry featureSnapshot through from the closing position into the closedTrades record', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(/featureSnapshot: pos\.featureSnapshot \|\| null/.test(src),
+    'REGRESSION: the closedTrades record no longer carries pos.featureSnapshot through — the dataset export will have nothing to work with even for brand-new trades');
+});
+
+// ── TEST 90: aiBuildTrainingDataset() (public/js/38-ai-autonomous-
+// trading.js) — the actual (X, y) assembly. Must map WIN/LOSS to 1/0,
+// skip (never zero-fill) trades from before featureSnapshot existed, and
+// report accurate counts.
+test('REGRESSION GUARD: aiBuildTrainingDataset() must correctly label WIN/LOSS, skip trades without a featureSnapshot rather than zero-filling them', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  const start = fullSrc.indexOf('function aiBuildTrainingDataset() {');
+  assert(start !== -1, 'sanity: aiBuildTrainingDataset() not found — has it been renamed/moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n\n  // Downloads aiBuildTrainingDataset()');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after aiBuildTrainingDataset()');
+  src = src.slice(0, relEnd);
+
+  const sandbox = {
+    window: {},
+    AI_TRADE_STATE: {
+      paperAccount: {
+        closedTrades: [
+          { ticker: 'BBCA', entryDate: '2026-08-01', exitDate: '2026-08-10', result: 'WIN', netPnL: 500000, rMultiple: 2.1, exitReason: 'TAKE PROFIT', errorClassification: 'TARGET_ACHIEVED', featureSnapshot: { compositeScore: 75 } },
+          { ticker: 'BBRI', entryDate: '2026-08-05', exitDate: '2026-08-12', result: 'LOSS', netPnL: -120000, rMultiple: -1, exitReason: 'STOP LOSS', errorClassification: 'RISK_MANAGEMENT_TRIGGERED', featureSnapshot: { compositeScore: 58 } },
+          // Old trade from before featureSnapshot existed — must be
+          // SKIPPED, not zero-filled into a misleading sample.
+          { ticker: 'TLKM', entryDate: '2026-07-01', exitDate: '2026-07-15', result: 'WIN', netPnL: 200000, rMultiple: 1.5, exitReason: 'TAKE PROFIT', errorClassification: 'TARGET_ACHIEVED', featureSnapshot: null },
+        ],
+      },
+    },
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '38-ai-autonomous-trading.js aiBuildTrainingDataset() (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.aiBuildTrainingDataset, 'function', 'aiBuildTrainingDataset not exposed on the sandbox context');
+  const dataset = ctx.aiBuildTrainingDataset();
+
+  assert.strictEqual(dataset.totalClosedTrades, 3);
+  assert.strictEqual(dataset.totalSamplesWithFeatures, 2, 'REGRESSION: the old trade without featureSnapshot was not correctly skipped');
+  assert.strictEqual(dataset.skippedNoFeatureSnapshot, 1);
+  assert.strictEqual(dataset.samples.length, 2);
+
+  const bbca = dataset.samples.find(s => s.ticker === 'BBCA');
+  const bbri = dataset.samples.find(s => s.ticker === 'BBRI');
+  assert.strictEqual(bbca.label, 1, 'REGRESSION: a WIN trade must map to label 1');
+  assert.strictEqual(bbri.label, 0, 'REGRESSION: a LOSS trade must map to label 0');
+  assert.strictEqual(bbca.features.compositeScore, 75, 'REGRESSION: the featureSnapshot is not passed through as `features` in the sample');
+  assert(!dataset.samples.some(s => s.ticker === 'TLKM'), 'REGRESSION: the featureSnapshot-less trade leaked into samples instead of being skipped');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
