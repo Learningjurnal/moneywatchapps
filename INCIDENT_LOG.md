@@ -1927,3 +1927,60 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - Cache-bust `28-decisiontools.js` → `?v=20260911b`.
 
 `npm test` (97/97 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.
+
+## 2026-09-11 — AI Copilot: kontras teks buruk pada bubble "Anda" (light theme) + jawaban AI ngaco untuk pertanyaan portofolio
+
+- **Reported by:** user, via screenshot — bubble "Anda" di Copilot tampil
+  teks hitam/gelap di atas latar biru solid (sulit dibaca), dan pertanyaan
+  "analisa portofolio saya" dijawab dengan "Kode ticker SAYA tidak
+  teridentifikasi pada database pasar saham Indonesia (IDX)..." alih-alih
+  ringkasan portofolio.
+
+### Bug 1: Kontras bubble "Anda" (`public/js/28-decisiontools.js`)
+- **Root cause:** `.bubble-user` (CSS, `main.css`) di light theme diberi
+  `background:#2563EB !important` — tapi `!important` pada properti `color`
+  milik DIV bubble itu sendiri TIDAK pernah menang atas `color` yang
+  di-set eksplisit secara inline pada elemen ANAK (`cb-role`, `cb-text`).
+  Kedua elemen anak itu memakai `var(--accent)`/`var(--text)`, yang di
+  light theme masing-masing resolve ke `#0000FF`/`#1D252C` — biru pudar
+  dan nyaris hitam di atas latar biru solid, persis bug yang dilaporkan.
+- **Fix:** `cb-role` dan `cb-text` untuk bubble user sekarang hardcode
+  putih (`#FFFFFF`), sama seperti pola yang sudah benar di StockChat
+  cockpit (`41-stockchat-cockpit.js` line ~1557, `color:#ffffff` langsung,
+  tidak bergantung variabel tema) — bubble "Anda" selalu di atas warna
+  biru di semua tema, jadi teks putih selalu aman.
+
+### Bug 2: Jawaban ngaco untuk pertanyaan portofolio (`public/js/41-stockchat-cockpit.js`)
+- **Root cause:** `generateClientSideAiAgentResponse()` (engine fallback
+  client-side, sekarang juga dipakai AI Copilot sejak PR #136) SELALU
+  mencoba mengekstrak kode ticker dari pesan lebih dulu — kalau tidak ada
+  ticker asli yang cocok, ia menebak kata 3-6 huruf sebagai "kemungkinan
+  ticker" (`possibleCode`). Untuk "analisa portofolio saya", kata `SAYA`
+  (4 huruf, tidak ada di daftar pengecualian) lolos sebagai tebakan
+  ticker, gagal validasi IDX universe, dan LANGSUNG return pesan error
+  "Ticker Tidak Terdaftar" — SEBELUM logika pengecekan intent
+  porto/aum/holding/rdn/kas (yang sebenarnya sudah benar dan lengkap)
+  sempat dicek sama sekali. Kata seperti `KAS` sendirian punya masalah
+  serupa.
+- **Fix:** intent portofolio/AUM/kas dan strategi/playbook sekarang dicek
+  LEBIH DULU (`isPortfolioIntent`, `isStrategyIntent`); kalau salah satu
+  cocok, ekstraksi/validasi ticker dilewati sepenuhnya (dua intent ini
+  memang tidak butuh ticker tunggal yang valid). Proteksi "Zero Dummy
+  Data" untuk ticker yang benar-benar tidak dikenal tetap berjalan normal
+  untuk pertanyaan spesifik-ticker.
+- **Prevention added:**
+  - `test_suite.js` TEST 75 — mengevaluasi ekspresi `.map()` pembangun
+    bubble lewat `new Function()`, membuktikan bubble user (`cb-role`,
+    `cb-text`) benar-benar `color:#FFFFFF` di HTML yang dihasilkan, dan
+    bubble assistant tetap `var(--text)` (sanity). Terbukti gagal saat
+    direvert.
+  - `test_suite.js` TEST 76 — memuat `generateClientSideAiAgentResponse()`
+    lewat vm sandbox, membuktikan "analisa portofolio saya" dan "cek kas
+    saya" menghasilkan jawaban portofolio asli (bukan error ticker),
+    ticker yang benar-benar tidak dikenal (tanpa intent porto/strategi)
+    tetap kena guard Zero Dummy Data, dan ticker valid (BBCA) tetap
+    berfungsi normal. Terbukti gagal saat direvert.
+- Cache-bust `28-decisiontools.js` → `?v=20260911c`,
+  `41-stockchat-cockpit.js` → `?v=20260911e`.
+
+`npm test` (99/99 + 16/16 kebijakan + 6/6 provider), `npm run lint` bersih.

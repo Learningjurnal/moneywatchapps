@@ -2370,6 +2370,126 @@ await asyncTest('REGRESSION GUARD: sendCopilotPrompt() must degrade to the clien
     }
 });
 
+// ── TEST 75: AI Copilot chat bubbles (renderCopilotPage() in public/js/
+// 28-decisiontools.js) must render the "Anda" (user) bubble's text in
+// white, not a theme-dependent color — found via user screenshot
+// (2026-09-11): in light theme, .bubble-user's background is a solid blue
+// (`body.theme-light .bubble-user { background:#2563EB !important }` in
+// main.css), but cb-role/cb-text used var(--accent)/var(--text), which in
+// light theme resolve to near-black — dark text on a solid blue bubble,
+// unreadable. A CSS !important on the bubble DIV's own `color` never wins
+// over a CHILD element's own explicit inline color, so this had to be
+// fixed at the source (28-decisiontools.js), not in CSS.
+test('REGRESSION GUARD: AI Copilot user ("Anda") chat bubble text must be hardcoded white, not a theme-variable color that goes dark-on-blue in light theme', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const startMarker = 'var messagesHtml = MW_COPILOT_HISTORY.map(function(m, idx) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: the copilot bubble-rendering map() not found — has renderCopilotPage() moved/been renamed?');
+  let src = fullSrc.slice(start + 'var messagesHtml = '.length);
+  const relEnd = src.indexOf("}).join('');");
+  assert(relEnd !== -1, 'sanity: could not find the end of the bubble-rendering map() callback');
+  src = src.slice(0, relEnd + "}).join('')".length); // deliberately excludes the trailing ';' — it's wrapped in return (...) below
+
+  assert(!/color:' \+ \(isAssistant \? '#38bdf8' : 'var\(--accent\)'\)/.test(src),
+    'REGRESSION: cb-role color is back to theme-dependent var(--accent) for user bubbles');
+  assert(!/color:var\(--text\)">' \+ formattedText/.test(src),
+    'REGRESSION: cb-text color is back to unconditional var(--text), ignoring that user bubbles sit on a blue background in light theme');
+
+  // Functional proof: evaluate the actual map() expression against a
+  // 2-message history (one from each role) and read the real color values
+  // out of the generated HTML, rather than only pattern-matching source
+  // text.
+  // eslint-disable-next-line no-new-func
+  const buildHtml = new Function('MW_COPILOT_HISTORY', 'formatAgentMarkdown', 'escapeHtml',
+    'return (' + src + ');'
+  );
+  const html = buildHtml(
+    [
+      { role: 'user', text: 'Analisa portofolio saya', toolCalls: [] },
+      { role: 'assistant', text: 'Berikut analisanya.', toolCalls: [] },
+    ],
+    (t) => t,
+    (t) => t
+  );
+
+  const userBubble = html.split('bubble-assistant')[0]; // everything before the assistant bubble is the user one
+  assert(/cb-role" style="[^"]*color:#FFFFFF/.test(userBubble),
+    'REGRESSION: "Anda" (cb-role) is not rendered in hardcoded white — will go dark-on-blue in light theme again');
+  assert(/cb-text" style="[^"]*color:#FFFFFF/.test(userBubble),
+    'REGRESSION: the user message body (cb-text) is not rendered in hardcoded white — will go dark-on-blue in light theme again');
+
+  const assistantBubble = html.slice(html.indexOf('bubble-assistant'));
+  assert(/cb-text" style="[^"]*color:var\(--text\)/.test(assistantBubble),
+    'sanity: the assistant bubble must keep using the theme-aware var(--text) color (its background already tracks the theme correctly, unlike the user bubble)');
+});
+
+// ── TEST 76: generateClientSideAiAgentResponse() (public/js/
+// 41-stockchat-cockpit.js) — the client-side AI fallback engine, now also
+// used by the AI Copilot (public/js/28-decisiontools.js) — must route a
+// portfolio/AUM/cash question to the portfolio-review branch even when a
+// stray word in the message (e.g. "SAYA", "KAS") would otherwise be
+// misread as a candidate ticker code and rejected by the strict
+// ticker-validity gate. Reported by the user via screenshot (2026-09-11):
+// "analisa portofolio saya" answered with "Kode ticker SAYA tidak
+// teridentifikasi..." instead of an actual portfolio review.
+test('REGRESSION GUARD: generateClientSideAiAgentResponse() must not let a stray word in a portfolio/strategy question get misread as an invalid ticker and short-circuit the real answer', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const startMarker = 'function generateClientSideAiAgentResponse(message, userContext) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: generateClientSideAiAgentResponse() not found — has it been renamed/moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Clear history');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after generateClientSideAiAgentResponse() (next comment banner) — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/isTickerIndependentIntent/.test(src),
+    'REGRESSION: the ticker-independent-intent guard is gone — a stray word in a portfolio/strategy question will be misread as an invalid ticker again');
+  assert(/if \(!isTickerIndependentIntent && typeof isValidStockTicker === 'function' && !isValidStockTicker\(matchedTicker\)\)/.test(src),
+    'REGRESSION: the ticker-validity gate no longer skips portfolio/strategy intents — the CUAN-adjacent "Kode ticker SAYA tidak teridentifikasi" bug is back');
+
+  const sandbox = {
+    window: {},
+    DB: { BBCA: { name: 'Bank Central Asia', sector: 'Perbankan' } },
+    isValidStockTicker: (tk) => tk === 'BBCA',
+    getPortfolio: () => [{ ticker: 'BBCA', lot: 10, marketValue: 50000000 }],
+    computeCurrentAUM: () => 100000000,
+    calcRdnBalance: () => 20000000,
+    STOCKCHAT_SELECTED_TICKER: 'BBCA',
+    getAccurateStockPrice: () => 9000, // valuasi/dividen/simulasi branches fall back to this when getGlobalMarketPrice isn't loaded
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '41-stockchat-cockpit.js (sandboxed load for test)' });
+
+  assert.strictEqual(typeof ctx.generateClientSideAiAgentResponse, 'function', 'generateClientSideAiAgentResponse not exposed on the sandbox context');
+
+  // The exact user-reported message: no valid ticker, and "SAYA" would be
+  // misread as a candidate ticker code by the old possibleCode heuristic.
+  const r1 = ctx.generateClientSideAiAgentResponse('analisa portofolio saya', {});
+  assert(!/Ticker Tidak Terdaftar/.test(r1.reply),
+    'REGRESSION: "analisa portofolio saya" still bounces off the invalid-ticker gate instead of answering the portfolio question');
+  assert(/Portofolio|AUM|Kas RDN/.test(r1.reply),
+    'REGRESSION: "analisa portofolio saya" did not produce an actual portfolio-review reply');
+
+  // "kas" alone is both a portfolio-intent keyword AND, on its own, would
+  // pass the old length-3-6 possibleCode filter as a fake ticker.
+  const r2 = ctx.generateClientSideAiAgentResponse('cek kas saya', {});
+  assert(!/Ticker Tidak Terdaftar/.test(r2.reply),
+    'REGRESSION: "cek kas saya" still bounces off the invalid-ticker gate');
+
+  // A genuinely unknown ticker with NO portfolio/strategy keywords must
+  // still correctly show the "Ticker Tidak Terdaftar" guard — this fix
+  // must not have broken that zero-dummy-data protection.
+  const r3 = ctx.generateClientSideAiAgentResponse('analisa saham ZZZZ', {});
+  assert(/Ticker Tidak Terdaftar/.test(r3.reply),
+    'REGRESSION: a genuinely unknown ticker with no portfolio/strategy intent no longer triggers the Zero Dummy Data guard');
+
+  // A real, valid ticker must still resolve normally through the
+  // ticker-specific branches, unaffected by this fix.
+  const r4 = ctx.generateClientSideAiAgentResponse('valuasi BBCA', {});
+  assert(!/Ticker Tidak Terdaftar/.test(r4.reply), 'REGRESSION: a valid ticker (BBCA) is now incorrectly rejected');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
