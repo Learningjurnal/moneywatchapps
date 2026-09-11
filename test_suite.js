@@ -2702,6 +2702,149 @@ await asyncTest('REGRESSION GUARD: sendCopilotPrompt() must attach a real userCo
     'REGRESSION: aiPaperTrading should degrade to null (not throw) when AI_TRADE_STATE is unavailable');
 });
 
+// ── TEST 81: computePortfolioRiskGateFindings() (server.js) — item #2 of
+// the AI Copilot roadmap (2026-09-11, INCIDENT_LOG.md): rule-based
+// improvement suggestions (no ML) that check portfolio holdings against
+// the app's actual approved Risk Gate (PORTFOLIO_RISK_POLICY, which must
+// stay in sync with RISK_POLICY.MAX_POSITION_PCT/MIN_CASH_BUFFER_PCT in
+// 38-ai-autonomous-trading.js and FINANCIAL_POLICY.md §7). Must never
+// invent a threshold, must flag every position over 15% AUM (not just
+// the largest), and must produce ZERO findings for a compliant portfolio.
+test('REGRESSION GUARD: computePortfolioRiskGateFindings() flags real Risk Gate violations (position >15% AUM, cash <20% AUM), none when compliant', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const start = fullSrc.indexOf('const PORTFOLIO_RISK_POLICY = {');
+  assert(start !== -1, 'sanity: PORTFOLIO_RISK_POLICY not found — has this section moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n\n// FIX: sebelumnya cek_harga');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after computePortfolioRiskGateFindings()');
+  src = src.slice(0, relEnd);
+
+  assert(/MAX_POSITION_PCT: 15/.test(src), 'REGRESSION: PORTFOLIO_RISK_POLICY.MAX_POSITION_PCT no longer matches the approved 15% (FINANCIAL_POLICY.md §7)');
+  assert(/MIN_CASH_BUFFER_PCT: 20/.test(src), 'REGRESSION: PORTFOLIO_RISK_POLICY.MIN_CASH_BUFFER_PCT no longer matches the approved 20% (FINANCIAL_POLICY.md §7)');
+
+  const ctx = vm.createContext({ window: {} });
+  vm.runInContext(src, ctx, { filename: 'server.js computePortfolioRiskGateFindings() (sandboxed load for test)' });
+  assert.strictEqual(typeof ctx.computePortfolioRiskGateFindings, 'function', 'computePortfolioRiskGateFindings not exposed on the sandbox context');
+
+  // 1. Compliant portfolio — zero findings.
+  // Note: results are arrays constructed INSIDE the vm sandbox, so they
+  // belong to a different realm than this file's own Array — comparing
+  // them via deepStrictEqual against a main-realm [] literal fails on
+  // reference/prototype identity even when structurally identical
+  // (confirmed: Node's assert treats cross-realm arrays as unequal).
+  // Array.from() rebuilds a same-realm array first to sidestep that.
+  const compliant = ctx.computePortfolioRiskGateFindings(
+    [{ ticker: 'BBCA', aumWeightPct: 10 }, { ticker: 'BBRI', aumWeightPct: 8 }],
+    100000000, 25000000 // 25% cash — above the 20% minimum
+  );
+  assert.strictEqual(compliant.length, 0, 'REGRESSION: a fully compliant portfolio produced spurious findings');
+
+  // 2. One over-concentrated position, healthy cash — exactly one finding.
+  const overConcentrated = ctx.computePortfolioRiskGateFindings(
+    [{ ticker: 'BBCA', aumWeightPct: 22 }, { ticker: 'BBRI', aumWeightPct: 8 }],
+    100000000, 25000000
+  );
+  assert.strictEqual(overConcentrated.length, 1);
+  assert.strictEqual(overConcentrated[0].type, 'concentration');
+  assert.strictEqual(overConcentrated[0].ticker, 'BBCA');
+  assert(/BBCA/.test(overConcentrated[0].message) && /15%/.test(overConcentrated[0].message),
+    'REGRESSION: the concentration finding message does not name the offending ticker and the 15% limit');
+
+  // 3. Multiple over-concentrated positions — ALL must be flagged, not just
+  // the largest (unlike cek_portofolio_user's existing top1-only
+  // concentrationWarning).
+  const multiOver = ctx.computePortfolioRiskGateFindings(
+    [{ ticker: 'BBCA', aumWeightPct: 20 }, { ticker: 'BBRI', aumWeightPct: 18 }, { ticker: 'TLKM', aumWeightPct: 5 }],
+    100000000, 25000000
+  );
+  assert.strictEqual(multiOver.length, 2, 'REGRESSION: only one of two over-concentrated positions was flagged');
+  assert.deepStrictEqual(Array.from(multiOver, f => f.ticker).sort(), ['BBCA', 'BBRI']);
+
+  // 4. Low cash buffer alone — exactly one cash_buffer finding.
+  const lowCash = ctx.computePortfolioRiskGateFindings(
+    [{ ticker: 'BBCA', aumWeightPct: 10 }],
+    100000000, 5000000 // 5% cash — below the 20% minimum
+  );
+  assert.strictEqual(lowCash.length, 1);
+  assert.strictEqual(lowCash[0].type, 'cash_buffer');
+  assert(/20%/.test(lowCash[0].message), 'REGRESSION: the cash-buffer finding message does not name the 20% limit');
+
+  // 5. Zero/negative AUM must degrade to no findings, never divide by
+  // zero / produce NaN or Infinity findings.
+  const zeroAum = ctx.computePortfolioRiskGateFindings([{ ticker: 'BBCA', aumWeightPct: 999 }], 0, 0);
+  assert.strictEqual(zeroAum.length, 0, 'REGRESSION: zero AUM must short-circuit to no findings, not divide by zero');
+});
+
+// ── TEST 82: the deterministic AI fallback's portfolio branch (server.js)
+// must surface computePortfolioRiskGateFindings() results as an automatic
+// "Saran Perbaikan" section — proactively, as part of the normal
+// portfolio analysis reply, not gated behind a separate keyword the user
+// has to know to ask for.
+test('REGRESSION GUARD: the deterministic AI fallback portfolio reply must include an automatic Risk Gate Saran Perbaikan section', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  // Start from the riskGateFindings computation, which sits just BEFORE
+  // the `reply = '### 📊 ...` template it feeds — not from the template
+  // literal itself, which would miss the `resPorto.riskGateFindings` read
+  // above it.
+  const start = fullSrc.indexOf('const riskGateFindings = resPorto.riskGateFindings');
+  assert(start !== -1, 'sanity: the portfolio branch riskGateFindings computation not found — has it moved/been rewritten?');
+  const src = fullSrc.slice(start, start + 2500);
+
+  assert(/Saran Perbaikan \(Risk Gate/.test(src), 'REGRESSION: the automatic Risk Gate Saran Perbaikan section is gone from the portfolio reply');
+  assert(/resPorto\.riskGateFindings/.test(src), 'REGRESSION: the portfolio reply no longer reads riskGateFindings from cek_portofolio_user');
+});
+
+// ── TEST 83: generateClientSideAiAgentResponse()'s isPortfolioIntent
+// branch (public/js/41-stockchat-cockpit.js) — the client-side mirror of
+// TEST 81/82, exercised when the server is unreachable. Was a generic,
+// never-actually-checked sentence ("pastikan tidak ada saham yang
+// melebihi 15%..."); must now compute real per-ticker Risk Gate findings
+// from userContext, same thresholds as server.js.
+test("REGRESSION GUARD: client-side portfolio branch must compute real Risk Gate findings (position >15%/cash <20%), not a generic unchecked sentence", () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const startMarker = 'function generateClientSideAiAgentResponse(message, userContext) {';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: generateClientSideAiAgentResponse() not found');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Clear history');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after generateClientSideAiAgentResponse()');
+  src = src.slice(0, relEnd);
+
+  assert(!/Pastikan tidak ada saham tunggal yang melebihi batas 15%/.test(src),
+    'REGRESSION: the old generic, never-actually-checked diversification sentence is back');
+  assert(/PORTFOLIO_RISK_POLICY_MAX_POSITION_PCT = 15/.test(src) && /PORTFOLIO_RISK_POLICY_MIN_CASH_BUFFER_PCT = 20/.test(src),
+    'REGRESSION: the client-side Risk Gate thresholds no longer match the approved 15%/20% (FINANCIAL_POLICY.md §7)');
+
+  const sandbox = {
+    window: {},
+    DB: { BBCA: { name: 'Bank Central Asia', sector: 'Perbankan' } },
+    isValidStockTicker: (tk) => tk === 'BBCA',
+    STOCKCHAT_SELECTED_TICKER: 'BBCA',
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '41-stockchat-cockpit.js generateClientSideAiAgentResponse() (sandboxed load for test)' });
+
+  // Over-concentrated single position + low cash — both findings must
+  // appear, naming the real ticker and real percentages.
+  const r1 = ctx.generateClientSideAiAgentResponse('analisa portofolio saya', {
+    holdings: [{ ticker: 'BBCA', marketValue: 30000000, lot: 100 }],
+    totalAum: 100000000,
+    rdnCash: 5000000, // 5% — below 20%
+  });
+  assert(/BBCA/.test(r1.reply) && /15%/.test(r1.reply), 'REGRESSION: over-concentrated BBCA (30% AUM) is not flagged in the reply');
+  assert(/20%/.test(r1.reply), 'REGRESSION: the low cash buffer (5%) is not flagged against the 20% minimum');
+
+  // Compliant portfolio — must say so, not silently omit the section or
+  // fabricate a violation.
+  const r2 = ctx.generateClientSideAiAgentResponse('analisa portofolio saya', {
+    holdings: [{ ticker: 'BBCA', marketValue: 10000000, lot: 100 }],
+    totalAum: 100000000,
+    rdnCash: 30000000, // 30% — above 20%
+  });
+  assert(/Tidak ada pelanggaran Risk Gate/.test(r2.reply), 'REGRESSION: a compliant portfolio does not get the honest "no violation" message');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
