@@ -402,7 +402,11 @@ function rdRebuildFromReal(){
   }
   wlTks.forEach(function(t){
     if(!FS_WL.some(function(w){ return w.t===t; })){
-      var info = FS_UNIV.find(function(u){ return u.t===t; }) || {t:t, n:t, s:'IHSG', cap:0};
+      // Was a hardcoded {t,n:t,s:'IHSG',cap:0} duplicate of fsFallbackInfo()'s
+      // OLD (buggy) fallback — same class of bug as the CUAN incident
+      // (name=code, sector=IHSG instead of the real sector). Reuse the
+      // already-fixed shared helper instead of re-duplicating its logic.
+      var info = FS_UNIV.find(function(u){ return u.t===t; }) || fsFallbackInfo(t);
       var d = fsGenData(t, 60);
       FS_WL.push(Object.assign({}, info, {data:d, a:fsProcess(d)}));
     }
