@@ -2111,3 +2111,33 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 **Catatan jujur untuk user:** ini menutup celah client-side yang tersisa dan mencegah REGRESI ke depan pada wiring verifikasi identitas — bukan pernyataan bahwa MW-P0-001 "sudah selesai total". Stage 2 (`AUTH_ENFORCE_STAGE2`) tetap OFF di commit ini; kapan menyalakannya tetap sepenuhnya keputusan Anda setelah meninjau log telemetry Stage 1 di produksi.
 
 **Update (commit sama hari, sebelum merge)** — job CI `test` yang baru ditambahkan di atas GAGAL pada run pertama di PR #145: `ERR_MODULE_NOT_FOUND '@upstash/redis'` saat `test_financial_policy.js` (lewat `vm`) memuat `lib/idx-data-engine.js` yang mengimpor `lib/invezgo-client.js`. Klaim di komentar/INCIDENT_LOG sebelumnya — "semua file test hanya pakai Node builtin, tidak perlu `npm install` di CI" — TERBUKTI SALAH: benar untuk import langsung di ATAS setiap file test, tapi tidak untuk modul yang dimuat transitif lewat `vm`/import saat test berjalan. Diperbaiki dengan menambahkan langkah `npm ci` sebelum `npm test` di job `test` (`.github/workflows/syntax-check.yml`). Ditemukan dari log job CI sungguhan (114/114 test_suite.js sempat lolos duluan sebelum proses crash saat pindah ke test_financial_policy.js), bukan simulasi lokal — lokal selalu punya `node_modules` ter-install jadi tidak pernah mereproduksi ini.
+
+## 2026-09-11 — Monitoring kuota harian: GET /api/ai/gemini-status (baru) + widget UI "Kuota API" untuk Invezgo & Gemini
+
+- **Konteks:** user bertanya apakah perlu dibuat monitoring kuota harian untuk API Gemini dan Invezgo supaya bisa aware batasannya.
+- **Temuan audit (sebelum ada perubahan apa pun):**
+  - **Invezgo**: kuota manager LENGKAP sudah ada di `lib/invezgo-client.js` (budget 30.000 req/bulan via Redis, alert metric otomatis di 80%/90%, cache hit ratio, error rate) DAN endpoint `GET /api/idx/invezgo-status` sudah mengeksposnya — tapi TIDAK ADA satu pun tempat di UI yang menampilkannya. Datanya sudah lengkap, cuma tidak pernah dilihat kecuali curl manual.
+  - **Gemini**: TIDAK ADA sama sekali. `callGeminiWithRetryAndFallback()` (server.js) cuma retry reaktif saat kena 429/RESOURCE_EXHAUSTED (fallback ke 5 model: gemini-3.5-flash → 3.7 → 3.6 → flash-latest → 3.1-flash-lite), tanpa counter proaktif, tanpa visibilitas pemakaian harian.
+  - User mengonfirmasi API key Gemini yang dipakai masih **free tier** (limit resmi RPD/RPM dari Google, bukan billing pay-as-you-go) — jadi counter berarti langsung sebagai "sisa kuota hari ini", bukan estimasi biaya.
+- **Keputusan desain penting: TIDAK memblokir panggilan apa pun.** Angka limit RPD resmi per model tidak pernah bisa saya verifikasi dari sumber primer Google (ai.google.dev diblokir egress proxy sesi ini, hanya blog agregator pihak ketiga yang bisa diakses — datanya tidak saya pakai sebagai default karena berisiko keliru dan memblokir panggilan yang sebenarnya masih diizinkan Google). Google sendiri sudah menegakkan limit sungguhan (429/RESOURCE_EXHAUSTED sudah ditangani reaktif). Jadi counter Gemini murni observability — mencatat pemakaian riil, menghitung persentase HANYA kalau operator (Anda) mengisi limit asli lewat env var `GEMINI_RPD_LIMITS` setelah cek AI Studio sendiri (pola yang sama seperti `AUTH_ENFORCE_STAGE2`: keputusan operator, bukan tebakan kode).
+- **Perubahan:**
+  - `lib/gemini-quota.js` (baru) — mirror pola Redis/in-memory-fallback `invezgo-client.js`: `recordGeminiAttempt(model)` (counter RPD per-model + RPM per-menit, fire-and-forget, tidak pernah menghambat panggilan asli), `recordGeminiOutcome(outcome)` (agregat success/rate_limited/error harian), `getGeminiQuotaStatus()` (snapshot lengkap). Daftar 5 model fallback dipindah ke sini sebagai `GEMINI_FALLBACK_MODELS` — satu sumber kebenaran dipakai baik oleh jalur panggilan asli (`server.js`) maupun endpoint status, supaya tidak bisa drift.
+  - `server.js` — `callGeminiWithRetryAndFallback()` memanggil `recordGeminiAttempt()`/`recordGeminiOutcome()` di titik yang sama persis dengan try/catch yang sudah ada (tidak menambah latency ke jalur kritis). Endpoint baru `GET /api/ai/gemini-status`.
+  - `public/js/35-settings.js` — panel baru "Kuota API" (GRID 4) di halaman Settings: dua card (Invezgo, Gemini) yang fetch kedua endpoint setelah render dan menampilkan progress bar, badge alert 80%/90%, serta catatan jujur kalau `GEMINI_RPD_LIMITS` belum diisi.
+  - `.env.example` — dokumentasi `GEMINI_RPD_LIMITS` (opsional, JSON per-model, dengan instruksi eksplisit "cek angka riil di AI Studio, jangan menebak").
+- **Prevention added (`test_gemini_quota.js`, baru, 9 test):**
+  - Kontrak `getGeminiQuotaStatus()`: default (tanpa `GEMINI_RPD_LIMITS`) → `dailyLimit`/`usagePct` null (bukan 0 atau angka tebakan), alert80/90 false.
+  - `recordGeminiAttempt()` menambah counter per-model yang benar, tidak menyentuh model lain.
+  - Dengan `GEMINI_RPD_LIMITS` diisi → `usagePct`/`alert80`/`alert90` terhitung benar melewati ambang 80%/90%.
+  - `recordGeminiOutcome()` menambah counter success/rate_limited/error harian secara independen.
+  - REGRESSION GUARD: `server.js` mengimpor `GEMINI_FALLBACK_MODELS` dari `lib/gemini-quota.js` (bukan array hardcode kedua yang bisa drift) — dibuktikan gagal saat direvert ke array hardcode.
+  - REGRESSION GUARD: `server.js` memanggil `recordGeminiAttempt()`/`recordGeminiOutcome()` pada jalur panggilan asli.
+  - REGRESSION GUARD: `35-settings.js` benar-benar fetch kedua endpoint status dan render ke elemen target (`quota-invezgo-box`/`quota-gemini-box`).
+  - REGRESSION GUARD: `renderSettingsPage()` memanggil `loadApiQuotaWidgets()` setelah set HTML — dibuktikan gagal saat direvert (box macet di "Memuat data kuota…").
+  - Semua regression guard dibuktikan gagal saat masing-masing bagian direvert manual, lalu direstore.
+- **Live verification:** server lokal dijalankan, `GET /api/idx/invezgo-status` dan `GET /api/ai/gemini-status` dicurl langsung — keduanya mengembalikan bentuk JSON yang benar (Invezgo: used:0/30000; Gemini: 5 entri model, semua `dailyLimit:null` karena `GEMINI_RPD_LIMITS` belum diisi — sesuai desain).
+- Cache-bust `35-settings.js` → `?v=20260911a`.
+
+`npm test` (114+18+6+5+9), `npm run lint` bersih.
+
+**Catatan jujur untuk user:** panel Gemini akan menampilkan jumlah pemakaian riil per model mulai sekarang, tapi TIDAK menampilkan persentase/alert sampai Anda mengisi `GEMINI_RPD_LIMITS` di environment variable server (Vercel) dengan angka RPD asli dari Google AI Studio — saya sengaja tidak menebak angka itu. Baik panel Invezgo maupun Gemini murni observability, tidak ada yang memblokir panggilan API — kalau kuota habis, perilaku existing (Invezgo: fallback simulasi berlabel jujur; Gemini: fallback model berikutnya lalu error) tetap sama seperti sebelumnya.
