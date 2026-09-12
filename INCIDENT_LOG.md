@@ -2456,3 +2456,25 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Progres P1 "Stock Cockpit fragmentation":** 7/8 modul kini tersinkron (sebagian penuh dua-arah, sebagian — Valuation — hanya live-sync saat aktif karena alasan arsitektur di atas). Sisa: Backtester, Monthly Returns.
+
+## 2026-09-12 — P1 audit "Stock Cockpit fragmentation": sambungkan halaman Backtester ke GLOBAL_STOCK_CONTEXT
+
+- **Konteks:** lanjutan dari Fundamental (#161), Technical (#162), Valuation (#163) — user memilih Backtester berikutnya, dengan ekspektasi awal ini "rawan error". Setelah investigasi, ternyata Backtester justru yang **paling rendah risiko** dari semua halaman yang sudah disambungkan:
+  - Tidak ada state ticker terpisah (`QT.btData` dll) — ticker HANYA dibaca langsung dari `#bt-ticker` input, tidak ada `BT_STATE.ticker` atau semacamnya yang perlu disinkronkan.
+  - Tidak ada `btInit()` yang berjalan otomatis saat halaman dibuka — router: `case 'backtester':break; // wait for user action`. Backtest hanya berjalan lewat 2 tombol eksplisit (`btFetchLive()`, `runBacktest()`).
+  - Karena itu, tidak ada risiko toast global (beda dari Valuation) maupun auto-eksekusi simulasi/inferensi XGBoost yang berat secara diam-diam (beda dari kekhawatiran awal soal "rawan error").
+- **Perbaikan (`public/js/11-quant.js`):**
+  - `btFetchLive()` dan `runBacktest()`: masing-masing publish ke `GLOBAL_STOCK_CONTEXT.setTicker(ticker, 'backtester')` setelah ticker dibaca dari input.
+  - Listener baru: `GLOBAL_STOCK_CONTEXT.subscribe(...)` — HANYA meng-update nilai `#bt-ticker` (`inp.value = tk`), TIDAK memanggil `btFetchLive()`/`runBacktest()` otomatis. Backtest tetap sepenuhnya menunggu aksi eksplisit user, sesuai desain existing halaman ini.
+  - Cache-bust `11-quant.js` → `?v=20260912a`.
+- **Live verification (Playwright, server lokal)** — 4 skenario, semua sesuai ekspektasi:
+  1. Boot: `GLOBAL_STOCK_CONTEXT` dan `#bt-ticker` sama-sama 'BBCA'.
+  2. `setTicker('UNVR')` saat TIDAK di Backtester → input ikut ter-update (aman, cuma tulis DOM, tanpa efek samping).
+  3. Navigasi ke Backtester → input menampilkan 'UNVR', **dan dikonfirmasi `QT.btData` tetap `null`** — tidak ada auto-run backtest yang tidak diminta.
+  4. Live sync SAAT aktif di Backtester (BMRI dari stock-intel) → input ter-update.
+  5. Aksi eksplisit lokal (`btFetchLive()`) → ter-propagasi keluar ke context global.
+  Tidak ada error.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Progres P1 "Stock Cockpit fragmentation":** 8/9 titik tersinkron (Stock Intel, StockChat, KSEI, Sectoral Insight, Fundamental, Technical, Valuation, Backtester). Sisa: Monthly Returns.
