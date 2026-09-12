@@ -30,7 +30,18 @@ function buildAiSharedMarketContext(ticker, timeframe) {
 
   // Retrieve candle data from existing data layer (fsGenData / DB)
   var rawOhlcv = (typeof fsGenData === 'function') ? fsGenData(tk, 60) : [];
+  // FIX (2026-09-12, audit "AI Chart Intelligence — MAJOR data-trust issue"):
+  // fsGenData() sendiri sudah menandai .simulated=true saat ia jatuh ke
+  // random-walk fallback (belum ada OHLCV riil ter-cache) - tangkap flag
+  // itu di sini SEBELUM di-normalize via .map() di bawah, karena .map()
+  // membuat array baru yang tidak mewarisi properti .simulated dari array
+  // asli, jadi flag itu sebelumnya hilang diam-diam.
+  var isSimulated = !!(rawOhlcv && rawOhlcv.simulated);
   if (!rawOhlcv || !rawOhlcv.length) {
+    // Tidak ada OHLCV sama sekali (bahkan fallback simulasi fsGenData gagal) -
+    // candle di bawah ini 100% fiktif (gelombang sinus matematis, bukan
+    // estimasi dari harga riil manapun), jadi tetap ditandai simulasi.
+    isSimulated = true;
     var basePx = (typeof prices !== 'undefined' && prices[tk]) || 5000;
     rawOhlcv = [];
     for (var i = 0; i < 60; i++) {
@@ -80,6 +91,7 @@ function buildAiSharedMarketContext(ticker, timeframe) {
       };
     }
     ohlcv = [{ dt: new Date(), date: new Date(), o: fallbackPx, open: fallbackPx, h: fallbackPx, high: fallbackPx, l: fallbackPx, low: fallbackPx, c: fallbackPx, close: fallbackPx, v: 1000000, volume: 1000000, mfv: 0, mfm: 0 }];
+    isSimulated = true; // satu candle datar dari harga terakhir, bukan OHLCV riil
   }
 
   var closePrices = ohlcv.map(function(d) { return d.c; });
@@ -115,6 +127,14 @@ function buildAiSharedMarketContext(ticker, timeframe) {
     symbol: tk,
     timestamp: new Date().toISOString(),
     timeframe: tf,
+    // FIX (2026-09-12, audit "AI Chart Intelligence — MAJOR data-trust
+    // issue"): disclosure minimal - S/R, Fibonacci, Structure, Confluence,
+    // dan Trade Setup di bawah TETAP dihitung dari data ini (tidak
+    // diblokir), tapi UI sekarang menandai eksplisit kalau datanya
+    // simulasi. Tidak menutup celah sepenuhnya (lihat INCIDENT_LOG.md),
+    // tapi menutup kontradiksi dengan klaim "Zero Dummy Data" di baris lain
+    // file ini.
+    isSimulated: isSimulated,
     price: {
       current: curPrice,
       previous: prevPrice,
@@ -782,6 +802,11 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
         + '<span style="font-size:16px;font-weight:800;color:var(--text);font-family:Fira Code,monospace">' + ticker + '</span>'
         + '<span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
         + '<span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
+        // FIX (2026-09-12, audit "AI Chart Intelligence — MAJOR data-trust
+        // issue", disclosure minimal): tandai eksplisit kalau S/R,
+        // Fibonacci, Structure & Confluence di bawah dihitung dari candle
+        // simulasi (belum ada OHLCV riil ter-cache), bukan data pasar riil.
+        + (ctx.isSimulated && typeof fsSrcDot === 'function' ? fsSrcDot(true) : '')
       + '</div>'
 
       // AI TOOLBAR BUTTONS

@@ -2497,3 +2497,22 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **PENUTUP P1 "Stock Cockpit fragmentation" dari Master Deep Audit 2026-09-12:** Seluruh 9 titik analisis saham kini tersinkron via `GLOBAL_STOCK_CONTEXT` — Stock Intel, StockChat, KSEI, Sectoral Insight (sudah ada sebelum sesi ini), ditambah Fundamental, Technical, Valuation, Backtester, Monthly Returns (disambungkan dalam rangkaian PR #161-#165 sesi ini). Catatan jujur: bukan "Stock Cockpit" tunggal seperti direkomendasikan audit (itu MAJOR-risk rewrite arsitektur, tidak dikerjakan) — melainkan perluasan adapter context yang SUDAH ADA ke seluruh modul, dengan trade-off berbeda per halaman sesuai karakteristik masing-masing (dijelaskan di entry Valuation dan Backtester). Item audit lain yang masih terbuka: temuan data-trust AI Chart Intelligence/Bandarmology (CRITICAL/MAJOR risk, belum disentuh) dan konsolidasi design token (MODERATE, belum disentuh).
+
+## 2026-09-12 — Audit "AI Chart Intelligence — MAJOR data-trust issue": disclosure badge (opsi minimal)
+
+- **Konteks:** audit §9 menandai `43-ai-chart-intelligence.js` sebagai berisiko karena punya fallback data sintetis untuk S/R, Fibonacci, Market Structure, dan AI Confluence. Investigasi mengonfirmasi temuan ini LEBIH SERIUS dari klaim audit: file ini secara eksplisit menampilkan pesan "Sesuai kebijakan **Zero Dummy Data**..." di satu jalur (ticker invalid/tidak ada harga sama sekali), tapi punya DUA jalur lain yang MELANGGAR klaim itu secara diam-diam:
+  1. `buildAiSharedMarketContext()` baris 33-41: kalau `fsGenData()` mengembalikan array kosong, kode membuat candle 100% fiktif dari rumus `Math.sin(i*0.2)*0.06` — gelombang sinus matematis, bukan derivasi dari harga riil manapun.
+  2. `fsGenData()` sendiri sudah punya flag `.simulated=true` (fallback random-walk berbenih saat OHLCV riil belum ter-cache, `07-flowscan.js:212`) — tapi `.map()` untuk normalisasi objek candle di baris 44 membuat array BARU yang tidak mewarisi properti `.simulated` dari array asli, jadi flag itu hilang diam-diam.
+  - Di kedua jalur ini, `ctx.isValid` tetap `true`, jadi seluruh pipeline (`detectAiMarketStructure`, `calculateAiFibonacciSwings`, `calculateAiConfluenceScore`, `generateAiTradeSetup`) tetap jalan di atas data fiktif tanpa indikasi apapun ke user.
+- **Keputusan user**: opsi minimal — disclosure badge saja, TIDAK memblokir kalkulasi (opsi audit yang lebih ketat — blokir sinyal + `DATA_UNAVAILABLE` state — ditunda, bukan diimplementasikan sesi ini).
+- **Perbaikan (`public/js/43-ai-chart-intelligence.js`):**
+  - `buildAiSharedMarketContext()`: tangkap `rawOhlcv.simulated` SEBELUM di-normalize via `.map()` (mencegah flag hilang); tandai `isSimulated=true` juga untuk 2 jalur fallback lain yang sudah ada (candle sinus fiktif, dan candle datar tunggal dari harga terakhir). Field baru `isSimulated` ditambahkan ke objek context yang di-return.
+  - `renderAiTechnicalWorkspaceUI()`: render `fsSrcDot(true)` (badge "○ SIM" — helper yang SUDAH dipakai konsisten di FlowScan/Ranking/Heatmap/Watchlist untuk kasus sama) tepat di sebelah harga & persentase perubahan di toolbar, kalau `ctx.isSimulated` true.
+  - Cache-bust `43-ai-chart-intelligence.js` → `?v=20260912a`.
+- **Live verification (Playwright, server lokal)** — dijalankan lewat pipeline ASLI (`runAiChartAnalysis('BBCA')`, bukan mock parsial):
+  - `buildAiSharedMarketContext('BBCA','1D')` di sandbox ini (tanpa cache OHLCV riil) mengembalikan `isSimulated:true` — mengonfirmasi flag terdeteksi benar dari `fsGenData()`.
+  - HTML hasil render `runAiChartAnalysis('BBCA')` mengandung badge "SIM"; `AI_CHART_STATE.lastContext.isSimulated` = `true`. Tanpa error.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Catatan jujur — ini BUKAN penutup masalah**: perbaikan ini murni menutup kontradiksi "klaim Zero Dummy Data vs kenyataan kode" dengan disclosure. S/R, Fibonacci, Structure, Confluence, dan Trade Setup TETAP dihitung dan ditampilkan penuh dari data sintetis — cuma sekarang ada badge kecil yang bisa diabaikan. Opsi audit yang lebih ketat (blokir kalkulasi sepenuhnya + `DATA_UNAVAILABLE` state, CRITICAL/MAJOR risk) belum dikerjakan — menunggu keputusan lanjutan user.
