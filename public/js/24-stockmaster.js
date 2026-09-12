@@ -1201,8 +1201,35 @@ function techFetchData(tickerOverride) {
   var cleanCode = rawTicker.replace('.JK', '').replace('.US', '');
   TECH_DATA.ticker = cleanCode;
 
+  // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
+  // publish ke GLOBAL_STOCK_CONTEXT, pola sama dengan fundFetchData()/
+  // selectStockIntelTicker()/selectStockChatTicker().
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'technical');
+  }
+
   // Render the currently active tab immediately for maximum responsiveness
   techSwitchTab(TECH_DATA.activeTab || 1);
+}
+
+// FIX (2026-09-12, P1 audit follow-up): subscribe ke GLOBAL_STOCK_CONTEXT
+// supaya halaman Technical ikut pindah ticker saat dipilih dari modul lain -
+// pola sama persis dengan listener Fundamental/StockChat. Kalau halaman
+// Technical sedang aktif, langsung re-fetch; kalau tidak, cukup update
+// input & state supaya techInit() menampilkan ticker yang benar nanti.
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'technical' && tk && tk !== TECH_DATA.ticker) {
+      var inp = document.getElementById('techTickerInput');
+      if (inp) inp.value = tk;
+      var elP = document.getElementById('page-technical');
+      if (elP && elP.classList.contains('on') && typeof techFetchData === 'function') {
+        techFetchData(tk);
+      } else {
+        TECH_DATA.ticker = tk;
+      }
+    }
+  });
 }
 
 function techFormatTV(ticker) {
