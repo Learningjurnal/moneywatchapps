@@ -1020,11 +1020,23 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
     const errMessage = (err && err.message) ? err.message : String(err);
     // Backoff 2 minutes on 429 quota exhaustion
     const quotaExhausted = errMessage.includes('429') || errMessage.includes('RESOURCE_EXHAUSTED') || errMessage.includes('quota');
+    // FIX (2026-09-12, incident: "Kuota AI harian tercapai" shown to users
+    // while Google's own Rate Limits dashboard showed 0/0 usage everywhere)
+    // — this used to log only the generic "Quota limit reached." on the
+    // quota branch, never the actual err.message/err.status/err.code that
+    // triggered the '429'/'quota' string match. That made it impossible to
+    // tell a REAL Google 429 apart from something else in our own code or
+    // the SDK that merely happens to mention "quota" in its wording. Now
+    // logs the real error unconditionally so the next occurrence is
+    // diagnosable from Vercel logs instead of requiring guesswork.
+    console.warn('Gemini trending-news notice:', {
+      quotaExhausted,
+      message: errMessage,
+      name: err && err.name,
+      status: err && (err.status || err.code)
+    });
     if (quotaExhausted) {
-      console.warn('Gemini API notice: Quota limit reached.');
       newsCache.rateLimitedUntil = now + 120000;
-    } else {
-      console.warn('Gemini grounded news notice:', errMessage);
     }
 
     return res.json({
@@ -1130,6 +1142,18 @@ Kembalikan persis format JSON array tanpa markdown:
         }
       } catch (err) {
         const msg = (err && err.message) ? err.message : String(err);
+        // FIX (2026-09-12, incident: user saw "Kuota AI harian tercapai" on
+        // this widget for hours while Google's own Rate Limits dashboard
+        // showed 0/0 usage on every model, and Vercel logs showed nothing —
+        // because this catch block never logged anything at all. Every
+        // other Gemini call site in this file logs its error; this one was
+        // the one silent exception, making the exact failure undiagnosable
+        // from outside a debugger. Now always logged.
+        console.warn('Gemini sectoral-news notice:', {
+          message: msg,
+          name: err && err.name,
+          status: err && (err.status || err.code)
+        });
         if (msg.includes('429') || msg.includes('quota')) {
           sectoralNewsCache.rateLimitedUntil = now + 120000;
           unavailableReason = 'Kuota AI harian tercapai, coba lagi nanti.';
