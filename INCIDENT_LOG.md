@@ -2304,3 +2304,21 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - Cache-bust `10-hargawajar.js` → `?v=20260912b`.
 
 `npm test` (163/163), `npm run lint` bersih.
+
+## 2026-09-12 — Diagnosa "Kuota AI harian tercapai" mandek: catch block `/api/sectoral-news` diam total
+
+- **Konteks:** setelah user ganti `GEMINI_API_KEY`, widget "Berita Pasar & Katalis Terkoneksi" (Sectoral Insight) terus menampilkan "Kuota AI harian tercapai, coba lagi nanti." User cek Google Cloud Console Rate Limits dashboard sendiri — semua model 0/0 usage, tidak ada tanda kena limit asli. 3 kali export log Vercel juga tidak menunjukkan satupun warning/error terkait Gemini, padahal widget-nya jelas menampilkan pesan kegagalan.
+- **Root cause ditemukan lewat pembacaan kode langsung**: catch block di `/api/sectoral-news` (`server.js`, endpoint terpisah dari `/api/trending-news`) **tidak pernah memanggil `console.warn`/`console.error` sama sekali** — beda dengan endpoint berita lain yang sudah pernah diperbaiki. Jadi setiap kali panggilan Gemini di endpoint ini gagal dengan pesan mengandung "429"/"quota", errornya SUNGGUHAN terjadi, tapi:
+  - Response HTTP tetap `200 OK` (dibungkus jadi respons "jujur tapi ramah" — `dataUnavailable:true` + pesan di body JSON).
+  - Vercel access-log hanya mencatat status code (200), tidak pernah membaca isi body.
+  - Tidak ada `console.warn` apapun → tidak ada jejak di Runtime Logs.
+  - Hasilnya: kegagalan nyata, tapi **100% tidak terlihat** dari log manapun — persis skenario yang user alami (log bersih, tapi UI menampilkan kegagalan).
+- **Root cause ASLI (penyebab errornya sendiri) BELUM ditemukan** — user sudah cek dan tidak ada peringatan "Search grounding requires billing" di Google AI Studio seperti dugaan awal saya, jadi hipotesis itu gugur. Root cause pastinya menunggu log berikutnya setelah fix ini di-deploy.
+- **Perbaikan (`server.js`):**
+  - `/api/sectoral-news` catch block: ditambah `console.warn('Gemini sectoral-news notice:', {message, name, status})` — sekarang SELALU logging, tidak ada lagi jalur silent-fail.
+  - `/api/trending-news` catch block: sebelumnya cuma log `"Quota limit reached."` generik tanpa `errMessage` asli saat `quotaExhausted`. Sekarang selalu log pesan error asli + `name`/`status` terlepas dari klasifikasi kuota-atau-bukan, supaya lain kali bisa dibedakan apakah benar 429 asli dari Google atau sekadar error lain yang kebetulan mengandung kata "quota".
+- **Belum ada verifikasi live** — perbaikan ini murni observability (tidak mengubah perilaku/response ke user), efeknya baru kelihatan begitu terjadi kegagalan berikutnya dan user export log lagi.
+
+`npm test` (163/163), `npm run lint` bersih. Tidak ada cache-bust diperlukan (server-side only, tidak ada file public/js yang berubah).
+
+**Catatan jujur untuk user:** ini BUKAN perbaikan akar masalah "kenapa Gemini gagal" — ini cuma memperbaiki kebutaan log yang menghalangi kita menemukan akarnya. Setelah di-deploy, kalau widget berita masih gagal, tolong export log lagi (cari kata "sectoral-news notice") — kali ini pasti ada pesan errornya.
