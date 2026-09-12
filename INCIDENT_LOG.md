@@ -2434,3 +2434,25 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Progres P1 "Stock Cockpit fragmentation":** Stock Intel, StockChat, KSEI, Sectoral Insight (sudah ada sebelumnya) + Fundamental, Technical (baru disambungkan) = 6 dari 8 modul kini tersinkron via `GLOBAL_STOCK_CONTEXT`. Sisa: Valuation (Harga Wajar), Backtester, Monthly Returns.
+
+## 2026-09-12 — P1 audit "Stock Cockpit fragmentation": sambungkan halaman Valuation ke GLOBAL_STOCK_CONTEXT
+
+- **Konteks:** lanjutan dari Fundamental (#161) dan Technical (#162) — halaman ketiga yang disambungkan ke `window.GLOBAL_STOCK_CONTEXT`.
+- **Perbedaan penting dari Fundamental/Technical** (bukan copy-paste langsung, disesuaikan setelah investigasi arsitektur halaman ini):
+  1. `hw_loadStock()` memicu toast global (`showSaveStatus()` → `#save-status-bar`, terlihat di halaman MANAPUN, bukan cuma di Valuation). Memanggilnya diam-diam dari background sync (saat user ada di halaman lain) akan menampilkan toast "Data riil X dimuat" yang membingungkan tanpa konteks.
+  2. `hw_init()` memprioritaskan restore dari `localStorage('hw_state')` DI ATAS state in-memory `hwData.ticker` — beda dari `fundInit()`/`techInit()` yang membaca ticker dari `#input.value`/state var sebagai prioritas utama. Ini karena Valuation punya tabel yang bisa diedit manual (data historis MoS) dan "Simpan" adalah tombol manual, bukan autosave — meng-update `hwData.ticker` saja di background tanpa memanggil `hw_loadStock()` tidak akan bertahan sampai kunjungan halaman berikutnya.
+- **Keputusan desain**: listener HANYA bertindak (panggil `hw_loadStock(tk)` penuh) kalau halaman `page-hargawajar` SEDANG AKTIF — beda dari Fundamental/Technical yang tetap update state di background meski halaman tidak aktif. Trade-off yang diterima secara sadar: kalau ticker global berubah SAAT Valuation tidak sedang dibuka, halaman ini TIDAK otomatis mengambil ticker itu saat dibuka nanti (tetap pakai ticker/tabel tersimpan terakhirnya) — konsisten dengan perilaku existing (localStorage-first) yang sengaja tidak diubah, dan menghindari toast global yang mengganggu.
+- **Perbaikan (`public/js/10-hargawajar.js`):**
+  - `hw_loadStockData(tk)`: setelah `hwData.ticker = tk`, publish ke `GLOBAL_STOCK_CONTEXT.setTicker(tk, 'hargawajar')` — ditaruh di titik tunggal ini (bukan di `hw_loadStock`) supaya semua jalur yang benar-benar me-resolve ticker (termasuk restorasi awal di `hw_init()`) ikut publish.
+  - Listener baru: `GLOBAL_STOCK_CONTEXT.subscribe(...)` — cek `page-hargawajar.classList.contains('on')` sebelum memanggil `hw_loadStock(tk)`.
+  - Cache-bust `10-hargawajar.js` → `?v=20260912c`.
+- **Live verification (Playwright, server lokal)** — 4 skenario, semua sesuai desain:
+  1. Boot: `hwData.ticker` kosong (form kosong by design, beda dari default 'BBCA' di Fundamental/Technical).
+  2. `setTicker('UNVR')` saat TIDAK di Valuation → `hwData.ticker` TIDAK berubah (sesuai desain, dihindari agar tidak memicu toast di halaman lain).
+  3. Navigasi ke Valuation → tetap form kosong (tidak otomatis mengambil 'UNVR' — trade-off yang disengaja, dicatat di atas).
+  4. Ganti ticker eksternal SAAT aktif di Valuation → live re-render (`hwData.ticker` jadi 'BMRI'); ubah ticker dari Valuation sendiri (`hw_loadStock('ASII')`) → ter-propagasi keluar ke context global.
+  Tidak ada error, tidak ada infinite loop.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Progres P1 "Stock Cockpit fragmentation":** 7/8 modul kini tersinkron (sebagian penuh dua-arah, sebagian — Valuation — hanya live-sync saat aktif karena alasan arsitektur di atas). Sisa: Backtester, Monthly Returns.
