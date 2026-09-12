@@ -2363,3 +2363,13 @@ tunggu penggunaan normal secara bertahap memicu eviction.
   - Cache-bust: `06-analysis-router.js` → `?v=20260912a`, `35-settings.js` → `?v=20260912a`, `41-stockchat-cockpit.js` → `?v=20260912a`.
 
 **Yang HARUS dilakukan user setelah PR ini merge & ter-deploy:** set env var `ANTHROPIC_API_KEY` di Vercel (Project Settings → Environment Variables) dengan key dari [console.anthropic.com](https://console.anthropic.com), lalu redeploy. Selama env var ini belum diset, semua fitur AI generatif (berita trending, berita sektoral, AI Copilot chat, portfolio advice) akan otomatis jatuh ke mode fallback/deterministic — tidak crash, tapi juga tidak pakai AI generatif sungguhan. `GEMINI_API_KEY` di Vercel sudah tidak dipakai kode manapun lagi setelah PR ini — aman dihapus kapan saja.
+
+## 2026-09-12 — Card "Arus Kas RDN" tidak terisi penuh: fix CSS grid-stretch dead space
+
+- **Konteks:** user melaporkan (screenshot) grafik "Arus Kas RDN" di halaman Kas & Mutasi RDN terlihat kecil dengan area putih kosong besar di bawahnya, sementara card sebelahnya ("Ringkasan Saldo") jauh lebih tinggi.
+- **Root cause:** `.g2b{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}` (grid 2 kolom) memakai `align-items:stretch` bawaan CSS Grid, jadi kedua `.card` di baris yang sama otomatis disamakan tingginya mengikuti yang tertinggi (card "Ringkasan Saldo", yang isinya lebih banyak: saldo + info sekuritas). Tapi `.card` bukan flex container — jadi tinggi ekstra yang "dipaksakan" grid ke card "Arus Kas RDN" cuma jadi ruang kosong di bawah `<div class="cw" style="height:190px">`, bukan ikut memperbesar chart-nya.
+- **Perbaikan (`public/index.html`):** card "Arus Kas RDN" diubah jadi flex column (`style="display:flex;flex-direction:column"`), dan wrapper `.cw` chart-nya diubah dari `height:190px` tetap menjadi `height:190px;flex:1;min-height:0` — sekarang chart ikut memenuhi sisa tinggi card yang di-stretch oleh grid, bukan berhenti di 190px. Chart.js sendiri sudah pakai `responsive:true, maintainAspectRatio:false` (`buildRdnChart()` di `03-engine.js`) jadi otomatis resize mengikuti tinggi container baru tanpa perlu ubah kode chart.
+- **Live verification (Playwright, server lokal):** screenshot `.g2b` menunjukkan kedua card sekarang sama tinggi TANPA ruang kosong — area chart "Arus Kas RDN" memenuhi seluruh card (isi grafiknya sendiri tidak ter-render di screenshot sandbox karena Chart.js dari CDN diblokir kebijakan jaringan sandbox, bukan akibat perubahan ini — layout CSS-nya yang diverifikasi).
+- Tidak ada cache-bust diperlukan (perubahan hanya inline style di `index.html`, bukan file `.js` terpisah).
+
+`npm test` (154/154), `npm run lint` bersih.
