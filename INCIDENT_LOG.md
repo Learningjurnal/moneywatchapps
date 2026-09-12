@@ -2258,3 +2258,16 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - Cache-bust `20-wealth.js` → `?v=20260912a`, `wealth.css` → `?v=20260912a`.
 
 `npm test` (125/125), `npm run lint` bersih.
+
+## 2026-09-12 — Ganti donut Hutang jadi gaya "Alokasi Portofolio", tambah grafik serupa ke Piutang
+
+- **Konteks:** user tunjukkan screenshot donut "Sudah Terbayar" di halaman Hutang — tooltip Chart.js menutupi label di tengah donut karena chart terlalu kecil/berdempetan dengan ring SVG di sampingnya (dari PR #151). Diminta disamakan gayanya dengan donut "Alokasi Portofolio Real-Time" yang sudah ada (halaman Portfolio, `public/js/04-render.js`), dan diterapkan juga ke halaman Piutang yang belum disentuh.
+- **Perbaikan (`public/js/20-wealth.js`):**
+  - Ring SVG persentase di kartu "PROGRES PELUNASAN" dihapus — diganti donut polos (cutout 65%, tanpa border, `hoverOffset:6`) berukuran 200×200px berdampingan dengan daftar legenda (ikon + swatch warna + label + persentase + nominal per baris), meniru struktur `portoDonut`/`porto-donut-legend` persis.
+  - Ditambah helper bersama `wDonutLegendHtml()` dan `wRenderPayoffDonut()` supaya Hutang & Piutang pakai kode chart yang identik, bukan duplikasi.
+  - Halaman Piutang (sebelumnya tidak tersentuh oleh PR #151): ditambah kartu baru "PROGRES PENAGIHAN" (donut "Sudah Diterima" vs "Sisa Piutang" + legenda + persentase tertagih) dan tombol toolbar "Laporan Konsolidasi", menyamakan dengan halaman Hutang.
+- **Verifikasi database (dicek atas pertanyaan user "apakah hanya tersimpan di lokal atau sudah sinkron"):** dibaca `saveData()`/`fireSaveAllData()` di `public/js/02-storage.js` — `WEALTH` (termasuk `.debt`, `.bank`, `.piutang`) SUDAH ikut disinkronkan ke Supabase Cloud lewat tabel `user_data` (`client.from('user_data').upsert({user_id, data: payload, ...})`, field `payload.wealth = WEALTH`) untuk user yang login (bukan mode Tamu/Demo). localStorage cuma cache offline device, bukan satu-satunya penyimpanan. Untuk mode Tamu/Demo, `fireSaveAllData()` sengaja `return false` di awal — data memang cuma lokal, sesuai desain sandbox demo (tidak ada identitas cloud untuk disinkronkan).
+- **Live verification (Playwright, server lokal):** 3 hutang + 2 piutang sintetis — donut Hutang menampilkan 2,0% terbayar/98,0% sisa sesuai kalkulasi manual, donut Piutang menampilkan 54,5% diterima/45,5% sisa sesuai kalkulasi manual; keduanya bersih tanpa tooltip menumpuk.
+- Cache-bust `20-wealth.js` → `?v=20260912b`.
+
+`npm test` (163/163: 125+18+6+5+9), `npm run lint` bersih.
