@@ -890,6 +890,40 @@ body.theme-light .tbl tbody tr:hover td {
   background: var(--table-row-hover, #F5F7FA);
 }
 
+/* Halaman Harga Wajar: layout 2 kolom (input kiri, panel hasil kanan).
+   Kolom kanan sebelumnya fixed 340px inline — terlalu sempit untuk tabel
+   2D Sensitivity Matrix (4 kolom), dilebarkan + dipindah ke class supaya
+   bisa collapse ke 1 kolom di layar sempit tanpa !important hack. */
+.hw-result-layout{display:grid;grid-template-columns:1fr 380px}
+/* FIX (2026-09-12): classic CSS Grid "min-width:auto blowout" — tabel data
+   keuangan historis 7-kolom di kolom kiri sudah dibungkus overflow-x:auto
+   sendiri, tapi tanpa min-width:0 di sini, grid item kiri tetap memakai
+   min-content BAWAAN (lebar penuh tabel, ~995px) sebagai lantai minimum
+   kolom "1fr" — memaksa seluruh grid (termasuk kolom kanan 380px, tempat
+   kartu 2D Sensitivity Matrix) meluber jauh melewati viewport dan
+   ter-clip di luar layar. Ini akar masalah SEBENARNYA di balik keluhan
+   "card kurang besar, rincian terpotong" — bukan cuma tabel matriks yang
+   sempit di dalam kartunya sendiri. */
+.hw-result-layout > :first-child{min-width:0}
+@media (max-width:900px){
+  .hw-result-layout{grid-template-columns:1fr}
+}
+
+/* ── .tbl-tight — tabel padat untuk kontainer sempit (modal, panel sidebar
+   340px) ── .tbl th/.tbl td default: padding 8px 12px + white-space:nowrap.
+   Itu pas untuk tabel data lebar biasa, tapi memaksa kolom yang isinya
+   kalimat/label deskriptif (mis. "Dasar Pengenaan/Rumus", "Bear (18.8x)")
+   tetap satu baris — kontainer sempit jadi meluber & konten kepotong
+   (lihat INCIDENT_LOG.md 2026-09-12: modal Rincian Kalkulasi Transaksi &
+   kartu 2D Sensitivity Matrix). Kelas ini mengizinkan wrap + memperkecil
+   padding, TANPA mengubah tabel `.tbl` lain di app yang tidak diberi
+   kelas ini secara eksplisit. */
+.tbl-tight th,
+.tbl-tight td {
+  padding: 5px 6px !important;
+  white-space: normal !important;
+}
+
 /* Monospaced Numeric & Text Alignment Utilities */
 .tbl th.text-right,
 .tbl td.text-right,

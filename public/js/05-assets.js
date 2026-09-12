@@ -2086,18 +2086,20 @@ function openTxDetailModal(txId){
       '</div>'+
     '</div>'+
     '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">'+
-      '<table class="tbl" style="margin:0">'+
+      '<div style="overflow-x:auto">'+
+      '<table class="tbl tbl-tight" style="margin:0;min-width:100%">'+
         '<thead><tr><th>Komponen Biaya</th><th>Dasar Pengenaan / Rumus</th><th style="text-align:right">Nilai (Rp)</th></tr></thead>'+
         '<tbody>'+
-          '<tr><td><b>1. Nilai Kotor (Gross)</b></td><td class="mono" style="font-size:11px">'+tx.lot+' lot × 100 × Rp '+fmt(tx.price)+'</td><td class="mono" style="text-align:right;font-weight:700">Rp '+fmt(gross)+'</td></tr>'+
-          '<tr><td><b>2. Komisi Broker</b></td><td class="mono" style="font-size:11px">'+feeRate.toFixed(2)+'% × Gross ('+tx.sekuritas+')</td><td class="mono amb" style="text-align:right">Rp '+fmt(komisi)+'</td></tr>'+
-          '<tr><td><b>3. PPN Komisi (PMK 131/2024)</b></td><td class="mono" style="font-size:11px">'+(TAX_SETTINGS.ppn*100).toFixed(0)+'% × Komisi Broker</td><td class="mono dn" style="text-align:right">Rp '+fmt(ppn)+'</td></tr>'+
-          '<tr><td><b>4. Levy BEI + KPEI + KSEI</b></td><td class="mono" style="font-size:11px">'+(TAX_SETTINGS.levy*100).toFixed(3)+'% × Gross (Bursa & KPEI)</td><td class="mono dn" style="text-align:right">Rp '+fmt(levy)+'</td></tr>'+
-          '<tr><td><b>5. PPh Final Ps 4(2)</b></td><td class="mono" style="font-size:11px">'+(isBuy?'0% (Beli bebas PPh)':(TAX_SETTINGS.pphJual*100).toFixed(1)+'% × Gross (Khusus Jual)')+'</td><td class="mono dn" style="text-align:right">Rp '+fmt(pph)+'</td></tr>'+
-          '<tr style="background:var(--bg3)"><td><b>TOTAL BIAYA &amp; PAJAK</b></td><td style="font-size:11px;color:var(--text2)">Komisi + PPN + Levy + PPh ('+feePctTotal.toFixed(3)+'%)</td><td class="mono dn" style="text-align:right;font-weight:700">Rp '+fmt(totalFee)+'</td></tr>'+
-          '<tr style="background:rgba(0,200,255,.07)"><td><b>TOTAL BERSIH (NET CASH)</b></td><td style="font-size:11px"><b>'+(isBuy?'Gross + Total Biaya (Debet RDN)':'Gross − Total Biaya (Kredit RDN)')+'</b></td><td class="mono" style="text-align:right;font-size:14px;font-weight:800;color:'+(isBuy?'var(--accent)':'var(--green)')+'">Rp '+fmt(net)+'</td></tr>'+
+          '<tr><td><b>1. Nilai Kotor (Gross)</b></td><td class="mono" style="font-size:11px">'+tx.lot+' lot × 100 × Rp '+fmt(tx.price)+'</td><td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">Rp '+fmt(gross)+'</td></tr>'+
+          '<tr><td><b>2. Komisi Broker</b></td><td class="mono" style="font-size:11px">'+feeRate.toFixed(2)+'% × Gross ('+tx.sekuritas+')</td><td class="mono amb" style="text-align:right;white-space:nowrap">Rp '+fmt(komisi)+'</td></tr>'+
+          '<tr><td><b>3. PPN Komisi (PMK 131/2024)</b></td><td class="mono" style="font-size:11px">'+(TAX_SETTINGS.ppn*100).toFixed(0)+'% × Komisi Broker</td><td class="mono dn" style="text-align:right;white-space:nowrap">Rp '+fmt(ppn)+'</td></tr>'+
+          '<tr><td><b>4. Levy BEI + KPEI + KSEI</b></td><td class="mono" style="font-size:11px">'+(TAX_SETTINGS.levy*100).toFixed(3)+'% × Gross (Bursa & KPEI)</td><td class="mono dn" style="text-align:right;white-space:nowrap">Rp '+fmt(levy)+'</td></tr>'+
+          '<tr><td><b>5. PPh Final Ps 4(2)</b></td><td class="mono" style="font-size:11px">'+(isBuy?'0% (Beli bebas PPh)':(TAX_SETTINGS.pphJual*100).toFixed(1)+'% × Gross (Khusus Jual)')+'</td><td class="mono dn" style="text-align:right;white-space:nowrap">Rp '+fmt(pph)+'</td></tr>'+
+          '<tr style="background:var(--bg3)"><td><b>TOTAL BIAYA &amp; PAJAK</b></td><td style="font-size:11px;color:var(--text2)">Komisi + PPN + Levy + PPh ('+feePctTotal.toFixed(3)+'%)</td><td class="mono dn" style="text-align:right;font-weight:700;white-space:nowrap">Rp '+fmt(totalFee)+'</td></tr>'+
+          '<tr style="background:rgba(0,200,255,.07)"><td><b>TOTAL BERSIH (NET CASH)</b></td><td style="font-size:11px"><b>'+(isBuy?'Gross + Total Biaya (Debet RDN)':'Gross − Total Biaya (Kredit RDN)')+'</b></td><td class="mono" style="text-align:right;font-size:14px;font-weight:800;white-space:nowrap;color:'+(isBuy?'var(--accent)':'var(--green)')+'">Rp '+fmt(net)+'</td></tr>'+
         '</tbody>'+
       '</table>'+
+      '</div>'+
     '</div>'+
     (!isBuy && m.pnlGross != null ?
       '<div style="background:rgba(0,229,160,.05);border:1px solid rgba(0,229,160,.2);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px">'+
