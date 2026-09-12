@@ -2478,3 +2478,22 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Progres P1 "Stock Cockpit fragmentation":** 8/9 titik tersinkron (Stock Intel, StockChat, KSEI, Sectoral Insight, Fundamental, Technical, Valuation, Backtester). Sisa: Monthly Returns.
+
+## 2026-09-12 — P1 audit "Stock Cockpit fragmentation": sambungkan halaman Monthly Returns ke GLOBAL_STOCK_CONTEXT (SELESAI, 9/9)
+
+- **Konteks:** lanjutan dan penutup dari rangkaian Fundamental (#161), Technical (#162), Valuation (#163), Backtester (#164) — halaman terakhir dari daftar fragmentasi yang diidentifikasi di audit §5.
+- **Karakteristik halaman ini**: mirip Backtester — tidak ada state ticker terpisah (selalu dibaca fresh dari `#mr-ticker-input`/`#mr-ticker` setiap kali `mrRender()` dipanggil), tapi berbeda karena `mrRender()` memang dipanggil otomatis saat navigasi (lewat hook `window.goPage` di baris ~298 untuk `page === 'monthly-returns'`) dan bersifat ringan/sinkron (tanpa network fetch otomatis, tanpa toast) — jadi aman mengikuti pola live-sync penuh seperti Fundamental/Technical, bukan pola terbatas seperti Valuation/Backtester.
+- **Perbaikan (`public/js/11-quant.js`):**
+  - `mrRender()`: setelah ticker diresolusi dan `#mr-ticker-input` disinkronkan, publish ke `GLOBAL_STOCK_CONTEXT.setTicker(ticker, 'monthly-returns')` — karena tidak ada state var terpisah, publish ditaruh langsung di titik resolusi ticker satu-satunya fungsi ini.
+  - Listener baru: `GLOBAL_STOCK_CONTEXT.subscribe(...)` — bandingkan `tk` terhadap nilai `#mr-ticker-input` SAAT INI (bukan state var JS, karena tidak ada), update input & select `#mr-ticker`, panggil `mrRender()` kalau halaman `page-monthly-returns` sedang aktif.
+  - Cache-bust `11-quant.js` → `?v=20260912b`.
+- **Live verification (Playwright, server lokal)** — 4 skenario, semua sesuai ekspektasi tanpa error fungsional (2 error "Chart is not defined" tercatat adalah keterbatasan sandbox pre-existing — Chart.js dari CDN diblokir kebijakan jaringan sandbox — bukan regresi, dikonfirmasi karena semua state title/input tetap benar meski chart gagal digambar):
+  1. Boot: konsisten 'BBCA'.
+  2. `setTicker('UNVR')` saat TIDAK di Monthly Returns → input ikut ter-update.
+  3. Navigasi ke Monthly Returns → menampilkan 'UNVR' dengan judul benar ("Monthly Return — UNVR (Unilever Indonesia)").
+  4. Live sync SAAT aktif (BMRI dari stock-intel) → judul & input ter-update langsung.
+  5. Input lokal diketik user ('ASII' via `mrOnInputSearch`) → ter-propagasi keluar ke context global.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**PENUTUP P1 "Stock Cockpit fragmentation" dari Master Deep Audit 2026-09-12:** Seluruh 9 titik analisis saham kini tersinkron via `GLOBAL_STOCK_CONTEXT` — Stock Intel, StockChat, KSEI, Sectoral Insight (sudah ada sebelum sesi ini), ditambah Fundamental, Technical, Valuation, Backtester, Monthly Returns (disambungkan dalam rangkaian PR #161-#165 sesi ini). Catatan jujur: bukan "Stock Cockpit" tunggal seperti direkomendasikan audit (itu MAJOR-risk rewrite arsitektur, tidak dikerjakan) — melainkan perluasan adapter context yang SUDAH ADA ke seluruh modul, dengan trade-off berbeda per halaman sesuai karakteristik masing-masing (dijelaskan di entry Valuation dan Backtester). Item audit lain yang masih terbuka: temuan data-trust AI Chart Intelligence/Bandarmology (CRITICAL/MAJOR risk, belum disentuh) dan konsolidasi design token (MODERATE, belum disentuh).

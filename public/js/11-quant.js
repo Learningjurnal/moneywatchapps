@@ -1137,6 +1137,30 @@ function mrInitTickers(currentVal){
   _mrInited = true;
 }
 
+// FIX (2026-09-12, P1 audit follow-up): subscribe ke GLOBAL_STOCK_CONTEXT
+// supaya halaman Monthly Returns ikut pindah ticker saat dipilih dari
+// modul lain - pola sama dengan listener Fundamental/Technical. Tidak ada
+// state var terpisah di sini (ticker selalu dibaca fresh dari DOM di
+// mrRender()), jadi perbandingan "sudah sama atau belum" dilakukan
+// terhadap nilai #mr-ticker-input saat ini, bukan sebuah state var JS.
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'monthly-returns' && tk) {
+      var inp = el('mr-ticker-input');
+      var curTicker = (inp && inp.value) ? inp.value.toUpperCase().trim() : '';
+      if (tk !== curTicker) {
+        if (inp) inp.value = tk;
+        var sel = el('mr-ticker');
+        if (sel) sel.value = tk;
+        var elP = document.getElementById('page-monthly-returns');
+        if (elP && elP.classList.contains('on')) {
+          mrRender();
+        }
+      }
+    }
+  });
+}
+
 function mrOnInputSearch(val){
   var clean = (val || '').toUpperCase().trim().replace('.JK','');
   if(!clean) return;
@@ -1222,6 +1246,16 @@ function mrRender(){
   var ticker = ((inp && inp.value) || (sel && sel.value) || 'BBCA').toUpperCase().trim().replace('.JK','');
   if(!ticker) ticker = 'BBCA';
   if(inp && inp.value !== ticker) inp.value = ticker;
+
+  // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
+  // publish ke GLOBAL_STOCK_CONTEXT, pola sama dengan fundFetchData()/
+  // techFetchData(). mrRender() sudah jadi titik tunggal yang me-resolve
+  // ticker setiap kali dipanggil (tidak ada state var terpisah di sini),
+  // jadi publish di sini otomatis mencakup semua jalur (input, select,
+  // quick chip, auto-render saat navigasi).
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(ticker, 'monthly-returns');
+  }
 
   // Update quick chips active styling
   var chipsEl = el('mr-quick-chips');
