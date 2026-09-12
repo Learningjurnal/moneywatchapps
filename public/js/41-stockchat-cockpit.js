@@ -3,7 +3,7 @@
  * 
  * Comprehensive StockChat Conversational AI & Bandarmology Broker Flow Cockpit:
  * 1. Full Broker Summary & Bandarmology Engine (Top Buyers vs Sellers, Concentration, Foreign Flow)
- * 2. Conversational Agentic Chat Interface (Gemini Function Calling Integration)
+ * 2. Conversational Agentic Chat Interface (Claude Tool Use Integration)
  * 3. Interactive Data Cards (Live Broker Flow, Real-time Quote, Valuation, Drawdown)
  * 4. Global Floating Modal & Quick Action Drawer
  */

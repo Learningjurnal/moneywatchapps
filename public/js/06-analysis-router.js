@@ -511,7 +511,7 @@ function aiRunGemini(){
   var box=el('ai-box'); if(!box)return;
   var ctx=aiBuildContext();
   if(!ctx.m.n){ box.innerHTML='<div style="color:var(--text3);font-size:12px;padding:10px">Belum ada posisi saham untuk dianalisis.</div>'; return; }
-  box.innerHTML=aiLoading('Menghubungkan ke Gemini 3.7 Flash & mencari data terkini...');
+  box.innerHTML=aiLoading('Menghubungkan ke Claude Sonnet 5 & mencari data terkini...');
 
   var payload = {
     portfolioSummary: {
@@ -542,10 +542,10 @@ function aiRunGemini(){
   .then(function(res){
     if(!res.success || !res.analysis) throw new Error(res.error || 'Gagal merespons');
     box.dataset.live='1';
-    box.innerHTML='<div>'+aiFmtText(res.analysis)+'</div>'+aiDisclaimer('Gemini 3.7 Flash + Google Search Grounding (Live IDX & Makro)');
+    box.innerHTML='<div>'+aiFmtText(res.analysis)+'</div>'+aiDisclaimer('Claude Sonnet 5 + Web Search Grounding (Live IDX & Makro)');
   })
   .catch(function(e){
-    box.innerHTML='<div style="background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:8px;padding:9px 12px;font-size:11px;color:var(--amber);margin-bottom:10px;line-height:1.6">⚠️ Analisa live Gemini gagal ('+e.message+'). Menampilkan analisa otomatis offline:</div>'+aiHeuristicHtml(ctx);
+    box.innerHTML='<div style="background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:8px;padding:9px 12px;font-size:11px;color:var(--amber);margin-bottom:10px;line-height:1.6">⚠️ Analisa live AI gagal ('+e.message+'). Menampilkan analisa otomatis offline:</div>'+aiHeuristicHtml(ctx);
   });
 }
 window.aiRunGemini = aiRunGemini;
