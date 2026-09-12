@@ -1993,25 +1993,31 @@ function hw_recalc() {
   }
 
   // === 2D Sensitivity Matrix Rendering ===
+  // Label dipersingkat (Bear/Base/Bull polos + angka di baris terpisah,
+  // bukan "Bear (18.8x)" satu baris) supaya cukup di kolom sidebar 340px —
+  // sebelumnya white-space:nowrap bawaan `.tbl` memaksa label panjang jadi
+  // satu baris tak terputus dan meluber, isinya kepotong di kartu sempit
+  // (lihat INCIDENT_LOG.md 2026-09-12).
   var smTbody = document.getElementById('hw-sm-tbody');
   if (smTbody && equityPerShare > 0) {
     var roeLevels = [
-      { label: 'Bear (-25%)', roe: avgROE * 0.75 },
-      { label: 'Base (Normal)', roe: avgROE },
-      { label: 'Bull (+25%)', roe: avgROE * 1.25 }
+      { name: 'Bear', roe: avgROE * 0.75 },
+      { name: 'Base', roe: avgROE },
+      { name: 'Bull', roe: avgROE * 1.25 }
     ];
     var perLevels = [
-      { label: 'Bear (' + fmtD(avgPER * 0.75, 1) + 'x)', per: avgPER * 0.75 },
-      { label: 'Base (' + fmtD(avgPER, 1) + 'x)', per: avgPER },
-      { label: 'Bull (' + fmtD(avgPER * 1.25, 1) + 'x)', per: avgPER * 1.25 }
+      { name: 'Bear', valLabel: fmtD(avgPER * 0.75, 1) + 'x', per: avgPER * 0.75 },
+      { name: 'Base', valLabel: fmtD(avgPER, 1) + 'x', per: avgPER },
+      { name: 'Bull', valLabel: fmtD(avgPER * 1.25, 1) + 'x', per: avgPER * 1.25 }
     ];
 
     var col1 = document.getElementById('hw-sm-col-1');
     var col2 = document.getElementById('hw-sm-col-2');
     var col3 = document.getElementById('hw-sm-col-3');
-    if (col1) col1.textContent = perLevels[0].label;
-    if (col2) col2.textContent = perLevels[1].label;
-    if (col3) col3.textContent = perLevels[2].label;
+    var colHtml = function(p){ return p.name + '<br><b>' + p.valLabel + '</b>'; };
+    if (col1) col1.innerHTML = colHtml(perLevels[0]);
+    if (col2) col2.innerHTML = colHtml(perLevels[1]);
+    if (col3) col3.innerHTML = colHtml(perLevels[2]);
 
     smTbody.innerHTML = roeLevels.map(function(rRow, rIdx) {
       var rAfter = rRow.roe * (1 - avgDPR);
@@ -2025,14 +2031,14 @@ function hw_recalc() {
         var isCenter = (rIdx === 1 && pIdx === 1);
         var colStyle = mos > 20 ? 'color:var(--green)' : mos > 0 ? 'color:var(--amber)' : 'color:var(--red)';
         var bgStyle = isCenter ? 'background:rgba(47,106,243,.12);border:1px solid rgba(47,106,243,.3);border-radius:3px;' : '';
-        return '<td style="padding:6px 4px;' + bgStyle + '">'
-          + '<div style="font-weight:700;font-family:var(--font-mono);font-size:11px;' + colStyle + '">Rp ' + fmt(fv) + '</div>'
+        return '<td style="padding:5px 3px;white-space:nowrap;' + bgStyle + '">'
+          + '<div style="font-weight:700;font-family:var(--font-mono);font-size:10px;' + colStyle + '">Rp ' + fmt(fv) + '</div>'
           + '<div style="font-size:8px;color:var(--text3)">' + (mos >= 0 ? '+' : '') + mos.toFixed(0) + '% MoS</div>'
           + '</td>';
       }).join('');
 
       var rowLabelStyle = (rIdx === 1) ? 'font-weight:700;color:var(--accent)' : 'color:var(--text2)';
-      return '<tr><td style="text-align:left;font-size:9px;' + rowLabelStyle + '">' + rRow.label + '<br><span style="font-size:8px;color:var(--text3)">ROE ' + fmtPct(rRow.roe * 100) + '</span></td>' + cells + '</tr>';
+      return '<tr><td style="text-align:left;font-size:9px;white-space:nowrap;' + rowLabelStyle + '">' + rRow.name + '<br><span style="font-size:8px;color:var(--text3)">ROE ' + fmtPct(rRow.roe * 100) + '</span></td>' + cells + '</tr>';
     }).join('');
   }
 

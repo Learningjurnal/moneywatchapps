@@ -2271,3 +2271,24 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - Cache-bust `20-wealth.js` → `?v=20260912b`.
 
 `npm test` (163/163: 125+18+6+5+9), `npm run lint` bersih.
+
+## 2026-09-12 — Perbaiki 2 kasus konten tabel terpotong: modal Rincian Transaksi & 2D Sensitivity Matrix
+
+- **Konteks:** user tunjukkan 2 screenshot: (1) modal "Rincian Kalkulasi Transaksi" — kolom "NILAI (Rp)" terpotong; (2) kartu "2D SENSITIVITY MATRIX (BEAR · BASE · BULL)" di halaman Harga Wajar — angka & header kolom terpotong di tepi kanan.
+- **Root cause #1 (modal transaksi, `public/js/05-assets.js`):** wrapper tabel pakai `overflow:hidden` TANPA `overflow-x:auto` di dalamnya, dan `.tbl th/.tbl td` (CSS global) punya `white-space:nowrap` bawaan — kolom "Dasar Pengenaan/Rumus" berisi kalimat panjang (mis. "0,043% × Gross (Bursa & KPEI)") dipaksa satu baris, melebihi lebar modal 560px, lalu `overflow:hidden` MEMOTONGNYA secara diam-diam (bukan scroll, langsung hilang).
+- **Root cause #2 (2D Sensitivity Matrix, `public/index.html` + `public/js/10-hargawajar.js`) — DUA lapis bug, bukan cuma satu:**
+  1. Sama seperti #1: label kolom/baris ("Bear (18.8x)", "Bear (-25%)") dipaksa nowrap oleh `.tbl` default, memaksa 4 kolom melebihi kartunya sendiri.
+  2. **Bug lebih dalam yang baru ditemukan saat investigasi**: halaman "Harga Wajar" pakai CSS Grid 2-kolom (`grid-template-columns:1fr 340px`) untuk panel Input (kiri) vs Hasil (kanan, tempat kartu Sensitivity Matrix berada). Tabel "Data Keuangan Historis" 7-kolom di panel kiri SUDAH dibungkus `overflow-x:auto`, tapi TANPA `min-width:0` pada grid-item induknya — classic **CSS Grid "min-width:auto blowout"**: track grid kiri tetap memakai min-content tabel (~995px) sebagai lantai minimum, memaksa SELURUH grid (termasuk kolom kanan 340px berisi kartu Sensitivity Matrix) meluber ratusan piksel melewati viewport dan ter-clip di luar layar — bukan cuma tabelnya yang sempit di dalam kartu, TAPI SELURUH KARTUNYA sendiri sudah di luar area yang terlihat. Dikonfirmasi lewat pengukuran `getBoundingClientRect()` sebelum/sesudah fix (kartu sensitivity: right-edge 1656px vs viewport 1400px SEBELUM fix; 1376px, di dalam viewport, SESUDAH fix).
+- **Perbaikan:**
+  - CSS baru `.tbl-tight` (`public/css/main.css`) — override padding+white-space untuk tabel sempit tanpa mengubah `.tbl` default di tabel lain manapun.
+  - Modal transaksi: tabel dibungkus tambahan `overflow-x:auto`, diberi class `tbl-tight` (kolom label & rumus boleh wrap), kolom nominal tetap `white-space:nowrap` eksplisit supaya angka tidak pecah baris.
+  - Sensitivity Matrix: label dipersingkat ("Bear (18.8x)" → "Bear" + "18.8x" dua baris), `table-layout:fixed` + lebar kolom 25% rata, class `tbl-tight`.
+  - **Fix akar CSS Grid**: `.hw-result-layout > :first-child{min-width:0}` — grid-item kolom kiri sekarang boleh menyusut di bawah min-content tabelnya; tabel 7-kolom itu sendiri yang scroll horizontal (sudah ada wrapper-nya), bukan seluruh grid yang meluber. Kolom kanan (340px → dilebarkan jadi 380px untuk sedikit lega) sekarang benar-benar berada dalam viewport. Ditambah breakpoint `@media(max-width:900px)` collapse ke 1 kolom untuk layar sempit.
+- **Live verification (Playwright, server lokal, sebelum/sesudah dibandingkan lewat `getBoundingClientRect()`):**
+  - Modal transaksi: `tableOverflowsModal:false`, baris "TOTAL BERSIH (NET CASH)" lengkap terbaca hingga nominalnya.
+  - Sensitivity Matrix: `tableOverflowsCard:false` DAN kartu itu sendiri kini `right:1376` (< viewport 1400px) — sebelum fix `right:1656` (168px+ di luar viewport, mustahil dilihat tanpa scroll horizontal browser).
+- Cache-bust: `main.css` → `?v=20260912a`, `05-assets.js` → `?v=20260912a`, `10-hargawajar.js` → `?v=20260912a`.
+
+`npm test` (163/163), `npm run lint` bersih.
+
+**Catatan jujur untuk user:** akar masalah #2 (grid CSS blowout) ternyata SUDAH ADA sebelum sesi ini menyentuh halaman Harga Wajar sama sekali — bukan regresi dari perubahan Debt/Bank/Piutang sebelumnya di sesi ini. Kemungkinan sudah lama begitu di halaman ini pada layar dengan lebar tertentu (khususnya sekitar 1400px viewport ke bawah); baru ketahuan sekarang karena diperiksa langsung.
