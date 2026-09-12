@@ -1457,7 +1457,16 @@ function hw_loadStockData(tk) {
   tk = (tk || '').toUpperCase();
   if (!tk) { hwData.ticker = ''; hwData.rows = []; hwData.currentPrice = 0; return; }
   hwData.ticker = tk;
-  
+
+  // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
+  // publish ke GLOBAL_STOCK_CONTEXT, pola sama dengan fundFetchData()/
+  // techFetchData(). Ditaruh di sini (bukan di hw_loadStock) supaya semua
+  // jalur yang benar-benar me-resolve ticker (termasuk restorasi awal di
+  // hw_init()) ikut publish, bukan cuma pemanggilan eksplisit.
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(tk, 'hargawajar');
+  }
+
   // Resolve price from SSOT first (ensures 100% uniformity across all modules)
   var marketPrice = typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(tk) : 0;
   
@@ -1494,6 +1503,34 @@ function hw_loadStock(tk) {
   }
 }
 window.hw_loadStock = hw_loadStock;
+
+// FIX (2026-09-12, P1 audit follow-up): subscribe ke GLOBAL_STOCK_CONTEXT
+// supaya halaman Valuation ikut pindah ticker saat dipilih dari modul lain -
+// pola sama dengan listener Fundamental/Technical. Hanya bertindak kalau
+// halaman Valuation SEDANG AKTIF (bukan sekadar update state di background
+// seperti Fundamental/Technical), karena dua alasan spesifik ke halaman ini:
+// 1. hw_loadStock() memicu toast global (showSaveStatus -> #save-status-bar,
+//    terlihat di halaman manapun) - memanggilnya diam-diam saat user ada di
+//    halaman lain akan menampilkan toast "Data riil X dimuat" yang
+//    membingungkan tanpa konteks.
+// 2. hw_init() memprioritaskan restore dari localStorage ('hw_state') di
+//    atas state in-memory - update hwData.ticker saja tanpa hw_loadStock()
+//    tidak akan bertahan sampai kunjungan berikutnya, jadi update
+//    "silent" ala Fundamental/Technical tidak benar-benar berguna di sini.
+// Trade-off yang diterima: kalau Valuation TIDAK sedang dibuka saat ticker
+// global berubah, halaman ini tetap memakai ticker/tabel tersimpan
+// terakhirnya sampai user membuka halaman ini secara eksplisit - konsisten
+// dengan perilaku existing (localStorage-first) yang tidak diubah.
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'hargawajar' && tk && tk !== hwData.ticker) {
+      var elP = document.getElementById('page-hargawajar');
+      if (elP && elP.classList.contains('on')) {
+        hw_loadStock(tk);
+      }
+    }
+  });
+}
 
 function hw_renderTable() {
   var tbody = document.getElementById('hw-data-body');
