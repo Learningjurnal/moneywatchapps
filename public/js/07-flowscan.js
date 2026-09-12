@@ -259,29 +259,14 @@ function fsProcess(data){
 }
 
 // ── nav / helpers ──
-function fsSt(name,btn){
-  var groups={all:['ov','vol','ind','vwap'],tbl:['tbl'],ai:['ai']};
-  var show=groups[name]||[name];
-  ['ov','vol','ind','vwap','tbl','ai'].forEach(function(t){
-    var e=document.getElementById('fs-st-'+t);
-    if(e) e.style.display=show.indexOf(t)>=0?'block':'none';
-  });
-  var pb=document.getElementById('fs-prob');
-  if(pb) pb.style.display=(name==='all')?'block':'none';
-  document.querySelectorAll('#page-flowscan .tab').forEach(function(b){b.classList.remove('on');});
-  if(btn) btn.classList.add('on');
-  if(name==='all' && FS_G.data){ fsRenderVWAP(); fsRenderProb(FS_G.a); }
-}
-
-function fsSetPeriod(d,btn){
-  FS_G.days=d;
-  // hanya hapus .on dari tombol period di FlowScan (parent row-nya)
-  var row = btn.parentElement;
-  if(row) row.querySelectorAll('.pbtn').forEach(function(b){b.classList.remove('on');});
-  btn.classList.add('on');
-  // re-run jika data sudah ada
-  if(FS_G.data) fsRunAnalysis();
-}
+// FIX (2026-09-12, dead-code cleanup): fsSt() dan fsSetPeriod() dihapus -
+// keduanya HANYA dipanggil dari onclick di markup <div id="page-flowscan">
+// (dashboard FlowScan lama), yang sendiri sudah dihapus karena terbukti
+// dead code - goPage('flowscan') selalu redirect ke Bandarmology Cockpit
+// sebelum halaman itu sempat dirender (lihat INCIDENT_LOG.md). fsRunAnalysis()
+// TETAP dipertahankan karena masih dipanggil fsQuickLoad() dari halaman
+// Ranking/Heatmap/Watchlist yang live - semua akses DOM di dalamnya sudah
+// defensif (if(el)...) jadi aman jadi no-op tanpa target render.
 
 function fsQuickLoad(tk){
   var inp=document.getElementById('fs-ticker-input');
@@ -359,18 +344,6 @@ function fsRunAnalysis(){
     fsRenderVWAP();
   }
   FS_G._prevTk = tk;
-}
-
-function fsToogleWatchlistCurrent(){
-  var tk=FS_G.tk;
-  if(FS_WL.some(function(w){return w.t===tk;})){
-    FS_WL=FS_WL.filter(function(w){return w.t!==tk;});
-  } else {
-    var info=FS_UNIV.find(function(u){return u.t===tk;})||fsFallbackInfo(tk);
-    var data=fsGenData(tk,60);var a=fsProcess(data);
-    FS_WL.push(Object.assign({},info,{data:data,a:a}));
-  }
-  fsRunAnalysis();
 }
 
 // ── charts ──

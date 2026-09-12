@@ -756,7 +756,15 @@ function goPage(name,btn){
   document.querySelectorAll('.nav button, .nav-dd-btn, .nav-dd-menu button, .side-nav button').forEach(function(b){b.classList.remove('on')});
   document.querySelectorAll('.side-group').forEach(function(g){ g.classList.remove('has-active'); });
 
-  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : name;
+  // FIX (2026-09-12, dead-code cleanup): <div id="page-flowscan"> dihapus
+  // (lihat INCIDENT_LOG.md), tapi goPage('flowscan') tetap dipanggil dari
+  // beberapa tempat live (fsQuickLoad() di Ranking/Heatmap/Watchlist, Wealth
+  // quant toolkit checklist) sebagai jalan pintas yang sudah lama redirect
+  // ke Bandarmology Cockpit (lihat renderPage()'s case 'flowscan'). Tanpa
+  // pemetaan ini, el('page-flowscan') akan null dan goPage() berhenti di
+  // console.warn di bawah SEBELUM sempat redirect - jadi dipetakan langsung
+  // ke 'bandarmology', sama seperti 'smart-money-flow'.
+  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : name);
   var pg = el('page-'+targetPageName);
   // FIX (audit 2026-09-12, "Router silently ignores missing page"): sebelumnya
   // return diam-diam tanpa jejak apapun kalau nama page salah/typo — tombol
