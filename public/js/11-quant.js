@@ -450,8 +450,33 @@ function btSetStrat(s, el2){
   if(s==='xgb') xgbUpdateStatusUI();
 }
 
+// FIX (2026-09-12, P1 audit follow-up): subscribe ke GLOBAL_STOCK_CONTEXT
+// supaya input ticker Backtester ikut ter-update saat ticker dipilih dari
+// modul lain - minimal, cuma update nilai #bt-ticker. TIDAK auto-jalankan
+// backtest (runBacktest()/btFetchLive()) dari sini - Backtester murni
+// menunggu aksi eksplisit user (lihat 'case backtester:break;' di router),
+// dan simulasi/inferensi XGBoost bisa cukup berat untuk dijalankan diam-diam
+// hanya karena ticker berubah di halaman lain.
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'backtester' && tk) {
+      var inp = el('bt-ticker');
+      if (inp && inp.value.toUpperCase() !== tk) inp.value = tk;
+    }
+  });
+}
+
 function btFetchLive(){
   var ticker = (el('bt-ticker').value||'BBCA').toUpperCase().replace('.JK','');
+  // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
+  // publish ke GLOBAL_STOCK_CONTEXT, pola sama dengan fundFetchData()/
+  // techFetchData()/hw_loadStockData(). Backtester tidak punya state
+  // ticker terpisah (cuma dibaca dari #bt-ticker) dan tidak auto-run apapun
+  // saat halaman dibuka, jadi tidak ada risiko toast/auto-eksekusi seperti
+  // Valuation - publish + subscribe minimal (lihat listener di bawah).
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(ticker, 'backtester');
+  }
   var days = parseInt(el('bt-period').value||730);
   qtFetchOHLCV(ticker, days, function(err, data){
     QT.btData = data;
@@ -460,6 +485,9 @@ function btFetchLive(){
 
 function runBacktest(){
   var ticker = (el('bt-ticker').value||'BBCA').toUpperCase().replace('.JK','');
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(ticker, 'backtester');
+  }
   var days = parseInt(el('bt-period').value||730);
   var capital = parseFloat(el('bt-capital').value||100000000);
   var comm = parseFloat(el('bt-comm').value||0.2)/100;
