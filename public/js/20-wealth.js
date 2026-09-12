@@ -347,6 +347,51 @@ function wInsights(a){
   }).join('');
 }
 
+// ── Logo bank — badge lokal berbasis inisial + warna brand, tanpa dependensi
+// gambar eksternal (aman dari kegagalan CDN/kebijakan jaringan sandbox; lihat
+// insiden CDN SheetJS di sesi KSEI). Dicocokkan via regex nama bank bebas
+// ketik pengguna, fallback ke 3 huruf pertama nama bank jika tak dikenali. ──
+var WEALTH_BANK_LOGOS = [
+  {m:/\bbca\b|central asia/i, code:'BCA', bg:'#0058a3'},
+  {m:/mandiri/i, code:'MDR', bg:'#003d79'},
+  {m:/\bbri\b|rakyat indonesia/i, code:'BRI', bg:'#00529c'},
+  {m:/\bbni\b|negara indonesia/i, code:'BNI', bg:'#f7941e'},
+  {m:/cimb/i, code:'CIMB', bg:'#7a1f2b'},
+  {m:/danamon/i, code:'DNM', bg:'#e4032e'},
+  {m:/permata/i, code:'PRM', bg:'#00a19a'},
+  {m:/\bbtn\b|tabungan negara/i, code:'BTN', bg:'#f5821f'},
+  {m:/panin/i, code:'PNB', bg:'#0066b3'},
+  {m:/ocbc|nisp/i, code:'NISP', bg:'#e21836'},
+  {m:/maybank/i, code:'MYB', bg:'#ffc72c', fg:'#1a1a2e'},
+  {m:/hsbc/i, code:'HSBC', bg:'#db0011'},
+  {m:/citi/i, code:'CITI', bg:'#003b70'},
+  {m:/\buob\b/i, code:'UOB', bg:'#0b3b6f'},
+  {m:/jago/i, code:'JAGO', bg:'#ffd200', fg:'#1a1a2e'},
+  {m:/seabank/i, code:'SEA', bg:'#1ba0e2'},
+  {m:/jenius|btpn/i, code:'BTPN', bg:'#00a99d'},
+  {m:/digibank|\bdbs\b/i, code:'DBS', bg:'#00263a'},
+  {m:/\bblu\b/i, code:'blu', bg:'#0058a3'},
+  {m:/neo commerce|bank neo/i, code:'NEO', bg:'#4d2d81'},
+  {m:/allo/i, code:'ALLO', bg:'#e4032e'},
+  {m:/mega/i, code:'MEGA', bg:'#003876'},
+  {m:/sinarmas/i, code:'SMBC', bg:'#0f4c81'},
+  {m:/commonwealth/i, code:'CBA', bg:'#fbde00', fg:'#1a1a2e'},
+  {m:/muamalat/i, code:'MUA', bg:'#00693e'},
+  {m:/syariah indonesia|\bbsi\b/i, code:'BSI', bg:'#059669'}
+];
+function wBankLogo(bankName){
+  var name = (bankName||'').trim();
+  for(var i=0;i<WEALTH_BANK_LOGOS.length;i++){
+    if(WEALTH_BANK_LOGOS[i].m.test(name)) return WEALTH_BANK_LOGOS[i];
+  }
+  var code = name ? (name.replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase() || '?') : '?';
+  return {code:code, bg:'#475569', fg:'#fff'};
+}
+function wBankLogoHtml(bankName, size){
+  var lg = wBankLogo(bankName), s = size||30;
+  return '<div class="w-bank-logo" style="width:'+s+'px;height:'+s+'px;font-size:'+(s*.34).toFixed(0)+'px;background:'+lg.bg+';color:'+(lg.fg||'#fff')+'">'+lg.code+'</div>';
+}
+
 // ══════════════════════════════════════════════
 // PAGE 2 — BANK & DANA DARURAT
 // ══════════════════════════════════════════════
@@ -372,14 +417,16 @@ function wRenderBank(){
     (WEALTH.bank.length ? WEALTH.bank.map(function(b,i){
       return '<div class="w-bank-card" style="background:'+grads[i%grads.length]+'">'+
         '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
-          '<div><div style="font-size:10px;opacity:.65;margin-bottom:4px">Saldo Rekening</div><div style="font-size:21px;font-weight:700;font-family:\'Menlo\',monospace">'+wRp(b.saldo)+'</div></div>'+
+          '<div style="display:flex;align-items:center;gap:10px">'+wBankLogoHtml(b.bank,32)+
+            '<div><div style="font-size:10px;opacity:.65;margin-bottom:4px">Saldo Rekening</div><div style="font-size:21px;font-weight:700;font-family:\'Menlo\',monospace">'+wRp(b.saldo)+'</div></div>'+
+          '</div>'+
           '<div style="text-align:right"><div style="font-size:11px;opacity:.75">'+(b.type||'Tabungan')+' · '+(b.no||'—')+'</div>'+
           '<div style="display:flex;gap:4px;margin-top:8px;justify-content:flex-end">'+
             '<button class="btn btn-xs" style="background:var(--bg3);border-color:var(--border);color:#fff" onclick="wModalBank('+b.id+')">✎</button>'+
             '<button class="btn btn-xs" style="background:var(--bg3);border-color:var(--border);color:#fff" onclick="wConfirmDelete(\'bank\','+b.id+',\''+(b.bank||'')+'\')">🗑</button>'+
           '</div></div>'+
         '</div>'+
-        '<div style="font-size:11px;opacity:.7;margin-top:12px">Bank '+(b.bank||'—')+'</div>'+
+        '<div style="font-size:11px;opacity:.7;margin-top:12px">'+(/^bank\b/i.test(b.bank||'')?(b.bank||''):'Bank '+(b.bank||'—'))+'</div>'+
       '</div>';
     }).join('') : '<div class="card" style="text-align:center;color:var(--text3);font-size:12px;padding:30px">Belum ada rekening. Klik <b>＋ Tambah Rekening</b>.</div>')+
   '</div>'+
@@ -408,16 +455,30 @@ function wFmtDueDate(dateStr){
   var disp = d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
   return '<span'+(cls?' class="'+cls+'"':'')+'>'+disp+'</span>';
 }
+// Total pinjaman awal (pokok) sebuah hutang, diturunkan dari data yang sudah
+// ada — outstanding saat ini + akumulasi seluruh pembayaran tercatat — tanpa
+// perlu field baru (outstanding hanya berkurang lewat wSaveDebtPay). Untuk
+// hutang yang belum pernah dibayar, pokok = outstanding (progres 0%).
+function wDebtPaid(x){ return Array.isArray(x.payments) ? x.payments.reduce(function(s,p){return s+(p.amount||0);},0) : 0; }
+function wDebtPokok(x){ return (x.outstanding||0) + wDebtPaid(x); }
+
 function wRenderDebt(){
   var a = wCalc();
   var dti = WEALTH.income>0 ? wPct(a.debt.c, WEALTH.income) : 0;
   var byRate = WEALTH.debt.slice().sort(function(x,y){return (y.bunga||0)-(x.bunga||0)});
   var bySize = WEALTH.debt.slice().sort(function(x,y){return (x.outstanding||0)-(y.outstanding||0)});
+  var pokokTotal = WEALTH.debt.reduce(function(s,x){return s+wDebtPokok(x);},0);
+  var paidTotal = WEALTH.debt.reduce(function(s,x){return s+wDebtPaid(x);},0);
+  var paidPct = wPct(paidTotal, pokokTotal);
+  var ringD = 2*Math.PI*34;
 
   el('page-wdebt').innerHTML =
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">Hutang & Kewajiban</div><div class="psub">Strategi pelunasan avalanche (hemat bunga) vs snowball (motivasi)</div></div>'+
-    '<button class="btn btn-blue btn-sm" onclick="wModalDebt()">＋ Tambah Hutang</button>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">📄 Laporan Konsolidasi</button>'+
+      '<button class="btn btn-blue btn-sm" onclick="wModalDebt()">＋ Tambah Hutang</button>'+
+    '</div>'+
   '</div>'+
   wSubNav('wdebt')+
   '<div class="row4">'+
@@ -426,19 +487,40 @@ function wRenderDebt(){
     '<div class="metric"><div class="mlabel">Debt-to-Income</div><div class="mval '+(dti>40?'dn':'up')+'">'+(WEALTH.income>0?dti.toFixed(1)+'%':'—')+'</div><div class="msub neu">'+(WEALTH.income>0?(dti>40?'di atas batas aman':'aman (<40%)'):'isi pemasukan di Asumsi')+'</div></div>'+
     '<div class="metric"><div class="mlabel">Cicilan / bln</div><div class="mval">'+wRp(a.debt.c)+'</div></div>'+
   '</div>'+
+  '<div class="card" style="margin-bottom:10px">'+
+    '<div class="cheader"><span class="ctitle">PROGRES PELUNASAN</span><span class="badge '+(paidPct>=50?'b-up':'b-gray')+'">'+paidPct.toFixed(1)+'% lunas</span></div>'+
+    (WEALTH.debt.length ? (
+      '<div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">'+
+        '<div class="w-ring" style="width:96px;height:96px;flex-shrink:0"><svg width="96" height="96" style="transform:rotate(-90deg)">'+
+          '<circle cx="48" cy="48" r="34" fill="none" stroke="var(--bg4)" stroke-width="9"/>'+
+          '<circle cx="48" cy="48" r="34" fill="none" stroke="var(--green)" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+ringD+'" stroke-dashoffset="'+(ringD*(1-Math.min(100,paidPct)/100))+'"/>'+
+        '</svg><div class="w-ring-center"><div style="font-size:18px;font-weight:700;font-family:\'Menlo\',monospace">'+paidPct.toFixed(0)+'%</div><div style="font-size:8.5px;color:var(--text3)">terbayar</div></div></div>'+
+        '<div style="flex:1;min-width:180px">'+
+          '<div style="position:relative;height:150px"><canvas id="w-debt-payoff-chart"></canvas></div>'+
+        '</div>'+
+        '<div style="min-width:160px;display:flex;flex-direction:column;gap:8px">'+
+          '<div class="w-mini" style="border:none;padding:0"><span style="display:flex;align-items:center;gap:6px;color:var(--text3)"><span style="width:8px;height:8px;border-radius:2px;background:#34d399;display:inline-block"></span>Sudah terbayar</span><b class="up">'+wRp(paidTotal)+'</b></div>'+
+          '<div class="w-mini" style="border:none;padding:0"><span style="display:flex;align-items:center;gap:6px;color:var(--text3)"><span style="width:8px;height:8px;border-radius:2px;background:#f87171;display:inline-block"></span>Sisa outstanding</span><b class="dn">'+wRp(a.debt.t)+'</b></div>'+
+          '<div class="w-mini" style="border-top:1px solid var(--border2);padding-top:8px;margin-top:2px"><span style="color:var(--text3)">Total pinjaman (pokok)</span><b>'+wRp(pokokTotal)+'</b></div>'+
+        '</div>'+
+      '</div>'
+    ) : '<div style="font-size:11px;color:var(--text3);text-align:center;padding:20px 0">Belum ada hutang tercatat — grafik progres akan muncul setelah data diisi.</div>')+
+  '</div>'+
   '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">'+
-    '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Nama</th><th>Tipe</th><th>Tanggal Hutang</th><th>Jatuh Tempo</th><th>Outstanding</th><th>Bunga/thn</th><th>Cicilan/bln</th><th>Prioritas</th><th></th></tr></thead><tbody>'+
+    '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Nama</th><th>Tipe</th><th>Tanggal Hutang</th><th>Jatuh Tempo</th><th>Outstanding</th><th>Progres Bayar</th><th>Bunga/thn</th><th>Cicilan/bln</th><th>Prioritas</th><th></th></tr></thead><tbody>'+
     (byRate.length ? byRate.map(function(x,i){
+      var pokok = wDebtPokok(x), pct = wPct(wDebtPaid(x), pokok);
       return '<tr><td><b>'+x.nama+'</b></td>'+
       '<td><span class="badge '+(i===0?'b-dn':'b-gray')+'">'+(x.tipe||'—')+'</span></td>'+
       '<td class="mono" style="font-size:11px;color:var(--text2)">'+(x.tanggalHutang?new Date(x.tanggalHutang).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'—')+'</td>'+
       '<td class="mono" style="font-size:11px">'+wFmtDueDate(x.jatuhTempo)+'</td>'+
       '<td><b>'+wRp(x.outstanding)+'</b></td>'+
+      '<td style="min-width:90px"><div class="w-track" style="height:5px"><div class="w-fill green" style="width:'+pct.toFixed(0)+'%"></div></div><div style="font-size:10px;color:var(--text3);margin-top:3px">'+pct.toFixed(0)+'%</div></td>'+
       '<td class="dn"><b>'+(x.bunga||0)+'%</b></td>'+
       '<td>'+wRp(x.cicilan)+'</td>'+
       '<td><span class="badge '+(i===0?'b-dn':i===1?'b-gray':'b-up')+'">'+(i===0?'Lunasi dulu':'P'+(i+1))+'</span></td>'+
       '<td style="white-space:nowrap"><button class="btn btn-blue btn-xs" onclick="wModalDebtPay('+x.id+')" title="Catat pembayaran">Bayar</button> <button class="btn btn-ghost btn-xs" onclick="wModalDebt('+x.id+')" aria-label="Edit hutang '+(x.nama||'')+'">✎</button> <button class="btn btn-red btn-xs" onclick="wConfirmDelete(\'debt\','+x.id+',\''+(x.nama||'')+'\')" aria-label="Hapus hutang '+(x.nama||'')+'">🗑</button></td></tr>';
-    }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Belum ada hutang tercatat </td></tr>')+
+    }).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Belum ada hutang tercatat </td></tr>')+
     '</tbody></table></div>'+
   '</div>'+
   '<div class="g2c">'+
@@ -457,6 +539,15 @@ function wRenderDebt(){
       '<div style="font-size:10px;color:var(--text3);margin-top:6px">Lunasi dari nominal terkecil. Quick win menjaga konsistensi.</div>'+
     '</div>'+
   '</div>';
+
+  wKillChart('debtPayoff');
+  var cvD = el('w-debt-payoff-chart');
+  if(cvD && WEALTH.debt.length && typeof Chart!=='undefined'){
+    wCharts['debtPayoff'] = new Chart(cvD.getContext('2d'), {type:'doughnut',
+      data:{labels:['Sudah Terbayar','Sisa Outstanding'], datasets:[{data:[paidTotal, a.debt.t], backgroundColor:['#34d399','#f87171'], borderColor:'rgba(19,19,31,.9)', borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'64%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': '+wRp(c.raw)+' ('+wPct(c.raw,pokokTotal).toFixed(1)+'%)';}}}}}
+    });
+  }
 }
 
 // ══════════════════════════════════════════════

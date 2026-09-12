@@ -2245,3 +2245,16 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (125+18+6+5+9), `npm run lint` bersih.
 
 **Catatan jujur untuk user:** ini BUKAN daftar lengkap semua "keanehan" di data KSEI — cuma kategori duplikasi investor yang bisa dideteksi dengan aman secara otomatis. Kategori lain yang saya temukan tapi TIDAK diutak-atik (sesuai instruksi): ~70 pasangan persentase-sama-nama-beda (kemungkinan besar sah, bukan bug), 43 emiten tanpa data Free Float resmi (sudah ditandai "ESTIMASI" di UI), 3 emiten dengan satu investor >99% (kemungkinan besar sah untuk anak perusahaan yang hampir sepenuhnya dimiliki). Kalau Anda mau saya tinjau kategori lain itu satu per satu, tinggal bilang.
+
+## 2026-09-12 — Rework visual halaman Bank & Hutang (logo bank + grafik progres pelunasan)
+
+- **Konteks:** user minta halaman "Rekening Bank & Kas" dan "Hutang & Cicilan" dirapikan secara visual: logo per rekening bank, dan grafik antara jumlah hutang vs terbayar berikut persentasenya.
+- **Bank & Dana Darurat (`public/js/20-wealth.js`):** ditambahkan `wBankLogo()`/`wBankLogoHtml()` — badge inisial berwarna brand (BCA, Mandiri, BRI, BNI, CIMB Niaga, Danamon, Permata, BTN, Panin, OCBC NISP, Maybank, HSBC, Citibank, UOB, Jago, SeaBank, Jenius/BTPN, digibank/DBS, blu, Neo Commerce, Allo, Mega, Sinarmas, Commonwealth, Muamalat, BSI), dicocokkan lewat regex nama bank bebas ketik, fallback ke 3 huruf awal nama bank kalau tak dikenali. **Sengaja badge lokal (CSS+teks), bukan gambar logo dari CDN eksternal** — sandbox sesi ini berulang kali gagal konek ke domain eksternal (lihat log health-check per jam), jadi menghindari dependensi gambar eksternal untuk fitur yang harus tampil konsisten di production.
+  - Sekalian dibetulkan duplikasi teks "Bank Bank Mandiri" pada kartu rekening — kalau nama yang diketik user sudah diawali kata "Bank", tidak diprefix lagi.
+- **Hutang & Kewajiban:** ditambahkan kartu "PROGRES PELUNASAN" — ring persentase + donut chart (Chart.js) "Sudah Terbayar" vs "Sisa Outstanding" + legenda (total terbayar, sisa outstanding, total pinjaman/pokok). Pokok pinjaman diturunkan dari data yang SUDAH ADA (`outstanding saat ini + akumulasi seluruh pembayaran tercatat`) — TANPA field baru, karena `outstanding` di app ini hanya berkurang lewat `wSaveDebtPay()`. Kolom "Progres Bayar" (mini progress bar + %) ditambahkan ke tabel per-hutang. Toolbar halaman ditambah tombol "Laporan Konsolidasi" (konsisten dengan pola di halaman Net Worth/FIRE yang sudah ada tombol serupa, sebelumnya cuma ada di Debt).
+- **CSS baru:** `.w-bank-logo` di `public/css/wealth.css`.
+- **Live verification (Playwright, server lokal, data sintetis mirip skenario di screenshot user):** 4 rekening (BCA/Mandiri/Jago/SeaBank) → 4 logo benar tampil dengan warna brand masing-masing; 3 hutang (KPR BCA, BPRP PLN, Kartu Kredit Mandiri) dengan riwayat pembayaran → ring "2% terbayar", donut chart ter-render, kolom Progres Bayar per baris tampil (0%/2%/2%), total terbayar Rp16,8jt dari pokok Rp828,6jt cocok dengan jumlah manual `outstanding+payments`.
+- Tidak ada perubahan skema data (`WEALTH.bank`/`WEALTH.debt` field-nya sama persis) — 100% aditif di layer render, tidak menyentuh kalkulasi Net Worth/DTI/Debt Ratio yang sudah ada.
+- Cache-bust `20-wealth.js` → `?v=20260912a`, `wealth.css` → `?v=20260912a`.
+
+`npm test` (125/125), `npm run lint` bersih.
