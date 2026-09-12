@@ -1094,8 +1094,14 @@ test('REGRESSION GUARD: FlowScan must never fall back to the literal "IHSG" as a
   // Every "ticker not found in FS_UNIV" lookup must use the shared helper,
   // not a re-typed inline fallback object (which is exactly how the
   // original bug had 5 duplicate copies of the same wrong literal).
+  // FIX (2026-09-12, dead-code cleanup): threshold dropped from 5 to 4 -
+  // fsToogleWatchlistCurrent() (one of the original 5 call sites) was
+  // deleted along with the dead <div id="page-flowscan"> markup it
+  // exclusively served (zero other callers, verified via full-codebase
+  // grep; see INCIDENT_LOG.md). The invariant itself (no inline literal
+  // fallback) still holds for all remaining call sites.
   const fallbackCallCount = (src.match(/\|\|\s*fsFallbackInfo\(/g) || []).length;
-  assert(fallbackCallCount >= 5, `Expected at least 5 call sites using fsFallbackInfo() as the FS_UNIV.find() fallback, found ${fallbackCallCount} — a fallback may have reverted to an inline literal`);
+  assert(fallbackCallCount >= 4, `Expected at least 4 call sites using fsFallbackInfo() as the FS_UNIV.find() fallback, found ${fallbackCallCount} — a fallback may have reverted to an inline literal`);
   // FS_UNIV's own construction (from the user's real portfolio import)
   // must prefer DB[code].sector over the raw import row before 'Lainnya'.
   const univFn = src.match(/XLSX_DATA\.stocks\.forEach\(function\(s\)\{[\s\S]*?\n\}\);/);
