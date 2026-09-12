@@ -2322,3 +2322,17 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (163/163), `npm run lint` bersih. Tidak ada cache-bust diperlukan (server-side only, tidak ada file public/js yang berubah).
 
 **Catatan jujur untuk user:** ini BUKAN perbaikan akar masalah "kenapa Gemini gagal" — ini cuma memperbaiki kebutaan log yang menghalangi kita menemukan akarnya. Setelah di-deploy, kalau widget berita masih gagal, tolong export log lagi (cari kata "sectoral-news notice") — kali ini pasti ada pesan errornya.
+
+## 2026-09-12 — Hapus total kode Firebase mati (menutup akar alert GitHub secret scanning)
+
+- **Konteks:** GitHub secret scanning menandai Firebase Web API key (`AIzaSy...`) sebagai "Public leak" — hardcoded di `public/js/00-config.js`. Investigasi (lihat sesi sebelumnya) mengonfirmasi Firebase sudah 100% mati sejak migrasi ke Supabase, termasuk fitur KSEI yang sebelumnya jadi alasan kode ini dipertahankan (sudah pindah ke tabel Supabase sendiri, `sql/schema_migration.sql`). User sudah rotasi key + hapus env var Firebase di Vercel; langkah terakhir yang tersisa di tangan Claude: hapus kodenya dari repo.
+- **Perbaikan:**
+  - `public/js/00-config.js`: hapus `FIREBASE_CONFIG`, `FIRESTORE_DB_ID`, `_firebaseApp`/`_firebaseAuth`/`_firebaseDb`, `_configureDbSettings()`, `getFirebaseDb()`, dan seluruh blok inisialisasi `firebase.initializeApp()`/`firebase.auth()`/`enablePersistence()`. **Dipertahankan**: `getFirestoreUserUid()` — meski namanya menyebut Firestore, fungsi ini murni baca `localStorage`/`sessionStorage`, tidak pernah menyentuh SDK Firebase, dan masih dipanggil dari 5 tempat di `02-storage.js`.
+  - `public/index.html`: hapus 3 `<script>` tag Firebase SDK (`firebase-app-compat.js`, `firebase-auth-compat.js`, `firebase-firestore-compat.js`) — tidak ada lagi kode yang memanggil `firebase.*` di manapun.
+- **Verifikasi cakupan sebelum hapus**: `grep` seluruh `public/js/*.js` untuk `getFirebaseDb|FIREBASE_CONFIG|_firebaseApp|_firebaseAuth|_firebaseDb|FIRESTORE_DB_ID` — nol pemanggil di luar `00-config.js` sendiri.
+- **Live verification (Playwright, server lokal):** `window.firebase` sekarang `undefined` (SDK benar-benar tidak ter-load), nol page error, login Mode Tamu & render dashboard tetap normal, `getFirestoreUserUid()` tetap mengembalikan `'demo_guest_user'` seperti sebelumnya.
+- Cache-bust `00-config.js` → `?v=20260912a`.
+
+`npm test` (163/163), `npm run lint` bersih.
+
+**Dampak keamanan:** setelah PR ini merge, key Firebase yang sebelumnya di-flag GitHub tidak lagi ada di kode manapun di HEAD repo (masih ada di histori git lama, tapi itu sudah tidak relevan karena key-nya sudah dirotasi user). Alert GitHub bisa di-dismiss dengan alasan "Revoked".

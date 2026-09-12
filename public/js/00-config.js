@@ -1,62 +1,22 @@
 // ══════════════════════════════════════════════════════════
-// FIREBASE FIRESTORE & AUTHENTICATION CONFIGURATION
+// APP CONFIG
 // ══════════════════════════════════════════════════════════
+// FIX AUDIT (2026-09-12, GitHub secret-scanning alert): this file used to
+// also hold a live Firebase Web SDK config (FIREBASE_CONFIG, FIRESTORE_DB_ID,
+// getFirebaseDb(), the firebase.initializeApp()/firebase.auth() boot block
+// below) — dead code since the Supabase migration (see the SUPABASE section
+// below), confirmed by grepping the whole public/js tree for any caller of
+// getFirebaseDb()/FIREBASE_CONFIG/_firebaseApp/_firebaseAuth/_firebaseDb:
+// none exist. Kept alive until now only because a stale comment claimed the
+// KSEI shareholder feature still needed it — it doesn't (34-ksei-shareholders.js
+// moved to its own Supabase table, sql/schema_migration.sql, weeks ago).
+// Removed entirely, along with the firebase-*-compat.js <script> tags in
+// index.html — nothing in this app talks to Firebase anymore.
+// getFirestoreUserUid() below is KEPT: despite its name, it never touches
+// the Firebase SDK — it's a pure localStorage/sessionStorage-based helper
+// still called from public/js/02-storage.js (5 call sites).
 var PRIMARY_USER_EMAIL = "Andry.Zuma.Musa@gmail.com";
-
-var FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAjO1QrHyIuR8T0NM07NWxAgbwjnrbSYXk",
-  authDomain: "zinc-snowfall-6lcf1.firebaseapp.com",
-  projectId: "zinc-snowfall-6lcf1",
-  storageBucket: "zinc-snowfall-6lcf1.firebasestorage.app",
-  messagingSenderId: "1097630283503",
-  appId: "1:1097630283503:web:eedb1b5fafd56ac16b4d1a"
-};
-
-var FIRESTORE_DB_ID = "ai-studio-moneywatchpro-088bcbd5-b0c7-48cf-baee-be4279fd2091";
-
-var _firebaseApp = null;
-var _firebaseAuth = null;
-var _firebaseDb = null;
 var _currentUser = null;
-
-function _configureDbSettings(db) {
-  if (db && typeof db.settings === 'function') {
-    try {
-      db.settings({
-        ignoreUndefinedProperties: true,
-        cacheSizeBytes: (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.CACHE_SIZE_UNLIMITED) ? firebase.firestore.CACHE_SIZE_UNLIMITED : 40000000
-      });
-    } catch(e) {
-      // Settings already frozen or already initialized
-    }
-  }
-}
-
-function getFirebaseDb() {
-  if (_firebaseDb) return _firebaseDb;
-  if (typeof firebase !== 'undefined') {
-    if (!_firebaseApp) {
-      try {
-        _firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
-      } catch(e) {
-        _firebaseApp = firebase.app();
-      }
-    }
-    try {
-      _firebaseDb = firebase.app().firestore(FIRESTORE_DB_ID);
-    } catch(e) {
-      try {
-        _firebaseDb = firebase.firestore();
-      } catch(e2) {
-        console.warn("Firestore fallback init notice:", e2);
-      }
-    }
-    if (_firebaseDb) {
-      _configureDbSettings(_firebaseDb);
-    }
-  }
-  return _firebaseDb;
-}
 
 function getFirestoreUserUid(user) {
   var u = user || _currentUser;
@@ -80,52 +40,22 @@ function getFirestoreUserUid(user) {
   return null;
 }
 
-try {
-  if (typeof firebase !== 'undefined') {
-    _firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
-    _firebaseAuth = firebase.auth();
-    try {
-      _firebaseDb = firebase.app().firestore(FIRESTORE_DB_ID);
-    } catch(e) {
-      try {
-        _firebaseDb = firebase.firestore();
-      } catch(e2) {
-        console.warn("Firestore fallback init notice:", e2);
-      }
-    }
-    if (_firebaseDb) {
-      _configureDbSettings(_firebaseDb);
-    }
-    if (_firebaseDb && typeof _firebaseDb.enablePersistence === 'function') {
-      _firebaseDb.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
-        if (err && err.code === 'failed-precondition') {
-          // Multiple tabs open, persistence can only be enabled in one tab at a time
-        } else if (err && err.code === 'unimplemented') {
-          // Browser does not support IndexedDB persistence
-        }
-      });
-    }
-  }
-} catch (err) {
-  console.warn("Firebase initialization notice:", err);
-}
-
-// Schemaless flag — Firebase Firestore does not require manual SQL migration
+// Schemaless flag — historical leftover from the Firestore era; kept as a
+// no-op flag since something downstream may still read window._schemaOutdated.
 window._schemaOutdated = false;
 
 // ══════════════════════════════════════════════════════════
 // SUPABASE (per-user data + auth) — see AGENTS.md / migration notes for why
 // ══════════════════════════════════════════════════════════
-// FIX AUDIT: the Firebase project above (zinc-snowfall-6lcf1) is a shared
-// Google AI Studio "Starter Tier" backend used by several unrelated apps -
-// the account operating this app only has narrow IAM roles on it (Firebase
-// Viewer / Firebase User (Free Tier), no Owner/Editor), so the
-// Email/Password sign-in provider can never be added and the app's own
-// OAuth redirect domain can never be authorized. Per-user data + auth were
+// FIX AUDIT: the Firebase project this app used to depend on (zinc-snowfall-6lcf1)
+// was a shared Google AI Studio "Starter Tier" backend used by several
+// unrelated apps - the account operating this app only had narrow IAM roles
+// on it (Firebase Viewer / Firebase User (Free Tier), no Owner/Editor), so
+// the Email/Password sign-in provider could never be added and the app's own
+// OAuth redirect domain could never be authorized. Per-user data + auth were
 // moved to a Supabase project the user fully owns, where none of that
-// applies. FIREBASE_CONFIG/getFirebaseDb() above are left in place only for
-// the KSEI shareholder-data feature (34-ksei-shareholders.js), which is a
-// global, non-per-user cache unrelated to this migration.
+// applies. Firebase itself has since been removed entirely (see the note
+// at the top of this file).
 var SUPABASE_URL = "https://kpvteaqnjwkxkhenfqyu.supabase.co";
 var SUPABASE_ANON_KEY = "sb_publishable_IpA86ua5CkZ1UettBXR-tw_LUQFTyu0";
 var _supabaseClient = null;
