@@ -2401,3 +2401,22 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - **Live verification (Playwright, server lokal):** `goPage('flowscan')` dan `goPage('smart-money-flow')` sama-sama tetap mendarat di `page-bandarmology` dengan `currentPage` yang benar; `fsQuickLoad('BBCA')` dipanggil langsung (function reachable dari Ranking/Heatmap/Watchlist) — sukses tanpa error, `FS_G.tk` terisi benar, redirect tetap jalan.
 
 `npm test` (154/154), `npm run lint` bersih.
+
+## 2026-09-12 — P1 audit "Stock Cockpit fragmentation": sambungkan halaman Fundamental ke GLOBAL_STOCK_CONTEXT
+
+- **Konteks:** audit §5 merekomendasikan "bangun Stock Cockpit sebagai single contextual shell" (MAJOR risk) untuk mengatasi fragmentasi ticker di 8 modul analisis saham. Investigasi menemukan koreksi penting: **adapter context-nya SUDAH ADA** — `window.GLOBAL_STOCK_CONTEXT` (`00-config.js`, pub/sub dengan `setTicker()`/`getTicker()`/`subscribe()`) — dan sudah tersambung ke Stock Intel, StockChat, KSEI, Sectoral Insight, dan search bar global. Yang benar masih terfragmentasi: Fundamental, Technical, Valuation, Backtester, Monthly Returns — 5 halaman dengan ticker input lokal sendiri-sendiri, tanpa publish/subscribe ke context global. User memilih mulai dari Fundamental.
+- **Perbaikan (`public/js/24-stockmaster.js`):**
+  - `fundFetchData()`: setelah `FUND_DATA.ticker = cleanCode`, tambah `window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'fundamental')` — publish, pola identik dengan `selectStockIntelTicker()`/`selectStockChatTicker()`.
+  - Listener baru: `window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source){...})` — kalau `source !== 'fundamental'` dan ticker beda dari `FUND_DATA.ticker`: update `#fundTickerInput` selalu; kalau halaman Fundamental sedang aktif langsung `fundFetchData(tk)` (live re-render), kalau tidak cukup update state (`FUND_DATA.ticker`) supaya `fundInit()` menampilkan ticker yang benar saat halaman dibuka nanti. Pola identik dengan listener StockChat yang sudah ada di `41-stockchat-cockpit.js:1646`.
+  - Guard anti-infinite-loop: `source !== 'fundamental'` mencegah listener bereaksi ke publish-nya sendiri; `tk !== FUND_DATA.ticker` di semua listener lain mencegah reprocessing berantai — pola yang sama sudah terbukti aman di StockChat.
+- **Live verification (Playwright, server lokal)** — 5 skenario, semua sesuai ekspektasi tanpa error:
+  1. Boot: `GLOBAL_STOCK_CONTEXT` dan `FUND_DATA.ticker` sama-sama 'BBCA'.
+  2. `setTicker('UNVR','user-search')` saat TIDAK di halaman Fundamental → `FUND_DATA.ticker` dan `#fundTickerInput` ikut ter-update di background (tanpa fetch/render, karena halaman tidak aktif).
+  3. Navigasi ke Fundamental sesudahnya → menampilkan 'UNVR' (bukan 'BBCA' basi) — inilah bug fragmentasi yang diperbaiki.
+  4. Ganti ticker eksternal ('BMRI' dari stock-intel) SAAT sedang aktif di halaman Fundamental → live re-render langsung ke 'BMRI'.
+  5. `fundFetchData('ASII')` dari halaman Fundamental sendiri → `GLOBAL_STOCK_CONTEXT` ikut ter-update ke 'ASII', sinkron ke arah sebaliknya.
+- Tidak ada cache-bust diperlukan untuk file lain (index.html tidak diubah, `24-stockmaster.js` di-cache-bust otomatis lewat query string yang sudah ada — cek versi saat ini).
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Catatan untuk lanjutan:** pola yang sama (publish + subscribe, ~15 baris) siap direplikasi untuk Technical, Valuation, Backtester, Monthly Returns kapanpun diminta — masing-masing halaman independen, jadi bisa dikerjakan satu per satu tanpa saling bergantung.
