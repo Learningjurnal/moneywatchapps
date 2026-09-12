@@ -2292,3 +2292,15 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (163/163), `npm run lint` bersih.
 
 **Catatan jujur untuk user:** akar masalah #2 (grid CSS blowout) ternyata SUDAH ADA sebelum sesi ini menyentuh halaman Harga Wajar sama sekali — bukan regresi dari perubahan Debt/Bank/Piutang sebelumnya di sesi ini. Kemungkinan sudah lama begitu di halaman ini pada layar dengan lebar tertentu (khususnya sekitar 1400px viewport ke bawah); baru ketahuan sekarang karena diperiksa langsung.
+
+## 2026-09-12 — Rapikan desain 2D Sensitivity Matrix: bold tidak konsisten & sel biru tanpa penjelasan
+
+- **Konteks:** user tunjukkan screenshot kartu 2D Sensitivity Matrix (sudah diperbaiki tata letaknya di PR #153) dan bertanya: (1) kenapa selalu ada satu sel yang ditandai (kotak biru di tengah), (2) label "Bear"/"Base"/"Bull" ada yang bold ada yang tidak.
+- **Diagnosa:** kedua hal SEBENARNYA bukan bug fungsional — kotak biru memang sengaja menandai perpotongan skenario ROE Base × PER Base (estimasi paling mungkin), fitur yang sudah ada sejak awal. Tapi (a) tidak ada penjelasan visual apa pun untuk sel yang ditandai itu, jadi wajar terlihat seperti kesalahan; (b) `rowLabelStyle` di `public/js/10-hargawajar.js` cuma memberi `font-weight:700` ke baris "Base" (`rIdx===1`), sementara baris "Bear"/"Bull" polos — kontras dengan header kolom yang SEMUA bold (lewat `.tbl th` bawaan) dengan cuma "Base" dibedakan warna, bukan bold. Inkonsistensi bold row-vs-column inilah yang terlihat "acak".
+- **Perbaikan:**
+  - `rowLabelStyle`: sekarang SEMUA baris (Bear/Base/Bull) selalu `font-weight:700`, cuma warna yang beda untuk "Base" (`var(--accent)`) — konsisten dengan header kolom.
+  - Ditambah legenda kecil di bawah tabel (`public/index.html`): swatch kotak biru + teks "Kotak biru = skenario dasar (ROE Base × PER Base) — estimasi paling mungkin. Bear/Bull di sekelilingnya cuma skenario alternatif jika ROE atau PER melenceng ±25%." — supaya sel yang ditandai punya penjelasan, tidak terlihat seperti bug.
+- **Live verification (Playwright, server lokal):** screenshot kartu menunjukkan "Bear"/"Base"/"Bull" (baris) sama-sama bold, legenda tampil di bawah tabel.
+- Cache-bust `10-hargawajar.js` → `?v=20260912b`.
+
+`npm test` (163/163), `npm run lint` bersih.

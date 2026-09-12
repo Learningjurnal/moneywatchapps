@@ -2037,7 +2037,7 @@ function hw_recalc() {
           + '</td>';
       }).join('');
 
-      var rowLabelStyle = (rIdx === 1) ? 'font-weight:700;color:var(--accent)' : 'color:var(--text2)';
+      var rowLabelStyle = 'font-weight:700;' + ((rIdx === 1) ? 'color:var(--accent)' : 'color:var(--text2)');
       return '<tr><td style="text-align:left;font-size:9px;white-space:nowrap;' + rowLabelStyle + '">' + rRow.name + '<br><span style="font-size:8px;color:var(--text3)">ROE ' + fmtPct(rRow.roe * 100) + '</span></td>' + cells + '</tr>';
     }).join('');
   }
