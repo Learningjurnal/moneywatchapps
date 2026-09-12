@@ -758,7 +758,11 @@ function goPage(name,btn){
 
   var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : name;
   var pg = el('page-'+targetPageName);
-  if(!pg) return;
+  // FIX (audit 2026-09-12, "Router silently ignores missing page"): sebelumnya
+  // return diam-diam tanpa jejak apapun kalau nama page salah/typo — tombol
+  // klik seolah tidak melakukan apa-apa, tanpa error di console sama sekali.
+  // Sekarang selalu log peringatan supaya bug navigasi seperti ini kelihatan.
+  if(!pg){ console.warn('goPage(): halaman "'+targetPageName+'" tidak ditemukan (dipanggil dengan name="'+name+'")'); return; }
   pg.classList.add('on');
   
   var activeBtn = null;
