@@ -149,6 +149,15 @@ async function fundFetchData(tickerOverride) {
   FUND_DATA.ticker = cleanCode;
   FUND_DATA.currency = isUsStock ? 'USD' : 'IDR';
 
+  // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
+  // publish ke GLOBAL_STOCK_CONTEXT (00-config.js) supaya modul lain yang
+  // sudah subscribe (Stock Intel, StockChat, KSEI) ikut pindah ke ticker
+  // yang sama saat user analisa saham di halaman Fundamental — pola yang
+  // sama persis dengan selectStockIntelTicker()/selectStockChatTicker().
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'fundamental');
+  }
+
   fundShowStatus('Memuat analisa fundamental &amp; konsensus valuasi <b>' + cleanCode + '</b>...', false);
 
   // Helper fetcher yang mencoba seluruh proxy yang tersedia (lokal, allorigins, codetabs).
@@ -286,6 +295,27 @@ async function fundFetchData(tickerOverride) {
       ? 'Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
       : 'Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
   }
+}
+
+// FIX (2026-09-12, P1 audit follow-up): subscribe ke GLOBAL_STOCK_CONTEXT
+// supaya halaman Fundamental ikut pindah ticker saat dipilih dari modul lain
+// (Stock Intel, StockChat, search bar global, dst) - pola sama persis dengan
+// listener StockChat di 41-stockchat-cockpit.js. Kalau halaman Fundamental
+// sedang aktif, langsung re-fetch; kalau tidak, cukup update input & state
+// supaya fundInit() menampilkan ticker yang benar saat user membukanya nanti.
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'fundamental' && tk && tk !== FUND_DATA.ticker) {
+      var inp = document.getElementById('fundTickerInput');
+      if (inp) inp.value = tk;
+      var elP = document.getElementById('page-fundamental');
+      if (elP && elP.classList.contains('on') && typeof fundFetchData === 'function') {
+        fundFetchData(tk);
+      } else {
+        FUND_DATA.ticker = tk;
+      }
+    }
+  });
 }
 
 function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
