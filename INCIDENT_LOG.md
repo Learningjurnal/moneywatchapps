@@ -2420,3 +2420,17 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Catatan untuk lanjutan:** pola yang sama (publish + subscribe, ~15 baris) siap direplikasi untuk Technical, Valuation, Backtester, Monthly Returns kapanpun diminta — masing-masing halaman independen, jadi bisa dikerjakan satu per satu tanpa saling bergantung.
+
+## 2026-09-12 — P1 audit "Stock Cockpit fragmentation": sambungkan halaman Technical ke GLOBAL_STOCK_CONTEXT
+
+- **Konteks:** lanjutan dari entry Fundamental sebelumnya — user memilih Technical sebagai halaman kedua yang disambungkan ke `window.GLOBAL_STOCK_CONTEXT`.
+- **Perbaikan (`public/js/24-stockmaster.js`):**
+  - `techFetchData()`: setelah `TECH_DATA.ticker = cleanCode`, tambah `window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'technical')` — publish, pola identik `fundFetchData()`.
+  - Listener baru: `window.GLOBAL_STOCK_CONTEXT.subscribe(...)` — kalau `source !== 'technical'` dan ticker beda dari `TECH_DATA.ticker`: update `#techTickerInput` selalu; kalau halaman Technical sedang aktif langsung `techFetchData(tk)`, kalau tidak cukup update state `TECH_DATA.ticker` supaya `techInit()` menampilkan ticker yang benar saat halaman dibuka nanti. Pola identik listener Fundamental/StockChat.
+  - Catatan: `techInit()` juga dipakai sebagai fallback render untuk case router 'flowscan' (redirect) dan 'candle' — publish dari sana harmless karena guard `tk !== TECH_DATA.ticker` di semua listener mencegah reprocessing berantai (sama seperti dianalisis di entry Fundamental).
+  - Cache-bust `24-stockmaster.js` → `?v=20260912b`.
+- **Live verification (Playwright, server lokal)** — 5 skenario sama seperti Fundamental, semua sesuai ekspektasi tanpa error: boot state konsisten, sync masuk saat halaman tidak aktif, ticker benar setelah navigasi, live re-render saat aktif, publish keluar dari perubahan lokal.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Progres P1 "Stock Cockpit fragmentation":** Stock Intel, StockChat, KSEI, Sectoral Insight (sudah ada sebelumnya) + Fundamental, Technical (baru disambungkan) = 6 dari 8 modul kini tersinkron via `GLOBAL_STOCK_CONTEXT`. Sisa: Valuation (Harga Wajar), Backtester, Monthly Returns.
