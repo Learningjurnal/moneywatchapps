@@ -557,7 +557,7 @@
 
       </div>
 
-      <!-- GRID 4: API Quota Monitor (Invezgo + Gemini) -->
+      <!-- GRID 4: API Quota Monitor (Invezgo) -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-top:16px">
 
         <!-- 7. Invezgo Quota -->
@@ -569,15 +569,6 @@
           <div id="quota-invezgo-box" style="font-size:12px;color:var(--text3)">Memuat data kuota…</div>
         </div>
 
-        <!-- 8. Gemini API Quota -->
-        <div class="card" style="padding:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text)">Kuota Gemini AI (Copilot/News)</div>
-            <span class="badge b-up">Real-time</span>
-          </div>
-          <div id="quota-gemini-box" style="font-size:12px;color:var(--text3)">Memuat data kuota…</div>
-        </div>
-
       </div>
     `;
 
@@ -586,10 +577,11 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // API QUOTA MONITOR — Invezgo (GET /api/idx/invezgo-status) & Gemini
-  // (GET /api/ai/gemini-status). Both endpoints already existed/were added
-  // as pure observability (never block a real call) — this just surfaces
-  // them in the UI, which previously had nothing consuming either one.
+  // API QUOTA MONITOR — Invezgo (GET /api/idx/invezgo-status). The Gemini
+  // quota widget that used to sit alongside this (GET /api/ai/gemini-status)
+  // was removed in the 2026-09-12 Claude migration — Anthropic has no
+  // equivalent lightweight self-reported per-model quota endpoint, and
+  // Gemini itself is no longer called anywhere in this app.
   // ══════════════════════════════════════════════════════════════════
   function quotaBar(pct, alert90, alert80) {
     var safePct = (typeof pct === 'number' && isFinite(pct)) ? Math.max(0, Math.min(100, pct)) : 0;
@@ -600,7 +592,6 @@
 
   async function loadApiQuotaWidgets() {
     var invezgoBox = document.getElementById('quota-invezgo-box');
-    var geminiBox = document.getElementById('quota-gemini-box');
 
     if (invezgoBox) {
       try {
@@ -623,38 +614,6 @@
         }
       } catch (err) {
         invezgoBox.innerHTML = '<span style="color:var(--text3)">Gagal memuat kuota Invezgo (' + escHtml(String(err && err.message || err)) + ').</span>';
-      }
-    }
-
-    if (geminiBox) {
-      try {
-        var gemRes = await fetch('/api/ai/gemini-status');
-        var gem = await gemRes.json();
-        if (gem && gem.success && Array.isArray(gem.models)) {
-          var configured = gem.models.filter(function(m){ return m.limitConfigured; });
-          var rows = gem.models.map(function(m) {
-            var badgeCls = m.limitConfigured ? (m.alert90 ? 'b-dn' : (m.alert80 ? 'b-amb' : 'b-up')) : 'b-neu';
-            var right = m.limitConfigured
-              ? (fmt(m.usedToday) + ' / ' + fmt(m.dailyLimit) + ' &middot; ' + m.usagePct + '%')
-              : (fmt(m.usedToday) + ' req hari ini &middot; limit belum diatur');
-            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border2)">' +
-              '<span style="font-family:monospace;font-size:11px;color:var(--text2)">' + escHtml(m.model) + '</span>' +
-              '<span class="badge ' + badgeCls + '" style="font-size:10px">' + right + '</span>' +
-              '</div>';
-          }).join('');
-          var todayLine = 'Hari ini: ' + fmt(gem.today.gemini_success_total || 0) + ' sukses, ' +
-            fmt(gem.today.gemini_rate_limited_total || 0) + ' kena rate-limit, ' +
-            fmt(gem.today.gemini_error_total || 0) + ' error lainnya.';
-          geminiBox.innerHTML = rows +
-            '<div style="color:var(--text3);margin-top:8px">' + todayLine + '</div>' +
-            (configured.length === 0
-              ? '<div style="color:var(--text3);margin-top:6px;font-style:italic">Limit harian per model belum dikonfigurasi (GEMINI_RPD_LIMITS) — jumlah pemakaian tetap akurat, hanya belum ada persentase/alert. Cek limit riil di Google AI Studio lalu set env var-nya.</div>'
-              : '');
-        } else {
-          geminiBox.innerHTML = '<span style="color:var(--text3)">Data kuota tidak tersedia.</span>';
-        }
-      } catch (err) {
-        geminiBox.innerHTML = '<span style="color:var(--text3)">Gagal memuat kuota Gemini (' + escHtml(String(err && err.message || err)) + ').</span>';
       }
     }
   }

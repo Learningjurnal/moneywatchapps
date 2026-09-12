@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI } from '@google/genai';
+import Anthropic from '@anthropic-ai/sdk';
 import {
   loadBaseUniverse,
   fetchYahooQuote,
@@ -28,7 +28,6 @@ import {
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA } from './lib/invezgo-client.js';
-import { GEMINI_FALLBACK_MODELS, recordGeminiAttempt, recordGeminiOutcome, getGeminiQuotaStatus } from './lib/gemini-quota.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -772,23 +771,25 @@ app.post('/api/sync/audit-rdn', (req, res) => {
   }
 });
 
-// Lazy initialize Google GenAI SDK client
+// Lazy initialize Anthropic SDK client
+// FIX (2026-09-12, provider migration): was GoogleGenAI (Gemini) — replaced
+// end-to-end at user's explicit request after repeated Gemini quota/billing
+// failures (see INCIDENT_LOG.md). getAiClient()'s NAME is kept unchanged
+// deliberately — every call site below (news grounding, portfolio advice,
+// AI Copilot agentic loop) already calls getAiClient(), and keeping the
+// name means those call sites don't need to change just to pick up the
+// new provider.
 let _aiClient = null;
 function getAiClient() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   if (!_aiClient) {
-    _aiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build'
-        }
-      }
-    });
+    _aiClient = new Anthropic({ apiKey });
   }
   return _aiClient;
 }
+
+const CLAUDE_MODEL = 'claude-sonnet-5';
 
 // Timeout helper to ensure AI API calls never hang indefinitely
 function withTimeout(promise, ms = 15000) {
@@ -799,60 +800,66 @@ function withTimeout(promise, ms = 15000) {
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
 }
 
-// Robust wrapper with exponential backoff & multi-model fallback for high demand (503/429)
-async function callGeminiWithRetryAndFallback(ai, requestConfig, options = {}) {
+// Robust wrapper with exponential backoff for transient failures (429/5xx/timeout).
+// FIX (2026-09-12, provider migration): was callGeminiWithRetryAndFallback()
+// with a 5-model fallback chain (Gemini's free-tier models were each
+// individually rate-limited, so cycling through them had real value).
+// Anthropic's API doesn't have that per-model quota fragmentation — a
+// single model with retry-on-transient-failure is the equivalent here.
+async function callClaudeWithRetry(ai, requestConfig, options = {}) {
   const timeoutMs = options.timeoutMs || 15000;
   const maxRetries = options.maxRetries ?? 2;
-  const primaryModel = requestConfig.model || 'gemini-3.5-flash';
-  // List of fallback models if primary model is unavailable — canonical
-  // list lives in lib/gemini-quota.js so the quota status endpoint can
-  // never drift out of sync with what's actually called here.
-  const fallbackModels = GEMINI_FALLBACK_MODELS;
+  const model = requestConfig.model || CLAUDE_MODEL;
 
   let lastError = null;
-
-  for (let modelIdx = 0; modelIdx < fallbackModels.length; modelIdx++) {
-    const candidateModel = fallbackModels[modelIdx];
-    const candidateConfig = {
-      ...requestConfig,
-      model: candidateModel
-    };
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      // Fire-and-forget quota counter — must never delay or block the real
-      // call (see lib/gemini-quota.js: observability only, no enforcement).
-      recordGeminiAttempt(candidateModel);
-      try {
-        const response = await withTimeout(
-          ai.models.generateContent(candidateConfig),
-          timeoutMs
-        );
-        recordGeminiOutcome('success');
-        return { response, usedModel: candidateModel };
-      } catch (err) {
-        lastError = err;
-        const errMsg = String(err?.message || err || '');
-        const isRateLimited = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED');
-        const isUnavailableOrRateLimited =
-          errMsg.includes('503') ||
-          errMsg.includes('UNAVAILABLE') ||
-          isRateLimited ||
-          errMsg.includes('high demand') ||
-          errMsg.includes('AI_REQUEST_TIMEOUT');
-        recordGeminiOutcome(isRateLimited ? 'rate_limited' : 'error');
-
-        if (isUnavailableOrRateLimited && attempt < maxRetries) {
-          const delay = (attempt + 1) * 400 + Math.floor(Math.random() * 250);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-        // If retries for this candidate model exhausted, break to next fallback model
-        break;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await withTimeout(
+        ai.messages.create({ ...requestConfig, model }),
+        timeoutMs
+      );
+      return { response, usedModel: model };
+    } catch (err) {
+      lastError = err;
+      const status = err && (err.status || err.code);
+      const errMsg = String(err?.message || err || '');
+      const isRetryable = status === 429 || (typeof status === 'number' && status >= 500) || errMsg.includes('AI_REQUEST_TIMEOUT');
+      if (isRetryable && attempt < maxRetries) {
+        const delay = (attempt + 1) * 400 + Math.floor(Math.random() * 250);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
       }
+      break;
     }
   }
 
-  throw lastError || new Error('Semua model Gemini mengalami lonjakan permintaan (503/429).');
+  throw lastError || new Error('Claude API mengalami lonjakan permintaan (429/5xx).');
+}
+
+// Extract the plain-text answer from a Claude Messages API response —
+// response.content is a discriminated-union array of blocks (text,
+// tool_use, web_search_tool_result, ...), unlike Gemini's flat response.text.
+function claudeExtractText(response) {
+  return (response.content || [])
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('\n');
+}
+
+// Extract web-search grounding results in the SAME {web:{uri,title}} shape
+// the old Gemini groundingMetadata.groundingChunks used, so downstream code
+// that reads groundingChunks[idx].web.uri/.title needs no further changes.
+// A web_search_tool_result's .content is a LIST on success but an OBJECT
+// (an error descriptor, e.g. {error_code:'max_uses_exceeded'}) on failure —
+// must guard with Array.isArray() before iterating.
+function claudeExtractGroundingChunks(response) {
+  const chunks = [];
+  (response.content || []).forEach(b => {
+    if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+      b.content.forEach(r => { chunks.push({ web: { uri: r.url, title: r.title } }); });
+    }
+  });
+  return chunks;
 }
 
 // FIX AUDIT (CRITICAL, fabricated data): getFallbackHeadlines() used to
@@ -874,7 +881,7 @@ let newsCache = {
   rateLimitedUntil: 0
 };
 
-// Top 3 Trending Indonesian Stock Market News endpoint with Google Search Grounding
+// Top 3 Trending Indonesian Stock Market News endpoint with AI Web Search Grounding
 app.get('/api/trending-news', async (req, res) => {
   const force = req.query.force === 'true';
   const now = Date.now();
@@ -938,20 +945,18 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
   }
 ]`;
 
-    const { response } = await callGeminiWithRetryAndFallback(
+    const { response } = await callClaudeWithRetry(
       ai,
       {
-        model: 'gemini-3.7-flash',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }]
-        }
+        max_tokens: 2048,
+        tools: [{ type: 'web_search_20260209', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
       },
       { timeoutMs: 15000, maxRetries: 2 }
     );
 
-    const rawText = response.text || '';
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const rawText = claudeExtractText(response);
+    const groundingChunks = claudeExtractGroundingChunks(response);
 
     let parsed = null;
     try {
@@ -1018,22 +1023,14 @@ Return a STRICT JSON array containing exactly 3 items. Do NOT wrap in markdown c
     });
   } catch (err) {
     const errMessage = (err && err.message) ? err.message : String(err);
+    const errStatus = err && (err.status || err.code);
     // Backoff 2 minutes on 429 quota exhaustion
-    const quotaExhausted = errMessage.includes('429') || errMessage.includes('RESOURCE_EXHAUSTED') || errMessage.includes('quota');
-    // FIX (2026-09-12, incident: "Kuota AI harian tercapai" shown to users
-    // while Google's own Rate Limits dashboard showed 0/0 usage everywhere)
-    // — this used to log only the generic "Quota limit reached." on the
-    // quota branch, never the actual err.message/err.status/err.code that
-    // triggered the '429'/'quota' string match. That made it impossible to
-    // tell a REAL Google 429 apart from something else in our own code or
-    // the SDK that merely happens to mention "quota" in its wording. Now
-    // logs the real error unconditionally so the next occurrence is
-    // diagnosable from Vercel logs instead of requiring guesswork.
-    console.warn('Gemini trending-news notice:', {
+    const quotaExhausted = errStatus === 429 || errMessage.includes('429') || errMessage.includes('rate_limit') || errMessage.includes('quota');
+    console.warn('Claude trending-news notice:', {
       quotaExhausted,
       message: errMessage,
       name: err && err.name,
-      status: err && (err.status || err.code)
+      status: errStatus
     });
     if (quotaExhausted) {
       newsCache.rateLimitedUntil = now + 120000;
@@ -1087,11 +1084,11 @@ app.get('/api/sectoral-news', async (req, res) => {
     newsList = sectoralNewsCache.data;
     dataUnavailable = false;
   } else {
-    // Attempt Gemini search grounding if AI client is available and not rate limited
+    // Attempt Claude web search grounding if AI client is available and not rate limited
     const ai = getAiClient();
     if (ai && now > sectoralNewsCache.rateLimitedUntil) {
       try {
-        const prompt = `Cari berita pasar modal terbaru dari Google Search untuk sektor-sektor Bursa Efek Indonesia (IDX/IHSG) terkini:
+        const prompt = `Cari berita pasar modal terbaru via web search untuk sektor-sektor Bursa Efek Indonesia (IDX/IHSG) terkini:
 Fokus pada sektor perbankan (BBCA, BMRI, BBRI), energi (ADRO, PTBA, PGEO), barang baku (ANTM, INCO), konsumer, dan infrastruktur.
 Kembalikan persis format JSON array tanpa markdown:
 [
@@ -1110,17 +1107,17 @@ Kembalikan persis format JSON array tanpa markdown:
     "time": "Terbaru"
   }
 ]`;
-        const { response } = await callGeminiWithRetryAndFallback(
+        const { response } = await callClaudeWithRetry(
           ai,
           {
-            model: 'gemini-3.7-flash',
-            contents: prompt,
-            config: { tools: [{ googleSearch: {} }] }
+            max_tokens: 2048,
+            tools: [{ type: 'web_search_20260209', name: 'web_search' }],
+            messages: [{ role: 'user', content: prompt }]
           },
           { timeoutMs: 15000, maxRetries: 1 }
         );
 
-        const rawText = response.text || '';
+        const rawText = claudeExtractText(response);
         let clean = rawText.trim().replace(/^```json\s*/, '').replace(/\s*```$/, '');
         const first = clean.indexOf('[');
         const last = clean.lastIndexOf(']');
@@ -1142,19 +1139,9 @@ Kembalikan persis format JSON array tanpa markdown:
         }
       } catch (err) {
         const msg = (err && err.message) ? err.message : String(err);
-        // FIX (2026-09-12, incident: user saw "Kuota AI harian tercapai" on
-        // this widget for hours while Google's own Rate Limits dashboard
-        // showed 0/0 usage on every model, and Vercel logs showed nothing —
-        // because this catch block never logged anything at all. Every
-        // other Gemini call site in this file logs its error; this one was
-        // the one silent exception, making the exact failure undiagnosable
-        // from outside a debugger. Now always logged.
-        console.warn('Gemini sectoral-news notice:', {
-          message: msg,
-          name: err && err.name,
-          status: err && (err.status || err.code)
-        });
-        if (msg.includes('429') || msg.includes('quota')) {
+        const status = err && (err.status || err.code);
+        console.warn('Claude sectoral-news notice:', { message: msg, name: err && err.name, status });
+        if (status === 429 || msg.includes('429') || msg.includes('rate_limit') || msg.includes('quota')) {
           sectoralNewsCache.rateLimitedUntil = now + 120000;
           unavailableReason = 'Kuota AI harian tercapai, coba lagi nanti.';
         } else {
@@ -1195,7 +1182,7 @@ app.post('/api/ai/portfolio-advice', aiRateLimiter, async (req, res) => {
   const { portfolioSummary, metrics, hfMetrics, ihsg } = req.body || {};
   const ai = getAiClient();
   if (!ai) {
-    return res.status(400).json({ success: false, error: 'GEMINI_API_KEY belum dikonfigurasi di server.' });
+    return res.status(400).json({ success: false, error: 'ANTHROPIC_API_KEY belum dikonfigurasi di server.' });
   }
 
   try {
@@ -1206,7 +1193,7 @@ Analisis data portofolio investor Indonesia berikut ini secara mendalam ala tear
 - Metrik Hedge Fund & Risiko Tersesuaikan (Sharpe/Sortino/Calmar/MaxDD/HHI): ${JSON.stringify(hfMetrics || {})}
 - Posisi IHSG Terkini: ${ihsg || 'N/A'}
 
-Cari data TERKINI via Google Search grounding untuk sentimen pasar IDX, arah BI rate, kurs USD/IDR, suku bunga The Fed, dan pergerakan komoditas terkait.
+Cari data TERKINI via web search untuk sentimen pasar IDX, arah BI rate, kurs USD/IDR, suku bunga The Fed, dan pergerakan komoditas terkait.
 Berikan analisis terstruktur dalam Bahasa Indonesia yang tegas dan berbobot dengan bagian berikut:
 1. **Evaluasi Kinerja & Risiko Tersesuaikan**: Analisis return vs risiko (Sharpe/Sortino) dan performa relatif terhadap IHSG.
 2. **Kondisi Makroekonomi & Sektoral**: Hubungkan sentimen makro terkini (suku bunga, mata uang, komoditas) dengan eksposur emiten utama portofolio.
@@ -1215,20 +1202,18 @@ Berikan analisis terstruktur dalam Bahasa Indonesia yang tegas dan berbobot deng
 
 Gunakan format markdown yang rapi, tegas, dan profesional. Tutup dengan disclaimer bahwa ini bukan rekomendasi investasi mutlak.`;
 
-    const { response } = await callGeminiWithRetryAndFallback(
+    const { response } = await callClaudeWithRetry(
       ai,
       {
-        model: 'gemini-3.7-flash',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }]
-        }
+        max_tokens: 4096,
+        tools: [{ type: 'web_search_20260209', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
       },
       { timeoutMs: 15000, maxRetries: 2 }
     );
 
-    const text = response.text || '';
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const text = claudeExtractText(response);
+    const groundingChunks = claudeExtractGroundingChunks(response);
 
     return res.json({
       success: true,
@@ -1236,7 +1221,7 @@ Gunakan format markdown yang rapi, tegas, dan profesional. Tutup dengan disclaim
       grounded: groundingChunks.length > 0
     });
   } catch (err) {
-    console.error('Gemini portfolio advice error:', err);
+    console.error('Claude portfolio advice error:', err);
     return res.status(500).json({ success: false, error: err.message || 'Gagal menghasilkan analisis AI.' });
   }
 });
@@ -1959,6 +1944,34 @@ const AGENT_TOOL_DECLARATIONS = [
   }
 ];
 
+// FIX (2026-09-12, provider migration): AGENT_TOOL_DECLARATIONS above is
+// written in Gemini's functionDeclarations shape (uppercase JSON-schema
+// types: OBJECT/STRING/NUMBER/BOOLEAN, field name "parameters"). Rather
+// than hand-duplicate all 10 tool defs a second time in Claude's shape
+// (lowercase types, field name "input_schema") — which would silently
+// drift out of sync on the next edit — this converts them once at module
+// load. Single source of truth stays AGENT_TOOL_DECLARATIONS.
+function toClaudeTools(declarations) {
+  const TYPE_MAP = { OBJECT: 'object', STRING: 'string', NUMBER: 'number', BOOLEAN: 'boolean', INTEGER: 'integer', ARRAY: 'array' };
+  function convertSchema(schema) {
+    const out = { type: TYPE_MAP[schema.type] || String(schema.type || 'object').toLowerCase() };
+    if (schema.description) out.description = schema.description;
+    if (schema.properties) {
+      out.properties = {};
+      Object.keys(schema.properties).forEach(k => { out.properties[k] = convertSchema(schema.properties[k]); });
+    }
+    if (schema.required) out.required = schema.required;
+    if (schema.items) out.items = convertSchema(schema.items);
+    return out;
+  }
+  return declarations.map(d => ({
+    name: d.name,
+    description: d.description,
+    input_schema: convertSchema(d.parameters)
+  }));
+}
+const CLAUDE_AGENT_TOOLS = toClaudeTools(AGENT_TOOL_DECLARATIONS);
+
 const SYSTEM_INSTRUCTION_MONEYWATCH_AI = `Anda adalah "MoneyWatch Pro AI & StockChat", asisten analis portofolio multi-aset kelas institusional dan pakar Bandarmology & Value Investing pasar modal Indonesia (IHSG/BEI).
 
 KNOWLEDGE BASE & STRATEGI TRADING/INVESTASI INSTITUSIONAL:
@@ -2024,89 +2037,86 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
   const executedTools = [];
   const ai = getAiClient();
 
-  // 1. IF GEMINI API IS CONFIGURED: RUN MULTI-TURN TOOL CALLING LOOP
+  // 1. IF CLAUDE API IS CONFIGURED: RUN MULTI-TURN TOOL CALLING LOOP
+  // FIX (2026-09-12, provider migration): was Gemini's functionCalls/
+  // functionResponse protocol (parts[]/contents[], role 'model'). Claude's
+  // Messages API uses tool_use/tool_result content blocks instead — an
+  // assistant turn that wants a tool returns stop_reason:'tool_use' with
+  // one or more tool_use blocks in response.content; the reply is a single
+  // user message carrying ALL matching tool_result blocks together (never
+  // split across messages — see Anthropic's parallel-tool-use guidance).
   if (ai) {
     try {
-      // Build conversation contents with history
-      const contents = [];
+      // Build conversation history in Claude's {role, content} shape
+      const messages = [];
       (history || []).slice(-8).forEach(h => {
         if (h.role === 'user' || h.role === 'assistant' || h.role === 'model') {
-          contents.push({
-            role: h.role === 'assistant' ? 'model' : h.role,
-            parts: [{ text: h.text || h.content || '' }]
+          messages.push({
+            role: h.role === 'model' ? 'assistant' : h.role,
+            content: h.text || h.content || ''
           });
         }
       });
 
-      // Append current user message with context hint
-      contents.push({
-        role: 'user',
-        parts: [{ text: message.trim() }]
-      });
+      // Append current user message
+      messages.push({ role: 'user', content: message.trim() });
 
       // Agentic Execution Loop (up to 5 steps)
       let currentIteration = 0;
       const maxIterations = 5;
       let finalReply = '';
-      let activeEngineModel = 'gemini-3.5-flash';
+      let activeEngineModel = CLAUDE_MODEL;
 
       while (currentIteration < maxIterations) {
         currentIteration++;
 
-        const { response, usedModel } = await callGeminiWithRetryAndFallback(
+        const { response, usedModel } = await callClaudeWithRetry(
           ai,
           {
-            model: 'gemini-3.5-flash',
-            contents: contents,
-            config: {
-              systemInstruction: SYSTEM_INSTRUCTION_MONEYWATCH_AI,
-              tools: [{ functionDeclarations: AGENT_TOOL_DECLARATIONS }]
-            }
+            max_tokens: 2048,
+            system: SYSTEM_INSTRUCTION_MONEYWATCH_AI,
+            tools: CLAUDE_AGENT_TOOLS,
+            messages: messages
           },
           { timeoutMs: 15000, maxRetries: 2 }
         );
 
         if (usedModel) activeEngineModel = usedModel;
 
-        const candidate = response.candidates?.[0];
-        const functionCalls = response.functionCalls;
+        const toolUseBlocks = (response.content || []).filter(b => b.type === 'tool_use');
 
-        if (functionCalls && functionCalls.length > 0) {
-          // Model decided to invoke tools
-          // Append model candidate turn to content history
-          if (candidate?.content) {
-            contents.push(candidate.content);
-          }
+        if (response.stop_reason === 'tool_use' && toolUseBlocks.length > 0) {
+          // Model decided to invoke one or more tools — append its full
+          // turn (may also carry preamble text blocks alongside tool_use).
+          messages.push({ role: 'assistant', content: response.content });
 
-          const responseParts = [];
-          for (const call of functionCalls) {
-            const toolResult = await executeAgentTool(call.name, call.args || {}, userContext);
+          const toolResultBlocks = [];
+          for (const block of toolUseBlocks) {
+            const toolResult = await executeAgentTool(block.name, block.input || {}, userContext);
             executedTools.push({
-              name: call.name,
-              args: call.args,
+              name: block.name,
+              args: block.input,
               result: toolResult
             });
 
-            responseParts.push({
-              functionResponse: {
-                name: call.name,
-                response: { output: toolResult }
-              }
+            toolResultBlocks.push({
+              type: 'tool_result',
+              tool_use_id: block.id,
+              content: JSON.stringify(toolResult)
             });
           }
 
-          // Append tool execution responses
-          contents.push({
-            role: 'user',
-            parts: responseParts
-          });
+          // All tool_result blocks go in ONE user message, not split across
+          // several — splitting silently trains the model to stop making
+          // parallel tool calls.
+          messages.push({ role: 'user', content: toolResultBlocks });
 
           // Continue loop to let model evaluate results
           continue;
         }
 
         // Final text response reached
-        finalReply = response.text || '';
+        finalReply = claudeExtractText(response);
         break;
       }
 
@@ -2123,10 +2133,10 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
         success: true,
         reply: finalReply,
         toolCalls: executedTools,
-        engine: (activeEngineModel ? activeEngineModel : 'Gemini 3.7 Flash') + ' Agentic Loop'
+        engine: (activeEngineModel ? activeEngineModel : CLAUDE_MODEL) + ' Agentic Loop'
       });
-    } catch (geminiError) {
-      console.warn('Gemini Agent loop notice, gracefully routing to high-fidelity deterministic engine:', geminiError?.message || geminiError);
+    } catch (claudeError) {
+      console.warn('Claude Agent loop notice, gracefully routing to high-fidelity deterministic engine:', claudeError?.message || claudeError);
       // Fall through to deterministic fallback below
     }
   }
@@ -3053,23 +3063,6 @@ app.get('/api/idx/invezgo-status', async (req, res) => {
       },
       updatedAt: new Date().toISOString()
     });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// GET /api/ai/gemini-status — Usage observability for the Gemini API key
-// (per-model requests-today/this-minute, plus today's success/rate-limited/
-// error totals). Added alongside /api/idx/invezgo-status for the same
-// reason: callGeminiWithRetryAndFallback() already retries/falls back on
-// 429 reactively, but there was no proactive visibility into usage before
-// that happens. Real per-model daily limits are operator-supplied via
-// GEMINI_RPD_LIMITS (see lib/gemini-quota.js) — until configured,
-// dailyLimit/usagePct/alert flags come back null rather than guessed.
-app.get('/api/ai/gemini-status', async (req, res) => {
-  try {
-    const status = await getGeminiQuotaStatus();
-    return res.json({ success: true, ...status });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

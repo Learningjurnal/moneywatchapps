@@ -7,15 +7,14 @@
     "dev": "node server.js",
     "build": "echo 'Build complete'",
     "start": "node server.js",
-    "test": "node test_suite.js && node test_financial_policy.js && node test_provider_functions.js && node test_security_regressions.js && node test_gemini_quota.js",
+    "test": "node test_suite.js && node test_financial_policy.js && node test_provider_functions.js && node test_security_regressions.js",
     "test:policy": "node test_financial_policy.js",
     "test:providers": "node test_provider_functions.js",
     "test:security": "node test_security_regressions.js",
-    "test:gemini-quota": "node test_gemini_quota.js",
     "lint": "node --check server.js && node --check lib/idx-data-engine.js && node --check public/js/03-engine.js && node --check public/js/21-performance.js && node --check public/js/02b-price-index.js && eslint lib server.js"
   },
   "dependencies": {
-    "@google/genai": "^2.20.0",
+    "@anthropic-ai/sdk": "^0.125.0",
     "@supabase/supabase-js": "^2.116.0",
     "@upstash/redis": "^1.38.4",
     "express": "^4.21.2"

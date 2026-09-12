@@ -2336,3 +2336,30 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (163/163), `npm run lint` bersih.
 
 **Dampak keamanan:** setelah PR ini merge, key Firebase yang sebelumnya di-flag GitHub tidak lagi ada di kode manapun di HEAD repo (masih ada di histori git lama, tapi itu sudah tidak relevan karena key-nya sudah dirotasi user). Alert GitHub bisa di-dismiss dengan alasan "Revoked".
+
+## 2026-09-12 — Migrasi total AI provider: Gemini → Claude (Anthropic)
+
+- **Konteks:** setelah kegagalan Gemini yang berulang (429 `RESOURCE_EXHAUSTED` — pesan asli Google mengarah ke masalah billing) dan user secara eksplisit menolak opsi API key gratis pihak ketiga dari GitHub (risiko ToS/ban/keamanan terlalu tinggi untuk direkomendasikan), user memutuskan: **"saya migrasi ke anthropic aja, siapkan kodenya."** Konfirmasi keputusan sebelumnya: model = Claude Sonnet 5, Gemini dihentikan total (bukan dual-fallback).
+- **Perubahan (`server.js`):**
+  - Dependency: `@google/genai` → `@anthropic-ai/sdk` (`package.json`).
+  - `getAiClient()` (nama fungsi sengaja dipertahankan agar semua call site tidak perlu berubah signature): sekarang membaca `ANTHROPIC_API_KEY` dan mengembalikan instance `Anthropic`.
+  - `callGeminiWithRetryAndFallback()` (5-model fallback chain Gemini) diganti `callClaudeWithRetry()` — retry sederhana dengan backoff untuk status 429/5xx, tidak perlu fallback antar-model karena Claude tidak punya banyak tier gratis terpisah seperti Gemini.
+  - Helper baru `claudeExtractText()` dan `claudeExtractGroundingChunks()` — sengaja mengembalikan bentuk yang SAMA dengan respons lama Gemini (`response.text`, `groundingChunks[i].web.uri/.title`) supaya kode downstream (parsing JSON dari teks, render sumber berita) nol perubahan.
+  - 3 endpoint AI (`/api/trending-news`, `/api/sectoral-news`, `/api/ai/portfolio-advice`): `tools:[{googleSearch:{}}]` → `tools:[{type:'web_search_20260209', name:'web_search'}]`; prompt yang menyebut "Google Search" diubah jadi "web search" generik.
+  - `/api/ai/agent-chat`: loop tool-calling ditulis ulang total untuk protokol Claude (`tool_use`/`tool_result` content blocks, bukan `functionCalls`/`functionResponse` Gemini). `AGENT_TOOL_DECLARATIONS` (10 tools) DIPERTAHANKAN dalam skema Gemini lama sebagai single source of truth — ditambah converter `toClaudeTools()` yang mengubahnya ke skema Claude (`input_schema`) sekali saat startup, supaya tidak ada duplikasi/risiko drift dari menulis ulang 10 tool schema secara manual.
+  - Blok "2. DETERMINISTIC AGENTIC ENGINE FALLBACK" (jaring pengaman keyword-routed via `executeAgentTool()`) **tidak disentuh sama sekali** — provider-agnostic by design, tetap jadi fallback kalau `ANTHROPIC_API_KEY` belum diset atau Claude API error.
+  - Endpoint `/api/ai/gemini-status` (quota observability Gemini) dihapus total — Anthropic tidak punya API quota-check ringan yang setara.
+- **Perubahan file lain:**
+  - `lib/gemini-quota.js` + `test_gemini_quota.js` dihapus total (Upstash-backed per-model quota counter, sudah tidak relevan). `package.json` script `test`/`test:gemini-quota` disesuaikan.
+  - `public/js/35-settings.js`: widget "Gemini API Quota" di halaman Settings dihapus (fetch ke endpoint yang sudah tidak ada).
+  - `public/js/06-analysis-router.js`: teks berbrand Gemini di `aiRunGemini()` (loading/disclaimer/error message) diganti jadi Claude Sonnet 5 / Web Search Grounding generik. Nama fungsi & `window.aiRunGemini` export DIPERTAHANKAN (verifikasi grep: tidak ada `onclick`/pemanggil dari `index.html`, aman untuk tidak di-rename, meminimalkan risiko).
+  - `public/js/41-stockchat-cockpit.js`: komentar header diperbarui dari "Gemini Function Calling" jadi "Claude Tool Use".
+- **Verifikasi:**
+  - `node --check` semua file yang diubah — bersih.
+  - `npm test` — 154/154 test lulus (test_suite.js 125, test_financial_policy.js 18, test_provider_functions.js 6, test_security_regressions.js 5), zero regresi.
+  - `npm run lint` — bersih.
+  - **Graceful degradation tanpa `ANTHROPIC_API_KEY`** (disimulasikan lokal dengan env var di-unset): `/api/trending-news` → fallback jujur (`isFallback:true`, tanpa crash); `/api/ai/portfolio-advice` → pesan error yang benar ("ANTHROPIC_API_KEY belum dikonfigurasi di server."); `/api/ai/agent-chat` → deterministic engine tetap berfungsi penuh (tool `cek_harga`/`cek_fundamental`/`hitung_proyeksi_risiko_drawdown` semua tereksekusi benar); `/api/ai/gemini-status` → 404 (sudah dihapus, sesuai ekspektasi).
+  - **BELUM diverifikasi**: panggilan live ke Claude API yang sesungguhnya (sandbox ini tidak bisa menjangkau `api.anthropic.com`, sama seperti tidak bisa menjangkau `moneywatchapps.vercel.app`). Verifikasi end-to-end BARU bisa dilakukan setelah deploy ke Vercel dengan `ANTHROPIC_API_KEY` yang valid ter-set.
+  - Cache-bust: `06-analysis-router.js` → `?v=20260912a`, `35-settings.js` → `?v=20260912a`, `41-stockchat-cockpit.js` → `?v=20260912a`.
+
+**Yang HARUS dilakukan user setelah PR ini merge & ter-deploy:** set env var `ANTHROPIC_API_KEY` di Vercel (Project Settings → Environment Variables) dengan key dari [console.anthropic.com](https://console.anthropic.com), lalu redeploy. Selama env var ini belum diset, semua fitur AI generatif (berita trending, berita sektoral, AI Copilot chat, portfolio advice) akan otomatis jatuh ke mode fallback/deterministic — tidak crash, tapi juga tidak pakai AI generatif sungguhan. `GEMINI_API_KEY` di Vercel sudah tidak dipakai kode manapun lagi setelah PR ini — aman dihapus kapan saja.
