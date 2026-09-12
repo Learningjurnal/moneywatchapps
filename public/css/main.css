@@ -3,50 +3,22 @@
   /* ══════════════════════════════════════════════
      YAHOO FINANCE THEME & DESIGN SYSTEM TOKENS (DARK MODE - PURE BLACK)
      ══════════════════════════════════════════════ */
-  --bg-primary:#000000;
-  --bg-secondary:#0A0A0A;
-  --bg-tertiary:#141414;
-  --bg-elevated:#1A1A1A;
-  --bg-overlay:rgba(0,0,0,0.88);
+
   --bg:#000000;
   --bg2:#0A0A0A;
   --bg3:#141414;
   --bg4:#1A1A1A;
   --bg5:#262626;
-  --bg-main:#000000;
-  --bg-card:#0A0A0A;
-  --bg-darker:#000000;
-  --bg-surface:#050505;
 
-  --surface-primary:#0A0A0A;
-  --surface-secondary:#141414;
-  --surface-elevated:#1A1A1A;
-  --surface-hover:rgba(0,0,255,0.15);
-  --surface-active:rgba(0,0,255,0.25);
-  --surface-selected:rgba(0,0,255,0.30);
-  --card-bg:#0A0A0A;
-  --card-border:#222222;
   --card-shadow:0 6px 24px rgba(0,0,0,0.85);
 
-  --text-primary:#FFFFFF;
-  --text-secondary:#D2D8DF;
-  --text-tertiary:#8F9AA6;
-  --text-muted:#8F9AA6;
-  --text-disabled:#5B6672;
-  --text-inverse:#0F151B;
-  --text-link:#3B82F6;
   --text:#FFFFFF;
   --text2:#D2D8DF;
   --text3:#8F9AA6;
   --text-main:#FFFFFF;
 
   --border-subtle:rgba(255,255,255,0.08);
-  --border-default:#273440;
-  --border-strong:#354453;
-  --border-focus:#0000FF;
-  --border-divider:#212B35;
-  --border-primary:#273440;
-  --border-secondary:#354453;
+
   --border:#273440;
   --border2:#354453;
 
@@ -57,86 +29,34 @@
      --brand-primary/--accent2 are for FILLED backgrounds (buttons,
      active pills, badges) and are always paired with white text. */
   --brand-primary:#0000FF;
-  --brand-secondary:#0000CC;
-  --brand-hover:#1A1AFF;
+
   --brand-soft:rgba(0,0,255,0.20);
   --accent:#5B8DEF;
-  --accent2:#0000CC;
-  --accent-purple:#0000FF;
+
   --accent-blue:#38BDF8;
   --accent-fg:#FFFFFF;
 
-  --financial-positive:#00C805;
-  --financial-negative:#FF333A;
-  --financial-neutral:#8F9AA6;
-  --financial-warning:#FF9E00;
-  --financial-info:#0F69FF;
-  --financial-accent:#0000FF;
-
-  --semantic-success:#00C805;
-  --semantic-danger:#FF333A;
-  --semantic-warning:#FF9E00;
-  --semantic-info:#0000FF;
   --green:#00C805;
   --red:#FF333A;
   --amber:#FF9E00;
   --purple:#8B3DFF;
   --blue:#0F69FF;
-  --neon-green:#00C805;
-  --neon-blue:#0F69FF;
-  --neon-amber:#FF9E00;
-  --neon-red:#FF333A;
-  --neon-orange:#FF7000;
-  --neon-purple:#8B3DFF;
+
   --cyan-electric:#00c8ff;
-  --cyan-glow:rgba(0,200,255,0.15);
-
-  --icon-primary:#FFFFFF;
-  --icon-secondary:#D2D8DF;
-  --icon-muted:#8F9AA6;
-  --icon-disabled:#5B6672;
-  --icon-positive:#00C805;
-  --icon-negative:#FF333A;
-  --icon-warning:#FF9E00;
-  --icon-info:#0F69FF;
-  --icon-active:#0000FF;
-
-  --action-primary:#0000FF;
-  --action-hover:#0000CC;
-  --action-active:#430099;
-  --action-disabled:rgba(255,255,255,0.12);
-  --focus-ring:rgba(0,0,255,0.4);
-
-  --button-primary-bg:#0000FF;
-  --button-primary-hover:#0000CC;
-  --button-primary-text:#FFFFFF;
-  --button-secondary-bg:#182026;
-  --button-secondary-hover:#212B35;
-  --button-secondary-text:#D2D8DF;
-  --button-secondary-border:#273440;
-
-  --input-bg:#0B0F13;
-  --input-border:#273440;
-  --input-text:#FFFFFF;
-  --input-placeholder:#5B6672;
 
   --table-header-bg:#141C22;
   --table-header-text:#8F9AA6;
-  --table-border:#273440;
+
   --table-row-hover:rgba(0,0,255,0.08);
 
-  --radius-sm:4px;
   --radius-md:6px;
   --radius-lg:8px;
   --radius-xl:12px;
   --radius:8px;
 
-  --bb-orange:#FF7000;--bb-grid:rgba(0,0,255,0.06);
-  --tv-buy:#00C805;--tv-sell:#FF333A;--tv-blue:#0F69FF;
-  --glow-c:0 0 16px rgba(15,105,255,.25);
-  --glow-g:0 0 16px rgba(0,200,5,.25);
-  --glow-r:0 0 16px rgba(255,51,58,.25);
-  --glow-amber:0 0 16px rgba(255,158,0,.25);
+  --bb-grid:rgba(0,0,255,0.06);
+  --tv-sell:#FF333A;--tv-blue:#0F69FF;
+
   --spring:.18s cubic-bezier(.34,1.56,.64,1);
   --font-display:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   --font-mono:'Fira Code','Public Sans',ui-monospace,monospace;
@@ -146,38 +66,15 @@ body.theme-light {
   /* ══════════════════════════════════════════════
      YAHOO FINANCE THEME & DESIGN SYSTEM TOKENS (LIGHT MODE)
      ══════════════════════════════════════════════ */
-  --bg-primary:#F5F7FA;
-  --bg-secondary:#FFFFFF;
-  --bg-tertiary:#EDF1F5;
-  --bg-elevated:#FFFFFF;
-  --bg-overlay:rgba(245,247,250,0.85);
+
   --bg:#F5F7FA;
   --bg2:#FFFFFF;
   --bg3:#EDF1F5;
   --bg4:#E0E4E9;
   --bg5:#CBD1D8;
-  --bg-main:#F5F7FA;
-  --bg-card:#FFFFFF;
-  --bg-darker:#EDF1F5;
-  --bg-surface:#FFFFFF;
 
-  --surface-primary:#FFFFFF;
-  --surface-secondary:#F5F7FA;
-  --surface-elevated:#FFFFFF;
-  --surface-hover:rgba(0,0,255,0.05);
-  --surface-active:rgba(0,0,255,0.12);
-  --surface-selected:rgba(0,0,255,0.15);
-  --card-bg:#FFFFFF;
-  --card-border:#E0E4E9;
   --card-shadow:0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
 
-  --text-primary:#1D252C;
-  --text-secondary:#354453;
-  --text-tertiary:#727B83;
-  --text-muted:#727B83;
-  --text-disabled:#9CA5AF;
-  --text-inverse:#FFFFFF;
-  --text-link:#0F69FF;
   --text:#1D252C;
   --text2:#354453;
   --text3:#727B83;
@@ -190,76 +87,28 @@ body.theme-light {
      is what actually rendered. Kept that value here after consolidating
      into this single block, to avoid any visual change. */
   --border-subtle:rgba(0,0,0,0.06);
-  --border-default:#E0E4E9;
-  --border-strong:#CBD1D8;
-  --border-focus:#0000FF;
-  --border-divider:#EDF1F5;
-  --border-primary:#E0E4E9;
-  --border-secondary:#CBD1D8;
+
   --border:#E0E4E9;
   --border2:#CBD1D8;
 
   --brand-primary:#0000FF;
-  --brand-secondary:#0000CC;
-  --brand-hover:#0000AA;
+
   --brand-soft:#E6ECFF;
   --accent:#0000FF;
-  --accent2:#0000CC;
-  --accent-purple:#0000FF;
+
   --accent-blue:#0F69FF;
   --accent-fg:#FFFFFF;
 
-  --financial-positive:#00873C;
-  --financial-negative:#D0163A;
-  --financial-neutral:#727B83;
-  --financial-warning:#B56900;
-  --financial-info:#0F69FF;
-  --financial-accent:#0000FF;
-
-  --semantic-success:#00873C;
-  --semantic-danger:#D0163A;
-  --semantic-warning:#B56900;
-  --semantic-info:#0000FF;
   --green:#00873C;
   --red:#D0163A;
   --amber:#B56900;
   --purple:#6001D2;
   --blue:#0F69FF;
   --cyan-electric:#0284C7;
-  --cyan-glow:rgba(2,132,199,0.15);
-
-  --icon-primary:#1D252C;
-  --icon-secondary:#354453;
-  --icon-muted:#727B83;
-  --icon-disabled:#9CA5AF;
-  --icon-positive:#00873C;
-  --icon-negative:#D0163A;
-  --icon-warning:#B56900;
-  --icon-info:#0F69FF;
-  --icon-active:#0000FF;
-
-  --action-primary:#0000FF;
-  --action-hover:#0000CC;
-  --action-active:#430099;
-  --action-disabled:#E0E4E9;
-  --focus-ring:rgba(0,0,255,0.25);
-
-  --button-primary-bg:#0000FF;
-  --button-primary-hover:#0000CC;
-  --button-primary-text:#FFFFFF;
-  --button-secondary-bg:#FFFFFF;
-  --button-secondary-hover:#F5F7FA;
-  --button-secondary-text:#354453;
-  --button-secondary-border:#E0E4E9;
-
-  --input-bg:#FFFFFF;
-  --input-border:#CBD1D8;
-  --input-text:#1D252C;
-  --input-placeholder:#727B83;
 
   --table-header-bg:#EDF1F5;
   --table-header-text:#4A5560;
-  --table-border:#E0E4E9;
+
   --table-row-hover:#F5F7FA;
 
   /* Merged in from a second, now-removed duplicate `body.theme-light {}`
@@ -510,7 +359,6 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
     align-items:start;
   }
 }
-
 
 /* METRIC & CARD (BLOOMBERG / TRADINGVIEW TERMINAL) */
 .metric{
@@ -1439,7 +1287,6 @@ body.theme-light .drawer-panel {
 #session-user{color:var(--accent);font-weight:600}
 .auth-timeout-bar{height:2px;background:var(--bg3);border-radius:0;margin-top:8px;overflow:hidden}
 .auth-timeout-fill{height:100%;background:var(--brand-primary);border-radius:0;transition:width 1s linear}
-
 
 /* ── SIDEBAR NAV (Institutional Terminal Style) ── */
 .main-row{flex:1;display:flex;min-height:0;overflow:hidden}
@@ -3087,11 +2934,6 @@ body.density-compact .kpi-exec-card {
     transform: translateY(0) scale(1);
   }
 }
-
-
-
-
-
 
 /* ══════════════════════════════════════════════════════════════
    COMPREHENSIVE LIGHT THEME ENGINE (MoneyWatch Pro V6 - Yahoo Finance Theme)
@@ -6197,13 +6039,6 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
   transform: translateY(-1.5px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-
-
-
-
-
-
-
 
 /* ── Bandarmology Smart Money Flow: 4-chart grid, always exactly 2 per
    row on desktop/tablet (2x2), collapsing to 1 column only on narrow
