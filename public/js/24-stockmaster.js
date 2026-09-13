@@ -1341,12 +1341,12 @@ function techRenderMainChart(ticker) {
         maintainAspectRatio: false,
         animation: false,
         plugins: {
-          legend: { display: true, labels: { color: '#94A3B8', font: { size: 10 } } },
+          legend: { display: true, labels: { color: _chartTextColor('--text2','#D2D8DF'), font: { size: 10, weight: 'bold' } } },
           tooltip: { mode: 'index', intersect: false }
         },
         scales: {
-          x: { grid:{color:GC}, ticks: { color: '#94A3B8', maxTicksLimit: 8 } },
-          y: { position: 'right', grid:{color:GC}, ticks: { color: '#94A3B8' } }
+          x: { grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'}, maxTicksLimit: 8 } },
+          y: { position: 'right', grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'} } }
         }
       }
     });
@@ -1497,8 +1497,8 @@ function techRunFlowScanTab(ticker) {
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: '#94A3B8', maxTicksLimit: 7 } },
-          y: { grid:{color:GC}, ticks: { color: '#94A3B8' } }
+          x: { grid: { display: false }, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'}, maxTicksLimit: 7 } },
+          y: { grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'} } }
         }
       }
     });
@@ -1534,8 +1534,8 @@ function techRunFlowScanTab(ticker) {
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: '#94A3B8', maxTicksLimit: 7 } },
-          y: { grid:{color:GC}, ticks: { color: '#94A3B8' } }
+          x: { grid: { display: false }, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'}, maxTicksLimit: 7 } },
+          y: { grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'} } }
         }
       }
     });

@@ -2667,3 +2667,22 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih. Cache-bust: `05-assets.js?v=20260913a`, `42-dividend-calendar.js?v=20260913a`.
 
 **Status keseluruhan (Tahap 1-4)**: 11 card total diperbaiki (2+4hover+7+2) lintas Dashboard, Stock Intelligence, Crypto Portfolio, dan Dividend Calendar. Audit `box-shadow:` di seluruh `index.html` + `public/js/` sudah dua kali disisir; sisa kandidat yang teridentifikasi semuanya bukan "card" (modal/toast/glow/bubble/inset-bar) atau memang sengaja berbeda (elevasi modal). Kalau user masih menemukan card yang terlihat beda, laporkan untuk Tahap 5.
+
+## 2026-09-13 — Tindak lanjut temuan chart font: warna statis `#94A3B8`/`#8fa3c8`/`#a8a8c8` (buruk di tema terang)
+
+- **Konteks:** ini adalah temuan yang SUDAH dilaporkan (bukan dieksekusi) di entri audit font chart sebelumnya hari ini — 5 file memakai warna abu-abu statis untuk tick/legend chart yang kontrasnya bagus di tema gelap (~8:1) tapi buruk di tema terang (~2.5:1, di bawah ambang WCAG AA 4.5:1), karena warnanya di-hardcode, bukan CSS variable. User minta "perbaiki dulu semuanya" sambil menunggu kuota deploy Vercel pulih — dieksekusi sekarang sebagai kelanjutan otorisasi tersebut.
+- **Root cause**: sama persis dengan seluruh perbaikan font chart hari ini (tick/legend Chart.js pakai hex statis alih-alih meresolusi `--text2` dari tema aktif) — hanya beda warna literal dan gejala (buruk di terang, bukan di gelap).
+- **File & lokasi yang diperbaiki** (total 6 file, 12 titik konfigurasi chart):
+  - `43-ai-chart-intelligence.js` — ticks x/y chart teknikal AI (`renderAiTechnicalWorkspaceUI`).
+  - `24-stockmaster.js` — 3 chart (legend+ticks Overlay chart di `techRenderMainChart`; ticks 2 chart FlowScan sub — Net Vol & CMF — di `techRunFlowScanTab`).
+  - `37-tradewave-engine.js` — fallback `tc` var, legend, ticks x/y chart TradeWave (`twMountWaveChart`).
+  - `36-crypto-technical.js` — ticks x/y price chart & ticks volume chart (`drawNativeCryptoChart`).
+  - `06-analysis-router.js` — legend labels chart Confluence Detector (`cdRenderCharts`) — ticks-nya sendiri sebenarnya SUDAH benar (pakai `TC`), hanya legend yang masih statis, terlewat di audit sebelumnya.
+  - `20-wealth.js` — legend labels chart "Proyeksi Kekayaan (FIRE)" (`wProjRecalc`) — ticks-nya juga SUDAH benar dari perbaikan sebelumnya, hanya legend yang masih statis, terlewat di audit sebelumnya.
+- **Perbaikan**: pola identik dengan perbaikan chart lain — ganti hex statis dengan `_chartTextColor('--text2','#D2D8DF')` (fallback dark) + `font-weight:'bold'`, memakai helper global yang sudah ada di `03-engine.js` (dimuat sebelum keenam file ini, jadi tidak perlu guard `typeof` kecuali `20-wealth.js` yang mengikuti pola guard yang sudah dipakai di file itu). Warna status/badge non-chart yang kebetulan memakai palet sama (`volBreakoutColor`/`whaleColor`/`signalColor` di `36-crypto-technical.js`, indikator sinyal di `04-render.js`/`07-flowscan.js`, `neuColor` di `24-stockmaster.js:1779`) **SENGAJA TIDAK disentuh** — itu bukan chart tick/legend, melainkan warna teks/badge UI yang cocok dipakai statis (bukan bug theme-awareness).
+  - Cache-bust: `43-ai-chart-intelligence.js?v=20260913a`, `24-stockmaster.js?v=20260913a`, `37-tradewave-engine.js?v=20260913a`, `36-crypto-technical.js?v=20260913a`, `06-analysis-router.js?v=20260913a`, `20-wealth.js?v=20260913b`.
+- **Live verification (Playwright, server lokal)**: grep ulang seluruh `public/js/` mengonfirmasi 0 sisa `#94A3B8`/`#8fa3c8`/`#a8a8c8` pada konfigurasi tick/legend chart manapun (sisa hit hanya warna status/badge non-chart, dikonfirmasi manual satu-satu). `_chartTextColor('--text2','--D2D8DF')` dikonfirmasi ulang bekerja reaktif (`#D2D8DF` gelap → `#354453` terang) tanpa error konsol. Fungsi chart individual (`twMountWaveChart`, `drawNativeCryptoChart`) berada dalam closure privat sehingga TIDAK bisa dipanggil langsung dari luar untuk render nyata via Playwright — kebenarannya disimpulkan dari: (a) pola kode identik dengan chart lain yang sudah diverifikasi berulang hari ini, (b) mekanisme `_chartTextColor` sudah dibuktikan bekerja, (c) `node -c` syntax check bersih di keenam file.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Catatan**: dengan ini, SELURUH temuan chart-font yang teridentifikasi lewat 2 audit hari ini (grep pola bermasalah pertama + kedua) sudah ditangani, termasuk yang sebelumnya sengaja ditunda menunggu konfirmasi user.

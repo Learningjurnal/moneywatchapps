@@ -888,7 +888,7 @@
     grad.addColorStop(1, 'rgba(0, 200, 255, 0)');
 
     var gc = (typeof GC !== 'undefined') ? GC : 'rgba(255,255,255,0.06)';
-    var tc = (typeof TC !== 'undefined') ? TC : { color: '#94A3B8' };
+    var tc = (typeof TC !== 'undefined') ? TC : { color: _chartTextColor('--text2','#D2D8DF') };
 
     TW_CHARTS.twWave = new Chart(canvas, {
       type: 'line',
@@ -938,7 +938,7 @@
         maintainAspectRatio: false,
         animation: false,
         plugins: {
-          legend: { display: true, labels: { color: '#94A3B8', font: { size: 10 } } },
+          legend: { display: true, labels: { color: _chartTextColor('--text2','#D2D8DF'), font: { size: 10, weight: 'bold' } } },
           tooltip: {
             mode: 'index',
             intersect: false,
@@ -948,12 +948,13 @@
           }
         },
         scales: {
-          x: { grid: { color: gc }, ticks: { color: '#94A3B8', maxTicksLimit: 8 } },
+          x: { grid: { color: gc }, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'}, maxTicksLimit: 8 } },
           y: {
             position: 'right',
             grid: { color: gc },
             ticks: {
-              color: '#94A3B8',
+              color: _chartTextColor('--text2','#D2D8DF'),
+              font: { weight: 'bold' },
               callback: function(v) { return 'Rp ' + Number(v).toLocaleString('id-ID'); }
             }
           }

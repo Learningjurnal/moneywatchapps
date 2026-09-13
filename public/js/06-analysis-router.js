@@ -134,7 +134,7 @@ function cdRenderCharts(R,s){
       {label:'Zona2 High',data:flat(s.z2h),borderColor:'rgba(45,212,191,.4)',borderWidth:1,borderDash:[3,3],pointRadius:0},
       {label:'Stop Inval',data:flat(s.stopInval),borderColor:'rgba(255,61,90,.5)',borderWidth:1,borderDash:[4,4],pointRadius:0},
       {label:'Stop Besar',data:flat(s.stopBig),borderColor:'rgba(255,61,90,.3)',borderWidth:1,borderDash:[2,3],pointRadius:0}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8fa3c8',font:{size:9},boxWidth:12}},tooltip:Object.assign({},TT,{mode:'index',intersect:false})},scales:{x:{grid:{color:GC},ticks:Object.assign({},TC,{maxTicksLimit:9})},y:{grid:{color:GC},ticks:TC,position:'right'}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:_chartTextColor('--text2','#D2D8DF'),font:{size:9,weight:'bold'},boxWidth:12}},tooltip:Object.assign({},TT,{mode:'index',intersect:false})},scales:{x:{grid:{color:GC},ticks:Object.assign({},TC,{maxTicksLimit:9})},y:{grid:{color:GC},ticks:TC,position:'right'}}}});
   }
   kc('cdEquity');
   var ce=el('cdEquity'); if(ce){
