@@ -220,7 +220,12 @@
     }).join('');
 
     container.innerHTML = 
-      '<div class="card" style="margin:0;padding:16px 20px;background:var(--bg2);border:1px solid rgba(0,200,255,.18);box-shadow:0 4px 20px rgba(0,0,0,.25);position:relative;overflow:hidden">' +
+      // FIX (2026-09-13, Tahap 3): sudah class="card" tapi punya box-shadow
+      // inline sendiri (0 4px 20px rgba(0,0,0,.25)) yang menimpa shadow
+      // standar .card (0 4px 16px rgba(0,0,0,.35)) di tema GELAP saja
+      // (tema terang tetap benar karena override-nya !important) — dihapus
+      // supaya benar-benar identik dengan .card lain di kedua tema.
+      '<div class="card" style="margin:0;padding:16px 20px;border:1px solid rgba(0,200,255,.18);position:relative;overflow:hidden">' +
         '<div style="position:absolute;top:0;right:0;width:250px;height:100%;background:radial-gradient(circle at top right, rgba(0,200,255,.04) 0%, transparent 70%);pointer-events:none"></div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
           '<div style="display:flex;align-items:center;gap:10px">' +

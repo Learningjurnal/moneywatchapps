@@ -488,7 +488,10 @@
              an unrelated re-render of the AI Trading page. Answers roadmap
              question #1 ("bagaimana kondisi market") at the top of the page,
              before portfolio specifics. -->
-        <div id="card-dash-regime" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+        <!-- FIX (2026-09-13, Tahap 3): sama persis pola bug Tahap 1 — div polos
+             tanpa class="card", shadow hardcoded, tidak pernah kena override
+             tema-terang. Lihat INCIDENT_LOG.md. -->
+        <div id="card-dash-regime" class="card" style="border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:10px;min-width:180px">
             <span id="dash-regime-badge" class="badge" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;background:var(--bg3);color:var(--text3)">Memuat…</span>
             <span id="dash-regime-confidence" style="font-size:10.5px;color:var(--text3);font-family:var(--font-mono)"></span>
@@ -503,7 +506,8 @@
         </div>
 
         <!-- 1. MANAGE ASSET CARD (EXECUTIVE SUMMARY STRIP) -->
-        <div id="card-manage-asset" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
+        <div id="card-manage-asset" class="card" style="border-radius:14px;padding:20px;position:relative;overflow:hidden">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:14px">
                 <div style="display:flex;align-items:center;gap:12px">
                     <div style="font-size:16px;font-weight:800;color:var(--text);font-family:var(--font-display)">
@@ -872,7 +876,8 @@
              logic — visiting the dashboard also warms the cache for when the
              user opens the full Radar page next. Answers roadmap question #3
              ("apa peluang terbaik"). -->
-        <div id="card-dash-radar" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
+        <div id="card-dash-radar" class="card" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Opportunity Radar</span>
             <button class="btn btn-ghost btn-xs" onclick="goPage('radar')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
@@ -891,7 +896,8 @@
              Deferred until that fix landed — see UIUX_ROADMAP_AUDIT.md
              §7. Answers roadmap §6 "Market Heatmap" zone (breadth &
              rotation). -->
-        <div id="card-dash-heatmap" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
+        <div id="card-dash-heatmap" class="card" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Market Heatmap</span>
             <button class="btn btn-ghost btn-xs" onclick="goPage('heatmap')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
@@ -910,7 +916,8 @@
              presented as real institutional data. Deferred until that fix
              landed — see UIUX_ROADMAP_AUDIT.md §7. Answers roadmap §6
              "Smart Money Flow" zone (institutional activity). -->
-        <div id="card-dash-smartflow" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
+        <div id="card-dash-smartflow" class="card" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Smart Money Flow</span>
             <button class="btn btn-ghost btn-xs" onclick="goBandarmology('market',null)" style="font-size:11px;font-weight:700">Lihat Detail →</button>
@@ -928,7 +935,8 @@
              from, per roadmap §10's own guidance on distinguishing fact
              from AI opinion. Answers roadmap question #4/"apa yang penting
              sekarang, apa risikonya, apa tindakannya". -->
-        <div id="card-dash-insight" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
+        <div id="card-dash-insight" class="card" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Insight</span>
             <span style="font-size:9.5px;color:var(--text3);font-weight:600" title="Ringkasan otomatis berbasis aturan dari data real di atas — bukan panggilan AI/LLM langsung">Ringkasan otomatis, bukan chat AI langsung</span>
@@ -946,7 +954,8 @@
              fabricated signals with no disclosure; that system is not
              reused here for that reason. Answers roadmap question #5
              ("apa tindakan yang relevan"). -->
-        <div id="card-dash-alerts" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.35)">
+        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
+        <div id="card-dash-alerts" class="card" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Alerts &amp; Actions</span>
             <button class="btn btn-ghost btn-xs" onclick="goPage('alerts')" style="font-size:11px;font-weight:700">Kelola Alerts →</button>
@@ -4001,11 +4010,11 @@
 <script src="js/24-stockmaster.js?v=20260912b"></script>
 <script src="js/25-auditlog.js?v=20260902c"></script>
 <script src="js/26-commandcenter.js?v=20260911a"></script>
-<script src="js/27-stockintel.js?v=20260910a"></script>
+<script src="js/27-stockintel.js?v=20260913a"></script>
 <script src="js/28-decisiontools.js?v=20260913a"></script>
 <script src="js/29-institutional-ui.js?v=20260906a"></script>
 <script src="js/30-price-alerts.js?v=20260902c"></script><script src="js/32-pdf-reports.js?v=20260909a"></script>
-<script src="js/33-trending-news.js?v=20260908a"></script>
+<script src="js/33-trending-news.js?v=20260913a"></script>
 <script src="js/34-ksei-shareholders.js?v=20260911d"></script>
 <script src="js/35-settings.js?v=20260912a"></script>
 <script src="js/37-tradewave-engine.js?v=20260911a"></script>

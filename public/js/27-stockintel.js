@@ -750,7 +750,12 @@ function renderStockIntelPage() {
       + '</div>'
 
       // ZERO-STATE COMPLIANCE WARNING CARD
-      + '<div style="background:var(--bg2);border:1px solid rgba(255, 59, 92, 0.4);border-radius:12px;padding:32px 24px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.5);margin-top:10px">'
+      // FIX (2026-09-13, Tahap 3 standardisasi shadow — sama pola bug Tahap 1):
+      // div ini sebelumnya tanpa class="card", shadow hardcoded (0 8px 30px
+      // rgba(0,0,0,.5)) tidak pernah kena override tema-terang. class="card"
+      // ditambah; border merah tetap dipertahankan inline (beda sengaja dari
+      // border default .card, menandakan warning).
+      + '<div class="card" style="border:1px solid rgba(255, 59, 92, 0.4);border-radius:12px;padding:32px 24px;text-align:center;margin-top:10px">'
         + '<div style="width:54px;height:54px;border-radius:50%;background:rgba(255, 59, 92, 0.15);color:#FF3B5C;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px auto;border:1px solid rgba(255, 59, 92, 0.3)">'
         + '</div>'
         + '<div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:6px;font-family:var(--font-display)">'
