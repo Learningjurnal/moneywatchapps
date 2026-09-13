@@ -269,7 +269,7 @@ function wRenderNet(){
   var cv = el('w-alloc-chart');
   if(cv && items.length && typeof Chart!=='undefined'){
     wCharts['alloc'] = new Chart(cv.getContext('2d'), {type:'doughnut',
-      data:{labels:items.map(function(x){return x.l}), datasets:[{data:items.map(function(x){return x.v}), backgroundColor:items.map(function(x){return x.c}), borderColor:'rgba(19,19,31,.9)', borderWidth:2}]},
+      data:{labels:items.map(function(x){return x.l}), datasets:[{data:items.map(function(x){return x.v}), backgroundColor:items.map(function(x){return x.c}), borderWidth:0, hoverOffset:6}]},
       options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': '+wRp(c.raw)}}}}}
     });
   }
@@ -484,7 +484,7 @@ function wRenderPayoffDonut(chartKey, canvasId, items, total){
   var cv = el(canvasId);
   if(!cv || typeof Chart==='undefined') return;
   wCharts[chartKey] = new Chart(cv, {type:'doughnut',
-    data:{labels:items.map(function(x){return x.label;}), datasets:[{data:items.map(function(x){return x.val;}), backgroundColor:items.map(function(x){return x.color;}), borderColor:'rgba(19,19,31,.9)', borderWidth:2, hoverOffset:6}]},
+    data:{labels:items.map(function(x){return x.label;}), datasets:[{data:items.map(function(x){return x.val;}), backgroundColor:items.map(function(x){return x.color;}), borderWidth:0, hoverOffset:6}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},
       tooltip:{callbacks:{label:function(c){ var pct = total>0 ? (c.parsed/total*100).toFixed(1) : '0.0'; return c.label+': '+wRp(c.parsed)+' ('+pct+'%)'; }}}}}
   });

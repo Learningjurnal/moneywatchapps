@@ -2698,3 +2698,15 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Catatan**: warna border ini masih hardcoded (sama seperti pola yang sudah dipakai "Alokasi Aset" sebelumnya) — bukan CSS-variable theme-aware. Ini konsisten dengan chart lain yang sudah ada (bukan regresi baru), jadi tidak diubah dalam perbaikan ini; kalau user melihat border-nya kurang pas di tema terang, itu layak dilaporkan sebagai temuan terpisah.
+
+## 2026-09-13 — KOREKSI ARAH: donut "Alokasi Aset" yang seharusnya disamakan ke "Progres Pelunasan"/"Progres Penagihan" (bukan sebaliknya)
+
+- **Konteks**: user mengoreksi perbaikan sebelumnya (entri di atas) — arah yang benar terbalik. Bukan "Progres Pelunasan"/"Progres Penagihan" yang perlu ditambah border supaya sama dengan "Alokasi Aset", melainkan **"Alokasi Aset" yang perlu dihapus border-nya** supaya sama dengan "Progres Pelunasan"/"Progres Penagihan".
+- **Verifikasi arah yang benar**: audit ulang SELURUH donut chart di aplikasi (grep `type:'doughnut'` di seluruh `public/js/`) — mayoritas donut app (Crypto Portfolio, ETF Portfolio, Dashboard Portfolio, Performance Allocation) memakai `borderWidth:0` (tanpa border). Donut "Alokasi Aset" (`wRenderNet()`, chart `alloc`) justru yang MENYIMPANG dari standar mayoritas — satu-satunya (selain donut Sektor Dashboard yang punya alasan desain berbeda, dipakai bersama `_centerTextPlugin`) yang memakai `borderColor:'rgba(19,19,31,.9)', borderWidth:2`. Jadi standar app yang benar adalah TANPA border, dan "Progres Pelunasan"/"Progres Penagihan" (yang aslinya `borderWidth:0` sebelum entri di atas) sebenarnya sudah benar sejak awal — perbaikan sebelumnya salah arah.
+- **Perbaikan**:
+  1. `wRenderPayoffDonut()` (dipakai "Progres Pelunasan" & "Progres Penagihan") — **dikembalikan** ke `borderWidth:0` (revert dari perbaikan sebelumnya hari ini).
+  2. Chart `alloc` di `wRenderNet()` ("Alokasi Aset") — border `rgba(19,19,31,.9)`/`borderWidth:2` **dihapus**, diganti `borderWidth:0` (+ `hoverOffset:6` ditambahkan untuk konsistensi UX hover dengan donut lain).
+  - Cache-bust: `20-wealth.js?v=20260913d`.
+- **Live verification (Playwright, server lokal, Chart.js di-stub karena CDN diblokir sandbox)**: `wRenderNet()`, `wRenderDebt()`, `wRenderPiutang()` dipanggil langsung — ketiga chart (`alloc`, `debtPayoff`, `piuCollect`) sekarang identik: `borderWidth:0`, tanpa `borderColor`. Tanpa error terkait perubahan ini.
+
+`npm test` (154/154), `npm run lint` bersih.
