@@ -1691,6 +1691,23 @@ function kc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 var TC={color:'#8a90ad',font:{family:'Menlo',size:9}};
 var GC='rgba(255,102,0,.07)';
 
+// Theme-aware Chart.js tick/legend text color (2026-09-13, user-reported:
+// chart axis labels unreadable in dark theme). Canvas can't render
+// `var(--x)` strings directly, so the actual resolved color must be read
+// at chart-(re)build time — same technique as _intelChartColor() in
+// 27-stockintel.js, generalized here since every chart is destroyed and
+// rebuilt from scratch on each page visit anyway (03-engine.js tab-switch
+// perf fix above), so a freshly-resolved color is always current. Falls
+// back to a fixed hex if the CSS var somehow isn't available.
+function _chartTextColor(varName, fallback) {
+  try {
+    var v = getComputedStyle(document.body).getPropertyValue(varName);
+    return (v && v.trim()) || fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
 function customChartTooltip(context) {
     let tooltipEl = document.getElementById('mw-tooltip');
     if (!tooltipEl) {

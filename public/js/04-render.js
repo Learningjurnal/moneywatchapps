@@ -1001,6 +1001,12 @@ function renderDividen(){
   kc('divProj');
   var cvP = el('divProjChart');
   if(cvP){
+    // Font sebelumnya pakai TC global (#8a90ad, tipis) — kontras kurang di
+    // tema gelap (dilaporkan user 2026-09-13). Chart ini pakai tick style
+    // sendiri yang beradaptasi ke tema aktif + font-weight bold, tanpa
+    // mengubah TC global (dipakai banyak chart lain di luar cakupan ini).
+    var divProjTickColor = typeof _chartTextColor === 'function' ? _chartTextColor('--text2','#D2D8DF') : '#D2D8DF';
+    var divProjTick = { color: divProjTickColor, font: { family: '"Fira Code","Public Sans",monospace', size: 9, weight: 'bold' } };
     charts['divProj'] = new Chart(cvP, {type:'line',
       data:{labels:projYears.map(String),datasets:[
         {data:projVals, borderColor:'#41f3a7', borderWidth:2, fill:true, tension:.4, pointRadius:4,
@@ -1010,7 +1016,7 @@ function renderDividen(){
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return 'Rp '+fmtK(c.parsed.y)}}})},
-        scales:{x:{grid:{color:GC},ticks:TC},y:{grid:{color:GC},ticks:Object.assign({},TC,{callback:function(v){return 'Rp '+fmtK(v)}}),position:'right'}}}
+        scales:{x:{grid:{color:GC},ticks:divProjTick},y:{grid:{color:GC},ticks:Object.assign({},divProjTick,{callback:function(v){return 'Rp '+fmtK(v)}}),position:'right'}}}
     });
   }
 

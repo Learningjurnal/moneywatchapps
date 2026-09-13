@@ -565,13 +565,18 @@ function fsRenderRanking(){
   if(rkChart){
     if(FS_CHARTS.rk){try{FS_CHARTS.rk.destroy();}catch(e){}}
     var top=list.slice(0,15);
+    // Font sebelumnya #4a5e82 (kontras terlalu rendah di tema gelap,
+    // dilaporkan user 2026-09-13) — diganti ke _chartTextColor('--text2')
+    // yang beradaptasi ke tema aktif + font-weight bold untuk keterbacaan.
+    var rkTickColor = typeof _chartTextColor === 'function' ? _chartTextColor('--text2','#D2D8DF') : '#D2D8DF';
+    var rkTickFont = {family:'"Fira Code","Public Sans",monospace',size:10,weight:'bold'};
     FS_CHARTS.rk=new Chart(rkChart,{type:'bar',
       data:{labels:top.map(function(r){return r.t;}),
             datasets:[{data:top.map(function(r){return r.a.sc;}),
               backgroundColor:top.map(function(r){return r.a.sig==='AKUMULASI'?'rgba(0,229,160,.75)':r.a.sig==='DISTRIBUSI'?'rgba(255,61,90,.75)':'rgba(60,75,95,.8)';}),borderWidth:0,borderRadius:3}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-        scales:{x:{ticks:{color:'#4a5e82',font:{family:'Menlo',size:10}},grid:{display:false},border:{display:false}},
-                y:{min:0,max:100,ticks:{color:'#4a5e82',font:{size:10}},grid:{color:GC},border:{display:false}}}}});
+        scales:{x:{ticks:{color:rkTickColor,font:rkTickFont},grid:{display:false},border:{display:false}},
+                y:{min:0,max:100,ticks:{color:rkTickColor,font:rkTickFont},grid:{color:GC},border:{display:false}}}}});
   }
 
   var rkBody=document.getElementById('rk-body');
