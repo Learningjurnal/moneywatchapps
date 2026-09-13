@@ -2595,3 +2595,20 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Catatan**: perbaikan ini murni penggantian class CSS ke yang sudah established — TIDAK mengubah lebar modal itu sendiri (`.modal{width:560px}`, standar di SELURUH app) karena masalah sebenarnya bukan container-nya, melainkan field di dalamnya yang tidak ter-styling sama sekali.
+
+## 2026-09-13 — Donut "Alokasi Portofolio" nilainya beda dengan "Total Equity"
+
+- **Konteks:** user melaporkan (screenshot) nilai di tengah donut "Alokasi Portofolio" (Rp 491.9Jt) berbeda dengan "Total Equity" (Rp 505.2Jt) di kartu sebelahnya, padahal seharusnya sama.
+- **Root cause**: `perfRenderAllocation()` (`public/js/21-performance.js`) menghitung `total` HANYA dari `getPortfolio()` (posisi saham IDX saja, dari `transactions[]`) — diam-diam TIDAK menghitung saldo kas RDN, crypto, ETF, atau reksadana. Sementara "Total Equity" (`computeCurrentAUM()`, `03-engine.js`) sengaja menjumlahkan SEMUA kelas aset: saham + crypto + ETF + reksadana + saldo kas RDN. Ini bukan kesalahan hitung, tapi cakupan data yang beda — namun UI-nya (judul "Alokasi Portofolio", bukan "Alokasi Saham") menyiratkan seharusnya mewakili seluruh portofolio.
+- **Keputusan user**: ditanya via `AskUserQuestion` — pilih opsi tambahkan slice "Kas & Aset Lain" ke donut (bukan sekadar ganti label jadi "Alokasi Saham") supaya kedua angka SELALU sama persis.
+- **Perbaikan (`public/js/21-performance.js`, `perfRenderAllocation()`)**:
+  - Setelah menghitung `items` (per-saham atau per-sektor, tidak diubah), hitung `crMV`/`etfMV`/`rdMV`/`rdnBal` dengan LOGIKA PENJUMLAHAN YANG SAMA PERSIS dengan `computeCurrentAUM()` (`getCryptoPortfolio()`, `getEtfPortfolio()`, `getRdPortfolio()`, `calcRdnBalance('all')`) — sengaja disamakan supaya kedua angka tidak pernah divergen lagi ke depannya.
+  - Kalau totalnya (`otherTotal`) > 0, push satu item `{label:'Kas & Aset Lain', val:otherTotal, color:'#6b7280'}` (satu kategori gabungan, BUKAN dipecah per jenis aset — karena mode "Sektor" tidak relevan untuk kas/crypto/ETF/RD), lalu re-sort supaya urutan tetap besar→kecil.
+  - `total` sekarang dihitung dari `items.reduce(...)` (termasuk slice baru) — dijamin identik dengan `computeCurrentAUM()` karena memakai fungsi sumber yang sama persis.
+  - Sub-label pusat donut ("23 posisi") ditambah keterangan "+ kas/lainnya" kalau slice tersebut muncul, supaya user tahu kenapa ada kategori tambahan.
+  - Cache-bust `21-performance.js` → `?v=20260913b`.
+- **Live verification (Playwright, server lokal, Chart.js di-stub karena CDN diblokir sandbox)**: seed transaksi sintetis (BBCA+BBRI) + saldo RDN sintetis, panggil `computeCurrentAUM()` dan `perfRenderAllocation('saham')` langsung. Hasil: `computeCurrentAUM()` = Rp 39.1Jt, total dataset donut = Rp 39.1Jt — **identik**. Legend menampilkan "Kas & Aset Lain" (51.7%), BBCA (24.3%), BBRI (24.0%) — total 100%, terurut besar→kecil. Tanpa error.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Catatan**: mode "Sektor" pada donut yang sama otomatis ikut diperbaiki (kode dibagikan, bukan cabang terpisah) — slice "Kas & Aset Lain" akan muncul di kedua mode toggle "Saham"/"Sektor" kalau user punya saldo kas/crypto/ETF/RD.
