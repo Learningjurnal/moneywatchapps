@@ -744,7 +744,7 @@ function wProjRecalc(){
     wCharts['proj'] = new Chart(cv.getContext('2d'), {type:'line',
       data:{labels:years, datasets:ds},
       options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-        plugins:{legend:{labels:{color:'#a8a8c8',font:{size:10,weight:'bold'},boxWidth:14}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+wRp(c.raw)}}}},
+        plugins:{legend:{labels:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:10,weight:'bold'},boxWidth:14}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+wRp(c.raw)}}}},
         scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:11},grid:{color:'rgba(129,140,248,.05)'}},
                 y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return (v/1e9).toFixed(1)+'M'}},grid:{color:'rgba(129,140,248,.05)'}}}}
     });

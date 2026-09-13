@@ -958,13 +958,13 @@
             }
           },
           scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8fa3c8', font: { size: 10 }, maxTicksLimit: 10 } },
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font: { size: 10, weight: 'bold' }, maxTicksLimit: 10 } },
             y: {
               position: 'right',
               grid: { color: 'rgba(255,255,255,0.05)' },
               ticks: {
-                color: '#8fa3c8',
-                font: { size: 10 },
+                color: _chartTextColor('--text2','#D2D8DF'),
+                font: { size: 10, weight: 'bold' },
                 callback: function(v) { return fmtUSD(v); }
               }
             }
@@ -1015,8 +1015,8 @@
               position: 'right',
               grid: { color: 'rgba(255,255,255,0.05)' },
               ticks: {
-                color: '#8fa3c8',
-                font: { size: 9 },
+                color: _chartTextColor('--text2','#D2D8DF'),
+                font: { size: 9, weight: 'bold' },
                 callback: function(v) { return fmtUSD(v); }
               }
             }

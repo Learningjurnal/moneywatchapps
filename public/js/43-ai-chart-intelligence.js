@@ -949,8 +949,8 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
           tooltip: { mode: 'index', intersect: false }
         },
         scales: {
-          x: { grid:{color:GC}, ticks: { color: '#94A3B8', maxTicksLimit: 8 } },
-          y: { position: 'right', grid:{color:GC}, ticks: { color: '#94A3B8' } }
+          x: { grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'}, maxTicksLimit: 8 } },
+          y: { position: 'right', grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'} } }
         }
       }
     });
