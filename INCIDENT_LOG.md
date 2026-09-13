@@ -2637,3 +2637,20 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih. Tidak ada cache-bust (tidak ada file `.js` yang diubah).
 
 **Catatan**: masih ada kemungkinan card/panel lain dengan pola serupa di luar area Dashboard yang sudah diaudit (Tahap 1+2). Menunggu arahan lanjutan untuk Tahap 3 kalau diperlukan.
+
+## 2026-09-13 — Standardisasi shadow card (Tahap 3): 7 card Dashboard lain + 2 temuan tambahan
+
+- **Konteks:** lanjutan Tahap 1-2. Audit lebih luas ke seluruh `index.html` dan file JS untuk pola bug yang sama (div "card" tanpa `class="card"`, shadow hardcoded).
+- **Temuan & perbaikan**:
+  1. **7 card Dashboard lain** (`public/index.html`) dengan pola bug PERSIS SAMA Tahap 1 — div polos tanpa `class="card"`, shadow hardcoded `0 4px 20px rgba(0,0,0,0.35)` (variasi 20px, bukan 16px seperti Tahap 1, tapi bug-nya identik): `#card-dash-regime` (Kondisi Market), `#card-manage-asset` (Ringkasan Aset), `#card-dash-radar` (AI Opportunity Radar), `#card-dash-heatmap` (Market Heatmap), `#card-dash-smartflow` (Smart Money Flow), `#card-dash-insight` (Sector Insight), `#card-dash-alerts` (Alerts). Diperbaiki dengan pola sama: tambah `class="card"`, hapus properti redundan, pertahankan border-radius/padding/layout yang memang beda dari default `.card`.
+  2. **`27-stockintel.js`** — "ZERO-STATE COMPLIANCE WARNING CARD" (kartu peringatan saat ticker non-IDX dicari di Stock Intelligence Cockpit) — pola bug sama (tanpa `class="card"`, shadow hardcoded `0 8px 30px rgba(0,0,0,0.5)`). Diperbaiki sama; border merah (penanda warning) sengaja dipertahankan inline.
+  3. **`33-trending-news.js`** — card "Top 3 Trending Financial News" (state sukses/loaded) SUDAH punya `class="card"` tapi punya box-shadow inline sendiri (`0 4px 20px rgba(0,0,0,.25)`) yang menimpa shadow standar `.card` DI TEMA GELAP SAJA (tema terang tetap benar karena override `!important` menimpa juga nilai inline ini). Dihapus supaya benar-benar identik di kedua tema.
+- **Yang SENGAJA TIDAK disentuh** (dicek, bukan "card", beda kategori UI): elemen `box-shadow` di `settings-hub-modal`, `32-pdf-reports.js`, `42-dividend-calendar.js`, `40-idx-pipeline.js` (semua MODAL/dialog, bukan card konten — shadow besar untuk modal memang wajar berbeda dari card); toast notification di `30-price-alerts.js`/`03-engine.js` (elemen transient, bukan card persisten); inset progress-bar di `34-ksei-shareholders.js` (`box-shadow:inset...` — dekorasi bar, bukan card); `27-stockintel.js:1104` (card modal-like 680px dengan shadow lebih kuat — sengaja dibiarkan, tampak seperti elevasi modal yang disengaja, bukan card dashboard biasa).
+- **Live verification (Playwright, server lokal)**:
+  - 7 card Dashboard: `getComputedStyle().boxShadow` ketujuhnya **identik** dengan `.card` standar di kedua tema (gelap `rgba(0,0,0,.35) 0 4px 16px`, terang `rgba(0,0,0,.04) 0 2px 8px`). Screenshot dashboard lengkap dicek, tidak ada regresi layout.
+  - Zero-state warning card (`27-stockintel.js`): dipicu dengan `MW_SELECTED_INTEL_TICKER='AAPL'` (non-IDX) lalu `renderStockIntelPage()` — shadow terkonfirmasi identik `.card` standar di kedua tema.
+  - Trending news card (`33-trending-news.js`): **TIDAK bisa diverifikasi end-to-end via render nyata** — container `#dash-trending-news-container` yang dibutuhkan `renderTrendingNews()` tidak ditemukan di `index.html` manapun (fitur ini tampaknya belum ter-mount di UI yang aktif saat ini). Perbaikan ini hanya diverifikasi lewat pembacaan kode (properti yang dihapus murni redundan/konflik, tidak dipakai di tempat lain) + `node -c` syntax check — TIDAK ada verifikasi visual langsung.
+
+`npm test` (154/154), `npm run lint` bersih. Cache-bust: `27-stockintel.js?v=20260913a`, `33-trending-news.js?v=20260913a`.
+
+**Catatan**: dengan Tahap 1-3, seluruh card Dashboard yang teridentifikasi lewat audit sistematis (grep `box-shadow:` di `index.html` + `public/js/`) sudah konsisten. Kemungkinan MASIH ada pola serupa yang tidak tertangkap pola grep spesifik ini (mis. shadow dengan nilai rgba yang sedikit berbeda lagi) — kalau user menemukan card lain yang masih terlihat beda, laporkan untuk Tahap 4.
