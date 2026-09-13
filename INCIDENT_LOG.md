@@ -2528,3 +2528,16 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Catatan jujur**: ini BUKAN "konsolidasi design token" seutuhnya seperti direkomendasikan audit — 34 token yang MASIH aktif dipakai (termasuk alias yang berpotensi tumpang tindih seperti `--text`/`--text2`/`--text3` — ini BUKAN duplikat, tapi 3 level abstraksi warna teks yang berbeda dan memang dipakai berbeda-beda) tidak disentuh sama sekali. Yang dikerjakan murni penghapusan dead code — langkah paling aman dan paling terverifikasi dari seluruh rangkaian "design token cleanup" yang disebut audit.
+
+## 2026-09-13 — AI Paper Trading: notifikasi browser saat open & exit posisi
+
+- **Konteks:** permintaan user — saat AI Autonomous Trading (paper trading) membuka atau menutup posisi, ini perlu bisa "dipantau segera" (mis. tab tidak sedang aktif), bukan cuma `showToast()` in-app yang hilang begitu tab berpindah.
+- **Temuan:** helper reusable `window.mwSendBrowserNotification(title, body, tag)` (`public/js/30-price-alerts.js`) sudah ada dan sudah dipakai untuk kasus lain di file yang sama (hipotesis BUY baru, `38-ai-autonomous-trading.js:771`) — no-op aman kalau `Notification` API tidak didukung atau izin belum granted, jadi tidak butuh perubahan apapun di helper-nya sendiri.
+- **Perbaikan (`public/js/38-ai-autonomous-trading.js`)**: tambah pemanggilan `mwSendBrowserNotification()` di 2 titik:
+  1. `aiOpenPositionFromSignal()` — setelah posisi berhasil dibuka: judul "🟢 Posisi Dibuka: {ticker}", isi jumlah lot + harga entry + besaran risiko 1%. Ini SATU-satunya fungsi open-position nyata; `aiOpenPositionFromHypothesis()` mendelegasikan ke fungsi ini juga, jadi kedua jalur (dari Scanner maupun dari Hypothesis Lab) otomatis tercakup tanpa duplikasi.
+  2. `aiClosePosition()` — setelah posisi ditutup (SL/TP/manual/exit-hipotesis, semua jalur closing memanggil fungsi tunggal ini): judul "🟢/🛑 Posisi Ditutup: {ticker}" (emoji mengikuti tanda `netPnL` SETELAH pajak & komisi, bukan sekadar entry vs exit price), isi harga exit + alasan + PnL Rp & %.
+- **Live verification (Playwright, server lokal)**: mock `window.Notification` (capture instance + permission granted), seed sinyal BUY sintetis di `AI_UNIVERSE`, panggil `aiOpenPositionFromSignal('TESTX')` lalu `aiClosePosition()` langsung dari pipeline asli (bukan mock parsial). Hasil: notifikasi "🟢 Posisi Dibuka: TESTX" (150 lot @ Rp 1.000, risiko 1%) dan "🛑 Posisi Ditutup: TESTX" (PnL -Rp 30.000/-0.2% — negatif walau harga exit lebih tinggi dari entry, karena biaya transaksi riil ikut dihitung — mengonfirmasi emoji berbasis PnL bersih, bukan harga mentah) berhasil terbentuk tanpa `pageerror`.
+
+`npm test` (semua bagian tetap ALL PASSED, tidak ada regresi), `npm run lint` bersih.
+
+**Catatan jujur**: ini menambah notifikasi untuk 2 event (open & exit) sesuai permintaan eksplisit user — TIDAK menambah notifikasi untuk event lain yang mungkin juga relevan (mis. SL/TP nyaris tersentuh, risk gate menolak posisi, atau hipotesis baru — yang terakhir sudah lebih dulu ada). Notifikasi hanya muncul kalau user sudah memberi izin `Notification` browser (via alur permintaan izin yang sudah ada di halaman Price Alerts) — kalau belum, perilaku diam-diam fallback ke toast in-app saja seperti sebelumnya, tidak ada perubahan perilaku untuk user yang belum mengaktifkan izin.

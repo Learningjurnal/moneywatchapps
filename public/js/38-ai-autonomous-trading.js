@@ -1110,6 +1110,16 @@
       var pnlSign = netPnL >= 0 ? '+' : '';
       showToast((result === 'WIN' ? '' : '') + ' Posisi ' + pos.ticker + ' ditutup (' + reason + '): ' + pnlSign + 'Rp ' + Number(netPnL).toLocaleString('id-ID') + ' (' + pnlSign + returnPct + '%)');
     }
+    // Browser notification agar exit posisi bisa dipantau segera walau tab
+    // tidak sedang aktif — sama seperti notifikasi hipotesis BUY baru di atas.
+    if (typeof mwSendBrowserNotification === 'function') {
+      var pnlSignNotif = netPnL >= 0 ? '+' : '';
+      mwSendBrowserNotification(
+        (netPnL >= 0 ? '✅' : '🛑') + ' Posisi Ditutup: ' + pos.ticker,
+        'Exit @ Rp ' + Number(Math.round(px)).toLocaleString('id-ID') + ' (' + reason + ') — PnL ' + pnlSignNotif + 'Rp ' + Number(netPnL).toLocaleString('id-ID') + ' (' + pnlSignNotif + returnPct + '%)',
+        'ai-exit-' + pos.ticker + '-' + pos.id
+      );
+    }
     if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
   }
 
@@ -1338,6 +1348,15 @@
 
     savePaperAccountState();
     if (typeof showToast === 'function') showToast('Posisi dibuka: ' + lots + ' lot ' + ticker + ' @ Rp ' + Number(entry).toLocaleString('id-ID') + ' (risiko 1% = Rp ' + Math.round(riskBudget).toLocaleString('id-ID') + ')');
+    // Browser notification agar open posisi bisa dipantau segera walau tab
+    // tidak sedang aktif — sama seperti notifikasi hipotesis BUY baru.
+    if (typeof mwSendBrowserNotification === 'function') {
+      mwSendBrowserNotification(
+        '🟢 Posisi Dibuka: ' + ticker,
+        lots + ' lot @ Rp ' + Number(entry).toLocaleString('id-ID') + ' — risiko 1% = Rp ' + Math.round(riskBudget).toLocaleString('id-ID'),
+        'ai-open-' + ticker
+      );
+    }
     renderAiTradingPage();
     // Reconcile the freshly-opened position's displayed price against the
     // same authoritative source used to open it, so it doesn't briefly
