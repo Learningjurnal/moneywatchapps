@@ -360,7 +360,10 @@ function fsRenderCharts(){
 
   Object.values(FS_CHARTS).forEach(function(c){try{c.destroy();}catch(e){}});FS_CHARTS={};
 
-  var GC2='rgba(255,255,255,.04)',TC2={color:'#4a5e82',font:{size:10}};
+  // Font sebelumnya #4a5e82 tipis (dilaporkan user 2026-09-13, sama seperti
+  // rk-chart di fsRenderRanking() di atas) — ganti ke _chartTextColor()
+  // theme-aware + bold, dipakai untuk 5 chart FlowScan detail di bawah.
+  var GC2='rgba(255,255,255,.04)',TC2={color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:10,weight:'bold',family:'"Fira Code","Public Sans",monospace'}};
   var bo={responsive:true,maintainAspectRatio:false,
     plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(6,11,23,.95)',borderColor:'rgba(255,255,255,.08)',borderWidth:1,titleColor:'#8fa3c8',bodyColor:'#dce8ff',bodyFont:{family:'Menlo',size:11}}},
     scales:{x:{ticks:Object.assign({maxTicksLimit:8,autoSkip:true},TC2),grid:{display:false},border:{display:false}},
@@ -490,13 +493,17 @@ function fsRenderVWAP(){
   // Chart 1: VWAP + bands
   if(FS_CHARTS.vwap){try{FS_CHARTS.vwap.destroy();}catch(e){}}
   var cv1=document.getElementById('fsVwapChart');
+  // Font sebelumnya #4a5e82 tipis (dilaporkan user 2026-09-13) — ganti ke
+  // _chartTextColor() theme-aware + bold, sama seperti chart FlowScan lain.
+  var vwapTickColor=(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF');
+  var vwapTickFont={size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'};
   var boV={responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:true,position:'top',labels:{color:'#4a5e82',font:{size:9},boxWidth:16}},
+    plugins:{legend:{display:true,position:'top',labels:{color:vwapTickColor,font:{size:9,weight:'bold'},boxWidth:16}},
       tooltip:{backgroundColor:'rgba(6,11,23,.95)',borderColor:'rgba(255,255,255,.08)',borderWidth:1,
         titleColor:'#8fa3c8',bodyColor:'#dce8ff',bodyFont:{family:'Menlo',size:10},
         callbacks:{label:function(c){return c.dataset.label+': '+fsP(c.parsed.y);}}}},
-    scales:{x:{ticks:{maxTicksLimit:8,autoSkip:true,color:'#4a5e82',font:{size:9}},grid:{display:false},border:{display:false}},
-            y:{ticks:{color:'#4a5e82',font:{size:9}},grid:{color:GC},border:{display:false}}}};
+    scales:{x:{ticks:{maxTicksLimit:8,autoSkip:true,color:vwapTickColor,font:vwapTickFont},grid:{display:false},border:{display:false}},
+            y:{ticks:{color:vwapTickColor,font:vwapTickFont},grid:{color:GC},border:{display:false}}}};
   if(cv1) FS_CHARTS.vwap=new Chart(cv1,{type:'line',data:{labels:labels,datasets:[
     {label:'Harga',data:closes,borderColor:'rgba(77,166,255,.9)',borderWidth:1.5,pointRadius:0,fill:false,tension:.3},
     {label:'VWAP',data:vwap,borderColor:'#ffc107',borderWidth:2.5,pointRadius:0,fill:false,tension:.3},

@@ -647,7 +647,7 @@ function runBacktest(){
       QT.btCharts['eq'] = new Chart(ctx,{type:'line',data:{labels:sampDates,datasets:[
         {label:'Strategi',data:sampEq,borderColor:'#00d4aa',borderWidth:2,fill:true,backgroundColor:grd,tension:.3,pointRadius:0},
         {label:'Buy & Hold',data:sampBah,borderColor:'rgba(0,0,255,.6)',borderWidth:1.5,borderDash:[5,3],fill:false,tension:.3,pointRadius:0}
-      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:10}}},tooltip:{backgroundColor:'rgba(10,10,20,.92)',titleColor:'#0000FF',bodyColor:'#c0c0d8'}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return 'Rp'+fmtK(v);}},grid:{color:'rgba(0,0,255,.05)'}}}}});
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{family:'"Fira Code","Public Sans",monospace',size:10,weight:'bold'}}},tooltip:{backgroundColor:'rgba(10,10,20,.92)',titleColor:'#0000FF',bodyColor:'#c0c0d8'}},scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return 'Rp'+fmtK(v);}},grid:{color:'rgba(0,0,255,.05)'}}}}});
     }
 
     // Drawdown chart
@@ -656,7 +656,7 @@ function runBacktest(){
     if(cvDd){
       var sampDD = ddFull.filter(function(_,i){return i%Math.max(1,Math.floor(dates.length/120))===0;});
       var sampDt = dates.filter(function(_,i){return i%Math.max(1,Math.floor(dates.length/120))===0;});
-      QT.btCharts['dd'] = new Chart(cvDd.getContext('2d'),{type:'line',data:{labels:sampDt,datasets:[{data:sampDD,borderColor:'#ff2244',borderWidth:1.5,fill:true,backgroundColor:'rgba(255,34,68,.1)',tension:.3,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:8},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return v.toFixed(1)+'%'}},grid:{color:'rgba(0,0,255,.05)'}}}}});
+      QT.btCharts['dd'] = new Chart(cvDd.getContext('2d'),{type:'line',data:{labels:sampDt,datasets:[{data:sampDD,borderColor:'#ff2244',borderWidth:1.5,fill:true,backgroundColor:'rgba(255,34,68,.1)',tension:.3,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:8},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return v.toFixed(1)+'%'}},grid:{color:'rgba(0,0,255,.05)'}}}}});
     }
 
     // Candlestick SVG
@@ -926,7 +926,7 @@ function fhmRender(){
   if(QT.btCharts['fhm-dist']){QT.btCharts['fhm-dist'].destroy();}
   var cv = el('fhm-dist-chart');
   if(cv){
-    QT.btCharts['fhm-dist'] = new Chart(cv.getContext('2d'),{type:'bar',data:{labels:stocks.map(function(s){return s.t;}),datasets:[{data:vals,backgroundColor:vals.map(function(v){return v>=0&&factor!=='rsi'?'rgba(0,212,170,.5)':'rgba(74,158,255,.5)';}),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#555d6e',font:{size:9}},grid:{color:GC}}}}}); 
+    QT.btCharts['fhm-dist'] = new Chart(cv.getContext('2d'),{type:'bar',data:{labels:stocks.map(function(s){return s.t;}),datasets:[{data:vals,backgroundColor:vals.map(function(v){return v>=0&&factor!=='rsi'?'rgba(0,212,170,.5)':'rgba(74,158,255,.5)';}),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'}},grid:{display:false}},y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'}},grid:{color:GC}}}}}); 
   }
 }
 
@@ -1352,6 +1352,11 @@ function mrRender(){
   if(QT.btCharts['mr-avg']){ QT.btCharts['mr-avg'].destroy(); }
   if(QT.btCharts['mr-wr']){ QT.btCharts['mr-wr'].destroy(); }
   var cvAvg = el('mr-avg-chart'), cvWr = el('mr-wr-chart');
+  // Font sebelumnya #8a90ad/#555d6e tipis (dilaporkan user 2026-09-13,
+  // sama seperti chart lain di file ini) — ganti ke _chartTextColor()
+  // theme-aware + bold, dipakai untuk kedua chart Monthly Returns di bawah.
+  var mrTickColor = typeof _chartTextColor === 'function' ? _chartTextColor('--text2', '#D2D8DF') : '#D2D8DF';
+  var mrTickFont = { weight: 'bold', family: '"Fira Code","Public Sans",monospace' };
   if(cvAvg){
     QT.btCharts['mr-avg'] = new Chart(cvAvg.getContext('2d'), {
       type: 'bar',
@@ -1368,8 +1373,8 @@ function mrRender(){
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#8a90ad', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: '#555d6e', font: { size: 9 }, callback: function(v){ return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; } }, grid: { color: 'rgba(0,0,255,.05)' } }
+          x: { ticks: { color: mrTickColor, font: Object.assign({ size: 10 }, mrTickFont) }, grid: { display: false } },
+          y: { ticks: { color: mrTickColor, font: Object.assign({ size: 9 }, mrTickFont), callback: function(v){ return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; } }, grid: { color: 'rgba(0,0,255,.05)' } }
         }
       }
     });
@@ -1390,8 +1395,8 @@ function mrRender(){
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#8a90ad', font: { size: 10 } }, grid: { display: false } },
-          y: { min: 0, max: 100, ticks: { color: '#555d6e', font: { size: 9 }, callback: function(v){ return v + '%'; } }, grid: { color: 'rgba(0,0,255,.05)' } }
+          x: { ticks: { color: mrTickColor, font: Object.assign({ size: 10 }, mrTickFont) }, grid: { display: false } },
+          y: { min: 0, max: 100, ticks: { color: mrTickColor, font: Object.assign({ size: 9 }, mrTickFont), callback: function(v){ return v + '%'; } }, grid: { color: 'rgba(0,0,255,.05)' } }
         }
       }
     });
@@ -1462,7 +1467,7 @@ function pairsAnalyzeWith(a,b,dataA,dataB){
       {data:sampZ.map(function(){return 2;}),borderColor:'rgba(255,34,68,.4)',borderWidth:1,borderDash:[5,3],fill:false,pointRadius:0,label:'+2σ'},
       {data:sampZ.map(function(){return -2;}),borderColor:'rgba(0,212,170,.4)',borderWidth:1,borderDash:[5,3],fill:false,pointRadius:0,label:'-2σ'},
       {data:sampZ.map(function(){return 0;}),borderColor:'rgba(255,255,255,.15)',borderWidth:1,fill:false,pointRadius:0,label:'Mean'}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:9}}}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9}},grid:{color:'rgba(0,0,255,.05)'}}}}}); 
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{family:'"Fira Code","Public Sans",monospace',size:9,weight:'bold'}}}},scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'}},grid:{color:'rgba(0,0,255,.05)'}}}}}); 
   }
 
   // Price chart normalized
@@ -1474,7 +1479,7 @@ function pairsAnalyzeWith(a,b,dataA,dataB){
     QT.btCharts['pt-price']=new Chart(cvP.getContext('2d'),{type:'line',data:{labels:sD,datasets:[
       {data:sNA,borderColor:'#00d4aa',borderWidth:2,fill:false,tension:.3,pointRadius:0,label:a},
       {data:sNB,borderColor:'#0000FF',borderWidth:2,fill:false,tension:.3,pointRadius:0,label:b}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#b8bdd4',font:{family:'Menlo',size:10}}}},scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:'#8a90ad',font:{size:9},callback:function(v){return v.toFixed(0);}},grid:{color:'rgba(0,0,255,.05)'}}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{family:'"Fira Code","Public Sans",monospace',size:10,weight:'bold'}}}},scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:10},grid:{color:'rgba(0,0,255,.05)'}},y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return v.toFixed(0);}},grid:{color:'rgba(0,0,255,.05)'}}}}});
   }
 }
 
