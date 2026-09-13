@@ -172,7 +172,6 @@ function perfSetAllocMode(mode, btn){
 }
 function perfRenderAllocation(mode){
   var porto = (typeof getPortfolio==='function') ? getPortfolio() : [];
-  var total = porto.reduce(function(a,p){return a+p.mv;},0);
   var items;
   if(mode==='sektor'){
     var bySec = {};
@@ -181,10 +180,33 @@ function perfRenderAllocation(mode){
   } else {
     items = porto.map(function(p,i){ return {label:p.ticker, val:p.mv, color:COLORS[i%12]}; });
   }
+
+  // FIX (2026-09-13, user-reported: donut ini beda nilai dengan "Total
+  // Equity" di kartu sebelah, padahal seharusnya sama) — sebelumnya `total`
+  // hanya menjumlahkan saham (porto.mv), diam-diam TIDAK menghitung saldo
+  // kas RDN, crypto, ETF, atau reksadana yang justru IKUT dihitung di Total
+  // Equity (computeCurrentAUM(), 03-engine.js — logika penjumlahannya
+  // sengaja disamakan persis di sini supaya kedua angka tidak pernah
+  // divergen). Ditambahkan sebagai satu slice "Kas & Aset Lain" (bukan
+  // dipecah per jenis aset, karena mode "Sektor" tidak relevan untuk
+  // kas/crypto/ETF/RD) — hanya muncul kalau nilainya > 0.
+  var cryptoPorto = (typeof getCryptoPortfolio==='function') ? getCryptoPortfolio() : [];
+  var etfPorto = (typeof getEtfPortfolio==='function') ? getEtfPortfolio() : [];
+  var rdPorto = (typeof getRdPortfolio==='function') ? getRdPortfolio() : [];
+  var crMV = cryptoPorto.reduce(function(a,p){return a+(p.mv||0);},0);
+  var etfMV = etfPorto.reduce(function(a,p){return a+(p.mvIdr||0);},0);
+  var rdMV = rdPorto.reduce(function(a,p){return a+(p.val||p.mv||0);},0);
+  var rdnBal = (typeof calcRdnBalance==='function') ? calcRdnBalance('all') : 0;
+  var otherTotal = crMV+etfMV+rdMV+rdnBal;
+  if(otherTotal > 0){
+    items.push({label:'Kas & Aset Lain', val:otherTotal, color:'#6b7280'});
+  }
   items.sort(function(a,b){ return b.val-a.val; });
 
+  var total = items.reduce(function(a,x){return a+x.val;},0);
+
   el('perf-alloc-center-val').textContent = 'Rp '+fmtK(total);
-  el('perf-alloc-center-sub').textContent = porto.length+' '+(mode==='sektor'?'sektor':'posisi');
+  el('perf-alloc-center-sub').textContent = porto.length+' '+(mode==='sektor'?'sektor':'posisi')+(otherTotal>0?' + kas/lainnya':'');
 
   kc('perfAlloc');
   var cv = el('perfAllocDonut');
