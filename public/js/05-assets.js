@@ -584,7 +584,10 @@ function renderCryptoRadarBanner(porto) {
 
   var totalAlerts = breakouts.length + whaleInflows.length + oversolds.length;
 
-  var html = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.15)">'
+  // FIX (2026-09-13, Tahap 4 standardisasi shadow — pola bug sama Tahap 1/3):
+  // div ini sebelumnya tanpa class="card", shadow hardcoded, tidak pernah
+  // kena override tema-terang. Lihat INCIDENT_LOG.md.
+  var html = '<div class="card" style="border-radius:12px;padding:14px 18px;display:flex;flex-direction:column;gap:10px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
     + '<div style="display:flex;align-items:center;gap:8px">'
     + '<span class="crypto-pulse-dot" style="background:#f7931a"></span>'
