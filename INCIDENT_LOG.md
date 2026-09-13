@@ -2686,3 +2686,15 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Catatan**: dengan ini, SELURUH temuan chart-font yang teridentifikasi lewat 2 audit hari ini (grep pola bermasalah pertama + kedua) sudah ditangani, termasuk yang sebelumnya sengaja ditunda menunggu konfirmasi user.
+
+## 2026-09-13 — Donut "Progres Pelunasan" & "Progres Penagihan" (Wealth) tidak punya outline seperti donut lain
+
+- **Konteks:** user kirim screenshot halaman Net Worth (donut "Alokasi Aset" — punya garis pemisah tipis antar-slice) dibandingkan dengan halaman Debt ("Progres Pelunasan") dan Piutang ("Progres Penagihan") yang donutnya tampak solid/masif tanpa garis pemisah — melaporkan "outline tidak sesuai dengan donat chart lainnya".
+- **Root cause**: `wRenderPayoffDonut()` (`public/js/20-wealth.js`) — fungsi shared yang dipakai OLEH KEDUA donut "Progres Pelunasan" (Debt) dan "Progres Penagihan" (Piutang) — konfigurasi dataset-nya memakai `borderWidth:0` (tanpa border sama sekali). Sementara donut "Alokasi Aset" di halaman yang sama (chart terpisah, `wCharts['alloc']`, baris ~271) memakai `borderColor:'rgba(19,19,31,.9)', borderWidth:2` — border gelap tipis inilah yang menciptakan efek "gap"/garis pemisah antar-slice yang membuatnya terlihat rapi dan konsisten dengan donut lain di seluruh app (Crypto/ETF/ Sektor, dst — semua memakai border serupa).
+- **Perbaikan (`public/js/20-wealth.js`, `wRenderPayoffDonut()`)**: tambahkan `borderColor:'rgba(19,19,31,.9)', borderWidth:2` ke dataset — disamakan persis dengan pola donut "Alokasi Aset" di file yang sama. Karena `wRenderPayoffDonut()` dipakai bersama oleh 2 chart (Debt & Piutang), perbaikan ini otomatis berlaku ke keduanya sekaligus.
+  - Cache-bust: `20-wealth.js?v=20260913c`.
+- **Live verification (Playwright, server lokal, Chart.js di-stub karena CDN diblokir sandbox)**: seed data debt + piutang sintetis, panggil `wRenderDebt()` dan `wRenderPiutang()` langsung — konfigurasi dataset kedua chart (`w-debt-payoff-chart`, `w-piutang-collect-chart`) dikonfirmasi identik: `borderColor:'rgba(19,19,31,.9)'`, `borderWidth:2`, `cutout:'65%'` — sama dengan pola "Alokasi Aset". Tanpa error terkait perubahan ini.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Catatan**: warna border ini masih hardcoded (sama seperti pola yang sudah dipakai "Alokasi Aset" sebelumnya) — bukan CSS-variable theme-aware. Ini konsisten dengan chart lain yang sudah ada (bukan regresi baru), jadi tidak diubah dalam perbaikan ini; kalau user melihat border-nya kurang pas di tema terang, itu layak dilaporkan sebagai temuan terpisah.
