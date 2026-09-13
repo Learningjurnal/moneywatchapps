@@ -2156,9 +2156,12 @@ window.hw_recalc = hw_recalc;
 function hw_renderChart(rows) {
   hwData._lastRows = rows;
   var labels = rows.map(function(r){ return r.year; });
-  var tickStyle = { color: '#b8bdd4', font: { size: 9, family: 'Menlo' } };
+  // Font sebelumnya #b8bdd4/Menlo tipis (dilaporkan user 2026-09-13: kontras
+  // kurang di tema gelap) — diganti ke _chartTextColor('--text2') yang
+  // beradaptasi ke tema aktif + font-weight bold untuk keterbacaan.
+  var tickStyle = { color: (typeof _chartTextColor === 'function' ? _chartTextColor('--text2', '#D2D8DF') : '#D2D8DF'), font: { size: 9, family: '"Fira Code","Public Sans",monospace', weight: 'bold' } };
   var gridStyle = { color: 'rgba(255,255,255,0.06)' };
-  var legendOpts = { labels: { color: '#b8bdd4', font: { family: 'Menlo', size: 9 }, boxWidth: 10, padding: 10 } };
+  var legendOpts = { labels: { color: (typeof _chartTextColor === 'function' ? _chartTextColor('--text2', '#D2D8DF') : '#D2D8DF'), font: { family: '"Fira Code","Public Sans",monospace', size: 9, weight: 'bold' }, boxWidth: 10, padding: 10 } };
   var tooltipBase = {
     backgroundColor: 'rgba(10,10,20,.92)',
     titleColor: '#0088ff',
