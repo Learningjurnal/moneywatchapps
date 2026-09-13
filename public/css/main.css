@@ -417,6 +417,29 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
 .card:hover{
   border-color:rgba(37,99,235,.35);
 }
+
+/* FIX (2026-09-13, Tahap 2 standardisasi shadow card — user-reported):
+   4 card shortcut Dashboard (Saham/Crypto/Reksadana/ETF, class asset-card
+   + card-blue/green/purple/red di index.html) sebelumnya mengandalkan
+   onmouseover/onmouseout INLINE JS untuk efek hover (glow warna + geser
+   border-color) — bukan CSS :hover. Di tema gelap ini terlihat jalan
+   normal, TAPI di tema terang efeknya MATI TOTAL: body.theme-light
+   .asset-card{box-shadow:...!important} (ditambahkan Tahap 1 untuk
+   menyamakan shadow resting-state dengan .card lain) otomatis menimpa
+   box-shadow apapun yang di-set inline lewat JS juga, termasuk shadow
+   hover — bukan cuma kosmetik beda, tapi hover feedback beneran hilang.
+   Solusinya BUKAN melonggarkan aturan Tahap 1 (itu masih benar untuk
+   resting state), tapi memindahkan hover ke rule CSS :hover di sini,
+   yang spesifisitasnya (3 class-level selector) otomatis mengalahkan
+   body.theme-light .asset-card (2 class + 1 elemen) — dipertegas dengan
+   !important eksplisit supaya tidak ambigu. onmouseover/onmouseout di
+   index.html dihapus (redundant sekarang, dan itulah sumber bug-nya). */
+.asset-card:hover{ transform:translateY(-2px); }
+.asset-card.card-blue:hover{ box-shadow:0 8px 24px rgba(37,99,235,.25)!important; border-color:var(--accent)!important; }
+.asset-card.card-green:hover{ box-shadow:0 8px 24px rgba(0,245,155,.25)!important; border-color:var(--green)!important; }
+.asset-card.card-purple:hover{ box-shadow:0 8px 24px rgba(192,132,252,.25)!important; border-color:var(--purple)!important; }
+.asset-card.card-red:hover{ box-shadow:0 8px 24px rgba(255,59,92,.25)!important; border-color:var(--red)!important; }
+
 .ctitle{
   font-size:12.5px;
   color:var(--text);

@@ -2623,3 +2623,17 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih. Tidak ada cache-bust karena tidak ada file `.js` yang berubah (murni `index.html`).
 
 **Catatan — ini BARU Tahap 1**: perbaikan ini hanya menyentuh 2 card yang ditunjukkan user di screenshot ("Kelas Aset"). Kemungkinan besar masih ada card/panel lain di aplikasi (terutama di Dashboard, yang paling banyak memakai inline style custom seperti `.asset-card` untuk card SAHAM/CRYPTO/ETF/RD di baris `dash-assetclass-row`) yang punya pola serupa (box-shadow hardcoded di luar sistem `.card`) — belum diaudit/disentuh di tahap ini, menunggu tahap berikutnya sesuai arahan "jalankan bertahap".
+
+## 2026-09-13 — Standardisasi shadow card (Tahap 2): hover 4 card shortcut mati di tema terang
+
+- **Konteks:** lanjutan Tahap 1 (standardisasi shadow "Kelas Aset"). Audit lanjutan menemukan 4 card shortcut Dashboard (`card-landing-stock`/`-crypto`/`-fund`/`-etf` — Saham/Crypto/Reksadana/ETF, class `asset-card card-blue/green/purple/red`).
+- **Temuan LEBIH SERIUS dari yang diduga awal** — bukan cuma soal konsistensi kosmetik, tapi FUNGSIONAL: keempat card ini sudah punya `class="asset-card"` (jadi shadow RESTING-STATE-nya sudah otomatis benar/konsisten lewat `body.theme-light .asset-card{box-shadow:...!important}`, tidak seperti Tahap 1). Masalahnya ada di efek HOVER — sebelumnya diimplementasikan lewat `onmouseover`/`onmouseout` inline JS yang men-set `this.style.boxShadow` ke warna glow (biru/hijau/ungu/merah). Karena rule `!important` dari Tahap 1 (`body.theme-light .asset-card`) menimpa APAPUN yang dipaksa lewat inline style JS juga, di tema terang efek hover ini **MATI TOTAL** — box-shadow tetap diam di `rgba(0,0,0,.04)` resting-state, padahal user sedang hover. Dikonfirmasi lewat Playwright: `getComputedStyle` sebelum/saat/sesudah hover IDENTIK di tema terang (tidak ada perubahan sama sekali), sementara di tema gelap perubahan warna terjadi normal.
+- **Perbaikan**:
+  - `public/css/main.css`: tambah rule CSS `:hover` yang benar (`.asset-card.card-blue:hover{box-shadow:...!important;border-color:...!important}` dst untuk 4 warna) — spesifisitasnya (3 class-level selector) otomatis mengalahkan `body.theme-light .asset-card` (2 class + 1 elemen), dipertegas `!important` eksplisit. `.asset-card:hover{transform:translateY(-2px)}` juga dipindah ke CSS.
+  - `public/index.html`: hapus `onmouseover`/`onmouseout` inline dari keempat card (sumber bug + sekarang redundan).
+  - Class `.card-blue`/`.card-green`/`.card-purple`/`.card-red` sebelumnya SUDAH ada di markup tapi 0 definisi CSS (dead classnames) — sekarang benar-benar dipakai.
+- **Live verification (Playwright, server lokal, hover sungguhan via `page.hover()` + tunggu transisi 0.2s selesai)**: keempat card, kedua tema — hover sekarang menghasilkan `box-shadow` warna yang BENAR dan IDENTIK antara tema gelap & terang (`rgba(37,99,235,.25) 0 8px 24px` biru, hijau/ungu/merah serupa), `border-color` berubah sesuai `var(--accent)`/`var(--green)`/`var(--purple)`/`var(--red)` per tema, dan kembali ke shadow resting-state yang benar (0.35 gelap / 0.04 terang) setelah mouse keluar. Screenshot dikirim ke user.
+
+`npm test` (154/154), `npm run lint` bersih. Tidak ada cache-bust (tidak ada file `.js` yang diubah).
+
+**Catatan**: masih ada kemungkinan card/panel lain dengan pola serupa di luar area Dashboard yang sudah diaudit (Tahap 1+2). Menunggu arahan lanjutan untuk Tahap 3 kalau diperlukan.

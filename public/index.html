@@ -763,7 +763,12 @@
 
                 <!-- SAHAM INDONESIA (IDX) CARD -->
                 <div class="dash-masonry-item">
-                    <div id="card-landing-stock" class="asset-card card-blue" onclick="goPage('portofolio')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(37, 99, 235, 0.35);box-shadow:0 4px 16px rgba(0,0,0,0.35)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(37, 99, 235, 0.25)';this.style.borderColor='var(--accent)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.35)';this.style.borderColor='rgba(37, 99, 235, 0.35)'">
+                    <!-- FIX (2026-09-13, Tahap 2): onmouseover/onmouseout dihapus —
+                         efek hover sekarang lewat CSS :hover (.asset-card.card-blue:hover
+                         di main.css), yang tetap berfungsi di tema terang (lihat catatan
+                         lengkap di main.css). Inline JS lama MATI TOTAL di tema terang
+                         karena ketimpa body.theme-light .asset-card{!important}. -->
+                    <div id="card-landing-stock" class="asset-card card-blue" onclick="goPage('portofolio')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(37, 99, 235, 0.35);box-shadow:0 4px 16px rgba(0,0,0,0.35)">
                         <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
                             <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(37, 99, 235, 0.12);color:var(--accent-blue);border:1px solid rgba(37, 99, 235, 0.3)">
                                 STOCK (IDX)
@@ -786,7 +791,8 @@
 
                 <!-- MASONRY ITEM 4: CRYPTO ASSETS CARD -->
                 <div class="dash-masonry-item">
-                    <div id="card-landing-crypto" class="asset-card card-green" onclick="goPage('crypto')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(0, 245, 155, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0, 245, 155, 0.25)';this.style.borderColor='var(--green)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.35)';this.style.borderColor='rgba(0, 245, 155, 0.3)'">
+                    <!-- FIX (2026-09-13, Tahap 2): lihat catatan di card-landing-stock. -->
+                    <div id="card-landing-crypto" class="asset-card card-green" onclick="goPage('crypto')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(0, 245, 155, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)">
                         <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
                             <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(0, 245, 155, 0.12);color:var(--green);border:1px solid rgba(0, 245, 155, 0.3)">
                                 CRYPTO
@@ -810,7 +816,8 @@
 
                 <!-- MASONRY ITEM 5: REKSA DANA & SBN CARD -->
                 <div class="dash-masonry-item">
-                    <div id="card-landing-fund" class="asset-card card-purple" onclick="goPage('reksadana')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(192, 132, 252, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(192, 132, 252, 0.25)';this.style.borderColor='var(--purple)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.35)';this.style.borderColor='rgba(192, 132, 252, 0.3)'">
+                    <!-- FIX (2026-09-13, Tahap 2): lihat catatan di card-landing-stock. -->
+                    <div id="card-landing-fund" class="asset-card card-purple" onclick="goPage('reksadana')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(192, 132, 252, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)">
                         <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
                             <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(192, 132, 252, 0.12);color:var(--purple);border:1px solid rgba(192, 132, 252, 0.3)">
                                 MUTUAL FUND
@@ -833,7 +840,8 @@
 
                 <!-- MASONRY ITEM 6: ETF US & GLOBAL CARD -->
                 <div class="dash-masonry-item">
-                    <div id="card-landing-etf" class="asset-card card-red" onclick="goPage('etf')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(255, 59, 92, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(255, 59, 92, 0.25)';this.style.borderColor='var(--red)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.35)';this.style.borderColor='rgba(255, 59, 92, 0.3)'">
+                    <!-- FIX (2026-09-13, Tahap 2): lihat catatan di card-landing-stock. -->
+                    <div id="card-landing-etf" class="asset-card card-red" onclick="goPage('etf')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(255, 59, 92, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)">
                         <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
                             <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255, 59, 92, 0.12);color:var(--red);border:1px solid rgba(255, 59, 92, 0.3)">
                                 GLOBAL ETF
