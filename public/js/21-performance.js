@@ -97,8 +97,8 @@ function perfRenderEquity(period){
     charts['perfEq'] = new Chart(cv,{type:'line',data:{labels:filtered.map(function(h){return h.date;}),
       datasets:[{data:filtered.map(function(h){return h.equity;}),borderColor:'#2f6af3',backgroundColor:grad,fill:true,tension:.3,pointRadius:0,borderWidth:2}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return 'Rp '+fmtK(c.parsed.y);}}})},
-        scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:7},grid:{display:false}},
-                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return fmtK(v);}},grid:{color:GC}}}}});
+        scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:7},grid:{display:false}},
+                 y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return fmtK(v);}},grid:{color:GC}}}}});
   }
 
   // Tabel riwayat — reverse kronologis, membedakan P&L investasi riil vs mutasi kas (Setor/Tarik)
@@ -485,8 +485,8 @@ function perfRenderBenchmarkWith(hist, noteEl){
     if(ihsgPct) datasets.push({label:'IHSG', data:ihsgPct, borderColor:'#8070d2', backgroundColor:'transparent', tension:.3, pointRadius:0, borderWidth:2, borderDash:[4,3]});
     charts['perfBench'] = new Chart(cv,{type:'line',data:{labels:hist.map(function(h){return h.date;}),datasets:datasets},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.dataset.label+': '+(c.parsed.y>=0?'+':'')+c.parsed.y.toFixed(2)+'%';}}})},
-        scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:7},grid:{display:false}},
-                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return v.toFixed(0)+'%';}},grid:{color:GC}}}}});
+        scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:7},grid:{display:false}},
+                 y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return v.toFixed(0)+'%';}},grid:{color:GC}}}}});
   });
 }
 
@@ -661,12 +661,12 @@ function perfRenderActivity(){
           {type:'line', label:'Realized P&L', data:data.map(function(d){return d.pnl;}), borderColor:'#41f3a7', backgroundColor:'transparent', tension:.3, pointRadius:2, borderWidth:2, yAxisID:'y1'}
         ]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:true,labels:{color:'#8a90ad',font:{size:9},boxWidth:10}},
+        plugins:{legend:{display:true,labels:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},boxWidth:10}},
           tooltip:Object.assign({},TT,{callbacks:{label:function(c){ return c.dataset.label==='Realized P&L' ? 'P&L: '+(c.parsed.y>=0?'+':'')+'Rp '+fmtK(c.parsed.y) : 'Order: '+c.parsed.y; }}})},
         scales:{
-          x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:8},grid:{display:false}},
-          y:{position:'left',ticks:{color:'#555d6e',font:{size:9}},grid:{color:GC},title:{display:false}},
-          y1:{position:'right',ticks:{color:'#555d6e',font:{size:9},callback:function(v){return fmtK(v);}},grid:{display:false}}
+          x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:8},grid:{display:false}},
+          y:{position:'left',ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'}},grid:{color:GC},title:{display:false}},
+          y1:{position:'right',ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return fmtK(v);}},grid:{display:false}}
         }}
     });
   }
@@ -786,8 +786,8 @@ function renderCostDrag(){
         borderRadius:3}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
         tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.parsed.y.toFixed(2)+'% dari nilai transaksi bulan itu';}}})},
-        scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:8},grid:{display:false}},
-                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return v+'%';}},grid:{color:GC}}}}});
+        scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:8},grid:{display:false}},
+                 y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return v+'%';}},grid:{color:GC}}}}});
   }
 }
 

@@ -3954,22 +3954,22 @@
 <script src="js/01-data.js?v=20260910a"></script>
 <script src="js/02-storage.js?v=20260911b"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
-<script src="js/03-engine.js?v=20260913a"></script>
+<script src="js/03-engine.js?v=20260913b"></script>
 <script src="js/04-render.js?v=20260913a"></script>
 <script src="js/36-crypto-technical.js?v=20260906e"></script>
 <script src="js/05-assets.js?v=20260912a"></script>
 <script src="js/06-analysis-router.js?v=20260912a"></script>
-<script src="js/07-flowscan.js?v=20260913a"></script>
+<script src="js/07-flowscan.js?v=20260913b"></script>
 <script src="js/08-auth.js?v=20260909a"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
 <script src="js/10-hargawajar.js?v=20260913a"></script>
-<script src="js/11-quant.js?v=20260912b"></script>
+<script src="js/11-quant.js?v=20260913a"></script>
 <script src="js/12-clean.js?v=20260908a"></script>
 <script src="js/13-realdata.js?v=20260911b"></script>
 <script src="js/14-admin.js?v=20260909a"></script>
 <script src="js/15-txbulk.js?v=20260902c"></script>
-<script src="js/20-wealth.js?v=20260912b"></script>
-<script src="js/21-performance.js?v=20260909a"></script>
+<script src="js/20-wealth.js?v=20260913a"></script>
+<script src="js/21-performance.js?v=20260913a"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260905j"></script>
 <script src="js/24-stockmaster.js?v=20260912b"></script>
@@ -4005,6 +4005,17 @@
       const icon = document.getElementById('theme-icon');
       if (icon) icon.className = isLight ? 'ti ti-moon' : 'ti ti-sun';
 
+      // Refresh the shared Chart.js tick/legend color (TC in 03-engine.js,
+      // 2026-09-13) to match the just-toggled theme BEFORE any re-render
+      // below runs — TC is a single shared object referenced by `ticks:TC`
+      // across many chart configs, so mutating it here is enough; every
+      // chart that gets rebuilt (below, or later on next page visit) picks
+      // up the fresh color automatically without each config needing to
+      // re-resolve it itself.
+      if (typeof TC !== 'undefined' && typeof _chartTextColor === 'function') {
+        TC.color = _chartTextColor('--text2', '#D2D8DF');
+      }
+
       // Dynamically re-render any active charts with new theme colors
       setTimeout(() => {
         if (typeof mountBandarmologySmartMoneyCharts === 'function') {
@@ -4028,6 +4039,13 @@
     try {
       if(localStorage.getItem('mw_theme') === 'light') {
         document.body.classList.add('theme-light');
+        // TC (03-engine.js) resolves its initial color assuming dark theme
+        // (the class above hadn't been added yet when 03-engine.js parsed) —
+        // re-resolve it now that theme-light is actually applied, same as
+        // toggleTheme() does on every interactive toggle.
+        if (typeof TC !== 'undefined' && typeof _chartTextColor === 'function') {
+          TC.color = _chartTextColor('--text2', '#D2D8DF');
+        }
         setTimeout(() => {
           const icon = document.getElementById('theme-icon');
           if(icon) icon.className = 'ti ti-moon';

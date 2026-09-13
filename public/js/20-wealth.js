@@ -314,8 +314,8 @@ function wRenderNetWorthHistory(currentNet){
         datasets:[{data:hist.map(function(h){return h.net;}),borderColor:'#2f6af3',backgroundColor:grad,fill:true,tension:.3,pointRadius:0,borderWidth:2}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
         tooltip:{callbacks:{label:function(c){return wRp(c.parsed.y);}}}},
-        scales:{x:{ticks:{color:'#8a90ad',font:{size:9},maxTicksLimit:7},grid:{display:false}},
-                 y:{ticks:{color:'#555d6e',font:{size:9},callback:function(v){return wRp(v);}},grid:{color:GC}}}}});
+        scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:7},grid:{display:false}},
+                 y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return wRp(v);}},grid:{color:GC}}}}});
   }
 }
 
@@ -744,9 +744,9 @@ function wProjRecalc(){
     wCharts['proj'] = new Chart(cv.getContext('2d'), {type:'line',
       data:{labels:years, datasets:ds},
       options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-        plugins:{legend:{labels:{color:'#a8a8c8',font:{size:10},boxWidth:14}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+wRp(c.raw)}}}},
-        scales:{x:{ticks:{color:'#6b6b8a',font:{size:9},maxTicksLimit:11},grid:{color:'rgba(129,140,248,.05)'}},
-                y:{ticks:{color:'#6b6b8a',font:{size:9},callback:function(v){return (v/1e9).toFixed(1)+'M'}},grid:{color:'rgba(129,140,248,.05)'}}}}
+        plugins:{legend:{labels:{color:'#a8a8c8',font:{size:10,weight:'bold'},boxWidth:14}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+wRp(c.raw)}}}},
+        scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},maxTicksLimit:11},grid:{color:'rgba(129,140,248,.05)'}},
+                y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'},callback:function(v){return (v/1e9).toFixed(1)+'M'}},grid:{color:'rgba(129,140,248,.05)'}}}}
     });
   }
 }

@@ -1688,7 +1688,17 @@ function buildTickerTape(){
 // CHARTS
 // ============================================================
 function kc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
-var TC={color:'#8a90ad',font:{family:'Menlo',size:9}};
+// TC.color sebelumnya #8a90ad statis + font Menlo tipis (dilaporkan user
+// 2026-09-13 sulit terbaca di beberapa chart — lihat _chartTextColor() di
+// bawah). TC dipakai luas sebagai shared tick/legend style di banyak file
+// (04-render.js, 05-assets.js, 06-analysis-router.js, 09-divinvest.js,
+// dst via `ticks:TC`/`Object.assign({},TC,...)`), jadi memperbaikinya DI
+// SINI otomatis memperbaiki semua chart yang memakainya tanpa menyentuh
+// tiap konfigurasi satu-satu. TC.color di-mutate ulang saat tema toggle
+// (lihat index.html toggleTheme()) supaya tetap sinkron kalau user ganti
+// tema di tengah sesi tanpa reload — chart tetap dibangun ulang dari nol
+// tiap kunjungan halaman (perf fix di bawah), jadi mutasi ini cukup.
+var TC={color:'#8a90ad',font:{family:'"Fira Code","Public Sans",monospace',size:9,weight:'bold'}};
 var GC='rgba(255,102,0,.07)';
 
 // Theme-aware Chart.js tick/legend text color (2026-09-13, user-reported:
@@ -1707,6 +1717,11 @@ function _chartTextColor(varName, fallback) {
     return fallback;
   }
 }
+// Resolve TC.color for whatever theme is active right now (dark, since
+// this script runs before index.html's startup block adds .theme-light
+// for a saved light preference — that block re-mutates TC.color once it
+// does, and toggleTheme() re-mutates it on every interactive toggle too).
+TC.color = _chartTextColor('--text2', '#D2D8DF');
 
 function customChartTooltip(context) {
     let tooltipEl = document.getElementById('mw-tooltip');
@@ -2123,11 +2138,14 @@ var _centerTextPlugin = {
     var y = (chart.chartArea.top+chart.chartArea.bottom)/2;
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = '700 20px "Menlo",monospace';
+    // Font sebelumnya "Menlo" + bottom text #8a90ad tipis (dilaporkan user
+    // 2026-09-13, konsisten dengan chart lain) — ganti font ke Fira Code/
+    // Public Sans (font asli aplikasi) + warna bottom text theme-aware.
+    ctx.font = '700 20px "Fira Code","Public Sans",monospace';
     ctx.fillStyle = opt.color || '#f5f5fa';
     ctx.fillText(opt.top, x, y-9);
-    ctx.font = '600 9px "Menlo",monospace';
-    ctx.fillStyle = '#8a90ad';
+    ctx.font = '700 9px "Fira Code","Public Sans",monospace';
+    ctx.fillStyle = typeof _chartTextColor === 'function' ? _chartTextColor('--text2', '#D2D8DF') : '#D2D8DF';
     ctx.fillText(opt.bottom, x, y+10);
     ctx.restore();
   }
