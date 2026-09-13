@@ -581,7 +581,21 @@
 
                 <!-- MASONRY ITEM 1: PORTFOLIO VOLATILITY & RISK ASSESSMENT (TALL CARD) -->
                 <div class="dash-masonry-item">
-                    <div id="card-portfolio-volatility" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,0.35);transition:border-color 0.2s ease">
+                    <!-- FIX (2026-09-13, user-reported: shadow tidak konsisten dengan
+                         card lain di app — box-shadow di sini sebelumnya hardcoded
+                         (0 4px 16px rgba(0,0,0,.35)) langsung di inline style, jadi
+                         TIDAK pernah kena override tema-terang (body.theme-light .card
+                         di main.css, yang memberi shadow lebih halus 0 2px 8px
+                         rgba(0,0,0,.04) — hanya berlaku untuk elemen berclass .card).
+                         Ditambah class="card" supaya shadow (dan hover border-color)
+                         ikut sistem tema yang sama dengan SELURUH card lain di app,
+                         bukan nilai gelap yang dipaksakan di semua tema. Properti yang
+                         MEMANG perlu beda dari .card (radius 12px vs var(--radius)=8px,
+                         padding seragam 16px vs .card 16px 18px, layout flex internal)
+                         tetap dipertahankan inline karena inline style masih menang
+                         atas rule .card yang tidak !important. Tahap 1 dari
+                         standardisasi shadow — lihat INCIDENT_LOG.md 2026-09-13. -->
+                    <div id="card-portfolio-volatility" class="card" style="border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px">
                         <!-- Header -->
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px">
                             <div style="display:flex;align-items:center;gap:8px">
@@ -699,7 +713,11 @@
 
                 <!-- MASONRY ITEM 2: KOMPOSISI & ALOKASI ASET (MEDIUM CARD) -->
                 <div class="dash-masonry-item">
-                    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,0.35);transition:border-color 0.2s ease">
+                    <!-- FIX (2026-09-13): sama persis dengan card-portfolio-volatility
+                         di atas — class="card" ditambah supaya shadow ikut sistem tema
+                         yang sama dengan seluruh card lain di app (lihat catatan
+                         lengkap di card-portfolio-volatility, dan INCIDENT_LOG.md). -->
+                    <div class="card" style="border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px">
                         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:10px">
                             <span style="font-size:12.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">
                                 Komposisi &amp; Alokasi Aset
