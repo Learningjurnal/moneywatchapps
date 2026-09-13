@@ -284,7 +284,12 @@ function renderDividendCalendarComponent() {
   var monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
   var html = ''
-    + '<div class="card" style="margin-bottom:18px;border:1px solid rgba(52,211,153,.25);background:linear-gradient(180deg, rgba(16,185,129,.03) 0%, var(--bg2) 100%);box-shadow:0 10px 25px -5px rgba(0,0,0,0.1);">'
+    // FIX (2026-09-13, Tahap 4): sudah class="card" tapi punya box-shadow
+    // inline sendiri yang menimpa standar .card di tema GELAP saja (tema
+    // terang tetap benar karena override !important) — dihapus supaya
+    // benar-benar identik dengan .card lain di kedua tema. Border hijau +
+    // gradient tetap dipertahankan (aksen visual "highlight" yang disengaja).
+    + '<div class="card" style="margin-bottom:18px;border:1px solid rgba(52,211,153,.25);background:linear-gradient(180deg, rgba(16,185,129,.03) 0%, var(--bg2) 100%);">'
     + '  <!-- Header & Title -->'
     + '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">'
     + '    <div>'

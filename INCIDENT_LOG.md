@@ -2654,3 +2654,16 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih. Cache-bust: `27-stockintel.js?v=20260913a`, `33-trending-news.js?v=20260913a`.
 
 **Catatan**: dengan Tahap 1-3, seluruh card Dashboard yang teridentifikasi lewat audit sistematis (grep `box-shadow:` di `index.html` + `public/js/`) sudah konsisten. Kemungkinan MASIH ada pola serupa yang tidak tertangkap pola grep spesifik ini (mis. shadow dengan nilai rgba yang sedikit berbeda lagi) — kalau user menemukan card lain yang masih terlihat beda, laporkan untuk Tahap 4.
+
+## 2026-09-13 — Standardisasi shadow card (Tahap 4): Crypto Radar Banner + Dividend Calendar
+
+- **Konteks:** lanjutan Tahap 1-3. Audit komprehensif ulang seluruh `box-shadow:` di `public/js/` untuk sisa pola bug.
+- **Temuan & perbaikan**:
+  1. **`05-assets.js`** — `renderCryptoRadarBanner()` ("Radar Sinyal Teknikal & Whale Flow Crypto", halaman Crypto Portfolio) — div polos tanpa `class="card"`, shadow hardcoded `0 4px 20px rgba(0,0,0,0.15)`, pola bug identik Tahap 1/3.
+  2. **`42-dividend-calendar.js`** — `renderDividendCalendarComponent()` (card ringkasan Passive Income di atas Kalender Dividen) — SUDAH `class="card"` tapi punya box-shadow inline sendiri (`0 10px 25px -5px rgba(0,0,0,0.1)`) yang menimpa standar `.card` di tema GELAP saja (tema terang tetap benar via `!important`) — pola sama dengan `33-trending-news.js` yang diperbaiki di Tahap 3. Border hijau + gradient (aksen highlight yang disengaja) tetap dipertahankan, hanya box-shadow yang dihapus.
+- **Yang DIVERIFIKASI ULANG dan tetap DIBIARKAN** (dari sisa audit): `27-stockintel.js` card modal-like 680px (`.card` di dalam `overlay.className='overlay on'`, `overlay.onclick` untuk tutup via backdrop) — dikonfirmasi ini SUNGGUH modal (bukan card dashboard biasa), shadow lebih kuat wajar untuk elevasi modal, konsisten dengan `.modal` class. `34-ksei-shareholders.js` (modal + inset progress bar), `42-dividend-calendar.js:830`/`32-pdf-reports.js`/`40-idx-pipeline.js` (semua modal), toast (`03-engine.js`/`30-price-alerts.js`), glow dot kecil di berbagai file, chat bubble di `41-stockchat-cockpit.js` — semua kategori UI berbeda dari "card", tidak disentuh.
+- **Live verification (Playwright, server lokal)**: `renderCryptoRadarBanner([])` dan `renderDividendCalendarComponent()` dipanggil langsung — `getComputedStyle().boxShadow` kedua card **identik** dengan `.card` standar di kedua tema (gelap `rgba(0,0,0,.35) 0 4px 16px`, terang `rgba(0,0,0,.04) 0 2px 8px`), tanpa error.
+
+`npm test` (154/154), `npm run lint` bersih. Cache-bust: `05-assets.js?v=20260913a`, `42-dividend-calendar.js?v=20260913a`.
+
+**Status keseluruhan (Tahap 1-4)**: 11 card total diperbaiki (2+4hover+7+2) lintas Dashboard, Stock Intelligence, Crypto Portfolio, dan Dividend Calendar. Audit `box-shadow:` di seluruh `index.html` + `public/js/` sudah dua kali disisir; sisa kandidat yang teridentifikasi semuanya bukan "card" (modal/toast/glow/bubble/inset-bar) atau memang sengaja berbeda (elevasi modal). Kalau user masih menemukan card yang terlihat beda, laporkan untuk Tahap 5.
