@@ -81,6 +81,20 @@ function renderDailyBriefPage() {
     + '</div>'
   + '</div>'
 
+  // Simple IHSG chart (Yahoo Finance style: big price + change, thin sparkline area below)
+  + '<div class="card" style="padding:18px 22px;margin-bottom:18px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:6px">'
+      + '<div>'
+        + '<div style="font-size:11px;color:var(--text3);letter-spacing:.03em">IHSG · Indeks Harga Saham Gabungan</div>'
+        + '<div style="display:flex;align-items:baseline;gap:10px;margin-top:2px">'
+          + '<span style="font-size:24px;font-weight:700;font-family:var(--font-mono)">' + curIhsg.toLocaleString('id-ID', {minimumFractionDigits:2}) + '</span>'
+          + '<span class="' + (isBullish ? 'up' : 'dn') + '" style="font-size:13px;font-weight:600">' + (isBullish ? '▲' : '▼') + ' ' + (isBullish ? '+' : '') + ihsgDiff.toFixed(2) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%)</span>'
+        + '</div>'
+      + '</div>'
+    + '</div>'
+    + '<div style="height:110px;position:relative"><canvas id="daily-brief-ihsg-chart"></canvas></div>'
+  + '</div>'
+
   // Dynamic 3 Things to Watch Today across Portfolio
   + '<div class="card" style="padding:22px;margin-bottom:18px">'
     + '<div class="ctitle" style="font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:6px">'
@@ -258,6 +272,61 @@ function renderDailyBriefPage() {
   html += '</div>';
 
   c.innerHTML = html;
+  renderDailyBriefIhsgChart(curIhsg, isBullish);
+}
+
+// Simple IHSG sparkline/area chart (Yahoo Finance-style: minimal axes, colored
+// by trend direction) rendered from ihsgHist — the live-updating price history
+// array (01-data.js) that until now was collected but never visualized anywhere.
+function renderDailyBriefIhsgChart(curIhsg, isBullish) {
+  kc('dbIhsg');
+  var cv = el('daily-brief-ihsg-chart');
+  if (!cv || typeof Chart === 'undefined') return;
+
+  var hist = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg];
+  var lineColor = isBullish ? '#00e59b' : '#ff3d5a';
+  var ctx = cv.getContext('2d');
+  var grad = ctx.createLinearGradient(0, 0, 0, 110);
+  grad.addColorStop(0, isBullish ? 'rgba(0,229,155,.25)' : 'rgba(255,61,90,.25)');
+  grad.addColorStop(1, isBullish ? 'rgba(0,229,155,0)' : 'rgba(255,61,90,0)');
+
+  charts['dbIhsg'] = new Chart(cv, {
+    type: 'line',
+    data: {
+      labels: hist.map(function(_, i) { return i; }),
+      datasets: [{
+        data: hist,
+        borderColor: lineColor,
+        borderWidth: 2,
+        backgroundColor: grad,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        pointHoverBackgroundColor: lineColor
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            title: function() { return ''; },
+            label: function(c) { return c.raw.toLocaleString('id-ID', {minimumFractionDigits: 2}); }
+          }
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      }
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════════
