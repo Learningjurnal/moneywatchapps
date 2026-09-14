@@ -491,6 +491,14 @@ function runBacktest(){
   var days = parseInt(el('bt-period').value||730);
   var capital = parseFloat(el('bt-capital').value||100000000);
   var comm = parseFloat(el('bt-comm').value||0.2)/100;
+  // Slippage & Walk-Forward Validation (2026-09-14, user-requested: backtest
+  // sebelumnya cuma pakai komisi tanpa slippage, dan tidak ada pemisahan
+  // in-sample/out-of-sample — jadi hasil bagus bisa saja cuma overfit ke
+  // periode backtest itu sendiri, bukan strategi yang genuinely robust.
+  var slipEl = el('bt-slippage');
+  var slippage = slipEl ? (parseFloat(slipEl.value||0.15)/100) : 0.0015;
+  var wfSplitEl = el('bt-wf-split');
+  var wfSplitRatio = wfSplitEl ? parseFloat(wfSplitEl.value||0) : 0; // 0 = nonaktif
 
   el('bt-data-status').textContent = '⏳ Loading...';
 
@@ -547,21 +555,30 @@ function runBacktest(){
     var eq=[capital], bah=[capital], bah0=close[0];
     var cash=capital, shares=0, entryIdx=-1, entryP2=0;
     var txLog=[];
+    // Fill price dengan slippage: BUY fill sedikit LEBIH TINGGI dari close
+    // (kurang menguntungkan pembeli), SELL fill sedikit LEBIH RENDAH — ini
+    // mensimulasikan spread bid-ask & dampak likuiditas nyata yang tidak
+    // tertangkap kalau eksekusi diasumsikan persis di harga close.
+    var buyFillPx = function(px){ return px*(1+slippage); };
+    var sellFillPx = function(px){ return px*(1-slippage); };
+
     signals.forEach(function(sig){
       if(sig.type==='BUY'&&cash>0){
-        shares=Math.floor(cash/(close[sig.i]*100))*100;
-        var cost=shares*close[sig.i]*(1+comm);
-        if(shares>0){cash-=cost;entryP2=close[sig.i];entryIdx=sig.i;}
+        var bPx=buyFillPx(close[sig.i]);
+        shares=Math.floor(cash/(bPx*100))*100;
+        var cost=shares*bPx*(1+comm);
+        if(shares>0){cash-=cost;entryP2=bPx;entryIdx=sig.i;}
       } else if(sig.type==='SELL'&&shares>0){
-        var proceeds=shares*close[sig.i]*(1-comm-0.001); // komisi + PPh jual 0.1%
+        var sPx=sellFillPx(close[sig.i]);
+        var proceeds=shares*sPx*(1-comm-0.001); // komisi + PPh jual 0.1%
         var pnl=proceeds-shares*entryP2*(1+comm);
-        txLog.push({entry:dates[entryIdx],exit:dates[sig.i],entryP:entryP2,exitP:close[sig.i],dur:sig.i-entryIdx,ret:(close[sig.i]-entryP2)/entryP2*100,pnl:pnl});
+        txLog.push({entry:dates[entryIdx],exit:dates[sig.i],entryP:entryP2,exitP:sPx,dur:sig.i-entryIdx,ret:(sPx-entryP2)/entryP2*100,pnl:pnl});
         cash+=proceeds;shares=0;
       }
     });
     // Liquidate at end
     if(shares>0){
-      var lp=close[close.length-1];
+      var lp=sellFillPx(close[close.length-1]);
       cash+=shares*lp*(1-comm-0.001);shares=0;
     }
 
@@ -569,8 +586,8 @@ function runBacktest(){
     var runCash=capital, runShares=0;
     var equityArr=[];
     signals.forEach(function(sig){
-      if(sig.type==='BUY'&&runCash>0){ var sh=Math.floor(runCash/(close[sig.i]*100))*100; if(sh>0){runCash-=sh*close[sig.i]*(1+comm);runShares=sh;} }
-      else if(sig.type==='SELL'&&runShares>0){ runCash+=runShares*close[sig.i]*(1-comm-0.001);runShares=0; }
+      if(sig.type==='BUY'&&runCash>0){ var bPx2=buyFillPx(close[sig.i]); var sh=Math.floor(runCash/(bPx2*100))*100; if(sh>0){runCash-=sh*bPx2*(1+comm);runShares=sh;} }
+      else if(sig.type==='SELL'&&runShares>0){ var sPx2=sellFillPx(close[sig.i]); runCash+=runShares*sPx2*(1-comm-0.001);runShares=0; }
       equityArr.push({i:sig.i, val:runCash+(runShares*close[sig.i])});
     });
 
@@ -594,8 +611,8 @@ function runBacktest(){
       var runC2 = capital, runS2 = 0;
       signals.forEach(function(sig){
         if(sig.i <= i){
-          if(sig.type==='BUY'&&runC2>0){var sh2=Math.floor(runC2/(close[sig.i]*100))*100;if(sh2>0){runC2-=sh2*close[sig.i]*(1+comm);runS2=sh2;}}
-          else if(sig.type==='SELL'&&runS2>0){runC2+=runS2*close[sig.i]*(1-comm-0.001);runS2=0;}
+          if(sig.type==='BUY'&&runC2>0){var bPx3=buyFillPx(close[sig.i]);var sh2=Math.floor(runC2/(bPx3*100))*100;if(sh2>0){runC2-=sh2*bPx3*(1+comm);runS2=sh2;}}
+          else if(sig.type==='SELL'&&runS2>0){var sPx3=sellFillPx(close[sig.i]);runC2+=runS2*sPx3*(1-comm-0.001);runS2=0;}
         }
       });
       return runC2+(runS2*c);
@@ -617,6 +634,70 @@ function runBacktest(){
     var winTrades = txLog.filter(function(t){return t.pnl>0;}).length;
     var winRate = txLog.length ? winTrades/txLog.length*100 : 0;
     var totalPnl = txLog.reduce(function(s,t){return s+t.pnl;},0);
+
+    // Walk-Forward Validation: pisahkan trade berdasarkan indeks ENTRY-nya
+    // ke segmen in-sample (awal periode) vs out-of-sample (akhir periode).
+    // Sinyal sendiri dihitung dari SELURUH data (indikator butuh histori
+    // penuh untuk kontinuitas) — yang dipisah hanya PELAPORAN performanya,
+    // supaya kelihatan apakah strategi masih profitable di periode yang
+    // "belum pernah dilihat" saat parameter di-tuning, bukan cuma bagus di
+    // rentang yang sama dengan tempat parameter itu di-pas-kan.
+    var wfPanelEl = el('bt-wf-panel');
+    if(wfPanelEl){
+      if(wfSplitRatio > 0 && txLog.length){
+        var splitIdx = Math.floor(close.length * wfSplitRatio);
+        var segMetrics = function(trades){
+          var wins = trades.filter(function(t){return t.pnl>0;}).length;
+          var pnl = trades.reduce(function(s,t){return s+t.pnl;},0);
+          var retPct = trades.reduce(function(s,t){return s+t.ret;},0);
+          return {
+            n: trades.length,
+            winRate: trades.length ? (wins/trades.length*100) : 0,
+            avgRet: trades.length ? (retPct/trades.length) : 0,
+            pnl: pnl
+          };
+        };
+        var inSample = segMetrics(txLog.filter(function(t){return t.entry <= dates[Math.min(splitIdx, dates.length-1)];}));
+        var outSample = segMetrics(txLog.filter(function(t){return t.entry > dates[Math.min(splitIdx, dates.length-1)];}));
+        // "Overfitting risk" heuristic: out-of-sample win rate turun jauh
+        // (>15 poin persentase) ATAU rata-rata return per-trade berbalik
+        // dari positif ke negatif dibanding in-sample — bukan bukti
+        // matematis overfitting, cuma sinyal peringatan dini untuk
+        // ditelusuri lebih lanjut sebelum strategi ini dipakai sungguhan.
+        var overfitRisk = outSample.n > 0 && (
+          (inSample.winRate - outSample.winRate > 15) ||
+          (inSample.avgRet > 0 && outSample.avgRet < 0)
+        );
+        wfPanelEl.style.display = 'block';
+        wfPanelEl.innerHTML = '<div class="card" style="padding:14px 16px'+(overfitRisk?';border-color:var(--amber)':'')+'">'
+          + '<div class="cheader" style="margin-bottom:10px"><span class="ctitle">WALK-FORWARD VALIDATION</span>'
+          + (overfitRisk ? '<span class="badge b-amb" style="margin-left:8px">⚠ Indikasi Overfitting</span>' : '<span class="badge b-up" style="margin-left:8px">Konsisten</span>')
+          + '</div>'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+            + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">'
+              + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">IN-SAMPLE (' + (wfSplitRatio*100).toFixed(0) + '% awal periode)</div>'
+              + '<div style="font-size:13px">Trade: <b>'+inSample.n+'</b> · Win Rate: <b style="color:'+(inSample.winRate>50?'var(--green)':'var(--amber)')+'">'+inSample.winRate.toFixed(1)+'%</b></div>'
+              + '<div style="font-size:13px">Avg Return/Trade: <b style="color:'+(inSample.avgRet>=0?'var(--green)':'var(--red)')+'">'+(inSample.avgRet>=0?'+':'')+inSample.avgRet.toFixed(2)+'%</b></div>'
+            + '</div>'
+            + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">'
+              + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">OUT-OF-SAMPLE (' + (100-wfSplitRatio*100).toFixed(0) + '% akhir periode — "belum pernah dilihat")</div>'
+              + '<div style="font-size:13px">Trade: <b>'+outSample.n+'</b> · Win Rate: <b style="color:'+(outSample.winRate>50?'var(--green)':'var(--amber)')+'">'+outSample.winRate.toFixed(1)+'%</b></div>'
+              + '<div style="font-size:13px">Avg Return/Trade: <b style="color:'+(outSample.avgRet>=0?'var(--green)':'var(--red)')+'">'+(outSample.avgRet>=0?'+':'')+outSample.avgRet.toFixed(2)+'%</b></div>'
+            + '</div>'
+          + '</div>'
+          + '<div style="font-size:10px;color:var(--text3);margin-top:10px;line-height:1.5">'
+          + (outSample.n === 0
+              ? 'Tidak ada trade di segmen out-of-sample — periode backtest terlalu pendek untuk split ini, coba perpanjang periode atau kurangi rasio split.'
+              : (overfitRisk
+                  ? 'Performa out-of-sample jauh lebih lemah dari in-sample — indikasi strategi/parameter ini mungkin overfit ke pola historis spesifik, bukan pola yang genuinely berulang. Jangan dipakai untuk copy-trade sebelum divalidasi lebih lanjut.'
+                  : 'Performa out-of-sample relatif konsisten dengan in-sample — sinyal awal yang baik, tapi ini bukan jaminan performa masa depan.'))
+          + '</div>'
+        + '</div>';
+      } else {
+        wfPanelEl.style.display = 'none';
+        wfPanelEl.innerHTML = '';
+      }
+    }
 
     // Display metrics
     var mEl = el('bt-metrics');

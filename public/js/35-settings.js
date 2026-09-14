@@ -569,6 +569,19 @@
           <div id="quota-invezgo-box" style="font-size:12px;color:var(--text3)">Memuat data kuota…</div>
         </div>
 
+        <!-- 8. Data Quality Gate Telemetry — jawaban praktis atas komentar
+             DATA_QUALITY_ENFORCE_STAGE2 di .env.example/idx-data-engine.js:
+             "only set to true after observing how often non-REAL status
+             actually occurs in production". Sebelumnya tidak ada cara
+             mengamati itu — kartu ini yang jadi caranya. -->
+        <div class="card" style="padding:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
+            <div style="font-weight:700;font-size:14px;color:var(--text)">Data Quality Gate (Sinyal AI Trading)</div>
+            <span class="badge b-up">Hari ini</span>
+          </div>
+          <div id="quota-dq-box" style="font-size:12px;color:var(--text3)">Memuat telemetri…</div>
+        </div>
+
       </div>
     `;
 
@@ -614,6 +627,31 @@
         }
       } catch (err) {
         invezgoBox.innerHTML = '<span style="color:var(--text3)">Gagal memuat kuota Invezgo (' + escHtml(String(err && err.message || err)) + ').</span>';
+      }
+    }
+
+    var dqBox = document.getElementById('quota-dq-box');
+    if (dqBox) {
+      try {
+        var dqRes = await fetch('/api/idx/data-quality-status');
+        var dq = await dqRes.json();
+        if (dq && dq.success) {
+          var pct = dq.realPct;
+          var badgeCls = pct === null ? 'b-gray' : (pct >= 90 ? 'b-up' : (pct >= 50 ? 'b-amb' : 'b-dn'));
+          dqBox.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">' +
+            '<span style="font-size:20px;font-weight:700;color:var(--text)">' + (pct === null ? '—' : pct + '%') + '</span>' +
+            '<span class="badge ' + badgeCls + '">REAL &middot; ' + dq.total + ' cek hari ini</span>' +
+            '</div>' +
+            quotaBar(pct || 0, false, false) +
+            '<div style="color:var(--text3)">Simulasi: ' + (dq.counts.SIMULATION||0) + ' &middot; Basi: ' + (dq.counts.STALE||0) + ' &middot; Tidak tersedia: ' + (dq.counts.UNAVAILABLE||0) + ' &middot; Invalid: ' + (dq.counts.INVALID||0) + '</div>' +
+            '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border2)">' + escHtml(dq.recommendation) + '</div>' +
+            '<div style="color:var(--text3);margin-top:6px;font-size:10.5px">Kill-switch <code>DATA_QUALITY_ENFORCE_STAGE2</code>: <b style="color:' + (dq.enforceStage2Active ? 'var(--green)' : 'var(--text3)') + '">' + (dq.enforceStage2Active ? 'AKTIF' : 'nonaktif') + '</b>' + (dq.persistedInRedis ? '' : ' &middot; ⚠ tanpa Redis (Upstash), angka reset tiap cold-start — tidak akurat untuk keputusan production') + '</div>';
+        } else {
+          dqBox.innerHTML = '<span style="color:var(--text3)">Data telemetri tidak tersedia.</span>';
+        }
+      } catch (err) {
+        dqBox.innerHTML = '<span style="color:var(--text3)">Gagal memuat telemetri Data Quality Gate (' + escHtml(String(err && err.message || err)) + ').</span>';
       }
     }
   }
