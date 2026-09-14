@@ -1317,7 +1317,15 @@ function fhFetchIHSG(){
     }
     fhApplyIHSG(
       meta.regularMarketPrice,
-      meta.previousClose||meta.regularMarketPrice,
+      // FIX (2026-09-14, user-reported "IHSG selalu +0,00%"): endpoint Yahoo
+      // /v8/finance/chart/{symbol} TIDAK PERNAH mengisi field `previousClose`
+      // (itu field quoteSummary, bukan chart) - field yang benar-benar ada di
+      // sini adalah `chartPreviousClose` (dipakai konsisten di file lain:
+      // lib/idx-data-engine.js, lib/providers/yahoo-client.js,
+      // 41-stockchat-cockpit.js, 40-idx-pipeline.js). Sebelumnya
+      // meta.previousClose selalu undefined -> fallback ke harga sekarang
+      // -> perubahan harian selalu dihitung 0,00% walau harga di atasnya benar.
+      meta.chartPreviousClose||meta.previousClose||meta.regularMarketPrice,
       meta.regularMarketOpen||meta.regularMarketPrice,
       meta.regularMarketDayHigh||meta.regularMarketPrice,
       meta.regularMarketDayLow||meta.regularMarketPrice
@@ -1423,7 +1431,10 @@ function fhFetchStocks(){
         yfFetch(code+'.JK', function(err, meta){
           if(!err && meta && meta.regularMarketPrice > 0){
             prices[code] = meta.regularMarketPrice;
-            if(meta.previousClose > 0) prevCloses[code] = meta.previousClose;
+            // FIX (2026-09-14): chartPreviousClose adalah field yang benar-benar
+            // dikembalikan endpoint chart Yahoo, lihat catatan di fhFetchIHSG().
+            if(meta.chartPreviousClose > 0) prevCloses[code] = meta.chartPreviousClose;
+            else if(meta.previousClose > 0) prevCloses[code] = meta.previousClose;
             if(typeof DB!=='undefined' && DB[code]) DB[code].base = meta.regularMarketPrice;
             if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
             _triggerRenderAfterPrice();
