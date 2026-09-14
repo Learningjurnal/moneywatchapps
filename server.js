@@ -25,6 +25,7 @@ import {
   generateTradingHypothesis,
   generateExitHypothesis,
   assessDataQuality,
+  getDataQualityTelemetry,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA } from './lib/invezgo-client.js';
@@ -3063,6 +3064,21 @@ app.get('/api/idx/invezgo-status', async (req, res) => {
       },
       updatedAt: new Date().toISOString()
     });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/data-quality-status — Observability untuk keputusan kapan
+// aman mengaktifkan DATA_QUALITY_ENFORCE_STAGE2 (lihat komentar flag itu di
+// lib/idx-data-engine.js & .env.example: "only set to true after observing
+// how often non-REAL status actually occurs in production" — sebelumnya
+// TIDAK ADA cara mengamati itu). Read-only, tidak mengubah env var apa pun
+// — keputusan mengaktifkan Stage 2 tetap manual oleh operator.
+app.get('/api/idx/data-quality-status', async (req, res) => {
+  try {
+    const telemetry = await getDataQualityTelemetry();
+    return res.json({ success: true, ...telemetry });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
