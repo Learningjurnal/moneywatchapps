@@ -2725,3 +2725,18 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 `npm test` (154/154), `npm run lint` bersih.
 
 **Catatan**: chart ini pakai data `ihsgHist` yang terkumpul dari sesi pemakaian aplikasi (bukan data historis resmi dari bursa) — jadi untuk user baru, grafik akan tampak datar sampai beberapa kali refresh harga terkumpul. Ini konsisten dengan cara data tersebut sudah dikumpulkan sebelumnya (tidak diubah), hanya visualisasinya yang baru ditambahkan.
+
+## 2026-09-14 — Redesign grafik IHSG Market Pulse mengikuti format layout Yahoo Finance yang lebih detail
+
+- **Konteks:** user kirim screenshot tampilan Yahoo Finance (^JKSE) — chart+tab rentang waktu (1D/5D/1M/6M/YTD/1Y/5Y/All) di kiri dengan garis putus-putus di level Previous Close dan dot+badge harga di titik terakhir, panel statistik (Previous Close, Open, Volume, Avg. Volume, Day Low/High, 52 Week Low/High) di kanan — minta format grafik IHSG di Market Pulse dibuat seperti itu.
+- **Perbaikan (`public/js/28-decisiontools.js`)**:
+  - Card IHSG dirombak jadi 2 kolom: kiri (chart + tab rentang), kanan (panel statistik, border pemisah).
+  - Tab rentang waktu: hanya "1D" yang aktif & fungsional (data real dari `ihsgHist`, menampilkan % perubahan sungguhan). Tab lain (5D/1M/6M/YTD/1Y/5Y/All) sengaja ditampilkan nonaktif (abu-abu, `disabled`-style) dengan toast informatif saat diklik — **KEPUTUSAN SADAR**: aplikasi ini tidak menyimpan histori harga IHSG jangka panjang (hanya ~120 titik intraday sesi berjalan), jadi mengisi tab-tab itu dengan data akan berarti MENGARANG angka finansial yang terlihat otentik. Lebih jujur menampilkan UI-nya (sesuai format yang diminta) tapi nonaktif dengan penjelasan, daripada memalsukan data pasar.
+  - Panel statistik kanan: Previous Close (`ihsgBase`), Open & Day Low/High dihitung jujur dari `ihsgHist` (min/max/titik pertama — data real sesi ini, bukan data resmi bursa harian). Volume, Avg. Volume, 52 Week Low, 52 Week High ditampilkan "—" karena aplikasi memang tidak melacak data ini — TIDAK diisi angka rekaan meski itu akan lebih mirip screenshot referensi. Catatan kecil ditambahkan di bawah panel menjelaskan keterbatasan ini secara eksplisit ke user.
+  - Chart: plugin Chart.js custom baru `_ihsgPrevCloseLinePlugin` — menggambar garis putus-putus abu-abu di level `ihsgBase` (previous close, `afterDatasetsDraw`) dan badge kotak berwarna (hijau/merah sesuai tren) berisi harga saat ini di titik data terakhir (`afterDraw`), meniru pola dot+label harga khas Yahoo Finance. Warna palet disamakan dengan token `--green`/`--red` aplikasi (`#00873C`/`#D0163A`).
+  - Cache-bust: `28-decisiontools.js?v=20260914b`.
+- **Live verification (Playwright, server lokal, Chart.js REAL dari `node_modules`, di-intercept via `page.route` karena CDN diblokir sandbox)**: seed 40 titik data sintetis, screenshot tema gelap & terang — layout 2 kolom tampil rapi, tab "1D +0.58%" aktif biru dan 7 tab lain abu-abu nonaktif, badge harga hijau muncul tepat di titik akhir garis, panel statistik kanan menampilkan Previous Close/Open/Day Low/Day High dengan angka benar dan Volume/52W dengan "—" jujur. Tanpa error konsol.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Catatan**: ini secara sadar TIDAK 1:1 identik dengan referensi Yahoo Finance dari sisi data (7 dari 8 tab rentang nonaktif, 4 dari 8 baris statistik "—") — karena mereplikasi FORMAT visual tidak berarti mengarang data finansial yang tidak dimiliki aplikasi. Kalau ke depannya user ingin data historis panjang & volume/52-minggu IHSG sungguhan, itu perlu integrasi sumber data baru (mis. memperluas `yfFetch`/`fhFetchIHSG` untuk menarik `range` lebih panjang dan field meta tambahan dari Yahoo Finance) — pekerjaan terpisah yang lebih besar, di luar cakupan permintaan format ini.
