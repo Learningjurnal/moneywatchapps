@@ -73,6 +73,11 @@ var VS_SCREEN_STATE = {
   scanToken: 0             // dibatalkan kalau filter berganti di tengah scan
 };
 var VS_INDEX_LABELS = { lq45: 'LQ45', idx30: 'IDX30', idx80: 'IDX80', kompas100: 'Kompas100' };
+// FIX (2026-09-14, user-requested): tabel screening dibatasi menampilkan
+// maksimal 10 baris tertinggi (sesuai sort aktif) — scan seluruh index
+// TETAP jalan penuh di background (VS_SCREEN_STATE.rows menyimpan SEMUA
+// saham spike yang ditemukan, tidak dibuang), cuma yang DITAMPILKAN dibatasi.
+var VS_MAX_DISPLAY_ROWS = 10;
 
 function vsFmtVol(n) {
   n = Number(n) || 0;
@@ -148,7 +153,22 @@ function renderVolumeSpikePage(presetTicker) {
     || 'AKRA').toUpperCase().trim();
   VS_STATE.ticker = tk;
 
-  var firstRender = !el('vs-screen-table');
+  // FIX (2026-09-14, user-reported "scan selalu reset dari 0"): sebelumnya
+  // cek ini mengacu ke id="vs-screen-table" yang TIDAK PERNAH ada di markup
+  // manapun (typo dari PR sebelumnya — yang benar-benar dibuat cuma
+  // "vs-screen-tbody"/"vs-screen-col") — jadi kondisi ini SELALU true,
+  // membangun ulang seluruh panel + me-restart scan dari 0 SETIAP KALI
+  // renderVolumeSpikePage() dipanggil. Fungsi ini dipanggil otomatis tiap
+  // ~60 detik oleh mesin harga live (lihat "if(tick%4===0)
+  // renderPage(currentPage)" di 03-engine.js, bagian refresh IHSG/harga
+  // yang jalan di SEMUA halaman) — untuk index besar (Kompas100, 131
+  // saham × 350ms ≈ 46 detik per scan), refresh 60 detik itu HAMPIR SELALU
+  // memotong scan di tengah jalan dan mengulang dari 0, persis gejala yang
+  // dilaporkan. "vs-detail-col" dipakai sebagai penanda di sini karena
+  // wrapper ini sendiri TIDAK PERNAH dibangun ulang setelah render pertama
+  // (hanya isi di dalamnya, #vs-body, yang berubah) — beda dari
+  // "vs-screen-tbody" yang isinya sengaja ditulis ulang tiap ganti filter.
+  var firstRender = !el('vs-detail-col');
   if (firstRender) {
     vsRenderShell(tk);
     vsStartScreening(VS_SCREEN_STATE.index); // scan otomatis sekali saat halaman pertama dibuka
@@ -246,7 +266,7 @@ function vsScreenPanelShellHtml() {
         + '<button class="btn btn-ghost btn-xs" id="vs-screen-refresh" onclick="vsStartScreening(VS_SCREEN_STATE.index, true)" title="Pindai ulang">↻</button>'
       + '</div>'
     + '</div>'
-    + '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">Volume &amp; harga: Yahoo Finance (cache harian) — tidak memakai kuota Invezgo. Hanya saham dengan rasio volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x yang ditampilkan (supaya layout stabil, tidak menampilkan seluruh index). Klik satu baris untuk dianalisis di panel kiri.</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">Volume &amp; harga: Yahoo Finance (cache harian) — tidak memakai kuota Invezgo. Hanya saham dengan rasio volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x yang ditampilkan, maksimal ' + VS_MAX_DISPLAY_ROWS + ' rasio tertinggi (scan seluruh index tetap jalan di belakang layar). Klik satu baris untuk dianalisis di panel kiri.</div>'
     + '<div id="vs-screen-progress" style="font-size:11px;color:var(--text3);margin-bottom:6px"></div>'
     + '<div style="overflow-x:auto"><table class="tbl" style="font-size:11px;width:100%">'
       + '<thead><tr>'
@@ -326,7 +346,11 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
   var progressEl = el('vs-screen-progress');
   if (i >= universe.length) {
     VS_SCREEN_STATE.scanning = false;
-    if (progressEl) progressEl.textContent = VS_SCREEN_STATE.rows.length + ' dari ' + universe.length + ' saham menunjukkan lonjakan volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x.';
+    if (progressEl) {
+      var foundMsg = VS_SCREEN_STATE.rows.length + ' dari ' + universe.length + ' saham menunjukkan lonjakan volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x.';
+      if (VS_SCREEN_STATE.rows.length > VS_MAX_DISPLAY_ROWS) foundMsg += ' Menampilkan ' + VS_MAX_DISPLAY_ROWS + ' rasio tertinggi.';
+      progressEl.textContent = foundMsg;
+    }
     // Satu-satunya titik di mana seluruh tabel diurutkan & ditulis ulang
     // penuh selama proses scan — sekali di akhir, bukan per-ticker (lihat
     // catatan di afterFetch() / vsAppendScreenRow()).
@@ -363,10 +387,12 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
           todayVol: stats.todayVol, med14: stats.med14, med30: stats.med30,
           ratio14: stats.ratio14, ratio30: stats.ratio30, isSpike: stats.isSpike, chg1d: stats.chg1d
         };
+        // SEMUA saham spike tetap disimpan di state (tidak dibuang) — dipakai
+        // untuk angka "N saham menunjukkan lonjakan" di progress text, dan
+        // supaya scan TETAP jalan penuh di background sampai selesai
+        // (user-requested: "biarkan scanning berjalan dibelakang").
         VS_SCREEN_STATE.rows.push(rowObj);
-        // Baris baru ditambahkan lewat DOM appendChild (fade-in halus),
-        // TANPA menyentuh baris yang sudah tampil — lihat vsAppendScreenRow().
-        vsAppendScreenRow(rowObj);
+        vsMaybeUpdateVisibleTable(rowObj);
       }
     }
     setTimeout(function() { vsScanNext(universe, i + 1, myToken, forceRefresh); }, 350);
@@ -392,6 +418,10 @@ function vsSortedScreenRows() {
     return dir === 'asc' ? (vA - vB) : (vB - vA);
   });
   return rows;
+}
+
+function vsTopScreenRows() {
+  return vsSortedScreenRows().slice(0, VS_MAX_DISPLAY_ROWS);
 }
 
 // HTML 1 baris tabel screening — dipakai BERSAMA oleh rebuild penuh
@@ -421,7 +451,7 @@ function vsRowHtml(r) {
 function vsRenderScreenTable() {
   var tbody = el('vs-screen-tbody');
   if (!tbody) return;
-  var rows = vsSortedScreenRows();
+  var rows = vsTopScreenRows(); // dibatasi max VS_MAX_DISPLAY_ROWS, scan penuh tetap di VS_SCREEN_STATE.rows
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">'
       + (VS_SCREEN_STATE.scanning ? 'Memindai...' : ('Tidak ada saham dengan lonjakan volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x di indeks ini saat ini.')) + '</td></tr>';
@@ -431,11 +461,12 @@ function vsRenderScreenTable() {
 }
 
 // Tambahkan SATU baris baru ke tabel tanpa menyentuh baris yang sudah
-// tampil — dipakai selama scan berjalan (dipanggil sekali per ticker,
-// tiap ~350ms) supaya layar tidak "refresh"/berkedip penuh terus-menerus.
-// Baris ditambahkan di URUTAN DITEMUKAN (bukan diurutkan ulang tiap kali —
-// itu yang bikin baris lama meloncat posisi); urutan sesuai sort aktif
-// baru diterapkan sekali di akhir scan lewat vsRenderScreenTable().
+// tampil — dipakai selama tabel masih di bawah VS_MAX_DISPLAY_ROWS baris
+// (lihat vsMaybeUpdateVisibleTable) supaya layar tidak "refresh"/berkedip
+// penuh terus-menerus. Baris ditambahkan di URUTAN DITEMUKAN (bukan
+// diurutkan ulang tiap kali — itu yang bikin baris lama meloncat posisi);
+// urutan sesuai sort aktif baru diterapkan sekali di akhir scan lewat
+// vsRenderScreenTable().
 function vsAppendScreenRow(r) {
   var tbody = el('vs-screen-tbody');
   if (!tbody) return;
@@ -446,6 +477,31 @@ function vsAppendScreenRow(r) {
   var tr = wrap.firstElementChild;
   tr.style.animation = 'smFadeIn .25s ease'; // transisi halus, bukan lompatan mendadak
   tbody.appendChild(tr);
+}
+
+// FIX (2026-09-14, user-requested "hanya tampilkan 10 tertinggi, biarkan
+// scanning berjalan dibelakang"): dipanggil tiap kali 1 saham baru lolos
+// ambang spike selama scan. Tabel yang TAMPIL dibatasi VS_MAX_DISPLAY_ROWS
+// (10) baris, tapi scan tetap jalan penuh sampai akhir index (lihat
+// vsScanNext — tidak berhenti di 10) supaya "N saham ditemukan" di
+// progress text tetap akurat.
+//   - Kalau baris yang tampil MASIH di bawah 10: cukup append 1 baris baru
+//     (murah, tanpa rebuild — sama seperti sebelumnya).
+//   - Kalau sudah PAS 10: baris baru hanya memicu render ulang (dibatasi
+//     tetap 10 baris, jadi tetap murah) KALAU saham ini cukup tinggi buat
+//     benar-benar masuk top 10 saat ini — menggeser 1 baris yang paling
+//     rendah keluar. Saham yang tidak cukup tinggi diam-diam diabaikan
+//     dari tampilan (tapi tetap tersimpan di VS_SCREEN_STATE.rows).
+function vsMaybeUpdateVisibleTable(newRow) {
+  var tbody = el('vs-screen-tbody');
+  var shownCount = tbody ? tbody.querySelectorAll('tr[data-code]').length : 0;
+  if (shownCount < VS_MAX_DISPLAY_ROWS) {
+    vsAppendScreenRow(newRow);
+    return;
+  }
+  if (vsTopScreenRows().indexOf(newRow) !== -1) {
+    vsRenderScreenTable(); // tetap dibatasi 10 baris oleh vsTopScreenRows() — murah, jarang terjadi
+  }
 }
 
 function vsLoadAndRender(tk) {
