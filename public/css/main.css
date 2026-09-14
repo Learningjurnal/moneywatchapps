@@ -190,6 +190,11 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
 .topbar-right button:hover i {
   color: var(--text);
 }
+/* FIX (2026-09-14): .tb-logo-icon sekarang elemen <img> (logo raster baru,
+   gradasi biru-cyan sudah bawaan gambar) — aturan `color` di bawah ini
+   (dan di body.theme-light .topbar .tb-logo-icon) sudah tidak berpengaruh
+   ke gambar, sengaja DIBIARKAN (bukan dihapus) sebagai fallback aman kalau
+   ikon ini suatu saat dikembalikan ke SVG currentColor seperti semula. */
 .topbar .logo .tb-logo-icon {
   color: var(--accent);
 }
