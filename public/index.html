@@ -7,7 +7,7 @@
 <meta name="description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, visual dividend calendar, passive income tracking, net worth reporting, and PDF investment statement generation.">
 <meta property="og:title" content="Money Watch Pro">
 <meta property="og:description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, visual dividend calendar, passive income tracking, net worth reporting, and PDF investment statement generation.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23131324'/><path d='M7 21 L13 13 L18 17 L25 8' stroke='%2334d399' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='25' cy='8' r='2' fill='%2334d399'/></svg>">
+<link rel="icon" type="image/png" href="img/favicon.png?v=20260914a">
 <script>
   // Safe circular-structure JSON stringifier patch
   (function() {
@@ -275,11 +275,19 @@
   <div style="display:flex;align-items:center;gap:12px">
     <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Buka/tutup menu navigasi">☰</button>
     <div class="logo" style="display:flex;align-items:center;gap:7px;cursor:pointer" onclick="goPage('dashboard')">
-      <svg class="tb-logo-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M7 14 L10 10 L13 13 L17 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="17" cy="8" r="1.5" fill="currentColor"/>
-      </svg>
+      <!-- FIX (2026-09-14, user-requested rebrand): ikon SVG lama (currentColor,
+           ikut warna teks otomatis) diganti logo baru user (gambar raster
+           gradasi biru-cyan multi-warna, tidak bisa pakai trik currentColor).
+           Kontras tetap terjaga di kedua tema TANPA CSS override tambahan:
+           gradasi birunya sendiri sudah terang/vivid di atas topbar gelap
+           (#0E131F) MAUPUN topbar terang (putih) - dicek manual terhadap
+           kedua warna latar topbar sebelum dipasang. Wordmark teks "MONEYWATCH
+           PRO" di sebelahnya SENGAJA TETAP teks asli (bukan diambil dari teks
+           yang ada di gambar logo user) karena teks di gambar itu didesain
+           untuk latar hitam pekat (kata "MONEY" nyaris tak kontras di latar
+           lain) - teks asli di sini sudah otomatis mengikuti var(--text)/
+           var(--accent) tiap tema, jadi kontrasnya justru lebih terjamin. -->
+      <img class="tb-logo-icon" src="img/logo-mark.png?v=20260914a" alt="MoneyWatch" height="24" style="width:auto;display:block">
       <span class="logo" style="color:var(--text);font-weight:800">MONEY<span style="color:var(--accent)">WATCH</span> <span style="font-size:10px;padding:1px 5px;background:var(--brand-soft);border:1px solid var(--accent);border-radius:4px;color:var(--accent);font-weight:700">PRO</span></span>
     </div>
     <div class="ihsg-bar">
