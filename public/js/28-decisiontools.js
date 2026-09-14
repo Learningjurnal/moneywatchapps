@@ -81,19 +81,58 @@ function renderDailyBriefPage() {
     + '</div>'
   + '</div>'
 
-  // Simple IHSG chart (Yahoo Finance style: big price + change, thin sparkline area below)
-  + '<div class="card" style="padding:18px 22px;margin-bottom:18px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:6px">'
-      + '<div>'
-        + '<div style="font-size:11px;color:var(--text3);letter-spacing:.03em">IHSG · Indeks Harga Saham Gabungan</div>'
-        + '<div style="display:flex;align-items:baseline;gap:10px;margin-top:2px">'
-          + '<span style="font-size:24px;font-weight:700;font-family:var(--font-mono)">' + curIhsg.toLocaleString('id-ID', {minimumFractionDigits:2}) + '</span>'
-          + '<span class="' + (isBullish ? 'up' : 'dn') + '" style="font-size:13px;font-weight:600">' + (isBullish ? '▲' : '▼') + ' ' + (isBullish ? '+' : '') + ihsgDiff.toFixed(2) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%)</span>'
+  // IHSG chart — layout ala Yahoo Finance: chart+tab rentang di kiri, panel statistik di kanan
+  + (function(){
+      var hist = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg];
+      var dayLo = Math.min.apply(null, hist), dayHi = Math.max.apply(null, hist);
+      var openVal = hist[0];
+      var fmtIdx = function(v){ return v.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+      var ranges = [
+        {key:'1D', label:'1D', pct: ihsgPct, active:true},
+        {key:'5D', label:'5D'}, {key:'1M', label:'1M'}, {key:'6M', label:'6M'},
+        {key:'YTD', label:'YTD'}, {key:'1Y', label:'1Y'}, {key:'5Y', label:'5Y'}, {key:'ALL', label:'All'}
+      ];
+      var tabsHtml = ranges.map(function(r){
+        if (r.active) {
+          return '<button class="btn btn-blue btn-xs" style="min-width:44px" disabled>' + r.label
+            + '<div style="font-size:9px;font-weight:600">' + (isBullish ? '+' : '') + r.pct + '%</div></button>';
+        }
+        return '<button class="btn btn-ghost btn-xs" style="min-width:44px;opacity:.5;cursor:not-allowed" '
+          + 'onclick="showToast(\'Riwayat ' + r.label + ' butuh data historis resmi bursa — belum terintegrasi\',{type:\'info\'})" '
+          + 'title="Belum tersedia — hanya data intraday sesi ini yang tercatat">' + r.label + '</button>';
+      }).join('');
+
+      return '<div class="card" style="padding:0;margin-bottom:18px;overflow:hidden">'
+        + '<div style="display:flex;flex-wrap:wrap">'
+          + '<div style="flex:1 1 440px;min-width:280px;padding:18px 20px 12px">'
+            + '<div style="font-size:11px;color:var(--text3);letter-spacing:.03em">IHSG · Indeks Harga Saham Gabungan</div>'
+            + '<div style="display:flex;align-items:baseline;gap:10px;margin-top:2px;margin-bottom:10px">'
+              + '<span style="font-size:24px;font-weight:700;font-family:var(--font-mono)">' + fmtIdx(curIhsg) + '</span>'
+              + '<span class="' + (isBullish ? 'up' : 'dn') + '" style="font-size:13px;font-weight:600">' + (isBullish ? '▲' : '▼') + ' ' + (isBullish ? '+' : '') + ihsgDiff.toFixed(2) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%)</span>'
+            + '</div>'
+            + '<div style="height:190px;position:relative"><canvas id="daily-brief-ihsg-chart"></canvas></div>'
+            + '<div style="text-align:center;font-size:10px;color:var(--text3);margin-top:4px">Volume tidak tersedia untuk indeks komposit</div>'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border2)">' + tabsHtml + '</div>'
+          + '</div>'
+          + '<div style="flex:0 0 220px;border-left:1px solid var(--border2);padding:16px 20px;display:flex;flex-direction:column">'
+            + [
+                ['Previous Close', fmtIdx(ihsgBase)],
+                ['Open (sesi ini)', fmtIdx(openVal)],
+                ['Day Low', fmtIdx(dayLo)],
+                ['Day High', fmtIdx(dayHi)],
+                ['Volume', '—'],
+                ['Avg. Volume', '—'],
+                ['52 Week Low', '—'],
+                ['52 Week High', '—']
+              ].map(function(row){
+                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border2);font-size:11.5px">'
+                  + '<span style="color:var(--text3)">' + row[0] + '</span><b class="mono">' + row[1] + '</b></div>';
+              }).join('')
+            + '<div style="font-size:9.5px;color:var(--text3);margin-top:8px;line-height:1.4">Volume &amp; data 52 minggu belum terintegrasi — Day Low/High &amp; Open dihitung dari histori sesi aplikasi ini.</div>'
+          + '</div>'
         + '</div>'
-      + '</div>'
-    + '</div>'
-    + '<div style="height:110px;position:relative"><canvas id="daily-brief-ihsg-chart"></canvas></div>'
-  + '</div>'
+      + '</div>';
+    })()
 
   // Dynamic 3 Things to Watch Today across Portfolio
   + '<div class="card" style="padding:22px;margin-bottom:18px">'
@@ -275,23 +314,71 @@ function renderDailyBriefPage() {
   renderDailyBriefIhsgChart(curIhsg, isBullish);
 }
 
-// Simple IHSG sparkline/area chart (Yahoo Finance-style: minimal axes, colored
-// by trend direction) rendered from ihsgHist — the live-updating price history
-// array (01-data.js) that until now was collected but never visualized anywhere.
+// IHSG chart ala Yahoo Finance: garis putus-putus di level previous close,
+// area+garis hijau/merah sesuai tren, dot+badge harga di titik terakhir.
+// Sumber data: ihsgHist — histori harga live (01-data.js) yang sebelumnya
+// dikumpulkan tapi tidak pernah divisualisasikan.
+var _ihsgPrevCloseLinePlugin = {
+  id: 'ihsgPrevCloseLine',
+  afterDatasetsDraw: function(chart) {
+    var prevClose = chart.$prevClose;
+    if (typeof prevClose !== 'number') return;
+    var yScale = chart.scales.y, xScale = chart.scales.x;
+    var y = yScale.getPixelForValue(prevClose);
+    var ctx = chart.ctx;
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = 'rgba(148,163,184,.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xScale.left, y);
+    ctx.lineTo(xScale.right, y);
+    ctx.stroke();
+    ctx.restore();
+  },
+  afterDraw: function(chart) {
+    var meta = chart.getDatasetMeta(0);
+    var lastPt = meta.data[meta.data.length - 1];
+    if (!lastPt) return;
+    var ds = chart.data.datasets[0];
+    var val = ds.data[ds.data.length - 1];
+    var color = chart.$isBullish ? '#00873C' : '#D0163A';
+    var ctx = chart.ctx;
+    var label = val.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    ctx.save();
+    ctx.font = 'bold 10px "Fira Code", monospace';
+    var textW = ctx.measureText(label).width;
+    var boxW = textW + 12, boxH = 18;
+    var boxX = Math.min(lastPt.x + 6, chart.width - boxW - 4);
+    var boxY = lastPt.y - boxH / 2;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(boxX, boxY, boxW, boxH, 3) : ctx.rect(boxX, boxY, boxW, boxH);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, boxX + 6, boxY + boxH / 2 + 1);
+    ctx.restore();
+  }
+};
+
 function renderDailyBriefIhsgChart(curIhsg, isBullish) {
   kc('dbIhsg');
   var cv = el('daily-brief-ihsg-chart');
   if (!cv || typeof Chart === 'undefined') return;
 
   var hist = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg];
-  var lineColor = isBullish ? '#00e59b' : '#ff3d5a';
+  var prevClose = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : hist[0];
+  var lineColor = isBullish ? '#00873C' : '#D0163A';
   var ctx = cv.getContext('2d');
-  var grad = ctx.createLinearGradient(0, 0, 0, 110);
-  grad.addColorStop(0, isBullish ? 'rgba(0,229,155,.25)' : 'rgba(255,61,90,.25)');
-  grad.addColorStop(1, isBullish ? 'rgba(0,229,155,0)' : 'rgba(255,61,90,0)');
+  var grad = ctx.createLinearGradient(0, 0, 0, 190);
+  grad.addColorStop(0, isBullish ? 'rgba(0,135,60,.28)' : 'rgba(208,22,58,.28)');
+  grad.addColorStop(1, isBullish ? 'rgba(0,135,60,0)' : 'rgba(208,22,58,0)');
+  var pointRadii = hist.map(function(_, i) { return i === hist.length - 1 ? 4 : 0; });
 
   charts['dbIhsg'] = new Chart(cv, {
     type: 'line',
+    plugins: [_ihsgPrevCloseLinePlugin],
     data: {
       labels: hist.map(function(_, i) { return i; }),
       datasets: [{
@@ -300,16 +387,19 @@ function renderDailyBriefIhsgChart(curIhsg, isBullish) {
         borderWidth: 2,
         backgroundColor: grad,
         fill: true,
-        tension: 0.3,
-        pointRadius: 0,
-        pointHoverRadius: 3,
-        pointHoverBackgroundColor: lineColor
+        tension: 0.15,
+        pointRadius: pointRadii,
+        pointBackgroundColor: lineColor,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        pointHoverRadius: 4
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
+      layout: { padding: { right: 56 } },
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
@@ -327,6 +417,8 @@ function renderDailyBriefIhsgChart(curIhsg, isBullish) {
       }
     }
   });
+  charts['dbIhsg'].$prevClose = prevClose;
+  charts['dbIhsg'].$isBullish = isBullish;
 }
 
 // ══════════════════════════════════════════════════════════
