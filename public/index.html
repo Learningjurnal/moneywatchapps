@@ -178,7 +178,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20260912b">
+<link rel="stylesheet" href="css/main.css?v=20260914a">
 <link rel="stylesheet" href="css/wealth.css?v=20260912a">
 </head>
 <body>
@@ -2573,17 +2573,14 @@
     </div>
   </div>
 
-  <div class="sm-container">
-    <!-- TOP HORIZONTAL SUB-NAV -->
-    <div class="sm-suite-header">
-      <div class="sm-suite-brand">
-                <span>Fundamental <span style="color:#3B82F6">PRO</span></span>
-      </div>
-      <div class="sm-suite-tabs">
-        <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">Analisa Terpadu &amp; Valuasi Saham</button>
-        <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)">Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
-        <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)">Kepemilikan &amp; Free Float KSEI</button>
-      </div>
+  <div class="sm-container-plain">
+    <!-- TOP HORIZONTAL SUB-NAV — judul "Fundamental PRO" (dulu di sini,
+         dobel dengan .ptitle "Analisis Fundamental" di atas) sudah dihapus,
+         tab navigasi tetap dipertahankan. -->
+    <div class="sm-suite-tabs" style="margin-bottom:16px">
+      <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">Analisa Terpadu &amp; Valuasi Saham</button>
+      <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)">Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
+      <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)">Kepemilikan &amp; Free Float KSEI</button>
     </div>
 
     <!-- MAIN WORKSPACE -->
@@ -2979,17 +2976,14 @@
     </div>
   </div>
 
-  <div class="sm-container">
-    <!-- TOP HORIZONTAL SUB-NAV -->
-    <div class="sm-suite-header">
-      <div class="sm-suite-brand">
-                <span>Technical <span style="color:var(--accent)">PRO</span></span>
-      </div>
-      <div class="sm-suite-tabs">
-        <button type="button" class="sm-nav-item active-tech" id="tech-nav-1" onclick="techSwitchTab(1)">Live Chart (TradingView)</button>
-        <button type="button" class="sm-nav-item" id="tech-nav-2" onclick="techSwitchTab(2)">Analisa Komprehensif</button>
-        <button type="button" class="sm-nav-item" id="tech-nav-3" onclick="techSwitchTab(3)">LQ45 Momentum Scanner</button>
-      </div>
+  <div class="sm-container-plain">
+    <!-- TOP HORIZONTAL SUB-NAV — judul "Technical PRO" (dulu di sini,
+         dobel dengan .ptitle "Analisis Teknikal & Flow" di atas) sudah
+         dihapus, tab navigasi tetap dipertahankan. -->
+    <div class="sm-suite-tabs" style="margin-bottom:16px">
+      <button type="button" class="sm-nav-item active-tech" id="tech-nav-1" onclick="techSwitchTab(1)">Live Chart (TradingView)</button>
+      <button type="button" class="sm-nav-item" id="tech-nav-2" onclick="techSwitchTab(2)">Analisa Komprehensif</button>
+      <button type="button" class="sm-nav-item" id="tech-nav-3" onclick="techSwitchTab(3)">LQ45 Momentum Scanner</button>
     </div>
 
     <!-- MAIN WORKSPACE -->

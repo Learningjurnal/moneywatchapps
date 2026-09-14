@@ -1759,6 +1759,19 @@ body.mode-executive .metric .mval {
   box-shadow: 0 8px 32px rgba(0,0,0,.4);
   margin-bottom: 20px;
 }
+/* FIX (2026-09-14, user-requested): halaman Fundamental & Technical dulu
+   dibungkus .sm-container (kartu gelap dengan border/shadow sendiri) yang di
+   dalamnya masih ada .sm-suite-header berisi judul "Fundamental PRO"/
+   "Technical PRO" - dobel dengan .ptitle halaman ("Analisis Fundamental"/
+   "Analisis Teknikal & Flow") yang sudah tampil di atasnya. .sm-container-plain
+   adalah varian TANPA kartu (tanpa background/border/shadow/radius sendiri)
+   untuk 2 halaman itu saja - .sm-container asli TETAP dipakai apa adanya oleh
+   Crypto Technical (page-crypto-technical) yang tidak diminta diubah. */
+.sm-container-plain {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
 .sm-suite-header {
   background: #131B2E;
   border-bottom: 1px solid #232F4D;
