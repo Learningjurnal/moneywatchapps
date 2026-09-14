@@ -3581,10 +3581,21 @@
         <!-- XGB params -->
         <div id="bt-params-xgb" style="display:none">
           <div class="alert alert-warn" id="bt-xgb-status" style="margin-bottom:8px">⏳ Memeriksa model XGBoost...</div>
-          <div class="fg" style="margin-bottom:8px">
-            <div class="flabel">Train/Test Split</div>
-            <select class="finput fsel" id="bt-xgb-sp"><option value="0.7">70/30</option><option value="0.8" selected>80/20</option></select>
-          </div>
+          <!-- FIX (2026-09-14, user-reported "bug timeframe"): selector
+               "Train/Test Split" (id="bt-xgb-sp", 70/30 vs 80/20) yang
+               sebelumnya ada di sini TIDAK PERNAH terhubung ke JS manapun
+               (grep memastikan nol referensi) — mengubahnya tidak melakukan
+               apa-apa sama sekali, murni dead UI yang menyesatkan (terlihat
+               seperti mengatur split tapi diam-diam tidak berfungsi).
+               Model XGBoost sendiri di-load PRE-TRAINED dari ONNX (dilatih
+               offline via ml/train_xgb_signal.py) — bukan dilatih ulang di
+               browser — jadi "Train/Test Split" di sini tidak pernah
+               relevan untuk inferensi. Konsep split yang SUNGGUHAN dan
+               genuinely berfungsi untuk backtest (termasuk strategi
+               XGBoost) sudah ada di bawah: "Walk-Forward Split". Selector
+               dead ini dihapus alih-alih diperbaiki, supaya tidak ada 2
+               kontrol split yang terlihat serupa tapi cuma 1 yang bekerja.
+          -->
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
           <div class="fg"><div class="flabel">Modal (Rp)</div><input class="finput" id="bt-capital" value="100000000" type="number"></div>
