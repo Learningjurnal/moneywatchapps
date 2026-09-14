@@ -2858,3 +2858,34 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - **Live verification (Playwright, server lokal, dengan `page.route` memalsukan respons Yahoo persis seperti aslinya — `chartPreviousClose` ada, `previousClose` TIDAK ADA)**: sebelum fix, `ihsgBase` = `ihsgCur` (0,00%). Setelah fix, `ihsgCur=6534.69`, `ihsgBase=6541.37`, perubahan terhitung `-0.10%` — cocok persis dengan angka Yahoo Finance di laporan user. Header ticker dan running ticker tape keduanya menampilkan `IHSG 6.534,69 ▼ -0,10%` secara konsisten. Screenshot dikirim ke user. Nol error konsol.
 - `npm test` (154/154), `npm run lint` bersih. Cache-bust `03-engine.js?v=20260914b`.
 - **Catatan**: bug ini murni di jalur client-side langsung-ke-Yahoo (dipakai widget header/ticker real-time) — tidak memengaruhi data fundamental/teknikal/sinyal AI Trading di halaman lain, yang semuanya sudah lewat `lib/idx-data-engine.js` di server (field `chartPreviousClose` sudah benar di sana sejak awal).
+
+## 2026-09-14 — Rework Volume Spike: layout 2 kolom + screening lintas-saham + logo perusahaan asli (`public/js/45-volume-spike.js`)
+
+- **Konteks:** user minta 4 hal sekaligus untuk halaman Volume Spike: (1) bagi layout jadi 2 kolom — hasil screening & detail per kode saham, (2) ganti logo saham yang "masih karangan" dengan logo perusahaan asli, (3) tabel screening pakai sumber data yang paling mudah diidentifikasi DAN tidak memakan kuota Invezgo, (4) tabel bisa di-sort dan difilter per indeks (LQ45, IDX30, dll).
+
+- **(1) Layout 2 kolom** (`class="g2b"`, pola grid 2-kolom yang sudah dipakai di tempat lain di app dan otomatis menumpuk 1 kolom di layar sempit — lihat `main.css`):
+  - **Kiri** — panel detail 1 ticker (fitur lama: headline spike, kartu info, chart volume 7 hari, price change 1D/3D/7D, verdict bandarmology) — logikanya TIDAK berubah, cuma dipindah ke sub-kolom.
+  - **Kanan** — panel BARU "Screening Volume Spike": dropdown filter indeks, tombol refresh, dan tabel yang bisa disortir per kolom. Klik satu baris = pilih ticker itu untuk dianalisis di panel kiri (ikut disiarkan ke `GLOBAL_STOCK_CONTEXT` supaya halaman lain ikut pindah).
+  - Shell 2 kolom hanya dibangun SEKALI per sesi (dicek via `!el('vs-screen-table')`) — berpindah ticker di kolom kiri (lewat search/klik baris/GLOBAL_STOCK_CONTEXT) hanya me-refresh panel kiri, TIDAK membangun ulang / me-reset hasil scan tabel screening di kanan.
+
+- **(2) Logo perusahaan asli, bukan "karangan":** sebelumnya kartu detail menampilkan lingkaran warna + 3 huruf pertama ticker yang di-generate dari hash (murni dikarang, bukan logo sungguhan). Diganti dengan `getStockLogoHtml()` (`01-data.js`) — fungsi yang SUDAH ADA dan SUDAH dipakai & terverifikasi di Stock Intel (`27-stockintel.js`): mengambil logo perusahaan REAL dari CDN publik Stockbit (`assets.stockbit.com/logos/companies/{TICKER}.png`), dengan fallback otomatis ke monogram (bukan gambar rusak) kalau logo tidak tersedia untuk ticker tertentu. Dipakai baik di kartu detail (kiri) maupun tiap baris tabel screening (kanan) — zero biaya API, murni request gambar publik.
+
+- **(3) Sumber data tabel screening — dipilih justru karena paling mudah diverifikasi, TANPA Invezgo:**
+  - Daftar ticker + keanggotaan indeks: `GET /api/idx/stocks?index=...` → `loadBaseUniverse()` (`lib/universe.js`) — daftar STATIS lokal, bukan panggilan API pihak ketiga apapun, nol kuota apapun.
+  - Volume harian per ticker (buat hitung median 14D/30D & rasio): `rdEnsure()`/`rdGetAny()` (`13-realdata.js`, Yahoo Finance, cache harian) — PERSIS mesin yang sama yang sudah dipakai panel detail di kolom kiri PADA FILE YANG SAMA sejak awal, jadi paling gampang diaudit (bukan jalur data baru yang belum teruji). Yahoo Finance ≠ Invezgo — memindai berapa pun banyak saham tidak pernah menyentuh kuota Invezgo.
+  - Broker summary (`/api/idx/broker-summary`, jalur YANG MEMAKAI kuota Invezgo) HANYA dipanggil untuk 1 ticker yang sedang dipilih di panel detail kiri (perilaku lama, tidak berubah) — TIDAK PERNAH dipanggil per baris di loop scan tabel screening. Logika hitung statistik volume (`vsVolumeStats()`) diekstrak jadi 1 fungsi bersama dipakai baik panel kiri maupun tiap baris tabel, supaya angka rasio di kedua tempat selalu konsisten.
+  - Ticker dipindai BERURUTAN dengan jeda 350ms (pola sama seperti `rdFetchLivePrices()` di `13-realdata.js`) — bukan paralel — supaya proxy CORS publik yang dipakai bersama seluruh app tidak dibanjiri. Tabel terisi progresif (baris langsung muncul begitu 1 ticker selesai), disertai teks progres "Memindai X/Y".
+
+- **(4) Sort & filter per indeks:** dropdown filter dengan 4 pilihan (LQ45 default/IDX30/IDX80/Kompas100 — SriKehati sengaja tidak dimasukkan, ditemukan bug lama tidak terkait di endpoint `/api/idx/stocks` yang membuat filter itu tidak pernah cocok apa pun karena mismatch huruf besar/kecil pada key `sriKehati`, di luar cakupan perbaikan ini, tidak disentuh). Kolom tabel (Kode/Volume Hari Ini/Median 14D/Median 30D/Rasio 30D) bisa diklik headernya untuk sort naik/turun (client-side, dari hasil scan yang sudah ada — tidak fetch ulang).
+
+- **Live verification (Playwright, server lokal, `page.route` memalsukan histori Yahoo untuk seluruh universe agar scan deterministik):**
+  - Scan default LQ45 selesai 48/48 (progresif, badge "SPIKE" muncul benar untuk 2 ticker yang sengaja diberi volume hari-terakhir 4x lipat, tersortir otomatis ke atas berdasarkan rasio 30D).
+  - Ganti filter ke IDX30 → scan ulang otomatis, 30/30 ticker.
+  - Klik header "Rasio (30D)" 2x → urutan berbalik jadi naik lalu kembali turun, dikonfirmasi lewat isi kolom.
+  - Klik baris tabel (TLKM) → panel kiri berpindah ke TLKM (`VS_STATE.ticker` berubah dari BBCA→TLKM), headline "VOLUME SPIKE TERDETEKSI" tampil sesuai data TLKM, tabel screening TIDAK ikut ter-reset.
+  - Diverifikasi terpisah lewat penghitungan request jaringan: **nol** panggilan `/api/idx/broker-summary` selama loop scan 48 ticker — satu-satunya panggilan endpoint itu adalah untuk ticker yang dipilih di panel detail (perilaku lama, tidak bertambah seiring jumlah saham yang dipindai).
+  - Screenshot dikirim ke user. Nol error konsol.
+
+- `npm test` (154/154), `npm run lint` bersih. Cache-bust `45-volume-spike.js?v=20260914c`.
+
+- **Catatan:** di sandbox pengembangan ini, `assets.stockbit.com` (CDN logo) tidak terjangkau (jaringan keluar dibatasi) sehingga logo tampil sebagai kotak putih kosong di screenshot verifikasi — bukan regresi dari perubahan ini (fungsi `getStockLogoHtml()` itu sendiri sudah ada & tidak diubah), melainkan keterbatasan jaringan sandbox yang sama seperti yang sebelumnya dialami Yahoo Finance di sesi-sesi lain. Di browser pengguna sungguhan (jaringan tidak dibatasi), logo & fallback monogram akan tampil normal, persis seperti di halaman Stock Intel yang sudah memakai fungsi yang sama sejak sebelumnya.
