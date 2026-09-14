@@ -885,6 +885,7 @@ function renderPage(name){
       break;
     case 'heatmap':fsRenderHeatmap();break;
     case 'scanner':break;
+    case 'volume-spike':if(typeof renderVolumeSpikePage==='function') renderVolumeSpikePage();break;
     case 'alerts':fsGenAlerts();break;
     case 'candle':if(typeof techInit==='function') techInit(); else renderCandle();break;
     case 'hargawajar':if(typeof hw_init==='function') hw_init(); if(typeof hw_recalc==='function') hw_recalc();break;
