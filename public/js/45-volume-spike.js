@@ -54,6 +54,13 @@
  *   sudah dipakai bersama seluruh app.
  */
 
+// FIX (2026-09-14, user-reported "layout tidak stabil" — ambang naik ke 1.70x
+// atas permintaan user sendiri): satu konstanta ambang "spike" dipakai di
+// SELURUH file (panel detail kiri MAUPUN tabel screening kanan) — sebelumnya
+// 1.5x ditulis literal berulang di 3 tempat berbeda, rawan salah satu
+// ketinggalan kalau nilainya diubah lagi nanti.
+var VS_SPIKE_THRESHOLD = 1.70;
+
 var VS_STATE = { ticker: null, loading: false };
 var VS_SCREEN_STATE = {
   index: 'lq45',          // filter aktif: lq45 | idx30 | idx80 | kompas100
@@ -122,7 +129,7 @@ function vsVolumeStats(rows) {
   return {
     todayVol: todayVol, med14: med14, med30: med30,
     ratio14: ratio14, ratio30: ratio30,
-    isSpike: ratio14 >= 1.5 || ratio30 >= 1.5,
+    isSpike: ratio14 >= VS_SPIKE_THRESHOLD || ratio30 >= VS_SPIKE_THRESHOLD,
     chg1d: pctChange(1), chg3d: pctChange(3), chg7d: pctChange(7),
     closes: closes
   };
@@ -239,7 +246,7 @@ function vsScreenPanelShellHtml() {
         + '<button class="btn btn-ghost btn-xs" id="vs-screen-refresh" onclick="vsStartScreening(VS_SCREEN_STATE.index, true)" title="Pindai ulang">↻</button>'
       + '</div>'
     + '</div>'
-    + '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">Volume &amp; harga: Yahoo Finance (cache harian) — tidak memakai kuota Invezgo. Klik satu baris untuk dianalisis di panel kiri.</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">Volume &amp; harga: Yahoo Finance (cache harian) — tidak memakai kuota Invezgo. Hanya saham dengan rasio volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x yang ditampilkan (supaya layout stabil, tidak menampilkan seluruh index). Klik satu baris untuk dianalisis di panel kiri.</div>'
     + '<div id="vs-screen-progress" style="font-size:11px;color:var(--text3);margin-bottom:6px"></div>'
     + '<div style="overflow-x:auto"><table class="tbl" style="font-size:11px;width:100%">'
       + '<thead><tr>'
@@ -319,7 +326,7 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
   var progressEl = el('vs-screen-progress');
   if (i >= universe.length) {
     VS_SCREEN_STATE.scanning = false;
-    if (progressEl) progressEl.textContent = VS_SCREEN_STATE.rows.length + ' dari ' + universe.length + ' saham berhasil dipindai (data historis kurang untuk sisanya).';
+    if (progressEl) progressEl.textContent = VS_SCREEN_STATE.rows.length + ' dari ' + universe.length + ' saham menunjukkan lonjakan volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x.';
     // Satu-satunya titik di mana seluruh tabel diurutkan & ditulis ulang
     // penuh selama proses scan — sekali di akhir, bukan per-ticker (lihat
     // catatan di afterFetch() / vsAppendScreenRow()).
@@ -336,25 +343,31 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
     var rows = (typeof rdGetAny === 'function') ? rdGetAny(tk) : null;
     if (rows && rows.length >= 15) {
       var stats = vsVolumeStats(rows);
-      var rowObj = {
-        code: tk, name: item.name || (tk + ' Tbk.'),
-        todayVol: stats.todayVol, med14: stats.med14, med30: stats.med30,
-        ratio14: stats.ratio14, ratio30: stats.ratio30, isSpike: stats.isSpike, chg1d: stats.chg1d
-      };
-      VS_SCREEN_STATE.rows.push(rowObj);
-      // FIX (2026-09-14, user-reported "selalu refresh"): sebelumnya baris
-      // ini memanggil vsRenderScreenTable() — REBUILD PENUH seluruh <tbody>
-      // (semua baris yang SUDAH tampil ikut di-hapus lalu ditulis ulang,
-      // dan karena default urut berdasar rasio, baris-baris yang sudah ada
-      // ikut LONCAT posisi tiap 350ms) — di layar terlihat seperti seluruh
-      // tabel "refresh"/berkedip terus selama scan (bisa puluhan detik
-      // untuk index besar), bikin user susah fokus memantau baris yang mau
-      // diperhatikan. Sekarang HANYA baris baru ini yang ditambahkan ke
-      // DOM (fade-in halus) — baris yang sudah tampil TIDAK disentuh sama
-      // sekali. Urutan final (sesuai sort aktif) baru diterapkan SEKALI di
-      // akhir scan, lihat cabang "scan selesai" di bawah — bukan pada
-      // setiap ticker.
-      vsAppendScreenRow(rowObj);
+      // FIX (2026-09-14, user-reported "layout tidak stabil, seluruh
+      // layout berubah"): sebelumnya SEMUA saham yang berhasil dipindai
+      // (spike ATAU tidak) ditambahkan ke tabel — untuk index besar
+      // (Kompas100, 100 saham) itu berarti tabel terus tumbuh dari 0 ke
+      // 100 baris selama ~35 detik scan, dan ketinggian kolom kanan yang
+      // terus berubah drastis ikut menggeser posisi elemen di sekitarnya
+      // (termasuk panel detail di kolom kiri, karena keduanya berbagi 1
+      // baris grid). Sekarang HANYA saham yang benar-benar memenuhi
+      // kriteria spike (rasio ≥ VS_SPIKE_THRESHOLD, 1.70x) yang
+      // ditambahkan ke tabel — mayoritas saham normal tidak pernah masuk
+      // sama sekali, jadi tabel jarang tumbuh dan layout jauh lebih
+      // stabil. Saham yang TIDAK lolos tetap dihitung di scannedCount
+      // (lihat progress text) supaya user tahu berapa banyak yang sudah
+      // diperiksa, walau tidak ditampilkan satu-satu.
+      if (stats.isSpike) {
+        var rowObj = {
+          code: tk, name: item.name || (tk + ' Tbk.'),
+          todayVol: stats.todayVol, med14: stats.med14, med30: stats.med30,
+          ratio14: stats.ratio14, ratio30: stats.ratio30, isSpike: stats.isSpike, chg1d: stats.chg1d
+        };
+        VS_SCREEN_STATE.rows.push(rowObj);
+        // Baris baru ditambahkan lewat DOM appendChild (fade-in halus),
+        // TANPA menyentuh baris yang sudah tampil — lihat vsAppendScreenRow().
+        vsAppendScreenRow(rowObj);
+      }
     }
     setTimeout(function() { vsScanNext(universe, i + 1, myToken, forceRefresh); }, 350);
   };
@@ -396,7 +409,7 @@ function vsRowHtml(r) {
     + '<td style="text-align:right;font-family:var(--font-mono)">' + vsFmtVol(r.todayVol) + '</td>'
     + '<td style="text-align:right;font-family:var(--font-mono);color:var(--text3)">' + vsFmtVol(r.med14) + '</td>'
     + '<td style="text-align:right;font-family:var(--font-mono);color:var(--text3)">' + vsFmtVol(r.med30) + '</td>'
-    + '<td style="text-align:right;font-family:var(--font-mono);font-weight:700" class="' + (r.ratio30 >= 1.5 ? 'up' : 'neu') + '">' + r.ratio30.toFixed(2) + 'x</td>'
+    + '<td style="text-align:right;font-family:var(--font-mono);font-weight:700" class="' + (r.ratio30 >= VS_SPIKE_THRESHOLD ? 'up' : 'neu') + '">' + r.ratio30.toFixed(2) + 'x</td>'
   + '</tr>';
 }
 
@@ -411,7 +424,7 @@ function vsRenderScreenTable() {
   var rows = vsSortedScreenRows();
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">'
-      + (VS_SCREEN_STATE.scanning ? 'Memindai...' : 'Belum ada hasil.') + '</td></tr>';
+      + (VS_SCREEN_STATE.scanning ? 'Memindai...' : ('Tidak ada saham dengan lonjakan volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x di indeks ini saat ini.')) + '</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(vsRowHtml).join('');
@@ -492,11 +505,11 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
   var headline = isSpike
     ? '<div class="ctitle" style="font-size:16px;color:var(--amber)">⚡ VOLUME SPIKE TERDETEKSI</div>'
       + '<ul style="margin:8px 0 0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.7">'
-        + (ratio14 >= 1.5 ? '<li>Volume transaksi hari ini <b>' + ratio14.toFixed(2) + 'x</b> median 14 hari</li>' : '')
-        + (ratio30 >= 1.5 ? '<li>Volume transaksi hari ini <b>' + ratio30.toFixed(2) + 'x</b> median 30 hari</li>' : '')
+        + (ratio14 >= VS_SPIKE_THRESHOLD ? '<li>Volume transaksi hari ini <b>' + ratio14.toFixed(2) + 'x</b> median 14 hari</li>' : '')
+        + (ratio30 >= VS_SPIKE_THRESHOLD ? '<li>Volume transaksi hari ini <b>' + ratio30.toFixed(2) + 'x</b> median 30 hari</li>' : '')
       + '</ul>'
     : '<div class="ctitle" style="font-size:16px;color:var(--text2)">Tidak Ada Lonjakan Volume Signifikan</div>'
-      + '<div style="font-size:12px;color:var(--text3);margin-top:4px">Volume hari ini ' + ratio14.toFixed(2) + 'x median 14D dan ' + ratio30.toFixed(2) + 'x median 30D — di bawah ambang lonjakan (1.5x).</div>';
+      + '<div style="font-size:12px;color:var(--text3);margin-top:4px">Volume hari ini ' + ratio14.toFixed(2) + 'x median 14D dan ' + ratio30.toFixed(2) + 'x median 30D — di bawah ambang lonjakan (' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x).</div>';
 
   var html =
     '<div class="card" style="border:1px solid var(--amber);margin-bottom:14px">' + headline + '</div>'
