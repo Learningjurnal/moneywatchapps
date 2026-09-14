@@ -1022,6 +1022,17 @@ function renderStockIntelPage() {
           + '<div style="font-size:11px;color:var(--text2)">Broker flow lengkap, foreign flow, dan sinyal CMF/VWAP untuk ' + ticker + '.</div>'
           + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + ticker + '\');if(typeof goBandarmology===\'function\')goBandarmology(\'stock\',null);">Buka Bandarmology →</button>'
         + '</div>'
+        // Kartu ke-5: Volume Spike (baru, 45-volume-spike.js) — sebelumnya
+        // fitur ini tidak muncul sama sekali di hub "Lanjutkan Analisa
+        // Mendalam", jadi user harus tahu/mengingat sendiri untuk membuka
+        // lewat sidebar. Ticker sudah otomatis ikut lewat GLOBAL_STOCK_CONTEXT
+        // (renderVolumeSpikePage() membaca getTicker() sebagai fallback),
+        // jadi tidak perlu "setTicker" eksplisit di sini seperti 3 kartu lain.
+        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
+          + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Volume Spike Scanner</div>'
+          + '<div style="font-size:11px;color:var(--text2)">Lonjakan volume vs median 14D/30D, price change 1D/3D/7D, dan foreign flow untuk ' + ticker + '.</div>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="goPage(\'volume-spike\',null)">Buka Volume Spike →</button>'
+        + '</div>'
       + '</div>'
     + '</div>';
 
@@ -1184,3 +1195,24 @@ window.getIntelStockMeta = getIntelStockMeta;
 window.fetchRealStockIntelData = fetchRealStockIntelData;
 window.intelShouldAutoFetch = intelShouldAutoFetch;
 window.isRegisteredIdxTicker = isRegisteredIdxTicker;
+
+// FIX (2026-09-14, konsolidasi analisa "tanpa pindah-pindah tab"): Stock
+// Intel Cockpit sebelumnya hanya MENGIRIM ticker ke GLOBAL_STOCK_CONTEXT
+// (selectStockIntelTicker() di atas), tidak pernah MENERIMA — jadi kalau
+// ticker diganti dari halaman lain (Fundamental/Technical/Valuation/
+// StockChat/search bar global) sementara Stock Intel sedang terbuka,
+// cockpit ini tidak ikut ter-refresh sampai user pindah halaman lalu
+// kembali. Subscribe di sini melengkapi pola yang sudah dipakai
+// Fundamental/Technical/Valuation/StockChat (lihat 24-stockmaster.js/
+// 10-hargawajar.js/41-stockchat-cockpit.js).
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'stock-intel' && tk && tk !== MW_SELECTED_INTEL_TICKER) {
+      MW_SELECTED_INTEL_TICKER = tk;
+      var pg = el('page-stock-intel');
+      if (pg && pg.classList.contains('on')) {
+        renderStockIntelPage();
+      }
+    }
+  });
+}
