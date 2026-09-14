@@ -63,7 +63,14 @@ function vsSparklineHtml(closes, isUp) {
 function renderVolumeSpikePage(presetTicker) {
   var c = el('page-volume-spike');
   if (!c) return;
-  var tk = (presetTicker || VS_STATE.ticker || (typeof MW_SELECTED_INTEL_TICKER !== 'undefined' && MW_SELECTED_INTEL_TICKER) || 'AKRA').toUpperCase().trim();
+  // Urutan resolusi ticker: eksplisit diminta > state halaman ini > GLOBAL_STOCK_CONTEXT
+  // (ticker aktif lintas-halaman, dipakai bersama Fundamental/Technical/Valuation/
+  // StockChat/Bandarmology — lihat 00-config.js) > fallback lama > default.
+  var tk = (presetTicker
+    || VS_STATE.ticker
+    || (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT && window.GLOBAL_STOCK_CONTEXT.getTicker())
+    || (typeof MW_SELECTED_INTEL_TICKER !== 'undefined' && MW_SELECTED_INTEL_TICKER)
+    || 'AKRA').toUpperCase().trim();
   VS_STATE.ticker = tk;
   vsRenderShell(tk);
   vsLoadAndRender(tk);
@@ -77,7 +84,33 @@ function vsSearch() {
     if (typeof showToast === 'function') showToast('Ticker "' + tk + '" tidak ditemukan di database IDX', { type: 'error' });
     return;
   }
+  // Broadcast supaya halaman lain yang berbagi GLOBAL_STOCK_CONTEXT (Stock
+  // Intel, Fundamental, Technical, Valuation, StockChat, Bandarmology) ikut
+  // pindah ke ticker yang sama — sebelumnya Volume Spike terisolasi, tidak
+  // mengirim maupun menerima perubahan ticker lintas-halaman.
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.setTicker(tk, 'volume-spike');
+  }
   renderVolumeSpikePage(tk);
+}
+
+// FIX (2026-09-14, konsolidasi analisa "tanpa pindah-pindah tab"): subscribe
+// ke GLOBAL_STOCK_CONTEXT, pola sama persis dengan listener Fundamental/
+// Technical/Valuation/StockChat (lihat 24-stockmaster.js/10-hargawajar.js/
+// 41-stockchat-cockpit.js) — supaya Volume Spike ikut pindah ticker saat
+// dipilih dari modul lain. Kalau halaman ini sedang aktif, langsung re-render;
+// kalau tidak, cukup update state supaya render berikutnya pakai ticker benar.
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+    if (source !== 'volume-spike' && tk && tk !== VS_STATE.ticker) {
+      var pg = el('page-volume-spike');
+      if (pg && pg.classList.contains('on')) {
+        renderVolumeSpikePage(tk);
+      } else {
+        VS_STATE.ticker = tk;
+      }
+    }
+  });
 }
 
 function vsRenderShell(tk, bodyHtml) {
@@ -114,7 +147,15 @@ function vsLoadAndRender(tk) {
         .catch(function() { return null; });
     };
 
-    Promise.all([fetchBs('1D'), fetchBs('1M')]).then(function(results) {
+    // Reuse cache 1D milik Stock Intel Cockpit (MW_INTEL_CACHE, 27-stockintel.js)
+    // kalau ticker yang sama baru saja dianalisis di sana — mengurangi
+    // panggilan /api/idx/broker-summary duplikat untuk ticker+timeframe yang
+    // persis sama, yang sebelumnya selalu fetch ulang dari nol tiap buka
+    // Volume Spike walau Stock Intel baru saja mengambil data yang sama.
+    var cached1d = (typeof MW_INTEL_CACHE !== 'undefined' && MW_INTEL_CACHE[tk] && MW_INTEL_CACHE[tk].brokerSummary) || null;
+    var bs1dPromise = cached1d ? Promise.resolve({ data: cached1d }) : fetchBs('1D');
+
+    Promise.all([bs1dPromise, fetchBs('1M')]).then(function(results) {
       VS_STATE.loading = false;
       vsRenderContent(tk, rows, results[0] && results[0].data, results[1] && results[1].data);
     });
@@ -213,7 +254,24 @@ function vsForeignFlowCardHtml(bs1d, bs30d) {
   };
   var statusOf = function(v) { return v === null ? 'Data tidak tersedia' : (v >= 0 ? 'Net Buy' : 'Net Sell'); };
 
+  // Verdict Bandarmology (akumulasi/distribusi broker) — data yang sama
+  // sudah ikut terambil dari /api/idx/broker-summary di atas, sebelumnya
+  // tidak ditampilkan sama sekali di halaman ini. Menyatukan verdict ini
+  // ke Volume Spike berarti user tidak perlu lagi membuka halaman
+  // Bandarmology terpisah hanya untuk melihat kesimpulan dasarnya.
+  var verdict = bs1d && bs1d.bandarmology ? bs1d.bandarmology.verdict : null;
+  var verdictBadgeCls = verdict === 'BIG ACCUMULATION' || verdict === 'NORMAL ACCUMULATION' ? 'b-up'
+    : verdict === 'BIG DISTRIBUTION' || verdict === 'NORMAL DISTRIBUTION' ? 'b-dn' : 'b-gray';
+  var verdictHtml = verdict
+    ? '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border2)">'
+        + '<div class="flabel">VERDICT BANDARMOLOGY (BROKER SUMMARY)' + simNote(bs1d) + '</div>'
+        + '<span class="badge ' + verdictBadgeCls + '" style="margin:4px 0;display:inline-block">' + verdict + '</span>'
+        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">' + (bs1d.bandarmology.interpretation || '') + '</div>'
+      + '</div>'
+    : '';
+
   return '<div class="card">'
+    + verdictHtml
     + '<div class="fgrid" style="grid-template-columns:1fr 1fr">'
       + '<div class="fg">'
         + '<div class="flabel">FOREIGN NET BUY/SELL (HARI INI)' + simNote(bs1d) + '</div>'
