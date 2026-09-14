@@ -2710,3 +2710,18 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - **Live verification (Playwright, server lokal, Chart.js di-stub karena CDN diblokir sandbox)**: `wRenderNet()`, `wRenderDebt()`, `wRenderPiutang()` dipanggil langsung — ketiga chart (`alloc`, `debtPayoff`, `piuCollect`) sekarang identik: `borderWidth:0`, tanpa `borderColor`. Tanpa error terkait perubahan ini.
 
 `npm test` (154/154), `npm run lint` bersih.
+
+## 2026-09-14 — Belum ada grafik IHSG di halaman "Market Pulse"
+
+- **Konteks:** user melaporkan belum ada grafik IHSG di halaman "Market Pulse" (label sidebar untuk `renderDailyBriefPage()`, `28-decisiontools.js`), minta dibuat sederhana ala tampilan Yahoo Finance.
+- **Root cause**: ditemukan data historis IHSG (`ihsgHist`, `01-data.js`) sebenarnya SUDAH ada dan aktif dikumpulkan secara live — `ihsgHistPush()` dipanggil setiap kali harga IHSG di-update (`03-engine.js`), menyimpan hingga 120 titik data terakhir ke `localStorage`. Tapi array ini TIDAK PERNAH divisualisasikan di manapun — hanya angka current/change (`ihsgCur`/`ihsgBase`) yang ditampilkan di kartu "MARKET REGIME HARI INI", tanpa grafik.
+- **Perbaikan (`public/js/28-decisiontools.js`)**:
+  - Tambah card baru di `renderDailyBriefPage()` (antara 3 metric card atas dan card "3 Things to Watch") berisi: angka besar IHSG saat ini + badge perubahan (▲/▼, warna hijau/merah), dan canvas chart di bawahnya.
+  - Fungsi baru `renderDailyBriefIhsgChart(curIhsg, isBullish)`: line chart Chart.js dari `ihsgHist`, gaya ala widget Yahoo Finance — garis tipis (2px) hijau/merah sesuai arah tren, area fill gradient transparan di bawah garis, TANPA sumbu/gridline/legend sama sekali (`scales.x/y: display:false`) untuk tampilan minimalis, tooltip index-mode menampilkan nilai saat hover. Fallback ke data datar (`[curIhsg, curIhsg]`) kalau histori belum terisi (user baru pertama kali pakai app).
+  - Dipanggil otomatis di akhir `renderDailyBriefPage()` setelah `c.innerHTML = html`.
+  - Cache-bust: `28-decisiontools.js?v=20260914a`.
+- **Live verification (Playwright, server lokal, Chart.js REAL dimuat dari `node_modules` lokal — bukan stub — karena CDN cdnjs diblokir sandbox, di-intercept via `page.route` dan disuntikkan sebagai response)**: seed 40 titik data sintetis ke `ihsgHist`, navigasi ke halaman Market Pulse — chart tampil dengan benar sebagai area chart hijau (tren naik) tanpa axis/gridline, angka besar + badge hijau ▲ di atasnya, konsisten rapi di tema gelap maupun terang. Tanpa error konsol. Screenshot dikirim ke user.
+
+`npm test` (154/154), `npm run lint` bersih.
+
+**Catatan**: chart ini pakai data `ihsgHist` yang terkumpul dari sesi pemakaian aplikasi (bukan data historis resmi dari bursa) — jadi untuk user baru, grafik akan tampak datar sampai beberapa kali refresh harga terkumpul. Ini konsisten dengan cara data tersebut sudah dikumpulkan sebelumnya (tidak diubah), hanya visualisasinya yang baru ditambahkan.
