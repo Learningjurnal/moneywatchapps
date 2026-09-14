@@ -2889,3 +2889,21 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - `npm test` (154/154), `npm run lint` bersih. Cache-bust `45-volume-spike.js?v=20260914c`.
 
 - **Catatan:** di sandbox pengembangan ini, `assets.stockbit.com` (CDN logo) tidak terjangkau (jaringan keluar dibatasi) sehingga logo tampil sebagai kotak putih kosong di screenshot verifikasi — bukan regresi dari perubahan ini (fungsi `getStockLogoHtml()` itu sendiri sudah ada & tidak diubah), melainkan keterbatasan jaringan sandbox yang sama seperti yang sebelumnya dialami Yahoo Finance di sesi-sesi lain. Di browser pengguna sungguhan (jaringan tidak dibatasi), logo & fallback monogram akan tampil normal, persis seperti di halaman Stock Intel yang sudah memakai fungsi yang sama sejak sebelumnya.
+
+## 2026-09-14 — Fix: tabel Screening Volume Spike "selalu refresh" selama scan (`public/js/45-volume-spike.js`)
+
+- **Konteks:** user melaporkan tabel Screening Volume Spike (fitur baru dari PR sebelumnya) "selalu refresh" — minta kalaupun butuh refresh, dibuat cepat/mulus supaya user bisa fokus memantau perubahan, dan JANGAN sampai seluruh daftar saham di tabel ikut ter-refresh tiap kali ada saham baru masuk.
+- **Root cause:** `vsScanNext()` memindai ticker satu-per-satu dengan jeda ~350ms (by design, supaya proxy CORS publik tidak dibanjiri — lihat PR sebelumnya). Tapi tiap kali SATU ticker selesai dipindai, kode lama memanggil `vsRenderScreenTable()` — fungsi itu MENULIS ULANG SELURUH `<tbody>` dari nol (`tbody.innerHTML = rows.map(...).join('')`) dan mengurutkan ulang SEMUA baris berdasar rasio volume. Efeknya: baris-baris yang SUDAH tampil ikut dihapus-lalu-ditulis-ulang setiap ~350ms selama scan berjalan (bisa belasan detik untuk index besar seperti Kompas100), dan karena diurutkan ulang tiap kali, baris yang sudah ada ikut MELONCAT posisi terus-menerus — persis gejala "selalu refresh" yang dilaporkan, membuat user sulit fokus membaca satu baris tertentu.
+- **Perbaikan:**
+  - HTML 1 baris diekstrak jadi fungsi bersama `vsRowHtml(r)` — dipakai baik oleh rebuild penuh maupun penambahan 1 baris, supaya markupnya selalu identik.
+  - Ditambahkan `vsAppendScreenRow(r)` — menambahkan SATU `<tr>` baru ke akhir `<tbody>` via DOM API (`appendChild`), TANPA menyentuh baris yang sudah ada, dengan animasi fade-in halus (`smFadeIn`, keyframe yang sudah ada di `main.css`, dipakai ulang bukan bikin baru). Ini yang dipanggil tiap ticker selesai dipindai — bukan rebuild-ulang.
+  - `vsRenderScreenTable()` (rebuild penuh + urut ulang) sekarang HANYA dipanggil di titik yang sedikit & disengaja: state kosong/loading awal, SEKALI di akhir scan (bukan tiap ticker), ganti filter indeks, dan klik header kolom untuk sort (aksi eksplisit user).
+  - Selama scan berjalan, baris ditambahkan dalam urutan DITEMUKAN (bukan diurutkan ulang tiap saat) — urutan final sesuai sort aktif baru diterapkan sekali begitu scan selesai.
+  - Ditambahkan guard `if (myToken !== VS_SCREEN_STATE.scanToken) return;` di awal `afterFetch()` — mencegah hasil fetch dari scan LAMA (yang sudah dibatalkan karena user ganti filter di tengah jalan) menambahkan baris nyasar ke tabel scan yang BARU.
+- **Live verification (Playwright, server lokal, histori Yahoo dipalsukan via `page.route`, `MutationObserver` dipasang di `#vs-screen-tbody`):**
+  - Selama jendela 8 detik pertengahan scan (~22 ticker diproses), tercatat **0 rebuild penuh** dan **22 penambahan 1-baris** — persis 1 mutation per ticker, tanpa satupun penulisan-ulang massal.
+  - Baris pertama yang tampil (BBCA) ditandai dengan atribut custom di DOM — dikonfirmasi TETAP node DOM yang sama persis setelah 22 baris lain ditambahkan (tidak pernah dihapus/diganti).
+  - Setelah scan selesai (48/48), tabel terurut benar menurun berdasar rasio 30D (satu kali rebuild akhir bekerja sesuai desain).
+  - Nol error konsol.
+- `npm test` (154/154), `npm run lint` bersih. Cache-bust `45-volume-spike.js?v=20260914d`.
+- **Catatan:** tombol Refresh manual (↻) dan ganti filter indeks tetap menampilkan reset satu-kali ("Memindai...") sebelum mengisi ulang — itu memang aksi eksplisit yang diminta user sendiri, bukan bagian dari masalah "refresh terus-menerus otomatis" yang dilaporkan.

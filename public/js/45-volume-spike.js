@@ -320,6 +320,10 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
   if (i >= universe.length) {
     VS_SCREEN_STATE.scanning = false;
     if (progressEl) progressEl.textContent = VS_SCREEN_STATE.rows.length + ' dari ' + universe.length + ' saham berhasil dipindai (data historis kurang untuk sisanya).';
+    // Satu-satunya titik di mana seluruh tabel diurutkan & ditulis ulang
+    // penuh selama proses scan — sekali di akhir, bukan per-ticker (lihat
+    // catatan di afterFetch() / vsAppendScreenRow()).
+    vsRenderScreenTable();
     return;
   }
   var item = universe[i];
@@ -327,16 +331,30 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
   if (progressEl) progressEl.textContent = 'Memindai ' + (i + 1) + '/' + universe.length + ' — ' + tk + '...';
 
   var afterFetch = function() {
+    if (myToken !== VS_SCREEN_STATE.scanToken) return; // filter sudah diganti sementara fetch ini masih berjalan
     VS_SCREEN_STATE.scannedCount++;
     var rows = (typeof rdGetAny === 'function') ? rdGetAny(tk) : null;
     if (rows && rows.length >= 15) {
       var stats = vsVolumeStats(rows);
-      VS_SCREEN_STATE.rows.push({
+      var rowObj = {
         code: tk, name: item.name || (tk + ' Tbk.'),
         todayVol: stats.todayVol, med14: stats.med14, med30: stats.med30,
         ratio14: stats.ratio14, ratio30: stats.ratio30, isSpike: stats.isSpike, chg1d: stats.chg1d
-      });
-      vsRenderScreenTable();
+      };
+      VS_SCREEN_STATE.rows.push(rowObj);
+      // FIX (2026-09-14, user-reported "selalu refresh"): sebelumnya baris
+      // ini memanggil vsRenderScreenTable() — REBUILD PENUH seluruh <tbody>
+      // (semua baris yang SUDAH tampil ikut di-hapus lalu ditulis ulang,
+      // dan karena default urut berdasar rasio, baris-baris yang sudah ada
+      // ikut LONCAT posisi tiap 350ms) — di layar terlihat seperti seluruh
+      // tabel "refresh"/berkedip terus selama scan (bisa puluhan detik
+      // untuk index besar), bikin user susah fokus memantau baris yang mau
+      // diperhatikan. Sekarang HANYA baris baru ini yang ditambahkan ke
+      // DOM (fade-in halus) — baris yang sudah tampil TIDAK disentuh sama
+      // sekali. Urutan final (sesuai sort aktif) baru diterapkan SEKALI di
+      // akhir scan, lihat cabang "scan selesai" di bawah — bukan pada
+      // setiap ticker.
+      vsAppendScreenRow(rowObj);
     }
     setTimeout(function() { vsScanNext(universe, i + 1, myToken, forceRefresh); }, 350);
   };
@@ -363,6 +381,30 @@ function vsSortedScreenRows() {
   return rows;
 }
 
+// HTML 1 baris tabel screening — dipakai BERSAMA oleh rebuild penuh
+// (vsRenderScreenTable, dipanggil jarang/sekali) dan penambahan 1 baris
+// saja saat scan sedang berjalan (vsAppendScreenRow, dipanggil tiap
+// ticker) — satu titik render supaya markup kedua jalur selalu identik.
+function vsRowHtml(r) {
+  var isSel = r.code === VS_STATE.ticker;
+  return '<tr data-code="' + r.code + '" style="cursor:pointer' + (isSel ? ';background:var(--bg2)' : '') + '" onclick="vsSelectFromScreen(\'' + r.code + '\')">'
+    + '<td><div style="display:flex;align-items:center;gap:6px">'
+      + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(r.code, 22) : '')
+      + '<div><div style="font-weight:700">' + r.code + (r.isSpike ? ' <span class="badge" style="font-size:8px;background:rgba(245,158,11,.18);color:var(--amber)">SPIKE</span>' : '') + '</div>'
+      + '<div style="font-size:9.5px;color:var(--text3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.name + '</div></div>'
+    + '</div></td>'
+    + '<td style="text-align:right;font-family:var(--font-mono)">' + vsFmtVol(r.todayVol) + '</td>'
+    + '<td style="text-align:right;font-family:var(--font-mono);color:var(--text3)">' + vsFmtVol(r.med14) + '</td>'
+    + '<td style="text-align:right;font-family:var(--font-mono);color:var(--text3)">' + vsFmtVol(r.med30) + '</td>'
+    + '<td style="text-align:right;font-family:var(--font-mono);font-weight:700" class="' + (r.ratio30 >= 1.5 ? 'up' : 'neu') + '">' + r.ratio30.toFixed(2) + 'x</td>'
+  + '</tr>';
+}
+
+// Rebuild PENUH tabel (urut ulang semua baris) — sengaja dipakai jarang:
+// state kosong/loading, akhir scan (sekali), ganti filter indeks, dan klik
+// header sort (aksi eksplisit user, bukan sesuatu yang terjadi berulang
+// otomatis di latar belakang). SELAMA scan berjalan, dipakai vsAppendScreenRow
+// (di bawah) supaya baris yang sudah tampil tidak ikut "refresh".
 function vsRenderScreenTable() {
   var tbody = el('vs-screen-tbody');
   if (!tbody) return;
@@ -372,20 +414,25 @@ function vsRenderScreenTable() {
       + (VS_SCREEN_STATE.scanning ? 'Memindai...' : 'Belum ada hasil.') + '</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(function(r) {
-    var isSel = r.code === VS_STATE.ticker;
-    return '<tr data-code="' + r.code + '" style="cursor:pointer' + (isSel ? ';background:var(--bg2)' : '') + '" onclick="vsSelectFromScreen(\'' + r.code + '\')">'
-      + '<td><div style="display:flex;align-items:center;gap:6px">'
-        + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(r.code, 22) : '')
-        + '<div><div style="font-weight:700">' + r.code + (r.isSpike ? ' <span class="badge" style="font-size:8px;background:rgba(245,158,11,.18);color:var(--amber)">SPIKE</span>' : '') + '</div>'
-        + '<div style="font-size:9.5px;color:var(--text3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.name + '</div></div>'
-      + '</div></td>'
-      + '<td style="text-align:right;font-family:var(--font-mono)">' + vsFmtVol(r.todayVol) + '</td>'
-      + '<td style="text-align:right;font-family:var(--font-mono);color:var(--text3)">' + vsFmtVol(r.med14) + '</td>'
-      + '<td style="text-align:right;font-family:var(--font-mono);color:var(--text3)">' + vsFmtVol(r.med30) + '</td>'
-      + '<td style="text-align:right;font-family:var(--font-mono);font-weight:700" class="' + (r.ratio30 >= 1.5 ? 'up' : 'neu') + '">' + r.ratio30.toFixed(2) + 'x</td>'
-    + '</tr>';
-  }).join('');
+  tbody.innerHTML = rows.map(vsRowHtml).join('');
+}
+
+// Tambahkan SATU baris baru ke tabel tanpa menyentuh baris yang sudah
+// tampil — dipakai selama scan berjalan (dipanggil sekali per ticker,
+// tiap ~350ms) supaya layar tidak "refresh"/berkedip penuh terus-menerus.
+// Baris ditambahkan di URUTAN DITEMUKAN (bukan diurutkan ulang tiap kali —
+// itu yang bikin baris lama meloncat posisi); urutan sesuai sort aktif
+// baru diterapkan sekali di akhir scan lewat vsRenderScreenTable().
+function vsAppendScreenRow(r) {
+  var tbody = el('vs-screen-tbody');
+  if (!tbody) return;
+  var placeholder = tbody.querySelector('td[colspan]');
+  if (placeholder) tbody.innerHTML = ''; // baris pertama: buang placeholder "Memindai..."
+  var wrap = document.createElement('tbody');
+  wrap.innerHTML = vsRowHtml(r);
+  var tr = wrap.firstElementChild;
+  tr.style.animation = 'smFadeIn .25s ease'; // transisi halus, bukan lompatan mendadak
+  tbody.appendChild(tr);
 }
 
 function vsLoadAndRender(tk) {
