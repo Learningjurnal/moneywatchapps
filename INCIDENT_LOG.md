@@ -2960,3 +2960,23 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - **Live verification (Playwright, server lokal):** `<img>` logo dikonfirmasi termuat sempurna (`complete:true`, `naturalWidth:276`, bukan broken image) di tema gelap (default); ganti tema lewat `toggleTheme()` dikonfirmasi (`body.theme-light` aktif) — logo tetap tampil kontras penuh, tidak ada bagian yang hilang/pudar. Screenshot topbar dikirim untuk kedua tema. Favicon file dikonfirmasi terserve 200 OK. Nol error konsol.
 - `npm test` (154/154), `npm run lint` bersih. Cache-bust `img/logo-mark.png?v=20260914a`, `img/favicon.png?v=20260914a`.
 - **Catatan:** ini pertama kalinya aplikasi punya folder `public/img/` untuk aset gambar statis (sebelumnya semua ikon berupa SVG inline/data-URI) — precedent baru untuk logo/branding assets ke depan.
+
+## 2026-09-15 — Gabungkan Volume Spike ke Market Radar (`public/js/07-flowscan.js`, `public/index.html`)
+
+- **Konteks:** user minta Volume Spike digabung ke Market Radar (yang sudah punya kolom CMF/RSI/Cap) supaya saling melengkapi analisa, dengan fallback "kalau terlalu berat untuk disusun tampilannya, satukan saja ke Market Radar tapi beda topbar (tab terpisah)".
+- **Temuan sebelum implementasi:** ternyata TIDAK berat — `fsInit()` (Market Radar) sudah memuat 60 hari data OHLCV+volume penuh per saham untuk menghitung CMF (`fsGenData()`), jadi rasio volume spike bisa dihitung dari data yang SAMA, tanpa fetch tambahan sama sekali. Karena itu dipilih **penggabungan sungguhan ke 1 tabel** (bukan tab terpisah/fallback) — hasil lebih baik dan tidak lebih berat.
+- **Perbaikan:**
+  - `fsCalcVolRatio(data)` baru di `07-flowscan.js` — menghitung rasio volume hari ini vs median 14D/30D dari data yang sudah dimuat. Sengaja memanggil ULANG `vsMedian()` dan `VS_SPIKE_THRESHOLD` (konstanta ambang 1.70x) dari `45-volume-spike.js`, BUKAN menulis ulang logikanya — supaya definisi "spike" identik persis di kedua halaman (Market Radar dan Volume Spike sekarang benar-benar 1 sumber kebenaran, bukan 2 angka mirip yang kebetulan sama).
+  - `fsInit()`: rasio dihitung SEKALI saat data dimuat (bukan tiap render), disimpan sebagai `a.volRatio30`/`a.volRatio14`/`a.isVolSpike` per baris.
+  - Tabel Market Radar (`public/index.html`): kolom baru **"Vol Ratio"** di ujung (sebelum WL) — tebal + warna amber kalau melonjak. Badge "⚡" ditempel di kolom Sinyal kalau volume JUGA melonjak — konfirmasi silang visual antara skor akumulasi/distribusi dan lonjakan volume, ini bagian "saling melengkapi analisa" yang diminta user.
+  - Dropdown urut (`#rk-sort`) dapat opsi baru "Vol Ratio".
+  - `fsGoVolumeSpike(tk)` baru — klik nilai Vol Ratio langsung pindah ke halaman Volume Spike dengan ticker itu terpilih (via `GLOBAL_STOCK_CONTEXT`, pola yang sama dipakai di seluruh app) untuk drill-down (chart 7 hari, arus dana asing) tanpa menduplikasi tampilan Volume Spike di Market Radar.
+- **Live verification (Playwright, server lokal):**
+  - Dikonfirmasi rasio volume terhitung benar untuk seluruh 30 baris dari data yang sudah ada (BBRI 3.40x, BMRI 4.69x — ditandai spike otomatis dari data sintetis sandbox).
+  - Baris dengan `isVolSpike:true` dikonfirmasi menampilkan badge ⚡ di kolom Sinyal dengan tooltip yang benar, dan kolom Vol Ratio tebal+amber.
+  - Sort by "Vol Ratio" dikonfirmasi mengurutkan turun berdasar rasio tertinggi.
+  - Klik kolom Vol Ratio dikonfirmasi berpindah ke halaman Volume Spike dengan `VS_STATE.ticker` yang sama persis.
+  - Satu error konsol ("Cannot set properties of undefined (setting 'interaction')") muncul di sesi verifikasi ini — dikonfirmasi TERPISAH dari perubahan ini: direproduksi ulang di kode SEBELUM perubahan (`git stash`) dengan setup Playwright yang sama, errornya identik — murni keterbatasan stub Chart.js minimal yang dipakai untuk verifikasi di sandbox (CDN Chart.js diblokir jaringan), bukan regresi dari perubahan ini.
+  - Screenshot dikirim ke user.
+- `npm test` (154/154), `npm run lint` bersih. Cache-bust `07-flowscan.js?v=20260915a`.
+- **Catatan:** tidak menyentuh halaman Volume Spike sama sekali (top-10, filter ≥1.70x, dst dari perbaikan-perbaikan sebelumnya tetap seperti apa adanya) — perubahan ini murni menambahkan sudut pandang volume ke Market Radar, drill-down ke Volume Spike untuk analisa mendalam kalau dibutuhkan.
