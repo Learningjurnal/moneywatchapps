@@ -375,12 +375,23 @@ function renderDailyBriefIhsgChart(curIhsg, isBullish) {
   grad.addColorStop(0, isBullish ? 'rgba(0,135,60,.28)' : 'rgba(208,22,58,.28)');
   grad.addColorStop(1, isBullish ? 'rgba(0,135,60,0)' : 'rgba(208,22,58,0)');
   var pointRadii = hist.map(function(_, i) { return i === hist.length - 1 ? 4 : 0; });
+  // FIX (2026-09-15, user-requested "berikan tambahan jam pada grafik"):
+  // ihsgHistTs (01-data.js, timestamp per titik, index-aligned dengan
+  // ihsgHist) dipakai untuk label jam sungguhan di sumbu-x — sebelumnya
+  // sumbu-x disembunyikan total (x:{display:false}) karena labelnya cuma
+  // index angka (0,1,2,...) yang tidak berarti apa-apa buat user. Fallback
+  // ke label index kalau ihsgHistTs belum sinkron panjangnya (state
+  // transisi sesaat setelah upgrade format localStorage).
+  var hasTs = (typeof ihsgHistTs !== 'undefined' && ihsgHistTs.length === hist.length);
+  var timeLabels = hasTs
+    ? ihsgHistTs.map(function(t){ return new Date(t).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}); })
+    : hist.map(function(_, i) { return i; });
 
   charts['dbIhsg'] = new Chart(cv, {
     type: 'line',
     plugins: [_ihsgPrevCloseLinePlugin],
     data: {
-      labels: hist.map(function(_, i) { return i; }),
+      labels: timeLabels,
       datasets: [{
         data: hist,
         borderColor: lineColor,
@@ -406,13 +417,23 @@ function renderDailyBriefIhsgChart(curIhsg, isBullish) {
         tooltip: {
           displayColors: false,
           callbacks: {
-            title: function() { return ''; },
+            title: function(items) { return (hasTs && items && items[0]) ? items[0].label + ' WIB' : ''; },
             label: function(c) { return c.raw.toLocaleString('id-ID', {minimumFractionDigits: 2}); }
           }
         }
       },
       scales: {
-        x: { display: false },
+        x: {
+          display: hasTs,
+          ticks: {
+            maxTicksLimit: 6,
+            autoSkip: true,
+            color: typeof _chartTextColor === 'function' ? _chartTextColor('--text3', '#8a94a6') : '#8a94a6',
+            font: { size: 9 }
+          },
+          grid: { display: false },
+          border: { display: false }
+        },
         y: { display: false }
       }
     }
