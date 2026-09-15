@@ -184,10 +184,174 @@
 <body>
 
 <!-- ══════════════════════════════════════════════
-     AUTH OVERLAY — Login Screen
+     LANDING PAGE — Halaman Paling Awal (Public Showcase)
      ══════════════════════════════════════════════ -->
-<div id="auth-overlay">
-  <div class="auth-box">
+<div id="landing-screen" style="min-height:100vh;background:linear-gradient(180deg, #030712 0%, #080C14 100%);color:#FFFFFF;display:flex;flex-direction:column;position:relative;z-index:50">
+  <!-- Top Navigation Header -->
+  <header style="border-bottom:1px solid #1E293B;background:rgba(8,12,20,0.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100">
+    <div style="max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+        <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="28" style="width:auto;display:block">
+        <div style="font-size:18px;font-weight:900;letter-spacing:-0.4px;color:#FFFFFF">Money<span style="color:#38BDF8">Watch</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn btn-ghost btn-sm" onclick="authDoGuestLogin()" style="font-weight:700;color:var(--accent);border-color:rgba(56,189,248,0.3)">
+          <i class="ti ti-player-play"></i> Mode Tamu / Demo
+        </button>
+        <button class="landing-btn-primary" onclick="authOpenLoginModal()" style="padding:6px 14px;font-size:11.5px">
+          <i class="ti ti-login"></i> Masuk / Login →
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main style="flex:1;max-width:1200px;margin:0 auto;padding:40px 20px 80px;display:flex;flex-direction:column;gap:36px;width:100%">
+    <div class="landing-hero" style="margin-top:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px">MONEYWATCH TERMINAL</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Sistem Operasi Investasi &amp; Family Office</span>
+      </div>
+      <h1 class="landing-hero-title">
+        Infrastruktur Analisa Pasar Modal, Valuasi Terukur &amp; Pengendalian Risiko Portofolio.
+      </h1>
+      <p class="landing-hero-sub">
+        Platform analitik kuantitatif untuk investor dan pengelola portofolio IDX: memadukan deteksi aliran dana bandarmology, model valuasi intrinsik multi-faktor, kepatuhan pajak dividen PMK 18, hingga konsolidasi neraca family office tanpa data sintetis.
+      </p>
+      <div class="landing-cta-row">
+        <button class="landing-btn-primary" onclick="authOpenLoginModal()">
+          <i class="ti ti-login"></i> Masuk ke Akun / Login →
+        </button>
+        <button class="landing-btn-secondary" onclick="authDoGuestLogin()">
+          <i class="ti ti-player-play"></i> Masuk Mode Tamu / Demo Offline →
+        </button>
+      </div>
+    </div>
+
+    <!-- 6 Core Platform Pillars -->
+    <div>
+      <div style="margin-bottom:20px">
+        <div style="font-size:20px;font-weight:800;color:#FFFFFF;letter-spacing:-0.4px">Kekuatan &amp; Kapabilitas Utama Sistem</div>
+        <div style="font-size:12.5px;color:var(--text3);margin-top:4px">Infrastruktur data keuangan riil dengan perhitungan matematis terpusat pada satu canonical engine.</div>
+      </div>
+
+      <div class="landing-pillars-grid">
+        <!-- Pilar 1 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-chart-arrows"></i></div>
+          <div class="landing-pillar-title">1. Smart Money &amp; Bandarmology</div>
+          <div class="landing-pillar-desc">
+            Pelacakan jejak akumulasi dan distribusi institusional pada bursa IDX untuk menyaring false breakout secara terukur.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Konsentrasi transaksi Top 3 broker akumulasi &gt; 60%</li>
+            <li>Deteksi runtutan inflow asing (foreign net flow streak)</li>
+            <li>Estimasi rata-rata harga bandar (Bandar Volume Weighted Average Price)</li>
+            <li>Scanner anomali Volume Spike terverifikasi</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 2 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-calculator"></i></div>
+          <div class="landing-pillar-title">2. Valuasi Kuantitatif &amp; MoS</div>
+          <div class="landing-pillar-desc">
+            Sintesis 4 metodologi valuasi klasik dan modern untuk menghitung nilai wajar saham dan margin of safety.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Formula Benjamin Graham &amp; Peter Lynch Fair Value</li>
+            <li>Discounted Cash Flow (DCF) 2-Stage dengan WACC terkalibrasi</li>
+            <li>Historical Valuation Band (5-Year PE &amp; PBV Standard Deviation)</li>
+            <li>Skor kesehatan kebangkrutan Altman Z-Score &amp; Piotroski F-Score</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 3 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-shield-check"></i></div>
+          <div class="landing-pillar-title">3. Pengendalian Risiko Portofolio</div>
+          <div class="landing-pillar-desc">
+            Protokol alokasi aset institusional yang membatasi eksposur risiko modal dan menjaga likuiditas operasional.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Batas alokasi maksimum 10–15% per single-stock Big Cap</li>
+            <li>Wajib penyediaan buffer kas RDN minimal 15–20%</li>
+            <li>Evaluasi Risk-to-Reward Ratio terukur (standar minimum 1:2)</li>
+            <li>Kalkulator rebalancing otomatis berbasis deviasi bobot target</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 4 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-receipt-tax"></i></div>
+          <div class="landing-pillar-title">4. Kepatuhan Pajak Dividen (PMK 18)</div>
+          <div class="landing-pillar-desc">
+            Modul pemantauan insentif pembebasan PPh Final 0% atas dividen saham domestik sesuai PMK No. 18/PMK.03/2021.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Pelacakan masa holding reinvestasi domestik selama 3 tahun kalender</li>
+            <li>Pemisahan dividen bebas pajak vs dividen non-reinvestasi (10% PPh Final)</li>
+            <li>Kalender visual proyeksi arus kas passive income bulanan &amp; tahunan</li>
+            <li>Rekonsiliasi otomatis dividen riil dengan saldo mutasi kas RDN</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 5 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-building-bank"></i></div>
+          <div class="landing-pillar-title">5. Family Office &amp; Net Worth</div>
+          <div class="landing-pillar-desc">
+            Konsolidasi total neraca kekayaan bersih lintas instrumen investasi, aset perbankan, dan liabilitas keuangan.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Konsolidasi 4 kelas aset: Saham IDX, Crypto, Reksa Dana, dan ETF</li>
+            <li>Pemantauan rasio kesehatan utang (Debt-to-Income / DTI) &amp; Dana Darurat</li>
+            <li>Kalkulator sasaran FIRE (*Financial Independence, Retire Early*) 4% Rule</li>
+            <li>Ekspor dokumen resmi Laporan Konsolidasi Finansial Terpadu (PDF/CSV)</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 6 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-cpu"></i></div>
+          <div class="landing-pillar-title">6. Autonomous Decision Engine</div>
+          <div class="landing-pillar-desc">
+            Arsitektur analitik AI multi-faktor berbasis aturan deterministik yang mengutamakan integritas modal dan data riil.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Audit trail transparan: menyimpan hipotesis falsifiable sebelum entry</li>
+            <li>Pencegahan data sintetis (zero-state guard untuk ticker di luar IDX)</li>
+            <li>Pendeteksian kontradiksi sinyal teknikal vs broker flow pasar</li>
+            <li>Prioritas exit proteksi modal (Stop Loss) dibanding spekulasi baru</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Launch Footer Bar -->
+    <div style="background:#080C14;border:1px solid #1E293B;border-radius:14px;padding:24px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;box-shadow:0 8px 30px rgba(0,0,0,0.5)">
+      <div>
+        <div style="font-size:16px;font-weight:800;color:#FFFFFF">Siap untuk memantau portofolio Anda secara objektif?</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:3px">Seluruh data tersimpan secara terenkripsi dan terisolasi per akun pengguna.</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="authDoGuestLogin()" style="font-weight:700">Masuk Mode Tamu</button>
+        <button class="landing-btn-primary" onclick="authOpenLoginModal()" style="font-weight:700">Masuk / Login →</button>
+      </div>
+    </div>
+  </main>
+
+  <footer style="border-top:1px solid #1E293B;padding:20px;text-align:center;font-size:11px;color:var(--text3);background:#050811">
+    MoneyWatch — Quantitative Investment Terminal &amp; Family Office Infrastructure. Seluruh data pasar berbasis emiten riil Bursa Efek Indonesia (IDX).
+  </footer>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     AUTH OVERLAY — Login Screen (Modal)
+     ══════════════════════════════════════════════ -->
+<div id="auth-overlay" class="hidden">
+  <div class="auth-box" style="position:relative">
+    <button type="button" class="auth-close-btn" onclick="authCloseLoginModal()" aria-label="Kembali ke Beranda" style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px;border-radius:4px" title="Kembali ke Beranda">✕</button>
     <div class="auth-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
       <!-- FIX (2026-09-15, rebrand v2): ikon SVG lama diganti logo baru user
            (sama persis dengan ikon topbar, img/logo-mark.png). Wordmark teks
@@ -224,7 +388,8 @@
       <div class="auth-info" style="margin-top:14px">
         Sesi aktif selama <strong style="color:var(--text2)">30 menit</strong> · Auto-logout jika tidak aktif<br>
         Lupa password? <span style="color:var(--blue);cursor:pointer" onclick="authShowReset()">Reset via kode</span>
-        · <span style="color:var(--blue);cursor:pointer" onclick="authShowSetup('Buat akun baru')">Buat Akun</span>
+        · <span style="color:var(--blue);cursor:pointer" onclick="authShowSetup('Buat akun baru')">Buat Akun</span><br>
+        <span style="color:var(--text3);cursor:pointer;display:inline-block;margin-top:8px" onclick="authCloseLoginModal()">← Kembali ke Beranda</span>
       </div>
     </div>
 
@@ -359,7 +524,6 @@
   <div class="side-group open" data-group="command-center">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-home"></i><span class="side-label">COMMAND CENTER</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('landing',this)"><i class="ti ti-sparkles"></i><span class="side-label">Platform Strengths</span></button>
       <button onclick="goPage('daily-brief',this)"><i class="ti ti-sun"></i><span class="side-label">Market Pulse</span></button>
       <button onclick="goPage('radar',this)"><i class="ti ti-target"></i><span class="side-label">Opportunity Radar</span></button>
       <button class="on" onclick="goPage('dashboard',this)"><i class="ti ti-layout-grid"></i><span class="side-label">Portfolio Snapshot</span></button>
@@ -458,151 +622,6 @@
 </nav>
 
 <div class="pages">
-
-<!-- ===== PLATFORM LANDING PAGE (OBJECTIVE STRENGTHS) ===== -->
-<div id="page-landing" class="page">
-  <div class="landing-page-wrap">
-    <!-- HERO SECTION -->
-    <div class="landing-hero">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px">MONEYWATCH OS</span>
-        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Terminal Investasi &amp; Manajemen Kekayaan Terpadu</span>
-      </div>
-      <h1 class="landing-hero-title">
-        Infrastruktur Analisa Pasar Modal, Valuasi Terukur &amp; Pengendalian Risiko Portofolio.
-      </h1>
-      <p class="landing-hero-sub">
-        Platform analitik kuantitatif untuk investor dan pengelola portofolio IDX: memadukan deteksi aliran bandarmology, model valuasi intrinsik multi-faktor, kepatuhan pajak dividen PMK 18, hingga konsolidasi neraca family office tanpa data sintetis.
-      </p>
-      <div class="landing-cta-row">
-        <button class="landing-btn-primary" onclick="goPage('dashboard')">
-          <i class="ti ti-layout-grid"></i> Buka Terminal Dashboard
-        </button>
-        <button class="landing-btn-secondary" onclick="goPage('stock-intel')">
-          <i class="ti ti-radar"></i> Riset Saham (Stock Intel)
-        </button>
-        <button class="landing-btn-secondary" onclick="goPage('fundamental')">
-          <i class="ti ti-building-bank"></i> Valuasi Fundamental
-        </button>
-        <button class="landing-btn-secondary" onclick="goPage('technical')">
-          <i class="ti ti-chart-candle"></i> Chart Teknikal &amp; Flow
-        </button>
-      </div>
-    </div>
-
-    <!-- 6 CORE PLATFORM PILLARS (FACTUAL & OBJECTIVE) -->
-    <div>
-      <div style="margin-bottom:18px">
-        <div style="font-size:18px;font-weight:800;color:#FFFFFF;letter-spacing:-0.4px">6 Pilar Kekuatan Sistem MoneyWatch</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:2px">Seluruh modul terintegrasi pada satu canonical financial calculation engine.</div>
-      </div>
-
-      <div class="landing-pillars-grid">
-        <!-- Pilar 1 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-chart-arrows"></i></div>
-          <div class="landing-pillar-title">1. Smart Money &amp; Bandarmology</div>
-          <div class="landing-pillar-desc">
-            Pelacakan jejak akumulasi dan distribusi institusional pada bursa IDX untuk menyaring false breakout secara terukur.
-          </div>
-          <ul class="landing-specs-list">
-            <li>Konsentrasi transaksi Top 3 broker akumulasi &gt; 60%</li>
-            <li>Deteksi runtutan inflow asing (foreign net flow streak)</li>
-            <li>Estimasi rata-rata harga bandar (Bandar Volume Weighted Average Price)</li>
-            <li>Scanner anomali Volume Spike terverifikasi</li>
-          </ul>
-        </div>
-
-        <!-- Pilar 2 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-calculator"></i></div>
-          <div class="landing-pillar-title">2. Valuasi Kuantitatif &amp; MoS</div>
-          <div class="landing-pillar-desc">
-            Sintesis 4 metodologi valuasi klasik dan modern untuk menghitung nilai wajar saham dan margin of safety.
-          </div>
-          <ul class="landing-specs-list">
-            <li>Formula Benjamin Graham &amp; Peter Lynch Fair Value</li>
-            <li>Discounted Cash Flow (DCF) 2-Stage dengan WACC terkalibrasi</li>
-            <li>Historical Valuation Band (5-Year PE &amp; PBV Standard Deviation)</li>
-            <li>Skor kesehatan kebangkrutan Altman Z-Score &amp; Piotroski F-Score</li>
-          </ul>
-        </div>
-
-        <!-- Pilar 3 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-shield-check"></i></div>
-          <div class="landing-pillar-title">3. Pengendalian Risiko Portofolio</div>
-          <div class="landing-pillar-desc">
-            Protokol alokasi aset institusional yang membatasi eksposur risiko modal dan menjaga likuiditas operasional.
-          </div>
-          <ul class="landing-specs-list">
-            <li>Batas alokasi maksimum 10–15% per single-stock Big Cap</li>
-            <li>Wajib penyediaan buffer kas RDN minimal 15–20%</li>
-            <li>Evaluasi Risk-to-Reward Ratio terukur (standar minimum 1:2)</li>
-            <li>Kalkulator rebalancing otomatis berbasis deviasi bobot target</li>
-          </ul>
-        </div>
-
-        <!-- Pilar 4 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-receipt-tax"></i></div>
-          <div class="landing-pillar-title">4. Kepatuhan Pajak Dividen (PMK 18)</div>
-          <div class="landing-pillar-desc">
-            Modul pemantauan insentif pembebasan PPh Final 0% atas dividen saham domestik sesuai PMK No. 18/PMK.03/2021.
-          </div>
-          <ul class="landing-specs-list">
-            <li>Pelacakan masa holding reinvestasi domestik selama 3 tahun kalender</li>
-            <li>Pemisahan dividen bebas pajak vs dividen non-reinvestasi (10% PPh Final)</li>
-            <li>Kalender visual proyeksi arus kas passive income bulanan &amp; tahunan</li>
-            <li>Rekonsiliasi otomatis dividen riil dengan saldo mutasi kas RDN</li>
-          </ul>
-        </div>
-
-        <!-- Pilar 5 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-building-bank"></i></div>
-          <div class="landing-pillar-title">5. Family Office &amp; Net Worth</div>
-          <div class="landing-pillar-desc">
-            Konsolidasi total neraca kekayaan bersih lintas instrumen investasi, aset perbankan, dan liabilitas keuangan.
-          </div>
-          <ul class="landing-specs-list">
-            <li>Konsolidasi 4 kelas aset: Saham IDX, Crypto, Reksa Dana, dan ETF</li>
-            <li>Pemantauan rasio kesehatan utang (Debt-to-Income / DTI) &amp; Dana Darurat</li>
-            <li>Kalkulator sasaran FIRE (*Financial Independence, Retire Early*) 4% Rule</li>
-            <li>Ekspor dokumen resmi Laporan Konsolidasi Finansial Terpadu (PDF/CSV)</li>
-          </ul>
-        </div>
-
-        <!-- Pilar 6 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-cpu"></i></div>
-          <div class="landing-pillar-title">6. Autonomous Decision Engine</div>
-          <div class="landing-pillar-desc">
-            Arsitektur analitik AI multi-faktor berbasis aturan deterministik yang mengutamakan integritas modal dan data riil.
-          </div>
-          <ul class="landing-specs-list">
-            <li>Audit trail transparan: menyimpan hipotesis falsifiable sebelum entry</li>
-            <li>Pencegahan data sintetis (zero-state guard untuk ticker di luar IDX)</li>
-            <li>Pendeteksian kontradiksi sinyal teknikal vs broker flow pasar</li>
-            <li>Prioritas exit proteksi modal (Stop Loss) dibanding spekulasi baru</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- QUICK LAUNCH FOOTER BAR -->
-    <div style="background:#080C14;border:1px solid #1E293B;border-radius:12px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
-      <div>
-        <div style="font-size:14px;font-weight:800;color:#FFFFFF">Siap untuk memantau portofolio Anda?</div>
-        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Seluruh data tersimpan secara terisolasi dan terenkripsi pada perangkat Anda.</div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <button class="btn btn-ghost btn-sm" onclick="goPage('knowledge')" style="font-weight:700">Dokumentasi &amp; Panduan</button>
-        <button class="btn btn-blue btn-sm" onclick="goPage('dashboard')" style="font-weight:700">Masuk ke Dashboard →</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- ===== SETTINGS PILLAR PAGE ===== -->
 <div id="page-settings" class="page"></div>
@@ -4156,7 +4175,7 @@
 <script src="js/05-assets.js?v=20260913a"></script>
 <script src="js/06-analysis-router.js?v=20260915c"></script>
 <script src="js/07-flowscan.js?v=20260915a"></script>
-<script src="js/08-auth.js?v=20260909a"></script>
+<script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
 <script src="js/10-hargawajar.js?v=20260913a"></script>
 <script src="js/11-quant.js?v=20260914a"></script>
