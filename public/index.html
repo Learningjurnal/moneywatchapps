@@ -2443,7 +2443,7 @@
 <!-- Ranking -->
 <div id="page-ranking" class="page">
   <div class="ptitle">Ranking 30 Saham Terbesar IHSG</div>
-  <div class="psub">Diurutkan berdasarkan skor akumulasi big money • Klik Lihat untuk analisa detail • <span style="color:#41f3a7">●</span> = data riil Yahoo &nbsp;·&nbsp; <span style="color:#e21d48">○ SIM</span> = data simulasi, harga tidak akurat — perbaiki di <a href="#" onclick="goPage('admin');return false" style="color:var(--accent)">Kelola Daftar Saham</a></div>
+  <div class="psub">Diurutkan berdasarkan skor akumulasi big money • Klik Lihat untuk analisa detail, klik Vol Ratio untuk drill-down ke Volume Spike (⚡ = volume hari ini juga melonjak, memperkuat sinyal) • <span style="color:#41f3a7">●</span> = data riil Yahoo &nbsp;·&nbsp; <span style="color:#e21d48">○ SIM</span> = data simulasi, harga tidak akurat — perbaiki di <a href="#" onclick="goPage('admin');return false" style="color:var(--accent)">Kelola Daftar Saham</a></div>
   <div class="card" style="margin-top:11px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px">
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;flex:1" id="rk-sum"></div>
@@ -2451,6 +2451,7 @@
         <select class="finput fsel" id="rk-sort" onchange="fsRenderRanking()" style="padding:4px 8px;font-size:11px">
           <option value="score">Skor</option><option value="cap">Market Cap</option>
           <option value="cmf">CMF</option><option value="chg">Chg%</option>
+          <option value="volratio">Vol Ratio</option>
         </select>
         <select class="finput fsel" id="rk-sig" onchange="fsRenderRanking()" style="padding:4px 8px;font-size:11px">
           <option value="all">Semua</option><option value="AKUMULASI">Akumulasi</option>
@@ -2461,7 +2462,7 @@
     <div style="height:200px;margin-bottom:12px"><canvas id="rk-chart"></canvas></div>
     <div style="overflow-x:auto">
       <table class="tbl">
-        <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th>Harga</th><th>Chg%</th><th>Cap (T)</th><th>Skor</th><th>Sinyal</th><th>CMF</th><th>RSI</th><th>WL</th><th></th></tr></thead>
+        <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th>Harga</th><th>Chg%</th><th>Cap (T)</th><th>Skor</th><th>Sinyal</th><th>CMF</th><th>RSI</th><th>Vol Ratio</th><th>WL</th><th></th></tr></thead>
         <tbody id="rk-body"></tbody>
       </table>
     </div>
@@ -4022,7 +4023,7 @@
 <script src="js/36-crypto-technical.js?v=20260913a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
 <script src="js/06-analysis-router.js?v=20260913a"></script>
-<script src="js/07-flowscan.js?v=20260913b"></script>
+<script src="js/07-flowscan.js?v=20260915a"></script>
 <script src="js/08-auth.js?v=20260909a"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
 <script src="js/10-hargawajar.js?v=20260913a"></script>

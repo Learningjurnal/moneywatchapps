@@ -212,6 +212,34 @@ function fsGenData(tk,days){
   data.simulated = true; // KNOWN_ISSUES.md #2 — this whole series is the seeded random-walk fallback, not real OHLCV
   return data;
 }
+// FIX (2026-09-15, user-requested "gabungkan Volume Spike ke Market Radar"):
+// Market Radar (fsRenderRanking) SUDAH memuat 60 hari data OHLCV+volume per
+// saham untuk menghitung CMF (lihat fsInit -> fsGenData) — jadi rasio volume
+// spike bisa dihitung dari data yang SAMA, tanpa fetch tambahan sama sekali.
+// vsMedian()/VS_SPIKE_THRESHOLD (45-volume-spike.js) dipakai ulang di sini
+// (bukan ditulis ulang) supaya definisi "spike" (rasio ≥1.70x median) SAMA
+// PERSIS antara Market Radar dan halaman Volume Spike — dua tempat itu jadi
+// benar-benar saling melengkapi (bukan 2 angka beda arti yang kebetulan mirip).
+function fsCalcVolRatio(data){
+  var n = data.length;
+  var todayVol = (n && data[n-1]) ? data[n-1].v : 0;
+  var vol14 = data.slice(-15,-1).map(function(r){ return r.v; });
+  var vol30 = data.slice(-31,-1).map(function(r){ return r.v; });
+  var med14 = (typeof vsMedian==='function') ? vsMedian(vol14) : 0;
+  var med30 = (typeof vsMedian==='function') ? vsMedian(vol30) : 0;
+  var ratio14 = med14>0 ? todayVol/med14 : 0;
+  var ratio30 = med30>0 ? todayVol/med30 : 0;
+  var threshold = (typeof VS_SPIKE_THRESHOLD==='number') ? VS_SPIKE_THRESHOLD : 1.7;
+  return { ratio14:ratio14, ratio30:ratio30, isSpike: ratio14>=threshold || ratio30>=threshold };
+}
+// Pindah ke halaman Volume Spike (kolom kanannya: screening lintas-saham +
+// panel detail) dengan ticker ini langsung dipilih — drill-down 1 klik dari
+// Market Radar, konsisten dengan pola GLOBAL_STOCK_CONTEXT yang sudah dipakai
+// di seluruh app untuk sinkronisasi ticker lintas-halaman.
+function fsGoVolumeSpike(tk){
+  if(typeof window!=='undefined' && window.GLOBAL_STOCK_CONTEXT) window.GLOBAL_STOCK_CONTEXT.setTicker(tk,'market-radar');
+  if(typeof goPage==='function') goPage('volume-spike', null);
+}
 function fsCalcCMF(data,p){p=p||20;return data.map(function(_,i){if(i<p-1)return 0;var sm=0,sv=0;for(var j=i-p+1;j<=i;j++){sm+=data[j].mfv;sv+=data[j].v;}return sv>0?sm/sv:0;});}
 function fsCalcMA(arr,p){return arr.map(function(_,i){if(i<p-1)return null;return arr.slice(i-p+1,i+1).reduce(function(a,b){return a+b;},0)/p;});}
 function fsCalcRSI(data,p){p=p||14;var g=0,l=0;for(var i=1;i<=p;i++){var d=data[i].c-data[i-1].c;if(d>0)g+=d;else l-=d;}var ag=g/p,al=l/p,rsi=[];for(var i=0;i<p;i++)rsi.push(50);rsi.push(al===0?100:100-(100/(1+ag/al)));for(var i=p+1;i<data.length;i++){var d=data[i].c-data[i-1].c;ag=(ag*(p-1)+(d>0?d:0))/p;al=(al*(p-1)+(d<0?-d:0))/p;rsi.push(al===0?100:100-(100/(1+ag/al)));}return rsi;}
@@ -554,7 +582,7 @@ function fsRenderRanking(){
   var sigF=document.getElementById('rk-sig')&&document.getElementById('rk-sig').value||'all';
   var list=[].concat(FS_RD);
   if(sigF!=='all') list=list.filter(function(r){return r.a.sig===sigF;});
-  list.sort(function(a,b){if(sort==='score')return b.a.sc-a.a.sc;if(sort==='cap')return b.cap-a.cap;if(sort==='cmf')return b.a.cl-a.a.cl;if(sort==='chg')return b.a.chgPct-a.a.chgPct;return 0;});
+  list.sort(function(a,b){if(sort==='score')return b.a.sc-a.a.sc;if(sort==='cap')return b.cap-a.cap;if(sort==='cmf')return b.a.cl-a.a.cl;if(sort==='chg')return b.a.chgPct-a.a.chgPct;if(sort==='volratio')return (b.a.volRatio30||0)-(a.a.volRatio30||0);return 0;});
 
   var acc=FS_RD.filter(function(r){return r.a.sig==='AKUMULASI';}).length;
   var dist=FS_RD.filter(function(r){return r.a.sig==='DISTRIBUSI';}).length;
@@ -607,9 +635,14 @@ function fsRenderRanking(){
       +'<td class="mono '+(r.a.chgPct>=0?'up':'dn')+'">'+fsPct(r.a.chgPct)+'</td>'
       +'<td class="mono" style="color:var(--text2)">'+r.cap+'T</td>'
       +'<td><div style="display:flex;align-items:center;gap:5px"><span class="mono" style="color:'+fsScColor(r.a.sc)+';min-width:22px;font-weight:600">'+r.a.sc+'</span><div class="prog" style="width:50px"><div class="progf" style="width:'+r.a.sc+'%;background:'+fsScColor(r.a.sc)+'"></div></div></div></td>'
-      +'<td>'+fsMkBdg(r.a.sig,true)+'</td>'
+      +'<td>'+fsMkBdg(r.a.sig,true)+(r.a.isVolSpike?' <span class="badge" style="font-size:8px;background:rgba(245,158,11,.18);color:var(--amber)" title="Volume hari ini juga melonjak (≥'+((typeof VS_SPIKE_THRESHOLD==="number"?VS_SPIKE_THRESHOLD:1.7).toFixed(2))+'x median) — memperkuat sinyal '+r.a.sig.toLowerCase()+' di atas">⚡</span>':'')+'</td>'
       +'<td class="mono" style="color:'+(r.a.cl>0?'#41f3a7':'#e21d48')+'">'+(r.a.cl*100).toFixed(1)+'%</td>'
       +'<td class="mono" style="color:'+(r.a.rl>70?'#e21d48':r.a.rl<30?'#41f3a7':'var(--text2)')+'">'+r.a.rl.toFixed(1)+'</td>'
+      // FIX (2026-09-15, gabung Volume Spike ke Market Radar): kolom baru,
+      // hitungan & ambang PERSIS sama dengan halaman Volume Spike (lihat
+      // fsCalcVolRatio di atas) — klik nilainya loncat ke Volume Spike untuk
+      // drill-down (chart 7 hari, arus dana asing) tanpa duplikasi tampilan.
+      +'<td class="mono" style="cursor:pointer;font-weight:'+(r.a.isVolSpike?'700':'400')+';color:'+(r.a.isVolSpike?'var(--amber)':'var(--text2)')+'" onclick="fsGoVolumeSpike(\''+r.t+'\')" title="Buka di Volume Spike">'+(r.a.volRatio30||0).toFixed(2)+'x</td>'
       +'<td><button class="btn btn-ghost btn-xs '+(inWl?'b-up':'')+'" onclick="fsTgWl(\''+r.t+'\');fsRenderRanking()" style="font-size:10px">'+(inWl?'★':'☆')+'</button></td>'
       +'<td><button class="btn btn-ghost btn-xs" onclick="fsQuickLoad(\''+r.t+'\')" style="font-size:10px">Lihat</button></td>'
       +'</tr>';
@@ -930,6 +963,10 @@ function fsInit(){
   FS_RD=rankSource.map(function(u){
     var data=fsGenData(u.t,60);
     var a=fsProcess(data);
+    // Rasio volume spike dihitung SEKALI di sini (bukan tiap render) dari
+    // data yang sudah dimuat — lihat fsCalcVolRatio() di atas.
+    var vr=fsCalcVolRatio(data);
+    a.volRatio30=vr.ratio30; a.volRatio14=vr.ratio14; a.isVolSpike=vr.isSpike;
     return Object.assign({},u,{data:data,a:a});
   });
 
