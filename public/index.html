@@ -178,7 +178,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20260915b">
+<link rel="stylesheet" href="css/main.css?v=20260915c">
 <link rel="stylesheet" href="css/wealth.css?v=20260912a">
 </head>
 <body>
@@ -359,6 +359,7 @@
   <div class="side-group open" data-group="command-center">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-home"></i><span class="side-label">COMMAND CENTER</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
+      <button onclick="goPage('landing',this)"><i class="ti ti-sparkles"></i><span class="side-label">Platform Strengths</span></button>
       <button onclick="goPage('daily-brief',this)"><i class="ti ti-sun"></i><span class="side-label">Market Pulse</span></button>
       <button onclick="goPage('radar',this)"><i class="ti ti-target"></i><span class="side-label">Opportunity Radar</span></button>
       <button class="on" onclick="goPage('dashboard',this)"><i class="ti ti-layout-grid"></i><span class="side-label">Portfolio Snapshot</span></button>
@@ -385,6 +386,7 @@
       <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar"></i><span class="side-label">Stock Intel</span></button>
       <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank"></i><span class="side-label">Fundamental</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
+      <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto Technical</span></button>
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
       <button onclick="goPage('volume-spike',this)"><i class="ti ti-bolt"></i><span class="side-label">Volume Spike</span></button>
@@ -456,6 +458,151 @@
 </nav>
 
 <div class="pages">
+
+<!-- ===== PLATFORM LANDING PAGE (OBJECTIVE STRENGTHS) ===== -->
+<div id="page-landing" class="page">
+  <div class="landing-page-wrap">
+    <!-- HERO SECTION -->
+    <div class="landing-hero">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px">MONEYWATCH OS</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Terminal Investasi &amp; Manajemen Kekayaan Terpadu</span>
+      </div>
+      <h1 class="landing-hero-title">
+        Infrastruktur Analisa Pasar Modal, Valuasi Terukur &amp; Pengendalian Risiko Portofolio.
+      </h1>
+      <p class="landing-hero-sub">
+        Platform analitik kuantitatif untuk investor dan pengelola portofolio IDX: memadukan deteksi aliran bandarmology, model valuasi intrinsik multi-faktor, kepatuhan pajak dividen PMK 18, hingga konsolidasi neraca family office tanpa data sintetis.
+      </p>
+      <div class="landing-cta-row">
+        <button class="landing-btn-primary" onclick="goPage('dashboard')">
+          <i class="ti ti-layout-grid"></i> Buka Terminal Dashboard
+        </button>
+        <button class="landing-btn-secondary" onclick="goPage('stock-intel')">
+          <i class="ti ti-radar"></i> Riset Saham (Stock Intel)
+        </button>
+        <button class="landing-btn-secondary" onclick="goPage('fundamental')">
+          <i class="ti ti-building-bank"></i> Valuasi Fundamental
+        </button>
+        <button class="landing-btn-secondary" onclick="goPage('technical')">
+          <i class="ti ti-chart-candle"></i> Chart Teknikal &amp; Flow
+        </button>
+      </div>
+    </div>
+
+    <!-- 6 CORE PLATFORM PILLARS (FACTUAL & OBJECTIVE) -->
+    <div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:18px;font-weight:800;color:#FFFFFF;letter-spacing:-0.4px">6 Pilar Kekuatan Sistem MoneyWatch</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">Seluruh modul terintegrasi pada satu canonical financial calculation engine.</div>
+      </div>
+
+      <div class="landing-pillars-grid">
+        <!-- Pilar 1 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-chart-arrows"></i></div>
+          <div class="landing-pillar-title">1. Smart Money &amp; Bandarmology</div>
+          <div class="landing-pillar-desc">
+            Pelacakan jejak akumulasi dan distribusi institusional pada bursa IDX untuk menyaring false breakout secara terukur.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Konsentrasi transaksi Top 3 broker akumulasi &gt; 60%</li>
+            <li>Deteksi runtutan inflow asing (foreign net flow streak)</li>
+            <li>Estimasi rata-rata harga bandar (Bandar Volume Weighted Average Price)</li>
+            <li>Scanner anomali Volume Spike terverifikasi</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 2 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-calculator"></i></div>
+          <div class="landing-pillar-title">2. Valuasi Kuantitatif &amp; MoS</div>
+          <div class="landing-pillar-desc">
+            Sintesis 4 metodologi valuasi klasik dan modern untuk menghitung nilai wajar saham dan margin of safety.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Formula Benjamin Graham &amp; Peter Lynch Fair Value</li>
+            <li>Discounted Cash Flow (DCF) 2-Stage dengan WACC terkalibrasi</li>
+            <li>Historical Valuation Band (5-Year PE &amp; PBV Standard Deviation)</li>
+            <li>Skor kesehatan kebangkrutan Altman Z-Score &amp; Piotroski F-Score</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 3 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-shield-check"></i></div>
+          <div class="landing-pillar-title">3. Pengendalian Risiko Portofolio</div>
+          <div class="landing-pillar-desc">
+            Protokol alokasi aset institusional yang membatasi eksposur risiko modal dan menjaga likuiditas operasional.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Batas alokasi maksimum 10–15% per single-stock Big Cap</li>
+            <li>Wajib penyediaan buffer kas RDN minimal 15–20%</li>
+            <li>Evaluasi Risk-to-Reward Ratio terukur (standar minimum 1:2)</li>
+            <li>Kalkulator rebalancing otomatis berbasis deviasi bobot target</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 4 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-receipt-tax"></i></div>
+          <div class="landing-pillar-title">4. Kepatuhan Pajak Dividen (PMK 18)</div>
+          <div class="landing-pillar-desc">
+            Modul pemantauan insentif pembebasan PPh Final 0% atas dividen saham domestik sesuai PMK No. 18/PMK.03/2021.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Pelacakan masa holding reinvestasi domestik selama 3 tahun kalender</li>
+            <li>Pemisahan dividen bebas pajak vs dividen non-reinvestasi (10% PPh Final)</li>
+            <li>Kalender visual proyeksi arus kas passive income bulanan &amp; tahunan</li>
+            <li>Rekonsiliasi otomatis dividen riil dengan saldo mutasi kas RDN</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 5 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-building-bank"></i></div>
+          <div class="landing-pillar-title">5. Family Office &amp; Net Worth</div>
+          <div class="landing-pillar-desc">
+            Konsolidasi total neraca kekayaan bersih lintas instrumen investasi, aset perbankan, dan liabilitas keuangan.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Konsolidasi 4 kelas aset: Saham IDX, Crypto, Reksa Dana, dan ETF</li>
+            <li>Pemantauan rasio kesehatan utang (Debt-to-Income / DTI) &amp; Dana Darurat</li>
+            <li>Kalkulator sasaran FIRE (*Financial Independence, Retire Early*) 4% Rule</li>
+            <li>Ekspor dokumen resmi Laporan Konsolidasi Finansial Terpadu (PDF/CSV)</li>
+          </ul>
+        </div>
+
+        <!-- Pilar 6 -->
+        <div class="landing-pillar-card">
+          <div class="landing-pillar-icon"><i class="ti ti-cpu"></i></div>
+          <div class="landing-pillar-title">6. Autonomous Decision Engine</div>
+          <div class="landing-pillar-desc">
+            Arsitektur analitik AI multi-faktor berbasis aturan deterministik yang mengutamakan integritas modal dan data riil.
+          </div>
+          <ul class="landing-specs-list">
+            <li>Audit trail transparan: menyimpan hipotesis falsifiable sebelum entry</li>
+            <li>Pencegahan data sintetis (zero-state guard untuk ticker di luar IDX)</li>
+            <li>Pendeteksian kontradiksi sinyal teknikal vs broker flow pasar</li>
+            <li>Prioritas exit proteksi modal (Stop Loss) dibanding spekulasi baru</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUICK LAUNCH FOOTER BAR -->
+    <div style="background:#080C14;border:1px solid #1E293B;border-radius:12px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+      <div>
+        <div style="font-size:14px;font-weight:800;color:#FFFFFF">Siap untuk memantau portofolio Anda?</div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Seluruh data tersimpan secara terisolasi dan terenkripsi pada perangkat Anda.</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="goPage('knowledge')" style="font-weight:700">Dokumentasi &amp; Panduan</button>
+        <button class="btn btn-blue btn-sm" onclick="goPage('dashboard')" style="font-weight:700">Masuk ke Dashboard →</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ===== SETTINGS PILLAR PAGE ===== -->
 <div id="page-settings" class="page"></div>
@@ -900,92 +1047,67 @@
              logic — visiting the dashboard also warms the cache for when the
              user opens the full Radar page next. Answers roadmap question #3
              ("apa peluang terbaik"). -->
-        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-radar" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Opportunity Radar</span>
-            <button class="btn btn-ghost btn-xs" onclick="goPage('radar')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
-          </div>
-          <div id="dash-radar-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:10px">
-            <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat peluang teratas…</div>
-          </div>
-        </div>
+        <!-- 3-7. COMMAND CENTER UNIFIED GRID (HIGH DENSITY / DECLUTTERED) -->
+        <div class="dash-cc-unified-grid dash-section-cc" style="margin-bottom:14px">
+          <!-- Left Column: Opportunities & Breadth -->
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <!-- 3. AI OPPORTUNITY RADAR PREVIEW -->
+            <div id="card-dash-radar" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Opportunity Radar</span>
+                <button class="btn btn-ghost btn-xs" onclick="goPage('radar')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
+              </div>
+              <div id="dash-radar-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px">
+                <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat peluang teratas…</div>
+              </div>
+            </div>
 
-        <!-- 4. MARKET HEATMAP (Command Center zone — P0 slice 5). Reuses
-             FS_RD (07-flowscan.js), already populated app-wide at boot by
-             fsInit() (06-analysis-router.js init) — no separate fetch/
-             scoring for this preview. Per-cell disclosure via fsSrcDot()
-             so a ticker whose OHLCV isn't cached yet (KNOWN_ISSUES.md #2,
-             fixed) never looks identical to a real one here either.
-             Deferred until that fix landed — see UIUX_ROADMAP_AUDIT.md
-             §7. Answers roadmap §6 "Market Heatmap" zone (breadth &
-             rotation). -->
-        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-heatmap" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Market Heatmap</span>
-            <button class="btn btn-ghost btn-xs" onclick="goPage('heatmap')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
+            <!-- 4. MARKET HEATMAP -->
+            <div id="card-dash-heatmap" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Market Heatmap</span>
+                <button class="btn btn-ghost btn-xs" onclick="goPage('heatmap')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
+              </div>
+              <div id="dash-heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(80px, 1fr));gap:8px">
+                <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat heatmap…</div>
+              </div>
+            </div>
           </div>
-          <div id="dash-heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(84px, 1fr));gap:8px">
-            <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat heatmap…</div>
-          </div>
-        </div>
 
-        <!-- 5. SMART MONEY FLOW (Command Center zone — P0 slice 5). Reuses
-             generateClientSideBrokerSummary() (41-stockchat-cockpit.js) for
-             the same Big 4 Banks renderBandarmologyMarketFlowView() reads —
-             synchronous, no separate fetch. KNOWN_ISSUES.md #3 fix: shown
-             with an honest SIMULASI disclosure (transaction volume/value
-             are estimates — BEI has no free/public per-broker feed), not
-             presented as real institutional data. Deferred until that fix
-             landed — see UIUX_ROADMAP_AUDIT.md §7. Answers roadmap §6
-             "Smart Money Flow" zone (institutional activity). -->
-        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-smartflow" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Smart Money Flow</span>
-            <button class="btn btn-ghost btn-xs" onclick="goBandarmology('market',null)" style="font-size:11px;font-weight:700">Lihat Detail →</button>
-          </div>
-          <div id="dash-smartflow-body">
-            <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat aliran dana…</div>
-          </div>
-        </div>
+          <!-- Right Column: Flow, Insight & Alerts -->
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <!-- 5. SMART MONEY FLOW -->
+            <div id="card-dash-smartflow" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Smart Money Flow</span>
+                <button class="btn btn-ghost btn-xs" onclick="goBandarmology('market',null)" style="font-size:11px;font-weight:700">Lihat Detail →</button>
+              </div>
+              <div id="dash-smartflow-body">
+                <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat aliran dana…</div>
+              </div>
+            </div>
 
-        <!-- 6. AI INSIGHT (Command Center zone — P0 slice 4). RULE-BASED
-             synthesis of the Market Regime, Portfolio Snapshot, AI
-             Opportunity Radar and Alerts zones above — no fetch of its
-             own, no LLM call (see renderDashboardAIInsight()'s comment for
-             why). Every line is labeled with which real module it came
-             from, per roadmap §10's own guidance on distinguishing fact
-             from AI opinion. Answers roadmap question #4/"apa yang penting
-             sekarang, apa risikonya, apa tindakannya". -->
-        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-insight" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Insight</span>
-            <span style="font-size:9.5px;color:var(--text3);font-weight:600" title="Ringkasan otomatis berbasis aturan dari data real di atas — bukan panggilan AI/LLM langsung">Ringkasan otomatis, bukan chat AI langsung</span>
-          </div>
-          <div id="dash-insight-body" style="display:flex;flex-direction:column">
-            <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Menyusun ringkasan…</div>
-          </div>
-        </div>
+            <!-- 6. AI INSIGHT -->
+            <div id="card-dash-insight" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Insight</span>
+                <span style="font-size:9.5px;color:var(--text3);font-weight:600" title="Ringkasan otomatis berbasis aturan dari data real di atas — bukan panggilan AI/LLM langsung">Ringkasan berbasis data riil</span>
+              </div>
+              <div id="dash-insight-body" style="display:flex;flex-direction:column">
+                <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Menyusun ringkasan…</div>
+              </div>
+            </div>
 
-        <!-- 7. ALERTS / ACTIONS (Command Center zone — P0 slice 3). Reuses
-             the REAL window.mwGetPriceAlerts() (public/js/30-price-alerts.js)
-             — user-defined price targets checked against real live prices —
-             deliberately NOT the FS_RD-based alerts on the `alerts` page
-             (07-flowscan.js), which KNOWN_ISSUES.md #2 documents can show
-             fabricated signals with no disclosure; that system is not
-             reused here for that reason. Answers roadmap question #5
-             ("apa tindakan yang relevan"). -->
-        <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-alerts" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Alerts &amp; Actions</span>
-            <button class="btn btn-ghost btn-xs" onclick="goPage('alerts')" style="font-size:11px;font-weight:700">Kelola Alerts →</button>
-          </div>
-          <div id="dash-alerts-list" style="display:flex;flex-direction:column;gap:8px">
-            <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat alert…</div>
+            <!-- 7. ALERTS / ACTIONS -->
+            <div id="card-dash-alerts" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Alerts &amp; Actions</span>
+                <button class="btn btn-ghost btn-xs" onclick="goPage('alerts')" style="font-size:11px;font-weight:700">Kelola Alerts →</button>
+              </div>
+              <div id="dash-alerts-list" style="display:flex;flex-direction:column;gap:8px">
+                <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat alert…</div>
+              </div>
+            </div>
           </div>
         </div>
   </div>
@@ -2906,17 +3028,12 @@
     </div>
   </div>
 
-  <div class="sm-container">
+  <div class="sm-container-plain">
     <!-- TOP HORIZONTAL SUB-NAV -->
-    <div class="sm-suite-header" style="border-bottom-color:rgba(247,147,26,0.25)">
-      <div class="sm-suite-brand">
-                <span>Crypto <span style="color:#f7931a">PRO</span></span>
-      </div>
-      <div class="sm-suite-tabs">
-        <button type="button" class="sm-nav-item active-tech" id="cr-tech-nav-1" onclick="cryptoTechSwitchTab(1)">1. Interactive Chart &amp; Whale Overlay</button>
-        <button type="button" class="sm-nav-item" id="cr-tech-nav-2" onclick="cryptoTechSwitchTab(2)">2. Whale Tracker &amp; 15+ Indikator</button>
-        <button type="button" class="sm-nav-item" id="cr-tech-nav-3" onclick="cryptoTechSwitchTab(3)">3. Multi-Coin Signal &amp; Breakout Scanner</button>
-      </div>
+    <div class="sm-suite-tabs" style="margin-bottom:16px">
+      <button type="button" class="sm-nav-item active-tech" id="cr-tech-nav-1" onclick="cryptoTechSwitchTab(1)">1. Interactive Chart &amp; Whale Overlay</button>
+      <button type="button" class="sm-nav-item" id="cr-tech-nav-2" onclick="cryptoTechSwitchTab(2)">2. Whale Tracker &amp; 15+ Indikator</button>
+      <button type="button" class="sm-nav-item" id="cr-tech-nav-3" onclick="cryptoTechSwitchTab(3)">3. Multi-Coin Signal &amp; Breakout Scanner</button>
     </div>
 
     <!-- MAIN WORKSPACE -->
@@ -4037,7 +4154,7 @@
 <script src="js/04-render.js?v=20260915b"></script>
 <script src="js/36-crypto-technical.js?v=20260913a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
-<script src="js/06-analysis-router.js?v=20260913a"></script>
+<script src="js/06-analysis-router.js?v=20260915c"></script>
 <script src="js/07-flowscan.js?v=20260915a"></script>
 <script src="js/08-auth.js?v=20260909a"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>

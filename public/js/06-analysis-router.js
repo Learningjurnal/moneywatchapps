@@ -816,6 +816,13 @@ function toggleSidebar(force){
 
 function renderPage(name){
   switch(name){
+    case 'landing': break;
+    case 'crypto-technical':
+      if(typeof cryptoTechSelectCoin==='function'){
+        var curCoin = (document.getElementById('crTechTickerInput') && document.getElementById('crTechTickerInput').value) || 'BTC';
+        cryptoTechSelectCoin(curCoin, false);
+      }
+      break;
     case 'dashboard':renderDashboard();break;
     case 'settings':if(typeof renderSettingsPage==='function')renderSettingsPage();break;
     case 'daily-brief':if(typeof renderDailyBriefPage==='function')renderDailyBriefPage();else if(typeof renderDailyBrief==='function')renderDailyBrief();break;
