@@ -1252,7 +1252,7 @@ function renderRebalancingPage() {
 var MW_COPILOT_HISTORY = [
   {
     role: 'assistant',
-    text: 'Halo! Saya adalah **MoneyWatch Pro AI**, asisten analis portofolio multi-aset kelas institusional yang berfokus pada pasar modal Indonesia (IHSG/BEI).\n\nSaya siap membantu Anda dalam:\n- **Analisa Portofolio & Risiko**: Evaluasi konsentrasi AUM, alokasi kas RDN, dan Maximum Drawdown.\n- **Kepatuhan Regulasi BEI**: Validasi simulasi transaksi sesuai fraksi harga (tick size) dan batas ARA/ARB simetris.\n- **Kalkulasi Pajak Dividen**: Proyeksi imbal hasil dividen bersih setelah dipotong PPh Final 10% (atau 0% reinvestasi PMK 18/2021).\n- **Rasio Fundamental & Valuasi**: P/E, P/BV, ROE, DER, NPM, dan Margin of Safety tanpa halusinasi.\n- **Kepemilikan KSEI**: Pantau data pemegang saham institusi >5% dan estimasi free float publik.\n\n*Silakan tanyakan tentang portofolio Anda atau kode saham spesifik di BEI (misal: BBCA, BBRI, BMRI, PGEO).*',
+    text: 'Halo! Saya adalah **MoneyWatch AI**, asisten analis portofolio multi-aset kelas institusional yang berfokus pada pasar modal Indonesia (IHSG/BEI).\n\nSaya siap membantu Anda dalam:\n- **Analisa Portofolio & Risiko**: Evaluasi konsentrasi AUM, alokasi kas RDN, dan Maximum Drawdown.\n- **Kepatuhan Regulasi BEI**: Validasi simulasi transaksi sesuai fraksi harga (tick size) dan batas ARA/ARB simetris.\n- **Kalkulasi Pajak Dividen**: Proyeksi imbal hasil dividen bersih setelah dipotong PPh Final 10% (atau 0% reinvestasi PMK 18/2021).\n- **Rasio Fundamental & Valuasi**: P/E, P/BV, ROE, DER, NPM, dan Margin of Safety tanpa halusinasi.\n- **Kepemilikan KSEI**: Pantau data pemegang saham institusi >5% dan estimasi free float publik.\n\n*Silakan tanyakan tentang portofolio Anda atau kode saham spesifik di BEI (misal: BBCA, BBRI, BMRI, PGEO).*',
     toolCalls: []
   }
 ];
@@ -1294,7 +1294,7 @@ function renderCopilotPage() {
     return '<div class="copilot-bubble bubble-' + m.role + '" style="margin-bottom:12px;background:' + (isAssistant ? 'var(--bg2)' : 'rgba(56,189,248,0.12)') + ';border:1px solid ' + (isAssistant ? 'var(--border)' : 'rgba(56,189,248,0.3)') + ';border-radius:8px;padding:14px">'
       + '<div class="cb-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
         + '<span class="cb-role" style="font-weight:700;font-size:12px;color:' + (isAssistant ? '#38bdf8' : '#FFFFFF') + '">'
-          + (isAssistant ? 'MoneyWatch Pro AI' : 'Anda')
+          + (isAssistant ? 'MoneyWatch AI' : 'Anda')
         + '</span>'
         + (isAssistant ? '<span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:1px 6px;border-radius:4px">BEI Institutional Analyst</span>' : '')
       + '</div>'
@@ -1307,14 +1307,14 @@ function renderCopilotPage() {
     messagesHtml += '<div class="copilot-bubble bubble-assistant" style="margin-bottom:12px;background:var(--bg2);border:1px dashed #38bdf8;border-radius:8px;padding:14px">'
       + '<div style="display:flex;align-items:center;gap:10px;color:#38bdf8;font-size:12px;font-weight:600">'
         + '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #38bdf8;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></span>'
-        + 'MoneyWatch Pro AI sedang menjalankan Agentic Loop (pemeriksaan data pasar, regulasi BEI & sinkronisasi portofolio)...'
+        + 'MoneyWatch AI sedang menjalankan Agentic Loop (pemeriksaan data pasar, regulasi BEI & sinkronisasi portofolio)...'
       + '</div>'
     + '</div>';
   }
 
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">'
     + '<div>'
-      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">MoneyWatch Pro AI</div>'
+      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">MoneyWatch AI</div>'
       + '<div class="psub">Asisten analis portofolio multi-aset berbasis model reasoning, kepatuhan regulasi BEI, kepemilikan KSEI &amp; kalkulasi pajak dividen bersih.</div>'
     + '</div>'
     + '<div style="display:flex;gap:8px">'
@@ -1348,7 +1348,7 @@ function clearCopilotHistory() {
   MW_COPILOT_HISTORY = [
     {
       role: 'assistant',
-      text: 'Sesi baru dimulai. Saya adalah **MoneyWatch Pro AI**. Bagaimana saya dapat membantu analisa portofolio atau pasar modal Anda hari ini?',
+      text: 'Sesi baru dimulai. Saya adalah **MoneyWatch AI**. Bagaimana saya dapat membantu analisa portofolio atau pasar modal Anda hari ini?',
       toolCalls: []
     }
   ];
@@ -1508,7 +1508,7 @@ async function sendCopilotPrompt(text) {
       // instead of a generic "coba lagi" with no diagnostic value.
       MW_COPILOT_HISTORY.push({
         role: 'assistant',
-        text: 'Gagal terhubung ke engine MoneyWatch Pro AI, dan engine cadangan client-side tidak tersedia. Silakan muat ulang halaman lalu coba lagi.',
+        text: 'Gagal terhubung ke engine MoneyWatch AI, dan engine cadangan client-side tidak tersedia. Silakan muat ulang halaman lalu coba lagi.',
         toolCalls: []
       });
     }

@@ -477,7 +477,7 @@
 
             <div style="padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px">
               <div style="font-weight:700;font-size:12.5px;color:var(--text);margin-bottom:2px">Pulihkan Data dari JSON</div>
-              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Unggah berkas cadangan MoneyWatch Pro.</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Unggah berkas cadangan MoneyWatch.</div>
               <label class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;cursor:pointer">
                 Pilih Berkas JSON untuk Dipulihkan...
                 <input type="file" accept=".json" onchange="MW_SETTINGS.handleFileImport(event)" style="display:none">

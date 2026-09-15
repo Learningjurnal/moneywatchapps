@@ -26,7 +26,7 @@ function txDownloadTemplate(){
   XLSX.utils.book_append_sheet(wb, wsSek, 'Daftar Sekuritas');
 
   var petunjuk = [
-    ['PETUNJUK PENGISIAN — Template Transaksi Money Watch Pro'],
+    ['PETUNJUK PENGISIAN — Template Transaksi Money Watch'],
     [''],
     ['Kolom', 'Keterangan'],
     ['Tanggal', 'Format YYYY-MM-DD, contoh: 2026-01-15'],
@@ -231,7 +231,7 @@ function divDownloadTemplate(){
   XLSX.utils.book_append_sheet(wb, wsDiv, 'Dividen');
 
   var petunjuk = [
-    ['PETUNJUK PENGISIAN — Template Dividen Money Watch Pro'],
+    ['PETUNJUK PENGISIAN — Template Dividen Money Watch'],
     [''],
     ['Kolom', 'Keterangan'],
     ['Tanggal', 'Tanggal pembayaran dividen, format YYYY-MM-DD'],

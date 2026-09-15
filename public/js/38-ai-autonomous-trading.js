@@ -2862,7 +2862,7 @@
     return {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
-      source: 'MoneyWatch Pro — AI Paper Trading (modal virtual terisolasi, bukan trading nyata)',
+      source: 'MoneyWatch — AI Paper Trading (modal virtual terisolasi, bukan trading nyata)',
       featureSpace: 'composite_signal_v1', // computeStockSignal() breakdown — BEDA dari XGB_FEATURES (model XGBoost terpisah, 11-quant.js); jangan dicampur.
       totalClosedTrades: trades.length,
       totalSamplesWithFeatures: samples.length,

@@ -762,7 +762,7 @@ function renderStockIntelPage() {
           + 'Ticker "' + ticker + '" Tidak Terdaftar di Bursa Efek Indonesia (IDX)'
         + '</div>'
         + '<div style="font-size:12.5px;color:var(--text2);max-width:580px;margin:0 auto 18px auto;line-height:1.6">'
-          + 'Sesuai aturan kepatuhan dan integritas data pasar modal MoneyWatch Pro, <strong>seluruh data dummy dan saham fiktif dilarang</strong>. Modul Stock Intelligence hanya menampilkan data riil emiten yang tercatat secara resmi di BEI / IDX.'
+          + 'Sesuai aturan kepatuhan dan integritas data pasar modal MoneyWatch, <strong>seluruh data dummy dan saham fiktif dilarang</strong>. Modul Stock Intelligence hanya menampilkan data riil emiten yang tercatat secara resmi di BEI / IDX.'
         + '</div>'
         + '<div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">'
           + '<button class="btn btn-primary btn-sm" onclick="selectStockIntelTicker(\'BBCA\')">Buka Saham BBCA</button>'

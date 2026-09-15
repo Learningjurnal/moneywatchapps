@@ -103,7 +103,7 @@
         if (typeof showSaveStatus === 'function') {
           showSaveStatus('✓ Notifikasi Web Browser berhasil diaktifkan', 'var(--green)');
         }
-        mwSendBrowserNotification('🔔 MoneyWatch Pro Alerts Aktif', 'Anda akan menerima notifikasi instan saat harga saham menyentuh target.');
+        mwSendBrowserNotification('🔔 MoneyWatch Alerts Aktif', 'Anda akan menerima notifikasi instan saat harga saham menyentuh target.');
         if (cb) cb(true);
       } else {
         if (typeof showSaveStatus === 'function') {

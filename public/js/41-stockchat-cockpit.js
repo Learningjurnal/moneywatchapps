@@ -24,7 +24,7 @@ var BANDAR_SECTOR_DEFS = [
 var STOCKCHAT_CONVERSATION = [
   {
     role: 'assistant',
-    text: 'Halo! Saya **StockChat AI & Bandarmology Analyst** di MoneyWatch Pro.\n\nSaya siap membantu Anda membedah **Broker Summary (Bandarmology)**, aliran dana asing (Foreign Flow), valuasi fundamental, kepemilikan KSEI >5%, serta simulasi risiko drawdown untuk seluruh saham Bursa Efek Indonesia (BEI).',
+    text: 'Halo! Saya **StockChat AI & Bandarmology Analyst** di MoneyWatch.\n\nSaya siap membantu Anda membedah **Broker Summary (Bandarmology)**, aliran dana asing (Foreign Flow), valuasi fundamental, kepemilikan KSEI >5%, serta simulasi risiko drawdown untuk seluruh saham Bursa Efek Indonesia (BEI).',
     toolCalls: []
   }
 ];
@@ -1850,7 +1850,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
     }
   }
   else if (isStrategyIntent) {
-    reply = '### Playbook Strategi Trading & Investasi (MoneyWatch Pro AI)\n\n'
+    reply = '### Playbook Strategi Trading & Investasi (MoneyWatch AI)\n\n'
       + 'Berikut adalah **5 Strategi Utama Kelas Institusi** yang tertanam dalam Knowledge Base StockChat AI:\n\n'
       + '1. **Smart Money & Bandarmology Momentum (Swing Trading)**\n'
       + '   - *Prinsip*: Membeli saham dengan status **Big Accumulation** (Top 3 Broker > 60%) & Net Foreign Buy konsisten.\n'

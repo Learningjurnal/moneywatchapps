@@ -355,6 +355,22 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
   .dash-analytics-row{grid-template-columns:1fr}
   .dash-assetclass-row{grid-template-columns:1fr}
 }
+
+/* Dashboard Progressive Disclosure View Toggle */
+.dash-view-toggle-bar {
+  transition: background var(--spring), border-color var(--spring);
+}
+.dash-view-toggle-bar .btn.on {
+  background: var(--brand-primary) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 255, 0.35);
+}
+body.theme-light .dash-view-toggle-bar .btn.on {
+  background: #0000FF !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 255, 0.25);
+}
+
 @supports (grid-template-rows: masonry){
   .dash-masonry-grid-native{
     display:grid;

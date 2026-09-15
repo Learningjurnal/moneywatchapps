@@ -9,6 +9,44 @@ function renderDashboard(){
   if(typeof renderDashboardSmartFlowPreview === 'function') renderDashboardSmartFlowPreview();
   if(typeof renderDashboardAlertsPreview === 'function') renderDashboardAlertsPreview();
   if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
+  try {
+    var savedView = localStorage.getItem('mw_dash_view_mode') || 'all';
+    if(savedView !== 'all') switchDashboardView(savedView);
+  } catch(e){}
+}
+
+function switchDashboardView(view, btn){
+  var viewMode = view || 'all';
+  try { localStorage.setItem('mw_dash_view_mode', viewMode); } catch(e){}
+  
+  var allBtns = document.querySelectorAll('.dash-view-toggle-bar button');
+  if(allBtns && allBtns.length){
+    allBtns.forEach(function(b){ b.classList.remove('on'); });
+  }
+  if(btn && btn.classList){
+    btn.classList.add('on');
+  } else {
+    var matchBtn = document.getElementById('btn-dash-view-' + (viewMode === 'command-center' ? 'cc' : viewMode));
+    if(matchBtn) matchBtn.classList.add('on');
+  }
+
+  var ccEls = document.querySelectorAll('.dash-section-cc');
+  var pfEls = document.querySelectorAll('.dash-section-portfolio');
+  var hint = document.getElementById('dash-view-hint');
+
+  if(viewMode === 'command-center'){
+    ccEls.forEach(function(e){ e.style.display = ''; });
+    pfEls.forEach(function(e){ e.style.display = 'none'; });
+    if(hint) hint.textContent = 'Mode Fokus: Command Center & Market Radar';
+  } else if(viewMode === 'portfolio'){
+    ccEls.forEach(function(e){ e.style.display = 'none'; });
+    pfEls.forEach(function(e){ e.style.display = ''; });
+    if(hint) hint.textContent = 'Mode Fokus: Portofolio Snapshot & Aset';
+  } else {
+    ccEls.forEach(function(e){ e.style.display = ''; });
+    pfEls.forEach(function(e){ e.style.display = ''; });
+    if(hint) hint.textContent = 'Mode Lengkap (Command Center & Portofolio)';
+  }
 }
 
 // ============================================================

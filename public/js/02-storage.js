@@ -2542,7 +2542,7 @@ function shRenderContent(tab){
         <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--font-display)">
           Akun Pengguna &amp; Sesi Login
         </div>
-        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Informasi otentikasi dan sesi aktif Money Watch Pro.</div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Informasi otentikasi dan sesi aktif Money Watch.</div>
       </div>
 
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">

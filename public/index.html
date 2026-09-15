@@ -178,7 +178,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20260914a">
+<link rel="stylesheet" href="css/main.css?v=20260915b">
 <link rel="stylesheet" href="css/wealth.css?v=20260912a">
 </head>
 <body>
@@ -491,6 +491,19 @@
             </div>
         </div>
 
+        <!-- Dashboard Progressive Disclosure View Toggle -->
+        <div class="dash-view-toggle-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 14px">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-right:4px">Tampilan:</span>
+                <button id="btn-dash-view-all" class="btn btn-ghost btn-xs on" onclick="switchDashboardView('all', this)" style="border-radius:6px;font-size:11px;font-weight:700;padding:4px 10px">Semua</button>
+                <button id="btn-dash-view-cc" class="btn btn-ghost btn-xs" onclick="switchDashboardView('command-center', this)" style="border-radius:6px;font-size:11px;font-weight:700;padding:4px 10px">🎯 Command Center</button>
+                <button id="btn-dash-view-portfolio" class="btn btn-ghost btn-xs" onclick="switchDashboardView('portfolio', this)" style="border-radius:6px;font-size:11px;font-weight:700;padding:4px 10px">📊 Portofolio Snapshot</button>
+            </div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">
+                <span id="dash-view-hint">Mode Lengkap (Command Center &amp; Portofolio)</span>
+            </div>
+        </div>
+
         <!-- 0. MARKET REGIME (Command Center zone — UIUX_ROADMAP_AUDIT.md §6/§7,
              P0 slice 2). Real classifyMarketRegime() via GET /api/idx/regime —
              same endpoint the Market Regime tab (AI Trading) and
@@ -502,7 +515,7 @@
         <!-- FIX (2026-09-13, Tahap 3): sama persis pola bug Tahap 1 — div polos
              tanpa class="card", shadow hardcoded, tidak pernah kena override
              tema-terang. Lihat INCIDENT_LOG.md. -->
-        <div id="card-dash-regime" class="card" style="border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div id="card-dash-regime" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:10px;min-width:180px">
             <span id="dash-regime-badge" class="badge" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;background:var(--bg3);color:var(--text3)">Memuat…</span>
             <span id="dash-regime-confidence" style="font-size:10.5px;color:var(--text3);font-family:var(--font-mono)"></span>
@@ -518,7 +531,7 @@
 
         <!-- 1. MANAGE ASSET CARD (EXECUTIVE SUMMARY STRIP) -->
         <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-manage-asset" class="card" style="border-radius:14px;padding:20px;position:relative;overflow:hidden">
+        <div id="card-manage-asset" class="card dash-section-portfolio" style="border-radius:14px;padding:20px;position:relative;overflow:hidden">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:14px">
                 <div style="display:flex;align-items:center;gap:12px">
                     <div style="font-size:16px;font-weight:800;color:var(--text);font-family:var(--font-display)">
@@ -585,7 +598,7 @@
              them with no leftover space) instead of column-based masonry,
              which left dead space under the shorter cards next to the tall
              Volatilitas gauge+chart card. -->
-        <div class="dash-masonry-container">
+        <div class="dash-masonry-container dash-section-portfolio">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
                 <div style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">
                     <span>Kelas Aset</span>
@@ -888,7 +901,7 @@
              user opens the full Radar page next. Answers roadmap question #3
              ("apa peluang terbaik"). -->
         <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-radar" class="card" style="border-radius:14px;padding:16px 20px">
+        <div id="card-dash-radar" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Opportunity Radar</span>
             <button class="btn btn-ghost btn-xs" onclick="goPage('radar')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
@@ -908,7 +921,7 @@
              §7. Answers roadmap §6 "Market Heatmap" zone (breadth &
              rotation). -->
         <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-heatmap" class="card" style="border-radius:14px;padding:16px 20px">
+        <div id="card-dash-heatmap" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Market Heatmap</span>
             <button class="btn btn-ghost btn-xs" onclick="goPage('heatmap')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
@@ -928,7 +941,7 @@
              landed — see UIUX_ROADMAP_AUDIT.md §7. Answers roadmap §6
              "Smart Money Flow" zone (institutional activity). -->
         <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-smartflow" class="card" style="border-radius:14px;padding:16px 20px">
+        <div id="card-dash-smartflow" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Smart Money Flow</span>
             <button class="btn btn-ghost btn-xs" onclick="goBandarmology('market',null)" style="font-size:11px;font-weight:700">Lihat Detail →</button>
@@ -947,7 +960,7 @@
              from AI opinion. Answers roadmap question #4/"apa yang penting
              sekarang, apa risikonya, apa tindakannya". -->
         <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-insight" class="card" style="border-radius:14px;padding:16px 20px">
+        <div id="card-dash-insight" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Insight</span>
             <span style="font-size:9.5px;color:var(--text3);font-weight:600" title="Ringkasan otomatis berbasis aturan dari data real di atas — bukan panggilan AI/LLM langsung">Ringkasan otomatis, bukan chat AI langsung</span>
@@ -966,7 +979,7 @@
              reused here for that reason. Answers roadmap question #5
              ("apa tindakan yang relevan"). -->
         <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-dash-alerts" class="card" style="border-radius:14px;padding:16px 20px">
+        <div id="card-dash-alerts" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
             <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Alerts &amp; Actions</span>
             <button class="btn btn-ghost btn-xs" onclick="goPage('alerts')" style="font-size:11px;font-weight:700">Kelola Alerts →</button>
@@ -4018,10 +4031,10 @@
 </div>
 
 <script src="js/01-data.js?v=20260915a"></script>
-<script src="js/02-storage.js?v=20260911b"></script>
+<script src="js/02-storage.js?v=20260915b"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
 <script src="js/03-engine.js?v=20260914b"></script>
-<script src="js/04-render.js?v=20260913a"></script>
+<script src="js/04-render.js?v=20260915b"></script>
 <script src="js/36-crypto-technical.js?v=20260913a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
 <script src="js/06-analysis-router.js?v=20260913a"></script>
@@ -4033,26 +4046,26 @@
 <script src="js/12-clean.js?v=20260908a"></script>
 <script src="js/13-realdata.js?v=20260911b"></script>
 <script src="js/14-admin.js?v=20260909a"></script>
-<script src="js/15-txbulk.js?v=20260902c"></script>
+<script src="js/15-txbulk.js?v=20260915b"></script>
 <script src="js/20-wealth.js?v=20260913d"></script>
 <script src="js/21-performance.js?v=20260913b"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
-<script src="js/23-advisor.js?v=20260905j"></script>
+<script src="js/23-advisor.js?v=20260915b"></script>
 <script src="js/24-stockmaster.js?v=20260913a"></script>
 <script src="js/25-auditlog.js?v=20260902c"></script>
 <script src="js/26-commandcenter.js?v=20260911a"></script>
-<script src="js/27-stockintel.js?v=20260914a"></script>
-<script src="js/28-decisiontools.js?v=20260915a"></script>
-<script src="js/29-institutional-ui.js?v=20260906a"></script>
-<script src="js/30-price-alerts.js?v=20260902c"></script><script src="js/32-pdf-reports.js?v=20260909a"></script>
+<script src="js/27-stockintel.js?v=20260915b"></script>
+<script src="js/28-decisiontools.js?v=20260915b"></script>
+<script src="js/29-institutional-ui.js?v=20260915b"></script>
+<script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260915b"></script>
 <script src="js/33-trending-news.js?v=20260913a"></script>
 <script src="js/34-ksei-shareholders.js?v=20260911d"></script>
-<script src="js/35-settings.js?v=20260914a"></script>
+<script src="js/35-settings.js?v=20260915b"></script>
 <script src="js/37-tradewave-engine.js?v=20260913a"></script>
-<script src="js/38-ai-autonomous-trading.js?v=20260913a"></script>
-<script src="js/39-knowledge-master-guide.js?v=20260905g"></script>
+<script src="js/38-ai-autonomous-trading.js?v=20260915b"></script>
+<script src="js/39-knowledge-master-guide.js?v=20260915b"></script>
 <script src="js/40-idx-pipeline.js?v=20260902c"></script>
-<script src="js/41-stockchat-cockpit.js?v=20260912a"></script>
+<script src="js/41-stockchat-cockpit.js?v=20260915b"></script>
 <script src="js/42-dividend-calendar.js?v=20260913a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260913a"></script>
 <script src="js/44-sectoral-insight.js?v=20260908a"></script>
