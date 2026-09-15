@@ -1371,35 +1371,70 @@ var IHSG_REAL = {
 };
 var ihsgCur = 6500.83;
 var ihsgHist = [];
-// Persist histori grafik IHSG 1H/3H ke localStorage dengan validasi ketat outlier
-var IHSG_HIST_KEY = 'mw_ihsg_hist_v2';
+// FIX (2026-09-15, user-reported "grafik IHSG tidak reset saat pindah hari"):
+// ihsgHistTs menyimpan timestamp (epoch ms) untuk TIAP titik di ihsgHist,
+// index-aligned 1:1 — sebelumnya cuma harga tersimpan (murni array angka),
+// jadi (a) tidak ada cara tahu titik mana milik hari yang mana (histori
+// kemarin ikut terbawa & bercampur dengan sesi hari ini, chart "1D" jadi
+// sebenarnya multi-hari tanpa disadari), dan (b) tidak bisa dikasih label
+// jam sama sekali (sumbu-x memang sengaja disembunyikan sebelumnya karena
+// tidak ada apapun yang valid dijadikan label). Dua array dipakai (bukan
+// array of object) supaya konsumen lama yang membaca ihsgHist langsung
+// sebagai array angka polos (grafik & panel Open/Day Lo/Hi di
+// 28-decisiontools.js) tidak perlu diubah strukturnya, cukup ditambah
+// pembacaan ihsgHistTs di tempat yang butuh label jam.
+var ihsgHistTs = [];
+var IHSG_HIST_KEY = 'mw_ihsg_hist_v3'; // v3: format {v:[...],t:[...]} — v2 (array polos, tanpa timestamp) sengaja tidak dimigrasi, cache disposable
+function ihsgHistToday(ts){ var d = new Date(ts); return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(); }
 (function(){
   try{
     var raw = localStorage.getItem(IHSG_HIST_KEY);
     if(raw){
-      var arr = JSON.parse(raw);
-      if(Array.isArray(arr)){
-        var filtered = arr.filter(function(v){
-          return typeof v === 'number' && !isNaN(v) && v > 5500 && v < 8000;
-        });
+      var obj = JSON.parse(raw);
+      var arr = Array.isArray(obj) ? obj : obj.v; // toleransi kalau suatu saat format lama ikut kebaca
+      var tsArr = (obj && Array.isArray(obj.t)) ? obj.t : null;
+      if(Array.isArray(arr) && tsArr && tsArr.length === arr.length){
+        var filtered = [];
+        for(var i=0;i<arr.length;i++){
+          var v = arr[i];
+          if(typeof v === 'number' && !isNaN(v) && v > 5500 && v < 8000) filtered.push({v:v, t:tsArr[i]});
+        }
         var clean = [];
-        for(var i=0; i<filtered.length; i++){
-          if(clean.length > 0 && Math.abs(filtered[i] - clean[clean.length-1]) / clean[clean.length-1] > 0.035){
+        for(var j=0; j<filtered.length; j++){
+          if(clean.length > 0 && Math.abs(filtered[j].v - clean[clean.length-1].v) / clean[clean.length-1].v > 0.035){
             continue; // abaikan outlier lonjakan tunggal
           }
-          clean.push(filtered[i]);
+          clean.push(filtered[j]);
         }
-        ihsgHist = clean.slice(-120);
+        var kept = clean.slice(-120);
+        // Titik dari hari kalender SEBELUM hari ini dibuang saat load — ini
+        // jalur reset utama untuk kasus "buka app besok pagi setelah
+        // browser ditutup total" (localStorage bertahan lintas sesi browser,
+        // tidak seperti variabel in-memory yang otomatis kosong).
+        var now = Date.now();
+        kept = kept.filter(function(p){ return ihsgHistToday(p.t) === ihsgHistToday(now); });
+        ihsgHist = kept.map(function(p){ return p.v; });
+        ihsgHistTs = kept.map(function(p){ return p.t; });
       }
     }
   }catch(e){
-    ihsgHist = [];
+    ihsgHist = []; ihsgHistTs = [];
   }
 })();
 function ihsgHistPush(v){
   if(typeof v !== 'number' || isNaN(v) || v <= 0) return;
   var rounded = Math.round(v * 100) / 100;
   if(rounded < 5500 || rounded > 8000) return;
+  var now = Date.now();
+  // Jalur reset utama untuk kasus "tab dibiarkan terbuka semalaman" (tanpa
+  // reload) — begitu titik pertama hari BERIKUTNYA masuk, seluruh histori
+  // hari sebelumnya dibuang dulu sebelum titik baru ditambahkan, supaya
+  // chart "1D" langsung mulai kosong-lagi alih-alih pelan-pelan tergeser
+  // keluar oleh cap 120 titik (yang sebelumnya bisa makan puluhan
+  // menit-berjam-jam sebelum data kemarin benar-benar hilang dari layar).
+  if(ihsgHistTs.length > 0 && ihsgHistToday(ihsgHistTs[ihsgHistTs.length-1]) !== ihsgHistToday(now)){
+    ihsgHist = []; ihsgHistTs = [];
+  }
   if(ihsgHist.length >= 3 && ihsgHist[ihsgHist.length-1] === rounded && ihsgHist[ihsgHist.length-2] === rounded && ihsgHist[ihsgHist.length-3] === rounded) {
     return;
   }
@@ -1407,8 +1442,9 @@ function ihsgHistPush(v){
     return;
   }
   ihsgHist.push(rounded);
-  if(ihsgHist.length > 120) ihsgHist.shift();
-  try{ localStorage.setItem(IHSG_HIST_KEY, JSON.stringify(ihsgHist)); }catch(e){}
+  ihsgHistTs.push(now);
+  if(ihsgHist.length > 120){ ihsgHist.shift(); ihsgHistTs.shift(); }
+  try{ localStorage.setItem(IHSG_HIST_KEY, JSON.stringify({v:ihsgHist, t:ihsgHistTs})); }catch(e){}
 }
 var nextTxId = 1;
 var nextDivId = 1;
