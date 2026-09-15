@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Money Watch Pro</title>
+<title>Money Watch</title>
 <meta name="description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, visual dividend calendar, passive income tracking, net worth reporting, and PDF investment statement generation.">
-<meta property="og:title" content="Money Watch Pro">
+<meta property="og:title" content="Money Watch">
 <meta property="og:description" content="Portofolio, Wealth &amp; Analisa Kuant - Investment terminal, visual dividend calendar, passive income tracking, net worth reporting, and PDF investment statement generation.">
 <link rel="icon" type="image/png" href="img/favicon.png?v=20260914a">
 <script>
@@ -189,12 +189,16 @@
 <div id="auth-overlay">
   <div class="auth-box">
     <div class="auth-logo" style="display:flex;align-items:center;justify-content:center;gap:10px">
-      <svg class="auth-logo-svg" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:var(--accent)">
-        <rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M7 14 L10 10 L13 13 L17 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="17" cy="8" r="1.5" fill="currentColor"/>
-        <path d="M7 17 H17" stroke="currentColor" stroke-width="1" stroke-dasharray="2 1.5" opacity="0.4"/>
-      </svg>
+      <!-- FIX (2026-09-15, rebrand v2): ikon SVG lama diganti logo baru user
+           (sama persis dengan ikon topbar, img/logo-mark.png). Wordmark teks
+           "Money"/"Watch" DIBIARKAN sebagai teks HTML asli (bukan diambil
+           dari wordmark yang tertanam di gambar sumber) — teks di gambar itu
+           berwarna navy pekat yang didesain untuk latar hitam solid, nyaris
+           tak kontras di atas .auth-box tema gelap (`--bg3:#141414`) app ini;
+           teks HTML di sini sudah otomatis mengikuti var(--text)/var(--text3)
+           tiap tema, jadi kontrasnya terjamin di kedua tema tanpa perlu kartu
+           latar tambahan atau mewarnai ulang piksel logo aslinya. -->
+      <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="32" style="width:auto;display:block">
       Money<span>Watch</span>
     </div>
     <div class="auth-sub">Portofolio &amp; Analisa Investasi · v5</div>
@@ -275,20 +279,18 @@
   <div style="display:flex;align-items:center;gap:12px">
     <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Buka/tutup menu navigasi">☰</button>
     <div class="logo" style="display:flex;align-items:center;gap:7px;cursor:pointer" onclick="goPage('dashboard')">
-      <!-- FIX (2026-09-14, user-requested rebrand): ikon SVG lama (currentColor,
-           ikut warna teks otomatis) diganti logo baru user (gambar raster
-           gradasi biru-cyan multi-warna, tidak bisa pakai trik currentColor).
-           Kontras tetap terjaga di kedua tema TANPA CSS override tambahan:
-           gradasi birunya sendiri sudah terang/vivid di atas topbar gelap
-           (#0E131F) MAUPUN topbar terang (putih) - dicek manual terhadap
-           kedua warna latar topbar sebelum dipasang. Wordmark teks "MONEYWATCH
-           PRO" di sebelahnya SENGAJA TETAP teks asli (bukan diambil dari teks
-           yang ada di gambar logo user) karena teks di gambar itu didesain
-           untuk latar hitam pekat (kata "MONEY" nyaris tak kontras di latar
-           lain) - teks asli di sini sudah otomatis mengikuti var(--text)/
-           var(--accent) tiap tema, jadi kontrasnya justru lebih terjamin. -->
-      <img class="tb-logo-icon" src="img/logo-mark.png?v=20260914a" alt="MoneyWatch" height="24" style="width:auto;display:block">
-      <span class="logo" style="color:var(--text);font-weight:800">MONEY<span style="color:var(--accent)">WATCH</span> <span style="font-size:10px;padding:1px 5px;background:var(--brand-soft);border:1px solid var(--accent);border-radius:4px;color:var(--accent);font-weight:700">PRO</span></span>
+      <!-- FIX (2026-09-15, user-requested rebrand v2 — logo baru, hapus "PRO",
+           dan HANYA ikon untuk tampilan dalam-aplikasi tanpa teks apapun di
+           sebelahnya): logo diganti dari file baru yang dikirim user (ikon
+           di-crop terpisah dari wordmark "MONEY WATCH" yang tertanam di
+           gambar sumber, sama seperti proses rebrand sebelumnya — wordmark
+           gambar itu didesain untuk latar hitam pekat, warna "MONEY"-nya
+           nyaris tak kontras di topbar gelap `#0E131F` app ini). Kontras
+           ikon sendiri tetap terjaga di kedua tema (gradasi biru-cyan-nya
+           vivid di atas topbar gelap MAUPUN terang, dicek manual). Teks
+           wordmark HTML ("MONEYWATCH PRO") dan badge "PRO" DIHAPUS TOTAL
+           di sini sesuai permintaan eksplisit — topbar sekarang cuma ikon. -->
+      <img class="tb-logo-icon" src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="26" style="width:auto;display:block">
     </div>
     <div class="ihsg-bar">
       <span style="font-size:10px;color:var(--text3);font-family:'Inter',sans-serif;font-weight:700">IHSG</span>
@@ -467,7 +469,7 @@
         <div class="header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
             <div style="display:flex;flex-direction:column;gap:2px">
                 <div style="display:flex;align-items:center;gap:10px">
-                    <h1 style="font-size:26px;font-weight:800;color:var(--text);letter-spacing:-0.5px;margin:0">MoneyWatch Pro</h1>
+                    <h1 style="font-size:26px;font-weight:800;color:var(--text);letter-spacing:-0.5px;margin:0">MoneyWatch</h1>
                 </div>
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -2013,7 +2015,7 @@
   </div>
   <div id="pj-print-header" class="print-only" style="display:none">
     <h1 style="font-size:18px;margin-bottom:2px">Rekap Pajak &amp; Biaya Transaksi Saham</h1>
-    <div style="font-size:11px;color:#555">Dicetak dari Money Watch Pro pada <span id="pj-print-date"></span> — lampiran pendukung, bukan dokumen resmi DJP.</div>
+    <div style="font-size:11px;color:#555">Dicetak dari Money Watch pada <span id="pj-print-date"></span> — lampiran pendukung, bukan dokumen resmi DJP.</div>
     <hr style="margin:10px 0;border:none;border-top:1px solid #ccc">
   </div>
   <div class="alert alert-info no-print" id="pj-info-bar">ℹ️ Memuat pengaturan pajak...</div>

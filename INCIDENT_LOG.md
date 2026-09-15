@@ -3001,3 +3001,25 @@ tunggu penggunaan normal secara bertahap memicu eviction.
   - Nol error konsol.
 - `npm test` (154/154), `npm run lint` bersih. Cache-bust `01-data.js?v=20260915a`, `28-decisiontools.js?v=20260915a`.
 - **Catatan:** ada chart IHSG LAIN yang terpisah di Dashboard (`buildIhsgChart()` di `03-engine.js`) — TIDAK disentuh dalam perbaikan ini karena arsitekturnya beda total (kurva 100% disintesis prosedural dari Open/High/Low/harga-sekarang, bukan dibangun dari histori tick riil seperti `ihsgHist`) dan tidak dilaporkan bermasalah oleh user. Screenshot yang dilaporkan user dikonfirmasi cocok persis dengan chart Daily Brief/Market Pulse yang diperbaiki di sini.
+
+## 2026-09-15 — Rebrand v2: logo baru (tanpa "PRO"), topbar hanya ikon, login page dapat logo (`public/index.html`, `public/img/`)
+
+- **Konteks:** user mengirim file logo baru (varian tanpa badge "PRO" dari logo sebelumnya, wordmark "MONEY WATCH" berbeda posisi/gaya) dan minta: (1) ganti logo aplikasi dengan ini, (2) hilangkan kata "PRO", (3) integrasikan ke tampilan dalam-aplikasi DAN halaman login, (4) jangan diubah sebisa mungkin, (5) khusus tampilan dalam-aplikasi, cukup ikonnya saja — tidak perlu kata-kata "Money Watch" sama sekali.
+- **Analisis gambar sumber sebelum dipasang** (pola sama seperti rebrand v1): ikon grafis (pita "W" biru-cyan + aksen bar) di-crop terpisah dari wordmark "MONEY WATCH" di bawahnya (bounding-box dicari otomatis via analisis piksel non-putih, bukan tebak manual). Wordmark di gambar sumber berwarna navy pekat (`rgb(0,21,70)`, dicek sample piksel langsung) — didesain untuk latar putih/hitam solid, kontrasnya BURUK di atas `.auth-box` tema gelap app ini (`--bg3:#141414`, nyaris sama gelapnya). Kalau dipasang utuh apa adanya di halaman login, "MONEY" nyaris tak terbaca di tema gelap — mengulang persis masalah yang sudah diperbaiki di rebrand v1.
+- **Keputusan desain (2 tempat berbeda, treatment beda sesuai permintaan user):**
+  1. **Topbar (dalam-aplikasi):** HANYA `<img>` ikon — span teks "MONEYWATCH" dan badge "PRO" DIHAPUS TOTAL dari HTML (bukan disembunyikan via CSS), sesuai permintaan eksplisit "cukup logonya saja". `logoDivText` dikonfirmasi string kosong setelah perubahan.
+  2. **Halaman login:** ikon gambar yang sama dipasang, TAPI wordmark "Money"+"Watch" di sebelahnya SENGAJA TETAP teks HTML asli (elemen `<span>` yang sudah ada sebelumnya, bukan wordmark bawaan gambar) — karena teks HTML itu sudah otomatis mengikuti `var(--text)`/`var(--text3)` tiap tema (kontras terjamin), sementara wordmark bawaan gambar TIDAK (masalah kontras di atas). Ini "mengubah" presentasi logo di halaman login tapi TIDAK mengubah satu piksel pun dari gambar ikon itu sendiri — bagian yang diminta user "jangan diubah" (ikonnya) benar-benar tidak disentuh; yang disesuaikan hanya cara wordmark ditampilkan (teks HTML, bukan raster).
+- **Perbaikan:**
+  - `public/img/logo-mark.png` diganti dengan ikon baru (314×240px, transparan) — dipakai di topbar DAN halaman login (1 file, 1 sumber kebenaran, ukuran beda diatur via atribut `height` HTML).
+  - `public/img/favicon.png` diganti (128×128px, latar rounded-square navy gelap yang sama seperti rebrand v1) — ikon baru dipasang ke pola backdrop yang sudah ada.
+  - Topbar (`public/index.html`): `<span class="logo">MONEYWATCH...PRO</span>` dihapus total.
+  - Halaman login (`#auth-overlay .auth-logo`): `<svg class="auth-logo-svg">` (ikon SVG lama, rebrand v1 belum sempat menyentuh halaman ini) diganti `<img>` logo baru; teks "Money"+"Watch" tetap.
+  - Kata "PRO" dihapus dari branding visual utama yang ditemukan: `<title>` tab browser ("Money Watch Pro" → "Money Watch"), `<meta property="og:title">`, heading `<h1>` Dashboard ("MoneyWatch Pro" → "MoneyWatch"), footer cetak laporan Pajak ("Money Watch Pro" → "Money Watch").
+  - **SENGAJA TIDAK disentuh** (di luar cakupan "ganti logo", butuh konfirmasi terpisah): ~50 kemunculan lain "Pro" tersebar di nama persona AI Copilot/StockChat dalam respons chat ("MoneyWatch Pro AI"), judul dokumen ekspor PDF/Excel, nama file unduhan, komentar header tiap file JS, string notifikasi browser, dan system prompt Claude di `server.js` — mengganti semua itu adalah keputusan rebranding jauh lebih besar dari sekadar logo, dilaporkan ke user sebagai temuan terpisah, bukan diputuskan sepihak.
+- **Live verification (Playwright, server lokal, kedua tema):**
+  - Login page: `<img>` termuat sempurna, teks logo "MoneyWatch", `<title>` "Money Watch" (tanpa Pro). Screenshot dark & light dikirim — kontras penuh di keduanya, termasuk wordmark "Money"/"Watch".
+  - Topbar (Mode Tamu): `logoDivText` dikonfirmasi STRING KOSONG (tidak ada teks apapun selain ikon gambar), `hasProText` dikonfirmasi `false` di seluruh topbar, gambar termuat sempurna. Screenshot dark & light dikirim.
+  - Dashboard `<h1>` dikonfirmasi "MoneyWatch" (tanpa Pro).
+  - Favicon terserve 200 OK.
+  - Nol error konsol.
+- `npm test` (154/154), `npm run lint` bersih. Cache-bust `img/logo-mark.png?v=20260915a`, `img/favicon.png?v=20260915a`.
