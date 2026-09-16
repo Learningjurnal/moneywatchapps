@@ -1877,7 +1877,7 @@ body.mode-executive .metric .mval {
 .sm-top-bar {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 14px 18px;
   margin-bottom: 18px;
   display: flex;
@@ -1979,7 +1979,7 @@ body.mode-executive .metric .mval {
 .sm-card {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 18px 20px;
   margin-bottom: 16px;
   box-shadow: 0 4px 20px rgba(0,0,0,.45);
@@ -1996,7 +1996,7 @@ body.mode-executive .metric .mval {
   min-height: 520px;
   padding: 0;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--bg2);
   box-shadow: 0 4px 20px rgba(0,0,0,.45);
@@ -3813,15 +3813,17 @@ body.theme-light .copilot-input-bar {
 
 /* STOCKMASTER PRO & TECHNICAL PRO */
 body.theme-light .sm-container {
-  background: #FFFFFF !important;
-  border: 1px solid #CBD5E1 !important;
+  background: transparent !important;
+  border: none !important;
   color: #0F172A !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: none !important;
 }
 
 body.theme-light .sm-suite-header {
-  background: #F8FAFC !important;
-  border-bottom: 1px solid #E2E8F0 !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 body.theme-light .sm-suite-brand {
@@ -3835,6 +3837,7 @@ body.theme-light .sm-suite-brand > span {
 body.theme-light .sm-suite-tabs {
   background: #F1F5F9 !important;
   border: 1px solid #CBD5E1 !important;
+  border-radius: 10px !important;
 }
 
 body.theme-light .sm-nav-item {
@@ -3857,12 +3860,16 @@ body.theme-light .sm-nav-item.active-tech {
 }
 
 body.theme-light .sm-main {
-  background: #FFFFFF !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 body.theme-light .sm-top-bar {
-  background: #F8FAFC !important;
-  border: 1px solid #CBD5E1 !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 body.theme-light .sm-input-group label {
@@ -3888,19 +3895,24 @@ body.theme-light .sm-chip:hover {
 }
 
 body.theme-light .sm-card {
-  background: #F8FAFC !important;
-  border: 1px solid #CBD5E1 !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
   color: #0F172A !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 body.theme-light .sm-card-fill {
   background: #FFFFFF !important;
-  border: 1px solid #CBD5E1 !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 body.theme-light .sm-stat-box {
-  background: #F1F5F9 !important;
-  border: 1px solid #CBD5E1 !important;
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 8px !important;
 }
 
 body.theme-light .sm-stat-label {
@@ -3923,9 +3935,30 @@ body.theme-light .sm-table td {
 }
 
 body.theme-light .sm-check-item {
-  background: #F1F5F9 !important;
-  border: 1px solid #CBD5E1 !important;
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
   color: #0F172A !important;
+  border-radius: 8px !important;
+}
+
+/* ALERTS & NOTIFICATIONS (LIGHT MODE) */
+body.theme-light .alert {
+  border-radius: 10px !important;
+}
+body.theme-light .alert-info {
+  background: #EFF6FF !important;
+  border-color: #BFDBFE !important;
+  color: #1E40AF !important;
+}
+body.theme-light .alert-warn {
+  background: #FFFBEB !important;
+  border-color: #FDE68A !important;
+  color: #92400E !important;
+}
+body.theme-light .alert-ok {
+  background: #F0FDF4 !important;
+  border-color: #BBF7D0 !important;
+  color: #166534 !important;
 }
 
 body.theme-light #sm-tv-chart-container > div:first-child {
