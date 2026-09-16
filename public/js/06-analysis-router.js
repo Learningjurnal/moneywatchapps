@@ -892,6 +892,7 @@ function renderPage(name){
       break;
     case 'heatmap':fsRenderHeatmap();break;
     case 'scanner':break;
+    case 'stock-dossier':if(typeof renderStockDossierPage==='function') renderStockDossierPage();break;
     case 'volume-spike':if(typeof renderVolumeSpikePage==='function') renderVolumeSpikePage();break;
     case 'alerts':fsGenAlerts();break;
     case 'candle':if(typeof techInit==='function') techInit(); else renderCandle();break;

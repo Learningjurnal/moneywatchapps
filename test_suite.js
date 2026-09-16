@@ -8,6 +8,8 @@ import fs from 'fs';
 import vm from 'vm';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 // Cross-platform CRLF normalization for regression guards that inspect source text
 const _origReadFileSync = fs.readFileSync;
@@ -3752,6 +3754,178 @@ test('AI AUTONOMOUS TRADING: aiFormatCopyTradingSignal() generates actionable in
   assert(signalText.includes('Risk : Reward'), 'Signal must contain Risk:Reward');
 });
 
+// ══════════════════════════════════════════════════════════════
+// TEST SUITE: 1-CLICK MASTER STOCK ANALYSIS DOSSIER
+// ══════════════════════════════════════════════════════════════
+
+function getDossierContext() {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null, querySelectorAll: () => [] },
+    localStorage: {
+      _data: {},
+      getItem(k) { return this._data[k] || null; },
+      setItem(k, v) { this._data[k] = String(v); },
+      removeItem(k) { delete this._data[k]; }
+    },
+    showToast: () => {}
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '46-stock-dossier.js' });
+  return ctx;
+}
+
+test('MASTER DOSSIER: 46-stock-dossier.js loads and exports institutional presets and calculation functions', () => {
+  const dossier = getDossierContext();
+  assert.strictEqual(typeof dossier.dossierCalculateCompositeScore, 'function', 'dossierCalculateCompositeScore must be a function');
+  assert.strictEqual(typeof dossier.dossierCalculateScore, 'function', 'dossierCalculateScore must be a function');
+  assert.strictEqual(typeof dossier.dossierGetDefaultWeights, 'function', 'dossierGetDefaultWeights must be a function');
+
+  const defWeights = dossier.dossierGetDefaultWeights();
+  assert.strictEqual(defWeights.valuation, 20, 'Valuation default weight must be 20%');
+  assert.strictEqual(defWeights.smartMoney, 20, 'Smart Money default weight must be 20%');
+  assert.strictEqual(defWeights.technical, 20, 'Technical default weight must be 20%');
+  assert.strictEqual(defWeights.ksei, 15, 'KSEI default weight must be 15%');
+  assert.strictEqual(defWeights.fundamental, 15, 'Fundamental default weight must be 15%');
+  assert.strictEqual(defWeights.regime, 10, 'Regime default weight must be 10%');
+
+  const sumDef = defWeights.valuation + defWeights.smartMoney + defWeights.technical + defWeights.ksei + defWeights.fundamental + defWeights.regime;
+  assert.strictEqual(sumDef, 100, 'Default weights must sum to exactly 100%');
+
+  // Verify all presets sum to 100%
+  const presets = dossier.DOSSIER_PRESETS;
+  Object.keys(presets).forEach(key => {
+    const pw = presets[key].weights;
+    const sum = pw.valuation + pw.smartMoney + pw.technical + pw.ksei + pw.fundamental + pw.regime;
+    assert.strictEqual(sum, 100, `Preset ${key} weights must sum to 100%`);
+  });
+});
+
+test('MASTER DOSSIER: Zero Synthetic Data & Dynamic Denominator Renormalization protocol', () => {
+  const dossier = getDossierContext();
+
+  // Scenario 1: All 6 pillars available
+  const fullPillars = {
+    valuation: { available: true, score: 80 },
+    smartMoney: { available: true, score: 80 },
+    technical: { available: true, score: 80 },
+    ksei: { available: true, score: 80 },
+    fundamental: { available: true, score: 80 },
+    regime: { available: true, score: 80 }
+  };
+  const res1 = dossier.dossierCalculateCompositeScore(fullPillars, dossier.DOSSIER_DEFAULT_WEIGHTS);
+  assert.strictEqual(res1.confidenceLevel, 100, 'Confidence level must be 100% when all pillars available');
+  assert.strictEqual(res1.compositeScore, 80, 'Composite score must be 80');
+  assert.strictEqual(res1.availablePillarsCount, 6, 'Available count must be 6');
+  assert.strictEqual(res1.isDegraded, false, 'Should not be degraded');
+
+  // Scenario 2: Missing KSEI (15% weight)
+  const missingKseiPillars = {
+    valuation: { available: true, score: 80 },
+    smartMoney: { available: true, score: 80 },
+    technical: { available: true, score: 80 },
+    ksei: { available: false, score: null, status: 'DATA_UNAVAILABLE' },
+    fundamental: { available: true, score: 80 },
+    regime: { available: true, score: 80 }
+  };
+  const res2 = dossier.dossierCalculateCompositeScore(missingKseiPillars, dossier.DOSSIER_DEFAULT_WEIGHTS);
+  assert.strictEqual(res2.confidenceLevel, 85, 'Confidence level must be 85% when KSEI (15%) is missing');
+  assert.strictEqual(res2.compositeScore, 80, 'Dynamic renormalization should preserve 80 score without distortion');
+  assert.strictEqual(res2.availablePillarsCount, 5, 'Available count must be 5');
+  assert.strictEqual(res2.isDegraded, false, '85% confidence is not degraded (< 70%)');
+
+  // Scenario 3: Missing KSEI (15%), Fundamental (15%), and Smart Money (20%) -> 50% missing!
+  const highDegradedPillars = {
+    valuation: { available: true, score: 90 },
+    smartMoney: { available: false, score: null, status: 'DATA_UNAVAILABLE' },
+    technical: { available: true, score: 70 },
+    ksei: { available: false, score: null, status: 'DATA_UNAVAILABLE' },
+    fundamental: { available: false, score: null, status: 'DATA_UNAVAILABLE' },
+    regime: { available: true, score: 60 }
+  };
+  const res3 = dossier.dossierCalculateCompositeScore(highDegradedPillars, dossier.DOSSIER_DEFAULT_WEIGHTS);
+  assert.strictEqual(res3.confidenceLevel, 50, 'Confidence level must drop to 50%');
+  assert.strictEqual(res3.isDegraded, true, 'Confidence < 70% must be flagged as degraded');
+  assert(res3.recommendation.includes('DATA TERBATAS'), 'Recommendation must warn about limited data');
+
+  // Available weights: valuation (20) * 90 + technical (20) * 70 + regime (10) * 60 = 1800 + 1400 + 600 = 3800
+  // Denominator: 20 + 20 + 10 = 50 -> 3800 / 50 = 76
+  assert.strictEqual(res3.compositeScore, 76, 'Renormalized score should be (1800 + 1400 + 600)/50 = 76');
+});
+
+test('MASTER DOSSIER: Individual pillar scoring models behave within valid quantitative boundaries', () => {
+  const dossier = getDossierContext();
+
+  // 1. Valuation Pillar
+  const valSampleHighMoS = {
+    quote: { price: 8000, fundamentals: { per: 12, pbv: 1.5, eps: 800, bvps: 5500 } }
+  };
+  const valResHigh = dossier.dossierComputeValuationScore(valSampleHighMoS);
+  assert(valResHigh.available, 'Valuation must be available');
+  assert(valResHigh.score >= 80, `High MoS should produce high valuation score (got ${valResHigh.score})`);
+
+  // 2. Smart Money Pillar
+  const smSampleAccum = {
+    brokerSummary: {
+      bandarmology: { status: 'Big Accumulation', top3Concentration: 72, foreignNet: 15000000000, vwap: 8100 }
+    },
+    quote: { price: 8000 }
+  };
+  const smRes = dossier.dossierComputeSmartMoneyScore(smSampleAccum);
+  assert(smRes.available, 'Smart money must be available');
+  assert(smRes.score >= 85, `Big Accumulation should score >= 85 (got ${smRes.score})`);
+
+  // 3. Technical Pillar
+  const techSample = {
+    quote: { price: 1000 },
+    history: Array.from({ length: 50 }, (_, i) => ({
+      close: 900 + (i * 2),
+      volume: i === 49 ? 50000 : 20000
+    }))
+  };
+  const techRes = dossier.dossierComputeTechnicalScore(techSample);
+  assert(techRes.available, 'Technical must be available with 50 bars');
+  assert(techRes.score >= 70, `Upward trend with volume spike must score >= 70 (got ${techRes.score})`);
+
+  // 4. KSEI Pillar
+  const kseiSample = {
+    ksei: {
+      found: true,
+      stock: { freeFloat: 28, localPercent: 35, foreignPercent: 30 }
+    }
+  };
+  const kseiRes = dossier.dossierComputeKseiScore(kseiSample);
+  assert(kseiRes.available, 'KSEI must be available');
+  assert(kseiRes.score >= 75, `Healthy 28% free float and 65% institutions should score >= 75 (got ${kseiRes.score})`);
+
+  // 5. Fundamental Pillar
+  const fundSample = {
+    quote: { fundamentals: { roe: 18.5, der: 0.65, npm: 22.0, dividendYield: 4.8 } }
+  };
+  const fundRes = dossier.dossierComputeFundamentalScore(fundSample);
+  assert(fundRes.available, 'Fundamental must be available');
+  assert(fundRes.score >= 80, `Strong ROE and low DER must score >= 80 (got ${fundRes.score})`);
+
+  // 6. Regime Pillar
+  const regimeSample = { regime: { regime: 'BULL_TREND', confidence: 85 } };
+  const regimeRes = dossier.dossierComputeRegimeScore(regimeSample);
+  assert(regimeRes.available, 'Regime must be available');
+  assert.strictEqual(regimeRes.score, 85, 'BULL_TREND should score 85');
+});
+
+test('MASTER DOSSIER: DOM structure, script inclusion, and router integration', () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const routerJs = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+
+  assert(indexHtml.includes('id="page-stock-dossier"'), 'index.html must include #page-stock-dossier container');
+  assert(indexHtml.includes('46-stock-dossier.js'), 'index.html must include script tag for 46-stock-dossier.js');
+  assert(indexHtml.includes("goPage('stock-dossier'"), 'index.html must have sidebar button linking to stock-dossier');
+  assert(routerJs.includes("case 'stock-dossier':"), '06-analysis-router.js must handle case stock-dossier');
+  assert(routerJs.includes('renderStockDossierPage'), '06-analysis-router.js must call renderStockDossierPage()');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
-console.log('═══════════════════════════════════════════════════════');
+console.log('═══════════════════════════════════════════════════════');
