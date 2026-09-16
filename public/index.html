@@ -3773,68 +3773,56 @@
     <!-- LEFT: Input Data Keuangan -->
     <div>
       <!-- Header input: ticker + parameter -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="cheader"><span class="ctitle">PARAMETER</span></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-          <div style="min-width:120px">
-            <div style="font-size:9px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Kode Saham</div>
+      <div class="card" style="margin-bottom:16px;border-radius:12px;padding:16px 20px">
+        <div class="cheader"><span class="ctitle" style="font-size:12px;letter-spacing:0.06em">PARAMETER VALUASI</span></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <div style="min-width:120px;flex:1">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Kode Saham</div>
             <input id="hw-ticker-input" type="text" placeholder="e.g. BBCA" maxlength="6"
-              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;padding:5px 8px;width:100%;border-radius:2px;text-transform:uppercase"
+              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;text-transform:uppercase;outline:none;transition:border-color .15s"
               oninput="this.value=this.value.toUpperCase()" onchange="hw_onTickerChange()" onblur="hw_onTickerChange()">
           </div>
-          <div style="min-width:140px">
-            <div style="font-size:9px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Harga Saham Saat Ini (Rp)</div>
+          <div style="min-width:140px;flex:1">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Harga Saat Ini (Rp)</div>
             <input id="hw-current-price" type="number" placeholder="e.g. 9500" step="50"
-              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;padding:5px 8px;width:100%;border-radius:2px"
+              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
               >
           </div>
-          <div style="min-width:120px">
-            <div style="font-size:9px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Min Return (%/thn)</div>
+          <div style="min-width:120px;flex:1">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Min Return (%/thn)</div>
             <input id="hw-min-return" type="number" value="6" step="1" min="1" max="30"
-              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;padding:5px 8px;width:100%;border-radius:2px"
+              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
               >
           </div>
-          <div style="min-width:120px">
-            <div style="font-size:9px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Proyeksi (tahun)</div>
+          <div style="min-width:120px;flex:1">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Proyeksi (tahun)</div>
             <input id="hw-proj-years" type="number" value="5" step="1" min="1" max="15"
-              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;padding:5px 8px;width:100%;border-radius:2px"
+              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
               >
           </div>
           <div style="display:flex;align-items:flex-end;padding-bottom:0">
-            <button onclick="hw_recalc()" id="hw-hitung-btn"
-              style="height:38px;padding:0 22px;background:var(--brand-primary);border:none;border-radius:2px;color:#fff;font-family:var(--font-mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;white-space:nowrap;transition:opacity .15s"
-              onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            <button onclick="hw_recalc()" id="hw-hitung-btn" class="sm-btn"
+              style="height:38px;padding:0 22px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:0.06em;white-space:nowrap">
               HITUNG
             </button>
           </div>
         </div>
         <!-- Quick Stock Selector Chips -->
-        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase">Quick Select Real Data:</span>
-          <!-- FIX: these 16 chips previously mixed three unrelated inline
-               color schemes (blue accent, green, plain gray) added ad hoc
-               over time with no meaning behind the difference - purely
-               inconsistent, not tied to any real state (reported by
-               user). Normalized to one consistent accent-outline style. -->
-          <button type="button" onclick="hw_loadStock('BBCA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BBCA</button>
-          <button type="button" onclick="hw_loadStock('BBRI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BBRI</button>
-          <button type="button" onclick="hw_loadStock('BMRI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BMRI</button>
-          <button type="button" onclick="hw_loadStock('BBNI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">BBNI</button>
-          <button type="button" onclick="hw_loadStock('UNVR')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">UNVR</button>
-          <button type="button" onclick="hw_loadStock('ADRO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ADRO</button>
-          <button type="button" onclick="hw_loadStock('ASII')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ASII</button>
-          <button type="button" onclick="hw_loadStock('TLKM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">TLKM</button>
-          <button type="button" onclick="hw_loadStock('GGRM')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">GGRM</button>
-          <button type="button" onclick="hw_loadStock('SIDO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">SIDO</button>
-          <button type="button" onclick="hw_loadStock('PGEO')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">PGEO</button>
-          <button type="button" onclick="hw_loadStock('ERAA')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">ERAA</button>
-          <!-- AADI/PTRO/ADMR/DEWA removed from this row: audited
-               STOCK_FINANCIAL_DATABASE and their entries are empty stubs
-               (price only, zero real eps/equity/shares/dps/per/netIncome
-               across all 5 years) - keeping them under a "Real Data"
-               label was itself misleading, even though clicking one no
-               longer produces a fabricated verdict (see hw_ensureTickerSynced). -->
-          <button type="button" onclick="hw_loadStock('CPRI')" class="btn" style="font-size:9px;padding:2px 7px;font-family:var(--font-mono);color:var(--accent);border-color:rgba(47,106,243,.4)">CPRI</button>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:10px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;font-weight:700;letter-spacing:0.04em">Quick Select:</span>
+          <button type="button" onclick="hw_loadStock('BBCA')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBCA</button>
+          <button type="button" onclick="hw_loadStock('BBRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBRI</button>
+          <button type="button" onclick="hw_loadStock('BMRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BMRI</button>
+          <button type="button" onclick="hw_loadStock('BBNI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBNI</button>
+          <button type="button" onclick="hw_loadStock('UNVR')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">UNVR</button>
+          <button type="button" onclick="hw_loadStock('ADRO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ADRO</button>
+          <button type="button" onclick="hw_loadStock('ASII')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ASII</button>
+          <button type="button" onclick="hw_loadStock('TLKM')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">TLKM</button>
+          <button type="button" onclick="hw_loadStock('GGRM')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">GGRM</button>
+          <button type="button" onclick="hw_loadStock('SIDO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">SIDO</button>
+          <button type="button" onclick="hw_loadStock('PGEO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">PGEO</button>
+          <button type="button" onclick="hw_loadStock('ERAA')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ERAA</button>
+          <button type="button" onclick="hw_loadStock('CPRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">CPRI</button>
         </div>
       </div>
 
@@ -3917,46 +3905,48 @@
       </div>
 
       <!-- Main verdict card -->
-      <div class="card" id="hw-verdict-card" style="margin-bottom:16px;border-top-width:2px;border-top-color:var(--text3)">
-        <div style="text-align:center;padding:10px 0">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">VALUASI</div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px">
+      <div class="card" id="hw-verdict-card" style="margin-bottom:16px;border-radius:12px;padding:20px;border-top:3px solid var(--text3)">
+        <div style="text-align:center;padding:6px 0 14px;border-bottom:1px solid var(--border2)">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;font-weight:700">HASIL ESTIMASI VALUASI (MoS)</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">
             <span id="hw-ticker-logo"></span>
-            <div id="hw-ticker-display" style="font-size:22px;font-weight:700;font-family:var(--font-mono);color:var(--accent)">—</div>
+            <div id="hw-ticker-display" style="font-size:26px;font-weight:900;font-family:var(--font-mono);color:var(--accent);letter-spacing:-0.5px">—</div>
           </div>
-          <div id="hw-verdict-badge" style="display:inline-block;padding:4px 14px;border-radius:2px;font-size:11px;font-weight:700;font-family:var(--font-mono);background:var(--bg4);color:var(--text3);border:1px solid var(--border)">BELUM DIHITUNG</div>
+          <div id="hw-verdict-badge" style="display:inline-block;padding:5px 16px;border-radius:20px;font-size:11px;font-weight:800;font-family:var(--font-mono);background:var(--bg3);color:var(--text3);border:1px solid var(--border2);letter-spacing:0.04em">BELUM DIHITUNG</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
-          <div style="background:var(--bg3);border-radius:2px;padding:8px;text-align:center">
-            <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Harga Wajar (MoS)</div>
-            <div id="hw-fair-price" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--amber)">—</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+          <div class="metric" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center">
+            <div class="mlabel" style="font-size:9.5px;letter-spacing:0.06em;margin-bottom:4px">Harga Wajar (MoS)</div>
+            <div id="hw-fair-price" style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--amber);font-variant-numeric:tabular-nums">—</div>
           </div>
-          <div style="background:var(--bg3);border-radius:2px;padding:8px;text-align:center">
-            <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Harga Saat Ini</div>
-            <div id="hw-current-display" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text)">—</div>
+          <div class="metric" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center">
+            <div class="mlabel" style="font-size:9.5px;letter-spacing:0.06em;margin-bottom:4px">Harga Saat Ini</div>
+            <div id="hw-current-display" style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums">—</div>
           </div>
-          <div style="background:var(--bg3);border-radius:2px;padding:8px;text-align:center">
-            <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Margin of Safety</div>
-            <div id="hw-mos-pct" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text3)">—</div>
+          <div class="metric" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center">
+            <div class="mlabel" style="font-size:9.5px;letter-spacing:0.06em;margin-bottom:4px">Margin of Safety</div>
+            <div id="hw-mos-pct" style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
           </div>
-          <div style="background:var(--bg3);border-radius:2px;padding:8px;text-align:center">
-            <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Initial IRR</div>
-            <div id="hw-irr-display" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text3)">—</div>
+          <div class="metric" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center">
+            <div class="mlabel" style="font-size:9.5px;letter-spacing:0.06em;margin-bottom:4px">Initial IRR</div>
+            <div id="hw-irr-display" style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
           </div>
         </div>
         <!-- MoS gauge bar -->
-        <div style="margin-top:10px">
-          <div style="font-size:9px;color:var(--text3);margin-bottom:4px;display:flex;justify-content:space-between">
-            <span>Diskon</span><span id="hw-mos-label" style="color:var(--text2)">—</span><span>Premium</span>
+        <div style="margin-top:16px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+            <span style="color:var(--green)">DISCOUNT (UNDERVALUED)</span>
+            <span id="hw-mos-label" style="font-family:var(--font-mono);font-weight:800;color:var(--text2)">—</span>
+            <span style="color:var(--red)">PREMIUM (OVERVALUED)</span>
           </div>
-          <div style="background:var(--bg4);border-radius:1px;height:8px;overflow:hidden;position:relative">
-            <div id="hw-mos-bar" style="height:100%;width:50%;background:var(--text3);transition:all .5s;border-radius:1px"></div>
+          <div style="background:var(--bg4);border-radius:6px;height:10px;overflow:hidden;position:relative;border:1px solid var(--border2)">
+            <div id="hw-mos-bar" style="height:100%;width:50%;background:var(--text3);transition:all .5s;border-radius:5px"></div>
           </div>
         </div>
         <!-- Kesimpulan -->
-        <div id="hw-conclusion" style="display:none;margin-top:12px;padding:10px;background:var(--bg3);border-radius:2px;border-left:3px solid var(--text3)">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">KESIMPULAN</div>
-          <div id="hw-conclusion-text" style="font-size:10px;color:var(--text2);font-family:var(--font-mono);line-height:1.7"></div>
+        <div id="hw-conclusion" style="display:none;margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--text3)">
+          <div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">KESIMPULAN METODOLOGI</div>
+          <div id="hw-conclusion-text" style="font-size:11px;color:var(--text2);font-family:var(--font-mono);line-height:1.7"></div>
         </div>
       </div>
 

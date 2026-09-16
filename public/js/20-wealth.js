@@ -157,16 +157,16 @@ function wKillChart(id){ if(wCharts[id]){ try{wCharts[id].destroy();}catch(e){} 
 
 function wSubNav(activePage){
   var tabs = [
-    {id:'wealth', label:'Ringkasan Net Worth'},
-    {id:'wbank', label:'Rekening Bank & Kas'},
-    {id:'wdebt', label:'Hutang & Cicilan'},
-    {id:'wpiutang', label:'Piutang'},
-    {id:'wfire', label:'Proyeksi FIRE'}
+    {id:'wealth', label:'Ringkasan Net Worth', icon:'ti ti-wallet'},
+    {id:'wbank', label:'Rekening Bank & Kas', icon:'ti ti-building-bank'},
+    {id:'wdebt', label:'Hutang & Cicilan', icon:'ti ti-credit-card-off'},
+    {id:'wpiutang', label:'Piutang', icon:'ti ti-receipt-2'},
+    {id:'wfire', label:'Proyeksi FIRE', icon:'ti ti-flame'}
   ];
-  var html = '<div style="display:flex;gap:6px;margin:12px 0 16px;background:var(--bg2);padding:4px;border-radius:10px;border:1px solid var(--border);width:fit-content;max-width:100%;overflow-x:auto">';
+  var html = '<div class="sm-suite-tabs" style="margin:12px 0 16px;width:fit-content;max-width:100%;overflow-x:auto">';
   tabs.forEach(function(t){
     var on = t.id === activePage;
-    html += '<button onclick="goPage(\''+t.id+'\')" class="btn '+(on?'btn-blue':'btn-ghost')+' btn-sm" style="font-size:11.5px;font-weight:'+(on?'700':'500')+';border:none;border-radius:7px;padding:6px 13px;white-space:nowrap">'+t.label+'</button>';
+    html += '<button onclick="goPage(\''+t.id+'\')" class="sm-nav-item '+(on?'active':'')+'" style="white-space:nowrap"><i class="'+t.icon+'"></i><span>'+t.label+'</span></button>';
   });
   html += '</div>';
   return html;
