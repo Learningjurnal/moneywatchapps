@@ -504,17 +504,35 @@ function dossierComputeFundamentalScore(harvested) {
 /**
  * Pillar 6: Market Regime & AI Confluence (0–100)
  */
-function dossierComputeRegimeScore(harvested) {
-  var regimeObj = harvested.regime || {};
+function dossierComputeRegimeScore(harvestedOrRegime, aiHypothesis) {
+  if (!harvestedOrRegime) {
+    return {
+      available: false,
+      status: 'UNAVAILABLE',
+      score: 0,
+      reason: 'Data market regime IHSG tidak tersedia'
+    };
+  }
+
+  // Handle either full harvested payload { regime: ... } or regimeObj directly
+  var regimeObj = harvestedOrRegime;
+  if (harvestedOrRegime && typeof harvestedOrRegime === 'object' && harvestedOrRegime.regime !== undefined) {
+    regimeObj = harvestedOrRegime.regime;
+  }
+
   var rawState = 'SIDEWAYS';
   if (typeof regimeObj === 'string') {
     rawState = regimeObj;
-  } else if (regimeObj && typeof regimeObj.regime === 'string') {
-    rawState = regimeObj.regime;
-  } else if (regimeObj && typeof regimeObj.regime === 'object' && regimeObj.regime && typeof regimeObj.regime.regime === 'string') {
-    rawState = regimeObj.regime.regime;
-  } else if (regimeObj && typeof regimeObj.marketRegime === 'string') {
-    rawState = regimeObj.marketRegime;
+  } else if (regimeObj && typeof regimeObj === 'object') {
+    if (typeof regimeObj.regime === 'string') {
+      rawState = regimeObj.regime;
+    } else if (regimeObj.regime && typeof regimeObj.regime === 'object') {
+      rawState = regimeObj.regime.regime || regimeObj.regime.marketRegime || regimeObj.regime.state || 'SIDEWAYS';
+    } else if (typeof regimeObj.marketRegime === 'string') {
+      rawState = regimeObj.marketRegime;
+    } else if (typeof regimeObj.state === 'string') {
+      rawState = regimeObj.state;
+    }
   }
 
   var confidence = 75;
@@ -524,7 +542,7 @@ function dossierComputeRegimeScore(harvested) {
     confidence = regimeObj.regime.confidence;
   }
 
-  var regimeState = String(rawState || 'SIDEWAYS').toUpperCase();
+  var regimeState = String((typeof rawState === 'string' ? rawState : '') || 'SIDEWAYS').toUpperCase();
 
   var score = 50;
   var label = 'SIDEWAYS';
