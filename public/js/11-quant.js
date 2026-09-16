@@ -27,19 +27,20 @@ var QT = {
 // move between them, same pattern as the Technical/Fundamental Suite
 // tabs.
 var QL_TABS = [
-  { key: 'correlation', icon: '', label: 'Correlation' },
-  { key: 'monthly-returns', icon: '', label: 'Monthly Returns' },
-  { key: 'pairs', icon: '', label: 'Pairs Trading' },
-  { key: 'screener', icon: '', label: 'Screener' },
-  { key: 'backtester', icon: '', label: 'Backtester' },
-  { key: 'scenario', icon: '', label: 'Scenario' }
+  { key: 'correlation', icon: '<i class="ti ti-grid-dots"></i>', label: 'Correlation' },
+  { key: 'monthly-returns', icon: '<i class="ti ti-calendar-stats"></i>', label: 'Monthly Returns' },
+  { key: 'pairs', icon: '<i class="ti ti-arrows-diff"></i>', label: 'Pairs Trading' },
+  { key: 'screener', icon: '<i class="ti ti-filter"></i>', label: 'Screener' },
+  { key: 'backtester', icon: '<i class="ti ti-player-play"></i>', label: 'Backtester' },
+  { key: 'scenario', icon: '<i class="ti ti-chart-dots"></i>', label: 'Scenario' }
 ];
 
 function qlTabBarHtml(active) {
-  return '<div class="card" style="padding:10px 14px;margin-bottom:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
-    + '<span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-right:2px">Quant Lab:</span>'
+  return '<div class="sm-suite-tabs" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:16px">'
+    + '<span style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;padding:0 8px;letter-spacing:0.06em">Quant Lab:</span>'
     + QL_TABS.map(function(t) {
-        return '<button class="pbtn' + (t.key === active ? ' on' : '') + '" onclick="goPage(\'' + t.key + '\')">' + t.icon + ' ' + t.label + '</button>';
+        var isOn = t.key === active;
+        return '<button class="sm-nav-item' + (isOn ? ' active' : '') + '" onclick="goPage(\'' + t.key + '\')" style="padding:6px 12px;border-radius:7px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (isOn ? 'background:var(--accent);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '">' + t.icon + ' ' + t.label + '</button>';
       }).join('')
     + '</div>';
 }

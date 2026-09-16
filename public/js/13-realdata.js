@@ -478,19 +478,19 @@ corrRender = function(){
 
   var mEl = el('corr-matrix');
   if(mEl){
-    var h = '<div style="margin-bottom:8px">'+(realN===tks.length
-      ? '<span class="badge b-up">✓ DATA RIIL YAHOO — '+realN+' saham, return harian ~'+minLen+' hari</span>'
-      : '<span class="badge '+(realN>0?'b-gray':'b-dn')+'">'+(realN>0? realN+'/'+tks.length+' saham riil — sisanya simulasi' : '⚠ SEMUA SIMULASI — muat data riil dulu')+'</span>')+'</div>';
-    h += '<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:60px '+tks.map(function(){ return '1fr'; }).join(' ')+';gap:2px">';
-    h += '<div></div>'+tks.map(function(t){ return '<div style="font-size:10px;font-weight:700;color:var(--text2);text-align:center;padding:2px">'+t+'</div>'; }).join('');
+    var h = '<div style="margin-bottom:12px">'+(realN===tks.length
+      ? '<span class="badge b-up" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-weight:700"><i class="ti ti-circle-check"></i> DATA RIIL YAHOO — '+realN+' saham, return harian ~'+minLen+' hari</span>'
+      : '<span class="badge '+(realN>0?'b-gray':'b-dn')+'" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-weight:700">'+(realN>0? '<i class="ti ti-info-circle"></i> ' + realN+'/'+tks.length+' saham riil — sisanya simulasi' : '<i class="ti ti-alert-triangle"></i> SEMUA SIMULASI — muat data riil dulu')+'</span>')+'</div>';
+    h += '<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:68px '+tks.map(function(){ return 'minmax(48px, 1fr)'; }).join(' ')+';gap:3px">';
+    h += '<div></div>'+tks.map(function(t){ return '<div style="font-size:11px;font-weight:800;color:var(--text);text-align:center;padding:4px 2px;font-family:var(--font-mono)">'+t+'</div>'; }).join('');
     tks.forEach(function(a,i){
-      h += '<div style="font-size:10px;font-weight:700;color:var(--text2);display:flex;align-items:center;padding-right:4px">'+a+'</div>';
+      h += '<div style="font-size:11px;font-weight:800;color:var(--text);display:flex;align-items:center;padding-right:6px;font-family:var(--font-mono)">'+a+'</div>';
       tks.forEach(function(b,j){
         var v = matrix[i][j], bg, col;
-        if(i===j){ bg='rgba(255,255,255,.08)'; col='var(--text3)'; }
-        else if(v>0){ var i2=Math.min(1,v/.8); bg='rgba(0,212,170,'+(0.15+i2*.65)+')'; col='var(--green)'; }
-        else { var i3=Math.min(1,Math.abs(v)/.8); bg='rgba(255,34,68,'+(0.15+i3*.65)+')'; col='var(--red)'; }
-        h += '<div style="background:'+bg+';color:'+col+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border-radius:2px;height:30px;margin:1px;font-family:Menlo,monospace" title="'+a+' vs '+b+': '+v.toFixed(3)+'">'+(i===j?'1.00':v.toFixed(2))+'</div>';
+        if(i===j){ bg='rgba(255,255,255,.05)'; col='var(--text3)'; }
+        else if(v>0){ var i2=Math.min(1,v/.8); bg='rgba(16,185,129,'+(0.14+i2*.62)+')'; col='#10B981'; }
+        else { var i3=Math.min(1,Math.abs(v)/.8); bg='rgba(239,68,68,'+(0.14+i3*.62)+')'; col='#EF4444'; }
+        h += '<div style="background:'+bg+';color:'+col+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border-radius:6px;height:34px;font-family:var(--font-mono);transition:all .15s ease" title="'+a+' vs '+b+': '+v.toFixed(3)+'">'+(i===j?'1.00':(v>0?'+':'')+v.toFixed(2))+'</div>';
       });
     });
     h += '</div></div>';
@@ -502,10 +502,10 @@ corrRender = function(){
   var pEl = el('corr-pairs');
   if(pEl){
     var top = pairs2.slice(0,5), bot = pairs2.slice(-5).reverse();
-    var row = function(p, colr){ return '<div style="display:flex;justify-content:space-between;padding:6px 9px;background:var(--bg3);border-radius:2px;margin-bottom:4px;border:1px solid var(--border)"><span style="font-family:Menlo,monospace;color:var(--text);font-size:12px">'+p.a+' / '+p.b+'</span><span style="color:'+colr+';font-weight:700;font-family:Menlo,monospace">'+(p.v>=0?'+':'')+p.v.toFixed(3)+'</span></div>'; };
-    pEl.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-      +'<div><div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px">Korelasi Tertinggi — kandidat pairs trading</div>'+top.map(function(p){ return row(p,'var(--green)'); }).join('')+'</div>'
-      +'<div><div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px">Korelasi Terendah — kandidat diversifikasi</div>'+bot.map(function(p){ return row(p, p.v>=0?'var(--amber)':'var(--red)'); }).join('')+'</div>'
+    var row = function(p, colr){ return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:8px;margin-bottom:6px;border:1px solid var(--border)"><span style="font-family:var(--font-mono);font-weight:700;color:var(--text);font-size:12px">'+p.a+' <span style="color:var(--text3);font-weight:400">/</span> '+p.b+'</span><span style="color:'+colr+';font-weight:800;font-family:var(--font-mono);font-size:12px">'+(p.v>=0?'+':'')+p.v.toFixed(3)+'</span></div>'; };
+    pEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">'
+      +'<div style="background:rgba(16,185,129,0.02);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:14px"><div style="font-size:11.5px;font-weight:800;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-link"></i> Korelasi Tertinggi (Kandidat Pairs Trading)</div>'+top.map(function(p){ return row(p,'var(--green)'); }).join('')+'</div>'
+      +'<div style="background:rgba(239,68,68,0.02);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px"><div style="font-size:11.5px;font-weight:800;color:var(--red);margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-shield-check"></i> Korelasi Terendah (Kandidat Diversifikasi Portofolio)</div>'+bot.map(function(p){ return row(p, p.v>=0?'var(--amber)':'var(--red)'); }).join('')+'</div>'
       +'</div>';
   }
 };
