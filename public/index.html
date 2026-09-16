@@ -3201,9 +3201,9 @@
          dobel dengan .ptitle "Analisis Fundamental" di atas) sudah dihapus,
          tab navigasi tetap dipertahankan. -->
     <div class="sm-suite-tabs" style="margin-bottom:16px">
-      <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)">Analisa Terpadu &amp; Valuasi Saham</button>
-      <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)">Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
-      <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)">Kepemilikan &amp; Free Float KSEI</button>
+      <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)"><i class="ti ti-chart-dots" style="font-size:14px"></i>Analisa Terpadu &amp; Valuasi Saham</button>
+      <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)"><i class="ti ti-arrows-diff" style="font-size:14px"></i>Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
+      <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)"><i class="ti ti-users-group" style="font-size:14px"></i>Kepemilikan &amp; Free Float KSEI</button>
     </div>
 
     <!-- MAIN WORKSPACE -->
@@ -3214,7 +3214,7 @@
           <label>Kode Saham</label>
           <input type="text" id="fundTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA.JK" placeholder="Contoh: BBCA.JK, BBRI.JK, BMRI.JK" onkeydown="if(event.key==='Enter')fundFetchData()">
         </div>
-        <button class="sm-btn" onclick="fundFetchData()">Jalankan Analisa Fundamental</button>
+        <button class="sm-btn" onclick="fundFetchData()"><i class="ti ti-search" style="font-size:13px"></i>Jalankan Analisa Fundamental</button>
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
           <span class="sm-chip" onclick="fundSetTicker('BBCA.JK')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBCA"><img src="https://assets.stockbit.com/logos/companies/BBCA.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBCA</span>
@@ -3280,8 +3280,8 @@
             </div>
 
             <!-- Ekstraksi Otomatis 3 Poin Kunci LTM (Profitabilitas, Kesehatan Neraca, Efisiensi Modal) -->
-            <div id="fund-ltm-key-bullets" style="background:var(--bg2);border:1px solid rgba(0,0,255,0.3);border-radius:8px;padding:12px 14px;margin-bottom:14px">
-              <div style="font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <div id="fund-ltm-key-bullets" style="background:var(--bg2);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:800;color:#38BDF8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
                 Ekstraksi Otomatis 3 Poin Kunci Data LTM (Trailing Twelve Months)
               </div>
               <ul id="fund-ltm-bullets-list" style="margin:0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.75;display:flex;flex-direction:column;gap:6px">
@@ -3508,23 +3508,23 @@
   <div class="sm-container-plain">
     <!-- TOP HORIZONTAL SUB-NAV -->
     <div class="sm-suite-tabs" style="margin-bottom:16px">
-      <button type="button" class="sm-nav-item active-tech" id="cr-tech-nav-1" onclick="cryptoTechSwitchTab(1)">1. Interactive Chart &amp; Whale Overlay</button>
-      <button type="button" class="sm-nav-item" id="cr-tech-nav-2" onclick="cryptoTechSwitchTab(2)">2. Whale Tracker &amp; 15+ Indikator</button>
-      <button type="button" class="sm-nav-item" id="cr-tech-nav-3" onclick="cryptoTechSwitchTab(3)">3. Multi-Coin Signal &amp; Breakout Scanner</button>
+      <button type="button" class="sm-nav-item active-tech" id="cr-tech-nav-1" onclick="cryptoTechSwitchTab(1)"><i class="ti ti-chart-area-line" style="font-size:14px"></i>Interactive Chart &amp; Whale</button>
+      <button type="button" class="sm-nav-item" id="cr-tech-nav-2" onclick="cryptoTechSwitchTab(2)"><i class="ti ti-activity" style="font-size:14px"></i>Whale Tracker &amp; 15+ Indikator</button>
+      <button type="button" class="sm-nav-item" id="cr-tech-nav-3" onclick="cryptoTechSwitchTab(3)"><i class="ti ti-radar" style="font-size:14px"></i>Multi-Coin Breakout Scanner</button>
     </div>
 
     <!-- MAIN WORKSPACE -->
     <main class="sm-main">
       <!-- TOP COMMAND BAR -->
-      <div class="sm-top-bar" style="border-bottom-color:rgba(247,147,26,0.25)">
+      <div class="sm-top-bar">
         <div class="sm-input-group">
-          <label>Koin Crypto (Contoh: BTC, ETH, SOL, BNB, XRP, SUI, NEAR, PEPE)</label>
+          <label>Koin Crypto</label>
           <input type="text" id="crTechTickerInput" class="sm-input" value="BTC" onkeydown="if(event.key==='Enter')cryptoTechSelectCoin(this.value,true)" placeholder="BTC">
         </div>
-        <button class="sm-btn" onclick="cryptoTechSelectCoin(document.getElementById('crTechTickerInput').value,true)" style="background:#f7931a;color:#000;font-weight:800">Jalankan Analisa Crypto</button>
+        <button class="sm-btn" onclick="cryptoTechSelectCoin(document.getElementById('crTechTickerInput').value,true)"><i class="ti ti-search" style="font-size:13px"></i>Jalankan Analisa Crypto</button>
         
         <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap">
-          <div style="display:flex;gap:4px;margin-right:8px" id="cr-tech-tf-group">
+          <div style="display:inline-flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px;margin-right:6px" id="cr-tech-tf-group">
             <button class="pbtn" data-tf="15m" onclick="cryptoTechSetTimeframe('15m')">15m</button>
             <button class="pbtn" data-tf="1h" onclick="cryptoTechSetTimeframe('1h')">1h</button>
             <button class="pbtn" data-tf="4h" onclick="cryptoTechSetTimeframe('4h')">4h</button>
@@ -3599,9 +3599,9 @@
          dobel dengan .ptitle "Analisis Teknikal & Flow" di atas) sudah
          dihapus, tab navigasi tetap dipertahankan. -->
     <div class="sm-suite-tabs" style="margin-bottom:16px">
-      <button type="button" class="sm-nav-item active-tech" id="tech-nav-1" onclick="techSwitchTab(1)">Live Chart (TradingView)</button>
-      <button type="button" class="sm-nav-item" id="tech-nav-2" onclick="techSwitchTab(2)">Analisa Komprehensif</button>
-      <button type="button" class="sm-nav-item" id="tech-nav-3" onclick="techSwitchTab(3)">LQ45 Momentum Scanner</button>
+      <button type="button" class="sm-nav-item active-tech" id="tech-nav-1" onclick="techSwitchTab(1)"><i class="ti ti-chart-candle" style="font-size:14px"></i>Live Chart (TradingView)</button>
+      <button type="button" class="sm-nav-item" id="tech-nav-2" onclick="techSwitchTab(2)"><i class="ti ti-gauge" style="font-size:14px"></i>Analisa Komprehensif &amp; Flow</button>
+      <button type="button" class="sm-nav-item" id="tech-nav-3" onclick="techSwitchTab(3)"><i class="ti ti-filter" style="font-size:14px"></i>LQ45 Momentum Scanner</button>
     </div>
 
     <!-- MAIN WORKSPACE -->
@@ -3612,7 +3612,7 @@
           <label>Kode Saham</label>
           <input type="text" id="techTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA" placeholder="Contoh: BBCA, BBRI, BMRI, TLKM, ASII" onkeydown="if(event.key==='Enter')techFetchData()">
         </div>
-        <button class="sm-btn btn-tech" onclick="techFetchData()">Jalankan Analisa Teknikal &amp; Flow</button>
+        <button class="sm-btn btn-tech" onclick="techFetchData()"><i class="ti ti-search" style="font-size:13px"></i>Jalankan Analisa Teknikal &amp; Flow</button>
         <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
           <span class="sm-chip" onclick="techSetTicker('BBCA')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBCA"><img src="https://assets.stockbit.com/logos/companies/BBCA.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBCA</span>
@@ -3844,7 +3844,7 @@
       <div class="card" style="margin-bottom:16px">
         <div class="cheader">
           <span class="ctitle">DATA KEUANGAN HISTORIS</span>
-          <button class="btn" onclick="hw_addYear()" style="font-size:9px;padding:3px 8px;border-color:rgba(0,0,255,.3);color:var(--accent)">+ Tambah Tahun</button>
+          <button class="btn" onclick="hw_addYear()" style="font-size:9px;padding:3px 8px;border-color:rgba(56,189,248,.35);color:#38BDF8">+ Tambah Tahun</button>
         </div>
         <div style="overflow-x:auto">
           <table class="tbl" id="hw-data-table">
@@ -3864,7 +3864,7 @@
           </table>
         </div>
         <!-- Panduan unit -->
-        <div style="margin-top:10px;background:var(--bg3);border-radius:2px;padding:10px 12px;border-left:3px solid rgba(0,0,255,.5)">
+        <div style="margin-top:10px;background:var(--bg3);border-radius:6px;padding:10px 12px;border-left:3px solid #38BDF8">
           <div style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-weight:700">PANDUAN INPUT — SATUAN WAJIB</div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 16px;font-size:9px;font-family:var(--font-mono)">
             <div><span style="color:var(--text3)">EPS &amp; DPS</span><br><b style="color:var(--text)">Rupiah per saham</b><br><span style="color:var(--text3)">contoh: 179 = Rp 179/saham</span></div>
