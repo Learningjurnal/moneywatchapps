@@ -3960,6 +3960,62 @@ test('MASTER DOSSIER: Non-universe ticker rejection & zero dummy data mandate (A
   assert(!htmlResult.includes('dossier-radar-canvas'), 'Rendered HTML must NOT render radar canvas for invalid ticker');
 });
 
+test('MASTER DOSSIER: Explicit SIMULATION status badge and disclaimer when broker data is simulated', () => {
+  const dossier = getDossierContext();
+
+  // 1. When bSummary is simulated
+  const harvestedSim = {
+    quote: { quote: { price: 10000, eps: 500, bvps: 5000, isSimulated: false } },
+    brokerSummary: {
+      isSimulated: true,
+      quality: { status: 'SIMULATION', source: 'client_side_template' },
+      accumulation: 'Akumulasi',
+      top3Concentration: 65,
+      foreignNet: 5000000000,
+      vwap: 9950,
+      topBuyers: [{ broker: 'CC', name: 'Mandiri Sekuritas', isForeign: false, valueRp: 5200000000, avgPrice: 9950 }]
+    }
+  };
+
+  const smRes = dossier.dossierComputeSmartMoneyScore(harvestedSim);
+  assert.strictEqual(smRes.status, 'SIMULATION', 'Smart Money status must be SIMULATION when simulated');
+  assert.strictEqual(smRes.isSimulated, true, 'isSimulated must be true');
+  assert(smRes.reason.includes('[SIMULASI MODEL]'), 'Reason should contain [SIMULASI MODEL]');
+
+  // 2. Badge rendering check
+  const badgeSim = dossier.dossierRenderStatusBadge(smRes);
+  assert(badgeSim.includes('SIMULASI'), 'Badge must display SIMULASI');
+  assert(badgeSim.includes('ti-flask'), 'Badge must include flask icon');
+
+  const badgeReal = dossier.dossierRenderStatusBadge({ available: true, status: 'REAL', isSimulated: false });
+  assert(badgeReal.includes('REAL'), 'Real pillar badge must show REAL');
+
+  const badgeUnavail = dossier.dossierRenderStatusBadge({ available: false });
+  assert(badgeUnavail.includes('DATA TIDAK TERSEDIA'), 'Unavailable pillar must show DATA TIDAK TERSEDIA');
+
+  // 3. Render page and verify banner
+  let htmlResult = '';
+  dossier.document.getElementById = (id) => {
+    if (id === 'page-stock-dossier') {
+      return {
+        set innerHTML(val) { htmlResult = val; },
+        get innerHTML() { return htmlResult; }
+      };
+    }
+    return null;
+  };
+
+  dossier.dossierState.ticker = 'BBCA';
+  dossier.dossierState.isInvalidTicker = false;
+  dossier.dossierState.errorMessage = null;
+  dossier.dossierState.harvestedData = harvestedSim;
+  dossier.dossierState.scoringResult = dossier.dossierCalculateScore(harvestedSim);
+
+  dossier.renderStockDossierPage('BBCA');
+  assert(htmlResult.includes('STATUS DATA: SIMULASI / MODEL ESTIMASI DETERMINISTIK'), 'Rendered HTML must include simulation disclaimer banner in smart money');
+  assert(htmlResult.includes('Broker Akumulator (Simulasi Model):'), 'Card accumulator chip must denote simulation model');
+});
+
 test('MASTER DOSSIER: DOM structure, script inclusion, and router integration', () => {
   const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
   const routerJs = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');

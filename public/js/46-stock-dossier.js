@@ -187,9 +187,12 @@ function dossierComputeValuationScore(harvested) {
     score = Math.max(15, Math.min(95, subScore));
   }
 
+  var isValSim = Boolean(quote.isSimulated || (quote.quality && quote.quality.status === 'SIMULATION'));
+
   return {
     available: true,
-    status: 'REAL',
+    status: isValSim ? 'SIMULATION' : 'REAL',
+    isSimulated: isValSim,
     score: score,
     mosPct: mosPct !== null ? Math.round(mosPct * 10) / 10 : null,
     fairValue: fairValue,
@@ -207,7 +210,7 @@ function dossierComputeValuationScore(harvested) {
  */
 function dossierComputeSmartMoneyScore(harvested) {
   var bSummary = (harvested.brokerSummary && harvested.brokerSummary.data) ? harvested.brokerSummary.data : harvested.brokerSummary;
-  if (!bSummary || (!bSummary.bandarmology && !bSummary.brokers && !bSummary.accumulation)) {
+  if (!bSummary || (!bSummary.bandarmology && !bSummary.brokers && !bSummary.accumulation && !bSummary.topBuyers && !bSummary.buyers)) {
     return {
       available: false,
       status: 'DATA_UNAVAILABLE',
@@ -284,9 +287,14 @@ function dossierComputeSmartMoneyScore(harvested) {
     };
   });
 
+  var isSimulated = Boolean(bSummary.isSimulated || (bSummary.quality && bSummary.quality.status === 'SIMULATION'));
+  var dataStatus = isSimulated ? 'SIMULATION' : 'REAL';
+
   return {
     available: true,
-    status: 'REAL',
+    status: dataStatus,
+    isSimulated: isSimulated,
+    dataSource: bSummary.dataSource || (isSimulated ? 'Model Simulasi Deterministik' : 'Invezgo API (real)'),
     score: score,
     top3Pct: top3Pct ? Math.round(top3Pct) : null,
     foreignFlow: foreignNet,
@@ -295,7 +303,7 @@ function dossierComputeSmartMoneyScore(harvested) {
     accumulators: accumulators,
     topBuyers: rawBuyers,
     topSellers: rawSellers,
-    reason: 'Status: ' + (statusStr || 'Akumulasi') + (top3Pct ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
+    reason: (isSimulated ? '[SIMULASI MODEL] ' : '') + 'Status: ' + (statusStr || 'Akumulasi') + (top3Pct ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
             (accumulators.length ? ' · Top Akumulator: ' + accumulators.slice(0, 3).map(function(a){ return a.code; }).join(', ') : '') +
             (foreignNet !== 0 ? ' · Foreign Net: Rp ' + (foreignNet / 1e9).toFixed(2) + ' M' : '')
   };
@@ -532,15 +540,18 @@ function dossierComputeFundamentalScore(harvested) {
 
   score = Math.max(15, Math.min(95, score));
 
+  var isFundSim = Boolean((harvested.fund && harvested.fund.isSimulated) || (harvested.fund && harvested.fund.quality && harvested.fund.quality.status === 'SIMULATION'));
+
   return {
     available: true,
-    status: 'REAL',
+    status: isFundSim ? 'SIMULATION' : 'REAL',
+    isSimulated: isFundSim,
     score: score,
     roe: roe !== null ? Math.round(roe * 10) / 10 : null,
     der: der !== undefined && der !== null ? Math.round(der * 100) / 100 : null,
     npm: npm !== null ? Math.round(npm * 10) / 10 : null,
     divYield: divYield !== null ? Math.round(divYield * 10) / 10 : null,
-    reason: 'ROE: ' + (roe !== null ? roe.toFixed(1) + '%' : '-') +
+    reason: (isFundSim ? '[SIMULASI] ' : '') + 'ROE: ' + (roe !== null ? roe.toFixed(1) + '%' : '-') +
             ' · DER: ' + (der !== undefined && der !== null ? der.toFixed(2) + 'x' : '-') +
             ' · Div Yield: ' + (divYield !== null ? divYield.toFixed(1) + '%' : '-')
   };
@@ -688,6 +699,14 @@ function dossierCalculateCompositeScore(pillars, weights) {
     recClass = 'b-dn';
   }
 
+  var simulatedCount = 0;
+  pillarEntries.forEach(function(p) {
+    if (p.res && p.res.available === true && (p.res.isSimulated || p.res.status === 'SIMULATION')) {
+      simulatedCount++;
+    }
+  });
+  var hasSimulatedPillars = simulatedCount > 0;
+
   var isDegraded = confidenceLevel < 70;
   if (isDegraded) {
     recommendation += ' (DATA TERBATAS)';
@@ -698,6 +717,8 @@ function dossierCalculateCompositeScore(pillars, weights) {
     confidenceLevel: confidenceLevel,
     availablePillarsCount: availableCount,
     totalPillarsCount: pillarEntries.length,
+    simulatedPillarsCount: simulatedCount,
+    hasSimulatedPillars: hasSimulatedPillars,
     recommendation: recommendation,
     recColor: recColor,
     recClass: recClass,
@@ -955,6 +976,16 @@ function dossierSwitchTab(tabName) {
   });
 }
 
+function dossierRenderStatusBadge(pillar) {
+  if (!pillar || !pillar.available) {
+    return '<span class="badge b-dn" style="font-size:9px;padding:1px 5px">DATA TIDAK TERSEDIA</span>';
+  }
+  if (pillar.isSimulated || pillar.status === 'SIMULATION') {
+    return '<span class="badge" style="background:rgba(245,158,11,0.18);color:#f59e0b;border:1px solid rgba(245,158,11,0.35);font-size:9px;padding:1px 5px;font-weight:700" title="Data merupakan estimasi model simulasi (Invezgo API belum terhubung)"><i class="ti ti-flask"></i> SIMULASI</span>';
+  }
+  return '<span class="badge b-up" style="font-size:9px;padding:1px 5px">REAL</span>';
+}
+
 function renderStockDossierPage(targetTicker) {
   var container = document.getElementById('page-stock-dossier');
   if (!container) return;
@@ -1179,7 +1210,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-scale" style="color:var(--blue)"></i> Valuasi &amp; Harga Wajar (Graham/DCF)</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.valuation + '%</span>';
-  html += '          ' + (vpAvail ? '<span class="badge b-up" style="font-size:9px;padding:1px 5px">REAL</span>' : '<span class="badge b-dn" style="font-size:9px;padding:1px 5px">DATA TIDAK TERSEDIA</span>');
+  html += '          ' + dossierRenderStatusBadge(vp);
   html += '        </div>';
   html += '      </div>';
   html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
@@ -1203,7 +1234,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-chart-candle" style="color:var(--blue)"></i> Momentum &amp; Analisis Teknikal</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.technical + '%</span>';
-  html += '          ' + (tpAvail ? '<span class="badge b-up" style="font-size:9px;padding:1px 5px">REAL</span>' : '<span class="badge b-dn" style="font-size:9px;padding:1px 5px">DATA TIDAK TERSEDIA</span>');
+  html += '          ' + dossierRenderStatusBadge(tp);
   html += '        </div>';
   html += '      </div>';
   html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
@@ -1227,7 +1258,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-coins" style="color:var(--blue)"></i> Profitabilitas &amp; Dividen</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.fundamental + '%</span>';
-  html += '          ' + (fpAvail ? '<span class="badge b-up" style="font-size:9px;padding:1px 5px">REAL</span>' : '<span class="badge b-dn" style="font-size:9px;padding:1px 5px">DATA TIDAK TERSEDIA</span>');
+  html += '          ' + dossierRenderStatusBadge(fp);
   html += '        </div>';
   html += '      </div>';
   html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
@@ -1268,7 +1299,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-radar" style="color:#8b5cf6"></i> Smart Money &amp; Broker Flow</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.smartMoney + '%</span>';
-  html += '          ' + (smAvail ? '<span class="badge b-up" style="font-size:9px;padding:1px 5px">REAL</span>' : '<span class="badge b-dn" style="font-size:9px;padding:1px 5px">DATA TIDAK TERSEDIA</span>');
+  html += '          ' + dossierRenderStatusBadge(sm);
   html += '        </div>';
   html += '      </div>';
   html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
@@ -1282,13 +1313,20 @@ function renderStockDossierPage(targetTicker) {
 
   // PROMINENT FEATURE: NAMA BROKER AKUMULATOR UTAMA
   if (accumList && accumList.length > 0) {
-    html += '      <div style="margin-bottom:8px;padding:8px 10px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);border-radius:6px">';
-    html += '        <div style="font-size:10px;font-weight:900;color:var(--green);text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i class="ti ti-user-check"></i> Broker Akumulator Utama (Top Buyers):</div>';
+    var isSimAccum = sm.isSimulated || sm.status === 'SIMULATION';
+    var accumBg = isSimAccum ? 'rgba(245,158,11,0.06)' : 'rgba(16,185,129,0.06)';
+    var accumBorder = isSimAccum ? 'rgba(245,158,11,0.25)' : 'rgba(16,185,129,0.25)';
+    var accumTitleColor = isSimAccum ? '#f59e0b' : 'var(--green)';
+    var accumTitleIcon = isSimAccum ? 'ti ti-flask' : 'ti ti-user-check';
+    var accumTitleText = isSimAccum ? 'Broker Akumulator (Simulasi Model):' : 'Broker Akumulator Utama (Top Buyers):';
+
+    html += '      <div style="margin-bottom:8px;padding:8px 10px;background:' + accumBg + ';border:1px solid ' + accumBorder + ';border-radius:6px">';
+    html += '        <div style="font-size:10px;font-weight:900;color:' + accumTitleColor + ';text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i class="' + accumTitleIcon + '"></i> ' + accumTitleText + '</div>';
     html += '        <div style="display:flex;flex-direction:column;gap:4px">';
     accumList.slice(0, 3).forEach(function(acc) {
       html += '          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px">';
       html += '            <div style="display:inline-flex;align-items:center;gap:6px">';
-      html += '              <span class="badge" style="background:rgba(16,185,129,0.2);color:var(--green);font-family:var(--font-mono);font-weight:900;padding:1px 5px;font-size:10px">' + acc.code + '</span>';
+      html += '              <span class="badge" style="background:' + (isSimAccum ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)') + ';color:' + (isSimAccum ? '#f59e0b' : 'var(--green)') + ';font-family:var(--font-mono);font-weight:900;padding:1px 5px;font-size:10px">' + acc.code + '</span>';
       html += '              <span style="font-weight:700;color:var(--text1)">' + acc.name + '</span>';
       if (acc.isForeign) html += ' <span class="badge" style="font-size:8px;padding:0 3px;background:rgba(59,130,246,0.15);color:var(--blue)">ASING</span>';
       html += '            </div>';
@@ -1312,7 +1350,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-shield-check" style="color:#8b5cf6"></i> Kepemilikan Kustodian KSEI</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.ksei + '%</span>';
-  html += '          ' + (kpAvail ? '<span class="badge b-up" style="font-size:9px;padding:1px 5px">REAL</span>' : '<span class="badge b-dn" style="font-size:9px;padding:1px 5px">DATA TIDAK TERSEDIA</span>');
+  html += '          ' + dossierRenderStatusBadge(kp);
   html += '        </div>';
   html += '      </div>';
   html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
@@ -1336,7 +1374,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-compass" style="color:#8b5cf6"></i> Market Regime IHSG &amp; AI</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.regime + '%</span>';
-  html += '          ' + (rpAvail ? '<span class="badge b-up" style="font-size:9px;padding:1px 5px">REAL</span>' : '<span class="badge b-dn" style="font-size:9px;padding:1px 5px">DATA TIDAK TERSEDIA</span>');
+  html += '          ' + dossierRenderStatusBadge(rp);
   html += '        </div>';
   html += '      </div>';
   html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
@@ -1432,7 +1470,10 @@ function renderStockDossierPage(targetTicker) {
 
   // ── TAB: 1. VALUASI ──
   html += '    <div class="dossier-tab-pane" data-tab="valuation" style="display:' + (dossierState.activeTab === 'valuation' ? 'block' : 'none') + '">';
-  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0 0 12px 0">Rincian Valuasi &amp; Margin of Safety (Bobot: ' + res.weightsUsed.valuation + '%)</h4>';
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Valuasi &amp; Margin of Safety (Bobot: ' + res.weightsUsed.valuation + '%)</h4>';
+  html += '        ' + dossierRenderStatusBadge(res.pillars.valuation);
+  html += '      </div>';
   if (!res.pillars.valuation.available) {
     html += '      <div class="badge b-dn" style="padding:8px 12px;font-size:12px"><i class="ti ti-info-circle"></i> ' + res.pillars.valuation.reason + '</div>';
   } else {
@@ -1449,10 +1490,22 @@ function renderStockDossierPage(targetTicker) {
 
   // ── TAB: 2. SMART MONEY ──
   html += '    <div class="dossier-tab-pane" data-tab="smartMoney" style="display:' + (dossierState.activeTab === 'smartMoney' ? 'block' : 'none') + '">';
-  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0 0 12px 0">Rincian Aliran Smart Money &amp; Bandarmology (Bobot: ' + res.weightsUsed.smartMoney + '%)</h4>';
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Aliran Smart Money &amp; Bandarmology (Bobot: ' + res.weightsUsed.smartMoney + '%)</h4>';
+  html += '        ' + dossierRenderStatusBadge(res.pillars.smartMoney);
+  html += '      </div>';
   if (!res.pillars.smartMoney.available) {
     html += '      <div class="badge b-dn" style="padding:8px 12px;font-size:12px"><i class="ti ti-info-circle"></i> ' + res.pillars.smartMoney.reason + '</div>';
   } else {
+    if (res.pillars.smartMoney.isSimulated || res.pillars.smartMoney.status === 'SIMULATION') {
+      html += '      <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
+      html += '        <i class="ti ti-flask" style="color:#f59e0b;font-size:20px;flex-shrink:0;margin-top:2px"></i>';
+      html += '        <div style="font-size:11px;color:var(--text2);line-height:1.4">';
+      html += '          <b style="color:#f59e0b;text-transform:uppercase">STATUS DATA: SIMULASI / MODEL ESTIMASI DETERMINISTIK</b><br>';
+      html += '          BEI tidak menyediakan feed transaksi broker gratis ke publik dan Invezgo API belum terhubung. Rincian broker dan estimasi volume akumulator di bawah adalah <b>simulasi berjangkar harga &amp; volume pasar riil</b> (bukan feed rekap transaksi broker live). Digunakan khusus sebagai referensi pemodelan likuiditas.';
+      html += '        </div>';
+      html += '      </div>';
+    }
     html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Status Bandarmology</span><div style="font-size:16px;font-weight:800;color:var(--blue)">' + res.pillars.smartMoney.bandarStatus + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Konsentrasi Top 3 Broker</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.smartMoney.top3Pct ? res.pillars.smartMoney.top3Pct + '%' : '-') + '</div></div>';
@@ -1494,7 +1547,10 @@ function renderStockDossierPage(targetTicker) {
 
   // ── TAB: 3. TEKNIKAL ──
   html += '    <div class="dossier-tab-pane" data-tab="technical" style="display:' + (dossierState.activeTab === 'technical' ? 'block' : 'none') + '">';
-  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0 0 12px 0">Rincian Momentum &amp; Indikator Teknikal (Bobot: ' + res.weightsUsed.technical + '%)</h4>';
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Momentum &amp; Indikator Teknikal (Bobot: ' + res.weightsUsed.technical + '%)</h4>';
+  html += '        ' + dossierRenderStatusBadge(res.pillars.technical);
+  html += '      </div>';
   if (!res.pillars.technical.available) {
     html += '      <div class="badge b-dn" style="padding:8px 12px;font-size:12px"><i class="ti ti-info-circle"></i> ' + res.pillars.technical.reason + '</div>';
   } else {
@@ -1510,7 +1566,10 @@ function renderStockDossierPage(targetTicker) {
 
   // ── TAB: 4. KSEI ──
   html += '    <div class="dossier-tab-pane" data-tab="ksei" style="display:' + (dossierState.activeTab === 'ksei' ? 'block' : 'none') + '">';
-  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0 0 12px 0">Rincian Kepemilikan Kustodian KSEI (Bobot: ' + res.weightsUsed.ksei + '%)</h4>';
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Kepemilikan Kustodian KSEI (Bobot: ' + res.weightsUsed.ksei + '%)</h4>';
+  html += '        ' + dossierRenderStatusBadge(res.pillars.ksei);
+  html += '      </div>';
   if (!res.pillars.ksei.available) {
     html += '      <div class="badge b-dn" style="padding:8px 12px;font-size:12px"><i class="ti ti-info-circle"></i> ' + res.pillars.ksei.reason + '</div>';
   } else {
@@ -1526,7 +1585,10 @@ function renderStockDossierPage(targetTicker) {
 
   // ── TAB: 5. FUNDAMENTAL & DIVIDEN ──
   html += '    <div class="dossier-tab-pane" data-tab="fundamental" style="display:' + (dossierState.activeTab === 'fundamental' ? 'block' : 'none') + '">';
-  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0 0 12px 0">Rincian Profitabilitas &amp; Dividen (Bobot: ' + res.weightsUsed.fundamental + '%)</h4>';
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Profitabilitas &amp; Dividen (Bobot: ' + res.weightsUsed.fundamental + '%)</h4>';
+  html += '        ' + dossierRenderStatusBadge(res.pillars.fundamental);
+  html += '      </div>';
   if (!res.pillars.fundamental.available) {
     html += '      <div class="badge b-dn" style="padding:8px 12px;font-size:12px"><i class="ti ti-info-circle"></i> ' + res.pillars.fundamental.reason + '</div>';
   } else {
@@ -1542,7 +1604,10 @@ function renderStockDossierPage(targetTicker) {
 
   // ── TAB: 6. REGIME & AI VERDICT ──
   html += '    <div class="dossier-tab-pane" data-tab="regime" style="display:' + (dossierState.activeTab === 'regime' ? 'block' : 'none') + '">';
-  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0 0 12px 0">Market Regime &amp; Putusan AI Kuantitatif (Bobot: ' + res.weightsUsed.regime + '%)</h4>';
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Market Regime &amp; Putusan AI Kuantitatif (Bobot: ' + res.weightsUsed.regime + '%)</h4>';
+  html += '        ' + dossierRenderStatusBadge(res.pillars.regime);
+  html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">';
   html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Regime IHSG</span><div style="font-size:16px;font-weight:800;color:var(--blue)">' + (res.pillars.regime.regime || 'SIDEWAYS') + '</div></div>';
   html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Regime Confidence</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + res.pillars.regime.regimeConfidence + '%</div></div>';
