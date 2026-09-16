@@ -55,6 +55,7 @@ var dossierState = {
   harvestedData: null,
   scoringResult: null,
   isLoading: false,
+  isInvalidTicker: false,
   errorMessage: null,
   lastUpdated: null
 };
@@ -728,14 +729,55 @@ function dossierCalculateScore(harvested, weights) {
 }
 
 // ============================================================
-// 3. DATA HARVESTING (CONCURRENT ZERO-SYNTHETIC AGGREGATION)
+// 3. DATA HARVESTING & STRICT VALIDATION (AGENTS.md §1, §5, §28)
 // ============================================================
+
+function dossierIsValidTicker(ticker) {
+  if (!ticker) return false;
+  var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+  if (!tk) return false;
+
+  // 1. Check canonical universe validator if available
+  if (typeof isValidStockTicker === 'function') {
+    return isValidStockTicker(tk);
+  }
+
+  // 2. Check window stock databases
+  if (typeof DB !== 'undefined' && DB && DB[tk]) return true;
+  if (typeof _IDX_RAW_LIST !== 'undefined' && _IDX_RAW_LIST && _IDX_RAW_LIST[tk]) return true;
+  if (typeof STOCKS !== 'undefined' && STOCKS && STOCKS[tk]) return true;
+  if (typeof FUND_DATA !== 'undefined' && FUND_DATA && FUND_DATA[tk]) return true;
+  if (typeof STOCK_PROFILES !== 'undefined' && STOCK_PROFILES && STOCK_PROFILES[tk]) return true;
+  if (typeof FS_UNIV !== 'undefined' && Array.isArray(FS_UNIV)) {
+    if (FS_UNIV.some(function(u) { return u.t === tk; })) return true;
+  }
+  if (typeof XLSX_DATA !== 'undefined' && XLSX_DATA && Array.isArray(XLSX_DATA.stocks)) {
+    if (XLSX_DATA.stocks.some(function(s) { return String(s.ticker || s.code || '').toUpperCase() === tk; })) return true;
+  }
+
+  // Known active bellwethers
+  var commonValid = ['BBCA','BBRI','BMRI','BBNI','ANTM','ADRO','PTRO','TLKM','ASII','GOTO','BREN','AMMN','TPIA','CUAN','PANI','BRMS','MEDC','PGAS','PTBA','INCO','MDKA','HRUM','MBMA','BUMI','DEWA','AADI','ARCI','BRIS','BBTN','UNVR','ICBP','INDF','KLBF','SIDO','MYOR','CPIN','ACES','ERAA','WIFI','RAJA','SMDR','INKP','TKIM','JSMR','CTRA','SMRA','BSDE','PWON','GGRM','PGEO','CDIA','ADMR','EXCL','BUKA','SMGR'];
+  if (commonValid.includes(tk)) return true;
+
+  return false;
+}
 
 async function dossierHarvestData(ticker) {
   var cleanTicker = (ticker || 'BBCA').toUpperCase().replace('.JK', '').replace('.US', '').trim();
   dossierState.ticker = cleanTicker;
   dossierState.isLoading = true;
   dossierState.errorMessage = null;
+  dossierState.isInvalidTicker = false;
+
+  // GATE 1: Client-Side Universe Validation Gate (AGENTS.md §1 & §5)
+  if (!dossierIsValidTicker(cleanTicker)) {
+    dossierState.isLoading = false;
+    dossierState.isInvalidTicker = true;
+    dossierState.harvestedData = null;
+    dossierState.scoringResult = null;
+    dossierState.errorMessage = 'Ticker "' + cleanTicker + '" Tidak Terdaftar dalam Stock Universe IDX. Sesuai prinsip integritas pasar (AGENTS.md §1, §5, §28), data tidak dapat dianalisis dan seluruh kalkulasi multi-faktor diblokir.';
+    return null;
+  }
 
   var harvested = {
     ticker: cleanTicker,
@@ -795,6 +837,19 @@ async function dossierHarvestData(ticker) {
     var bData = results[1];
     harvested.brokerSummary = (bData && bData.data) ? bData.data : bData;
 
+    // GATE 2: Server Response & Data Quality Gate (AGENTS.md §5 & §28)
+    var isQuoteInvalid = !qData || qData.success === false || qData.isValidTicker === false ||
+      (harvested.quote && harvested.quote.isValidTicker === false);
+    var isBrokerInvalid = bData && (bData.success === false || bData.isValidTicker === false);
+
+    if (isQuoteInvalid || isBrokerInvalid) {
+      dossierState.isInvalidTicker = true;
+      dossierState.harvestedData = null;
+      dossierState.scoringResult = null;
+      dossierState.errorMessage = 'Ticker "' + cleanTicker + '" Ditolak oleh Gateway Pasar Bursa Efek Indonesia. Kode saham tidak terdaftar atau tidak memiliki riwayat perdagangan resmi.';
+      return null;
+    }
+
     var hData = results[2];
     if (hData && Array.isArray(hData.points)) {
       harvested.history = hData.points.map(function(p) {
@@ -831,10 +886,18 @@ async function dossierHarvestData(ticker) {
 
     // Verify quote minimum validity
     if (!harvested.quote || (!harvested.quote.price && !harvested.quote.close)) {
-      // If server quote endpoint failed, check local window data
       if (typeof STOCKS !== 'undefined' && STOCKS[cleanTicker]) {
         harvested.quote = STOCKS[cleanTicker];
       }
+    }
+
+    // Strict Check: Ticker must have real quote price
+    if (!harvested.quote || (!harvested.quote.price && !harvested.quote.close) || harvested.quote.price <= 0) {
+      dossierState.isInvalidTicker = true;
+      dossierState.harvestedData = null;
+      dossierState.scoringResult = null;
+      dossierState.errorMessage = 'Ticker "' + cleanTicker + '" Tidak Memiliki Data Kuotasi Harga Saham Riil di IDX. Analisis multi-faktor diblokir.';
+      return null;
     }
 
     dossierState.harvestedData = harvested;
@@ -902,7 +965,7 @@ function renderStockDossierPage(targetTicker) {
   }
 
   // Initial trigger if not loaded yet
-  if (!dossierState.harvestedData && !dossierState.isLoading && !dossierState.errorMessage) {
+  if (!dossierState.harvestedData && !dossierState.isLoading && !dossierState.errorMessage && !dossierState.isInvalidTicker) {
     var initialTk = targetTicker || dossierState.ticker || 'BBCA';
     dossierState.ticker = initialTk;
     dossierRunAnalysis(initialTk);
@@ -975,13 +1038,40 @@ function renderStockDossierPage(targetTicker) {
     return;
   }
 
-  // Error State
-  if (dossierState.errorMessage) {
-    html += '<div class="card" style="padding:30px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.05);text-align:center">';
-    html += '  <div style="font-size:24px;color:var(--red);margin-bottom:8px"><i class="ti ti-alert-triangle"></i></div>';
-    html += '  <div style="font-size:14px;font-weight:700;color:var(--red)">' + dossierState.errorMessage + '</div>';
-    html += '  <button class="btn btn-sm btn-ghost" style="margin-top:12px" onclick="dossierRunAnalysis()">Coba Lagi</button>';
+  // Error / Invalid Ticker Zero-State (AGENTS.md §1, §5, §28)
+  if (dossierState.isInvalidTicker || dossierState.errorMessage) {
+    var errTitle = dossierState.isInvalidTicker
+      ? 'Ticker "' + dossierState.ticker + '" Ditolak — Tidak Terdaftar dalam Stock Universe IDX'
+      : 'Gagal Memuat Feed Data Pasar';
+    var errDesc = dossierState.errorMessage || 'Saham tidak ditemukan dalam database resmi BEI atau tidak memiliki data perdagangan resmi.';
+
+    html += '<div class="card" style="padding:28px 24px;border:1px solid rgba(244,63,94,0.4);background:linear-gradient(180deg, rgba(244,63,94,0.08) 0%, rgba(15,23,42,0.6) 100%);border-radius:12px;margin-bottom:24px">';
+    html += '  <div style="display:flex;align-items:flex-start;gap:16px">';
+    html += '    <div style="width:48px;height:48px;border-radius:12px;background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.3);display:flex;align-items:center;justify-content:center;color:#f43f5e;font-size:24px;flex-shrink:0">';
+    html += '      <i class="ti ti-shield-x"></i>';
+    html += '    </div>';
+    html += '    <div style="flex:1">';
+    html += '      <div style="font-size:16px;font-weight:800;color:#f43f5e;margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+    html += '        <span>' + errTitle + '</span>';
+    html += '        <span class="badge" style="background:rgba(244,63,94,0.2);color:#f43f5e;border:1px solid rgba(244,63,94,0.4);font-size:10px;font-weight:700">BLOCKED (AGENTS.md §1 &amp; §5)</span>';
+    html += '      </div>';
+    html += '      <p style="font-size:13px;line-height:1.6;color:var(--text2);margin:0 0 14px 0">';
+    html += '        ' + errDesc;
+    html += '      </p>';
+    html += '      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text3);line-height:1.5">';
+    html += '        <div style="font-weight:700;color:var(--text1);margin-bottom:4px"><i class="ti ti-alert-circle" style="color:#fbbf24"></i> Protokol Integritas Pasar (Zero Dummy Data Mandate):</div>';
+    html += '        Sistem dilarang merekayasa harga, volume orderbook, arus broker bandarmology, atau rasio fundamental untuk saham yang tidak sah. Seluruh 6 pilar kalkulasi composite multi-factor (Valuasi, Smart Money, Teknikal, KSEI, Fundamental, dan AI Market Regime) diblokir secara total untuk menjaga keaslian data finansial.';
+    html += '      </div>';
+    html += '      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+    html += '        <span style="font-size:12px;color:var(--text3);font-weight:600">Pilih Ticker Saham IDX Sah:</span>';
+    ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'ADRO', 'ANTM'].forEach(function(recTk) {
+      html += '        <button onclick="dossierSelectTicker(\'' + recTk + '\')" class="btn btn-ghost btn-xs" style="font-family:var(--font-mono);font-weight:700;border:1px solid var(--border);color:var(--blue)">' + recTk + '</button>';
+    });
+    html += '      </div>';
+    html += '    </div>';
+    html += '  </div>';
     html += '</div>';
+
     container.innerHTML = html;
     return;
   }

@@ -2760,15 +2760,36 @@ app.get('/api/idx/quote/:ticker', async (req, res) => {
     const ticker = req.params.ticker;
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
 
+    const cleanTk = ticker.toUpperCase().replace(/\.JK$/i, '').trim();
+    const universe = loadBaseUniverse();
+    const isIndex = cleanTk.startsWith('^') || cleanTk === 'JKSE';
+
+    if (!universe[cleanTk] && !isIndex) {
+      return res.status(404).json({
+        success: false,
+        isValidTicker: false,
+        error: `Ticker "${cleanTk}" tidak terdaftar dalam Stock Universe IDX`,
+        quote: null
+      });
+    }
+
     const quote = await fetchYahooQuote(ticker);
+    if (quote && (quote.isValidTicker === false || quote.price <= 0)) {
+      return res.status(404).json({
+        success: false,
+        isValidTicker: false,
+        error: `Ticker "${cleanTk}" tidak terdaftar dalam Stock Universe IDX`,
+        quote: quote
+      });
+    }
     
     // Connect KSEI ownership if available
     const ksei = getStoredKseiData();
-    const cleanTk = ticker.toUpperCase().replace(/\.JK$/i, '').trim();
     const kseiItem = ksei?.data?.[cleanTk] || null;
 
     return res.json({
       success: true,
+      isValidTicker: true,
       quote: quote,
       ksei: kseiItem ? {
         freeFloat: kseiItem.freeFloat,
@@ -2881,6 +2902,18 @@ app.get('/api/idx/hypothesis/:ticker', async (req, res) => {
   try {
     const ticker = req.params.ticker;
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const cleanTk = ticker.toUpperCase().replace(/\.JK$/i, '').trim();
+    const universe = loadBaseUniverse();
+    const isIndex = cleanTk.startsWith('^') || cleanTk === 'JKSE';
+    if (!universe[cleanTk] && !isIndex) {
+      return res.status(404).json({
+        success: false,
+        isValidTicker: false,
+        error: `Ticker "${cleanTk}" tidak terdaftar dalam Stock Universe IDX`,
+        hypothesis: null
+      });
+    }
     const cash = req.query.cash != null && req.query.cash !== '' ? Number(req.query.cash) : undefined;
     const equity = req.query.equity != null && req.query.equity !== '' ? Number(req.query.equity) : undefined;
     const riskPct = req.query.riskPct != null && req.query.riskPct !== '' ? Number(req.query.riskPct) : undefined;

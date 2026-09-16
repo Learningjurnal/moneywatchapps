@@ -3769,6 +3769,8 @@ function getDossierContext() {
       setItem(k, v) { this._data[k] = String(v); },
       removeItem(k) { delete this._data[k]; }
     },
+    fetch: () => Promise.resolve({ ok: false }),
+    setTimeout: setTimeout,
     showToast: () => {}
   };
   sandbox.window = sandbox;
@@ -3921,6 +3923,41 @@ test('MASTER DOSSIER: Individual pillar scoring models behave within valid quant
   const regimeSampleEmpty = {};
   const regimeResEmpty = dossier.dossierComputeRegimeScore(regimeSampleEmpty);
   assert.strictEqual(regimeResEmpty.score, 55, 'Empty regime should fallback safely to neutral sideways (55) without crashing');
+});
+
+test('MASTER DOSSIER: Non-universe ticker rejection & zero dummy data mandate (AGENTS.md §1, §5, §28)', async () => {
+  const dossier = getDossierContext();
+
+  // 1. Ticker validator must reject non-existent tickers
+  assert.strictEqual(dossier.dossierIsValidTicker('XXXX'), false, 'XXXX must be rejected by ticker validator');
+  assert.strictEqual(dossier.dossierIsValidTicker('YYYY'), false, 'YYYY must be rejected by ticker validator');
+  assert.strictEqual(dossier.dossierIsValidTicker('AAAA'), false, 'AAAA must be rejected by ticker validator');
+  assert.strictEqual(dossier.dossierIsValidTicker('BBCA'), true, 'BBCA must be accepted as valid IDX ticker');
+
+  // 2. Data harvesting must return null and block scoring
+  const harvestResult = await dossier.dossierHarvestData('XXXX');
+  assert.strictEqual(harvestResult, null, 'Harvesting non-existent ticker XXXX must return null');
+  assert.strictEqual(dossier.dossierState.isInvalidTicker, true, 'isInvalidTicker flag must be set to true');
+  assert.strictEqual(dossier.dossierState.scoringResult, null, 'scoringResult must remain null (no synthetic scoring)');
+  assert(dossier.dossierState.errorMessage.includes('Tidak Terdaftar dalam Stock Universe IDX'), 'Error message must explicitly cite IDX universe rejection');
+
+  // 3. UI rendering must render the Zero-State Warning Banner and NOT any score cards or radar
+  let htmlResult = '';
+  dossier.document.getElementById = (id) => {
+    if (id === 'page-stock-dossier') {
+      return {
+        set innerHTML(val) { htmlResult = val; },
+        get innerHTML() { return htmlResult; }
+      };
+    }
+    return null;
+  };
+
+  dossier.renderStockDossierPage('XXXX');
+  assert(htmlResult.includes('BLOCKED (AGENTS.md §1 &amp; §5)'), 'Rendered HTML must include BLOCKED badge');
+  assert(htmlResult.includes('Tidak Terdaftar dalam Stock Universe IDX'), 'Rendered HTML must include rejection notice');
+  assert(!htmlResult.includes('Composite Multi-Factor Score'), 'Rendered HTML must NOT include composite score card for invalid ticker');
+  assert(!htmlResult.includes('dossier-radar-canvas'), 'Rendered HTML must NOT render radar canvas for invalid ticker');
 });
 
 test('MASTER DOSSIER: DOM structure, script inclusion, and router integration', () => {
