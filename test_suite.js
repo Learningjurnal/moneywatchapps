@@ -3594,6 +3594,164 @@ test('REGRESSION GUARD: Settings page must have a shortcut button that opens the
   assert(/kseiSwitchTab\(['"]sync-settings['"]\)/.test(settingsSrc), "REGRESSION: the Settings page KSEI shortcut no longer switches to the 'sync-settings' (upload) tab — clicking it would land on the read-only stock-view tab instead");
 });
 
+// ── TEST: Autonomous AI Trading Engine — Auto-Pilot & Capital Configuration
+test('AI AUTONOMOUS TRADING: aiConfigureCapital() and aiResetPaperCapital() manage virtual capital safely', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(/function aiConfigureCapital\(/.test(fullSrc), 'aiConfigureCapital() must exist');
+  assert(/function aiResetPaperCapital\(/.test(fullSrc), 'aiResetPaperCapital() must exist');
+  assert(/function aiToggleAutoPilot\(/.test(fullSrc), 'aiToggleAutoPilot() must exist');
+
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null },
+    localStorage: {
+      _data: {},
+      getItem(k) { return this._data[k] || null; },
+      setItem(k, v) { this._data[k] = String(v); },
+      removeItem(k) { delete this._data[k]; }
+    },
+    showToast: () => {},
+    mwSendBrowserNotification: () => {},
+    setTimeout: () => {}
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(fullSrc, ctx, { filename: '38-ai-autonomous-trading.js full test load' });
+
+  const state = ctx.AI_TRADE_STATE;
+  assert(state && state.paperAccount, 'AI_TRADE_STATE.paperAccount must exist');
+  assert(state.autoPilot, 'AI_TRADE_STATE.autoPilot must exist');
+  assert(state.adaptiveWeights, 'AI_TRADE_STATE.adaptiveWeights must exist');
+
+  // Test capital configure
+  assert.strictEqual(ctx.aiConfigureCapital(0), false, 'aiConfigureCapital(0) must return false');
+  assert.strictEqual(ctx.aiConfigureCapital(-5000), false, 'aiConfigureCapital(-5000) must return false');
+  assert.strictEqual(ctx.aiConfigureCapital(50000000), true, 'aiConfigureCapital(50000000) must return true');
+  assert.strictEqual(state.paperAccount.initialCapital, 50000000, 'initialCapital must be updated to 50M');
+
+  // Test reset capital
+  ctx.aiResetPaperCapital(25000000);
+  assert.strictEqual(state.paperAccount.initialCapital, 25000000, 'reset capital must set 25M initial');
+  assert.strictEqual(state.paperAccount.cash, 25000000, 'reset capital must set 25M cash');
+  assert.strictEqual(state.paperAccount.openPositions.length, 0, 'open positions must be empty after reset');
+  assert.strictEqual(state.paperAccount.closedTrades.length, 0, 'closed trades must be empty after reset');
+
+  // Test auto-pilot toggle
+  assert.strictEqual(state.autoPilot.enabled, false, 'Auto-pilot must start disabled by default');
+  ctx.aiToggleAutoPilot(true);
+  assert.strictEqual(state.autoPilot.enabled, true, 'Auto-pilot must be enabled after toggle(true)');
+  ctx.aiToggleAutoPilot(false);
+  assert.strictEqual(state.autoPilot.enabled, false, 'Auto-pilot must be disabled after toggle(false)');
+});
+
+// ── TEST: Continuous Adaptive Learning — Regime & Strategy Weight Multipliers Calibration
+test('AI AUTONOMOUS TRADING: aiCalibrateAdaptiveWeights() dynamically adjusts weights on trade outcomes', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(/function aiCalibrateAdaptiveWeights\(/.test(fullSrc), 'aiCalibrateAdaptiveWeights() must exist');
+
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null },
+    localStorage: {
+      _data: {},
+      getItem(k) { return this._data[k] || null; },
+      setItem(k, v) { this._data[k] = String(v); },
+      removeItem(k) { delete this._data[k]; }
+    },
+    showToast: () => {},
+    mwSendBrowserNotification: () => {},
+    setTimeout: () => {}
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(fullSrc, ctx, { filename: '38-ai-autonomous-trading.js test load' });
+
+  const weights = ctx.AI_TRADE_STATE.adaptiveWeights;
+  assert(weights.regimeMultipliers, 'regimeMultipliers must exist');
+  assert(weights.strategyMultipliers, 'strategyMultipliers must exist');
+
+  // Simulate a high-reward WIN trade (R >= 2.0)
+  const winTrade = {
+    id: 'TRADE-WIN-1',
+    ticker: 'BBCA',
+    strategy: 'strat_pullback',
+    regimeAtEntry: 'BULL_TREND',
+    result: 'WIN',
+    rMultiple: 2.4,
+    netPnL: 600000
+  };
+  const prevStratMult = weights.strategyMultipliers.strat_pullback || 1.0;
+  const prevRegimeMult = weights.regimeMultipliers.BULL_TREND || 1.10;
+
+  const res1 = ctx.aiCalibrateAdaptiveWeights(winTrade);
+  assert(res1, 'aiCalibrateAdaptiveWeights must return calibration record');
+  assert(weights.strategyMultipliers.strat_pullback > prevStratMult, 'Strategy multiplier must increase on WIN with R >= 2.0');
+  assert(weights.regimeMultipliers.BULL_TREND > prevRegimeMult, 'Regime multiplier must increase on WIN with R >= 2.0');
+  assert.strictEqual(weights.adaptationHistory.length, 1, 'adaptationHistory must record trade calibration');
+
+  // Simulate a LOSS trade
+  const lossTrade = {
+    id: 'TRADE-LOSS-1',
+    ticker: 'ASII',
+    strategy: 'strat_pullback',
+    regimeAtEntry: 'BULL_TREND',
+    result: 'LOSS',
+    rMultiple: -1.0,
+    netPnL: -200000
+  };
+  const beforeLossStrat = weights.strategyMultipliers.strat_pullback;
+  const beforeLossRegime = weights.regimeMultipliers.BULL_TREND;
+
+  ctx.aiCalibrateAdaptiveWeights(lossTrade);
+  assert(weights.strategyMultipliers.strat_pullback < beforeLossStrat, 'Strategy multiplier must decrease on LOSS');
+  assert(weights.regimeMultipliers.BULL_TREND < beforeLossRegime, 'Regime multiplier must decrease on LOSS');
+  assert.strictEqual(weights.adaptationHistory.length, 2, 'adaptationHistory must record second calibration');
+});
+
+// ── TEST: Copy Trading Signal Generator
+test('AI AUTONOMOUS TRADING: aiFormatCopyTradingSignal() generates actionable institutional signal card', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(/function aiFormatCopyTradingSignal\(/.test(fullSrc), 'aiFormatCopyTradingSignal() must exist');
+  assert(/function renderAiCopyTrading\(/.test(fullSrc), 'renderAiCopyTrading() must exist');
+
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null },
+    localStorage: {
+      _data: {},
+      getItem(k) { return this._data[k] || null; },
+      setItem(k, v) { this._data[k] = String(v); },
+      removeItem(k) { delete this._data[k]; }
+    },
+    showToast: () => {},
+    mwSendBrowserNotification: () => {},
+    setTimeout: () => {}
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(fullSrc, ctx, { filename: '38-ai-autonomous-trading.js test load' });
+
+  const testPosition = {
+    id: 'POS-TEST-1',
+    ticker: 'BMRI',
+    entryPrice: 6500,
+    sl: 6300,
+    tp1: 6700,
+    tp2: 6900,
+    lots: 10,
+    strategy: 'Breakout Momentum',
+    costBasis: 6500000
+  };
+
+  const signalText = ctx.aiFormatCopyTradingSignal(testPosition);
+  assert(signalText.includes('BMRI'), 'Signal must contain ticker');
+  assert(signalText.includes('BUY / LONG'), 'Signal must contain action');
+  assert(signalText.includes('Stop Loss'), 'Signal must contain Stop Loss');
+  assert(signalText.includes('Target Profit 1'), 'Signal must contain TP1');
+  assert(signalText.includes('Target Profit 2'), 'Signal must contain TP2');
+  assert(signalText.includes('Risk : Reward'), 'Signal must contain Risk:Reward');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
