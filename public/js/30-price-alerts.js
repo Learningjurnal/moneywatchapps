@@ -609,14 +609,14 @@
     var alertsHtml = '';
     if (filtered.length === 0) {
       alertsHtml = 
-        '<div style="text-align:center;padding:48px 16px;background:var(--bg);border-radius:10px;border:1px dashed var(--border2);margin-top:12px">' +
-          '<div style="font-size:32px;margin-bottom:8px">🔔</div>' +
-          '<div style="font-size:15px;font-weight:700;color:#fff">Belum Ada Alert Harga ' + (activeAlertTab !== 'ALL' ? '(' + activeAlertTab + ')' : '') + '</div>' +
-          '<div style="font-size:12px;color:var(--text3);max-width:400px;margin:6px auto 16px;line-height:1.5">' +
+        '<div style="text-align:center;padding:48px 16px;background:var(--bg2);border-radius:12px;border:1px dashed var(--border);margin-top:14px">' +
+          '<div style="width:48px;height:48px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--accent);font-size:22px"><i class="ti ti-bell-off"></i></div>' +
+          '<div style="font-size:15px;font-weight:700;color:var(--text)">Belum Ada Alert Harga ' + (activeAlertTab !== 'ALL' ? '(' + activeAlertTab + ')' : '') + '</div>' +
+          '<div style="font-size:12px;color:var(--text2);max-width:420px;margin:8px auto 18px;line-height:1.5">' +
             'Buat alert harga untuk saham portofolio atau watchlist Anda agar mendapatkan notifikasi otomatis saat mencapai titik Take Profit atau Stop Loss.' +
           '</div>' +
-          '<button class="btn btn-primary" onclick="openCreatePriceAlertModal()">' +
-            '+ Pasang Alert Harga Baru' +
+          '<button class="btn btn-primary btn-sm" onclick="openCreatePriceAlertModal()" style="display:inline-flex;align-items:center;gap:6px">' +
+            '<i class="ti ti-plus"></i> Pasang Alert Harga Baru' +
           '</button>' +
         '</div>';
     } else {
@@ -652,7 +652,7 @@
                 '</div>' +
                 '<div>' +
                   '<div style="display:flex;align-items:center;gap:8px">' +
-                    '<span style="font-size:15px;font-weight:800;color:#fff;cursor:pointer" onclick="goStockIntelCockpit(\'' + a.ticker + '\')">' + a.ticker + '</span>' +
+                    '<span style="font-size:15px;font-weight:800;color:var(--text);cursor:pointer" onclick="goStockIntelCockpit(\'' + a.ticker + '\')">' + a.ticker + '</span>' +
                     '<span class="badge" style="font-size:10px;background:' + tagColor + '18;color:' + tagColor + ';border:1px solid ' + tagColor + '33">' + a.tag + '</span>' +
                     (isTriggered ? '<span class="badge b-up" style="font-size:10px">✓ TARGET TERCAPAI</span>' : isPaused ? '<span class="badge b-neu" style="font-size:10px">DI-PAUSE</span>' : '<span class="badge b-accent" style="font-size:10px">MONITORING</span>') +
                   '</div>' +
@@ -665,7 +665,7 @@
               '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">' +
                 '<div style="text-align:right">' +
                   '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700">Target Harga</div>' +
-                  '<div style="font-size:14px;font-weight:800;color:#fff;font-family:var(--font-mono)">Rp ' + Number(a.targetPrice).toLocaleString('id-ID') + '</div>' +
+                  '<div style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-mono)">Rp ' + Number(a.targetPrice).toLocaleString('id-ID') + '</div>' +
                   '<div style="font-size:11px;color:' + (isGte ? 'var(--green)' : 'var(--red)') + '">' +
                     (isGte ? '≥ Target Atas' : '≤ Target Bawah') +
                   '</div>' +
@@ -767,22 +767,18 @@
       '</div>' +
 
       // Main Card Container with Tabs
-      '<div class="card">' +
+      '<div class="card" style="border-radius:12px;background:var(--bg2);border:1px solid var(--border)">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border);padding-bottom:12px">' +
-          '<div style="display:flex;align-items:center;gap:6px">' +
-            '<button class="btn btn-ghost btn-sm ' + (activeAlertTab==='ALL'?'active':'') + '" onclick="setAlertsFilterTab(\'ALL\')" style="' + (activeAlertTab==='ALL'?'background:var(--bg3);color:var(--accent);font-weight:700':'') + '">Semua (' + all.length + ')</button>' +
-            '<button class="btn btn-ghost btn-sm ' + (activeAlertTab==='ACTIVE'?'active':'') + '" onclick="setAlertsFilterTab(\'ACTIVE\')" style="' + (activeAlertTab==='ACTIVE'?'background:var(--bg3);color:var(--accent);font-weight:700':'') + '">Aktif (' + activeList.length + ')</button>' +
-            '<button class="btn btn-ghost btn-sm ' + (activeAlertTab==='TRIGGERED'?'active':'') + '" onclick="setAlertsFilterTab(\'TRIGGERED\')" style="' + (activeAlertTab==='TRIGGERED'?'background:var(--bg3);color:var(--green);font-weight:700':'') + '">Tercapai (' + triggeredList.length + ')</button>' +
-            '<button class="btn btn-ghost btn-sm ' + (activeAlertTab==='PAUSED'?'active':'') + '" onclick="setAlertsFilterTab(\'PAUSED\')" style="' + (activeAlertTab==='PAUSED'?'background:var(--bg3);color:var(--text2);font-weight:700':'') + '">Di-pause (' + pausedList.length + ')</button>' +
+          '<div class="sm-suite-tabs" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;display:inline-flex;gap:4px">' +
+            '<button class="sm-nav-item ' + (activeAlertTab==='ALL'?'active':'') + '" onclick="setAlertsFilterTab(\'ALL\')" style="padding:6px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (activeAlertTab==='ALL' ? 'background:var(--accent);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ti-bell"></i> Semua (' + all.length + ')</button>' +
+            '<button class="sm-nav-item ' + (activeAlertTab==='ACTIVE'?'active':'') + '" onclick="setAlertsFilterTab(\'ACTIVE\')" style="padding:6px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (activeAlertTab==='ACTIVE' ? 'background:var(--accent);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ti-radar"></i> Aktif (' + activeList.length + ')</button>' +
+            '<button class="sm-nav-item ' + (activeAlertTab==='TRIGGERED'?'active':'') + '" onclick="setAlertsFilterTab(\'TRIGGERED\')" style="padding:6px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (activeAlertTab==='TRIGGERED' ? 'background:var(--green);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ti-circle-check"></i> Tercapai (' + triggeredList.length + ')</button>' +
+            '<button class="sm-nav-item ' + (activeAlertTab==='PAUSED'?'active':'') + '" onclick="setAlertsFilterTab(\'PAUSED\')" style="padding:6px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (activeAlertTab==='PAUSED' ? 'background:var(--border2);color:var(--text)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ti-player-pause"></i> Di-pause (' + pausedList.length + ')</button>' +
           '</div>' +
 
           '<div style="display:flex;align-items:center;gap:8px">' +
-            '<button class="btn btn-ghost btn-xs" onclick="mwPlayAlertChime(\'up\')" title="Uji suara alert" style="font-size:11px">' +
-              '🔊 Tes Bunyi' +
-            '</button>' +
-            '<button class="btn btn-ghost btn-xs" onclick="if(typeof fsGenAlerts===\'function\')fsGenAlerts();mwCheckPriceAlerts();showSaveStatus(\'✓ Alert diperbarui\');" style="font-size:11px">' +
-              '🔄 Refresh Evaluasi' +
-            '</button>' +
+            '<button class="btn btn-ghost btn-xs" onclick="mwPlayAlertChime(\'up\')" title="Uji suara alert" style="font-size:11px;display:inline-flex;align-items:center;gap:4px;border-radius:6px"><i class="ti ti-volume"></i> Tes Bunyi</button>' +
+            '<button class="btn btn-ghost btn-xs" onclick="if(typeof fsGenAlerts===\'function\')fsGenAlerts();mwCheckPriceAlerts();showSaveStatus(\'✓ Alert diperbarui\');" style="font-size:11px;display:inline-flex;align-items:center;gap:4px;border-radius:6px"><i class="ti ti-refresh"></i> Refresh Evaluasi</button>' +
           '</div>' +
         '</div>' +
 

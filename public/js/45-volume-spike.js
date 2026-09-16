@@ -239,16 +239,19 @@ function vsRenderShell(tk) {
   var c = el('page-volume-spike');
   if (!c) return;
   c.innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">'
-      + '<div><div class="ptitle">Volume Spike Scanner</div><div class="psub">Screening lintas-saham + detail lonjakan volume &amp; arus dana per-saham.</div></div>'
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px">'
+      + '<div><div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-activity" style="color:var(--accent)"></i> Volume Spike Scanner &amp; Flow Radar</div><div class="psub">Screening anomali lonjakan volume transaksi lintas-indeks BEI &amp; visualisasi arus akumulasi/distribusi smart money.</div></div>'
     + '</div>'
     + '<div class="g2b">'
       + '<div id="vs-detail-col">'
-        + '<div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
-          + '<input id="vs-ticker-input" class="finput mono" style="max-width:160px;text-transform:uppercase" placeholder="Kode saham (mis. AKRA)" value="' + tk + '" onkeydown="if(event.key===\'Enter\')vsSearch()">'
-          + '<button class="btn btn-blue btn-sm" onclick="vsSearch()">Analisa</button>'
+        + '<div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);padding:12px 16px">'
+          + '<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">'
+            + '<i class="ti ti-search" style="color:var(--text3);font-size:16px"></i>'
+            + '<input id="vs-ticker-input" class="finput mono" style="flex:1;max-width:200px;text-transform:uppercase;font-weight:700;letter-spacing:0.04em;padding:6px 12px;border-radius:8px" placeholder="KODE SAHAM" value="' + tk + '" onkeydown="if(event.key===\'Enter\')vsSearch()">'
+          + '</div>'
+          + '<button class="sm-btn" onclick="vsSearch()" style="height:34px;padding:0 18px;border-radius:8px;font-size:12px;font-weight:700"><i class="ti ti-radar"></i> Analisa</button>'
         + '</div>'
-        + '<div id="vs-body"><div class="card" style="text-align:center;padding:40px;color:var(--text3)">Memuat data volume &amp; arus dana untuk ' + tk + '...</div></div>'
+        + '<div id="vs-body"><div class="card" style="text-align:center;padding:40px;color:var(--text3);border-radius:12px;background:var(--bg2);border:1px solid var(--border)">Memuat data volume &amp; arus dana untuk ' + tk + '...</div></div>'
       + '</div>'
       + '<div id="vs-screen-col">' + vsScreenPanelShellHtml() + '</div>'
     + '</div>';
@@ -258,17 +261,17 @@ function vsScreenPanelShellHtml() {
   var opts = Object.keys(VS_INDEX_LABELS).map(function(k) {
     return '<option value="' + k + '"' + (k === VS_SCREEN_STATE.index ? ' selected' : '') + '>' + VS_INDEX_LABELS[k] + '</option>';
   }).join('');
-  return '<div class="card">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">'
-      + '<div class="ctitle" style="font-size:14px">Screening Volume Spike</div>'
+  return '<div class="card" style="border-radius:12px;background:var(--bg2);border:1px solid var(--border)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'
+      + '<div class="ctitle" style="font-size:13px;display:flex;align-items:center;gap:6px"><i class="ti ti-scan" style="color:var(--accent)"></i> Screening Volume Spike</div>'
       + '<div style="display:flex;gap:6px;align-items:center">'
-        + '<select class="finput fsel" id="vs-screen-index" style="font-size:11px;padding:4px 8px" onchange="vsStartScreening(this.value)">' + opts + '</select>'
-        + '<button class="btn btn-ghost btn-xs" id="vs-screen-refresh" onclick="vsStartScreening(VS_SCREEN_STATE.index, true)" title="Pindai ulang">↻</button>'
+        + '<select class="finput fsel" id="vs-screen-index" style="font-size:11.5px;padding:5px 10px;border-radius:8px" onchange="vsStartScreening(this.value)">' + opts + '</select>'
+        + '<button class="btn btn-ghost btn-xs" id="vs-screen-refresh" onclick="vsStartScreening(VS_SCREEN_STATE.index, true)" title="Pindai ulang" style="border-radius:6px;padding:5px 8px"><i class="ti ti-refresh"></i></button>'
       + '</div>'
     + '</div>'
-    + '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">Volume &amp; harga: Yahoo Finance (cache harian) — tidak memakai kuota Invezgo. Hanya saham dengan rasio volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x yang ditampilkan, maksimal ' + VS_MAX_DISPLAY_ROWS + ' rasio tertinggi (scan seluruh index tetap jalan di belakang layar). Klik satu baris untuk dianalisis di panel kiri.</div>'
-    + '<div id="vs-screen-progress" style="font-size:11px;color:var(--text3);margin-bottom:6px"></div>'
-    + '<div style="overflow-x:auto"><table class="tbl" style="font-size:11px;width:100%">'
+    + '<div style="font-size:10.5px;color:var(--text3);margin-bottom:10px;line-height:1.4">Filter otomatis saham dengan rasio volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x vs median 30 hari. Klik baris emiten untuk analisis detail.</div>'
+    + '<div id="vs-screen-progress" style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:600"></div>'
+    + '<div style="overflow-x:auto"><table class="tbl" style="font-size:11.5px;width:100%">'
       + '<thead><tr>'
         + '<th style="cursor:pointer" onclick="vsSortScreen(\'code\')">Kode' + vsSortArrow('code') + '</th>'
         + '<th style="cursor:pointer;text-align:right" onclick="vsSortScreen(\'todayVol\')">Volume Hari Ini' + vsSortArrow('todayVol') + '</th>'
@@ -559,47 +562,74 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
   var last7 = rows.slice(-7);
 
   var headline = isSpike
-    ? '<div class="ctitle" style="font-size:16px;color:var(--amber)">⚡ VOLUME SPIKE TERDETEKSI</div>'
-      + '<ul style="margin:8px 0 0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.7">'
-        + (ratio14 >= VS_SPIKE_THRESHOLD ? '<li>Volume transaksi hari ini <b>' + ratio14.toFixed(2) + 'x</b> median 14 hari</li>' : '')
-        + (ratio30 >= VS_SPIKE_THRESHOLD ? '<li>Volume transaksi hari ini <b>' + ratio30.toFixed(2) + 'x</b> median 30 hari</li>' : '')
-      + '</ul>'
-    : '<div class="ctitle" style="font-size:16px;color:var(--text2)">Tidak Ada Lonjakan Volume Signifikan</div>'
-      + '<div style="font-size:12px;color:var(--text3);margin-top:4px">Volume hari ini ' + ratio14.toFixed(2) + 'x median 14D dan ' + ratio30.toFixed(2) + 'x median 30D — di bawah ambang lonjakan (' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x).</div>';
+    ? '<div style="display:flex;align-items:center;gap:12px">'
+      + '<div style="width:38px;height:38px;border-radius:10px;background:rgba(245,158,11,0.15);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0"><i class="ti ti-bolt"></i></div>'
+      + '<div>'
+        + '<div class="ctitle" style="font-size:14px;color:var(--amber);margin-bottom:2px">LONJAKAN VOLUME TINGGI TERDETEKSI (VOLUME SPIKE)</div>'
+        + '<div style="font-size:12px;color:var(--text2);line-height:1.4">'
+          + 'Aktivitas transaksi melonjak '
+          + (ratio30 >= VS_SPIKE_THRESHOLD ? '<b style="color:var(--amber)">' + ratio30.toFixed(2) + 'x</b> di atas median 30 hari' : '<b style="color:var(--amber)">' + ratio14.toFixed(2) + 'x</b> di atas median 14 hari')
+          + '. Mengindikasikan partisipasi institusi atau rotasi likuiditas pasar.'
+        + '</div>'
+      + '</div>'
+    + '</div>'
+    : '<div style="display:flex;align-items:center;gap:12px">'
+      + '<div style="width:38px;height:38px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0"><i class="ti ti-activity"></i></div>'
+      + '<div>'
+        + '<div class="ctitle" style="font-size:14px;color:var(--text2);margin-bottom:2px">Aktivitas Volume Normal (Di Bawah Ambang Spike)</div>'
+        + '<div style="font-size:12px;color:var(--text3);line-height:1.4">Volume hari ini ' + ratio14.toFixed(2) + 'x median 14D dan ' + ratio30.toFixed(2) + 'x median 30D — di bawah batas lonjakan (' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x).</div>'
+      + '</div>'
+    + '</div>';
 
   var html =
-    '<div class="card" style="' + (isSpike ? 'border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.05);border-left:4px solid #F59E0B' : 'border:1px solid var(--border)') + ';margin-bottom:14px">' + headline + '</div>'
+    '<div class="card" style="' + (isSpike ? 'border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.04);border-left:4px solid #F59E0B' : 'border:1px solid var(--border);background:var(--bg2)') + ';margin-bottom:14px;border-radius:12px;padding:14px 16px">' + headline + '</div>'
 
-    + '<div class="card" style="margin-bottom:14px">'
-      + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-        // FIX (2026-09-14, user-reported "logo karangan"): sebelumnya di sini
-        // lingkaran warna + 3 huruf pertama ticker (dikarang, bukan logo
-        // asli). Diganti getStockLogoHtml() (01-data.js) — logo perusahaan
-        // REAL dari CDN publik Stockbit (assets.stockbit.com), sudah dipakai
-        // & terverifikasi di Stock Intel (27-stockintel.js); fallback ke
-        // monogram kalau logo 404, bukan diam-diam mengarang gambar.
-        + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(tk, 40) : '')
-        + '<div style="flex:1;min-width:120px"><div style="font-size:16px;font-weight:700">' + tk + '</div><div style="font-size:11px;color:var(--text3)">' + name + '</div></div>'
-        + '<div><div style="font-size:10px;color:var(--text3)">TODAY\'S VOLUME</div><div class="up" style="font-size:16px;font-weight:700;font-family:var(--font-mono)">' + vsFmtVol(todayVol) + '</div></div>'
-        + '<div><div style="font-size:10px;color:var(--text3)">14D MEDIAN</div><div style="font-size:16px;font-weight:700;font-family:var(--font-mono)">' + vsFmtVol(med14) + '</div></div>'
-        + '<div><div style="font-size:10px;color:var(--text3)">30D MEDIAN</div><div style="font-size:16px;font-weight:700;font-family:var(--font-mono)">' + vsFmtVol(med30) + '</div></div>'
-        + '<div><div style="font-size:10px;color:var(--text3)">VOLUME RATIO (30D)</div><div style="font-size:16px;font-weight:700;font-family:var(--font-mono);color:var(--accent)">' + ratio30.toFixed(2) + 'x</div></div>'
+    + '<div class="card" style="margin-bottom:14px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);padding:14px 18px">'
+      + '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between">'
+        + '<div style="display:flex;align-items:center;gap:12px">'
+          + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(tk, 42) : '')
+          + '<div>'
+            + '<div style="font-size:17px;font-weight:800;letter-spacing:0.02em;color:var(--text)">' + tk + '</div>'
+            + '<div style="font-size:11px;color:var(--text3)">' + name + '</div>'
+          + '</div>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+          + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:right">'
+            + '<div style="font-size:9.5px;color:var(--text3);font-weight:700;letter-spacing:0.04em">TODAY VOLUME</div>'
+            + '<div class="up" style="font-size:14px;font-weight:800;font-family:var(--font-mono);font-variant-numeric:tabular-nums">' + vsFmtVol(todayVol) + '</div>'
+          + '</div>'
+          + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:right">'
+            + '<div style="font-size:9.5px;color:var(--text3);font-weight:700;letter-spacing:0.04em">14D MEDIAN</div>'
+            + '<div style="font-size:14px;font-weight:800;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums">' + vsFmtVol(med14) + '</div>'
+          + '</div>'
+          + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:right">'
+            + '<div style="font-size:9.5px;color:var(--text3);font-weight:700;letter-spacing:0.04em">30D MEDIAN</div>'
+            + '<div style="font-size:14px;font-weight:800;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums">' + vsFmtVol(med30) + '</div>'
+          + '</div>'
+          + '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:8px 12px;text-align:right">'
+            + '<div style="font-size:9.5px;color:var(--accent);font-weight:700;letter-spacing:0.04em">VOLUME RATIO (30D)</div>'
+            + '<div style="font-size:15px;font-weight:900;font-family:var(--font-mono);color:var(--accent);font-variant-numeric:tabular-nums">' + ratio30.toFixed(2) + 'x</div>'
+          + '</div>'
+        + '</div>'
       + '</div>'
     + '</div>'
 
-    + '<div class="card" style="margin-bottom:14px">'
-      + '<div class="ctitle" style="font-size:12px;margin-bottom:10px">7 HARI BURSA TERAKHIR — VOLUME TRANSAKSI</div>'
+    + '<div class="card" style="margin-bottom:14px;border-radius:12px;background:var(--bg2);border:1px solid var(--border)">'
+      + '<div class="cheader" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+        + '<span class="ctitle" style="font-size:12.5px;display:flex;align-items:center;gap:6px"><i class="ti ti-chart-bar" style="color:var(--accent)"></i> 7 Hari Bursa Terakhir — Volume Transaksi</span>'
+        + '<span style="font-size:10px;color:var(--text3)">Garis oranye = Median 30D</span>'
+      + '</div>'
       + '<div style="height:200px;position:relative"><canvas id="vs-volume-chart"></canvas></div>'
     + '</div>'
 
-    + '<div class="row3" style="margin-bottom:14px">'
+    + '<div class="row3" style="margin-bottom:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">'
       + [['1D', chg1d], ['3D', chg3d], ['7D', chg7d]].map(function(pair) {
           var label = pair[0], val = pair[1];
           var up = val !== null && val >= 0;
           var sub = closes.slice(-8);
-          return '<div class="card">'
-            + '<div style="font-size:10px;color:var(--text3)">' + label + ' PRICE CHANGE</div>'
-            + '<div class="' + (val === null ? 'neu' : (up ? 'up' : 'dn')) + '" style="font-size:18px;font-weight:700;margin:2px 0">' + (val === null ? '—' : ((up ? '+' : '') + val.toFixed(2) + '%')) + '</div>'
+          return '<div class="card" style="margin:0;border-radius:10px;background:var(--bg2);border:1px solid var(--border);padding:12px 14px">'
+            + '<div style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:0.04em">' + label + ' PRICE CHANGE</div>'
+            + '<div class="' + (val === null ? 'neu' : (up ? 'up' : 'dn')) + '" style="font-size:18px;font-weight:800;font-family:var(--font-mono);font-variant-numeric:tabular-nums;margin:4px 0 6px">' + (val === null ? '—' : ((up ? '+' : '') + val.toFixed(2) + '%')) + '</div>'
             + vsSparklineHtml(sub, up)
           + '</div>';
         }).join('')
@@ -624,39 +654,34 @@ function vsForeignFlowCardHtml(bs1d, bs30d) {
   };
   var statusOf = function(v) { return v === null ? 'Data tidak tersedia' : (v >= 0 ? 'Net Buy' : 'Net Sell'); };
 
-  // Verdict Bandarmology (akumulasi/distribusi broker) — data yang sama
-  // sudah ikut terambil dari /api/idx/broker-summary di atas, sebelumnya
-  // tidak ditampilkan sama sekali di halaman ini. Menyatukan verdict ini
-  // ke Volume Spike berarti user tidak perlu lagi membuka halaman
-  // Bandarmology terpisah hanya untuk melihat kesimpulan dasarnya.
   var verdict = bs1d && bs1d.bandarmology ? bs1d.bandarmology.verdict : null;
   var verdictBadgeCls = verdict === 'BIG ACCUMULATION' || verdict === 'NORMAL ACCUMULATION' ? 'b-up'
     : verdict === 'BIG DISTRIBUTION' || verdict === 'NORMAL DISTRIBUTION' ? 'b-dn' : 'b-gray';
   var verdictHtml = verdict
-    ? '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border2)">'
-        + '<div class="flabel">VERDICT BANDARMOLOGY (BROKER SUMMARY)' + simNote(bs1d) + '</div>'
-        + '<span class="badge ' + verdictBadgeCls + '" style="margin:4px 0;display:inline-block">' + verdict + '</span>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">' + (bs1d.bandarmology.interpretation || '') + '</div>'
+    ? '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border2)">'
+        + '<div class="flabel" style="font-size:10px;font-weight:700">VERDICT BANDARMOLOGY (BROKER SUMMARY)' + simNote(bs1d) + '</div>'
+        + '<span class="badge ' + verdictBadgeCls + '" style="margin:6px 0 4px;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-weight:700"><i class="ti ti-check"></i> ' + verdict + '</span>'
+        + '<div style="font-size:11.5px;color:var(--text2);margin-top:4px">' + (bs1d.bandarmology.interpretation || '') + '</div>'
       + '</div>'
     : '';
 
-  return '<div class="card">'
+  return '<div class="card" style="border-radius:12px;background:var(--bg2);border:1px solid var(--border)">'
     + verdictHtml
-    + '<div class="fgrid" style="grid-template-columns:1fr 1fr">'
-      + '<div class="fg">'
-        + '<div class="flabel">FOREIGN NET BUY/SELL (HARI INI)' + simNote(bs1d) + '</div>'
-        + '<div class="' + (net1d === null ? 'neu' : (net1d >= 0 ? 'up' : 'dn')) + '" style="font-size:20px;font-weight:700;font-family:var(--font-mono)">Rp ' + fmtNet(net1d) + '</div>'
+    + '<div class="fgrid" style="grid-template-columns:1fr 1fr;gap:14px">'
+      + '<div class="fg" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
+        + '<div class="flabel" style="font-size:10px;font-weight:700">FOREIGN NET FLOW (HARI INI)' + simNote(bs1d) + '</div>'
+        + '<div class="' + (net1d === null ? 'neu' : (net1d >= 0 ? 'up' : 'dn')) + '" style="font-size:20px;font-weight:800;font-family:var(--font-mono);font-variant-numeric:tabular-nums;margin:4px 0 2px">Rp ' + fmtNet(net1d) + '</div>'
         + '<div style="font-size:11px;color:var(--text3)">' + statusOf(net1d) + '</div>'
       + '</div>'
-      + '<div class="fg">'
-        + '<div class="flabel">NET ASING AGREGAT 30 HARI' + simNote(bs30d) + '</div>'
-        + '<div class="' + (net30d === null ? 'neu' : (net30d >= 0 ? 'up' : 'dn')) + '" style="font-size:20px;font-weight:700;font-family:var(--font-mono)">Rp ' + fmtNet(net30d) + '</div>'
+      + '<div class="fg" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
+        + '<div class="flabel" style="font-size:10px;font-weight:700">NET ASING AGREGAT 30 HARI' + simNote(bs30d) + '</div>'
+        + '<div class="' + (net30d === null ? 'neu' : (net30d >= 0 ? 'up' : 'dn')) + '" style="font-size:20px;font-weight:800;font-family:var(--font-mono);font-variant-numeric:tabular-nums;margin:4px 0 2px">Rp ' + fmtNet(net30d) + '</div>'
         + '<div style="font-size:11px;color:var(--text3)">' + statusOf(net30d) + '</div>'
       + '</div>'
     + '</div>'
-    + '<div style="font-size:9.5px;color:var(--text3);margin-top:10px;padding-top:10px;border-top:1px solid var(--border2);line-height:1.5">'
-      + 'Angka 30 hari adalah SATU agregat (bukan breakdown per-hari) — menghitung "N hari Buy / M hari Sell" butuh broker summary terpisah untuk tiap hari, yang akan memboroskan kuota API Invezgo hanya untuk membuka laporan ini.'
-      + (bs1d && bs1d.isSimulated ? ' Data ditandai SIMULASI karena feed broker riil (Invezgo) tidak terkonfigurasi/tidak tersedia untuk sesi ini — BUKAN transaksi broker sungguhan.' : '')
+    + '<div style="font-size:9.5px;color:var(--text3);margin-top:12px;padding-top:10px;border-top:1px solid var(--border2);line-height:1.5">'
+      + 'Angka 30 hari adalah agregat kumulatif dari broker summary historis.'
+      + (bs1d && bs1d.isSimulated ? ' Data ditandai SIMULASI karena feed broker riil (Invezgo) tidak terkonfigurasi/tidak tersedia untuk sesi ini.' : '')
     + '</div>'
   + '</div>';
 }
