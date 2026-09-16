@@ -513,7 +513,7 @@ corrRender = function(){
 // ══════════════════════════════════════════════
 // BANNER STATUS DATA — di semua halaman Kelompok B
 // ══════════════════════════════════════════════
-var RD_BANNER_PAGES = ['ranking','heatmap','scanner','alerts','watchlist','screener','candle','correlation'];
+var RD_BANNER_PAGES = ['heatmap','scanner','alerts','screener','candle','correlation'];
 function rdBannerHtml(){
   var uTks = rdUniverseTickers();
   var realN = uTks.filter(function(t){ return rdIsReal(t); }).length;

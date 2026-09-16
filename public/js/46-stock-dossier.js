@@ -1019,16 +1019,12 @@ function renderStockDossierPage(targetTicker) {
   var html = '';
 
   // ── Header & Action Bar ──
-  html += '<div style="margin-bottom:20px">';
+  html += '<div style="margin-bottom:16px">';
   html += '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px">';
   html += '    <div>';
-  html += '      <div style="display:flex;align-items:center;gap:10px">';
-  html += '        <h1 style="font-size:22px;font-weight:900;margin:0;letter-spacing:-0.5px;color:var(--text1);display:flex;align-items:center;gap:8px">';
-  html += '          <i class="ti ti-file-analytics" style="color:var(--blue)"></i> Master Stock Intelligence Dossier';
-  html += '        </h1>';
-  html += '        <span class="badge" style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3);font-weight:700">1-CLICK ALL-IN-ONE</span>';
-  html += '      </div>';
-  html += '      <p style="margin:4px 0 0 0;font-size:12px;color:var(--text3)">Sintesis 6 pilar analisis institusional pasar modal dalam satu pandangan terpadu tanpa berpindah tab.</p>';
+  html += '      <h1 style="font-size:22px;font-weight:900;margin:0;letter-spacing:-0.5px;color:var(--text1);display:flex;align-items:center;gap:8px">';
+  html += '        <i class="ti ti-file-analytics" style="color:var(--blue)"></i> Master Stock Intelligence Dossier';
+  html += '      </h1>';
   html += '    </div>';
 
   html += '    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';

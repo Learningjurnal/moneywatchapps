@@ -196,7 +196,7 @@ function wRenderNet(){
   '</div>'+
   wSubNav('wealth')+
   '<div class="w-hero">'+
-    '<div class="w-hero-label">Total Net Worth</div>'+
+    '<div class="w-hero-label">TOTAL NET WORTH</div>'+
     '<div class="w-hero-value">'+wRp(a.net)+'</div>'+
     '<div class="w-hero-sub">Aset '+wRp(a.aset)+' &nbsp;·&nbsp; Hutang <span class="dn">'+wRp(a.debt.t)+'</span> ('+dr.toFixed(1)+'%)</div>'+
   '</div>'+

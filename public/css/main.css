@@ -7689,12 +7689,17 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 22px 26px;
-  margin: 14px 0 18px;
+  padding: 28px 24px 24px;
+  margin: 16px 0 20px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-  background-image: radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.05) 0%, transparent 65%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background-image: radial-gradient(circle at 50% 20%, rgba(56, 189, 248, 0.06) 0%, transparent 70%);
 }
 .w-hero::before {
   content: '';
@@ -7706,30 +7711,36 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
   background: linear-gradient(90deg, #0284C7 0%, #38BDF8 50%, #10B981 100%);
 }
 .w-hero-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   color: var(--text3);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  text-align: center;
 }
 .w-hero-value {
-  font-size: 32px;
+  font-size: 38px;
   font-weight: 900;
   font-family: var(--font-mono);
   color: var(--text);
   letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
   margin-bottom: 8px;
+  line-height: 1.15;
+  text-align: center;
 }
 .w-hero-sub {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text2);
   font-family: var(--font-mono);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
+  text-align: center;
+  margin: 0 auto;
 }
 .w-hero-sub .dn {
   color: var(--red);
@@ -7805,4 +7816,54 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
 }
 .w-mini:last-child {
   border-bottom: none;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SETTINGS & ENTERPRISE FORM CONTROLS (REFINE 2026)
+   ════════════════════════════════════════════════════════════════ */
+.form-input,
+.cfg-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+  line-height: 1.4;
+}
+.form-input:focus,
+.cfg-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+  background: var(--bg2);
+}
+.form-input.mono,
+.cfg-input.mono {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+.cfg-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 7px;
+  letter-spacing: -0.1px;
+}
+.cfg-hint {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 5px;
+  line-height: 1.4;
+}
+.cfg-section-card {
+  padding: 22px 24px;
+  border-radius: 12px;
 }

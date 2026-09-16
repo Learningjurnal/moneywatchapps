@@ -178,7 +178,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20260916a">
+<link rel="stylesheet" href="css/main.css?v=20260916b">
 <link rel="stylesheet" href="css/wealth.css?v=20260912a">
 </head>
 <body>
@@ -2285,8 +2285,9 @@
     <div>
       <div class="ptitle" style="margin-bottom:2px;display:flex;align-items:center;gap:8px">
         <span>Sectoral Insight</span>
+        <span class="badge b-neu" style="font-size:10px;cursor:help" title="Metodologi: Formula Chaikin Money Flow (CMF 20) &amp; Money Flow Multiplier (MFM) kuotasi riil konstituen Big Caps BEI"><i class="ti ti-info-circle"></i> Info CMF</span>
       </div>
-      <div class="psub">Visualisasi pergerakan akumulasi vs distribusi 11 sektor IDX berbasis Chaikin Money Flow &amp; intelijen berita pasar</div>
+      <div class="psub">Visualisasi rotasi sektoral &amp; pergerakan modal 11 sektor BEI berbasis Chaikin Money Flow.</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <!-- Timeframe selector -->
@@ -2305,20 +2306,8 @@
 
       <!-- Refresh button -->
       <button class="btn btn-ghost btn-xs" onclick="siRefreshAll()" title="Segarkan Data Aliran &amp; Berita Terkini" style="padding:4px 10px;border-color:var(--border);color:var(--text2)">
-        Segarkan
+        <i class="ti ti-refresh"></i> Segarkan ↻
       </button>
-    </div>
-  </div>
-
-  <!-- Metodologi & Transparansi Data Banner (Jujur, Tanpa Dummy) -->
-  <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:11.5px;color:var(--text2);line-height:1.5">
-    <div>
-      <strong style="color:var(--text)">Integritas &amp; Metodologi Data Riil:</strong>
-      Data harga, return, dan volume dihitung 100% dari kuotasi riil konstituen Big Caps terdaftar di Bursa Efek Indonesia (BEI/Yahoo Finance).
-      Status <strong>Akumulasi vs Distribusi</strong> dihitung secara matematis menggunakan formula institusional <strong>Chaikin Money Flow (CMF 20)</strong> dan <strong>Money Flow Multiplier (MFM)</strong> constituent harian.
-      <span style="color:var(--text3);display:block;margin-top:2px">
-        <em>Catatan Transparansi:</em> BEI tidak menyediakan feed kode broker internal publik gratis; indikator ini mengukur tekanan beli/jual riil volume transaksi pasar, bukan data simulasi tanpa dasar.
-      </span>
     </div>
   </div>
 
@@ -2845,11 +2834,20 @@
 </div>
 
 
-<!-- Ranking -->
+<!-- Market Radar (Ranking) -->
 <div id="page-ranking" class="page">
-  <div class="ptitle">Ranking 30 Saham Terbesar IHSG</div>
-  <div class="psub">Diurutkan berdasarkan skor akumulasi big money • Klik Lihat untuk analisa detail, klik Vol Ratio untuk drill-down ke Volume Spike (⚡ = volume hari ini juga melonjak, memperkuat sinyal) • <span style="color:#41f3a7">●</span> = data riil Yahoo &nbsp;·&nbsp; <span style="color:#e21d48">○ SIM</span> = data simulasi, harga tidak akurat — perbaiki di <a href="#" onclick="goPage('admin');return false" style="color:var(--accent)">Kelola Daftar Saham</a></div>
-  <div class="card" style="margin-top:11px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div class="ptitle">Market Radar</div>
+      <div class="psub">Analisis pergerakan modal, akumulasi institusional, dan rasio volume saham teratas BEI.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="rdLoadUniverse(true);if(typeof fsRenderRanking==='function')fsRenderRanking();" title="Segarkan Data Market Radar">
+        <i class="ti ti-refresh"></i> Refresh ↻
+      </button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:0">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px">
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;flex:1" id="rk-sum"></div>
       <div style="display:flex;gap:7px">
@@ -3556,13 +3554,16 @@
 
 <!-- Watchlist -->
 <div id="page-watchlist" class="page">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
     <div>
       <div class="ptitle">Watchlist</div>
-      <div class="psub">Saham yang Anda pantau — tambah dari sini, dari toggle ☆ di Market Radar, atau sinkronkan otomatis dari portofolio.</div>
+      <div class="psub">Saham yang Anda pantau — tambah dari sini, dari toggle ☆ di Market Radar, atau sinkronkan dari portofolio.</div>
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-blue" onclick="fsSyncWithPortfolio(true)" style="font-size:10px">Sinkronkan Portofolio</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-blue btn-sm" onclick="fsSyncWithPortfolio(true)">Sinkronkan Portofolio</button>
+      <button class="btn btn-ghost btn-sm" onclick="rdLoadUniverse(true);if(typeof renderWatchlistPage==='function')renderWatchlistPage();" title="Segarkan Data Watchlist">
+        <i class="ti ti-refresh"></i> Refresh ↻
+      </button>
     </div>
   </div>
 
@@ -3687,15 +3688,17 @@
           </table>
         </div>
         <!-- Panduan unit -->
-        <div style="margin-top:10px;background:var(--bg3);border-radius:6px;padding:10px 12px;border-left:3px solid #38BDF8">
-          <div style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-weight:700">PANDUAN INPUT — SATUAN WAJIB</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 16px;font-size:9px;font-family:var(--font-mono)">
-            <div><span style="color:var(--text3)">EPS &amp; DPS</span><br><b style="color:var(--text)">Rupiah per saham</b><br><span style="color:var(--text3)">contoh: 179 = Rp 179/saham</span></div>
-            <div><span style="color:var(--text3)">Total Equity &amp; Net Income</span><br><b style="color:var(--text)">Miliar Rupiah</b><br><span style="color:var(--text3)">contoh: 150537 = Rp 150,5 Triliun</span></div>
-            <div><span style="color:var(--text3)">Shares</span><br><b style="color:var(--text)">Juta lembar saham</b><br><span style="color:var(--text3)">contoh: 99062 = 99,06 miliar lembar</span></div>
-            <div><span style="color:var(--text3)">PER</span><br><b style="color:var(--text)">Kali (x) — tanpa satuan</b><br><span style="color:var(--text3)">contoh: 16.5 = PER 16,5x</span></div>
-            <div><span style="color:var(--text3)">Harga Saham</span><br><b style="color:var(--text)">Rupiah per saham</b><br><span style="color:var(--text3)">contoh: 2810 = Rp 2.810/saham</span></div>
-            <div><span style="color:var(--amber)">Sel oranye</span><br><b style="color:var(--amber)">= nilai perlu dicek</b><br><span style="color:var(--text3)">hover sel untuk petunjuk</span></div>
+        <div style="margin-top:14px;background:var(--bg3);border-radius:8px;padding:14px 16px;border-left:3px solid var(--accent);border-top:1px solid var(--border2);border-right:1px solid var(--border2);border-bottom:1px solid var(--border2)">
+          <div style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;font-weight:700;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-info-circle"></i> PANDUAN INPUT — SATUAN WAJIB
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px 18px;font-size:11.5px;line-height:1.45">
+            <div><span style="color:var(--text3)">EPS &amp; DPS</span><br><b style="color:var(--text);font-family:var(--font-mono)">Rupiah per saham</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 179 = Rp 179/saham</span></div>
+            <div><span style="color:var(--text3)">Total Equity &amp; Net Income</span><br><b style="color:var(--text);font-family:var(--font-mono)">Miliar Rupiah</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 150537 = Rp 150,5 T</span></div>
+            <div><span style="color:var(--text3)">Shares</span><br><b style="color:var(--text);font-family:var(--font-mono)">Juta lembar saham</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 99062 = 99,06 M lembar</span></div>
+            <div><span style="color:var(--text3)">PER</span><br><b style="color:var(--text);font-family:var(--font-mono)">Kali (x) — tanpa satuan</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 16.5 = PER 16,5x</span></div>
+            <div><span style="color:var(--text3)">Harga Saham</span><br><b style="color:var(--text);font-family:var(--font-mono)">Rupiah per saham</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 2810 = Rp 2.810/saham</span></div>
+            <div><span style="color:var(--amber)">Sel Oranye</span><br><b style="color:var(--amber);font-family:var(--font-mono)">Perlu Dicek</b><br><span style="color:var(--text3);font-size:10.5px">hover sel untuk petunjuk</span></div>
           </div>
         </div>
       </div>
@@ -4474,23 +4477,23 @@
 <script src="js/10-hargawajar.js?v=20260913a"></script>
 <script src="js/11-quant.js?v=20260914a"></script>
 <script src="js/12-clean.js?v=20260908a"></script>
-<script src="js/13-realdata.js?v=20260911b"></script>
+<script src="js/13-realdata.js?v=20260916a"></script>
 <script src="js/14-admin.js?v=20260909a"></script>
 <script src="js/15-txbulk.js?v=20260915b"></script>
-<script src="js/20-wealth.js?v=20260913d"></script>
+<script src="js/20-wealth.js?v=20260916a"></script>
 <script src="js/21-performance.js?v=20260913b"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260915b"></script>
-<script src="js/24-stockmaster.js?v=20260916a"></script>
+<script src="js/24-stockmaster.js?v=20260916b"></script>
 <script src="js/25-auditlog.js?v=20260902c"></script>
-<script src="js/26-commandcenter.js?v=20260916a"></script>
+<script src="js/26-commandcenter.js?v=20260916b"></script>
 <script src="js/27-stockintel.js?v=20260915b"></script>
 <script src="js/28-decisiontools.js?v=20260915b"></script>
 <script src="js/29-institutional-ui.js?v=20260915b"></script>
 <script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260915b"></script>
 <script src="js/33-trending-news.js?v=20260913a"></script>
 <script src="js/34-ksei-shareholders.js?v=20260911d"></script>
-<script src="js/35-settings.js?v=20260915b"></script>
+<script src="js/35-settings.js?v=20260916a"></script>
 <script src="js/37-tradewave-engine.js?v=20260913a"></script>
 <script src="js/38-ai-autonomous-trading.js?v=20260915b"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260915b"></script>
@@ -4500,7 +4503,7 @@
 <script src="js/43-ai-chart-intelligence.js?v=20260913a"></script>
 <script src="js/44-sectoral-insight.js?v=20260908a"></script>
 <script src="js/45-volume-spike.js?v=20260914f"></script>
-<script src="js/46-stock-dossier.js?v=20260916j"></script>
+<script src="js/46-stock-dossier.js?v=20260916k"></script>
 
   <!-- Theme Toggle Floating Button -->
   <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#2563eb;color:#ffffff;border:none;box-shadow:0 4px 15px rgba(0,0,0,0.25);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">

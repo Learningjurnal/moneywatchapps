@@ -190,52 +190,56 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
         
         <!-- 1. Dynamic Tax & Broker Fee Engine -->
-        <div class="card" style="padding:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-                            Tarif Pajak &amp; Komisi Broker Sekuritas
+        <div class="card" style="padding:22px 24px;border-radius:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
+            <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
+              <i class="ti ti-receipt-tax" style="color:var(--accent)"></i> Tarif Pajak &amp; Komisi Broker Sekuritas
             </div>
             <span class="badge b-up">Configurable</span>
           </div>
 
           <!-- Broker Quick Presets -->
-          <div style="margin-bottom:14px">
-            <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px">PRESET SEKURITAS POPULER:</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <div style="margin-bottom:18px">
+            <div style="font-size:11.5px;font-weight:700;color:var(--text3);margin-bottom:8px">PRESET SEKURITAS POPULER:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
               ${Object.keys(BROKER_PRESETS).map(function(k) {
                 var isAct = (state.tax.activeSekuritas === k);
-                return `<button type="button" class="btn ${isAct ? 'btn-primary' : 'btn-ghost'} btn-xs" onclick="MW_SETTINGS.applyBrokerPreset('${k}')">${k}</button>`;
+                return `<button type="button" class="btn ${isAct ? 'btn-primary' : 'btn-ghost'} btn-sm" style="font-size:12px;padding:5px 12px" onclick="MW_SETTINGS.applyBrokerPreset('${k}')">${k}</button>`;
               }).join('')}
             </div>
           </div>
 
           <form id="v6-form-tax-settings" onsubmit="MW_SETTINGS.handleSaveTaxSettings(event)">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;margin-bottom:16px">
               <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Komisi Beli (%)</label>
-                <input type="number" id="cfg-buyfee" class="form-input mono" step="0.0001" value="${(state.tax.buyFee * 100).toFixed(4)}" required style="width:100%">
+                <label class="cfg-label">Komisi Beli (%)</label>
+                <input type="number" id="cfg-buyfee" class="form-input mono" step="0.0001" value="${(state.tax.buyFee * 100).toFixed(4)}" required>
+                <div class="cfg-hint">Standar industri: 0.15%</div>
               </div>
               <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Komisi Jual (%)</label>
-                <input type="number" id="cfg-sellfee" class="form-input mono" step="0.0001" value="${(state.tax.sellFee * 100).toFixed(4)}" required style="width:100%">
-              </div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-              <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">PPh Final Jual (%)</label>
-                <input type="number" id="cfg-pph" class="form-input mono" step="0.0001" value="${(state.tax.pphFinal * 100).toFixed(2)}" required style="width:100%">
-              </div>
-              <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Tarif PPN Komisi (%)</label>
-                <input type="number" id="cfg-ppn" class="form-input mono" step="0.1" value="${(state.tax.ppnFee * 100).toFixed(0)}" style="width:100%">
+                <label class="cfg-label">Komisi Jual (%)</label>
+                <input type="number" id="cfg-sellfee" class="form-input mono" step="0.0001" value="${(state.tax.sellFee * 100).toFixed(4)}" required>
+                <div class="cfg-hint">Standar industri: 0.25%</div>
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;margin-bottom:16px">
               <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Nama Sekuritas Aktif</label>
-                <select id="cfg-default-sekuritas" class="form-input" style="width:100%">
+                <label class="cfg-label">PPh Final Jual (%)</label>
+                <input type="number" id="cfg-pph" class="form-input mono" step="0.0001" value="${(state.tax.pphFinal * 100).toFixed(2)}" required>
+                <div class="cfg-hint">PPh Pasal 4 ayat (2): 0.1%</div>
+              </div>
+              <div>
+                <label class="cfg-label">Tarif PPN Komisi (%)</label>
+                <input type="number" id="cfg-ppn" class="form-input mono" step="0.1" value="${(state.tax.ppnFee * 100).toFixed(0)}">
+                <div class="cfg-hint">Tarif PPN UU HPP: 11%</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;margin-bottom:18px">
+              <div>
+                <label class="cfg-label">Nama Sekuritas Aktif</label>
+                <select id="cfg-default-sekuritas" class="form-input">
                   <option value="Stockbit" ${state.tax.activeSekuritas === 'Stockbit' ? 'selected' : ''}>Stockbit</option>
                   <option value="IPOT" ${state.tax.activeSekuritas === 'IPOT' ? 'selected' : ''}>IPOT / Indo Premier</option>
                   <option value="Mirae Asset" ${state.tax.activeSekuritas === 'Mirae Asset' ? 'selected' : ''}>Mirae Asset</option>
@@ -246,32 +250,33 @@
                 </select>
               </div>
               <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Service Fee Tambahan (%)</label>
-                <input type="number" id="cfg-servicefee" class="form-input mono" step="0.001" value="${((state.tax.serviceFee || 0) * 100).toFixed(3)}" style="width:100%">
+                <label class="cfg-label">Service Fee Tambahan (%)</label>
+                <input type="number" id="cfg-servicefee" class="form-input mono" step="0.001" value="${((state.tax.serviceFee || 0) * 100).toFixed(3)}">
+                <div class="cfg-hint">Levy IDX / KPEI / KSEI: ~0.043%</div>
               </div>
             </div>
 
             <!-- PMK 18/2021 Dividend Exemption Toggle -->
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;margin-bottom:14px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                <div style="font-size:12px;font-weight:700;color:var(--text)">Bebas PPh Dividen (PMK 18/2021)</div>
+            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;margin-bottom:18px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="font-size:13px;font-weight:700;color:var(--text)">Bebas PPh Dividen (PMK 18/2021)</div>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
                   <input type="checkbox" id="cfg-div-exempt" ${state.tax.dividenExempt !== false ? 'checked' : ''} onchange="var dt=document.getElementById('cfg-divtax-box'); if(dt) dt.style.display=this.checked?'none':'block';">
-                  <span style="font-size:11.5px;font-weight:600;color:var(--green)">0% (Bebas Pajak)</span>
+                  <span style="font-size:12px;font-weight:600;color:var(--green)">0% (Bebas Pajak)</span>
                 </label>
               </div>
-              <div style="font-size:10.5px;color:var(--text3);line-height:1.4">Dividen Wajib Pajak OP Dalam Negeri bebas PPh jika direinvestasikan di wilayah NKRI.</div>
-              <div id="cfg-divtax-box" style="display:${state.tax.dividenExempt !== false ? 'none' : 'block'};margin-top:8px;padding-top:8px;border-top:1px solid var(--border2)">
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Tarif PPh Dividen Normal Non-Reinvestasi (%)</label>
-                <input type="number" id="cfg-divtax" class="form-input mono" step="0.01" value="${((state.tax.dividendTax || 0.10) * 100).toFixed(1)}" style="width:100%">
+              <div class="cfg-hint" style="margin-top:0">Dividen Wajib Pajak OP Dalam Negeri bebas PPh jika direinvestasikan di wilayah NKRI.</div>
+              <div id="cfg-divtax-box" style="display:${state.tax.dividenExempt !== false ? 'none' : 'block'};margin-top:12px;padding-top:12px;border-top:1px solid var(--border2)">
+                <label class="cfg-label">Tarif PPh Dividen Normal Non-Reinvestasi (%)</label>
+                <input type="number" id="cfg-divtax" class="form-input mono" step="0.01" value="${((state.tax.dividendTax || 0.10) * 100).toFixed(1)}">
               </div>
             </div>
 
-            <div style="display:flex;gap:8px">
-              <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center">
+            <div style="display:flex;gap:10px">
+              <button type="submit" class="btn btn-primary" style="flex:1;min-height:40px;justify-content:center;font-size:13px">
                 Simpan Tarif Pajak
               </button>
-              <button type="button" class="btn btn-ghost" onclick="MW_SETTINGS.triggerRecalculate()" title="Koreksi ulang seluruh angka transaksi &amp; pajak yang tersimpan tanpa menghapus riwayat transaksi">
+              <button type="button" class="btn btn-ghost" style="min-height:40px;font-size:13px" onclick="MW_SETTINGS.triggerRecalculate()" title="Koreksi ulang seluruh angka transaksi &amp; pajak yang tersimpan tanpa menghapus riwayat transaksi">
                 Rekalkulasi Data
               </button>
             </div>
@@ -279,52 +284,56 @@
         </div>
 
         <!-- 2. Financial Goals & FIRE Settings -->
-        <div class="card" style="padding:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-                            Sasaran Keuangan &amp; Parameter FIRE
+        <div class="card" style="padding:22px 24px;border-radius:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
+            <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
+              <i class="ti ti-flame" style="color:#f59e0b"></i> Sasaran Keuangan &amp; Parameter FIRE
             </div>
             <span class="badge b-up">FIRE Engine</span>
           </div>
 
           <!-- FIRE Progress Meter -->
-          <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
-              <span>Kesiapan Dana FIRE</span>
-              <strong style="color:var(--accent)">${fireProgressPct}% (Rp ${fmt(currentNet)} / Rp ${fmt(fireTarget)})</strong>
+          <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:8px">
+              <span style="font-weight:600;color:var(--text)">Kesiapan Dana FIRE</span>
+              <strong style="color:var(--accent);font-family:var(--font-mono)">${fireProgressPct}% (Rp ${fmt(currentNet)} / Rp ${fmt(fireTarget)})</strong>
             </div>
-            <div style="background:var(--bg3);height:8px;border-radius:4px;overflow:hidden">
+            <div style="background:var(--bg2);height:9px;border-radius:5px;overflow:hidden;border:1px solid var(--border2)">
               <div style="background:linear-gradient(90deg, #3B82F6, #10B981);height:100%;width:${fireProgressPct}%;transition:width 0.3s"></div>
             </div>
-            <div style="font-size:10.5px;color:var(--text3);margin-top:6px;display:flex;justify-content:space-between">
-              <span>Pengeluaran Tahunan: Rp ${fmt(annualExp)}</span>
-              <span>Dana Darurat: ${emergencyProgressPct}% (${(wData.bankTotal / Math.max(1, monthlyExp)).toFixed(1)} bln)</span>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
+              <span>Pengeluaran Tahunan: <b style="color:var(--text2)">Rp ${fmt(annualExp)}</b></span>
+              <span>Dana Darurat: <b style="color:var(--text2)">${emergencyProgressPct}%</b> (${(wData.bankTotal / Math.max(1, monthlyExp)).toFixed(1)} bln)</span>
             </div>
           </div>
 
           <form id="v6-form-fire-settings" onsubmit="MW_SETTINGS.handleSaveFireSettings(event)">
-            <div style="margin-bottom:12px">
-              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Target Dana FIRE (Financial Independence) (Rp)</label>
-              <input type="number" id="cfg-fire-target" class="form-input mono" value="${fireTarget}" step="10000000" required style="width:100%">
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-              <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Pengeluaran Bulanan (Rp)</label>
-                <input type="number" id="cfg-monthly-exp" class="form-input mono" value="${monthlyExp}" step="500000" style="width:100%">
-              </div>
-              <div>
-                <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Target Dana Darurat (Rp)</label>
-                <input type="number" id="cfg-emergency-target" class="form-input mono" value="${emergencyTarget}" step="1000000" style="width:100%">
-              </div>
-            </div>
-
             <div style="margin-bottom:16px">
-              <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600">Asumsi Imbal Hasil Portofolio Tahunan (%)</label>
-              <input type="number" id="cfg-expected-return" class="form-input mono" value="${expReturn}" step="0.1" style="width:100%">
+              <label class="cfg-label">Target Dana FIRE (Financial Independence) (Rp)</label>
+              <input type="number" id="cfg-fire-target" class="form-input mono" value="${fireTarget}" step="10000000" required>
+              <div class="cfg-hint">Aturan 4%: 25x Pengeluaran Tahunan = Rp ${fmt(fireTarget)}</div>
             </div>
 
-            <button type="submit" class="btn btn-secondary" style="width:100%;justify-content:center">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;margin-bottom:16px">
+              <div>
+                <label class="cfg-label">Pengeluaran Bulanan (Rp)</label>
+                <input type="number" id="cfg-monthly-exp" class="form-input mono" value="${monthlyExp}" step="500000">
+                <div class="cfg-hint">Kebutuhan hidup bulanan</div>
+              </div>
+              <div>
+                <label class="cfg-label">Target Dana Darurat (Rp)</label>
+                <input type="number" id="cfg-emergency-target" class="form-input mono" value="${emergencyTarget}" step="1000000">
+                <div class="cfg-hint">Standar ideal: 6–12 bulan pengeluaran</div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:20px">
+              <label class="cfg-label">Asumsi Imbal Hasil Portofolio Tahunan (%)</label>
+              <input type="number" id="cfg-expected-return" class="form-input mono" value="${expReturn}" step="0.1">
+              <div class="cfg-hint">Ekspektasi CAGR portofolio majemuk</div>
+            </div>
+
+            <button type="submit" class="btn btn-secondary" style="width:100%;min-height:42px;justify-content:center;font-size:13px">
               Simpan Parameter Sasaran Keuangan &amp; FIRE
             </button>
           </form>
@@ -335,28 +344,29 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:16px;margin-bottom:20px">
         
         <!-- 3. Multi-Bank Accounts Management -->
-        <div class="card" style="padding:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-                            Manajemen Rekening Bank &amp; Kas Likuid
+        <div class="card" style="padding:22px 24px;border-radius:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
+            <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
+              <i class="ti ti-building-bank" style="color:var(--accent)"></i> Manajemen Rekening Bank &amp; Kas Likuid
             </div>
             <span class="badge b-up">${accounts.length} Rekening</span>
           </div>
 
           <!-- Existing Bank Accounts List -->
-          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:190px;overflow-y:auto">
-            ${accounts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:8px 0">Belum ada rekening bank yang dikonfigurasi.</div>' : ''}
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:210px;overflow-y:auto">
+            ${accounts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">Belum ada rekening bank yang dikonfigurasi.</div>' : ''}
             ${accounts.map(function(acc, idx) {
               return `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:6px;border:1px solid var(--border2)">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border2)">
                   <div>
                     <div style="font-weight:600;font-size:13px;color:var(--text)">${escHtml(acc.bank || acc.name || 'Bank')}</div>
                     <div style="font-size:11px;color:var(--text3)">${escHtml(acc.type || acc.category || 'Tabungan')} ${acc.no ? '· ' + escHtml(acc.no) : ''}</div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <span class="mono" style="font-weight:700;color:#38bdf8">Rp ${fmt(acc.saldo || acc.balance || 0)}</span>
-                    <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 6px" onclick="MW_SETTINGS.deleteBankAccount(${idx})">
-                                          </button>
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="mono" style="font-weight:700;color:#38bdf8;font-size:13px">Rp ${fmt(acc.saldo || acc.balance || 0)}</span>
+                    <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:4px 8px;font-size:11px" onclick="MW_SETTINGS.deleteBankAccount(${idx})">
+                      <i class="ti ti-trash"></i> Hapus
+                    </button>
                   </div>
                 </div>
               `;
@@ -364,9 +374,9 @@
           </div>
 
           <!-- Add New Bank Account Form -->
-          <form onsubmit="MW_SETTINGS.handleAddBankAccount(event)" style="border-top:1px solid var(--border2);padding-top:12px">
-            <div style="font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:8px">Tambah Rekening Baru:</div>
-            <div style="display:grid;grid-template-columns:1.2fr 1fr 1.2fr;gap:8px;margin-bottom:10px">
+          <form onsubmit="MW_SETTINGS.handleAddBankAccount(event)" style="border-top:1px solid var(--border2);padding-top:14px">
+            <div style="font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:10px">Tambah Rekening Baru:</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));gap:10px;margin-bottom:12px">
               <input type="text" id="new-v6-bank-name" class="form-input" placeholder="Nama Bank (e.g. BCA)" required>
               <select id="new-v6-bank-cat" class="form-input">
                 <option value="Operasional">Operasional</option>
@@ -377,35 +387,36 @@
               </select>
               <input type="number" id="new-v6-bank-saldo" class="form-input mono" placeholder="Saldo (Rp)" required>
             </div>
-            <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center">
+            <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;min-height:38px;justify-content:center;font-size:12.5px">
               Tambahkan Rekening Bank
             </button>
           </form>
         </div>
 
         <!-- 4. Liabilities & Debts Management -->
-        <div class="card" style="padding:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
-            <div style="font-weight:700;font-size:14px;color:var(--text);display:flex;align-items:center;gap:8px">
-                            Manajemen Liabilitas &amp; Kewajiban
+        <div class="card" style="padding:22px 24px;border-radius:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
+            <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
+              <i class="ti ti-credit-card-off" style="color:var(--red)"></i> Manajemen Liabilitas &amp; Kewajiban
             </div>
             <span class="badge b-dn">${debts.length} Pos Hutang</span>
           </div>
 
           <!-- Existing Debts List -->
-          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:190px;overflow-y:auto">
-            ${debts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:8px 0">Tidak ada kewajiban atau hutang aktif.</div>' : ''}
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:210px;overflow-y:auto">
+            ${debts.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:12px 0;text-align:center">Tidak ada kewajiban atau hutang aktif.</div>' : ''}
             ${debts.map(function(d, idx) {
               return `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:6px;border:1px solid var(--border2)">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border2)">
                   <div>
                     <div style="font-weight:600;font-size:13px;color:var(--text)">${escHtml(d.nama || d.name || 'Kewajiban')}</div>
                     <div style="font-size:11px;color:var(--text3)">${escHtml(d.tipe || d.category || 'Cicilan')} ${d.cicilan ? '· Cicilan Rp ' + fmt(d.cicilan) + '/bln' : ''}</div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <span class="mono dn" style="font-weight:700">-Rp ${fmt(d.outstanding || d.amount || 0)}</span>
-                    <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:2px 6px" onclick="MW_SETTINGS.deleteDebt(${idx})">
-                                          </button>
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="mono dn" style="font-weight:700;font-size:13px">-Rp ${fmt(d.outstanding || d.amount || 0)}</span>
+                    <button type="button" class="btn btn-ghost btn-xs" style="color:var(--red);padding:4px 8px;font-size:11px" onclick="MW_SETTINGS.deleteDebt(${idx})">
+                      <i class="ti ti-trash"></i> Hapus
+                    </button>
                   </div>
                 </div>
               `;
@@ -413,9 +424,9 @@
           </div>
 
           <!-- Add New Debt Form -->
-          <form onsubmit="MW_SETTINGS.handleAddDebt(event)" style="border-top:1px solid var(--border2);padding-top:12px">
-            <div style="font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:8px">Tambah Pos Liabilitas:</div>
-            <div style="display:grid;grid-template-columns:1.2fr 1fr 1.2fr;gap:8px;margin-bottom:10px">
+          <form onsubmit="MW_SETTINGS.handleAddDebt(event)" style="border-top:1px solid var(--border2);padding-top:14px">
+            <div style="font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:10px">Tambah Pos Liabilitas:</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));gap:10px;margin-bottom:12px">
               <input type="text" id="new-v6-debt-name" class="form-input" placeholder="Nama Pos (e.g. KPR)" required>
               <select id="new-v6-debt-cat" class="form-input">
                 <option value="KPR">KPR Rumah</option>
@@ -425,7 +436,7 @@
               </select>
               <input type="number" id="new-v6-debt-amount" class="form-input mono" placeholder="Sisa Pokok (Rp)" required>
             </div>
-            <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;color:var(--red);border-color:rgba(239,68,68,0.3)">
+            <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;min-height:38px;justify-content:center;color:var(--red);border-color:rgba(239,68,68,0.3);font-size:12.5px">
               Tambahkan Pos Liabilitas
             </button>
           </form>
