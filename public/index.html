@@ -3150,32 +3150,76 @@
 
 <!-- Scanner -->
 <div id="page-scanner" class="page">
-  <div class="ptitle">Big Money Scanner</div>
-  <div class="psub">Filter banyak saham sekaligus berdasarkan kriteria CMF, skor akumulasi, dan volume ratio.</div>
-  <div class="card" style="margin-top:11px">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-      <span style="font-size:12px;color:var(--text2)">CMF min:</span>
-      <select class="finput fsel" id="sc-cmf" style="padding:4px 8px;font-size:11px"><option value="-1">Semua</option><option value="0">Positif</option><option value="0.1" selected>+10%+</option><option value="0.2">+20%+</option></select>
-      <span style="font-size:12px;color:var(--text2)">Skor min:</span>
-      <select class="finput fsel" id="sc-sc" style="padding:4px 8px;font-size:11px"><option value="0">Semua</option><option value="50">50+</option><option value="60" selected>60+</option><option value="70">70+</option></select>
-      <span style="font-size:12px;color:var(--text2)">Vol Ratio:</span>
-      <select class="finput fsel" id="sc-vr" style="padding:4px 8px;font-size:11px"><option value="0">Semua</option><option value="1.2">1.2×+</option><option value="1.5" selected>1.5×+</option><option value="2">2×+</option></select>
-      <button class="btn btn-blue" onclick="fsRunScanner()" style="font-size:12px">Scan ↗</button>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div class="ptitle">Big Money Scanner</div>
+      <div class="psub">Filter saham berbasis momentum Chaikin Money Flow (CMF), skor akumulasi bandarmologi, dan rasio lonjakan volume.</div>
     </div>
-    <div id="sc-results"><div style="color:var(--text3);text-align:center;padding:20px;font-size:13px">Tekan Scan untuk memfilter saham.</div></div>
+  </div>
+
+  <div class="card" style="border-radius:12px;padding:16px 20px;margin-bottom:16px">
+    <div class="cheader"><span class="ctitle" style="font-size:12px;letter-spacing:0.06em">FILTER KRITERIA ALIRAN DANA</span></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div style="min-width:140px;flex:1">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">CMF Minimum</div>
+        <select class="finput fsel" id="sc-cmf" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
+          <option value="-1">Semua CMF</option>
+          <option value="0">CMF Positif (&gt;0)</option>
+          <option value="0.1" selected>CMF Kuat (+10%+)</option>
+          <option value="0.2">CMF Sangat Kuat (+20%+)</option>
+        </select>
+      </div>
+      <div style="min-width:140px;flex:1">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Skor Akumulasi Min</div>
+        <select class="finput fsel" id="sc-sc" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
+          <option value="0">Semua Skor</option>
+          <option value="50">Skor 50+</option>
+          <option value="60" selected>Skor 60+ (Solid)</option>
+          <option value="70">Skor 70+ (Kuat)</option>
+        </select>
+      </div>
+      <div style="min-width:140px;flex:1">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Volume Ratio Min</div>
+        <select class="finput fsel" id="sc-vr" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
+          <option value="0">Semua Volume</option>
+          <option value="1.2">1.2× Rata-rata</option>
+          <option value="1.5" selected>1.5× Rata-rata</option>
+          <option value="2">2.0× Lonjakan</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="sm-btn" onclick="fsRunScanner()" style="height:38px;padding:0 22px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:0.06em;white-space:nowrap">
+          <i class="ti ti-filter"></i> Jalankan Scan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sc-results">
+    <div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px;background:var(--bg2);border:1px dashed var(--border2);border-radius:12px">
+      Tekan <strong>Jalankan Scan</strong> untuk menyaring saham berdasarkan kriteria aliran dana.
+    </div>
   </div>
 </div>
 
 <!-- Alerts -->
 <div id="page-alerts" class="page">
-  <div class="ptitle">Signal Alerts</div>
-  <div class="psub">Notifikasi otomatis: akumulasi kuat, distribusi, anomali volume</div>
-  <div class="card" style="margin-top:11px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <span class="ctitle">Live Alerts</span>
-      <button class="btn btn-blue" onclick="fsGenAlerts()" style="font-size:12px">Refresh ↗</button>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div class="ptitle">Signal Alerts</div>
+      <div class="psub">Notifikasi otomatis deteksi akumulasi kuat, distribusi bandar, dan anomali lonjakan volume.</div>
     </div>
-    <div id="al-list" style="display:flex;flex-direction:column;gap:7px"><div style="color:var(--text3);text-align:center;padding:20px;font-size:13px">Klik Refresh untuk generate signal alerts.</div></div>
+  </div>
+  <div class="card" style="border-radius:12px;padding:16px 20px;margin-top:11px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:10px">
+      <span class="ctitle" style="font-size:12px;letter-spacing:0.06em">LIVE RADAR ALERTS</span>
+      <button class="sm-btn" onclick="fsGenAlerts()" style="height:32px;padding:0 14px;border-radius:8px;font-size:11px;font-weight:700"><i class="ti ti-refresh"></i> Refresh Radar</button>
+    </div>
+    <div id="al-list" style="display:flex;flex-direction:column;gap:8px">
+      <div style="color:var(--text3);text-align:center;padding:28px 20px;font-size:13px;background:var(--bg3);border:1px dashed var(--border2);border-radius:10px">
+        Klik <strong>Refresh Radar</strong> untuk mendeteksi sinyal alert pasar terkini.
+      </div>
+    </div>
   </div>
 </div>
 
