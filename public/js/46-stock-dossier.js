@@ -968,7 +968,10 @@ function dossierSwitchTab(tabName) {
   dossierState.activeTab = tabName;
   var tabBtns = document.querySelectorAll('.dossier-tab-btn');
   tabBtns.forEach(function(b) {
-    b.classList.toggle('active', b.getAttribute('data-tab') === tabName);
+    var isActive = b.getAttribute('data-tab') === tabName;
+    b.classList.toggle('active', isActive);
+    b.style.color = isActive ? 'var(--blue)' : 'var(--text2)';
+    b.style.borderBottom = isActive ? '2px solid var(--blue)' : '2px solid transparent';
   });
   var tabPanes = document.querySelectorAll('.dossier-tab-pane');
   tabPanes.forEach(function(p) {
