@@ -495,8 +495,10 @@ async function loadTransactionFlowData(ticker, tf) {
       RADAR_STATE.flowData = data;
       return data;
     }
+    RADAR_STATE.flowData = { ticker: tk, error: true, message: (data && data.error) || 'Gagal memuat data alur transaksi' };
   } catch (err) {
     console.warn('[Flow Trail Fetch Warning]', err);
+    RADAR_STATE.flowData = { ticker: tk, error: true, message: 'Koneksi gagal atau data alur transaksi tidak tersedia' };
   }
   return null;
 }
@@ -514,8 +516,10 @@ async function loadCorporateActionsData(filter) {
       RADAR_STATE.corpData = data;
       return data;
     }
+    RADAR_STATE.corpData = { error: true, message: (data && data.error) || 'Gagal memuat kalender aksi korporasi', dividends: [], stockSplits: [], rightsIssues: [], rups: [] };
   } catch (err) {
     console.warn('[Corporate Actions Fetch Warning]', err);
+    RADAR_STATE.corpData = { error: true, message: 'Koneksi gagal atau data aksi korporasi tidak tersedia', dividends: [], stockSplits: [], rightsIssues: [], rups: [] };
   }
   return null;
 }
@@ -956,8 +960,19 @@ function renderRadarFlowTrailSubTab() {
   var flow = RADAR_STATE.flowData;
   var currentTicker = RADAR_STATE.flowTicker || 'BBCA';
 
+  if (flow && flow.error && flow.ticker === currentTicker) {
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+      + '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'
+      + '<div style="font-weight:700;color:var(--text);margin-bottom:6px">Gagal Memuat Alur Transaksi untuk ' + currentTicker + '</div>'
+      + '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">' + (flow.message || 'Data tidak dapat dimuat saat ini.') + '</div>'
+      + '<button class="btn btn-primary btn-sm" onclick="selectRadarFlowTicker(\'' + currentTicker + '\')">Coba Lagi</button>'
+      + '</div>';
+  }
+
   if (!flow || flow.ticker !== currentTicker) {
-    loadTransactionFlowData(currentTicker, RADAR_STATE.flowTimeframe);
+    loadTransactionFlowData(currentTicker, RADAR_STATE.flowTimeframe).then(function() {
+      renderOpportunityRadarPage();
+    });
     return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">Memuat visualisasi alur transaksi untuk <strong>' + currentTicker + '</strong>...</div>';
   }
 
@@ -1109,8 +1124,19 @@ function renderRadarFlowTrailSubTab() {
 function renderRadarCorporateActionsSubTab() {
   var corpData = RADAR_STATE.corpData;
   if (!corpData) {
-    loadCorporateActionsData();
+    loadCorporateActionsData().then(function() {
+      renderOpportunityRadarPage();
+    });
     return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">Memuat Kalender Aksi Korporasi Seluruh BEI...</div>';
+  }
+
+  if (corpData.error) {
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+      + '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'
+      + '<div style="font-weight:700;color:var(--text);margin-bottom:6px">Gagal Memuat Kalender Aksi Korporasi</div>'
+      + '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">' + (corpData.message || 'Data kalender tidak dapat dimuat saat ini.') + '</div>'
+      + '<button class="btn btn-primary btn-sm" onclick="setRadarSubTab(\'corporate-actions\')">Coba Lagi</button>'
+      + '</div>';
   }
 
   var activeFilter = RADAR_STATE.corpFilter || 'ALL';

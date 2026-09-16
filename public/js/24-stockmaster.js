@@ -1281,10 +1281,10 @@ function techRenderMainChart(ticker) {
     }
   }
 
-  var curPrice = closePrices[closePrices.length - 1];
-  var prevPrice = closePrices[closePrices.length - 2] || curPrice;
+  var curPrice = Number(closePrices[closePrices.length - 1]) || 0;
+  var prevPrice = Number(closePrices[closePrices.length - 2]) || curPrice;
   var chg = curPrice - prevPrice;
-  var chgPct = (chg / prevPrice * 100);
+  var chgPct = prevPrice > 0 ? (chg / prevPrice * 100) : 0;
 
   container.innerHTML = ''
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;flex-wrap:wrap;gap:8px">'

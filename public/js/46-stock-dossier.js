@@ -1771,25 +1771,43 @@ function dossierSubmitCustomWeights() {
 // ============================================================
 
 function dossierAddToWatchlist(tk) {
-  if (typeof wlAddTicker === 'function') {
-    wlAddTicker(tk);
+  var clean = String(tk || '').toUpperCase().trim();
+  if (!clean) return;
+
+  if (typeof fsTgWl === 'function') {
+    if (typeof FS_WL !== 'undefined' && Array.isArray(FS_WL) && FS_WL.some(function(w) { return w.t === clean; })) {
+      if (typeof showToast === 'function') {
+        showToast('Saham ' + clean + ' sudah ada di Watchlist Anda.');
+      }
+    } else {
+      fsTgWl(clean);
+      if (typeof showToast === 'function') {
+        showToast('✓ Saham ' + clean + ' berhasil ditambahkan ke Watchlist.');
+      }
+    }
   } else if (typeof showToast === 'function') {
-    showToast('Ticker ' + tk + ' disalin ke watchlist.');
+    showToast('Ticker ' + clean + ' disalin ke watchlist.');
   }
 }
 
 function dossierOpenInStockChat(tk) {
-  if (typeof goPage === 'function') {
+  var clean = String(tk || '').toUpperCase().trim();
+  if (!clean) return;
+
+  var prompt = 'Analisis lengkap saham ' + clean + ' dari aspek Valuasi Graham/DCF, Broker Flow Bandarmology, dan Market Regime.';
+  if (typeof window.openStockChat === 'function') {
+    window.openStockChat(clean, prompt, 'chat');
+  } else if (typeof goPage === 'function') {
     goPage('stockchat');
     setTimeout(function() {
-      var prompt = 'Analisis lengkap saham ' + tk + ' dari aspek Valuasi Graham/DCF, Broker Flow Bandarmology, dan Market Regime.';
-      var inp = document.getElementById('sc-chat-input') || document.getElementById('stockchat-input');
+      var inp = document.getElementById('stockchat-input-text');
       if (inp) {
         inp.value = prompt;
-        var btn = document.getElementById('sc-send-btn') || document.getElementById('stockchat-send-btn');
-        if (btn) btn.click();
+        if (typeof sendStockChatPrompt === 'function') {
+          sendStockChatPrompt(prompt);
+        }
       }
-    }, 200);
+    }, 250);
   }
 }
 

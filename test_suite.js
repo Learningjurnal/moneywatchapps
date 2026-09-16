@@ -4027,6 +4027,66 @@ test('MASTER DOSSIER: DOM structure, script inclusion, and router integration', 
   assert(routerJs.includes('renderStockDossierPage'), '06-analysis-router.js must call renderStockDossierPage()');
 });
 
+test('REGRESSION GUARD: lib/idx-data-engine.js loads cleanly without ReferenceError when Redis is not installed', async () => {
+  const origUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const origToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  try {
+    process.env.UPSTASH_REDIS_REST_URL = 'https://fake-upstash-url.upstash.io';
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'fake-token';
+    const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+    assert(engineSrc.includes('let Redis = null;'), 'Must initialize Redis as null before dynamic import');
+    assert(engineSrc.includes("import('@upstash/redis')"), 'Must use dynamic import for @upstash/redis');
+    assert(engineSrc.includes('_dqRedisClient = (Redis &&'), 'Must check that Redis is truthy before instantiating new Redis');
+  } finally {
+    process.env.UPSTASH_REDIS_REST_URL = origUrl;
+    process.env.UPSTASH_REDIS_REST_TOKEN = origToken;
+  }
+});
+
+test('REGRESSION GUARD: dossierAddToWatchlist and dossierOpenInStockChat use official canonical functions', () => {
+  const dossier = getDossierContext();
+  let addedTicker = null;
+  let toastMsg = null;
+  dossier.FS_WL = [{ t: 'BBCA' }];
+  dossier.fsTgWl = (tk) => { addedTicker = tk; };
+  dossier.showToast = (msg) => { toastMsg = msg; };
+
+  // Already in watchlist
+  dossier.dossierAddToWatchlist('BBCA');
+  assert(toastMsg.includes('sudah ada di Watchlist'), 'Should detect BBCA already in watchlist');
+  assert.strictEqual(addedTicker, null, 'Should not re-add BBCA');
+
+  // Not yet in watchlist
+  dossier.dossierAddToWatchlist('TLKM');
+  assert.strictEqual(addedTicker, 'TLKM', 'Must call fsTgWl with TLKM');
+  assert(toastMsg.includes('berhasil ditambahkan ke Watchlist'), 'Must show success toast');
+
+  // StockChat shortcut
+  let openedChat = null;
+  dossier.window.openStockChat = (tk, prompt, mode) => {
+    openedChat = { tk, prompt, mode };
+  };
+  dossier.dossierOpenInStockChat('BBCA');
+  assert(openedChat !== null, 'Must invoke window.openStockChat');
+  assert.strictEqual(openedChat.tk, 'BBCA');
+  assert.strictEqual(openedChat.mode, 'chat');
+  assert(openedChat.prompt.includes('Analisis lengkap saham BBCA'), 'Must supply proper stock prompt');
+});
+
+test('REGRESSION GUARD: CommandCenter loadTransactionFlowData and loadCorporateActionsData error handling', () => {
+  const cmdCenterSrc = fs.readFileSync(path.join(__dirname, 'public/js/26-commandcenter.js'), 'utf8');
+  assert(cmdCenterSrc.includes('error: true, message: (data && data.error)'), 'loadTransactionFlowData must set error on failure');
+  assert(cmdCenterSrc.includes('RADAR_STATE.flowData = { ticker: tk, error: true'), 'loadTransactionFlowData must record error on exception');
+  assert(cmdCenterSrc.includes('if (flow && flow.error && flow.ticker === currentTicker)'), 'renderRadarFlowTrailSubTab must render error state with retry');
+  assert(cmdCenterSrc.includes('if (corpData.error)'), 'renderRadarCorporateActionsSubTab must render error state with retry');
+});
+
+test('REGRESSION GUARD: 24-stockmaster.js techRenderChart guards division by zero and zero/null prices', () => {
+  const stockmasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(stockmasterSrc.includes('var chgPct = prevPrice > 0 ? (chg / prevPrice * 100) : 0;'), 'Must guard division by zero for chgPct in techRenderChart');
+  assert(stockmasterSrc.includes('var curPrice = Number(closePrices[closePrices.length - 1]) || 0;'), 'Must guard curPrice against NaN/null');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
