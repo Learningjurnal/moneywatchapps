@@ -790,7 +790,7 @@ function getAiClient() {
   return _aiClient;
 }
 
-const CLAUDE_MODEL = 'claude-sonnet-5';
+const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
 
 // Timeout helper to ensure AI API calls never hang indefinitely
 function withTimeout(promise, ms = 15000) {

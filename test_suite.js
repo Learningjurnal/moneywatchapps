@@ -9,6 +9,14 @@ import vm from 'vm';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Cross-platform CRLF normalization for regression guards that inspect source text
+const _origReadFileSync = fs.readFileSync;
+fs.readFileSync = function(...args) {
+  const res = _origReadFileSync.apply(this, args);
+  if (typeof res === 'string') return res.replace(/\r\n/g, '\n');
+  return res;
+};
+
 console.log('═══════════════════════════════════════════════════════');
 console.log('🚀 RUNNING MONEY WATCH PRO & TRADEWAVE VERIFICATION SUITE');
 console.log('═══════════════════════════════════════════════════════');

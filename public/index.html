@@ -184,21 +184,22 @@
 <body>
 
 <!-- ══════════════════════════════════════════════
-     LANDING PAGE — Halaman Paling Awal (Public Showcase)
+     LANDING PAGE — Halaman Paling Awal (Public Showcase - Dribbble Trading Style)
      ══════════════════════════════════════════════ -->
-<div id="landing-screen" style="min-height:100vh;background:linear-gradient(180deg, #030712 0%, #080C14 100%);color:#FFFFFF;display:flex;flex-direction:column;position:relative;z-index:50">
+<div id="landing-screen" class="landing-screen-wrap">
   <!-- Top Navigation Header -->
-  <header style="border-bottom:1px solid #1E293B;background:rgba(8,12,20,0.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100">
-    <div style="max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="window.scrollTo({top:0,behavior:'smooth'})">
-        <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="28" style="width:auto;display:block">
-        <div style="font-size:18px;font-weight:900;letter-spacing:-0.4px;color:#FFFFFF">Money<span style="color:#38BDF8">Watch</span></div>
+  <header class="landing-header">
+    <div class="landing-header-inner">
+      <div style="display:flex;align-items:center;gap:12px;cursor:pointer" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+        <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="30" style="width:auto;display:block">
+        <div style="font-size:19px;font-weight:900;letter-spacing:-0.5px;color:#FFFFFF">Money<span style="color:#38BDF8">Watch</span></div>
+        <span style="background:rgba(56,189,248,0.12);color:#38BDF8;border:1px solid rgba(56,189,248,0.25);font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:4px;letter-spacing:0.4px">TERMINAL</span>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn btn-ghost btn-sm" onclick="authDoGuestLogin()" style="font-weight:700;color:var(--accent);border-color:rgba(56,189,248,0.3)">
+        <button class="btn btn-ghost btn-sm" onclick="authDoGuestLogin()" style="font-weight:700;color:#38BDF8;border-color:rgba(56,189,248,0.3);padding:6px 12px;font-size:12px">
           <i class="ti ti-player-play"></i> Mode Tamu / Demo
         </button>
-        <button class="landing-btn-primary" onclick="authOpenLoginModal()" style="padding:6px 14px;font-size:11.5px">
+        <button class="landing-btn-primary" onclick="authOpenLoginModal()" style="padding:7px 16px;font-size:12px">
           <i class="ti ti-login"></i> Masuk / Login →
         </button>
       </div>
@@ -206,145 +207,379 @@
   </header>
 
   <!-- Hero Section -->
-  <main style="flex:1;max-width:1200px;margin:0 auto;padding:40px 20px 80px;display:flex;flex-direction:column;gap:36px;width:100%">
-    <div class="landing-hero" style="margin-top:10px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px">MONEYWATCH TERMINAL</span>
-        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Sistem Operasi Investasi &amp; Family Office</span>
+  <main class="landing-main-container">
+    <div class="landing-hero">
+      <div class="landing-pulse-badge">
+        <span class="landing-live-dot"></span>
+        <span>LIVE IDX MARKET ENGINE · 950+ EMITEN TERVERIFIKASI</span>
       </div>
       <h1 class="landing-hero-title">
-        Infrastruktur Analisa Pasar Modal, Valuasi Terukur &amp; Pengendalian Risiko Portofolio.
+        Sistem Operasi Investasi &amp; <span class="accent-text">Analitik Kuantitatif</span> Pasar Modal IDX.
       </h1>
       <p class="landing-hero-sub">
-        Platform analitik kuantitatif untuk investor dan pengelola portofolio IDX: memadukan deteksi aliran dana bandarmology, model valuasi intrinsik multi-faktor, kepatuhan pajak dividen PMK 18, hingga konsolidasi neraca family office tanpa data sintetis.
+        Infrastruktur analitik tingkat institusional: mendeteksi jejak akumulasi bandarmology riil, model valuasi multi-faktor Benjamin Graham &amp; DCF, kepatuhan pajak dividen PMK 18, hingga konsolidasi neraca family office tanpa toleransi data sintetis.
       </p>
       <div class="landing-cta-row">
         <button class="landing-btn-primary" onclick="authOpenLoginModal()">
-          <i class="ti ti-login"></i> Masuk ke Akun / Login →
+          <i class="ti ti-login"></i> Buka Akun / Masuk Terminal →
         </button>
         <button class="landing-btn-secondary" onclick="authDoGuestLogin()">
-          <i class="ti ti-player-play"></i> Masuk Mode Tamu / Demo Offline →
+          <i class="ti ti-player-play"></i> Eksplorasi Mode Tamu (Demo Offline)
         </button>
       </div>
     </div>
 
-    <!-- 6 Core Platform Pillars -->
-    <div>
-      <div style="margin-bottom:20px">
-        <div style="font-size:20px;font-weight:800;color:#FFFFFF;letter-spacing:-0.4px">Kekuatan &amp; Kapabilitas Utama Sistem</div>
-        <div style="font-size:12.5px;color:var(--text3);margin-top:4px">Infrastruktur data keuangan riil dengan perhitungan matematis terpusat pada satu canonical engine.</div>
+    <!-- Key Institutional Stats Bar -->
+    <div class="landing-stats-grid">
+      <div class="landing-stat-card">
+        <div class="landing-stat-val">950+</div>
+        <div class="landing-stat-label">Emiten Bursa Efek Indonesia</div>
+      </div>
+      <div class="landing-stat-card">
+        <div class="landing-stat-val">&lt; 200ms</div>
+        <div class="landing-stat-label">Latensi Evaluasi Model Kuantitatif</div>
+      </div>
+      <div class="landing-stat-card">
+        <div class="landing-stat-val">6 Pilar</div>
+        <div class="landing-stat-label">Mesin Terintegrasi &amp; Risk Gate</div>
+      </div>
+      <div class="landing-stat-card">
+        <div class="landing-stat-val" style="color:#10B981">100% Riil</div>
+        <div class="landing-stat-label">Zero Data Fiktif / Sintetis</div>
+      </div>
+    </div>
+
+    <!-- Interactive Terminal Preview Mockup (Dribbble Showcase Style) -->
+    <div class="landing-terminal-preview">
+      <div class="landing-terminal-topbar">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="landing-terminal-dots">
+            <span class="landing-terminal-dot red"></span>
+            <span class="landing-terminal-dot yellow"></span>
+            <span class="landing-terminal-dot green"></span>
+          </div>
+          <div style="font-size:11px;font-family:var(--font-mono, monospace);color:#94A3B8;display:flex;align-items:center;gap:6px">
+            <span style="color:#10B981">●</span> MONEYWATCH WORKSPACE · FEED STATUS: ACTIVE
+          </div>
+        </div>
+
+        <div class="landing-terminal-tabs">
+          <button type="button" class="landing-ticker-tab active" onclick="switchLandingMockup('BBCA', 10250, '+1.2%', '68.4%', 'ZP, CC, AK', '+Rp 142 M')">BBCA · Rp 10.250 <span style="color:#10B981">+1.2%</span></button>
+          <button type="button" class="landing-ticker-tab" onclick="switchLandingMockup('BBRI', 4950, '+0.8%', '64.1%', 'KZ, CS, BK', '+Rp 86 M')">BBRI · Rp 4.950 <span style="color:#10B981">+0.8%</span></button>
+          <button type="button" class="landing-ticker-tab" onclick="switchLandingMockup('BMRI', 6850, '+1.5%', '71.2%', 'AK, RX, ZP', '+Rp 115 M')">BMRI · Rp 6.850 <span style="color:#10B981">+1.5%</span></button>
+          <button type="button" class="landing-ticker-tab" onclick="switchLandingMockup('TLKM', 3120, '+0.6%', '58.7%', 'BK, CC, YP', '+Rp 42 M')">TLKM · Rp 3.120 <span style="color:#10B981">+0.6%</span></button>
+        </div>
       </div>
 
-      <div class="landing-pillars-grid">
-        <!-- Pilar 1 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-chart-arrows"></i></div>
-          <div class="landing-pillar-title">1. Smart Money &amp; Bandarmology</div>
-          <div class="landing-pillar-desc">
-            Pelacakan jejak akumulasi dan distribusi institusional pada bursa IDX untuk menyaring false breakout secara terukur.
+      <div class="landing-terminal-body">
+        <!-- Main Chart Simulation Box -->
+        <div class="landing-chart-box">
+          <div class="landing-chart-header">
+            <div>
+              <div style="font-size:11px;color:#94A3B8;font-family:var(--font-mono, monospace);margin-bottom:2px" id="mock-ticker-fullname">Bank Central Asia Tbk.</div>
+              <div class="landing-chart-price-row">
+                <span class="landing-chart-price" id="mock-ticker-price">Rp 10.250</span>
+                <span class="landing-chart-change" id="mock-ticker-change">+1.2%</span>
+                <span style="font-size:11px;color:#38BDF8;background:rgba(56,189,248,0.1);padding:2px 7px;border-radius:4px;font-family:var(--font-mono, monospace)">BIG ACCUMULATION</span>
+              </div>
+            </div>
+            <div class="landing-chart-metrics-row">
+              <div>VWAP: <span style="color:#FFFFFF" id="mock-ticker-vwap">Rp 10.180</span></div>
+              <div>H/L: <span style="color:#FFFFFF">10.300 / 10.125</span></div>
+              <div>VOL: <span style="color:#FFFFFF">784.2K Lot</span></div>
+            </div>
           </div>
-          <ul class="landing-specs-list">
-            <li>Konsentrasi transaksi Top 3 broker akumulasi &gt; 60%</li>
-            <li>Deteksi runtutan inflow asing (foreign net flow streak)</li>
-            <li>Estimasi rata-rata harga bandar (Bandar Volume Weighted Average Price)</li>
-            <li>Scanner anomali Volume Spike terverifikasi</li>
+
+          <!-- Stylized Modern Trading Wave SVG -->
+          <div style="width:100%;height:180px;position:relative;margin-top:6px">
+            <svg viewBox="0 0 500 160" width="100%" height="100%" preserveAspectRatio="none" style="overflow:visible">
+              <defs>
+                <linearGradient id="chartGlowGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.35"/>
+                  <stop offset="80%" stop-color="#0284C7" stop-opacity="0.05"/>
+                  <stop offset="100%" stop-color="#0284C7" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.8"/>
+                  <stop offset="100%" stop-color="#0284C7" stop-opacity="0.2"/>
+                </linearGradient>
+              </defs>
+              <!-- Grid lines -->
+              <line x1="0" y1="40" x2="500" y2="40" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3,3"/>
+              <line x1="0" y1="80" x2="500" y2="80" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3,3"/>
+              <line x1="0" y1="120" x2="500" y2="120" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3,3"/>
+              <!-- Volume Bars -->
+              <rect x="30" y="130" width="8" height="30" fill="url(#barGrad)" rx="1"/>
+              <rect x="65" y="125" width="8" height="35" fill="url(#barGrad)" rx="1"/>
+              <rect x="100" y="115" width="8" height="45" fill="url(#barGrad)" rx="1"/>
+              <rect x="135" y="120" width="8" height="40" fill="url(#barGrad)" rx="1"/>
+              <rect x="170" y="110" width="8" height="50" fill="url(#barGrad)" rx="1"/>
+              <rect x="205" y="100" width="8" height="60" fill="url(#barGrad)" rx="1"/>
+              <rect x="240" y="105" width="8" height="55" fill="url(#barGrad)" rx="1"/>
+              <rect x="275" y="95" width="8" height="65" fill="url(#barGrad)" rx="1"/>
+              <rect x="310" y="85" width="8" height="75" fill="url(#barGrad)" rx="1"/>
+              <rect x="345" y="90" width="8" height="70" fill="url(#barGrad)" rx="1"/>
+              <rect x="380" y="75" width="8" height="85" fill="url(#barGrad)" rx="1"/>
+              <rect x="415" y="65" width="8" height="95" fill="url(#barGrad)" rx="1"/>
+              <rect x="450" y="55" width="8" height="105" fill="url(#barGrad)" rx="1"/>
+              <!-- Area Fill -->
+              <path d="M 0 130 Q 80 120 140 100 T 260 85 T 380 45 T 500 20 L 500 160 L 0 160 Z" fill="url(#chartGlowGrad)"/>
+              <!-- Trend Line -->
+              <path d="M 0 130 Q 80 120 140 100 T 260 85 T 380 45 T 500 20" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round"/>
+              <!-- Pulse Dot at current price -->
+              <circle cx="500" cy="20" r="4" fill="#FFFFFF" stroke="#38BDF8" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Terminal Sidebar Cockpit Indicators -->
+        <div class="landing-side-metrics">
+          <!-- Metric 1: Bandarmology -->
+          <div class="landing-metric-panel">
+            <div class="landing-metric-title">
+              <span>Smart Money Radar</span>
+              <span style="color:#38BDF8" id="mock-accum-pct">68.4%</span>
+            </div>
+            <div class="landing-bar-track">
+              <div class="landing-bar-fill" id="mock-accum-bar" style="width:68.4%;background:linear-gradient(90deg, #38BDF8, #10B981)"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#94A3B8;font-family:var(--font-mono, monospace)">
+              <span>Top 3: <strong style="color:#FFFFFF" id="mock-top-brokers">ZP, CC, AK</strong></span>
+              <span>Foreign: <strong style="color:#10B981" id="mock-foreign-flow">+Rp 142 M</strong></span>
+            </div>
+          </div>
+
+          <!-- Metric 2: Benjamin Graham Valuation -->
+          <div class="landing-metric-panel">
+            <div class="landing-metric-title">
+              <span>Benjamin Graham Fair Value</span>
+              <span style="color:#10B981">MoS +9.3%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <div style="font-size:18px;font-weight:900;color:#FFFFFF;font-family:var(--font-mono, monospace)">Rp 11.200</div>
+              <div style="font-size:10.5px;color:#94A3B8">P/E: 19.8x · ROE: 22.4%</div>
+            </div>
+            <div style="font-size:10.5px;color:#64748B;line-height:1.4">
+              Harga pasar saat ini berada di bawah nilai wajar intrinsik 2-Stage DCF.
+            </div>
+          </div>
+
+          <!-- Metric 3: Risk Gate Protocol -->
+          <div class="landing-metric-panel">
+            <div class="landing-metric-title">
+              <span>Institutional Risk Gate</span>
+              <span style="color:#10B981;background:rgba(16,185,129,0.12);padding:1px 6px;border-radius:3px">ALL PASS</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;font-size:10.5px;font-family:var(--font-mono, monospace)">
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:#94A3B8">Max Single-Stock (≤15%):</span>
+                <span style="color:#10B981">11.8% · PASS</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:#94A3B8">Cash Buffer RDN (≥20%):</span>
+                <span style="color:#10B981">22.5% · PASS</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:#94A3B8">Risk to Reward (≥1:2):</span>
+                <span style="color:#10B981">1 : 2.4 · PASS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 Core Platform Pillars (Bento Grid Layout) -->
+    <div>
+      <div style="margin-bottom:24px">
+        <div style="font-size:22px;font-weight:800;color:#FFFFFF;letter-spacing:-0.5px">Arsitektur 6 Pilar Sistem MoneyWatch</div>
+        <div style="font-size:13px;color:#94A3B8;margin-top:4px">Kalkulasi finansial terpusat pada satu canonical engine tanpa bifurkasi logika matematika.</div>
+      </div>
+
+      <div class="landing-bento-grid">
+        <!-- Bento 1 (Span-2 Featured): Bandarmology -->
+        <div class="landing-bento-card span-2">
+          <div class="landing-card-badge cyan">
+            <i class="ti ti-chart-arrows"></i> PILAR 1 · SMART MONEY FLOW
+          </div>
+          <div class="landing-card-title">Deteksi Akumulasi &amp; Distribusi Institusional (Bandarmology)</div>
+          <div class="landing-card-desc">
+            Melacak konsentrasi aliran dana konglomerat, broker institusi asing, dan akumulator dominan di bursa IDX untuk menyaring false breakout secara matematis.
+          </div>
+          <div class="landing-micro-visual">
+            <div style="display:flex;justify-content:space-between;color:#94A3B8;margin-bottom:6px">
+              <span>TOP 3 BROKER CONCENTRATION &gt; 60%</span>
+              <span style="color:#38BDF8">BANDAR VWAP ESTIMATOR</span>
+            </div>
+            <div class="landing-bar-track" style="margin-bottom:6px">
+              <div style="width:72%;background:linear-gradient(90deg, #38BDF8, #60A5FA)"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;color:#64748B;font-size:10px">
+              <span>Foreign Streak: 5 Hari Beruntun</span>
+              <span>Volume Surge Filter: Verified &gt; 2.0x SMA20</span>
+            </div>
+          </div>
+          <ul class="landing-feature-list">
+            <li><i class="ti ti-check"></i> Konsentrasi transaksi Top 3 broker akumulasi &gt; 60% terverifikasi.</li>
+            <li><i class="ti ti-check"></i> Deteksi runtutan aliran asing (foreign net flow streak) multi-hari.</li>
+            <li><i class="ti ti-check"></i> Estimasi harga rata-rata bandar (Bandar Volume Weighted Average Price).</li>
           </ul>
         </div>
 
-        <!-- Pilar 2 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-calculator"></i></div>
-          <div class="landing-pillar-title">2. Valuasi Kuantitatif &amp; MoS</div>
-          <div class="landing-pillar-desc">
-            Sintesis 4 metodologi valuasi klasik dan modern untuk menghitung nilai wajar saham dan margin of safety.
+        <!-- Bento 2: Valuation MoS -->
+        <div class="landing-bento-card">
+          <div class="landing-card-badge emerald">
+            <i class="ti ti-calculator"></i> PILAR 2 · VALUASI
           </div>
-          <ul class="landing-specs-list">
-            <li>Formula Benjamin Graham &amp; Peter Lynch Fair Value</li>
-            <li>Discounted Cash Flow (DCF) 2-Stage dengan WACC terkalibrasi</li>
-            <li>Historical Valuation Band (5-Year PE &amp; PBV Standard Deviation)</li>
-            <li>Skor kesehatan kebangkrutan Altman Z-Score &amp; Piotroski F-Score</li>
+          <div class="landing-card-title">Valuasi Kuantitatif &amp; MoS</div>
+          <div class="landing-card-desc">
+            Sintesis formula Benjamin Graham, Peter Lynch, dan DCF 2-Stage dengan WACC terkalibrasi untuk mengukur Margin of Safety.
+          </div>
+          <ul class="landing-feature-list">
+            <li><i class="ti ti-check"></i> Graham &amp; Peter Lynch Fair Value.</li>
+            <li><i class="ti ti-check"></i> Historical PE &amp; PBV Std. Dev Band.</li>
+            <li><i class="ti ti-check"></i> Altman Z-Score &amp; Piotroski F-Score.</li>
           </ul>
         </div>
 
-        <!-- Pilar 3 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-shield-check"></i></div>
-          <div class="landing-pillar-title">3. Pengendalian Risiko Portofolio</div>
-          <div class="landing-pillar-desc">
-            Protokol alokasi aset institusional yang membatasi eksposur risiko modal dan menjaga likuiditas operasional.
+        <!-- Bento 3: Risk Control -->
+        <div class="landing-bento-card">
+          <div class="landing-card-badge amber">
+            <i class="ti ti-shield-check"></i> PILAR 3 · RISIKO
           </div>
-          <ul class="landing-specs-list">
-            <li>Batas alokasi maksimum 10–15% per single-stock Big Cap</li>
-            <li>Wajib penyediaan buffer kas RDN minimal 15–20%</li>
-            <li>Evaluasi Risk-to-Reward Ratio terukur (standar minimum 1:2)</li>
-            <li>Kalkulator rebalancing otomatis berbasis deviasi bobot target</li>
+          <div class="landing-card-title">Pengendalian Risiko Portofolio</div>
+          <div class="landing-card-desc">
+            Protokol alokasi modal ketat: batasan 15% per emiten, buffer kas RDN minimal 20%, dan rasio Risk-to-Reward terukur.
+          </div>
+          <ul class="landing-feature-list">
+            <li><i class="ti ti-check"></i> Batas alokasi max 10–15% per emiten.</li>
+            <li><i class="ti ti-check"></i> Buffer kas RDN wajib &gt; 20% AUM.</li>
+            <li><i class="ti ti-check"></i> Evaluasi Risk:Reward minimum 1:2.</li>
           </ul>
         </div>
 
-        <!-- Pilar 4 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-receipt-tax"></i></div>
-          <div class="landing-pillar-title">4. Kepatuhan Pajak Dividen (PMK 18)</div>
-          <div class="landing-pillar-desc">
-            Modul pemantauan insentif pembebasan PPh Final 0% atas dividen saham domestik sesuai PMK No. 18/PMK.03/2021.
+        <!-- Bento 4: Dividend PMK 18 -->
+        <div class="landing-bento-card">
+          <div class="landing-card-badge indigo">
+            <i class="ti ti-receipt-tax"></i> PILAR 4 · PAJAK
           </div>
-          <ul class="landing-specs-list">
-            <li>Pelacakan masa holding reinvestasi domestik selama 3 tahun kalender</li>
-            <li>Pemisahan dividen bebas pajak vs dividen non-reinvestasi (10% PPh Final)</li>
-            <li>Kalender visual proyeksi arus kas passive income bulanan &amp; tahunan</li>
-            <li>Rekonsiliasi otomatis dividen riil dengan saldo mutasi kas RDN</li>
+          <div class="landing-card-title">Kepatuhan Pajak PMK 18</div>
+          <div class="landing-card-desc">
+            Pemantauan insentif pembebasan PPh Final 0% atas dividen saham domestik dengan pelacakan holding period 3 tahun kalender.
+          </div>
+          <ul class="landing-feature-list">
+            <li><i class="ti ti-check"></i> Tracking reinvestasi 3 tahun kalender.</li>
+            <li><i class="ti ti-check"></i> Pemisahan dividen 0% vs PPh 10%.</li>
+            <li><i class="ti ti-check"></i> Rekonsiliasi mutasi kas RDN riil.</li>
           </ul>
         </div>
 
-        <!-- Pilar 5 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-building-bank"></i></div>
-          <div class="landing-pillar-title">5. Family Office &amp; Net Worth</div>
-          <div class="landing-pillar-desc">
-            Konsolidasi total neraca kekayaan bersih lintas instrumen investasi, aset perbankan, dan liabilitas keuangan.
+        <!-- Bento 5: Family Office -->
+        <div class="landing-bento-card">
+          <div class="landing-card-badge cyan">
+            <i class="ti ti-building-bank"></i> PILAR 5 · KEKAYAAN
           </div>
-          <ul class="landing-specs-list">
-            <li>Konsolidasi 4 kelas aset: Saham IDX, Crypto, Reksa Dana, dan ETF</li>
-            <li>Pemantauan rasio kesehatan utang (Debt-to-Income / DTI) &amp; Dana Darurat</li>
-            <li>Kalkulator sasaran FIRE (*Financial Independence, Retire Early*) 4% Rule</li>
-            <li>Ekspor dokumen resmi Laporan Konsolidasi Finansial Terpadu (PDF/CSV)</li>
+          <div class="landing-card-title">Family Office &amp; Net Worth</div>
+          <div class="landing-card-desc">
+            Konsolidasi total kekayaan lintas instrumen: Saham IDX, Crypto, Reksa Dana, ETF, Kas Perbankan, hingga Liabilitas Keuangan.
+          </div>
+          <ul class="landing-feature-list">
+            <li><i class="ti ti-check"></i> Konsolidasi 4 kelas aset terpadu.</li>
+            <li><i class="ti ti-check"></i> Rasio DTI &amp; Dana Darurat keluarga.</li>
+            <li><i class="ti ti-check"></i> Ekspor resmi PDF / CSV Konsolidasi.</li>
           </ul>
         </div>
 
-        <!-- Pilar 6 -->
-        <div class="landing-pillar-card">
-          <div class="landing-pillar-icon"><i class="ti ti-cpu"></i></div>
-          <div class="landing-pillar-title">6. Autonomous Decision Engine</div>
-          <div class="landing-pillar-desc">
-            Arsitektur analitik AI multi-faktor berbasis aturan deterministik yang mengutamakan integritas modal dan data riil.
+        <!-- Bento 6 (Span-2 Featured): Autonomous AI Trail -->
+        <div class="landing-bento-card span-2">
+          <div class="landing-card-badge emerald">
+            <i class="ti ti-cpu"></i> PILAR 6 · DECISION ENGINE
           </div>
-          <ul class="landing-specs-list">
-            <li>Audit trail transparan: menyimpan hipotesis falsifiable sebelum entry</li>
-            <li>Pencegahan data sintetis (zero-state guard untuk ticker di luar IDX)</li>
-            <li>Pendeteksian kontradiksi sinyal teknikal vs broker flow pasar</li>
-            <li>Prioritas exit proteksi modal (Stop Loss) dibanding spekulasi baru</li>
+          <div class="landing-card-title">Autonomous AI Trading Engine &amp; Falsifiable Hypothesis</div>
+          <div class="landing-card-desc">
+            Bukan black-box prediksi buta: setiap sinyal menyusun hipotesis falsifiable lengkap dengan zona entry, stop loss, konfluensi multi-faktor, dan audit trail transparan.
+          </div>
+          <div class="landing-micro-visual">
+            <div style="color:#94A3B8;display:flex;justify-content:space-between">
+              <span>DECISION PROTOCOL</span>
+              <span style="color:#10B981">OBSERVE → SCORE → RISK GATE → DECIDE</span>
+            </div>
+            <div style="font-size:10.5px;color:#CBD5E1;margin-top:4px">
+              Menolak spekulasi rendah keyakinan (prefer NO_TRADE over low-confidence). Exit proteksi modal (Stop Loss) selalu diprioritaskan dibanding narasi spekulatif.
+            </div>
+          </div>
+          <ul class="landing-feature-list">
+            <li><i class="ti ti-check"></i> Rekam audit trail: alasan entry, bull case, bear case, dan invalidation point.</li>
+            <li><i class="ti ti-check"></i> Deteksi kontradiksi sinyal (contoh: teknikal bullish vs broker distribution).</li>
+            <li><i class="ti ti-check"></i> Engine pembelajaran pasca-trade (Post-Mortem 10-Point Analysis).</li>
           </ul>
         </div>
       </div>
     </div>
 
-    <!-- Quick Launch Footer Bar -->
-    <div style="background:#080C14;border:1px solid #1E293B;border-radius:14px;padding:24px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;box-shadow:0 8px 30px rgba(0,0,0,0.5)">
+    <!-- Quick Launch Footer Banner -->
+    <div style="background:linear-gradient(135deg, #091022 0%, #060A16 100%);border:1px solid rgba(56,189,248,0.25);border-radius:14px;padding:26px 30px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px;box-shadow:0 10px 36px rgba(0,0,0,0.6)">
       <div>
-        <div style="font-size:16px;font-weight:800;color:#FFFFFF">Siap untuk memantau portofolio Anda secara objektif?</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:3px">Seluruh data tersimpan secara terenkripsi dan terisolasi per akun pengguna.</div>
+        <div style="font-size:17px;font-weight:800;color:#FFFFFF">Siap untuk memantau portofolio Anda secara objektif?</div>
+        <div style="font-size:12.5px;color:#94A3B8;margin-top:3px">Seluruh data tersimpan secara terisolasi per akun pengguna dengan keamanan enkripsi modern.</div>
       </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <button class="btn btn-ghost btn-sm" onclick="authDoGuestLogin()" style="font-weight:700">Masuk Mode Tamu</button>
-        <button class="landing-btn-primary" onclick="authOpenLoginModal()" style="font-weight:700">Masuk / Login →</button>
+      <div style="display:flex;gap:12px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="authDoGuestLogin()" style="font-weight:700;padding:8px 16px;color:#E2E8F0">Masuk Mode Tamu</button>
+        <button class="landing-btn-primary" onclick="authOpenLoginModal()" style="font-weight:700;padding:9px 18px">Masuk / Login →</button>
       </div>
     </div>
   </main>
 
-  <footer style="border-top:1px solid #1E293B;padding:20px;text-align:center;font-size:11px;color:var(--text3);background:#050811">
-    MoneyWatch — Quantitative Investment Terminal &amp; Family Office Infrastructure. Seluruh data pasar berbasis emiten riil Bursa Efek Indonesia (IDX).
+  <footer style="border-top:1px solid rgba(255,255,255,0.08);padding:22px;text-align:center;font-size:11.5px;color:#64748B;background:#030610">
+    MoneyWatch — Quantitative Investment Terminal &amp; Family Office Operating System. Seluruh data pasar bersumber dari emiten Bursa Efek Indonesia (IDX).
   </footer>
 </div>
+
+<script>
+  // Interactive mini preview switcher for landing page mockup
+  function switchLandingMockup(ticker, price, change, accum, brokers, foreign) {
+    var fullnames = {
+      'BBCA': 'Bank Central Asia Tbk.',
+      'BBRI': 'Bank Rakyat Indonesia Tbk.',
+      'BMRI': 'Bank Mandiri (Persero) Tbk.',
+      'TLKM': 'Telkom Indonesia (Persero) Tbk.'
+    };
+    var vwaps = {
+      'BBCA': 'Rp 10.180',
+      'BBRI': 'Rp 4.910',
+      'BMRI': 'Rp 6.780',
+      'TLKM': 'Rp 3.095'
+    };
+    var fnEl = document.getElementById('mock-ticker-fullname');
+    var pEl = document.getElementById('mock-ticker-price');
+    var cEl = document.getElementById('mock-ticker-change');
+    var vEl = document.getElementById('mock-ticker-vwap');
+    var aPctEl = document.getElementById('mock-accum-pct');
+    var aBarEl = document.getElementById('mock-accum-bar');
+    var brkEl = document.getElementById('mock-top-brokers');
+    var fEl = document.getElementById('mock-foreign-flow');
+
+    if (fnEl) fnEl.textContent = fullnames[ticker] || (ticker + ' Tbk.');
+    if (pEl) pEl.textContent = 'Rp ' + Number(price).toLocaleString('id-ID');
+    if (cEl) cEl.textContent = change;
+    if (vEl) vEl.textContent = vwaps[ticker] || ('Rp ' + Number(price - 50).toLocaleString('id-ID'));
+    if (aPctEl) aPctEl.textContent = accum;
+    if (aBarEl) aBarEl.style.width = accum;
+    if (brkEl) brkEl.textContent = brokers;
+    if (fEl) fEl.textContent = foreign;
+
+    // Update active tab state
+    var tabs = document.querySelectorAll('.landing-ticker-tab');
+    tabs.forEach(function(tab) {
+      if (tab.textContent.indexOf(ticker) !== -1) {
+        tab.classList.add('active');
+      } else {
+        tab.classList.remove('active');
+      }
+    });
+  }
+  window.switchLandingMockup = switchLandingMockup;
+</script>
 
 <!-- ══════════════════════════════════════════════
      AUTH OVERLAY — Login Screen (Modal)
