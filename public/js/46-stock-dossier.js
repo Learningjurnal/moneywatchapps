@@ -127,9 +127,9 @@ function dossierApplyPreset(presetKey) {
  * Pillar 1: Valuasi & Margin of Safety (0–100)
  */
 function dossierComputeValuationScore(harvested) {
-  var quote = harvested.quote || {};
+  var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
   var qf = quote.fundamentals || {};
-  var price = quote.price || 0;
+  var price = quote.price || (quote.close) || 0;
 
   var per = qf.per || (harvested.fund && harvested.fund.per) || null;
   var pbv = qf.pbv || (harvested.fund && harvested.fund.pbv) || null;
@@ -205,7 +205,7 @@ function dossierComputeValuationScore(harvested) {
  * Pillar 2: Smart Money & Bandarmology Flow (0–100)
  */
 function dossierComputeSmartMoneyScore(harvested) {
-  var bSummary = harvested.brokerSummary;
+  var bSummary = (harvested.brokerSummary && harvested.brokerSummary.data) ? harvested.brokerSummary.data : harvested.brokerSummary;
   if (!bSummary || (!bSummary.bandarmology && !bSummary.brokers && !bSummary.accumulation)) {
     return {
       available: false,
@@ -276,8 +276,8 @@ function dossierComputeTechnicalScore(harvested) {
     };
   }
 
-  var closes = history.map(function(h) { return h.close; });
-  var volumes = history.map(function(h) { return h.volume || 0; });
+  var closes = history.map(function(h) { return h.close !== undefined ? h.close : (h.c !== undefined ? h.c : 0); });
+  var volumes = history.map(function(h) { return h.volume !== undefined ? h.volume : (h.v !== undefined ? h.v : 0); });
   var n = closes.length;
 
   // Calculate EMA 20 & EMA 50
@@ -381,7 +381,11 @@ function dossierComputeTechnicalScore(harvested) {
  */
 function dossierComputeKseiScore(harvested) {
   var ksei = harvested.ksei;
-  if (!ksei || ksei.found === false || !ksei.stock || (!ksei.stock.investors && !ksei.stock.freeFloat)) {
+  var stock = (ksei && ksei.found !== false && ksei.stock)
+    ? ksei.stock
+    : (ksei && ksei.found !== false && ksei.freeFloat !== undefined ? ksei : (harvested.quote && harvested.quote.ksei ? harvested.quote.ksei : null));
+
+  if (!stock || ksei?.found === false || (!stock.investors && stock.freeFloat === undefined) || (Array.isArray(stock.investors) && stock.investors.length === 0 && stock.totalMajorPercent === 0 && stock.freeFloat === 100)) {
     return {
       available: false,
       status: 'DATA_UNAVAILABLE',
@@ -392,8 +396,6 @@ function dossierComputeKseiScore(harvested) {
       reason: 'Data kepemilikan kustodian KSEI belum diunggah atau tidak ditemukan untuk emiten ini.'
     };
   }
-
-  var stock = ksei.stock;
   var freeFloat = typeof stock.freeFloat === 'number' ? stock.freeFloat : (100 - (stock.totalMajorPercent || 0));
   var foreignPct = typeof stock.foreignPercent === 'number' ? stock.foreignPercent : 0;
   var localInstPct = typeof stock.localPercent === 'number' ? stock.localPercent : 0;
@@ -437,7 +439,7 @@ function dossierComputeKseiScore(harvested) {
  * Pillar 5: Profitabilitas & Dividen (0–100)
  */
 function dossierComputeFundamentalScore(harvested) {
-  var quote = harvested.quote || {};
+  var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
   var qf = quote.fundamentals || {};
   var fund = harvested.fund || {};
 
@@ -504,13 +506,30 @@ function dossierComputeFundamentalScore(harvested) {
  */
 function dossierComputeRegimeScore(harvested) {
   var regimeObj = harvested.regime || {};
-  var regimeState = regimeObj.regime || regimeObj.marketRegime || 'SIDEWAYS';
-  var confidence = regimeObj.confidence || 75;
+  var rawState = 'SIDEWAYS';
+  if (typeof regimeObj === 'string') {
+    rawState = regimeObj;
+  } else if (regimeObj && typeof regimeObj.regime === 'string') {
+    rawState = regimeObj.regime;
+  } else if (regimeObj && typeof regimeObj.regime === 'object' && regimeObj.regime && typeof regimeObj.regime.regime === 'string') {
+    rawState = regimeObj.regime.regime;
+  } else if (regimeObj && typeof regimeObj.marketRegime === 'string') {
+    rawState = regimeObj.marketRegime;
+  }
+
+  var confidence = 75;
+  if (regimeObj && typeof regimeObj.confidence === 'number') {
+    confidence = regimeObj.confidence;
+  } else if (regimeObj && regimeObj.regime && typeof regimeObj.regime.confidence === 'number') {
+    confidence = regimeObj.regime.confidence;
+  }
+
+  var regimeState = String(rawState || 'SIDEWAYS').toUpperCase();
 
   var score = 50;
   var label = 'SIDEWAYS';
 
-  switch (regimeState.toUpperCase()) {
+  switch (regimeState) {
     case 'BULL_TREND':
     case 'BULLISH':
       score = 85;
@@ -708,12 +727,37 @@ async function dossierHarvestData(ticker) {
       hypothesisPromise
     ]);
 
-    harvested.quote = results[0];
-    harvested.brokerSummary = results[1];
-    harvested.history = (results[2] && results[2].candles) ? results[2].candles : (Array.isArray(results[2]) ? results[2] : []);
+    var qData = results[0];
+    harvested.quote = (qData && qData.quote) ? qData.quote : qData;
+
+    var bData = results[1];
+    harvested.brokerSummary = (bData && bData.data) ? bData.data : bData;
+
+    var hData = results[2];
+    if (hData && Array.isArray(hData.points)) {
+      harvested.history = hData.points.map(function(p) {
+        return {
+          time: p.t,
+          open: p.o,
+          high: p.h,
+          low: p.l,
+          close: p.c,
+          volume: p.v
+        };
+      });
+    } else if (hData && Array.isArray(hData.candles)) {
+      harvested.history = hData.candles;
+    } else if (Array.isArray(hData)) {
+      harvested.history = hData;
+    }
+
     harvested.ksei = results[3];
-    harvested.regime = results[4];
-    harvested.aiHypothesis = results[5];
+
+    var rData = results[4];
+    harvested.regime = (rData && rData.regime) ? rData.regime : rData;
+
+    var hypData = results[5];
+    harvested.aiHypothesis = (hypData && hypData.hypothesis) ? hypData.hypothesis : hypData;
 
     // Local cached fallback if API fundamentals missing
     if (typeof FUND_DATA !== 'undefined' && FUND_DATA[cleanTicker]) {
@@ -798,7 +842,7 @@ function renderStockDossierPage(targetTicker) {
 
   var res = dossierState.scoringResult;
   var harvested = dossierState.harvestedData || {};
-  var quote = harvested.quote || {};
+  var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
   var price = quote.price || (quote.close) || 0;
   var changePct = quote.changePercent !== undefined ? quote.changePercent : (quote.change || 0);
   var changeStr = (changePct >= 0 ? '+' : '') + Number(changePct).toFixed(2) + '%';

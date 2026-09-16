@@ -3908,11 +3908,19 @@ test('MASTER DOSSIER: Individual pillar scoring models behave within valid quant
   assert(fundRes.available, 'Fundamental must be available');
   assert(fundRes.score >= 80, `Strong ROE and low DER must score >= 80 (got ${fundRes.score})`);
 
-  // 6. Regime Pillar
-  const regimeSample = { regime: { regime: 'BULL_TREND', confidence: 85 } };
-  const regimeRes = dossier.dossierComputeRegimeScore(regimeSample);
-  assert(regimeRes.available, 'Regime must be available');
-  assert.strictEqual(regimeRes.score, 85, 'BULL_TREND should score 85');
+  // 6. Regime Pillar (Direct & Nested server API payload)
+  const regimeSampleDirect = { regime: { regime: 'BULL_TREND', confidence: 85 } };
+  const regimeResDirect = dossier.dossierComputeRegimeScore(regimeSampleDirect);
+  assert(regimeResDirect.available, 'Regime must be available');
+  assert.strictEqual(regimeResDirect.score, 85, 'BULL_TREND should score 85');
+
+  const regimeSampleNested = { regime: { success: true, regime: { regime: 'BEAR_TREND', confidence: 70 } } };
+  const regimeResNested = dossier.dossierComputeRegimeScore(regimeSampleNested);
+  assert.strictEqual(regimeResNested.score, 25, 'Nested BEAR_TREND should score 25 without toUpperCase error');
+
+  const regimeSampleEmpty = {};
+  const regimeResEmpty = dossier.dossierComputeRegimeScore(regimeSampleEmpty);
+  assert.strictEqual(regimeResEmpty.score, 55, 'Empty regime should fallback safely to neutral sideways (55) without crashing');
 });
 
 test('MASTER DOSSIER: DOM structure, script inclusion, and router integration', () => {
