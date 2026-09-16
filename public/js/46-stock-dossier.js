@@ -866,11 +866,18 @@ function dossierRunAnalysis(targetTicker) {
   if (inp) inp.value = tk;
 
   dossierState.isLoading = true;
+  dossierState.errorMessage = null;
   renderStockDossierPage();
 
-  dossierHarvestData(tk).then(function() {
-    renderStockDossierPage();
-  });
+  dossierHarvestData(tk)
+    .catch(function(err) {
+      console.error('[Dossier] RunAnalysis uncaught error:', err);
+      dossierState.errorMessage = 'Gagal memuat feed data pasar: ' + (err.message || err);
+    })
+    .finally(function() {
+      dossierState.isLoading = false;
+      renderStockDossierPage();
+    });
 }
 
 function dossierSwitchTab(tabName) {
@@ -902,10 +909,12 @@ function renderStockDossierPage(targetTicker) {
     return;
   }
 
-  var res = dossierState.scoringResult;
+  try {
+    var res = dossierState.scoringResult;
   var harvested = dossierState.harvestedData || {};
   var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
   var price = quote.price || (quote.close) || 0;
+  var change = quote.change !== undefined ? quote.change : 0;
   var changePct = quote.changePercent !== undefined ? quote.changePercent : (quote.change || 0);
   var changeStr = (changePct >= 0 ? '+' : '') + Number(changePct).toFixed(2) + '%';
   var changeColor = changePct >= 0 ? 'var(--green)' : 'var(--red)';
@@ -1456,6 +1465,15 @@ function renderStockDossierPage(targetTicker) {
   html += '</div>'; // End Card
 
   container.innerHTML = html;
+  } catch (renderErr) {
+    console.error('[Dossier] Render exception:', renderErr);
+    dossierState.isLoading = false;
+    container.innerHTML = '<div class="card" style="padding:30px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.05);text-align:center">' +
+      '<div style="font-size:24px;color:var(--red);margin-bottom:8px"><i class="ti ti-alert-triangle"></i></div>' +
+      '<div style="font-size:14px;font-weight:700;color:var(--red)">Terjadi kesalahan visualisasi: ' + (renderErr.message || renderErr) + '</div>' +
+      '<button class="btn btn-sm btn-ghost" style="margin-top:12px" onclick="dossierRunAnalysis()">Coba Lagi</button>' +
+      '</div>';
+  }
 }
 
 // ============================================================
