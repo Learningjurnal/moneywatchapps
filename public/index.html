@@ -999,21 +999,20 @@
     </div>
   </div>
 
-  <!-- 3. RESEARCH (single-stock analysis + bandarmology, folded from the
-       former standalone BANDARMOLOGY group — still calls goBandarmology(),
-       unchanged, just regrouped) -->
+  <!-- 3. TRADING TOOLS (formerly RESEARCH: single-stock analysis, bandarmology, quant lab) -->
   <div class="side-group open" data-group="research">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-microscope"></i><span class="side-label">RESEARCH</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-tools"></i><span class="side-label">TRADING TOOLS</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar"></i><span class="side-label">Stock Intel</span></button>
-      <button onclick="goPage('fundamental',this)"><i class="ti ti-building-bank"></i><span class="side-label">Fundamental</span></button>
+      <button onclick="goPage('fundamental',this)"><i class="ti ti-report-analytics"></i><span class="side-label">Fundamental</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
       <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto Technical</span></button>
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
       <button onclick="goPage('volume-spike',this)"><i class="ti ti-bolt"></i><span class="side-label">Volume Spike</span></button>
       <button onclick="goPage('scanner',this)"><i class="ti ti-filter"></i><span class="side-label">Big Money Scanner</span></button>
-      <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine"></i><span class="side-label">Research</span></button>
+      <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Quant Lab</span></button>
+      <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine"></i><span class="side-label">TradeWave</span></button>
     </div>
   </div>
 
@@ -1059,14 +1058,13 @@
     </div>
   </div>
 
-  <!-- 7. MORE -->
+  <!-- 7. ADMIN CENTER (formerly MORE) -->
   <div class="side-group open" data-group="more">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-dots"></i><span class="side-label">MORE</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-adjustments-alt"></i><span class="side-label">ADMIN CENTER</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Quant Lab</span></button>
+      <button onclick="goPage('admin',this)"><i class="ti ti-database"></i><span class="side-label">Stock Universe</span></button>
       <button onclick="goPage('datahealth',this)"><i class="ti ti-stethoscope"></i><span class="side-label">Data Health</span></button>
       <button onclick="goPage('dataconn',this)"><i class="ti ti-plug-connected"></i><span class="side-label">Data Connection</span></button>
-      <button onclick="goPage('admin',this)"><i class="ti ti-user-shield"></i><span class="side-label">Admin</span></button>
       <button onclick="goPage('settings',this)"><i class="ti ti-settings"></i><span class="side-label">Settings</span></button>
     </div>
   </div>

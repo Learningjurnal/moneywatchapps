@@ -139,27 +139,27 @@ function renderDailyBriefPage() {
     + '<div class="ctitle" style="font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:6px">'
       + '3 HAL KRUSIAL YANG HARUS DIPERHATIKAN HARI INI (3 THINGS TO WATCH):'
     + '</div>'
-    + '<div style="display:flex;flex-direction:column;gap:14px">';
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">';
 
   // 1. Dynamic Watch #1: Top Mover / Momentum in Portfolio
   if (topGainer) {
     var gainerDelta = (topGainer.dynamicChgPct || 0);
-    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #10B981;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
       + '<span class="badge ' + (gainerDelta >= 0 ? 'b-up' : 'b-dn') + '">1. PORTFOLIO TOP MOVER</span>'
-      + '<strong style="color:var(--text);font-size:13px">' + topGainer.ticker + ' Memimpin Pergerakan Portofolio (' + (gainerDelta >= 0 ? '+' : '') + gainerDelta.toFixed(2) + '%)</strong>'
+      + '<strong style="color:var(--text);font-size:13px">' + topGainer.ticker + ' (' + (gainerDelta >= 0 ? '+' : '') + gainerDelta.toFixed(2) + '%)</strong>'
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
       + 'Saham <strong>' + topGainer.ticker + '</strong> (' + (topGainer.info && topGainer.info.name ? topGainer.info.name : 'IDX Equities') + ') mencatatkan pergerakan aktif di portofolio Anda dengan nilai pasar Rp ' + fmtK(topGainer.mv) + ' (@ Rp ' + fmtK(topGainer.mp) + '). Pantau volume kelanjutan dan area target terdekat di Cockpit Analisis.'
       + '</div>'
     + '</div>';
   } else {
-    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #10B981;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge b-up">1. FLOW BREAKOUT</span>'
-        + '<strong style="color:var(--text);font-size:13px">Belum Ada Emisi Saham Aktif di Portofolio</strong>'
+        + '<strong style="color:var(--text);font-size:13px">Belum Ada Emisi Saham Aktif</strong>'
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
         + 'Tambahkan transaksi saham ke portofolio Anda untuk memantau Top Mover harian secara otomatis.'
       + '</div>'
     + '</div>';
@@ -168,36 +168,36 @@ function renderDailyBriefPage() {
   // 2. Dynamic Watch #2: Overweight / Concentration Guard
   if (topHolding) {
     var isOverweight = parseFloat(topHoldingWeight) > 15;
-    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #F59E0B;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge ' + (isOverweight ? 'b-amb' : 'b-accent') + '">2. ALLOCATION &amp; RISK GUARD</span>'
-        + '<strong style="color:var(--text);font-size:13px">Bobot Terbesar: ' + topHolding.ticker + ' Mencapai ' + topHoldingWeight + '% Portofolio</strong>'
+        + '<strong style="color:var(--text);font-size:13px">Bobot: ' + topHolding.ticker + ' (' + topHoldingWeight + '%)</strong>'
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
         + (isOverweight
           ? 'Posisi <strong>' + topHolding.ticker + '</strong> dengan nilai Rp ' + fmtK(topHolding.mv) + ' melebihi ambang batas ideal alokasi tunggal (15%). Disarankan melakukan partial profit taking / rebalancing untuk mendiversifikasi risiko single-stock drawdown.'
           : 'Alokasi <strong>' + topHolding.ticker + '</strong> dengan nilai Rp ' + fmtK(topHolding.mv) + ' berada dalam rentang diversifikasi yang sehat (' + topHoldingWeight + '%). Tetap disiplin dengan batas invalidasi dan rencana investasi Anda.')
       + '</div>'
     + '</div>';
   } else {
-    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #F59E0B;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge b-amb">2. REBALANCE ALERT</span>'
-        + '<strong style="color:var(--text);font-size:13px">Pemantauan Batas Alokasi &amp; Diversifikasi Portofolio</strong>'
+        + '<strong style="color:var(--text);font-size:13px">Batas Alokasi Portofolio</strong>'
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
         + 'Pastikan setiap posisi saham tidak melebihi 15% dari total AUM guna membatasi risiko konsentrasi single-stock.'
       + '</div>'
     + '</div>';
   }
 
   // 3. Dynamic Watch #3: Total Projected Dividend Pipeline
-  html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
-      + '<span class="badge b-pur">3. DIVIDEND &amp; CASHFLOW PIPELINE</span>'
-      + '<strong style="color:var(--text);font-size:13px">Estimasi Cashflow Dividen Portofolio ~Rp ' + fmtK(totalAnnualDiv) + '/Tahun</strong>'
+  html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #38BDF8;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<span class="badge b-accent">3. DIVIDEND &amp; CASHFLOW</span>'
+      + '<strong style="color:var(--text);font-size:13px">Estimasi ~Rp ' + fmtK(totalAnnualDiv) + '/Tahun</strong>'
     + '</div>'
-    + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+    + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
       + 'Seluruh ' + porto.length + ' emiten saham di portofolio Anda diproyeksikan menghasilkan dividen agregat ~Rp ' + fmtK(totalAnnualDiv / 12) + '/bulan. Mengaktifkan strategi Auto-Reinvest Dividen ke saham bervaluasi terdiskon (MoS tinggi) akan melipatgandakan efek compound interest jangka panjang.'
     + '</div>'
   + '</div>';

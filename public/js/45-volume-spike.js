@@ -433,7 +433,7 @@ function vsRowHtml(r) {
   return '<tr data-code="' + r.code + '" style="cursor:pointer' + (isSel ? ';background:var(--bg2)' : '') + '" onclick="vsSelectFromScreen(\'' + r.code + '\')">'
     + '<td><div style="display:flex;align-items:center;gap:6px">'
       + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(r.code, 22) : '')
-      + '<div><div style="font-weight:700">' + r.code + (r.isSpike ? ' <span class="badge" style="font-size:8px;background:rgba(245,158,11,.18);color:var(--amber)">SPIKE</span>' : '') + '</div>'
+      + '<div><div style="font-weight:700">' + r.code + (r.isSpike ? ' <span class="badge" style="font-size:8.5px;padding:2px 6px;border-radius:4px;background:rgba(56,189,248,0.14);color:#38BDF8;border:1px solid rgba(56,189,248,0.3);font-weight:700">SPIKE</span>' : '') + '</div>'
       + '<div style="font-size:9.5px;color:var(--text3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.name + '</div></div>'
     + '</div></td>'
     + '<td style="text-align:right;font-family:var(--font-mono)">' + vsFmtVol(r.todayVol) + '</td>'
@@ -568,7 +568,7 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
       + '<div style="font-size:12px;color:var(--text3);margin-top:4px">Volume hari ini ' + ratio14.toFixed(2) + 'x median 14D dan ' + ratio30.toFixed(2) + 'x median 30D — di bawah ambang lonjakan (' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x).</div>';
 
   var html =
-    '<div class="card" style="border:1px solid var(--amber);margin-bottom:14px">' + headline + '</div>'
+    '<div class="card" style="' + (isSpike ? 'border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.05);border-left:4px solid #F59E0B' : 'border:1px solid var(--border)') + ';margin-bottom:14px">' + headline + '</div>'
 
     + '<div class="card" style="margin-bottom:14px">'
       + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
