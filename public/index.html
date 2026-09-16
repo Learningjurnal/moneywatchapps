@@ -1986,10 +1986,10 @@
         <div class="psub">Catat beli/jual saham dengan kalkulasi komisi &amp; pajak otomatis sesuai sekuritas</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-green" id="btn-beli">+ Beli Saham</button>
-        <button class="btn btn-red" id="btn-jual">− Jual Saham</button>
-        <button class="btn btn-ghost" onclick="txDownloadTemplate()" style="border-color:rgba(129,140,248,.3);color:var(--accent)" title="Unduh template Excel siap isi">⬇ Download Template</button>
-        <button class="btn btn-ghost" onclick="txImportExcel()" style="border-color:rgba(52,211,153,.3);color:var(--green)" title="Upload banyak transaksi sekaligus dari file Excel">Upload Excel</button>
+        <button class="btn btn-green" id="btn-beli" style="font-weight:700;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-arrow-up-right"></i> + Beli Saham</button>
+        <button class="btn btn-red" id="btn-jual" style="font-weight:700;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-arrow-down-left"></i> − Jual Saham</button>
+        <button class="btn btn-ghost" onclick="txDownloadTemplate()" style="border-color:rgba(56,189,248,.35);color:var(--accent);font-size:11px" title="Unduh template Excel siap isi"><i class="ti ti-download"></i> Template Excel</button>
+        <button class="btn btn-ghost" onclick="txImportExcel()" style="border-color:rgba(16,185,129,.35);color:var(--green);font-size:11px" title="Upload banyak transaksi sekaligus dari file Excel"><i class="ti ti-upload"></i> Upload Excel</button>
       </div>
     </div>
     <div class="row4">
@@ -1999,17 +1999,17 @@
       <div class="metric"><div class="mlabel">Total Komisi+Pajak</div><div class="mval" id="tx-tax">Rp 0</div><div class="msub neu">biaya keseluruhan</div></div>
     </div>
   </div>
-  <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column;margin:10px 16px 14px;overflow:hidden">
+  <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column;margin:10px 16px 14px;overflow:hidden;border-radius:12px">
     <div class="cheader" style="flex-shrink:0">
       <span class="ctitle">Riwayat Transaksi Saham</span>
-      <div class="filter-toolbar" style="margin-bottom:0;width:auto;flex-wrap:nowrap">
-        <input class="finput" id="tx-search" style="width:130px;padding:4px 9px;font-size:11px" placeholder="Cari ticker...">
-        <select class="finput fsel" id="tx-filter" style="width:95px;padding:4px 9px;font-size:11px">
+      <div class="filter-toolbar" style="margin-bottom:0;width:auto;flex-wrap:wrap;gap:6px">
+        <input class="finput" id="tx-search" style="width:140px;padding:6px 10px;font-size:11px;font-family:var(--font-mono);border-radius:6px" placeholder="Cari ticker...">
+        <select class="finput fsel" id="tx-filter" style="width:95px;padding:6px 8px;font-size:11px;border-radius:6px">
           <option value="all">Semua</option><option value="BUY">Beli</option><option value="SELL">Jual</option>
         </select>
-        <button class="btn btn-ghost btn-xs" onclick="txSelectAll()" id="tx-sel-all-btn">☑ Pilih</button>
-        <button class="btn btn-red btn-xs" onclick="txDeleteSelected()" id="tx-del-sel-btn" style="display:none">Hapus Terpilih</button>
-        <button class="btn btn-red btn-xs" onclick="txClearAll()">Hapus Semua</button>
+        <button class="btn btn-ghost btn-xs" onclick="txSelectAll()" id="tx-sel-all-btn" style="border-radius:6px;font-weight:700">☑ Pilih</button>
+        <button class="btn btn-red btn-xs" onclick="txDeleteSelected()" id="tx-del-sel-btn" style="display:none;border-radius:6px;font-weight:700">Hapus Terpilih</button>
+        <button class="btn btn-ghost btn-xs" onclick="txClearAll()" style="color:var(--red);border-color:rgba(239,68,68,0.3);border-radius:6px;margin-left:4px" title="Hapus semua riwayat transaksi">Hapus Semua</button>
       </div>
     </div>
     <div style="overflow:auto;flex:1;min-height:0" class="tbl-wrap">
@@ -2046,13 +2046,24 @@
       <button class="btn btn-blue" id="btn-beli2">Beli Saham</button>
     </div>
   </div>
-  <!-- Cash widget saham -->
-  <div id="cash-saham-banner" class="cash-sync-banner cash-saham" style="background:rgba(0,0,0,.15);border:1px solid #41f3a733;border-radius:9px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:#41f3a7;letter-spacing:.8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px">KAS AKUN SAHAM (RDN)</span>
-    <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:#41f3a7" id="cash-saham-disp">Rp 0</span>
-    <button class="btn btn-ghost btn-xs" style="color:#41f3a7;border-color:#41f3a744" onclick="openModal('setor', 'saham')" title="Top-up / Mutasi Kas Saham">Top Up / Mutasi</button>
-    <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(0,200,255,.3)" onclick="openModal('adjust', 'saham')" title="Sesuaikan saldo riil via mutasi RDN">Sesuaikan</button>
-    <span style="font-size:10px;color:var(--text3);flex:1">Dana tersedia di rekening sekuritas (Otomatis tersinkron dari Mutasi RDN)</span>
+  <!-- Cash widget saham: Institutional Buying Power & Cash Buffer Card -->
+  <div id="cash-saham-banner" class="cash-sync-banner cash-saham" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,.15)">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:34px;height:34px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);display:flex;align-items:center;justify-content:center;color:#38BDF8">
+          <i class="ti ti-wallet" style="font-size:18px"></i>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase">Kas Akun Saham (RDN)</div>
+          <div style="font-family:var(--font-mono);font-size:18px;font-weight:900;color:var(--text);letter-spacing:-0.3px;font-variant-numeric:tabular-nums" id="cash-saham-disp">Rp 0</div>
+        </div>
+      </div>
+      <span style="font-size:11px;color:var(--text3);max-width:320px;line-height:1.35">Dana likuid tersedia untuk eksekusi order saham (tersinkronisasi dari mutasi RDN).</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-xs" style="color:var(--green);border-color:rgba(16,185,129,0.35);font-weight:700;padding:5px 10px;border-radius:6px" onclick="openModal('setor', 'saham')" title="Top-up / Mutasi Kas Saham"><i class="ti ti-plus"></i> Top Up / Mutasi</button>
+      <button class="btn btn-ghost btn-xs" style="color:var(--accent);border-color:rgba(56,189,248,0.35);font-weight:700;padding:5px 10px;border-radius:6px" onclick="openModal('adjust', 'saham')" title="Sesuaikan saldo riil via mutasi RDN"><i class="ti ti-adjustments"></i> Sesuaikan</button>
+    </div>
   </div>
   <div class="row4" style="margin-bottom:16px">
     <div class="metric"><div class="mlabel">Total Modal</div><div class="mval" id="p-invest">Rp 0</div></div>
@@ -2072,18 +2083,18 @@
        user sees; the 3 supporting cards are still fully present and in
        the same relative order to each other, just after the table now
        instead of before it. -->
-  <div class="card">
-    <div class="filter-toolbar">
-      <input id="porto-filter-search" placeholder="Cari ticker / nama..." class="finput" style="padding:5px 10px;font-size:11px;width:160px" oninput="renderPortofolio()"/>
-      <select class="finput fsel" id="porto-filter-sector" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px"><option value="">Semua Sektor</option></select>
-      <select class="finput fsel" id="porto-filter-signal" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px">
+  <div class="card" style="border-radius:12px">
+    <div class="filter-toolbar" style="padding:10px 14px;background:var(--bg3);border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <input id="porto-filter-search" placeholder="Cari ticker / nama..." class="finput" style="padding:6px 12px;font-size:11.5px;font-family:var(--font-mono);width:170px;border-radius:8px;background:var(--bg2);border:1px solid var(--border2)" oninput="renderPortofolio()"/>
+      <select class="finput fsel" id="porto-filter-sector" onchange="renderPortofolio()" style="padding:6px 10px;font-size:11.5px;border-radius:8px;background:var(--bg2);border:1px solid var(--border2)"><option value="">Semua Sektor</option></select>
+      <select class="finput fsel" id="porto-filter-signal" onchange="renderPortofolio()" style="padding:6px 10px;font-size:11.5px;border-radius:8px;background:var(--bg2);border:1px solid var(--border2)">
         <option value="">Semua Sinyal</option><option value="BUY">BUY</option><option value="HOLD">HOLD</option><option value="SELL">SELL</option>
       </select>
-      <select class="finput fsel" id="porto-filter-pnl" onchange="renderPortofolio()" style="padding:5px 8px;font-size:11px">
+      <select class="finput fsel" id="porto-filter-pnl" onchange="renderPortofolio()" style="padding:6px 10px;font-size:11.5px;border-radius:8px;background:var(--bg2);border:1px solid var(--border2)">
         <option value="">Semua P&amp;L</option><option value="profit">Profit saja</option><option value="loss">Rugi saja</option>
       </select>
-      <button class="btn btn-ghost btn-xs" onclick="resetPortoFilter()">↺ Reset</button>
-      <span style="font-size:10px;color:var(--text3);margin-left:auto" id="porto-filter-count"></span>
+      <button class="btn btn-ghost btn-xs" onclick="resetPortoFilter()" style="font-size:11px;padding:6px 12px;border-radius:8px;font-weight:700">↺ Reset</button>
+      <span style="font-size:10.5px;font-weight:700;color:var(--text3);font-family:var(--font-mono);margin-left:auto" id="porto-filter-count"></span>
     </div>
     <div style="overflow-x:auto" class="tbl-wrap">
       <table class="tbl tbl-freeze-col">
