@@ -3352,6 +3352,82 @@ await asyncTest("REGRESSION GUARD: renderAiSignalHistoryPage() shows the guest-m
   assert(pendingRow.includes('—'), 'REGRESSION: a pending row with no return yet must render an em-dash placeholder, not "undefined%" or a crash');
 });
 
+// Field bug (2026-09-17, INCIDENT_LOG.md): a user hit "Gagal memuat riwayat:
+// Could not find the table 'public.ai_signal_log' in the schema cache" —
+// PostgREST error PGRST205, meaning the table genuinely does not exist yet
+// on the connected Supabase project (the migration in sql/schema_migration.sql
+// was never run there — not a query bug, the table name matches the SQL
+// exactly). The page must turn this specific error into an actionable
+// Indonesian explanation instead of the raw technical PostgREST message,
+// while any OTHER Supabase error still shows through as before (so real
+// bugs stay debuggable).
+test('REGRESSION GUARD: aiSignalHistoryIsMissingTableError() detects PGRST205 "table not found" and nothing else', () => {
+  const hist = getAiSignalHistoryContext();
+  assert.strictEqual(typeof hist.aiSignalHistoryIsMissingTableError, 'function', 'aiSignalHistoryIsMissingTableError must be a function');
+
+  assert.strictEqual(hist.aiSignalHistoryIsMissingTableError({ code: 'PGRST205', message: "Could not find the table 'public.ai_signal_log' in the schema cache" }), true, 'Must detect by PGRST205 code');
+  assert.strictEqual(hist.aiSignalHistoryIsMissingTableError({ message: "Could not find the table 'public.ai_signal_log' in the schema cache" }), true, 'Must detect by message even without the code field');
+  assert.strictEqual(hist.aiSignalHistoryIsMissingTableError({ code: 'PGRST301', message: 'JWT expired' }), false, 'A different error code must not be misclassified as the missing-table case');
+  assert.strictEqual(hist.aiSignalHistoryIsMissingTableError({ message: 'permission denied for table ai_signal_log' }), false, 'An RLS/permission error mentioning the same table must not be misclassified as "table not found"');
+  assert.strictEqual(hist.aiSignalHistoryIsMissingTableError(null), false, 'Must not throw on a null error');
+});
+
+// renderAiSignalHistoryPage() writes its "Memuat..." shell into
+// #page-ai-signal-history, then fetches the NESTED #ai-signal-history-body
+// element to write the eventual error/result into — mimicking that with a
+// single fake element (as test 84f does, since its success path only ever
+// touches the outer container via aiSignalHistoryRenderRows) is not enough
+// here, so this mock tracks both ids as separate elements.
+function mockAiSignalHistoryDom() {
+  const state = { outer: '', inner: '' };
+  const dom = {
+    getElementById(id) {
+      if (id === 'page-ai-signal-history') {
+        return { set innerHTML(v) { state.outer = v; }, get innerHTML() { return state.outer; } };
+      }
+      if (id === 'ai-signal-history-body') {
+        return { set innerHTML(v) { state.inner = v; }, get innerHTML() { return state.inner; } };
+      }
+      return null;
+    }
+  };
+  return { dom, state };
+}
+
+await asyncTest('REGRESSION GUARD: renderAiSignalHistoryPage() shows an actionable message (not a raw PostgREST error) when ai_signal_log does not exist yet, but still surfaces other errors verbatim', async () => {
+  // 1. The exact real-world error: table missing (migration never run).
+  const histMissing = getAiSignalHistoryContext();
+  histMissing.getAppUserId = () => 'uid-missing-table-test';
+  histMissing.getSupabaseClient = () => ({
+    from: () => ({ select: () => ({ eq: () => ({ order: () => ({ limit: () => Promise.resolve({
+      data: null,
+      error: { code: 'PGRST205', message: "Could not find the table 'public.ai_signal_log' in the schema cache" }
+    }) }) }) }) })
+  });
+  const missingDom = mockAiSignalHistoryDom();
+  histMissing.document.getElementById = missingDom.dom.getElementById;
+  await histMissing.renderAiSignalHistoryPage();
+  assert(missingDom.state.inner.includes('belum ada di database Supabase'), 'REGRESSION: missing-table error must show the actionable "table does not exist yet" explanation');
+  assert(missingDom.state.inner.includes('sql/schema_migration.sql'), 'REGRESSION: the actionable message must point to the migration file that needs to be run');
+  assert(!missingDom.state.inner.includes('Gagal memuat riwayat: Could not find the table'), 'REGRESSION: must not show the raw confusing PostgREST message as the primary text');
+
+  // 2. A different, genuine error must still show through as before —
+  // the friendlier message must not swallow unrelated failures.
+  const histOther = getAiSignalHistoryContext();
+  histOther.getAppUserId = () => 'uid-other-error-test';
+  histOther.getSupabaseClient = () => ({
+    from: () => ({ select: () => ({ eq: () => ({ order: () => ({ limit: () => Promise.resolve({
+      data: null,
+      error: { code: 'PGRST301', message: 'JWT expired' }
+    }) }) }) }) })
+  });
+  const otherDom = mockAiSignalHistoryDom();
+  histOther.document.getElementById = otherDom.dom.getElementById;
+  await histOther.renderAiSignalHistoryPage();
+  assert(otherDom.state.inner.includes('Gagal memuat riwayat: JWT expired'), 'REGRESSION: a genuinely different error must still surface its real message, not be masked by the missing-table explanation');
+  assert(!otherDom.state.inner.includes('belum ada di database Supabase'), 'REGRESSION: the missing-table explanation must not leak into unrelated errors');
+});
+
 // ── TEST 84g: GET /api/ai/status (server.js) — toolbar audit fix (2026-09-17,
 // INCIDENT_LOG.md): before this endpoint existed, the "AI Engine Live"
 // bottom-toolbar indicator was hardcoded HTML that never reflected whether
