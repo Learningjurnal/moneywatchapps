@@ -785,7 +785,8 @@ var FS_BROKER_SCAN = {
   scannedCount: 0,
   timeframe: '1D',
   notConfigured: false, // Invezgo API key belum ada sama sekali — berhenti total
-  loading: false
+  loading: false,
+  quota: null // { used, monthlyBudget, remaining, usagePct, alert80, alert90 } dari /api/idx/invezgo-status
 };
 
 function fsResetBrokerScan() {
@@ -795,6 +796,40 @@ function fsResetBrokerScan() {
   FS_BROKER_SCAN.distribution = [];
   FS_BROKER_SCAN.scannedCount = 0;
   FS_BROKER_SCAN.notConfigured = false;
+}
+
+// FIX AUDIT (2026-09-17, quota budget planning, user-requested: "atur
+// dulu kuotanya agar cukup dipakai 1 bulan"): 1 saham = 1 kuota Invezgo
+// (30.000/bulan default), dan endpoint /api/idx/invezgo-status (sudah ada
+// sebelumnya untuk observability backend) belum pernah ditampilkan ke
+// user — orang bisa klik "Lanjutkan Scan" berkali-kali tanpa tahu berapa
+// kuota bulanan yang sudah/akan terpakai sampai tiba-tiba kuota habis
+// (endpoint sudah menangani QUOTA_EXHAUSTED dengan aman, tapi tanpa
+// visibility user tidak bisa MENGATUR pemakaiannya sendiri). Diambil ulang
+// setiap kali masuk mode ini & setelah tiap batch (karena berubah).
+async function fsFetchInvezgoQuotaStatus() {
+  try {
+    var res = await fetch('/api/idx/invezgo-status');
+    var json = await res.json();
+    if (json && json.success) FS_BROKER_SCAN.quota = json.quota;
+  } catch (e) {
+    console.warn('[Smart Money Screener] Gagal memuat status kuota Invezgo:', e && e.message);
+  }
+}
+
+function fsRenderQuotaBar() {
+  var q = FS_BROKER_SCAN.quota;
+  if (!q) return '';
+  var color = q.alert90 ? '#EF4444' : q.alert80 ? '#F59E0B' : 'var(--green)';
+  var label = q.remaining <= 0
+    ? 'Kuota Invezgo bulan ini HABIS (' + q.used.toLocaleString('id-ID') + '/' + q.monthlyBudget.toLocaleString('id-ID') + ') — reset otomatis awal bulan berikutnya'
+    : 'Kuota Invezgo bulan ini: ' + q.used.toLocaleString('id-ID') + ' / ' + q.monthlyBudget.toLocaleString('id-ID') + ' terpakai (' + q.usagePct + '%) — sisa ' + q.remaining.toLocaleString('id-ID');
+  return '<div class="card" style="padding:8px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;border-left:3px solid ' + color + '">'
+    + '<div style="flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">'
+      + '<div style="width:' + Math.min(100, q.usagePct) + '%;height:100%;background:' + color + '"></div>'
+    + '</div>'
+    + '<span style="font-size:11px;color:' + color + ';font-weight:700;white-space:nowrap">' + label + '</span>'
+    + '</div>';
 }
 
 function fsSetBrokerScanTimeframe(tf) {
@@ -807,6 +842,8 @@ function fsSetBrokerScanTimeframe(tf) {
 async function fsRenderBrokerFlowMode() {
   var c = document.getElementById('sms-broker-content');
   if (!c) return;
+
+  if (!FS_BROKER_SCAN.notConfigured) await fsFetchInvezgoQuotaStatus();
 
   if (FS_BROKER_SCAN.notConfigured) {
     c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
@@ -866,6 +903,10 @@ async function fsRunNextBrokerScanBatch() {
       FS_BROKER_SCAN.accumulation.sort(function(a, b) { return (b.smartMoneyInflowRp || 0) - (a.smartMoneyInflowRp || 0); });
       FS_BROKER_SCAN.distribution.sort(function(a, b) { return (a.smartMoneyInflowRp || 0) - (b.smartMoneyInflowRp || 0); });
     }
+    // Kuota berubah setelah batch ini (reserveQuota() server-side sudah
+    // jalan per ticker) — refresh angkanya supaya bar di UI selalu akurat,
+    // bukan cuma perkiraan dari sebelum batch dijalankan.
+    await fsFetchInvezgoQuotaStatus();
   } catch (e) {
     console.warn('[Smart Money Screener] Batch scan gagal:', e && e.message);
   } finally {
@@ -894,8 +935,11 @@ function fsRenderBrokerScanUI(c) {
   var accList = FS_BROKER_SCAN.accumulation;
   var distList = FS_BROKER_SCAN.distribution;
   var tf = FS_BROKER_SCAN.timeframe;
+  var quotaExhausted = !!(FS_BROKER_SCAN.quota && FS_BROKER_SCAN.quota.remaining <= 0);
 
-  var html = '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+  var html = fsRenderQuotaBar()
+
+  + '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
     + '<div>'
       + '<div style="font-weight:700;font-size:13px;color:var(--text)">Pemindaian Smart Money &amp; Retail Absorption (Seluruh BEI)</div>'
       + '<div style="font-size:11px;color:var(--text3)">Mendeteksi anomali akumulasi bandar tersembunyi dan distribusi institusi besar dari broker-flow riil.</div>'
@@ -916,9 +960,9 @@ function fsRenderBrokerScanUI(c) {
       + (isDone ? ' — <span style="color:var(--green);font-weight:700">selesai</span>' : '')
     + '</div>'
     + (isDone
-        ? '<button class="btn btn-ghost btn-xs" onclick="fsResetBrokerScan();fsRenderBrokerFlowMode()">Scan Ulang dari Awal</button>'
-        : '<button class="btn btn-primary btn-xs" ' + (FS_BROKER_SCAN.loading ? 'disabled' : '') + ' onclick="fsRunNextBrokerScanBatch()">'
-          + (FS_BROKER_SCAN.loading ? 'Memindai…' : 'Lanjutkan Scan (+' + Math.min(FS_BROKER_SCAN.batchSize, totalUniverse - scanned) + ' saham)')
+        ? '<button class="btn btn-ghost btn-xs" ' + (quotaExhausted ? 'disabled title="Kuota Invezgo bulan ini habis"' : '') + ' onclick="fsResetBrokerScan();fsRenderBrokerFlowMode()">Scan Ulang dari Awal</button>'
+        : '<button class="btn btn-primary btn-xs" ' + (FS_BROKER_SCAN.loading || quotaExhausted ? 'disabled' : '') + ' ' + (quotaExhausted ? 'title="Kuota Invezgo bulan ini habis — coba lagi bulan depan"' : '') + ' onclick="fsRunNextBrokerScanBatch()">'
+          + (FS_BROKER_SCAN.loading ? 'Memindai…' : quotaExhausted ? 'Kuota Habis' : 'Lanjutkan Scan (+' + Math.min(FS_BROKER_SCAN.batchSize, totalUniverse - scanned) + ' saham)')
           + '</button>')
   + '</div>';
 

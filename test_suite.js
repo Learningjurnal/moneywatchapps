@@ -4968,6 +4968,37 @@ test('REGRESSION GUARD: getUniverseAccumulationDistribution() must accept a call
   assert(/app\.post\('\/api\/idx\/accumulation-distribution'/.test(serverSrc), 'REGRESSION: POST /api/idx/accumulation-distribution is gone — the client needs this to submit a batch of tickers from the full IDX universe (a GET query string does not comfortably fit 80 tickers repeatedly)');
 });
 
+// User-requested (2026-09-17): "atur dulu kuotanya agar cukup dipakai 1
+// bulan" (budget the Invezgo quota so it lasts a month) before actually
+// using their real API key. Two levers: (1) the shared broker-summary
+// cache TTL was a hardcoded 300s (5 min) inherited from before the full-BEI
+// scanner existed — barely helps a scan of ~958 DISTINCT tickers (almost
+// every one is a first-time miss regardless of TTL), but does mean a
+// second full scan (or repeat StockChat/Bandarmology lookups) more than 5
+// minutes apart each cost a fresh chunk of the shared 30,000/month budget
+// even though broker-flow composition doesn't meaningfully change
+// minute-to-minute for a retail screening tool. Bumped to 30 min by
+// default, and made configurable via env var. (2) the pre-existing
+// GET /api/idx/invezgo-status observability endpoint was never surfaced to
+// the user — they had no way to see how much of the monthly budget a full
+// scan (or several) had already spent, so they couldn't self-regulate.
+// Now shown as a quota bar in the Broker Flow Riil mode, refreshed after
+// every batch, with the scan button disabled once the budget is exhausted.
+test('REGRESSION GUARD: Invezgo quota budget planning — longer cache TTL + quota visibility in Smart Money Screener', () => {
+  const clientSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  const flowScanSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+
+  assert(!/const INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC = 300;/.test(clientSrc),
+    'REGRESSION: the broker-summary cache TTL reverted to the old hardcoded 300s (5 min) — barely helps the full-BEI scanner and burns through the monthly quota faster than necessary for a retail (non-HFT) screening tool');
+  assert(/INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC = Number\(process\.env\.INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC \|\| 1800\)/.test(clientSrc),
+    'REGRESSION: the broker-summary cache TTL must be configurable via env var (operators need to tune the freshness/budget tradeoff without a code change) with a 1800s (30 min) default');
+
+  assert(/function fsFetchInvezgoQuotaStatus/.test(flowScanSrc), 'REGRESSION: fsFetchInvezgoQuotaStatus() is gone — the Smart Money Screener no longer surfaces Invezgo quota usage to the user');
+  assert(/'\/api\/idx\/invezgo-status'/.test(flowScanSrc), 'REGRESSION: the Broker Flow Riil mode no longer calls the existing quota observability endpoint');
+  assert(/function fsRenderQuotaBar/.test(flowScanSrc), 'REGRESSION: fsRenderQuotaBar() is gone — quota usage is no longer visually shown to the user');
+  assert(/quotaExhausted/.test(flowScanSrc), 'REGRESSION: the scan button no longer checks for quota exhaustion — a user could keep clicking "Lanjutkan Scan" after the monthly budget is already spent');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
