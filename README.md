@@ -87,7 +87,6 @@ Aplikasi dibangun secara modular, terstruktur dalam 41 modul front-end (`public/
 | `js/29-institutional-ui.js` | Command palette (Ctrl+K), density tabel, sparkline utilities |
 | `js/30-price-alerts.js` | Sistem notifikasi & peringatan target harga |
 | `js/32-pdf-reports.js` | Generator laporan portofolio konsolidasi berformat PDF |
-| `js/33-trending-news.js` | Kurasi berita pasar keuangan (Google Search Grounding) |
 | `js/34-ksei-shareholders.js` | Pemindai data kepemilikan institusi/asing KSEI 5%+ |
 | `js/35-settings.js` | Pengaturan pajak, fee broker, tujuan finansial, & backup |
 | `js/36-crypto-technical.js` | Analisis teknikal & whale flow crypto |

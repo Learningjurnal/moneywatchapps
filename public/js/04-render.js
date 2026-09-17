@@ -523,9 +523,6 @@ function renderTransaksi(){
       +'</tr>';
   }).join('')||'<tr><td colspan="14" style="text-align:center;color:var(--text3);padding:16px;font-family:var(--font-mono)">Belum ada transaksi</td></tr>';
 
-  if (typeof renderTrendingNews === 'function') {
-    try { renderTrendingNews(); } catch (e) { console.warn('Trending news render error:', e); }
-  }
 }
 
 var _portoChartMode = 'sector'; // 'sector' or 'class'
