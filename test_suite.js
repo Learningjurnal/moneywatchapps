@@ -4999,6 +4999,105 @@ test('REGRESSION GUARD: Invezgo quota budget planning — longer cache TTL + quo
   assert(/quotaExhausted/.test(flowScanSrc), 'REGRESSION: the scan button no longer checks for quota exhaustion — a user could keep clicking "Lanjutkan Scan" after the monthly budget is already spent');
 });
 
+// ── TEST: Bandarmology market-aggregate views (Market Flow, Foreign Flow,
+// Accumulation, Distribution, Broker Trail) must read real Invezgo data
+// when available, not always simulation ──
+// User report (2026-09-17, after setting INVEZGO_API_KEY in production):
+// "Estimasi Foreign Net Buy/Sell di bawah dihitung dari simulasi transaksi
+// broker" was still shown even with a real, working API key. Root cause:
+// these 5 views always called generateClientSideBrokerSummary() directly
+// (100% simulated, documented as an accepted limitation in
+// KNOWN_ISSUES.md #3/INCIDENT_LOG.md #7) instead of the same real-data path
+// ("Analisis Full Emiten" tab's fetchBrokerSummaryData()) already used
+// elsewhere. A SECOND, more subtle bug was found while fixing this: real
+// data (computeBandarmologyVerdict() in lib/idx-data-engine.js) and
+// simulated data (generateClientSideBrokerSummary() here) use DIFFERENT
+// field names for the same figures (netValueRp vs netValRp,
+// smartMoney.institutionalNetRp vs retailVsSmartMoney.smartMoneyNetValRp) —
+// Market Flow View only checked the simulated names, so it would have
+// silently shown Rp 0 for every segment even once wired to real data.
+test('REGRESSION GUARD: Bandarmology market-aggregate views use real Invezgo data when available, and correctly read both real/simulated field-name shapes', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  // 1. The 5 reachable market-aggregate views must no longer call
+  // generateClientSideBrokerSummary() directly for their per-ticker loop —
+  // they must go through bandarGetCachedSummary() (real-data-aware) instead.
+  const viewBounds = [
+    ['renderBandarmologyMarketFlowView', /function renderBandarmologyMarketFlowView[\s\S]*?\n}\n/],
+    ['renderBandarmologyForeignFlowView', /function renderBandarmologyForeignFlowView[\s\S]*?\n}\n/],
+    ['renderBandarmologyAccumulationView', /function renderBandarmologyAccumulationView[\s\S]*?\n}\n/],
+    ['renderBandarmologyDistributionView', /function renderBandarmologyDistributionView[\s\S]*?\n}\n/],
+    ['renderBandarmologyBrokerTrailView', /function renderBandarmologyBrokerTrailView[\s\S]*?\n}\n/]
+  ];
+  viewBounds.forEach(([name, re]) => {
+    const m = src.match(re);
+    assert(m, `REGRESSION: could not locate ${name}() in 41-stockchat-cockpit.js to verify it`);
+    assert(!/generateClientSideBrokerSummary\(/.test(m[0]),
+      `REGRESSION: ${name}() calls generateClientSideBrokerSummary() directly again — it will always show simulated data even with INVEZGO_API_KEY configured, reproducing the exact user-reported bug`);
+    assert(/bandarGetCachedSummary\(/.test(m[0]),
+      `REGRESSION: ${name}() no longer reads through bandarGetCachedSummary() — real Invezgo data (fetched by bandarPrefetchMarketBatch()) will never reach this view`);
+  });
+
+  // 2. The prefetch must actually be wired into the page renderer, and must
+  // re-render once real data arrives (not just fetch-and-discard).
+  assert(/function bandarPrefetchMarketBatch/.test(src), 'REGRESSION: bandarPrefetchMarketBatch() is gone');
+  assert(/bandarPrefetchMarketBatch\(containerId, tk\);/.test(src),
+    'REGRESSION: renderBandarmologyCockpitPage() no longer kicks off the real-data prefetch — views will stay stuck on their simulated first paint forever');
+
+  // 3. Field-name-mapping correctness: extract and directly execute the two
+  // pure helper functions against both real-shaped and simulated-shaped
+  // bandarmology objects, proving neither is silently read as 0.
+  const helperSrc =
+    src.match(/function bandarForeignNetRp[\s\S]*?\n}\n/)[0] +
+    src.match(/function bandarSmartMoneyNetRp[\s\S]*?\n}\n/)[0];
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(helperSrc, sandbox, { filename: 'bandar-field-mapping-helpers (sandboxed)' });
+
+  // Real-shaped bandarmology (computeBandarmologyVerdict()'s actual field names)
+  const realBm = { foreignFlow: { netValRp: 5000000000 }, retailVsSmartMoney: { smartMoneyNetValRp: 3000000000 } };
+  assert.strictEqual(sandbox.bandarForeignNetRp(realBm), 5000000000,
+    'REGRESSION: bandarForeignNetRp() does not read real data\'s netValRp field — real Foreign Net Buy/Sell will show as 0 (the exact user-reported bug)');
+  assert.strictEqual(sandbox.bandarSmartMoneyNetRp(realBm), 3000000000,
+    'REGRESSION: bandarSmartMoneyNetRp() does not read real data\'s retailVsSmartMoney.smartMoneyNetValRp field — Market Flow View\'s sector/Big-4-bank totals will silently show Rp 0 even with real Invezgo data');
+
+  // Simulated-shaped bandarmology (generateClientSideBrokerSummary()'s field names) — must still work identically to before this fix
+  const simBm = { foreignFlow: { netValueRp: 7000000000 }, smartMoney: { institutionalNetRp: 4000000000 } };
+  assert.strictEqual(sandbox.bandarForeignNetRp(simBm), 7000000000,
+    'REGRESSION: bandarForeignNetRp() broke reading the simulated data shape (netValueRp)');
+  assert.strictEqual(sandbox.bandarSmartMoneyNetRp(simBm), 4000000000,
+    'REGRESSION: bandarSmartMoneyNetRp() broke reading the simulated data shape (smartMoney.institutionalNetRp)');
+
+  // 4. bandarGetCachedSummary() must prefer a cached real result over
+  // recomputing simulation, and must fall back to simulation when nothing
+  // is cached yet (first paint, before the prefetch resolves).
+  const cacheHelperSrc = src.match(/function bandarGetCachedSummary[\s\S]*?\n}\n/)[0];
+  const cacheSandbox = {
+    STOCKCHAT_BROKER_DATA_CACHE: { 'BBCA_1D': { isSimulated: false, marker: 'REAL_FROM_CACHE' } },
+    generateClientSideBrokerSummary: (t, tf) => ({ isSimulated: true, marker: 'SIMULATED_FALLBACK', ticker: t, tf })
+  };
+  vm.createContext(cacheSandbox);
+  vm.runInContext(cacheHelperSrc, cacheSandbox, { filename: 'bandarGetCachedSummary (sandboxed)' });
+  const cached = cacheSandbox.bandarGetCachedSummary('BBCA', '1D');
+  assert.strictEqual(cached.marker, 'REAL_FROM_CACHE',
+    'REGRESSION: bandarGetCachedSummary() does not prefer a real cached result — it recomputes simulation even when real data is already available');
+  const uncached = cacheSandbox.bandarGetCachedSummary('XYZZ', '1D');
+  assert.strictEqual(uncached.marker, 'SIMULATED_FALLBACK',
+    'REGRESSION: bandarGetCachedSummary() does not fall back to simulation for a ticker with no cached real data yet (breaks first paint before the prefetch resolves)');
+
+  // 5. Infinite-loop guard: bandarPrefetchMarketBatch() must skip entirely
+  // (no fetch, no re-render) once every needed ticker is already cached.
+  // Caught live via Playwright (not from reading code): fetchBrokerSummaryData()
+  // caches its simulated FALLBACK result too, so a naive "always fetch then
+  // re-render" here re-renders -> re-prefetches -> resolves from cache ->
+  // re-renders again, forever, pegging a CPU core.
+  const prefetchSrc = src.match(/function bandarPrefetchMarketBatch[\s\S]*?\n}\n/)[0];
+  assert(/missing\.length === 0/.test(prefetchSrc),
+    'REGRESSION: bandarPrefetchMarketBatch() no longer checks whether anything is actually missing from the cache before fetching+re-rendering — this reproduces an infinite render loop once every ticker has been fetched at least once (verified live: pegs a CPU core)');
+  assert(/STOCKCHAT_BROKER_DATA_CACHE\[t \+ '_1D'\]/.test(prefetchSrc),
+    'REGRESSION: bandarPrefetchMarketBatch() no longer filters the ticker list against STOCKCHAT_BROKER_DATA_CACHE before deciding whether to fetch');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
