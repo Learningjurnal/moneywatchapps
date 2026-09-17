@@ -731,7 +731,7 @@ function fsRunScanner(){
 //      watchlist+portofolio (~30 saham).
 //   2. "Scanner Akumulasi & Distribusi" — sub-tab Opportunity Radar
 //      (26-commandcenter.js), broker-flow riil Invezgo kalau API key ada,
-//      universe LQ45 (45 saham).
+//      hardcoded ke universe LQ45 (45 saham) walau namanya "Universe-Wide".
 //   3. "Heatmap & Live Scanner" — Bandarmology Cockpit (41-stockchat-
 //      cockpit.js), heatmap sektor + tabel 8 ticker hardcoded, pakai CMF
 //      yang sama dengan Flow Scanner tapi verdict flow-nya simulasi.
@@ -757,103 +757,221 @@ function fsSwitchScreenerMode(mode) {
   }
 }
 
-// Mode "Broker Flow Riil (LQ45)" — dipindahkan dari renderRadarScannerSubTab()
-// (26-commandcenter.js, sebelumnya sub-tab "Scanner Akumulasi & Distribusi"
-// di Opportunity Radar). Memanggil ULANG loadAccumulationDistributionData()/
-// RADAR_STATE.accData milik Command Center — bukan duplikasi data, sub-tab
-// Radar lain (Anomaly Structural & ARA) masih memakai cache yang sama.
+// Mode "Broker Flow Riil (Seluruh BEI)" — dipindahkan & DIPERLUAS dari
+// renderRadarScannerSubTab() (26-commandcenter.js, sebelumnya sub-tab
+// "Scanner Akumulasi & Distribusi", dulu HANYA scan 45 saham LQ45).
+//
+// FIX AUDIT (2026-09-17, user-requested): nama "Universe-Wide"/"seluruh
+// BEI" sebelumnya menyesatkan — implementasinya cuma scan 45 saham LQ45,
+// hardcoded, tidak bisa diperluas. Sekarang benar-benar bisa scan SELURUH
+// ~900+ saham BEI, tapi bertahap per-batch (klik "Lanjutkan Scan") karena
+// tiap saham = 1 kuota Invezgo (default 30.000/bulan) dan satu request
+// serverless punya batas waktu — scan 900 saham sekaligus dalam 1 request
+// akan timeout dan/atau memboroskan kuota bulanan hanya dari satu kali
+// scan. Pola sama dengan aiSetScanUniverse() di 38-ai-autonomous-trading.js
+// (batch bertahap untuk universe besar), TAPI di sini progresnya TIDAK
+// auto-lanjut sendiri — pengguna yang mengontrol kapan lanjut, supaya
+// pemakaian kuota Invezgo tetap sadar/disengaja, bukan otomatis boros.
+// State-nya SENGAJA terpisah dari cache akumulasi/distribusi milik
+// RADAR_STATE (dipakai sub-tab "Anomaly Structural & ARA" di Command
+// Center, dan tetap LQ45-only di sana) — supaya scan seluruh-BEI di sini
+// tidak ikut mencampur hasilnya ke sub-tab lain yang didesain seputar LQ45.
+var FS_BROKER_SCAN = {
+  universe: null,      // seluruh ticker BEI, dimuat sekali dari /api/idx/stocks
+  batchSize: 80,        // sama dengan cap POST /api/idx/ai-scan & endpoint acc/dist
+  nextIndex: 0,          // index awal batch berikutnya di dalam `universe`
+  accumulation: [],
+  distribution: [],
+  scannedCount: 0,
+  timeframe: '1D',
+  notConfigured: false, // Invezgo API key belum ada sama sekali — berhenti total
+  loading: false
+};
+
+function fsResetBrokerScan() {
+  FS_BROKER_SCAN.universe = null;
+  FS_BROKER_SCAN.nextIndex = 0;
+  FS_BROKER_SCAN.accumulation = [];
+  FS_BROKER_SCAN.distribution = [];
+  FS_BROKER_SCAN.scannedCount = 0;
+  FS_BROKER_SCAN.notConfigured = false;
+}
+
+function fsSetBrokerScanTimeframe(tf) {
+  if (tf === FS_BROKER_SCAN.timeframe) return;
+  FS_BROKER_SCAN.timeframe = tf;
+  fsResetBrokerScan();
+  fsRenderBrokerFlowMode();
+}
+
 async function fsRenderBrokerFlowMode() {
   var c = document.getElementById('sms-broker-content');
   if (!c) return;
 
-  if (typeof loadAccumulationDistributionData !== 'function' || typeof RADAR_STATE === 'undefined') {
-    c.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Modul Command Center belum termuat — coba muat ulang halaman.</div>';
-    return;
-  }
-
-  var accData = RADAR_STATE.accData;
-  if (!accData) {
-    await loadAccumulationDistributionData();
-    accData = RADAR_STATE.accData;
-  }
-  if (!accData) {
-    c.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Memuat data broker flow riil LQ45...</div>';
-    return;
-  }
-
-  var accList = accData.accumulation || [];
-  var distList = accData.distribution || [];
-  var tf = RADAR_STATE.accTimeframe || '1D';
-
-  // Tidak ada provider broker-flow riil terkonfigurasi (lihat
-  // getUniverseAccumulationDistribution di lib/idx-data-engine.js) — state
-  // kosong jujur, bukan data karangan.
-  if (accData.isSimulated && !accList.length && !distList.length) {
+  if (FS_BROKER_SCAN.notConfigured) {
     c.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
-      + (accData.message || 'Data akumulasi/distribusi seluruh bursa belum tersedia.')
+      + 'Pemindaian akumulasi/distribusi seluruh bursa membutuhkan feed data broker summary real-time (Invezgo atau setara) yang belum dikonfigurasi di aplikasi ini. Untuk data broker per-saham, gunakan Analisis Emiten pada ticker spesifik.'
       + '</div>';
     return;
   }
 
+  if (!FS_BROKER_SCAN.universe) {
+    c.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Memuat daftar seluruh saham BEI...</div>';
+    try {
+      var uRes = await fetch('/api/idx/stocks');
+      var uJson = await uRes.json();
+      FS_BROKER_SCAN.universe = (uJson && Array.isArray(uJson.data)) ? uJson.data.map(function(s) { return s.code; }) : [];
+    } catch (e) {
+      c.innerHTML = '<div style="color:#EF4444;text-align:center;padding:32px 20px;font-size:13px">Gagal memuat daftar saham: ' + (e && e.message) + '</div>';
+      return;
+    }
+    await fsRunNextBrokerScanBatch();
+    // fsRunNextBrokerScanBatch() sudah merender ulang (termasuk kasus
+    // notConfigured baru terungkap di batch pertama) — jangan timpa lagi.
+    return;
+  }
+
+  fsRenderBrokerScanUI(c);
+}
+
+async function fsRunNextBrokerScanBatch() {
+  if (FS_BROKER_SCAN.loading || FS_BROKER_SCAN.notConfigured) return;
+  var universe = FS_BROKER_SCAN.universe || [];
+  var batch = universe.slice(FS_BROKER_SCAN.nextIndex, FS_BROKER_SCAN.nextIndex + FS_BROKER_SCAN.batchSize);
+  if (!batch.length) return;
+
+  FS_BROKER_SCAN.loading = true;
+  var c = document.getElementById('sms-broker-content');
+  if (c) fsRenderBrokerScanUI(c);
+
+  try {
+    var res = await fetch('/api/idx/accumulation-distribution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tickers: batch, timeframe: FS_BROKER_SCAN.timeframe })
+    });
+    var data = await res.json();
+    FS_BROKER_SCAN.nextIndex += batch.length;
+
+    // Invezgo API key sama sekali tidak dikonfigurasi — bukan "batch ini
+    // kosong", tapi "seluruh fitur ini tidak tersedia". Deteksi lewat
+    // counts.totalUniverseScanned===0 (lihat getUniverseAccumulationDistribution)
+    // dan berhenti total, tidak ada gunanya lanjut ke batch berikutnya.
+    if (data && data.isSimulated && data.counts && data.counts.totalUniverseScanned === 0 && FS_BROKER_SCAN.scannedCount === 0) {
+      FS_BROKER_SCAN.notConfigured = true;
+    } else if (data && data.success) {
+      FS_BROKER_SCAN.scannedCount += batch.length;
+      FS_BROKER_SCAN.accumulation = FS_BROKER_SCAN.accumulation.concat(data.accumulation || []);
+      FS_BROKER_SCAN.distribution = FS_BROKER_SCAN.distribution.concat(data.distribution || []);
+      FS_BROKER_SCAN.accumulation.sort(function(a, b) { return (b.smartMoneyInflowRp || 0) - (a.smartMoneyInflowRp || 0); });
+      FS_BROKER_SCAN.distribution.sort(function(a, b) { return (a.smartMoneyInflowRp || 0) - (b.smartMoneyInflowRp || 0); });
+    }
+  } catch (e) {
+    console.warn('[Smart Money Screener] Batch scan gagal:', e && e.message);
+  } finally {
+    FS_BROKER_SCAN.loading = false;
+  }
+
+  var c2 = document.getElementById('sms-broker-content');
+  if (!c2) return;
+  // Batch pertama bisa saja BARU mengungkap bahwa Invezgo tidak
+  // dikonfigurasi sama sekali (notConfigured baru di-set di atas) — dalam
+  // kasus itu tampilkan pesan honest-empty, bukan lanjut merender panel
+  // scan yang tombol "Lanjutkan Scan"-nya cuma akan mengulang hasil kosong
+  // yang sama selamanya.
+  if (FS_BROKER_SCAN.notConfigured) {
+    fsRenderBrokerFlowMode();
+  } else {
+    fsRenderBrokerScanUI(c2);
+  }
+}
+
+function fsRenderBrokerScanUI(c) {
+  var universe = FS_BROKER_SCAN.universe || [];
+  var totalUniverse = universe.length;
+  var scanned = Math.min(FS_BROKER_SCAN.nextIndex, totalUniverse);
+  var isDone = scanned >= totalUniverse;
+  var accList = FS_BROKER_SCAN.accumulation;
+  var distList = FS_BROKER_SCAN.distribution;
+  var tf = FS_BROKER_SCAN.timeframe;
+
   var html = '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
     + '<div>'
-      + '<div style="font-weight:700;font-size:13px;color:var(--text)">Pemindaian Smart Money &amp; Retail Absorption (LQ45)</div>'
+      + '<div style="font-weight:700;font-size:13px;color:var(--text)">Pemindaian Smart Money &amp; Retail Absorption (Seluruh BEI)</div>'
       + '<div style="font-size:11px;color:var(--text3)">Mendeteksi anomali akumulasi bandar tersembunyi dan distribusi institusi besar dari broker-flow riil.</div>'
     + '</div>'
     + '<div style="display:flex;align-items:center;gap:6px">'
       + '<span style="font-size:11px;color:var(--text3)">Timeframe:</span>'
       + '<div style="display:inline-flex;gap:4px">'
         + ['1D', '3D', '5D', '20D'].map(function(t) {
-            return '<button class="btn btn-xs ' + (tf === t ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'' + t + '\').then(fsRenderBrokerFlowMode)">' + t + '</button>';
+            return '<button class="btn btn-xs ' + (tf === t ? 'btn-primary' : 'btn-ghost') + '" ' + (FS_BROKER_SCAN.loading ? 'disabled' : '') + ' onclick="fsSetBrokerScanTimeframe(\'' + t + '\')">' + t + '</button>';
           }).join('')
       + '</div>'
     + '</div>'
   + '</div>'
 
-  + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">'
-    + '<div class="card" style="padding:0;overflow:hidden">'
-      + '<div style="padding:12px 16px;background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.2);display:flex;justify-content:space-between;align-items:center">'
-        + '<div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--green);font-size:13px">TOP AKUMULASI (SMART MONEY INFLOW)</strong></div>'
-        + '<span class="badge b-up">' + accList.length + ' Saham</span>'
-      + '</div>'
-      + '<div style="overflow-x:auto"><table class="tbl">'
-        + '<thead><tr><th>Ticker</th><th>Verdict Bandar</th><th style="text-align:right">Smart Inflow</th><th style="text-align:right">Foreign Net</th><th style="text-align:center">Alur</th></tr></thead>'
-        + '<tbody>'
-        + accList.map(function(it) {
-            var inflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
-            var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
-            var verdictClass = it.bandarVerdict.includes('BIG') ? 'b-up' : 'b-accent';
-            return '<tr>'
-              + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong><div style="font-size:10px;color:var(--text3)">Top Buy: ' + (it.topBuyers ? it.topBuyers.join(', ') : '-') + '</div></td>'
-              + '<td><span class="badge ' + verdictClass + '" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
-              + '<td class="mono up" style="text-align:right;font-weight:700">+Rp ' + inflowM.toLocaleString('id-ID') + ' M</td>'
-              + '<td class="mono ' + (foreignM >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (foreignM >= 0 ? '+' : '') + foreignM.toLocaleString('id-ID') + ' M</td>'
-              + '<td style="text-align:center"><button class="btn btn-ghost btn-xs" onclick="fsOpenBrokerFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button></td>'
-              + '</tr>';
-          }).join('')
-        + '</tbody></table></div></div>'
-
-    + '<div class="card" style="padding:0;overflow:hidden">'
-      + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);display:flex;justify-content:space-between;align-items:center">'
-        + '<div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--red);font-size:13px">TOP DISTRIBUSI (TEKANAN JUAL / RETAIL TRAP)</strong></div>'
-        + '<span class="badge b-dn">' + distList.length + ' Saham</span>'
-      + '</div>'
-      + '<div style="overflow-x:auto"><table class="tbl">'
-        + '<thead><tr><th>Ticker</th><th>Verdict Bandar</th><th style="text-align:right">Tekanan Jual</th><th style="text-align:right">Foreign Net</th><th style="text-align:center">Alur</th></tr></thead>'
-        + '<tbody>'
-        + distList.map(function(it) {
-            var outflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
-            var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
-            return '<tr>'
-              + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong><div style="font-size:10px;color:var(--text3)">Top Sell: ' + (it.topSellers ? it.topSellers.join(', ') : '-') + '</div></td>'
-              + '<td><span class="badge b-dn" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
-              + '<td class="mono dn" style="text-align:right;font-weight:700">-Rp ' + Math.abs(outflowM).toLocaleString('id-ID') + ' M</td>'
-              + '<td class="mono dn" style="text-align:right">' + foreignM.toLocaleString('id-ID') + ' M</td>'
-              + '<td style="text-align:center"><button class="btn btn-ghost btn-xs" onclick="fsOpenBrokerFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button></td>'
-              + '</tr>';
-          }).join('')
-        + '</tbody></table></div></div>'
+  + '<div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+    + '<div style="font-size:12px;color:var(--text2)">'
+      + '<strong style="color:var(--text)">' + scanned.toLocaleString('id-ID') + '</strong> dari <strong style="color:var(--text)">' + totalUniverse.toLocaleString('id-ID') + '</strong> saham BEI sudah dipindai'
+      + (isDone ? ' — <span style="color:var(--green);font-weight:700">selesai</span>' : '')
+    + '</div>'
+    + (isDone
+        ? '<button class="btn btn-ghost btn-xs" onclick="fsResetBrokerScan();fsRenderBrokerFlowMode()">Scan Ulang dari Awal</button>'
+        : '<button class="btn btn-primary btn-xs" ' + (FS_BROKER_SCAN.loading ? 'disabled' : '') + ' onclick="fsRunNextBrokerScanBatch()">'
+          + (FS_BROKER_SCAN.loading ? 'Memindai…' : 'Lanjutkan Scan (+' + Math.min(FS_BROKER_SCAN.batchSize, totalUniverse - scanned) + ' saham)')
+          + '</button>')
   + '</div>';
+
+  if (!accList.length && !distList.length) {
+    html += '<div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12.5px">'
+      + (FS_BROKER_SCAN.loading ? 'Memindai batch pertama...' : 'Belum ada saham dengan verdict akumulasi/distribusi kuat di batch yang sudah dipindai.')
+      + '</div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">'
+      + '<div class="card" style="padding:0;overflow:hidden">'
+        + '<div style="padding:12px 16px;background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.2);display:flex;justify-content:space-between;align-items:center">'
+          + '<div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--green);font-size:13px">TOP AKUMULASI (SMART MONEY INFLOW)</strong></div>'
+          + '<span class="badge b-up">' + accList.length + ' Saham</span>'
+        + '</div>'
+        + '<div style="overflow-x:auto"><table class="tbl">'
+          + '<thead><tr><th>Ticker</th><th>Verdict Bandar</th><th style="text-align:right">Smart Inflow</th><th style="text-align:right">Foreign Net</th><th style="text-align:center">Alur</th></tr></thead>'
+          + '<tbody>'
+          + accList.map(function(it) {
+              var inflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
+              var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
+              var verdictClass = it.bandarVerdict.includes('BIG') ? 'b-up' : 'b-accent';
+              return '<tr>'
+                + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong><div style="font-size:10px;color:var(--text3)">Top Buy: ' + (it.topBuyers ? it.topBuyers.join(', ') : '-') + '</div></td>'
+                + '<td><span class="badge ' + verdictClass + '" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
+                + '<td class="mono up" style="text-align:right;font-weight:700">+Rp ' + inflowM.toLocaleString('id-ID') + ' M</td>'
+                + '<td class="mono ' + (foreignM >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (foreignM >= 0 ? '+' : '') + foreignM.toLocaleString('id-ID') + ' M</td>'
+                + '<td style="text-align:center"><button class="btn btn-ghost btn-xs" onclick="fsOpenBrokerFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button></td>'
+                + '</tr>';
+            }).join('')
+          + '</tbody></table></div></div>'
+
+      + '<div class="card" style="padding:0;overflow:hidden">'
+        + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);display:flex;justify-content:space-between;align-items:center">'
+          + '<div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--red);font-size:13px">TOP DISTRIBUSI (TEKANAN JUAL / RETAIL TRAP)</strong></div>'
+          + '<span class="badge b-dn">' + distList.length + ' Saham</span>'
+        + '</div>'
+        + '<div style="overflow-x:auto"><table class="tbl">'
+          + '<thead><tr><th>Ticker</th><th>Verdict Bandar</th><th style="text-align:right">Tekanan Jual</th><th style="text-align:right">Foreign Net</th><th style="text-align:center">Alur</th></tr></thead>'
+          + '<tbody>'
+          + distList.map(function(it) {
+              var outflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
+              var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
+              return '<tr>'
+                + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong><div style="font-size:10px;color:var(--text3)">Top Sell: ' + (it.topSellers ? it.topSellers.join(', ') : '-') + '</div></td>'
+                + '<td><span class="badge b-dn" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
+                + '<td class="mono dn" style="text-align:right;font-weight:700">-Rp ' + Math.abs(outflowM).toLocaleString('id-ID') + ' M</td>'
+                + '<td class="mono dn" style="text-align:right">' + foreignM.toLocaleString('id-ID') + ' M</td>'
+                + '<td style="text-align:center"><button class="btn btn-ghost btn-xs" onclick="fsOpenBrokerFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button></td>'
+                + '</tr>';
+            }).join('')
+          + '</tbody></table></div></div>'
+    + '</div>';
+  }
 
   c.innerHTML = html;
 }
@@ -867,64 +985,104 @@ function fsOpenBrokerFlowTicker(ticker) {
   if (typeof selectRadarFlowTicker === 'function') selectRadarFlowTicker(ticker);
 }
 
-// Mode "Heatmap Sektor" — dipindahkan dari renderBandarmologyHeatmapScannerView()
-// (41-stockchat-cockpit.js). BANDAR_SECTOR_DEFS/generateClientSideBrokerSummary
-// tetap di file aslinya (dipakai juga oleh Market Flow view Bandarmology),
-// dipanggil ulang dari sini, bukan diduplikasi.
-function fsRenderSectorHeatmapMode() {
+// Mode "Heatmap Sektor" — dipindahkan & DIPERLUAS dari
+// renderBandarmologyHeatmapScannerView() (41-stockchat-cockpit.js).
+// generateClientSideBrokerSummary() tetap di file aslinya (dipakai juga
+// oleh Market Flow view Bandarmology), dipanggil ulang dari sini.
+//
+// FIX AUDIT (2026-09-17, user-requested): tabel "PEMINDAI SMART MONEY &
+// BANDAR RADAR" sebelumnya cuma memindai 8 ticker hardcoded
+// (scannerCandidates), dan agregasi sektornya cuma memakai BANDAR_SECTOR_DEFS
+// (~37 saham kurasi manual untuk 5 sektor) — bukan seluruh BEI walau
+// judulnya "SEKTORAL BEI". Sekarang memindai SELURUH ~900+ saham BEI (dari
+// /api/idx/stocks, sektor asli per-saham, bukan daftar kurasi manual).
+// generateClientSideBrokerSummary() itu sendiri sinkron/lokal (bukan fetch
+// jaringan per ticker — lihat getAccurateStockPrice()'s multi-tier price
+// fallback yang mencakup DB[]/harga referensi seluruh emiten), jadi memindai
+// ~900 ticker tidak butuh batching bertahap seperti mode Broker Flow Riil
+// (yang dibatasi kuota Invezgo berbayar) — ini murni simulasi lokal, sudah
+// diberi badge SIMULASI FLOW sejak awal. Ticker tanpa harga/valid data
+// (isValidTicker===false) dilewati (baris kosong), tidak dikarang.
+var FS_SECTOR_SCAN_UNIVERSE = null; // [{code, sector}] seluruh BEI, dimuat sekali
+
+async function fsRenderSectorHeatmapMode() {
   var c = document.getElementById('sms-sector-content');
   if (!c) return;
 
-  if (typeof BANDAR_SECTOR_DEFS === 'undefined' || typeof generateClientSideBrokerSummary !== 'function') {
+  if (typeof generateClientSideBrokerSummary !== 'function') {
     c.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Modul Bandarmology belum termuat — coba muat ulang halaman.</div>';
     return;
   }
 
-  var sectorColors = ['var(--green)', 'var(--red)'];
-  var sectors = BANDAR_SECTOR_DEFS.map(function(sec) {
-    var secNetVal = 0;
-    sec.tickers.forEach(function(t) {
-      var bd = generateClientSideBrokerSummary(t, '1D');
-      if (bd && bd.isValidTicker !== false) {
-        secNetVal += (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
-      }
-    });
-    var secM = Math.round(secNetVal / 1000000000);
-    var isAcc = secM >= 0;
-    return {
-      name: sec.name,
-      flowVal: (secM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(secM).toLocaleString('id-ID') + ' M',
-      count: sec.tickers.length,
-      isAcc: isAcc,
-      borderCol: isAcc ? sectorColors[0] : sectorColors[1]
-    };
-  });
+  if (!FS_SECTOR_SCAN_UNIVERSE) {
+    c.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Memuat daftar seluruh saham BEI...</div>';
+    try {
+      var uRes = await fetch('/api/idx/stocks');
+      var uJson = await uRes.json();
+      FS_SECTOR_SCAN_UNIVERSE = (uJson && Array.isArray(uJson.data))
+        ? uJson.data.map(function(s) { return { code: s.code, sector: fsSectorLabel(s.sector) || s.sector || 'Lainnya' }; })
+        : [];
+    } catch (e) {
+      c.innerHTML = '<div style="color:#EF4444;text-align:center;padding:32px 20px;font-size:13px">Gagal memuat daftar saham: ' + (e && e.message) + '</div>';
+      return;
+    }
+  }
 
-  var scannerCandidates = ['BBCA', 'BBRI', 'BMRI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'GOTO'];
-  var sectorByTicker = {};
-  BANDAR_SECTOR_DEFS.forEach(function(sec) { sec.tickers.forEach(function(t) { sectorByTicker[t] = sec.name.split(' (')[0]; }); });
+  var universe = FS_SECTOR_SCAN_UNIVERSE;
+  var sectorTotals = {}; // name -> { net: number, count: number }
+  var scannerRows = [];
 
-  var scannerRows = scannerCandidates.map(function(t) {
-    var bd = generateClientSideBrokerSummary(t, '1D');
-    if (!bd || bd.isValidTicker === false) return null;
+  universe.forEach(function(item) {
+    var bd = generateClientSideBrokerSummary(item.code, '1D');
+    if (!bd || bd.isValidTicker === false) return; // data tidak tersedia — dilewati, bukan dikarang
+
+    var netRp = (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
+    var secName = item.sector;
+    if (!sectorTotals[secName]) sectorTotals[secName] = { net: 0, count: 0 };
+    sectorTotals[secName].net += netRp;
+    sectorTotals[secName].count += 1;
+
     var cmfVal = 0;
     if (typeof fsGenData === 'function' && typeof fsCalcCMF === 'function') {
-      var series = fsGenData(t, 30);
+      var series = fsGenData(item.code, 30);
       if (series && series.length) { var cmfArr = fsCalcCMF(series, 20); cmfVal = cmfArr[cmfArr.length - 1] || 0; }
     }
-    var netM = Math.round(((bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0) / 1000000000);
+    var netM = Math.round(netRp / 1000000000);
     var isAcc = netM >= 0;
-    return {
-      ticker: t,
-      sector: sectorByTicker[t] || '-',
+    scannerRows.push({
+      ticker: item.code,
+      sector: secName,
       price: bd.price,
       chg: (bd.changePercent >= 0 ? '+' : '') + Number(bd.changePercent || 0).toFixed(2) + '%',
       cmf: (cmfVal >= 0 ? '+' : '') + cmfVal.toFixed(2),
       verdict: (bd.bandarmology && bd.bandarmology.verdict) || (isAcc ? 'ACCUMULATION' : 'DISTRIBUTION'),
       flowM: (netM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netM).toLocaleString('id-ID') + ' M',
+      absNetM: Math.abs(netM),
       signal: (bd.bandarmology && bd.bandarmology.smartMoney && bd.bandarmology.smartMoney.signal) || '-'
+    });
+  });
+
+  var sectorColors = ['var(--green)', 'var(--red)'];
+  var sectors = Object.keys(sectorTotals).map(function(name) {
+    var t = sectorTotals[name];
+    var secM = Math.round(t.net / 1000000000);
+    var isAcc = secM >= 0;
+    return {
+      name: name,
+      flowVal: (secM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(secM).toLocaleString('id-ID') + ' M',
+      count: t.count,
+      isAcc: isAcc,
+      borderCol: isAcc ? sectorColors[0] : sectorColors[1]
     };
-  }).filter(Boolean);
+  }).sort(function(a, b) { return b.count - a.count; });
+
+  // Tabel ditampilkan diurutkan berdasar |flow| terbesar — hasil scan
+  // penuh (bisa ratusan baris valid) dipangkas ke 40 teratas supaya tabel
+  // tetap bisa dipakai, bukan karena datanya dibatasi seperti sebelumnya.
+  var TABLE_DISPLAY_CAP = 40;
+  scannerRows.sort(function(a, b) { return b.absNetM - a.absNetM; });
+  var totalScannedValid = scannerRows.length;
+  scannerRows = scannerRows.slice(0, TABLE_DISPLAY_CAP);
 
   var html = '<div style="display:flex;flex-direction:column;gap:16px">'
     + '<div class="card" style="padding:16px">'
@@ -945,10 +1103,10 @@ function fsRenderSectorHeatmapMode() {
     + '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     + '<div>'
-    + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">PEMINDAI SMART MONEY &amp; BANDAR RADAR</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Harga &amp; CMF-20 real dari data harga historis · verdict bandar &amp; flow disimulasikan (belum ada feed broker real per-menit)</div>'
+    + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">PEMINDAI SMART MONEY &amp; BANDAR RADAR (SELURUH BEI)</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Harga &amp; CMF-20 real dari data harga historis · verdict bandar &amp; flow disimulasikan (belum ada feed broker real per-menit) · menampilkan ' + scannerRows.length + ' teratas (berdasar |flow|) dari ' + totalScannedValid + ' saham valid, dari total ' + universe.length + ' saham BEI dipindai</div>'
     + '</div>'
-    + '<span class="badge b-neu" style="font-size:9px">' + scannerRows.length + ' SAHAM TERPINDAI</span>'
+    + '<span class="badge b-neu" style="font-size:9px">' + totalScannedValid + ' / ' + universe.length + ' SAHAM TERPINDAI</span>'
     + '</div>'
     + '<div class="tbl-wrap" style="overflow-x:auto"><table class="tbl" style="width:100%;font-size:12px">'
     + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Harga</th><th style="text-align:right">Chg %</th><th style="text-align:right">CMF-20</th><th style="text-align:center">Bandarmology</th><th style="text-align:right">Smart Money Flow</th><th>Sinyal AI</th><th style="text-align:center">Aksi</th></tr></thead>'

@@ -3256,10 +3256,29 @@ app.get('/api/idx/opportunity-radar', async (req, res) => {
   }
 });
 
-// GET /api/idx/accumulation-distribution — Full Universe Accumulation & Distribution Scanner
+// GET /api/idx/accumulation-distribution — Accumulation & Distribution Scanner
+// (LQ45 default when no ?tickers= is given — pass one to scan any other
+// slice, e.g. a batch of the full ~900+ IDX universe).
 app.get('/api/idx/accumulation-distribution', async (req, res) => {
   try {
     const data = await getUniverseAccumulationDistribution(req.query);
+    return res.json(data);
+  } catch (err) {
+    console.error('[IDX Acc/Dist Scanner Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/idx/accumulation-distribution — same as GET but takes a JSON
+// `tickers` array in the body (same pattern as POST /api/idx/ai-scan),
+// for scanning larger batches than comfortably fits a query string when
+// the client is paging through the full IDX universe.
+app.post('/api/idx/accumulation-distribution', async (req, res) => {
+  try {
+    const data = await getUniverseAccumulationDistribution({
+      timeframe: req.body.timeframe,
+      tickers: Array.isArray(req.body.tickers) ? req.body.tickers : undefined
+    });
     return res.json(data);
   } catch (err) {
     console.error('[IDX Acc/Dist Scanner Error]', err);
