@@ -442,3 +442,65 @@ window.mwSelectGlobalStock = function(ticker, targetPage) {
   }
 };
 
+// ══════════════════════════════════════════════════════════
+// BOTTOM TOOLBAR STATUS INDICATORS — pengecekan nyata (2026-09-17, audit fix)
+// ══════════════════════════════════════════════════════════
+// Kedua indikator ini (dot "AI Engine Live" dan dot Supabase di tombol
+// Pengaturan & Data) sebelumnya HTML statis — dot hijau permanen tanpa
+// pengecekan apa pun, ditemukan lewat audit toolbar AI Engine (INCIDENT_LOG.md
+// 2026-09-17). Dipanggil sekali saat boot dari DOMContentLoaded init
+// (06-analysis-router.js) — tidak perlu polling terus-menerus, cukup
+// mencerminkan status yang benar saat halaman dimuat.
+
+async function checkAiEngineStatus() {
+  var dot = document.getElementById('ai-engine-status-dot');
+  var label = document.getElementById('ai-engine-status-label');
+  if (!dot || !label) return;
+  try {
+    var res = await fetch('/api/ai/status');
+    var data = res.ok ? await res.json() : null;
+    if (data && data.available) {
+      dot.style.background = '#10b981';
+      dot.style.boxShadow = '0 0 6px #10b981';
+      label.textContent = 'AI Engine Live';
+      label.title = 'Claude API (' + data.model + ') terkonfigurasi di server — StockChat/Copilot berjalan dengan model Claude sungguhan.';
+    } else {
+      dot.style.background = '#F59E0B';
+      dot.style.boxShadow = '0 0 6px #F59E0B';
+      label.textContent = 'AI Engine Fallback';
+      label.title = 'ANTHROPIC_API_KEY tidak terkonfigurasi di server — StockChat/Copilot berjalan di mode fallback deterministik (rule-based), bukan Claude.';
+    }
+  } catch (e) {
+    dot.style.background = '#EF4444';
+    dot.style.boxShadow = '0 0 6px #EF4444';
+    label.textContent = 'AI Engine Offline';
+    label.title = 'Gagal menghubungi server untuk memeriksa status AI Engine: ' + (e && e.message);
+  }
+}
+
+async function checkSupabaseCloudStatus() {
+  var dot = document.getElementById('sh-topbar-dot');
+  if (!dot) return;
+  var client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+  if (!client) {
+    dot.style.background = '#EF4444';
+    dot.title = 'Supabase SDK gagal termuat — sinkronisasi cloud tidak tersedia di sesi ini.';
+    return;
+  }
+  try {
+    // auth.getSession() sengaja dipakai sebagai probe konektivitas: panggilan
+    // ringan bawaan SDK (baca sesi lokal + validasi ke server Supabase),
+    // tidak butuh login, tidak mengubah apa pun. Timeout 5 detik supaya
+    // dot tidak menggantung abu-abu selamanya kalau jaringan macet total.
+    await Promise.race([
+      client.auth.getSession(),
+      new Promise(function(_, reject) { setTimeout(function() { reject(new Error('Timeout 5 detik')); }, 5000); })
+    ]);
+    dot.style.background = 'var(--green)';
+    dot.title = 'Supabase Cloud terkoneksi.';
+  } catch (e) {
+    dot.style.background = '#EF4444';
+    dot.title = 'Supabase Cloud tidak terjangkau: ' + (e && e.message);
+  }
+}
+
