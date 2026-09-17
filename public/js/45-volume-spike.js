@@ -95,19 +95,63 @@ function vsMedian(arr) {
   return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
 }
 
-function vsSparklineHtml(closes, isUp) {
+function vsSparklineHtml(closes, isUp, gradId) {
   if (!closes || closes.length < 2) return '';
+  var id = gradId || ('vs-grad-' + Math.random().toString(36).slice(2, 9));
   var min = Math.min.apply(null, closes), max = Math.max.apply(null, closes);
-  var range = (max - min) || 1;
-  var w = 100, h = 30;
+  var range = (max - min);
+  if (range <= 0) range = Math.max(1, Math.abs(min) * 0.01);
+
+  var w = 120, h = 44;
+  var padTop = 5, padBottom = 4, padX = 2;
+  var effW = w - (padX * 2);
+  var effH = h - padTop - padBottom;
+
   var pts = closes.map(function(v, i) {
-    var x = (i / (closes.length - 1)) * w;
-    var y = h - ((v - min) / range) * h;
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  }).join(' ');
-  var color = isUp ? 'var(--green)' : 'var(--red)';
-  return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="width:100%;height:36px;display:block">'
-    + '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.5" vector-effect="non-scaling-stroke"/>'
+    var x = padX + (i / (closes.length - 1)) * effW;
+    var y = padTop + effH - ((v - min) / range) * effH;
+    return { x: x, y: y };
+  });
+
+  // Construct smooth Catmull-Rom cubic Bézier curve
+  var d = 'M ' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1);
+  if (pts.length === 2) {
+    d += ' L ' + pts[1].x.toFixed(1) + ' ' + pts[1].y.toFixed(1);
+  } else {
+    for (var i = 0; i < pts.length - 1; i++) {
+      var p0 = pts[i === 0 ? 0 : i - 1];
+      var p1 = pts[i];
+      var p2 = pts[i + 1];
+      var p3 = (i + 2 < pts.length) ? pts[i + 2] : p2;
+
+      var cp1x = p1.x + (p2.x - p0.x) * 0.16;
+      var cp1y = p1.y + (p2.y - p0.y) * 0.16;
+      var cp2x = p2.x - (p3.x - p1.x) * 0.16;
+      var cp2y = p2.y - (p3.y - p1.y) * 0.16;
+
+      d += ' C ' + cp1x.toFixed(1) + ' ' + cp1y.toFixed(1) + ', ' + cp2x.toFixed(1) + ' ' + cp2y.toFixed(1) + ', ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1);
+    }
+  }
+
+  var firstPt = pts[0];
+  var lastPt = pts[pts.length - 1];
+  var fillD = d + ' L ' + lastPt.x.toFixed(1) + ' ' + (h + 2) + ' L ' + firstPt.x.toFixed(1) + ' ' + (h + 2) + ' Z';
+
+  var strokeColor = isUp ? '#10B981' : '#EF4444';
+  var stopColor = isUp ? '#10B981' : '#EF4444';
+
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="width:100%;height:48px;display:block;overflow:visible;margin-top:2px">'
+    + '<defs>'
+      + '<linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1">'
+        + '<stop offset="0%" stop-color="' + stopColor + '" stop-opacity="0.35"/>'
+        + '<stop offset="55%" stop-color="' + stopColor + '" stop-opacity="0.10"/>'
+        + '<stop offset="100%" stop-color="' + stopColor + '" stop-opacity="0.0"/>'
+      + '</linearGradient>'
+    + '</defs>'
+    + '<path d="' + fillD + '" fill="url(#' + id + ')" />'
+    + '<path d="' + d + '" fill="none" stroke="' + strokeColor + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>'
+    + '<circle cx="' + lastPt.x.toFixed(1) + '" cy="' + lastPt.y.toFixed(1) + '" r="5" fill="' + strokeColor + '" opacity="0.25"/>'
+    + '<circle cx="' + lastPt.x.toFixed(1) + '" cy="' + lastPt.y.toFixed(1) + '" r="2.5" fill="' + strokeColor + '"/>'
     + '</svg>';
 }
 
@@ -623,14 +667,51 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
     + '</div>'
 
     + '<div class="row3" style="margin-bottom:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">'
-      + [['1D', chg1d], ['3D', chg3d], ['7D', chg7d]].map(function(pair) {
-          var label = pair[0], val = pair[1];
+      + [
+          {
+            tf: '1D',
+            label: '1D PRICE CHANGE',
+            val: chg1d,
+            badge: 'Sesi Terakhir',
+            pts: (function() {
+              if (rows.length >= 2) {
+                var p0 = rows[rows.length - 2];
+                var p1 = rows[rows.length - 1];
+                var lo = Math.min(p0.close, p1.low, p1.open, p1.close);
+                var hi = Math.max(p0.close, p1.high, p1.open, p1.close);
+                var isUpToday = p1.close >= p1.open;
+                return [p0.close, p1.open, (isUpToday ? lo : hi), (isUpToday ? hi : lo), p1.close];
+              }
+              return closes.slice(-2);
+            })()
+          },
+          {
+            tf: '3D',
+            label: '3D PRICE CHANGE',
+            val: chg3d,
+            badge: '3 Hari Bursa',
+            pts: closes.slice(-4)
+          },
+          {
+            tf: '7D',
+            label: '7D PRICE CHANGE',
+            val: chg7d,
+            badge: '7 Hari Bursa',
+            pts: closes.slice(-8)
+          }
+        ].map(function(item, idx) {
+          var label = item.label, val = item.val;
           var up = val !== null && val >= 0;
-          var sub = closes.slice(-8);
-          return '<div class="card" style="margin:0;border-radius:10px;background:var(--bg2);border:1px solid var(--border);padding:12px 14px">'
-            + '<div style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:0.04em">' + label + ' PRICE CHANGE</div>'
-            + '<div class="' + (val === null ? 'neu' : (up ? 'up' : 'dn')) + '" style="font-size:18px;font-weight:800;font-family:var(--font-mono);font-variant-numeric:tabular-nums;margin:4px 0 6px">' + (val === null ? '—' : ((up ? '+' : '') + val.toFixed(2) + '%')) + '</div>'
-            + vsSparklineHtml(sub, up)
+          var gradId = 'vs-grad-' + item.tf.toLowerCase() + '-' + idx;
+          return '<div class="card" style="margin:0;border-radius:12px;background:var(--bg2);border:1px solid var(--border);padding:14px 16px 10px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between">'
+            + '<div>'
+              + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+                + '<span style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:0.05em;text-transform:uppercase">' + label + '</span>'
+                + '<span style="font-size:9.5px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);padding:1px 6px;border-radius:4px;font-family:var(--font-mono)">' + item.badge + '</span>'
+              + '</div>'
+              + '<div class="' + (val === null ? 'neu' : (up ? 'up' : 'dn')) + '" style="font-size:22px;font-weight:800;font-family:var(--font-mono);font-variant-numeric:tabular-nums;margin:2px 0 6px;letter-spacing:-0.5px">' + (val === null ? '—' : ((up ? '+' : '') + val.toFixed(2) + '%')) + '</div>'
+            + '</div>'
+            + vsSparklineHtml(item.pts, up, gradId)
           + '</div>';
         }).join('')
     + '</div>'
