@@ -4990,8 +4990,8 @@ test('REGRESSION GUARD: Invezgo quota budget planning — longer cache TTL + quo
 
   assert(!/const INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC = 300;/.test(clientSrc),
     'REGRESSION: the broker-summary cache TTL reverted to the old hardcoded 300s (5 min) — barely helps the full-BEI scanner and burns through the monthly quota faster than necessary for a retail (non-HFT) screening tool');
-  assert(/INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC = Number\(process\.env\.INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC \|\| 1800\)/.test(clientSrc),
-    'REGRESSION: the broker-summary cache TTL must be configurable via env var (operators need to tune the freshness/budget tradeoff without a code change) with a 1800s (30 min) default');
+  assert(/INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC = Number\(process\.env\.INVEZGO_BROKER_SUMMARY_CACHE_TTL_SEC \|\| 86400\)/.test(clientSrc),
+    'REGRESSION: the broker-summary cache TTL must be configurable via env var, defaulting to 86400s (24h) — BEI broker summary is a once-daily post-closing batch report, not real-time data, and the fromDate/toDate query params already scope the cache key to the calendar day, so a shorter TTL only causes wasteful same-day refetches of data that has not changed');
 
   assert(/function fsFetchInvezgoQuotaStatus/.test(flowScanSrc), 'REGRESSION: fsFetchInvezgoQuotaStatus() is gone — the Smart Money Screener no longer surfaces Invezgo quota usage to the user');
   assert(/'\/api\/idx\/invezgo-status'/.test(flowScanSrc), 'REGRESSION: the Broker Flow Riil mode no longer calls the existing quota observability endpoint');
