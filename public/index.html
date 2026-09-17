@@ -767,11 +767,11 @@
     </div>
   </div>
 
-  <!-- 3. TRADING TOOLS (formerly RESEARCH: single-stock analysis, bandarmology, quant lab) -->
+  <!-- 3. TRADING TOOLS (single-stock analysis, flow, quant analysis) -->
   <div class="side-group open" data-group="research">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-tools"></i><span class="side-label">TRADING TOOLS</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('stock-dossier',this)"><i class="ti ti-file-analytics"></i><span class="side-label">Master Dossier (1-Click)</span></button>
+      <button onclick="goPage('stock-dossier',this)"><i class="ti ti-file-analytics"></i><span class="side-label">Stock Dossier</span></button>
       <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar"></i><span class="side-label">Stock Intel</span></button>
       <button onclick="goPage('fundamental',this)"><i class="ti ti-report-analytics"></i><span class="side-label">Fundamental</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
@@ -779,20 +779,20 @@
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
       <button onclick="goPage('volume-spike',this)"><i class="ti ti-bolt"></i><span class="side-label">Volume Spike</span></button>
-      <button onclick="goPage('scanner',this)"><i class="ti ti-filter"></i><span class="side-label">Big Money Scanner</span></button>
-      <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Quant Lab</span></button>
+      <button onclick="goPage('scanner',this)"><i class="ti ti-filter"></i><span class="side-label">Flow Scanner</span></button>
+      <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Quant Analysis</span></button>
       <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine"></i><span class="side-label">TradeWave</span></button>
     </div>
   </div>
 
-  <!-- 4. AI TRADING -->
+  <!-- 4. SYSTEMATIC TRADING -->
   <div class="side-group open" data-group="ai-trading">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-brain"></i><span class="side-label">AI TRADING</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-brain"></i><span class="side-label">SYSTEMATIC TRADING</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('ai-trading',this)"><i class="ti ti-robot"></i><span class="side-label">AI Trading</span></button>
-      <button onclick="goPage('stockchat',this)"><i class="ti ti-terminal-2"></i><span class="side-label">StockChat AI</span></button>
-      <button onclick="goPage('copilot',this)"><i class="ti ti-message-chatbot"></i><span class="side-label">AI Copilot</span></button>
-      <button onclick="goPage('ai-signal-history',this)"><i class="ti ti-history"></i><span class="side-label">Riwayat Sinyal AI</span></button>
+      <button onclick="goPage('ai-trading',this)"><i class="ti ti-robot"></i><span class="side-label">Trading Engine</span></button>
+      <button onclick="goPage('stockchat',this)"><i class="ti ti-terminal-2"></i><span class="side-label">StockChat Assistant</span></button>
+      <button onclick="goPage('copilot',this)"><i class="ti ti-message-chatbot"></i><span class="side-label">Copilot</span></button>
+      <button onclick="goPage('ai-signal-history',this)"><i class="ti ti-history"></i><span class="side-label">Signal History</span></button>
     </div>
   </div>
 
@@ -1015,118 +1015,61 @@
                          tetap dipertahankan inline karena inline style masih menang
                          atas rule .card yang tidak !important. Tahap 1 dari
                          standardisasi shadow — lihat INCIDENT_LOG.md 2026-09-13. -->
-                    <div id="card-portfolio-volatility" class="card" style="border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px">
-                        <!-- Header -->
+                    <div id="card-portfolio-volatility" class="card" style="border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:12px">
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px">
                             <div style="display:flex;align-items:center;gap:8px">
                                 <span style="font-size:12.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">
-                                    Volatilitas &amp; Risiko
+                                    Portfolio Risk
                                 </span>
                                 <span class="badge" id="vol-risk-badge" style="font-size:9.5px;font-weight:700;padding:2px 7px;background:rgba(0,245,155,0.12);color:var(--green);border:1px solid rgba(0,245,155,0.25)">
                                     MODERAT
                                 </span>
                             </div>
-                            <button class="btn btn-ghost btn-xs" onclick="openModal('portfolioRisk')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid var(--border2)" title="Lihat detail dekomposisi risiko per aset">
-                                Rincian
+                            <button class="btn btn-ghost btn-xs" onclick="goPage('rebalance')" style="font-size:11px;font-weight:600;padding:4px 10px" title="Buka modul manajemen risiko lengkap">
+                                Lihat Detail Risiko →
                             </button>
                         </div>
 
-                        <!-- Gauge + Score Hero Row -->
-                        <div style="display:flex;align-items:center;justify-content:space-around;gap:14px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">
-                            <!-- SVG Radial Semi-Circle Gauge -->
-                            <div style="display:flex;flex-direction:column;align-items:center;position:relative;width:125px;height:72px;flex-shrink:0">
-                                <svg viewBox="0 0 160 92" style="width:125px;height:72px;overflow:visible">
-                                    <defs>
-                                        <linearGradient id="volGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                            <stop offset="0%" stop-color="#00F59B" />
-                                            <stop offset="30%" stop-color="#00D4FF" />
-                                            <stop offset="65%" stop-color="#FFB800" />
-                                            <stop offset="100%" stop-color="#FF3B5C" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path d="M 18 80 A 62 62 0 0 1 142 80" fill="none" stroke="var(--bg2)" stroke-width="12" stroke-linecap="round" />
-                                    <path id="vol-gauge-arc" d="M 18 80 A 62 62 0 0 1 142 80" fill="none" stroke="url(#volGaugeGrad)" stroke-width="12" stroke-linecap="round" stroke-dasharray="194.8" stroke-dashoffset="0" opacity="0.9" />
-                                    <!-- Needle Group -->
-                                    <g id="vol-gauge-needle" style="transform-origin:80px 80px;transform:rotate(-90deg);transition:transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)">
-                                        <polygon points="77,80 83,80 81,28 79,28" fill="var(--text)" />
-                                        <circle cx="80" cy="80" r="7" fill="var(--bg3)" stroke="var(--accent)" stroke-width="2.5" />
-                                        <circle cx="80" cy="80" r="2.5" fill="var(--accent)" />
-                                    </g>
-                                    <text x="18" y="92" font-size="8" fill="var(--green)" font-weight="700" text-anchor="middle">Low</text>
-                                    <text x="80" y="24" font-size="7.5" fill="var(--text3)" font-weight="600" text-anchor="middle">Mod</text>
-                                    <text x="142" y="92" font-size="8" fill="var(--red)" font-weight="700" text-anchor="middle">High</text>
-                                </svg>
+                        <!-- Institutional Risk Summary Strip -->
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">
+                            <div>
+                                <div style="font-size:9.5px;color:var(--text3);font-weight:600">Risk Score</div>
+                                <div style="display:flex;align-items:baseline;gap:4px;margin-top:2px">
+                                    <span id="vol-risk-score" style="font-size:20px;font-weight:700;font-family:var(--font-mono);color:var(--text)">0</span>
+                                    <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">/ 100</span>
+                                </div>
+                                <div id="vol-risk-category" style="font-size:10px;font-weight:600;color:var(--green);margin-top:2px">Konservatif</div>
                             </div>
-
-                            <!-- Score & Risk Label -->
-                            <div style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:110px">
-                                <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">Risk Assessment</div>
-                                <div style="display:flex;align-items:baseline;gap:4px">
-                                    <span id="vol-risk-score" style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px">0</span>
-                                    <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono);font-weight:600">/ 100</span>
-                                </div>
-                                <div id="vol-risk-category" style="font-size:10.5px;font-weight:700;color:var(--green)">
-                                    Konservatif
-                                </div>
+                            <div>
+                                <div style="font-size:9.5px;color:var(--text3);font-weight:600">Volatilitas Tahunan</div>
+                                <div id="vol-annual-val" style="font-size:14px;font-weight:700;font-family:var(--font-mono);color:var(--text);margin-top:4px">0.0% p.a.</div>
+                            </div>
+                            <div>
+                                <div style="font-size:9.5px;color:var(--text3);font-weight:600">Portfolio Beta</div>
+                                <div id="vol-beta-val" style="font-size:14px;font-weight:700;font-family:var(--font-mono);color:var(--accent-blue);margin-top:4px">0.00 vs IHSG</div>
+                            </div>
+                            <div>
+                                <div style="font-size:9.5px;color:var(--text3);font-weight:600">1-Day VaR (95%)</div>
+                                <div id="vol-var-val" style="font-size:14px;font-weight:700;font-family:var(--font-mono);color:var(--text);margin-top:4px">0.0% (Rp 0)</div>
+                            </div>
+                            <div>
+                                <div style="font-size:9.5px;color:var(--text3);font-weight:600">Diversifikasi</div>
+                                <div id="vol-div-val" style="font-size:14px;font-weight:700;font-family:var(--font-mono);color:var(--green);margin-top:4px">100/100</div>
                             </div>
                         </div>
 
-                        <!-- 4 Micro Metrics Grid -->
-                        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:8px">
-                            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:7px 9px">
-                                <div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase">Volatilitas Tahunan</div>
-                                <div id="vol-annual-val" style="font-size:12px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:2px">0.0% p.a.</div>
-                            </div>
-                            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:7px 9px">
-                                <div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase">Portfolio Beta</div>
-                                <div id="vol-beta-val" style="font-size:12px;font-weight:800;font-family:var(--font-mono);color:var(--accent-blue);margin-top:2px">0.00 vs IHSG</div>
-                            </div>
-                            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:7px 9px">
-                                <div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase">1-Day VaR (95%)</div>
-                                <div id="vol-var-val" style="font-size:12px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:2px">0.0% (Rp 0)</div>
-                            </div>
-                            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:7px 9px">
-                                <div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase">Diversifikasi</div>
-                                <div id="vol-div-val" style="font-size:12px;font-weight:800;font-family:var(--font-mono);color:var(--green);margin-top:2px">100/100</div>
-                            </div>
+                        <!-- Compact narrative summary -->
+                        <div id="vol-risk-narrative" style="font-size:11px;color:var(--text2);line-height:1.45;padding:2px 4px">
+                            Memuat asesmen risiko portofolio...
                         </div>
 
-                        <!-- D3.js Portfolio Volatility vs Benchmark (IHSG) Chart (12 Bulan Terakhir) -->
-                        <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px">
-                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-                                <div style="display:flex;align-items:center;gap:6px">
-                                    <span style="font-size:11px;font-weight:700;color:var(--text)">
-                                        Volatilitas vs IHSG (12B)
-                                    </span>
-                                    <!-- Zoom Controls -->
-                                    <div class="zoom-ctl" style="display:inline-flex;align-items:center;gap:2px;background:var(--bg2);border:1px solid var(--border2);border-radius:5px;padding:1px 3px" title="Zoom in/out untuk analisa periode stress pasar secara presisi">
-                                        <button id="btn-vol-zoom-in" onclick="zoomVolChart(1)" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:1px 5px;line-height:1;border-radius:3px;font-family:var(--font-mono);font-weight:700" title="Zoom In (+)">+</button>
-                                        <button id="btn-vol-zoom-out" onclick="zoomVolChart(-1)" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:11px;padding:1px 5px;line-height:1;border-radius:3px;font-family:var(--font-mono);font-weight:700" title="Zoom Out (-)">−</button>
-                                        <button id="btn-vol-zoom-reset" onclick="resetVolChartZoom()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:9.5px;padding:1px 4px;line-height:1;border-radius:3px;font-family:var(--font-mono);font-weight:600" title="Reset Zoom">1:1</button>
-                                    </div>
-                                </div>
-                                <div style="display:flex;align-items:center;gap:8px;font-size:9.5px;font-weight:600">
-                                    <span style="display:flex;align-items:center;gap:4px;color:var(--accent-blue)">
-                                        <span style="width:7px;height:7px;border-radius:2px;background:var(--accent-blue)"></span> Portofolio
-                                    </span>
-                                    <span style="display:flex;align-items:center;gap:4px;color:var(--amber)">
-                                        <span style="width:7px;height:7px;border-radius:2px;background:var(--amber)"></span> IHSG
-                                    </span>
-                                </div>
-                            </div>
-                            <div id="vol-benchmark-d3-chart" style="width:100%;height:130px;position:relative">
-                                <!-- Rendered dynamically by D3.js in renderPortfolioVolBenchmarkChartD3 -->
-                            </div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:var(--text3);border-top:1px dashed var(--border2);padding-top:4px;flex-wrap:wrap;gap:4px">
-                                <span>Porto 12B: <strong id="vol-12m-avg-porto" style="color:var(--accent-blue);font-family:var(--font-mono)">--</strong></span>
-                                <span>IHSG: <strong id="vol-12m-avg-ihsg" style="color:var(--amber);font-family:var(--font-mono)">--</strong></span>
-                                <span>Spread: <strong id="vol-12m-spread" style="color:var(--green);font-family:var(--font-mono)">--</strong></span>
-                            </div>
-                        </div>
-
-                        <!-- Risk Dynamic Narrative Banner -->
-                        <div id="vol-risk-narrative" style="font-size:10.5px;color:var(--text2);background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:7px 9px;line-height:1.4">
-                            Memuat asesmen volatilitas portofolio...
+                        <!-- Hidden elements to preserve JS compatibility -->
+                        <div style="display:none">
+                            <div id="vol-gauge-needle"></div>
+                            <div id="vol-benchmark-d3-chart"></div>
+                            <span id="vol-12m-avg-porto"></span>
+                            <span id="vol-12m-avg-ihsg"></span>
+                            <span id="vol-12m-spread"></span>
                         </div>
                     </div>
                 </div>
@@ -1188,21 +1131,21 @@
                          di main.css), yang tetap berfungsi di tema terang (lihat catatan
                          lengkap di main.css). Inline JS lama MATI TOTAL di tema terang
                          karena ketimpa body.theme-light .asset-card{!important}. -->
-                    <div id="card-landing-stock" class="asset-card card-blue" onclick="goPage('portofolio')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(37, 99, 235, 0.35);box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
-                            <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(37, 99, 235, 0.12);color:var(--accent-blue);border:1px solid rgba(37, 99, 235, 0.3)">
-                                STOCK (IDX)
+                    <div id="card-landing-stock" class="asset-card card-blue" onclick="goPage('portofolio')" style="background:var(--bg2);border-radius:8px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:border-color 0.15s ease;cursor:pointer;border:1px solid var(--border);box-shadow:none">
+                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:10px">
+                            <div style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)">
+                                Saham IDX
                             </div>
                         </div>
-                        <div style="margin-bottom:14px;flex:1">
-                            <div style="font-size:15px;color:var(--text);font-weight:800;margin-bottom:2px;font-family:var(--font-display)">Saham Indonesia</div>
-                            <div style="font-size:10.5px;color:var(--text3);margin-bottom:8px" id="hub-saham-count">0 Emiten aktif</div>
-                            <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-saham-val">Rp 0</div>
-                            <div style="font-size:11.5px;margin-top:5px;color:var(--text3)">
-                                P&amp;L: <span style="font-weight:700;font-family:var(--font-mono)" id="hub-saham-pnl">Rp 0 (0.00%)</span>
+                        <div style="margin-bottom:12px;flex:1">
+                            <div style="font-size:14px;color:var(--text);font-weight:700;margin-bottom:2px;font-family:var(--font-display)">Saham Indonesia</div>
+                            <div style="font-size:11px;color:var(--text3);margin-bottom:8px" id="hub-saham-count">0 Emiten aktif</div>
+                            <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-saham-val">Rp 0</div>
+                            <div style="font-size:11px;margin-top:4px;color:var(--text3)">
+                                P&amp;L: <span style="font-weight:600;font-family:var(--font-mono)" id="hub-saham-pnl">Rp 0 (0.00%)</span>
                             </div>
                         </div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border-top:1px solid var(--border2);padding-top:10px;color:var(--accent-blue);font-weight:700">
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;border-top:1px solid var(--border2);padding-top:8px;color:var(--accent-blue);font-weight:600">
                             <span>Kelola Saham</span>
                             <span>→</span>
                         </div>
@@ -1212,22 +1155,22 @@
                 <!-- MASONRY ITEM 4: CRYPTO ASSETS CARD -->
                 <div class="dash-masonry-item">
                     <!-- FIX (2026-09-13, Tahap 2): lihat catatan di card-landing-stock. -->
-                    <div id="card-landing-crypto" class="asset-card card-green" onclick="goPage('crypto')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(0, 245, 155, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
-                            <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(0, 245, 155, 0.12);color:var(--green);border:1px solid rgba(0, 245, 155, 0.3)">
-                                CRYPTO
+                    <div id="card-landing-crypto" class="asset-card card-green" onclick="goPage('crypto')" style="background:var(--bg2);border-radius:8px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:border-color 0.15s ease;cursor:pointer;border:1px solid var(--border);box-shadow:none">
+                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:10px">
+                            <div style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)">
+                                Crypto
                             </div>
                         </div>
                         <div style="margin-bottom:12px;flex:1">
-                            <div style="font-size:15px;color:var(--text);font-weight:800;margin-bottom:2px;font-family:var(--font-display)">Crypto Assets</div>
-                            <div style="font-size:10.5px;color:var(--text3);margin-bottom:6px" id="hub-crypto-count">0 Koin aktif</div>
-                            <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-crypto-val">Rp 0</div>
-                            <div style="font-size:11.5px;margin-top:5px;color:var(--text3)">
-                                P&amp;L: <span style="font-weight:700;font-family:var(--font-mono)" id="hub-crypto-pnl">Rp 0 (0.00%)</span>
+                            <div style="font-size:14px;color:var(--text);font-weight:700;margin-bottom:2px;font-family:var(--font-display)">Crypto Assets</div>
+                            <div style="font-size:11px;color:var(--text3);margin-bottom:6px" id="hub-crypto-count">0 Koin aktif</div>
+                            <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-crypto-val">Rp 0</div>
+                            <div style="font-size:11px;margin-top:4px;color:var(--text3)">
+                                P&amp;L: <span style="font-weight:600;font-family:var(--font-mono)" id="hub-crypto-pnl">Rp 0 (0.00%)</span>
                             </div>
-                            <div id="hub-crypto-signals" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px"></div>
+                            <div id="hub-crypto-signals" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px"></div>
                         </div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border-top:1px solid var(--border2);padding-top:10px;color:var(--green);font-weight:700">
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;border-top:1px solid var(--border2);padding-top:8px;color:var(--green);font-weight:600">
                             <span>Kelola Crypto</span>
                             <span>→</span>
                         </div>
@@ -1237,21 +1180,21 @@
                 <!-- MASONRY ITEM 5: REKSA DANA & SBN CARD -->
                 <div class="dash-masonry-item">
                     <!-- FIX (2026-09-13, Tahap 2): lihat catatan di card-landing-stock. -->
-                    <div id="card-landing-fund" class="asset-card card-purple" onclick="goPage('reksadana')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(192, 132, 252, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
-                            <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(192, 132, 252, 0.12);color:var(--purple);border:1px solid rgba(192, 132, 252, 0.3)">
-                                MUTUAL FUND
+                    <div id="card-landing-fund" class="asset-card card-purple" onclick="goPage('reksadana')" style="background:var(--bg2);border-radius:8px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:border-color 0.15s ease;cursor:pointer;border:1px solid var(--border);box-shadow:none">
+                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:10px">
+                            <div style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)">
+                                Reksa Dana
                             </div>
                         </div>
-                        <div style="margin-bottom:14px;flex:1">
-                            <div style="font-size:15px;color:var(--text);font-weight:800;margin-bottom:2px;font-family:var(--font-display)">Reksa Dana &amp; SBN</div>
-                            <div style="font-size:10.5px;color:var(--text3);margin-bottom:8px" id="hub-rd-count">0 Produk tercatat</div>
-                            <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-rd-val">Rp 0</div>
-                            <div style="font-size:11.5px;margin-top:5px;color:var(--text3)">
-                                Modal / Nilai: <span style="font-weight:700;font-family:var(--font-mono)" id="hub-rd-pnl">Rp 0</span>
+                        <div style="margin-bottom:12px;flex:1">
+                            <div style="font-size:14px;color:var(--text);font-weight:700;margin-bottom:2px;font-family:var(--font-display)">Reksa Dana &amp; SBN</div>
+                            <div style="font-size:11px;color:var(--text3);margin-bottom:8px" id="hub-rd-count">0 Produk tercatat</div>
+                            <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-rd-val">Rp 0</div>
+                            <div style="font-size:11px;margin-top:4px;color:var(--text3)">
+                                Modal / Nilai: <span style="font-weight:600;font-family:var(--font-mono)" id="hub-rd-pnl">Rp 0</span>
                             </div>
                         </div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border-top:1px solid var(--border2);padding-top:10px;color:var(--purple);font-weight:700">
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;border-top:1px solid var(--border2);padding-top:8px;color:var(--purple);font-weight:600">
                             <span>Kelola Reksa Dana</span>
                             <span>→</span>
                         </div>
@@ -1261,21 +1204,21 @@
                 <!-- MASONRY ITEM 6: ETF US & GLOBAL CARD -->
                 <div class="dash-masonry-item">
                     <!-- FIX (2026-09-13, Tahap 2): lihat catatan di card-landing-stock. -->
-                    <div id="card-landing-etf" class="asset-card card-red" onclick="goPage('etf')" style="background:var(--bg2);border-radius:12px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:all 0.2s ease;cursor:pointer;border:1px solid rgba(255, 59, 92, 0.3);box-shadow:0 4px 16px rgba(0,0,0,0.35)">
-                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:12px">
-                            <div style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255, 59, 92, 0.12);color:var(--red);border:1px solid rgba(255, 59, 92, 0.3)">
-                                GLOBAL ETF
+                    <div id="card-landing-etf" class="asset-card card-red" onclick="goPage('etf')" style="background:var(--bg2);border-radius:8px;padding:16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:border-color 0.15s ease;cursor:pointer;border:1px solid var(--border);box-shadow:none">
+                        <div style="display:flex;justify-content:flex-end;align-items:flex-start;margin-bottom:10px">
+                            <div style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)">
+                                Global ETF
                             </div>
                         </div>
-                        <div style="margin-bottom:14px;flex:1">
-                            <div style="font-size:15px;color:var(--text);font-weight:800;margin-bottom:2px;font-family:var(--font-display)">ETF US &amp; Global</div>
-                            <div style="font-size:10.5px;color:var(--text3);margin-bottom:8px" id="hub-etf-count">0 ETF aktif</div>
-                            <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-etf-val">Rp 0</div>
-                            <div style="font-size:11.5px;margin-top:5px;color:var(--text3)">
-                                P&amp;L: <span style="font-weight:700;font-family:var(--font-mono)" id="hub-etf-pnl">Rp 0 (0.00%)</span>
+                        <div style="margin-bottom:12px;flex:1">
+                            <div style="font-size:14px;color:var(--text);font-weight:700;margin-bottom:2px;font-family:var(--font-display)">ETF US &amp; Global</div>
+                            <div style="font-size:11px;color:var(--text3);margin-bottom:8px" id="hub-etf-count">0 ETF aktif</div>
+                            <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums" id="hub-etf-val">Rp 0</div>
+                            <div style="font-size:11px;margin-top:4px;color:var(--text3)">
+                                P&amp;L: <span style="font-weight:600;font-family:var(--font-mono)" id="hub-etf-pnl">Rp 0 (0.00%)</span>
                             </div>
                         </div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border-top:1px solid var(--border2);padding-top:10px;color:var(--red);font-weight:700">
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;border-top:1px solid var(--border2);padding-top:8px;color:var(--red);font-weight:600">
                             <span>Kelola ETF</span>
                             <span>→</span>
                         </div>
@@ -1296,10 +1239,10 @@
         <div class="dash-cc-unified-grid dash-section-cc" style="margin-bottom:14px">
           <!-- Left Column: Opportunities & Breadth -->
           <div style="display:flex;flex-direction:column;gap:14px">
-            <!-- 3. AI OPPORTUNITY RADAR PREVIEW -->
-            <div id="card-dash-radar" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+            <!-- 3. OPPORTUNITY RADAR PREVIEW -->
+            <div id="card-dash-radar" class="card dash-section-cc" style="border-radius:10px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Opportunity Radar</span>
+                <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Opportunity Radar</span>
                 <button class="btn btn-ghost btn-xs" onclick="goPage('radar')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
               </div>
               <div id="dash-radar-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px">
@@ -1308,9 +1251,9 @@
             </div>
 
             <!-- 4. MARKET HEATMAP -->
-            <div id="card-dash-heatmap" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+            <div id="card-dash-heatmap" class="card dash-section-cc" style="border-radius:10px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Market Heatmap</span>
+                <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Market Heatmap</span>
                 <button class="btn btn-ghost btn-xs" onclick="goPage('heatmap')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
               </div>
               <div id="dash-heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(80px, 1fr));gap:8px">
@@ -1321,10 +1264,10 @@
 
           <!-- Right Column: Flow, Insight & Alerts -->
           <div style="display:flex;flex-direction:column;gap:14px">
-            <!-- 5. SMART MONEY FLOW -->
-            <div id="card-dash-smartflow" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+            <!-- 5. MONEY FLOW -->
+            <div id="card-dash-smartflow" class="card dash-section-cc" style="border-radius:10px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Smart Money Flow</span>
+                <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Money Flow</span>
                 <button class="btn btn-ghost btn-xs" onclick="goBandarmology('market',null)" style="font-size:11px;font-weight:700">Lihat Detail →</button>
               </div>
               <div id="dash-smartflow-body">
@@ -1332,11 +1275,11 @@
               </div>
             </div>
 
-            <!-- 6. AI INSIGHT -->
-            <div id="card-dash-insight" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
+            <!-- 6. MARKET SUMMARY -->
+            <div id="card-dash-insight" class="card dash-section-cc" style="border-radius:10px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">AI Insight</span>
-                <span style="font-size:9.5px;color:var(--text3);font-weight:600" title="Ringkasan otomatis berbasis aturan dari data real di atas — bukan panggilan AI/LLM langsung">Ringkasan berbasis data riil</span>
+                <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Market Summary</span>
+                <span style="font-size:9.5px;color:var(--text3);font-weight:600" title="Ringkasan otomatis berbasis aturan dari data real di atas">Ringkasan berbasis data riil</span>
               </div>
               <div id="dash-insight-body" style="display:flex;flex-direction:column">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Menyusun ringkasan…</div>
@@ -3098,25 +3041,25 @@
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:14px">
               <div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-                  <span style="background:linear-gradient(135deg,#3B82F6,#10B981);color:#FFF;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:800">TOTAL KESIMPULAN FUNDAMENTAL</span>
-                  <h2 style="font-size:16px;font-weight:800;color:var(--text);margin:0">Total Kesimpulan &amp; Konsensus Analisa Fundamental</h2>
+                  <span style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600">Konsensus</span>
+                  <h2 style="font-size:15px;font-weight:700;color:var(--text);margin:0">Total Kesimpulan &amp; Konsensus Analisa Fundamental</h2>
                 </div>
                 <p style="font-size:11px;color:var(--text3);margin:0">Sintesis kuantitatif dari 4 Model Valuasi, Profitabilitas LTM (ROE &amp; Margin), Kesehatan Neraca (DER &amp; Likuiditas), dan Arus Kas Riil.</p>
               </div>
               <div id="fund-synthesis-overall-badge" style="text-align:right">
-                <span class="badge b-up" style="font-size:12px;padding:5px 12px;font-weight:800">MENGHITUNG KESIMPULAN...</span>
+                <span class="badge b-up" style="font-size:11px;padding:4px 10px;font-weight:700">MENGHITUNG KESIMPULAN...</span>
               </div>
             </div>
 
             <!-- Executive Summary Text Box -->
-            <div id="fund-synthesis-summary-text" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.75;margin-bottom:12px">
+            <div id="fund-synthesis-summary-text" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.75;margin-bottom:12px">
               Menghitung konsensus nilai wajar dan mengevaluasi pilar fundamental emiten...
             </div>
 
             <!-- Ekstraksi Otomatis 3 Poin Kunci LTM (Profitabilitas, Kesehatan Neraca, Efisiensi Modal) -->
-            <div id="fund-ltm-key-bullets" style="background:var(--bg2);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:12px 14px;margin-bottom:14px">
-              <div style="font-size:11px;font-weight:800;color:#38BDF8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-                Ekstraksi Otomatis 3 Poin Kunci Data LTM (Trailing Twelve Months)
+            <div id="fund-ltm-key-bullets" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                Ekstraksi 3 Poin Kunci Data LTM (Trailing Twelve Months)
               </div>
               <ul id="fund-ltm-bullets-list" style="margin:0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.75;display:flex;flex-direction:column;gap:6px">
                 <li><strong style="color:var(--text)">Memuat ekstraksi data LTM emiten...</strong></li>
@@ -3464,8 +3407,8 @@
       <div id="tech-tab1" class="sm-tab-panel active">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div>
-            <h2 style="font-size:16px;font-weight:800;color:var(--accent);margin-bottom:2px">1. Advanced Interactive Technical Chart</h2>
-            <p style="font-size:11px;color:var(--text3)">Chart interaktif real-time dengan multi-timeframe, indikator MA, MACD, RSI, Volume, dan drawing tools.</p>
+            <h2 style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">Interactive Technical Chart</h2>
+            <p style="font-size:11px;color:var(--text3)">Chart real-time dengan multi-timeframe, indikator MA, MACD, RSI, Volume, dan drawing tools.</p>
           </div>
         </div>
         <div class="sm-card-fill" id="sm-tv-chart-container"></div>
@@ -3558,37 +3501,33 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
     <div>
       <div class="ptitle">Watchlist</div>
-      <div class="psub">Saham yang Anda pantau — tambah dari sini, dari toggle ☆ di Market Radar, atau sinkronkan dari portofolio.</div>
+      <div class="psub">Daftar pantau saham — tambah langsung, dari toggle ☆ di Market Radar, atau sinkronkan dari portofolio.</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-blue btn-sm" onclick="fsSyncWithPortfolio(true)">Sinkronkan Portofolio</button>
+      <button class="btn btn-ghost btn-sm" onclick="fsSyncWithPortfolio(true)">Sinkronkan Portofolio</button>
       <button class="btn btn-ghost btn-sm" onclick="rdLoadUniverse(true);if(typeof renderWatchlistPage==='function')renderWatchlistPage();" title="Segarkan Data Watchlist">
         <i class="ti ti-refresh"></i> Refresh ↻
       </button>
     </div>
   </div>
 
-  <div class="card" style="margin-bottom:16px">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <input id="wl-add-input" type="text" placeholder="Tambah kode saham (e.g. BBCA)" maxlength="6"
-        style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;padding:6px 10px;border-radius:6px;text-transform:uppercase;width:200px"
-        oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fsAddFromInput()">
-      <button class="btn btn-blue btn-sm" onclick="fsAddFromInput()">+ Tambah</button>
-      <div id="wl-qa-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:8px"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="cheader" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <span class="ctitle">Daftar Watchlist</span>
+  <div class="card" style="margin-top:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border2)">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="wl-add-input" type="text" placeholder="Kode saham (e.g. BBCA)" maxlength="6"
+          style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:5px 10px;border-radius:6px;text-transform:uppercase;width:180px"
+          oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fsAddFromInput()">
+        <button class="btn btn-primary btn-sm" onclick="fsAddFromInput()">+ Tambah</button>
+        <div id="wl-qa-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:4px"></div>
+      </div>
       <div id="wl-sort-row" style="display:flex;gap:4px">
-        <button class="btn btn-blue btn-sm" onclick="fsSetWlSort('default',this)">Default</button>
-        <button class="btn btn-ghost btn-sm" onclick="fsSetWlSort('score',this)">Skor</button>
-        <button class="btn btn-ghost btn-sm" onclick="fsSetWlSort('chg',this)">Chg%</button>
-        <button class="btn btn-ghost btn-sm" onclick="fsSetWlSort('signal',this)">Sinyal</button>
+        <button class="btn btn-primary btn-xs" onclick="fsSetWlSort('default',this)">Default</button>
+        <button class="btn btn-ghost btn-xs" onclick="fsSetWlSort('score',this)">Skor</button>
+        <button class="btn btn-ghost btn-xs" onclick="fsSetWlSort('chg',this)">Chg%</button>
+        <button class="btn btn-ghost btn-xs" onclick="fsSetWlSort('signal',this)">Sinyal</button>
       </div>
     </div>
-    <div id="wl-page-list" style="margin-top:10px">Memuat watchlist...</div>
+    <div id="wl-page-list">Memuat watchlist...</div>
   </div>
 </div>
 
@@ -3688,19 +3627,14 @@
             <tbody id="hw-data-body"></tbody>
           </table>
         </div>
-        <!-- Panduan unit -->
-        <div style="margin-top:14px;background:var(--bg3);border-radius:8px;padding:14px 16px;border-left:3px solid var(--accent);border-top:1px solid var(--border2);border-right:1px solid var(--border2);border-bottom:1px solid var(--border2)">
-          <div style="font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;font-weight:700;display:flex;align-items:center;gap:6px">
-            <i class="ti ti-info-circle"></i> PANDUAN INPUT — SATUAN WAJIB
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px 18px;font-size:11.5px;line-height:1.45">
-            <div><span style="color:var(--text3)">EPS &amp; DPS</span><br><b style="color:var(--text);font-family:var(--font-mono)">Rupiah per saham</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 179 = Rp 179/saham</span></div>
-            <div><span style="color:var(--text3)">Total Equity &amp; Net Income</span><br><b style="color:var(--text);font-family:var(--font-mono)">Miliar Rupiah</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 150537 = Rp 150,5 T</span></div>
-            <div><span style="color:var(--text3)">Shares</span><br><b style="color:var(--text);font-family:var(--font-mono)">Juta lembar saham</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 99062 = 99,06 M lembar</span></div>
-            <div><span style="color:var(--text3)">PER</span><br><b style="color:var(--text);font-family:var(--font-mono)">Kali (x) — tanpa satuan</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 16.5 = PER 16,5x</span></div>
-            <div><span style="color:var(--text3)">Harga Saham</span><br><b style="color:var(--text);font-family:var(--font-mono)">Rupiah per saham</b><br><span style="color:var(--text3);font-size:10.5px">contoh: 2810 = Rp 2.810/saham</span></div>
-            <div><span style="color:var(--amber)">Sel Oranye</span><br><b style="color:var(--amber);font-family:var(--font-mono)">Perlu Dicek</b><br><span style="color:var(--text3);font-size:10.5px">hover sel untuk petunjuk</span></div>
-          </div>
+        <!-- Panduan unit compact strip -->
+        <div style="margin-top:12px;background:var(--bg3);border-radius:6px;padding:8px 12px;border:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center">
+          <span style="font-weight:700;color:var(--text2);display:inline-flex;align-items:center;gap:4px"><i class="ti ti-info-circle"></i> Satuan:</span>
+          <span>EPS/DPS/Harga: <b style="color:var(--text);font-family:var(--font-mono)">Rp/saham</b></span>
+          <span>Equity/Net Income: <b style="color:var(--text);font-family:var(--font-mono)">Miliar Rp</b></span>
+          <span>Shares: <b style="color:var(--text);font-family:var(--font-mono)">Juta lembar</b></span>
+          <span>PER: <b style="color:var(--text);font-family:var(--font-mono)">kali (x)</b></span>
+          <span style="color:var(--amber)">Oranye: <b>Perlu dicek</b></span>
         </div>
       </div>
 
@@ -3737,7 +3671,7 @@
            (Valuation + Bandar Flow + Quant) but 2 of the 3 pillars were
            fabricated - see the honesty note in renderTrafficLightMatrix
            (23-advisor.js). Now labeled for what it actually is. -->
-      <div class="card" id="hw-traffic-light-card" style="margin-bottom:16px;display:none;border-left:4px solid var(--accent)">
+      <div class="card" id="hw-traffic-light-card" style="margin-bottom:16px;display:none;border-left:3px solid var(--accent)">
         <div class="cheader">
           <span class="ctitle">SINYAL BERBASIS VALUASI</span>
           <span class="badge b-neu" style="font-size:9px">MoS 9-Step Only</span>
@@ -3746,31 +3680,31 @@
       </div>
 
       <!-- Main verdict card -->
-      <div class="card" id="hw-verdict-card" style="margin-bottom:16px;border-radius:12px;padding:20px;border-top:3px solid var(--text3)">
-        <div style="text-align:center;padding:6px 0 14px;border-bottom:1px solid var(--border2)">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;font-weight:700">HASIL ESTIMASI VALUASI (MoS)</div>
+      <div class="card" id="hw-verdict-card" style="margin-bottom:16px;border-radius:8px;padding:16px;border:1px solid var(--border)">
+        <div style="text-align:center;padding:4px 0 12px;border-bottom:1px solid var(--border2)">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">HASIL ESTIMASI VALUASI (MoS)</div>
           <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">
             <span id="hw-ticker-logo"></span>
-            <div id="hw-ticker-display" style="font-size:26px;font-weight:900;font-family:var(--font-mono);color:var(--accent);letter-spacing:-0.5px">—</div>
+            <div id="hw-ticker-display" style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px">—</div>
           </div>
-          <div id="hw-verdict-badge" style="display:inline-block;padding:5px 16px;border-radius:20px;font-size:11px;font-weight:800;font-family:var(--font-mono);background:var(--bg3);color:var(--text3);border:1px solid var(--border2);letter-spacing:0.04em">BELUM DIHITUNG</div>
+          <div id="hw-verdict-badge" style="display:inline-block;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;font-family:var(--font-mono);background:var(--bg3);color:var(--text3);border:1px solid var(--border2);letter-spacing:0.02em">BELUM DIHITUNG</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
-          <div class="metric" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center">
-            <div class="mlabel" style="font-size:9.5px;letter-spacing:0.06em;margin-bottom:4px">Harga Wajar (MoS)</div>
-            <div id="hw-fair-price" style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--amber);font-variant-numeric:tabular-nums">—</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+          <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+            <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Harga Wajar (MoS)</div>
+            <div id="hw-fair-price" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--amber);font-variant-numeric:tabular-nums">—</div>
           </div>
-          <div class="metric" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center">
-            <div class="mlabel" style="font-size:9.5px;letter-spacing:0.06em;margin-bottom:4px">Harga Saat Ini</div>
-            <div id="hw-current-display" style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums">—</div>
+          <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+            <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Harga Saat Ini</div>
+            <div id="hw-current-display" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums">—</div>
           </div>
-          <div class="metric" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center">
-            <div class="mlabel" style="font-size:9.5px;letter-spacing:0.06em;margin-bottom:4px">Margin of Safety</div>
-            <div id="hw-mos-pct" style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
+          <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+            <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Margin of Safety</div>
+            <div id="hw-mos-pct" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
           </div>
-          <div class="metric" style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center">
-            <div class="mlabel" style="font-size:9.5px;letter-spacing:0.06em;margin-bottom:4px">Initial IRR</div>
-            <div id="hw-irr-display" style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
+          <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+            <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Initial IRR</div>
+            <div id="hw-irr-display" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
           </div>
         </div>
         <!-- MoS gauge bar -->
@@ -4027,7 +3961,7 @@
         </div>
         <!-- XGB params -->
         <div id="bt-params-xgb" style="display:none">
-          <div class="alert alert-warn" id="bt-xgb-status" style="margin-bottom:8px">⏳ Memeriksa model XGBoost...</div>
+          <div id="bt-xgb-status" style="font-size:11px;color:var(--text3);padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;font-family:var(--font-mono)">Model status: checking...</div>
           <!-- FIX (2026-09-14, user-reported "bug timeframe"): selector
                "Train/Test Split" (id="bt-xgb-sp", 70/30 vs 80/20) yang
                sebelumnya ada di sini TIDAK PERNAH terhubung ke JS manapun
@@ -4486,16 +4420,16 @@
 <script src="js/21-performance.js?v=20260913b"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260915b"></script>
-<script src="js/24-stockmaster.js?v=20260916b"></script>
+<script src="js/24-stockmaster.js?v=20260917a"></script>
 <script src="js/25-auditlog.js?v=20260902c"></script>
-<script src="js/26-commandcenter.js?v=20260916b"></script>
+<script src="js/26-commandcenter.js?v=20260917a"></script>
 <script src="js/27-stockintel.js?v=20260915b"></script>
 <script src="js/28-decisiontools.js?v=20260917c"></script>
 <script src="js/29-institutional-ui.js?v=20260915b"></script>
 <script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260915b"></script><script src="js/34-ksei-shareholders.js?v=20260911d"></script>
-<script src="js/35-settings.js?v=20260916a"></script>
+<script src="js/35-settings.js?v=20260917a"></script>
 <script src="js/37-tradewave-engine.js?v=20260913a"></script>
-<script src="js/38-ai-autonomous-trading.js?v=20260915b"></script>
+<script src="js/38-ai-autonomous-trading.js?v=20260917a"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260915b"></script>
 <script src="js/40-idx-pipeline.js?v=20260902c"></script>
 <script src="js/41-stockchat-cockpit.js?v=20260917c"></script>

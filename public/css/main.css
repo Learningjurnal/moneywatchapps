@@ -10,7 +10,7 @@
   --bg4:#131B2E;
   --bg5:#1E293B;
 
-  --card-shadow:0 8px 24px rgba(0,0,0,0.75);
+  --card-shadow:none;
 
   --text:#FFFFFF;
   --text2:#D2D8DF;
@@ -73,7 +73,7 @@ body.theme-light {
   --bg4:#E0E4E9;
   --bg5:#CBD1D8;
 
-  --card-shadow:0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
+  --card-shadow:none;
 
   --text:#1D252C;
   --text2:#354453;
@@ -388,27 +388,27 @@ body.theme-light .dash-view-toggle-bar .btn.on {
   border-radius:var(--radius);
   padding:14px 16px;
   position:relative;
-  transition:all .18s ease;
-  box-shadow:0 4px 16px rgba(0,0,0,.35);
+  transition:border-color .15s ease;
+  box-shadow:none;
 }
 .metric:hover{
-  border-color:rgba(37,99,235,.45);
-  transform:translateY(-1px);
-  box-shadow:0 6px 20px rgba(0,0,0,.45);
+  border-color:var(--border2);
+  transform:none;
+  box-shadow:none;
 }
 .metric::before{display:none}
 .mlabel{
-  font-size:10px;
+  font-size:10.5px;
   color:var(--text3);
-  letter-spacing:.06em;
+  letter-spacing:.04em;
   font-family:var(--font-display);
   margin-bottom:6px;
-  font-weight:700;
-  text-transform:uppercase;
+  font-weight:600;
+  text-transform:none;
 }
 .mval{
   font-size:19px;
-  font-weight:800;
+  font-weight:700;
   font-family:var(--font-mono);
   line-height:1.2;
   color:#F8FAFC;
@@ -428,39 +428,24 @@ body.theme-light .dash-view-toggle-bar .btn.on {
 .card{
   background:var(--bg2);
   border:1px solid var(--border);
-  border-radius:10px;
+  border-radius:var(--radius-lg);
   padding:16px 18px;
   backdrop-filter:none;
-  box-shadow:0 4px 20px rgba(0,0,0,.5);
+  box-shadow:none;
   margin-bottom:14px;
-  transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  transition:border-color .15s ease;
 }
 .card:hover{
-  border-color:rgba(56,189,248,.35);
-  box-shadow:0 6px 24px rgba(0,0,0,.7);
+  border-color:var(--border2);
+  box-shadow:none;
 }
 
-/* FIX (2026-09-13, Tahap 2 standardisasi shadow card — user-reported):
-   4 card shortcut Dashboard (Saham/Crypto/Reksadana/ETF, class asset-card
-   + card-blue/green/purple/red di index.html) sebelumnya mengandalkan
-   onmouseover/onmouseout INLINE JS untuk efek hover (glow warna + geser
-   border-color) — bukan CSS :hover. Di tema gelap ini terlihat jalan
-   normal, TAPI di tema terang efeknya MATI TOTAL: body.theme-light
-   .asset-card{box-shadow:...!important} (ditambahkan Tahap 1 untuk
-   menyamakan shadow resting-state dengan .card lain) otomatis menimpa
-   box-shadow apapun yang di-set inline lewat JS juga, termasuk shadow
-   hover — bukan cuma kosmetik beda, tapi hover feedback beneran hilang.
-   Solusinya BUKAN melonggarkan aturan Tahap 1 (itu masih benar untuk
-   resting state), tapi memindahkan hover ke rule CSS :hover di sini,
-   yang spesifisitasnya (3 class-level selector) otomatis mengalahkan
-   body.theme-light .asset-card (2 class + 1 elemen) — dipertegas dengan
-   !important eksplisit supaya tidak ambigu. onmouseover/onmouseout di
-   index.html dihapus (redundant sekarang, dan itulah sumber bug-nya). */
-.asset-card:hover{ transform:translateY(-2px); }
-.asset-card.card-blue:hover{ box-shadow:0 8px 24px rgba(37,99,235,.25)!important; border-color:var(--accent)!important; }
-.asset-card.card-green:hover{ box-shadow:0 8px 24px rgba(0,245,155,.25)!important; border-color:var(--green)!important; }
-.asset-card.card-purple:hover{ box-shadow:0 8px 24px rgba(192,132,252,.25)!important; border-color:var(--purple)!important; }
-.asset-card.card-red:hover{ box-shadow:0 8px 24px rgba(255,59,92,.25)!important; border-color:var(--red)!important; }
+/* Asset-card styling */
+.asset-card:hover{ transform:none; }
+.asset-card.card-blue:hover{ box-shadow:none!important; border-color:var(--border2)!important; }
+.asset-card.card-green:hover{ box-shadow:none!important; border-color:var(--border2)!important; }
+.asset-card.card-purple:hover{ box-shadow:none!important; border-color:var(--border2)!important; }
+.asset-card.card-red:hover{ box-shadow:none!important; border-color:var(--border2)!important; }
 
 .ctitle{
   font-size:12.5px;
@@ -519,13 +504,11 @@ body.theme-light .dash-view-toggle-bar .btn.on {
   background: rgba(0, 245, 155, 0.14);
   color: #00F59B;
   border: 1px solid rgba(0, 245, 155, 0.35);
-  box-shadow: 0 0 10px rgba(0, 245, 155, 0.08);
 }
 .b-dn {
   background: rgba(255, 59, 92, 0.14);
   color: #FF3B5C;
   border: 1px solid rgba(255, 59, 92, 0.35);
-  box-shadow: 0 0 10px rgba(255, 59, 92, 0.08);
 }
 .b-neu {
   background: rgba(0, 212, 255, 0.14);

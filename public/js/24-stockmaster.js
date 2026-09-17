@@ -818,29 +818,29 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   var stepsBody = document.getElementById('hw-steps-body-t3');
   if (stepsBody) {
     var stepItem = function(num, title, val, note, valColor, spanTwo) {
-      return '<div style="display:flex;align-items:flex-start;gap:12px;background:var(--bg2);padding:10px 14px;border-radius:8px;border:1px solid var(--border2)' + (spanTwo ? ';grid-column:1/-1' : '') + '">'
-        + '<div style="font-size:14px;font-weight:800;color:var(--accent);font-family:var(--font-mono);line-height:1.2;min-width:24px">' + num + '</div>'
+      return '<div style="display:flex;align-items:flex-start;gap:12px;background:var(--bg2);padding:8px 12px;border-radius:6px;border:1px solid var(--border)' + (spanTwo ? ';grid-column:1/-1' : '') + '">'
+        + '<div style="font-size:12px;font-weight:700;color:var(--text3);font-family:var(--font-mono);line-height:1.2;min-width:20px">' + num + '</div>'
         + '<div style="flex:1">'
-          + '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">' + title + '</div>'
+          + '<div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px">' + title + '</div>'
           + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">'
-            + '<span style="font-size:12.5px;font-weight:700;font-family:var(--font-mono);color:' + (valColor || 'var(--text)') + '">' + val + '</span>'
-            + (note ? '<span style="font-size:10.5px;color:var(--text3)">' + note + '</span>' : '')
+            + '<span style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:' + (valColor || 'var(--text)') + '">' + val + '</span>'
+            + (note ? '<span style="font-size:10px;color:var(--text3)">' + note + '</span>' : '')
           + '</div>'
         + '</div>'
       + '</div>';
     };
 
-    var mosColor = mosPct >= 15 ? '#10B981' : (mosPct >= 0 ? '#60A5FA' : '#EF4444');
+    var mosColor = mosPct >= 15 ? 'var(--green)' : (mosPct >= 0 ? 'var(--accent-blue)' : 'var(--red)');
 
     stepsBody.innerHTML = ''
       + stepItem('01', 'EPS Terkini', 'Rp ' + Math.round(eps).toLocaleString('id-ID'), 'Laba bersih per saham')
       + stepItem('02', 'BVPS Terkini', 'Rp ' + Math.round(bvps).toLocaleString('id-ID'), 'Nilai buku ekuitas')
-      + stepItem('03', 'Return on Equity (ROE)', (roe * 100).toFixed(1) + '%', 'Rentabilitas modal TTM', '#60A5FA')
-      + stepItem('04', 'Dividend Payout Ratio', (payout * 100).toFixed(1) + '%', 'Rasio dividen terhadap EPS', '#60A5FA')
-      + stepItem('05', 'Proyeksi BVPS (' + projYears + ' Thn)', 'Rp ' + Math.round(futureBvps).toLocaleString('id-ID'), 'Akumulasi laba ditahan', '#10B981')
-      + stepItem('06', 'Proyeksi EPS (' + projYears + ' Thn)', 'Rp ' + Math.round(futureEps).toLocaleString('id-ID'), 'Ekspektasi EPS tahun ke-' + projYears, '#10B981')
-      + stepItem('07', 'Target Harga (' + projYears + ' Thn)', 'Rp ' + Math.round(futurePrice).toLocaleString('id-ID'), 'Future Value target pasar', '#10B981')
-      + stepItem('08', 'Fair Value MoS', 'Rp ' + Math.round(fairPriceMoS).toLocaleString('id-ID'), 'Discounted pada ' + (minReturn * 100).toFixed(1) + '% min return', '#41f3a7')
+      + stepItem('03', 'Return on Equity (ROE)', (roe * 100).toFixed(1) + '%', 'Rentabilitas modal TTM', 'var(--accent-blue)')
+      + stepItem('04', 'Dividend Payout Ratio', (payout * 100).toFixed(1) + '%', 'Rasio dividen terhadap EPS', 'var(--accent-blue)')
+      + stepItem('05', 'Proyeksi BVPS (' + projYears + ' Thn)', 'Rp ' + Math.round(futureBvps).toLocaleString('id-ID'), 'Akumulasi laba ditahan', 'var(--green)')
+      + stepItem('06', 'Proyeksi EPS (' + projYears + ' Thn)', 'Rp ' + Math.round(futureEps).toLocaleString('id-ID'), 'Ekspektasi EPS tahun ke-' + projYears, 'var(--green)')
+      + stepItem('07', 'Target Harga (' + projYears + ' Thn)', 'Rp ' + Math.round(futurePrice).toLocaleString('id-ID'), 'Future Value target pasar', 'var(--green)')
+      + stepItem('08', 'Fair Value MoS', 'Rp ' + Math.round(fairPriceMoS).toLocaleString('id-ID'), 'Discounted pada ' + (minReturn * 100).toFixed(1) + '% min return', 'var(--green)')
       + stepItem('09', 'Margin of Safety (MoS)', (mosPct >= 0 ? '+' : '') + mosPct.toFixed(1) + '%', 'vs Harga Pasar Rp ' + Math.round(curPrice).toLocaleString('id-ID'), mosColor, true);
   }
 

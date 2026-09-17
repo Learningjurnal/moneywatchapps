@@ -1770,7 +1770,7 @@
       + '    </div>'
       + '  </div>'
       + '  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'cockpit' ? 'on' : '') + '" onclick="aiSwitchTab(\'cockpit\')" style="' + (state.activeTab === 'cockpit' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Cockpit</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'cockpit' ? 'on' : '') + '" onclick="aiSwitchTab(\'cockpit\')" style="' + (state.activeTab === 'cockpit' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Overview</button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'copy' ? 'on' : '') + '" onclick="aiSwitchTab(\'copy\')" style="' + (state.activeTab === 'copy' ? 'background:rgba(34,197,94,0.18);border-color:var(--green);color:var(--green);font-weight:700' : 'color:var(--green);border-color:rgba(34,197,94,0.3)') + '">📋 Copy Trading <span class="badge b-up" style="font-size:9px;padding:1px 5px">READY</span></button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'regime' ? 'on' : '') + '" onclick="aiSwitchTab(\'regime\')" style="' + (state.activeTab === 'regime' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Market Regime</button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'scanner' ? 'on' : '') + '" onclick="aiSwitchTab(\'scanner\')" style="' + (state.activeTab === 'scanner' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Scanner &amp; EV</button>'

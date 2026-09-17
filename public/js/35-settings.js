@@ -287,9 +287,9 @@
         <div class="card" style="padding:22px 24px;border-radius:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px">
             <div style="font-weight:700;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px">
-              <i class="ti ti-flame" style="color:#f59e0b"></i> Sasaran Keuangan &amp; Parameter FIRE
+              <i class="ti ti-flame" style="color:var(--amber)"></i> Sasaran Keuangan &amp; Parameter FIRE
             </div>
-            <span class="badge b-up">FIRE Engine</span>
+            <span class="badge b-neu" style="font-size:10px">Parameter FIRE</span>
           </div>
 
           <!-- FIRE Progress Meter -->
@@ -298,8 +298,8 @@
               <span style="font-weight:600;color:var(--text)">Kesiapan Dana FIRE</span>
               <strong style="color:var(--accent);font-family:var(--font-mono)">${fireProgressPct}% (Rp ${fmt(currentNet)} / Rp ${fmt(fireTarget)})</strong>
             </div>
-            <div style="background:var(--bg2);height:9px;border-radius:5px;overflow:hidden;border:1px solid var(--border2)">
-              <div style="background:linear-gradient(90deg, #3B82F6, #10B981);height:100%;width:${fireProgressPct}%;transition:width 0.3s"></div>
+            <div style="background:var(--bg2);height:8px;border-radius:4px;overflow:hidden;border:1px solid var(--border2)">
+              <div style="background:var(--accent);height:100%;width:${fireProgressPct}%;transition:width 0.3s"></div>
             </div>
             <div style="font-size:11px;color:var(--text3);margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
               <span>Pengeluaran Tahunan: <b style="color:var(--text2)">Rp ${fmt(annualExp)}</b></span>
