@@ -4869,6 +4869,69 @@ test('REGRESSION GUARD: cloud wealth (bank/debt/piutang) must not be discarded b
   assert.deepStrictEqual(bankIds, [1, 2], 'Two independently-added bank accounts from two devices must both survive (union by id), neither overwritten');
 });
 
+// ══════════════════════════════════════════════════════════════
+// TEST SUITE: SMART MONEY SCREENER CONSOLIDATION (2026-09-17)
+// ══════════════════════════════════════════════════════════════
+
+// User-requested consolidation (INCIDENT_LOG.md 2026-09-17): 3 previously
+// separate screeners that overlapped in concept (accumulation/distribution
+// "smart money" detection) — Flow Scanner (07-flowscan.js), "Scanner
+// Akumulasi & Distribusi" sub-tab (26-commandcenter.js), and "Heatmap &
+// Live Scanner" (41-stockchat-cockpit.js) — were merged into 3 modes of a
+// single "Smart Money Screener" page. These are source-text regression
+// guards (the merged functions have heavy cross-file global dependencies —
+// RADAR_STATE, BANDAR_SECTOR_DEFS, generateClientSideBrokerSummary, DB,
+// XLSX_DATA — that make a full vm-sandbox functional test impractical;
+// the actual behavior was verified live via Playwright instead, see
+// INCIDENT_LOG.md) confirming the old duplicate entry points stay gone and
+// the new consolidated ones stay in place.
+test('REGRESSION GUARD: Smart Money Screener consolidation — old duplicate entry points must not resurface', () => {
+  const flowScanSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  const cmdCenterSrc = fs.readFileSync(path.join(__dirname, 'public/js/26-commandcenter.js'), 'utf8');
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  // 1. New consolidated mode functions must exist in 07-flowscan.js.
+  assert(/function fsSwitchScreenerMode\(mode\)/.test(flowScanSrc), 'REGRESSION: fsSwitchScreenerMode() is gone from 07-flowscan.js');
+  assert(/async function fsRenderBrokerFlowMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() is gone from 07-flowscan.js');
+  assert(/function fsRenderSectorHeatmapMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() is gone from 07-flowscan.js');
+
+  // 2. The broker-flow mode must reuse Command Center's shared data loader,
+  // never re-implement its own fetch (would reintroduce the "3 different
+  // verdicts for the same ticker" risk the consolidation fixed).
+  assert(/loadAccumulationDistributionData/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer reuses loadAccumulationDistributionData() — must not duplicate the data-fetch logic');
+  assert(/RADAR_STATE\.accData/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer reads RADAR_STATE.accData — must not duplicate the shared cache');
+
+  // 3. The sector-heatmap mode must reuse Bandarmology's shared sector defs
+  // and CMF pipeline, never re-implement them.
+  assert(/BANDAR_SECTOR_DEFS/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() no longer reuses BANDAR_SECTOR_DEFS — must not duplicate sector groupings');
+  assert(/generateClientSideBrokerSummary/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() no longer reuses generateClientSideBrokerSummary()');
+
+  // 4. Old duplicate render functions must be GONE, not just unreachable.
+  assert(!/function renderRadarScannerSubTab/.test(cmdCenterSrc), 'REGRESSION: renderRadarScannerSubTab() resurfaced in 26-commandcenter.js — the duplicate "Scanner Akumulasi & Distribusi" sub-tab must stay removed');
+  assert(!cmdCenterSrc.includes("setRadarSubTab('scanner')"), 'REGRESSION: the "Scanner Akumulasi & Distribusi" sub-tab button resurfaced in Opportunity Radar');
+  assert(!/function renderBandarmologyHeatmapScannerView/.test(cockpitSrc), 'REGRESSION: renderBandarmologyHeatmapScannerView() resurfaced in 41-stockchat-cockpit.js — the duplicate heatmap scanner must stay removed');
+  assert(!cockpitSrc.includes('renderBandarmologyHeatmapScannerView()'), 'REGRESSION: Bandarmology market mode must not call the removed renderBandarmologyHeatmapScannerView() again');
+
+  // 5. Data that OTHER sub-tabs still depend on must survive the removal —
+  // RADAR_STATE/loadAccumulationDistributionData() is shared with the
+  // Anomaly Structural & ARA sub-tab, and BANDAR_SECTOR_DEFS/
+  // generateClientSideBrokerSummary with the Market Flow view.
+  assert(/function loadAccumulationDistributionData/.test(cmdCenterSrc), 'REGRESSION: loadAccumulationDistributionData() must NOT be removed — Anomaly Structural & ARA sub-tab still depends on it');
+  assert(/var RADAR_STATE\s*=/.test(cmdCenterSrc), 'REGRESSION: RADAR_STATE must NOT be removed — shared by multiple Opportunity Radar sub-tabs');
+  assert(/var BANDAR_SECTOR_DEFS\s*=/.test(cockpitSrc), 'REGRESSION: BANDAR_SECTOR_DEFS must NOT be removed — Bandarmology Market Flow view still depends on it');
+  assert(/function generateClientSideBrokerSummary/.test(cockpitSrc), 'REGRESSION: generateClientSideBrokerSummary() must NOT be removed — used by multiple Bandarmology views');
+
+  // 6. HTML wiring: the 3-mode tab bar and its panels must exist on the
+  // Smart Money Screener page, and the sidebar label must reflect the
+  // consolidated scope (no longer just "Flow Scanner").
+  assert(indexHtml.includes("fsSwitchScreenerMode('cmf')"), 'REGRESSION: index.html is missing the CMF Proxy mode button');
+  assert(indexHtml.includes("fsSwitchScreenerMode('broker')"), 'REGRESSION: index.html is missing the Broker Flow Riil mode button');
+  assert(indexHtml.includes("fsSwitchScreenerMode('sector')"), 'REGRESSION: index.html is missing the Heatmap Sektor mode button');
+  assert(indexHtml.includes('id="sms-mode-cmf"') && indexHtml.includes('id="sms-mode-broker"') && indexHtml.includes('id="sms-mode-sector"'), 'REGRESSION: index.html is missing one of the 3 Smart Money Screener mode panels');
+  assert(indexHtml.includes('>Smart Money Screener<'), 'REGRESSION: the sidebar/page title no longer says "Smart Money Screener"');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

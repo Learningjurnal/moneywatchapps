@@ -9,10 +9,11 @@
  */
 
 // Shared sector -> ticker groupings for the Bandarmology market-wide views
-// (Market Flow + Heatmap Scanner) — hoisted out of renderBandarmologyMarketFlowView()
-// so both views compute from the same real, simulated-broker-summary-based
-// aggregation instead of the Heatmap Scanner shipping its own separate,
-// fully hardcoded set of sector flow numbers (see renderBandarmologyHeatmapScannerView).
+// (Market Flow view here, and the Sector Heatmap mode of the Smart Money
+// Screener page — public/js/07-flowscan.js, fsRenderSectorHeatmapMode())
+// — hoisted out of renderBandarmologyMarketFlowView() so both views compute
+// from the same real, simulated-broker-summary-based aggregation instead of
+// shipping two separate, disagreeing sets of sector flow numbers.
 var BANDAR_SECTOR_DEFS = [
   { name: 'Financials (Perbankan & Keuangan)', tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BBTN'] },
   { name: 'Basic Materials (Tambang & Mineral)', tickers: ['ANTM', 'AMMN', 'MDKA', 'INCO', 'BRMS', 'MBMA', 'INKP', 'TKIM'] },
@@ -2345,9 +2346,16 @@ function renderBandarmologyCockpitPage(containerId) {
     setTimeout(loadAndRenderBrokerFlowTab, 40);
   } else {
     // Mode 2: Full Market & Macro Suite
+    // FIX AUDIT (2026-09-17, konsolidasi screener): heatmap sektor + tabel
+    // "PEMINDAI SMART MONEY & BANDAR RADAR" yang sebelumnya dirender di sini
+    // (renderBandarmologyHeatmapScannerView) dipindahkan jadi mode "Sector
+    // Heatmap" di halaman Smart Money Screener (public/js/07-flowscan.js,
+    // fsRenderSectorHeatmapMode()) — overlap konsep & sumber data (CMF/verdict
+    // bandar) dengan Flow Scanner dan Acc/Dist Scanner, jadi digabung satu
+    // tempat alih-alih 3 implementasi terpisah yang bisa beda verdict untuk
+    // ticker sama. Lihat INCIDENT_LOG.md.
     html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
       + renderBandarmologyMarketFlowView(tk)
-      + renderBandarmologyHeatmapScannerView()
       + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
       + renderBandarmologyAccumulationView()
       + renderBandarmologyDistributionView()
@@ -3314,134 +3322,6 @@ function mountBandarmologySmartMoneyCharts(tk) {
   }
 }
 
-// 9. Heatmap & Live Scanner View (Smart Money Sector Map & Signal Scanner)
-function renderBandarmologyHeatmapScannerView() {
-  // Was two fully hardcoded arrays — every sector flow number and every
-  // scanner row (ticker, PRICE included: BBCA=9800/BBRI=4780/BMRI=6850,
-  // none matching real prices shown anywhere else in the app) was a fixed
-  // literal that never changed. Sectors now reuse the same real
-  // BANDAR_SECTOR_DEFS aggregation as the Market Flow view (so the two
-  // views can't disagree with each other), and the scanner table now
-  // computes real price/change (getAccurateStockPrice/generateClientSideBrokerSummary)
-  // and real CMF-20 (fsGenData/fsCalcCMF, the same real-OHLCV pipeline
-  // FlowScan/Screener use) per ticker instead of inventing every column.
-  var sectorColors = ['var(--green)', 'var(--red)'];
-  var sectors = BANDAR_SECTOR_DEFS.map(function(sec) {
-    var secNetVal = 0;
-    sec.tickers.forEach(function(t) {
-      var bd = generateClientSideBrokerSummary(t, '1D');
-      if (bd && bd.isValidTicker !== false) {
-        secNetVal += (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
-      }
-    });
-    var secM = Math.round(secNetVal / 1000000000);
-    var isAcc = secM >= 0;
-    return {
-      name: sec.name,
-      flowVal: (secM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(secM).toLocaleString('id-ID') + ' M',
-      count: sec.tickers.length,
-      isAcc: isAcc,
-      borderCol: isAcc ? sectorColors[0] : sectorColors[1]
-    };
-  });
-
-  var scannerCandidates = ['BBCA', 'BBRI', 'BMRI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'GOTO'];
-  var sectorByTicker = {};
-  BANDAR_SECTOR_DEFS.forEach(function(sec) { sec.tickers.forEach(function(t) { sectorByTicker[t] = sec.name.split(' (')[0]; }); });
-
-  var scannerRows = scannerCandidates.map(function(t) {
-    var bd = generateClientSideBrokerSummary(t, '1D');
-    if (!bd || bd.isValidTicker === false) return null;
-    var cmfVal = 0;
-    if (typeof fsGenData === 'function' && typeof fsCalcCMF === 'function') {
-      var series = fsGenData(t, 30);
-      if (series && series.length) { var cmfArr = fsCalcCMF(series, 20); cmfVal = cmfArr[cmfArr.length - 1] || 0; }
-    }
-    var netM = Math.round(((bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0) / 1000000000);
-    var isAcc = netM >= 0;
-    return {
-      ticker: t,
-      sector: sectorByTicker[t] || '-',
-      price: bd.price,
-      chg: (bd.changePercent >= 0 ? '+' : '') + Number(bd.changePercent || 0).toFixed(2) + '%',
-      cmf: (cmfVal >= 0 ? '+' : '') + cmfVal.toFixed(2),
-      verdict: (bd.bandarmology && bd.bandarmology.verdict) || (isAcc ? 'ACCUMULATION' : 'DISTRIBUTION'),
-      flowM: (netM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netM).toLocaleString('id-ID') + ' M',
-      signal: (bd.bandarmology && bd.bandarmology.smartMoney && bd.bandarmology.smartMoney.signal) || '-'
-    };
-  }).filter(Boolean);
-
-  var html = '<div style="display:flex;flex-direction:column;gap:16px">'
-    // Heatmap Section
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + 'HEATMAP ALIRAN DANA SMART MONEY SEKTORAL BEI'
-    + '</div>'
-    + '<span class="badge b-amb" style="font-size:9px" title="Harga real, rincian broker-flow per-sektor disimulasikan">SIMULASI FLOW</span>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">';
-
-  sectors.forEach(function(s) {
-    html += '<div class="metric" style="border-left:3px solid ' + s.borderCol + ';padding:10px">'
-      + '<div class="mlabel" title="' + s.name + '">' + s.name + '</div>'
-      + '<div class="mval ' + (s.isAcc ? 'up' : 'down') + ' mono" style="font-size:16px;margin:4px 0">' + s.flowVal + '</div>'
-      + '<div class="msub neu">' + s.count + ' Emiten Teranalisis</div>'
-      + '</div>';
-  });
-
-  html += '</div></div>'
-
-    // Scanner Table Section
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
-    + '<div>'
-    + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + 'PEMINDAI SMART MONEY &amp; BANDAR RADAR'
-    + '</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Harga &amp; CMF-20 real dari data harga historis · verdict bandar &amp; flow disimulasikan (belum ada feed broker real per-menit)</div>'
-    + '</div>'
-    + '<span class="badge b-neu" style="font-size:9px">' + scannerRows.length + ' SAHAM TERPINDAI</span>'
-    + '</div>'
-
-    + '<div class="tbl-wrap" style="overflow-x:auto">'
-    + '<table class="tbl" style="width:100%;font-size:12px">'
-    + '<thead>'
-    + '<tr>'
-    + '<th>Emiten</th>'
-    + '<th>Sektor</th>'
-    + '<th style="text-align:right">Harga</th>'
-    + '<th style="text-align:right">Chg %</th>'
-    + '<th style="text-align:right">CMF-20</th>'
-    + '<th style="text-align:center">Bandarmology</th>'
-    + '<th style="text-align:right">Smart Money Flow</th>'
-    + '<th>Sinyal AI</th>'
-    + '<th style="text-align:center">Aksi</th>'
-    + '</tr>'
-    + '</thead>'
-    + '<tbody>';
-
-  scannerRows.forEach(function(row) {
-    var isAcc = row.verdict.includes('ACC');
-    html += '<tr>'
-      + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + row.ticker + '</span></td>'
-      + '<td style="color:var(--text2)">' + row.sector + '</td>'
-      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">Rp ' + row.price.toLocaleString('id-ID') + '</td>'
-      + '<td class="mono ' + (row.chg.startsWith('+') ? 'up' : 'down') + '" style="text-align:right;font-weight:700">' + row.chg + '</td>'
-      + '<td class="mono ' + (row.cmf.startsWith('+') ? 'up' : 'down') + '" style="text-align:right;font-weight:700">' + row.cmf + '</td>'
-      + '<td style="text-align:center"><span class="badge ' + (isAcc ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + row.verdict + '</span></td>'
-      + '<td class="mono ' + (isAcc ? 'up' : 'down') + '" style="text-align:right;font-weight:700">' + row.flowM + '</td>'
-      + '<td style="color:var(--text);font-weight:600">' + row.signal + '</td>'
-      + '<td style="text-align:center">'
-      + '<button onclick="selectStockChatTicker(\'' + row.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-primary btn-xs">Analisa ' + row.ticker + '</button>'
-      + '</td>'
-      + '</tr>';
-  });
-
-  html += '</tbody></table></div></div></div>';
-  return html;
-}
-
 window.renderBandarmologyCockpitPage = renderBandarmologyCockpitPage;
 window.renderBandarmologyMarketFlowView = renderBandarmologyMarketFlowView;
 window.renderBandarmologyForeignFlowView = renderBandarmologyForeignFlowView;
@@ -3449,7 +3329,6 @@ window.renderBandarmologyAccumulationView = renderBandarmologyAccumulationView;
 window.renderBandarmologyDistributionView = renderBandarmologyDistributionView;
 window.renderBandarmologySmartMoneyRadarView = renderBandarmologySmartMoneyRadarView;
 window.renderBandarmologySmartMoneyFlowView = renderBandarmologySmartMoneyFlowView;
-window.renderBandarmologyHeatmapScannerView = renderBandarmologyHeatmapScannerView;
 window.renderBandarmologyBrokerTrailView = renderBandarmologyBrokerTrailView;
 window.getAccurateStockPrice = getAccurateStockPrice;
 window.generateClientSideBrokerSummary = generateClientSideBrokerSummary;
