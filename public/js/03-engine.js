@@ -1539,6 +1539,31 @@ function fhStart(){
     if(tick%40===0) fhFetchKurs();       // kurs tiap 10 menit
     if(tick%4===0)  renderPage(currentPage);
   }, slow ? 15*60*1000 : 15000);
+  _fhWasStarted = true;
+}
+
+// FIX (2026-09-17, Vercel quota audit follow-up): in default 'fast' mode
+// this polls IHSG every 15s — 240 requests/hour, most of which route
+// through our OWN /api/proxy (see FH.PROXIES: 'local_proxy' is tried
+// first whenever this isn't a static-hosted build), so every request is a
+// Vercel serverless invocation, not just a third-party call. This is a
+// pure display refresh (topbar ticker, dashboard chart) with zero
+// functional purpose while the tab isn't being looked at — unlike the AI
+// autonomous-trading auto-refresh (38-ai-autonomous-trading.js), which the
+// user explicitly asked to keep running in the background because it
+// manages real paper-trading positions (stop-loss/take-profit). Pausing
+// this one while hidden and resuming (with an immediate fresh fetch, via
+// re-calling fhStart()) when visible again cuts the bulk of this app's
+// polling volume during backgrounded tabs with no user-visible downside.
+var _fhWasStarted = false;
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      if (FH.timer) { clearInterval(FH.timer); FH.timer = null; }
+    } else if (_fhWasStarted && !FH.timer) {
+      fhStart();
+    }
+  });
 }
 
 var FH_PRICE_MODE_KEY = 'mw_price_mode_v1';

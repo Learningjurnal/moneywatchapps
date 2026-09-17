@@ -53,11 +53,42 @@ var IDX_PIPELINE = {
     this.fetchCalendar();
 
     // 2. Schedule auto-refresh every 45 seconds
-    setInterval(function() {
+    // FIX (2026-09-17, Vercel quota audit follow-up): this hits
+    // GET /api/idx/summary (a Vercel serverless invocation every 45s, 80x/
+    // hour, forever) purely to refresh a display summary (top ticker bar,
+    // market breadth) — no functional purpose while the tab isn't visible.
+    // Paused while hidden, resumed (with an immediate fresh fetch) when
+    // visible again, same pattern as fhStart()'s IHSG poll in
+    // 03-engine.js and setupMultiDeviceSyncListener()'s SSE connection in
+    // 02-storage.js.
+    this._startAutoRefresh();
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      var self = this;
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+          self._stopAutoRefresh();
+        } else if (!self._refreshTimer) {
+          self.refreshMarketSummary();
+          self._startAutoRefresh();
+        }
+      });
+    }
+  },
+
+  _refreshTimer: null,
+  _startAutoRefresh: function() {
+    if (this._refreshTimer) return;
+    this._refreshTimer = setInterval(function() {
       if (typeof IDX_PIPELINE !== 'undefined' && IDX_PIPELINE.refreshMarketSummary) {
         IDX_PIPELINE.refreshMarketSummary();
       }
     }, 45000);
+  },
+  _stopAutoRefresh: function() {
+    if (this._refreshTimer) {
+      clearInterval(this._refreshTimer);
+      this._refreshTimer = null;
+    }
   },
 
   /**
