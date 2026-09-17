@@ -4654,6 +4654,104 @@ test('REGRESSION GUARD: 24-stockmaster.js techRenderChart guards division by zer
   assert(stockmasterSrc.includes('var curPrice = Number(closePrices[closePrices.length - 1]) || 0;'), 'Must guard curPrice against NaN/null');
 });
 
+// ══════════════════════════════════════════════════════════════
+// TEST SUITE: CLOUD SYNC MERGE — WEALTH (REKENING BANK/HUTANG/PIUTANG)
+// ══════════════════════════════════════════════════════════════
+
+// Audit finding (2026-09-17, INCIDENT_LOG.md): user reported "data hilang
+// saat pindah device" for bank accounts / debts / receivables. Root cause:
+// WEALTH (public/js/20-wealth.js) is initialized as a TRUTHY object at
+// script load (`{bank:[],debt:[],piutang:[],...}`), never null/undefined.
+// _mergeDatasets() in 02-storage.js used `local.wealth || cloud.wealth`,
+// so a brand-new device's still-empty-but-truthy local WEALTH ALWAYS won
+// over real cloud data, silently discarding it, whenever execution fell
+// into the general merge tail (i.e. whenever the dedicated "brand new
+// device" branch didn't fire — which itself only fires when
+// cloud.transactions.length > 0, so it never helps a user who never
+// trades stocks and only uses the Wealth module, or a device that already
+// has some stock transactions locally).
+function getStorageMergeContext() {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/02-storage.js'), 'utf8');
+  const sandbox = {
+    window: {},
+    localStorage: {
+      _data: {},
+      getItem(k) { return this._data[k] || null; },
+      setItem(k, v) { this._data[k] = String(v); },
+      removeItem(k) { delete this._data[k]; }
+    }
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  const startMarker = '// Menggabungkan data WEALTH';
+  const start = src.indexOf(startMarker);
+  const endMarker = "\nfunction saveData(){";
+  const end = src.indexOf(endMarker, start);
+  const slice = 'function _makeTxSig(t){\n  if(!t) return \'\';\n  return (t.date || \'\') + \'|\' + (t.type || \'\') + \'|\' + (t.ticker || \'\') + \'|\' + (t.lot || 0) + \'|\' + (t.price || 0) + \'|\' + (t.sekuritas || \'\');\n}\n'
+    + src.slice(start, end)
+    + '\nwindow._mergeDatasets = _mergeDatasets; window._mergeWealthData = _mergeWealthData;\n';
+  vm.runInContext(slice, ctx, { filename: '02-storage.js (merge slice)' });
+  return ctx;
+}
+
+test('REGRESSION GUARD: cloud wealth (bank/debt/piutang) must not be discarded by a fresh device\'s still-empty local WEALTH', () => {
+  const ctx = getStorageMergeContext();
+  assert.strictEqual(typeof ctx._mergeDatasets, 'function', '_mergeDatasets must be exported by the sandbox slice');
+
+  // Skenario 1: pengguna murni pakai fitur Wealth, tidak pernah trading
+  // saham sama sekali -> transactions selalu [] di KEDUA sisi, sehingga
+  // cabang "device baru" (yang butuh cloud.transactions.length > 0) tidak
+  // pernah aktif dan eksekusi jatuh ke merge umum di akhir fungsi.
+  const localFresh = {
+    transactions: [],
+    wealth: { income: 0, expense: 0, deposito: 0, emas: 0, obligasi: 0, bank: [], debt: [], piutang: [] },
+    savedAt: '2024-06-01T00:00:00.000Z'
+  };
+  const cloudReal = {
+    transactions: [],
+    wealth: {
+      income: 5000000, expense: 3000000, deposito: 0, emas: 0, obligasi: 0,
+      bank: [{ id: 1, bank: 'BCA', no: '123', saldo: 10000000 }],
+      debt: [{ id: 1, nama: 'KPR', outstanding: 500000000 }],
+      piutang: [{ id: 1, nama: 'Budi', pokok: 2000000 }]
+    },
+    savedAt: '2024-06-01T00:00:05.000Z'
+  };
+  const merged1 = ctx._mergeDatasets(localFresh, cloudReal);
+  assert.strictEqual(merged1.wealth.bank.length, 1, 'REGRESSION: real cloud bank account must survive the merge on a wealth-only user');
+  assert.strictEqual(merged1.wealth.bank[0].bank, 'BCA', 'Merged bank account must be the real BCA account from cloud');
+  assert.strictEqual(merged1.wealth.debt.length, 1, 'REGRESSION: real cloud debt (hutang) must survive the merge');
+  assert.strictEqual(merged1.wealth.piutang.length, 1, 'REGRESSION: real cloud receivable (piutang) must survive the merge');
+
+  // Skenario 2: device sudah punya transaksi saham di kedua sisi (bukan
+  // "device 100% kosong"), tapi Wealth cuma pernah diisi di device lain.
+  const localWithTx = {
+    transactions: [{ id: 1, date: '2024-01-01', ticker: 'BBCA' }],
+    wealth: { income: 0, expense: 0, deposito: 0, emas: 0, obligasi: 0, bank: [], debt: [], piutang: [] },
+    savedAt: '2024-06-01T00:00:00.000Z'
+  };
+  const cloudWithTx = {
+    transactions: [{ id: 1, date: '2024-01-01', ticker: 'BBCA' }],
+    wealth: cloudReal.wealth,
+    savedAt: '2024-06-01T00:00:05.000Z'
+  };
+  const merged2 = ctx._mergeDatasets(localWithTx, cloudWithTx);
+  assert.strictEqual(merged2.wealth.bank.length, 1, 'REGRESSION: cloud wealth must survive even when both devices already share stock transactions');
+  assert.strictEqual(merged2.wealth.debt.length, 1);
+  assert.strictEqual(merged2.wealth.piutang.length, 1);
+
+  // Skenario 3: dua device menambah rekening BERBEDA secara independen ->
+  // keduanya harus tetap ada (union per-id), tidak boleh saling menimpa.
+  const localDiff = { transactions: [], wealth: { bank: [{ id: 2, bank: 'Mandiri', saldo: 5000000 }], debt: [], piutang: [] }, savedAt: '2024-06-01T00:00:03.000Z' };
+  const cloudDiff = { transactions: [], wealth: { bank: [{ id: 1, bank: 'BCA', saldo: 10000000 }], debt: [], piutang: [] }, savedAt: '2024-06-01T00:00:05.000Z' };
+  const merged3 = ctx._mergeDatasets(localDiff, cloudDiff);
+  // Cross-realm gotcha: merged3.wealth.bank is an Array from the vm sandbox's
+  // realm, so its .map()/.sort() also produce vm-realm arrays — Array.from()
+  // rehomes it into this process's realm before comparing with assert.
+  const bankIds = Array.from(merged3.wealth.bank.map(b => b.id)).sort();
+  assert.deepStrictEqual(bankIds, [1, 2], 'Two independently-added bank accounts from two devices must both survive (union by id), neither overwritten');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

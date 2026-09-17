@@ -696,6 +696,49 @@ function _getLocalSavedTimestamps(){
   return { savedAt: undefined, updatedAt: undefined };
 }
 
+// Menggabungkan data WEALTH (Rekening Bank, Hutang, Piutang & pengaturan
+// income/expense/deposito/emas/obligasi) dari dua sumber tanpa pernah
+// membuang salah satu sisi secara diam-diam. Item bank/debt/piutang
+// digabung per-id (union, sama seperti transaksi/dividen di bawah) —
+// entri milik SATU sisi tetap dipertahankan walau sisi lain tidak
+// punya id itu (device lain belum sempat sinkron item tersebut, bukan
+// berarti item itu sengaja dihapus). Field skalar (income/expense/dll)
+// diambil dari sisi yang terakhir disimpan.
+function _mergeWealthData(localWealth, cloudWealth, localTime, cloudTime){
+  var lw = (localWealth && typeof localWealth === 'object') ? localWealth : null;
+  var cw = (cloudWealth && typeof cloudWealth === 'object') ? cloudWealth : null;
+  if(!lw && !cw) return null;
+  lw = lw || {};
+  cw = cw || {};
+
+  function mergeById(cloudArr, localArr){
+    var seen = new Set(), out = [];
+    [].concat(Array.isArray(cloudArr) ? cloudArr : [], Array.isArray(localArr) ? localArr : []).forEach(function(item){
+      if(!item) return;
+      var key = item.id != null ? ('id_' + item.id) : ('json_' + JSON.stringify(item));
+      if(seen.has(key)) return;
+      seen.add(key);
+      out.push(item);
+    });
+    return out;
+  }
+
+  var preferLocalScalars = (localTime || 0) >= (cloudTime || 0);
+  var scalarSource = preferLocalScalars ? lw : cw;
+  var scalarFallback = preferLocalScalars ? cw : lw;
+
+  return {
+    income: (typeof scalarSource.income === 'number') ? scalarSource.income : (scalarFallback.income || 0),
+    expense: (typeof scalarSource.expense === 'number') ? scalarSource.expense : (scalarFallback.expense || 0),
+    deposito: (typeof scalarSource.deposito === 'number') ? scalarSource.deposito : (scalarFallback.deposito || 0),
+    emas: (typeof scalarSource.emas === 'number') ? scalarSource.emas : (scalarFallback.emas || 0),
+    obligasi: (typeof scalarSource.obligasi === 'number') ? scalarSource.obligasi : (scalarFallback.obligasi || 0),
+    bank: mergeById(cw.bank, lw.bank),
+    debt: mergeById(cw.debt, lw.debt),
+    piutang: mergeById(cw.piutang, lw.piutang)
+  };
+}
+
 function _mergeDatasets(localObj, cloudObj){
   var local = localObj || {};
   var cloud = cloudObj || {};
@@ -773,6 +816,24 @@ function _mergeDatasets(localObj, cloudObj){
     });
   }
 
+  // FIX AUDIT (CRITICAL, data loss — Rekening Bank/Hutang/Piutang hilang saat
+  // pindah device): WEALTH (public/js/20-wealth.js) diinisialisasi sebagai
+  // objek TRUTHY sejak script dimuat (`{bank:[],debt:[],piutang:[],...}`),
+  // tidak pernah null/undefined. `local.wealth || cloud.wealth` karena itu
+  // SELALU memilih local — walau local masih kosong bawaan (device baru) —
+  // dan diam-diam membuang data bank/hutang/piutang riil di cloud. Bug ini
+  // luput dari jalur "device baru" di bawah setiap kali pengguna sudah punya
+  // transaksi saham di kedua sisi (jadi bukan device 100% kosong), atau
+  // pengguna sama sekali tidak trading saham sehingga transactions selalu []
+  // di kedua sisi dan cabang ini tidak pernah aktif — kasus itu jatuh ke
+  // merge umum di akhir fungsi, yang punya bug identik dan sudah diperbaiki
+  // dengan pemanggilan _mergeWealthData() yang sama di sana. Diverifikasi
+  // lewat reproduksi langsung terhadap _mergeDatasets(): sebelum fix,
+  // merged.wealth === local.wealth (data cloud terbuang total); sesudah
+  // fix, item bank/debt/piutang dari kedua sisi digabung per-id seperti
+  // transaksi/dividen, bukan salah satu sisi menang mutlak.
+  var mergedWealthTop = _mergeWealthData(local.wealth, cloud.wealth, localTime, cloudTime);
+
   // Jika perangkat baru / device lain (local transaksi kosong) dan cloud memiliki transaksi, adopsi data cloud secara penuh
   if ((!local.transactions || local.transactions.length === 0) && Array.isArray(cloud.transactions) && cloud.transactions.length > 0) {
     return Object.assign({}, local, cloud, {
@@ -784,7 +845,7 @@ function _mergeDatasets(localObj, cloudObj){
       etfTx: cloud.etfTx || [],
       divInvestData: cloud.divInvestData || [],
       rdnBalance: (typeof cloud.rdnBalance === 'number') ? cloud.rdnBalance : (local.rdnBalance || 0),
-      wealth: cloud.wealth || local.wealth || null,
+      wealth: mergedWealthTop,
       theses: (cloud.theses && cloud.theses.length) ? cloud.theses : (local.theses || []),
       journals: (cloud.journals && cloud.journals.length) ? cloud.journals : (local.journals || []),
       tradeStrategy: Object.assign({}, local.tradeStrategy || {}, cloud.tradeStrategy || {}),
@@ -925,7 +986,7 @@ function _mergeDatasets(localObj, cloudObj){
     theses: (local.theses && local.theses.length) ? local.theses : (cloud.theses || []),
     journals: (local.journals && local.journals.length) ? local.journals : (cloud.journals || []),
     priceAlerts: (local.priceAlerts && local.priceAlerts.length) ? local.priceAlerts : (cloud.priceAlerts || []),
-    wealth: local.wealth || cloud.wealth || null,
+    wealth: mergedWealthTop,
     tradeStrategy: Object.assign({}, cloud.tradeStrategy || {}, local.tradeStrategy || {}),
     taxSettings: Object.assign({}, cloud.taxSettings || {}, local.taxSettings || {}),
     cashAccounts: Object.assign({}, cloud.cashAccounts || {}, local.cashAccounts || {}),
