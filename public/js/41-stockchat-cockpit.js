@@ -1719,12 +1719,19 @@ async function sendStockChatPrompt(text) {
   var totalAum = (typeof computeCurrentAUM === 'function') ? computeCurrentAUM() : 0;
   var rdn = (typeof calcRdnBalance === 'function') ? calcRdnBalance() : 0;
 
+  // AI Signal Reflection Log Fase 3 (2026-09-17): riwayat sinyal ter-resolusi
+  // (return riil, hasil vs IHSG, refleksi) dikirim apa adanya — server tidak
+  // pernah punya akses Supabase sendiri (lihat cek_sinyal_teknikal di
+  // server.js), filter per-ticker dilakukan di sana setelah ticker diketahui.
+  var aiSignalHistory = (typeof getAiSignalHistorySummary === 'function') ? await getAiSignalHistorySummary() : [];
+
   var userContext = {
     holdings: porto,
     totalAum: totalAum,
     rdnCash: rdn,
     selectedTicker: STOCKCHAT_SELECTED_TICKER,
-    livePrices: window.prices || {}
+    livePrices: window.prices || {},
+    aiSignalHistory: aiSignalHistory
   };
 
   try {

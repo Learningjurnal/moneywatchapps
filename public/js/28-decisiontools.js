@@ -1449,6 +1449,10 @@ async function sendCopilotPrompt(text) {
     }
   }
 
+  // AI Signal Reflection Log Fase 3 (2026-09-17): sama seperti aiPaperTrading
+  // di atas, server tidak pernah punya akses Supabase sendiri.
+  var aiSignalHistory = (typeof getAiSignalHistorySummary === 'function') ? await getAiSignalHistorySummary() : [];
+
   var userContext = {
     holdings: porto,
     totalAum: totalAum,
@@ -1456,7 +1460,8 @@ async function sendCopilotPrompt(text) {
     sekuritas: sekuritasName,
     livePrices: livePrices,
     aiPaperTrading: aiPaperTrading,
-    xgboostPrediction: xgboostPrediction
+    xgboostPrediction: xgboostPrediction,
+    aiSignalHistory: aiSignalHistory
   };
 
   // Was: any failure here (network error, non-2xx, or a response body that
