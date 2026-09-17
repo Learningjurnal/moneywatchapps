@@ -1486,6 +1486,7 @@ async function sendCopilotPrompt(text) {
           text: data.reply || 'Analisa berhasil diproses.',
           toolCalls: data.toolCalls || []
         });
+        if (typeof logAiSignalToReflectionLog === 'function') logAiSignalToReflectionLog('copilot', data.toolCalls);
         serverSucceeded = true;
       } else {
         console.warn('[Copilot] Server AI responded without success:', data && data.error);

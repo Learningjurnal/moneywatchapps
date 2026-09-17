@@ -1744,6 +1744,7 @@ async function sendStockChatPrompt(text) {
           text: data.reply || 'Analisa berhasil diproses.',
           toolCalls: data.toolCalls || []
         });
+        if (typeof logAiSignalToReflectionLog === 'function') logAiSignalToReflectionLog('stockchat', data.toolCalls);
         return;
       }
     }

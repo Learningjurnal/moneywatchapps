@@ -1413,6 +1413,26 @@ async function executeAgentTool(toolName, args, userContext = {}) {
       };
     }
 
+    case 'cek_sinyal_teknikal': {
+      // Fase 2 "AI Signal Reflection Log" (2026-09-17): titik satu-satunya di
+      // seluruh StockChat/Copilot yang mengembalikan sinyal TERSTRUKTUR
+      // (enum, bukan teks bebas) — computeStockSignal() yang sama dipakai
+      // Market Radar/AI Trading Scanner. Sengaja tool TERPISAH dari
+      // cek_harga/cek_fundamental (yang cuma data mentah, tanpa verdict):
+      // client (41-stockchat-cockpit.js/28-decisiontools.js) mendeteksi
+      // panggilan tool INI secara spesifik di toolCalls untuk dicatat ke
+      // ai_signal_log — memparsing teks jawaban AI untuk itu akan rapuh,
+      // sementara AI ini justru diinstruksikan TIDAK PERNAH memberi sinyal
+      // definitif secara verbal (Aturan Perilaku #1).
+      const raw = (args.ticker || 'BBCA').trim().toUpperCase().replace('.JK', '').replace('.US', '');
+      try {
+        const signal = await computeStockSignal(raw);
+        return signal;
+      } catch (e) {
+        return { ticker: raw, signal: 'NO DATA', error: e.message || 'Gagal menghitung sinyal teknikal.' };
+      }
+    }
+
     case 'cek_fundamental': {
       // FIX: sebelumnya HANYA STOCK_REGISTRY (15 ticker statis). Sekarang
       // coba IDX Stock Screener dulu (endpoint resmi idx.co.id, real,
@@ -1942,6 +1962,17 @@ const AGENT_TOOL_DECLARATIONS = [
       type: 'OBJECT',
       properties: {}
     }
+  },
+  {
+    name: 'cek_sinyal_teknikal',
+    description: 'Menghitung sinyal komposit teknikal+fundamental terdeteksi OTOMATIS (bukan opini Anda) untuk satu ticker BEI — engine deterministik yang sama dipakai Market Radar/AI Trading Scanner (computeStockSignal): STRONG BUY/BUY/HOLD/WATCH/AVOID, beserta entry/stop-loss/take-profit berbasis ATR riil. Panggil ini HANYA kalau pengguna secara eksplisit meminta sinyal/rekomendasi/analisa teknikal untuk ticker tertentu — jangan panggil untuk pertanyaan umum yang tidak menyebut ticker. Hasilnya TETAP WAJIB Anda sajikan dengan analisa dua sisi (potensi vs risiko) sesuai Aturan Perilaku #1 — sinyal ini adalah TITIK AWAL analisa Anda, bukan jawaban akhir yang tinggal ditempel. signal:"NO DATA" berarti data harga/histori tidak cukup — sampaikan itu apa adanya, jangan mengarang sinyal.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        ticker: { type: 'STRING', description: 'Kode ticker saham BEI 4 huruf kapital, contoh: BBCA, BBRI, BMRI, PGEO, TLKM' }
+      },
+      required: ['ticker']
+    }
   }
 ];
 
@@ -2015,6 +2046,7 @@ ATURAN PERILAKU & ANALISA:
 8. KINERJA & SARAN PERBAIKAN BERBASIS HISTORI RIIL: Jika pengguna bertanya soal performa AI trading/paper trading, win rate, atau minta saran perbaikan strategi berdasarkan kesalahan masa lalu, Anda WAJIB memanggil alat "cek_kinerja_ai_trading" TERLEBIH DAHULU sebelum menjawab — JANGAN pernah mengarang win rate atau pola kesalahan generik. Field hasData:false berarti belum ada trade tercatat sama sekali — sampaikan itu apa adanya, jangan buat-buat angka. Kalau hasData:true, dasarkan saran perbaikan Anda pada field lesson/mistake/improvement trade-trade terakhir (recentClosedTrades) — itu hasil mesin Post-Mortem riil aplikasi, bukan opini Anda sendiri. AI Paper Trading ini modal virtual terisolasi (bukan uang riil pengguna) — jangan pernah membingungkannya dengan portofolio riil dari cek_portofolio_user.
 9. SARAN PERBAIKAN OTOMATIS RISK GATE (berbasis aturan, bukan ML): setiap kali Anda memanggil "cek_portofolio_user", hasilnya membawa field riskGateFindings (array) — daftar pelanggaran OBJEKTIF terhadap Risk Gate resmi aplikasi (posisi tunggal maks 15% AUM, kas RDN minimal 20% AUM, FINANCIAL_POLICY.md §7). Kalau array itu TIDAK KOSONG, Anda WAJIB menyampaikan setiap finding.message-nya sebagai saran perbaikan — proaktif, bukan cuma kalau ditanya eksplisit. Kalau array itu kosong, sampaikan bahwa portofolio saat ini sudah sesuai Risk Gate. Jangan pernah mengarang ambang batas sendiri di luar 15%/20% ini.
 10. PREDIKSI XGBOOST — WAJIB DISCLAIMER: kalau pengguna bertanya soal sinyal/prediksi/rekomendasi beli untuk saham tertentu, panggil alat "cek_prediksi_xgboost". Kalau hasData:false, sampaikan bahwa belum ada prediksi model untuk ticker ini — JANGAN mengarang sinyal sendiri. Kalau hasData:true: BACA field hasProvenSignal SEBELUM menjawab — kalau false (kondisi saat ini), Anda WAJIB menyampaikan kalimat disclaimer eksplisit ("model ini eksperimen edukasi, belum terbukti prediktif") SEBELUM menyebut angka probability/signal apa pun, dan JANGAN PERNAH memframing hasilnya sebagai rekomendasi solid. Kalau isSimulatedInputData:true, tambahkan bahwa data harga historis input model ini sendiri simulasi (bukan data pasar riil) — prediksinya lebih tidak bisa diandalkan lagi.
+11. SINYAL TEKNIKAL TERSTRUKTUR: kalau pengguna secara eksplisit meminta sinyal/rekomendasi/analisa teknikal untuk SATU ticker tertentu (bukan pertanyaan umum), panggil alat "cek_sinyal_teknikal". Hasilnya (STRONG BUY/BUY/HOLD/WATCH/AVOID/NO DATA beserta entry/stop-loss/take-profit) adalah TITIK AWAL analisa Anda, BUKAN jawaban akhir — tetap WAJIB Anda bungkus dengan analisa dua sisi (potensi vs risiko) sesuai Aturan Perilaku #1, jangan hanya menempel angkanya mentah-mentah. Kalau signal:"NO DATA", sampaikan bahwa data harga/histori tidak cukup untuk ticker ini — jangan mengarang sinyal sendiri.
 
 FORMAT RESPON:
 - Gunakan bahasa Indonesia yang profesional, ringkas, bersahabat, dan mudah dipahami.
@@ -2023,7 +2055,7 @@ FORMAT RESPON:
 "*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis, fundamental, dan bandarmology pasar.*"
 
 ALUR KERJA (AGENTIC LOOP):
-- Saat menerima pertanyaan, tentukan alat/functions yang relevan (misalnya: cek_broker_summary, cek_harga, cek_fundamental, cek_portofolio_user, cek_saldo_rdn, cek_kepemilikan_ksei, hitung_simulasi_transaksi_bei, hitung_pajak_dividen, hitung_proyeksi_risiko_drawdown, cek_kinerja_ai_trading, cek_prediksi_xgboost).
+- Saat menerima pertanyaan, tentukan alat/functions yang relevan (misalnya: cek_broker_summary, cek_harga, cek_fundamental, cek_portofolio_user, cek_saldo_rdn, cek_kepemilikan_ksei, hitung_simulasi_transaksi_bei, hitung_pajak_dividen, hitung_proyeksi_risiko_drawdown, cek_kinerja_ai_trading, cek_prediksi_xgboost, cek_sinyal_teknikal).
 - Panggil alat tersebut.
 - Evaluasi hasil data dan sajikan jawaban terstruktur yang mencakup data, strategi trading/investasi yang sesuai, kepatuhan BEI/pajak, analisis dua sisi (potensi vs risiko), dan disclaimer.`;
 
