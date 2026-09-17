@@ -3183,3 +3183,14 @@ tunggu penggunaan normal secara bertahap memicu eviction.
   - **Dampak:** perbaikan CSS var di atas SECARA TEKNIS BENAR tapi saat ini tidak terlihat di mana pun karena widget-nya sendiri tidak pernah dimuat ke DOM — tidak bisa diverifikasi visual secara langsung (dikonfirmasi lewat Playwright: `document.getElementById('dash-trending-news-container')` selalu `null`).
   - **Sengaja TIDAK diperbaiki sepihak** (di luar cakupan permintaan "perbaiki var(--text1)"): menambahkan kembali container ke Dashboard, atau memindahkan panggilan dari `renderTransaksi()` ke tempat yang benar, adalah keputusan produk (apakah fitur ini masih diinginkan) yang butuh konfirmasi user, bukan sekadar bug CSS.
 - `npm test` 146/146 (tidak berubah — tidak ada test yang meng-cover widget mati ini), `npm run lint` bersih. Cache-bust `33-trending-news.js?v=20260917a`.
+
+## 2026-09-17 — Hapus widget mati "Trending Financial News" (`public/js/33-trending-news.js`)
+
+- **Konteks:** lanjutan dari temuan dead code di atas — user memutuskan widget ini bukan bagian fitur aktif dan minta dihapus, bukan dihidupkan kembali.
+- **Perubahan:**
+  - `public/js/33-trending-news.js` — file dihapus sepenuhnya (seluruh isinya, termasuk `fetchTrendingNews()`, `renderTrendingNews()`, `inspectNewsTicker()`, tidak pernah dijangkau UI mana pun sejak container `dash-trending-news-container` hilang dari `index.html`).
+  - `public/index.html` — tag `<script src="js/33-trending-news.js?v=20260917a"></script>` dihapus.
+  - `public/js/04-render.js` — blok pemanggil `if (typeof renderTrendingNews === 'function') { try { renderTrendingNews(); } catch... }` di dalam `renderTransaksi()` (baris ~526-528) dihapus.
+  - `README.md` — baris deskripsi `js/33-trending-news.js` di tabel struktur file dihapus.
+- **Tidak diikutsertakan (sengaja, di luar cakupan "hapus widget-nya"):** endpoint backend `GET /api/trending-news` di `server.js` (beserta `newsCache`, `claudeExtractGroundingChunks()`) sekarang jadi orphaned juga karena tidak ada lagi caller di frontend — belum dihapus karena permintaan eksplisit hanya menyebut "widget" (sisi UI). Dilaporkan sebagai temuan terpisah bila user ingin membersihkan sisi backend juga.
+- **Verifikasi:** `node -c public/js/04-render.js`, `node -c server.js` — sukses. `npm test` 175/175 lulus (tidak berkurang — tidak ada test yang meng-cover widget mati ini). `npm run lint` bersih.
