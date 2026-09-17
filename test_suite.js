@@ -5098,6 +5098,128 @@ test('REGRESSION GUARD: Bandarmology market-aggregate views use real Invezgo dat
     'REGRESSION: bandarPrefetchMarketBatch() no longer filters the ticker list against STOCKCHAT_BROKER_DATA_CACHE before deciding whether to fetch');
 });
 
+// ── TEST: Opportunity Radar "Anomaly Structural & ARA" sub-tab must not
+// infinite-loop-fetch on failure ──
+// Found during a codebase-wide audit for the same bug class as
+// bandarPrefetchMarketBatch (see INCIDENT_LOG.md): loadAccumulationDistributionData()
+// (26-commandcenter.js) left RADAR_STATE.accData untouched on any failure
+// (network error or success:false), so renderRadarAnomalyAraSubTab()'s
+// `if (!accData)` guard stayed true forever, re-firing the fetch every
+// render cycle with zero cooldown/backoff — an unguarded render->fetch->
+// render loop, worse than the already-fixed bandarPrefetchMarketBatch
+// (which at least had an inflight flag). A second, related bug: setRadarSubTab()
+// still checked for the OLD sub-tab name 'scanner' (dead since the "Scanner
+// Akumulasi & Distribusi" consolidation renamed it to 'anomaly-ara'), so the
+// eager fetch-once-on-tab-click path used by its sibling tabs (flow-trail,
+// corporate-actions) never fired for this tab at all.
+await asyncTest('REGRESSION GUARD: loadAccumulationDistributionData() must set an error-shaped RADAR_STATE.accData on failure, and setRadarSubTab must eager-fetch for the real tab name', async () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/26-commandcenter.js'), 'utf8');
+
+  // setRadarSubTab: dead 'scanner' branch must be gone, replaced by the real 'anomaly-ara' name
+  const setRadarSubTabSrc = src.match(/function setRadarSubTab[\s\S]*?\n}\n/)[0];
+  assert(!/tabName === 'scanner'/.test(setRadarSubTabSrc),
+    'REGRESSION: setRadarSubTab() still checks for the dead \'scanner\' tab name — the eager prefetch never fires for the real \'anomaly-ara\' tab');
+  assert(/tabName === 'anomaly-ara'/.test(setRadarSubTabSrc),
+    'REGRESSION: setRadarSubTab() no longer eager-fetches accumulation/distribution data when the user clicks the Anomaly Structural & ARA tab');
+
+  // Extract loadAccumulationDistributionData() and run it against a mocked
+  // fetch() that always fails, proving RADAR_STATE.accData ends up
+  // truthy (breaking the !accData retry-loop guard) on BOTH failure paths.
+  const fnSrc = src.match(/async function loadAccumulationDistributionData[\s\S]*?\n}\n/)[0];
+
+  function makeSandbox(fetchImpl) {
+    const sandbox = {
+      RADAR_STATE: { accTimeframe: '1D', accDataCache: {} },
+      ACC_DIST_CACHE_TTL_MS: 60000,
+      fetch: fetchImpl,
+      encodeURIComponent
+    };
+    sandbox.window = sandbox;
+    const ctx = vm.createContext(sandbox);
+    vm.runInContext(fnSrc + '\nwindow.loadAccumulationDistributionData = loadAccumulationDistributionData;\n', ctx, { filename: '26-commandcenter.js (accData slice)' });
+    return ctx;
+  }
+
+  // Path 1: success:false JSON response
+  const ctxFalse = makeSandbox(async () => ({ json: async () => ({ success: false, error: 'Invezgo down' }) }));
+  await ctxFalse.loadAccumulationDistributionData();
+  assert(ctxFalse.RADAR_STATE.accData,
+    'REGRESSION: RADAR_STATE.accData still falsy after a success:false response — renderRadarAnomalyAraSubTab() will loop-refetch forever');
+  assert.strictEqual(ctxFalse.RADAR_STATE.accData.isSimulated, true,
+    'REGRESSION: the error-shaped accData must set isSimulated:true so renderRadarAnomalyAraSubTab()\'s existing honest-empty branch (accData.isSimulated && !accList.length) renders instead of crashing on a missing shape');
+  assert(Array.isArray(ctxFalse.RADAR_STATE.accData.accumulation),
+    'REGRESSION: error-shaped accData must still have an `accumulation` array — renderRadarAnomalyAraSubTab() reads accData.accumulation unconditionally');
+
+  // Path 2: network error (fetch throws)
+  const ctxThrow = makeSandbox(async () => { throw new Error('network down'); });
+  await ctxThrow.loadAccumulationDistributionData();
+  assert(ctxThrow.RADAR_STATE.accData,
+    'REGRESSION: RADAR_STATE.accData still falsy after a thrown network error — same infinite-retry-loop bug on the catch path');
+  assert.strictEqual(ctxThrow.RADAR_STATE.accData.isSimulated, true,
+    'REGRESSION: the catch-path error-shaped accData must also set isSimulated:true');
+});
+
+// ── TEST: multi-device SSE sync must pause while the tab is hidden ──
+// Found during the same audit: setupMultiDeviceSyncListener()'s EventSource
+// connection can only live ~30s before Vercel force-kills the serverless
+// function (vercel.json maxDuration=30, shorter than this route's own 20s
+// heartbeat interval never completing a second cycle). EventSource
+// auto-reconnects on that forced close with no visibility guard, so a
+// logged-in tab left open in the BACKGROUND still opened a new serverless
+// invocation roughly every 30s, forever — a continuous drip on Vercel's
+// function-invocation quota for no user-visible benefit.
+test('REGRESSION GUARD: setupMultiDeviceSyncListener() must close its EventSource when the tab is hidden and reconnect when visible again', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/02-storage.js'), 'utf8');
+  const startMarker = '// CLOUD PERSISTENCE & REALTIME CROSS-DEVICE ENGINE';
+  const start = src.indexOf(startMarker);
+  const endMarker = '// ── SETUP REALTIME FIRESTORE CROSS-DEVICE SYNC ──';
+  const end = src.indexOf(endMarker, start);
+  assert(start > -1 && end > start, 'could not locate the SSE sync slice in 02-storage.js by its markers');
+  const slice = src.slice(start, end) + '\nwindow.setupMultiDeviceSyncListener = setupMultiDeviceSyncListener;\n';
+
+  let esInstances = [];
+  function FakeEventSource(url) {
+    this.url = url;
+    this.closed = false;
+    esInstances.push(this);
+  }
+  FakeEventSource.prototype.close = function() { this.closed = true; };
+
+  const listeners = {};
+  const fakeDocument = {
+    hidden: false,
+    addEventListener(evt, fn) { listeners[evt] = fn; },
+    fire(evt) { if (listeners[evt]) listeners[evt](); }
+  };
+
+  const sandbox = {
+    window: { EventSource: FakeEventSource },
+    EventSource: FakeEventSource,
+    document: fakeDocument,
+    getFirestoreUserUid: () => 'user_123',
+    _currentUser: { isGuest: false, isDemo: false }
+  };
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(slice, ctx, { filename: '02-storage.js (SSE slice)' });
+
+  ctx.setupMultiDeviceSyncListener('user_123');
+  assert.strictEqual(esInstances.length, 1, 'REGRESSION: setupMultiDeviceSyncListener() did not open an EventSource for a real, visible, non-demo user');
+  assert.strictEqual(esInstances[0].closed, false);
+
+  // Tab goes to background -> connection must close (no more reconnect-driven invocations while hidden)
+  fakeDocument.hidden = true;
+  fakeDocument.fire('visibilitychange');
+  assert.strictEqual(esInstances[0].closed, true,
+    'REGRESSION: the SSE connection is not closed when the tab becomes hidden — it will keep reconnecting via Vercel serverless invocations every ~30s indefinitely in the background');
+
+  // Tab comes back to foreground -> must reconnect
+  fakeDocument.hidden = false;
+  fakeDocument.fire('visibilitychange');
+  assert.strictEqual(esInstances.length, 2,
+    'REGRESSION: the SSE connection does not reconnect when the tab becomes visible again — multi-device sync silently stays dead after any background period');
+  assert.strictEqual(esInstances[1].closed, false);
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

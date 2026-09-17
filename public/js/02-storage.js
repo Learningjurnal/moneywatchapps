@@ -1005,6 +1005,8 @@ var _syncQueued = false;
 var _realtimeListenerUnsub = null;
 var _isApplyingCloudSnapshot = false;
 var _sseSyncSource = null;
+var _sseSyncTargetUid = null;
+var _sseVisibilityListenerAttached = false;
 
 // Unique Device / Session Identifier across tabs and devices
 var _DEVICE_SESSION_ID = (function(){
@@ -1085,6 +1087,41 @@ function setupMultiDeviceSyncListener(uid){
   if(!targetUid || targetUid === 'demo_guest_user' || (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo))) {
     return; // Demo users do not participate in cross-device sync bus
   }
+
+  _sseSyncTargetUid = targetUid;
+
+  // FIX (2026-09-17, Vercel serverless-invocation quota audit): this SSE
+  // connection can only live ~30s at a time (vercel.json's api/index.js
+  // maxDuration=30, well under this route's own 20s heartbeat interval —
+  // Vercel force-kills the function before a second heartbeat ever fires).
+  // EventSource auto-reconnects on that forced close by design (see
+  // onerror below), which is fine while the tab is actually being looked
+  // at, but with no Page Visibility guard this meant a NEW serverless
+  // invocation roughly every 30s, forever, for every logged-in tab left
+  // open in the background — a continuous drip on Vercel's function-
+  // invocation quota with zero user-visible benefit (nobody's watching a
+  // hidden tab for a realtime sync toast). Pausing on hidden and resuming
+  // on visible cuts that to zero while backgrounded; a fresh sync happens
+  // immediately on refocus, so no data is lost, only a push notification
+  // to a tab nobody was looking at is delayed until it's looked at again.
+  if (!_sseVisibilityListenerAttached && typeof document !== 'undefined' && document.addEventListener) {
+    _sseVisibilityListenerAttached = true;
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        if (_sseSyncSource) {
+          try { _sseSyncSource.close(); } catch (e) {}
+          _sseSyncSource = null;
+        }
+      } else if (_sseSyncTargetUid && !_sseSyncSource) {
+        setupMultiDeviceSyncListener(_sseSyncTargetUid);
+      }
+    });
+  }
+
+  // Tab already backgrounded when this runs (e.g. opened in a background
+  // tab, or login completed while switched away) — skip connecting now;
+  // the visibilitychange listener above will connect once it's visible.
+  if (typeof document !== 'undefined' && document.hidden) return;
 
   var streamUrl = '/api/sync/stream?uid=' + encodeURIComponent(targetUid) + '&deviceId=' + encodeURIComponent(_DEVICE_SESSION_ID);
 
