@@ -4896,16 +4896,29 @@ test('REGRESSION GUARD: Smart Money Screener consolidation — old duplicate ent
   assert(/async function fsRenderBrokerFlowMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() is gone from 07-flowscan.js');
   assert(/function fsRenderSectorHeatmapMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() is gone from 07-flowscan.js');
 
-  // 2. The broker-flow mode must reuse Command Center's shared data loader,
-  // never re-implement its own fetch (would reintroduce the "3 different
-  // verdicts for the same ticker" risk the consolidation fixed).
-  assert(/loadAccumulationDistributionData/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer reuses loadAccumulationDistributionData() — must not duplicate the data-fetch logic');
-  assert(/RADAR_STATE\.accData/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer reads RADAR_STATE.accData — must not duplicate the shared cache');
+  // 2. FIX AUDIT (2026-09-17, user-requested full-BEI coverage): the broker-
+  // flow mode was redesigned to scan the FULL ~900+ IDX universe in
+  // user-controlled batches (each ticker costs paid Invezgo quota, so it
+  // must NOT auto-run unattended) instead of reusing Command Center's
+  // LQ45-only RADAR_STATE.accData cache — reusing that cache would leak
+  // full-universe results into the Anomaly Structural & ARA sub-tab, which
+  // is designed around LQ45 only. It must call the acc/dist API endpoint
+  // directly with an explicit batch of tickers, and fetch the full
+  // universe list to page through.
+  assert(/FS_BROKER_SCAN/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() lost its own scan-progress state (FS_BROKER_SCAN) — must not silently go back to a single LQ45-only call');
+  assert(/function fsRunNextBrokerScanBatch/.test(flowScanSrc), 'REGRESSION: fsRunNextBrokerScanBatch() is gone — full-BEI batching must stay user-controlled, one batch per click');
+  assert(/'\/api\/idx\/accumulation-distribution'/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer calls the acc/dist API directly');
+  assert(/'\/api\/idx\/stocks'/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer fetches the full IDX ticker universe to scan');
+  assert(!/RADAR_STATE\.accData/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() must NOT read/write RADAR_STATE.accData — that would leak full-universe results into the LQ45-only Anomaly Structural & ARA sub-tab');
 
-  // 3. The sector-heatmap mode must reuse Bandarmology's shared sector defs
-  // and CMF pipeline, never re-implement them.
-  assert(/BANDAR_SECTOR_DEFS/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() no longer reuses BANDAR_SECTOR_DEFS — must not duplicate sector groupings');
+  // 3. FIX AUDIT (2026-09-17): the sector-heatmap mode's stock-level table
+  // was redesigned to scan the FULL IDX universe (fetched fresh, real
+  // per-ticker sector) instead of the curated ~37-ticker BANDAR_SECTOR_DEFS
+  // list — it must still reuse generateClientSideBrokerSummary() (the CMF
+  // pipeline), just no longer be capped to that curated list.
+  assert(/FS_SECTOR_SCAN_UNIVERSE/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() lost its full-universe ticker cache (FS_SECTOR_SCAN_UNIVERSE) — must not silently shrink back to the curated ~37-ticker list');
   assert(/generateClientSideBrokerSummary/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() no longer reuses generateClientSideBrokerSummary()');
+  assert(!/scannerCandidates\s*=\s*\[/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() reintroduced a hardcoded scannerCandidates ticker list — the whole point of the fix was to stop hardcoding a narrow candidate set');
 
   // 4. Old duplicate render functions must be GONE, not just unreachable.
   assert(!/function renderRadarScannerSubTab/.test(cmdCenterSrc), 'REGRESSION: renderRadarScannerSubTab() resurfaced in 26-commandcenter.js — the duplicate "Scanner Akumulasi & Distribusi" sub-tab must stay removed');
@@ -4930,6 +4943,29 @@ test('REGRESSION GUARD: Smart Money Screener consolidation — old duplicate ent
   assert(indexHtml.includes("fsSwitchScreenerMode('sector')"), 'REGRESSION: index.html is missing the Heatmap Sektor mode button');
   assert(indexHtml.includes('id="sms-mode-cmf"') && indexHtml.includes('id="sms-mode-broker"') && indexHtml.includes('id="sms-mode-sector"'), 'REGRESSION: index.html is missing one of the 3 Smart Money Screener mode panels');
   assert(indexHtml.includes('>Smart Money Screener<'), 'REGRESSION: the sidebar/page title no longer says "Smart Money Screener"');
+});
+
+// Field feedback (2026-09-17, INCIDENT_LOG.md): user pointed out that
+// renaming "Universe-Wide"/"Live Scanner" alone would still be dishonest —
+// the backend itself hardcoded the LQ45 constituents (45 tickers) as the
+// ONLY scannable universe for getUniverseAccumulationDistribution(), no
+// matter what the UI claimed. Fixed to accept an explicit `tickers` list
+// from the caller (LQ45 stays the DEFAULT only when none is given), same
+// pattern as the pre-existing POST /api/idx/ai-scan. These are source-text
+// checks (no INVEZGO_API_KEY in the test environment, so the function
+// always takes its honest "not configured" early-return regardless of
+// which tickers are passed — a functional test would just prove that
+// branch again, not the ticker-list plumbing this fix actually changed).
+test('REGRESSION GUARD: getUniverseAccumulationDistribution() must accept a caller-provided ticker list, not hardcode LQ45 as the scan ceiling', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+
+  assert(!/const tickers = Object\.values\(universe\)\.filter\(u => u\.indexes && u\.indexes\.lq45\)\.map\(u => u\.code\)\.slice\(0, 45\);/.test(engineSrc),
+    'REGRESSION: getUniverseAccumulationDistribution() reverted to hardcoding LQ45 (slice(0,45)) as the only possible scan universe');
+  assert(/params\.tickers/.test(engineSrc), 'REGRESSION: getUniverseAccumulationDistribution() no longer reads params.tickers — the caller can no longer choose which stocks to scan');
+  assert(/filter\(u => u\.indexes && u\.indexes\.lq45\)/.test(engineSrc), 'sanity: LQ45 should still be the DEFAULT when no ticker list is given, just not the ceiling');
+
+  assert(/app\.post\('\/api\/idx\/accumulation-distribution'/.test(serverSrc), 'REGRESSION: POST /api/idx/accumulation-distribution is gone — the client needs this to submit a batch of tickers from the full IDX universe (a GET query string does not comfortably fit 80 tickers repeatedly)');
 });
 
 console.log('═══════════════════════════════════════════════════════');
