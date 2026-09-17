@@ -3171,3 +3171,15 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - **Live verification (Playwright, server lokal):** BBCA di-load ulang setelah fix — `window.dossierState.scoringResult.pillars.regime.regimeConfidence` dikonfirmasi `0`, teks kartu dikonfirmasi KONSISTEN di kedua tempat ("Confidence: 0%" muncul 2×, bukan lagi 75% vs 0%). Screenshot dikirim. Nol error konsol.
 - `npm test` 146/146 (naik dari 145 — 1 test baru), `npm run lint` bersih.
 - **Catatan:** `var(--text1)` (pola CSS var salah nama yang sama) juga ditemukan 3× di `public/js/33-trending-news.js` — DI LUAR cakupan audit ini (toolbar Master Dossier), tidak disentuh, dilaporkan sebagai temuan terpisah untuk keputusan user.
+
+## 2026-09-17 — Perbaikan lanjutan: `var(--text1)` di `public/js/33-trending-news.js` + ditemukan widget ini sepenuhnya dead code
+
+- **Konteks:** lanjutan dari catatan terpisah di audit Master Dossier — user minta `var(--text1)` (3 kemunculan di baris 92, 196, 237) di file ini juga diperbaiki.
+- **Perbaikan:** `sed` global `var(--text1)` → `var(--text)`, sama seperti perbaikan di `46-stock-dossier.js`.
+- **Temuan tambahan [DEAD CODE, ditemukan saat verifikasi live]:** fitur "Trending Financial News" ini SEPENUHNYA tidak pernah tampil di UI mana pun:
+  - `renderTrendingNews()` mencari `document.getElementById('dash-trending-news-container')` — ID ini **tidak ada di `public/index.html` manapun** (dikonfirmasi grep menyeluruh, 0 hasil). Setiap panggilan langsung `return` di baris pertama (`if (!container) return;`), tidak pernah merender apa pun.
+  - Satu-satunya pemanggil (`renderTrendingNews()`) ada di `public/js/04-render.js:526`, tapi diletakkan di dalam `renderTransaksi()` (render halaman Transaksi) — BUKAN di dalam render Dashboard, tempat yang secara logis dimaksudkan (nama container-nya sendiri `dash-trending-news-*`).
+  - Riwayat git (`git log -S "dash-trending-news-container"`) tidak menemukan commit mana pun yang pernah menambahkan ID ini ke `index.html` — kemungkinan container-nya dihapus di suatu redesign (mis. commit lain "replace complex landing page"/restyle sidebar dari kontributor lain di riwayat repo ini) tanpa ikut membersihkan pemanggil JS-nya.
+  - **Dampak:** perbaikan CSS var di atas SECARA TEKNIS BENAR tapi saat ini tidak terlihat di mana pun karena widget-nya sendiri tidak pernah dimuat ke DOM — tidak bisa diverifikasi visual secara langsung (dikonfirmasi lewat Playwright: `document.getElementById('dash-trending-news-container')` selalu `null`).
+  - **Sengaja TIDAK diperbaiki sepihak** (di luar cakupan permintaan "perbaiki var(--text1)"): menambahkan kembali container ke Dashboard, atau memindahkan panggilan dari `renderTransaksi()` ke tempat yang benar, adalah keputusan produk (apakah fitur ini masih diinginkan) yang butuh konfirmasi user, bukan sekadar bug CSS.
+- `npm test` 146/146 (tidak berubah — tidak ada test yang meng-cover widget mati ini), `npm run lint` bersih. Cache-bust `33-trending-news.js?v=20260917a`.
