@@ -473,8 +473,21 @@ async function loadAccumulationDistributionData(tf, force) {
       RADAR_STATE.accDataCache[timeframe] = { data: data, fetchedAt: Date.now() };
       return data;
     }
+    // FIX (2026-09-17, infinite-loop audit): a failed response (success:false)
+    // used to leave RADAR_STATE.accData untouched (still null/undefined).
+    // renderRadarAnomalyAraSubTab()'s `if (!accData)` guard would then stay
+    // true forever, re-firing this same fetch every render cycle with zero
+    // cooldown — the same unguarded render->fetch->render loop class as the
+    // bandarPrefetchMarketBatch incident, except with no inflight guard at
+    // all. Sibling loaders (loadTransactionFlowData/loadCorporateActionsData
+    // above) already set an error-shaped state object on failure so their
+    // own `!x` guards resolve to false either way; accData never did. Now it
+    // does, using the isSimulated+message shape renderRadarAnomalyAraSubTab()
+    // already reads for its honest-empty state.
+    RADAR_STATE.accData = { isSimulated: true, accumulation: [], distribution: [], message: (data && data.message) || (data && data.error) || 'Gagal memuat data akumulasi struktural.' };
   } catch (err) {
     console.warn('[Acc/Dist Scanner Fetch Warning]', err);
+    RADAR_STATE.accData = { isSimulated: true, accumulation: [], distribution: [], message: 'Koneksi gagal atau data akumulasi struktural tidak tersedia.' };
   }
   return null;
 }
@@ -530,7 +543,14 @@ async function loadCorporateActionsData(filter) {
 function setRadarSubTab(tabName) {
   RADAR_STATE.activeTab = tabName || 'screener';
   renderOpportunityRadarPage();
-  if (tabName === 'scanner') {
+  // FIX (2026-09-17, infinite-loop audit): was still checking for the OLD
+  // sub-tab name 'scanner', dead since the "Scanner Akumulasi & Distribusi"
+  // consolidation renamed/merged it into 'anomaly-ara' (see INCIDENT_LOG.md,
+  // "Smart Money Screener" entry) — this eager fetch-once-on-tab-click never
+  // fired for the real tab name, leaving renderRadarAnomalyAraSubTab()'s own
+  // lazy in-render fetch as the only path (the one that could loop forever
+  // on failure, fixed above in loadAccumulationDistributionData()).
+  if (tabName === 'anomaly-ara') {
     loadAccumulationDistributionData(RADAR_STATE.accTimeframe).then(function() {
       renderOpportunityRadarPage();
     });
