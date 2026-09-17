@@ -2366,6 +2366,15 @@ function renderBandarmologyCockpitPage(containerId) {
 
   html += '</div>';
   target.innerHTML = html;
+
+  // Kick off (or let already-run) real-data prefetch for the shared
+  // market-wide sample universe — first paint above used whatever was
+  // already cached (real if a previous prefetch finished, simulated
+  // fallback otherwise, exactly like before this fix). Once the batch
+  // resolves, bandarPrefetchMarketBatch() re-renders this same page so all
+  // 5 views flip to real numbers together instead of staying stuck on the
+  // simulated first paint forever.
+  bandarPrefetchMarketBatch(containerId, tk);
 }
 
 // KNOWN_ISSUES.md #3 — shared disclosure banner for every Bandarmology view
@@ -2383,17 +2392,139 @@ function bandarSimBanner(extraNote) {
     + '</div>';
 }
 
+// FIX (2026-09-17, user-requested: "seharusnya sudah dengan data riil bukan
+// data simulasi" setelah INVEZGO_API_KEY dipasang di production): sebelum
+// ini, KELIMA view market-aggregate Bandarmology (Market Flow, Foreign
+// Flow, Accumulation, Distribution, Smart Money Radar, Broker Trail) SELALU
+// memanggil generateClientSideBrokerSummary() langsung — 100% simulasi,
+// tidak pernah menyentuh Invezgo sama sekali walau API key sudah aktif
+// (beda dari tab "Analisis Full Emiten" yang sudah lama pakai
+// fetchBrokerSummaryData(), yang REAL kalau Invezgo dikonfigurasi). Bukan
+// bug baru — didokumentasikan sengaja di KNOWN_ISSUES.md #3/INCIDENT_LOG.md
+// #7 sebagai keterbatasan yang didisclose, bukan diperbaiki. Sekarang
+// diperbaiki: bandarGetCachedSummary() adalah pengganti drop-in untuk
+// generateClientSideBrokerSummary(t,'1D') di keenam view itu — baca dari
+// STOCKCHAT_BROKER_DATA_CACHE (diisi oleh fetchBrokerSummaryData(), endpoint
+// /api/idx/broker-summary/:ticker yang sama dipakai tab Emiten) kalau sudah
+// ada, jatuh ke simulasi PERSIS seperti sebelumnya kalau belum (aman untuk
+// render pertama sebelum prefetch selesai — bentuk objeknya identik karena
+// computeBandarmologyVerdict() dipakai bersama oleh jalur real & simulasi
+// di lib/idx-data-engine.js, jadi topBuyers/topSellers/bandarmology.* punya
+// field yang sama persis).
+function bandarGetCachedSummary(ticker, tf) {
+  var t = String(ticker || '').toUpperCase().replace(/\.JK$/i, '').trim();
+  var key = t + '_' + (tf || '1D');
+  return STOCKCHAT_BROKER_DATA_CACHE[key] || generateClientSideBrokerSummary(t, tf || '1D');
+}
+
+// Union saham yang dibutuhkan SEMUA view market-aggregate sekaligus, supaya
+// satu putaran prefetch (bukan 6 putaran terpisah per view) cukup melayani
+// semuanya — sama-sama baca dari cache yang sama.
+function bandarUniqueMarketTickers(extraTicker) {
+  var seen = {};
+  var out = [];
+  function add(list) {
+    (list || []).forEach(function(t) {
+      var u = String(t || '').toUpperCase();
+      if (u && !seen[u]) { seen[u] = true; out.push(u); }
+    });
+  }
+  add(['BBCA', 'BBRI', 'BMRI', 'BBNI']); // Big 4 Banks (Market Flow View)
+  BANDAR_SECTOR_DEFS.forEach(function(sec) { add(sec.tickers); });
+  add(['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR']); // Foreign Flow/Accumulation/Distribution/Broker Trail sample
+  if (extraTicker) add([extraTicker]); // Smart Money Radar's currently-focused ticker
+  return out;
+}
+
+var BANDAR_MARKET_PREFETCH_INFLIGHT = false;
+// Fetches real per-ticker broker data (fetchBrokerSummaryData() already
+// caches per ticker+timeframe and falls back to simulation per ticker on
+// failure — see its own comment) for the whole shared sample universe, then
+// re-renders the cockpit page once so all 6 views flip from their initial
+// simulated-fallback paint to real numbers together. Guarded by an inflight
+// flag so rapid mode/broker switching doesn't stack up duplicate batches —
+// fetchBrokerSummaryData()'s own cache makes a second call for an
+// already-fetched ticker instant anyway, but this avoids firing the whole
+// ~45-ticker Promise.all more than once concurrently.
+function bandarPrefetchMarketBatch(containerId, tk) {
+  if (BANDAR_MARKET_PREFETCH_INFLIGHT) return;
+  var tickers = bandarUniqueMarketTickers(tk);
+  // FIX (found live, not from reading code: renderBandarmologyCockpitPage()
+  // unconditionally re-renders after every prefetch, and fetchBrokerSummaryData()
+  // caches its SIMULATED fallback result too — so once every ticker has been
+  // fetched at least once (real or simulated), a naive "always Promise.all
+  // then re-render" here would resolve near-instantly from cache on every
+  // subsequent render, which re-renders, which re-prefetches, forever. Caught
+  // via a live Playwright check: the tab pegged one CPU core in a render loop.
+  // Only fetch+re-render when there is at least one ticker NOT already
+  // cached — once the whole set is cached, there is nothing new for another
+  // render to show, so stop here instead of looping.
+  var missing = tickers.filter(function(t) { return !STOCKCHAT_BROKER_DATA_CACHE[t + '_1D']; });
+  if (missing.length === 0) return;
+  BANDAR_MARKET_PREFETCH_INFLIGHT = true;
+  Promise.all(missing.map(function(t) { return fetchBrokerSummaryData(t, '1D').catch(function() { return null; }); }))
+    .then(function() {
+      BANDAR_MARKET_PREFETCH_INFLIGHT = false;
+      var target = document.getElementById(containerId || 'page-bandarmology');
+      if (target) renderBandarmologyCockpitPage(containerId);
+    })
+    .catch(function() { BANDAR_MARKET_PREFETCH_INFLIGHT = false; });
+}
+
+// Disclosure banner that reflects what was ACTUALLY used for the tickers a
+// view just rendered — real Invezgo data, simulation, or a mix — instead of
+// bandarSimBanner()'s always-simulated text. realCount/totalCount are
+// counted by the caller from the same bandarGetCachedSummary() results it
+// used to build its rows, so this can never claim "real" for data that
+// wasn't.
+// Real (computeBandarmologyVerdict() in lib/idx-data-engine.js) and
+// simulated (generateClientSideBrokerSummary() above) bandarmology objects
+// use DIFFERENT field names for the same figures (netValueRp vs netValRp,
+// institutionalNetRp under `smartMoney` vs smartMoneyNetValRp under
+// `retailVsSmartMoney`, top3BuyerPct vs top3BuyPct) — Foreign Flow/
+// Accumulation/Distribution views already defensively checked both, but
+// Market Flow View only checked the simulated names, so real data silently
+// read as 0 there. These two helpers pick whichever shape is actually
+// present instead of assuming one.
+function bandarForeignNetRp(bm) {
+  var ff = (bm && bm.foreignFlow) || {};
+  if (ff.netValueRp !== undefined) return ff.netValueRp;
+  if (ff.netValRp !== undefined) return ff.netValRp;
+  return 0;
+}
+function bandarSmartMoneyNetRp(bm) {
+  if (bm && bm.smartMoney && bm.smartMoney.institutionalNetRp !== undefined) return bm.smartMoney.institutionalNetRp;
+  if (bm && bm.retailVsSmartMoney && bm.retailVsSmartMoney.smartMoneyNetValRp !== undefined) return bm.retailVsSmartMoney.smartMoneyNetValRp;
+  return 0;
+}
+
+function bandarDataBanner(realCount, totalCount, simNote) {
+  if (totalCount > 0 && realCount === totalCount) {
+    return '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;margin-bottom:12px">'
+      + 'Data di bawah adalah data REAL dari Invezgo API (broker summary resmi BEI) — bukan simulasi.'
+      + '</div>';
+  }
+  if (totalCount > 0 && realCount > 0) {
+    return '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;margin-bottom:12px">'
+      + realCount + ' dari ' + totalCount + ' saham di bawah memakai data REAL Invezgo API; sisanya belum tersedia dari provider untuk saham tersebut sehingga memakai simulasi.'
+      + '</div>';
+  }
+  return bandarSimBanner(simNote);
+}
+
 // 1. Market Flow View
 function renderBandarmologyMarketFlowView(tk) {
   var bigBanksTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI'];
   var bigBanksName = { 'BBCA': 'Bank Central Asia', 'BBRI': 'Bank Rakyat Indonesia', 'BMRI': 'Bank Mandiri', 'BBNI': 'Bank Negara Indonesia' };
   var totalBigBanksNetVal = 0;
+  var realCount = 0;
+  var totalCount = 0;
 
   var bigBanks = bigBanksTickers.map(function(t) {
-    var bData = generateClientSideBrokerSummary(t, '1D');
-    var netVal = (bData.bandarmology && bData.bandarmology.foreignFlow && bData.bandarmology.foreignFlow.netValueRp !== undefined)
-      ? bData.bandarmology.foreignFlow.netValueRp
-      : ((bData.bandarmology && bData.bandarmology.smartMoney) ? bData.bandarmology.smartMoney.institutionalNetRp : 0);
+    var bData = bandarGetCachedSummary(t, '1D');
+    totalCount++;
+    if (bData && bData.isSimulated === false) realCount++;
+    var netVal = bandarForeignNetRp(bData.bandarmology) || bandarSmartMoneyNetRp(bData.bandarmology);
     totalBigBanksNetVal += netVal;
     var netM = Math.round(netVal / 1000000000);
     var flowStr = (netM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netM).toLocaleString('id-ID') + ' M';
@@ -2414,9 +2545,11 @@ function renderBandarmologyMarketFlowView(tk) {
   var sectors = BANDAR_SECTOR_DEFS.map(function(sec) {
     var secNetVal = 0;
     sec.tickers.forEach(function(t) {
-      var bd = generateClientSideBrokerSummary(t, '1D');
+      var bd = bandarGetCachedSummary(t, '1D');
+      totalCount++;
+      if (bd && bd.isSimulated === false) realCount++;
       if (bd && bd.isValidTicker !== false) {
-        var v = (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
+        var v = bandarSmartMoneyNetRp(bd.bandarmology);
         secNetVal += v;
       }
     });
@@ -2448,13 +2581,11 @@ function renderBandarmologyMarketFlowView(tk) {
 
   var html = '<div style="display:flex;flex-direction:column;gap:16px">'
     // Broker-transaction volume/value figures throughout this view come
-    // from generateClientSideBrokerSummary(), which is disclosed elsewhere
-    // (StockChat) as simulated (isSimulated:true) since there's no real
-    // broker-transaction feed — this view aggregated that same simulated
-    // data under a "LIVE AGGREGATION" badge with no disclosure at all.
-    + '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px">'
-    + 'Agregasi ini dihitung dari simulasi transaksi broker (belum ada feed broker-flow real per-menit) — harga saham tetap real, tapi rincian buyer/seller &amp; nilai transaksi di bawah adalah estimasi.'
-    + '</div>'
+    // from bandarGetCachedSummary() — real Invezgo data when a prefetch for
+    // this ticker succeeded, simulated fallback per-ticker otherwise (see
+    // bandarDataBanner()'s comment above for why this replaced the
+    // always-simulated banner that used to be here unconditionally).
+    + bandarDataBanner(realCount, totalCount)
     // Top Summary Metric Cards (Matching Opportunity Radar row4/metric)
     + '<div class="row4">'
     + '<div class="metric" style="border-left:3px solid var(--accent)">'
@@ -2487,7 +2618,7 @@ function renderBandarmologyMarketFlowView(tk) {
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
     + 'ALIRAN DANA BANDAR BIG 4 BANKS (MOTOR IHSG)'
     + '</div>'
-    + '<span class="badge b-amb" style="font-size:9px">SIMULASI</span>'
+    + (realCount === totalCount ? '<span class="badge b-up" style="font-size:9px">REAL</span>' : '<span class="badge b-amb" style="font-size:9px">SIMULASI</span>')
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">';
 
@@ -2537,12 +2668,16 @@ function renderBandarmologyForeignFlowView(tk) {
   var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
 
   var items = [];
+  var realCount = 0;
+  var totalCount = 0;
   sampleTickers.forEach(function(t) {
     if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
-    var bData = generateClientSideBrokerSummary(t, '1D');
+    var bData = bandarGetCachedSummary(t, '1D');
     if (!bData || bData.isValidTicker === false || !bData.price) return;
+    totalCount++;
+    if (bData.isSimulated === false) realCount++;
+    var netVal = bandarForeignNetRp(bData.bandarmology);
     var ff = (bData.bandarmology && bData.bandarmology.foreignFlow) || {};
-    var netVal = ff.netValueRp !== undefined ? ff.netValueRp : (ff.netValRp !== undefined ? ff.netValRp : 0);
     var netM = Math.round(netVal / 1000000000);
     items.push({
       ticker: t,
@@ -2557,7 +2692,7 @@ function renderBandarmologyForeignFlowView(tk) {
   var topForeignBuys = items.slice().sort(function(a, b) { return b.netVal - a.netVal; }).slice(0, 5);
   var topForeignSells = items.slice().sort(function(a, b) { return a.netVal - b.netVal; }).slice(0, 5);
 
-  var html = bandarSimBanner('Estimasi Foreign Net Buy/Sell di bawah dihitung dari simulasi transaksi broker (belum ada feed broker-flow real per-menit) — harga saham tetap real.')
+  var html = bandarDataBanner(realCount, totalCount, 'Estimasi Foreign Net Buy/Sell di bawah dihitung dari simulasi transaksi broker (belum ada feed broker-flow real per-menit) — harga saham tetap real.')
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
     // Top Foreign Buys
     + '<div class="card" style="padding:16px">'
@@ -2622,10 +2757,14 @@ function renderBandarmologyAccumulationView() {
   var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
 
   var accList = [];
+  var realCount = 0;
+  var totalCount = 0;
   sampleTickers.forEach(function(t) {
     if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
-    var bData = generateClientSideBrokerSummary(t, '1D');
+    var bData = bandarGetCachedSummary(t, '1D');
     if (!bData || bData.isValidTicker === false || !bData.price) return;
+    totalCount++;
+    if (bData.isSimulated === false) realCount++;
     var b = bData.bandarmology || {};
     var conc = b.concentration || {};
     var t3 = conc.top3BuyerPct || conc.top3BuyPct || 60;
@@ -2633,7 +2772,7 @@ function renderBandarmologyAccumulationView() {
     var topBuyerAvg = (bData.topBuyers && bData.topBuyers[0]) ? bData.topBuyers[0].avgPrice : bData.price;
     var emitenName = (typeof DB !== 'undefined' && DB[t] && DB[t].name) ? DB[t].name : t;
 
-    if ((b.verdict && b.verdict.includes('ACCUM')) || (b.smartMoney && b.smartMoney.institutionalNetRp > 0)) {
+    if ((b.verdict && b.verdict.includes('ACCUM')) || bandarSmartMoneyNetRp(b) > 0) {
       accList.push({
         ticker: t,
         name: emitenName,
@@ -2650,7 +2789,7 @@ function renderBandarmologyAccumulationView() {
   accList.sort(function(a, b) { return b.t3Val - a.t3Val; });
   accList = accList.slice(0, 5);
 
-  var html = bandarSimBanner()
+  var html = bandarDataBanner(realCount, totalCount)
     + '<div class="card" style="padding:16px">'
     + '<div style="margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:6px">'
@@ -2696,10 +2835,14 @@ function renderBandarmologyDistributionView() {
   var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
 
   var distList = [];
+  var realCount = 0;
+  var totalCount = 0;
   sampleTickers.forEach(function(t) {
     if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
-    var bData = generateClientSideBrokerSummary(t, '1D');
+    var bData = bandarGetCachedSummary(t, '1D');
     if (!bData || bData.isValidTicker === false || !bData.price) return;
+    totalCount++;
+    if (bData.isSimulated === false) realCount++;
     var b = bData.bandarmology || {};
     var conc = b.concentration || {};
     var t3 = conc.top3SellerPct || conc.top3SellPct || 60;
@@ -2707,7 +2850,7 @@ function renderBandarmologyDistributionView() {
     var topSellerAvg = (bData.topSellers && bData.topSellers[0]) ? bData.topSellers[0].avgPrice : bData.price;
     var emitenName = (typeof DB !== 'undefined' && DB[t] && DB[t].name) ? DB[t].name : t;
 
-    if ((b.verdict && b.verdict.includes('DISTRIB')) || (b.smartMoney && b.smartMoney.institutionalNetRp < 0)) {
+    if ((b.verdict && b.verdict.includes('DISTRIB')) || bandarSmartMoneyNetRp(b) < 0) {
       distList.push({
         ticker: t,
         name: emitenName,
@@ -2725,7 +2868,7 @@ function renderBandarmologyDistributionView() {
   distList.sort(function(a, b) { return b.t3Val - a.t3Val; });
   distList = distList.slice(0, 5);
 
-  var html = bandarSimBanner()
+  var html = bandarDataBanner(realCount, totalCount)
     + '<div class="card" style="padding:16px">'
     + '<div style="margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--red);display:flex;align-items:center;gap:6px">'
@@ -2771,7 +2914,7 @@ function renderBandarmologyDistributionView() {
 // 6. Smart Money Radar View (Dynamic Universal Footprint)
 function renderBandarmologySmartMoneyRadarView(tk) {
   var ticker = (tk || STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
-  var bData = generateClientSideBrokerSummary(ticker, '1D');
+  var bData = bandarGetCachedSummary(ticker, '1D');
   var b = bData.bandarmology || {};
   var buyers = bData.topBuyers || [];
   var sellers = bData.topSellers || [];
@@ -2793,7 +2936,7 @@ function renderBandarmologySmartMoneyRadarView(tk) {
   var retNet = retBuyVal - retSellVal;
 
   var smScore = b.score || 80;
-  var smDominance = (b.concentration && b.concentration.top3BuyerPct) || 68;
+  var smDominance = (b.concentration && (b.concentration.top3BuyerPct || b.concentration.top3BuyPct)) || 68;
   var smBuyBrokersText = smBuyers.map(function(x){ return x.broker; }).join(', ') || 'AK, BK, CC';
   var retSellBrokersText = retSellers.map(function(x){ return x.broker; }).join(', ') || 'YP, PD, XC';
 
@@ -2801,7 +2944,7 @@ function renderBandarmologySmartMoneyRadarView(tk) {
   var divStatus = isBullishDivergence ? 'BULLISH DIVERGENCE (SMART MONEY INFLOW)' : (smNet < 0 && retNet > 0 ? 'BEARISH DIVERGENCE (DISTRIBUTION TO RETAIL)' : 'NEUTRAL ROTATION');
   var divDesc = isBullishDivergence ? 'Institusi menyerap barang konsisten sementara investor ritel melepas posisi' : 'Pergerakan harga sejalan dengan distribusi / akumulasi standar';
 
-  var html = bandarSimBanner()
+  var html = bandarDataBanner(bData.isSimulated === false ? 1 : 0, 1)
     + '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     + '<div>'
@@ -2849,10 +2992,14 @@ function renderBandarmologyBrokerTrailView() {
   var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
 
   var trailData = [];
+  var realCount = 0;
+  var totalCount = 0;
   sampleTickers.forEach(function(t) {
     if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
-    var bData = generateClientSideBrokerSummary(t, '1D');
+    var bData = bandarGetCachedSummary(t, '1D');
     if (!bData || bData.isValidTicker === false) return;
+    totalCount++;
+    if (bData.isSimulated === false) realCount++;
 
     var buyMatch = (bData.topBuyers || []).find(function(x) { return x.broker === bCode; });
     var sellMatch = (bData.topSellers || []).find(function(x) { return x.broker === bCode; });
@@ -2876,7 +3023,7 @@ function renderBandarmologyBrokerTrailView() {
   trailData.sort(function(a, b) { return b.rawVal - a.rawVal; });
   trailData = trailData.slice(0, 10);
 
-  var html = bandarSimBanner()
+  var html = bandarDataBanner(realCount, totalCount)
     + '<div style="display:flex;flex-direction:column;gap:16px">'
     // Broker Selector Bar
     + '<div class="card" style="padding:16px">'
