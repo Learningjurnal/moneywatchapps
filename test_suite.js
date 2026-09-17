@@ -3352,6 +3352,98 @@ await asyncTest("REGRESSION GUARD: renderAiSignalHistoryPage() shows the guest-m
   assert(pendingRow.includes('—'), 'REGRESSION: a pending row with no return yet must render an em-dash placeholder, not "undefined%" or a crash');
 });
 
+// ── TEST 84g: GET /api/ai/status (server.js) — toolbar audit fix (2026-09-17,
+// INCIDENT_LOG.md): before this endpoint existed, the "AI Engine Live"
+// bottom-toolbar indicator was hardcoded HTML that never reflected whether
+// ANTHROPIC_API_KEY is actually configured. Must derive `available` from the
+// real getAiClient() check (not a separate/parallel guess), and must never
+// place an actual Claude API call — it has to stay free and instant since
+// it is fetched on every page boot.
+test('REGRESSION GUARD: GET /api/ai/status exists, derives availability from getAiClient() (not a duplicate check), and never calls the Claude API itself', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const start = fullSrc.indexOf("app.get('/api/ai/status'");
+  assert(start !== -1, "REGRESSION: GET /api/ai/status route is gone from server.js");
+  const relEnd = fullSrc.indexOf('\n});', start);
+  assert(relEnd !== -1, 'sanity: could not find the end of the /api/ai/status handler');
+  const handlerSrc = fullSrc.slice(start, relEnd);
+
+  assert(/getAiClient\(\)/.test(handlerSrc), 'REGRESSION: /api/ai/status must derive its answer from the real getAiClient() check, not a separate/hardcoded flag');
+  assert(!/callClaudeWithRetry|\.messages\.create/.test(handlerSrc), 'REGRESSION: /api/ai/status must never place an actual Claude API call — it is fetched on every page boot and must stay free/instant');
+});
+
+// ── TEST 84h: checkAiEngineStatus() / checkSupabaseCloudStatus() (public/js/00-config.js)
+// — client-side half of the toolbar audit fix. Must map the server's real
+// availability into distinct, honest visual states (never collapse a
+// network/fetch failure into the same "Live" green the working case gets),
+// and the Supabase probe must never crash when the SDK failed to load
+// (confirmed to happen in this exact sandbox — jsdelivr blocked).
+function getToolbarStatusContext() {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/00-config.js'), 'utf8');
+  const start = src.indexOf('async function checkAiEngineStatus');
+  assert(start !== -1, 'REGRESSION: checkAiEngineStatus() is gone from 00-config.js');
+  const slice = src.slice(start);
+  const sandbox = { window: {}, document: { getElementById: () => null }, setTimeout: setTimeout };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(slice, ctx, { filename: '00-config.js toolbar status checks' });
+  return ctx;
+}
+
+function fakeToolbarEl() {
+  return { style: {}, textContent: '', title: '' };
+}
+
+await asyncTest("REGRESSION GUARD: checkAiEngineStatus() shows distinct Live/Fallback/Offline states, and checkSupabaseCloudStatus() never crashes when the SDK failed to load", async () => {
+  // 1. AI available:true -> green "Live".
+  const ctx1 = getToolbarStatusContext();
+  const dot1 = fakeToolbarEl(), label1 = fakeToolbarEl();
+  ctx1.document.getElementById = (id) => id === 'ai-engine-status-dot' ? dot1 : (id === 'ai-engine-status-label' ? label1 : null);
+  ctx1.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, available: true, model: 'claude-x' }) });
+  await ctx1.checkAiEngineStatus();
+  assert.strictEqual(label1.textContent, 'AI Engine Live');
+  assert(dot1.style.background.toLowerCase().includes('10b981'), 'REGRESSION: available:true must render the green dot');
+
+  // 2. AI available:false -> amber "Fallback" (NOT the same green as case 1).
+  const ctx2 = getToolbarStatusContext();
+  const dot2 = fakeToolbarEl(), label2 = fakeToolbarEl();
+  ctx2.document.getElementById = (id) => id === 'ai-engine-status-dot' ? dot2 : (id === 'ai-engine-status-label' ? label2 : null);
+  ctx2.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, available: false, model: null }) });
+  await ctx2.checkAiEngineStatus();
+  assert.strictEqual(label2.textContent, 'AI Engine Fallback');
+  assert(!dot2.style.background.toLowerCase().includes('10b981'), 'REGRESSION: available:false must NOT render the same green as the available:true case — that is exactly the hardcoded-fake-status bug this fix exists to remove');
+  assert(/ANTHROPIC_API_KEY/.test(label2.title), 'REGRESSION: the fallback state must explain WHY (missing ANTHROPIC_API_KEY) in its title, not just say "not live"');
+
+  // 3. Network/fetch failure -> a THIRD distinct "Offline" state, not silently
+  // reusing the Fallback or Live state.
+  const ctx3 = getToolbarStatusContext();
+  const dot3 = fakeToolbarEl(), label3 = fakeToolbarEl();
+  ctx3.document.getElementById = (id) => id === 'ai-engine-status-dot' ? dot3 : (id === 'ai-engine-status-label' ? label3 : null);
+  ctx3.fetch = () => Promise.reject(new Error('network down'));
+  await ctx3.checkAiEngineStatus();
+  assert.strictEqual(label3.textContent, 'AI Engine Offline');
+
+  // 4. checkSupabaseCloudStatus() when getSupabaseClient() is null (SDK failed
+  // to load, e.g. CDN blocked — confirmed to happen in this exact sandbox)
+  // must not throw and must render a red dot with an honest reason.
+  const ctx4 = getToolbarStatusContext();
+  const dot4 = fakeToolbarEl();
+  ctx4.document.getElementById = (id) => id === 'sh-topbar-dot' ? dot4 : null;
+  ctx4.getSupabaseClient = () => null;
+  await ctx4.checkSupabaseCloudStatus();
+  assert(dot4.style.background.toLowerCase().includes('ef4444'), 'REGRESSION: a missing Supabase client must render red, not stay the old hardcoded green');
+  assert(/SDK gagal termuat/.test(dot4.title), 'REGRESSION: the title must explain the SDK failed to load, not a generic/wrong reason');
+
+  // 5. checkSupabaseCloudStatus() when the client exists and getSession()
+  // resolves -> green, confirming the success path is also real (not just
+  // "always red now" as an overcorrection).
+  const ctx5 = getToolbarStatusContext();
+  const dot5 = fakeToolbarEl();
+  ctx5.document.getElementById = (id) => id === 'sh-topbar-dot' ? dot5 : null;
+  ctx5.getSupabaseClient = () => ({ auth: { getSession: () => Promise.resolve({ data: { session: null } }) } });
+  await ctx5.checkSupabaseCloudStatus();
+  assert.strictEqual(dot5.style.background, 'var(--green)');
+});
+
 // ── TEST 85: the deterministic AI fallback (server.js) must route
 // sinyal/prediksi/xgboost/rekomendasi questions to cek_prediksi_xgboost,
 // checked before the short-keyword branches below it (same

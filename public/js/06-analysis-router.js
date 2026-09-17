@@ -944,6 +944,10 @@ document.addEventListener('DOMContentLoaded',function(){
   fhStart();
   if(typeof startPortfolioBackgroundInterval==='function') startPortfolioBackgroundInterval();
   if(typeof updateAllLastSyncTimestamps==='function') updateAllLastSyncTimestamps();
+  // Audit fix (2026-09-17): kedua indikator ini dulu HTML statis (dot hijau
+  // permanen tanpa pengecekan apa pun) — sekarang dicek nyata sekali saat boot.
+  if(typeof checkAiEngineStatus==='function') checkAiEngineStatus();
+  if(typeof checkSupabaseCloudStatus==='function') checkSupabaseCloudStatus();
 
   // Wire buttons
   el('btn-setor').onclick=function(){openModal('setor')};

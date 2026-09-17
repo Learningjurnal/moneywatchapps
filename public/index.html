@@ -97,7 +97,7 @@
   });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" crossorigin="anonymous"></script>
-<script src="js/00-config.js?v=20260917c"></script>
+<script src="js/00-config.js?v=20260917d"></script>
 <!-- Yahoo Finance Design System: Yahoo Sans / Inter (primary typography), Public Sans / Fira Code (financial tabular numerals) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4401,9 +4401,9 @@
      ke satu baris status ringkas di bagian bawah, sesuai permintaan user. -->
 <div class="bottom-toolbar" id="bottom-toolbar">
   <div style="display:flex;align-items:center;gap:10px;overflow:hidden">
-    <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--accent)">
-      <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;flex-shrink:0;forced-color-adjust:none"></span>
-      <span class="hide-mobile">AI Engine Live</span>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--accent)" title="Memeriksa status AI Engine...">
+      <span id="ai-engine-status-dot" style="width:6px;height:6px;border-radius:50%;background:#8a94a6;flex-shrink:0;forced-color-adjust:none"></span>
+      <span class="hide-mobile" id="ai-engine-status-label">Memeriksa AI Engine...</span>
     </div>
     <div id="topbar-last-sync-badge" style="display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;color:var(--text2);cursor:pointer" onclick="if(typeof refreshPortfolioMarketData==='function') refreshPortfolioMarketData({isManual:true})" title="Auto-refresh tiap 5 menit. Klik untuk sinkronkan data pasar portofolio sekarang">
       <i class="ti ti-refresh" id="topbar-sync-icon" style="font-size:11px;color:var(--accent);transition:transform 0.5s ease"></i>
@@ -4418,7 +4418,7 @@
     <button class="btn btn-ghost btn-xs" id="btn-settings-hub" onclick="openSettingsHub()" title="Buka Pusat Pengaturan & Data Hub (Cloud, Feed, Tampilan, Pajak, Audit, Akun)" style="font-size:11px;gap:5px;display:flex;align-items:center;border-color:var(--accent);background:var(--brand-soft);color:var(--text);padding:4px 10px;border-radius:6px">
       <i class="ti ti-settings" style="color:var(--accent);font-size:13px"></i>
       <span style="font-weight:600">Pengaturan &amp; Data</span>
-      <span id="sh-topbar-dot" style="width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:2px;forced-color-adjust:none" title="Supabase Cloud &amp; Live Feed Aktif"></span>
+      <span id="sh-topbar-dot" style="width:6px;height:6px;border-radius:50%;background:#8a94a6;margin-left:2px;forced-color-adjust:none" title="Memeriksa status Supabase Cloud..."></span>
     </button>
 
     <!-- Session info / Profile -->
@@ -4472,7 +4472,7 @@
 <script src="js/04-render.js?v=20260915b"></script>
 <script src="js/36-crypto-technical.js?v=20260917a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
-<script src="js/06-analysis-router.js?v=20260915c"></script>
+<script src="js/06-analysis-router.js?v=20260917a"></script>
 <script src="js/07-flowscan.js?v=20260915a"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>

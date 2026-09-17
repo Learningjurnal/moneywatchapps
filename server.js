@@ -2085,6 +2085,21 @@ ALUR KERJA (AGENTIC LOOP):
 - Panggil alat tersebut.
 - Evaluasi hasil data dan sajikan jawaban terstruktur yang mencakup data, strategi trading/investasi yang sesuai, kepatuhan BEI/pajak, analisis dua sisi (potensi vs risiko), dan disclaimer.`;
 
+// GET /api/ai/status — status APA ADANYA dari AI Engine untuk indikator
+// toolbar "AI Engine Live" (public/index.html bottom-toolbar). Sebelumnya
+// indikator itu HTML statis (dot hijau + teks "Live" hardcoded, tidak
+// pernah dicek) — ditemukan lewat audit (2026-09-17, INCIDENT_LOG.md) dan
+// dikonfirmasi menyesatkan: di lingkungan mana pun ANTHROPIC_API_KEY tidak
+// terkonfigurasi, StockChat/Copilot diam-diam jatuh ke fallback
+// deterministik (lihat catch block di /api/ai/agent-chat di atas), tapi
+// toolbar tetap mengklaim "Live". Endpoint ini TIDAK memanggil Claude API
+// sama sekali — getAiClient() hanya mengecek keberadaan env var/instansiasi
+// SDK, jadi instan & gratis, aman dipanggil tiap boot halaman.
+app.get('/api/ai/status', (req, res) => {
+  const available = !!getAiClient();
+  res.json({ success: true, available, model: available ? CLAUDE_MODEL : null });
+});
+
 // MoneyWatch Pro AI Agent Chat Endpoint (Multi-Turn Agentic Loop)
 app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
   const { message, history = [], userContext = {} } = req.body || {};
