@@ -835,6 +835,7 @@ function renderPage(name){
     case 'journal':if(typeof renderJournalPage==='function')renderJournalPage();else if(typeof renderDecisionJournalPage==='function')renderDecisionJournalPage();break;
     case 'copilot':if(typeof renderCopilotPage==='function')renderCopilotPage();break;
     case 'stockchat':if(typeof renderStockChatPage==='function')renderStockChatPage();break;
+    case 'ai-signal-history':if(typeof renderAiSignalHistoryPage==='function')renderAiSignalHistoryPage();break;
     case 'bandarmology':
       if(typeof renderBandarmologyCockpitPage==='function') renderBandarmologyCockpitPage();
       break;
