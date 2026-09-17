@@ -5391,6 +5391,33 @@ test('REGRESSION GUARD: brokerSummaryDateRange() must format fromDate/toDate as 
   assert.notStrictEqual(range5D.fromDate, range5D.toDate, '5D timeframe should produce a real date range, not the same day twice');
 });
 
+// ── TEST: fetchInvezgoBrokerSummary() must build the request Invezgo's own
+// API actually accepts — from/to (not from_date/to_date) plus required
+// investor/market params ──
+// Follow-up to the dashed-ISO-date fix (which was necessary but not
+// sufficient — user re-verified live and it was STILL HTTP_422 after that
+// alone). Root cause confirmed from Invezgo's own official MCP server
+// source (user-provided invezgo-mcp .mcpb bundle), not a guess:
+// dist/tools/stock/handler.js's summaryStock() builds
+// `analysis/summary/stock/${code}?from=${from}&to=${to}&investor=${investor}&market=${market}`,
+// and dist/schema/stock.js's summarySchema marks investor (enum all/f/d)
+// and market (enum RG/NG/TN) as REQUIRED fields. Our client sent
+// from_date/to_date instead of from/to, and never sent investor/market at
+// all — Invezgo was rejecting every single request as incomplete.
+test('REGRESSION GUARD: fetchInvezgoBrokerSummary() must send from/to + investor + market query params matching Invezgo\'s own API contract', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  const fnSrc = src.match(/async function fetchInvezgoBrokerSummary[\s\S]*?\n\}\n/)[0];
+
+  assert(!/from_date=\$\{fromDate\}&to_date=\$\{toDate\}/.test(fnSrc),
+    'REGRESSION: fetchInvezgoBrokerSummary() reverted to from_date/to_date — Invezgo\'s own API expects from/to (confirmed from Invezgo\'s official MCP server source), this reproduces the exact HTTP_422 bug');
+  assert(/from=\$\{fromDate\}&to=\$\{toDate\}/.test(fnSrc),
+    'REGRESSION: fetchInvezgoBrokerSummary() no longer sends from=/to= query params');
+  assert(/investor=all/.test(fnSrc),
+    'REGRESSION: fetchInvezgoBrokerSummary() no longer sends the required investor= param — Invezgo\'s summarySchema marks it required, omitting it causes HTTP 422');
+  assert(/market=RG/.test(fnSrc),
+    'REGRESSION: fetchInvezgoBrokerSummary() no longer sends the required market= param — Invezgo\'s summarySchema marks it required, omitting it causes HTTP 422');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
