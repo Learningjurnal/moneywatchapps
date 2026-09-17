@@ -47,11 +47,46 @@ async function renderAiSignalHistoryPage() {
     .limit(AI_SIGNAL_HISTORY_PAGE_LIMIT);
 
   if (result.error) {
-    if (body) body.innerHTML = '<div style="color:#EF4444">Gagal memuat riwayat: ' + escapeHtml(result.error.message) + '</div>';
+    if (body) body.innerHTML = aiSignalHistoryRenderErrorHtml(result.error);
     return;
   }
 
   aiSignalHistoryRenderRows(result.data || []);
+}
+
+// Bug lapangan (2026-09-17): user melihat "Gagal memuat riwayat: Could not
+// find the table 'public.ai_signal_log' in the schema cache" — pesan
+// mentah dari PostgREST (kode PGRST205) yang berarti tabelnya secara
+// harfiah belum ada di project Supabase yang tersambung, BUKAN bug query
+// di sisi client (nama tabel di sini sudah cocok persis dengan
+// sql/schema_migration.sql). Penyebabnya: file migrasi itu cuma skrip SQL
+// di repo, tidak pernah otomatis dijalankan ke database Supabase produksi
+// mana pun (server.js sengaja nol akses Supabase, tidak ada mekanisme
+// migrasi otomatis) — harus dijalankan manual sekali oleh pemilik project
+// lewat Supabase SQL Editor. Kode ini tidak bisa memperbaiki itu (tidak
+// ada akses ke database Supabase project manapun dari sini), tapi bisa
+// mengganti pesan teknis yang membingungkan dengan penjelasan tindakan apa
+// yang perlu diambil, sekaligus tetap menampilkan pesan mentah untuk
+// developer yang perlu debug lebih lanjut.
+function aiSignalHistoryIsMissingTableError(error) {
+  if (!error) return false;
+  if (error.code === 'PGRST205') return true;
+  var msg = String(error.message || '');
+  return /could not find the table/i.test(msg) && /ai_signal_log/i.test(msg);
+}
+
+function aiSignalHistoryRenderErrorHtml(error) {
+  if (aiSignalHistoryIsMissingTableError(error)) {
+    return '<div style="color:#EF4444;text-align:left">'
+      + '<div style="font-weight:700;margin-bottom:6px">⚠️ Tabel <code>ai_signal_log</code> belum ada di database Supabase</div>'
+      + '<div style="color:var(--text3);font-size:12.5px;line-height:1.6">'
+      + 'Migrasi <code>sql/schema_migration.sql</code> (bagian <code>ai_signal_log</code>) belum pernah dijalankan di project Supabase ini. '
+      + 'Ini bukan bug di aplikasi — jalankan isi migrasi tersebut sekali lewat <b>Supabase Dashboard → SQL Editor</b> pada project yang dipakai aplikasi ini, lalu muat ulang halaman.'
+      + '</div>'
+      + '<div style="color:var(--text3);font-size:11px;margin-top:8px;opacity:.7">Pesan asli: ' + escapeHtml(error.message) + '</div>'
+      + '</div>';
+  }
+  return '<div style="color:#EF4444">Gagal memuat riwayat: ' + escapeHtml(error.message) + '</div>';
 }
 
 function aiSignalHistoryRenderRows(rows) {
