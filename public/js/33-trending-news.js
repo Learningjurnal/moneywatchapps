@@ -89,7 +89,7 @@
             '<div style="display:flex;align-items:center;gap:8px">' +
               '<span style="font-size:16px">📰</span>' +
               '<div>' +
-                '<div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--text1);text-transform:uppercase">Top 3 Trending Financial News · Pasar Saham Indonesia</div>' +
+                '<div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--text);text-transform:uppercase">Top 3 Trending Financial News · Pasar Saham Indonesia</div>' +
                 '<div style="font-size:11px;color:var(--text3)">Memuat berita pasar terkini dengan Google Search Grounding...</div>' +
               '</div>' +
             '</div>' +
@@ -193,7 +193,7 @@
           '</div>' +
           
           '<!-- Headline Title -->' +
-          '<div style="font-size:13px;font-weight:700;color:var(--text1);line-height:1.45;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' +
+          '<div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.45;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' +
             item.title +
           '</div>' +
 
@@ -234,7 +234,7 @@
             '</div>' +
             '<div>' +
               '<div style="display:flex;align-items:center;gap:8px">' +
-                '<span style="font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--text1);text-transform:uppercase;font-family:var(--font-sans,inherit)">Trending Financial News (IDX & IHSG)</span>' +
+                '<span style="font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--text);text-transform:uppercase;font-family:var(--font-sans,inherit)">Trending Financial News (IDX & IHSG)</span>' +
                 badgeHtml +
               '</div>' +
               '<div style="font-size:11px;color:var(--text3);margin-top:1px">' +
