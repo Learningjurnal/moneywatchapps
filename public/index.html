@@ -779,7 +779,7 @@
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
       <button onclick="goPage('volume-spike',this)"><i class="ti ti-bolt"></i><span class="side-label">Volume Spike</span></button>
-      <button onclick="goPage('scanner',this)"><i class="ti ti-filter"></i><span class="side-label">Flow Scanner</span></button>
+      <button onclick="goPage('scanner',this)"><i class="ti ti-filter"></i><span class="side-label">Smart Money Screener</span></button>
       <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Quant Analysis</span></button>
       <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine"></i><span class="side-label">TradeWave</span></button>
     </div>
@@ -2887,52 +2887,80 @@
 <div id="page-scanner" class="page">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">
     <div>
-      <div class="ptitle">Big Money Scanner</div>
-      <div class="psub">Filter saham berbasis momentum Chaikin Money Flow (CMF), skor akumulasi bandarmologi, dan rasio lonjakan volume.</div>
+      <div class="ptitle">Smart Money Screener</div>
+      <!-- FIX (2026-09-17, konsolidasi screener): sebelumnya ada 3 fitur
+           terpisah yang overlap konsep (deteksi akumulasi/distribusi):
+           Flow Scanner (halaman ini), "Scanner Akumulasi & Distribusi"
+           (sub-tab Opportunity Radar), dan "Heatmap & Live Scanner"
+           (Bandarmology Cockpit) -- ketiganya bisa memberi verdict berbeda
+           untuk ticker yang sama di waktu yang sama karena 3 implementasi
+           terpisah. Digabung jadi 3 MODE di satu halaman ini, bukan 3 pintu
+           masuk berbeda. Lihat INCIDENT_LOG.md. -->
+      <div class="psub">Deteksi akumulasi/distribusi "smart money" dari 3 sudut pandang data berbeda — pilih mode sesuai kebutuhan.</div>
     </div>
   </div>
 
-  <div class="card" style="border-radius:12px;padding:16px 20px;margin-bottom:16px">
-    <div class="cheader"><span class="ctitle" style="font-size:12px;letter-spacing:0.06em">FILTER KRITERIA ALIRAN DANA</span></div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-      <div style="min-width:140px;flex:1">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">CMF Minimum</div>
-        <select class="finput fsel" id="sc-cmf" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
-          <option value="-1">Semua CMF</option>
-          <option value="0">CMF Positif (&gt;0)</option>
-          <option value="0.1" selected>CMF Kuat (+10%+)</option>
-          <option value="0.2">CMF Sangat Kuat (+20%+)</option>
-        </select>
+  <div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap">
+    <button class="btn btn-xs btn-primary" id="sms-mode-btn-cmf" onclick="fsSwitchScreenerMode('cmf')">CMF Proxy (Watchlist &amp; Portofolio)</button>
+    <button class="btn btn-xs btn-ghost" id="sms-mode-btn-broker" onclick="fsSwitchScreenerMode('broker')">Broker Flow Riil (LQ45)</button>
+    <button class="btn btn-xs btn-ghost" id="sms-mode-btn-sector" onclick="fsSwitchScreenerMode('sector')">Heatmap Sektor</button>
+  </div>
+
+  <div id="sms-mode-cmf">
+    <div class="card" style="border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div class="cheader"><span class="ctitle" style="font-size:12px;letter-spacing:0.06em">FILTER KRITERIA ALIRAN DANA (CMF Proxy)</span></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div style="min-width:140px;flex:1">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">CMF Minimum</div>
+          <select class="finput fsel" id="sc-cmf" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
+            <option value="-1">Semua CMF</option>
+            <option value="0">CMF Positif (&gt;0)</option>
+            <option value="0.1" selected>CMF Kuat (+10%+)</option>
+            <option value="0.2">CMF Sangat Kuat (+20%+)</option>
+          </select>
+        </div>
+        <div style="min-width:140px;flex:1">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Skor Akumulasi Min</div>
+          <select class="finput fsel" id="sc-sc" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
+            <option value="0">Semua Skor</option>
+            <option value="50">Skor 50+</option>
+            <option value="60" selected>Skor 60+ (Solid)</option>
+            <option value="70">Skor 70+ (Kuat)</option>
+          </select>
+        </div>
+        <div style="min-width:140px;flex:1">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Volume Ratio Min</div>
+          <select class="finput fsel" id="sc-vr" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
+            <option value="0">Semua Volume</option>
+            <option value="1.2">1.2× Rata-rata</option>
+            <option value="1.5" selected>1.5× Rata-rata</option>
+            <option value="2">2.0× Lonjakan</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="sm-btn" onclick="fsRunScanner()" style="height:38px;padding:0 22px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:0.06em;white-space:nowrap">
+            <i class="ti ti-filter"></i> Jalankan Scan
+          </button>
+        </div>
       </div>
-      <div style="min-width:140px;flex:1">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Skor Akumulasi Min</div>
-        <select class="finput fsel" id="sc-sc" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
-          <option value="0">Semua Skor</option>
-          <option value="50">Skor 50+</option>
-          <option value="60" selected>Skor 60+ (Solid)</option>
-          <option value="70">Skor 70+ (Kuat)</option>
-        </select>
-      </div>
-      <div style="min-width:140px;flex:1">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Volume Ratio Min</div>
-        <select class="finput fsel" id="sc-vr" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px">
-          <option value="0">Semua Volume</option>
-          <option value="1.2">1.2× Rata-rata</option>
-          <option value="1.5" selected>1.5× Rata-rata</option>
-          <option value="2">2.0× Lonjakan</option>
-        </select>
-      </div>
-      <div style="display:flex;align-items:flex-end">
-        <button class="sm-btn" onclick="fsRunScanner()" style="height:38px;padding:0 22px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:0.06em;white-space:nowrap">
-          <i class="ti ti-filter"></i> Jalankan Scan
-        </button>
+    </div>
+
+    <div id="sc-results">
+      <div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px;background:var(--bg2);border:1px dashed var(--border2);border-radius:12px">
+        Tekan <strong>Jalankan Scan</strong> untuk menyaring saham berdasarkan kriteria aliran dana.
       </div>
     </div>
   </div>
 
-  <div id="sc-results">
-    <div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px;background:var(--bg2);border:1px dashed var(--border2);border-radius:12px">
-      Tekan <strong>Jalankan Scan</strong> untuk menyaring saham berdasarkan kriteria aliran dana.
+  <div id="sms-mode-broker" style="display:none">
+    <div id="sms-broker-content">
+      <div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Memuat data broker flow riil LQ45...</div>
+    </div>
+  </div>
+
+  <div id="sms-mode-sector" style="display:none">
+    <div id="sms-sector-content">
+      <div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Memuat heatmap sektor...</div>
     </div>
   </div>
 </div>
@@ -4395,7 +4423,7 @@
 <script src="js/36-crypto-technical.js?v=20260917a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
 <script src="js/06-analysis-router.js?v=20260917a"></script>
-<script src="js/07-flowscan.js?v=20260915a"></script>
+<script src="js/07-flowscan.js?v=20260917a"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
 <script src="js/10-hargawajar.js?v=20260913a"></script>
@@ -4410,7 +4438,7 @@
 <script src="js/23-advisor.js?v=20260915b"></script>
 <script src="js/24-stockmaster.js?v=20260917b"></script>
 <script src="js/25-auditlog.js?v=20260902c"></script>
-<script src="js/26-commandcenter.js?v=20260917a"></script>
+<script src="js/26-commandcenter.js?v=20260917b"></script>
 <script src="js/27-stockintel.js?v=20260915b"></script>
 <script src="js/28-decisiontools.js?v=20260917c"></script>
 <script src="js/29-institutional-ui.js?v=20260915b"></script>
@@ -4420,7 +4448,7 @@
 <script src="js/38-ai-autonomous-trading.js?v=20260917a"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260915b"></script>
 <script src="js/40-idx-pipeline.js?v=20260902c"></script>
-<script src="js/41-stockchat-cockpit.js?v=20260917c"></script>
+<script src="js/41-stockchat-cockpit.js?v=20260917d"></script>
 <script src="js/42-dividend-calendar.js?v=20260913a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260913a"></script>
 <script src="js/44-sectoral-insight.js?v=20260908a"></script>

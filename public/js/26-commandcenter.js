@@ -698,7 +698,6 @@ function renderOpportunityRadarPage() {
   + '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap">'
     + '<button class="btn btn-xs ' + (activeTab === 'screener' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'screener\')">Universe Screener (950+)</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'anomaly-ara' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'anomaly-ara\')">Anomaly Structural &amp; ARA</button>'
-    + '<button class="btn btn-xs ' + (activeTab === 'scanner' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'scanner\')">Scanner Akumulasi &amp; Distribusi</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'flow-trail' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'flow-trail\')">Visualisasi Alur Transaksi</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'corporate-actions' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'corporate-actions\')">Kalender Aksi Korporasi &amp; Dividen</button>'
   + '</div>';
@@ -708,8 +707,6 @@ function renderOpportunityRadarPage() {
     html += renderRadarAnomalyAraSubTab();
   } else if (activeTab === 'screener') {
     html += renderRadarScreenerSubTab();
-  } else if (activeTab === 'scanner') {
-    html += renderRadarScannerSubTab();
   } else if (activeTab === 'flow-trail') {
     html += renderRadarFlowTrailSubTab();
   } else if (activeTab === 'corporate-actions') {
@@ -828,126 +825,6 @@ function renderRadarScreenerSubTab() {
   }
 
   html += '</tbody></table></div></div>';
-  return html;
-}
-
-/**
- * Subtab 2: Universe-Wide Accumulation & Distribution Scanner
- */
-function renderRadarScannerSubTab() {
-  var accData = RADAR_STATE.accData;
-  if (!accData) {
-    loadAccumulationDistributionData();
-    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">Memuat data scanner akumulasi &amp; distribusi seluruh IHSG...</div>';
-  }
-
-  var accList = accData.accumulation || [];
-  var distList = accData.distribution || [];
-  var tf = RADAR_STATE.accTimeframe || '1D';
-
-  // No real broker-flow provider configured (see getUniverseAccumulationDistribution) -
-  // an honest empty state instead of the fabricated 20-ticker list this used to show.
-  if (accData.isSimulated && !accList.length && !distList.length) {
-    return '<div class="card" style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
-      + (accData.message || 'Data akumulasi/distribusi seluruh bursa belum tersedia.')
-      + '</div>';
-  }
-
-  var html = '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
-    + '<div>'
-      + '<div style="font-weight:700;font-size:13px;color:var(--text)">Pemindaian Smart Money &amp; Retail Absorption Seluruh BEI</div>'
-      + '<div style="font-size:11px;color:var(--text3)">Mendeteksi anomali akumulasi bandar tersembunyi dan distribusi institusi besar.</div>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px">'
-      + '<span style="font-size:11px;color:var(--text3)">Timeframe:</span>'
-      + '<div style="display:inline-flex;gap:4px">'
-        + '<button class="btn btn-xs ' + (tf === '1D' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'1D\').then(renderOpportunityRadarPage)">1D</button>'
-        + '<button class="btn btn-xs ' + (tf === '3D' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'3D\').then(renderOpportunityRadarPage)">3D</button>'
-        + '<button class="btn btn-xs ' + (tf === '5D' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'5D\').then(renderOpportunityRadarPage)">5D</button>'
-        + '<button class="btn btn-xs ' + (tf === '20D' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadAccumulationDistributionData(\'20D\').then(renderOpportunityRadarPage)">20D</button>'
-      + '</div>'
-    + '</div>'
-  + '</div>'
-
-  + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">'
-    // Column 1: Top Accumulation
-    + '<div class="card" style="padding:0;overflow:hidden">'
-      + '<div style="padding:12px 16px;background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.2);display:flex;justify-content:space-between;align-items:center">'
-        + '<div style="display:flex;align-items:center;gap:8px">'
-          + '<strong style="color:var(--green);font-size:13px">TOP AKUMULASI (SMART MONEY INFLOW)</strong>'
-        + '</div>'
-        + '<span class="badge b-up">' + accList.length + ' Saham</span>'
-      + '</div>'
-      + '<div style="overflow-x:auto">'
-        + '<table class="tbl">'
-          + '<thead><tr>'
-            + '<th>Ticker</th>'
-            + '<th>Verdict Bandar</th>'
-            + '<th style="text-align:right">Smart Inflow</th>'
-            + '<th style="text-align:right">Foreign Net</th>'
-            + '<th style="text-align:center">Alur</th>'
-          + '</tr></thead>'
-          + '<tbody>';
-
-  accList.forEach(function(it, idx) {
-    var inflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
-    var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
-    var verdictClass = it.bandarVerdict.includes('BIG') ? 'b-up' : 'b-accent';
-
-    html += '<tr>'
-      + '<td>'
-        + '<strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong>'
-        + '<div style="font-size:10px;color:var(--text3)">Top Buy: ' + (it.topBuyers ? it.topBuyers.join(', ') : '-') + '</div>'
-      + '</td>'
-      + '<td><span class="badge ' + verdictClass + '" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
-      + '<td class="mono up" style="text-align:right;font-weight:700">+Rp ' + inflowM.toLocaleString('id-ID') + ' M</td>'
-      + '<td class="mono ' + (foreignM >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (foreignM >= 0 ? '+' : '') + foreignM.toLocaleString('id-ID') + ' M</td>'
-      + '<td style="text-align:center">'
-        + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button>'
-      + '</td>'
-    + '</tr>';
-  });
-
-  html += '</tbody></table></div></div>'
-
-    // Column 2: Top Distribution
-    + '<div class="card" style="padding:0;overflow:hidden">'
-      + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);display:flex;justify-content:space-between;align-items:center">'
-        + '<div style="display:flex;align-items:center;gap:8px">'
-          + '<strong style="color:var(--red);font-size:13px">TOP DISTRIBUSI (TEKANAN JUAL / RETAIL TRAP)</strong>'
-        + '</div>'
-        + '<span class="badge b-dn">' + distList.length + ' Saham</span>'
-      + '</div>'
-      + '<div style="overflow-x:auto">'
-        + '<table class="tbl">'
-          + '<thead><tr>'
-            + '<th>Ticker</th>'
-            + '<th>Verdict Bandar</th>'
-            + '<th style="text-align:right">Tekanan Jual</th>'
-            + '<th style="text-align:right">Foreign Net</th>'
-            + '<th style="text-align:center">Alur</th>'
-          + '</tr></thead>'
-          + '<tbody>';
-
-  distList.forEach(function(it, idx) {
-    var outflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
-    var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
-
-    html += '<tr>'
-      + '<td>'
-        + '<strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong>'
-        + '<div style="font-size:10px;color:var(--text3)">Top Sell: ' + (it.topSellers ? it.topSellers.join(', ') : '-') + '</div>'
-      + '</td>'
-      + '<td><span class="badge b-dn" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
-      + '<td class="mono dn" style="text-align:right;font-weight:700">-Rp ' + Math.abs(outflowM).toLocaleString('id-ID') + ' M</td>'
-      + '<td class="mono dn" style="text-align:right">' + foreignM.toLocaleString('id-ID') + ' M</td>'
-      + '<td style="text-align:center">'
-        + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button>'
-      + '</td>'
-    + '</tr>';
-  });
-
-  html += '</tbody></table></div></div></div>';
   return html;
 }
 
@@ -1337,9 +1214,9 @@ function renderRadarAnomalyAraSubTab() {
   // hardcoded arrays (anomalyRows/araCards/swingCards) that never changed —
   // literal fake tickers, prices, and dates baked into the source. It now
   // reuses RADAR_STATE.accData, the SAME real broker-summary-derived
-  // accumulation data the Scanner sub-tab already renders honestly (see
-  // renderRadarScannerSubTab) — one real data source, not two parallel
-  // screens where one is fabricated.
+  // accumulation data the Smart Money Screener page (public/js/07-flowscan.js,
+  // fsRenderBrokerFlowMode()) already renders honestly — one real data
+  // source, not two parallel screens where one is fabricated.
   var accData = RADAR_STATE.accData;
   if (!accData) {
     loadAccumulationDistributionData().then(renderOpportunityRadarPage);
@@ -1365,7 +1242,7 @@ function renderRadarAnomalyAraSubTab() {
 
   // No real broker-flow provider configured, or a configured provider
   // returned nothing usable — an honest empty state instead of fabricated
-  // rows (same convention as renderRadarScannerSubTab).
+  // rows (same convention as fsRenderBrokerFlowMode() in 07-flowscan.js).
   if (accData.isSimulated && !accList.length) {
     return html + '<div class="card" style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
       + (accData.message || 'Data akumulasi struktural belum tersedia.')
