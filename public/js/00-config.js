@@ -104,6 +104,74 @@ function getSupabaseAccessToken() {
 }
 
 // ══════════════════════════════════════════════════════════
+// AI SIGNAL REFLECTION LOG — Fase 2 (2026-09-17)
+// ══════════════════════════════════════════════════════════
+// Dipanggil dari StockChat (41-stockchat-cockpit.js) dan AI Copilot
+// (28-decisiontools.js) setiap kali respons AI membawa toolCalls yang
+// mengandung "cek_sinyal_teknikal" (lihat server.js, executeAgentTool()) —
+// satu-satunya tool yang mengembalikan sinyal TERSTRUKTUR (bukan teks
+// bebas AI, yang secara sengaja tidak pernah memberi sinyal definitif,
+// lihat Aturan Perilaku #1 di system prompt). Sengaja diletakkan di sini
+// (bukan diduplikasi di kedua file chat) supaya logikanya satu sumber.
+//
+// horizonDays per-signal (bukan satu konstanta global, sesuai keputusan
+// desain skema Fase 1): heuristik pertama berbasis jenis sinyal — BUY/
+// STRONG BUY dikasih waktu lebih panjang (setup swing-trade dari
+// entry/SL/TP berbasis ATR butuh ruang gerak), WATCH/HOLD/AVOID lebih
+// pendek (bukan thesis aktif, cuma mengecek apakah penilaiannya berubah).
+// Bisa disetel lagi nanti kalau ada data cukup untuk mengevaluasi horizon
+// mana yang paling representatif — bukan angka final.
+var AI_SIGNAL_LOG_HORIZON_DAYS = {
+  'STRONG BUY': 15,
+  'BUY': 15,
+  'HOLD': 10,
+  'WATCH': 10,
+  'AVOID': 7
+};
+
+async function logAiSignalToReflectionLog(source, toolCalls) {
+  try {
+    if (!toolCalls || !toolCalls.length) return;
+    var uid = (typeof getAppUserId === 'function') ? getAppUserId() : null;
+    if (!uid) return; // guest/demo — tidak dicatat (konsisten dgn pola ai_paper_trading), jangan sampai instansiasi Supabase client sia-sia
+    var client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (!client) return; // Supabase belum termuat (mis. dev lokal)
+
+    var signalCalls = toolCalls.filter(function(tc) { return tc && tc.name === 'cek_sinyal_teknikal' && tc.result; });
+    for (var i = 0; i < signalCalls.length; i++) {
+      var r = signalCalls[i].result;
+      // signal:'NO DATA' atau error berarti tidak ada sinyal valid untuk
+      // direfleksikan nanti — computeStockSignal() sendiri sudah menolak
+      // mengarang sinyal saat data tidak cukup, tidak perlu dicatat.
+      if (!r || !r.signal || r.signal === 'NO DATA' || r.error) continue;
+
+      var horizonDays = AI_SIGNAL_LOG_HORIZON_DAYS[r.signal] || 10;
+      var emittedAt = new Date();
+      var resolveAfter = new Date(emittedAt.getTime() + horizonDays * 24 * 60 * 60 * 1000);
+
+      var result = await client.from('ai_signal_log').insert({
+        user_id: uid,
+        source: source,
+        ticker: r.ticker || signalCalls[i].args?.ticker || '',
+        signal_action: r.signal,
+        composite_score: (typeof r.compositeScore === 'number') ? r.compositeScore : null,
+        entry_price: (typeof r.entry === 'number') ? r.entry : null,
+        stop_loss: (typeof r.sl === 'number') ? r.sl : null,
+        take_profit_1: (typeof r.tp1 === 'number') ? r.tp1 : null,
+        take_profit_2: (typeof r.tp2 === 'number') ? r.tp2 : null,
+        raw_snapshot: r,
+        emitted_at: emittedAt.toISOString(),
+        horizon_days: horizonDays,
+        resolve_after: resolveAfter.toISOString()
+      });
+      if (result && result.error) console.warn('[AI Signal Log]', result.error.message);
+    }
+  } catch (e) {
+    console.warn('[AI Signal Log]', e && e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
 // GLOBAL STOCK CONTEXT & UNIFIED DISPATCH SYSTEM
 // ══════════════════════════════════════════════════════════
 window.GLOBAL_STOCK_CONTEXT = {

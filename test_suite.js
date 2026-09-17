@@ -2912,6 +2912,121 @@ await asyncTest("REGRESSION GUARD: executeAgentTool('cek_prediksi_xgboost') must
   assert(!/tidak terbukti/i.test(r3.disclaimer), 'REGRESSION: hasProvenSignal:true still gets the "tidak terbukti" wording — the disclaimer does not actually branch on this field');
 });
 
+// ── TEST 84b: executeAgentTool('cek_sinyal_teknikal') (server.js) — AI
+// Signal Reflection Log Fase 2 (2026-09-17, INCIDENT_LOG.md): the ONLY
+// StockChat/Copilot tool that returns a STRUCTURED signal (computeStockSignal()'s
+// enum), because the system prompt otherwise forbids the AI from ever
+// giving a definitive verbal buy/sell call — this tool is the sole hook
+// point the client-side ai_signal_log logger can key off. Must pass
+// through the real computed signal untouched, and must degrade to
+// signal:'NO DATA' (never throw, never fabricate) when the underlying
+// computation fails.
+await asyncTest("REGRESSION GUARD: executeAgentTool('cek_sinyal_teknikal') must pass through the real computeStockSignal() result and degrade to NO DATA on failure, never fabricate", async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const start = fullSrc.indexOf('async function executeAgentTool');
+  assert(start !== -1, 'sanity: executeAgentTool() not found — has it been renamed/moved?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// Function Declarations for Gemini Function Calling');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after executeAgentTool() — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/case 'cek_sinyal_teknikal':/.test(src), "REGRESSION: the 'cek_sinyal_teknikal' case is gone from executeAgentTool()");
+
+  // 1. computeStockSignal() succeeds — result must pass through untouched
+  // (ticker/signal/entry/sl/tp1/tp2/compositeScore all real, not re-derived
+  // or renamed by the tool wrapper).
+  const fakeSignal = { ticker: 'BBCA', signal: 'BUY', compositeScore: 65, entry: 9000, sl: 8700, tp1: 9500, tp2: 9800, computedAt: '2026-09-17T00:00:00.000Z' };
+  const sandbox1 = { window: {}, computeStockSignal: async () => fakeSignal };
+  sandbox1.window = sandbox1;
+  const ctx1 = vm.createContext(sandbox1);
+  vm.runInContext(src, ctx1, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal success path (sandboxed load for test)' });
+  const r1 = await ctx1.executeAgentTool('cek_sinyal_teknikal', { ticker: 'bbca' }, {});
+  assert.deepStrictEqual(r1, fakeSignal, 'REGRESSION: the real computeStockSignal() result was mutated/re-shaped instead of passed through as-is');
+
+  // 2. computeStockSignal() throws (e.g. Yahoo unreachable) — must degrade
+  // to a NO DATA response, never propagate the exception or invent a signal.
+  const sandbox2 = { window: {}, computeStockSignal: async () => { throw new Error('Yahoo Finance unreachable'); } };
+  sandbox2.window = sandbox2;
+  const ctx2 = vm.createContext(sandbox2);
+  vm.runInContext(src, ctx2, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal failure path (sandboxed load for test)' });
+  const r2 = await ctx2.executeAgentTool('cek_sinyal_teknikal', { ticker: 'xyzw' }, {});
+  assert.strictEqual(r2.signal, 'NO DATA', 'REGRESSION: a failed computeStockSignal() call must degrade to signal:"NO DATA", not throw or fabricate a signal');
+  assert(r2.error, 'REGRESSION: the NO DATA degradation must carry an error field explaining why, not fail silently');
+  assert.strictEqual(r2.ticker, 'XYZW', 'REGRESSION: ticker normalization (uppercase, .JK/.US stripped) is broken on the failure path');
+});
+
+// ── TEST 84c: logAiSignalToReflectionLog() (public/js/00-config.js) — AI
+// Signal Reflection Log Fase 2 (2026-09-17, INCIDENT_LOG.md): client-side
+// hook shared by StockChat and Copilot that writes a cek_sinyal_teknikal
+// tool result to ai_signal_log. Must (a) skip entirely in guest/demo mode
+// (no persistent user_id, per the ai_paper_trading precedent), (b) ignore
+// every toolCalls entry that isn't cek_sinyal_teknikal, (c) skip a
+// signal:'NO DATA' or errored result (nothing valid to log), and (d) pick
+// horizon_days per the signal's own action rather than one hardcoded value.
+await asyncTest("REGRESSION GUARD: logAiSignalToReflectionLog() must skip guest mode, ignore non-signal tool calls, skip NO DATA, and log a real BUY signal with the right horizon", async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/00-config.js'), 'utf8');
+  const start = fullSrc.indexOf('// AI SIGNAL REFLECTION LOG');
+  assert(start !== -1, 'sanity: the AI SIGNAL REFLECTION LOG section not found in 00-config.js — has it moved/been renamed?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// ══════════════════════════════════════════════════════════\n// GLOBAL STOCK CONTEXT');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after logAiSignalToReflectionLog() — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/function logAiSignalToReflectionLog/.test(src), 'REGRESSION: logAiSignalToReflectionLog() is gone from 00-config.js');
+
+  // 1. Guest mode (getAppUserId() -> null) — must return cleanly without
+  // ever touching getSupabaseClient().
+  let supabaseTouched = false;
+  const sandbox1 = {
+    window: {},
+    getAppUserId: () => null,
+    getSupabaseClient: () => { supabaseTouched = true; return null; }
+  };
+  sandbox1.window = sandbox1;
+  const ctx1 = vm.createContext(sandbox1);
+  vm.runInContext(src, ctx1, { filename: '00-config.js logAiSignalToReflectionLog() guest-mode path (sandboxed load for test)' });
+  await ctx1.logAiSignalToReflectionLog('stockchat', [
+    { name: 'cek_sinyal_teknikal', args: { ticker: 'BBCA' }, result: { ticker: 'BBCA', signal: 'BUY' } }
+  ]);
+  assert.strictEqual(supabaseTouched, false, 'REGRESSION: guest mode (no user id) must never even look up the Supabase client, let alone attempt an insert');
+
+  // 2. Logged-in user — capture every insert() call to verify filtering
+  // (non-signal tool + NO DATA both skipped) and the payload of the one
+  // valid signal that should actually be logged.
+  const capturedInserts = [];
+  const sandbox2 = {
+    window: {},
+    getAppUserId: () => 'uid-test-456',
+    getSupabaseClient: () => ({
+      from: (table) => ({
+        insert: (payload) => { capturedInserts.push({ table, payload }); return Promise.resolve({ error: null }); }
+      })
+    })
+  };
+  sandbox2.window = sandbox2;
+  const ctx2 = vm.createContext(sandbox2);
+  vm.runInContext(src, ctx2, { filename: '00-config.js logAiSignalToReflectionLog() logged-in path (sandboxed load for test)' });
+  await ctx2.logAiSignalToReflectionLog('copilot', [
+    { name: 'cek_harga', args: { ticker: 'BBCA' }, result: { found: true, price: 9000 } },
+    { name: 'cek_sinyal_teknikal', args: { ticker: 'XYZW' }, result: { ticker: 'XYZW', signal: 'NO DATA', error: 'data kurang' } },
+    { name: 'cek_sinyal_teknikal', args: { ticker: 'BBCA' }, result: { ticker: 'BBCA', signal: 'BUY', compositeScore: 70, entry: 9000, sl: 8700, tp1: 9500, tp2: 9800 } }
+  ]);
+
+  assert.strictEqual(capturedInserts.length, 1, 'REGRESSION: exactly one insert expected (cek_harga and the NO DATA signal must both be filtered out) — got ' + capturedInserts.length);
+  const logged = capturedInserts[0];
+  assert.strictEqual(logged.table, 'ai_signal_log');
+  assert.strictEqual(logged.payload.user_id, 'uid-test-456');
+  assert.strictEqual(logged.payload.source, 'copilot');
+  assert.strictEqual(logged.payload.ticker, 'BBCA');
+  assert.strictEqual(logged.payload.signal_action, 'BUY');
+  assert.strictEqual(logged.payload.entry_price, 9000);
+  assert.strictEqual(logged.payload.stop_loss, 8700);
+  assert.strictEqual(logged.payload.horizon_days, 15, 'REGRESSION: BUY must map to the 15-day horizon, not a different/hardcoded value');
+  const emittedMs = new Date(logged.payload.emitted_at).getTime();
+  const resolveMs = new Date(logged.payload.resolve_after).getTime();
+  assert.strictEqual(Math.round((resolveMs - emittedMs) / 86400000), 15, 'REGRESSION: resolve_after must be exactly horizon_days after emitted_at');
+});
+
 // ── TEST 85: the deterministic AI fallback (server.js) must route
 // sinyal/prediksi/xgboost/rekomendasi questions to cek_prediksi_xgboost,
 // checked before the short-keyword branches below it (same
