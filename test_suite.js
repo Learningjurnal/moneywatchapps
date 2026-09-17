@@ -55,6 +55,23 @@ async function asyncTest(name, fn) {
   }
 }
 
+// Fake setInterval/clearInterval/setTimeout/clearTimeout for sandboxed
+// timer-lifecycle tests (start/stop guard logic) that must NOT leave a
+// real pending Node timer behind — a real one would delay this process's
+// exit by however long that timer is (seconds to minutes), slowing down
+// every CI run for no reason. Handles are just incrementing numbers; the
+// scheduled callback is intentionally never invoked, since these tests only
+// check whether a handle was created/cleared, not what firing it would do.
+let _fakeTimerId = 0;
+function makeFakeTimers() {
+  return {
+    setInterval: () => ++_fakeTimerId,
+    clearInterval: () => {},
+    setTimeout: () => ++_fakeTimerId,
+    clearTimeout: () => {}
+  };
+}
+
 // ── TEST 1: TAX & BROKER COMMISSION ENGINE ──
 test('Tax & Broker Fee Computation (Stockbit Preset)', () => {
   const gross = 10 * 100 * 5000; // 10 lot @ Rp 5.000 = Rp 5.000.000
@@ -5218,6 +5235,116 @@ test('REGRESSION GUARD: setupMultiDeviceSyncListener() must close its EventSourc
   assert.strictEqual(esInstances.length, 2,
     'REGRESSION: the SSE connection does not reconnect when the tab becomes visible again — multi-device sync silently stays dead after any background period');
   assert.strictEqual(esInstances[1].closed, false);
+});
+
+// ── TEST: fhStart()'s Yahoo Finance polling interval (03-engine.js) must
+// pause while the tab is hidden and resume when visible again ──
+// Follow-up to the SSE quota audit (INCIDENT_LOG.md): this is the single
+// biggest polling-volume offender in the app — 240 requests/hour for IHSG
+// alone in default 'fast' mode, most of which route through this app's OWN
+// /api/proxy (Vercel serverless invocation), not a third-party call. Pure
+// display refresh, zero functional purpose while the tab isn't visible —
+// unlike the AI autonomous-trading auto-refresh (38-ai-autonomous-trading.js),
+// which the user explicitly chose to keep running in the background because
+// it manages real paper-trading stop-loss/take-profit exits.
+test('REGRESSION GUARD: fhStart() must pause its polling interval when the tab is hidden and resume when visible', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  const fhObjStart = src.indexOf('var FH = {');
+  const fhObjEnd = src.indexOf('\n};', fhObjStart) + 3;
+  const modeStart = src.indexOf("// ── Mode refresh —");
+  const modeEnd = src.indexOf('\nvar FH_PRICE_MODE_KEY', modeStart);
+  assert(fhObjStart > -1 && fhObjEnd > fhObjStart && modeStart > -1 && modeEnd > modeStart,
+    'could not locate the FH slice in 03-engine.js by its markers');
+
+  const slice = src.slice(fhObjStart, fhObjEnd) + '\n' + src.slice(modeStart, modeEnd)
+    + '\nwindow.fhStart = fhStart; window.FH = FH;\n';
+
+  const listeners = {};
+  const fakeDocument = {
+    hidden: false,
+    addEventListener(evt, fn) { listeners[evt] = fn; },
+    fire(evt) { if (listeners[evt]) listeners[evt](); }
+  };
+  // Fake timers: this test only checks the start/stop LIFECYCLE (is a
+  // handle created/cleared), never whether the interval callback actually
+  // fires — using real setInterval/clearInterval here would leave a real
+  // pending 15s Node timer after the test finishes, delaying the whole
+  // suite's exit (and CI) for no reason.
+  const fakeTimers = makeFakeTimers();
+  const sandbox = {
+    localStorage: { getItem: () => null },
+    document: fakeDocument,
+    // Stub every fetch/render side-effect fhStart() touches — this test is
+    // about the interval lifecycle, not the actual Yahoo Finance calls.
+    fhSetBadge: () => {}, fhFetchIHSG: () => {}, fhFetchKurs: () => {},
+    fhFetchStocks: () => {}, fhFetchCrypto: () => {}, fhFetchEtf: () => {},
+    renderPage: () => {}, currentPage: 'dashboard',
+    ...fakeTimers
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(slice, ctx, { filename: '03-engine.js (FH slice)' });
+
+  ctx.fhStart();
+  assert(ctx.FH.timer, 'REGRESSION: fhStart() did not create FH.timer');
+
+  fakeDocument.hidden = true;
+  fakeDocument.fire('visibilitychange');
+  assert.strictEqual(ctx.FH.timer, null,
+    'REGRESSION: FH.timer is not cleared when the tab becomes hidden — the 15s IHSG poll (240 Vercel /api/proxy invocations/hour) keeps running in the background');
+
+  fakeDocument.hidden = false;
+  fakeDocument.fire('visibilitychange');
+  assert(ctx.FH.timer,
+    'REGRESSION: FH.timer does not restart when the tab becomes visible again — the price ticker silently stays dead after any background period');
+});
+
+// ── TEST: IDX_PIPELINE.init()'s 45s market-summary auto-refresh
+// (40-idx-pipeline.js) must pause while hidden and resume when visible ──
+test('REGRESSION GUARD: IDX_PIPELINE auto-refresh must pause while the tab is hidden and resume when visible', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/40-idx-pipeline.js'), 'utf8');
+
+  assert(/document\.addEventListener\('visibilitychange'/.test(src),
+    'REGRESSION: IDX_PIPELINE.init() no longer registers a visibilitychange listener — the 45s GET /api/idx/summary poll (80 Vercel invocations/hour) will run forever in the background again');
+  assert(/_startAutoRefresh:\s*function/.test(src) && /_stopAutoRefresh:\s*function/.test(src),
+    'REGRESSION: the pausable start/stop interval helpers are gone from IDX_PIPELINE');
+
+  const listeners = {};
+  const fakeDocument = {
+    hidden: false,
+    addEventListener(evt, fn) { listeners[evt] = fn; },
+    fire(evt) { if (listeners[evt]) listeners[evt](); }
+  };
+  const sandbox = {
+    document: fakeDocument,
+    console: { log: () => {} },
+    ...makeFakeTimers()
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(
+    src.slice(src.indexOf('var IDX_PIPELINE = {'), src.indexOf('\n};', src.indexOf('_stopAutoRefresh: function')) + 3)
+      // Stub out the real network-touching methods this slice's init() calls,
+      // by redefining them right after the object literal closes.
+      + '\nIDX_PIPELINE.refreshMarketSummary = function(){ this._refreshCount = (this._refreshCount||0) + 1; };'
+      + '\nIDX_PIPELINE.fetchMasterStocks = function(){};'
+      + '\nIDX_PIPELINE.fetchCalendar = function(){};'
+      + '\nwindow.IDX_PIPELINE = IDX_PIPELINE;\n',
+    ctx, { filename: '40-idx-pipeline.js (IDX_PIPELINE slice)' }
+  );
+
+  ctx.IDX_PIPELINE.init();
+  assert(ctx.IDX_PIPELINE._refreshTimer, 'REGRESSION: IDX_PIPELINE.init() did not start its auto-refresh timer');
+
+  fakeDocument.hidden = true;
+  fakeDocument.fire('visibilitychange');
+  assert.strictEqual(ctx.IDX_PIPELINE._refreshTimer, null,
+    'REGRESSION: the auto-refresh timer is not cleared when the tab becomes hidden');
+
+  fakeDocument.hidden = false;
+  fakeDocument.fire('visibilitychange');
+  assert(ctx.IDX_PIPELINE._refreshTimer,
+    'REGRESSION: the auto-refresh timer does not restart when the tab becomes visible again');
 });
 
 console.log('═══════════════════════════════════════════════════════');
