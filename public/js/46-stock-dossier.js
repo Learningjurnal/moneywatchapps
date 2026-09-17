@@ -1022,7 +1022,7 @@ function renderStockDossierPage(targetTicker) {
   html += '<div style="margin-bottom:16px">';
   html += '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px">';
   html += '    <div>';
-  html += '      <h1 style="font-size:22px;font-weight:900;margin:0;letter-spacing:-0.5px;color:var(--text1);display:flex;align-items:center;gap:8px">';
+  html += '      <h1 style="font-size:22px;font-weight:900;margin:0;letter-spacing:-0.5px;color:var(--text);display:flex;align-items:center;gap:8px">';
   html += '        <i class="ti ti-file-analytics" style="color:var(--blue)"></i> Master Stock Intelligence Dossier';
   html += '      </h1>';
   html += '    </div>';
@@ -1038,11 +1038,11 @@ function renderStockDossierPage(targetTicker) {
   html += '  </div>';
 
   // Search Bar + Quick Tickers
-  html += '  <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border)">';
+  html += '  <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--border)">';
   html += '    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:260px">';
   html += '      <i class="ti ti-search" style="font-size:18px;color:var(--text3)"></i>';
   html += '      <input type="text" id="dossier-ticker-input" value="' + dossierState.ticker + '" placeholder="Masukkan Kode Saham (contoh: BBCA, TLKM, ASII)..." ';
-  html += '        style="flex:1;background:transparent;border:none;color:var(--text1);font-family:var(--font-mono);font-size:14px;font-weight:700;text-transform:uppercase;outline:none" ';
+  html += '        style="flex:1;background:transparent;border:none;color:var(--text);font-family:var(--font-mono);font-size:14px;font-weight:700;text-transform:uppercase;outline:none" ';
   html += '        onkeydown="if(event.key===\'Enter\'){dossierRunAnalysis(this.value);}" />';
   html += '      <button class="btn btn-primary btn-sm" onclick="dossierRunAnalysis(document.getElementById(\'dossier-ticker-input\').value)">Analisis Lengkap</button>';
   html += '    </div>';
@@ -1061,7 +1061,7 @@ function renderStockDossierPage(targetTicker) {
   if (dossierState.isLoading) {
     html += '<div class="card" style="padding:40px;text-align:center;border:1px solid var(--border)">';
     html += '  <div style="font-size:24px;margin-bottom:10px"><i class="ti ti-loader animate-spin" style="color:var(--blue)"></i></div>';
-    html += '  <div style="font-size:15px;font-weight:700;color:var(--text1)">Memanen Data 6 Pilar Analisis Saham ' + dossierState.ticker + '...</div>';
+    html += '  <div style="font-size:15px;font-weight:700;color:var(--text)">Memanen Data 6 Pilar Analisis Saham ' + dossierState.ticker + '...</div>';
     html += '  <div style="font-size:12px;color:var(--text3);margin-top:6px">Memverifikasi Harga Wajar, Broker Flow, Indikator Teknikal, Kustodian KSEI, Fundamental &amp; Market Regime secara real-time.</div>';
     html += '</div>';
     container.innerHTML = html;
@@ -1089,7 +1089,7 @@ function renderStockDossierPage(targetTicker) {
     html += '        ' + errDesc;
     html += '      </p>';
     html += '      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text3);line-height:1.5">';
-    html += '        <div style="font-weight:700;color:var(--text1);margin-bottom:4px"><i class="ti ti-alert-circle" style="color:#fbbf24"></i> Protokol Integritas Pasar (Zero Dummy Data Mandate):</div>';
+    html += '        <div style="font-weight:700;color:var(--text);margin-bottom:4px"><i class="ti ti-alert-circle" style="color:#fbbf24"></i> Protokol Integritas Pasar (Zero Dummy Data Mandate):</div>';
     html += '        Sistem dilarang merekayasa harga, volume orderbook, arus broker bandarmology, atau rasio fundamental untuk saham yang tidak sah. Seluruh 6 pilar kalkulasi composite multi-factor (Valuasi, Smart Money, Teknikal, KSEI, Fundamental, dan AI Market Regime) diblokir secara total untuk menjaga keaslian data finansial.';
     html += '      </div>';
     html += '      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
@@ -1114,7 +1114,7 @@ function renderStockDossierPage(targetTicker) {
   // ── Master Scorecard Hero Banner ──
   var logoHtml = typeof getStockLogoHtml === 'function' ? getStockLogoHtml(dossierState.ticker, 48) : '';
 
-  html += '<div class="card" style="margin-bottom:20px;padding:22px;border:1px solid var(--border);background:var(--card);box-shadow:0 4px 20px rgba(0,0,0,0.06);border-radius:10px">';
+  html += '<div class="card" style="margin-bottom:20px;padding:22px;border:1px solid var(--border);background:var(--bg2);box-shadow:0 4px 20px rgba(0,0,0,0.06);border-radius:10px">';
   html += '  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px">';
 
   // Left: Ticker Logo, Name, Sector & Live Price
@@ -1123,7 +1123,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        ' + logoHtml;
   html += '        <div>';
   html += '          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-  html += '            <span style="font-family:var(--font-mono);font-size:28px;font-weight:900;letter-spacing:-0.5px;color:var(--text1)">' + dossierState.ticker + '</span>';
+  html += '            <span style="font-family:var(--font-mono);font-size:28px;font-weight:900;letter-spacing:-0.5px;color:var(--text)">' + dossierState.ticker + '</span>';
   html += '            <span class="badge" style="background:rgba(59,130,246,0.12);color:var(--blue);font-weight:700;font-size:11px">' + (quote.sector || 'IDX Equities') + '</span>';
   html += '            <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:10px">Papan Utama</span>';
   html += '          </div>';
@@ -1132,7 +1132,7 @@ function renderStockDossierPage(targetTicker) {
   html += '      </div>';
 
   html += '      <div style="display:flex;align-items:baseline;gap:12px">';
-  html += '        <span style="font-family:var(--font-mono);font-size:26px;font-weight:900;color:var(--text1)">Rp ' + (price > 0 ? price.toLocaleString('id-ID') : '-') + '</span>';
+  html += '        <span style="font-family:var(--font-mono);font-size:26px;font-weight:900;color:var(--text)">Rp ' + (price > 0 ? price.toLocaleString('id-ID') : '-') + '</span>';
   html += '        <span class="badge" style="background:' + (change >= 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)') + ';color:' + changeColor + ';font-family:var(--font-mono);font-size:13px;font-weight:800;padding:2px 8px">';
   html += '          ' + changeStr;
   html += '        </span>';
@@ -1203,10 +1203,10 @@ function renderStockDossierPage(targetTicker) {
   var vp = res.pillars.valuation || {};
   var vpAvail = vp.available === true;
   var vpScoreColor = vpAvail ? (vp.score >= 75 ? 'var(--green)' : (vp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--card);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
+  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
   html += '      onclick="dossierSwitchTab(\'valuation\')" onmouseover="this.style.borderColor=\'var(--blue)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
   html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-scale" style="color:var(--blue)"></i> Valuasi &amp; Harga Wajar (Graham/DCF)</div>';
+  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-scale" style="color:var(--blue)"></i> Valuasi &amp; Harga Wajar (Graham/DCF)</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.valuation + '%</span>';
   html += '          ' + dossierRenderStatusBadge(vp);
@@ -1217,7 +1217,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:11px;color:var(--blue);font-weight:700">Detail &rarr;</div>';
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Nilai Intrinsik:</span> <b style="font-family:var(--font-mono);color:var(--text1)">' + (vp.fairValue ? 'Rp ' + Math.round(vp.fairValue).toLocaleString('id-ID') : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Nilai Intrinsik:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (vp.fairValue ? 'Rp ' + Math.round(vp.fairValue).toLocaleString('id-ID') : '-') + '</b></div>';
   html += '        <div><span style="color:var(--text3)">Margin of Safety:</span> <b style="font-family:var(--font-mono);color:' + (vp.mosPct >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (vp.mosPct !== null ? (vp.mosPct > 0 ? '+' : '') + vp.mosPct.toFixed(1) + '%' : '-') + '</b></div>';
   html += '      </div>';
   html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (vp.reason || 'Data valuasi tidak tersedia.') + '</div>';
@@ -1227,10 +1227,10 @@ function renderStockDossierPage(targetTicker) {
   var tp = res.pillars.technical || {};
   var tpAvail = tp.available === true;
   var tpScoreColor = tpAvail ? (tp.score >= 75 ? 'var(--green)' : (tp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--card);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
+  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
   html += '      onclick="dossierSwitchTab(\'technical\')" onmouseover="this.style.borderColor=\'var(--blue)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
   html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-chart-candle" style="color:var(--blue)"></i> Momentum &amp; Analisis Teknikal</div>';
+  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-chart-candle" style="color:var(--blue)"></i> Momentum &amp; Analisis Teknikal</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.technical + '%</span>';
   html += '          ' + dossierRenderStatusBadge(tp);
@@ -1241,8 +1241,8 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:11px;color:var(--blue);font-weight:700">Detail &rarr;</div>';
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Struktur Tren:</span> <b style="color:var(--text1)">' + (tp.trend || '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">RSI (14):</span> <b style="font-family:var(--font-mono);color:' + (tp.rsi >= 70 ? 'var(--red)' : (tp.rsi <= 30 ? 'var(--green)' : 'var(--text1)')) + '">' + (tp.rsi !== null ? tp.rsi : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Struktur Tren:</span> <b style="color:var(--text)">' + (tp.trend || '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">RSI (14):</span> <b style="font-family:var(--font-mono);color:' + (tp.rsi >= 70 ? 'var(--red)' : (tp.rsi <= 30 ? 'var(--green)' : 'var(--text)')) + '">' + (tp.rsi !== null ? tp.rsi : '-') + '</b></div>';
   html += '      </div>';
   html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (tp.reason || 'Data teknikal tidak tersedia.') + '</div>';
   html += '    </div>';
@@ -1251,10 +1251,10 @@ function renderStockDossierPage(targetTicker) {
   var fp = res.pillars.fundamental || {};
   var fpAvail = fp.available === true;
   var fpScoreColor = fpAvail ? (fp.score >= 75 ? 'var(--green)' : (fp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
+  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
   html += '      onclick="dossierSwitchTab(\'fundamental\')" onmouseover="this.style.borderColor=\'var(--blue)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
   html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-coins" style="color:var(--blue)"></i> Profitabilitas &amp; Dividen</div>';
+  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-coins" style="color:var(--blue)"></i> Profitabilitas &amp; Dividen</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.fundamental + '%</span>';
   html += '          ' + dossierRenderStatusBadge(fp);
@@ -1265,8 +1265,8 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:11px;color:var(--blue);font-weight:700">Detail &rarr;</div>';
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">ROE:</span> <b style="font-family:var(--font-mono);color:var(--text1)">' + (fp.roe !== null ? fp.roe.toFixed(1) + '%' : '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">DER (Hutang):</span> <b style="font-family:var(--font-mono);color:var(--text1)">' + (fp.der !== null ? fp.der.toFixed(2) + 'x' : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">ROE:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (fp.roe !== null ? fp.roe.toFixed(1) + '%' : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">DER (Hutang):</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (fp.der !== null ? fp.der.toFixed(2) + 'x' : '-') + '</b></div>';
   html += '      </div>';
   html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (fp.reason || 'Data profitabilitas tidak tersedia.') + '</div>';
   html += '    </div>';
@@ -1292,10 +1292,10 @@ function renderStockDossierPage(targetTicker) {
   var smAvail = sm.available === true;
   var smScoreColor = smAvail ? (sm.score >= 75 ? 'var(--green)' : (sm.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
   var accumList = sm.accumulators || [];
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--card);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
+  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
   html += '      onclick="dossierSwitchTab(\'smartMoney\')" onmouseover="this.style.borderColor=\'#8b5cf6\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
   html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-radar" style="color:#8b5cf6"></i> Smart Money &amp; Broker Flow</div>';
+  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-radar" style="color:#8b5cf6"></i> Smart Money &amp; Broker Flow</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.smartMoney + '%</span>';
   html += '          ' + dossierRenderStatusBadge(sm);
@@ -1306,8 +1306,8 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700">Detail &rarr;</div>';
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Aksi Bandar:</span> <b style="color:var(--text1)">' + (sm.bandarStatus || '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Konsentrasi Top 3:</span> <b style="font-family:var(--font-mono);color:var(--text1)">' + (sm.top3Pct ? sm.top3Pct + '%' : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Aksi Bandar:</span> <b style="color:var(--text)">' + (sm.bandarStatus || '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Konsentrasi Top 3:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (sm.top3Pct ? sm.top3Pct + '%' : '-') + '</b></div>';
   html += '      </div>';
 
   // PROMINENT FEATURE: NAMA BROKER AKUMULATOR UTAMA
@@ -1326,10 +1326,10 @@ function renderStockDossierPage(targetTicker) {
       html += '          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px">';
       html += '            <div style="display:inline-flex;align-items:center;gap:6px">';
       html += '              <span class="badge" style="background:' + (isSimAccum ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)') + ';color:' + (isSimAccum ? '#f59e0b' : 'var(--green)') + ';font-family:var(--font-mono);font-weight:900;padding:1px 5px;font-size:10px">' + acc.code + '</span>';
-      html += '              <span style="font-weight:700;color:var(--text1)">' + acc.name + '</span>';
+      html += '              <span style="font-weight:700;color:var(--text)">' + acc.name + '</span>';
       if (acc.isForeign) html += ' <span class="badge" style="font-size:8px;padding:0 3px;background:rgba(59,130,246,0.15);color:var(--blue)">ASING</span>';
       html += '            </div>';
-      html += '            <div style="font-family:var(--font-mono);font-weight:800;color:var(--text1)">' + acc.valStr + '</div>';
+      html += '            <div style="font-family:var(--font-mono);font-weight:800;color:var(--text)">' + acc.valStr + '</div>';
       html += '          </div>';
     });
     html += '        </div>';
@@ -1343,10 +1343,10 @@ function renderStockDossierPage(targetTicker) {
   var kp = res.pillars.ksei || {};
   var kpAvail = kp.available === true;
   var kpScoreColor = kpAvail ? (kp.score >= 75 ? 'var(--green)' : (kp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--card);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
+  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
   html += '      onclick="dossierSwitchTab(\'ksei\')" onmouseover="this.style.borderColor=\'#8b5cf6\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
   html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-shield-check" style="color:#8b5cf6"></i> Kepemilikan Kustodian KSEI</div>';
+  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-shield-check" style="color:#8b5cf6"></i> Kepemilikan Kustodian KSEI</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.ksei + '%</span>';
   html += '          ' + dossierRenderStatusBadge(kp);
@@ -1357,8 +1357,8 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700">Detail &rarr;</div>';
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Free Float Publik:</span> <b style="font-family:var(--font-mono);color:var(--text1)">' + (kp.freeFloat !== null ? kp.freeFloat.toFixed(1) + '%' : '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Total Institusi:</span> <b style="font-family:var(--font-mono);color:var(--text1)">' + (kp.institutionalPct !== null ? kp.institutionalPct.toFixed(1) + '%' : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Free Float Publik:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (kp.freeFloat !== null ? kp.freeFloat.toFixed(1) + '%' : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Total Institusi:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (kp.institutionalPct !== null ? kp.institutionalPct.toFixed(1) + '%' : '-') + '</b></div>';
   html += '      </div>';
   html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (kp.reason || 'Data KSEI tidak tersedia.') + '</div>';
   html += '    </div>';
@@ -1367,10 +1367,10 @@ function renderStockDossierPage(targetTicker) {
   var rp = res.pillars.regime || {};
   var rpAvail = rp.available === true;
   var rpScoreColor = rpAvail ? (rp.score >= 75 ? 'var(--green)' : (rp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
+  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
   html += '      onclick="dossierSwitchTab(\'regime\')" onmouseover="this.style.borderColor=\'#8b5cf6\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
   html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text1);display:flex;align-items:center;gap:6px"><i class="ti ti-compass" style="color:#8b5cf6"></i> Market Regime IHSG &amp; AI</div>';
+  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-compass" style="color:#8b5cf6"></i> Market Regime IHSG &amp; AI</div>';
   html += '        <div style="display:flex;align-items:center;gap:4px">';
   html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.regime + '%</span>';
   html += '          ' + dossierRenderStatusBadge(rp);
@@ -1381,8 +1381,8 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700">Detail &rarr;</div>';
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Regime IHSG:</span> <b style="color:var(--text1)">' + (rp.regime || 'SIDEWAYS') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Confidence:</span> <b style="font-family:var(--font-mono);color:var(--text1)">' + (rp.regimeConfidence || 75) + '%</b></div>';
+  html += '        <div><span style="color:var(--text3)">Regime IHSG:</span> <b style="color:var(--text)">' + (rp.regime || 'SIDEWAYS') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Confidence:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (typeof rp.regimeConfidence === 'number' ? rp.regimeConfidence : 75) + '%</b></div>';
   html += '      </div>';
   html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (rp.reason || 'Data regime tidak tersedia.') + '</div>';
   html += '    </div>';
@@ -1392,7 +1392,7 @@ function renderStockDossierPage(targetTicker) {
   html += '</div>'; // End dossier-split-container
 
   // ── Unified Deep-Dive Multi-Tab Accordions (All-in-One Detail) ──
-  html += '<div class="card" style="border:1px solid var(--border);padding:0;background:var(--card);margin-bottom:30px">';
+  html += '<div class="card" style="border:1px solid var(--border);padding:0;background:var(--bg2);margin-bottom:30px">';
 
   // Tab Header Navigation
   html += '  <div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto;background:rgba(0,0,0,0.15)">';
@@ -1418,7 +1418,7 @@ function renderStockDossierPage(targetTicker) {
 
   // ── TAB: OVERVIEW ──
   html += '    <div class="dossier-tab-pane" data-tab="overview" style="display:' + (dossierState.activeTab === 'overview' ? 'block' : 'none') + '">';
-  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0 0 12px 0">Ringkasan Eksekutif &amp; Tesis Investasi</h4>';
+  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0 0 12px 0">Ringkasan Eksekutif &amp; Tesis Investasi</h4>';
   html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
 
   // Bull Case Box
@@ -1470,7 +1470,7 @@ function renderStockDossierPage(targetTicker) {
   // ── TAB: 1. VALUASI ──
   html += '    <div class="dossier-tab-pane" data-tab="valuation" style="display:' + (dossierState.activeTab === 'valuation' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Valuasi &amp; Margin of Safety (Bobot: ' + res.weightsUsed.valuation + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Valuasi &amp; Margin of Safety (Bobot: ' + res.weightsUsed.valuation + '%)</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.valuation);
   html += '      </div>';
   if (!res.pillars.valuation.available) {
@@ -1490,7 +1490,7 @@ function renderStockDossierPage(targetTicker) {
   // ── TAB: 2. SMART MONEY ──
   html += '    <div class="dossier-tab-pane" data-tab="smartMoney" style="display:' + (dossierState.activeTab === 'smartMoney' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Aliran Smart Money &amp; Bandarmology (Bobot: ' + res.weightsUsed.smartMoney + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Aliran Smart Money &amp; Bandarmology (Bobot: ' + res.weightsUsed.smartMoney + '%)</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.smartMoney);
   html += '      </div>';
   if (!res.pillars.smartMoney.available) {
@@ -1514,7 +1514,7 @@ function renderStockDossierPage(targetTicker) {
 
     if (res.pillars.smartMoney.accumulators && res.pillars.smartMoney.accumulators.length > 0) {
       html += '      <div style="margin-top:16px;margin-bottom:14px">';
-      html += '        <h5 style="font-size:12px;font-weight:800;color:var(--text1);margin:0 0 8px 0;display:flex;align-items:center;gap:6px"><i class="ti ti-user-check" style="color:var(--green)"></i> Daftar Broker Akumulator Terbesar (Top Buyers)</h5>';
+      html += '        <h5 style="font-size:12px;font-weight:800;color:var(--text);margin:0 0 8px 0;display:flex;align-items:center;gap:6px"><i class="ti ti-user-check" style="color:var(--green)"></i> Daftar Broker Akumulator Terbesar (Top Buyers)</h5>';
       html += '        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px">';
       html += '          <table style="width:100%;border-collapse:collapse;font-size:11px">';
       html += '            <thead><tr style="background:var(--bg2);color:var(--text3);text-align:left;border-bottom:1px solid var(--border)">';
@@ -1529,9 +1529,9 @@ function renderStockDossierPage(targetTicker) {
         html += '            <tr style="border-bottom:1px solid var(--border)">';
         html += '              <td style="padding:7px 10px;color:var(--text3)">' + acc.rank + '</td>';
         html += '              <td style="padding:7px 10px"><span class="badge" style="background:rgba(16,185,129,0.15);color:var(--green);font-family:var(--font-mono);font-weight:900">' + acc.code + '</span></td>';
-        html += '              <td style="padding:7px 10px;font-weight:700;color:var(--text1)">' + acc.name + '</td>';
+        html += '              <td style="padding:7px 10px;font-weight:700;color:var(--text)">' + acc.name + '</td>';
         html += '              <td style="padding:7px 10px">' + (acc.isForeign ? '<span class="badge" style="background:rgba(59,130,246,0.15);color:var(--blue);font-size:9px">Asing (F)</span>' : '<span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9px">Domestik (D)</span>') + '</td>';
-        html += '              <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono);font-weight:800;color:var(--text1)">' + acc.valStr + '</td>';
+        html += '              <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono);font-weight:800;color:var(--text)">' + acc.valStr + '</td>';
         html += '              <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono)">' + (acc.avgPrice > 0 ? 'Rp ' + Math.round(acc.avgPrice).toLocaleString('id-ID') : '-') + '</td>';
         html += '            </tr>';
       });
@@ -1547,14 +1547,14 @@ function renderStockDossierPage(targetTicker) {
   // ── TAB: 3. TEKNIKAL ──
   html += '    <div class="dossier-tab-pane" data-tab="technical" style="display:' + (dossierState.activeTab === 'technical' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Momentum &amp; Indikator Teknikal (Bobot: ' + res.weightsUsed.technical + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Momentum &amp; Indikator Teknikal (Bobot: ' + res.weightsUsed.technical + '%)</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.technical);
   html += '      </div>';
   if (!res.pillars.technical.available) {
     html += '      <div class="badge b-dn" style="padding:8px 12px;font-size:12px"><i class="ti ti-info-circle"></i> ' + res.pillars.technical.reason + '</div>';
   } else {
     html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">';
-    html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Struktur Tren</span><div style="font-size:14px;font-weight:800;color:var(--text1)">' + res.pillars.technical.trend + '</div></div>';
+    html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Struktur Tren</span><div style="font-size:14px;font-weight:800;color:var(--text)">' + res.pillars.technical.trend + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Relative Strength Index (RSI 14)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.technical.rsi !== null ? res.pillars.technical.rsi : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">EMA 20 &amp; EMA 50</span><div style="font-family:var(--font-mono);font-size:16px;font-weight:800">' + (res.pillars.technical.ema20 ? 'Rp ' + res.pillars.technical.ema20.toLocaleString('id-ID') : '-') + ' / ' + (res.pillars.technical.ema50 ? 'Rp ' + res.pillars.technical.ema50.toLocaleString('id-ID') : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Volume Spike Ratio</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.technical.volumeSpike ? res.pillars.technical.volumeSpike + 'x avg' : '-') + '</div></div>';
@@ -1566,7 +1566,7 @@ function renderStockDossierPage(targetTicker) {
   // ── TAB: 4. KSEI ──
   html += '    <div class="dossier-tab-pane" data-tab="ksei" style="display:' + (dossierState.activeTab === 'ksei' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Kepemilikan Kustodian KSEI (Bobot: ' + res.weightsUsed.ksei + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Kepemilikan Kustodian KSEI (Bobot: ' + res.weightsUsed.ksei + '%)</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.ksei);
   html += '      </div>';
   if (!res.pillars.ksei.available) {
@@ -1585,7 +1585,7 @@ function renderStockDossierPage(targetTicker) {
   // ── TAB: 5. FUNDAMENTAL & DIVIDEN ──
   html += '    <div class="dossier-tab-pane" data-tab="fundamental" style="display:' + (dossierState.activeTab === 'fundamental' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Rincian Profitabilitas &amp; Dividen (Bobot: ' + res.weightsUsed.fundamental + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Profitabilitas &amp; Dividen (Bobot: ' + res.weightsUsed.fundamental + '%)</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.fundamental);
   html += '      </div>';
   if (!res.pillars.fundamental.available) {
@@ -1604,7 +1604,7 @@ function renderStockDossierPage(targetTicker) {
   // ── TAB: 6. REGIME & AI VERDICT ──
   html += '    <div class="dossier-tab-pane" data-tab="regime" style="display:' + (dossierState.activeTab === 'regime' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text1);margin:0">Market Regime &amp; Putusan AI Kuantitatif (Bobot: ' + res.weightsUsed.regime + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Market Regime &amp; Putusan AI Kuantitatif (Bobot: ' + res.weightsUsed.regime + '%)</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.regime);
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">';
@@ -1643,11 +1643,11 @@ function dossierOpenWeightsModal() {
 
   var html = '';
   html += '<div id="' + modalId + '" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)">';
-  html += '  <div class="card" style="width:100%;max-width:540px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,0.5)">';
+  html += '  <div class="card" style="width:100%;max-width:540px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,0.5)">';
 
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
   html += '      <div>';
-  html += '        <h3 style="margin:0;font-size:16px;font-weight:900;color:var(--text1)">⚙️ Kalibrasi Bobot Analisis Multi-Faktor</h3>';
+  html += '        <h3 style="margin:0;font-size:16px;font-weight:900;color:var(--text)">⚙️ Kalibrasi Bobot Analisis Multi-Faktor</h3>';
   html += '        <p style="margin:2px 0 0 0;font-size:11px;color:var(--text3)">Atur alokasi bobot 6 pilar institusional sesuai strategi riset Anda (Total wajib 100%).</p>';
   html += '      </div>';
   html += '      <button class="btn btn-ghost btn-xs" onclick="document.getElementById(\'' + modalId + '\').remove()"><i class="ti ti-x"></i></button>';
@@ -1691,7 +1691,7 @@ function dossierOpenWeightsModal() {
 
   // Sum & Validation Bar
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2);border-radius:6px;margin-bottom:16px">';
-  html += '      <span style="font-size:12px;font-weight:700;color:var(--text1)">Total Bobot:</span>';
+  html += '      <span style="font-size:12px;font-weight:700;color:var(--text)">Total Bobot:</span>';
   html += '      <span id="dossier-w-total-label" style="font-family:var(--font-mono);font-size:14px;font-weight:900;color:var(--green)">100% (Valid)</span>';
   html += '    </div>';
 

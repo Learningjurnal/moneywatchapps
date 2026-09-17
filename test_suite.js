@@ -4548,6 +4548,41 @@ test('MASTER DOSSIER: Explicit SIMULATION status badge and disclaimer when broke
   assert(htmlResult.includes('Broker Akumulator (Simulasi Model):'), 'Card accumulator chip must denote simulation model');
 });
 
+// ── Audit finding (2026-09-17, INCIDENT_LOG.md): dossierComputeRegimeScore()
+// legitimately returns regimeConfidence:0 (a real "no confidence" reading,
+// e.g. an UNKNOWN regime state), and the reason string correctly says
+// "Confidence: 0%" — but the Market Regime card's own confidence badge used
+// `rp.regimeConfidence || 75`, and 0 is falsy in JS, so the badge silently
+// displayed a FAKE 75% instead of the real 0% right next to the correct
+// text saying 0% in the same card. Found by manually recomputing a live
+// screenshot's displayed numbers by hand and spotting the two different
+// confidence values shown for the same pillar.
+test('MASTER DOSSIER: regime confidence badge must not silently replace a real 0% with the 75% fallback (falsy-zero bug)', () => {
+  const dossier = getDossierContext();
+
+  const regimeZeroConfidence = dossier.dossierComputeRegimeScore({ regime: { regime: 'UNKNOWN', confidence: 0 } });
+  assert.strictEqual(regimeZeroConfidence.regimeConfidence, 0, 'sanity: dossierComputeRegimeScore() itself must preserve a real 0 confidence, not silently default it');
+  assert(regimeZeroConfidence.reason.includes('Confidence: 0%'), 'sanity: the reason string must say 0%, matching regimeConfidence');
+
+  const harvestedZeroConf = {
+    quote: { price: 9000, fundamentals: { roe: 18, der: 0.6, dividendYield: 3 } },
+    regime: { regime: 'UNKNOWN', confidence: 0 }
+  };
+  let htmlResult = '';
+  dossier.document.getElementById = (id) => id === 'page-stock-dossier'
+    ? { set innerHTML(v) { htmlResult = v; }, get innerHTML() { return htmlResult; } }
+    : null;
+  dossier.dossierState.ticker = 'BBCA';
+  dossier.dossierState.isInvalidTicker = false;
+  dossier.dossierState.errorMessage = null;
+  dossier.dossierState.harvestedData = harvestedZeroConf;
+  dossier.dossierState.scoringResult = dossier.dossierCalculateScore(harvestedZeroConf);
+  dossier.renderStockDossierPage('BBCA');
+
+  assert(!/Confidence:<\/span> <b[^>]*>75%/.test(htmlResult), 'REGRESSION: the Market Regime card badge fell back to the fake 75% placeholder instead of showing the real 0% confidence');
+  assert(/Confidence:<\/span> <b[^>]*>0%/.test(htmlResult), 'REGRESSION: the Market Regime card badge must display the real 0% confidence, matching the reason text in the same card');
+});
+
 test('MASTER DOSSIER: DOM structure, script inclusion, and router integration', () => {
   const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
   const routerJs = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
