@@ -3286,6 +3286,72 @@ await asyncTest("REGRESSION GUARD: getAiSignalHistorySummary() skips guest mode 
   assert.strictEqual(mapped.reflectionText, 'Sinyal terbukti benar.');
 });
 
+// ── TEST 84f: renderAiSignalHistoryPage() (public/js/47-ai-signal-history.js)
+// — AI Signal Reflection Log Fase 4 (2026-09-17, INCIDENT_LOG.md): the read-side
+// UI for ai_signal_log. Must (a) show the guest-mode notice and never touch
+// Supabase when there is no signed-in user, (b) compute summary stats
+// (total/pending/win-rate/avg-alpha) correctly from a mixed-status row set,
+// and (c) render every row with the right return-color/badge classes.
+function getAiSignalHistoryContext() {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/47-ai-signal-history.js'), 'utf8');
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null },
+    escapeHtml: (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '47-ai-signal-history.js' });
+  return ctx;
+}
+
+await asyncTest("REGRESSION GUARD: renderAiSignalHistoryPage() shows the guest-mode notice without touching Supabase, and computes summary stats correctly for a logged-in user", async () => {
+  // 1. Guest mode.
+  const histGuest = getAiSignalHistoryContext();
+  let supabaseTouched = false;
+  histGuest.getAppUserId = () => null;
+  histGuest.getSupabaseClient = () => { supabaseTouched = true; return null; };
+  let htmlGuest = '';
+  histGuest.document.getElementById = (id) => id === 'page-ai-signal-history' ? { set innerHTML(v) { htmlGuest = v; }, get innerHTML() { return htmlGuest; } } : null;
+  await histGuest.renderAiSignalHistoryPage();
+  assert.strictEqual(supabaseTouched, false, 'REGRESSION: guest mode must never look up the Supabase client');
+  assert(htmlGuest.includes('butuh akun'), 'REGRESSION: guest mode must show the "needs an account" notice');
+
+  // 2. Logged-in, mixed pending/resolved rows — verify summary stats math
+  // (win rate excludes NEUTRAL from the denominator; avg alpha only over
+  // resolved rows with a numeric alpha) and per-row rendering.
+  const histUser = getAiSignalHistoryContext();
+  histUser.getAppUserId = () => 'uid-hist-render-test';
+  const rows = [
+    { id: '1', ticker: 'BBCA', source: 'stockchat', signal_action: 'BUY', status: 'resolved', entry_price: 9000, exit_price: 9450, raw_return_pct: 5, benchmark_return_pct: 1, alpha_return_pct: 4, outcome: 'WIN', reflection_text: 'Terbukti benar.', emitted_at: '2026-08-01T00:00:00.000Z' },
+    { id: '2', ticker: 'BBRI', source: 'copilot', signal_action: 'SELL', status: 'resolved', entry_price: 5000, exit_price: 5200, raw_return_pct: 4, benchmark_return_pct: 1, alpha_return_pct: 3, outcome: 'LOSS', reflection_text: null, emitted_at: '2026-08-05T00:00:00.000Z' },
+    { id: '3', ticker: 'TLKM', source: 'stockchat', signal_action: 'HOLD', status: 'resolved', entry_price: 3000, exit_price: 3010, raw_return_pct: 0.3, benchmark_return_pct: 0.3, alpha_return_pct: 0, outcome: 'NEUTRAL', reflection_text: null, emitted_at: '2026-08-10T00:00:00.000Z' },
+    { id: '4', ticker: 'ASII', source: 'copilot', signal_action: 'WATCH', status: 'pending', entry_price: 4500, emitted_at: '2026-09-01T00:00:00.000Z' }
+  ];
+  histUser.getSupabaseClient = () => ({
+    from: () => ({ select: () => ({ eq: () => ({ order: () => ({ limit: () => Promise.resolve({ data: rows, error: null }) }) }) }) })
+  });
+  let htmlUser = '';
+  histUser.document.getElementById = (id) => id === 'page-ai-signal-history' ? { set innerHTML(v) { htmlUser = v; }, get innerHTML() { return htmlUser; } } : null;
+  await histUser.renderAiSignalHistoryPage();
+
+  assert(htmlUser.includes('>4<'), 'REGRESSION: total signal count (4) is missing from the summary');
+  assert(htmlUser.includes('>1<'), 'REGRESSION: pending count (1) is missing from the summary');
+  // Win rate: 1 WIN / (1 WIN + 1 LOSS) = 50% — NEUTRAL must be excluded from the denominator.
+  assert(htmlUser.includes('50%'), 'REGRESSION: win rate must be 50% (1 WIN of 2 decisive outcomes, NEUTRAL excluded) — got wrong math or NEUTRAL leaking into the denominator');
+  // Avg alpha over the 3 RESOLVED rows only (pending row excluded): (4+3+0)/3 = 2.33%.
+  assert(htmlUser.includes('+2.33%'), 'REGRESSION: average alpha must be +2.33% over the 3 resolved rows only (pending row must not be counted)');
+  assert(htmlUser.includes('BBCA') && htmlUser.includes('BBRI') && htmlUser.includes('TLKM') && htmlUser.includes('ASII'), 'REGRESSION: not every row ticker made it into the rendered table');
+  assert(htmlUser.includes('Menunggu'), 'REGRESSION: the pending row must show the "Menunggu" status label, not a resolved-style row');
+
+  // 3. Row-level rendering: return-color class + badge class assignment.
+  const winRow = histUser.aiSignalHistoryRenderRow(rows[0]);
+  assert(winRow.includes('#10B981'), 'REGRESSION: a positive return must render in the green (#10B981) color, not neutral/red');
+  assert(winRow.includes('b-up'), 'REGRESSION: a BUY signal must get the b-up badge class');
+  const pendingRow = histUser.aiSignalHistoryRenderRow(rows[3]);
+  assert(pendingRow.includes('—'), 'REGRESSION: a pending row with no return yet must render an em-dash placeholder, not "undefined%" or a crash');
+});
+
 // ── TEST 85: the deterministic AI fallback (server.js) must route
 // sinyal/prediksi/xgboost/rekomendasi questions to cek_prediksi_xgboost,
 // checked before the short-keyword branches below it (same

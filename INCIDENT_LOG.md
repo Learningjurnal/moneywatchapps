@@ -3098,3 +3098,25 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - **Live verification (Playwright, server lokal):** endpoint `/api/ai/agent-chat` di sandbox ini jatuh ke fallback deterministik (tidak ada `ANTHROPIC_API_KEY`, tidak memanggil `cek_sinyal_teknikal` — perilaku memang berbeda dari loop agentic Claude, bukan bug) — dikonfirmasi sesuai ekspektasi lewat `curl`. Bagian yang BISA diverifikasi langsung: `page.route()` menangkap body request nyata dari StockChat DAN Copilot, keduanya dikonfirmasi menyertakan `userContext.aiSignalHistory` dengan benar sebelum dikirim ke server. Halaman StockChat & Copilot dikonfirmasi tetap render normal, nol error konsol.
 - `npm test` 142/142 (naik dari 141 — 1 test baru + perluasan test lama), `npm run lint` bersih. Cache-bust `00-config.js?v=20260917c`, `28-decisiontools.js?v=20260917c`, `41-stockchat-cockpit.js?v=20260917c`.
 - **Belum dikerjakan:** UI riwayat sinyal + refleksi untuk user (Fase 4) — data lengkap sudah ada (tercatat, teresolusi, disuntik balik ke AI), tapi user sendiri belum punya cara melihatnya langsung di aplikasi selain lewat jawaban AI yang menyebutkannya.
+
+## 2026-09-17 — AI Signal Reflection Log, Fase 4 (terakhir): UI Riwayat Sinyal AI (`public/js/47-ai-signal-history.js`, `public/index.html`, `public/js/06-analysis-router.js`, `test_suite.js`)
+
+- **Konteks:** penutup rencana 4 fase "AI Signal Reflection Log". Fase 1-3 sudah lengkap (skema, resolusi otomatis, injeksi ke prompt), tapi user sendiri belum punya cara melihat riwayat sinyalnya — semua informasi hanya bisa "dilihat" lewat jawaban AI yang kebetulan menyebutkan track record. Fase 4 menambahkan halaman baca langsung.
+- **Perbaikan:**
+  - Halaman baru `public/js/47-ai-signal-history.js`, `#page-ai-signal-history` — ditempatkan di grup sidebar AI TRADING (setelah AI Copilot), sesuai pengelompokan tematik yang sudah ada.
+  - Guard mode tamu: tampilkan pesan "fitur ini butuh akun" TANPA sekalipun memanggil `getSupabaseClient()` — konsisten dengan pola guard di seluruh fitur `ai_signal_log` lain (Fase 1-3).
+  - Baca langsung dari Supabase client-side (RLS, `auth.uid()=user_id`) — SEMUA status (`pending`/`resolved`/`expired`), bukan cuma `resolved` seperti `getAiSignalHistorySummary()` (Fase 3) yang khusus untuk injeksi prompt.
+  - Kartu ringkasan: total sinyal, jumlah menunggu resolusi, win rate (WIN/(WIN+LOSS), sengaja mengeluarkan NEUTRAL dari penyebut — bukan skewing angka dengan sinyal yang tidak punya arah tegas), rata-rata alpha vs IHSG (hanya dari baris `resolved`).
+  - Tabel riwayat lengkap: tanggal, ticker, sumber (stockchat/copilot), sinyal (badge warna sesuai arah), status, entry→exit, return riil/IHSG/alpha (warna hijau/merah sesuai tanda), badge hasil WIN/LOSS/NEUTRAL, refleksi (dipotong dengan tooltip teks penuh).
+  - Tombol "Jalankan Resolusi Sekarang" — memanggil `resolveDueAiSignals()` (Fase 2) langsung dari UI, tidak perlu menunggu buka StockChat/Copilot dulu untuk memicu resolusi.
+- **Test baru (`test_suite.js`, pola sandbox `vm` dengan `document.getElementById` mock — mengikuti pola `getDossierContext()` yang sudah ada untuk `46-stock-dossier.js`, bukan pola baru):**
+  - Mode tamu dikonfirmasi TIDAK PERNAH menyentuh Supabase, menampilkan notice yang benar.
+  - Statistik ringkasan dihitung dari 4 baris campuran status (`resolved`×3 dengan outcome WIN/LOSS/NEUTRAL + `pending`×1): win rate dikonfirmasi 50% (1 WIN dari 2 outcome tegas, NEUTRAL dikonfirmasi TIDAK ikut penyebut), rata-rata alpha dikonfirmasi `+2.33%` (rata-rata 3 baris resolved SAJA, baris pending dikonfirmasi tidak ikut terhitung).
+  - Render baris: warna return positif dikonfirmasi hijau (`#10B981`), badge sinyal BUY dikonfirmasi kelas `b-up`, baris pending tanpa data return dikonfirmasi menampilkan placeholder `—` (bukan `undefined%` atau crash).
+- **Live verification (Playwright, server lokal, kedua tema):**
+  - Mode tamu: screenshot dikonfirmasi menampilkan notice yang benar.
+  - Logged-in (Supabase di-stub): screenshot tema gelap & terang dikonfirmasi kartu ringkasan dan tabel identik dengan desain `.sm-card`/`.tbl` yang sudah dipakai di seluruh aplikasi, kontras terjamin di kedua tema.
+  - Tombol "Jalankan Resolusi Sekarang" dikonfirmasi memanggil `resolveDueAiSignals()` yang sesungguhnya lewat klik langsung di DOM (bukan cuma pemanggilan fungsi manual).
+  - Nol error konsol di semua skenario.
+- `npm test` 143/143 (naik dari 142 — 1 test baru), `npm run lint` bersih. File baru `47-ai-signal-history.js?v=20260917a`.
+- **Rencana 4 fase "AI Signal Reflection Log" SELESAI:** Fase 1 (skema) → Fase 2 (resolusi otomatis) → Fase 3 (injeksi ke prompt + guard REVIEW) → Fase 4 (UI baca). Siklus penuh: StockChat/Copilot mengeluarkan sinyal → tercatat → diresolusi otomatis dengan return riil vs IHSG → direfleksikan Claude → disuntik balik ke percakapan berikutnya → bisa dilihat user langsung di halaman Riwayat Sinyal AI.
