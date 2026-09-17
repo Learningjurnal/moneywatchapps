@@ -758,7 +758,7 @@
     var chgIcon = a.chg24hPct >= 0 ? '▲' : '▼';
 
     barEl.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin-bottom:16px">
+      <div class="sm-card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding:16px 20px">
         <div style="display:flex;align-items:center;gap:14px">
           <div style="width:48px;height:48px;border-radius:12px;background:${a.color}22;color:${a.color};border:1px solid ${a.color}44;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800">
             ${a.icon}
@@ -791,7 +791,7 @@
             <div style="font-size:11px;color:var(--text3)">Kurs: Rp ${Number(getUsdIdrRate()).toLocaleString('id-ID')}</div>
           </div>
 
-          <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;text-align:right">
+          <div class="sm-stat-box" style="padding:8px 14px;text-align:right">
             <div style="font-size:10px;font-weight:700;color:var(--text3)" title="Proxy dari lonjakan volume &amp; momentum harga — bukan data on-chain wallet riil.">WHALE TRACKER (proxy volume):</div>
             <div style="font-size:13px;font-weight:800;color:${a.whaleColor};margin-top:2px">${a.whaleStatus}</div>
             <div style="font-size:10px;color:var(--text3)">Score: <b style="color:${a.whaleColor}">${a.whaleScore}/100</b> · RVOL: <b>${a.rvol.toFixed(2)}x</b></div>
@@ -1037,7 +1037,7 @@
       <div style="display:flex;flex-direction:column;gap:20px">
         
         <!-- SECTION A: WHALE IDENTIFIER & SMART MONEY TRACKER -->
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px">
+        <div class="sm-card" style="margin-bottom:0">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:12px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <span style="font-size:20px">🐋</span>
@@ -1051,13 +1051,13 @@
 
           <!-- 4 Stat Cards for Whale Tracker -->
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-bottom:18px">
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Whale Accumulation Score</div>
               <div style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:${a.whaleColor};margin-top:2px">${a.whaleScore}/100</div>
               <div style="font-size:11px;color:var(--text3);margin-top:4px">${a.whaleScore >= 60 ? 'Tekanan beli paus mendominasi' : 'Paus mendistribusikan / menjual'}</div>
             </div>
 
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Estimated Whale Net Flow (24j)</div>
               <div style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:${a.whaleFlowUSD >= 0 ? '#10B981' : '#EF4444'};margin-top:2px">
                 ${a.whaleFlowUSD >= 0 ? '+' : ''}${fmtUSD(a.whaleFlowUSD)}
@@ -1065,7 +1065,7 @@
               <div style="font-size:11px;color:var(--text3);margin-top:4px">≈ ${fmtIDR(Math.abs(a.whaleFlowIDR))} ${a.whaleFlowUSD >= 0 ? 'Inflow' : 'Outflow'}</div>
             </div>
 
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Chaikin Money Flow (CMF-20)</div>
               <div style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:${a.cmf20 >= 0 ? '#10B981' : '#EF4444'};margin-top:2px">
                 ${a.cmf20 >= 0 ? '+' : ''}${a.cmf20.toFixed(3)}
@@ -1073,7 +1073,7 @@
               <div style="font-size:11px;color:var(--text3);margin-top:4px">${a.cmf20 > 0.05 ? 'Akumulasi kuat di atas 0' : 'Arus kas keluar negatif'}</div>
             </div>
 
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Liquidity Sweep / Stop-Hunt</div>
               <div style="font-size:14px;font-weight:800;color:${a.isLiquiditySweep ? '#F59E0B' : '#10B981'};margin-top:4px">
                 ${a.isLiquiditySweep ? '⚠️ ' + a.sweepType : '✓ Normal Orderflow (No Hunt)'}
@@ -1107,7 +1107,7 @@
         </div>
 
         <!-- SECTION B: VOLUME BREAKOUT ENGINE -->
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px">
+        <div class="sm-card" style="margin-bottom:0">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:12px">
             <div style="display:flex;align-items:center;gap:10px">
               <span style="font-size:20px">🚀</span>
@@ -1120,13 +1120,13 @@
           </div>
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px">
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="font-size:10px;font-weight:700;color:var(--text3)">RELATIVE VOLUME (RVOL)</div>
               <div style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:${a.volBreakoutColor};margin-top:2px">${a.rvol.toFixed(2)}x</div>
               <div style="font-size:11px;color:var(--text3);margin-top:4px">Rasio terhadap rata-rata volume 20 sesi</div>
             </div>
 
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="font-size:10px;font-weight:700;color:var(--text3)">ON-BALANCE VOLUME (OBV)</div>
               <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:${a.isObvBullish ? '#10B981' : '#EF4444'};margin-top:2px">
                 ${a.isObvBullish ? '▲ Bullish Uptrend' : '▼ Bearish Divergence'}
@@ -1134,7 +1134,7 @@
               <div style="font-size:11px;color:var(--text3);margin-top:4px">Akumulasi volume OBV vs MA-20</div>
             </div>
 
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="font-size:10px;font-weight:700;color:var(--text3)">BOLLINGER BANDWIDTH SQUEEZE</div>
               <div style="font-size:18px;font-weight:800;font-family:var(--font-mono);color:${a.bb.bandwidth < 5 ? '#F59E0B' : '#3B82F6'};margin-top:2px">
                 ${a.bb.bandwidth.toFixed(2)}% ${a.bb.bandwidth < 5 ? '(SQUEEZE ⚠️)' : '(Expanded)'}
@@ -1145,7 +1145,7 @@
         </div>
 
         <!-- SECTION C: TECHNICAL INDICATOR GAUGES & OSCILLATORS -->
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px">
+        <div class="sm-card" style="margin-bottom:0">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:12px">
             <div style="display:flex;align-items:center;gap:10px">
               <span style="font-size:20px">⚡</span>
@@ -1158,7 +1158,7 @@
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px">
             <!-- RSI Card -->
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="font-size:11px;font-weight:700;color:var(--text3)">RSI (14)</span>
                 <span class="badge ${a.rsi < 30 ? 'b-up' : a.rsi > 70 ? 'b-dn' : 'b-neu'}" style="font-size:9px">
@@ -1170,7 +1170,7 @@
             </div>
 
             <!-- MACD Card -->
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="font-size:11px;font-weight:700;color:var(--text3)">MACD (12, 26, 9)</span>
                 <span class="badge ${a.macdHist > 0 ? 'b-up' : 'b-dn'}" style="font-size:9px">
@@ -1184,7 +1184,7 @@
             </div>
 
             <!-- EMA Ribbon Card -->
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="font-size:11px;font-weight:700;color:var(--text3)">EMA RIBBON TREND</span>
                 <span class="badge ${a.curPriceUSD > a.ema50 ? 'b-up' : 'b-dn'}" style="font-size:9px">
@@ -1198,7 +1198,7 @@
             </div>
 
             <!-- Candlestick Psychology -->
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+            <div class="sm-stat-box" style="text-align:left">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="font-size:11px;font-weight:700;color:var(--text3)">CANDLESTICK ACTION</span>
                 <span class="badge ${a.candleBullish ? 'b-up' : 'b-dn'}" style="font-size:9px">
@@ -1212,7 +1212,7 @@
         </div>
 
         <!-- SECTION D: SUPPORT, RESISTANCE, PIVOTS & TP/SL RISK PLAN -->
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px">
+        <div class="sm-card" style="margin-bottom:0">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:12px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <span style="font-size:20px">🎯</span>
@@ -1228,7 +1228,7 @@
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:14px">
             <!-- Left: Dynamic TP/SL Plan -->
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:16px">
+            <div class="sm-stat-box" style="text-align:left;padding:16px">
               <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px">Trading Plan &amp; Risk Sizing:</div>
               
               <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2);font-size:12px">
@@ -1254,7 +1254,7 @@
             </div>
 
             <!-- Right: Pivots & Fibonacci -->
-            <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:16px">
+            <div class="sm-stat-box" style="text-align:left;padding:16px">
               <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px">Pivot Points &amp; Support/Resistance:</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;font-family:var(--font-mono)">
                 <div style="padding:6px 8px;background:var(--bg);border-radius:6px">
@@ -1327,7 +1327,7 @@
     });
 
     container.innerHTML = `
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px">
+      <div class="sm-card" style="margin-bottom:0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
           <div>
             <div style="font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">

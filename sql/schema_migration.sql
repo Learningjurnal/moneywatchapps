@@ -216,3 +216,92 @@ create policy "ksei_ownership_insert_own" on public.ksei_ownership
 drop policy if exists "ksei_ownership_update_own" on public.ksei_ownership;
 create policy "ksei_ownership_update_own" on public.ksei_ownership
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ══════════════════════════════════════════════════════════
+-- AI SIGNAL REFLECTION LOG (2026-09-17, Fase 1 — user-requested,
+-- terinspirasi TauricResearch/TradingAgents decision-log + reflection loop)
+-- ══════════════════════════════════════════════════════════
+-- Beda bentuk dari ai_paper_trading/ksei_ownership di atas: ini BUKAN satu
+-- blob jsonb per user, tapi satu BARIS per sinyal yang diemit AI Copilot/
+-- StockChat — perlu diquery lintas waktu ("sinyal BBCA 3 bulan terakhir",
+-- "semua yang masih pending", dst) dan diupdate lagi belakangan saat
+-- returnnya sudah bisa dihitung (siklus pending -> resolved di Fase 2).
+--
+-- Cakupan sengaja DIBATASI hanya sinyal dari respons AI Copilot/StockChat
+-- (kolom `source`) — BUKAN dari Scanner/Market Radar/Opportunity Radar yang
+-- dilihat pasif tanpa user benar-benar bertanya/bertindak, supaya log tidak
+-- penuh baris yang tidak representasikan keputusan riil siapa pun.
+--
+-- horizon_days SENGAJA tidak diberi DEFAULT global — nilainya ditentukan
+-- per-sinyal oleh kode yang mengeluarkannya (mis. beda horizon buat
+-- rekomendasi swing-trade vs value-investing), bukan satu angka konstan
+-- untuk semua sinyal.
+--
+-- Tidak ada guard duplikasi (mis. "1 sinyal per hari") — keputusan sadar:
+-- setiap kali Copilot/StockChat mengeluarkan sinyal dicatat apa adanya,
+-- termasuk kalau user tanya ticker yang sama berkali-kali. Kalau nanti
+-- volume baris jadi masalah nyata, itu keputusan terpisah yang butuh
+-- pertimbangan sendiri (bukan dipaksakan di skema sejak awal).
+--
+-- resolve_after AWALNYA didesain sebagai generated column (dihitung
+-- otomatis dari emitted_at+horizon_days) tapi Postgres menolaknya
+-- ("generation expression is not immutable") — aritmetika timestamptz+
+-- interval bergantung kalender/DST sehingga tidak immutable, dikonfirmasi
+-- lewat migrasi percobaan di Postgres 16 lokal sebelum file ini ditulis.
+-- Jadi kolom BIASA yang WAJIB diisi eksplisit oleh kode yang insert baris
+-- (dihitung di JS: emitted_at + horizon_days hari).
+create table if not exists public.ai_signal_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  source text not null check (source in ('stockchat', 'copilot')),
+  ticker text not null,
+  signal_action text not null check (signal_action in ('STRONG BUY', 'BUY', 'HOLD', 'WATCH', 'AVOID', 'SELL', 'REVIEW')),
+  composite_score numeric,
+  entry_price numeric,
+  stop_loss numeric,
+  take_profit_1 numeric,
+  take_profit_2 numeric,
+  rationale text,
+  raw_snapshot jsonb not null default '{}'::jsonb,
+  emitted_at timestamptz not null default now(),
+  horizon_days integer not null,
+  resolve_after timestamptz not null,
+  status text not null default 'pending' check (status in ('pending', 'resolved', 'expired')),
+  resolved_at timestamptz,
+  exit_price numeric,
+  raw_return_pct numeric,
+  benchmark_return_pct numeric,
+  alpha_return_pct numeric,
+  outcome text check (outcome in ('WIN', 'LOSS', 'NEUTRAL')),
+  reflection_text text,
+  reflection_model text,
+  created_at timestamptz not null default now()
+);
+
+-- Dipakai job resolusi Fase 2: ambil semua baris pending yang horizonnya
+-- sudah lewat. Partial index karena baris resolved/expired tidak akan
+-- pernah dicari lewat kolom ini lagi.
+create index if not exists ai_signal_log_pending_due
+  on public.ai_signal_log (resolve_after)
+  where status = 'pending';
+
+-- Dipakai Fase 3: ambil N refleksi terakhir untuk sebuah ticker sebelum
+-- disuntikkan ke prompt Copilot/StockChat.
+create index if not exists ai_signal_log_user_ticker_time
+  on public.ai_signal_log (user_id, ticker, emitted_at desc);
+
+alter table public.ai_signal_log enable row level security;
+
+-- Sengaja TIDAK ada delete policy — log ini append-only dari sisi user;
+-- update hanya dipakai job resolusi Fase 2 untuk mengisi kolom hasil.
+drop policy if exists "ai_signal_log_select_own" on public.ai_signal_log;
+create policy "ai_signal_log_select_own" on public.ai_signal_log
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "ai_signal_log_insert_own" on public.ai_signal_log;
+create policy "ai_signal_log_insert_own" on public.ai_signal_log
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "ai_signal_log_update_own" on public.ai_signal_log;
+create policy "ai_signal_log_update_own" on public.ai_signal_log
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
