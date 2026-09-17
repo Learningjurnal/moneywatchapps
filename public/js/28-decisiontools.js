@@ -1266,6 +1266,8 @@ function renderCopilotPage() {
   var c = el('page-copilot');
   if (!c) return;
 
+  if (typeof ensureAiSignalLogResolved === 'function') ensureAiSignalLogResolved();
+
   var porto = (typeof getPortfolio === 'function') ? getPortfolio() : (window.holdings || []);
   var sortedPorto = porto.slice().sort(function(a, b) { return (b.mv || 0) - (a.mv || 0); });
   var topTicker = sortedPorto.length > 0 ? (sortedPorto[0].ticker || 'BBCA') : 'BBCA';

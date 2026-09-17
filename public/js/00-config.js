@@ -155,7 +155,13 @@ async function logAiSignalToReflectionLog(source, toolCalls) {
         ticker: r.ticker || signalCalls[i].args?.ticker || '',
         signal_action: r.signal,
         composite_score: (typeof r.compositeScore === 'number') ? r.compositeScore : null,
-        entry_price: (typeof r.entry === 'number') ? r.entry : null,
+        // computeStockSignal() menomorkan entry:null untuk sinyal AVOID
+        // (tidak ada posisi yang dibuka) — tapi field `price` (harga pasar
+        // riil saat sinyal dihitung) TETAP terisi. Fallback ke situ supaya
+        // baris AVOID tetap punya harga acuan untuk dihitung return-nya
+        // nanti oleh resolveOneAiSignal() (return: "seandainya tetap masuk,
+        // apakah AVOID ini benar?"), bukan macet selamanya karena entry_price null.
+        entry_price: (typeof r.entry === 'number') ? r.entry : ((typeof r.price === 'number') ? r.price : null),
         stop_loss: (typeof r.sl === 'number') ? r.sl : null,
         take_profit_1: (typeof r.tp1 === 'number') ? r.tp1 : null,
         take_profit_2: (typeof r.tp2 === 'number') ? r.tp2 : null,
@@ -168,6 +174,154 @@ async function logAiSignalToReflectionLog(source, toolCalls) {
     }
   } catch (e) {
     console.warn('[AI Signal Log]', e && e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// AI SIGNAL REFLECTION LOG — JOB RESOLUSI (Fase 2 lanjutan, 2026-09-17)
+// ══════════════════════════════════════════════════════════
+// Dipanggil sekali per sesi lewat ensureAiSignalLogResolved() (dari
+// StockChat/Copilot page-open, mirip pola loadAiCloudState() di
+// 38-ai-autonomous-trading.js) — TIDAK ada cron/worker terpisah, app ini
+// serverless (Vercel) dan semua akses Supabase memang client-side lewat
+// RLS (auth.uid()=user_id), jadi resolusi wajar dijalankan di sesi
+// pengguna yang bersangkutan, bukan job global lintas-user.
+//
+// Alur per baris: ambil histori harga ticker + IHSG (endpoint publik
+// /api/idx/history yang sudah ada, bukan endpoint baru) -> cari harga exit
+// pada/​setelah resolve_after -> hitung return riil vs benchmark -> minta
+// Claude menulis refleksi (/api/ai/signal-reflection, server tidak
+// menyentuh Supabase sama sekali) -> update baris jadi 'resolved'.
+var AI_SIGNAL_RESOLVE_BATCH_LIMIT = 10; // dibatasi per sesi (tiap baris = 2 fetch histori + 1 panggilan Claude) — sisanya diproses sesi berikutnya
+var _aiSignalResolveTriggeredOnce = false;
+
+function ensureAiSignalLogResolved() {
+  if (_aiSignalResolveTriggeredOnce) return;
+  _aiSignalResolveTriggeredOnce = true;
+  if (typeof resolveDueAiSignals === 'function') resolveDueAiSignals();
+}
+
+// Titik pertama (>=) dari array points {t,c} yang timestamp-nya >= targetMs
+// — dipakai untuk harga EXIT (butuh harga PERTAMA SETELAH horizon lewat,
+// bukan harga terdekat ke arah manapun, supaya tidak "mengintip" harga
+// sebelum horizon-nya benar-benar selesai).
+function _aiSignalFindPointAtOrAfter(points, targetMs) {
+  if (!Array.isArray(points)) return null;
+  for (var i = 0; i < points.length; i++) {
+    if (points[i] && points[i].t >= targetMs && typeof points[i].c === 'number') return points[i];
+  }
+  return null;
+}
+
+// Titik TERAKHIR (<=) dari array points — dipakai untuk harga benchmark
+// IHSG pada saat sinyal DIEMIT (emitted_at), bukan exit.
+function _aiSignalFindPointAtOrBefore(points, targetMs) {
+  if (!Array.isArray(points)) return null;
+  var best = null;
+  for (var i = 0; i < points.length; i++) {
+    if (points[i] && points[i].t <= targetMs && typeof points[i].c === 'number') best = points[i];
+  }
+  return best;
+}
+
+async function resolveDueAiSignals() {
+  try {
+    var uid = (typeof getAppUserId === 'function') ? getAppUserId() : null;
+    var client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (!uid || !client) return;
+
+    var result = await client.from('ai_signal_log')
+      .select('*')
+      .eq('user_id', uid)
+      .eq('status', 'pending')
+      .lte('resolve_after', new Date().toISOString())
+      .limit(AI_SIGNAL_RESOLVE_BATCH_LIMIT);
+    if (result.error) { console.warn('[AI Signal Resolve]', result.error.message); return; }
+    var rows = result.data || [];
+    for (var i = 0; i < rows.length; i++) {
+      await resolveOneAiSignal(rows[i], client);
+    }
+  } catch (e) {
+    console.warn('[AI Signal Resolve]', e && e.message);
+  }
+}
+
+async function resolveOneAiSignal(row, client) {
+  try {
+    // Tidak ada harga acuan sama sekali (seharusnya tidak terjadi lagi
+    // sejak fallback ke r.price di logAiSignalToReflectionLog, tapi baris
+    // lama sebelum fallback itu ada bisa saja masih null) — tidak bisa
+    // dihitung, tandai expired daripada dicoba ulang selamanya.
+    if (typeof row.entry_price !== 'number') {
+      await client.from('ai_signal_log').update({ status: 'expired', resolved_at: new Date().toISOString() }).eq('id', row.id);
+      return;
+    }
+
+    var tkResp = await fetch('/api/idx/history/' + encodeURIComponent(row.ticker) + '?tf=1M');
+    var tkHist = tkResp.ok ? await tkResp.json() : null;
+    var ihsgResp = await fetch('/api/idx/history/' + encodeURIComponent('^JKSE') + '?tf=1M');
+    var ihsgHist = ihsgResp.ok ? await ihsgResp.json() : null;
+    if (!tkHist || !tkHist.success || !ihsgHist || !ihsgHist.success) return; // gagal ambil data — coba lagi sesi berikutnya, JANGAN tandai expired
+
+    var resolveAfterMs = new Date(row.resolve_after).getTime();
+    var emittedAtMs = new Date(row.emitted_at).getTime();
+    var exitPoint = _aiSignalFindPointAtOrAfter(tkHist.points, resolveAfterMs);
+    var ihsgExitPoint = _aiSignalFindPointAtOrAfter(ihsgHist.points, resolveAfterMs);
+    var ihsgEntryPoint = _aiSignalFindPointAtOrBefore(ihsgHist.points, emittedAtMs);
+    if (!exitPoint || !ihsgExitPoint || !ihsgEntryPoint) return; // histori 1 bulan belum mencakup rentang ini — coba lagi sesi berikutnya
+
+    var rawReturnPct = Math.round(((exitPoint.c - row.entry_price) / row.entry_price) * 10000) / 100;
+    var benchmarkReturnPct = Math.round(((ihsgExitPoint.c - ihsgEntryPoint.c) / ihsgEntryPoint.c) * 10000) / 100;
+    var alphaReturnPct = Math.round((rawReturnPct - benchmarkReturnPct) * 100) / 100;
+
+    // AVOID/SELL "menang" kalau harga TURUN (sinyal itu benar mengarahkan
+    // menjauh dari kerugian) — kebalikan dari BUY/STRONG BUY. HOLD/WATCH
+    // tidak punya arah tegas untuk dinilai menang/kalah, selalu NEUTRAL.
+    var outcome = 'NEUTRAL';
+    if (row.signal_action === 'BUY' || row.signal_action === 'STRONG BUY') {
+      outcome = rawReturnPct > 0.5 ? 'WIN' : (rawReturnPct < -0.5 ? 'LOSS' : 'NEUTRAL');
+    } else if (row.signal_action === 'SELL' || row.signal_action === 'AVOID') {
+      outcome = rawReturnPct < -0.5 ? 'WIN' : (rawReturnPct > 0.5 ? 'LOSS' : 'NEUTRAL');
+    }
+
+    var reflectionText = null;
+    var reflectionModel = null;
+    try {
+      var reflResp = await fetch('/api/ai/signal-reflection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker: row.ticker,
+          signalAction: row.signal_action,
+          entryPrice: row.entry_price,
+          exitPrice: exitPoint.c,
+          rawReturnPct: rawReturnPct,
+          benchmarkReturnPct: benchmarkReturnPct,
+          alphaReturnPct: alphaReturnPct,
+          outcome: outcome,
+          rationale: row.rationale || null
+        })
+      });
+      if (reflResp.ok) {
+        var reflData = await reflResp.json();
+        if (reflData && reflData.success) { reflectionText = reflData.reflection; reflectionModel = reflData.model; }
+      }
+    } catch (e) { console.warn('[AI Signal Resolve] refleksi gagal, baris tetap diresolusi tanpa teks refleksi:', e && e.message); }
+
+    var updateResult = await client.from('ai_signal_log').update({
+      status: 'resolved',
+      resolved_at: new Date().toISOString(),
+      exit_price: exitPoint.c,
+      raw_return_pct: rawReturnPct,
+      benchmark_return_pct: benchmarkReturnPct,
+      alpha_return_pct: alphaReturnPct,
+      outcome: outcome,
+      reflection_text: reflectionText,
+      reflection_model: reflectionModel
+    }).eq('id', row.id);
+    if (updateResult && updateResult.error) console.warn('[AI Signal Resolve]', updateResult.error.message);
+  } catch (e) {
+    console.warn('[AI Signal Resolve]', e && e.message);
   }
 }
 

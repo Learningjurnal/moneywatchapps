@@ -3025,6 +3025,144 @@ await asyncTest("REGRESSION GUARD: logAiSignalToReflectionLog() must skip guest 
   const emittedMs = new Date(logged.payload.emitted_at).getTime();
   const resolveMs = new Date(logged.payload.resolve_after).getTime();
   assert.strictEqual(Math.round((resolveMs - emittedMs) / 86400000), 15, 'REGRESSION: resolve_after must be exactly horizon_days after emitted_at');
+
+  // 3. AVOID signal — computeStockSignal() nulls out `entry` for AVOID (no
+  // position opened), but always sets `price` (the real market price at
+  // computation time). Without a fallback to `price`, an AVOID row would
+  // be logged with entry_price:null and could never be resolved later
+  // (resolveOneAiSignal() has no baseline to compute a return from).
+  const capturedInserts2 = [];
+  const sandbox3 = {
+    window: {},
+    getAppUserId: () => 'uid-test-789',
+    getSupabaseClient: () => ({
+      from: () => ({ insert: (payload) => { capturedInserts2.push(payload); return Promise.resolve({ error: null }); } })
+    })
+  };
+  sandbox3.window = sandbox3;
+  const ctx3 = vm.createContext(sandbox3);
+  vm.runInContext(src, ctx3, { filename: '00-config.js logAiSignalToReflectionLog() AVOID entry_price fallback (sandboxed load for test)' });
+  await ctx3.logAiSignalToReflectionLog('stockchat', [
+    { name: 'cek_sinyal_teknikal', args: { ticker: 'GORO' }, result: { ticker: 'GORO', signal: 'AVOID', price: 8500, entry: null, sl: null, tp1: null, tp2: null } }
+  ]);
+  assert.strictEqual(capturedInserts2.length, 1, 'REGRESSION: an AVOID signal must still be logged (horizon 7 days), not silently dropped');
+  assert.strictEqual(capturedInserts2[0].entry_price, 8500, 'REGRESSION: AVOID signal must fall back to the real `price` field when `entry` is null, not store entry_price:null');
+  assert.strictEqual(capturedInserts2[0].horizon_days, 7, 'REGRESSION: AVOID must map to the 7-day horizon');
+});
+
+// ── TEST 84d: resolveOneAiSignal() / resolveDueAiSignals() (public/js/00-config.js)
+// — AI Signal Reflection Log Fase 2 job resolusi (2026-09-17, INCIDENT_LOG.md):
+// reads a due 'pending' ai_signal_log row, computes its real return against
+// the ticker's own historical price AND against the IHSG benchmark over the
+// same window, classifies WIN/LOSS/NEUTRAL, and writes the resolved row back.
+// Must (a) mark a row with no entry_price baseline 'expired' rather than
+// retry it forever, (b) leave a row untouched (not expired, not resolved)
+// when price history can't be fetched — a transient failure, not a reason to
+// give up on the row, and (c) compute the return/outcome/benchmark math
+// correctly against real fetched price points.
+await asyncTest("REGRESSION GUARD: resolveOneAiSignal() computes real return vs IHSG benchmark correctly, expires only on missing entry_price, and never drops a row on a transient fetch failure", async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/00-config.js'), 'utf8');
+  const start = fullSrc.indexOf('// AI SIGNAL REFLECTION LOG');
+  assert(start !== -1, 'sanity: the AI SIGNAL REFLECTION LOG section not found in 00-config.js — has it moved/been renamed?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// ══════════════════════════════════════════════════════════\n// GLOBAL STOCK CONTEXT');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after the resolution job — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/function resolveOneAiSignal/.test(src), 'REGRESSION: resolveOneAiSignal() is gone from 00-config.js');
+  assert(/function resolveDueAiSignals/.test(src), 'REGRESSION: resolveDueAiSignals() is gone from 00-config.js');
+
+  // 1. No entry_price baseline at all — must be marked expired immediately,
+  // never touch fetch() (nothing to compute a return from).
+  let fetchCalled = false;
+  const updates1 = [];
+  const sandbox1 = { window: {}, fetch: () => { fetchCalled = true; return Promise.reject(new Error('should not be called')); } };
+  sandbox1.window = sandbox1;
+  const ctx1 = vm.createContext(sandbox1);
+  vm.runInContext(src, ctx1, { filename: '00-config.js resolveOneAiSignal() no-entry-price path (sandboxed load for test)' });
+  const fakeClient1 = { from: () => ({ update: (payload) => { updates1.push(payload); return { eq: () => Promise.resolve({ error: null }) }; } }) };
+  await ctx1.resolveOneAiSignal({ id: 'row-1', ticker: 'BBCA', entry_price: null, signal_action: 'BUY' }, fakeClient1);
+  assert.strictEqual(fetchCalled, false, 'REGRESSION: a row with no entry_price must never trigger a price-history fetch');
+  assert.strictEqual(updates1.length, 1);
+  assert.strictEqual(updates1[0].status, 'expired', 'REGRESSION: a row with no entry_price baseline must be marked expired, not left pending forever');
+
+  // 2. Real resolution: BUY at entry 9000, ticker rises to 9450 (+5%),
+  // IHSG flat 6500->6500 (0%) over the same window — expect raw +5%,
+  // benchmark 0%, alpha +5%, outcome WIN (>0.5% threshold).
+  const emittedAt = new Date('2026-08-01T00:00:00.000Z');
+  const resolveAfter = new Date('2026-08-16T00:00:00.000Z'); // +15 days
+  const tkPoints = [
+    { t: emittedAt.getTime(), c: 9000 },
+    { t: resolveAfter.getTime() - 86400000, c: 9200 }, // sebelum resolve_after — tidak boleh dipakai sebagai exit
+    { t: resolveAfter.getTime(), c: 9450 },
+    { t: resolveAfter.getTime() + 86400000, c: 9500 }
+  ];
+  const ihsgPoints = [
+    { t: emittedAt.getTime() - 3600000, c: 6500 }, // titik TERAKHIR pada/sebelum emitted_at
+    { t: emittedAt.getTime() + 3600000, c: 6600 }, // SETELAH emitted_at — tidak boleh dipakai sebagai entry benchmark
+    { t: resolveAfter.getTime(), c: 6500 }
+  ];
+  const fetchLog = [];
+  const sandbox2 = {
+    window: {},
+    fetch: (url) => {
+      fetchLog.push(url);
+      if (url.indexOf('BBCA') !== -1) return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, points: tkPoints }) });
+      if (url.indexOf('JKSE') !== -1) return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, points: ihsgPoints }) });
+      return Promise.resolve({ ok: false });
+    }
+  };
+  sandbox2.window = sandbox2;
+  const ctx2 = vm.createContext(sandbox2);
+  vm.runInContext(src, ctx2, { filename: '00-config.js resolveOneAiSignal() real resolution path (sandboxed load for test)' });
+
+  const updates2 = [];
+  const fakeClient2 = { from: () => ({ update: (payload) => { updates2.push(payload); return { eq: () => Promise.resolve({ error: null }) }; } }) };
+  const row2 = { id: 'row-2', ticker: 'BBCA', entry_price: 9000, signal_action: 'BUY', emitted_at: emittedAt.toISOString(), resolve_after: resolveAfter.toISOString(), rationale: null };
+  await ctx2.resolveOneAiSignal(row2, fakeClient2);
+
+  assert(fetchLog.some((u) => u.indexOf('BBCA') !== -1), 'sanity: ticker history was never fetched');
+  assert(fetchLog.some((u) => u.indexOf('JKSE') !== -1), 'sanity: IHSG benchmark history was never fetched');
+  assert.strictEqual(updates2.length, 1);
+  const u2 = updates2[0];
+  assert.strictEqual(u2.status, 'resolved');
+  assert.strictEqual(u2.exit_price, 9450, 'REGRESSION: exit price must be the FIRST point at/after resolve_after (9450), not an earlier or later one');
+  assert.strictEqual(u2.raw_return_pct, 5, 'REGRESSION: raw return must be (9450-9000)/9000*100 = 5%, got ' + u2.raw_return_pct);
+  assert.strictEqual(u2.benchmark_return_pct, 0, 'REGRESSION: IHSG benchmark return must be 0% (6500->6500), got ' + u2.benchmark_return_pct);
+  assert.strictEqual(u2.alpha_return_pct, 5, 'REGRESSION: alpha must equal raw - benchmark = 5%, got ' + u2.alpha_return_pct);
+  assert.strictEqual(u2.outcome, 'WIN', 'REGRESSION: a BUY signal with +5% real return must be classified WIN');
+
+  // 3. Transient fetch failure (network error / non-ok response) — the row
+  // must be left completely untouched: no expired, no resolved, no update
+  // call at all, so it gets retried on the next session.
+  const updates3 = [];
+  const sandbox3 = { window: {}, fetch: () => Promise.resolve({ ok: false }) };
+  sandbox3.window = sandbox3;
+  const ctx3 = vm.createContext(sandbox3);
+  vm.runInContext(src, ctx3, { filename: '00-config.js resolveOneAiSignal() transient-failure path (sandboxed load for test)' });
+  const fakeClient3 = { from: () => ({ update: (payload) => { updates3.push(payload); return { eq: () => Promise.resolve({ error: null }) }; } }) };
+  await ctx3.resolveOneAiSignal({ id: 'row-3', ticker: 'BBCA', entry_price: 9000, signal_action: 'BUY', emitted_at: emittedAt.toISOString(), resolve_after: resolveAfter.toISOString() }, fakeClient3);
+  assert.strictEqual(updates3.length, 0, 'REGRESSION: a transient history-fetch failure must leave the row untouched (no expired/resolved update), so it can be retried next session');
+
+  // 4. AVOID signal, price actually FELL (avoiding it was the right call):
+  // entry 8500 -> exit 8000 (-5.88%) must be classified WIN (AVOID wins
+  // when price drops), not LOSS.
+  const tkPointsAvoid = [{ t: resolveAfter.getTime(), c: 8000 }];
+  const sandbox4 = {
+    window: {},
+    fetch: (url) => {
+      if (url.indexOf('GORO') !== -1) return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, points: tkPointsAvoid }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, points: ihsgPoints }) });
+    }
+  };
+  sandbox4.window = sandbox4;
+  const ctx4 = vm.createContext(sandbox4);
+  vm.runInContext(src, ctx4, { filename: '00-config.js resolveOneAiSignal() AVOID-signal-wins-on-drop path (sandboxed load for test)' });
+  const updates4 = [];
+  const fakeClient4 = { from: () => ({ update: (payload) => { updates4.push(payload); return { eq: () => Promise.resolve({ error: null }) }; } }) };
+  await ctx4.resolveOneAiSignal({ id: 'row-4', ticker: 'GORO', entry_price: 8500, signal_action: 'AVOID', emitted_at: emittedAt.toISOString(), resolve_after: resolveAfter.toISOString() }, fakeClient4);
+  assert.strictEqual(updates4.length, 1);
+  assert.strictEqual(updates4[0].outcome, 'WIN', 'REGRESSION: an AVOID signal must be classified WIN when the price actually dropped, not LOSS (direction is inverted vs BUY)');
 });
 
 // ── TEST 85: the deterministic AI fallback (server.js) must route
