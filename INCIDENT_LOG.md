@@ -3194,3 +3194,10 @@ tunggu penggunaan normal secara bertahap memicu eviction.
   - `README.md` — baris deskripsi `js/33-trending-news.js` di tabel struktur file dihapus.
 - **Tidak diikutsertakan (sengaja, di luar cakupan "hapus widget-nya"):** endpoint backend `GET /api/trending-news` di `server.js` (beserta `newsCache`, `claudeExtractGroundingChunks()`) sekarang jadi orphaned juga karena tidak ada lagi caller di frontend — belum dihapus karena permintaan eksplisit hanya menyebut "widget" (sisi UI). Dilaporkan sebagai temuan terpisah bila user ingin membersihkan sisi backend juga.
 - **Verifikasi:** `node -c public/js/04-render.js`, `node -c server.js` — sukses. `npm test` 175/175 lulus (tidak berkurang — tidak ada test yang meng-cover widget mati ini). `npm run lint` bersih.
+
+## 2026-09-17 — Hapus endpoint backend orphaned `GET /api/trending-news` (`server.js`)
+
+- **Konteks:** lanjutan dari penghapusan widget "Trending Financial News" — user minta endpoint backend-nya juga dibersihkan sekalian karena sudah tidak punya caller di frontend.
+- **Perubahan (`server.js`):** dihapus seluruhnya — route `app.get('/api/trending-news', ...)`, state `newsCache` (cache TTL 5 menit + backoff rate-limit), dan komentar audit lama terkait `getFallbackHeadlines()` yang sudah tidak relevan.
+- **Tidak dihapus:** `claudeExtractText()` dan `claudeExtractGroundingChunks()` — masih dipakai fitur lain (Copilot/StockChat AI reply, market briefing) di beberapa lokasi lain di `server.js`.
+- **Verifikasi:** `node -c server.js` sukses. `npm test` 175/175 lulus (tidak berkurang — tidak ada test yang meng-cover endpoint ini). `npm run lint` bersih. Server dijalankan lokal: `GET /api/trending-news` sekarang mengembalikan `404` (route benar-benar hilang), halaman utama tetap `200`.
