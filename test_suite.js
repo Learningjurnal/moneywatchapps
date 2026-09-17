@@ -1826,6 +1826,47 @@ test('REGRESSION GUARD: AI Paper Trading must sync to its own dedicated Supabase
   assert(/if \(!uid \|\| !client\) return;/.test(aiJs), 'REGRESSION: loadAiCloudState() no longer guards against guest/demo or an unconfigured Supabase client');
 });
 
+// Field bug (2026-09-17, INCIDENT_LOG.md): a user ran sql/schema_migration.sql
+// in their Supabase SQL Editor and got "ERROR: 42P01: relation
+// public.user_settings does not exist". Root cause: the file's very first
+// statements assume a LEGACY normalized schema (public.user_settings,
+// public.transactions, public.dividends, public.rdn_mutations,
+// public.crypto_tx, public.etf_tx, public.rd_tx, public.div_invest) that
+// predates the app's consolidation onto the single public.user_data JSONB
+// blob — a project created after that consolidation never has these
+// tables. Supabase's SQL Editor runs a pasted script as one transaction,
+// so failing on the very FIRST statement aborted the ENTIRE file,
+// including the ai_paper_trading/ksei_ownership/ai_signal_log tables the
+// app actually depends on, which sit much further down and have nothing
+// to do with these legacy tables. Fixed by wrapping every statement that
+// touches one of these 8 legacy tables in a to_regclass(...) is not null
+// guard, so a project missing them just skips those statements instead of
+// aborting the whole run — verified by executing the real file end-to-end
+// against a from-scratch local Postgres 16 database with NONE of the 8
+// legacy tables (reproducing the report exactly: the original file failed
+// at statement 1; the fixed file completes and creates ai_paper_trading,
+// ksei_ownership and ai_signal_log), and separately against a database
+// WITH all 8 legacy tables present to confirm the original upgrade
+// behavior (new columns added, schema_version set to 2, unique
+// constraints created) is unchanged for projects that still have them.
+test('REGRESSION GUARD: sql/schema_migration.sql must not let a missing legacy table (user_settings/transactions/etc.) abort the whole migration', () => {
+  const sqlMigration = fs.readFileSync(path.join(__dirname, 'sql/schema_migration.sql'), 'utf8');
+
+  ['user_settings', 'transactions', 'dividends', 'rdn_mutations', 'crypto_tx', 'etf_tx', 'rd_tx', 'div_invest'].forEach(function(tbl) {
+    const guardRe = new RegExp("to_regclass\\('public\\." + tbl + "'\\)\\s+is not null");
+    assert(guardRe.test(sqlMigration),
+      'REGRESSION: statements touching legacy table public.' + tbl + ' are no longer guarded by to_regclass(...) is not null — a project without this table would abort the entire migration file again, exactly like the original bug report');
+  });
+
+  // The tables the app actually depends on today must remain unconditional
+  // (never skipped) — they must not accidentally end up gated behind one
+  // of the legacy-table guards above.
+  ['ai_paper_trading', 'ksei_ownership', 'ai_signal_log'].forEach(function(tbl) {
+    assert(new RegExp('create table if not exists public\\.' + tbl).test(sqlMigration),
+      'sanity: create table for public.' + tbl + ' is missing from the migration');
+  });
+});
+
 // ── TEST 65: ml/train_xgb_signal.py's label must be SL/TP-aware (ATR-based,
 // synced with computeStockSignal()'s real sl=price-ATR*1.5/tp1=price+ATR*2.5
 // formula), not the old "price up >3% in 10 days" label that ignored risk

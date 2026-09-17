@@ -23,22 +23,46 @@
 --
 -- Tidak perlu policy RLS baru — kolom baru otomatis mengikuti
 -- policy row-level yang sudah berlaku di tabel user_settings.
+--
+-- FIX AUDIT (2026-09-17, user melaporkan gagal jalankan migrasi ini di
+-- Supabase SQL Editor): "ERROR: 42P01: relation public.user_settings does
+-- not exist". Root cause: public.user_settings adalah tabel dari desain
+-- skema LAMA (sebelum aplikasi konsolidasi ke satu blob public.user_data —
+-- lihat catatan di blok AI PAPER TRADING di bawah, "terpisah dari
+-- user_data/user_settings"). Project Supabase yang dibuat SETELAH
+-- konsolidasi itu tidak pernah punya tabel ini sama sekali, jadi statement
+-- ini SELALU gagal di project seperti itu — dan karena Supabase SQL Editor
+-- menjalankan satu submission sebagai satu transaksi, kegagalan di baris
+-- PALING ATAS ini menggagalkan SELURUH sisa file, termasuk pembuatan
+-- ai_paper_trading/ksei_ownership/ai_signal_log yang jauh lebih penting
+-- dan sama sekali tidak bergantung pada user_settings. Diperbaiki dengan
+-- membungkusnya jadi kondisional (skip diam-diam kalau tabelnya memang
+-- tidak ada), diverifikasi dengan menjalankan ULANG SELURUH file ini dari
+-- nol di Postgres 16 lokal tanpa satupun tabel legacy — sebelum fix:
+-- error persis di atas dan proses terhenti di baris ini; sesudah fix:
+-- lanjut sampai selesai, semua tabel yang app ini benar-benar pakai
+-- (ai_paper_trading, ksei_ownership, ai_signal_log) berhasil dibuat.
 -- ══════════════════════════════════════════════════════════
 
-alter table public.user_settings
-  add column if not exists idx_universe jsonb,
-  add column if not exists idx_universe_info jsonb,
-  add column if not exists admin_meta jsonb,
-  add column if not exists admin_extra jsonb,
-  add column if not exists trade_strategy jsonb,
-  add column if not exists sek_tax_override jsonb,
-  add column if not exists wealth jsonb,
-  add column if not exists schema_version integer;
+do $$
+begin
+  if to_regclass('public.user_settings') is not null then
+    alter table public.user_settings
+      add column if not exists idx_universe jsonb,
+      add column if not exists idx_universe_info jsonb,
+      add column if not exists admin_meta jsonb,
+      add column if not exists admin_extra jsonb,
+      add column if not exists trade_strategy jsonb,
+      add column if not exists sek_tax_override jsonb,
+      add column if not exists wealth jsonb,
+      add column if not exists schema_version integer;
 
--- Tandai baris yang sudah ada (dibuat sebelum migrasi ini) sebagai versi 2,
--- supaya baris lama tidak terus-menerus memicu peringatan "skema belum update"
--- di UI padahal kolomnya sudah baru saja ditambahkan barusan.
-update public.user_settings set schema_version = 2 where schema_version is null;
+    -- Tandai baris yang sudah ada (dibuat sebelum migrasi ini) sebagai versi 2,
+    -- supaya baris lama tidak terus-menerus memicu peringatan "skema belum
+    -- update" di UI padahal kolomnya sudah baru saja ditambahkan barusan.
+    update public.user_settings set schema_version = 2 where schema_version is null;
+  end if;
+end $$;
 
 -- ══════════════════════════════════════════════════════════
 -- FIX: "data hilang saat pindah device"
@@ -54,40 +78,73 @@ update public.user_settings set schema_version = 2 where schema_version is null;
 -- sebagian) dibersihkan dulu sebelum constraint ditambahkan — disimpan
 -- hanya baris dengan ctid terbesar (paling baru) per (user_id, id).
 
+-- FIX AUDIT (2026-09-17): sama seperti user_settings di atas, keenam
+-- tabel per-baris ini (transactions/dividends/rdn_mutations/crypto_tx/
+-- etf_tx/rd_tx) adalah bagian dari skema LAMA sebelum konsolidasi ke
+-- public.user_data — tidak ada di project yang dibuat setelahnya. Setiap
+-- delete/alter di bawah dibungkus per-tabel supaya tabel yang memang tidak
+-- ada dilewati diam-diam, bukan menggagalkan seluruh file.
 do $$
 begin
-  delete from public.transactions a using public.transactions b
-    where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
-  delete from public.dividends a using public.dividends b
-    where a.user_id=b.user_id and a.div_id=b.div_id and a.ctid<b.ctid;
-  delete from public.rdn_mutations a using public.rdn_mutations b
-    where a.user_id=b.user_id and a.rdn_id=b.rdn_id and a.ctid<b.ctid;
-  delete from public.crypto_tx a using public.crypto_tx b
-    where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
-  delete from public.etf_tx a using public.etf_tx b
-    where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
-  delete from public.rd_tx a using public.rd_tx b
-    where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+  if to_regclass('public.transactions') is not null then
+    delete from public.transactions a using public.transactions b
+      where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+  end if;
+  if to_regclass('public.dividends') is not null then
+    delete from public.dividends a using public.dividends b
+      where a.user_id=b.user_id and a.div_id=b.div_id and a.ctid<b.ctid;
+  end if;
+  if to_regclass('public.rdn_mutations') is not null then
+    delete from public.rdn_mutations a using public.rdn_mutations b
+      where a.user_id=b.user_id and a.rdn_id=b.rdn_id and a.ctid<b.ctid;
+  end if;
+  if to_regclass('public.crypto_tx') is not null then
+    delete from public.crypto_tx a using public.crypto_tx b
+      where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+  end if;
+  if to_regclass('public.etf_tx') is not null then
+    delete from public.etf_tx a using public.etf_tx b
+      where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+  end if;
+  if to_regclass('public.rd_tx') is not null then
+    delete from public.rd_tx a using public.rd_tx b
+      where a.user_id=b.user_id and a.tx_id=b.tx_id and a.ctid<b.ctid;
+  end if;
 end $$;
 
-alter table public.transactions
-  drop constraint if exists transactions_user_tx_unique,
-  add constraint transactions_user_tx_unique unique (user_id, tx_id);
-alter table public.dividends
-  drop constraint if exists dividends_user_div_unique,
-  add constraint dividends_user_div_unique unique (user_id, div_id);
-alter table public.rdn_mutations
-  drop constraint if exists rdn_mutations_user_rdn_unique,
-  add constraint rdn_mutations_user_rdn_unique unique (user_id, rdn_id);
-alter table public.crypto_tx
-  drop constraint if exists crypto_tx_user_tx_unique,
-  add constraint crypto_tx_user_tx_unique unique (user_id, tx_id);
-alter table public.etf_tx
-  drop constraint if exists etf_tx_user_tx_unique,
-  add constraint etf_tx_user_tx_unique unique (user_id, tx_id);
-alter table public.rd_tx
-  drop constraint if exists rd_tx_user_tx_unique,
-  add constraint rd_tx_user_tx_unique unique (user_id, tx_id);
+do $$
+begin
+  if to_regclass('public.transactions') is not null then
+    alter table public.transactions
+      drop constraint if exists transactions_user_tx_unique,
+      add constraint transactions_user_tx_unique unique (user_id, tx_id);
+  end if;
+  if to_regclass('public.dividends') is not null then
+    alter table public.dividends
+      drop constraint if exists dividends_user_div_unique,
+      add constraint dividends_user_div_unique unique (user_id, div_id);
+  end if;
+  if to_regclass('public.rdn_mutations') is not null then
+    alter table public.rdn_mutations
+      drop constraint if exists rdn_mutations_user_rdn_unique,
+      add constraint rdn_mutations_user_rdn_unique unique (user_id, rdn_id);
+  end if;
+  if to_regclass('public.crypto_tx') is not null then
+    alter table public.crypto_tx
+      drop constraint if exists crypto_tx_user_tx_unique,
+      add constraint crypto_tx_user_tx_unique unique (user_id, tx_id);
+  end if;
+  if to_regclass('public.etf_tx') is not null then
+    alter table public.etf_tx
+      drop constraint if exists etf_tx_user_tx_unique,
+      add constraint etf_tx_user_tx_unique unique (user_id, tx_id);
+  end if;
+  if to_regclass('public.rd_tx') is not null then
+    alter table public.rd_tx
+      drop constraint if exists rd_tx_user_tx_unique,
+      add constraint rd_tx_user_tx_unique unique (user_id, tx_id);
+  end if;
+end $$;
 
 -- ══════════════════════════════════════════════════════════
 -- FIX: field mapping cloud-sync salah total (bug lama, terpisah dari
@@ -102,21 +159,30 @@ alter table public.rd_tx
 -- Kolom baru ini menyimpan id transaksi/dividen terkait per mutasi RDN
 -- (dulu tidak pernah disimpan ke cloud sama sekali), supaya hapus
 -- transaksi ikut menghapus mutasi RDN terkait juga di device lain.
-alter table public.rdn_mutations
-  add column if not exists linked_tx_id text;
+-- (Dibungkus sama seperti di atas — rdn_mutations bisa saja tidak ada.)
+do $$
+begin
+  if to_regclass('public.rdn_mutations') is not null then
+    alter table public.rdn_mutations
+      add column if not exists linked_tx_id text;
+  end if;
+end $$;
 
 -- div_invest juga di-upsert dengan onConflict:'user_id' tapi tabelnya tidak
 -- pernah diberi unique constraint di kolom itu sejak awal — bug lama terpisah,
 -- baru ketahuan setelah rdn_mutations & transactions dites (error: "there is
 -- no unique or exclusion constraint matching the ON CONFLICT specification").
+-- (Dibungkus sama seperti tabel legacy lainnya di atas.)
 do $$
 begin
-  delete from public.div_invest a using public.div_invest b
-    where a.user_id=b.user_id and a.ctid<b.ctid;
+  if to_regclass('public.div_invest') is not null then
+    delete from public.div_invest a using public.div_invest b
+      where a.user_id=b.user_id and a.ctid<b.ctid;
+    alter table public.div_invest
+      drop constraint if exists div_invest_user_unique,
+      add constraint div_invest_user_unique unique (user_id);
+  end if;
 end $$;
-alter table public.div_invest
-  drop constraint if exists div_invest_user_unique,
-  add constraint div_invest_user_unique unique (user_id);
 
 -- ══════════════════════════════════════════════════════════
 -- AI PAPER TRADING CLOUD SYNC (2026-09-11, user-requested)
