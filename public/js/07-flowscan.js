@@ -776,25 +776,34 @@ function fsSwitchScreenerMode(mode) {
 // RADAR_STATE (dipakai sub-tab "Anomaly Structural & ARA" di Command
 // Center, dan tetap LQ45-only di sana) — supaya scan seluruh-BEI di sini
 // tidak ikut mencampur hasilnya ke sub-tab lain yang didesain seputar LQ45.
+// FIX (2026-09-17, user-requested quota optimization: "optimalkan
+// langganan API saya... karena broker ini sifatnya reload per hari saja"):
+// dulu FS_BROKER_SCAN mengelola scan BERTAHAP (universe/batchSize/
+// nextIndex/scannedCount, tombol "Lanjutkan Scan" berkali-kali) karena
+// endpoint lama butuh 1 panggilan Invezgo PER TICKER (~960 kuota untuk 1x
+// scan penuh BEI). Endpoint baru (GET /analysis/top/accumulation di
+// Invezgo, lihat getUniverseAccumulationDistribution() di
+// lib/idx-data-engine.js) mengembalikan SELURUH pasar dalam SATU panggilan
+// (1 kuota total) — tidak ada lagi yang perlu di-batch, jadi seluruh
+// state/logika bertahap di atas dihapus. Data ini juga EOD harian (bukan
+// rentang timeframe yang bisa dipilih), jadi tombol pemilih timeframe
+// (1D/3D/5D/20D) yang lama juga dihapus — jujur soal keterbatasan data
+// selalu "hari ini", bukan berpura-pura ada rentang yang bisa dipilih.
 var FS_BROKER_SCAN = {
-  universe: null,      // seluruh ticker BEI, dimuat sekali dari /api/idx/stocks
-  batchSize: 80,        // sama dengan cap POST /api/idx/ai-scan & endpoint acc/dist
-  nextIndex: 0,          // index awal batch berikutnya di dalam `universe`
   accumulation: [],
   distribution: [],
-  scannedCount: 0,
-  timeframe: '1D',
-  notConfigured: false, // Invezgo API key belum ada sama sekali — berhenti total
+  date: null,
+  loaded: false,
+  notConfigured: false, // Invezgo API key belum ada sama sekali
   loading: false,
   quota: null // { used, monthlyBudget, remaining, usagePct, alert80, alert90 } dari /api/idx/invezgo-status
 };
 
 function fsResetBrokerScan() {
-  FS_BROKER_SCAN.universe = null;
-  FS_BROKER_SCAN.nextIndex = 0;
   FS_BROKER_SCAN.accumulation = [];
   FS_BROKER_SCAN.distribution = [];
-  FS_BROKER_SCAN.scannedCount = 0;
+  FS_BROKER_SCAN.date = null;
+  FS_BROKER_SCAN.loaded = false;
   FS_BROKER_SCAN.notConfigured = false;
 }
 
@@ -832,16 +841,20 @@ function fsRenderQuotaBar() {
     + '</div>';
 }
 
-function fsSetBrokerScanTimeframe(tf) {
-  if (tf === FS_BROKER_SCAN.timeframe) return;
-  FS_BROKER_SCAN.timeframe = tf;
-  fsResetBrokerScan();
-  fsRenderBrokerFlowMode();
-}
-
+// FIX (2026-09-17, quota optimization): mode "Broker Flow Riil" dulu
+// memuat daftar ~958 ticker lalu scan bertahap (lihat komentar di
+// FS_BROKER_SCAN di atas). Sekarang cukup SATU fetch ke
+// /api/idx/accumulation-distribution — endpoint ini sendiri sudah
+// memanggil Invezgo market-wide (1 kuota, bukan per-ticker), jadi tidak
+// ada lagi yang perlu di-batch di sisi client sama sekali.
 async function fsRenderBrokerFlowMode() {
   var c = document.getElementById('sms-broker-content');
   if (!c) return;
+
+  if (FS_BROKER_SCAN.loaded && !FS_BROKER_SCAN.notConfigured) {
+    fsRenderBrokerScanUI(c);
+    return;
+  }
 
   if (!FS_BROKER_SCAN.notConfigured) await fsFetchInvezgoQuotaStatus();
 
@@ -852,74 +865,30 @@ async function fsRenderBrokerFlowMode() {
     return;
   }
 
-  if (!FS_BROKER_SCAN.universe) {
-    c.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Memuat daftar seluruh saham BEI...</div>';
-    try {
-      var uRes = await fetch('/api/idx/stocks');
-      var uJson = await uRes.json();
-      FS_BROKER_SCAN.universe = (uJson && Array.isArray(uJson.data)) ? uJson.data.map(function(s) { return s.code; }) : [];
-    } catch (e) {
-      c.innerHTML = '<div style="color:#EF4444;text-align:center;padding:32px 20px;font-size:13px">Gagal memuat daftar saham: ' + (e && e.message) + '</div>';
-      return;
-    }
-    await fsRunNextBrokerScanBatch();
-    // fsRunNextBrokerScanBatch() sudah merender ulang (termasuk kasus
-    // notConfigured baru terungkap di batch pertama) — jangan timpa lagi.
-    return;
-  }
-
-  fsRenderBrokerScanUI(c);
-}
-
-async function fsRunNextBrokerScanBatch() {
-  if (FS_BROKER_SCAN.loading || FS_BROKER_SCAN.notConfigured) return;
-  var universe = FS_BROKER_SCAN.universe || [];
-  var batch = universe.slice(FS_BROKER_SCAN.nextIndex, FS_BROKER_SCAN.nextIndex + FS_BROKER_SCAN.batchSize);
-  if (!batch.length) return;
-
+  c.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Memuat data akumulasi/distribusi seluruh BEI...</div>';
   FS_BROKER_SCAN.loading = true;
-  var c = document.getElementById('sms-broker-content');
-  if (c) fsRenderBrokerScanUI(c);
 
   try {
-    var res = await fetch('/api/idx/accumulation-distribution', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tickers: batch, timeframe: FS_BROKER_SCAN.timeframe })
-    });
+    var res = await fetch('/api/idx/accumulation-distribution');
     var data = await res.json();
-    FS_BROKER_SCAN.nextIndex += batch.length;
 
-    // Invezgo API key sama sekali tidak dikonfigurasi — bukan "batch ini
-    // kosong", tapi "seluruh fitur ini tidak tersedia". Deteksi lewat
-    // counts.totalUniverseScanned===0 (lihat getUniverseAccumulationDistribution)
-    // dan berhenti total, tidak ada gunanya lanjut ke batch berikutnya.
-    if (data && data.isSimulated && data.counts && data.counts.totalUniverseScanned === 0 && FS_BROKER_SCAN.scannedCount === 0) {
+    if (data && data.isSimulated && data.counts && data.counts.totalUniverseScanned === 0) {
       FS_BROKER_SCAN.notConfigured = true;
     } else if (data && data.success) {
-      FS_BROKER_SCAN.scannedCount += batch.length;
-      FS_BROKER_SCAN.accumulation = FS_BROKER_SCAN.accumulation.concat(data.accumulation || []);
-      FS_BROKER_SCAN.distribution = FS_BROKER_SCAN.distribution.concat(data.distribution || []);
-      FS_BROKER_SCAN.accumulation.sort(function(a, b) { return (b.smartMoneyInflowRp || 0) - (a.smartMoneyInflowRp || 0); });
-      FS_BROKER_SCAN.distribution.sort(function(a, b) { return (a.smartMoneyInflowRp || 0) - (b.smartMoneyInflowRp || 0); });
+      FS_BROKER_SCAN.accumulation = data.accumulation || [];
+      FS_BROKER_SCAN.distribution = data.distribution || [];
+      FS_BROKER_SCAN.date = data.date || null;
+      FS_BROKER_SCAN.loaded = true;
     }
-    // Kuota berubah setelah batch ini (reserveQuota() server-side sudah
-    // jalan per ticker) — refresh angkanya supaya bar di UI selalu akurat,
-    // bukan cuma perkiraan dari sebelum batch dijalankan.
     await fsFetchInvezgoQuotaStatus();
   } catch (e) {
-    console.warn('[Smart Money Screener] Batch scan gagal:', e && e.message);
+    console.warn('[Smart Money Screener] Gagal memuat data akumulasi/distribusi:', e && e.message);
   } finally {
     FS_BROKER_SCAN.loading = false;
   }
 
   var c2 = document.getElementById('sms-broker-content');
   if (!c2) return;
-  // Batch pertama bisa saja BARU mengungkap bahwa Invezgo tidak
-  // dikonfigurasi sama sekali (notConfigured baru di-set di atas) — dalam
-  // kasus itu tampilkan pesan honest-empty, bukan lanjut merender panel
-  // scan yang tombol "Lanjutkan Scan"-nya cuma akan mengulang hasil kosong
-  // yang sama selamanya.
   if (FS_BROKER_SCAN.notConfigured) {
     fsRenderBrokerFlowMode();
   } else {
@@ -928,67 +897,44 @@ async function fsRunNextBrokerScanBatch() {
 }
 
 function fsRenderBrokerScanUI(c) {
-  var universe = FS_BROKER_SCAN.universe || [];
-  var totalUniverse = universe.length;
-  var scanned = Math.min(FS_BROKER_SCAN.nextIndex, totalUniverse);
-  var isDone = scanned >= totalUniverse;
   var accList = FS_BROKER_SCAN.accumulation;
   var distList = FS_BROKER_SCAN.distribution;
-  var tf = FS_BROKER_SCAN.timeframe;
   var quotaExhausted = !!(FS_BROKER_SCAN.quota && FS_BROKER_SCAN.quota.remaining <= 0);
+  var dateLabel = FS_BROKER_SCAN.date || '-';
 
   var html = fsRenderQuotaBar()
 
   + '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
     + '<div>'
       + '<div style="font-weight:700;font-size:13px;color:var(--text)">Pemindaian Smart Money &amp; Retail Absorption (Seluruh BEI)</div>'
-      + '<div style="font-size:11px;color:var(--text3)">Mendeteksi anomali akumulasi bandar tersembunyi dan distribusi institusi besar dari broker-flow riil.</div>'
+      + '<div style="font-size:11px;color:var(--text3)">Skor ranking akumulasi/distribusi harian (Invezgo, EOD) — mencakup seluruh emiten BEI, data per: ' + dateLabel + '</div>'
     + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px">'
-      + '<span style="font-size:11px;color:var(--text3)">Timeframe:</span>'
-      + '<div style="display:inline-flex;gap:4px">'
-        + ['1D', '3D', '5D', '20D'].map(function(t) {
-            return '<button class="btn btn-xs ' + (tf === t ? 'btn-primary' : 'btn-ghost') + '" ' + (FS_BROKER_SCAN.loading ? 'disabled' : '') + ' onclick="fsSetBrokerScanTimeframe(\'' + t + '\')">' + t + '</button>';
-          }).join('')
-      + '</div>'
-    + '</div>'
-  + '</div>'
-
-  + '<div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
-    + '<div style="font-size:12px;color:var(--text2)">'
-      + '<strong style="color:var(--text)">' + scanned.toLocaleString('id-ID') + '</strong> dari <strong style="color:var(--text)">' + totalUniverse.toLocaleString('id-ID') + '</strong> saham BEI sudah dipindai'
-      + (isDone ? ' — <span style="color:var(--green);font-weight:700">selesai</span>' : '')
-    + '</div>'
-    + (isDone
-        ? '<button class="btn btn-ghost btn-xs" ' + (quotaExhausted ? 'disabled title="Kuota Invezgo bulan ini habis"' : '') + ' onclick="fsResetBrokerScan();fsRenderBrokerFlowMode()">Scan Ulang dari Awal</button>'
-        : '<button class="btn btn-primary btn-xs" ' + (FS_BROKER_SCAN.loading || quotaExhausted ? 'disabled' : '') + ' ' + (quotaExhausted ? 'title="Kuota Invezgo bulan ini habis — coba lagi bulan depan"' : '') + ' onclick="fsRunNextBrokerScanBatch()">'
-          + (FS_BROKER_SCAN.loading ? 'Memindai…' : quotaExhausted ? 'Kuota Habis' : 'Lanjutkan Scan (+' + Math.min(FS_BROKER_SCAN.batchSize, totalUniverse - scanned) + ' saham)')
-          + '</button>')
+    + '<button class="btn btn-ghost btn-xs" ' + (FS_BROKER_SCAN.loading || quotaExhausted ? 'disabled' : '') + ' ' + (quotaExhausted ? 'title="Kuota Invezgo bulan ini habis — coba lagi bulan depan"' : '') + ' onclick="fsResetBrokerScan();fsRenderBrokerFlowMode()">'
+      + (FS_BROKER_SCAN.loading ? 'Memuat…' : quotaExhausted ? 'Kuota Habis' : 'Refresh')
+      + '</button>'
   + '</div>';
 
   if (!accList.length && !distList.length) {
     html += '<div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12.5px">'
-      + (FS_BROKER_SCAN.loading ? 'Memindai batch pertama...' : 'Belum ada saham dengan verdict akumulasi/distribusi kuat di batch yang sudah dipindai.')
+      + (FS_BROKER_SCAN.loading ? 'Memuat data...' : 'Belum ada data akumulasi/distribusi untuk hari ini.')
       + '</div>';
   } else {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">'
       + '<div class="card" style="padding:0;overflow:hidden">'
         + '<div style="padding:12px 16px;background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.2);display:flex;justify-content:space-between;align-items:center">'
-          + '<div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--green);font-size:13px">TOP AKUMULASI (SMART MONEY INFLOW)</strong></div>'
+          + '<div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--green);font-size:13px">TOP AKUMULASI</strong></div>'
           + '<span class="badge b-up">' + accList.length + ' Saham</span>'
         + '</div>'
-        + '<div style="overflow-x:auto"><table class="tbl">'
-          + '<thead><tr><th>Ticker</th><th>Verdict Bandar</th><th style="text-align:right">Smart Inflow</th><th style="text-align:right">Foreign Net</th><th style="text-align:center">Alur</th></tr></thead>'
+        + '<div style="overflow-x:auto;max-height:420px"><table class="tbl">'
+          + '<thead><tr><th>Ticker</th><th style="text-align:right">Price</th><th style="text-align:right">Chg%</th><th style="text-align:right">Skor</th><th style="text-align:center">Alur</th></tr></thead>'
           + '<tbody>'
-          + accList.map(function(it) {
-              var inflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
-              var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
-              var verdictClass = it.bandarVerdict.includes('BIG') ? 'b-up' : 'b-accent';
+          + accList.slice(0, 100).map(function(it) {
+              var chg = Number(it.priceChangePct || 0);
               return '<tr>'
-                + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong><div style="font-size:10px;color:var(--text3)">Top Buy: ' + (it.topBuyers ? it.topBuyers.join(', ') : '-') + '</div></td>'
-                + '<td><span class="badge ' + verdictClass + '" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
-                + '<td class="mono up" style="text-align:right;font-weight:700">+Rp ' + inflowM.toLocaleString('id-ID') + ' M</td>'
-                + '<td class="mono ' + (foreignM >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (foreignM >= 0 ? '+' : '') + foreignM.toLocaleString('id-ID') + ' M</td>'
+                + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong><div style="font-size:10px;color:var(--text3)">' + (it.name || '') + '</div></td>'
+                + '<td class="mono" style="text-align:right">Rp ' + Number(it.avgPrice || 0).toLocaleString('id-ID') + '</td>'
+                + '<td class="mono ' + (chg >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</td>'
+                + '<td class="mono up" style="text-align:right;font-weight:700">' + Number(it.score || 0).toFixed(2) + '</td>'
                 + '<td style="text-align:center"><button class="btn btn-ghost btn-xs" onclick="fsOpenBrokerFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button></td>'
                 + '</tr>';
             }).join('')
@@ -996,20 +942,19 @@ function fsRenderBrokerScanUI(c) {
 
       + '<div class="card" style="padding:0;overflow:hidden">'
         + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);display:flex;justify-content:space-between;align-items:center">'
-          + '<div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--red);font-size:13px">TOP DISTRIBUSI (TEKANAN JUAL / RETAIL TRAP)</strong></div>'
+          + '<div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--red);font-size:13px">TOP DISTRIBUSI</strong></div>'
           + '<span class="badge b-dn">' + distList.length + ' Saham</span>'
         + '</div>'
-        + '<div style="overflow-x:auto"><table class="tbl">'
-          + '<thead><tr><th>Ticker</th><th>Verdict Bandar</th><th style="text-align:right">Tekanan Jual</th><th style="text-align:right">Foreign Net</th><th style="text-align:center">Alur</th></tr></thead>'
+        + '<div style="overflow-x:auto;max-height:420px"><table class="tbl">'
+          + '<thead><tr><th>Ticker</th><th style="text-align:right">Price</th><th style="text-align:right">Chg%</th><th style="text-align:right">Skor</th><th style="text-align:center">Alur</th></tr></thead>'
           + '<tbody>'
-          + distList.map(function(it) {
-              var outflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
-              var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
+          + distList.slice(0, 100).map(function(it) {
+              var chg = Number(it.priceChangePct || 0);
               return '<tr>'
-                + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong><div style="font-size:10px;color:var(--text3)">Top Sell: ' + (it.topSellers ? it.topSellers.join(', ') : '-') + '</div></td>'
-                + '<td><span class="badge b-dn" style="font-size:9px">' + it.bandarVerdict + '</span></td>'
-                + '<td class="mono dn" style="text-align:right;font-weight:700">-Rp ' + Math.abs(outflowM).toLocaleString('id-ID') + ' M</td>'
-                + '<td class="mono dn" style="text-align:right">' + foreignM.toLocaleString('id-ID') + ' M</td>'
+                + '<td><strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong><div style="font-size:10px;color:var(--text3)">' + (it.name || '') + '</div></td>'
+                + '<td class="mono" style="text-align:right">Rp ' + Number(it.avgPrice || 0).toLocaleString('id-ID') + '</td>'
+                + '<td class="mono ' + (chg >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</td>'
+                + '<td class="mono dn" style="text-align:right;font-weight:700">' + Number(it.score || 0).toFixed(2) + '</td>'
                 + '<td style="text-align:center"><button class="btn btn-ghost btn-xs" onclick="fsOpenBrokerFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi">Alur</button></td>'
                 + '</tr>';
             }).join('')

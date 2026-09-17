@@ -1272,8 +1272,16 @@ function renderRadarAnomalyAraSubTab() {
   html += '<div class="card" style="padding:16px;margin-bottom:16px">'
       + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;flex-wrap:wrap;gap:6px">'
         + '<div>'
-          + '<h2 style="font-size:15px;font-weight:800;color:var(--text);margin:0">Akumulasi Struktural (Smart Money Inflow)</h2>'
-          + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Konsentrasi top buyer tinggi &middot; smart money inflow &middot; net asing positif — dihitung dari broker summary riil (LQ45)</div>'
+          + '<h2 style="font-size:15px;font-weight:800;color:var(--text);margin:0">Akumulasi Struktural (Top Movers Seluruh BEI)</h2>'
+          // FIX (2026-09-17, quota optimization): sumber data diganti dari
+          // scan per-ticker (LQ45-capped) ke endpoint market-wide Invezgo
+          // (GET /analysis/top/accumulation, 1 kuota untuk SELURUH BEI) —
+          // lihat getUniverseAccumulationDistribution() di
+          // lib/idx-data-engine.js. Endpoint ini tidak menyediakan breakdown
+          // top-buyer per-broker atau nilai net asing dalam Rupiah, hanya
+          // skor ranking Invezgo sendiri — kolom & teks di bawah disesuaikan
+          // supaya jujur, bukan mengklaim data yang tidak ada.
+          + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Skor ranking akumulasi (Invezgo) — mencakup seluruh emiten BEI, bukan cuma LQ45</div>'
         + '</div>'
         + '<span class="badge b-up" style="font-size:10px;font-weight:700">' + accList.length + ' Emiten Terdeteksi</span>'
       + '</div>'
@@ -1284,27 +1292,24 @@ function renderRadarAnomalyAraSubTab() {
             + '<th>KODE</th>'
             + '<th style="text-align:right">PRICE</th>'
             + '<th style="text-align:right">CHG%</th>'
-            + '<th style="text-align:right">NET ASING</th>'
-            + '<th style="text-align:right">SMART INFLOW</th>'
-            + '<th style="text-align:right">TOP3 BUYER%</th>'
-            + '<th>VERDICT</th>'
+            + '<th style="text-align:right">VOLUME</th>'
+            + '<th style="text-align:right">NILAI TRANSAKSI</th>'
+            + '<th style="text-align:right">SKOR AKUMULASI</th>'
             + '<th style="text-align:center">AKSI</th>'
           + '</tr></thead>'
           + '<tbody>'
             + accList.map(function(it, idx) {
               var priceChg = Number(it.priceChangePct || 0);
               var chgCls = priceChg > 0 ? 'up' : priceChg < 0 ? 'dn' : 'neu';
-              var foreignM = Math.round(Number(it.foreignNetRp || 0) / 1000000000);
-              var inflowM = Math.round(Number(it.smartMoneyInflowRp || 0) / 1000000000);
+              var valueM = Math.round(Number(it.valueRp || 0) / 1000000);
               return '<tr style="cursor:pointer" onclick="switchIntelTicker(\'' + it.ticker + '\')">'
                 + '<td style="color:var(--text3);font-weight:700">' + (idx + 1) + '</td>'
                 + '<td><strong style="color:var(--text)">' + it.ticker + '</strong> <span style="font-size:11px;color:var(--text3)">' + (it.name || '') + '</span></td>'
                 + '<td class="font-mono" style="text-align:right;font-weight:700">Rp ' + fmtK(it.avgPrice || 0) + '</td>'
                 + '<td class="font-mono ' + chgCls + '" style="text-align:right;font-weight:700">' + (priceChg >= 0 ? '+' : '') + priceChg.toFixed(2) + '%</td>'
-                + '<td class="font-mono ' + (foreignM >= 0 ? 'up' : 'dn') + '" style="text-align:right;font-weight:700">' + (foreignM >= 0 ? '+' : '') + foreignM.toLocaleString('id-ID') + ' M</td>'
-                + '<td class="font-mono up" style="text-align:right">+Rp ' + inflowM.toLocaleString('id-ID') + ' M</td>'
-                + '<td class="font-mono" style="text-align:right">' + (it.concentration || '-') + '</td>'
-                + '<td><span class="badge b-up" style="font-size:9px">' + (it.bandarVerdict || '-') + '</span></td>'
+                + '<td class="font-mono" style="text-align:right">' + Number(it.volume || 0).toLocaleString('id-ID') + '</td>'
+                + '<td class="font-mono" style="text-align:right">Rp ' + valueM.toLocaleString('id-ID') + ' Jt</td>'
+                + '<td class="font-mono up" style="text-align:right;font-weight:700">' + Number(it.score || 0).toFixed(2) + '</td>'
                 + '<td style="text-align:center" onclick="event.stopPropagation()">'
                   + '<button class="btn btn-ghost btn-xs" onclick="openBandarFlowModal(\'' + it.ticker + '\')" title="Buka Flow Modal">Flow</button>'
                   + '<button class="btn btn-primary btn-xs" onclick="switchIntelTicker(\'' + it.ticker + '\')" style="margin-left:4px" title="Buka di Stock Intelligence">Cockpit →</button>'

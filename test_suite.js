@@ -4913,19 +4913,21 @@ test('REGRESSION GUARD: Smart Money Screener consolidation — old duplicate ent
   assert(/async function fsRenderBrokerFlowMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() is gone from 07-flowscan.js');
   assert(/function fsRenderSectorHeatmapMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() is gone from 07-flowscan.js');
 
-  // 2. FIX AUDIT (2026-09-17, user-requested full-BEI coverage): the broker-
-  // flow mode was redesigned to scan the FULL ~900+ IDX universe in
-  // user-controlled batches (each ticker costs paid Invezgo quota, so it
-  // must NOT auto-run unattended) instead of reusing Command Center's
-  // LQ45-only RADAR_STATE.accData cache — reusing that cache would leak
-  // full-universe results into the Anomaly Structural & ARA sub-tab, which
-  // is designed around LQ45 only. It must call the acc/dist API endpoint
-  // directly with an explicit batch of tickers, and fetch the full
-  // universe list to page through.
-  assert(/FS_BROKER_SCAN/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() lost its own scan-progress state (FS_BROKER_SCAN) — must not silently go back to a single LQ45-only call');
-  assert(/function fsRunNextBrokerScanBatch/.test(flowScanSrc), 'REGRESSION: fsRunNextBrokerScanBatch() is gone — full-BEI batching must stay user-controlled, one batch per click');
+  // 2. FIX AUDIT (2026-09-17, quota-optimization follow-up): the broker-flow
+  // mode was redesigned AGAIN — this time to stop scanning per-ticker
+  // altogether. Invezgo's own /analysis/top/accumulation and
+  // /analysis/top/foreign endpoints return the ENTIRE BEI market's
+  // accumulation/distribution ranking in ONE call (1 quota unit total,
+  // versus up to ~960 units for the old per-ticker batch scan), so the
+  // user-controlled "one batch per click" progress UI (fsRunNextBrokerScanBatch)
+  // and the full-universe ticker fetch it paged through are gone by design,
+  // not a regression. It still must NOT reuse Command Center's LQ45-only
+  // RADAR_STATE.accData cache — that cache is a *different* consumer of the
+  // same backend function, not something fsRenderBrokerFlowMode should
+  // read/write directly.
+  assert(/FS_BROKER_SCAN/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() lost its own scan state (FS_BROKER_SCAN) — must not silently go back to reading RADAR_STATE.accData');
+  assert(!/function fsRunNextBrokerScanBatch/.test(flowScanSrc), 'REGRESSION: fsRunNextBrokerScanBatch() resurfaced — per-ticker batch scanning was intentionally replaced by a single top/accumulation+top/foreign call covering the whole BEI market');
   assert(/'\/api\/idx\/accumulation-distribution'/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer calls the acc/dist API directly');
-  assert(/'\/api\/idx\/stocks'/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer fetches the full IDX ticker universe to scan');
   assert(!/RADAR_STATE\.accData/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() must NOT read/write RADAR_STATE.accData — that would leak full-universe results into the LQ45-only Anomaly Structural & ARA sub-tab');
 
   // 3. FIX AUDIT (2026-09-17): the sector-heatmap mode's stock-level table
@@ -4962,27 +4964,31 @@ test('REGRESSION GUARD: Smart Money Screener consolidation — old duplicate ent
   assert(indexHtml.includes('>Smart Money Screener<'), 'REGRESSION: the sidebar/page title no longer says "Smart Money Screener"');
 });
 
-// Field feedback (2026-09-17, INCIDENT_LOG.md): user pointed out that
-// renaming "Universe-Wide"/"Live Scanner" alone would still be dishonest —
-// the backend itself hardcoded the LQ45 constituents (45 tickers) as the
-// ONLY scannable universe for getUniverseAccumulationDistribution(), no
-// matter what the UI claimed. Fixed to accept an explicit `tickers` list
-// from the caller (LQ45 stays the DEFAULT only when none is given), same
-// pattern as the pre-existing POST /api/idx/ai-scan. These are source-text
-// checks (no INVEZGO_API_KEY in the test environment, so the function
-// always takes its honest "not configured" early-return regardless of
-// which tickers are passed — a functional test would just prove that
-// branch again, not the ticker-list plumbing this fix actually changed).
-test('REGRESSION GUARD: getUniverseAccumulationDistribution() must accept a caller-provided ticker list, not hardcode LQ45 as the scan ceiling', () => {
+// Quota-optimization follow-up (2026-09-17, user-requested: "optimalkan
+// langganan API saya untuk analisis broker... karna broker ini sifatnya
+// reload per hari saja"): the earlier per-ticker LQ45/tickers-list design
+// (see git history) was itself replaced — Invezgo's /analysis/top/accumulation
+// endpoint already ranks the ENTIRE BEI market in one call, so there is no
+// longer any "which tickers to scan" ceiling to configure: params.tickers/
+// LQ45-as-default is gone by design, not a regression. These are
+// source-text checks (no INVEZGO_API_KEY in the test environment, so the
+// function always takes its honest "not configured" early-return — a
+// functional test would just prove that branch again, not the
+// fetchInvezgoTopMovers() plumbing this fix actually changed).
+test('REGRESSION GUARD: getUniverseAccumulationDistribution() must scan the whole BEI market via one Invezgo top-movers call, not a per-ticker LQ45/tickers-list ceiling', () => {
   const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
   const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
 
   assert(!/const tickers = Object\.values\(universe\)\.filter\(u => u\.indexes && u\.indexes\.lq45\)\.map\(u => u\.code\)\.slice\(0, 45\);/.test(engineSrc),
-    'REGRESSION: getUniverseAccumulationDistribution() reverted to hardcoding LQ45 (slice(0,45)) as the only possible scan universe');
-  assert(/params\.tickers/.test(engineSrc), 'REGRESSION: getUniverseAccumulationDistribution() no longer reads params.tickers — the caller can no longer choose which stocks to scan');
-  assert(/filter\(u => u\.indexes && u\.indexes\.lq45\)/.test(engineSrc), 'sanity: LQ45 should still be the DEFAULT when no ticker list is given, just not the ceiling');
+    'REGRESSION: getUniverseAccumulationDistribution() reverted to hardcoding LQ45 (slice(0,45)) as the scan ceiling');
+  assert(/fetchInvezgoTopMovers\(\s*'accumulation'/.test(engineSrc), 'REGRESSION: getUniverseAccumulationDistribution() no longer calls fetchInvezgoTopMovers() — must not revert to the ~960-quota-unit per-ticker batch scan');
+  assert(/import\s*\{[^}]*fetchInvezgoTopMovers[^}]*\}\s*from\s*'\.\/invezgo-client\.js'/.test(engineSrc), 'REGRESSION: fetchInvezgoTopMovers is no longer imported from lib/invezgo-client.js');
 
-  assert(/app\.post\('\/api\/idx\/accumulation-distribution'/.test(serverSrc), 'REGRESSION: POST /api/idx/accumulation-distribution is gone — the client needs this to submit a batch of tickers from the full IDX universe (a GET query string does not comfortably fit 80 tickers repeatedly)');
+  const clientSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/function fetchInvezgoTopMovers/.test(clientSrc), 'REGRESSION: fetchInvezgoTopMovers() is gone from lib/invezgo-client.js');
+  assert(/\/analysis\/top\/\$\{kind\}/.test(clientSrc) || /\/analysis\/top\//.test(clientSrc), 'REGRESSION: fetchInvezgoTopMovers() no longer calls Invezgo\'s /analysis/top/{accumulation|foreign} endpoint');
+
+  assert(/app\.get\('\/api\/idx\/accumulation-distribution'/.test(serverSrc), 'REGRESSION: GET /api/idx/accumulation-distribution is gone');
 });
 
 // User-requested (2026-09-17): "atur dulu kuotanya agar cukup dipakai 1
@@ -5416,6 +5422,53 @@ test('REGRESSION GUARD: fetchInvezgoBrokerSummary() must send from/to + investor
     'REGRESSION: fetchInvezgoBrokerSummary() no longer sends the required investor= param — Invezgo\'s summarySchema marks it required, omitting it causes HTTP 422');
   assert(/market=RG/.test(fnSrc),
     'REGRESSION: fetchInvezgoBrokerSummary() no longer sends the required market= param — Invezgo\'s summarySchema marks it required, omitting it causes HTTP 422');
+});
+
+// ── TEST: fetchInvezgoTopMovers() must call Invezgo's real market-wide
+// top-movers endpoint (1 quota unit for the whole BEI universe), never
+// revert to a per-ticker loop ──
+// User-requested optimization (2026-09-17): "optimalkan langganan API saya
+// untuk analisis broker... karna broker ini sifatnya reload per hari saja".
+// Confirmed via a real, authenticated "Test Request" the user captured
+// from Invezgo's own API docs UI (not a guess): GET
+// /analysis/top/accumulation?date=YYYY-MM-DD and
+// /analysis/top/foreign?date=YYYY-MM-DD each return the WHOLE market's
+// {accum: [...], dist: [...]} in one call.
+test('REGRESSION GUARD: fetchInvezgoTopMovers() must call GET /analysis/top/{kind}?date=... and validate the {accum,dist} array schema', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  const fnSrc = src.match(/async function fetchInvezgoTopMovers[\s\S]*?\n\}\n/)[0];
+
+  assert(/\/analysis\/top\/\$\{safeKind\}/.test(fnSrc),
+    'REGRESSION: fetchInvezgoTopMovers() no longer builds the /analysis/top/{kind} URL — this is the real endpoint confirmed via Invezgo\'s live docs Test Request, not a guess');
+  assert(/date\s*\?\s*`\?date=\$\{date\}`/.test(fnSrc) || /\?date=\$\{date\}/.test(fnSrc),
+    'REGRESSION: fetchInvezgoTopMovers() no longer sends the date= query param Invezgo\'s top-movers endpoints require');
+  assert(/Authorization.*Bearer \$\{apiKey\}/.test(fnSrc),
+    'REGRESSION: fetchInvezgoTopMovers() no longer sends the Bearer auth header');
+  assert(/Array\.isArray\(raw\.accum\)/.test(fnSrc) && /Array\.isArray\(raw\.dist\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoTopMovers() no longer validates the real {accum:[...], dist:[...]} response schema confirmed from the user\'s captured API response');
+  assert(/if\s*\(!apiKey\)\s*return\s*\{\s*ok:\s*false,\s*reason:\s*'NOT_CONFIGURED'/.test(fnSrc),
+    'REGRESSION: fetchInvezgoTopMovers() no longer takes an honest NOT_CONFIGURED early-return when INVEZGO_API_KEY is absent — must never fabricate market-wide data');
+});
+
+// ── TEST: getUniverseAccumulationDistribution() must map Invezgo's real
+// top-movers rows honestly — calculated_value surfaced as `score`, never
+// mislabeled as a Rupiah amount ──
+// Real sample magnitudes the user captured (107, -374.14, 76.6) are far too
+// small to be actual stock transaction values (which run in
+// billions/trillions of Rupiah for BEI-listed names), confirming
+// calculated_value is Invezgo's own ranking score, not currency.
+test('REGRESSION GUARD: getUniverseAccumulationDistribution() must map calculated_value to an honest `score` field, never mislabel it as Rupiah', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = engineSrc.match(/async function getUniverseAccumulationDistribution[\s\S]*?\n\}\n/)[0];
+
+  assert(/score:\s*Number\(item\.calculated_value\)/.test(fnSrc),
+    'REGRESSION: getUniverseAccumulationDistribution() no longer maps Invezgo\'s calculated_value to an honest `score` field');
+  assert(!/(smartMoneyInflowRp|foreignNetRp):\s*Number\(item\.calculated_value\)/.test(fnSrc),
+    'REGRESSION: calculated_value (a ranking score, confirmed too small to be a real Rupiah transaction value) must never be mislabeled as a currency field again');
+  assert(/accumulation\s*=\s*\(result\.accum \|\| \[\]\)\.map\(mapRow\)\.sort/.test(fnSrc),
+    'REGRESSION: getUniverseAccumulationDistribution() no longer builds its accumulation list from result.accum');
+  assert(/distribution\s*=\s*\(result\.dist \|\| \[\]\)\.map\(mapRow\)\.sort/.test(fnSrc),
+    'REGRESSION: getUniverseAccumulationDistribution() no longer builds its distribution list from result.dist');
 });
 
 console.log('═══════════════════════════════════════════════════════');
