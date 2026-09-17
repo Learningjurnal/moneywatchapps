@@ -2,7 +2,7 @@
  * 24-stockmaster.js — StockMaster PRO & Mega Investment Suite (High-Performance Engine)
  * Fast, Responsive & Error-Free:
  * 1. Mega Fundamental Suite (Laporan Riset, Earnings, MoS 9-Step, Multi-Model Graham/Lynch/DDM, 2D Sensitivity Matrix, DCF, Moat, Red Flags, Bull/Bear Debate, Traffic Light Consensus)
- * 2. Mega Technical & Flow Suite (Native Interactive Multi-Indicator Chart, On-Demand TradingView, 20+ Technical Gauges Matrix, FlowScan Bandarmologi, Candlestick Psychology & Position Sizing, Pivot & Support/Resistance, LQ45 Scanner)
+ * 2. Mega Technical & Flow Suite (Native Interactive Multi-Indicator Chart, On-Demand TradingView, 20+ Technical Gauges Matrix, FlowScan Bandarmologi, Candlestick Psychology & Position Sizing, Pivot & Support/Resistance)
  * 3. Performance Optimization: Zero main-thread blocking, lazy widget loading, clean canvas management, instant <16ms response.
  */
 
@@ -1202,8 +1202,6 @@ function techSwitchTab(idx) {
     techRenderGaugesTab(ticker);
     techRenderCandleTab(ticker);
     techRenderPivotsTab(ticker);
-  } else if (idx === 3) {
-    techRenderLq45Heatmap();
   }
 }
 
@@ -2015,69 +2013,6 @@ function techRenderPivotsTab(ticker) {
     + '    <b>Money Management Rule:</b> Batasi risiko maksimal 1-2% dari total ekuitas RDN per transaksi. Pada rasio 1:' + rr + ', skenario trading memiliki ekspektasi matematis positif.'
     + '  </div>'
     + '</div>';
-}
-
-// ── Tab 6: LQ45 Momentum Scanner ──
-// Was a hardcoded array of 18 tickers with fixed %change/RSI/flow labels -
-// BBCA always "+1.25%, RSI 64, Accum" no matter when this tab was opened
-// or what the market actually did. Replaced with a real fetch to
-// /api/idx/ai-scan (the same endpoint the AI Trading Scanner uses),
-// which computes changePercent/RSI/volume-ratio from real Yahoo Finance
-// price history for the actual LQ45 constituents. "Accum/Dist" here is
-// derived from the real EMA trend + volume ratio (a defensible technical
-// proxy), not literal broker/bandar flow data - this app has no real
-// broker-transaction feed, so it never claims to be one.
-var TECH_LQ45_CACHE = null;
-var TECH_LQ45_LOADING = false;
-
-async function techRenderLq45Heatmap() {
-  var grid = document.getElementById('hm-grid-tech');
-  if (!grid) return;
-
-  if (TECH_LQ45_CACHE) {
-    techRenderLq45Grid(grid, TECH_LQ45_CACHE);
-    return;
-  }
-  if (TECH_LQ45_LOADING) return;
-  TECH_LQ45_LOADING = true;
-  grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text3);font-size:12px">⏳ Memindai LQ45 dengan data harga &amp; RSI real-time...</div>';
-
-  try {
-    var res = await fetch('/api/idx/ai-scan');
-    var json = await res.json();
-    if (!json.success || !Array.isArray(json.signals)) throw new Error(json.error || 'Scan gagal');
-    var valid = json.signals.filter(function(s) { return s.price > 0 && s.changePercent != null; });
-    valid.sort(function(a, b) { return (b.compositeScore || 0) - (a.compositeScore || 0); });
-    TECH_LQ45_CACHE = valid;
-    techRenderLq45Grid(grid, valid);
-  } catch (e) {
-    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--red);font-size:12px">Gagal memuat data LQ45 real-time: ' + (e.message || 'error') + ' <button class="btn btn-ghost btn-xs" onclick="TECH_LQ45_CACHE=null;techRenderLq45Heatmap()">Coba Lagi</button></div>';
-  } finally {
-    TECH_LQ45_LOADING = false;
-  }
-}
-
-function techRenderLq45Grid(grid, signals) {
-  if (!signals.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text3);font-size:12px">Tidak ada data.</div>';
-    return;
-  }
-  grid.innerHTML = signals.map(function(item) {
-    var chg = item.changePercent || 0;
-    var rsi = item.rsi14 != null ? Math.round(item.rsi14) : null;
-    var flow = (item.trend === 'UPTREND' && item.volRatio >= 1.5) ? 'Big Accum'
-      : item.trend === 'UPTREND' ? 'Accum'
-      : (item.trend === 'DOWNTREND' && item.volRatio >= 1.5) ? 'Big Dist'
-      : item.trend === 'DOWNTREND' ? 'Dist'
-      : 'Neutral';
-    var bg = chg > 2 ? 'rgba(16, 185, 129, 0.35)' : chg > 0 ? 'rgba(16, 185, 129, 0.18)' : chg < -2 ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.18)';
-    var color = chg >= 0 ? '#10B981' : '#EF4444';
-    return '<div onclick="techSetTicker(\'' + item.ticker + '\')" style="background:' + bg + ';border:1px solid ' + (chg >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') + ';border-radius:6px;padding:8px;text-align:center;cursor:pointer;transition:transform 0.15s" onmouseover="this.style.transform=\'scale(1.04)\'" onmouseout="this.style.transform=\'scale(1)\'">'
-      + '<div style="font-weight:800;font-size:12px;color:var(--text)">' + item.ticker + '</div>'
-      + '<div style="font-size:11px;font-weight:700;font-family:Fira Code,monospace;color:' + color + '">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</div>'
-      + '<div style="font-size:9px;color:var(--text3);margin-top:2px">' + (rsi != null ? 'RSI ' + rsi : 'RSI —') + ' · ' + flow + '</div>'
-      + '</div>';
-  }).join('');
 }
 
 // ============================================================
