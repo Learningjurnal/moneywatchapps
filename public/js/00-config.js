@@ -326,6 +326,52 @@ async function resolveOneAiSignal(row, client) {
 }
 
 // ══════════════════════════════════════════════════════════
+// AI SIGNAL REFLECTION LOG — Fase 3: injeksi riwayat ke prompt (2026-09-17)
+// ══════════════════════════════════════════════════════════
+// Dipanggil dari StockChat/Copilot SEBELUM tiap pesan dikirim ke server —
+// sama seperti pola aiPaperTrading/xgboostPrediction yang sudah ada
+// (server.js TIDAK PERNAH punya akses Supabase sendiri, lihat catatan di
+// executeAgentTool() case 'cek_kinerja_ai_trading': server hanya bisa
+// melaporkan apa yang browser kirim di userContext). Ambil N sinyal
+// TER-RESOLUSI terakhir milik user (lintas ticker — filter per-ticker
+// dilakukan di server, di dalam executeAgentTool('cek_sinyal_teknikal'),
+// karena ticker yang ditanya baru diketahui setelah pesan diparse di sana).
+var AI_SIGNAL_HISTORY_FETCH_LIMIT = 10;
+
+async function getAiSignalHistorySummary() {
+  try {
+    var uid = (typeof getAppUserId === 'function') ? getAppUserId() : null;
+    if (!uid) return [];
+    var client = (typeof getSupabaseClient === 'function') ? getSupabaseClient() : null;
+    if (!client) return [];
+
+    var result = await client.from('ai_signal_log')
+      .select('ticker,signal_action,raw_return_pct,benchmark_return_pct,alpha_return_pct,outcome,reflection_text,resolved_at')
+      .eq('user_id', uid)
+      .eq('status', 'resolved')
+      .order('resolved_at', { ascending: false })
+      .limit(AI_SIGNAL_HISTORY_FETCH_LIMIT);
+    if (result.error || !result.data) return [];
+
+    return result.data.map(function(r) {
+      return {
+        ticker: r.ticker,
+        signalAction: r.signal_action,
+        rawReturnPct: r.raw_return_pct,
+        benchmarkReturnPct: r.benchmark_return_pct,
+        alphaReturnPct: r.alpha_return_pct,
+        outcome: r.outcome,
+        reflectionText: r.reflection_text,
+        resolvedAt: r.resolved_at
+      };
+    });
+  } catch (e) {
+    console.warn('[AI Signal History]', e && e.message);
+    return [];
+  }
+}
+
+// ══════════════════════════════════════════════════════════
 // GLOBAL STOCK CONTEXT & UNIFIED DISPATCH SYSTEM
 // ══════════════════════════════════════════════════════════
 window.GLOBAL_STOCK_CONTEXT = {

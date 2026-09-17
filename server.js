@@ -1427,9 +1427,34 @@ async function executeAgentTool(toolName, args, userContext = {}) {
       const raw = (args.ticker || 'BBCA').trim().toUpperCase().replace('.JK', '').replace('.US', '');
       try {
         const signal = await computeStockSignal(raw);
+
+        // REVIEW-sentinel guard (Fase 3, 2026-09-17, terinspirasi
+        // TauricResearch/TradingAgents): ai_signal_log.signal_action punya
+        // CHECK constraint enum tetap (lihat sql/schema_migration.sql:
+        // STRONG BUY/BUY/HOLD/WATCH/AVOID/SELL/REVIEW). Kalau
+        // computeStockSignal() suatu saat berubah dan mengembalikan nilai
+        // di luar enum itu (drift dari constraint DB), jangan diteruskan
+        // apa adanya (nanti Supabase INSERT gagal diam-diam saat dicatat
+        // logAiSignalToReflectionLog()) dan JANGAN diam-diam dianggap
+        // 'HOLD' — tandai eksplisit 'REVIEW' supaya kegagalannya terlihat.
+        const KNOWN_SIGNALS = ['STRONG BUY', 'BUY', 'HOLD', 'WATCH', 'AVOID', 'SELL', 'NO DATA'];
+        if (signal.signal && !KNOWN_SIGNALS.includes(signal.signal)) {
+          signal.signal = 'REVIEW';
+          signal.reviewReason = 'computeStockSignal() mengembalikan nilai sinyal di luar enum yang dikenal — ditandai REVIEW, bukan diasumsikan HOLD.';
+        }
+
+        // Fase 3: sertakan riwayat sinyal TER-RESOLUSI untuk TICKER INI SAJA
+        // (userContext.aiSignalHistory dikirim client apa adanya lintas
+        // ticker — lihat getAiSignalHistorySummary() di 00-config.js —
+        // filter per-ticker baru bisa dilakukan di sini karena `raw` baru
+        // diketahui setelah tool call ini terjadi). Supaya AI bisa mengutip
+        // track record nyata, bukan menyajikan analisa dengan tabula rasa.
+        const history = Array.isArray(userContext.aiSignalHistory) ? userContext.aiSignalHistory : [];
+        signal.pastSignals = history.filter((h) => h && String(h.ticker || '').toUpperCase() === raw).slice(0, 3);
+
         return signal;
       } catch (e) {
-        return { ticker: raw, signal: 'NO DATA', error: e.message || 'Gagal menghitung sinyal teknikal.' };
+        return { ticker: raw, signal: 'NO DATA', error: e.message || 'Gagal menghitung sinyal teknikal.', pastSignals: [] };
       }
     }
 
@@ -2046,7 +2071,8 @@ ATURAN PERILAKU & ANALISA:
 8. KINERJA & SARAN PERBAIKAN BERBASIS HISTORI RIIL: Jika pengguna bertanya soal performa AI trading/paper trading, win rate, atau minta saran perbaikan strategi berdasarkan kesalahan masa lalu, Anda WAJIB memanggil alat "cek_kinerja_ai_trading" TERLEBIH DAHULU sebelum menjawab — JANGAN pernah mengarang win rate atau pola kesalahan generik. Field hasData:false berarti belum ada trade tercatat sama sekali — sampaikan itu apa adanya, jangan buat-buat angka. Kalau hasData:true, dasarkan saran perbaikan Anda pada field lesson/mistake/improvement trade-trade terakhir (recentClosedTrades) — itu hasil mesin Post-Mortem riil aplikasi, bukan opini Anda sendiri. AI Paper Trading ini modal virtual terisolasi (bukan uang riil pengguna) — jangan pernah membingungkannya dengan portofolio riil dari cek_portofolio_user.
 9. SARAN PERBAIKAN OTOMATIS RISK GATE (berbasis aturan, bukan ML): setiap kali Anda memanggil "cek_portofolio_user", hasilnya membawa field riskGateFindings (array) — daftar pelanggaran OBJEKTIF terhadap Risk Gate resmi aplikasi (posisi tunggal maks 15% AUM, kas RDN minimal 20% AUM, FINANCIAL_POLICY.md §7). Kalau array itu TIDAK KOSONG, Anda WAJIB menyampaikan setiap finding.message-nya sebagai saran perbaikan — proaktif, bukan cuma kalau ditanya eksplisit. Kalau array itu kosong, sampaikan bahwa portofolio saat ini sudah sesuai Risk Gate. Jangan pernah mengarang ambang batas sendiri di luar 15%/20% ini.
 10. PREDIKSI XGBOOST — WAJIB DISCLAIMER: kalau pengguna bertanya soal sinyal/prediksi/rekomendasi beli untuk saham tertentu, panggil alat "cek_prediksi_xgboost". Kalau hasData:false, sampaikan bahwa belum ada prediksi model untuk ticker ini — JANGAN mengarang sinyal sendiri. Kalau hasData:true: BACA field hasProvenSignal SEBELUM menjawab — kalau false (kondisi saat ini), Anda WAJIB menyampaikan kalimat disclaimer eksplisit ("model ini eksperimen edukasi, belum terbukti prediktif") SEBELUM menyebut angka probability/signal apa pun, dan JANGAN PERNAH memframing hasilnya sebagai rekomendasi solid. Kalau isSimulatedInputData:true, tambahkan bahwa data harga historis input model ini sendiri simulasi (bukan data pasar riil) — prediksinya lebih tidak bisa diandalkan lagi.
-11. SINYAL TEKNIKAL TERSTRUKTUR: kalau pengguna secara eksplisit meminta sinyal/rekomendasi/analisa teknikal untuk SATU ticker tertentu (bukan pertanyaan umum), panggil alat "cek_sinyal_teknikal". Hasilnya (STRONG BUY/BUY/HOLD/WATCH/AVOID/NO DATA beserta entry/stop-loss/take-profit) adalah TITIK AWAL analisa Anda, BUKAN jawaban akhir — tetap WAJIB Anda bungkus dengan analisa dua sisi (potensi vs risiko) sesuai Aturan Perilaku #1, jangan hanya menempel angkanya mentah-mentah. Kalau signal:"NO DATA", sampaikan bahwa data harga/histori tidak cukup untuk ticker ini — jangan mengarang sinyal sendiri.
+11. SINYAL TEKNIKAL TERSTRUKTUR: kalau pengguna secara eksplisit meminta sinyal/rekomendasi/analisa teknikal untuk SATU ticker tertentu (bukan pertanyaan umum), panggil alat "cek_sinyal_teknikal". Hasilnya (STRONG BUY/BUY/HOLD/WATCH/AVOID/NO DATA beserta entry/stop-loss/take-profit) adalah TITIK AWAL analisa Anda, BUKAN jawaban akhir — tetap WAJIB Anda bungkus dengan analisa dua sisi (potensi vs risiko) sesuai Aturan Perilaku #1, jangan hanya menempel angkanya mentah-mentah. Kalau signal:"NO DATA", sampaikan bahwa data harga/histori tidak cukup untuk ticker ini — jangan mengarang sinyal sendiri. Kalau signal:"REVIEW", sampaikan bahwa perhitungan sinyal untuk ticker ini butuh peninjauan manual — JANGAN pernah menganggapnya sama dengan HOLD atau menebak sinyal apa yang dimaksud.
+12. TRACK RECORD SINYAL SEBELUMNYA: hasil "cek_sinyal_teknikal" membawa field pastSignals (array, bisa kosong) — riwayat sinyal ANDA SENDIRI untuk ticker yang sama yang sudah terbukti hasilnya (return riil vs return IHSG periode sama, WIN/LOSS/NEUTRAL, plus refleksi singkat). Kalau pastSignals TIDAK KOSONG, WAJIB sebutkan track record itu secara singkat SEBELUM menyajikan sinyal baru — sertakan apakah sinyal-sinyal itu sebelumnya terbukti benar atau salah, dan berapa returnnya, sebagai bentuk transparansi dan akuntabilitas. JANGAN mengulang sinyal lama yang sudah terbukti salah tanpa mengakuinya secara eksplisit. Kalau pastSignals kosong, tidak perlu menyebut riwayat apa pun — jangan mengarang.
 
 FORMAT RESPON:
 - Gunakan bahasa Indonesia yang profesional, ringkas, bersahabat, dan mudah dipahami.

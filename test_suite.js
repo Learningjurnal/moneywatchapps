@@ -2932,16 +2932,30 @@ await asyncTest("REGRESSION GUARD: executeAgentTool('cek_sinyal_teknikal') must 
 
   assert(/case 'cek_sinyal_teknikal':/.test(src), "REGRESSION: the 'cek_sinyal_teknikal' case is gone from executeAgentTool()");
 
-  // 1. computeStockSignal() succeeds — result must pass through untouched
-  // (ticker/signal/entry/sl/tp1/tp2/compositeScore all real, not re-derived
-  // or renamed by the tool wrapper).
-  const fakeSignal = { ticker: 'BBCA', signal: 'BUY', compositeScore: 65, entry: 9000, sl: 8700, tp1: 9500, tp2: 9800, computedAt: '2026-09-17T00:00:00.000Z' };
-  const sandbox1 = { window: {}, computeStockSignal: async () => fakeSignal };
+  // 1. computeStockSignal() succeeds, no history in userContext — result's
+  // own fields must pass through untouched (ticker/signal/entry/sl/tp1/tp2/
+  // compositeScore all real, not re-derived or renamed), and pastSignals
+  // must be an empty array (never undefined, never fabricated entries).
+  // NOTE: checked field-by-field rather than deepStrictEqual against the
+  // fakeSignal object below — the tool mutates its input in place to add
+  // pastSignals, so comparing the RETURNED object against that SAME
+  // mutated object reference would trivially "pass" no matter what was
+  // added to it.
+  const fakeSignal1 = { ticker: 'BBCA', signal: 'BUY', compositeScore: 65, entry: 9000, sl: 8700, tp1: 9500, tp2: 9800, computedAt: '2026-09-17T00:00:00.000Z' };
+  const sandbox1 = { window: {}, computeStockSignal: async () => fakeSignal1 };
   sandbox1.window = sandbox1;
   const ctx1 = vm.createContext(sandbox1);
   vm.runInContext(src, ctx1, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal success path (sandboxed load for test)' });
   const r1 = await ctx1.executeAgentTool('cek_sinyal_teknikal', { ticker: 'bbca' }, {});
-  assert.deepStrictEqual(r1, fakeSignal, 'REGRESSION: the real computeStockSignal() result was mutated/re-shaped instead of passed through as-is');
+  assert.strictEqual(r1.ticker, 'BBCA');
+  assert.strictEqual(r1.signal, 'BUY', 'REGRESSION: a valid known signal must pass through untouched, not get overridden by the REVIEW guard');
+  assert.strictEqual(r1.entry, 9000);
+  assert.strictEqual(r1.compositeScore, 65);
+  // Array.from() rebuilds a same-realm array first — r1.pastSignals was
+  // constructed INSIDE the vm sandbox (a different realm), and Node's
+  // assert treats cross-realm arrays as unequal even when structurally
+  // identical (same gotcha already documented elsewhere in this file).
+  assert.deepStrictEqual(Array.from(r1.pastSignals || []), [], 'REGRESSION: with no aiSignalHistory in userContext, pastSignals must default to an empty array, not undefined');
 
   // 2. computeStockSignal() throws (e.g. Yahoo unreachable) — must degrade
   // to a NO DATA response, never propagate the exception or invent a signal.
@@ -2953,6 +2967,41 @@ await asyncTest("REGRESSION GUARD: executeAgentTool('cek_sinyal_teknikal') must 
   assert.strictEqual(r2.signal, 'NO DATA', 'REGRESSION: a failed computeStockSignal() call must degrade to signal:"NO DATA", not throw or fabricate a signal');
   assert(r2.error, 'REGRESSION: the NO DATA degradation must carry an error field explaining why, not fail silently');
   assert.strictEqual(r2.ticker, 'XYZW', 'REGRESSION: ticker normalization (uppercase, .JK/.US stripped) is broken on the failure path');
+
+  // 3. Fase 3: userContext.aiSignalHistory carries signals for MULTIPLE
+  // tickers — only the ones matching THIS ticker (case-insensitive) must
+  // end up in pastSignals, capped at 3, most-recent-first order preserved
+  // (the array is already ordered by the client; the tool must not reorder it).
+  const fakeSignal3 = { ticker: 'BBCA', signal: 'HOLD' };
+  const sandbox3 = { window: {}, computeStockSignal: async () => fakeSignal3 };
+  sandbox3.window = sandbox3;
+  const ctx3 = vm.createContext(sandbox3);
+  vm.runInContext(src, ctx3, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal pastSignals filtering (sandboxed load for test)' });
+  const history3 = [
+    { ticker: 'bbca', signalAction: 'BUY', rawReturnPct: 5, outcome: 'WIN' },   // lowercase ticker, harus tetap cocok
+    { ticker: 'BBRI', signalAction: 'BUY', rawReturnPct: -2, outcome: 'LOSS' }, // ticker LAIN, harus disaring
+    { ticker: 'BBCA', signalAction: 'HOLD', rawReturnPct: 1, outcome: 'NEUTRAL' },
+    { ticker: 'BBCA', signalAction: 'SELL', rawReturnPct: -1, outcome: 'LOSS' },
+    { ticker: 'BBCA', signalAction: 'BUY', rawReturnPct: 3, outcome: 'WIN' } // ke-4 untuk BBCA, harus terpotong (cap 3)
+  ];
+  const r3 = await ctx3.executeAgentTool('cek_sinyal_teknikal', { ticker: 'BBCA' }, { aiSignalHistory: history3 });
+  assert.strictEqual(r3.pastSignals.length, 3, 'REGRESSION: pastSignals must be capped at 3 entries, got ' + r3.pastSignals.length);
+  assert(r3.pastSignals.every((p) => p.ticker.toUpperCase() === 'BBCA'), 'REGRESSION: pastSignals leaked a signal for a different ticker (BBRI) — filtering is broken');
+  assert.strictEqual(r3.pastSignals[0].rawReturnPct, 5, 'REGRESSION: pastSignals must preserve the client-provided order, not reorder/resort it');
+
+  // 4. REVIEW-sentinel guard: if computeStockSignal() ever returns a value
+  // outside the known enum (schema drift), it must be forced to 'REVIEW'
+  // with an explanatory reviewReason — never silently passed through
+  // (which would make the later Supabase insert fail against the CHECK
+  // constraint) and never silently defaulted to 'HOLD'.
+  const fakeSignalBad = { ticker: 'BBCA', signal: 'MAYBE BUY IDK' };
+  const sandbox4 = { window: {}, computeStockSignal: async () => fakeSignalBad };
+  sandbox4.window = sandbox4;
+  const ctx4 = vm.createContext(sandbox4);
+  vm.runInContext(src, ctx4, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal REVIEW-sentinel guard (sandboxed load for test)' });
+  const r4 = await ctx4.executeAgentTool('cek_sinyal_teknikal', { ticker: 'BBCA' }, {});
+  assert.strictEqual(r4.signal, 'REVIEW', 'REGRESSION: an unrecognized signal value must be forced to REVIEW, not passed through or defaulted to HOLD');
+  assert(r4.reviewReason, 'REGRESSION: the REVIEW override must explain why, not fail silently');
 });
 
 // ── TEST 84c: logAiSignalToReflectionLog() (public/js/00-config.js) — AI
@@ -3163,6 +3212,78 @@ await asyncTest("REGRESSION GUARD: resolveOneAiSignal() computes real return vs 
   await ctx4.resolveOneAiSignal({ id: 'row-4', ticker: 'GORO', entry_price: 8500, signal_action: 'AVOID', emitted_at: emittedAt.toISOString(), resolve_after: resolveAfter.toISOString() }, fakeClient4);
   assert.strictEqual(updates4.length, 1);
   assert.strictEqual(updates4[0].outcome, 'WIN', 'REGRESSION: an AVOID signal must be classified WIN when the price actually dropped, not LOSS (direction is inverted vs BUY)');
+});
+
+// ── TEST 84e: getAiSignalHistorySummary() (public/js/00-config.js) — AI
+// Signal Reflection Log Fase 3 (2026-09-17, INCIDENT_LOG.md): fetches the
+// user's resolved ai_signal_log rows client-side to inject into
+// userContext.aiSignalHistory (same pattern as aiPaperTrading/xgboostPrediction
+// — server.js has no Supabase access of its own). Must skip guest mode
+// without ever touching Supabase, and must map the raw DB row shape
+// (snake_case) to the camelCase shape the server's cek_sinyal_teknikal
+// filter expects.
+await asyncTest("REGRESSION GUARD: getAiSignalHistorySummary() skips guest mode without touching Supabase, and maps resolved rows to the camelCase shape the server expects", async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/00-config.js'), 'utf8');
+  const start = fullSrc.indexOf('// AI SIGNAL REFLECTION LOG');
+  assert(start !== -1, 'sanity: the AI SIGNAL REFLECTION LOG section not found in 00-config.js — has it moved/been renamed?');
+  let src = fullSrc.slice(start);
+  const relEnd = src.indexOf('\n// ══════════════════════════════════════════════════════════\n// GLOBAL STOCK CONTEXT');
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after getAiSignalHistorySummary() — extraction range may need updating');
+  src = src.slice(0, relEnd);
+
+  assert(/async function getAiSignalHistorySummary/.test(src), 'REGRESSION: getAiSignalHistorySummary() is gone from 00-config.js');
+
+  // 1. Guest mode — must return [] without ever touching getSupabaseClient().
+  let supabaseTouched = false;
+  const sandbox1 = { window: {}, getAppUserId: () => null, getSupabaseClient: () => { supabaseTouched = true; return null; } };
+  sandbox1.window = sandbox1;
+  const ctx1 = vm.createContext(sandbox1);
+  vm.runInContext(src, ctx1, { filename: '00-config.js getAiSignalHistorySummary() guest-mode path (sandboxed load for test)' });
+  const r1 = await ctx1.getAiSignalHistorySummary();
+  assert.strictEqual(supabaseTouched, false, 'REGRESSION: guest mode must never even look up the Supabase client');
+  assert.deepStrictEqual(Array.from(r1), [], 'REGRESSION: guest mode must return an empty array, not null/undefined (the caller sends this straight into userContext.aiSignalHistory)');
+
+  // 2. Logged-in user — verify the query filters by user_id/status='resolved'
+  // and orders by resolved_at descending, and that the snake_case DB row
+  // shape is mapped to the camelCase shape cek_sinyal_teknikal filters on.
+  let capturedQuery = {};
+  const dbRow = { ticker: 'BBCA', signal_action: 'BUY', raw_return_pct: 5, benchmark_return_pct: 1, alpha_return_pct: 4, outcome: 'WIN', reflection_text: 'Sinyal terbukti benar.', resolved_at: '2026-09-16T00:00:00.000Z' };
+  function chainableQuery() {
+    return {
+      eq: (col, val) => { capturedQuery[col] = val; return chainableQuery(); },
+      order: (col, opts) => { capturedQuery.orderCol = col; capturedQuery.orderOpts = opts; return chainableQuery(); },
+      limit: (n) => { capturedQuery.limit = n; return Promise.resolve({ data: [dbRow], error: null }); }
+    };
+  }
+  const sandbox2 = {
+    window: {},
+    getAppUserId: () => 'uid-hist-test',
+    getSupabaseClient: () => ({
+      from: (table) => {
+        capturedQuery.table = table;
+        return { select: (cols) => { capturedQuery.select = cols; return chainableQuery(); } };
+      }
+    })
+  };
+  sandbox2.window = sandbox2;
+  const ctx2 = vm.createContext(sandbox2);
+  vm.runInContext(src, ctx2, { filename: '00-config.js getAiSignalHistorySummary() logged-in path (sandboxed load for test)' });
+  const r2 = await ctx2.getAiSignalHistorySummary();
+
+  assert.strictEqual(capturedQuery.table, 'ai_signal_log');
+  assert.strictEqual(capturedQuery.user_id, 'uid-hist-test', 'REGRESSION: query must filter by the current user (RLS relies on this matching auth.uid(), but the query itself must ask for the right user_id too)');
+  assert.strictEqual(capturedQuery.status, 'resolved', 'REGRESSION: query must only fetch resolved rows, not pending/expired ones');
+  assert.strictEqual(capturedQuery.orderCol, 'resolved_at');
+  assert.strictEqual(capturedQuery.orderOpts && capturedQuery.orderOpts.ascending, false, 'REGRESSION: must order most-recent-first (ascending:false)');
+
+  const mapped = Array.from(r2)[0];
+  assert.strictEqual(mapped.ticker, 'BBCA');
+  assert.strictEqual(mapped.signalAction, 'BUY', 'REGRESSION: signal_action (DB) must map to signalAction (camelCase) — cek_sinyal_teknikal history3 filter expects this shape');
+  assert.strictEqual(mapped.rawReturnPct, 5);
+  assert.strictEqual(mapped.benchmarkReturnPct, 1);
+  assert.strictEqual(mapped.alphaReturnPct, 4);
+  assert.strictEqual(mapped.outcome, 'WIN');
+  assert.strictEqual(mapped.reflectionText, 'Sinyal terbukti benar.');
 });
 
 // ── TEST 85: the deterministic AI fallback (server.js) must route
