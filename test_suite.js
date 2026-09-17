@@ -5347,6 +5347,50 @@ test('REGRESSION GUARD: IDX_PIPELINE auto-refresh must pause while the tab is hi
     'REGRESSION: the auto-refresh timer does not restart when the tab becomes visible again');
 });
 
+// ── TEST: brokerSummaryDateRange() must send Invezgo dashed ISO dates
+// (YYYY-MM-DD), not compact (YYYYMMDD) ──
+// User report (2026-09-17): after setting a real INVEZGO_API_KEY in
+// production, every single broker-summary call still fell back to
+// simulation, with quality.reason showing "HTTP_422" (confirmed live via
+// the browser's own DevTools Network tab on GET /api/idx/broker-summary/
+// BBCA — Unprocessable Entity, meaning the request reached Invezgo but was
+// rejected as malformed, not an auth/quota problem). Invezgo's own official
+// Python SDK README (github.com/Invezgo/invezgo-python-sdk) shows
+// from_date/to_date as dashed ISO strings ("2024-12-01") in its example
+// call. This app's brokerSummaryDateRange() sent compact YYYYMMDD
+// ("20260917") instead — an assumption this file's own prior comment
+// admitted was never verified against a live response. That single format
+// mismatch plausibly explains why every real Invezgo call failed despite a
+// valid, correctly-configured, paid API key.
+test('REGRESSION GUARD: brokerSummaryDateRange() must format fromDate/toDate as dashed ISO (YYYY-MM-DD) for Invezgo, matching the official SDK\'s documented format', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = src.match(/function brokerSummaryDateRange[\s\S]*?\n}\n/)[0];
+
+  assert(!/replace\(\/-\/g/.test(fnSrc),
+    'REGRESSION: brokerSummaryDateRange() strips dashes from the date again — this reproduces the exact HTTP_422 bug (Invezgo rejects compact YYYYMMDD dates), silently falling every real API call back to simulation');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(
+    'const BROKER_SUMMARY_TIMEFRAME_DAYS = ' + JSON.stringify({ '1D': 0, '5D': 5 }) + ';\n' + fnSrc
+      + '\nthis.brokerSummaryDateRange = brokerSummaryDateRange;\n',
+    sandbox, { filename: 'idx-data-engine.js (brokerSummaryDateRange slice)' }
+  );
+
+  const range1D = sandbox.brokerSummaryDateRange('1D');
+  const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+  assert(isoDatePattern.test(range1D.fromDate),
+    `REGRESSION: fromDate is not dashed ISO format (got "${range1D.fromDate}") — Invezgo expects "YYYY-MM-DD" per its official SDK docs, not compact digits`);
+  assert(isoDatePattern.test(range1D.toDate),
+    `REGRESSION: toDate is not dashed ISO format (got "${range1D.toDate}")`);
+  assert.strictEqual(range1D.fromDate, range1D.toDate, '1D timeframe should produce the same from/to date (0 days back)');
+
+  const range5D = sandbox.brokerSummaryDateRange('5D');
+  assert(isoDatePattern.test(range5D.fromDate) && isoDatePattern.test(range5D.toDate),
+    'REGRESSION: a non-1D timeframe must also produce dashed ISO dates');
+  assert.notStrictEqual(range5D.fromDate, range5D.toDate, '5D timeframe should produce a real date range, not the same day twice');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
