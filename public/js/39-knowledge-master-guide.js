@@ -231,7 +231,7 @@
       + '      <ul style="font-size:12px;color:var(--text2);line-height:1.6;padding-left:18px;margin:0">'
       + '        <li><strong>Cash Buffer (10-20%)</strong>: Selalu simpan porsi kas mengendap di RDN untuk membeli saat terjadi diskon pasar (market crash).</li>'
       + '        <li><strong>Dividend Reinvestment</strong>: Manfaatkan modul <em>Dividen &amp; Yield</em> untuk melipatgandakan efek compound dividen.</li>'
-      + '        <li><strong>Pajak Realistis</strong>: MoneyWatch Pro secara otomatis memperhitungkan PPh Final 0.1% dan komisi broker pada setiap transaksi.</li>'
+      + '        <li><strong>Pajak Realistis</strong>: MoneyWatch secara otomatis memperhitungkan PPh Final 0.1% dan komisi broker pada setiap transaksi.</li>'
       + '      </ul>'
       + '      <div style="margin-top:12px"><button class="btn btn-ghost btn-xs" onclick="goPage(\'rdn\')">Kelola Kas &amp; RDN →</button></div>'
       + '    </div>'
@@ -258,7 +258,7 @@
       + '    <i class="ti ti-chess" style="color:#38bdf8"></i> 5 Strategi Trading &amp; Investasi Kelas Institusi'
       + '  </div>'
       + '  <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">'
-      + '    Pilih dan eksekusi strategi yang paling selaras dengan profil risiko dan horizon investasi Anda. Seluruh strategi ini didukung oleh algoritma MoneyWatch Pro AI Engine:'
+      + '    Pilih dan eksekusi strategi yang paling selaras dengan profil risiko dan horizon investasi Anda. Seluruh strategi ini didukung oleh algoritma MoneyWatch AI Engine:'
       + '  </div>'
 
       + '  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;margin-bottom:20px">'

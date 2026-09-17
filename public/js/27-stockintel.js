@@ -723,7 +723,7 @@ function renderStockIntelPage() {
   var quickList = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'ANTM', 'ADRO', 'ICBP', 'UNVR', 'GOTO', 'BRIS'];
   var quickChipsHtml = quickList.map(function(qt) {
     var isSel = qt === ticker;
-    return '<button onclick="selectStockIntelTicker(\'' + qt + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 8px;border-radius:4px;font-family:var(--font-mono)">' + qt + '</button>';
+    return '<button onclick="selectStockIntelTicker(\'' + qt + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:3px 9px;border-radius:6px;font-family:var(--font-mono);font-weight:700;border:1px solid var(--border2)">' + qt + '</button>';
   }).join(' ');
 
   // CASE A: NON-IDX TICKER (STRICT PROHIBITION OF DUMMY DATA)
@@ -762,7 +762,7 @@ function renderStockIntelPage() {
           + 'Ticker "' + ticker + '" Tidak Terdaftar di Bursa Efek Indonesia (IDX)'
         + '</div>'
         + '<div style="font-size:12.5px;color:var(--text2);max-width:580px;margin:0 auto 18px auto;line-height:1.6">'
-          + 'Sesuai aturan kepatuhan dan integritas data pasar modal MoneyWatch Pro, <strong>seluruh data dummy dan saham fiktif dilarang</strong>. Modul Stock Intelligence hanya menampilkan data riil emiten yang tercatat secara resmi di BEI / IDX.'
+          + 'Sesuai aturan kepatuhan dan integritas data pasar modal MoneyWatch, <strong>seluruh data dummy dan saham fiktif dilarang</strong>. Modul Stock Intelligence hanya menampilkan data riil emiten yang tercatat secara resmi di BEI / IDX.'
         + '</div>'
         + '<div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">'
           + '<button class="btn btn-primary btn-sm" onclick="selectStockIntelTicker(\'BBCA\')">Buka Saham BBCA</button>'
@@ -920,14 +920,14 @@ function renderStockIntelPage() {
       + '<div class="intel-bento-card">'
         + '<div class="intel-section-title">'
           + '<span>GRAFIK HARGA REALTIME</span>'
-          + '<div style="display:flex;align-items:center;gap:4px">'
+          + '<div class="sm-suite-tabs" style="padding:2px;gap:3px">'
             + ['1D', '1W', '1M', '1Y'].map(function(tf) {
               var isAct = tf === INTEL_CHART_TIMEFRAME;
-              return '<button class="btn btn-xs ' + (isAct ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 6px;height:22px" onclick="setIntelTimeframe(\'' + tf + '\')">' + tf + '</button>';
+              return '<button class="sm-nav-item ' + (isAct ? 'active' : '') + '" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono);font-weight:700" onclick="setIntelTimeframe(\'' + tf + '\')">' + tf + '</button>';
             }).join('')
           + '</div>'
         + '</div>'
-        + '<div style="position:relative;width:100%;height:320px;background:#080D1A;border:1px solid var(--border2);border-radius:8px;overflow:hidden">'
+        + '<div style="position:relative;width:100%;height:320px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;overflow:hidden">'
           + '<canvas id="intel-chart-canvas" style="width:100%;height:100%"></canvas>'
         + '</div>'
       + '</div>'

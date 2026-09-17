@@ -24,7 +24,7 @@ var BANDAR_SECTOR_DEFS = [
 var STOCKCHAT_CONVERSATION = [
   {
     role: 'assistant',
-    text: 'Halo! Saya **StockChat AI & Bandarmology Analyst** di MoneyWatch Pro.\n\nSaya siap membantu Anda membedah **Broker Summary (Bandarmology)**, aliran dana asing (Foreign Flow), valuasi fundamental, kepemilikan KSEI >5%, serta simulasi risiko drawdown untuk seluruh saham Bursa Efek Indonesia (BEI).',
+    text: 'Halo! Saya **StockChat AI & Bandarmology Analyst** di MoneyWatch.\n\nSaya siap membantu Anda membedah **Broker Summary (Bandarmology)**, aliran dana asing (Foreign Flow), valuasi fundamental, kepemilikan KSEI >5%, serta simulasi risiko drawdown untuk seluruh saham Bursa Efek Indonesia (BEI).',
     toolCalls: []
   }
 ];
@@ -821,53 +821,80 @@ function renderAggregatedBrokerFlowView(data) {
   // BROKER MUTATION FLOW SPECTRUM (Whale vs Retail Capital Flow)
   var netMutationM = Math.round(Math.abs(smartMoneyNet) / 1000000000);
   var isInstAccum = smartMoneyNet >= 0;
+  var flowSignalBadge = isInstAccum ? 'b-up' : 'b-dn';
+  var flowSignalColor = isInstAccum ? '#10B981' : '#EF4444';
+  var flowSignalBg = isInstAccum ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)';
+  var flowSignalBorder = isInstAccum ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)';
 
-  html += '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'
-    + '<div style="display:flex;align-items:center;gap:8px">'
-    + '<span class="badge b-up" style="font-size:10px;font-weight:700">ALUR MUTASI MODAL BROKER</span>'
-    + '<span style="font-size:12px;font-weight:700;color:var(--text)">' + smartMoneySignal + '</span>'
-    + '</div>'
-    + '<span style="font-size:11px;color:var(--text3);font-family:monospace">Live Institutional Spectrum</span>'
-    + '</div>'
+  var totalFlow = (smartMoneyBuyVal + retailSellVal) || 1;
+  var instRatioPct = Math.min(Math.max(Math.round((smartMoneyBuyVal / totalFlow) * 100), 5), 95);
+  var retRatioPct = 100 - instRatioPct;
 
-    // Visual Flow Spectrum Diagram
-    + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:12px">'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:center;text-align:center">'
-    // Left Node: Institutional
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px">'
-    + '<div style="font-size:10px;text-transform:uppercase;font-weight:700;color:var(--green)">Tier-1 Institusi &amp; Asing</div>'
-    + '<div style="font-size:16px;font-weight:800;color:var(--green);font-family:monospace;margin:4px 0">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
-    + '<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (smartMoneyBuyBrokers.map(function(x){return x.broker;}).join(', ') || 'AK, BK, ZP, CC') + '</div>'
-    + '</div>'
+  var instBrokerPills = (smartMoneyBuyBrokers.slice(0, 5).map(function(x){
+    return '<span style="background:rgba(16,185,129,0.12);color:#10B981;border:1px solid rgba(16,185,129,0.25);padding:2px 6px;border-radius:4px;font-size:9.5px;font-family:var(--font-mono);font-weight:700">' + x.broker + '</span>';
+  }).join(' ')) || '<span style="color:var(--text3);font-size:10px">AK, BK, ZP</span>';
 
-    // Center Node: Capital Mutation
-    + '<div style="padding:6px 0">'
-    + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:4px" class="' + (isInstAccum ? 'up' : 'dn') + '">' + (isInstAccum ? 'Net Inflow Institusi' : 'Net Distribusi Institusi') + '</div>'
-    + '<div class="badge ' + (isInstAccum ? 'b-up' : 'b-dn') + '" style="font-size:12px;font-family:monospace;font-weight:800;padding:4px 10px">'
-    + (isInstAccum ? '➔ Rp ' : '⬅ Rp ') + netMutationM.toLocaleString('id-ID') + ' M ' + (isInstAccum ? '➔' : '⬅')
+  var retBrokerPills = (retailSellBrokers.slice(0, 5).map(function(x){
+    return '<span style="background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.25);padding:2px 6px;border-radius:4px;font-size:9.5px;font-family:var(--font-mono);font-weight:700">' + x.broker + '</span>';
+  }).join(' ')) || '<span style="color:var(--text3);font-size:10px">YP, PD, XC</span>';
+
+  html += '<div class="card" style="padding:18px;margin-bottom:14px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">'
+    + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    + '<span class="badge ' + flowSignalBadge + '" style="font-size:10px;font-weight:800;letter-spacing:0.04em">ALUR MUTASI MODAL BROKER</span>'
+    + '<span style="font-size:13px;font-weight:800;color:var(--text);font-family:var(--font-display)">' + smartMoneySignal + '</span>'
     + '</div>'
-    + '<div style="font-size:10px;color:var(--text3);font-family:monospace;margin-top:4px">' + (isInstAccum ? 'Modal Ritel Terserap ke Institusi' : 'Institusi Melepas ke Ritel') + '</div>'
+    + '<span style="font-size:11px;color:var(--text3);font-family:var(--font-mono);display:inline-flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:' + flowSignalColor + '"></span>Live Institutional Orderflow</span>'
     + '</div>'
 
-    // Right Node: Retail
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px">'
-    + '<div style="font-size:10px;text-transform:uppercase;font-weight:700;color:var(--red)">Partisipasi Publik &amp; Ritel</div>'
-    + '<div style="font-size:16px;font-weight:800;color:var(--red);font-family:monospace;margin:4px 0">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
-    + '<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (retailSellBrokers.map(function(x){return x.broker;}).join(', ') || 'YP, PD, XC, XL') + '</div>'
+    // Visual Flow Spectrum 3-Node Architecture
+    + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:stretch">'
+    
+    // Node 1: Smart Money / Institutions
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-top:3px solid #10B981;border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
+    + '<div>'
+    + '<div style="font-size:10px;text-transform:uppercase;font-weight:800;color:var(--text3);letter-spacing:0.06em">Tier-1 Institusi &amp; Asing</div>'
+    + '<div style="font-size:18px;font-weight:800;color:#10B981;font-family:var(--font-mono);margin:4px 0">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '</div>'
+    + '<div style="margin-top:8px">'
+    + '<div style="font-size:9.5px;color:var(--text3);margin-bottom:4px">Broker Pembeli Teratas:</div>'
+    + '<div style="display:flex;gap:4px;flex-wrap:wrap">' + instBrokerPills + '</div>'
     + '</div>'
     + '</div>'
 
-    // Spectrum Progress Bar
-    + '<div style="margin-top:12px">'
-    + '<div style="display:flex;justify-content:between;font-size:11px;font-family:monospace;margin-bottom:4px">'
-    + '<span class="up" style="font-weight:700">Institusi: ' + (smartMoneyBuyVal > 0 ? Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
-    + '<span style="color:var(--text3)">Spektrum Distribusi Kepemilikan</span>'
-    + '<span class="dn" style="font-weight:700">Ritel: ' + (retailSellVal > 0 ? Math.round((retailSellVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100) : 50) + '%</span>'
+    // Node 2: Capital Mutation Bridge (Flow Vector)
+    + '<div style="background:' + flowSignalBg + ';border:1px solid ' + flowSignalBorder + ';border-radius:8px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">'
+    + '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:' + flowSignalColor + ';margin-bottom:4px">' + (isInstAccum ? 'Akumulasi Net Inflow' : 'Distribusi ke Ritel') + '</div>'
+    + '<div style="font-size:18px;font-weight:900;font-family:var(--font-mono);color:' + flowSignalColor + ';margin:4px 0">'
+    + (isInstAccum ? '➔ +' : '⬅ -') + 'Rp ' + netMutationM.toLocaleString('id-ID') + ' M ' + (isInstAccum ? '➔' : '⬅')
     + '</div>'
-    + '<div style="width:100%;height:8px;border-radius:4px;overflow:hidden;display:flex;background:var(--bg4);border:1px solid var(--border2)">'
-    + '<div style="background:var(--green);height:8px;width:' + (smartMoneyBuyVal > 0 ? Math.min(Math.round((smartMoneyBuyVal / ((smartMoneyBuyVal + retailSellVal) || 1)) * 100), 95) : 50) + '%;transition:all 0.5s"></div>'
-    + '<div style="background:var(--red);height:8px;flex:1;transition:all 0.5s"></div>'
+    + '<div style="font-size:10.5px;color:var(--text2);margin-top:4px">' + (isInstAccum ? 'Likuiditas Ritel Terserap ke Institusi' : 'Institusi Melepas Saham ke Akun Ritel') + '</div>'
+    + '</div>'
+
+    // Node 3: Retail / Public
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-top:3px solid #EF4444;border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
+    + '<div>'
+    + '<div style="font-size:10px;text-transform:uppercase;font-weight:800;color:var(--text3);letter-spacing:0.06em">Partisipasi Publik &amp; Ritel</div>'
+    + '<div style="font-size:18px;font-weight:800;color:#EF4444;font-family:var(--font-mono);margin:4px 0">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
+    + '</div>'
+    + '<div style="margin-top:8px">'
+    + '<div style="font-size:9.5px;color:var(--text3);margin-bottom:4px">Broker Penjual / Penyerap:</div>'
+    + '<div style="display:flex;gap:4px;flex-wrap:wrap">' + retBrokerPills + '</div>'
+    + '</div>'
+    + '</div>'
+    + '</div>'
+
+    // Spectrum Dominance Progress Bar
+    + '<div style="margin-top:14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-family:var(--font-mono);margin-bottom:6px">'
+    + '<span style="color:#10B981;font-weight:800">Dominansi Institusi: ' + instRatioPct + '%</span>'
+    + '<span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:0.05em">Spektrum Kepemilikan Transaksi</span>'
+    + '<span style="color:#EF4444;font-weight:800">Dominansi Ritel: ' + retRatioPct + '%</span>'
+    + '</div>'
+    + '<div style="width:100%;height:8px;border-radius:6px;overflow:hidden;display:flex;background:var(--bg);border:1px solid var(--border)">'
+    + '<div style="background:#10B981;height:100%;width:' + instRatioPct + '%;transition:all 0.5s ease"></div>'
+    + '<div style="background:#EF4444;height:100%;flex:1;transition:all 0.5s ease"></div>'
     + '</div>'
     + '</div>'
     + '</div>'
@@ -1014,7 +1041,10 @@ function renderAggregatedBrokerFlowView(data) {
         + '<td class="mono" style="text-align:right;font-weight:700">' + Number(bItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
         + '<td class="mono up" style="text-align:right;font-weight:700">Rp ' + valM + 'M</td>'
         + '<td class="mono" style="text-align:right">' + Number(bItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
-        + '<td class="mono" style="text-align:right;font-weight:700">' + Number(bItem.pctOfTurnover || 0).toFixed(1) + '%</td>'
+        + '<td class="mono" style="text-align:right;font-weight:700;position:relative">'
+        + '<div style="position:absolute;top:3px;bottom:3px;right:0;width:' + Math.min(Number(bItem.pctOfTurnover || 0), 100) + '%;background:rgba(16,185,129,0.12);border-radius:3px;pointer-events:none"></div>'
+        + '<span style="position:relative;z-index:1">' + Number(bItem.pctOfTurnover || 0).toFixed(1) + '%</span>'
+        + '</td>'
         + '<td style="text-align:center">'
         + '<button onclick="askAiAboutBrokerAction(\'' + bItem.broker + '\', \'' + bItem.name.replace(/'/g, '') + '\', \'BUY\', \'' + data.ticker + '\', ' + bItem.volumeLot + ', ' + bItem.avgPrice + ', ' + bItem.valueRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 4px;font-size:10px" title="Tanya AI">Tanya AI</button>'
         + '</td>'
@@ -1074,7 +1104,10 @@ function renderAggregatedBrokerFlowView(data) {
         + '<td class="mono" style="text-align:right;font-weight:700">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</td>'
         + '<td class="mono dn" style="text-align:right;font-weight:700">Rp ' + valM + 'M</td>'
         + '<td class="mono" style="text-align:right">' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + priceSpreadHtml + '</td>'
-        + '<td class="mono" style="text-align:right;font-weight:700">' + Number(sItem.pctOfTurnover || 0).toFixed(1) + '%</td>'
+        + '<td class="mono" style="text-align:right;font-weight:700;position:relative">'
+        + '<div style="position:absolute;top:3px;bottom:3px;right:0;width:' + Math.min(Number(sItem.pctOfTurnover || 0), 100) + '%;background:rgba(239,68,68,0.12);border-radius:3px;pointer-events:none"></div>'
+        + '<span style="position:relative;z-index:1">' + Number(sItem.pctOfTurnover || 0).toFixed(1) + '%</span>'
+        + '</td>'
         + '<td style="text-align:center">'
         + '<button onclick="askAiAboutBrokerAction(\'' + sItem.broker + '\', \'' + sItem.name.replace(/'/g, '') + '\', \'SELL\', \'' + data.ticker + '\', ' + sItem.volumeLot + ', ' + sItem.avgPrice + ', ' + sItem.valueRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 4px;font-size:10px" title="Tanya AI">Tanya AI</button>'
         + '</td>'
@@ -1850,7 +1883,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
     }
   }
   else if (isStrategyIntent) {
-    reply = '### Playbook Strategi Trading & Investasi (MoneyWatch Pro AI)\n\n'
+    reply = '### Playbook Strategi Trading & Investasi (MoneyWatch AI)\n\n'
       + 'Berikut adalah **5 Strategi Utama Kelas Institusi** yang tertanam dalam Knowledge Base StockChat AI:\n\n'
       + '1. **Smart Money & Bandarmology Momentum (Swing Trading)**\n'
       + '   - *Prinsip*: Membeli saham dengan status **Big Accumulation** (Top 3 Broker > 60%) & Net Foreign Buy konsisten.\n'

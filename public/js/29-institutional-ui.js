@@ -121,7 +121,7 @@
             '<span><span class="cmd-kbd-badge">↵</span> Pilih</span>' +
             '<span><span class="cmd-kbd-badge">/</span> Buka Cepat</span>' +
           '</div>' +
-          '<div style="font-weight:700;color:var(--accent)">MoneyWatch Pro Terminal</div>' +
+          '<div style="font-weight:700;color:var(--accent)">MoneyWatch Terminal</div>' +
         '</div>' +
       '</div>';
 

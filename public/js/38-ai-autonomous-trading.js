@@ -81,7 +81,34 @@
     // instead of numbers that look computed but never were.
     hypotheses: [],
     // Audit Trail / Decision Log (roadmap 3.2) — see logDecision() below.
-    decisionLog: []
+    decisionLog: [],
+    // AUTONOMOUS AUTO-PILOT & CONTINUOUS ADAPTIVE TRADING (2026-09-16)
+    autoPilot: {
+      enabled: false,
+      scanIntervalMin: 15,
+      minScoreToBuy: 70,
+      maxPositions: 5,
+      lastCycleAt: null,
+      autoTradesCount: 0
+    },
+    // CONTINUOUS ADAPTIVE LEARNING ENGINE (Strategy & Regime Dynamic Multipliers)
+    adaptiveWeights: {
+      regimeMultipliers: {
+        BULL_TREND: 1.10,
+        SIDEWAYS: 0.95,
+        BEAR_TREND: 0.70,
+        HIGH_VOLATILITY: 0.80,
+        RISK_OFF: 0.60,
+        UNKNOWN: 0.90
+      },
+      strategyMultipliers: {
+        strat_pullback: 1.0,
+        strat_breakout: 1.0,
+        strat_mean_reversion: 1.0,
+        composite_scoring: 1.0
+      },
+      adaptationHistory: []
+    }
   };
 
   var AI_UNIVERSE = [];
@@ -145,7 +172,11 @@
   function startAiAutoRefresh() {
     if (AI_AUTO_REFRESH_TIMER) return; // already running — never stack duplicate intervals
     AI_AUTO_REFRESH_TIMER = setInterval(function() {
-      fetchAiScanData();
+      if (typeof aiRunAutonomousCycle === 'function') {
+        aiRunAutonomousCycle(false);
+      } else {
+        fetchAiScanData();
+      }
     }, AI_AUTO_REFRESH_INTERVAL_MS);
   }
 
@@ -597,6 +628,210 @@
   loadDecisionLog();
 
   // ══════════════════════════════════════════════════════════
+  // AUTONOMOUS AUTO-PILOT & ADAPTIVE WEIGHTS PERSISTENCE
+  // ══════════════════════════════════════════════════════════
+  var AI_AUTOPILOT_KEY = 'mw_ai_autopilot_v1';
+  var AI_ADAPTIVE_KEY = 'mw_ai_adaptive_weights_v1';
+
+  function saveAutoPilotState() {
+    try {
+      localStorage.setItem(AI_AUTOPILOT_KEY, JSON.stringify(AI_TRADE_STATE.autoPilot));
+    } catch (e) {}
+    scheduleAiCloudSync();
+  }
+
+  function loadAutoPilotState() {
+    try {
+      var raw = localStorage.getItem(AI_AUTOPILOT_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') {
+        Object.assign(AI_TRADE_STATE.autoPilot, saved);
+      }
+    } catch (e) {}
+  }
+
+  loadAutoPilotState();
+
+  function saveAdaptiveWeightsState() {
+    try {
+      localStorage.setItem(AI_ADAPTIVE_KEY, JSON.stringify(AI_TRADE_STATE.adaptiveWeights));
+    } catch (e) {}
+    scheduleAiCloudSync();
+  }
+
+  function loadAdaptiveWeightsState() {
+    try {
+      var raw = localStorage.getItem(AI_ADAPTIVE_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') {
+        if (saved.regimeMultipliers) AI_TRADE_STATE.adaptiveWeights.regimeMultipliers = Object.assign(AI_TRADE_STATE.adaptiveWeights.regimeMultipliers, saved.regimeMultipliers);
+        if (saved.strategyMultipliers) AI_TRADE_STATE.adaptiveWeights.strategyMultipliers = Object.assign(AI_TRADE_STATE.adaptiveWeights.strategyMultipliers, saved.strategyMultipliers);
+        if (Array.isArray(saved.adaptationHistory)) AI_TRADE_STATE.adaptiveWeights.adaptationHistory = saved.adaptationHistory;
+      }
+    } catch (e) {}
+  }
+
+  loadAdaptiveWeightsState();
+
+  // ══════════════════════════════════════════════════════════
+  // CAPITAL CONFIGURATION & AUTO-PILOT CONTROLS
+  // ══════════════════════════════════════════════════════════
+  function aiConfigureCapital(newCapital) {
+    var amount = Number(newCapital);
+    if (!amount || amount <= 0 || isNaN(amount)) {
+      if (typeof showToast === 'function') showToast('Nilai modal tidak valid.', 'var(--red)');
+      return false;
+    }
+    var p = AI_TRADE_STATE.paperAccount;
+    var prevCapital = p.initialCapital;
+    var diff = amount - prevCapital;
+    p.initialCapital = amount;
+    p.cash = Math.max(0, p.cash + diff);
+    recomputePaperStats();
+    savePaperAccountState();
+    if (typeof showToast === 'function') {
+      showToast('Modal virtual diatur ke Rp ' + Number(amount).toLocaleString('id-ID'));
+    }
+    if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+    return true;
+  }
+
+  function aiResetPaperCapital(newAmount) {
+    var amount = Number(newAmount) > 0 ? Number(newAmount) : (AI_TRADE_STATE.paperAccount.initialCapital || 100000000);
+    var p = AI_TRADE_STATE.paperAccount;
+    p.initialCapital = amount;
+    p.cash = amount;
+    p.totalEquity = amount;
+    p.realizedPnL = 0;
+    p.unrealizedPnL = 0;
+    p.totalReturnPct = 0;
+    p.maxDrawdownPct = 0;
+    p.winRate = 0;
+    p.profitFactor = null;
+    p.totalTrades = 0;
+    p.winningTrades = 0;
+    p.losingTrades = 0;
+    p.equityHistory = [{ date: new Date().toISOString(), equity: amount }];
+    p.openPositions = [];
+    p.closedTrades = [];
+    savePaperAccountState();
+    if (typeof showToast === 'function') {
+      showToast('Portofolio Paper AI di-reset dengan modal awal Rp ' + Number(amount).toLocaleString('id-ID'));
+    }
+    if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+    return true;
+  }
+
+  function aiPromptSetCapital() {
+    var cur = AI_TRADE_STATE.paperAccount.initialCapital || 100000000;
+    var val = prompt('Masukkan modal virtual baru (contoh: 10000000 untuk 10 Juta, 50000000 untuk 50 Juta):', cur);
+    if (val !== null) {
+      var num = Number(String(val).replace(/[^0-9]/g, ''));
+      if (num >= 1000000) {
+        aiConfigureCapital(num);
+      } else {
+        if (typeof showToast === 'function') showToast('Modal minimal adalah Rp 1.000.000 (1 Juta).');
+      }
+    }
+  }
+
+  function aiToggleAutoPilot(forceState) {
+    var ap = AI_TRADE_STATE.autoPilot;
+    ap.enabled = forceState != null ? !!forceState : !ap.enabled;
+    saveAutoPilotState();
+    if (ap.enabled) {
+      if (typeof showToast === 'function') {
+        showToast('⚡ AUTO-PILOT AI AKTIF: Autonomous engine akan otomatis mengevaluasi & membuka/menutup posisi di paper portfolio.');
+      }
+      if (typeof mwSendBrowserNotification === 'function') {
+        mwSendBrowserNotification('⚡ Auto-Pilot AI Aktif', 'Autonomous trading engine aktif menjalankan siklus evaluasi kuantitatif.');
+      }
+      aiRunAutonomousCycle(true);
+    } else {
+      if (typeof showToast === 'function') {
+        showToast('⏸️ Auto-Pilot AI dinonaktifkan. Mode trading kembali manual.');
+      }
+    }
+    if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+    return ap.enabled;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // CONTINUOUS ADAPTIVE LEARNING: CALIBRATION ENGINE
+  // ══════════════════════════════════════════════════════════
+  function aiCalibrateAdaptiveWeights(closedTrade) {
+    if (!closedTrade || typeof closedTrade !== 'object') return null;
+    var weights = AI_TRADE_STATE.adaptiveWeights;
+    if (!weights) return null;
+
+    var strat = closedTrade.strategy || 'composite_scoring';
+    var regime = closedTrade.regimeAtEntry || closedTrade.regimeAtExit || 'UNKNOWN';
+    var result = closedTrade.result;
+    var rMult = Number(closedTrade.rMultiple) || 0;
+
+    var stratDelta = 0;
+    var regimeDelta = 0;
+
+    if (result === 'WIN') {
+      if (rMult >= 2.0) {
+        stratDelta = 0.05;
+        regimeDelta = 0.02;
+      } else {
+        stratDelta = 0.03;
+        regimeDelta = 0.02;
+      }
+    } else {
+      stratDelta = -0.04;
+      regimeDelta = -0.03;
+    }
+
+    if (!weights.strategyMultipliers[strat]) weights.strategyMultipliers[strat] = 1.0;
+    if (!weights.regimeMultipliers[regime]) weights.regimeMultipliers[regime] = 1.0;
+
+    var oldStratMult = weights.strategyMultipliers[strat];
+    var oldRegimeMult = weights.regimeMultipliers[regime];
+
+    weights.strategyMultipliers[strat] = Math.max(0.60, Math.min(1.40, Number((oldStratMult + stratDelta).toFixed(2))));
+    weights.regimeMultipliers[regime] = Math.max(0.60, Math.min(1.40, Number((oldRegimeMult + regimeDelta).toFixed(2))));
+
+    var record = {
+      timestamp: new Date().toISOString(),
+      tradeId: closedTrade.id,
+      ticker: closedTrade.ticker,
+      result: result,
+      rMultiple: rMult,
+      strategy: strat,
+      oldStrategyMultiplier: oldStratMult,
+      newStrategyMultiplier: weights.strategyMultipliers[strat],
+      regime: regime,
+      oldRegimeMultiplier: oldRegimeMult,
+      newRegimeMultiplier: weights.regimeMultipliers[regime],
+      note: (result === 'WIN' ? 'Bobot dinaikkan (' : 'Bobot diturunkan (') + (stratDelta > 0 ? '+' : '') + stratDelta + ' strategi, ' + (regimeDelta > 0 ? '+' : '') + regimeDelta + ' regime)'
+    };
+
+    if (!Array.isArray(weights.adaptationHistory)) weights.adaptationHistory = [];
+    weights.adaptationHistory.unshift(record);
+    if (weights.adaptationHistory.length > 50) weights.adaptationHistory.length = 50;
+
+    saveAdaptiveWeightsState();
+
+    logDecision({
+      type: 'ADAPTIVE_CALIBRATION',
+      tradeId: closedTrade.id,
+      ticker: closedTrade.ticker,
+      result: result,
+      strategy: strat,
+      newStratMultiplier: weights.strategyMultipliers[strat],
+      regime: regime,
+      newRegimeMultiplier: weights.regimeMultipliers[regime]
+    });
+
+    return record;
+  }
+
+  // ══════════════════════════════════════════════════════════
   // AI PAPER TRADING — SUPABASE CLOUD SYNC (2026-09-11, user-requested)
   //
   // Everything above this point (paperAccount/hypotheses/decisionLog) used
@@ -638,7 +873,9 @@
       var payload = {
         paperAccount: AI_TRADE_STATE.paperAccount,
         hypotheses: AI_TRADE_STATE.hypotheses,
-        decisionLog: AI_TRADE_STATE.decisionLog
+        decisionLog: AI_TRADE_STATE.decisionLog,
+        autoPilot: AI_TRADE_STATE.autoPilot,
+        adaptiveWeights: AI_TRADE_STATE.adaptiveWeights
       };
       var result = await client.from('ai_paper_trading').upsert({
         user_id: uid,
@@ -685,6 +922,18 @@
         if (Array.isArray(cloud.decisionLog)) {
           AI_TRADE_STATE.decisionLog = cloud.decisionLog;
           try { localStorage.setItem(AI_DECISION_LOG_KEY, JSON.stringify(cloud.decisionLog)); } catch (e) {}
+          changed = true;
+        }
+        if (cloud.autoPilot && typeof cloud.autoPilot === 'object') {
+          Object.assign(AI_TRADE_STATE.autoPilot, cloud.autoPilot);
+          try { localStorage.setItem(AI_AUTOPILOT_KEY, JSON.stringify(AI_TRADE_STATE.autoPilot)); } catch (e) {}
+          changed = true;
+        }
+        if (cloud.adaptiveWeights && typeof cloud.adaptiveWeights === 'object') {
+          if (cloud.adaptiveWeights.regimeMultipliers) AI_TRADE_STATE.adaptiveWeights.regimeMultipliers = Object.assign(AI_TRADE_STATE.adaptiveWeights.regimeMultipliers, cloud.adaptiveWeights.regimeMultipliers);
+          if (cloud.adaptiveWeights.strategyMultipliers) AI_TRADE_STATE.adaptiveWeights.strategyMultipliers = Object.assign(AI_TRADE_STATE.adaptiveWeights.strategyMultipliers, cloud.adaptiveWeights.strategyMultipliers);
+          if (Array.isArray(cloud.adaptiveWeights.adaptationHistory)) AI_TRADE_STATE.adaptiveWeights.adaptationHistory = cloud.adaptiveWeights.adaptationHistory;
+          try { localStorage.setItem(AI_ADAPTIVE_KEY, JSON.stringify(AI_TRADE_STATE.adaptiveWeights)); } catch (e) {}
           changed = true;
         }
         if (changed && typeof renderAiTradingPage === 'function') renderAiTradingPage();
@@ -1088,6 +1337,9 @@
       // features.
       featureSnapshot: pos.featureSnapshot || null
     });
+
+    // Continuous Adaptive Learning: Calibrate Strategy & Regime Multipliers
+    aiCalibrateAdaptiveWeights(p.closedTrades[0]);
 
     recomputePaperStats();
     p.equityHistory.push({ date: new Date().toISOString(), equity: p.cash + p.openPositions.reduce(function(s, x) { return s + x.currentValue; }, 0) });
@@ -1519,6 +1771,7 @@
       + '  </div>'
       + '  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'cockpit' ? 'on' : '') + '" onclick="aiSwitchTab(\'cockpit\')" style="' + (state.activeTab === 'cockpit' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Cockpit</button>'
+      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'copy' ? 'on' : '') + '" onclick="aiSwitchTab(\'copy\')" style="' + (state.activeTab === 'copy' ? 'background:rgba(34,197,94,0.18);border-color:var(--green);color:var(--green);font-weight:700' : 'color:var(--green);border-color:rgba(34,197,94,0.3)') + '">📋 Copy Trading <span class="badge b-up" style="font-size:9px;padding:1px 5px">READY</span></button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'regime' ? 'on' : '') + '" onclick="aiSwitchTab(\'regime\')" style="' + (state.activeTab === 'regime' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Market Regime</button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'scanner' ? 'on' : '') + '" onclick="aiSwitchTab(\'scanner\')" style="' + (state.activeTab === 'scanner' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Scanner &amp; EV</button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'deep' ? 'on' : '') + '" onclick="aiSwitchTab(\'deep\')" style="' + (state.activeTab === 'deep' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Explainable AI</button>'
@@ -1532,18 +1785,21 @@
       + '  </div>'
       + '</div>';
 
-    // ── BANNER ISOLASI TOTAL (MY PORTFOLIO VS AI PORTFOLIO) ──
+    // ── BANNER ISOLASI TOTAL & AUTO-PILOT COCKPIT CONTROLS ──
+    var isApOn = state.autoPilot && state.autoPilot.enabled;
     html += ''
       + '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.25);border-left:4px solid #38bdf8;border-radius:10px;padding:12px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
-      + '  <div style="display:flex;align-items:center;gap:10px">'
-      + '    '
-      + '    <div style="font-size:12.5px;color:var(--text);line-height:1.4">'
-      + '      <strong>Prinsip Kemandirian &amp; Keamanan Portofolio:</strong> AI Engine beroperasi 100% pada <strong>Virtual Paper Account</strong> terisolasi. Seluruh keputusan BUY/SELL/HOLD dieksekusi secara otonom tanpa menyentuh atau mencampurkan portofolio riil pengguna.'
+      + '  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+      + '    <div style="font-size:12.5px;color:var(--text);line-height:1.4;max-width:620px">'
+      + '      <strong>Prinsip Kemandirian &amp; Keamanan Portofolio:</strong> AI Engine beroperasi 100% pada <strong>Virtual Paper Account</strong> terisolasi. Seluruh keputusan BUY/SELL/HOLD dieksekusi secara otonom tanpa menyentuh portofolio riil pengguna.'
       + '    </div>'
       + '  </div>'
-      + '  <div style="display:flex;gap:8px;align-items:center">'
-      + '    <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">STATUS MESIN: <strong style="color:var(--green)">ONLINE &amp; SCANNING</strong></span>'
-      + '    <button class="btn btn-ghost btn-xs" onclick="aiTriggerAutonomousCycle()" style="font-size:11px;font-weight:700;border-color:#38bdf8;color:#38bdf8">Jalankan Research Loop</button>'
+      + '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+      + (isApOn
+          ? '    <button class="btn btn-xs" onclick="aiToggleAutoPilot(false)" style="background:rgba(34,197,94,0.2);border:1px solid var(--green);color:var(--green);font-weight:700;font-size:11px">⚡ AUTO-PILOT: AKTIF</button>'
+          : '    <button class="btn btn-ghost btn-xs" onclick="aiToggleAutoPilot(true)" style="border-color:var(--text3);color:var(--text3);font-weight:600;font-size:11px">⚪ AUTO-PILOT: OFF (Klik Aktifkan)</button>')
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiPromptSetCapital()" style="border-color:#38bdf8;color:#38bdf8;font-size:11px" title="Atur modal awal virtual">💰 Modal: Rp ' + ((state.paperAccount.initialCapital || 100000000) / 1000000).toFixed(0) + ' Jt</button>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiTriggerAutonomousCycle()" style="font-size:11px;font-weight:700;border-color:#38bdf8;color:#38bdf8">Jalankan Siklus AI</button>'
       + '  </div>'
       + '</div>';
 
@@ -1575,6 +1831,8 @@
     // ── TAB CONTENT DISPATCHER ──
     if (state.activeTab === 'cockpit') {
       html += renderAiCockpit(state);
+    } else if (state.activeTab === 'copy') {
+      html += renderAiCopyTrading(state);
     } else if (state.activeTab === 'regime') {
       html += renderAiMarketRegime(state);
     } else if (state.activeTab === 'scanner') {
@@ -2297,8 +2555,18 @@
     var returnSign = p.totalReturnPct >= 0 ? '+' : '';
 
     var html = ''
-      + '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:11.5px;color:var(--text)">'
-      + '  Portofolio ini sungguhan (dalam arti benar-benar tereksekusi &amp; tersimpan) — bukan simulasi historis. Posisi baru terbuka saat Anda klik "Buka Posisi", dan otomatis tertutup saat harga live menyentuh SL/TP. Belum ada aktivitas = belum pernah dibuka posisi.'
+      + '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '  <div style="font-size:12px;color:var(--text);line-height:1.4;max-width:650px">'
+      + '    Portofolio ini beroperasi secara otonom &amp; tersimpan di paper account terisolasi. Anda bebas menyesuaikan nominal modal awal virtual untuk menguji strategi AI.'
+      + '  </div>'
+      + '  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiPromptSetCapital()" style="border-color:#38bdf8;color:#38bdf8;font-weight:700">⚙️ Atur Modal</button>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiConfigureCapital(10000000)">10 Jt</button>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiConfigureCapital(50000000)">50 Jt</button>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiConfigureCapital(100000000)">100 Jt</button>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiConfigureCapital(500000000)">500 Jt</button>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="if(confirm(\'Reset portofolio virtual paper AI? Seluruh riwayat trade akan di-reset ke saldo awal.\'))aiResetPaperCapital()" style="color:var(--red);border-color:rgba(239,68,68,0.3)">↺ Reset</button>'
+      + '  </div>'
       + '</div>'
       + '<div class="row4" style="margin-bottom:18px">'
       + '  <div class="metric">'
@@ -2698,51 +2966,323 @@
   }
 
   // ══════════════════════════════════════════════════════════
-  // 13. SUB-PAGE RENDERING: AI LEARNING LOG & WEIGHT CALIBRATION
+  // 12B. SUB-PAGE RENDERING: COPY TRADING TERMINAL & SIGNAL DISPATCHER
+  // ══════════════════════════════════════════════════════════
+  function aiFormatCopyTradingSignal(item) {
+    if (!item) return '';
+    var ticker = item.ticker || '';
+    var entry = item.entryPrice || item.entry || 0;
+    var sl = item.sl || 0;
+    var tp1 = item.tp1 || 0;
+    var tp2 = item.tp2 || 0;
+    var strategy = item.strategy || 'Multi-Factor Confluence';
+    var lots = item.lots || 0;
+    var riskPct = entry > 0 && sl > 0 ? Number(((entry - sl) / entry * 100).toFixed(1)) : 2.5;
+    var tp1Pct = entry > 0 && tp1 > 0 ? Number(((tp1 - entry) / entry * 100).toFixed(1)) : 0;
+    var tp2Pct = entry > 0 && tp2 > 0 ? Number(((tp2 - entry) / entry * 100).toFixed(1)) : 0;
+    var regime = (AI_TRADE_STATE.marketRegime && AI_TRADE_STATE.marketRegime.regime) || 'SIDEWAYS';
+    var timeStr = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
+
+    return [
+      '🟢 [MONEYWATCH AI COPY TRADE SIGNAL]',
+      '━━━━━━━━━━━━━━━━━━━━━',
+      'Emiten: ' + ticker,
+      'Aksi: BUY / LONG (Virtual Confirmed)',
+      'Entry Zone: Rp ' + Number(entry).toLocaleString('id-ID'),
+      'Stop Loss: Rp ' + Number(sl).toLocaleString('id-ID') + ' (-' + riskPct + '%) [Wajib Pasang]',
+      'Target Profit 1: Rp ' + Number(tp1).toLocaleString('id-ID') + ' (+' + tp1Pct + '%)',
+      'Target Profit 2: Rp ' + Number(tp2).toLocaleString('id-ID') + ' (+' + tp2Pct + '%)',
+      'Risk : Reward: 1 : 2.0+ (Institutional Risk Policy §7)',
+      'Alokasi Sizing: 1% Resiko Modal Portofolio' + (lots > 0 ? ' (Virtual: ' + lots + ' lot)' : ''),
+      'Market Regime: ' + regime,
+      'Strategi AI: ' + strategy,
+      'Waktu Sinyal: ' + timeStr + ' WIB',
+      '━━━━━━━━━━━━━━━━━━━━━',
+      '💡 Catatan Order: Pasang Limit Order di aplikasi sekuritas (Stockbit, IPOT, Mirae, Mandiri, dll). Patuhi Stop Loss ketat!'
+    ].join('\n');
+  }
+
+  function fallbackCopyTextToClipboard(text) {
+    var textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.position = 'fixed';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      if (typeof showToast === 'function') showToast('📋 Sinyal disalin ke clipboard!');
+    } catch (err) {
+      if (typeof showToast === 'function') showToast('Gagal menyalin otomatis. Silakan salin teks manual.');
+    }
+    document.body.removeChild(textArea);
+  }
+
+  function aiCopySignalToClipboard(tickerOrId) {
+    var p = AI_TRADE_STATE.paperAccount;
+    var target = null;
+    if (p && p.openPositions) {
+      target = p.openPositions.find(function(x) { return x.ticker === tickerOrId || x.id === tickerOrId; });
+    }
+    if (!target && AI_UNIVERSE) {
+      target = AI_UNIVERSE.find(function(x) { return x.ticker === tickerOrId; });
+    }
+    if (!target) {
+      if (typeof showToast === 'function') showToast('Sinyal emiten tidak ditemukan.');
+      return;
+    }
+    var text = aiFormatCopyTradingSignal(target);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        if (typeof showToast === 'function') showToast('📋 Sinyal ' + (target.ticker || '') + ' disalin ke clipboard! Siap di-paste ke WhatsApp/Telegram/Catatan Broker.');
+      }).catch(function() {
+        fallbackCopyTextToClipboard(text);
+      });
+    } else {
+      fallbackCopyTextToClipboard(text);
+    }
+  }
+
+  function renderAiCopyTrading(state) {
+    syncAiPaperPortfolioLivePrices(false);
+    ensureFullUniverseLoaded();
+    var p = state.paperAccount;
+    var ap = state.autoPilot;
+    var isApOn = ap && ap.enabled;
+
+    var html = ''
+      // Banner Overview
+      + '<div class="card" style="padding:22px;margin-bottom:18px;border:1px solid rgba(34,197,94,0.3);background:linear-gradient(135deg, var(--bg2) 0%, rgba(34,197,94,0.05) 100%)">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px">'
+      + '    <div>'
+      + '      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      + '        <span class="badge b-up" style="font-size:11px;padding:3px 10px;font-weight:700">COPY TRADING TERMINAL</span>'
+      + '        <span class="badge ' + (isApOn ? 'b-up' : 'b-neu') + '" style="font-size:11px;padding:3px 10px">' + (isApOn ? '⚡ AUTO-PILOT ON' : '⏸️ AUTO-PILOT OFF') + '</span>'
+      + '      </div>'
+      + '      <div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px">'
+      + '        Salin Sinyal Eksekusi Autonomous AI ke Broker Riil Anda'
+      + '      </div>'
+      + '      <div style="font-size:12.5px;color:var(--text2);max-width:760px;line-height:1.5">'
+      + '        Setiap posisi yang dibuka atau dievaluasi oleh Autonomous AI Trading Engine dapat langsung Anda salin ke sekuritas riil (Stockbit, IPOT, Mirae Sekuritas, Mandiri Sekuritas, dsb). Parameter Stop Loss, Target Profit, dan Money Management 1% risiko modal sudah terkalkulasi presisi.'
+      + '      </div>'
+      + '    </div>'
+      + '    <div style="display:flex;gap:8px;flex-direction:column;align-items:flex-end">'
+      + '      <button class="btn btn-sm ' + (isApOn ? 'btn-danger' : 'btn-up') + '" onclick="aiToggleAutoPilot()" style="font-weight:700">' + (isApOn ? 'Nonaktifkan Auto-Pilot' : '⚡ Aktifkan Auto-Pilot') + '</button>'
+      + '      <button class="btn btn-ghost btn-xs" onclick="aiPromptSetCapital()" style="border-color:#38bdf8;color:#38bdf8">Atur Modal (Rp ' + ((p.initialCapital || 100000000) / 1000000).toFixed(0) + ' Jt)</button>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>';
+
+    // Section 1: Live Open Positions (Siap di-Copy)
+    html += '<div class="card" style="padding:20px;margin-bottom:18px">'
+      + '  <div class="cheader" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '    <div style="display:flex;align-items:center;gap:10px">'
+      + '      <span class="ctitle" style="font-size:14px">Posisi Aktif Siap Copy (' + p.openPositions.length + ')</span>'
+      + '      <span class="badge b-up" style="font-size:10px">REAL TIME STATUS</span>'
+      + '    </div>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiRefreshPaperPortfolioQuotes(true)" style="border-color:#38bdf8;color:#38bdf8">Refresh Harga</button>'
+      + '  </div>';
+
+    if (!p.openPositions.length) {
+      html += '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12.5px">'
+        + 'Saat ini belum ada posisi aktif yang dibuka oleh AI.<br>'
+        + (isApOn ? 'Auto-Pilot sedang aktif memantau market — posisi akan otomatis muncul di sini saat terkonfirmasi.' : 'Aktifkan Auto-Pilot atau buka posisi manual dari sinyal di bawah untuk menghasilkan sinyal copy.')
+        + '</div>';
+    } else {
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(360px, 1fr));gap:14px">';
+      p.openPositions.forEach(function(pos) {
+        var pnlSign = pos.unrealizedPnL >= 0 ? '+' : '';
+        var pnlColor = pos.unrealizedPnL >= 0 ? 'var(--green)' : 'var(--red)';
+        html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px;position:relative">'
+          + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+          + '    <div style="display:flex;align-items:center;gap:8px">'
+          + '      <strong style="font-size:16px;color:#38bdf8;font-family:var(--font-mono)">' + pos.ticker + '</strong>'
+          + '      <span class="badge b-up" style="font-size:10px">BUY / LONG</span>'
+          + '    </div>'
+          + '    <button class="btn btn-blue btn-xs" onclick="aiCopySignalToClipboard(\'' + pos.ticker + '\')" style="font-size:10.5px;font-weight:700">📋 Salin Sinyal</button>'
+          + '  </div>'
+          + '  <div style="font-size:11px;color:var(--text3);margin-bottom:10px">' + pos.strategy + ' · Entry ' + pos.entryDate + '</div>'
+          + '  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:var(--bg2);border-radius:6px;padding:10px;margin-bottom:10px;font-family:var(--font-mono)">'
+          + '    <div><div style="font-size:9.5px;color:var(--text3)">ENTRY</div><div style="font-size:13px;font-weight:700">Rp ' + Number(pos.entryPrice).toLocaleString('id-ID') + '</div></div>'
+          + '    <div><div style="font-size:9.5px;color:var(--red)">STOP LOSS</div><div style="font-size:13px;font-weight:700;color:var(--red)">Rp ' + Number(pos.sl).toLocaleString('id-ID') + '</div></div>'
+          + '    <div><div style="font-size:9.5px;color:var(--green)">TARGET 1</div><div style="font-size:13px;font-weight:700;color:var(--green)">Rp ' + Number(pos.tp1).toLocaleString('id-ID') + '</div></div>'
+          + '  </div>'
+          + '  <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">'
+          + '    <span style="color:var(--text3)">Harga Terkini: <strong style="color:var(--text)">Rp ' + Number(pos.currentPrice).toLocaleString('id-ID') + '</strong></span>'
+          + '    <span style="color:' + pnlColor + ';font-weight:700">' + pnlSign + pos.unrealizedPct + '% (' + pnlSign + 'Rp ' + Number(pos.unrealizedPnL).toLocaleString('id-ID') + ')</span>'
+          + '  </div>'
+          + '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // Section 2: Top High-Conviction Scanner Signals (Siap Eksekusi)
+    html += '<div class="card" style="padding:20px;margin-bottom:18px">'
+      + '  <div class="cheader" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '    <div>'
+      + '      <span class="ctitle" style="font-size:14px">Sinyal Peluang AI Terbaik (Score ≥ 70, R:R ≥ 2.0)</span>'
+      + '      <div style="font-size:11.5px;color:var(--text3);margin-top:2px">Sinyal terkonfirmasi dari Confluence Engine yang memenuhi institutional risk policy §7.</div>'
+      + '    </div>'
+      + '    <button class="btn btn-ghost btn-xs" onclick="aiTriggerAutonomousCycle()" style="border-color:#38bdf8;color:#38bdf8">Jalankan Scan</button>'
+      + '  </div>';
+
+    var candidates = (AI_UNIVERSE || []).filter(function(x) {
+      return x.signal && x.signal.includes('BUY');
+    }).sort(function(a, b) {
+      return (b.compositeScore || 0) - (a.compositeScore || 0);
+    }).slice(0, 6);
+
+    if (!candidates.length) {
+      html += '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Belum ada sinyal BUY berpeluang tinggi saat ini. Klik "Jalankan Scan" untuk memindai universe LQ45.</div>';
+    } else {
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(360px, 1fr));gap:14px">';
+      candidates.forEach(function(c) {
+        var isAlreadyOpen = p.openPositions.some(function(o) { return o.ticker === c.ticker; });
+        html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px">'
+          + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+          + '    <div style="display:flex;align-items:center;gap:8px">'
+          + '      <strong style="font-size:16px;color:var(--accent);font-family:var(--font-mono)">' + c.ticker + '</strong>'
+          + '      <span class="badge b-up" style="font-size:10px">' + c.signal + '</span>'
+          + '      ' + (isAlreadyOpen ? '<span class="badge b-accent" style="font-size:9px">POSISI SUDAH TERBUKA</span>' : '')
+          + '    </div>'
+          + '    <button class="btn btn-ghost btn-xs" onclick="aiCopySignalToClipboard(\'' + c.ticker + '\')" style="font-size:10.5px;border-color:var(--accent);color:var(--accent)">📋 Salin Sinyal</button>'
+          + '  </div>'
+          + '  <div style="font-size:11px;color:var(--text3);margin-bottom:10px">' + c.strategy + ' · Skor Komposit: <strong style="color:var(--green)">' + c.compositeScore + '</strong> · Prob: <strong>' + c.probability + '%</strong></div>'
+          + '  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:var(--bg2);border-radius:6px;padding:10px;margin-bottom:10px;font-family:var(--font-mono)">'
+          + '    <div><div style="font-size:9.5px;color:var(--text3)">ENTRY</div><div style="font-size:13px;font-weight:700">Rp ' + Number(c.entry).toLocaleString('id-ID') + '</div></div>'
+          + '    <div><div style="font-size:9.5px;color:var(--red)">STOP LOSS</div><div style="font-size:13px;font-weight:700;color:var(--red)">Rp ' + Number(c.sl).toLocaleString('id-ID') + '</div></div>'
+          + '    <div><div style="font-size:9.5px;color:var(--green)">TP 1 / TP 2</div><div style="font-size:12px;font-weight:700;color:var(--green)">Rp ' + Number(c.tp1).toLocaleString('id-ID') + ' / ' + Number(c.tp2).toLocaleString('id-ID') + '</div></div>'
+          + '  </div>'
+          + '  <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">'
+          + '    <span style="color:var(--text3)">Risk-Reward: <strong style="color:var(--text)">' + (c.rrRatio || '1 : 2.0') + '</strong></span>'
+          + '    ' + (!isAlreadyOpen ? '<button class="btn btn-ghost btn-xs" onclick="aiOpenPositionFromSignal(\'' + c.ticker + '\')" style="color:var(--green);border-color:var(--green);font-size:10px">+ Buka di Paper</button>' : '<span style="color:var(--text3);font-size:10px">Sudah di Paper Portfolio</span>')
+          + '  </div>'
+          + '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // Section 3: Panduan Eksekusi Copy Trading
+    html += '<div class="card" style="padding:18px;background:var(--bg2);border:1px solid var(--border)">'
+      + '  <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:8px">📖 Panduan Eksekusi Copy Trading di Sekuritas Riil:</div>'
+      + '  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;font-size:12px;color:var(--text2);line-height:1.5">'
+      + '    <div style="background:var(--bg3);padding:12px;border-radius:6px"><strong>1. Pasang Limit Order:</strong> Masukkan order beli pada rentang harga Entry Zone saat pasar BEI buka (09:00 - 15:50 WIB).</div>'
+      + '    <div style="background:var(--bg3);padding:12px;border-radius:6px"><strong>2. Pasang Automatic Stop Loss:</strong> Manfaatkan fitur GTC / Auto Order Stop Loss di aplikasi sekuritas tepat pada harga Stop Loss.</div>'
+      + '    <div style="background:var(--bg3);padding:12px;border-radius:6px"><strong>3. Manajemen Posisi:</strong> Batasi modal per saham maksimal 10-15% dari total portofolio riil Anda untuk mematuhi kaidah diversifikasi institutional.</div>'
+      + '  </div>'
+      + '</div>';
+
+    return html;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 13. SUB-PAGE RENDERING: AI LEARNING LOG & DYNAMIC ADAPTIVE WEIGHTS
   // ══════════════════════════════════════════════════════════
   function renderAiLearningLog(state) {
-    // The 10 audit answers and the 6-factor "adaptive weight" breakdown
-    // below used to be permanently fixed fake text/numbers - no post-mortem
-    // analysis engine reads the real closedTrades array, and the composite
-    // score never actually used those 6 factors (see idx-data-engine.js -
-    // it's technical*0.65 + fundamental*0.35, full stop). Replaced with an
-    // honest empty state for the audit, and the real weight for the one
-    // number we do know.
     var p = state.paperAccount;
     var trades = (p && p.closedTrades) || [];
+    var weights = state.adaptiveWeights || { regimeMultipliers: {}, strategyMultipliers: {}, adaptationHistory: [] };
 
     var html = '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="margin-bottom:16px">'
       + '    <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
       + '      Post-Mortem Self-Critique Engine'
       + '    </div>'
-      + '    <div style="font-size:12px;color:var(--text3)">Audit otomatis dari trade yang benar-benar ditutup di Paper Portfolio. Belum ada analisis mendalam (pola kesalahan, korelasi entry/exit) karena butuh lebih banyak histori trade riil.</div>'
+      + '    <div style="font-size:12px;color:var(--text3)">Audit otomatis dari trade yang benar-benar ditutup di Paper Portfolio dengan kalkulasi MFE, MAE, R-Multiple, dan kalibrasi bobot adaptif berkelanjutan.</div>'
       + '  </div>';
 
     if (!trades.length) {
-      html += '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
-        + 'Belum ada data untuk dianalisis — belum ada trade yang ditutup di Paper Portfolio.<br>Buka dan tutup beberapa posisi dari sinyal BUY di tab <strong>AI Paper Portfolio</strong> untuk mulai mengisi audit ini.'
-        + '</div></div>';
-      // Decision Log below is intentionally independent of closedTrades —
-      // it also records NO_TRADE/HOLD decisions that never became a
-      // trade, so it must still render even when no trade exists yet.
-      return html + renderAiDecisionLog(state);
+      html += '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
+        + 'Belum ada trade yang ditutup di Paper Portfolio.<br>Buka dan tutup posisi (atau biarkan Auto-Pilot mengeksekusi) untuk mengaktifkan audit pembelajaran.'
+        + '</div>';
+    } else {
+      var wins = trades.filter(function(t) { return t.result === 'WIN'; }).length;
+      html += '<div style="padding:16px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text2);margin-bottom:18px">'
+        + 'Dari ' + trades.length + ' trade yang sudah ditutup, ' + wins + ' di antaranya profit (' + Math.round((wins / trades.length) * 100) + '%). Rincian post-mortem tiap transaksi terekam pada tab <strong>Post-Mortem Journal</strong>.'
+        + '</div>';
     }
 
-    var wins = trades.filter(function(t) { return t.result === 'WIN'; }).length;
-    html += '<div style="padding:16px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text2);margin-bottom:18px">'
-      + 'Dari ' + trades.length + ' trade yang sudah ditutup, ' + wins + ' di antaranya profit (' + Math.round((wins / trades.length) * 100) + '%). Analisis pola kesalahan per-trade yang lebih rinci belum dibangun — lihat detail tiap trade di tab <strong>Journal</strong>.'
-      + '</div>';
+    // ── ADAPTIVE BRAIN SCORECARD (DYNAMIC REGIME & STRATEGY MULTIPLIERS) ──
+    var regMultipliers = weights.regimeMultipliers || {};
+    var stratMultipliers = weights.strategyMultipliers || {};
+    var history = weights.adaptationHistory || [];
+
+    html += '<div style="border-top:1px solid var(--border2);padding-top:18px;margin-top:14px">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
+      + '    <div style="font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">'
+      + '      🧠 Adaptive Brain: Dynamic Weight Calibration'
+      + '      <span class="badge b-up" style="font-size:9.5px;padding:2px 7px">CONTINUOUS LEARNING</span>'
+      + '    </div>'
+      + '    <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">' + history.length + ' Kalibrasi Tercatat</div>'
+      + '  </div>'
+      + '  <div style="font-size:11.5px;color:var(--text3);margin-bottom:14px">'
+      + '    Mesin autonomous secara otomatis menaikkan multiplier strategi &amp; market regime saat trade menghasilkan R-Multiple positif, dan memangkas bobot jika terjadi invalidasi/stop loss.'
+      + '  </div>'
+
+      // Multipliers Grids
+      + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
+      + '      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">BOBOT REGIME PASAR (AKTIF)</div>'
+      + '      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:11px">'
+      + Object.keys(regMultipliers).map(function(k) {
+          var val = regMultipliers[k];
+          var col = val >= 1.0 ? 'var(--green)' : 'var(--amber)';
+          return '<div style="background:var(--bg2);padding:6px 10px;border-radius:5px;display:flex;justify-content:space-between"><span>' + k + '</span><strong style="color:' + col + ';font-family:var(--font-mono)">' + val.toFixed(2) + 'x</strong></div>';
+        }).join('')
+      + '      </div>'
+      + '    </div>'
+
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
+      + '      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">BOBOT STRATEGI TRADING (AKTIF)</div>'
+      + '      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:11px">'
+      + Object.keys(stratMultipliers).map(function(k) {
+          var val = stratMultipliers[k];
+          var col = val >= 1.0 ? 'var(--green)' : 'var(--amber)';
+          var label = (typeof STRATEGY_META !== 'undefined' && STRATEGY_META[k]) || k;
+          return '<div style="background:var(--bg2);padding:6px 10px;border-radius:5px;display:flex;justify-content:space-between" title="' + k + '"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">' + label + '</span><strong style="color:' + col + ';font-family:var(--font-mono)">' + val.toFixed(2) + 'x</strong></div>';
+        }).join('')
+      + '      </div>'
+      + '    </div>'
+      + '  </div>';
+
+    // Adaptation History Log Table
+    if (history.length > 0) {
+      html += '<div style="margin-bottom:18px">'
+        + '  <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">Riwayat Penyesuaian Bobot Terkini:</div>'
+        + '  <div style="overflow-x:auto">'
+        + '    <table class="tbl" style="font-size:11px">'
+        + '      <thead><tr><th>Waktu</th><th>Emiten</th><th>Hasil</th><th>R-Mult</th><th>Strategi</th><th>Regime</th><th>Catatan Kalibrasi</th></tr></thead>'
+        + '      <tbody>'
+        + history.slice(0, 10).map(function(h) {
+            var resBadge = h.result === 'WIN' ? '<span class="badge b-up" style="font-size:9px">WIN</span>' : '<span class="badge b-dn" style="font-size:9px">LOSS</span>';
+            return '<tr>'
+              + '<td style="color:var(--text3)">' + (h.timestamp ? h.timestamp.slice(0, 16).replace('T', ' ') : '-') + '</td>'
+              + '<td style="font-weight:700;color:#38bdf8">' + h.ticker + '</td>'
+              + '<td>' + resBadge + '</td>'
+              + '<td style="font-family:var(--font-mono)">' + (h.rMultiple != null ? (h.rMultiple >= 0 ? '+' : '') + h.rMultiple + 'R' : '-') + '</td>'
+              + '<td>' + h.strategy + '</td>'
+              + '<td>' + h.regime + '</td>'
+              + '<td style="color:var(--text2)">' + h.note + '</td>'
+              + '</tr>';
+          }).join('')
+        + '      </tbody>'
+        + '    </table>'
+        + '  </div>'
+        + '</div>';
+    }
 
     html += ''
-      // Real weight actually used by the composite signal engine (not a
-      // fabricated "adaptive calibration" - it's a fixed formula).
+      // Real weight actually used by the composite signal engine
       + '  <div style="border-top:1px solid var(--border2);padding-top:16px">'
-      + '    <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">Bobot Riil Mesin Sinyal</div>'
-      + '    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Ini formula tetap yang benar-benar dipakai (lihat computeStockSignal), bukan kalibrasi adaptif — mesin ini belum menyesuaikan bobotnya sendiri dari hasil trade.</div>'
+      + '    <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">Bobot Dasar Sinyal Komposit (Canonical Formula)</div>'
+      + '    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Formula dasar sebelum dikalikan dengan bobot adaptif regime &amp; strategi di atas.</div>'
       + '    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">'
-      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">TEKNIKAL</div><div style="font-size:16px;font-weight:800;color:var(--accent)">65%</div></div>'
-      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">FUNDAMENTAL</div><div style="font-size:16px;font-weight:800;color:var(--accent)">35%</div></div>'
+      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">TEKNIKAL DASAR</div><div style="font-size:16px;font-weight:800;color:var(--accent)">65%</div></div>'
+      + '      <div style="background:var(--bg3);padding:10px;border-radius:6px;text-align:center"><div style="font-size:10px;color:var(--text3)">FUNDAMENTAL DASAR</div><div style="font-size:16px;font-weight:800;color:var(--accent)">35%</div></div>'
       + '    </div>'
       + '  </div>'
       + '</div>'
@@ -2862,7 +3402,7 @@
     return {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
-      source: 'MoneyWatch Pro — AI Paper Trading (modal virtual terisolasi, bukan trading nyata)',
+      source: 'MoneyWatch — AI Paper Trading (modal virtual terisolasi, bukan trading nyata)',
       featureSpace: 'composite_signal_v1', // computeStockSignal() breakdown — BEDA dari XGB_FEATURES (model XGBoost terpisah, 11-quant.js); jangan dicampur.
       totalClosedTrades: trades.length,
       totalSamplesWithFeatures: samples.length,
@@ -3003,7 +3543,7 @@
 
   function aiSwitchTab(tabName) {
     AI_TRADE_STATE.activeTab = tabName;
-    if (tabName === 'paper' || tabName === 'cockpit') {
+    if (tabName === 'paper' || tabName === 'cockpit' || tabName === 'copy') {
       syncAiPaperPortfolioLivePrices(false);
       aiRefreshPaperPortfolioQuotes(false);
     }
@@ -3032,16 +3572,123 @@
     renderAiTradingPage();
   }
 
-  function aiTriggerAutonomousCycle() {
-    syncAiPaperPortfolioLivePrices(false);
-    if (typeof showToast === 'function') {
-      showToast('Menjalankan pemindaian ulang LQ45 dengan harga & indikator terbaru...');
+  // ══════════════════════════════════════════════════════════
+  // AUTONOMOUS AI EXECUTION LOOP
+  // ══════════════════════════════════════════════════════════
+  async function aiRunAutonomousCycle(isManual) {
+    var ap = AI_TRADE_STATE.autoPilot;
+    var isEnabled = ap && ap.enabled;
+    if (!isEnabled && !isManual) return;
+
+    if (typeof showToast === 'function' && isManual) {
+      showToast('Menjalankan siklus autonomous: audit posisi, scan adaptif, dan eksekusi sinyal...');
     }
-    fetchAiScanData().then(function() {
-      if (typeof showToast === 'function') {
-        showToast('Scan selesai — ' + AI_UNIVERSE.length + ' emiten diperbarui dari data real-time.');
+
+    // 1. EXIT ENGINE FIRST: Sync prices and auto-close positions that hit SL / TP
+    aiRefreshPaperPortfolioQuotes(false);
+
+    var p = AI_TRADE_STATE.paperAccount;
+    if (!p || !Array.isArray(p.openPositions)) return;
+
+    // Check portfolio capacity
+    var maxPos = (ap && ap.maxPositions) || RISK_POLICY.MAX_CONCURRENT_POSITIONS;
+    var availableSlots = maxPos - p.openPositions.length;
+    if (availableSlots <= 0) {
+      if (isManual && typeof showToast === 'function') {
+        showToast('Kapasitas posisi penuh (' + p.openPositions.length + '/' + maxPos + '). Tidak ada posisi baru yang dibuka.');
       }
+      return;
+    }
+
+    // Cash buffer gate (FINANCIAL_POLICY.md §7: min 20% cash)
+    var minCashBuffer = p.totalEquity * (RISK_POLICY.MIN_CASH_BUFFER_PCT / 100);
+    if (p.cash <= minCashBuffer) {
+      if (isManual && typeof showToast === 'function') {
+        showToast('Saldo kas virtual di bawah buffer aman 20% (Rp ' + Math.round(minCashBuffer).toLocaleString('id-ID') + '). AI menahan posisi baru.');
+      }
+      return;
+    }
+
+    // 2. Fetch fresh scan data if universe is empty
+    if (!AI_UNIVERSE || !AI_UNIVERSE.length) {
+      await fetchAiScanData();
+    }
+
+    if (!AI_UNIVERSE || !AI_UNIVERSE.length) return;
+
+    var currentRegime = (AI_TRADE_STATE.marketRegime && AI_TRADE_STATE.marketRegime.regime) || 'SIDEWAYS';
+    var regimeMult = (AI_TRADE_STATE.adaptiveWeights && AI_TRADE_STATE.adaptiveWeights.regimeMultipliers && AI_TRADE_STATE.adaptiveWeights.regimeMultipliers[currentRegime]) || 1.0;
+
+    // 3. Filter candidates: BUY signals, not already opened
+    var candidates = AI_UNIVERSE.filter(function(x) {
+      return x.signal && x.signal.includes('BUY') && !p.openPositions.some(function(o) { return o.ticker === x.ticker; });
+    }).map(function(item) {
+      var stratMult = (AI_TRADE_STATE.adaptiveWeights && AI_TRADE_STATE.adaptiveWeights.strategyMultipliers && AI_TRADE_STATE.adaptiveWeights.strategyMultipliers[item.strategy]) || 1.0;
+      var rawScore = item.compositeScore || 60;
+      var adaptedScore = Math.round(rawScore * regimeMult * stratMult);
+      return {
+        item: item,
+        adaptedScore: adaptedScore,
+        stratMult: stratMult
+      };
     });
+
+    // Filter by minScoreToBuy (default 70)
+    var minScore = (ap && ap.minScoreToBuy) || 70;
+    var qualified = candidates.filter(function(c) {
+      return c.adaptedScore >= minScore;
+    }).sort(function(a, b) {
+      return b.adaptedScore - a.adaptedScore;
+    });
+
+    if (!qualified.length) {
+      if (isManual && typeof showToast === 'function') {
+        showToast('Siklus autonomous selesai: Belum ada sinyal BUY baru dengan skor adaptif ≥ ' + minScore + ' di regime ' + currentRegime + '.');
+      }
+      ap.lastCycleAt = new Date().toISOString();
+      saveAutoPilotState();
+      return;
+    }
+
+    var openedCount = 0;
+    for (var i = 0; i < qualified.length && openedCount < availableSlots; i++) {
+      var candidate = qualified[i];
+      if (p.cash <= minCashBuffer) break;
+      var tk = candidate.item.ticker;
+      try {
+        await aiOpenPositionFromSignal(tk);
+        if (p.openPositions.some(function(o) { return o.ticker === tk; })) {
+          openedCount++;
+          ap.autoTradesCount = (ap.autoTradesCount || 0) + 1;
+          logDecision({
+            type: 'AUTOPILOT_EXECUTION',
+            ticker: tk,
+            adaptedScore: candidate.adaptedScore,
+            baseScore: candidate.item.compositeScore,
+            regime: currentRegime,
+            regimeMult: regimeMult,
+            stratMult: candidate.stratMult
+          });
+        }
+      } catch (err) {
+        console.warn('[Auto-Pilot Execution Error]', tk, err);
+      }
+    }
+
+    ap.lastCycleAt = new Date().toISOString();
+    saveAutoPilotState();
+
+    if (openedCount > 0) {
+      if (typeof showToast === 'function') {
+        showToast('⚡ Auto-Pilot AI berhasil membuka ' + openedCount + ' posisi baru secara otonom!');
+      }
+    } else if (isManual && typeof showToast === 'function') {
+      showToast('Siklus autonomous selesai. Order ditahan oleh Risk Gate / Limit Ukuran.');
+    }
+  }
+
+  function aiTriggerAutonomousCycle() {
+    aiRunAutonomousCycle(true);
   }
 
   // ══════════════════════════════════════════════════════════
@@ -3076,5 +3723,14 @@
   window.aiExportTrainingDataset = aiExportTrainingDataset;
   window.fetchAiDataQuality = fetchAiDataQuality;
   window.fetchAiMarketRegime = fetchAiMarketRegime;
+  window.aiConfigureCapital = aiConfigureCapital;
+  window.aiResetPaperCapital = aiResetPaperCapital;
+  window.aiPromptSetCapital = aiPromptSetCapital;
+  window.aiToggleAutoPilot = aiToggleAutoPilot;
+  window.aiCalibrateAdaptiveWeights = aiCalibrateAdaptiveWeights;
+  window.aiRunAutonomousCycle = aiRunAutonomousCycle;
+  window.renderAiCopyTrading = renderAiCopyTrading;
+  window.aiFormatCopyTradingSignal = aiFormatCopyTradingSignal;
+  window.aiCopySignalToClipboard = aiCopySignalToClipboard;
 
 })(window, document);

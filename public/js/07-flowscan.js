@@ -698,23 +698,26 @@ function fsRunScanner(){
   var out=document.getElementById('sc-results');
   if(!out) return;
   if(res.length===0){out.innerHTML='<div style="color:var(--text3);text-align:center;padding:20px;font-size:13px">Tidak ada saham memenuhi kriteria. Turunkan threshold.</div>';return;}
-  out.innerHTML='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+res.length+' saham ditemukan</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">'
+  out.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:12px;font-family:var(--font-mono);font-weight:700">Ditemukan <strong style="color:var(--accent)">'+res.length+'</strong> emiten terverifikasi:</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">'
     +res.map(function(r){
       var last=r.data[r.data.length-1];
-      var bc=r.a.sig==='AKUMULASI'?'rgba(0,229,160,.08)':'rgba(255,61,90,.08)';
-      var brd=r.a.sig==='AKUMULASI'?'rgba(0,229,160,.2)':'rgba(255,61,90,.2)';
+      var isAcc=r.a.sig==='AKUMULASI';
+      var bgCard=isAcc?'rgba(16,185,129,0.06)':'rgba(239,68,68,0.06)';
+      var brdCard=isAcc?'rgba(16,185,129,0.25)':'rgba(239,68,68,0.25)';
       var inWl=FS_WL.some(function(w){return w.t===r.t;});
-      return '<div style="background:'+bc+';border:.5px solid '+brd+';border-radius:8px;padding:12px">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'
-        +'<span class="mono" style="font-weight:600;font-size:13px;cursor:pointer;color:var(--text)" onclick="fsQuickLoad(\''+r.t+'\')">'+r.t+'</span>'
-        +'<button class="btn btn-ghost btn-xs" onclick="fsTgWl(\''+r.t+'\');fsRunScanner()" style="font-size:10px">'+(inWl?'★':'☆')+'</button>'
+      return '<div class="card" style="background:'+bgCard+';border:1px solid '+brdCard+';border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<span class="mono" style="font-weight:800;font-size:14px;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+r.t+'\')">'+r.t+'</span>'
+        +'<button class="btn btn-ghost btn-xs" onclick="fsTgWl(\''+r.t+'\');fsRunScanner()" style="font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--border2)">'+(inWl?'★':'☆')+'</button>'
         +'</div>'
-        +'<div style="font-size:11px;color:var(--text2);margin-bottom:5px">'+r.n.split(' ').slice(0,3).join(' ')+'</div>'
-        +'<div style="display:flex;justify-content:space-between;margin-bottom:5px">'
-        +'<span class="mono" style="font-size:10px;color:'+(r.a.cl>0?'#41f3a7':'#e21d48')+'">CMF '+(r.a.cl*100).toFixed(1)+'%</span>'
-        +'<span class="mono" style="font-size:10px;color:'+(last.vr>1.5?'#41f3a7':'var(--text2)')+'">'+last.vr.toFixed(1)+'×</span>'
-        +'</div>'+fsMkBdg(r.a.sig,true)+'</div>';
+        +'<div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.n.split(' ').slice(0,3).join(' ')+'</div>'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:var(--bg3);padding:5px 8px;border-radius:6px;border:1px solid var(--border2)">'
+        +'<span class="mono" style="font-size:10px;font-weight:700;color:'+(r.a.cl>0?'var(--green)':'var(--red)')+'">CMF '+(r.a.cl*100).toFixed(1)+'%</span>'
+        +'<span class="mono" style="font-size:10px;font-weight:700;color:'+(last.vr>1.5?'var(--green)':'var(--text2)')+'">VR '+last.vr.toFixed(1)+'×</span>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;justify-content:space-between">'+fsMkBdg(r.a.sig,true)+'<span class="mono" style="font-size:10px;font-weight:700;color:var(--text3)">Skor '+r.a.sc+'</span></div>'
+        +'</div>';
     }).join('')+'</div>';
 }
 

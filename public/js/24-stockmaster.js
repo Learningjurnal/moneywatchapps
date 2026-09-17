@@ -116,11 +116,18 @@ function fundSetTicker(ticker) {
 function fundShowStatus(msg, isError) {
   var el = document.getElementById('fund-status');
   if (!el) return;
-  el.style.display = 'block';
+  el.style.display = 'inline-flex';
+  el.style.alignItems = 'center';
+  el.style.gap = '8px';
+  el.style.padding = '6px 14px';
+  el.style.borderRadius = '6px';
+  el.style.fontSize = '12px';
+  el.style.fontWeight = '600';
+  el.style.width = 'auto';
   el.innerHTML = msg;
-  el.style.background = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)';
-  el.style.color = isError ? '#EF4444' : '#60A5FA';
-  el.style.border = isError ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)';
+  el.style.background = isError ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.1)';
+  el.style.color = isError ? '#EF4444' : '#10B981';
+  el.style.border = isError ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(16, 185, 129, 0.25)';
 }
 
 function fundFmt(num, isPct) {
@@ -158,7 +165,7 @@ async function fundFetchData(tickerOverride) {
     window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'fundamental');
   }
 
-  fundShowStatus('Memuat analisa fundamental &amp; konsensus valuasi <b>' + cleanCode + '</b>...', false);
+  fundShowStatus('<span style="color:var(--accent)">●</span> Loading Fundamental Data...', false);
 
   // Helper fetcher yang mencoba seluruh proxy yang tersedia (lokal, allorigins, codetabs).
   // Server-side /api/proxy dicoba dulu — lebih stabil & sudah punya cache
@@ -276,24 +283,24 @@ async function fundFetchData(tickerOverride) {
     if (realFieldCount >= 4) {
       FUND_DATA.dataQuality = { source: 'real', realFieldCount: realFieldCount };
       fundPopulateData();
-      fundShowStatus('✅ Data Fundamental &amp; Konsensus Valuasi <b>' + cleanCode + '</b> siap! (Real: data keuangan Yahoo Finance)', false);
+      fundShowStatus('<span style="color:#10B981">●</span> Ready', false);
     } else if (realFieldCount >= 1) {
       FUND_DATA.dataQuality = { source: 'partial', realFieldCount: realFieldCount };
       fundPopulateData();
-      fundShowStatus('Data Fundamental <b>' + cleanCode + '</b> sebagian saja dari Yahoo Finance (' + realFieldCount + ' field) — sisanya ' + (prevSource === 'profile_snapshot' ? 'snapshot terkurasi (bukan real-time)' : 'estimasi, ditandai di ringkasan') + '.', false);
+      fundShowStatus('<span style="color:var(--amber)">●</span> Ready (Partial)', false);
     } else {
       fundPopulateData();
       fundShowStatus(prevSource === 'profile_snapshot'
-        ? 'Yahoo Finance tidak mengembalikan data untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
-        : 'Yahoo Finance tidak punya data fundamental untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
+        ? '<span style="color:var(--amber)">●</span> Ready (Snapshot)'
+        : '<span style="color:#EF4444">●</span> Data Unavailable', true);
     }
   } catch (e) {
     fundLoadFallbackData(cleanCode, liveMeta, livePrice);
     fundPopulateData();
     var src = (FUND_DATA.dataQuality && FUND_DATA.dataQuality.source) || 'unavailable';
     fundShowStatus(src === 'profile_snapshot'
-      ? 'Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — menampilkan snapshot terkurasi (bukan real-time).'
-      : 'Gagal menghubungi Yahoo Finance untuk <b>' + cleanCode + '</b> — kolom ROE/EPS/BVPS/margin ditampilkan kosong, bukan diperkirakan.', true);
+      ? '<span style="color:var(--amber)">●</span> Ready (Snapshot)'
+      : '<span style="color:#EF4444">●</span> Data Unavailable', true);
   }
 }
 
@@ -810,16 +817,31 @@ function fundComputeValuations(curPrice, eps, bvps, roe, payout, per, dps, minRe
   // 9 Steps Detail
   var stepsBody = document.getElementById('hw-steps-body-t3');
   if (stepsBody) {
+    var stepItem = function(num, title, val, note, valColor, spanTwo) {
+      return '<div style="display:flex;align-items:flex-start;gap:12px;background:var(--bg2);padding:10px 14px;border-radius:8px;border:1px solid var(--border2)' + (spanTwo ? ';grid-column:1/-1' : '') + '">'
+        + '<div style="font-size:14px;font-weight:800;color:var(--accent);font-family:var(--font-mono);line-height:1.2;min-width:24px">' + num + '</div>'
+        + '<div style="flex:1">'
+          + '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">' + title + '</div>'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">'
+            + '<span style="font-size:12.5px;font-weight:700;font-family:var(--font-mono);color:' + (valColor || 'var(--text)') + '">' + val + '</span>'
+            + (note ? '<span style="font-size:10.5px;color:var(--text3)">' + note + '</span>' : '')
+          + '</div>'
+        + '</div>'
+      + '</div>';
+    };
+
+    var mosColor = mosPct >= 15 ? '#10B981' : (mosPct >= 0 ? '#60A5FA' : '#EF4444');
+
     stepsBody.innerHTML = ''
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">1. EPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(eps) + '</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">2. BVPS Terkini:</span> <b style="color:#60A5FA">Rp ' + Math.round(bvps) + '</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">3. ROE (TTM):</span> <b style="color:#60A5FA">' + (roe * 100).toFixed(1) + '%</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">4. Payout Ratio:</span> <b style="color:#60A5FA">' + (payout * 100).toFixed(1) + '%</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">5. Proyeksi BVPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureBvps) + '</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">6. Proyeksi EPS (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futureEps) + '</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">7. Target Harga (' + projYears + 'th):</span> <b style="color:#10B981">Rp ' + Math.round(futurePrice) + '</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px"><span style="color:var(--text3)">8. Fair Value MoS (' + (minReturn * 100).toFixed(1) + '% req):</span> <b style="color:#41f3a7">Rp ' + Math.round(fairPriceMoS) + '</b></div>'
-      + '<div style="background:var(--bg2);padding:8px 12px;border-radius:6px;font-size:11px;grid-column:span 2"><span style="color:var(--text3)">9. Margin of Safety:</span> <b style="color:' + (mosPct >= 15 ? '#10B981' : (mosPct >= 0 ? '#60A5FA' : '#EF4444')) + '">' + (mosPct >= 0 ? '+' : '') + mosPct.toFixed(1) + '% vs Harga Pasar Rp ' + Math.round(curPrice) + '</b></div>';
+      + stepItem('01', 'EPS Terkini', 'Rp ' + Math.round(eps).toLocaleString('id-ID'), 'Laba bersih per saham')
+      + stepItem('02', 'BVPS Terkini', 'Rp ' + Math.round(bvps).toLocaleString('id-ID'), 'Nilai buku ekuitas')
+      + stepItem('03', 'Return on Equity (ROE)', (roe * 100).toFixed(1) + '%', 'Rentabilitas modal TTM', '#60A5FA')
+      + stepItem('04', 'Dividend Payout Ratio', (payout * 100).toFixed(1) + '%', 'Rasio dividen terhadap EPS', '#60A5FA')
+      + stepItem('05', 'Proyeksi BVPS (' + projYears + ' Thn)', 'Rp ' + Math.round(futureBvps).toLocaleString('id-ID'), 'Akumulasi laba ditahan', '#10B981')
+      + stepItem('06', 'Proyeksi EPS (' + projYears + ' Thn)', 'Rp ' + Math.round(futureEps).toLocaleString('id-ID'), 'Ekspektasi EPS tahun ke-' + projYears, '#10B981')
+      + stepItem('07', 'Target Harga (' + projYears + ' Thn)', 'Rp ' + Math.round(futurePrice).toLocaleString('id-ID'), 'Future Value target pasar', '#10B981')
+      + stepItem('08', 'Fair Value MoS', 'Rp ' + Math.round(fairPriceMoS).toLocaleString('id-ID'), 'Discounted pada ' + (minReturn * 100).toFixed(1) + '% min return', '#41f3a7')
+      + stepItem('09', 'Margin of Safety (MoS)', (mosPct >= 0 ? '+' : '') + mosPct.toFixed(1) + '%', 'vs Harga Pasar Rp ' + Math.round(curPrice).toLocaleString('id-ID'), mosColor, true);
   }
 
   // 5. 2D Sensitivity Matrix
@@ -1281,10 +1303,10 @@ function techRenderMainChart(ticker) {
     }
   }
 
-  var curPrice = closePrices[closePrices.length - 1];
-  var prevPrice = closePrices[closePrices.length - 2] || curPrice;
+  var curPrice = Number(closePrices[closePrices.length - 1]) || 0;
+  var prevPrice = Number(closePrices[closePrices.length - 2]) || curPrice;
   var chg = curPrice - prevPrice;
-  var chgPct = (chg / prevPrice * 100);
+  var chgPct = prevPrice > 0 ? (chg / prevPrice * 100) : 0;
 
   container.innerHTML = ''
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;flex-wrap:wrap;gap:8px">'

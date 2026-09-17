@@ -410,7 +410,7 @@ function buildConsolidatedReportHtml() {
 
     // ── FOOTER & LEGAL DISCLAIMER ──
     + '<div style="margin-top:20px;border-top:1px solid #cbd5e1;padding-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#64748b">'
-    + '  <div>Laporan Konsolidasi Finansial Terpadu Money Watch Pro · Metode Moving Average Cost Basis, Live Feeds, &amp; FIRE Engine 4% Rule</div>'
+    + '  <div>Laporan Konsolidasi Finansial Terpadu Money Watch · Metode Moving Average Cost Basis, Live Feeds, &amp; FIRE Engine 4% Rule</div>'
     + '  <div>ID: MW-FULL-' + Date.now().toString().slice(-6) + '</div>'
     + '</div>'
     + '</div>';
@@ -422,7 +422,7 @@ function buildConsolidatedReportHtml() {
 function exportConsolidatedPortfolioCsv() {
   var dateStamp = new Date().toISOString().slice(0, 10);
   var user = (typeof _currentUser !== 'undefined' && _currentUser && _currentUser.email) ? _currentUser.email : 'Investor Tamu';
-  var filename = 'MoneyWatchPro_Laporan_Konsolidasi_Lengkap_' + dateStamp + '.csv';
+  var filename = 'MoneyWatch_Laporan_Konsolidasi_Lengkap_' + dateStamp + '.csv';
 
   var porto = (typeof getPortfolio === 'function') ? getPortfolio() : [];
   var crypto = (typeof getCryptoPortfolio === 'function') ? getCryptoPortfolio() : [];
@@ -450,7 +450,7 @@ function exportConsolidatedPortfolioCsv() {
   var csvLines = [];
   var bom = '\uFEFF';
 
-  csvLines.push('MONEY WATCH PRO — LAPORAN KONSOLIDASI FINANSIAL TERPADU');
+  csvLines.push('MONEY WATCH — LAPORAN KONSOLIDASI FINANSIAL TERPADU');
   csvLines.push('Tanggal Ekspor:;' + new Date().toLocaleString('id-ID'));
   csvLines.push('Pemilik Akun:;' + user);
   csvLines.push('');
@@ -600,7 +600,7 @@ function copyPortfolioSummaryMarkdown() {
     return '- **' + p.ticker + '**: ' + _mwPdfRp(p.mv) + ' (' + (p.ret >= 0 ? '+' : '') + p.ret.toFixed(2) + '%)';
   }).join('\n');
 
-  var md = '# 📊 Laporan Konsolidasi Finansial — Money Watch Pro\n'
+  var md = '# 📊 Laporan Konsolidasi Finansial — Money Watch\n'
     + '**Pemilik**: ' + user + ' | **Tanggal**: ' + dateStr + '\n\n'
     + '## 💎 Ringkasan Kinerja & Net Worth\n'
     + '- **Total Net Worth**: ' + _mwPdfRp(a.net) + '\n'
@@ -618,7 +618,7 @@ function copyPortfolioSummaryMarkdown() {
     + '- **4% Safe Withdrawal Rate**: ' + _mwPdfRp(a.net * 0.04 / 12) + '/bulan\n\n'
     + '## 🏆 Top Kepemilikan Saham\n'
     + (topHoldings || '- Belum ada posisi saham aktif') + '\n\n'
-    + '_Generated via Money Watch Pro Terminal_';
+    + '_Generated via Money Watch Terminal_';
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(md).then(function() {
@@ -724,7 +724,7 @@ function printPdfReport() {
 
   var printWin = window.open('', '_blank');
   if (printWin) {
-    printWin.document.write('<!DOCTYPE html><html><head><title>Laporan Konsolidasi Finansial Terpadu — Money Watch Pro</title>'
+    printWin.document.write('<!DOCTYPE html><html><head><title>Laporan Konsolidasi Finansial Terpadu — Money Watch</title>'
       + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">'
       + '<style>@page{size:A4 portrait;margin:8mm}body{margin:0;padding:0;background:#fff;font-family:\'Inter\',sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>'
       + '</head><body>' + htmlContent + '</body></html>');

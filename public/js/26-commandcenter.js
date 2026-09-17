@@ -495,8 +495,10 @@ async function loadTransactionFlowData(ticker, tf) {
       RADAR_STATE.flowData = data;
       return data;
     }
+    RADAR_STATE.flowData = { ticker: tk, error: true, message: (data && data.error) || 'Gagal memuat data alur transaksi' };
   } catch (err) {
     console.warn('[Flow Trail Fetch Warning]', err);
+    RADAR_STATE.flowData = { ticker: tk, error: true, message: 'Koneksi gagal atau data alur transaksi tidak tersedia' };
   }
   return null;
 }
@@ -514,8 +516,10 @@ async function loadCorporateActionsData(filter) {
       RADAR_STATE.corpData = data;
       return data;
     }
+    RADAR_STATE.corpData = { error: true, message: (data && data.error) || 'Gagal memuat kalender aksi korporasi', dividends: [], stockSplits: [], rightsIssues: [], rups: [] };
   } catch (err) {
     console.warn('[Corporate Actions Fetch Warning]', err);
+    RADAR_STATE.corpData = { error: true, message: 'Koneksi gagal atau data aksi korporasi tidak tersedia', dividends: [], stockSplits: [], rightsIssues: [], rups: [] };
   }
   return null;
 }
@@ -654,14 +658,14 @@ function renderOpportunityRadarPage() {
   var sum = RADAR_STATE.summary || { totalUniverse: 0, buyZoneCount: 0, watchlistCount: 0, corpActionCount: 0, limitedDataCount: 0 };
 
   var html = '<div style="margin-bottom:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
       + '<div>'
         + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Opportunity Radar</div>'
-        + '<div class="psub">Skor real dari data fundamental Yahoo Finance (Margin of Safety proxy 65% + ROE 35% + bonus indeks) — saat ini hanya dihitung untuk saham LQ45/IDX30 (~' + (sum.lq45Count || 45) + ' emiten). Saham lain di luar itu ditandai "DATA TERBATAS" karena aplikasi ini belum punya feed fundamental real untuk seluruh ~950 emiten sekaligus — bukan angka karangan.</div>'
+        + '<div class="psub">Peluang investasi kuantitatif terintegrasi dari universe saham BEI / IDX.</div>'
       + '</div>'
-      + '<div style="display:flex;gap:8px">'
-        + '<button class="btn btn-ghost btn-xs" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData(RADAR_STATE.accTimeframe, true);loadCorporateActionsData();showSaveStatus(\'Data Radar diperbarui\');">Refresh Feed</button>'
-        + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\')">Buka StockChat Cockpit →</button>'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+        + '<button class="btn btn-ghost btn-sm" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData(RADAR_STATE.accTimeframe, true);loadCorporateActionsData();showSaveStatus(\'Data Radar diperbarui\');"><i class="ti ti-refresh"></i> Refresh ↻</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="goPage(\'stock-intel\')">StockChat Cockpit →</button>'
       + '</div>'
     + '</div>'
   + '</div>'
@@ -676,7 +680,7 @@ function renderOpportunityRadarPage() {
     + '<div class="metric" style="border-left:3px solid var(--green)">'
       + '<div class="mlabel">BUY ZONE CANDIDATES</div>'
       + '<div class="mval up mono" style="font-size:22px">' + (sum.buyZoneCount || 0) + '</div>'
-      + '<div class="msub up">Composite Score ≥ 80 (fundamental real)</div>'
+      + '<div class="msub up">Composite Score ≥ 80</div>'
     + '</div>'
     + '<div class="metric" style="border-left:3px solid var(--amber)">'
       + '<div class="mlabel">AKSI KORPORASI AKTIF</div>'
@@ -686,7 +690,7 @@ function renderOpportunityRadarPage() {
     + '<div class="metric" style="border-left:3px solid var(--text3)">'
       + '<div class="mlabel">DATA TERBATAS</div>'
       + '<div class="mval mono" style="font-size:22px;color:var(--text3)">' + (sum.limitedDataCount || 0) + '</div>'
-      + '<div class="msub neu">Di luar LQ45/IDX30 — belum ada fundamental real</div>'
+      + '<div class="msub neu">Emiten di luar LQ45 / IDX30</div>'
     + '</div>'
   + '</div>'
 
@@ -766,7 +770,7 @@ function renderRadarScreenerSubTab() {
   + '<div class="card" style="padding:0;overflow:hidden">'
     + '<div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">'
       + '<span style="font-size:12px;color:var(--text2);font-weight:600">Menampilkan ' + items.length + ' kandidat saham terevaluasi</span>'
-      + '<span style="font-size:11px;color:var(--text3)">Formula (LQ45/IDX30 saja): 65% MoS Proxy + 35% ROE, real dari Yahoo Finance</span>'
+      + '<span style="font-size:11px;color:var(--text3)">Evaluasi kuantitatif berdasarkan Margin of Safety &amp; ROE</span>'
     + '</div>'
     + '<div style="overflow-x:auto">'
       + '<table class="tbl">'
@@ -778,14 +782,13 @@ function renderRadarScreenerSubTab() {
           + '<th style="text-align:right">Margin of Safety</th>'
           + '<th style="text-align:right">P/E</th>'
           + '<th style="text-align:right">ROE</th>'
-          + '<th>Sumber Data</th>'
           + '<th>Aksi Korporasi</th>'
           + '<th style="text-align:center">Aksi &amp; Detail</th>'
         + '</tr></thead>'
         + '<tbody>';
 
   if (items.length === 0) {
-    html += '<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text3)">' + (RADAR_STATE.isLoading ? 'Memuat data real dari Yahoo Finance…' : 'Tidak ada saham yang sesuai dengan filter pencarian.') + '</td></tr>';
+    html += '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text3)">' + (RADAR_STATE.isLoading ? 'Memuat data evaluasi pasar…' : 'Tidak ada saham yang sesuai dengan filter pencarian.') + '</td></tr>';
   } else {
     items.forEach(function(it) {
       var corpBadge = '-';
@@ -813,7 +816,6 @@ function renderRadarScreenerSubTab() {
         + '<td class="mono ' + mosClass + '" style="text-align:right;font-weight:700">' + (it.mos || 'N/A') + '</td>'
         + '<td class="mono" style="text-align:right">' + (it.pe || 'N/A') + '</td>'
         + '<td class="mono" style="text-align:right">' + (it.roe || 'N/A') + '</td>'
-        + '<td><span style="font-size:11px;color:' + (it.isRealFundamental ? 'var(--green)' : 'var(--text3)') + '">' + (it.flow || 'Data Terbatas') + '</span></td>'
         + '<td>' + corpBadge + '</td>'
         + '<td style="text-align:center;white-space:nowrap">'
           + '<div style="display:inline-flex;gap:4px">'
@@ -956,8 +958,19 @@ function renderRadarFlowTrailSubTab() {
   var flow = RADAR_STATE.flowData;
   var currentTicker = RADAR_STATE.flowTicker || 'BBCA';
 
+  if (flow && flow.error && flow.ticker === currentTicker) {
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+      + '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'
+      + '<div style="font-weight:700;color:var(--text);margin-bottom:6px">Gagal Memuat Alur Transaksi untuk ' + currentTicker + '</div>'
+      + '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">' + (flow.message || 'Data tidak dapat dimuat saat ini.') + '</div>'
+      + '<button class="btn btn-primary btn-sm" onclick="selectRadarFlowTicker(\'' + currentTicker + '\')">Coba Lagi</button>'
+      + '</div>';
+  }
+
   if (!flow || flow.ticker !== currentTicker) {
-    loadTransactionFlowData(currentTicker, RADAR_STATE.flowTimeframe);
+    loadTransactionFlowData(currentTicker, RADAR_STATE.flowTimeframe).then(function() {
+      renderOpportunityRadarPage();
+    });
     return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">Memuat visualisasi alur transaksi untuk <strong>' + currentTicker + '</strong>...</div>';
   }
 
@@ -1109,8 +1122,19 @@ function renderRadarFlowTrailSubTab() {
 function renderRadarCorporateActionsSubTab() {
   var corpData = RADAR_STATE.corpData;
   if (!corpData) {
-    loadCorporateActionsData();
+    loadCorporateActionsData().then(function() {
+      renderOpportunityRadarPage();
+    });
     return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">Memuat Kalender Aksi Korporasi Seluruh BEI...</div>';
+  }
+
+  if (corpData.error) {
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
+      + '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'
+      + '<div style="font-weight:700;color:var(--text);margin-bottom:6px">Gagal Memuat Kalender Aksi Korporasi</div>'
+      + '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">' + (corpData.message || 'Data kalender tidak dapat dimuat saat ini.') + '</div>'
+      + '<button class="btn btn-primary btn-sm" onclick="setRadarSubTab(\'corporate-actions\')">Coba Lagi</button>'
+      + '</div>';
   }
 
   var activeFilter = RADAR_STATE.corpFilter || 'ALL';

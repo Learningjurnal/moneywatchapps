@@ -139,27 +139,27 @@ function renderDailyBriefPage() {
     + '<div class="ctitle" style="font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:6px">'
       + '3 HAL KRUSIAL YANG HARUS DIPERHATIKAN HARI INI (3 THINGS TO WATCH):'
     + '</div>'
-    + '<div style="display:flex;flex-direction:column;gap:14px">';
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">';
 
   // 1. Dynamic Watch #1: Top Mover / Momentum in Portfolio
   if (topGainer) {
     var gainerDelta = (topGainer.dynamicChgPct || 0);
-    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #10B981;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
       + '<span class="badge ' + (gainerDelta >= 0 ? 'b-up' : 'b-dn') + '">1. PORTFOLIO TOP MOVER</span>'
-      + '<strong style="color:var(--text);font-size:13px">' + topGainer.ticker + ' Memimpin Pergerakan Portofolio (' + (gainerDelta >= 0 ? '+' : '') + gainerDelta.toFixed(2) + '%)</strong>'
+      + '<strong style="color:var(--text);font-size:13px">' + topGainer.ticker + ' (' + (gainerDelta >= 0 ? '+' : '') + gainerDelta.toFixed(2) + '%)</strong>'
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
       + 'Saham <strong>' + topGainer.ticker + '</strong> (' + (topGainer.info && topGainer.info.name ? topGainer.info.name : 'IDX Equities') + ') mencatatkan pergerakan aktif di portofolio Anda dengan nilai pasar Rp ' + fmtK(topGainer.mv) + ' (@ Rp ' + fmtK(topGainer.mp) + '). Pantau volume kelanjutan dan area target terdekat di Cockpit Analisis.'
       + '</div>'
     + '</div>';
   } else {
-    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #10B981;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge b-up">1. FLOW BREAKOUT</span>'
-        + '<strong style="color:var(--text);font-size:13px">Belum Ada Emisi Saham Aktif di Portofolio</strong>'
+        + '<strong style="color:var(--text);font-size:13px">Belum Ada Emisi Saham Aktif</strong>'
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
         + 'Tambahkan transaksi saham ke portofolio Anda untuk memantau Top Mover harian secara otomatis.'
       + '</div>'
     + '</div>';
@@ -168,36 +168,36 @@ function renderDailyBriefPage() {
   // 2. Dynamic Watch #2: Overweight / Concentration Guard
   if (topHolding) {
     var isOverweight = parseFloat(topHoldingWeight) > 15;
-    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #F59E0B;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge ' + (isOverweight ? 'b-amb' : 'b-accent') + '">2. ALLOCATION &amp; RISK GUARD</span>'
-        + '<strong style="color:var(--text);font-size:13px">Bobot Terbesar: ' + topHolding.ticker + ' Mencapai ' + topHoldingWeight + '% Portofolio</strong>'
+        + '<strong style="color:var(--text);font-size:13px">Bobot: ' + topHolding.ticker + ' (' + topHoldingWeight + '%)</strong>'
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
         + (isOverweight
           ? 'Posisi <strong>' + topHolding.ticker + '</strong> dengan nilai Rp ' + fmtK(topHolding.mv) + ' melebihi ambang batas ideal alokasi tunggal (15%). Disarankan melakukan partial profit taking / rebalancing untuk mendiversifikasi risiko single-stock drawdown.'
           : 'Alokasi <strong>' + topHolding.ticker + '</strong> dengan nilai Rp ' + fmtK(topHolding.mv) + ' berada dalam rentang diversifikasi yang sehat (' + topHoldingWeight + '%). Tetap disiplin dengan batas invalidasi dan rencana investasi Anda.')
       + '</div>'
     + '</div>';
   } else {
-    html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #F59E0B;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge b-amb">2. REBALANCE ALERT</span>'
-        + '<strong style="color:var(--text);font-size:13px">Pemantauan Batas Alokasi &amp; Diversifikasi Portofolio</strong>'
+        + '<strong style="color:var(--text);font-size:13px">Batas Alokasi Portofolio</strong>'
       + '</div>'
-      + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
         + 'Pastikan setiap posisi saham tidak melebihi 15% dari total AUM guna membatasi risiko konsentrasi single-stock.'
       + '</div>'
     + '</div>';
   }
 
   // 3. Dynamic Watch #3: Total Projected Dividend Pipeline
-  html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
-      + '<span class="badge b-pur">3. DIVIDEND &amp; CASHFLOW PIPELINE</span>'
-      + '<strong style="color:var(--text);font-size:13px">Estimasi Cashflow Dividen Portofolio ~Rp ' + fmtK(totalAnnualDiv) + '/Tahun</strong>'
+  html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #38BDF8;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<span class="badge b-accent">3. DIVIDEND &amp; CASHFLOW</span>'
+      + '<strong style="color:var(--text);font-size:13px">Estimasi ~Rp ' + fmtK(totalAnnualDiv) + '/Tahun</strong>'
     + '</div>'
-    + '<div style="font-size:12px;color:var(--text2);line-height:1.5">'
+    + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
       + 'Seluruh ' + porto.length + ' emiten saham di portofolio Anda diproyeksikan menghasilkan dividen agregat ~Rp ' + fmtK(totalAnnualDiv / 12) + '/bulan. Mengaktifkan strategi Auto-Reinvest Dividen ke saham bervaluasi terdiskon (MoS tinggi) akan melipatgandakan efek compound interest jangka panjang.'
     + '</div>'
   + '</div>';
@@ -455,62 +455,57 @@ function renderThesisPage() {
   var c = el('page-thesis');
   if (!c) return;
 
-  var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start">'
+  var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
     + '<div>'
       + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Investment Thesis Tracker</div>'
-      // FIX (2026-09-11, found while giving this page its first real
-      // nav entry point): was "...dan evaluasi otomatis status thesis
-      // setiap saham" (and automatic thesis-status evaluation) - no such
-      // automatic checker exists anywhere in this file or the app; the
-      // THESIS ___ badge is only ever set once, manually, at creation
-      // time (see saveNewThesisFromModal() below) and never re-evaluated.
-      // Wording corrected to match what's actually implemented, now that
-      // real users can reach this page.
       + '<div class="psub">Dokumentasi rasional, target valuasi, dan batas invalidasi untuk setiap saham di portofolio.</div>'
     + '</div>'
-    + '<button class="btn btn-primary" onclick="openNewThesisModal()">+ Buat Investment Thesis Baru</button>'
+    + '<button class="sm-btn" onclick="openNewThesisModal()" style="font-size:12px;padding:8px 16px;border-radius:8px"><i class="ti ti-plus"></i> Buat Investment Thesis Baru</button>'
   + '</div>';
 
   if (!MW_THESES || MW_THESES.length === 0) {
-    html += '<div class="card" style="text-align:center;padding:48px 20px;color:var(--text3)">'
+    html += '<div class="card" style="text-align:center;padding:48px 20px;color:var(--text3);border-radius:12px">'
       + '<strong style="font-size:15px;color:var(--text2)">Belum Ada Investment Thesis Tersimpan</strong>'
       + '<div style="font-size:12px;margin-top:6px;max-width:480px;margin-left:auto;margin-right:auto">'
         + 'Dokumentasikan alasan beli, target harga, dan kriteria invalidasi untuk setiap emiten Anda agar keputusan investasi tetap objektif dan terukur.'
       + '</div>'
-      + '<button class="btn btn-primary btn-sm" onclick="openNewThesisModal()" style="margin-top:16px">+ Buat Thesis Pertama</button>'
+      + '<button class="sm-btn" onclick="openNewThesisModal()" style="margin-top:16px;font-size:12px"><i class="ti ti-plus"></i> Buat Thesis Pertama</button>'
     + '</div>';
   } else {
     html += '<div class="thesis-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">';
     MW_THESES.forEach(function(th, idx) {
-      html += '<div class="card" style="margin:0;display:flex;flex-direction:column;justify-content:space-between">'
+      html += '<div class="card" style="margin:0;display:flex;flex-direction:column;justify-content:space-between;border-radius:12px;padding:18px">'
         + '<div>'
-          + '<div class="cheader" style="margin-bottom:10px">'
-            + '<div style="display:flex;align-items:center;gap:8px">'
-              + '<strong style="font-size:16px;color:var(--text)">' + th.ticker + '</strong>'
-              + '<span style="font-size:11px;color:var(--text3)">' + th.date + '</span>'
+          + '<div class="cheader" style="margin-bottom:12px;border-bottom:1px solid var(--border2);padding-bottom:10px">'
+            + '<div style="display:flex;align-items:center;gap:10px">'
+              + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(th.ticker, 24) : '')
+              + '<div><strong style="font-size:16px;color:var(--text);font-family:var(--font-mono)">' + th.ticker + '</strong>'
+              + '<div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">' + th.date + '</div></div>'
             + '</div>'
-            + '<span class="badge ' + (th.statusClass || 'b-up') + '">THESIS ' + (th.status || 'INTACT') + '</span>'
+            + '<span class="badge ' + (th.statusClass || 'b-up') + '" style="font-size:10px;font-weight:800;border-radius:20px;padding:3px 10px">THESIS ' + (th.status || 'INTACT') + '</span>'
           + '</div>'
-          + '<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px;background:var(--bg3);border-left:3px solid var(--accent);padding:8px 12px;border-radius:0 6px 6px 0">'
-            + '<strong>Why Bought:</strong> ' + th.whyBought
+          + '<div style="font-size:11.5px;color:var(--text2);line-height:1.55;margin-bottom:12px;background:var(--bg3);border-left:3px solid var(--accent);padding:10px 14px;border-radius:0 8px 8px 0">'
+            + '<span style="font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:2px">Alasan Beli (Thesis / Moat):</span>'
+            + th.whyBought
           + '</div>'
-          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
-            + '<div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2);padding:8px;border-radius:6px">'
-              + '<div style="font-size:9px;color:var(--text3);font-weight:700">TARGET PRICE</div>'
-              + '<div class="mono up" style="font-size:14px;font-weight:800">Rp ' + fmtK(th.targetPrice) + (th.expectedReturn ? ' (' + th.expectedReturn + ')' : '') + '</div>'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+            + '<div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);padding:10px;border-radius:8px">'
+              + '<div style="font-size:9.5px;color:var(--text3);font-weight:700;letter-spacing:0.04em">TARGET HARGA</div>'
+              + '<div class="mono up" style="font-size:15px;font-weight:900;margin-top:2px">Rp ' + fmtK(th.targetPrice) + (th.expectedReturn ? ' <span style="font-size:11px;font-weight:700">(' + th.expectedReturn + ')</span>' : '') + '</div>'
             + '</div>'
-            + '<div style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);padding:8px;border-radius:6px">'
-              + '<div style="font-size:9px;color:var(--text3);font-weight:700">TIME HORIZON</div>'
-              + '<div class="mono" style="font-size:13px;font-weight:700;color:var(--text)">' + (th.timeHorizon || '12 Bulan') + '</div>'
+            + '<div style="background:var(--bg3);border:1px solid var(--border2);padding:10px;border-radius:8px">'
+              + '<div style="font-size:9.5px;color:var(--text3);font-weight:700;letter-spacing:0.04em">HORIZON WAKTU</div>'
+              + '<div class="mono" style="font-size:14px;font-weight:800;color:var(--text);margin-top:2px">' + (th.timeHorizon || '12 Bulan') + '</div>'
             + '</div>'
           + '</div>'
-          + '<div style="font-size:11px;color:var(--red);line-height:1.4;margin-bottom:12px">'
-            + '<strong>Invalidation Criteria:</strong> ' + th.invalidation
+          + '<div style="font-size:11px;color:var(--red);line-height:1.45;margin-bottom:14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);padding:10px 12px;border-radius:8px">'
+            + '<strong style="display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;color:var(--red)">Batas Invalidasi (Exit Rule):</strong>'
+            + th.invalidation
           + '</div>'
         + '</div>'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border)">'
-          + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'stock-intel\');selectStockIntelTicker(\'' + th.ticker + '\');">Buka Cockpit →</button>'
-          + '<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="deleteThesis(' + idx + ')">Hapus</button>'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border2)">'
+          + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'stock-intel\');selectStockIntelTicker(\'' + th.ticker + '\');" style="border-radius:6px;font-weight:700"><i class="ti ti-radar"></i> Buka Cockpit →</button>'
+          + '<button class="btn btn-ghost btn-xs" style="color:var(--red);border-color:rgba(239,68,68,0.3);border-radius:6px" onclick="deleteThesis(' + idx + ')"><i class="ti ti-trash"></i> Hapus</button>'
         + '</div>'
       + '</div>';
     });
@@ -1107,19 +1102,25 @@ function renderRebalancePage() {
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Smart Rebalancing Engine &amp; Order Sheet</div>'
     + '<div class="psub">Sistem otomatis menghitung rekomendasi transaksi beli/jual untuk mengembalikan alokasi portofolio ke target persentase ideal.</div>'
     + '</div>'
-    + '<div style="display:flex;gap:6px">'
-    + '<button class="btn btn-ghost btn-sm ' + (_rebalanceMode==='equal'?'active':'') + '" onclick="setRebalanceMode(\'equal\')">Equal Weight</button>'
-    + '<button class="btn btn-ghost btn-sm ' + (_rebalanceMode==='custom'?'active':'') + '" onclick="setRebalanceMode(\'custom\')">Target Kustom</button>'
+  var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
+    + '<div>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-scale" style="color:var(--accent)"></i> Smart Rebalancing Engine &amp; Order Sheet</div>'
+    + '<div class="psub">Sistem otomatis menghitung rekomendasi transaksi beli/jual untuk mengembalikan alokasi portofolio ke target persentase ideal.</div>'
+    + '</div>'
+    + '<div class="sm-suite-tabs" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:3px;display:inline-flex;gap:4px">'
+    + '<button class="sm-nav-item ' + (_rebalanceMode==='equal'?'active':'') + '" onclick="setRebalanceMode(\'equal\')" style="padding:6px 14px;border-radius:7px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (_rebalanceMode==='equal' ? 'background:var(--accent);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ti-equal"></i> Equal Weight</button>'
+    + '<button class="sm-nav-item ' + (_rebalanceMode==='custom'?'active':'') + '" onclick="setRebalanceMode(\'custom\')" style="padding:6px 14px;border-radius:7px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (_rebalanceMode==='custom' ? 'background:var(--accent);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ti-adjustments"></i> Target Kustom</button>'
     + '</div>'
     + '</div>';
 
   if (!porto || porto.length === 0) {
-    html += '<div class="card" style="text-align:center;padding:48px 20px;color:var(--text3)">'
-      + '<strong style="font-size:15px;color:var(--text2)">Belum Ada Posisi Portofolio Aktif</strong>'
-      + '<div style="font-size:12px;margin-top:6px;max-width:480px;margin-left:auto;margin-right:auto">'
-        + 'Portofolio saat ini kosong (Rp 0). Masukkan transaksi beli atau upload file data portofolio baru Anda untuk mengaktifkan kalkulator rebalancing alokasi target otomatis.'
+    html += '<div class="card" style="text-align:center;padding:48px 20px;color:var(--text3);border-radius:12px;background:var(--bg2);border:1px solid var(--border)">'
+      + '<div style="width:48px;height:48px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--accent);font-size:22px"><i class="ti ti-chart-pie-off"></i></div>'
+      + '<strong style="font-size:15px;color:var(--text)">Belum Ada Posisi Portofolio Aktif</strong>'
+      + '<div style="font-size:12px;margin-top:6px;max-width:480px;margin-left:auto;margin-right:auto;color:var(--text2);line-height:1.5">'
+        + 'Portofolio saat ini kosong (Rp 0). Masukkan transaksi beli atau upload data transaksi untuk mengaktifkan kalkulator rebalancing alokasi target otomatis.'
       + '</div>'
-      + '<button class="btn btn-primary btn-sm" onclick="goPage(\'transaksi\')" style="margin-top:16px">+ Input Transaksi Baru</button>'
+      + '<button class="btn btn-primary btn-sm" onclick="goPage(\'transaksi\')" style="margin-top:16px;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-plus"></i> Input Transaksi Baru</button>'
     + '</div>';
     c.innerHTML = html;
     return;
@@ -1141,88 +1142,89 @@ function renderRebalancePage() {
 
     var isOver = deltaPct < -1.5;
     var isUnder = deltaPct > 1.5;
-    var actionBadge = isOver ? '<span class="badge b-dn">TRIM / JUAL</span>' : (isUnder ? '<span class="badge b-up">ACCUMULATE / BELI</span>' : '<span class="badge b-neu">HOLD / SESUAI</span>');
-    var actionDesc = isOver ? 'Jual ~' + estLots + ' lot' : (isUnder ? 'Beli ~' + estLots + ' lot' : 'Pertahankan');
+    var actionBadge = isOver ? '<span class="badge b-dn" style="display:inline-flex;align-items:center;gap:4px"><i class="ti ti-arrow-down-right"></i> TRIM / JUAL</span>' : (isUnder ? '<span class="badge b-up" style="display:inline-flex;align-items:center;gap:4px"><i class="ti ti-arrow-up-right"></i> ACCUMULATE / BELI</span>' : '<span class="badge b-neu" style="display:inline-flex;align-items:center;gap:4px"><i class="ti ti-check"></i> HOLD / SESUAI</span>');
+    var actionDesc = isOver ? 'Jual ~' + estLots + ' lot' : (isUnder ? 'Beli ~' + estLots + ' lot' : 'Pertahankan alokasi');
 
     var targetInputHtml = _rebalanceMode === 'custom'
-      ? '<input type="number" step="0.5" min="0" max="100" value="' + targetWeight.toFixed(1) + '" onchange="updateCustomRebWeight(\'' + p.ticker + '\', this.value)" class="finput mono" style="width:70px;padding:3px 6px;text-align:right">'
-      : '<span class="mono">' + targetWeight.toFixed(1) + '%</span>';
+      ? '<div style="display:flex;align-items:center;gap:4px"><input type="number" step="0.5" min="0" max="100" value="' + targetWeight.toFixed(1) + '" onchange="updateCustomRebWeight(\'' + p.ticker + '\', this.value)" class="finput mono" style="width:70px;padding:3px 6px;text-align:right"><span style="font-size:11px;color:var(--text3)">%</span></div>'
+      : '<span class="mono" style="font-weight:600">' + targetWeight.toFixed(1) + '%</span>';
 
     rowsHtml += '<tr>'
       + '<td><strong>' + p.ticker + '</strong> <span style="font-size:11px;color:var(--text3)">' + (p.name || '') + '</span></td>'
       + '<td class="mono">' + curWeight.toFixed(1) + '%</td>'
       + '<td>' + targetInputHtml + '</td>'
-      + '<td class="mono ' + (deltaPct >= 0 ? 'up' : 'dn') + '">' + (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%</td>'
-      + '<td>' + actionBadge + '<div style="font-size:10px;color:var(--text3);margin-top:2px">' + actionDesc + '</div></td>'
-      + '<td class="mono ' + (deltaPct >= 0 ? 'up' : 'dn') + '" style="text-align:right">' + (deltaPct >= 0 ? '+' : '-') + 'Rp ' + fmtK(estVal) + '</td>'
+      + '<td class="mono ' + (deltaPct >= 0 ? 'up' : 'dn') + '" style="font-weight:600">' + (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%</td>'
+      + '<td>' + actionBadge + '<div style="font-size:10px;color:var(--text3);margin-top:3px">' + actionDesc + '</div></td>'
+      + '<td class="mono ' + (deltaPct >= 0 ? 'up' : 'dn') + '" style="text-align:right;font-weight:600">' + (deltaPct >= 0 ? '+' : '-') + 'Rp ' + fmtK(estVal) + '</td>'
     + '</tr>';
   });
 
-  html += '<div class="card" style="margin-bottom:16px;background:rgba(0,200,255,0.02);border:1px solid rgba(0,200,255,0.15)">'
-    + '<div class="ctitle" style="font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">'
-      + 'Alur Kerja Step-by-Step Eksekusi Rebalancing'
+  html += '<div class="card" style="margin-bottom:16px;background:var(--bg2);border:1px solid var(--border);border-radius:12px">'
+    + '<div class="ctitle" style="font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px">'
+      + '<i class="ti ti-git-fork" style="color:var(--accent)"></i> Alur Kerja Step-by-Step Eksekusi Rebalancing'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">'
-      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
-        + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 1</div>'
-        + '<div style="font-weight:600;font-size:12px;margin:4px 0">Identifikasi Deviasi</div>'
-        + '<div style="font-size:11px;color:var(--text2)">Sistem mendeteksi posisi yang melampaui target (overweight) untuk di-trim dan posisi lagging untuk di-accumulate.</div>'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">'
+        + '<div style="font-size:10px;color:var(--accent);font-weight:800;letter-spacing:0.05em;display:flex;align-items:center;gap:4px"><i class="ti ti-scan"></i> LANGKAH 1</div>'
+        + '<div style="font-weight:600;font-size:13px;margin:6px 0 4px;color:var(--text)">Identifikasi Deviasi</div>'
+        + '<div style="font-size:11px;color:var(--text2);line-height:1.5">Sistem mendeteksi posisi yang melampaui target (overweight) untuk di-trim dan posisi lagging untuk di-accumulate.</div>'
       + '</div>'
-      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
-        + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 2</div>'
-        + '<div style="font-weight:600;font-size:12px;margin:4px 0">Eksekusi di Sekuritas</div>'
-        + '<div style="font-size:11px;color:var(--text2)">Gunakan order sheet untuk menjual saham overweight dan membeli saham underweight secara bertahap.</div>'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">'
+        + '<div style="font-size:10px;color:var(--accent);font-weight:800;letter-spacing:0.05em;display:flex;align-items:center;gap:4px"><i class="ti ti-building-bank"></i> LANGKAH 2</div>'
+        + '<div style="font-weight:600;font-size:13px;margin:6px 0 4px;color:var(--text)">Eksekusi di Sekuritas</div>'
+        + '<div style="font-size:11px;color:var(--text2);line-height:1.5">Gunakan order sheet untuk menjual saham overweight dan membeli saham underweight secara bertahap.</div>'
       + '</div>'
-      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px">'
-        + '<div style="font-size:10px;color:var(--accent);font-weight:700">LANGKAH 3</div>'
-        + '<div style="font-weight:600;font-size:12px;margin:4px 0">Validasi Keseimbangan Baru</div>'
-        + '<div style="font-size:11px;color:var(--text2)">Proyeksi menunjukkan portofolio kembali seimbang dengan risiko konsentrasi yang tereduksi optimal.</div>'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">'
+        + '<div style="font-size:10px;color:var(--accent);font-weight:800;letter-spacing:0.05em;display:flex;align-items:center;gap:4px"><i class="ti ti-circle-check"></i> LANGKAH 3</div>'
+        + '<div style="font-weight:600;font-size:13px;margin:6px 0 4px;color:var(--text)">Validasi Keseimbangan Baru</div>'
+        + '<div style="font-size:11px;color:var(--text2);line-height:1.5">Proyeksi menunjukkan portofolio kembali seimbang dengan risiko konsentrasi yang tereduksi optimal.</div>'
       + '</div>'
     + '</div>'
   + '</div>'
 
-  + '<div class="g2b" style="margin-bottom:18px">'
-    + '<div class="card" style="margin:0">'
-      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px">Ringkasan Portofolio &amp; Alokasi</div>'
+  + '<div class="g2b" style="margin-bottom:18px;display:grid;grid-template-columns:1.2fr 1fr;gap:14px">'
+    + '<div class="card" style="margin:0;border-radius:12px;background:var(--bg2);border:1px solid var(--border)">'
+      + '<div class="ctitle" style="font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="ti ti-chart-pie" style="color:var(--accent)"></i> Ringkasan Portofolio &amp; Alokasi</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-        + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
-          + '<div style="font-size:10px;color:var(--text3);font-weight:700">POSISI SAAT INI</div>'
+        + '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px">'
+          + '<div style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:0.04em">POSISI SAAT INI</div>'
           + '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px">'
-            + '<div>Total Nilai Saham: <strong class="mono">Rp ' + fmtK(totalMV) + '</strong></div>'
-            + '<div>Jumlah Emiten: <strong class="mono">' + porto.length + ' Saham</strong></div>'
-            + '<div>Kas / RDN: <strong class="mono up">Rp ' + fmtK(rdn) + '</strong></div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Total Saham:</span><strong class="mono" style="color:var(--text)">Rp ' + fmtK(totalMV) + '</strong></div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Emiten:</span><strong class="mono" style="color:var(--text)">' + porto.length + ' Saham</strong></div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Kas / RDN:</span><strong class="mono up">Rp ' + fmtK(rdn) + '</strong></div>'
           + '</div>'
         + '</div>'
-        + '<div style="background:rgba(0,200,255,0.04);border:1px solid var(--accent);border-radius:8px;padding:12px">'
-          + '<div style="font-size:10px;color:var(--accent);font-weight:700">PROYEKSI PASCA-REBALANCE</div>'
+        + '<div style="background:rgba(0,200,255,0.03);border:1px solid rgba(0,200,255,0.2);border-radius:10px;padding:12px">'
+          + '<div style="font-size:10px;color:var(--accent);font-weight:700;letter-spacing:0.04em">PROYEKSI PASCA-REBALANCE</div>'
           + '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px">'
-            + '<div>Target Per Emiten: <strong class="mono up">' + (_rebalanceMode === 'equal' ? defaultTarget.toFixed(1) + '%' : 'Custom Target') + '</strong></div>'
-            + '<div>Deviasi Maksimal: <strong class="mono up">&lt; 1.0%</strong></div>'
-            + '<div>Stabilitas Risiko: <strong class="mono up">Optimal &amp; Seimbang</strong></div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Target:</span><strong class="mono up">' + (_rebalanceMode === 'equal' ? defaultTarget.toFixed(1) + '%' : 'Custom Target') + '</strong></div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Deviasi:</span><strong class="mono up">&lt; 1.0%</strong></div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Status:</span><strong class="mono up">Optimal</strong></div>'
           + '</div>'
         + '</div>'
       + '</div>'
     + '</div>'
 
-    + '<div class="card" style="margin:0;display:flex;flex-direction:column;justify-content:space-between">'
+    + '<div class="card" style="margin:0;border-radius:12px;background:var(--bg2);border:1px solid var(--border);display:flex;flex-direction:column;justify-content:space-between">'
       + '<div>'
-        + '<div class="ctitle" style="font-size:13px;margin-bottom:10px">Eksekusi &amp; Order Sheet</div>'
+        + '<div class="ctitle" style="font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:8px"><i class="ti ti-file-spreadsheet" style="color:var(--accent)"></i> Eksekusi &amp; Order Sheet</div>'
         + '<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px">'
-          + 'Gunakan rekomendasi order di bawah untuk melakukan penyesuaian di aplikasi sekuritas Anda (Stockbit, IPOT, Mandiri Sekuritas, dll).'
+          + 'Gunakan rekomendasi order di bawah untuk melakukan penyesuaian langsung di aplikasi sekuritas Anda (Stockbit, IPOT, Mandiri Sekuritas, dll).'
         + '</div>'
       + '</div>'
-      + '<div style="display:flex;gap:8px">'
-        + '<button class="btn btn-primary btn-sm" onclick="alert(\'Lembar instruksi order rebalance berhasil disiapkan. Salin atau catat untuk eksekusi di sekuritas.\')">Salin Order Sheet</button>'
-        + (_rebalanceMode === 'custom' ? '<button class="btn btn-ghost btn-sm" onclick="_rebalanceCustomWeights={};renderRebalancePage()">Reset Target</button>' : '')
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        + '<button class="btn btn-primary btn-sm" onclick="alert(\'Lembar instruksi order rebalance berhasil disiapkan. Salin atau catat untuk eksekusi di sekuritas.\')" style="display:inline-flex;align-items:center;gap:6px"><i class="ti ti-copy"></i> Salin Order Sheet</button>'
+        + (_rebalanceMode === 'custom' ? '<button class="btn btn-ghost btn-sm" onclick="_rebalanceCustomWeights={};renderRebalancePage()" style="display:inline-flex;align-items:center;gap:6px"><i class="ti ti-rotate"></i> Reset Target</button>' : '')
       + '</div>'
     + '</div>'
   + '</div>'
 
-  + '<div class="card" style="padding:0;overflow:hidden">'
+  + '<div class="card" style="padding:0;overflow:hidden;border-radius:12px;background:var(--bg2);border:1px solid var(--border)">'
     + '<div class="cheader" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-      + '<span class="ctitle">Rebalance Order Calculator (Rekomendasi Beli / Jual Otomatis)</span>'
-      + '<span class="badge b-accent">REAL-TIME CALCULATION</span>'
+      + '<span class="ctitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-calculator" style="color:var(--accent)"></i> Rebalance Order Calculator (Rekomendasi Beli / Jual Otomatis)</span>'
+      + '<span class="badge b-accent" style="display:inline-flex;align-items:center;gap:4px"><i class="ti ti-bolt"></i> REAL-TIME CALCULATION</span>'
     + '</div>'
+    + '<div style="overflow-x:auto">'
     + '<table class="tbl">'
       + '<thead><tr>'
         + '<th>Saham</th>'
@@ -1236,6 +1238,7 @@ function renderRebalancePage() {
         + rowsHtml
       + '</tbody>'
     + '</table>'
+    + '</div>'
   + '</div>';
 
   c.innerHTML = html;
@@ -1252,7 +1255,7 @@ function renderRebalancingPage() {
 var MW_COPILOT_HISTORY = [
   {
     role: 'assistant',
-    text: 'Halo! Saya adalah **MoneyWatch Pro AI**, asisten analis portofolio multi-aset kelas institusional yang berfokus pada pasar modal Indonesia (IHSG/BEI).\n\nSaya siap membantu Anda dalam:\n- **Analisa Portofolio & Risiko**: Evaluasi konsentrasi AUM, alokasi kas RDN, dan Maximum Drawdown.\n- **Kepatuhan Regulasi BEI**: Validasi simulasi transaksi sesuai fraksi harga (tick size) dan batas ARA/ARB simetris.\n- **Kalkulasi Pajak Dividen**: Proyeksi imbal hasil dividen bersih setelah dipotong PPh Final 10% (atau 0% reinvestasi PMK 18/2021).\n- **Rasio Fundamental & Valuasi**: P/E, P/BV, ROE, DER, NPM, dan Margin of Safety tanpa halusinasi.\n- **Kepemilikan KSEI**: Pantau data pemegang saham institusi >5% dan estimasi free float publik.\n\n*Silakan tanyakan tentang portofolio Anda atau kode saham spesifik di BEI (misal: BBCA, BBRI, BMRI, PGEO).*',
+    text: 'Halo! Saya adalah **MoneyWatch AI**, asisten analis portofolio multi-aset kelas institusional yang berfokus pada pasar modal Indonesia (IHSG/BEI).\n\nSaya siap membantu Anda dalam:\n- **Analisa Portofolio & Risiko**: Evaluasi konsentrasi AUM, alokasi kas RDN, dan Maximum Drawdown.\n- **Kepatuhan Regulasi BEI**: Validasi simulasi transaksi sesuai fraksi harga (tick size) dan batas ARA/ARB simetris.\n- **Kalkulasi Pajak Dividen**: Proyeksi imbal hasil dividen bersih setelah dipotong PPh Final 10% (atau 0% reinvestasi PMK 18/2021).\n- **Rasio Fundamental & Valuasi**: P/E, P/BV, ROE, DER, NPM, dan Margin of Safety tanpa halusinasi.\n- **Kepemilikan KSEI**: Pantau data pemegang saham institusi >5% dan estimasi free float publik.\n\n*Silakan tanyakan tentang portofolio Anda atau kode saham spesifik di BEI (misal: BBCA, BBRI, BMRI, PGEO).*',
     toolCalls: []
   }
 ];
@@ -1294,7 +1297,7 @@ function renderCopilotPage() {
     return '<div class="copilot-bubble bubble-' + m.role + '" style="margin-bottom:12px;background:' + (isAssistant ? 'var(--bg2)' : 'rgba(56,189,248,0.12)') + ';border:1px solid ' + (isAssistant ? 'var(--border)' : 'rgba(56,189,248,0.3)') + ';border-radius:8px;padding:14px">'
       + '<div class="cb-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
         + '<span class="cb-role" style="font-weight:700;font-size:12px;color:' + (isAssistant ? '#38bdf8' : '#FFFFFF') + '">'
-          + (isAssistant ? 'MoneyWatch Pro AI' : 'Anda')
+          + (isAssistant ? 'MoneyWatch AI' : 'Anda')
         + '</span>'
         + (isAssistant ? '<span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:1px 6px;border-radius:4px">BEI Institutional Analyst</span>' : '')
       + '</div>'
@@ -1307,14 +1310,14 @@ function renderCopilotPage() {
     messagesHtml += '<div class="copilot-bubble bubble-assistant" style="margin-bottom:12px;background:var(--bg2);border:1px dashed #38bdf8;border-radius:8px;padding:14px">'
       + '<div style="display:flex;align-items:center;gap:10px;color:#38bdf8;font-size:12px;font-weight:600">'
         + '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #38bdf8;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite"></span>'
-        + 'MoneyWatch Pro AI sedang menjalankan Agentic Loop (pemeriksaan data pasar, regulasi BEI & sinkronisasi portofolio)...'
+        + 'MoneyWatch AI sedang menjalankan Agentic Loop (pemeriksaan data pasar, regulasi BEI & sinkronisasi portofolio)...'
       + '</div>'
     + '</div>';
   }
 
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">'
     + '<div>'
-      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">MoneyWatch Pro AI</div>'
+      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">MoneyWatch AI</div>'
       + '<div class="psub">Asisten analis portofolio multi-aset berbasis model reasoning, kepatuhan regulasi BEI, kepemilikan KSEI &amp; kalkulasi pajak dividen bersih.</div>'
     + '</div>'
     + '<div style="display:flex;gap:8px">'
@@ -1348,7 +1351,7 @@ function clearCopilotHistory() {
   MW_COPILOT_HISTORY = [
     {
       role: 'assistant',
-      text: 'Sesi baru dimulai. Saya adalah **MoneyWatch Pro AI**. Bagaimana saya dapat membantu analisa portofolio atau pasar modal Anda hari ini?',
+      text: 'Sesi baru dimulai. Saya adalah **MoneyWatch AI**. Bagaimana saya dapat membantu analisa portofolio atau pasar modal Anda hari ini?',
       toolCalls: []
     }
   ];
@@ -1508,7 +1511,7 @@ async function sendCopilotPrompt(text) {
       // instead of a generic "coba lagi" with no diagnostic value.
       MW_COPILOT_HISTORY.push({
         role: 'assistant',
-        text: 'Gagal terhubung ke engine MoneyWatch Pro AI, dan engine cadangan client-side tidak tersedia. Silakan muat ulang halaman lalu coba lagi.',
+        text: 'Gagal terhubung ke engine MoneyWatch AI, dan engine cadangan client-side tidak tersedia. Silakan muat ulang halaman lalu coba lagi.',
         toolCalls: []
       });
     }

@@ -9,10 +9,27 @@ var AUTH = { SESSION_MS: 60 * 60 * 1000, _sesTimer: null, _barTimer: null, _sesS
 function authLoadSession(){ return _currentUser ? {user:_currentUser.email, exp: AUTH._sesExp} : null; }
 function authBumpSession(){ if(_currentUser){ AUTH._sesExp = Date.now() + AUTH.SESSION_MS; } }
 
-// ── Show / Hide app ──
+// ── Show / Hide app & Landing Screen ──
+function authOpenLoginModal(){
+  var overlay = document.getElementById('auth-overlay');
+  if(overlay){
+    overlay.classList.remove('hidden');
+    authShowLogin();
+  }
+}
+
+function authCloseLoginModal(){
+  var overlay = document.getElementById('auth-overlay');
+  if(overlay) overlay.classList.add('hidden');
+}
+window.authOpenLoginModal = authOpenLoginModal;
+window.authCloseLoginModal = authCloseLoginModal;
+
 function authShowApp(username){
+  var landing = document.getElementById('landing-screen');
   var overlay = document.getElementById('auth-overlay');
   var app = document.getElementById('main-app');
+  if(landing) landing.style.display='none';
   if(overlay) overlay.classList.add('hidden');
   if(app) app.style.display='';
 
@@ -355,9 +372,11 @@ function authLogout(){
     if(AUTH._sesTimer){ clearInterval(AUTH._sesTimer); AUTH._sesTimer=null; }
     if(AUTH._barTimer){ clearInterval(AUTH._barTimer); AUTH._barTimer=null; }
     var app=document.getElementById('main-app');
+    var landing=document.getElementById('landing-screen');
     var overlay=document.getElementById('auth-overlay');
     if(app) app.style.display='none';
-    if(overlay) overlay.classList.remove('hidden');
+    if(landing) landing.style.display='flex';
+    if(overlay) overlay.classList.add('hidden');
     var si=el('session-info'); if(si) si.style.display='none';
     ['auth-username','auth-password'].forEach(function(id){ var e=el(id); if(e) e.value=''; });
     var ae=el('auth-err'); if(ae) ae.style.display='none';
@@ -439,10 +458,16 @@ function authInit(){
       });
     } else {
       authShowLogin();
-      if(linkErrorMsg) authShowErr(linkErrorMsg);
+      if(linkErrorMsg){
+        authOpenLoginModal();
+        authShowErr(linkErrorMsg);
+      }
     }
   }).catch(function(){
     authShowLogin();
-    if(linkErrorMsg) authShowErr(linkErrorMsg);
+    if(linkErrorMsg){
+      authOpenLoginModal();
+      authShowErr(linkErrorMsg);
+    }
   });
 }
