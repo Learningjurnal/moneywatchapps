@@ -1461,6 +1461,8 @@ function renderStockChatPage(containerId) {
   var target = document.getElementById(containerId || 'page-stockchat');
   if (!target) return;
 
+  if (typeof ensureAiSignalLogResolved === 'function') ensureAiSignalLogResolved();
+
   var isChatTab = STOCKCHAT_ACTIVE_TAB === 'chat';
   var isFlowTab = STOCKCHAT_ACTIVE_TAB === 'broker-flow';
   var curTk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();

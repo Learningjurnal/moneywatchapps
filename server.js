@@ -2389,6 +2389,66 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
   }
 });
 
+// POST /api/ai/signal-reflection — AI Signal Reflection Log Fase 2
+// (2026-09-17): dipanggil client (public/js/00-config.js, resolveOneAiSignal())
+// SETELAH return riil sebuah sinyal ai_signal_log sudah bisa dihitung
+// (horizon_days-nya sudah lewat) — endpoint ini TIDAK menyentuh Supabase
+// sama sekali (server.js tidak pernah punya client Supabase, semua akses
+// DB di app ini client-side lewat RLS, lihat sql/schema_migration.sql).
+// Hanya menerima angka yang SUDAH dihitung client dan meminta Claude
+// menulis refleksi 2-4 kalimat post-mortem — bukan rekomendasi baru,
+// bukan tempat menghitung return (client sudah melakukan itu dari histori
+// harga riil sebelum memanggil ini, endpoint ini tidak fetch harga apa pun).
+app.post('/api/ai/signal-reflection', aiRateLimiter, async (req, res) => {
+  const { ticker, signalAction, entryPrice, exitPrice, rawReturnPct, benchmarkReturnPct, alphaReturnPct, outcome, rationale } = req.body || {};
+  if (!ticker || !signalAction || typeof rawReturnPct !== 'number') {
+    return res.status(400).json({ success: false, error: 'ticker, signalAction, dan rawReturnPct (angka) wajib diisi.' });
+  }
+
+  // Template deterministik — dipakai kalau Claude API tidak terkonfigurasi
+  // ATAU pemanggilan Claude gagal. Baris tetap ter-resolve dengan refleksi
+  // yang jujur (angka riil, bukan generik "kerja bagus!") daripada baris
+  // tergantung tanpa reflection_text selamanya menunggu Claude tersedia.
+  function templateReflection() {
+    const arah = (signalAction === 'BUY' || signalAction === 'STRONG BUY') ? 'BUY' : (signalAction === 'SELL' || signalAction === 'AVOID') ? 'JUAL/HINDARI' : 'NETRAL';
+    const hasil = outcome === 'WIN' ? 'sesuai arah sinyal' : outcome === 'LOSS' ? 'berlawanan dengan arah sinyal' : 'tidak signifikan ke arah manapun';
+    return `Sinyal ${arah} untuk ${ticker} menghasilkan return riil ${rawReturnPct.toFixed(2)}% (IHSG periode sama: ${(benchmarkReturnPct || 0).toFixed(2)}%, alpha ${(alphaReturnPct || 0).toFixed(2)}%) — pergerakan ${hasil}. Refleksi ini dihasilkan dari template deterministik (Claude API tidak tersedia saat resolusi), bukan analisis kontekstual penuh.`;
+  }
+
+  const ai = getAiClient();
+  if (!ai) {
+    return res.json({ success: true, reflection: templateReflection(), model: 'template-fallback' });
+  }
+
+  try {
+    const prompt = `Anda menganalisis HASIL AKTUAL sebuah sinyal teknikal masa lalu untuk pembelajaran (post-mortem) — ini BUKAN permintaan rekomendasi baru, jangan sarankan aksi apa pun.
+
+Data sinyal:
+- Ticker: ${ticker}
+- Sinyal yang diberikan saat itu: ${signalAction}
+- Harga entry (saat sinyal diberikan): Rp ${entryPrice}
+- Harga exit (setelah horizon waktu berlalu): Rp ${exitPrice}
+- Return riil ticker: ${rawReturnPct.toFixed(2)}%
+- Return benchmark IHSG periode sama: ${(benchmarkReturnPct || 0).toFixed(2)}%
+- Alpha (return ticker - return IHSG): ${(alphaReturnPct || 0).toFixed(2)}%
+- Hasil vs arah sinyal: ${outcome || 'NEUTRAL'}
+${rationale ? '- Rasionalisasi sinyal saat itu: ' + rationale : ''}
+
+Tulis refleksi 2-4 kalimat bahasa Indonesia: apakah sinyal ini terbukti benar, seberapa besar kontribusi arah pasar umum (IHSG) vs kekuatan spesifik ticker (alpha), dan satu pelajaran objektif dari hasil ini. Jangan mengulang angka yang sudah disebutkan di atas kata demi kata — sintesiskan maknanya.`;
+
+    const { response, usedModel } = await callClaudeWithRetry(
+      ai,
+      { max_tokens: 300, messages: [{ role: 'user', content: prompt }] },
+      { timeoutMs: 12000, maxRetries: 1 }
+    );
+    const text = claudeExtractText(response);
+    return res.json({ success: true, reflection: text || templateReflection(), model: text ? (usedModel || CLAUDE_MODEL) : 'template-fallback' });
+  } catch (err) {
+    console.warn('[AI Signal Reflection] Claude call failed, using template fallback:', err?.message || err);
+    return res.json({ success: true, reflection: templateReflection(), model: 'template-fallback' });
+  }
+});
+
 
 // In-memory cache for external market data requests (TTL 60s for live quotes, 300s for historical)
 // Helper: SSRF & URL security guard
