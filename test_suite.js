@@ -6567,6 +6567,48 @@ test('REGRESSION GUARD: 4 old radar/screener pages (Opportunity Radar, Market Ra
   assert(/window\.renderUnifiedScreenerPage = renderUnifiedScreenerPage/.test(jsSrc), 'REGRESSION: renderUnifiedScreenerPage is no longer exposed on window — router calls would fail');
 });
 
+// User-reported production screenshot (2026-09-18, Bandarmology BBCA):
+// "Arus investor asing saat ini mencatatkan Net Buy +Rp 0 M dengan
+// partisipasi pasar sebesar 0%" was showing for EVERY ticker on the real
+// (non-simulated) data path — per-ticker Invezgo broker summary
+// (investor=all) never has a foreign/domestic split (foreignFlow.available
+// is always false there, per computeBandarmologyVerdict() in
+// idx-data-engine.js), but the frontend coerced the resulting null into 0
+// and displayed it as if it were a real computed value.
+test('REGRESSION GUARD: Bandarmology foreign-flow widgets show honest "Tidak Tersedia" instead of a fabricated "+Rp 0 M / 0%" when foreignFlow.available is false', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const occurrences = (src.match(/ff\.available === false/g) || []).length;
+  assert(occurrences >= 4, `REGRESSION: expected at least 4 foreign-flow render spots to check ff.available === false, found ${occurrences}`);
+  assert(/Tidak Tersedia/.test(src), 'REGRESSION: the honest "Tidak Tersedia" foreign-flow label is gone');
+  assert(/Split asing\/domestik tidak ada di data ini|Data investor=all tidak punya split asing\/domestik/.test(src),
+    'REGRESSION: the explanatory sub-label for why foreign flow is unavailable is gone');
+  // The exact bullet text from the user's screenshot must no longer render
+  // unconditionally — it must be gated behind the available check.
+  assert(/ff\.available === false[\s\S]{0,400}Data arus investor asing/.test(src),
+    'REGRESSION: the tactical-takeaways bullet no longer gates the honest fallback behind ff.available === false');
+});
+
+test('REGRESSION GUARD: "Top 3 Buyer Konsentrasi" no longer falls back to a hardcoded 65% when real concentration data is absent', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(!/conc\.top3BuyPct \|\| conc\.top3BuyerPct \|\| 65/.test(src), 'REGRESSION: the hardcoded "|| 65" fallback for Top 3 Buyer concentration is back');
+  assert(/Konsentrasi Top 3 Buyer tidak tersedia/.test(src), 'REGRESSION: the honest "concentration unavailable" fallback text is gone');
+});
+
+// User-reported: "kepemilikan data KSEI data tidak tersedia padahal sudah
+// connect API" — dossierComputeKseiScore() used to show one generic
+// "belum diunggah/tidak ditemukan" message no matter WHY the live Invezgo
+// call failed (quota exhausted, subscription tier, auth, rate limit,
+// network) — even though generateShareholderComposition() already
+// captures the specific reason in result.errors. Surfacing the real reason
+// lets the user actually diagnose it instead of assuming "no data exists".
+test('REGRESSION GUARD: Stock Dossier KSEI pillar surfaces the SPECIFIC Invezgo failure reason (quota/subscription/auth/etc), not just a generic "not found" message', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(/kseiErr = live && Array\.isArray\(live\.errors\)/.test(src), 'REGRESSION: dossierComputeKseiScore() no longer reads live.errors to find the specific kseiComposition failure reason');
+  assert(/QUOTA_EXHAUSTED/.test(src) && /SUBSCRIPTION_INSUFFICIENT/.test(src) && /AUTH_FAILED/.test(src),
+    'REGRESSION: the specific Invezgo failure reason codes are no longer mapped to human-readable Indonesian text');
+  assert(/Sebab: ' \+ specificReason/.test(src), 'REGRESSION: the specific reason is no longer appended to the KSEI unavailable message');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

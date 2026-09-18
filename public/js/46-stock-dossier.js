@@ -477,6 +477,25 @@ function dossierComputeKseiScore(harvested) {
       };
     }
 
+    // FIX (2026-09-18, user-reported: "kepemilikan data KSEI data tidak
+    // tersedia padahal sudah connect API"): dulu SELALU menampilkan pesan
+    // generik "belum diunggah/tidak ditemukan" walau kseiLive.errors sudah
+    // punya alasan SPESIFIK (mis. quota Invezgo habis, subscription tidak
+    // mencakup endpoint ini, auth gagal) — pesan generik itu menyesatkan,
+    // seolah datanya genuinely tidak ada, padahal API-nya mungkin gagal
+    // karena sebab lain yang bisa ditindaklanjuti (beda pesan/solusi).
+    var kseiErr = live && Array.isArray(live.errors) ? live.errors.find(function(e) { return e.part === 'kseiComposition'; }) : null;
+    var reasonCodeMap = {
+      NOT_CONFIGURED: 'INVEZGO_API_KEY belum dikonfigurasi di server.',
+      QUOTA_EXHAUSTED: 'Kuota bulanan Invezgo API sudah habis — coba lagi setelah reset kuota.',
+      SUBSCRIPTION_INSUFFICIENT: 'Paket langganan Invezgo API saat ini tidak mencakup endpoint kepemilikan KSEI.',
+      AUTH_FAILED: 'Autentikasi ke Invezgo API gagal (API key tidak valid/ditolak).',
+      RATE_LIMITED: 'Invezgo API membatasi laju permintaan (rate limit) saat dicoba — coba lagi sebentar lagi.',
+      NETWORK_ERROR: 'Gagal menghubungi Invezgo API (masalah jaringan).',
+      UNEXPECTED_SCHEMA: 'Respons Invezgo API untuk endpoint ini tidak sesuai skema yang diharapkan.'
+    };
+    var specificReason = kseiErr ? (reasonCodeMap[kseiErr.reason] || ('Invezgo API mengembalikan: ' + kseiErr.reason)) : null;
+
     return {
       available: false,
       status: 'DATA_UNAVAILABLE',
@@ -484,7 +503,9 @@ function dossierComputeKseiScore(harvested) {
       freeFloat: null,
       institutionalPct: null,
       foreignPct: null,
-      reason: 'Data kepemilikan kustodian KSEI belum diunggah/tidak ditemukan untuk emiten ini, dan komposisi live Invezgo juga tidak tersedia.'
+      reason: specificReason
+        ? 'Data kepemilikan kustodian KSEI tidak tersedia untuk emiten ini. Sebab: ' + specificReason
+        : 'Data kepemilikan kustodian KSEI belum diunggah/tidak ditemukan untuk emiten ini, dan komposisi live Invezgo juga tidak tersedia.'
     };
   }
   var freeFloat = typeof stock.freeFloat === 'number' ? stock.freeFloat : (100 - (stock.totalMajorPercent || 0));

@@ -632,12 +632,24 @@ function renderAggregatedBrokerFlowView(data) {
     + '<div class="msub neu">' + Number(data.totalVolumeLot || 0).toLocaleString('id-ID') + ' Lot Diperdagangkan</div>'
     + '</div>'
 
-    // Card 2: Foreign Flow
-    + '<div class="metric" style="border-left:3px solid ' + (netForeignM >= 0 ? 'var(--green)' : 'var(--red)') + '">'
-    + '<div class="mlabel">NET FOREIGN FLOW</div>'
-    + '<div class="mval mono ' + (netForeignM >= 0 ? 'up' : 'dn') + '" style="font-size:20px">' + netForeignBadge + '</div>'
-    + '<div class="msub neu">Partisipasi Asing: <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong></div>'
-    + '</div>'
+    // Card 2: Foreign Flow — FIX (2026-09-18, user-reported production
+    // screenshot): per-ticker Invezgo broker summary (investor=all) has NO
+    // foreign/domestic split at all (ff.available:false, see
+    // computeBandarmologyVerdict() in idx-data-engine.js) — this used to
+    // silently read netValRp:null as 0 and show "Net Buy +Rp 0 M /
+    // Partisipasi Asing 0%" as if it were a real computed zero, for EVERY
+    // ticker, every time. Now discloses unavailability honestly instead.
+    + (ff.available === false
+        ? '<div class="metric" style="border-left:3px solid var(--text3)">'
+          + '<div class="mlabel">NET FOREIGN FLOW</div>'
+          + '<div class="mval mono neu" style="font-size:13px">Tidak Tersedia</div>'
+          + '<div class="msub neu">Data investor=all tidak punya split asing/domestik per broker</div>'
+          + '</div>'
+        : '<div class="metric" style="border-left:3px solid ' + (netForeignM >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+          + '<div class="mlabel">NET FOREIGN FLOW</div>'
+          + '<div class="mval mono ' + (netForeignM >= 0 ? 'up' : 'dn') + '" style="font-size:20px">' + netForeignBadge + '</div>'
+          + '<div class="msub neu">Partisipasi Asing: <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong></div>'
+          + '</div>')
 
     // Card 3: Top 1 Buyer Avg
     + '<div class="metric" style="border-left:3px solid var(--blue)">'
@@ -970,7 +982,16 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div>'
     + '<ul style="margin:0;padding-left:20px;font-size:12px;color:var(--text2);line-height:1.6">'
     + '<li>Level harga rata-rata Top Buyer (<strong style="color:var(--text)">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</strong>) dapat dijadikan area support kunci penahan penurunan harga.</li>'
-    + '<li>Arus investor asing saat ini mencatatkan ' + (netForeignM >= 0 ? '<strong class="up">Net Buy +Rp ' + netForeignM.toLocaleString('id-ID') + ' M</strong>' : '<strong class="dn">Net Sell -Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</strong>') + ' dengan partisipasi pasar sebesar <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong>.</li>'
+    // FIX (2026-09-18, user-reported production screenshot): dulu selalu
+    // menampilkan "Net Buy +Rp 0 M dengan partisipasi pasar 0%" untuk SETIAP
+    // ticker — per-ticker Invezgo broker summary (investor=all) tidak
+    // pernah punya split asing/domestik (ff.available selalu false di jalur
+    // data real), jadi netValRp:null dibaca sebagai 0 lalu ditampilkan
+    // seolah itu angka real. Sekarang jujur: baris ini disembunyikan kalau
+    // data memang tidak tersedia, bukan menampilkan "0" yang menyesatkan.
+    + (ff.available === false
+        ? '<li>Data arus investor asing (split asing/domestik per broker) <strong style="color:var(--text3)">tidak tersedia</strong> dari sumber data ini — Invezgo <code>investor=all</code> tidak menyertakan flag asing/domestik per broker.</li>'
+        : '<li>Arus investor asing saat ini mencatatkan ' + (netForeignM >= 0 ? '<strong class="up">Net Buy +Rp ' + netForeignM.toLocaleString('id-ID') + ' M</strong>' : '<strong class="dn">Net Sell -Rp ' + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</strong>') + ' dengan partisipasi pasar sebesar <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong>.</li>')
     + '<li>Karakteristik dominan pergerakan: <strong style="color:var(--text)">' + (rm.smartMoneyStatus || 'NORMAL') + '</strong> vs <strong style="color:var(--text)">' + (rm.retailStatus || 'NORMAL') + '</strong>.</li>'
     + '</ul>'
     + '</div>';
@@ -1200,10 +1221,17 @@ function renderBrokerSummaryWidget(data) {
     + '<div class="mlabel" style="font-size:9px">TOP 3 SELLER</div>'
     + '<div class="mval down mono" style="font-size:14px">' + (conc.top3SellPct || 0) + '%</div>'
     + '</div>'
-    + '<div class="metric" style="padding:8px;border-left:2px solid ' + (netForeignM >= 0 ? 'var(--green)' : 'var(--red)') + '">'
-    + '<div class="mlabel" style="font-size:9px">FOREIGN FLOW</div>'
-    + '<div class="mval ' + (netForeignM >= 0 ? 'up' : 'down') + ' mono" style="font-size:14px">' + netForeignBadge + '</div>'
-    + '</div>'
+    // FIX (2026-09-18, user-reported): honest "Tidak Tersedia" instead of a
+    // fabricated "+Rp 0 M" when the per-ticker feed has no F/D split.
+    + (ff.available === false
+        ? '<div class="metric" style="padding:8px;border-left:2px solid var(--text3)">'
+          + '<div class="mlabel" style="font-size:9px">FOREIGN FLOW</div>'
+          + '<div class="mval neu mono" style="font-size:11px">Tidak Tersedia</div>'
+          + '</div>'
+        : '<div class="metric" style="padding:8px;border-left:2px solid ' + (netForeignM >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+          + '<div class="mlabel" style="font-size:9px">FOREIGN FLOW</div>'
+          + '<div class="mval ' + (netForeignM >= 0 ? 'up' : 'down') + ' mono" style="font-size:14px">' + netForeignBadge + '</div>'
+          + '</div>')
     + '<div class="metric" style="padding:8px;border-left:2px solid var(--accent)">'
     + '<div class="mlabel" style="font-size:9px">SMART MONEY</div>'
     + '<div class="mval amb mono" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (rm.smartMoneyStatus || 'NEUTRAL') + '</div>'
@@ -1321,14 +1349,25 @@ function renderStockChatPage(containerId) {
     + '<div class="metric" style="border-left:3px solid var(--green)">'
     + '<div class="mlabel">STATUS BANDARMOLOGY (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
     + '<div class="mval ' + (verdict.includes('ACCUM') ? 'up' : (verdict.includes('DISTRIB') ? 'down' : 'amb')) + ' mono" style="font-size:19px">' + verdict + '</div>'
-    + '<div class="msub up">Top 3 Buyer ' + (conc.top3BuyPct || conc.top3BuyerPct || 65) + '% Konsentrasi</div>'
+    // FIX (2026-09-18, user-reported): "|| 65" was a hardcoded fallback
+    // percentage shown whenever real concentration data was falsy/absent —
+    // fabricated, not derived from any actual buyer data for this ticker.
+    + '<div class="msub up">' + ((conc.top3BuyPct || conc.top3BuyerPct) ? 'Top 3 Buyer ' + (conc.top3BuyPct || conc.top3BuyerPct) + '% Konsentrasi' : 'Konsentrasi Top 3 Buyer tidak tersedia') + '</div>'
     + '</div>'
 
-    + '<div class="metric" style="border-left:3px solid var(--blue)">'
-    + '<div class="mlabel">NET FOREIGN FLOW (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
-    + '<div class="mval mono" style="font-size:20px;color:var(--blue)">' + (netForeignM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="msub neu">' + (ff.participationPct ? 'Partisipasi Pasar ' + ff.participationPct + '%' : 'Arus Modal Asing BEI') + '</div>'
-    + '</div>'
+    // FIX (2026-09-18, user-reported): honest "Tidak Tersedia" instead of
+    // "+Rp 0 M" when this ticker's feed has no F/D split (ff.available:false).
+    + (ff.available === false
+        ? '<div class="metric" style="border-left:3px solid var(--text3)">'
+          + '<div class="mlabel">NET FOREIGN FLOW (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
+          + '<div class="mval mono neu" style="font-size:15px">Tidak Tersedia</div>'
+          + '<div class="msub neu">Split asing/domestik tidak ada di data ini</div>'
+          + '</div>'
+        : '<div class="metric" style="border-left:3px solid var(--blue)">'
+          + '<div class="mlabel">NET FOREIGN FLOW (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
+          + '<div class="mval mono" style="font-size:20px;color:var(--blue)">' + (netForeignM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</div>'
+          + '<div class="msub neu">' + (ff.participationPct ? 'Partisipasi Pasar ' + ff.participationPct + '%' : 'Arus Modal Asing BEI') + '</div>'
+          + '</div>')
 
     + '<div class="metric" style="border-left:3px solid var(--amber)">'
     + '<div class="mlabel">INTELLIGENCE FRAMEWORKS</div>'
