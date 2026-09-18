@@ -12,6 +12,14 @@
  * (0-100). Bobot formula adalah kalibrasi AWAL yang disetujui user
  * ("saya setuju karna bisa kalibrasi ulang") — boleh disesuaikan lagi
  * nanti tanpa mengubah struktur halaman ini.
+ *
+ * (2026-09-18, further consolidation) TradeWave's single-ticker "Wave
+ * Cockpit" and "Risk Planner" tabs were moved in here too, as 2 more
+ * top-level tabs (US_STATE.pageTab) alongside the main Screener table —
+ * the standalone TradeWave page/toolbar is gone entirely now. Their
+ * computation/render logic still lives in 37-tradewave-engine.js
+ * (twAnalyzeWave(), twRenderSubPage()) — this file just owns which tab is
+ * active and gives twRenderSubPage() a container to draw into.
  */
 
 var US_STATE = {
@@ -22,6 +30,7 @@ var US_STATE = {
   summary: null,
   dataSources: null,
   total: 0,
+  pageTab: 'screener', // 'screener' | 'cockpit' | 'planner'
   filters: {
     search: '',
     index: 'ALL',
@@ -35,6 +44,11 @@ var US_STATE = {
   sort: 'uptrendScore',
   order: 'desc'
 };
+
+function usSwitchPageTab(tab) {
+  US_STATE.pageTab = tab;
+  usRenderShell();
+}
 
 // Win-rate validation state (2026-09-18, user-requested: "bagaimana agar
 // saya bisa menguji apakah screener benar atau salah"). Track A
@@ -138,15 +152,39 @@ function usSortIndicator(field) {
   return US_STATE.order === 'desc' ? ' ▼' : ' ▲';
 }
 
+function usPageTabBtnStyle(active) {
+  return 'font-weight:700;' + (active ? 'background:rgba(0,200,255,0.15);border-color:#00c8ff;color:#00c8ff' : '');
+}
+
 function usRenderShell() {
   var c = el('page-radar');
   if (!c) return;
   var f = US_STATE.filters;
+  var pt = US_STATE.pageTab || 'screener';
 
   var html = '<div style="margin-bottom:16px">'
     + '<div class="ptitle">Screener</div>'
-    + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter.</div>'
+    + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter. Termasuk analisis Wave (Elliott Wave/SuperTrend) per-ticker (tab "Wave Cockpit") dan kalkulator ukuran posisi (tab "Risk Planner") — bekas TradeWave, sekarang jadi bagian dari Screener ini.</div>'
     + '</div>';
+
+  // Top-level page tabs — Screener (whole-market table) vs Wave Cockpit /
+  // Risk Planner (single-ticker, bekas halaman TradeWave terpisah,
+  // digabung ke sini 2026-09-18 atas permintaan user: "toolbar trade wave
+  // di hilangkan saja semua bergabung di scanner").
+  html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'screener\')" style="' + usPageTabBtnStyle(pt === 'screener') + '">📊 Screener</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'cockpit\')" style="' + usPageTabBtnStyle(pt === 'cockpit') + '">🌊 Wave Cockpit</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'planner\')" style="' + usPageTabBtnStyle(pt === 'planner') + '">📐 Risk Planner</button>'
+    + '</div>';
+
+  if (pt === 'cockpit' || pt === 'planner') {
+    html += '<div id="us-wave-subpage"></div>';
+    c.innerHTML = html;
+    if (typeof twRenderSubPage === 'function') {
+      twRenderSubPage('us-wave-subpage', pt === 'cockpit' ? 1 : 3);
+    }
+    return;
+  }
 
   // Data-source honesty banner
   if (US_STATE.dataSources) {
@@ -394,6 +432,8 @@ function renderUnifiedScreenerPage() {
 }
 
 window.renderUnifiedScreenerPage = renderUnifiedScreenerPage;
+window.usSwitchPageTab = usSwitchPageTab;
+window.usRenderShell = usRenderShell;
 window.usApplyFilters = usApplyFilters;
 window.usSetSort = usSetSort;
 window.usOpenTicker = usOpenTicker;

@@ -1,24 +1,27 @@
 /**
- * 37-tradewave-engine.js — TradeWave PRO & Wave Flow Intelligence Engine
- * Unified with Money Watch Pro (Final Enterprise Architecture)
- * 
+ * 37-tradewave-engine.js — TradeWave Wave Flow Intelligence Engine
+ *
  * CORE CAPABILITIES:
  * 1. Elliott Wave & Trend Impulse Detector (Waves 1-2-3-4-5 & ABC Corrective Cycles)
- * 2. SuperTrend Wave & 4-EMA Ribbon (EMA 9, 21, 50, 200 Trend Alignment)
+ * 2. SuperTrend Wave & 4-EMA Ribbon (EMA 9, 21, 50 Trend Alignment)
  * 3. Smart Money Wave & Flow Momentum (CMF-20, Volume Spikes, Accumulation/Distribution Phase)
- * 4. Fibonacci Wave Projection Targets (TP1: 1.272, TP2: 1.618, TP3: 2.618) & Invalidation Stop Loss
+ * 4. Fibonacci Wave Projection Targets (TP1: 0.618, TP2: 1.0, TP3: 1.618) & Invalidation Stop Loss
  * 5. Risk-to-Reward Position Sizing & Trade Wave Planner
  *
- * NOTE (2026-09-18): the multi-asset "Wave Scanner" tab that used to live
- * here was removed — it scanned a hardcoded ~25-ticker sample mixing IDX
- * equities and crypto, violating CLAUDE.md's whole-BEI-market screening
- * rule (never audited until now). The underlying SuperTrend/Elliott-Wave
- * formula was ported server-side (computeWaveAnalysis() in
- * lib/idx-data-engine.js) and now runs whole-market (958 BEI tickers,
- * cached) as extra columns/filter in the unified Screener page. Crypto
- * scanning was dropped per explicit user decision, to be rebuilt as its
- * own separate feature later. This file's single-ticker Wave Cockpit and
- * Risk Planner tabs are unaffected.
+ * NOTE (2026-09-18): TradeWave is no longer its own page/sidebar entry.
+ * Its whole-market "Wave Scanner" tab was removed first (it scanned a
+ * hardcoded ~25-ticker sample mixing IDX equities and crypto, violating
+ * CLAUDE.md's whole-BEI-market screening rule) — that formula was ported
+ * server-side as computeWaveAnalysis() (lib/idx-data-engine.js) and now
+ * runs whole-market as extra columns/filter in the unified Screener.
+ * Following that, the user asked for the single-ticker Wave Cockpit and
+ * Risk Planner tabs to move into the Screener too, as additional
+ * top-level tabs there, with the standalone TradeWave toolbar/page
+ * removed entirely. This file now only holds the computation engine
+ * (twAnalyzeWave() etc.) plus twRenderSubPage(), which the unified
+ * Screener (public/js/48-unified-screener.js) calls to render Wave
+ * Cockpit/Risk Planner content into its own tab container — there is no
+ * more standalone TradeWave page or tab-switch UI in this file.
  */
 
 (function(window, document) {
@@ -31,7 +34,6 @@
     ticker: 'BBCA',
     assetType: 'stock', // 'stock' | 'crypto' | 'us'
     timeframe: '1D',
-    activeTab: 1,       // 1: Wave Cockpit & Chart, 3: Risk & Position Planner (2: Wave Scanner removed)
     searchQuery: '',
     capital: 100000000, // Rp 100 Jt default
     riskPct: 1.5,       // 1.5% risk
@@ -107,8 +109,12 @@
       TW_FETCHING[cleanTk] = false;
       if (err) return; // stays on the honest "no data" state - never fall back to fake data
       // Only re-render if the user is still looking at this same ticker.
-      if (TW_STATE.ticker === cleanTk && typeof renderTradeWavePage === 'function') {
-        renderTradeWavePage();
+      // Wave Cockpit/Risk Planner now live inside the unified Screener page
+      // (usRenderShell() there decides whether to actually draw the Wave
+      // sub-tab based on its own current tab state) rather than having
+      // their own page-level renderer.
+      if (TW_STATE.ticker === cleanTk && typeof usRenderShell === 'function') {
+        usRenderShell();
       }
     });
   }
@@ -424,46 +430,22 @@
   // 3. UI RENDERING & COMPONENT BUILDERS
   // ══════════════════════════════════════════════════════════
 
-  function initTradeWaveSuite() {
-    var container = document.getElementById('page-tradewave');
-    if (!container) {
-      // If page container not yet injected, inject dynamically or wire to technical
-      renderTradeWavePage();
-    } else {
-      renderTradeWavePage();
-    }
-  }
-
-  function renderTradeWavePage() {
-    var c = document.getElementById('page-tradewave');
+  // Renders Wave Cockpit (tabIdx===1) or Risk Planner (tabIdx===3) into the
+  // given container id. Called by the unified Screener page
+  // (public/js/48-unified-screener.js's usRenderShell()) for its own
+  // "Wave Cockpit"/"Risk Planner" top-level tabs — there is no more
+  // standalone TradeWave page, so tab switching (which of these 2 modes to
+  // show) is entirely the caller's responsibility via `tabIdx`.
+  function twRenderSubPage(containerId, tabIdx) {
+    var c = document.getElementById(containerId);
     if (!c) return;
 
     var ticker = TW_STATE.ticker || 'BBCA';
     var data = twAnalyzeWave(ticker);
     TW_STATE.cachedAnalysis[ticker] = data;
 
-    var cur = data.currentPrice;
-    var chg = data.changePct;
-    var chgCls = chg >= 0 ? 'up' : 'dn';
-    var chgSign = chg >= 0 ? '+' : '';
-
-    var html = ''
-      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
-      + '  <div>'
-      + '    <div class="ptitle" style="display:flex;align-items:center;gap:8px">'
-      + '      TradeWave PRO'
-      + '      <span class="badge b-accent" style="font-size:10px;padding:2px 8px">AI WAVE RADAR</span>'
-      + '    </div>'
-      + '    <div class="psub">Deteksi Siklus Elliott Wave, SuperTrend Ribbon, Smart Money Flow (CMF), dan Proyeksi Target Fibonacci 1-2-3 Berbasis Probabilitas.</div>'
-      + '  </div>'
-      + '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-      + '    <button class="btn btn-ghost btn-sm" onclick="twSwitchTab(1)" style="font-weight:700;' + (TW_STATE.activeTab === 1 ? 'background:rgba(0,200,255,0.15);border-color:#00c8ff;color:#00c8ff' : '') + '">🌊 Wave Cockpit</button>'
-      + '    <button class="btn btn-ghost btn-sm" onclick="twSwitchTab(3)" style="font-weight:700;' + (TW_STATE.activeTab === 3 ? 'background:rgba(0,200,255,0.15);border-color:#00c8ff;color:#00c8ff' : '') + '">📐 Risk &amp; Sizing</button>'
-      + '  </div>'
-      + '</div>';
-
     // ── SEARCH & QUICK PICKER BAR ──
-    html += ''
+    var html = ''
       + '<div class="card" style="padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
       + '  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
       + '    <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px">'
@@ -514,16 +496,16 @@
       return;
     }
 
-    if (TW_STATE.activeTab === 1) {
+    if (tabIdx === 1) {
       html += renderTab1WaveCockpit(data);
-    } else if (TW_STATE.activeTab === 3) {
+    } else if (tabIdx === 3) {
       html += renderTab3RiskPlanner(data);
     }
 
     c.innerHTML = html;
 
     // Post-render chart mount
-    if (TW_STATE.activeTab === 1) {
+    if (tabIdx === 1) {
       setTimeout(function() { twMountWaveChart(data); }, 50);
     }
   }
@@ -813,16 +795,19 @@
   // 4. ACTION HANDLERS & NAVIGATION HOOKS
   // ══════════════════════════════════════════════════════════
 
-  function twSwitchTab(tabIdx) {
-    TW_STATE.activeTab = tabIdx;
-    renderTradeWavePage();
+  // Wave Cockpit/Risk Planner now render inside the unified Screener page's
+  // own tab container (see twRenderSubPage() above), so a re-render just
+  // means "ask the Screener to redraw itself" — it reads its own current
+  // tab (US_STATE.pageTab) and calls twRenderSubPage() again if relevant.
+  function twRerender() {
+    if (typeof usRenderShell === 'function') usRenderShell();
   }
 
   function twSetTicker(ticker) {
     TW_STATE.ticker = ticker.toUpperCase();
     var inp = document.getElementById('tw-ticker-input');
     if (inp) inp.value = TW_STATE.ticker;
-    renderTradeWavePage();
+    twRerender();
   }
 
   function twLoadTicker() {
@@ -836,11 +821,11 @@
     var riskInp = document.getElementById('tw-plan-risk');
     if (capInp) TW_STATE.capital = parseFloat(capInp.value) || 100000000;
     if (riskInp) TW_STATE.riskPct = parseFloat(riskInp.value) || 1.5;
-    renderTradeWavePage();
+    twRerender();
   }
 
   function twSetOrderSheet(entry, sl, tp) {
-    twSwitchTab(3);
+    if (typeof usSwitchPageTab === 'function') usSwitchPageTab('planner');
   }
 
   function twExecuteToTradeJournal(ticker, entry, lot, sl, tp) {
@@ -858,9 +843,7 @@
   // 5. EXPOSE TO GLOBAL NAMESPACE
   // ══════════════════════════════════════════════════════════
   window.TW_STATE = TW_STATE;
-  window.initTradeWaveSuite = initTradeWaveSuite;
-  window.renderTradeWavePage = renderTradeWavePage;
-  window.twSwitchTab = twSwitchTab;
+  window.twRenderSubPage = twRenderSubPage;
   window.twSetTicker = twSetTicker;
   window.twLoadTicker = twLoadTicker;
   window.twRecalcPlanner = twRecalcPlanner;

@@ -1189,21 +1189,31 @@ test('REGRESSION GUARD: sidebar collapse button CSS must stay scoped so .side-na
     'REGRESSION: .side-toolbar .side-collapse-btn scoped rule is missing — a bare .side-collapse-btn selector has LOWER specificity than .side-nav button (which sets width:100%) and would be overridden by it again, stretching this icon button and squeezing the search input next to it (see INCIDENT_LOG.md)');
 });
 
-// ── TEST 42 (superseded 2026-09-18): used to guard that TradeWave's old
-// "Wave Scanner" tab (tab 2) rendered before the single-ticker TICKER
-// INVALID gate. That tab has since been removed entirely — see the
-// "TradeWave Wave Scanner tab ... must stay removed" regression guard
-// above — so there is no tab-2 dispatch left to order against. This test
-// now just confirms renderTradeWavePage() only knows about tabs 1 and 3.
-test('REGRESSION GUARD: renderTradeWavePage() no longer has a tab-2 (Wave Scanner) dispatch branch', () => {
+// ── TEST 42 (superseded again 2026-09-18): originally guarded that
+// TradeWave's old "Wave Scanner" tab (tab 2) rendered before the
+// single-ticker TICKER INVALID gate inside renderTradeWavePage(); after
+// the Wave Scanner removal it was narrowed to just checking that function
+// still dispatched tabs 1/3. TradeWave has since stopped being its own
+// page entirely — the user asked for Wave Cockpit and Risk Planner to
+// move into the unified Screener too, as its own top-level tabs, with the
+// TradeWave toolbar/page removed. renderTradeWavePage()/TW_STATE.activeTab
+// are gone; twRenderSubPage(containerId, tabIdx) now renders whichever tab
+// the Screener asks for, into a container the Screener owns.
+test('REGRESSION GUARD: twRenderSubPage() renders Wave Cockpit (tabIdx 1) or Risk Planner (tabIdx 3) into a caller-supplied container, with no standalone TradeWave page left', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
-  const fn = src.match(/function renderTradeWavePage\(\) \{[\s\S]*?\n  \}\n/);
-  assert(fn, 'renderTradeWavePage() body not found — has it been renamed/removed?');
+  assert(!src.includes('function renderTradeWavePage'),
+    'REGRESSION: renderTradeWavePage() has reappeared — TradeWave is no longer a standalone page (consolidated into the unified Screener), so this must not come back');
+  assert(!src.includes('function initTradeWaveSuite'),
+    'REGRESSION: initTradeWaveSuite() has reappeared — there is no more page-tradewave to initialize');
+  assert(!/TW_STATE\.activeTab/.test(src),
+    'REGRESSION: TW_STATE.activeTab has reappeared — which Wave tab shows is now the unified Screener\'s US_STATE.pageTab, not TradeWave\'s own state');
+  const fn = src.match(/function twRenderSubPage\(containerId, tabIdx\) \{[\s\S]*?\n  \}\n/);
+  assert(fn, 'twRenderSubPage(containerId, tabIdx) not found — has it been renamed/removed?');
   const body = fn[0];
-  assert(!/if\s*\(\s*TW_STATE\.activeTab\s*===\s*2\s*\)/.test(body),
-    'REGRESSION: a tab-2 (Wave Scanner) dispatch branch has reappeared in renderTradeWavePage() — Wave Scanner was deliberately consolidated into the unified Screener and must not come back here');
-  assert(/TW_STATE\.activeTab === 1/.test(body) && /TW_STATE\.activeTab === 3/.test(body),
-    'REGRESSION: renderTradeWavePage() no longer dispatches tabs 1 (Wave Cockpit) and 3 (Risk Planner)');
+  assert(/document\.getElementById\(containerId\)/.test(body),
+    'REGRESSION: twRenderSubPage() no longer renders into the caller-supplied containerId — it must not hardcode a page-tradewave lookup again');
+  assert(/tabIdx === 1/.test(body) && /tabIdx === 3/.test(body),
+    'REGRESSION: twRenderSubPage() no longer dispatches tabIdx 1 (Wave Cockpit) and 3 (Risk Planner)');
 });
 
 // ── TEST 43: Bandarmology Smart Money Flow chart grid must fit exactly
@@ -6640,6 +6650,39 @@ test('REGRESSION GUARD: 4 old radar/screener pages (Opportunity Radar, Market Ra
   const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
   assert(/function renderUnifiedScreenerPage/.test(jsSrc), 'REGRESSION: renderUnifiedScreenerPage() is gone from 48-unified-screener.js');
   assert(/window\.renderUnifiedScreenerPage = renderUnifiedScreenerPage/.test(jsSrc), 'REGRESSION: renderUnifiedScreenerPage is no longer exposed on window — router calls would fail');
+});
+
+// User-directed (2026-09-18, after the Wave Scanner consolidation above):
+// "tab Wave Cockpit dan Risk Planner, dipindahkan sekalian ke scanner
+// namun beda tab diatas, toolbar trade wave di hilangkan saja semua
+// bergabung di scanner" — TradeWave's remaining single-ticker Wave Cockpit
+// and Risk Planner tabs (not screeners, but the user wanted the whole
+// TradeWave page/toolbar gone) move into the unified Screener page too, as
+// 2 more top-level tabs there, with the standalone TradeWave sidebar
+// button and page removed entirely.
+test('REGRESSION GUARD: TradeWave Wave Cockpit/Risk Planner consolidated into the Screener as top-level tabs; standalone TradeWave sidebar button removed', () => {
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(!/goPage\('tradewave',this\)/.test(htmlSrc),
+    'REGRESSION: the separate "TradeWave" sidebar button is back — should be consolidated into the Screener nav entry');
+
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(/UNIFIED_SCREENER_ALIASES\s*=\s*\[[^\]]*'tradewave'[^\]]*\]/.test(routerSrc),
+    'REGRESSION: goPage(\'tradewave\') no longer redirects to the Screener page container — any old bookmark/dynamic call would 404 silently');
+  assert(/case 'tradewave':if\(typeof renderUnifiedScreenerPage/.test(routerSrc),
+    'REGRESSION: the tradewave router case no longer renders the Unified Screener');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/pageTab:\s*'screener'/.test(jsSrc), 'REGRESSION: US_STATE.pageTab (screener/cockpit/planner) is gone');
+  assert(/function usSwitchPageTab/.test(jsSrc), 'REGRESSION: usSwitchPageTab() is gone — no way to switch to Wave Cockpit/Risk Planner tabs');
+  assert(/window\.usSwitchPageTab = usSwitchPageTab/.test(jsSrc), 'REGRESSION: usSwitchPageTab is no longer exposed on window — the tab buttons\' onclick would fail');
+  assert(/twRenderSubPage\('us-wave-subpage',\s*pt === 'cockpit' \? 1 : 3\)/.test(jsSrc),
+    'REGRESSION: usRenderShell() no longer calls twRenderSubPage() for the cockpit/planner tabs — Wave Cockpit/Risk Planner content will never render inside the Screener page');
+
+  const twSrc = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
+  assert(/function twRenderSubPage\(containerId, tabIdx\)/.test(twSrc),
+    'REGRESSION: twRenderSubPage(containerId, tabIdx) is gone — the Screener has nothing to call for Wave Cockpit/Risk Planner content');
+  assert(!/window\.initTradeWaveSuite/.test(twSrc) && !/window\.renderTradeWavePage/.test(twSrc),
+    'REGRESSION: TradeWave still exposes its own page-level render/init functions — it should no longer be a standalone page');
 });
 
 // User-reported production screenshot (2026-09-18, Bandarmology BBCA):
