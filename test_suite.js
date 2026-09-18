@@ -5048,12 +5048,16 @@ test('REGRESSION GUARD: Invezgo quota budget planning — longer cache TTL + quo
 test('REGRESSION GUARD: Bandarmology market-aggregate views use real Invezgo data when available, and correctly read both real/simulated field-name shapes', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
 
-  // 1. The 5 reachable market-aggregate views must no longer call
+  // 1. These market-aggregate views must no longer call
   // generateClientSideBrokerSummary() directly for their per-ticker loop —
   // they must go through bandarGetCachedSummary() (real-data-aware) instead.
+  // (renderBandarmologyForeignFlowView() was REPLACED entirely on 2026-09-18
+  // — it no longer loops a client-side ticker sample at all, real or
+  // simulated; it now fetches whole-market real data from a dedicated
+  // server endpoint. See the getUniverseForeignFlow() regression test
+  // below for its own coverage.)
   const viewBounds = [
     ['renderBandarmologyMarketFlowView', /function renderBandarmologyMarketFlowView[\s\S]*?\n}\n/],
-    ['renderBandarmologyForeignFlowView', /function renderBandarmologyForeignFlowView[\s\S]*?\n}\n/],
     ['renderBandarmologyAccumulationView', /function renderBandarmologyAccumulationView[\s\S]*?\n}\n/],
     ['renderBandarmologyDistributionView', /function renderBandarmologyDistributionView[\s\S]*?\n}\n/],
     ['renderBandarmologyBrokerTrailView', /function renderBandarmologyBrokerTrailView[\s\S]*?\n}\n/]
@@ -5895,6 +5899,43 @@ test('REGRESSION GUARD: vercel.json must schedule the radar-fundamentals cron on
   const fields = cronEntry.schedule.split(' ');
   assert(/^\d+$/.test(fields[0]) && /^\d+$/.test(fields[1]) && fields[2] === '*' && fields[3] === '*' && fields[4] === '*',
     'REGRESSION: the cron schedule no longer runs exactly once/day — Vercel Hobby (the user\'s plan) only allows 1 cron execution per day');
+});
+
+// ── TEST: getUniverseForeignFlow() must scan the WHOLE BEI market via
+// Invezgo's dedicated /analysis/top/foreign endpoint, never a hardcoded
+// ticker sample ──
+// User-reported (screenshot, 2026-09-18): "TOP 5 FOREIGN NET BUY... apakah
+// khusus LQ45? atau semua saham... jangan hanya analisa LQ45, analisa
+// semua emiten" — the old renderBandarmologyForeignFlowView() iterated a
+// hardcoded ~42-ticker sample AND had a separate bug (bandarForeignNetRp()
+// read a null netValRp for every real-data ticker, so both Net Buy/Net
+// Sell columns showed identical "+Rp 0 M" rows in the same order).
+test('REGRESSION GUARD: getUniverseForeignFlow() must scan the whole BEI market via fetchInvezgoTopMovers(\'foreign\'), not a hardcoded ticker sample', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function getUniverseForeignFlow/.test(engineSrc), 'REGRESSION: getUniverseForeignFlow() is gone from lib/idx-data-engine.js');
+  const fnSrc = engineSrc.match(/async function getUniverseForeignFlow[\s\S]*?\n\}\n/)[0];
+
+  assert(/fetchInvezgoTopMovers\(\s*'foreign'/.test(fnSrc),
+    'REGRESSION: getUniverseForeignFlow() no longer calls fetchInvezgoTopMovers(\'foreign\', ...) — the whole-market Invezgo endpoint');
+  assert(/netBuy\s*=\s*\(result\.accum \|\| \[\]\)\.map\(mapRow\)\.sort/.test(fnSrc),
+    'REGRESSION: getUniverseForeignFlow() no longer builds netBuy from result.accum');
+  assert(/netSell\s*=\s*\(result\.dist \|\| \[\]\)\.map\(mapRow\)\.sort/.test(fnSrc),
+    'REGRESSION: getUniverseForeignFlow() no longer builds netSell from result.dist');
+  assert(/isSimulated:\s*true/.test(fnSrc) && /NOT_CONFIGURED|Invezgo API key belum dikonfigurasi/.test(fnSrc),
+    'REGRESSION: getUniverseForeignFlow() no longer honestly reports isSimulated:true when Invezgo is not configured');
+
+  assert(/getUniverseForeignFlow,/.test(engineSrc), 'REGRESSION: getUniverseForeignFlow is no longer exported from lib/idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/foreign-flow'/.test(serverSrc), 'REGRESSION: GET /api/idx/foreign-flow route is gone from server.js');
+  assert(/getUniverseForeignFlow\(\)/.test(serverSrc), 'REGRESSION: the /api/idx/foreign-flow route no longer calls getUniverseForeignFlow()');
+
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const foreignViewSrc = cockpitSrc.match(/function renderBandarmologyForeignFlowView[\s\S]*?\n\}\n/)[0];
+  assert(!/var sampleTickers = \[/.test(foreignViewSrc),
+    'REGRESSION: renderBandarmologyForeignFlowView() reverted to iterating a hardcoded ticker sample instead of the whole-market endpoint');
+  assert(/async function bandarLoadRealForeignFlow/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() is gone — Foreign Flow view no longer fetches real whole-market data');
+  assert(/fetch\('\/api\/idx\/foreign-flow'\)/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() no longer fetches GET /api/idx/foreign-flow');
 });
 
 console.log('═══════════════════════════════════════════════════════');

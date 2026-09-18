@@ -633,7 +633,8 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
         + '<div style="font-size:12px;color:var(--text2);line-height:1.4">'
           + 'Aktivitas transaksi melonjak '
           + (ratio30 >= VS_SPIKE_THRESHOLD ? '<b style="color:var(--amber)">' + ratio30.toFixed(2) + 'x</b> di atas median 30 hari' : '<b style="color:var(--amber)">' + ratio14.toFixed(2) + 'x</b> di atas median 14 hari')
-          + '. Mengindikasikan partisipasi institusi atau rotasi likuiditas pasar.'
+          + '. Mengindikasikan partisipasi institusi atau rotasi likuiditas pasar. '
+          + '<span style="color:var(--text3)">(Volume total transaksi — gabungan sisi beli &amp; jual, bukan volume satu arah. Untuk tahu dominan buyer atau seller, cek tab Bandarmology.)</span>'
         + '</div>'
       + '</div>'
     + '</div>'
