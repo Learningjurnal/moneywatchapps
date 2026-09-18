@@ -6681,6 +6681,44 @@ test('REGRESSION GUARD: Unified Screener frontend renders a win-rate validation 
   assert(/Sampel cuma/.test(src), 'REGRESSION: the small-sample-size warning is gone from the backtest panel');
 });
 
+// User-reported (2026-09-18): "TOP BROKER BUYER (DATA RIIL) pada stock
+// intel tidak menampilkan data apa2... sudah coba semua timeframe, tidak
+// ada hasil". Root cause found: brokerRows was read from
+// `bSummary.brokers.buyer` — a field path that NEVER existed in either
+// data shape this card can receive (real server path returns `topBuyers`,
+// per generateBrokerSummary()'s normalize() in lib/idx-data-engine.js; the
+// simulated client-side fallback also returns `topBuyers`, never `brokers.
+// buyer`) — so brokerRows was unconditionally empty for every ticker and
+// every timeframe since this card was built, regardless of whether
+// Invezgo actually had real buyer data. Not a data-availability problem —
+// a field-name bug.
+test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER reads real buyer rows from bSummary.topBuyers (not the nonexistent bSummary.brokers.buyer), with field names matching what the row template expects', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(!/bSummary\.brokers && bSummary\.brokers\.buyer/.test(src), 'REGRESSION: brokerRows reverted to reading the nonexistent bSummary.brokers.buyer path — this was unconditionally empty for every ticker/timeframe');
+  assert(/Array\.isArray\(bSummary\.topBuyers\)/.test(src), 'REGRESSION: brokerRows no longer sources from bSummary.topBuyers (the real field both the live Invezgo path and the simulated fallback actually use)');
+
+  const fnMatch = src.match(/var brokerRows = \(bSummary && Array\.isArray\(bSummary\.topBuyers\)\)[\s\S]*?: \[\];/);
+  assert(fnMatch, 'REGRESSION: could not isolate the brokerRows mapping expression for direct testing');
+  const exprBody = fnMatch[0].replace('var brokerRows = ', '').replace(/;\s*$/, '');
+  const mapFn = new Function('bSummary', 'return (' + exprBody + ');');
+
+  const withData = mapFn({ topBuyers: [{ broker: 'AK', name: 'UBS Sekuritas', volumeLot: 1000, avgPrice: 9500 }] });
+  assert(withData.length === 1, 'REGRESSION: brokerRows is empty even when bSummary.topBuyers has real rows');
+  assert(withData[0].code === 'AK', 'REGRESSION: row.code no longer maps from topBuyers[].broker — CARD 4/modal templates read row.code, not row.broker');
+  assert(withData[0].volume === 1000, 'REGRESSION: row.volume no longer maps from topBuyers[].volumeLot — the render templates read row.volume, not row.volumeLot');
+  assert(withData[0].name === 'UBS Sekuritas' && withData[0].avgPrice === 9500, 'REGRESSION: name/avgPrice no longer carried through from topBuyers rows');
+
+  const withNoData = mapFn({ topBuyers: [] });
+  assert(Array.isArray(withNoData) && withNoData.length === 0, 'brokerRows should be an empty array (not null/undefined) when topBuyers is genuinely empty');
+});
+
+test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER empty-state message discloses WHY (simulated fallback / specific Invezgo failure reason), not just "no data"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(/brokerEmptyReason/.test(src), 'REGRESSION: brokerEmptyReason is gone — empty-state message no longer distinguishes simulated-fallback/quota-exhausted from genuinely-no-data');
+  const occurrences = (src.match(/data\.brokerTfTried \+ data\.brokerEmptyReason/g) || []).length;
+  assert(occurrences >= 2, `REGRESSION: expected both TOP BROKER BUYER render spots (CARD 4 + expanded modal) to append brokerEmptyReason to the empty-state message, found ${occurrences}`);
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
