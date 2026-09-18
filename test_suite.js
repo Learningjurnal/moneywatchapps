@@ -6162,6 +6162,56 @@ test('REGRESSION GUARD: Volume Spike Scanner must show an accumulation/distribut
   assert(/Indikasi DISTRIBUSI|>DISTRIBUSI</.test(src), 'REGRESSION: the DISTRIBUSI indication label is gone from Volume Spike Scanner');
 });
 
+// ── TEST: Harga Wajar (MoS) auto-fill must use REAL Invezgo financial
+// statement data for tickers outside the 27-ticker curated
+// STOCK_FINANCIAL_DATABASE, with an honest disclosure of the derived
+// fields, instead of leaving the historical table permanently empty ──
+// User-reported (2026-09-18): "Harga Wajar, tidak ada data lengkap padahal
+// API data invezgo punya data financial" — verified schema from 2 real
+// BBCA JSON files (BS+IS) the user uploaded: no shares-outstanding field
+// exists (derived as Net Income ÷ EPS), the EPS row's raw value needs an
+// undocumented ÷1,000,000 scale factor (inferred from numeric plausibility:
+// BBCA FY2025 467000000/1e6=467, a realistic EPS), and no DPS field exists
+// at all — all disclosed honestly rather than presented as primary data.
+test('REGRESSION GUARD: Harga Wajar auto-fill fetches real Invezgo financial-statement data for uncurated tickers, with honest disclosure', () => {
+  const invezgoSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/async function fetchInvezgoFinancialStatement/.test(invezgoSrc),
+    'REGRESSION: fetchInvezgoFinancialStatement() is gone from lib/invezgo-client.js');
+  assert(/fetchInvezgoFinancialStatement,/.test(invezgoSrc.match(/export \{[\s\S]*?\}/)[0]),
+    'REGRESSION: fetchInvezgoFinancialStatement is no longer exported from lib/invezgo-client.js');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = engineSrc.match(/async function generateFinancialStatementSummary[\s\S]*?\n\}\n/)[0];
+  assert(/fetchInvezgoFinancialStatement\(clean, 'BS', 'FY', 4\)/.test(fnSrc),
+    'REGRESSION: generateFinancialStatementSummary() no longer fetches the real Balance Sheet from Invezgo');
+  assert(/fetchInvezgoFinancialStatement\(clean, 'IS', 'FY', 4\)/.test(fnSrc),
+    'REGRESSION: generateFinancialStatementSummary() no longer fetches the real Income Statement from Invezgo');
+  assert(/netIncomeRaw \/ eps/.test(fnSrc),
+    'REGRESSION: shares outstanding is no longer derived from Net Income ÷ EPS (there is no direct shares field in the API)');
+  assert(/dps:\s*null/.test(fnSrc),
+    'REGRESSION: DPS is no longer honestly left null (no DPS field exists in the financial statement endpoint)');
+  assert(/disclosures:/.test(fnSrc) && /epsScaleAssumption/.test(fnSrc) && /sharesDerived/.test(fnSrc),
+    'REGRESSION: generateFinancialStatementSummary() no longer discloses the EPS scale assumption / derived-shares methodology');
+  assert(/generateFinancialStatementSummary$/m.test(engineSrc) || /generateFinancialStatementSummary\s*\n?\};/.test(engineSrc),
+    'REGRESSION: generateFinancialStatementSummary is no longer exported from lib/idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/financial-statement\/:ticker'/.test(serverSrc),
+    'REGRESSION: GET /api/idx/financial-statement/:ticker route is gone from server.js');
+  assert(/generateFinancialStatementSummary\(ticker\)/.test(serverSrc),
+    'REGRESSION: the financial-statement route no longer calls generateFinancialStatementSummary()');
+
+  const hwSrc = fs.readFileSync(path.join(__dirname, 'public/js/10-hargawajar.js'), 'utf8');
+  assert(/function hw_fetchRealFinancialStatement/.test(hwSrc),
+    'REGRESSION: hw_fetchRealFinancialStatement() is gone — Harga Wajar no longer fetches real data for uncurated tickers');
+  assert(/fetch\('\/api\/idx\/financial-statement\/'/.test(hwSrc),
+    'REGRESSION: hw_fetchRealFinancialStatement() no longer calls the real financial-statement endpoint');
+  assert(/if \(!STOCK_FINANCIAL_DATABASE\[tk\]\)/.test(hwSrc),
+    'REGRESSION: hw_autoFill() no longer branches to fetch real data for tickers outside the curated database');
+  assert(/function hw_renderAutoFillDisclosure/.test(hwSrc),
+    'REGRESSION: hw_renderAutoFillDisclosure() is gone — auto-filled derived data is no longer disclosed to the user');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

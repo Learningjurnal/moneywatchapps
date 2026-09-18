@@ -28,6 +28,7 @@ import {
   IDX_BROKERS,
   generateTradingHypothesis,
   generateExitHypothesis,
+  generateFinancialStatementSummary,
   assessDataQuality,
   getDataQualityTelemetry,
   classifyMarketRegime
@@ -3388,6 +3389,23 @@ app.get('/api/idx/calendar', async (req, res) => {
     return res.json({ success: true, ...cal });
   } catch (err) {
     console.error('[IDX Calendar Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/financial-statement/:ticker — Ringkasan Laporan Keuangan Real
+// (Invezgo) untuk auto-fill Harga Wajar/MoS. Lihat komentar
+// generateFinancialStatementSummary() di idx-data-engine.js untuk disclosure
+// faktor skala EPS dan metodologi derived-shares.
+app.get('/api/idx/financial-statement/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const data = await generateFinancialStatementSummary(ticker);
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    console.error('[IDX Financial Statement Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
