@@ -24,6 +24,7 @@ import {
   generateBrokerSummary,
   generateShareholderComposition,
   generateSectorRotation,
+  generateMasterScreener,
   fetchIdxStockScreener,
   IDX_BROKERS,
   generateTradingHypothesis,
@@ -3223,6 +3224,27 @@ app.get('/api/idx/shareholder-composition/:ticker', async (req, res) => {
 app.get('/api/idx/sector-rotation', async (req, res) => {
   try {
     const data = await generateSectorRotation();
+    return res.json({ success: true, data });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/idx/master-screener — Fase 1: Invezgo /screener/screen whole-
+// market formula scan (1 kuota = seluruh BEI). Formula hanya boleh memakai
+// field yang sudah terverifikasi live (lihat INVEZGO_SCREENER_ALLOWED_FIELDS
+// di lib/invezgo-client.js) — field lain ditolak di lib/invezgo-client.js
+// sebelum kuota terpakai. Body: { formula: "per > 0 AND per < 15 AND roe > 15" }.
+app.post('/api/idx/master-screener', async (req, res) => {
+  try {
+    const formula = req.body && req.body.formula;
+    if (!formula || typeof formula !== 'string') {
+      return res.status(400).json({ success: false, error: 'formula (string) wajib diisi' });
+    }
+    const data = await generateMasterScreener(formula);
+    if (!data.available) {
+      return res.json({ success: false, data });
+    }
     return res.json({ success: true, data });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

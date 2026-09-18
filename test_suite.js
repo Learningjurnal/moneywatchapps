@@ -6423,6 +6423,50 @@ test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER lets the user pick a broker
     'REGRESSION: the honest "no data for this timeframe, try a longer one" message is gone — reverted to always suggesting "click Refresh"');
 });
 
+// Master Screener Fase 1 (2026-09-18, user-approved: "perkuat dulu dengan
+// data yang bisa" — build now with confirmed-live fields, defer the rest).
+// fetchInvezgoScreener() must reject any formula field outside the
+// live-verified allowlist BEFORE spending quota (Invezgo's own API silently
+// turns an unknown/miscapitalized field into 0 instead of erroring, per the
+// user's live-tested audit — a false "matched:true" for the whole market is
+// the failure mode this guards against).
+test('REGRESSION GUARD: Master Screener (fetchInvezgoScreener) rejects unverified formula fields before spending Invezgo quota', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/function fetchInvezgoScreener/.test(src), 'REGRESSION: fetchInvezgoScreener() is gone');
+  assert(/function validateScreenerFormula/.test(src), 'REGRESSION: validateScreenerFormula() is gone');
+  assert(/INVEZGO_SCREENER_ALLOWED_FIELDS = new Set\(\['close', 'pbv', 'per', 'roe'\]\)/.test(src),
+    'REGRESSION: the strict 4-field allowlist (close/pbv/per/roe) was widened without live verification of the new field');
+  assert(/_screenerThrottleWait/.test(src),
+    'REGRESSION: the dedicated screener rate-limiter is gone — /screener/screen throttles more aggressively than the normal monthly quota per the user-tested audit');
+  assert(/fetchInvezgoScreener,\s*\n\s*validateScreenerFormula,\s*\n\s*INVEZGO_SCREENER_ALLOWED_FIELDS,/.test(src),
+    'REGRESSION: fetchInvezgoScreener/validateScreenerFormula/INVEZGO_SCREENER_ALLOWED_FIELDS no longer exported from invezgo-client.js');
+
+  const validateScreenerFormula = (() => {
+    const allowlistLine = "const INVEZGO_SCREENER_ALLOWED_FIELDS = new Set(['close', 'pbv', 'per', 'roe']);\n";
+    const m = src.match(/function validateScreenerFormula\(formula\) \{[\s\S]*?\n\}\n/);
+    assert(m, 'REGRESSION: could not isolate validateScreenerFormula() body for direct testing');
+    const body = allowlistLine + m[0].replace('function validateScreenerFormula(formula) {', '').replace(/\n\}\n$/, '');
+    const fn = new Function('formula', body);
+    return fn;
+  })();
+  const valid = validateScreenerFormula('per > 0 AND per < 15 AND roe > 15');
+  assert(valid.valid === true, 'REGRESSION: a formula using only allowlisted fields (per, roe) is wrongly rejected');
+  const invalid = validateScreenerFormula('PER > 0 AND bandarValue > 1000');
+  assert(invalid.valid === false, 'REGRESSION: a formula with an unverified/miscapitalized field (PER, bandarValue) is wrongly accepted — this is exactly the silent-zero trap the audit found');
+  assert(invalid.unknownFields.includes('PER') && invalid.unknownFields.includes('bandarValue'),
+    'REGRESSION: unknownFields does not report which tokens failed the allowlist check');
+});
+
+test('REGRESSION GUARD: Master Screener engine (generateMasterScreener) and server route exist and enrich matched rows with universe name/sector', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function generateMasterScreener\(formula\)/.test(engineSrc), 'REGRESSION: generateMasterScreener() is gone from idx-data-engine.js');
+  assert(/generateMasterScreener,/.test(engineSrc), 'REGRESSION: generateMasterScreener no longer exported from idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.post\('\/api\/idx\/master-screener'/.test(serverSrc), 'REGRESSION: POST /api/idx/master-screener route is gone');
+  assert(/generateMasterScreener,/.test(serverSrc), 'REGRESSION: generateMasterScreener no longer imported in server.js');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
