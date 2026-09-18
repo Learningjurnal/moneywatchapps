@@ -7,8 +7,18 @@
  * 2. SuperTrend Wave & 4-EMA Ribbon (EMA 9, 21, 50, 200 Trend Alignment)
  * 3. Smart Money Wave & Flow Momentum (CMF-20, Volume Spikes, Accumulation/Distribution Phase)
  * 4. Fibonacci Wave Projection Targets (TP1: 1.272, TP2: 1.618, TP3: 2.618) & Invalidation Stop Loss
- * 5. Multi-Asset Wave Scanner (IDX Equities, US Stocks, and Top Cryptocurrencies)
- * 6. Risk-to-Reward Position Sizing & Trade Wave Planner
+ * 5. Risk-to-Reward Position Sizing & Trade Wave Planner
+ *
+ * NOTE (2026-09-18): the multi-asset "Wave Scanner" tab that used to live
+ * here was removed — it scanned a hardcoded ~25-ticker sample mixing IDX
+ * equities and crypto, violating CLAUDE.md's whole-BEI-market screening
+ * rule (never audited until now). The underlying SuperTrend/Elliott-Wave
+ * formula was ported server-side (computeWaveAnalysis() in
+ * lib/idx-data-engine.js) and now runs whole-market (958 BEI tickers,
+ * cached) as extra columns/filter in the unified Screener page. Crypto
+ * scanning was dropped per explicit user decision, to be rebuilt as its
+ * own separate feature later. This file's single-ticker Wave Cockpit and
+ * Risk Planner tabs are unaffected.
  */
 
 (function(window, document) {
@@ -21,47 +31,13 @@
     ticker: 'BBCA',
     assetType: 'stock', // 'stock' | 'crypto' | 'us'
     timeframe: '1D',
-    activeTab: 1,       // 1: Wave Cockpit & Chart, 2: Wave Scanner, 3: Risk & Position Planner
-    filterWave: 'all',
+    activeTab: 1,       // 1: Wave Cockpit & Chart, 3: Risk & Position Planner (2: Wave Scanner removed)
     searchQuery: '',
     capital: 100000000, // Rp 100 Jt default
     riskPct: 1.5,       // 1.5% risk
     chartMode: 'wave',
     cachedAnalysis: {}
   };
-
-  var TW_UNIVERSE = [
-    // Top IDX Equities
-    { code: 'BBCA', name: 'Bank Central Asia', sector: 'Financials', type: 'stock', base: 9800 },
-    { code: 'BBRI', name: 'Bank Rakyat Indonesia', sector: 'Financials', type: 'stock', base: 4950 },
-    { code: 'BMRI', name: 'Bank Mandiri', sector: 'Financials', type: 'stock', base: 6750 },
-    { code: 'BBNI', name: 'Bank Negara Indonesia', sector: 'Financials', type: 'stock', base: 5350 },
-    { code: 'TLKM', name: 'Telkom Indonesia', sector: 'Telecommunication', type: 'stock', base: 2950 },
-    { code: 'ASII', name: 'Astra International', sector: 'Industrial', type: 'stock', base: 5100 },
-    { code: 'UNVR', name: 'Unilever Indonesia', sector: 'Consumer', type: 'stock', base: 2600 },
-    { code: 'ICBP', name: 'Indofood CBP', sector: 'Consumer', type: 'stock', base: 11400 },
-    { code: 'INDF', name: 'Indofood Sukses Makmur', sector: 'Consumer', type: 'stock', base: 6850 },
-    { code: 'KLBF', name: 'Kalbe Farma', sector: 'Healthcare', type: 'stock', base: 1680 },
-    { code: 'ADRO', name: 'Adaro Energy', sector: 'Energy', type: 'stock', base: 3650 },
-    { code: 'ANTM', name: 'Aneka Tambang', sector: 'Basic Materials', type: 'stock', base: 1540 },
-    { code: 'INCO', name: 'Vale Indonesia', sector: 'Basic Materials', type: 'stock', base: 3820 },
-    { code: 'MDKA', name: 'Merdeka Copper Gold', sector: 'Basic Materials', type: 'stock', base: 2320 },
-    { code: 'PTBA', name: 'Bukit Asam', sector: 'Energy', type: 'stock', base: 2750 },
-    { code: 'PGAS', name: 'Perusahaan Gas Negara', sector: 'Energy', type: 'stock', base: 1520 },
-    { code: 'JSMR', name: 'Jasa Marga', sector: 'Infrastructure', type: 'stock', base: 4900 },
-    { code: 'CPIN', name: 'Charoen Pokphand', sector: 'Consumer', type: 'stock', base: 5150 },
-    { code: 'GOTO', name: 'GoTo Gojek Tokopedia', sector: 'Technology', type: 'stock', base: 54 },
-    { code: 'BRIS', name: 'Bank Syariah Indonesia', sector: 'Financials', type: 'stock', base: 2850 },
-    { code: 'AMMN', name: 'Amman Mineral', sector: 'Basic Materials', type: 'stock', base: 10200 },
-    { code: 'BUMI', name: 'Bumi Resources', sector: 'Energy', type: 'stock', base: 142 },
-
-    // Top Cryptos
-    { code: 'BTC', name: 'Bitcoin', sector: 'Layer 1', type: 'crypto', base: 67500 },
-    { code: 'ETH', name: 'Ethereum', sector: 'Layer 1', type: 'crypto', base: 3480 },
-    { code: 'SOL', name: 'Solana', sector: 'Layer 1', type: 'crypto', base: 178 },
-    { code: 'BNB', name: 'BNB Chain', sector: 'Layer 1', type: 'crypto', base: 590 },
-    { code: 'XRP', name: 'Ripple', sector: 'Payments', type: 'crypto', base: 0.58 }
-  ];
 
   var TW_CHARTS = {};
 
@@ -482,7 +458,6 @@
       + '  </div>'
       + '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
       + '    <button class="btn btn-ghost btn-sm" onclick="twSwitchTab(1)" style="font-weight:700;' + (TW_STATE.activeTab === 1 ? 'background:rgba(0,200,255,0.15);border-color:#00c8ff;color:#00c8ff' : '') + '">🌊 Wave Cockpit</button>'
-      + '    <button class="btn btn-ghost btn-sm" onclick="twSwitchTab(2)" style="font-weight:700;' + (TW_STATE.activeTab === 2 ? 'background:rgba(0,200,255,0.15);border-color:#00c8ff;color:#00c8ff' : '') + '">🔍 Wave Scanner</button>'
       + '    <button class="btn btn-ghost btn-sm" onclick="twSwitchTab(3)" style="font-weight:700;' + (TW_STATE.activeTab === 3 ? 'background:rgba(0,200,255,0.15);border-color:#00c8ff;color:#00c8ff' : '') + '">📐 Risk &amp; Sizing</button>'
       + '  </div>'
       + '</div>';
@@ -505,7 +480,6 @@
       + '      <button class="btn btn-ghost btn-xs" onclick="twSetTicker(\'TLKM\')">TLKM</button>'
       + '      <button class="btn btn-ghost btn-xs" onclick="twSetTicker(\'ADRO\')">ADRO</button>'
       + '      <button class="btn btn-ghost btn-xs" onclick="twSetTicker(\'ANTM\')">ANTM</button>'
-      + '      <button class="btn btn-ghost btn-xs" onclick="twSetTicker(\'BTC\')">BTC</button>'
       + '    </div>'
       + '  </div>'
       + '  <div style="display:flex;align-items:center;gap:8px">'
@@ -515,25 +489,6 @@
       + '</div>';
 
     // ── ACTIVE TAB RENDERING ──
-    // FIX: Wave Scanner (tab 2) scans its own multi-ticker universe — it
-    // never reads `data` (the single currently-selected ticker's wave
-    // analysis) at all (see renderTab2WaveScanner(), called with no args).
-    // But the invalid-ticker gate right below used to run unconditionally
-    // before this tab check, so whenever TW_STATE.ticker's own analysis
-    // was invalid (e.g. a ticker with no 65-day OHLCV cached yet — a real,
-    // reachable state, not just an unregistered ticker despite the error
-    // card's "TICKER INVALID" heading), clicking "Wave Scanner" correctly
-    // switched TW_STATE.activeTab to 2 and highlighted the button, but the
-    // page kept showing that same single-ticker error card instead of the
-    // scanner — looking exactly like the button "does nothing" (reported
-    // by the user). Tab 2 is now rendered before that gate is even
-    // reached, since it has no dependency on it.
-    if (TW_STATE.activeTab === 2) {
-      html += renderTab2WaveScanner();
-      c.innerHTML = html;
-      return;
-    }
-
     if (!data || data.isValid === false) {
       var unkTk = (data && data.ticker) || ticker || 'UNKNOWN';
       var errMsg = (data && data.error) || 'Ticker "' + unkTk + '" tidak terdaftar dalam Stock Universe IDX atau Yahoo Finance.';
@@ -564,8 +519,6 @@
     } else if (TW_STATE.activeTab === 3) {
       html += renderTab3RiskPlanner(data);
     }
-    // NOTE: activeTab === 2 (Wave Scanner) is handled and returned earlier
-    // above, before the single-ticker validity gate — it never reaches here.
 
     c.innerHTML = html;
 
@@ -679,113 +632,6 @@
       + '    </div>'
       + '  </div>'
       + '</div>';
-  }
-
-  function renderTab2WaveScanner() {
-    var list = TW_UNIVERSE.map(function(item) {
-      return twAnalyzeWave(item.code);
-    });
-
-    // FIX: twAnalyzeWave() returns a minimal { isValid:false, ticker, error }
-    // shape (no changePct/waveScore/superTrend/flow/targets) whenever a
-    // ticker has no 65-day OHLCV cached yet (a real, reachable state for
-    // any ticker whose background fetch hasn't landed, not just a sandbox
-    // artifact). The row-rendering loop below reads those fields
-    // unconditionally (e.g. `chg.toFixed(2)`), so a single invalid entry
-    // in TW_UNIVERSE used to throw and abort this entire render — making
-    // the whole "Wave Scanner" tab appear completely unresponsive even
-    // though its button click handler ran correctly. Drop invalid entries
-    // here instead of crashing on them; the existing "no rows" empty state
-    // below already covers the case where none are valid yet.
-    list = list.filter(function(x) { return x.isValid !== false; });
-    var validCount = list.length;
-
-    if (TW_STATE.filterWave !== 'all') {
-      list = list.filter(function(x) {
-        return x.wavePhase === TW_STATE.filterWave;
-      });
-    }
-
-    if (TW_STATE.searchQuery) {
-      var q = TW_STATE.searchQuery.toLowerCase();
-      list = list.filter(function(x) {
-        return x.ticker.toLowerCase().includes(q);
-      });
-    }
-
-    // Sort by wave quality score descending
-    list.sort(function(a, b) { return b.waveScore - a.waveScore; });
-
-    var html = ''
-      + '<div class="card" style="padding:20px;margin-bottom:18px">'
-      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">'
-      + '    <div>'
-      + '      <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '        <i class="ti ti-radar" style="color:#00c8ff"></i> Live Multi-Asset Wave Scanner &amp; Setup Detector'
-      + '      </div>'
-      + '      <div style="font-size:12px;color:var(--text3)">Pemindaian otomatis seluruh emiten LQ45 &amp; Crypto berdasarkan posisi fase gelombang Elliott Wave dan keselarasan SuperTrend.</div>'
-      + '    </div>'
-      + '    <div style="display:flex;gap:6px;flex-wrap:wrap">'
-      + '      <button class="btn btn-ghost btn-xs ' + (TW_STATE.filterWave === 'all' ? 'on' : '') + '" onclick="twSetFilterWave(\'all\')">Semua (' + TW_UNIVERSE.length + ')</button>'
-      + '      <button class="btn btn-ghost btn-xs ' + (TW_STATE.filterWave === 'WAVE 3 EXTENSION' ? 'on' : '') + '" onclick="twSetFilterWave(\'WAVE 3 EXTENSION\')">Wave 3 (Rally)</button>'
-      + '      <button class="btn btn-ghost btn-xs ' + (TW_STATE.filterWave === 'WAVE 1 BREAKOUT' ? 'on' : '') + '" onclick="twSetFilterWave(\'WAVE 1 BREAKOUT\')">Wave 1 (Breakout)</button>'
-      + '      <button class="btn btn-ghost btn-xs ' + (TW_STATE.filterWave === 'WAVE 2 DIP BUY' ? 'on' : '') + '" onclick="twSetFilterWave(\'WAVE 2 DIP BUY\')">Wave 2 (Dip Buy)</button>'
-      + '      <button class="btn btn-ghost btn-xs ' + (TW_STATE.filterWave === 'WAVE 4 RETEST' ? 'on' : '') + '" onclick="twSetFilterWave(\'WAVE 4 RETEST\')">Wave 4 (Retest)</button>'
-      + '    </div>'
-      + '  </div>'
-
-      + '  <div style="overflow-x:auto">'
-      + '    <table class="tbl">'
-      + '      <thead>'
-      + '        <tr>'
-      + '          <th>Ticker</th>'
-      + '          <th>Harga Terakhir</th>'
-      + '          <th>Fase Elliott Wave</th>'
-      + '          <th>SuperTrend Status</th>'
-      + '          <th>Smart Money (CMF)</th>'
-      + '          <th>Target 2 (Golden Fib)</th>'
-      + '          <th>Invalidation</th>'
-      + '          <th>R:R Ratio</th>'
-      + '          <th>Wave Score</th>'
-      + '          <th>Aksi</th>'
-      + '        </tr>'
-      + '      </thead>'
-      + '      <tbody>';
-
-    if (!list.length) {
-      var emptyMsg = validCount === 0
-        ? 'Data harga/candle real-time belum tersedia untuk emiten dalam universe scan. Sedang menyinkronkan data pasar...'
-        : 'Tidak ada emiten yang cocok dengan filter fase wave saat ini.';
-      html += '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text3)">' + emptyMsg + '</td></tr>';
-    } else {
-      list.forEach(function(row) {
-        var chg = row.changePct;
-        html += '<tr>'
-          + '<td style="font-weight:800;font-family:var(--font-mono);color:var(--text)">'
-          + '  <a href="javascript:void(0)" onclick="twSetTicker(\'' + row.ticker + '\')" style="color:#00c8ff;text-decoration:none">' + row.ticker + '</a>'
-          + '</td>'
-          + '<td style="font-family:var(--font-mono)">'
-          + '  Rp ' + Number(row.currentPrice).toLocaleString('id-ID')
-          + '  <span class="' + (chg >= 0 ? 'up' : 'dn') + '" style="font-size:10px;margin-left:4px">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</span>'
-          + '</td>'
-          + '<td><span class="badge ' + row.waveBadge + '">' + row.wavePhase + '</span></td>'
-          + '<td><span style="font-size:11px;font-weight:700;color:' + (row.superTrend.isBullish ? 'var(--green)' : 'var(--red)') + '">' + (row.superTrend.isBullish ? '🟢 Bullish' : '🔴 Bearish') + '</span></td>'
-          + '<td style="font-family:var(--font-mono);font-size:11px;color:' + (row.flow.cmf >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (row.flow.cmf >= 0 ? '+' : '') + row.flow.cmf + '%</td>'
-          + '<td style="font-family:var(--font-mono);color:var(--green);font-weight:700">Rp ' + Number(row.targets.tp2).toLocaleString('id-ID') + '</td>'
-          + '<td style="font-family:var(--font-mono);color:var(--red)">Rp ' + Number(row.targets.invalidation).toLocaleString('id-ID') + '</td>'
-          + '<td style="font-family:var(--font-mono);font-weight:700">' + row.targets.riskReward + '</td>'
-          + '<td>'
-          + '  <span style="font-weight:800;color:' + (row.waveScore >= 65 ? 'var(--green)' : 'var(--text)') + '">' + row.waveScore + '</span>/100'
-          + '</td>'
-          + '<td>'
-          + '  <button class="btn btn-ghost btn-xs" onclick="twSetTicker(\'' + row.ticker + '\');twSwitchTab(1)" style="font-size:10px;padding:3px 8px">Chart ↗</button>'
-          + '</td>'
-          + '</tr>';
-      });
-    }
-
-    html += '</tbody></table></div></div>';
-    return html;
   }
 
   function renderTab3RiskPlanner(data) {
@@ -985,11 +831,6 @@
     twSetTicker(val);
   }
 
-  function twSetFilterWave(phase) {
-    TW_STATE.filterWave = phase;
-    renderTradeWavePage();
-  }
-
   function twRecalcPlanner() {
     var capInp = document.getElementById('tw-plan-cap');
     var riskInp = document.getElementById('tw-plan-risk');
@@ -1017,13 +858,11 @@
   // 5. EXPOSE TO GLOBAL NAMESPACE
   // ══════════════════════════════════════════════════════════
   window.TW_STATE = TW_STATE;
-  window.TW_UNIVERSE = TW_UNIVERSE;
   window.initTradeWaveSuite = initTradeWaveSuite;
   window.renderTradeWavePage = renderTradeWavePage;
   window.twSwitchTab = twSwitchTab;
   window.twSetTicker = twSetTicker;
   window.twLoadTicker = twLoadTicker;
-  window.twSetFilterWave = twSetFilterWave;
   window.twRecalcPlanner = twRecalcPlanner;
   window.twSetOrderSheet = twSetOrderSheet;
   window.twExecuteToTradeJournal = twExecuteToTradeJournal;

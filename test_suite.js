@@ -1189,34 +1189,21 @@ test('REGRESSION GUARD: sidebar collapse button CSS must stay scoped so .side-na
     'REGRESSION: .side-toolbar .side-collapse-btn scoped rule is missing — a bare .side-collapse-btn selector has LOWER specificity than .side-nav button (which sets width:100%) and would be overridden by it again, stretching this icon button and squeezing the search input next to it (see INCIDENT_LOG.md)');
 });
 
-// ── TEST 42: TradeWave "Wave Scanner" tab must render before the
-// single-ticker validity gate (found by the user, 2026-09-11) — Tab 2
-// (Wave Scanner) scans its own multi-ticker universe and never depends on
-// TW_STATE.ticker's own analysis, but renderTradeWavePage() used to run
-// the `if (!data || data.isValid === false)` TICKER INVALID gate
-// unconditionally before checking which tab was active. Whenever the
-// currently-selected ticker had no valid analysis (e.g. <65 days of
-// cached OHLCV — a real, reachable state, not just an unregistered
-// ticker), clicking "Wave Scanner" correctly switched TW_STATE.activeTab
-// to 2 and highlighted the button, but the page kept showing the
-// single-ticker error card instead of the scanner — looking exactly like
-// the button "does nothing".
-test('REGRESSION GUARD: TradeWave Wave Scanner (tab 2) must render before the single-ticker TICKER INVALID gate', () => {
+// ── TEST 42 (superseded 2026-09-18): used to guard that TradeWave's old
+// "Wave Scanner" tab (tab 2) rendered before the single-ticker TICKER
+// INVALID gate. That tab has since been removed entirely — see the
+// "TradeWave Wave Scanner tab ... must stay removed" regression guard
+// above — so there is no tab-2 dispatch left to order against. This test
+// now just confirms renderTradeWavePage() only knows about tabs 1 and 3.
+test('REGRESSION GUARD: renderTradeWavePage() no longer has a tab-2 (Wave Scanner) dispatch branch', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
   const fn = src.match(/function renderTradeWavePage\(\) \{[\s\S]*?\n  \}\n/);
   assert(fn, 'renderTradeWavePage() body not found — has it been renamed/removed?');
   const body = fn[0];
-  // NOTE: "TW_STATE.activeTab === 2" also appears earlier in this function
-  // inside the Wave Scanner *button*'s active-highlight style — that's not
-  // the routing branch, so match the specific `if (...) { ... return; }`
-  // dispatch statement instead of the bare substring.
-  const tab2Match = body.match(/if\s*\(\s*TW_STATE\.activeTab\s*===\s*2\s*\)\s*\{[\s\S]*?return;\s*\}/);
-  const gateIdx = body.indexOf('data.isValid === false');
-  assert(tab2Match, 'REGRESSION: no early-return `if (TW_STATE.activeTab === 2) {...return;}` dispatch found in renderTradeWavePage()');
-  const tab2Idx = body.indexOf(tab2Match[0]);
-  assert(gateIdx !== -1, 'REGRESSION: no data.isValid === false gate found in renderTradeWavePage()');
-  assert(tab2Idx < gateIdx,
-    'REGRESSION: the TICKER INVALID gate runs before the Wave Scanner (tab 2) check again — Wave Scanner will show the single-ticker error card instead of scanning whenever the currently-selected ticker\'s own analysis is invalid, even though Tab 2 never reads that data (see INCIDENT_LOG.md)');
+  assert(!/if\s*\(\s*TW_STATE\.activeTab\s*===\s*2\s*\)/.test(body),
+    'REGRESSION: a tab-2 (Wave Scanner) dispatch branch has reappeared in renderTradeWavePage() — Wave Scanner was deliberately consolidated into the unified Screener and must not come back here');
+  assert(/TW_STATE\.activeTab === 1/.test(body) && /TW_STATE\.activeTab === 3/.test(body),
+    'REGRESSION: renderTradeWavePage() no longer dispatches tabs 1 (Wave Cockpit) and 3 (Risk Planner)');
 });
 
 // ── TEST 43: Bandarmology Smart Money Flow chart grid must fit exactly
@@ -1234,26 +1221,114 @@ test('REGRESSION GUARD: TradeWave Wave Scanner (tab 2) must render before the si
 // `repeat(2,1fr)` with a real media query to collapse to 1 column on
 // narrow/mobile — something a single inline auto-fit/minmax value
 // cannot express.
-// ── TEST 42b: Wave Scanner (renderTab2WaveScanner) must not crash when
-// twAnalyzeWave() returns an invalid entry (found while verifying TEST 42,
-// 2026-09-11) — twAnalyzeWave() returns a minimal {isValid:false, ticker,
-// error} shape (no changePct/waveScore/superTrend/flow/targets) whenever a
-// ticker has no 65-day OHLCV cached yet, a real reachable state for any
-// ticker whose background fetch hasn't landed. The row-rendering loop used
-// to read those fields unconditionally (e.g. `row.changePct.toFixed(2)`),
-// throwing a TypeError and aborting the ENTIRE scanner render the moment a
-// single ticker in TW_UNIVERSE was still invalid — which is exactly what
-// made the Wave Scanner tab look totally unresponsive after fixing the
-// render-order bug in TEST 42 alone.
-test('REGRESSION GUARD: renderTab2WaveScanner() must filter out isValid:false entries before rendering row fields', () => {
+// ── TEST 42b (superseded 2026-09-18): the old regression guard here
+// checked that renderTab2WaveScanner() filtered out invalid entries before
+// rendering. That whole "Wave Scanner" tab has since been deliberately
+// removed from TradeWave — it scanned a hardcoded ~25-ticker sample mixing
+// IDX equities and crypto, which violates CLAUDE.md's whole-BEI-market
+// screening rule (never audited until this consolidation). The underlying
+// SuperTrend/Elliott-Wave formula was ported server-side
+// (computeWaveAnalysis() in lib/idx-data-engine.js) and now runs
+// whole-market via the unified Screener; crypto scope was dropped per
+// explicit user decision. This test now guards that the removal is
+// genuine — Wave Scanner must not silently reappear or leave dead
+// references behind.
+test('REGRESSION GUARD: TradeWave Wave Scanner tab (and its ~25-ticker hardcoded/crypto-mixed universe) must stay removed', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
-  const fnStart = src.indexOf('function renderTab2WaveScanner()');
-  assert(fnStart !== -1, 'renderTab2WaveScanner() not found — has it been renamed/removed?');
-  const fnEnd = src.indexOf('\n  function renderTab3RiskPlanner', fnStart);
-  assert(fnEnd !== -1, 'could not find the end of renderTab2WaveScanner() (renderTab3RiskPlanner marker missing)');
-  const body = src.slice(fnStart, fnEnd);
-  assert(/isValid\s*!==\s*false/.test(body),
-    'REGRESSION: renderTab2WaveScanner() no longer filters out {isValid:false} entries — a single ticker in TW_UNIVERSE with no cached OHLCV yet will throw (e.g. undefined.toFixed()) and silently abort the whole scanner render');
+  assert(!src.includes('function renderTab2WaveScanner'),
+    'REGRESSION: renderTab2WaveScanner() has reappeared — Wave Scanner was deliberately consolidated into the unified Screener (see computeWaveAnalysis() in lib/idx-data-engine.js), it must not be re-added here');
+  assert(!/var TW_UNIVERSE/.test(src),
+    'REGRESSION: TW_UNIVERSE (hardcoded ~25-ticker sample mixing IDX+crypto) has reappeared — violates CLAUDE.md whole-BEI-market screening rule');
+  assert(!src.includes('twSetFilterWave'),
+    'REGRESSION: twSetFilterWave() has reappeared — it was Wave-Scanner-only and should stay removed');
+  assert(!/onclick="twSwitchTab\(2\)"/.test(src),
+    'REGRESSION: a tab-2 (Wave Scanner) button has reappeared in the TradeWave tab bar');
+  assert(!/twSetTicker\('BTC'\)/.test(src),
+    'REGRESSION: BTC quick-pick button has reappeared — crypto scope was explicitly dropped from TradeWave/Screener consolidation');
+});
+
+test('computeWaveAnalysis() classifies a clean uptrend as a bullish wave phase and a clean downtrend as CORRECTIVE ABC, from real OHLCV math (not a placeholder)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const helperSrc = [
+    'function computeEMA', 'function computeRSI', 'function computeSuperTrendSeries', 'function computeWaveAnalysis'
+  ].map((marker) => {
+    const m = src.match(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s\\S]*?\\n}\\n'));
+    assert(m, `REGRESSION: could not locate ${marker}() in idx-data-engine.js — has it been renamed/removed?`);
+    return m[0];
+  }).join('\n');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(helperSrc, sandbox, { filename: 'wave-analysis-helpers (sandboxed)' });
+
+  function synthPoints(n, direction) {
+    const pts = [];
+    let price = 1000;
+    for (let i = 0; i < n; i++) {
+      price = direction === 'up' ? price * 1.01 : price * 0.99;
+      const o = price * 0.995;
+      const c = price;
+      const h = Math.max(o, c) * 1.005;
+      const l = Math.min(o, c) * 0.995;
+      pts.push({ o, h, l, c, v: 1000000 });
+    }
+    return pts;
+  }
+
+  // A smoothly-decaying series (constant %/day) never actually flips
+  // SuperTrend bearish — the ATR shrinks in lockstep with the decline, so
+  // the lower band never gets crossed (this is a property of the ATR-band
+  // math itself, ported unchanged from TradeWave's twCalcSuperTrend()).
+  // A real bearish market needs a sharp break relative to prior (low)
+  // volatility, so this builds 40 quiet bars then a real ~7%/day crash —
+  // the same shape that makes CORRECTIVE ABC reachable in production.
+  function synthCrashPoints(quietBars, crashBars) {
+    const pts = [];
+    let price = 1000;
+    for (let i = 0; i < quietBars; i++) {
+      price *= 0.999;
+      const o = price * 0.999, c = price, h = Math.max(o, c) * 1.002, l = Math.min(o, c) * 0.998;
+      pts.push({ o, h, l, c, v: 1000000 });
+    }
+    for (let i = 0; i < crashBars; i++) {
+      price *= 0.93;
+      const o = price * 1.02, c = price, h = Math.max(o, c) * 1.01, l = Math.min(o, c) * 0.99;
+      pts.push({ o, h, l, c, v: 1000000 });
+    }
+    return pts;
+  }
+
+  const uptrend = sandbox.computeWaveAnalysis(synthPoints(60, 'up'));
+  assert(uptrend, 'REGRESSION: computeWaveAnalysis() returned null for a valid 60-bar series');
+  assert(['WAVE 1 BREAKOUT', 'WAVE 3 EXTENSION', 'WAVE 5 CLIMAX'].includes(uptrend.wavePhase),
+    `REGRESSION: a clean synthetic uptrend was classified as "${uptrend.wavePhase}" instead of a bullish wave phase — the EMA-ribbon/SuperTrend classification logic is broken`);
+  assert.strictEqual(uptrend.superTrendBullish, true, 'REGRESSION: SuperTrend must read bullish on a clean uptrend series');
+  assert(uptrend.tp1 > 1000 && uptrend.tp2 > uptrend.tp1 && uptrend.tp3 > uptrend.tp2,
+    'REGRESSION: Fibonacci targets tp1<tp2<tp3 ordering is broken');
+
+  const downtrend = sandbox.computeWaveAnalysis(synthCrashPoints(40, 20));
+  assert(downtrend, 'REGRESSION: computeWaveAnalysis() returned null for a valid 60-bar downtrend series');
+  assert.strictEqual(downtrend.wavePhase, 'CORRECTIVE ABC',
+    `REGRESSION: a clean synthetic downtrend was classified as "${downtrend.wavePhase}" instead of CORRECTIVE ABC`);
+  assert.strictEqual(downtrend.superTrendBullish, false, 'REGRESSION: SuperTrend must read bearish on a clean downtrend series');
+
+  assert.strictEqual(sandbox.computeWaveAnalysis([{ o: 1, h: 1, l: 1, c: 1, v: 1 }]), null,
+    'REGRESSION: computeWaveAnalysis() must return null (honest "no data"), not throw or fabricate, when given too few bars (<30)');
+});
+
+test('REGRESSION GUARD: generateUnifiedScreener() must expose wave-analysis fields sourced from computeWaveAnalysis()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(src.includes('function computeWaveAnalysis'),
+    'computeWaveAnalysis() not found — has it been renamed/removed?');
+  const fnStart = src.indexOf('async function generateUnifiedScreener');
+  assert(fnStart !== -1, 'generateUnifiedScreener() not found');
+  const fnEnd = src.indexOf('\n// ════', fnStart + 10);
+  const body = src.slice(fnStart, fnEnd !== -1 ? fnEnd : fnStart + 8000);
+  ['wavePhase', 'waveScore', 'superTrendBullish', 'cmf', 'waveInvalidation', 'waveTp1', 'waveTp2', 'waveTp3', 'waveRiskReward'].forEach((field) => {
+    assert(body.includes(field + ':'),
+      'REGRESSION: generateUnifiedScreener() no longer returns "' + field + '" in its row output');
+  });
+  assert(/if \(wavePhase && wavePhase !== 'ALL'\)/.test(body),
+    'REGRESSION: generateUnifiedScreener() no longer filters by wavePhase');
 });
 
 test('REGRESSION GUARD: Bandarmology Smart Money Flow chart grid must use the fixed-2-column class, not an auto-fit/minmax that can pack in a 3rd column', () => {
