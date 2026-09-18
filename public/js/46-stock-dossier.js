@@ -438,7 +438,45 @@ function dossierComputeKseiScore(harvested) {
     ? ksei.stock
     : (ksei && ksei.found !== false && ksei.freeFloat !== undefined ? ksei : (harvested.quote && harvested.quote.ksei ? harvested.quote.ksei : null));
 
-  if (!stock || ksei?.found === false || (!stock.investors && stock.freeFloat === undefined) || (Array.isArray(stock.investors) && stock.investors.length === 0 && stock.totalMajorPercent === 0 && stock.freeFloat === 100)) {
+  var namedHolderDataMissing = !stock || ksei?.found === false || (!stock.investors && stock.freeFloat === undefined) || (Array.isArray(stock.investors) && stock.investors.length === 0 && stock.totalMajorPercent === 0 && stock.freeFloat === 100);
+
+  if (namedHolderDataMissing) {
+    // Dataset >5% holder statis (Google Sheets, ~840/958 ticker per
+    // 26 Aug 2026 — lihat data/ksei-shareholders.json) tidak mencakup
+    // ticker ini (mis. BBCA/BBRI/GGRM, walau jelas punya pemegang saham
+    // >5% di dunia nyata). FALLBACK ke komposisi kategori investor LIVE
+    // Invezgo (harvested.kseiLive, /api/idx/shareholder-composition) —
+    // ini metrik BERBEDA dari Free Float resmi: kategori "Individu" (id)
+    // dipakai sebagai proksi non-institusional, TAPI pemegang saham
+    // pengendali/keluarga pendiri bisa saja tercatat sebagai individu,
+    // jadi ini BUKAN Free Float sebenarnya — freeFloat tetap null/jujur,
+    // hanya institusionalPct/foreignPct (real, dari data lembar saham
+    // aktual) yang dipakai untuk skor.
+    var live = harvested.kseiLive;
+    var kl = live && live.available && live.kseiLatest;
+    var totalShares = kl ? (kl.foreignTotal || 0) + (kl.localTotal || 0) : 0;
+    if (kl && totalShares > 0) {
+      var individualShares = (kl.foreign.id || 0) + (kl.local.id || 0);
+      var institutionalPct = (totalShares - individualShares) / totalShares * 100;
+      var foreignPct = (kl.foreignTotal || 0) / totalShares * 100;
+
+      var liveScore = 50;
+      if (institutionalPct >= 55) liveScore += 15;
+      else if (foreignPct >= 30) liveScore += 10;
+      liveScore = Math.max(20, Math.min(95, liveScore));
+
+      return {
+        available: true,
+        status: 'REAL',
+        score: liveScore,
+        freeFloat: null,
+        institutionalPct: Math.round(institutionalPct * 10) / 10,
+        foreignPct: Math.round(foreignPct * 10) / 10,
+        reportDate: kl.date,
+        reason: 'Free Float resmi tidak ada di dataset >5% holder (statis) untuk emiten ini — memakai komposisi kepemilikan LIVE Invezgo per kategori investor (Institusi: ' + institutionalPct.toFixed(1) + '%, Asing: ' + foreignPct.toFixed(1) + '% dari total lembar tercatat KSEI per ' + kl.date.slice(0, 10) + ').'
+      };
+    }
+
     return {
       available: false,
       status: 'DATA_UNAVAILABLE',
@@ -446,7 +484,7 @@ function dossierComputeKseiScore(harvested) {
       freeFloat: null,
       institutionalPct: null,
       foreignPct: null,
-      reason: 'Data kepemilikan kustodian KSEI belum diunggah atau tidak ditemukan untuk emiten ini.'
+      reason: 'Data kepemilikan kustodian KSEI belum diunggah/tidak ditemukan untuk emiten ini, dan komposisi live Invezgo juga tidak tersedia.'
     };
   }
   var freeFloat = typeof stock.freeFloat === 'number' ? stock.freeFloat : (100 - (stock.totalMajorPercent || 0));
@@ -807,6 +845,7 @@ async function dossierHarvestData(ticker) {
     brokerSummary: null,
     history: [],
     ksei: null,
+    kseiLive: null,
     regime: null,
     fund: null,
     aiHypothesis: null
@@ -828,8 +867,18 @@ async function dossierHarvestData(ticker) {
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
-    // 4. Fetch KSEI
+    // 4. Fetch KSEI (dataset statis >5% holder, Google Sheets, ~840/958 ticker)
     var kseiPromise = fetch('/api/ksei/stock/' + cleanTicker)
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .catch(function() { return null; });
+
+    // 4b. Fetch KSEI komposisi LIVE Invezgo (kategori investor Asing/Lokal x
+    // 9 kategori) — fallback saat ticker tidak ada di dataset statis di
+    // atas (mis. BBCA/BBRI/GGRM tidak tercatat di snapshot Google Sheets
+    // 26 Aug 2026 walau jelas punya pemegang saham >5%). Lihat
+    // dossierComputeKseiScore() untuk cara pemetaannya — metrik BEDA dari
+    // Free Float resmi, tidak dicampur begitu saja.
+    var kseiLivePromise = fetch('/api/idx/shareholder-composition/' + cleanTicker)
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
@@ -849,7 +898,8 @@ async function dossierHarvestData(ticker) {
       historyPromise,
       kseiPromise,
       regimePromise,
-      hypothesisPromise
+      hypothesisPromise,
+      kseiLivePromise
     ]);
 
     var qData = results[0];
@@ -896,6 +946,9 @@ async function dossierHarvestData(ticker) {
 
     var hypData = results[5];
     harvested.aiHypothesis = (hypData && hypData.hypothesis) ? hypData.hypothesis : hypData;
+
+    var kseiLiveData = results[6];
+    harvested.kseiLive = (kseiLiveData && kseiLiveData.success && kseiLiveData.data) ? kseiLiveData.data : null;
 
     // Local cached fallback if API fundamentals missing
     if (typeof FUND_DATA !== 'undefined' && FUND_DATA[cleanTicker]) {

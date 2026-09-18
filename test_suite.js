@@ -4601,6 +4601,66 @@ test('MASTER DOSSIER: Individual pillar scoring models behave within valid quant
   assert.strictEqual(regimeResEmpty.score, 55, 'Empty regime should fallback safely to neutral sideways (55) without crashing');
 });
 
+// User-reported (2026-09-18): Stock Dossier's "Kepemilikan Kustodian KSEI"
+// pillar showed "DATA TIDAK TERSEDIA" for major tickers (BBCA/BBRI/GGRM)
+// even though the app already has a working, live Invezgo endpoint for
+// shareholder composition (/api/idx/shareholder-composition/:ticker, built
+// earlier this session for 34-ksei-shareholders.js) — root cause: the
+// static ~840/958-ticker Google Sheets snapshot (data/ksei-shareholders.json,
+// dated 26 Aug 2026) simply doesn't have those tickers, and
+// dossierComputeKseiScore() never tried the live Invezgo source as a
+// fallback. Fixed by adding a fallback path that derives an honest,
+// clearly-different metric (institutional/foreign % from real KSEI
+// category share counts) instead of declaring the pillar unavailable.
+test('REGRESSION GUARD: Stock Dossier KSEI pillar falls back to live Invezgo composition when the static >5%-holder dataset has no entry for the ticker', () => {
+  const dossier = getDossierContext();
+
+  // Static dataset genuinely has no entry (found:false, the exact shape
+  // GET /api/ksei/stock/:ticker returns for a missing ticker) AND a real
+  // Invezgo composition IS available — must NOT report DATA_UNAVAILABLE.
+  const kseiFallbackSample = {
+    ksei: { success: true, found: false, ticker: 'BBCA', stock: { ticker: 'BBCA', name: 'BBCA', investors: [], totalMajorPercent: 0, freeFloat: 100, localPercent: 0, foreignPercent: 0 } },
+    kseiLive: {
+      available: true,
+      kseiLatest: {
+        date: '2026-08-31',
+        foreign: { is: 0, cp: 0, pf: 0, ib: 0, id: 5000000, mf: 0, sc: 0, fd: 0, ot: 0 },
+        local: { is: 20000000, cp: 30000000, pf: 5000000, ib: 10000000, id: 25000000, mf: 5000000, sc: 0, fd: 0, ot: 0 },
+        foreignTotal: 5000000,
+        localTotal: 95000000
+      }
+    }
+  };
+  const fallbackRes = dossier.dossierComputeKseiScore(kseiFallbackSample);
+  assert.strictEqual(fallbackRes.available, true, 'REGRESSION: KSEI pillar must be available when live Invezgo composition exists, even if the static dataset has no entry');
+  assert.strictEqual(fallbackRes.status, 'REAL', 'REGRESSION: the live-composition fallback must be labeled REAL, not left unavailable');
+  assert.strictEqual(fallbackRes.freeFloat, null, 'REGRESSION: freeFloat must stay honestly null in the fallback (individual-category share is NOT the same thing as official Free Float)');
+  assert(typeof fallbackRes.institutionalPct === 'number' && fallbackRes.institutionalPct > 0, 'REGRESSION: institutionalPct must be a real derived number in the fallback');
+  assert(typeof fallbackRes.foreignPct === 'number', 'REGRESSION: foreignPct must be a real derived number in the fallback');
+  assert(/komposisi kepemilikan LIVE Invezgo/i.test(fallbackRes.reason), 'REGRESSION: the fallback reason must honestly disclose it is using live Invezgo composition, not official Free Float');
+
+  // Neither the static dataset NOR live Invezgo has anything — must stay
+  // honestly DATA_UNAVAILABLE (no fabrication when truly nothing exists).
+  const kseiNoneSample = {
+    ksei: { success: true, found: false, ticker: 'ZZZZ', stock: { ticker: 'ZZZZ', investors: [], totalMajorPercent: 0, freeFloat: 100 } },
+    kseiLive: { available: false }
+  };
+  const noneRes = dossier.dossierComputeKseiScore(kseiNoneSample);
+  assert.strictEqual(noneRes.available, false, 'REGRESSION: KSEI pillar must stay unavailable when neither static nor live Invezgo data exists');
+
+  // The existing named-holder (static dataset) path must still work exactly
+  // as before — this fallback must not have broken the primary path.
+  const kseiNamedSample = { ksei: { found: true, stock: { freeFloat: 28, localPercent: 35, foreignPercent: 30 } } };
+  const namedRes = dossier.dossierComputeKseiScore(kseiNamedSample);
+  assert.strictEqual(namedRes.available, true, 'REGRESSION: the existing named->5%-holder path must remain available');
+  assert(namedRes.score >= 75, 'REGRESSION: the existing named->5%-holder scoring must be unchanged (healthy 28% free float should still score >= 75)');
+
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(/kseiLivePromise/.test(src), 'REGRESSION: dossierHarvestData() no longer fetches the live Invezgo shareholder-composition endpoint');
+  assert(/shareholder-composition\//.test(src), 'REGRESSION: dossierHarvestData() no longer calls /api/idx/shareholder-composition/');
+  assert(/harvested\.kseiLive/.test(src), 'REGRESSION: harvested.kseiLive is gone — the KSEI pillar has no live-Invezgo fallback source');
+});
+
 test('MASTER DOSSIER: Non-universe ticker rejection & zero dummy data mandate (AGENTS.md §1, §5, §28)', async () => {
   const dossier = getDossierContext();
 
