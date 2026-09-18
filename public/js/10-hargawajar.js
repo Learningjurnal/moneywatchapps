@@ -1733,21 +1733,32 @@ function hw_autoFill() {
     }
   }
 
-  if (!STOCK_FINANCIAL_DATABASE[tk]) {
-    hw_fetchRealFinancialStatement(tk, function(result) {
-      if (hwData.ticker !== tk) return; // ticker berubah lagi sebelum fetch selesai
-      if (result && result.available && result.rows && result.rows.length) {
-        hwData.rows = result.rows;
-        hw_renderTable();
-        hw_renderAutoFillDisclosure(result);
-      } else if (typeof showSaveStatus === 'function') {
-        showSaveStatus('Data laporan keuangan ' + tk + ' belum tersedia di Invezgo — isi manual', 'var(--amber)');
+  // FIX (2026-09-18, audit "sumber data tak terhubung"): dulu ticker yang
+  // ADA di STOCK_FINANCIAL_DATABASE (kurasi manual, bisa usang) langsung
+  // dipakai tanpa pernah cek Invezgo live — jadi 2 halaman berbeda
+  // (Harga Wajar vs Fundamental) bisa menampilkan EPS/ROE berbeda untuk
+  // emiten yang sama. Sekarang Invezgo live SELALU dicoba dulu untuk
+  // SEMUA ticker; data kurasi manual (sudah dimuat hw_loadStockData() di
+  // atas) cuma jadi fallback kalau Invezgo gagal/tidak dikonfigurasi.
+  hw_fetchRealFinancialStatement(tk, function(result) {
+    if (hwData.ticker !== tk) return; // ticker berubah lagi sebelum fetch selesai
+    if (result && result.available && result.rows && result.rows.length) {
+      hwData.rows = result.rows;
+      hw_renderTable();
+      hw_renderAutoFillDisclosure(result);
+    } else if (STOCK_FINANCIAL_DATABASE[tk]) {
+      // Invezgo tidak tersedia — tetap pakai data kurasi manual (sudah di
+      // hwData.rows dari hw_loadStockData() di atas), bukan lagi sumber
+      // utama tapi masih fallback yang sah.
+      hw_hideAutoFillDisclosure();
+      if (typeof showSaveStatus === 'function') {
+        showSaveStatus('Invezgo tidak tersedia — pakai data kurasi manual ' + tk, 'var(--amber)');
       }
-      finishWithPrice();
-    });
-  } else {
+    } else if (typeof showSaveStatus === 'function') {
+      showSaveStatus('Data laporan keuangan ' + tk + ' belum tersedia di Invezgo — isi manual', 'var(--amber)');
+    }
     finishWithPrice();
-  }
+  });
 }
 window.hw_autoFill = hw_autoFill;
 

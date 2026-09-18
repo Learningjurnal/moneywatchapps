@@ -4858,6 +4858,37 @@ test('REGRESSION GUARD: 24-stockmaster.js techRenderChart guards division by zer
   assert(stockmasterSrc.includes('var curPrice = Number(closePrices[closePrices.length - 1]) || 0;'), 'Must guard curPrice against NaN/null');
 });
 
+// Audit finding (2026-09-18, proactive audit requested by user after the
+// Stock Dossier KSEI fix): the "Fundamental" page (24-stockmaster.js,
+// PROFILES hardcoded snapshot for ~60 tickers) and the "Harga Wajar" page
+// (10-hargawajar.js, STOCK_FINANCIAL_DATABASE hardcoded snapshot) each had
+// their OWN independently hand-curated EPS/ROE/BVPS numbers for the same
+// ticker, never cross-checked against the live Invezgo financial-statement
+// endpoint built earlier this session (generateFinancialStatementSummary,
+// /api/idx/financial-statement/:ticker) — verified directly for BBCA: EPS
+// 395 (Harga Wajar) vs EPS 420 (Fundamental), ROE ~19.9% vs 23.5%. User
+// chose (AskUserQuestion): make live Invezgo the primary source on BOTH
+// pages, hardcoded snapshots become fallback only.
+test('REGRESSION GUARD: Fundamental page (24-stockmaster.js) tries live Invezgo financial-statement before falling back to the hardcoded PROFILES snapshot', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(/async function fundLoadFallbackData/.test(src), 'REGRESSION: fundLoadFallbackData() is no longer async — it can no longer await a live Invezgo fetch before finalizing eps/bvps/roe/shares');
+  assert(/fetch\('\/api\/idx\/financial-statement\/'/.test(src), 'REGRESSION: fundLoadFallbackData() no longer fetches the live Invezgo financial-statement endpoint');
+  assert(/source:\s*'invezgo_real'/.test(src), 'REGRESSION: the invezgo_real dataQuality tag is gone — Fundamental page no longer distinguishes live-Invezgo numbers from the hardcoded snapshot');
+  assert(/await fundLoadFallbackData\(cleanCode, liveMeta, livePrice\)/.test(src), 'REGRESSION: a call site stopped awaiting the now-async fundLoadFallbackData(), so the Invezgo override would race the render');
+  // The PROFILES table itself must still exist as a fallback (not deleted) —
+  // per the user's chosen approach, the hardcoded snapshot stays as a
+  // fallback for when Invezgo is unavailable, it's not replaced outright.
+  assert(/var PROFILES = \{/.test(src), 'REGRESSION: the PROFILES fallback table was removed — Invezgo failures would leave the Fundamental page with zero data instead of a labeled fallback');
+});
+
+test('REGRESSION GUARD: Harga Wajar auto-fill tries live Invezgo for EVERY ticker (including ones in the curated database), not just uncurated ones', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/10-hargawajar.js'), 'utf8');
+  const fnSrc = src.match(/function hw_autoFill\(\)[\s\S]*?\nwindow\.hw_autoFill = hw_autoFill;/)[0];
+  assert(!/if \(!STOCK_FINANCIAL_DATABASE\[tk\]\)/.test(fnSrc), 'REGRESSION: hw_autoFill() reverted to skipping the live Invezgo fetch for tickers already in STOCK_FINANCIAL_DATABASE');
+  assert(/hw_fetchRealFinancialStatement\(tk, function\(result\)/.test(fnSrc), 'REGRESSION: hw_fetchRealFinancialStatement() is no longer called unconditionally for every ticker');
+  assert(/STOCK_FINANCIAL_DATABASE\[tk\]/.test(fnSrc), 'REGRESSION: the curated STOCK_FINANCIAL_DATABASE fallback (used when Invezgo is unavailable) is gone from hw_autoFill()');
+});
+
 // ══════════════════════════════════════════════════════════════
 // TEST SUITE: CLOUD SYNC MERGE — WEALTH (REKENING BANK/HUTANG/PIUTANG)
 // ══════════════════════════════════════════════════════════════
@@ -6266,8 +6297,12 @@ test('REGRESSION GUARD: Harga Wajar auto-fill fetches real Invezgo financial-sta
     'REGRESSION: hw_fetchRealFinancialStatement() is gone — Harga Wajar no longer fetches real data for uncurated tickers');
   assert(/fetch\('\/api\/idx\/financial-statement\/'/.test(hwSrc),
     'REGRESSION: hw_fetchRealFinancialStatement() no longer calls the real financial-statement endpoint');
-  assert(/if \(!STOCK_FINANCIAL_DATABASE\[tk\]\)/.test(hwSrc),
-    'REGRESSION: hw_autoFill() no longer branches to fetch real data for tickers outside the curated database');
+  // NOTE: hw_autoFill() used to gate this fetch behind
+  // `if (!STOCK_FINANCIAL_DATABASE[tk])` (only fetch Invezgo for
+  // UNCURATED tickers). That was intentionally changed 2026-09-18 — see
+  // the dedicated test below — so Invezgo live data is tried for EVERY
+  // ticker (curated ones included), with the curated database now only a
+  // fallback. Do not reintroduce that gate here.
   assert(/function hw_renderAutoFillDisclosure/.test(hwSrc),
     'REGRESSION: hw_renderAutoFillDisclosure() is gone — auto-filled derived data is no longer disclosed to the user');
 });

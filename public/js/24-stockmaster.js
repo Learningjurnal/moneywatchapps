@@ -251,7 +251,7 @@ async function fundFetchData(tickerOverride) {
     // estimated shape always has a numeric `.raw`). Build that complete,
     // safe baseline first, then overlay only the real Yahoo fields that
     // actually carry a usable numeric value.
-    fundLoadFallbackData(cleanCode, liveMeta, livePrice);
+    await fundLoadFallbackData(cleanCode, liveMeta, livePrice);
     var realFieldCount = 0;
     var mergeRealFields = function(target, source) {
       Object.keys(source || {}).forEach(function(key) {
@@ -290,15 +290,19 @@ async function fundFetchData(tickerOverride) {
       fundShowStatus('<span style="color:var(--amber)">●</span> Ready (Partial)', false);
     } else {
       fundPopulateData();
-      fundShowStatus(prevSource === 'profile_snapshot'
+      fundShowStatus(prevSource === 'invezgo_real'
+        ? '<span style="color:#10B981">●</span> Ready (Invezgo Real)'
+        : prevSource === 'profile_snapshot'
         ? '<span style="color:var(--amber)">●</span> Ready (Snapshot)'
         : '<span style="color:#EF4444">●</span> Data Unavailable', true);
     }
   } catch (e) {
-    fundLoadFallbackData(cleanCode, liveMeta, livePrice);
+    await fundLoadFallbackData(cleanCode, liveMeta, livePrice);
     fundPopulateData();
     var src = (FUND_DATA.dataQuality && FUND_DATA.dataQuality.source) || 'unavailable';
-    fundShowStatus(src === 'profile_snapshot'
+    fundShowStatus(src === 'invezgo_real'
+      ? '<span style="color:#10B981">●</span> Ready (Invezgo Real)'
+      : src === 'profile_snapshot'
       ? '<span style="color:var(--amber)">●</span> Ready (Snapshot)'
       : '<span style="color:#EF4444">●</span> Data Unavailable', true);
   }
@@ -325,7 +329,7 @@ if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
   });
 }
 
-function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
+async function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
   if (typeof isValidStockTicker === 'function' && !isValidStockTicker(code)) {
     FUND_DATA.dataQuality = { source: 'invalid_ticker' };
     FUND_DATA.fin = {
@@ -497,6 +501,38 @@ function fundLoadFallbackData(code, liveMeta, livePriceOverride) {
       if (DB[code].name) summary = 'PT ' + DB[code].name + ' Tbk adalah perusahaan publik yang tercatat di Bursa Efek Indonesia sektor ' + sector + '. Data keuangan rinci belum tersedia dari Yahoo Finance untuk emiten ini.';
     }
     shares = 0; rev = 0; roe = 0; eps = 0; bvps = 0; dps = 0; der = 0; gm = 0; om = 0; pm = 0; per = 0; pbv = 0;
+  }
+
+  // Coba override eps/bvps/roe/shares dengan laporan keuangan REAL Invezgo
+  // (/api/idx/financial-statement/:ticker, generateFinancialStatementSummary()
+  // — sudah dibangun untuk Harga Wajar) sebelum jatuh ke snapshot PROFILES
+  // hardcoded di atas atau default sintetis. Ini memperbaiki temuan audit
+  // 2026-09-18: 2 halaman berbeda (Fundamental vs Harga Wajar) bisa
+  // menampilkan EPS/ROE yang berbeda untuk emiten yang SAMA karena masing-
+  // masing punya snapshot manual sendiri yang tidak saling cek — sekarang
+  // live Invezgo jadi sumber utama untuk kedua halaman, snapshot manual
+  // cuma fallback kalau Invezgo gagal/tidak dikonfigurasi. Tidak mengganti
+  // revenue/margin/DER/current-ratio (Invezgo financial-statement yang
+  // sudah diverifikasi cuma mencakup BS equity + IS eps/netIncome, bukan
+  // baris-baris itu) — field itu tetap dari PROFILES/Yahoo seperti semula.
+  try {
+    var fsResp = await fetch('/api/idx/financial-statement/' + encodeURIComponent(code));
+    var fsJson = fsResp.ok ? await fsResp.json() : null;
+    if (fsJson && fsJson.success && fsJson.available && Array.isArray(fsJson.rows) && fsJson.rows.length) {
+      var latestRow = fsJson.rows[fsJson.rows.length - 1];
+      if (typeof latestRow.eps === 'number' && latestRow.eps > 0) eps = latestRow.eps;
+      if (typeof latestRow.equity === 'number' && latestRow.equity > 0 && typeof latestRow.shares === 'number' && latestRow.shares > 0) {
+        bvps = (latestRow.equity * 1000) / latestRow.shares;
+      }
+      if (typeof latestRow.netIncome === 'number' && typeof latestRow.equity === 'number' && latestRow.equity > 0) {
+        roe = latestRow.netIncome / latestRow.equity;
+      }
+      if (typeof latestRow.shares === 'number' && latestRow.shares > 0) shares = latestRow.shares * 1e6;
+      FUND_DATA.dataQuality = { source: 'invezgo_real', asOfYear: latestRow.year, disclosures: fsJson.disclosures || null };
+    }
+  } catch (eFs) {
+    // Invezgo tidak dikonfigurasi/gagal — tetap pakai eps/bvps/roe/shares
+    // dari PROFILES/default di atas, dataQuality.source tidak berubah.
   }
 
   // Jika nama emiten tersedia dari Yahoo meta, gunakan nama resmi terbaru
@@ -897,7 +933,9 @@ function fundRenderAcademicSynthesis(curPrice, eps, bvps, roe, payout, per, pbv,
   }
 
   var dqBanner = '';
-  if (dq.source === 'profile_snapshot') {
+  if (dq.source === 'invezgo_real') {
+    dqBanner = '<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#10B981">EPS/Book Value/ROE di bawah berasal dari laporan keuangan REAL Invezgo (tahun ' + (dq.asOfYear || '-') + '), bukan snapshot manual — Yahoo Finance tidak mengembalikan field ini untuk emiten ini. Revenue/margin/DER tetap estimasi/snapshot (belum tercakup di endpoint ini).</div>';
+  } else if (dq.source === 'profile_snapshot') {
     dqBanner = '<div style="background:rgba(255,187,0,.08);border:1px solid rgba(255,187,0,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)">Yahoo Finance tidak mengembalikan data untuk emiten ini — angka di bawah adalah snapshot yang dikurasi manual, <b>bukan data real-time</b>. Verifikasi ke laporan keuangan resmi sebelum mengambil keputusan.</div>';
   } else if (dq.source === 'partial') {
     dqBanner = '<div style="background:rgba(255,187,0,.08);border:1px solid rgba(255,187,0,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)">Hanya sebagian data dari Yahoo Finance yang tersedia untuk emiten ini (' + (dq.realFieldCount || 0) + ' field) — field yang kosong diisi dari snapshot/estimasi, bukan seluruhnya real-time.</div>';
