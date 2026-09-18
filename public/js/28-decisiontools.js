@@ -36,6 +36,15 @@ function renderDailyBriefPage() {
   var totalPortfolioAssets = totalMV + Math.max(0, rdn);
 
   // Live IHSG calculation
+  // FIX (2026-09-18, audit menyeluruh): dulu label di sebelah nilai IHSG
+  // ini SELALU menulis "Real-time Feed", termasuk saat ihsgCur/ihsgBase
+  // belum ter-fetch dan angka fallback (6845/6800) dipakai — kontradiksi
+  // langsung dengan Zero Fabricated Data. ihsgCur/ihsgBase sendiri TIDAK
+  // cukup untuk membedakan data live dari placeholder (01-data.js
+  // menginisialisasi ihsgCur=6500.83 saat load, juga > 0) — pakai flag
+  // window._ihsgLiveFetched (03-engine.js's fhApplyIHSG) yang cuma jadi
+  // true setelah harga IHSG real benar-benar diterapkan.
+  var isIhsgLive = window._ihsgLiveFetched === true;
   var curIhsg = (typeof ihsgCur === 'number' && ihsgCur > 0) ? ihsgCur : 6845.00;
   var baseIhsg = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : 6800.00;
   var ihsgDiff = curIhsg - baseIhsg;
@@ -67,7 +76,7 @@ function renderDailyBriefPage() {
     + '<div class="metric">'
       + '<div class="mlabel">MARKET REGIME HARI INI</div>'
       + '<div class="mval ' + (isBullish ? 'up' : 'dn') + '" style="font-size:22px">' + (isBullish ? 'RISK-ON BULLISH' : 'BEARISH CORRECTION') + '</div>'
-      + '<div class="msub ' + (isBullish ? 'up' : 'dn') + '">IHSG ' + curIhsg.toLocaleString('id-ID', {minimumFractionDigits:2}) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%) · Real-time Feed</div>'
+      + '<div class="msub ' + (isBullish ? 'up' : 'dn') + '">IHSG ' + curIhsg.toLocaleString('id-ID', {minimumFractionDigits:2}) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%) · ' + (isIhsgLive ? 'Real-time Feed' : 'Data Belum Tersedia (Estimasi)') + '</div>'
     + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">ESTIMASI DELTA PORTOFOLIO HARI INI</div>'
@@ -701,12 +710,11 @@ function renderJournalPage() {
         + '<th>Kondisi Emosi</th>'
         + '<th style="text-align:center">Confidence</th>'
         + '<th>Post-Trade Review</th>'
-        + '<th style="text-align:center">Decision Score</th>'
       + '</tr></thead>'
       + '<tbody>';
 
   if (!MW_JOURNALS || MW_JOURNALS.length === 0) {
-    html += '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px 20px">'
+    html += '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px 20px">'
       + '<strong style="color:var(--text2);font-size:14px">Belum Ada Catatan Jurnal Transaksi</strong>'
       + '<div style="font-size:12px;margin-top:4px">Klik tombol &ldquo;+ Catat Transaksi di Jurnal&rdquo; untuk mencatat evaluasi psikologi &amp; rasional eksekusi trade Anda.</div>'
       + '</td></tr>';
@@ -719,7 +727,6 @@ function renderJournalPage() {
         + '<td><span class="badge b-neu">' + j.emotion + '</span></td>'
         + '<td class="mono" style="text-align:center;font-weight:700;color:var(--accent)">' + j.confidence + '%</td>'
         + '<td style="max-width:240px;font-size:11.5px;color:var(--green);line-height:1.4">' + j.postReview + '</td>'
-        + '<td class="mono up" style="text-align:center;font-weight:800;font-size:13px">' + j.decisionQualityScore + '/100</td>'
       + '</tr>';
     });
   }
@@ -783,6 +790,13 @@ function openNewJournalModal() {
   modal.classList.add('on');
 }
 
+// FIX (2026-09-18, audit menyeluruh): entri jurnal dulu selalu diberi field
+// decisionQualityScore bernilai konstan sembilan-puluh, dipatri untuk SEMUA
+// entri apa pun isinya — ditampilkan sebagai kolom "Decision Score" seolah
+// hasil evaluasi otomatis. Tidak ada data outcome/hasil trade nyata yang
+// bisa dipakai menghitung skor kualitas keputusan yang jujur (app tidak
+// melacak hasil setelah entri dibuat), jadi field & kolom ini dihapus
+// sepenuhnya alih-alih diganti formula karangan lain.
 function saveNewJournalFromModal() {
   var ticker = (el('jn-in-ticker').value || 'BBCA').toUpperCase().trim();
   var type = el('jn-in-type').value;
@@ -804,8 +818,7 @@ function saveNewJournalFromModal() {
     emotion: emotion,
     confidence: conf,
     marketCondition: 'Active Market',
-    postReview: review,
-    decisionQualityScore: 90
+    postReview: review
   });
 
   saveJournalsToStorage();

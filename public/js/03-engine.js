@@ -1441,6 +1441,12 @@ function fhApplyIHSG(price, prev, open, high, low){
   if(!price || isNaN(price) || price <= 0) return;
   ihsgCur  = Math.round(price * 100) / 100;
   ihsgBase = (prev && prev > 0) ? Math.round(prev * 100) / 100 : ihsgCur;
+  // ihsgCur/ihsgBase start life as hardcoded placeholders (01-data.js,
+  // 6500.83) that are already > 0 — a simple ">0" check can't tell a real
+  // fetch from that placeholder. This flag is the one place that flips
+  // true only when a real IHSG price has actually been applied, so
+  // consumers (e.g. Morning Brief's "Real-time Feed" label) can be honest.
+  window._ihsgLiveFetched = true;
   
   var opVal = (open && open > 0) ? open : (ihsgBase || ihsgCur);
   var hiVal = (high && high > 0) ? high : Math.max(ihsgCur, opVal);

@@ -11,33 +11,17 @@ var _auditDateFilter = 'all';
 var _auditSortAsc = false;
 
 /**
- * Format timestamp audit dengan jam/menit (WIB)
+ * Format timestamp audit — HANYA tanggal, karena aplikasi ini memang tidak
+ * pernah mencatat jam transaksi (hanya tanggal per mutasi RDN). Fungsi ini
+ * dulu men-generate jam:menit:detik yang terlihat presisi ("09:17:39 WIB")
+ * murni dari formula berbasis index+tipe transaksi — angka karangan yang
+ * ditampilkan di "Slip Audit Transaksi RDN" resmi seolah waktu transaksi
+ * riil. Diperbaiki (2026-09-18, audit menyeluruh): jujur tampilkan tanggal
+ * saja, jangan mengarang komponen waktu.
  */
-function fmtAuditTime(dateStr, index, type) {
+function fmtAuditTime(dateStr) {
   if (!dateStr) return '—';
-  // Jam pasar default berdasarkan urutan & tipe transaksi jika tidak ada jam eksplisit
-  var baseHour = 9;
-  var baseMin = 15;
-  if (type === 'BUY') {
-    baseHour = 9 + (index % 6);
-    baseMin = 10 + ((index * 7) % 45);
-  } else if (type === 'SELL') {
-    baseHour = 13 + (index % 2);
-    baseMin = 30 + ((index * 5) % 25);
-  } else if (type === 'DIVIDEN') {
-    baseHour = 8;
-    baseMin = 30 + (index % 20);
-  } else if (type === 'SETOR' || type === 'TARIK') {
-    baseHour = 8;
-    baseMin = 45 + (index % 10);
-  } else {
-    baseHour = 16;
-    baseMin = 5 + (index % 30);
-  }
-  var hStr = (baseHour < 10 ? '0' : '') + baseHour;
-  var mStr = (baseMin < 10 ? '0' : '') + baseMin;
-  var sStr = ((index * 13) % 60 < 10 ? '0' : '') + ((index * 13) % 60);
-  return dateStr + ' ' + hStr + ':' + mStr + ':' + sStr + ' WIB';
+  return dateStr;
 }
 
 /**
@@ -209,7 +193,7 @@ function buildRdnAuditLogs() {
     }
 
     var auditRef = 'AUD-' + (m.date || '').replace(/-/g, '') + '-' + (m.id < 1000 ? ('000' + m.id).slice(-4) : m.id);
-    var timestamp = fmtAuditTime(m.date, idx, mType);
+    var timestamp = fmtAuditTime(m.date);
 
     logs.push({
       id: m.id,
@@ -446,8 +430,8 @@ function renderRdnAudit() {
       html += '<tr style="transition:background .12s">'
         // Waktu
         + '<td style="vertical-align:top">'
-          + '<div class="mono" style="color:var(--text);font-weight:600;font-size:11px">' + item.timestamp.split(' ')[0] + '</div>'
-          + '<div class="mono" style="color:var(--text3);font-size:10px">' + (item.timestamp.split(' ')[1] || '') + ' ' + (item.timestamp.split(' ')[2] || '') + '</div>'
+          + '<div class="mono" style="color:var(--text);font-weight:600;font-size:11px">' + item.timestamp + '</div>'
+          + '<div class="mono" style="color:var(--text3);font-size:10px">Jam tidak tercatat</div>'
           + '<div style="font-size:9px;color:var(--accent);font-family:var(--font-mono);margin-top:2px">' + item.auditRef + '</div>'
         + '</td>'
         // Pemicu
@@ -678,6 +662,12 @@ function copyAuditSummary() {
   var totalOut = logs.filter(function(l) { return !l.isCredit; }).reduce(function(a, l) { return a + l.absAmount; }, 0);
   var totalKomisi = logs.reduce(function(a, l) { return a + (l.breakdown.komisi || 0); }, 0);
   var totalTax = logs.reduce(function(a, l) { return a + (l.breakdown.taxTotal || 0); }, 0);
+  // FIX (2026-09-18, audit menyeluruh): dulu baris "Status Integritas"
+  // selalu mengklaim saldo terverifikasi penuh secara hardcoded, tidak
+  // peduli apakah ledger sebenarnya cocok — sekarang pakai pengecekan
+  // real yang sama dengan renderRdnAudit() (selisih kredit-debit-saldo <
+  // Rp 1).
+  var verified = Math.abs(totalIn - totalOut - curBal) < 1;
 
   var summaryText = '=== LOG AUDIT TRANSAKSI & SALDO RDN ===\n'
     + 'Tanggal Cetak: ' + (new Date().toLocaleString('id-ID')) + '\n'
@@ -687,7 +677,7 @@ function copyAuditSummary() {
     + 'Total Kas Keluar (Debit): Rp ' + fmt(totalOut) + '\n'
     + 'Akumulasi Komisi Broker: Rp ' + fmt(totalKomisi) + '\n'
     + 'Akumulasi Pajak/Levy: Rp ' + fmt(totalTax) + '\n'
-    + 'Status Integritas: Saldo Terverifikasi 100%\n';
+    + 'Status Integritas: ' + (verified ? 'Saldo Terverifikasi (Kredit - Debit = Saldo Berjalan)' : 'SELISIH TERDETEKSI — saldo tidak cocok dengan total mutasi, periksa data') + '\n';
 
   if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(summaryText).then(function() {

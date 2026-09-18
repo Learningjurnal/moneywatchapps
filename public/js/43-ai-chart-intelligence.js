@@ -113,7 +113,14 @@ function buildAiSharedMarketContext(ticker, timeframe) {
 
   var bData = flowScanData.bandarmology || {};
   var cmfVal = (bData.cmf !== undefined) ? bData.cmf : (typeof calculateAiCmf === 'function' ? calculateAiCmf(ohlcv, 20) : 0.12);
-  var smartNet = (bData.smartMoney && bData.smartMoney.institutionalNetRp !== undefined) ? bData.smartMoney.institutionalNetRp : 15000000000;
+  // FIX (2026-09-18, audit menyeluruh): dulu fallback Rp 15.000.000.000
+  // (konstanta tetap) dipakai kalau broker summary tidak punya
+  // institutionalNetRp — angka presisi karangan ditampilkan di modal "AI
+  // Chart Explanation" seolah hasil analisis nyata. Sekarang null jujur
+  // saat tidak tersedia; UI (renderAiChartExplanationModal) menampilkan
+  // "tidak tersedia" alih-alih angka Rupiah palsu.
+  var smartNetAvailable = !!(bData.smartMoney && bData.smartMoney.institutionalNetRp !== undefined);
+  var smartNet = smartNetAvailable ? bData.smartMoney.institutionalNetRp : null;
 
   // Existing S/R & Pivot Calculation
   var srLevels = calculateAiBaseSupportResistance(ohlcv);
@@ -155,6 +162,7 @@ function buildAiSharedMarketContext(ticker, timeframe) {
     flowScan: {
       verdict: bData.verdict || (cmfVal > 0 ? 'ACCUMULATION' : 'DISTRIBUTION'),
       institutionalNetRp: smartNet,
+      institutionalNetAvailable: smartNetAvailable,
       cmf: cmfVal
     }
   };
@@ -1024,7 +1032,7 @@ function openAiExplainModal(ticker) {
         + '<ul style="margin-top:6px;padding-left:18px;list-style-type:disc">'
           + '<li><strong>Struktur Pasar:</strong> ' + struct.structure + ' (Kekuatan Tren: ' + struct.strength + '%)</li>'
           + '<li><strong>Level Kunci Fibonacci:</strong> Area Emas Fib 0.618 berada di Rp ' + fmtK(fib.levels.f618) + '</li>'
-          + '<li><strong>Smart Money FlowScan:</strong> Verdikt ' + ctx.flowScan.verdict + ' dengan Net Inflow Rp ' + fmtK(ctx.flowScan.institutionalNetRp) + '</li>'
+          + '<li><strong>Smart Money FlowScan:</strong> Verdikt ' + ctx.flowScan.verdict + (ctx.flowScan.institutionalNetAvailable ? (' dengan Net Inflow Rp ' + fmtK(ctx.flowScan.institutionalNetRp)) : ' (Net Inflow institusi tidak tersedia — data broker summary belum ada untuk emiten ini)') + '</li>'
           + '<li><strong>Indikator Momentum:</strong> RSI-14 berada di angka ' + ctx.indicators.rsi + '</li>'
         + '</ul>'
       + '</div>'

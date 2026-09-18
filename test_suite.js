@@ -6307,6 +6307,64 @@ test('REGRESSION GUARD: Harga Wajar auto-fill fetches real Invezgo financial-sta
     'REGRESSION: hw_renderAutoFillDisclosure() is gone — auto-filled derived data is no longer disclosed to the user');
 });
 
+// ── TESTS: proactive audit (2026-09-18, user-requested "audit toolbar
+// lainnya") — 7 HIGH-severity fabricated-data findings across 5 files,
+// verified manually against the code (not just trusted from subagent
+// reports) before fixing. Each assertion targets the exact root cause. ──
+
+test('REGRESSION GUARD: Decision Journal no longer fabricates a fixed decisionQualityScore:90 for every entry', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(!/decisionQualityScore:\s*90/.test(src), 'REGRESSION: decisionQualityScore is hardcoded to 90 again for every new journal entry');
+  assert(!/Decision Score<\/th>/.test(src), 'REGRESSION: the fabricated "Decision Score" column header is back in the journal table');
+  assert(!/j\.decisionQualityScore/.test(src), 'REGRESSION: the journal table still renders the fabricated decisionQualityScore field');
+});
+
+test('REGRESSION GUARD: Morning Brief IHSG "Real-time Feed" label only shows when the IHSG value is genuinely live', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(/isIhsgLive/.test(src), 'REGRESSION: isIhsgLive tracking is gone — the Real-time Feed label can no longer distinguish real data from the 6845/6800 fallback');
+  assert(/isIhsgLive \? 'Real-time Feed' : 'Data Belum Tersedia \(Estimasi\)'/.test(src), 'REGRESSION: the IHSG label no longer honestly falls back when data is not live');
+  assert(/window\._ihsgLiveFetched === true/.test(src), 'REGRESSION: isIhsgLive reverted to checking ihsgCur > 0 alone — that is ALSO true for the 01-data.js placeholder (6500.83) set at module load, so it can never actually detect "not live"');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/window\._ihsgLiveFetched = true/.test(engineSrc), 'REGRESSION: fhApplyIHSG() no longer sets window._ihsgLiveFetched — the Morning Brief live-feed flag would never become true');
+});
+
+test('REGRESSION GUARD: Audit log no longer fabricates precise HH:MM:SS transaction timestamps', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/25-auditlog.js'), 'utf8');
+  const fnSrc = src.match(/function fmtAuditTime[\s\S]*?\n\}\n/)[0];
+  assert(!/baseHour\s*=/.test(fnSrc) && !/baseMin\s*=/.test(fnSrc), 'REGRESSION: fmtAuditTime() reverted to synthesizing a fake hour/minute from transaction index');
+  assert(!/' WIB'/.test(fnSrc), 'REGRESSION: fmtAuditTime() reverted to appending a fabricated WIB time string');
+  assert(/Jam tidak tercatat/.test(src), 'REGRESSION: the audit table no longer honestly discloses that transaction time was never recorded');
+});
+
+test('REGRESSION GUARD: copyAuditSummary() computes real ledger verification instead of hardcoding "Saldo Terverifikasi 100%"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/25-auditlog.js'), 'utf8');
+  const fnSrc = src.match(/function copyAuditSummary[\s\S]*?\n\}\n/)[0];
+  assert(!/Saldo Terverifikasi 100%/.test(fnSrc), 'REGRESSION: copyAuditSummary() reverted to hardcoding "Saldo Terverifikasi 100%" regardless of actual ledger integrity');
+  assert(/Math\.abs\(totalIn - totalOut - curBal\) < 1/.test(fnSrc), 'REGRESSION: copyAuditSummary() no longer computes real ledger verification before claiming integrity status');
+});
+
+test('REGRESSION GUARD: Portfolio "Tren 7D" sparkline uses real 7-day price history, not a fixed fake curve based on gain/loss direction', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/29-institutional-ui.js'), 'utf8');
+  const sparkFnSrc = src.match(/window\.mwCreateSparkline = function[\s\S]*?\n  \};\n/)[0];
+  assert(!/base \+ \(dir \* 2\)/.test(sparkFnSrc), 'REGRESSION: mwCreateSparkline() reverted to synthesizing a fixed 5-point curve from gain/loss direction alone');
+  assert(/function mwLoadRealSparkline/.test(src), 'REGRESSION: mwLoadRealSparkline() is gone — the sparkline no longer fetches real price history');
+  assert(/fetch\('\/api\/idx\/history\/'/.test(src), 'REGRESSION: mwLoadRealSparkline() no longer fetches the real history endpoint');
+  assert(/mwCreateSparkline\(null, isGain, 64, 18\)/.test(src) === false, 'REGRESSION: the row-injection code reverted to immediately rendering a fake sparkline with null values instead of a loading placeholder + real fetch');
+});
+
+test('REGRESSION GUARD: AI Chart Intelligence no longer fabricates a fixed Rp 15 miliar "Smart Money Net Inflow" fallback', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/43-ai-chart-intelligence.js'), 'utf8');
+  assert(!/:\s*15000000000/.test(src), 'REGRESSION: the fixed Rp 15,000,000,000 institutionalNetRp fallback is back');
+  assert(/institutionalNetAvailable/.test(src), 'REGRESSION: institutionalNetAvailable tracking is gone — the AI Chart Explanation modal can no longer tell real data from a fabricated fallback');
+  assert(/Net Inflow institusi tidak tersedia/.test(src), 'REGRESSION: the AI Chart Explanation modal no longer honestly discloses when institutional net inflow is unavailable');
+});
+
+test('REGRESSION GUARD: Crypto Whale Tier Orderflow Breakdown discloses it is a proportional volume estimate, not real order-size data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/36-crypto-technical.js'), 'utf8');
+  assert(/Estimasi proporsional dari volume 24 jam total/.test(src), 'REGRESSION: the Whale Tier Orderflow Breakdown card no longer discloses it is a fixed-percentage proxy, not real order-book data');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
