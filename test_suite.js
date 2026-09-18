@@ -6403,6 +6403,26 @@ test('REGRESSION GUARD: Stock Intel pivot Support/Resistance label no longer fal
   assert(/conviction: Math\.round\(50 \+ \(score - 25\) \/ 70 \* 45\)/.test(src), 'REGRESSION: conviction no longer scales proportionally from the real computed score');
 });
 
+// User-reported (2026-09-18): "TOP BROKER BUYER (DATA RIIL) di stock intel
+// hanya dibuat 1D dan hasilnya selalu kosong, bagaimana intel kalo tidak
+// bisa lihat history" — fetchRealStockIntelData() hardcoded ?timeframe=1D
+// with no way to check a longer window when 1D genuinely has no data.
+test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER lets the user pick a broker-summary timeframe instead of hardcoding 1D', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(!/broker-summary\/' \+ encodeURIComponent\(tk\) \+ '\?timeframe=1D'/.test(src),
+    'REGRESSION: fetchRealStockIntelData() reverted to hardcoding ?timeframe=1D');
+  assert(/function setIntelBrokerTimeframe/.test(src),
+    'REGRESSION: setIntelBrokerTimeframe() is gone — no way to switch the broker-summary timeframe');
+  assert(/window\.setIntelBrokerTimeframe = setIntelBrokerTimeframe/.test(src),
+    'REGRESSION: setIntelBrokerTimeframe is no longer exposed on window (onclick handlers would fail)');
+  assert(/MW_INTEL_BROKER_TF/.test(src),
+    'REGRESSION: MW_INTEL_BROKER_TF state tracking is gone');
+  assert(/brokerSummaryFetched/.test(src),
+    'REGRESSION: brokerSummaryFetched tracking is gone — cannot distinguish "not tried yet" from "tried, genuinely empty"');
+  assert(/Tidak ada data broker signifikan untuk/.test(src),
+    'REGRESSION: the honest "no data for this timeframe, try a longer one" message is gone — reverted to always suggesting "click Refresh"');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
