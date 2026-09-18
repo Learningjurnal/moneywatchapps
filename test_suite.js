@@ -6013,6 +6013,44 @@ test('REGRESSION GUARD: _mergeWealthData() must exclude tombstoned bank/debt/piu
   assert(/wRecordTombstone\('debt', removed\.id\)/.test(settingsSrc), 'REGRESSION: deleteDebt() in Settings no longer records a tombstone — this UI path bypasses the fix');
 });
 
+// ── TEST: Corporate Action Calendar (dividends/splits/rights/RUPS) must
+// use real Invezgo data, never the hardcoded fictional arrays that used to
+// masquerade as "verified" official data ──
+// User-reported (full-codebase audit, 2026-09-18): getIdxCalendarData()
+// (lib/providers/idx-client.js) was a 100% hardcoded fictional dataset
+// whose own comment falsely claimed "Hanya data dividen resmi yang
+// terverifikasi... tanpa data dummy" — never labeled isSimulated, so no
+// UI could disclose it was fake. A SECOND independent fictional dataset
+// (IDX_DIVIDEND_MASTER_REGISTRY) existed in public/js/42-dividend-
+// calendar.js with the same false claim, merged into the API response.
+test('REGRESSION GUARD: getIdxCalendarData() must call real Invezgo GET /analysis/calendar, never the old hardcoded fictional arrays', () => {
+  const clientSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/async function fetchInvezgoCalendar/.test(clientSrc), 'REGRESSION: fetchInvezgoCalendar() is gone from lib/invezgo-client.js');
+  assert(/\/analysis\/calendar/.test(clientSrc), 'REGRESSION: fetchInvezgoCalendar() no longer calls the real /analysis/calendar endpoint');
+  assert(/fetchInvezgoCalendar,/.test(clientSrc), 'REGRESSION: fetchInvezgoCalendar is no longer exported from lib/invezgo-client.js');
+
+  const idxClientSrc = fs.readFileSync(path.join(__dirname, 'lib/providers/idx-client.js'), 'utf8');
+  assert(/async function getIdxCalendarData/.test(idxClientSrc), 'REGRESSION: getIdxCalendarData() is no longer async — it must call the real Invezgo API');
+  assert(/fetchInvezgoCalendar\(/.test(idxClientSrc), 'REGRESSION: getIdxCalendarData() no longer calls fetchInvezgoCalendar()');
+  assert(!/cumDate: '2026-09-17'/.test(idxClientSrc) && !/BSSR.*Baramulti Suksessarana/.test(idxClientSrc),
+    'REGRESSION: the old hardcoded fictional dividend array is back in getIdxCalendarData()');
+  assert(/isSimulated:\s*true/.test(idxClientSrc), 'REGRESSION: getIdxCalendarData() no longer honestly reports isSimulated:true when Invezgo is not configured/fails');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/await getIdxCalendarData\(/.test(engineSrc), 'REGRESSION: idx-data-engine.js no longer awaits getIdxCalendarData() (it is async now)');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const calRouteSrc = serverSrc.match(/app\.get\('\/api\/idx\/calendar'[\s\S]*?\n\}\);/)[0];
+  assert(/await getIdxCalendarData\(/.test(calRouteSrc), 'REGRESSION: GET /api/idx/calendar route no longer awaits the now-async getIdxCalendarData()');
+
+  const divCalSrc = fs.readFileSync(path.join(__dirname, 'public/js/42-dividend-calendar.js'), 'utf8');
+  assert(!/IDX_DIVIDEND_MASTER_REGISTRY\s*=\s*\[/.test(divCalSrc),
+    'REGRESSION: the second hardcoded fictional dividend dataset (IDX_DIVIDEND_MASTER_REGISTRY) is back in 42-dividend-calendar.js');
+  assert(!/dc-bssr-26-sep/.test(divCalSrc), 'REGRESSION: fictional dividend entries are back in 42-dividend-calendar.js');
+  assert(/function renderDivCalDisabledNotice/.test(divCalSrc),
+    'REGRESSION: renderDivCalDisabledNotice() is gone — the Dividend Calendar page must honestly disclose it is disabled pending Invezgo payload schema verification, not silently show nothing or fabricated data');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

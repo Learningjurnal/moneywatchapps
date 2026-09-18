@@ -3373,12 +3373,15 @@ app.get('/api/idx/flow-trail/:ticker', async (req, res) => {
   }
 });
 
-// GET /api/idx/calendar — Corporate Actions (Dividends, Splits, Rights Issues, RUPS, Suspensions)
-app.get('/api/idx/calendar', (req, res) => {
+// GET /api/idx/calendar — Corporate Actions (Dividends, Splits, Rights Issues, RUPS)
+// FIX (2026-09-18): dulu sinkron (data hardcoded fiksi); sekarang async
+// karena memanggil Invezgo real (lihat getIdxCalendarData() di idx-client.js).
+app.get('/api/idx/calendar', async (req, res) => {
   try {
-    const cal = getIdxCalendarData(req.query);
+    const cal = await getIdxCalendarData(req.query);
     return res.json({ success: true, ...cal });
   } catch (err) {
+    console.error('[IDX Calendar Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

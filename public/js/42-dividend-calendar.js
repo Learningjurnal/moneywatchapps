@@ -23,29 +23,16 @@ function getDivCalTodayStr() {
   return y + '-' + m + '-' + day;
 }
 
-// Curated comprehensive IDX Dividend Calendar Dataset (Hanya data dividen resmi BEI / KSEI yang terverifikasi)
-var IDX_DIVIDEND_MASTER_REGISTRY = [
-  // Upcoming Interim & Final Dividends Resmi (September - Desember 2026) — Data Riil KSEI/BEI
-  { id: 'dc-bssr-26-sep', code: 'BSSR', name: 'Baramulti Suksessarana Tbk.', cumDate: '2026-09-17', exDate: '2026-09-18', recDate: '2026-09-21', paymentDate: '2026-09-29', dps: 345.0, yield: 8.5, payoutRatio: '70%', status: 'Mendatang', type: 'Interim', sector: 'Energy' },
-  { id: 'dc-itmg-26-sep', code: 'ITMG', name: 'Indo Tambangraya Megah Tbk.', cumDate: '2026-09-19', exDate: '2026-09-22', recDate: '2026-09-23', paymentDate: '2026-09-30', dps: 1220.0, yield: 5.2, payoutRatio: '65%', status: 'Mendatang', type: 'Interim', sector: 'Energy' },
-  { id: 'dc-tebe-26-sep', code: 'TEBE', name: 'Dana Brata Luhur Tbk.', cumDate: '2026-09-22', exDate: '2026-09-23', recDate: '2026-09-24', paymentDate: '2026-10-02', dps: 35.0, yield: 4.8, payoutRatio: '50%', status: 'Mendatang', type: 'Interim', sector: 'Energy' },
-  { id: 'dc-hexa-26-sep', code: 'HEXA', name: 'Hexindo Adiperkasa Tbk.', cumDate: '2026-09-25', exDate: '2026-09-26', recDate: '2026-09-29', paymentDate: '2026-10-16', dps: 550.0, yield: 7.8, payoutRatio: '75%', status: 'Mendatang', type: 'Final', sector: 'Industrials' },
-  { id: 'dc-untr-26-okt', code: 'UNTR', name: 'United Tractors Tbk.', cumDate: '2026-10-12', exDate: '2026-10-13', recDate: '2026-10-14', paymentDate: '2026-10-25', dps: 667.0, yield: 2.6, payoutRatio: '45%', status: 'Mendatang', type: 'Interim', sector: 'Industrials' },
-  { id: 'dc-asii-26-okt', code: 'ASII', name: 'Astra International Tbk.', cumDate: '2026-10-15', exDate: '2026-10-16', recDate: '2026-10-19', paymentDate: '2026-10-31', dps: 98.0, yield: 2.1, payoutRatio: '40%', status: 'Mendatang', type: 'Interim', sector: 'Industrials' },
-  { id: 'dc-bbca-26-nov', code: 'BBCA', name: 'Bank Central Asia Tbk.', cumDate: '2026-11-20', exDate: '2026-11-23', recDate: '2026-11-24', paymentDate: '2026-12-15', dps: 50.0, yield: 1.0, payoutRatio: '20%', status: 'Mendatang', type: 'Interim', sector: 'Financials' },
-  { id: 'dc-bbri-26-des', code: 'BBRI', name: 'Bank Rakyat Indonesia (Persero) Tbk.', cumDate: '2026-12-18', exDate: '2026-12-21', recDate: '2026-12-22', paymentDate: '2027-01-15', dps: 85.0, yield: 1.8, payoutRatio: '25%', status: 'Mendatang', type: 'Interim', sector: 'Financials' },
-  // Historical Completed Dividends Resmi (2026 / 2025) — Data Riil KSEI/BEI
-  { id: 'dc-smdr-26-agt', code: 'SMDR', name: 'Samudera Indonesia Tbk.', cumDate: '2026-08-20', exDate: '2026-08-21', recDate: '2026-08-24', paymentDate: '2026-08-28', dps: 2.5, yield: 3.2, payoutRatio: '45%', status: 'Selesai', type: 'Interim', sector: 'Logistics' },
-  { id: 'dc-ggrm-26-jul', code: 'GGRM', name: 'Gudang Garam Tbk.', cumDate: '2026-06-25', exDate: '2026-06-26', recDate: '2026-06-29', paymentDate: '2026-07-18', dps: 1200.0, yield: 6.0, payoutRatio: '65%', status: 'Selesai', type: 'Final', sector: 'Consumer Goods' },
-  { id: 'dc-unvr-26-jul', code: 'UNVR', name: 'Unilever Indonesia Tbk.', cumDate: '2026-06-20', exDate: '2026-06-23', recDate: '2026-06-24', paymentDate: '2026-07-10', dps: 84.0, yield: 4.9, payoutRatio: '95%', status: 'Selesai', type: 'Final', sector: 'Consumer Non-Cyclicals' },
-  { id: 'dc-adro-26-jun', code: 'ADRO', name: 'Alamtri Resources Indonesia Tbk.', cumDate: '2026-05-27', exDate: '2026-05-28', recDate: '2026-05-29', paymentDate: '2026-06-06', dps: 252.0, yield: 8.9, payoutRatio: '68%', status: 'Selesai', type: 'Final', sector: 'Energy' },
-  { id: 'dc-arci-26-jun', code: 'ARCI', name: 'Archi Indonesia Tbk.', cumDate: '2026-05-20', exDate: '2026-05-21', recDate: '2026-05-22', paymentDate: '2026-06-08', dps: 12.5, yield: 2.8, payoutRatio: '35%', status: 'Selesai', type: 'Final', sector: 'Basic Materials' },
-  { id: 'dc-sido-26-apr', code: 'SIDO', name: 'Industri Jamu Dan Farmasi Sido Muncul Tbk.', cumDate: '2026-04-03', exDate: '2026-04-04', recDate: '2026-04-07', paymentDate: '2026-04-18', dps: 23.0, yield: 6.5, payoutRatio: '90%', status: 'Selesai', type: 'Final', sector: 'Healthcare' },
-  { id: 'dc-bbni-26-apr', code: 'BBNI', name: 'Bank Negara Indonesia (Persero) Tbk.', cumDate: '2026-03-24', exDate: '2026-03-25', recDate: '2026-03-26', paymentDate: '2026-04-08', dps: 280.5, yield: 5.6, payoutRatio: '50%', status: 'Selesai', type: 'Final', sector: 'Financials' },
-  { id: 'dc-bbca-26-apr', code: 'BBCA', name: 'Bank Central Asia Tbk.', cumDate: '2026-03-20', exDate: '2026-03-21', recDate: '2026-03-24', paymentDate: '2026-04-04', dps: 227.5, yield: 2.7, payoutRatio: '65%', status: 'Selesai', type: 'Final', sector: 'Financials' },
-  { id: 'dc-bmri-26-apr', code: 'BMRI', name: 'Bank Mandiri (Persero) Tbk.', cumDate: '2026-03-18', exDate: '2026-03-19', recDate: '2026-03-20', paymentDate: '2026-04-02', dps: 353.95, yield: 6.0, payoutRatio: '60%', status: 'Selesai', type: 'Final', sector: 'Financials' },
-  { id: 'dc-bbri-26-mar', code: 'BBRI', name: 'Bank Rakyat Indonesia (Persero) Tbk.', cumDate: '2026-03-13', exDate: '2026-03-14', recDate: '2026-03-17', paymentDate: '2026-03-28', dps: 235.0, yield: 6.9, payoutRatio: '80%', status: 'Selesai', type: 'Final', sector: 'Financials' }
-];
+// FIX (2026-09-18, user-reported after full-codebase audit): array
+// `IDX_DIVIDEND_MASTER_REGISTRY` yang tadinya ada di sini adalah 100% data
+// fiksi hardcoded (tanggal & DPS karangan) dengan klaim keliru "Data Riil
+// KSEI/BEI" — dihapus total, bukan sekadar diberi label. Belum ada
+// penggantinya yang real karena skema `payload` Invezgo untuk tipe
+// DIVIDEND belum terverifikasi (lihat catatan di getIdxCalendarData(),
+// lib/providers/idx-client.js) — fitur kalender/timeline/musiman/proyeksi
+// passive income di bawah ini SENGAJA dinonaktifkan (lihat
+// renderDividendCalendarComponent()) sampai skema itu terverifikasi,
+// alih-alih menampilkan tanggal/DPS/yield hasil tebakan.
 
 // ── Helper: Ambil holdings saham yang sedang dipegang di portofolio ──
 function getDivCalPortfolioMap() {
@@ -211,6 +198,11 @@ function getEnrichedDividendEvents() {
 }
 
 // ── Inisialisasi & Fetch data kalender dari API server ──
+// FIX (2026-09-18): dulu fallback ke IDX_DIVIDEND_MASTER_REGISTRY (data
+// fiksi, sudah dihapus) kalau API gagal/kosong. Sekarang cuma menyimpan
+// respons real Invezgo apa adanya (raw {code,type,payload}) — lihat
+// renderDividendCalendarComponent() untuk kenapa fitur ini masih
+// dinonaktifkan sementara (skema payload belum terverifikasi).
 function initDividendCalendar() {
   if (DIV_CALENDAR_STATE.isLoading) return;
   DIV_CALENDAR_STATE.isLoading = true;
@@ -219,196 +211,58 @@ function initDividendCalendar() {
     .then(function(res) { return res.json(); })
     .then(function(data) {
       DIV_CALENDAR_STATE.isLoading = false;
-      if (data && data.success && Array.isArray(data.dividends) && data.dividends.length) {
-        var merged = IDX_DIVIDEND_MASTER_REGISTRY.slice();
-        var codeSet = new Set(merged.map(function(m) { return m.code + '|' + m.paymentDate; }));
-        data.dividends.forEach(function(d) {
-          var key = d.code + '|' + d.paymentDate;
-          if (!codeSet.has(key)) {
-            merged.push(Object.assign({ id: 'api-' + d.code + '-' + d.paymentDate }, d));
-          }
-        });
-        DIV_CALENDAR_STATE.cachedData = merged;
-      }
+      DIV_CALENDAR_STATE.cachedData = (data && Array.isArray(data.dividends)) ? data.dividends : [];
+      DIV_CALENDAR_STATE.dataSource = data ? data.dataSource : null;
       renderDividendCalendarComponent();
     })
     .catch(function(err) {
       DIV_CALENDAR_STATE.isLoading = false;
-      console.warn('[DividendCalendar] Using fallback master registry:', err);
-      DIV_CALENDAR_STATE.cachedData = IDX_DIVIDEND_MASTER_REGISTRY.slice();
+      console.warn('[DividendCalendar] Fetch failed:', err);
+      DIV_CALENDAR_STATE.cachedData = [];
       renderDividendCalendarComponent();
     });
 }
 
 // ── Render Master Komponen Kalender Dividen ──
+// FIX (2026-09-18, user-reported after full-codebase audit): fitur ini
+// (grid kalender per-tanggal, timeline, grafik musiman 12 bulan, proyeksi
+// passive income) 100% dibangun di atas field hasil karangan dari
+// IDX_DIVIDEND_MASTER_REGISTRY (dps/cumDate/exDate/paymentDate/yield/dst)
+// yang sudah dihapus (lihat catatan di atas file ini). Invezgo memang punya
+// endpoint real (GET /analysis/calendar) — TAPI skema `payload`-nya per
+// tipe DIVIDEND belum terverifikasi (dokumentasi vendor cuma kasih contoh
+// untuk tipe WARRANT), jadi field seperti tanggal cum/ex/payment dan
+// nominal DPS TIDAK BISA dipetakan tanpa menebak. Alih-alih menampilkan
+// kalender/proyeksi dengan tanggal & angka hasil tebakan, seluruh fitur
+// ini dinonaktifkan jujur sampai skema terverifikasi (keputusan eksplisit
+// user, bukan sepihak) — lihat renderDivCalDisabledNotice().
+function renderDivCalDisabledNotice() {
+  var items = DIV_CALENDAR_STATE.cachedData || [];
+  var listHtml = items.length
+    ? '<div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">'
+      + items.map(function(d) {
+        return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:12px">'
+          + '<strong style="color:var(--text)">' + d.code + '</strong>'
+          + '<div style="color:var(--text3);font-size:10.5px;margin-top:2px">Ada jadwal dividen (detail belum bisa ditampilkan)</div>'
+        + '</div>';
+      }).join('')
+      + '</div>'
+    : '';
+  return '<div class="card" style="padding:20px;text-align:center">'
+    + '<div style="font-size:28px;margin-bottom:8px">📅</div>'
+    + '<div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:6px">Kalender Dividen Sementara Dinonaktifkan</div>'
+    + '<div style="font-size:12px;color:var(--text3);max-width:480px;margin:0 auto;line-height:1.5">'
+    + 'Data dividen fiksi/karangan yang sebelumnya ditampilkan di sini sudah dihapus. Invezgo API punya data real untuk ini, tapi skema detailnya (tanggal cum/ex/payment, nominal DPS, yield) belum terverifikasi dari respons real — menampilkannya berarti menebak, yang tidak diperbolehkan di aplikasi ini. Fitur ini akan diaktifkan kembali setelah skema dikonfirmasi.'
+    + '</div>'
+    + (items.length ? '<div style="font-size:11px;color:var(--text2);margin-top:12px">' + items.length + ' emiten tercatat punya jadwal dividen dari Invezgo hari ini:</div>' + listHtml : '<div style="font-size:11px;color:var(--text3);margin-top:12px">Tidak ada data dari Invezgo saat ini.</div>')
+    + '</div>';
+}
+
 function renderDividendCalendarComponent() {
   var container = document.getElementById('dividend-calendar-mount');
   if (!container) return;
-
-  var events = getEnrichedDividendEvents();
-  var portoMap = getDivCalPortfolioMap();
-  var heldCount = Object.keys(portoMap).length;
-
-  // Kalkulasi Metrik Passive Income Portofolio
-  var totalUpcomingNet = 0;
-  var totalHistoricalNet = 0;
-  var currentMonthNet = 0;
-  var nextUpcomingEvent = null;
-
-  var selY = DIV_CALENDAR_STATE.currentYear;
-  var selM = DIV_CALENDAR_STATE.currentMonth; // 0-indexed
-  var targetMonthPrefix = selY + '-' + String(selM + 1).padStart(2, '0');
-
-  events.forEach(function(ev) {
-    if (ev.isHeld) {
-      if (ev.isUpcoming) {
-        totalUpcomingNet += ev.netExpected;
-        if (!nextUpcomingEvent || ev.diffDays < nextUpcomingEvent.diffDays) {
-          nextUpcomingEvent = ev;
-        }
-      } else {
-        totalHistoricalNet += ev.netExpected;
-      }
-
-      if ((ev.paymentDate || '').startsWith(targetMonthPrefix)) {
-        currentMonthNet += ev.netExpected;
-      }
-    }
-  });
-
-  // Portfolio total market value untuk menghitung expected dividend yield
-  var totalPortoMV = 0;
-  Object.values(portoMap).forEach(function(p) { totalPortoMV += p.mv; });
-  var expectedAnnualYield = totalPortoMV > 0 ? ((totalUpcomingNet + totalHistoricalNet) / totalPortoMV) * 100 : 0;
-
-  var monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-  var html = ''
-    // FIX (2026-09-13, Tahap 4): sudah class="card" tapi punya box-shadow
-    // inline sendiri yang menimpa standar .card di tema GELAP saja (tema
-    // terang tetap benar karena override !important) — dihapus supaya
-    // benar-benar identik dengan .card lain di kedua tema. Border hijau +
-    // gradient tetap dipertahankan (aksen visual "highlight" yang disengaja).
-    + '<div class="card" style="margin-bottom:18px;border:1px solid rgba(52,211,153,.25);background:linear-gradient(180deg, rgba(16,185,129,.03) 0%, var(--bg2) 100%);">'
-    + '  <!-- Header & Title -->'
-    + '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">'
-    + '    <div>'
-    + '      <div style="display:flex;align-items:center;gap:8px;">'
-    + '        <div style="width:34px;height:34px;border-radius:9px;background:rgba(52,211,153,.15);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:18px;">'
-    + '          <i class="ti ti-calendar-event"></i>'
-    + '        </div>'
-    + '        <div>'
-    + '          <div style="font-size:16px;font-weight:800;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px;">'
-    + '            <span>Kalender Dividen &amp; Expected Passive Income</span>'
-    + '            <span class="badge b-up" style="font-size:10px;padding:2px 7px;">ACTIVE RADAR</span>'
-    + '          </div>'
-    + '          <div style="font-size:12px;color:var(--text3);margin-top:1px;">Jadwal Pembayaran Dividen Saham Portofolio · Estimasi Kas Masuk Bersih (Net) · Cum/Ex/Payment Tracker</div>'
-    + '        </div>'
-    + '      </div>'
-    + '    </div>'
-    + '    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
-    + '      <!-- Switch Views -->'
-    + '      <div style="display:inline-flex;background:var(--bg3);padding:3px;border-radius:8px;border:1px solid var(--border);">'
-    + '        <button class="btn btn-xs ' + (DIV_CALENDAR_STATE.viewMode === 'calendar' ? 'btn-green' : 'btn-ghost') + '" onclick="setDivCalViewMode(\'calendar\')"><i class="ti ti-calendar"></i> Kalender</button>'
-    + '        <button class="btn btn-xs ' + (DIV_CALENDAR_STATE.viewMode === 'timeline' ? 'btn-green' : 'btn-ghost') + '" onclick="setDivCalViewMode(\'timeline\')"><i class="ti ti-timeline"></i> Timeline &amp; Countdown</button>'
-    + '        <button class="btn btn-xs ' + (DIV_CALENDAR_STATE.viewMode === 'seasonality' ? 'btn-green' : 'btn-ghost') + '" onclick="setDivCalViewMode(\'seasonality\')"><i class="ti ti-chart-bar"></i> Musim 12 Bulan</button>'
-    + '        <button class="btn btn-xs ' + (DIV_CALENDAR_STATE.viewMode === 'table' ? 'btn-green' : 'btn-ghost') + '" onclick="setDivCalViewMode(\'table\')"><i class="ti ti-table"></i> Daftar Riwayat</button>'
-    + '      </div>'
-    + '      <button class="btn btn-ghost btn-xs" onclick="initDividendCalendar()" title="Refresh Kalender"><i class="ti ti-refresh"></i> Refresh</button>'
-    + '    </div>'
-    + '  </div>'
-
-    + '  <!-- Metric Cockpit: 4 Kartu Passive Income -->'
-    + '  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:18px;">'
-    + '    <div style="background:var(--bg3);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden;">'
-    + '      <div style="position:absolute;top:-8px;right:-8px;width:40px;height:40px;background:rgba(52,211,153,.08);border-radius:50%;"></div>'
-    + '      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">Expected Passive Income (Mendatang)</div>'
-    + '      <div style="font-family:var(--font-mono);font-size:19px;font-weight:800;color:' + (totalUpcomingNet > 0 ? 'var(--green)' : 'var(--text3)') + ';margin:4px 0 2px;">Rp ' + fmtK(totalUpcomingNet) + '</div>'
-    + '      <div style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;">'
-    + (totalUpcomingNet > 0
-        ? '        <i class="ti ti-trending-up" style="color:var(--green);"></i> <span>Kas bersih dari dividen terjadwal resmi</span>'
-        : '        <i class="ti ti-info-circle" style="color:var(--text3);"></i> <span>Tidak ada jadwal dividen mendatang aktif</span>')
-    + '      </div>'
-    + '    </div>'
-
-    + '    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
-    + '      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">Dividen Bulan Ini (' + monthNames[selM] + ')</div>'
-    + '      <div style="font-family:var(--font-mono);font-size:19px;font-weight:800;color:' + (currentMonthNet > 0 ? 'var(--accent)' : 'var(--text3)') + ';margin:4px 0 2px;">Rp ' + fmtK(currentMonthNet) + '</div>'
-    + '      <div style="font-size:11px;color:var(--text2);">'
-    + (currentMonthNet > 0
-        ? '        <span>Estimasi panen dividen ' + monthNames[selM] + ' ' + selY + '</span>'
-        : '        <span>Tidak ada jadwal dividen di ' + monthNames[selM] + ' ' + selY + '</span>')
-    + '      </div>'
-    + '    </div>'
-
-    + '    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
-    + '      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">Pembayaran Terdekat</div>'
-    + (nextUpcomingEvent
-        ? '      <div style="display:flex;align-items:baseline;gap:6px;margin:4px 0 2px;">'
-          + '        <span style="font-weight:800;font-size:16px;color:var(--text-main);">' + nextUpcomingEvent.code + '</span>'
-          + '        <span style="font-family:var(--font-mono);font-weight:700;color:var(--green);font-size:15px;">Rp ' + fmtK(nextUpcomingEvent.netExpected) + '</span>'
-          + '      </div>'
-          + '      <div style="font-size:11px;color:var(--text2);">'
-          + '        <span>Tanggal Bayar: <b>' + nextUpcomingEvent.paymentDate + '</b> (' + nextUpcomingEvent.countdownLabel + ')</span>'
-          + '      </div>'
-        : '      <div style="font-size:13px;font-weight:700;color:var(--text3);margin:6px 0;">Tidak Ada Jadwal Bulan Ini</div>'
-          + '      <div style="font-size:11px;color:var(--text3);">BBRI, BBCA, ADRO tidak ada dividen bulan ini</div>')
-    + '    </div>'
-
-    + '    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
-    + '      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">Dividen Yield Portofolio (Est.)</div>'
-    + '      <div style="font-family:var(--font-mono);font-size:19px;font-weight:800;color:#f59e0b;margin:4px 0 2px;">' + expectedAnnualYield.toFixed(2) + '%</div>'
-    + '      <div style="font-size:11px;color:var(--text2);">'
-    + '        <span>Total Realisasi: <b>Rp ' + fmtK(totalHistoricalNet) + '</b></span>'
-    + '      </div>'
-    + '    </div>'
-    + '  </div>'
-
-    + '  <!-- Controls: Filter Portofolio, Status, Search -->'
-    + '  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:var(--bg);padding:10px 14px;border-radius:10px;border:1px solid var(--border);margin-bottom:16px;">'
-    + '    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
-    + '      <!-- Toggle Portfolio Only -->'
-    + '      <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text-main);cursor:pointer;user-select:none;background:rgba(52,211,153,.1);padding:4px 10px;border-radius:6px;border:1px solid rgba(52,211,153,.25);">'
-    + '        <input type="checkbox" id="div-cal-porto-filter" ' + (DIV_CALENDAR_STATE.filterPortfolioOnly ? 'checked' : '') + ' onchange="toggleDivCalPortfolioFilter(this.checked)" style="cursor:pointer;accent-color:var(--green);">'
-    + '        <span>⭐ Hanya Saham Portofolio (' + heldCount + ' Saham)</span>'
-    + '      </label>'
-
-    + '      <!-- Status Filter -->'
-    + '      <div style="display:inline-flex;gap:4px;align-items:center;">'
-    + '        <span style="font-size:11px;color:var(--text3);">Status:</span>'
-    + '        <select class="finput fsel" style="padding:3px 8px;font-size:11px;height:28px;" onchange="setDivCalStatusFilter(this.value)">'
-    + '          <option value="all" ' + (DIV_CALENDAR_STATE.filterStatus === 'all' ? 'selected' : '') + '>Semua (Upcoming &amp; Riwayat)</option>'
-    + '          <option value="upcoming" ' + (DIV_CALENDAR_STATE.filterStatus === 'upcoming' ? 'selected' : '') + '>🔮 Mendatang Saja</option>'
-    + '          <option value="historical" ' + (DIV_CALENDAR_STATE.filterStatus === 'historical' ? 'selected' : '') + '>✅ Riwayat Selesai</option>'
-    + '        </select>'
-    + '      </div>'
-    + '    </div>'
-
-    + '    <div style="display:flex;align-items:center;gap:8px;">'
-    + '      <div style="position:relative;">'
-    + '        <input type="text" class="finput" placeholder="Cari ticker / emiten..." value="' + (DIV_CALENDAR_STATE.searchQuery || '') + '" oninput="setDivCalSearch(this.value)" style="padding:4px 10px 4px 28px;font-size:11px;height:28px;width:180px;border-radius:6px;">'
-    + '        <i class="ti ti-search" style="position:absolute;left:8px;top:7px;font-size:13px;color:var(--text3);"></i>'
-    + '      </div>'
-    + '    </div>'
-    + '  </div>';
-
-  // Render sesuai ViewMode yang dipilih
-  if (DIV_CALENDAR_STATE.viewMode === 'calendar') {
-    html += renderDivCalMonthGrid(events, selY, selM);
-  } else if (DIV_CALENDAR_STATE.viewMode === 'timeline') {
-    html += renderDivCalTimelineView(events);
-  } else if (DIV_CALENDAR_STATE.viewMode === 'seasonality') {
-    html += renderDivCalSeasonalityView(events);
-  } else if (DIV_CALENDAR_STATE.viewMode === 'table') {
-    html += renderDivCalTableView(events);
-  }
-
-  html += '</div>';
-
-  // Modal Container jika belum ada
-  html += '<div id="div-cal-modal-container"></div>';
-
-  container.innerHTML = html;
+  container.innerHTML = renderDivCalDisabledNotice();
+  return;
 }
 
 // ── 1. Render Kalender Bulanan Interaktif ──
