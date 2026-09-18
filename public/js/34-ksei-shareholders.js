@@ -1395,7 +1395,136 @@ function renderKseiStockView(container, ticker, embedded) {
         </table>
       </div>
     </div>
+
+    <!-- LIVE INVEZGO COMPOSITION (aggregate by investor category — NOT
+         named beneficial owners, complementary to the table above, never
+         merged into it) -->
+    <div id="ksei-live-invezgo-${stock.ticker}" style="margin-top:18px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px">
+      <div style="font-size:12px;color:var(--text3)">⏳ Memuat komposisi kepemilikan live (Invezgo)...</div>
+    </div>
   `;
+
+  if (typeof kseiLoadLiveComposition === 'function') kseiLoadLiveComposition(stock.ticker);
+}
+
+/**
+ * Fetches Invezgo's aggregate ownership-by-category data (jumlah pemegang
+ * saham trend, komposisi Asing/Lokal x 9 kategori KSEI, detail klasifikasi
+ * granular 39 kode) and renders it into the placeholder card. Separate
+ * from the named >5% holder table above — this data has no beneficial-
+ * owner names at all (see lib/idx-data-engine.js generateShareholderComposition()).
+ * Never fabricates: every unavailable part shows its own honest reason.
+ */
+function kseiLoadLiveComposition(ticker) {
+  var box = document.getElementById('ksei-live-invezgo-' + ticker);
+  if (!box) return;
+  fetch('/api/idx/shareholder-composition/' + encodeURIComponent(ticker))
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      var cur = document.getElementById('ksei-live-invezgo-' + ticker);
+      if (!cur) return; // user navigated away before response arrived
+      if (!res || !res.success || !res.data) {
+        cur.innerHTML = '<div style="font-size:12px;color:var(--text3)">Gagal memuat komposisi live Invezgo.</div>';
+        return;
+      }
+      cur.innerHTML = kseiRenderLiveCompositionHtml(res.data);
+    })
+    .catch(function() {
+      var cur = document.getElementById('ksei-live-invezgo-' + ticker);
+      if (cur) cur.innerHTML = '<div style="font-size:12px;color:var(--text3)">Gagal memuat komposisi live Invezgo (jaringan bermasalah).</div>';
+    });
+}
+
+function _kseiReasonText(reason) {
+  var map = {
+    NOT_CONFIGURED: 'Invezgo API key belum dikonfigurasi di server',
+    AUTH_FAILED: 'Autentikasi Invezgo gagal',
+    SUBSCRIPTION_INSUFFICIENT: 'Paket langganan Invezgo tidak mencakup data ini',
+    RATE_LIMITED: 'Kuota/rate limit Invezgo tercapai',
+    UNEXPECTED_SCHEMA: 'Skema respons Invezgo tidak dikenali',
+    NETWORK_ERROR: 'Gangguan jaringan ke Invezgo'
+  };
+  return map[reason] || (reason ? ('HTTP ' + reason) : 'Tidak tersedia');
+}
+
+function kseiRenderLiveCompositionHtml(data) {
+  var sections = [];
+
+  // 1) Jumlah pemegang saham (trend)
+  if (data.holderCountSeries && data.holderCountSeries.length > 0) {
+    var last = data.holderCountSeries[data.holderCountSeries.length - 1];
+    var first = data.holderCountSeries[0];
+    var deltaText = '';
+    if (first.holderCount !== null && last.holderCount !== null) {
+      var delta = last.holderCount - first.holderCount;
+      deltaText = '<span style="color:' + (delta >= 0 ? '#10B981' : '#EF4444') + ';font-weight:700">' + (delta >= 0 ? '+' : '') + Number(delta).toLocaleString('id-ID') + '</span> sejak ' + first.date.slice(0, 10);
+    }
+    sections.push(
+      '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px">' +
+      '<div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Jumlah Pemegang Saham (SID) — ' + last.date.slice(0, 10) + '</div>' +
+      '<div style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text);margin-top:2px">' + (last.holderCount !== null ? Number(last.holderCount).toLocaleString('id-ID') : '—') + '</div>' +
+      '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + deltaText + '</div>' +
+      '</div>'
+    );
+  } else {
+    var e1 = (data.errors || []).filter(function(x) { return x.part === 'holderCount'; })[0];
+    sections.push('<div style="font-size:11px;color:var(--text3)">Jumlah pemegang saham: ' + _kseiReasonText(e1 && e1.reason) + '.</div>');
+  }
+
+  // 2) Komposisi Asing/Lokal x 9 kategori KSEI (bulan terakhir)
+  if (data.kseiLatest) {
+    var labels = data.categoryLabels || {};
+    var rows = Object.keys(labels).map(function(code) {
+      var f = data.kseiLatest.foreign[code] || 0;
+      var l = data.kseiLatest.local[code] || 0;
+      if (f === 0 && l === 0) return '';
+      return '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:6px 10px">' + labels[code] + '</td>' +
+        '<td style="padding:6px 10px;text-align:right;font-family:var(--font-mono);color:#A78BFA">' + Number(f).toLocaleString('id-ID') + '</td>' +
+        '<td style="padding:6px 10px;text-align:right;font-family:var(--font-mono);color:#60A5FA">' + Number(l).toLocaleString('id-ID') + '</td>' +
+        '</tr>';
+    }).join('');
+    sections.push(
+      '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;overflow-x:auto">' +
+      '<div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:6px">Komposisi Kepemilikan per Kategori KSEI (lembar) — ' + data.kseiLatest.date.slice(0, 10) + '</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:11px">' +
+      '<thead><tr style="color:var(--text3);text-align:left"><th style="padding:4px 10px">Kategori</th><th style="padding:4px 10px;text-align:right">Asing</th><th style="padding:4px 10px;text-align:right">Lokal</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>' +
+      '</div>'
+    );
+  } else {
+    var e2 = (data.errors || []).filter(function(x) { return x.part === 'kseiComposition'; })[0];
+    sections.push('<div style="font-size:11px;color:var(--text3)">Komposisi KSEI: ' + _kseiReasonText(e2 && e2.reason) + '.</div>');
+  }
+
+  // 3) Detail klasifikasi granular (39 kode, snapshot terbaru)
+  if (data.classifyDetail && data.classifyDetail.categories && data.classifyDetail.categories.length > 0) {
+    var top = data.classifyDetail.categories.slice(0, 10);
+    var detailRows = top.map(function(c) {
+      var pct = data.classifyDetail.total > 0 ? (c.value / data.classifyDetail.total * 100) : 0;
+      return '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:6px 10px">' + c.label + ' <span style="color:var(--text3);font-size:10px">(' + c.code + ')</span></td>' +
+        '<td style="padding:6px 10px;text-align:right;font-family:var(--font-mono)">' + Number(c.value).toLocaleString('id-ID') + '</td>' +
+        '<td style="padding:6px 10px;text-align:right;font-family:var(--font-mono)">' + pct.toFixed(2) + '%</td>' +
+        '</tr>';
+    }).join('');
+    sections.push(
+      '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;overflow-x:auto">' +
+      '<div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:6px">Klasifikasi Investor Detail — Top 10' + (data.classifyDetail.periodUnknown ? ' <span style="color:#f59e0b">(tanggal periode tidak disertakan API)</span>' : '') + '</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:11px">' +
+      '<thead><tr style="color:var(--text3);text-align:left"><th style="padding:4px 10px">Kategori</th><th style="padding:4px 10px;text-align:right">Lembar</th><th style="padding:4px 10px;text-align:right">% Total</th></tr></thead>' +
+      '<tbody>' + detailRows + '</tbody></table>' +
+      '</div>'
+    );
+  } else {
+    var e3 = (data.errors || []).filter(function(x) { return x.part === 'classifyDetail'; })[0];
+    sections.push('<div style="font-size:11px;color:var(--text3)">Klasifikasi detail: ' + _kseiReasonText(e3 && e3.reason) + '.</div>');
+  }
+
+  return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+    '<div style="font-size:13px;font-weight:700;color:var(--text)">📡 Komposisi Kepemilikan Live (Invezgo, per Kategori Investor)</div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">' + sections.join('') + '</div>';
 }
 
 // ══════════════════════════════════════════════════════════════
