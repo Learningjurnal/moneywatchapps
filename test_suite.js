@@ -5647,6 +5647,91 @@ test('REGRESSION GUARD: Market Pulse IHSG chart must fetch real history for 5D/1
     'REGRESSION: rdEnsureIhsgHistory() no longer records a failure timestamp — a failed fetch would be silently retried on every re-render instead of backing off, hammering the shared proxy');
 });
 
+// ── TEST: Shareholder/KSEI live-fetch from Invezgo (4 endpoints, all
+// schemas confirmed via real captured BBCA responses 2026-09-18, not a
+// guess) — number, ksei (9-category Asing/Lokal), classify-table (39-code
+// granular snapshot), classification (39-code time series) ──
+// User explicitly requested this ("shareholder juga [ada API]... jangan
+// pakai hardcode") after Bandarmology's schema bug, so every fetcher here
+// must fail-closed honestly on NOT_CONFIGURED/unexpected-schema rather than
+// ever inventing a shareholder count, category breakdown, or investor
+// classification label.
+test('REGRESSION GUARD: fetchInvezgoShareholderNumber/Ksei/ClassifyTable/Classification() must call the real Invezgo endpoints and parse the confirmed real schemas', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+
+  assert(/async function fetchInvezgoShareholderNumber/.test(src), 'REGRESSION: fetchInvezgoShareholderNumber() is missing');
+  assert(/async function fetchInvezgoShareholderKsei/.test(src), 'REGRESSION: fetchInvezgoShareholderKsei() is missing');
+  assert(/async function fetchInvezgoShareholderClassifyTable/.test(src), 'REGRESSION: fetchInvezgoShareholderClassifyTable() is missing');
+  assert(/async function fetchInvezgoShareholderClassification/.test(src), 'REGRESSION: fetchInvezgoShareholderClassification() is missing');
+
+  const numberFn = src.match(/async function fetchInvezgoShareholderNumber[\s\S]*?\n\}\n/)[0];
+  assert(/\/analysis\/shareholder\/number\/\$\{encodeURIComponent\(ticker\)\}/.test(numberFn),
+    'REGRESSION: fetchInvezgoShareholderNumber() no longer calls the real /analysis/shareholder/number/{code} endpoint');
+  assert(/holderCount:\s*Number\(r\.value\)/.test(numberFn),
+    'REGRESSION: fetchInvezgoShareholderNumber() no longer maps the real `value` field (jumlah pemegang saham) to holderCount');
+
+  const kseiFn = src.match(/async function fetchInvezgoShareholderKsei[\s\S]*?\n\}\n/)[0];
+  assert(/\/analysis\/shareholder\/ksei\/\$\{encodeURIComponent\(ticker\)\}\?range=/.test(kseiFn),
+    'REGRESSION: fetchInvezgoShareholderKsei() no longer calls the real /analysis/shareholder/ksei/{code}?range= endpoint');
+  assert(/r\['foreign_' \+ k\]/.test(kseiFn) && /r\['local_' \+ k\]/.test(kseiFn),
+    'REGRESSION: fetchInvezgoShareholderKsei() no longer derives foreign_*/local_* category fields confirmed from the real BBCA response');
+
+  const classifyTableFn = src.match(/async function fetchInvezgoShareholderClassifyTable[\s\S]*?\n\}\n/)[0];
+  assert(/\/analysis\/shareholder\/classify-table\/\$\{encodeURIComponent\(ticker\)\}/.test(classifyTableFn),
+    'REGRESSION: fetchInvezgoShareholderClassifyTable() no longer calls the real /analysis/shareholder/classify-table/{code} endpoint');
+  assert(/periodUnknown:\s*true/.test(classifyTableFn),
+    'REGRESSION: fetchInvezgoShareholderClassifyTable() no longer marks periodUnknown — the real response has NO date field, inventing one would be fabricated data');
+
+  const classificationFn = src.match(/async function fetchInvezgoShareholderClassification[\s\S]*?\n\}\n/)[0];
+  assert(/\/analysis\/shareholder\/classification\/\$\{encodeURIComponent\(ticker\)\}\?range=/.test(classificationFn),
+    'REGRESSION: fetchInvezgoShareholderClassification() no longer calls the real /analysis/shareholder/classification/{code}?range= endpoint');
+
+  // All four must fail-closed honestly when INVEZGO_API_KEY is absent.
+  assert((src.match(/if\s*\(!apiKey\)\s*return\s*\{\s*ok:\s*false,\s*reason:\s*'NOT_CONFIGURED'/g) || []).length >= 6,
+    'REGRESSION: one or more shareholder fetchers no longer takes an honest NOT_CONFIGURED early-return — must never fabricate shareholder data');
+
+  // Classification labels: 39-code granular legend from Invezgo's own docs
+  // (user-provided 2026-09-18), and the 9-code KSEI standard categories —
+  // neither guessed.
+  assert(/INVEZGO_CLASSIFICATION_LABELS/.test(src) && /BK:\s*'Bank'/.test(src) && /IN:\s*'Individu'/.test(src),
+    'REGRESSION: INVEZGO_CLASSIFICATION_LABELS (39-code legend from Invezgo docs) is gone or incomplete');
+  assert(/INVEZGO_KSEI_CATEGORY_LABELS/.test(src) && /is:\s*'Asuransi'/.test(src),
+    'REGRESSION: INVEZGO_KSEI_CATEGORY_LABELS (9-category KSEI standard) is gone');
+});
+
+test('REGRESSION GUARD: generateShareholderComposition() must combine the 3 shareholder fetchers into one honest per-part result, never merged into the named >5% investor list', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+
+  assert(/async function generateShareholderComposition/.test(engineSrc), 'REGRESSION: generateShareholderComposition() is missing');
+  const fnSrc = engineSrc.match(/async function generateShareholderComposition[\s\S]*?\n\}\n/)[0];
+
+  assert(/fetchInvezgoShareholderNumber\(clean\)/.test(fnSrc), 'REGRESSION: generateShareholderComposition() no longer calls fetchInvezgoShareholderNumber()');
+  assert(/fetchInvezgoShareholderKsei\(clean,\s*6\)/.test(fnSrc), 'REGRESSION: generateShareholderComposition() no longer calls fetchInvezgoShareholderKsei()');
+  assert(/fetchInvezgoShareholderClassifyTable\(clean\)/.test(fnSrc), 'REGRESSION: generateShareholderComposition() no longer calls fetchInvezgoShareholderClassifyTable()');
+  assert(/errors\.push\(\{\s*part:\s*'holderCount'/.test(fnSrc), 'REGRESSION: an unavailable holderCount part no longer reports an honest per-part error');
+  assert(/errors\.push\(\{\s*part:\s*'kseiComposition'/.test(fnSrc), 'REGRESSION: an unavailable kseiComposition part no longer reports an honest per-part error');
+  assert(/errors\.push\(\{\s*part:\s*'classifyDetail'/.test(fnSrc), 'REGRESSION: an unavailable classifyDetail part no longer reports an honest per-part error');
+
+  assert(/import\s*\{[^}]*generateShareholderComposition[^}]*\}\s*from\s*'\.\/lib\/idx-data-engine\.js'|generateShareholderComposition,/.test(fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8')),
+    'REGRESSION: generateShareholderComposition is no longer imported into server.js');
+  assert(/app\.get\('\/api\/idx\/shareholder-composition\/:ticker'/.test(fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8')),
+    'REGRESSION: GET /api/idx/shareholder-composition/:ticker route is gone');
+});
+
+test('REGRESSION GUARD: the KSEI Shareholder page must render a separate live-Invezgo composition card, never merged into the named >5% holder table it is fetched alongside', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/34-ksei-shareholders.js'), 'utf8');
+
+  assert(/function kseiLoadLiveComposition/.test(src), 'REGRESSION: kseiLoadLiveComposition() is gone');
+  assert(/function kseiRenderLiveCompositionHtml/.test(src), 'REGRESSION: kseiRenderLiveCompositionHtml() is gone');
+  assert(/\/api\/idx\/shareholder-composition\//.test(src), 'REGRESSION: kseiLoadLiveComposition() no longer fetches /api/idx/shareholder-composition/');
+  assert(/ksei-live-invezgo-/.test(src), 'REGRESSION: the live-composition placeholder card id is gone from renderKseiStockView()');
+  assert(/kseiLoadLiveComposition\(stock\.ticker\)/.test(src), 'REGRESSION: renderKseiStockView() no longer triggers the live composition fetch after rendering');
+
+  // Honest per-part failure messages, never a silently blank section.
+  assert(/_kseiReasonText/.test(src), 'REGRESSION: _kseiReasonText() honest-reason mapper is gone');
+  assert(/NOT_CONFIGURED:/.test(src), 'REGRESSION: the honest NOT_CONFIGURED reason text is gone from the live composition renderer');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

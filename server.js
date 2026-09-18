@@ -20,6 +20,7 @@ import {
   getTransactionFlowVisualizer,
   getBeiTickSize,
   generateBrokerSummary,
+  generateShareholderComposition,
   fetchIdxStockScreener,
   IDX_BROKERS,
   generateTradingHypothesis,
@@ -3186,6 +3187,21 @@ app.get('/api/idx/screener', async (req, res) => {
       count: filtered.length,
       results: filtered
     });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/shareholder-composition/:ticker — Invezgo KSEI ownership-by-
+// category composition (aggregate, no beneficial-owner names — see
+// generateShareholderComposition() for why this is a separate view from
+// the manual-upload >5% ownership dataset in 34-ksei-shareholders.js).
+app.get('/api/idx/shareholder-composition/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const data = await generateShareholderComposition(ticker);
+    return res.json({ success: true, data });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
