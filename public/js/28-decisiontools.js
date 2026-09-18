@@ -83,23 +83,27 @@ function renderDailyBriefPage() {
 
   // IHSG chart — layout ala Yahoo Finance: chart+tab rentang di kiri, panel statistik di kanan
   + (function(){
+      var activeTf = window._dbIhsgTf || '1D';
       var hist = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg];
       var dayLo = Math.min.apply(null, hist), dayHi = Math.max.apply(null, hist);
       var openVal = hist[0];
       var fmtIdx = function(v){ return v.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+      // FIX (2026-09-17, user-reported "ihsg... history data belum
+      // integrasi"): 5D/1M/6M/YTD/1Y/5Y/All used to be disabled
+      // placeholders ("belum terintegrasi") — honestly labeled, but still
+      // a real gap. Now wired to rdEnsureIhsgHistory() (03-engine.js),
+      // which fetches REAL history for these ranges from Yahoo Finance
+      // (^JKSE), same proxy chain the rest of the app already uses.
       var ranges = [
-        {key:'1D', label:'1D', pct: ihsgPct, active:true},
-        {key:'5D', label:'5D'}, {key:'1M', label:'1M'}, {key:'6M', label:'6M'},
+        {key:'1D', label:'1D'}, {key:'5D', label:'5D'}, {key:'1M', label:'1M'}, {key:'6M', label:'6M'},
         {key:'YTD', label:'YTD'}, {key:'1Y', label:'1Y'}, {key:'5Y', label:'5Y'}, {key:'ALL', label:'All'}
       ];
       var tabsHtml = ranges.map(function(r){
-        if (r.active) {
-          return '<button class="btn btn-blue btn-xs" style="min-width:44px" disabled>' + r.label
-            + '<div style="font-size:9px;font-weight:600">' + (isBullish ? '+' : '') + r.pct + '%</div></button>';
-        }
-        return '<button class="btn btn-ghost btn-xs" style="min-width:44px;opacity:.5;cursor:not-allowed" '
-          + 'onclick="showToast(\'Riwayat ' + r.label + ' butuh data historis resmi bursa — belum terintegrasi\',{type:\'info\'})" '
-          + 'title="Belum tersedia — hanya data intraday sesi ini yang tercatat">' + r.label + '</button>';
+        var isActive = r.key === activeTf;
+        var pctHtml = (isActive && r.key === '1D') ? ('<div style="font-size:9px;font-weight:600">' + (isBullish ? '+' : '') + ihsgPct + '%</div>') : '';
+        return '<button class="btn ' + (isActive ? 'btn-blue' : 'btn-ghost') + ' btn-xs" style="min-width:44px" '
+          + (isActive ? 'disabled' : 'onclick="dbSwitchIhsgRange(\'' + r.key + '\')"')
+          + '>' + r.label + pctHtml + '</button>';
       }).join('');
 
       return '<div class="card" style="padding:0;margin-bottom:18px;overflow:hidden">'
@@ -311,7 +315,7 @@ function renderDailyBriefPage() {
   html += '</div>';
 
   c.innerHTML = html;
-  renderDailyBriefIhsgChart(curIhsg, isBullish);
+  renderDailyBriefIhsgChart(curIhsg, isBullish, window._dbIhsgTf || '1D');
 }
 
 // IHSG chart ala Yahoo Finance: garis putus-putus di level previous close,
@@ -362,30 +366,101 @@ var _ihsgPrevCloseLinePlugin = {
   }
 };
 
-function renderDailyBriefIhsgChart(curIhsg, isBullish) {
+// FIX (2026-09-17, user-reported "ihsg... history data belum integrasi"):
+// dbSwitchIhsgRange() is the click handler for the range tabs
+// (renderDailyBriefPage()'s IIFE above) — it just re-renders the whole
+// Daily Brief page with the new range remembered in window._dbIhsgTf.
+function dbSwitchIhsgRange(key) {
+  window._dbIhsgTf = key;
+  if (typeof renderDailyBriefPage === 'function') renderDailyBriefPage();
+}
+
+function renderDailyBriefIhsgChart(curIhsg, isBullish, tf) {
+  tf = tf || '1D';
   kc('dbIhsg');
   var cv = el('daily-brief-ihsg-chart');
-  if (!cv || typeof Chart === 'undefined') return;
+  if (!cv || typeof Chart === 'undefined') {
+    // Diagnosed 2026-09-17/18: confirmed via instrumented Playwright that
+    // this guard was firing purely because Chart.js's CDN script
+    // (cdnjs.cloudflare.com, index.html:177) failed to load under this
+    // sandbox's network egress policy — not a bug in the range-tab wiring
+    // below. Logged loudly (once per page render, not per tick) instead of
+    // a bare silent `return` so a genuine missing-canvas/missing-Chart.js
+    // condition in production is diagnosable instead of looking identical
+    // to "nothing happened".
+    console.warn('[renderDailyBriefIhsgChart] dibatalkan — cv=' + !!cv + ' Chart=' + (typeof Chart));
+    return;
+  }
 
-  var hist = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg];
-  var prevClose = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : hist[0];
+  if (tf === '1D') {
+    var hist1d = (typeof ihsgHist !== 'undefined' && ihsgHist.length >= 2) ? ihsgHist : [curIhsg, curIhsg];
+    var prevClose1d = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : hist1d[0];
+    // FIX (2026-09-15, user-requested "berikan tambahan jam pada grafik"):
+    // ihsgHistTs (01-data.js, timestamp per titik, index-aligned dengan
+    // ihsgHist) dipakai untuk label jam sungguhan di sumbu-x — sebelumnya
+    // sumbu-x disembunyikan total (x:{display:false}) karena labelnya cuma
+    // index angka (0,1,2,...) yang tidak berarti apa-apa buat user. Fallback
+    // ke label index kalau ihsgHistTs belum sinkron panjangnya (state
+    // transisi sesaat setelah upgrade format localStorage).
+    var hasTs1d = (typeof ihsgHistTs !== 'undefined' && ihsgHistTs.length === hist1d.length);
+    var timeLabels1d = hasTs1d
+      ? ihsgHistTs.map(function(t){ return new Date(t).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}); })
+      : hist1d.map(function(_, i) { return i; });
+    dbBuildIhsgChartInstance(cv, hist1d, timeLabels1d, hasTs1d, prevClose1d, isBullish, true);
+    return;
+  }
+
+  // Rentang lain (5D/1M/6M/YTD/1Y/5Y/All) — real history dari Yahoo
+  // Finance ^JKSE via rdEnsureIhsgHistory() (03-engine.js), bukan
+  // akumulasi live-polling seperti '1D'. Tampilkan status memuat dulu
+  // (fetch bisa async), lalu render ulang begitu data (atau kegagalan
+  // jujur) datang.
+  var wrap = cv.parentElement;
+  if (typeof rdEnsureIhsgHistory !== 'function') {
+    if (wrap) wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:190px;font-size:11px;color:var(--text3)">Modul data historis belum termuat.</div>';
+    return;
+  }
+  if (wrap && !IHSG_HIST_CACHE_HAS(tf)) {
+    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:190px;font-size:11px;color:var(--text3)">Memuat histori IHSG (' + tf + ')...</div>';
+  }
+  rdEnsureIhsgHistory(tf, function(rows) {
+    if ((window._dbIhsgTf || '1D') !== tf) return; // rentang sudah diganti sementara fetch berjalan
+    var cv2 = el('daily-brief-ihsg-chart');
+    var wrap2 = cv2 ? cv2.parentElement : wrap;
+    if (!rows || !rows.length) {
+      if (wrap2) wrap2.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:190px;font-size:11px;color:var(--text3)">Gagal memuat data historis IHSG (' + tf + ') — coba lagi nanti.</div>';
+      return;
+    }
+    if (wrap2 && !cv2) { wrap2.innerHTML = '<canvas id="daily-brief-ihsg-chart"></canvas>'; cv2 = el('daily-brief-ihsg-chart'); }
+    if (!cv2) return;
+    var histR = rows.map(function(r) { return r.c; });
+    var fmtByTf = (tf === '5D')
+      ? function(t) { return new Date(t).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) + ' ' + new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }); }
+      : (tf === '1M' || tf === '6M' || tf === 'YTD')
+        ? function(t) { return new Date(t).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }); }
+        : function(t) { return new Date(t).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }); };
+    var timeLabelsR = rows.map(function(r) { return fmtByTf(r.t); });
+    var prevCloseR = rows[0].o;
+    var isBullishR = histR[histR.length - 1] >= histR[0];
+    dbBuildIhsgChartInstance(cv2, histR, timeLabelsR, true, prevCloseR, isBullishR, false);
+  });
+}
+
+// tf sudah punya cache segar? (dipakai buat memutuskan tampilkan "Memuat..."
+// atau tidak, tanpa memicu fetch — rdEnsureIhsgHistory sendiri yang menangani TTL/inflight)
+function IHSG_HIST_CACHE_HAS(tf) {
+  var entry = (typeof IHSG_HIST_CACHE !== 'undefined') ? IHSG_HIST_CACHE[tf] : null;
+  var ttl = (typeof IHSG_HIST_TTL_MS !== 'undefined' && IHSG_HIST_TTL_MS[tf]) || 60000;
+  return !!(entry && (Date.now() - entry.fetchedAt) < ttl);
+}
+
+function dbBuildIhsgChartInstance(cv, hist, timeLabels, hasTs, prevClose, isBullish, showWibSuffix) {
   var lineColor = isBullish ? '#00873C' : '#D0163A';
   var ctx = cv.getContext('2d');
   var grad = ctx.createLinearGradient(0, 0, 0, 190);
   grad.addColorStop(0, isBullish ? 'rgba(0,135,60,.28)' : 'rgba(208,22,58,.28)');
   grad.addColorStop(1, isBullish ? 'rgba(0,135,60,0)' : 'rgba(208,22,58,0)');
   var pointRadii = hist.map(function(_, i) { return i === hist.length - 1 ? 4 : 0; });
-  // FIX (2026-09-15, user-requested "berikan tambahan jam pada grafik"):
-  // ihsgHistTs (01-data.js, timestamp per titik, index-aligned dengan
-  // ihsgHist) dipakai untuk label jam sungguhan di sumbu-x — sebelumnya
-  // sumbu-x disembunyikan total (x:{display:false}) karena labelnya cuma
-  // index angka (0,1,2,...) yang tidak berarti apa-apa buat user. Fallback
-  // ke label index kalau ihsgHistTs belum sinkron panjangnya (state
-  // transisi sesaat setelah upgrade format localStorage).
-  var hasTs = (typeof ihsgHistTs !== 'undefined' && ihsgHistTs.length === hist.length);
-  var timeLabels = hasTs
-    ? ihsgHistTs.map(function(t){ return new Date(t).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}); })
-    : hist.map(function(_, i) { return i; });
 
   charts['dbIhsg'] = new Chart(cv, {
     type: 'line',
@@ -417,7 +492,7 @@ function renderDailyBriefIhsgChart(curIhsg, isBullish) {
         tooltip: {
           displayColors: false,
           callbacks: {
-            title: function(items) { return (hasTs && items && items[0]) ? items[0].label + ' WIB' : ''; },
+            title: function(items) { return (hasTs && items && items[0]) ? items[0].label + (showWibSuffix ? ' WIB' : '') : ''; },
             label: function(c) { return c.raw.toLocaleString('id-ID', {minimumFractionDigits: 2}); }
           }
         }

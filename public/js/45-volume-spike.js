@@ -72,7 +72,13 @@ var VS_SCREEN_STATE = {
   sortDir: 'desc',
   scanToken: 0             // dibatalkan kalau filter berganti di tengah scan
 };
-var VS_INDEX_LABELS = { lq45: 'LQ45', idx30: 'IDX30', idx80: 'IDX80', kompas100: 'Kompas100' };
+// FIX (2026-09-17, user-reported "Screening Volume Spike cuma maksimal
+// saham Kompas 100"): 'all' added as the widest option (950+ tickers, no
+// index filter server-side). See vsStartScreening()/vsScanNext() below for
+// how a universe this size is scanned in bounded concurrent batches
+// instead of one ticker at a time (would take ~5.5 minutes sequentially).
+var VS_INDEX_LABELS = { lq45: 'LQ45', idx30: 'IDX30', idx80: 'IDX80', kompas100: 'Kompas100', all: 'Seluruh BEI (950+)' };
+var VS_SCAN_BATCH = 4; // concurrency kept modest — rdEnsure()/rdFetchYahoo() share a public CORS proxy with the rest of the app
 // FIX (2026-09-14, user-requested): tabel screening dibatasi menampilkan
 // maksimal 10 baris tertinggi (sesuai sort aktif) — scan seluruh index
 // TETAP jalan penuh di background (VS_SCREEN_STATE.rows menyimpan SEMUA
@@ -366,7 +372,8 @@ function vsStartScreening(indexKey, forceRefresh) {
   if (progressEl) progressEl.textContent = 'Memuat daftar saham ' + (VS_INDEX_LABELS[indexKey] || indexKey.toUpperCase()) + '...';
   vsRenderScreenTable();
 
-  fetch('/api/idx/stocks?index=' + encodeURIComponent(indexKey) + '&limit=150')
+  var qs = indexKey === 'all' ? 'limit=2000' : ('index=' + encodeURIComponent(indexKey) + '&limit=150');
+  fetch('/api/idx/stocks?' + qs)
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (myToken !== VS_SCREEN_STATE.scanToken) return; // dibatalkan
@@ -388,6 +395,13 @@ function vsStartScreening(indexKey, forceRefresh) {
     });
 }
 
+// FIX (2026-09-17, "Seluruh BEI" follow-up): scanning one ticker at a
+// time (350ms apart) was fine for Kompas100 (~35s) but would take ~5.5
+// minutes sequentially for 950+ tickers. Now processes VS_SCAN_BATCH
+// tickers CONCURRENTLY per round (still paced 350ms between rounds, not
+// between every single ticker) — a bounded speedup, not unlimited
+// parallelism, since rdEnsure()/rdFetchYahoo() share a public CORS proxy
+// with the rest of the app.
 function vsScanNext(universe, i, myToken, forceRefresh) {
   if (myToken !== VS_SCREEN_STATE.scanToken) return; // filter sudah diganti, hentikan scan lama
   var progressEl = el('vs-screen-progress');
@@ -404,54 +418,60 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
     vsRenderScreenTable();
     return;
   }
-  var item = universe[i];
-  var tk = item.code;
-  if (progressEl) progressEl.textContent = 'Memindai ' + (i + 1) + '/' + universe.length + ' — ' + tk + '...';
+  var batch = universe.slice(i, i + VS_SCAN_BATCH);
+  if (progressEl) progressEl.textContent = 'Memindai ' + Math.min(i + batch.length, universe.length) + '/' + universe.length + ' — ' + batch.map(function(x) { return x.code; }).join(', ') + '...';
 
-  var afterFetch = function() {
-    if (myToken !== VS_SCREEN_STATE.scanToken) return; // filter sudah diganti sementara fetch ini masih berjalan
-    VS_SCREEN_STATE.scannedCount++;
-    var rows = (typeof rdGetAny === 'function') ? rdGetAny(tk) : null;
-    if (rows && rows.length >= 15) {
-      var stats = vsVolumeStats(rows);
-      // FIX (2026-09-14, user-reported "layout tidak stabil, seluruh
-      // layout berubah"): sebelumnya SEMUA saham yang berhasil dipindai
-      // (spike ATAU tidak) ditambahkan ke tabel — untuk index besar
-      // (Kompas100, 100 saham) itu berarti tabel terus tumbuh dari 0 ke
-      // 100 baris selama ~35 detik scan, dan ketinggian kolom kanan yang
-      // terus berubah drastis ikut menggeser posisi elemen di sekitarnya
-      // (termasuk panel detail di kolom kiri, karena keduanya berbagi 1
-      // baris grid). Sekarang HANYA saham yang benar-benar memenuhi
-      // kriteria spike (rasio ≥ VS_SPIKE_THRESHOLD, 1.70x) yang
-      // ditambahkan ke tabel — mayoritas saham normal tidak pernah masuk
-      // sama sekali, jadi tabel jarang tumbuh dan layout jauh lebih
-      // stabil. Saham yang TIDAK lolos tetap dihitung di scannedCount
-      // (lihat progress text) supaya user tahu berapa banyak yang sudah
-      // diperiksa, walau tidak ditampilkan satu-satu.
-      if (stats.isSpike) {
-        var rowObj = {
-          code: tk, name: item.name || (tk + ' Tbk.'),
-          todayVol: stats.todayVol, med14: stats.med14, med30: stats.med30,
-          ratio14: stats.ratio14, ratio30: stats.ratio30, isSpike: stats.isSpike, chg1d: stats.chg1d
-        };
-        // SEMUA saham spike tetap disimpan di state (tidak dibuang) — dipakai
-        // untuk angka "N saham menunjukkan lonjakan" di progress text, dan
-        // supaya scan TETAP jalan penuh di background sampai selesai
-        // (user-requested: "biarkan scanning berjalan dibelakang").
-        VS_SCREEN_STATE.rows.push(rowObj);
-        vsMaybeUpdateVisibleTable(rowObj);
+  var remaining = batch.length;
+  var scanOneTicker = function(item) {
+    var tk = item.code;
+    var afterFetch = function() {
+      if (myToken !== VS_SCREEN_STATE.scanToken) return; // filter sudah diganti sementara fetch ini masih berjalan
+      VS_SCREEN_STATE.scannedCount++;
+      var rows = (typeof rdGetAny === 'function') ? rdGetAny(tk) : null;
+      if (rows && rows.length >= 15) {
+        var stats = vsVolumeStats(rows);
+        // FIX (2026-09-14, user-reported "layout tidak stabil, seluruh
+        // layout berubah"): sebelumnya SEMUA saham yang berhasil dipindai
+        // (spike ATAU tidak) ditambahkan ke tabel — untuk index besar
+        // (Kompas100, 100 saham) itu berarti tabel terus tumbuh dari 0 ke
+        // 100 baris selama ~35 detik scan, dan ketinggian kolom kanan yang
+        // terus berubah drastis ikut menggeser posisi elemen di sekitarnya
+        // (termasuk panel detail di kolom kiri, karena keduanya berbagi 1
+        // baris grid). Sekarang HANYA saham yang benar-benar memenuhi
+        // kriteria spike (rasio ≥ VS_SPIKE_THRESHOLD, 1.70x) yang
+        // ditambahkan ke tabel — mayoritas saham normal tidak pernah masuk
+        // sama sekali, jadi tabel jarang tumbuh dan layout jauh lebih
+        // stabil. Saham yang TIDAK lolos tetap dihitung di scannedCount
+        // (lihat progress text) supaya user tahu berapa banyak yang sudah
+        // diperiksa, walau tidak ditampilkan satu-satu.
+        if (stats.isSpike) {
+          var rowObj = {
+            code: tk, name: item.name || (tk + ' Tbk.'),
+            todayVol: stats.todayVol, med14: stats.med14, med30: stats.med30,
+            ratio14: stats.ratio14, ratio30: stats.ratio30, isSpike: stats.isSpike, chg1d: stats.chg1d
+          };
+          // SEMUA saham spike tetap disimpan di state (tidak dibuang) — dipakai
+          // untuk angka "N saham menunjukkan lonjakan" di progress text, dan
+          // supaya scan TETAP jalan penuh di background sampai selesai
+          // (user-requested: "biarkan scanning berjalan dibelakang").
+          VS_SCREEN_STATE.rows.push(rowObj);
+          vsMaybeUpdateVisibleTable(rowObj);
+        }
       }
+      remaining--;
+      if (remaining <= 0) {
+        setTimeout(function() { vsScanNext(universe, i + VS_SCAN_BATCH, myToken, forceRefresh); }, 350);
+      }
+    };
+    if (forceRefresh && typeof rdFetchYahoo === 'function') {
+      rdFetchYahoo(tk, afterFetch);
+    } else if (typeof rdEnsure === 'function') {
+      rdEnsure(tk, afterFetch);
+    } else {
+      afterFetch();
     }
-    setTimeout(function() { vsScanNext(universe, i + 1, myToken, forceRefresh); }, 350);
   };
-
-  if (forceRefresh && typeof rdFetchYahoo === 'function') {
-    rdFetchYahoo(tk, afterFetch);
-  } else if (typeof rdEnsure === 'function') {
-    rdEnsure(tk, afterFetch);
-  } else {
-    afterFetch();
-  }
+  batch.forEach(scanOneTicker);
 }
 
 function vsSortedScreenRows() {
@@ -733,7 +753,7 @@ function vsForeignFlowCardHtml(bs1d, bs30d) {
     var m = Math.round(v / 1e9);
     return (m >= 0 ? '+' : '') + m.toLocaleString('id-ID') + ' M';
   };
-  var statusOf = function(v) { return v === null ? 'Data tidak tersedia' : (v >= 0 ? 'Net Buy' : 'Net Sell'); };
+  var statusOf = function(v) { return (v === null || v === undefined) ? 'Data tidak tersedia' : (v >= 0 ? 'Net Buy' : 'Net Sell'); };
 
   var verdict = bs1d && bs1d.bandarmology ? bs1d.bandarmology.verdict : null;
   var verdictBadgeCls = verdict === 'BIG ACCUMULATION' || verdict === 'NORMAL ACCUMULATION' ? 'b-up'

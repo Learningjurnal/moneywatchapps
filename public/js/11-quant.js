@@ -288,6 +288,48 @@ var LQ45_STOCKS = [
 ];
 var QT_MONTHS=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
+// FIX (2026-09-17, user-reported "Screener Saham LQ45, ini masih aja 45?
+// saham ada 950 untuk apa screener 45?"): scBuildSim() used to be hardwired
+// to the static LQ45_STOCKS array (15 entries above — itself already
+// smaller than "45"), with no way to scan anything wider. QT_SCREENER_UNIVERSE
+// now caches the full /api/idx/stocks list ONCE (same endpoint Opportunity
+// Radar/Volume Spike Scanner already use, real securities master, not a
+// fabricated list) and QT_SCREENER_INDEX picks which slice of it to scan —
+// defaults to 'lq45' (fast, ~45 tickers, unchanged behavior for existing
+// users) with 'idx30'/'kompas100'/'all' (950+) selectable from the UI.
+var QT_SCREENER_UNIVERSE = null; // [{t,n,s,indexes}] seluruh BEI, dimuat sekali dari /api/idx/stocks
+var QT_SCREENER_INDEX = 'lq45';
+
+function scResolveUniverseList() {
+  if (QT_SCREENER_INDEX === 'lq45' && !QT_SCREENER_UNIVERSE) return LQ45_STOCKS; // fast path: no fetch needed, matches pre-fix behavior exactly
+  if (!QT_SCREENER_UNIVERSE) return LQ45_STOCKS; // still loading — caller will re-run once loaded
+  var idx = QT_SCREENER_INDEX;
+  var filtered = QT_SCREENER_UNIVERSE.filter(function(s) {
+    if (idx === 'all') return true;
+    return s.indexes && s.indexes[idx];
+  });
+  return filtered.length ? filtered : LQ45_STOCKS; // never render an empty screener if a filter matches nothing
+}
+
+function scChangeUniverse(idx) {
+  QT_SCREENER_INDEX = idx;
+  if (idx === 'lq45' || QT_SCREENER_UNIVERSE) {
+    QT.scData = [];
+    scBuildSim();
+    return;
+  }
+  el('sc-status') && (el('sc-status').textContent = 'Memuat daftar saham BEI...');
+  fetch('/api/idx/stocks').then(function(r) { return r.json(); }).then(function(json) {
+    QT_SCREENER_UNIVERSE = (json && Array.isArray(json.data))
+      ? json.data.map(function(s) { return { t: s.code, n: s.name || s.code, s: fsSectorLabel(s.sector) || s.sector || 'Lainnya', indexes: s.indexes || {} }; })
+      : [];
+    QT.scData = [];
+    scBuildSim();
+  }).catch(function(e) {
+    el('sc-status') && (el('sc-status').textContent = 'Gagal memuat daftar saham: ' + (e && e.message));
+  });
+}
+
 // ── Page init hooks ──
 var _origGoPage2 = window.goPage;
 window.goPage = function(page, btn){
@@ -859,18 +901,28 @@ function runBacktest(){
 // always computed from a per-ticker seeded fake series unless some other
 // page happened to have already cached real history for that exact
 // ticker. Rewired through qtFetchOHLCV (same real-fetch-first, disclosed-
-// simulation-last-resort pipeline the Backtester already uses), staggered
-// so 45+ tickers don't all hit the proxy at once. `live` is now genuinely
-// set from the fetch outcome instead of being a hardcoded `false`.
+// simulation-last-resort pipeline the Backtester already uses).
+//
+// FIX (2026-09-17, universe-picker follow-up): used to loop the hardcoded
+// LQ45_STOCKS array one ticker at a time, staggered 250ms apart — fine for
+// 45 tickers (~11s) but would take 950*250ms ≈ 4 minutes sequentially for
+// "Semua BEI". Rewritten to process scResolveUniverseList() in concurrent
+// batches (BATCH tickers fired together, short pause between batches)
+// instead of one-by-one — scales to the full universe in reasonable time
+// without hammering the Yahoo proxy harder than the rest of the app does
+// elsewhere (same BATCH-style concurrency pattern used server-side).
 var QT_SC_BUILDING = false;
+var QT_SC_BATCH = 8;
+var QT_SC_BATCH_DELAY_MS = 300;
 function scBuildSim(onDone){
   if (QT_SC_BUILDING) return; // a caller's onDone will still fire once the in-flight build finishes
   QT_SC_BUILDING = true;
-  el('sc-status') && (el('sc-status').textContent = 'Memindai LQ45 (data live, fallback simulasi jika proxy gagal)...');
+  var universe = scResolveUniverseList();
+  var univLabel = QT_SCREENER_INDEX === 'all' ? 'Semua BEI' : QT_SCREENER_INDEX.toUpperCase();
+  el('sc-status') && (el('sc-status').textContent = 'Memindai ' + univLabel + ' (' + universe.length + ' saham, data live, fallback simulasi jika proxy gagal)...');
   QT.scData = [];
-  var pending = LQ45_STOCKS.length;
-  LQ45_STOCKS.forEach(function(st, idx){
-    setTimeout(function(){
+  var pending = universe.length;
+  var perTicker = function(st){
       qtFetchOHLCV(st.t, 180, function(err, data, source){
         pending--;
         if (data && data.length > 30) {
@@ -888,20 +940,27 @@ function scBuildSim(onDone){
         }
         if (pending<=0) {
           QT_SC_BUILDING = false;
-          el('sc-status') && (el('sc-status').textContent = 'Selesai — ' + QT.scData.length + '/' + LQ45_STOCKS.length + ' saham (● hijau = data live)');
+          el('sc-status') && (el('sc-status').textContent = 'Selesai — ' + QT.scData.length + '/' + universe.length + ' saham (● hijau = data live)');
           scRenderTable();
           if (typeof onDone === 'function') onDone();
         }
       });
-    }, idx * 250);
-  });
+  };
+  var runBatch = function(startIdx){
+    if (startIdx >= universe.length) return;
+    var batch = universe.slice(startIdx, startIdx + QT_SC_BATCH);
+    batch.forEach(perTicker);
+    setTimeout(function(){ runBatch(startIdx + QT_SC_BATCH); }, QT_SC_BATCH_DELAY_MS);
+  };
+  runBatch(0);
 }
 
 function scFetchAndRun(){
   el('sc-status').textContent='Mengambil data live...';
-  var pending = LQ45_STOCKS.length;
+  var universe = scResolveUniverseList();
+  var pending = universe.length;
   var results = {};
-  LQ45_STOCKS.forEach(function(st, idx){
+  universe.forEach(function(st, idx){
     setTimeout(function(){
       yfFetch(st.t+'.JK', function(err, meta){
         if(!err && meta && meta.regularMarketPrice>0){
@@ -970,7 +1029,8 @@ function fhmRender(){
   var factor = (el('fhm-factor')&&el('fhm-factor').value)||'rsi';
   var sort2 = (el('fhm-sort')&&el('fhm-sort').value)||'sector';
   var fLabels={rsi:'RSI (14)',mom1m:'Momentum 1M (%)',mom3m:'Momentum 3M (%)',vol:'Volatilitas 30D (%)',score:'Composite Score'};
-  el('fhm-title') && (el('fhm-title').textContent = (fLabels[factor]||factor) + ' — LQ45 Universe');
+  var univLabel2 = QT_SCREENER_INDEX === 'all' ? 'Semua BEI' : QT_SCREENER_INDEX.toUpperCase();
+  el('fhm-title') && (el('fhm-title').textContent = (fLabels[factor]||factor) + ' — ' + univLabel2 + ' Universe (' + QT.scData.length + ' saham)');
 
   var stocks = QT.scData.slice();
   var vals = stocks.map(function(s){return parseFloat(s[factor])||0;});
