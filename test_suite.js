@@ -5732,6 +5732,72 @@ test('REGRESSION GUARD: the KSEI Shareholder page must render a separate live-In
   assert(/NOT_CONFIGURED:/.test(src), 'REGRESSION: the honest NOT_CONFIGURED reason text is gone from the live composition renderer');
 });
 
+// ── TEST: Sector Rotation live-fetch from Invezgo's official OpenAPI spec
+// (uploaded by user 2026-09-18, not a guess) — RRG (Relative Rotation
+// Graph) at sector-index level, supplementing (never replacing) the
+// CMF-constituent estimate ──
+// User tested this endpoint twice with valid params (no filter, valid
+// 2-year date range) and got `data: []` both times. The official spec
+// confirms this is a DOCUMENTED "no data available" response (code 204,
+// though the live server returned it under 200), not a bug — so the
+// fetcher must treat an empty `data` array as an honest NO_DATA outcome,
+// never as REAL-but-empty.
+test('REGRESSION GUARD: fetchInvezgoSectorRotation() must call the real endpoint, treat empty `data` as honest NO_DATA (per official spec, not a guess), and parse the real RRG schema', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+
+  assert(/async function fetchInvezgoSectorRotation/.test(src), 'REGRESSION: fetchInvezgoSectorRotation() is missing');
+  const fnSrc = src.match(/async function fetchInvezgoSectorRotation[\s\S]*?\n\}\n/)[0];
+
+  assert(/\/analysis\/sector\/rotation\?from=\$\{from\}&to=\$\{to\}&base=COMPOSITE/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer calls the real /analysis/sector/rotation endpoint with base=COMPOSITE');
+  assert(/resp\.status === 204/.test(fnSrc) || /status:\s*'UNAVAILABLE',\s*reason:\s*'NO_DATA'/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer handles the documented "no data" response honestly');
+  assert(/raw\.data\.length === 0/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer checks for an empty `data` array — per the official OpenAPI spec this is a documented "not available" case, not REAL-but-empty');
+  assert(/quadrant:\s*s\.quadrant \|\| null/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer maps the real `quadrant` field from Invezgo\'s official spec example');
+  assert(/trail/.test(fnSrc) && /Number\(t\.x\)/.test(fnSrc) && /Number\(t\.y\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer maps the real trail[].x/y (RS-Ratio/RS-Momentum) fields from the official spec example');
+  assert(/if\s*\(!apiKey\)\s*return\s*\{\s*ok:\s*false,\s*reason:\s*'NOT_CONFIGURED'/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer takes an honest NOT_CONFIGURED early-return — must never fabricate sector rotation data');
+});
+
+test('REGRESSION GUARD: generateSectorRotation() must map Invezgo\'s 11 official IDX sector-index codes to the app\'s existing 11 sector keys, never guessed names', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+
+  assert(/async function generateSectorRotation/.test(engineSrc), 'REGRESSION: generateSectorRotation() is missing');
+  const fnSrc = engineSrc.match(/async function generateSectorRotation[\s\S]*?\n\}\n/)[0];
+  assert(/fetchInvezgoSectorRotation\(\)/.test(fnSrc), 'REGRESSION: generateSectorRotation() no longer calls fetchInvezgoSectorRotation()');
+  assert(/available:\s*false/.test(fnSrc), 'REGRESSION: an unavailable result no longer reports available:false honestly');
+
+  const mapMatch = engineSrc.match(/const INVEZGO_SECTOR_CODE_TO_KEY = \{([\s\S]*?)\};/);
+  assert(mapMatch, 'REGRESSION: INVEZGO_SECTOR_CODE_TO_KEY mapping table is gone');
+  const mapBody = mapMatch[1];
+  ['IDXENERGY', 'IDXFINANCE', 'IDXBASIC', 'IDXINDUST', 'IDXNONCYC', 'IDXCYCLIC', 'IDXHEALTH', 'IDXPROPERT', 'IDXTECHNO', 'IDXINFRA', 'IDXTRANS'].forEach((code) => {
+    assert(mapBody.includes(code), `REGRESSION: INVEZGO_SECTOR_CODE_TO_KEY is missing the official sector code ${code}`);
+  });
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/generateSectorRotation,/.test(serverSrc), 'REGRESSION: generateSectorRotation is no longer imported into server.js');
+  assert(/app\.get\('\/api\/idx\/sector-rotation'/.test(serverSrc), 'REGRESSION: GET /api/idx/sector-rotation route is gone');
+});
+
+test('REGRESSION GUARD: Sectoral Insight page must show live Invezgo RRG as a supplementary column, never replacing the CMF-constituent estimate', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+
+  assert(/function siComputeAllSectors/.test(src), 'REGRESSION: siComputeAllSectors() (CMF-constituent fallback) was removed — the plan requires keeping it as an explicit fallback, not deleting it');
+  assert(/async function siLoadRealRotation/.test(src), 'REGRESSION: siLoadRealRotation() is gone');
+  assert(/\/api\/idx\/sector-rotation/.test(src), 'REGRESSION: siLoadRealRotation() no longer fetches /api/idx/sector-rotation');
+  assert(/function siRenderRotationBadge/.test(src), 'REGRESSION: siRenderRotationBadge() is gone');
+  assert(/siRenderRotationBadge\(sec\.key\)/.test(src), 'REGRESSION: siRenderTable() no longer renders the live RRG badge per sector row');
+  assert(/siLoadRealRotation\(\)/.test(src.match(/window\.renderSectoralInsightPage[\s\S]*?\n  \};/)?.[0] || ''),
+    'REGRESSION: renderSectoralInsightPage() no longer triggers the live RRG fetch on page load');
+
+  // Honest per-reason fallback text, never a silently blank badge.
+  assert(/SI_ROTATION_REASON_TEXT/.test(src) && /NOT_CONFIGURED:/.test(src) && /NO_DATA:/.test(src),
+    'REGRESSION: the honest reason-text mapping for unavailable RRG data is gone');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

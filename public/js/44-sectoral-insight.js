@@ -128,7 +128,13 @@
     isFetchingNews: false,
     newsError: null,
     metrics: null,
-    lastUpdated: null
+    lastUpdated: null,
+    // Data RRG (Relative Rotation Graph) live dari Invezgo — SUPLEMEN
+    // ditampilkan di samping CMF-konstituen, tidak pernah menggantikannya.
+    // null = belum dimuat/masih memuat; {} = sudah dicoba, tidak tersedia
+    // (honest fallback per-sektor via realRotationReason).
+    realRotation: null,
+    realRotationReason: null
   };
 
   // Instance ResizeObserver D3
@@ -296,6 +302,40 @@
   }
 
   /**
+   * Mengambil data RRG (Relative Rotation Graph) live dari Invezgo, sebagai
+   * SUPLEMEN di samping CMF-konstituen (siComputeAllSectors) — tidak
+   * pernah menggantikannya. Kegagalan/ketidaktersediaan di-surface jujur
+   * lewat _siState.realRotationReason, tidak pernah ditutupi.
+   */
+  var SI_ROTATION_REASON_TEXT = {
+    NOT_CONFIGURED: 'Invezgo API key belum dikonfigurasi',
+    AUTH_FAILED: 'Autentikasi Invezgo gagal',
+    SUBSCRIPTION_INSUFFICIENT: 'Paket langganan Invezgo tidak mencakup data ini',
+    RATE_LIMITED: 'Kuota/rate limit Invezgo tercapai',
+    NO_DATA: 'Belum ada data rotasi untuk rentang ini',
+    UNEXPECTED_SCHEMA: 'Skema respons Invezgo tidak dikenali',
+    NETWORK_ERROR: 'Gangguan jaringan ke Invezgo'
+  };
+
+  async function siLoadRealRotation() {
+    try {
+      var res = await fetch('/api/idx/sector-rotation');
+      var json = await res.json();
+      if (json && json.success && json.data && json.data.available) {
+        _siState.realRotation = json.data.bySectorKey || {};
+        _siState.realRotationReason = null;
+      } else {
+        _siState.realRotation = {};
+        _siState.realRotationReason = (json && json.data && json.data.reason) || 'UNKNOWN';
+      }
+    } catch (e) {
+      _siState.realRotation = {};
+      _siState.realRotationReason = 'NETWORK_ERROR';
+    }
+    siRenderTable();
+  }
+
+  /**
    * Mengambil berita sektoral dari API backend atau fallback
    */
   async function siFetchNews(force) {
@@ -416,6 +456,7 @@
     siRenderVisualPane();
     siRenderTable();
     siFetchNews(true);
+    siLoadRealRotation();
   };
 
   /**
@@ -2274,6 +2315,31 @@
   /**
    * Render Tabel Rincian 11 Sektor IDX
    */
+  var SI_QUADRANT_LABEL = {
+    leading: 'Leading', weakening: 'Weakening', lagging: 'Lagging', improving: 'Improving'
+  };
+  var SI_QUADRANT_COLOR = {
+    leading: '#10b981', weakening: '#f59e0b', lagging: '#ef4444', improving: '#3b82f6'
+  };
+
+  /**
+   * Badge kuadran RRG live per sektor, atau pesan honest-fallback kalau
+   * belum dimuat/tidak tersedia. Tidak pernah mengarang kuadran.
+   */
+  function siRenderRotationBadge(sectorKey) {
+    if (_siState.realRotation === null) {
+      return '<span style="font-size:10px;color:var(--text3)">⏳ Memuat...</span>';
+    }
+    var r = _siState.realRotation[sectorKey];
+    if (!r) {
+      var reasonText = SI_ROTATION_REASON_TEXT[_siState.realRotationReason] || 'Tidak tersedia';
+      return '<span style="font-size:10px;color:var(--text3)" title="' + reasonText + '">— (' + reasonText + ')</span>';
+    }
+    var color = SI_QUADRANT_COLOR[r.quadrant] || '#6b7280';
+    var label = SI_QUADRANT_LABEL[r.quadrant] || (r.quadrant || 'N/A');
+    return '<span class="badge" style="font-size:10px;font-weight:700;color:' + color + ';background:' + color + '1a;border:1px solid ' + color + '40" title="RS-Ratio ' + (r.x !== null ? r.x.toFixed(1) : '?') + ' / RS-Momentum ' + (r.y !== null ? r.y.toFixed(1) : '?') + '">' + label + '</span>';
+  }
+
   function siRenderTable() {
     var tbody = document.getElementById('si-table-tbody');
     if (!tbody || !_siState.metrics) return;
@@ -2322,6 +2388,7 @@
             sec.flowStatus +
           '</span>' +
         '</td>' +
+        '<td>' + siRenderRotationBadge(sec.key) + '</td>' +
         '<td>' +
           topGainersHtml +
         '</td>' +
@@ -2369,6 +2436,11 @@
       siFetchNews(false);
     } else {
       siRenderNewsPanel();
+    }
+
+    // Ambil data RRG live Invezgo jika belum pernah dicoba (suplemen CMF)
+    if (_siState.realRotation === null) {
+      siLoadRealRotation();
     }
   };
 
