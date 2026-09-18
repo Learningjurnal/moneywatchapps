@@ -328,8 +328,9 @@ function vsScreenPanelShellHtml() {
         + '<th style="cursor:pointer;text-align:right" onclick="vsSortScreen(\'med14\')">Median 14D' + vsSortArrow('med14') + '</th>'
         + '<th style="cursor:pointer;text-align:right" onclick="vsSortScreen(\'med30\')">Median 30D' + vsSortArrow('med30') + '</th>'
         + '<th style="cursor:pointer;text-align:right" onclick="vsSortScreen(\'ratio30\')">Rasio (30D)' + vsSortArrow('ratio30') + '</th>'
+        + '<th style="text-align:center" title="Heuristik dari arah harga hari ini (chg1d real) — bukan identitas buyer/seller sebenarnya">Indikasi</th>'
       + '</tr></thead>'
-      + '<tbody id="vs-screen-tbody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Memindai...</td></tr></tbody>'
+      + '<tbody id="vs-screen-tbody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Memindai...</td></tr></tbody>'
     + '</table></div>'
   + '</div>';
 }
@@ -507,6 +508,11 @@ function vsRowHtml(r) {
     + '<td style="text-align:right;font-family:var(--font-mono);color:var(--text3)">' + vsFmtVol(r.med14) + '</td>'
     + '<td style="text-align:right;font-family:var(--font-mono);color:var(--text3)">' + vsFmtVol(r.med30) + '</td>'
     + '<td style="text-align:right;font-family:var(--font-mono);font-weight:700" class="' + (r.ratio30 >= VS_SPIKE_THRESHOLD ? 'up' : 'neu') + '">' + r.ratio30.toFixed(2) + 'x</td>'
+    + '<td style="text-align:center">' + (typeof r.chg1d === 'number'
+      ? (r.chg1d >= 0
+        ? '<span class="badge" style="font-size:8.5px;padding:2px 6px;background:rgba(34,197,94,0.14);color:var(--green);border:1px solid rgba(34,197,94,0.3)">AKUMULASI</span>'
+        : '<span class="badge" style="font-size:8.5px;padding:2px 6px;background:rgba(239,68,68,0.14);color:var(--red);border:1px solid rgba(239,68,68,0.3)">DISTRIBUSI</span>')
+      : '<span style="color:var(--text3);font-size:10px">-</span>') + '</td>'
   + '</tr>';
 }
 
@@ -520,7 +526,7 @@ function vsRenderScreenTable() {
   if (!tbody) return;
   var rows = vsTopScreenRows(); // dibatasi max VS_MAX_DISPLAY_ROWS, scan penuh tetap di VS_SCREEN_STATE.rows
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">'
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">'
       + (VS_SCREEN_STATE.scanning ? 'Memindai...' : ('Tidak ada saham dengan lonjakan volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x di indeks ini saat ini.')) + '</td></tr>';
     return;
   }
@@ -625,6 +631,19 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
   // 7 hari terakhir untuk bar chart volume
   var last7 = rows.slice(-7);
 
+  // FIX (2026-09-18, user-reported: "belum dijelaskan ini volume akumulasi
+  // atau distribusi karna anda hitung sesuai volume bukan pada aksinya"):
+  // volume itu sendiri tetap directionless (total transaksi, dijelaskan di
+  // baris di bawahnya) — TAPI arah harga PADA HARI lonjakan terjadi (chg1d,
+  // data real dari OHLCV, bukan tebakan) adalah heuristik teknikal standar
+  // untuk indikasi akumulasi (volume naik + harga naik) vs distribusi
+  // (volume naik + harga turun). Ini "indikasi" dari pola harga+volume real,
+  // BUKAN klaim mengetahui identitas buyer/seller sebenarnya — itu tetap
+  // butuh data Bandarmology (broker summary) untuk dipastikan.
+  var vsSpikeDirection = chg1d >= 0
+    ? '<span style="color:var(--green);font-weight:700">Indikasi AKUMULASI</span> (harga naik ' + chg1d.toFixed(2) + '% saat volume melonjak)'
+    : '<span style="color:var(--red);font-weight:700">Indikasi DISTRIBUSI</span> (harga turun ' + chg1d.toFixed(2) + '% saat volume melonjak)';
+
   var headline = isSpike
     ? '<div style="display:flex;align-items:center;gap:12px">'
       + '<div style="width:38px;height:38px;border-radius:10px;background:rgba(245,158,11,0.15);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0"><i class="ti ti-bolt"></i></div>'
@@ -633,8 +652,8 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
         + '<div style="font-size:12px;color:var(--text2);line-height:1.4">'
           + 'Aktivitas transaksi melonjak '
           + (ratio30 >= VS_SPIKE_THRESHOLD ? '<b style="color:var(--amber)">' + ratio30.toFixed(2) + 'x</b> di atas median 30 hari' : '<b style="color:var(--amber)">' + ratio14.toFixed(2) + 'x</b> di atas median 14 hari')
-          + '. Mengindikasikan partisipasi institusi atau rotasi likuiditas pasar. '
-          + '<span style="color:var(--text3)">(Volume total transaksi — gabungan sisi beli &amp; jual, bukan volume satu arah. Untuk tahu dominan buyer atau seller, cek tab Bandarmology.)</span>'
+          + ' — ' + vsSpikeDirection + '. '
+          + '<span style="color:var(--text3)">(Volume total transaksi — gabungan sisi beli &amp; jual, bukan volume satu arah; arah akumulasi/distribusi di atas adalah heuristik dari kombinasi volume+harga real, bukan identitas buyer/seller. Untuk breakdown broker sebenarnya, cek tab Bandarmology.)</span>'
         + '</div>'
       + '</div>'
     + '</div>'

@@ -1061,12 +1061,22 @@ test('REGRESSION GUARD: Market Heatmap preview must keep the real-vs-simulated d
     'renderDashboardHeatmapPreview() no longer reads .simulated off FS_RD rows — would show a fabricated score identically to a real one');
   assert(/fsSrcDot\(/.test(fn[0]), 'renderDashboardHeatmapPreview() no longer calls fsSrcDot() — the SIM marker would be missing from this preview');
 });
-test('REGRESSION GUARD: Smart Money Flow preview must keep the SIMULASI disclosure badge (KNOWN_ISSUES.md #3)', () => {
+// FIX (2026-09-18, user-reported after full-codebase audit): this card
+// used to call generateClientSideBrokerSummary() DIRECTLY, skipping the
+// real backend entirely — so it ALWAYS showed "SIMULASI" even when
+// Invezgo was configured and returning real data for these exact 4
+// tickers elsewhere in the app. Now goes through fetchBrokerSummaryData()
+// (real-data-first, same path every other Bandarmology view uses) and
+// shows a dynamic badge (REAL / SEBAGIAN REAL / TIDAK TERSEDIA) reflecting
+// actual per-ticker isSimulated flags, instead of a badge that was always
+// "SIMULASI" by construction.
+test('REGRESSION GUARD: Smart Money Flow preview must fetch real data first (fetchBrokerSummaryData), not skip straight to the simulated fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
-  const fn = src.match(/function renderDashboardSmartFlowPreview\(\)\{[\s\S]*?\n\}/);
-  assert(fn, 'renderDashboardSmartFlowPreview() body not found');
-  assert(/generateClientSideBrokerSummary\(/.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer reuses generateClientSideBrokerSummary()');
-  assert(/>SIMULASI</.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer shows the SIMULASI disclosure badge');
+  const fn = src.match(/async function renderDashboardSmartFlowPreview\(\)\{[\s\S]*?\n\}/);
+  assert(fn, 'renderDashboardSmartFlowPreview() body not found (must be async now)');
+  assert(/fetchBrokerSummaryData\(/.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer calls fetchBrokerSummaryData() — the real-data-first path');
+  assert(!/generateClientSideBrokerSummary\(/.test(fn[0]), 'REGRESSION: renderDashboardSmartFlowPreview() reverted to calling generateClientSideBrokerSummary() directly, skipping the real backend');
+  assert(/isSimulated === false/.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer checks isSimulated to show a dynamic (not always-SIMULASI) badge');
 });
 test('REGRESSION GUARD: dashboard HTML must still have both new zone containers', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
@@ -6115,6 +6125,41 @@ test('REGRESSION GUARD: Accumulation/Distribution views use whole-market Invezgo
   // than pretend a sample is full-market coverage.
   const trailViewSrc = cockpitSrc.match(/function renderBandarmologyBrokerTrailView[\s\S]*?\n\}\n/)[0];
   assert(/Cakupan terbatas/.test(trailViewSrc), 'REGRESSION: renderBandarmologyBrokerTrailView() no longer discloses its limited (non-whole-market) scope');
+});
+
+// ── TEST: Smart Money Screener's whole-market Accumulation/Distribution
+// scan must let the user pick a historical date, not just "today" ──
+// User-reported (2026-09-18): "ini seharusnya bisa di pilih tanggalnya,
+// karna kalo cuma hari ini ya percuma, baru keluar datanya di sore hari"
+// — Invezgo's EOD report for the current day isn't published until
+// ~17:30 WIB, so checking earlier always showed empty data with no way
+// to see a previous (already-published) day's results.
+test('REGRESSION GUARD: getUniverseAccumulationDistribution() must accept a date param, and the Smart Money Screener UI must offer a date picker', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = engineSrc.match(/async function getUniverseAccumulationDistribution[\s\S]*?\n\}\n/)[0];
+  assert(/params\.date/.test(fnSrc), 'REGRESSION: getUniverseAccumulationDistribution() no longer reads params.date — always forced to today');
+
+  const flowscanSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  assert(/selectedDate/.test(flowscanSrc), 'REGRESSION: FS_BROKER_SCAN.selectedDate is gone — no way to request a historical date');
+  assert(/function fsSetBrokerScanDate/.test(flowscanSrc), 'REGRESSION: fsSetBrokerScanDate() is gone — the date picker has no handler');
+  assert(/type="date"/.test(flowscanSrc), 'REGRESSION: the Smart Money Screener UI no longer renders a date <input>');
+  assert(/\?date=' \+ encodeURIComponent\(FS_BROKER_SCAN\.selectedDate\)/.test(flowscanSrc),
+    'REGRESSION: the accumulation-distribution fetch no longer forwards the selected date as a query param');
+});
+
+// ── TEST: Volume Spike Scanner must indicate accumulation vs distribution
+// from real price direction (chg1d), not leave the user to guess ──
+// User-reported (2026-09-18): "belum dijelaskan ini volume akumulasi atau
+// distribusi karna anda hitung sesuai volume bukan pada aksinya" — volume
+// magnitude alone doesn't say which direction the spike leans; chg1d (real
+// price change on the spike day) is a standard, non-fabricated technical
+// heuristic for it (price up + volume up = accumulation lean, and vice
+// versa) — clearly labeled as an indication, not a broker-identity claim.
+test('REGRESSION GUARD: Volume Spike Scanner must show an accumulation/distribution indication derived from real price direction (chg1d)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
+  assert(/chg1d >= 0/.test(src), 'REGRESSION: the accumulation/distribution direction heuristic (based on real chg1d) is gone');
+  assert(/Indikasi AKUMULASI|>AKUMULASI</.test(src), 'REGRESSION: the AKUMULASI indication label is gone from Volume Spike Scanner');
+  assert(/Indikasi DISTRIBUSI|>DISTRIBUSI</.test(src), 'REGRESSION: the DISTRIBUSI indication label is gone from Volume Spike Scanner');
 });
 
 console.log('═══════════════════════════════════════════════════════');
