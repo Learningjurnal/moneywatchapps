@@ -6609,6 +6609,78 @@ test('REGRESSION GUARD: Stock Dossier KSEI pillar surfaces the SPECIFIC Invezgo 
   assert(/Sebab: ' \+ specificReason/.test(src), 'REGRESSION: the specific reason is no longer appended to the KSEI unavailable message');
 });
 
+// Win-rate validation (2026-09-18, user-requested: "bagaimana agar saya
+// bisa menguji apakah screener benar atau salah, untuk menentukan apakah
+// formula yang anda buat dapat diuji win rate nya"). Track A = historical
+// backtest (technical+whale only, deliberately excludes valuation to avoid
+// look-ahead bias — see runUnifiedScreenerBacktest()'s header comment).
+// Track B = forward paper-trading log (full formula, zero bias by
+// construction, but slow — matures over horizonDays).
+test('REGRESSION GUARD: runUnifiedScreenerBacktest() exists, is available-gated on Invezgo config, and its no-lookahead methodology is documented', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function runUnifiedScreenerBacktest\(params = \{\}\)/.test(src), 'REGRESSION: runUnifiedScreenerBacktest() is gone');
+  assert(/runUnifiedScreenerBacktest,/.test(src), 'REGRESSION: runUnifiedScreenerBacktest no longer exported from idx-data-engine.js');
+  assert(/available: false,\s*\n\s*reason: 'Invezgo API key belum dikonfigurasi/.test(src), 'REGRESSION: backtest no longer fails honestly-closed when Invezgo is not configured');
+  // The valuation-exclusion rationale (the core anti-look-ahead-bias
+  // guarantee of this whole feature) must stay documented in the code, not
+  // just in chat — anyone touching this function later needs to see WHY
+  // fundamentals must never be joined in here.
+  assert(/look-ahead bias/i.test(src), 'REGRESSION: the look-ahead-bias warning comment is gone — a future edit could silently join today\'s fundamentals onto historical signals');
+  const fnMatch = src.match(/async function runUnifiedScreenerBacktest\(params = \{\}\) \{[\s\S]*?\n\}\n\n\/\/ ── Forward/);
+  assert(fnMatch, 'REGRESSION: could not isolate runUnifiedScreenerBacktest() body');
+  assert(!/fund\.per|fund\.roe|fundByCode|getCachedFundamentalsBulk/.test(fnMatch[0]), 'REGRESSION: runUnifiedScreenerBacktest() now reads fundamentals — this is look-ahead bias (today\'s PER/ROE applied to a historical signal date)');
+});
+
+await asyncTest('BEHAVIOR: runUnifiedScreenerBacktest() degrades honestly (available:false) without an Invezgo key, never fabricates a win rate', async () => {
+  const { runUnifiedScreenerBacktest } = await import('./lib/idx-data-engine.js');
+  const result = await runUnifiedScreenerBacktest({ lookbackDays: 20, forwardDays: 5 });
+  assert(result.success === true, 'runUnifiedScreenerBacktest() did not report success:true');
+  assert(result.available === false, 'REGRESSION: without INVEZGO_API_KEY in this test env, available must be false, not a fabricated result');
+  assert(result.winRate === null, 'REGRESSION: winRate must be null (not 0 or a number) when the backtest could not actually run — 0 would misleadingly imply "ran and found nothing"');
+  assert(Array.isArray(result.signals) && result.signals.length === 0, 'signals must be an empty array, not fabricated entries');
+});
+
+test('REGRESSION GUARD: forward paper-trading log (Track B) — logs today\'s confirmed signals via Redis, resolves lazily on read, never resolves before horizonDays', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function logTodaysUnifiedScreenerSignals/.test(src), 'REGRESSION: logTodaysUnifiedScreenerSignals() is gone');
+  assert(/async function resolveScreenerSignalLog/.test(src), 'REGRESSION: resolveScreenerSignalLog() is gone');
+  assert(/async function getScreenerSignalLogSummary/.test(src), 'REGRESSION: getScreenerSignalLogSummary() is gone');
+  assert(/if \(daysSince < e\.horizonDays\) return; \/\/ not matured/.test(src), 'REGRESSION: resolveScreenerSignalLog() no longer guards against resolving before the horizon has matured — this would fabricate a return from an incomplete window');
+  assert(/logTodaysUnifiedScreenerSignals,/.test(src) && /resolveScreenerSignalLog,/.test(src) && /getScreenerSignalLogSummary,/.test(src),
+    'REGRESSION: one or more Track B functions no longer exported from idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/logTodaysUnifiedScreenerSignals\(\)/.test(serverSrc), 'REGRESSION: warm-technical-indicators cron no longer piggybacks the daily signal-logging step (no 3rd cron slot exists on Vercel Hobby to replace it)');
+  assert(/app\.get\('\/api\/idx\/unified-screener-backtest'/.test(serverSrc), 'REGRESSION: GET /api/idx/unified-screener-backtest route is gone');
+  assert(/app\.get\('\/api\/idx\/screener-signal-log'/.test(serverSrc), 'REGRESSION: GET /api/idx/screener-signal-log route is gone');
+});
+
+await asyncTest('BEHAVIOR: forward signal log round-trips cleanly with no Redis configured (in-memory fallback) and never double-logs the same day', async () => {
+  const engine = await import('./lib/idx-data-engine.js');
+  const before = await engine.getScreenerSignalLogSummary();
+  assert(before.success === true, 'getScreenerSignalLogSummary() did not report success:true');
+  assert(typeof before.totalEntries === 'number', 'totalEntries must be a number');
+
+  const first = await engine.logTodaysUnifiedScreenerSignals();
+  const second = await engine.logTodaysUnifiedScreenerSignals();
+  assert(second.added === 0 && /already logged today/.test(second.reason || ''),
+    'REGRESSION: logTodaysUnifiedScreenerSignals() double-logged the same day instead of skipping — would inflate/duplicate the forward-test log');
+});
+
+test('REGRESSION GUARD: Unified Screener frontend renders a win-rate validation panel (backtest button + forward log summary)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/function usRunBacktest/.test(src), 'REGRESSION: usRunBacktest() is gone');
+  assert(/function usFetchSignalLog/.test(src), 'REGRESSION: usFetchSignalLog() is gone');
+  assert(/function usRenderValidationPanel/.test(src), 'REGRESSION: usRenderValidationPanel() is gone');
+  assert(/us-validation-panel/.test(src), 'REGRESSION: the validation panel container is gone from usRenderShell()');
+  assert(/window\.usRunBacktest = usRunBacktest/.test(src) && /window\.usFetchSignalLog = usFetchSignalLog/.test(src),
+    'REGRESSION: usRunBacktest/usFetchSignalLog no longer exposed on window — onclick handlers would fail');
+  // The sample-size caveat must survive — a small backtest sample looking
+  // impressive is exactly the kind of misleading precision CLAUDE.md warns
+  // against.
+  assert(/Sampel cuma/.test(src), 'REGRESSION: the small-sample-size warning is gone from the backtest panel');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

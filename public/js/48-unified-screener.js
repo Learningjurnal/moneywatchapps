@@ -35,6 +35,17 @@ var US_STATE = {
   order: 'desc'
 };
 
+// Win-rate validation state (2026-09-18, user-requested: "bagaimana agar
+// saya bisa menguji apakah screener benar atau salah"). Track A
+// (historical backtest, technical+whale only) is run on demand (button —
+// it costs several Invezgo calls, shouldn't fire on every page load).
+// Track B (forward paper-trading log, full formula) auto-loads once —
+// it's a cheap read of an already-resolved Redis log, not a live scan.
+var US_VALIDATION = {
+  backtest: { loading: false, data: null, error: null },
+  signalLog: { loading: false, data: null, error: null, fetchedOnce: false }
+};
+
 function usWhaleBadgeClass(label) {
   if (label === 'Akumulasi Kuat') return 'b-up';
   if (label === 'Akumulasi Lemah') return 'b-amb';
@@ -218,7 +229,138 @@ function usRenderShell() {
     html += '<div style="margin-top:8px;font-size:11px;color:var(--text-mute)">Menampilkan ' + US_STATE.rows.length + ' dari ' + US_STATE.total + ' saham yang cocok filter (dari total universe ' + (US_STATE.summary ? US_STATE.summary.totalUniverse : '-') + ').</div>';
   }
 
+  html += '<div id="us-validation-panel" style="margin-top:20px"></div>';
+
   c.innerHTML = html;
+  usRenderValidationPanel();
+  if (!US_VALIDATION.signalLog.fetchedOnce) {
+    US_VALIDATION.signalLog.fetchedOnce = true;
+    usFetchSignalLog();
+  }
+}
+
+// ── Win-rate validation panel (Track A: backtest, Track B: forward log) ──
+function usFmtPct(v) {
+  if (v == null) return 'N/A';
+  return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+}
+
+async function usRunBacktest() {
+  US_VALIDATION.backtest.loading = true;
+  US_VALIDATION.backtest.error = null;
+  usRenderValidationPanel();
+  var lookback = (document.getElementById('us-bt-lookback') && document.getElementById('us-bt-lookback').value) || 45;
+  var forward = (document.getElementById('us-bt-forward') && document.getElementById('us-bt-forward').value) || 20;
+  try {
+    var resp = await fetch('/api/idx/unified-screener-backtest?lookbackDays=' + lookback + '&forwardDays=' + forward);
+    var json = await resp.json();
+    if (!json.success) throw new Error(json.error || 'Gagal menjalankan backtest');
+    US_VALIDATION.backtest.data = json;
+  } catch (e) {
+    US_VALIDATION.backtest.error = e.message;
+  } finally {
+    US_VALIDATION.backtest.loading = false;
+    usRenderValidationPanel();
+  }
+}
+
+async function usFetchSignalLog() {
+  US_VALIDATION.signalLog.loading = true;
+  usRenderValidationPanel();
+  try {
+    var resp = await fetch('/api/idx/screener-signal-log');
+    var json = await resp.json();
+    if (!json.success) throw new Error(json.error || 'Gagal memuat forward signal log');
+    US_VALIDATION.signalLog.data = json;
+  } catch (e) {
+    US_VALIDATION.signalLog.error = e.message;
+  } finally {
+    US_VALIDATION.signalLog.loading = false;
+    usRenderValidationPanel();
+  }
+}
+
+function usRenderValidationPanel() {
+  var el = document.getElementById('us-validation-panel');
+  if (!el) return;
+
+  var html = '<div class="ptitle" style="font-size:15px;margin-bottom:4px">Uji Win Rate Formula</div>'
+    + '<div class="psub" style="margin-bottom:12px">2 cara menguji apakah formula Whale+Uptrend ini benar-benar bekerja — bukan cuma "kelihatan masuk akal".</div>';
+
+  // Track A: Backtest
+  var bt = US_VALIDATION.backtest;
+  html += '<div class="card" style="padding:14px;margin-bottom:12px">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">A. Backtest Historis (cepat, teknikal+whale saja)</div>'
+    + '<div style="font-size:11.5px;color:var(--text-mute);margin-bottom:10px">Komponen valuasi (PER/ROE) TIDAK disertakan di sini — aplikasi ini tidak punya snapshot fundamental historis per tanggal, menyertakannya akan jadi look-ahead bias (hasil kelihatan bagus tapi palsu).</div>'
+    + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">'
+    + '<div><label style="font-size:10.5px;color:var(--text-mute);display:block">Lookback (hari)</label><input id="us-bt-lookback" type="number" value="45" min="10" max="90" style="width:70px;padding:5px 8px;font-size:11.5px;border-radius:6px" class="finput"></div>'
+    + '<div><label style="font-size:10.5px;color:var(--text-mute);display:block">Forward (hari)</label><input id="us-bt-forward" type="number" value="20" min="5" max="60" style="width:70px;padding:5px 8px;font-size:11.5px;border-radius:6px" class="finput"></div>'
+    + '<button class="btn btn-primary btn-sm" onclick="usRunBacktest()"' + (bt.loading ? ' disabled' : '') + '>' + (bt.loading ? 'Menjalankan…' : 'Jalankan Backtest') + '</button>'
+    + '</div>';
+
+  if (bt.error) {
+    html += '<div style="color:var(--down,#dc2626);font-size:12px">Gagal: ' + bt.error + '</div>';
+  } else if (bt.data) {
+    var d = bt.data;
+    if (!d.available) {
+      html += '<div style="color:var(--text-mute);font-size:12px">' + d.reason + '</div>';
+    } else if (d.totalSignals === 0) {
+      html += '<div style="color:var(--text-mute);font-size:12px">Tidak ada sinyal "confirmed" (Whale≥3 + Uptrend≥60) pada ' + d.datesScanned + ' tanggal yang di-scan. Coba perbesar lookback.</div>';
+    } else {
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:8px">'
+        + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">WIN RATE</div><div class="mval mono" style="font-size:18px;color:' + (d.winRate >= 50 ? 'var(--up,#16a34a)' : 'var(--down,#dc2626)') + '">' + d.winRate + '%</div></div>'
+        + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">AVG RETURN</div><div class="mval mono" style="font-size:16px">' + usFmtPct(d.avgReturnPct) + '</div></div>'
+        + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">AVG ALPHA vs IHSG</div><div class="mval mono" style="font-size:16px">' + usFmtPct(d.avgAlphaPct) + '</div></div>'
+        + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">KALAHKAN IHSG</div><div class="mval mono" style="font-size:16px">' + (d.beatBenchmarkRate != null ? d.beatBenchmarkRate + '%' : 'N/A') + '</div></div>'
+        + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">JUMLAH SINYAL</div><div class="mval mono" style="font-size:16px">' + d.totalSignals + '</div></div>'
+        + '</div>';
+      if (d.totalSignals < 20) {
+        html += '<div style="font-size:11px;color:var(--amber,#d97706);margin-bottom:6px">⚠ Sampel cuma ' + d.totalSignals + ' sinyal — terlalu kecil untuk disimpulkan statistik signifikan, jangan langsung percaya angka ini. Perbesar lookback atau tunggu Track B (forward log) terkumpul lebih banyak.</div>';
+      }
+      html += '<div style="font-size:11px;color:var(--text-mute)">Metodologi: ' + d.methodology + '</div>';
+    }
+  }
+  html += '</div>';
+
+  // Track B: Forward paper-trading log
+  var sl = US_VALIDATION.signalLog;
+  html += '<div class="card" style="padding:14px">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">B. Forward Paper-Trading Log (lambat, formula lengkap termasuk valuasi)</div>'
+    + '<div style="font-size:11.5px;color:var(--text-mute);margin-bottom:10px">Setiap hari (via cron), sinyal "confirmed" hari itu dicatat otomatis dengan harga entry real. Setelah 20 hari bursa, hasilnya dihitung dari harga real — nol look-ahead bias, tapi butuh waktu terkumpul.</div>';
+
+  if (sl.loading && !sl.data) {
+    html += '<div style="color:var(--text-mute);font-size:12px">Memuat…</div>';
+  } else if (sl.error) {
+    html += '<div style="color:var(--down,#dc2626);font-size:12px">Gagal: ' + sl.error + '</div>';
+  } else if (sl.data) {
+    var s = sl.data;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:8px">'
+      + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">WIN RATE</div><div class="mval mono" style="font-size:18px">' + (s.winRate != null ? s.winRate + '%' : 'Belum ada') + '</div></div>'
+      + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">AVG ALPHA vs IHSG</div><div class="mval mono" style="font-size:16px">' + usFmtPct(s.avgAlphaPct) + '</div></div>'
+      + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">SUDAH SELESAI</div><div class="mval mono" style="font-size:16px">' + s.resolvedCount + '</div></div>'
+      + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">MASIH BERJALAN</div><div class="mval mono" style="font-size:16px">' + s.pendingCount + '</div></div>'
+      + '</div>';
+    if (s.resolvedCount === 0) {
+      html += '<div style="font-size:11.5px;color:var(--text-mute)">Belum ada sinyal yang selesai horizonnya (20 hari bursa). ' + (s.pendingCount > 0 ? s.pendingCount + ' sinyal sedang berjalan.' : 'Log akan mulai terisi setelah cron harian pertama kali berjalan.') + '</div>';
+    } else if (s.entries && s.entries.length) {
+      html += '<div style="overflow-x:auto"><table class="tbl" style="width:100%;font-size:11.5px"><thead><tr><th>Tanggal</th><th>Ticker</th><th>Entry</th><th>Exit</th><th>Return</th><th>vs IHSG</th><th>Hasil</th></tr></thead><tbody>';
+      s.entries.slice(0, 20).forEach(function (e) {
+        html += '<tr>'
+          + '<td>' + e.date + '</td>'
+          + '<td><b>' + e.ticker + '</b></td>'
+          + '<td>' + (e.entryPrice != null ? Number(e.entryPrice).toLocaleString('id-ID') : '-') + '</td>'
+          + '<td>' + (e.exitPrice != null ? Number(e.exitPrice).toLocaleString('id-ID') : (e.status === 'pending' ? '<span style="color:var(--text-mute)">Berjalan</span>' : '-')) + '</td>'
+          + '<td>' + (e.returnPct != null ? usFmtPct(e.returnPct) : '-') + '</td>'
+          + '<td>' + (e.alphaPct != null ? usFmtPct(e.alphaPct) : '-') + '</td>'
+          + '<td>' + (e.outcome ? ('<span class="badge ' + (e.outcome === 'WIN' ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + e.outcome + '</span>') : '<span class="badge b-neu" style="font-size:9px">PENDING</span>') + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
 }
 
 function renderUnifiedScreenerPage() {
@@ -233,3 +375,5 @@ window.renderUnifiedScreenerPage = renderUnifiedScreenerPage;
 window.usApplyFilters = usApplyFilters;
 window.usSetSort = usSetSort;
 window.usOpenTicker = usOpenTicker;
+window.usRunBacktest = usRunBacktest;
+window.usFetchSignalLog = usFetchSignalLog;

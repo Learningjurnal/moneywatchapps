@@ -18,6 +18,9 @@ import {
   getUniverseOpportunityRadar,
   warmRadarFundamentalsRotating,
   generateUnifiedScreener,
+  runUnifiedScreenerBacktest,
+  logTodaysUnifiedScreenerSignals,
+  getScreenerSignalLogSummary,
   warmTechnicalRotating,
   getUniverseAccumulationDistribution,
   getUniverseForeignFlow,
@@ -3350,6 +3353,15 @@ app.get('/api/cron/warm-radar-fundamentals', async (req, res) => {
 // warm-radar-fundamentals above — see warmTechnicalRotating() (lib/idx-
 // data-engine.js) for the rationale (Vercel Hobby: 1 cron/day, 30s budget,
 // full ~958-ticker coverage reached progressively).
+// FIX (2026-09-18, user-requested win-rate validation, "keduanya
+// sekaligus"): also logs today's Unified Screener "confirmed" signals for
+// the forward paper-trading log (Track B) — piggybacked on this cron
+// rather than a 3rd one, since Vercel Hobby caps at 2 cron jobs (both
+// already used). Budget for warmTechnicalRotating() trimmed from 25s to
+// 20s to leave headroom for the signal-logging step (a whole-market
+// generateUnifiedScreener() pass — cache-only reads, no live Yahoo
+// fetches, should be fast, but never assume "fast enough" without a
+// margin on a 30s function).
 app.get('/api/cron/warm-technical-indicators', async (req, res) => {
   const secret = process.env.CRON_SECRET;
   const authHeader = req.headers.authorization || '';
@@ -3357,8 +3369,15 @@ app.get('/api/cron/warm-technical-indicators', async (req, res) => {
     return res.status(403).json({ success: false, error: 'Forbidden' });
   }
   try {
-    const result = await warmTechnicalRotating(25000);
-    return res.json({ success: true, ...result });
+    const result = await warmTechnicalRotating(20000);
+    let signalLog = null;
+    try {
+      signalLog = await logTodaysUnifiedScreenerSignals();
+    } catch (logErr) {
+      console.error('[Screener Signal Log Cron Error]', logErr);
+      signalLog = { added: 0, error: logErr.message };
+    }
+    return res.json({ success: true, ...result, signalLog });
   } catch (err) {
     console.error('[Technical Indicators Cron Error]', err);
     return res.status(500).json({ success: false, error: err.message });
@@ -3376,6 +3395,37 @@ app.get('/api/idx/unified-screener', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[Unified Screener Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/unified-screener-backtest — Track A win-rate validation
+// (2026-09-18, user-requested: "bagaimana agar saya bisa menguji apakah
+// screener benar atau salah"). See runUnifiedScreenerBacktest()'s header
+// comment (lib/idx-data-engine.js) for the full methodology and why the
+// valuation component is deliberately excluded from this backtest.
+// ?lookbackDays=10-90 (default 45), ?forwardDays=5-60 (default 20).
+app.get('/api/idx/unified-screener-backtest', async (req, res) => {
+  try {
+    const data = await runUnifiedScreenerBacktest(req.query);
+    return res.json(data);
+  } catch (err) {
+    console.error('[Unified Screener Backtest Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/screener-signal-log — Track B win-rate validation: the
+// forward paper-trading log's current state (pending + resolved entries),
+// resolving any newly-matured entries on read. See
+// getScreenerSignalLogSummary()/resolveScreenerSignalLog() (lib/idx-data-
+// engine.js).
+app.get('/api/idx/screener-signal-log', async (req, res) => {
+  try {
+    const data = await getScreenerSignalLogSummary();
+    return res.json(data);
+  } catch (err) {
+    console.error('[Screener Signal Log Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
