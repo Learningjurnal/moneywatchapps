@@ -58,8 +58,14 @@ app.use(express.json({ limit: '10mb' }));
 // tanpa batas kalau ada traffic tinggi/disalahgunakan. Rate limiter
 // in-memory sederhana per-IP, tanpa dependency baru (tidak perlu npm
 // install tambahan). Reset otomatis tiap window habis.
-function createRateLimiter(windowMs, maxRequests) {
+// FIX (2026-09-18, found while verifying the Bandarmology Accumulation/
+// Distribution fix): the 429 error message was hardcoded to "Terlalu
+// banyak permintaan AI" regardless of which limiter instance tripped —
+// misleading on /api/idx/*'s dataApiRateLimiter (not an AI endpoint at
+// all). `label` lets each limiter instance describe itself honestly.
+function createRateLimiter(windowMs, maxRequests, label) {
   const hits = new Map(); // ip -> { count, resetAt }
+  const what = label || 'permintaan';
   return function rateLimiter(req, res, next) {
     const ip = req.ip || req.connection?.remoteAddress || 'unknown';
     const now = Date.now();
@@ -74,7 +80,7 @@ function createRateLimiter(windowMs, maxRequests) {
       res.set('Retry-After', String(retryAfterSec));
       return res.status(429).json({
         success: false,
-        error: `Terlalu banyak permintaan AI. Coba lagi dalam ${retryAfterSec} detik.`
+        error: `Terlalu banyak ${what}. Coba lagi dalam ${retryAfterSec} detik.`
       });
     }
     // Bersihkan entry kedaluwarsa sesekali agar Map tidak bocor memori
@@ -84,7 +90,7 @@ function createRateLimiter(windowMs, maxRequests) {
     next();
   };
 }
-const aiRateLimiter = createRateLimiter(60 * 1000, 10); // 10 request/menit/IP
+const aiRateLimiter = createRateLimiter(60 * 1000, 10, 'permintaan AI'); // 10 request/menit/IP
 
 // API health endpoint
 app.get('/api/health', (req, res) => {
@@ -2512,7 +2518,7 @@ function getStoredKseiData() {
 // pengguna aplikasi, bukan cuma yang membuat request tersebut. Limiter lebih
 // longgar dari endpoint AI (data harga wajar sering di-load banyak sekaligus
 // saat buka Dashboard/Screener), tapi tetap ada batas.
-const dataApiRateLimiter = createRateLimiter(60 * 1000, 60); // 60 request/menit/IP
+const dataApiRateLimiter = createRateLimiter(60 * 1000, 60, 'permintaan data'); // 60 request/menit/IP
 app.use('/api/idx', dataApiRateLimiter);
 app.use('/api/ksei', dataApiRateLimiter);
 

@@ -2182,6 +2182,11 @@ function renderBandarmologyCockpitPage(containerId) {
 
   html += '</div>';
   target.innerHTML = html;
+  if (!isStockMode) {
+    _bandarAccDistCache = null;
+    setTimeout(function() { bandarLoadAccDist('acc'); }, 40);
+    setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
+  }
 
   // Kick off (or let already-run) real-data prefetch for the shared
   // market-wide sample universe — first paint above used whatever was
@@ -2570,163 +2575,94 @@ async function bandarLoadRealForeignFlow() {
 window.bandarLoadRealForeignFlow = bandarLoadRealForeignFlow;
 
 // 4. Accumulation View
+// FIX (2026-09-18, user-reported: "lanjut perbaiki 3 view Bandarmology
+// lainnya juga"): renderBandarmologyAccumulationView()/
+// renderBandarmologyDistributionView() dulu iterasi sampel ~42 ticker
+// hardcoded (bukan seluruh ~958 emiten BEI, melanggar CLAUDE.md aturan
+// #2). getUniverseAccumulationDistribution() (lib/idx-data-engine.js)
+// SUDAH ADA dan dipakai Smart Money Screener — 1 panggilan Invezgo real
+// (/analysis/top/accumulation) untuk SELURUH pasar. Diganti pakai endpoint
+// itu (GET /api/idx/accumulation-distribution). Trade-off jujur: endpoint
+// whole-market ini tidak punya breakdown top-broker per-emiten (cuma
+// tersedia dari panggilan per-ticker) — kolom "Top Broker Akumulator"/"Avg
+// Buy Bandar" dihapus, diganti sektor + volume/nilai transaksi real.
 function renderBandarmologyAccumulationView() {
-  var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
-
-  var accList = [];
-  var realCount = 0;
-  var totalCount = 0;
-  sampleTickers.forEach(function(t) {
-    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
-    var bData = bandarGetCachedSummary(t, '1D');
-    if (!bData || bData.isValidTicker === false || !bData.price) return;
-    totalCount++;
-    if (bData.isSimulated === false) realCount++;
-    var b = bData.bandarmology || {};
-    var conc = b.concentration || {};
-    var t3 = conc.top3BuyerPct || conc.top3BuyPct || 60;
-    var topBrokers = (bData.topBuyers || []).slice(0, 3).map(function(x){ return x.broker; }).join(', ') || 'AK, ZP, BK';
-    var topBuyerAvg = (bData.topBuyers && bData.topBuyers[0]) ? bData.topBuyers[0].avgPrice : bData.price;
-    var emitenName = (typeof DB !== 'undefined' && DB[t] && DB[t].name) ? DB[t].name : t;
-
-    if ((b.verdict && b.verdict.includes('ACCUM')) || bandarSmartMoneyNetRp(b) > 0) {
-      accList.push({
-        ticker: t,
-        name: emitenName,
-        status: b.verdict || 'ACCUMULATION',
-        concTop3: t3 + '%',
-        topBrokers: topBrokers,
-        avgBuyPrice: 'Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID'),
-        lastPrice: 'Rp ' + Number(bData.price || 0).toLocaleString('id-ID'),
-        t3Val: t3
-      });
-    }
-  });
-
-  accList.sort(function(a, b) { return b.t3Val - a.t3Val; });
-  accList = accList.slice(0, 5);
-
-  var html = bandarDataBanner(realCount, totalCount)
-    + '<div class="card" style="padding:16px">'
-    + '<div style="margin-bottom:12px">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:6px">'
-    + 'RADAR SAHAM TERAKUMULASI SMART MONEY &amp; BANDAR'
-    + '</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Dominansi Top Buyer tinggi vs Top Seller terpecah (retail fragmentation)</div>'
-    + '</div>'
-    + '<div class="tbl-wrap" style="overflow-x:auto">'
-    + '<table class="tbl" style="width:100%;font-size:12px">'
-    + '<thead>'
-    + '<tr>'
-    + '<th>Emiten</th>'
-    + '<th>Status Bandar</th>'
-    + '<th style="text-align:right">Top 3 Konsentrasi</th>'
-    + '<th>Top Broker Akumulator</th>'
-    + '<th style="text-align:right">Avg Buy Bandar</th>'
-    + '<th style="text-align:right">Harga Terkini</th>'
-    + '<th style="text-align:center">Aksi</th>'
-    + '</tr>'
-    + '</thead>'
-    + '<tbody>';
-
-  accList.forEach(function(item) {
-    html += '<tr>'
-      + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + item.name + '</div></td>'
-      + '<td><span class="badge b-up" style="font-size:9px">' + item.status + '</span></td>'
-      + '<td class="mono up" style="text-align:right;font-weight:700">' + item.concTop3 + '</td>'
-      + '<td class="mono" style="color:var(--text)">' + item.topBrokers + '</td>'
-      + '<td class="mono" style="text-align:right;color:var(--text2)">' + item.avgBuyPrice + '</td>'
-      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">' + item.lastPrice + '</td>'
-      + '<td style="text-align:center">'
-      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-primary btn-xs">Detail Broker</button>'
-      + '</td>'
-      + '</tr>';
-  });
-
-  html += '</tbody></table></div></div>';
-  return html;
+  return '<div id="bandar-acc-content"><div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memuat data akumulasi seluruh BEI...</div></div>';
 }
 
 // 5. Distribution View
 function renderBandarmologyDistributionView() {
-  var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
+  return '<div id="bandar-dist-content"><div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memuat data distribusi seluruh BEI...</div></div>';
+}
 
-  var distList = [];
-  var realCount = 0;
-  var totalCount = 0;
-  sampleTickers.forEach(function(t) {
-    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
-    var bData = bandarGetCachedSummary(t, '1D');
-    if (!bData || bData.isValidTicker === false || !bData.price) return;
-    totalCount++;
-    if (bData.isSimulated === false) realCount++;
-    var b = bData.bandarmology || {};
-    var conc = b.concentration || {};
-    var t3 = conc.top3SellerPct || conc.top3SellPct || 60;
-    var topSellers = (bData.topSellers || []).slice(0, 3).map(function(x){ return x.broker; }).join(', ') || 'YP, PD, XC';
-    var topSellerAvg = (bData.topSellers && bData.topSellers[0]) ? bData.topSellers[0].avgPrice : bData.price;
-    var emitenName = (typeof DB !== 'undefined' && DB[t] && DB[t].name) ? DB[t].name : t;
+function bandarRenderAccDistTable(mode, data) {
+  var isAcc = mode === 'acc';
+  var list = isAcc ? (data && data.accumulation) || [] : (data && data.distribution) || [];
+  list = list.slice(0, 10);
+  var color = isAcc ? 'var(--green)' : 'var(--red)';
+  var title = isAcc ? 'RADAR SAHAM TERAKUMULASI SELURUH BEI' : 'RADAR SAHAM TERDISTRIBUSI SELURUH BEI (PERINGATAN TEKANAN JUAL)';
+  var subtitle = isAcc
+    ? 'Skor akumulasi dari Invezgo (top/accumulation) — seluruh emiten aktif, bukan sampel.'
+    : 'Skor distribusi dari Invezgo (top/accumulation, sisi negatif) — seluruh emiten aktif, bukan sampel.';
 
-    if ((b.verdict && b.verdict.includes('DISTRIB')) || bandarSmartMoneyNetRp(b) < 0) {
-      distList.push({
-        ticker: t,
-        name: emitenName,
-        status: b.verdict || 'DISTRIBUTION',
-        concTop3: t3 + '%',
-        topSellers: topSellers,
-        avgSellPrice: 'Rp ' + Number(topSellerAvg || 0).toLocaleString('id-ID'),
-        lastPrice: 'Rp ' + Number(bData.price || 0).toLocaleString('id-ID'),
-        warning: 'Heavy Outflow',
-        t3Val: t3
-      });
-    }
-  });
+  if (!data || data.success === false || data.isSimulated || !data.counts) {
+    return '<div class="card" style="padding:16px">'
+      + '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2)">' + ((data && (data.message || data.dataSource || data.error)) || 'Data tidak tersedia.') + '</div>'
+      + '</div>';
+  }
 
-  distList.sort(function(a, b) { return b.t3Val - a.t3Val; });
-  distList = distList.slice(0, 5);
+  var rows = list.length ? list.map(function(item) {
+    var emitenName = item.name || ((typeof DB !== 'undefined' && DB[item.ticker] && DB[item.ticker].name) || item.ticker);
+    return '<tr>'
+      + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + emitenName + '</div></td>'
+      + '<td style="font-size:11px;color:var(--text2)">' + (item.sector || '-') + '</td>'
+      + '<td class="mono" style="text-align:right;font-weight:700;color:' + color + '">' + Number(item.score || 0).toFixed(1) + '</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text2)">' + (Number(item.volume || 0) / 100).toLocaleString('id-ID') + ' Lot</td>'
+      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">Rp ' + Number(item.avgPrice || 0).toLocaleString('id-ID') + '</td>'
+      + '<td class="mono ' + (item.priceChangePct >= 0 ? 'up' : 'down') + '" style="text-align:right">' + (item.priceChangePct >= 0 ? '+' : '') + Number(item.priceChangePct || 0).toFixed(2) + '%</td>'
+      + '<td style="text-align:center"><button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-ghost btn-xs">Detail Broker</button></td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3);font-size:11px">Tidak ada data untuk hari ini.</td></tr>';
 
-  var html = bandarDataBanner(realCount, totalCount)
-    + '<div class="card" style="padding:16px">'
-    + '<div style="margin-bottom:12px">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--red);display:flex;align-items:center;gap:6px">'
-    + 'RADAR SAHAM TERDISTRIBUSI (PERINGATAN TEKANAN JUAL)'
+  return '<div class="card" style="padding:16px">'
+    + '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-bottom:12px">'
+    + 'Data REAL dari Invezgo API (' + data.date + ') — seluruh ' + data.counts.totalUniverseScanned + ' emiten BEI aktif, bukan sampel.'
     + '</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Tekanan jual institusi/asing terkonsentrasi diserap broker retail (YP, PD, XC)</div>'
+    + '<div style="margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:700;color:' + color + ';display:flex;align-items:center;gap:6px">' + title + '</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + subtitle + '</div>'
     + '</div>'
     + '<div class="tbl-wrap" style="overflow-x:auto">'
     + '<table class="tbl" style="width:100%;font-size:12px">'
-    + '<thead>'
-    + '<tr>'
-    + '<th>Emiten</th>'
-    + '<th>Status Bandar</th>'
-    + '<th style="text-align:right">Top 3 Seller Share</th>'
-    + '<th>Top Broker Seller</th>'
-    + '<th style="text-align:right">Avg Sell Bandar</th>'
-    + '<th style="text-align:right">Harga Terkini</th>'
-    + '<th>Peringatan</th>'
-    + '<th style="text-align:center">Aksi</th>'
-    + '</tr>'
-    + '</thead>'
-    + '<tbody>';
-
-  distList.forEach(function(item) {
-    html += '<tr>'
-      + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + item.name + '</div></td>'
-      + '<td><span class="badge b-dn" style="font-size:9px">' + item.status + '</span></td>'
-      + '<td class="mono down" style="text-align:right;font-weight:700">' + item.concTop3 + '</td>'
-      + '<td class="mono" style="color:var(--text)">' + item.topSellers + '</td>'
-      + '<td class="mono" style="text-align:right;color:var(--text2)">' + item.avgSellPrice + '</td>'
-      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">' + item.lastPrice + '</td>'
-      + '<td><span class="badge b-amb" style="font-size:9px">' + item.warning + '</span></td>'
-      + '<td style="text-align:center">'
-      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-ghost btn-xs">Detail Broker</button>'
-      + '</td>'
-      + '</tr>';
-  });
-
-  html += '</tbody></table></div></div>';
-  return html;
+    + '<thead><tr>'
+    + '<th>Emiten</th><th>Sektor</th><th style="text-align:right">Skor</th><th style="text-align:right">Volume</th><th style="text-align:right">Harga</th><th style="text-align:right">Perubahan</th><th style="text-align:center">Aksi</th>'
+    + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>'
+    + '</div>'
+    + '</div>';
 }
+
+var _bandarAccDistCache = null;
+async function bandarLoadAccDist(mode) {
+  var containerId = mode === 'acc' ? 'bandar-acc-content' : 'bandar-dist-content';
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  try {
+    if (!_bandarAccDistCache) {
+      var res = await fetch('/api/idx/accumulation-distribution');
+      var json = await res.json();
+      if (json && json.success !== false) _bandarAccDistCache = json;
+      else { var elErr = document.getElementById(containerId); if (elErr) elErr.innerHTML = bandarRenderAccDistTable(mode, json); return; }
+    }
+    var el = document.getElementById(containerId);
+    if (el) el.innerHTML = bandarRenderAccDistTable(mode, _bandarAccDistCache);
+  } catch (e) {
+    var el2 = document.getElementById(containerId);
+    if (el2) el2.innerHTML = '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat data: ' + e.message + '</div>';
+  }
+}
+window.bandarLoadAccDist = bandarLoadAccDist;
 
 // 6. Smart Money Radar View (Dynamic Universal Footprint)
 function renderBandarmologySmartMoneyRadarView(tk) {
@@ -2840,7 +2776,23 @@ function renderBandarmologyBrokerTrailView() {
   trailData.sort(function(a, b) { return b.rawVal - a.rawVal; });
   trailData = trailData.slice(0, 10);
 
-  var html = bandarDataBanner(realCount, totalCount)
+  // FIX (2026-09-18, user-reported: "lanjut perbaiki 3 view Bandarmology
+  // lainnya juga"): CLAUDE.md aturan #2 mewajibkan cari dulu endpoint
+  // whole-market sebelum scan per-ticker sample — TAPI untuk "jejak satu
+  // kode broker lintas SEMUA emiten", Invezgo TIDAK punya endpoint
+  // whole-market seperti itu (hanya per-ticker via /analysis/summary/stock/
+  // {code}, atau whole-market TANPA breakdown per-broker via
+  // /analysis/top/accumulation|foreign). Scan penuh 958 ticker per-broker
+  // butuh 958 panggilan API terpisah per klik — biaya kuota yang sama
+  // persis dengan pola yang sudah ditolak sebelumnya (lihat entri
+  // INCIDENT_LOG.md "Optimasi kuota Invezgo"). Sesuai aturan #2 (jujur
+  // labeli keterbatasan, jangan diam-diam), disclosure di bawah menjelaskan
+  // ini secara eksplisit alih-alih pura-pura ini cakupan penuh pasar.
+  var scopeNotice = '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-bottom:12px">'
+    + '<b>Cakupan terbatas (bukan seluruh BEI):</b> Invezgo tidak menyediakan endpoint whole-market untuk "jejak 1 kode broker di semua emiten" — hanya per-emiten satu-satu. Scan seluruh ~958 emiten per klik akan memakan kuota API secara signifikan, jadi tabel di bawah hanya mencakup ' + totalCount + ' emiten paling likuid yang sudah pernah dimuat datanya (' + realCount + ' di antaranya data REAL Invezgo). Buka emiten lain di tab "Analisis Full Emiten" dulu supaya ikut masuk cakupan di sini.'
+    + '</div>';
+
+  var html = scopeNotice + bandarDataBanner(realCount, totalCount)
     + '<div style="display:flex;flex-direction:column;gap:16px">'
     // Broker Selector Bar
     + '<div class="card" style="padding:16px">'

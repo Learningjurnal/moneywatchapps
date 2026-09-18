@@ -5055,11 +5055,15 @@ test('REGRESSION GUARD: Bandarmology market-aggregate views use real Invezgo dat
   // — it no longer loops a client-side ticker sample at all, real or
   // simulated; it now fetches whole-market real data from a dedicated
   // server endpoint. See the getUniverseForeignFlow() regression test
-  // below for its own coverage.)
+  // below for its own coverage. renderBandarmologyAccumulationView()/
+  // renderBandarmologyDistributionView() were REPLACED the same way, same
+  // day — they now fetch GET /api/idx/accumulation-distribution
+  // (whole-market real Invezgo data) instead of looping a client cache.
+  // renderBandarmologyBrokerTrailView() is the one view of these 4 that
+  // genuinely has no whole-market Invezgo equivalent — see its own
+  // scope-disclosure test below — so it's the only one still checked here.)
   const viewBounds = [
     ['renderBandarmologyMarketFlowView', /function renderBandarmologyMarketFlowView[\s\S]*?\n}\n/],
-    ['renderBandarmologyAccumulationView', /function renderBandarmologyAccumulationView[\s\S]*?\n}\n/],
-    ['renderBandarmologyDistributionView', /function renderBandarmologyDistributionView[\s\S]*?\n}\n/],
     ['renderBandarmologyBrokerTrailView', /function renderBandarmologyBrokerTrailView[\s\S]*?\n}\n/]
   ];
   viewBounds.forEach(([name, re]) => {
@@ -6079,6 +6083,38 @@ test('REGRESSION GUARD: broker-summary fallbacks (template, client-side, 1-year 
   assert(!/majorBrokers\s*=/.test(matrixViewSrc), 'REGRESSION: renderBandarmology1YearBrokerCostMatrix() reverted to the hardcoded majorBrokers fabricated array');
   assert(/async function bandarLoad1YearBrokerMatrix/.test(cockpitSrc), 'REGRESSION: bandarLoad1YearBrokerMatrix() is gone — the 1-year matrix no longer fetches real data');
   assert(/fetchBrokerSummaryData\(tk, '1Y'\)/.test(cockpitSrc), 'REGRESSION: bandarLoad1YearBrokerMatrix() no longer fetches real 1-year broker data via fetchBrokerSummaryData()');
+});
+
+// ── TEST: Accumulation/Distribution Bandarmology views must use the
+// whole-market Invezgo endpoint, never the old 42-ticker hardcoded sample;
+// Broker Trail (which genuinely has no whole-market equivalent) must
+// honestly disclose its limited scope instead of silently using a sample ──
+// User-reported (2026-09-18, follow-up to the Foreign Flow fix): "lanjut
+// perbaiki 3 view Bandarmology lainnya juga" — Accumulation, Distribution,
+// and Broker Trail all iterated the same hardcoded ~42-ticker sample as
+// the already-fixed Foreign Flow view (CLAUDE.md rule #2 violation).
+test('REGRESSION GUARD: Accumulation/Distribution views use whole-market Invezgo data; Broker Trail honestly discloses its sample-scope limitation', () => {
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  const accViewSrc = cockpitSrc.match(/function renderBandarmologyAccumulationView[\s\S]*?\n\}\n/)[0];
+  assert(!/var sampleTickers = \[/.test(accViewSrc), 'REGRESSION: renderBandarmologyAccumulationView() reverted to a hardcoded ticker sample');
+  const distViewSrc = cockpitSrc.match(/function renderBandarmologyDistributionView[\s\S]*?\n\}\n/)[0];
+  assert(!/var sampleTickers = \[/.test(distViewSrc), 'REGRESSION: renderBandarmologyDistributionView() reverted to a hardcoded ticker sample');
+
+  assert(/async function bandarLoadAccDist/.test(cockpitSrc), 'REGRESSION: bandarLoadAccDist() is gone — Accumulation/Distribution no longer fetch real whole-market data');
+  assert(/fetch\('\/api\/idx\/accumulation-distribution'\)/.test(cockpitSrc), 'REGRESSION: bandarLoadAccDist() no longer fetches GET /api/idx/accumulation-distribution');
+
+  // Container ids must be DISTINCT — both views render on the same page
+  // simultaneously; a shared id would make document.getElementById() only
+  // ever find the first one, silently breaking the second view's update.
+  assert(/id="bandar-acc-content"/.test(cockpitSrc) && /id="bandar-dist-content"/.test(cockpitSrc),
+    'REGRESSION: Accumulation/Distribution containers no longer have distinct ids — updating one would break the other');
+
+  // Broker Trail: no whole-market per-broker Invezgo endpoint exists, so
+  // per CLAUDE.md rule #2 it must honestly disclose the limitation rather
+  // than pretend a sample is full-market coverage.
+  const trailViewSrc = cockpitSrc.match(/function renderBandarmologyBrokerTrailView[\s\S]*?\n\}\n/)[0];
+  assert(/Cakupan terbatas/.test(trailViewSrc), 'REGRESSION: renderBandarmologyBrokerTrailView() no longer discloses its limited (non-whole-market) scope');
 });
 
 console.log('═══════════════════════════════════════════════════════');
