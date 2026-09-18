@@ -21,6 +21,7 @@ import {
   getBeiTickSize,
   generateBrokerSummary,
   generateShareholderComposition,
+  generateSectorRotation,
   fetchIdxStockScreener,
   IDX_BROKERS,
   generateTradingHypothesis,
@@ -3201,6 +3202,18 @@ app.get('/api/idx/shareholder-composition/:ticker', async (req, res) => {
     const ticker = req.params.ticker;
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
     const data = await generateShareholderComposition(ticker);
+    return res.json({ success: true, data });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/sector-rotation — Invezgo RRG (Relative Rotation Graph) at
+// sector-index level (base=COMPOSITE). Supplements, never replaces, the
+// CMF-constituent estimate in public/js/44-sectoral-insight.js.
+app.get('/api/idx/sector-rotation', async (req, res) => {
+  try {
+    const data = await generateSectorRotation();
     return res.json({ success: true, data });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
