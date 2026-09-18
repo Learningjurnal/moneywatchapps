@@ -218,7 +218,13 @@ function getStockIntelData(ticker) {
   if (qf.eps && qf.eps > 0) epsStr = 'Rp ' + Math.round(qf.eps).toLocaleString('id-ID');
   else if (fund && fund.eps) epsStr = 'Rp ' + Math.round(fund.eps).toLocaleString('id-ID');
 
-  // 2. Real Support & Resistance (Pivot 5-bar / Fib from real quote if available)
+  // 2. Support & Resistance — FIX (2026-09-18, audit menyeluruh): dulu
+  // method field mengklaim ini pivot point kalkulasi real,
+  // padahal r1/s1 BUKAN pivot point resmi (formula standar: P=(H+L+C)/3,
+  // R1=2P-L, S1=2P-H, dst, butuh data High/Low/Close harian) — r1/s1 di
+  // sini cuma persentase tetap (+4%/-4%) dari harga terakhir. r2/s2 TETAP
+  // real kalau q52 (52-week high/low) tersedia. Label diperbaiki supaya
+  // jujur soal metodologinya, bukan diklaim "pivot" yang sebenarnya tidak.
   var levels = {
     r2: q52.high || Math.round(price * 1.10),
     r1: Math.round(price * 1.04),
@@ -226,7 +232,7 @@ function getStockIntelData(ticker) {
     s1: Math.round(price * 0.96),
     s2: q52.low || Math.round(price * 0.90),
     distS1: price > 0 ? '-4.0%' : '-',
-    method: 'Calculated Real Pivot Support/Resistance'
+    method: 'Estimasi ±4%/±10% dari Harga Saat Ini (bukan pivot point OHLC resmi)'
   };
 
   // 3. Real 52-week range & turnover
@@ -272,7 +278,12 @@ function getStockIntelData(ticker) {
     score: score,
     status: status,
     statusClass: statusClass,
-    conviction: score >= 70 ? 85 : 60,
+    // FIX (2026-09-18, audit menyeluruh): dulu conviction cuma 2 nilai
+    // tetap (85 atau 60) berdasarkan satu ambang batas — sekarang skala
+    // linear langsung dari `score` (sudah dihitung real di atas dari
+    // PER/PBV/ROE/bandarmology), supaya benar-benar proporsional terhadap
+    // kekuatan sinyal, bukan pembulatan biner.
+    conviction: Math.round(50 + (score - 25) / 70 * 45),
     range52: range52,
     turnover: turnover,
     pos52: q52.low && q52.high && q52.high > q52.low ? Math.round(((price - q52.low) / (q52.high - q52.low)) * 100) + '% dari batas bawah' : '-',

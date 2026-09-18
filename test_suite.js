@@ -6365,6 +6365,44 @@ test('REGRESSION GUARD: Crypto Whale Tier Orderflow Breakdown discloses it is a 
   assert(/Estimasi proporsional dari volume 24 jam total/.test(src), 'REGRESSION: the Whale Tier Orderflow Breakdown card no longer discloses it is a fixed-percentage proxy, not real order-book data');
 });
 
+// ── TESTS: 4 sisa temuan MEDIUM/RENDAH dari audit menyeluruh (2026-09-18),
+// dikerjakan setelah 7 temuan HIGH — user meminta lanjutkan semua. ──
+
+test('REGRESSION GUARD: AI Chart Confluence Score components (Volume Surge, Fibonacci Overlap, Trend Consistency, Risk/Reward) are computed from real data, not unconditional constants', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/43-ai-chart-intelligence.js'), 'utf8');
+  const fnSrc = src.match(/function calculateAiConfluenceScore[\s\S]*?\n\}\n/)[0];
+  assert(!/score \+= 8;\n\n  \/\/ 6\./.test(fnSrc), 'REGRESSION: Volume Surge reverted to an unconditional score += 8');
+  assert(/volRatio/.test(fnSrc), 'REGRESSION: Volume Surge no longer computes a real volume ratio from ctx.ohlcv');
+  assert(/nearFib/.test(fnSrc), 'REGRESSION: Fibonacci Overlap no longer checks real proximity to fib levels — reverted to a fixed score');
+  assert(/maAligned/.test(fnSrc), 'REGRESSION: the MA20/MA50 trend-consistency check (replacing the fake "Multi-TF Alignment" constant) is gone');
+  assert(/realLow/.test(fnSrc) && /realHigh/.test(fnSrc), 'REGRESSION: Risk/Reward no longer uses real historical high/low — reverted to an unconditional +5');
+});
+
+test('REGRESSION GUARD: Morning Brief "HEALTH & VALUASI" column renamed to match what it actually measures (position risk, not fundamental valuation)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(!/HEALTH &amp; VALUASI/.test(src), 'REGRESSION: the misleading "HEALTH & VALUASI" column header is back — it never computed PER/PBV/ROE, only weight/P&L');
+  assert(/SKOR RISIKO POSISI/.test(src), 'REGRESSION: the honestly-renamed "SKOR RISIKO POSISI" column header is gone');
+  assert(/positionRiskScore/.test(src), 'REGRESSION: the positionRiskScore variable (renamed from healthScore) is gone');
+});
+
+test('REGRESSION GUARD: PDF financial report discloses when IHSG/USD/monthly-expense data is unavailable instead of silently using fabricated fallback numbers', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/32-pdf-reports.js'), 'utf8');
+  assert(!/'7\.150,00'/.test(src), 'REGRESSION: the fabricated IHSG fallback "7.150,00" is back with no disclosure');
+  assert(!/'Rp 16\.200'/.test(src), 'REGRESSION: the fabricated USD fallback "Rp 16.200" is back with no disclosure');
+  assert(!/: 10000000;/.test(src), 'REGRESSION: a fabricated Rp 10,000,000/month expense fallback is back somewhere in this file');
+  assert(/monthlyExpAvailable/.test(src), 'REGRESSION: monthlyExpAvailable tracking is gone — FIRE metrics can no longer distinguish real user input from a guess');
+  const matches = (src.match(/monthlyExpAvailable/g) || []).length;
+  assert(matches >= 6, 'REGRESSION: monthlyExpAvailable is no longer threaded through all 3 report-generating functions (HTML, CSV, Markdown)');
+});
+
+test('REGRESSION GUARD: Stock Intel pivot Support/Resistance label no longer falsely claims "Real Pivot" for a fixed-percentage estimate, and conviction is proportional to the real score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(!/'Calculated Real Pivot Support\/Resistance'/.test(src), 'REGRESSION: the misleading "Calculated Real Pivot Support/Resistance" label is back for a ±4%/±10% price-percentage estimate');
+  assert(/bukan pivot point OHLC resmi/.test(src), 'REGRESSION: the honest methodology disclosure for the S/R estimate is gone');
+  assert(!/conviction: score >= 70 \? 85 : 60/.test(src), 'REGRESSION: conviction reverted to a 2-value fixed lookup (85 or 60) instead of scaling with the real score');
+  assert(/conviction: Math\.round\(50 \+ \(score - 25\) \/ 70 \* 45\)/.test(src), 'REGRESSION: conviction no longer scales proportionally from the real computed score');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

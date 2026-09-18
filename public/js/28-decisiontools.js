@@ -226,7 +226,7 @@ function renderDailyBriefPage() {
         + '<div class="ctitle" style="font-size:15px;display:flex;align-items:center;gap:6px">'
           + 'Evaluasi Komprehensif Seluruh Saham Portofolio (' + porto.length + ' Emiten Terdaftar)'
         + '</div>'
-        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Pemindaian kesehatan fundamental, valuasi, momentum harian, dan rekomendasi aksi untuk setiap aset di portofolio Anda.</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Pemindaian risiko konsentrasi posisi, momentum harian, dan rekomendasi aksi untuk setiap aset di portofolio Anda.</div>'
       + '</div>'
       + '<button class="btn btn-outline btn-sm" onclick="goPage(\'portofolio\',null)">Kelola Portofolio</button>'
     + '</div>';
@@ -246,7 +246,7 @@ function renderDailyBriefPage() {
             + '<th style="text-align:right">BOBOT</th>'
             + '<th style="text-align:right">HARI INI</th>'
             + '<th style="text-align:right">TOTAL P&amp;L</th>'
-            + '<th style="text-align:center">HEALTH &amp; VALUASI</th>'
+            + '<th style="text-align:center">SKOR RISIKO POSISI</th>'
             + '<th style="text-align:center">AI ACTION SIGNAL</th>'
             + '<th style="text-align:center">AKSI</th>'
           + '</tr>'
@@ -261,26 +261,33 @@ function renderDailyBriefPage() {
       var chgPct = p.chgPct || 0;
 
       // Determine smart AI action signal for each stock
+      // FIX (2026-09-18, audit menyeluruh): dulu variabel & kolom UI ini
+      // bernama "healthScore" / "HEALTH & VALUASI" — namanya menyiratkan
+      // analisis fundamental (PER/PBV/ROE), padahal murni fungsi dari
+      // bobot posisi & P&L unrealized (data portofolio REAL, bukan
+      // karangan — tapi label-nya menjanjikan sesuatu yang tidak pernah
+      // dihitung). Diganti nama & label jadi "positionRiskScore"/"SKOR
+      // RISIKO POSISI" supaya sesuai dengan apa yang benar-benar diukur.
       var signal = 'HOLD / COMPOUND';
       var signalBadge = 'b-up';
-      var healthScore = 80;
+      var positionRiskScore = 80;
 
       if (parseFloat(weight) > 16) {
         signal = 'TRIM / REBALANCE';
         signalBadge = 'b-amb';
-        healthScore = 78;
+        positionRiskScore = 78;
       } else if (unrealPct < -12) {
         signal = 'EVALUATE THESIS / DCA';
         signalBadge = 'b-dn';
-        healthScore = 68;
+        positionRiskScore = 68;
       } else if (unrealPct > 25) {
         signal = 'SECURE PROFIT / TRAILING';
         signalBadge = 'b-accent';
-        healthScore = 88;
+        positionRiskScore = 88;
       } else if (chgPct > 2.0) {
         signal = 'MOMENTUM EXPANSION';
         signalBadge = 'b-up';
-        healthScore = 85;
+        positionRiskScore = 85;
       }
 
       html += '<tr>'
@@ -307,7 +314,7 @@ function renderDailyBriefPage() {
           + '<div style="font-size:10px;" class="' + (unrealPct >= 0 ? 'up' : 'dn') + '">' + (unrealPct >= 0 ? '+' : '') + unrealPct.toFixed(2) + '%</div>'
         + '</td>'
         + '<td style="text-align:center">'
-          + '<span class="badge b-up" style="font-size:10px">' + healthScore + '/100</span>'
+          + '<span class="badge b-up" style="font-size:10px">' + positionRiskScore + '/100</span>'
         + '</td>'
         + '<td style="text-align:center">'
           + '<span class="badge ' + signalBadge + '" style="font-size:10px">' + signal + '</span>'
