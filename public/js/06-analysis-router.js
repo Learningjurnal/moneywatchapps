@@ -764,7 +764,18 @@ function goPage(name,btn){
   // pemetaan ini, el('page-flowscan') akan null dan goPage() berhenti di
   // console.warn di bawah SEBELUM sempat redirect - jadi dipetakan langsung
   // ke 'bandarmology', sama seperti 'smart-money-flow'.
-  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : name);
+  // FIX (2026-09-18, user-directed consolidation: "Opportunity Radar dan
+  // market radar kenapa tidak disatukan saja menjadi screener yang bisa di
+  // filter... kedepan screener kedepan hanya ada 1 tidak banyak lagi"):
+  // 'ranking' (Market Radar) and 'scanner' (Smart Money Screener) now
+  // redirect to the same 'radar' page container, which renders the new
+  // Unified Screener (see public/js/48-unified-screener.js). Same pattern
+  // as the flowscan/smart-money-flow → bandarmology redirect above. The
+  // old fsRenderRanking()/page-scanner code stays in the codebase
+  // (unreachable from nav now, not deleted) to keep this change reversible
+  // and low-risk.
+  var UNIFIED_SCREENER_ALIASES = ['ranking', 'scanner'];
+  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : name));
   var pg = el('page-'+targetPageName);
   // FIX (audit 2026-09-12, "Router silently ignores missing page"): sebelumnya
   // return diam-diam tanpa jejak apapun kalau nama page salah/typo — tombol
@@ -828,7 +839,11 @@ function renderPage(name){
     case 'daily-brief':if(typeof renderDailyBriefPage==='function')renderDailyBriefPage();else if(typeof renderDailyBrief==='function')renderDailyBrief();break;
     case 'stock-intel':if(typeof renderStockIntelCockpit==='function')renderStockIntelCockpit();break;
     case 'market-regime':if(typeof renderMarketRegimePage==='function')renderMarketRegimePage();break;
-    case 'radar':if(typeof renderOpportunityRadarPage==='function')renderOpportunityRadarPage();break;
+    // 'radar'/'ranking'/'scanner' all render the Unified Screener now (see
+    // the goPage() redirect above and public/js/48-unified-screener.js) —
+    // renderOpportunityRadarPage() (old Opportunity Radar UI) stays defined
+    // in 26-commandcenter.js but is no longer called from routing.
+    case 'radar':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'scenario':if(typeof renderScenarioPage==='function')renderScenarioPage();else if(typeof renderScenarioEnginePage==='function')renderScenarioEnginePage();break;
     case 'rebalance':if(typeof renderRebalancingPage==='function')renderRebalancingPage();break;
     case 'thesis':if(typeof renderThesisPage==='function')renderThesisPage();else if(typeof renderThesisTrackerPage==='function')renderThesisTrackerPage();break;
@@ -886,13 +901,16 @@ function renderPage(name){
     case 'technical':if(typeof techInit==='function') techInit();break;
     case 'crypto-technical':if(typeof initCryptoTechnicalSuite==='function') initCryptoTechnicalSuite();break;
     case 'flowscan':if(typeof goBandarmology==='function') goBandarmology('smart-money-flow'); else if(typeof techInit==='function') techInit(); else fsRunAnalysis();break;
-    case 'ranking':fsRenderRanking();break;
+    // 'ranking'/'scanner' consolidated into the Unified Screener (see the
+    // goPage() redirect + 'radar' case above) — fsRenderRanking() itself
+    // stays defined/unused rather than deleted (low-risk, reversible).
+    case 'ranking':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'watchlist':
       if(typeof fsBuildQaChips==='function') fsBuildQaChips();
       if(typeof fsRenderWlPage==='function') fsRenderWlPage();
       break;
     case 'heatmap':fsRenderHeatmap();break;
-    case 'scanner':break;
+    case 'scanner':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'stock-dossier':if(typeof renderStockDossierPage==='function') renderStockDossierPage();break;
     case 'volume-spike':if(typeof renderVolumeSpikePage==='function') renderVolumeSpikePage();break;
     case 'alerts':fsGenAlerts();break;

@@ -17,6 +17,8 @@ import {
   getIdxCalendarData,
   getUniverseOpportunityRadar,
   warmRadarFundamentalsRotating,
+  generateUnifiedScreener,
+  warmTechnicalRotating,
   getUniverseAccumulationDistribution,
   getUniverseForeignFlow,
   getTransactionFlowVisualizer,
@@ -3338,6 +3340,42 @@ app.get('/api/cron/warm-radar-fundamentals', async (req, res) => {
     return res.json({ success: true, ...result });
   } catch (err) {
     console.error('[Radar Fundamentals Cron Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/cron/warm-technical-indicators — Vercel Cron target for the
+// Unified Screener's technical-indicator cache (2026-09-18). Same fail-
+// closed CRON_SECRET guard and rotating-cursor design as
+// warm-radar-fundamentals above — see warmTechnicalRotating() (lib/idx-
+// data-engine.js) for the rationale (Vercel Hobby: 1 cron/day, 30s budget,
+// full ~958-ticker coverage reached progressively).
+app.get('/api/cron/warm-technical-indicators', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization || '';
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  try {
+    const result = await warmTechnicalRotating(25000);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Technical Indicators Cron Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/unified-screener — Skema Screener Terpadu (2026-09-18),
+// menggabungkan Opportunity Radar + Market Radar + Smart Money Screener +
+// Screener lama menjadi 1 endpoint filterable. Lihat komentar
+// generateUnifiedScreener() (lib/idx-data-engine.js) untuk rincian formula
+// skor Whale/Uptrend dan sumber data whole-market yang dipakai.
+app.get('/api/idx/unified-screener', async (req, res) => {
+  try {
+    const data = await generateUnifiedScreener(req.query);
+    return res.json(data);
+  } catch (err) {
+    console.error('[Unified Screener Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

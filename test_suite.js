@@ -4809,8 +4809,15 @@ test('REGRESSION GUARD: lib/idx-data-engine.js loads cleanly without ReferenceEr
     assert(engineSrc.includes("import('@upstash/redis')"), 'Must use dynamic import for @upstash/redis');
     assert(engineSrc.includes('_dqRedisClient = (Redis &&'), 'Must check that Redis is truthy before instantiating new Redis');
   } finally {
-    process.env.UPSTASH_REDIS_REST_URL = origUrl;
-    process.env.UPSTASH_REDIS_REST_TOKEN = origToken;
+    // FIX (2026-09-18, discovered via the Unified Screener's new behavioral
+    // test failing downstream): `process.env.X = undefined` does NOT delete
+    // the var — Node coerces it to the literal string "undefined", which
+    // then poisons every later test in this same process that dynamically
+    // imports a module gating a real Redis client on these exact env vars
+    // (e.g. lib/providers/yahoo-client.js's `new Redis({url: "undefined"})`
+    // throws "invalid URL"). Must delete when the original was unset.
+    if (origUrl === undefined) delete process.env.UPSTASH_REDIS_REST_URL; else process.env.UPSTASH_REDIS_REST_URL = origUrl;
+    if (origToken === undefined) delete process.env.UPSTASH_REDIS_REST_TOKEN; else process.env.UPSTASH_REDIS_REST_TOKEN = origToken;
   }
 });
 
@@ -6465,6 +6472,99 @@ test('REGRESSION GUARD: Master Screener engine (generateMasterScreener) and serv
   const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
   assert(/app\.post\('\/api\/idx\/master-screener'/.test(serverSrc), 'REGRESSION: POST /api/idx/master-screener route is gone');
   assert(/generateMasterScreener,/.test(serverSrc), 'REGRESSION: generateMasterScreener no longer imported in server.js');
+});
+
+// Unified Screener (2026-09-18, user-directed: "Opportunity Radar dan
+// market radar kenapa tidak disatukan saja menjadi screener yang bisa di
+// filter... kedepan screener kedepan hanya ada 1 tidak banyak lagi dan
+// terpisah pisah"). Merges Opportunity Radar + Market Radar + Smart Money
+// Screener into 1 filterable page/endpoint, with a Whale/Akumulasi score
+// (categorical, -3..+4) and Uptrend score (0-100) built from whole-market
+// real data sources already in the app.
+test('REGRESSION GUARD: technical-indicator cache (Redis-backed, cron-rotating) exists for the Unified Screener', () => {
+  const yfSrc = fs.readFileSync(path.join(__dirname, 'lib/providers/yahoo-client.js'), 'utf8');
+  assert(/export \{[\s\S]*yfStoreGet,[\s\S]*yfStoreSetEx,[\s\S]*yfStoreMget,[\s\S]*\}/.test(yfSrc),
+    'REGRESSION: yfStoreGet/yfStoreSetEx/yfStoreMget no longer exported from yahoo-client.js — the technical cache in idx-data-engine.js depends on these');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function fetchAndCacheTechnicalSignal/.test(engineSrc), 'REGRESSION: fetchAndCacheTechnicalSignal() is gone');
+  assert(/async function getCachedTechnicalBulk/.test(engineSrc), 'REGRESSION: getCachedTechnicalBulk() is gone — Unified Screener would need 958 separate Redis reads per request');
+  assert(/async function warmTechnicalRotating/.test(engineSrc), 'REGRESSION: warmTechnicalRotating() cron warmer is gone');
+  assert(/TECHNICAL_WARM_CURSOR_KEY = 'technical:warm:cursor'/.test(engineSrc), 'REGRESSION: technical cron warmer no longer persists a rotating cursor — full-universe coverage would restart from 0 every run instead of progressing');
+  assert(/warmTechnicalRotating,/.test(engineSrc), 'REGRESSION: warmTechnicalRotating no longer exported from idx-data-engine.js');
+});
+
+test('REGRESSION GUARD: generateUnifiedScreener() merges accumulation/distribution + foreign flow + fundamentals + technical into 1 filterable result', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function generateUnifiedScreener\(params = \{\}\)/.test(engineSrc), 'REGRESSION: generateUnifiedScreener() is gone');
+  assert(/generateUnifiedScreener,/.test(engineSrc), 'REGRESSION: generateUnifiedScreener no longer exported from idx-data-engine.js');
+  // The whale score must stay categorical/honest — a ticker absent from
+  // today's top-movers list must NOT be scored the same as a confirmed
+  // "no signal" — both currently map to whaleScore 0, but the label must
+  // distinguish "never checked" from "checked, balanced" via whaleDataAvailable.
+  assert(/whaleDataAvailable/.test(engineSrc), 'REGRESSION: whaleDataAvailable flag is gone — cannot distinguish "no data today" from "netral" anymore');
+  assert(/'Tidak Ada Sinyal Hari Ini'/.test(engineSrc), 'REGRESSION: the honest "no signal today" whale label is gone');
+  // fetchInvezgoScreener() (the throttled, quota-metered custom-formula
+  // endpoint) must NOT be called automatically inside the whole-market pass
+  // — user explicitly said "kalo dianalisa asal akan memakan kuota".
+  const unifiedFnMatch = engineSrc.match(/async function generateUnifiedScreener\(params = \{\}\) \{[\s\S]*?\n\}\n\n\/\/ ══/);
+  assert(unifiedFnMatch, 'REGRESSION: could not isolate generateUnifiedScreener() body to check for accidental fetchInvezgoScreener() calls');
+  assert(!/fetchInvezgoScreener\(/.test(unifiedFnMatch[0]), 'REGRESSION: generateUnifiedScreener() now calls fetchInvezgoScreener() automatically — this burns the throttled/quota-metered custom-formula endpoint on every whole-market page load, which the user explicitly said to avoid');
+});
+
+await asyncTest('BEHAVIOR: generateUnifiedScreener() runs end-to-end without an Invezgo/Redis config and returns an honest, well-shaped result', async () => {
+  const { generateUnifiedScreener } = await import('./lib/idx-data-engine.js');
+  const result = await generateUnifiedScreener({ limit: 10 });
+  assert(result.success === true, 'generateUnifiedScreener() did not report success:true');
+  assert(Array.isArray(result.rows), 'result.rows is not an array');
+  assert(result.rows.length > 0, 'result.rows is empty — expected at least 10 of 958 universe rows');
+  assert(result.summary && typeof result.summary.totalUniverse === 'number' && result.summary.totalUniverse > 900,
+    'result.summary.totalUniverse does not look like the full ~958 BEI universe');
+  const validWhaleLabels = new Set(['Akumulasi Kuat', 'Akumulasi Lemah', 'Netral', 'Distribusi', 'Tidak Ada Sinyal Hari Ini']);
+  result.rows.forEach((r) => {
+    assert(validWhaleLabels.has(r.whaleLabel), `Unexpected whaleLabel "${r.whaleLabel}" for ${r.ticker}`);
+    assert(r.uptrendScore === null || (r.uptrendScore >= 0 && r.uptrendScore <= 100), `uptrendScore out of range for ${r.ticker}: ${r.uptrendScore}`);
+    // Without INVEZGO_API_KEY/UPSTASH_REDIS configured in this test
+    // environment, no ticker should have real technical/fundamental data —
+    // confirms the function degrades honestly rather than fabricating.
+    assert(r.isRealTechnical === false, `${r.ticker} claims isRealTechnical:true with no Yahoo/Redis config in this test env`);
+  });
+});
+
+test('REGRESSION GUARD: Unified Screener server routes exist (GET /api/idx/unified-screener, GET /api/cron/warm-technical-indicators with CRON_SECRET guard)', () => {
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/unified-screener'/.test(serverSrc), 'REGRESSION: GET /api/idx/unified-screener route is gone');
+  assert(/app\.get\('\/api\/cron\/warm-technical-indicators'/.test(serverSrc), 'REGRESSION: GET /api/cron/warm-technical-indicators route is gone');
+  const cronMatch = serverSrc.match(/app\.get\('\/api\/cron\/warm-technical-indicators'[\s\S]*?\n\}\);/);
+  assert(cronMatch, 'REGRESSION: could not isolate the warm-technical-indicators route body');
+  assert(/CRON_SECRET/.test(cronMatch[0]) && /403/.test(cronMatch[0]),
+    'REGRESSION: warm-technical-indicators cron route no longer fail-closed on a missing/wrong CRON_SECRET — this would let anyone publicly trigger 958 Yahoo fetches');
+
+  const vercelSrc = fs.readFileSync(path.join(__dirname, 'vercel.json'), 'utf8');
+  const vercelJson = JSON.parse(vercelSrc);
+  assert(Array.isArray(vercelJson.crons) && vercelJson.crons.some(c => c.path === '/api/cron/warm-technical-indicators'),
+    'REGRESSION: vercel.json no longer schedules the warm-technical-indicators cron');
+});
+
+test('REGRESSION GUARD: 4 old radar/screener pages (Opportunity Radar, Market Radar, Smart Money Screener) consolidated into 1 nav entry pointing at the Unified Screener', () => {
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(/js\/48-unified-screener\.js/.test(htmlSrc), 'REGRESSION: public/js/48-unified-screener.js is no longer included in index.html');
+  // Only ONE sidebar button should still navigate to 'radar' — the old
+  // 'Market Radar' (ranking) and 'Smart Money Screener' (scanner) buttons
+  // must be gone, not just relabeled, to avoid 3 buttons for 1 destination.
+  assert(!/goPage\('ranking',this\)/.test(htmlSrc), 'REGRESSION: the separate "Market Radar" sidebar button is back — should be consolidated into the single Screener nav entry');
+  assert(!/goPage\('scanner',this\)/.test(htmlSrc), 'REGRESSION: the separate "Smart Money Screener" sidebar button is back — should be consolidated into the single Screener nav entry');
+  assert(/goPage\('radar',this\)/.test(htmlSrc), 'REGRESSION: the consolidated Screener sidebar button is gone');
+
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(/renderUnifiedScreenerPage/.test(routerSrc), 'REGRESSION: renderUnifiedScreenerPage is no longer wired into the router');
+  // 'ranking'/'scanner' must still redirect to the SAME page container as
+  // 'radar' (defense against any remaining/future deep link using the old names).
+  assert(/UNIFIED_SCREENER_ALIASES/.test(routerSrc), 'REGRESSION: the ranking/scanner -> radar page-container redirect is gone');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/function renderUnifiedScreenerPage/.test(jsSrc), 'REGRESSION: renderUnifiedScreenerPage() is gone from 48-unified-screener.js');
+  assert(/window\.renderUnifiedScreenerPage = renderUnifiedScreenerPage/.test(jsSrc), 'REGRESSION: renderUnifiedScreenerPage is no longer exposed on window — router calls would fail');
 });
 
 console.log('═══════════════════════════════════════════════════════');
