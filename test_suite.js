@@ -6051,6 +6051,36 @@ test('REGRESSION GUARD: getIdxCalendarData() must call real Invezgo GET /analysi
     'REGRESSION: renderDivCalDisabledNotice() is gone — the Dividend Calendar page must honestly disclose it is disabled pending Invezgo payload schema verification, not silently show nothing or fabricated data');
 });
 
+// ── TEST: broker-summary fallback paths (backend template + client-side
+// twin + the "1-Year Broker Cost Matrix" widget) must never fabricate
+// specific broker names/weights/values, even when honestly labeled
+// isSimulated ──
+// User-reported (screenshot, 2026-09-18): "Matriks Rata-Rata Harga Beli
+// Broker Historis 1 Tahun" showed a precise-looking table of named brokers
+// with invented weight/bias percentages and computed Rupiah amounts, badged
+// "SIMULASI" — user demanded these be replaced with real Invezgo data or
+// an honest empty state, not fabricated-but-labeled numbers.
+test('REGRESSION GUARD: broker-summary fallbacks (template, client-side, 1-year matrix) must return honest empty state, never fabricate broker weights/values', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const templateFnSrc = engineSrc.match(/function generateBrokerSummaryTemplate[\s\S]*?\n\}\n/)[0];
+  assert(!/topBuyerWeights\s*=/.test(templateFnSrc) && !/buyerBrokers\s*=/.test(templateFnSrc),
+    'REGRESSION: generateBrokerSummaryTemplate() reverted to fabricating broker weights/lists');
+  assert(/topBuyers:\s*\[\]/.test(templateFnSrc) && /topSellers:\s*\[\]/.test(templateFnSrc),
+    'REGRESSION: generateBrokerSummaryTemplate() no longer returns an honest empty topBuyers/topSellers');
+
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const clientFnSrc = cockpitSrc.match(/function generateClientSideBrokerSummary[\s\S]*?\n\}\n/)[0];
+  assert(!/buyerWeights\s*=/.test(clientFnSrc) && !/topBuyerCodes\s*=/.test(clientFnSrc),
+    'REGRESSION: generateClientSideBrokerSummary() reverted to fabricating broker weights/lists');
+  assert(/topBuyers:\s*\[\]/.test(clientFnSrc) && /topSellers:\s*\[\]/.test(clientFnSrc),
+    'REGRESSION: generateClientSideBrokerSummary() no longer returns an honest empty topBuyers/topSellers');
+
+  const matrixViewSrc = cockpitSrc.match(/function renderBandarmology1YearBrokerCostMatrix[\s\S]*?\n\}\n/)[0];
+  assert(!/majorBrokers\s*=/.test(matrixViewSrc), 'REGRESSION: renderBandarmology1YearBrokerCostMatrix() reverted to the hardcoded majorBrokers fabricated array');
+  assert(/async function bandarLoad1YearBrokerMatrix/.test(cockpitSrc), 'REGRESSION: bandarLoad1YearBrokerMatrix() is gone — the 1-year matrix no longer fetches real data');
+  assert(/fetchBrokerSummaryData\(tk, '1Y'\)/.test(cockpitSrc), 'REGRESSION: bandarLoad1YearBrokerMatrix() no longer fetches real 1-year broker data via fetchBrokerSummaryData()');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

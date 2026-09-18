@@ -220,209 +220,44 @@ function generateClientSideBrokerSummary(ticker, timeframe) {
   var changePct = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk)
     : ((typeof changes !== 'undefined' && changes[tk] !== undefined) ? Number(changes[tk]) : 0);
 
-  var isUp = changePct >= 0;
-
-  // Multi-Period Multiplier (1D = 1, 1W = 5, 1M = 22, 3M = 66, 6M = 132, 1Y = 250 days)
-  var tfDays = 1;
-  if (tf === '3D') tfDays = 3;
-  else if (tf === '1W') tfDays = 5;
-  else if (tf === '1M') tfDays = 22;
-  else if (tf === '3M') tfDays = 66;
-  else if (tf === '6M') tfDays = 132;
-  else if (tf === '1Y' || tf === 'YTD') tfDays = 250;
-
-  var isBigCap = ['BBCA','BBRI','BMRI','BBNI','TLKM','ASII','ICBP','AMMN','BREN','TPIA','UNTR'].includes(tk);
-  var isMidCap = ['ANTM','ADRO','PTRO','MDKA','BRIS','CPIN','PGAS','PTBA','KLBF','INCO','SMGR','MYOR','ACES','ISAT'].includes(tk);
-  var baseVolLots = (isBigCap ? 350000 : (isMidCap ? 150000 : 45000)) * tfDays;
-
-  var seed = 0;
-  for (var i = 0; i < tk.length; i++) seed += tk.charCodeAt(i) * (i + 1);
-  var randOffset = (seed % 20) / 100;
-
-  var adjVolLots = Math.round(baseVolLots * (0.9 + randOffset));
-  var adjValRp = Math.round(adjVolLots * 100 * price);
-
-  // Historical Multi-Period VWAP Anchor from real OHLCV if available
-  var histVwap = price;
-  if (typeof rdGetAny === 'function') {
-    var rdRows = rdGetAny(tk);
-    if (rdRows && rdRows.length > 0) {
-      var slice = rdRows.slice(-tfDays);
-      var sumVol = 0, sumVal = 0;
-      slice.forEach(function(r) {
-        var c = r.close || r.c || price;
-        var v = r.volume || r.v || 1000000;
-        sumVol += v;
-        sumVal += c * v;
-      });
-      if (sumVol > 0) histVwap = Math.round(sumVal / sumVol);
-    }
-  }
-
-  var topBuyerCodes = isUp 
-    ? ['AK', 'BK', 'ZP', 'CC', 'SQ', 'KZ', 'OD', 'RX', 'LG', 'IF']
-    : ['YP', 'PD', 'XC', 'XL', 'EP', 'KK', 'CP', 'DR', 'CC', 'NI'];
-  var topSellerCodes = isUp 
-    ? ['YP', 'PD', 'XC', 'XL', 'EP', 'KK', 'CP', 'DR', 'CC', 'NI']
-    : ['AK', 'BK', 'ZP', 'CC', 'SQ', 'KZ', 'OD', 'RX', 'LG', 'IF'];
-
-  var buyerWeights = [0.28, 0.22, 0.16, 0.11, 0.08, 0.05, 0.04, 0.03, 0.02, 0.01];
-  var sellerWeights = [0.24, 0.19, 0.15, 0.12, 0.09, 0.07, 0.05, 0.04, 0.03, 0.02];
-
-  var tick = 25;
-  if (price < 200) tick = 1;
-  else if (price < 500) tick = 2;
-  else if (price < 2000) tick = 5;
-  else if (price < 5000) tick = 10;
-
-  var foreignBuyVal = 0, domesticBuyVal = 0;
-  var foreignSellVal = 0, domesticSellVal = 0;
-
-  var buyers = topBuyerCodes.map(function(code, idx) {
-    var meta = CLIENT_IDX_BROKERS[code] || { code: code, name: code + ' Sekuritas', type: 'D', category: 'Domestic Broker' };
-    var w = buyerWeights[idx] || 0.02;
-    var vol = Math.round(adjVolLots * w);
-    
-    // Multi-period price calculation: Whales accumulate at favorable prices relative to historical VWAP
-    var spreadFactor = tfDays > 30 ? (idx * 0.008) : (idx * tick * 0.2);
-    var baseAnchor = tfDays > 5 ? histVwap : price;
-    var avgPrice = tfDays > 30
-      ? Math.round(baseAnchor * (isUp ? (0.97 - spreadFactor) : (1.02 + spreadFactor)))
-      : Math.round(baseAnchor + (isUp ? -spreadFactor : spreadFactor));
-    
-    // Ensure price fits within tick
-    avgPrice = Math.round(avgPrice / tick) * tick;
-    var val = Math.round(vol * 100 * avgPrice);
-
-    if (meta.type === 'F') foreignBuyVal += val;
-    else domesticBuyVal += val;
-
-    return {
-      rank: idx + 1,
-      broker: code,
-      name: meta.name,
-      type: meta.type,
-      category: meta.category,
-      volumeLot: vol,
-      valueRp: val,
-      avgPrice: avgPrice,
-      pctOfTurnover: Math.round(w * 1000) / 10
-    };
-  });
-
-  var sellers = topSellerCodes.map(function(code, idx) {
-    var meta = CLIENT_IDX_BROKERS[code] || { code: code, name: code + ' Sekuritas', type: 'D', category: 'Domestic Broker' };
-    var w = sellerWeights[idx] || 0.02;
-    var vol = Math.round(adjVolLots * w);
-    
-    var spreadFactor = tfDays > 30 ? (idx * 0.008) : (idx * tick * 0.2);
-    var baseAnchor = tfDays > 5 ? histVwap : price;
-    var avgPrice = tfDays > 30
-      ? Math.round(baseAnchor * (isUp ? (1.03 + spreadFactor) : (0.98 - spreadFactor)))
-      : Math.round(baseAnchor + (isUp ? spreadFactor : -spreadFactor));
-
-    avgPrice = Math.round(avgPrice / tick) * tick;
-    var val = Math.round(vol * 100 * avgPrice);
-
-    if (meta.type === 'F') foreignSellVal += val;
-    else domesticSellVal += val;
-
-    return {
-      rank: idx + 1,
-      broker: code,
-      name: meta.name,
-      type: meta.type,
-      category: meta.category,
-      volumeLot: vol,
-      valueRp: val,
-      avgPrice: avgPrice,
-      pctOfTurnover: Math.round(w * 1000) / 10
-    };
-  });
-
-  var top1BuyPct = buyers[0].pctOfTurnover;
-  var top1SellPct = sellers[0].pctOfTurnover;
-  var top3BuyPct = Math.round((buyers[0].pctOfTurnover + buyers[1].pctOfTurnover + buyers[2].pctOfTurnover) * 10) / 10;
-  var top3SellPct = Math.round((sellers[0].pctOfTurnover + sellers[1].pctOfTurnover + sellers[2].pctOfTurnover) * 10) / 10;
-  var top5BuyPct = Math.round(buyers.slice(0, 5).reduce(function(a, b) { return a + b.pctOfTurnover; }, 0) * 10) / 10;
-  var top5SellPct = Math.round(sellers.slice(0, 5).reduce(function(a, b) { return a + b.pctOfTurnover; }, 0) * 10) / 10;
-
-  var tfLabel = tf === '1Y' ? '1 Tahun' : (tf === '6M' ? '6 Bulan' : (tf === '3M' ? '3 Bulan' : (tf === '1M' ? '1 Bulan' : (tf === '1W' ? '1 Minggu' : '1 Hari'))));
-  var verdict = isUp ? (top3BuyPct >= 60 ? 'BIG ACCUMULATION' : 'NORMAL ACCUMULATION') : (top3SellPct >= 60 ? 'BIG DISTRIBUTION' : 'NORMAL DISTRIBUTION');
-  var verdictScore = isUp ? (top3BuyPct >= 60 ? 90 : 75) : (top3SellPct >= 60 ? 15 : 30);
-  var verdictText = isUp 
-    ? 'Analisis rentang ' + tfLabel + ': Top 3 Buyer (' + buyers[0].broker + ', ' + buyers[1].broker + ', ' + buyers[2].broker + ') mendominasi ' + top3BuyPct + '% volume beli dengan rata-rata harga Rp ' + buyers[0].avgPrice.toLocaleString('id-ID') + ' (VWAP Historis: Rp ' + histVwap.toLocaleString('id-ID') + '). Net foreign inflow terdeteksi.'
-    : 'Analisis rentang ' + tfLabel + ': Tekanan jual dominan dari Top 3 Seller (' + sellers[0].broker + ', ' + sellers[1].broker + ', ' + sellers[2].broker + ') sebesar ' + top3SellPct + '%. Distribusi ke akun ritel.';
-
-  var retailBrokersList = ['YP', 'PD', 'XC', 'XL', 'KK', 'EP', 'AT'];
-  var instBrokersList = ['AK', 'BK', 'ZP', 'KZ', 'CS', 'RX', 'CC', 'SQ', 'NI', 'OD'];
-  var retailNetVal = 0, instNetVal = 0;
-
-  buyers.forEach(function(b) {
-    if (retailBrokersList.includes(b.broker)) retailNetVal += b.valueRp;
-    if (instBrokersList.includes(b.broker)) instNetVal += b.valueRp;
-  });
-  sellers.forEach(function(s) {
-    if (retailBrokersList.includes(s.broker)) retailNetVal -= s.valueRp;
-    if (instBrokersList.includes(s.broker)) instNetVal -= s.valueRp;
-  });
-
-  // This is the last-resort path after fetchBrokerSummaryData() already
-  // tried the real backend (which itself tries a real broker-flow
-  // provider) and a real live price fetch, both unsuccessful. Every top
-  // buyer/seller, concentration %, and Rupiah amount below is synthetic
-  // (a seeded volume estimate + fixed weight splits), not from a real
-  // broker-transaction feed - isSimulated is set so the renderer's
-  // existing disclosure banner (checked via `data.isSimulated`) actually
-  // fires here too, instead of only for the server-side fallback.
+  // FIX (2026-09-18, user-reported after full-codebase audit): this used to
+  // fabricate a full top-10 buyer/seller broker table from here down —
+  // hardcoded broker code lists (topBuyerCodes/topSellerCodes) and fixed
+  // percentage-weight arrays (buyerWeights/sellerWeights), then computed
+  // precise-looking Rupiah values/average prices from a seeded pseudo-
+  // random volume estimate. It WAS honestly labeled isSimulated:true, but
+  // a label doesn't make invented broker names/weights/values any less
+  // fabricated. This is the LAST-RESORT path — fetchBrokerSummaryData()
+  // already tried the real backend (which itself tries real Invezgo data
+  // first) and a real live price fetch, both unsuccessful — so instead of
+  // synthesizing a plausible-but-fake broker table, return an honest empty
+  // state (same pattern as the backend's generateBrokerSummaryTemplate(),
+  // lib/idx-data-engine.js).
   return {
     isSimulated: true,
-    dataSource: 'Simulasi (server & feed broker real tidak tersedia)',
+    dataSource: 'Tidak tersedia (server & feed broker real tidak tersedia)',
     ticker: tk,
     timeframe: tf,
     reportDate: new Date().toISOString().slice(0, 10),
     price: price,
     changePercent: changePct,
-    totalVolumeLot: adjVolLots,
-    totalValueRp: adjValRp,
+    totalVolumeLot: 0,
+    totalValueRp: 0,
     bandarmology: {
-      verdict: verdict,
-      score: verdictScore,
-      interpretation: verdictText,
+      verdict: 'DATA TIDAK TERSEDIA',
+      score: 0,
+      interpretation: 'Data broker summary (Bandarmology) untuk saham ini belum tersedia saat ini.',
       concentration: {
-        top1BuyerPct: top1BuyPct,
-        top1SellerPct: top1SellPct,
-        top3BuyerPct: top3BuyPct,
-        top3SellerPct: top3SellPct,
-        top5BuyerPct: top5BuyPct,
-        top5SellerPct: top5SellPct
+        top1BuyerPct: 0, top1SellerPct: 0,
+        top3BuyerPct: 0, top3SellerPct: 0,
+        top5BuyerPct: 0, top5SellerPct: 0
       },
-      foreignFlow: {
-        buyValueRp: foreignBuyVal,
-        sellValueRp: foreignSellVal,
-        netValueRp: foreignBuyVal - foreignSellVal,
-        status: foreignBuyVal >= foreignSellVal ? 'NET FOREIGN BUY (INFLOW)' : 'NET FOREIGN SELL (OUTFLOW)',
-        // Was read in 4 places (always falling back to a hardcoded 0 or 50)
-        // because this field was never actually set here — "Porsi Asing"
-        // showed literally 50% for every single ticker. Now derived from
-        // the foreign vs domestic broker split already computed above.
-        participationPct: (foreignBuyVal + domesticBuyVal + foreignSellVal + domesticSellVal) > 0
-          ? Math.round(((foreignBuyVal + foreignSellVal) / (foreignBuyVal + domesticBuyVal + foreignSellVal + domesticSellVal)) * 1000) / 10
-          : 0
-      },
-      domesticFlow: {
-        buyValueRp: domesticBuyVal,
-        sellValueRp: domesticSellVal,
-        netValueRp: domesticBuyVal - domesticSellVal
-      },
-      smartMoney: {
-        institutionalNetRp: instNetVal,
-        retailNetRp: retailNetVal,
-        signal: instNetVal > 0 ? 'INSTITUTIONAL ACCUMULATION' : 'RETAIL ABSORPTION / DISTRIBUTION'
-      }
+      foreignFlow: { buyValueRp: 0, sellValueRp: 0, netValueRp: 0, status: 'NO DATA', participationPct: null },
+      domesticFlow: { buyValueRp: 0, sellValueRp: 0, netValueRp: 0 },
+      smartMoney: { institutionalNetRp: 0, retailNetRp: 0, signal: 'NO DATA' }
     },
-    topBuyers: buyers,
-    topSellers: sellers
+    topBuyers: [],
+    topSellers: []
   };
 }
 
@@ -1140,8 +975,11 @@ function renderAggregatedBrokerFlowView(data) {
     + '</ul>'
     + '</div>';
 
-  // 1-Year Broker Analysis Database & Cost Basis Matrix
+  // 1-Year Broker Analysis Database & Cost Basis Matrix — placeholder here,
+  // real data loaded async right after this HTML is attached to the DOM
+  // (see bandarLoad1YearBrokerMatrix()).
   html += renderBandarmology1YearBrokerCostMatrix(data.ticker, data.price);
+  setTimeout(function() { bandarLoad1YearBrokerMatrix(data.ticker, data.price); }, 40);
 
   html += '</div>';
   return html;
@@ -1169,9 +1007,22 @@ function askAiAboutCurrentBrokerFlow(ticker) {
 // 1-YEAR BROKER ANALYSIS DATABASE & COST BASIS MATRIX
 // Calculates and visualizes historical broker buying averages across 250 trading days
 // ============================================================
+// FIX (2026-09-18, user-reported after full-codebase audit): this used to
+// fabricate a "1-Year Broker Cost Matrix" — a hardcoded broker list
+// (majorBrokers) with invented weight/bias percentages, used to compute
+// precise-looking Rupiah volumes/values and 1M/3M/6M/1Y "average buy
+// price" per broker via formulas. It WAS labeled "SIMULASI (Bukan
+// Database Riil)", but the label doesn't make the specific numbers any
+// less invented — and 2 of the 4 summary metrics ("Modal Rata-Rata Smart
+// Whales", "Status Siklus Bandarmology") were derived from that same fake
+// data even though they looked like real derived metrics. Invezgo's real
+// broker-summary endpoint (fetchInvezgoBrokerSummary(), already used
+// elsewhere on this page for other timeframes) supports timeframe=1Y and
+// returns REAL per-broker aggregate buy/sell value+volume+avgPrice for the
+// past year in ONE call — this now fetches that instead of fabricating.
 function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
   var price = Number(curPrice) || getAccurateStockPrice(tk);
-  
+
   if (!price || price <= 0 || (typeof isValidStockTicker === 'function' && !isValidStockTicker(tk))) {
     return '<div class="card" style="padding:16px;margin-top:16px">'
       + '<div style="display:flex;align-items:center;gap:8px;color:var(--red);font-weight:700;font-size:13px">'
@@ -1181,24 +1032,109 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
       + '</div>';
   }
 
-  // Calculate 1-Year Historical VWAP from actual daily candles
+  return '<div id="bandar-1y-matrix-content" class="card" style="padding:16px">'
+    + '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memuat data broker 1 tahun untuk ' + tk + '...</div>'
+    + '</div>';
+}
+
+function bandarRender1YearBrokerMatrix(tk, price, data, vwap1Y, high1Y, low1Y) {
+  var isReal = data && data.isSimulated === false;
+  var buyers = (data && data.topBuyers) || [];
+
+  var headerBadge = isReal
+    ? '<span class="badge b-up" style="font-size:10px;font-weight:700">REAL (Invezgo, 1 Tahun)</span>'
+    : '<span class="badge b-dn" style="font-size:10px;font-weight:700">TIDAK TERSEDIA</span>';
+
+  var subtitle = isReal
+    ? 'VWAP 1 tahun &amp; rentang harga 52 minggu dihitung dari histori harga real ' + tk + '. Daftar broker &amp; harga rata-rata beli di bawah adalah data REAL dari Invezgo API (rentang 1 tahun terakhir).'
+    : 'VWAP 1 tahun &amp; rentang harga 52 minggu dihitung dari histori harga real ' + tk + '. Data broker 1 tahun tidak tersedia dari Invezgo saat ini (' + (data && data.dataSource || 'tidak diketahui') + ') — tidak ditampilkan angka karangan.';
+
+  var rowsHtml = buyers.length
+    ? buyers.map(function(b, idx) {
+      return '<tr>'
+        + '<td class="mono" style="text-align:center;font-size:11px;color:var(--text3)">' + (idx + 1) + '</td>'
+        + '<td><span class="badge b-neu" style="font-family:monospace;font-weight:800;font-size:10px">' + b.broker + '</span> <span style="font-size:11px;color:var(--text);font-weight:600">' + (b.name || b.broker) + '</span></td>'
+        + '<td class="mono" style="text-align:right;color:var(--text2)">' + (b.volumeLot / 1000).toFixed(1) + ' Rb Lot</td>'
+        + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">Rp ' + (b.valueRp >= 1e12 ? (b.valueRp / 1e12).toFixed(2) + ' T' : (b.valueRp / 1e9).toFixed(1) + ' M') + '</td>'
+        + '<td class="mono up" style="text-align:right;font-weight:800;font-size:13px">Rp ' + Number(b.avgPrice || 0).toLocaleString('id-ID') + '</td>'
+        + '</tr>';
+    }).join('')
+    : '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text3);font-size:11px">' + (isReal ? 'Tidak ada data buyer untuk periode ini.' : 'Data tidak tersedia.') + '</td></tr>';
+
+  var topBuyerAvg = buyers[0] ? buyers[0].avgPrice : null;
+  var bandarSpreadPct = topBuyerAvg ? (((price - topBuyerAvg) / topBuyerAvg) * 100).toFixed(1) : null;
+
+  return '<div id="bandar-1y-matrix-content" class="card" style="padding:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
+    + '<div>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    + headerBadge
+    + '<span style="font-size:14px;font-weight:800;color:var(--text)">Matriks Harga Beli Broker 1 Tahun</span>'
+    + '</div>'
+    + '<div style="font-size:12px;color:var(--text2)">' + subtitle + '</div>'
+    + '</div>'
+    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + tk + '\')" class="btn btn-primary btn-xs" style="display:flex;align-items:center;gap:6px">'
+    + '<span>Tanya AI Posisi Modal Whale</span>'
+    + '</button>'
+    + '</div>'
+
+    + '<div class="row4" style="margin-bottom:14px">'
+    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="mlabel">1-YEAR VWAP (BENCHMARK BEI)</div>'
+    + '<div class="mval mono" style="font-size:20px">Rp ' + vwap1Y.toLocaleString('id-ID') + '</div>'
+    + '<div class="msub neu">Rata-rata tertimbang volume 250D</div>'
+    + '</div>'
+    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="mlabel">HARGA BELI TOP BUYER (1Y)</div>'
+    + (topBuyerAvg
+      ? '<div class="mval mono up" style="font-size:20px">Rp ' + topBuyerAvg.toLocaleString('id-ID') + '</div><div class="msub ' + (Number(bandarSpreadPct) >= 0 ? 'up' : 'down') + '">' + (Number(bandarSpreadPct) >= 0 ? '+' : '') + bandarSpreadPct + '% vs Harga Pasar</div>'
+      : '<div class="mval mono" style="font-size:16px;color:var(--text3)">Tidak tersedia</div><div class="msub neu">Data broker 1 tahun kosong</div>')
+    + '</div>'
+    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="mlabel">RENTANG HARGA 52-MINGGU</div>'
+    + '<div class="mval mono" style="font-size:18px;color:var(--blue)">Rp ' + low1Y.toLocaleString('id-ID') + ' — ' + high1Y.toLocaleString('id-ID') + '</div>'
+    + '<div class="msub neu">Low &amp; High 1 Tahun Terakhir</div>'
+    + '</div>'
+    + '<div class="metric" style="border-left:3px solid var(--text3)">'
+    + '<div class="mlabel">SUMBER DATA</div>'
+    + '<div class="mval" style="font-size:14px;color:' + (isReal ? 'var(--green)' : 'var(--text3)') + '">' + (isReal ? 'Invezgo API (Real)' : 'Tidak Tersedia') + '</div>'
+    + '<div class="msub neu">' + (data && data.dataSource || '-') + '</div>'
+    + '</div>'
+    + '</div>'
+
+    + '<div class="tbl-wrap" style="overflow-x:auto">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead><tr>'
+    + '<th style="text-align:center;width:36px">#</th>'
+    + '<th>Broker Sekuritas</th>'
+    + '<th style="text-align:right">Volume 1 Tahun</th>'
+    + '<th style="text-align:right">Nilai 1 Tahun</th>'
+    + '<th style="text-align:right;color:var(--green)">Harga Beli Rata-Rata</th>'
+    + '</tr></thead>'
+    + '<tbody>' + rowsHtml + '</tbody>'
+    + '</table>'
+    + '</div>'
+    + '</div>';
+}
+
+async function bandarLoad1YearBrokerMatrix(tk, price) {
+  var container = document.getElementById('bandar-1y-matrix-content');
+  if (!container) return;
+
   var vwap1Y = price;
   var high1Y = Math.round(price * 1.35);
   var low1Y = Math.round(price * 0.75);
-  
   if (typeof rdGetAny === 'function') {
     var rdRows = rdGetAny(tk);
     if (rdRows && rdRows.length > 0) {
       var slice = rdRows.slice(-250);
-      var sumVol = 0, sumVal = 0;
-      var hMax = 0, lMin = 999999999;
+      var sumVol = 0, sumVal = 0, hMax = 0, lMin = 999999999;
       slice.forEach(function(r) {
         var c = r.close || r.c || price;
         var h = r.high || r.h || c;
         var l = r.low || r.l || c;
         var v = r.volume || r.v || 1000000;
-        sumVol += v;
-        sumVal += c * v;
+        sumVol += v; sumVal += c * v;
         if (h > hMax) hMax = h;
         if (l < lMin && l > 0) lMin = l;
       });
@@ -1208,137 +1144,16 @@ function renderBandarmology1YearBrokerCostMatrix(tk, curPrice) {
     }
   }
 
-  var isBigCap = ['BBCA','BBRI','BMRI','BBNI','TLKM','ASII','ICBP','AMMN','BREN','TPIA','UNTR'].includes(tk);
-  var isMidCap = ['ANTM','ADRO','PTRO','MDKA','BRIS','CPIN','PGAS','PTBA','KLBF','INCO','SMGR','MYOR','ACES','ISAT'].includes(tk);
-  var annualTurnoverLots = (isBigCap ? 85000000 : (isMidCap ? 38000000 : 12000000));
-
-  // Major brokers 1-Year Accumulation Matrix
-  var majorBrokers = [
-    { code: 'AK', name: 'UBS Sekuritas Indonesia', type: 'Asing / Smart Money', weight: 0.18, bias: -0.035, motive: 'Core Whale Inflow' },
-    { code: 'BK', name: 'J.P. Morgan Sekuritas', type: 'Asing / Smart Money', weight: 0.15, bias: -0.028, motive: 'Strategic Accumulation' },
-    { code: 'ZP', name: 'Maybank Sekuritas', type: 'Asing / Institusi', weight: 0.13, bias: -0.020, motive: 'Discretionary Accumulation' },
-    { code: 'CC', name: 'Mandiri Sekuritas', type: 'BUMN / Domestik', weight: 0.12, bias: 0.005, motive: 'Domestic Institutional' },
-    { code: 'SQ', name: 'BCA Sekuritas', type: 'Domestik Institusi', weight: 0.09, bias: -0.012, motive: 'Institutional Anchor' },
-    { code: 'RX', name: 'Macquarie Sekuritas', type: 'Asing / Quant', weight: 0.08, bias: -0.018, motive: 'Quant Accumulation' },
-    { code: 'NI', name: 'BNI Sekuritas', type: 'BUMN / Domestik', weight: 0.06, bias: 0.010, motive: 'State Fund Absorption' },
-    { code: 'PD', name: 'Indo Premier Sekuritas', type: 'Ritel & Publik', weight: 0.08, bias: 0.045, motive: 'Retail Distribution' },
-    { code: 'YP', name: 'Mirae Asset Sekuritas', type: 'Ritel Heavy', weight: 0.07, bias: 0.052, motive: 'Retail Top Absorption' },
-    { code: 'XC', name: 'Ajaib Sekuritas', type: 'Ritel Publik', weight: 0.04, bias: 0.060, motive: 'Retail Speculative' }
-  ];
-
-  var rowsHtml = majorBrokers.map(function(b, idx) {
-    var b1YVol = Math.round(annualTurnoverLots * b.weight);
-    var b1YValRp = b1YVol * 100 * vwap1Y;
-    
-    // Multi-period average prices: 1M, 3M, 6M, 1Y
-    var avg1M = Math.round(price * (1 + b.bias * 0.4));
-    var avg3M = Math.round(vwap1Y * (1 + b.bias * 0.7));
-    var avg6M = Math.round(vwap1Y * (1 + b.bias * 0.9));
-    var avg1Y = Math.round(vwap1Y * (1 + b.bias));
-    
-    var pnlPct = (((price - avg1Y) / (avg1Y || 1)) * 100).toFixed(1);
-    var isPnlUp = Number(pnlPct) >= 0;
-    var pnlBadge = isPnlUp 
-      ? '<span class="badge b-up font-mono" style="font-size:10px">+' + pnlPct + '% (Profit)</span>'
-      : '<span class="badge b-dn font-mono" style="font-size:10px">' + pnlPct + '% (Under Water)</span>';
-
-    var typeBadge = b.type.includes('Asing') 
-      ? '<span class="badge b-amb" style="font-size:9px">ASING</span>'
-      : (b.type.includes('BUMN') ? '<span class="badge b-amb" style="font-size:9px">BUMN</span>' : '<span class="badge b-neu" style="font-size:9px">RITEL</span>');
-
-    return '<tr>'
-      + '<td class="mono" style="text-align:center;font-size:11px;color:var(--text3)">' + (idx + 1) + '</td>'
-      + '<td>'
-      + '<div style="display:flex;align-items:center;gap:6px">'
-      + '<span class="badge ' + (b.type.includes('Asing') ? 'b-amb' : 'b-neu') + '" style="font-family:monospace;font-weight:800;font-size:10px">' + b.code + '</span>'
-      + typeBadge
-      + '<span style="font-size:11px;color:var(--text);font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + b.name + '">' + b.name + '</span>'
-      + '</div>'
-      + '</td>'
-      + '<td class="mono" style="text-align:right;color:var(--text2)">' + (b1YVol / 1000000).toFixed(2) + ' Jt Lot</td>'
-      + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">Rp ' + (b1YValRp >= 1e12 ? (b1YValRp / 1e12).toFixed(2) + ' T' : (b1YValRp / 1e9).toFixed(1) + ' M') + '</td>'
-      + '<td class="mono" style="text-align:right;color:var(--text3)">Rp ' + avg1M.toLocaleString('id-ID') + '</td>'
-      + '<td class="mono" style="text-align:right;color:var(--text3)">Rp ' + avg3M.toLocaleString('id-ID') + '</td>'
-      + '<td class="mono" style="text-align:right;color:var(--text2)">Rp ' + avg6M.toLocaleString('id-ID') + '</td>'
-      + '<td class="mono up" style="text-align:right;font-weight:800;font-size:13px">Rp ' + avg1Y.toLocaleString('id-ID') + '</td>'
-      + '<td style="text-align:right">' + pnlBadge + '</td>'
-      + '<td style="text-align:center">'
-      + '<button onclick="askAiAboutBrokerAction(\'' + b.code + '\', \'' + b.name.replace(/'/g, '') + '\', \'BUY\', \'' + tk + '\', ' + b1YVol + ', ' + avg1Y + ', ' + b1YValRp + ')" class="btn btn-ghost btn-xs" style="padding:2px 6px" title="Tanya AI">'
-      + 'Tanya AI'
-      + '</button>'
-      + '</td>'
-      + '</tr>';
-  }).join('');
-
-  var smartWhales1YAvg = Math.round(vwap1Y * 0.975);
-  var bandarSpreadPct = (((price - smartWhales1YAvg) / (smartWhales1YAvg || 1)) * 100).toFixed(1);
-
-  return '<div class="card" style="padding:16px">'
-    // Header
-    + '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
-    + '<div>'
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
-    + '<span class="badge b-dn" style="font-size:10px;font-weight:700" title="BEI tidak menyediakan feed broker-level historis 1 tahun secara publik/gratis — daftar broker, bobot volume, dan bias harga di bawah ini adalah pola ilustratif, bukan hasil rekap transaksi riil.">SIMULASI (Bukan Database Riil)</span>'
-    + '<span style="font-size:14px;font-weight:800;color:var(--text)">Matriks Rata-Rata Harga Beli Broker Historis 1 Tahun</span>'
-    + '</div>'
-    + '<div style="font-size:12px;color:var(--text2)">VWAP 1 tahun &amp; rentang harga 52 minggu di bawah dihitung dari histori harga real ' + tk + '. Daftar broker, bobot volume, dan modal rata-rata per broker adalah simulasi ilustratif (bukan rekap transaksi broker riil) — BEI tidak menyediakan feed broker-level historis publik/gratis untuk ini.</div>'
-    + '</div>'
-    + '<button onclick="askAiAboutCurrentBrokerFlow(\'' + tk + '\')" class="btn btn-primary btn-xs" style="display:flex;align-items:center;gap:6px">'
-    + '<span>Tanya AI Posisi Modal Whale</span>'
-    + '</button>'
-    + '</div>'
-
-    // 4 Key 1-Year Metrics Summary (Opportunity Radar .row4 & .metric layout)
-    + '<div class="row4" style="margin-bottom:14px">'
-    + '<div class="metric" style="border-left:3px solid var(--accent)">'
-    + '<div class="mlabel">1-YEAR VWAP (BENCHMARK BEI)</div>'
-    + '<div class="mval mono" style="font-size:20px">Rp ' + vwap1Y.toLocaleString('id-ID') + '</div>'
-    + '<div class="msub neu">Rata-rata tertimbang volume 250D</div>'
-    + '</div>'
-
-    + '<div class="metric" style="border-left:3px solid var(--green)">'
-    + '<div class="mlabel">MODAL RATA-RATA SMART WHALES</div>'
-    + '<div class="mval mono up" style="font-size:20px">Rp ' + smartWhales1YAvg.toLocaleString('id-ID') + '</div>'
-    + '<div class="msub ' + (Number(bandarSpreadPct) >= 0 ? 'up' : 'down') + '">' + (Number(bandarSpreadPct) >= 0 ? '+' : '') + bandarSpreadPct + '% vs Harga Pasar</div>'
-    + '</div>'
-
-    + '<div class="metric" style="border-left:3px solid var(--blue)">'
-    + '<div class="mlabel">RENTANG HARGA 52-MINGGU</div>'
-    + '<div class="mval mono" style="font-size:18px;color:var(--blue)">Rp ' + low1Y.toLocaleString('id-ID') + ' — ' + high1Y.toLocaleString('id-ID') + '</div>'
-    + '<div class="msub neu">Low &amp; High 1 Tahun Terakhir</div>'
-    + '</div>'
-
-    + '<div class="metric" style="border-left:3px solid ' + (Number(bandarSpreadPct) > 15 ? 'var(--green)' : (Number(bandarSpreadPct) >= -3 ? 'var(--amber)' : 'var(--red)')) + '">'
-    + '<div class="mlabel">STATUS SIKLUS BANDARMOLOGY</div>'
-    + '<div class="mval ' + (Number(bandarSpreadPct) > 15 ? 'up' : (Number(bandarSpreadPct) >= -3 ? 'amb' : 'down')) + ' mono" style="font-size:18px">' + (Number(bandarSpreadPct) > 15 ? 'EXPANSION / MARKUP' : (Number(bandarSpreadPct) >= -3 ? 'ACCUMULATION BASE' : 'SHAKEOUT / DEFENDING')) + '</div>'
-    + '<div class="msub neu">Evaluasi Margin Modal Whales</div>'
-    + '</div>'
-    + '</div>'
-
-    // Table Container
-    + '<div class="tbl-wrap" style="overflow-x:auto">'
-    + '<table class="tbl" style="width:100%;font-size:12px">'
-    + '<thead>'
-    + '<tr>'
-    + '<th style="text-align:center;width:36px">#</th>'
-    + '<th>Broker Sekuritas</th>'
-    + '<th style="text-align:right">Vol 1 Tahun</th>'
-    + '<th style="text-align:right">Nilai 1 Tahun</th>'
-    + '<th style="text-align:right">Avg 1 Bulan</th>'
-    + '<th style="text-align:right">Avg 3 Bulan</th>'
-    + '<th style="text-align:right">Avg 6 Bulan</th>'
-    + '<th style="text-align:right;color:var(--green)">Avg 1 Tahun (Modal)</th>'
-    + '<th style="text-align:right">Floating PnL</th>'
-    + '<th style="text-align:center">Aksi</th>'
-    + '</tr>'
-    + '</thead>'
-    + '<tbody>'
-    + rowsHtml
-    + '</tbody>'
-    + '</table>'
-    + '</div>'
-    + '</div>';
+  try {
+    var data = await fetchBrokerSummaryData(tk, '1Y');
+    var el = document.getElementById('bandar-1y-matrix-content');
+    if (el) el.outerHTML = bandarRender1YearBrokerMatrix(tk, price, data, vwap1Y, high1Y, low1Y);
+  } catch (e) {
+    var el2 = document.getElementById('bandar-1y-matrix-content');
+    if (el2) el2.innerHTML = '<div style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat data broker 1 tahun: ' + e.message + '</div>';
+  }
 }
+window.bandarLoad1YearBrokerMatrix = bandarLoad1YearBrokerMatrix;
 
 // Render Standalone Broker Flow & Bandarmology Card (Embeddable)
 function renderBrokerSummaryWidget(data) {
