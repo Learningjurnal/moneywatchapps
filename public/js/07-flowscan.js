@@ -793,6 +793,13 @@ var FS_BROKER_SCAN = {
   accumulation: [],
   distribution: [],
   date: null,
+  // FIX (2026-09-18, user-reported: "ini seharusnya bisa di pilih
+  // tanggalnya, karna kalo cuma hari ini ya percuma, baru keluar datanya
+  // di sore hari"): laporan EOD Invezgo untuk hari berjalan baru terbit
+  // ~17:30 WIB — kalau dicek pagi/siang hari, selalu kosong. selectedDate
+  // (null = hari ini) dikirim sebagai query param ?date= ke endpoint yang
+  // sudah mendukungnya (lihat getUniverseAccumulationDistribution()).
+  selectedDate: null,
   loaded: false,
   notConfigured: false, // Invezgo API key belum ada sama sekali
   loading: false,
@@ -805,6 +812,12 @@ function fsResetBrokerScan() {
   FS_BROKER_SCAN.date = null;
   FS_BROKER_SCAN.loaded = false;
   FS_BROKER_SCAN.notConfigured = false;
+}
+
+function fsSetBrokerScanDate(dateStr) {
+  FS_BROKER_SCAN.selectedDate = dateStr || null;
+  fsResetBrokerScan();
+  fsRenderBrokerFlowMode();
 }
 
 // FIX AUDIT (2026-09-17, quota budget planning, user-requested: "atur
@@ -869,7 +882,8 @@ async function fsRenderBrokerFlowMode() {
   FS_BROKER_SCAN.loading = true;
 
   try {
-    var res = await fetch('/api/idx/accumulation-distribution');
+    var qs = FS_BROKER_SCAN.selectedDate ? ('?date=' + encodeURIComponent(FS_BROKER_SCAN.selectedDate)) : '';
+    var res = await fetch('/api/idx/accumulation-distribution' + qs);
     var data = await res.json();
 
     if (data && data.isSimulated && data.counts && data.counts.totalUniverseScanned === 0) {
@@ -902,6 +916,9 @@ function fsRenderBrokerScanUI(c) {
   var quotaExhausted = !!(FS_BROKER_SCAN.quota && FS_BROKER_SCAN.quota.remaining <= 0);
   var dateLabel = FS_BROKER_SCAN.date || '-';
 
+  var todayStr = new Date().toISOString().slice(0, 10);
+  var pickerVal = FS_BROKER_SCAN.selectedDate || todayStr;
+
   var html = fsRenderQuotaBar()
 
   + '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
@@ -909,9 +926,18 @@ function fsRenderBrokerScanUI(c) {
       + '<div style="font-weight:700;font-size:13px;color:var(--text)">Pemindaian Smart Money &amp; Retail Absorption (Seluruh BEI)</div>'
       + '<div style="font-size:11px;color:var(--text3)">Skor ranking akumulasi/distribusi harian (Invezgo, EOD) — mencakup seluruh emiten BEI, data per: ' + dateLabel + '</div>'
     + '</div>'
-    + '<button class="btn btn-ghost btn-xs" ' + (FS_BROKER_SCAN.loading || quotaExhausted ? 'disabled' : '') + ' ' + (quotaExhausted ? 'title="Kuota Invezgo bulan ini habis — coba lagi bulan depan"' : '') + ' onclick="fsResetBrokerScan();fsRenderBrokerFlowMode()">'
-      + (FS_BROKER_SCAN.loading ? 'Memuat…' : quotaExhausted ? 'Kuota Habis' : 'Refresh')
-      + '</button>'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      // FIX (2026-09-18, user-reported: "ini seharusnya bisa di pilih
+      // tanggalnya, karna kalo cuma hari ini ya percuma, baru keluar
+      // datanya di sore hari"): laporan EOD terbit ~17:30 WIB, jadi cek
+      // sebelum itu selalu kosong — sekarang user bisa pilih tanggal
+      // bursa sebelumnya untuk lihat data yang sudah terbit.
+      + '<label style="font-size:11px;color:var(--text3)">Tanggal:</label>'
+      + '<input type="date" value="' + pickerVal + '" max="' + todayStr + '" onchange="fsSetBrokerScanDate(this.value)" class="form-input" style="height:28px;font-size:11px;padding:2px 6px" ' + (FS_BROKER_SCAN.loading ? 'disabled' : '') + '>'
+      + '<button class="btn btn-ghost btn-xs" ' + (FS_BROKER_SCAN.loading || quotaExhausted ? 'disabled' : '') + ' ' + (quotaExhausted ? 'title="Kuota Invezgo bulan ini habis — coba lagi bulan depan"' : '') + ' onclick="fsResetBrokerScan();fsRenderBrokerFlowMode()">'
+        + (FS_BROKER_SCAN.loading ? 'Memuat…' : quotaExhausted ? 'Kuota Habis' : 'Refresh')
+        + '</button>'
+    + '</div>'
   + '</div>';
 
   if (!accList.length && !distList.length) {
@@ -1006,7 +1032,8 @@ async function fsRenderSectorHeatmapMode() {
 
   FS_BROKER_SCAN.loading = true;
   try {
-    var res = await fetch('/api/idx/accumulation-distribution');
+    var qs = FS_BROKER_SCAN.selectedDate ? ('?date=' + encodeURIComponent(FS_BROKER_SCAN.selectedDate)) : '';
+    var res = await fetch('/api/idx/accumulation-distribution' + qs);
     var data = await res.json();
     if (!data || !data.success || data.isSimulated) {
       FS_BROKER_SCAN.notConfigured = true;

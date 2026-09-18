@@ -36,16 +36,21 @@
   };
 
   // ── Mini Sparkline Generator ──
+  // FIX (2026-09-18, audit menyeluruh): dulu kalau `values` kosong, fungsi
+  // ini DIAM-DIAM mengarang kurva 5-titik tetap berdasarkan arah untung/
+  // rugi saja (bukan histori harga nyata) — setiap saham untung dapat
+  // bentuk identik, setiap saham rugi dapat bentuk identik, ditampilkan di
+  // kolom "Tren 7D" seolah pergerakan harga 7 hari yang sebenarnya. Sekarang
+  // TIDAK menyintesis kurva palsu — kembalikan placeholder jujur, biarkan
+  // caller (renderPortofolio override di bawah) mengisi dengan histori
+  // harga REAL via fetch async ke /api/idx/history.
   window.mwCreateSparkline = function(values, isGain, width, height) {
     width = width || 64;
     height = height || 18;
-    if (!values || !values.length) {
-      // Create a sensible 5-point curve if not provided
-      var base = 100;
-      var dir = isGain ? 1 : -1;
-      values = [base, base + (dir * 2), base + (dir * 1.5), base + (dir * 3.5), base + (dir * 4.5)];
+    if (!values || values.length < 2) {
+      return '<span style="color:var(--text3);font-size:10px">—</span>';
     }
-    
+
     var min = Math.min.apply(null, values);
     var max = Math.max.apply(null, values);
     var range = max - min || 1;
@@ -446,6 +451,35 @@
     initInstitutionalUI();
   }
 
+  // Fetch histori harga REAL 7 hari terakhir (Yahoo Finance via server,
+  // endpoint sudah ada & dipakai fitur lain) dan isi sel sparkline begitu
+  // datang. Cache per-ticker in-memory (5 menit) supaya toggle density/
+  // re-render tidak memicu fetch berulang untuk ticker yang sama.
+  var _sparklineCache = {};
+  function mwLoadRealSparkline(ticker, isGain, td) {
+    var cached = _sparklineCache[ticker];
+    if (cached && (Date.now() - cached.ts) < 5 * 60 * 1000) {
+      td.innerHTML = mwCreateSparkline(cached.closes, isGain, 64, 18);
+      return;
+    }
+    fetch('/api/idx/history/' + encodeURIComponent(ticker) + '?tf=1W')
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!td.isConnected) return; // baris sudah tidak ada di DOM (re-render/navigasi)
+        var points = (data && data.success && Array.isArray(data.points)) ? data.points : [];
+        var closes = points.map(function(p) { return p.c; }).filter(function(c) { return typeof c === 'number'; });
+        if (closes.length >= 2) {
+          _sparklineCache[ticker] = { closes: closes, ts: Date.now() };
+          td.innerHTML = mwCreateSparkline(closes, isGain, 64, 18);
+        } else {
+          td.innerHTML = '<span style="color:var(--text3);font-size:10px" title="Histori harga 7 hari belum tersedia">—</span>';
+        }
+      })
+      .catch(function() {
+        if (td.isConnected) td.innerHTML = '<span style="color:var(--text3);font-size:10px" title="Gagal memuat histori harga">—</span>';
+      });
+  }
+
   // ── Override / Enhance `renderPortofolio` to support sparklines & professional layout ──
   var _origRenderPortofolio = window.renderPortofolio;
   window.renderPortofolio = function() {
@@ -478,18 +512,22 @@
         tr.insertBefore(th, tr.children[7] || null);
       }
 
-      // Add sparkline cell to each row
+      // Add sparkline cell to each row — placeholder synchronously, lalu
+      // isi dengan histori harga REAL (7 hari terakhir, GET /api/idx/
+      // history) begitu fetch selesai. Lihat catatan di mwCreateSparkline().
       var rows = portoTbody.querySelectorAll('tr');
       rows.forEach(function(row) {
         if (row.querySelector('.spark-td') || row.children.length < 5) return;
         var tickerEl = row.querySelector('.tp');
         var ticker = tickerEl ? tickerEl.textContent.trim() : '';
         var isGain = row.querySelector('.up') !== null;
-        
+
         var td = document.createElement('td');
         td.className = 'spark-td';
-        td.innerHTML = mwCreateSparkline(null, isGain, 64, 18);
+        td.innerHTML = '<span style="color:var(--text3);font-size:10px">⏳</span>';
         row.insertBefore(td, row.children[7] || null);
+
+        if (ticker) mwLoadRealSparkline(ticker, isGain, td);
       });
     }
   };

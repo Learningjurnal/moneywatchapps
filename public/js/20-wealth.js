@@ -13,7 +13,18 @@ var WEALTH = {
   deposito: 0, emas: 0, obligasi: 0,
   bank: [],       // {id,bank,no,saldo,type}
   debt: [],       // {id,nama,tipe,bunga,outstanding,cicilan}
-  piutang: []     // {id,nama,keperluan,pokok,terbayar,jatuhTempo,status}
+  piutang: [],    // {id,nama,keperluan,pokok,terbayar,jatuhTempo,status}
+  // FIX (2026-09-18, user-reported: penghapusan bank/debt/piutang di satu
+  // device "muncul lagi" di device lain): union-by-id di _mergeWealthData()
+  // (02-storage.js) sengaja tidak pernah menghormati penghapusan (supaya
+  // tidak ada data hilang tak sengaja kalau device lain belum sempat
+  // sinkron) — tapi itu juga berarti penghapusan yang MEMANG disengaja
+  // tidak pernah ter-propagasi. wDeleteTombstone() menambah entri di sini
+  // setiap kali item bank/debt/piutang dihapus; _mergeWealthData() membaca
+  // ini untuk menyaring item yang sudah dihapus di device manapun (dalam
+  // 90 hari terakhir — lihat WEALTH_TOMBSTONE_RETENTION_MS), sambil tetap
+  // union-by-id untuk kasus "device lain belum sinkron item baru".
+  tombstones: []  // {type:'bank'|'debt'|'piutang', id, deletedAt}
 };
 var wCharts = {};
 var WPAGES = ['wealth','wbank','wdebt','wpiutang','wfire'];
@@ -771,7 +782,18 @@ function wConfirmDelete(type, id, nama){
       '<button class="btn btn-red" onclick="wDelete(\''+type+'\','+id+')">Hapus</button>'+
     '</div>');
 }
+// Cakupan tombstone SENGAJA dibatasi ke bank/debt/piutang (bukan semua
+// array tersinkron seperti transactions/dividends) — keputusan eksplisit
+// user: item ini jumlahnya sedikit dan risikonya lebih terkendali
+// dibanding transaksi yang jumlahnya ribuan.
+var WEALTH_TOMBSTONE_TYPES = ['bank', 'debt', 'piutang'];
+function wRecordTombstone(type, id){
+  if (WEALTH_TOMBSTONE_TYPES.indexOf(type) === -1) return;
+  if (!Array.isArray(WEALTH.tombstones)) WEALTH.tombstones = [];
+  WEALTH.tombstones.push({ type: type, id: id, deletedAt: new Date().toISOString() });
+}
 function wDelete(type, id){
+  wRecordTombstone(type, id);
   WEALTH[type] = WEALTH[type].filter(function(x){return x.id!=id});
   wCloseModal(); wRerender();
 }

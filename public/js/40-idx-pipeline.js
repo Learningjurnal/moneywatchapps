@@ -423,19 +423,21 @@ var IDX_PIPELINE = {
                 </div>
                 <div style="display:flex; flex-direction:column; gap:8px;">
                   ${(cal.dividends && cal.dividends.length > 0) ? cal.dividends.map(function(d) {
+                    // FIX (2026-09-18): payload dari Invezgo mentah, skema
+                    // per tipe belum diverifikasi (lihat idx-client.js) —
+                    // tampilkan generik, bukan field karangan d.dps/d.cumDate.
+                    var detail = (d.payload && typeof d.payload === 'object' && Object.keys(d.payload).length > 0)
+                      ? Object.keys(d.payload).map(function(k) { return k + ': ' + d.payload[k]; }).join(' · ')
+                      : 'Tidak ada detail tambahan dari Invezgo.';
                     return `
                       <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#f0fdf4; border-radius:8px; border:1px solid #dcfce7;">
                         <div>
-                          <div style="font-weight:800; color:#166534; font-size:13px;">${d.code} · Dividen Tunai</div>
-                          <div style="font-size:11px; color:#15803d;">Cum Date: <b>${d.cumDate}</b> · Ex: ${d.exDate}</div>
-                        </div>
-                        <div style="text-align:right;">
-                          <div style="font-weight:700; color:#166534; font-size:13px;">Rp ${d.dps} / lbr</div>
-                          <div style="font-weight:700; color:#15803d; font-size:11px;">Yield: ${d.yield}%</div>
+                          <div style="font-weight:800; color:#166534; font-size:13px;">${d.code} · Dividen</div>
+                          <div style="font-size:11px; color:#15803d;">${detail}</div>
                         </div>
                       </div>
                     `;
-                  }).join('') : '<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px;">Memuat jadwal dividen...</div>'}
+                  }).join('') : '<div style="font-size:12px; color:#94a3b8; text-align:center; padding:12px;">Tidak ada jadwal dividen dari Invezgo saat ini.</div>'}
                 </div>
               </div>
 

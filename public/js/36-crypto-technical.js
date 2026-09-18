@@ -1084,7 +1084,14 @@
 
           <!-- Whale Tier Orderflow Breakdown -->
           <div style="background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:16px">
-            <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px">Distribusi Volume Berdasarkan Ukuran Order Paus (Whale Tier Flow):</div>
+            <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px">Distribusi Volume Berdasarkan Ukuran Order Paus (Whale Tier Flow):</div>
+            <!-- FIX (2026-09-18, audit menyeluruh): tidak ada API order-book/
+                 order-size breakdown yang terintegrasi untuk crypto di app
+                 ini — pembagian 38/27/20/15% ke 4 tier ini adalah PROKSI
+                 proporsional dari volume 24 jam total, bukan data ukuran
+                 order riil per transaksi. Dulu ditampilkan tanpa disclosure
+                 apa pun; sekarang dijelaskan eksplisit ke user. -->
+            <div style="font-size:10px;color:var(--amber);margin-bottom:10px">⚠ Estimasi proporsional dari volume 24 jam total — bukan data ukuran order riil (tidak ada API order-book whale yang terintegrasi)</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:10px;font-family:var(--font-mono);font-size:12px">
               <div style="padding:10px;background:var(--bg2);border-radius:8px;border-left:3px solid #9945ff">
                 <div style="color:var(--text3);font-size:10px;font-weight:700">MEGA WHALE (&gt;$5M)</div>

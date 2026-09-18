@@ -17,16 +17,21 @@ import {
   getIdxCalendarData,
   getUniverseOpportunityRadar,
   warmRadarFundamentalsRotating,
+  generateUnifiedScreener,
+  warmTechnicalRotating,
   getUniverseAccumulationDistribution,
+  getUniverseForeignFlow,
   getTransactionFlowVisualizer,
   getBeiTickSize,
   generateBrokerSummary,
   generateShareholderComposition,
   generateSectorRotation,
+  generateMasterScreener,
   fetchIdxStockScreener,
   IDX_BROKERS,
   generateTradingHypothesis,
   generateExitHypothesis,
+  generateFinancialStatementSummary,
   assessDataQuality,
   getDataQualityTelemetry,
   classifyMarketRegime
@@ -57,8 +62,14 @@ app.use(express.json({ limit: '10mb' }));
 // tanpa batas kalau ada traffic tinggi/disalahgunakan. Rate limiter
 // in-memory sederhana per-IP, tanpa dependency baru (tidak perlu npm
 // install tambahan). Reset otomatis tiap window habis.
-function createRateLimiter(windowMs, maxRequests) {
+// FIX (2026-09-18, found while verifying the Bandarmology Accumulation/
+// Distribution fix): the 429 error message was hardcoded to "Terlalu
+// banyak permintaan AI" regardless of which limiter instance tripped —
+// misleading on /api/idx/*'s dataApiRateLimiter (not an AI endpoint at
+// all). `label` lets each limiter instance describe itself honestly.
+function createRateLimiter(windowMs, maxRequests, label) {
   const hits = new Map(); // ip -> { count, resetAt }
+  const what = label || 'permintaan';
   return function rateLimiter(req, res, next) {
     const ip = req.ip || req.connection?.remoteAddress || 'unknown';
     const now = Date.now();
@@ -73,7 +84,7 @@ function createRateLimiter(windowMs, maxRequests) {
       res.set('Retry-After', String(retryAfterSec));
       return res.status(429).json({
         success: false,
-        error: `Terlalu banyak permintaan AI. Coba lagi dalam ${retryAfterSec} detik.`
+        error: `Terlalu banyak ${what}. Coba lagi dalam ${retryAfterSec} detik.`
       });
     }
     // Bersihkan entry kedaluwarsa sesekali agar Map tidak bocor memori
@@ -83,7 +94,7 @@ function createRateLimiter(windowMs, maxRequests) {
     next();
   };
 }
-const aiRateLimiter = createRateLimiter(60 * 1000, 10); // 10 request/menit/IP
+const aiRateLimiter = createRateLimiter(60 * 1000, 10, 'permintaan AI'); // 10 request/menit/IP
 
 // API health endpoint
 app.get('/api/health', (req, res) => {
@@ -2511,7 +2522,7 @@ function getStoredKseiData() {
 // pengguna aplikasi, bukan cuma yang membuat request tersebut. Limiter lebih
 // longgar dari endpoint AI (data harga wajar sering di-load banyak sekaligus
 // saat buka Dashboard/Screener), tapi tetap ada batas.
-const dataApiRateLimiter = createRateLimiter(60 * 1000, 60); // 60 request/menit/IP
+const dataApiRateLimiter = createRateLimiter(60 * 1000, 60, 'permintaan data'); // 60 request/menit/IP
 app.use('/api/idx', dataApiRateLimiter);
 app.use('/api/ksei', dataApiRateLimiter);
 
@@ -3221,6 +3232,27 @@ app.get('/api/idx/sector-rotation', async (req, res) => {
   }
 });
 
+// POST /api/idx/master-screener — Fase 1: Invezgo /screener/screen whole-
+// market formula scan (1 kuota = seluruh BEI). Formula hanya boleh memakai
+// field yang sudah terverifikasi live (lihat INVEZGO_SCREENER_ALLOWED_FIELDS
+// di lib/invezgo-client.js) — field lain ditolak di lib/invezgo-client.js
+// sebelum kuota terpakai. Body: { formula: "per > 0 AND per < 15 AND roe > 15" }.
+app.post('/api/idx/master-screener', async (req, res) => {
+  try {
+    const formula = req.body && req.body.formula;
+    if (!formula || typeof formula !== 'string') {
+      return res.status(400).json({ success: false, error: 'formula (string) wajib diisi' });
+    }
+    const data = await generateMasterScreener(formula);
+    if (!data.available) {
+      return res.json({ success: false, data });
+    }
+    return res.json({ success: true, data });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/idx/top-movers — Live Top Gainers, Losers, and Active Stocks
 app.get('/api/idx/top-movers', async (req, res) => {
   try {
@@ -3312,6 +3344,42 @@ app.get('/api/cron/warm-radar-fundamentals', async (req, res) => {
   }
 });
 
+// GET /api/cron/warm-technical-indicators — Vercel Cron target for the
+// Unified Screener's technical-indicator cache (2026-09-18). Same fail-
+// closed CRON_SECRET guard and rotating-cursor design as
+// warm-radar-fundamentals above — see warmTechnicalRotating() (lib/idx-
+// data-engine.js) for the rationale (Vercel Hobby: 1 cron/day, 30s budget,
+// full ~958-ticker coverage reached progressively).
+app.get('/api/cron/warm-technical-indicators', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization || '';
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  try {
+    const result = await warmTechnicalRotating(25000);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Technical Indicators Cron Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/unified-screener — Skema Screener Terpadu (2026-09-18),
+// menggabungkan Opportunity Radar + Market Radar + Smart Money Screener +
+// Screener lama menjadi 1 endpoint filterable. Lihat komentar
+// generateUnifiedScreener() (lib/idx-data-engine.js) untuk rincian formula
+// skor Whale/Uptrend dan sumber data whole-market yang dipakai.
+app.get('/api/idx/unified-screener', async (req, res) => {
+  try {
+    const data = await generateUnifiedScreener(req.query);
+    return res.json(data);
+  } catch (err) {
+    console.error('[Unified Screener Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/idx/accumulation-distribution — Accumulation & Distribution Scanner
 // (LQ45 default when no ?tickers= is given — pass one to scan any other
 // slice, e.g. a batch of the full ~900+ IDX universe).
@@ -3342,6 +3410,21 @@ app.post('/api/idx/accumulation-distribution', async (req, res) => {
   }
 });
 
+// GET /api/idx/foreign-flow — Top Foreign Net Buy/Sell seluruh BEI (1
+// panggilan Invezgo untuk SELURUH pasar, bukan sampel ticker). Menggantikan
+// pendekatan lama di renderBandarmologyForeignFlowView() (public/js/41-
+// stockchat-cockpit.js) yang cuma iterasi ~42 ticker hardcoded — lihat
+// komentar getUniverseForeignFlow() di lib/idx-data-engine.js.
+app.get('/api/idx/foreign-flow', async (req, res) => {
+  try {
+    const data = await getUniverseForeignFlow();
+    return res.json(data);
+  } catch (err) {
+    console.error('[IDX Foreign Flow Scanner Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/idx/flow-trail/:ticker — Interactive Transaction Flow Visualizer per Ticker
 app.get('/api/idx/flow-trail/:ticker', async (req, res) => {
   try {
@@ -3357,12 +3440,32 @@ app.get('/api/idx/flow-trail/:ticker', async (req, res) => {
   }
 });
 
-// GET /api/idx/calendar — Corporate Actions (Dividends, Splits, Rights Issues, RUPS, Suspensions)
-app.get('/api/idx/calendar', (req, res) => {
+// GET /api/idx/calendar — Corporate Actions (Dividends, Splits, Rights Issues, RUPS)
+// FIX (2026-09-18): dulu sinkron (data hardcoded fiksi); sekarang async
+// karena memanggil Invezgo real (lihat getIdxCalendarData() di idx-client.js).
+app.get('/api/idx/calendar', async (req, res) => {
   try {
-    const cal = getIdxCalendarData(req.query);
+    const cal = await getIdxCalendarData(req.query);
     return res.json({ success: true, ...cal });
   } catch (err) {
+    console.error('[IDX Calendar Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/financial-statement/:ticker — Ringkasan Laporan Keuangan Real
+// (Invezgo) untuk auto-fill Harga Wajar/MoS. Lihat komentar
+// generateFinancialStatementSummary() di idx-data-engine.js untuk disclosure
+// faktor skala EPS dan metodologi derived-shares.
+app.get('/api/idx/financial-statement/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const data = await generateFinancialStatementSummary(ticker);
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    console.error('[IDX Financial Statement Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

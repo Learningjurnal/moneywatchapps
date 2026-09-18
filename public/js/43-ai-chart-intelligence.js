@@ -113,7 +113,14 @@ function buildAiSharedMarketContext(ticker, timeframe) {
 
   var bData = flowScanData.bandarmology || {};
   var cmfVal = (bData.cmf !== undefined) ? bData.cmf : (typeof calculateAiCmf === 'function' ? calculateAiCmf(ohlcv, 20) : 0.12);
-  var smartNet = (bData.smartMoney && bData.smartMoney.institutionalNetRp !== undefined) ? bData.smartMoney.institutionalNetRp : 15000000000;
+  // FIX (2026-09-18, audit menyeluruh): dulu fallback Rp 15.000.000.000
+  // (konstanta tetap) dipakai kalau broker summary tidak punya
+  // institutionalNetRp — angka presisi karangan ditampilkan di modal "AI
+  // Chart Explanation" seolah hasil analisis nyata. Sekarang null jujur
+  // saat tidak tersedia; UI (renderAiChartExplanationModal) menampilkan
+  // "tidak tersedia" alih-alih angka Rupiah palsu.
+  var smartNetAvailable = !!(bData.smartMoney && bData.smartMoney.institutionalNetRp !== undefined);
+  var smartNet = smartNetAvailable ? bData.smartMoney.institutionalNetRp : null;
 
   // Existing S/R & Pivot Calculation
   var srLevels = calculateAiBaseSupportResistance(ohlcv);
@@ -155,6 +162,7 @@ function buildAiSharedMarketContext(ticker, timeframe) {
     flowScan: {
       verdict: bData.verdict || (cmfVal > 0 ? 'ACCUMULATION' : 'DISTRIBUTION'),
       institutionalNetRp: smartNet,
+      institutionalNetAvailable: smartNetAvailable,
       cmf: cmfVal
     }
   };
@@ -341,21 +349,51 @@ function calculateAiConfluenceScore(ctx, struct, fib, patterns) {
   else if (ctx.indicators.rsi < 45) score += 7;
   else score += 4;
 
-  // 5. Volume Surge (10 pts)
-  score += 8;
+  // 5. Volume Surge (10 pts) — FIX (2026-09-18, audit menyeluruh): dulu
+  // selalu +8 apa pun isi ctx.ohlcv, padahal namanya menyiratkan
+  // pengukuran lonjakan volume nyata. Sekarang dihitung real dari rasio
+  // volume bar terakhir terhadap rata-rata 20 bar sebelumnya.
+  var volBars = ctx.ohlcv.slice(-21, -1);
+  var avgVol = volBars.length ? (volBars.reduce(function(s, d) { return s + (d.v || 0); }, 0) / volBars.length) : 0;
+  var volRatio = avgVol > 0 ? (ctx.price.volume / avgVol) : 1;
+  if (volRatio >= 1.5) score += 10;
+  else if (volRatio >= 1.1) score += 7;
+  else score += 4;
 
   // 6. Chart Pattern (10 pts)
   if (patterns.length && patterns[0].status === 'CONFIRMED') score += 10;
   else score += 6;
 
-  // 7. Fibonacci Overlap (10 pts)
-  score += 8;
+  // 7. Fibonacci Overlap (10 pts) — FIX: dulu selalu +8. Sekarang benar-
+  // benar cek apakah harga saat ini dekat (dalam 1.5%) salah satu level
+  // Fibonacci utama (0.382/0.5/0.618/0.786), bukan konstanta tetap.
+  var nearFib = [fib.levels.f382, fib.levels.f500, fib.levels.f618, fib.levels.f786].some(function(lvl) {
+    return lvl > 0 && Math.abs(curP - lvl) / curP < 0.015;
+  });
+  score += nearFib ? 10 : 5;
 
-  // 8. Multi-TF Alignment (5 pts)
-  score += 4;
+  // 8. Trend Consistency MA20 vs MA50 (5 pts) — FIX: dulu bernama "Multi-
+  // TF Alignment" (menyiratkan analisis lintas timeframe) tapi selalu +4
+  // tanpa data timeframe lain sama sekali. Fungsi ini hanya menerima SATU
+  // timeframe, jadi diganti jadi pengecekan konsistensi tren real yang
+  // memang bisa dihitung dari data yang ada: MA20 vs MA50 dan posisi
+  // harga terhadap keduanya.
+  var maAligned = (ctx.indicators.ma20 > ctx.indicators.ma50 && curP > ctx.indicators.ma20) ||
+    (ctx.indicators.ma20 < ctx.indicators.ma50 && curP < ctx.indicators.ma20);
+  score += maAligned ? 5 : 2;
 
-  // 9. Risk/Reward (5 pts)
-  score += 5;
+  // 9. Risk/Reward (5 pts) — FIX: dulu selalu +5 (poin maksimum tanpa
+  // syarat). Sekarang dihitung dari jarak riil ke resistance/support
+  // historis (max/min harga penutupan riil dalam window OHLCV, BUKAN
+  // level s1/r1 yang persentase-tetap dari calculateAiBaseSupportResistance).
+  var realLow = ctx.supportResistance.supports[ctx.supportResistance.supports.length - 1];
+  var realHigh = ctx.supportResistance.resistances[ctx.supportResistance.resistances.length - 1];
+  var riskDist = curP - realLow;
+  var rewardDist = realHigh - curP;
+  var rr = riskDist > 0 ? (rewardDist / riskDist) : 0;
+  if (rr >= 2) score += 5;
+  else if (rr >= 1) score += 3;
+  else score += 1;
 
   var label = 'WATCH';
   if (score >= 85) label = 'STRONG SETUP';
@@ -1024,7 +1062,7 @@ function openAiExplainModal(ticker) {
         + '<ul style="margin-top:6px;padding-left:18px;list-style-type:disc">'
           + '<li><strong>Struktur Pasar:</strong> ' + struct.structure + ' (Kekuatan Tren: ' + struct.strength + '%)</li>'
           + '<li><strong>Level Kunci Fibonacci:</strong> Area Emas Fib 0.618 berada di Rp ' + fmtK(fib.levels.f618) + '</li>'
-          + '<li><strong>Smart Money FlowScan:</strong> Verdikt ' + ctx.flowScan.verdict + ' dengan Net Inflow Rp ' + fmtK(ctx.flowScan.institutionalNetRp) + '</li>'
+          + '<li><strong>Smart Money FlowScan:</strong> Verdikt ' + ctx.flowScan.verdict + (ctx.flowScan.institutionalNetAvailable ? (' dengan Net Inflow Rp ' + fmtK(ctx.flowScan.institutionalNetRp)) : ' (Net Inflow institusi tidak tersedia — data broker summary belum ada untuk emiten ini)') + '</li>'
           + '<li><strong>Indikator Momentum:</strong> RSI-14 berada di angka ' + ctx.indicators.rsi + '</li>'
         + '</ul>'
       + '</div>'

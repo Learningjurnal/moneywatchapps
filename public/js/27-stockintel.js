@@ -11,6 +11,14 @@
 
 var MW_SELECTED_INTEL_TICKER = 'BBCA';
 var INTEL_CHART_TIMEFRAME = '1D';
+// FIX (2026-09-18, user-reported "TOP BROKER BUYER hanya 1D dan hasilnya
+// selalu kosong"): dulu fetchRealStockIntelData() hardcode
+// ?timeframe=1D — kalau data broker hari itu memang kosong (EOD Invezgo
+// baru terbit sore, atau ticker tidak punya aktivitas broker besar hari
+// itu), tidak ada cara melihat histori. Backend (generateBrokerSummary,
+// lib/idx-data-engine.js) sudah dukung 1W/1M/1Y sejak lama — cuma UI
+// Stock Intel yang belum kasih pilihan.
+var MW_INTEL_BROKER_TF = '1D';
 var INTEL_CHART_OVERLAYS = { level: true, ma: true, cci: true };
 var MW_INTEL_CACHE = {};
 var MW_INTEL_TIMESTAMPS = {};
@@ -218,7 +226,13 @@ function getStockIntelData(ticker) {
   if (qf.eps && qf.eps > 0) epsStr = 'Rp ' + Math.round(qf.eps).toLocaleString('id-ID');
   else if (fund && fund.eps) epsStr = 'Rp ' + Math.round(fund.eps).toLocaleString('id-ID');
 
-  // 2. Real Support & Resistance (Pivot 5-bar / Fib from real quote if available)
+  // 2. Support & Resistance — FIX (2026-09-18, audit menyeluruh): dulu
+  // method field mengklaim ini pivot point kalkulasi real,
+  // padahal r1/s1 BUKAN pivot point resmi (formula standar: P=(H+L+C)/3,
+  // R1=2P-L, S1=2P-H, dst, butuh data High/Low/Close harian) — r1/s1 di
+  // sini cuma persentase tetap (+4%/-4%) dari harga terakhir. r2/s2 TETAP
+  // real kalau q52 (52-week high/low) tersedia. Label diperbaiki supaya
+  // jujur soal metodologinya, bukan diklaim "pivot" yang sebenarnya tidak.
   var levels = {
     r2: q52.high || Math.round(price * 1.10),
     r1: Math.round(price * 1.04),
@@ -226,7 +240,7 @@ function getStockIntelData(ticker) {
     s1: Math.round(price * 0.96),
     s2: q52.low || Math.round(price * 0.90),
     distS1: price > 0 ? '-4.0%' : '-',
-    method: 'Calculated Real Pivot Support/Resistance'
+    method: 'Estimasi ±4%/±10% dari Harga Saat Ini (bukan pivot point OHLC resmi)'
   };
 
   // 3. Real 52-week range & turnover
@@ -234,9 +248,17 @@ function getStockIntelData(ticker) {
   var turnover = quote.value ? ('Rp ' + (quote.value / 1e9).toFixed(2) + ' M') : (quote.volume ? ('Rp ' + ((quote.volume * price) / 1e9).toFixed(2) + ' M') : '-');
 
   // 4. Broker Flow & Bandarmology Real Data
-  var bSummary = cached.brokerSummary || (typeof generateClientSideBrokerSummary === 'function' ? generateClientSideBrokerSummary(tk, '1D') : null);
+  // FIX (2026-09-18): cached.brokerSummary sekarang bisa eksplisit `null`
+  // (sudah dicoba fetch real, tapi memang tidak ada data untuk timeframe
+  // ini) — beda dari `undefined` (belum pernah dicoba). Cuma jatuh ke
+  // template client-side (yang SENGAJA selalu kosong, lihat
+  // generateClientSideBrokerSummary()) kalau memang belum pernah dicoba.
+  var bSummary = cached.brokerSummaryFetched
+    ? cached.brokerSummary
+    : (typeof generateClientSideBrokerSummary === 'function' ? generateClientSideBrokerSummary(tk, MW_INTEL_BROKER_TF) : null);
   var bandar = bSummary && bSummary.bandarmology ? bSummary.bandarmology : null;
   var brokerRows = (bSummary && bSummary.brokers && bSummary.brokers.buyer) ? bSummary.brokers.buyer.slice(0, 5) : [];
+  var brokerTfTried = cached.brokerSummaryFetched ? (cached.brokerSummaryTf || MW_INTEL_BROKER_TF) : null;
 
   // 5. Score computation purely from available verified ratios
   var score = 50;
@@ -272,7 +294,12 @@ function getStockIntelData(ticker) {
     score: score,
     status: status,
     statusClass: statusClass,
-    conviction: score >= 70 ? 85 : 60,
+    // FIX (2026-09-18, audit menyeluruh): dulu conviction cuma 2 nilai
+    // tetap (85 atau 60) berdasarkan satu ambang batas — sekarang skala
+    // linear langsung dari `score` (sudah dihitung real di atas dari
+    // PER/PBV/ROE/bandarmology), supaya benar-benar proporsional terhadap
+    // kekuatan sinyal, bukan pembulatan biner.
+    conviction: Math.round(50 + (score - 25) / 70 * 45),
     range52: range52,
     turnover: turnover,
     pos52: q52.low && q52.high && q52.high > q52.low ? Math.round(((price - q52.low) / (q52.high - q52.low)) * 100) + '% dari batas bawah' : '-',
@@ -370,16 +397,19 @@ function getStockIntelData(ticker) {
       volumeRatio: quote.volume ? (fmtK(quote.volume) + ' lot') : '-',
       vwap: price > 0 ? ('Rp ' + fmtK(price)) : '-'
     },
-    brokerRows: brokerRows
+    brokerRows: brokerRows,
+    brokerTf: MW_INTEL_BROKER_TF,
+    brokerTfTried: brokerTfTried
   };
 }
 
 /**
  * Real-time asynchronous fetch from backend API
  */
-async function fetchRealStockIntelData(ticker) {
+async function fetchRealStockIntelData(ticker, brokerTf) {
   var tk = String(ticker || 'BBCA').toUpperCase().replace(/\.JK$/i, '').trim();
   if (!isRegisteredIdxTicker(tk)) return;
+  var tf = brokerTf || MW_INTEL_BROKER_TF || '1D';
 
   // Record the attempt BEFORE fetching (not just on failure) so the
   // cooldown below applies whether this attempt succeeds or fails — see
@@ -403,14 +433,19 @@ async function fetchRealStockIntelData(ticker) {
       }
     }
 
-    // 2. Fetch broker summary
-    var bsResp = await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=1D');
+    // 2. Fetch broker summary — timeframe dari selector user (default 1D),
+    // bukan hardcoded lagi.
+    var bsResp = await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf));
     if (bsResp.ok) {
       var bsJson = await bsResp.json();
-      if (bsJson.success && bsJson.data) {
-        if (!MW_INTEL_CACHE[tk]) MW_INTEL_CACHE[tk] = {};
-        MW_INTEL_CACHE[tk].brokerSummary = bsJson.data;
-      }
+      if (!MW_INTEL_CACHE[tk]) MW_INTEL_CACHE[tk] = {};
+      // Simpan status "berhasil fetch tapi memang kosong" secara eksplisit
+      // supaya UI bisa membedakan "belum pernah dicoba" vs "sudah dicoba,
+      // memang tidak ada data broker untuk timeframe ini" — dua pesan yang
+      // berbeda, bukan disamakan jadi satu "sedang disinkronisasi".
+      MW_INTEL_CACHE[tk].brokerSummary = (bsJson.success && bsJson.data) ? bsJson.data : null;
+      MW_INTEL_CACHE[tk].brokerSummaryTf = tf;
+      MW_INTEL_CACHE[tk].brokerSummaryFetched = true;
     }
 
     // Update timestamp
@@ -454,6 +489,19 @@ function getIntelUniverse() {
 function setIntelTimeframe(tf) {
   INTEL_CHART_TIMEFRAME = tf;
   renderIntelPriceChart();
+}
+
+/**
+ * Switch broker-summary timeframe (TOP BROKER BUYER card) — forces a fresh
+ * real fetch since each timeframe maps to a different Invezgo date range
+ * (see BROKER_SUMMARY_TIMEFRAME_DAYS, lib/idx-data-engine.js). Explicit
+ * user click, so it bypasses intelShouldAutoFetch()'s cooldown guard (that
+ * guard exists to stop an unthrottled auto-retry LOOP, not to block a
+ * single deliberate click).
+ */
+function setIntelBrokerTimeframe(tf) {
+  MW_INTEL_BROKER_TF = tf;
+  fetchRealStockIntelData(MW_SELECTED_INTEL_TICKER, tf);
 }
 
 /**
@@ -960,7 +1008,12 @@ function renderStockIntelPage() {
       + '<div class="intel-bento-card">'
         + '<div class="intel-section-title">'
           + '<span>TOP BROKER BUYER (DATA RIIL)</span>'
-          + '<span style="font-size:10px;color:var(--text3);font-weight:400">Timeframe: 1D Regular</span>'
+          + '<div class="sm-suite-tabs" style="padding:2px;gap:3px">'
+            + ['1D', '1W', '1M', '1Y'].map(function(tf) {
+              var isAct = tf === data.brokerTf;
+              return '<button class="sm-nav-item ' + (isAct ? 'active' : '') + '" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono);font-weight:700" onclick="setIntelBrokerTimeframe(\'' + tf + '\')">' + tf + '</button>';
+            }).join('')
+          + '</div>'
         + '</div>'
         + '<div style="overflow-x:auto;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px">'
           + (data.brokerRows.length > 0
@@ -979,7 +1032,14 @@ function renderStockIntelPage() {
                     }).join('')
                 + '</tbody>'
               + '</table>'
-            : '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11.5px">Data broker summary sedang disinkronisasi dari feed BEI. Silakan klik tombol Refresh Real-Time.</div>')
+            // FIX (2026-09-18): pesan dulu SELALU bilang "sedang
+            // disinkronisasi, klik Refresh" — menyesatkan kalau penyebabnya
+            // sebenarnya "data memang tidak ada untuk timeframe ini" (bukan
+            // masalah sinkronisasi yang refresh bisa perbaiki). Sekarang
+            // beda pesan tergantung apakah fetch real sudah pernah dicoba.
+            : (data.brokerTfTried
+                ? '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11.5px">Tidak ada data broker signifikan untuk ' + data.brokerTfTried + ' — coba timeframe lebih panjang (1W/1M/1Y) di atas.</div>'
+                : '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11.5px">Data broker summary sedang dimuat dari feed BEI. Silakan klik tombol Refresh Real-Time.</div>'))
         + '</div>'
       + '</div>'
 
@@ -1159,7 +1219,9 @@ function openBandarFlowModal(ticker) {
                     }).join('')
                 + '</tbody>'
               + '</table>'
-            : '<div style="padding:20px;text-align:center;color:var(--text3);font-size:11.5px">Data broker summary sedang disinkronisasi.</div>')
+            : (data.brokerTfTried
+                ? '<div style="padding:20px;text-align:center;color:var(--text3);font-size:11.5px">Tidak ada data broker signifikan untuk ' + data.brokerTfTried + ' — coba timeframe lebih panjang di kartu Broker Flow.</div>'
+                : '<div style="padding:20px;text-align:center;color:var(--text3);font-size:11.5px">Data broker summary sedang dimuat.</div>'))
         + '</div>'
       + '</div>'
 
@@ -1187,6 +1249,7 @@ window.selectStockIntelTicker = selectStockIntelTicker;
 window.switchIntelTicker = switchIntelTicker;
 window.handleIntelSearchSubmit = handleIntelSearchSubmit;
 window.setIntelTimeframe = setIntelTimeframe;
+window.setIntelBrokerTimeframe = setIntelBrokerTimeframe;
 window.toggleIntelOverlay = toggleIntelOverlay;
 window.renderStockIntelPage = renderStockIntelPage;
 window.renderStockIntelCockpit = renderStockIntelPage;

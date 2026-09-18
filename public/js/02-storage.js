@@ -704,6 +704,33 @@ function _getLocalSavedTimestamps(){
 // punya id itu (device lain belum sempat sinkron item tersebut, bukan
 // berarti item itu sengaja dihapus). Field skalar (income/expense/dll)
 // diambil dari sisi yang terakhir disimpan.
+// FIX (2026-09-18, user-reported: item bank/hutang/piutang yang dihapus di
+// satu device "muncul lagi" di device lain): union-by-id di bawah cuma
+// menggabungkan, tidak pernah menghormati penghapusan yang disengaja.
+// Ditambah dukungan tombstone (WEALTH.tombstones, diisi wRecordTombstone()
+// di 20-wealth.js/35-settings.js setiap kali item bank/debt/piutang
+// dihapus) — cakupan SENGAJA dibatasi ke 3 tipe ini saja (bukan
+// transactions/dividends/dll yang jumlahnya jauh lebih banyak dan lebih
+// berisiko kalau tombstone salah desain), keputusan eksplisit user.
+var WEALTH_TOMBSTONE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000; // 90 hari
+function _mergeTombstones(cloudArr, localArr){
+  var seen = new Map(); // key -> {type,id,deletedAt}
+  [].concat(Array.isArray(cloudArr) ? cloudArr : [], Array.isArray(localArr) ? localArr : []).forEach(function(t){
+    if(!t || t.id == null || !t.type) return;
+    var key = t.type + '_' + t.id;
+    var existing = seen.get(key);
+    if(!existing || new Date(t.deletedAt || 0).getTime() > new Date(existing.deletedAt || 0).getTime()){
+      seen.set(key, t);
+    }
+  });
+  var now = Date.now();
+  var out = [];
+  seen.forEach(function(t){
+    if(now - new Date(t.deletedAt || 0).getTime() <= WEALTH_TOMBSTONE_RETENTION_MS) out.push(t);
+  });
+  return out;
+}
+
 function _mergeWealthData(localWealth, cloudWealth, localTime, cloudTime){
   var lw = (localWealth && typeof localWealth === 'object') ? localWealth : null;
   var cw = (cloudWealth && typeof cloudWealth === 'object') ? cloudWealth : null;
@@ -711,10 +738,19 @@ function _mergeWealthData(localWealth, cloudWealth, localTime, cloudTime){
   lw = lw || {};
   cw = cw || {};
 
-  function mergeById(cloudArr, localArr){
+  var mergedTombstones = _mergeTombstones(cw.tombstones, lw.tombstones);
+  function tombstonedIds(type){
+    var s = new Set();
+    mergedTombstones.forEach(function(t){ if(t.type === type) s.add(String(t.id)); });
+    return s;
+  }
+
+  function mergeById(cloudArr, localArr, type){
+    var deleted = type ? tombstonedIds(type) : null;
     var seen = new Set(), out = [];
     [].concat(Array.isArray(cloudArr) ? cloudArr : [], Array.isArray(localArr) ? localArr : []).forEach(function(item){
       if(!item) return;
+      if(deleted && item.id != null && deleted.has(String(item.id))) return;
       var key = item.id != null ? ('id_' + item.id) : ('json_' + JSON.stringify(item));
       if(seen.has(key)) return;
       seen.add(key);
@@ -733,9 +769,10 @@ function _mergeWealthData(localWealth, cloudWealth, localTime, cloudTime){
     deposito: (typeof scalarSource.deposito === 'number') ? scalarSource.deposito : (scalarFallback.deposito || 0),
     emas: (typeof scalarSource.emas === 'number') ? scalarSource.emas : (scalarFallback.emas || 0),
     obligasi: (typeof scalarSource.obligasi === 'number') ? scalarSource.obligasi : (scalarFallback.obligasi || 0),
-    bank: mergeById(cw.bank, lw.bank),
-    debt: mergeById(cw.debt, lw.debt),
-    piutang: mergeById(cw.piutang, lw.piutang)
+    bank: mergeById(cw.bank, lw.bank, 'bank'),
+    debt: mergeById(cw.debt, lw.debt, 'debt'),
+    piutang: mergeById(cw.piutang, lw.piutang, 'piutang'),
+    tombstones: mergedTombstones
   };
 }
 

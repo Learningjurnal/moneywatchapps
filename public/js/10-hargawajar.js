@@ -1496,6 +1496,7 @@ function hw_loadStock(tk) {
   if (!tk) return;
   tk = tk.trim().toUpperCase();
   hw_loadStockData(tk);
+  if (typeof hw_hideAutoFillDisclosure === 'function') hw_hideAutoFillDisclosure();
   hw_renderTable();
   hw_recalc();
   if (typeof showSaveStatus === 'function') {
@@ -1626,6 +1627,7 @@ function hw_resetAll() {
   HW_LAST_CONFIRMED_TICKER = null;
   var ti = document.getElementById('hw-ticker-input'); if (ti) ti.value = '';
   var cp = document.getElementById('hw-current-price'); if (cp) cp.value = '';
+  hw_hideAutoFillDisclosure();
   hw_renderTable();
   hw_clearResults();
 }
@@ -1660,6 +1662,46 @@ function hw_onTickerChange() {
 }
 window.hw_onTickerChange = hw_onTickerChange;
 
+function hw_hideAutoFillDisclosure() {
+  var el = document.getElementById('hw-autofill-disclosure');
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+}
+
+function hw_renderAutoFillDisclosure(result) {
+  var el = document.getElementById('hw-autofill-disclosure');
+  if (!el) return;
+  if (!result || !result.available) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  var d = result.disclosures || {};
+  el.style.display = 'block';
+  el.innerHTML =
+    '<div style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.35);border-radius:6px;padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.6">' +
+    '<div style="font-weight:700;color:#38BDF8;margin-bottom:4px"><i class="ti ti-database"></i> Data Riil dari Invezgo (Laporan Keuangan) — dengan asumsi turunan:</div>' +
+    '<div>• EPS: ' + (d.epsScaleAssumption || '') + '</div>' +
+    '<div>• Shares Outstanding: ' + (d.sharesDerived || '') + '</div>' +
+    '<div>• DPS: ' + (d.dpsUnavailable || '') + '</div>' +
+    '</div>';
+}
+window.hw_hideAutoFillDisclosure = hw_hideAutoFillDisclosure;
+
+// Untuk ticker YANG TIDAK ADA di STOCK_FINANCIAL_DATABASE (27 ticker
+// kurasi manual), ambil data laporan keuangan REAL dari Invezgo lewat
+// /api/idx/financial-statement/:ticker (lihat generateFinancialStatementSummary()
+// di lib/idx-data-engine.js) alih-alih membiarkan tabel kosong. EPS memakai
+// faktor skala yang belum didokumentasikan resmi & Shares adalah hasil
+// derivasi (Net Income ÷ EPS) — keduanya diungkap jujur lewat
+// hw_renderAutoFillDisclosure(), bukan disembunyikan seolah data primer.
+function hw_fetchRealFinancialStatement(tk, callback) {
+  if (typeof fetch !== 'function') { callback(null); return; }
+  fetch('/api/idx/financial-statement/' + encodeURIComponent(tk))
+    .then(function(r){ return r.json(); })
+    .then(function(data){ callback((data && data.success) ? data : null); })
+    .catch(function(){ callback(null); });
+}
+
 function hw_autoFill() {
   var ti = document.getElementById('hw-ticker-input');
   var tk = (ti ? ti.value : hwData.ticker || '').trim().toUpperCase();
@@ -1671,22 +1713,52 @@ function hw_autoFill() {
   hw_loadStockData(tk);
   HW_LAST_CONFIRMED_TICKER = tk;
   hw_renderTable();
+  hw_hideAutoFillDisclosure();
 
-  if (typeof rdFetchLivePrice === 'function') {
-    rdFetchLivePrice(tk, function(err, price){
-      if (!err && price && price > 0) {
-        hwData.currentPrice = price;
-        var cp = document.getElementById('hw-current-price');
-        if (cp) cp.value = price;
-      }
+  function finishWithPrice() {
+    if (typeof rdFetchLivePrice === 'function') {
+      rdFetchLivePrice(tk, function(err, price){
+        if (!err && price && price > 0) {
+          hwData.currentPrice = price;
+          var cp = document.getElementById('hw-current-price');
+          if (cp) cp.value = price;
+        }
+        hw_recalc();
+        if (typeof showSaveStatus === 'function') {
+          showSaveStatus('Data riil & harga terkini ' + tk + ' berhasil dimuat!', 'var(--green)');
+        }
+      });
+    } else {
       hw_recalc();
-      if (typeof showSaveStatus === 'function') {
-        showSaveStatus('Data riil & harga terkini ' + tk + ' berhasil dimuat!', 'var(--green)');
-      }
-    });
-  } else {
-    hw_recalc();
+    }
   }
+
+  // FIX (2026-09-18, audit "sumber data tak terhubung"): dulu ticker yang
+  // ADA di STOCK_FINANCIAL_DATABASE (kurasi manual, bisa usang) langsung
+  // dipakai tanpa pernah cek Invezgo live — jadi 2 halaman berbeda
+  // (Harga Wajar vs Fundamental) bisa menampilkan EPS/ROE berbeda untuk
+  // emiten yang sama. Sekarang Invezgo live SELALU dicoba dulu untuk
+  // SEMUA ticker; data kurasi manual (sudah dimuat hw_loadStockData() di
+  // atas) cuma jadi fallback kalau Invezgo gagal/tidak dikonfigurasi.
+  hw_fetchRealFinancialStatement(tk, function(result) {
+    if (hwData.ticker !== tk) return; // ticker berubah lagi sebelum fetch selesai
+    if (result && result.available && result.rows && result.rows.length) {
+      hwData.rows = result.rows;
+      hw_renderTable();
+      hw_renderAutoFillDisclosure(result);
+    } else if (STOCK_FINANCIAL_DATABASE[tk]) {
+      // Invezgo tidak tersedia — tetap pakai data kurasi manual (sudah di
+      // hwData.rows dari hw_loadStockData() di atas), bukan lagi sumber
+      // utama tapi masih fallback yang sah.
+      hw_hideAutoFillDisclosure();
+      if (typeof showSaveStatus === 'function') {
+        showSaveStatus('Invezgo tidak tersedia — pakai data kurasi manual ' + tk, 'var(--amber)');
+      }
+    } else if (typeof showSaveStatus === 'function') {
+      showSaveStatus('Data laporan keuangan ' + tk + ' belum tersedia di Invezgo — isi manual', 'var(--amber)');
+    }
+    finishWithPrice();
+  });
 }
 window.hw_autoFill = hw_autoFill;
 

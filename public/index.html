@@ -751,7 +751,15 @@
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-home"></i><span class="side-label">COMMAND CENTER</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
       <button onclick="goPage('daily-brief',this)"><i class="ti ti-sun"></i><span class="side-label">Market Pulse</span></button>
-      <button onclick="goPage('radar',this)"><i class="ti ti-target"></i><span class="side-label">Opportunity Radar</span></button>
+      <!-- FIX (2026-09-18, user-directed consolidation): "Opportunity
+           Radar", "Market Radar" (goPage('ranking')) and "Smart Money
+           Screener" (goPage('scanner')) merged into ONE nav entry —
+           renders the new Unified Screener (public/js/48-unified-screener.js).
+           goPage() still redirects 'ranking'/'scanner' to this same page
+           (see 06-analysis-router.js) as a safety net, but their sidebar
+           buttons are removed below to avoid 3 buttons pointing at the
+           same destination. -->
+      <button onclick="goPage('radar',this)"><i class="ti ti-target"></i><span class="side-label">Screener</span></button>
       <button class="on" onclick="goPage('dashboard',this)"><i class="ti ti-layout-grid"></i><span class="side-label">Portfolio Snapshot</span></button>
       <button id="side-btn-alerts" onclick="goPage('alerts',this)"><i class="ti ti-bell"></i><span class="side-label">Alerts</span><span id="side-alert-badge" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px;display:none">0</span></button>
     </div>
@@ -761,7 +769,9 @@
   <div class="side-group open" data-group="markets">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-chart-bar"></i><span class="side-label">MARKETS</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('ranking',this)"><i class="ti ti-trophy"></i><span class="side-label">Market Radar</span></button>
+      <!-- "Market Radar" (goPage('ranking')) digabung ke nav "Screener" di
+           atas (COMMAND CENTER) — tombol dihapus di sini supaya tidak ada
+           2 tombol berbeda menuju halaman yang sama. -->
       <button onclick="goPage('watchlist',this)"><i class="ti ti-star"></i><span class="side-label">Watchlist</span><span id="fs-wl-count" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">0</span></button>
       <button onclick="goPage('sectoral-insight',this)"><i class="ti ti-chart-arcs"></i><span class="side-label">Sector Insight</span></button>
     </div>
@@ -779,7 +789,8 @@
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
       <button onclick="goPage('volume-spike',this)"><i class="ti ti-bolt"></i><span class="side-label">Volume Spike</span></button>
-      <button onclick="goPage('scanner',this)"><i class="ti ti-filter"></i><span class="side-label">Smart Money Screener</span></button>
+      <!-- "Smart Money Screener" (goPage('scanner')) digabung ke nav
+           "Screener" (COMMAND CENTER) — tombol dihapus di sini. -->
       <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Quant Analysis</span></button>
       <button onclick="goPage('tradewave',this)"><i class="ti ti-wave-sine"></i><span class="side-label">TradeWave</span></button>
     </div>
@@ -3653,6 +3664,7 @@
           <span>PER: <b style="color:var(--text);font-family:var(--font-mono)">kali (x)</b></span>
           <span style="color:var(--amber)">Oranye: <b>Perlu dicek</b></span>
         </div>
+        <div id="hw-autofill-disclosure" style="display:none;margin-top:8px"></div>
       </div>
 
       <!-- Calculation Steps Display -->
@@ -4425,45 +4437,46 @@
 </div>
 
 <script src="js/01-data.js?v=20260915a"></script>
-<script src="js/02-storage.js?v=20260917b"></script>
+<script src="js/02-storage.js?v=20260918a"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
-<script src="js/03-engine.js?v=20260918a"></script>
-<script src="js/04-render.js?v=20260915b"></script>
-<script src="js/36-crypto-technical.js?v=20260917a"></script>
+<script src="js/03-engine.js?v=20260918b"></script>
+<script src="js/04-render.js?v=20260918a"></script>
+<script src="js/36-crypto-technical.js?v=20260918a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
-<script src="js/06-analysis-router.js?v=20260917a"></script>
-<script src="js/07-flowscan.js?v=20260917d"></script>
+<script src="js/06-analysis-router.js?v=20260918a"></script>
+<script src="js/07-flowscan.js?v=20260918a"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
-<script src="js/10-hargawajar.js?v=20260913a"></script>
+<script src="js/10-hargawajar.js?v=20260918b"></script>
 <script src="js/11-quant.js?v=20260917a"></script>
 <script src="js/12-clean.js?v=20260908a"></script>
 <script src="js/13-realdata.js?v=20260916a"></script>
 <script src="js/14-admin.js?v=20260909a"></script>
 <script src="js/15-txbulk.js?v=20260915b"></script>
-<script src="js/20-wealth.js?v=20260916a"></script>
+<script src="js/20-wealth.js?v=20260918a"></script>
 <script src="js/21-performance.js?v=20260913b"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260915b"></script>
-<script src="js/24-stockmaster.js?v=20260917b"></script>
-<script src="js/25-auditlog.js?v=20260902c"></script>
-<script src="js/26-commandcenter.js?v=20260917d"></script>
-<script src="js/27-stockintel.js?v=20260915b"></script>
-<script src="js/28-decisiontools.js?v=20260918a"></script>
-<script src="js/29-institutional-ui.js?v=20260915b"></script>
-<script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260915b"></script><script src="js/34-ksei-shareholders.js?v=20260918a"></script>
-<script src="js/35-settings.js?v=20260917a"></script>
+<script src="js/24-stockmaster.js?v=20260918a"></script>
+<script src="js/25-auditlog.js?v=20260918a"></script>
+<script src="js/26-commandcenter.js?v=20260918b"></script>
+<script src="js/27-stockintel.js?v=20260918b"></script>
+<script src="js/28-decisiontools.js?v=20260918c"></script>
+<script src="js/29-institutional-ui.js?v=20260918a"></script>
+<script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260918a"></script><script src="js/34-ksei-shareholders.js?v=20260918a"></script>
+<script src="js/35-settings.js?v=20260918a"></script>
 <script src="js/37-tradewave-engine.js?v=20260913a"></script>
 <script src="js/38-ai-autonomous-trading.js?v=20260917a"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260915b"></script>
-<script src="js/40-idx-pipeline.js?v=20260917a"></script>
-<script src="js/41-stockchat-cockpit.js?v=20260917e"></script>
-<script src="js/42-dividend-calendar.js?v=20260913a"></script>
-<script src="js/43-ai-chart-intelligence.js?v=20260913a"></script>
+<script src="js/40-idx-pipeline.js?v=20260918a"></script>
+<script src="js/41-stockchat-cockpit.js?v=20260918d"></script>
+<script src="js/42-dividend-calendar.js?v=20260918a"></script>
+<script src="js/43-ai-chart-intelligence.js?v=20260918b"></script>
 <script src="js/44-sectoral-insight.js?v=20260918a"></script>
-<script src="js/45-volume-spike.js?v=20260917b"></script>
-<script src="js/46-stock-dossier.js?v=20260917a"></script>
+<script src="js/45-volume-spike.js?v=20260918b"></script>
+<script src="js/46-stock-dossier.js?v=20260918b"></script>
 <script src="js/47-ai-signal-history.js?v=20260917b"></script>
+<script src="js/48-unified-screener.js?v=20260918a"></script>
 
   <!-- Theme Toggle Floating Button -->
   <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#2563eb;color:#ffffff;border:none;box-shadow:0 4px 15px rgba(0,0,0,0.25);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">

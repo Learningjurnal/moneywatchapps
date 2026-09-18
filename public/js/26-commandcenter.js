@@ -996,13 +996,18 @@ function renderRadarFlowTrailSubTab() {
     + ((flow.corporateActions && flow.corporateActions.length > 0)
       ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">'
           + flow.corporateActions.map(function(ca) {
+            // FIX (2026-09-18): payload dari Invezgo mentah, skema per tipe
+            // belum diverifikasi — tampilkan generik (key-value), bukan
+            // field karangan seperti ca.date/ca.details.
+            var payloadStr = (ca.payload && typeof ca.payload === 'object' && Object.keys(ca.payload).length > 0)
+              ? Object.keys(ca.payload).map(function(k) { return k + ': ' + ca.payload[k]; }).join(' · ')
+              : 'Tidak ada detail tambahan dari Invezgo.';
             return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px">'
               + '<div style="display:flex;justify-content:space-between;align-items:center">'
                 + '<span class="badge b-accent" style="font-size:10px">' + ca.type + '</span>'
-                + '<span class="mono" style="font-size:11px;color:var(--text3)">' + ca.date + '</span>'
               + '</div>'
               + '<strong style="font-size:12px;color:var(--text);display:block;margin-top:4px">' + ca.title + '</strong>'
-              + '<div style="font-size:11px;color:var(--text2);margin-top:2px">' + (ca.details || '-') + '</div>'
+              + '<div style="font-size:11px;color:var(--text2);margin-top:2px">' + payloadStr + '</div>'
             + '</div>';
           }).join('')
         + '</div>'
@@ -1039,131 +1044,88 @@ function renderRadarCorporateActionsSubTab() {
   var splits = corpData.stockSplits || [];
   var rights = corpData.rightsIssues || [];
   var rups = corpData.rups || [];
-  var susps = corpData.suspensions || [];
+
+  // FIX (2026-09-18, user-reported after full-codebase audit): tabel ini
+  // dulu membaca field karangan (d.dps/d.cumDate/s.ratio/r.exercisePrice/
+  // u.agenda/dst) dari data 100% hardcoded fiksi. Sekarang data REAL dari
+  // Invezgo GET /analysis/calendar (lihat getIdxCalendarData(),
+  // lib/providers/idx-client.js) — TAPI struktur `payload` per tipe belum
+  // diverifikasi (dokumentasi vendor cuma kasih contoh untuk tipe WARNING,
+  // bukan salah satu dari 4 tipe di sini), jadi ditampilkan GENERIK
+  // (key-value apa adanya) alih-alih mengarang field. Kategori "Suspensi"
+  // dihapus total — Invezgo tidak punya tipe aksi korporasi untuk itu di
+  // endpoint ini, jadi tidak ada sumber data real untuk kategori itu.
+  var corpEmitenName = function(code) {
+    return (typeof DB !== 'undefined' && DB[code] && DB[code].name) ? DB[code].name : code;
+  };
+  var corpRenderPayloadRows = function(payload) {
+    if (!payload || typeof payload !== 'object' || Object.keys(payload).length === 0) {
+      return '<span style="color:var(--text3);font-size:11px">Tidak ada detail tambahan dari Invezgo untuk item ini.</span>';
+    }
+    return Object.keys(payload).map(function(k) {
+      return '<div style="font-size:10.5px;color:var(--text2)"><span style="color:var(--text3)">' + k + ':</span> ' + payload[k] + '</div>';
+    }).join('');
+  };
+  var corpRenderGenericTable = function(items, emptyMsg) {
+    if (!items.length) return '<div style="padding:16px;text-align:center;color:var(--text3);font-size:11px">' + emptyMsg + '</div>';
+    return '<table class="tbl"><thead><tr><th>Ticker &amp; Nama Emiten</th><th>Detail (Invezgo, mentah)</th><th style="text-align:center">Aksi</th></tr></thead><tbody>'
+      + items.map(function(item) {
+        return '<tr>'
+          + '<td><strong style="color:var(--text);font-size:13px">' + item.code + '</strong> <span style="font-size:11px;color:var(--text3)">' + corpEmitenName(item.code) + '</span></td>'
+          + '<td>' + corpRenderPayloadRows(item.payload) + '</td>'
+          + '<td style="text-align:center"><button class="btn btn-primary btn-xs" onclick="selectRadarFlowTicker(\'' + item.code + '\')">Alur Transaksi</button></td>'
+        + '</tr>';
+      }).join('')
+      + '</tbody></table>';
+  };
 
   var html = '<div class="card" style="padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
     + '<div>'
       + '<div style="font-weight:700;font-size:13px;color:var(--text)">Kalender Aksi Korporasi Bursa Efek Indonesia (IDX)</div>'
-      + '<div style="font-size:11px;color:var(--text3)">Jadwal Dividen Tunai, Stock Split, Rights Issue, RUPS, dan Status Suspensi/UMA.</div>'
+      + '<div style="font-size:11px;color:var(--text3)">' + (corpData.dataSource || '') + ' — detail per item ditampilkan apa adanya dari Invezgo (skema payload per tipe belum diverifikasi).</div>'
     + '</div>'
     + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
-      + '<button class="btn btn-xs ' + (activeFilter === 'ALL' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'ALL\').then(renderOpportunityRadarPage)">Semua (' + (divs.length + splits.length + rights.length + rups.length + susps.length) + ')</button>'
+      + '<button class="btn btn-xs ' + (activeFilter === 'ALL' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'ALL\').then(renderOpportunityRadarPage)">Semua (' + (divs.length + splits.length + rights.length + rups.length) + ')</button>'
       + '<button class="btn btn-xs ' + (activeFilter === 'DIVIDEN' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'DIVIDEN\').then(renderOpportunityRadarPage)">Dividen (' + divs.length + ')</button>'
       + '<button class="btn btn-xs ' + (activeFilter === 'SPLIT' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'SPLIT\').then(renderOpportunityRadarPage)">Stock Split (' + splits.length + ')</button>'
       + '<button class="btn btn-xs ' + (activeFilter === 'RIGHTS' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'RIGHTS\').then(renderOpportunityRadarPage)">Rights Issue (' + rights.length + ')</button>'
       + '<button class="btn btn-xs ' + (activeFilter === 'RUPS' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'RUPS\').then(renderOpportunityRadarPage)">RUPS (' + rups.length + ')</button>'
-      + '<button class="btn btn-xs ' + (activeFilter === 'SUSPENSI' ? 'btn-primary' : 'btn-ghost') + '" onclick="loadCorporateActionsData(\'SUSPENSI\').then(renderOpportunityRadarPage)">Suspensi (' + susps.length + ')</button>'
     + '</div>'
-  + '</div>';
+  + '</div>'
+  + (corpData.isSimulated ? '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-bottom:14px">' + (corpData.message || 'Data tidak tersedia.') + '</div>' : '');
 
-  // Section 1: Upcoming Dividends
   if (activeFilter === 'ALL' || activeFilter === 'DIVIDEN') {
     html += '<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">'
       + '<div style="padding:12px 16px;background:rgba(56,189,248,0.08);border-bottom:1px solid rgba(56,189,248,0.2);display:flex;justify-content:space-between;align-items:center">'
         + '<strong style="color:var(--accent);font-size:13px">KALENDER DIVIDEN TUNAI (CASH DIVIDEND)</strong>'
         + '<span class="badge b-accent">' + divs.length + ' Emiten</span>'
       + '</div>'
-      + '<div style="overflow-x:auto">'
-        + '<table class="tbl">'
-          + '<thead><tr>'
-            + '<th>Ticker &amp; Nama Emiten</th>'
-            + '<th style="text-align:right">DPS (Rp / Lbr)</th>'
-            + '<th style="text-align:right">Est. Dividend Yield</th>'
-            + '<th style="text-align:center">Cum Date</th>'
-            + '<th style="text-align:center">Ex Date</th>'
-            + '<th style="text-align:center">Payment Date</th>'
-            + '<th style="text-align:center">Aksi</th>'
-          + '</tr></thead>'
-          + '<tbody>'
-            + divs.map(function(d) {
-              return '<tr>'
-                + '<td><strong style="color:var(--text);font-size:13px">' + d.code + '</strong> <span style="font-size:11px;color:var(--text3)">' + d.name + '</span></td>'
-                + '<td class="mono up" style="text-align:right;font-weight:700">Rp ' + d.dps + '</td>'
-                + '<td class="mono up" style="text-align:right;font-weight:700">' + d.yield + '</td>'
-                + '<td class="mono" style="text-align:center">' + d.cumDate + '</td>'
-                + '<td class="mono" style="text-align:center">' + d.exDate + '</td>'
-                + '<td class="mono" style="text-align:center">' + d.paymentDate + '</td>'
-                + '<td style="text-align:center">'
-                  + '<button class="btn btn-primary btn-xs" onclick="selectRadarFlowTicker(\'' + d.code + '\')">Alur Transaksi</button>'
-                + '</td>'
-              + '</tr>';
-            }).join('')
-          + '</tbody>'
-        + '</table>'
-      + '</div>'
+      + '<div style="overflow-x:auto">' + corpRenderGenericTable(divs, 'Tidak ada jadwal dividen dari Invezgo saat ini.') + '</div>'
     + '</div>';
   }
 
-  // Section 2: Stock Splits & Rights Issues
   if (activeFilter === 'ALL' || activeFilter === 'SPLIT' || activeFilter === 'RIGHTS') {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px">';
-
     if (activeFilter === 'ALL' || activeFilter === 'SPLIT') {
       html += '<div class="card" style="padding:0;overflow:hidden">'
         + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">JADWAL STOCK SPLIT &amp; REVERSE SPLIT</div>'
-        + '<table class="tbl"><thead><tr><th>Ticker</th><th>Rasio</th><th>Effective Date</th></tr></thead><tbody>'
-          + splits.map(function(s) {
-            return '<tr>'
-              + '<td><strong>' + s.code + '</strong> <div style="font-size:10px;color:var(--text3)">' + s.name + '</div></td>'
-              + '<td class="mono up" style="font-weight:700">' + s.ratio + '</td>'
-              + '<td class="mono">' + s.effectiveDate + '</td>'
-            + '</tr>';
-          }).join('')
-        + '</tbody></table></div>';
+        + corpRenderGenericTable(splits, 'Tidak ada jadwal stock split dari Invezgo saat ini.')
+        + '</div>';
     }
-
     if (activeFilter === 'ALL' || activeFilter === 'RIGHTS') {
       html += '<div class="card" style="padding:0;overflow:hidden">'
         + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">JADWAL RIGHTS ISSUE (HMETD)</div>'
-        + '<table class="tbl"><thead><tr><th>Ticker</th><th>Rasio</th><th>Harga Tebus</th><th>Cum Date</th></tr></thead><tbody>'
-          + rights.map(function(r) {
-            return '<tr>'
-              + '<td><strong>' + r.code + '</strong> <div style="font-size:10px;color:var(--text3)">' + r.name + '</div></td>'
-              + '<td class="mono">' + r.ratio + '</td>'
-              + '<td class="mono up" style="font-weight:700">Rp ' + r.exercisePrice + '</td>'
-              + '<td class="mono">' + r.cumDate + '</td>'
-            + '</tr>';
-          }).join('')
-        + '</tbody></table></div>';
+        + corpRenderGenericTable(rights, 'Tidak ada jadwal rights issue dari Invezgo saat ini.')
+        + '</div>';
     }
-
     html += '</div>';
   }
 
-  // Section 3: RUPS & Suspensions
-  if (activeFilter === 'ALL' || activeFilter === 'RUPS' || activeFilter === 'SUSPENSI') {
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">';
-
-    if (activeFilter === 'ALL' || activeFilter === 'RUPS') {
-      html += '<div class="card" style="padding:0;overflow:hidden">'
-        + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">JADWAL RUPS / EGMS</div>'
-        + '<table class="tbl"><thead><tr><th>Ticker &amp; Jenis</th><th>Tanggal</th><th>Agenda &amp; Lokasi</th></tr></thead><tbody>'
-          + rups.map(function(u) {
-            return '<tr>'
-              + '<td><strong>' + u.code + '</strong> <div class="badge b-accent" style="font-size:9px">' + u.type + '</div></td>'
-              + '<td class="mono">' + u.date + '</td>'
-              + '<td style="font-size:11px;color:var(--text2)">' + u.agenda + '<div style="color:var(--text3);font-size:10px">' + u.venue + '</div></td>'
-            + '</tr>';
-          }).join('')
-        + '</tbody></table></div>';
-    }
-
-    if (activeFilter === 'ALL' || activeFilter === 'SUSPENSI') {
-      html += '<div class="card" style="padding:0;overflow:hidden">'
-        + '<div style="padding:12px 16px;background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);color:var(--red);font-weight:700;font-size:13px">STATUS SUSPENSI &amp; UNUSUAL MARKET ACTIVITY (UMA)</div>'
-        + '<table class="tbl"><thead><tr><th>Ticker</th><th>Status</th><th>Tanggal Suspensi</th><th>Alasan</th></tr></thead><tbody>'
-          + susps.map(function(sp) {
-            return '<tr>'
-              + '<td><strong>' + sp.code + '</strong> <div style="font-size:10px;color:var(--text3)">' + sp.name + '</div></td>'
-              + '<td><span class="badge ' + (sp.status.includes('SUSPEN') ? 'b-dn' : 'b-amb') + '" style="font-size:9px">' + sp.status + '</span></td>'
-              + '<td class="mono">' + sp.date + '</td>'
-              + '<td style="font-size:11px;color:var(--text2)">' + sp.reason + '</td>'
-            + '</tr>';
-          }).join('')
-        + '</tbody></table></div>';
-    }
-
-    html += '</div>';
+  if (activeFilter === 'ALL' || activeFilter === 'RUPS') {
+    html += '<div class="card" style="padding:0;overflow:hidden">'
+      + '<div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);font-weight:700;font-size:13px">JADWAL RUPS / EGMS</div>'
+      + corpRenderGenericTable(rups, 'Tidak ada jadwal RUPS dari Invezgo saat ini.')
+      + '</div>';
   }
 
   return html;

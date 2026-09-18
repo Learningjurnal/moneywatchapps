@@ -74,12 +74,27 @@ function buildConsolidatedReportHtml() {
   var etfMv = etf.reduce(function(acc, e) { return acc + (e.mvIdr || 0); }, 0);
   var rdMv = rd.reduce(function(acc, r) { return acc + (r.mv || 0); }, 0);
 
-  var ihsgVal = (typeof ihsg !== 'undefined' && ihsg > 0) ? ihsg.toLocaleString('id-ID') : '7.150,00';
-  var usdVal = (typeof usdIdr !== 'undefined' && usdIdr > 0) ? 'Rp ' + Math.round(usdIdr).toLocaleString('id-ID') : 'Rp 16.200';
+  // FIX (2026-09-18, audit menyeluruh): dulu kalau IHSG/kurs USD live
+  // belum ter-fetch saat laporan resmi ini dibuat, ditampilkan angka
+  // spesifik tetap (7.150,00 / Rp 16.200) TANPA disclosure apa pun — bisa
+  // disalahartikan sebagai kutipan pasar hari itu. Sekarang jujur
+  // menampilkan "Data Tidak Tersedia" saat live belum ter-fetch.
+  var ihsgIsLive = typeof ihsg !== 'undefined' && ihsg > 0;
+  var usdIsLive = typeof usdIdr !== 'undefined' && usdIdr > 0;
+  var ihsgVal = ihsgIsLive ? ihsg.toLocaleString('id-ID') : 'Data Tidak Tersedia';
+  var usdVal = usdIsLive ? ('Rp ' + Math.round(usdIdr).toLocaleString('id-ID')) : 'Data Tidak Tersedia';
 
   var dr = a.aset > 0 ? (a.debt.t / a.aset * 100) : 0;
   var grade = a.score >= 75 ? 'Sangat Sehat (Excellent)' : a.score >= 55 ? 'Baik (Good)' : 'Perlu Perhatian (Fair)';
-  var monthlyExp = (typeof WEALTH !== 'undefined' && WEALTH.expense) ? WEALTH.expense : 10000000;
+  // FIX (audit menyeluruh): dulu kalau WEALTH.expense belum diisi user
+  // (0, state default — lihat 20-wealth.js's sendiri "Lengkapi asumsi
+  // keuangan" hint untuk kondisi yang sama), dipakai angka fallback
+  // Rp 10.000.000/bulan yang mengalir ke Target FIRE & % Kesiapan FIRE
+  // seolah dihitung dari data user riil. Sekarang dibiarkan 0 (jujur) —
+  // fireTarget/firePct/swrCoverage di bawah sudah punya guard `> 0` yang
+  // menghasilkan 0%/tidak dihitung, bukan angka karangan.
+  var monthlyExpAvailable = typeof WEALTH !== 'undefined' && !!WEALTH.expense;
+  var monthlyExp = monthlyExpAvailable ? WEALTH.expense : 0;
   var monthlyInc = (typeof WEALTH !== 'undefined' && WEALTH.income) ? WEALTH.income : 0;
   var annualExp = monthlyExp * 12;
   var fireTarget = annualExp * 25;
@@ -183,13 +198,17 @@ function buildConsolidatedReportHtml() {
     { label: '💎 Fat FIRE (200%)', desc: 'Gaya hidup makmur berlebih & leluasa', cost: monthlyExp * 2, tgt: fireTarget * 2 },
     { label: '☕ Barista FIRE (50%)', desc: '50% pasif modal + 50% freelance/passion', cost: monthlyExp * 0.5, tgt: fireTarget * 0.5 }
   ].map(function(s) {
-    var isReached = a.net >= s.tgt;
-    var status = isReached ? '<span style="color:#047857;font-weight:700">✓ Tercapai</span>' : (a.net / s.tgt * 100).toFixed(1) + '%';
+    // FIX (audit menyeluruh): saat monthlyExp belum diisi user (tgt=0
+    // untuk semua skenario), `a.net >= 0` nyaris selalu true — dulu ini
+    // akan tampil "✓ Tercapai" palsu untuk SEMUA skenario FIRE, bukan
+    // karena target benar-benar tercapai tapi karena datanya kosong.
+    var isReached = monthlyExpAvailable && a.net >= s.tgt;
+    var status = !monthlyExpAvailable ? '<span style="color:#f59e0b;font-weight:700">Data Belum Diisi</span>' : (isReached ? '<span style="color:#047857;font-weight:700">✓ Tercapai</span>' : (a.net / s.tgt * 100).toFixed(1) + '%');
     return '<tr style="border-bottom:1px solid #e2e8f0;' + (s.label.includes('Regular') ? 'background:#f8fafc;' : '') + '">'
       + '<td style="padding:5px 8px;font-weight:700">' + s.label + '</td>'
       + '<td style="padding:5px 8px;color:#64748b;font-size:9.5px">' + s.desc + '</td>'
-      + '<td style="padding:5px 8px;text-align:right;font-family:monospace">' + _mwPdfRp(s.cost) + '</td>'
-      + '<td style="padding:5px 8px;text-align:right;font-family:monospace;font-weight:700">' + _mwPdfRp(s.tgt) + '</td>'
+      + '<td style="padding:5px 8px;text-align:right;font-family:monospace">' + (monthlyExpAvailable ? _mwPdfRp(s.cost) : '—') + '</td>'
+      + '<td style="padding:5px 8px;text-align:right;font-family:monospace;font-weight:700">' + (monthlyExpAvailable ? _mwPdfRp(s.tgt) : '—') + '</td>'
       + '<td style="padding:5px 8px;text-align:center">' + status + '</td>'
       + '</tr>';
   }).join('');
@@ -245,8 +264,11 @@ function buildConsolidatedReportHtml() {
     + '    </div>'
     + '    <div style="text-align:right">'
     + '      <div style="font-size:9px;color:#94a3b8;text-transform:uppercase">Kesiapan FIRE</div>'
-    + '      <div style="font-size:15px;font-weight:800;font-family:monospace;color:#34d399;margin-top:2px">' + firePct.toFixed(1) + '%</div>'
-    + '      <div style="font-size:8.5px;color:#94a3b8">Target: ' + _mwPdfRp(fireTarget) + '</div>'
+    + (monthlyExpAvailable
+        ? '      <div style="font-size:15px;font-weight:800;font-family:monospace;color:#34d399;margin-top:2px">' + firePct.toFixed(1) + '%</div>'
+          + '      <div style="font-size:8.5px;color:#94a3b8">Target: ' + _mwPdfRp(fireTarget) + '</div>'
+        : '      <div style="font-size:12px;font-weight:700;font-family:monospace;color:#f59e0b;margin-top:2px">Belum Diisi</div>'
+          + '      <div style="font-size:8.5px;color:#94a3b8">Isi pengeluaran bulanan di Wealth</div>')
     + '    </div>'
     + '  </div>'
     + '</div>'
@@ -435,7 +457,12 @@ function exportConsolidatedPortfolioCsv() {
     emMonths: 0, score: 70, inv: { saham: 0, crypto: 0, etf: 0, rd: 0, kas: 0 }
   };
 
-  var monthlyExp = (typeof WEALTH !== 'undefined' && WEALTH.expense) ? WEALTH.expense : 10000000;
+  // FIX (2026-09-18, audit menyeluruh): lihat catatan di
+  // buildConsolidatedReportHtml() — dulu fallback Rp 10.000.000/bulan
+  // dipakai diam-diam saat WEALTH.expense belum diisi, mengalir ke Target
+  // FIRE & status "Tercapai" yang salah untuk export CSV ini juga.
+  var monthlyExpAvailable = typeof WEALTH !== 'undefined' && !!WEALTH.expense;
+  var monthlyExp = monthlyExpAvailable ? WEALTH.expense : 0;
   var annualExp = monthlyExp * 12;
   var fireTarget = annualExp * 25;
   var firePct = fireTarget > 0 ? (a.net / fireTarget * 100) : 0;
@@ -547,17 +574,20 @@ function exportConsolidatedPortfolioCsv() {
 
   csvLines.push('=== 6. ANALISIS SASARAN & PROYEKSI FIRE ===');
   csvLines.push('Parameter FIRE;Nilai;Keterangan');
-  csvLines.push('Pengeluaran Bulanan Saat Ini;' + Math.round(monthlyExp) + ';' + _mwCsvEsc('Basis Rule of 25×'));
-  csvLines.push('Target Regular FIRE Number (25×);' + Math.round(fireTarget) + ';' + _mwCsvEsc('Target dana pensiun mandiri'));
+  csvLines.push('Pengeluaran Bulanan Saat Ini;' + (monthlyExpAvailable ? Math.round(monthlyExp) : 'Belum Diisi') + ';' + _mwCsvEsc('Basis Rule of 25×'));
+  csvLines.push('Target Regular FIRE Number (25×);' + (monthlyExpAvailable ? Math.round(fireTarget) : 'Belum Diisi') + ';' + _mwCsvEsc('Target dana pensiun mandiri'));
   csvLines.push('Total Net Worth Terkumpul;' + Math.round(a.net) + ';-');
-  csvLines.push('Persentase Kesiapan FIRE;' + firePct.toFixed(2) + '%;' + _mwCsvEsc(firePct >= 100 ? 'Bebas Finansial Tercapai' : 'Kekurangan: Rp ' + Math.round(fireShortfall).toLocaleString('id-ID')));
+  csvLines.push('Persentase Kesiapan FIRE;' + (monthlyExpAvailable ? (firePct.toFixed(2) + '%') : 'Belum Diisi') + ';' + _mwCsvEsc(!monthlyExpAvailable ? 'Isi pengeluaran bulanan di Wealth' : (firePct >= 100 ? 'Bebas Finansial Tercapai' : 'Kekurangan: Rp ' + Math.round(fireShortfall).toLocaleString('id-ID'))));
   csvLines.push('Safe Withdrawal Rate (4% Rule/Bulan);' + Math.round(swr4Monthly) + ';' + _mwCsvEsc('Arus kas pasif per bulan'));
   csvLines.push('');
   csvLines.push('Skenario FIRE;Faktor;Biaya Hidup/Bln (IDR);Target Dana 25× (IDR);Status Capaian');
-  csvLines.push(['Lean FIRE', '70%', Math.round(monthlyExp * 0.7), Math.round(fireTarget * 0.7), (a.net >= fireTarget * 0.7 ? 'Tercapai' : (a.net / (fireTarget * 0.7) * 100).toFixed(1) + '%')].join(';'));
-  csvLines.push(['Regular FIRE', '100%', Math.round(monthlyExp), Math.round(fireTarget), (a.net >= fireTarget ? 'Tercapai' : firePct.toFixed(1) + '%')].join(';'));
-  csvLines.push(['Fat FIRE', '200%', Math.round(monthlyExp * 2), Math.round(fireTarget * 2), (a.net >= fireTarget * 2 ? 'Tercapai' : (a.net / (fireTarget * 2) * 100).toFixed(1) + '%')].join(';'));
-  csvLines.push(['Barista FIRE', '50%', Math.round(monthlyExp * 0.5), Math.round(fireTarget * 0.5), (a.net >= fireTarget * 0.5 ? 'Tercapai' : (a.net / (fireTarget * 0.5) * 100).toFixed(1) + '%')].join(';'));
+  // FIX (2026-09-18, audit menyeluruh): saat monthlyExp belum diisi,
+  // fireTarget=0 untuk semua skenario dan `a.net >= 0` nyaris selalu
+  // true — dulu ini menghasilkan "Tercapai" palsu di seluruh baris.
+  csvLines.push(['Lean FIRE', '70%', (monthlyExpAvailable ? Math.round(monthlyExp * 0.7) : '-'), (monthlyExpAvailable ? Math.round(fireTarget * 0.7) : '-'), (!monthlyExpAvailable ? 'Data Belum Diisi' : (a.net >= fireTarget * 0.7 ? 'Tercapai' : (a.net / (fireTarget * 0.7) * 100).toFixed(1) + '%'))].join(';'));
+  csvLines.push(['Regular FIRE', '100%', (monthlyExpAvailable ? Math.round(monthlyExp) : '-'), (monthlyExpAvailable ? Math.round(fireTarget) : '-'), (!monthlyExpAvailable ? 'Data Belum Diisi' : (a.net >= fireTarget ? 'Tercapai' : firePct.toFixed(1) + '%'))].join(';'));
+  csvLines.push(['Fat FIRE', '200%', (monthlyExpAvailable ? Math.round(monthlyExp * 2) : '-'), (monthlyExpAvailable ? Math.round(fireTarget * 2) : '-'), (!monthlyExpAvailable ? 'Data Belum Diisi' : (a.net >= fireTarget * 2 ? 'Tercapai' : (a.net / (fireTarget * 2) * 100).toFixed(1) + '%'))].join(';'));
+  csvLines.push(['Barista FIRE', '50%', (monthlyExpAvailable ? Math.round(monthlyExp * 0.5) : '-'), (monthlyExpAvailable ? Math.round(fireTarget * 0.5) : '-'), (!monthlyExpAvailable ? 'Data Belum Diisi' : (a.net >= fireTarget * 0.5 ? 'Tercapai' : (a.net / (fireTarget * 0.5) * 100).toFixed(1) + '%'))].join(';'));
 
   var csvContent = bom + csvLines.join('\r\n');
   var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -587,7 +617,11 @@ function copyPortfolioSummaryMarkdown() {
     piu: { sisa: 0, pokok: 0, terbayar: 0 }, div12: 0, passive: 0,
     emMonths: 0, score: 70, inv: { saham: 0, crypto: 0, etf: 0, rd: 0, kas: 0 }
   };
-  var monthlyExp = (typeof WEALTH !== 'undefined' && WEALTH.expense) ? WEALTH.expense : 10000000;
+  // FIX (2026-09-18, audit menyeluruh): lihat catatan di
+  // buildConsolidatedReportHtml() — fallback Rp 10.000.000/bulan yang
+  // sama juga ada di sini.
+  var monthlyExpAvailable = typeof WEALTH !== 'undefined' && !!WEALTH.expense;
+  var monthlyExp = monthlyExpAvailable ? WEALTH.expense : 0;
   var fireTarget = monthlyExp * 12 * 25;
   var firePct = fireTarget > 0 ? (a.net / fireTarget * 100) : 0;
 
@@ -612,9 +646,11 @@ function copyPortfolioSummaryMarkdown() {
     + '- **Dividen 12 Bulan**: ' + _mwPdfRp(a.div12) + '\n'
     + '- **Wealth Health Score**: ' + a.score + '/100\n\n'
     + '## 🔥 Status Sasaran FIRE (Pensiun Dini)\n'
-    + '- **Biaya Hidup Bulanan**: ' + _mwPdfRp(monthlyExp) + '/bulan\n'
-    + '- **Target FIRE Number (25×)**: ' + _mwPdfRp(fireTarget) + '\n'
-    + '- **Kesiapan FIRE**: ' + firePct.toFixed(1) + '%\n'
+    + (monthlyExpAvailable
+        ? '- **Biaya Hidup Bulanan**: ' + _mwPdfRp(monthlyExp) + '/bulan\n'
+          + '- **Target FIRE Number (25×)**: ' + _mwPdfRp(fireTarget) + '\n'
+          + '- **Kesiapan FIRE**: ' + firePct.toFixed(1) + '%\n'
+        : '- **Biaya Hidup Bulanan**: Belum diisi (isi di halaman Wealth agar FIRE Number bisa dihitung)\n')
     + '- **4% Safe Withdrawal Rate**: ' + _mwPdfRp(a.net * 0.04 / 12) + '/bulan\n\n'
     + '## 🏆 Top Kepemilikan Saham\n'
     + (topHoldings || '- Belum ada posisi saham aktif') + '\n\n'

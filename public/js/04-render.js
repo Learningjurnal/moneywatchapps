@@ -190,37 +190,48 @@ function renderDashboardHeatmapPreview(){
 }
 
 // Command Center zone: Smart Money Flow (P0 slice 5, UIUX_ROADMAP_AUDIT.md
-// §7 — deferred until KNOWN_ISSUES.md #3 was fixed). Reuses
-// generateClientSideBrokerSummary() (41-stockchat-cockpit.js) for the same
-// Big 4 Banks renderBandarmologyMarketFlowView() reads — synchronous, no
-// separate fetch. Transaction volume/value from that function are
-// estimates (BEI has no free/public per-broker feed), so this card shows
-// the same SIMULASI disclosure badge the full Bandarmology market views
-// carry, rather than presenting them as real institutional flow.
-function renderDashboardSmartFlowPreview(){
+// §7 — deferred until KNOWN_ISSUES.md #3 was fixed).
+// FIX (2026-09-18, user-reported after full-codebase audit): this used to
+// call generateClientSideBrokerSummary() DIRECTLY — the last-resort
+// fallback that skips the real backend entirely — so this card ALWAYS
+// showed the "SIMULASI" badge even when Invezgo was configured and
+// working fine for the exact same 4 tickers elsewhere in the app (e.g.
+// Bandarmology → Analisis Full Emiten). Now goes through
+// fetchBrokerSummaryData() (41-stockchat-cockpit.js), which tries the real
+// backend (Invezgo) first and only falls through to the honest-empty
+// client-side fallback on failure — same real-data-first path every other
+// Bandarmology view already uses.
+async function renderDashboardSmartFlowPreview(){
   var box = el('dash-smartflow-body');
   if(!box) return;
   try {
-    if(typeof generateClientSideBrokerSummary !== 'function'){
+    if(typeof fetchBrokerSummaryData !== 'function'){
       box.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Modul Bandarmology belum termuat.</div>';
       return;
     }
     var tickers = ['BBCA','BBRI','BMRI','BBNI'];
-    var totalNet = 0, accCount = 0;
-    tickers.forEach(function(tk){
-      var bd = generateClientSideBrokerSummary(tk, '1D');
+    var results = await Promise.all(tickers.map(function(tk){ return fetchBrokerSummaryData(tk, '1D'); }));
+    var totalNet = 0, accCount = 0, realCount = 0;
+    results.forEach(function(bd){
       var netVal = (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
-      totalNet += netVal;
-      if(netVal >= 0) accCount++;
+      totalNet += (netVal || 0);
+      if((netVal || 0) >= 0) accCount++;
+      if(bd.isSimulated === false) realCount++;
     });
     var totalM = Math.round(totalNet / 1000000000);
     var verdict = totalM >= 0 ? 'NET ACCUMULATION' : 'NET DISTRIBUTION';
     var vc = totalM >= 0 ? '#41f3a7' : '#e21d48';
+    var isFullyReal = realCount === tickers.length;
+    var badge = isFullyReal
+      ? '<span class="badge b-up" style="font-size:9px" title="Data REAL dari Invezgo API untuk keempat bank">REAL</span>'
+      : (realCount > 0
+        ? '<span class="badge b-amb" style="font-size:9px" title="' + realCount + ' dari 4 bank memakai data REAL Invezgo, sisanya belum tersedia">SEBAGIAN REAL (' + realCount + '/4)</span>'
+        : '<span class="badge b-dn" style="font-size:9px" title="Invezgo tidak tersedia untuk keempat bank saat ini">TIDAK TERSEDIA</span>');
     box.innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       + '<div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Big 4 Banks Net Flow</div>'
       + '<div class="mono" style="font-size:18px;font-weight:800;color:' + vc + '">' + (totalM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totalM).toLocaleString('id-ID') + ' M</div></div>'
-      + '<span class="badge b-amb" style="font-size:9px" title="Nilai transaksi &amp; volume adalah estimasi — belum ada feed broker-flow real per-menit untuk BEI">SIMULASI</span>'
+      + badge
       + '</div>'
       + '<div style="font-size:11px;color:var(--text2)">' + verdict + ' — ' + accCount + ' dari 4 bank besar menunjukkan akumulasi.</div>';
   } catch(err){

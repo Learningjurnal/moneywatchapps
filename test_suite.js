@@ -1061,12 +1061,22 @@ test('REGRESSION GUARD: Market Heatmap preview must keep the real-vs-simulated d
     'renderDashboardHeatmapPreview() no longer reads .simulated off FS_RD rows — would show a fabricated score identically to a real one');
   assert(/fsSrcDot\(/.test(fn[0]), 'renderDashboardHeatmapPreview() no longer calls fsSrcDot() — the SIM marker would be missing from this preview');
 });
-test('REGRESSION GUARD: Smart Money Flow preview must keep the SIMULASI disclosure badge (KNOWN_ISSUES.md #3)', () => {
+// FIX (2026-09-18, user-reported after full-codebase audit): this card
+// used to call generateClientSideBrokerSummary() DIRECTLY, skipping the
+// real backend entirely — so it ALWAYS showed "SIMULASI" even when
+// Invezgo was configured and returning real data for these exact 4
+// tickers elsewhere in the app. Now goes through fetchBrokerSummaryData()
+// (real-data-first, same path every other Bandarmology view uses) and
+// shows a dynamic badge (REAL / SEBAGIAN REAL / TIDAK TERSEDIA) reflecting
+// actual per-ticker isSimulated flags, instead of a badge that was always
+// "SIMULASI" by construction.
+test('REGRESSION GUARD: Smart Money Flow preview must fetch real data first (fetchBrokerSummaryData), not skip straight to the simulated fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
-  const fn = src.match(/function renderDashboardSmartFlowPreview\(\)\{[\s\S]*?\n\}/);
-  assert(fn, 'renderDashboardSmartFlowPreview() body not found');
-  assert(/generateClientSideBrokerSummary\(/.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer reuses generateClientSideBrokerSummary()');
-  assert(/>SIMULASI</.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer shows the SIMULASI disclosure badge');
+  const fn = src.match(/async function renderDashboardSmartFlowPreview\(\)\{[\s\S]*?\n\}/);
+  assert(fn, 'renderDashboardSmartFlowPreview() body not found (must be async now)');
+  assert(/fetchBrokerSummaryData\(/.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer calls fetchBrokerSummaryData() — the real-data-first path');
+  assert(!/generateClientSideBrokerSummary\(/.test(fn[0]), 'REGRESSION: renderDashboardSmartFlowPreview() reverted to calling generateClientSideBrokerSummary() directly, skipping the real backend');
+  assert(/isSimulated === false/.test(fn[0]), 'renderDashboardSmartFlowPreview() no longer checks isSimulated to show a dynamic (not always-SIMULASI) badge');
 });
 test('REGRESSION GUARD: dashboard HTML must still have both new zone containers', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
@@ -4591,6 +4601,66 @@ test('MASTER DOSSIER: Individual pillar scoring models behave within valid quant
   assert.strictEqual(regimeResEmpty.score, 55, 'Empty regime should fallback safely to neutral sideways (55) without crashing');
 });
 
+// User-reported (2026-09-18): Stock Dossier's "Kepemilikan Kustodian KSEI"
+// pillar showed "DATA TIDAK TERSEDIA" for major tickers (BBCA/BBRI/GGRM)
+// even though the app already has a working, live Invezgo endpoint for
+// shareholder composition (/api/idx/shareholder-composition/:ticker, built
+// earlier this session for 34-ksei-shareholders.js) — root cause: the
+// static ~840/958-ticker Google Sheets snapshot (data/ksei-shareholders.json,
+// dated 26 Aug 2026) simply doesn't have those tickers, and
+// dossierComputeKseiScore() never tried the live Invezgo source as a
+// fallback. Fixed by adding a fallback path that derives an honest,
+// clearly-different metric (institutional/foreign % from real KSEI
+// category share counts) instead of declaring the pillar unavailable.
+test('REGRESSION GUARD: Stock Dossier KSEI pillar falls back to live Invezgo composition when the static >5%-holder dataset has no entry for the ticker', () => {
+  const dossier = getDossierContext();
+
+  // Static dataset genuinely has no entry (found:false, the exact shape
+  // GET /api/ksei/stock/:ticker returns for a missing ticker) AND a real
+  // Invezgo composition IS available — must NOT report DATA_UNAVAILABLE.
+  const kseiFallbackSample = {
+    ksei: { success: true, found: false, ticker: 'BBCA', stock: { ticker: 'BBCA', name: 'BBCA', investors: [], totalMajorPercent: 0, freeFloat: 100, localPercent: 0, foreignPercent: 0 } },
+    kseiLive: {
+      available: true,
+      kseiLatest: {
+        date: '2026-08-31',
+        foreign: { is: 0, cp: 0, pf: 0, ib: 0, id: 5000000, mf: 0, sc: 0, fd: 0, ot: 0 },
+        local: { is: 20000000, cp: 30000000, pf: 5000000, ib: 10000000, id: 25000000, mf: 5000000, sc: 0, fd: 0, ot: 0 },
+        foreignTotal: 5000000,
+        localTotal: 95000000
+      }
+    }
+  };
+  const fallbackRes = dossier.dossierComputeKseiScore(kseiFallbackSample);
+  assert.strictEqual(fallbackRes.available, true, 'REGRESSION: KSEI pillar must be available when live Invezgo composition exists, even if the static dataset has no entry');
+  assert.strictEqual(fallbackRes.status, 'REAL', 'REGRESSION: the live-composition fallback must be labeled REAL, not left unavailable');
+  assert.strictEqual(fallbackRes.freeFloat, null, 'REGRESSION: freeFloat must stay honestly null in the fallback (individual-category share is NOT the same thing as official Free Float)');
+  assert(typeof fallbackRes.institutionalPct === 'number' && fallbackRes.institutionalPct > 0, 'REGRESSION: institutionalPct must be a real derived number in the fallback');
+  assert(typeof fallbackRes.foreignPct === 'number', 'REGRESSION: foreignPct must be a real derived number in the fallback');
+  assert(/komposisi kepemilikan LIVE Invezgo/i.test(fallbackRes.reason), 'REGRESSION: the fallback reason must honestly disclose it is using live Invezgo composition, not official Free Float');
+
+  // Neither the static dataset NOR live Invezgo has anything — must stay
+  // honestly DATA_UNAVAILABLE (no fabrication when truly nothing exists).
+  const kseiNoneSample = {
+    ksei: { success: true, found: false, ticker: 'ZZZZ', stock: { ticker: 'ZZZZ', investors: [], totalMajorPercent: 0, freeFloat: 100 } },
+    kseiLive: { available: false }
+  };
+  const noneRes = dossier.dossierComputeKseiScore(kseiNoneSample);
+  assert.strictEqual(noneRes.available, false, 'REGRESSION: KSEI pillar must stay unavailable when neither static nor live Invezgo data exists');
+
+  // The existing named-holder (static dataset) path must still work exactly
+  // as before — this fallback must not have broken the primary path.
+  const kseiNamedSample = { ksei: { found: true, stock: { freeFloat: 28, localPercent: 35, foreignPercent: 30 } } };
+  const namedRes = dossier.dossierComputeKseiScore(kseiNamedSample);
+  assert.strictEqual(namedRes.available, true, 'REGRESSION: the existing named->5%-holder path must remain available');
+  assert(namedRes.score >= 75, 'REGRESSION: the existing named->5%-holder scoring must be unchanged (healthy 28% free float should still score >= 75)');
+
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(/kseiLivePromise/.test(src), 'REGRESSION: dossierHarvestData() no longer fetches the live Invezgo shareholder-composition endpoint');
+  assert(/shareholder-composition\//.test(src), 'REGRESSION: dossierHarvestData() no longer calls /api/idx/shareholder-composition/');
+  assert(/harvested\.kseiLive/.test(src), 'REGRESSION: harvested.kseiLive is gone — the KSEI pillar has no live-Invezgo fallback source');
+});
+
 test('MASTER DOSSIER: Non-universe ticker rejection & zero dummy data mandate (AGENTS.md §1, §5, §28)', async () => {
   const dossier = getDossierContext();
 
@@ -4739,8 +4809,15 @@ test('REGRESSION GUARD: lib/idx-data-engine.js loads cleanly without ReferenceEr
     assert(engineSrc.includes("import('@upstash/redis')"), 'Must use dynamic import for @upstash/redis');
     assert(engineSrc.includes('_dqRedisClient = (Redis &&'), 'Must check that Redis is truthy before instantiating new Redis');
   } finally {
-    process.env.UPSTASH_REDIS_REST_URL = origUrl;
-    process.env.UPSTASH_REDIS_REST_TOKEN = origToken;
+    // FIX (2026-09-18, discovered via the Unified Screener's new behavioral
+    // test failing downstream): `process.env.X = undefined` does NOT delete
+    // the var — Node coerces it to the literal string "undefined", which
+    // then poisons every later test in this same process that dynamically
+    // imports a module gating a real Redis client on these exact env vars
+    // (e.g. lib/providers/yahoo-client.js's `new Redis({url: "undefined"})`
+    // throws "invalid URL"). Must delete when the original was unset.
+    if (origUrl === undefined) delete process.env.UPSTASH_REDIS_REST_URL; else process.env.UPSTASH_REDIS_REST_URL = origUrl;
+    if (origToken === undefined) delete process.env.UPSTASH_REDIS_REST_TOKEN; else process.env.UPSTASH_REDIS_REST_TOKEN = origToken;
   }
 });
 
@@ -4786,6 +4863,37 @@ test('REGRESSION GUARD: 24-stockmaster.js techRenderChart guards division by zer
   const stockmasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
   assert(stockmasterSrc.includes('var chgPct = prevPrice > 0 ? (chg / prevPrice * 100) : 0;'), 'Must guard division by zero for chgPct in techRenderChart');
   assert(stockmasterSrc.includes('var curPrice = Number(closePrices[closePrices.length - 1]) || 0;'), 'Must guard curPrice against NaN/null');
+});
+
+// Audit finding (2026-09-18, proactive audit requested by user after the
+// Stock Dossier KSEI fix): the "Fundamental" page (24-stockmaster.js,
+// PROFILES hardcoded snapshot for ~60 tickers) and the "Harga Wajar" page
+// (10-hargawajar.js, STOCK_FINANCIAL_DATABASE hardcoded snapshot) each had
+// their OWN independently hand-curated EPS/ROE/BVPS numbers for the same
+// ticker, never cross-checked against the live Invezgo financial-statement
+// endpoint built earlier this session (generateFinancialStatementSummary,
+// /api/idx/financial-statement/:ticker) — verified directly for BBCA: EPS
+// 395 (Harga Wajar) vs EPS 420 (Fundamental), ROE ~19.9% vs 23.5%. User
+// chose (AskUserQuestion): make live Invezgo the primary source on BOTH
+// pages, hardcoded snapshots become fallback only.
+test('REGRESSION GUARD: Fundamental page (24-stockmaster.js) tries live Invezgo financial-statement before falling back to the hardcoded PROFILES snapshot', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(/async function fundLoadFallbackData/.test(src), 'REGRESSION: fundLoadFallbackData() is no longer async — it can no longer await a live Invezgo fetch before finalizing eps/bvps/roe/shares');
+  assert(/fetch\('\/api\/idx\/financial-statement\/'/.test(src), 'REGRESSION: fundLoadFallbackData() no longer fetches the live Invezgo financial-statement endpoint');
+  assert(/source:\s*'invezgo_real'/.test(src), 'REGRESSION: the invezgo_real dataQuality tag is gone — Fundamental page no longer distinguishes live-Invezgo numbers from the hardcoded snapshot');
+  assert(/await fundLoadFallbackData\(cleanCode, liveMeta, livePrice\)/.test(src), 'REGRESSION: a call site stopped awaiting the now-async fundLoadFallbackData(), so the Invezgo override would race the render');
+  // The PROFILES table itself must still exist as a fallback (not deleted) —
+  // per the user's chosen approach, the hardcoded snapshot stays as a
+  // fallback for when Invezgo is unavailable, it's not replaced outright.
+  assert(/var PROFILES = \{/.test(src), 'REGRESSION: the PROFILES fallback table was removed — Invezgo failures would leave the Fundamental page with zero data instead of a labeled fallback');
+});
+
+test('REGRESSION GUARD: Harga Wajar auto-fill tries live Invezgo for EVERY ticker (including ones in the curated database), not just uncurated ones', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/10-hargawajar.js'), 'utf8');
+  const fnSrc = src.match(/function hw_autoFill\(\)[\s\S]*?\nwindow\.hw_autoFill = hw_autoFill;/)[0];
+  assert(!/if \(!STOCK_FINANCIAL_DATABASE\[tk\]\)/.test(fnSrc), 'REGRESSION: hw_autoFill() reverted to skipping the live Invezgo fetch for tickers already in STOCK_FINANCIAL_DATABASE');
+  assert(/hw_fetchRealFinancialStatement\(tk, function\(result\)/.test(fnSrc), 'REGRESSION: hw_fetchRealFinancialStatement() is no longer called unconditionally for every ticker');
+  assert(/STOCK_FINANCIAL_DATABASE\[tk\]/.test(fnSrc), 'REGRESSION: the curated STOCK_FINANCIAL_DATABASE fallback (used when Invezgo is unavailable) is gone from hw_autoFill()');
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -5048,14 +5156,22 @@ test('REGRESSION GUARD: Invezgo quota budget planning — longer cache TTL + quo
 test('REGRESSION GUARD: Bandarmology market-aggregate views use real Invezgo data when available, and correctly read both real/simulated field-name shapes', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
 
-  // 1. The 5 reachable market-aggregate views must no longer call
+  // 1. These market-aggregate views must no longer call
   // generateClientSideBrokerSummary() directly for their per-ticker loop —
   // they must go through bandarGetCachedSummary() (real-data-aware) instead.
+  // (renderBandarmologyForeignFlowView() was REPLACED entirely on 2026-09-18
+  // — it no longer loops a client-side ticker sample at all, real or
+  // simulated; it now fetches whole-market real data from a dedicated
+  // server endpoint. See the getUniverseForeignFlow() regression test
+  // below for its own coverage. renderBandarmologyAccumulationView()/
+  // renderBandarmologyDistributionView() were REPLACED the same way, same
+  // day — they now fetch GET /api/idx/accumulation-distribution
+  // (whole-market real Invezgo data) instead of looping a client cache.
+  // renderBandarmologyBrokerTrailView() is the one view of these 4 that
+  // genuinely has no whole-market Invezgo equivalent — see its own
+  // scope-disclosure test below — so it's the only one still checked here.)
   const viewBounds = [
     ['renderBandarmologyMarketFlowView', /function renderBandarmologyMarketFlowView[\s\S]*?\n}\n/],
-    ['renderBandarmologyForeignFlowView', /function renderBandarmologyForeignFlowView[\s\S]*?\n}\n/],
-    ['renderBandarmologyAccumulationView', /function renderBandarmologyAccumulationView[\s\S]*?\n}\n/],
-    ['renderBandarmologyDistributionView', /function renderBandarmologyDistributionView[\s\S]*?\n}\n/],
     ['renderBandarmologyBrokerTrailView', /function renderBandarmologyBrokerTrailView[\s\S]*?\n}\n/]
   ];
   viewBounds.forEach(([name, re]) => {
@@ -5895,6 +6011,602 @@ test('REGRESSION GUARD: vercel.json must schedule the radar-fundamentals cron on
   const fields = cronEntry.schedule.split(' ');
   assert(/^\d+$/.test(fields[0]) && /^\d+$/.test(fields[1]) && fields[2] === '*' && fields[3] === '*' && fields[4] === '*',
     'REGRESSION: the cron schedule no longer runs exactly once/day — Vercel Hobby (the user\'s plan) only allows 1 cron execution per day');
+});
+
+// ── TEST: getUniverseForeignFlow() must scan the WHOLE BEI market via
+// Invezgo's dedicated /analysis/top/foreign endpoint, never a hardcoded
+// ticker sample ──
+// User-reported (screenshot, 2026-09-18): "TOP 5 FOREIGN NET BUY... apakah
+// khusus LQ45? atau semua saham... jangan hanya analisa LQ45, analisa
+// semua emiten" — the old renderBandarmologyForeignFlowView() iterated a
+// hardcoded ~42-ticker sample AND had a separate bug (bandarForeignNetRp()
+// read a null netValRp for every real-data ticker, so both Net Buy/Net
+// Sell columns showed identical "+Rp 0 M" rows in the same order).
+test('REGRESSION GUARD: getUniverseForeignFlow() must scan the whole BEI market via fetchInvezgoTopMovers(\'foreign\'), not a hardcoded ticker sample', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function getUniverseForeignFlow/.test(engineSrc), 'REGRESSION: getUniverseForeignFlow() is gone from lib/idx-data-engine.js');
+  const fnSrc = engineSrc.match(/async function getUniverseForeignFlow[\s\S]*?\n\}\n/)[0];
+
+  assert(/fetchInvezgoTopMovers\(\s*'foreign'/.test(fnSrc),
+    'REGRESSION: getUniverseForeignFlow() no longer calls fetchInvezgoTopMovers(\'foreign\', ...) — the whole-market Invezgo endpoint');
+  assert(/netBuy\s*=\s*\(result\.accum \|\| \[\]\)\.map\(mapRow\)\.sort/.test(fnSrc),
+    'REGRESSION: getUniverseForeignFlow() no longer builds netBuy from result.accum');
+  assert(/netSell\s*=\s*\(result\.dist \|\| \[\]\)\.map\(mapRow\)\.sort/.test(fnSrc),
+    'REGRESSION: getUniverseForeignFlow() no longer builds netSell from result.dist');
+  assert(/isSimulated:\s*true/.test(fnSrc) && /NOT_CONFIGURED|Invezgo API key belum dikonfigurasi/.test(fnSrc),
+    'REGRESSION: getUniverseForeignFlow() no longer honestly reports isSimulated:true when Invezgo is not configured');
+
+  assert(/getUniverseForeignFlow,/.test(engineSrc), 'REGRESSION: getUniverseForeignFlow is no longer exported from lib/idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/foreign-flow'/.test(serverSrc), 'REGRESSION: GET /api/idx/foreign-flow route is gone from server.js');
+  assert(/getUniverseForeignFlow\(\)/.test(serverSrc), 'REGRESSION: the /api/idx/foreign-flow route no longer calls getUniverseForeignFlow()');
+
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const foreignViewSrc = cockpitSrc.match(/function renderBandarmologyForeignFlowView[\s\S]*?\n\}\n/)[0];
+  assert(!/var sampleTickers = \[/.test(foreignViewSrc),
+    'REGRESSION: renderBandarmologyForeignFlowView() reverted to iterating a hardcoded ticker sample instead of the whole-market endpoint');
+  assert(/async function bandarLoadRealForeignFlow/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() is gone — Foreign Flow view no longer fetches real whole-market data');
+  assert(/fetch\('\/api\/idx\/foreign-flow'\)/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() no longer fetches GET /api/idx/foreign-flow');
+});
+
+// ── TEST: _mergeWealthData() must respect tombstones for bank/debt/
+// piutang deletions across devices, not just union-by-id forever ──
+// User-reported: menghapus rekening bank/hutang/piutang di satu device
+// membuat item itu "muncul lagi" setelah sinkron dari device lain, karena
+// mergeById() dulu cuma menggabungkan array tanpa pernah menghormati
+// penghapusan. Scope tombstone SENGAJA dibatasi ke bank/debt/piutang saja
+// (bukan transactions/dividends/dll) — keputusan eksplisit user via
+// AskUserQuestion, retensi 90 hari.
+test('REGRESSION GUARD: _mergeWealthData() must exclude tombstoned bank/debt/piutang ids from the merged result, not resurrect deleted items', () => {
+  const storageSrc = fs.readFileSync(path.join(__dirname, 'public/js/02-storage.js'), 'utf8');
+
+  const tombstoneFnSrc = storageSrc.match(/function _mergeTombstones[\s\S]*?\n\}\n/);
+  assert(tombstoneFnSrc, 'REGRESSION: _mergeTombstones() is gone from 02-storage.js');
+  const mergeFnSrc = storageSrc.match(/function _mergeWealthData[\s\S]*?\n\}\n/);
+  assert(mergeFnSrc, 'REGRESSION: _mergeWealthData() is gone from 02-storage.js');
+
+  const retentionMatch = storageSrc.match(/WEALTH_TOMBSTONE_RETENTION_MS\s*=\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)/);
+  assert(retentionMatch, 'REGRESSION: WEALTH_TOMBSTONE_RETENTION_MS constant is gone');
+  const retentionMs = retentionMatch.slice(1, 6).reduce((a, b) => a * Number(b), 1);
+  assert.strictEqual(retentionMs, 90 * 24 * 60 * 60 * 1000, 'REGRESSION: tombstone retention is no longer 90 days (user-confirmed value)');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(
+    'var WEALTH_TOMBSTONE_RETENTION_MS = ' + retentionMs + ';\n' + tombstoneFnSrc[0] + mergeFnSrc[0],
+    sandbox,
+    { filename: '_mergeWealthData (sandboxed)' }
+  );
+
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+
+  // Scenario 1: device A deletes bank id=1 (tombstoned), device B never
+  // synced that deletion and still has id=1 locally — merged result must
+  // NOT resurrect it.
+  const cloudWealth = { bank: [{ id: 1, bank: 'BCA', saldo: 1000 }], debt: [], piutang: [], tombstones: [{ type: 'bank', id: 1, deletedAt: nowIso }] };
+  const localWealth = { bank: [{ id: 1, bank: 'BCA', saldo: 1000 }], debt: [], piutang: [], tombstones: [] };
+  const merged1 = sandbox._mergeWealthData(localWealth, cloudWealth, now, now);
+  assert.strictEqual(merged1.bank.length, 0, 'REGRESSION: a bank item tombstoned on one side was resurrected by the union-by-id merge instead of being excluded');
+
+  // Scenario 2: a genuinely NEW item (id=2) only exists locally, no
+  // tombstone anywhere — must still be kept (this is the "device hasn't
+  // synced yet" case the original union-by-id design protects).
+  const cloudWealth2 = { bank: [], debt: [], piutang: [], tombstones: [] };
+  const localWealth2 = { bank: [{ id: 2, bank: 'Mandiri', saldo: 500 }], debt: [], piutang: [], tombstones: [] };
+  const merged2 = sandbox._mergeWealthData(localWealth2, cloudWealth2, now, now);
+  assert.strictEqual(merged2.bank.length, 1, 'REGRESSION: a new (never-deleted) item was incorrectly dropped — tombstone filtering must only remove tombstoned ids, not act as a whitelist');
+
+  // Scenario 3: an expired tombstone (>90 days old) must no longer
+  // suppress the item if it somehow still exists on one side.
+  const oldDeletedAt = new Date(now - (91 * 24 * 60 * 60 * 1000)).toISOString();
+  const cloudWealth3 = { bank: [{ id: 3, bank: 'BRI', saldo: 200 }], debt: [], piutang: [], tombstones: [{ type: 'bank', id: 3, deletedAt: oldDeletedAt }] };
+  const localWealth3 = { bank: [], debt: [], piutang: [], tombstones: [] };
+  const merged3 = sandbox._mergeWealthData(localWealth3, cloudWealth3, now, now);
+  assert.strictEqual(merged3.bank.length, 1, 'REGRESSION: an expired (>90 day) tombstone incorrectly still suppresses the item — must be pruned');
+
+  // Scenario 4: debt/piutang tombstones must be scoped by type — a bank
+  // tombstone for id=5 must not suppress a debt item with the same id.
+  const cloudWealth4 = { bank: [], debt: [{ id: 5, nama: 'KPR' }], piutang: [], tombstones: [{ type: 'bank', id: 5, deletedAt: nowIso }] };
+  const localWealth4 = { bank: [], debt: [], piutang: [], tombstones: [] };
+  const merged4 = sandbox._mergeWealthData(localWealth4, cloudWealth4, now, now);
+  assert.strictEqual(merged4.debt.length, 1, 'REGRESSION: a tombstone for type=bank incorrectly suppressed a debt item with the same numeric id — tombstones must be scoped per-type');
+
+  // 20-wealth.js and 35-settings.js must actually RECORD tombstones when
+  // deleting, not just have the merge-side plumbing with nothing writing to it.
+  const wealthSrc = fs.readFileSync(path.join(__dirname, 'public/js/20-wealth.js'), 'utf8');
+  assert(/function wRecordTombstone/.test(wealthSrc), 'REGRESSION: wRecordTombstone() is gone from 20-wealth.js');
+  const wDeleteSrc = wealthSrc.match(/function wDelete\(type, id\)[\s\S]*?\n\}\n/)[0];
+  assert(/wRecordTombstone\(type, id\)/.test(wDeleteSrc), 'REGRESSION: wDelete() no longer calls wRecordTombstone() — deletions from the main Wealth page will stop propagating across devices again');
+
+  const settingsSrc = fs.readFileSync(path.join(__dirname, 'public/js/35-settings.js'), 'utf8');
+  assert(/wRecordTombstone\('bank', removed\.id\)/.test(settingsSrc), 'REGRESSION: deleteBankAccount() in Settings no longer records a tombstone — this UI path bypasses the fix');
+  assert(/wRecordTombstone\('debt', removed\.id\)/.test(settingsSrc), 'REGRESSION: deleteDebt() in Settings no longer records a tombstone — this UI path bypasses the fix');
+});
+
+// ── TEST: Corporate Action Calendar (dividends/splits/rights/RUPS) must
+// use real Invezgo data, never the hardcoded fictional arrays that used to
+// masquerade as "verified" official data ──
+// User-reported (full-codebase audit, 2026-09-18): getIdxCalendarData()
+// (lib/providers/idx-client.js) was a 100% hardcoded fictional dataset
+// whose own comment falsely claimed "Hanya data dividen resmi yang
+// terverifikasi... tanpa data dummy" — never labeled isSimulated, so no
+// UI could disclose it was fake. A SECOND independent fictional dataset
+// (IDX_DIVIDEND_MASTER_REGISTRY) existed in public/js/42-dividend-
+// calendar.js with the same false claim, merged into the API response.
+test('REGRESSION GUARD: getIdxCalendarData() must call real Invezgo GET /analysis/calendar, never the old hardcoded fictional arrays', () => {
+  const clientSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/async function fetchInvezgoCalendar/.test(clientSrc), 'REGRESSION: fetchInvezgoCalendar() is gone from lib/invezgo-client.js');
+  assert(/\/analysis\/calendar/.test(clientSrc), 'REGRESSION: fetchInvezgoCalendar() no longer calls the real /analysis/calendar endpoint');
+  assert(/fetchInvezgoCalendar,/.test(clientSrc), 'REGRESSION: fetchInvezgoCalendar is no longer exported from lib/invezgo-client.js');
+
+  const idxClientSrc = fs.readFileSync(path.join(__dirname, 'lib/providers/idx-client.js'), 'utf8');
+  assert(/async function getIdxCalendarData/.test(idxClientSrc), 'REGRESSION: getIdxCalendarData() is no longer async — it must call the real Invezgo API');
+  assert(/fetchInvezgoCalendar\(/.test(idxClientSrc), 'REGRESSION: getIdxCalendarData() no longer calls fetchInvezgoCalendar()');
+  assert(!/cumDate: '2026-09-17'/.test(idxClientSrc) && !/BSSR.*Baramulti Suksessarana/.test(idxClientSrc),
+    'REGRESSION: the old hardcoded fictional dividend array is back in getIdxCalendarData()');
+  assert(/isSimulated:\s*true/.test(idxClientSrc), 'REGRESSION: getIdxCalendarData() no longer honestly reports isSimulated:true when Invezgo is not configured/fails');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/await getIdxCalendarData\(/.test(engineSrc), 'REGRESSION: idx-data-engine.js no longer awaits getIdxCalendarData() (it is async now)');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const calRouteSrc = serverSrc.match(/app\.get\('\/api\/idx\/calendar'[\s\S]*?\n\}\);/)[0];
+  assert(/await getIdxCalendarData\(/.test(calRouteSrc), 'REGRESSION: GET /api/idx/calendar route no longer awaits the now-async getIdxCalendarData()');
+
+  const divCalSrc = fs.readFileSync(path.join(__dirname, 'public/js/42-dividend-calendar.js'), 'utf8');
+  assert(!/IDX_DIVIDEND_MASTER_REGISTRY\s*=\s*\[/.test(divCalSrc),
+    'REGRESSION: the second hardcoded fictional dividend dataset (IDX_DIVIDEND_MASTER_REGISTRY) is back in 42-dividend-calendar.js');
+  assert(!/dc-bssr-26-sep/.test(divCalSrc), 'REGRESSION: fictional dividend entries are back in 42-dividend-calendar.js');
+  assert(/function renderDivCalDisabledNotice/.test(divCalSrc),
+    'REGRESSION: renderDivCalDisabledNotice() is gone — the Dividend Calendar page must honestly disclose it is disabled pending Invezgo payload schema verification, not silently show nothing or fabricated data');
+});
+
+// ── TEST: broker-summary fallback paths (backend template + client-side
+// twin + the "1-Year Broker Cost Matrix" widget) must never fabricate
+// specific broker names/weights/values, even when honestly labeled
+// isSimulated ──
+// User-reported (screenshot, 2026-09-18): "Matriks Rata-Rata Harga Beli
+// Broker Historis 1 Tahun" showed a precise-looking table of named brokers
+// with invented weight/bias percentages and computed Rupiah amounts, badged
+// "SIMULASI" — user demanded these be replaced with real Invezgo data or
+// an honest empty state, not fabricated-but-labeled numbers.
+test('REGRESSION GUARD: broker-summary fallbacks (template, client-side, 1-year matrix) must return honest empty state, never fabricate broker weights/values', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const templateFnSrc = engineSrc.match(/function generateBrokerSummaryTemplate[\s\S]*?\n\}\n/)[0];
+  assert(!/topBuyerWeights\s*=/.test(templateFnSrc) && !/buyerBrokers\s*=/.test(templateFnSrc),
+    'REGRESSION: generateBrokerSummaryTemplate() reverted to fabricating broker weights/lists');
+  assert(/topBuyers:\s*\[\]/.test(templateFnSrc) && /topSellers:\s*\[\]/.test(templateFnSrc),
+    'REGRESSION: generateBrokerSummaryTemplate() no longer returns an honest empty topBuyers/topSellers');
+
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const clientFnSrc = cockpitSrc.match(/function generateClientSideBrokerSummary[\s\S]*?\n\}\n/)[0];
+  assert(!/buyerWeights\s*=/.test(clientFnSrc) && !/topBuyerCodes\s*=/.test(clientFnSrc),
+    'REGRESSION: generateClientSideBrokerSummary() reverted to fabricating broker weights/lists');
+  assert(/topBuyers:\s*\[\]/.test(clientFnSrc) && /topSellers:\s*\[\]/.test(clientFnSrc),
+    'REGRESSION: generateClientSideBrokerSummary() no longer returns an honest empty topBuyers/topSellers');
+
+  const matrixViewSrc = cockpitSrc.match(/function renderBandarmology1YearBrokerCostMatrix[\s\S]*?\n\}\n/)[0];
+  assert(!/majorBrokers\s*=/.test(matrixViewSrc), 'REGRESSION: renderBandarmology1YearBrokerCostMatrix() reverted to the hardcoded majorBrokers fabricated array');
+  assert(/async function bandarLoad1YearBrokerMatrix/.test(cockpitSrc), 'REGRESSION: bandarLoad1YearBrokerMatrix() is gone — the 1-year matrix no longer fetches real data');
+  assert(/fetchBrokerSummaryData\(tk, '1Y'\)/.test(cockpitSrc), 'REGRESSION: bandarLoad1YearBrokerMatrix() no longer fetches real 1-year broker data via fetchBrokerSummaryData()');
+});
+
+// ── TEST: Accumulation/Distribution Bandarmology views must use the
+// whole-market Invezgo endpoint, never the old 42-ticker hardcoded sample;
+// Broker Trail (which genuinely has no whole-market equivalent) must
+// honestly disclose its limited scope instead of silently using a sample ──
+// User-reported (2026-09-18, follow-up to the Foreign Flow fix): "lanjut
+// perbaiki 3 view Bandarmology lainnya juga" — Accumulation, Distribution,
+// and Broker Trail all iterated the same hardcoded ~42-ticker sample as
+// the already-fixed Foreign Flow view (CLAUDE.md rule #2 violation).
+test('REGRESSION GUARD: Accumulation/Distribution views use whole-market Invezgo data; Broker Trail honestly discloses its sample-scope limitation', () => {
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  const accViewSrc = cockpitSrc.match(/function renderBandarmologyAccumulationView[\s\S]*?\n\}\n/)[0];
+  assert(!/var sampleTickers = \[/.test(accViewSrc), 'REGRESSION: renderBandarmologyAccumulationView() reverted to a hardcoded ticker sample');
+  const distViewSrc = cockpitSrc.match(/function renderBandarmologyDistributionView[\s\S]*?\n\}\n/)[0];
+  assert(!/var sampleTickers = \[/.test(distViewSrc), 'REGRESSION: renderBandarmologyDistributionView() reverted to a hardcoded ticker sample');
+
+  assert(/async function bandarLoadAccDist/.test(cockpitSrc), 'REGRESSION: bandarLoadAccDist() is gone — Accumulation/Distribution no longer fetch real whole-market data');
+  assert(/fetch\('\/api\/idx\/accumulation-distribution'\)/.test(cockpitSrc), 'REGRESSION: bandarLoadAccDist() no longer fetches GET /api/idx/accumulation-distribution');
+
+  // Container ids must be DISTINCT — both views render on the same page
+  // simultaneously; a shared id would make document.getElementById() only
+  // ever find the first one, silently breaking the second view's update.
+  assert(/id="bandar-acc-content"/.test(cockpitSrc) && /id="bandar-dist-content"/.test(cockpitSrc),
+    'REGRESSION: Accumulation/Distribution containers no longer have distinct ids — updating one would break the other');
+
+  // Broker Trail: no whole-market per-broker Invezgo endpoint exists, so
+  // per CLAUDE.md rule #2 it must honestly disclose the limitation rather
+  // than pretend a sample is full-market coverage.
+  const trailViewSrc = cockpitSrc.match(/function renderBandarmologyBrokerTrailView[\s\S]*?\n\}\n/)[0];
+  assert(/Cakupan terbatas/.test(trailViewSrc), 'REGRESSION: renderBandarmologyBrokerTrailView() no longer discloses its limited (non-whole-market) scope');
+});
+
+// ── TEST: Smart Money Screener's whole-market Accumulation/Distribution
+// scan must let the user pick a historical date, not just "today" ──
+// User-reported (2026-09-18): "ini seharusnya bisa di pilih tanggalnya,
+// karna kalo cuma hari ini ya percuma, baru keluar datanya di sore hari"
+// — Invezgo's EOD report for the current day isn't published until
+// ~17:30 WIB, so checking earlier always showed empty data with no way
+// to see a previous (already-published) day's results.
+test('REGRESSION GUARD: getUniverseAccumulationDistribution() must accept a date param, and the Smart Money Screener UI must offer a date picker', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = engineSrc.match(/async function getUniverseAccumulationDistribution[\s\S]*?\n\}\n/)[0];
+  assert(/params\.date/.test(fnSrc), 'REGRESSION: getUniverseAccumulationDistribution() no longer reads params.date — always forced to today');
+
+  const flowscanSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  assert(/selectedDate/.test(flowscanSrc), 'REGRESSION: FS_BROKER_SCAN.selectedDate is gone — no way to request a historical date');
+  assert(/function fsSetBrokerScanDate/.test(flowscanSrc), 'REGRESSION: fsSetBrokerScanDate() is gone — the date picker has no handler');
+  assert(/type="date"/.test(flowscanSrc), 'REGRESSION: the Smart Money Screener UI no longer renders a date <input>');
+  assert(/\?date=' \+ encodeURIComponent\(FS_BROKER_SCAN\.selectedDate\)/.test(flowscanSrc),
+    'REGRESSION: the accumulation-distribution fetch no longer forwards the selected date as a query param');
+});
+
+// ── TEST: Volume Spike Scanner must indicate accumulation vs distribution
+// from real price direction (chg1d), not leave the user to guess ──
+// User-reported (2026-09-18): "belum dijelaskan ini volume akumulasi atau
+// distribusi karna anda hitung sesuai volume bukan pada aksinya" — volume
+// magnitude alone doesn't say which direction the spike leans; chg1d (real
+// price change on the spike day) is a standard, non-fabricated technical
+// heuristic for it (price up + volume up = accumulation lean, and vice
+// versa) — clearly labeled as an indication, not a broker-identity claim.
+test('REGRESSION GUARD: Volume Spike Scanner must show an accumulation/distribution indication derived from real price direction (chg1d)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
+  assert(/chg1d >= 0/.test(src), 'REGRESSION: the accumulation/distribution direction heuristic (based on real chg1d) is gone');
+  assert(/Indikasi AKUMULASI|>AKUMULASI</.test(src), 'REGRESSION: the AKUMULASI indication label is gone from Volume Spike Scanner');
+  assert(/Indikasi DISTRIBUSI|>DISTRIBUSI</.test(src), 'REGRESSION: the DISTRIBUSI indication label is gone from Volume Spike Scanner');
+});
+
+// ── TEST: Harga Wajar (MoS) auto-fill must use REAL Invezgo financial
+// statement data for tickers outside the 27-ticker curated
+// STOCK_FINANCIAL_DATABASE, with an honest disclosure of the derived
+// fields, instead of leaving the historical table permanently empty ──
+// User-reported (2026-09-18): "Harga Wajar, tidak ada data lengkap padahal
+// API data invezgo punya data financial" — verified schema from 2 real
+// BBCA JSON files (BS+IS) the user uploaded: no shares-outstanding field
+// exists (derived as Net Income ÷ EPS), the EPS row's raw value needs an
+// undocumented ÷1,000,000 scale factor (inferred from numeric plausibility:
+// BBCA FY2025 467000000/1e6=467, a realistic EPS), and no DPS field exists
+// at all — all disclosed honestly rather than presented as primary data.
+test('REGRESSION GUARD: Harga Wajar auto-fill fetches real Invezgo financial-statement data for uncurated tickers, with honest disclosure', () => {
+  const invezgoSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/async function fetchInvezgoFinancialStatement/.test(invezgoSrc),
+    'REGRESSION: fetchInvezgoFinancialStatement() is gone from lib/invezgo-client.js');
+  assert(/fetchInvezgoFinancialStatement,/.test(invezgoSrc.match(/export \{[\s\S]*?\}/)[0]),
+    'REGRESSION: fetchInvezgoFinancialStatement is no longer exported from lib/invezgo-client.js');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = engineSrc.match(/async function generateFinancialStatementSummary[\s\S]*?\n\}\n/)[0];
+  assert(/fetchInvezgoFinancialStatement\(clean, 'BS', 'FY', 4\)/.test(fnSrc),
+    'REGRESSION: generateFinancialStatementSummary() no longer fetches the real Balance Sheet from Invezgo');
+  assert(/fetchInvezgoFinancialStatement\(clean, 'IS', 'FY', 4\)/.test(fnSrc),
+    'REGRESSION: generateFinancialStatementSummary() no longer fetches the real Income Statement from Invezgo');
+  assert(/netIncomeRaw \/ eps/.test(fnSrc),
+    'REGRESSION: shares outstanding is no longer derived from Net Income ÷ EPS (there is no direct shares field in the API)');
+  assert(/dps:\s*null/.test(fnSrc),
+    'REGRESSION: DPS is no longer honestly left null (no DPS field exists in the financial statement endpoint)');
+  assert(/disclosures:/.test(fnSrc) && /epsScaleAssumption/.test(fnSrc) && /sharesDerived/.test(fnSrc),
+    'REGRESSION: generateFinancialStatementSummary() no longer discloses the EPS scale assumption / derived-shares methodology');
+  assert(/generateFinancialStatementSummary$/m.test(engineSrc) || /generateFinancialStatementSummary\s*\n?\};/.test(engineSrc),
+    'REGRESSION: generateFinancialStatementSummary is no longer exported from lib/idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/financial-statement\/:ticker'/.test(serverSrc),
+    'REGRESSION: GET /api/idx/financial-statement/:ticker route is gone from server.js');
+  assert(/generateFinancialStatementSummary\(ticker\)/.test(serverSrc),
+    'REGRESSION: the financial-statement route no longer calls generateFinancialStatementSummary()');
+
+  const hwSrc = fs.readFileSync(path.join(__dirname, 'public/js/10-hargawajar.js'), 'utf8');
+  assert(/function hw_fetchRealFinancialStatement/.test(hwSrc),
+    'REGRESSION: hw_fetchRealFinancialStatement() is gone — Harga Wajar no longer fetches real data for uncurated tickers');
+  assert(/fetch\('\/api\/idx\/financial-statement\/'/.test(hwSrc),
+    'REGRESSION: hw_fetchRealFinancialStatement() no longer calls the real financial-statement endpoint');
+  // NOTE: hw_autoFill() used to gate this fetch behind
+  // `if (!STOCK_FINANCIAL_DATABASE[tk])` (only fetch Invezgo for
+  // UNCURATED tickers). That was intentionally changed 2026-09-18 — see
+  // the dedicated test below — so Invezgo live data is tried for EVERY
+  // ticker (curated ones included), with the curated database now only a
+  // fallback. Do not reintroduce that gate here.
+  assert(/function hw_renderAutoFillDisclosure/.test(hwSrc),
+    'REGRESSION: hw_renderAutoFillDisclosure() is gone — auto-filled derived data is no longer disclosed to the user');
+});
+
+// ── TESTS: proactive audit (2026-09-18, user-requested "audit toolbar
+// lainnya") — 7 HIGH-severity fabricated-data findings across 5 files,
+// verified manually against the code (not just trusted from subagent
+// reports) before fixing. Each assertion targets the exact root cause. ──
+
+test('REGRESSION GUARD: Decision Journal no longer fabricates a fixed decisionQualityScore:90 for every entry', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(!/decisionQualityScore:\s*90/.test(src), 'REGRESSION: decisionQualityScore is hardcoded to 90 again for every new journal entry');
+  assert(!/Decision Score<\/th>/.test(src), 'REGRESSION: the fabricated "Decision Score" column header is back in the journal table');
+  assert(!/j\.decisionQualityScore/.test(src), 'REGRESSION: the journal table still renders the fabricated decisionQualityScore field');
+});
+
+test('REGRESSION GUARD: Morning Brief IHSG "Real-time Feed" label only shows when the IHSG value is genuinely live', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(/isIhsgLive/.test(src), 'REGRESSION: isIhsgLive tracking is gone — the Real-time Feed label can no longer distinguish real data from the 6845/6800 fallback');
+  assert(/isIhsgLive \? 'Real-time Feed' : 'Data Belum Tersedia \(Estimasi\)'/.test(src), 'REGRESSION: the IHSG label no longer honestly falls back when data is not live');
+  assert(/window\._ihsgLiveFetched === true/.test(src), 'REGRESSION: isIhsgLive reverted to checking ihsgCur > 0 alone — that is ALSO true for the 01-data.js placeholder (6500.83) set at module load, so it can never actually detect "not live"');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/window\._ihsgLiveFetched = true/.test(engineSrc), 'REGRESSION: fhApplyIHSG() no longer sets window._ihsgLiveFetched — the Morning Brief live-feed flag would never become true');
+});
+
+test('REGRESSION GUARD: Audit log no longer fabricates precise HH:MM:SS transaction timestamps', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/25-auditlog.js'), 'utf8');
+  const fnSrc = src.match(/function fmtAuditTime[\s\S]*?\n\}\n/)[0];
+  assert(!/baseHour\s*=/.test(fnSrc) && !/baseMin\s*=/.test(fnSrc), 'REGRESSION: fmtAuditTime() reverted to synthesizing a fake hour/minute from transaction index');
+  assert(!/' WIB'/.test(fnSrc), 'REGRESSION: fmtAuditTime() reverted to appending a fabricated WIB time string');
+  assert(/Jam tidak tercatat/.test(src), 'REGRESSION: the audit table no longer honestly discloses that transaction time was never recorded');
+});
+
+test('REGRESSION GUARD: copyAuditSummary() computes real ledger verification instead of hardcoding "Saldo Terverifikasi 100%"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/25-auditlog.js'), 'utf8');
+  const fnSrc = src.match(/function copyAuditSummary[\s\S]*?\n\}\n/)[0];
+  assert(!/Saldo Terverifikasi 100%/.test(fnSrc), 'REGRESSION: copyAuditSummary() reverted to hardcoding "Saldo Terverifikasi 100%" regardless of actual ledger integrity');
+  assert(/Math\.abs\(totalIn - totalOut - curBal\) < 1/.test(fnSrc), 'REGRESSION: copyAuditSummary() no longer computes real ledger verification before claiming integrity status');
+});
+
+test('REGRESSION GUARD: Portfolio "Tren 7D" sparkline uses real 7-day price history, not a fixed fake curve based on gain/loss direction', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/29-institutional-ui.js'), 'utf8');
+  const sparkFnSrc = src.match(/window\.mwCreateSparkline = function[\s\S]*?\n  \};\n/)[0];
+  assert(!/base \+ \(dir \* 2\)/.test(sparkFnSrc), 'REGRESSION: mwCreateSparkline() reverted to synthesizing a fixed 5-point curve from gain/loss direction alone');
+  assert(/function mwLoadRealSparkline/.test(src), 'REGRESSION: mwLoadRealSparkline() is gone — the sparkline no longer fetches real price history');
+  assert(/fetch\('\/api\/idx\/history\/'/.test(src), 'REGRESSION: mwLoadRealSparkline() no longer fetches the real history endpoint');
+  assert(/mwCreateSparkline\(null, isGain, 64, 18\)/.test(src) === false, 'REGRESSION: the row-injection code reverted to immediately rendering a fake sparkline with null values instead of a loading placeholder + real fetch');
+});
+
+test('REGRESSION GUARD: AI Chart Intelligence no longer fabricates a fixed Rp 15 miliar "Smart Money Net Inflow" fallback', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/43-ai-chart-intelligence.js'), 'utf8');
+  assert(!/:\s*15000000000/.test(src), 'REGRESSION: the fixed Rp 15,000,000,000 institutionalNetRp fallback is back');
+  assert(/institutionalNetAvailable/.test(src), 'REGRESSION: institutionalNetAvailable tracking is gone — the AI Chart Explanation modal can no longer tell real data from a fabricated fallback');
+  assert(/Net Inflow institusi tidak tersedia/.test(src), 'REGRESSION: the AI Chart Explanation modal no longer honestly discloses when institutional net inflow is unavailable');
+});
+
+test('REGRESSION GUARD: Crypto Whale Tier Orderflow Breakdown discloses it is a proportional volume estimate, not real order-size data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/36-crypto-technical.js'), 'utf8');
+  assert(/Estimasi proporsional dari volume 24 jam total/.test(src), 'REGRESSION: the Whale Tier Orderflow Breakdown card no longer discloses it is a fixed-percentage proxy, not real order-book data');
+});
+
+// ── TESTS: 4 sisa temuan MEDIUM/RENDAH dari audit menyeluruh (2026-09-18),
+// dikerjakan setelah 7 temuan HIGH — user meminta lanjutkan semua. ──
+
+test('REGRESSION GUARD: AI Chart Confluence Score components (Volume Surge, Fibonacci Overlap, Trend Consistency, Risk/Reward) are computed from real data, not unconditional constants', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/43-ai-chart-intelligence.js'), 'utf8');
+  const fnSrc = src.match(/function calculateAiConfluenceScore[\s\S]*?\n\}\n/)[0];
+  assert(!/score \+= 8;\n\n  \/\/ 6\./.test(fnSrc), 'REGRESSION: Volume Surge reverted to an unconditional score += 8');
+  assert(/volRatio/.test(fnSrc), 'REGRESSION: Volume Surge no longer computes a real volume ratio from ctx.ohlcv');
+  assert(/nearFib/.test(fnSrc), 'REGRESSION: Fibonacci Overlap no longer checks real proximity to fib levels — reverted to a fixed score');
+  assert(/maAligned/.test(fnSrc), 'REGRESSION: the MA20/MA50 trend-consistency check (replacing the fake "Multi-TF Alignment" constant) is gone');
+  assert(/realLow/.test(fnSrc) && /realHigh/.test(fnSrc), 'REGRESSION: Risk/Reward no longer uses real historical high/low — reverted to an unconditional +5');
+});
+
+test('REGRESSION GUARD: Morning Brief "HEALTH & VALUASI" column renamed to match what it actually measures (position risk, not fundamental valuation)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(!/HEALTH &amp; VALUASI/.test(src), 'REGRESSION: the misleading "HEALTH & VALUASI" column header is back — it never computed PER/PBV/ROE, only weight/P&L');
+  assert(/SKOR RISIKO POSISI/.test(src), 'REGRESSION: the honestly-renamed "SKOR RISIKO POSISI" column header is gone');
+  assert(/positionRiskScore/.test(src), 'REGRESSION: the positionRiskScore variable (renamed from healthScore) is gone');
+});
+
+test('REGRESSION GUARD: PDF financial report discloses when IHSG/USD/monthly-expense data is unavailable instead of silently using fabricated fallback numbers', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/32-pdf-reports.js'), 'utf8');
+  assert(!/'7\.150,00'/.test(src), 'REGRESSION: the fabricated IHSG fallback "7.150,00" is back with no disclosure');
+  assert(!/'Rp 16\.200'/.test(src), 'REGRESSION: the fabricated USD fallback "Rp 16.200" is back with no disclosure');
+  assert(!/: 10000000;/.test(src), 'REGRESSION: a fabricated Rp 10,000,000/month expense fallback is back somewhere in this file');
+  assert(/monthlyExpAvailable/.test(src), 'REGRESSION: monthlyExpAvailable tracking is gone — FIRE metrics can no longer distinguish real user input from a guess');
+  const matches = (src.match(/monthlyExpAvailable/g) || []).length;
+  assert(matches >= 6, 'REGRESSION: monthlyExpAvailable is no longer threaded through all 3 report-generating functions (HTML, CSV, Markdown)');
+});
+
+test('REGRESSION GUARD: Stock Intel pivot Support/Resistance label no longer falsely claims "Real Pivot" for a fixed-percentage estimate, and conviction is proportional to the real score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(!/'Calculated Real Pivot Support\/Resistance'/.test(src), 'REGRESSION: the misleading "Calculated Real Pivot Support/Resistance" label is back for a ±4%/±10% price-percentage estimate');
+  assert(/bukan pivot point OHLC resmi/.test(src), 'REGRESSION: the honest methodology disclosure for the S/R estimate is gone');
+  assert(!/conviction: score >= 70 \? 85 : 60/.test(src), 'REGRESSION: conviction reverted to a 2-value fixed lookup (85 or 60) instead of scaling with the real score');
+  assert(/conviction: Math\.round\(50 \+ \(score - 25\) \/ 70 \* 45\)/.test(src), 'REGRESSION: conviction no longer scales proportionally from the real computed score');
+});
+
+// User-reported (2026-09-18): "TOP BROKER BUYER (DATA RIIL) di stock intel
+// hanya dibuat 1D dan hasilnya selalu kosong, bagaimana intel kalo tidak
+// bisa lihat history" — fetchRealStockIntelData() hardcoded ?timeframe=1D
+// with no way to check a longer window when 1D genuinely has no data.
+test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER lets the user pick a broker-summary timeframe instead of hardcoding 1D', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(!/broker-summary\/' \+ encodeURIComponent\(tk\) \+ '\?timeframe=1D'/.test(src),
+    'REGRESSION: fetchRealStockIntelData() reverted to hardcoding ?timeframe=1D');
+  assert(/function setIntelBrokerTimeframe/.test(src),
+    'REGRESSION: setIntelBrokerTimeframe() is gone — no way to switch the broker-summary timeframe');
+  assert(/window\.setIntelBrokerTimeframe = setIntelBrokerTimeframe/.test(src),
+    'REGRESSION: setIntelBrokerTimeframe is no longer exposed on window (onclick handlers would fail)');
+  assert(/MW_INTEL_BROKER_TF/.test(src),
+    'REGRESSION: MW_INTEL_BROKER_TF state tracking is gone');
+  assert(/brokerSummaryFetched/.test(src),
+    'REGRESSION: brokerSummaryFetched tracking is gone — cannot distinguish "not tried yet" from "tried, genuinely empty"');
+  assert(/Tidak ada data broker signifikan untuk/.test(src),
+    'REGRESSION: the honest "no data for this timeframe, try a longer one" message is gone — reverted to always suggesting "click Refresh"');
+});
+
+// Master Screener Fase 1 (2026-09-18, user-approved: "perkuat dulu dengan
+// data yang bisa" — build now with confirmed-live fields, defer the rest).
+// fetchInvezgoScreener() must reject any formula field outside the
+// live-verified allowlist BEFORE spending quota (Invezgo's own API silently
+// turns an unknown/miscapitalized field into 0 instead of erroring, per the
+// user's live-tested audit — a false "matched:true" for the whole market is
+// the failure mode this guards against).
+test('REGRESSION GUARD: Master Screener (fetchInvezgoScreener) rejects unverified formula fields before spending Invezgo quota', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/function fetchInvezgoScreener/.test(src), 'REGRESSION: fetchInvezgoScreener() is gone');
+  assert(/function validateScreenerFormula/.test(src), 'REGRESSION: validateScreenerFormula() is gone');
+  assert(/INVEZGO_SCREENER_ALLOWED_FIELDS = new Set\(\['close', 'pbv', 'per', 'roe'\]\)/.test(src),
+    'REGRESSION: the strict 4-field allowlist (close/pbv/per/roe) was widened without live verification of the new field');
+  assert(/_screenerThrottleWait/.test(src),
+    'REGRESSION: the dedicated screener rate-limiter is gone — /screener/screen throttles more aggressively than the normal monthly quota per the user-tested audit');
+  assert(/fetchInvezgoScreener,\s*\n\s*validateScreenerFormula,\s*\n\s*INVEZGO_SCREENER_ALLOWED_FIELDS,/.test(src),
+    'REGRESSION: fetchInvezgoScreener/validateScreenerFormula/INVEZGO_SCREENER_ALLOWED_FIELDS no longer exported from invezgo-client.js');
+
+  const validateScreenerFormula = (() => {
+    const allowlistLine = "const INVEZGO_SCREENER_ALLOWED_FIELDS = new Set(['close', 'pbv', 'per', 'roe']);\n";
+    const m = src.match(/function validateScreenerFormula\(formula\) \{[\s\S]*?\n\}\n/);
+    assert(m, 'REGRESSION: could not isolate validateScreenerFormula() body for direct testing');
+    const body = allowlistLine + m[0].replace('function validateScreenerFormula(formula) {', '').replace(/\n\}\n$/, '');
+    const fn = new Function('formula', body);
+    return fn;
+  })();
+  const valid = validateScreenerFormula('per > 0 AND per < 15 AND roe > 15');
+  assert(valid.valid === true, 'REGRESSION: a formula using only allowlisted fields (per, roe) is wrongly rejected');
+  const invalid = validateScreenerFormula('PER > 0 AND bandarValue > 1000');
+  assert(invalid.valid === false, 'REGRESSION: a formula with an unverified/miscapitalized field (PER, bandarValue) is wrongly accepted — this is exactly the silent-zero trap the audit found');
+  assert(invalid.unknownFields.includes('PER') && invalid.unknownFields.includes('bandarValue'),
+    'REGRESSION: unknownFields does not report which tokens failed the allowlist check');
+});
+
+test('REGRESSION GUARD: Master Screener engine (generateMasterScreener) and server route exist and enrich matched rows with universe name/sector', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function generateMasterScreener\(formula\)/.test(engineSrc), 'REGRESSION: generateMasterScreener() is gone from idx-data-engine.js');
+  assert(/generateMasterScreener,/.test(engineSrc), 'REGRESSION: generateMasterScreener no longer exported from idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.post\('\/api\/idx\/master-screener'/.test(serverSrc), 'REGRESSION: POST /api/idx/master-screener route is gone');
+  assert(/generateMasterScreener,/.test(serverSrc), 'REGRESSION: generateMasterScreener no longer imported in server.js');
+});
+
+// Unified Screener (2026-09-18, user-directed: "Opportunity Radar dan
+// market radar kenapa tidak disatukan saja menjadi screener yang bisa di
+// filter... kedepan screener kedepan hanya ada 1 tidak banyak lagi dan
+// terpisah pisah"). Merges Opportunity Radar + Market Radar + Smart Money
+// Screener into 1 filterable page/endpoint, with a Whale/Akumulasi score
+// (categorical, -3..+4) and Uptrend score (0-100) built from whole-market
+// real data sources already in the app.
+test('REGRESSION GUARD: technical-indicator cache (Redis-backed, cron-rotating) exists for the Unified Screener', () => {
+  const yfSrc = fs.readFileSync(path.join(__dirname, 'lib/providers/yahoo-client.js'), 'utf8');
+  assert(/export \{[\s\S]*yfStoreGet,[\s\S]*yfStoreSetEx,[\s\S]*yfStoreMget,[\s\S]*\}/.test(yfSrc),
+    'REGRESSION: yfStoreGet/yfStoreSetEx/yfStoreMget no longer exported from yahoo-client.js — the technical cache in idx-data-engine.js depends on these');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function fetchAndCacheTechnicalSignal/.test(engineSrc), 'REGRESSION: fetchAndCacheTechnicalSignal() is gone');
+  assert(/async function getCachedTechnicalBulk/.test(engineSrc), 'REGRESSION: getCachedTechnicalBulk() is gone — Unified Screener would need 958 separate Redis reads per request');
+  assert(/async function warmTechnicalRotating/.test(engineSrc), 'REGRESSION: warmTechnicalRotating() cron warmer is gone');
+  assert(/TECHNICAL_WARM_CURSOR_KEY = 'technical:warm:cursor'/.test(engineSrc), 'REGRESSION: technical cron warmer no longer persists a rotating cursor — full-universe coverage would restart from 0 every run instead of progressing');
+  assert(/warmTechnicalRotating,/.test(engineSrc), 'REGRESSION: warmTechnicalRotating no longer exported from idx-data-engine.js');
+});
+
+test('REGRESSION GUARD: generateUnifiedScreener() merges accumulation/distribution + foreign flow + fundamentals + technical into 1 filterable result', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function generateUnifiedScreener\(params = \{\}\)/.test(engineSrc), 'REGRESSION: generateUnifiedScreener() is gone');
+  assert(/generateUnifiedScreener,/.test(engineSrc), 'REGRESSION: generateUnifiedScreener no longer exported from idx-data-engine.js');
+  // The whale score must stay categorical/honest — a ticker absent from
+  // today's top-movers list must NOT be scored the same as a confirmed
+  // "no signal" — both currently map to whaleScore 0, but the label must
+  // distinguish "never checked" from "checked, balanced" via whaleDataAvailable.
+  assert(/whaleDataAvailable/.test(engineSrc), 'REGRESSION: whaleDataAvailable flag is gone — cannot distinguish "no data today" from "netral" anymore');
+  assert(/'Tidak Ada Sinyal Hari Ini'/.test(engineSrc), 'REGRESSION: the honest "no signal today" whale label is gone');
+  // fetchInvezgoScreener() (the throttled, quota-metered custom-formula
+  // endpoint) must NOT be called automatically inside the whole-market pass
+  // — user explicitly said "kalo dianalisa asal akan memakan kuota".
+  const unifiedFnMatch = engineSrc.match(/async function generateUnifiedScreener\(params = \{\}\) \{[\s\S]*?\n\}\n\n\/\/ ══/);
+  assert(unifiedFnMatch, 'REGRESSION: could not isolate generateUnifiedScreener() body to check for accidental fetchInvezgoScreener() calls');
+  assert(!/fetchInvezgoScreener\(/.test(unifiedFnMatch[0]), 'REGRESSION: generateUnifiedScreener() now calls fetchInvezgoScreener() automatically — this burns the throttled/quota-metered custom-formula endpoint on every whole-market page load, which the user explicitly said to avoid');
+});
+
+await asyncTest('BEHAVIOR: generateUnifiedScreener() runs end-to-end without an Invezgo/Redis config and returns an honest, well-shaped result', async () => {
+  const { generateUnifiedScreener } = await import('./lib/idx-data-engine.js');
+  const result = await generateUnifiedScreener({ limit: 10 });
+  assert(result.success === true, 'generateUnifiedScreener() did not report success:true');
+  assert(Array.isArray(result.rows), 'result.rows is not an array');
+  assert(result.rows.length > 0, 'result.rows is empty — expected at least 10 of 958 universe rows');
+  assert(result.summary && typeof result.summary.totalUniverse === 'number' && result.summary.totalUniverse > 900,
+    'result.summary.totalUniverse does not look like the full ~958 BEI universe');
+  const validWhaleLabels = new Set(['Akumulasi Kuat', 'Akumulasi Lemah', 'Netral', 'Distribusi', 'Tidak Ada Sinyal Hari Ini']);
+  result.rows.forEach((r) => {
+    assert(validWhaleLabels.has(r.whaleLabel), `Unexpected whaleLabel "${r.whaleLabel}" for ${r.ticker}`);
+    assert(r.uptrendScore === null || (r.uptrendScore >= 0 && r.uptrendScore <= 100), `uptrendScore out of range for ${r.ticker}: ${r.uptrendScore}`);
+    // Without INVEZGO_API_KEY/UPSTASH_REDIS configured in this test
+    // environment, no ticker should have real technical/fundamental data —
+    // confirms the function degrades honestly rather than fabricating.
+    assert(r.isRealTechnical === false, `${r.ticker} claims isRealTechnical:true with no Yahoo/Redis config in this test env`);
+  });
+});
+
+test('REGRESSION GUARD: Unified Screener server routes exist (GET /api/idx/unified-screener, GET /api/cron/warm-technical-indicators with CRON_SECRET guard)', () => {
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/unified-screener'/.test(serverSrc), 'REGRESSION: GET /api/idx/unified-screener route is gone');
+  assert(/app\.get\('\/api\/cron\/warm-technical-indicators'/.test(serverSrc), 'REGRESSION: GET /api/cron/warm-technical-indicators route is gone');
+  const cronMatch = serverSrc.match(/app\.get\('\/api\/cron\/warm-technical-indicators'[\s\S]*?\n\}\);/);
+  assert(cronMatch, 'REGRESSION: could not isolate the warm-technical-indicators route body');
+  assert(/CRON_SECRET/.test(cronMatch[0]) && /403/.test(cronMatch[0]),
+    'REGRESSION: warm-technical-indicators cron route no longer fail-closed on a missing/wrong CRON_SECRET — this would let anyone publicly trigger 958 Yahoo fetches');
+
+  const vercelSrc = fs.readFileSync(path.join(__dirname, 'vercel.json'), 'utf8');
+  const vercelJson = JSON.parse(vercelSrc);
+  assert(Array.isArray(vercelJson.crons) && vercelJson.crons.some(c => c.path === '/api/cron/warm-technical-indicators'),
+    'REGRESSION: vercel.json no longer schedules the warm-technical-indicators cron');
+});
+
+test('REGRESSION GUARD: 4 old radar/screener pages (Opportunity Radar, Market Radar, Smart Money Screener) consolidated into 1 nav entry pointing at the Unified Screener', () => {
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(/js\/48-unified-screener\.js/.test(htmlSrc), 'REGRESSION: public/js/48-unified-screener.js is no longer included in index.html');
+  // Only ONE sidebar button should still navigate to 'radar' — the old
+  // 'Market Radar' (ranking) and 'Smart Money Screener' (scanner) buttons
+  // must be gone, not just relabeled, to avoid 3 buttons for 1 destination.
+  assert(!/goPage\('ranking',this\)/.test(htmlSrc), 'REGRESSION: the separate "Market Radar" sidebar button is back — should be consolidated into the single Screener nav entry');
+  assert(!/goPage\('scanner',this\)/.test(htmlSrc), 'REGRESSION: the separate "Smart Money Screener" sidebar button is back — should be consolidated into the single Screener nav entry');
+  assert(/goPage\('radar',this\)/.test(htmlSrc), 'REGRESSION: the consolidated Screener sidebar button is gone');
+
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(/renderUnifiedScreenerPage/.test(routerSrc), 'REGRESSION: renderUnifiedScreenerPage is no longer wired into the router');
+  // 'ranking'/'scanner' must still redirect to the SAME page container as
+  // 'radar' (defense against any remaining/future deep link using the old names).
+  assert(/UNIFIED_SCREENER_ALIASES/.test(routerSrc), 'REGRESSION: the ranking/scanner -> radar page-container redirect is gone');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/function renderUnifiedScreenerPage/.test(jsSrc), 'REGRESSION: renderUnifiedScreenerPage() is gone from 48-unified-screener.js');
+  assert(/window\.renderUnifiedScreenerPage = renderUnifiedScreenerPage/.test(jsSrc), 'REGRESSION: renderUnifiedScreenerPage is no longer exposed on window — router calls would fail');
+});
+
+// User-reported production screenshot (2026-09-18, Bandarmology BBCA):
+// "Arus investor asing saat ini mencatatkan Net Buy +Rp 0 M dengan
+// partisipasi pasar sebesar 0%" was showing for EVERY ticker on the real
+// (non-simulated) data path — per-ticker Invezgo broker summary
+// (investor=all) never has a foreign/domestic split (foreignFlow.available
+// is always false there, per computeBandarmologyVerdict() in
+// idx-data-engine.js), but the frontend coerced the resulting null into 0
+// and displayed it as if it were a real computed value.
+test('REGRESSION GUARD: Bandarmology foreign-flow widgets show honest "Tidak Tersedia" instead of a fabricated "+Rp 0 M / 0%" when foreignFlow.available is false', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const occurrences = (src.match(/ff\.available === false/g) || []).length;
+  assert(occurrences >= 4, `REGRESSION: expected at least 4 foreign-flow render spots to check ff.available === false, found ${occurrences}`);
+  assert(/Tidak Tersedia/.test(src), 'REGRESSION: the honest "Tidak Tersedia" foreign-flow label is gone');
+  assert(/Split asing\/domestik tidak ada di data ini|Data investor=all tidak punya split asing\/domestik/.test(src),
+    'REGRESSION: the explanatory sub-label for why foreign flow is unavailable is gone');
+  // The exact bullet text from the user's screenshot must no longer render
+  // unconditionally — it must be gated behind the available check.
+  assert(/ff\.available === false[\s\S]{0,400}Data arus investor asing/.test(src),
+    'REGRESSION: the tactical-takeaways bullet no longer gates the honest fallback behind ff.available === false');
+});
+
+test('REGRESSION GUARD: "Top 3 Buyer Konsentrasi" no longer falls back to a hardcoded 65% when real concentration data is absent', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(!/conc\.top3BuyPct \|\| conc\.top3BuyerPct \|\| 65/.test(src), 'REGRESSION: the hardcoded "|| 65" fallback for Top 3 Buyer concentration is back');
+  assert(/Konsentrasi Top 3 Buyer tidak tersedia/.test(src), 'REGRESSION: the honest "concentration unavailable" fallback text is gone');
+});
+
+// User-reported: "kepemilikan data KSEI data tidak tersedia padahal sudah
+// connect API" — dossierComputeKseiScore() used to show one generic
+// "belum diunggah/tidak ditemukan" message no matter WHY the live Invezgo
+// call failed (quota exhausted, subscription tier, auth, rate limit,
+// network) — even though generateShareholderComposition() already
+// captures the specific reason in result.errors. Surfacing the real reason
+// lets the user actually diagnose it instead of assuming "no data exists".
+test('REGRESSION GUARD: Stock Dossier KSEI pillar surfaces the SPECIFIC Invezgo failure reason (quota/subscription/auth/etc), not just a generic "not found" message', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(/kseiErr = live && Array\.isArray\(live\.errors\)/.test(src), 'REGRESSION: dossierComputeKseiScore() no longer reads live.errors to find the specific kseiComposition failure reason');
+  assert(/QUOTA_EXHAUSTED/.test(src) && /SUBSCRIPTION_INSUFFICIENT/.test(src) && /AUTH_FAILED/.test(src),
+    'REGRESSION: the specific Invezgo failure reason codes are no longer mapped to human-readable Indonesian text');
+  assert(/Sebab: ' \+ specificReason/.test(src), 'REGRESSION: the specific reason is no longer appended to the KSEI unavailable message');
 });
 
 console.log('═══════════════════════════════════════════════════════');
