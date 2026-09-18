@@ -5798,6 +5798,105 @@ test('REGRESSION GUARD: Sectoral Insight page must show live Invezgo RRG as a su
     'REGRESSION: the honest reason-text mapping for unavailable RRG data is gone');
 });
 
+// ── TEST: Opportunity Radar fundamentals cache is now Redis-backed, not a
+// plain in-memory Map (2026-09-18, user-requested: "Redis-backed
+// fundamentals cache + cron warming 950 saham") ──
+// The old in-memory Map couldn't survive Vercel serverless cold starts or
+// be shared across concurrent instances, making cron warming pointless —
+// a different instance serving a real user request would still see an
+// empty cache. This guards against reverting to that Map.
+test('REGRESSION GUARD: fetchYahooFundamentals() cache must be Redis-backed (yfStoreGet/yfStoreSetEx), not a plain in-memory Map', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/yahoo-client.js'), 'utf8');
+
+  assert(!/const _fundamentalsCache = new Map\(\)/.test(src),
+    'REGRESSION: _fundamentalsCache reverted to a plain in-memory Map — cron warming would only ever warm one serverless instance');
+  assert(/function getYahooRedis/.test(src), 'REGRESSION: getYahooRedis() lazy-singleton helper is gone');
+  assert(/async function yfStoreGet/.test(src) && /async function yfStoreSetEx/.test(src),
+    'REGRESSION: yfStoreGet()/yfStoreSetEx() Redis+fallback helpers are gone');
+  assert(/async function yfStoreMget/.test(src), 'REGRESSION: yfStoreMget() bulk-read helper is gone');
+
+  const fnSrc = src.match(/async function fetchYahooFundamentals[\s\S]*?\n\}\n/)[0];
+  assert(/await yfStoreGet\(cacheKey\)/.test(fnSrc), 'REGRESSION: fetchYahooFundamentals() no longer reads from the Redis-backed store');
+  assert(/await yfStoreSetEx\(cacheKey,\s*\{\s*isReal:\s*true,\s*data:\s*fundamentals\s*\},\s*FUNDAMENTALS_CACHE_TTL_SEC\)/.test(fnSrc),
+    'REGRESSION: a real fundamentals result is no longer written to the Redis-backed store with the 24h TTL');
+  assert(/await yfStoreSetEx\(cacheKey,\s*\{\s*isReal:\s*false,\s*data:\s*null\s*\},\s*FUNDAMENTALS_NEGATIVE_TTL_SEC\)/.test(fnSrc),
+    'REGRESSION: a negative (no-coverage) result is no longer written with the shorter negative TTL');
+
+  assert(/const FUNDAMENTALS_CACHE_TTL_SEC = 24 \* 60 \* 60/.test(src), 'REGRESSION: the approved 24-hour positive TTL constant is gone/changed');
+  assert(/const FUNDAMENTALS_NEGATIVE_TTL_SEC = 10 \* 60/.test(src), 'REGRESSION: the approved 10-minute negative TTL constant is gone/changed');
+
+  // Falls back to an in-memory Map only when Upstash isn't configured —
+  // never crashes local dev without an Upstash account.
+  assert(/_yfMemoryStore/.test(src), 'REGRESSION: the in-memory fallback for local dev without Upstash is gone');
+});
+
+test('REGRESSION GUARD: getCachedFundamentalsOnly/hasFundamentalsCacheEntry must be async (real Redis reads), and getCachedFundamentalsBulk() must exist for the 950-ticker scoring loop', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/yahoo-client.js'), 'utf8');
+
+  assert(/async function getCachedFundamentalsOnly/.test(src), 'REGRESSION: getCachedFundamentalsOnly() is no longer async — must be, since it now reads Redis');
+  assert(/async function hasFundamentalsCacheEntry/.test(src), 'REGRESSION: hasFundamentalsCacheEntry() is no longer async');
+  assert(/async function getCachedFundamentalsBulk/.test(src), 'REGRESSION: getCachedFundamentalsBulk() is gone');
+
+  const bulkFnSrc = src.match(/async function getCachedFundamentalsBulk[\s\S]*?\n\}\n/)[0];
+  assert(/yfStoreMget\(keys\)/.test(bulkFnSrc), 'REGRESSION: getCachedFundamentalsBulk() no longer does a single bulk mget — would regress to N individual Redis round-trips for 950 tickers');
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const radarFnSrc = engineSrc.match(/async function getUniverseOpportunityRadar[\s\S]*?\n\}\n\nasync function/)?.[0]
+    || engineSrc.match(/async function getUniverseOpportunityRadar[\s\S]{0,4000}/)[0];
+  assert(/getCachedFundamentalsBulk\(allList\.map\(s => s\.code\)\)/.test(radarFnSrc),
+    'REGRESSION: getUniverseOpportunityRadar() no longer bulk-reads all tickers\' cache entries in one call — would regress to 950 sequential Redis round-trips per request');
+  assert(!/const fund = getCachedFundamentalsOnly\(code\)/.test(engineSrc),
+    'REGRESSION: getUniverseOpportunityRadar() reverted to calling the (now-async) getCachedFundamentalsOnly() synchronously inside its .map() — this would silently return a Promise instead of fundamentals data');
+});
+
+test('REGRESSION GUARD: warmRadarFundamentalsRotating() must persist a Redis cursor and respect a time budget, so a single Vercel Hobby cron run (1x/day, 30s max) makes safe rotating progress across the full 950-ticker universe', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+
+  assert(/async function warmRadarFundamentalsRotating/.test(engineSrc), 'REGRESSION: warmRadarFundamentalsRotating() is missing');
+  const fnSrc = engineSrc.match(/async function warmRadarFundamentalsRotating[\s\S]*?\n\}\n/)[0];
+
+  assert(/getRadarWarmCursor\(\)/.test(fnSrc), 'REGRESSION: warmRadarFundamentalsRotating() no longer reads the persisted cursor — progress would reset to 0 every run instead of rotating through the full universe');
+  assert(/setRadarWarmCursor\(idx\)/.test(fnSrc), 'REGRESSION: warmRadarFundamentalsRotating() no longer persists the cursor after a run');
+  assert(/\(Date\.now\(\) - start\) < budget/.test(fnSrc), 'REGRESSION: the time-budget guard is gone — a run could exceed Vercel\'s function duration limit and get killed mid-write');
+  assert(/idx = \(idx \+ 1\) % total/.test(fnSrc), 'REGRESSION: the cursor no longer wraps around at the end of the universe — rotation would stop instead of cycling');
+  assert(/const already = await hasFundamentalsCacheEntry\(code\)/.test(fnSrc) && /if \(already\) return \{ skipped: true \}/.test(fnSrc),
+    'REGRESSION: warmRadarFundamentalsRotating() no longer skips already-cached tickers — would re-fetch a fresh 24h-cached ticker on every rotation pass');
+
+  const clientSrc = fs.readFileSync(path.join(__dirname, 'lib/providers/yahoo-client.js'), 'utf8');
+  assert(/async function getRadarWarmCursor/.test(clientSrc) && /async function setRadarWarmCursor/.test(clientSrc),
+    'REGRESSION: getRadarWarmCursor()/setRadarWarmCursor() are gone from yahoo-client.js');
+});
+
+test('REGRESSION GUARD: GET /api/cron/warm-radar-fundamentals must reject requests without a valid CRON_SECRET (fail-closed), never run warming unauthenticated', () => {
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+
+  assert(/app\.get\('\/api\/cron\/warm-radar-fundamentals'/.test(serverSrc), 'REGRESSION: GET /api/cron/warm-radar-fundamentals route is gone');
+  const routeSrc = serverSrc.match(/app\.get\('\/api\/cron\/warm-radar-fundamentals'[\s\S]*?\n\}\);/)[0];
+
+  assert(/process\.env\.CRON_SECRET/.test(routeSrc), 'REGRESSION: the route no longer reads CRON_SECRET from the environment');
+  assert(/if \(!secret \|\| authHeader !== `Bearer \$\{secret\}`\)/.test(routeSrc),
+    'REGRESSION: the route no longer fails closed when CRON_SECRET is unset or the Authorization header doesn\'t match — this would let anyone publicly trigger Yahoo Finance calls for the whole 950-ticker universe');
+  assert(/res\.status\(403\)/.test(routeSrc), 'REGRESSION: an unauthenticated/unauthorized request no longer gets a 403 — must never silently proceed');
+  assert(/warmRadarFundamentalsRotating\(25000\)/.test(routeSrc), 'REGRESSION: the route no longer calls warmRadarFundamentalsRotating() with the 25s safety budget (leaving margin under vercel.json\'s 30s maxDuration)');
+
+  assert(/warmRadarFundamentalsRotating,/.test(serverSrc), 'REGRESSION: warmRadarFundamentalsRotating is no longer imported into server.js');
+});
+
+test('REGRESSION GUARD: vercel.json must schedule the radar-fundamentals cron once daily (Vercel Hobby allows only 1x/day)', () => {
+  const vercelConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'vercel.json'), 'utf8'));
+
+  assert(Array.isArray(vercelConfig.crons), 'REGRESSION: vercel.json crons array is gone');
+  const cronEntry = vercelConfig.crons.find((c) => c.path === '/api/cron/warm-radar-fundamentals');
+  assert(cronEntry, 'REGRESSION: the /api/cron/warm-radar-fundamentals cron entry is gone from vercel.json');
+  assert(typeof cronEntry.schedule === 'string' && cronEntry.schedule.split(' ').length === 5,
+    'REGRESSION: the cron schedule is missing or malformed (must be a standard 5-field cron expression)');
+  // Must be a once-daily schedule (Vercel Hobby's limit) — a fixed
+  // minute+hour with wildcard day/month/day-of-week, not every-N-minutes/hours.
+  const fields = cronEntry.schedule.split(' ');
+  assert(/^\d+$/.test(fields[0]) && /^\d+$/.test(fields[1]) && fields[2] === '*' && fields[3] === '*' && fields[4] === '*',
+    'REGRESSION: the cron schedule no longer runs exactly once/day — Vercel Hobby (the user\'s plan) only allows 1 cron execution per day');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

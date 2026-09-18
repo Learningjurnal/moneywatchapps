@@ -7,6 +7,12 @@
       "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/warm-radar-fundamentals",
+      "schedule": "0 22 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/api/idx/(.*)",

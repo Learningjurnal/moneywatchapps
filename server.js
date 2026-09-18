@@ -16,6 +16,7 @@ import {
   getIdxMarketSummary,
   getIdxCalendarData,
   getUniverseOpportunityRadar,
+  warmRadarFundamentalsRotating,
   getUniverseAccumulationDistribution,
   getTransactionFlowVisualizer,
   getBeiTickSize,
@@ -3281,6 +3282,32 @@ app.get('/api/idx/opportunity-radar', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[IDX Opportunity Radar Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/cron/warm-radar-fundamentals — Vercel Cron target (2026-09-18,
+// user-requested: "Redis-backed fundamentals cache + cron warming 950
+// saham"). Vercel Cron Jobs invoke the configured path with a GET request
+// and, when CRON_SECRET is set in the project's env vars, an
+// `Authorization: Bearer <CRON_SECRET>` header — verified below so this
+// endpoint can't be triggered publicly to rack up Yahoo calls. Fails
+// closed (403) if CRON_SECRET isn't configured at all, never runs
+// unauthenticated. See warmRadarFundamentalsRotating() (lib/idx-data-engine.js)
+// for the rotating-cursor design (Vercel Hobby only allows 1 cron run/day
+// and a 30s function budget, so full 950-ticker coverage happens
+// progressively over ~3 days, not in one run).
+app.get('/api/cron/warm-radar-fundamentals', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization || '';
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  try {
+    const result = await warmRadarFundamentalsRotating(25000);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Radar Fundamentals Cron Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
