@@ -5938,6 +5938,81 @@ test('REGRESSION GUARD: getUniverseForeignFlow() must scan the whole BEI market 
   assert(/fetch\('\/api\/idx\/foreign-flow'\)/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() no longer fetches GET /api/idx/foreign-flow');
 });
 
+// ── TEST: _mergeWealthData() must respect tombstones for bank/debt/
+// piutang deletions across devices, not just union-by-id forever ──
+// User-reported: menghapus rekening bank/hutang/piutang di satu device
+// membuat item itu "muncul lagi" setelah sinkron dari device lain, karena
+// mergeById() dulu cuma menggabungkan array tanpa pernah menghormati
+// penghapusan. Scope tombstone SENGAJA dibatasi ke bank/debt/piutang saja
+// (bukan transactions/dividends/dll) — keputusan eksplisit user via
+// AskUserQuestion, retensi 90 hari.
+test('REGRESSION GUARD: _mergeWealthData() must exclude tombstoned bank/debt/piutang ids from the merged result, not resurrect deleted items', () => {
+  const storageSrc = fs.readFileSync(path.join(__dirname, 'public/js/02-storage.js'), 'utf8');
+
+  const tombstoneFnSrc = storageSrc.match(/function _mergeTombstones[\s\S]*?\n\}\n/);
+  assert(tombstoneFnSrc, 'REGRESSION: _mergeTombstones() is gone from 02-storage.js');
+  const mergeFnSrc = storageSrc.match(/function _mergeWealthData[\s\S]*?\n\}\n/);
+  assert(mergeFnSrc, 'REGRESSION: _mergeWealthData() is gone from 02-storage.js');
+
+  const retentionMatch = storageSrc.match(/WEALTH_TOMBSTONE_RETENTION_MS\s*=\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)/);
+  assert(retentionMatch, 'REGRESSION: WEALTH_TOMBSTONE_RETENTION_MS constant is gone');
+  const retentionMs = retentionMatch.slice(1, 6).reduce((a, b) => a * Number(b), 1);
+  assert.strictEqual(retentionMs, 90 * 24 * 60 * 60 * 1000, 'REGRESSION: tombstone retention is no longer 90 days (user-confirmed value)');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(
+    'var WEALTH_TOMBSTONE_RETENTION_MS = ' + retentionMs + ';\n' + tombstoneFnSrc[0] + mergeFnSrc[0],
+    sandbox,
+    { filename: '_mergeWealthData (sandboxed)' }
+  );
+
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+
+  // Scenario 1: device A deletes bank id=1 (tombstoned), device B never
+  // synced that deletion and still has id=1 locally — merged result must
+  // NOT resurrect it.
+  const cloudWealth = { bank: [{ id: 1, bank: 'BCA', saldo: 1000 }], debt: [], piutang: [], tombstones: [{ type: 'bank', id: 1, deletedAt: nowIso }] };
+  const localWealth = { bank: [{ id: 1, bank: 'BCA', saldo: 1000 }], debt: [], piutang: [], tombstones: [] };
+  const merged1 = sandbox._mergeWealthData(localWealth, cloudWealth, now, now);
+  assert.strictEqual(merged1.bank.length, 0, 'REGRESSION: a bank item tombstoned on one side was resurrected by the union-by-id merge instead of being excluded');
+
+  // Scenario 2: a genuinely NEW item (id=2) only exists locally, no
+  // tombstone anywhere — must still be kept (this is the "device hasn't
+  // synced yet" case the original union-by-id design protects).
+  const cloudWealth2 = { bank: [], debt: [], piutang: [], tombstones: [] };
+  const localWealth2 = { bank: [{ id: 2, bank: 'Mandiri', saldo: 500 }], debt: [], piutang: [], tombstones: [] };
+  const merged2 = sandbox._mergeWealthData(localWealth2, cloudWealth2, now, now);
+  assert.strictEqual(merged2.bank.length, 1, 'REGRESSION: a new (never-deleted) item was incorrectly dropped — tombstone filtering must only remove tombstoned ids, not act as a whitelist');
+
+  // Scenario 3: an expired tombstone (>90 days old) must no longer
+  // suppress the item if it somehow still exists on one side.
+  const oldDeletedAt = new Date(now - (91 * 24 * 60 * 60 * 1000)).toISOString();
+  const cloudWealth3 = { bank: [{ id: 3, bank: 'BRI', saldo: 200 }], debt: [], piutang: [], tombstones: [{ type: 'bank', id: 3, deletedAt: oldDeletedAt }] };
+  const localWealth3 = { bank: [], debt: [], piutang: [], tombstones: [] };
+  const merged3 = sandbox._mergeWealthData(localWealth3, cloudWealth3, now, now);
+  assert.strictEqual(merged3.bank.length, 1, 'REGRESSION: an expired (>90 day) tombstone incorrectly still suppresses the item — must be pruned');
+
+  // Scenario 4: debt/piutang tombstones must be scoped by type — a bank
+  // tombstone for id=5 must not suppress a debt item with the same id.
+  const cloudWealth4 = { bank: [], debt: [{ id: 5, nama: 'KPR' }], piutang: [], tombstones: [{ type: 'bank', id: 5, deletedAt: nowIso }] };
+  const localWealth4 = { bank: [], debt: [], piutang: [], tombstones: [] };
+  const merged4 = sandbox._mergeWealthData(localWealth4, cloudWealth4, now, now);
+  assert.strictEqual(merged4.debt.length, 1, 'REGRESSION: a tombstone for type=bank incorrectly suppressed a debt item with the same numeric id — tombstones must be scoped per-type');
+
+  // 20-wealth.js and 35-settings.js must actually RECORD tombstones when
+  // deleting, not just have the merge-side plumbing with nothing writing to it.
+  const wealthSrc = fs.readFileSync(path.join(__dirname, 'public/js/20-wealth.js'), 'utf8');
+  assert(/function wRecordTombstone/.test(wealthSrc), 'REGRESSION: wRecordTombstone() is gone from 20-wealth.js');
+  const wDeleteSrc = wealthSrc.match(/function wDelete\(type, id\)[\s\S]*?\n\}\n/)[0];
+  assert(/wRecordTombstone\(type, id\)/.test(wDeleteSrc), 'REGRESSION: wDelete() no longer calls wRecordTombstone() — deletions from the main Wealth page will stop propagating across devices again');
+
+  const settingsSrc = fs.readFileSync(path.join(__dirname, 'public/js/35-settings.js'), 'utf8');
+  assert(/wRecordTombstone\('bank', removed\.id\)/.test(settingsSrc), 'REGRESSION: deleteBankAccount() in Settings no longer records a tombstone — this UI path bypasses the fix');
+  assert(/wRecordTombstone\('debt', removed\.id\)/.test(settingsSrc), 'REGRESSION: deleteDebt() in Settings no longer records a tombstone — this UI path bypasses the fix');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

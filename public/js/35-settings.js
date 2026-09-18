@@ -760,6 +760,8 @@
   function deleteBankAccount(idx) {
     if (confirm('Hapus rekening bank ini?')) {
       if (typeof WEALTH !== 'undefined' && Array.isArray(WEALTH.bank)) {
+        var removed = WEALTH.bank[idx];
+        if (removed && removed.id != null && typeof wRecordTombstone === 'function') wRecordTombstone('bank', removed.id);
         WEALTH.bank.splice(idx, 1);
         if (typeof wSave === 'function') wSave();
       }
@@ -799,6 +801,8 @@
   function deleteDebt(idx) {
     if (confirm('Hapus pos liabilitas ini?')) {
       if (typeof WEALTH !== 'undefined' && Array.isArray(WEALTH.debt)) {
+        var removed = WEALTH.debt[idx];
+        if (removed && removed.id != null && typeof wRecordTombstone === 'function') wRecordTombstone('debt', removed.id);
         WEALTH.debt.splice(idx, 1);
         if (typeof wSave === 'function') wSave();
       }
