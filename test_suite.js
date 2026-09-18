@@ -4930,14 +4930,20 @@ test('REGRESSION GUARD: Smart Money Screener consolidation — old duplicate ent
   assert(/'\/api\/idx\/accumulation-distribution'/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() no longer calls the acc/dist API directly');
   assert(!/RADAR_STATE\.accData/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() must NOT read/write RADAR_STATE.accData — that would leak full-universe results into the LQ45-only Anomaly Structural & ARA sub-tab');
 
-  // 3. FIX AUDIT (2026-09-17): the sector-heatmap mode's stock-level table
-  // was redesigned to scan the FULL IDX universe (fetched fresh, real
-  // per-ticker sector) instead of the curated ~37-ticker BANDAR_SECTOR_DEFS
-  // list — it must still reuse generateClientSideBrokerSummary() (the CMF
-  // pipeline), just no longer be capped to that curated list.
-  assert(/FS_SECTOR_SCAN_UNIVERSE/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() lost its full-universe ticker cache (FS_SECTOR_SCAN_UNIVERSE) — must not silently shrink back to the curated ~37-ticker list');
-  assert(/generateClientSideBrokerSummary/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() no longer reuses generateClientSideBrokerSummary()');
-  assert(!/scannerCandidates\s*=\s*\[/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() reintroduced a hardcoded scannerCandidates ticker list — the whole point of the fix was to stop hardcoding a narrow candidate set');
+  // 3. FIX AUDIT (2026-09-17, user-reported "masih pakai data simulasi"):
+  // the sector-heatmap mode was redesigned AGAIN — it no longer computes
+  // per-sector flow from generateClientSideBrokerSummary() (a client-side
+  // CMF simulation, badge literally said "SIMULASI FLOW") at all. It now
+  // reuses the SAME real Invezgo top-movers data as "Broker Flow Riil"
+  // (FS_BROKER_SCAN), grouping the real `sector`/`valueRp` fields already
+  // returned by the server — one shared fetch across both modes, no extra
+  // quota cost from switching tabs, and an honest fallback message (same
+  // as Broker Flow Riil) instead of silently falling back to simulated
+  // per-ticker CMF when Invezgo is unavailable.
+  assert(!/generateClientSideBrokerSummary/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() calls generateClientSideBrokerSummary() again — this is the client-side CMF simulation that was replaced by real Invezgo top-movers data');
+  assert(/function fsRenderSectorHeatmapUI/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapUI() is gone — sector heatmap must render from the shared FS_BROKER_SCAN real data');
+  assert(!/scannerCandidates\s*=\s*\[/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() reintroduced a hardcoded scannerCandidates ticker list');
+  assert(!/SIMULASI FLOW/.test(flowScanSrc), 'REGRESSION: sector heatmap "SIMULASI FLOW" badge resurfaced — this mode must show real Invezgo data or an honest not-configured message, never a silent simulated table');
 
   // 4. Old duplicate render functions must be GONE, not just unreachable.
   assert(!/function renderRadarScannerSubTab/.test(cmdCenterSrc), 'REGRESSION: renderRadarScannerSubTab() resurfaced in 26-commandcenter.js — the duplicate "Scanner Akumulasi & Distribusi" sub-tab must stay removed');
@@ -5469,6 +5475,176 @@ test('REGRESSION GUARD: getUniverseAccumulationDistribution() must map calculate
     'REGRESSION: getUniverseAccumulationDistribution() no longer builds its accumulation list from result.accum');
   assert(/distribution\s*=\s*\(result\.dist \|\| \[\]\)\.map\(mapRow\)\.sort/.test(fnSrc),
     'REGRESSION: getUniverseAccumulationDistribution() no longer builds its distribution list from result.dist');
+});
+
+// ── TEST: fetchInvezgoBrokerSummary() must parse the REAL
+// /analysis/summary/stock/{code} response shape — a flat array, one row
+// per broker with BOTH buy_*/sell_* fields, not {data:...}/{buyers:...} ──
+// User-reported (screenshot): the Bandarmology per-emiten page showed a
+// "DATA INVALID" badge — "Skema respons Invezgo tidak dikenali" — even
+// though the underlying HTTP request itself succeeded (price/1D/3D/7D
+// change all rendered correctly). Root cause confirmed from a REAL
+// authenticated response body the user captured and uploaded (BBCA, not a
+// guess): `raw` is a top-level JSON ARRAY, e.g.
+// [{code:"LG",name:"TRIMEGAH SEKURITAS INDONESIA",buy_value:"141395320000",
+// sell_value:"112346392500",buy_volume:"14305000",...}, ...] — every
+// numeric field is a STRING, and there is NO per-broker foreign/domestic
+// flag (that's controlled by the `investor` request param, always sent as
+// 'all' by this app, not returned per-row).
+test('REGRESSION GUARD: fetchInvezgoBrokerSummary() must recognize the real flat-array broker response, not fail-closed to DATA INVALID on every real request', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  const fnSrc = src.match(/async function fetchInvezgoBrokerSummary[\s\S]*?\n\}\n/)[0];
+
+  assert(!/!raw\.data && !raw\.buyers && !raw\.brokers/.test(fnSrc),
+    'REGRESSION: fetchInvezgoBrokerSummary() reverted to checking raw.data/raw.buyers/raw.brokers — the real response is a bare array and has none of these, this reproduces the exact "DATA INVALID" bug the user reported');
+  assert(/Array\.isArray\(raw\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoBrokerSummary() no longer validates the response as an array — the real /analysis/summary/stock/{code} response is a flat array of per-broker rows');
+  assert(/Number\(b\.buy_value\)/.test(fnSrc) && /Number\(b\.sell_value\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoBrokerSummary() no longer derives buyers/sellers from the real buy_value/sell_value fields (confirmed from a real captured BBCA response)');
+  assert(!/item\.investor_type|item\.is_foreign/.test(src),
+    'REGRESSION: a per-broker foreign/domestic guess (investor_type/is_foreign) resurfaced — the real response has no such field per broker, this was fabricated data');
+});
+
+// ── TEST: generateBrokerSummary()/computeBandarmologyVerdict() must treat
+// an unknown foreign/domestic split as UNAVAILABLE, never as a silent
+// zero ──
+// Before this fix, `type` always defaulted to 'D' (domestic) when no
+// investor_type/is_foreign field was present — which is now confirmed to
+// be EVERY real row (the field doesn't exist). That silently reported
+// "0% foreign flow" as if it were a real measurement, and the frontend's
+// statusOf() (public/js/45-volume-spike.js) then mislabeled a genuinely
+// missing value as "Net Sell" (comparing `undefined >= 0` is false) —
+// exactly the "DATA INVALID" / empty Foreign Net Flow cards the user's
+// screenshot showed.
+test('REGRESSION GUARD: computeBandarmologyVerdict() must report foreignFlow/domesticFlow as unavailable, not a fabricated zero, when no per-broker F/D data exists', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = src.match(/function computeBandarmologyVerdict[\s\S]*?\n\}\n/)[0];
+
+  assert(/hasForeignSplit/.test(fnSrc),
+    'REGRESSION: computeBandarmologyVerdict() no longer detects whether a real foreign/domestic split exists — it would silently compute 0 foreign flow again');
+  assert(/available:\s*false/.test(fnSrc) && /available:\s*true/.test(fnSrc),
+    'REGRESSION: foreignFlow/domesticFlow no longer report an explicit available:true/false — a caller can no longer distinguish "confirmed zero" from "unknown"');
+  assert(/buyValRp:\s*null/.test(fnSrc),
+    'REGRESSION: the unavailable foreignFlow/domesticFlow branch no longer returns null values — returning 0 instead would misrepresent an unknown split as a confirmed zero');
+
+  const engineSrc = src;
+  const normalizeSrc = engineSrc.match(/const normalize = \(list\) => [\s\S]*?\n    \}\)\);/)[0];
+  assert(/type:\s*null/.test(normalizeSrc),
+    'REGRESSION: generateBrokerSummary()\'s normalize() no longer sets type:null — defaulting to \'D\' again would silently claim every broker is domestic');
+
+  const vsSrc = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
+  assert(/v === null \|\| v === undefined/.test(vsSrc),
+    'REGRESSION: statusOf() in 45-volume-spike.js no longer treats undefined the same as null — a missing foreignFlow.netValRp (e.g. from an INVALID-schema response) would be mislabeled "Net Sell" again (undefined >= 0 is false)');
+});
+
+// ── TEST: Screener page must let the caller pick a wider universe than
+// the hardcoded 45-ticker LQ45_STOCKS list ──
+// User-reported: "Screener Saham LQ45, ini masih aja 45? saham ada 950
+// untuk apa screener 45?" — scBuildSim() was hardwired to loop the static
+// LQ45_STOCKS array (itself only 15 entries) with no way to widen it.
+// scResolveUniverseList()/scChangeUniverse() now source the wider indexes
+// from /api/idx/stocks (same endpoint Opportunity Radar/Volume Spike
+// Scanner already use — real securities master, not fabricated), and
+// scBuildSim() batches concurrent fetches instead of one 250ms-staggered
+// ticker at a time (950 tickers at 250ms sequential would take ~4 minutes).
+test('REGRESSION GUARD: Quant Screener must support a wider universe than the hardcoded LQ45_STOCKS list', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  assert(/function scResolveUniverseList/.test(src), 'REGRESSION: scResolveUniverseList() is gone — the screener has no way to pick a universe wider than LQ45');
+  assert(/function scChangeUniverse/.test(src), 'REGRESSION: scChangeUniverse() is gone — there is no UI hook to widen the screener universe');
+  assert(/QT_SCREENER_INDEX === 'all'/.test(src) || /idx === 'all'/.test(src), 'REGRESSION: the "Semua BEI" (all 950+) option is gone from the universe resolver');
+  assert(/runBatch = function\(startIdx\)/.test(src) && /batch\.forEach\(perTicker\)/.test(src),
+    'REGRESSION: scBuildSim() reverted to one-ticker-at-a-time 250ms staggering — this would take ~4 minutes for a 950-ticker universe instead of concurrent batching');
+  assert(indexHtml.includes('id="sc-universe"') && indexHtml.includes("value=\"all\""),
+    'REGRESSION: index.html lost the Screener universe <select> or its "Semua BEI" option');
+});
+
+// ── TEST: Opportunity Radar's Margin-of-Safety shortcut must not blow up
+// to a nonsensical percentage when ROE is near zero ──
+// User-reported (screenshot): ITMS showed "MoS -1106385.6%". Root cause:
+// `justifiedPbv = (roe/100)/REQUIRED_RETURN` is proportional to ROE, and
+// the MoS formula divides by it — as real ROE approaches 0%, justifiedPbv
+// approaches 0 and (justifiedPbv - pbv)/justifiedPbv explodes toward
+// ±infinity. Not a data bug (ROE 0.007% can be a genuine real fetched
+// value for a micro-cap) — the shortcut itself is only numerically stable
+// for a comfortably-positive ROE range. Fixed by leaving MoS null
+// (honestly unavailable) rather than surfacing the meaningless blow-up.
+test('REGRESSION GUARD: getUniverseOpportunityRadar() MoS calc must not blow up toward ±infinity for near-zero ROE', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const m = src.match(/if \(fund\.pbv != null && fund\.pbv > 0 && roe != null[\s\S]*?\n      \}/);
+  assert(m, 'REGRESSION: the MoS calculation block is gone or restructured beyond recognition');
+  const block = m[0];
+
+  assert(/roe >= REQUIRED_RETURN \* 100 \* 0\.1/.test(block),
+    'REGRESSION: the near-zero-ROE stability guard on the MoS calculation is gone — ROE close to 0% (or negative) will again blow justifiedPbv up toward 0 and the MoS ratio toward ±infinity, reproducing "MoS -1106385.6%"');
+
+  // Functional check of the guard's actual arithmetic, independent of the
+  // source-text match above: replicate the exact formula with a real
+  // near-zero ROE (0.007%, the kind of value that produced the reported
+  // bug) and confirm the guard suppresses it to null instead of a
+  // six-digit percentage.
+  const REQUIRED_RETURN = 0.08;
+  function computeMos(roe, pbv) {
+    if (pbv != null && pbv > 0 && roe != null && roe >= REQUIRED_RETURN * 100 * 0.1) {
+      const justifiedPbv = (roe / 100) / REQUIRED_RETURN;
+      return Math.round(((justifiedPbv - pbv) / justifiedPbv) * 1000) / 10;
+    }
+    return null;
+  }
+  assert.strictEqual(computeMos(0.007, 0.39), null, 'sanity: near-zero ROE (0.007%) must yield null MoS, not a blown-up percentage');
+  assert.strictEqual(computeMos(-5, 1.2), null, 'sanity: negative ROE must yield null MoS, the shortcut is undefined there');
+  assert(computeMos(15, 2.0) !== null, 'sanity: a normal, comfortably-positive ROE (15%) must still compute a real MoS value');
+});
+
+// ── TEST: Volume Spike Scanner must offer a "Seluruh BEI" universe option
+// and scan it in concurrent batches, not 350ms-staggered one at a time ──
+// User-reported: "Screening Volume Spike cuma maksimal saham Kompas 100".
+// VS_INDEX_LABELS was capped at lq45/idx30/idx80/kompas100 (max 100
+// tickers) with no way to scan the full ~950-ticker BEI universe. Fixed by
+// adding an 'all' option (omits the server-side index filter) and
+// batching the client-side scan (VS_SCAN_BATCH tickers concurrently per
+// round) instead of one ticker every 350ms — sequential would take ~5.5
+// minutes for 950+ tickers.
+test('REGRESSION GUARD: Volume Spike Scanner must support a "Seluruh BEI" universe option scanned in concurrent batches', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
+
+  assert(/all:\s*'Seluruh BEI/.test(src), 'REGRESSION: the "Seluruh BEI" (all 950+) option is gone from VS_INDEX_LABELS');
+  assert(/indexKey === 'all'/.test(src), 'REGRESSION: vsStartScreening() no longer special-cases the \'all\' universe to skip the server-side index filter');
+  assert(/var VS_SCAN_BATCH/.test(src), 'REGRESSION: VS_SCAN_BATCH concurrency constant is gone — scanning reverted to one ticker at a time');
+  assert(/batch\.forEach\(scanOneTicker\)/.test(src), 'REGRESSION: vsScanNext() no longer processes tickers in concurrent batches — this would take ~5.5 minutes sequentially for a 950-ticker "Seluruh BEI" scan');
+});
+
+// ── TEST: Market Pulse's IHSG chart must fetch REAL historical data for
+// non-1D ranges, not stay a disabled placeholder ──
+// User-reported: "ihsg... history data belum integrasi". The range tabs
+// (5D/1M/6M/YTD/1Y/5Y/ALL) used to be disabled buttons that only showed a
+// toast ("Riwayat X butuh data historis resmi bursa — belum
+// terintegrasi") — an honestly-labeled gap, not fabricated data, but
+// still a real gap the user wanted closed. Wired to rdEnsureIhsgHistory()
+// (03-engine.js), which fetches real ^JKSE history from Yahoo Finance via
+// the same proxy chain the rest of the app uses. Verified live via
+// Playwright (with a Chart.js stub, since this sandbox's egress policy
+// blocks the cdnjs.cloudflare.com CDN Chart.js itself loads from): clicking
+// through every range tab ends in either real data or an honest "Gagal
+// memuat data historis IHSG (<tf>) — coba lagi nanti." message, never a
+// silently-stuck canvas, with zero pageerror.
+test('REGRESSION GUARD: Market Pulse IHSG chart must fetch real history for 5D/1M/6M/YTD/1Y/5Y/ALL ranges, not stay disabled placeholders', () => {
+  const decisionSrc = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+
+  assert(!/showToast\('Riwayat ' \+ r\.label \+ ' butuh data historis resmi bursa/.test(decisionSrc),
+    'REGRESSION: the IHSG range tabs reverted to a disabled toast placeholder instead of calling real data fetch');
+  assert(/function dbSwitchIhsgRange/.test(decisionSrc), 'REGRESSION: dbSwitchIhsgRange() is gone — no way to switch the IHSG chart range');
+  assert(/rdEnsureIhsgHistory\(tf, function\(rows\)/.test(decisionSrc), 'REGRESSION: renderDailyBriefIhsgChart() no longer calls rdEnsureIhsgHistory() for non-1D ranges — reverted to fabricating or leaving them unimplemented');
+  assert(/Gagal memuat data historis IHSG/.test(decisionSrc), 'REGRESSION: the honest failure message for a real fetch failure is gone — a failed fetch must never silently leave a blank/stuck chart');
+
+  assert(/function fhFetchIhsgHistory/.test(engineSrc), 'REGRESSION: fhFetchIhsgHistory() is gone from 03-engine.js — real IHSG history fetcher removed');
+  assert(/function rdEnsureIhsgHistory/.test(engineSrc), 'REGRESSION: rdEnsureIhsgHistory() is gone — cache/inflight/backoff wrapper removed');
+  assert(/FH\.IHSG_SYM/.test(engineSrc.match(/function fhFetchIhsgHistory[\s\S]*?\n\}\n/)?.[0] || ''),
+    'REGRESSION: fhFetchIhsgHistory() no longer targets the real ^JKSE symbol (FH.IHSG_SYM)');
+  assert(/IHSG_HIST_FAIL\[tf\] = Date\.now\(\)/.test(engineSrc),
+    'REGRESSION: rdEnsureIhsgHistory() no longer records a failure timestamp — a failed fetch would be silently retried on every re-render instead of backing off, hammering the shared proxy');
 });
 
 console.log('═══════════════════════════════════════════════════════');

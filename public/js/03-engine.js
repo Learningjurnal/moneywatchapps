@@ -1122,6 +1122,109 @@ function rdEnsureCryptoDaily(sym, cb){
 window.rdGetCryptoDaily = rdGetCryptoDaily;
 window.rdEnsureCryptoDaily = rdEnsureCryptoDaily;
 
+// ── IHSG real historical chart data (Yahoo Finance ^JKSE) ──
+// FIX (2026-09-17, user-reported "ihsg belum integrasi volume, history
+// data belum integrasi"): the Market Pulse page's IHSG chart
+// (renderDailyBriefIhsgChart(), 28-decisiontools.js) already used 100%
+// real data for "1D" (ihsgHist — accumulated from live polling), but its
+// 5D/1M/6M/YTD/1Y/5Y/All range tabs were disabled placeholders
+// ("Riwayat X butuh data historis resmi bursa — belum terintegrasi") —
+// an honestly-labeled gap, not fabricated data, but still a real gap the
+// user wants closed. This fetcher supplies real history for those ranges
+// via Yahoo's own range/interval keywords for ^JKSE — same
+// proxy-chain + real-timestamp/close-array pattern as
+// fhFetchCryptoDailyHistory() above, just targeting the index symbol.
+var IHSG_TF_RANGE = {
+  '5D': { range: '5d', interval: '15m' },
+  '1M': { range: '1mo', interval: '1d' },
+  '6M': { range: '6mo', interval: '1d' },
+  'YTD': { range: 'ytd', interval: '1d' },
+  '1Y': { range: '1y', interval: '1wk' },
+  '5Y': { range: '5y', interval: '1mo' },
+  'ALL': { range: 'max', interval: '1mo' }
+};
+var IHSG_HIST_CACHE = {}; // tf -> { rows:[{t,o,h,l,c,v}], fetchedAt }
+var IHSG_HIST_INFLIGHT = {};
+var IHSG_HIST_FAIL = {}; // tf -> timestamp of last failed fetch (backoff, avoid hammering the proxy every re-render)
+var IHSG_HIST_FAIL_BACKOFF_MS = 60000;
+var IHSG_HIST_TTL_MS = { '5D': 5 * 60000, '1M': 60 * 60000, '6M': 60 * 60000, 'YTD': 60 * 60000, '1Y': 60 * 60000, '5Y': 6 * 60 * 60000, 'ALL': 6 * 60 * 60000 };
+
+function fhFetchIhsgHistory(tf, cb, proxyIdx){
+  var cfg = IHSG_TF_RANGE[tf];
+  if(!cfg){ cb(new Error('UNKNOWN_TIMEFRAME'), null); return; }
+  proxyIdx = proxyIdx || 0;
+  if(proxyIdx >= FH.PROXIES.length){ cb(new Error('ALL_PROXIES_FAILED'), null); return; }
+
+  var host = 'query1.finance.yahoo.com';
+  var yUrl = 'https://' + host + '/v8/finance/chart/' + FH.IHSG_SYM + '?interval=' + cfg.interval + '&range=' + cfg.range;
+  var proxyConfig = FH.PROXIES[proxyIdx];
+  var url = proxyConfig.url(yUrl);
+
+  var controller = null, timeoutId = null;
+  if(typeof AbortController !== 'undefined'){
+    controller = new AbortController();
+    timeoutId = setTimeout(function(){ controller.abort(); }, 8000);
+  }
+
+  fetch(url, { signal: controller ? controller.signal : undefined })
+  .then(function(r){
+    if(timeoutId) clearTimeout(timeoutId);
+    if(!r.ok){ throw new Error('HTTP_' + r.status); }
+    return r.json();
+  })
+  .then(function(d){
+    var rawObj = d;
+    if(proxyConfig.isWrapped && d && d.contents){
+      try { rawObj = JSON.parse(d.contents); } catch(e){ throw new Error('PARSE_ERROR'); }
+    }
+    var result = rawObj && rawObj.chart && rawObj.chart.result && rawObj.chart.result[0];
+    var ts = result && result.timestamp;
+    var q = result && result.indicators && result.indicators.quote && result.indicators.quote[0];
+    if(ts && q && q.close && ts.length){
+      var rows = [];
+      for(var i=0;i<ts.length;i++){
+        if(q.close[i]==null) continue;
+        rows.push({ t: ts[i]*1000, o: q.open[i]==null?q.close[i]:q.open[i], h: q.high[i]==null?q.close[i]:q.high[i], l: q.low[i]==null?q.close[i]:q.low[i], c: q.close[i], v: q.volume[i] || 0 });
+      }
+      if(rows.length >= 3){ cb(null, rows); return; }
+    }
+    throw new Error('NO_DATA');
+  })
+  .catch(function(){
+    if(timeoutId) clearTimeout(timeoutId);
+    fhFetchIhsgHistory(tf, cb, proxyIdx + 1);
+  });
+}
+
+function rdEnsureIhsgHistory(tf, cb){
+  var entry = IHSG_HIST_CACHE[tf];
+  var ttl = IHSG_HIST_TTL_MS[tf] || 60000;
+  if(entry && (Date.now() - entry.fetchedAt) < ttl){
+    cb(entry.rows);
+    return;
+  }
+  if(IHSG_HIST_INFLIGHT[tf]) return;
+  // Backoff: a recent failure means the proxy chain is likely down for
+  // everything right now — don't re-hit it on every re-render (e.g. every
+  // 15s IHSG price tick) until the backoff window passes.
+  if(IHSG_HIST_FAIL[tf] && (Date.now() - IHSG_HIST_FAIL[tf]) < IHSG_HIST_FAIL_BACKOFF_MS){
+    cb(null);
+    return;
+  }
+  IHSG_HIST_INFLIGHT[tf] = true;
+  fhFetchIhsgHistory(tf, function(err, rows){
+    IHSG_HIST_INFLIGHT[tf] = false;
+    if(!err && rows && rows.length){
+      delete IHSG_HIST_FAIL[tf];
+      IHSG_HIST_CACHE[tf] = { rows: rows, fetchedAt: Date.now() };
+      cb(rows);
+    } else {
+      IHSG_HIST_FAIL[tf] = Date.now();
+      cb(null); // caller must show an honest "gagal memuat" state, never fabricate a chart
+    }
+  });
+}
+
 // ── Update badge UI ──
 function fhSetBadge(status, text){
   FH.status = status;
