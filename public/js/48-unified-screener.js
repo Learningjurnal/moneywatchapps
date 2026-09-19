@@ -164,7 +164,7 @@ function usRenderShell() {
 
   var html = '<div style="margin-bottom:16px">'
     + '<div class="ptitle">Screener</div>'
-    + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter. Termasuk analisis Wave (Elliott Wave/SuperTrend) per-ticker (tab "Wave Cockpit") dan kalkulator ukuran posisi (tab "Risk Planner") — bekas TradeWave, sekarang jadi bagian dari Screener ini.</div>'
+    + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter. Termasuk analisis Wave per-ticker (tab "Wave Cockpit"), kalkulator ukuran posisi (tab "Risk Planner"), screener RSI/momentum (tab "Quant Screener"), dan scanner lonjakan volume (tab "Volume Spike") — bekas TradeWave/Quant Lab/Volume Spike, sekarang jadi bagian dari Screener ini.</div>'
     + '</div>';
 
   // Top-level page tabs — Screener (whole-market table) vs Wave Cockpit /
@@ -175,6 +175,8 @@ function usRenderShell() {
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'screener\')" style="' + usPageTabBtnStyle(pt === 'screener') + '">📊 Screener</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'cockpit\')" style="' + usPageTabBtnStyle(pt === 'cockpit') + '">🌊 Wave Cockpit</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'planner\')" style="' + usPageTabBtnStyle(pt === 'planner') + '">📐 Risk Planner</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'quant\')" style="' + usPageTabBtnStyle(pt === 'quant') + '">🔬 Quant Screener</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'volspike\')" style="' + usPageTabBtnStyle(pt === 'volspike') + '">⚡ Volume Spike</button>'
     + '</div>';
 
   if (pt === 'cockpit' || pt === 'planner') {
@@ -183,6 +185,38 @@ function usRenderShell() {
     if (typeof twRenderSubPage === 'function') {
       twRenderSubPage('us-wave-subpage', pt === 'cockpit' ? 1 : 3);
     }
+    return;
+  }
+
+  // Quant Screener / Volume Spike both run their own progressive
+  // whole-market scan (staggered batched fetches across hundreds of
+  // tickers) with their own in-flight guards — rebuilding this wrapper's
+  // HTML on every usRenderShell() call (as the simpler cockpit/planner
+  // branch above does) would wipe their filter inputs/table mid-scan on
+  // every re-render, including 03-engine.js's periodic same-page refresh
+  // tick. So the wrapper is only (re)built the FIRST time each of these
+  // tabs becomes active; later calls just re-invoke that tab's own
+  // render/scan function, which manages its own DOM in place.
+  if (pt === 'quant') {
+    var alreadyShowingQuant = document.getElementById('sc-tbody');
+    if (!alreadyShowingQuant) {
+      html += '<div id="us-wave-subpage">' + (typeof qtScreenerSubPageHtml === 'function' ? qtScreenerSubPageHtml() : '') + '</div>';
+      c.innerHTML = html;
+    }
+    if (typeof scRenderTable !== 'undefined') {
+      if (!QT.scData.length) scBuildSim(scRenderTable); else scRenderTable();
+    }
+    return;
+  }
+
+  if (pt === 'volspike') {
+    var alreadyShowingVolSpike = document.getElementById('us-wave-subpage') && document.getElementById('vs-detail-col');
+    if (!alreadyShowingVolSpike) {
+      html += '<div id="us-wave-subpage"></div>';
+      c.innerHTML = html;
+    }
+    VS_CONTAINER_ID = 'us-wave-subpage';
+    if (typeof renderVolumeSpikePage === 'function') renderVolumeSpikePage();
     return;
   }
 
@@ -425,16 +459,18 @@ function usRenderValidationPanel() {
 
 // FIX (2026-09-19, user-reported): US_STATE.pageTab is sticky across
 // renders (usSwitchPageTab() only sets it, never clears it), which is
-// correct WHILE the user is on this page switching its own tabs — but
-// renderUnifiedScreenerPage() is also the entry point every time the
-// router navigates here fresh (goPage('radar')/'ranking'/'scanner'/
-// 'tradewave', or the Dashboard's "Lihat Semua ->" shortcut). Without a
-// reset here, leaving on the Wave Cockpit/Risk Planner tab once meant
-// EVERY later nav into the Screener — including from an unrelated
-// dashboard widget — landed back on that same sub-tab instead of the
-// main Screener table, looking like the wrong page entirely.
+// correct WHILE the user is on this page switching its own tabs. A fresh
+// navigation into this page (goPage('radar')/'ranking'/'scanner'/
+// 'tradewave'/'screener'/'volume-spike', or the Dashboard's "Lihat Semua
+// ->" shortcut) should reset it to 'screener' — but that reset lives in
+// goPage() itself (06-analysis-router.js), NOT here. Reason: this function
+// is also invoked by 03-engine.js's periodic same-page refresh tick
+// (`renderPage(currentPage)`, fired every few seconds while ANY page is
+// open, never going through goPage()) — resetting pageTab here would have
+// silently kicked a user back to the main Screener tab mid-read every time
+// that tick fired while they were on Wave Cockpit/Risk Planner/Quant
+// Screener/Volume Spike.
 function renderUnifiedScreenerPage() {
-  US_STATE.pageTab = 'screener';
   if (!US_STATE.loaded && !US_STATE.loading) {
     usFetchAndRender();
   } else {

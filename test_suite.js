@@ -5809,15 +5809,18 @@ test('REGRESSION GUARD: computeBandarmologyVerdict() must report foreignFlow/dom
 // ticker at a time (950 tickers at 250ms sequential would take ~4 minutes).
 test('REGRESSION GUARD: Quant Screener must support a wider universe than the hardcoded LQ45_STOCKS list', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
-  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
 
   assert(/function scResolveUniverseList/.test(src), 'REGRESSION: scResolveUniverseList() is gone — the screener has no way to pick a universe wider than LQ45');
   assert(/function scChangeUniverse/.test(src), 'REGRESSION: scChangeUniverse() is gone — there is no UI hook to widen the screener universe');
   assert(/QT_SCREENER_INDEX === 'all'/.test(src) || /idx === 'all'/.test(src), 'REGRESSION: the "Semua BEI" (all 950+) option is gone from the universe resolver');
   assert(/runBatch = function\(startIdx\)/.test(src) && /batch\.forEach\(perTicker\)/.test(src),
     'REGRESSION: scBuildSim() reverted to one-ticker-at-a-time 250ms staggering — this would take ~4 minutes for a 950-ticker universe instead of concurrent batching');
-  assert(indexHtml.includes('id="sc-universe"') && indexHtml.includes("value=\"all\""),
-    'REGRESSION: index.html lost the Screener universe <select> or its "Semua BEI" option');
+  // FIX (2026-09-19): the universe <select> moved from static HTML in
+  // index.html into qtScreenerSubPageHtml() (this same file) when the
+  // Quant Screener tab was relocated into the unified Screener page — see
+  // the "relocated into the Screener" regression guard further below.
+  assert(/function qtScreenerSubPageHtml/.test(src) && src.includes('id="sc-universe"') && src.includes('value="all"'),
+    'REGRESSION: qtScreenerSubPageHtml() lost the Screener universe <select> or its "Semua BEI" option');
 });
 
 // ── TEST: Opportunity Radar's Margin-of-Safety shortcut must not blow up
@@ -6748,20 +6751,29 @@ test('REGRESSION GUARD: TradeWave Wave Cockpit/Risk Planner consolidated into th
 // Radar" / "Lihat Semua ->" on the Dashboard's Portfolio Snapshot toolbar
 // landed on the Screener's "Risk Planner" (Risk Sizing) tab instead of the
 // main Screener table. Root cause: US_STATE.pageTab is sticky across
-// renders — usSwitchPageTab() (used by the Screener's own 3 tab buttons)
-// only ever SETS pageTab, never clears it, and renderUnifiedScreenerPage()
-// (the router's entry point for every fresh nav into this page — 'radar',
-// 'ranking', 'scanner', 'tradewave', or this Dashboard shortcut) never
-// reset it either. So once a user visited the Wave Cockpit/Risk Planner
-// tab even once in a session, EVERY later navigation into the Screener —
-// from any entry point, including this unrelated Dashboard widget —
-// silently landed back on that leftover sub-tab.
-test('REGRESSION GUARD: renderUnifiedScreenerPage() must reset US_STATE.pageTab to \'screener\' on every fresh navigation, not stay stuck on Wave Cockpit/Risk Planner', () => {
-  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
-  const fn = src.match(/function renderUnifiedScreenerPage\(\) \{[\s\S]*?\n\}/);
+// renders — usSwitchPageTab() (used by the Screener's own tab buttons)
+// only ever SETS pageTab, never clears it, and nothing reset it on a fresh
+// navigation into the page. FIX ATTEMPT #1 put the reset inside
+// renderUnifiedScreenerPage() itself — caught before ship: that function is
+// ALSO invoked by 03-engine.js's periodic same-page refresh tick
+// (`renderPage(currentPage)`, fires every few seconds on whatever page is
+// open, never through goPage()), so it would have silently kicked a user
+// back to the main Screener tab mid-read every time that tick fired while
+// they were on Wave Cockpit/Risk Planner/Quant Screener/Volume Spike. The
+// reset now lives in goPage() itself, which only fires on a REAL
+// navigation event.
+test('REGRESSION GUARD: goPage() must reset US_STATE.pageTab to \'screener\' on navigation into the Screener page, but renderUnifiedScreenerPage() itself must NOT (periodic refresh tick would keep resetting it)', () => {
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  const goPageFn = routerSrc.match(/function goPage\(name,btn\)\{[\s\S]*?\n\}/);
+  assert(goPageFn, 'goPage() not found — has it been renamed/removed?');
+  assert(/targetPageName === 'radar'[\s\S]{0,80}US_STATE\.pageTab\s*=\s*'screener'/.test(goPageFn[0]),
+    'REGRESSION: goPage() no longer resets US_STATE.pageTab to \'screener\' when navigating to the radar/ranking/scanner/tradewave/screener/volume-spike aliases — any nav into the Screener page will land on whatever tab was last left open, not the main Screener table');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  const fn = jsSrc.match(/function renderUnifiedScreenerPage\(\) \{[\s\S]*?\n\}/);
   assert(fn, 'renderUnifiedScreenerPage() not found — has it been renamed/removed?');
-  assert(/US_STATE\.pageTab\s*=\s*'screener'/.test(fn[0]),
-    'REGRESSION: renderUnifiedScreenerPage() no longer resets US_STATE.pageTab to \'screener\' — any nav into the Screener page (including the Dashboard\'s "Lihat Semua ->" shortcut) will land on whatever tab (Wave Cockpit/Risk Planner) was last left open, not the main Screener table');
+  assert(!/US_STATE\.pageTab\s*=\s*'screener'/.test(fn[0]),
+    'REGRESSION: renderUnifiedScreenerPage() resets US_STATE.pageTab again — this function also runs on 03-engine.js\'s periodic same-page refresh tick (no goPage() call), so this would silently kick a user off the Wave Cockpit/Risk Planner/Quant Screener/Volume Spike tab every few seconds while they were reading it');
 });
 
 // User-reported production screenshot (2026-09-18, Bandarmology BBCA):
@@ -6951,6 +6963,50 @@ test('REGRESSION GUARD: techRunFlowScanTab() must not present a synthetic/simula
     'REGRESSION: the simulated-data branch must clear/replace the probability banner with an honest loading message, not still compute or show a BULLISH/BEARISH percentage');
   assert(/rdEnsure\(tk,/.test(guardBody),
     'REGRESSION: the simulated-data branch no longer kicks off a real-data fetch — the tab would stay stuck on the honest loading message forever instead of self-healing once real OHLCV lands');
+});
+
+// User-directed (2026-09-19): "quant analysis masih memiliki data
+// screener apakah ini sama dengan screener yang sudah diperbarui...
+// volume spike, quant analysis masuk tab screener, karena seluruh
+// fungsinya sama2 deteksi, apabila anda kesulitan untuk menggabungkan
+// analisa, gabungkan saja tab nya dimasukan ke dalam screener sama
+// seperti trade wave" — Quant Lab's own "Screener" tab (RSI/momentum/MA-
+// position formula) and the standalone Volume Spike Scanner (volume-
+// ratio-vs-median formula) are genuinely different analyses from the
+// unified Screener's Whale/Uptrend formula, so rather than force a risky
+// formula merge, both were relocated wholesale into the unified Screener
+// page as 2 more US_STATE.pageTab tabs, exactly like the TradeWave Wave
+// Cockpit/Risk Planner consolidation.
+test('REGRESSION GUARD: Quant Screener and Volume Spike Scanner relocated into the unified Screener as tabs; standalone nav entries removed', () => {
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(!/goPage\('volume-spike',this\)/.test(htmlSrc),
+    'REGRESSION: the separate "Volume Spike" sidebar button is back — should be consolidated into the Screener nav entry');
+  assert(!htmlSrc.includes('id="sc-tbody"'),
+    'REGRESSION: the Quant Screener\'s static HTML (sc-tbody etc.) is back in index.html\'s #page-screener — it was relocated into qtScreenerSubPageHtml() (11-quant.js) to avoid duplicate-id DOM collisions with the new Screener tab');
+
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(/UNIFIED_SCREENER_ALIASES\s*=\s*\[[^\]]*'screener'[^\]]*'volume-spike'[^\]]*\]/.test(routerSrc),
+    'REGRESSION: goPage(\'screener\')/goPage(\'volume-spike\') no longer redirect to the Screener page container — any old bookmark/dynamic call would 404 silently');
+  assert(/targetPageName === 'radar'[\s\S]{0,80}US_STATE\.pageTab\s*=\s*'screener'/.test(routerSrc),
+    'REGRESSION: goPage() no longer resets US_STATE.pageTab on navigation into the Screener — see the dedicated pageTab-reset regression guard above for why this matters');
+
+  const qtSrc = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert(!/key:\s*'screener'/.test(qtSrc),
+    'REGRESSION: \'screener\' has reappeared in QL_TABS — Quant Lab should no longer have its own separate Screener tab');
+  assert(/function qtScreenerSubPageHtml/.test(qtSrc),
+    'REGRESSION: qtScreenerSubPageHtml() is gone — the unified Screener has nothing to inject for its "Quant Screener" tab');
+
+  const vsSrc = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
+  assert(/var VS_CONTAINER_ID/.test(vsSrc),
+    'REGRESSION: VS_CONTAINER_ID is gone — Volume Spike Scanner hardcodes its render target again, so it can no longer be mounted inside the Screener\'s own tab container');
+  assert(/el\(VS_CONTAINER_ID\)/.test(vsSrc),
+    'REGRESSION: renderVolumeSpikePage()/vsRenderShell() no longer read VS_CONTAINER_ID — they hardcode el(\'page-volume-spike\') again');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(jsSrc.includes("usSwitchPageTab(\\'quant\\')") && jsSrc.includes("usSwitchPageTab(\\'volspike\\')"),
+    'REGRESSION: the "Quant Screener"/"Volume Spike" tab buttons are gone from the Screener page tab bar');
+  assert(/qtScreenerSubPageHtml/.test(jsSrc) && /VS_CONTAINER_ID\s*=\s*'us-wave-subpage'/.test(jsSrc),
+    'REGRESSION: usRenderShell() no longer wires the "quant"/"volspike" tabs to their relocated render functions');
 });
 
 console.log('═══════════════════════════════════════════════════════');
