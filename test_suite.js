@@ -2455,6 +2455,50 @@ test('REGRESSION GUARD: getKseiStock() fallback must prefer DB[tk].name over the
   assert.strictEqual(noName.name, 'UNKN Tbk.', 'REGRESSION: a ticker with no usable DB name must still fall back to the generic "<TICKER> Tbk." placeholder');
 });
 
+// User-reported (2026-09-19, screenshot): the KSEI ">5% shareholders"
+// widget showed "Tanggal Laporan: 26 Aug 2026" and asked why this "still
+// uses the old upload method" instead of "real API data". Investigation:
+// that date is genuinely real (the bundled data/ksei-shareholders.json
+// snapshot's actual reportDate, last synced 2026-09-01) — NOT a fabricated
+// fallback for this specific ticker. But 3 render spots in this file DID
+// have hardcoded fallback literals ('26 Aug 2026' / '840' / '1.920' /
+// '26 AUG') that happened to match the CURRENT bundled snapshot's real
+// numbers — a latent honesty risk (would silently show stale/wrong
+// numbers as if freshly read from state, if the bundled file ever changes
+// without updating these 3 constants in lockstep). Also: there currently
+// is no live API for NAMED >5% shareholders (Invezgo's shareholder
+// endpoints, confirmed via a real test request, only return AGGREGATE
+// category totals — see the comment above fetchInvezgoShareholderKsei()
+// in lib/invezgo-client.js) — so genuinely switching this off manual
+// upload isn't possible today without a new data source. What IS fixed:
+// honest fallback text instead of magic numbers, plus an explicit
+// data-age disclosure so a stale manual snapshot reads as stale.
+test('REGRESSION GUARD: KSEI shareholder widgets show honest fallbacks (not hardcoded magic numbers/dates) and disclose data age', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/34-ksei-shareholders.js'), 'utf8');
+  assert(!/\|\|\s*'26 Aug 2026'/.test(src), 'REGRESSION: a hardcoded "26 Aug 2026" fallback literal has reappeared — this must not silently substitute for a real missing reportDate');
+  assert(!/\|\|\s*'26 AUG'/.test(src), 'REGRESSION: a hardcoded "26 AUG" fallback literal has reappeared in the Stock Intel compact widget');
+  assert(!/\|\|\s*'840'/.test(src), 'REGRESSION: a hardcoded "840" fallback literal has reappeared for totalEmiten — must read from KSEI_STATE.metadata or show an honest "-"');
+  assert(!/\|\|\s*'1\.920'/.test(src), 'REGRESSION: a hardcoded "1.920" fallback literal has reappeared for totalMajorInvestors');
+
+  assert(/function kseiDataAgeDisclosure/.test(src), 'REGRESSION: kseiDataAgeDisclosure() is gone — no data-age disclosure for the manual KSEI snapshot');
+  const fn = src.match(/function kseiDataAgeDisclosure\(m\) \{[\s\S]*?\n\}/);
+  assert(fn, 'kseiDataAgeDisclosure() body not found');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(fn[0], sandbox, { filename: 'kseiDataAgeDisclosure (sandboxed)' });
+
+  const noMeta = sandbox.kseiDataAgeDisclosure(null);
+  assert(/tidak diketahui/.test(noMeta.text), 'REGRESSION: missing metadata must produce an honest "tidak diketahui" age label, not a fabricated one');
+
+  const today = sandbox.kseiDataAgeDisclosure({ lastUpdated: new Date().toISOString() });
+  assert(/hari ini/.test(today.text), 'REGRESSION: a snapshot updated today must say so, not show a stale-looking age');
+
+  const stale = sandbox.kseiDataAgeDisclosure({ lastUpdated: new Date(Date.now() - 40 * 86400000).toISOString() });
+  assert(/40 hari lalu/.test(stale.text), `REGRESSION: a 40-day-old snapshot must report "40 hari lalu", got "${stale.text}"`);
+  assert(/red|EF4444/.test(stale.color), 'REGRESSION: a snapshot older than 30 days must be flagged in a warning color, not shown as fresh');
+});
+
 // ── TEST 74: sendCopilotPrompt() (public/js/28-decisiontools.js) must fall
 // back to generateClientSideAiAgentResponse() — the same client-side
 // reasoning engine 41-stockchat-cockpit.js already uses for the identical
@@ -6870,6 +6914,43 @@ test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER empty-state message disclos
   assert(/brokerEmptyReason/.test(src), 'REGRESSION: brokerEmptyReason is gone — empty-state message no longer distinguishes simulated-fallback/quota-exhausted from genuinely-no-data');
   const occurrences = (src.match(/data\.brokerTfTried \+ data\.brokerEmptyReason/g) || []).length;
   assert(occurrences >= 2, `REGRESSION: expected both TOP BROKER BUYER render spots (CARD 4 + expanded modal) to append brokerEmptyReason to the empty-state message, found ${occurrences}`);
+});
+
+// User-reported (2026-09-19): testing DEWA across the app gave contradictory
+// verdicts — Stock Dossier "NEUTRAL/WAIT", Stock Intel "BULLISH REBOUND /
+// LAYAK INVESTASI", but the Bandarmologi "Intelligence Summary" tab (Fundamental
+// page, "Analisis Teknikal & Flow" tab 2) showed "PROBABILITAS ARAH BEARISH
+// (DOWN) 80%" with specific CMF -17.28%/OBV -4881061300/RSI 29.1 readings.
+// Root cause found: techRunFlowScanTab() (public/js/24-stockmaster.js) calls
+// fsGenData(tk, days) (public/js/07-flowscan.js), which silently falls back
+// to a SEEDED SYNTHETIC random-walk OHLCV series (tagging the returned array
+// with `.simulated = true`) whenever real cached OHLCV isn't available yet
+// for that ticker — and this tab never checked that flag before running
+// fsProcess() on it and presenting the result as a real, confident
+// probability. The sibling Gauges/Candlestick/Pivots tabs in this same file
+// (techEnsureRealSeries(), a few hundred lines below) already guard against
+// exactly this failure mode; this tab was the one that didn't.
+test('REGRESSION GUARD: techRunFlowScanTab() must not present a synthetic/simulated OHLCV series as a real Bandarmologi probability reading', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const fnStart = src.indexOf('function techRunFlowScanTab(ticker) {');
+  assert(fnStart !== -1, 'techRunFlowScanTab() not found — has it been renamed/removed?');
+  const fnEnd = src.indexOf('\nfunction ', fnStart + 10);
+  assert(fnEnd !== -1, 'could not find the end of techRunFlowScanTab()');
+  const body = src.slice(fnStart, fnEnd);
+
+  const simGuardIdx = body.indexOf('if (data.simulated)');
+  assert(simGuardIdx !== -1,
+    'REGRESSION: techRunFlowScanTab() no longer checks data.simulated — a seeded synthetic random-walk series (fsGenData()\'s honest-loading fallback) will be presented as a real Bandarmologi probability reading again, reproducing the exact "BEARISH 80%" fabrication the user reported for DEWA');
+  const processIdx = body.indexOf('fsProcess(data)');
+  assert(processIdx !== -1, 'fsProcess(data) call not found in techRunFlowScanTab()');
+  assert(simGuardIdx < processIdx,
+    'REGRESSION: the data.simulated guard in techRunFlowScanTab() runs AFTER fsProcess(data) — it must run BEFORE, so a synthetic series never reaches the probability/indicator calculation at all');
+
+  const guardBody = body.slice(simGuardIdx, processIdx);
+  assert(/tech-fs-prob/.test(guardBody) && !/PROBABILITAS ARAH/.test(guardBody),
+    'REGRESSION: the simulated-data branch must clear/replace the probability banner with an honest loading message, not still compute or show a BULLISH/BEARISH percentage');
+  assert(/rdEnsure\(tk,/.test(guardBody),
+    'REGRESSION: the simulated-data branch no longer kicks off a real-data fetch — the tab would stay stuck on the honest loading message forever instead of self-healing once real OHLCV lands');
 });
 
 console.log('═══════════════════════════════════════════════════════');
