@@ -3771,7 +3771,7 @@ await asyncTest("REGRESSION GUARD: checkAiEngineStatus() shows distinct Live/Fal
 // sinyal/prediksi/xgboost/rekomendasi questions to cek_prediksi_xgboost,
 // checked before the short-keyword branches below it (same
 // "kasih"/"saran" collision class as TEST 78's ordering fix).
-test('REGRESSION GUARD: the deterministic AI fallback must route prediction questions to cek_prediksi_xgboost, positioned before short-keyword branches', () => {
+test('REGRESSION GUARD: the deterministic AI fallback must route prediction/signal questions to cek_prediksi_xgboost or cek_sinyal_teknikal (disambiguated), positioned before short-keyword branches', () => {
   const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
   const start = fullSrc.indexOf("// 2. DETERMINISTIC AGENTIC ENGINE FALLBACK");
   assert(start !== -1, 'sanity: the deterministic fallback block not found — has it moved?');
@@ -3781,12 +3781,36 @@ test('REGRESSION GUARD: the deterministic AI fallback must route prediction ques
   src = src.slice(0, relEnd);
 
   assert(/cek_prediksi_xgboost/.test(src), 'REGRESSION: the deterministic fallback no longer calls cek_prediksi_xgboost');
+  // FIX (2026-09-19, user reproduced live: "sinyal teknikal BBCA" always
+  // routed to cek_prediksi_xgboost, even after the Claude system-prompt
+  // disambiguation fix — because THIS deterministic fallback, used
+  // whenever Anthropic AND OpenRouter both fail/aren't configured, never
+  // read the system prompt at all and had no branch for
+  // cek_sinyal_teknikal whatsoever). Must now call BOTH, gated the same
+  // way as the Claude/tool-declaration disambiguation: explicit
+  // model/AI/ML/XGBoost mention -> cek_prediksi_xgboost; plain
+  // sinyal/rekomendasi -> cek_sinyal_teknikal (default).
+  assert(/cek_sinyal_teknikal/.test(src), 'REGRESSION: the deterministic fallback still has no branch calling cek_sinyal_teknikal — a plain "sinyal teknikal BBCA" will always misroute to cek_prediksi_xgboost whenever Anthropic/OpenRouter both fail, no matter how the system prompt is worded');
 
-  const predIdx = src.indexOf('sinyal|prediksi|xgboost|rekomendasi');
+  const xgboostTriggerIdx = src.indexOf('xgboost|onnx|machine learning');
+  const sinyalDefaultIdx = src.indexOf("sinyal|prediksi|rekomendasi|analisa teknikal");
   const portoIdx = src.indexOf("pLower.includes('porto')");
   const simulasiIdx = src.indexOf("pLower.includes('simulasi')");
-  assert(predIdx !== -1 && portoIdx !== -1 && simulasiIdx !== -1 && predIdx < portoIdx && predIdx < simulasiIdx,
-    'REGRESSION: the prediction branch is positioned after short-keyword branches (porto/kas, simulasi/ara/arb) — a message like "prediksi ARA" could get misrouted before reaching it');
+  assert(xgboostTriggerIdx !== -1 && sinyalDefaultIdx !== -1 && portoIdx !== -1 && simulasiIdx !== -1,
+    'sanity: one of the expected branch markers (xgboost trigger / sinyal default / porto / simulasi) was not found — has the fallback been restructured?');
+  assert(xgboostTriggerIdx < sinyalDefaultIdx,
+    'REGRESSION: the explicit model/AI/ML/XGBoost branch must be checked BEFORE the plain sinyal/rekomendasi default branch — otherwise the default branch\'s broader "prediksi"/"rekomendasi" match would shadow the explicit-model branch and cek_prediksi_xgboost could never be reached');
+  assert(sinyalDefaultIdx < portoIdx && sinyalDefaultIdx < simulasiIdx,
+    'REGRESSION: the sinyal/rekomendasi branches are positioned after short-keyword branches (porto/kas, simulasi/ara/arb) — a message like "prediksi ARA" could get misrouted before reaching them');
+
+  // The cek_sinyal_teknikal branch must actually BUILD a reply from the
+  // tool's real fields (not just call the tool and fall through to
+  // something generic) — this is the exact data ai_signal_log's UI
+  // (Riwayat Sinyal AI) and the user depend on seeing.
+  const sinyalBranchSrc = src.slice(sinyalDefaultIdx, src.indexOf("// \\bkas\\b (word boundary)"));
+  ['resSignal.signal', 'resSignal.compositeScore', 'resSignal.entry', 'resSignal.sl', 'resSignal.tp1'].forEach((field) => {
+    assert(sinyalBranchSrc.includes(field), 'REGRESSION: the cek_sinyal_teknikal deterministic-fallback reply no longer reads ' + field + ' — it may have stopped building a real reply from the tool result');
+  });
 });
 
 // ── TEST 86: generateClientSideAiAgentResponse()'s isPredictionIntent

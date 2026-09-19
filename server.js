@@ -1848,7 +1848,20 @@ const AGENT_TOOL_DECLARATIONS = [
   },
   {
     name: 'cek_prediksi_xgboost',
-    description: 'Mengambil hasil inferensi model machine learning XGBoost ONNX (dilatih offline, sama persis dipakai fitur Backtester) untuk satu ticker BEI, kalau browser pengguna sudah menjalankannya untuk pesan ini. Model ini adalah EKSPERIMEN EDUKASI — 3 iterasi perbaikan tidak pernah menghasilkan bukti sinyal prediktif jelas di atas tebak-tebakan acak (lihat ml/README.md). WAJIB baca field hasProvenSignal SEBELUM menjawab: kalau false, Anda WAJIB menyatakan eksplisit bahwa model ini belum terbukti prediktif sebelum menyebut angka apa pun — JANGAN PERNAH menyajikan probability/signal-nya seolah rekomendasi yang solid. hasData:false berarti browser belum menjalankan model untuk ticker ini (pengguna tidak sedang bertanya soal prediksi/sinyal, atau model ONNX belum termuat) — jangan mengarang prediksi.',
+    // FIX (2026-09-19, user melaporkan reproduksi live: pesan "sinyal
+    // teknikal BBCA" tetap memanggil tool ini, bukan cek_sinyal_teknikal,
+    // WALAU Aturan Perilaku #10/#11 di system prompt sudah diperjelas
+    // — description TOOL INI SENDIRI (bukan cuma narasi system prompt)
+    // dulu masih menyebut kata "sinyal" ("pengguna tidak sedang bertanya
+    // soal prediksi/sinyal") — Claude/model function-calling membaca
+    // description tool jauh lebih berat daripada satu baris aturan di
+    // antara belasan aturan lain, jadi kata "sinyal" di sini menetralkan
+    // disambiguasi yang sudah ditulis di system prompt. Description ini
+    // sekarang HANYA menyebut kata kunci model/ML/XGBoost, sama sekali
+    // tidak menyebut "sinyal" atau "rekomendasi" — supaya tool ini cuma
+    // relevan (menurut Claude) untuk permintaan yang eksplisit menyebut
+    // model/AI/machine learning, konsisten dengan Aturan Perilaku #10.
+    description: 'HANYA relevan kalau pengguna secara eksplisit menyebut kata model/AI/machine learning/XGBoost/ONNX (bukan sekadar kata "sinyal"/"rekomendasi" biasa — untuk itu pakai cek_sinyal_teknikal). Mengambil hasil inferensi model machine learning XGBoost ONNX (dilatih offline, sama persis dipakai fitur Backtester) untuk satu ticker BEI, kalau browser pengguna sudah menjalankannya untuk pesan ini. Model ini adalah EKSPERIMEN EDUKASI — 3 iterasi perbaikan tidak pernah menghasilkan bukti prediktif jelas di atas tebak-tebakan acak (lihat ml/README.md). WAJIB baca field hasProvenSignal SEBELUM menjawab: kalau false, Anda WAJIB menyatakan eksplisit bahwa model ini belum terbukti prediktif sebelum menyebut angka apa pun — JANGAN PERNAH menyajikan probability-nya seolah rekomendasi yang solid. hasData:false berarti browser belum menjalankan model untuk ticker ini (pengguna tidak sedang menyebut model/AI/ML secara eksplisit, atau model ONNX belum termuat) — jangan mengarang prediksi.',
     parameters: {
       type: 'OBJECT',
       properties: {}
@@ -1856,7 +1869,12 @@ const AGENT_TOOL_DECLARATIONS = [
   },
   {
     name: 'cek_sinyal_teknikal',
-    description: 'Menghitung sinyal komposit teknikal+fundamental terdeteksi OTOMATIS (bukan opini Anda) untuk satu ticker BEI — engine deterministik yang sama dipakai Market Radar/AI Trading Scanner (computeStockSignal): STRONG BUY/BUY/HOLD/WATCH/AVOID, beserta entry/stop-loss/take-profit berbasis ATR riil. Panggil ini HANYA kalau pengguna secara eksplisit meminta sinyal/rekomendasi/analisa teknikal untuk ticker tertentu — jangan panggil untuk pertanyaan umum yang tidak menyebut ticker. Hasilnya TETAP WAJIB Anda sajikan dengan analisa dua sisi (potensi vs risiko) sesuai Aturan Perilaku #1 — sinyal ini adalah TITIK AWAL analisa Anda, bukan jawaban akhir yang tinggal ditempel. signal:"NO DATA" berarti data harga/histori tidak cukup — sampaikan itu apa adanya, jangan mengarang sinyal.',
+    // FIX (2026-09-19, sama seperti catatan di cek_prediksi_xgboost di
+    // atas): ditandai eksplisit sebagai DEFAULT untuk kata "sinyal"/
+    // "rekomendasi" biasa, supaya deskripsi tool ini sendiri (bukan cuma
+    // narasi system prompt) yang mengarahkan Claude, bukan hanya berharap
+    // satu baris aturan di system prompt cukup kuat.
+    description: 'DEFAULT untuk permintaan sinyal/rekomendasi/analisa teknikal biasa (kata "sinyal"/"rekomendasi" TANPA menyebut model/AI/machine learning/XGBoost — untuk itu baru pakai cek_prediksi_xgboost). Menghitung sinyal komposit teknikal+fundamental terdeteksi OTOMATIS (bukan opini Anda) untuk satu ticker BEI — engine deterministik yang sama dipakai Market Radar/AI Trading Scanner (computeStockSignal): STRONG BUY/BUY/HOLD/WATCH/AVOID, beserta entry/stop-loss/take-profit berbasis ATR riil. Panggil ini HANYA kalau pengguna secara eksplisit meminta sinyal/rekomendasi/analisa teknikal untuk ticker tertentu — jangan panggil untuk pertanyaan umum yang tidak menyebut ticker. Hasilnya TETAP WAJIB Anda sajikan dengan analisa dua sisi (potensi vs risiko) sesuai Aturan Perilaku #1 — sinyal ini adalah TITIK AWAL analisa Anda, bukan jawaban akhir yang tinggal ditempel. signal:"NO DATA" berarti data harga/histori tidak cukup — sampaikan itu apa adanya, jangan mengarang sinyal.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -2243,10 +2261,23 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
           + '*Disclaimer: Ini data paper trading (simulasi), bukan trading nyata. Keputusan investasi berada di tangan Anda.*';
       }
     }
-    // Item #3 (2026-09-11): sama seperti cek_kinerja_ai_trading, dicek
-    // lebih dulu (keyword multi-kata khas: sinyal/prediksi/xgboost/
-    // rekomendasi) supaya tidak tertimpa branch short-keyword di bawah.
-    else if (/\b(sinyal|prediksi|xgboost|rekomendasi|layak beli|worth buy|apakah bagus|apakah layak)\b/i.test(message)) {
+    // FIX (2026-09-19, user melaporkan reproduksi live: pesan "sinyal
+    // teknikal BBCA" tetap memanggil cek_prediksi_xgboost, PADAHAL Aturan
+    // Perilaku #10/#11 di system prompt DAN description kedua tool sudah
+    // diperjelas). Root cause SEBENARNYA: branch ini adalah MESIN
+    // DETERMINISTIK (dipakai kalau Anthropic DAN OpenRouter dua-duanya
+    // gagal/tidak dikonfigurasi) — sebelum fix ini, satu regex gabungan di
+    // sini SELALU memanggil cek_prediksi_xgboost untuk kata "sinyal" apa
+    // pun, TIDAK PERNAH memanggil cek_sinyal_teknikal sama sekali di jalur
+    // ini. Kalau permintaan Claude/OpenRouter user pernah gagal (rate-
+    // limit/network/kredit) dan jatuh ke sini, TIDAK ADA perbaikan system
+    // prompt di atas yang relevan — jalur ini sama sekali tidak membaca
+    // system prompt. Dipecah jadi 2 branch dengan disambiguasi yang SAMA
+    // persis dengan Aturan #10/#11: model/AI/ML/XGBoost eksplisit ->
+    // cek_prediksi_xgboost; sinyal/rekomendasi biasa (DEFAULT) ->
+    // cek_sinyal_teknikal (branch baru, sebelumnya tidak ada sama sekali
+    // di mesin deterministik ini).
+    else if (/\b(xgboost|onnx|machine learning)\b/i.test(message) || (/\bmodel\b/i.test(message) && /\b(sinyal|prediksi|rekomendasi)\b/i.test(message))) {
       const resPred = await executeAgentTool('cek_prediksi_xgboost', {}, userContext);
       executedTools.push({ name: 'cek_prediksi_xgboost', args: {}, result: resPred });
 
@@ -2263,6 +2294,38 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
           + (resPred.liftInfo ? '- **Precision vs Base Rate**: ' + (resPred.liftInfo.precisionAtThreshold * 100).toFixed(1) + '% vs ' + (resPred.liftInfo.baseRate * 100).toFixed(1) + '%\n' : '')
           + (resPred.isSimulatedInputData ? '- ⚠️ **Data historis input model ini SIMULASI**, bukan data pasar riil — prediksi ini lebih tidak bisa diandalkan lagi.\n' : '')
           + '\n*Disclaimer: Ini bukan rekomendasi investasi. Keputusan investasi berada di tangan Anda.*';
+      }
+    }
+    // DEFAULT untuk "sinyal"/"rekomendasi"/"analisa teknikal" TANPA
+    // menyebut model/AI/ML/XGBoost — sama seperti Aturan #11 di system
+    // prompt Claude, tapi ini jalur MESIN DETERMINISTIK-nya sendiri
+    // (dulu tidak ada sama sekali, satu-satunya jalur di sini yang bisa
+    // menjangkau cek_sinyal_teknikal — dan karenanya satu-satunya yang
+    // bisa mengisi ai_signal_log — kalau Anthropic/OpenRouter gagal).
+    else if (/\b(sinyal|prediksi|rekomendasi|analisa teknikal|layak beli|worth buy|apakah bagus|apakah layak)\b/i.test(message)) {
+      const resSignal = await executeAgentTool('cek_sinyal_teknikal', { ticker: matchedTicker }, userContext);
+      executedTools.push({ name: 'cek_sinyal_teknikal', args: { ticker: matchedTicker }, result: resSignal });
+
+      if (resSignal.signal === 'NO DATA' || resSignal.error) {
+        reply = '### 📊 Sinyal Teknikal: ' + resSignal.ticker + '\n\n'
+          + 'Data harga/histori tidak cukup untuk menghitung sinyal teknikal ticker ini' + (resSignal.error ? ' (' + resSignal.error + ')' : '') + ' — tidak ada sinyal yang disajikan tanpa data riil yang cukup.';
+      } else if (resSignal.signal === 'REVIEW') {
+        reply = '### 📊 Sinyal Teknikal: ' + resSignal.ticker + '\n\n'
+          + 'Perhitungan sinyal untuk ticker ini butuh peninjauan manual (' + (resSignal.reviewReason || 'nilai di luar enum yang dikenal') + ') — jangan dianggap sama dengan HOLD.';
+      } else {
+        const pastLines = (resSignal.pastSignals || []).map(function(p) {
+          return '- ' + (p.signalAction || p.signal_action || '-') + ' (return: ' + (typeof p.rawReturnPct === 'number' ? (p.rawReturnPct >= 0 ? '+' : '') + p.rawReturnPct.toFixed(2) + '%' : (typeof p.raw_return_pct === 'number' ? (p.raw_return_pct >= 0 ? '+' : '') + p.raw_return_pct.toFixed(2) + '%' : '—')) + ', hasil: ' + (p.outcome || '—') + ')';
+        }).join('\n');
+        reply = '### 📊 Sinyal Teknikal: ' + resSignal.ticker + '\n\n'
+          + '**Sinyal Komposit (Teknikal+Fundamental, terdeteksi otomatis)**: ' + resSignal.signal + ' — skor ' + resSignal.compositeScore + '/100, tren ' + resSignal.trend + '\n'
+          + (resSignal.entry != null ? '- Entry: Rp ' + Number(resSignal.entry).toLocaleString('id-ID') + '\n' : '')
+          + (resSignal.sl != null ? '- Stop-Loss: Rp ' + Number(resSignal.sl).toLocaleString('id-ID') + '\n' : '')
+          + (resSignal.tp1 != null ? '- Take-Profit 1: Rp ' + Number(resSignal.tp1).toLocaleString('id-ID') + '\n' : '')
+          + (resSignal.tp2 != null ? '- Take-Profit 2: Rp ' + Number(resSignal.tp2).toLocaleString('id-ID') + '\n' : '')
+          + '\n**Potensi**: skor komposit ' + resSignal.compositeScore + '/100 dengan tren ' + resSignal.trend + (resSignal.rrRatio ? ', rasio risk-reward sekitar 1:' + resSignal.rrRatio : '') + '.\n'
+          + '**Risiko**: sinyal ini TITIK AWAL analisa, BUKAN jawaban akhir — tetap perhatikan kondisi market/berita terkini dan batas Maximum Drawdown sebelum eksekusi.\n'
+          + (pastLines ? '\n**Track Record Sinyal Sebelumnya untuk ' + resSignal.ticker + '**:\n' + pastLines + '\n' : '')
+          + '\n*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
       }
     }
     // \bkas\b (word boundary), not includes('kas') — "kas" as a bare
