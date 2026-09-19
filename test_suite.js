@@ -6849,6 +6849,11 @@ await asyncTest('BEHAVIOR: runUnifiedScreenerBacktest() degrades honestly (avail
   assert(Array.isArray(result.signals) && result.signals.length === 0, 'signals must be an empty array, not fabricated entries');
 });
 
+test('REGRESSION GUARD: runUnifiedScreenerBacktest() must return the FULL signals array, not a silently truncated slice (2026-09-19, user auditing formula validity found detail array capped at 150 of 216 real signals with no disclosure — aggregate stats were always computed from the full array, but hiding most of the underlying evidence behind a correct-looking summary is misleading)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(!/signals:\s*signals\.slice\(/.test(src), 'REGRESSION: runUnifiedScreenerBacktest() silently truncates its returned signals array again — the aggregate stats (winRate/avgReturnPct/etc.) may still be accurate, but the underlying evidence must not be hidden behind a correct-looking summary');
+});
+
 test('REGRESSION GUARD: forward paper-trading log (Track B) — logs today\'s confirmed signals via Redis, resolves lazily on read, never resolves before horizonDays', () => {
   const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
   assert(/async function logTodaysUnifiedScreenerSignals/.test(src), 'REGRESSION: logTodaysUnifiedScreenerSignals() is gone');
