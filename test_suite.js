@@ -7176,6 +7176,71 @@ test('REGRESSION GUARD: "Eksekusi no 2" — Valuation (Harga Wajar) consolidated
     'REGRESSION: 10-hargawajar.js\'s GLOBAL_STOCK_CONTEXT subscriber no longer checks both page-fundamental and fund-tab-hw visibility — it should silently sync only when the Harga Wajar tab specifically is the one being viewed, not any Fundamental tab');
 });
 
+// ── TEST: user-reported (2026-09-19, "hapus sidebar valuation double
+// dengan fundamental kalkulator harga saham manual cek dulu kebenaran
+// nya") — after "Eksekusi no 2" merged Harga Wajar into Fundamental as a
+// tab, the sidebar still had 2 separate top-level buttons ("Fundamental"
+// and "Valuation") that both land on the exact same page-fundamental
+// container (goPage('hargawajar') is aliased there) — a genuine duplicate
+// menu entry, confirmed by re-reading the code before removing it.
+test('REGRESSION GUARD: sidebar no longer has a separate "Valuation" button duplicating "Fundamental" (both used to land on the same page-fundamental container)', () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const uiJs = fs.readFileSync(path.join(__dirname, 'public/js/29-institutional-ui.js'), 'utf8');
+
+  assert(!/side-label">Valuation<\/span>/.test(indexHtml),
+    'REGRESSION: the sidebar "Valuation" button is back — it navigates to the exact same page as "Fundamental" (goPage(\'hargawajar\') is aliased to \'fundamental\', see the "Eksekusi no 2" fix), so having both is a duplicate menu entry');
+  assert(/side-label">Fundamental<\/span>/.test(indexHtml),
+    'REGRESSION: the sidebar "Fundamental" button itself was removed along with "Valuation" — only the duplicate should have been removed, not the real page link');
+  // goPage('hargawajar') itself must still work (deep-links from Stock
+  // Intel/Knowledge Guide/Wealth quick-links still call it) — only the
+  // sidebar's OWN button was removed, not the underlying alias/route.
+  assert(/name === 'hargawajar' \? 'fundamental'/.test(fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8')),
+    'REGRESSION: goPage(\'hargawajar\') no longer redirects to \'fundamental\' — removing the sidebar button must not break the deep-link callers that still use goPage(\'hargawajar\') (Stock Intel handoff, Knowledge Guide, Wealth quick-link)');
+
+  const pagesListMatch = uiJs.match(/var pages = \[[\s\S]*?\];/);
+  assert(pagesListMatch, 'Command palette "Modul & Halaman Aplikasi" pages list not found in 29-institutional-ui.js');
+  assert(!/id: 'hargawajar'/.test(pagesListMatch[0]),
+    'REGRESSION: the command palette (Ctrl+K search) still lists a separate \'hargawajar\' entry alongside \'fundamental\' — same duplicate-menu issue as the sidebar button, both should point to just the one \'fundamental\' entry');
+  assert(/id: 'fundamental'/.test(pagesListMatch[0]),
+    'REGRESSION: the command palette\'s \'fundamental\' entry was removed along with \'hargawajar\' — only the duplicate should have been removed');
+});
+
+// ── TEST: user-reported (2026-09-19, "cek toolbar signal history kenapa
+// belum ada history yang muncul") — investigated why public/js/47-ai-
+// signal-history.js's "Riwayat Sinyal AI" page can stay empty even for an
+// active, logged-in user. Root cause found (not the only possible gate,
+// but a genuine ambiguity bug, independently of Supabase/auth config):
+// SYSTEM_INSTRUCTION_MONEYWATCH_AI's rule #10 (cek_prediksi_xgboost) and
+// rule #11 (cek_sinyal_teknikal) both listed "sinyal"/"rekomendasi" as
+// trigger words for the SAME kind of request (a ticker-specific
+// signal/recommendation) — ai_signal_log (Fase 2, 00-config.js
+// logAiSignalToReflectionLog()) is written ONLY when the AI calls
+// cek_sinyal_teknikal specifically, never cek_prediksi_xgboost. With both
+// rules matching the same plain-language phrasing ("sinyal BBCA",
+// "rekomendasi ANTM"), the model had no clear tie-breaker for which tool
+// to call — if it consistently picked cek_prediksi_xgboost for ordinary
+// "sinyal"/"rekomendasi" questions, Signal History would silently never
+// populate no matter how many times the user asked, with no error
+// anywhere to reveal why. Fixed by making rule #10 explicitly require the
+// user to name the model/AI/ML/XGBoost, and rule #11 the default for any
+// other signal/recommendation phrasing (this can't be exercised by an
+// automated test — it depends on live Claude tool-call behavior, which
+// this sandbox has no network access to reproduce — so this is a
+// source-text regression guard, not a behavioral one).
+test('REGRESSION GUARD: SYSTEM_INSTRUCTION_MONEYWATCH_AI must disambiguate cek_prediksi_xgboost vs cek_sinyal_teknikal instead of both matching plain "sinyal"/"rekomendasi" phrasing', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const promptStart = src.indexOf('const SYSTEM_INSTRUCTION_MONEYWATCH_AI');
+  assert(promptStart !== -1, 'SYSTEM_INSTRUCTION_MONEYWATCH_AI not found in server.js — has it been renamed?');
+  const promptEnd = src.indexOf('\n// GET /api/ai/status', promptStart);
+  assert(promptEnd !== -1, 'sanity: could not find the boundary right after SYSTEM_INSTRUCTION_MONEYWATCH_AI — extraction range may need updating');
+  const prompt = src.slice(promptStart, promptEnd);
+
+  assert(/HANYA kalau pengguna secara eksplisit menyebut model\/AI\/machine learning\/XGBoost/.test(prompt),
+    'REGRESSION: rule #10 (cek_prediksi_xgboost) no longer restricts itself to explicit model/AI/ML/XGBoost mentions — it will match plain "sinyal"/"rekomendasi" phrasing again, competing with rule #11 for the same requests');
+  assert(/DEFAULT untuk permintaan sinyal\/rekomendasi\/analisa teknikal/.test(prompt),
+    'REGRESSION: rule #11 (cek_sinyal_teknikal) no longer states it is the default tool for plain signal/recommendation requests — the ambiguity with cek_prediksi_xgboost (rule #10) is back, which can silently starve ai_signal_log (Riwayat Sinyal AI page) of any rows');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

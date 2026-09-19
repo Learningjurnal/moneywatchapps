@@ -171,10 +171,16 @@
       { id: 'dashboard', title: 'Ringkasan Portofolio', sub: 'Ringkasan portofolio, AUM, alokasi, dan pergerakan aset' },
       { id: 'stock-intel', title: 'Stock Intel', sub: 'Analisis 360° per saham — valuasi, teknikal & bandarmologi dalam satu tampilan' },
       { id: 'portofolio', title: 'Portofolio Saham', sub: 'Posisi aktif, lot, average price, unrealized P&L, dan alokasi' },
-      { id: 'fundamental', title: 'Analisis Fundamental', sub: 'Rasio valuasi, ROE, PER, PBV, Altman Z-Score, dan margin' },
+      // FIX (2026-09-19, sama seperti penghapusan tombol sidebar
+      // "Valuation" — lihat index.html): entry 'hargawajar' terpisah
+      // dihapus dari sini juga, goPage('hargawajar') & goPage('fundamental')
+      // sekarang mendarat di halaman yang SAMA PERSIS (Kalkulator Harga
+      // Wajar cuma tab ke-4 di halaman Fundamental), jadi 2 entry command
+      // palette untuk 1 halaman adalah duplikat. Deskripsi 'fundamental'
+      // diperluas supaya tetap ketemu lewat pencarian "harga wajar"/"MoS".
+      { id: 'fundamental', title: 'Analisis Fundamental', sub: 'Rasio valuasi, ROE, PER, PBV, Altman Z-Score, margin, dan Kalkulator Harga Wajar (Graham/Lynch/DDM/MoS)' },
       { id: 'bandarmology', title: 'Bandarmology', sub: 'Broker flow, Chaikin CMF, foreign flow, dan deteksi akumulasi/distribusi big player' },
       { id: 'technical', title: 'Analisis Teknikal & Flow', sub: 'RSI, MACD, Stochastic, MA 20/50/200, dan support resistance' },
-      { id: 'hargawajar', title: 'Harga Wajar', sub: 'Graham Number, DCF Model, Peter Lynch & Relative Valuation' },
       { id: 'screener', title: 'Screener Saham LQ45', sub: 'Filter saham berbasis kriteria fundamental dan momentum' },
       { id: 'market-regime', title: 'Market Regime', sub: 'Deteksi siklus Bull/Bear, VIX, suku bunga, dan yield bond' },
       { id: 'radar', title: 'Opportunity Radar', sub: 'Peluang breakout, dividend trap, dan value turnaround' },
