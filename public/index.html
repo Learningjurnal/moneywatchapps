@@ -787,7 +787,7 @@
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
       <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto Technical</span></button>
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
-      <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
+      <button onclick="goBandarmology('market',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
       <!-- "Volume Spike" (goPage('volume-spike')) juga digabung ke nav
            "Screener" 2026-09-19 (user-directed: "volume spike, quant
            analysis masuk tab screener, karena seluruh fungsinya sama2
@@ -3462,6 +3462,14 @@
           </div>
         </div>
 
+        <!-- 2.1b Bandarmology (mode saham, digabung dari halaman Bandarmology 2026-09-19) -->
+        <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+          <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px">A2. Bandarmology — CMF, VWAP Bands &amp; Foreign Flow</div>
+          <div id="tech-bandar-content">
+            <div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memuat Analisis Broker Flow &amp; Smart Money...</div>
+          </div>
+        </div>
+
         <!-- 2.2 Gauges -->
         <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
           <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px">B. 20+ Technical Oscillators &amp; Moving Average Gauges</div>
@@ -4394,10 +4402,10 @@
 <script src="js/21-performance.js?v=20260913b"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260915b"></script>
-<script src="js/24-stockmaster.js?v=20260919b"></script>
+<script src="js/24-stockmaster.js?v=20260919c"></script>
 <script src="js/25-auditlog.js?v=20260918a"></script>
 <script src="js/26-commandcenter.js?v=20260918b"></script>
-<script src="js/27-stockintel.js?v=20260918c"></script>
+<script src="js/27-stockintel.js?v=20260919a"></script>
 <script src="js/28-decisiontools.js?v=20260918c"></script>
 <script src="js/29-institutional-ui.js?v=20260918a"></script>
 <script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260918a"></script><script src="js/34-ksei-shareholders.js?v=20260919a"></script>
@@ -4406,7 +4414,7 @@
 <script src="js/38-ai-autonomous-trading.js?v=20260917a"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260915b"></script>
 <script src="js/40-idx-pipeline.js?v=20260918a"></script>
-<script src="js/41-stockchat-cockpit.js?v=20260919a"></script>
+<script src="js/41-stockchat-cockpit.js?v=20260919b"></script>
 <script src="js/42-dividend-calendar.js?v=20260918a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260918b"></script>
 <script src="js/44-sectoral-insight.js?v=20260918a"></script>

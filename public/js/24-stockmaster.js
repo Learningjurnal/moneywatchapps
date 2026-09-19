@@ -1237,9 +1237,43 @@ function techSwitchTab(idx) {
     techRenderMainChart(ticker);
   } else if (idx === 2) {
     techRunFlowScanTab(ticker);
+    techRunBandarmologyTab(ticker);
     techRenderGaugesTab(ticker);
     techRenderCandleTab(ticker);
     techRenderPivotsTab(ticker);
+  }
+}
+
+// FIX (2026-09-19, konsolidasi menu "Eksekusi no 1": Technical +
+// Bandarmology mode saham digabung — keduanya sama-sama memanggil
+// fsGenData()+fsProcess() untuk ticker yang sama, jadi dipertahankan
+// sebagai 1 tab alih-alih 2 halaman terpisah dengan cakupan tumpang
+// tindih). renderBandarmologySmartMoneyFlowView()/
+// renderBandarmologyForeignFlowView() (41-stockchat-cockpit.js) sudah
+// mandiri (self-contained HTML + self-mounting chart via setTimeout di
+// dalam fungsinya sendiri) sehingga bisa dipanggil langsung dari sini
+// tanpa reimplementasi. Bandarmology halaman (mode saham) sudah dihapus —
+// lihat renderBandarmologyCockpitPage() yang sekarang hanya render mode
+// market.
+function techRunBandarmologyTab(ticker) {
+  var tk = (ticker || TECH_DATA.ticker || 'BBCA').trim().toUpperCase().replace(/\.JK$/i, '');
+  var container = document.getElementById('tech-bandar-content');
+  if (!container) return;
+  if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
+  var html = '';
+  if (typeof renderBandarmologySmartMoneyFlowView === 'function') {
+    html += renderBandarmologySmartMoneyFlowView(tk);
+  }
+  if (typeof renderBandarmologyForeignFlowView === 'function') {
+    html += renderBandarmologyForeignFlowView(tk);
+  }
+  container.innerHTML = html || '<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">Modul Bandarmology tidak tersedia.</div>';
+  // renderBandarmologySmartMoneyFlowView() sudah menjadwalkan
+  // mountBandarmologySmartMoneyCharts() sendiri via setTimeout — tidak
+  // perlu dipanggil ulang di sini. Foreign flow (whole-market, real
+  // Invezgo) perlu di-load manual karena wrapper-nya cuma placeholder.
+  if (typeof bandarLoadRealForeignFlow === 'function') {
+    setTimeout(bandarLoadRealForeignFlow, 40);
   }
 }
 

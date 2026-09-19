@@ -1764,11 +1764,46 @@ test('REGRESSION GUARD: dead Bandarmology shortcuts (broker-flow/foreign-flow/sm
     'REGRESSION: goPage()\'s targetPageName mapping no longer redirects \'smart-money-flow\' to the bandarmology page container');
 
   assert(/subTabOrMode === 'smart-money-flow'/.test(cockpitJs),
-    'REGRESSION: goBandarmology() no longer dispatches \'smart-money-flow\' to setBandarmologyTab() — the real flowscan deep-link is broken');
-  assert(/subTab === 'smart-money-flow'/.test(cockpitJs),
-    'REGRESSION: setBandarmologyTab() no longer scrolls to #bandarSmartMoneyChart for \'smart-money-flow\' — the real flowscan deep-link is broken');
+    'REGRESSION: goBandarmology() no longer recognizes \'smart-money-flow\' — the real flowscan deep-link is broken');
   assert(!/subTab === 'broker-flow'/.test(cockpitJs) && !/subTab === 'foreign-flow'/.test(cockpitJs),
     'REGRESSION: dead scroll-to branches for \'broker-flow\'/\'foreign-flow\' are back in setBandarmologyTab()');
+});
+
+// ── TEST 58b: "Eksekusi no 1" (2026-09-19, user-directed menu consolidation:
+// "Untuk temuan 4 anda analisa dulu fiturnya... Eksekusi no 1") — Technical
+// and Bandarmology's stock-mode (single-ticker Broker Flow + CMF/VWAP Bands +
+// Foreign Flow) called the exact same fsGenData()+fsProcess() engine for the
+// same ticker, so they were merged into one tab on the Technical page instead
+// of 2 separate pages with overlapping scope. This obsoletes TEST 60's old
+// "scroll to #bandarSmartMoneyChart inside the Bandarmology page" premise —
+// the smart-money-flow deep link now navigates to the Technical page instead.
+test('REGRESSION GUARD: Technical + Bandarmology (stock mode) consolidation — goBandarmology() redirects stock/emiten/smart-money-flow to the Technical page instead of rendering a stock mode on the Bandarmology page', () => {
+  const cockpitJs = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const stockmasterJs = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  const goBandarFnMatch = cockpitJs.match(/window\.goBandarmology = function[\s\S]*?\n};/);
+  assert(goBandarFnMatch, 'goBandarmology() not found in 41-stockchat-cockpit.js');
+  const goBandarFn = goBandarFnMatch[0];
+  assert(/isStockRequest/.test(goBandarFn) && /goPage\('technical', btn\)/.test(goBandarFn),
+    'REGRESSION: goBandarmology() no longer redirects stock-mode requests to the Technical page — the merged tab is unreachable from the sidebar/flowscan/stock-intel handoff buttons again');
+
+  assert(!/isStockMode/.test(cockpitJs),
+    'REGRESSION: renderBandarmologyCockpitPage() still branches on a stock mode — the stock-mode UI should have been fully removed from the Bandarmology page after the merge');
+  assert(!cockpitJs.includes("id=\\'stockchat-flow-tab-content\\'") && !/renderBandarmologyCockpitPage[\s\S]*?stockchat-flow-tab-content/.test(cockpitJs.match(/function renderBandarmologyCockpitPage[\s\S]*?\n}\n/)[0]),
+    'REGRESSION: renderBandarmologyCockpitPage() creates a #stockchat-flow-tab-content element again — this id is also used by StockChat\'s own Broker Flow tab, and since both pages persist in this SPA\'s DOM simultaneously, a 3rd creator of this id reintroduces the duplicate-DOM-id risk the merge was supposed to remove');
+
+  assert(/function techRunBandarmologyTab/.test(stockmasterJs),
+    'REGRESSION: techRunBandarmologyTab() (the new Bandarmology-stock-mode tab on the Technical page) was removed from 24-stockmaster.js');
+  assert(/techRunBandarmologyTab\(ticker\)/.test(stockmasterJs),
+    'REGRESSION: techSwitchTab() no longer calls techRunBandarmologyTab() when switching into the FlowScan/Bandarmology tab');
+  assert(/renderBandarmologySmartMoneyFlowView/.test(stockmasterJs) && /renderBandarmologyForeignFlowView/.test(stockmasterJs),
+    'REGRESSION: techRunBandarmologyTab() no longer reuses the existing Bandarmology view functions (renderBandarmologySmartMoneyFlowView/renderBandarmologyForeignFlowView) — it must not reimplement them');
+
+  assert(/id="tech-bandar-content"/.test(indexHtml),
+    'REGRESSION: public/index.html no longer has the #tech-bandar-content container for the merged Bandarmology tab inside page-technical');
+  assert(/goBandarmology\('market',this\)/.test(indexHtml) && !/goBandarmology\('stock',this\)/.test(indexHtml),
+    'REGRESSION: the sidebar Bandarmology button must call goBandarmology(\'market\',...) now that stock mode lives on the Technical page');
 });
 
 // ── TEST 59: the 'dividen-calendar' dead route must stay removed (found
