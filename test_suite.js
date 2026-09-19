@@ -7042,6 +7042,21 @@ test('REGRESSION GUARD: Quant Screener and Volume Spike Scanner relocated into t
     'REGRESSION: usRenderShell() no longer wires the "quant"/"volspike" tabs to their relocated render functions');
 });
 
+test('REGRESSION GUARD: menu/routing cleanup audit (2026-09-19, user-requested review to reduce confusing duplicate menus/calls) — duplicate crypto-technical switch case removed, and page-ranking\'s fully orphaned markup removed (unlike page-scanner, which LOOKS unreachable the same way but still backs a real, test-covered 3-mode Smart Money Screener feature and must NOT be deleted)', () => {
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  const cryptoTechCaseCount = (routerSrc.match(/case 'crypto-technical':/g) || []).length;
+  assert(cryptoTechCaseCount === 1, `REGRESSION: renderPage()'s switch has ${cryptoTechCaseCount} 'crypto-technical' cases — there must be exactly 1 (the duplicate second case, calling initCryptoTechnicalSuite(), was dead code: a JS switch only ever runs the first match)`);
+
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(!indexHtml.includes('id="page-ranking"'), 'REGRESSION: page-ranking\'s markup resurfaced — this page is unreachable from the sidebar (superseded by the Unified Screener) and had zero test coverage, so its ~35 lines of orphaned HTML (rk-body/rk-sum/rk-chart/rk-sort/rk-sig ids, only ever targeted by the equally-dead fsRenderRanking()) should stay removed');
+  // page-scanner deliberately still exists — see "Smart Money Screener
+  // consolidation" test above, which pins its 3-mode UI to a real,
+  // still-relevant 2026-09-17 fix (real Invezgo top-movers data, no
+  // simulated CMF). Assert it TESTS as still present, as a tripwire in
+  // case someone "cleans up" it the same way page-ranking was cleaned up.
+  assert(indexHtml.includes('id="page-scanner"'), 'REGRESSION: page-scanner was removed — unlike page-ranking, this one still backs a real, separately test-covered feature (see "Smart Money Screener consolidation" test) and must stay until that feature itself is deliberately retired');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

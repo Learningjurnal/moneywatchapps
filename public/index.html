@@ -2801,45 +2801,6 @@
   </div>
 </div>
 
-
-<!-- Market Radar (Ranking) -->
-<div id="page-ranking" class="page">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
-    <div>
-      <div class="ptitle">Market Radar</div>
-      <div class="psub">Analisis pergerakan modal, akumulasi institusional, dan rasio volume saham teratas BEI.</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="btn btn-ghost btn-sm" onclick="rdLoadUniverse(true);if(typeof fsRenderRanking==='function')fsRenderRanking();" title="Segarkan Data Market Radar">
-        <i class="ti ti-refresh"></i> Refresh ↻
-      </button>
-    </div>
-  </div>
-  <div class="card" style="margin-top:0">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;flex:1" id="rk-sum"></div>
-      <div style="display:flex;gap:7px">
-        <select class="finput fsel" id="rk-sort" onchange="fsRenderRanking()" style="padding:4px 8px;font-size:11px">
-          <option value="score">Skor</option><option value="cap">Market Cap</option>
-          <option value="cmf">CMF</option><option value="chg">Chg%</option>
-          <option value="volratio">Vol Ratio</option>
-        </select>
-        <select class="finput fsel" id="rk-sig" onchange="fsRenderRanking()" style="padding:4px 8px;font-size:11px">
-          <option value="all">Semua</option><option value="AKUMULASI">Akumulasi</option>
-          <option value="DISTRIBUSI">Distribusi</option><option value="NETRAL">Netral</option>
-        </select>
-      </div>
-    </div>
-    <div style="height:200px;margin-bottom:12px"><canvas id="rk-chart"></canvas></div>
-    <div style="overflow-x:auto">
-      <table class="tbl">
-        <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th>Harga</th><th>Chg%</th><th>Cap (T)</th><th>Skor</th><th>Sinyal</th><th>CMF</th><th>RSI</th><th>Vol Ratio</th><th>WL</th><th></th></tr></thead>
-        <tbody id="rk-body"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
 <!-- Heatmap -->
 <div id="page-heatmap" class="page">
   <div class="ptitle">Heatmap & Factor Analysis</div>
