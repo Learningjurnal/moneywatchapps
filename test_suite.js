@@ -1764,11 +1764,46 @@ test('REGRESSION GUARD: dead Bandarmology shortcuts (broker-flow/foreign-flow/sm
     'REGRESSION: goPage()\'s targetPageName mapping no longer redirects \'smart-money-flow\' to the bandarmology page container');
 
   assert(/subTabOrMode === 'smart-money-flow'/.test(cockpitJs),
-    'REGRESSION: goBandarmology() no longer dispatches \'smart-money-flow\' to setBandarmologyTab() — the real flowscan deep-link is broken');
-  assert(/subTab === 'smart-money-flow'/.test(cockpitJs),
-    'REGRESSION: setBandarmologyTab() no longer scrolls to #bandarSmartMoneyChart for \'smart-money-flow\' — the real flowscan deep-link is broken');
+    'REGRESSION: goBandarmology() no longer recognizes \'smart-money-flow\' — the real flowscan deep-link is broken');
   assert(!/subTab === 'broker-flow'/.test(cockpitJs) && !/subTab === 'foreign-flow'/.test(cockpitJs),
     'REGRESSION: dead scroll-to branches for \'broker-flow\'/\'foreign-flow\' are back in setBandarmologyTab()');
+});
+
+// ── TEST 58b: "Eksekusi no 1" (2026-09-19, user-directed menu consolidation:
+// "Untuk temuan 4 anda analisa dulu fiturnya... Eksekusi no 1") — Technical
+// and Bandarmology's stock-mode (single-ticker Broker Flow + CMF/VWAP Bands +
+// Foreign Flow) called the exact same fsGenData()+fsProcess() engine for the
+// same ticker, so they were merged into one tab on the Technical page instead
+// of 2 separate pages with overlapping scope. This obsoletes TEST 60's old
+// "scroll to #bandarSmartMoneyChart inside the Bandarmology page" premise —
+// the smart-money-flow deep link now navigates to the Technical page instead.
+test('REGRESSION GUARD: Technical + Bandarmology (stock mode) consolidation — goBandarmology() redirects stock/emiten/smart-money-flow to the Technical page instead of rendering a stock mode on the Bandarmology page', () => {
+  const cockpitJs = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const stockmasterJs = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  const goBandarFnMatch = cockpitJs.match(/window\.goBandarmology = function[\s\S]*?\n};/);
+  assert(goBandarFnMatch, 'goBandarmology() not found in 41-stockchat-cockpit.js');
+  const goBandarFn = goBandarFnMatch[0];
+  assert(/isStockRequest/.test(goBandarFn) && /goPage\('technical', btn\)/.test(goBandarFn),
+    'REGRESSION: goBandarmology() no longer redirects stock-mode requests to the Technical page — the merged tab is unreachable from the sidebar/flowscan/stock-intel handoff buttons again');
+
+  assert(!/isStockMode/.test(cockpitJs),
+    'REGRESSION: renderBandarmologyCockpitPage() still branches on a stock mode — the stock-mode UI should have been fully removed from the Bandarmology page after the merge');
+  assert(!cockpitJs.includes("id=\\'stockchat-flow-tab-content\\'") && !/renderBandarmologyCockpitPage[\s\S]*?stockchat-flow-tab-content/.test(cockpitJs.match(/function renderBandarmologyCockpitPage[\s\S]*?\n}\n/)[0]),
+    'REGRESSION: renderBandarmologyCockpitPage() creates a #stockchat-flow-tab-content element again — this id is also used by StockChat\'s own Broker Flow tab, and since both pages persist in this SPA\'s DOM simultaneously, a 3rd creator of this id reintroduces the duplicate-DOM-id risk the merge was supposed to remove');
+
+  assert(/function techRunBandarmologyTab/.test(stockmasterJs),
+    'REGRESSION: techRunBandarmologyTab() (the new Bandarmology-stock-mode tab on the Technical page) was removed from 24-stockmaster.js');
+  assert(/techRunBandarmologyTab\(ticker\)/.test(stockmasterJs),
+    'REGRESSION: techSwitchTab() no longer calls techRunBandarmologyTab() when switching into the FlowScan/Bandarmology tab');
+  assert(/renderBandarmologySmartMoneyFlowView/.test(stockmasterJs) && /renderBandarmologyForeignFlowView/.test(stockmasterJs),
+    'REGRESSION: techRunBandarmologyTab() no longer reuses the existing Bandarmology view functions (renderBandarmologySmartMoneyFlowView/renderBandarmologyForeignFlowView) — it must not reimplement them');
+
+  assert(/id="tech-bandar-content"/.test(indexHtml),
+    'REGRESSION: public/index.html no longer has the #tech-bandar-content container for the merged Bandarmology tab inside page-technical');
+  assert(/goBandarmology\('market',this\)/.test(indexHtml) && !/goBandarmology\('stock',this\)/.test(indexHtml),
+    'REGRESSION: the sidebar Bandarmology button must call goBandarmology(\'market\',...) now that stock mode lives on the Technical page');
 });
 
 // ── TEST 59: the 'dividen-calendar' dead route must stay removed (found
@@ -7040,6 +7075,105 @@ test('REGRESSION GUARD: Quant Screener and Volume Spike Scanner relocated into t
     'REGRESSION: the "Quant Screener"/"Volume Spike" tab buttons are gone from the Screener page tab bar');
   assert(/qtScreenerSubPageHtml/.test(jsSrc) && /VS_CONTAINER_ID\s*=\s*'us-wave-subpage'/.test(jsSrc),
     'REGRESSION: usRenderShell() no longer wires the "quant"/"volspike" tabs to their relocated render functions');
+});
+
+test('REGRESSION GUARD: menu/routing cleanup audit (2026-09-19, user-requested review to reduce confusing duplicate menus/calls) — duplicate crypto-technical switch case removed, and page-ranking\'s fully orphaned markup removed (unlike page-scanner, which LOOKS unreachable the same way but still backs a real, test-covered 3-mode Smart Money Screener feature and must NOT be deleted)', () => {
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  const cryptoTechCaseCount = (routerSrc.match(/case 'crypto-technical':/g) || []).length;
+  assert(cryptoTechCaseCount === 1, `REGRESSION: renderPage()'s switch has ${cryptoTechCaseCount} 'crypto-technical' cases — there must be exactly 1 (the duplicate second case, calling initCryptoTechnicalSuite(), was dead code: a JS switch only ever runs the first match)`);
+
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(!indexHtml.includes('id="page-ranking"'), 'REGRESSION: page-ranking\'s markup resurfaced — this page is unreachable from the sidebar (superseded by the Unified Screener) and had zero test coverage, so its ~35 lines of orphaned HTML (rk-body/rk-sum/rk-chart/rk-sort/rk-sig ids, only ever targeted by the equally-dead fsRenderRanking()) should stay removed');
+  // page-scanner deliberately still exists — see "Smart Money Screener
+  // consolidation" test above, which pins its 3-mode UI to a real,
+  // still-relevant 2026-09-17 fix (real Invezgo top-movers data, no
+  // simulated CMF). Assert it TESTS as still present, as a tripwire in
+  // case someone "cleans up" it the same way page-ranking was cleaned up.
+  assert(indexHtml.includes('id="page-scanner"'), 'REGRESSION: page-scanner was removed — unlike page-ranking, this one still backs a real, separately test-covered feature (see "Smart Money Screener consolidation" test) and must stay until that feature itself is deliberately retired');
+});
+
+test('REGRESSION GUARD: 3 more fsGenData() consumers found by the 2026-09-19 menu/data audit must disclose synthetic data honestly (same bug class as the DEWA techRunFlowScanTab incident) — fsRunScanner() "emiten terverifikasi" cards, techRenderMainChart()\'s native price chart, and the CMF/Net-Foreign charts in mountBandarmologySmartMoneyCharts()', () => {
+  const flowScanSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  const stockmasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  // 1. fsRunScanner() must check r.data.simulated per card, same pattern
+  // as its sibling fsRenderRanking()/fsRenderHeatmap() — previously it
+  // rendered "Ditemukan N emiten TERVERIFIKASI" + precise CMF/VR/Skor
+  // with zero disclosure, even when every card came from fsGenData()'s
+  // synthetic random-walk fallback.
+  const scannerFnMatch = flowScanSrc.match(/function fsRunScanner\(\)\s*\{[\s\S]*?\n\}/);
+  assert(scannerFnMatch, 'REGRESSION: fsRunScanner() not found');
+  assert(/var isSim\s*=\s*!!\(r\.data && r\.data\.simulated\)/.test(scannerFnMatch[0]), 'REGRESSION: fsRunScanner() no longer checks r.data.simulated per card');
+  assert(/fsSrcDot\(isSim\)/.test(scannerFnMatch[0]), 'REGRESSION: fsRunScanner() no longer shows the fsSrcDot() real/simulated badge per card');
+  // Strip comment lines before checking for the OLD rendered string —
+  // the fix's own explanatory comment quotes the old "emiten TERVERIFIKASI"
+  // text as documentation, which would otherwise false-positive this check.
+  const scannerFnNoComments = scannerFnMatch[0].split('\n').filter((line) => !/^\s*\/\//.test(line)).join('\n');
+  assert(!/emiten terverifikasi/i.test(scannerFnNoComments), 'REGRESSION: fsRunScanner() calls its results "terverifikasi" (verified) again — misleading when some/all cards are synthetic');
+
+  // 2. techRenderMainChart() must check fsGenData()'s .simulated flag (and
+  // treat its own second-layer Math.sin() fallback as simulated too), and
+  // show an honest banner instead of a bare, unlabeled price+chg% header.
+  const chartFnMatch = stockmasterSrc.match(/function techRenderMainChart\(ticker\) \{[\s\S]*?\n\}\n\n\/\//);
+  assert(chartFnMatch, 'REGRESSION: could not isolate techRenderMainChart() body');
+  assert(/isSimChart/.test(chartFnMatch[0]), 'REGRESSION: techRenderMainChart() no longer tracks isSimChart — the native price chart (specific "Rp X.XXX" + "+X.XX%" header) could silently be 100% fabricated again');
+  assert(/SIMULASI.*belum ada histori harga riil/.test(chartFnMatch[0]), 'REGRESSION: techRenderMainChart() lost its honest simulated-data banner');
+  assert(/TECH_MAINCHART_FETCHING/.test(stockmasterSrc), 'REGRESSION: techRenderMainChart() lost its self-heal (rdEnsure) path for when the chart shows synthetic data');
+
+  // 3. mountBandarmologySmartMoneyCharts(): the CMF fallback must not be a
+  // hardcoded alternating pattern (15.4/-8.2) presented as real, and the
+  // "Net Foreign" chart's title/badge must disclose it's a volume-based
+  // proxy, not real per-ticker daily foreign-flow data (which this app
+  // has no source for at all — only a whole-market aggregate exists).
+  assert(!/15\.4\s*:\s*-8\.2/.test(cockpitSrc), 'REGRESSION: the hardcoded alternating 15.4/-8.2 fake CMF fallback pattern is back — CLAUDE.md #3 violation (precise-looking fabricated numbers)');
+  assert(/isCmfFallback/.test(cockpitSrc), 'REGRESSION: mountBandarmologySmartMoneyCharts() no longer tracks isCmfFallback');
+  assert(cockpitSrc.includes('Estimasi Arus Dana (Proxy Volume)'), 'REGRESSION: the "Net Foreign" chart title reverted to implying real foreign-flow data ("Arus Net Dana Asing Harian") — this app has no real per-ticker daily foreign-flow source, only a whole-market aggregate');
+  assert(cockpitSrc.includes('ESTIMASI, BUKAN DATA ASING RIIL'), 'REGRESSION: the "Net Foreign" chart badge no longer discloses it is an estimate, not real foreign-investor data');
+});
+
+// ── TEST: "Eksekusi no 2" (2026-09-19, user-directed menu consolidation,
+// follow-up to "Eksekusi no 1") — Fundamental and Valuation ('hargawajar')
+// were 2 separate pages under the same "Analisa" umbrella. Unlike the
+// Technical+Bandarmology merge (identical function calls for the same
+// ticker), Fundamental Tab 1's valuation (auto snapshot Graham/Lynch/DDM/
+// MoS from latest fetched fundamentals) and Harga Wajar's calculator
+// (manual multi-year editable EPS/Equity/Shares/DPS/PER/Net Income table,
+// user-tunable Min Return/Proyeksi Tahun assumptions) are GENUINELY
+// different tools, not the same formula reimplemented — so only the TAB
+// was relocated (page-hargawajar's markup moved wholesale into
+// page-fundamental as fund-tab-hw), the calculation code in
+// 10-hargawajar.js was not touched/merged into Fundamental's own formulas.
+test('REGRESSION GUARD: "Eksekusi no 2" — Valuation (Harga Wajar) consolidated into the Fundamental page as a 4th tab, not a separate page', () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const routerJs = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  const stockmasterJs = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const hwJs = fs.readFileSync(path.join(__dirname, 'public/js/10-hargawajar.js'), 'utf8');
+
+  assert(!/<div id="page-hargawajar" class="page">/.test(indexHtml),
+    'REGRESSION: the standalone page-hargawajar container is back in index.html — Valuation should be a tab inside page-fundamental now, not its own page');
+  assert(/id="fund-tab-hw"/.test(indexHtml) && /id="fund-nav-4"/.test(indexHtml),
+    'REGRESSION: the merged Harga Wajar tab (fund-tab-hw) or its nav button (fund-nav-4) is missing from page-fundamental in index.html');
+  assert(/id="hw-ticker-input"/.test(indexHtml) && /id="hw-data-body"/.test(indexHtml) && /id="hw-verdict-badge"/.test(indexHtml),
+    'REGRESSION: index.html no longer contains the Harga Wajar calculator\'s real element ids (hw-ticker-input/hw-data-body/hw-verdict-badge) — the relocation lost content instead of moving it wholesale');
+
+  assert(/name === 'hargawajar' \? 'fundamental'/.test(routerJs),
+    'REGRESSION: goPage() no longer redirects \'hargawajar\' to the \'fundamental\' page container — old goPage(\'hargawajar\') callers (sidebar Valuation button, Stock Intel handoff, Knowledge Guide, Wealth quick-links) will land on a nonexistent page');
+  const caseHargawajarMatch = routerJs.match(/case 'hargawajar':[^\n]*\n/);
+  assert(caseHargawajarMatch, 'REGRESSION: renderPage()\'s case \'hargawajar\' was removed — hw_init()/hw_recalc() will no longer run when navigating to Valuation');
+  assert(!/fundSwitchTab/.test(caseHargawajarMatch[0]),
+    'REGRESSION: renderPage()\'s case \'hargawajar\' now calls fundSwitchTab() directly — this case is also re-invoked by 03-engine.js\'s periodic same-page refresh tick (renderPage(currentPage), no goPage() involved), so forcing a tab switch here would repeatedly snap the user back to the Harga Wajar tab while they are reading another Fundamental tab (the exact class of bug already fixed for TradeWave/Unified Screener — see the FIX comment above US_STATE.pageTab). The tab switch must only happen inside goPage(), which represents a real navigation.');
+  assert(/if \(name === 'hargawajar' && typeof fundSwitchTab === 'function'\)/.test(routerJs),
+    'REGRESSION: goPage() no longer switches to the Harga Wajar tab (fundSwitchTab(4)) on real navigation into \'hargawajar\'');
+
+  const fundSwitchTabFn = stockmasterJs.match(/function fundSwitchTab[\s\S]*?\n}\n/)[0];
+  assert(/idx === 4/.test(fundSwitchTabFn) && /fund-tab-hw/.test(fundSwitchTabFn) && /fund-nav-4/.test(fundSwitchTabFn),
+    'REGRESSION: fundSwitchTab() no longer handles idx===4 (the merged Harga Wajar tab) — clicking its nav button will do nothing');
+
+  assert(!/document\.getElementById\('page-hargawajar'\)/.test(hwJs),
+    'REGRESSION: 10-hargawajar.js still checks for the removed page-hargawajar container — the GLOBAL_STOCK_CONTEXT subscriber\'s visibility guard will always be false, silently breaking cross-module ticker sync into the Harga Wajar tab');
+  assert(/document\.getElementById\('page-fundamental'\)/.test(hwJs) && /document\.getElementById\('fund-tab-hw'\)/.test(hwJs),
+    'REGRESSION: 10-hargawajar.js\'s GLOBAL_STOCK_CONTEXT subscriber no longer checks both page-fundamental and fund-tab-hw visibility — it should silently sync only when the Harga Wajar tab specifically is the one being viewed, not any Fundamental tab');
 });
 
 console.log('═══════════════════════════════════════════════════════');

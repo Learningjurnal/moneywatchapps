@@ -1105,7 +1105,7 @@ function renderStockIntelPage() {
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
           + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Smart Money / Bandarmology</div>'
           + '<div style="font-size:11px;color:var(--text2)">Broker flow lengkap, foreign flow, dan sinyal CMF/VWAP untuk ' + ticker + '.</div>'
-          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + ticker + '\');if(typeof goBandarmology===\'function\')goBandarmology(\'stock\',null);">Buka Bandarmology →</button>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + ticker + '\');if(typeof goBandarmology===\'function\')goBandarmology(\'stock\',null);">Buka Analisis Bandarmology (Technical) →</button>'
         + '</div>'
         // Kartu ke-5: Volume Spike (baru, 45-volume-spike.js) — sebelumnya
         // fitur ini tidak muncul sama sekali di hub "Lanjutkan Analisa

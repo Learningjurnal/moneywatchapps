@@ -65,11 +65,15 @@ function fundSwitchTab(idx) {
   // Tab 1: Analisa Terpadu (1)
   // Tab 2: Bull/Bear Debate (2 or legacy 8)
   // Tab 3: Kepemilikan KSEI (3 or legacy 10)
+  // Tab 4: Kalkulator Harga Wajar Manual (4) — digabung dari halaman
+  // Valuation terpisah 2026-09-19 ("Eksekusi no 2"), lihat fund-tab-hw.
   var targetNavId = 'fund-nav-1';
   if (idx === 2 || idx === 8) {
     targetNavId = 'fund-nav-2';
   } else if (idx === 3 || idx === 10) {
     targetNavId = 'fund-nav-3';
+  } else if (idx === 4) {
+    targetNavId = 'fund-nav-4';
   }
   var targetNav = document.getElementById(targetNavId);
   if (targetNav) {
@@ -81,22 +85,31 @@ function fundSwitchTab(idx) {
   var tab1 = document.getElementById('fund-tab1');
   var tab8 = document.getElementById('fund-tab8');
   var tab10 = document.getElementById('fund-tab10');
+  var tabHw = document.getElementById('fund-tab-hw');
 
   if (idx === 2 || idx === 8) {
     if (tab1) tab1.classList.remove('active');
     if (tab10) tab10.classList.remove('active');
+    if (tabHw) tabHw.classList.remove('active');
     if (tab8) tab8.classList.add('active');
   } else if (idx === 3 || idx === 10) {
     if (tab1) tab1.classList.remove('active');
     if (tab8) tab8.classList.remove('active');
+    if (tabHw) tabHw.classList.remove('active');
     if (tab10) tab10.classList.add('active');
     if (typeof renderKseiFundamentalWidget === 'function') {
       renderKseiFundamentalWidget(FUND_DATA.ticker || 'BBCA', 'fund-ksei-container');
     }
+  } else if (idx === 4) {
+    if (tab1) tab1.classList.remove('active');
+    if (tab8) tab8.classList.remove('active');
+    if (tab10) tab10.classList.remove('active');
+    if (tabHw) tabHw.classList.add('active');
   } else {
     // Combined Master Analysis (Tab 1: All sections)
     if (tab8) tab8.classList.remove('active');
     if (tab10) tab10.classList.remove('active');
+    if (tabHw) tabHw.classList.remove('active');
     if (tab1) tab1.classList.add('active');
 
     if (idx === 5) {
@@ -1237,9 +1250,43 @@ function techSwitchTab(idx) {
     techRenderMainChart(ticker);
   } else if (idx === 2) {
     techRunFlowScanTab(ticker);
+    techRunBandarmologyTab(ticker);
     techRenderGaugesTab(ticker);
     techRenderCandleTab(ticker);
     techRenderPivotsTab(ticker);
+  }
+}
+
+// FIX (2026-09-19, konsolidasi menu "Eksekusi no 1": Technical +
+// Bandarmology mode saham digabung — keduanya sama-sama memanggil
+// fsGenData()+fsProcess() untuk ticker yang sama, jadi dipertahankan
+// sebagai 1 tab alih-alih 2 halaman terpisah dengan cakupan tumpang
+// tindih). renderBandarmologySmartMoneyFlowView()/
+// renderBandarmologyForeignFlowView() (41-stockchat-cockpit.js) sudah
+// mandiri (self-contained HTML + self-mounting chart via setTimeout di
+// dalam fungsinya sendiri) sehingga bisa dipanggil langsung dari sini
+// tanpa reimplementasi. Bandarmology halaman (mode saham) sudah dihapus —
+// lihat renderBandarmologyCockpitPage() yang sekarang hanya render mode
+// market.
+function techRunBandarmologyTab(ticker) {
+  var tk = (ticker || TECH_DATA.ticker || 'BBCA').trim().toUpperCase().replace(/\.JK$/i, '');
+  var container = document.getElementById('tech-bandar-content');
+  if (!container) return;
+  if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
+  var html = '';
+  if (typeof renderBandarmologySmartMoneyFlowView === 'function') {
+    html += renderBandarmologySmartMoneyFlowView(tk);
+  }
+  if (typeof renderBandarmologyForeignFlowView === 'function') {
+    html += renderBandarmologyForeignFlowView(tk);
+  }
+  container.innerHTML = html || '<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">Modul Bandarmology tidak tersedia.</div>';
+  // renderBandarmologySmartMoneyFlowView() sudah menjadwalkan
+  // mountBandarmologySmartMoneyCharts() sendiri via setTimeout — tidak
+  // perlu dipanggil ulang di sini. Foreign flow (whole-market, real
+  // Invezgo) perlu di-load manual karena wrapper-nya cuma placeholder.
+  if (typeof bandarLoadRealForeignFlow === 'function') {
+    setTimeout(bandarLoadRealForeignFlow, 40);
   }
 }
 
@@ -1299,6 +1346,7 @@ function techFormatTV(ticker) {
 }
 
 // ── Tab 1: Instant Native Technical Chart + On-Demand TV Toggle ──
+var TECH_MAINCHART_FETCHING = {};
 function techRenderMainChart(ticker) {
   var container = document.getElementById('sm-tv-chart-container') || document.getElementById('tech-tv-chart-container');
   if (!container) return;
@@ -1314,8 +1362,16 @@ function techRenderMainChart(ticker) {
   }
 
   // Native High-Performance Interactive Chart
+  // FIX (2026-09-19, menu/data audit — kelas bug sama seperti insiden DEWA
+  // di techRunFlowScanTab()): sebelumnya fungsi ini merender chart harga +
+  // header "Rp X.XXX" & "+X.XX%" tanpa PERNAH mengecek fsGenData().simulated
+  // — dan kalau hasilnya kosong, masih membuat deret harga fiktif KEDUA
+  // (Math.sin) tanpa label sama sekali. isSim sekarang dilacak untuk kedua
+  // jalur fabrikasi dan ditampilkan sebagai banner jujur di header chart.
   var ohlcv = (typeof fsGenData === 'function') ? fsGenData(ticker, 45) : [];
+  var isSimChart = !!(ohlcv && ohlcv.simulated);
   if (!ohlcv || !ohlcv.length) {
+    isSimChart = true;
     var basePx = (typeof prices !== 'undefined' && prices[ticker]) || 5000;
     ohlcv = [];
     for (var i = 0; i < 45; i++) {
@@ -1355,9 +1411,18 @@ function techRenderMainChart(ticker) {
     + '    <button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')">Buka TradingView Pro</button>'
     + '  </div>'
     + '</div>'
+    + (isSimChart ? '<div style="padding:8px 14px;background:rgba(255,61,90,.08);border-bottom:1px solid rgba(255,61,90,.25);color:var(--red,#e21d48);font-size:11px;font-weight:600">⚠️ SIMULASI — belum ada histori harga riil ter-cache untuk ' + ticker + '. Harga/perubahan di atas adalah data acak/estimasi, bukan pasar riil.</div>' : '')
     + '<div style="position:relative;height:380px;background:var(--bg2);padding:10px;border-radius:0 0 10px 10px">'
     + '  <canvas id="techNativeChartCanvas"></canvas>'
     + '</div>';
+
+  if (isSimChart && !TECH_MAINCHART_FETCHING[ticker] && typeof rdEnsure === 'function') {
+    TECH_MAINCHART_FETCHING[ticker] = true;
+    rdEnsure(ticker, function() {
+      TECH_MAINCHART_FETCHING[ticker] = false;
+      if (TECH_DATA.ticker === ticker) techRenderMainChart(ticker);
+    });
+  }
 
   techKillChart('nativeChart');
   var cv = document.getElementById('techNativeChartCanvas');

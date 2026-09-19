@@ -787,7 +787,7 @@
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
       <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto Technical</span></button>
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
-      <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
+      <button onclick="goBandarmology('market',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
       <!-- "Volume Spike" (goPage('volume-spike')) juga digabung ke nav
            "Screener" 2026-09-19 (user-directed: "volume spike, quant
            analysis masuk tab screener, karena seluruh fungsinya sama2
@@ -2801,45 +2801,6 @@
   </div>
 </div>
 
-
-<!-- Market Radar (Ranking) -->
-<div id="page-ranking" class="page">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
-    <div>
-      <div class="ptitle">Market Radar</div>
-      <div class="psub">Analisis pergerakan modal, akumulasi institusional, dan rasio volume saham teratas BEI.</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="btn btn-ghost btn-sm" onclick="rdLoadUniverse(true);if(typeof fsRenderRanking==='function')fsRenderRanking();" title="Segarkan Data Market Radar">
-        <i class="ti ti-refresh"></i> Refresh ↻
-      </button>
-    </div>
-  </div>
-  <div class="card" style="margin-top:0">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:18px">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;flex:1" id="rk-sum"></div>
-      <div style="display:flex;gap:7px">
-        <select class="finput fsel" id="rk-sort" onchange="fsRenderRanking()" style="padding:4px 8px;font-size:11px">
-          <option value="score">Skor</option><option value="cap">Market Cap</option>
-          <option value="cmf">CMF</option><option value="chg">Chg%</option>
-          <option value="volratio">Vol Ratio</option>
-        </select>
-        <select class="finput fsel" id="rk-sig" onchange="fsRenderRanking()" style="padding:4px 8px;font-size:11px">
-          <option value="all">Semua</option><option value="AKUMULASI">Akumulasi</option>
-          <option value="DISTRIBUSI">Distribusi</option><option value="NETRAL">Netral</option>
-        </select>
-      </div>
-    </div>
-    <div style="height:200px;margin-bottom:12px"><canvas id="rk-chart"></canvas></div>
-    <div style="overflow-x:auto">
-      <table class="tbl">
-        <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th>Harga</th><th>Chg%</th><th>Cap (T)</th><th>Skor</th><th>Sinyal</th><th>CMF</th><th>RSI</th><th>Vol Ratio</th><th>WL</th><th></th></tr></thead>
-        <tbody id="rk-body"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
 <!-- Heatmap -->
 <div id="page-heatmap" class="page">
   <div class="ptitle">Heatmap & Factor Analysis</div>
@@ -3033,6 +2994,7 @@
       <button type="button" class="sm-nav-item active" id="fund-nav-1" onclick="fundSwitchTab(1)"><i class="ti ti-chart-dots" style="font-size:14px"></i>Analisa Terpadu &amp; Valuasi Saham</button>
       <button type="button" class="sm-nav-item" id="fund-nav-2" onclick="fundSwitchTab(2)"><i class="ti ti-arrows-diff" style="font-size:14px"></i>Bull/Bear Debate &amp; 5-Pilar Kualitas</button>
       <button type="button" class="sm-nav-item" id="fund-nav-3" onclick="fundSwitchTab(3)"><i class="ti ti-users-group" style="font-size:14px"></i>Kepemilikan &amp; Free Float KSEI</button>
+      <button type="button" class="sm-nav-item" id="fund-nav-4" onclick="fundSwitchTab(4)"><i class="ti ti-calculator" style="font-size:14px"></i>Kalkulator Harga Wajar (Manual)</button>
     </div>
 
     <!-- MAIN WORKSPACE -->
@@ -3314,6 +3276,311 @@
       <div id="fund-tab10" class="sm-tab-panel">
         <div id="fund-ksei-container"></div>
       </div>
+
+      <!-- TAB 4 (fund-nav-4): Kalkulator Harga Wajar Manual — digabung dari
+           halaman Valuation terpisah (page-hargawajar) 2026-09-19 ("Eksekusi
+           no 2"). Berbeda dari valuasi otomatis snapshot di Tab 1 (Graham/
+           Lynch/DDM/MoS dari data terkini saja): kalkulator ini biarkan user
+           EDIT tabel data keuangan multi-tahun (EPS/Equity/Shares/DPS/PER/
+           Net Income per tahun) dan ubah asumsi (Min Return, Proyeksi Tahun)
+           sendiri — genuinely alat yang berbeda, bukan formula sama yang
+           direimplementasi, jadi direlokasi utuh (bukan digabung angka-nya). -->
+      <div id="fund-tab-hw" class="sm-tab-panel">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="ptitle" style="font-size:15px">Kalkulator Harga Wajar (Manual)</div>
+            <div class="psub">Input data keuangan historis → hitung Margin of Safety · metodologi: EPS-based IRR + Future Stock Price (9-step)</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-green" onclick="hw_autoFill()" style="font-size:10px;border-color:rgba(52,211,153,.4);color:var(--green)">Hitung Otomatis (Auto-Fill)</button>
+            <button class="btn btn-blue" onclick="hw_resetAll()" style="font-size:10px">Reset</button>
+            <button class="btn" onclick="hw_saveToStorage()" style="font-size:10px;border-color:rgba(0,212,170,.35);color:var(--green)">Simpan</button>
+          </div>
+        </div>
+
+        <!-- Main 2-column layout -->
+        <div class="hw-result-layout" style="gap:10px">
+
+          <!-- LEFT: Input Data Keuangan -->
+          <div>
+            <!-- Header input: ticker + parameter -->
+            <div class="card" style="margin-bottom:16px;border-radius:12px;padding:16px 20px">
+              <div class="cheader"><span class="ctitle" style="font-size:12px;letter-spacing:0.06em">PARAMETER VALUASI</span></div>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+                <div style="min-width:120px;flex:1">
+                  <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Kode Saham</div>
+                  <input id="hw-ticker-input" type="text" placeholder="e.g. BBCA" maxlength="6"
+                    style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;text-transform:uppercase;outline:none;transition:border-color .15s"
+                    oninput="this.value=this.value.toUpperCase()" onchange="hw_onTickerChange()" onblur="hw_onTickerChange()">
+                </div>
+                <div style="min-width:140px;flex:1">
+                  <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Harga Saat Ini (Rp)</div>
+                  <input id="hw-current-price" type="number" placeholder="e.g. 9500" step="50"
+                    style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
+                    >
+                </div>
+                <div style="min-width:120px;flex:1">
+                  <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Min Return (%/thn)</div>
+                  <input id="hw-min-return" type="number" value="6" step="1" min="1" max="30"
+                    style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
+                    >
+                </div>
+                <div style="min-width:120px;flex:1">
+                  <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Proyeksi (tahun)</div>
+                  <input id="hw-proj-years" type="number" value="5" step="1" min="1" max="15"
+                    style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
+                    >
+                </div>
+                <div style="display:flex;align-items:flex-end;padding-bottom:0">
+                  <button onclick="hw_recalc()" id="hw-hitung-btn" class="sm-btn"
+                    style="height:38px;padding:0 22px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:0.06em;white-space:nowrap">
+                    HITUNG
+                  </button>
+                </div>
+              </div>
+              <!-- Quick Stock Selector Chips -->
+              <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="font-size:10px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;font-weight:700;letter-spacing:0.04em">Quick Select:</span>
+                <button type="button" onclick="hw_loadStock('BBCA')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBCA</button>
+                <button type="button" onclick="hw_loadStock('BBRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBRI</button>
+                <button type="button" onclick="hw_loadStock('BMRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BMRI</button>
+                <button type="button" onclick="hw_loadStock('BBNI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBNI</button>
+                <button type="button" onclick="hw_loadStock('UNVR')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">UNVR</button>
+                <button type="button" onclick="hw_loadStock('ADRO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ADRO</button>
+                <button type="button" onclick="hw_loadStock('ASII')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ASII</button>
+                <button type="button" onclick="hw_loadStock('TLKM')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">TLKM</button>
+                <button type="button" onclick="hw_loadStock('GGRM')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">GGRM</button>
+                <button type="button" onclick="hw_loadStock('SIDO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">SIDO</button>
+                <button type="button" onclick="hw_loadStock('PGEO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">PGEO</button>
+                <button type="button" onclick="hw_loadStock('ERAA')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ERAA</button>
+                <button type="button" onclick="hw_loadStock('CPRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">CPRI</button>
+              </div>
+            </div>
+
+            <!-- Data table -->
+            <div class="card" style="margin-bottom:16px">
+              <div class="cheader">
+                <span class="ctitle">DATA KEUANGAN HISTORIS</span>
+                <button class="btn" onclick="hw_addYear()" style="font-size:9px;padding:3px 8px;border-color:rgba(56,189,248,.35);color:#38BDF8">+ Tambah Tahun</button>
+              </div>
+              <div style="overflow-x:auto">
+                <table class="tbl" id="hw-data-table">
+                  <thead>
+                    <tr>
+                      <th style="white-space:nowrap">Tahun</th>
+                      <th style="white-space:nowrap">EPS <span style="color:var(--accent);font-weight:400">(Rp/saham)</span></th>
+                      <th style="white-space:nowrap">Total Equity <span style="color:var(--accent);font-weight:400">(Miliar Rp)</span></th>
+                      <th style="white-space:nowrap">Shares <span style="color:var(--accent);font-weight:400">(Juta lembar)</span></th>
+                      <th style="white-space:nowrap">DPS <span style="color:var(--accent);font-weight:400">(Rp/saham)</span></th>
+                      <th style="white-space:nowrap">PER <span style="color:var(--accent);font-weight:400">(kali)</span></th>
+                      <th style="white-space:nowrap">Net Income <span style="color:var(--accent);font-weight:400">(Miliar Rp)</span></th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="hw-data-body"></tbody>
+                </table>
+              </div>
+              <!-- Panduan unit compact strip -->
+              <div style="margin-top:12px;background:var(--bg3);border-radius:6px;padding:8px 12px;border:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center">
+                <span style="font-weight:700;color:var(--text2);display:inline-flex;align-items:center;gap:4px"><i class="ti ti-info-circle"></i> Satuan:</span>
+                <span>EPS/DPS/Harga: <b style="color:var(--text);font-family:var(--font-mono)">Rp/saham</b></span>
+                <span>Equity/Net Income: <b style="color:var(--text);font-family:var(--font-mono)">Miliar Rp</b></span>
+                <span>Shares: <b style="color:var(--text);font-family:var(--font-mono)">Juta lembar</b></span>
+                <span>PER: <b style="color:var(--text);font-family:var(--font-mono)">kali (x)</b></span>
+                <span style="color:var(--amber)">Oranye: <b>Perlu dicek</b></span>
+              </div>
+              <div id="hw-autofill-disclosure" style="display:none;margin-top:8px"></div>
+            </div>
+
+            <!-- Calculation Steps Display -->
+            <div class="card" id="hw-steps-card" style="margin-bottom:16px;display:none">
+              <div class="cheader"><span class="ctitle">LANGKAH KALKULASI MoS</span></div>
+              <div id="hw-steps-body" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+            </div>
+
+            <!-- Historical chart — EPS & PER (kartu terpisah, 1.5x ukuran semula) -->
+            <div class="card" id="hw-chart-card-eps" style="display:none;margin-bottom:16px">
+              <div class="cheader">
+                <span class="ctitle">Trend Historis EPS &amp; PER</span>
+              </div>
+              <div style="position:relative;height:240px;width:100%">
+                <canvas id="hw-history-chart-eps"></canvas>
+              </div>
+            </div>
+
+            <!-- Historical chart — Equity & Net Income (kartu terpisah, 1.5x ukuran semula) -->
+            <div class="card" id="hw-chart-card-eq" style="display:none">
+              <div class="cheader">
+                <span class="ctitle">Trend Historis Equity &amp; Net Income</span>
+              </div>
+              <div style="position:relative;height:240px;width:100%">
+                <canvas id="hw-history-chart-eq"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Result Panel -->
+          <div>
+            <!-- Valuation-based signal. Was framed as a 3-pillar consensus
+                 (Valuation + Bandar Flow + Quant) but 2 of the 3 pillars were
+                 fabricated - see the honesty note in renderTrafficLightMatrix
+                 (23-advisor.js). Now labeled for what it actually is. -->
+            <div class="card" id="hw-traffic-light-card" style="margin-bottom:16px;display:none;border-left:3px solid var(--accent)">
+              <div class="cheader">
+                <span class="ctitle">SINYAL BERBASIS VALUASI</span>
+                <span class="badge b-neu" style="font-size:9px">MoS 9-Step Only</span>
+              </div>
+              <div id="hw-tl-body"></div>
+            </div>
+
+            <!-- Main verdict card -->
+            <div class="card" id="hw-verdict-card" style="margin-bottom:16px;border-radius:8px;padding:16px;border:1px solid var(--border)">
+              <div style="text-align:center;padding:4px 0 12px;border-bottom:1px solid var(--border2)">
+                <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">HASIL ESTIMASI VALUASI (MoS)</div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">
+                  <span id="hw-ticker-logo"></span>
+                  <div id="hw-ticker-display" style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px">—</div>
+                </div>
+                <div id="hw-verdict-badge" style="display:inline-block;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;font-family:var(--font-mono);background:var(--bg3);color:var(--text3);border:1px solid var(--border2);letter-spacing:0.02em">BELUM DIHITUNG</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+                <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+                  <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Harga Wajar (MoS)</div>
+                  <div id="hw-fair-price" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--amber);font-variant-numeric:tabular-nums">—</div>
+                </div>
+                <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+                  <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Harga Saat Ini</div>
+                  <div id="hw-current-display" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums">—</div>
+                </div>
+                <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+                  <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Margin of Safety</div>
+                  <div id="hw-mos-pct" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
+                </div>
+                <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
+                  <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Initial IRR</div>
+                  <div id="hw-irr-display" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
+                </div>
+              </div>
+              <!-- MoS gauge bar -->
+              <div style="margin-top:16px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px">
+                <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+                  <span style="color:var(--green)">DISCOUNT (UNDERVALUED)</span>
+                  <span id="hw-mos-label" style="font-family:var(--font-mono);font-weight:800;color:var(--text2)">—</span>
+                  <span style="color:var(--red)">PREMIUM (OVERVALUED)</span>
+                </div>
+                <div style="background:var(--bg4);border-radius:6px;height:10px;overflow:hidden;position:relative;border:1px solid var(--border2)">
+                  <div id="hw-mos-bar" style="height:100%;width:50%;background:var(--text3);transition:all .5s;border-radius:5px"></div>
+                </div>
+              </div>
+              <!-- Kesimpulan -->
+              <div id="hw-conclusion" style="display:none;margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--text3)">
+                <div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">KESIMPULAN METODOLOGI</div>
+                <div id="hw-conclusion-text" style="font-size:11px;color:var(--text2);font-family:var(--font-mono);line-height:1.7"></div>
+              </div>
+            </div>
+
+            <!-- Multi-Model Valuation Comparison -->
+            <div class="card" id="hw-multimodel-card" style="margin-bottom:16px">
+              <div class="cheader"><span class="ctitle">KOMPARASI MODEL VALUASI</span></div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text)">9-Step MoS (ROE Future)</div>
+                    <div style="font-size:8px;color:var(--text3)">Metode Utama (Warren Buffett / MoS)</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div id="hw-mm-mos-val" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--accent)">—</div>
+                    <div id="hw-mm-mos-pct" style="font-size:9px;color:var(--text3)">—</div>
+                  </div>
+                </div>
+                <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text)">Graham Number</div>
+                    <div style="font-size:8px;color:var(--text3)">√(22.5 × EPS × BVPS) (Benjamin Graham)</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div id="hw-mm-graham-val" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--text)">—</div>
+                    <div id="hw-mm-graham-pct" style="font-size:9px;color:var(--text3)">—</div>
+                  </div>
+                </div>
+                <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text)">Peter Lynch Fair Value</div>
+                    <div style="font-size:8px;color:var(--text3)">EPS × Growth Rate (PEG 1.0)</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div id="hw-mm-lynch-val" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--text)">—</div>
+                    <div id="hw-mm-lynch-pct" style="font-size:9px;color:var(--text3)">—</div>
+                  </div>
+                </div>
+                <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text)">Dividend Discount (DDM)</div>
+                    <div style="font-size:8px;color:var(--text3)">DPS × (1+g) / (r - g) (Gordon Growth)</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div id="hw-mm-ddm-val" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--text)">—</div>
+                    <div id="hw-mm-ddm-pct" style="font-size:9px;color:var(--text3)">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2D Sensitivity Matrix: ROE Target vs Exit PER -->
+            <div class="card" id="hw-sensitivity-card" style="margin-bottom:16px">
+              <div class="cheader">
+                <span class="ctitle">2D SENSITIVITY MATRIX (BEAR · BASE · BULL)</span>
+                <span class="badge b-neu" style="font-size:9px">Target ROE × Exit PER</span>
+              </div>
+              <div style="font-size:9px;color:var(--text3);margin-bottom:8px">Matriks estimasi harga wajar (MoS) jika ROE dan kelipatan P/E berubah:</div>
+              <div style="overflow-x:auto">
+                <table class="tbl tbl-tight" style="font-size:10px;text-align:center;table-layout:fixed;width:100%">
+                  <thead>
+                    <tr>
+                      <th style="font-size:9px;text-align:left;width:25%">ROE \ PER</th>
+                      <th style="font-size:9px;text-align:center;width:25%" id="hw-sm-col-1">Bear<br><b>10x</b></th>
+                      <th style="font-size:9px;text-align:center;color:var(--accent);width:25%" id="hw-sm-col-2">Base<br><b>15x</b></th>
+                      <th style="font-size:9px;text-align:center;width:25%" id="hw-sm-col-3">Bull<br><b>20x</b></th>
+                    </tr>
+                  </thead>
+                  <tbody id="hw-sm-tbody">
+                    <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:10px">Pilih saham atau hitung valuasi untuk melihat matriks</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:9px;color:var(--text3)">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(47,106,243,.12);border:1px solid rgba(47,106,243,.4);flex-shrink:0"></span>
+                Kotak biru = skenario dasar (ROE Base × PER Base) — estimasi paling mungkin. Bear/Bull di sekelilingnya cuma skenario alternatif jika ROE atau PER melenceng ±25%.
+              </div>
+            </div>
+
+            <!-- Metrics grid -->
+            <div class="card" style="margin-bottom:16px">
+              <div class="cheader"><span class="ctitle">METRIC VALUASI</span></div>
+              <div id="hw-metrics-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+                <div class="metric" id="hw-m-roe"><div class="mlabel">Avg ROE</div><div class="mval" id="hw-v-roe">—</div></div>
+                <div class="metric" id="hw-m-dpr"><div class="mlabel">Avg DPR</div><div class="mval" id="hw-v-dpr">—</div></div>
+                <div class="metric" id="hw-m-per"><div class="mlabel">Avg PER</div><div class="mval" id="hw-v-per">—</div></div>
+                <div class="metric" id="hw-m-eps"><div class="mlabel">EPS Terkini</div><div class="mval" id="hw-v-eps">—</div></div>
+                <div class="metric" id="hw-m-eq"><div class="mlabel">Equity/Share</div><div class="mval" id="hw-v-eq">—</div></div>
+                <div class="metric" id="hw-m-feps"><div class="mlabel">Future EPS</div><div class="mval" id="hw-v-feps">—</div></div>
+                <div class="metric" id="hw-m-fsp"><div class="mlabel">Future Price</div><div class="mval" id="hw-v-fsp">—</div></div>
+                <div class="metric" id="hw-m-roe2"><div class="mlabel">ROE after Payout</div><div class="mval" id="hw-v-roe2">—</div></div>
+              </div>
+            </div>
+
+            <!-- Saved analyses list -->
+            <div class="card">
+              <div class="cheader"><span class="ctitle">HISTORI ANALISA</span>
+                <button class="btn" onclick="hw_clearHistory()" style="font-size:9px;padding:2px 7px;border-color:rgba(255,34,68,.3);color:var(--red)">Hapus Semua</button>
+              </div>
+              <div id="hw-history-list" style="max-height:200px;overflow-y:auto">
+                <div style="font-size:10px;color:var(--text3);text-align:center;padding:16px">Belum ada analisa tersimpan</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </div>
@@ -3501,6 +3768,14 @@
           </div>
         </div>
 
+        <!-- 2.1b Bandarmology (mode saham, digabung dari halaman Bandarmology 2026-09-19) -->
+        <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+          <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px">A2. Bandarmology — CMF, VWAP Bands &amp; Foreign Flow</div>
+          <div id="tech-bandar-content">
+            <div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memuat Analisis Broker Flow &amp; Smart Money...</div>
+          </div>
+        </div>
+
         <!-- 2.2 Gauges -->
         <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
           <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px">B. 20+ Technical Oscillators &amp; Moving Average Gauges</div>
@@ -3568,304 +3843,6 @@
       </div>
     </div>
     <div id="wl-page-list">Memuat watchlist...</div>
-  </div>
-</div>
-
-<!-- ===== HARGA WAJAR (MoS Valuasi) ===== -->
-<div id="page-hargawajar" class="page">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-    <div>
-      <div class="ptitle">Harga Wajar</div>
-      <div class="psub">Input data keuangan historis → hitung Margin of Safety · metodologi: EPS-based IRR + Future Stock Price (9-step)</div>
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-green" onclick="hw_autoFill()" style="font-size:10px;border-color:rgba(52,211,153,.4);color:var(--green)">Hitung Otomatis (Auto-Fill)</button>
-      <button class="btn btn-blue" onclick="hw_resetAll()" style="font-size:10px">Reset</button>
-      <button class="btn" onclick="hw_saveToStorage()" style="font-size:10px;border-color:rgba(0,212,170,.35);color:var(--green)">Simpan</button>
-    </div>
-  </div>
-
-  <!-- Main 2-column layout -->
-  <div class="hw-result-layout" style="gap:10px">
-
-    <!-- LEFT: Input Data Keuangan -->
-    <div>
-      <!-- Header input: ticker + parameter -->
-      <div class="card" style="margin-bottom:16px;border-radius:12px;padding:16px 20px">
-        <div class="cheader"><span class="ctitle" style="font-size:12px;letter-spacing:0.06em">PARAMETER VALUASI</span></div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-          <div style="min-width:120px;flex:1">
-            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Kode Saham</div>
-            <input id="hw-ticker-input" type="text" placeholder="e.g. BBCA" maxlength="6"
-              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;text-transform:uppercase;outline:none;transition:border-color .15s"
-              oninput="this.value=this.value.toUpperCase()" onchange="hw_onTickerChange()" onblur="hw_onTickerChange()">
-          </div>
-          <div style="min-width:140px;flex:1">
-            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Harga Saat Ini (Rp)</div>
-            <input id="hw-current-price" type="number" placeholder="e.g. 9500" step="50"
-              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
-              >
-          </div>
-          <div style="min-width:120px;flex:1">
-            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Min Return (%/thn)</div>
-            <input id="hw-min-return" type="number" value="6" step="1" min="1" max="30"
-              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
-              >
-          </div>
-          <div style="min-width:120px;flex:1">
-            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em">Proyeksi (tahun)</div>
-            <input id="hw-proj-years" type="number" value="5" step="1" min="1" max="15"
-              style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:13px;font-weight:700;padding:8px 12px;width:100%;border-radius:8px;outline:none;transition:border-color .15s"
-              >
-          </div>
-          <div style="display:flex;align-items:flex-end;padding-bottom:0">
-            <button onclick="hw_recalc()" id="hw-hitung-btn" class="sm-btn"
-              style="height:38px;padding:0 22px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:0.06em;white-space:nowrap">
-              HITUNG
-            </button>
-          </div>
-        </div>
-        <!-- Quick Stock Selector Chips -->
-        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:10px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;font-weight:700;letter-spacing:0.04em">Quick Select:</span>
-          <button type="button" onclick="hw_loadStock('BBCA')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBCA</button>
-          <button type="button" onclick="hw_loadStock('BBRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBRI</button>
-          <button type="button" onclick="hw_loadStock('BMRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BMRI</button>
-          <button type="button" onclick="hw_loadStock('BBNI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">BBNI</button>
-          <button type="button" onclick="hw_loadStock('UNVR')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">UNVR</button>
-          <button type="button" onclick="hw_loadStock('ADRO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ADRO</button>
-          <button type="button" onclick="hw_loadStock('ASII')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ASII</button>
-          <button type="button" onclick="hw_loadStock('TLKM')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">TLKM</button>
-          <button type="button" onclick="hw_loadStock('GGRM')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">GGRM</button>
-          <button type="button" onclick="hw_loadStock('SIDO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">SIDO</button>
-          <button type="button" onclick="hw_loadStock('PGEO')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">PGEO</button>
-          <button type="button" onclick="hw_loadStock('ERAA')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">ERAA</button>
-          <button type="button" onclick="hw_loadStock('CPRI')" class="btn btn-ghost" style="font-size:10px;padding:3px 9px;font-family:var(--font-mono);font-weight:700;border-radius:6px;border:1px solid var(--border2)">CPRI</button>
-        </div>
-      </div>
-
-      <!-- Data table -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="cheader">
-          <span class="ctitle">DATA KEUANGAN HISTORIS</span>
-          <button class="btn" onclick="hw_addYear()" style="font-size:9px;padding:3px 8px;border-color:rgba(56,189,248,.35);color:#38BDF8">+ Tambah Tahun</button>
-        </div>
-        <div style="overflow-x:auto">
-          <table class="tbl" id="hw-data-table">
-            <thead>
-              <tr>
-                <th style="white-space:nowrap">Tahun</th>
-                <th style="white-space:nowrap">EPS <span style="color:var(--accent);font-weight:400">(Rp/saham)</span></th>
-                <th style="white-space:nowrap">Total Equity <span style="color:var(--accent);font-weight:400">(Miliar Rp)</span></th>
-                <th style="white-space:nowrap">Shares <span style="color:var(--accent);font-weight:400">(Juta lembar)</span></th>
-                <th style="white-space:nowrap">DPS <span style="color:var(--accent);font-weight:400">(Rp/saham)</span></th>
-                <th style="white-space:nowrap">PER <span style="color:var(--accent);font-weight:400">(kali)</span></th>
-                <th style="white-space:nowrap">Net Income <span style="color:var(--accent);font-weight:400">(Miliar Rp)</span></th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="hw-data-body"></tbody>
-          </table>
-        </div>
-        <!-- Panduan unit compact strip -->
-        <div style="margin-top:12px;background:var(--bg3);border-radius:6px;padding:8px 12px;border:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center">
-          <span style="font-weight:700;color:var(--text2);display:inline-flex;align-items:center;gap:4px"><i class="ti ti-info-circle"></i> Satuan:</span>
-          <span>EPS/DPS/Harga: <b style="color:var(--text);font-family:var(--font-mono)">Rp/saham</b></span>
-          <span>Equity/Net Income: <b style="color:var(--text);font-family:var(--font-mono)">Miliar Rp</b></span>
-          <span>Shares: <b style="color:var(--text);font-family:var(--font-mono)">Juta lembar</b></span>
-          <span>PER: <b style="color:var(--text);font-family:var(--font-mono)">kali (x)</b></span>
-          <span style="color:var(--amber)">Oranye: <b>Perlu dicek</b></span>
-        </div>
-        <div id="hw-autofill-disclosure" style="display:none;margin-top:8px"></div>
-      </div>
-
-      <!-- Calculation Steps Display -->
-      <div class="card" id="hw-steps-card" style="margin-bottom:16px;display:none">
-        <div class="cheader"><span class="ctitle">LANGKAH KALKULASI MoS</span></div>
-        <div id="hw-steps-body" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
-      </div>
-
-      <!-- Historical chart — EPS & PER (kartu terpisah, 1.5x ukuran semula) -->
-      <div class="card" id="hw-chart-card-eps" style="display:none;margin-bottom:16px">
-        <div class="cheader">
-          <span class="ctitle">Trend Historis EPS &amp; PER</span>
-        </div>
-        <div style="position:relative;height:240px;width:100%">
-          <canvas id="hw-history-chart-eps"></canvas>
-        </div>
-      </div>
-
-      <!-- Historical chart — Equity & Net Income (kartu terpisah, 1.5x ukuran semula) -->
-      <div class="card" id="hw-chart-card-eq" style="display:none">
-        <div class="cheader">
-          <span class="ctitle">Trend Historis Equity &amp; Net Income</span>
-        </div>
-        <div style="position:relative;height:240px;width:100%">
-          <canvas id="hw-history-chart-eq"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- RIGHT: Result Panel -->
-    <div>
-      <!-- Valuation-based signal. Was framed as a 3-pillar consensus
-           (Valuation + Bandar Flow + Quant) but 2 of the 3 pillars were
-           fabricated - see the honesty note in renderTrafficLightMatrix
-           (23-advisor.js). Now labeled for what it actually is. -->
-      <div class="card" id="hw-traffic-light-card" style="margin-bottom:16px;display:none;border-left:3px solid var(--accent)">
-        <div class="cheader">
-          <span class="ctitle">SINYAL BERBASIS VALUASI</span>
-          <span class="badge b-neu" style="font-size:9px">MoS 9-Step Only</span>
-        </div>
-        <div id="hw-tl-body"></div>
-      </div>
-
-      <!-- Main verdict card -->
-      <div class="card" id="hw-verdict-card" style="margin-bottom:16px;border-radius:8px;padding:16px;border:1px solid var(--border)">
-        <div style="text-align:center;padding:4px 0 12px;border-bottom:1px solid var(--border2)">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">HASIL ESTIMASI VALUASI (MoS)</div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">
-            <span id="hw-ticker-logo"></span>
-            <div id="hw-ticker-display" style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px">—</div>
-          </div>
-          <div id="hw-verdict-badge" style="display:inline-block;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;font-family:var(--font-mono);background:var(--bg3);color:var(--text3);border:1px solid var(--border2);letter-spacing:0.02em">BELUM DIHITUNG</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
-          <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
-            <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Harga Wajar (MoS)</div>
-            <div id="hw-fair-price" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--amber);font-variant-numeric:tabular-nums">—</div>
-          </div>
-          <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
-            <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Harga Saat Ini</div>
-            <div id="hw-current-display" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text);font-variant-numeric:tabular-nums">—</div>
-          </div>
-          <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
-            <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Margin of Safety</div>
-            <div id="hw-mos-pct" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
-          </div>
-          <div class="metric" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center">
-            <div class="mlabel" style="font-size:10px;letter-spacing:0.04em;margin-bottom:3px">Initial IRR</div>
-            <div id="hw-irr-display" style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--text3);font-variant-numeric:tabular-nums">—</div>
-          </div>
-        </div>
-        <!-- MoS gauge bar -->
-        <div style="margin-top:16px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px">
-          <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-            <span style="color:var(--green)">DISCOUNT (UNDERVALUED)</span>
-            <span id="hw-mos-label" style="font-family:var(--font-mono);font-weight:800;color:var(--text2)">—</span>
-            <span style="color:var(--red)">PREMIUM (OVERVALUED)</span>
-          </div>
-          <div style="background:var(--bg4);border-radius:6px;height:10px;overflow:hidden;position:relative;border:1px solid var(--border2)">
-            <div id="hw-mos-bar" style="height:100%;width:50%;background:var(--text3);transition:all .5s;border-radius:5px"></div>
-          </div>
-        </div>
-        <!-- Kesimpulan -->
-        <div id="hw-conclusion" style="display:none;margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--text3)">
-          <div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">KESIMPULAN METODOLOGI</div>
-          <div id="hw-conclusion-text" style="font-size:11px;color:var(--text2);font-family:var(--font-mono);line-height:1.7"></div>
-        </div>
-      </div>
-
-      <!-- Multi-Model Valuation Comparison -->
-      <div class="card" id="hw-multimodel-card" style="margin-bottom:16px">
-        <div class="cheader"><span class="ctitle">KOMPARASI MODEL VALUASI</span></div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:10px;font-weight:700;color:var(--text)">9-Step MoS (ROE Future)</div>
-              <div style="font-size:8px;color:var(--text3)">Metode Utama (Warren Buffett / MoS)</div>
-            </div>
-            <div style="text-align:right">
-              <div id="hw-mm-mos-val" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--accent)">—</div>
-              <div id="hw-mm-mos-pct" style="font-size:9px;color:var(--text3)">—</div>
-            </div>
-          </div>
-          <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:10px;font-weight:700;color:var(--text)">Graham Number</div>
-              <div style="font-size:8px;color:var(--text3)">√(22.5 × EPS × BVPS) (Benjamin Graham)</div>
-            </div>
-            <div style="text-align:right">
-              <div id="hw-mm-graham-val" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--text)">—</div>
-              <div id="hw-mm-graham-pct" style="font-size:9px;color:var(--text3)">—</div>
-            </div>
-          </div>
-          <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:10px;font-weight:700;color:var(--text)">Peter Lynch Fair Value</div>
-              <div style="font-size:8px;color:var(--text3)">EPS × Growth Rate (PEG 1.0)</div>
-            </div>
-            <div style="text-align:right">
-              <div id="hw-mm-lynch-val" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--text)">—</div>
-              <div id="hw-mm-lynch-pct" style="font-size:9px;color:var(--text3)">—</div>
-            </div>
-          </div>
-          <div style="background:var(--bg3);border-radius:4px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:10px;font-weight:700;color:var(--text)">Dividend Discount (DDM)</div>
-              <div style="font-size:8px;color:var(--text3)">DPS × (1+g) / (r - g) (Gordon Growth)</div>
-            </div>
-            <div style="text-align:right">
-              <div id="hw-mm-ddm-val" style="font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--text)">—</div>
-              <div id="hw-mm-ddm-pct" style="font-size:9px;color:var(--text3)">—</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2D Sensitivity Matrix: ROE Target vs Exit PER -->
-      <div class="card" id="hw-sensitivity-card" style="margin-bottom:16px">
-        <div class="cheader">
-          <span class="ctitle">2D SENSITIVITY MATRIX (BEAR · BASE · BULL)</span>
-          <span class="badge b-neu" style="font-size:9px">Target ROE × Exit PER</span>
-        </div>
-        <div style="font-size:9px;color:var(--text3);margin-bottom:8px">Matriks estimasi harga wajar (MoS) jika ROE dan kelipatan P/E berubah:</div>
-        <div style="overflow-x:auto">
-          <table class="tbl tbl-tight" style="font-size:10px;text-align:center;table-layout:fixed;width:100%">
-            <thead>
-              <tr>
-                <th style="font-size:9px;text-align:left;width:25%">ROE \ PER</th>
-                <th style="font-size:9px;text-align:center;width:25%" id="hw-sm-col-1">Bear<br><b>10x</b></th>
-                <th style="font-size:9px;text-align:center;color:var(--accent);width:25%" id="hw-sm-col-2">Base<br><b>15x</b></th>
-                <th style="font-size:9px;text-align:center;width:25%" id="hw-sm-col-3">Bull<br><b>20x</b></th>
-              </tr>
-            </thead>
-            <tbody id="hw-sm-tbody">
-              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:10px">Pilih saham atau hitung valuasi untuk melihat matriks</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:9px;color:var(--text3)">
-          <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(47,106,243,.12);border:1px solid rgba(47,106,243,.4);flex-shrink:0"></span>
-          Kotak biru = skenario dasar (ROE Base × PER Base) — estimasi paling mungkin. Bear/Bull di sekelilingnya cuma skenario alternatif jika ROE atau PER melenceng ±25%.
-        </div>
-      </div>
-
-      <!-- Metrics grid -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="cheader"><span class="ctitle">METRIC VALUASI</span></div>
-        <div id="hw-metrics-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
-          <div class="metric" id="hw-m-roe"><div class="mlabel">Avg ROE</div><div class="mval" id="hw-v-roe">—</div></div>
-          <div class="metric" id="hw-m-dpr"><div class="mlabel">Avg DPR</div><div class="mval" id="hw-v-dpr">—</div></div>
-          <div class="metric" id="hw-m-per"><div class="mlabel">Avg PER</div><div class="mval" id="hw-v-per">—</div></div>
-          <div class="metric" id="hw-m-eps"><div class="mlabel">EPS Terkini</div><div class="mval" id="hw-v-eps">—</div></div>
-          <div class="metric" id="hw-m-eq"><div class="mlabel">Equity/Share</div><div class="mval" id="hw-v-eq">—</div></div>
-          <div class="metric" id="hw-m-feps"><div class="mlabel">Future EPS</div><div class="mval" id="hw-v-feps">—</div></div>
-          <div class="metric" id="hw-m-fsp"><div class="mlabel">Future Price</div><div class="mval" id="hw-v-fsp">—</div></div>
-          <div class="metric" id="hw-m-roe2"><div class="mlabel">ROE after Payout</div><div class="mval" id="hw-v-roe2">—</div></div>
-        </div>
-      </div>
-
-      <!-- Saved analyses list -->
-      <div class="card">
-        <div class="cheader"><span class="ctitle">HISTORI ANALISA</span>
-          <button class="btn" onclick="hw_clearHistory()" style="font-size:9px;padding:2px 7px;border-color:rgba(255,34,68,.3);color:var(--red)">Hapus Semua</button>
-        </div>
-        <div id="hw-history-list" style="max-height:200px;overflow-y:auto">
-          <div style="font-size:10px;color:var(--text3);text-align:center;padding:16px">Belum ada analisa tersimpan</div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -4419,11 +4396,11 @@
 <script src="js/04-render.js?v=20260919a"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
-<script src="js/06-analysis-router.js?v=20260919a"></script>
-<script src="js/07-flowscan.js?v=20260918a"></script>
+<script src="js/06-analysis-router.js?v=20260919b"></script>
+<script src="js/07-flowscan.js?v=20260919a"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
-<script src="js/10-hargawajar.js?v=20260918b"></script>
+<script src="js/10-hargawajar.js?v=20260919a"></script>
 <script src="js/11-quant.js?v=20260919a"></script>
 <script src="js/12-clean.js?v=20260908a"></script>
 <script src="js/13-realdata.js?v=20260916a"></script>
@@ -4433,10 +4410,10 @@
 <script src="js/21-performance.js?v=20260913b"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260915b"></script>
-<script src="js/24-stockmaster.js?v=20260919a"></script>
+<script src="js/24-stockmaster.js?v=20260919d"></script>
 <script src="js/25-auditlog.js?v=20260918a"></script>
 <script src="js/26-commandcenter.js?v=20260918b"></script>
-<script src="js/27-stockintel.js?v=20260918c"></script>
+<script src="js/27-stockintel.js?v=20260919a"></script>
 <script src="js/28-decisiontools.js?v=20260918c"></script>
 <script src="js/29-institutional-ui.js?v=20260918a"></script>
 <script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260918a"></script><script src="js/34-ksei-shareholders.js?v=20260919a"></script>
@@ -4445,7 +4422,7 @@
 <script src="js/38-ai-autonomous-trading.js?v=20260917a"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260915b"></script>
 <script src="js/40-idx-pipeline.js?v=20260918a"></script>
-<script src="js/41-stockchat-cockpit.js?v=20260918d"></script>
+<script src="js/41-stockchat-cockpit.js?v=20260919b"></script>
 <script src="js/42-dividend-calendar.js?v=20260918a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260918b"></script>
 <script src="js/44-sectoral-insight.js?v=20260918a"></script>

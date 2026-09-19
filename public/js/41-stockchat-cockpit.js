@@ -2032,7 +2032,11 @@ window.askAiAboutBrokerAction = askAiAboutBrokerAction;
 // 2. ANALISIS FULL MARKET (Macro IHSG + Big Banks + Sektoral Heatmap + Accum/Distrib Radar + Screener)
 // ============================================================
 
-var BANDARMOLOGY_MASTER_MODE = 'stock'; // 'stock' | 'market'
+// FIX (2026-09-19): mode saham dihapus dari halaman ini (lihat
+// renderBandarmologyCockpitPage()) — variabel ini sekarang selalu 'market'
+// setiap kali halaman dirender, dipertahankan (bukan dihapus) karena masih
+// dibaca sebagai guard di goBandarmology()/setBandarmologyTab().
+var BANDARMOLOGY_MASTER_MODE = 'market';
 var BANDARMOLOGY_SELECTED_BROKER = 'YU';
 var BANDARMOLOGY_BROKER_LIST = [
   { code: 'YU', name: 'CGS International Sekuritas', type: 'F', badge: 'Asing / Institusi' },
@@ -2050,13 +2054,30 @@ var BANDARMOLOGY_BROKER_LIST = [
 ];
 
 var _isNavigatingBandarmology = false;
+// FIX (2026-09-19, konsolidasi "Eksekusi no 1"): mode saham Bandarmology
+// (Broker Flow + CMF/VWAP + Foreign Flow single-ticker) sudah dipindah
+// jadi 1 tab di halaman Technical (lihat techRunBandarmologyTab(),
+// 24-stockmaster.js) karena keduanya memakai engine fsGenData()+fsProcess()
+// yang identik untuk ticker yang sama. Semua pemanggil lama
+// (goBandarmology('stock'/'emiten'/'smart-money-flow', ...) dari sidebar,
+// 07-flowscan.js, 27-stockintel.js, router 'flowscan') dialihkan di sini
+// satu tempat ke halaman Technical, tanpa perlu mengubah tiap call site —
+// ticker yang sudah dipilih via selectStockChatTicker() sebelum memanggil
+// fungsi ini tetap tersinkron lewat GLOBAL_STOCK_CONTEXT.
 window.goBandarmology = function(subTabOrMode, btn) {
-  if (subTabOrMode === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail', 'smart-money-radar'].includes(subTabOrMode)) {
-    BANDARMOLOGY_MASTER_MODE = 'market';
-  } else if (subTabOrMode === 'stock' || subTabOrMode === 'emiten') {
-    BANDARMOLOGY_MASTER_MODE = 'stock';
+  var isStockRequest = (subTabOrMode === 'stock' || subTabOrMode === 'emiten' || subTabOrMode === 'smart-money-flow');
+  if (isStockRequest) {
+    if (typeof TECH_DATA !== 'undefined') TECH_DATA.activeTab = 2;
+    if (typeof goPage === 'function') {
+      goPage('technical', btn);
+    } else if (typeof techInit === 'function') {
+      techInit();
+    }
+    return;
   }
-  // Note: if subTabOrMode is 'bandarmology' or null, keep existing BANDARMOLOGY_MASTER_MODE
+  BANDARMOLOGY_MASTER_MODE = 'market';
+  // Note: if subTabOrMode is 'bandarmology'/'market'/null, mode Bandarmology
+  // sekarang selalu 'market' (mode saham sudah pindah ke Technical di atas).
 
   if (!_isNavigatingBandarmology) {
     _isNavigatingBandarmology = true;
@@ -2080,46 +2101,32 @@ window.goBandarmology = function(subTabOrMode, btn) {
   }
 
   renderBandarmologyCockpitPage();
-
-  // FIX (2026-09-11, user-requested cleanup): 'broker-flow',
-  // 'foreign-flow', 'smart-money-radar' removed from this list - dead,
-  // unreachable shortcut names (see the matching note in
-  // 06-analysis-router.js). 'smart-money-flow' is real and reachable.
-  if (subTabOrMode === 'smart-money-flow') {
-    setTimeout(function() {
-      setBandarmologyTab(subTabOrMode);
-    }, 80);
-  }
 };
 
+// FIX (2026-09-19, konsolidasi "Eksekusi no 1"): mode 'stock' di sini
+// sekarang berarti "pindah ke Technical" (lihat goBandarmology() di atas),
+// bukan lagi merender ulang Bandarmology dalam mode saham (sudah dihapus).
 window.setBandarmologyMode = function(mode) {
-  BANDARMOLOGY_MASTER_MODE = mode || 'stock';
+  if (mode === 'stock') {
+    if (typeof goBandarmology === 'function') goBandarmology('stock', null);
+    return;
+  }
+  BANDARMOLOGY_MASTER_MODE = 'market';
   renderBandarmologyCockpitPage();
 };
 
+// Dipanggil langsung dari router (06-analysis-router.js, case
+// 'smart-money-flow') dan dari goBandarmology() lama — sekarang cuma
+// delegasi tipis: nama market-mode tetap dirender di sini, nama lainnya
+// (termasuk 'stock'/'emiten'/'smart-money-flow') diarahkan ke Technical
+// via goBandarmology(), yang sudah punya logika redirect-nya.
 window.setBandarmologyTab = function(subTab) {
   if (subTab === 'market' || ['market-flow', 'accumulation', 'distribution', 'heatmap-scanner', 'broker-trail', 'smart-money-radar'].includes(subTab)) {
     BANDARMOLOGY_MASTER_MODE = 'market';
-  } else {
-    BANDARMOLOGY_MASTER_MODE = 'stock';
+    renderBandarmologyCockpitPage();
+    return;
   }
-  renderBandarmologyCockpitPage();
-  // FIX (2026-09-11, user-requested cleanup): the 'broker-flow' and
-  // 'foreign-flow' scroll-to branches that used to be here were dead -
-  // nothing anywhere ever calls setBandarmologyTab() with those values
-  // (see the matching note on goBandarmology() above). 'smart-money-flow'
-  // is real and reachable (via the 'flowscan' page route), so it's kept.
-  if (subTab === 'smart-money-flow') {
-    setTimeout(function() {
-      // '|| getElementById(\'bandar-tab-content\')' fallback removed - that
-      // id never existed anywhere in the rendered HTML either, and
-      // #bandarSmartMoneyChart is now a real element (see
-      // renderBandarmologySmartMoneyFlowView() above), so the fallback was
-      // permanently unreachable dead code.
-      var el = document.getElementById('bandarSmartMoneyChart');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 120);
-  }
+  if (typeof goBandarmology === 'function') goBandarmology(subTab, null);
 };
 
 window.setBandarmologyBroker = function(brokerCode) {
@@ -2127,26 +2134,34 @@ window.setBandarmologyBroker = function(brokerCode) {
   renderBandarmologyCockpitPage();
 };
 
+// FIX (2026-09-19, konsolidasi "Eksekusi no 1"): mode saham (Broker Flow +
+// CMF/VWAP + Foreign Flow single-ticker, sebelumnya "ANALISIS FULL EMITEN")
+// dipindah jadi 1 tab di halaman Technical (lihat techRunBandarmologyTab(),
+// 24-stockmaster.js) — engine fsGenData()+fsProcess() yang dipakai identik
+// untuk ticker yang sama, jadi tidak ada lagi 2 mode di sini. Halaman ini
+// sekarang HANYA merender mode market (macro IHSG, Big Banks, Sektoral
+// Heatmap, Accum/Distrib Radar, Broker Trail). Toolbar 2-mode & fokus-emiten
+// yang dulu ada di sini dihapus karena tidak relevan lagi.
 function renderBandarmologyCockpitPage(containerId) {
   var target = document.getElementById(containerId || 'page-bandarmology');
   if (!target) return;
 
   var tk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
-  var isStockMode = BANDARMOLOGY_MASTER_MODE === 'stock';
+  BANDARMOLOGY_MASTER_MODE = 'market';
 
   var html = '<div style="margin-bottom:16px">'
     // Header Cockpit
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
     + '<div>'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">'
-    + 'Bandarmology &amp; Smart Money'
+    + 'Bandarmology &amp; Smart Money (Seluruh Market)'
     + '<span class="badge b-accent" style="font-size:9px;margin-left:4px">INSTITUTIONAL RADAR</span>'
     + '</div>'
-    + '<div class="psub">Analisis Terpadu Aliran Dana Bandar, Broker Flow, Chaikin Smart Money (CMF), Foreign Flow, VWAP Bands &amp; Konsentrasi Akumulasi/Distribusi BEI.</div>'
+    + '<div class="psub">Analisis Macro IHSG, Big Banks, Sektoral Heatmap &amp; Konsentrasi Akumulasi/Distribusi seluruh BEI. Untuk analisis per-emiten (Broker Flow, CMF, VWAP Bands, Foreign Flow), lihat tab Bandarmology di halaman Technical.</div>'
     + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    + '<button onclick="openStockChat(\'' + tk + '\', \'Analisa menyeluruh bandarmology, broker summary, smart money CMF dan foreign flow saham ' + tk + '\')" class="btn btn-primary btn-xs flex items-center gap-1">'
-    + '<span>Tanya StockChat AI</span>'
+    + '<button onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + tk + '\');goBandarmology(\'stock\',null);" class="btn btn-primary btn-xs flex items-center gap-1">'
+    + '<span>Analisis Emiten (Technical) →</span>'
     + '</button>'
     + '<button onclick="goPage(\'radar\')" class="btn btn-ghost btn-xs">'
     + 'Opportunity Radar →'
@@ -2157,82 +2172,35 @@ function renderBandarmologyCockpitPage(containerId) {
     + '</div>'
     + '</div>';
 
-  // Master 2-Mode Power Toolbar (Matching Opportunity Radar .tab-row)
-  html += '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap;align-items:center;justify-content:center">'
-    + '<button onclick="setBandarmologyMode(\'stock\')" class="btn btn-xs ' + (isStockMode ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700;padding:6px 16px">'
-    + '<span>ANALISIS FULL EMITEN (' + tk + ')</span>'
-    + '</button>'
-    + '<button onclick="setBandarmologyMode(\'market\')" class="btn btn-xs ' + (!isStockMode ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700;padding:6px 16px">'
-    + '<span>ANALISIS FULL MARKET (SEKTORAL &amp; HEATMAP)</span>'
-    + '</button>'
+  // FIX AUDIT (2026-09-17, konsolidasi screener): heatmap sektor + tabel
+  // "PEMINDAI SMART MONEY & BANDAR RADAR" yang sebelumnya dirender di sini
+  // (renderBandarmologyHeatmapScannerView) dipindahkan jadi mode "Sector
+  // Heatmap" di halaman Smart Money Screener (public/js/07-flowscan.js,
+  // fsRenderSectorHeatmapMode()) — overlap konsep & sumber data (CMF/verdict
+  // bandar) dengan Flow Scanner dan Acc/Dist Scanner, jadi digabung satu
+  // tempat alih-alih 3 implementasi terpisah yang bisa beda verdict untuk
+  // ticker sama. Lihat INCIDENT_LOG.md.
+  html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
+    + renderBandarmologyMarketFlowView(tk)
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
+    + renderBandarmologyAccumulationView()
+    + renderBandarmologyDistributionView()
+    + '</div>'
+    + renderBandarmologyBrokerTrailView()
     + '</div>';
-
-  // Content rendering based on Master Mode
-  if (isStockMode) {
-    // Mode 1: Full Emiten Suite
-    html += '<div class="card" style="padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
-      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-      + '<span style="font-size:11px;font-weight:700;color:var(--text3)">Fokus Emiten:</span>'
-      + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
-      + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(itemTk) {
-        var isAct = itemTk === tk;
-        return '<button onclick="selectStockChatTicker(\'' + itemTk + '\');renderBandarmologyCockpitPage();" class="btn btn-xs ' + (isAct ? 'btn-primary' : 'btn-ghost') + '" style="font-family:monospace;font-weight:700">' + itemTk + '</button>';
-      }).join('')
-      + '</div>'
-      + '</div>'
-      + '<div style="display:flex;align-items:center;gap:6px">'
-      + '<label style="font-size:11px;color:var(--text3)">Cari Emiten:</label>'
-      + '<input id="bandar-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="form-input" style="width:85px;height:28px;text-align:center;text-transform:uppercase;font-family:monospace;font-size:11px;font-weight:700" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);renderBandarmologyCockpitPage();this.value=\'\';}">'
-      + '<button onclick="var el=document.getElementById(\'bandar-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);renderBandarmologyCockpitPage();}" class="btn btn-secondary btn-xs">Set</button>'
-      + '</div>'
-      + '</div>';
-
-    html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
-      + '<div id="stockchat-flow-tab-content">'
-      + '<div style="padding:32px;text-align:center;color:var(--text3);font-size:12px;display:flex;align-items:center;justify-content:center;gap:8px">'
-      + 'Memuat Analisis Broker Flow &amp; Smart Money ' + tk + '...'
-      + '</div>'
-      + '</div>'
-      + renderBandarmologySmartMoneyFlowView(tk)
-      + renderBandarmologyForeignFlowView(tk)
-      + '</div>';
-
-    setTimeout(loadAndRenderBrokerFlowTab, 40);
-    setTimeout(bandarLoadRealForeignFlow, 40);
-  } else {
-    // Mode 2: Full Market & Macro Suite
-    // FIX AUDIT (2026-09-17, konsolidasi screener): heatmap sektor + tabel
-    // "PEMINDAI SMART MONEY & BANDAR RADAR" yang sebelumnya dirender di sini
-    // (renderBandarmologyHeatmapScannerView) dipindahkan jadi mode "Sector
-    // Heatmap" di halaman Smart Money Screener (public/js/07-flowscan.js,
-    // fsRenderSectorHeatmapMode()) — overlap konsep & sumber data (CMF/verdict
-    // bandar) dengan Flow Scanner dan Acc/Dist Scanner, jadi digabung satu
-    // tempat alih-alih 3 implementasi terpisah yang bisa beda verdict untuk
-    // ticker sama. Lihat INCIDENT_LOG.md.
-    html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
-      + renderBandarmologyMarketFlowView(tk)
-      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
-      + renderBandarmologyAccumulationView()
-      + renderBandarmologyDistributionView()
-      + '</div>'
-      + renderBandarmologyBrokerTrailView()
-      + '</div>';
-  }
 
   html += '</div>';
   target.innerHTML = html;
-  if (!isStockMode) {
-    _bandarAccDistCache = null;
-    setTimeout(function() { bandarLoadAccDist('acc'); }, 40);
-    setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
-  }
+  _bandarAccDistCache = null;
+  setTimeout(function() { bandarLoadAccDist('acc'); }, 40);
+  setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
 
   // Kick off (or let already-run) real-data prefetch for the shared
   // market-wide sample universe — first paint above used whatever was
   // already cached (real if a previous prefetch finished, simulated
   // fallback otherwise, exactly like before this fix). Once the batch
   // resolves, bandarPrefetchMarketBatch() re-renders this same page so all
-  // 5 views flip to real numbers together instead of staying stuck on the
+  // views flip to real numbers together instead of staying stuck on the
   // simulated first paint forever.
   bandarPrefetchMarketBatch(containerId, tk);
 }
@@ -3056,16 +3024,22 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Chaikin Money Flow (CMF-20)</div>'
-    + '<span class="badge b-up" style="font-size:8px">AKUMULASI / DISTRIBUSI</span>'
+    + '<span class="badge b-up" style="font-size:8px" id="bandarSmartCmfBadge">AKUMULASI / DISTRIBUSI</span>'
     + '</div>'
     + '<div style="height:220px;position:relative;width:100%"><canvas id="bandarSmartCmfChart"></canvas></div>'
     + '</div>'
 
     // Chart 3: Net Foreign Flow Daily Inflow/Outflow Bars
+    // FIX (2026-09-19, menu/data audit): judul lama "Arus Net Dana Asing
+    // Harian" menyiratkan ini data transaksi asing riil harian — padahal
+    // aplikasi ini TIDAK punya feed foreign-flow harian per ticker (hanya
+    // agregat whole-market via getUniverseForeignFlow()). nfVals di bawah
+    // 100% proxy dari split 65/35 volume berdasarkan arah harga (d.up),
+    // bukan data asing sungguhan. Judul & badge diperjelas jadi estimasi.
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Arus Net Dana Asing Harian</div>'
-    + '<span class="badge b-neu" style="font-size:8px">JUTA LEMBAR</span>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Estimasi Arus Dana (Proxy Volume)</div>'
+    + '<span class="badge b-neu" style="font-size:8px" title="Dihitung dari split volume vs arah harga, BUKAN data transaksi asing riil">ESTIMASI, BUKAN DATA ASING RIIL</span>'
     + '</div>'
     + '<div style="height:200px;position:relative;width:100%"><canvas id="bandarSmartForeignChart"></canvas></div>'
     + '</div>'
@@ -3125,8 +3099,17 @@ function mountBandarmologySmartMoneyCharts(tk) {
   });
   var closes = data.map(function(d) { return d.c; });
   var volumes = data.map(function(d) { return d.v; });
+  // FIX (2026-09-19, menu/data audit — pola "SIMULASI tapi terlihat
+  // presisi" dilarang CLAUDE.md #3): sebelumnya, kalau fsProcess() gagal
+  // menghasilkan CMF (histori terlalu pendek dkk), fallback-nya adalah
+  // pola BERGANTIAN HARDCODED 15.4/-8.2 -- angka presisi yang terlihat
+  // seperti hasil hitungan riil padahal konstanta tetap. Diganti null
+  // (Chart.js merender sebagai celah kosong, bukan angka karangan).
   var cmfVals = (a.cmf || []).map(function(v) { return +(v * 100).toFixed(2); });
-  if (cmfVals.length === 0) cmfVals = closes.map(function(c, i) { return (i % 2 === 0 ? 15.4 : -8.2); });
+  var isCmfFallback = cmfVals.length === 0;
+  if (isCmfFallback) cmfVals = closes.map(function() { return null; });
+  var cmfBadgeEl = document.getElementById('bandarSmartCmfBadge');
+  if (cmfBadgeEl) cmfBadgeEl.textContent = isCmfFallback ? 'DATA TIDAK CUKUP' : 'AKUMULASI / DISTRIBUSI';
 
   var vwap = (typeof fsCalcVWAP === 'function') ? fsCalcVWAP(data) : closes;
   var std = (typeof fsCalcVWAPStdDev === 'function') ? fsCalcVWAPStdDev(data, vwap) : [];

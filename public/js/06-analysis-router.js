@@ -792,7 +792,25 @@ function goPage(name,btn){
   // Screener" / "Volume Spike"), same pattern as the TradeWave Wave
   // Cockpit/Risk Planner consolidation above.
   var UNIFIED_SCREENER_ALIASES = ['ranking', 'scanner', 'tradewave', 'screener', 'volume-spike'];
-  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : name));
+  // FIX (2026-09-19, "Eksekusi no 2" konsolidasi menu Analisa): halaman
+  // Valuation ('hargawajar', kalkulator manual multi-tahun) digabung jadi
+  // 1 tab di halaman Fundamental (lihat fund-tab-hw, index.html) — beda
+  // dari kasus Bandarmology (fungsi identik dipanggil ulang), di sini
+  // formula/data-nya genuinely berbeda (snapshot otomatis di Fundamental
+  // Tab 1 vs tabel historis multi-tahun yang bisa diedit manual di sini),
+  // jadi cuma dipindah tab-nya, bukan formula-nya digabung. Pola alias
+  // sama seperti UNIFIED_SCREENER_ALIASES di atas — semua goPage('hargawajar')
+  // lama tetap bekerja tanpa perlu diubah satu-satu.
+  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : (name === 'hargawajar' ? 'fundamental' : name)));
+  // Sama seperti reset US_STATE.pageTab di bawah: switch ke tab Harga Wajar
+  // HANYA pada navigasi nyata (goPage()), bukan di renderPage()'s case
+  // 'hargawajar' (dipanggil ulang oleh tick refresh periodik 03-engine.js
+  // tanpa goPage() — akan menyeret user balik ke tab Harga Wajar berulang
+  // kali kalau ditaruh di situ, persis insiden yang sama dicegah untuk
+  // TradeWave/Unified Screener di atas).
+  if (name === 'hargawajar' && typeof fundSwitchTab === 'function') {
+    fundSwitchTab(4);
+  }
   // FIX (2026-09-19, regression caught before ship): resetting
   // US_STATE.pageTab to 'screener' inside renderUnifiedScreenerPage()
   // itself (as originally done for the TradeWave fix) also fires on 03-
@@ -932,7 +950,6 @@ function renderPage(name){
     case 'tradewave':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'fundamental':if(typeof fundInit==='function') fundInit();break;
     case 'technical':if(typeof techInit==='function') techInit();break;
-    case 'crypto-technical':if(typeof initCryptoTechnicalSuite==='function') initCryptoTechnicalSuite();break;
     case 'flowscan':if(typeof goBandarmology==='function') goBandarmology('smart-money-flow'); else if(typeof techInit==='function') techInit(); else fsRunAnalysis();break;
     // 'ranking'/'scanner' consolidated into the Unified Screener (see the
     // goPage() redirect + 'radar' case above) — fsRenderRanking() itself

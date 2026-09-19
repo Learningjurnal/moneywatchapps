@@ -1522,11 +1522,19 @@ window.hw_loadStock = hw_loadStock;
 // global berubah, halaman ini tetap memakai ticker/tabel tersimpan
 // terakhirnya sampai user membuka halaman ini secara eksplisit - konsisten
 // dengan perilaku existing (localStorage-first) yang tidak diubah.
+// FIX (2026-09-19, "Eksekusi no 2" konsolidasi menu): page-hargawajar
+// dihapus — kalkulator ini sekarang tab "fund-tab-hw" di dalam
+// page-fundamental (lihat index.html/fundSwitchTab()). Guard "sedang
+// dibuka" di bawah diperbarui supaya cek page DAN tab-nya sekaligus
+// (bukan cuma page-fundamental — Fundamental sekarang punya 4 tab, dan
+// alasan #1/#2 di atas cuma berlaku kalau tab Harga Wajar spesifik yang
+// sedang dilihat, bukan tab Analisa Terpadu/Bull-Bear/KSEI).
 if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
   window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
     if (source !== 'hargawajar' && tk && tk !== hwData.ticker) {
-      var elP = document.getElementById('page-hargawajar');
-      if (elP && elP.classList.contains('on')) {
+      var elP = document.getElementById('page-fundamental');
+      var elTab = document.getElementById('fund-tab-hw');
+      if (elP && elP.classList.contains('on') && elTab && elTab.classList.contains('active')) {
         hw_loadStock(tk);
       }
     }

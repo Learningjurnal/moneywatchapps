@@ -698,7 +698,7 @@ function fsRunScanner(){
   var out=document.getElementById('sc-results');
   if(!out) return;
   if(res.length===0){out.innerHTML='<div style="color:var(--text3);text-align:center;padding:20px;font-size:13px">Tidak ada saham memenuhi kriteria. Turunkan threshold.</div>';return;}
-  out.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:12px;font-family:var(--font-mono);font-weight:700">Ditemukan <strong style="color:var(--accent)">'+res.length+'</strong> emiten terverifikasi:</div>'
+  out.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:12px;font-family:var(--font-mono);font-weight:700">Ditemukan <strong style="color:var(--accent)">'+res.length+'</strong> emiten yang memenuhi kriteria (● riil / ○ simulasi):</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">'
     +res.map(function(r){
       var last=r.data[r.data.length-1];
@@ -706,9 +706,16 @@ function fsRunScanner(){
       var bgCard=isAcc?'rgba(16,185,129,0.06)':'rgba(239,68,68,0.06)';
       var brdCard=isAcc?'rgba(16,185,129,0.25)':'rgba(239,68,68,0.25)';
       var inWl=FS_WL.some(function(w){return w.t===r.t;});
-      return '<div class="card" style="background:'+bgCard+';border:1px solid '+brdCard+';border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
+      // FIX (2026-09-19, menu/data audit — kelas bug sama seperti insiden
+      // DEWA di techRunFlowScanTab()): sebelumnya fungsi ini merender
+      // "emiten TERVERIFIKASI" + CMF/VR/Skor tanpa pernah mengecek
+      // r.data.simulated — kartu bisa 100% dari fsGenData()'s fallback
+      // random-walk. Guard & badge SEKARANG sama seperti fsRenderRanking()/
+      // fsRenderHeatmap() (isSim + fsSrcDot()), bukan lagi dobel standar.
+      var isSim=!!(r.data && r.data.simulated);
+      return '<div class="card" style="background:'+bgCard+';border:1px solid '+brdCard+(isSim?';outline:1px solid rgba(255,61,90,.25)':'')+';border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-        +'<span class="mono" style="font-weight:800;font-size:14px;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+r.t+'\')">'+r.t+'</span>'
+        +'<span class="mono" style="font-weight:800;font-size:14px;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+r.t+'\')">'+r.t+'</span>'+fsSrcDot(isSim)
         +'<button class="btn btn-ghost btn-xs" onclick="fsTgWl(\''+r.t+'\');fsRunScanner()" style="font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--border2)">'+(inWl?'★':'☆')+'</button>'
         +'</div>'
         +'<div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.n.split(' ').slice(0,3).join(' ')+'</div>'
