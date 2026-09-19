@@ -423,7 +423,18 @@ function usRenderValidationPanel() {
   el.innerHTML = html;
 }
 
+// FIX (2026-09-19, user-reported): US_STATE.pageTab is sticky across
+// renders (usSwitchPageTab() only sets it, never clears it), which is
+// correct WHILE the user is on this page switching its own tabs — but
+// renderUnifiedScreenerPage() is also the entry point every time the
+// router navigates here fresh (goPage('radar')/'ranking'/'scanner'/
+// 'tradewave', or the Dashboard's "Lihat Semua ->" shortcut). Without a
+// reset here, leaving on the Wave Cockpit/Risk Planner tab once meant
+// EVERY later nav into the Screener — including from an unrelated
+// dashboard widget — landed back on that same sub-tab instead of the
+// main Screener table, looking like the wrong page entirely.
 function renderUnifiedScreenerPage() {
+  US_STATE.pageTab = 'screener';
   if (!US_STATE.loaded && !US_STATE.loading) {
     usFetchAndRender();
   } else {

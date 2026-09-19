@@ -1243,13 +1243,16 @@
             </div>
         </div>
 
-        <!-- 3. AI OPPORTUNITY RADAR PREVIEW (Command Center zone — same slice
-             as Market Regime above). Reuses the REAL loadOpportunityRadarUniverse()
-             /RADAR_STATE from 26-commandcenter.js (the same data the full
-             Opportunity Radar page uses) rather than a separate fetch/scoring
-             logic — visiting the dashboard also warms the cache for when the
-             user opens the full Radar page next. Answers roadmap question #3
-             ("apa peluang terbaik"). -->
+        <!-- 3. SCREENER TOP-PICKS PREVIEW (Command Center zone — same slice
+             as Market Regime above). FIX (2026-09-19): used to reuse
+             loadOpportunityRadarUniverse()/RADAR_STATE (26-commandcenter.js,
+             a separate MoS/ROE fundamental-score formula) — a different
+             top-pick list than the unified Screener page this widget's
+             "Lihat Semua ->" navigates to. Now reads GET
+             /api/idx/unified-screener directly (same Whale/Uptrend formula,
+             same default sort as the Screener page), so this preview is
+             always consistent with what "Lihat Semua" shows next. Answers
+             roadmap question #3 ("apa peluang terbaik"). -->
         <!-- 3-7. COMMAND CENTER UNIFIED GRID (HIGH DENSITY / DECLUTTERED) -->
         <div class="dash-cc-unified-grid dash-section-cc" style="margin-bottom:14px">
           <!-- Left Column: Opportunities & Breadth -->
@@ -4444,7 +4447,7 @@
 <script src="js/02-storage.js?v=20260918a"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
 <script src="js/03-engine.js?v=20260918b"></script>
-<script src="js/04-render.js?v=20260918a"></script>
+<script src="js/04-render.js?v=20260919a"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
 <script src="js/06-analysis-router.js?v=20260918b"></script>
@@ -4480,7 +4483,7 @@
 <script src="js/45-volume-spike.js?v=20260918b"></script>
 <script src="js/46-stock-dossier.js?v=20260918b"></script>
 <script src="js/47-ai-signal-history.js?v=20260917b"></script>
-<script src="js/48-unified-screener.js?v=20260918d"></script>
+<script src="js/48-unified-screener.js?v=20260919a"></script>
 
   <!-- Theme Toggle Floating Button -->
   <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#2563eb;color:#ffffff;border:none;box-shadow:0 4px 15px rgba(0,0,0,0.25);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">

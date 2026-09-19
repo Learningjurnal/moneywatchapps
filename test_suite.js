@@ -948,9 +948,24 @@ test('REGRESSION GUARD: renderDashboard() must call both new Command Center zone
   assert(dashboardFn[0].includes('renderDashboardMarketRegime'),
     'renderDashboard() no longer calls renderDashboardMarketRegime() — the Market Regime zone would silently stop updating');
   assert(dashboardFn[0].includes('renderDashboardRadarPreview'),
-    'renderDashboard() no longer calls renderDashboardRadarPreview() — the AI Opportunity Radar zone would silently stop updating');
-  assert(/loadOpportunityRadarUniverse\(\)/.test(src),
-    'renderDashboardRadarPreview() must reuse the REAL loadOpportunityRadarUniverse() (26-commandcenter.js) — a separate/duplicate fetch would diverge from the full Radar page\'s scoring');
+    'renderDashboard() no longer calls renderDashboardRadarPreview() — the Screener top-picks preview zone would silently stop updating');
+  // FIX (2026-09-19, user-reported: "datanya tidak sesuai screener"):
+  // this preview used to call loadOpportunityRadarUniverse() (a separate,
+  // disagreeing MoS/ROE fundamental-score formula) instead of the SAME
+  // /api/idx/unified-screener endpoint the Screener page it links to
+  // actually uses — the two showed different top-pick tickers for the
+  // same market. Must never call the old radar engine again, and must
+  // read the unified Screener endpoint directly.
+  const radarPreviewFn = src.match(/async function renderDashboardRadarPreview\(\)\{[\s\S]*?\n\}/);
+  assert(radarPreviewFn, 'renderDashboardRadarPreview() body not found');
+  // Strip comment lines first — the fix's own explanatory comment
+  // legitimately mentions "loadOpportunityRadarUniverse()" by name as
+  // history, which must not itself trip this guard.
+  const radarPreviewCode = radarPreviewFn[0].split('\n').filter((line) => !/^\s*\/\//.test(line)).join('\n');
+  assert(!/loadOpportunityRadarUniverse\(\)/.test(radarPreviewCode),
+    'REGRESSION: renderDashboardRadarPreview() calls loadOpportunityRadarUniverse() again — this is the old, separate MoS/ROE scoring engine that disagrees with the unified Screener\'s Whale/Uptrend formula, reproducing the exact "datanya tidak sesuai screener" bug');
+  assert(/\/api\/idx\/unified-screener/.test(radarPreviewCode),
+    'REGRESSION: renderDashboardRadarPreview() no longer fetches /api/idx/unified-screener — its top picks will diverge from the Screener page again');
 });
 test('REGRESSION GUARD: dashboard HTML must still have both new zone containers', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
@@ -6683,6 +6698,26 @@ test('REGRESSION GUARD: TradeWave Wave Cockpit/Risk Planner consolidated into th
     'REGRESSION: twRenderSubPage(containerId, tabIdx) is gone — the Screener has nothing to call for Wave Cockpit/Risk Planner content');
   assert(!/window\.initTradeWaveSuite/.test(twSrc) && !/window\.renderTradeWavePage/.test(twSrc),
     'REGRESSION: TradeWave still exposes its own page-level render/init functions — it should no longer be a standalone page');
+});
+
+// User-reported production screenshot (2026-09-19): clicking "Opportunity
+// Radar" / "Lihat Semua ->" on the Dashboard's Portfolio Snapshot toolbar
+// landed on the Screener's "Risk Planner" (Risk Sizing) tab instead of the
+// main Screener table. Root cause: US_STATE.pageTab is sticky across
+// renders — usSwitchPageTab() (used by the Screener's own 3 tab buttons)
+// only ever SETS pageTab, never clears it, and renderUnifiedScreenerPage()
+// (the router's entry point for every fresh nav into this page — 'radar',
+// 'ranking', 'scanner', 'tradewave', or this Dashboard shortcut) never
+// reset it either. So once a user visited the Wave Cockpit/Risk Planner
+// tab even once in a session, EVERY later navigation into the Screener —
+// from any entry point, including this unrelated Dashboard widget —
+// silently landed back on that leftover sub-tab.
+test('REGRESSION GUARD: renderUnifiedScreenerPage() must reset US_STATE.pageTab to \'screener\' on every fresh navigation, not stay stuck on Wave Cockpit/Risk Planner', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  const fn = src.match(/function renderUnifiedScreenerPage\(\) \{[\s\S]*?\n\}/);
+  assert(fn, 'renderUnifiedScreenerPage() not found — has it been renamed/removed?');
+  assert(/US_STATE\.pageTab\s*=\s*'screener'/.test(fn[0]),
+    'REGRESSION: renderUnifiedScreenerPage() no longer resets US_STATE.pageTab to \'screener\' — any nav into the Screener page (including the Dashboard\'s "Lihat Semua ->" shortcut) will land on whatever tab (Wave Cockpit/Risk Planner) was last left open, not the main Screener table');
 });
 
 // User-reported production screenshot (2026-09-18, Bandarmology BBCA):

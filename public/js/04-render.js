@@ -123,34 +123,43 @@ async function renderDashboardRadarPreview(){
   if(!list || _dashRadarLoading) return;
   _dashRadarLoading = true;
   try {
-    // Reuses the REAL RADAR_STATE/loadOpportunityRadarUniverse() from
-    // 26-commandcenter.js — the same data the full Opportunity Radar page
-    // renders — rather than a second, separately-maintained fetch+scoring
-    // path. Its own 60s freshness check means this is a no-op if the
-    // Radar page was already visited recently.
-    if(typeof loadOpportunityRadarUniverse === 'function') await loadOpportunityRadarUniverse();
-    var items = (typeof getOpportunityRadarItems === 'function') ? getOpportunityRadarItems() : ((typeof RADAR_STATE !== 'undefined' && RADAR_STATE.items) || []);
-    var top = items.filter(function(it){ return it.zone === 'BUY ZONE'; })
-      .sort(function(a,b){ return (b.score || 0) - (a.score || 0); })
-      .slice(0, 5);
+    // FIX (2026-09-19, user-reported: "opportunity radar di toolbar
+    // porofolio ini kliknya masuk ke risk sizing di screener dan datanya
+    // tidak sesuai screener"): this preview used to call the OLD, separate
+    // loadOpportunityRadarUniverse()/RADAR_STATE (26-commandcenter.js's
+    // GET /api/idx/opportunity-radar, a Margin-of-Safety/ROE fundamental
+    // score) — a genuinely different formula than the Screener page this
+    // widget's "Lihat Semua ->" button navigates to
+    // (generateUnifiedScreener(), Whale/Uptrend formula). Both were live
+    // and both looked "real", so the two lists disagreeing on top picks
+    // read as a bug, not 2 different features — which is exactly right,
+    // since Opportunity Radar was already consolidated into the Screener
+    // and shouldn't have a second, disagreeing preview anywhere. Now reads
+    // GET /api/idx/unified-screener with the same default sort the
+    // Screener page itself uses, so this preview is always a strict
+    // subset of what "Lihat Semua" shows next.
+    var resp = await fetch('/api/idx/unified-screener?sort=uptrendScore&order=desc&limit=5');
+    var json = await resp.json();
+    var rows = (json && json.success && Array.isArray(json.rows)) ? json.rows : [];
+    var top = rows.filter(function(r){ return r.uptrendScore != null; });
     if(!el('dash-radar-list')) return;
-    _dashInsightTopPick = top[0] || null;
+    _dashInsightTopPick = top[0] ? { ticker: top[0].ticker, score: top[0].uptrendScore, verdict: top[0].whaleLabel } : null;
     if(!top.length){
-      el('dash-radar-list').innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0;grid-column:1/-1">Belum ada saham di BUY ZONE saat ini — cek halaman Radar untuk daftar lengkap.</div>';
+      el('dash-radar-list').innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0;grid-column:1/-1">Belum ada saham dengan skor Uptrend saat ini — cek halaman Screener untuk daftar lengkap.</div>';
       return;
     }
     el('dash-radar-list').innerHTML = top.map(function(it){
       return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;cursor:pointer" onclick="goPage(\'radar\')">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
         + '<span style="font-weight:800;font-family:var(--font-mono);font-size:13px;color:var(--text)">' + escHtml(it.ticker) + '</span>'
-        + '<span class="badge b-up" style="font-size:9px;padding:1px 6px">' + (it.score != null ? it.score : '—') + '</span>'
+        + '<span class="badge b-up" style="font-size:9px;padding:1px 6px">' + (it.uptrendScore != null ? it.uptrendScore : '—') + '</span>'
         + '</div>'
         + '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(it.name || '') + '</div>'
-        + '<div style="font-size:10px;color:var(--green);font-weight:700;margin-top:3px">' + escHtml(it.verdict || '') + '</div>'
+        + '<div style="font-size:10px;color:var(--green);font-weight:700;margin-top:3px">' + escHtml(it.whaleLabel || '') + '</div>'
         + '</div>';
     }).join('');
   } catch(err){
-    if(el('dash-radar-list')) el('dash-radar-list').innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0;grid-column:1/-1">Gagal memuat AI Opportunity Radar: ' + escHtml((err && err.message) || 'error jaringan') + '.</div>';
+    if(el('dash-radar-list')) el('dash-radar-list').innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0;grid-column:1/-1">Gagal memuat Screener: ' + escHtml((err && err.message) || 'error jaringan') + '.</div>';
     _dashInsightTopPick = null;
   } finally {
     _dashRadarLoading = false;
