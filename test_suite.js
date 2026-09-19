@@ -1128,6 +1128,34 @@ test('REGRESSION GUARD: Opportunity Radar page must not have its own duplicate "
   assert(/goPage\(\\'radar\\'\)/.test(radarPageFn[0]),
     'renderOpportunityRadarPage() should point users to the real Screener page (goPage(\'radar\') -> renderUnifiedScreenerPage()) now that its own screener sub-tab is gone');
 });
+// FIX (2026-09-19, user-requested: "dihapus diganti sectroal heatmap"):
+// the Heatmap page's ("page-heatmap") second tab used to be "Factor
+// Heatmap" (fhmRender(), 11-quant.js) — a per-stock RSI/Momentum/
+// Volatilitas/Composite-Score grid built from QT.scData. Removed and
+// replaced with "Heatmap Sektoral", reusing fsRenderSectorHeatmapMode()
+// (07-flowscan.js) — the SAME function Smart Money Screener's "sector"
+// mode already uses (whole-market, real Invezgo broker-flow data
+// aggregated per sector) — rather than building a second, separate
+// sectoral feature.
+test('REGRESSION GUARD: Heatmap page\'s 2nd tab must be "Heatmap Sektoral" (fsRenderSectorHeatmapMode), not the old "Factor Heatmap" (fhmRender/QT.scData)', () => {
+  const quantSrc = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert(!/function fhmRender/.test(quantSrc), 'REGRESSION: fhmRender() exists again — the old per-stock Factor Heatmap this consolidation removed');
+  assert(!/page === 'factor-heatmap'/.test(quantSrc), 'REGRESSION: the dead goPage(\'factor-heatmap\') hook is back in 11-quant.js');
+
+  const flowSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  assert(/function fsRenderSectorHeatmapMode\(targetId\)/.test(flowSrc),
+    'fsRenderSectorHeatmapMode() must accept an optional targetId param — needed to render into both Smart Money Screener\'s and the Heatmap page\'s own container without duplicating the fetch/aggregation logic');
+  const switchFn = flowSrc.match(/function hmSwitchTab\(tab, btn\)\{[\s\S]*?\n\}/);
+  assert(switchFn, 'hmSwitchTab() body not found');
+  assert(/fsRenderSectorHeatmapMode\('hm-sector-content'\)/.test(switchFn[0]),
+    'REGRESSION: hmSwitchTab() no longer calls fsRenderSectorHeatmapMode(\'hm-sector-content\') for the sector tab — the old fhmRender() call (or nothing) may have come back');
+  assert(!/fhmRender\(\)/.test(switchFn[0]), 'REGRESSION: hmSwitchTab() calls fhmRender() again');
+
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(htmlSrc.includes('id="hm-sector-content"'), 'index.html is missing the hm-sector-content container fsRenderSectorHeatmapMode() renders into');
+  assert(!htmlSrc.includes('id="fhm-grid"') && !htmlSrc.includes('id="fhm-dist-chart"'), 'REGRESSION: the old Factor Heatmap markup (fhm-grid/fhm-dist-chart) is back in index.html');
+  assert(!htmlSrc.includes(">Factor Heatmap<"), 'REGRESSION: the "Factor Heatmap" tab button text is back in index.html');
+});
 // FIX (2026-09-18, user-reported after full-codebase audit): this card
 // used to call generateClientSideBrokerSummary() DIRECTLY, skipping the
 // real backend entirely — so it ALWAYS showed "SIMULASI" even when
@@ -5274,7 +5302,7 @@ test('REGRESSION GUARD: Smart Money Screener consolidation — old duplicate ent
   // 1. New consolidated mode functions must exist in 07-flowscan.js.
   assert(/function fsSwitchScreenerMode\(mode\)/.test(flowScanSrc), 'REGRESSION: fsSwitchScreenerMode() is gone from 07-flowscan.js');
   assert(/async function fsRenderBrokerFlowMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() is gone from 07-flowscan.js');
-  assert(/function fsRenderSectorHeatmapMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() is gone from 07-flowscan.js');
+  assert(/function fsRenderSectorHeatmapMode\(/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() is gone from 07-flowscan.js');
 
   // 2. FIX AUDIT (2026-09-17, quota-optimization follow-up): the broker-flow
   // mode was redesigned AGAIN — this time to stop scanning per-ticker

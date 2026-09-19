@@ -690,15 +690,20 @@ function fsRenderRanking(){
 }
 
 // ── Heatmap tab switcher ──
+// FIX (2026-09-19, user-requested: "dihapus diganti sectroal heatmap"):
+// tab "Factor Heatmap" (fhmRender(), lihat INCIDENT_LOG.md) dihapus,
+// diganti "Heatmap Sektoral" — dipakai ulang dari fsRenderSectorHeatmapMode()
+// (mode "sector" milik Smart Money Screener), whole-market & data real
+// Invezgo, bukan fitur baru terpisah.
 function hmSwitchTab(tab, btn){
-  var panels=['flow','factor'];
+  var panels=['flow','sector'];
   panels.forEach(function(p){
     var panel=el('hm-panel-'+p);
     if(panel) panel.style.display=(p===tab)?'':'none';
     var tb=el('hm-tab-'+p);
     if(tb){ tb.classList.toggle('on',p===tab); }
   });
-  if(tab==='factor') fhmRender();
+  if(tab==='sector') fsRenderSectorHeatmapMode('hm-sector-content');
   if(tab==='flow') fsRenderHeatmap();
 }
 
@@ -1064,8 +1069,14 @@ function fsOpenBrokerFlowTicker(ticker) {
 // Kalau Invezgo belum dikonfigurasi/gagal, tampilkan pesan jujur yang SAMA
 // dengan mode "Broker Flow Riil" — tidak lagi diam-diam jatuh ke tabel
 // simulasi seperti sebelumnya.
-async function fsRenderSectorHeatmapMode() {
-  var c = document.getElementById('sms-sector-content');
+// FIX (2026-09-19, user-requested: "dihapus diganti sectroal heatmap"):
+// dipakai ulang juga oleh tab "Heatmap Sektoral" di halaman Heatmap
+// (page-heatmap, menggantikan "Factor Heatmap"/fhmRender() yang dihapus —
+// lihat INCIDENT_LOG.md) — sekarang menerima `targetId` opsional supaya 2
+// pemanggil (Smart Money Screener & halaman Heatmap) bisa punya container
+// DOM masing-masing tanpa duplikasi logika/fetch.
+async function fsRenderSectorHeatmapMode(targetId) {
+  var c = document.getElementById(targetId || 'sms-sector-content');
   if (!c) return;
 
   if (FS_BROKER_SCAN.loaded && !FS_BROKER_SCAN.notConfigured) {
