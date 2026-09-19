@@ -1450,11 +1450,20 @@ function renderStockChatPage(containerId) {
       // If tool calls are present, display formatted tool cards or broker summary widget
       if (msg.toolCalls && msg.toolCalls.length > 0) {
         msg.toolCalls.forEach(function(tc) {
-          if (tc.toolName === 'cek_broker_summary' && tc.result && !tc.result.error) {
+          // FIX (2026-09-19, found while investigating "Tool Executed:
+          // undefined" reported by user): server always sends the field
+          // as `name` (see executedTools.push({name, args, result}) in
+          // server.js, both the Claude/OpenRouter agentic loops AND the
+          // deterministic fallback) — `toolName` never existed anywhere,
+          // client or server, so this comparison and this label were
+          // ALWAYS undefined/false for every real response, regardless of
+          // which engine answered. renderBrokerSummaryWidget() has
+          // consequently never fired for a live server response either.
+          if (tc.name === 'cek_broker_summary' && tc.result && !tc.result.error) {
             html += renderBrokerSummaryWidget(tc.result);
           } else {
             html += '<div style="margin-top:8px;padding:6px 10px;border-radius:6px;font-size:10px;font-family:monospace;background:var(--bg4);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;gap:6px">'
-              + '<span style="color:var(--accent);font-weight:700">Tool Executed:</span> ' + tc.toolName
+              + '<span style="color:var(--accent);font-weight:700">Tool Executed:</span> ' + tc.name
               + '</div>';
           }
         });
