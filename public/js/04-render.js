@@ -21,13 +21,17 @@ function switchDashboardView(view, btn){
   
   var allBtns = document.querySelectorAll('.dash-view-toggle-bar button');
   if(allBtns && allBtns.length){
-    allBtns.forEach(function(b){ b.classList.remove('on'); });
+    allBtns.forEach(function(b){ b.classList.remove('on'); b.classList.remove('active'); });
   }
   if(btn && btn.classList){
     btn.classList.add('on');
+    btn.classList.add('active');
   } else {
     var matchBtn = document.getElementById('btn-dash-view-' + (viewMode === 'command-center' ? 'cc' : viewMode));
-    if(matchBtn) matchBtn.classList.add('on');
+    if(matchBtn) {
+      matchBtn.classList.add('on');
+      matchBtn.classList.add('active');
+    }
   }
 
   var ccEls = document.querySelectorAll('.dash-section-cc');
@@ -355,19 +359,19 @@ function renderDashboardAIInsight(){
     // jatuh ke saran umum berbasis regime kalau belum ada BUY ZONE pick
     if(_dashInsightTopPick){
       lines.push({
-        label: 'Tindakan Direkomendasikan',
+        label: 'Rekomendasi Aksi',
         text: 'Pertimbangkan ' + _dashInsightTopPick.ticker + ' (' + (_dashInsightTopPick.verdict || 'BUY ZONE') + ', skor ' + _dashInsightTopPick.score + '/100) — lihat evidence lengkapnya sebelum memutuskan.',
         source: 'AI Opportunity Radar'
       });
     } else if(_dashInsightRegime && (_dashInsightRegime.regime === 'BEAR_TREND' || _dashInsightRegime.regime === 'RISK_OFF')) {
       lines.push({
-        label: 'Tindakan Direkomendasikan',
+        label: 'Rekomendasi Aksi',
         text: 'Belum ada saham di BUY ZONE dan regime market sedang ' + (_dashInsightRegime.regime === 'RISK_OFF' ? 'risk-off' : 'bearish') + ' — pertimbangkan wait-and-see, bukan menambah posisi baru.',
         source: 'Market Regime + AI Opportunity Radar'
       });
     } else {
       lines.push({
-        label: 'Tindakan Direkomendasikan',
+        label: 'Rekomendasi Aksi',
         text: 'Belum ada saham di BUY ZONE saat ini — pantau Opportunity Radar secara berkala.',
         source: 'AI Opportunity Radar'
       });
@@ -435,8 +439,8 @@ function renderRdn(){
   var sekRows=Object.keys(bySekTx).sort(function(a,b){return bySekTx[b].cnt-bySekTx[a].cnt;}).map(function(s){
     var isActive=(s===detectedSek);
     var sf=SEKURITAS[s];
-    return '<div class="taxrow" style="padding:4px 0'+(isActive?';border-left:2px solid var(--accent);padding-left:6px':'')+'">'
-      +'<span style="font-size:11px'+(isActive?';color:var(--accent);font-weight:600':'')+'">'+(isActive?'★ ':'')+s+'</span>'
+    return '<div class="taxrow" style="padding:4px 0'+(isActive?';background:var(--bg3);border-radius:var(--radius-sm);padding-left:6px;padding-right:6px':'')+'">'
+      +'<span style="font-size:11px'+(isActive?';color:var(--text);font-weight:700':'')+'">'+(isActive?'★ ':'')+s+'</span>'
       +'<span class="mono" style="font-size:10px;color:var(--text2)">'+bySekTx[s].cnt+' tx · '+bySekTx[s].lot+' lot</span>'
       +'</div>';
   }).join('') || '<div style="color:var(--text3);font-size:11px">Belum ada transaksi</div>';

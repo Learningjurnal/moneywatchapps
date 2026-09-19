@@ -2179,7 +2179,7 @@ function hw_recalc() {
       { label: 'Step 9 — Margin of Safety', val: mosPctDisplay, desc: mosPass ? 'Saham di bawah nilai wajar (Undervalued)' : 'Saham di atas nilai wajar (Overvalued)', ok: mosPass }
     ];
     stepsBody.innerHTML = steps.map(function(s) {
-      return '<div style="background:var(--bg3);border-radius:2px;padding:7px 9px;border-left:2px solid ' + (s.ok ? 'var(--green)' : 'var(--red)') + '">'
+      return '<div style="background:var(--bg3);border-radius:var(--radius-sm);padding:7px 9px;border:1px solid var(--border)">'
         + '<div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">' + s.label + '</div>'
         + '<div style="font-size:13px;font-weight:700;font-family:var(--font-mono);color:var(--text);margin:2px 0">' + s.val + '</div>'
         + '<div style="font-size:9px;color:var(--text3)">' + s.desc + '</div>'

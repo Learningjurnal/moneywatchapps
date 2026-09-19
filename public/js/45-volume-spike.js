@@ -691,7 +691,7 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
     + '</div>';
 
   var html =
-    '<div class="card" style="' + (isSpike ? 'border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.04);border-left:4px solid #F59E0B' : 'border:1px solid var(--border);background:var(--bg2)') + ';margin-bottom:14px;border-radius:12px;padding:14px 16px">' + headline + '</div>'
+    '<div class="card" style="border:1px solid var(--border);background:var(--bg2);margin-bottom:14px;border-radius:12px;padding:14px 16px">' + headline + '</div>'
 
     + '<div class="card" style="margin-bottom:14px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);padding:14px 18px">'
       + '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between">'

@@ -904,25 +904,25 @@
                     <strong id="dash-last-updated-stamp" style="color:var(--accent);font-family:var(--font-mono);font-weight:800">--:--:--</strong>
                     <span id="dash-last-updated-rel" style="color:var(--text3);font-size:10px">(baru saja)</span>
                 </div>
-                <button class="btn btn-ghost btn-sm" onclick="goPage('rebalance')" title="Buka Smart Rebalancing Portofolio" style="font-size:11px;font-weight:700">
+                <button class="sm-btn" onclick="goPage('rebalance')" title="Buka Smart Rebalancing Portofolio">
                     Rebalance
                 </button>
-                <button class="btn btn-ghost btn-sm" onclick="goPage('rdn')" title="Buka Kas & Mutasi Saldo RDN" style="font-size:11px;font-weight:700">
+                <button class="sm-btn" onclick="goPage('rdn')" title="Buka Kas & Mutasi Saldo RDN">
                     Kas RDN
                 </button>
-                <button class="sm-btn" id="btn-dash-refresh-portfolio" onclick="if(typeof refreshPortfolioMarketData==='function'){ refreshPortfolioMarketData({isManual:true}); } else { if(typeof renderPortfolioHub==='function') renderPortfolioHub(); if(typeof showToast==='function') showToast('Data portofolio diperbarui'); }" style="padding:6px 14px;font-size:11px">
+                <button class="sm-btn" id="btn-dash-refresh-portfolio" onclick="if(typeof refreshPortfolioMarketData==='function'){ refreshPortfolioMarketData({isManual:true}); } else { if(typeof renderPortfolioHub==='function') renderPortfolioHub(); if(typeof showToast==='function') showToast('Data portofolio diperbarui'); }">
                     <i class="ti ti-refresh" style="font-size:12px"></i> Refresh Data
                 </button>
             </div>
         </div>
 
         <!-- Dashboard Progressive Disclosure View Toggle -->
-        <div class="dash-view-toggle-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 14px">
+        <div class="dash-view-toggle-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                 <span style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-right:4px">Tampilan:</span>
-                <button id="btn-dash-view-all" class="btn btn-ghost btn-xs on" onclick="switchDashboardView('all', this)" style="border-radius:6px;font-size:11px;font-weight:700;padding:4px 10px">Semua</button>
-                <button id="btn-dash-view-cc" class="btn btn-ghost btn-xs" onclick="switchDashboardView('command-center', this)" style="border-radius:6px;font-size:11px;font-weight:700;padding:4px 10px">🎯 Command Center</button>
-                <button id="btn-dash-view-portfolio" class="btn btn-ghost btn-xs" onclick="switchDashboardView('portfolio', this)" style="border-radius:6px;font-size:11px;font-weight:700;padding:4px 10px">📊 Portofolio Snapshot</button>
+                <button id="btn-dash-view-all" class="sm-chip active on" onclick="switchDashboardView('all', this)">Semua</button>
+                <button id="btn-dash-view-cc" class="sm-chip" onclick="switchDashboardView('command-center', this)">🎯 Command Center</button>
+                <button id="btn-dash-view-portfolio" class="sm-chip" onclick="switchDashboardView('portfolio', this)">📊 Portofolio Snapshot</button>
             </div>
             <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">
                 <span id="dash-view-hint">Mode Lengkap (Command Center &amp; Portofolio)</span>
@@ -953,12 +953,12 @@
           </div>
           <span class="dash-regime-sep hide-mobile"></span>
           <div id="dash-regime-desc" class="dash-regime-desc">Memuat klasifikasi regime pasar…</div>
-          <button class="btn btn-ghost btn-xs" onclick="goPage('market-regime')" style="font-size:11px;font-weight:700;white-space:nowrap;padding:4px 10px;border-radius:6px;flex-shrink:0">Lihat Detail →</button>
+          <button class="sm-btn" onclick="goPage('market-regime')" style="white-space:nowrap;flex-shrink:0">Lihat Detail →</button>
         </div>
 
         <!-- 1. MANAGE ASSET CARD (EXECUTIVE SUMMARY STRIP) -->
         <!-- FIX (2026-09-13, Tahap 3): lihat catatan di card-dash-regime. -->
-        <div id="card-manage-asset" class="card dash-section-portfolio" style="border-radius:14px;padding:20px;position:relative;overflow:hidden">
+        <div id="card-manage-asset" class="card dash-section-portfolio" style="border-radius:var(--radius);padding:20px;position:relative;overflow:hidden">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:16px;border-bottom:1px solid var(--border2);padding-bottom:14px">
                 <div style="display:flex;align-items:center;gap:12px">
                     <div style="font-size:16px;font-weight:800;color:var(--text);font-family:var(--font-display)">
@@ -968,13 +968,13 @@
 
                 <!-- Quick Action Buttons for Consolidated Management -->
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <button class="btn btn-ghost btn-xs" onclick="goPage('portofolio')" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px" title="Kelola portofolio saham">
+                    <button class="sm-btn" onclick="goPage('portofolio')" title="Kelola portofolio saham">
                         Kelola Saham
                     </button>
-                    <button class="btn btn-ghost btn-xs" onclick="goPage('performance')" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px" title="Analisa TWR & Tear Sheet">
+                    <button class="sm-btn" onclick="goPage('performance')" title="Analisa TWR & Tear Sheet">
                         Kinerja
                     </button>
-                    <button class="btn btn-ghost btn-xs" onclick="goPage('wealth')" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px" title="Family Office & Net Worth">
+                    <button class="sm-btn" onclick="goPage('wealth')" title="Family Office & Net Worth">
                         Family Office
                     </button>
                 </div>
@@ -1060,7 +1060,7 @@
                                     MODERAT
                                 </span>
                             </div>
-                            <button class="btn btn-ghost btn-xs" onclick="goPage('rebalance')" style="font-size:11px;font-weight:600;padding:4px 10px" title="Buka modul manajemen risiko lengkap">
+                            <button class="sm-btn" onclick="goPage('rebalance')" title="Buka modul manajemen risiko lengkap">
                                 Lihat Detail Risiko →
                             </button>
                         </div>
@@ -1281,7 +1281,7 @@
             <div id="card-dash-radar" class="card dash-section-cc" style="border-radius:10px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Opportunity Radar</span>
-                <button class="btn btn-ghost btn-xs" onclick="goPage('radar')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
+                <button class="sm-btn" onclick="goPage('radar')">Lihat Semua →</button>
               </div>
               <div id="dash-radar-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat peluang teratas…</div>
@@ -1294,7 +1294,7 @@
             <div id="card-dash-heatmap" class="card dash-section-cc" style="border-radius:10px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Heatmap Sektoral</span>
-                <button class="btn btn-ghost btn-xs" onclick="goPage('sectoral-insight')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
+                <button class="sm-btn" onclick="goPage('sectoral-insight')">Lihat Semua →</button>
               </div>
               <div id="dash-heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:8px">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat heatmap sektoral…</div>
@@ -1308,7 +1308,7 @@
             <div id="card-dash-smartflow" class="card dash-section-cc" style="border-radius:10px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Money Flow</span>
-                <button class="btn btn-ghost btn-xs" onclick="goBandarmology('market',null)" style="font-size:11px;font-weight:700">Lihat Detail →</button>
+                <button class="sm-btn" onclick="goBandarmology('market',null)">Lihat Detail →</button>
               </div>
               <div id="dash-smartflow-body">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat aliran dana…</div>
@@ -1330,7 +1330,7 @@
             <div id="card-dash-alerts" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <span style="font-size:14px;font-weight:800;color:var(--text);font-family:var(--font-display)">Alerts &amp; Actions</span>
-                <button class="btn btn-ghost btn-xs" onclick="goPage('alerts')" style="font-size:11px;font-weight:700">Kelola Alerts →</button>
+                <button class="sm-btn" onclick="goPage('alerts')">Kelola Alerts →</button>
               </div>
               <div id="dash-alerts-list" style="display:flex;flex-direction:column;gap:8px">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat alert…</div>
@@ -1949,14 +1949,14 @@
       <button class="btn btn-ghost btn-xs" onclick="selectAllDiv()" id="div-sel-all-btn" style="border-radius:6px;font-weight:700">☑ Pilih Semua</button>
       <button class="btn btn-red btn-xs" onclick="deleteSelectedDiv()" id="div-del-sel-btn" style="display:none;border-radius:6px;font-weight:700">Hapus Terpilih</button>
       <button class="btn btn-ghost btn-xs" onclick="clearAllDiv()" style="color:var(--red);border-color:rgba(239,68,68,0.3);border-radius:6px">Hapus Semua</button>
-      <button class="btn btn-blue btn-sm" id="btn-div" style="display:inline-flex;align-items:center;gap:6px;font-weight:700;border-radius:8px"><i class="ti ti-plus"></i> Catat Dividen</button>
-      <button class="btn btn-ghost btn-sm" onclick="divDownloadTemplate()" style="border-color:rgba(167,139,250,.35);color:var(--purple);display:inline-flex;align-items:center;gap:6px;border-radius:8px" title="Unduh template Excel siap isi"><i class="ti ti-download"></i> Template Excel</button>
-      <button class="btn btn-ghost btn-sm" onclick="divImportExcel()" style="border-color:rgba(16,185,129,.35);color:var(--green);display:inline-flex;align-items:center;gap:6px;border-radius:8px" title="Upload banyak dividen sekaligus dari file Excel"><i class="ti ti-upload"></i> Upload Excel</button>
+      <button class="sm-btn" id="btn-div" style="display:inline-flex;align-items:center;gap:6px;font-weight:700;border-radius:8px;padding:7px 14px;font-size:12px"><i class="ti ti-plus"></i> Catat Dividen</button>
+      <button class="btn btn-ghost btn-sm" onclick="divDownloadTemplate()" style="display:inline-flex;align-items:center;gap:6px;border-radius:8px" title="Unduh template Excel siap isi"><i class="ti ti-download"></i> Template Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="divImportExcel()" style="display:inline-flex;align-items:center;gap:6px;border-radius:8px" title="Upload banyak dividen sekaligus dari file Excel"><i class="ti ti-upload"></i> Upload Excel</button>
     </div>
   </div>
 
   <!-- PMK 18/2021 Dividend Tax Exemption Card -->
-  <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1)">
+  <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <div style="display:flex;align-items:center;gap:10px">
       <div style="width:30px;height:30px;border-radius:8px;background:rgba(16,185,129,0.12);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">
         <i class="ti ti-shield-check"></i>
@@ -1970,14 +1970,14 @@
 
   <!-- Subtabs: Kalender Dividen / Analisis / Riwayat -->
   <div class="sm-suite-tabs" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-    <button class="btn btn-xs btn-green" id="div-subtab-btn-cal" onclick="switchDivSubTab('calendar')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+    <button class="sm-nav-item active" id="div-subtab-btn-cal" onclick="switchDivSubTab('calendar')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
       <i class="ti ti-calendar-event"></i> Kalender Dividen &amp; Expected Cashflow
-      <span class="badge b-up" style="font-size:9px;padding:1px 5px;margin-left:4px;">RADAR</span>
+      <span class="badge b-accent" style="font-size:9px;padding:1px 5px;margin-left:4px;">RADAR</span>
     </button>
-    <button class="btn btn-xs btn-ghost" id="div-subtab-btn-analytics" onclick="switchDivSubTab('analytics')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+    <button class="sm-nav-item" id="div-subtab-btn-analytics" onclick="switchDivSubTab('analytics')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
       <i class="ti ti-chart-arrows"></i> Analisis &amp; Proyeksi 5 Tahun
     </button>
-    <button class="btn btn-xs btn-ghost" id="div-subtab-btn-ledger" onclick="switchDivSubTab('ledger')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+    <button class="sm-nav-item" id="div-subtab-btn-ledger" onclick="switchDivSubTab('ledger')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
       <i class="ti ti-file-text"></i> Riwayat Pembukuan Transaksi
     </button>
     <button class="btn btn-xs btn-ghost" id="div-subtab-btn-all" onclick="switchDivSubTab('all')" style="margin-left:auto;color:var(--text3);padding:6px 12px;font-size:11px">
@@ -3419,7 +3419,7 @@
                  (Valuation + Bandar Flow + Quant) but 2 of the 3 pillars were
                  fabricated - see the honesty note in renderTrafficLightMatrix
                  (23-advisor.js). Now labeled for what it actually is. -->
-            <div class="card" id="hw-traffic-light-card" style="margin-bottom:16px;display:none;border-left:3px solid var(--accent)">
+            <div class="card" id="hw-traffic-light-card" style="margin-bottom:16px;display:none">
               <div class="cheader">
                 <span class="ctitle">SINYAL BERBASIS VALUASI</span>
                 <span class="badge b-neu" style="font-size:9px">MoS 9-Step Only</span>
@@ -3467,7 +3467,7 @@
                 </div>
               </div>
               <!-- Kesimpulan -->
-              <div id="hw-conclusion" style="display:none;margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--text3)">
+              <div id="hw-conclusion" style="display:none;margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
                 <div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">KESIMPULAN METODOLOGI</div>
                 <div id="hw-conclusion-text" style="font-size:11px;color:var(--text2);font-family:var(--font-mono);line-height:1.7"></div>
               </div>

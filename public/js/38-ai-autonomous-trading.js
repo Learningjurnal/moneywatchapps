@@ -1788,7 +1788,7 @@
     // ── BANNER ISOLASI TOTAL & AUTO-PILOT COCKPIT CONTROLS ──
     var isApOn = state.autoPilot && state.autoPilot.enabled;
     html += ''
-      + '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.25);border-left:4px solid #38bdf8;border-radius:10px;padding:12px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
+      + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
       + '  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
       + '    <div style="font-size:12.5px;color:var(--text);line-height:1.4;max-width:620px">'
       + '      <strong>Prinsip Kemandirian &amp; Keamanan Portofolio:</strong> AI Engine beroperasi 100% pada <strong>Virtual Paper Account</strong> terisolasi. Seluruh keputusan BUY/SELL/HOLD dieksekusi secara otonom tanpa menyentuh portofolio riil pengguna.'
@@ -1796,10 +1796,10 @@
       + '  </div>'
       + '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
       + (isApOn
-          ? '    <button class="btn btn-xs" onclick="aiToggleAutoPilot(false)" style="background:rgba(34,197,94,0.2);border:1px solid var(--green);color:var(--green);font-weight:700;font-size:11px">⚡ AUTO-PILOT: AKTIF</button>'
-          : '    <button class="btn btn-ghost btn-xs" onclick="aiToggleAutoPilot(true)" style="border-color:var(--text3);color:var(--text3);font-weight:600;font-size:11px">⚪ AUTO-PILOT: OFF (Klik Aktifkan)</button>')
-      + '    <button class="btn btn-ghost btn-xs" onclick="aiPromptSetCapital()" style="border-color:#38bdf8;color:#38bdf8;font-size:11px" title="Atur modal awal virtual">💰 Modal: Rp ' + ((state.paperAccount.initialCapital || 100000000) / 1000000).toFixed(0) + ' Jt</button>'
-      + '    <button class="btn btn-ghost btn-xs" onclick="aiTriggerAutonomousCycle()" style="font-size:11px;font-weight:700;border-color:#38bdf8;color:#38bdf8">Jalankan Siklus AI</button>'
+          ? '    <button class="sm-btn" onclick="aiToggleAutoPilot(false)" style="color:var(--green)">⚡ AUTO-PILOT: AKTIF</button>'
+          : '    <button class="sm-btn" onclick="aiToggleAutoPilot(true)">⚪ AUTO-PILOT: OFF (Klik Aktifkan)</button>')
+      + '    <button class="sm-btn" onclick="aiPromptSetCapital()" title="Atur modal awal virtual">💰 Modal: Rp ' + ((state.paperAccount.initialCapital || 100000000) / 1000000).toFixed(0) + ' Jt</button>'
+      + '    <button class="sm-btn" onclick="aiTriggerAutonomousCycle()">Jalankan Siklus AI</button>'
       + '  </div>'
       + '</div>';
 
@@ -1972,13 +1972,13 @@
       + '    </div>'
 
       + '    <!-- Concise Thesis -->'
-      + '    <div style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:14px;background:rgba(255,255,255,0.02);border-left:3px solid var(--green);padding:8px 12px;border-radius:0 6px 6px 0">'
+      + '    <div style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:14px;background:var(--bg3);border:1px solid var(--border);padding:8px 12px;border-radius:var(--radius)">'
       + '      <strong>Tesis Kuantitatif:</strong> ' + bestOpp.thesis
       + '    </div>'
 
       + '    <div style="display:flex;justify-content:space-between;align-items:center">'
       + '      <span style="font-size:11px;color:var(--text3)">Holding Period: <strong>' + bestOpp.holdingPeriod + '</strong></span>'
-      + '      <button class="btn btn-blue btn-sm" onclick="aiSelectTicker(\'' + bestOpp.ticker + '\');aiSwitchTab(\'deep\')">Lihat Bukti &amp; Penalaran Lengkap →</button>'
+      + '      <button class="sm-btn" onclick="aiSelectTicker(\'' + bestOpp.ticker + '\');aiSwitchTab(\'deep\')">Lihat Bukti &amp; Penalaran Lengkap →</button>'
       + '    </div>'
       + '  </div>'
 

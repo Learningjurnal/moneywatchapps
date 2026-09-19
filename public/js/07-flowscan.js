@@ -599,7 +599,7 @@ function fsRenderVWAP(){
   ];
   var lvlEl=document.getElementById('vwap-levels');
   if(lvlEl) lvlEl.innerHTML=lvls.map(function(l){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--bg3);border-radius:7px;border-left:3px solid '+l.color+'">'+
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--bg3);border-radius:7px;border:1px solid var(--border)">'+
       '<div><div style="font-size:10px;color:var(--text3)">'+l.label+'</div><div style="font-size:10px;color:var(--text2);margin-top:1px">'+l.desc+'</div></div>'+
       '<div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:'+l.color+'">'+fsP(l.val)+'</div></div>';
   }).join('');
@@ -902,7 +902,7 @@ function fsRenderQuotaBar() {
   var label = q.remaining <= 0
     ? 'Kuota Invezgo bulan ini HABIS (' + q.used.toLocaleString('id-ID') + '/' + q.monthlyBudget.toLocaleString('id-ID') + ') — reset otomatis awal bulan berikutnya'
     : 'Kuota Invezgo bulan ini: ' + q.used.toLocaleString('id-ID') + ' / ' + q.monthlyBudget.toLocaleString('id-ID') + ' terpakai (' + q.usagePct + '%) — sisa ' + q.remaining.toLocaleString('id-ID');
-  return '<div class="card" style="padding:8px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;border-left:3px solid ' + color + '">'
+  return '<div class="card" style="padding:8px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'
     + '<div style="flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">'
       + '<div style="width:' + Math.min(100, q.usagePct) + '%;height:100%;background:' + color + '"></div>'
     + '</div>'
@@ -1166,7 +1166,7 @@ function fsRenderSectorHeatmapUI(c) {
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">'
     + sectors.map(function(s) {
-        return '<div class="metric" style="border-left:3px solid ' + s.borderCol + ';padding:10px">'
+        return '<div class="metric" style="padding:10px">'
           + '<div class="mlabel" title="' + s.name + '">' + s.name + '</div>'
           + '<div class="mval ' + (s.isAcc ? 'up' : 'down') + ' mono" style="font-size:16px;margin:4px 0">' + s.flowVal + '</div>'
           + '<div class="msub neu">' + s.count + ' Emiten Teranalisis</div>'

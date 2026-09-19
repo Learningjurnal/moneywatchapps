@@ -1342,7 +1342,7 @@
       '<div class="si-matrix-legend-grid">' +
 
         // 1. TOP-LEFT: DISTRIBUTION (Kuadran II)
-        '<div class="si-matrix-legend-card" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.35)">' +
+        '<div class="si-matrix-legend-card" style="background:var(--bg2);border:1px solid var(--border)">' +
           '<div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
               '<div style="font-size:12px;font-weight:800;color:#f59e0b;display:flex;align-items:center;gap:5px">' +
@@ -1359,7 +1359,7 @@
             '<div style="font-size:10.5px;color:var(--text2);margin-bottom:6px;line-height:1.4">' +
               '<strong>Ciri Khas:</strong> Volatilitas di pucuk tinggi, volume beli murni memudar, sering terjadi jebakan kenaikan semu (<em>upthrust / bull trap</em>).' +
             '</div>' +
-            '<div style="background:rgba(245,158,11,0.12);border-left:3px solid #f59e0b;padding:5px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:var(--text);margin-bottom:6px">' +
+            '<div style="background:var(--bg3);border:1px solid var(--border);padding:5px 8px;border-radius:var(--radius-sm);font-size:10.5px;color:var(--text);margin-bottom:6px">' +
               '<strong>Taktik &amp; Aksi:</strong> <strong>Take Profit Bertahap</strong> · Pasang Trailing Stop ketat · Hindari menambah posisi beli baru.' +
             '</div>' +
           '</div>' +
@@ -1370,7 +1370,7 @@
         '</div>' +
 
         // 2. TOP-RIGHT: MARKUP (Kuadran I)
-        '<div class="si-matrix-legend-card" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.35)">' +
+        '<div class="si-matrix-legend-card" style="background:var(--bg2);border:1px solid var(--border)">' +
           '<div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
               '<div style="font-size:12px;font-weight:800;color:#10b981;display:flex;align-items:center;gap:5px">' +
@@ -1387,7 +1387,7 @@
             '<div style="font-size:10.5px;color:var(--text2);margin-bottom:6px;line-height:1.4">' +
               '<strong>Ciri Khas:</strong> Terbentuk struktur <em>higher highs</em> dan <em>higher lows</em>, kenaikan harga terkonfirmasi lonjakan volume (<em>volume expansion</em>).' +
             '</div>' +
-            '<div style="background:rgba(16,185,129,0.12);border-left:3px solid #10b981;padding:5px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:var(--text);margin-bottom:6px">' +
+            '<div style="background:var(--bg3);border:1px solid var(--border);padding:5px 8px;border-radius:var(--radius-sm);font-size:10.5px;color:var(--text);margin-bottom:6px">' +
               '<strong>Taktik &amp; Aksi:</strong> <strong>Trend Following</strong> · <strong>Ride the Winners</strong> · Akumulasi saat pullback ke support dinamis.' +
             '</div>' +
           '</div>' +
@@ -1398,7 +1398,7 @@
         '</div>' +
 
         // 3. BOTTOM-LEFT: MARKDOWN (Kuadran III)
-        '<div class="si-matrix-legend-card" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.35)">' +
+        '<div class="si-matrix-legend-card" style="background:var(--bg2);border:1px solid var(--border)">' +
           '<div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
               '<div style="font-size:12px;font-weight:800;color:#ef4444;display:flex;align-items:center;gap:5px">' +
@@ -1415,7 +1415,7 @@
             '<div style="font-size:10.5px;color:var(--text2);margin-bottom:6px;line-height:1.4">' +
               '<strong>Ciri Khas:</strong> Terbentuk struktur <em>lower lows</em> dan <em>lower highs</em>, pantulan harga bersifat sementara (<em>dead cat bounce</em>), minim minat beli institusi.' +
             '</div>' +
-            '<div style="background:rgba(239,68,68,0.12);border-left:3px solid #ef4444;padding:5px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:var(--text);margin-bottom:6px">' +
+            '<div style="background:var(--bg3);border:1px solid var(--border);padding:5px 8px;border-radius:var(--radius-sm);font-size:10.5px;color:var(--text);margin-bottom:6px">' +
               '<strong>Taktik &amp; Aksi:</strong> <strong>Capital Preservation</strong> · Amankan Cash Buffer RDN (15-20%) · Disiplin Stop Loss · Hindari menangkap pisau jatuh.' +
             '</div>' +
           '</div>' +
@@ -1426,7 +1426,7 @@
         '</div>' +
 
         // 4. BOTTOM-RIGHT: ACCUMULATION (Kuadran IV)
-        '<div class="si-matrix-legend-card" style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.35)">' +
+        '<div class="si-matrix-legend-card" style="background:var(--bg2);border:1px solid var(--border)">' +
           '<div>' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
               '<div style="font-size:12px;font-weight:800;color:#06b6d4;display:flex;align-items:center;gap:5px">' +
@@ -1443,7 +1443,7 @@
             '<div style="font-size:10.5px;color:var(--text2);margin-bottom:6px;line-height:1.4">' +
               '<strong>Ciri Khas:</strong> Harga mendatar (<em>sideways</em>) di support kuat, volume akumulasi senyap meningkat tanpa lonjakan harga agresif (<em>stealth buying</em>).' +
             '</div>' +
-            '<div style="background:rgba(6,182,212,0.12);border-left:3px solid #06b6d4;padding:5px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:var(--text);margin-bottom:6px">' +
+            '<div style="background:var(--bg3);border:1px solid var(--border);padding:5px 8px;border-radius:var(--radius-sm);font-size:10.5px;color:var(--text);margin-bottom:6px">' +
               '<strong>Taktik &amp; Aksi:</strong> <strong>Buy on Weakness</strong> · Cicil beli bertahap (DCA) · Manfaatkan Margin of Safety tinggi · Sabar menunggu fase ekspansi.' +
             '</div>' +
           '</div>' +

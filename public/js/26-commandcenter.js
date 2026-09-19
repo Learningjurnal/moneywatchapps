@@ -562,7 +562,7 @@ function renderMarketRegimePage() {
   + '</div>'
 
   + '<div class="row3" style="margin-bottom:16px">'
-    + '<div class="metric" style="border-left:3px solid ' + regimeColor + '">'
+    + '<div class="metric">'
       + '<div class="mlabel">STATUS MARKET REGIME</div>'
       + '<div class="mval ' + regimeCls + '" style="font-size:24px">' + r.status + '</div>'
       + '<div class="msub ' + regimeCls + '">Strategi: ' + r.strategy + '</div>'
@@ -759,7 +759,7 @@ function renderRadarFlowTrailSubTab() {
           + '<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">TOP BUYERS (AKUMULATOR)</div>'
           + (bSummary.topBuyers || []).slice(0, 5).map(function(b) {
             var valM = Math.round(b.valueRp / 1000000000);
-            return '<div style="background:var(--bg3);padding:6px 8px;border-radius:6px;margin-bottom:6px;border-left:3px solid var(--green)">'
+            return '<div style="background:var(--bg3);padding:6px 8px;border-radius:6px;margin-bottom:6px;border:1px solid var(--border)">'
               + '<div style="display:flex;justify-content:space-between;align-items:center">'
                 + '<strong style="color:var(--text)">' + b.broker + ' <span style="font-size:9px;color:var(--text3)">(' + b.type + ')</span></strong>'
                 + '<span class="mono up" style="font-weight:700;font-size:11px">Rp ' + valM + ' M</span>'
@@ -775,7 +775,7 @@ function renderRadarFlowTrailSubTab() {
           + '<div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px">TOP SELLERS (DISTRIBUTOR)</div>'
           + (bSummary.topSellers || []).slice(0, 5).map(function(b) {
             var valM = Math.round(b.valueRp / 1000000000);
-            return '<div style="background:var(--bg3);padding:6px 8px;border-radius:6px;margin-bottom:6px;border-left:3px solid var(--red)">'
+            return '<div style="background:var(--bg3);padding:6px 8px;border-radius:6px;margin-bottom:6px;border:1px solid var(--border)">'
               + '<div style="display:flex;justify-content:space-between;align-items:center">'
                 + '<strong style="color:var(--text)">' + b.broker + ' <span style="font-size:9px;color:var(--text3)">(' + b.type + ')</span></strong>'
                 + '<span class="mono dn" style="font-weight:700;font-size:11px">Rp ' + valM + ' M</span>'

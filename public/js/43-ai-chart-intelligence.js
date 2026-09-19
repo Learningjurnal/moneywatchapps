@@ -1057,8 +1057,8 @@ function openAiExplainModal(ticker) {
   mTitle.innerHTML = 'AI Chart Explanation — ' + ticker;
   mBody.innerHTML = ''
     + '<div class="space-y-4" style="font-size:13px;line-height:1.6;color:var(--text)">'
-      + '<div style="background:var(--bg3);border-left:4px solid var(--accent);padding:12px;border-radius:0 8px 8px 0">'
-        + '<strong style="color:var(--accent)">WHAT I SEE (RINGKASAN DIAGNOSIS TERTENTU):</strong>'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);padding:12px;border-radius:var(--radius)">'
+        + '<strong style="color:var(--text)">WHAT I SEE (RINGKASAN DIAGNOSIS TERTENTU):</strong>'
         + '<ul style="margin-top:6px;padding-left:18px;list-style-type:disc">'
           + '<li><strong>Struktur Pasar:</strong> ' + struct.structure + ' (Kekuatan Tren: ' + struct.strength + '%)</li>'
           + '<li><strong>Level Kunci Fibonacci:</strong> Area Emas Fib 0.618 berada di Rp ' + fmtK(fib.levels.f618) + '</li>'
@@ -1067,12 +1067,12 @@ function openAiExplainModal(ticker) {
         + '</ul>'
       + '</div>'
 
-      + '<div style="background:var(--bg3);border-left:4px solid #10B981;padding:12px;border-radius:0 8px 8px 0">'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);padding:12px;border-radius:var(--radius)">'
         + '<strong style="color:#10B981">APA YANG MEMBUAT SAYA BELI? (BULLISH HYPOTHESIS):</strong>'
         + '<p style="margin-top:4px">' + setup.bullishScenario.trigger + '. Target kenaikan harga utama berada di ' + setup.bullishScenario.target + '.</p>'
       + '</div>'
 
-      + '<div style="background:var(--bg3);border-left:4px solid #EF4444;padding:12px;border-radius:0 8px 8px 0">'
+      + '<div style="background:var(--bg3);border:1px solid var(--border);padding:12px;border-radius:var(--radius)">'
         + '<strong style="color:#EF4444">APA YANG MEMBUAT SAYA SALAH? (INVALIDATION):</strong>'
         + '<p style="margin-top:4px">' + setup.bearishScenario.trigger + '. Jika skenario ini terjadi, analisis dianggap gugur dan posisi harus segera di-cutloss.</p>'
       + '</div>'

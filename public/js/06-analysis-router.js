@@ -497,7 +497,7 @@ function aiHeuristicHtml(ctx){
     +aiDisclaimer((hf.historyTooShort?'Sebagian metrik berbasis estimasi (riwayat ekuitas belum cukup panjang). ':'Sharpe/Sortino/Calmar/Max Drawdown dihitung dari riwayat ekuitas harian sungguhan, bukan estimasi. ')+'Analisa otomatis berbasis aturan (offline). Faktor makro adalah daftar pantauan, bukan data live.');
 }
 function aiDisclaimer(src){
-  return '<div style="font-size:10px;color:var(--text3);padding:8px 11px;background:var(--bg);border-radius:6px;border-left:2px solid var(--border2);margin-top:4px;line-height:1.6"><i class="ti ti-alert-circle"></i> Sumber: '+src+'. Bukan rekomendasi investasi — selalu riset mandiri.</div>';
+  return '<div style="font-size:10px;color:var(--text3);padding:8px 11px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:4px;line-height:1.6"><i class="ti ti-alert-circle"></i> Sumber: '+src+'. Bukan rekomendasi investasi — selalu riset mandiri.</div>';
 }
 function aiLoading(msg){ return '<div style="text-align:center;padding:16px"><i class="ti ti-loader" style="font-size:20px;color:var(--accent);animation:spin 1s linear infinite"></i><div style="font-size:12px;color:var(--text2);margin-top:8px">'+msg+'</div></div>'; }
 function aiFmtText(t){

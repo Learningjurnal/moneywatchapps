@@ -1543,7 +1543,7 @@ function techRunFlowScanTab(ticker) {
     if (cardsElSim) cardsElSim.innerHTML = techLoadingHtml(tk);
     var probElSim = document.getElementById('tech-fs-prob');
     if (probElSim) {
-      probElSim.innerHTML = '<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-left:4px solid #F59E0B;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--text2)">'
+      probElSim.innerHTML = '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:12px;color:var(--text2)">'
         + '⏳ Riwayat harga real untuk <b>' + tk + '</b> belum tersedia di cache — sinyal Bandarmologi (CMF/OBV/A-D/RSI/probabilitas arah) TIDAK ditampilkan sampai data real tersedia, supaya tidak menampilkan angka yang bukan hasil hitungan dari harga sungguhan. Sedang mengambil data real di latar belakang, halaman akan otomatis diperbarui.'
         + '</div>';
     }
@@ -1608,7 +1608,7 @@ function techRunFlowScanTab(ticker) {
       : 'Aktivitas volume dan net flow institusional berada dalam fase konsolidasi seimbang tanpa dorongan akumulasi/distribusi ekstrem.';
 
     probEl.innerHTML = ''
-      + '<div style="background:' + probColor + ';border:1px solid ' + probBorder + '44;border-left:4px solid ' + probBorder + ';border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+      + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
       + '  <div>'
       + '    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">Bandarmologi Intelligence Summary — ' + tk + ' (' + days + ' Hari)</div>'
       + '    <div style="font-size:12px;color:var(--text2);line-height:1.5">' + probText + '</div>'

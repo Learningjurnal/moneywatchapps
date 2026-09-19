@@ -894,30 +894,31 @@ function switchDivSubTab(tab) {
   var secAna = document.getElementById('div-section-analytics');
   var secLed = document.getElementById('div-section-ledger');
 
-  [btnCal, btnAna, btnLed, btnAll].forEach(function(b) {
-    if (b) b.className = 'btn btn-xs btn-ghost';
+  [btnCal, btnAna, btnLed].forEach(function(b) {
+    if (b) b.className = 'sm-nav-item';
   });
+  if (btnAll) btnAll.className = 'btn btn-xs btn-ghost';
 
   if (tab === 'calendar') {
-    if (btnCal) btnCal.className = 'btn btn-xs btn-green';
+    if (btnCal) btnCal.className = 'sm-nav-item active';
     if (secCal) secCal.style.display = 'block';
     if (secAna) secAna.style.display = 'none';
     if (secLed) secLed.style.display = 'none';
     renderDividendCalendarComponent();
   } else if (tab === 'analytics') {
-    if (btnAna) btnAna.className = 'btn btn-xs btn-green';
+    if (btnAna) btnAna.className = 'sm-nav-item active';
     if (secCal) secCal.style.display = 'none';
     if (secAna) secAna.style.display = 'block';
     if (secLed) secLed.style.display = 'none';
     if (typeof renderDividen === 'function') renderDividen();
   } else if (tab === 'ledger') {
-    if (btnLed) btnLed.className = 'btn btn-xs btn-green';
+    if (btnLed) btnLed.className = 'sm-nav-item active';
     if (secCal) secCal.style.display = 'none';
     if (secAna) secAna.style.display = 'none';
     if (secLed) secLed.style.display = 'block';
     if (typeof renderDividen === 'function') renderDividen();
   } else if (tab === 'all') {
-    if (btnAll) btnAll.className = 'btn btn-xs btn-green';
+    if (btnAll) btnAll.className = 'btn btn-xs btn-ghost active';
     if (secCal) secCal.style.display = 'block';
     if (secAna) secAna.style.display = 'block';
     if (secLed) secLed.style.display = 'block';

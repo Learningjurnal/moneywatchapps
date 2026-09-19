@@ -1093,19 +1093,19 @@
                  apa pun; sekarang dijelaskan eksplisit ke user. -->
             <div style="font-size:10px;color:var(--amber);margin-bottom:10px">⚠ Estimasi proporsional dari volume 24 jam total — bukan data ukuran order riil (tidak ada API order-book whale yang terintegrasi)</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:10px;font-family:var(--font-mono);font-size:12px">
-              <div style="padding:10px;background:var(--bg2);border-radius:8px;border-left:3px solid #9945ff">
+              <div style="padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
                 <div style="color:var(--text3);font-size:10px;font-weight:700">MEGA WHALE (&gt;$5M)</div>
                 <div style="color:var(--text);font-weight:800;margin-top:2px">${fmtUSD(lo.megaWhaleUSD)}</div>
               </div>
-              <div style="padding:10px;background:var(--bg2);border-radius:8px;border-left:3px solid #3B82F6">
+              <div style="padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
                 <div style="color:var(--text3);font-size:10px;font-weight:700">LARGE WHALE ($1M - $5M)</div>
                 <div style="color:var(--text);font-weight:800;margin-top:2px">${fmtUSD(lo.largeWhaleUSD)}</div>
               </div>
-              <div style="padding:10px;background:var(--bg2);border-radius:8px;border-left:3px solid #10B981">
+              <div style="padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
                 <div style="color:var(--text3);font-size:10px;font-weight:700">SHARK ($100k - $1M)</div>
                 <div style="color:var(--text);font-weight:800;margin-top:2px">${fmtUSD(lo.sharkUSD)}</div>
               </div>
-              <div style="padding:10px;background:var(--bg2);border-radius:8px;border-left:3px solid #64748b">
+              <div style="padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
                 <div style="color:var(--text3);font-size:10px;font-weight:700">RETAIL (&lt;$100k)</div>
                 <div style="color:var(--text);font-weight:800;margin-top:2px">${fmtUSD(lo.retailUSD)}</div>
               </div>

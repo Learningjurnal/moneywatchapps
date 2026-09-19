@@ -626,7 +626,7 @@ function renderAggregatedBrokerFlowView(data) {
     // 4 Aggregated Metrics Cards Grid (Opportunity Radar .row4 / .metric style)
     + '<div class="row4">'
     // Card 1: Total Turnover
-    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="metric">'
     + '<div class="mlabel">TOTAL TURNOVER (' + (data.timeframe || '1D') + ')</div>'
     + '<div class="mval mono" style="font-size:20px">Rp ' + Math.round((data.totalValueRp || 0) / 1000000000).toLocaleString('id-ID') + ' M</div>'
     + '<div class="msub neu">' + Number(data.totalVolumeLot || 0).toLocaleString('id-ID') + ' Lot Diperdagangkan</div>'
@@ -640,26 +640,26 @@ function renderAggregatedBrokerFlowView(data) {
     // Partisipasi Asing 0%" as if it were a real computed zero, for EVERY
     // ticker, every time. Now discloses unavailability honestly instead.
     + (ff.available === false
-        ? '<div class="metric" style="border-left:3px solid var(--text3)">'
+        ? '<div class="metric">'
           + '<div class="mlabel">NET FOREIGN FLOW</div>'
           + '<div class="mval mono neu" style="font-size:13px">Tidak Tersedia</div>'
           + '<div class="msub neu">Data investor=all tidak punya split asing/domestik per broker</div>'
           + '</div>'
-        : '<div class="metric" style="border-left:3px solid ' + (netForeignM >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+        : '<div class="metric">'
           + '<div class="mlabel">NET FOREIGN FLOW</div>'
           + '<div class="mval mono ' + (netForeignM >= 0 ? 'up' : 'dn') + '" style="font-size:20px">' + netForeignBadge + '</div>'
           + '<div class="msub neu">Partisipasi Asing: <strong style="color:var(--text)">' + (ff.participationPct || 0) + '%</strong></div>'
           + '</div>')
 
     // Card 3: Top 1 Buyer Avg
-    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="metric">'
     + '<div class="mlabel">TOP 1 BUYER AVG PRICE</div>'
     + '<div class="mval mono" style="font-size:20px;color:var(--blue)">Rp ' + Number(topBuyerAvg || 0).toLocaleString('id-ID') + '</div>'
     + '<div class="msub neu">Spread vs Harga: <span class="' + (Number(buyerSpreadPct) >= 0 ? 'up' : 'dn') + ' font-semibold">' + (Number(buyerSpreadPct) >= 0 ? '+' : '') + buyerSpreadPct + '%</span></div>'
     + '</div>'
 
     // Card 4: Smart Money Net Flow
-    + '<div class="metric" style="border-left:3px solid ' + (smartMoneyNet >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+    + '<div class="metric">'
     + '<div class="mlabel">SMART MONEY NET FLOW</div>'
     + '<div class="mval mono ' + (smartMoneyNet >= 0 ? 'up' : 'dn') + '" style="font-size:20px">' + (smartMoneyNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smartMoneyNet / 1000000000)).toLocaleString('id-ID') + ' M</div>'
     + '<div class="msub neu truncate">' + (smartMoneyBuyBrokers.slice(0, 2).map(function(x){return x.broker;}).join(', ') || 'AK, BK') + ' Accumulating</div>'
@@ -1100,23 +1100,23 @@ function bandarRender1YearBrokerMatrix(tk, price, data, vwap1Y, high1Y, low1Y) {
     + '</div>'
 
     + '<div class="row4" style="margin-bottom:14px">'
-    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="metric">'
     + '<div class="mlabel">1-YEAR VWAP (BENCHMARK BEI)</div>'
     + '<div class="mval mono" style="font-size:20px">Rp ' + vwap1Y.toLocaleString('id-ID') + '</div>'
     + '<div class="msub neu">Rata-rata tertimbang volume 250D</div>'
     + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="metric">'
     + '<div class="mlabel">HARGA BELI TOP BUYER (1Y)</div>'
     + (topBuyerAvg
       ? '<div class="mval mono up" style="font-size:20px">Rp ' + topBuyerAvg.toLocaleString('id-ID') + '</div><div class="msub ' + (Number(bandarSpreadPct) >= 0 ? 'up' : 'down') + '">' + (Number(bandarSpreadPct) >= 0 ? '+' : '') + bandarSpreadPct + '% vs Harga Pasar</div>'
       : '<div class="mval mono" style="font-size:16px;color:var(--text3)">Tidak tersedia</div><div class="msub neu">Data broker 1 tahun kosong</div>')
     + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="metric">'
     + '<div class="mlabel">RENTANG HARGA 52-MINGGU</div>'
     + '<div class="mval mono" style="font-size:18px;color:var(--blue)">Rp ' + low1Y.toLocaleString('id-ID') + ' — ' + high1Y.toLocaleString('id-ID') + '</div>'
     + '<div class="msub neu">Low &amp; High 1 Tahun Terakhir</div>'
     + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--text3)">'
+    + '<div class="metric">'
     + '<div class="mlabel">SUMBER DATA</div>'
     + '<div class="mval" style="font-size:14px;color:' + (isReal ? 'var(--green)' : 'var(--text3)') + '">' + (isReal ? 'Invezgo API (Real)' : 'Tidak Tersedia') + '</div>'
     + '<div class="msub neu">' + (data && data.dataSource || '-') + '</div>'
@@ -1213,26 +1213,26 @@ function renderBrokerSummaryWidget(data) {
 
   // Bandarmology Highlights Grid
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">'
-    + '<div class="metric" style="padding:8px;border-left:2px solid var(--green)">'
+    + '<div class="metric" style="padding:8px">'
     + '<div class="mlabel" style="font-size:9px">TOP 3 BUYER</div>'
     + '<div class="mval up mono" style="font-size:14px">' + (conc.top3BuyPct || 0) + '%</div>'
     + '</div>'
-    + '<div class="metric" style="padding:8px;border-left:2px solid var(--red)">'
+    + '<div class="metric" style="padding:8px">'
     + '<div class="mlabel" style="font-size:9px">TOP 3 SELLER</div>'
     + '<div class="mval down mono" style="font-size:14px">' + (conc.top3SellPct || 0) + '%</div>'
     + '</div>'
     // FIX (2026-09-18, user-reported): honest "Tidak Tersedia" instead of a
     // fabricated "+Rp 0 M" when the per-ticker feed has no F/D split.
     + (ff.available === false
-        ? '<div class="metric" style="padding:8px;border-left:2px solid var(--text3)">'
+        ? '<div class="metric" style="padding:8px">'
           + '<div class="mlabel" style="font-size:9px">FOREIGN FLOW</div>'
           + '<div class="mval neu mono" style="font-size:11px">Tidak Tersedia</div>'
           + '</div>'
-        : '<div class="metric" style="padding:8px;border-left:2px solid ' + (netForeignM >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+        : '<div class="metric" style="padding:8px">'
           + '<div class="mlabel" style="font-size:9px">FOREIGN FLOW</div>'
           + '<div class="mval ' + (netForeignM >= 0 ? 'up' : 'down') + ' mono" style="font-size:14px">' + netForeignBadge + '</div>'
           + '</div>')
-    + '<div class="metric" style="padding:8px;border-left:2px solid var(--accent)">'
+    + '<div class="metric" style="padding:8px">'
     + '<div class="mlabel" style="font-size:9px">SMART MONEY</div>'
     + '<div class="mval amb mono" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (rm.smartMoneyStatus || 'NEUTRAL') + '</div>'
     + '</div>'
@@ -1334,19 +1334,19 @@ function renderStockChatPage(containerId) {
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
     + '<button class="btn btn-ghost btn-xs" onclick="clearStockChatHistory();if(typeof showSaveStatus===\'function\')showSaveStatus(\'Sesi obrolan baru dimulai\');">Sesi Baru</button>'
     + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\')">Opportunity Radar →</button>'
-    + '<button class="btn btn-primary btn-xs" onclick="openStockIntelForTicker(\'' + curTk + '\')">Stock Intelligence →</button>'
+    + '<button class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;font-weight:700" onclick="openStockIntelForTicker(\'' + curTk + '\')">Stock Intelligence →</button>'
     + '</div>'
     + '</div>';
 
   // 4 Top Metrics Summary Banner (Opportunity Radar pattern)
   html += '<div class="row4" style="margin-bottom:16px">'
-    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="metric">'
     + '<div class="mlabel">ACTIVE TICKER &amp; PRICE</div>'
     + '<div class="mval mono" style="font-size:22px;display:flex;align-items:center;gap:8px">' + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(curTk, 22) : '') + curTk + ' <span style="font-size:16px;color:var(--text);font-weight:600">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span></div>'
     + '<div class="msub ' + (chgPct >= 0 ? 'up' : 'down') + '">' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '% Hari Ini</div>'
     + '</div>'
 
-    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="metric">'
     + '<div class="mlabel">STATUS BANDARMOLOGY (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
     + '<div class="mval ' + (verdict.includes('ACCUM') ? 'up' : (verdict.includes('DISTRIB') ? 'down' : 'amb')) + ' mono" style="font-size:19px">' + verdict + '</div>'
     // FIX (2026-09-18, user-reported): "|| 65" was a hardcoded fallback
@@ -1358,18 +1358,18 @@ function renderStockChatPage(containerId) {
     // FIX (2026-09-18, user-reported): honest "Tidak Tersedia" instead of
     // "+Rp 0 M" when this ticker's feed has no F/D split (ff.available:false).
     + (ff.available === false
-        ? '<div class="metric" style="border-left:3px solid var(--text3)">'
+        ? '<div class="metric">'
           + '<div class="mlabel">NET FOREIGN FLOW (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
           + '<div class="mval mono neu" style="font-size:15px">Tidak Tersedia</div>'
           + '<div class="msub neu">Split asing/domestik tidak ada di data ini</div>'
           + '</div>'
-        : '<div class="metric" style="border-left:3px solid var(--blue)">'
+        : '<div class="metric">'
           + '<div class="mlabel">NET FOREIGN FLOW (' + (STOCKCHAT_TIMEFRAME || '1D') + ')</div>'
           + '<div class="mval mono" style="font-size:20px;color:var(--blue)">' + (netForeignM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netForeignM).toLocaleString('id-ID') + ' M</div>'
           + '<div class="msub neu">' + (ff.participationPct ? 'Partisipasi Pasar ' + ff.participationPct + '%' : 'Arus Modal Asing BEI') + '</div>'
           + '</div>')
 
-    + '<div class="metric" style="border-left:3px solid var(--amber)">'
+    + '<div class="metric">'
     + '<div class="mlabel">INTELLIGENCE FRAMEWORKS</div>'
     + '<div class="mval amb mono" style="font-size:20px">5 STRATEGI</div>'
     + '<div class="msub neu">Bandarmology, Value, Breakout, PMK18, Risk</div>'
@@ -1379,10 +1379,10 @@ function renderStockChatPage(containerId) {
   // Navigation Subheader Tabs (Tab 1: Chat AI vs Tab 2: Aggregated Broker Flow)
   html += '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
-    + '<button onclick="setStockChatActiveTab(\'chat\')" class="btn btn-xs ' + (isChatTab ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700">'
+    + '<button onclick="setStockChatActiveTab(\'chat\')" class="sm-nav-item ' + (isChatTab ? 'active' : '') + '">'
     + 'StockChat AI Assistant'
     + '</button>'
-    + '<button onclick="setStockChatActiveTab(\'broker-flow\')" class="btn btn-xs ' + (isFlowTab ? 'btn-primary' : 'btn-ghost') + '" style="font-weight:700">'
+    + '<button onclick="setStockChatActiveTab(\'broker-flow\')" class="sm-nav-item ' + (isFlowTab ? 'active' : '') + '">'
     + 'Aggregated Broker Flow: <strong class="mono" style="color:var(--accent);margin:0 4px">' + curTk + '</strong>'
     + '<span class="badge b-accent" style="font-size:9px">BANDAR</span>'
     + '</button>'
@@ -1394,7 +1394,7 @@ function renderStockChatPage(containerId) {
     + '<div style="display:inline-flex;gap:4px">'
     + ['1D', '3D', '1W', '1M'].map(function(tf) {
         var isTfActive = STOCKCHAT_TIMEFRAME === tf;
-        return '<button onclick="setStockChatTimeframe(\'' + tf + '\')" class="btn btn-xs ' + (isTfActive ? 'btn-primary' : 'btn-ghost') + '" style="font-family:monospace;font-weight:700">' + tf + '</button>';
+        return '<button onclick="setStockChatTimeframe(\'' + tf + '\')" class="sm-chip ' + (isTfActive ? 'active' : '') + '" style="font-family:monospace;font-weight:700">' + tf + '</button>';
       }).join('')
     + '</div>'
     + '</div>'
@@ -1407,7 +1407,7 @@ function renderStockChatPage(containerId) {
     + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
     + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(tk) {
         var isAct = tk === curTk;
-        return '<button onclick="selectStockChatTicker(\'' + tk + '\')" class="btn btn-xs ' + (isAct ? 'btn-primary' : 'btn-ghost') + '" style="font-family:monospace;font-weight:700">' + tk + '</button>';
+        return '<button onclick="selectStockChatTicker(\'' + tk + '\')" class="sm-chip ' + (isAct ? 'active' : '') + '" style="font-family:monospace;font-weight:700">' + tk + '</button>';
       }).join('')
     + '</div>'
     + '</div>'
@@ -2169,7 +2169,7 @@ function renderBandarmologyCockpitPage(containerId) {
     + '<div class="psub">Analisis Macro IHSG, Big Banks, Sektoral Heatmap &amp; Konsentrasi Akumulasi/Distribusi seluruh BEI. Untuk analisis per-emiten (Broker Flow, CMF, VWAP Bands, Foreign Flow), lihat tab Bandarmology di halaman Technical.</div>'
     + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    + '<button onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + tk + '\');goBandarmology(\'stock\',null);" class="btn btn-primary btn-xs flex items-center gap-1">'
+    + '<button onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + tk + '\');goBandarmology(\'stock\',null);" class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:4px">'
     + '<span>Analisis Emiten (Technical) →</span>'
     + '</button>'
     + '<button onclick="goPage(\'radar\')" class="btn btn-ghost btn-xs">'
@@ -2425,24 +2425,24 @@ function renderBandarmologyMarketFlowView(tk) {
     + bandarDataBanner(realCount, totalCount)
     // Top Summary Metric Cards (Matching Opportunity Radar row4/metric)
     + '<div class="row4">'
-    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="metric">'
     + '<div class="mlabel">IHSG BANDAR PULSE</div>'
     + '<div class="mval ' + (totMarketM >= 0 ? 'up' : 'down') + ' mono" style="font-size:20px">'
     + (totMarketM >= 0 ? 'NET ACCUMULATION' : 'NET DISTRIBUTION')
     + '</div>'
     + '<div class="msub neu">' + (totMarketM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totMarketM).toLocaleString('id-ID') + ' M Net Flow</div>'
     + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="metric">'
     + '<div class="mlabel">SEGMEN AKUMULASI</div>'
     + '<div class="mval mono" style="font-size:20px;color:var(--blue)">' + accCount + ' / ' + totalSegments + '</div>'
     + '<div class="msub neu">Big 4 Bank + Sektor menunjukkan akumulasi</div>'
     + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="metric">'
     + '<div class="mlabel">BIG 4 BANKS INFLOW</div>'
     + '<div class="mval ' + (totBigBanksM >= 0 ? 'up' : 'down') + ' mono" style="font-size:20px">' + (totBigBanksM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totBigBanksM).toLocaleString('id-ID') + ' M</div>'
     + '<div class="msub neu">Konsentrasi di Big Banks</div>'
     + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--amber)">'
+    + '<div class="metric">'
     + '<div class="mlabel">SMART MONEY DOMINANCY</div>'
     + '<div class="mval amb mono" style="font-size:20px">' + dominancyScore + ' / 100</div>'
     + '<div class="msub neu">% segmen (bank+sektor) akumulasi</div>'
@@ -2460,7 +2460,7 @@ function renderBandarmologyMarketFlowView(tk) {
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">';
 
   bigBanks.forEach(function(b) {
-    html += '<div onclick="selectStockChatTicker(\'' + b.ticker + '\');setBandarmologyMode(\'stock\');" style="background:var(--bg3);border:1px solid ' + (b.isAcc ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)') + ';border-radius:8px;padding:12px;cursor:pointer;transition:transform 0.15s ease;" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'none\'">'
+    html += '<div onclick="selectStockChatTicker(\'' + b.ticker + '\');setBandarmologyMode(\'stock\');" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:transform 0.15s ease;" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'none\'">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
       + '<span class="mono" style="font-weight:800;font-size:14px;color:var(--text)">' + b.ticker + '</span>'
       + '<span class="badge ' + (b.isAcc ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + b.status + '</span>'
@@ -2726,19 +2726,19 @@ function renderBandarmologySmartMoneyRadarView(tk) {
     + '</div>'
 
     + '<div class="row4" style="margin-bottom:12px">'
-    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="metric">'
     + '<div class="mlabel">1. DOMINANSI INSTITUSI / WHALE</div>'
     + '<div class="mval up mono" style="font-size:16px">WHALE DOMINANT (' + smDominance + '%)</div>'
     + '<div class="msub neu">Akumulator: <strong class="mono" style="color:var(--text)">' + smBuyBrokersText + '</strong> (+Rp ' + Math.abs(Math.round(smNet/1000000000)) + 'M)</div>'
     + '</div>'
 
-    + '<div class="metric" style="border-left:3px solid ' + (retNet < 0 ? 'var(--amber)' : 'var(--red)') + '">'
+    + '<div class="metric">'
     + '<div class="mlabel">2. RETAIL SENTIMENT FOOTPRINT</div>'
     + '<div class="mval ' + (retNet < 0 ? 'amb' : 'down') + ' mono" style="font-size:16px">' + (retNet < 0 ? 'RETAIL SELLING' : 'RETAIL ABSORBING') + '</div>'
     + '<div class="msub neu">Broker Ritel: <strong class="mono" style="color:var(--text)">' + retSellBrokersText + '</strong></div>'
     + '</div>'
 
-    + '<div class="metric" style="border-left:3px solid var(--accent)">'
+    + '<div class="metric">'
     + '<div class="mlabel">3. DIVERGENSI SMART MONEY</div>'
     + '<div class="mval ' + (isBullishDivergence ? 'up' : 'neu') + ' mono" style="font-size:14px">' + divStatus + '</div>'
     + '<div class="msub neu">' + divDesc + '</div>'
@@ -2942,25 +2942,25 @@ function renderBandarmologySmartMoneyFlowView(tk) {
 
     // 4 Key Indicators Cards (Opportunity Radar row4/metric pattern)
     + '<div class="row4" style="margin-bottom:14px">'
-    + '<div class="metric" style="border-left:3px solid ' + (cmfVal >= 0 ? 'var(--green)' : 'var(--red)') + '">'
+    + '<div class="metric">'
     + '<div class="mlabel">1. CHAIKIN MONEY FLOW (CMF-20)</div>'
     + '<div class="mval ' + (cmfVal >= 0 ? 'up' : 'down') + ' mono" style="font-size:18px">' + (cmfVal >= 0 ? '+' : '') + cmfVal.toFixed(2) + '</div>'
     + '<div class="msub neu">' + (cmfVal >= 0 ? 'Tekanan beli konsisten' : 'Tekanan jual terdeteksi') + '</div>'
     + '</div>'
 
-    + '<div class="metric" style="border-left:3px solid var(--blue)">'
+    + '<div class="metric">'
     + '<div class="mlabel">2. VOLUME SURGE RATIO</div>'
     + '<div class="mval mono" style="font-size:18px;color:var(--blue)">' + volSurge + '</div>'
     + '<div class="msub neu">Dibandingkan rata-rata 20 hari</div>'
     + '</div>'
 
-    + '<div class="metric" style="border-left:3px solid var(--amber)">'
+    + '<div class="metric">'
     + '<div class="mlabel">3. SESSION VWAP ANCHOR</div>'
     + '<div class="mval amb mono" style="font-size:18px">Rp ' + vwapSession.toLocaleString('id-ID') + '</div>'
     + '<div class="msub neu">Jarak vs Harga: <strong class="' + (Number(distToVwap) >= 0 ? 'up' : 'down') + ' mono">' + (Number(distToVwap) >= 0 ? '+' : '') + distToVwap + '%</strong></div>'
     + '</div>'
 
-    + '<div class="metric" style="border-left:3px solid var(--green)">'
+    + '<div class="metric">'
     + '<div class="mlabel">4. ACCUMULATION INDEX (A/D)</div>'
     + '<div class="mval ' + (adTrendUp ? 'up' : 'down') + ' mono" style="font-size:18px">' + (adTrendUp ? 'BULLISH SURGE' : 'DISTRIBUTION') + '</div>'
     + '<div class="msub neu">' + (adTrendUp ? 'Smart money menyerap saham' : 'Tekanan distribusi') + '</div>'

@@ -226,7 +226,7 @@ function usRenderShell() {
     var accSim = ds.accumulationDistribution && ds.accumulationDistribution.isSimulated;
     var flowSim = ds.foreignFlow && ds.foreignFlow.isSimulated;
     if (accSim || flowSim) {
-      html += '<div class="card" style="padding:10px 14px;margin-bottom:12px;border-left:3px solid var(--amber,#d97706);font-size:12.5px">'
+      html += '<div class="card" style="padding:10px 14px;margin-bottom:12px;border:1px solid var(--border);font-size:12.5px">'
         + '<b>Data Whale/Akumulasi belum real:</b> ' + (accSim ? (ds.accumulationDistribution.dataSource || 'Invezgo tidak dikonfigurasi') : '')
         + (flowSim ? ' / ' + (ds.foreignFlow.dataSource || 'Invezgo tidak dikonfigurasi') : '')
         + ' — skor Whale akan selalu netral sampai INVEZGO_API_KEY dikonfigurasi.'

@@ -575,12 +575,12 @@ function renderThesisPage() {
             + '</div>'
             + '<span class="badge ' + (th.statusClass || 'b-up') + '" style="font-size:10px;font-weight:800;border-radius:20px;padding:3px 10px">THESIS ' + (th.status || 'INTACT') + '</span>'
           + '</div>'
-          + '<div style="font-size:11.5px;color:var(--text2);line-height:1.55;margin-bottom:12px;background:var(--bg3);border-left:3px solid var(--accent);padding:10px 14px;border-radius:0 8px 8px 0">'
+          + '<div style="font-size:11.5px;color:var(--text2);line-height:1.55;margin-bottom:12px;background:var(--bg3);border:1px solid var(--border);padding:10px 14px;border-radius:var(--radius)">'
             + '<span style="font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:2px">Alasan Beli (Thesis / Moat):</span>'
             + th.whyBought
           + '</div>'
           + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
-            + '<div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);padding:10px;border-radius:8px">'
+            + '<div style="background:var(--bg3);border:1px solid var(--border);padding:10px;border-radius:8px">'
               + '<div style="font-size:9.5px;color:var(--text3);font-weight:700;letter-spacing:0.04em">TARGET HARGA</div>'
               + '<div class="mono up" style="font-size:15px;font-weight:900;margin-top:2px">Rp ' + fmtK(th.targetPrice) + (th.expectedReturn ? ' <span style="font-size:11px;font-weight:700">(' + th.expectedReturn + ')</span>' : '') + '</div>'
             + '</div>'
@@ -1016,8 +1016,8 @@ function renderScenarioResultBox(res) {
         + '<div class="msub neu">Buffer Likuiditas</div>'
       + '</div>'
     + '</div>'
-    + '<div style="background:rgba(0,200,255,0.04);border-left:3px solid var(--accent);padding:12px 16px;border-radius:0 8px 8px 0">'
-      + '<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px">AI SCENARIO DIAGNOSIS:</div>'
+    + '<div style="background:var(--bg3);border:1px solid var(--border);padding:12px 16px;border-radius:var(--radius)">'
+      + '<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px">AI SCENARIO DIAGNOSIS:</div>'
       + '<div style="font-size:12px;color:var(--text2);line-height:1.5">' + res.analysis + '</div>'
     + '</div>'
   + '</div>';
@@ -1645,7 +1645,7 @@ function formatAgentMarkdown(md) {
   text = text.replace(/^- (.*$)/gim, '<div style="display:flex;align-items:flex-start;gap:6px;margin:2px 0"><span style="color:#38bdf8">•</span><span>$1</span></div>');
 
   // Disclaimer styling
-  text = text.replace(/\*Disclaimer: (.*?)\*/gim, '<div style="margin-top:12px;padding:8px 12px;background:rgba(245,158,11,0.08);border-left:3px solid #f59e0b;font-size:11px;color:var(--text2);font-style:italic"><strong>Disclaimer:</strong> $1</div>');
+  text = text.replace(/\*Disclaimer: (.*?)\*/gim, '<div style="margin-top:12px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;color:var(--text3);font-style:italic"><strong>Disclaimer:</strong> $1</div>');
 
   // Line breaks
   text = text.replace(/\n\n/g, '<div style="height:8px"></div>');

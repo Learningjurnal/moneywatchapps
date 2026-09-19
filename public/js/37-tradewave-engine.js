@@ -544,17 +544,17 @@
       + '</div>'
 
       // Wave Intelligence Takeaway Box
-      + '<div style="background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.25);border-left:4px solid #00c8ff;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">'
+      + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">'
       + '  <div>'
       + '    <div style="font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">'
-      + '      <i class="ti ti-sparkles" style="color:#00c8ff"></i> Diagnostik TradeWave: ' + data.ticker + ' — ' + data.waveLabel
+      + '      <i class="ti ti-sparkles" style="color:var(--text3)"></i> Diagnostik TradeWave: ' + data.ticker + ' — ' + data.waveLabel
       + '    </div>'
       + '    <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5;max-width:850px">'
       + '      ' + data.waveDescription + ' Status pita 4-EMA berada pada <strong>' + data.emaRibbon.status + '</strong> dengan aliran dana institusi Chaikin Money Flow tercatat <strong>' + (data.flow.cmf >= 0 ? '+' : '') + data.flow.cmf + '% (' + data.flow.signal + ')</strong>.'
       + '    </div>'
       + '  </div>'
       + '  <div style="display:flex;gap:8px">'
-      + '    <button class="btn btn-ghost btn-xs" onclick="twSetOrderSheet(' + cur + ',' + data.targets.invalidation + ',' + data.targets.tp2 + ')" style="border-color:#00c8ff;color:#00c8ff;font-weight:700">📋 Rencanakan Posisi (R:R ' + data.targets.riskReward + ')</button>'
+      + '    <button class="sm-btn" onclick="twSetOrderSheet(' + cur + ',' + data.targets.invalidation + ',' + data.targets.tp2 + ')">📋 Rencanakan Posisi (R:R ' + data.targets.riskReward + ')</button>'
       + '  </div>'
       + '</div>'
 
