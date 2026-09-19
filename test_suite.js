@@ -948,9 +948,24 @@ test('REGRESSION GUARD: renderDashboard() must call both new Command Center zone
   assert(dashboardFn[0].includes('renderDashboardMarketRegime'),
     'renderDashboard() no longer calls renderDashboardMarketRegime() — the Market Regime zone would silently stop updating');
   assert(dashboardFn[0].includes('renderDashboardRadarPreview'),
-    'renderDashboard() no longer calls renderDashboardRadarPreview() — the AI Opportunity Radar zone would silently stop updating');
-  assert(/loadOpportunityRadarUniverse\(\)/.test(src),
-    'renderDashboardRadarPreview() must reuse the REAL loadOpportunityRadarUniverse() (26-commandcenter.js) — a separate/duplicate fetch would diverge from the full Radar page\'s scoring');
+    'renderDashboard() no longer calls renderDashboardRadarPreview() — the Screener top-picks preview zone would silently stop updating');
+  // FIX (2026-09-19, user-reported: "datanya tidak sesuai screener"):
+  // this preview used to call loadOpportunityRadarUniverse() (a separate,
+  // disagreeing MoS/ROE fundamental-score formula) instead of the SAME
+  // /api/idx/unified-screener endpoint the Screener page it links to
+  // actually uses — the two showed different top-pick tickers for the
+  // same market. Must never call the old radar engine again, and must
+  // read the unified Screener endpoint directly.
+  const radarPreviewFn = src.match(/async function renderDashboardRadarPreview\(\)\{[\s\S]*?\n\}/);
+  assert(radarPreviewFn, 'renderDashboardRadarPreview() body not found');
+  // Strip comment lines first — the fix's own explanatory comment
+  // legitimately mentions "loadOpportunityRadarUniverse()" by name as
+  // history, which must not itself trip this guard.
+  const radarPreviewCode = radarPreviewFn[0].split('\n').filter((line) => !/^\s*\/\//.test(line)).join('\n');
+  assert(!/loadOpportunityRadarUniverse\(\)/.test(radarPreviewCode),
+    'REGRESSION: renderDashboardRadarPreview() calls loadOpportunityRadarUniverse() again — this is the old, separate MoS/ROE scoring engine that disagrees with the unified Screener\'s Whale/Uptrend formula, reproducing the exact "datanya tidak sesuai screener" bug');
+  assert(/\/api\/idx\/unified-screener/.test(radarPreviewCode),
+    'REGRESSION: renderDashboardRadarPreview() no longer fetches /api/idx/unified-screener — its top picks will diverge from the Screener page again');
 });
 test('REGRESSION GUARD: dashboard HTML must still have both new zone containers', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
@@ -2438,6 +2453,50 @@ test('REGRESSION GUARD: getKseiStock() fallback must prefer DB[tk].name over the
   // the generic placeholder — never throw, never show "undefined Tbk.".
   const noName = ctx.getKseiStock('UNKN');
   assert.strictEqual(noName.name, 'UNKN Tbk.', 'REGRESSION: a ticker with no usable DB name must still fall back to the generic "<TICKER> Tbk." placeholder');
+});
+
+// User-reported (2026-09-19, screenshot): the KSEI ">5% shareholders"
+// widget showed "Tanggal Laporan: 26 Aug 2026" and asked why this "still
+// uses the old upload method" instead of "real API data". Investigation:
+// that date is genuinely real (the bundled data/ksei-shareholders.json
+// snapshot's actual reportDate, last synced 2026-09-01) — NOT a fabricated
+// fallback for this specific ticker. But 3 render spots in this file DID
+// have hardcoded fallback literals ('26 Aug 2026' / '840' / '1.920' /
+// '26 AUG') that happened to match the CURRENT bundled snapshot's real
+// numbers — a latent honesty risk (would silently show stale/wrong
+// numbers as if freshly read from state, if the bundled file ever changes
+// without updating these 3 constants in lockstep). Also: there currently
+// is no live API for NAMED >5% shareholders (Invezgo's shareholder
+// endpoints, confirmed via a real test request, only return AGGREGATE
+// category totals — see the comment above fetchInvezgoShareholderKsei()
+// in lib/invezgo-client.js) — so genuinely switching this off manual
+// upload isn't possible today without a new data source. What IS fixed:
+// honest fallback text instead of magic numbers, plus an explicit
+// data-age disclosure so a stale manual snapshot reads as stale.
+test('REGRESSION GUARD: KSEI shareholder widgets show honest fallbacks (not hardcoded magic numbers/dates) and disclose data age', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/34-ksei-shareholders.js'), 'utf8');
+  assert(!/\|\|\s*'26 Aug 2026'/.test(src), 'REGRESSION: a hardcoded "26 Aug 2026" fallback literal has reappeared — this must not silently substitute for a real missing reportDate');
+  assert(!/\|\|\s*'26 AUG'/.test(src), 'REGRESSION: a hardcoded "26 AUG" fallback literal has reappeared in the Stock Intel compact widget');
+  assert(!/\|\|\s*'840'/.test(src), 'REGRESSION: a hardcoded "840" fallback literal has reappeared for totalEmiten — must read from KSEI_STATE.metadata or show an honest "-"');
+  assert(!/\|\|\s*'1\.920'/.test(src), 'REGRESSION: a hardcoded "1.920" fallback literal has reappeared for totalMajorInvestors');
+
+  assert(/function kseiDataAgeDisclosure/.test(src), 'REGRESSION: kseiDataAgeDisclosure() is gone — no data-age disclosure for the manual KSEI snapshot');
+  const fn = src.match(/function kseiDataAgeDisclosure\(m\) \{[\s\S]*?\n\}/);
+  assert(fn, 'kseiDataAgeDisclosure() body not found');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(fn[0], sandbox, { filename: 'kseiDataAgeDisclosure (sandboxed)' });
+
+  const noMeta = sandbox.kseiDataAgeDisclosure(null);
+  assert(/tidak diketahui/.test(noMeta.text), 'REGRESSION: missing metadata must produce an honest "tidak diketahui" age label, not a fabricated one');
+
+  const today = sandbox.kseiDataAgeDisclosure({ lastUpdated: new Date().toISOString() });
+  assert(/hari ini/.test(today.text), 'REGRESSION: a snapshot updated today must say so, not show a stale-looking age');
+
+  const stale = sandbox.kseiDataAgeDisclosure({ lastUpdated: new Date(Date.now() - 40 * 86400000).toISOString() });
+  assert(/40 hari lalu/.test(stale.text), `REGRESSION: a 40-day-old snapshot must report "40 hari lalu", got "${stale.text}"`);
+  assert(/red|EF4444/.test(stale.color), 'REGRESSION: a snapshot older than 30 days must be flagged in a warning color, not shown as fresh');
 });
 
 // ── TEST 74: sendCopilotPrompt() (public/js/28-decisiontools.js) must fall
@@ -5750,15 +5809,18 @@ test('REGRESSION GUARD: computeBandarmologyVerdict() must report foreignFlow/dom
 // ticker at a time (950 tickers at 250ms sequential would take ~4 minutes).
 test('REGRESSION GUARD: Quant Screener must support a wider universe than the hardcoded LQ45_STOCKS list', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
-  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
 
   assert(/function scResolveUniverseList/.test(src), 'REGRESSION: scResolveUniverseList() is gone — the screener has no way to pick a universe wider than LQ45');
   assert(/function scChangeUniverse/.test(src), 'REGRESSION: scChangeUniverse() is gone — there is no UI hook to widen the screener universe');
   assert(/QT_SCREENER_INDEX === 'all'/.test(src) || /idx === 'all'/.test(src), 'REGRESSION: the "Semua BEI" (all 950+) option is gone from the universe resolver');
   assert(/runBatch = function\(startIdx\)/.test(src) && /batch\.forEach\(perTicker\)/.test(src),
     'REGRESSION: scBuildSim() reverted to one-ticker-at-a-time 250ms staggering — this would take ~4 minutes for a 950-ticker universe instead of concurrent batching');
-  assert(indexHtml.includes('id="sc-universe"') && indexHtml.includes("value=\"all\""),
-    'REGRESSION: index.html lost the Screener universe <select> or its "Semua BEI" option');
+  // FIX (2026-09-19): the universe <select> moved from static HTML in
+  // index.html into qtScreenerSubPageHtml() (this same file) when the
+  // Quant Screener tab was relocated into the unified Screener page — see
+  // the "relocated into the Screener" regression guard further below.
+  assert(/function qtScreenerSubPageHtml/.test(src) && src.includes('id="sc-universe"') && src.includes('value="all"'),
+    'REGRESSION: qtScreenerSubPageHtml() lost the Screener universe <select> or its "Semua BEI" option');
 });
 
 // ── TEST: Opportunity Radar's Margin-of-Safety shortcut must not blow up
@@ -6685,6 +6747,35 @@ test('REGRESSION GUARD: TradeWave Wave Cockpit/Risk Planner consolidated into th
     'REGRESSION: TradeWave still exposes its own page-level render/init functions — it should no longer be a standalone page');
 });
 
+// User-reported production screenshot (2026-09-19): clicking "Opportunity
+// Radar" / "Lihat Semua ->" on the Dashboard's Portfolio Snapshot toolbar
+// landed on the Screener's "Risk Planner" (Risk Sizing) tab instead of the
+// main Screener table. Root cause: US_STATE.pageTab is sticky across
+// renders — usSwitchPageTab() (used by the Screener's own tab buttons)
+// only ever SETS pageTab, never clears it, and nothing reset it on a fresh
+// navigation into the page. FIX ATTEMPT #1 put the reset inside
+// renderUnifiedScreenerPage() itself — caught before ship: that function is
+// ALSO invoked by 03-engine.js's periodic same-page refresh tick
+// (`renderPage(currentPage)`, fires every few seconds on whatever page is
+// open, never through goPage()), so it would have silently kicked a user
+// back to the main Screener tab mid-read every time that tick fired while
+// they were on Wave Cockpit/Risk Planner/Quant Screener/Volume Spike. The
+// reset now lives in goPage() itself, which only fires on a REAL
+// navigation event.
+test('REGRESSION GUARD: goPage() must reset US_STATE.pageTab to \'screener\' on navigation into the Screener page, but renderUnifiedScreenerPage() itself must NOT (periodic refresh tick would keep resetting it)', () => {
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  const goPageFn = routerSrc.match(/function goPage\(name,btn\)\{[\s\S]*?\n\}/);
+  assert(goPageFn, 'goPage() not found — has it been renamed/removed?');
+  assert(/targetPageName === 'radar'[\s\S]{0,80}US_STATE\.pageTab\s*=\s*'screener'/.test(goPageFn[0]),
+    'REGRESSION: goPage() no longer resets US_STATE.pageTab to \'screener\' when navigating to the radar/ranking/scanner/tradewave/screener/volume-spike aliases — any nav into the Screener page will land on whatever tab was last left open, not the main Screener table');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  const fn = jsSrc.match(/function renderUnifiedScreenerPage\(\) \{[\s\S]*?\n\}/);
+  assert(fn, 'renderUnifiedScreenerPage() not found — has it been renamed/removed?');
+  assert(!/US_STATE\.pageTab\s*=\s*'screener'/.test(fn[0]),
+    'REGRESSION: renderUnifiedScreenerPage() resets US_STATE.pageTab again — this function also runs on 03-engine.js\'s periodic same-page refresh tick (no goPage() call), so this would silently kick a user off the Wave Cockpit/Risk Planner/Quant Screener/Volume Spike tab every few seconds while they were reading it');
+});
+
 // User-reported production screenshot (2026-09-18, Bandarmology BBCA):
 // "Arus investor asing saat ini mencatatkan Net Buy +Rp 0 M dengan
 // partisipasi pasar sebesar 0%" was showing for EVERY ticker on the real
@@ -6835,6 +6926,87 @@ test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER empty-state message disclos
   assert(/brokerEmptyReason/.test(src), 'REGRESSION: brokerEmptyReason is gone — empty-state message no longer distinguishes simulated-fallback/quota-exhausted from genuinely-no-data');
   const occurrences = (src.match(/data\.brokerTfTried \+ data\.brokerEmptyReason/g) || []).length;
   assert(occurrences >= 2, `REGRESSION: expected both TOP BROKER BUYER render spots (CARD 4 + expanded modal) to append brokerEmptyReason to the empty-state message, found ${occurrences}`);
+});
+
+// User-reported (2026-09-19): testing DEWA across the app gave contradictory
+// verdicts — Stock Dossier "NEUTRAL/WAIT", Stock Intel "BULLISH REBOUND /
+// LAYAK INVESTASI", but the Bandarmologi "Intelligence Summary" tab (Fundamental
+// page, "Analisis Teknikal & Flow" tab 2) showed "PROBABILITAS ARAH BEARISH
+// (DOWN) 80%" with specific CMF -17.28%/OBV -4881061300/RSI 29.1 readings.
+// Root cause found: techRunFlowScanTab() (public/js/24-stockmaster.js) calls
+// fsGenData(tk, days) (public/js/07-flowscan.js), which silently falls back
+// to a SEEDED SYNTHETIC random-walk OHLCV series (tagging the returned array
+// with `.simulated = true`) whenever real cached OHLCV isn't available yet
+// for that ticker — and this tab never checked that flag before running
+// fsProcess() on it and presenting the result as a real, confident
+// probability. The sibling Gauges/Candlestick/Pivots tabs in this same file
+// (techEnsureRealSeries(), a few hundred lines below) already guard against
+// exactly this failure mode; this tab was the one that didn't.
+test('REGRESSION GUARD: techRunFlowScanTab() must not present a synthetic/simulated OHLCV series as a real Bandarmologi probability reading', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const fnStart = src.indexOf('function techRunFlowScanTab(ticker) {');
+  assert(fnStart !== -1, 'techRunFlowScanTab() not found — has it been renamed/removed?');
+  const fnEnd = src.indexOf('\nfunction ', fnStart + 10);
+  assert(fnEnd !== -1, 'could not find the end of techRunFlowScanTab()');
+  const body = src.slice(fnStart, fnEnd);
+
+  const simGuardIdx = body.indexOf('if (data.simulated)');
+  assert(simGuardIdx !== -1,
+    'REGRESSION: techRunFlowScanTab() no longer checks data.simulated — a seeded synthetic random-walk series (fsGenData()\'s honest-loading fallback) will be presented as a real Bandarmologi probability reading again, reproducing the exact "BEARISH 80%" fabrication the user reported for DEWA');
+  const processIdx = body.indexOf('fsProcess(data)');
+  assert(processIdx !== -1, 'fsProcess(data) call not found in techRunFlowScanTab()');
+  assert(simGuardIdx < processIdx,
+    'REGRESSION: the data.simulated guard in techRunFlowScanTab() runs AFTER fsProcess(data) — it must run BEFORE, so a synthetic series never reaches the probability/indicator calculation at all');
+
+  const guardBody = body.slice(simGuardIdx, processIdx);
+  assert(/tech-fs-prob/.test(guardBody) && !/PROBABILITAS ARAH/.test(guardBody),
+    'REGRESSION: the simulated-data branch must clear/replace the probability banner with an honest loading message, not still compute or show a BULLISH/BEARISH percentage');
+  assert(/rdEnsure\(tk,/.test(guardBody),
+    'REGRESSION: the simulated-data branch no longer kicks off a real-data fetch — the tab would stay stuck on the honest loading message forever instead of self-healing once real OHLCV lands');
+});
+
+// User-directed (2026-09-19): "quant analysis masih memiliki data
+// screener apakah ini sama dengan screener yang sudah diperbarui...
+// volume spike, quant analysis masuk tab screener, karena seluruh
+// fungsinya sama2 deteksi, apabila anda kesulitan untuk menggabungkan
+// analisa, gabungkan saja tab nya dimasukan ke dalam screener sama
+// seperti trade wave" — Quant Lab's own "Screener" tab (RSI/momentum/MA-
+// position formula) and the standalone Volume Spike Scanner (volume-
+// ratio-vs-median formula) are genuinely different analyses from the
+// unified Screener's Whale/Uptrend formula, so rather than force a risky
+// formula merge, both were relocated wholesale into the unified Screener
+// page as 2 more US_STATE.pageTab tabs, exactly like the TradeWave Wave
+// Cockpit/Risk Planner consolidation.
+test('REGRESSION GUARD: Quant Screener and Volume Spike Scanner relocated into the unified Screener as tabs; standalone nav entries removed', () => {
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(!/goPage\('volume-spike',this\)/.test(htmlSrc),
+    'REGRESSION: the separate "Volume Spike" sidebar button is back — should be consolidated into the Screener nav entry');
+  assert(!htmlSrc.includes('id="sc-tbody"'),
+    'REGRESSION: the Quant Screener\'s static HTML (sc-tbody etc.) is back in index.html\'s #page-screener — it was relocated into qtScreenerSubPageHtml() (11-quant.js) to avoid duplicate-id DOM collisions with the new Screener tab');
+
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(/UNIFIED_SCREENER_ALIASES\s*=\s*\[[^\]]*'screener'[^\]]*'volume-spike'[^\]]*\]/.test(routerSrc),
+    'REGRESSION: goPage(\'screener\')/goPage(\'volume-spike\') no longer redirect to the Screener page container — any old bookmark/dynamic call would 404 silently');
+  assert(/targetPageName === 'radar'[\s\S]{0,80}US_STATE\.pageTab\s*=\s*'screener'/.test(routerSrc),
+    'REGRESSION: goPage() no longer resets US_STATE.pageTab on navigation into the Screener — see the dedicated pageTab-reset regression guard above for why this matters');
+
+  const qtSrc = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert(!/key:\s*'screener'/.test(qtSrc),
+    'REGRESSION: \'screener\' has reappeared in QL_TABS — Quant Lab should no longer have its own separate Screener tab');
+  assert(/function qtScreenerSubPageHtml/.test(qtSrc),
+    'REGRESSION: qtScreenerSubPageHtml() is gone — the unified Screener has nothing to inject for its "Quant Screener" tab');
+
+  const vsSrc = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
+  assert(/var VS_CONTAINER_ID/.test(vsSrc),
+    'REGRESSION: VS_CONTAINER_ID is gone — Volume Spike Scanner hardcodes its render target again, so it can no longer be mounted inside the Screener\'s own tab container');
+  assert(/el\(VS_CONTAINER_ID\)/.test(vsSrc),
+    'REGRESSION: renderVolumeSpikePage()/vsRenderShell() no longer read VS_CONTAINER_ID — they hardcode el(\'page-volume-spike\') again');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(jsSrc.includes("usSwitchPageTab(\\'quant\\')") && jsSrc.includes("usSwitchPageTab(\\'volspike\\')"),
+    'REGRESSION: the "Quant Screener"/"Volume Spike" tab buttons are gone from the Screener page tab bar');
+  assert(/qtScreenerSubPageHtml/.test(jsSrc) && /VS_CONTAINER_ID\s*=\s*'us-wave-subpage'/.test(jsSrc),
+    'REGRESSION: usRenderShell() no longer wires the "quant"/"volspike" tabs to their relocated render functions');
 });
 
 console.log('═══════════════════════════════════════════════════════');

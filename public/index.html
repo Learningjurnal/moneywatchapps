@@ -788,7 +788,12 @@
       <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto Technical</span></button>
       <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goBandarmology('stock',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
-      <button onclick="goPage('volume-spike',this)"><i class="ti ti-bolt"></i><span class="side-label">Volume Spike</span></button>
+      <!-- "Volume Spike" (goPage('volume-spike')) juga digabung ke nav
+           "Screener" 2026-09-19 (user-directed: "volume spike, quant
+           analysis masuk tab screener, karena seluruh fungsinya sama2
+           deteksi") — Volume Spike Scanner kini jadi tab di halaman
+           Screener (lihat page-radar + public/js/48-unified-screener.js).
+           Tombol dihapus di sini. -->
       <!-- "Smart Money Screener" (goPage('scanner')) digabung ke nav
            "Screener" (COMMAND CENTER) — tombol dihapus di sini. -->
       <!-- "TradeWave" (goPage('tradewave')) juga digabung ke nav "Screener"
@@ -1243,13 +1248,16 @@
             </div>
         </div>
 
-        <!-- 3. AI OPPORTUNITY RADAR PREVIEW (Command Center zone — same slice
-             as Market Regime above). Reuses the REAL loadOpportunityRadarUniverse()
-             /RADAR_STATE from 26-commandcenter.js (the same data the full
-             Opportunity Radar page uses) rather than a separate fetch/scoring
-             logic — visiting the dashboard also warms the cache for when the
-             user opens the full Radar page next. Answers roadmap question #3
-             ("apa peluang terbaik"). -->
+        <!-- 3. SCREENER TOP-PICKS PREVIEW (Command Center zone — same slice
+             as Market Regime above). FIX (2026-09-19): used to reuse
+             loadOpportunityRadarUniverse()/RADAR_STATE (26-commandcenter.js,
+             a separate MoS/ROE fundamental-score formula) — a different
+             top-pick list than the unified Screener page this widget's
+             "Lihat Semua ->" navigates to. Now reads GET
+             /api/idx/unified-screener directly (same Whale/Uptrend formula,
+             same default sort as the Screener page), so this preview is
+             always consistent with what "Lihat Semua" shows next. Answers
+             roadmap question #3 ("apa peluang terbaik"). -->
         <!-- 3-7. COMMAND CENTER UNIFIED GRID (HIGH DENSITY / DECLUTTERED) -->
         <div class="dash-cc-unified-grid dash-section-cc" style="margin-bottom:14px">
           <!-- Left Column: Opportunities & Breadth -->
@@ -4092,47 +4100,11 @@
 </div>
 
 <!-- ===== SCREENER LQ45 ===== -->
-<div id="page-screener" class="page">
-  <div id="ql-tabbar-screener"></div>
-  <div class="ptitle">Screener Saham</div>
-  <div class="psub">Filter saham berdasarkan indikator teknikal · Data harga live dari Yahoo Finance</div>
-  <div class="card" style="margin:12px 0 10px">
-    <div class="cheader"><span class="ctitle">Filter</span><button class="btn btn-bb btn-xs" onclick="scFetchAndRun()">Ambil Data Live + Scan</button></div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
-      <div class="fg"><div class="flabel">Universe</div>
-        <select class="finput fsel" id="sc-universe" onchange="scChangeUniverse(this.value)">
-          <option value="lq45">LQ45 (45 Bluechips)</option>
-          <option value="idx30">IDX30 (30 Terlikuid)</option>
-          <option value="kompas100">KOMPAS100</option>
-          <option value="all">Semua BEI (950+, lebih lambat)</option>
-        </select>
-      </div>
-      <div class="fg"><div class="flabel">RSI Min</div><input class="finput" id="sc-rsi-min" type="number" value="0"></div>
-      <div class="fg"><div class="flabel">RSI Max</div><input class="finput" id="sc-rsi-max" type="number" value="100"></div>
-      <div class="fg"><div class="flabel">Min Return 1M%</div><input class="finput" id="sc-mom-min" type="number" value="-99"></div>
-      <div class="fg"><div class="flabel">Posisi MA</div>
-        <select class="finput fsel" id="sc-ma-pos">
-          <option value="all">Semua</option>
-          <option value="above">Di atas MA50</option>
-          <option value="below">Di bawah MA50</option>
-        </select>
-      </div>
-    </div>
-    <div style="margin-top:8px">
-      <button class="btn btn-green" onclick="scRunFilter()">Scan Sekarang</button>
-      <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-left:10px" id="sc-status">—</span>
-    </div>
-  </div>
-  <div class="card">
-    <div class="cheader"><span class="ctitle">Hasil Screener</span><span class="badge b-gray" id="sc-result-count">—</span></div>
-    <div style="overflow-x:auto">
-      <table class="tbl">
-        <thead><tr><th>Ticker</th><th>Nama</th><th>Sektor</th><th>Harga</th><th>RSI 14</th><th>Mom 1M%</th><th>Mom 3M%</th><th>Vol 30D%</th><th>vs MA50</th><th>Score</th><th>Signal</th></tr></thead>
-        <tbody id="sc-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
+<!-- FIX (2026-09-19): Quant Screener relocated into the unified Screener
+     page as its own tab (see qtScreenerSubPageHtml() in 11-quant.js and
+     public/js/48-unified-screener.js) — this div stays empty/unreachable
+     for reversibility, same pattern as page-tradewave. -->
+<div id="page-screener" class="page"></div>
 
 <!-- ===== PAIRS TRADING ===== -->
 <div id="page-pairs" class="page">
@@ -4444,15 +4416,15 @@
 <script src="js/02-storage.js?v=20260918a"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
 <script src="js/03-engine.js?v=20260918b"></script>
-<script src="js/04-render.js?v=20260918a"></script>
+<script src="js/04-render.js?v=20260919a"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
-<script src="js/06-analysis-router.js?v=20260918b"></script>
+<script src="js/06-analysis-router.js?v=20260919a"></script>
 <script src="js/07-flowscan.js?v=20260918a"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
 <script src="js/10-hargawajar.js?v=20260918b"></script>
-<script src="js/11-quant.js?v=20260917a"></script>
+<script src="js/11-quant.js?v=20260919a"></script>
 <script src="js/12-clean.js?v=20260908a"></script>
 <script src="js/13-realdata.js?v=20260916a"></script>
 <script src="js/14-admin.js?v=20260909a"></script>
@@ -4461,13 +4433,13 @@
 <script src="js/21-performance.js?v=20260913b"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260915b"></script>
-<script src="js/24-stockmaster.js?v=20260918a"></script>
+<script src="js/24-stockmaster.js?v=20260919a"></script>
 <script src="js/25-auditlog.js?v=20260918a"></script>
 <script src="js/26-commandcenter.js?v=20260918b"></script>
 <script src="js/27-stockintel.js?v=20260918c"></script>
 <script src="js/28-decisiontools.js?v=20260918c"></script>
 <script src="js/29-institutional-ui.js?v=20260918a"></script>
-<script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260918a"></script><script src="js/34-ksei-shareholders.js?v=20260918a"></script>
+<script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260918a"></script><script src="js/34-ksei-shareholders.js?v=20260919a"></script>
 <script src="js/35-settings.js?v=20260918a"></script>
 <script src="js/37-tradewave-engine.js?v=20260918b"></script>
 <script src="js/38-ai-autonomous-trading.js?v=20260917a"></script>
@@ -4477,10 +4449,10 @@
 <script src="js/42-dividend-calendar.js?v=20260918a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260918b"></script>
 <script src="js/44-sectoral-insight.js?v=20260918a"></script>
-<script src="js/45-volume-spike.js?v=20260918b"></script>
+<script src="js/45-volume-spike.js?v=20260919a"></script>
 <script src="js/46-stock-dossier.js?v=20260918b"></script>
 <script src="js/47-ai-signal-history.js?v=20260917b"></script>
-<script src="js/48-unified-screener.js?v=20260918d"></script>
+<script src="js/48-unified-screener.js?v=20260919b"></script>
 
   <!-- Theme Toggle Floating Button -->
   <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#2563eb;color:#ffffff;border:none;box-shadow:0 4px 15px rgba(0,0,0,0.25);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">

@@ -62,6 +62,20 @@
 var VS_SPIKE_THRESHOLD = 1.70;
 
 var VS_STATE = { ticker: null, loading: false };
+
+// FIX (2026-09-19, user-directed consolidation: "volume spike, quant
+// analysis masuk tab screener, karena seluruh fungsinya sama2 deteksi"):
+// Volume Spike Scanner moved from its own standalone page into a tab
+// inside the unified Screener (public/js/48-unified-screener.js,
+// US_STATE.pageTab === 'volspike') — same "relocate the tab, keep the
+// formula" pattern already used for TradeWave's Wave Cockpit/Risk Planner.
+// This scanner's real volume-ratio-vs-median formula is genuinely
+// different from the Screener's Whale/Uptrend formula, so this is a UI
+// relocation, not an analysis merge. Every function below used to
+// hardcode el('page-volume-spike') as its render target; they now read
+// this variable instead, which the Screener page points at its own
+// sub-tab container before calling renderVolumeSpikePage().
+var VS_CONTAINER_ID = 'page-volume-spike';
 var VS_SCREEN_STATE = {
   index: 'lq45',          // filter aktif: lq45 | idx30 | idx80 | kompas100
   rows: [],                // hasil scan [{code,name,todayVol,med14,med30,ratio14,ratio30,isSpike,chg1d}]
@@ -191,7 +205,7 @@ function vsVolumeStats(rows) {
 }
 
 function renderVolumeSpikePage(presetTicker) {
-  var c = el('page-volume-spike');
+  var c = el(VS_CONTAINER_ID);
   if (!c) return;
   // Urutan resolusi ticker: eksplisit diminta > state halaman ini > GLOBAL_STOCK_CONTEXT
   // (ticker aktif lintas-halaman, dipakai bersama Fundamental/Technical/Valuation/
@@ -272,11 +286,22 @@ function vsHighlightSelectedRow(tk) {
 // 41-stockchat-cockpit.js) — supaya Volume Spike ikut pindah ticker saat
 // dipilih dari modul lain. Kalau halaman ini sedang aktif, langsung re-render;
 // kalau tidak, cukup update state supaya render berikutnya pakai ticker benar.
+// Whether the Volume Spike scanner is the thing currently on-screen —
+// generalized so it works both at its original standalone location and
+// relocated inside the unified Screener's own tab (US_STATE.pageTab).
+function vsIsContainerActive() {
+  if (VS_CONTAINER_ID === 'page-volume-spike') {
+    var pg = el('page-volume-spike');
+    return !!(pg && pg.classList.contains('on'));
+  }
+  var radar = el('page-radar');
+  return !!(radar && radar.classList.contains('on') && typeof US_STATE !== 'undefined' && US_STATE.pageTab === 'volspike');
+}
+
 if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
   window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
     if (source !== 'volume-spike' && tk && tk !== VS_STATE.ticker) {
-      var pg = el('page-volume-spike');
-      if (pg && pg.classList.contains('on')) {
+      if (vsIsContainerActive()) {
         renderVolumeSpikePage(tk);
       } else {
         VS_STATE.ticker = tk;
@@ -286,7 +311,7 @@ if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
 }
 
 function vsRenderShell(tk) {
-  var c = el('page-volume-spike');
+  var c = el(VS_CONTAINER_ID);
   if (!c) return;
   c.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px">'

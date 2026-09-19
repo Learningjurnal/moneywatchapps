@@ -1427,6 +1427,8 @@ function techLoadTradingViewWidget(ticker, container) {
 }
 
 // ── Tab 2: FlowScan & Bandarmologi ──
+var TECH_FS_FETCHING = {};
+
 function techFsSetPeriod(days, btn) {
   TECH_DATA.fsDays = days;
   var parent = btn ? btn.parentElement : document.getElementById('tech-tab2');
@@ -1455,6 +1457,42 @@ function techRunFlowScanTab(ticker) {
     if (indEl0) indEl0.innerHTML = '';
     techKillChart('techFsCmf');
     techKillChart('techFsNetFlow');
+    return;
+  }
+
+  // FIX (2026-09-19, user-reported cross-widget contradiction: DEWA showed
+  // "Bandarmologi Intelligence Summary ... PROBABILITAS ARAH BEARISH (DOWN)
+  // 80%" here, with specific CMF/OBV/RSI readings, while Stock Dossier and
+  // Stock Intel — reading the same ticker from real cached data — showed
+  // bullish/neutral verdicts). Root cause: fsGenData() silently falls back
+  // to a seeded synthetic random-walk series (data.simulated === true)
+  // whenever real OHLCV isn't cached yet for this ticker, and this tab
+  // never checked that flag before treating the result as a real reading —
+  // unlike the sibling Gauges/Candlestick/Pivots tabs (see
+  // techEnsureRealSeries() below), which already guard against exactly
+  // this. A synthetic series produces a fully-formed-looking but
+  // completely fabricated CMF/OBV/A-D/RSI/probability, indistinguishable
+  // from a real one without checking this flag.
+  if (data.simulated) {
+    var cardsElSim = document.getElementById('tech-fs-cards');
+    if (cardsElSim) cardsElSim.innerHTML = techLoadingHtml(tk);
+    var probElSim = document.getElementById('tech-fs-prob');
+    if (probElSim) {
+      probElSim.innerHTML = '<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-left:4px solid #F59E0B;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--text2)">'
+        + '⏳ Riwayat harga real untuk <b>' + tk + '</b> belum tersedia di cache — sinyal Bandarmologi (CMF/OBV/A-D/RSI/probabilitas arah) TIDAK ditampilkan sampai data real tersedia, supaya tidak menampilkan angka yang bukan hasil hitungan dari harga sungguhan. Sedang mengambil data real di latar belakang, halaman akan otomatis diperbarui.'
+        + '</div>';
+    }
+    var indElSim = document.getElementById('tech-fs-ind-grid');
+    if (indElSim) indElSim.innerHTML = '';
+    techKillChart('techFsCmf');
+    techKillChart('techFsNetFlow');
+    if (!TECH_FS_FETCHING[tk] && typeof rdEnsure === 'function') {
+      TECH_FS_FETCHING[tk] = true;
+      rdEnsure(tk, function() {
+        TECH_FS_FETCHING[tk] = false;
+        if (TECH_DATA.ticker === tk) techRunFlowScanTab(tk);
+      });
+    }
     return;
   }
 

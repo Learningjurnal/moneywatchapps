@@ -26,11 +26,17 @@ var QT = {
 // (rendered identically at the top of all 6 pages) is what lets users
 // move between them, same pattern as the Technical/Fundamental Suite
 // tabs.
+// FIX (2026-09-19): the 'screener' tab (RSI/momentum/MA-position scan)
+// was removed from this list — relocated into the unified Screener page
+// as its own "Quant Screener" tab (see qtScreenerSubPageHtml() below and
+// public/js/48-unified-screener.js) rather than duplicating a screener
+// nav entry here too. goPage('screener') still redirects there
+// (UNIFIED_SCREENER_ALIASES, 06-analysis-router.js) for any old
+// bookmark/dynamic call.
 var QL_TABS = [
   { key: 'correlation', icon: '<i class="ti ti-grid-dots"></i>', label: 'Correlation' },
   { key: 'monthly-returns', icon: '<i class="ti ti-calendar-stats"></i>', label: 'Monthly Returns' },
   { key: 'pairs', icon: '<i class="ti ti-arrows-diff"></i>', label: 'Pairs Trading' },
-  { key: 'screener', icon: '<i class="ti ti-filter"></i>', label: 'Screener' },
   { key: 'backtester', icon: '<i class="ti ti-player-play"></i>', label: 'Backtester' },
   { key: 'scenario', icon: '<i class="ti ti-chart-dots"></i>', label: 'Scenario' }
 ];
@@ -896,6 +902,64 @@ function runBacktest(){
 }
 
 // ── Screener ──
+// FIX (2026-09-19, user-directed consolidation: "quant analysis masih
+// memiliki data screener apakah ini sama dengan screener yang sudah
+// diperbarui... gabungkan saja tab nya dimasukkan kedalam screener sama
+// seperti trade wave"): this tab's RSI/momentum/MA-position formula is
+// genuinely different from the unified Screener's Whale/Uptrend formula
+// (public/js/48-unified-screener.js) — not the same analysis, so rather
+// than force a risky merge of 2 differently-calibrated scoring formulas,
+// this tab was relocated wholesale into the unified Screener page as a
+// 4th US_STATE.pageTab ("Quant Screener"), same pattern as TradeWave's
+// Wave Cockpit/Risk Planner. This markup used to live as static HTML
+// inside <div id="page-screener"> in index.html (that div is now empty,
+// unreachable, kept for reversibility — same pattern as page-tradewave);
+// it's reproduced here verbatim (same element ids) so scBuildSim()/
+// scRunFilter()/scRenderTable()/scChangeUniverse()/scFetchAndRun() below
+// keep working completely unchanged — they all look up elements by id via
+// el(), not by any fixed container reference.
+function qtScreenerSubPageHtml() {
+  return ''
+    + '<div class="ptitle">Quant Screener (Teknikal &amp; Momentum)</div>'
+    + '<div class="psub">Filter saham berdasarkan indikator teknikal · Data harga live dari Yahoo Finance</div>'
+    + '<div class="card" style="margin:12px 0 10px">'
+    + '  <div class="cheader"><span class="ctitle">Filter</span><button class="btn btn-bb btn-xs" onclick="scFetchAndRun()">Ambil Data Live + Scan</button></div>'
+    + '  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">'
+    + '    <div class="fg"><div class="flabel">Universe</div>'
+    + '      <select class="finput fsel" id="sc-universe" onchange="scChangeUniverse(this.value)">'
+    + '        <option value="lq45">LQ45 (45 Bluechips)</option>'
+    + '        <option value="idx30">IDX30 (30 Terlikuid)</option>'
+    + '        <option value="kompas100">KOMPAS100</option>'
+    + '        <option value="all">Semua BEI (950+, lebih lambat)</option>'
+    + '      </select>'
+    + '    </div>'
+    + '    <div class="fg"><div class="flabel">RSI Min</div><input class="finput" id="sc-rsi-min" type="number" value="0"></div>'
+    + '    <div class="fg"><div class="flabel">RSI Max</div><input class="finput" id="sc-rsi-max" type="number" value="100"></div>'
+    + '    <div class="fg"><div class="flabel">Min Return 1M%</div><input class="finput" id="sc-mom-min" type="number" value="-99"></div>'
+    + '    <div class="fg"><div class="flabel">Posisi MA</div>'
+    + '      <select class="finput fsel" id="sc-ma-pos">'
+    + '        <option value="all">Semua</option>'
+    + '        <option value="above">Di atas MA50</option>'
+    + '        <option value="below">Di bawah MA50</option>'
+    + '      </select>'
+    + '    </div>'
+    + '  </div>'
+    + '  <div style="margin-top:8px">'
+    + '    <button class="btn btn-green" onclick="scRunFilter()">Scan Sekarang</button>'
+    + '    <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-left:10px" id="sc-status">—</span>'
+    + '  </div>'
+    + '</div>'
+    + '<div class="card">'
+    + '  <div class="cheader"><span class="ctitle">Hasil Screener</span><span class="badge b-gray" id="sc-result-count">—</span></div>'
+    + '  <div style="overflow-x:auto">'
+    + '    <table class="tbl">'
+    + '      <thead><tr><th>Ticker</th><th>Nama</th><th>Sektor</th><th>Harga</th><th>RSI 14</th><th>Mom 1M%</th><th>Mom 3M%</th><th>Vol 30D%</th><th>vs MA50</th><th>Score</th><th>Signal</th></tr></thead>'
+    + '      <tbody id="sc-tbody"></tbody>'
+    + '    </table>'
+    + '  </div>'
+    + '</div>';
+}
+
 // Used to call qtGenSim() directly for every LQ45 stock with no attempt at
 // real data first and no disclosure - the RSI/momentum/score columns were
 // always computed from a per-ticker seeded fake series unless some other

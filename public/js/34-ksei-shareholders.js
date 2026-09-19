@@ -1044,16 +1044,51 @@ function kseiSwitchTab(tabName) {
   renderKseiModalBody();
 }
 
+// FIX (2026-09-19, user-reported: "Tanggal Laporan: 26 Aug 2026 ... ini
+// masih kode lama dengan metode upload"): the report date itself is real
+// (it's the genuine reportDate from the bundled/uploaded KSEI snapshot —
+// see kseiInitData()'s comment), but this meta bar used to fall back to
+// hardcoded literals ('26 Aug 2026' / '840' / '1.920') that happened to
+// match the CURRENT bundled snapshot's numbers, which would silently lie
+// if that snapshot is ever replaced without also updating these 3
+// constants. Now falls back to an honest '-' instead of a number that
+// looks precise but isn't actually read from KSEI_STATE.metadata.
+//
+// This does NOT switch the underlying >5% NAMED-shareholder data to a
+// live API — there currently isn't one. Invezgo's shareholder endpoints
+// (confirmed from a real test request against BBCA, see the comment
+// above fetchInvezgoShareholderKsei() in lib/invezgo-client.js) only
+// return AGGREGATE totals per investor category (Asing/Lokal x 9 types),
+// never individual investor names — which is what IDX's actual "5%+ SID
+// disclosure" requires. That aggregate data IS already live (see the
+// "Komposisi Kepemilikan Live (Invezgo)" section further down this same
+// modal) — it's a genuinely different, narrower dataset, not a
+// not-yet-wired duplicate of this one. What this fix DOES add: an
+// explicit data-age disclosure, so a stale manual snapshot reads as
+// stale instead of looking like a fresh, precise report.
+function kseiDataAgeDisclosure(m) {
+  if (!m || !m.lastUpdated) return { text: 'usia data tidak diketahui', color: 'var(--text3)' };
+  var days = Math.floor((Date.now() - new Date(m.lastUpdated).getTime()) / 86400000);
+  if (!isFinite(days) || days < 0) return { text: 'usia data tidak diketahui', color: 'var(--text3)' };
+  if (days === 0) return { text: 'diperbarui hari ini', color: 'var(--green, #10B981)' };
+  var text = 'diperbarui ' + days + ' hari lalu';
+  var color = days > 30 ? 'var(--red, #EF4444)' : (days > 14 ? 'var(--amber, #F59E0B)' : 'var(--text3)');
+  return { text: text, color: color };
+}
+
 function kseiUpdateMetaBar() {
   var metaEl = document.getElementById('ksei-modal-meta-bar');
   if (!metaEl) return;
   var m = KSEI_STATE.metadata || {};
+  var age = kseiDataAgeDisclosure(m);
   metaEl.innerHTML = `
-    <span>📅 Periode: <b>${m.reportDate || '26 Aug 2026'}</b></span>
+    <span>📅 Periode: <b>${m.reportDate || 'Data Tidak Tersedia'}</b></span>
     <span>•</span>
-    <span>🏛️ Terdaftar: <b>${m.totalEmiten || '840'}</b> Emiten</span>
+    <span>🏛️ Terdaftar: <b>${m.totalEmiten || '-'}</b> Emiten</span>
     <span>•</span>
-    <span>👥 Investor >5%: <b>${m.totalMajorInvestors || '1.920'}</b> SID</span>
+    <span>👥 Investor >5%: <b>${m.totalMajorInvestors || '-'}</b> SID</span>
+    <span>•</span>
+    <span style="color:${age.color};font-weight:700">📌 Snapshot manual (bukan real-time), ${age.text}</span>
   `;
 }
 
@@ -1373,8 +1408,9 @@ function renderKseiStockView(container, ticker, embedded) {
         <div style="font-size:13px;font-weight:700;color:var(--text)">
           📋 Daftar Pemegang Saham di Atas 5% Berdasarkan SID KSEI
         </div>
-        <div style="font-size:11px;color:var(--text3)">
-          Tanggal Laporan: <b>${stock.reportDate || '26 Aug 2026'}</b>
+        <div style="font-size:11px;color:var(--text3);text-align:right">
+          <div>Tanggal Laporan: <b>${stock.reportDate || 'Data Tidak Tersedia'}</b></div>
+          <div style="color:${kseiDataAgeDisclosure(KSEI_STATE.metadata).color};font-weight:600">Snapshot manual (Google Sheets/upload) — ${kseiDataAgeDisclosure(KSEI_STATE.metadata).text}, bukan real-time</div>
         </div>
       </div>
 
@@ -1796,7 +1832,7 @@ function renderKseiIntelWidget(ticker) {
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:16px">🏛️</span>
           <span style="font-size:12px;font-weight:800;color:var(--text);letter-spacing:.3px">STRUKTUR KEPEMILIKAN &amp; FREE FLOAT (KSEI)</span>
-          <span class="badge b-up" style="font-size:9px">PER ${stock.reportDate || '26 AUG'}</span>
+          <span class="badge b-up" style="font-size:9px">PER ${stock.reportDate || 'N/A'}</span>
         </div>
         <button class="btn btn-ghost btn-xs" onclick="openKseiModal('${ticker}')" style="font-size:10px;padding:2px 8px;color:var(--accent);border-color:rgba(0,200,255,0.3)">
           Buka Rincian KSEI →

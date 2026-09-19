@@ -781,8 +781,31 @@ function goPage(name,btn){
   // goPage('tradewave') call (bookmark, dynamic call) also lands on
   // 'radar'. <div id="page-tradewave"> stays in the DOM, unreachable, same
   // as page-ranking/page-scanner above.
-  var UNIFIED_SCREENER_ALIASES = ['ranking', 'scanner', 'tradewave'];
+  // 'screener' (Quant Lab's own RSI/momentum screener) and 'volume-spike'
+  // joined 2026-09-19 (user-reported: "quant analysis masih memiliki data
+  // screener apakah ini sama dengan screener yang sudah diperbarui...
+  // volume spike, quant analysis masuk tab screener") — both are genuinely
+  // different formulas from generateUnifiedScreener() (RSI/momentum/MA
+  // position vs Whale/Uptrend; volume-ratio-vs-median vs the same), so
+  // rather than force a risky formula merge, they were relocated wholesale
+  // into the Unified Screener page as 2 more US_STATE.pageTab tabs ("Quant
+  // Screener" / "Volume Spike"), same pattern as the TradeWave Wave
+  // Cockpit/Risk Planner consolidation above.
+  var UNIFIED_SCREENER_ALIASES = ['ranking', 'scanner', 'tradewave', 'screener', 'volume-spike'];
   var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : name));
+  // FIX (2026-09-19, regression caught before ship): resetting
+  // US_STATE.pageTab to 'screener' inside renderUnifiedScreenerPage()
+  // itself (as originally done for the TradeWave fix) also fires on 03-
+  // engine.js's periodic same-page refresh tick (`renderPage(currentPage)`,
+  // no goPage() call involved) — that would have silently kicked a user
+  // back to the main Screener tab every few seconds while they were
+  // reading Wave Cockpit/Risk Planner/Quant Screener/Volume Spike. The
+  // reset must only happen on a REAL navigation into the page, which only
+  // goPage() represents (the periodic tick calls renderPage() directly,
+  // never goPage()) — so it lives here instead.
+  if (targetPageName === 'radar' && typeof US_STATE !== 'undefined') {
+    US_STATE.pageTab = 'screener';
+  }
   var pg = el('page-'+targetPageName);
   // FIX (audit 2026-09-12, "Router silently ignores missing page"): sebelumnya
   // return diam-diam tanpa jejak apapun kalau nama page salah/typo — tombol
@@ -922,13 +945,16 @@ function renderPage(name){
     case 'heatmap':fsRenderHeatmap();break;
     case 'scanner':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'stock-dossier':if(typeof renderStockDossierPage==='function') renderStockDossierPage();break;
-    case 'volume-spike':if(typeof renderVolumeSpikePage==='function') renderVolumeSpikePage();break;
+    // 'volume-spike'/'screener' consolidated into the Unified Screener
+    // 2026-09-19 (see the goPage() redirect + 'radar' case above) — both
+    // now render as US_STATE.pageTab tabs there instead of standalone pages.
+    case 'volume-spike':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'alerts':fsGenAlerts();break;
     case 'candle':if(typeof techInit==='function') techInit(); else renderCandle();break;
     case 'hargawajar':if(typeof hw_init==='function') hw_init(); if(typeof hw_recalc==='function') hw_recalc();break;
     // ── QuantTrader pages ──
     case 'backtester':break; // wait for user action
-    case 'screener':if(typeof scRenderTable!=='undefined'){if(!QT.scData.length)scBuildSim(scRenderTable);else scRenderTable();}break;
+    case 'screener':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'pairs':break;
     case 'correlation':if(typeof corrRender!=='undefined')setTimeout(corrRender,100);break;
     case 'monthly-returns':if(typeof mrInitTickers==='function') mrInitTickers(); if(typeof mrRender!=='undefined')setTimeout(mrRender,100);break;
