@@ -1286,14 +1286,16 @@
               </div>
             </div>
 
-            <!-- 4. MARKET HEATMAP -->
+            <!-- 4. HEATMAP SEKTORAL (2026-09-19: sebelumnya "Market Heatmap"
+                 per-saham, diganti sektoral atas permintaan user, data dari
+                 window.siGetSectorHeatmapData() -- lihat 04-render.js) -->
             <div id="card-dash-heatmap" class="card dash-section-cc" style="border-radius:10px;padding:16px 20px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Market Heatmap</span>
-                <button class="btn btn-ghost btn-xs" onclick="goPage('heatmap')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
+                <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Heatmap Sektoral</span>
+                <button class="btn btn-ghost btn-xs" onclick="goPage('sectoral-insight')" style="font-size:11px;font-weight:700">Lihat Semua →</button>
               </div>
-              <div id="dash-heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(80px, 1fr));gap:8px">
-                <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat heatmap…</div>
+              <div id="dash-heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:8px">
+                <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat heatmap sektoral…</div>
               </div>
             </div>
           </div>
@@ -4383,7 +4385,7 @@
 <script src="js/02-storage.js?v=20260918a"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
 <script src="js/03-engine.js?v=20260918b"></script>
-<script src="js/04-render.js?v=20260919d"></script>
+<script src="js/04-render.js?v=20260919e"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
 <script src="js/06-analysis-router.js?v=20260919b"></script>
@@ -4415,7 +4417,7 @@
 <script src="js/41-stockchat-cockpit.js?v=20260919c"></script>
 <script src="js/42-dividend-calendar.js?v=20260918a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260918b"></script>
-<script src="js/44-sectoral-insight.js?v=20260918a"></script>
+<script src="js/44-sectoral-insight.js?v=20260919a"></script>
 <script src="js/45-volume-spike.js?v=20260919a"></script>
 <script src="js/46-stock-dossier.js?v=20260918b"></script>
 <script src="js/47-ai-signal-history.js?v=20260917b"></script>
