@@ -1189,34 +1189,31 @@ test('REGRESSION GUARD: sidebar collapse button CSS must stay scoped so .side-na
     'REGRESSION: .side-toolbar .side-collapse-btn scoped rule is missing — a bare .side-collapse-btn selector has LOWER specificity than .side-nav button (which sets width:100%) and would be overridden by it again, stretching this icon button and squeezing the search input next to it (see INCIDENT_LOG.md)');
 });
 
-// ── TEST 42: TradeWave "Wave Scanner" tab must render before the
-// single-ticker validity gate (found by the user, 2026-09-11) — Tab 2
-// (Wave Scanner) scans its own multi-ticker universe and never depends on
-// TW_STATE.ticker's own analysis, but renderTradeWavePage() used to run
-// the `if (!data || data.isValid === false)` TICKER INVALID gate
-// unconditionally before checking which tab was active. Whenever the
-// currently-selected ticker had no valid analysis (e.g. <65 days of
-// cached OHLCV — a real, reachable state, not just an unregistered
-// ticker), clicking "Wave Scanner" correctly switched TW_STATE.activeTab
-// to 2 and highlighted the button, but the page kept showing the
-// single-ticker error card instead of the scanner — looking exactly like
-// the button "does nothing".
-test('REGRESSION GUARD: TradeWave Wave Scanner (tab 2) must render before the single-ticker TICKER INVALID gate', () => {
+// ── TEST 42 (superseded again 2026-09-18): originally guarded that
+// TradeWave's old "Wave Scanner" tab (tab 2) rendered before the
+// single-ticker TICKER INVALID gate inside renderTradeWavePage(); after
+// the Wave Scanner removal it was narrowed to just checking that function
+// still dispatched tabs 1/3. TradeWave has since stopped being its own
+// page entirely — the user asked for Wave Cockpit and Risk Planner to
+// move into the unified Screener too, as its own top-level tabs, with the
+// TradeWave toolbar/page removed. renderTradeWavePage()/TW_STATE.activeTab
+// are gone; twRenderSubPage(containerId, tabIdx) now renders whichever tab
+// the Screener asks for, into a container the Screener owns.
+test('REGRESSION GUARD: twRenderSubPage() renders Wave Cockpit (tabIdx 1) or Risk Planner (tabIdx 3) into a caller-supplied container, with no standalone TradeWave page left', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
-  const fn = src.match(/function renderTradeWavePage\(\) \{[\s\S]*?\n  \}\n/);
-  assert(fn, 'renderTradeWavePage() body not found — has it been renamed/removed?');
+  assert(!src.includes('function renderTradeWavePage'),
+    'REGRESSION: renderTradeWavePage() has reappeared — TradeWave is no longer a standalone page (consolidated into the unified Screener), so this must not come back');
+  assert(!src.includes('function initTradeWaveSuite'),
+    'REGRESSION: initTradeWaveSuite() has reappeared — there is no more page-tradewave to initialize');
+  assert(!/TW_STATE\.activeTab/.test(src),
+    'REGRESSION: TW_STATE.activeTab has reappeared — which Wave tab shows is now the unified Screener\'s US_STATE.pageTab, not TradeWave\'s own state');
+  const fn = src.match(/function twRenderSubPage\(containerId, tabIdx\) \{[\s\S]*?\n  \}\n/);
+  assert(fn, 'twRenderSubPage(containerId, tabIdx) not found — has it been renamed/removed?');
   const body = fn[0];
-  // NOTE: "TW_STATE.activeTab === 2" also appears earlier in this function
-  // inside the Wave Scanner *button*'s active-highlight style — that's not
-  // the routing branch, so match the specific `if (...) { ... return; }`
-  // dispatch statement instead of the bare substring.
-  const tab2Match = body.match(/if\s*\(\s*TW_STATE\.activeTab\s*===\s*2\s*\)\s*\{[\s\S]*?return;\s*\}/);
-  const gateIdx = body.indexOf('data.isValid === false');
-  assert(tab2Match, 'REGRESSION: no early-return `if (TW_STATE.activeTab === 2) {...return;}` dispatch found in renderTradeWavePage()');
-  const tab2Idx = body.indexOf(tab2Match[0]);
-  assert(gateIdx !== -1, 'REGRESSION: no data.isValid === false gate found in renderTradeWavePage()');
-  assert(tab2Idx < gateIdx,
-    'REGRESSION: the TICKER INVALID gate runs before the Wave Scanner (tab 2) check again — Wave Scanner will show the single-ticker error card instead of scanning whenever the currently-selected ticker\'s own analysis is invalid, even though Tab 2 never reads that data (see INCIDENT_LOG.md)');
+  assert(/document\.getElementById\(containerId\)/.test(body),
+    'REGRESSION: twRenderSubPage() no longer renders into the caller-supplied containerId — it must not hardcode a page-tradewave lookup again');
+  assert(/tabIdx === 1/.test(body) && /tabIdx === 3/.test(body),
+    'REGRESSION: twRenderSubPage() no longer dispatches tabIdx 1 (Wave Cockpit) and 3 (Risk Planner)');
 });
 
 // ── TEST 43: Bandarmology Smart Money Flow chart grid must fit exactly
@@ -1234,26 +1231,114 @@ test('REGRESSION GUARD: TradeWave Wave Scanner (tab 2) must render before the si
 // `repeat(2,1fr)` with a real media query to collapse to 1 column on
 // narrow/mobile — something a single inline auto-fit/minmax value
 // cannot express.
-// ── TEST 42b: Wave Scanner (renderTab2WaveScanner) must not crash when
-// twAnalyzeWave() returns an invalid entry (found while verifying TEST 42,
-// 2026-09-11) — twAnalyzeWave() returns a minimal {isValid:false, ticker,
-// error} shape (no changePct/waveScore/superTrend/flow/targets) whenever a
-// ticker has no 65-day OHLCV cached yet, a real reachable state for any
-// ticker whose background fetch hasn't landed. The row-rendering loop used
-// to read those fields unconditionally (e.g. `row.changePct.toFixed(2)`),
-// throwing a TypeError and aborting the ENTIRE scanner render the moment a
-// single ticker in TW_UNIVERSE was still invalid — which is exactly what
-// made the Wave Scanner tab look totally unresponsive after fixing the
-// render-order bug in TEST 42 alone.
-test('REGRESSION GUARD: renderTab2WaveScanner() must filter out isValid:false entries before rendering row fields', () => {
+// ── TEST 42b (superseded 2026-09-18): the old regression guard here
+// checked that renderTab2WaveScanner() filtered out invalid entries before
+// rendering. That whole "Wave Scanner" tab has since been deliberately
+// removed from TradeWave — it scanned a hardcoded ~25-ticker sample mixing
+// IDX equities and crypto, which violates CLAUDE.md's whole-BEI-market
+// screening rule (never audited until this consolidation). The underlying
+// SuperTrend/Elliott-Wave formula was ported server-side
+// (computeWaveAnalysis() in lib/idx-data-engine.js) and now runs
+// whole-market via the unified Screener; crypto scope was dropped per
+// explicit user decision. This test now guards that the removal is
+// genuine — Wave Scanner must not silently reappear or leave dead
+// references behind.
+test('REGRESSION GUARD: TradeWave Wave Scanner tab (and its ~25-ticker hardcoded/crypto-mixed universe) must stay removed', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
-  const fnStart = src.indexOf('function renderTab2WaveScanner()');
-  assert(fnStart !== -1, 'renderTab2WaveScanner() not found — has it been renamed/removed?');
-  const fnEnd = src.indexOf('\n  function renderTab3RiskPlanner', fnStart);
-  assert(fnEnd !== -1, 'could not find the end of renderTab2WaveScanner() (renderTab3RiskPlanner marker missing)');
-  const body = src.slice(fnStart, fnEnd);
-  assert(/isValid\s*!==\s*false/.test(body),
-    'REGRESSION: renderTab2WaveScanner() no longer filters out {isValid:false} entries — a single ticker in TW_UNIVERSE with no cached OHLCV yet will throw (e.g. undefined.toFixed()) and silently abort the whole scanner render');
+  assert(!src.includes('function renderTab2WaveScanner'),
+    'REGRESSION: renderTab2WaveScanner() has reappeared — Wave Scanner was deliberately consolidated into the unified Screener (see computeWaveAnalysis() in lib/idx-data-engine.js), it must not be re-added here');
+  assert(!/var TW_UNIVERSE/.test(src),
+    'REGRESSION: TW_UNIVERSE (hardcoded ~25-ticker sample mixing IDX+crypto) has reappeared — violates CLAUDE.md whole-BEI-market screening rule');
+  assert(!src.includes('twSetFilterWave'),
+    'REGRESSION: twSetFilterWave() has reappeared — it was Wave-Scanner-only and should stay removed');
+  assert(!/onclick="twSwitchTab\(2\)"/.test(src),
+    'REGRESSION: a tab-2 (Wave Scanner) button has reappeared in the TradeWave tab bar');
+  assert(!/twSetTicker\('BTC'\)/.test(src),
+    'REGRESSION: BTC quick-pick button has reappeared — crypto scope was explicitly dropped from TradeWave/Screener consolidation');
+});
+
+test('computeWaveAnalysis() classifies a clean uptrend as a bullish wave phase and a clean downtrend as CORRECTIVE ABC, from real OHLCV math (not a placeholder)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const helperSrc = [
+    'function computeEMA', 'function computeRSI', 'function computeSuperTrendSeries', 'function computeWaveAnalysis'
+  ].map((marker) => {
+    const m = src.match(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s\\S]*?\\n}\\n'));
+    assert(m, `REGRESSION: could not locate ${marker}() in idx-data-engine.js — has it been renamed/removed?`);
+    return m[0];
+  }).join('\n');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(helperSrc, sandbox, { filename: 'wave-analysis-helpers (sandboxed)' });
+
+  function synthPoints(n, direction) {
+    const pts = [];
+    let price = 1000;
+    for (let i = 0; i < n; i++) {
+      price = direction === 'up' ? price * 1.01 : price * 0.99;
+      const o = price * 0.995;
+      const c = price;
+      const h = Math.max(o, c) * 1.005;
+      const l = Math.min(o, c) * 0.995;
+      pts.push({ o, h, l, c, v: 1000000 });
+    }
+    return pts;
+  }
+
+  // A smoothly-decaying series (constant %/day) never actually flips
+  // SuperTrend bearish — the ATR shrinks in lockstep with the decline, so
+  // the lower band never gets crossed (this is a property of the ATR-band
+  // math itself, ported unchanged from TradeWave's twCalcSuperTrend()).
+  // A real bearish market needs a sharp break relative to prior (low)
+  // volatility, so this builds 40 quiet bars then a real ~7%/day crash —
+  // the same shape that makes CORRECTIVE ABC reachable in production.
+  function synthCrashPoints(quietBars, crashBars) {
+    const pts = [];
+    let price = 1000;
+    for (let i = 0; i < quietBars; i++) {
+      price *= 0.999;
+      const o = price * 0.999, c = price, h = Math.max(o, c) * 1.002, l = Math.min(o, c) * 0.998;
+      pts.push({ o, h, l, c, v: 1000000 });
+    }
+    for (let i = 0; i < crashBars; i++) {
+      price *= 0.93;
+      const o = price * 1.02, c = price, h = Math.max(o, c) * 1.01, l = Math.min(o, c) * 0.99;
+      pts.push({ o, h, l, c, v: 1000000 });
+    }
+    return pts;
+  }
+
+  const uptrend = sandbox.computeWaveAnalysis(synthPoints(60, 'up'));
+  assert(uptrend, 'REGRESSION: computeWaveAnalysis() returned null for a valid 60-bar series');
+  assert(['WAVE 1 BREAKOUT', 'WAVE 3 EXTENSION', 'WAVE 5 CLIMAX'].includes(uptrend.wavePhase),
+    `REGRESSION: a clean synthetic uptrend was classified as "${uptrend.wavePhase}" instead of a bullish wave phase — the EMA-ribbon/SuperTrend classification logic is broken`);
+  assert.strictEqual(uptrend.superTrendBullish, true, 'REGRESSION: SuperTrend must read bullish on a clean uptrend series');
+  assert(uptrend.tp1 > 1000 && uptrend.tp2 > uptrend.tp1 && uptrend.tp3 > uptrend.tp2,
+    'REGRESSION: Fibonacci targets tp1<tp2<tp3 ordering is broken');
+
+  const downtrend = sandbox.computeWaveAnalysis(synthCrashPoints(40, 20));
+  assert(downtrend, 'REGRESSION: computeWaveAnalysis() returned null for a valid 60-bar downtrend series');
+  assert.strictEqual(downtrend.wavePhase, 'CORRECTIVE ABC',
+    `REGRESSION: a clean synthetic downtrend was classified as "${downtrend.wavePhase}" instead of CORRECTIVE ABC`);
+  assert.strictEqual(downtrend.superTrendBullish, false, 'REGRESSION: SuperTrend must read bearish on a clean downtrend series');
+
+  assert.strictEqual(sandbox.computeWaveAnalysis([{ o: 1, h: 1, l: 1, c: 1, v: 1 }]), null,
+    'REGRESSION: computeWaveAnalysis() must return null (honest "no data"), not throw or fabricate, when given too few bars (<30)');
+});
+
+test('REGRESSION GUARD: generateUnifiedScreener() must expose wave-analysis fields sourced from computeWaveAnalysis()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(src.includes('function computeWaveAnalysis'),
+    'computeWaveAnalysis() not found — has it been renamed/removed?');
+  const fnStart = src.indexOf('async function generateUnifiedScreener');
+  assert(fnStart !== -1, 'generateUnifiedScreener() not found');
+  const fnEnd = src.indexOf('\n// ════', fnStart + 10);
+  const body = src.slice(fnStart, fnEnd !== -1 ? fnEnd : fnStart + 8000);
+  ['wavePhase', 'waveScore', 'superTrendBullish', 'cmf', 'waveInvalidation', 'waveTp1', 'waveTp2', 'waveTp3', 'waveRiskReward'].forEach((field) => {
+    assert(body.includes(field + ':'),
+      'REGRESSION: generateUnifiedScreener() no longer returns "' + field + '" in its row output');
+  });
+  assert(/if \(wavePhase && wavePhase !== 'ALL'\)/.test(body),
+    'REGRESSION: generateUnifiedScreener() no longer filters by wavePhase');
 });
 
 test('REGRESSION GUARD: Bandarmology Smart Money Flow chart grid must use the fixed-2-column class, not an auto-fit/minmax that can pack in a 3rd column', () => {
@@ -6567,6 +6652,39 @@ test('REGRESSION GUARD: 4 old radar/screener pages (Opportunity Radar, Market Ra
   assert(/window\.renderUnifiedScreenerPage = renderUnifiedScreenerPage/.test(jsSrc), 'REGRESSION: renderUnifiedScreenerPage is no longer exposed on window — router calls would fail');
 });
 
+// User-directed (2026-09-18, after the Wave Scanner consolidation above):
+// "tab Wave Cockpit dan Risk Planner, dipindahkan sekalian ke scanner
+// namun beda tab diatas, toolbar trade wave di hilangkan saja semua
+// bergabung di scanner" — TradeWave's remaining single-ticker Wave Cockpit
+// and Risk Planner tabs (not screeners, but the user wanted the whole
+// TradeWave page/toolbar gone) move into the unified Screener page too, as
+// 2 more top-level tabs there, with the standalone TradeWave sidebar
+// button and page removed entirely.
+test('REGRESSION GUARD: TradeWave Wave Cockpit/Risk Planner consolidated into the Screener as top-level tabs; standalone TradeWave sidebar button removed', () => {
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(!/goPage\('tradewave',this\)/.test(htmlSrc),
+    'REGRESSION: the separate "TradeWave" sidebar button is back — should be consolidated into the Screener nav entry');
+
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(/UNIFIED_SCREENER_ALIASES\s*=\s*\[[^\]]*'tradewave'[^\]]*\]/.test(routerSrc),
+    'REGRESSION: goPage(\'tradewave\') no longer redirects to the Screener page container — any old bookmark/dynamic call would 404 silently');
+  assert(/case 'tradewave':if\(typeof renderUnifiedScreenerPage/.test(routerSrc),
+    'REGRESSION: the tradewave router case no longer renders the Unified Screener');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/pageTab:\s*'screener'/.test(jsSrc), 'REGRESSION: US_STATE.pageTab (screener/cockpit/planner) is gone');
+  assert(/function usSwitchPageTab/.test(jsSrc), 'REGRESSION: usSwitchPageTab() is gone — no way to switch to Wave Cockpit/Risk Planner tabs');
+  assert(/window\.usSwitchPageTab = usSwitchPageTab/.test(jsSrc), 'REGRESSION: usSwitchPageTab is no longer exposed on window — the tab buttons\' onclick would fail');
+  assert(/twRenderSubPage\('us-wave-subpage',\s*pt === 'cockpit' \? 1 : 3\)/.test(jsSrc),
+    'REGRESSION: usRenderShell() no longer calls twRenderSubPage() for the cockpit/planner tabs — Wave Cockpit/Risk Planner content will never render inside the Screener page');
+
+  const twSrc = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
+  assert(/function twRenderSubPage\(containerId, tabIdx\)/.test(twSrc),
+    'REGRESSION: twRenderSubPage(containerId, tabIdx) is gone — the Screener has nothing to call for Wave Cockpit/Risk Planner content');
+  assert(!/window\.initTradeWaveSuite/.test(twSrc) && !/window\.renderTradeWavePage/.test(twSrc),
+    'REGRESSION: TradeWave still exposes its own page-level render/init functions — it should no longer be a standalone page');
+});
+
 // User-reported production screenshot (2026-09-18, Bandarmology BBCA):
 // "Arus investor asing saat ini mencatatkan Net Buy +Rp 0 M dengan
 // partisipasi pasar sebesar 0%" was showing for EVERY ticker on the real
@@ -6679,6 +6797,44 @@ test('REGRESSION GUARD: Unified Screener frontend renders a win-rate validation 
   // impressive is exactly the kind of misleading precision CLAUDE.md warns
   // against.
   assert(/Sampel cuma/.test(src), 'REGRESSION: the small-sample-size warning is gone from the backtest panel');
+});
+
+// User-reported (2026-09-18): "TOP BROKER BUYER (DATA RIIL) pada stock
+// intel tidak menampilkan data apa2... sudah coba semua timeframe, tidak
+// ada hasil". Root cause found: brokerRows was read from
+// `bSummary.brokers.buyer` — a field path that NEVER existed in either
+// data shape this card can receive (real server path returns `topBuyers`,
+// per generateBrokerSummary()'s normalize() in lib/idx-data-engine.js; the
+// simulated client-side fallback also returns `topBuyers`, never `brokers.
+// buyer`) — so brokerRows was unconditionally empty for every ticker and
+// every timeframe since this card was built, regardless of whether
+// Invezgo actually had real buyer data. Not a data-availability problem —
+// a field-name bug.
+test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER reads real buyer rows from bSummary.topBuyers (not the nonexistent bSummary.brokers.buyer), with field names matching what the row template expects', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(!/bSummary\.brokers && bSummary\.brokers\.buyer/.test(src), 'REGRESSION: brokerRows reverted to reading the nonexistent bSummary.brokers.buyer path — this was unconditionally empty for every ticker/timeframe');
+  assert(/Array\.isArray\(bSummary\.topBuyers\)/.test(src), 'REGRESSION: brokerRows no longer sources from bSummary.topBuyers (the real field both the live Invezgo path and the simulated fallback actually use)');
+
+  const fnMatch = src.match(/var brokerRows = \(bSummary && Array\.isArray\(bSummary\.topBuyers\)\)[\s\S]*?: \[\];/);
+  assert(fnMatch, 'REGRESSION: could not isolate the brokerRows mapping expression for direct testing');
+  const exprBody = fnMatch[0].replace('var brokerRows = ', '').replace(/;\s*$/, '');
+  const mapFn = new Function('bSummary', 'return (' + exprBody + ');');
+
+  const withData = mapFn({ topBuyers: [{ broker: 'AK', name: 'UBS Sekuritas', volumeLot: 1000, avgPrice: 9500 }] });
+  assert(withData.length === 1, 'REGRESSION: brokerRows is empty even when bSummary.topBuyers has real rows');
+  assert(withData[0].code === 'AK', 'REGRESSION: row.code no longer maps from topBuyers[].broker — CARD 4/modal templates read row.code, not row.broker');
+  assert(withData[0].volume === 1000, 'REGRESSION: row.volume no longer maps from topBuyers[].volumeLot — the render templates read row.volume, not row.volumeLot');
+  assert(withData[0].name === 'UBS Sekuritas' && withData[0].avgPrice === 9500, 'REGRESSION: name/avgPrice no longer carried through from topBuyers rows');
+
+  const withNoData = mapFn({ topBuyers: [] });
+  assert(Array.isArray(withNoData) && withNoData.length === 0, 'brokerRows should be an empty array (not null/undefined) when topBuyers is genuinely empty');
+});
+
+test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER empty-state message discloses WHY (simulated fallback / specific Invezgo failure reason), not just "no data"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(/brokerEmptyReason/.test(src), 'REGRESSION: brokerEmptyReason is gone — empty-state message no longer distinguishes simulated-fallback/quota-exhausted from genuinely-no-data');
+  const occurrences = (src.match(/data\.brokerTfTried \+ data\.brokerEmptyReason/g) || []).length;
+  assert(occurrences >= 2, `REGRESSION: expected both TOP BROKER BUYER render spots (CARD 4 + expanded modal) to append brokerEmptyReason to the empty-state message, found ${occurrences}`);
 });
 
 console.log('═══════════════════════════════════════════════════════');

@@ -12,6 +12,14 @@
  * (0-100). Bobot formula adalah kalibrasi AWAL yang disetujui user
  * ("saya setuju karna bisa kalibrasi ulang") — boleh disesuaikan lagi
  * nanti tanpa mengubah struktur halaman ini.
+ *
+ * (2026-09-18, further consolidation) TradeWave's single-ticker "Wave
+ * Cockpit" and "Risk Planner" tabs were moved in here too, as 2 more
+ * top-level tabs (US_STATE.pageTab) alongside the main Screener table —
+ * the standalone TradeWave page/toolbar is gone entirely now. Their
+ * computation/render logic still lives in 37-tradewave-engine.js
+ * (twAnalyzeWave(), twRenderSubPage()) — this file just owns which tab is
+ * active and gives twRenderSubPage() a container to draw into.
  */
 
 var US_STATE = {
@@ -22,6 +30,7 @@ var US_STATE = {
   summary: null,
   dataSources: null,
   total: 0,
+  pageTab: 'screener', // 'screener' | 'cockpit' | 'planner'
   filters: {
     search: '',
     index: 'ALL',
@@ -29,11 +38,17 @@ var US_STATE = {
     minUptrend: '',
     maxPer: '',
     minRoe: '',
-    confirmedOnly: false
+    confirmedOnly: false,
+    wavePhase: 'ALL'
   },
   sort: 'uptrendScore',
   order: 'desc'
 };
+
+function usSwitchPageTab(tab) {
+  US_STATE.pageTab = tab;
+  usRenderShell();
+}
 
 // Win-rate validation state (2026-09-18, user-requested: "bagaimana agar
 // saya bisa menguji apakah screener benar atau salah"). Track A
@@ -50,6 +65,15 @@ function usWhaleBadgeClass(label) {
   if (label === 'Akumulasi Kuat') return 'b-up';
   if (label === 'Akumulasi Lemah') return 'b-amb';
   if (label === 'Distribusi') return 'b-dn';
+  return 'b-neu';
+}
+
+var US_WAVE_PHASES = ['WAVE 1 BREAKOUT', 'WAVE 2 DIP BUY', 'WAVE 3 EXTENSION', 'WAVE 4 RETEST', 'WAVE 5 CLIMAX', 'CORRECTIVE ABC'];
+
+function usWaveBadgeClass(phase) {
+  if (phase === 'WAVE 1 BREAKOUT' || phase === 'WAVE 3 EXTENSION') return 'b-up';
+  if (phase === 'WAVE 2 DIP BUY' || phase === 'WAVE 4 RETEST') return 'b-amb';
+  if (phase === 'WAVE 5 CLIMAX' || phase === 'CORRECTIVE ABC') return 'b-dn';
   return 'b-neu';
 }
 
@@ -74,6 +98,7 @@ async function usFetchAndRender() {
   if (f.maxPer !== '') qs.set('maxPer', f.maxPer);
   if (f.minRoe !== '') qs.set('minRoe', f.minRoe);
   if (f.confirmedOnly) qs.set('confirmedOnly', 'true');
+  if (f.wavePhase && f.wavePhase !== 'ALL') qs.set('wavePhase', f.wavePhase);
   qs.set('sort', US_STATE.sort);
   qs.set('order', US_STATE.order);
   qs.set('limit', '100');
@@ -103,6 +128,7 @@ function usApplyFilters() {
   US_STATE.filters.maxPer = (el('us-f-maxper') && el('us-f-maxper').value) || '';
   US_STATE.filters.minRoe = (el('us-f-minroe') && el('us-f-minroe').value) || '';
   US_STATE.filters.confirmedOnly = !!(el('us-f-confirmed') && el('us-f-confirmed').checked);
+  US_STATE.filters.wavePhase = (el('us-f-wavephase') && el('us-f-wavephase').value) || 'ALL';
   usFetchAndRender();
 }
 
@@ -126,15 +152,39 @@ function usSortIndicator(field) {
   return US_STATE.order === 'desc' ? ' ▼' : ' ▲';
 }
 
+function usPageTabBtnStyle(active) {
+  return 'font-weight:700;' + (active ? 'background:rgba(0,200,255,0.15);border-color:#00c8ff;color:#00c8ff' : '');
+}
+
 function usRenderShell() {
   var c = el('page-radar');
   if (!c) return;
   var f = US_STATE.filters;
+  var pt = US_STATE.pageTab || 'screener';
 
   var html = '<div style="margin-bottom:16px">'
     + '<div class="ptitle">Screener</div>'
-    + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter.</div>'
+    + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter. Termasuk analisis Wave (Elliott Wave/SuperTrend) per-ticker (tab "Wave Cockpit") dan kalkulator ukuran posisi (tab "Risk Planner") — bekas TradeWave, sekarang jadi bagian dari Screener ini.</div>'
     + '</div>';
+
+  // Top-level page tabs — Screener (whole-market table) vs Wave Cockpit /
+  // Risk Planner (single-ticker, bekas halaman TradeWave terpisah,
+  // digabung ke sini 2026-09-18 atas permintaan user: "toolbar trade wave
+  // di hilangkan saja semua bergabung di scanner").
+  html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'screener\')" style="' + usPageTabBtnStyle(pt === 'screener') + '">📊 Screener</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'cockpit\')" style="' + usPageTabBtnStyle(pt === 'cockpit') + '">🌊 Wave Cockpit</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'planner\')" style="' + usPageTabBtnStyle(pt === 'planner') + '">📐 Risk Planner</button>'
+    + '</div>';
+
+  if (pt === 'cockpit' || pt === 'planner') {
+    html += '<div id="us-wave-subpage"></div>';
+    c.innerHTML = html;
+    if (typeof twRenderSubPage === 'function') {
+      twRenderSubPage('us-wave-subpage', pt === 'cockpit' ? 1 : 3);
+    }
+    return;
+  }
 
   // Data-source honesty banner
   if (US_STATE.dataSources) {
@@ -154,6 +204,7 @@ function usRenderShell() {
     html += '<div class="card" style="padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-mute)">'
       + 'Cakupan teknikal (cron-warmed): ' + s.technicalCoverage + '/' + s.totalUniverse + ' saham. '
       + 'Cakupan fundamental: ' + s.fundamentalCoverage + '/' + s.totalUniverse + ' saham. '
+      + 'Cakupan Wave Analysis: ' + (s.waveCoverage != null ? s.waveCoverage : 0) + '/' + s.totalUniverse + ' saham. '
       + 'Saham di luar cakupan tampil "N/A" (bukan skor 0) — akan mengisi bertahap lewat cron harian.'
       + '</div>';
   }
@@ -182,6 +233,13 @@ function usRenderShell() {
       + '<input id="us-f-maxper" type="number" min="0" placeholder="mis. 15" value="' + (f.maxPer || '') + '" style="width:70px;' + fis + '" class="finput"></div>'
     + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Min ROE %</label>'
       + '<input id="us-f-minroe" type="number" placeholder="mis. 10" value="' + (f.minRoe || '') + '" style="width:70px;' + fis + '" class="finput"></div>'
+    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Wave Phase</label>'
+      + '<select id="us-f-wavephase" class="finput fsel" style="' + fis + '">'
+        + '<option value="ALL"' + (f.wavePhase === 'ALL' ? ' selected' : '') + '>Semua</option>'
+        + US_WAVE_PHASES.map(function (v) {
+            return '<option value="' + v + '"' + (f.wavePhase === v ? ' selected' : '') + '>' + v + '</option>';
+          }).join('')
+      + '</select></div>'
     + '<div style="display:flex;align-items:center;gap:6px">'
       + '<input id="us-f-confirmed" type="checkbox"' + (f.confirmedOnly ? ' checked' : '') + '> '
       + '<label style="font-size:11.5px" for="us-f-confirmed">Uptrend + Akumulasi Terkonfirmasi saja</label></div>'
@@ -205,10 +263,11 @@ function usRenderShell() {
         + '<th style="cursor:pointer" onclick="usSetSort(\'volRatio\')">Vol Ratio' + usSortIndicator('volRatio') + '</th>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'uptrendScore\')">Uptrend' + usSortIndicator('uptrendScore') + '</th>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'whaleScore\')">Whale' + usSortIndicator('whaleScore') + '</th>'
+        + '<th style="cursor:pointer" onclick="usSetSort(\'waveScore\')">Wave Phase' + usSortIndicator('waveScore') + '</th>'
       + '</tr></thead><tbody>';
 
     if (US_STATE.rows.length === 0 && US_STATE.loaded) {
-      html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-mute)">Tidak ada saham yang cocok dengan filter ini.</td></tr>';
+      html += '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-mute)">Tidak ada saham yang cocok dengan filter ini.</td></tr>';
     }
 
     US_STATE.rows.forEach(function (r) {
@@ -222,6 +281,7 @@ function usRenderShell() {
         + '<td>' + (r.volRatio != null ? r.volRatio.toFixed(2) + 'x' : '<span style="color:var(--text-mute)">N/A</span>') + '</td>'
         + '<td>' + (r.uptrendScore != null ? ('<b style="color:' + usUptrendColor(r.uptrendScore) + '">' + r.uptrendScore + '</b>') : '<span style="color:var(--text-mute)">N/A</span>') + '</td>'
         + '<td><span class="badge ' + usWhaleBadgeClass(r.whaleLabel) + '" style="font-size:9px">' + r.whaleLabel + '</span></td>'
+        + '<td>' + (r.wavePhase ? ('<span class="badge ' + usWaveBadgeClass(r.wavePhase) + '" style="font-size:9px">' + r.wavePhase + '</span>') : '<span style="color:var(--text-mute)">N/A</span>') + '</td>'
         + '</tr>';
     });
 
@@ -372,6 +432,8 @@ function renderUnifiedScreenerPage() {
 }
 
 window.renderUnifiedScreenerPage = renderUnifiedScreenerPage;
+window.usSwitchPageTab = usSwitchPageTab;
+window.usRenderShell = usRenderShell;
 window.usApplyFilters = usApplyFilters;
 window.usSetSort = usSetSort;
 window.usOpenTicker = usOpenTicker;

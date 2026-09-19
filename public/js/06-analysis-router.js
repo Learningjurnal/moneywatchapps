@@ -774,7 +774,14 @@ function goPage(name,btn){
   // old fsRenderRanking()/page-scanner code stays in the codebase
   // (unreachable from nav now, not deleted) to keep this change reversible
   // and low-risk.
-  var UNIFIED_SCREENER_ALIASES = ['ranking', 'scanner'];
+  // 'tradewave' joined this list the same day, after being consolidated a
+  // second time ("toolbar trade wave di hilangkan saja semua bergabung di
+  // scanner") — its Wave Cockpit/Risk Planner tabs now live inside the
+  // Unified Screener page itself (US_STATE.pageTab), so any old
+  // goPage('tradewave') call (bookmark, dynamic call) also lands on
+  // 'radar'. <div id="page-tradewave"> stays in the DOM, unreachable, same
+  // as page-ranking/page-scanner above.
+  var UNIFIED_SCREENER_ALIASES = ['ranking', 'scanner', 'tradewave'];
   var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : name));
   var pg = el('page-'+targetPageName);
   // FIX (audit 2026-09-12, "Router silently ignores missing page"): sebelumnya
@@ -896,7 +903,10 @@ function renderPage(name){
     case 'pajak':renderPajak();break;
     case 'knowledge':if(typeof initKnowledgeSuite==='function') initKnowledgeSuite();break;
     case 'ai-trading':if(typeof initAiAutonomousSuite==='function') initAiAutonomousSuite();break;
-    case 'tradewave':if(typeof initTradeWaveSuite==='function') initTradeWaveSuite();break;
+    // 'tradewave' consolidated into the Unified Screener (see the
+    // goPage() redirect + 'radar' case above) — its Wave Cockpit/Risk
+    // Planner tabs are now US_STATE.pageTab values there.
+    case 'tradewave':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'fundamental':if(typeof fundInit==='function') fundInit();break;
     case 'technical':if(typeof techInit==='function') techInit();break;
     case 'crypto-technical':if(typeof initCryptoTechnicalSuite==='function') initCryptoTechnicalSuite();break;

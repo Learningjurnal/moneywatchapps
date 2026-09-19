@@ -257,8 +257,32 @@ function getStockIntelData(ticker) {
     ? cached.brokerSummary
     : (typeof generateClientSideBrokerSummary === 'function' ? generateClientSideBrokerSummary(tk, MW_INTEL_BROKER_TF) : null);
   var bandar = bSummary && bSummary.bandarmology ? bSummary.bandarmology : null;
-  var brokerRows = (bSummary && bSummary.brokers && bSummary.brokers.buyer) ? bSummary.brokers.buyer.slice(0, 5) : [];
+  // FIX (2026-09-18, user-reported: "TOP BROKER BUYER tidak menampilkan
+  // data apa2... sudah coba semua timeframe"): this read `bSummary.brokers
+  // .buyer` — a field path that NEVER existed in either data shape this
+  // card can receive (real server path returns `topBuyers` — see
+  // generateBrokerSummary()'s normalize() in lib/idx-data-engine.js — and
+  // the simulated client-side fallback, generateClientSideBrokerSummary()
+  // in 41-stockchat-cockpit.js, ALSO returns `topBuyers`, never `brokers.
+  // buyer`). brokerRows was therefore unconditionally empty for every
+  // ticker/timeframe since this card was built — never actually a
+  // data-availability problem, always this field-name bug. Also remaps
+  // each row's field names (broker/volumeLot → code/volume) to match what
+  // both render spots below (CARD 4 and the expanded modal) already expect.
+  var brokerRows = (bSummary && Array.isArray(bSummary.topBuyers))
+    ? bSummary.topBuyers.slice(0, 5).map(function (b) {
+        return { code: b.broker, name: b.name, volume: b.volumeLot, avgPrice: b.avgPrice };
+      })
+    : [];
   var brokerTfTried = cached.brokerSummaryFetched ? (cached.brokerSummaryTf || MW_INTEL_BROKER_TF) : null;
+  // Honest diagnostic for the empty-state message: when a real fetch was
+  // tried but genuinely came back with nothing, tell the user (and future
+  // debugging) WHY — simulated fallback, or a specific Invezgo failure
+  // reason (quota/auth/subscription) — instead of a generic dead-end
+  // message that looks identical whether the cause is fixable or not.
+  var brokerEmptyReason = (cached.brokerSummaryFetched && bSummary && bSummary.isSimulated)
+    ? (bSummary.quality && bSummary.quality.reason ? ' (' + bSummary.quality.reason + ')' : ' (data simulasi — Invezgo tidak tersedia)')
+    : '';
 
   // 5. Score computation purely from available verified ratios
   var score = 50;
@@ -399,7 +423,8 @@ function getStockIntelData(ticker) {
     },
     brokerRows: brokerRows,
     brokerTf: MW_INTEL_BROKER_TF,
-    brokerTfTried: brokerTfTried
+    brokerTfTried: brokerTfTried,
+    brokerEmptyReason: brokerEmptyReason
   };
 }
 
@@ -1038,7 +1063,7 @@ function renderStockIntelPage() {
             // masalah sinkronisasi yang refresh bisa perbaiki). Sekarang
             // beda pesan tergantung apakah fetch real sudah pernah dicoba.
             : (data.brokerTfTried
-                ? '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11.5px">Tidak ada data broker signifikan untuk ' + data.brokerTfTried + ' — coba timeframe lebih panjang (1W/1M/1Y) di atas.</div>'
+                ? '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11.5px">Tidak ada data broker signifikan untuk ' + data.brokerTfTried + data.brokerEmptyReason + ' — coba timeframe lebih panjang (1W/1M/1Y) di atas.</div>'
                 : '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11.5px">Data broker summary sedang dimuat dari feed BEI. Silakan klik tombol Refresh Real-Time.</div>'))
         + '</div>'
       + '</div>'
@@ -1220,7 +1245,7 @@ function openBandarFlowModal(ticker) {
                 + '</tbody>'
               + '</table>'
             : (data.brokerTfTried
-                ? '<div style="padding:20px;text-align:center;color:var(--text3);font-size:11.5px">Tidak ada data broker signifikan untuk ' + data.brokerTfTried + ' — coba timeframe lebih panjang di kartu Broker Flow.</div>'
+                ? '<div style="padding:20px;text-align:center;color:var(--text3);font-size:11.5px">Tidak ada data broker signifikan untuk ' + data.brokerTfTried + data.brokerEmptyReason + ' — coba timeframe lebih panjang di kartu Broker Flow.</div>'
                 : '<div style="padding:20px;text-align:center;color:var(--text3);font-size:11.5px">Data broker summary sedang dimuat.</div>'))
         + '</div>'
       + '</div>'
