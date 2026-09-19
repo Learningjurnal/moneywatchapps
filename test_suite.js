@@ -7057,6 +7057,46 @@ test('REGRESSION GUARD: menu/routing cleanup audit (2026-09-19, user-requested r
   assert(indexHtml.includes('id="page-scanner"'), 'REGRESSION: page-scanner was removed — unlike page-ranking, this one still backs a real, separately test-covered feature (see "Smart Money Screener consolidation" test) and must stay until that feature itself is deliberately retired');
 });
 
+test('REGRESSION GUARD: 3 more fsGenData() consumers found by the 2026-09-19 menu/data audit must disclose synthetic data honestly (same bug class as the DEWA techRunFlowScanTab incident) — fsRunScanner() "emiten terverifikasi" cards, techRenderMainChart()\'s native price chart, and the CMF/Net-Foreign charts in mountBandarmologySmartMoneyCharts()', () => {
+  const flowScanSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  const stockmasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  // 1. fsRunScanner() must check r.data.simulated per card, same pattern
+  // as its sibling fsRenderRanking()/fsRenderHeatmap() — previously it
+  // rendered "Ditemukan N emiten TERVERIFIKASI" + precise CMF/VR/Skor
+  // with zero disclosure, even when every card came from fsGenData()'s
+  // synthetic random-walk fallback.
+  const scannerFnMatch = flowScanSrc.match(/function fsRunScanner\(\)\s*\{[\s\S]*?\n\}/);
+  assert(scannerFnMatch, 'REGRESSION: fsRunScanner() not found');
+  assert(/var isSim\s*=\s*!!\(r\.data && r\.data\.simulated\)/.test(scannerFnMatch[0]), 'REGRESSION: fsRunScanner() no longer checks r.data.simulated per card');
+  assert(/fsSrcDot\(isSim\)/.test(scannerFnMatch[0]), 'REGRESSION: fsRunScanner() no longer shows the fsSrcDot() real/simulated badge per card');
+  // Strip comment lines before checking for the OLD rendered string —
+  // the fix's own explanatory comment quotes the old "emiten TERVERIFIKASI"
+  // text as documentation, which would otherwise false-positive this check.
+  const scannerFnNoComments = scannerFnMatch[0].split('\n').filter((line) => !/^\s*\/\//.test(line)).join('\n');
+  assert(!/emiten terverifikasi/i.test(scannerFnNoComments), 'REGRESSION: fsRunScanner() calls its results "terverifikasi" (verified) again — misleading when some/all cards are synthetic');
+
+  // 2. techRenderMainChart() must check fsGenData()'s .simulated flag (and
+  // treat its own second-layer Math.sin() fallback as simulated too), and
+  // show an honest banner instead of a bare, unlabeled price+chg% header.
+  const chartFnMatch = stockmasterSrc.match(/function techRenderMainChart\(ticker\) \{[\s\S]*?\n\}\n\n\/\//);
+  assert(chartFnMatch, 'REGRESSION: could not isolate techRenderMainChart() body');
+  assert(/isSimChart/.test(chartFnMatch[0]), 'REGRESSION: techRenderMainChart() no longer tracks isSimChart — the native price chart (specific "Rp X.XXX" + "+X.XX%" header) could silently be 100% fabricated again');
+  assert(/SIMULASI.*belum ada histori harga riil/.test(chartFnMatch[0]), 'REGRESSION: techRenderMainChart() lost its honest simulated-data banner');
+  assert(/TECH_MAINCHART_FETCHING/.test(stockmasterSrc), 'REGRESSION: techRenderMainChart() lost its self-heal (rdEnsure) path for when the chart shows synthetic data');
+
+  // 3. mountBandarmologySmartMoneyCharts(): the CMF fallback must not be a
+  // hardcoded alternating pattern (15.4/-8.2) presented as real, and the
+  // "Net Foreign" chart's title/badge must disclose it's a volume-based
+  // proxy, not real per-ticker daily foreign-flow data (which this app
+  // has no source for at all — only a whole-market aggregate exists).
+  assert(!/15\.4\s*:\s*-8\.2/.test(cockpitSrc), 'REGRESSION: the hardcoded alternating 15.4/-8.2 fake CMF fallback pattern is back — CLAUDE.md #3 violation (precise-looking fabricated numbers)');
+  assert(/isCmfFallback/.test(cockpitSrc), 'REGRESSION: mountBandarmologySmartMoneyCharts() no longer tracks isCmfFallback');
+  assert(cockpitSrc.includes('Estimasi Arus Dana (Proxy Volume)'), 'REGRESSION: the "Net Foreign" chart title reverted to implying real foreign-flow data ("Arus Net Dana Asing Harian") — this app has no real per-ticker daily foreign-flow source, only a whole-market aggregate');
+  assert(cockpitSrc.includes('ESTIMASI, BUKAN DATA ASING RIIL'), 'REGRESSION: the "Net Foreign" chart badge no longer discloses it is an estimate, not real foreign-investor data');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

@@ -3056,16 +3056,22 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Chaikin Money Flow (CMF-20)</div>'
-    + '<span class="badge b-up" style="font-size:8px">AKUMULASI / DISTRIBUSI</span>'
+    + '<span class="badge b-up" style="font-size:8px" id="bandarSmartCmfBadge">AKUMULASI / DISTRIBUSI</span>'
     + '</div>'
     + '<div style="height:220px;position:relative;width:100%"><canvas id="bandarSmartCmfChart"></canvas></div>'
     + '</div>'
 
     // Chart 3: Net Foreign Flow Daily Inflow/Outflow Bars
+    // FIX (2026-09-19, menu/data audit): judul lama "Arus Net Dana Asing
+    // Harian" menyiratkan ini data transaksi asing riil harian — padahal
+    // aplikasi ini TIDAK punya feed foreign-flow harian per ticker (hanya
+    // agregat whole-market via getUniverseForeignFlow()). nfVals di bawah
+    // 100% proxy dari split 65/35 volume berdasarkan arah harga (d.up),
+    // bukan data asing sungguhan. Judul & badge diperjelas jadi estimasi.
     + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Arus Net Dana Asing Harian</div>'
-    + '<span class="badge b-neu" style="font-size:8px">JUTA LEMBAR</span>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Estimasi Arus Dana (Proxy Volume)</div>'
+    + '<span class="badge b-neu" style="font-size:8px" title="Dihitung dari split volume vs arah harga, BUKAN data transaksi asing riil">ESTIMASI, BUKAN DATA ASING RIIL</span>'
     + '</div>'
     + '<div style="height:200px;position:relative;width:100%"><canvas id="bandarSmartForeignChart"></canvas></div>'
     + '</div>'
@@ -3125,8 +3131,17 @@ function mountBandarmologySmartMoneyCharts(tk) {
   });
   var closes = data.map(function(d) { return d.c; });
   var volumes = data.map(function(d) { return d.v; });
+  // FIX (2026-09-19, menu/data audit — pola "SIMULASI tapi terlihat
+  // presisi" dilarang CLAUDE.md #3): sebelumnya, kalau fsProcess() gagal
+  // menghasilkan CMF (histori terlalu pendek dkk), fallback-nya adalah
+  // pola BERGANTIAN HARDCODED 15.4/-8.2 -- angka presisi yang terlihat
+  // seperti hasil hitungan riil padahal konstanta tetap. Diganti null
+  // (Chart.js merender sebagai celah kosong, bukan angka karangan).
   var cmfVals = (a.cmf || []).map(function(v) { return +(v * 100).toFixed(2); });
-  if (cmfVals.length === 0) cmfVals = closes.map(function(c, i) { return (i % 2 === 0 ? 15.4 : -8.2); });
+  var isCmfFallback = cmfVals.length === 0;
+  if (isCmfFallback) cmfVals = closes.map(function() { return null; });
+  var cmfBadgeEl = document.getElementById('bandarSmartCmfBadge');
+  if (cmfBadgeEl) cmfBadgeEl.textContent = isCmfFallback ? 'DATA TIDAK CUKUP' : 'AKUMULASI / DISTRIBUSI';
 
   var vwap = (typeof fsCalcVWAP === 'function') ? fsCalcVWAP(data) : closes;
   var std = (typeof fsCalcVWAPStdDev === 'function') ? fsCalcVWAPStdDev(data, vwap) : [];

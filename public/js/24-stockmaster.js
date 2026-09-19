@@ -1299,6 +1299,7 @@ function techFormatTV(ticker) {
 }
 
 // ── Tab 1: Instant Native Technical Chart + On-Demand TV Toggle ──
+var TECH_MAINCHART_FETCHING = {};
 function techRenderMainChart(ticker) {
   var container = document.getElementById('sm-tv-chart-container') || document.getElementById('tech-tv-chart-container');
   if (!container) return;
@@ -1314,8 +1315,16 @@ function techRenderMainChart(ticker) {
   }
 
   // Native High-Performance Interactive Chart
+  // FIX (2026-09-19, menu/data audit — kelas bug sama seperti insiden DEWA
+  // di techRunFlowScanTab()): sebelumnya fungsi ini merender chart harga +
+  // header "Rp X.XXX" & "+X.XX%" tanpa PERNAH mengecek fsGenData().simulated
+  // — dan kalau hasilnya kosong, masih membuat deret harga fiktif KEDUA
+  // (Math.sin) tanpa label sama sekali. isSim sekarang dilacak untuk kedua
+  // jalur fabrikasi dan ditampilkan sebagai banner jujur di header chart.
   var ohlcv = (typeof fsGenData === 'function') ? fsGenData(ticker, 45) : [];
+  var isSimChart = !!(ohlcv && ohlcv.simulated);
   if (!ohlcv || !ohlcv.length) {
+    isSimChart = true;
     var basePx = (typeof prices !== 'undefined' && prices[ticker]) || 5000;
     ohlcv = [];
     for (var i = 0; i < 45; i++) {
@@ -1355,9 +1364,18 @@ function techRenderMainChart(ticker) {
     + '    <button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')">Buka TradingView Pro</button>'
     + '  </div>'
     + '</div>'
+    + (isSimChart ? '<div style="padding:8px 14px;background:rgba(255,61,90,.08);border-bottom:1px solid rgba(255,61,90,.25);color:var(--red,#e21d48);font-size:11px;font-weight:600">⚠️ SIMULASI — belum ada histori harga riil ter-cache untuk ' + ticker + '. Harga/perubahan di atas adalah data acak/estimasi, bukan pasar riil.</div>' : '')
     + '<div style="position:relative;height:380px;background:var(--bg2);padding:10px;border-radius:0 0 10px 10px">'
     + '  <canvas id="techNativeChartCanvas"></canvas>'
     + '</div>';
+
+  if (isSimChart && !TECH_MAINCHART_FETCHING[ticker] && typeof rdEnsure === 'function') {
+    TECH_MAINCHART_FETCHING[ticker] = true;
+    rdEnsure(ticker, function() {
+      TECH_MAINCHART_FETCHING[ticker] = false;
+      if (TECH_DATA.ticker === ticker) techRenderMainChart(ticker);
+    });
+  }
 
   techKillChart('nativeChart');
   var cv = document.getElementById('techNativeChartCanvas');
