@@ -359,19 +359,19 @@ function renderDashboardAIInsight(){
     // jatuh ke saran umum berbasis regime kalau belum ada BUY ZONE pick
     if(_dashInsightTopPick){
       lines.push({
-        label: 'Rekomendasi Aksi',
+        label: 'Tindakan Direkomendasikan',
         text: 'Pertimbangkan ' + _dashInsightTopPick.ticker + ' (' + (_dashInsightTopPick.verdict || 'BUY ZONE') + ', skor ' + _dashInsightTopPick.score + '/100) — lihat evidence lengkapnya sebelum memutuskan.',
         source: 'AI Opportunity Radar'
       });
     } else if(_dashInsightRegime && (_dashInsightRegime.regime === 'BEAR_TREND' || _dashInsightRegime.regime === 'RISK_OFF')) {
       lines.push({
-        label: 'Rekomendasi Aksi',
+        label: 'Tindakan Direkomendasikan',
         text: 'Belum ada saham di BUY ZONE dan regime market sedang ' + (_dashInsightRegime.regime === 'RISK_OFF' ? 'risk-off' : 'bearish') + ' — pertimbangkan wait-and-see, bukan menambah posisi baru.',
         source: 'Market Regime + AI Opportunity Radar'
       });
     } else {
       lines.push({
-        label: 'Rekomendasi Aksi',
+        label: 'Tindakan Direkomendasikan',
         text: 'Belum ada saham di BUY ZONE saat ini — pantau Opportunity Radar secara berkala.',
         source: 'AI Opportunity Radar'
       });

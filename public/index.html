@@ -188,302 +188,308 @@
      ══════════════════════════════════════════════ -->
 <div id="landing-screen" class="landing-screen-wrap">
 <style>
-/* ── MINIMAL LANDING — Space Theme ─────────────────────── */
+/* ── ULTRA-REALISTIC LANDING — Cinematic Deep Space & Earth Horizon ─────────────────────── */
 .lp-wrap {
   position: relative;
   width: 100%; height: 100vh;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   overflow: hidden;
-  background: radial-gradient(ellipse at 60% 40%, #0a1628 0%, #030610 60%, #000000 100%);
+  background-color: #02040a;
+  background-image:
+    radial-gradient(ellipse 90% 70% at 50% 40%, rgba(2, 6, 23, 0.45) 0%, rgba(2, 6, 18, 0.78) 70%, rgba(1, 3, 10, 0.96) 100%),
+    url('img/landing-bg.jpg?v=20260920');
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
 }
 
-/* Stars */
-.lp-stars { position: absolute; inset: 0; pointer-events: none; }
-.lp-stars::before, .lp-stars::after {
-  content: '';
-  position: absolute; inset: 0;
+/* Atmospheric Horizon Glow & Rayleigh Scattering Bloom */
+.lp-horizon-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle 850px at 75% 85%, rgba(56, 189, 248, 0.13) 0%, rgba(14, 165, 233, 0.04) 50%, transparent 75%),
+    radial-gradient(circle 600px at 45% 95%, rgba(37, 99, 235, 0.09) 0%, transparent 60%);
+  mix-blend-mode: screen;
+  animation: atmosphericBreathe 12s ease-in-out infinite alternate;
+}
+@keyframes atmosphericBreathe {
+  0% { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1.03); }
+}
+
+/* Realistic Micro Starfield (subtle pinpoint astronomical scintillation) */
+.lp-starfield {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background-image:
-    radial-gradient(1px 1px at 10% 20%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 30% 5%,  rgba(255,255,255,0.7) 100%, transparent),
-    radial-gradient(1px 1px at 55% 15%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 75% 8%,  rgba(255,255,255,0.5) 100%, transparent),
-    radial-gradient(1px 1px at 90% 25%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 15% 45%, rgba(255,255,255,0.6) 100%, transparent),
-    radial-gradient(1px 1px at 40% 60%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 65% 50%, rgba(255,255,255,0.8) 100%, transparent),
-    radial-gradient(1px 1px at 80% 70%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 5%  80%, rgba(255,255,255,0.4) 100%, transparent),
-    radial-gradient(1px 1px at 25% 90%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 50% 85%, rgba(255,255,255,0.7) 100%, transparent),
-    radial-gradient(1px 1px at 85% 90%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 95% 55%, rgba(255,255,255,0.5) 100%, transparent),
-    radial-gradient(2px 2px at 20% 30%, rgba(56,189,248,0.6) 100%, transparent),
-    radial-gradient(2px 2px at 70% 25%, rgba(56,189,248,0.4) 100%, transparent),
-    radial-gradient(2px 2px at 45% 75%, rgba(99,102,241,0.5) 100%, transparent);
+    radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,0.9) 100%, transparent),
+    radial-gradient(1px 1px at 28% 12%, rgba(255,255,255,0.6) 100%, transparent),
+    radial-gradient(1px 1px at 45% 8%,  rgba(200,230,255,0.85) 100%, transparent),
+    radial-gradient(1.5px 1.5px at 68% 15%, rgba(255,255,255,0.95) 100%, transparent),
+    radial-gradient(1px 1px at 82% 22%, rgba(255,245,220,0.7) 100%, transparent),
+    radial-gradient(1px 1px at 92% 10%, rgba(255,255,255,0.6) 100%, transparent),
+    radial-gradient(1px 1px at 8%  35%, rgba(255,255,255,0.5) 100%, transparent),
+    radial-gradient(1.5px 1.5px at 22% 28%, rgba(186,230,253,0.8) 100%, transparent),
+    radial-gradient(1px 1px at 38% 32%, rgba(255,255,255,0.4) 100%, transparent),
+    radial-gradient(1px 1px at 60% 25%, rgba(255,255,255,0.75) 100%, transparent),
+    radial-gradient(1px 1px at 85% 38%, rgba(255,255,255,0.55) 100%, transparent);
   background-size: 100% 100%;
-  animation: twinkle 4s ease-in-out infinite alternate;
+  animation: starScintillate 6s ease-in-out infinite alternate;
 }
-.lp-stars::after {
+@keyframes starScintillate {
+  0% { opacity: 0.7; }
+  100% { opacity: 0.95; }
+}
+
+/* Institutional Telemetry HUD / Coordinates */
+.lp-telemetry-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background-image:
-    radial-gradient(1px 1px at 8%  12%, rgba(255,255,255,0.5) 100%, transparent),
-    radial-gradient(1px 1px at 35% 40%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 60% 35%, rgba(255,255,255,0.6) 100%, transparent),
-    radial-gradient(1px 1px at 88% 48%, #fff 100%, transparent),
-    radial-gradient(1px 1px at 18% 68%, rgba(255,255,255,0.4) 100%, transparent),
-    radial-gradient(1px 1px at 72% 80%, #fff 100%, transparent),
-    radial-gradient(2px 2px at 93% 15%, rgba(248,113,113,0.5) 100%, transparent);
-  animation-delay: 2s;
-}
-@keyframes twinkle { from { opacity: 0.7; } to { opacity: 1; } }
-
-/* Earth */
-.lp-earth {
-  position: absolute;
-  bottom: -220px; right: -120px;
-  width: 520px; height: 520px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 35%, #1a6baa 0%, #0d4a8a 30%, #062a5c 65%, #020d1f 100%);
-  box-shadow:
-    0 0 0 2px rgba(56,189,248,0.15),
-    0 0 60px rgba(56,189,248,0.08),
-    inset -60px -40px 80px rgba(0,0,20,0.7),
-    inset 20px 30px 40px rgba(56,189,248,0.06);
-  overflow: hidden;
-  animation: earthSpin 60s linear infinite;
-}
-.lp-earth::before {
-  content: '';
-  position: absolute; inset: 0;
-  border-radius: 50%;
-  background:
-    radial-gradient(ellipse 80px 50px at 30% 40%, rgba(34,197,94,0.25) 0%, transparent 100%),
-    radial-gradient(ellipse 60px 35px at 55% 25%, rgba(34,197,94,0.2) 0%, transparent 100%),
-    radial-gradient(ellipse 40px 25px at 70% 60%, rgba(34,197,94,0.15) 0%, transparent 100%),
-    radial-gradient(ellipse 50px 30px at 20% 65%, rgba(34,197,94,0.18) 0%, transparent 100%);
-}
-.lp-earth::after {
-  content: '';
-  position: absolute; inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 30% 30%, rgba(56,189,248,0.12) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 70%, rgba(255,255,255,0.03) 0%, transparent 50%);
-  box-shadow: inset 0 0 0 1px rgba(56,189,248,0.08);
-}
-.lp-earth-atmosphere {
-  position: absolute;
-  bottom: -240px; right: -140px;
-  width: 560px; height: 560px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(56,189,248,0.08) 0%, transparent 70%);
-  box-shadow: 0 0 80px 30px rgba(56,189,248,0.06);
-  animation: earthSpin 60s linear infinite;
-}
-@keyframes earthSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* Rocket */
-.lp-rocket-wrap {
-  position: absolute;
-  bottom: 180px; right: 250px;
-  animation: rocketFloat 4s ease-in-out infinite, rocketOrbit 20s linear infinite;
-  transform-origin: center center;
-  filter: drop-shadow(0 0 20px rgba(56,189,248,0.4)) drop-shadow(0 0 8px rgba(99,102,241,0.3));
-}
-@keyframes rocketFloat {
-  0%, 100% { transform: translateY(0px) rotate(-45deg); }
-  50% { transform: translateY(-18px) rotate(-45deg); }
-}
-@keyframes rocketOrbit {
-  0%   { bottom: 180px; right: 250px; }
-  25%  { bottom: 280px; right: 180px; }
-  50%  { bottom: 200px; right: 120px; }
-  75%  { bottom: 120px; right: 200px; }
-  100% { bottom: 180px; right: 250px; }
+    linear-gradient(rgba(56, 189, 248, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.02) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 20%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 20%, transparent 80%);
 }
 
-/* Rocket SVG styling */
-.lp-rocket { width: 90px; height: 90px; }
+.lp-telemetry-bar {
+  position: absolute;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 32px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.6);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  z-index: 5;
+}
+.lp-telemetry-top { top: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.lp-telemetry-bottom { bottom: 0; border-top: 1px solid rgba(255, 255, 255, 0.04); }
 
-/* Rocket trail */
-.lp-rocket-trail {
-  position: absolute;
-  bottom: -8px; right: 40px;
-  width: 6px; height: 60px;
-  background: linear-gradient(to bottom, rgba(251,146,60,0.9), rgba(239,68,68,0.6), transparent);
-  border-radius: 3px;
-  transform: rotate(-45deg) translateY(30px);
-  filter: blur(2px);
-  animation: trailPulse 0.3s ease-in-out infinite alternate;
+.lp-telemetry-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
-@keyframes trailPulse {
-  from { opacity: 0.7; height: 55px; }
-  to   { opacity: 1;   height: 70px; }
-}
-
-/* Glow orbit ring */
-.lp-orbit-ring {
-  position: absolute;
-  bottom: -50px; right: -40px;
-  width: 420px; height: 420px;
-  border-radius: 50%;
-  border: 1px solid rgba(56,189,248,0.12);
-  animation: orbitSpin 25s linear infinite;
-}
-.lp-orbit-ring::before {
-  content: '';
-  position: absolute;
-  top: -3px; left: 50%;
+.lp-telemetry-dot {
   width: 6px; height: 6px;
-  background: #38BDF8;
   border-radius: 50%;
-  box-shadow: 0 0 10px #38BDF8;
-  transform: translateX(-50%);
+  background: #38BDF8;
+  box-shadow: 0 0 8px #38BDF8;
+  animation: statusPulse 2s ease-in-out infinite;
 }
-@keyframes orbitSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
 
-/* Content */
-.lp-content {
-  position: relative; z-index: 10;
+/* Central Institutional Hero Card */
+.lp-hero-card {
+  position: relative;
+  z-index: 10;
   text-align: center;
-  display: flex; flex-direction: column;
-  align-items: center; gap: 24px;
-  padding: 0 24px;
-  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 44px 40px;
+  max-width: 540px;
+  background: rgba(3, 8, 20, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 24px;
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.75),
+    0 0 40px rgba(56, 189, 248, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  margin: 0 20px;
 }
+
 .lp-logo-row {
-  display: flex; align-items: center; gap: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 .lp-logo-text {
-  font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #fff;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: #FFFFFF;
 }
-.lp-logo-text span { color: #38BDF8; }
-.lp-badge {
-  background: rgba(56,189,248,0.12);
+.lp-logo-text span {
   color: #38BDF8;
-  border: 1px solid rgba(56,189,248,0.25);
-  font-size: 9px; font-weight: 800;
-  padding: 3px 8px; border-radius: 4px;
-  letter-spacing: 1px;
 }
+.lp-badge {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 1.2px;
+}
+
 .lp-headline {
-  font-size: clamp(28px, 5vw, 48px);
+  font-size: clamp(30px, 5.2vw, 48px);
   font-weight: 900;
   color: #FFFFFF;
-  line-height: 1.1;
-  letter-spacing: -1px;
+  line-height: 1.15;
+  letter-spacing: -1.2px;
   margin: 0;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.8);
 }
-.lp-headline .acc { color: #38BDF8; }
+.lp-headline .acc {
+  background: linear-gradient(135deg, #38BDF8 0%, #60A5FA 60%, #93C5FD 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .lp-sub {
-  font-size: 13px; color: rgba(148,163,184,0.9);
-  margin: 0; line-height: 1.6; max-width: 360px;
+  font-size: 14px;
+  color: rgba(226, 232, 240, 0.85);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 440px;
+  letter-spacing: 0.2px;
 }
+
+.lp-actions-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
 .lp-btn-start {
-  display: inline-flex; align-items: center; gap: 10px;
-  padding: 16px 42px;
-  background: linear-gradient(135deg, #2563EB 0%, #38BDF8 100%);
-  color: #fff;
-  font-size: 15px; font-weight: 800;
-  border: none; border-radius: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  padding: 15px 32px;
+  background: linear-gradient(135deg, #0284C7 0%, #2563EB 50%, #38BDF8 100%);
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50px;
   cursor: pointer;
-  letter-spacing: 0.3px;
-  box-shadow: 0 0 0 1px rgba(56,189,248,0.3), 0 8px 40px rgba(37,99,235,0.45);
-  transition: transform 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.4px;
+  box-shadow:
+    0 10px 30px rgba(2, 132, 199, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .lp-btn-start:hover {
-  transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 0 0 2px rgba(56,189,248,0.5), 0 12px 50px rgba(37,99,235,0.6);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 14px 40px rgba(2, 132, 199, 0.6),
+    0 0 20px rgba(56, 189, 248, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
-.lp-btn-start i { font-size: 18px; }
+.lp-btn-start i {
+  font-size: 17px;
+  transition: transform 0.2s ease;
+}
+.lp-btn-start:hover i {
+  transform: translateX(3px);
+}
+
 .lp-btn-guest {
-  background: none; border: none;
-  color: rgba(148,163,184,0.7);
-  font-size: 12px; cursor: pointer;
-  text-decoration: underline; text-underline-offset: 3px;
-  transition: color 0.2s;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 24px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
 }
-.lp-btn-guest:hover { color: #38BDF8; }
+.lp-btn-guest:hover {
+  background: rgba(56, 189, 248, 0.15);
+  color: #FFFFFF;
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-1px);
+}
+
+.lp-trust-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  width: 100%;
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.7);
+  letter-spacing: 0.03em;
+}
+.lp-trust-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.lp-trust-item i {
+  color: #38BDF8;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .lp-hero-card {
+    padding: 32px 20px;
+    margin: 0 16px;
+    gap: 18px;
+  }
+  .lp-telemetry-bar {
+    display: none;
+  }
+  .lp-trust-strip {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
 </style>
 
 <div class="lp-wrap">
-  <!-- Stars -->
-  <div class="lp-stars"></div>
-
-  <!-- Orbit ring -->
-  <div class="lp-orbit-ring"></div>
-
-  <!-- Earth -->
-  <div class="lp-earth-atmosphere"></div>
-  <div class="lp-earth"></div>
-
-  <!-- Rocket -->
-  <div class="lp-rocket-wrap">
-    <div class="lp-rocket-trail"></div>
-    <svg class="lp-rocket" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Body -->
-      <path d="M50 8 C62 8 74 22 74 42 L74 68 L50 80 L26 68 L26 42 C26 22 38 8 50 8Z" fill="url(#rocketBodyGrad)"/>
-      <!-- Nose -->
-      <path d="M50 8 C38 8 26 22 26 42 L50 8Z" fill="url(#rocketNoseL)"/>
-      <path d="M50 8 C62 8 74 22 74 42 L50 8Z" fill="url(#rocketNoseR)"/>
-      <!-- Window -->
-      <circle cx="50" cy="42" r="12" fill="url(#windowGrad)" stroke="rgba(56,189,248,0.5)" stroke-width="1.5"/>
-      <circle cx="47" cy="39" r="4" fill="rgba(255,255,255,0.25)"/>
-      <!-- Left fin -->
-      <path d="M26 55 L10 72 L26 68 Z" fill="#1E3A5F"/>
-      <path d="M26 55 L10 72 L26 68 Z" fill="url(#finGrad)" opacity="0.7"/>
-      <!-- Right fin -->
-      <path d="M74 55 L90 72 L74 68 Z" fill="#1E3A5F"/>
-      <path d="M74 55 L90 72 L74 68 Z" fill="url(#finGrad)" opacity="0.7"/>
-      <!-- Exhaust -->
-      <ellipse cx="50" cy="80" rx="14" ry="6" fill="rgba(251,146,60,0.6)"/>
-      <!-- Flame -->
-      <path d="M40 80 Q44 95 50 100 Q56 95 60 80 Z" fill="url(#flameGrad)" opacity="0.9"/>
-      <path d="M44 80 Q47 90 50 94 Q53 90 56 80 Z" fill="#FDE68A" opacity="0.8"/>
-      <defs>
-        <linearGradient id="rocketBodyGrad" x1="26" y1="8" x2="74" y2="80" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#E2E8F0"/>
-          <stop offset="100%" stop-color="#64748B"/>
-        </linearGradient>
-        <linearGradient id="rocketNoseL" x1="26" y1="8" x2="50" y2="42" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#CBD5E1"/>
-          <stop offset="100%" stop-color="#94A3B8"/>
-        </linearGradient>
-        <linearGradient id="rocketNoseR" x1="74" y1="8" x2="50" y2="42" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#94A3B8"/>
-          <stop offset="100%" stop-color="#475569"/>
-        </linearGradient>
-        <radialGradient id="windowGrad" cx="45%" cy="40%">
-          <stop offset="0%" stop-color="#38BDF8"/>
-          <stop offset="60%" stop-color="#0EA5E9"/>
-          <stop offset="100%" stop-color="#0369A1"/>
-        </radialGradient>
-        <linearGradient id="finGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#38BDF8"/>
-          <stop offset="100%" stop-color="#2563EB"/>
-        </linearGradient>
-        <linearGradient id="flameGrad" x1="50" y1="80" x2="50" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#FB923C"/>
-          <stop offset="50%" stop-color="#EF4444"/>
-          <stop offset="100%" stop-color="transparent"/>
-        </linearGradient>
-      </defs>
-    </svg>
+  <!-- Telemetry Header -->
+  <div class="lp-telemetry-bar lp-telemetry-top">
+    <div class="lp-telemetry-item">
+      <span class="lp-telemetry-dot"></span>
+      <span>IDX FEED: OPERATIONAL (JKSE)</span>
+    </div>
+    <div class="lp-telemetry-item">
+      <span>COORDINATES: 06°12′S 106°48′E</span>
+    </div>
+    <div class="lp-telemetry-item">
+      <span>ENGINE: DUAL-CORE AI CONFLUENCE</span>
+    </div>
   </div>
 
-  <!-- Floating particles -->
-  <div style="position:absolute;inset:0;pointer-events:none">
-    <div style="position:absolute;top:15%;left:10%;width:3px;height:3px;background:#38BDF8;border-radius:50%;animation:twinkle 2s infinite alternate;opacity:0.6"></div>
-    <div style="position:absolute;top:25%;left:20%;width:2px;height:2px;background:#818CF8;border-radius:50%;animation:twinkle 3s 0.5s infinite alternate;opacity:0.5"></div>
-    <div style="position:absolute;top:10%;left:75%;width:3px;height:3px;background:#38BDF8;border-radius:50%;animation:twinkle 2.5s 1s infinite alternate;opacity:0.7"></div>
-    <div style="position:absolute;top:60%;left:5%;width:2px;height:2px;background:#F472B6;border-radius:50%;animation:twinkle 2s 0.3s infinite alternate;opacity:0.5"></div>
-    <div style="position:absolute;top:70%;left:85%;width:3px;height:3px;background:#34D399;border-radius:50%;animation:twinkle 3s 0.8s infinite alternate;opacity:0.4"></div>
-  </div>
+  <!-- Background Layers -->
+  <div class="lp-telemetry-grid"></div>
+  <div class="lp-horizon-glow"></div>
+  <div class="lp-starfield"></div>
 
-  <!-- Main Content -->
-  <div class="lp-content">
+  <!-- Central Institutional Hero Card -->
+  <div class="lp-hero-card">
     <div class="lp-logo-row">
-      <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="28" style="width:auto">
+      <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="30" style="width:auto">
       <span class="lp-logo-text">Money<span>Watch</span></span>
       <span class="lp-badge">TERMINAL</span>
     </div>
@@ -496,14 +502,42 @@
       Smart Money · Valuasi Graham · AI Decision Engine
     </p>
 
-    <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+    <div class="lp-actions-wrap">
       <button class="lp-btn-start" onclick="authOpenLoginModal()">
-        <i class="ti ti-rocket"></i>
-        Mulai Sekarang
+        <span>Mulai Sekarang</span>
+        <i class="ti ti-arrow-right"></i>
       </button>
       <button class="lp-btn-guest" onclick="authDoGuestLogin()">
         Coba tanpa akun (Mode Tamu)
       </button>
+    </div>
+
+    <div class="lp-trust-strip">
+      <div class="lp-trust-item">
+        <i class="ti ti-shield-check"></i>
+        <span>Data IDX Terverifikasi</span>
+      </div>
+      <div class="lp-trust-item">
+        <i class="ti ti-chart-dots"></i>
+        <span>Smart Money Analytics</span>
+      </div>
+      <div class="lp-trust-item">
+        <i class="ti ti-cpu"></i>
+        <span>Institutional Risk Engine</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry Footer -->
+  <div class="lp-telemetry-bar lp-telemetry-bottom">
+    <div class="lp-telemetry-item">
+      <span>MONEYWATCH PRO v6.2</span>
+    </div>
+    <div class="lp-telemetry-item">
+      <span>REGIME DETECTION: ACTIVE</span>
+    </div>
+    <div class="lp-telemetry-item">
+      <span>ZERO SYNTHETIC DATA ENFORCED</span>
     </div>
   </div>
 </div>
@@ -1970,7 +2004,7 @@
 
   <!-- Subtabs: Kalender Dividen / Analisis / Riwayat -->
   <div class="sm-suite-tabs" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-    <button class="sm-nav-item active" id="div-subtab-btn-cal" onclick="switchDivSubTab('calendar')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+    <button id="div-subtab-btn-cal" onclick="switchDivSubTab('calendar')" class="btn btn-xs btn-green" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
       <i class="ti ti-calendar-event"></i> Kalender Dividen &amp; Expected Cashflow
       <span class="badge b-accent" style="font-size:9px;padding:1px 5px;margin-left:4px;">RADAR</span>
     </button>
