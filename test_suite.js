@@ -6659,6 +6659,19 @@ test('REGRESSION GUARD: generateUnifiedScreener() merges accumulation/distributi
   assert(!/fetchInvezgoScreener\(/.test(unifiedFnMatch[0]), 'REGRESSION: generateUnifiedScreener() now calls fetchInvezgoScreener() automatically — this burns the throttled/quota-metered custom-formula endpoint on every whole-market page load, which the user explicitly said to avoid');
 });
 
+test('REGRESSION GUARD: generateUnifiedScreener()\'s "confirmed" gate uses tech.score>=80 (raised 2026-09-19 after backtest evidence), not the old uptrendScore>=60, and stays in sync with runUnifiedScreenerBacktest()\'s baseline (2026-09-19, formula-strength audit: of 3 tested threshold tweaks, only raising the technical-score gate held up after removing the 4 mania-stock outliers that drove every other backtest result that week — median alpha +0.82%, beat-benchmark 54.3% on N=95 with outliers excluded)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const unifiedFnMatch = src.match(/async function generateUnifiedScreener\(params = \{\}\) \{[\s\S]*?\n\}\n\n\/\/ ══/);
+  assert(unifiedFnMatch, 'REGRESSION: could not isolate generateUnifiedScreener() body');
+  assert(/const confirmed = tech != null && tech\.score >= 80 && whaleScore >= 3;/.test(unifiedFnMatch[0]), 'REGRESSION: "confirmed" no longer gates on the backtest-validated tech.score>=80 threshold (either reverted to the old uptrendScore>=60, or drifted to check the wrong — fundamentals-diluted — score entirely)');
+  assert(!/uptrendScore >= 60/.test(unifiedFnMatch[0]), 'REGRESSION: the old, backtest-disproven uptrendScore>=60 gate is back');
+  // The backtest's own "baseline" must track this same threshold, or a
+  // future re-run of the backtest would silently validate a formula that
+  // is no longer what's live in production — the exact mismatch this
+  // week's audit was started to catch and fix.
+  assert(/const baselineFilter = \(s\) => s\.whaleScoreFull >= 3 && s\.techScore >= 80;/.test(src), 'REGRESSION: runUnifiedScreenerBacktest()\'s baseline no longer matches generateUnifiedScreener()\'s actual "confirmed" gate (techScore>=80) — future backtest runs would silently validate a stale formula');
+});
+
 await asyncTest('BEHAVIOR: generateUnifiedScreener() runs end-to-end without an Invezgo/Redis config and returns an honest, well-shaped result', async () => {
   const { generateUnifiedScreener } = await import('./lib/idx-data-engine.js');
   const result = await generateUnifiedScreener({ limit: 10 });
@@ -6849,11 +6862,11 @@ await asyncTest('BEHAVIOR: runUnifiedScreenerBacktest() degrades honestly (avail
   assert(Array.isArray(result.signals) && result.signals.length === 0, 'signals must be an empty array, not fabricated entries');
 });
 
-test('REGRESSION GUARD: runUnifiedScreenerBacktest() supports ?variants=true — compares 4 formula tweaks (baseline/whale4/noDoubleCount/techScore80) from ONE fetched data pool instead of one endpoint call per tweak (2026-09-19, user formula-strength audit: single-command comparison of whaleScore>=4, dropping the volume-spike+uptrend double-count bonus found in the code audit, and techScore>=80)', () => {
+test('REGRESSION GUARD: runUnifiedScreenerBacktest() supports ?variants=true — compares formula tweaks (baseline/whale4/noDoubleCount/techScore60) from ONE fetched data pool instead of one endpoint call per tweak (2026-09-19, user formula-strength audit: single-command comparison of whaleScore>=4, dropping the volume-spike+uptrend double-count bonus found in the code audit, and the old techScore>=60 threshold kept for reference after techScore>=80 became the new production baseline)', () => {
   const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
   assert(/whaleScoreNoVolSpike/.test(src), 'REGRESSION: whaleScoreNoVolSpike variant (anti double-count) is gone');
   assert(/params\.variants === true \|\| params\.variants === 'true'/.test(src), 'REGRESSION: ?variants=true opt-in check is gone');
-  assert(/whale4:/.test(src) && /noDoubleCount:/.test(src) && /techScore80:/.test(src) && /baseline:/.test(src), 'REGRESSION: one or more of the 4 named variants (baseline/whale4/noDoubleCount/techScore80) is gone');
+  assert(/whale4:/.test(src) && /noDoubleCount:/.test(src) && /techScore60:/.test(src) && /baseline:/.test(src), 'REGRESSION: one or more of the named variants (baseline/whale4/noDoubleCount/techScore60) is gone');
   assert(/medianReturnPct/.test(src) && /medianAlphaPct/.test(src), 'REGRESSION: median return/alpha (more robust than mean against outlier-skew, per this audit\'s findings) no longer computed per variant');
 });
 
