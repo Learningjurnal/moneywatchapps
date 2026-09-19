@@ -366,80 +366,34 @@ function getAiActionRecommendations() {
 }
 
 // ── Opportunity Radar Universe State & Cache ──
+// FIX (2026-09-19, user-reported: "Opportunity Radar belum sinkron dengan
+// screener", user confirmed konsolidasi): sub-tab lama "Universe Screener
+// (950+)" (formula Margin-of-Safety/ROE/PE, GET /api/idx/opportunity-radar)
+// dihapus dari sini — duplikat konsep dari halaman Screener
+// (48-unified-screener.js, formula Whale/Uptrend, GET
+// /api/idx/unified-screener) yang bisa menghasilkan urutan/skor BERBEDA
+// untuk saham yang sama, terbaca sebagai bug "tidak sinkron" bukan 2 fitur
+// yang disengaja beda. RADAR_STATE.items/summary/search/index/sector/zone/
+// flow/sort/order/page/pageSize/isLoading/lastUpdated dan
+// getOpportunityRadarItems()/loadOpportunityRadarUniverse()/
+// updateRadarFilter() ikut dihapus — HANYA dipakai sub-tab itu. 3 sub-tab
+// lain (Anomaly Structural & ARA, Visualisasi Alur Transaksi, Kalender
+// Aksi Korporasi) TETAP ADA — fitur real berbeda, tidak disentuh.
 var RADAR_STATE = {
-  activeTab: 'screener', // 'screener' | 'scanner' | 'flow-trail' | 'corporate-actions'
-  search: '',
-  index: 'ALL',
-  sector: 'ALL',
-  zone: 'ALL',
-  flow: 'ALL',
-  sort: 'score',
-  order: 'desc',
-  page: 1,
-  pageSize: 25,
-  items: [],
-  summary: { totalUniverse: 0, buyZoneCount: 0, watchlistCount: 0, avoidCount: 0, corpActionCount: 0, lq45Count: 0, limitedDataCount: 0 },
+  activeTab: 'anomaly-ara', // 'anomaly-ara' | 'flow-trail' | 'corporate-actions'
   accData: null,
   accTimeframe: '1D',
   // Cache-per-timeframe for loadAccumulationDistributionData() — see that
   // function below (INCIDENT_LOG.md 2026-09-11: this scanner had zero
-  // client-side cache, unlike loadOpportunityRadarUniverse's 60s check,
-  // so every timeframe-button click re-fired the scan even seconds after
-  // the last one).
+  // client-side cache, so every timeframe-button click re-fired the scan
+  // even seconds after the last one).
   accDataCache: {}, // { [timeframe]: { data, fetchedAt } }
   flowTicker: 'BBCA',
   flowTimeframe: '1D',
   flowData: null,
   corpData: null,
-  corpFilter: 'ALL',
-  isLoading: false,
-  lastUpdated: null
+  corpFilter: 'ALL'
 };
-
-/**
- * Opportunity Radar Universe — reads whatever the real backend
- * (getUniverseOpportunityRadar) returned. Returns an empty list rather than
- * a fabricated placeholder while that fetch hasn't completed yet; callers
- * must render their own "Memuat..." state by checking RADAR_STATE.isLoading.
- */
-function getOpportunityRadarItems() {
-  return RADAR_STATE.items || [];
-}
-
-/**
- * Fetch Universe Opportunity Radar from API
- */
-async function loadOpportunityRadarUniverse(force) {
-  if (RADAR_STATE.isLoading) return;
-  if (!force && RADAR_STATE.items.length > 0 && RADAR_STATE.lastUpdated && (Date.now() - RADAR_STATE.lastUpdated < 60000)) {
-    return;
-  }
-
-  RADAR_STATE.isLoading = true;
-  var queryParams = new URLSearchParams({
-    search: RADAR_STATE.search || '',
-    index: RADAR_STATE.index || 'ALL',
-    sector: RADAR_STATE.sector || 'ALL',
-    zone: RADAR_STATE.zone || 'ALL',
-    sort: RADAR_STATE.sort || 'score',
-    order: RADAR_STATE.order || 'desc',
-    limit: '250'
-  });
-
-  try {
-    var res = await fetch('/api/idx/opportunity-radar?' + queryParams.toString());
-    var data = await res.json();
-    if (data && data.success && Array.isArray(data.items)) {
-      RADAR_STATE.items = data.items;
-      RADAR_STATE.summary = data.summary || RADAR_STATE.summary;
-      RADAR_STATE.lastUpdated = Date.now();
-    }
-  } catch (err) {
-    console.warn('[Opportunity Radar Fetch Warning]', err);
-  } finally {
-    RADAR_STATE.isLoading = false;
-  }
-}
 
 var ACC_DIST_CACHE_TTL_MS = 300000; // 5 minutes — matches invezgo-client.js's server-side cache TTL
 
@@ -541,7 +495,7 @@ async function loadCorporateActionsData(filter) {
  * Helper to Switch Radar Subtabs
  */
 function setRadarSubTab(tabName) {
-  RADAR_STATE.activeTab = tabName || 'screener';
+  RADAR_STATE.activeTab = tabName || 'anomaly-ara';
   renderOpportunityRadarPage();
   // FIX (2026-09-17, infinite-loop audit): was still checking for the OLD
   // sub-tab name 'scanner', dead since the "Scanner Akumulasi & Distribusi"
@@ -577,17 +531,6 @@ function selectRadarFlowTicker(tk) {
   });
 }
 
-/**
- * Helper to change radar filter in-page
- */
-function updateRadarFilter(key, val) {
-  RADAR_STATE[key] = val;
-  RADAR_STATE.page = 1;
-  loadOpportunityRadarUniverse(true).then(function() {
-    renderOpportunityRadarPage();
-  });
-}
-
 // ============================================================
 // (removed) renderCommandCenterHeader / renderExecutiveKpis /
 // renderHealthAndRegimeSection / renderAiActionCenter /
@@ -595,8 +538,11 @@ function updateRadarFilter(key, val) {
 // Center" dashboard leftovers superseded by renderDashboard(); the
 // page router never calls any of these, and grep confirmed zero
 // callers anywhere in the app. Their shared calc helpers
-// (calcPortfolioHealthScore, getMarketRegime, getAiActionRecommendations,
-// getOpportunityRadarItems) are still used elsewhere and were kept.
+// (calcPortfolioHealthScore, getMarketRegime, getAiActionRecommendations)
+// are still used elsewhere and were kept. getOpportunityRadarItems() was
+// ALSO in this "kept" list until 2026-09-19, when its only remaining
+// caller (renderRadarScreenerSubTab()) was removed — see the RADAR_STATE
+// comment above.
 // ============================================================
 
 /**
@@ -669,183 +615,38 @@ function renderOpportunityRadarPage() {
   var c = el('page-radar');
   if (!c) return;
 
-  // Trigger background universe loading on first visit
-  if (RADAR_STATE.items.length === 0 && !RADAR_STATE.isLoading) {
-    loadOpportunityRadarUniverse();
-  }
-
-  var activeTab = RADAR_STATE.activeTab || 'screener';
-  var sum = RADAR_STATE.summary || { totalUniverse: 0, buyZoneCount: 0, watchlistCount: 0, corpActionCount: 0, limitedDataCount: 0 };
+  var activeTab = RADAR_STATE.activeTab || 'anomaly-ara';
 
   var html = '<div style="margin-bottom:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
       + '<div>'
         + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Opportunity Radar</div>'
-        + '<div class="psub">Peluang investasi kuantitatif terintegrasi dari universe saham BEI / IDX.</div>'
+        + '<div class="psub">Deteksi anomali, alur transaksi, dan aksi korporasi per emiten. Untuk screening/ranking seluruh 950+ saham BEI, gunakan halaman Screener.</div>'
       + '</div>'
       + '<div style="display:flex;align-items:center;gap:8px">'
-        + '<button class="btn btn-ghost btn-sm" onclick="loadOpportunityRadarUniverse(true);loadAccumulationDistributionData(RADAR_STATE.accTimeframe, true);loadCorporateActionsData();showSaveStatus(\'Data Radar diperbarui\');"><i class="ti ti-refresh"></i> Refresh ↻</button>'
-        + '<button class="btn btn-primary btn-sm" onclick="goPage(\'stock-intel\')">Stock Intel →</button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="loadAccumulationDistributionData(RADAR_STATE.accTimeframe, true);loadCorporateActionsData();showSaveStatus(\'Data Radar diperbarui\');"><i class="ti ti-refresh"></i> Refresh ↻</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="goPage(\'radar\')">Screener (950+) →</button>'
       + '</div>'
-    + '</div>'
-  + '</div>'
-
-  // Summary Metrics Banner
-  + '<div class="row4" style="margin-bottom:16px">'
-    + '<div class="metric" style="border-left:3px solid var(--accent)">'
-      + '<div class="mlabel">TOTAL UNIVERSE</div>'
-      + '<div class="mval mono" style="font-size:20px">' + (sum.totalUniverse || 0) + '</div>'
-      + '<div class="msub neu">Seluruh Emiten BEI / IDX</div>'
-    + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--green)">'
-      + '<div class="mlabel">BUY ZONE CANDIDATES</div>'
-      + '<div class="mval up mono" style="font-size:20px">' + (sum.buyZoneCount || 0) + '</div>'
-      + '<div class="msub up">Composite Score ≥ 80</div>'
-    + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--amber)">'
-      + '<div class="mlabel">AKSI KORPORASI AKTIF</div>'
-      + '<div class="mval amb mono" style="font-size:20px">' + (sum.corpActionCount || 0) + '</div>'
-      + '<div class="msub neu">Dividen / Split / Rights / RUPS</div>'
-    + '</div>'
-    + '<div class="metric" style="border-left:3px solid var(--text3)">'
-      + '<div class="mlabel">DATA TERBATAS</div>'
-      + '<div class="mval mono" style="font-size:20px;color:var(--text3)">' + (sum.limitedDataCount || 0) + '</div>'
-      + '<div class="msub neu">Emiten di luar LQ45 / IDX30</div>'
     + '</div>'
   + '</div>'
 
   // In-Page Subtab Navigation
   + '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap">'
-    + '<button class="btn btn-xs ' + (activeTab === 'screener' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'screener\')">Universe Screener (950+)</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'anomaly-ara' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'anomaly-ara\')">Anomaly Structural &amp; ARA</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'flow-trail' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'flow-trail\')">Visualisasi Alur Transaksi</button>'
     + '<button class="btn btn-xs ' + (activeTab === 'corporate-actions' ? 'btn-primary' : 'btn-ghost') + '" onclick="setRadarSubTab(\'corporate-actions\')">Kalender Aksi Korporasi &amp; Dividen</button>'
   + '</div>';
 
   // Render Active Subtab Content
-  if (activeTab === 'anomaly-ara') {
-    html += renderRadarAnomalyAraSubTab();
-  } else if (activeTab === 'screener') {
-    html += renderRadarScreenerSubTab();
-  } else if (activeTab === 'flow-trail') {
+  if (activeTab === 'flow-trail') {
     html += renderRadarFlowTrailSubTab();
   } else if (activeTab === 'corporate-actions') {
     html += renderRadarCorporateActionsSubTab();
+  } else {
+    html += renderRadarAnomalyAraSubTab();
   }
 
   c.innerHTML = html;
-}
-
-/**
- * Subtab 1: Radar Universe Screener (950+ Saham)
- */
-function renderRadarScreenerSubTab() {
-  var items = getOpportunityRadarItems();
-
-  // In-page Filter & Search Bar
-  var html = '<div class="card" style="padding:14px;margin-bottom:14px">'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:center">'
-      + '<div>'
-        + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Cari Kode / Nama Saham</label>'
-        + '<input type="text" class="form-input" style="width:100%;height:32px;font-size:12px" placeholder="Contoh: BBCA, ANTM, ADRO..." value="' + (RADAR_STATE.search || '') + '" oninput="updateRadarFilter(\'search\', this.value)">'
-      + '</div>'
-      + '<div>'
-        + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Indeks Saham</label>'
-        + '<select class="form-select" style="width:100%;height:32px;font-size:12px" onchange="updateRadarFilter(\'index\', this.value)">'
-          + '<option value="ALL"' + (RADAR_STATE.index === 'ALL' ? ' selected' : '') + '>Semua Indeks (950+)</option>'
-          + '<option value="LQ45"' + (RADAR_STATE.index === 'LQ45' ? ' selected' : '') + '>LQ45 (45 Bluechips)</option>'
-          + '<option value="IDX30"' + (RADAR_STATE.index === 'IDX30' ? ' selected' : '') + '>IDX30 (30 Terlikuid)</option>'
-          + '<option value="KOMPAS100"' + (RADAR_STATE.index === 'KOMPAS100' ? ' selected' : '') + '>KOMPAS100</option>'
-          + '<option value="SRI-KEHATI"' + (RADAR_STATE.index === 'SRI-KEHATI' ? ' selected' : '') + '>SRI-KEHATI (ESG)</option>'
-          + '<option value="ISSI"' + (RADAR_STATE.index === 'ISSI' ? ' selected' : '') + '>ISSI (Syariah)</option>'
-        + '</select>'
-      + '</div>'
-      + '<div>'
-        + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Zona Radar</label>'
-        + '<select class="form-select" style="width:100%;height:32px;font-size:12px" onchange="updateRadarFilter(\'zone\', this.value)">'
-          + '<option value="ALL"' + (RADAR_STATE.zone === 'ALL' ? ' selected' : '') + '>Semua Zona</option>'
-          + '<option value="BUY ZONE"' + (RADAR_STATE.zone === 'BUY ZONE' ? ' selected' : '') + '>BUY ZONE (Score ≥80)</option>'
-          + '<option value="WATCHLIST"' + (RADAR_STATE.zone === 'WATCHLIST' ? ' selected' : '') + '>WATCHLIST (Score 70-79)</option>'
-          + '<option value="NEUTRAL"' + (RADAR_STATE.zone === 'NEUTRAL' ? ' selected' : '') + '>NEUTRAL (Score 50-69)</option>'
-          + '<option value="AVOID"' + (RADAR_STATE.zone === 'AVOID' ? ' selected' : '') + '>AVOID (Score &lt;50)</option>'
-        + '</select>'
-      + '</div>'
-      + '<div>'
-        + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Urutkan Berdasarkan</label>'
-        + '<select class="form-select" style="width:100%;height:32px;font-size:12px" onchange="updateRadarFilter(\'sort\', this.value)">'
-          + '<option value="score"' + (RADAR_STATE.sort === 'score' ? ' selected' : '') + '>Radar Composite Score</option>'
-          + '<option value="mos"' + (RADAR_STATE.sort === 'mos' ? ' selected' : '') + '>Margin of Safety (%)</option>'
-          + '<option value="roe"' + (RADAR_STATE.sort === 'roe' ? ' selected' : '') + '>Return on Equity (ROE)</option>'
-          + '<option value="pe"' + (RADAR_STATE.sort === 'pe' ? ' selected' : '') + '>P/E Ratio Terendah</option>'
-          + '<option value="ticker"' + (RADAR_STATE.sort === 'ticker' ? ' selected' : '') + '>Kode Ticker (A-Z)</option>'
-        + '</select>'
-      + '</div>'
-    + '</div>'
-  + '</div>'
-
-  // Screener Table Card
-  + '<div class="card" style="padding:0;overflow:hidden">'
-    + '<div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">'
-      + '<span style="font-size:12px;color:var(--text2);font-weight:600">Menampilkan ' + items.length + ' kandidat saham terevaluasi</span>'
-      + '<span style="font-size:11px;color:var(--text3)">Evaluasi kuantitatif berdasarkan Margin of Safety &amp; ROE</span>'
-    + '</div>'
-    + '<div style="overflow-x:auto">'
-      + '<table class="tbl">'
-        + '<thead><tr>'
-          + '<th>Ticker &amp; Nama Emiten</th>'
-          + '<th style="text-align:center">Radar Score</th>'
-          + '<th>Zona Klasifikasi</th>'
-          + '<th style="text-align:right">Harga Saat Ini</th>'
-          + '<th style="text-align:right">Margin of Safety</th>'
-          + '<th style="text-align:right">P/E</th>'
-          + '<th style="text-align:right">ROE</th>'
-          + '<th>Aksi Korporasi</th>'
-          + '<th style="text-align:center">Aksi &amp; Detail</th>'
-        + '</tr></thead>'
-        + '<tbody>';
-
-  if (items.length === 0) {
-    html += '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text3)">' + (RADAR_STATE.isLoading ? 'Memuat data evaluasi pasar…' : 'Tidak ada saham yang sesuai dengan filter pencarian.') + '</td></tr>';
-  } else {
-    items.forEach(function(it) {
-      var corpBadge = '-';
-      if (it.corporateActions && it.corporateActions.length > 0) {
-        var ca = it.corporateActions[0];
-        corpBadge = '<span class="badge b-accent" style="font-size:10px" title="' + (ca.details || ca.title) + '">' + ca.type + ' (' + ca.date + ')</span>';
-      }
-
-      var mosVal = parseFloat(it.mos || 'NaN');
-      var mosClass = isNaN(mosVal) ? '' : (mosVal >= 0 ? 'up' : 'dn');
-
-      html += '<tr>'
-        + '<td>'
-          + '<div style="display:flex;align-items:center;gap:6px">'
-            + '<strong style="color:var(--text);font-size:13px">' + it.ticker + '</strong>'
-            + (it.indexes && it.indexes.lq45 ? '<span class="badge b-up" style="font-size:9px;padding:1px 4px">LQ45</span>' : '')
-          + '</div>'
-          + '<div style="color:var(--text3);font-size:11px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + it.name + '</div>'
-        + '</td>'
-        + '<td style="text-align:center">'
-          + '<span class="mono" style="font-size:15px;font-weight:800;color:var(--accent)">' + (it.score != null ? it.score : '—') + '</span><span style="font-size:10px;color:var(--text3)">/100</span>'
-        + '</td>'
-        + '<td><span class="badge ' + (it.zoneClass || 'b-neu') + '">' + it.zone + '</span></td>'
-        + '<td class="mono" style="text-align:right;font-weight:600">' + (it.price ? 'Rp ' + Number(it.price).toLocaleString('id-ID') : 'N/A') + '</td>'
-        + '<td class="mono ' + mosClass + '" style="text-align:right;font-weight:700">' + (it.mos || 'N/A') + '</td>'
-        + '<td class="mono" style="text-align:right">' + (it.pe || 'N/A') + '</td>'
-        + '<td class="mono" style="text-align:right">' + (it.roe || 'N/A') + '</td>'
-        + '<td>' + corpBadge + '</td>'
-        + '<td style="text-align:center;white-space:nowrap">'
-          + '<div style="display:inline-flex;gap:4px">'
-            + '<button class="btn btn-ghost btn-xs" onclick="selectRadarFlowTicker(\'' + it.ticker + '\')" title="Lihat Alur Transaksi &amp; Bandar">Alur</button>'
-            + '<button class="btn btn-primary btn-xs" onclick="goPage(\'stock-intel\');if(typeof selectStockIntelTicker===\'function\')selectStockIntelTicker(\'' + it.ticker + '\');" title="Buka Cockpit Analisis Lengkap">Cockpit →</button>'
-          + '</div>'
-        + '</td>'
-      + '</tr>';
-    });
-  }
-
-  html += '</tbody></table></div></div>';
-  return html;
 }
 
 /**
@@ -1315,8 +1116,6 @@ window.renderDataConnPage = renderDataConnPage;
 window.renderDataConnectionPage = renderDataConnPage;
 window.setRadarSubTab = setRadarSubTab;
 window.selectRadarFlowTicker = selectRadarFlowTicker;
-window.updateRadarFilter = updateRadarFilter;
-window.loadOpportunityRadarUniverse = loadOpportunityRadarUniverse;
 window.loadAccumulationDistributionData = loadAccumulationDistributionData;
 window.loadTransactionFlowData = loadTransactionFlowData;
 window.loadCorporateActionsData = loadCorporateActionsData;

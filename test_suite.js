@@ -1099,6 +1099,35 @@ test('REGRESSION GUARD: Market Heatmap preview and full Heatmap page must be who
   assert(/fsFetchUnifiedHeatmapData\(/.test(heatmapFn[0]), 'fsRenderHeatmap() no longer calls fsFetchUnifiedHeatmapData()');
   assert(!/FS_RD/.test(heatmapFn[0]), 'REGRESSION: fsRenderHeatmap() reads FS_RD again — reintroduces the top-60-by-market-cap violation on the full Heatmap page');
 });
+// FIX (2026-09-19, user-reported "Opportunity Radar belum sinkron dengan
+// screener", user confirmed konsolidasi via AskUserQuestion): the separate
+// "Opportunity Radar" page in Command Center (26-commandcenter.js,
+// page-radar) used to have its OWN "Universe Screener (950+)" sub-tab —
+// a duplicate whole-market screener with a DIFFERENT formula
+// (Margin-of-Safety/ROE/PE, GET /api/idx/opportunity-radar) than the real
+// Screener page (generateUnifiedScreener()'s Whale/Uptrend formula,
+// GET /api/idx/unified-screener) — the same "2 features disagree, reads as
+// a bug" pattern already fixed once for the dashboard preview widget
+// (see the "datanya tidak sesuai screener" guard above). Removed; the 3
+// other sub-tabs (Anomaly Structural & ARA, Visualisasi Alur Transaksi,
+// Kalender Aksi Korporasi) are real, distinct features and were kept.
+test('REGRESSION GUARD: Opportunity Radar page must not have its own duplicate "Universe Screener" sub-tab (consolidated into the real Screener page)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/26-commandcenter.js'), 'utf8');
+  assert(!/function renderRadarScreenerSubTab/.test(src),
+    'REGRESSION: renderRadarScreenerSubTab() exists again — reintroduces the duplicate MoS/ROE/PE whole-market screener that disagrees with the unified Screener');
+  assert(!/Universe Screener \(950\+\)/.test(src),
+    'REGRESSION: the "Universe Screener (950+)" tab button is back on the Opportunity Radar page');
+  assert(!/function getOpportunityRadarItems/.test(src),
+    'REGRESSION: getOpportunityRadarItems() exists again with no caller left to justify it');
+  assert(!/function loadOpportunityRadarUniverse/.test(src),
+    'REGRESSION: loadOpportunityRadarUniverse() exists again — the old MoS/ROE/PE fetch this consolidation removed');
+  const radarPageFn = src.match(/function renderOpportunityRadarPage\(\) \{[\s\S]*?\n\}\n/);
+  assert(radarPageFn, 'renderOpportunityRadarPage() body not found');
+  assert(/anomaly-ara/.test(radarPageFn[0]) && /flow-trail/.test(radarPageFn[0]) && /corporate-actions/.test(radarPageFn[0]),
+    'renderOpportunityRadarPage() must still render its 3 real sub-tabs (Anomaly Structural & ARA, Visualisasi Alur Transaksi, Kalender Aksi Korporasi) — these are distinct features, not part of this consolidation');
+  assert(/goPage\(\\'radar\\'\)/.test(radarPageFn[0]),
+    'renderOpportunityRadarPage() should point users to the real Screener page (goPage(\'radar\') -> renderUnifiedScreenerPage()) now that its own screener sub-tab is gone');
+});
 // FIX (2026-09-18, user-reported after full-codebase audit): this card
 // used to call generateClientSideBrokerSummary() DIRECTLY, skipping the
 // real backend entirely — so it ALWAYS showed "SIMULASI" even when
