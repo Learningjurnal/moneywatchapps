@@ -2817,7 +2817,7 @@
 <!-- Heatmap -->
 <div id="page-heatmap" class="page">
   <div class="ptitle">Heatmap & Factor Analysis</div>
-  <div class="psub">Visualisasi akumulasi/distribusi & faktor fundamental saham LQ45</div>
+  <div class="psub">Flow Heatmap: akumulasi/distribusi seluruh emiten BEI. Factor Heatmap: faktor fundamental (cakupan terbatas, lihat pilihan universe di tab tsb).</div>
 
   <!-- Tab switcher -->
   <div style="display:flex;gap:4px;margin-bottom:12px">
@@ -2829,10 +2829,9 @@
   <div id="hm-panel-flow">
     <div class="card" style="margin-top:0">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <select class="finput fsel" id="hm-mode" onchange="fsRenderHeatmap()" style="padding:4px 8px;font-size:11px">
-          <option value="score">Skor</option><option value="cmf">CMF</option><option value="chg">Chg%</option>
-        </select>
-        <span style="font-size:11px;color:var(--text3)">Klik sel → analisa detail di FlowScan</span>
+        <span style="font-size:11px;color:var(--text3);font-weight:700">Whale Score (Akumulasi/Distribusi), seluruh emiten BEI</span>
+        <button class="btn btn-ghost btn-xs" onclick="fsRenderHeatmap(true)"><i class="ti ti-refresh"></i> Refresh</button>
+        <span style="font-size:11px;color:var(--text3)">Klik sel → buka Stock Intel</span>
       </div>
       <div id="hm-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:16px"></div>
       <div style="display:flex;gap:14px;font-size:11px;color:var(--text3);flex-wrap:wrap">
@@ -4406,11 +4405,11 @@
 <script src="js/02-storage.js?v=20260918a"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
 <script src="js/03-engine.js?v=20260918b"></script>
-<script src="js/04-render.js?v=20260919a"></script>
+<script src="js/04-render.js?v=20260919d"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
 <script src="js/06-analysis-router.js?v=20260919b"></script>
-<script src="js/07-flowscan.js?v=20260919a"></script>
+<script src="js/07-flowscan.js?v=20260919d"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
 <script src="js/10-hargawajar.js?v=20260919a"></script>

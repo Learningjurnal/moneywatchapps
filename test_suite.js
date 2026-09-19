@@ -1068,13 +1068,36 @@ test('REGRESSION GUARD: renderDashboard() must call renderDashboardHeatmapPrevie
   assert(dashboardFn && dashboardFn[0].includes('renderDashboardSmartFlowPreview'),
     'renderDashboard() no longer calls renderDashboardSmartFlowPreview()');
 });
-test('REGRESSION GUARD: Market Heatmap preview must keep the real-vs-simulated disclosure marker (KNOWN_ISSUES.md #2)', () => {
-  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
-  const fn = src.match(/function renderDashboardHeatmapPreview\(\)\{[\s\S]*?\n\}/);
-  assert(fn, 'renderDashboardHeatmapPreview() body not found');
-  assert(/data\s*&&\s*r\.data\.simulated/.test(fn[0]) || /r\.data\.simulated/.test(fn[0]),
-    'renderDashboardHeatmapPreview() no longer reads .simulated off FS_RD rows — would show a fabricated score identically to a real one');
-  assert(/fsSrcDot\(/.test(fn[0]), 'renderDashboardHeatmapPreview() no longer calls fsSrcDot() — the SIM marker would be missing from this preview');
+// FIX (2026-09-19, user-reported: "Market Heatmap masih menampilkan hanya
+// lq45, tidak sesuai dengan aturan, seharunys seluruh saham dan hanya
+// memfilter yang masuk kriteria"): this preview used to read FS_RD
+// (07-flowscan.js's top-60-by-market-cap slice of the full ~958-ticker
+// universe) — a CLAUDE.md rule #2 violation identical in kind to the
+// Screener/Opportunity-Radar-preview incidents fixed earlier this session.
+// Now whole-market via fsFetchUnifiedHeatmapData() (GET
+// /api/idx/unified-screener), filtered by criteria (whaleDataAvailable)
+// instead of a market-cap sample. The old .simulated/fsSrcDot() disclosure
+// no longer applies — generateUnifiedScreener()'s cache-only Redis reads
+// return null (never a fabricated placeholder) on a cache miss, so there
+// is no "simulated score" case left to disclose here.
+test('REGRESSION GUARD: Market Heatmap preview and full Heatmap page must be whole-market (not FS_RD\'s top-60-by-cap sample)', () => {
+  const renderSrc = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  const previewFn = renderSrc.match(/async function renderDashboardHeatmapPreview\(\)\{[\s\S]*?\n\}/);
+  assert(previewFn, 'renderDashboardHeatmapPreview() body not found (must be async now)');
+  assert(/fsFetchUnifiedHeatmapData\(/.test(previewFn[0]),
+    'renderDashboardHeatmapPreview() no longer calls fsFetchUnifiedHeatmapData() — would regress to FS_RD\'s top-60-by-cap sample');
+  assert(!/FS_RD/.test(previewFn[0]),
+    'REGRESSION: renderDashboardHeatmapPreview() reads FS_RD again — reintroduces the top-60-by-market-cap violation of CLAUDE.md rule #2');
+
+  const flowSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  assert(/function fsFetchUnifiedHeatmapData\(/.test(flowSrc), 'fsFetchUnifiedHeatmapData() is missing from 07-flowscan.js');
+  assert(/\/api\/idx\/unified-screener/.test(flowSrc), 'fsFetchUnifiedHeatmapData() no longer fetches the whole-market unified-screener endpoint');
+  assert(/whaleDataAvailable/.test(flowSrc), 'fsFetchUnifiedHeatmapData() no longer filters by the whaleDataAvailable criterion — would show every ticker unfiltered instead of "hanya memfilter yang masuk kriteria"');
+
+  const heatmapFn = flowSrc.match(/async function fsRenderHeatmap\(force\)\{[\s\S]*?\n\}/);
+  assert(heatmapFn, 'fsRenderHeatmap() body not found (must be async now, taking a force param)');
+  assert(/fsFetchUnifiedHeatmapData\(/.test(heatmapFn[0]), 'fsRenderHeatmap() no longer calls fsFetchUnifiedHeatmapData()');
+  assert(!/FS_RD/.test(heatmapFn[0]), 'REGRESSION: fsRenderHeatmap() reads FS_RD again — reintroduces the top-60-by-market-cap violation on the full Heatmap page');
 });
 // FIX (2026-09-18, user-reported after full-codebase audit): this card
 // used to call generateClientSideBrokerSummary() DIRECTLY, skipping the
