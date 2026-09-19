@@ -2816,23 +2816,22 @@
 
 <!-- Heatmap -->
 <div id="page-heatmap" class="page">
-  <div class="ptitle">Heatmap & Factor Analysis</div>
-  <div class="psub">Visualisasi akumulasi/distribusi & faktor fundamental saham LQ45</div>
+  <div class="ptitle">Heatmap</div>
+  <div class="psub">Flow Heatmap: Whale Score akumulasi/distribusi seluruh emiten BEI. Heatmap Sektoral: agregasi arus dana broker real per sektor, seluruh BEI.</div>
 
   <!-- Tab switcher -->
   <div style="display:flex;gap:4px;margin-bottom:12px">
     <button class="pbtn on" id="hm-tab-flow" onclick="hmSwitchTab('flow',this)">Flow Heatmap</button>
-    <button class="pbtn" id="hm-tab-factor" onclick="hmSwitchTab('factor',this)">Factor Heatmap</button>
+    <button class="pbtn" id="hm-tab-sector" onclick="hmSwitchTab('sector',this)">Heatmap Sektoral</button>
   </div>
 
   <!-- Flow Heatmap panel -->
   <div id="hm-panel-flow">
     <div class="card" style="margin-top:0">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <select class="finput fsel" id="hm-mode" onchange="fsRenderHeatmap()" style="padding:4px 8px;font-size:11px">
-          <option value="score">Skor</option><option value="cmf">CMF</option><option value="chg">Chg%</option>
-        </select>
-        <span style="font-size:11px;color:var(--text3)">Klik sel → analisa detail di FlowScan</span>
+        <span style="font-size:11px;color:var(--text3);font-weight:700">Whale Score (Akumulasi/Distribusi), seluruh emiten BEI</span>
+        <button class="btn btn-ghost btn-xs" onclick="fsRenderHeatmap(true)"><i class="ti ti-refresh"></i> Refresh</button>
+        <span style="font-size:11px;color:var(--text3)">Klik sel → buka Stock Intel</span>
       </div>
       <div id="hm-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:16px"></div>
       <div style="display:flex;gap:14px;font-size:11px;color:var(--text3);flex-wrap:wrap">
@@ -2843,37 +2842,15 @@
     </div>
   </div>
 
-  <!-- Factor Heatmap panel -->
-  <div id="hm-panel-factor" style="display:none">
-    <div class="card" style="margin-bottom:16px">
-      <div class="cheader"><span class="ctitle">Pengaturan</span><button class="btn btn-bb btn-xs" onclick="fhmRender()">Refresh</button></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <div class="fg">
-          <div class="flabel">Faktor</div>
-          <select class="finput fsel" id="fhm-factor" onchange="fhmRender()" style="width:180px">
-            <option value="rsi">RSI (14)</option>
-            <option value="mom1m">Momentum 1M (%)</option>
-            <option value="mom3m">Momentum 3M (%)</option>
-            <option value="vol">Volatilitas 30D (%)</option>
-            <option value="score">Composite Score</option>
-          </select>
-        </div>
-        <div class="fg">
-          <div class="flabel">Urutan</div>
-          <select class="finput fsel" id="fhm-sort" onchange="fhmRender()" style="width:160px">
-            <option value="sector">Per Sektor</option>
-            <option value="value">Nilai (Desc)</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="cheader"><span class="ctitle" id="fhm-title">Factor Heatmap</span></div>
-      <div id="fhm-grid" style="margin-bottom:12px"></div>
-    </div>
-    <div class="card">
-      <div class="cheader"><span class="ctitle">Distribusi Faktor</span></div>
-      <div style="position:relative;height:200px"><canvas id="fhm-dist-chart"></canvas></div>
+  <!-- Heatmap Sektoral panel (2026-09-19, menggantikan Factor Heatmap lama
+       (fhmRender()/QT.scData) yang dihapus per permintaan user -- lihat
+       INCIDENT_LOG.md. Dirender oleh fsRenderSectorHeatmapMode() di
+       07-flowscan.js, fungsi yang SAMA dipakai mode "sector" Smart Money
+       Screener; agregasi per-sektor + tabel ranking dari data broker real
+       Invezgo (GET /api/idx/accumulation-distribution), whole-market. -->
+  <div id="hm-panel-sector" style="display:none">
+    <div id="hm-sector-content">
+      <div style="color:var(--text3);text-align:center;padding:32px 20px;font-size:13px">Memuat heatmap sektoral…</div>
     </div>
   </div>
 </div>
@@ -4406,17 +4383,17 @@
 <script src="js/02-storage.js?v=20260918a"></script>
 <script src="js/02b-price-index.js?v=20260908a"></script>
 <script src="js/03-engine.js?v=20260918b"></script>
-<script src="js/04-render.js?v=20260919a"></script>
+<script src="js/04-render.js?v=20260919d"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
 <script src="js/05-assets.js?v=20260913a"></script>
 <script src="js/06-analysis-router.js?v=20260919b"></script>
-<script src="js/07-flowscan.js?v=20260919a"></script>
+<script src="js/07-flowscan.js?v=20260919e"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
 <script src="js/09-divinvest.js?v=20260910a"></script>
 <script src="js/10-hargawajar.js?v=20260919a"></script>
-<script src="js/11-quant.js?v=20260919a"></script>
+<script src="js/11-quant.js?v=20260919b"></script>
 <script src="js/12-clean.js?v=20260908a"></script>
-<script src="js/13-realdata.js?v=20260916a"></script>
+<script src="js/13-realdata.js?v=20260919a"></script>
 <script src="js/14-admin.js?v=20260909a"></script>
 <script src="js/15-txbulk.js?v=20260915b"></script>
 <script src="js/20-wealth.js?v=20260918a"></script>
@@ -4425,7 +4402,7 @@
 <script src="js/23-advisor.js?v=20260915b"></script>
 <script src="js/24-stockmaster.js?v=20260919d"></script>
 <script src="js/25-auditlog.js?v=20260918a"></script>
-<script src="js/26-commandcenter.js?v=20260918b"></script>
+<script src="js/26-commandcenter.js?v=20260919a"></script>
 <script src="js/27-stockintel.js?v=20260919a"></script>
 <script src="js/28-decisiontools.js?v=20260918c"></script>
 <script src="js/29-institutional-ui.js?v=20260919a"></script>

@@ -81,6 +81,46 @@ var fsWlSort='default';
 var FS_CHARTS={};
 var FS_RD=[];
 
+// FIX (2026-09-19, user-reported: "Market Heatmap masih menampilkan hanya
+// lq45, tidak sesuai dengan aturan, seharusnya seluruh saham dan hanya
+// memfilter yang masuk kriteria"): Flow Heatmap (dashboard widget +
+// halaman "Heatmap" penuh) sebelumnya membaca FS_RD, yang di-cap ke top-60
+// by market-cap dari fsInit() (lihat komentar di sana) — pelanggaran
+// aturan #2 CLAUDE.md. Diganti dengan whole-market data GET
+// /api/idx/unified-screener (generateUnifiedScreener(), sumber Invezgo
+// whole-market accumulation/distribution + foreign flow yang SAMA dipakai
+// halaman Screener), difilter oleh kriteria (whaleDataAvailable — hanya
+// saham yang benar-benar punya sinyal/data teknikal hari ini, BUKAN sampel
+// market-cap). Cache 60 detik supaya widget dashboard + halaman Heatmap
+// penuh tidak masing-masing fetch sendiri kalau dibuka berurutan.
+var FS_UH_CACHE = null;
+var FS_UH_CACHE_AT = 0;
+async function fsFetchUnifiedHeatmapData(force){
+  if(!force && FS_UH_CACHE && (Date.now() - FS_UH_CACHE_AT < 60000)) return FS_UH_CACHE;
+  var resp = await fetch('/api/idx/unified-screener');
+  var json = await resp.json();
+  if(!json || !json.success || !Array.isArray(json.rows)) throw new Error((json && json.error) || 'Gagal memuat data heatmap');
+  var withSignal = json.rows.filter(function(r){ return r.whaleDataAvailable; });
+  withSignal.sort(function(a,b){ return Math.abs(b.whaleScore||0) - Math.abs(a.whaleScore||0); });
+  FS_UH_CACHE = { rows: withSignal, totalUniverse: json.summary ? json.summary.totalUniverse : json.total, updatedAt: json.updatedAt };
+  FS_UH_CACHE_AT = Date.now();
+  return FS_UH_CACHE;
+}
+function fsUhSig(r){
+  return r.whaleScore >= 1 ? 'AKUMULASI' : (r.whaleScore <= -1 ? 'DISTRIBUSI' : 'NETRAL');
+}
+function fsUhCellHtml(r){
+  var sig = fsUhSig(r);
+  var cls = sig==='AKUMULASI' ? 'fs-hm-acc' : sig==='DISTRIBUSI' ? 'fs-hm-dist' : 'fs-hm-neut';
+  var vc = sig==='AKUMULASI' ? '#41f3a7' : sig==='DISTRIBUSI' ? '#e21d48' : '#8fa3c8';
+  var tip = r.name + ' — ' + r.whaleLabel + (r.trend ? ' — Tren: ' + r.trend : '');
+  return '<div class="fs-hm-cell '+cls+'" onclick="goPage(\'stock-intel\');if(typeof selectStockIntelTicker===\'function\')selectStockIntelTicker(\''+r.ticker+'\')" title="'+escHtml(tip)+'">'
+    +'<div class="mono" style="font-size:13px;font-weight:600;color:var(--text)">'+escHtml(r.ticker)+'</div>'
+    +'<div class="mono" style="font-size:15px;font-weight:700;margin-top:3px;color:'+vc+'">'+(r.whaleScore>0?'+':'')+r.whaleScore+'</div>'
+    +'<div style="font-size:9px;margin-top:2px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(r.whaleLabel||'')+'</div>'
+    +'</div>';
+}
+
 // ── seed RNG ──
 function fsSd(s){var h=0;for(var i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return Math.abs(h);}
 function fsSr(s){var x=Math.sin(s+1)*10000;return x-Math.floor(x);}
@@ -650,43 +690,52 @@ function fsRenderRanking(){
 }
 
 // ── Heatmap tab switcher ──
+// FIX (2026-09-19, user-requested: "dihapus diganti sectroal heatmap"):
+// tab "Factor Heatmap" (fhmRender(), lihat INCIDENT_LOG.md) dihapus,
+// diganti "Heatmap Sektoral" — dipakai ulang dari fsRenderSectorHeatmapMode()
+// (mode "sector" milik Smart Money Screener), whole-market & data real
+// Invezgo, bukan fitur baru terpisah.
 function hmSwitchTab(tab, btn){
-  var panels=['flow','factor'];
+  var panels=['flow','sector'];
   panels.forEach(function(p){
     var panel=el('hm-panel-'+p);
     if(panel) panel.style.display=(p===tab)?'':'none';
     var tb=el('hm-tab-'+p);
     if(tb){ tb.classList.toggle('on',p===tab); }
   });
-  if(tab==='factor') fhmRender();
+  if(tab==='sector') fsRenderSectorHeatmapMode('hm-sector-content');
   if(tab==='flow') fsRenderHeatmap();
 }
 
 // ── heatmap ──
-function fsRenderHeatmap(){
-  if(!FS_RD.length) return;
-  var m=document.getElementById('hm-mode')&&document.getElementById('hm-mode').value||'score';
+// FIX (2026-09-19, user-reported: "Market Heatmap masih menampilkan hanya
+// lq45"): sebelumnya membaca FS_RD (top-60-by-cap dari fsInit(), lihat
+// komentar di sana) — bukan lagi dipakai di sini. Sekarang whole-market via
+// fsFetchUnifiedHeatmapData() (GET /api/idx/unified-screener, seluruh ~958
+// emiten BEI), difilter hanya saham dengan whaleDataAvailable (kriteria:
+// benar-benar ada sinyal/data teknikal hari ini) — bukan sampel market-cap.
+// mode dropdown "CMF"/"Chg%" lama dihapus (fsProcess()'s field itu tidak
+// ada lagi di sumber data baru); satu-satunya nilai yang ditampilkan
+// sekarang adalah Whale Score (kategorikal -3..+4, formula sama dengan
+// Screener — lihat generateUnifiedScreener() di idx-data-engine.js).
+var FS_HM_SHOW_LIMIT = 300;
+async function fsRenderHeatmap(force){
   var grid=document.getElementById('hm-grid');
   if(!grid) return;
-  grid.innerHTML=[].concat(FS_RD).sort(function(a,b){return b.cap-a.cap;}).map(function(r){
-    var last=r.data[r.data.length-1];
-    var val,disp;
-    if(m==='score'){val=r.a.sc;disp=''+val;}
-    else if(m==='cmf'){val=r.a.cl;disp=(val*100).toFixed(1)+'%';}
-    else{val=r.a.chgPct;disp=fsPct(val);}
-    var cls=r.a.sig==='AKUMULASI'?'fs-hm-acc':r.a.sig==='DISTRIBUSI'?'fs-hm-dist':'fs-hm-neut';
-    var vc=r.a.sig==='AKUMULASI'?'#41f3a7':r.a.sig==='DISTRIBUSI'?'#e21d48':'#8fa3c8';
-    var inWl=FS_WL.some(function(w){return w.t===r.t;});
-    // KNOWN_ISSUES.md #2: this cell's score/signal can be entirely computed
-    // from fsGenData()'s synthetic random-walk fallback with zero prior
-    // disclosure — surface it via the shared SIM marker + outline.
-    var isSim=!!(r.data && r.data.simulated);
-    return '<div class="fs-hm-cell '+cls+'" onclick="fsQuickLoad(\''+r.t+'\')" title="'+(inWl?'★ ':'')+r.n+' — '+r.a.sig+(isSim?' — SIMULASI, data acak (belum ada OHLCV riil ter-cache)':'')+'" style="'+(isSim?'outline:1px solid rgba(255,61,90,.25)':'')+'">'
-      +'<div class="mono" style="font-size:13px;font-weight:600;color:var(--text)">'+(inWl?'★ ':'')+r.t+fsSrcDot(isSim)+'</div>'
-      +'<div class="mono" style="font-size:17px;font-weight:700;margin-top:3px;color:'+vc+'">'+disp+'</div>'
-      +'<div class="mono" style="font-size:12px;margin-top:3px;color:'+(r.a.chgPct>=0?'#41f3a7':'#e21d48')+'">'+fsPct(r.a.chgPct)+'</div>'
-      +'</div>';
-  }).join('');
+  grid.innerHTML='<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat heatmap seluruh BEI…</div>';
+  try {
+    var data = await fsFetchUnifiedHeatmapData(force === true);
+    if(!document.getElementById('hm-grid')) return; // user navigated away
+    if(!data.rows.length){
+      grid.innerHTML='<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Belum ada saham dengan sinyal akumulasi/distribusi hari ini dari seluruh ' + (data.totalUniverse||0) + ' emiten BEI.</div>';
+      return;
+    }
+    var shown = data.rows.slice(0, FS_HM_SHOW_LIMIT);
+    var note = '<div style="grid-column:1/-1;font-size:10.5px;color:var(--text3);margin-bottom:6px">Menampilkan ' + shown.length + ' dari ' + data.rows.length + ' saham bersinyal (dari seluruh ' + (data.totalUniverse||0) + ' emiten BEI, diurutkan berdasarkan kekuatan Whale Score).</div>';
+    grid.innerHTML = note + shown.map(fsUhCellHtml).join('');
+  } catch(err){
+    grid.innerHTML='<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal memuat heatmap: '+escHtml((err && err.message) || 'error')+'.</div>';
+  }
 }
 
 // ── scanner ──
@@ -1020,8 +1069,14 @@ function fsOpenBrokerFlowTicker(ticker) {
 // Kalau Invezgo belum dikonfigurasi/gagal, tampilkan pesan jujur yang SAMA
 // dengan mode "Broker Flow Riil" — tidak lagi diam-diam jatuh ke tabel
 // simulasi seperti sebelumnya.
-async function fsRenderSectorHeatmapMode() {
-  var c = document.getElementById('sms-sector-content');
+// FIX (2026-09-19, user-requested: "dihapus diganti sectroal heatmap"):
+// dipakai ulang juga oleh tab "Heatmap Sektoral" di halaman Heatmap
+// (page-heatmap, menggantikan "Factor Heatmap"/fhmRender() yang dihapus —
+// lihat INCIDENT_LOG.md) — sekarang menerima `targetId` opsional supaya 2
+// pemanggil (Smart Money Screener & halaman Heatmap) bisa punya container
+// DOM masing-masing tanpa duplikasi logika/fetch.
+async function fsRenderSectorHeatmapMode(targetId) {
+  var c = document.getElementById(targetId || 'sms-sector-content');
   if (!c) return;
 
   if (FS_BROKER_SCAN.loaded && !FS_BROKER_SCAN.notConfigured) {

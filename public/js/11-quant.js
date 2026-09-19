@@ -342,7 +342,6 @@ window.goPage = function(page, btn){
   if(_origGoPage2) _origGoPage2.call(this, page, btn);
   if(page === 'backtester')   { /* auto nothing, wait for user */ }
   if(page === 'screener')     { if(!QT.scData.length) scBuildSim(); else scRenderTable(); }
-  if(page === 'factor-heatmap') fhmRender();
   if(page === 'correlation')  corrRender();
   if(page === 'monthly-returns') { if(typeof mrInitTickers==='function') mrInitTickers(); mrRender(); }
   if(page === 'pairs')        { /* wait */ }
@@ -1088,53 +1087,14 @@ function scRenderTable(data2){
 }
 
 // ── Factor Heatmap ──
-function fhmRender(){
-  if(!QT.scData.length){ scBuildSim(fhmRender); return; } // re-run once real data lands
-  var factor = (el('fhm-factor')&&el('fhm-factor').value)||'rsi';
-  var sort2 = (el('fhm-sort')&&el('fhm-sort').value)||'sector';
-  var fLabels={rsi:'RSI (14)',mom1m:'Momentum 1M (%)',mom3m:'Momentum 3M (%)',vol:'Volatilitas 30D (%)',score:'Composite Score'};
-  var univLabel2 = QT_SCREENER_INDEX === 'all' ? 'Semua BEI' : QT_SCREENER_INDEX.toUpperCase();
-  el('fhm-title') && (el('fhm-title').textContent = (fLabels[factor]||factor) + ' — ' + univLabel2 + ' Universe (' + QT.scData.length + ' saham)');
-
-  var stocks = QT.scData.slice();
-  var vals = stocks.map(function(s){return parseFloat(s[factor])||0;});
-  var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
-
-  var tile = function(s){
-    var v=parseFloat(s[factor])||0, norm=(v-mn)/Math.max(mx-mn,.01);
-    var bg,col;
-    if(factor==='rsi'){bg=v<30?'rgba(0,212,170,.6)':v>70?'rgba(255,34,68,.6)':'rgba(255,187,0,.2)';col=v<30?'#00d4aa':v>70?'#ff2244':'#ffbb00';}
-    else if(factor==='vol'){bg='rgba(155,127,232,'+(0.15+norm*0.7)+')';col='var(--purple)';}
-    else{bg=v>=0?'rgba(0,212,170,'+(0.15+norm*0.7)+')':'rgba(255,34,68,'+(0.15+(1-norm)*0.7)+')';col=v>=0?'var(--green)':'var(--red)';}
-    return '<div style="background:'+bg+';border-radius:3px;padding:8px 6px;border:1px solid var(--border)">'
-      +'<div style="font-size:11px;font-weight:700;color:var(--text);font-family:Menlo,monospace">'+s.t+'</div>'
-      +'<div style="font-size:12px;font-weight:600;color:'+col+';font-family:Menlo,monospace;margin-top:2px">'+(factor!=='rsi'&&v>=0?'+':'')+v.toFixed(factor==='score'?0:1)+'</div>'
-      +'</div>';
-  };
-
-  var grid = el('fhm-grid');
-  if(!grid) return;
-  if(sort2==='sector'){
-    var sec={};
-    stocks.forEach(function(s){if(!sec[s.s])sec[s.s]=[];sec[s.s].push(s);});
-    var h='';
-    Object.entries(sec).forEach(function(e){
-      h+='<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">'+e[0]+'</div>'
-        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:4px">'+e[1].map(tile).join('')+'</div></div>';
-    });
-    grid.innerHTML=h;
-  } else {
-    stocks.sort(function(a,b){return (parseFloat(b[factor])||0)-(parseFloat(a[factor])||0);});
-    grid.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:4px">'+stocks.map(tile).join('')+'</div>';
-  }
-
-  // Distribution chart
-  if(QT.btCharts['fhm-dist']){QT.btCharts['fhm-dist'].destroy();}
-  var cv = el('fhm-dist-chart');
-  if(cv){
-    QT.btCharts['fhm-dist'] = new Chart(cv.getContext('2d'),{type:'bar',data:{labels:stocks.map(function(s){return s.t;}),datasets:[{data:vals,backgroundColor:vals.map(function(v){return v>=0&&factor!=='rsi'?'rgba(0,212,170,.5)':'rgba(74,158,255,.5)';}),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'}},grid:{display:false}},y:{ticks:{color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'}},grid:{color:GC}}}}}); 
-  }
-}
+// (removed 2026-09-19, user-requested "dihapus diganti sectroal heatmap")
+// fhmRender() — "Factor Heatmap" tab di halaman Heatmap (page-heatmap),
+// grid RSI/Momentum/Volatilitas/Composite Score per saham dari QT.scData.
+// Diganti "Heatmap Sektoral" (fsRenderSectorHeatmapMode(), 07-flowscan.js)
+// — lihat INCIDENT_LOG.md. QT.scData/scBuildSim() TETAP ADA, masih dipakai
+// halaman Screener (Quant) — hanya fhmRender() dan markup fhm-*/'factor-
+// heatmap' page hook yang dihapus, karena satu-satunya pemanggilnya
+// (tombol tab "Factor Heatmap") sudah tidak ada.
 
 // ── Correlation Matrix ──
 // FIX (Correlation Matrix — data riil portofolio): sebelumnya halaman ini

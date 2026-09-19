@@ -1068,13 +1068,93 @@ test('REGRESSION GUARD: renderDashboard() must call renderDashboardHeatmapPrevie
   assert(dashboardFn && dashboardFn[0].includes('renderDashboardSmartFlowPreview'),
     'renderDashboard() no longer calls renderDashboardSmartFlowPreview()');
 });
-test('REGRESSION GUARD: Market Heatmap preview must keep the real-vs-simulated disclosure marker (KNOWN_ISSUES.md #2)', () => {
-  const src = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
-  const fn = src.match(/function renderDashboardHeatmapPreview\(\)\{[\s\S]*?\n\}/);
-  assert(fn, 'renderDashboardHeatmapPreview() body not found');
-  assert(/data\s*&&\s*r\.data\.simulated/.test(fn[0]) || /r\.data\.simulated/.test(fn[0]),
-    'renderDashboardHeatmapPreview() no longer reads .simulated off FS_RD rows — would show a fabricated score identically to a real one');
-  assert(/fsSrcDot\(/.test(fn[0]), 'renderDashboardHeatmapPreview() no longer calls fsSrcDot() — the SIM marker would be missing from this preview');
+// FIX (2026-09-19, user-reported: "Market Heatmap masih menampilkan hanya
+// lq45, tidak sesuai dengan aturan, seharunys seluruh saham dan hanya
+// memfilter yang masuk kriteria"): this preview used to read FS_RD
+// (07-flowscan.js's top-60-by-market-cap slice of the full ~958-ticker
+// universe) — a CLAUDE.md rule #2 violation identical in kind to the
+// Screener/Opportunity-Radar-preview incidents fixed earlier this session.
+// Now whole-market via fsFetchUnifiedHeatmapData() (GET
+// /api/idx/unified-screener), filtered by criteria (whaleDataAvailable)
+// instead of a market-cap sample. The old .simulated/fsSrcDot() disclosure
+// no longer applies — generateUnifiedScreener()'s cache-only Redis reads
+// return null (never a fabricated placeholder) on a cache miss, so there
+// is no "simulated score" case left to disclose here.
+test('REGRESSION GUARD: Market Heatmap preview and full Heatmap page must be whole-market (not FS_RD\'s top-60-by-cap sample)', () => {
+  const renderSrc = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  const previewFn = renderSrc.match(/async function renderDashboardHeatmapPreview\(\)\{[\s\S]*?\n\}/);
+  assert(previewFn, 'renderDashboardHeatmapPreview() body not found (must be async now)');
+  assert(/fsFetchUnifiedHeatmapData\(/.test(previewFn[0]),
+    'renderDashboardHeatmapPreview() no longer calls fsFetchUnifiedHeatmapData() — would regress to FS_RD\'s top-60-by-cap sample');
+  assert(!/FS_RD/.test(previewFn[0]),
+    'REGRESSION: renderDashboardHeatmapPreview() reads FS_RD again — reintroduces the top-60-by-market-cap violation of CLAUDE.md rule #2');
+
+  const flowSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  assert(/function fsFetchUnifiedHeatmapData\(/.test(flowSrc), 'fsFetchUnifiedHeatmapData() is missing from 07-flowscan.js');
+  assert(/\/api\/idx\/unified-screener/.test(flowSrc), 'fsFetchUnifiedHeatmapData() no longer fetches the whole-market unified-screener endpoint');
+  assert(/whaleDataAvailable/.test(flowSrc), 'fsFetchUnifiedHeatmapData() no longer filters by the whaleDataAvailable criterion — would show every ticker unfiltered instead of "hanya memfilter yang masuk kriteria"');
+
+  const heatmapFn = flowSrc.match(/async function fsRenderHeatmap\(force\)\{[\s\S]*?\n\}/);
+  assert(heatmapFn, 'fsRenderHeatmap() body not found (must be async now, taking a force param)');
+  assert(/fsFetchUnifiedHeatmapData\(/.test(heatmapFn[0]), 'fsRenderHeatmap() no longer calls fsFetchUnifiedHeatmapData()');
+  assert(!/FS_RD/.test(heatmapFn[0]), 'REGRESSION: fsRenderHeatmap() reads FS_RD again — reintroduces the top-60-by-market-cap violation on the full Heatmap page');
+});
+// FIX (2026-09-19, user-reported "Opportunity Radar belum sinkron dengan
+// screener", user confirmed konsolidasi via AskUserQuestion): the separate
+// "Opportunity Radar" page in Command Center (26-commandcenter.js,
+// page-radar) used to have its OWN "Universe Screener (950+)" sub-tab —
+// a duplicate whole-market screener with a DIFFERENT formula
+// (Margin-of-Safety/ROE/PE, GET /api/idx/opportunity-radar) than the real
+// Screener page (generateUnifiedScreener()'s Whale/Uptrend formula,
+// GET /api/idx/unified-screener) — the same "2 features disagree, reads as
+// a bug" pattern already fixed once for the dashboard preview widget
+// (see the "datanya tidak sesuai screener" guard above). Removed; the 3
+// other sub-tabs (Anomaly Structural & ARA, Visualisasi Alur Transaksi,
+// Kalender Aksi Korporasi) are real, distinct features and were kept.
+test('REGRESSION GUARD: Opportunity Radar page must not have its own duplicate "Universe Screener" sub-tab (consolidated into the real Screener page)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/26-commandcenter.js'), 'utf8');
+  assert(!/function renderRadarScreenerSubTab/.test(src),
+    'REGRESSION: renderRadarScreenerSubTab() exists again — reintroduces the duplicate MoS/ROE/PE whole-market screener that disagrees with the unified Screener');
+  assert(!/Universe Screener \(950\+\)/.test(src),
+    'REGRESSION: the "Universe Screener (950+)" tab button is back on the Opportunity Radar page');
+  assert(!/function getOpportunityRadarItems/.test(src),
+    'REGRESSION: getOpportunityRadarItems() exists again with no caller left to justify it');
+  assert(!/function loadOpportunityRadarUniverse/.test(src),
+    'REGRESSION: loadOpportunityRadarUniverse() exists again — the old MoS/ROE/PE fetch this consolidation removed');
+  const radarPageFn = src.match(/function renderOpportunityRadarPage\(\) \{[\s\S]*?\n\}\n/);
+  assert(radarPageFn, 'renderOpportunityRadarPage() body not found');
+  assert(/anomaly-ara/.test(radarPageFn[0]) && /flow-trail/.test(radarPageFn[0]) && /corporate-actions/.test(radarPageFn[0]),
+    'renderOpportunityRadarPage() must still render its 3 real sub-tabs (Anomaly Structural & ARA, Visualisasi Alur Transaksi, Kalender Aksi Korporasi) — these are distinct features, not part of this consolidation');
+  assert(/goPage\(\\'radar\\'\)/.test(radarPageFn[0]),
+    'renderOpportunityRadarPage() should point users to the real Screener page (goPage(\'radar\') -> renderUnifiedScreenerPage()) now that its own screener sub-tab is gone');
+});
+// FIX (2026-09-19, user-requested: "dihapus diganti sectroal heatmap"):
+// the Heatmap page's ("page-heatmap") second tab used to be "Factor
+// Heatmap" (fhmRender(), 11-quant.js) — a per-stock RSI/Momentum/
+// Volatilitas/Composite-Score grid built from QT.scData. Removed and
+// replaced with "Heatmap Sektoral", reusing fsRenderSectorHeatmapMode()
+// (07-flowscan.js) — the SAME function Smart Money Screener's "sector"
+// mode already uses (whole-market, real Invezgo broker-flow data
+// aggregated per sector) — rather than building a second, separate
+// sectoral feature.
+test('REGRESSION GUARD: Heatmap page\'s 2nd tab must be "Heatmap Sektoral" (fsRenderSectorHeatmapMode), not the old "Factor Heatmap" (fhmRender/QT.scData)', () => {
+  const quantSrc = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert(!/function fhmRender/.test(quantSrc), 'REGRESSION: fhmRender() exists again — the old per-stock Factor Heatmap this consolidation removed');
+  assert(!/page === 'factor-heatmap'/.test(quantSrc), 'REGRESSION: the dead goPage(\'factor-heatmap\') hook is back in 11-quant.js');
+
+  const flowSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+  assert(/function fsRenderSectorHeatmapMode\(targetId\)/.test(flowSrc),
+    'fsRenderSectorHeatmapMode() must accept an optional targetId param — needed to render into both Smart Money Screener\'s and the Heatmap page\'s own container without duplicating the fetch/aggregation logic');
+  const switchFn = flowSrc.match(/function hmSwitchTab\(tab, btn\)\{[\s\S]*?\n\}/);
+  assert(switchFn, 'hmSwitchTab() body not found');
+  assert(/fsRenderSectorHeatmapMode\('hm-sector-content'\)/.test(switchFn[0]),
+    'REGRESSION: hmSwitchTab() no longer calls fsRenderSectorHeatmapMode(\'hm-sector-content\') for the sector tab — the old fhmRender() call (or nothing) may have come back');
+  assert(!/fhmRender\(\)/.test(switchFn[0]), 'REGRESSION: hmSwitchTab() calls fhmRender() again');
+
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(htmlSrc.includes('id="hm-sector-content"'), 'index.html is missing the hm-sector-content container fsRenderSectorHeatmapMode() renders into');
+  assert(!htmlSrc.includes('id="fhm-grid"') && !htmlSrc.includes('id="fhm-dist-chart"'), 'REGRESSION: the old Factor Heatmap markup (fhm-grid/fhm-dist-chart) is back in index.html');
+  assert(!htmlSrc.includes(">Factor Heatmap<"), 'REGRESSION: the "Factor Heatmap" tab button text is back in index.html');
 });
 // FIX (2026-09-18, user-reported after full-codebase audit): this card
 // used to call generateClientSideBrokerSummary() DIRECTLY, skipping the
@@ -5222,7 +5302,7 @@ test('REGRESSION GUARD: Smart Money Screener consolidation — old duplicate ent
   // 1. New consolidated mode functions must exist in 07-flowscan.js.
   assert(/function fsSwitchScreenerMode\(mode\)/.test(flowScanSrc), 'REGRESSION: fsSwitchScreenerMode() is gone from 07-flowscan.js');
   assert(/async function fsRenderBrokerFlowMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderBrokerFlowMode() is gone from 07-flowscan.js');
-  assert(/function fsRenderSectorHeatmapMode\(\)/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() is gone from 07-flowscan.js');
+  assert(/function fsRenderSectorHeatmapMode\(/.test(flowScanSrc), 'REGRESSION: fsRenderSectorHeatmapMode() is gone from 07-flowscan.js');
 
   // 2. FIX AUDIT (2026-09-17, quota-optimization follow-up): the broker-flow
   // mode was redesigned AGAIN — this time to stop scanning per-ticker

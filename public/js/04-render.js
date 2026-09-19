@@ -168,31 +168,33 @@ async function renderDashboardRadarPreview(){
 }
 
 // Command Center zone: Market Heatmap (P0 slice 5, UIUX_ROADMAP_AUDIT.md
-// §7 — deferred until KNOWN_ISSUES.md #2 was fixed). Reuses FS_RD
-// (07-flowscan.js), already populated app-wide at boot (fsInit() runs from
-// 06-analysis-router.js's init sequence) — no separate fetch/scoring for
-// this preview, synchronous. Per-cell real-vs-simulated disclosure via
-// fsSrcDot() — the same marker Ranking/Heatmap/Watchlist use — so a
-// cache-miss ticker's score never looks identical to a real one here
-// either.
-function renderDashboardHeatmapPreview(){
+// §7 — deferred until KNOWN_ISSUES.md #2 was fixed).
+// FIX (2026-09-19, user-reported: "Market Heatmap masih menampilkan hanya
+// lq45, tidak sesuai dengan aturan, seharunys seluruh saham dan hanya
+// memfilter yang masuk kriteria"): this preview used to reuse FS_RD
+// (07-flowscan.js) — capped to the top-60-by-market-cap slice of the full
+// ~958-ticker universe (see fsInit()'s comment), a CLAUDE.md rule #2
+// violation. Now calls fsFetchUnifiedHeatmapData() (07-flowscan.js), the
+// SAME whole-market GET /api/idx/unified-screener source and Whale Score
+// formula the full "Heatmap" page (fsRenderHeatmap()) now uses, filtered
+// by criteria (whaleDataAvailable — real signal today) rather than a
+// market-cap sample.
+async function renderDashboardHeatmapPreview(){
   var grid = el('dash-heatmap-grid');
   if(!grid) return;
   try {
-    if(typeof FS_RD === 'undefined' || !FS_RD.length){
+    if(typeof fsFetchUnifiedHeatmapData !== 'function'){
       grid.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Heatmap belum siap — <a href="javascript:void(0)" onclick="goPage(\'heatmap\')" style="color:var(--accent)">buka halaman lengkap</a>.</div>';
       return;
     }
-    var top = [].concat(FS_RD).sort(function(a,b){ return (b.cap||0)-(a.cap||0); }).slice(0, 10);
-    grid.innerHTML = top.map(function(r){
-      var isSim = !!(r.data && r.data.simulated);
-      var vc = r.a.sig === 'AKUMULASI' ? '#41f3a7' : r.a.sig === 'DISTRIBUSI' ? '#e21d48' : '#8fa3c8';
-      var cls = r.a.sig === 'AKUMULASI' ? 'fs-hm-acc' : r.a.sig === 'DISTRIBUSI' ? 'fs-hm-dist' : 'fs-hm-neut';
-      return '<div class="fs-hm-cell ' + cls + '" onclick="goPage(\'heatmap\')" title="' + escHtml(r.n) + ' — ' + r.a.sig + (isSim ? ' — SIMULASI, data acak' : '') + '" style="' + (isSim ? 'outline:1px solid rgba(255,61,90,.25)' : '') + '">'
-        + '<div class="mono" style="font-size:12px;font-weight:600;color:var(--text)">' + r.t + (typeof fsSrcDot === 'function' ? fsSrcDot(isSim) : '') + '</div>'
-        + '<div class="mono" style="font-size:15px;font-weight:700;margin-top:2px;color:' + vc + '">' + r.a.sc + '</div>'
-        + '</div>';
-    }).join('');
+    var data = await fsFetchUnifiedHeatmapData();
+    if(!el('dash-heatmap-grid')) return; // user navigated away while awaiting
+    if(!data.rows.length){
+      grid.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Belum ada saham dengan sinyal akumulasi/distribusi hari ini dari seluruh ' + (data.totalUniverse || 0) + ' emiten BEI.</div>';
+      return;
+    }
+    var top = data.rows.slice(0, 10);
+    grid.innerHTML = top.map(fsUhCellHtml).join('');
   } catch(err){
     grid.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal memuat heatmap: ' + escHtml((err && err.message) || 'error') + '.</div>';
   }
