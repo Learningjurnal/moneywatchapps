@@ -399,7 +399,7 @@ function usRenderValidationPanel() {
     if (!d.available) {
       html += '<div style="color:var(--text-mute);font-size:12px">' + d.reason + '</div>';
     } else if (d.totalSignals === 0) {
-      html += '<div style="color:var(--text-mute);font-size:12px">Tidak ada sinyal "confirmed" (Whale≥3 + Uptrend≥60) pada ' + d.datesScanned + ' tanggal yang di-scan. Coba perbesar lookback.</div>';
+      html += '<div style="color:var(--text-mute);font-size:12px">Tidak ada sinyal "confirmed" (Whale≥3 + Teknikal≥80) pada ' + d.datesScanned + ' tanggal yang di-scan. Coba perbesar lookback.</div>';
     } else {
       html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:8px">'
         + '<div class="metric" style="padding:8px"><div class="mlabel" style="font-size:9px">WIN RATE</div><div class="mval mono" style="font-size:18px;color:' + (d.winRate >= 50 ? 'var(--up,#16a34a)' : 'var(--down,#dc2626)') + '">' + d.winRate + '%</div></div>'
