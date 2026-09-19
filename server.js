@@ -809,6 +809,27 @@ function getAiClient() {
 
 const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
 
+// OpenRouter backup provider config (2026-09-19, user-requested: "anthropic
+// key bisakah di gabungkan dengan API openrouter, supaya bisa saling
+// backup"). Sengaja HANYA dipakai kalau panggilan Anthropic langsung di
+// atas gagal (lihat catch block /api/ai/agent-chat) — bukan load-balancing
+// paralel — supaya Anthropic (biasanya lebih cepat, tidak lewat proxy
+// tambahan) tetap jadi jalur utama selama dia hidup, dan OpenRouter cuma
+// jaring pengaman kalau Anthropic mati/kredit habis/rate-limited. Default
+// model tetap Claude (lewat OpenRouter) supaya kualitas jawaban & tool-
+// calling konsisten dengan jalur utama — bisa dioverride ke provider LAIN
+// (mis. GPT/Gemini via OpenRouter) lewat OPENROUTER_MODEL kalau user mau
+// redundansi vendor yang benar-benar independen dari Anthropic, bukan cuma
+// independen dari sisi billing.
+function getOpenRouterConfig() {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    model: process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet'
+  };
+}
+
 // Timeout helper to ensure AI API calls never hang indefinitely
 function withTimeout(promise, ms = 15000) {
   let timer;
@@ -852,6 +873,21 @@ async function callClaudeWithRetry(ai, requestConfig, options = {}) {
   }
 
   throw lastError || new Error('Claude API mengalami lonjakan permintaan (429/5xx).');
+}
+
+// Shared reply post-processing for /api/ai/agent-chat's success paths
+// (Claude direct AND the OpenRouter backup below) — same "never return an
+// empty reply" + "always carry the mandatory disclaimer" guarantees
+// regardless of which provider actually answered.
+function finalizeAgentChatResponse(reply, executedTools, engineLabel) {
+  let finalReply = reply;
+  if (!finalReply) {
+    finalReply = 'Analisis selesai diproses berdasarkan data pasar & portofolio riil Anda.\n\n*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
+  }
+  if (!finalReply.includes('Disclaimer:')) {
+    finalReply += '\n\n*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
+  }
+  return { success: true, reply: finalReply, toolCalls: executedTools, engine: engineLabel };
 }
 
 // Extract the plain-text answer from a Claude Messages API response —
@@ -1838,26 +1874,126 @@ const AGENT_TOOL_DECLARATIONS = [
 // (lowercase types, field name "input_schema") — which would silently
 // drift out of sync on the next edit — this converts them once at module
 // load. Single source of truth stays AGENT_TOOL_DECLARATIONS.
-function toClaudeTools(declarations) {
-  const TYPE_MAP = { OBJECT: 'object', STRING: 'string', NUMBER: 'number', BOOLEAN: 'boolean', INTEGER: 'integer', ARRAY: 'array' };
-  function convertSchema(schema) {
-    const out = { type: TYPE_MAP[schema.type] || String(schema.type || 'object').toLowerCase() };
-    if (schema.description) out.description = schema.description;
-    if (schema.properties) {
-      out.properties = {};
-      Object.keys(schema.properties).forEach(k => { out.properties[k] = convertSchema(schema.properties[k]); });
-    }
-    if (schema.required) out.required = schema.required;
-    if (schema.items) out.items = convertSchema(schema.items);
-    return out;
+// Shared Gemini-style-schema ({type:'OBJECT'/'STRING'/...}) -> standard
+// JSON Schema converter, dipakai kedua provider tool-calling di bawah
+// (Claude's input_schema DAN OpenRouter/OpenAI's function.parameters —
+// keduanya sama-sama JSON Schema biasa, cuma dibungkus beda di level atas).
+const AGENT_SCHEMA_TYPE_MAP = { OBJECT: 'object', STRING: 'string', NUMBER: 'number', BOOLEAN: 'boolean', INTEGER: 'integer', ARRAY: 'array' };
+function convertAgentSchema(schema) {
+  const out = { type: AGENT_SCHEMA_TYPE_MAP[schema.type] || String(schema.type || 'object').toLowerCase() };
+  if (schema.description) out.description = schema.description;
+  if (schema.properties) {
+    out.properties = {};
+    Object.keys(schema.properties).forEach(k => { out.properties[k] = convertAgentSchema(schema.properties[k]); });
   }
+  if (schema.required) out.required = schema.required;
+  if (schema.items) out.items = convertAgentSchema(schema.items);
+  return out;
+}
+function toClaudeTools(declarations) {
   return declarations.map(d => ({
     name: d.name,
     description: d.description,
-    input_schema: convertSchema(d.parameters)
+    input_schema: convertAgentSchema(d.parameters)
   }));
 }
 const CLAUDE_AGENT_TOOLS = toClaudeTools(AGENT_TOOL_DECLARATIONS);
+
+// OpenRouter (openrouter.ai) — backup provider (2026-09-19, user-requested:
+// "anthropic key bisakah di gabungkan dengan API openrouter, supaya bisa
+// saling backup"). OpenRouter mem-proxy banyak model (termasuk Claude) lewat
+// SATU endpoint bergaya OpenAI Chat Completions — tool-calling-nya JSON
+// Schema standar dibungkus {type:'function', function:{name, parameters}},
+// beda struktur dari Claude's {name, input_schema} tapi isi schema-nya sama
+// persis (convertAgentSchema() di atas dipakai ulang, bukan diduplikasi).
+function toOpenAiTools(declarations) {
+  return declarations.map(d => ({
+    type: 'function',
+    function: {
+      name: d.name,
+      description: d.description,
+      parameters: convertAgentSchema(d.parameters)
+    }
+  }));
+}
+const OPENROUTER_AGENT_TOOLS = toOpenAiTools(AGENT_TOOL_DECLARATIONS);
+
+// Agentic tool-calling loop via OpenRouter's OpenAI-compatible Chat
+// Completions API — pola sama persis dengan loop Claude di
+// /api/ai/agent-chat (system + history + tool-calling sampai 5 langkah),
+// tapi bentuk pesan/tool-result BEDA (OpenAI: 1 pesan role:'tool' per
+// tool_call_id, bukan 1 pesan user berisi banyak tool_result block seperti
+// Claude) — makanya loop-nya ditulis terpisah, bukan dipaksa berbagi kode
+// dengan loop Claude yang formatnya lain. executeAgentTool() sendiri
+// provider-agnostic (dipakai ulang apa adanya, tidak diduplikasi).
+async function callOpenRouterAgentLoop(message, history, userContext, executedTools) {
+  const config = getOpenRouterConfig();
+  if (!config) throw new Error('OPENROUTER_NOT_CONFIGURED');
+
+  const messages = [{ role: 'system', content: SYSTEM_INSTRUCTION_MONEYWATCH_AI }];
+  (history || []).slice(-8).forEach(h => {
+    if (h.role === 'user' || h.role === 'assistant' || h.role === 'model') {
+      messages.push({ role: h.role === 'model' ? 'assistant' : h.role, content: h.text || h.content || '' });
+    }
+  });
+  messages.push({ role: 'user', content: message.trim() });
+
+  let currentIteration = 0;
+  const maxIterations = 5;
+
+  while (currentIteration < maxIterations) {
+    currentIteration++;
+
+    const resp = await withTimeout(
+      fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey}`,
+          // Header opsional yang direkomendasikan OpenRouter untuk atribusi
+          // di dashboard mereka — tidak wajib untuk fungsi API-nya sendiri.
+          'HTTP-Referer': 'https://moneywatchapps.vercel.app',
+          'X-Title': 'MoneyWatch Pro'
+        },
+        body: JSON.stringify({
+          model: config.model,
+          max_tokens: 2048,
+          messages,
+          tools: OPENROUTER_AGENT_TOOLS
+        })
+      }),
+      15000
+    );
+
+    if (!resp.ok) {
+      const errBody = await resp.text().catch(() => '');
+      throw new Error(`OPENROUTER_HTTP_${resp.status}: ${errBody.slice(0, 300)}`);
+    }
+
+    const data = await resp.json();
+    const choice = data && data.choices && data.choices[0];
+    const assistantMsg = choice && choice.message;
+    if (!assistantMsg) throw new Error('OPENROUTER_EMPTY_RESPONSE');
+
+    const toolCalls = assistantMsg.tool_calls || [];
+    if (toolCalls.length > 0) {
+      messages.push({ role: 'assistant', content: assistantMsg.content || null, tool_calls: toolCalls });
+
+      for (const tc of toolCalls) {
+        let args = {};
+        try { args = JSON.parse(tc.function.arguments || '{}'); } catch (e) { args = {}; }
+        const toolResult = await executeAgentTool(tc.function.name, args, userContext);
+        executedTools.push({ name: tc.function.name, args, result: toolResult });
+        messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(toolResult) });
+      }
+      continue;
+    }
+
+    return { reply: assistantMsg.content || '', usedModel: config.model };
+  }
+
+  throw new Error('OPENROUTER_MAX_ITERATIONS_EXCEEDED');
+}
 
 const SYSTEM_INSTRUCTION_MONEYWATCH_AI = `Anda adalah "MoneyWatch Pro AI & StockChat", asisten analis portofolio multi-aset kelas institusional dan pakar Bandarmology & Value Investing pasar modal Indonesia (IHSG/BEI).
 
@@ -1927,7 +2063,18 @@ ALUR KERJA (AGENTIC LOOP):
 // SDK, jadi instan & gratis, aman dipanggil tiap boot halaman.
 app.get('/api/ai/status', (req, res) => {
   const available = !!getAiClient();
-  res.json({ success: true, available, model: available ? CLAUDE_MODEL : null });
+  // backupAvailable: OPENROUTER_API_KEY dikonfigurasi (2026-09-19,
+  // fitur backup provider) — status APA ADANYA yang sama seperti
+  // `available` di atas, TIDAK memanggil OpenRouter sungguhan (gratis &
+  // instan, sama seperti getAiClient() untuk Anthropic).
+  const backupConfig = getOpenRouterConfig();
+  res.json({
+    success: true,
+    available,
+    model: available ? CLAUDE_MODEL : null,
+    backupAvailable: !!backupConfig,
+    backupModel: backupConfig ? backupConfig.model : null
+  });
 });
 
 // MoneyWatch Pro AI Agent Chat Endpoint (Multi-Turn Agentic Loop)
@@ -2024,23 +2171,30 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
         break;
       }
 
-      if (!finalReply) {
-        finalReply = 'Analisis selesai diproses berdasarkan data pasar & portofolio riil Anda.\n\n*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
-      }
-
-      // Ensure mandatory disclaimer is present if not already appended
-      if (!finalReply.includes('Disclaimer:')) {
-        finalReply += '\n\n*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan fundamental.*';
-      }
-
-      return res.json({
-        success: true,
-        reply: finalReply,
-        toolCalls: executedTools,
-        engine: (activeEngineModel ? activeEngineModel : CLAUDE_MODEL) + ' Agentic Loop'
-      });
+      return res.json(finalizeAgentChatResponse(finalReply, executedTools, (activeEngineModel ? activeEngineModel : CLAUDE_MODEL) + ' Agentic Loop'));
     } catch (claudeError) {
-      console.warn('Claude Agent loop notice, gracefully routing to high-fidelity deterministic engine:', claudeError?.message || claudeError);
+      console.warn('Claude Agent loop notice, gracefully routing to backup engine:', claudeError?.message || claudeError);
+      // Fall through to OpenRouter backup (if configured) below, then to
+      // the deterministic fallback further down.
+    }
+  }
+
+  // 1b. OPENROUTER BACKUP (2026-09-19, user-requested "saling backup") —
+  // hanya dicoba kalau Anthropic langsung TIDAK dikonfigurasi sama sekali
+  // ATAU baru saja gagal di atas (kredit habis/rate-limit/outage/dsb).
+  // OPENROUTER_API_KEY tidak diset → getOpenRouterConfig() null →
+  // dilewati diam-diam, perilaku identik dengan sebelum fitur ini ada.
+  if (getOpenRouterConfig()) {
+    try {
+      const { reply, usedModel } = await callOpenRouterAgentLoop(message, history, userContext, executedTools);
+      // Label jujur "via OpenRouter (backup)" — BUKAN diberi label yang
+      // sama seperti jalur Anthropic utama, supaya kalau ada masalah
+      // kualitas/biaya di kemudian hari, jelas dari log/response ini jalur
+      // mana yang sebenarnya menjawab (prinsip yang sama dengan indikator
+      // "AI Engine Live" — status APA ADANYA, bukan diseragamkan).
+      return res.json(finalizeAgentChatResponse(reply, executedTools, usedModel + ' via OpenRouter (backup)'));
+    } catch (openRouterError) {
+      console.warn('OpenRouter backup notice, gracefully routing to deterministic engine:', openRouterError?.message || openRouterError);
       // Fall through to deterministic fallback below
     }
   }
