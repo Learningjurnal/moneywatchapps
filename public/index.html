@@ -910,8 +910,8 @@
                 <button class="btn btn-ghost btn-sm" onclick="goPage('rdn')" title="Buka Kas & Mutasi Saldo RDN" style="font-size:11px;font-weight:700">
                     Kas RDN
                 </button>
-                <button class="btn btn-blue btn-sm" id="btn-dash-refresh-portfolio" onclick="if(typeof refreshPortfolioMarketData==='function'){ refreshPortfolioMarketData({isManual:true}); } else { if(typeof renderPortfolioHub==='function') renderPortfolioHub(); if(typeof showToast==='function') showToast('Data portofolio diperbarui'); }" style="border:none;border-radius:8px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer">
-                    Refresh Data
+                <button class="sm-btn" id="btn-dash-refresh-portfolio" onclick="if(typeof refreshPortfolioMarketData==='function'){ refreshPortfolioMarketData({isManual:true}); } else { if(typeof renderPortfolioHub==='function') renderPortfolioHub(); if(typeof showToast==='function') showToast('Data portofolio diperbarui'); }" style="padding:6px 14px;font-size:11px">
+                    <i class="ti ti-refresh" style="font-size:12px"></i> Refresh Data
                 </button>
             </div>
         </div>
@@ -940,18 +940,20 @@
         <!-- FIX (2026-09-13, Tahap 3): sama persis pola bug Tahap 1 — div polos
              tanpa class="card", shadow hardcoded, tidak pernah kena override
              tema-terang. Lihat INCIDENT_LOG.md. -->
-        <div id="card-dash-regime" class="card dash-section-cc" style="border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:10px;min-width:180px">
-            <span id="dash-regime-badge" class="badge" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;background:var(--bg3);color:var(--text3)">Memuat…</span>
+        <div id="card-dash-regime" class="dash-regime-strip dash-section-cc">
+          <div class="dash-regime-meta">
+            <span id="dash-regime-badge" class="badge" style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px;background:var(--bg3);color:var(--text3)">Memuat…</span>
             <span id="dash-regime-confidence" style="font-size:10.5px;color:var(--text3);font-family:var(--font-mono)"></span>
+            <span class="dash-regime-sep"></span>
+            <div class="dash-regime-ihsg-wrap">
+              <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.04em">IHSG</span>
+              <span id="dash-regime-ihsg" style="font-size:14px;font-weight:800;font-family:var(--font-mono);color:var(--text)">—</span>
+              <span id="dash-regime-ihsg-chg" style="font-size:11px;font-weight:700;font-family:var(--font-mono)"></span>
+            </div>
           </div>
-          <div style="display:flex;align-items:baseline;gap:8px;min-width:140px">
-            <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">IHSG</span>
-            <span id="dash-regime-ihsg" style="font-size:16px;font-weight:800;font-family:var(--font-mono);color:var(--text)">—</span>
-            <span id="dash-regime-ihsg-chg" style="font-size:11.5px;font-weight:700;font-family:var(--font-mono)"></span>
-          </div>
-          <div id="dash-regime-desc" style="flex:1;min-width:220px;font-size:11.5px;color:var(--text2);line-height:1.4">Memuat klasifikasi regime pasar…</div>
-          <button class="btn btn-ghost btn-xs" onclick="goPage('market-regime')" style="font-size:11px;font-weight:700;white-space:nowrap">Lihat Detail →</button>
+          <span class="dash-regime-sep hide-mobile"></span>
+          <div id="dash-regime-desc" class="dash-regime-desc">Memuat klasifikasi regime pasar…</div>
+          <button class="btn btn-ghost btn-xs" onclick="goPage('market-regime')" style="font-size:11px;font-weight:700;white-space:nowrap;padding:4px 10px;border-radius:6px;flex-shrink:0">Lihat Detail →</button>
         </div>
 
         <!-- 1. MANAGE ASSET CARD (EXECUTIVE SUMMARY STRIP) -->
@@ -978,39 +980,39 @@
                 </div>
             </div>
 
-            <!-- Resume Metrics 4-Column Strip -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px">
+            <!-- Resume Metrics 4-Column Strip (Decluttered Single Row) -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px 20px">
                 <!-- Nilai Portofolio Investasi (BUKAN Net Worth — angka ini
                      tidak memasukkan Saldo Kas RDN di sebelahnya maupun aset
                      non-investasi/utang yang dihitung di halaman Wealth,
                      jadi tidak boleh diberi label "Net Worth" agar tidak
                      dikira sudah komprehensif padahal bukan. Lihat halaman
                      Wealth untuk Total Net Worth yang sesungguhnya. -->
-                <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
-                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Nilai Portofolio Investasi</div>
-                    <div style="font-size:24px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px;font-variant-numeric:tabular-nums" id="hub-tot-val">Rp 0</div>
-                    <div style="margin-top:8px">
-                        <div class="badge-trend" id="hub-tot-pnl-pill" style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,245,155,0.15);color:var(--green);padding:3px 8px;border-radius:20px;font-weight:700;font-size:11px;border:1px solid rgba(0,245,155,0.3);font-family:var(--font-mono)">
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Nilai Portofolio Investasi</div>
+                    <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px;font-variant-numeric:tabular-nums" id="hub-tot-val">Rp 0</div>
+                    <div style="margin-top:6px">
+                        <div class="badge-trend" id="hub-tot-pnl-pill" style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,245,155,0.12);color:var(--green);padding:2px 8px;border-radius:6px;font-weight:700;font-size:11px;font-family:var(--font-mono)">
                             <span id="hub-tot-pnl-icon">▲</span> <span id="hub-tot-pnl">Rp 0 (+0.00%)</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Total Investasi / Modal -->
-                <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
-                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Total Modal / Invested Capital</div>
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Total Modal Investasi</div>
                     <div style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px;font-variant-numeric:tabular-nums" id="hub-tot-cost">Rp 0</div>
                 </div>
 
                 <!-- Total Saldo Kas RDN -->
-                <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
-                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Saldo Kas RDN (Likuid)</div>
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Saldo Kas RDN (Likuid)</div>
                     <div style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--accent-blue);letter-spacing:-0.5px;font-variant-numeric:tabular-nums" id="hub-tot-cash">Rp 0</div>
                 </div>
 
                 <!-- Total Posisi Aktif -->
-                <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
-                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Total Posisi Multi-Aset</div>
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Total Posisi Multi-Aset</div>
                     <div style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px;font-variant-numeric:tabular-nums" id="hub-tot-posisi">0 Aset Aktif</div>
                 </div>
             </div>
@@ -2271,21 +2273,21 @@
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <!-- Timeframe selector -->
-      <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px">
-        <button class="btn btn-ghost btn-xs si-tf-btn on" data-tf="1D" onclick="siSetTimeframe('1D')" style="padding:3px 9px;border-radius:4px">1H (Harian)</button>
-        <button class="btn btn-ghost btn-xs si-tf-btn" data-tf="1W" onclick="siSetTimeframe('1W')" style="padding:3px 9px;border-radius:4px">1M (Mingguan)</button>
-        <button class="btn btn-ghost btn-xs si-tf-btn" data-tf="1M" onclick="siSetTimeframe('1M')" style="padding:3px 9px;border-radius:4px">1B (Bulanan)</button>
+      <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px">
+        <button class="btn btn-ghost btn-xs si-tf-btn on" data-tf="1D" onclick="siSetTimeframe('1D')" style="padding:4px 10px;border-radius:4px;font-size:11px">1H (Harian)</button>
+        <button class="btn btn-ghost btn-xs si-tf-btn" data-tf="1W" onclick="siSetTimeframe('1W')" style="padding:4px 10px;border-radius:4px;font-size:11px">1M (Mingguan)</button>
+        <button class="btn btn-ghost btn-xs si-tf-btn" data-tf="1M" onclick="siSetTimeframe('1M')" style="padding:4px 10px;border-radius:4px;font-size:11px">1B (Bulanan)</button>
       </div>
 
       <!-- View switch -->
-      <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px">
-        <button class="btn btn-ghost btn-xs si-view-btn on" data-view="bar" onclick="siSetViewMode('bar')" title="Visualisasi D3.js CMF Bar Flow (Akumulasi vs Distribusi)">D3 CMF Bar</button>
-        <button class="btn btn-ghost btn-xs si-view-btn" data-view="quadrant" onclick="siSetViewMode('quadrant')" title="Visualisasi 4 Kuadran Sectoral Cycle Matrix (Akumulasi, Markup, Distribusi, Markdown)">Sectoral Cycle Matrix</button>
-        <button class="btn btn-ghost btn-xs si-view-btn" data-view="list" onclick="siSetViewMode('list')" title="Tampilan Kartu Ringkas">Kartu</button>
+      <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px">
+        <button class="btn btn-ghost btn-xs si-view-btn on" data-view="bar" onclick="siSetViewMode('bar')" title="Visualisasi D3.js CMF Bar Flow (Akumulasi vs Distribusi)" style="padding:4px 10px;border-radius:4px;font-size:11px">D3 CMF Bar</button>
+        <button class="btn btn-ghost btn-xs si-view-btn" data-view="quadrant" onclick="siSetViewMode('quadrant')" title="Visualisasi 4 Kuadran Sectoral Cycle Matrix (Akumulasi, Markup, Distribusi, Markdown)" style="padding:4px 10px;border-radius:4px;font-size:11px">Sectoral Cycle Matrix</button>
+        <button class="btn btn-ghost btn-xs si-view-btn" data-view="list" onclick="siSetViewMode('list')" title="Tampilan Kartu Ringkas" style="padding:4px 10px;border-radius:4px;font-size:11px">Kartu</button>
       </div>
 
       <!-- Refresh button -->
-      <button class="btn btn-ghost btn-xs" onclick="siRefreshAll()" title="Segarkan Data Aliran &amp; Berita Terkini" style="padding:4px 10px;border-color:var(--border);color:var(--text2)">
+      <button class="btn btn-ghost btn-xs" onclick="siRefreshAll()" title="Segarkan Data Aliran &amp; Berita Terkini" style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);color:var(--text2);font-size:11px;font-weight:700">
         <i class="ti ti-refresh"></i> Segarkan ↻
       </button>
     </div>
@@ -3053,7 +3055,7 @@
           </div>
 
           <!-- Quick KSEI Free Float Card in Tab 1 -->
-          <div id="sm-d-ksei-tab1-summary" class="sm-card" style="border-left:4px solid #10B981;margin-bottom:0">
+          <div id="sm-d-ksei-tab1-summary" class="sm-card" style="margin-bottom:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <h3 style="font-size:13px;font-weight:700;color:var(--text);margin:0">Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
               <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(3)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 3 →</button>
@@ -3064,7 +3066,7 @@
 
         <!-- SECTION TOTAL KESIMPULAN ANALISA FUNDAMENTAL (BERDASARKAN PERHITUNGAN) -->
         <div id="fund-sec-synthesis" style="scroll-margin-top:14px">
-          <div class="sm-card" style="border-left:4px solid var(--accent);background:var(--bg2);padding:18px;margin-bottom:0;border-radius:12px">
+          <div class="sm-card" style="background:var(--bg2);padding:18px;margin-bottom:0;border-radius:12px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:14px">
               <div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -3271,7 +3273,7 @@
           <h2 style="font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px">
             Traffic Light Consensus Matrix (Valuasi · Bandar Flow · Quant)
           </h2>
-          <div class="sm-card" id="hw-traffic-light-card-t3" style="border-left:4px solid var(--accent);margin-bottom:0">
+          <div class="sm-card" id="hw-traffic-light-card-t3" style="margin-bottom:0">
             <div id="hw-tl-body-t3">Memuat konsensus sinyal terpadu...</div>
           </div>
         </div>

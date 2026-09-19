@@ -264,7 +264,7 @@
       + '  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;margin-bottom:20px">'
 
       // Strategy 1: Bandarmology & Foreign Flow
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid #10B981;border-radius:10px;padding:18px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:18px">'
       + '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       + '        <span class="badge b-up" style="font-size:10px">SWING &amp; SMART MONEY</span>'
       + '        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Horizon: 1-4 Minggu</span>'
@@ -282,7 +282,7 @@
       + '    </div>'
 
       // Strategy 2: Value Investing & Margin of Safety
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid #3B82F6;border-radius:10px;padding:18px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:18px">'
       + '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       + '        <span class="badge b-accent" style="font-size:10px">VALUE INVESTING</span>'
       + '        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Horizon: 6-24 Bulan</span>'
@@ -300,7 +300,7 @@
       + '    </div>'
 
       // Strategy 3: Techno-Bandarmology Breakout
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid var(--accent);border-radius:10px;padding:18px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:18px">'
       + '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       + '        <span class="badge b-accent" style="font-size:10px">BREAKOUT MOMENTUM</span>'
       + '        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Horizon: 2-10 Hari</span>'
@@ -318,7 +318,7 @@
       + '    </div>'
 
       // Strategy 4: Dividend Compounder & PMK 18
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid #F59E0B;border-radius:10px;padding:18px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:18px">'
       + '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       + '        <span class="badge b-warn" style="font-size:10px">DIVIDEND COMPOUNDER</span>'
       + '        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Horizon: Long-Term</span>'
@@ -336,7 +336,7 @@
       + '    </div>'
 
       // Strategy 5: Institutional Risk Management & Portfolio Sizing
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid #EC4899;border-radius:10px;padding:18px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:18px">'
       + '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       + '        <span class="badge b-down" style="font-size:10px;background:rgba(236,72,153,0.15);color:#EC4899;border-color:#EC4899">RISK CONTROL</span>'
       + '        <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Aturan Modal Sistemik</span>'
@@ -374,7 +374,7 @@
       + '  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;margin-bottom:24px">'
       
       // Pillar 1: Fundamental
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid #3B82F6;border-radius:8px;padding:16px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px">'
       + '      <div style="font-size:15px;font-weight:800;color:#3B82F6;margin-bottom:6px;display:flex;align-items:center;gap:6px">'
       + '        <i class="ti ti-building-bank"></i> PILAR 1: FUNDAMENTAL'
       + '      </div>'
@@ -392,7 +392,7 @@
       + '    </div>'
 
       // Pillar 2: Technical & Wave
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid var(--accent);border-radius:8px;padding:16px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px">'
       + '      <div style="font-size:15px;font-weight:800;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:6px">'
       + '        <i class="ti ti-wave-sine"></i> PILAR 2: TEKNIKAL &amp; WAVE'
       + '      </div>'
@@ -410,7 +410,7 @@
       + '    </div>'
 
       // Pillar 3: Smart Money & Flow
-      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-top:3px solid #10b981;border-radius:8px;padding:16px">'
+      + '    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px">'
       + '      <div style="font-size:15px;font-weight:800;color:#10b981;margin-bottom:6px;display:flex;align-items:center;gap:6px">'
       + '        <i class="ti ti-users-group"></i> PILAR 3: SMART MONEY &amp; KSEI'
       + '      </div>'

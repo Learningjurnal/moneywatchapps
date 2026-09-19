@@ -157,7 +157,7 @@ function renderDailyBriefPage() {
   // 1. Dynamic Watch #1: Top Mover / Momentum in Portfolio
   if (topGainer) {
     var gainerDelta = (topGainer.dynamicChgPct || 0);
-    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #10B981;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
       + '<span class="badge ' + (gainerDelta >= 0 ? 'b-up' : 'b-dn') + '">1. PORTFOLIO TOP MOVER</span>'
       + '<strong style="color:var(--text);font-size:13px">' + topGainer.ticker + ' (' + (gainerDelta >= 0 ? '+' : '') + gainerDelta.toFixed(2) + '%)</strong>'
@@ -167,7 +167,7 @@ function renderDailyBriefPage() {
       + '</div>'
     + '</div>';
   } else {
-    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #10B981;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge b-up">1. FLOW BREAKOUT</span>'
         + '<strong style="color:var(--text);font-size:13px">Belum Ada Emisi Saham Aktif</strong>'
@@ -181,7 +181,7 @@ function renderDailyBriefPage() {
   // 2. Dynamic Watch #2: Overweight / Concentration Guard
   if (topHolding) {
     var isOverweight = parseFloat(topHoldingWeight) > 15;
-    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #F59E0B;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge ' + (isOverweight ? 'b-amb' : 'b-accent') + '">2. ALLOCATION &amp; RISK GUARD</span>'
         + '<strong style="color:var(--text);font-size:13px">Bobot: ' + topHolding.ticker + ' (' + topHoldingWeight + '%)</strong>'
@@ -193,7 +193,7 @@ function renderDailyBriefPage() {
       + '</div>'
     + '</div>';
   } else {
-    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #F59E0B;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge b-amb">2. REBALANCE ALERT</span>'
         + '<strong style="color:var(--text);font-size:13px">Batas Alokasi Portofolio</strong>'
@@ -205,7 +205,7 @@ function renderDailyBriefPage() {
   }
 
   // 3. Dynamic Watch #3: Total Projected Dividend Pipeline
-  html += '<div style="background:var(--bg3);border:1px solid var(--border);border-top:3px solid #38BDF8;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+  html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
     + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
       + '<span class="badge b-accent">3. DIVIDEND &amp; CASHFLOW</span>'
       + '<strong style="color:var(--text);font-size:13px">Estimasi ~Rp ' + fmtK(totalAnnualDiv) + '/Tahun</strong>'

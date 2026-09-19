@@ -719,7 +719,7 @@ function fundPopulateData() {
       : '<li>Tidak ada red flag spesifik dari rasio DER/Current Ratio/Arus Kas/Pertumbuhan yang tersedia saat ini.</li>';
 
     debateBox.innerHTML = ''
-      + '<div class="sm-card" style="margin-bottom:14px;border-left:4px solid #10B981">'
+      + '<div class="sm-card" style="margin-bottom:14px">'
       + '  <div style="font-size:14px;font-weight:800;color:#10B981;display:flex;align-items:center;gap:6px">THE BULL CASE (Kekuatan &amp; Katalis Positif)</div>'
       + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2)">'
       + '    <li>Fundamental solid di sektor <b>' + sector + '</b> dengan ROE <b>' + fundFmt(roe, true) + '</b> dan profit margin <b>' + fundFmt(pm, true) + '</b>.</li>'
@@ -727,7 +727,7 @@ function fundPopulateData() {
       + '    <li>Kapasitas dividen teratur dengan yield <b>' + fundFmt(divY, true) + '</b> dan neraca bebas tekanan liabilitas tinggi (DER ' + dte.toFixed(2) + 'x).</li>'
       + '  </ul>'
       + '</div>'
-      + '<div class="sm-card" style="border-left:4px solid #EF4444">'
+      + '<div class="sm-card">'
       + '  <div style="font-size:14px;font-weight:800;color:#EF4444;display:flex;align-items:center;gap:6px">THE BEAR CASE (Risiko &amp; Skenario Negatif)</div>'
       + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2)">'
       + bearHtml

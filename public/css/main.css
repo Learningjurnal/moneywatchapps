@@ -361,14 +361,128 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
   transition: background var(--spring), border-color var(--spring);
 }
 .dash-view-toggle-bar .btn.on {
-  background: var(--brand-primary) !important;
-  color: #FFFFFF !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 255, 0.35);
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #38BDF8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 6px rgba(56, 189, 248, 0.12) !important;
 }
 body.theme-light .dash-view-toggle-bar .btn.on {
-  background: #0000FF !important;
-  color: #FFFFFF !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 255, 0.25);
+  background: #EFF6FF !important;
+  color: #0284C7 !important;
+  border: 1px solid #93C5FD !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.15) !important;
+}
+
+/* ── SLEEK INTEGRATED DASHBOARD REGIME STRIP (NO CLUMSY CARD) ── */
+.dash-regime-strip {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+  transition: border-color 0.15s ease;
+}
+.dash-regime-strip:hover {
+  border-color: var(--border2);
+}
+.dash-regime-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.dash-regime-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border2);
+  display: inline-block;
+}
+.dash-regime-ihsg-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.dash-regime-desc {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.45;
+}
+@media (max-width: 860px) {
+  .dash-regime-strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .dash-regime-meta {
+    justify-content: space-between;
+    width: 100%;
+  }
+}
+
+/* ── STRUCTURED MARKET SUMMARY ROWS (TIGHT GRID ALIGNMENT) ── */
+.dash-summary-table {
+  display: flex;
+  flex-direction: column;
+}
+.dash-summary-row {
+  display: grid;
+  grid-template-columns: 185px 1fr;
+  gap: 14px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border2);
+}
+.dash-summary-row:last-child {
+  border-bottom: none;
+  padding-bottom: 2px;
+}
+.dash-summary-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.dash-summary-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.7);
+  display: inline-block;
+  flex-shrink: 0;
+}
+.dash-summary-text {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.55;
+}
+.dash-summary-source {
+  display: inline-block;
+  font-size: 9.5px;
+  color: var(--text3);
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+@media (max-width: 640px) {
+  .dash-summary-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 
 @supports (grid-template-rows: masonry){
@@ -470,8 +584,10 @@ body.theme-light .dash-view-toggle-bar .btn.on {
 .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid var(--border);font-family:'Inter',sans-serif;letter-spacing:0;text-transform:none;transition:all var(--spring);background:#151C2C;color:var(--text2)}
 .btn:hover{filter:brightness(1.15);transform:translateY(-1px);border-color:#3B82F6;color:#fff}
 .btn:active{transform:scale(.97)}
-.btn-blue{background:var(--brand-primary);color:#fff;border-color:var(--brand-primary);box-shadow:none;font-weight:700}
-.btn-blue:hover{background:#1D4ED8;filter:none}
+.btn-primary,
+.btn-blue{background:linear-gradient(135deg, #0284C7 0%, #0369A1 100%);border:1px solid rgba(56, 189, 248, 0.35);color:#FFFFFF;box-shadow:0 2px 8px rgba(2, 132, 199, 0.25);font-weight:700}
+.btn-primary:hover,
+.btn-blue:hover{background:linear-gradient(135deg, #0369A1 0%, #0284C7 100%);border-color:rgba(56, 189, 248, 0.6);box-shadow:0 4px 14px rgba(2, 132, 199, 0.35);filter:none}
 .btn-green{background:rgba(0,245,155,.15);color:var(--green);border-color:rgba(0,245,155,.35)}
 .btn-red{background:rgba(255,59,92,.15);color:var(--red);border-color:rgba(255,59,92,.35)}
 .btn-amber{background:rgba(255,184,0,.15);color:var(--amber);border-color:rgba(255,184,0,.35)}
@@ -1948,6 +2064,14 @@ body.mode-executive .metric .mval {
   color: #38BDF8;
   border-color: rgba(56, 189, 248, 0.4);
   transform: translateY(-1px);
+}
+.sm-chip.active,
+.sm-chip.on {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #38BDF8 !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  font-weight: 700;
+  box-shadow: 0 1px 6px rgba(56, 189, 248, 0.12);
 }
 
 .sm-tab-panel {
@@ -3536,17 +3660,25 @@ body.theme-light .btn-outline:hover {
 
 body.theme-light .btn-primary,
 body.theme-light .btn-blue {
-  background: #0000FF !important;
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%) !important;
   color: #FFFFFF !important;
-  border: 1px solid #0000FF !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 255, 0.2) !important;
+  border: 1px solid rgba(2, 132, 199, 0.4) !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.2) !important;
 }
 
 body.theme-light .btn-primary:hover,
 body.theme-light .btn-blue:hover {
-  background: #0000CC !important;
-  color: #FFFFFF !important;
-  border-color: #0000CC !important;
+  background: linear-gradient(135deg, #0369A1 0%, #0284C7 100%) !important;
+  border-color: #0284C7 !important;
+}
+
+body.theme-light .sm-chip.active,
+body.theme-light .sm-chip.on {
+  background: #EFF6FF !important;
+  color: #0284C7 !important;
+  border-color: #93C5FD !important;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.15);
 }
 
 body.theme-light .btn-ghost {
@@ -5967,9 +6099,19 @@ body.theme-light .stockchat-input-field::placeholder {
 }
 .si-tf-btn.on,
 .si-view-btn.on {
-  background: var(--accent) !important;
-  color: #ffffff !important;
-  font-weight: 700;
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #38BDF8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 6px rgba(56, 189, 248, 0.12) !important;
+}
+body.theme-light .si-tf-btn.on,
+body.theme-light .si-view-btn.on {
+  background: #EFF6FF !important;
+  color: #0284C7 !important;
+  border: 1px solid #93C5FD !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.15) !important;
 }
 
 /* ── D3 SECTORAL CMF BAR CHART: ENTRANCE, HOVER & TOOLTIP POLISH ── */

@@ -361,12 +361,12 @@ function renderDashboardAIInsight(){
       });
     }
 
-    box.innerHTML = lines.map(function(l){
-      return '<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0">'
-        + '<span style="font-size:10px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;min-width:150px">' + escHtml(l.label) + '</span>'
-        + '<span style="flex:1;font-size:12px;color:var(--text2);line-height:1.5">' + escHtml(l.text) + ' <span style="color:var(--text3);font-size:10px">(' + escHtml(l.source) + ')</span></span>'
+    box.innerHTML = '<div class="dash-summary-table">' + lines.map(function(l){
+      return '<div class="dash-summary-row">'
+        + '<div class="dash-summary-label"><span class="dash-summary-dot"></span>' + escHtml(l.label) + '</div>'
+        + '<div class="dash-summary-text">' + escHtml(l.text) + ' <span class="dash-summary-source">' + escHtml(l.source) + '</span></div>'
         + '</div>';
-    }).join('');
+    }).join('') + '</div>';
   } catch(err){
     box.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal menyusun ringkasan: ' + escHtml((err && err.message) || 'error') + '.</div>';
   }

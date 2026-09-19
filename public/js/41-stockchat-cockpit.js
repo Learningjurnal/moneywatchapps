@@ -700,7 +700,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:stretch">'
     
     // Node 1: Smart Money / Institutions
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-top:3px solid #10B981;border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
     + '<div>'
     + '<div style="font-size:10px;text-transform:uppercase;font-weight:800;color:var(--text3);letter-spacing:0.06em">Tier-1 Institusi &amp; Asing</div>'
     + '<div style="font-size:18px;font-weight:800;color:#10B981;font-family:var(--font-mono);margin:4px 0">Rp ' + Math.round(smartMoneyBuyVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
@@ -721,7 +721,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div>'
 
     // Node 3: Retail / Public
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-top:3px solid #EF4444;border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">'
     + '<div>'
     + '<div style="font-size:10px;text-transform:uppercase;font-weight:800;color:var(--text3);letter-spacing:0.06em">Partisipasi Publik &amp; Ritel</div>'
     + '<div style="font-size:18px;font-weight:800;color:#EF4444;font-family:var(--font-mono);margin:4px 0">Rp ' + Math.round(retailSellVal / 1000000000).toLocaleString('id-ID') + ' M</div>'
