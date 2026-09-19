@@ -1069,26 +1069,13 @@ test('REGRESSION GUARD: renderDashboard() must call renderDashboardHeatmapPrevie
     'renderDashboard() no longer calls renderDashboardSmartFlowPreview()');
 });
 // FIX (2026-09-19, user-reported: "Market Heatmap masih menampilkan hanya
-// lq45, tidak sesuai dengan aturan, seharunys seluruh saham dan hanya
-// memfilter yang masuk kriteria"): this preview used to read FS_RD
-// (07-flowscan.js's top-60-by-market-cap slice of the full ~958-ticker
-// universe) — a CLAUDE.md rule #2 violation identical in kind to the
-// Screener/Opportunity-Radar-preview incidents fixed earlier this session.
-// Now whole-market via fsFetchUnifiedHeatmapData() (GET
+// lq45..."): the full Heatmap page's "Flow Heatmap" tab (fsRenderHeatmap())
+// used to read FS_RD (07-flowscan.js's top-60-by-market-cap slice of the
+// full ~958-ticker universe) — a CLAUDE.md rule #2 violation. Now
+// whole-market via fsFetchUnifiedHeatmapData() (GET
 // /api/idx/unified-screener), filtered by criteria (whaleDataAvailable)
-// instead of a market-cap sample. The old .simulated/fsSrcDot() disclosure
-// no longer applies — generateUnifiedScreener()'s cache-only Redis reads
-// return null (never a fabricated placeholder) on a cache miss, so there
-// is no "simulated score" case left to disclose here.
-test('REGRESSION GUARD: Market Heatmap preview and full Heatmap page must be whole-market (not FS_RD\'s top-60-by-cap sample)', () => {
-  const renderSrc = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
-  const previewFn = renderSrc.match(/async function renderDashboardHeatmapPreview\(\)\{[\s\S]*?\n\}/);
-  assert(previewFn, 'renderDashboardHeatmapPreview() body not found (must be async now)');
-  assert(/fsFetchUnifiedHeatmapData\(/.test(previewFn[0]),
-    'renderDashboardHeatmapPreview() no longer calls fsFetchUnifiedHeatmapData() — would regress to FS_RD\'s top-60-by-cap sample');
-  assert(!/FS_RD/.test(previewFn[0]),
-    'REGRESSION: renderDashboardHeatmapPreview() reads FS_RD again — reintroduces the top-60-by-market-cap violation of CLAUDE.md rule #2');
-
+// instead of a market-cap sample.
+test('REGRESSION GUARD: full Heatmap page\'s Flow Heatmap tab must be whole-market (not FS_RD\'s top-60-by-cap sample)', () => {
   const flowSrc = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
   assert(/function fsFetchUnifiedHeatmapData\(/.test(flowSrc), 'fsFetchUnifiedHeatmapData() is missing from 07-flowscan.js');
   assert(/\/api\/idx\/unified-screener/.test(flowSrc), 'fsFetchUnifiedHeatmapData() no longer fetches the whole-market unified-screener endpoint');
@@ -1098,6 +1085,42 @@ test('REGRESSION GUARD: Market Heatmap preview and full Heatmap page must be who
   assert(heatmapFn, 'fsRenderHeatmap() body not found (must be async now, taking a force param)');
   assert(/fsFetchUnifiedHeatmapData\(/.test(heatmapFn[0]), 'fsRenderHeatmap() no longer calls fsFetchUnifiedHeatmapData()');
   assert(!/FS_RD/.test(heatmapFn[0]), 'REGRESSION: fsRenderHeatmap() reads FS_RD again — reintroduces the top-60-by-market-cap violation on the full Heatmap page');
+});
+// FIX (2026-09-19, user correction: "anda salah edit, market heat map
+// seharusnya diganti sectoral heat map, lihat Sectoral Insight, data
+// eharusnya diambil dari situ"): the dashboard's "Market Heatmap" widget
+// first went through a per-stock Whale Score version — user then
+// corrected it should instead be a SECTORAL heatmap, sourced from the
+// "Sector Insight" page's own computation (siComputeAllSectors(),
+// 44-sectoral-insight.js), not a separate per-stock ranking. Renamed
+// "Heatmap Sektoral", reads window.siGetSectorHeatmapData() (a thin
+// exported wrapper around siComputeAllSectors() — no duplicated logic),
+// and "Lihat Semua" now points to goPage('sectoral-insight') (the page
+// this data actually comes from) instead of goPage('heatmap') (a
+// different page with a different per-stock/broker-flow aggregation —
+// pointing there would reproduce the "preview doesn't match full page"
+// bug class already fixed twice this session for other dashboard widgets).
+test('REGRESSION GUARD: dashboard "Heatmap Sektoral" widget must read from Sector Insight\'s own computation (siGetSectorHeatmapData), not a separate per-stock heatmap', () => {
+  const siSrc = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+  assert(/window\.siGetSectorHeatmapData\s*=\s*function/.test(siSrc), 'siGetSectorHeatmapData() export is missing from 44-sectoral-insight.js');
+  assert(/siGetSectorHeatmapData\s*=\s*function\(\)\s*\{\s*return siComputeAllSectors\(/.test(siSrc),
+    'REGRESSION: siGetSectorHeatmapData() no longer delegates to siComputeAllSectors() — the dashboard widget would duplicate (and could diverge from) the Sector Insight page\'s own sector computation');
+
+  const renderSrc = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  const previewFn = renderSrc.match(/function renderDashboardHeatmapPreview\(\)\{[\s\S]*?\n\}\n/);
+  assert(previewFn, 'renderDashboardHeatmapPreview() body not found');
+  assert(/siGetSectorHeatmapData\(/.test(previewFn[0]),
+    'REGRESSION: renderDashboardHeatmapPreview() no longer calls window.siGetSectorHeatmapData() — reverted away from Sector Insight\'s sectoral data');
+  assert(!/fsFetchUnifiedHeatmapData/.test(previewFn[0]) && !/FS_RD/.test(previewFn[0]),
+    'REGRESSION: renderDashboardHeatmapPreview() reads a per-stock heatmap source again (fsFetchUnifiedHeatmapData/FS_RD) instead of the sectoral one the user asked for');
+  assert(/goPage\(\\'sectoral-insight\\'\)/.test(previewFn[0]),
+    'REGRESSION: renderDashboardHeatmapPreview() no longer points "Lihat Semua" to goPage(\'sectoral-insight\') — would mismatch the data source it actually reads from');
+
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(htmlSrc.includes(">Heatmap Sektoral<"), 'index.html is missing the "Heatmap Sektoral" dashboard card title (renamed from "Market Heatmap")');
+  const cardMatch = htmlSrc.match(/id="card-dash-heatmap"[\s\S]*?<\/div>\s*<\/div>/);
+  assert(cardMatch && /goPage\('sectoral-insight'\)/.test(cardMatch[0]),
+    'REGRESSION: the dashboard "Heatmap Sektoral" card\'s "Lihat Semua" button no longer points to goPage(\'sectoral-insight\')');
 });
 // FIX (2026-09-19, user-reported "Opportunity Radar belum sinkron dengan
 // screener", user confirmed konsolidasi via AskUserQuestion): the separate
