@@ -783,10 +783,23 @@
     <div class="side-group-items">
       <button onclick="goPage('stock-dossier',this)"><i class="ti ti-file-analytics"></i><span class="side-label">Stock Dossier</span></button>
       <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar"></i><span class="side-label">Stock Intel</span></button>
+      <!-- FIX (2026-09-19, user-reported: "hapus sidebar valuation double
+           dengan fundamental kalkulator harga saham manual"): tombol
+           "Valuation" (goPage('hargawajar')) DIHAPUS dari sidebar — sejak
+           "Eksekusi no 2" (lihat INCIDENT_LOG.md), goPage('hargawajar')
+           sudah dialihkan ke container 'fundamental' + auto-switch ke tab
+           "Kalkulator Harga Wajar (Manual)" (fund-nav-4). Klik "Valuation"
+           dan klik "Fundamental" mendarat di HALAMAN YANG SAMA PERSIS —
+           satu-satunya beda tab awal yang aktif — jadi 2 tombol sidebar
+           terpisah untuk halaman yang sama adalah duplikat menu murni.
+           goPage('hargawajar') SENDIRI tetap ada (dipakai handoff dari
+           Stock Intel/Knowledge Guide/Wealth quick-link), yang dihapus
+           HANYA entry sidebar-nya. Kalkulator Harga Wajar tetap bisa
+           diakses via tab "Kalkulator Harga Wajar (Manual)" di halaman
+           Fundamental. -->
       <button onclick="goPage('fundamental',this)"><i class="ti ti-report-analytics"></i><span class="side-label">Fundamental</span></button>
       <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
       <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto Technical</span></button>
-      <button onclick="goPage('hargawajar',this)"><i class="ti ti-calculator"></i><span class="side-label">Valuation</span></button>
       <button onclick="goBandarmology('market',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
       <!-- "Volume Spike" (goPage('volume-spike')) juga digabung ke nav
            "Screener" 2026-09-19 (user-directed: "volume spike, quant
@@ -4415,7 +4428,7 @@
 <script src="js/26-commandcenter.js?v=20260918b"></script>
 <script src="js/27-stockintel.js?v=20260919a"></script>
 <script src="js/28-decisiontools.js?v=20260918c"></script>
-<script src="js/29-institutional-ui.js?v=20260918a"></script>
+<script src="js/29-institutional-ui.js?v=20260919a"></script>
 <script src="js/30-price-alerts.js?v=20260915b"></script><script src="js/32-pdf-reports.js?v=20260918a"></script><script src="js/34-ksei-shareholders.js?v=20260919a"></script>
 <script src="js/35-settings.js?v=20260918a"></script>
 <script src="js/37-tradewave-engine.js?v=20260918b"></script>

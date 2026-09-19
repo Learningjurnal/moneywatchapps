@@ -463,12 +463,24 @@ async function checkAiEngineStatus() {
       dot.style.background = '#10b981';
       dot.style.boxShadow = '0 0 6px #10b981';
       label.textContent = 'AI Engine Live';
-      label.title = 'Claude API (' + data.model + ') terkonfigurasi di server — StockChat/Copilot berjalan dengan model Claude sungguhan.';
+      label.title = 'Claude API (' + data.model + ') terkonfigurasi di server — StockChat/Copilot berjalan dengan model Claude sungguhan.'
+        + (data.backupAvailable ? ' Backup OpenRouter (' + data.backupModel + ') juga terkonfigurasi kalau Anthropic gagal saat runtime (kredit habis/rate-limit/outage).' : '');
+    } else if (data && data.backupAvailable) {
+      // ANTHROPIC_API_KEY tidak diset SAMA SEKALI (getAiClient() null) tapi
+      // OPENROUTER_API_KEY ada — /api/ai/agent-chat akan langsung ke jalur
+      // OpenRouter (lihat catch block-nya), BUKAN fallback deterministik.
+      // Catatan jujur: cek ini cuma memvalidasi key ADA, bukan bahwa
+      // panggilan runtime akan sukses (mis. kredit OpenRouter juga habis) —
+      // sama seperti keterbatasan cek `available` di atas untuk Anthropic.
+      dot.style.background = '#F59E0B';
+      dot.style.boxShadow = '0 0 6px #F59E0B';
+      label.textContent = 'AI Engine Backup (OpenRouter)';
+      label.title = 'ANTHROPIC_API_KEY tidak terkonfigurasi di server, tapi OPENROUTER_API_KEY ada — StockChat/Copilot berjalan lewat OpenRouter (' + data.backupModel + '), bukan Claude langsung.';
     } else {
       dot.style.background = '#F59E0B';
       dot.style.boxShadow = '0 0 6px #F59E0B';
       label.textContent = 'AI Engine Fallback';
-      label.title = 'ANTHROPIC_API_KEY tidak terkonfigurasi di server — StockChat/Copilot berjalan di mode fallback deterministik (rule-based), bukan Claude.';
+      label.title = 'ANTHROPIC_API_KEY (dan OPENROUTER_API_KEY backup) tidak terkonfigurasi di server — StockChat/Copilot berjalan di mode fallback deterministik (rule-based), bukan model AI sungguhan.';
     }
   } catch (e) {
     dot.style.background = '#EF4444';

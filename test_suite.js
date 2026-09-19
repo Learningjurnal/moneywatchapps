@@ -7176,6 +7176,213 @@ test('REGRESSION GUARD: "Eksekusi no 2" — Valuation (Harga Wajar) consolidated
     'REGRESSION: 10-hargawajar.js\'s GLOBAL_STOCK_CONTEXT subscriber no longer checks both page-fundamental and fund-tab-hw visibility — it should silently sync only when the Harga Wajar tab specifically is the one being viewed, not any Fundamental tab');
 });
 
+// ── TEST: user-reported (2026-09-19, "hapus sidebar valuation double
+// dengan fundamental kalkulator harga saham manual cek dulu kebenaran
+// nya") — after "Eksekusi no 2" merged Harga Wajar into Fundamental as a
+// tab, the sidebar still had 2 separate top-level buttons ("Fundamental"
+// and "Valuation") that both land on the exact same page-fundamental
+// container (goPage('hargawajar') is aliased there) — a genuine duplicate
+// menu entry, confirmed by re-reading the code before removing it.
+test('REGRESSION GUARD: sidebar no longer has a separate "Valuation" button duplicating "Fundamental" (both used to land on the same page-fundamental container)', () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const uiJs = fs.readFileSync(path.join(__dirname, 'public/js/29-institutional-ui.js'), 'utf8');
+
+  assert(!/side-label">Valuation<\/span>/.test(indexHtml),
+    'REGRESSION: the sidebar "Valuation" button is back — it navigates to the exact same page as "Fundamental" (goPage(\'hargawajar\') is aliased to \'fundamental\', see the "Eksekusi no 2" fix), so having both is a duplicate menu entry');
+  assert(/side-label">Fundamental<\/span>/.test(indexHtml),
+    'REGRESSION: the sidebar "Fundamental" button itself was removed along with "Valuation" — only the duplicate should have been removed, not the real page link');
+  // goPage('hargawajar') itself must still work (deep-links from Stock
+  // Intel/Knowledge Guide/Wealth quick-links still call it) — only the
+  // sidebar's OWN button was removed, not the underlying alias/route.
+  assert(/name === 'hargawajar' \? 'fundamental'/.test(fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8')),
+    'REGRESSION: goPage(\'hargawajar\') no longer redirects to \'fundamental\' — removing the sidebar button must not break the deep-link callers that still use goPage(\'hargawajar\') (Stock Intel handoff, Knowledge Guide, Wealth quick-link)');
+
+  const pagesListMatch = uiJs.match(/var pages = \[[\s\S]*?\];/);
+  assert(pagesListMatch, 'Command palette "Modul & Halaman Aplikasi" pages list not found in 29-institutional-ui.js');
+  assert(!/id: 'hargawajar'/.test(pagesListMatch[0]),
+    'REGRESSION: the command palette (Ctrl+K search) still lists a separate \'hargawajar\' entry alongside \'fundamental\' — same duplicate-menu issue as the sidebar button, both should point to just the one \'fundamental\' entry');
+  assert(/id: 'fundamental'/.test(pagesListMatch[0]),
+    'REGRESSION: the command palette\'s \'fundamental\' entry was removed along with \'hargawajar\' — only the duplicate should have been removed');
+});
+
+// ── TEST: user-reported (2026-09-19, "cek toolbar signal history kenapa
+// belum ada history yang muncul") — investigated why public/js/47-ai-
+// signal-history.js's "Riwayat Sinyal AI" page can stay empty even for an
+// active, logged-in user. Root cause found (not the only possible gate,
+// but a genuine ambiguity bug, independently of Supabase/auth config):
+// SYSTEM_INSTRUCTION_MONEYWATCH_AI's rule #10 (cek_prediksi_xgboost) and
+// rule #11 (cek_sinyal_teknikal) both listed "sinyal"/"rekomendasi" as
+// trigger words for the SAME kind of request (a ticker-specific
+// signal/recommendation) — ai_signal_log (Fase 2, 00-config.js
+// logAiSignalToReflectionLog()) is written ONLY when the AI calls
+// cek_sinyal_teknikal specifically, never cek_prediksi_xgboost. With both
+// rules matching the same plain-language phrasing ("sinyal BBCA",
+// "rekomendasi ANTM"), the model had no clear tie-breaker for which tool
+// to call — if it consistently picked cek_prediksi_xgboost for ordinary
+// "sinyal"/"rekomendasi" questions, Signal History would silently never
+// populate no matter how many times the user asked, with no error
+// anywhere to reveal why. Fixed by making rule #10 explicitly require the
+// user to name the model/AI/ML/XGBoost, and rule #11 the default for any
+// other signal/recommendation phrasing (this can't be exercised by an
+// automated test — it depends on live Claude tool-call behavior, which
+// this sandbox has no network access to reproduce — so this is a
+// source-text regression guard, not a behavioral one).
+test('REGRESSION GUARD: SYSTEM_INSTRUCTION_MONEYWATCH_AI must disambiguate cek_prediksi_xgboost vs cek_sinyal_teknikal instead of both matching plain "sinyal"/"rekomendasi" phrasing', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const promptStart = src.indexOf('const SYSTEM_INSTRUCTION_MONEYWATCH_AI');
+  assert(promptStart !== -1, 'SYSTEM_INSTRUCTION_MONEYWATCH_AI not found in server.js — has it been renamed?');
+  const promptEnd = src.indexOf('\n// GET /api/ai/status', promptStart);
+  assert(promptEnd !== -1, 'sanity: could not find the boundary right after SYSTEM_INSTRUCTION_MONEYWATCH_AI — extraction range may need updating');
+  const prompt = src.slice(promptStart, promptEnd);
+
+  assert(/HANYA kalau pengguna secara eksplisit menyebut model\/AI\/machine learning\/XGBoost/.test(prompt),
+    'REGRESSION: rule #10 (cek_prediksi_xgboost) no longer restricts itself to explicit model/AI/ML/XGBoost mentions — it will match plain "sinyal"/"rekomendasi" phrasing again, competing with rule #11 for the same requests');
+  assert(/DEFAULT untuk permintaan sinyal\/rekomendasi\/analisa teknikal/.test(prompt),
+    'REGRESSION: rule #11 (cek_sinyal_teknikal) no longer states it is the default tool for plain signal/recommendation requests — the ambiguity with cek_prediksi_xgboost (rule #10) is back, which can silently starve ai_signal_log (Riwayat Sinyal AI page) of any rows');
+});
+
+// ── TEST: OpenRouter backup provider (2026-09-19, user-requested:
+// "anthropic key bisakah di gabungkan dengan API openrouter, supaya bisa
+// saling backup") — /api/ai/agent-chat's provider chain is now Anthropic
+// direct -> OpenRouter (if OPENROUTER_API_KEY configured) -> deterministic
+// engine. Verifies (a) getOpenRouterConfig() is a clean env-var-gated
+// no-op when unconfigured (existing behavior for everyone who hasn't set
+// OPENROUTER_API_KEY must be untouched), (b) it honors OPENROUTER_MODEL
+// overrides, (c) toOpenAiTools()/convertAgentSchema() correctly reshape
+// the SAME Gemini-style declarations already used for Claude into OpenAI's
+// {type:'function', function:{...}} tool format, (d) callOpenRouterAgentLoop()
+// actually drives a tool-calling round-trip and returns the model's final
+// text, and (e) the /api/ai/agent-chat route source tries providers in the
+// right order (Claude, then OpenRouter, then deterministic — never
+// OpenRouter before Claude, which would make Anthropic pointless as the
+// "primary, faster, no extra proxy hop" path documented in the code).
+await asyncTest('REGRESSION GUARD: OpenRouter backup provider — config gating, tool-schema conversion, and the agentic tool-calling loop', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+
+  // (a)+(b): getOpenRouterConfig() — slice is tiny and self-contained
+  // (only reads process.env), no sandbox stubs needed.
+  const configStart = fullSrc.indexOf('function getOpenRouterConfig()');
+  assert(configStart !== -1, 'getOpenRouterConfig() not found in server.js — has it been renamed/removed?');
+  let configSrc = fullSrc.slice(configStart);
+  configSrc = configSrc.slice(0, configSrc.indexOf('\nfunction withTimeout'));
+  const configSandbox = { process: { env: {} } };
+  vm.createContext(configSandbox);
+  vm.runInContext(configSrc, configSandbox, { filename: 'server.js getOpenRouterConfig() (sandboxed load for test)' });
+  assert.strictEqual(configSandbox.getOpenRouterConfig(), null,
+    'REGRESSION: getOpenRouterConfig() must return null (not throw, not a fake config) when OPENROUTER_API_KEY is unset — every deployment that hasn\'t opted into this feature must see byte-identical behavior to before it existed');
+
+  const configSandbox2 = { process: { env: { OPENROUTER_API_KEY: 'sk-or-test-123' } } };
+  vm.createContext(configSandbox2);
+  vm.runInContext(configSrc, configSandbox2, { filename: 'server.js getOpenRouterConfig() default model (sandboxed load for test)' });
+  const cfg2 = configSandbox2.getOpenRouterConfig();
+  assert(cfg2 && cfg2.apiKey === 'sk-or-test-123', 'REGRESSION: getOpenRouterConfig() must read OPENROUTER_API_KEY into the returned config');
+  assert.strictEqual(cfg2.model, 'anthropic/claude-3.5-sonnet',
+    'REGRESSION: getOpenRouterConfig() no longer defaults to a Claude model via OpenRouter — the point of this backup is answer-quality/tool-calling parity with the primary Anthropic path, not an arbitrary different model');
+
+  const configSandbox3 = { process: { env: { OPENROUTER_API_KEY: 'sk-or-test-123', OPENROUTER_MODEL: 'openai/gpt-4o-mini' } } };
+  vm.createContext(configSandbox3);
+  vm.runInContext(configSrc, configSandbox3, { filename: 'server.js getOpenRouterConfig() OPENROUTER_MODEL override (sandboxed load for test)' });
+  assert.strictEqual(configSandbox3.getOpenRouterConfig().model, 'openai/gpt-4o-mini',
+    'REGRESSION: getOpenRouterConfig() no longer honors an OPENROUTER_MODEL override — a user wanting real vendor redundancy (not just billing redundancy) via a non-Anthropic model can no longer configure it');
+
+  // (c)+(d): tool-schema conversion + the agentic loop itself. Slice from
+  // AGENT_SCHEMA_TYPE_MAP through the end of callOpenRouterAgentLoop() —
+  // everything it needs (getOpenRouterConfig, withTimeout, fetch,
+  // AGENT_TOOL_DECLARATIONS, SYSTEM_INSTRUCTION_MONEYWATCH_AI,
+  // executeAgentTool) is supplied as sandbox stubs instead of pulling in
+  // the entire file (which would require a real Anthropic SDK, real env,
+  // and every other route's dependencies).
+  const loopStart = fullSrc.indexOf('const AGENT_SCHEMA_TYPE_MAP');
+  assert(loopStart !== -1, 'AGENT_SCHEMA_TYPE_MAP not found — has the tool-schema converter section moved?');
+  const loopEnd = fullSrc.indexOf('\nconst SYSTEM_INSTRUCTION_MONEYWATCH_AI', loopStart);
+  assert(loopEnd !== -1, 'sanity: could not find the boundary right after callOpenRouterAgentLoop() — extraction range may need updating');
+  const loopSrc = fullSrc.slice(loopStart, loopEnd);
+  assert(/function toOpenAiTools/.test(loopSrc), 'REGRESSION: toOpenAiTools() is gone — OpenRouter\'s OpenAI-compatible tool format conversion was removed');
+  assert(/async function callOpenRouterAgentLoop/.test(loopSrc), 'REGRESSION: callOpenRouterAgentLoop() is gone — the OpenRouter agentic loop was removed');
+
+  const fakeDeclarations = [{ name: 'cek_harga', description: 'test', parameters: { type: 'OBJECT', properties: { ticker: { type: 'STRING', description: 'kode' } }, required: ['ticker'] } }];
+  const fetchCalls = [];
+  let fetchCallCount = 0;
+  const executedToolCalls = [];
+  const loopSandbox = {
+    AGENT_TOOL_DECLARATIONS: fakeDeclarations,
+    SYSTEM_INSTRUCTION_MONEYWATCH_AI: 'test system prompt',
+    withTimeout: (p) => p, // pass-through, no real timeout race needed for this test
+    getOpenRouterConfig: () => ({ apiKey: 'sk-or-test-123', model: 'anthropic/claude-3.5-sonnet' }),
+    executeAgentTool: async (name, args) => {
+      executedToolCalls.push({ name, args });
+      return { ticker: args.ticker, price: 9000 };
+    },
+    fetch: async (url, opts) => {
+      fetchCallCount++;
+      fetchCalls.push({ url, body: JSON.parse(opts.body) });
+      if (fetchCallCount === 1) {
+        // First turn: model decides to call the tool.
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [{
+              message: {
+                content: null,
+                tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'cek_harga', arguments: JSON.stringify({ ticker: 'BBCA' }) } }]
+              }
+            }]
+          })
+        };
+      }
+      // Second turn: model has the tool result, gives a final text answer.
+      return { ok: true, json: async () => ({ choices: [{ message: { content: 'Harga BBCA Rp 9.000.' } }] }) };
+    }
+  };
+  vm.createContext(loopSandbox);
+  vm.runInContext(loopSrc, loopSandbox, { filename: 'server.js callOpenRouterAgentLoop() (sandboxed load for test)' });
+
+  const openAiTools = loopSandbox.toOpenAiTools(fakeDeclarations);
+  assert.strictEqual(openAiTools[0].type, 'function', 'REGRESSION: toOpenAiTools() no longer wraps each declaration as {type:"function", ...} — OpenRouter/OpenAI will reject the malformed tool schema');
+  assert.strictEqual(openAiTools[0].function.name, 'cek_harga');
+  assert.strictEqual(openAiTools[0].function.parameters.type, 'object', 'REGRESSION: convertAgentSchema() no longer lowercases the Gemini-style "OBJECT" type to JSON Schema\'s "object" — OpenRouter/OpenAI will reject the schema');
+  assert.strictEqual(openAiTools[0].function.parameters.properties.ticker.type, 'string');
+
+  const executedTools = [];
+  const result = await loopSandbox.callOpenRouterAgentLoop('cek harga BBCA', [], {}, executedTools);
+  assert.strictEqual(fetchCallCount, 2, 'REGRESSION: callOpenRouterAgentLoop() must make one request per agentic turn (tool-call turn, then final-answer turn) — got ' + fetchCallCount);
+  assert.strictEqual(fetchCalls[0].url, 'https://openrouter.ai/api/v1/chat/completions', 'REGRESSION: callOpenRouterAgentLoop() no longer targets OpenRouter\'s chat completions endpoint');
+  assert.strictEqual(fetchCalls[0].body.model, 'anthropic/claude-3.5-sonnet', 'REGRESSION: callOpenRouterAgentLoop() no longer sends the configured model in the request body');
+  assert(Array.isArray(fetchCalls[0].body.tools) && fetchCalls[0].body.tools.length > 0, 'REGRESSION: callOpenRouterAgentLoop() no longer sends the tools array — the model can no longer call any tool at all');
+  assert.strictEqual(executedToolCalls.length, 1, 'REGRESSION: callOpenRouterAgentLoop() did not execute the tool the model asked for');
+  assert.strictEqual(executedToolCalls[0].name, 'cek_harga');
+  assert.strictEqual(executedToolCalls[0].args.ticker, 'BBCA', 'REGRESSION: callOpenRouterAgentLoop() failed to parse the tool_call\'s JSON-string arguments correctly');
+  assert.strictEqual(executedTools.length, 1, 'REGRESSION: callOpenRouterAgentLoop() no longer records executed tools into the shared executedTools array (used for logAiSignalToReflectionLog on the client)');
+  assert.strictEqual(result.reply, 'Harga BBCA Rp 9.000.', 'REGRESSION: callOpenRouterAgentLoop() no longer returns the model\'s final text reply after the tool round-trip');
+  assert.strictEqual(result.usedModel, 'anthropic/claude-3.5-sonnet');
+
+  // (e): provider order in the real route — Claude tried first (existing
+  // code, untouched), OpenRouter only inside/after its catch block, and
+  // the deterministic engine only after THAT. A regression here (e.g.
+  // someone "optimizing" by trying OpenRouter first) would make Anthropic
+  // pointless as the primary path and change latency/cost characteristics
+  // silently for everyone, configured or not.
+  const routeStart = fullSrc.indexOf("app.post('/api/ai/agent-chat'");
+  assert(routeStart !== -1, "/api/ai/agent-chat route not found");
+  const routeEnd = fullSrc.indexOf('\napp.', routeStart + 10);
+  const routeSrc = fullSrc.slice(routeStart, routeEnd === -1 ? routeStart + 20000 : routeEnd);
+  const claudeCatchIdx = routeSrc.indexOf('gracefully routing to backup engine');
+  const openRouterCallIdx = routeSrc.indexOf('callOpenRouterAgentLoop(message, history, userContext, executedTools)');
+  const deterministicIdx = routeSrc.indexOf('DETERMINISTIC AGENTIC ENGINE FALLBACK');
+  assert(claudeCatchIdx !== -1 && openRouterCallIdx !== -1 && deterministicIdx !== -1,
+    'REGRESSION: one of the 3 provider-chain markers (Claude catch / OpenRouter call / deterministic fallback) is missing from /api/ai/agent-chat — has the chain been restructured?');
+  assert(claudeCatchIdx < openRouterCallIdx && openRouterCallIdx < deterministicIdx,
+    'REGRESSION: /api/ai/agent-chat no longer tries providers in order Claude -> OpenRouter -> deterministic — this must never be reordered (OpenRouter before Claude defeats the point of Claude being the primary, lower-latency path; deterministic before OpenRouter would skip a configured backup entirely)');
+
+  // /api/ai/status must honestly report the backup's configured state too
+  // (same "status as-is, never calls the real API" pattern as `available`).
+  const statusStart = fullSrc.indexOf("app.get('/api/ai/status'");
+  const statusEnd = fullSrc.indexOf('\n});', statusStart) + 4;
+  const statusSrc = fullSrc.slice(statusStart, statusEnd);
+  assert(/backupAvailable/.test(statusSrc) && /backupModel/.test(statusSrc),
+    'REGRESSION: GET /api/ai/status no longer reports backupAvailable/backupModel — the toolbar "AI Engine" indicator can no longer distinguish "OpenRouter backup configured" from "no AI configured at all"');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
