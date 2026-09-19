@@ -448,6 +448,20 @@
   };
 
   /**
+   * FIX (2026-09-19, user-requested: "Market Heatmap seharusnya diganti
+   * sectoral heat map, lihat Sectoral Insight, data seharusnya diambil
+   * dari situ"): expose siComputeAllSectors() ke luar modul supaya widget
+   * dashboard "Market Heatmap" bisa menampilkan data SAMA PERSIS dengan
+   * halaman Sector Insight (11 sektor resmi IDX, CMF-konstituen big-cap
+   * real, sudah diurutkan Akumulasi->Distribusi) — tanpa duplikasi logika
+   * perhitungan. Timeframe default '1D' sama seperti _siState.timeframe
+   * awal; dashboard tidak mengubah _siState milik halaman Sector Insight.
+   */
+  window.siGetSectorHeatmapData = function() {
+    return siComputeAllSectors('1D');
+  };
+
+  /**
    * Segarkan Seluruh Data Sektoral & Berita
    */
   window.siRefreshAll = function() {

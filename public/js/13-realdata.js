@@ -411,7 +411,7 @@ function rdRebuildFromReal(){
       FS_WL.push(Object.assign({}, info, {data:d, a:fsProcess(d)}));
     }
   });
-  // Screener & Factor Heatmap (QT.scData) dari data riil
+  // Screener (QT.scData) dari data riil
   rdBuildScData();
   // FIX: `prices{}` (dipakai getPortfolio() untuk Nilai Pasar di Portofolio/
   // Dashboard) dan cache data riil di sini (RD_STORE) sebelumnya tidak pernah

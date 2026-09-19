@@ -168,33 +168,45 @@ async function renderDashboardRadarPreview(){
 }
 
 // Command Center zone: Market Heatmap (P0 slice 5, UIUX_ROADMAP_AUDIT.md
-// §7 — deferred until KNOWN_ISSUES.md #2 was fixed). Reuses FS_RD
-// (07-flowscan.js), already populated app-wide at boot (fsInit() runs from
-// 06-analysis-router.js's init sequence) — no separate fetch/scoring for
-// this preview, synchronous. Per-cell real-vs-simulated disclosure via
-// fsSrcDot() — the same marker Ranking/Heatmap/Watchlist use — so a
-// cache-miss ticker's score never looks identical to a real one here
-// either.
+// §7 — deferred until KNOWN_ISSUES.md #2 was fixed).
+// FIX (2026-09-19, user-reported: "Market Heatmap masih menampilkan hanya
+// lq45..."): this preview first went through a per-stock Whale Score
+// version (fsFetchUnifiedHeatmapData()/GET /api/idx/unified-screener) —
+// user then corrected: "anda salah edit, market heat map seharusnya
+// diganti sectoral heat map, lihat Sectoral Insight, data seharusnya
+// diambil dari situ". Now calls window.siGetSectorHeatmapData()
+// (44-sectoral-insight.js), the SAME siComputeAllSectors() computation the
+// "Sector Insight" page itself renders — 11 sektor resmi IDX, CMF-
+// konstituen big-cap real, sudah terurut Akumulasi->Distribusi — so this
+// preview is always a strict subset of what "Lihat Semua" (now
+// goPage('sectoral-insight'), not the separate Heatmap page — that page
+// shows a DIFFERENT per-stock/broker-flow aggregation, pointing there
+// would reproduce the exact "preview doesn't match full page" bug class
+// fixed twice already this session) shows next.
 function renderDashboardHeatmapPreview(){
   var grid = el('dash-heatmap-grid');
   if(!grid) return;
   try {
-    if(typeof FS_RD === 'undefined' || !FS_RD.length){
-      grid.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Heatmap belum siap — <a href="javascript:void(0)" onclick="goPage(\'heatmap\')" style="color:var(--accent)">buka halaman lengkap</a>.</div>';
+    if(typeof window.siGetSectorHeatmapData !== 'function'){
+      grid.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Heatmap sektoral belum siap — <a href="javascript:void(0)" onclick="goPage(\'sectoral-insight\')" style="color:var(--accent)">buka Sector Insight</a>.</div>';
       return;
     }
-    var top = [].concat(FS_RD).sort(function(a,b){ return (b.cap||0)-(a.cap||0); }).slice(0, 10);
-    grid.innerHTML = top.map(function(r){
-      var isSim = !!(r.data && r.data.simulated);
-      var vc = r.a.sig === 'AKUMULASI' ? '#41f3a7' : r.a.sig === 'DISTRIBUSI' ? '#e21d48' : '#8fa3c8';
-      var cls = r.a.sig === 'AKUMULASI' ? 'fs-hm-acc' : r.a.sig === 'DISTRIBUSI' ? 'fs-hm-dist' : 'fs-hm-neut';
-      return '<div class="fs-hm-cell ' + cls + '" onclick="goPage(\'heatmap\')" title="' + escHtml(r.n) + ' — ' + r.a.sig + (isSim ? ' — SIMULASI, data acak' : '') + '" style="' + (isSim ? 'outline:1px solid rgba(255,61,90,.25)' : '') + '">'
-        + '<div class="mono" style="font-size:12px;font-weight:600;color:var(--text)">' + r.t + (typeof fsSrcDot === 'function' ? fsSrcDot(isSim) : '') + '</div>'
-        + '<div class="mono" style="font-size:15px;font-weight:700;margin-top:2px;color:' + vc + '">' + r.a.sc + '</div>'
+    var sectors = window.siGetSectorHeatmapData() || [];
+    if(!sectors.length){
+      grid.innerHTML = '<div style="color:var(--text3);font-size:11.5px;padding:8px 0">Data sektoral belum tersedia.</div>';
+      return;
+    }
+    grid.innerHTML = sectors.map(function(s){
+      var vc = s.cmf >= 0.04 ? '#41f3a7' : s.cmf <= -0.04 ? '#e21d48' : '#8fa3c8';
+      var cls = s.cmf >= 0.04 ? 'fs-hm-acc' : s.cmf <= -0.04 ? 'fs-hm-dist' : 'fs-hm-neut';
+      return '<div class="fs-hm-cell ' + cls + '" onclick="goPage(\'sectoral-insight\')" title="' + escHtml(s.name) + ' — ' + escHtml(s.flowScoreLabel) + '">'
+        + '<div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(s.labelId || s.name) + '</div>'
+        + '<div class="mono" style="font-size:14px;font-weight:700;margin-top:3px;color:' + vc + '">' + (s.cmf >= 0 ? '+' : '') + (s.cmf * 100).toFixed(1) + '%</div>'
+        + '<div style="font-size:9px;margin-top:2px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(s.flowScoreLabel) + '</div>'
         + '</div>';
     }).join('');
   } catch(err){
-    grid.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal memuat heatmap: ' + escHtml((err && err.message) || 'error') + '.</div>';
+    grid.innerHTML = '<div style="color:var(--red);font-size:11.5px;padding:8px 0">Gagal memuat heatmap sektoral: ' + escHtml((err && err.message) || 'error') + '.</div>';
   }
 }
 
