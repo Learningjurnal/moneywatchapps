@@ -65,11 +65,15 @@ function fundSwitchTab(idx) {
   // Tab 1: Analisa Terpadu (1)
   // Tab 2: Bull/Bear Debate (2 or legacy 8)
   // Tab 3: Kepemilikan KSEI (3 or legacy 10)
+  // Tab 4: Kalkulator Harga Wajar Manual (4) — digabung dari halaman
+  // Valuation terpisah 2026-09-19 ("Eksekusi no 2"), lihat fund-tab-hw.
   var targetNavId = 'fund-nav-1';
   if (idx === 2 || idx === 8) {
     targetNavId = 'fund-nav-2';
   } else if (idx === 3 || idx === 10) {
     targetNavId = 'fund-nav-3';
+  } else if (idx === 4) {
+    targetNavId = 'fund-nav-4';
   }
   var targetNav = document.getElementById(targetNavId);
   if (targetNav) {
@@ -81,22 +85,31 @@ function fundSwitchTab(idx) {
   var tab1 = document.getElementById('fund-tab1');
   var tab8 = document.getElementById('fund-tab8');
   var tab10 = document.getElementById('fund-tab10');
+  var tabHw = document.getElementById('fund-tab-hw');
 
   if (idx === 2 || idx === 8) {
     if (tab1) tab1.classList.remove('active');
     if (tab10) tab10.classList.remove('active');
+    if (tabHw) tabHw.classList.remove('active');
     if (tab8) tab8.classList.add('active');
   } else if (idx === 3 || idx === 10) {
     if (tab1) tab1.classList.remove('active');
     if (tab8) tab8.classList.remove('active');
+    if (tabHw) tabHw.classList.remove('active');
     if (tab10) tab10.classList.add('active');
     if (typeof renderKseiFundamentalWidget === 'function') {
       renderKseiFundamentalWidget(FUND_DATA.ticker || 'BBCA', 'fund-ksei-container');
     }
+  } else if (idx === 4) {
+    if (tab1) tab1.classList.remove('active');
+    if (tab8) tab8.classList.remove('active');
+    if (tab10) tab10.classList.remove('active');
+    if (tabHw) tabHw.classList.add('active');
   } else {
     // Combined Master Analysis (Tab 1: All sections)
     if (tab8) tab8.classList.remove('active');
     if (tab10) tab10.classList.remove('active');
+    if (tabHw) tabHw.classList.remove('active');
     if (tab1) tab1.classList.add('active');
 
     if (idx === 5) {

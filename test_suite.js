@@ -7132,6 +7132,50 @@ test('REGRESSION GUARD: 3 more fsGenData() consumers found by the 2026-09-19 men
   assert(cockpitSrc.includes('ESTIMASI, BUKAN DATA ASING RIIL'), 'REGRESSION: the "Net Foreign" chart badge no longer discloses it is an estimate, not real foreign-investor data');
 });
 
+// ── TEST: "Eksekusi no 2" (2026-09-19, user-directed menu consolidation,
+// follow-up to "Eksekusi no 1") — Fundamental and Valuation ('hargawajar')
+// were 2 separate pages under the same "Analisa" umbrella. Unlike the
+// Technical+Bandarmology merge (identical function calls for the same
+// ticker), Fundamental Tab 1's valuation (auto snapshot Graham/Lynch/DDM/
+// MoS from latest fetched fundamentals) and Harga Wajar's calculator
+// (manual multi-year editable EPS/Equity/Shares/DPS/PER/Net Income table,
+// user-tunable Min Return/Proyeksi Tahun assumptions) are GENUINELY
+// different tools, not the same formula reimplemented — so only the TAB
+// was relocated (page-hargawajar's markup moved wholesale into
+// page-fundamental as fund-tab-hw), the calculation code in
+// 10-hargawajar.js was not touched/merged into Fundamental's own formulas.
+test('REGRESSION GUARD: "Eksekusi no 2" — Valuation (Harga Wajar) consolidated into the Fundamental page as a 4th tab, not a separate page', () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const routerJs = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  const stockmasterJs = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const hwJs = fs.readFileSync(path.join(__dirname, 'public/js/10-hargawajar.js'), 'utf8');
+
+  assert(!/<div id="page-hargawajar" class="page">/.test(indexHtml),
+    'REGRESSION: the standalone page-hargawajar container is back in index.html — Valuation should be a tab inside page-fundamental now, not its own page');
+  assert(/id="fund-tab-hw"/.test(indexHtml) && /id="fund-nav-4"/.test(indexHtml),
+    'REGRESSION: the merged Harga Wajar tab (fund-tab-hw) or its nav button (fund-nav-4) is missing from page-fundamental in index.html');
+  assert(/id="hw-ticker-input"/.test(indexHtml) && /id="hw-data-body"/.test(indexHtml) && /id="hw-verdict-badge"/.test(indexHtml),
+    'REGRESSION: index.html no longer contains the Harga Wajar calculator\'s real element ids (hw-ticker-input/hw-data-body/hw-verdict-badge) — the relocation lost content instead of moving it wholesale');
+
+  assert(/name === 'hargawajar' \? 'fundamental'/.test(routerJs),
+    'REGRESSION: goPage() no longer redirects \'hargawajar\' to the \'fundamental\' page container — old goPage(\'hargawajar\') callers (sidebar Valuation button, Stock Intel handoff, Knowledge Guide, Wealth quick-links) will land on a nonexistent page');
+  const caseHargawajarMatch = routerJs.match(/case 'hargawajar':[^\n]*\n/);
+  assert(caseHargawajarMatch, 'REGRESSION: renderPage()\'s case \'hargawajar\' was removed — hw_init()/hw_recalc() will no longer run when navigating to Valuation');
+  assert(!/fundSwitchTab/.test(caseHargawajarMatch[0]),
+    'REGRESSION: renderPage()\'s case \'hargawajar\' now calls fundSwitchTab() directly — this case is also re-invoked by 03-engine.js\'s periodic same-page refresh tick (renderPage(currentPage), no goPage() involved), so forcing a tab switch here would repeatedly snap the user back to the Harga Wajar tab while they are reading another Fundamental tab (the exact class of bug already fixed for TradeWave/Unified Screener — see the FIX comment above US_STATE.pageTab). The tab switch must only happen inside goPage(), which represents a real navigation.');
+  assert(/if \(name === 'hargawajar' && typeof fundSwitchTab === 'function'\)/.test(routerJs),
+    'REGRESSION: goPage() no longer switches to the Harga Wajar tab (fundSwitchTab(4)) on real navigation into \'hargawajar\'');
+
+  const fundSwitchTabFn = stockmasterJs.match(/function fundSwitchTab[\s\S]*?\n}\n/)[0];
+  assert(/idx === 4/.test(fundSwitchTabFn) && /fund-tab-hw/.test(fundSwitchTabFn) && /fund-nav-4/.test(fundSwitchTabFn),
+    'REGRESSION: fundSwitchTab() no longer handles idx===4 (the merged Harga Wajar tab) — clicking its nav button will do nothing');
+
+  assert(!/document\.getElementById\('page-hargawajar'\)/.test(hwJs),
+    'REGRESSION: 10-hargawajar.js still checks for the removed page-hargawajar container — the GLOBAL_STOCK_CONTEXT subscriber\'s visibility guard will always be false, silently breaking cross-module ticker sync into the Harga Wajar tab');
+  assert(/document\.getElementById\('page-fundamental'\)/.test(hwJs) && /document\.getElementById\('fund-tab-hw'\)/.test(hwJs),
+    'REGRESSION: 10-hargawajar.js\'s GLOBAL_STOCK_CONTEXT subscriber no longer checks both page-fundamental and fund-tab-hw visibility — it should silently sync only when the Harga Wajar tab specifically is the one being viewed, not any Fundamental tab');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
