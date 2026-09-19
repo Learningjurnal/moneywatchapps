@@ -3405,6 +3405,9 @@ app.get('/api/idx/unified-screener', async (req, res) => {
 // comment (lib/idx-data-engine.js) for the full methodology and why the
 // valuation component is deliberately excluded from this backtest.
 // ?lookbackDays=10-90 (default 45), ?forwardDays=5-60 (default 20).
+// ?variants=true compares 4 formula tweaks (baseline/whale4/noDoubleCount/
+// techScore80) from the SAME fetched data in one response — see
+// runUnifiedScreenerBacktest()'s variants comment for what each tests.
 app.get('/api/idx/unified-screener-backtest', async (req, res) => {
   try {
     const data = await runUnifiedScreenerBacktest(req.query);

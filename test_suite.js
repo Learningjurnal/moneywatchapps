@@ -6849,6 +6849,21 @@ await asyncTest('BEHAVIOR: runUnifiedScreenerBacktest() degrades honestly (avail
   assert(Array.isArray(result.signals) && result.signals.length === 0, 'signals must be an empty array, not fabricated entries');
 });
 
+test('REGRESSION GUARD: runUnifiedScreenerBacktest() supports ?variants=true — compares 4 formula tweaks (baseline/whale4/noDoubleCount/techScore80) from ONE fetched data pool instead of one endpoint call per tweak (2026-09-19, user formula-strength audit: single-command comparison of whaleScore>=4, dropping the volume-spike+uptrend double-count bonus found in the code audit, and techScore>=80)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/whaleScoreNoVolSpike/.test(src), 'REGRESSION: whaleScoreNoVolSpike variant (anti double-count) is gone');
+  assert(/params\.variants === true \|\| params\.variants === 'true'/.test(src), 'REGRESSION: ?variants=true opt-in check is gone');
+  assert(/whale4:/.test(src) && /noDoubleCount:/.test(src) && /techScore80:/.test(src) && /baseline:/.test(src), 'REGRESSION: one or more of the 4 named variants (baseline/whale4/noDoubleCount/techScore80) is gone');
+  assert(/medianReturnPct/.test(src) && /medianAlphaPct/.test(src), 'REGRESSION: median return/alpha (more robust than mean against outlier-skew, per this audit\'s findings) no longer computed per variant');
+});
+
+await asyncTest('BEHAVIOR: runUnifiedScreenerBacktest() with ?variants=true still degrades honestly (available:false, no variants object) without an Invezgo key', async () => {
+  const { runUnifiedScreenerBacktest } = await import('./lib/idx-data-engine.js');
+  const result = await runUnifiedScreenerBacktest({ lookbackDays: 20, forwardDays: 5, variants: true });
+  assert(result.available === false, 'REGRESSION: variants mode must still honor the same honest available:false gate without INVEZGO_API_KEY');
+  assert(result.variants === undefined, 'REGRESSION: variants object must not be fabricated when the backtest could not actually run');
+});
+
 test('REGRESSION GUARD: runUnifiedScreenerBacktest() must return the FULL signals array, not a silently truncated slice (2026-09-19, user auditing formula validity found detail array capped at 150 of 216 real signals with no disclosure — aggregate stats were always computed from the full array, but hiding most of the underlying evidence behind a correct-looking summary is misleading)', () => {
   const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
   assert(!/signals:\s*signals\.slice\(/.test(src), 'REGRESSION: runUnifiedScreenerBacktest() silently truncates its returned signals array again — the aggregate stats (winRate/avgReturnPct/etc.) may still be accurate, but the underlying evidence must not be hidden behind a correct-looking summary');
