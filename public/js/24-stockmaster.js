@@ -1225,13 +1225,18 @@ function fundCalculateDCF() {
 // 2. MEGA TECHNICAL & FLOW SUITE LOGIC (OPTIMIZED & RESPONSIVE)
 // ============================================================
 
-function techInit() {
+function techInit(force) {
   var inp = document.getElementById('techTickerInput');
   var tk = (inp && inp.value) ? inp.value.trim().toUpperCase() : (TECH_DATA.ticker || 'BBCA');
-  techFetchData(tk);
+  // Guard idempotensi: jika background tick (force === false) dan ticker sudah ter-render, lewati
+  if (force === false && TECH_DATA.ticker === tk && TECH_DATA.lastRenderedTicker === tk) {
+    return;
+  }
+  techFetchData(tk, force);
 }
 
-function techSwitchTab(idx) {
+function techSwitchTab(idx, force) {
+  var tabChanged = TECH_DATA.activeTab !== idx;
   TECH_DATA.activeTab = idx;
 
   var items = document.querySelectorAll('#page-technical .sm-nav-item');
@@ -1247,7 +1252,11 @@ function techSwitchTab(idx) {
   // Execute tab-specific rendering on demand
   var ticker = TECH_DATA.ticker || 'BBCA';
   if (idx === 1) {
-    techRenderMainChart(ticker);
+    // Guard idempotensi: jika tidak dipaksa, tab tidak berganti, dan chart sudah ter-render, jangan hancurkan DOM
+    if (!force && !tabChanged && TECH_DATA.lastRenderedTicker === ticker && TECH_DATA.lastRenderedMode === TECH_DATA.chartMode) {
+      return;
+    }
+    techRenderMainChart(ticker, force);
   } else if (idx === 2) {
     techRunFlowScanTab(ticker);
     techRunBandarmologyTab(ticker);
@@ -1298,23 +1307,24 @@ function techSetTicker(ticker) {
   techFetchData(ticker);
 }
 
-function techFetchData(tickerOverride) {
+function techFetchData(tickerOverride, force) {
   var inp = document.getElementById('techTickerInput');
   var rawTicker = (tickerOverride || (inp && inp.value) || 'BBCA').trim().toUpperCase();
   if (!rawTicker) rawTicker = 'BBCA';
   
   var cleanCode = rawTicker.replace('.JK', '').replace('.US', '');
+  var tickerChanged = TECH_DATA.ticker !== cleanCode;
   TECH_DATA.ticker = cleanCode;
 
   // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
   // publish ke GLOBAL_STOCK_CONTEXT, pola sama dengan fundFetchData()/
   // selectStockIntelTicker()/selectStockChatTicker().
-  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT && (tickerChanged || force)) {
     window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'technical');
   }
 
   // Render the currently active tab immediately for maximum responsiveness
-  techSwitchTab(TECH_DATA.activeTab || 1);
+  techSwitchTab(TECH_DATA.activeTab || 1, force !== undefined ? force : tickerChanged);
 }
 
 // FIX (2026-09-12, P1 audit follow-up): subscribe ke GLOBAL_STOCK_CONTEXT
@@ -1348,8 +1358,12 @@ function techFormatTV(ticker) {
 // ── Tab 1: Instant Native Technical Chart + On-Demand TV Toggle ──
 var TECH_MAINCHART_FETCHING = {};
 function techRenderMainChart(ticker) {
+  var force = arguments.length > 1 ? arguments[1] : true;
   var container = document.getElementById('sm-tv-chart-container') || document.getElementById('tech-tv-chart-container');
   if (!container) return;
+
+  TECH_DATA.lastRenderedTicker = ticker;
+  TECH_DATA.lastRenderedMode = TECH_DATA.chartMode;
 
   if (TECH_DATA.chartMode === 'tv') {
     techLoadTradingViewWidget(ticker, container);
@@ -1357,7 +1371,7 @@ function techRenderMainChart(ticker) {
   }
 
   if (typeof runAiChartAnalysis === 'function') {
-    runAiChartAnalysis(ticker);
+    runAiChartAnalysis(ticker, force);
     return;
   }
 
@@ -1483,12 +1497,17 @@ function techToggleChartMode(mode) {
 
 function techLoadTradingViewWidget(ticker, container) {
   var tvTicker = techFormatTV(ticker);
+  if (container.getAttribute('data-rendered-ticker') === tvTicker && container.getAttribute('data-rendered-mode') === 'tv') {
+    return;
+  }
+  container.setAttribute('data-rendered-ticker', tvTicker);
+  container.setAttribute('data-rendered-mode', 'tv');
   container.innerHTML = ''
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0">'
     + '  <span style="font-size:12px;font-weight:700;color:var(--accent)">TradingView Interactive Cloud Chart (' + tvTicker + ')</span>'
     + '  <button class="btn btn-ghost btn-xs" onclick="techToggleChartMode(\'native\')">Switch to Native Fast Chart</button>'
     + '</div>'
-    + '<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=' + encodeURIComponent(tvTicker) + '&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131B2E&theme=dark&style=1&timezone=Asia%2FJakarta&locale=id" style="width:100%;height:460px;border:none;border-radius:0 0 10px 10px" loading="lazy"></iframe>';
+    + '<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=' + encodeURIComponent(tvTicker) + '&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131B2E&theme=dark&style=1&timezone=Asia%2FJakarta&locale=id" style="width:100%;height:640px;border:none;border-radius:0 0 10px 10px" loading="lazy"></iframe>';
 }
 
 // ── Tab 2: FlowScan & Bandarmologi ──

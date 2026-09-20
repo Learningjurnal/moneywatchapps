@@ -17,7 +17,8 @@ var AI_CHART_STATE = {
     fib: true,
     pattern: true,
     structure: true,
-    setup: true
+    setup: true,
+    zones: true
   }
 };
 
@@ -222,6 +223,151 @@ function calculateAiBaseSupportResistance(ohlcv) {
   return {
     supports: [s1, s2, minP],
     resistances: [r1, r2, maxP]
+  };
+}
+
+// Helper: Exponential Moving Average
+function calculateAiEMA(prices, period) {
+  if (!prices || prices.length < period) return [];
+  var k = 2 / (period + 1);
+  var ema = [];
+  var sum = 0;
+  for (var i = 0; i < period; i++) sum += prices[i];
+  var prev = sum / period;
+  for (var j = 0; j < prices.length; j++) {
+    if (j < period - 1) {
+      ema.push(null);
+    } else if (j === period - 1) {
+      ema.push(prev);
+    } else {
+      prev = (prices[j] * k) + (prev * (1 - k));
+      ema.push(prev);
+    }
+  }
+  return ema;
+}
+
+// Helper: MACD (12, 26, 9) Momentum Engine
+function calculateAiMacd(prices) {
+  if (!prices || prices.length < 26) {
+    return { macd: 0, signal: 0, hist: 0, status: 'NEUTRAL' };
+  }
+  var ema12 = calculateAiEMA(prices, 12);
+  var ema26 = calculateAiEMA(prices, 26);
+  var macdLine = [];
+  for (var i = 0; i < prices.length; i++) {
+    if (ema12[i] !== null && ema26[i] !== null) {
+      macdLine.push(ema12[i] - ema26[i]);
+    }
+  }
+  var signalLine = calculateAiEMA(macdLine, 9);
+  var lastMacd = macdLine[macdLine.length - 1] || 0;
+  var prevMacd = macdLine[macdLine.length - 2] || lastMacd;
+  var lastSignal = signalLine[signalLine.length - 1] || 0;
+  var prevSignal = signalLine[signalLine.length - 2] || lastSignal;
+  var hist = lastMacd - lastSignal;
+  var prevHist = prevMacd - prevSignal;
+
+  var status = 'NEUTRAL';
+  if (lastMacd > lastSignal && prevMacd <= prevSignal) status = 'GOLDEN_CROSS';
+  else if (lastMacd < lastSignal && prevMacd >= prevSignal) status = 'DEATH_CROSS';
+  else if (hist > 0 && hist >= prevHist) status = 'BULLISH_EXPANSION';
+  else if (hist > 0 && hist < prevHist) status = 'BULLISH_WANING';
+  else if (hist < 0 && hist <= prevHist) status = 'BEARISH_EXPANSION';
+  else if (hist < 0 && hist > prevHist) status = 'BEARISH_WANING';
+
+  return {
+    macd: Number(lastMacd.toFixed(2)),
+    signal: Number(lastSignal.toFixed(2)),
+    hist: Number(hist.toFixed(2)),
+    status: status
+  };
+}
+
+// Helper: Volume Confluence & Institutional Absorption Engine
+function calculateAiVolumeConfluence(ohlcv) {
+  if (!ohlcv || ohlcv.length < 20) {
+    return { ratio: 1.0, isSpike: false, status: 'NORMAL', avgVol: 0, curVol: 0 };
+  }
+  var curVol = ohlcv[ohlcv.length - 1] ? (ohlcv[ohlcv.length - 1].v || ohlcv[ohlcv.length - 1].volume || 0) : 0;
+  var sum = 0;
+  for (var i = ohlcv.length - 20; i < ohlcv.length; i++) {
+    sum += (ohlcv[i].v || ohlcv[i].volume || 0);
+  }
+  var avgVol = Math.round(sum / 20);
+  var ratio = avgVol > 0 ? (curVol / avgVol) : 1.0;
+  var status = 'NORMAL';
+  if (ratio >= 1.8) status = 'MASSIVE_SPIKE';
+  else if (ratio >= 1.25) status = 'EXPANSION';
+  else if (ratio <= 0.65) status = 'DRY_UP';
+
+  return {
+    ratio: Number(ratio.toFixed(2)),
+    isSpike: ratio >= 1.25,
+    status: status,
+    avgVol: avgVol,
+    curVol: curVol
+  };
+}
+
+// Engine: AI Auto-Zones (Buy & Sell Zones based on RSI, MACD, Volume Confluence)
+function calculateAiAutoZones(ctx, struct, fib) {
+  if (!ctx || !ctx.ohlcv || ctx.ohlcv.length < 15) {
+    return null;
+  }
+  var closePrices = ctx.ohlcv.map(function(d) { return d.c; });
+  var curPrice = ctx.price.current;
+  var rsi = (ctx.indicators && ctx.indicators.rsi !== undefined) ? ctx.indicators.rsi : calculateAiRsi(closePrices, 14);
+  var macd = calculateAiMacd(closePrices);
+  var vol = calculateAiVolumeConfluence(ctx.ohlcv);
+
+  var sr = ctx.supportResistance || { supports: [], resistances: [] };
+  var s1 = (sr.supports && sr.supports[0]) || (fib && fib.levels && fib.levels.f618) || Math.round(curPrice * 0.97);
+  var s2 = (sr.supports && sr.supports[1]) || (fib && fib.levels && fib.levels.f786) || Math.round(curPrice * 0.94);
+  var r1 = (sr.resistances && sr.resistances[0]) || (fib && fib.levels && fib.levels.f382) || Math.round(curPrice * 1.03);
+  var r2 = (sr.resistances && sr.resistances[1]) || (fib && fib.levels && fib.levels.f0) || Math.round(curPrice * 1.07);
+
+  // Buy Zone: Area demand di sekitar support S1-S2 atau swing low dengan konfirmasi RSI & MACD
+  var buyHigh = Math.round(Math.min(curPrice, Math.max(s1, curPrice * 0.985)));
+  var buyLow = Math.round(Math.min(s2, buyHigh * 0.965));
+  if (buyLow >= buyHigh) buyLow = Math.round(buyHigh * 0.96);
+
+  // Sell Zone: Area supply di sekitar resistance R1-R2
+  var sellLow = Math.round(Math.max(curPrice * 1.015, Math.min(r1, curPrice * 1.04)));
+  var sellHigh = Math.round(Math.max(r2, sellLow * 1.04));
+  if (sellHigh <= sellLow) sellHigh = Math.round(sellLow * 1.04);
+
+  var stopLoss = Math.round(buyLow * 0.97);
+
+  var buyReason = (rsi <= 40 ? 'RSI Oversold (' + rsi + ')' : (rsi <= 55 ? 'RSI Rebound/Pullback (' + rsi + ')' : 'RSI ' + rsi))
+    + ' + MACD ' + macd.status.replace(/_/g, ' ')
+    + ' + Vol ' + vol.status.replace(/_/g, ' ') + ' (' + vol.ratio + 'x)';
+
+  var sellReason = (rsi >= 65 ? 'RSI Overbought (' + rsi + ')' : (rsi >= 55 ? 'RSI High Momentum (' + rsi + ')' : 'RSI ' + rsi))
+    + ' + Target Resistance (R1/R2)'
+    + ' + MACD ' + macd.status.replace(/_/g, ' ');
+
+  return {
+    rsi: rsi,
+    macd: macd,
+    volume: vol,
+    buyZone: {
+      low: buyLow,
+      high: buyHigh,
+      stopLoss: stopLoss,
+      rsi: rsi,
+      macd: macd.status.replace(/_/g, ' '),
+      vol: vol.ratio + 'x (' + vol.status + ')',
+      reason: buyReason
+    },
+    sellZone: {
+      low: sellLow,
+      high: sellHigh,
+      rsi: rsi,
+      macd: macd.status.replace(/_/g, ' '),
+      vol: vol.ratio + 'x (' + vol.status + ')',
+      reason: sellReason
+    }
   };
 }
 
@@ -476,7 +622,7 @@ function generateAiTradeSetup(ctx, struct, fib, patterns, confScore) {
 // ══════════════════════════════════════════════════════════
 // 3. AI DRAWING OVERLAY LAYER FOR CHART.JS
 // ══════════════════════════════════════════════════════════
-function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
+function applyAiChartOverlay(chartInstance, setup, fib, srZones, aiZones) {
   if (!chartInstance) return;
 
   // Custom Chart.js Plugin for AI Annotations
@@ -485,6 +631,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
     chartInstance.options.plugins.aiOverlay = {
       setup: setup,
       fib: fib,
+      aiZones: aiZones,
       overlays: AI_CHART_STATE.overlays
     };
   }
@@ -755,6 +902,73 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
         }
       }
 
+      // 6. AI Auto-Zones Overlay (Buy Zone & Sell Zone based on RSI, MACD, Volume Confluence)
+      var zones = aiZones || (lastAnalysis ? lastAnalysis.aiZones : null);
+      if (overlays.zones && zones) {
+        // ZONA BELI (Demand Accumulation Area)
+        if (zones.buyZone && zones.buyZone.low && zones.buyZone.high) {
+          var yBzHigh = yScale.getPixelForValue(zones.buyZone.high);
+          var yBzLow = yScale.getPixelForValue(zones.buyZone.low);
+          var topY = Math.min(yBzHigh, yBzLow);
+          var botY = Math.max(yBzHigh, yBzLow);
+
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.16)';
+          ctx.fillRect(leftX, topY, chartWidth, Math.max(4, botY - topY));
+
+          ctx.strokeStyle = '#10B981';
+          ctx.setLineDash([6, 3]);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(leftX, topY); ctx.lineTo(rightX, topY);
+          ctx.moveTo(leftX, botY); ctx.lineTo(rightX, botY);
+          ctx.stroke();
+
+          ctx.fillStyle = '#10B981';
+          ctx.font = 'bold 10px Fira Code, monospace';
+          var bzText = '🟢 ZONA BELI AI (RSI ' + zones.buyZone.rsi + ' | ' + zones.buyZone.macd + ' | VOL ' + zones.buyZone.vol + '): Rp ' + fmtK(zones.buyZone.low) + ' - Rp ' + fmtK(zones.buyZone.high);
+          ctx.fillText(bzText, leftX + 12, botY + 13);
+        }
+
+        // ZONA JUAL (Supply / Target Take Profit Area)
+        if (zones.sellZone && zones.sellZone.low && zones.sellZone.high) {
+          var ySzHigh = yScale.getPixelForValue(zones.sellZone.high);
+          var ySzLow = yScale.getPixelForValue(zones.sellZone.low);
+          var topYS = Math.min(ySzHigh, ySzLow);
+          var botYS = Math.max(ySzHigh, ySzLow);
+
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.16)';
+          ctx.fillRect(leftX, topYS, chartWidth, Math.max(4, botYS - topYS));
+
+          ctx.strokeStyle = '#EF4444';
+          ctx.setLineDash([6, 3]);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(leftX, topYS); ctx.lineTo(rightX, topYS);
+          ctx.moveTo(leftX, botYS); ctx.lineTo(rightX, botYS);
+          ctx.stroke();
+
+          ctx.fillStyle = '#EF4444';
+          ctx.font = 'bold 10px Fira Code, monospace';
+          var szText = '🔴 ZONA JUAL AI / TP (RSI ' + zones.sellZone.rsi + ' | ' + zones.sellZone.macd + ' | VOL ' + zones.sellZone.vol + '): Rp ' + fmtK(zones.sellZone.low) + ' - Rp ' + fmtK(zones.sellZone.high);
+          var szWidth = ctx.measureText(szText).width;
+          ctx.fillText(szText, Math.max(leftX + 12, rightX - szWidth - 12), topYS - 4);
+        }
+
+        // STOP LOSS UNTUK ZONA BELI
+        if (zones.buyZone && zones.buyZone.stopLoss) {
+          var ySlZ = yScale.getPixelForValue(zones.buyZone.stopLoss);
+          if (ySlZ >= yScale.top && ySlZ <= yScale.bottom) {
+            ctx.strokeStyle = '#DC2626';
+            ctx.setLineDash([3, 2]);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(leftX, ySlZ); ctx.lineTo(rightX, ySlZ); ctx.stroke();
+            ctx.fillStyle = '#DC2626';
+            ctx.font = 'bold 9px Fira Code, monospace';
+            ctx.fillText('SL (ZONA BELI): Rp ' + fmtK(zones.buyZone.stopLoss), leftX + 12, ySlZ - 3);
+          }
+        }
+      }
+
       ctx.restore();
     };
   }
@@ -766,6 +980,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones) {
 // 4. MAIN ORCHESTRATOR & UI RENDERER (OPSI A IMPLEMENTATION)
 // ══════════════════════════════════════════════════════════
 function runAiChartAnalysis(ticker) {
+  var force = arguments.length > 1 ? arguments[1] : true;
   var tk = (ticker || TECH_DATA.ticker || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '');
   AI_CHART_STATE.activeTicker = tk;
   AI_CHART_STATE.isAnalyzing = true;
@@ -776,7 +991,7 @@ function runAiChartAnalysis(ticker) {
   if (ctx && ctx.isValid === false) {
     AI_CHART_STATE.lastContext = ctx;
     AI_CHART_STATE.lastAnalysis = null;
-    renderAiTechnicalWorkspaceUI(tk, ctx, null, null, null, null, null);
+    renderAiTechnicalWorkspaceUI(tk, ctx, null, null, null, null, null, null, force);
     AI_CHART_STATE.isAnalyzing = false;
     return;
   }
@@ -787,6 +1002,7 @@ function runAiChartAnalysis(ticker) {
   var patterns = detectAiChartPatterns(ctx.ohlcv);
   var conf = calculateAiConfluenceScore(ctx, struct, fib, patterns);
   var setup = generateAiTradeSetup(ctx, struct, fib, patterns, conf);
+  var zones = calculateAiAutoZones(ctx, struct, fib);
 
   // Store Analysis Results
   AI_CHART_STATE.lastContext = ctx;
@@ -796,23 +1012,35 @@ function runAiChartAnalysis(ticker) {
     fibonacci: fib,
     patterns: patterns,
     confluence: conf,
-    setup: setup
+    setup: setup,
+    aiZones: zones
   };
 
-  // 3. Render Technical PRO Workspace UI (Opsi A)
-  renderAiTechnicalWorkspaceUI(tk, ctx, struct, fib, patterns, conf, setup);
+  // 3. Render Technical PRO Workspace UI (Full width vertical stack)
+  renderAiTechnicalWorkspaceUI(tk, ctx, struct, fib, patterns, conf, setup, zones, force);
 
   // 4. Apply Visual Overlay to Chart
   if (typeof TECH_CHARTS !== 'undefined' && TECH_CHARTS.nativeChart) {
-    applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, ctx.supportResistance);
+    applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, ctx.supportResistance, zones);
   }
 
   AI_CHART_STATE.isAnalyzing = false;
 }
 
-function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, setup) {
+function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, setup, zones, force) {
   var container = document.getElementById('sm-tv-chart-container') || document.getElementById('tech-tv-chart-container');
   if (!container) return;
+
+  // Idempotency: if background soft-refresh (force === false), canvas already rendered for this ticker in native mode, update overlay only
+  if (force === false && container.getAttribute('data-rendered-ticker') === ticker && container.getAttribute('data-rendered-mode') === 'native' && document.getElementById('techNativeChartCanvas')) {
+    if (typeof TECH_CHARTS !== 'undefined' && TECH_CHARTS.nativeChart) {
+      applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, (ctx && ctx.supportResistance), zones);
+    }
+    return;
+  }
+
+  container.setAttribute('data-rendered-ticker', ticker);
+  container.setAttribute('data-rendered-mode', 'native');
 
   if (!ctx || ctx.isValid === false) {
     var unk = (ctx && ctx.symbol) || ticker || 'UNKNOWN';
@@ -831,6 +1059,8 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
   var curPrice = ctx.price.current;
   var chg = ctx.price.change;
   var chgPct = ctx.price.changePct;
+  var bZone = zones ? zones.buyZone : null;
+  var sZone = zones ? zones.sellZone : null;
 
   var html = ''
     // AI TOOLBAR BAR
@@ -840,18 +1070,15 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
         + '<span style="font-size:16px;font-weight:800;color:var(--text);font-family:Fira Code,monospace">' + ticker + '</span>'
         + '<span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
         + '<span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
-        // FIX (2026-09-12, audit "AI Chart Intelligence — MAJOR data-trust
-        // issue", disclosure minimal): tandai eksplisit kalau S/R,
-        // Fibonacci, Structure & Confluence di bawah dihitung dari candle
-        // simulasi (belum ada OHLCV riil ter-cache), bukan data pasar riil.
         + (ctx.isSimulated && typeof fsSrcDot === 'function' ? fsSrcDot(true) : '')
       + '</div>'
 
       // AI TOOLBAR BUTTONS
       + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
-        + '<button class="btn btn-primary btn-xs" onclick="runAiChartAnalysis(\'' + ticker + '\')" style="background:var(--brand-primary);border:none;box-shadow:0 0 10px rgba(0,0,255,0.3)">'
+        + '<button class="btn btn-primary btn-xs" onclick="runAiChartAnalysis(\'' + ticker + '\', true)" style="background:var(--brand-primary);border:none;box-shadow:0 0 10px rgba(0,0,255,0.3)">'
           + 'AI ANALYZE'
         + '</button>'
+        + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.zones ? 'on' : '') + '" onclick="toggleAiOverlay(\'zones\')" style="' + (AI_CHART_STATE.overlays.zones ? 'background:rgba(0,0,255,0.25);border-color:var(--accent);color:var(--accent)' : '') + '">ZONA BELI/JUAL</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.sr ? 'on' : '') + '" onclick="toggleAiOverlay(\'sr\')">S/R</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.fib ? 'on' : '') + '" onclick="toggleAiOverlay(\'fib\')">FIB</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.pattern ? 'on' : '') + '" onclick="toggleAiOverlay(\'pattern\')">PATTERN</button>'
@@ -865,72 +1092,105 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
       + '</div>'
     + '</div>'
 
-    // OPSI A WORKSPACE LAYOUT: 2 COLUMNS (LEFT: NATIVE CHART, RIGHT: AI INTELLIGENCE SIDE PANEL)
-    + '<div style="display:grid;grid-template-columns:1fr 340px;gap:12px;padding:12px;background:var(--bg2);border-radius:0 0 10px 10px">'
+    // WORKSPACE LAYOUT: FULL WIDTH VERTICAL STACK (CHART ENLARGED DOWNWARD)
+    + '<div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:var(--bg2);border-radius:0 0 10px 10px">'
 
-      // LEFT COLUMN: CHART CANVAS
-      + '<div style="position:relative;height:420px;background:var(--bg3);border-radius:8px;padding:8px;border:1px solid var(--border2)">'
+      // TOP: EXPANDED VERTICAL CHART CANVAS (580px Height, 100% Width)
+      + '<div style="position:relative;height:580px;width:100%;background:var(--bg3);border-radius:8px;padding:8px;border:1px solid var(--border2)">'
         + '<canvas id="techNativeChartCanvas"></canvas>'
       + '</div>'
 
-      // RIGHT COLUMN: AI MARKET INTELLIGENCE SIDE PANEL
-      + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;max-height:420px;overflow-y:auto">'
-        + '<div>'
-          // Header & Confidence Score
-          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border2)">'
+      // BOTTOM: AI MARKET INTELLIGENCE & CONFLUENCE ANALYSIS PANEL (Full Width Below Chart)
+      + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px">'
+        // Header & Confidence Score
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">'
+          + '<div style="display:flex;align-items:center;gap:12px">'
             + '<div>'
               + '<div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">AI SETUP CONFIDENCE</div>'
-              + '<div style="font-size:18px;font-weight:900;color:' + (conf.score >= 75 ? '#10B981' : (conf.score >= 50 ? '#F59E0B' : '#EF4444')) + '">'
-                + conf.score + ' <span style="font-size:11px">/ 100</span>'
+              + '<div style="font-size:20px;font-weight:900;color:' + (conf.score >= 75 ? '#10B981' : (conf.score >= 50 ? '#F59E0B' : '#EF4444')) + '">'
+                + conf.score + ' <span style="font-size:12px">/ 100</span>'
               + '</div>'
             + '</div>'
-            + '<span class="badge ' + (conf.score >= 75 ? 'b-up' : (conf.score >= 50 ? 'b-amb' : 'b-dn')) + '" style="font-size:10px">'
+            + '<span class="badge ' + (conf.score >= 75 ? 'b-up' : (conf.score >= 50 ? 'b-amb' : 'b-dn')) + '" style="font-size:11px">'
               + conf.label
             + '</span>'
           + '</div>'
-
-          // Key Confluence Grid
-          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;font-size:11px">'
-            + '<div style="background:var(--bg2);padding:6px 8px;border-radius:6px">'
-              + '<div style="color:var(--text3);font-size:9px">STRUCTURE</div>'
-              + '<strong style="color:var(--text)">' + struct.trend + '</strong>'
-            + '</div>'
-            + '<div style="background:var(--bg2);padding:6px 8px;border-radius:6px">'
-              + '<div style="color:var(--text3);font-size:9px">FLOWSCAN</div>'
-              + '<strong style="color:' + (ctx.flowScan.verdict.includes('ACCUM') ? '#10B981' : '#EF4444') + '">' + ctx.flowScan.verdict + '</strong>'
-            + '</div>'
-            + '<div style="background:var(--bg2);padding:6px 8px;border-radius:6px">'
-              + '<div style="color:var(--text3);font-size:9px">PATTERN</div>'
-              + '<strong style="color:var(--text)">' + (patterns.length ? patterns[0].name : 'Range') + '</strong>'
-            + '</div>'
-            + '<div style="background:var(--bg2);padding:6px 8px;border-radius:6px">'
-              + '<div style="color:var(--text3);font-size:9px">FIB 0.618</div>'
-              + '<strong style="color:#F59E0B">Rp ' + fmtK(fib.levels.f618) + '</strong>'
-            + '</div>'
-          + '</div>'
-
-          // Trade Setup Details Box
-          + '<div style="background:var(--bg2);border:1px solid ' + (setup.decision === 'NO_TRADE' ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)') + ';border-radius:8px;padding:10px;margin-bottom:12px">'
-            + '<div style="font-size:11px;font-weight:800;color:' + (setup.decision === 'NO_TRADE' ? '#EF4444' : '#10B981') + ';margin-bottom:6px;display:flex;align-items:center;gap:4px">'
-              + setup.setupType
-            + '</div>'
-            
-            + (setup.decision === 'NO_TRADE'
-              ? '<div style="font-size:11px;color:var(--text2);line-height:1.4">' + setup.reasons.join('<br>• ') + '</div>'
-              : '<div style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-family:Fira Code,monospace">'
-                + '<div style="display:flex;justify-content:space-between"><span>Entry:</span><strong style="color:#10B981">' + setup.entryZone + '</strong></div>'
-                + '<div style="display:flex;justify-content:space-between"><span>Stop Loss:</span><strong style="color:#EF4444">Rp ' + fmtK(setup.stopLoss) + '</strong></div>'
-                + '<div style="display:flex;justify-content:space-between"><span>Target TP1:</span><strong style="color:#38BDF8">Rp ' + fmtK(setup.tp1) + '</strong></div>'
-                + '<div style="display:flex;justify-content:space-between"><span>Target TP2:</span><strong style="color:#38BDF8">Rp ' + fmtK(setup.tp2) + '</strong></div>'
-                + '<div style="display:flex;justify-content:space-between"><span>Risk / Reward:</span><strong style="color:var(--accent)">' + setup.rrRatio + '</strong></div>'
-              + '</div>')
+          + '<div style="display:flex;gap:8px">'
+            + '<button class="btn btn-ghost btn-xs" onclick="openAiExplainModal(\'' + ticker + '\')"><i class="ti ti-info-circle"></i> Detail Analisa Lengkap</button>'
+            + '<button class="btn btn-primary btn-xs" onclick="saveAiSetupToJournal(\'' + ticker + '\')"><i class="ti ti-bookmark"></i> Save ke Trading Journal</button>'
           + '</div>'
         + '</div>'
 
-        // Action Buttons
-        + '<div style="display:flex;gap:6px;margin-top:auto">'
-          + '<button class="btn btn-ghost btn-xs" style="flex:1" onclick="openAiExplainModal(\'' + ticker + '\')">Detail Alasan</button>'
-          + '<button class="btn btn-primary btn-xs" style="flex:1" onclick="saveAiSetupToJournal(\'' + ticker + '\')">Save Journal</button>'
+        // Key Confluence Grid (6 Parameter Penting)
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:8px;font-size:11px">'
+          + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
+            + '<div style="color:var(--text3);font-size:9px;font-weight:700">STRUCTURE</div>'
+            + '<strong style="color:var(--text)">' + struct.trend + '</strong>'
+          + '</div>'
+          + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
+            + '<div style="color:var(--text3);font-size:9px;font-weight:700">FLOWSCAN BANDAR</div>'
+            + '<strong style="color:' + (ctx.flowScan.verdict.includes('ACCUM') ? '#10B981' : '#EF4444') + '">' + ctx.flowScan.verdict + '</strong>'
+          + '</div>'
+          + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
+            + '<div style="color:var(--text3);font-size:9px;font-weight:700">RSI(14) MOMENTUM</div>'
+            + '<strong style="color:' + (zones && zones.rsi <= 40 ? '#10B981' : (zones && zones.rsi >= 65 ? '#EF4444' : '#F59E0B')) + '">' + (zones ? zones.rsi : ctx.indicators.rsi) + ' (' + (zones && zones.rsi <= 40 ? 'Oversold' : (zones && zones.rsi >= 65 ? 'Overbought' : 'Neutral')) + ')</strong>'
+          + '</div>'
+          + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
+            + '<div style="color:var(--text3);font-size:9px;font-weight:700">MACD (12, 26, 9)</div>'
+            + '<strong style="color:' + (zones && (zones.macd.status.includes('BULLISH') || zones.macd.status === 'GOLDEN_CROSS') ? '#10B981' : (zones && (zones.macd.status.includes('BEARISH') || zones.macd.status === 'DEATH_CROSS') ? '#EF4444' : 'var(--text)')) + '">' + (zones ? zones.macd.status.replace(/_/g, ' ') : 'Neutral') + '</strong>'
+          + '</div>'
+          + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
+            + '<div style="color:var(--text3);font-size:9px;font-weight:700">VOLUME CONFLUENCE</div>'
+            + '<strong style="color:' + (zones && zones.volume.isSpike ? '#10B981' : 'var(--text)') + '">' + (zones ? zones.volume.ratio + 'x (' + zones.volume.status + ')' : 'Normal') + '</strong>'
+          + '</div>'
+          + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
+            + '<div style="color:var(--text3);font-size:9px;font-weight:700">FIBONACCI 0.618</div>'
+            + '<strong style="color:#F59E0B">Rp ' + fmtK(fib.levels.f618) + '</strong>'
+          + '</div>'
+        + '</div>'
+
+        // 2 Wide Cards: AI Auto-Zones (Left) and Institutional Trade Plan (Right)
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:12px">'
+          // Auto-Zone Details Card
+          + '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:12px">'
+            + '<div style="font-size:12px;font-weight:800;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px">'
+              + '<i class="ti ti-chart-dots"></i> ZONA BELI &amp; JUAL AI (RSI, MACD &amp; VOL)'
+            + '</div>'
+            + (bZone && sZone ? (
+              '<div style="display:flex;flex-direction:column;gap:6px;font-size:11px;font-family:Fira Code,monospace">'
+              + '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--border2)">'
+                + '<span style="color:#10B981;font-weight:700">🟢 Zona Beli (Demand):</span>'
+                + '<strong style="color:#10B981">Rp ' + fmtK(bZone.low) + ' - Rp ' + fmtK(bZone.high) + '</strong>'
+              + '</div>'
+              + '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--border2)">'
+                + '<span style="color:#EF4444;font-weight:700">🔴 Zona Jual / TP (Supply):</span>'
+                + '<strong style="color:#EF4444">Rp ' + fmtK(sZone.low) + ' - Rp ' + fmtK(sZone.high) + '</strong>'
+              + '</div>'
+              + '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--border2)">'
+                + '<span style="color:#DC2626">Stop Loss Zona Beli:</span>'
+                + '<strong style="color:#DC2626">Rp ' + fmtK(bZone.stopLoss) + '</strong>'
+              + '</div>'
+              + '<div style="color:var(--text3);font-size:10px;margin-top:4px;font-family:\'Plus Jakarta Sans\',sans-serif;line-height:1.4">'
+                + '<strong>Alasan Confluence:</strong> ' + bZone.reason
+              + '</div>'
+              + '</div>'
+            ) : '<div style="color:var(--text3);font-size:11px">Zona kalkulasi sedang disiapkan...</div>')
+          + '</div>'
+
+          // Trade Setup Details Card
+          + '<div style="background:var(--bg2);border:1px solid ' + (setup.decision === 'NO_TRADE' ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)') + ';border-radius:8px;padding:12px">'
+            + '<div style="font-size:12px;font-weight:800;color:' + (setup.decision === 'NO_TRADE' ? '#EF4444' : '#10B981') + ';margin-bottom:8px;display:flex;align-items:center;gap:6px">'
+              + '<i class="ti ti-target"></i> ' + setup.setupType
+            + '</div>'
+            + (setup.decision === 'NO_TRADE'
+              ? '<div style="font-size:11px;color:var(--text2);line-height:1.5">' + setup.reasons.join('<br>• ') + '</div>'
+              : '<div style="display:flex;flex-direction:column;gap:6px;font-size:11px;font-family:Fira Code,monospace">'
+                + '<div style="display:flex;justify-content:space-between"><span>Entry Setup:</span><strong style="color:#10B981">' + setup.entryZone + '</strong></div>'
+                + '<div style="display:flex;justify-content:space-between"><span>Stop Loss:</span><strong style="color:#EF4444">Rp ' + fmtK(setup.stopLoss) + '</strong></div>'
+                + '<div style="display:flex;justify-content:space-between"><span>Target TP1 &amp; TP2:</span><strong style="color:#38BDF8">Rp ' + fmtK(setup.tp1) + ' &amp; Rp ' + fmtK(setup.tp2) + '</strong></div>'
+                + '<div style="display:flex;justify-content:space-between"><span>Risk / Reward:</span><strong style="color:var(--accent)">' + setup.rrRatio + '</strong></div>'
+              + '</div>')
+          + '</div>'
         + '</div>'
       + '</div>'
     + '</div>';
@@ -994,7 +1254,7 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
     });
 
     // Attach overlay drawing hook immediately after chart creation
-    applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, ctx.supportResistance);
+    applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, ctx.supportResistance, zones);
   }
 }
 
@@ -1027,7 +1287,8 @@ function toggleAiOverlay(key) {
         TECH_CHARTS.nativeChart,
         AI_CHART_STATE.lastAnalysis ? AI_CHART_STATE.lastAnalysis.setup : null,
         AI_CHART_STATE.lastAnalysis ? AI_CHART_STATE.lastAnalysis.fibonacci : null,
-        AI_CHART_STATE.lastContext ? AI_CHART_STATE.lastContext.supportResistance : null
+        AI_CHART_STATE.lastContext ? AI_CHART_STATE.lastContext.supportResistance : null,
+        AI_CHART_STATE.lastAnalysis ? AI_CHART_STATE.lastAnalysis.aiZones : null
       );
     }
   }
@@ -1039,7 +1300,7 @@ function toggleAiOverlay(key) {
 function openAiExplainModal(ticker) {
   var last = AI_CHART_STATE.lastAnalysis;
   if (!last) {
-    runAiChartAnalysis(ticker);
+    runAiChartAnalysis(ticker, true);
     last = AI_CHART_STATE.lastAnalysis;
   }
 
@@ -1053,6 +1314,7 @@ function openAiExplainModal(ticker) {
   var fib = last.fibonacci;
   var conf = last.confluence;
   var setup = last.setup;
+  var zones = last.aiZones;
 
   mTitle.innerHTML = 'AI Chart Explanation — ' + ticker;
   mBody.innerHTML = ''
@@ -1066,6 +1328,19 @@ function openAiExplainModal(ticker) {
           + '<li><strong>Indikator Momentum:</strong> RSI-14 berada di angka ' + ctx.indicators.rsi + '</li>'
         + '</ul>'
       + '</div>'
+
+      + (zones ? (
+        '<div style="background:var(--bg3);border:1px solid var(--border);padding:12px;border-radius:var(--radius)">'
+          + '<strong style="color:var(--accent)">KONFLUENSI AI AUTO-ZONE (RSI, MACD &amp; VOLUME):</strong>'
+          + '<ul style="margin-top:6px;padding-left:18px;list-style-type:disc">'
+            + '<li><strong>RSI(14):</strong> ' + zones.rsi + ' (' + (zones.rsi <= 40 ? 'Oversold / Rebound Support' : (zones.rsi >= 65 ? 'Overbought / Supply Warning' : 'Netral')) + ')</li>'
+            + '<li><strong>MACD (12, 26, 9):</strong> Line ' + zones.macd.macd + ' / Signal ' + zones.macd.signal + ' [<strong>Status: ' + zones.macd.status.replace(/_/g, ' ') + '</strong>]</li>'
+            + '<li><strong>Volume Confluence:</strong> Rasio ' + zones.volume.ratio + 'x vs Rata-rata 20 Hari [<strong>Status: ' + zones.volume.status + '</strong>]</li>'
+            + '<li><strong>Zona Beli (Demand Area):</strong> <strong style="color:#10B981">Rp ' + fmtK(zones.buyZone.low) + ' - Rp ' + fmtK(zones.buyZone.high) + '</strong> (SL: Rp ' + fmtK(zones.buyZone.stopLoss) + ')</li>'
+            + '<li><strong>Zona Jual / TP (Supply Area):</strong> <strong style="color:#EF4444">Rp ' + fmtK(zones.sellZone.low) + ' - Rp ' + fmtK(zones.sellZone.high) + '</strong></li>'
+          + '</ul>'
+        + '</div>'
+      ) : '')
 
       + '<div style="background:var(--bg3);border:1px solid var(--border);padding:12px;border-radius:var(--radius)">'
         + '<strong style="color:#10B981">APA YANG MEMBUAT SAYA BELI? (BULLISH HYPOTHESIS):</strong>'

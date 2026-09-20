@@ -949,7 +949,7 @@ function renderPage(name){
     // Planner tabs are now US_STATE.pageTab values there.
     case 'tradewave':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'fundamental':if(typeof fundInit==='function') fundInit();break;
-    case 'technical':if(typeof techInit==='function') techInit();break;
+    case 'technical':if(typeof techInit==='function') techInit(false);break;
     case 'flowscan':if(typeof goBandarmology==='function') goBandarmology('smart-money-flow'); else if(typeof techInit==='function') techInit(); else fsRunAnalysis();break;
     // 'ranking'/'scanner' consolidated into the Unified Screener (see the
     // goPage() redirect + 'radar' case above) — fsRenderRanking() itself

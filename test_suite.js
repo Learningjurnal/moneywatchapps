@@ -7561,6 +7561,25 @@ test('REGRESSION GUARD: math safety & zero-division guards in Sharpe, real beta,
   );
 });
 
+test('REGRESSION GUARD: Technical Chart auto-refresh idempotency, enlarged vertical layout (580px/640px), and AI Auto-Zones (RSI+MACD+Volume)', () => {
+  const stockmasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(stockmasterSrc.includes('function techInit(force)'), 'REGRESSION: techInit() must accept force parameter for idempotency');
+  assert(stockmasterSrc.includes('TECH_DATA.lastRenderedTicker === tk'), 'REGRESSION: techInit() lost idempotency guard against background ticks');
+  assert(stockmasterSrc.includes('height:640px'), 'REGRESSION: TradingView widget iframe must have enlarged height of 640px');
+
+  const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(routerSrc.includes("case 'technical':if(typeof techInit==='function') techInit(false);break;"),
+    'REGRESSION: router renderPage() must pass force=false to techInit() to avoid destroying active chart during background refresh ticks');
+
+  const aiChartSrc = fs.readFileSync(path.join(__dirname, 'public/js/43-ai-chart-intelligence.js'), 'utf8');
+  assert(aiChartSrc.includes('calculateAiAutoZones'), 'REGRESSION: calculateAiAutoZones() must be defined for RSI+MACD+Volume confluence');
+  assert(aiChartSrc.includes('calculateAiMacd'), 'REGRESSION: calculateAiMacd() must be defined for MACD momentum calculation');
+  assert(aiChartSrc.includes('calculateAiVolumeConfluence'), 'REGRESSION: calculateAiVolumeConfluence() must be defined for volume ratio & spike analysis');
+  assert(aiChartSrc.includes('height:580px;width:100%'), 'REGRESSION: Native chart canvas must be enlarged vertically to 580px with full 100% width');
+  assert(aiChartSrc.includes('ZONA BELI AI'), 'REGRESSION: applyAiChartOverlay() must render ZONA BELI AI overlay');
+  assert(aiChartSrc.includes('ZONA JUAL AI / TP'), 'REGRESSION: applyAiChartOverlay() must render ZONA JUAL AI / TP overlay');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
