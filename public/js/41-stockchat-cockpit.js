@@ -348,6 +348,98 @@ async function fetchBrokerSummaryData(ticker, timeframe) {
   return fallbackData;
 }
 
+/**
+ * Calculate Bandar VWAP (Volume-Weighted Average Price of Top 3 Accumulating Brokers)
+ * Reference: Brian Shannon CMT (2023) - Anchored VWAP & Wyckoff Composite Man Method.
+ * Formula: VWAP_bandar = sum(Price_i * Volume_i) / sum(Volume_i)
+ * %Spread = (Current_Price - VWAP_bandar) / VWAP_bandar * 100
+ */
+function calculateBandarVwap(ticker, timeframe) {
+  var tf = timeframe || '1D';
+  var tk = (ticker || 'BBCA').toUpperCase().replace(/\.JK$/i, '').trim();
+  var cacheKey = tk + '_' + tf;
+  var bData = STOCKCHAT_BROKER_DATA_CACHE[cacheKey];
+
+  if (!bData && typeof generateClientSideBrokerSummary === 'function') {
+    bData = generateClientSideBrokerSummary(tk, tf);
+  }
+  if (!bData) {
+    return { available: false, vwap: 0, spreadPct: 0, zone: 'UNKNOWN', zoneLabel: 'Data Tidak Tersedia', top3Brokers: [] };
+  }
+
+  var buyers = bData.topBuyers || [];
+  if (!buyers.length && bData.bSummary && Array.isArray(bData.bSummary.topBuyers)) {
+    buyers = bData.bSummary.topBuyers;
+  }
+
+  var validTop3 = buyers.slice(0, 3).filter(function(b) {
+    var p = Number(b.avgBuyPrice || b.avgPrice || b.price || 0);
+    return p > 0;
+  });
+
+  if (!validTop3.length) {
+    return { available: false, vwap: 0, spreadPct: 0, zone: 'NO_DATA', zoneLabel: 'Broker Summary Kosong', top3Brokers: [] };
+  }
+
+  var totalValue = 0;
+  var totalVol = 0;
+  var brokerCodes = [];
+
+  validTop3.forEach(function(b) {
+    var p = Number(b.avgBuyPrice || b.avgPrice || b.price || 0);
+    var v = Number(b.buyVolumeLot || b.volumeLot || b.volume || 1);
+    var code = b.brokerCode || b.code || b.broker || '?';
+    brokerCodes.push(code);
+    totalValue += (p * v);
+    totalVol += v;
+  });
+
+  var vwap = totalVol > 0 ? Math.round(totalValue / totalVol) : 0;
+  if (vwap <= 0) {
+    return { available: false, vwap: 0, spreadPct: 0, zone: 'NO_DATA', zoneLabel: 'Harga Modal 0', top3Brokers: [] };
+  }
+
+  var curPrice = Number(bData.price) || (typeof prices !== 'undefined' && Number(prices[tk])) || vwap;
+  var spreadPct = vwap > 0 ? ((curPrice - vwap) / vwap * 100) : 0;
+
+  var zone = 'OPTIMAL';
+  var zoneLabel = 'Zona Akumulasi Ideal';
+  var zoneBadge = 'b-up';
+
+  if (spreadPct < -3) {
+    zone = 'DISCOUNT';
+    zoneLabel = 'Zona Diskon / Absorption';
+    zoneBadge = 'b-up';
+  } else if (spreadPct <= 4) {
+    zone = 'OPTIMAL';
+    zoneLabel = 'Zona Akumulasi Ideal';
+    zoneBadge = 'b-up';
+  } else if (spreadPct <= 15) {
+    zone = 'MARKUP';
+    zoneLabel = 'Zona Markup';
+    zoneBadge = 'b-amb';
+  } else {
+    zone = 'DISTRIBUTION_RISK';
+    zoneLabel = 'Zona Rawan Distribusi';
+    zoneBadge = 'b-dn';
+  }
+
+  return {
+    available: true,
+    ticker: tk,
+    timeframe: tf,
+    vwap: vwap,
+    currentPrice: curPrice,
+    spreadPct: spreadPct,
+    zone: zone,
+    zoneLabel: zoneLabel,
+    zoneBadge: zoneBadge,
+    top3Brokers: brokerCodes,
+    buyerCount: validTop3.length
+  };
+}
+window.calculateBandarVwap = calculateBandarVwap;
+
 // Switch Active Tab (Chat vs Broker Flow)
 function setStockChatActiveTab(tabName) {
   STOCKCHAT_ACTIVE_TAB = tabName || 'chat';
@@ -1321,7 +1413,8 @@ function renderStockChatPage(containerId) {
   var netForeignVal = (ff.netValRp !== undefined ? ff.netValRp : (ff.netValueRp !== undefined ? ff.netValueRp : 0));
   var netForeignM = Math.round(netForeignVal / 1000000000);
 
-  var html = '<div style="margin-bottom:16px">'
+  var nav360 = (typeof renderStockMaster360Nav === 'function') ? renderStockMaster360Nav('stockchat', curTk) : '';
+  var html = nav360 + '<div style="margin-bottom:16px">'
     // Top Bar & Header
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
     + '<div>'
@@ -2047,6 +2140,10 @@ window.toggleStockChatTableSort = toggleStockChatTableSort;
 window.setStockChatTableLimit = setStockChatTableLimit;
 window.setStockChatBrokerFilter = setStockChatBrokerFilter;
 window.askAiAboutBrokerAction = askAiAboutBrokerAction;
+window.openStockIntelForTicker = function(tk) {
+  if (typeof sm360Go === 'function') sm360Go('stock-intel', tk);
+  else if (typeof selectStockIntelTicker === 'function') selectStockIntelTicker(tk);
+};
 
 // ============================================================
 // ============================================================

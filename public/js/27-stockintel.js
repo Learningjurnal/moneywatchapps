@@ -800,8 +800,9 @@ function renderStockIntelPage() {
   }).join(' ');
 
   // CASE A: NON-IDX TICKER (STRICT PROHIBITION OF DUMMY DATA)
+  var nav360 = (typeof renderStockMaster360Nav === 'function') ? renderStockMaster360Nav('flow', ticker) : '';
   if (!isIdx) {
-    var notFoundHtml = ''
+    var notFoundHtml = nav360
       // TOP SEARCH TOOLBAR
       + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
         + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
@@ -857,7 +858,7 @@ function renderStockIntelPage() {
   var gaugeCirc = 2 * Math.PI * gaugeRadius;
   var gaugeOffset = gaugeCirc - (data.score / 100) * gaugeCirc;
 
-  var html = ''
+  var html = nav360
     // TOP SEARCH & REAL-TIME TOOLBAR WITH TIMESTAMP
     + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
       + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'

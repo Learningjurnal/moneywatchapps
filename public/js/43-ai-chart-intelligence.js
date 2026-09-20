@@ -18,7 +18,8 @@ var AI_CHART_STATE = {
     pattern: true,
     structure: true,
     setup: true,
-    zones: true
+    zones: true,
+    bandarVwap: true
   }
 };
 
@@ -131,17 +132,14 @@ function buildAiSharedMarketContext(ticker, timeframe) {
   var low20 = slice20.length ? Math.min.apply(null, slice20.map(function(d){ return d.l; })) : curPrice;
   var lastVol = ohlcv[ohlcv.length - 1] ? ohlcv[ohlcv.length - 1].v : 0;
 
+  var bandarVwapInfo = (typeof calculateBandarVwap === 'function')
+    ? calculateBandarVwap(tk, tf)
+    : { available: false, vwap: 0, spreadPct: 0, zone: 'UNKNOWN', zoneLabel: 'Data Belum Tersedia', top3Brokers: [] };
+
   return {
     symbol: tk,
     timestamp: new Date().toISOString(),
     timeframe: tf,
-    // FIX (2026-09-12, audit "AI Chart Intelligence — MAJOR data-trust
-    // issue"): disclosure minimal - S/R, Fibonacci, Structure, Confluence,
-    // dan Trade Setup di bawah TETAP dihitung dari data ini (tidak
-    // diblokir), tapi UI sekarang menandai eksplisit kalau datanya
-    // simulasi. Tidak menutup celah sepenuhnya (lihat INCIDENT_LOG.md),
-    // tapi menutup kontradiksi dengan klaim "Zero Dummy Data" di baris lain
-    // file ini.
     isSimulated: isSimulated,
     price: {
       current: curPrice,
@@ -165,7 +163,8 @@ function buildAiSharedMarketContext(ticker, timeframe) {
       institutionalNetRp: smartNet,
       institutionalNetAvailable: smartNetAvailable,
       cmf: cmfVal
-    }
+    },
+    bandarVwap: bandarVwapInfo
   };
 }
 
@@ -969,6 +968,41 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones, aiZones) {
         }
       }
 
+      // 7. Bandar VWAP Overlay (overlays.bandarVwap)
+      var bVwap = lastContext ? lastContext.bandarVwap : null;
+      if (overlays.bandarVwap && bVwap && bVwap.available && bVwap.vwap > 0) {
+        var yVwap = yScale.getPixelForValue(bVwap.vwap);
+        if (yVwap >= yScale.top && yVwap <= yScale.bottom) {
+          ctx.strokeStyle = '#8B5CF6';
+          ctx.setLineDash([8, 4]);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(leftX, yVwap);
+          ctx.lineTo(rightX, yVwap);
+          ctx.stroke();
+
+          // Highlight band if in Optimal Accumulation Zone (-3% to +4%)
+          if (bVwap.zone === 'OPTIMAL') {
+            var curY = yScale.getPixelForValue(bVwap.currentPrice);
+            var bTop = Math.min(yVwap, curY);
+            var bBot = Math.max(yVwap, curY);
+            ctx.fillStyle = 'rgba(139, 92, 246, 0.10)';
+            ctx.fillRect(leftX, bTop, chartWidth, Math.max(2, bBot - bTop));
+          }
+
+          ctx.fillStyle = '#A78BFA';
+          ctx.font = 'bold 10px Fira Code, monospace';
+          var vwapTxt = 'BANDAR VWAP (TOP 3): Rp ' + fmtK(bVwap.vwap) + ' (' + (bVwap.spreadPct >= 0 ? '+' : '') + bVwap.spreadPct.toFixed(1) + '%)';
+          ctx.fillText(vwapTxt, leftX + 12, yVwap - 4);
+
+          ctx.fillStyle = (bVwap.zone === 'OPTIMAL' || bVwap.zone === 'DISCOUNT') ? '#10B981' : (bVwap.zone === 'MARKUP' ? '#F59E0B' : '#EF4444');
+          ctx.font = 'bold 9.5px Fira Code, monospace';
+          var zoneTxt = '[' + bVwap.zoneLabel + ']';
+          var zWidth = ctx.measureText(zoneTxt).width;
+          ctx.fillText(zoneTxt, rightX - zWidth - 12, yVwap - 4);
+        }
+      }
+
       ctx.restore();
     };
   }
@@ -1084,6 +1118,7 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
           + 'AI ANALYZE'
         + '</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.zones ? 'on' : '') + '" onclick="toggleAiOverlay(\'zones\')" style="' + (AI_CHART_STATE.overlays.zones ? 'background:rgba(0,0,255,0.25);border-color:var(--accent);color:var(--accent)' : '') + '">ZONA BELI/JUAL</button>'
+        + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.bandarVwap ? 'on' : '') + '" onclick="toggleAiOverlay(\'bandarVwap\')" style="' + (AI_CHART_STATE.overlays.bandarVwap ? 'background:rgba(139,92,246,0.25);border-color:#8B5CF6;color:#A78BFA' : '') + '">BANDAR VWAP</button>'
         + (!isTvMode ? (
             '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.sr ? 'on' : '') + '" onclick="toggleAiOverlay(\'sr\')">S/R</button>'
           + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.fib ? 'on' : '') + '" onclick="toggleAiOverlay(\'fib\')">FIB</button>'
@@ -1151,8 +1186,8 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
           + '</div>'
         + '</div>'
 
-        // Key Confluence Grid (6 Parameter Penting)
-        + '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:8px;font-size:11px">'
+        // Key Confluence Grid (7 Parameter Penting)
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:8px;font-size:11px">'
           + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
             + '<div style="color:var(--text3);font-size:9px;font-weight:700">STRUCTURE</div>'
             + '<strong style="color:var(--text)">' + struct.trend + '</strong>'
@@ -1160,6 +1195,13 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
           + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
             + '<div style="color:var(--text3);font-size:9px;font-weight:700">FLOWSCAN BANDAR</div>'
             + '<strong style="color:' + (ctx.flowScan.verdict.includes('ACCUM') ? '#10B981' : '#EF4444') + '">' + ctx.flowScan.verdict + '</strong>'
+          + '</div>'
+          + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
+            + '<div style="color:var(--text3);font-size:9px;font-weight:700">MODAL BANDAR (VWAP)</div>'
+            + (ctx.bandarVwap && ctx.bandarVwap.available ? (
+                '<strong style="color:#A78BFA">Rp ' + fmtK(ctx.bandarVwap.vwap) + '</strong> '
+                + '<span style="font-size:9.5px;color:' + (ctx.bandarVwap.spreadPct >= 0 ? '#10B981' : '#EF4444') + '">(' + (ctx.bandarVwap.spreadPct >= 0 ? '+' : '') + ctx.bandarVwap.spreadPct.toFixed(1) + '%)</span>'
+              ) : '<span style="color:var(--text3);font-size:10px">Belum Ada Data</span>')
           + '</div>'
           + '<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border:1px solid var(--border2)">'
             + '<div style="color:var(--text3);font-size:9px;font-weight:700">RSI(14) MOMENTUM</div>'
@@ -1178,6 +1220,21 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
             + '<strong style="color:#F59E0B">Rp ' + fmtK(fib.levels.f618) + '</strong>'
           + '</div>'
         + '</div>'
+
+        // Bandar Cost Basis & Spread Banner
+        + (ctx.bandarVwap && ctx.bandarVwap.available ? (
+            '<div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-family:Fira Code,monospace;font-size:11px">'
+            + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+              + '<span style="color:#A78BFA;font-weight:800">📊 BANDAR COST BASIS (TOP 3):</span>'
+              + '<strong style="color:var(--text);font-size:13px">Rp ' + fmtK(ctx.bandarVwap.vwap) + '</strong>'
+              + '<span style="color:var(--text3);font-size:10px">(' + ctx.bandarVwap.top3Brokers.join(', ') + ')</span>'
+            + '</div>'
+            + '<div style="display:flex;align-items:center;gap:8px">'
+              + '<span style="color:var(--text2)">Spread vs Modal: <strong style="color:' + (ctx.bandarVwap.spreadPct >= 0 ? '#10B981' : '#EF4444') + '">' + (ctx.bandarVwap.spreadPct >= 0 ? '+' : '') + ctx.bandarVwap.spreadPct.toFixed(2) + '%</strong></span>'
+              + '<span class="badge ' + ctx.bandarVwap.zoneBadge + '" style="font-size:10px;font-weight:700">' + ctx.bandarVwap.zoneLabel + '</span>'
+            + '</div>'
+            + '</div>'
+          ) : '')
 
         // 2 Wide Cards: AI Auto-Zones (Left) and Institutional Trade Plan (Right)
         + '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:12px">'

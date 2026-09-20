@@ -489,6 +489,116 @@ function qtPearson(a, b){
   return da&&db?num/Math.sqrt(da*db):0;
 }
 
+function qtCovariance(a, b) {
+  if (!a || !b) return 0;
+  var n = Math.min(a.length, b.length);
+  if (n < 2) return 0;
+  var mx = 0, my = 0;
+  for (var i = 0; i < n; i++) { mx += a[i]; my += b[i]; }
+  mx /= n; my /= n;
+  var sum = 0;
+  for (var j = 0; j < n; j++) {
+    sum += (a[j] - mx) * (b[j] - my);
+  }
+  return sum / (n - 1);
+}
+
+function qtStdDev(a) {
+  if (!a || a.length < 2) return 0;
+  var n = a.length;
+  var m = 0;
+  for (var i = 0; i < n; i++) m += a[i];
+  m /= n;
+  var s = 0;
+  for (var j = 0; j < n; j++) {
+    var diff = a[j] - m;
+    s += diff * diff;
+  }
+  return Math.sqrt(s / (n - 1));
+}
+
+function computePortfolioRiskMetrics(returnsMap, weightsMap, totalEquity) {
+  var tickers = Object.keys(returnsMap).filter(function(t) { return returnsMap[t] && returnsMap[t].length >= 2; });
+  if (tickers.length < 2) {
+    return { available: false, reason: 'Butuh minimal 2 saham dengan data return riil.' };
+  }
+
+  // Normalize weights
+  var rawWeights = {};
+  var sumW = 0;
+  tickers.forEach(function(t) {
+    var w = Number(weightsMap && weightsMap[t]) || 0;
+    rawWeights[t] = w;
+    sumW += w;
+  });
+
+  var weights = {};
+  tickers.forEach(function(t) {
+    weights[t] = sumW > 0 ? (rawWeights[t] / sumW) : (1 / tickers.length);
+  });
+
+  // Calculate standard deviations and covariance matrix
+  var stdDevs = {};
+  var covariances = {};
+  tickers.forEach(function(t) {
+    stdDevs[t] = qtStdDev(returnsMap[t]);
+    covariances[t] = {};
+  });
+
+  for (var i = 0; i < tickers.length; i++) {
+    var ti = tickers[i];
+    for (var j = 0; j < tickers.length; j++) {
+      var tj = tickers[j];
+      covariances[ti][tj] = qtCovariance(returnsMap[ti], returnsMap[tj]);
+    }
+  }
+
+  // Portfolio Variance: sigma_p^2 = sum(w_i * w_j * cov_ij)
+  var portfolioVariance = 0;
+  var weightedAvgVol = 0;
+
+  for (var i = 0; i < tickers.length; i++) {
+    var ti = tickers[i];
+    var wi = weights[ti];
+    var si = stdDevs[ti];
+    weightedAvgVol += (wi * si);
+
+    for (var j = 0; j < tickers.length; j++) {
+      var tj = tickers[j];
+      var wj = weights[tj];
+      portfolioVariance += (wi * wj * covariances[ti][tj]);
+    }
+  }
+
+  portfolioVariance = Math.max(0, portfolioVariance);
+  var dailyVol = Math.sqrt(portfolioVariance);
+  var annualVol = dailyVol * Math.sqrt(252);
+  var eq = totalEquity > 0 ? totalEquity : 100000000;
+  // Parametric VaR 95% (1-Day, Z = 1.645)
+  var var95DailyRp = Math.round(eq * (1.645 * dailyVol));
+  var var95DailyPct = (1.645 * dailyVol) * 100;
+  var divBenefitPct = weightedAvgVol > 0 ? Math.max(0, ((weightedAvgVol - dailyVol) / weightedAvgVol) * 100) : 0;
+
+  return {
+    available: true,
+    tickers: tickers,
+    weights: weights,
+    stdDevs: stdDevs,
+    covariances: covariances,
+    portfolioVariance: portfolioVariance,
+    dailyVolPct: dailyVol * 100,
+    annualVolPct: annualVol * 100,
+    var95DailyRp: var95DailyRp,
+    var95DailyPct: var95DailyPct,
+    weightedAvgVolPct: weightedAvgVol * 100,
+    divBenefitPct: divBenefitPct,
+    totalEquity: eq
+  };
+}
+window.computePortfolioRiskMetrics = computePortfolioRiskMetrics;
+window.qtCovariance = qtCovariance;
+window.qtStdDev = qtStdDev;
+
 // ── Backtest strategies ──
 function btSetStrat(s, el2){
   QT.btStrat = s;
@@ -1108,12 +1218,13 @@ function scRenderTable(data2){
 // bukan mesin fetch terpisah).
 var CORR_STATE = { loading:false };
 function corrRender(){
-  var mEl=el('corr-matrix'), pEl=el('corr-pairs');
+  var mEl=el('corr-matrix'), pEl=el('corr-pairs'), kpiEl=el('corr-portfolio-risk-kpi');
   if(!mEl) return;
   var porto = (typeof getPortfolio==='function') ? getPortfolio() : [];
   if(porto.length<2){
-    mEl.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:11px">Butuh minimal 2 saham di portofolio untuk menghitung korelasi. Halaman ini memakai saham yang benar-benar Anda pegang, bukan daftar tetap.</div>';
+    mEl.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;font-size:11px">Butuh minimal 2 saham di portofolio untuk menghitung korelasi dan risiko Value at Risk (VaR). Halaman ini memakai saham yang benar-benar Anda pegang, bukan daftar tetap.</div>';
     if(pEl) pEl.innerHTML='';
+    if(kpiEl) kpiEl.innerHTML='';
     return;
   }
   if(CORR_STATE.loading) return;
@@ -1129,7 +1240,8 @@ function corrRender(){
     CORR_STATE.loading=false;
     var tickers = Object.keys(histMap);
     if(tickers.length<2){
-      mEl.innerHTML = '<div class="alert alert-warn">Data harga riil belum cukup untuk minimal 2 saham ('+tickers.length+' berhasil, '+failed.length+' gagal) — coba lagi setelah beberapa siklus refresh harga otomatis, atau klik Refresh.</div>';
+      mEl.innerHTML = '<div class="alert alert-warn">Data harga riil belum cukup untuk minimal 2 saham ('+tickers.length+' berhasil, '+failed.length+' gagal) - coba lagi setelah beberapa siklus refresh harga otomatis, atau klik Refresh.</div>';
+      if(kpiEl) kpiEl.innerHTML='';
       return;
     }
     var returns={};
@@ -1139,6 +1251,47 @@ function corrRender(){
       for(var i=1;i<rows.length;i++){ if(rows[i-1].close>0) rets.push((rows[i].close-rows[i-1].close)/rows[i-1].close); }
       returns[tk]=rets;
     });
+
+    // Compute Portfolio Risk & Correlation Engine Metrics (VaR 95%, Volatility, Diversification Shield)
+    if(kpiEl){
+      var weightsMap = {};
+      var totalVal = 0;
+      porto.forEach(function(pos) {
+        var tk = (pos.ticker || pos.code || '').toUpperCase().trim();
+        var px = (typeof prices !== 'undefined' && prices[tk]) ? prices[tk] : (pos.avgPrice || pos.price || 0);
+        var lots = pos.lot || pos.lots || pos.qty || 0;
+        var val = lots * 100 * px;
+        weightsMap[tk] = val;
+        totalVal += val;
+      });
+      var eq = totalVal > 0 ? totalVal : ((typeof getTotalValue === 'function') ? getTotalValue() : 100000000);
+      var riskMetrics = computePortfolioRiskMetrics(returns, weightsMap, eq);
+      if(riskMetrics.available){
+        kpiEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">'
+          + '<div class="card" style="padding:12px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px">'
+            + '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Value at Risk (VaR 95% 1-Hari)</div>'
+            + '<div style="font-size:18px;font-weight:900;color:var(--red);font-family:Fira Code,monospace;margin-top:2px">Rp ' + fmtK(riskMetrics.var95DailyRp) + '</div>'
+            + '<div style="font-size:10.5px;color:var(--text2);margin-top:4px">Batas risiko kerugian harian maksimal normal (' + riskMetrics.var95DailyPct.toFixed(2) + '% portofolio)</div>'
+          + '</div>'
+          + '<div class="card" style="padding:12px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px">'
+            + '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Volatilitas Portofolio Tahunan</div>'
+            + '<div style="font-size:18px;font-weight:900;color:var(--accent);font-family:Fira Code,monospace;margin-top:2px">' + riskMetrics.annualVolPct.toFixed(1) + '% <span style="font-size:11px">p.a.</span></div>'
+            + '<div style="font-size:10.5px;color:var(--text2);margin-top:4px">Standar deviasi harian: ' + riskMetrics.dailyVolPct.toFixed(2) + '%</div>'
+          + '</div>'
+          + '<div class="card" style="padding:12px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px">'
+            + '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Diversification Shield</div>'
+            + '<div style="font-size:18px;font-weight:900;color:var(--green);font-family:Fira Code,monospace;margin-top:2px">+' + riskMetrics.divBenefitPct.toFixed(1) + '% <span style="font-size:11px">Peredam Risiko</span></div>'
+            + '<div style="font-size:10.5px;color:var(--text2);margin-top:4px">Volatilitas tereduksi dibanding rata-rata aset tunggal (' + riskMetrics.weightedAvgVolPct.toFixed(1) + '%)</div>'
+          + '</div>'
+          + '<div class="card" style="padding:12px 14px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px">'
+            + '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Saham Portofolio Teranalisis</div>'
+            + '<div style="font-size:18px;font-weight:900;color:var(--text);font-family:Fira Code,monospace;margin-top:2px">' + tickers.length + ' <span style="font-size:12px">Emiten Riil</span></div>'
+            + '<div style="font-size:10.5px;color:var(--text2);margin-top:4px">Data historis pasar ' + windowDays + ' hari perdagangan</div>'
+          + '</div>'
+        + '</div>';
+      }
+    }
+
     var matrix=tickers.map(function(a){return tickers.map(function(b){return qtPearson(returns[a],returns[b]);});});
 
     var h='<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:60px '+tickers.map(function(){return '1fr';}).join(' ')+';gap:2px">';
@@ -1165,9 +1318,9 @@ function corrRender(){
       } else {
         var top=pairs2.slice(0,5), bot=pairs2.slice(-5).reverse();
         pEl.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-          +'<div><div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px">Korelasi Tertinggi — kandidat pairs trading</div>'
+          +'<div><div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px">Korelasi Tertinggi: kandidat pairs trading</div>'
           +top.map(function(p){return '<div style="display:flex;justify-content:space-between;padding:6px 9px;background:var(--bg3);border-radius:2px;margin-bottom:4px;border:1px solid var(--border)"><span style="font-family:Menlo,monospace;color:var(--text);font-size:12px">'+p.a+' / '+p.b+'</span><span style="color:var(--green);font-weight:700;font-family:Menlo,monospace">'+(p.v>=0?'+':'')+p.v.toFixed(3)+'</span></div>';}).join('')+'</div>'
-          +'<div><div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px">Korelasi Terendah — kandidat diversifikasi</div>'
+          +'<div><div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px">Korelasi Terendah: kandidat diversifikasi</div>'
           +bot.map(function(p){return '<div style="display:flex;justify-content:space-between;padding:6px 9px;background:var(--bg3);border-radius:2px;margin-bottom:4px;border:1px solid var(--border)"><span style="font-family:Menlo,monospace;color:var(--text);font-size:12px">'+p.a+' / '+p.b+'</span><span style="color:'+(p.v>=0?'var(--amber)':'var(--red)')+';font-weight:700;font-family:Menlo,monospace">'+(p.v>=0?'+':'')+p.v.toFixed(3)+'</span></div>';}).join('')+'</div>'
           +'</div>';
       }

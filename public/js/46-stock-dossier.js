@@ -1090,7 +1090,8 @@ function renderStockDossierPage(targetTicker) {
   var changeStr = (changePct >= 0 ? '+' : '') + Number(changePct).toFixed(2) + '%';
   var changeColor = changePct >= 0 ? 'var(--green)' : 'var(--red)';
 
-  var html = '';
+  var nav360 = (typeof renderStockMaster360Nav === 'function') ? renderStockMaster360Nav('dossier', dossierState.ticker) : '';
+  var html = nav360;
 
   // ── Header & Action Bar ──
   html += '<div style="margin-bottom:16px">';

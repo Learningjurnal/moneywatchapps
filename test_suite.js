@@ -7673,6 +7673,87 @@ test('REGRESSION GUARD: Phase 1 AI Chat Harmonization (StockChat and Copilot Mod
     'REGRESSION: StockChat must not use arrow decorator on Stock Intelligence button');
 });
 
+test('REGRESSION GUARD: Phase 2 Techno-Bandarmology & Anchored Bandar VWAP in Chart Overlay', () => {
+  const stockchatSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(stockchatSrc.includes('function calculateBandarVwap(ticker, timeframe)'),
+    'REGRESSION: calculateBandarVwap function must exist in 41-stockchat-cockpit.js');
+  assert(stockchatSrc.includes('window.calculateBandarVwap = calculateBandarVwap;'),
+    'REGRESSION: calculateBandarVwap must be exported to window');
+
+  const chartAiSrc = fs.readFileSync(path.join(__dirname, 'public/js/43-ai-chart-intelligence.js'), 'utf8');
+  assert(chartAiSrc.includes('bandarVwap: true'),
+    'REGRESSION: bandarVwap overlay flag must be enabled by default in AI_CHART_STATE');
+  assert(chartAiSrc.includes('BANDAR VWAP'),
+    'REGRESSION: AI Chart Toolbar must provide BANDAR VWAP toggle button');
+  assert(chartAiSrc.includes('BANDAR VWAP (TOP 3): Rp'),
+    'REGRESSION: Chart canvas overlay must render Bandar VWAP horizontal line label');
+
+  const stockmasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(stockmasterSrc.includes('calculateBandarVwap(ticker)'),
+    'REGRESSION: techRenderMainChart must incorporate calculateBandarVwap in native fallback');
+});
+
+test('REGRESSION GUARD: Phase 3 Stock Master Terminal 360 (Unified Single-Stock Analysis)', () => {
+  const stockmasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(stockmasterSrc.includes('function renderStockMaster360Nav(activePillar, currentTicker)'),
+    'REGRESSION: renderStockMaster360Nav must exist in 24-stockmaster.js');
+  assert(stockmasterSrc.includes('window.renderStockMaster360Nav = renderStockMaster360Nav;'),
+    'REGRESSION: renderStockMaster360Nav must be exported to window');
+  assert(stockmasterSrc.includes('window.sm360Go = sm360Go;'),
+    'REGRESSION: sm360Go navigation dispatcher must be exported');
+
+  const configSrc = fs.readFileSync(path.join(__dirname, 'public/js/00-config.js'), 'utf8');
+  assert(configSrc.includes('FUND_DATA.ticker = clean') && configSrc.includes('TECH_DATA.ticker = clean') && configSrc.includes('STOCK_DOSSIER_STATE.ticker = clean'),
+    'REGRESSION: GLOBAL_STOCK_CONTEXT.setTicker must sync FUND_DATA, TECH_DATA, and STOCK_DOSSIER_STATE');
+
+  const intelSrc = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
+  assert(intelSrc.includes("renderStockMaster360Nav('flow', ticker)"),
+    'REGRESSION: Stock Intel must mount renderStockMaster360Nav');
+
+  const dossierSrc = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(dossierSrc.includes("renderStockMaster360Nav('dossier', dossierState.ticker)"),
+    'REGRESSION: Stock Dossier must mount renderStockMaster360Nav');
+
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(indexHtml.includes('id="fund-sm360-mount"'),
+    'REGRESSION: Fundamental page must provide fund-sm360-mount container');
+  assert(indexHtml.includes('id="tech-sm360-mount"'),
+    'REGRESSION: Technical page must provide tech-sm360-mount container');
+});
+
+test('REGRESSION GUARD: Phase 4 Portfolio Risk & Correlation Engine (VaR 95%, Volatility, Covariance Matrix)', () => {
+  const quantSrc = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert(quantSrc.includes('function qtCovariance(a, b)'),
+    'REGRESSION: qtCovariance must exist in 11-quant.js');
+  assert(quantSrc.includes('function qtStdDev(a)'),
+    'REGRESSION: qtStdDev must exist in 11-quant.js');
+  assert(quantSrc.includes('function computePortfolioRiskMetrics(returnsMap, weightsMap, totalEquity)'),
+    'REGRESSION: computePortfolioRiskMetrics must exist in 11-quant.js');
+  assert(quantSrc.includes('window.computePortfolioRiskMetrics = computePortfolioRiskMetrics;'),
+    'REGRESSION: computePortfolioRiskMetrics must be exported to window');
+
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(indexHtml.includes('id="corr-portfolio-risk-kpi"'),
+    'REGRESSION: Quant correlation page must provide corr-portfolio-risk-kpi container');
+
+  // Math validation for computePortfolioRiskMetrics
+  const vm = require('vm');
+  const sandbox = { window: {}, Math: Math, Number: Number, Object: Object, Array: Array };
+  vm.createContext(sandbox);
+  vm.runInContext(quantSrc.slice(quantSrc.indexOf('function qtPearson'), quantSrc.indexOf('// ── Backtest strategies')), sandbox);
+
+  const testReturns = {
+    BBCA: [0.01, -0.005, 0.012, 0.003, -0.008, 0.015],
+    BBRI: [0.015, -0.01, 0.008, 0.005, -0.012, 0.02]
+  };
+  const testWeights = { BBCA: 60000000, BBRI: 40000000 };
+  const res = sandbox.computePortfolioRiskMetrics(testReturns, testWeights, 100000000);
+  assert(res.available === true, 'Risk metrics must be available for 2 valid return series');
+  assert(res.var95DailyRp > 0, 'VaR 95% 1-Day must be positive Rupiah amount');
+  assert(res.annualVolPct > 0, 'Annual volatility percentage must be positive');
+  assert(typeof res.divBenefitPct === 'number', 'Diversification benefit must be numeric');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

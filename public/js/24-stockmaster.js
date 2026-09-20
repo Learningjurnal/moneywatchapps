@@ -46,12 +46,123 @@ function techKillChart(key) {
 }
 
 // ============================================================
+// 0. STOCK MASTER TERMINAL 360 (UNIFIED EMITEN WORKFLOW)
+// ============================================================
+
+function renderStockMaster360Nav(activePillar, currentTicker) {
+  var tk = (currentTicker || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA')).toUpperCase().replace(/\.JK$/i, '').trim();
+  var px = (typeof prices !== 'undefined' && prices[tk]) ? Number(prices[tk]) : 0;
+  var chg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk) : ((typeof changes !== 'undefined' && changes[tk]) ? Number(changes[tk]) : 0);
+
+  var quickList = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'ANTM', 'ADRO', 'ICBP', 'UNVR', 'GOTO', 'BRIS'];
+  var quickChipsHtml = quickList.map(function(qt) {
+    var isSel = qt === tk;
+    return '<button onclick="sm360SelectTicker(\'' + qt + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 8px;border-radius:6px;font-family:var(--font-mono);font-weight:700;border:1px solid var(--border2)">' + qt + '</button>';
+  }).join(' ');
+
+  var tabs = [
+    { id: 'technical', icon: 'ti-chart-candle', label: '1. Chart & Techno-Bandarmology', page: 'technical' },
+    { id: 'flow', icon: 'ti-radar', label: '2. Bandarmology & Flow', page: 'stock-intel' },
+    { id: 'fundamental', icon: 'ti-report-analytics', label: '3. Valuation & Fundamental', page: 'fundamental' },
+    { id: 'dossier', icon: 'ti-file-analytics', label: '4. Stock Dossier & KSEI', page: 'stock-dossier' },
+    { id: 'stockchat', icon: 'ti-brain', label: '5. AI Hypothesis (StockChat)', page: 'stockchat' }
+  ];
+
+  var tabsHtml = tabs.map(function(t) {
+    var isActive = (activePillar === t.id || activePillar === t.page);
+    return '<button onclick="sm360Go(\'' + t.page + '\', \'' + tk + '\')" class="sm-nav-item ' + (isActive ? 'active' : '') + '" style="font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;white-space:nowrap">'
+      + '<i class="ti ' + t.icon + '"></i> ' + t.label
+      + '</button>';
+  }).join(' ');
+
+  return '<div class="sm-terminal-header card" style="margin-bottom:16px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px">'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+        + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(tk, 32) : '')
+        + '<div>'
+          + '<div style="display:flex;align-items:center;gap:8px">'
+            + '<span style="font-size:17px;font-weight:900;color:var(--text);font-family:Fira Code,monospace">' + tk + '</span>'
+            + (px > 0 ? '<span style="font-size:16px;font-weight:800;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + px.toLocaleString('id-ID') + '</span>' : '')
+            + (chg !== 0 ? '<span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</span>' : '')
+          + '</div>'
+          + '<div style="font-size:10.5px;color:var(--text3);font-weight:600">STOCK MASTER TERMINAL 360 : SINGLE STOCK COMPREHENSIVE INTELLIGENCE</div>'
+        + '</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<div style="display:flex;gap:4px">'
+          + '<input type="text" id="sm360-search-inp" class="form-input finput" placeholder="Ketik Ticker IDX..." value="' + tk + '" style="width:110px;height:28px;font-size:11px;text-transform:uppercase;font-family:var(--font-mono);font-weight:700" onkeydown="if(event.key===\'Enter\')sm360SearchSubmit()">'
+          + '<button class="btn btn-primary btn-xs" onclick="sm360SearchSubmit()" style="font-size:10px;padding:3px 10px;font-weight:700">Periksa</button>'
+        + '</div>'
+        + '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">'
+          + quickChipsHtml
+        + '</div>'
+      + '</div>'
+    + '</div>'
+    + '<div class="tab-row" style="display:flex;gap:6px;overflow-x:auto;padding-top:10px;border-top:1px solid var(--border2);align-items:center">'
+      + tabsHtml
+    + '</div>'
+  + '</div>';
+}
+
+function sm360Go(page, ticker) {
+  var tk = (ticker || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '');
+  if (typeof GLOBAL_STOCK_CONTEXT !== 'undefined') {
+    GLOBAL_STOCK_CONTEXT.setTicker(tk, 'sm360-nav');
+  }
+  if (typeof TECH_DATA !== 'undefined') TECH_DATA.ticker = tk;
+  if (typeof FUND_DATA !== 'undefined') FUND_DATA.ticker = tk;
+  if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = tk;
+  if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
+  if (typeof STOCK_DOSSIER_STATE !== 'undefined' && STOCK_DOSSIER_STATE) STOCK_DOSSIER_STATE.ticker = tk;
+
+  if (typeof goPage === 'function') {
+    goPage(page);
+  }
+}
+
+function sm360SelectTicker(ticker) {
+  if (!ticker) return;
+  var tk = ticker.toUpperCase().trim().replace(/\.JK$/i, '');
+  if (typeof GLOBAL_STOCK_CONTEXT !== 'undefined') {
+    GLOBAL_STOCK_CONTEXT.setTicker(tk, 'sm360-select');
+  }
+  if (typeof TECH_DATA !== 'undefined') TECH_DATA.ticker = tk;
+  if (typeof FUND_DATA !== 'undefined') FUND_DATA.ticker = tk;
+  if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = tk;
+  if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
+  if (typeof STOCK_DOSSIER_STATE !== 'undefined' && STOCK_DOSSIER_STATE) STOCK_DOSSIER_STATE.ticker = tk;
+
+  var cur = (typeof currentPage !== 'undefined') ? currentPage : '';
+  if (cur === 'technical' && typeof techInit === 'function') techInit(false);
+  else if (cur === 'stock-intel' && typeof renderStockIntelPage === 'function') renderStockIntelPage();
+  else if (cur === 'fundamental' && typeof fundInit === 'function') fundInit();
+  else if (cur === 'stock-dossier' && typeof renderStockDossierPage === 'function') renderStockDossierPage();
+  else if (cur === 'stockchat' && typeof renderStockChatPage === 'function') renderStockChatPage();
+}
+
+function sm360SearchSubmit() {
+  var inp = document.getElementById('sm360-search-inp');
+  if (inp && inp.value.trim()) {
+    sm360SelectTicker(inp.value.trim());
+  }
+}
+
+window.renderStockMaster360Nav = renderStockMaster360Nav;
+window.sm360Go = sm360Go;
+window.sm360SelectTicker = sm360SelectTicker;
+window.sm360SearchSubmit = sm360SearchSubmit;
+
+// ============================================================
 // 1. MEGA FUNDAMENTAL SUITE LOGIC
 // ============================================================
 
 function fundInit() {
   var inp = document.getElementById('fundTickerInput');
   var tk = (inp && inp.value) ? inp.value.trim().toUpperCase() : (FUND_DATA.ticker || 'BBCA');
+  var m = document.getElementById('fund-sm360-mount');
+  if (m && typeof renderStockMaster360Nav === 'function') {
+    m.innerHTML = renderStockMaster360Nav('fundamental', tk);
+  }
   fundFetchData(tk);
 }
 
@@ -1228,6 +1339,10 @@ function fundCalculateDCF() {
 function techInit(force) {
   var inp = document.getElementById('techTickerInput');
   var tk = (inp && inp.value) ? inp.value.trim().toUpperCase() : (TECH_DATA.ticker || 'BBCA');
+  var m = document.getElementById('tech-sm360-mount');
+  if (m && typeof renderStockMaster360Nav === 'function') {
+    m.innerHTML = renderStockMaster360Nav('technical', tk);
+  }
   // Guard idempotensi: jika background tick (force === false) dan ticker sudah ter-render, lewati
   if (force === false && TECH_DATA.ticker === tk && TECH_DATA.lastRenderedTicker === tk) {
     return;
@@ -1414,12 +1529,18 @@ function techRenderMainChart(ticker) {
   var chg = curPrice - prevPrice;
   var chgPct = prevPrice > 0 ? (chg / prevPrice * 100) : 0;
 
+  var bVwapInfo = (typeof calculateBandarVwap === 'function') ? calculateBandarVwap(ticker) : null;
+  var bVwapHtml = (bVwapInfo && bVwapInfo.available)
+    ? ' <span class="badge" style="background:rgba(139,92,246,0.15);color:#A78BFA;border:1px solid rgba(139,92,246,0.3);font-size:10px;font-family:Fira Code,monospace">BANDAR VWAP: Rp ' + Number(bVwapInfo.vwap).toLocaleString('id-ID') + ' (' + (bVwapInfo.spreadPct >= 0 ? '+' : '') + bVwapInfo.spreadPct.toFixed(1) + '%)</span>'
+    : '';
+
   container.innerHTML = ''
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;flex-wrap:wrap;gap:8px">'
-    + '  <div style="display:flex;align-items:center;gap:10px">'
+    + '  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     + '    <span style="font-size:16px;font-weight:800;color:var(--text);font-family:Fira Code,monospace">' + ticker + '</span>'
     + '    <span style="font-size:16px;font-weight:700;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + Number(curPrice).toLocaleString('id-ID') + '</span>'
     + '    <span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chgPct.toFixed(2) + '%</span>'
+    + bVwapHtml
     + '  </div>'
     + '  <div style="display:flex;gap:6px;align-items:center">'
     + '    <button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')">Buka TradingView Pro</button>'
@@ -1446,32 +1567,46 @@ function techRenderMainChart(ticker) {
     grad.addColorStop(0, 'rgba(139, 92, 246, 0.25)');
     grad.addColorStop(1, 'rgba(139, 92, 246, 0)');
 
+    var chartDatasets = [
+      {
+        label: 'Close Price',
+        data: closePrices,
+        borderColor: '#0000FF',
+        borderWidth: 2,
+        backgroundColor: grad,
+        fill: true,
+        tension: 0.2,
+        pointRadius: 0,
+        pointHoverRadius: 4
+      },
+      {
+        label: 'MA 20',
+        data: ma20,
+        borderColor: '#10B981',
+        borderWidth: 1.5,
+        borderDash: [4, 4],
+        fill: false,
+        pointRadius: 0
+      }
+    ];
+
+    if (bVwapInfo && bVwapInfo.available && bVwapInfo.vwap > 0) {
+      chartDatasets.push({
+        label: 'Bandar VWAP (Rp ' + Number(bVwapInfo.vwap).toLocaleString('id-ID') + ')',
+        data: closePrices.map(function() { return bVwapInfo.vwap; }),
+        borderColor: '#8B5CF6',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        fill: false,
+        pointRadius: 0
+      });
+    }
+
     TECH_CHARTS.nativeChart = new Chart(cv, {
       type: 'line',
       data: {
         labels: labels,
-        datasets: [
-          {
-            label: 'Close Price',
-            data: closePrices,
-            borderColor: '#0000FF',
-            borderWidth: 2,
-            backgroundColor: grad,
-            fill: true,
-            tension: 0.2,
-            pointRadius: 0,
-            pointHoverRadius: 4
-          },
-          {
-            label: 'MA 20',
-            data: ma20,
-            borderColor: '#10B981',
-            borderWidth: 1.5,
-            borderDash: [4, 4],
-            fill: false,
-            pointRadius: 0
-          }
-        ]
+        datasets: chartDatasets
       },
       options: {
         responsive: true,
