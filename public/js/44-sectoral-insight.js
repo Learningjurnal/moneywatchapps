@@ -119,6 +119,18 @@
     }
   ];
 
+  /**
+   * Helper SSOT: Render Badge Singkatan Sektor (FIN, IND, INF, MAT, dst)
+   * Berformat card/pill berwarna seragam di seluruh tab & komponen Sectoral Insight
+   */
+  function siRenderSectorBadge(sec, extraStyle) {
+    if (!sec) return '';
+    var col = sec.color || '#3b82f6';
+    var icon = sec.icon || sec.key || 'IDX';
+    var style = 'font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.02em;color:' + col + ';background:' + col + '1a;border:1px solid ' + col + '40;border-radius:4px;padding:2px 5px;flex-shrink:0;display:inline-block;line-height:1.2;' + (extraStyle || '');
+    return '<span style="' + style + '">' + icon + '</span>';
+  }
+
   // State lokal Sectoral Insight
   var _siState = {
     timeframe: '1D', // '1D' | '1W' | '1M'
@@ -498,8 +510,9 @@
     if (elTopAcc) {
       elTopAcc.innerHTML = 
         '<div class="mlabel">Sektor Akumulasi Terkuat</div>' +
-        '<div class="mval up" style="font-size:16px;display:flex;align-items:center;gap:6px">' +
-          '<span>' + topAcc.icon + ' ' + topAcc.name + '</span>' +
+        '<div class="mval up" style="font-size:15px;display:flex;align-items:center;gap:7px">' +
+          siRenderSectorBadge(topAcc) +
+          '<span>' + topAcc.name + '</span>' +
         '</div>' +
         '<div class="msub" style="color:var(--text2)">CMF <strong>' + (topAcc.cmf >= 0 ? '+' : '') + topAcc.cmf.toFixed(2) + '</strong> · Ret <span class="' + (topAcc.retPct >= 0 ? 'up' : 'dn') + '">' + (topAcc.retPct >= 0 ? '+' : '') + topAcc.retPct.toFixed(1) + '%</span></div>';
     }
@@ -507,8 +520,9 @@
     if (elTopDist) {
       elTopDist.innerHTML = 
         '<div class="mlabel">Sektor Distribusi Terberat</div>' +
-        '<div class="mval dn" style="font-size:16px;display:flex;align-items:center;gap:6px">' +
-          '<span>' + topDist.icon + ' ' + topDist.name + '</span>' +
+        '<div class="mval dn" style="font-size:15px;display:flex;align-items:center;gap:7px">' +
+          siRenderSectorBadge(topDist) +
+          '<span>' + topDist.name + '</span>' +
         '</div>' +
         '<div class="msub" style="color:var(--text2)">CMF <strong>' + topDist.cmf.toFixed(2) + '</strong> · Ret <span class="' + (topDist.retPct >= 0 ? 'up' : 'dn') + '">' + (topDist.retPct >= 0 ? '+' : '') + topDist.retPct.toFixed(1) + '%</span></div>';
     }
@@ -1000,9 +1014,10 @@
         var cmfPct = ((cmfNorm + 1) / 2) * 100;
 
         var ttHtml = 
-          '<div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
-            '<span>' + d.icon + ' ' + d.name + '</span>' +
-            '<span style="font-size:10px;color:var(--text3)">(' + d.labelId + ')</span>' +
+          '<div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:7px;margin-bottom:4px">' +
+            siRenderSectorBadge(d) +
+            '<span>' + d.name + '</span>' +
+            '<span style="font-size:10px;color:var(--text3);font-weight:normal">(' + d.labelId + ')</span>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
             '<span class="badge ' + d.flowBadgeClass + '" style="font-size:9.5px">' + d.flowStatus + '</span>' +
@@ -1187,7 +1202,7 @@
       html += '<div class="si-flow-row" onclick="siSelectSector(\'' + sec.key + '\')" style="padding:10px 14px;border-radius:8px;cursor:pointer;transition:all 0.2s;' + borderStyle + opacityStyle + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
-            '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.02em;color:' + sec.color + ';background:' + sec.color + '1a;border:1px solid ' + sec.color + '40;border-radius:4px;padding:2px 5px">' + sec.icon + '</span>' +
+            siRenderSectorBadge(sec) +
             '<span style="font-weight:700;font-size:13px;color:var(--text)">' + sec.name + '</span>' +
             '<span style="font-size:11px;color:var(--text3)">(' + sec.labelId + ')</span>' +
             (isSelected ? '<span class="badge b-accent" style="font-size:9px;padding:1px 6px">TERPILIH</span>' : '') +
@@ -1304,8 +1319,8 @@
       var border = isSel ? 'border:1.5px solid var(--accent)' : 'border:1px solid var(--border2)';
       var bg = isSel ? 'var(--brand-soft)' : 'var(--bg3)';
       var retCol = s.retPct >= 0 ? '#10b981' : '#ef4444';
-      return '<button type="button" onclick="siSelectSector(\'' + s.key + '\');siToggleMatrixLegend(false);" class="btn btn-ghost btn-xs" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;font-size:10px;border-radius:4px;background:' + bg + ';' + border + ';color:var(--text)" title="Klik untuk filter berita sektor ' + s.name + '">' +
-        '<span>' + s.icon + '</span> ' +
+      return '<button type="button" onclick="siSelectSector(\'' + s.key + '\');siToggleMatrixLegend(false);" class="btn btn-ghost btn-xs" style="display:inline-flex;align-items:center;gap:6px;padding:3px 8px;font-size:10px;border-radius:5px;background:' + bg + ';' + border + ';color:var(--text)" title="Klik untuk filter berita sektor ' + s.name + '">' +
+        siRenderSectorBadge(s) +
         '<strong>' + s.name + '</strong> ' +
         '<span style="font-family:var(--font-mono);font-size:9.5px;color:' + retCol + '">' + (s.retPct >= 0 ? '+' : '') + s.retPct.toFixed(1) + '%</span>' +
       '</button>';
@@ -2013,9 +2028,10 @@
           }
 
           var ttHtml = 
-            '<div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
-              '<span>' + d.icon + ' ' + d.name + '</span>' +
-              '<span style="font-size:10px;color:var(--text3)">(' + d.labelId + ')</span>' +
+            '<div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:7px;margin-bottom:4px">' +
+              siRenderSectorBadge(d) +
+              '<span>' + d.name + '</span>' +
+              '<span style="font-size:10px;color:var(--text3);font-weight:normal">(' + d.labelId + ')</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
               '<span class="badge" style="background:' + q.bgTint + ';border:1px solid ' + q.color + ';color:' + q.color + ';font-size:10px;font-weight:700">' + q.titleId + '</span>' +
@@ -2169,23 +2185,23 @@
           }
 
           cardHtml += 
-            '<div class="si-matrix-sector-chip" onclick="siSelectSector(\'' + sec.key + '\')" style="display:flex;flex-direction:column;gap:3px;padding:6px 8px;border-radius:5px;background:' + chipBg + ';' + chipBorder + ';cursor:pointer" title="Klik untuk memfilter berita sektor ' + sec.name + '">' +
-              '<div style="display:flex;justify-content:space-between;align-items:center">' +
-                '<div style="display:flex;align-items:center;gap:6px">' +
-                  '<span style="font-size:12px">' + sec.icon + '</span>' +
-                  '<span style="font-size:11px;font-weight:600;color:' + (isSel ? quadMeta.color : 'var(--text)') + '">' + sec.name + '</span>' +
-                  (isSel ? '<span class="badge b-accent" style="font-size:8.5px;padding:0 4px">AKTIF</span>' : '') +
+            '<div class="si-matrix-sector-chip" onclick="siSelectSector(\'' + sec.key + '\')" style="display:flex;flex-direction:column;gap:4px;padding:7px 10px;border-radius:6px;background:' + chipBg + ';' + chipBorder + ';cursor:pointer" title="Klik untuk memfilter berita sektor ' + sec.name + '">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+                '<div style="display:flex;align-items:center;gap:7px;min-width:0">' +
+                  siRenderSectorBadge(sec) +
+                  '<span style="font-size:11.5px;font-weight:700;color:' + (isSel ? quadMeta.color : 'var(--text)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + sec.name + '</span>' +
+                  (isSel ? '<span class="badge b-accent" style="font-size:8.5px;padding:0 4px;flex-shrink:0">AKTIF</span>' : '') +
                 '</div>' +
-                '<div style="display:flex;align-items:center;gap:6px">' +
-                  '<span style="font-size:10px;font-family:var(--font-mono);color:' + (sec.retPct >= 0 ? '#10b981' : '#ef4444') + '">' +
+                '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">' +
+                  '<span style="font-size:10.5px;font-family:var(--font-mono);font-weight:600;color:' + (sec.retPct >= 0 ? '#10b981' : '#ef4444') + '">' +
                     (sec.retPct >= 0 ? '+' : '') + sec.retPct.toFixed(1) + '%' +
                   '</span>' +
-                  '<span style="font-size:10px;font-family:var(--font-mono);font-weight:700;color:' + (sec.cmf >= 0 ? '#10b981' : '#ef4444') + '">' +
+                  '<span style="font-size:9.5px;font-family:var(--font-mono);font-weight:700;padding:1px 5px;border-radius:3px;background:' + (sec.cmf >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)') + ';color:' + (sec.cmf >= 0 ? '#10b981' : '#ef4444') + '">' +
                     'CMF ' + (sec.cmf >= 0 ? '+' : '') + sec.cmf.toFixed(2) +
                   '</span>' +
                 '</div>' +
               '</div>' +
-              (moverPreview ? '<div style="font-size:9px;color:var(--text3);padding-left:18px">Penggerak: ' + moverPreview + '</div>' : '') +
+              (moverPreview ? '<div style="font-size:9.5px;color:var(--text3);line-height:1.3;padding-left:1px">Penggerak: ' + moverPreview + '</div>' : '') +
             '</div>';
         });
       }
@@ -2247,9 +2263,15 @@
     if (filterBadge) {
       if (activeSectorObj) {
         filterBadge.innerHTML = 
-          '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--brand-soft);border:1px solid var(--accent);border-radius:6px;font-size:11px">' +
-            '<span>Filter Aktif: <strong>' + activeSectorObj.icon + ' ' + activeSectorObj.name + ' (' + activeSectorObj.labelId + ')</strong></span>' +
-            '<button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="padding:1px 6px;margin-left:auto;border-color:var(--border);color:var(--text2)">Tampilkan Semua</button>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:var(--brand-soft);border:1px solid var(--accent);border-radius:6px;font-size:11px">' +
+            '<div style="display:flex;align-items:center;gap:7px">' +
+              '<span>Filter Aktif:</span>' +
+              siRenderSectorBadge(activeSectorObj) +
+              '<strong>' + activeSectorObj.name + ' <span style="font-size:10px;color:var(--text3);font-weight:normal">(' + activeSectorObj.labelId + ')</span></strong>' +
+            '</div>' +
+            '<button type="button" class="btn btn-ghost btn-xs" onclick="siClearSectorFilter()" style="font-size:10px;padding:2px 6px;color:var(--text2);border:1px solid var(--border)" title="Lepas Filter (Tampilkan Semua Sektor)">' +
+              '✕ Hapus Filter' +
+            '</button>' +
           '</div>';
       } else {
         filterBadge.innerHTML = 
@@ -2379,12 +2401,7 @@
         '<td style="font-family:var(--font-mono);color:var(--text3)">' + (idx + 1) + '</td>' +
         '<td>' +
           '<div style="display:flex;align-items:center;gap:8px">' +
-            // Kode 3-huruf sebagai badge kecil bertinta warna sektor — tadinya
-            // teks polos 16px (LEBIH BESAR dari nama sektornya sendiri di
-            // 12.5px), sehingga kode singkatan justru terlihat lebih dominan
-            // daripada nama sektor. Sekarang jadi elemen sekunder yang jelas
-            // (pill kecil, monospace, ~9px) supaya nama sektor yang menonjol.
-            '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.02em;color:' + sec.color + ';background:' + sec.color + '1a;border:1px solid ' + sec.color + '40;border-radius:4px;padding:2px 5px;flex-shrink:0">' + sec.icon + '</span>' +
+            siRenderSectorBadge(sec) +
             '<div>' +
               '<div style="font-weight:700;font-size:12.5px;color:var(--text)">' + sec.name + '</div>' +
               '<div style="font-size:10.5px;color:var(--text3)">' + sec.labelId + ' · ' + sec.desc + '</div>' +
