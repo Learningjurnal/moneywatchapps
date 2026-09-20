@@ -1368,7 +1368,7 @@ function renderRisiko(){
   var unreal=porto.reduce(function(a,p){return a+p.unreal},0);
   var totalReturn=(realPnl+unreal)/totalCost;
   var rfRate=0.065; // Risk-free 6.5% (BI rate approx)
-  var sharpe=((totalReturn-rfRate/252*transactions.length)/avgVol).toFixed(2);
+  var sharpe=(avgVol>0&&isFinite(totalReturn))?((totalReturn-rfRate/252*(typeof transactions!=='undefined'?transactions.length:0))/avgVol).toFixed(2):'0.00';
   // Win rate
   var sells=transactions.filter(function(t){return t.type==='SELL'});
   var wins=0;var pos2={};

@@ -7510,6 +7510,26 @@ await asyncTest('REGRESSION GUARD: OpenRouter backup provider — config gating,
     'REGRESSION: GET /api/ai/status no longer reports backupAvailable/backupModel — the toolbar "AI Engine" indicator can no longer distinguish "OpenRouter backup configured" from "no AI configured at all"');
 });
 
+test('REGRESSION GUARD: math safety & zero-division guards in Sharpe, real beta, and ETF allocation', () => {
+  const renderSrc = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
+  assert(
+    renderSrc.includes('var sharpe=(avgVol>0&&isFinite(totalReturn))?'),
+    'REGRESSION: 04-render.js renderRisiko() must guard avgVol>0 and isFinite(totalReturn) before dividing to calculate sharpe'
+  );
+
+  const perfSrc = fs.readFileSync(path.join(__dirname, 'public/js/21-performance.js'), 'utf8');
+  assert(
+    perfSrc.includes('var portBeta = okMV > 0 ?'),
+    'REGRESSION: 21-performance.js perfPaintRealBeta() must guard okMV>0 before computing weighted portBeta and portAlpha'
+  );
+
+  const assetsSrc = fs.readFileSync(path.join(__dirname, 'public/js/05-assets.js'), 'utf8');
+  assert(
+    assetsSrc.includes('var pctCat=(d.mv/totV2*100);'),
+    'REGRESSION: 05-assets.js renderEtf() must divide by totV2 (or guard totalMVIdr) when computing pctCat'
+  );
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

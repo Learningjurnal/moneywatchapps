@@ -1018,7 +1018,7 @@ function renderEtf(){
   // Category breakdown
   var byCat={};porto.forEach(function(p){var cat=p.info.category;if(!byCat[cat])byCat[cat]={mv:0,cnt:0};byCat[cat].mv+=p.mvIdr;byCat[cat].cnt++;});
   el('etf-category').innerHTML=Object.entries(byCat).sort(function(a,b){return b[1].mv-a[1].mv}).map(function(e){
-    var cat=e[0],d=e[1];var col=ETF_CATEGORIES[cat]||'#4a5e82';var pctCat=(d.mv/totalMVIdr*100);
+    var cat=e[0],d=e[1];var col=ETF_CATEGORIES[cat]||'#4a5e82';var pctCat=(d.mv/totV2*100);
     return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><div style="display:flex;align-items:center;gap:6px"><span class="sec-dot" style="background:'+col+'"></span><span style="font-size:11px;font-weight:600">'+cat+'</span></div><span style="font-family:var(--font-mono);font-size:10px">'+pctCat.toFixed(1)+'%</span></div><div class="prog"><div class="progf" style="width:'+pctCat.toFixed(1)+'%;background:'+col+'"></div></div><div style="font-size:9px;color:var(--text3);margin-top:2px">'+d.cnt+' ETF · Rp '+fmtK(d.mv)+'</div></div>';
   }).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">Belum ada ETF</div>';
 

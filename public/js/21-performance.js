@@ -973,9 +973,9 @@ function perfPaintRealBeta(data){
     box.innerHTML = '<div class="alert alert-warn">Belum ada riwayat harga riil yang cukup panjang (min. 20 hari overlap dengan IHSG) untuk saham manapun di portofolio Anda. Coba lagi setelah beberapa siklus refresh harga otomatis berjalan.</div>';
     return;
   }
-  var portBeta = ok.reduce(function(a,r){return a+r.beta*(r.mv/okMV);},0);
-  var portAlpha = ok.reduce(function(a,r){return a+r.alpha*(r.mv/okMV);},0);
-  var coverage = (okMV/totalMV*100);
+  var portBeta = okMV > 0 ? ok.reduce(function(a,r){return a+r.beta*(r.mv/okMV);},0) : (ok.reduce(function(a,r){return a+r.beta;},0) / ok.length);
+  var portAlpha = okMV > 0 ? ok.reduce(function(a,r){return a+r.alpha*(r.mv/okMV);},0) : (ok.reduce(function(a,r){return a+r.alpha;},0) / ok.length);
+  var coverage = totalMV > 0 ? (okMV/totalMV*100) : 0;
 
   var html = '<div class="row3" style="margin-bottom:14px">'
     +'<div class="metric" style="margin:0"><div class="mlabel">Beta Portofolio (Riil)</div><div class="mval '+(portBeta<=1?'up':portBeta<=1.3?'amb':'dn')+'" style="font-size:20px">'+portBeta.toFixed(2)+'</div><div class="msub neu">'+(portBeta>1?'lebih volatil dari IHSG':'lebih defensif dari IHSG')+'</div></div>'
