@@ -7307,18 +7307,18 @@ test('REGRESSION GUARD: "Eksekusi no 2" — Valuation (Harga Wajar) consolidated
 // ── TEST: user-reported (2026-09-19, "hapus sidebar valuation double
 // dengan fundamental kalkulator harga saham manual cek dulu kebenaran
 // nya") — after "Eksekusi no 2" merged Harga Wajar into Fundamental as a
-// tab, the sidebar still had 2 separate top-level buttons ("Fundamental"
-// and "Valuation") that both land on the exact same page-fundamental
-// container (goPage('hargawajar') is aliased there) — a genuine duplicate
-// menu entry, confirmed by re-reading the code before removing it.
-test('REGRESSION GUARD: sidebar no longer has a separate "Valuation" button duplicating "Fundamental" (both used to land on the same page-fundamental container)', () => {
+// tab, the sidebar had duplicate buttons ("Valuation", "Fundamental", "Technical")
+// that duplicated what is already integrated inside the Stock Master 360 terminal.
+// Per user directive ("gabungkan banyak fungsi analisa pada 1 sidebar, maka hapus side bar yang terpisah"),
+// single-stock analysis is consolidated into Stock Master 360, while deep-links to 'fundamental' remain active.
+test('REGRESSION GUARD: sidebar consolidates single-stock analysis into Stock Master 360 without duplicate standalone Valuation/Fundamental buttons', () => {
   const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
   const uiJs = fs.readFileSync(path.join(__dirname, 'public/js/29-institutional-ui.js'), 'utf8');
 
   assert(!/side-label">Valuation<\/span>/.test(indexHtml),
-    'REGRESSION: the sidebar "Valuation" button is back — it navigates to the exact same page as "Fundamental" (goPage(\'hargawajar\') is aliased to \'fundamental\', see the "Eksekusi no 2" fix), so having both is a duplicate menu entry');
-  assert(/side-label">Fundamental<\/span>/.test(indexHtml),
-    'REGRESSION: the sidebar "Fundamental" button itself was removed along with "Valuation" — only the duplicate should have been removed, not the real page link');
+    'REGRESSION: the sidebar "Valuation" button is back — it navigates to the exact same page as "Fundamental", so having both is a duplicate menu entry');
+  assert(/side-label">Stock Master 360<\/span>/.test(indexHtml),
+    'REGRESSION: the sidebar "Stock Master 360" button is missing — single stock analysis is consolidated here');
   // goPage('hargawajar') itself must still work (deep-links from Stock
   // Intel/Knowledge Guide/Wealth quick-links still call it) — only the
   // sidebar's OWN button was removed, not the underlying alias/route.

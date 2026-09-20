@@ -422,6 +422,119 @@ await asyncTest('aiSetScanUniverse(): a universe larger than one batch is fetche
 });
 
 // ============================================================
+// checkInvezgoLiveStatus() — regression test for live connectivity
+// checks against Invezgo API status/quota.
+// Exercises NOT_CONFIGURED, 200 ACTIVE, 401 UNAUTHORIZED, 403 FORBIDDEN,
+// and network error using mocked global.fetch.
+// ============================================================
+await (async () => {
+  const originalKey = process.env.INVEZGO_API_KEY;
+  const originalFetch = global.fetch;
+
+  try {
+    const { checkInvezgoLiveStatus } = await import('./lib/invezgo-client.js');
+
+    // 1. NOT_CONFIGURED
+    delete process.env.INVEZGO_API_KEY;
+    const resUnset = await checkInvezgoLiveStatus();
+    assert.strictEqual(resUnset.configured, false);
+    assert.strictEqual(resUnset.status, 'NOT_CONFIGURED');
+    test('checkInvezgoLiveStatus: returns NOT_CONFIGURED when INVEZGO_API_KEY is not set', () => {
+      assert.strictEqual(resUnset.configured, false);
+    });
+
+    // 2. ACTIVE (200 OK)
+    process.env.INVEZGO_API_KEY = 'test_valid_key';
+    global.fetch = async (url) => {
+      if (String(url).includes('/usage/api')) {
+        return {
+          status: 200,
+          json: async () => ({ expire: '2026-12-31T00:00:00.000Z', quota: 50000, used: 120 })
+        };
+      }
+      return { status: 404, json: async () => ({}) };
+    };
+    const resActive = await checkInvezgoLiveStatus();
+    test('checkInvezgoLiveStatus: returns ACTIVE (200) with quota metadata when valid', () => {
+      assert.strictEqual(resActive.configured, true);
+      assert.strictEqual(resActive.status, 'ACTIVE');
+      assert.strictEqual(resActive.httpStatus, 200);
+      assert.strictEqual(resActive.quota.quota, 50000);
+    });
+
+    // 3. UNAUTHORIZED (401)
+    global.fetch = async () => ({ status: 401, json: async () => ({}) });
+    const res401 = await checkInvezgoLiveStatus();
+    test('checkInvezgoLiveStatus: returns UNAUTHORIZED on 401 response', () => {
+      assert.strictEqual(res401.configured, true);
+      assert.strictEqual(res401.status, 'UNAUTHORIZED');
+      assert.strictEqual(res401.httpStatus, 401);
+    });
+
+    // 4. FORBIDDEN (403)
+    global.fetch = async () => ({ status: 403, json: async () => ({}) });
+    const res403 = await checkInvezgoLiveStatus();
+    test('checkInvezgoLiveStatus: returns FORBIDDEN on 403 response', () => {
+      assert.strictEqual(res403.configured, true);
+      assert.strictEqual(res403.status, 'FORBIDDEN');
+      assert.strictEqual(res403.httpStatus, 403);
+    });
+
+    // 5. NETWORK_ERROR
+    global.fetch = async () => { throw new Error('DNS lookup failed'); };
+    const resNetErr = await checkInvezgoLiveStatus();
+    test('checkInvezgoLiveStatus: returns NETWORK_ERROR when fetch throws', () => {
+      assert.strictEqual(resNetErr.configured, true);
+      assert.strictEqual(resNetErr.status, 'NETWORK_ERROR');
+    });
+
+  } finally {
+    if (originalKey !== undefined) {
+      process.env.INVEZGO_API_KEY = originalKey;
+    } else {
+      delete process.env.INVEZGO_API_KEY;
+    }
+    global.fetch = originalFetch;
+  }
+})();
+
+// ============================================================
+// getLatestEodTradingDate() — regression test for trading day anchor
+// Verifies Sunday, Saturday, Monday pre-EOD, and post-EOD anchors.
+// ============================================================
+await (async () => {
+  const { getLatestEodTradingDate } = await import('./lib/invezgo-client.js');
+
+  // Sunday 2026-09-20 -> Friday 2026-09-18
+  const sunday = new Date('2026-09-20T10:00:00.000Z');
+  const resSun = getLatestEodTradingDate(sunday);
+  test('getLatestEodTradingDate: anchors Sunday to preceding Friday', () => {
+    assert.strictEqual(resSun, '2026-09-18');
+  });
+
+  // Saturday 2026-09-19 -> Friday 2026-09-18
+  const saturday = new Date('2026-09-19T10:00:00.000Z');
+  const resSat = getLatestEodTradingDate(saturday);
+  test('getLatestEodTradingDate: anchors Saturday to preceding Friday', () => {
+    assert.strictEqual(resSat, '2026-09-18');
+  });
+
+  // Monday morning 09:00 WIB (02:00 UTC) -> Friday 2026-09-18
+  const mondayMorning = new Date('2026-09-21T02:00:00.000Z');
+  const resMonMorn = getLatestEodTradingDate(mondayMorning);
+  test('getLatestEodTradingDate: anchors Monday pre-EOD (before 17:30 WIB) to preceding Friday', () => {
+    assert.strictEqual(resMonMorn, '2026-09-18');
+  });
+
+  // Monday evening 19:00 WIB (12:00 UTC) -> Monday 2026-09-21
+  const mondayNight = new Date('2026-09-21T12:00:00.000Z');
+  const resMonNight = getLatestEodTradingDate(mondayNight);
+  test('getLatestEodTradingDate: retains Monday post-EOD (after 17:30 WIB)', () => {
+    assert.strictEqual(resMonNight, '2026-09-21');
+  });
+})();
+
+// ============================================================
 console.log('═══════════════════════════════════════════════════════');
 if (passedTests === totalTests) {
   console.log(`🎉 ALL ${passedTests}/${totalTests} PROVIDER FUNCTION TESTS PASSED`);

@@ -623,16 +623,44 @@
         var inv = await invRes.json();
         if (inv && inv.success) {
           var q = inv.quota;
+          var live = inv.live || {};
+          var statusHtml = '';
+
+          if (!inv.configured) {
+            statusHtml =
+              '<div style="padding:10px 12px;border-radius:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);margin-bottom:10px">' +
+              '<div style="font-weight:700;color:var(--red);margin-bottom:4px">API Key Belum Dikonfigurasi</div>' +
+              '<div style="font-size:11px;color:var(--text2);line-height:1.4">' +
+              'Anda sudah berlangganan? Dapatkan API Key di <a href="https://invezgo.com/id/setting/api" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">invezgo.com/id/setting/api</a>, lalu tambahkan ke file <code style="color:var(--accent)">.env</code> atau Vercel Environment Variables: ' +
+              '<div style="font-family:monospace;background:var(--bg3);padding:4px 6px;border-radius:4px;margin-top:4px;word-break:break-all">INVEZGO_API_KEY=token_invezgo_anda</div>' +
+              '</div>' +
+              '</div>';
+          } else if (live.status === 'ACTIVE') {
+            var expireStr = live.quota && live.quota.expire ? ' &middot; Exp: ' + new Date(live.quota.expire).toLocaleDateString('id-ID') : '';
+            statusHtml =
+              '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">' +
+              '<span class="badge b-up" style="font-size:11px">Terhubung (Invezgo API Aktif)</span>' +
+              '<span style="font-size:11px;color:var(--text3)">' + expireStr + '</span>' +
+              '</div>';
+          } else if (live.status === 'UNAUTHORIZED' || live.status === 'FORBIDDEN') {
+            statusHtml =
+              '<div style="padding:10px 12px;border-radius:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);margin-bottom:10px;font-size:11px;color:var(--red)">' +
+              '<div style="font-weight:700;margin-bottom:2px">Akses API Ditolak (' + escHtml(live.status) + ')</div>' +
+              '<div>' + escHtml(live.message || 'Token tidak valid atau belum memiliki hak akses API (Advance).') + '</div>' +
+              '</div>';
+          }
+
           var badgeCls = q.alert90 ? 'b-dn' : (q.alert80 ? 'b-amb' : 'b-up');
           invezgoBox.innerHTML =
+            statusHtml +
             '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">' +
             '<span style="font-size:20px;font-weight:700;color:var(--text)">' + q.usagePct + '%</span>' +
             '<span class="badge ' + badgeCls + '">' + fmt(q.used) + ' / ' + fmt(q.monthlyBudget) + ' req/bulan</span>' +
             '</div>' +
             quotaBar(q.usagePct, q.alert90, q.alert80) +
             '<div style="color:var(--text3)">Sisa: ' + fmt(q.remaining) + ' req &middot; Cache hit hari ini: ' + (inv.today.cacheHitRatioPct !== null ? inv.today.cacheHitRatioPct + '%' : '-') + '</div>' +
-            (q.alert90 ? '<div style="color:var(--red);font-weight:600;margin-top:6px">&#9888; Sudah &gt;90% kuota bulanan — risiko rate-limit Invezgo sebelum bulan berganti.</div>' :
-              q.alert80 ? '<div style="color:#f59e0b;font-weight:600;margin-top:6px">&#9888; Sudah &gt;80% kuota bulanan.</div>' : '');
+            (q.alert90 ? '<div style="color:var(--red);font-weight:600;margin-top:6px">Sudah &gt;90% kuota bulanan. Risiko rate-limit Invezgo sebelum bulan berganti.</div>' :
+              q.alert80 ? '<div style="color:#f59e0b;font-weight:600;margin-top:6px">Sudah &gt;80% kuota bulanan.</div>' : '');
         } else {
           invezgoBox.innerHTML = '<span style="color:var(--text3)">Data kuota tidak tersedia.</span>';
         }

@@ -803,51 +803,22 @@
   <div class="side-group open" data-group="markets">
     <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-chart-bar"></i><span class="side-label">MARKETS</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <!-- "Market Radar" (goPage('ranking')) digabung ke nav "Screener" di
-           atas (COMMAND CENTER) — tombol dihapus di sini supaya tidak ada
-           2 tombol berbeda menuju halaman yang sama. -->
       <button onclick="goPage('watchlist',this)"><i class="ti ti-star"></i><span class="side-label">Watchlist</span><span id="fs-wl-count" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">0</span></button>
+      <button onclick="goBandarmology('market',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Market Flow</span></button>
       <button onclick="goPage('sectoral-insight',this)"><i class="ti ti-chart-arcs"></i><span class="side-label">Sector Insight</span></button>
     </div>
   </div>
 
-  <!-- 3. TRADING TOOLS (single-stock analysis, flow, quant analysis) -->
+  <!-- 3. TRADING & ANALYSIS (Deduplicated single-stock terminal & quant tools) -->
   <div class="side-group open" data-group="research">
-    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-tools"></i><span class="side-label">TRADING TOOLS</span><span class="side-chevron">▾</span></button>
+    <button class="side-sec-toggle" onclick="sideToggleGroup(this)"><i class="ti ti-tools"></i><span class="side-label">TRADING &amp; ANALYSIS</span><span class="side-chevron">▾</span></button>
     <div class="side-group-items">
-      <button onclick="goPage('stock-dossier',this)"><i class="ti ti-file-analytics"></i><span class="side-label">Stock Dossier</span></button>
-      <button onclick="goPage('stock-intel',this)"><i class="ti ti-radar"></i><span class="side-label">Stock Intel</span></button>
-      <!-- FIX (2026-09-19, user-reported: "hapus sidebar valuation double
-           dengan fundamental kalkulator harga saham manual"): tombol
-           "Valuation" (goPage('hargawajar')) DIHAPUS dari sidebar — sejak
-           "Eksekusi no 2" (lihat INCIDENT_LOG.md), goPage('hargawajar')
-           sudah dialihkan ke container 'fundamental' + auto-switch ke tab
-           "Kalkulator Harga Wajar (Manual)" (fund-nav-4). Klik "Valuation"
-           dan klik "Fundamental" mendarat di HALAMAN YANG SAMA PERSIS —
-           satu-satunya beda tab awal yang aktif — jadi 2 tombol sidebar
-           terpisah untuk halaman yang sama adalah duplikat menu murni.
-           goPage('hargawajar') SENDIRI tetap ada (dipakai handoff dari
-           Stock Intel/Knowledge Guide/Wealth quick-link), yang dihapus
-           HANYA entry sidebar-nya. Kalkulator Harga Wajar tetap bisa
-           diakses via tab "Kalkulator Harga Wajar (Manual)" di halaman
-           Fundamental. -->
-      <button onclick="goPage('fundamental',this)"><i class="ti ti-report-analytics"></i><span class="side-label">Fundamental</span></button>
-      <button onclick="goPage('technical',this)"><i class="ti ti-chart-candle"></i><span class="side-label">Technical</span></button>
+      <!-- Stock Master 360: Terminal analisis tunggal terpadu 6 pilar (Valuasi,
+           Bandarmology, Teknikal, KSEI, Fundamental, dan Market Regime).
+           Tombol terpisah Fundamental & Technical Chart dihapus dari sidebar
+           karena sudah menjadi tab terpadu di dalam Stock Master 360. -->
+      <button onclick="goPage('stock-dossier',this)"><i class="ti ti-file-analytics"></i><span class="side-label">Stock Master 360</span></button>
       <button onclick="goPage('crypto-technical',this)"><i class="ti ti-currency-bitcoin"></i><span class="side-label">Crypto Technical</span></button>
-      <button onclick="goBandarmology('market',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Bandarmology</span></button>
-      <!-- "Volume Spike" (goPage('volume-spike')) juga digabung ke nav
-           "Screener" 2026-09-19 (user-directed: "volume spike, quant
-           analysis masuk tab screener, karena seluruh fungsinya sama2
-           deteksi") — Volume Spike Scanner kini jadi tab di halaman
-           Screener (lihat page-radar + public/js/48-unified-screener.js).
-           Tombol dihapus di sini. -->
-      <!-- "Smart Money Screener" (goPage('scanner')) digabung ke nav
-           "Screener" (COMMAND CENTER) — tombol dihapus di sini. -->
-      <!-- "TradeWave" (goPage('tradewave')) juga digabung ke nav "Screener"
-           2026-09-18 (user-directed: "toolbar trade wave di hilangkan saja
-           semua bergabung di scanner") — Wave Cockpit & Risk Planner kini
-           jadi tab di halaman Screener (lihat page-radar +
-           public/js/48-unified-screener.js). Tombol dihapus di sini. -->
       <button onclick="goPage('correlation',this)"><i class="ti ti-chart-dots"></i><span class="side-label">Quant Analysis</span></button>
     </div>
   </div>

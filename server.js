@@ -2,6 +2,15 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+
+if (typeof process.loadEnvFile === 'function' && fs.existsSync('.env')) {
+  try {
+    process.loadEnvFile();
+  } catch (e) {
+    console.warn('[env] Gagal memuat .env:', e.message);
+  }
+}
+
 import Anthropic from '@anthropic-ai/sdk';
 import {
   loadBaseUniverse,
@@ -40,7 +49,7 @@ import {
   getDataQualityTelemetry,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
-import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA } from './lib/invezgo-client.js';
+import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus } from './lib/invezgo-client.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -3315,6 +3324,10 @@ app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
     const quote = await fetchYahooQuote(ticker);
     const summary = await generateBrokerSummary(ticker, quote, timeframe);
 
+    if ((!summary.price || summary.price <= 0) && summary.topBuyers && summary.topBuyers.length > 0) {
+      summary.price = summary.topBuyers[0].avgPrice || 0;
+    }
+
     if (summary.isValidTicker === false || summary.price <= 0) {
       return res.json({
         success: false,
@@ -3356,10 +3369,16 @@ app.get('/api/idx/broker-summary-by-broker/:code', async (req, res) => {
 // Aggregate counters only — no financial/user data exposed.
 app.get('/api/idx/invezgo-status', async (req, res) => {
   try {
-    const [quota, metrics] = await Promise.all([getQuotaUsage(), getMetricsToday()]);
+    const [quota, metrics, liveCheck] = await Promise.all([
+      getQuotaUsage(),
+      getMetricsToday(),
+      checkInvezgoLiveStatus()
+    ]);
     const cacheTotal = (metrics.cache_hits || 0) + (metrics.cache_misses || 0);
     return res.json({
       success: true,
+      configured: Boolean(process.env.INVEZGO_API_KEY),
+      live: liveCheck,
       quota: {
         used: quota.used,
         monthlyBudget: MONTHLY_QUOTA,

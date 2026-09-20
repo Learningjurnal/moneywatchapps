@@ -1,6 +1,6 @@
-# 💼 Money Watch Pro — Production Final Release
+# 💼 Money Watch Pro — Production Final Release (v6.2.0)
 
-Terminal investasi & manajemen kekayaan komprehensif untuk investor pasar modal Indonesia (IDX) dan multi-aset (Saham, Reksa Dana, Obligasi/SBN, Crypto, ETF, Kas RDN). Dilengkapi toolkit analisa kuantitatif, analisis kepemilikan KSEI 5%+, valuasi margin of safety, tracking dividen otomatis dengan regulasi pajak terkini (PMK 18/2021), AI Copilot berbasis Claude, serta ekspor laporan investasi PDF.
+Terminal investasi & manajemen kekayaan komprehensif untuk investor pasar modal Indonesia (IDX) dan multi-aset (Saham, Reksa Dana, Obligasi/SBN, Crypto, ETF, Kas RDN). Dilengkapi toolkit analisa kuantitatif, analisis kepemilikan KSEI 5%+, valuasi margin of safety, tracking dividen otomatis dengan regulasi pajak terkini (PMK 18/2021), AI Copilot & StockChat berbasis Claude dengan tool-calling, Stock Master Terminal 360 terpadu, serta ekspor laporan investasi PDF.
 
 ---
 
@@ -8,145 +8,155 @@ Terminal investasi & manajemen kekayaan komprehensif untuk investor pasar modal 
 
 | Lapisan | Teknologi |
 |---|---|
-| **Front-end** | Vanilla JavaScript (tanpa framework SPA) — 41 modul `public/js/*.js` dimuat langsung via `<script>`, di-route client-side (`goPage()`/`renderPage()`, `06-analysis-router.js`) |
-| **Styling** | Tailwind CSS (CDN play-mode) + CSS custom (`main.css`, `wealth.css`), tema gelap/terang berbasis CSS variables |
-| **Chart & Visual** | Chart.js 4.4.1, D3.js v7, SheetJS (`xlsx.js`) untuk import/export Excel, `html2pdf.js` untuk laporan PDF |
-| **AI/ML client-side** | `onnxruntime-web` — menjalankan model XGBoost (dilatih via `ml/train_xgb_signal.py`) langsung di browser untuk sinyal AI Trading |
-| **Back-end** | Node.js + Express.js (`server.js`) — proxy CORS Yahoo Finance, endpoint data IDX (`/api/idx/*`), agent AI, dan penyimpanan user-data |
-| **Kecerdasan Buatan (AI Agent)** | **Anthropic Claude** (`@anthropic-ai/sdk`, model `claude-sonnet-5`) dengan tool-calling (cek_harga, cek_fundamental, cek_broker_summary, cek_portofolio_user, dll) untuk StockChat AI & AI Copilot |
-| **Database & Auth** | **Supabase** (PostgreSQL + Auth) — data per-user ditulis langsung dari client (`02-storage.js`), fallback lokal via `localStorage` untuk Mode Tamu/Demo |
-| **Data Broker/Bandarmology** | **Invezgo API** (real broker summary & foreign flow per saham) — fallback otomatis ke simulasi berlabel jujur (`isSimulated: true`, badge "⚠ Simulasi" di UI) kalau tidak dikonfigurasi |
-| **Cache & Rate-Limit** | **Upstash Redis** (REST API) — menjaga kuota bulanan & cache respons Invezgo tetap konsisten lintas serverless invocation |
-| **Harga Real-Time** | Yahoo Finance (via proxy server `/api/proxy` & `rdEnsure()`/`yfFetch()` client-side) — saham IDX, crypto (ticker `-USD`, *bukan* Binance/Indodax), IHSG |
-| **Deployment** | **Vercel** (serverless — `api/index.js`, lihat `vercel.json`), file statis di-serve dari `public/` |
-| **Testing** | 4 suite Node.js native (`test_suite.js`, `test_financial_policy.js`, `test_provider_functions.js`, `test_security_regressions.js`) — 154 test, dijalankan via `npm test` |
-| **Lint** | `eslint` + `node --check` per file kritikal (`npm run lint`) |
-
-> ⚠️ **Catatan migrasi**: proyek ini sebelumnya memakai Firebase Firestore (penyimpanan) dan Google Gemini (AI agent) — keduanya **sudah dimigrasikan penuh** ke Supabase dan Anthropic Claude. `.env.example` masih menyisakan variabel Firebase/Gemini lama yang **tidak lagi dibaca oleh kode manapun** — jangan diisi, cukup abaikan sampai dibersihkan.
+| **Front-end** | Vanilla JavaScript (arsitektur modular tanpa framework bloated) — 48 modul `public/js/*.js` dimuat via `<script>`, di-route client-side (`goPage()`/`renderPage()`, `06-analysis-router.js`) |
+| **Styling** | Tailwind CSS (CDN play-mode) + CSS kustom institusional (`main.css`, `wealth.css`), tema gelap/terang berbasis CSS variables |
+| **Chart & Visual** | TradingView Lightweight Charts, Chart.js 4.4.1, D3.js v7, SheetJS (`xlsx.js`), `html2pdf.js` untuk laporan PDF |
+| **AI/ML Client-Side** | `onnxruntime-web` — menjalankan model XGBoost (dilatih via `ml/train_xgb_signal.py`) langsung di browser untuk sinyal AI Trading otonom |
+| **Back-end Server** | Node.js + Express.js (`server.js`) — proxy data pasar, engine kalkulasi finansial kanonikal, endpoint data IDX (`/api/idx/*`), agent AI, dan sinkronisasi user-data |
+| **Kecerdasan Buatan (AI Engine)** | **Anthropic Claude** (`@anthropic-ai/sdk`, model `claude-3-5-sonnet-20241022`) dengan tool-calling terstruktur ke data riil bursa + cadangan failover otomatis via **OpenRouter** |
+| **Database & Autentikasi** | **Supabase** (PostgreSQL + Auth) — data per-user diisolasi penuh dengan Row Level Security (RLS) & verifikasi identitas server-side, fallback lokal via `localStorage` untuk Mode Demo |
+| **Data Broker & Bandarmology** | **Invezgo API** (Paket Advance 30.000 req/bln) — data riil broker summary, foreign flow, top accumulation, & market calendar. Dilengkapi smart cache EOD & fallback simulasi berlabel jelas |
+| **Cache Terdistribusi** | **Upstash Redis** (REST API) — menjaga kuota bulanan, rotating cursor cron, dan cache respons Invezgo konsisten lintas serverless invocation di Vercel |
+| **Harga Real-Time** | Yahoo Finance (via proxy server `/api/proxy` & fallback rata-rata harga broker Invezgo) — saham IDX, crypto (`*-USD`), IHSG |
+| **Deployment** | **Vercel** (Serverless — `api/index.js`, `vercel.json`), file statis di-serve dari `public/` dengan automated headers |
+| **Quality Assurance** | 4 suite pengujian native (`test_suite.js`, `test_financial_policy.js`, `test_provider_functions.js`, `test_security_regressions.js`) — **250/250 passing tests** |
+| **Linting & Safety** | `eslint` + `node --check` per file kritikal (`npm run lint`) |
 
 ---
 
-## 🚀 Fitur Utama
+## 🗺️ Struktur Navigasi & Modul Terpadu
 
-- **📊 Multi-Asset Portfolio Tracker**: Saham IDX (900+ emiten dengan harga live Yahoo Finance), Crypto (harga live Yahoo Finance, ticker BTC-USD/ETH-USD dst — *bukan Binance/Indodax*), Reksa Dana, ETF AS, Kas RDN, dan Logam Mulia.
-- **🏛️ Regulasi Pajak & Komisi Realtime**:
-  - PPN Jasa Pialang efektif 11%.
-  - PPh Final Transaksi Jual 0.1% (PP 14/1997).
-  - PPh Dividen 0% Bebas Pajak Reinvestasi NKRI (PMK 18/2021) dengan opsi override manual.
-  - Struktur Fee Sekuritas (Stockbit All-in 0.18% Beli / 0.28% Jual, IPOT, Mirae, Mandiri, Custom).
-- **👥 KSEI 5%+ Shareholder Intelligence**: Analisis kepemilikan pemegang saham di atas 5%, deteksi pergerakan konglomerat/asing, dan market scanner kepemilikan (840+ emiten).
-- **📡 Broker Summary / Bandarmology**: Sumber data real memakai [Invezgo API](https://docs.invezgo.com/api) (butuh `INVEZGO_API_KEY` + langganan aktif di `.env`). Tanpa API key, otomatis fallback ke simulasi berlabel jelas (badge "⚠ Simulasi" di UI) — tidak pernah ditampilkan sebagai data real tanpa label. Kuota bulanan, cache, dan concurrency ke Invezgo dijaga oleh `lib/invezgo-client.js`, yang butuh `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` (Upstash Redis) supaya penghitung kuota konsisten lintas serverless invocation — lihat `.env.example`. Cek status kuota/cache real-time di `GET /api/idx/invezgo-status`.
-- **⚡ Volume Spike Scanner**: Deteksi lonjakan volume transaksi per-saham dibanding median 14/30 hari, plus arus dana asing (foreign net buy/sell) terintegrasi dengan verdict Bandarmology — semua tersinkron otomatis lintas halaman lewat `GLOBAL_STOCK_CONTEXT`.
-- **🤖 AI Copilot & StockChat**: Asisten investasi percakapan berbasis Claude dengan tool-calling ke data riil aplikasi (harga, fundamental, broker summary, portofolio, saldo RDN, simulasi transaksi, pajak dividen, dll).
-- **🧠 AI Autonomous Trading**: Paper trading AI otonom terisolasi (virtual Rp 100 juta, tidak menyentuh portofolio asli), dengan deteksi regime pasar dan model XGBoost (ONNX) untuk sinyal.
-- **🔬 Quantitative & Decision Engine**: FlowScan (CMF, RSI, MA, VWAP), Valuasi Harga Wajar (Graham, DCF, Multiples), Backtester LQ45, Pairs Trading, Correlation Matrix, dan Sectoral Rotation Intelligence.
-- **🌐 Wealth OS & Net Worth Management**: Neraca kekayaan keluarga, rasio likuiditas/dana darurat, kalkulator FIRE (Financial Independence Retire Early), strategi pelunasan hutang (Snowball/Avalanche), dan tracking piutang.
-- **📥 Bulk Excel Import & Export**: Download template dan unggah transaksi beli/jual serta mutasi dividen secara masal via spreadsheet XLSX.
-- **📄 PDF Statement Generator**: Ekspor laporan kinerja portofolio resmi berkualitas cetak, terkonsolidasi (portofolio, multi-aset, kas, liabilitas, FIRE).
-- **🔒 Cloud Sync & Isolasi Akun**: Data per-user disimpan di Supabase (PostgreSQL + Auth, dilindungi Row Level Security), dengan fallback `localStorage` untuk Mode Tamu/Demo offline.
+Navigasi sidebar telah disederhanakan dan **bebas duplikasi**:
+
+```text
+├── 1. COMMAND CENTER
+│   ├── Market Pulse          → Rangkuman sentimen & agenda makro harian
+│   ├── Screener              → Unified Screener (CMF Proxy, Broker Flow Riil, Sektor)
+│   ├── Portfolio Snapshot    → Dashboard eksekutif portofolio & alokasi aset
+│   └── Alerts                → Peringatan harga otomatis (Price Alerts)
+│
+├── 2. MARKETS
+│   ├── Watchlist             → Daftar pantau emiten pilihan
+│   ├── Market Flow           → Arus dana bandarmology & foreign flow pasar bursa agregat
+│   └── Sector Insight        → Peta rotasi sektoral & heatmap kinerja industri
+│
+├── 3. TRADING & ANALYSIS (Pusat Analisis Saham)
+│   ├── Stock Master 360      → Terminal Tunggal Analisis Saham Individual 6-Pilar:
+│   │                           [1] Chart & Techno-Bandarmology
+│   │                           [2] Bandarmology & Flow (Top Broker, Asing)
+│   │                           [3] Valuation & Fundamental (PBV Band, PER, DCF, Graham)
+│   │                           [4] Stock Dossier & KSEI (Kepemilikan Scriptless 5%+)
+│   │                           [5] AI Hypothesis (StockChat rekomendasi emiten)
+│   ├── Crypto Technical      → Analisis teknikal & order flow mata uang kripto
+│   └── Quant Analysis        → Analisis matriks korelasi, pairs trading, & backtester
+│
+├── 4. SYSTEMATIC TRADING
+│   ├── Trading Engine        → Engine trading kuantitatif otonom (Paper Trading Rp 100 Juta)
+│   ├── Copilot               → Asisten AI pemeriksa profil risiko & alokasi portofolio
+│   └── Signal History        → Riwayat & track record sinyal trading AI
+│
+├── 5. PORTFOLIO
+│   ├── Portfolio             → Tabel posisi saham, cost basis, & P/L riil
+│   ├── Transactions          → Riwayat mutasi beli/jual & import massal Excel
+│   ├── Dividend              → Rekap dividen & kalender proyeksi passive income
+│   ├── Risk                  → Analisis risiko Value-at-Risk (VaR 95%) & rebalancing
+│   ├── Performance           → Pengukuran return TWR, MWR, & Sharpe Ratio
+│   └── Investment Thesis     → Pencatat alasan beli, target keluar, & kriteria invalidasi
+│
+├── 6. WEALTH
+│   ├── Net Worth             → Neraca kekayaan bersih keluarga
+│   ├── Cash                  → Manajemen kas RDN & dana darurat
+│   ├── Assets                → Pelacak aset fisik & perbankan
+│   ├── Debt                  → Kalkulator pelunasan hutang (Snowball / Avalanche)
+│   └── Passive Income        → Perencana kebebasan finansial (FIRE Calculator)
+│
+└── 7. ADMIN CENTER
+    ├── Stock Universe        → Kelola daftar emiten aktif BEI
+    ├── Data Health           → Diagnostik & rekonsiliasi integritas data
+    ├── Data Connection       → Pemantau status koneksi & kuota Invezgo live
+    └── Settings              → Pengaturan fee broker, pajak, & backup data
+```
 
 ---
 
-## 📁 Struktur Modul Sistem
+## 📊 Manajemen Kuota API Invezgo (Anti-Jebol)
 
-Aplikasi dibangun secara modular, terstruktur dalam 41 modul front-end (`public/js/`):
+Sistem menggunakan alokasi kuota paket **Invezgo Advance** (30.000 requests/bulan) dengan pengamanan berlapis:
 
-| Modul | Deskripsi |
-|---|---|
-| `index.html` | Entrypoint utama aplikasi web |
-| `server.js` | Server Express.js: proxy Yahoo Finance, agent AI (Claude), endpoint `/api/idx/*` & `/api/user-data/*` |
-| `api/index.js` | Wrapper serverless untuk deployment Vercel |
-| `css/main.css` | Styling terminal tema dark & light (dengan transisi halus) |
-| `css/wealth.css` | Styling visual modul Wealth & Net Worth |
-| `js/00-config.js` | Konfigurasi global & `GLOBAL_STOCK_CONTEXT` (sinkronisasi ticker lintas-halaman) |
-| `js/01-data.js` | Master data sektor IDX, daftar sekuritas, tarif bursa, histori IHSG |
-| `js/02-storage.js` | Engine sinkronisasi data ke Supabase & local storage |
-| `js/02b-price-index.js` | Helper murni (pure function) untuk rebuild histori ekuitas harian |
-| `js/03-engine.js` | Core financial calculation engine & realtime price feeder |
-| `js/04-render.js` | UI renderer untuk Dashboard, RDN, Transaksi, dan Portofolio |
-| `js/05-assets.js` | Manajemen aset Crypto, Reksa Dana, ETF, & modal input |
-| `js/06-analysis-router.js` | Router navigasi halaman aplikasi & analisis candle |
-| `js/07-flowscan.js` | Engine FlowScan legacy (CMF, RSI, VWAP, deteksi Big Money) |
-| `js/08-auth.js` | Autentikasi pengguna berbasis Supabase & session management |
-| `js/09-divinvest.js` | Dashboard strategi Dividend Growth & Compounder |
-| `js/10-hargawajar.js` | Valuasi fundamental & Margin of Safety (MoS) |
-| `js/11-quant.js` | QuantTrader: Backtester, Screener, Pairs Trading, Correlation Matrix |
-| `js/12-clean.js` | Fresh start initialization & pembersih localStorage lama |
-| `js/13-realdata.js` | Cache OHLCV harian riil (Yahoo Finance) — dipakai bersama FlowScan/TradeWave/Screener/Backtester/Volume Spike |
-| `js/14-admin.js` | Panel kustomisasi universe saham & master data |
-| `js/15-txbulk.js` | Parser & validator bulk import Excel (XLSX) |
-| `js/20-wealth.js` | Modul kekayaan pribadi (Net Worth, Bank, Hutang, Piutang, FIRE) |
-| `js/21-performance.js` | Analisis kinerja portofolio (TWR, MWR, Sharpe Ratio) |
-| `js/22-datahealth.js` | Diagnostik & integritas rekonsiliasi data keuangan |
-| `js/23-advisor.js` | Investor Tear Sheet, Traffic Light Consensus, Smart Rebalancing |
-| `js/24-stockmaster.js` | Suite Fundamental & Technical PRO (lembar fakta emiten lengkap) |
-| `js/25-auditlog.js` | Log audit transaksi & riwayat saldo RDN |
-| `js/26-commandcenter.js` | Investment Command Center: KPI eksekutif, Portfolio Health Score, AI Action Center |
-| `js/27-stockintel.js` | Universal Stock Intelligence Cockpit (hub analisa per-ticker) |
-| `js/28-decisiontools.js` | Morning/Daily Brief, Investment Thesis Tracker, Decision Journal, Scenario Engine |
-| `js/29-institutional-ui.js` | Command palette (Ctrl+K), density tabel, sparkline utilities |
-| `js/30-price-alerts.js` | Sistem notifikasi & peringatan target harga |
-| `js/32-pdf-reports.js` | Generator laporan portofolio konsolidasi berformat PDF |
-| `js/34-ksei-shareholders.js` | Pemindai data kepemilikan institusi/asing KSEI 5%+ |
-| `js/35-settings.js` | Pengaturan pajak, fee broker, tujuan finansial, & backup |
-| `js/36-crypto-technical.js` | Analisis teknikal & whale flow crypto |
-| `js/37-tradewave-engine.js` | TradeWave PRO — Elliott Wave & Trend Impulse Detector |
-| `js/38-ai-autonomous-trading.js` | Paper trading AI otonom terisolasi (virtual Rp 100M) |
-| `js/39-knowledge-master-guide.js` | Panduan pengetahuan & confluence analysis terpusat |
-| `js/40-idx-pipeline.js` | Pipeline data IDX & integrasi stock universe |
-| `js/41-stockchat-cockpit.js` | StockChat AI (Claude tool-use) & Bandarmology Cockpit |
-| `js/42-dividend-calendar.js` | Kalender dividen visual & proyeksi passive income |
-| `js/43-ai-chart-intelligence.js` | Layer analisis chart AI (confluence, support/resistance, decision journal) |
-| `js/44-sectoral-insight.js` | Rotasi sektoral & intelijen aliran dana (CMF konstituen sektor) |
-| `js/45-volume-spike.js` | Volume Spike Scanner (volume vs median 14D/30D + foreign flow) |
-| `lib/idx-data-engine.js` | Engine data IDX server-side: broker summary, fundamental, universe |
-| `lib/invezgo-client.js` | Client Invezgo API + quota/cache management via Upstash Redis |
-| `lib/auth-verify.js` | Verifikasi sesi Supabase server-side |
-| `lib/providers/yahoo-client.js` | Client Yahoo Finance server-side |
-| `lib/providers/idx-client.js` | Client data resmi IDX (idx.co.id) |
-| `ml/train_xgb_signal.py` | Training model XGBoost untuk sinyal AI Trading (di-export ke ONNX, dijalankan client-side via `onnxruntime-web`) |
+1. **Anggaran Harian:** $30.000 \div 22\text{ hari bursa} = \mathbf{1.363\text{ request/hari}}$.
+2. **Bulk Agregat Pasar:** Fitur scanner pasar (`top/accumulation`, `top/foreign`, `sector/rotation`, `calendar`) menarik seluruh 958 saham sekaligus dalam 1 request. Hanya mengonsumsi **5–10 request/hari** (< 1% kuota bulanan).
+3. **Analisis Saham On-Demand:** Setiap emiten yang dianalisis di Stock Master 360 memakan 2–3 request (di-cache 24 jam). Analisis 50 saham berbeda setiap hari hanya mengonsumsi **3.300 request/bulan (11% kuota)**.
+4. **Proteksi WAF & Tanggal EOD:**
+   - Menyertakan header resmi MCP (`User-Agent: Invezgo Claude MCPB`).
+   - Helper `getLatestEodTradingDate()` otomatis mengunci query ke hari penutupan bursa terakhir jika diakses pada akhir pekan atau sebelum pukul 17:30 WIB.
+   - Circuit breaker membatasi maksimal 1.000 request/hari untuk mencegah lonjakan tak terduga.
+
+---
+
+## ⏳ Status Fungsi & Pending Background Tasks
+
+Seluruh modul utama aplikasi telah aktif dan beroperasi. Terdapat mekanisme latar belakang (*background jobs*) yang berjalan secara periodik:
+
+### 1. Warming Cache Screener 958 Saham (Pending Via Cron)
+* **Jadwal Cron Vercel (`vercel.json`):**
+  - `/api/cron/warm-radar-fundamentals` (Pukul 22:00 UTC / 05:00 WIB)
+  - `/api/cron/warm-technical-indicators` (Pukul 22:30 UTC / 05:30 WIB)
+* **Status Kerja (Rotating Cursor):**
+  Mengingat batas eksekusi komputasi Vercel Hobby (30 detik per pemanggilan) dan batas 1x eksekusi cron per hari, sistem menggunakan mekanisme **Rotating Cursor** (~250 saham per siklus).
+  - Seluruh 958 saham di BEI terisi penuh ke dalam Upstash Redis secara progresif dalam **~3–4 hari bursa pertama** setelah deployment, dan setelahnya otomatis diperbarui secara kontinu.
+  - **Dampak Bagi Pengguna:** Saham yang statusnya masih *pending warming* pada tampilan tabel screener tetap **dapat dianalisis langsung secara real-time** melalui menu **Stock Master 360** (sistem otomatis melakukan on-demand live fetch).
+
+### 2. Forward Win-Rate Validation (Track B)
+* Sinyal konfirmasi harian dari Unified Screener dicatat secara otomatis oleh cron malam hari ke database untuk pengujian out-of-sample forward paper-trading tanpa intervensi manual.
 
 ---
 
 ## 🛠️ Cara Menjalankan Aplikasi
 
+### 1. Kloning & Instalasi
 ```bash
-# 1. Clone repository
 git clone https://github.com/Learningjurnal/moneywatchapps.git
 cd moneywatchapps
-
-# 2. Install dependencies
 npm install
-
-# 3. Salin & isi environment variables (lihat .env.example)
-cp .env.example .env
-
-# 4. Jalankan server aplikasi
-npm start
 ```
 
-Buka browser di `http://localhost:3000`.
-
-### Menjalankan Test & Lint
-
+### 2. Konfigurasi Lingkungan (.env)
+Salin contoh file konfigurasi:
 ```bash
-npm test    # 4 suite, 154 test (unit, kebijakan finansial, provider, keamanan)
+cp .env.example .env
+```
+Isi variabel lingkungan yang dibutuhkan:
+- `ANTHROPIC_API_KEY`: Kunci API Claude untuk StockChat & Copilot.
+- `OPENROUTER_API_KEY`: Cadangan otomatis jika Anthropic mengalami kendala.
+- `INVEZGO_API_KEY`: Akses data broker summary & bandarmology riil.
+- `UPSTASH_REDIS_REST_URL` & `UPSTASH_REDIS_REST_TOKEN`: Penyimpanan cache & kuota terdistribusi.
+- `SUPABASE_URL` & `SUPABASE_ANON_KEY`: Database transaksi & autentikasi portofolio.
+- `CRON_SECRET`: Kunci otorisasi pengamanan endpoint Vercel Cron.
+
+### 3. Menjalankan Server Lokal
+```bash
+npm start
+```
+Akses aplikasi melalui peramban di `http://localhost:3000`.
+
+### 4. Menjalankan Pengujian Kualitas & Kebijakan Finansial
+```bash
+# Menjalankan seluruh 250 unit tests & verifikasi drift kebijakan finansial:
+npm test
+
+# Menjalankan linting dan pengecekan sintaksis ES Modules:
 npm run lint
 ```
 
-### Deployment
+---
 
-Aplikasi dikonfigurasi untuk **Vercel** (`vercel.json`) — `api/index.js` di-deploy sebagai serverless function, file statis di `public/` di-serve langsung dengan cache header khusus untuk `/api/idx/*` dan `/js/*`.
+## 🔒 Tata Kelola Finansial & Keamanan Data (Mandat AGENTS.md)
+
+1. **Zero Synthetic Signals:** Sinyal trading dan metrik valuasi wajib bersumber dari data pasar riil atau dilabeli secara transparan (`SIMULATION` / `DATA_UNAVAILABLE`).
+2. **Canonical Financial Engine:** Seluruh kalkulasi fee transaksi (0.18% beli / 0.28% jual), PPh Final (0.1%), PPN (11%), dividen (PMK 18), dan net worth dihitung dari single source of truth `lib/canonical-financial-engine.js` dan `public/js/03-engine.js`.
+3. **Isolasi Akun Pengguna:** Tidak ada data portofolio, saldo RDN, atau riwayat transaksi yang bocor lintas pengguna. Validasi token identitas Supabase diverifikasi langsung di tingkat server (`lib/auth-verify.js`).
+4. **Data Portability:** Pengguna dapat melakukan ekspor cadangan penuh dalam format JSON dan spreadsheet Excel (XLSX) kapan saja.
 
 ---
 
-## 🔒 Privasi Data & Keamanan
-
-- **Zero-History Clean Slate**: Repositori ini tidak menyimpan riwayat data pribadi, token rahasia, atau transaksi dummy bawaan.
-- **Isolasi Akun**: Setiap pengguna memiliki penyimpanan terisolasi, diproteksi Supabase Auth & Row Level Security.
-- **Data Real vs Simulasi Berlabel Jelas**: Fitur yang bergantung pada feed berbayar (broker summary/bandarmology via Invezgo) selalu menampilkan flag `isSimulated`/badge "⚠ Simulasi" saat data real tidak tersedia — tidak pernah menyajikan angka karangan seolah-olah data pasar sungguhan.
-- **Export & Backup Mandiri**: Pengguna dapat melakukan ekspor JSON penuh kapan pun melalui menu Pengaturan.
-
----
-
-**Money Watch Pro — Final Production Release**
+**Money Watch Pro — Institutional Grade Investment & Wealth Operating System**
