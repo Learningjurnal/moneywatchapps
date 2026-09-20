@@ -1412,22 +1412,40 @@ function renderCopilotPage() {
     + '</div>';
   }
 
-  var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">'
+  var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
     + '<div>'
-      + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">MoneyWatch AI</div>'
-      + '<div class="psub">Asisten analis portofolio multi-aset berbasis model reasoning, kepatuhan regulasi BEI, kepemilikan KSEI &amp; kalkulasi pajak dividen bersih.</div>'
+      + '<div class="ptitle" style="display:flex;align-items:center;gap:10px">'
+        + '<span>MoneyWatch Copilot AI</span>'
+        + '<span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.25);display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;border-radius:6px;padding:2px 8px">'
+          + '<span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981"></span>ONLINE: PORTFOLIO REASONING'
+        + '</span>'
+      + '</div>'
+      + '<div class="psub">Asisten analis portofolio multi-aset berbasis model reasoning, kepatuhan regulasi BEI, batas risiko RDN &amp; kalkulasi dividen bersih.</div>'
     + '</div>'
-    + '<div style="display:flex;gap:8px">'
+    + '<div style="display:flex;gap:8px;align-items:center">'
       + '<button class="btn btn-ghost btn-sm" onclick="clearCopilotHistory()">Bersihkan Sesi</button>'
     + '</div>'
   + '</div>'
 
-  + '<div class="copilot-container card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:560px">'
+  // AI Assistant Mode Switcher Tabs (Emiten Analysis vs Portfolio Audit)
+  + '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+      + '<button onclick="goPage(\'stockchat\')" class="sm-nav-item" style="font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:6px">'
+        + '<i class="ti ti-chart-arrows"></i> Analisis Emiten &amp; Bandarmologi (StockChat)'
+      + '</button>'
+      + '<button class="sm-nav-item active" style="font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:6px">'
+        + '<i class="ti ti-briefcase"></i> Audit Portofolio &amp; Risiko (Copilot)'
+      + '</button>'
+    + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);font-family:monospace;letter-spacing:0.5px">PORTFOLIO INTELLIGENCE</div>'
+  + '</div>'
+
+  + '<div class="copilot-container card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:560px;border:1px solid var(--border2);border-radius:12px;background:var(--bg2)">'
     + '<div class="copilot-history" id="copilot-history-box" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column">'
       + messagesHtml
     + '</div>'
 
-    + '<div class="copilot-chips-wrap" style="padding:8px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,0.2);display:flex;gap:8px;overflow-x:auto;white-space:nowrap">'
+    + '<div class="copilot-chips-wrap" style="padding:10px 16px;border-top:1px solid var(--border2);background:rgba(0,0,0,0.2);display:flex;gap:8px;overflow-x:auto;white-space:nowrap">'
       + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Analisa konsentrasi portofolio, alokasi kas RDN, dan risiko Maximum Drawdown saya saat ini\')">Analisa Portofolio & Konsentrasi</button>'
       + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Cek rasio fundamental, MoS, dan analisa dua sisi potensi vs risiko saham ' + topTicker + '\')">Fundamental & MoS ' + topTicker + '</button>'
       + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Simulasikan beli 50 lot ' + secondTicker + ' dan validasi fraksi harga BEI serta batas ARA/ARB\')">Simulasi Transaksi ' + secondTicker + '</button>'
@@ -1435,9 +1453,9 @@ function renderCopilotPage() {
       + '<button class="sm-chip" onclick="sendCopilotPrompt(\'Cek struktur pemegang saham institusi >5% dan estimasi free float KSEI saham BMRI\')">Kepemilikan KSEI BMRI</button>'
     + '</div>'
 
-    + '<div class="copilot-input-bar" style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:10px;background:var(--bg2)">'
+    + '<div class="copilot-input-bar" style="padding:14px 16px;border-top:1px solid var(--border2);display:flex;gap:10px;background:var(--bg2)">'
       + '<input type="text" id="copilot-prompt-input" class="finput" placeholder="Tanyakan analisa portofolio, simulasi fraksi BEI, dividen bersih, atau rasio emiten..." onkeydown="if(event.key===\'Enter\')sendCopilotPrompt(this.value)" style="flex:1">'
-      + '<button class="btn btn-primary" id="copilot-send-btn" onclick="var inp=el(\'copilot-prompt-input\');if(inp)sendCopilotPrompt(inp.value)">Kirim Analisa ↵</button>'
+      + '<button class="btn btn-primary" id="copilot-send-btn" onclick="var inp=el(\'copilot-prompt-input\');if(inp)sendCopilotPrompt(inp.value)">Kirim Analisis</button>'
     + '</div>'
   + '</div>';
 

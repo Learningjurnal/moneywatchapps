@@ -1325,17 +1325,32 @@ function renderStockChatPage(containerId) {
     // Top Bar & Header
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
     + '<div>'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">'
-    + 'StockChat AI'
-    + '<span class="badge b-accent" style="font-size:9px;margin-left:4px">LIVE ENGINE</span>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:10px">'
+    + '<span>StockChat AI</span>'
+    + '<span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.25);display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;border-radius:6px;padding:2px 8px">'
+    + '<span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981"></span>ONLINE: BANDARMOLOGY ENGINE'
+    + '</span>'
     + '</div>'
     + '<div class="psub">Asisten Analis Broker Summary, Aliran Dana Asing, Valuasi Fundamental, dan Deteksi Akumulasi Smart Money BEI.</div>'
     + '</div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
     + '<button class="btn btn-ghost btn-xs" onclick="clearStockChatHistory();if(typeof showSaveStatus===\'function\')showSaveStatus(\'Sesi obrolan baru dimulai\');">Sesi Baru</button>'
-    + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\')">Opportunity Radar →</button>'
-    + '<button class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;font-weight:700" onclick="openStockIntelForTicker(\'' + curTk + '\')">Stock Intelligence →</button>'
+    + '<button class="btn btn-ghost btn-xs" onclick="goPage(\'radar\')">Opportunity Radar</button>'
+    + '<button class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;font-weight:700" onclick="openStockIntelForTicker(\'' + curTk + '\')">Stock Intelligence</button>'
     + '</div>'
+    + '</div>'
+
+    // AI Assistant Mode Switcher Tabs (Emiten Analysis vs Portfolio Audit)
+    + '<div class="tab-row" style="margin-bottom:16px;display:flex;gap:8px;border-bottom:1px solid var(--border2);padding-bottom:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    + '<button class="sm-nav-item active" style="font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-chart-arrows"></i> Analisis Emiten &amp; Bandarmologi (StockChat)'
+    + '</button>'
+    + '<button onclick="goPage(\'copilot\')" class="sm-nav-item" style="font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:6px">'
+    + '<i class="ti ti-briefcase"></i> Audit Portofolio &amp; Risiko (Copilot)'
+    + '</button>'
+    + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);font-family:monospace;letter-spacing:0.5px">EMITEN INTELLIGENCE</div>'
     + '</div>';
 
   // 4 Top Metrics Summary Banner (Opportunity Radar pattern)

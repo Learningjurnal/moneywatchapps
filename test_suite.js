@@ -7649,6 +7649,30 @@ test('REGRESSION GUARD: Broker Summary by Broker (Invezgo whole-market portfolio
     'REGRESSION: Cockpit must provide custom broker code search input');
 });
 
+test('REGRESSION GUARD: Phase 1 AI Chat Harmonization (StockChat and Copilot Mode Switchers, Anti-Slop arrow cleaning, and Crypto Technical preservation)', () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(indexHtml.includes("goPage('crypto-technical'"),
+    'REGRESSION: Crypto Technical must be preserved in sidebar');
+  assert(indexHtml.includes("StockChat (Analisis Emiten)"),
+    'REGRESSION: StockChat label must be distinct in sidebar');
+  assert(indexHtml.includes("Copilot (Audit Portofolio)"),
+    'REGRESSION: Copilot label must be distinct in sidebar');
+
+  const copilotSrc = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(copilotSrc.includes("goPage(\\'stockchat\\')"),
+    'REGRESSION: Copilot must feature Mode Switcher link to StockChat');
+  assert(!copilotSrc.includes('Kirim Analisa ↵'),
+    'REGRESSION: Copilot must not use arrow decorator on submit button');
+
+  const stockchatSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(stockchatSrc.includes("goPage(\\'copilot\\')"),
+    'REGRESSION: StockChat must feature Mode Switcher link to Copilot');
+  assert(!stockchatSrc.includes('Opportunity Radar →'),
+    'REGRESSION: StockChat must not use arrow decorator on Opportunity Radar button');
+  assert(!stockchatSrc.includes('Stock Intelligence →'),
+    'REGRESSION: StockChat must not use arrow decorator on Stock Intelligence button');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
