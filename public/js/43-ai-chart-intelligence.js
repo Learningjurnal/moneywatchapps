@@ -1031,16 +1031,21 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
   var container = document.getElementById('sm-tv-chart-container') || document.getElementById('tech-tv-chart-container');
   if (!container) return;
 
-  // Idempotency: if background soft-refresh (force === false), canvas already rendered for this ticker in native mode, update overlay only
-  if (force === false && container.getAttribute('data-rendered-ticker') === ticker && container.getAttribute('data-rendered-mode') === 'native' && document.getElementById('techNativeChartCanvas')) {
-    if (typeof TECH_CHARTS !== 'undefined' && TECH_CHARTS.nativeChart) {
-      applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, (ctx && ctx.supportResistance), zones);
+  var isTvMode = (typeof TECH_DATA !== 'undefined' && TECH_DATA.chartMode === 'tv');
+  var currentMode = isTvMode ? 'tv' : 'native';
+
+  // Idempotency: if background soft-refresh (force === false), already rendered for this ticker in current mode
+  if (force === false && container.getAttribute('data-rendered-ticker') === ticker && container.getAttribute('data-rendered-mode') === currentMode) {
+    if (!isTvMode && document.getElementById('techNativeChartCanvas')) {
+      if (typeof TECH_CHARTS !== 'undefined' && TECH_CHARTS.nativeChart) {
+        applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, (ctx && ctx.supportResistance), zones);
+      }
     }
     return;
   }
 
   container.setAttribute('data-rendered-ticker', ticker);
-  container.setAttribute('data-rendered-mode', 'native');
+  container.setAttribute('data-rendered-mode', currentMode);
 
   if (!ctx || ctx.isValid === false) {
     var unk = (ctx && ctx.symbol) || ticker || 'UNKNOWN';
@@ -1079,26 +1084,51 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
           + 'AI ANALYZE'
         + '</button>'
         + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.zones ? 'on' : '') + '" onclick="toggleAiOverlay(\'zones\')" style="' + (AI_CHART_STATE.overlays.zones ? 'background:rgba(0,0,255,0.25);border-color:var(--accent);color:var(--accent)' : '') + '">ZONA BELI/JUAL</button>'
-        + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.sr ? 'on' : '') + '" onclick="toggleAiOverlay(\'sr\')">S/R</button>'
-        + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.fib ? 'on' : '') + '" onclick="toggleAiOverlay(\'fib\')">FIB</button>'
-        + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.pattern ? 'on' : '') + '" onclick="toggleAiOverlay(\'pattern\')">PATTERN</button>'
-        + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.structure ? 'on' : '') + '" onclick="toggleAiOverlay(\'structure\')">STRUCTURE</button>'
+        + (!isTvMode ? (
+            '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.sr ? 'on' : '') + '" onclick="toggleAiOverlay(\'sr\')">S/R</button>'
+          + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.fib ? 'on' : '') + '" onclick="toggleAiOverlay(\'fib\')">FIB</button>'
+          + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.pattern ? 'on' : '') + '" onclick="toggleAiOverlay(\'pattern\')">PATTERN</button>'
+          + '<button class="btn btn-ghost btn-xs ' + (AI_CHART_STATE.overlays.structure ? 'on' : '') + '" onclick="toggleAiOverlay(\'structure\')">STRUCTURE</button>'
+        ) : '')
         + '<button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="openAiExplainModal(\'' + ticker + '\')">'
-          + 'Explain Chart'
+          + '<i class="ti ti-info-circle"></i> Explain Chart'
         + '</button>'
-        + '<button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')">'
-          + 'TV Pro'
-        + '</button>'
+        + (isTvMode ? (
+            '<button class="btn btn-ghost btn-xs" onclick="techToggleChartMode(\'native\')">'
+          + '<i class="ti ti-chart-line"></i> Switch to Native Fast Chart'
+          + '</button>'
+        ) : (
+            '<button class="btn btn-ghost btn-xs" style="border-color:var(--accent);color:var(--accent)" onclick="techToggleChartMode(\'tv\')">'
+          + '<i class="ti ti-chart-candle"></i> TV Pro Cloud'
+          + '</button>'
+        ))
       + '</div>'
     + '</div>'
 
     // WORKSPACE LAYOUT: FULL WIDTH VERTICAL STACK (CHART ENLARGED DOWNWARD)
     + '<div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:var(--bg2);border-radius:0 0 10px 10px">'
-
-      // TOP: EXPANDED VERTICAL CHART CANVAS (580px Height, 100% Width)
-      + '<div style="position:relative;height:580px;width:100%;background:var(--bg3);border-radius:8px;padding:8px;border:1px solid var(--border2)">'
-        + '<canvas id="techNativeChartCanvas"></canvas>'
-      + '</div>'
+      + (isTvMode ? (
+          '<div style="display:flex;flex-direction:column;gap:8px">'
+        + '  <div id="tech-ai-zones-tv-banner" style="background:linear-gradient(90deg, rgba(16,185,129,0.15), rgba(239,68,68,0.15));border:1px solid var(--border2);border-radius:8px;padding:10px 14px;display:' + (AI_CHART_STATE.overlays.zones && bZone && sZone ? 'flex' : 'none') + ';justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-family:Fira Code,monospace;font-size:12px">'
+        + '    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">'
+        + '      <div><span style="color:#10B981;font-weight:800">🟢 ZONA BELI AI:</span> <strong style="color:#10B981">Rp ' + fmtK(bZone ? bZone.low : 0) + ' - Rp ' + fmtK(bZone ? bZone.high : 0) + '</strong> <span style="color:#DC2626;font-size:10px;font-weight:700">(SL: Rp ' + fmtK(bZone ? bZone.stopLoss : 0) + ')</span></div>'
+        + '      <div><span style="color:#EF4444;font-weight:800">🔴 ZONA JUAL AI / TP:</span> <strong style="color:#EF4444">Rp ' + fmtK(sZone ? sZone.low : 0) + ' - Rp ' + fmtK(sZone ? sZone.high : 0) + '</strong></div>'
+        + '    </div>'
+        + '    <div style="font-size:11px;color:var(--text2);display:flex;gap:8px;align-items:center;font-family:\'Plus Jakarta Sans\',sans-serif">'
+        + '      <span class="badge ' + (zones && zones.rsi <= 40 ? 'b-up' : (zones && zones.rsi >= 65 ? 'b-dn' : 'b-amb')) + '" style="font-size:10px">RSI: ' + (zones ? zones.rsi : ctx.indicators.rsi) + '</span>'
+        + '      <span class="badge ' + (zones && zones.macd.status.includes('BULLISH') ? 'b-up' : 'b-dn') + '" style="font-size:10px">MACD: ' + (zones ? zones.macd.status.replace(/_/g, ' ') : 'Neutral') + '</span>'
+        + '      <span class="badge ' + (zones && zones.volume.isSpike ? 'b-up' : 'b-neu') + '" style="font-size:10px">Vol: ' + (zones ? zones.volume.ratio : '1.0') + 'x</span>'
+        + '    </div>'
+        + '  </div>'
+        + '  <div style="position:relative;height:640px;width:100%;background:var(--bg3);border-radius:8px;border:1px solid var(--border2);overflow:hidden">'
+        + '    <iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=' + encodeURIComponent(typeof techFormatTV === 'function' ? techFormatTV(ticker) : 'IDX:' + ticker) + '&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131B2E&studies=%5B%22RSI%40tv-basicstudies%22%2C%22MACD%40tv-basicstudies%22%2C%22Volume%40tv-basicstudies%22%5D&theme=dark&style=1&timezone=Asia%2FJakarta&locale=id" style="width:100%;height:100%;border:none" loading="lazy"></iframe>'
+        + '  </div>'
+        + '</div>'
+      ) : (
+          '<div style="position:relative;height:580px;width:100%;background:var(--bg3);border-radius:8px;padding:8px;border:1px solid var(--border2)">'
+        + '  <canvas id="techNativeChartCanvas"></canvas>'
+        + '</div>'
+      ))
 
       // BOTTOM: AI MARKET INTELLIGENCE & CONFLUENCE ANALYSIS PANEL (Full Width Below Chart)
       + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px">'
@@ -1197,64 +1227,66 @@ function renderAiTechnicalWorkspaceUI(ticker, ctx, struct, fib, patterns, conf, 
 
   container.innerHTML = html;
 
-  // Re-initialize Chart.js Native Chart
-  techKillChart('nativeChart');
-  var cv = document.getElementById('techNativeChartCanvas');
-  if (cv && typeof Chart !== 'undefined') {
-    var ctxChart = cv.getContext('2d');
-    var grad = ctxChart.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, 'rgba(139, 92, 246, 0.25)');
-    grad.addColorStop(1, 'rgba(139, 92, 246, 0)');
+  // Re-initialize Chart.js Native Chart only in native mode
+  if (!isTvMode) {
+    techKillChart('nativeChart');
+    var cv = document.getElementById('techNativeChartCanvas');
+    if (cv && typeof Chart !== 'undefined') {
+      var ctxChart = cv.getContext('2d');
+      var grad = ctxChart.createLinearGradient(0, 0, 0, 300);
+      grad.addColorStop(0, 'rgba(139, 92, 246, 0.25)');
+      grad.addColorStop(1, 'rgba(139, 92, 246, 0)');
 
-    var labels = ctx.ohlcv.map(function(d) {
-      var dt = new Date(d.dt); return dt.getDate() + '/' + (dt.getMonth() + 1);
-    });
-    var closePrices = ctx.ohlcv.map(function(d) { return d.c; });
-    var ma20 = calculateAiSMA(closePrices, 20);
+      var labels = ctx.ohlcv.map(function(d) {
+        var dt = new Date(d.dt); return dt.getDate() + '/' + (dt.getMonth() + 1);
+      });
+      var closePrices = ctx.ohlcv.map(function(d) { return d.c; });
+      var ma20 = calculateAiSMA(closePrices, 20);
 
-    TECH_CHARTS.nativeChart = new Chart(cv, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Close Price',
-            data: closePrices,
-            borderColor: '#0000FF',
-            borderWidth: 2,
-            backgroundColor: grad,
-            fill: true,
-            tension: 0.2,
-            pointRadius: 0
-          },
-          {
-            label: 'MA 20',
-            data: ma20,
-            borderColor: '#10B981',
-            borderWidth: 1.5,
-            borderDash: [4, 4],
-            fill: false,
-            pointRadius: 0
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { mode: 'index', intersect: false }
+      TECH_CHARTS.nativeChart = new Chart(cv, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Close Price',
+              data: closePrices,
+              borderColor: '#0000FF',
+              borderWidth: 2,
+              backgroundColor: grad,
+              fill: true,
+              tension: 0.2,
+              pointRadius: 0
+            },
+            {
+              label: 'MA 20',
+              data: ma20,
+              borderColor: '#10B981',
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              fill: false,
+              pointRadius: 0
+            }
+          ]
         },
-        scales: {
-          x: { grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'}, maxTicksLimit: 8 } },
-          y: { position: 'right', grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'} } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            x: { grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'}, maxTicksLimit: 8 } },
+            y: { position: 'right', grid:{color:GC}, ticks: { color: _chartTextColor('--text2','#D2D8DF'), font:{weight:'bold'} } }
+          }
         }
-      }
-    });
+      });
 
-    // Attach overlay drawing hook immediately after chart creation
-    applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, ctx.supportResistance, zones);
+      // Attach overlay drawing hook immediately after chart creation
+      applyAiChartOverlay(TECH_CHARTS.nativeChart, setup, fib, ctx.supportResistance, zones);
+    }
   }
 }
 
@@ -1281,6 +1313,11 @@ function toggleAiOverlay(key) {
         }
       }
     });
+
+    var tvBanner = document.getElementById('tech-ai-zones-tv-banner');
+    if (tvBanner && key === 'zones') {
+      tvBanner.style.display = AI_CHART_STATE.overlays.zones ? 'flex' : 'none';
+    }
 
     if (TECH_CHARTS.nativeChart) {
       applyAiChartOverlay(

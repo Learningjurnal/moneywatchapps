@@ -1365,13 +1365,13 @@ function techRenderMainChart(ticker) {
   TECH_DATA.lastRenderedTicker = ticker;
   TECH_DATA.lastRenderedMode = TECH_DATA.chartMode;
 
-  if (TECH_DATA.chartMode === 'tv') {
-    techLoadTradingViewWidget(ticker, container);
+  if (typeof runAiChartAnalysis === 'function') {
+    runAiChartAnalysis(ticker, force);
     return;
   }
 
-  if (typeof runAiChartAnalysis === 'function') {
-    runAiChartAnalysis(ticker, force);
+  if (TECH_DATA.chartMode === 'tv') {
+    techLoadTradingViewWidget(ticker, container);
     return;
   }
 
@@ -1496,6 +1496,11 @@ function techToggleChartMode(mode) {
 }
 
 function techLoadTradingViewWidget(ticker, container) {
+  TECH_DATA.chartMode = 'tv';
+  if (typeof runAiChartAnalysis === 'function') {
+    runAiChartAnalysis(ticker);
+    return;
+  }
   var tvTicker = techFormatTV(ticker);
   if (container.getAttribute('data-rendered-ticker') === tvTicker && container.getAttribute('data-rendered-mode') === 'tv') {
     return;
@@ -1507,7 +1512,7 @@ function techLoadTradingViewWidget(ticker, container) {
     + '  <span style="font-size:12px;font-weight:700;color:var(--accent)">TradingView Interactive Cloud Chart (' + tvTicker + ')</span>'
     + '  <button class="btn btn-ghost btn-xs" onclick="techToggleChartMode(\'native\')">Switch to Native Fast Chart</button>'
     + '</div>'
-    + '<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=' + encodeURIComponent(tvTicker) + '&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131B2E&theme=dark&style=1&timezone=Asia%2FJakarta&locale=id" style="width:100%;height:640px;border:none;border-radius:0 0 10px 10px" loading="lazy"></iframe>';
+    + '<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=' + encodeURIComponent(tvTicker) + '&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=131B2E&studies=%5B%22RSI%40tv-basicstudies%22%2C%22MACD%40tv-basicstudies%22%2C%22Volume%40tv-basicstudies%22%5D&theme=dark&style=1&timezone=Asia%2FJakarta&locale=id" style="width:100%;height:640px;border:none;border-radius:0 0 10px 10px" loading="lazy"></iframe>';
 }
 
 // ── Tab 2: FlowScan & Bandarmologi ──
