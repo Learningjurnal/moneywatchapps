@@ -4040,3 +4040,29 @@ tunggu penggunaan normal secara bertahap memicu eviction.
 - **Verifikasi:** `node -c` server.js, `npm test` 241/241 lulus, `npm run lint` bersih. server.js tidak perlu cache-bust (bukan file yang di-load lewat `<script>` browser).
 - **Batasan yang tidak bisa diuji di sandbox ini (PENTING, beda dari integrasi Invezgo/Yahoo lain sesi ini):** skema `plugins:[{id:'web'}]` OpenRouter dipakai berdasarkan pengetahuan umum, **BUKAN dari pemanggilan/dokumentasi resmi yang sempat diverifikasi live** (sandbox ini tanpa akses jaringan ke `openrouter.ai`, dan tidak ada contoh respons real yang di-upload user untuk field ini seperti integrasi Invezgo lainnya). **User WAJIB verifikasi setelah deploy**: buka Sector Insight, refresh berita, cek minimal 1-2 URL hasilnya — pastikan benar-benar artikel nyata yang ada (bukan URL/judul karangan model). Kalau ternyata field `plugins` salah/diabaikan OpenRouter, responsnya kemungkinan TETAP terlihat valid (JSON array 3+ item, lolos validasi `.length>=3`) tapi isinya bisa jadi karangan dari training data model — beri tahu saya kalau ada judul berita yang mencurigakan/tidak bisa dicari di internet, supaya jalur ini bisa dimatikan/diperbaiki lebih lanjut.
 - **Terkait pengingat terjadwal soal audit formula Screener (routine `trig_017v5dEq7JUMRjgxvm8KaDUJ`):** user memberi data cakupan aktual alih-alih hasil cek badge langsung: Cakupan teknikal (cron-warmed) 197/958, fundamental 250/958, Wave Analysis 197/958 — saham di luar cakupan tampil "N/A", bukan skor 0. Karena "confirmed" (badge 🐋+📈) mensyaratkan `tech.score>=80` (butuh cache teknikal REAL), cakupan teknikal yang baru ~20% (197/958) kemungkinan besar JUSTRU jadi penyebab utama jumlah confirmed masih rendah — BUKAN berarti ambang 80 itu sendiri salah. Rekomendasi: JANGAN turunkan ambang dulu — tunggu cakupan teknikal naik signifikan lewat cron harian (`warmTechnicalRotating()`, siklus rotasi ~beberapa hari untuk 958 saham), baru evaluasi ulang apakah confirmed count representatif. Tidak ada perubahan kode untuk item ini di sesi ini — murni klarifikasi interpretasi data untuk keputusan user berikutnya.
+
+## 2026-09-20 — Bandarmology & Smart Money (Seluruh Market): Penghapusan Estimasi Fiktif Net Flow Rp (Opsi B), Timeframe Dinamis, Mount Foreign Flow Whole-Market, dan Audit Anti-Slop
+
+- **Laporan user:** Halaman "Bandarmology & Smart Money (Seluruh Market)" nilai net flow sering 0, tidak ada rentang waktu analisa (timeframe hardcoded 1D), dan aliran dana hanya menampilkan Big 4 Banks. Serta penerapan aturan /antislop pada tampilan UI.
+- **Root cause:**
+  1. *Masalah 1 (Net flow 0 / fiktif)*: Endpoint Invezgo `summary/stock?investor=all` tidak menyediakan flag per-broker apakah asing atau domestik. Kode lama berusaha menebak net flow Rp berdasarkan 10 broker domestik dan 7 broker asing (`bandarSmartMoneyNetRp()`), sehingga jika broker aktif tidak cocok, nilainya selalu 0 atau angka estimasi fiktif. Pelanggaran aturan AGENTS.md dan Anti-Slop R-17/R-36/R-38 (No Fabricated Numbers).
+  2. *Masalah 2 (Timeframe 1D hardcoded)*: Fungsi `bandarGetCachedSummary(t, '1D')` dan prefetch mengunci periode 1D tanpa kontrol UI pemilih waktu.
+  3. *Masalah 3 (Aliran dana pasar)*: Komponen `renderBandarmologyForeignFlowView()` belum di-mount di halaman utama cockpit dan pemanggilan `bandarLoadRealForeignFlow` tertinggal.
+  4. *Anti-Slop (R-02 & R-08)*: Ditemukan penggunaan em dash (`—`) pada banner data Invezgo serta panah dekoratif `→` pada tombol header.
+- **Perbaikan yang dieksekusi (Opsi B):**
+  1. `public/js/41-stockchat-cockpit.js`:
+     - Menghapus pemanggilan `bandarSmartMoneyNetRp()` di `renderBandarmologyMarketFlowView(tk)`.
+     - Mengganti tampilan estimasi net flow Rp dengan data terverifikasi BEI: rasio konsentrasi `concentration.top3BuyPct` / `top3BuyerPct`, badge `verdict` (Akumulasi / Distribusi), dan daftar `topBuyer`.
+     - 4 Card Metrik Ringkasan diperbarui: `IHSG Big Banks Pulse` (jumlah bank akumulasi), `Segmen Akumulasi` (rasio akumulasi bank + sektor), `Top 3 Broker Share (Banks)` (rata-rata konsentrasi beli 4 bank), dan `Market Accumulation Breadth` (skor dominansi breadth akumulasi).
+     - Breakdown sektor menampilkan rasio akumulasi dan persentase rata-rata Top 3 buyer per sektor dengan progress bar proporsional.
+     - Penambahan state `BANDARMOLOGY_MARKET_TIMEFRAME` dinamis dan dropdown pemilih periode: `Hari Ini (1D)`, `1 Minggu (5D)`, dan `1 Bulan (1M)` di header cockpit yang langsung memicu pembaruan data real.
+     - Me-mount `renderBandarmologyForeignFlowView(tk)` dan memicu `setTimeout(bandarLoadRealForeignFlow, 40)`.
+     - Membersihkan karakter em dash (`—`) menjadi tanda baca standar per Anti-Slop R-02.
+     - Membersihkan panah dekoratif `→` pada tombol header per Anti-Slop R-08.
+  2. `public/index.html`: Cache-bust query string `41-stockchat-cockpit.js?v=20260920d`.
+- **Test regresi (`test_suite.js`):**
+  - Menambahkan test regresi baru `REGRESSION GUARD: Bandarmology market-aggregate (Opsi B: real concentration % vs fake net flow, dynamic timeframe selector, and whole-market foreign flow mounted)`.
+  - Memverifikasi `renderBandarmologyMarketFlowView` tidak lagi memanggil `bandarSmartMoneyNetRp`, menggunakan `top3BuyPct`/`top3BuyerPct`, tidak hardcode literal `'1D'`, state `BANDARMOLOGY_MARKET_TIMEFRAME` dan fungsi `bandarSetMarketTimeframe` terpasang, serta foreign flow view ter-mount.
+  - Memastikan seluruh 244/244 test suite lolos (PASS).
+- **Verifikasi:** `node --check` sukses, `node test_suite.js` 244/244 lolos, `node test_provider_functions.js` 6/6 lolos, `npm run lint` bersih tanpa error.
+

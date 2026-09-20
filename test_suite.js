@@ -7580,6 +7580,32 @@ test('REGRESSION GUARD: Technical Chart auto-refresh idempotency, enlarged verti
   assert(aiChartSrc.includes('ZONA JUAL AI / TP'), 'REGRESSION: applyAiChartOverlay() must render ZONA JUAL AI / TP overlay');
 });
 
+test('REGRESSION GUARD: Bandarmology market-aggregate (Opsi B: real concentration % vs fake net flow, dynamic timeframe selector, and whole-market foreign flow mounted)', () => {
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  // Masalah 1: Opsi B - no bandarSmartMoneyNetRp call in renderBandarmologyMarketFlowView, uses top3BuyPct and verdict
+  const mfvMatch = cockpitSrc.match(/function renderBandarmologyMarketFlowView\(tk\) \{([\s\S]*?)\n\}\n\n\/\//);
+  assert(mfvMatch, 'REGRESSION: could not isolate renderBandarmologyMarketFlowView body');
+  assert(!mfvMatch[0].includes('bandarSmartMoneyNetRp('),
+    'REGRESSION: renderBandarmologyMarketFlowView() must NOT call bandarSmartMoneyNetRp() (fake net flow heuristic removed per Opsi B)');
+  assert(mfvMatch[0].includes('top3BuyPct') || mfvMatch[0].includes('top3BuyerPct'),
+    'REGRESSION: renderBandarmologyMarketFlowView() must use real concentration.top3BuyPct for broker share %');
+
+  // Masalah 2: Dynamic timeframe state and selector in market view
+  assert(cockpitSrc.includes('var BANDARMOLOGY_MARKET_TIMEFRAME ='),
+    'REGRESSION: BANDARMOLOGY_MARKET_TIMEFRAME state variable must be defined');
+  assert(cockpitSrc.includes('bandarSetMarketTimeframe'),
+    'REGRESSION: bandarSetMarketTimeframe() function must be defined to handle timeframe dropdown changes');
+  assert(!mfvMatch[0].includes("bandarGetCachedSummary(t, '1D')"),
+    'REGRESSION: renderBandarmologyMarketFlowView() must not hardcode 1D string literal when calling bandarGetCachedSummary()');
+
+  // Masalah 3: Foreign flow view mounted in market cockpit
+  assert(cockpitSrc.includes('+ renderBandarmologyForeignFlowView(tk)'),
+    'REGRESSION: renderBandarmologyCockpitPage() must mount renderBandarmologyForeignFlowView() in composed HTML');
+  assert(cockpitSrc.includes('setTimeout(bandarLoadRealForeignFlow, 40);'),
+    'REGRESSION: renderBandarmologyCockpitPage() must trigger bandarLoadRealForeignFlow on mount');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

@@ -2044,8 +2044,13 @@ window.askAiAboutBrokerAction = askAiAboutBrokerAction;
 // FIX (2026-09-19): mode saham dihapus dari halaman ini (lihat
 // renderBandarmologyCockpitPage()) — variabel ini sekarang selalu 'market'
 // setiap kali halaman dirender, dipertahankan (bukan dihapus) karena masih
-// dibaca sebagai guard di goBandarmology()/setBandarmologyTab().
 var BANDARMOLOGY_MASTER_MODE = 'market';
+var BANDARMOLOGY_MARKET_TIMEFRAME = '1D';
+
+function bandarSetMarketTimeframe(tf) {
+  BANDARMOLOGY_MARKET_TIMEFRAME = tf || '1D';
+  renderBandarmologyCockpitPage();
+}
 var BANDARMOLOGY_SELECTED_BROKER = 'YU';
 var BANDARMOLOGY_BROKER_LIST = [
   { code: 'YU', name: 'CGS International Sekuritas', type: 'F', badge: 'Asing / Institusi' },
@@ -2168,12 +2173,20 @@ function renderBandarmologyCockpitPage(containerId) {
     + '</div>'
     + '<div class="psub">Analisis Macro IHSG, Big Banks, Sektoral Heatmap &amp; Konsentrasi Akumulasi/Distribusi seluruh BEI. Untuk analisis per-emiten (Broker Flow, CMF, VWAP Bands, Foreign Flow), lihat tab Bandarmology di halaman Technical.</div>'
     + '</div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<label for="bandar-market-tf-select" style="font-size:11px;font-weight:700;color:var(--text3)">Periode:</label>'
+    + '<select id="bandar-market-tf-select" class="sm-input" style="padding:4px 10px;font-size:11px;border-radius:6px;width:auto;height:auto;cursor:pointer" onchange="bandarSetMarketTimeframe(this.value)">'
+    + '<option value="1D"' + (BANDARMOLOGY_MARKET_TIMEFRAME === '1D' ? ' selected' : '') + '>Hari Ini (1D)</option>'
+    + '<option value="5D"' + (BANDARMOLOGY_MARKET_TIMEFRAME === '5D' ? ' selected' : '') + '>1 Minggu (5D)</option>'
+    + '<option value="1M"' + (BANDARMOLOGY_MARKET_TIMEFRAME === '1M' ? ' selected' : '') + '>1 Bulan (1M)</option>'
+    + '</select>'
+    + '</div>'
     + '<button onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + tk + '\');goBandarmology(\'stock\',null);" class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:4px">'
-    + '<span>Analisis Emiten (Technical) →</span>'
+    + '<span>Analisis Emiten (Technical)</span>'
     + '</button>'
     + '<button onclick="goPage(\'radar\')" class="btn btn-ghost btn-xs">'
-    + 'Opportunity Radar →'
+    + 'Opportunity Radar'
     + '</button>'
     + '<button onclick="goPage(\'stock-intel\')" class="btn btn-ghost btn-xs flex items-center gap-1">'
     + '<span>Stock Intelligence</span>'
@@ -2191,6 +2204,7 @@ function renderBandarmologyCockpitPage(containerId) {
   // ticker sama. Lihat INCIDENT_LOG.md.
   html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
     + renderBandarmologyMarketFlowView(tk)
+    + renderBandarmologyForeignFlowView(tk)
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
     + renderBandarmologyAccumulationView()
     + renderBandarmologyDistributionView()
@@ -2203,6 +2217,7 @@ function renderBandarmologyCockpitPage(containerId) {
   _bandarAccDistCache = null;
   setTimeout(function() { bandarLoadAccDist('acc'); }, 40);
   setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
+  setTimeout(bandarLoadRealForeignFlow, 40);
 
   // Kick off (or let already-run) real-data prefetch for the shared
   // market-wide sample universe — first paint above used whatever was
@@ -2250,8 +2265,9 @@ function bandarSimBanner(extraNote) {
 // field yang sama persis).
 function bandarGetCachedSummary(ticker, tf) {
   var t = String(ticker || '').toUpperCase().replace(/\.JK$/i, '').trim();
-  var key = t + '_' + (tf || '1D');
-  return STOCKCHAT_BROKER_DATA_CACHE[key] || generateClientSideBrokerSummary(t, tf || '1D');
+  var timeframe = tf || (typeof BANDARMOLOGY_MARKET_TIMEFRAME !== 'undefined' ? BANDARMOLOGY_MARKET_TIMEFRAME : '1D');
+  var key = t + '_' + timeframe;
+  return STOCKCHAT_BROKER_DATA_CACHE[key] || generateClientSideBrokerSummary(t, timeframe);
 }
 
 // Union saham yang dibutuhkan SEMUA view market-aggregate sekaligus, supaya
@@ -2283,23 +2299,16 @@ var BANDAR_MARKET_PREFETCH_INFLIGHT = false;
 // fetchBrokerSummaryData()'s own cache makes a second call for an
 // already-fetched ticker instant anyway, but this avoids firing the whole
 // ~45-ticker Promise.all more than once concurrently.
-function bandarPrefetchMarketBatch(containerId, tk) {
+function bandarPrefetchMarketBatch(containerId, tk, tf) {
   if (BANDAR_MARKET_PREFETCH_INFLIGHT) return;
+  var timeframe = tf || (typeof BANDARMOLOGY_MARKET_TIMEFRAME !== 'undefined' ? BANDARMOLOGY_MARKET_TIMEFRAME : '1D');
   var tickers = bandarUniqueMarketTickers(tk);
-  // FIX (found live, not from reading code: renderBandarmologyCockpitPage()
-  // unconditionally re-renders after every prefetch, and fetchBrokerSummaryData()
-  // caches its SIMULATED fallback result too — so once every ticker has been
-  // fetched at least once (real or simulated), a naive "always Promise.all
-  // then re-render" here would resolve near-instantly from cache on every
-  // subsequent render, which re-renders, which re-prefetches, forever. Caught
-  // via a live Playwright check: the tab pegged one CPU core in a render loop.
-  // Only fetch+re-render when there is at least one ticker NOT already
-  // cached — once the whole set is cached, there is nothing new for another
-  // render to show, so stop here instead of looping.
-  var missing = tickers.filter(function(t) { return !STOCKCHAT_BROKER_DATA_CACHE[t + '_1D']; });
+  var missing = tickers.filter(function(t) {
+    return timeframe === '1D' ? !STOCKCHAT_BROKER_DATA_CACHE[t + '_1D'] : !STOCKCHAT_BROKER_DATA_CACHE[t + '_' + timeframe];
+  });
   if (missing.length === 0) return;
   BANDAR_MARKET_PREFETCH_INFLIGHT = true;
-  Promise.all(missing.map(function(t) { return fetchBrokerSummaryData(t, '1D').catch(function() { return null; }); }))
+  Promise.all(missing.map(function(t) { return fetchBrokerSummaryData(t, timeframe).catch(function() { return null; }); }))
     .then(function() {
       BANDAR_MARKET_PREFETCH_INFLIGHT = false;
       var target = document.getElementById(containerId || 'page-bandarmology');
@@ -2338,7 +2347,7 @@ function bandarSmartMoneyNetRp(bm) {
 function bandarDataBanner(realCount, totalCount, simNote) {
   if (totalCount > 0 && realCount === totalCount) {
     return '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;margin-bottom:12px">'
-      + 'Data di bawah adalah data REAL dari Invezgo API (broker summary resmi BEI) — bukan simulasi.'
+      + 'Data di bawah adalah data REAL dari Invezgo API (broker summary resmi BEI), bukan simulasi.'
       + '</div>';
   }
   if (totalCount > 0 && realCount > 0) {
@@ -2351,86 +2360,86 @@ function bandarDataBanner(realCount, totalCount, simNote) {
 
 // 1. Market Flow View
 function renderBandarmologyMarketFlowView(tk) {
+  var tf = BANDARMOLOGY_MARKET_TIMEFRAME || '1D';
   var bigBanksTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI'];
   var bigBanksName = { 'BBCA': 'Bank Central Asia', 'BBRI': 'Bank Rakyat Indonesia', 'BMRI': 'Bank Mandiri', 'BBNI': 'Bank Negara Indonesia' };
-  var totalBigBanksNetVal = 0;
   var realCount = 0;
   var totalCount = 0;
+  var totalBankConcentration = 0;
 
   var bigBanks = bigBanksTickers.map(function(t) {
-    var bData = bandarGetCachedSummary(t, '1D');
+    var bData = bandarGetCachedSummary(t, tf);
     totalCount++;
     if (bData && bData.isSimulated === false) realCount++;
-    var netVal = bandarForeignNetRp(bData.bandarmology) || bandarSmartMoneyNetRp(bData.bandarmology);
-    totalBigBanksNetVal += netVal;
-    var netM = Math.round(netVal / 1000000000);
-    var flowStr = (netM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netM).toLocaleString('id-ID') + ' M';
-    var isAcc = netM >= 0;
-    var status = (bData.bandarmology && bData.bandarmology.verdict) ? bData.bandarmology.verdict : (isAcc ? 'ACCUMULATION' : 'DISTRIBUTION');
-    var topB = (bData.topBuyers || []).slice(0, 3).map(function(x){ return x.broker; }).join(', ') || 'N/A';
+    var bm = (bData && bData.bandarmology) || {};
+    var conc = bm.concentration || {};
+    var top3Buy = conc.top3BuyPct || conc.top3BuyerPct || 0;
+    totalBankConcentration += top3Buy;
+    var status = bm.verdict || 'NETRAL';
+    var isAcc = status.indexOf('ACCUMULATION') !== -1 || status.indexOf('AKUMULASI') !== -1;
+    var isDist = status.indexOf('DISTRIBUTION') !== -1 || status.indexOf('DISTRIBUSI') !== -1;
+    var topB = (bData && bData.topBuyers || []).slice(0, 3).map(function(x){ return x.broker; }).join(', ') || 'N/A';
     return {
       ticker: t,
       name: bigBanksName[t] || t,
-      flow: flowStr,
+      top3BuyPct: top3Buy,
       status: status,
       isAcc: isAcc,
+      isDist: isDist,
       topBuyer: topB
     };
   });
 
-  var totalMarketFlow = 0;
   var sectors = BANDAR_SECTOR_DEFS.map(function(sec) {
-    var secNetVal = 0;
+    var secAccCount = 0;
+    var secTop3Sum = 0;
+    var validTickers = 0;
     sec.tickers.forEach(function(t) {
-      var bd = bandarGetCachedSummary(t, '1D');
+      var bd = bandarGetCachedSummary(t, tf);
       totalCount++;
       if (bd && bd.isSimulated === false) realCount++;
       if (bd && bd.isValidTicker !== false) {
-        var v = bandarSmartMoneyNetRp(bd.bandarmology);
-        secNetVal += v;
+        validTickers++;
+        var sbm = (bd && bd.bandarmology) || {};
+        var sconc = sbm.concentration || {};
+        var st3 = sconc.top3BuyPct || sconc.top3BuyerPct || 0;
+        secTop3Sum += st3;
+        var sVerdict = sbm.verdict || '';
+        if (sVerdict.indexOf('ACCUMULATION') !== -1 || sVerdict.indexOf('AKUMULASI') !== -1) {
+          secAccCount++;
+        }
       }
     });
-    totalMarketFlow += secNetVal;
-    var secM = Math.round(secNetVal / 1000000000);
-    var isAcc = secM >= 0;
-    var pct = Math.min(Math.max(Math.abs(secM), 15), 95);
+    var avgTop3 = validTickers > 0 ? (secTop3Sum / validTickers) : 0;
+    var isAcc = secAccCount >= Math.ceil(sec.tickers.length / 2);
+    var pct = Math.min(Math.max(Math.round(avgTop3), 15), 95);
     return {
       name: sec.name,
-      flowVal: (secM >= 0 ? '+Rp ' : '-Rp ') + Math.abs(secM).toLocaleString('id-ID') + ' M',
+      accRatio: secAccCount + ' / ' + sec.tickers.length + ' Akumulasi',
+      avgTop3Pct: avgTop3.toFixed(1) + '% Top 3 Buyer',
       pct: pct,
       isAcc: isAcc,
       count: sec.tickers.length
     };
   });
 
-  var totMarketM = Math.round(totalMarketFlow / 1000000000);
-  var totBigBanksM = Math.round(totalBigBanksNetVal / 1000000000);
-
-  // "Foreign Participation 42.8%" and "Smart Money Dominancy 68/100" were
-  // hardcoded literals — always the exact same number regardless of the
-  // (already-simulated) bigBanks/sectors data computed above. Replaced
-  // with a real count of how many of the 9 tracked segments (4 banks + 5
-  // sectors) are actually showing accumulation in this run, so the figure
-  // at least responds to the data next to it instead of never moving.
-  var accCount = bigBanks.filter(function(b) { return b.isAcc; }).length + sectors.filter(function(s) { return s.isAcc; }).length;
+  var banksAccCount = bigBanks.filter(function(b) { return b.isAcc; }).length;
+  var secAccTotal = sectors.filter(function(s) { return s.isAcc; }).length;
+  var accCount = banksAccCount + secAccTotal;
   var totalSegments = bigBanks.length + sectors.length;
   var dominancyScore = Math.round((accCount / totalSegments) * 100);
+  var avgBankConcentration = bigBanks.length > 0 ? (totalBankConcentration / bigBanks.length).toFixed(1) : '0.0';
 
   var html = '<div style="display:flex;flex-direction:column;gap:16px">'
-    // Broker-transaction volume/value figures throughout this view come
-    // from bandarGetCachedSummary() — real Invezgo data when a prefetch for
-    // this ticker succeeded, simulated fallback per-ticker otherwise (see
-    // bandarDataBanner()'s comment above for why this replaced the
-    // always-simulated banner that used to be here unconditionally).
     + bandarDataBanner(realCount, totalCount)
-    // Top Summary Metric Cards (Matching Opportunity Radar row4/metric)
+    // Top Summary Metric Cards
     + '<div class="row4">'
     + '<div class="metric">'
-    + '<div class="mlabel">IHSG BANDAR PULSE</div>'
-    + '<div class="mval ' + (totMarketM >= 0 ? 'up' : 'down') + ' mono" style="font-size:20px">'
-    + (totMarketM >= 0 ? 'NET ACCUMULATION' : 'NET DISTRIBUTION')
+    + '<div class="mlabel">IHSG BIG BANKS PULSE</div>'
+    + '<div class="mval ' + (banksAccCount >= 2 ? 'up' : 'down') + ' mono" style="font-size:20px">'
+    + banksAccCount + ' / 4 Bank'
     + '</div>'
-    + '<div class="msub neu">' + (totMarketM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totMarketM).toLocaleString('id-ID') + ' M Net Flow</div>'
+    + '<div class="msub neu">' + (banksAccCount >= 2 ? 'Mayoritas Akumulasi' : 'Dominan Distribusi') + '</div>'
     + '</div>'
     + '<div class="metric">'
     + '<div class="mlabel">SEGMEN AKUMULASI</div>'
@@ -2438,34 +2447,36 @@ function renderBandarmologyMarketFlowView(tk) {
     + '<div class="msub neu">Big 4 Bank + Sektor menunjukkan akumulasi</div>'
     + '</div>'
     + '<div class="metric">'
-    + '<div class="mlabel">BIG 4 BANKS INFLOW</div>'
-    + '<div class="mval ' + (totBigBanksM >= 0 ? 'up' : 'down') + ' mono" style="font-size:20px">' + (totBigBanksM >= 0 ? '+' : '-') + 'Rp ' + Math.abs(totBigBanksM).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="msub neu">Konsentrasi di Big Banks</div>'
+    + '<div class="mlabel">TOP 3 BROKER SHARE (BANKS)</div>'
+    + '<div class="mval mono up" style="font-size:20px">' + avgBankConcentration + '%</div>'
+    + '<div class="msub neu">Rata-rata konsentrasi beli 4 bank besar</div>'
     + '</div>'
     + '<div class="metric">'
-    + '<div class="mlabel">SMART MONEY DOMINANCY</div>'
+    + '<div class="mlabel">MARKET ACCUMULATION BREADTH</div>'
     + '<div class="mval amb mono" style="font-size:20px">' + dominancyScore + ' / 100</div>'
     + '<div class="msub neu">% segmen (bank+sektor) akumulasi</div>'
     + '</div>'
     + '</div>';
 
-  // Big 4 Banks Flow Section (Matching Opportunity Radar Card Pattern)
+  // Big 4 Banks Flow Section
   html += '<div class="card" style="padding:16px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + 'ALIRAN DANA BANDAR BIG 4 BANKS (MOTOR IHSG)'
+    + 'KONSENTRASI BANDAR BIG 4 BANKS (MOTOR IHSG)'
     + '</div>'
     + (realCount === totalCount ? '<span class="badge b-up" style="font-size:9px">REAL</span>' : '<span class="badge b-amb" style="font-size:9px">SIMULASI</span>')
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">';
 
   bigBanks.forEach(function(b) {
+    var badgeClass = b.isAcc ? 'b-up' : (b.isDist ? 'b-dn' : 'b-neu');
+    var valColor = b.isAcc ? 'var(--green)' : (b.isDist ? 'var(--red)' : 'var(--text)');
     html += '<div onclick="selectStockChatTicker(\'' + b.ticker + '\');setBandarmologyMode(\'stock\');" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:transform 0.15s ease;" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'none\'">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
       + '<span class="mono" style="font-weight:800;font-size:14px;color:var(--text)">' + b.ticker + '</span>'
-      + '<span class="badge ' + (b.isAcc ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + b.status + '</span>'
+      + '<span class="badge ' + badgeClass + '" style="font-size:9px">' + b.status + '</span>'
       + '</div>'
-      + '<div class="mono" style="font-size:18px;font-weight:800;margin-bottom:8px;color:' + (b.isAcc ? 'var(--green)' : 'var(--red)') + '">' + b.flow + '</div>'
+      + '<div class="mono" style="font-size:18px;font-weight:800;margin-bottom:8px;color:' + valColor + '">Top 3: ' + b.top3BuyPct.toFixed(1) + '%</div>'
       + '<div style="font-size:11px;color:var(--text3);display:flex;justify-content:space-between">'
       + '<span>Top Buyer:</span>'
       + '<span class="mono" style="font-weight:700;color:var(--text)">' + b.topBuyer + '</span>'
@@ -2475,10 +2486,10 @@ function renderBandarmologyMarketFlowView(tk) {
 
   html += '</div></div>';
 
-  // Sectoral Flow Breakdown (Opportunity Radar pattern)
+  // Sectoral Flow Breakdown
   html += '<div class="card" style="padding:16px">'
     + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;margin-bottom:14px">'
-    + 'DISTRIBUSI ARUS DANA SMART MONEY PER SEKTOR'
+    + 'KONSENTRASI AKUMULASI SMART MONEY PER SEKTOR'
     + '</div>'
     + '<div style="display:flex;flex-direction:column;gap:12px">';
 
@@ -2488,7 +2499,7 @@ function renderBandarmologyMarketFlowView(tk) {
     html += '<div style="display:flex;flex-direction:column;gap:4px">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">'
       + '<span style="color:var(--text);font-weight:600">' + s.name + '</span>'
-      + '<span class="mono" style="font-weight:700;color:' + txtColor + '">' + s.flowVal + '</span>'
+      + '<span class="mono" style="font-weight:700;color:' + txtColor + '">' + s.accRatio + ' (' + s.avgTop3Pct + ')</span>'
       + '</div>'
       + '<div style="width:100%;height:6px;background:var(--bg3);border-radius:4px;overflow:hidden">'
       + '<div style="width:' + s.pct + '%;height:100%;background:' + barColor + ';border-radius:4px"></div>'
