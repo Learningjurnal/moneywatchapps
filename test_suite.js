@@ -7509,6 +7509,37 @@ await asyncTest('REGRESSION GUARD: OpenRouter backup provider — config gating,
   assert(/backupAvailable/.test(statusSrc) && /backupModel/.test(statusSrc),
     'REGRESSION: GET /api/ai/status no longer reports backupAvailable/backupModel — the toolbar "AI Engine" indicator can no longer distinguish "OpenRouter backup configured" from "no AI configured at all"');
 });
+// FIX (2026-09-20, user-requested: "untuk news pakai API 9router sebagai
+// utama dan anthropic sebagai backup, agar news tidak kosong saat credit
+// habis"): /api/sectoral-news deliberately REVERSES this app's normal
+// provider order (Claude primary everywhere else) because the Anthropic
+// key configured for this app has no credit, so Claude always fails first
+// on this route — OpenRouter must be tried FIRST here, Claude only as
+// fallback. User also explicitly confirmed Invezgo has no news endpoint,
+// so this route must never call an Invezgo news fetcher.
+test('REGRESSION GUARD: /api/sectoral-news must try OpenRouter BEFORE Claude (reversed from the app\'s normal provider order) and never call an Invezgo news endpoint', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/function fetchSectoralNewsViaOpenRouter\(/.test(fullSrc), 'fetchSectoralNewsViaOpenRouter() is missing from server.js');
+  assert(/plugins:\s*\[\{\s*id:\s*'web'/.test(fullSrc), 'fetchSectoralNewsViaOpenRouter() no longer requests OpenRouter\'s web-grounding plugin — without it the model could fabricate headlines/URLs from training data instead of real search results');
+
+  const routeStart = fullSrc.indexOf("app.get('/api/sectoral-news'");
+  assert(routeStart !== -1, "/api/sectoral-news route not found");
+  const routeEnd = fullSrc.indexOf('\napp.', routeStart + 10);
+  const routeSrc = fullSrc.slice(routeStart, routeEnd === -1 ? routeStart + 20000 : routeEnd);
+
+  const openRouterIdx = routeSrc.indexOf('fetchSectoralNewsViaOpenRouter(orConfig)');
+  const claudeIdx = routeSrc.indexOf('callClaudeWithRetry(');
+  assert(openRouterIdx !== -1 && claudeIdx !== -1,
+    'REGRESSION: one of the 2 provider-chain markers (fetchSectoralNewsViaOpenRouter call / callClaudeWithRetry call) is missing from /api/sectoral-news');
+  assert(openRouterIdx < claudeIdx,
+    'REGRESSION: /api/sectoral-news no longer tries OpenRouter before Claude — this route needs OpenRouter FIRST (Anthropic key has no credit, see INCIDENT_LOG.md), reordering back to Claude-first would make news go empty again');
+
+  const claudeStart = routeSrc.indexOf('if (!resolved) {');
+  assert(claudeStart !== -1, 'REGRESSION: /api/sectoral-news no longer gates the Claude fallback behind a `resolved` flag — could call Claude even after OpenRouter already succeeded, wasting a paid call');
+
+  assert(!/fetchInvezgo/i.test(routeSrc) && !/invezgo/i.test(routeSrc),
+    'REGRESSION: /api/sectoral-news calls something Invezgo-related — user explicitly confirmed Invezgo has no news endpoint, this route must only use OpenRouter/Claude');
+});
 
 test('REGRESSION GUARD: math safety & zero-division guards in Sharpe, real beta, and ETF allocation', () => {
   const renderSrc = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');

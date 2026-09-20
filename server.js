@@ -936,26 +936,11 @@ let sectoralNewsCache = {
 // entirely - when real grounded news isn't available, this now returns an
 // honest empty list with a clear message instead of invented content
 // wearing a real publisher's byline.
-app.get('/api/sectoral-news', async (req, res) => {
-  const targetSector = (req.query.sector || '').trim().toLowerCase();
-  const force = req.query.force === 'true';
-  const now = Date.now();
-  const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-  let newsList = [];
-  let dataUnavailable = true;
-  let unavailableReason = 'AI belum dikonfigurasi di server.';
-
-  // Check cache
-  if (!force && sectoralNewsCache.data && (now - sectoralNewsCache.timestamp < CACHE_TTL_MS)) {
-    newsList = sectoralNewsCache.data;
-    dataUnavailable = false;
-  } else {
-    // Attempt Claude web search grounding if AI client is available and not rate limited
-    const ai = getAiClient();
-    if (ai && now > sectoralNewsCache.rateLimitedUntil) {
-      try {
-        const prompt = `Cari berita pasar modal terbaru via web search untuk sektor-sektor Bursa Efek Indonesia (IDX/IHSG) terkini:
+// Prompt bersama untuk kedua provider (OpenRouter & Claude) — sengaja
+// SAMA PERSIS supaya kualitas/format hasil tidak berbeda tergantung jalur
+// mana yang kebetulan berhasil.
+function buildSectoralNewsPrompt() {
+  return `Cari berita pasar modal terbaru via web search untuk sektor-sektor Bursa Efek Indonesia (IDX/IHSG) terkini:
 Fokus pada sektor perbankan (BBCA, BMRI, BBRI), energi (ADRO, PTBA, PGEO), barang baku (ANTM, INCO), konsumer, dan infrastruktur.
 Kembalikan persis format JSON array tanpa markdown:
 [
@@ -974,46 +959,140 @@ Kembalikan persis format JSON array tanpa markdown:
     "time": "Terbaru"
   }
 ]`;
-        const { response } = await callClaudeWithRetry(
-          ai,
-          {
-            max_tokens: 2048,
-            tools: [{ type: 'web_search_20260209', name: 'web_search' }],
-            messages: [{ role: 'user', content: prompt }]
-          },
-          { timeoutMs: 15000, maxRetries: 1 }
-        );
+}
 
-        const rawText = claudeExtractText(response);
-        let clean = rawText.trim().replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        const first = clean.indexOf('[');
-        const last = clean.lastIndexOf(']');
-        if (first !== -1 && last !== -1) {
-          const parsed = JSON.parse(clean.substring(first, last + 1));
-          if (Array.isArray(parsed) && parsed.length >= 3) {
-            sectoralNewsCache = {
-              data: parsed,
-              timestamp: now,
-              rateLimitedUntil: 0
-            };
-            newsList = parsed;
-            dataUnavailable = false;
-          } else {
-            unavailableReason = 'Respons AI tidak valid atau terlalu sedikit hasil.';
-          }
+// Ekstrak array JSON dari teks respons (dibungkus markdown fence atau tidak)
+// — dipakai kedua provider, satu implementasi bukan diduplikasi.
+function extractSectoralNewsJsonArray(rawText) {
+  const clean = String(rawText || '').trim().replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  const first = clean.indexOf('[');
+  const last = clean.lastIndexOf(']');
+  if (first === -1 || last === -1) return null;
+  return JSON.parse(clean.substring(first, last + 1));
+}
+
+// FIX (2026-09-20, user-requested: "untuk news pakai API 9router sebagai
+// utama dan anthropic sebagai backup, agar news tidak kosong saat credit
+// habis"): kebalikan dari urutan provider default app ini (lihat komentar
+// getOpenRouterConfig() di atas — Anthropic utama, OpenRouter cadangan)
+// KHUSUS untuk endpoint ini, karena Anthropic API key yang dipakai app ini
+// belum ada credit-nya (dicatat di INCIDENT_LOG.md), jadi selalu gagal
+// duluan sebelum sempat fallback — user memilih membalik urutan supaya
+// berita tidak kosong terus. Invezgo TIDAK dipakai — user sudah konfirmasi
+// langsung Invezgo tidak punya endpoint berita.
+// CATATAN JUJUR (belum bisa diverifikasi live di sandbox ini, tanpa akses
+// jaringan ke openrouter.ai): memakai fitur "web plugin" OpenRouter
+// (`plugins:[{id:'web'}]`, dari pengetahuan umum OpenRouter, BUKAN dari
+// pemanggilan/dokumentasi resmi yang sempat diverifikasi sesi ini) supaya
+// model yang di-proxy OpenRouter benar-benar mencari data web, bukan
+// menjawab dari memori training (yang berisiko mengarang judul/URL berita
+// -- pelanggaran zero-fabricated-data). PERLU DIVERIFIKASI USER setelah
+// deploy: cek minimal 1 URL hasil beritanya benar-benar ada & sesuai judul
+// (bukan dikarang) sebelum dipercaya penuh.
+async function fetchSectoralNewsViaOpenRouter(orConfig) {
+  const resp = await withTimeout(fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${orConfig.apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://moneywatchapps.vercel.app',
+      'X-Title': 'MoneyWatch Pro'
+    },
+    body: JSON.stringify({
+      model: orConfig.model,
+      max_tokens: 2048,
+      plugins: [{ id: 'web', max_results: 8 }],
+      messages: [{ role: 'user', content: buildSectoralNewsPrompt() }]
+    })
+  }), 15000);
+  if (!resp.ok) {
+    const err = new Error(`OPENROUTER_HTTP_${resp.status}`);
+    err.status = resp.status;
+    throw err;
+  }
+  const json = await resp.json();
+  const rawText = json && json.choices && json.choices[0] && json.choices[0].message ? json.choices[0].message.content : '';
+  if (!rawText) throw new Error('OPENROUTER_EMPTY_RESPONSE');
+  return extractSectoralNewsJsonArray(rawText);
+}
+
+app.get('/api/sectoral-news', async (req, res) => {
+  const targetSector = (req.query.sector || '').trim().toLowerCase();
+  const force = req.query.force === 'true';
+  const now = Date.now();
+  const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+  let newsList = [];
+  let dataUnavailable = true;
+  let unavailableReason = 'AI belum dikonfigurasi di server.';
+
+  // Check cache
+  if (!force && sectoralNewsCache.data && (now - sectoralNewsCache.timestamp < CACHE_TTL_MS)) {
+    newsList = sectoralNewsCache.data;
+    dataUnavailable = false;
+  } else {
+    let resolved = false;
+
+    // 1. OpenRouter DULU (lihat komentar fetchSectoralNewsViaOpenRouter di atas)
+    const orConfig = getOpenRouterConfig();
+    if (orConfig) {
+      try {
+        const parsed = await fetchSectoralNewsViaOpenRouter(orConfig);
+        if (Array.isArray(parsed) && parsed.length >= 3) {
+          sectoralNewsCache = { data: parsed, timestamp: now, rateLimitedUntil: 0 };
+          newsList = parsed;
+          dataUnavailable = false;
+          resolved = true;
         } else {
-          unavailableReason = 'Respons AI tidak dapat diproses.';
+          unavailableReason = 'Respons OpenRouter tidak valid atau terlalu sedikit hasil.';
         }
       } catch (err) {
         const msg = (err && err.message) ? err.message : String(err);
-        const status = err && (err.status || err.code);
-        console.warn('Claude sectoral-news notice:', { message: msg, name: err && err.name, status });
-        if (status === 429 || msg.includes('429') || msg.includes('rate_limit') || msg.includes('quota')) {
-          sectoralNewsCache.rateLimitedUntil = now + 120000;
-          unavailableReason = 'Kuota AI harian tercapai, coba lagi nanti.';
-        } else {
-          unavailableReason = 'Gagal menghubungi layanan pencarian berita.';
+        console.warn('OpenRouter sectoral-news notice, mencoba Claude sebagai cadangan:', msg);
+        unavailableReason = 'Gagal menghubungi OpenRouter, mencoba cadangan.';
+      }
+    }
+
+    // 2. Claude sebagai CADANGAN (dulu jalur utama satu-satunya — lihat
+    // komentar di atas kenapa urutan dibalik untuk endpoint ini saja)
+    if (!resolved) {
+      const ai = getAiClient();
+      if (ai && now > sectoralNewsCache.rateLimitedUntil) {
+        try {
+          const { response } = await callClaudeWithRetry(
+            ai,
+            {
+              max_tokens: 2048,
+              tools: [{ type: 'web_search_20260209', name: 'web_search' }],
+              messages: [{ role: 'user', content: buildSectoralNewsPrompt() }]
+            },
+            { timeoutMs: 15000, maxRetries: 1 }
+          );
+
+          const rawText = claudeExtractText(response);
+          const parsed = extractSectoralNewsJsonArray(rawText);
+          if (Array.isArray(parsed) && parsed.length >= 3) {
+            sectoralNewsCache = { data: parsed, timestamp: now, rateLimitedUntil: 0 };
+            newsList = parsed;
+            dataUnavailable = false;
+          } else if (parsed === null) {
+            unavailableReason = 'Respons AI tidak dapat diproses.';
+          } else {
+            unavailableReason = 'Respons AI tidak valid atau terlalu sedikit hasil.';
+          }
+        } catch (err) {
+          const msg = (err && err.message) ? err.message : String(err);
+          const status = err && (err.status || err.code);
+          console.warn('Claude sectoral-news notice:', { message: msg, name: err && err.name, status });
+          if (status === 429 || msg.includes('429') || msg.includes('rate_limit') || msg.includes('quota')) {
+            sectoralNewsCache.rateLimitedUntil = now + 120000;
+            unavailableReason = 'Kuota AI harian tercapai, coba lagi nanti.';
+          } else {
+            unavailableReason = 'Gagal menghubungi layanan pencarian berita.';
+          }
         }
+      } else if (!ai && !orConfig) {
+        unavailableReason = 'AI belum dikonfigurasi di server.';
       }
     }
   }
