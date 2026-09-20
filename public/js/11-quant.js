@@ -350,20 +350,54 @@ window.goPage = function(page, btn){
 
 // ── Yahoo Finance live fetch helper (wrapper around existing FH engine) ──
 function qtFetchOHLCV(ticker, rangeDays, cb){
-  var sym = ticker.toUpperCase() + '.JK';
+  var cleanTk = String(ticker || '').toUpperCase().replace(/\.JK$/i, '').trim();
+  var sym = cleanTk + '.JK';
   var range = rangeDays <= 365 ? '1y' : (rangeDays <= 730 ? '2y' : (rangeDays <= 1095 ? '3y' : '5y'));
   var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + sym + '?interval=1d&range=' + range;
 
   el('bt-data-status') && (el('bt-data-status').textContent = 'Mengambil data live ' + sym + '...');
 
-  // Try proxies in order: server-side /api/proxy first (stable, cached),
-  // then public CORS proxies as fallback (for static hosts / if the
-  // backend proxy itself is unreachable), then simulation as last resort.
   var isStaticHost = typeof window !== 'undefined' && window.location && (
     (window.location.hostname || '').indexOf('github.io') !== -1 ||
     window.location.protocol === 'file:' ||
     (window.location.hostname || '').indexOf('pages.dev') !== -1
   );
+
+  // 1. Coba endpoint first-party server terlebih dahulu (stabil, berlisensi server-side, tanpa risiko proxy mati)
+  if (!isStaticHost && cleanTk) {
+    var tfReq = rangeDays > 365 ? 'DAILY_MAX' : '1Y';
+    fetch('/api/idx/history/' + encodeURIComponent(cleanTk) + '?tf=' + tfReq + '&market=id')
+      .then(function(r){ if(!r.ok) throw new Error('HTTP_'+r.status); return r.json(); })
+      .then(function(json){
+        var pts = (json && json.points && Array.isArray(json.points)) ? json.points : null;
+        if (!pts || pts.length < 15) throw new Error('TOO_FEW');
+        var mapped = pts.map(function(p){
+          return {
+            date: p.date || (p.t ? new Date(p.t).toISOString().slice(0, 10) : ''),
+            open: p.open || p.close || 0,
+            high: p.high || p.close || 0,
+            low: p.low || p.close || 0,
+            close: p.close || 0,
+            volume: p.volume || 0
+          };
+        }).filter(function(r){ return r.close > 0; });
+        if (mapped.length >= 15) {
+          el('bt-data-status') && (el('bt-data-status').textContent = 'Data riil live: ' + mapped.length + ' candle');
+          el('bt-src-label') && (el('bt-src-label').textContent = 'LIVE Server', el('bt-src-label').style.color = 'var(--green)');
+          cb(null, mapped, 'live');
+          return;
+        }
+        throw new Error('TOO_FEW_FILTERED');
+      })
+      .catch(function(){
+        tryProxy(0);
+      });
+    return;
+  }
+
+  // Try proxies in order: server-side /api/proxy first (stable, cached),
+  // then public CORS proxies as fallback (for static hosts / if the
+  // backend proxy itself is unreachable), then simulation as last resort.
   var proxies = isStaticHost ? [] : [
     { isWrapped: false, url: '/api/proxy?url=' + encodeURIComponent(yUrl) }
   ];
@@ -374,10 +408,10 @@ function qtFetchOHLCV(ticker, rangeDays, cb){
 
   function tryProxy(idx){
     if (idx >= proxies.length) {
-      el('bt-data-status') && (el('bt-data-status').textContent = 'Proxy gagal — pakai data simulasi');
+      el('bt-data-status') && (el('bt-data-status').textContent = 'Proxy gagal: pakai data simulasi');
       el('bt-src-label') && (el('bt-src-label').textContent = 'Simulasi');
       el('bt-src-label') && (el('bt-src-label').style.color = 'var(--amber)');
-      cb(null, qtGenSim(ticker, rangeDays), 'simulasi');
+      cb(null, qtGenSim(cleanTk, rangeDays), 'simulasi');
       return;
     }
 

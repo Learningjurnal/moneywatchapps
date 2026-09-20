@@ -87,9 +87,43 @@ function rdIsReal(tk){ return !!rdGetAny(tk); }
 // ── Fetch Yahoo 1 tahun harian — TANPA fallback simulasi (caller yang memutuskan) ──
 function rdFetchYahoo(tk, cb, pi){
   pi = pi || 0;
-  if(!window.FH || !FH.PROXIES || pi >= FH.PROXIES.length){ RD_FAILED[tk] = true; cb(new Error('ALL_PROXIES_FAILED'), null); return; }
-  var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + tk + '.JK?interval=1d&range=1y';
-  var proxyConfig = FH.PROXIES[pi];
+  var cleanTk = String(tk || '').toUpperCase().replace(/\.JK$/i, '').trim();
+  if(!cleanTk){ if(cb) cb(new Error('INVALID_TICKER'), null); return; }
+
+  // 1. Coba endpoint first-party server terlebih dahulu (stabil, berlisensi server-side, bebas masalah CORS proxy)
+  if(pi === 0 && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:'){
+    fetch('/api/idx/history/' + encodeURIComponent(cleanTk) + '?tf=1Y&market=id')
+      .then(function(r){ if(!r.ok) throw new Error('HTTP_'+r.status); return r.json(); })
+      .then(function(json){
+        var pts = (json && json.points && Array.isArray(json.points)) ? json.points : null;
+        if(!pts || pts.length < 15) throw new Error('TOO_FEW');
+        var rows = pts.map(function(p){
+          return {
+            date: p.date || (p.t ? new Date(p.t).toISOString().slice(0,10) : ''),
+            open: p.open || p.close || 0,
+            high: p.high || p.close || 0,
+            low: p.low || p.close || 0,
+            close: p.close || 0,
+            volume: p.volume || 0
+          };
+        }).filter(function(r){ return r.close > 0; });
+        if(rows.length < 15) throw new Error('TOO_FEW_FILTERED');
+        rdSave(cleanTk, rows);
+        delete RD_FAILED[cleanTk];
+        if(cb) cb(null, rows);
+      })
+      .catch(function(){
+        // Server endpoint gagal atau timeout, coba fallback proxy publik
+        rdFetchYahoo(cleanTk, cb, 1);
+      });
+    return;
+  }
+
+  // Offset proxy index (karena pi=0 untuk server)
+  var proxyIdx = pi - 1;
+  if(!window.FH || !FH.PROXIES || proxyIdx >= FH.PROXIES.length){ RD_FAILED[cleanTk] = true; cb(new Error('ALL_PROXIES_FAILED'), null); return; }
+  var yUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + cleanTk + '.JK?interval=1d&range=1y';
+  var proxyConfig = FH.PROXIES[proxyIdx];
   var url = typeof proxyConfig === 'function' ? proxyConfig(yUrl) : (proxyConfig && proxyConfig.url ? proxyConfig.url(yUrl) : yUrl);
   fetch(url)
   .then(function(r){ if(!r.ok) throw new Error('HTTP_'+r.status); return r.json(); })
@@ -108,11 +142,11 @@ function rdFetchYahoo(tk, cb, pi){
               close:qClose[i]||0, volume:qVol[i]||0};
     }).filter(function(r){ return r.close > 0; });
     if(rows.length < 20) throw new Error('TOO_FEW');
-    rdSave(tk, rows);
-    delete RD_FAILED[tk];
+    rdSave(cleanTk, rows);
+    delete RD_FAILED[cleanTk];
     cb(null, rows);
   })
-  .catch(function(){ rdFetchYahoo(tk, cb, pi+1); });
+  .catch(function(){ rdFetchYahoo(cleanTk, cb, pi+1); });
 }
 function rdEnsure(tk, cb){
   if(rdGet(tk)){ cb(null); return; }
@@ -156,7 +190,7 @@ function rdToFs(rows, days){
   var slice = rows.slice(-Math.max(5, days));
   var avgV = slice.reduce(function(s,r){ return s+r.volume; },0) / Math.max(1,slice.length);
   var obv = 0, ad = 0;
-  return slice.map(function(r){
+  var out = slice.map(function(r){
     var o=r.open||r.close, h=r.high||r.close, l=r.low||r.close, c=r.close, v=r.volume||0;
     var mfm = (h-l) > 0 ? ((c-l)-(h-c))/(h-l) : 0;
     obv += c >= o ? v : -v;
@@ -164,6 +198,8 @@ function rdToFs(rows, days){
     return {dt:new Date(r.date), o:o, h:h, l:l, c:c, v:v, obv:obv, ad:ad,
             mfv:mfm*v, big:v > avgV*1.8, up:c >= o, mfm:mfm};
   });
+  out.simulated = false;
+  return out;
 }
 
 // ══════════════════════════════════════════════
@@ -458,57 +494,11 @@ function rdBuildScData(){
 }
 
 // ══════════════════════════════════════════════
-// OVERRIDE 4 — Correlation Matrix: data riil
+// Correlation Matrix: didelegasikan ke mesin kanonikal (11-quant.js)
 // ══════════════════════════════════════════════
-corrRender = function(){
-  var tks = rdUniverseTickers().slice(0, 10);
-  if(tks.length < 4) tks = ['BBCA','BBRI','BMRI','TLKM','ASII','ANTM'];
-  var returns = {}, realN = 0;
-  tks.forEach(function(t){
-    var rows = rdGetAny(t);
-    var close;
-    if(rows && rows.length > 60){ close = rows.slice(-200).map(function(x){ return x.close; }); realN++; }
-    else { close = qtGenSim(t, 200).map(function(x){ return x.close; }); }
-    returns[t] = close.slice(1).map(function(c,i){ return (c-close[i])/close[i]; });
-  });
-  // samakan panjang deret (real vs sim bisa beda)
-  var minLen = Math.min.apply(null, tks.map(function(t){ return returns[t].length; }));
-  tks.forEach(function(t){ returns[t] = returns[t].slice(-minLen); });
-  var matrix = tks.map(function(a){ return tks.map(function(b){ return qtPearson(returns[a], returns[b]); }); });
+// Tidak menimpa corrRender() dengan data statis / qtGenSim. Modul 11-quant.js
+// menghitung korelasi portofolio riil pengguna + metrik risiko VaR 95% via perfFetchHoldingsHistory.
 
-  var mEl = el('corr-matrix');
-  if(mEl){
-    var h = '<div style="margin-bottom:12px">'+(realN===tks.length
-      ? '<span class="badge b-up" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-weight:700"><i class="ti ti-circle-check"></i> DATA RIIL YAHOO — '+realN+' saham, return harian ~'+minLen+' hari</span>'
-      : '<span class="badge '+(realN>0?'b-gray':'b-dn')+'" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-weight:700">'+(realN>0? '<i class="ti ti-info-circle"></i> ' + realN+'/'+tks.length+' saham riil — sisanya simulasi' : '<i class="ti ti-alert-triangle"></i> SEMUA SIMULASI — muat data riil dulu')+'</span>')+'</div>';
-    h += '<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:68px '+tks.map(function(){ return 'minmax(48px, 1fr)'; }).join(' ')+';gap:3px">';
-    h += '<div></div>'+tks.map(function(t){ return '<div style="font-size:11px;font-weight:800;color:var(--text);text-align:center;padding:4px 2px;font-family:var(--font-mono)">'+t+'</div>'; }).join('');
-    tks.forEach(function(a,i){
-      h += '<div style="font-size:11px;font-weight:800;color:var(--text);display:flex;align-items:center;padding-right:6px;font-family:var(--font-mono)">'+a+'</div>';
-      tks.forEach(function(b,j){
-        var v = matrix[i][j], bg, col;
-        if(i===j){ bg='rgba(255,255,255,.05)'; col='var(--text3)'; }
-        else if(v>0){ var i2=Math.min(1,v/.8); bg='rgba(16,185,129,'+(0.14+i2*.62)+')'; col='#10B981'; }
-        else { var i3=Math.min(1,Math.abs(v)/.8); bg='rgba(239,68,68,'+(0.14+i3*.62)+')'; col='#EF4444'; }
-        h += '<div style="background:'+bg+';color:'+col+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border-radius:6px;height:34px;font-family:var(--font-mono);transition:all .15s ease" title="'+a+' vs '+b+': '+v.toFixed(3)+'">'+(i===j?'1.00':(v>0?'+':'')+v.toFixed(2))+'</div>';
-      });
-    });
-    h += '</div></div>';
-    mEl.innerHTML = h;
-  }
-  var pairs2 = [];
-  tks.forEach(function(a,i){ tks.forEach(function(b,j){ if(j>i) pairs2.push({a:a,b:b,v:matrix[i][j]}); }); });
-  pairs2.sort(function(x,y){ return y.v-x.v; });
-  var pEl = el('corr-pairs');
-  if(pEl){
-    var top = pairs2.slice(0,5), bot = pairs2.slice(-5).reverse();
-    var row = function(p, colr){ return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:8px;margin-bottom:6px;border:1px solid var(--border)"><span style="font-family:var(--font-mono);font-weight:700;color:var(--text);font-size:12px">'+p.a+' <span style="color:var(--text3);font-weight:400">/</span> '+p.b+'</span><span style="color:'+colr+';font-weight:800;font-family:var(--font-mono);font-size:12px">'+(p.v>=0?'+':'')+p.v.toFixed(3)+'</span></div>'; };
-    pEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">'
-      +'<div style="background:rgba(16,185,129,0.02);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:14px"><div style="font-size:11.5px;font-weight:800;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-link"></i> Korelasi Tertinggi (Kandidat Pairs Trading)</div>'+top.map(function(p){ return row(p,'var(--green)'); }).join('')+'</div>'
-      +'<div style="background:rgba(239,68,68,0.02);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:14px"><div style="font-size:11.5px;font-weight:800;color:var(--red);margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-shield-check"></i> Korelasi Terendah (Kandidat Diversifikasi Portofolio)</div>'+bot.map(function(p){ return row(p, p.v>=0?'var(--amber)':'var(--red)'); }).join('')+'</div>'
-      +'</div>';
-  }
-};
 
 // ══════════════════════════════════════════════
 // BANNER STATUS DATA — di semua halaman Kelompok B

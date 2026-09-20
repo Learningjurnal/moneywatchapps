@@ -7754,6 +7754,20 @@ test('REGRESSION GUARD: Phase 4 Portfolio Risk & Correlation Engine (VaR 95%, Vo
   assert(typeof res.divBenefitPct === 'number', 'Diversification benefit must be numeric');
 });
 
+test('REGRESSION GUARD: Server-first live history and real correlation preservation in 13-realdata.js and 11-quant.js', () => {
+  const realdataSrc = fs.readFileSync(path.join(__dirname, 'public/js/13-realdata.js'), 'utf8');
+  assert(realdataSrc.includes("fetch('/api/idx/history/' + encodeURIComponent(cleanTk) + '?tf=1Y&market=id')"),
+    'REGRESSION: rdFetchYahoo must prioritize server-side /api/idx/history before falling back to CORS proxies');
+  assert(realdataSrc.includes('out.simulated = false;'),
+    'REGRESSION: rdToFs must explicitly set out.simulated = false');
+  assert(!realdataSrc.includes('corrRender = function(){'),
+    'REGRESSION: 13-realdata.js must not overwrite canonical corrRender with an obsolete mock');
+
+  const quantSrc = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert(quantSrc.includes("fetch('/api/idx/history/' + encodeURIComponent(cleanTk) + '?tf=' + tfReq + '&market=id')"),
+    'REGRESSION: qtFetchOHLCV must prioritize server-side /api/idx/history before falling back to proxies');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
