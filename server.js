@@ -2139,7 +2139,10 @@ async function callOpenRouterAgentLoop(message, history, userContext, executedTo
       messages.push({ role: h.role === 'model' ? 'assistant' : h.role, content: h.text || h.content || '' });
     }
   });
-  messages.push({ role: 'user', content: message.trim() });
+  const lastOpenRouterMsg = messages[messages.length - 1];
+  if (!lastOpenRouterMsg || lastOpenRouterMsg.role !== 'user' || lastOpenRouterMsg.content !== message.trim()) {
+    messages.push({ role: 'user', content: message.trim() });
+  }
 
   let currentIteration = 0;
   const maxIterations = 5;
@@ -2227,16 +2230,23 @@ KNOWLEDGE BASE & STRATEGI TRADING/INVESTASI INSTITUSIONAL:
 
 ATURAN PERILAKU & ANALISA:
 1. OBJEKTIF & BERBASIS DATA: Jangan pernah memberikan rekomendasi beli/jual secara definitif (hindari "pom-pom"). Selalu berikan analisa dua sisi (potensi untung dan risiko Maximum Drawdown).
-2. KEAHLIAN BANDARMOLOGY & BROKER SUMMARY: Jika pengguna menanyakan broker flow, akumulasi bandar, siapa pembeli terbesar (top buyer), atau pergerakan asing, Anda WAJIB memanggil alat "cek_broker_summary". Uraikan:
-   - Konsentrasi Top 1, Top 3, dan Top 5 Broker.
-   - Rata-rata harga beli Top Broker (Average Buy Price) sebagai level support bandar.
-   - Partisipasi investor Asing (Foreign Flow) vs Domestik.
-   - Perilaku broker ritel vs broker institusi.
+2. KEAHLIAN BANDARMOLOGY & BROKER SUMMARY (PRIORITAS UTAMA): Jika pengguna menanyakan broker summary, bandarmology, siapa pembeli terbesar (top buyer), siapa penjual terbesar (top seller), harga modal rata-rata bandar/top buyer, aliran dana broker (broker flow), atau arus asing: Anda WAJIB memanggil alat "cek_broker_summary" SEBAGAI PRIORITAS UTAMA. JANGAN PERNAH mengalihkan jawaban ke rasio keuangan umum/Graham/DCF/valuasi jika pertanyaannya spesifik tentang broker summary atau bandarmology!
+   - JIKA DATA TERSEDIA (isSimulated:false, quality.status: 'REAL', dan ada data topBuyers): Jawaban WAJIB memuat:
+     * Status Bandarmology (Akumulasi / Distribusi, Skor).
+     * Daftar rinci Top Buyers: kode broker, nama sekuritas, volume lot, total nilai, dan HARGA MODAL RATA-RATA (Average Buy Price) mereka.
+     * Harga modal rata-rata gabungan Top Buyer sebagai level Dynamic Support / acuan Buy on Weakness.
+     * Daftar rinci Top Sellers: kode broker, nama sekuritas, volume, dan harga modal jual mereka.
+     * Partisipasi investor Asing (Foreign Flow) vs Domestik dan Smart Money vs Retail.
+     * Sisi Potensi vs Sisi Risiko (Level proteksi stop-loss dari harga modal bandar).
+   - JIKA DATA TIDAK TERSEDIA (isSimulated:true, quality.status bukan 'REAL', atau topBuyers kosong): Anda WAJIB menyatakan secara jujur dan tegas bahwa data transaksi Broker Summary / Bandarmology untuk emiten ini saat ini TIDAK TERSEDIA. Sesuai prinsip ZERO FABRICATED DATA, DILARANG KERAS mengarang nama broker (seperti AK, BK, CC, PD, YP), volume lot, ataupun harga modal fiktif! Sajikan hanya harga pasar riil terkini jika ada, dan jelaskan bahwa feed broker summary tidak tersedia.
 3. KEPATUHAN REGULASI: Dalam setiap simulasi transaksi, pastikan perhitungan Anda mempertimbangkan aturan Bursa Efek Indonesia (BEI) seperti fraksi harga (tick size) dan batas Auto Rejection (ARA/ARB).
 4. SINKRONISASI PORTOFOLIO: Jika menganalisa porsi kepemilikan, asumsikan data yang Anda proses harus sinkron dengan pencatatan riil (seperti standar KSEI). Jangan menebak saldo atau jumlah lot pengguna jika belum disediakan oleh sistem.
 5. KALKULASI PAJAK: Saat menghitung proyeksi imbal hasil dividen (dividend yield), Anda WAJIB memotongnya dengan tarif pajak dividen final yang berlaku di Indonesia (10% PPh Final atau 0% PMK 18/2021) sebelum menyajikan angka bersih (Net Dividend).
-6. NO HALLUCINATION: Gunakan selalu alat (tools/functions) yang tersedia untuk menarik data kuotasi, fundamental, dan broker summary.
-7. WAJIB CEK FLAG isSimulated: BEI tidak menyediakan feed broker-level flow (top buyer/seller, akumulasi/distribusi) publik gratis. Setiap hasil "cek_broker_summary" membawa field isSimulated (true/false). Jika isSimulated bernilai true, Anda WAJIB menyampaikan secara eksplisit di awal jawaban bahwa angka broker/bandarmology tersebut adalah SIMULASI berbasis harga pasar riil — BUKAN data transaksi broker sungguhan — sebelum menguraikan detailnya. Jangan pernah menyajikan data isSimulated:true seolah-olah itu feed broker riil.
+6. NO HALLUCINATION & ZERO FABRICATED DATA (PRINSIP MUTLAK APLIKASI):
+   - Seluruh data pasar, kuotasi harga, rasio fundamental emiten, kepemilikan, dan broker summary WAJIB ditarik dari alat (tools/functions) yang tersedia.
+   - Jika alat (tool) mengembalikan data tidak ditemukan, kosong, bernilai null/0, atau berstatus tidak tersedia: Anda WAJIB menyatakan secara jujur dan tegas bahwa data TIDAK TERSEDIA atau TIDAK DITEMUKAN.
+   - DILARANG KERAS MENGARANG, MENEBAK, ATAU MEMBUAT DATA FIKTIF dalam bentuk apa pun. Jangan pernah menyajikan angka karangan seolah-olah data riil. Katakan "tidak ada data" atau "data tidak tersedia" jika data memang tidak ada.
+7. WAJIB CEK STATUS DATA BROKER SUMMARY: BEI tidak menyediakan feed broker-level flow (top buyer/seller, akumulasi/distribusi) publik gratis selama jam bursa (penutupan kode broker BEI sejak Desember 2021). Setiap hasil "cek_broker_summary" membawa field isSimulated dan quality.status. Jika isSimulated bernilai true atau status bukan REAL (atau daftar topBuyers kosong), Anda WAJIB menyampaikan secara eksplisit bahwa data Broker Summary TIDAK TERSEDIA dari feed resmi saat ini. JANGAN PERNAH menyajikan daftar broker fiktif atau mengarang harga modal bandar jika datanya tidak ada.
 8. KINERJA & SARAN PERBAIKAN BERBASIS HISTORI RIIL: Jika pengguna bertanya soal performa AI trading/paper trading, win rate, atau minta saran perbaikan strategi berdasarkan kesalahan masa lalu, Anda WAJIB memanggil alat "cek_kinerja_ai_trading" TERLEBIH DAHULU sebelum menjawab — JANGAN pernah mengarang win rate atau pola kesalahan generik. Field hasData:false berarti belum ada trade tercatat sama sekali — sampaikan itu apa adanya, jangan buat-buat angka. Kalau hasData:true, dasarkan saran perbaikan Anda pada field lesson/mistake/improvement trade-trade terakhir (recentClosedTrades) — itu hasil mesin Post-Mortem riil aplikasi, bukan opini Anda sendiri. AI Paper Trading ini modal virtual terisolasi (bukan uang riil pengguna) — jangan pernah membingungkannya dengan portofolio riil dari cek_portofolio_user.
 9. SARAN PERBAIKAN OTOMATIS RISK GATE (berbasis aturan, bukan ML): setiap kali Anda memanggil "cek_portofolio_user", hasilnya membawa field riskGateFindings (array) — daftar pelanggaran OBJEKTIF terhadap Risk Gate resmi aplikasi (posisi tunggal maks 15% AUM, kas RDN minimal 20% AUM, FINANCIAL_POLICY.md §7). Kalau array itu TIDAK KOSONG, Anda WAJIB menyampaikan setiap finding.message-nya sebagai saran perbaikan — proaktif, bukan cuma kalau ditanya eksplisit. Kalau array itu kosong, sampaikan bahwa portofolio saat ini sudah sesuai Risk Gate. Jangan pernah mengarang ambang batas sendiri di luar 15%/20% ini.
 10. PREDIKSI XGBOOST — WAJIB DISCLAIMER: HANYA kalau pengguna secara eksplisit menyebut model/AI/machine learning/XGBoost (mis. "prediksi model", "prediksi AI", "apa kata XGBoost"), panggil alat "cek_prediksi_xgboost" — SELAIN itu (pertanyaan umum "sinyal"/"rekomendasi" tanpa menyebut model), pakai Aturan #11 (cek_sinyal_teknikal), JANGAN cek_prediksi_xgboost (lihat catatan disambiguasi di Aturan #11 — dua tool ini sengaja dipisah tegas supaya tidak ambigu tool mana yang dipanggil). Kalau hasData:false, sampaikan bahwa belum ada prediksi model untuk ticker ini — JANGAN mengarang sinyal sendiri. Kalau hasData:true: BACA field hasProvenSignal SEBELUM menjawab — kalau false (kondisi saat ini), Anda WAJIB menyampaikan kalimat disclaimer eksplisit ("model ini eksperimen edukasi, belum terbukti prediktif") SEBELUM menyebut angka probability/signal apa pun, dan JANGAN PERNAH memframing hasilnya sebagai rekomendasi solid. Kalau isSimulatedInputData:true, tambahkan bahwa data harga historis input model ini sendiri simulasi (bukan data pasar riil) — prediksinya lebih tidak bisa diandalkan lagi.
@@ -2312,8 +2322,14 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
         }
       });
 
-      // Append current user message
-      messages.push({ role: 'user', content: message.trim() });
+      // Append current user message (prevent duplicate consecutive user message)
+      const lastClaudeMsg = messages[messages.length - 1];
+      if (!lastClaudeMsg || lastClaudeMsg.role !== 'user' || lastClaudeMsg.content !== message.trim()) {
+        if (lastClaudeMsg && lastClaudeMsg.role === 'user') {
+          messages.push({ role: 'assistant', content: 'Baik, mari kita analisa pertanyaan Anda.' });
+        }
+        messages.push({ role: 'user', content: message.trim() });
+      }
 
       // Agentic Execution Loop (up to 5 steps)
       let currentIteration = 0;
@@ -2479,6 +2495,59 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
           + (resPred.liftInfo ? '- **Precision vs Base Rate**: ' + (resPred.liftInfo.precisionAtThreshold * 100).toFixed(1) + '% vs ' + (resPred.liftInfo.baseRate * 100).toFixed(1) + '%\n' : '')
           + (resPred.isSimulatedInputData ? '- ⚠️ **Data historis input model ini SIMULASI**, bukan data pasar riil — prediksi ini lebih tidak bisa diandalkan lagi.\n' : '')
           + '\n*Disclaimer: Ini bukan rekomendasi investasi. Keputusan investasi berada di tangan Anda.*';
+      }
+    }
+    else if (/\b(broker|summary|bandar|bandarmologi|bandarmology|top buyer|top seller|pembeli terbesar|penjual terbesar|akumulasi|distribusi|broker flow|smart money|foreign flow|arus asing|modal bandar|harga modal)\b/i.test(message)) {
+      const resBroker = await executeAgentTool('cek_broker_summary', { ticker: matchedTicker, timeframe: '1D' }, userContext);
+      executedTools.push({ name: 'cek_broker_summary', args: { ticker: matchedTicker, timeframe: '1D' }, result: resBroker });
+
+      const buyers = resBroker.topBuyers || [];
+      const sellers = resBroker.topSellers || [];
+      const hasRealData = !resBroker.isSimulated && resBroker.quality?.status === 'REAL' && buyers.length > 0;
+
+      if (!hasRealData) {
+        reply = `### 🕵️ Data Broker Summary & Bandarmology: ${matchedTicker}\n\n`
+          + `⚠️ **Data Broker Summary Tidak Tersedia**\n\n`
+          + `Data transaksi harian tingkat broker (Broker Summary, akumulasi/distribusi bandar, dan daftar Top Buyer/Seller) untuk saham **${matchedTicker}** saat ini **TIDAK TERSEDIA** dari penyedia feed pasar resmi.\n\n`
+          + `Sesuai kebijakan ketat **Zero Fabricated Data** pada MoneyWatch Pro:\n`
+          + `- Sistem **menolak mengarang** nama broker, volume transaksi, ataupun harga modal rata-rata fiktif.\n`
+          + `- Bursa Efek Indonesia (BEI) tidak menyediakan feed broker summary secara publik gratis selama jam bursa (penutupan kode broker BEI sejak Desember 2021).\n`
+          + `- Untuk melihat data akumulasi bandarmology riil, pastikan API Feed Broker (Invezgo) telah terhubung dan aktif di server.\n\n`
+          + `- **Harga Pasar Riil Terkini**: Rp ${Number(resBroker.price || 0).toLocaleString('id-ID')}\n`
+          + `- **Status Data**: Data real tidak tersedia — Tidak ada data karangan yang disajikan.\n\n`
+          + `*Disclaimer: Keputusan investasi berada di tangan Anda. Kami menjaga integritas modal Anda dengan tidak menyajikan data fiktif.*`;
+      } else {
+        const bVerdict = resBroker.bandarmology || {};
+        const topBuyLines = buyers.slice(0, 5).map(function(b, i) {
+          return `${i + 1}. **${b.broker}** (${b.name || 'Sekuritas'}): ${Number(b.volumeLot || 0).toLocaleString('id-ID')} Lot | Rp ${(Number(b.valueRp || 0) / 1e9).toFixed(2)} Miliar — **Avg Price: Rp ${Number(b.avgPrice || 0).toLocaleString('id-ID')}** (${b.pctOfTurnover || 0}% Turnover)`;
+        }).join('\n');
+
+        const topSellLines = sellers.slice(0, 5).map(function(s, i) {
+          return `${i + 1}. **${s.broker}** (${s.name || 'Sekuritas'}): ${Number(s.volumeLot || 0).toLocaleString('id-ID')} Lot | Rp ${(Number(s.valueRp || 0) / 1e9).toFixed(2)} Miliar — **Avg Price: Rp ${Number(s.avgPrice || 0).toLocaleString('id-ID')}** (${s.pctOfTurnover || 0}% Turnover)`;
+        }).join('\n');
+
+        const avgBuyTop3 = Math.round(buyers.slice(0, 3).reduce((sum, b) => sum + (b.avgPrice * b.volumeLot), 0) / Math.max(1, buyers.slice(0, 3).reduce((sum, b) => sum + b.volumeLot, 0)));
+
+        const netForeignRp = bVerdict.foreignFlow?.netValueRp || 0;
+        const netForeignFmt = (netForeignRp >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Number((netForeignRp / 1e9).toFixed(2))).toLocaleString('id-ID') + ' Miliar';
+
+        reply = `### 🕵️ Analisa Broker Summary & Bandarmology: ${matchedTicker}\n\n`
+          + `Berdasarkan feed data transaksi resmi bursa BEI (${resBroker.timeframe || '1D'}):\n\n`
+          + `**1. Ringkasan Status Bandarmology:**\n`
+          + `- **Status Aksi**: **${bVerdict.verdict || 'NETRAL'}** (Skor: **${bVerdict.score || 50}/100**)\n`
+          + `- **Konsentrasi Top 3 Buyer**: **${bVerdict.concentration?.top3BuyerPct || 0}%** vs Top 3 Seller: **${bVerdict.concentration?.top3SellerPct || 0}%**\n`
+          + `- **Aliran Dana Asing (Foreign Flow)**: **${bVerdict.foreignFlow?.status || 'NETRAL'}** (${netForeignFmt})\n`
+          + `- **Partisipasi Smart Money vs Retail**: ${bVerdict.smartMoney?.signal || 'Seimbang'}\n\n`
+          + `**2. Top Buyers (Pembeli Terbesar & Harga Modal Rata-rata):**\n`
+          + topBuyLines + '\n\n'
+          + `📍 **Harga Modal Rata-Rata Top Buyer**: **Rp ${Number(avgBuyTop3).toLocaleString('id-ID')}** (Level Support Bandar / Acuan Buy on Weakness)\n\n`
+          + `**3. Top Sellers (Penjual Terbesar):**\n`
+          + (topSellLines || '_Tidak ada data seller._') + '\n\n'
+          + `**4. Evaluasi & Strategi:**\n`
+          + `- **Interpretasi Aliran Dana**: ${bVerdict.interpretation || 'Aktivitas pasar dalam rentang normal.'}\n`
+          + `- **Sisi Potensi**: ${bVerdict.score >= 60 ? `Akumulasi terkonfirmasi. Pertimbangkan *Buy on Weakness* di sekitar area support modal bandar Rp ${Number(avgBuyTop3).toLocaleString('id-ID')}.` : 'Tekanan jual/distribusi masih membayangi. Hindari spekulasi agresif sebelum ada akumulasi balik.'}\n`
+          + `- **Sisi Risiko (Stop Loss)**: Batas proteksi cut-loss ketat jika harga tembus ke bawah harga modal bandar (-3% s/d -5% di bawah Rp ${Number(avgBuyTop3).toLocaleString('id-ID')}).\n\n`
+          + `*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan bandarmology pasar.*`;
       }
     }
     // DEFAULT untuk "sinyal"/"rekomendasi"/"analisa teknikal" TANPA

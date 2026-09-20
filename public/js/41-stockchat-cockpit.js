@@ -1334,6 +1334,18 @@ function renderBrokerSummaryWidget(data) {
   var topBuyers = (data.topBuyers || []).slice(0, 5);
   var topSellers = (data.topSellers || []).slice(0, 5);
 
+  if (topBuyers.length === 0 && topSellers.length === 0) {
+    html += '<div style="padding:16px;text-align:center;background:var(--bg4);border:1px dashed var(--border2);border-radius:8px;margin-top:6px">'
+      + '<div style="font-weight:700;font-size:12px;color:var(--text);margin-bottom:4px">⚠️ Data Broker Summary Real Tidak Tersedia</div>'
+      + '<div style="font-size:11px;color:var(--text3);line-height:1.5">'
+      + 'Sesuai prinsip <strong>Zero Fabricated Data</strong>, sistem tidak menyajikan daftar broker dan harga modal karangan jika feed resmi belum tersedia.<br>'
+      + 'Harga pasar riil terkini: <strong style="color:var(--text)">Rp ' + Number(data.price || 0).toLocaleString('id-ID') + '</strong>.'
+      + '</div>'
+      + '</div>';
+    html += '</div>';
+    return html;
+  }
+
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;padding-top:4px">'
     // Buyers Column
     + '<div style="display:flex;flex-direction:column;gap:4px">'
@@ -1707,39 +1719,46 @@ async function sendStockChatPrompt(text) {
   };
 
   try {
-    var res = await fetch('/api/ai/agent-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: text,
-        history: STOCKCHAT_CONVERSATION.slice(-8),
-        userContext: userContext
-      })
-    });
+    try {
+      // Prior history: exclude the newly pushed user message so role alternating is preserved
+      var priorHistory = STOCKCHAT_CONVERSATION.slice(0, -1).slice(-8);
+      var res = await fetch('/api/ai/agent-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          history: priorHistory,
+          userContext: userContext
+        })
+      });
 
-    if (res.ok) {
-      var data = await res.json();
-      if (data && data.success) {
-        STOCKCHAT_CONVERSATION.push({
-          role: 'assistant',
-          text: data.reply || 'Analisa berhasil diproses.',
-          toolCalls: data.toolCalls || []
-        });
-        if (typeof logAiSignalToReflectionLog === 'function') logAiSignalToReflectionLog('stockchat', data.toolCalls);
-        return;
+      if (res.ok) {
+        var data = await res.json();
+        if (data && data.success) {
+          STOCKCHAT_CONVERSATION.push({
+            role: 'assistant',
+            text: data.reply || 'Analisa berhasil diproses.',
+            toolCalls: data.toolCalls || []
+          });
+          if (typeof logAiSignalToReflectionLog === 'function') logAiSignalToReflectionLog('stockchat', data.toolCalls);
+          return;
+        }
       }
+    } catch (err) {
+      console.warn('[StockChat] Server AI API unavailable, engaging client-side AI Agent Reasoning Engine:', err);
     }
-  } catch (err) {
-    console.warn('[StockChat] Server AI API unavailable, engaging client-side AI Agent Reasoning Engine:', err);
-  }
 
-  // Client-Side Institutional AI Reasoning Engine (Guarantees 100% Availability on GitHub Pages & Multi-Device)
-  var clientAiResult = generateClientSideAiAgentResponse(text, userContext);
-  STOCKCHAT_CONVERSATION.push({
-    role: 'assistant',
-    text: clientAiResult.reply,
-    toolCalls: clientAiResult.toolCalls || []
-  });
+    // Client-Side Institutional AI Reasoning Engine (Guarantees 100% Availability on GitHub Pages & Multi-Device)
+    var clientAiResult = generateClientSideAiAgentResponse(text, userContext);
+    STOCKCHAT_CONVERSATION.push({
+      role: 'assistant',
+      text: clientAiResult.reply,
+      toolCalls: clientAiResult.toolCalls || []
+    });
+  } finally {
+    STOCKCHAT_IS_BUSY = false;
+    renderStockChatPage();
+  }
 }
 
 // Client-side Institutional AI Agentic Reasoning Engine
@@ -1887,7 +1906,7 @@ function generateClientSideAiAgentResponse(message, userContext) {
       + '*Panduan Lengkap*: Anda dapat membuka menu **Knowledge & Master Guide** untuk simulasi skor konfluensi dan mempelajari alur kerja lengkap.\n\n'
       + '*Disclaimer: Keputusan investasi berada di tangan Anda.*';
   }
-  else if (pLower.includes('broker') || pLower.includes('flow') || pLower.includes('bandar') || pLower.includes('smart money') || pLower.includes('foreign') || pLower.includes('asing') || pLower.includes('akumulasi') || pLower.includes('distribusi')) {
+  else if (pLower.includes('broker') || pLower.includes('summary') || pLower.includes('flow') || pLower.includes('bandar') || pLower.includes('smart money') || pLower.includes('foreign') || pLower.includes('asing') || pLower.includes('akumulasi') || pLower.includes('distribusi') || pLower.includes('top buyer') || pLower.includes('top seller') || pLower.includes('modal')) {
     var bData = generateClientSideBrokerSummary(matchedTicker, STOCKCHAT_TIMEFRAME || '1D');
     executedTools.push({
       name: 'cek_broker_summary',
@@ -1895,25 +1914,56 @@ function generateClientSideAiAgentResponse(message, userContext) {
       result: bData
     });
 
-    var bVerdict = bData.bandarmology;
-    var topBuy3 = bData.topBuyers.slice(0, 3).map(function(b) { return b.broker + ' (' + b.pctOfTurnover + '%)'; }).join(', ');
-    var topSell3 = bData.topSellers.slice(0, 3).map(function(s) { return s.broker + ' (' + s.pctOfTurnover + '%)'; }).join(', ');
-    var netForeignFmt = (bVerdict.foreignFlow.netValueRp >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(bVerdict.foreignFlow.netValueRp / 1000000000)).toLocaleString('id-ID') + ' Miliar';
+    var bVerdict = bData.bandarmology || {};
+    var buyers = bData.topBuyers || [];
+    var sellers = bData.topSellers || [];
 
-    reply = '### Analisa Broker Summary & Bandarmology: ' + matchedTicker + '\n\n'
-      + (bData.isSimulated
-          ? '**Catatan Data**: BEI tidak menyediakan feed broker-level flow publik gratis — angka top buyer/seller di bawah ini adalah **simulasi** yang diberi jangkar harga pasar riil ' + matchedTicker + ', bukan data transaksi broker sungguhan.\n\n'
-          : 'Berdasarkan feed data transaksi pasar reguler BEI (' + bData.timeframe + '):\n')
-      + '- **Status Bandarmology**: **' + bVerdict.verdict + '** (Skor: ' + bVerdict.score + '/100)\n'
-      + '- **Konsentrasi Top 3 Buyer**: **' + bVerdict.concentration.top3BuyerPct + '%** [' + topBuy3 + ']\n'
-      + '- **Konsentrasi Top 3 Seller**: **' + bVerdict.concentration.top3SellerPct + '%** [' + topSell3 + ']\n'
-      + '- **Aliran Dana Asing (Foreign Flow)**: **' + bVerdict.foreignFlow.status + '** (' + netForeignFmt + ')\n'
-      + '- **Smart Money vs Retail**: ' + bVerdict.smartMoney.signal + '\n\n'
-      + '**Interpretasi Aliran Dana:**\n'
-      + bVerdict.interpretation + '\n\n'
-      + '**Rekomendasi Tindakan:**\n'
-      + (bVerdict.score >= 70 ? '• Akumulasi terkonfirmasi: Pertimbangkan *Buy on Weakness* di sekitar area support/VWAP Rp ' + bData.topBuyers[0].avgPrice.toLocaleString('id-ID') + '.' : '• Tekanan distribusi: Hindari menangkap pisau jatuh. Tunggu terbentuknya base harga solid.') + '\n\n'
-      + '*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan bandarmology pasar.*';
+    var topBuyLines = buyers.slice(0, 5).map(function(b, i) {
+      return (i + 1) + '. **' + b.broker + '** (' + (b.name || 'Sekuritas') + '): ' + Number(b.volumeLot || 0).toLocaleString('id-ID') + ' Lot | Rp ' + (Number(b.valueRp || 0) / 1e9).toFixed(2) + ' Miliar — **Avg Price: Rp ' + Number(b.avgPrice || 0).toLocaleString('id-ID') + '** (' + (b.pctOfTurnover || 0) + '% Turnover)';
+    }).join('\n');
+
+    var topSellLines = sellers.slice(0, 5).map(function(s, i) {
+      return (i + 1) + '. **' + s.broker + '** (' + (s.name || 'Sekuritas') + '): ' + Number(s.volumeLot || 0).toLocaleString('id-ID') + ' Lot | Rp ' + (Number(s.valueRp || 0) / 1e9).toFixed(2) + ' Miliar — **Avg Price: Rp ' + Number(s.avgPrice || 0).toLocaleString('id-ID') + '** (' + (s.pctOfTurnover || 0) + '% Turnover)';
+    }).join('\n');
+
+    var avgBuyTop3 = buyers.length >= 3
+      ? Math.round(buyers.slice(0, 3).reduce(function(sum, b) { return sum + (b.avgPrice * b.volumeLot); }, 0) / Math.max(1, buyers.slice(0, 3).reduce(function(sum, b) { return sum + b.volumeLot; }, 0)))
+      : (buyers[0] ? buyers[0].avgPrice : (bData.price || 0));
+
+    var netForeignFmt = ((bVerdict.foreignFlow && bVerdict.foreignFlow.netValueRp >= 0) ? '+Rp ' : '-Rp ') + Math.abs(Math.round((bVerdict.foreignFlow ? bVerdict.foreignFlow.netValueRp : 0) / 1000000000)).toLocaleString('id-ID') + ' Miliar';
+
+    var hasRealData = !bData.isSimulated && buyers.length > 0;
+
+    if (!hasRealData) {
+      reply = '### 🕵️ Data Broker Summary & Bandarmology: ' + matchedTicker + '\n\n'
+        + '⚠️ **Data Broker Summary Tidak Tersedia**\n\n'
+        + 'Data transaksi harian tingkat broker (Broker Summary, akumulasi/distribusi bandar, dan daftar Top Buyer/Seller) untuk saham **' + matchedTicker + '** saat ini **TIDAK TERSEDIA** dari feed resmi pasar.\n\n'
+        + 'Sesuai aturan ketat **Zero Fabricated Data** pada MoneyWatch Pro:\n'
+        + '- Sistem **menolak mengarang** nama broker, volume lot, ataupun estimasi harga modal fiktif.\n'
+        + '- Bursa Efek Indonesia (BEI) tidak menyediakan feed broker summary secara publik gratis selama jam bursa (penutupan kode broker BEI sejak Desember 2021).\n'
+        + '- Hubungkan API Feed Broker resmi (Invezgo) pada server untuk mengakses data transaksi bandarmology riil.\n\n'
+        + '- **Harga Pasar Riil Terkini**: Rp ' + Number(bData.price || 0).toLocaleString('id-ID') + '\n'
+        + '- **Status Data**: Data real tidak tersedia — Tidak ada data karangan yang disajikan.\n\n'
+        + '*Disclaimer: Keputusan investasi berada di tangan Anda. Kami menjaga integritas modal Anda dengan tidak menyajikan data fiktif.*';
+    } else {
+      reply = '### 🕵️ Analisa Broker Summary & Bandarmology: ' + matchedTicker + '\n\n'
+        + 'Berdasarkan feed data transaksi resmi bursa BEI (' + bData.timeframe + '):\n\n'
+        + '**1. Ringkasan Status Bandarmology:**\n'
+        + '- **Status Aksi**: **' + (bVerdict.verdict || 'NETRAL') + '** (Skor: **' + (bVerdict.score || 50) + '/100**)\n'
+        + '- **Konsentrasi Top 3 Buyer**: **' + (bVerdict.concentration ? bVerdict.concentration.top3BuyerPct : 0) + '%** vs Top 3 Seller: **' + (bVerdict.concentration ? bVerdict.concentration.top3SellerPct : 0) + '%**\n'
+        + '- **Aliran Dana Asing (Foreign Flow)**: **' + (bVerdict.foreignFlow ? bVerdict.foreignFlow.status : 'NETRAL') + '** (' + netForeignFmt + ')\n'
+        + '- **Partisipasi Smart Money vs Retail**: ' + (bVerdict.smartMoney ? bVerdict.smartMoney.signal : 'Seimbang') + '\n\n'
+        + '**2. Top Buyers (Pembeli Terbesar & Harga Modal Rata-rata):**\n'
+        + topBuyLines + '\n\n'
+        + '📍 **Harga Modal Rata-Rata Top Buyer**: **Rp ' + Number(avgBuyTop3).toLocaleString('id-ID') + '** (Level Support Bandar / Acuan Buy on Weakness)\n\n'
+        + '**3. Top Sellers (Penjual Terbesar):**\n'
+        + (topSellLines || '_Tidak ada data seller._') + '\n\n'
+        + '**4. Evaluasi & Strategi:**\n'
+        + '- **Interpretasi Aliran Dana**: ' + (bVerdict.interpretation || 'Aktivitas pasar dalam rentang normal.') + '\n'
+        + '- **Sisi Potensi**: ' + (bVerdict.score >= 60 ? 'Akumulasi terkonfirmasi. Pertimbangkan *Buy on Weakness* di sekitar area support modal bandar Rp ' + Number(avgBuyTop3).toLocaleString('id-ID') + '.' : 'Tekanan jual/distribusi masih membayangi. Hindari spekulasi agresif sebelum ada akumulasi balik.') + '\n'
+        + '- **Sisi Risiko (Stop Loss)**: Batas proteksi cut-loss ketat jika harga tembus ke bawah harga modal bandar (-3% s/d -5% di bawah Rp ' + Number(avgBuyTop3).toLocaleString('id-ID') + ').\n\n'
+        + '*Disclaimer: Keputusan investasi berada di tangan Anda. Analisa ini berdasarkan data historis dan bandarmology pasar.*';
+    }
   }
   else if (isPortfolioIntent) {
     var porto = (userContext && userContext.holdings) || (typeof getPortfolio === 'function' ? getPortfolio() : []);

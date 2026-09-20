@@ -7542,6 +7542,41 @@ test('REGRESSION GUARD: /api/sectoral-news must try OpenRouter BEFORE Claude (re
     'REGRESSION: /api/sectoral-news calls something Invezgo-related — user explicitly confirmed Invezgo has no news endpoint, this route must only use OpenRouter/Claude');
 });
 
+// FIX (2026-09-20, user bug report: "hanya bisa kirim 1 chat, chat kedua
+// tidak bisa dikirim/masuk, dan saya bertanya bandarmology namun dijawab
+// lain oleh chat AI"):
+// 1. sendStockChatPrompt() in 41-stockchat-cockpit.js had no `finally`
+//    resetting STOCKCHAT_IS_BUSY = false and calling renderStockChatPage(),
+//    leaving the chat permanently locked in busy state after message 1.
+// 2. server.js deterministic fallback lacked an `else if` branch for
+//    cek_broker_summary, causing bandarmology/broker questions to fall into
+//    `else` which emitted generic Graham/DCF valuation and ratios.
+test('REGRESSION GUARD: StockChat multi-turn chat lifecycle & Bandarmology routing guard in server.js and 41-stockchat-cockpit.js', () => {
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public', 'js', '41-stockchat-cockpit.js'), 'utf8');
+
+  // 1. Cockpit must have `finally` resetting STOCKCHAT_IS_BUSY and re-rendering
+  assert(/STOCKCHAT_IS_BUSY\s*=\s*false;\s*renderStockChatPage\(\);/.test(cockpitSrc),
+    'REGRESSION: 41-stockchat-cockpit.js does not reset STOCKCHAT_IS_BUSY = false and re-render in finally block — this causes chat 2 to be blocked forever');
+
+  // 2. Cockpit must slice prior history without the current user message
+  assert(/STOCKCHAT_CONVERSATION\.slice\(0,\s*-1\)\.slice\(-8\)/.test(cockpitSrc),
+    'REGRESSION: 41-stockchat-cockpit.js must pass priorHistory excluding current message to avoid Claude/OpenRouter role alternating errors');
+
+  // 3. server.js deterministic fallback must have a dedicated broker/bandarmology branch
+  const brokerBranchMatch = serverSrc.match(/else if\s*\(\/\\b\(broker\|summary\|bandar[\s\S]*?cek_broker_summary[\s\S]*?\)/);
+  assert(brokerBranchMatch,
+    'REGRESSION: server.js deterministic engine lacks dedicated else-if branch executing cek_broker_summary for broker/bandarmology keywords');
+
+  // 4. Rule #2 in SYSTEM_INSTRUCTION_MONEYWATCH_AI must prioritize cek_broker_summary
+  assert(/KEAHLIAN BANDARMOLOGY & BROKER SUMMARY \(PRIORITAS UTAMA\)/.test(serverSrc),
+    'REGRESSION: server.js SYSTEM_INSTRUCTION_MONEYWATCH_AI Rule #2 does not mark cek_broker_summary as high priority');
+
+  // 5. Client AI agent in cockpit must handle broker/summary/bandar keywords
+  assert(/pLower\.includes\('broker'\)\s*\|\|\s*pLower\.includes\('summary'\)\s*\|\|\s*pLower\.includes\('flow'\)\s*\|\|\s*pLower\.includes\('bandar'\)/.test(cockpitSrc),
+    'REGRESSION: 41-stockchat-cockpit.js client-side AI agent does not cover broker and bandar keywords in its reasoning router');
+});
+
 test('REGRESSION GUARD: math safety & zero-division guards in Sharpe, real beta, and ETF allocation', () => {
   const renderSrc = fs.readFileSync(path.join(__dirname, 'public/js/04-render.js'), 'utf8');
   assert(
