@@ -5473,12 +5473,13 @@ test('REGRESSION GUARD: Bandarmology market-aggregate views use real Invezgo dat
   // renderBandarmologyDistributionView() were REPLACED the same way, same
   // day — they now fetch GET /api/idx/accumulation-distribution
   // (whole-market real Invezgo data) instead of looping a client cache.
-  // renderBandarmologyBrokerTrailView() is the one view of these 4 that
-  // genuinely has no whole-market Invezgo equivalent — see its own
-  // scope-disclosure test below — so it's the only one still checked here.)
+  // renderBandarmologyBrokerTrailView() was similarly UPGRADED on 2026-09-20
+  // to fetch GET /api/idx/broker-summary-by-broker/:code (whole-market real
+  // Invezgo data per broker via GET /analysis/summary/broker/{code}), so it
+  // no longer loops a 42-ticker sample either.
+  // renderBandarmologyMarketFlowView is the one view checked here.)
   const viewBounds = [
-    ['renderBandarmologyMarketFlowView', /function renderBandarmologyMarketFlowView[\s\S]*?\n}\n/],
-    ['renderBandarmologyBrokerTrailView', /function renderBandarmologyBrokerTrailView[\s\S]*?\n}\n/]
+    ['renderBandarmologyMarketFlowView', /function renderBandarmologyMarketFlowView[\s\S]*?\n}\n/]
   ];
   viewBounds.forEach(([name, re]) => {
     const m = src.match(re);
@@ -6527,11 +6528,11 @@ test('REGRESSION GUARD: Accumulation/Distribution views use whole-market Invezgo
   assert(/id="bandar-acc-content"/.test(cockpitSrc) && /id="bandar-dist-content"/.test(cockpitSrc),
     'REGRESSION: Accumulation/Distribution containers no longer have distinct ids — updating one would break the other');
 
-  // Broker Trail: no whole-market per-broker Invezgo endpoint exists, so
-  // per CLAUDE.md rule #2 it must honestly disclose the limitation rather
-  // than pretend a sample is full-market coverage.
+  // Broker Summary by Broker (formerly Broker Trail): upgraded to real whole-market
+  // Invezgo institutional portfolio endpoint (/analysis/summary/broker/{code}).
   const trailViewSrc = cockpitSrc.match(/function renderBandarmologyBrokerTrailView[\s\S]*?\n\}\n/)[0];
-  assert(/Cakupan terbatas/.test(trailViewSrc), 'REGRESSION: renderBandarmologyBrokerTrailView() no longer discloses its limited (non-whole-market) scope');
+  assert(/TOP NET BUY \(AKUMULASI\)/.test(trailViewSrc), 'REGRESSION: renderBandarmologyBrokerTrailView() missing TOP NET BUY table');
+  assert(/TOP NET SELL \(DISTRIBUSI\)/.test(trailViewSrc), 'REGRESSION: renderBandarmologyBrokerTrailView() missing TOP NET SELL table');
 });
 
 // ── TEST: Smart Money Screener's whole-market Accumulation/Distribution
@@ -7604,6 +7605,48 @@ test('REGRESSION GUARD: Bandarmology market-aggregate (Opsi B: real concentratio
     'REGRESSION: renderBandarmologyCockpitPage() must mount renderBandarmologyForeignFlowView() in composed HTML');
   assert(cockpitSrc.includes('setTimeout(bandarLoadRealForeignFlow, 40);'),
     'REGRESSION: renderBandarmologyCockpitPage() must trigger bandarLoadRealForeignFlow on mount');
+});
+
+test('REGRESSION GUARD: Broker Summary by Broker (Invezgo whole-market portfolio endpoint, idx-data-engine mapping, server route, and cockpit view)', () => {
+  // 1. invezgo-client.js exports fetchInvezgoBrokerSummaryByBroker with required params
+  const clientSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/async function fetchInvezgoBrokerSummaryByBroker/.test(clientSrc),
+    'REGRESSION: fetchInvezgoBrokerSummaryByBroker() missing from lib/invezgo-client.js');
+  assert(/fetchInvezgoBrokerSummaryByBroker,/.test(clientSrc),
+    'REGRESSION: fetchInvezgoBrokerSummaryByBroker is not exported from lib/invezgo-client.js');
+  assert(clientSrc.includes('/analysis/summary/broker/'),
+    'REGRESSION: Invezgo broker summary URL must target /analysis/summary/broker/{code}');
+
+  // 2. idx-data-engine.js exports getBrokerSummaryByBroker and imports from invezgo-client.js
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(engineSrc.includes('fetchInvezgoBrokerSummaryByBroker,'),
+    'REGRESSION: fetchInvezgoBrokerSummaryByBroker must be imported in lib/idx-data-engine.js');
+  assert(/async function getBrokerSummaryByBroker/.test(engineSrc),
+    'REGRESSION: getBrokerSummaryByBroker() missing from lib/idx-data-engine.js');
+  assert(/getBrokerSummaryByBroker,/.test(engineSrc),
+    'REGRESSION: getBrokerSummaryByBroker is not exported from lib/idx-data-engine.js');
+
+  // 3. server.js has the GET /api/idx/broker-summary-by-broker/:code route
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(serverSrc.includes("app.get('/api/idx/broker-summary-by-broker/:code'"),
+    'REGRESSION: route /api/idx/broker-summary-by-broker/:code missing in server.js');
+  assert(serverSrc.includes('getBrokerSummaryByBroker,'),
+    'REGRESSION: getBrokerSummaryByBroker must be imported in server.js');
+
+  // 4. public/js/41-stockchat-cockpit.js contains the upgraded whole-market broker portfolio
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(cockpitSrc.includes('var BANDARMOLOGY_BROKER_TIMEFRAME ='),
+    'REGRESSION: BANDARMOLOGY_BROKER_TIMEFRAME missing from 41-stockchat-cockpit.js');
+  assert(cockpitSrc.includes('function bandarLoadBrokerPortfolio'),
+    'REGRESSION: bandarLoadBrokerPortfolio() missing from 41-stockchat-cockpit.js');
+  assert(cockpitSrc.includes('/api/idx/broker-summary-by-broker/'),
+    'REGRESSION: Cockpit broker trail view must fetch from /api/idx/broker-summary-by-broker/');
+  assert(cockpitSrc.includes('TOP NET BUY (AKUMULASI)'),
+    'REGRESSION: Cockpit broker summary view must render TOP NET BUY (AKUMULASI) table');
+  assert(cockpitSrc.includes('TOP NET SELL (DISTRIBUSI)'),
+    'REGRESSION: Cockpit broker summary view must render TOP NET SELL (DISTRIBUSI) table');
+  assert(cockpitSrc.includes('bandar-custom-broker-input'),
+    'REGRESSION: Cockpit must provide custom broker code search input');
 });
 
 console.log('═══════════════════════════════════════════════════════');

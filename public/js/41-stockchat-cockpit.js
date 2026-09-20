@@ -2052,6 +2052,9 @@ function bandarSetMarketTimeframe(tf) {
   renderBandarmologyCockpitPage();
 }
 var BANDARMOLOGY_SELECTED_BROKER = 'YU';
+var BANDARMOLOGY_BROKER_TIMEFRAME = '1D';
+var _bandarBrokerPortfolioCache = {};
+var _bandarBrokerPortfolioLoading = false;
 var BANDARMOLOGY_BROKER_LIST = [
   { code: 'YU', name: 'CGS International Sekuritas', type: 'F', badge: 'Asing / Institusi' },
   { code: 'AK', name: 'UBS Sekuritas Indonesia', type: 'F', badge: 'Asing / Smart Money' },
@@ -2144,9 +2147,41 @@ window.setBandarmologyTab = function(subTab) {
 };
 
 window.setBandarmologyBroker = function(brokerCode) {
-  BANDARMOLOGY_SELECTED_BROKER = brokerCode || 'YU';
-  renderBandarmologyCockpitPage();
+  BANDARMOLOGY_SELECTED_BROKER = (brokerCode || 'YU').toUpperCase().trim();
+  var el = document.getElementById('bandarmology-broker-trail-view');
+  if (el) {
+    bandarRenderBrokerPortfolioSection();
+  } else {
+    renderBandarmologyCockpitPage();
+  }
+  bandarLoadBrokerPortfolio(BANDARMOLOGY_SELECTED_BROKER, BANDARMOLOGY_BROKER_TIMEFRAME);
 };
+
+window.setBandarmologyBrokerTimeframe = function(tf) {
+  BANDARMOLOGY_BROKER_TIMEFRAME = (tf || '1D').toUpperCase();
+  var el = document.getElementById('bandarmology-broker-trail-view');
+  if (el) {
+    bandarRenderBrokerPortfolioSection();
+  } else {
+    renderBandarmologyCockpitPage();
+  }
+  bandarLoadBrokerPortfolio(BANDARMOLOGY_SELECTED_BROKER, BANDARMOLOGY_BROKER_TIMEFRAME);
+};
+
+window.bandarSubmitCustomBroker = function() {
+  var input = document.getElementById('bandar-custom-broker-input');
+  if (!input) return;
+  var code = (input.value || '').trim().toUpperCase();
+  if (code.length >= 2) {
+    window.setBandarmologyBroker(code);
+  }
+};
+
+function bandarRenderBrokerPortfolioSection() {
+  var el = document.getElementById('bandarmology-broker-trail-view');
+  if (!el) return;
+  el.outerHTML = renderBandarmologyBrokerTrailView();
+}
 
 // FIX (2026-09-19, konsolidasi "Eksekusi no 1"): mode saham (Broker Flow +
 // CMF/VWAP + Foreign Flow single-ticker, sebelumnya "ANALISIS FULL EMITEN")
@@ -2218,6 +2253,7 @@ function renderBandarmologyCockpitPage(containerId) {
   setTimeout(function() { bandarLoadAccDist('acc'); }, 40);
   setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
   setTimeout(bandarLoadRealForeignFlow, 40);
+  setTimeout(function() { bandarLoadBrokerPortfolio(BANDARMOLOGY_SELECTED_BROKER, BANDARMOLOGY_BROKER_TIMEFRAME); }, 40);
 
   // Kick off (or let already-run) real-data prefetch for the shared
   // market-wide sample universe — first paint above used whatever was
@@ -2765,125 +2801,282 @@ function renderBandarmologySmartMoneyRadarView(tk) {
 }
 
 // 7. Broker Trail View
+// 7. Broker Summary by Broker View (Whole-Market Institutional Portfolio)
+function bandarLoadBrokerPortfolio(brokerCode, tf) {
+  var bCode = (brokerCode || BANDARMOLOGY_SELECTED_BROKER || 'YU').toUpperCase().trim();
+  var timeframe = (tf || BANDARMOLOGY_BROKER_TIMEFRAME || '1D').toUpperCase();
+  var cacheKey = bCode + '_' + timeframe;
+
+  if (_bandarBrokerPortfolioCache[cacheKey]) {
+    bandarRenderBrokerPortfolioSection();
+    return;
+  }
+
+  if (_bandarBrokerPortfolioLoading) return;
+  _bandarBrokerPortfolioLoading = true;
+  bandarRenderBrokerPortfolioSection();
+
+  fetch('/api/idx/broker-summary-by-broker/' + encodeURIComponent(bCode) + '?tf=' + encodeURIComponent(timeframe))
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+      _bandarBrokerPortfolioLoading = false;
+      if (json && json.success && json.data) {
+        _bandarBrokerPortfolioCache[cacheKey] = json.data;
+      } else {
+        _bandarBrokerPortfolioCache[cacheKey] = {
+          ok: false,
+          broker: bCode,
+          timeframe: timeframe,
+          reason: (json && json.data && json.data.reason) || (json && json.error) || 'Data broker belum tersedia dari Invezgo',
+          netBuyStocks: [],
+          netSellStocks: []
+        };
+      }
+      bandarRenderBrokerPortfolioSection();
+    })
+    .catch(function(err) {
+      _bandarBrokerPortfolioLoading = false;
+      _bandarBrokerPortfolioCache[cacheKey] = {
+        ok: false,
+        broker: bCode,
+        timeframe: timeframe,
+        reason: err.message || 'Gagal terhubung ke server',
+        netBuyStocks: [],
+        netSellStocks: []
+      };
+      bandarRenderBrokerPortfolioSection();
+    });
+}
+
 function renderBandarmologyBrokerTrailView() {
-  var bCode = BANDARMOLOGY_SELECTED_BROKER || 'YU';
-  var bInfo = BANDARMOLOGY_BROKER_LIST.find(function(b) { return b.code === bCode; }) || BANDARMOLOGY_BROKER_LIST[0];
+  var bCode = (BANDARMOLOGY_SELECTED_BROKER || 'YU').toUpperCase().trim();
+  var tf = (BANDARMOLOGY_BROKER_TIMEFRAME || '1D').toUpperCase();
+  var bInfo = BANDARMOLOGY_BROKER_LIST.find(function(b) { return b.code === bCode; }) || {
+    code: bCode,
+    name: 'Broker ' + bCode,
+    type: 'D',
+    badge: 'Anggota Bursa IDX'
+  };
 
-  var sampleTickers = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'AMMN', 'BREN', 'TPIA', 'CUAN', 'PANI', 'BRMS', 'MEDC', 'PGAS', 'PTBA', 'INCO', 'MDKA', 'HRUM', 'MBMA', 'BUMI', 'AADI', 'BRIS', 'UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'MYOR', 'CPIN', 'ACES', 'INKP', 'TKIM', 'JSMR', 'CTRA', 'PWON', 'GGRM', 'EXCL', 'BUKA', 'SMGR'];
+  var cacheKey = bCode + '_' + tf;
+  var cachedData = _bandarBrokerPortfolioCache[cacheKey];
+  var isLoading = _bandarBrokerPortfolioLoading && !cachedData;
 
-  var trailData = [];
-  var realCount = 0;
-  var totalCount = 0;
-  sampleTickers.forEach(function(t) {
-    if (typeof isValidStockTicker === 'function' && !isValidStockTicker(t)) return;
-    var bData = bandarGetCachedSummary(t, '1D');
-    if (!bData || bData.isValidTicker === false) return;
-    totalCount++;
-    if (bData.isSimulated === false) realCount++;
+  if (!cachedData && !_bandarBrokerPortfolioLoading) {
+    setTimeout(function() { bandarLoadBrokerPortfolio(bCode, tf); }, 10);
+  }
 
-    var buyMatch = (bData.topBuyers || []).find(function(x) { return x.broker === bCode; });
-    var sellMatch = (bData.topSellers || []).find(function(x) { return x.broker === bCode; });
+  var netBuyList = (cachedData && cachedData.netBuyStocks) || [];
+  var netSellList = (cachedData && cachedData.netSellStocks) || [];
+  var totalTraded = (cachedData && cachedData.totalStocksTraded) || (netBuyList.length + netSellList.length);
 
-    if (buyMatch || sellMatch) {
-      var isBuy = (buyMatch ? (buyMatch.valueRp || 0) : 0) >= (sellMatch ? (sellMatch.valueRp || 0) : 0);
-      var match = isBuy ? buyMatch : sellMatch;
-      var valM = Math.round((match.valueRp || 0) / 1000000000);
-      trailData.push({
-        ticker: t,
-        action: isBuy ? 'NET BUY' : 'NET SELL',
-        netVal: (isBuy ? '+Rp ' : '-Rp ') + Math.abs(valM).toLocaleString('id-ID') + ' M',
-        avgPrice: 'Rp ' + Number(match.avgPrice || bData.price || 0).toLocaleString('id-ID'),
-        lots: Number(match.volumeLot || 0).toLocaleString('id-ID') + ' Lot',
-        date: 'Hari Ini',
-        rawVal: match.valueRp || 0
-      });
-    }
-  });
+  var isReal = Boolean(cachedData && cachedData.quality && cachedData.quality.status === 'REAL');
+  var dataTime = (cachedData && (cachedData.quality?.retrievedAt || cachedData.toDate)) || '';
+  var dateBadge = dataTime ? ('Diperbarui: ' + dataTime.slice(0, 10)) : (isLoading ? 'Memuat data...' : 'Menunggu respons');
 
-  trailData.sort(function(a, b) { return b.rawVal - a.rawVal; });
-  trailData = trailData.slice(0, 10);
+  var tfLabels = { '1D': 'Hari Ini (1D)', '5D': '1 Minggu (5D)', '1M': '1 Bulan (1M)' };
 
-  // FIX (2026-09-18, user-reported: "lanjut perbaiki 3 view Bandarmology
-  // lainnya juga"): CLAUDE.md aturan #2 mewajibkan cari dulu endpoint
-  // whole-market sebelum scan per-ticker sample — TAPI untuk "jejak satu
-  // kode broker lintas SEMUA emiten", Invezgo TIDAK punya endpoint
-  // whole-market seperti itu (hanya per-ticker via /analysis/summary/stock/
-  // {code}, atau whole-market TANPA breakdown per-broker via
-  // /analysis/top/accumulation|foreign). Scan penuh 958 ticker per-broker
-  // butuh 958 panggilan API terpisah per klik — biaya kuota yang sama
-  // persis dengan pola yang sudah ditolak sebelumnya (lihat entri
-  // INCIDENT_LOG.md "Optimasi kuota Invezgo"). Sesuai aturan #2 (jujur
-  // labeli keterbatasan, jangan diam-diam), disclosure di bawah menjelaskan
-  // ini secara eksplisit alih-alih pura-pura ini cakupan penuh pasar.
-  var scopeNotice = '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-bottom:12px">'
-    + '<b>Cakupan terbatas (bukan seluruh BEI):</b> Invezgo tidak menyediakan endpoint whole-market untuk "jejak 1 kode broker di semua emiten" — hanya per-emiten satu-satu. Scan seluruh ~958 emiten per klik akan memakan kuota API secara signifikan, jadi tabel di bawah hanya mencakup ' + totalCount + ' emiten paling likuid yang sudah pernah dimuat datanya (' + realCount + ' di antaranya data REAL Invezgo). Buka emiten lain di tab "Analisis Full Emiten" dulu supaya ikut masuk cakupan di sini.'
-    + '</div>';
+  var html = '<div id="bandarmology-broker-trail-view" style="display:flex;flex-direction:column;gap:16px">';
 
-  var html = scopeNotice + bandarDataBanner(realCount, totalCount)
-    + '<div style="display:flex;flex-direction:column;gap:16px">'
-    // Broker Selector Bar
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-    + '<span style="font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase">Pilih Kode Broker untuk Pelacakan Jejak Transaksi:</span>'
-    + '<span class="badge b-neu" style="font-size:9px">12 KODE TERATAS BEI</span>'
+  // Header Card: Title + Timeframe + Broker Quick Selector + Custom Search
+  html += '<div class="card" style="padding:18px;border:1px solid var(--border2);border-radius:12px;background:var(--bg2)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:14px">'
+    + '<div>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    + '<span style="font-size:14px;font-weight:800;letter-spacing:0.5px;color:var(--text);text-transform:uppercase">Broker Summary by Broker (Portofolio Akumulasi &amp; Distribusi se-BEI)</span>'
+    + '<span class="badge ' + (isReal ? 'b-up' : 'b-neu') + '" style="font-size:10px;font-weight:700">' + (isReal ? 'REAL INVEZGO' : (isLoading ? 'MEMUAT...' : 'FEED WHOLE MARKET')) + '</span>'
     + '</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:6px">';
+    + '<p style="font-size:11px;color:var(--text2);margin:0;max-width:720px">'
+    + 'Analisis portofolio lengkap transaksi satu broker di seluruh emiten BEI dalam 1 panggilan data resmi Invezgo.'
+    + '</p>'
+    + '</div>'
+
+    // Timeframe selector
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<span style="font-size:11px;font-weight:700;color:var(--text2)">Rentang:</span>'
+    + '<div style="display:inline-flex;background:var(--bg3);padding:2px;border-radius:6px;border:1px solid var(--border2)">'
+    + ['1D', '5D', '1M'].map(function(t) {
+        var active = tf === t;
+        return '<button onclick="setBandarmologyBrokerTimeframe(\'' + t + '\')" class="btn btn-xs ' + (active ? 'btn-primary' : 'btn-ghost') + '" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px">' + t + '</button>';
+      }).join('')
+    + '</div>'
+    + '</div>'
+    + '</div>'
+
+    // Broker quick selector pills + custom search input
+    + '<div style="display:flex;flex-direction:column;gap:8px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+    + '<span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase">Pilih Broker Utama atau Ketik Kode Broker:</span>'
+    + '<div style="display:inline-flex;align-items:center;gap:4px">'
+    + '<input type="text" id="bandar-custom-broker-input" maxlength="2" placeholder="Kode (cth: CS, KZ, DX)" style="width:145px;padding:4px 8px;font-size:11px;font-family:monospace;text-transform:uppercase;border:1px solid var(--border2);border-radius:6px;background:var(--bg3);color:var(--text)" onkeydown="if(event.key===\'Enter\')bandarSubmitCustomBroker();">'
+    + '<button onclick="bandarSubmitCustomBroker()" class="btn btn-xs btn-primary" style="padding:4px 10px;font-size:11px;font-weight:700">Cari</button>'
+    + '</div>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px">';
 
   BANDARMOLOGY_BROKER_LIST.forEach(function(b) {
     var isSel = b.code === bCode;
-    html += '<button onclick="setBandarmologyBroker(\'' + b.code + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="flex-direction:column;padding:6px 4px;font-family:monospace;font-weight:700">'
+    html += '<button onclick="setBandarmologyBroker(\'' + b.code + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="flex-direction:column;padding:6px 4px;font-family:monospace;font-weight:700;border-radius:6px">'
       + '<span style="font-size:12px">' + b.code + '</span>'
-      + '<span style="font-size:8px;font-family:sans-serif;opacity:0.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + b.type + '</span>'
+      + '<span style="font-size:8px;font-family:sans-serif;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + b.badge.split('/')[0].trim() + '</span>'
       + '</button>';
   });
 
-  html += '</div></div>';
+  html += '</div></div></div>';
 
-  // Selected Broker Profile & Trail
-  html += '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
+  // Active Broker Profile Bar
+  html += '<div class="card" style="padding:14px 18px;border:1px solid var(--border2);border-radius:10px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'
     + '<div style="display:flex;align-items:center;gap:12px">'
-    + '<div style="width:38px;height:38px;border-radius:8px;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-weight:800;font-family:monospace;font-size:16px;color:var(--accent)">' + bInfo.code + '</div>'
+    + '<div style="width:44px;height:44px;border-radius:8px;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-weight:900;font-family:monospace;font-size:18px;color:var(--accent)">' + bInfo.code + '</div>'
     + '<div>'
-    + '<div style="font-size:13px;font-weight:700;color:var(--text)">' + bInfo.name + '</div>'
-    + '<span class="badge b-neu" style="font-size:9px">' + bInfo.badge + '</span>'
+    + '<div style="font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">'
+    + bInfo.name
+    + '<span class="badge b-neu" style="font-size:9px;font-weight:700">' + bInfo.badge + '</span>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--text2);margin-top:2px">'
+    + 'Periode: <strong style="color:var(--text)">' + (tfLabels[tf] || tf) + '</strong> | Total Saham Ditransaksikan: <strong style="color:var(--text)">' + totalTraded + ' Emiten</strong> | ' + dateBadge
     + '</div>'
     + '</div>'
-    + '<button onclick="openStockChat(\'BBCA\', \'Analisa jejak transaksi broker ' + bInfo.code + ' (' + bInfo.name + ') hari ini di seluruh emiten BEI\')" class="btn btn-primary btn-xs">'
-    + '<span>Tanya AI tentang ' + bInfo.code + '</span>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<button onclick="openStockChat(\'BBCA\', \'Analisis jejak transaksi dan akumulasi broker ' + bInfo.code + ' (' + bInfo.name + ') di seluruh emiten BEI periode ' + tf + '\')" class="btn btn-primary btn-xs" style="padding:5px 12px;font-weight:700">'
+    + 'Tanya AI tentang ' + bInfo.code
     + '</button>'
     + '</div>'
-    + '<div class="tbl-wrap" style="overflow-x:auto">'
-    + '<table class="tbl" style="width:100%;font-size:12px">'
-    + '<thead>'
-    + '<tr>'
-    + '<th>Emiten</th>'
-    + '<th>Aksi ' + bInfo.code + '</th>'
-    + '<th style="text-align:right">Nilai Transaksi (Rp)</th>'
-    + '<th style="text-align:right">Volume (Lot)</th>'
-    + '<th style="text-align:right">Estimasi Avg Price</th>'
-    + '<th>Waktu</th>'
-    + '<th style="text-align:center">Aksi</th>'
-    + '</tr>'
-    + '</thead>'
-    + '<tbody>';
+    + '</div>';
 
-  trailData.forEach(function(item) {
-    var isBuy = item.action === 'NET BUY';
-    html += '<tr>'
-      + '<td class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</td>'
-      + '<td><span class="badge ' + (isBuy ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + item.action + '</span></td>'
-      + '<td class="mono ' + (isBuy ? 'up' : 'down') + '" style="text-align:right;font-weight:700">' + item.netVal + '</td>'
-      + '<td class="mono" style="text-align:right;color:var(--text)">' + item.lots + '</td>'
-      + '<td class="mono" style="text-align:right;color:var(--text2)">' + item.avgPrice + '</td>'
-      + '<td style="color:var(--text3);font-size:11px">' + item.date + '</td>'
-      + '<td style="text-align:center">'
-      + '<button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-ghost btn-xs">Buka ' + item.ticker + '</button>'
-      + '</td>'
-      + '</tr>';
-  });
+  // Content Area: Loading or Tables
+  if (isLoading) {
+    html += '<div class="card" style="padding:36px;text-align:center;color:var(--text2);border:1px solid var(--border2);border-radius:10px">'
+      + '<div class="spinner" style="width:28px;height:28px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:spin 0.8s linear infinite"></div>'
+      + '<div style="font-weight:700;font-size:13px;color:var(--text)">Mengambil Portofolio Broker ' + bCode + ' dari Invezgo...</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:4px">Menganalisis seluruh transaksi se-BEI periode ' + (tfLabels[tf] || tf) + '</div>'
+      + '</div>';
+    html += '</div>';
+    return html;
+  }
 
-  html += '</tbody></table></div></div></div>';
+  if (cachedData && cachedData.ok === false && netBuyList.length === 0 && netSellList.length === 0) {
+    html += '<div class="card" style="padding:28px;text-align:center;border:1px solid var(--border2);border-radius:10px">'
+      + '<div style="color:var(--yellow);font-weight:800;font-size:13px;margin-bottom:4px">Data Broker ' + bCode + ' Belum Tersedia</div>'
+      + '<div style="font-size:11px;color:var(--text2)">' + (cachedData.reason || 'Tidak ada transaksi yang tercatat untuk broker ini pada periode yang dipilih.') + '</div>'
+      + '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  // Two columns: Top Net Buy (Akumulasi) & Top Net Sell (Distribusi)
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px">';
+
+  // 1. TOP NET BUY TABLE
+  html += '<div class="card" style="padding:16px;border:1px solid var(--border2);border-radius:10px;background:var(--bg2)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border2)">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span class="badge b-up" style="font-size:10px;font-weight:800;padding:3px 8px">TOP NET BUY (AKUMULASI)</span>'
+    + '<span style="font-size:11px;color:var(--text2)">' + netBuyList.length + ' Saham</span>'
+    + '</div>'
+    + '<span style="font-size:10px;color:var(--text3)">Diurutkan nilai akumulasi terbesar</span>'
+    + '</div>';
+
+  if (netBuyList.length === 0) {
+    html += '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Tidak ada data akumulasi (Net Buy) pada periode ini.</div>';
+  } else {
+    html += '<div class="tbl-wrap" style="overflow-x:auto;max-height:480px">'
+      + '<table class="tbl" style="width:100%;font-size:11px">'
+      + '<thead>'
+      + '<tr>'
+      + '<th style="width:30px">#</th>'
+      + '<th>Saham</th>'
+      + '<th style="text-align:right">Net Value (Rp)</th>'
+      + '<th style="text-align:right">Net Lot</th>'
+      + '<th style="text-align:right">Buy Avg</th>'
+      + '<th style="text-align:center;width:60px">Aksi</th>'
+      + '</tr>'
+      + '</thead>'
+      + '<tbody>';
+
+    netBuyList.slice(0, 30).forEach(function(item, idx) {
+      var netValM = item.netValue >= 1e9
+        ? '+Rp ' + (item.netValue / 1e9).toFixed(2) + ' M'
+        : (item.netValue >= 1e6 ? '+Rp ' + (item.netValue / 1e6).toFixed(1) + ' Jt' : '+Rp ' + Math.round(item.netValue).toLocaleString('id-ID'));
+      var buyAvgStr = item.buyAvg > 0 ? ('Rp ' + Math.round(item.buyAvg).toLocaleString('id-ID')) : '-';
+      var lotStr = item.netVolume > 0 ? Number(item.netVolume).toLocaleString('id-ID') : '-';
+
+      html += '<tr>'
+        + '<td style="color:var(--text3);font-weight:600">' + (idx + 1) + '</td>'
+        + '<td>'
+        + '<div style="font-weight:800;color:var(--text);font-family:monospace;font-size:12px">' + item.ticker + '</div>'
+        + '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">' + (item.name || item.ticker) + '</div>'
+        + '</td>'
+        + '<td class="mono up" style="text-align:right;font-weight:800">' + netValM + '</td>'
+        + '<td class="mono" style="text-align:right;color:var(--text)">' + lotStr + '</td>'
+        + '<td class="mono" style="text-align:right;color:var(--text2)">' + buyAvgStr + '</td>'
+        + '<td style="text-align:center">'
+        + '<button onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + item.ticker + '\');goBandarmology(\'stock\',null);" class="btn btn-ghost btn-xs" style="padding:2px 6px;font-size:10px;font-weight:700">Analisis</button>'
+        + '</td>'
+        + '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+
+  // 2. TOP NET SELL TABLE
+  html += '<div class="card" style="padding:16px;border:1px solid var(--border2);border-radius:10px;background:var(--bg2)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border2)">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span class="badge b-dn" style="font-size:10px;font-weight:800;padding:3px 8px">TOP NET SELL (DISTRIBUSI)</span>'
+    + '<span style="font-size:11px;color:var(--text2)">' + netSellList.length + ' Saham</span>'
+    + '</div>'
+    + '<span style="font-size:10px;color:var(--text3)">Diurutkan nilai distribusi terbesar</span>'
+    + '</div>';
+
+  if (netSellList.length === 0) {
+    html += '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Tidak ada data distribusi (Net Sell) pada periode ini.</div>';
+  } else {
+    html += '<div class="tbl-wrap" style="overflow-x:auto;max-height:480px">'
+      + '<table class="tbl" style="width:100%;font-size:11px">'
+      + '<thead>'
+      + '<tr>'
+      + '<th style="width:30px">#</th>'
+      + '<th>Saham</th>'
+      + '<th style="text-align:right">Net Value (Rp)</th>'
+      + '<th style="text-align:right">Net Lot</th>'
+      + '<th style="text-align:right">Sell Avg</th>'
+      + '<th style="text-align:center;width:60px">Aksi</th>'
+      + '</tr>'
+      + '</thead>'
+      + '<tbody>';
+
+    netSellList.slice(0, 30).forEach(function(item, idx) {
+      var absNet = Math.abs(item.netValue);
+      var netValM = absNet >= 1e9
+        ? '-Rp ' + (absNet / 1e9).toFixed(2) + ' M'
+        : (absNet >= 1e6 ? '-Rp ' + (absNet / 1e6).toFixed(1) + ' Jt' : '-Rp ' + Math.round(absNet).toLocaleString('id-ID'));
+      var sellAvgStr = item.sellAvg > 0 ? ('Rp ' + Math.round(item.sellAvg).toLocaleString('id-ID')) : '-';
+      var lotStr = item.netVolume !== 0 ? Number(Math.abs(item.netVolume)).toLocaleString('id-ID') : '-';
+
+      html += '<tr>'
+        + '<td style="color:var(--text3);font-weight:600">' + (idx + 1) + '</td>'
+        + '<td>'
+        + '<div style="font-weight:800;color:var(--text);font-family:monospace;font-size:12px">' + item.ticker + '</div>'
+        + '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">' + (item.name || item.ticker) + '</div>'
+        + '</td>'
+        + '<td class="mono down" style="text-align:right;font-weight:800">' + netValM + '</td>'
+        + '<td class="mono" style="text-align:right;color:var(--text)">' + lotStr + '</td>'
+        + '<td class="mono" style="text-align:right;color:var(--text2)">' + sellAvgStr + '</td>'
+        + '<td style="text-align:center">'
+        + '<button onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + item.ticker + '\');goBandarmology(\'stock\',null);" class="btn btn-ghost btn-xs" style="padding:2px 6px;font-size:10px;font-weight:700">Analisis</button>'
+        + '</td>'
+        + '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+
+  html += '</div>'; // End grid
+  html += '</div>'; // End container
   return html;
 }
 

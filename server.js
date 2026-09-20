@@ -27,6 +27,7 @@ import {
   getTransactionFlowVisualizer,
   getBeiTickSize,
   generateBrokerSummary,
+  getBrokerSummaryByBroker,
   generateShareholderComposition,
   generateSectorRotation,
   generateMasterScreener,
@@ -3325,6 +3326,23 @@ app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
 
     return res.json({
       success: true,
+      data: summary
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/broker-summary-by-broker/:code: Seluruh saham yang ditransaksikan broker tertentu
+app.get('/api/idx/broker-summary-by-broker/:code', async (req, res) => {
+  try {
+    const broker = (req.params.code || '').toUpperCase().trim();
+    const timeframe = (req.query.tf || req.query.timeframe || '1D').toUpperCase();
+    if (!broker) return res.status(400).json({ success: false, error: 'Broker code required' });
+
+    const summary = await getBrokerSummaryByBroker(broker, timeframe);
+    return res.json({
+      success: summary.ok !== false,
       data: summary
     });
   } catch (err) {

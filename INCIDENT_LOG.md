@@ -4066,3 +4066,35 @@ tunggu penggunaan normal secara bertahap memicu eviction.
   - Memastikan seluruh 244/244 test suite lolos (PASS).
 - **Verifikasi:** `node --check` sukses, `node test_suite.js` 244/244 lolos, `node test_provider_functions.js` 6/6 lolos, `npm run lint` bersih tanpa error.
 
+## 2026-09-20 - Fitur Broker Summary by Broker: Integrasi Portofolio Institusional Seluruh Pasar Tanpa Tab Baru (Tergabung di Cockpit Bandarmology)
+
+- **Latar belakang & Permintaan User:** User meminta analisis 5 fitur broker dari tangkapan layar Invezgo (Broker Summary by Stock, Broker Summary by Broker, Broker Stalker, Inventory Chart by Stock, Inventory Chart by Broker), dan meminta implementasi langsung fitur broker tanpa membuat tab baru di sidebar ("gabungkan dengan bandarmology saja, supaya tidak banyak pilihan di sidebar, jalankan otomatis tanpa saya harus klik yes to allow").
+- **Temuan Teknis & Root Cause Lama:**
+  1. Pada implementasi sebelumnya di `public/js/41-stockchat-cockpit.js`, view "Jejak Broker" (Broker Trail) hanya melakukan scanning terbatas pada sampel 42 saham dengan asumsi: "Invezgo tidak menyediakan endpoint whole-market untuk jejak 1 kode broker di semua emiten".
+  2. Dari audit menyeluruh terhadap bundle resmi MCP server Invezgo (`invezgo-mcp.mcpb`, file `dist/tools/stock/handler.js` fungsi `summaryBroker()`), ditemukan bahwa Invezgo secara resmi menyediakan endpoint `GET /analysis/summary/broker/{code}?investor=all&market=RG&from=...&to=...`. Endpoint ini mengembalikan SELURUH saham yang ditransaksikan oleh broker tersebut di pasar reguler BEI dalam 1 kali panggilan API (1 unit kuota).
+  3. Dengan Upstash Redis cache (TTL 24 jam) dan penarikan berbasis permintaan (on-demand), konsumsi kuota hanya sekitar 30-40 panggilan per hari (<3% dari pagu bulanan 30.000 panggilan), jauh lebih hemat dan 100% data riil dibanding scanning per-emiten.
+- **Perbaikan yang Dieksekusi:**
+  1. `lib/invezgo-client.js`:
+     - Menambahkan fungsi `fetchInvezgoBrokerSummaryByBroker(brokerCode, fromDate, toDate)` yang memanggil endpoint Invezgo `GET /analysis/summary/broker/{code}` dengan parameter `investor=all`, `market=RG`, serta tanggal `from` dan `to`.
+     - Menyimpan respons dalam Upstash Redis cache dengan TTL 24 jam (key: `invezgo:cache:broker_summary_by_broker:${broker}:${fromDate}:${toDate}`).
+     - Memisahkan data transaksi menjadi dua daftar terurut: `netBuyStocks` (diurutkan net value terbesar) dan `netSellStocks` (diurutkan net sell terbesar).
+     - Mengekspor `fetchInvezgoBrokerSummaryByBroker`.
+  2. `lib/idx-data-engine.js`:
+     - Mengimpor `fetchInvezgoBrokerSummaryByBroker` dan menambahkan fungsi `getBrokerSummaryByBroker(brokerCode, timeframe = '1D')`.
+     - Memetakan tanggal dinamis menggunakan `brokerSummaryDateRange(timeframe)` dan melengkapi nama perusahaan dari stock universe IDX.
+     - Mengekspor `getBrokerSummaryByBroker`.
+  3. `server.js`:
+     - Mendaftarkan rute API baru `GET /api/idx/broker-summary-by-broker/:code` yang mendukung parameter `?tf=1D|5D|1M`.
+  4. `public/js/41-stockchat-cockpit.js`:
+     - Mengintegrasikan tampilan baru langsung ke dalam halaman Bandarmology Cockpit pada section "Broker Summary by Broker" tanpa menambah tab baru di sidebar.
+     - Menambahkan state `BANDARMOLOGY_BROKER_TIMEFRAME`, fungsi pemilih broker dan periode waktu, input pencarian kode broker (mendukung seluruh broker IDX 2 huruf seperti CS, KZ, DX, dll.), dan fungsi pemuat `bandarLoadBrokerPortfolio()`.
+     - Menampilkan dua tabel komprehensif: Top Net Buy (Saham di-Akumulasi) dan Top Net Sell (Saham di-Distribusi) lengkap dengan Net Value Rp, Volume Lot, Buy/Sell Avg, badge asal data Invezgo, serta tombol langsung untuk menganalisis emiten di Technical Chart.
+  5. `public/index.html`:
+     - Cache-bust script `41-stockchat-cockpit.js?v=20260920e`.
+- **Test Regresi & Kepatuhan:**
+  - Menambahkan test regresi baru di `test_suite.js`: `REGRESSION GUARD: Broker Summary by Broker (Invezgo whole-market portfolio endpoint, idx-data-engine mapping, server route, and cockpit view)`.
+  - Memperbarui ekspektasi test lama yang sebelumnya menganggap endpoint whole-market broker belum ada, menjadi memverifikasi endpoint riil.
+  - Memastikan seluruh 245/245 test di `test_suite.js`, 18/18 di `test_financial_policy.js`, 6/6 di `test_provider_functions.js`, dan 5/5 di `test_security_regressions.js` lolos (total 274 test lolos dengan 0 error).
+  - `npm run lint` lolos bersih. Seluruh kode mematuhi aturan Antislop (bebas em-dash dan bebas dekorasi panah).
+
+
