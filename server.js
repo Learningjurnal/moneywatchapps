@@ -1014,7 +1014,7 @@ async function fetchSectoralNewsViaOpenRouter(orConfig) {
       plugins: [{ id: 'web', max_results: 8 }],
       messages: [{ role: 'user', content: buildSectoralNewsPrompt() }]
     })
-  }), 15000);
+  }), 25000);
   if (!resp.ok) {
     const err = new Error(`OPENROUTER_HTTP_${resp.status}`);
     err.status = resp.status;
@@ -1026,6 +1026,88 @@ async function fetchSectoralNewsViaOpenRouter(orConfig) {
   return extractSectoralNewsJsonArray(rawText);
 }
 
+// Fallback berita pasar modal riil Indonesia (Google News RSS IDX) tanpa biaya
+// dan tanpa batas kuota jika OpenRouter/Claude tidak tersedia/kehabisan kredit.
+async function fetchSectoralNewsViaRss() {
+  const resp = await withTimeout(fetch('https://news.google.com/rss/search?q=saham+IHSG+bursa+efek+indonesia&hl=id&gl=ID&ceid=ID:id', {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+  }), 10000);
+  if (!resp.ok) throw new Error(`RSS_HTTP_${resp.status}`);
+  const xml = await resp.text();
+  const items = [];
+  const itemMatches = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+
+  const SECTOR_KEYWORDS = [
+    { key: 'Financials', name: 'Keuangan', words: ['bbca', 'bbri', 'bmri', 'bbni', 'bank', 'perbankan', 'bunga', 'ojk', 'kredit'], tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI'] },
+    { key: 'Energy', name: 'Energi', words: ['adro', 'ptba', 'pgeo', 'medc', 'pgas', 'batu bara', 'minyak', 'gas', 'pln', 'energi'], tickers: ['ADRO', 'PTBA', 'PGEO', 'MEDC'] },
+    { key: 'Basic Materials', name: 'Barang Baku', words: ['antm', 'inco', 'tins', 'smgr', 'intp', 'nikel', 'emas', 'tembaga', 'timah', 'semen'], tickers: ['ANTM', 'INCO', 'TINS', 'SMGR'] },
+    { key: 'Consumer Non-Cyclicals', name: 'Konsumer Primer', words: ['icbp', 'indf', 'unvr', 'myor', 'hmsp', 'ggrm', 'fmcg', 'sembako', 'makanan'], tickers: ['ICBP', 'INDF', 'UNVR'] },
+    { key: 'Infrastructure', name: 'Infrastruktur', words: ['tlkm', 'isat', 'excl', 'towr', 'tbia', 'wika', 'adhi', 'ptpp', 'tol', 'telekomunikasi'], tickers: ['TLKM', 'ISAT', 'TOWR'] },
+    { key: 'Technology', name: 'Teknologi', words: ['goto', 'buka', 'dnet', 'wiru', 'startup', 'digital', 'teknologi'], tickers: ['GOTO', 'BUKA'] },
+    { key: 'Consumer Cyclicals', name: 'Konsumer Non-Primer', words: ['aces', 'mapi', 'eraa', 'auto', 'asii', 'otomotif', 'ritel'], tickers: ['ASII', 'MAPI', 'ACES'] },
+    { key: 'Healthcare', name: 'Kesehatan', words: ['klbf', 'mika', 'silo', 'farma', 'obat', 'rs', 'kesehatan'], tickers: ['KLBF', 'MIKA'] }
+  ];
+
+  let idCounter = 1;
+  for (const itemXml of itemMatches.slice(0, 20)) {
+    const titleMatch = itemXml.match(/<title>([\s\S]*?)<\/title>/);
+    const linkMatch = itemXml.match(/<link>([\s\S]*?)<\/link>/);
+    const dateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
+    const sourceMatch = itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/);
+
+    if (!titleMatch || !linkMatch) continue;
+
+    let title = titleMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim();
+    const link = linkMatch[1].trim();
+    let source = sourceMatch ? sourceMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim() : 'Media Pasar Modal';
+    let timeStr = dateMatch ? new Date(dateMatch[1]).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini';
+
+    if (title.includes(' - ')) {
+      const parts = title.split(' - ');
+      source = parts.pop();
+      title = parts.join(' - ');
+    }
+
+    const titleLower = title.toLowerCase();
+    let matchedSector = SECTOR_KEYWORDS.find(s => s.words.some(w => titleLower.includes(w)));
+    if (!matchedSector) {
+      matchedSector = SECTOR_KEYWORDS[idCounter % SECTOR_KEYWORDS.length];
+    }
+
+    let impact = 'NEUTRAL';
+    let impactReason = 'Dinamika pasar modal terkini';
+    if (/menguat|naik|rekor|laba|untung|akumulasi|melejit|lonjak|surplus|dividen|terbang|hijau/i.test(titleLower)) {
+      impact = 'BULLISH';
+      impactReason = 'Sentimen positif pasar / performa emiten';
+    } else if (/melemah|turun|anjlok|rugi|tertekan|drop|merah|distribusi|jebol|merosot/i.test(titleLower)) {
+      impact = 'BEARISH';
+      impactReason = 'Tekanan pasar / fluktuasi harga';
+    }
+
+    const mentionedTickers = matchedSector.tickers.filter(tk => titleLower.includes(tk.toLowerCase()));
+    if (mentionedTickers.length === 0) {
+      mentionedTickers.push(matchedSector.tickers[0]);
+    }
+
+    items.push({
+      id: `sec_rss_${idCounter++}`,
+      sector: matchedSector.key,
+      sectorName: matchedSector.name,
+      title: title,
+      summary: title,
+      source: source,
+      url: link,
+      category: 'Market News',
+      impact: impact,
+      impactReason: impactReason,
+      tickers: mentionedTickers,
+      time: timeStr
+    });
+  }
+
+  return items;
+}
+
 app.get('/api/sectoral-news', async (req, res) => {
   const targetSector = (req.query.sector || '').trim().toLowerCase();
   const force = req.query.force === 'true';
@@ -1034,7 +1116,7 @@ app.get('/api/sectoral-news', async (req, res) => {
 
   let newsList = [];
   let dataUnavailable = true;
-  let unavailableReason = 'AI belum dikonfigurasi di server.';
+  let unavailableReason = 'Layanan berita pasar sedang tidak tersedia.';
 
   // Check cache
   if (!force && sectoralNewsCache.data && (now - sectoralNewsCache.timestamp < CACHE_TTL_MS)) {
@@ -1043,7 +1125,7 @@ app.get('/api/sectoral-news', async (req, res) => {
   } else {
     let resolved = false;
 
-    // 1. OpenRouter DULU (lihat komentar fetchSectoralNewsViaOpenRouter di atas)
+    // 1. OpenRouter DULU (Jalur Utama AI)
     const orConfig = getOpenRouterConfig();
     if (orConfig) {
       try {
@@ -1063,8 +1145,7 @@ app.get('/api/sectoral-news', async (req, res) => {
       }
     }
 
-    // 2. Claude sebagai CADANGAN (dulu jalur utama satu-satunya — lihat
-    // komentar di atas kenapa urutan dibalik untuk endpoint ini saja)
+    // 2. Claude sebagai CADANGAN AI
     if (!resolved) {
       const ai = getAiClient();
       if (ai && now > sectoralNewsCache.rateLimitedUntil) {
@@ -1073,7 +1154,6 @@ app.get('/api/sectoral-news', async (req, res) => {
             ai,
             {
               max_tokens: 2048,
-              tools: [{ type: 'web_search_20260209', name: 'web_search' }],
               messages: [{ role: 'user', content: buildSectoralNewsPrompt() }]
             },
             { timeoutMs: 15000, maxRetries: 1 }
@@ -1085,6 +1165,7 @@ app.get('/api/sectoral-news', async (req, res) => {
             sectoralNewsCache = { data: parsed, timestamp: now, rateLimitedUntil: 0 };
             newsList = parsed;
             dataUnavailable = false;
+            resolved = true;
           } else if (parsed === null) {
             unavailableReason = 'Respons AI tidak dapat diproses.';
           } else {
@@ -1096,13 +1177,28 @@ app.get('/api/sectoral-news', async (req, res) => {
           console.warn('Claude sectoral-news notice:', { message: msg, name: err && err.name, status });
           if (status === 429 || msg.includes('429') || msg.includes('rate_limit') || msg.includes('quota')) {
             sectoralNewsCache.rateLimitedUntil = now + 120000;
-            unavailableReason = 'Kuota AI harian tercapai, coba lagi nanti.';
+            unavailableReason = 'Kuota AI harian tercapai, mencoba feed berita.';
           } else {
-            unavailableReason = 'Gagal menghubungi layanan pencarian berita.';
+            unavailableReason = 'Gagal menghubungi layanan AI.';
           }
         }
       } else if (!ai && !orConfig) {
         unavailableReason = 'AI belum dikonfigurasi di server.';
+      }
+    }
+
+    // 3. Fallback Feed Berita Finansial Riil (Google News RSS IDX)
+    if (!resolved) {
+      try {
+        const rssNews = await fetchSectoralNewsViaRss();
+        if (Array.isArray(rssNews) && rssNews.length >= 3) {
+          sectoralNewsCache = { data: rssNews, timestamp: now, rateLimitedUntil: 0 };
+          newsList = rssNews;
+          dataUnavailable = false;
+          resolved = true;
+        }
+      } catch (rssErr) {
+        console.warn('RSS sectoral-news notice:', rssErr && rssErr.message);
       }
     }
   }
