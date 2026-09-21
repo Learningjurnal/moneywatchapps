@@ -50,14 +50,15 @@ function techKillChart(key) {
 // ============================================================
 
 function renderStockMaster360Nav(activePillar, currentTicker) {
-  var tk = (currentTicker || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA')).toUpperCase().replace(/\.JK$/i, '').trim();
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var tk = (currentTicker || globalTk || 'BBCA').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
   var px = (typeof prices !== 'undefined' && prices[tk]) ? Number(prices[tk]) : 0;
   var chg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk) : ((typeof changes !== 'undefined' && changes[tk]) ? Number(changes[tk]) : 0);
 
   var quickList = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'ANTM', 'ADRO', 'ICBP', 'UNVR', 'GOTO', 'BRIS'];
   var quickChipsHtml = quickList.map(function(qt) {
     var isSel = qt === tk;
-    return '<button onclick="sm360SelectTicker(\'' + qt + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 8px;border-radius:6px;font-family:var(--font-mono);font-weight:700;border:1px solid var(--border2)">' + qt + '</button>';
+    return '<button type="button" onclick="sm360SelectTicker(\'' + qt + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 8px;border-radius:6px;font-family:var(--font-mono);font-weight:700;border:1px solid var(--border2)">' + qt + '</button>';
   }).join(' ');
 
   var tabs = [
@@ -70,7 +71,7 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
 
   var tabsHtml = tabs.map(function(t) {
     var isActive = (activePillar === t.id || activePillar === t.page);
-    return '<button onclick="sm360Go(\'' + t.page + '\', \'' + tk + '\')" class="sm-nav-item ' + (isActive ? 'active' : '') + '" style="font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;white-space:nowrap">'
+    return '<button type="button" onclick="sm360Go(\'' + t.page + '\', \'' + tk + '\')" class="sm-nav-item ' + (isActive ? 'active' : '') + '" style="font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;white-space:nowrap">'
       + '<i class="ti ' + t.icon + '"></i> ' + t.label
       + '</button>';
   }).join(' ');
@@ -90,8 +91,8 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
       + '</div>'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<div style="display:flex;gap:4px">'
-          + '<input type="text" id="sm360-search-inp" class="form-input finput" placeholder="Ketik Ticker IDX..." value="' + tk + '" style="width:110px;height:28px;font-size:11px;text-transform:uppercase;font-family:var(--font-mono);font-weight:700" onkeydown="if(event.key===\'Enter\')sm360SearchSubmit()">'
-          + '<button class="btn btn-primary btn-xs" onclick="sm360SearchSubmit()" style="font-size:10px;padding:3px 10px;font-weight:700">Periksa</button>'
+          + '<input type="text" id="sm360-search-inp" class="form-input finput sm360-search-input" placeholder="Ketik Ticker IDX..." value="' + tk + '" style="width:110px;height:28px;font-size:11px;text-transform:uppercase;font-family:var(--font-mono);font-weight:700" onkeydown="if(event.key===\'Enter\'){sm360SelectTicker(this.value,\'sm360-top-bar\');}">'
+          + '<button type="button" class="btn btn-primary btn-xs" onclick="var inp=this.previousElementSibling;if(inp&&inp.value){sm360SelectTicker(inp.value.trim(),\'sm360-top-bar\');}else{sm360SearchSubmit(this);}" style="font-size:10px;padding:3px 10px;font-weight:700">Periksa</button>'
         + '</div>'
         + '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">'
           + quickChipsHtml
@@ -105,45 +106,123 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
 }
 
 function sm360Go(page, ticker) {
-  var tk = (ticker || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '');
+  var current = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var tk = (ticker || current).toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+
   if (typeof GLOBAL_STOCK_CONTEXT !== 'undefined') {
     GLOBAL_STOCK_CONTEXT.setTicker(tk, 'sm360-nav');
   }
-  if (typeof TECH_DATA !== 'undefined') TECH_DATA.ticker = tk;
-  if (typeof FUND_DATA !== 'undefined') FUND_DATA.ticker = tk;
+  if (typeof TECH_DATA !== 'undefined' && TECH_DATA) TECH_DATA.ticker = tk;
+  if (typeof FUND_DATA !== 'undefined' && FUND_DATA) FUND_DATA.ticker = tk;
   if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = tk;
   if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
   if (typeof STOCK_DOSSIER_STATE !== 'undefined' && STOCK_DOSSIER_STATE) STOCK_DOSSIER_STATE.ticker = tk;
+
+  document.querySelectorAll('.sm360-search-input, #sm360-search-inp').forEach(function(el) {
+    el.value = tk;
+  });
+  ['techTickerInput', 'fundTickerInput', 'dossier-ticker-input', 'intel-search-input', 'stockchat-ticker-inp'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = tk;
+  });
+
+  // Update mounted headers for consistency
+  var techMount = document.getElementById('tech-sm360-mount');
+  if (techMount && typeof renderStockMaster360Nav === 'function') {
+    techMount.innerHTML = renderStockMaster360Nav('technical', tk);
+  }
+  var fundMount = document.getElementById('fund-sm360-mount');
+  if (fundMount && typeof renderStockMaster360Nav === 'function') {
+    fundMount.innerHTML = renderStockMaster360Nav('fundamental', tk);
+  }
 
   if (typeof goPage === 'function') {
     goPage(page);
   }
 }
 
-function sm360SelectTicker(ticker) {
+function sm360SelectTicker(ticker, source) {
   if (!ticker) return;
-  var tk = ticker.toUpperCase().trim().replace(/\.JK$/i, '');
+  var tk = String(ticker).toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+  if (!tk) return;
+
+  // 1. Sync GLOBAL_STOCK_CONTEXT
   if (typeof GLOBAL_STOCK_CONTEXT !== 'undefined') {
-    GLOBAL_STOCK_CONTEXT.setTicker(tk, 'sm360-select');
+    GLOBAL_STOCK_CONTEXT.setTicker(tk, source || 'sm360-select');
   }
-  if (typeof TECH_DATA !== 'undefined') TECH_DATA.ticker = tk;
-  if (typeof FUND_DATA !== 'undefined') FUND_DATA.ticker = tk;
+
+  // 2. Explicitly update all subsystem globals
+  if (typeof TECH_DATA !== 'undefined' && TECH_DATA) TECH_DATA.ticker = tk;
+  if (typeof FUND_DATA !== 'undefined' && FUND_DATA) FUND_DATA.ticker = tk;
   if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = tk;
   if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
   if (typeof STOCK_DOSSIER_STATE !== 'undefined' && STOCK_DOSSIER_STATE) STOCK_DOSSIER_STATE.ticker = tk;
 
-  var cur = (typeof currentPage !== 'undefined') ? currentPage : '';
-  if (cur === 'technical' && typeof techInit === 'function') techInit(false);
-  else if (cur === 'stock-intel' && typeof renderStockIntelPage === 'function') renderStockIntelPage();
-  else if (cur === 'fundamental' && typeof fundInit === 'function') fundInit();
-  else if (cur === 'stock-dossier' && typeof renderStockDossierPage === 'function') renderStockDossierPage();
-  else if (cur === 'stockchat' && typeof renderStockChatPage === 'function') renderStockChatPage();
+  // 3. Synchronize all input elements in DOM
+  document.querySelectorAll('.sm360-search-input, #sm360-search-inp').forEach(function(el) {
+    el.value = tk;
+  });
+  ['techTickerInput', 'fundTickerInput', 'dossier-ticker-input', 'intel-search-input', 'stockchat-ticker-inp'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = tk;
+  });
+
+  // 4. Update all mounted terminal headers immediately
+  var techMount = document.getElementById('tech-sm360-mount');
+  if (techMount && typeof renderStockMaster360Nav === 'function') {
+    techMount.innerHTML = renderStockMaster360Nav('technical', tk);
+  }
+  var fundMount = document.getElementById('fund-sm360-mount');
+  if (fundMount && typeof renderStockMaster360Nav === 'function') {
+    fundMount.innerHTML = renderStockMaster360Nav('fundamental', tk);
+  }
+
+  // 5. Trigger end-to-end analysis on the currently active tab
+  var cur = (typeof currentPage !== 'undefined' && currentPage) ? currentPage : '';
+  if (!cur) {
+    var activePageEl = document.querySelector('.page.on');
+    if (activePageEl && activePageEl.id) {
+      cur = activePageEl.id.replace(/^page-/, '');
+    }
+  }
+
+  if (cur === 'technical') {
+    if (typeof techFetchData === 'function') techFetchData(tk, true);
+    else if (typeof techInit === 'function') techInit(true);
+  } else if (cur === 'stock-intel') {
+    if (typeof selectStockIntelTicker === 'function') selectStockIntelTicker(tk);
+    else if (typeof renderStockIntelCockpit === 'function') renderStockIntelCockpit();
+    else if (typeof renderStockIntelPage === 'function') renderStockIntelPage();
+  } else if (cur === 'fundamental') {
+    if (typeof fundFetchData === 'function') fundFetchData(tk);
+    else if (typeof fundInit === 'function') fundInit();
+  } else if (cur === 'stock-dossier') {
+    if (typeof dossierRunAnalysis === 'function') dossierRunAnalysis(tk);
+    else if (typeof renderStockDossierPage === 'function') renderStockDossierPage(tk);
+  } else if (cur === 'stockchat') {
+    if (typeof selectStockChatTicker === 'function') selectStockChatTicker(tk);
+    else if (typeof renderStockChatPage === 'function') renderStockChatPage();
+  }
 }
 
-function sm360SearchSubmit() {
-  var inp = document.getElementById('sm360-search-inp');
-  if (inp && inp.value.trim()) {
-    sm360SelectTicker(inp.value.trim());
+function sm360SearchSubmit(triggerBtn) {
+  var val = '';
+  if (triggerBtn && triggerBtn.previousElementSibling && triggerBtn.previousElementSibling.value) {
+    val = triggerBtn.previousElementSibling.value;
+  }
+  if (!val) {
+    var activePage = document.querySelector('.page.on');
+    if (activePage) {
+      var localInp = activePage.querySelector('.sm360-search-input, #sm360-search-inp');
+      if (localInp && localInp.value) val = localInp.value;
+    }
+  }
+  if (!val) {
+    var inp = document.getElementById('sm360-search-inp');
+    if (inp && inp.value) val = inp.value;
+  }
+  if (val && val.trim()) {
+    sm360SelectTicker(val.trim(), 'sm360-top-bar');
   }
 }
 
@@ -157,8 +236,11 @@ window.sm360SearchSubmit = sm360SearchSubmit;
 // ============================================================
 
 function fundInit() {
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var tk = (FUND_DATA.ticker || globalTk || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+  FUND_DATA.ticker = tk;
   var inp = document.getElementById('fundTickerInput');
-  var tk = (inp && inp.value) ? inp.value.trim().toUpperCase() : (FUND_DATA.ticker || 'BBCA');
+  if (inp) inp.value = tk;
   var m = document.getElementById('fund-sm360-mount');
   if (m && typeof renderStockMaster360Nav === 'function') {
     m.innerHTML = renderStockMaster360Nav('fundamental', tk);
@@ -230,11 +312,15 @@ function fundSwitchTab(idx) {
 }
 
 function fundSetTicker(ticker) {
-  var inp = document.getElementById('fundTickerInput');
-  if (inp) {
-    inp.value = ticker.toUpperCase();
+  if (typeof sm360SelectTicker === 'function') {
+    sm360SelectTicker(ticker, 'fundamental');
+  } else {
+    var inp = document.getElementById('fundTickerInput');
+    if (inp) {
+      inp.value = String(ticker).toUpperCase();
+    }
+    fundFetchData(ticker);
   }
-  fundFetchData(ticker);
 }
 
 function fundShowStatus(msg, isError) {
@@ -265,26 +351,26 @@ function fundFmt(num, isPct) {
 
 async function fundFetchData(tickerOverride) {
   var inp = document.getElementById('fundTickerInput');
-  var rawTicker = (tickerOverride || (inp && inp.value) || 'BBCA').trim().toUpperCase();
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var rawTicker = (tickerOverride || (inp && inp.value) || FUND_DATA.ticker || globalTk || 'BBCA').trim().toUpperCase();
   if (!rawTicker) rawTicker = 'BBCA';
   
-  var cleanCode = rawTicker.replace('.JK', '').replace('.US', '');
+  var cleanCode = rawTicker.replace(/\.JK$/i, '').replace(/\.US$/i, '');
   var isUsStock = ['AAPL','TSLA','NVDA','MSFT','GOOG','GOOGL','AMZN','META','NFLX','AMD','INTC','COIN','PLTR','BRK-B','SPY','QQQ'].includes(cleanCode);
-  // Always derive the Yahoo ticker from the normalized cleanCode (with any
-  // .JK/.US suffix already stripped above), never from the raw input — a
-  // previous "if rawTicker has no dot" check meant typing the (default!)
-  // example value "BBCA.JK" verbatim skipped appending .JK, sending the
-  // bare ticker "BBCA" to Yahoo instead — which happens to resolve to an
-  // unrelated Canadian ETF, not Bank Central Asia.
   var yahooTicker = isUsStock ? cleanCode : (cleanCode + '.JK');
   FUND_DATA.ticker = cleanCode;
   FUND_DATA.currency = isUsStock ? 'USD' : 'IDR';
 
-  // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
-  // publish ke GLOBAL_STOCK_CONTEXT (00-config.js) supaya modul lain yang
-  // sudah subscribe (Stock Intel, StockChat, KSEI) ikut pindah ke ticker
-  // yang sama saat user analisa saham di halaman Fundamental — pola yang
-  // sama persis dengan selectStockIntelTicker()/selectStockChatTicker().
+  if (inp) inp.value = cleanCode;
+  var smInp = document.getElementById('sm360-search-inp');
+  if (smInp) smInp.value = cleanCode;
+
+  var m = document.getElementById('fund-sm360-mount');
+  if (m && typeof renderStockMaster360Nav === 'function') {
+    m.innerHTML = renderStockMaster360Nav('fundamental', cleanCode);
+  }
+
+  // Publish to GLOBAL_STOCK_CONTEXT
   if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
     window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'fundamental');
   }
@@ -1337,14 +1423,19 @@ function fundCalculateDCF() {
 // ============================================================
 
 function techInit(force) {
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var tk = (TECH_DATA.ticker || globalTk || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+  TECH_DATA.ticker = tk;
   var inp = document.getElementById('techTickerInput');
-  var tk = (inp && inp.value) ? inp.value.trim().toUpperCase() : (TECH_DATA.ticker || 'BBCA');
+  if (inp) inp.value = tk;
+  var smInp = document.getElementById('sm360-search-inp');
+  if (smInp) smInp.value = tk;
   var m = document.getElementById('tech-sm360-mount');
   if (m && typeof renderStockMaster360Nav === 'function') {
     m.innerHTML = renderStockMaster360Nav('technical', tk);
   }
   // Guard idempotensi: jika background tick (force === false) dan ticker sudah ter-render, lewati
-  if (force === false && TECH_DATA.ticker === tk && TECH_DATA.lastRenderedTicker === tk) {
+  if (force === false && TECH_DATA.lastRenderedTicker === tk) {
     return;
   }
   techFetchData(tk, force);
@@ -1415,21 +1506,34 @@ function techRunBandarmologyTab(ticker) {
 }
 
 function techSetTicker(ticker) {
-  var inp = document.getElementById('techTickerInput');
-  if (inp) {
-    inp.value = ticker.toUpperCase();
+  if (typeof sm360SelectTicker === 'function') {
+    sm360SelectTicker(ticker, 'technical');
+  } else {
+    var inp = document.getElementById('techTickerInput');
+    if (inp) {
+      inp.value = String(ticker).toUpperCase();
+    }
+    techFetchData(ticker);
   }
-  techFetchData(ticker);
 }
 
 function techFetchData(tickerOverride, force) {
   var inp = document.getElementById('techTickerInput');
-  var rawTicker = (tickerOverride || (inp && inp.value) || 'BBCA').trim().toUpperCase();
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var rawTicker = (tickerOverride || (inp && inp.value) || TECH_DATA.ticker || globalTk || 'BBCA').trim().toUpperCase();
   if (!rawTicker) rawTicker = 'BBCA';
   
-  var cleanCode = rawTicker.replace('.JK', '').replace('.US', '');
+  var cleanCode = rawTicker.replace(/\.JK$/i, '').replace(/\.US$/i, '');
   var tickerChanged = TECH_DATA.ticker !== cleanCode;
   TECH_DATA.ticker = cleanCode;
+  if (inp) inp.value = cleanCode;
+  var smInp = document.getElementById('sm360-search-inp');
+  if (smInp) smInp.value = cleanCode;
+
+  var m = document.getElementById('tech-sm360-mount');
+  if (m && typeof renderStockMaster360Nav === 'function') {
+    m.innerHTML = renderStockMaster360Nav('technical', cleanCode);
+  }
 
   // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
   // publish ke GLOBAL_STOCK_CONTEXT, pola sama dengan fundFetchData()/

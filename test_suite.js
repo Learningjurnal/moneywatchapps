@@ -7865,6 +7865,67 @@ test('REGRESSION GUARD: Server-first live history and real correlation preservat
     'REGRESSION: qtFetchOHLCV must prioritize server-side /api/idx/history before falling back to proxies');
 });
 
+test('REGRESSION GUARD: Stock Master Terminal 360 End-to-End Ticker Sync & Search Bar Integration', () => {
+  const sm360Src = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  const dossierSrc = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  // 1. Top search bar must be present with proper class and enter key handler
+  assert(sm360Src.includes('sm360-search-input'), 'Top search bar must have sm360-search-input class');
+  assert(sm360Src.includes("sm360SelectTicker(this.value"), 'Enter key must trigger sm360SelectTicker directly');
+  assert(sm360Src.includes('sm360SearchSubmit(triggerBtn)'), 'Search submit must support triggerBtn parameter for active page resolution');
+
+  // 2. Fundamental HTML must not hardcode .JK or AAPL in quick chips
+  assert(!indexHtml.includes("value=\"BBCA.JK\""), 'fundTickerInput must not hardcode .JK');
+  assert(!indexHtml.includes("fundSetTicker('BBCA.JK')"), 'fundSetTicker must not use .JK');
+  assert(!indexHtml.includes("fundSetTicker('AAPL')"), 'fundSetTicker must not include non-IDX AAPL');
+
+  // 3. Stock Dossier must synchronize via GLOBAL_STOCK_CONTEXT and delegate to sm360SelectTicker
+  assert(dossierSrc.includes("sm360SelectTicker(clean, 'stock-dossier')"), 'dossierSelectTicker must delegate to sm360SelectTicker');
+  assert(dossierSrc.includes('GLOBAL_STOCK_CONTEXT.subscribe'), 'Stock Dossier must subscribe to GLOBAL_STOCK_CONTEXT');
+  assert(dossierSrc.includes('isDifferentFromHarvested'), 'renderStockDossierPage must detect ticker discrepancies between tabs');
+
+  // 4. Test sm360SelectTicker logic in sandbox
+  const vm = require('vm');
+  const sandbox = {
+    window: {},
+    GLOBAL_STOCK_CONTEXT: {
+      ticker: 'BBCA',
+      getTicker() { return this.ticker; },
+      setTicker(t) { this.ticker = t; }
+    },
+    TECH_DATA: { ticker: 'BBCA' },
+    FUND_DATA: { ticker: 'BBCA' },
+    STOCK_DOSSIER_STATE: { ticker: 'BBCA' },
+    MW_SELECTED_INTEL_TICKER: 'BBCA',
+    STOCKCHAT_SELECTED_TICKER: 'BBCA',
+    document: {
+      querySelectorAll(selector) {
+        return [{ value: '' }, { value: '' }];
+      },
+      querySelector(selector) {
+        return null;
+      },
+      getElementById(id) {
+        return { value: '' };
+      }
+    }
+  };
+  vm.createContext(sandbox);
+  // Extract and run sm360SelectTicker
+  const fnStart = sm360Src.indexOf('function sm360SelectTicker');
+  const fnEnd = sm360Src.indexOf('function sm360SearchSubmit');
+  vm.runInContext(sm360Src.slice(fnStart, fnEnd), sandbox);
+
+  sandbox.sm360SelectTicker('BRMS.JK', 'test');
+  assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'BRMS', 'GLOBAL_STOCK_CONTEXT must be updated to BRMS (without .JK)');
+  assert.strictEqual(sandbox.TECH_DATA.ticker, 'BRMS', 'TECH_DATA must be updated to BRMS');
+  assert.strictEqual(sandbox.FUND_DATA.ticker, 'BRMS', 'FUND_DATA must be updated to BRMS');
+  assert.strictEqual(sandbox.STOCK_DOSSIER_STATE.ticker, 'BRMS', 'STOCK_DOSSIER_STATE must be updated to BRMS');
+  assert.strictEqual(sandbox.MW_SELECTED_INTEL_TICKER, 'BRMS', 'MW_SELECTED_INTEL_TICKER must be updated to BRMS');
+});
+
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

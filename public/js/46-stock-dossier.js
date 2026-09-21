@@ -1227,15 +1227,40 @@ async function dossierHarvestData(ticker) {
 
 function dossierSelectTicker(tk) {
   if (!tk) return;
-  dossierState.ticker = tk.toUpperCase().trim();
-  dossierRunAnalysis(dossierState.ticker);
+  var clean = tk.toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+  dossierState.ticker = clean;
+  if (typeof sm360SelectTicker === 'function') {
+    sm360SelectTicker(clean, 'stock-dossier');
+  } else {
+    dossierRunAnalysis(clean);
+  }
 }
 
 function dossierRunAnalysis(targetTicker) {
-  var tk = targetTicker || dossierState.ticker || 'BBCA';
-  var inp = document.getElementById('dossier-ticker-input');
-  if (inp) inp.value = tk;
+  var tk = (targetTicker || dossierState.ticker || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA')).toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+  dossierState.ticker = tk;
 
+  // 1. Sync GLOBAL_STOCK_CONTEXT
+  if (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.setTicker && GLOBAL_STOCK_CONTEXT.getTicker() !== tk) {
+    GLOBAL_STOCK_CONTEXT.setTicker(tk, 'stock-dossier');
+  }
+
+  // 2. Synchronize subsystem globals
+  if (typeof TECH_DATA !== 'undefined' && TECH_DATA) TECH_DATA.ticker = tk;
+  if (typeof FUND_DATA !== 'undefined' && FUND_DATA) FUND_DATA.ticker = tk;
+  if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = tk;
+  if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
+
+  // 3. Synchronize all input elements in DOM
+  document.querySelectorAll('.sm360-search-input, #sm360-search-inp').forEach(function(el) {
+    el.value = tk;
+  });
+  ['techTickerInput', 'fundTickerInput', 'dossier-ticker-input', 'intel-search-input', 'stockchat-ticker-inp'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = tk;
+  });
+
+  // 4. Set loading state and re-render header/page
   dossierState.isLoading = true;
   dossierState.errorMessage = null;
   renderStockDossierPage();
@@ -1285,18 +1310,14 @@ function renderStockDossierPage(targetTicker) {
     dossierState.weights = dossierGetWeights();
   }
 
-  var cleanTarget = (targetTicker || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker ? GLOBAL_STOCK_CONTEXT.getTicker() : '') || '').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
-  if (cleanTarget && cleanTarget !== dossierState.ticker && !dossierState.isLoading) {
+  var cleanTarget = (targetTicker || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker ? GLOBAL_STOCK_CONTEXT.getTicker() : '') || dossierState.ticker || 'BBCA').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+
+  // If the target ticker is different from the currently harvested data or state, and not loading, fetch fresh data
+  var isDifferentFromHarvested = Boolean(dossierState.harvestedData && dossierState.harvestedData.ticker && dossierState.harvestedData.ticker !== cleanTarget);
+  var isDifferentFromState = Boolean(dossierState.ticker && dossierState.ticker !== cleanTarget);
+  if ((!dossierState.harvestedData || isDifferentFromHarvested || isDifferentFromState) && !dossierState.isLoading && !dossierState.errorMessage && !dossierState.isInvalidTicker) {
     dossierState.ticker = cleanTarget;
     dossierRunAnalysis(cleanTarget);
-    return;
-  }
-
-  // Initial trigger if not loaded yet
-  if (!dossierState.harvestedData && !dossierState.isLoading && !dossierState.errorMessage && !dossierState.isInvalidTicker) {
-    var initialTk = cleanTarget || dossierState.ticker || 'BBCA';
-    dossierState.ticker = initialTk;
-    dossierRunAnalysis(initialTk);
     return;
   }
 
@@ -1345,8 +1366,8 @@ function renderStockDossierPage(targetTicker) {
   html += '      <i class="ti ti-search" style="font-size:18px;color:var(--text3)"></i>';
   html += '      <input type="text" id="dossier-ticker-input" value="' + dossierState.ticker + '" placeholder="Masukkan Kode Saham (contoh: BBCA, TLKM, ASII)..." ';
   html += '        style="flex:1;background:transparent;border:none;color:var(--text);font-family:var(--font-mono);font-size:14px;font-weight:700;text-transform:uppercase;outline:none" ';
-  html += '        onkeydown="if(event.key===\'Enter\'){dossierRunAnalysis(this.value);}" />';
-  html += '      <button class="sm-btn" style="padding:6px 14px;font-size:12px" onclick="dossierRunAnalysis(document.getElementById(\'dossier-ticker-input\').value)">Analisis Lengkap</button>';
+  html += '        onkeydown="if(event.key===\'Enter\'){if(typeof sm360SelectTicker===\'function\'){sm360SelectTicker(this.value,\'stock-dossier\');}else{dossierRunAnalysis(this.value);}}" />';
+  html += '      <button class="sm-btn" style="padding:6px 14px;font-size:12px" onclick="var inp=document.getElementById(\'dossier-ticker-input\');var val=inp?inp.value:\'\';if(typeof sm360SelectTicker===\'function\'){sm360SelectTicker(val,\'stock-dossier\');}else{dossierRunAnalysis(val);}}">Analisis Lengkap</button>';
   html += '    </div>';
 
   html += '    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
@@ -2201,6 +2222,31 @@ if (typeof module !== 'undefined' && module.exports) {
     dossierComputeFundamentalScore: dossierComputeFundamentalScore,
     dossierComputeRegimeScore: dossierComputeRegimeScore,
     dossierCalculateCompositeScore: dossierCalculateCompositeScore,
-    dossierCalculateScore: dossierCalculateScore
+    dossierCalculateScore: dossierCalculateScore,
+    dossierSelectTicker: dossierSelectTicker,
+    dossierRunAnalysis: dossierRunAnalysis
   };
 }
+
+if (typeof window !== 'undefined') {
+  window.dossierSelectTicker = dossierSelectTicker;
+  window.dossierRunAnalysis = dossierRunAnalysis;
+  window.renderStockDossierPage = renderStockDossierPage;
+
+  if (window.GLOBAL_STOCK_CONTEXT && typeof window.GLOBAL_STOCK_CONTEXT.subscribe === 'function') {
+    window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+      if (source !== 'stock-dossier' && source !== 'dossier' && tk) {
+        var clean = tk.toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+        var isDifferent = (!dossierState.harvestedData || dossierState.harvestedData.ticker !== clean || dossierState.ticker !== clean);
+        if (isDifferent) {
+          dossierState.ticker = clean;
+          var pg = document.getElementById('page-stock-dossier');
+          if (pg && pg.classList.contains('on') && !dossierState.isLoading) {
+            dossierRunAnalysis(clean);
+          }
+        }
+      }
+    });
+  }
+}
+
