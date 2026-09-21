@@ -535,6 +535,66 @@ await (async () => {
 })();
 
 // ============================================================
+// fetchIdxSpecialNotations() — test parser and mapping of IDX special notations & FCA
+// ============================================================
+await (async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    const urlStr = String(url);
+    if (urlStr.includes('GetSpecialNotation')) {
+      return {
+        ok: true,
+        headers: { getSetCookie: () => [] },
+        json: async () => ({
+          data: [
+            { Code: 'BUMI', Notation: 'X', Description: 'Papan Pemantauan Khusus' },
+            { Code: 'GOTO', Notation: 'N', Description: 'Multiple Voting Shares' },
+            { Code: 'WIKA', Notation: 'M', Description: 'Permohonan Pembatalan Perdamaian' },
+            { Code: 'WIKA', Notation: 'E', Description: 'Ekuitas Negatif' }
+          ]
+        })
+      };
+    }
+    if (urlStr.includes('GetWatchlistStock')) {
+      return {
+        ok: true,
+        headers: { getSetCookie: () => [] },
+        json: async () => ({
+          data: [
+            { Code: 'BUMI', Criteria: 'Kriteria 1: Harga rata-rata di bawah Rp 51' }
+          ]
+        })
+      };
+    }
+    return { ok: true, headers: { getSetCookie: () => [] }, json: async () => ({}) };
+  };
+
+  try {
+    const { fetchIdxSpecialNotations, IDX_SPECIAL_NOTATION_DICT } = await import('./lib/providers/idx-client.js');
+    await asyncTest('fetchIdxSpecialNotations(): parses and maps BEI special notations and FCA watchlist correctly', async () => {
+      const res = await fetchIdxSpecialNotations(true);
+      assert(res.BUMI, 'BUMI should be mapped');
+      assert(res.BUMI.notations.includes('X'), 'BUMI should have notation X');
+      assert.strictEqual(res.BUMI.isWatchlist, true, 'BUMI should be isWatchlist=true');
+      assert.strictEqual(res.BUMI.isHighRisk, true, 'BUMI should be isHighRisk=true');
+
+      assert(res.WIKA, 'WIKA should be mapped');
+      assert(res.WIKA.notations.includes('M'), 'WIKA should have notation M');
+      assert(res.WIKA.notations.includes('E'), 'WIKA should have notation E');
+      assert.strictEqual(res.WIKA.isHighRisk, true, 'WIKA should be isHighRisk=true (Ekuitas Negatif / PKPU)');
+
+      assert(res.GOTO, 'GOTO should be mapped');
+      assert(res.GOTO.notations.includes('N'), 'GOTO should have notation N');
+      assert.strictEqual(res.GOTO.isHighRisk, false, 'GOTO MVS is informative (not high risk)');
+      assert(IDX_SPECIAL_NOTATION_DICT['X'], 'Dictionary should define X');
+      assert(IDX_SPECIAL_NOTATION_DICT['E'], 'Dictionary should define E');
+    });
+  } finally {
+    global.fetch = originalFetch;
+  }
+})();
+
+// ============================================================
 console.log('═══════════════════════════════════════════════════════');
 if (passedTests === totalTests) {
   console.log(`🎉 ALL ${passedTests}/${totalTests} PROVIDER FUNCTION TESTS PASSED`);

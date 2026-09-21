@@ -1524,6 +1524,18 @@ function renderStockChatPage(containerId) {
 
   // TAB 1: Chat Assistant View
   if (isChatTab) {
+    var specNot = (typeof getTickerSpecialNotation === 'function') ? getTickerSpecialNotation(curTk) : null;
+    if (specNot && specNot.notations && specNot.notations.length > 0) {
+      var notCrit = specNot.isHighRisk;
+      html += '<div class="card" style="padding:10px 14px;margin-bottom:14px;background:' + (notCrit ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)') + ';border:1px solid ' + (notCrit ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)') + ';border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+        + '<i class="ti ti-alert-triangle" style="font-size:18px;color:' + (notCrit ? '#EF4444' : '#F59E0B') + '"></i>'
+        + '<span style="font-size:11.5px;font-weight:700;color:var(--text)">Emiten dalam Pengawasan Khusus BEI: <strong style="color:' + (notCrit ? '#EF4444' : '#F59E0B') + '">Notasi [' + specNot.notations.join(', ') + ']' + (specNot.isWatchlist ? ' — Papan Pemantauan Khusus (FCA)' : '') + '</strong></span>'
+        + '</div>'
+        + '<span style="font-size:10.5px;color:var(--text3)">' + (specNot.details || []).map(function(d){ return d.name; }).join(' • ') + '</span>'
+        + '</div>';
+    }
+
     // Quick Action Matrix Chips
     html += '<div class="card" style="padding:12px 14px;margin-bottom:14px">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'

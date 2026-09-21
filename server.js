@@ -41,6 +41,8 @@ import {
   generateSectorRotation,
   generateMasterScreener,
   fetchIdxStockScreener,
+  fetchIdxSpecialNotations,
+  IDX_SPECIAL_NOTATION_DICT,
   IDX_BROKERS,
   generateTradingHypothesis,
   generateExitHypothesis,
@@ -3585,6 +3587,50 @@ app.get('/api/idx/brokers', (req, res) => {
       success: true,
       count: Object.keys(IDX_BROKERS).length,
       brokers: IDX_BROKERS
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/special-notations — Real Special Notations & Watchlist Board (FCA) dari idx.co.id
+app.get('/api/idx/special-notations', async (req, res) => {
+  try {
+    const force = req.query.force === 'true';
+    const notations = await fetchIdxSpecialNotations(force);
+    return res.json({
+      success: true,
+      available: true,
+      dataSource: 'Bursa Efek Indonesia (idx.co.id) — Live Real-Time Feed',
+      dictionary: IDX_SPECIAL_NOTATION_DICT,
+      totalEmitenWithNotations: Object.keys(notations).length,
+      data: notations,
+      retrievedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/special-notations/:ticker — Real Special Notation for specific emiten
+app.get('/api/idx/special-notations/:ticker', async (req, res) => {
+  try {
+    const tk = String(req.params.ticker || '').toUpperCase().replace(/\.JK$/i, '').trim();
+    if (!tk) {
+      return res.status(400).json({ success: false, error: 'Ticker required' });
+    }
+    const notations = await fetchIdxSpecialNotations();
+    const entry = notations[tk] || null;
+    return res.json({
+      success: true,
+      ticker: tk,
+      hasSpecialNotation: !!entry,
+      isWatchlist: entry ? entry.isWatchlist : false,
+      isHighRisk: entry ? entry.isHighRisk : false,
+      notations: entry ? entry.notations : [],
+      details: entry ? entry.details : [],
+      data: entry,
+      dictionary: IDX_SPECIAL_NOTATION_DICT
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

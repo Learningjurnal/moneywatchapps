@@ -1488,6 +1488,46 @@ function renderStockDossierPage(targetTicker) {
   html += '  </div>';
   html += '</div>';
 
+  // ── Special Notations & Watchlist Compliance Banner ──
+  var specNot = (typeof getTickerSpecialNotation === 'function') ? getTickerSpecialNotation(dossierState.ticker) : null;
+  if (specNot && specNot.notations && specNot.notations.length > 0) {
+    var notIsCrit = specNot.isHighRisk;
+    var borderClr = notIsCrit ? 'rgba(239, 68, 68, 0.45)' : 'rgba(245, 158, 11, 0.45)';
+    var bgGrad = notIsCrit ? 'linear-gradient(180deg, rgba(239, 68, 68, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)' : 'linear-gradient(180deg, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)';
+    var textClr = notIsCrit ? '#EF4444' : '#F59E0B';
+
+    html += '<div class="card" style="margin-bottom:20px;padding:16px 20px;border:1px solid ' + borderClr + ';background:' + bgGrad + ';border-radius:10px">';
+    html += '  <div style="display:flex;align-items:flex-start;gap:14px">';
+    html += '    <div style="width:40px;height:40px;border-radius:10px;background:' + (notIsCrit ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)') + ';display:flex;align-items:center;justify-content:center;color:' + textClr + ';font-size:22px;flex-shrink:0">';
+    html += '      <i class="ti ti-alert-octagon"></i>';
+    html += '    </div>';
+    html += '    <div style="flex:1">';
+    html += '      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">';
+    html += '        <span style="font-size:15px;font-weight:900;color:' + textClr + '">Status Pengawasan Bursa: Saham dengan Notasi Khusus BEI</span>';
+    html += '        <span class="badge" style="background:' + (notIsCrit ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)') + ';color:' + textClr + ';font-weight:800;font-size:11px">NOTASI [' + specNot.notations.join(', ') + ']</span>';
+    if (specNot.isWatchlist) {
+      html += '        <span class="badge" style="background:rgba(239,68,68,0.25);color:#EF4444;font-weight:800;font-size:11px">PAPAN PEMANTAUAN KHUSUS (FCA)</span>';
+    }
+    html += '      </div>';
+    html += '      <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:10px">';
+    html += '        Bursa Efek Indonesia menyematkan notasi khusus pada emiten <strong>' + dossierState.ticker + '</strong> karena kondisi material berikut:';
+    html += '      </div>';
+    html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:8px">';
+    (specNot.details || []).forEach(function(d) {
+      html += '        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:8px 12px;font-size:11.5px">';
+      html += '          <div style="font-weight:800;color:' + textClr + ';margin-bottom:2px"><i class="ti ti-point"></i> Notasi [' + d.notation + '] — ' + d.name + '</div>';
+      html += '          <div style="color:var(--text3);line-height:1.4">' + d.desc + '</div>';
+      html += '        </div>';
+    });
+    html += '      </div>';
+    html += '      <div style="margin-top:10px;font-size:11px;color:var(--text3);background:rgba(0,0,0,0.2);padding:6px 10px;border-radius:6px">';
+    html += '        <i class="ti ti-shield-lock" style="color:' + textClr + '"></i> <strong>Protokol Manajemen Risiko Finansial (AGENTS.md §5, §10, §28):</strong> Saham dengan notasi risiko insolvensi/PKPU/FCA diblokir dari eksekusi pembelian otomatis (Autonomous Buy Sizing) demi perlindungan modal.';
+    html += '      </div>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+  }
+
   // ── DUAL-COLUMN SPLIT TERMINAL: DATA UTAMA VS SUPPORTING ──
   html += '<div class="dossier-split-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px, 100%), 1fr));gap:20px;margin-bottom:24px;align-items:start">';
 

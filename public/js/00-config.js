@@ -546,3 +546,56 @@ async function checkSupabaseCloudStatus() {
   }
 }
 
+// ══════════════════════════════════════════════════════════
+// GLOBAL SPECIAL NOTATIONS & WATCHLIST BOARD (FCA) SYSTEM
+// ══════════════════════════════════════════════════════════
+window.GLOBAL_SPECIAL_NOTATIONS = {};
+window.GLOBAL_SPECIAL_NOTATIONS_LOADED = false;
+
+window.loadSpecialNotations = async function(force) {
+  if (window.GLOBAL_SPECIAL_NOTATIONS_LOADED && !force && Object.keys(window.GLOBAL_SPECIAL_NOTATIONS).length > 0) {
+    return window.GLOBAL_SPECIAL_NOTATIONS;
+  }
+  try {
+    var resp = await fetch('/api/idx/special-notations' + (force ? '?force=true' : ''));
+    if (resp.ok) {
+      var json = await resp.json();
+      if (json && json.data) {
+        window.GLOBAL_SPECIAL_NOTATIONS = json.data;
+        window.GLOBAL_SPECIAL_NOTATIONS_LOADED = true;
+        // Broadcast updates if headers are mounted
+        if (typeof document !== 'undefined') {
+          var activeTk = (window.GLOBAL_STOCK_CONTEXT && window.GLOBAL_STOCK_CONTEXT.getTicker) ? window.GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+          var techMount = document.getElementById('tech-sm360-mount');
+          if (techMount && typeof renderStockMaster360Nav === 'function') {
+            techMount.innerHTML = renderStockMaster360Nav('technical', activeTk);
+          }
+          var fundMount = document.getElementById('fund-sm360-mount');
+          if (fundMount && typeof renderStockMaster360Nav === 'function') {
+            fundMount.innerHTML = renderStockMaster360Nav('fundamental', activeTk);
+          }
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('[SpecialNotation] Gagal memuat notasi khusus:', e && e.message);
+  }
+  return window.GLOBAL_SPECIAL_NOTATIONS;
+};
+
+window.getTickerSpecialNotation = function(ticker) {
+  if (!ticker) return null;
+  var clean = String(ticker).toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+  return (window.GLOBAL_SPECIAL_NOTATIONS && window.GLOBAL_SPECIAL_NOTATIONS[clean]) || null;
+};
+
+// Auto-fetch on client boot
+if (typeof window !== 'undefined' && typeof setTimeout === 'function') {
+  setTimeout(function() {
+    if (typeof window.loadSpecialNotations === 'function') {
+      window.loadSpecialNotations();
+    }
+  }, 100);
+}
+
+

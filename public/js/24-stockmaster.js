@@ -61,6 +61,17 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
     return '<button type="button" onclick="sm360SelectTicker(\'' + qt + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 8px;border-radius:6px;font-family:var(--font-mono);font-weight:700;border:1px solid var(--border2)">' + qt + '</button>';
   }).join(' ');
 
+  var specNot = (typeof getTickerSpecialNotation === 'function') ? getTickerSpecialNotation(tk) : null;
+  var notationBadgeHtml = '';
+  if (specNot && specNot.notations && specNot.notations.length > 0) {
+    var notCodes = specNot.notations.join(', ');
+    var notTooltip = (specNot.details || []).map(function(d) { return d.notation + ': ' + d.name + ' (' + d.desc + ')'; }).join(' | ');
+    var isCrit = specNot.isHighRisk;
+    notationBadgeHtml = '<span class="badge" style="background:' + (isCrit ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.18)') + ';color:' + (isCrit ? '#EF4444' : '#F59E0B') + ';border:1px solid ' + (isCrit ? 'rgba(239,68,68,0.35)' : 'rgba(245,158,11,0.35)') + ';font-size:10px;font-weight:800;letter-spacing:0.3px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;cursor:pointer" title="' + notTooltip.replace(/"/g, '&quot;') + '">'
+      + '<i class="ti ti-alert-triangle"></i> NOTASI: [' + notCodes + ']' + (specNot.isWatchlist ? ' (FCA)' : '')
+      + '</span>';
+  }
+
   var tabs = [
     { id: 'technical', icon: 'ti-chart-candle', label: '1. Chart & Techno-Bandarmology', page: 'technical' },
     { id: 'flow', icon: 'ti-radar', label: '2. Bandarmology & Flow', page: 'stock-intel' },
@@ -81,10 +92,11 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
       + '<div style="display:flex;align-items:center;gap:12px">'
         + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(tk, 32) : '')
         + '<div>'
-          + '<div style="display:flex;align-items:center;gap:8px">'
+          + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
             + '<span style="font-size:17px;font-weight:900;color:var(--text);font-family:Fira Code,monospace">' + tk + '</span>'
             + (px > 0 ? '<span style="font-size:16px;font-weight:800;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + px.toLocaleString('id-ID') + '</span>' : '')
             + (chg !== 0 ? '<span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</span>' : '')
+            + notationBadgeHtml
           + '</div>'
           + '<div style="font-size:10.5px;color:var(--text3);font-weight:600">STOCK MASTER TERMINAL 360 : SINGLE STOCK COMPREHENSIVE INTELLIGENCE</div>'
         + '</div>'
