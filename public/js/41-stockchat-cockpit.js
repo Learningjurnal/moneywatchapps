@@ -1413,7 +1413,9 @@ function renderStockChatPage(containerId) {
 
   var isChatTab = STOCKCHAT_ACTIVE_TAB === 'chat';
   var isFlowTab = STOCKCHAT_ACTIVE_TAB === 'broker-flow';
-  var curTk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var curTk = (globalTk || STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+  STOCKCHAT_SELECTED_TICKER = curTk;
   var curPrice = getAccurateStockPrice(curTk);
   var bData = generateClientSideBrokerSummary(curTk, STOCKCHAT_TIMEFRAME || '1D');
   var b = (bData && bData.bandarmology) || {};
@@ -1663,12 +1665,12 @@ function selectStockChatTicker(tk) {
 
 if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
   window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
-    if (source !== 'stockchat' && tk && tk !== STOCKCHAT_SELECTED_TICKER) {
-      STOCKCHAT_SELECTED_TICKER = tk;
-      var elP = document.getElementById('page-stockchat');
-      if (elP && elP.classList.contains('on') && typeof renderStockChatPage === 'function') {
-        renderStockChatPage();
-      }
+    if (source === 'stockchat' || !tk) return;
+    var clean = tk.toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+    STOCKCHAT_SELECTED_TICKER = clean;
+    var elP = document.getElementById('page-stockchat');
+    if (elP && elP.classList.contains('on') && typeof renderStockChatPage === 'function') {
+      renderStockChatPage();
     }
   });
 }

@@ -1237,7 +1237,8 @@ function dossierSelectTicker(tk) {
 }
 
 function dossierRunAnalysis(targetTicker) {
-  var tk = (targetTicker || dossierState.ticker || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA')).toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var tk = (targetTicker || globalTk || dossierState.ticker || 'BBCA').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
   dossierState.ticker = tk;
 
   // 1. Sync GLOBAL_STOCK_CONTEXT
@@ -1310,7 +1311,8 @@ function renderStockDossierPage(targetTicker) {
     dossierState.weights = dossierGetWeights();
   }
 
-  var cleanTarget = (targetTicker || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker ? GLOBAL_STOCK_CONTEXT.getTicker() : '') || dossierState.ticker || 'BBCA').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var cleanTarget = (targetTicker || globalTk || dossierState.ticker || 'BBCA').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
 
   // If the target ticker is different from the currently harvested data or state, and not loading, fetch fresh data
   var isDifferentFromHarvested = Boolean(dossierState.harvestedData && dossierState.harvestedData.ticker && dossierState.harvestedData.ticker !== cleanTarget);
@@ -2235,16 +2237,12 @@ if (typeof window !== 'undefined') {
 
   if (window.GLOBAL_STOCK_CONTEXT && typeof window.GLOBAL_STOCK_CONTEXT.subscribe === 'function') {
     window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
-      if (source !== 'stock-dossier' && source !== 'dossier' && tk) {
-        var clean = tk.toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
-        var isDifferent = (!dossierState.harvestedData || dossierState.harvestedData.ticker !== clean || dossierState.ticker !== clean);
-        if (isDifferent) {
-          dossierState.ticker = clean;
-          var pg = document.getElementById('page-stock-dossier');
-          if (pg && pg.classList.contains('on') && !dossierState.isLoading) {
-            dossierRunAnalysis(clean);
-          }
-        }
+      if (source === 'stock-dossier' || source === 'dossier' || !tk) return;
+      var clean = tk.toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+      dossierState.ticker = clean;
+      var pg = document.getElementById('page-stock-dossier');
+      if (pg && pg.classList.contains('on') && !dossierState.isLoading) {
+        dossierRunAnalysis(clean);
       }
     });
   }

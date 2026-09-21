@@ -382,37 +382,69 @@ window.GLOBAL_STOCK_CONTEXT = {
   },
   setTicker: function(ticker, source) {
     if (!ticker) return;
-    var clean = String(ticker).toUpperCase().trim().replace('.JK', '').replace('.US', '');
+    var clean = String(ticker).toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
     if (!clean) return;
+    var oldTicker = this.activeTicker;
     this.activeTicker = clean;
     
-    // Sync into known subsystem globals
+    // 1. Sync into known subsystem globals
     try {
       if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = clean;
       if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = clean;
       if (typeof FUND_DATA !== 'undefined' && FUND_DATA) FUND_DATA.ticker = clean;
       if (typeof TECH_DATA !== 'undefined' && TECH_DATA) TECH_DATA.ticker = clean;
       if (typeof STOCK_DOSSIER_STATE !== 'undefined' && STOCK_DOSSIER_STATE) STOCK_DOSSIER_STATE.ticker = clean;
+      if (typeof dossierState !== 'undefined' && dossierState) dossierState.ticker = clean;
       if (typeof AI_TRADE_STATE !== 'undefined' && AI_TRADE_STATE) AI_TRADE_STATE.selectedTicker = clean;
       if (typeof KSEI_STATE !== 'undefined' && KSEI_STATE) KSEI_STATE.selectedTicker = clean;
+      if (typeof VS_STATE !== 'undefined' && VS_STATE) VS_STATE.ticker = clean;
     } catch(e) {}
 
-    // Dispatch to registered context subscribers
+    // 2. Global DOM input synchronization across ALL search inputs and dropdowns
+    try {
+      if (typeof document !== 'undefined') {
+        document.querySelectorAll('.sm360-search-input, #sm360-search-inp').forEach(function(el) {
+          el.value = clean;
+        });
+        ['techTickerInput', 'fundTickerInput', 'dossier-ticker-input', 'intel-search-input', 'stockchat-ticker-inp', 'bt-ticker', 'mr-ticker-input'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.value = clean;
+        });
+        var sel = document.getElementById('intel-ticker-select');
+        if (sel) sel.value = clean;
+      }
+    } catch(e) {}
+
+    // 3. Update all mounted Stock Master 360 terminal headers immediately
+    try {
+      var techMount = document.getElementById('tech-sm360-mount');
+      if (techMount && typeof renderStockMaster360Nav === 'function') {
+        techMount.innerHTML = renderStockMaster360Nav('technical', clean);
+      }
+      var fundMount = document.getElementById('fund-sm360-mount');
+      if (fundMount && typeof renderStockMaster360Nav === 'function') {
+        fundMount.innerHTML = renderStockMaster360Nav('fundamental', clean);
+      }
+    } catch(e) {}
+
+    // 4. Dispatch to registered context subscribers
     this.listeners.forEach(function(fn) {
-      try { fn(clean, source); } catch(err) { console.warn('[StockContext] listener err:', err); }
+      try { fn(clean, source, oldTicker); } catch(err) { console.warn('[StockContext] listener err:', err); }
     });
 
-    // Fire browser level custom event
+    // 5. Fire browser level custom event
     try {
-      window.dispatchEvent(new CustomEvent('mw:stock-context-changed', {
-        detail: { ticker: clean, source: source || 'user' }
-      }));
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('mw:stock-context-changed', {
+          detail: { ticker: clean, source: source || 'user', oldTicker: oldTicker }
+        }));
+      }
     } catch(e) {}
   },
   subscribe: function(fn) {
     if (typeof fn === 'function') {
       this.listeners.push(fn);
-      try { fn(this.activeTicker, 'init'); } catch(e) {}
+      try { fn(this.activeTicker, 'init', this.activeTicker); } catch(e) {}
     }
   }
 };

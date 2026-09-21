@@ -237,7 +237,7 @@ window.sm360SearchSubmit = sm360SearchSubmit;
 
 function fundInit() {
   var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
-  var tk = (FUND_DATA.ticker || globalTk || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+  var tk = (globalTk || FUND_DATA.ticker || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
   FUND_DATA.ticker = tk;
   var inp = document.getElementById('fundTickerInput');
   if (inp) inp.value = tk;
@@ -352,7 +352,7 @@ function fundFmt(num, isPct) {
 async function fundFetchData(tickerOverride) {
   var inp = document.getElementById('fundTickerInput');
   var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
-  var rawTicker = (tickerOverride || (inp && inp.value) || FUND_DATA.ticker || globalTk || 'BBCA').trim().toUpperCase();
+  var rawTicker = (tickerOverride || (inp && inp.value) || globalTk || FUND_DATA.ticker || 'BBCA').trim().toUpperCase();
   if (!rawTicker) rawTicker = 'BBCA';
   
   var cleanCode = rawTicker.replace(/\.JK$/i, '').replace(/\.US$/i, '');
@@ -371,7 +371,7 @@ async function fundFetchData(tickerOverride) {
   }
 
   // Publish to GLOBAL_STOCK_CONTEXT
-  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT && window.GLOBAL_STOCK_CONTEXT.getTicker() !== cleanCode) {
     window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'fundamental');
   }
 
@@ -526,15 +526,14 @@ async function fundFetchData(tickerOverride) {
 // supaya fundInit() menampilkan ticker yang benar saat user membukanya nanti.
 if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
   window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
-    if (source !== 'fundamental' && tk && tk !== FUND_DATA.ticker) {
-      var inp = document.getElementById('fundTickerInput');
-      if (inp) inp.value = tk;
-      var elP = document.getElementById('page-fundamental');
-      if (elP && elP.classList.contains('on') && typeof fundFetchData === 'function') {
-        fundFetchData(tk);
-      } else {
-        FUND_DATA.ticker = tk;
-      }
+    if (source === 'fundamental' || !tk) return;
+    var clean = tk.toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+    var inp = document.getElementById('fundTickerInput');
+    if (inp) inp.value = clean;
+    FUND_DATA.ticker = clean;
+    var elP = document.getElementById('page-fundamental');
+    if (elP && elP.classList.contains('on') && typeof fundFetchData === 'function') {
+      fundFetchData(clean);
     }
   });
 }
@@ -1424,7 +1423,7 @@ function fundCalculateDCF() {
 
 function techInit(force) {
   var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
-  var tk = (TECH_DATA.ticker || globalTk || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+  var tk = (globalTk || TECH_DATA.ticker || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
   TECH_DATA.ticker = tk;
   var inp = document.getElementById('techTickerInput');
   if (inp) inp.value = tk;
@@ -1520,7 +1519,7 @@ function techSetTicker(ticker) {
 function techFetchData(tickerOverride, force) {
   var inp = document.getElementById('techTickerInput');
   var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
-  var rawTicker = (tickerOverride || (inp && inp.value) || TECH_DATA.ticker || globalTk || 'BBCA').trim().toUpperCase();
+  var rawTicker = (tickerOverride || (inp && inp.value) || globalTk || TECH_DATA.ticker || 'BBCA').trim().toUpperCase();
   if (!rawTicker) rawTicker = 'BBCA';
   
   var cleanCode = rawTicker.replace(/\.JK$/i, '').replace(/\.US$/i, '');
@@ -1535,10 +1534,8 @@ function techFetchData(tickerOverride, force) {
     m.innerHTML = renderStockMaster360Nav('technical', cleanCode);
   }
 
-  // FIX (2026-09-12, P1 audit follow-up "Stock Cockpit fragmentation"):
-  // publish ke GLOBAL_STOCK_CONTEXT, pola sama dengan fundFetchData()/
-  // selectStockIntelTicker()/selectStockChatTicker().
-  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT && (tickerChanged || force)) {
+  // Publish to GLOBAL_STOCK_CONTEXT
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT && window.GLOBAL_STOCK_CONTEXT.getTicker() !== cleanCode) {
     window.GLOBAL_STOCK_CONTEXT.setTicker(cleanCode, 'technical');
   }
 
@@ -1546,22 +1543,17 @@ function techFetchData(tickerOverride, force) {
   techSwitchTab(TECH_DATA.activeTab || 1, force !== undefined ? force : tickerChanged);
 }
 
-// FIX (2026-09-12, P1 audit follow-up): subscribe ke GLOBAL_STOCK_CONTEXT
-// supaya halaman Technical ikut pindah ticker saat dipilih dari modul lain -
-// pola sama persis dengan listener Fundamental/StockChat. Kalau halaman
-// Technical sedang aktif, langsung re-fetch; kalau tidak, cukup update
-// input & state supaya techInit() menampilkan ticker yang benar nanti.
+// FIX: subscribe ke GLOBAL_STOCK_CONTEXT supaya halaman Technical selalu sync
 if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
   window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
-    if (source !== 'technical' && tk && tk !== TECH_DATA.ticker) {
-      var inp = document.getElementById('techTickerInput');
-      if (inp) inp.value = tk;
-      var elP = document.getElementById('page-technical');
-      if (elP && elP.classList.contains('on') && typeof techFetchData === 'function') {
-        techFetchData(tk);
-      } else {
-        TECH_DATA.ticker = tk;
-      }
+    if (source === 'technical' || !tk) return;
+    var clean = tk.toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+    var inp = document.getElementById('techTickerInput');
+    if (inp) inp.value = clean;
+    TECH_DATA.ticker = clean;
+    var elP = document.getElementById('page-technical');
+    if (elP && elP.classList.contains('on') && typeof techFetchData === 'function') {
+      techFetchData(clean, true);
     }
   });
 }

@@ -766,7 +766,9 @@ function renderStockIntelPage() {
   var c = el('page-stock-intel');
   if (!c) return;
 
-  var ticker = (MW_SELECTED_INTEL_TICKER || 'BBCA').toUpperCase().trim();
+  var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
+  var ticker = (globalTk || MW_SELECTED_INTEL_TICKER || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+  MW_SELECTED_INTEL_TICKER = ticker;
   var isIdx = isRegisteredIdxTicker(ticker);
 
   // Susun Dropdown Options strictly with IDX Stocks
@@ -1296,12 +1298,12 @@ window.isRegisteredIdxTicker = isRegisteredIdxTicker;
 // 10-hargawajar.js/41-stockchat-cockpit.js).
 if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
   window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
-    if (source !== 'stock-intel' && tk && tk !== MW_SELECTED_INTEL_TICKER) {
-      MW_SELECTED_INTEL_TICKER = tk;
-      var pg = el('page-stock-intel');
-      if (pg && pg.classList.contains('on')) {
-        renderStockIntelPage();
-      }
+    if (source === 'stock-intel' || !tk) return;
+    var clean = tk.toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+    MW_SELECTED_INTEL_TICKER = clean;
+    var pg = el('page-stock-intel');
+    if (pg && pg.classList.contains('on') && typeof renderStockIntelPage === 'function') {
+      renderStockIntelPage();
     }
   });
 }
