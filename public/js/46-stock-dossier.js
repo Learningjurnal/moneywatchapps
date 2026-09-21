@@ -48,18 +48,6 @@ var DOSSIER_PRESETS = {
   }
 };
 
-var dossierState = {
-  ticker: 'BBCA',
-  activeTab: 'overview',
-  weights: Object.assign({}, DOSSIER_DEFAULT_WEIGHTS),
-  harvestedData: null,
-  scoringResult: null,
-  isLoading: false,
-  isInvalidTicker: false,
-  errorMessage: null,
-  lastUpdated: null
-};
-
 // ============================================================
 // 1. WEIGHT MANAGEMENT & CALIBRATION
 // ============================================================
@@ -70,7 +58,7 @@ function dossierGetDefaultWeights() {
 
 function dossierGetWeights() {
   try {
-    var raw = localStorage.getItem('mw_dossier_weights_v1');
+    var raw = (typeof localStorage !== 'undefined' && localStorage) ? localStorage.getItem('mw_dossier_weights_v1') : null;
     if (raw) {
       var parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
@@ -89,8 +77,33 @@ function dossierGetWeights() {
   return dossierGetDefaultWeights();
 }
 
+var dossierState = {
+  ticker: 'BBCA',
+  activeTab: 'overview',
+  weights: dossierGetWeights(),
+  harvestedData: null,
+  scoringResult: null,
+  isLoading: false,
+  isInvalidTicker: false,
+  errorMessage: null,
+  lastUpdated: null
+};
+
+var STOCK_DOSSIER_STATE = dossierState;
+if (typeof window !== 'undefined') {
+  window.STOCK_DOSSIER_STATE = dossierState;
+  window.dossierState = dossierState;
+}
+
 function dossierSaveWeights(newWeights) {
   if (!newWeights || typeof newWeights !== 'object') return false;
+  var validValues = ['valuation', 'smartMoney', 'technical', 'ksei', 'fundamental', 'regime'].every(function(k) {
+    return typeof newWeights[k] === 'number' && !isNaN(newWeights[k]) && newWeights[k] >= 0;
+  });
+  if (!validValues) {
+    console.warn('[Dossier] Bobot setiap pilar harus berupa angka non-negatif.');
+    return false;
+  }
   var sum = (newWeights.valuation || 0) + (newWeights.smartMoney || 0) + (newWeights.technical || 0) +
             (newWeights.ksei || 0) + (newWeights.fundamental || 0) + (newWeights.regime || 0);
   if (Math.abs(sum - 100) > 0.01) {
@@ -99,7 +112,9 @@ function dossierSaveWeights(newWeights) {
   }
   dossierState.weights = Object.assign({}, newWeights);
   try {
-    localStorage.setItem('mw_dossier_weights_v1', JSON.stringify(dossierState.weights));
+    if (typeof localStorage !== 'undefined' && localStorage) {
+      localStorage.setItem('mw_dossier_weights_v1', JSON.stringify(dossierState.weights));
+    }
   } catch (e) {}
 
   if (dossierState.harvestedData) {
@@ -109,13 +124,17 @@ function dossierSaveWeights(newWeights) {
   return true;
 }
 
-function dossierApplyPreset(presetKey) {
+function dossierApplyPreset(presetKey, saveImmediately) {
   if (!DOSSIER_PRESETS[presetKey]) return false;
   var presetWeights = DOSSIER_PRESETS[presetKey].weights;
-  dossierSaveWeights(presetWeights);
+  if (saveImmediately) {
+    dossierSaveWeights(presetWeights);
+  }
   dossierUpdateWeightsModalInputs(presetWeights);
   if (typeof showToast === 'function') {
-    showToast('Preset "' + DOSSIER_PRESETS[presetKey].label + '" berhasil diterapkan');
+    showToast(saveImmediately
+      ? 'Preset "' + DOSSIER_PRESETS[presetKey].label + '" berhasil diterapkan'
+      : 'Preset "' + DOSSIER_PRESETS[presetKey].label + '" dipilih (klik Simpan untuk menerapkan)');
   }
   return true;
 }
@@ -128,29 +147,56 @@ function dossierApplyPreset(presetKey) {
  * Pillar 1: Valuasi & Margin of Safety (0–100)
  */
 function dossierComputeValuationScore(harvested) {
+  if (!harvested) {
+    return {
+      available: false,
+      status: 'DATA_UNAVAILABLE',
+      score: null,
+      mosPct: null,
+      fairValue: null,
+      per: null,
+      pbv: null,
+      reason: 'Data valuasi fundamental tidak tersedia.'
+    };
+  }
+
   var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
-  var qf = quote.fundamentals || {};
+  var fundObj = harvested.fundamentals || harvested.fund || quote.fundamentals || {};
+  var qf = quote.fundamentals || fundObj;
   var price = quote.price || (quote.close) || 0;
 
-  var per = qf.per || (harvested.fund && harvested.fund.per) || null;
-  var pbv = qf.pbv || (harvested.fund && harvested.fund.pbv) || null;
-  var eps = qf.eps || (harvested.fund && harvested.fund.eps) || null;
-  var bvps = qf.bvps || (harvested.fund && harvested.fund.bvps) || null;
+  var per = (qf.per !== undefined && qf.per !== null) ? Number(qf.per) :
+            (qf.pe !== undefined && qf.pe !== null) ? Number(qf.pe) :
+            (fundObj.per !== undefined && fundObj.per !== null) ? Number(fundObj.per) :
+            (fundObj.pe !== undefined && fundObj.pe !== null) ? Number(fundObj.pe) : null;
+
+  var pbv = (qf.pbv !== undefined && qf.pbv !== null) ? Number(qf.pbv) :
+            (fundObj.pbv !== undefined && fundObj.pbv !== null) ? Number(fundObj.pbv) : null;
+
+  var eps = (qf.eps !== undefined && qf.eps !== null) ? Number(qf.eps) :
+            (fundObj.eps !== undefined && fundObj.eps !== null) ? Number(fundObj.eps) : null;
+
+  var bvps = (qf.bvps !== undefined && qf.bvps !== null) ? Number(qf.bvps) :
+             (fundObj.bvps !== undefined && fundObj.bvps !== null) ? Number(fundObj.bvps) : null;
 
   // Evaluate Graham Number if EPS and BVPS are valid positive
   var grahamNumber = null;
   if (eps && eps > 0 && bvps && bvps > 0) {
     grahamNumber = Math.round(Math.sqrt(22.5 * eps * bvps));
+  } else if (harvested.fairValue && (harvested.fairValue.grahamNumber || harvested.fairValue.graham)) {
+    grahamNumber = Number(harvested.fairValue.grahamNumber || harvested.fairValue.graham);
   }
 
   // Margin of Safety calculation
-  var fairValue = grahamNumber || (price > 0 && per && per > 0 ? Math.round(price * (15 / per)) : null);
+  var fairValue = grahamNumber || (price > 0 && per && per > 0 ? Math.round(price * (15 / per)) : null) || (harvested.fairValue && (harvested.fairValue.fairValue || harvested.fairValue.priceTarget) ? Number(harvested.fairValue.fairValue || harvested.fairValue.priceTarget) : null);
   var mosPct = null;
-  if (fairValue && fairValue > 0 && price > 0) {
+  if (harvested.fairValue && harvested.fairValue.mosPercent !== undefined && harvested.fairValue.mosPercent !== null) {
+    mosPct = Number(harvested.fairValue.mosPercent);
+  } else if (fairValue && fairValue > 0 && price > 0) {
     mosPct = ((fairValue - price) / fairValue) * 100;
   }
 
-  if (price <= 0 || (!per && !pbv && !fairValue)) {
+  if (price <= 0 || (per === null && pbv === null && fairValue === null && mosPct === null)) {
     return {
       available: false,
       status: 'DATA_UNAVAILABLE',
@@ -171,16 +217,22 @@ function dossierComputeValuationScore(harvested) {
     else if (mosPct >= -5) score = 65;
     else if (mosPct >= -20) score = 45;
     else score = 25;
+    // Penalize negative earnings or negative equity even if MoS was estimated
+    if (per !== null && per < 0) score -= 25;
+    if (pbv !== null && pbv < 0) score -= 30;
+    score = Math.max(15, Math.min(95, score));
   } else {
     // Fallback on PE and PBV benchmarks
     var subScore = 50;
-    if (per && per > 0) {
-      if (per < 10) subScore += 20;
+    if (per !== null) {
+      if (per < 0) subScore -= 20; // Rugi bersih / defisit
+      else if (per < 10) subScore += 20;
       else if (per < 15) subScore += 10;
       else if (per > 25) subScore -= 15;
     }
-    if (pbv && pbv > 0) {
-      if (pbv < 1.0) subScore += 20;
+    if (pbv !== null) {
+      if (pbv < 0) subScore -= 25; // Ekuitas negatif / insolvency warning
+      else if (pbv < 1.0) subScore += 20;
       else if (pbv < 2.0) subScore += 10;
       else if (pbv > 4.0) subScore -= 15;
     }
@@ -188,6 +240,13 @@ function dossierComputeValuationScore(harvested) {
   }
 
   var isValSim = Boolean(quote.isSimulated || (quote.quality && quote.quality.status === 'SIMULATION'));
+  var perStr = per !== null && !isNaN(per) ? per.toFixed(1) + 'x' : '-';
+  var pbvStr = pbv !== null && !isNaN(pbv) ? pbv.toFixed(2) + 'x' : '-';
+
+  var warningNotes = [];
+  if (per !== null && per < 0) warningNotes.push('P/E Negatif (Rugi Bersih)');
+  if (pbv !== null && pbv < 0) warningNotes.push('Ekuitas Negatif (Defisit Modal)');
+  var warningSuffix = warningNotes.length > 0 ? ' [' + warningNotes.join(', ') + ']' : '';
 
   return {
     available: true,
@@ -199,9 +258,9 @@ function dossierComputeValuationScore(harvested) {
     per: per,
     pbv: pbv,
     grahamNumber: grahamNumber,
-    reason: mosPct !== null
-      ? 'Margin of Safety: ' + (mosPct > 0 ? '+' : '') + mosPct.toFixed(1) + '% (Harga Wajar Est: Rp ' + fairValue.toLocaleString('id-ID') + ')'
-      : 'Berdasarkan rasio PE (' + (per ? per.toFixed(1) + 'x' : '-') + ') dan PBV (' + (pbv ? pbv.toFixed(2) + 'x' : '-') + ')'
+    reason: (mosPct !== null
+      ? 'Margin of Safety: ' + (mosPct > 0 ? '+' : '') + mosPct.toFixed(1) + '% (Harga Wajar Est: Rp ' + (fairValue ? fairValue.toLocaleString('id-ID') : '-') + ')'
+      : 'Berdasarkan rasio PE (' + perStr + ') dan PBV (' + pbvStr + ')') + warningSuffix
   };
 }
 
@@ -209,8 +268,7 @@ function dossierComputeValuationScore(harvested) {
  * Pillar 2: Smart Money & Bandarmology Flow (0–100)
  */
 function dossierComputeSmartMoneyScore(harvested) {
-  var bSummary = (harvested.brokerSummary && harvested.brokerSummary.data) ? harvested.brokerSummary.data : harvested.brokerSummary;
-  if (!bSummary || (!bSummary.bandarmology && !bSummary.brokers && !bSummary.accumulation && !bSummary.topBuyers && !bSummary.buyers)) {
+  if (!harvested) {
     return {
       available: false,
       status: 'DATA_UNAVAILABLE',
@@ -222,12 +280,39 @@ function dossierComputeSmartMoneyScore(harvested) {
     };
   }
 
-  var bandar = bSummary.bandarmology || {};
-  var statusStr = (bandar.status || bSummary.accumulation || '').toString();
-  var top3Pct = bandar.top3Concentration || null;
-  var foreignNet = bandar.foreignNet || bSummary.foreignNet || 0;
+  var bSummary = (harvested.brokerSummary && harvested.brokerSummary.data) ? harvested.brokerSummary.data : (harvested.brokerSummary || harvested.bandar || harvested.bandarmology);
+  if (!bSummary || (!bSummary.bandarmology && !bSummary.brokers && !bSummary.accumulation && !bSummary.topBuyers && !bSummary.buyers && !bSummary.action && !bSummary.topBrokers && !bSummary.topSellers)) {
+    return {
+      available: false,
+      status: 'DATA_UNAVAILABLE',
+      score: null,
+      top3Pct: null,
+      foreignFlow: null,
+      bandarStatus: 'Data Tidak Tersedia',
+      reason: 'Feed broker summary pasar belum tersedia untuk ticker ini hari ini.'
+    };
+  }
+
+  var bandar = bSummary.bandarmology || bSummary;
+  var statusStr = (bandar.status || bandar.action || bSummary.accumulation || bSummary.action || '').toString();
+  var top3Pct = (bandar.top3Concentration !== undefined && bandar.top3Concentration !== null)
+    ? Number(bandar.top3Concentration)
+    : ((bandar.top3BuyersPercent !== undefined && bandar.top3BuyersPercent !== null)
+      ? Number(bandar.top3BuyersPercent)
+      : ((bSummary.top3Concentration !== undefined && bSummary.top3Concentration !== null) ? Number(bSummary.top3Concentration) : null));
+
+  var foreignNet = null;
+  if (bandar.foreignNet !== undefined && bandar.foreignNet !== null) {
+    foreignNet = Number(bandar.foreignNet);
+  } else if (bSummary.foreignNet !== undefined && bSummary.foreignNet !== null) {
+    foreignNet = Number(bSummary.foreignNet);
+  } else if (bandar.foreignFlow && (bandar.foreignFlow.netBuy !== undefined || bandar.foreignFlow.netValue !== undefined)) {
+    foreignNet = Number(bandar.foreignFlow.netBuy !== undefined ? bandar.foreignFlow.netBuy : bandar.foreignFlow.netValue);
+  }
+
   var vwapBandar = bandar.vwap || bSummary.vwap || null;
-  var price = (harvested.quote && harvested.quote.price) || 0;
+  var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
+  var price = quote.price || quote.close || 0;
 
   var score = 50;
   if (/big\s*accum|akumulasi\s*besar/i.test(statusStr)) score = 90;
@@ -237,8 +322,10 @@ function dossierComputeSmartMoneyScore(harvested) {
   else if (/distrib/i.test(statusStr)) score = 35;
 
   // Bonus/penalty for foreign flow
-  if (foreignNet > 5000000000) score += 5; // > Rp 5 M
-  else if (foreignNet < -5000000000) score -= 5;
+  if (foreignNet !== null) {
+    if (foreignNet > 5000000000) score += 5; // > Rp 5 M
+    else if (foreignNet < -5000000000) score -= 5;
+  }
 
   // Bonus if trading close to or below Bandar VWAP
   if (vwapBandar && price > 0 && price <= vwapBandar * 1.02) {
@@ -255,6 +342,10 @@ function dossierComputeSmartMoneyScore(harvested) {
     rawBuyers = bSummary.bandarmology.topBuyers;
   } else if (Array.isArray(bSummary.buyers)) {
     rawBuyers = bSummary.buyers;
+  } else if (Array.isArray(bSummary.topBrokers)) {
+    rawBuyers = bSummary.topBrokers.filter(function(b) {
+      return (Number(b.buyVol || b.buy_volume || 0) >= Number(b.sellVol || b.sell_volume || 0)) || Number(b.buyVal || b.buy_value || 0) > 0;
+    });
   }
 
   var rawSellers = [];
@@ -264,6 +355,10 @@ function dossierComputeSmartMoneyScore(harvested) {
     rawSellers = bSummary.bandarmology.topSellers;
   } else if (Array.isArray(bSummary.sellers)) {
     rawSellers = bSummary.sellers;
+  } else if (Array.isArray(bSummary.topBrokers)) {
+    rawSellers = bSummary.topBrokers.filter(function(s) {
+      return (Number(s.sellVol || s.sell_volume || 0) > Number(s.buyVol || s.buy_volume || 0)) || Number(s.sellVal || s.sell_value || 0) > 0;
+    });
   }
 
   // Normalize top 5 accumulator brokers
@@ -274,6 +369,27 @@ function dossierComputeSmartMoneyScore(harvested) {
     var avgP = Number(b.avgPrice || b.avg_price || b.average_price || 0);
     var vol = Number(b.volumeLot || b.volume_lot || b.volume || 0);
     var isF = b.type === 'F' || b.is_foreign === true || (b.category && /foreign/i.test(b.category));
+    var valStr = val >= 1e9 ? 'Rp ' + (val / 1e9).toFixed(1) + ' M' : (val >= 1e6 ? 'Rp ' + (val / 1e6).toFixed(0) + ' Jt' : (val > 0 ? 'Rp ' + val.toLocaleString('id-ID') : '-'));
+    return {
+      rank: idx + 1,
+      code: code,
+      name: name,
+      val: val,
+      valStr: valStr,
+      avgPrice: avgP,
+      volumeLot: vol,
+      isForeign: isF
+    };
+  });
+
+  // Normalize top 5 distributor brokers
+  var distributors = rawSellers.slice(0, 5).map(function(s, idx) {
+    var code = String(s.broker || s.code || s.broker_code || ('S' + (idx + 1))).toUpperCase();
+    var name = s.name || s.broker_name || (code + ' Sekuritas');
+    var val = Number(s.valueRp || s.value || s.total_value || s.sell_value || 0);
+    var avgP = Number(s.avgPrice || s.avg_price || s.average_price || 0);
+    var vol = Number(s.volumeLot || s.volume_lot || s.volume || 0);
+    var isF = s.type === 'F' || s.is_foreign === true || (s.category && /foreign/i.test(s.category));
     var valStr = val >= 1e9 ? 'Rp ' + (val / 1e9).toFixed(1) + ' M' : (val >= 1e6 ? 'Rp ' + (val / 1e6).toFixed(0) + ' Jt' : (val > 0 ? 'Rp ' + val.toLocaleString('id-ID') : '-'));
     return {
       rank: idx + 1,
@@ -301,11 +417,12 @@ function dossierComputeSmartMoneyScore(harvested) {
     bandarStatus: statusStr || 'Normal Accumulation',
     vwapBandar: vwapBandar,
     accumulators: accumulators,
+    distributors: distributors,
     topBuyers: rawBuyers,
     topSellers: rawSellers,
     reason: (isSimulated ? '[SIMULASI MODEL] ' : '') + 'Status: ' + (statusStr || 'Akumulasi') + (top3Pct ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
             (accumulators.length ? ' · Top Akumulator: ' + accumulators.slice(0, 3).map(function(a){ return a.code; }).join(', ') : '') +
-            (foreignNet !== 0 ? ' · Foreign Net: Rp ' + (foreignNet / 1e9).toFixed(2) + ' M' : '')
+            (foreignNet !== null && foreignNet !== 0 ? ' · Foreign Net: Rp ' + (foreignNet / 1e9).toFixed(2) + ' M' : '')
   };
 }
 
@@ -313,9 +430,21 @@ function dossierComputeSmartMoneyScore(harvested) {
  * Pillar 3: Momentum & Analisis Teknikal (0–100)
  */
 function dossierComputeTechnicalScore(harvested) {
+  if (!harvested) {
+    return {
+      available: false,
+      status: 'DATA_UNAVAILABLE',
+      score: null,
+      rsi: null,
+      trend: 'Data Tidak Tersedia',
+      volumeSpike: null,
+      reason: 'Riwayat candle OHLCV pasar tidak tersedia.'
+    };
+  }
+
   var history = harvested.history || [];
-  var quote = harvested.quote || {};
-  var price = quote.price || (history.length ? history[history.length - 1].close : 0);
+  var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
+  var price = quote.price || quote.close || (history.length ? (history[history.length - 1].close || history[history.length - 1].c || 0) : 0);
 
   if (!Array.isArray(history) || history.length < 15 || price <= 0) {
     return {
@@ -329,50 +458,62 @@ function dossierComputeTechnicalScore(harvested) {
     };
   }
 
-  var closes = history.map(function(h) { return h.close !== undefined ? h.close : (h.c !== undefined ? h.c : 0); });
-  var volumes = history.map(function(h) { return h.volume !== undefined ? h.volume : (h.v !== undefined ? h.v : 0); });
+  var closes = history.map(function(h) { return h.close !== undefined ? Number(h.close) : (h.c !== undefined ? Number(h.c) : 0); });
+  var volumes = history.map(function(h) { return h.volume !== undefined ? Number(h.volume) : (h.v !== undefined ? Number(h.v) : 0); });
   var n = closes.length;
 
-  // Calculate EMA 20 & EMA 50
+  // Accurate Institutional EMA calculation (SMA seeded, k = 2/(period+1))
   function calcEMA(data, period) {
-    if (data.length < period) return null;
+    if (!Array.isArray(data) || data.length < period || period <= 0) return null;
+    var sum = 0;
+    for (var i = 0; i < period; i++) {
+      sum += data[i];
+    }
+    var ema = sum / period;
     var k = 2 / (period + 1);
-    var ema = data[0];
-    for (var i = 1; i < data.length; i++) {
-      ema = data[i] * k + ema * (1 - k);
+    for (var j = period; j < data.length; j++) {
+      ema = data[j] * k + ema * (1 - k);
     }
     return ema;
   }
 
-  var ema20 = calcEMA(closes, Math.min(20, n));
-  var ema50 = n >= 40 ? calcEMA(closes, 50) : null;
+  var ema20 = n >= 20 ? calcEMA(closes, 20) : null;
+  var ema50 = n >= 50 ? calcEMA(closes, 50) : null;
 
-  // RSI(14)
+  // Wilder's Smoothed RSI(14)
   var rsi = null;
   if (n >= 15) {
+    var lookback = Math.min(n, 90);
+    var startIdx = n - lookback;
     var gains = 0, losses = 0;
-    for (var i = n - 14; i < n; i++) {
+    for (var i = startIdx + 1; i <= startIdx + 14; i++) {
       var diff = closes[i] - closes[i - 1];
       if (diff >= 0) gains += diff;
       else losses -= diff;
     }
     var avgGain = gains / 14;
     var avgLoss = losses / 14;
-    if (avgLoss === 0) rsi = 100;
-    else {
+    for (var j = startIdx + 15; j < n; j++) {
+      var d = closes[j] - closes[j - 1];
+      var g = d >= 0 ? d : 0;
+      var l = d < 0 ? -d : 0;
+      avgGain = (avgGain * 13 + g) / 14;
+      avgLoss = (avgLoss * 13 + l) / 14;
+    }
+    if (avgLoss === 0) {
+      rsi = 100;
+    } else {
       var rs = avgGain / avgLoss;
       rsi = 100 - (100 / (1 + rs));
     }
     rsi = Math.round(rsi * 10) / 10;
   }
 
-  // Volume Expansion
-  var avgVol20 = 1;
-  var volSlice = volumes.slice(-20);
-  if (volSlice.length) {
-    var sumV = volSlice.reduce(function(a, b) { return a + b; }, 0);
-    avgVol20 = sumV / volSlice.length;
-  }
+  // Volume Expansion: 20-day baseline strictly excluding today's bar
+  var volSlice = n > 1 ? volumes.slice(Math.max(0, n - 21), n - 1) : [];
+  if (volSlice.length === 0) volSlice = volumes.slice(-20);
+  var sumV = volSlice.reduce(function(a, b) { return a + b; }, 0);
+  var avgVol20 = volSlice.length ? sumV / volSlice.length : 1;
   var curVol = volumes[n - 1] || 0;
   var volRatio = avgVol20 > 0 ? Math.round((curVol / avgVol20) * 10) / 10 : 1.0;
 
@@ -396,6 +537,8 @@ function dossierComputeTechnicalScore(harvested) {
       score -= 10;
       trendDesc = 'Bearish Bias (Price < EMA20)';
     }
+  } else {
+    trendDesc = closes.length >= 2 && price >= closes[0] ? 'Uptrend Ringan' : 'Downtrend Ringan';
   }
 
   // RSI Assessment
@@ -408,9 +551,10 @@ function dossierComputeTechnicalScore(harvested) {
   }
 
   // Volume Spike Confirmation
-  if (volRatio >= 1.8 && price >= closes[n - 2]) {
+  var prevClose = n >= 2 ? closes[n - 2] : price;
+  if (volRatio >= 1.8 && price >= prevClose) {
     score += 15;
-  } else if (volRatio >= 1.8 && price < closes[n - 2]) {
+  } else if (volRatio >= 1.8 && price < prevClose) {
     score -= 15; // Heavy distribution volume
   }
 
@@ -433,30 +577,33 @@ function dossierComputeTechnicalScore(harvested) {
  * Pillar 4: Struktur Kepemilikan KSEI (0–100)
  */
 function dossierComputeKseiScore(harvested) {
+  if (!harvested) {
+    return {
+      available: false,
+      status: 'DATA_UNAVAILABLE',
+      score: null,
+      freeFloat: null,
+      institutionalPct: null,
+      foreignPct: null,
+      reason: 'Data kepemilikan KSEI tidak tersedia.'
+    };
+  }
+
   var ksei = harvested.ksei;
   var stock = (ksei && ksei.found !== false && ksei.stock)
     ? ksei.stock
     : (ksei && ksei.found !== false && ksei.freeFloat !== undefined ? ksei : (harvested.quote && harvested.quote.ksei ? harvested.quote.ksei : null));
 
-  var namedHolderDataMissing = !stock || ksei?.found === false || (!stock.investors && stock.freeFloat === undefined) || (Array.isArray(stock.investors) && stock.investors.length === 0 && stock.totalMajorPercent === 0 && stock.freeFloat === 100);
+  var namedHolderDataMissing = !stock || (ksei && ksei.found === false) || (!stock.investors && stock.freeFloat === undefined) || (Array.isArray(stock.investors) && stock.investors.length === 0 && stock.totalMajorPercent === 0 && stock.freeFloat === 100);
 
   if (namedHolderDataMissing) {
-    // Dataset >5% holder statis (Google Sheets, ~840/958 ticker per
-    // 26 Aug 2026 — lihat data/ksei-shareholders.json) tidak mencakup
-    // ticker ini (mis. BBCA/BBRI/GGRM, walau jelas punya pemegang saham
-    // >5% di dunia nyata). FALLBACK ke komposisi kategori investor LIVE
-    // Invezgo (harvested.kseiLive, /api/idx/shareholder-composition) —
-    // ini metrik BERBEDA dari Free Float resmi: kategori "Individu" (id)
-    // dipakai sebagai proksi non-institusional, TAPI pemegang saham
-    // pengendali/keluarga pendiri bisa saja tercatat sebagai individu,
-    // jadi ini BUKAN Free Float sebenarnya — freeFloat tetap null/jujur,
-    // hanya institusionalPct/foreignPct (real, dari data lembar saham
-    // aktual) yang dipakai untuk skor.
     var live = harvested.kseiLive;
     var kl = live && live.available && live.kseiLatest;
-    var totalShares = kl ? (kl.foreignTotal || 0) + (kl.localTotal || 0) : 0;
+    var totalShares = kl ? ((kl.foreignTotal || 0) + (kl.localTotal || 0)) : 0;
     if (kl && totalShares > 0) {
-      var individualShares = (kl.foreign.id || 0) + (kl.local.id || 0);
+      var fInd = (kl.foreign && kl.foreign.id) ? Number(kl.foreign.id) : 0;
+      var lInd = (kl.local && kl.local.id) ? Number(kl.local.id) : 0;
+      var individualShares = fInd + lInd;
       var institutionalPct = (totalShares - individualShares) / totalShares * 100;
       var foreignPct = (kl.foreignTotal || 0) / totalShares * 100;
 
@@ -465,6 +612,8 @@ function dossierComputeKseiScore(harvested) {
       else if (foreignPct >= 30) liveScore += 10;
       liveScore = Math.max(20, Math.min(95, liveScore));
 
+      var reportDateStr = kl.date ? String(kl.date).slice(0, 10) : 'Terbaru';
+
       return {
         available: true,
         status: 'REAL',
@@ -472,18 +621,11 @@ function dossierComputeKseiScore(harvested) {
         freeFloat: null,
         institutionalPct: Math.round(institutionalPct * 10) / 10,
         foreignPct: Math.round(foreignPct * 10) / 10,
-        reportDate: kl.date,
-        reason: 'Free Float resmi tidak ada di dataset >5% holder (statis) untuk emiten ini — memakai komposisi kepemilikan LIVE Invezgo per kategori investor (Institusi: ' + institutionalPct.toFixed(1) + '%, Asing: ' + foreignPct.toFixed(1) + '% dari total lembar tercatat KSEI per ' + kl.date.slice(0, 10) + ').'
+        reportDate: kl.date || reportDateStr,
+        reason: 'Free Float resmi tidak ada di dataset >5% holder (statis) untuk emiten ini — memakai komposisi kepemilikan LIVE Invezgo per kategori investor (Institusi: ' + institutionalPct.toFixed(1) + '%, Asing: ' + foreignPct.toFixed(1) + '% dari total lembar tercatat KSEI per ' + reportDateStr + ').'
       };
     }
 
-    // FIX (2026-09-18, user-reported: "kepemilikan data KSEI data tidak
-    // tersedia padahal sudah connect API"): dulu SELALU menampilkan pesan
-    // generik "belum diunggah/tidak ditemukan" walau kseiLive.errors sudah
-    // punya alasan SPESIFIK (mis. quota Invezgo habis, subscription tidak
-    // mencakup endpoint ini, auth gagal) — pesan generik itu menyesatkan,
-    // seolah datanya genuinely tidak ada, padahal API-nya mungkin gagal
-    // karena sebab lain yang bisa ditindaklanjuti (beda pesan/solusi).
     var kseiErr = live && Array.isArray(live.errors) ? live.errors.find(function(e) { return e.part === 'kseiComposition'; }) : null;
     var reasonCodeMap = {
       NOT_CONFIGURED: 'INVEZGO_API_KEY belum dikonfigurasi di server.',
@@ -508,6 +650,7 @@ function dossierComputeKseiScore(harvested) {
         : 'Data kepemilikan kustodian KSEI belum diunggah/tidak ditemukan untuk emiten ini, dan komposisi live Invezgo juga tidak tersedia.'
     };
   }
+
   var freeFloat = typeof stock.freeFloat === 'number' ? stock.freeFloat : (100 - (stock.totalMajorPercent || 0));
   var foreignPct = typeof stock.foreignPercent === 'number' ? stock.foreignPercent : 0;
   var localInstPct = typeof stock.localPercent === 'number' ? stock.localPercent : 0;
@@ -551,16 +694,34 @@ function dossierComputeKseiScore(harvested) {
  * Pillar 5: Profitabilitas & Dividen (0–100)
  */
 function dossierComputeFundamentalScore(harvested) {
+  if (!harvested) {
+    return {
+      available: false,
+      status: 'DATA_UNAVAILABLE',
+      score: null,
+      roe: null,
+      der: null,
+      npm: null,
+      divYield: null,
+      reason: 'Laporan keuangan fundamental dan rasio profitabilitas belum tersedia.'
+    };
+  }
+
   var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
-  var qf = quote.fundamentals || {};
-  var fund = harvested.fund || {};
+  var fund = harvested.fundamentals || harvested.fund || quote.fundamentals || {};
+  var qf = quote.fundamentals || fund;
 
-  var roe = qf.roe || fund.roe || null;
-  var der = qf.der !== undefined ? qf.der : fund.der;
-  var npm = qf.npm || fund.npm || null;
-  var divYield = qf.dividendYield || fund.dividendYield || fund.dy || null;
+  var roe = (qf.roe !== undefined && qf.roe !== null) ? Number(qf.roe) : ((fund.roe !== undefined && fund.roe !== null) ? Number(fund.roe) : null);
+  var der = (qf.der !== undefined && qf.der !== null) ? Number(qf.der) : ((fund.der !== undefined && fund.der !== null) ? Number(fund.der) : null);
+  var npm = (qf.npm !== undefined && qf.npm !== null) ? Number(qf.npm) :
+            (qf.netProfitMargin !== undefined && qf.netProfitMargin !== null) ? Number(qf.netProfitMargin) :
+            (fund.npm !== undefined && fund.npm !== null) ? Number(fund.npm) :
+            (fund.netProfitMargin !== undefined && fund.netProfitMargin !== null) ? Number(fund.netProfitMargin) : null;
+  var divYield = (qf.dividendYield !== undefined && qf.dividendYield !== null) ? Number(qf.dividendYield) :
+                 (fund.dividendYield !== undefined && fund.dividendYield !== null) ? Number(fund.dividendYield) :
+                 (fund.dy !== undefined && fund.dy !== null) ? Number(fund.dy) : null;
 
-  if (roe === null && der === undefined && npm === null && divYield === null) {
+  if (roe === null && der === null && npm === null && divYield === null) {
     return {
       available: false,
       status: 'DATA_UNAVAILABLE',
@@ -575,23 +736,43 @@ function dossierComputeFundamentalScore(harvested) {
 
   var score = 50;
 
+  // Sector awareness for DER (Banks naturally carry high leverage of 4x-6x)
+  var ticker = String(harvested.ticker || (harvested.quote && harvested.quote.ticker) || '').toUpperCase();
+  var isBank = /^(BBCA|BBRI|BMRI|BBNI|BRIS|BBTN|BNGA|BDMN|MEGA|NISP|BJBR|BJTM|PNBN|ARTO)$/.test(ticker) ||
+               (harvested.sector && /bank|finance|keuangan/i.test(harvested.sector));
+
   // ROE (Return on Equity)
-  if (roe !== null) {
+  if (roe !== null && !isNaN(roe)) {
     if (roe >= 20) score += 20;
     else if (roe >= 12) score += 12;
     else if (roe >= 6) score += 5;
     else if (roe < 0) score -= 20;
   }
 
-  // DER (Debt-to-Equity Ratio)
-  if (der !== undefined && der !== null) {
-    if (der < 0.8) score += 15;
-    else if (der <= 1.5) score += 8;
-    else if (der > 3.0) score -= 15;
+  // DER (Debt-to-Equity Ratio) with insolvency & sector check
+  if (der !== null && !isNaN(der)) {
+    if (der < 0) {
+      score -= 25; // Negative equity / insolvency warning
+    } else if (isBank) {
+      if (der <= 6.0) score += 12;
+      else if (der <= 8.0) score += 5;
+      else score -= 10;
+    } else {
+      if (der < 0.8) score += 15;
+      else if (der <= 1.5) score += 8;
+      else if (der > 3.0) score -= 15;
+    }
+  }
+
+  // NPM (Net Profit Margin)
+  if (npm !== null && !isNaN(npm)) {
+    if (npm >= 20) score += 10;
+    else if (npm >= 10) score += 5;
+    else if (npm < 0) score -= 15;
   }
 
   // Dividend Yield
-  if (divYield !== null && divYield > 0) {
+  if (divYield !== null && !isNaN(divYield) && divYield > 0) {
     if (divYield >= 5) score += 15;
     else if (divYield >= 2.5) score += 10;
     else score += 5;
@@ -599,20 +780,26 @@ function dossierComputeFundamentalScore(harvested) {
 
   score = Math.max(15, Math.min(95, score));
 
-  var isFundSim = Boolean((harvested.fund && harvested.fund.isSimulated) || (harvested.fund && harvested.fund.quality && harvested.fund.quality.status === 'SIMULATION'));
+  var fundWarnings = [];
+  if (der !== null && !isNaN(der) && der < 0) fundWarnings.push('Ekuitas Negatif (Defisit Modal)');
+  if (roe !== null && !isNaN(roe) && roe < 0) fundWarnings.push('Rugi Bersih');
+  var fundWarningSuffix = fundWarnings.length > 0 ? ' [' + fundWarnings.join(', ') + ']' : '';
+
+  var isFundSim = Boolean((fund && fund.isSimulated) || (fund && fund.quality && fund.quality.status === 'SIMULATION'));
 
   return {
     available: true,
     status: isFundSim ? 'SIMULATION' : 'REAL',
     isSimulated: isFundSim,
     score: score,
-    roe: roe !== null ? Math.round(roe * 10) / 10 : null,
-    der: der !== undefined && der !== null ? Math.round(der * 100) / 100 : null,
-    npm: npm !== null ? Math.round(npm * 10) / 10 : null,
-    divYield: divYield !== null ? Math.round(divYield * 10) / 10 : null,
-    reason: (isFundSim ? '[SIMULASI] ' : '') + 'ROE: ' + (roe !== null ? roe.toFixed(1) + '%' : '-') +
-            ' · DER: ' + (der !== undefined && der !== null ? der.toFixed(2) + 'x' : '-') +
-            ' · Div Yield: ' + (divYield !== null ? divYield.toFixed(1) + '%' : '-')
+    roe: roe !== null && !isNaN(roe) ? Math.round(roe * 10) / 10 : null,
+    der: der !== null && !isNaN(der) ? Math.round(der * 100) / 100 : null,
+    npm: npm !== null && !isNaN(npm) ? Math.round(npm * 10) / 10 : null,
+    divYield: divYield !== null && !isNaN(divYield) ? Math.round(divYield * 10) / 10 : null,
+    reason: ((isFundSim ? '[SIMULASI] ' : '') + 'ROE: ' + (roe !== null && !isNaN(roe) ? roe.toFixed(1) + '%' : '-') +
+            ' · DER: ' + (der !== null && !isNaN(der) ? der.toFixed(2) + 'x' : '-') +
+            (npm !== null && !isNaN(npm) ? ' · NPM: ' + npm.toFixed(1) + '%' : '') +
+            ' · Div Yield: ' + (divYield !== null && !isNaN(divYield) ? divYield.toFixed(1) + '%' : '-')) + fundWarningSuffix
   };
 }
 
@@ -623,16 +810,25 @@ function dossierComputeRegimeScore(harvestedOrRegime, aiHypothesis) {
   if (!harvestedOrRegime) {
     return {
       available: false,
-      status: 'UNAVAILABLE',
-      score: 0,
+      status: 'DATA_UNAVAILABLE',
+      score: null,
       reason: 'Data market regime IHSG tidak tersedia'
     };
   }
 
   // Handle either full harvested payload { regime: ... } or regimeObj directly
   var regimeObj = harvestedOrRegime;
-  if (harvestedOrRegime && typeof harvestedOrRegime === 'object' && harvestedOrRegime.regime !== undefined) {
+  if (typeof harvestedOrRegime === 'object' && harvestedOrRegime.regime !== undefined) {
     regimeObj = harvestedOrRegime.regime;
+  }
+
+  if (regimeObj === null) {
+    return {
+      available: false,
+      status: 'DATA_UNAVAILABLE',
+      score: null,
+      reason: 'Data market regime IHSG tidak tersedia'
+    };
   }
 
   var rawState = 'SIDEWAYS';
@@ -702,6 +898,9 @@ function dossierComputeRegimeScore(harvestedOrRegime, aiHypothesis) {
  * Core Composite Scoring with Dynamic Denominator Renormalization
  */
 function dossierCalculateCompositeScore(pillars, weights) {
+  if (!pillars || typeof pillars !== 'object') {
+    pillars = {};
+  }
   var w = Object.assign({}, DOSSIER_DEFAULT_WEIGHTS, weights || {});
 
   var pillarEntries = [
@@ -789,6 +988,10 @@ function dossierCalculateCompositeScore(pillars, weights) {
 }
 
 function dossierCalculateScore(harvested, weights) {
+  if (!harvested) {
+    return dossierCalculateCompositeScore({}, weights);
+  }
+
   var valuationPillar = dossierComputeValuationScore(harvested);
   var smartMoneyPillar = dossierComputeSmartMoneyScore(harvested);
   var technicalPillar = dossierComputeTechnicalScore(harvested);
@@ -826,7 +1029,6 @@ function dossierIsValidTicker(ticker) {
   if (typeof DB !== 'undefined' && DB && DB[tk]) return true;
   if (typeof _IDX_RAW_LIST !== 'undefined' && _IDX_RAW_LIST && _IDX_RAW_LIST[tk]) return true;
   if (typeof STOCKS !== 'undefined' && STOCKS && STOCKS[tk]) return true;
-  if (typeof FUND_DATA !== 'undefined' && FUND_DATA && FUND_DATA[tk]) return true;
   if (typeof STOCK_PROFILES !== 'undefined' && STOCK_PROFILES && STOCK_PROFILES[tk]) return true;
   if (typeof FS_UNIV !== 'undefined' && Array.isArray(FS_UNIV)) {
     if (FS_UNIV.some(function(u) { return u.t === tk; })) return true;
@@ -836,14 +1038,24 @@ function dossierIsValidTicker(ticker) {
   }
 
   // Known active bellwethers
-  var commonValid = ['BBCA','BBRI','BMRI','BBNI','ANTM','ADRO','PTRO','TLKM','ASII','GOTO','BREN','AMMN','TPIA','CUAN','PANI','BRMS','MEDC','PGAS','PTBA','INCO','MDKA','HRUM','MBMA','BUMI','DEWA','AADI','ARCI','BRIS','BBTN','UNVR','ICBP','INDF','KLBF','SIDO','MYOR','CPIN','ACES','ERAA','WIFI','RAJA','SMDR','INKP','TKIM','JSMR','CTRA','SMRA','BSDE','PWON','GGRM','PGEO','CDIA','ADMR','EXCL','BUKA','SMGR'];
+  var commonValid = [
+    'BBCA','BBRI','BMRI','BBNI','ANTM','ADRO','PTRO','TLKM','ASII','GOTO',
+    'BREN','AMMN','TPIA','CUAN','PANI','BRMS','MEDC','PGAS','PTBA','INCO',
+    'MDKA','HRUM','MBMA','BUMI','DEWA','AADI','ARCI','BRIS','BBTN','UNVR',
+    'ICBP','INDF','KLBF','SIDO','MYOR','CPIN','ACES','ERAA','WIFI','RAJA',
+    'SMDR','INKP','TKIM','JSMR','CTRA','SMRA','BSDE','PWON','GGRM','PGEO',
+    'CDIA','ADMR','EXCL','BUKA','SMGR','UNTR','BRPT','AKRA','MAPI','INTP',
+    'ESSA','MAPA','ITMG','TOWR','TBIG','MTEL','HEAL','MIKA','SILO','JPFA',
+    'MAIN','AVIA','AUTO','SMSM','ACST','PTPP','WIKA','ADHI','ELSA','ENRG',
+    'DOID','BSSR','ABMM','INDY','TOBA'
+  ];
   if (commonValid.includes(tk)) return true;
 
   return false;
 }
 
 async function dossierHarvestData(ticker) {
-  var cleanTicker = (ticker || 'BBCA').toUpperCase().replace('.JK', '').replace('.US', '').trim();
+  var cleanTicker = (typeof ticker === 'string' && ticker.trim().length > 0 ? ticker : (dossierState.ticker || 'BBCA')).toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
   dossierState.ticker = cleanTicker;
   dossierState.isLoading = true;
   dossierState.errorMessage = null;
@@ -893,12 +1105,7 @@ async function dossierHarvestData(ticker) {
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
-    // 4b. Fetch KSEI komposisi LIVE Invezgo (kategori investor Asing/Lokal x
-    // 9 kategori) — fallback saat ticker tidak ada di dataset statis di
-    // atas (mis. BBCA/BBRI/GGRM tidak tercatat di snapshot Google Sheets
-    // 26 Aug 2026 walau jelas punya pemegang saham >5%). Lihat
-    // dossierComputeKseiScore() untuk cara pemetaannya — metrik BEDA dari
-    // Free Float resmi, tidak dicampur begitu saja.
+    // 4b. Fetch KSEI komposisi LIVE Invezgo (kategori investor Asing/Lokal x 9 kategori)
     var kseiLivePromise = fetch('/api/idx/shareholder-composition/' + cleanTicker)
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
@@ -972,22 +1179,28 @@ async function dossierHarvestData(ticker) {
     harvested.kseiLive = (kseiLiveData && kseiLiveData.success && kseiLiveData.data) ? kseiLiveData.data : null;
 
     // Local cached fallback if API fundamentals missing
-    if (typeof FUND_DATA !== 'undefined' && FUND_DATA[cleanTicker]) {
-      harvested.fund = FUND_DATA[cleanTicker];
+    if (typeof FUND_DATA !== 'undefined' && FUND_DATA) {
+      if (FUND_DATA.ticker === cleanTicker) {
+        harvested.fund = Object.assign({}, FUND_DATA.fin || {}, FUND_DATA.stats || {}, FUND_DATA);
+      } else if (FUND_DATA[cleanTicker]) {
+        harvested.fund = FUND_DATA[cleanTicker];
+      }
     } else if (typeof FS_UNIV !== 'undefined' && Array.isArray(FS_UNIV)) {
       var foundU = FS_UNIV.find(function(u) { return u.t === cleanTicker; });
       if (foundU) harvested.fund = foundU;
     }
 
     // Verify quote minimum validity
-    if (!harvested.quote || (!harvested.quote.price && !harvested.quote.close)) {
+    var effectivePrice = harvested.quote ? (harvested.quote.price || harvested.quote.close || 0) : 0;
+    if (!harvested.quote || effectivePrice <= 0) {
       if (typeof STOCKS !== 'undefined' && STOCKS[cleanTicker]) {
         harvested.quote = STOCKS[cleanTicker];
+        effectivePrice = harvested.quote ? (harvested.quote.price || harvested.quote.close || 0) : 0;
       }
     }
 
     // Strict Check: Ticker must have real quote price
-    if (!harvested.quote || (!harvested.quote.price && !harvested.quote.close) || harvested.quote.price <= 0) {
+    if (!harvested.quote || effectivePrice <= 0) {
       dossierState.isInvalidTicker = true;
       dossierState.harvestedData = null;
       dossierState.scoringResult = null;
@@ -1072,9 +1285,16 @@ function renderStockDossierPage(targetTicker) {
     dossierState.weights = dossierGetWeights();
   }
 
+  var cleanTarget = (targetTicker || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker ? GLOBAL_STOCK_CONTEXT.getTicker() : '') || '').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+  if (cleanTarget && cleanTarget !== dossierState.ticker && !dossierState.isLoading) {
+    dossierState.ticker = cleanTarget;
+    dossierRunAnalysis(cleanTarget);
+    return;
+  }
+
   // Initial trigger if not loaded yet
   if (!dossierState.harvestedData && !dossierState.isLoading && !dossierState.errorMessage && !dossierState.isInvalidTicker) {
-    var initialTk = targetTicker || dossierState.ticker || 'BBCA';
+    var initialTk = cleanTarget || dossierState.ticker || 'BBCA';
     dossierState.ticker = initialTk;
     dossierRunAnalysis(initialTk);
     return;
@@ -1085,8 +1305,15 @@ function renderStockDossierPage(targetTicker) {
   var harvested = dossierState.harvestedData || {};
   var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
   var price = quote.price || (quote.close) || 0;
-  var change = quote.change !== undefined ? quote.change : 0;
-  var changePct = quote.changePercent !== undefined ? quote.changePercent : (quote.change || 0);
+  var change = (quote.change !== undefined && quote.change !== null) ? Number(quote.change) : 0;
+  var changePct = 0;
+  if (quote.changePercent !== undefined && quote.changePercent !== null) {
+    changePct = Number(quote.changePercent);
+  } else if (quote.prevClose && quote.prevClose > 0 && quote.change !== undefined) {
+    changePct = (Number(quote.change) / Number(quote.prevClose)) * 100;
+  } else if (price > 0 && quote.change !== undefined && (price - Number(quote.change)) > 0) {
+    changePct = (Number(quote.change) / (price - Number(quote.change))) * 100;
+  }
   var changeStr = (changePct >= 0 ? '+' : '') + Number(changePct).toFixed(2) + '%';
   var changeColor = changePct >= 0 ? 'var(--green)' : 'var(--red)';
 
@@ -1258,7 +1485,7 @@ function renderStockDossierPage(targetTicker) {
   html += '</div>';
 
   // ── DUAL-COLUMN SPLIT TERMINAL: DATA UTAMA VS SUPPORTING ──
-  html += '<div class="dossier-split-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:24px;align-items:start">';
+  html += '<div class="dossier-split-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px, 100%), 1fr));gap:20px;margin-bottom:24px;align-items:start">';
 
   // ════════════════════════════════════════════════════════════
   // 1. DATA UTAMA (HARGA SAHAM & PERFORMA BISNIS PERUSAHAAN)
@@ -1278,6 +1505,7 @@ function renderStockDossierPage(targetTicker) {
   var vp = res.pillars.valuation || {};
   var vpAvail = vp.available === true;
   var vpScoreColor = vpAvail ? (vp.score >= 75 ? 'var(--green)' : (vp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
+  var vpMosColor = (vp.mosPct !== null) ? (vp.mosPct >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
   html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
   html += '      onclick="dossierSwitchTab(\'valuation\')" onmouseover="this.style.borderColor=\'var(--blue)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
   html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
@@ -1293,7 +1521,7 @@ function renderStockDossierPage(targetTicker) {
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
   html += '        <div><span style="color:var(--text3)">Nilai Intrinsik:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (vp.fairValue ? 'Rp ' + Math.round(vp.fairValue).toLocaleString('id-ID') : '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Margin of Safety:</span> <b style="font-family:var(--font-mono);color:' + (vp.mosPct >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (vp.mosPct !== null ? (vp.mosPct > 0 ? '+' : '') + vp.mosPct.toFixed(1) + '%' : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Margin of Safety:</span> <b style="font-family:var(--font-mono);color:' + vpMosColor + '">' + (vp.mosPct !== null ? (vp.mosPct > 0 ? '+' : '') + vp.mosPct.toFixed(1) + '%' : '-') + '</b></div>';
   html += '      </div>';
   html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (vp.reason || 'Data valuasi tidak tersedia.') + '</div>';
   html += '    </div>';
@@ -1551,10 +1779,11 @@ function renderStockDossierPage(targetTicker) {
   if (!res.pillars.valuation.available) {
     html += '      <div class="badge b-dn" style="padding:8px 12px;font-size:12px"><i class="ti ti-info-circle"></i> ' + res.pillars.valuation.reason + '</div>';
   } else {
+    var tabMosColor = (res.pillars.valuation.mosPct !== null) ? (res.pillars.valuation.mosPct >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
     html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Harga Pasar Saat Ini</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">Rp ' + price.toLocaleString('id-ID') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Estimasi Harga Wajar (Graham/DCF)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--blue)">' + (res.pillars.valuation.fairValue ? 'Rp ' + res.pillars.valuation.fairValue.toLocaleString('id-ID') : '-') + '</div></div>';
-    html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Margin of Safety (MoS)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:' + (res.pillars.valuation.mosPct >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (res.pillars.valuation.mosPct !== null ? (res.pillars.valuation.mosPct > 0 ? '+' : '') + res.pillars.valuation.mosPct.toFixed(1) + '%' : '-') + '</div></div>';
+    html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Margin of Safety (MoS)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:' + tabMosColor + '">' + (res.pillars.valuation.mosPct !== null ? (res.pillars.valuation.mosPct > 0 ? '+' : '') + res.pillars.valuation.mosPct.toFixed(1) + '%' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Price to Earnings (PE)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.valuation.per ? res.pillars.valuation.per.toFixed(1) + 'x' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Price to Book (PBV)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.valuation.pbv ? res.pillars.valuation.pbv.toFixed(2) + 'x' : '-') + '</div></div>';
     html += '      </div>';
@@ -1580,10 +1809,14 @@ function renderStockDossierPage(targetTicker) {
       html += '        </div>';
       html += '      </div>';
     }
+    var tabFf = res.pillars.smartMoney.foreignFlow;
+    var tabFfColor = tabFf !== null ? (tabFf >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
+    var tabFfText = tabFf !== null ? (tabFf !== 0 ? 'Rp ' + (tabFf / 1e9).toFixed(2) + ' M' : 'Rp 0 M') : 'Tidak Tersedia';
+
     html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Status Bandarmology</span><div style="font-size:16px;font-weight:800;color:var(--blue)">' + res.pillars.smartMoney.bandarStatus + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Konsentrasi Top 3 Broker</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.smartMoney.top3Pct ? res.pillars.smartMoney.top3Pct + '%' : '-') + '</div></div>';
-    html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Net Foreign Flow</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:' + (res.pillars.smartMoney.foreignFlow >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (res.pillars.smartMoney.foreignFlow ? 'Rp ' + (res.pillars.smartMoney.foreignFlow / 1e9).toFixed(2) + ' M' : 'Rp 0 M') + '</div></div>';
+    html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Net Foreign Flow</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:' + tabFfColor + '">' + tabFfText + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Bandar VWAP (Est. Rata-Rata)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.smartMoney.vwapBandar ? 'Rp ' + Math.round(res.pillars.smartMoney.vwapBandar).toLocaleString('id-ID') : '-') + '</div></div>';
     html += '      </div>';
 
@@ -1608,6 +1841,34 @@ function renderStockDossierPage(targetTicker) {
         html += '              <td style="padding:7px 10px">' + (acc.isForeign ? '<span class="badge" style="background:rgba(59,130,246,0.15);color:var(--blue);font-size:9px">Asing (F)</span>' : '<span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9px">Domestik (D)</span>') + '</td>';
         html += '              <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono);font-weight:800;color:var(--text)">' + acc.valStr + '</td>';
         html += '              <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono)">' + (acc.avgPrice > 0 ? 'Rp ' + Math.round(acc.avgPrice).toLocaleString('id-ID') : '-') + '</td>';
+        html += '            </tr>';
+      });
+      html += '          </tbody></table>';
+      html += '        </div>';
+      html += '      </div>';
+    }
+
+    if (res.pillars.smartMoney.distributors && res.pillars.smartMoney.distributors.length > 0) {
+      html += '      <div style="margin-top:16px;margin-bottom:14px">';
+      html += '        <h5 style="font-size:12px;font-weight:800;color:var(--text);margin:0 0 8px 0;display:flex;align-items:center;gap:6px"><i class="ti ti-user-x" style="color:var(--red)"></i> Daftar Broker Penjual Terbesar (Top Sellers)</h5>';
+      html += '        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px">';
+      html += '          <table style="width:100%;border-collapse:collapse;font-size:11px">';
+      html += '            <thead><tr style="background:var(--bg2);color:var(--text3);text-align:left;border-bottom:1px solid var(--border)">';
+      html += '              <th style="padding:7px 10px">#</th>';
+      html += '              <th style="padding:7px 10px">Broker</th>';
+      html += '              <th style="padding:7px 10px">Nama Sekuritas</th>';
+      html += '              <th style="padding:7px 10px">Tipe</th>';
+      html += '              <th style="padding:7px 10px;text-align:right">Nilai Penjualan</th>';
+      html += '              <th style="padding:7px 10px;text-align:right">Harga Avg</th>';
+      html += '            </tr></thead><tbody>';
+      res.pillars.smartMoney.distributors.forEach(function(dis) {
+        html += '            <tr style="border-bottom:1px solid var(--border)">';
+        html += '              <td style="padding:7px 10px;color:var(--text3)">' + dis.rank + '</td>';
+        html += '              <td style="padding:7px 10px"><span class="badge" style="background:rgba(239,68,68,0.15);color:var(--red);font-family:var(--font-mono);font-weight:900">' + dis.code + '</span></td>';
+        html += '              <td style="padding:7px 10px;font-weight:700;color:var(--text)">' + dis.name + '</td>';
+        html += '              <td style="padding:7px 10px">' + (dis.isForeign ? '<span class="badge" style="background:rgba(59,130,246,0.15);color:var(--blue);font-size:9px">Asing (F)</span>' : '<span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9px">Domestik (D)</span>') + '</td>';
+        html += '              <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono);font-weight:800;color:var(--text)">' + dis.valStr + '</td>';
+        html += '              <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono)">' + (dis.avgPrice > 0 ? 'Rp ' + Math.round(dis.avgPrice).toLocaleString('id-ID') : '-') + '</td>';
         html += '            </tr>';
       });
       html += '          </tbody></table>';
@@ -1687,6 +1948,24 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Regime Confidence</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + res.pillars.regime.regimeConfidence + '%</div></div>';
   html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Rekomendasi Final</span><div style="font-size:16px;font-weight:800;color:' + res.recColor + '">' + res.recommendation + '</div></div>';
   html += '      </div>';
+
+  var hyp = harvested.aiHypothesis;
+  if (hyp && (hyp.setup || hyp.catalyst || hyp.invalidation || hyp.bullCase)) {
+    html += '      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px">';
+    html += '        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="ti ti-brain" style="color:var(--blue)"></i> Tesis &amp; Hipotesis AI Otonom (' + (hyp.setup || 'Multi-Factor Analysis') + ')</div>';
+    if (hyp.catalyst) html += '        <div style="font-size:11px;color:var(--text2);margin-bottom:6px"><b>Katalis:</b> ' + hyp.catalyst + '</div>';
+    if (hyp.bullCase) html += '        <div style="font-size:11px;color:var(--text2);margin-bottom:6px"><b>Tesis Utama:</b> ' + hyp.bullCase + '</div>';
+    if (hyp.invalidation) html += '        <div style="font-size:11px;color:var(--text2);margin-bottom:6px"><b>Invalidasi:</b> ' + hyp.invalidation + '</div>';
+    if (hyp.entryZone || hyp.stopLoss || hyp.targetPrice) {
+      html += '        <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;font-size:11px">';
+      if (hyp.entryZone) html += '          <div><span style="color:var(--text3)">Entry Zone:</span> <b style="font-family:var(--font-mono)">' + hyp.entryZone + '</b></div>';
+      if (hyp.stopLoss) html += '          <div><span style="color:var(--text3)">Stop Loss:</span> <b style="font-family:var(--font-mono);color:var(--red)">' + hyp.stopLoss + '</b></div>';
+      if (hyp.targetPrice) html += '          <div><span style="color:var(--text3)">Target:</span> <b style="font-family:var(--font-mono);color:var(--green)">' + hyp.targetPrice + '</b></div>';
+      html += '        </div>';
+    }
+    html += '      </div>';
+  }
+
   html += '      <p style="font-size:11px;color:var(--text2);margin:0">Kondisi pasar makro (IHSG trend &amp; risk appetite) menjadi regulator multiplier agar sinyal saham tunggal tidak dieksekusi secara membabi buta di pasar risk-off.</p>';
   html += '    </div>';
 
@@ -1717,7 +1996,7 @@ function dossierOpenWeightsModal() {
   var w = dossierState.weights || dossierGetWeights();
 
   var html = '';
-  html += '<div id="' + modalId + '" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)">';
+  html += '<div id="' + modalId + '" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)">';
   html += '  <div class="card" style="width:100%;max-width:540px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,0.5)">';
 
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
@@ -1758,7 +2037,7 @@ function dossierOpenWeightsModal() {
     html += '          <span style="color:var(--text2);font-weight:600">' + s.label + '</span>';
     html += '          <span style="font-family:var(--font-mono);font-weight:700;color:var(--blue)" id="dossier-w-label-' + s.key + '">' + val + '%</span>';
     html += '        </div>';
-    html += '        <input type="range" min="0" max="60" step="5" value="' + val + '" class="finput" style="width:100%;height:6px;accent-color:var(--blue)" ';
+    html += '        <input type="range" min="0" max="100" step="5" value="' + val + '" class="finput" style="width:100%;height:6px;accent-color:var(--blue)" ';
     html += '          id="dossier-w-inp-' + s.key + '" oninput="dossierOnSliderChange()" />';
     html += '      </div>';
   });
@@ -1780,6 +2059,16 @@ function dossierOpenWeightsModal() {
   html += '</div>';
 
   document.body.insertAdjacentHTML('beforeend', html);
+
+  // Esc key listener
+  function handleEsc(e) {
+    if (e.key === 'Escape') {
+      var m = document.getElementById(modalId);
+      if (m) m.remove();
+      document.removeEventListener('keydown', handleEsc);
+    }
+  }
+  document.addEventListener('keydown', handleEsc);
 }
 
 function dossierOnSliderChange() {
@@ -1893,7 +2182,18 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     DOSSIER_DEFAULT_WEIGHTS: DOSSIER_DEFAULT_WEIGHTS,
     DOSSIER_PRESETS: DOSSIER_PRESETS,
+    STOCK_DOSSIER_STATE: STOCK_DOSSIER_STATE,
+    dossierState: dossierState,
     dossierGetDefaultWeights: dossierGetDefaultWeights,
+    dossierGetWeights: dossierGetWeights,
+    dossierSaveWeights: dossierSaveWeights,
+    dossierApplyPreset: dossierApplyPreset,
+    dossierIsValidTicker: dossierIsValidTicker,
+    dossierHarvestData: dossierHarvestData,
+    renderStockDossierPage: renderStockDossierPage,
+    dossierOpenWeightsModal: dossierOpenWeightsModal,
+    dossierAddToWatchlist: dossierAddToWatchlist,
+    dossierOpenInStockChat: dossierOpenInStockChat,
     dossierComputeValuationScore: dossierComputeValuationScore,
     dossierComputeSmartMoneyScore: dossierComputeSmartMoneyScore,
     dossierComputeTechnicalScore: dossierComputeTechnicalScore,

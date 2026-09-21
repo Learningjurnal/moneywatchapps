@@ -5157,6 +5157,68 @@ test('REGRESSION GUARD: dossierAddToWatchlist and dossierOpenInStockChat use off
   assert(openedChat.prompt.includes('Analisis lengkap saham BBCA'), 'Must supply proper stock prompt');
 });
 
+test('MASTER DOSSIER: Comprehensive regression guards for valuation penalties, bank DER tolerance, Top Sellers, and state binding', () => {
+  const dossier = getDossierContext();
+
+  // 1. Global state and export binding
+  assert(dossier.STOCK_DOSSIER_STATE, 'STOCK_DOSSIER_STATE must be bound');
+  assert.strictEqual(dossier.STOCK_DOSSIER_STATE, dossier.dossierState, 'STOCK_DOSSIER_STATE must reference dossierState');
+
+  // 2. Pillar 1: Negative P/E and negative PBV penalty
+  const negValuation = dossier.dossierComputeValuationScore({
+    quote: { price: 500 },
+    fairValue: { mosPercent: 10, grahamNumber: 600 },
+    fundamentals: { pe: -5, pbv: -1.2 }
+  });
+  assert(negValuation.score <= 40, 'Negative P/E and PBV must incur severe valuation penalties');
+  assert(negValuation.reason.includes('rugi') || negValuation.reason.includes('P/E Negatif') || negValuation.reason.includes('Ekuitas Negatif'), 'Must disclose negative earnings / book value in reason');
+
+  // 3. Pillar 5: Banking sector DER tolerance vs non-bank DER penalty
+  const bankFund = dossier.dossierComputeFundamentalScore({
+    ticker: 'BBCA',
+    quote: { price: 10000 },
+    fundamentals: { roe: 20, der: 5.2, netProfitMargin: 35, dividendYield: 3.5 }
+  });
+  const nonBankFund = dossier.dossierComputeFundamentalScore({
+    ticker: 'UNVR',
+    quote: { price: 2500 },
+    fundamentals: { roe: 20, der: 5.2, netProfitMargin: 10, dividendYield: 3.5 }
+  });
+  assert(bankFund.score > nonBankFund.score, 'Banking sector (BBCA) with DER 5.2x must not be penalized like non-bank company');
+
+  // Negative equity check (DER < 0)
+  const negEquityFund = dossier.dossierComputeFundamentalScore({
+    ticker: 'GIAA',
+    quote: { price: 50 },
+    fundamentals: { roe: 5, der: -2.5, netProfitMargin: 2, dividendYield: 0 }
+  });
+  assert(negEquityFund.score <= 35, 'Negative equity (DER < 0) must incur severe penalty');
+  assert(negEquityFund.reason.includes('Ekuitas Negatif'), 'Must explicitly mention negative equity');
+
+  // 4. Pillar 2: Top 5 Sellers / distributors extraction
+  const smData = dossier.dossierComputeSmartMoneyScore({
+    quote: { price: 9000 },
+    bandar: {
+      action: 'Big Accumulation',
+      top3BuyersPercent: 72,
+      foreignFlow: { netBuy: 50000000000 },
+      topBrokers: [
+        { broker: 'ZP', buyVol: 100000, sellVol: 10000, buyPrice: 9000, sellPrice: 8950 },
+        { broker: 'BK', buyVol: 80000, sellVol: 20000, buyPrice: 9050, sellPrice: 9000 },
+        { broker: 'PD', buyVol: 5000, sellVol: 120000, buyPrice: 8900, sellPrice: 8950 },
+        { broker: 'YP', buyVol: 2000, sellVol: 90000, buyPrice: 8920, sellPrice: 8960 }
+      ]
+    }
+  });
+  assert(Array.isArray(smData.distributors), 'smData.distributors must be an array');
+  assert(smData.distributors.length >= 2, 'Must extract top sellers / distributors');
+  assert.strictEqual(smData.distributors[0].code, 'PD', 'Top seller must be PD');
+
+  // 5. dossierSaveWeights validation
+  const defaultWeights = dossier.dossierGetDefaultWeights();
+  assert.strictEqual(dossier.dossierSaveWeights({ valuation: -10, smartMoney: 110, technical: 0, ksei: 0, fundamental: 0, regime: 0 }), false, 'Negative weights must be rejected');
+});
+
 test('REGRESSION GUARD: CommandCenter loadTransactionFlowData and loadCorporateActionsData error handling', () => {
   const cmdCenterSrc = fs.readFileSync(path.join(__dirname, 'public/js/26-commandcenter.js'), 'utf8');
   assert(cmdCenterSrc.includes('error: true, message: (data && data.error)'), 'loadTransactionFlowData must set error on failure');
