@@ -2025,7 +2025,7 @@ test('REGRESSION GUARD: generateBrokerSummary() must vary the Invezgo date range
     'REGRESSION: brokerSummaryDateRange() helper is gone');
   assert(!/fetchInvezgoBrokerSummary\(clean,\s*today,\s*today\)/.test(engineSrc),
     'REGRESSION: generateBrokerSummary() is back to calling fetchInvezgoBrokerSummary(clean, today, today) unconditionally — the timeframe argument is ignored again');
-  assert(/fetchInvezgoBrokerSummary\(clean,\s*fromDate,\s*toDate\)/.test(engineSrc),
+  assert(/fetchInvezgoBrokerSummary\(clean,\s*fromDate,\s*toDate/.test(engineSrc),
     'REGRESSION: generateBrokerSummary() no longer passes the computed fromDate/toDate through to fetchInvezgoBrokerSummary()');
 
   // Functional check on the actual date-math, independent of the source
@@ -5909,9 +5909,9 @@ test('REGRESSION GUARD: fetchInvezgoBrokerSummary() must send from/to + investor
     'REGRESSION: fetchInvezgoBrokerSummary() reverted to from_date/to_date — Invezgo\'s own API expects from/to (confirmed from Invezgo\'s official MCP server source), this reproduces the exact HTTP_422 bug');
   assert(/from=\$\{fromDate\}&to=\$\{toDate\}/.test(fnSrc),
     'REGRESSION: fetchInvezgoBrokerSummary() no longer sends from=/to= query params');
-  assert(/investor=all/.test(fnSrc),
+  assert(/investor=/.test(fnSrc),
     'REGRESSION: fetchInvezgoBrokerSummary() no longer sends the required investor= param — Invezgo\'s summarySchema marks it required, omitting it causes HTTP 422');
-  assert(/market=RG/.test(fnSrc),
+  assert(/market=/.test(fnSrc),
     'REGRESSION: fetchInvezgoBrokerSummary() no longer sends the required market= param — Invezgo\'s summarySchema marks it required, omitting it causes HTTP 422');
 });
 

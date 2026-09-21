@@ -63,6 +63,35 @@ function bmFormatLot(num) {
   return sign + abs.toLocaleString('id-ID') + ' Lot';
 }
 
+// Format Average Price (clean integer or up to 2 decimal places)
+function bmFormatAvg(num) {
+  if (num === null || num === undefined || isNaN(num) || num === 0) return '-';
+  var n = Number(num);
+  if (n % 1 === 0) return n.toLocaleString('id-ID');
+  var fixed = n.toFixed(2);
+  if (fixed.endsWith('.00')) return Number(fixed.slice(0, -3)).toLocaleString('id-ID');
+  if (fixed.endsWith('0')) fixed = fixed.slice(0, -1);
+  var parts = fixed.split('.');
+  var intPart = Number(parts[0]).toLocaleString('id-ID');
+  return intPart + '.' + parts[1];
+}
+
+// Label helpers for filter dropdowns
+function bmGetInvestorLabel(val) {
+  var v = String(val || 'all').toLowerCase();
+  if (v === 'foreign' || v === 'f') return 'Foreign';
+  if (v === 'domestic' || v === 'd') return 'Domestic';
+  return 'All Investor';
+}
+
+function bmGetMarketLabel(val) {
+  var v = String(val || 'all').toUpperCase();
+  if (v === 'RG') return 'Regular';
+  if (v === 'TN') return 'Tunai';
+  if (v === 'NG') return 'Nego';
+  return 'All Market';
+}
+
 // Clean up chart instances
 function bmKillChart(key) {
   if (BM_STATE.charts[key]) {
@@ -116,7 +145,7 @@ function renderBandarMovementPage() {
         <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:14px;font-weight:800;color:var(--text)">Trade Flow ↗</span>
+              <span style="font-size:14px;font-weight:800;color:var(--text)">Trade Flow</span>
               <div class="btn-group" style="display:inline-flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden">
                 <button type="button" class="btn btn-xs ${!BM_STATE.isBigMoney ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleBigMoney(false)" style="font-size:10px;padding:3px 8px">All Trades</button>
                 <button type="button" class="btn btn-xs ${BM_STATE.isBigMoney ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleBigMoney(true)" style="font-size:10px;padding:3px 8px">Big Money</button>
@@ -141,7 +170,7 @@ function renderBandarMovementPage() {
         <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:14px;font-weight:800;color:var(--text)">Broker Flow ⓘ ↗</span>
+              <span style="font-size:14px;font-weight:800;color:var(--text)">Broker Flow ⓘ</span>
               <div class="btn-group" style="display:inline-flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden">
                 <button type="button" class="btn btn-xs ${BM_STATE.metric === 'value' ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleMetric('value')" style="font-size:10px;padding:3px 8px">Value</button>
                 <button type="button" class="btn btn-xs ${BM_STATE.metric === 'volume' ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleMetric('volume')" style="font-size:10px;padding:3px 8px">Volume</button>
@@ -168,9 +197,56 @@ function renderBandarMovementPage() {
         <!-- 3. BROKER SUMMARY WIDGET -->
         <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:14px;font-weight:800;color:var(--text)">Broker Summary ↗</span>
-              <span class="badge" style="background:rgba(59,130,246,0.15);color:#60A5FA;font-size:10px">Regular Market</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:14px;font-weight:800;color:var(--text)">Broker Summary</span>
+              
+              <!-- INVESTOR FILTER DROPDOWN -->
+              <div class="bm-dropdown-container" style="position:relative;display:inline-block">
+                <button type="button" class="btn btn-xs" onclick="bmToggleDropdown('bm-investor-dropdown')" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">
+                  <span>${bmGetInvestorLabel(BM_STATE.investor)}</span>
+                  <i class="ti ti-chevron-down" style="font-size:10px;color:var(--text3)"></i>
+                </button>
+                <div id="bm-investor-dropdown" class="bm-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:140px;background:#1E222D;border:1px solid rgba(255,255,255,0.12);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:100;padding:4px;overflow:hidden">
+                  <div onclick="bmSetInvestor('all')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.investor === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                    <span>All Investor</span>
+                    ${BM_STATE.investor === 'all' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
+                  </div>
+                  <div onclick="bmSetInvestor('foreign')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'foreign' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.investor === 'foreign' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                    <span>Foreign</span>
+                    ${BM_STATE.investor === 'foreign' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
+                  </div>
+                  <div onclick="bmSetInvestor('domestic')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'domestic' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.investor === 'domestic' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                    <span>Domestic</span>
+                    ${BM_STATE.investor === 'domestic' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
+                  </div>
+                </div>
+              </div>
+
+              <!-- MARKET FILTER DROPDOWN -->
+              <div class="bm-dropdown-container" style="position:relative;display:inline-block">
+                <button type="button" class="btn btn-xs" onclick="bmToggleDropdown('bm-market-dropdown')" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">
+                  <span>${bmGetMarketLabel(BM_STATE.market)}</span>
+                  <i class="ti ti-chevron-down" style="font-size:10px;color:var(--text3)"></i>
+                </button>
+                <div id="bm-market-dropdown" class="bm-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:140px;background:#1E222D;border:1px solid rgba(255,255,255,0.12);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:100;padding:4px;overflow:hidden">
+                  <div onclick="bmSetMarket('all')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.market === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                    <span>All Market</span>
+                    ${BM_STATE.market === 'all' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
+                  </div>
+                  <div onclick="bmSetMarket('RG')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'RG' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.market === 'RG' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                    <span>Regular</span>
+                    ${BM_STATE.market === 'RG' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
+                  </div>
+                  <div onclick="bmSetMarket('TN')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'TN' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.market === 'TN' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                    <span>Tunai</span>
+                    ${BM_STATE.market === 'TN' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
+                  </div>
+                  <div onclick="bmSetMarket('NG')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'NG' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.market === 'NG' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                    <span>Nego</span>
+                    ${BM_STATE.market === 'NG' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
+                  </div>
+                </div>
+              </div>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
               <button type="button" class="btn btn-xs ${BM_STATE.isNet ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleNet()" style="font-size:10px;padding:3px 8px">
@@ -194,7 +270,7 @@ function renderBandarMovementPage() {
         <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:14px;font-weight:800;color:var(--text)">Broker Distribution (Alluvial Flow) ↗</span>
+              <span style="font-size:14px;font-weight:800;color:var(--text)">Broker Distribution (Alluvial Flow)</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;font-size:11px">
               <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#8B5CF6"></span> Domestik</span>
@@ -552,7 +628,7 @@ function bmRenderBrokerSummaryWidget() {
         <td style="padding:6px 8px;font-weight:700;color:${bInfo ? bInfo.color : 'inherit'}">${b ? b.broker : '-'}</td>
         <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono)">${b ? bmFormatRp(b.valueRp) : '-'}</td>
         <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:var(--text2)">${b ? bmFormatLot(b.volumeLot) : '-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:#38BDF8">${b ? b.avgPrice : '-'}</td>
+        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:#38BDF8">${b ? bmFormatAvg(b.avgPrice) : '-'}</td>
 
         <!-- DIVIDER -->
         <td style="width:1px;background:var(--border2);padding:0"></td>
@@ -561,7 +637,7 @@ function bmRenderBrokerSummaryWidget() {
         <td style="padding:6px 8px;font-weight:700;color:${sInfo ? sInfo.color : 'inherit'}">${s ? s.broker : '-'}</td>
         <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono)">${s ? bmFormatRp(s.valueRp) : '-'}</td>
         <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:var(--text2)">${s ? bmFormatLot(s.volumeLot) : '-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:#38BDF8">${s ? s.avgPrice : '-'}</td>
+        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:#38BDF8">${s ? bmFormatAvg(s.avgPrice) : '-'}</td>
       </tr>
     `;
   }
@@ -760,3 +836,45 @@ function bmPromptAddBroker() {
     bmRenderBrokerFlowWidget();
   }
 }
+
+function bmToggleDropdown(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var isVisible = el.style.display === 'block';
+  document.querySelectorAll('.bm-dropdown-menu').forEach(function(m) {
+    m.style.display = 'none';
+  });
+  if (!isVisible) {
+    el.style.display = 'block';
+  }
+}
+
+function bmSetInvestor(val) {
+  BM_STATE.investor = val;
+  document.querySelectorAll('.bm-dropdown-menu').forEach(function(m) {
+    m.style.display = 'none';
+  });
+  renderBandarMovementPage();
+}
+
+function bmSetMarket(val) {
+  BM_STATE.market = val;
+  document.querySelectorAll('.bm-dropdown-menu').forEach(function(m) {
+    m.style.display = 'none';
+  });
+  renderBandarMovementPage();
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined' && typeof document.addEventListener === 'function' && !window._bmDropdownListenerAttached) {
+  window._bmDropdownListenerAttached = true;
+  document.addEventListener('click', function(e) {
+    if (!e.target || !e.target.closest || !e.target.closest('.bm-dropdown-container')) {
+      if (document.querySelectorAll) {
+        document.querySelectorAll('.bm-dropdown-menu').forEach(function(m) {
+          m.style.display = 'none';
+        });
+      }
+    }
+  });
+}
+
