@@ -962,6 +962,7 @@ function renderPage(name){
     case 'heatmap':fsRenderHeatmap();break;
     case 'scanner':if(typeof renderUnifiedScreenerPage==='function')renderUnifiedScreenerPage();break;
     case 'stock-dossier':if(typeof renderStockDossierPage==='function') renderStockDossierPage();break;
+    case 'bandar-movement':if(typeof renderBandarMovementPage==='function') renderBandarMovementPage();break;
     // 'volume-spike'/'screener' consolidated into the Unified Screener
     // 2026-09-19 (see the goPage() redirect + 'radar' case above) — both
     // now render as US_STATE.pageTab tabs there instead of standalone pages.

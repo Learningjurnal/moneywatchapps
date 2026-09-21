@@ -77,7 +77,8 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
     { id: 'flow', icon: 'ti-radar', label: '2. Bandarmology & Flow', page: 'stock-intel' },
     { id: 'fundamental', icon: 'ti-report-analytics', label: '3. Valuation & Fundamental', page: 'fundamental' },
     { id: 'dossier', icon: 'ti-file-analytics', label: '4. Stock Dossier & KSEI', page: 'stock-dossier' },
-    { id: 'stockchat', icon: 'ti-brain', label: '5. AI Hypothesis (StockChat)', page: 'stockchat' }
+    { id: 'stockchat', icon: 'ti-brain', label: '5. AI Hypothesis (StockChat)', page: 'stockchat' },
+    { id: 'bandarmovement', icon: 'ti-chart-arrows-vertical', label: '6. Bandar Movement', page: 'bandar-movement' }
   ];
 
   var tabsHtml = tabs.map(function(t) {
@@ -129,6 +130,7 @@ function sm360Go(page, ticker) {
   if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = tk;
   if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
   if (typeof STOCK_DOSSIER_STATE !== 'undefined' && STOCK_DOSSIER_STATE) STOCK_DOSSIER_STATE.ticker = tk;
+  if (typeof BM_STATE !== 'undefined' && BM_STATE) BM_STATE.ticker = tk;
 
   document.querySelectorAll('.sm360-search-input, #sm360-search-inp').forEach(function(el) {
     el.value = tk;
@@ -146,6 +148,10 @@ function sm360Go(page, ticker) {
   var fundMount = document.getElementById('fund-sm360-mount');
   if (fundMount && typeof renderStockMaster360Nav === 'function') {
     fundMount.innerHTML = renderStockMaster360Nav('fundamental', tk);
+  }
+  var bmMount = document.getElementById('bm-sm360-mount');
+  if (bmMount && typeof renderStockMaster360Nav === 'function') {
+    bmMount.innerHTML = renderStockMaster360Nav('bandarmovement', tk);
   }
 
   if (typeof goPage === 'function') {
@@ -169,6 +175,7 @@ function sm360SelectTicker(ticker, source) {
   if (typeof MW_SELECTED_INTEL_TICKER !== 'undefined') MW_SELECTED_INTEL_TICKER = tk;
   if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
   if (typeof STOCK_DOSSIER_STATE !== 'undefined' && STOCK_DOSSIER_STATE) STOCK_DOSSIER_STATE.ticker = tk;
+  if (typeof BM_STATE !== 'undefined' && BM_STATE) BM_STATE.ticker = tk;
 
   // 3. Synchronize all input elements in DOM
   document.querySelectorAll('.sm360-search-input, #sm360-search-inp').forEach(function(el) {
@@ -187,6 +194,10 @@ function sm360SelectTicker(ticker, source) {
   var fundMount = document.getElementById('fund-sm360-mount');
   if (fundMount && typeof renderStockMaster360Nav === 'function') {
     fundMount.innerHTML = renderStockMaster360Nav('fundamental', tk);
+  }
+  var bmMount = document.getElementById('bm-sm360-mount');
+  if (bmMount && typeof renderStockMaster360Nav === 'function') {
+    bmMount.innerHTML = renderStockMaster360Nav('bandarmovement', tk);
   }
 
   // 5. Trigger end-to-end analysis on the currently active tab
@@ -214,6 +225,9 @@ function sm360SelectTicker(ticker, source) {
   } else if (cur === 'stockchat') {
     if (typeof selectStockChatTicker === 'function') selectStockChatTicker(tk);
     else if (typeof renderStockChatPage === 'function') renderStockChatPage();
+  } else if (cur === 'bandar-movement') {
+    if (typeof bmLoadData === 'function') bmLoadData(tk, true);
+    else if (typeof renderBandarMovementPage === 'function') renderBandarMovementPage();
   }
 }
 

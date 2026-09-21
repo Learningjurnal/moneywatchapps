@@ -21,6 +21,7 @@ const stockMasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockm
 const stockIntelSrc = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
 const stockChatSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
 const dossierSrc = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+const bandarMovementSrc = fs.readFileSync(path.join(__dirname, 'public/js/49-bandar-movement.js'), 'utf8');
 
 // Build virtual DOM representation
 class MockElement {
@@ -65,6 +66,7 @@ class MockElement {
 const elements = {
   'fund-sm360-mount': new MockElement('div', 'fund-sm360-mount'),
   'tech-sm360-mount': new MockElement('div', 'tech-sm360-mount'),
+  'bm-sm360-mount': new MockElement('div', 'bm-sm360-mount'),
   'techTickerInput': new MockElement('input', 'techTickerInput'),
   'fundTickerInput': new MockElement('input', 'fundTickerInput'),
   'dossier-ticker-input': new MockElement('input', 'dossier-ticker-input'),
@@ -75,7 +77,8 @@ const elements = {
   'page-stock-intel': new MockElement('div', 'page-stock-intel', 'page'),
   'page-fundamental': new MockElement('div', 'page-fundamental', 'page'),
   'page-stock-dossier': new MockElement('div', 'page-stock-dossier', 'page'),
-  'page-stockchat': new MockElement('div', 'page-stockchat', 'page')
+  'page-stockchat': new MockElement('div', 'page-stockchat', 'page'),
+  'page-bandar-movement': new MockElement('div', 'page-bandar-movement', 'page')
 };
 
 const documentMock = {
@@ -147,6 +150,7 @@ vm.runInContext(stockMasterSrc, sandbox);
 vm.runInContext(stockIntelSrc, sandbox);
 vm.runInContext(stockChatSrc, sandbox);
 vm.runInContext(dossierSrc, sandbox);
+vm.runInContext(bandarMovementSrc, sandbox);
 
 // Hook analysis functions to log calls
 const originalDossierRun = sandbox.dossierRunAnalysis;
@@ -302,6 +306,13 @@ assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
 assert.strictEqual(sandbox.STOCKCHAT_SELECTED_TICKER, 'YELO');
 console.log('  ✓ Step 5 (AI Hypothesis / StockChat): Active ticker remains YELO without reset');
 
+// Step 6: Bandar Movement Cockpit
+sandbox.sm360Go('bandar-movement', 'YELO');
+assert.strictEqual(sandbox.currentPage, 'bandar-movement');
+assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
+assert.strictEqual(sandbox.BM_STATE.ticker, 'YELO');
+console.log('  ✓ Step 6 (Bandar Movement Cockpit): Active ticker is YELO');
+
 // Return to Step 1 & verify YELO remains unbroken across all tabs
 sandbox.sm360Go('technical', 'YELO');
 assert.strictEqual(sandbox.TECH_DATA.ticker, 'YELO');
@@ -309,7 +320,8 @@ assert.strictEqual(sandbox.FUND_DATA.ticker, 'YELO');
 assert.strictEqual(sandbox.MW_SELECTED_INTEL_TICKER, 'YELO');
 assert.strictEqual(sandbox.STOCKCHAT_SELECTED_TICKER, 'YELO');
 assert.strictEqual(sandbox.STOCK_DOSSIER_STATE.ticker, 'YELO');
-console.log('  ✓ Traversal loop verified: YELO persisted across all 5 modules with zero desync.');
+assert.strictEqual(sandbox.BM_STATE.ticker, 'YELO');
+console.log('  ✓ Traversal loop verified: YELO persisted across all 6 modules with zero desync.');
 
 console.log('\n═══════════════════════════════════════════════════════');
 console.log('🎉 ALL END-TO-END LINKAGE & SYNC SCENARIOS PASSED 100%!');

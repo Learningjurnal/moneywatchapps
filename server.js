@@ -37,6 +37,9 @@ import {
   getBeiTickSize,
   generateBrokerSummary,
   getBrokerSummaryByBroker,
+  generateBandarMovementData,
+  fetchInvezgoTradeFlow,
+  fetchInvezgoBrokerFlow,
   generateShareholderComposition,
   generateSectorRotation,
   generateMasterScreener,
@@ -3529,6 +3532,75 @@ app.get('/api/idx/broker-summary-by-broker/:code', async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/idx/bandar-movement/:ticker — Step 6 Cockpit Aggregator (Trade Flow, Broker Flow, Broker Summary, Sankey)
+app.get('/api/idx/bandar-movement/:ticker', async (req, res) => {
+  try {
+    const ticker = (req.params.ticker || '').toUpperCase().trim();
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const timeframe = (req.query.timeframe || req.query.tf || '1D').toUpperCase();
+    const isBigMoney = req.query.big_money === 'true' || req.query.bigMoney === 'true';
+    const investor = req.query.investor || 'all';
+    const market = req.query.market || 'RG';
+    const date = req.query.date || null;
+
+    const result = await generateBandarMovementData(ticker, {
+      timeframe,
+      isBigMoney,
+      investor,
+      market,
+      date
+    });
+
+    return res.json({
+      success: result.ok !== false,
+      data: result
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/trade-flow/:ticker — Intraday HAKA/HAKI Tape
+app.get('/api/idx/trade-flow/:ticker', async (req, res) => {
+  try {
+    const ticker = (req.params.ticker || '').toUpperCase().trim();
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const date = req.query.date || null;
+    const isBigMoney = req.query.big_money === 'true' || req.query.bigMoney === 'true';
+    const result = await fetchInvezgoTradeFlow(ticker, date, isBigMoney);
+
+    return res.json({
+      success: result.ok !== false,
+      data: result
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/broker-flow/:ticker — Multi-Broker Cumulative Flow Time Series
+app.get('/api/idx/broker-flow/:ticker', async (req, res) => {
+  try {
+    const ticker = (req.params.ticker || '').toUpperCase().trim();
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+
+    const range = (req.query.range || req.query.tf || '1D').toUpperCase();
+    const investor = req.query.investor || 'all';
+    const market = req.query.market || 'RG';
+    const result = await fetchInvezgoBrokerFlow(ticker, range, investor, market);
+
+    return res.json({
+      success: result.ok !== false,
+      data: result
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 
 // GET /api/idx/invezgo-status — Quota/cache/error observability for the
 // Invezgo integration (audit doc `observability.metrics` + `production_gate.
