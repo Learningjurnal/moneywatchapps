@@ -1522,24 +1522,6 @@ function renderStockChatPage(containerId) {
     + '</div>'
     + '</div>';
 
-  // Ticker Quick Selector Bar Card
-  html += '<div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
-    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-    + '<span style="font-size:11px;font-weight:700;color:var(--text3)">Ticker Aktif:</span>'
-    + '<div style="display:inline-flex;gap:4px;flex-wrap:wrap">'
-    + ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'ANTM', 'ADRO', 'PTRO', 'TLKM', 'ASII', 'GOTO', 'BREN', 'AMMN'].map(function(tk) {
-        var isAct = tk === curTk;
-        return '<button onclick="selectStockChatTicker(\'' + tk + '\')" class="sm-chip ' + (isAct ? 'active' : '') + '" style="font-family:monospace;font-weight:700">' + tk + '</button>';
-      }).join('')
-    + '</div>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px">'
-    + '<label style="font-size:11px;color:var(--text3)">Cari Emiten:</label>'
-    + '<input id="stockchat-custom-ticker" type="text" placeholder="KODE..." maxlength="6" class="form-input" style="width:85px;height:28px;text-align:center;text-transform:uppercase;font-family:monospace;font-size:11px;font-weight:700" onkeydown="if(event.key===\'Enter\'){selectStockChatTicker(this.value);this.value=\'\';}">'
-    + '<button onclick="var el=document.getElementById(\'stockchat-custom-ticker\');if(el&&el.value){selectStockChatTicker(el.value);el.value=\'\';}" class="btn btn-secondary btn-xs">Pilih</button>'
-    + '</div>'
-    + '</div>';
-
   // TAB 1: Chat Assistant View
   if (isChatTab) {
     // Quick Action Matrix Chips
@@ -1551,9 +1533,10 @@ function renderStockChatPage(containerId) {
       + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">';
 
     STOCKCHAT_PROMPT_PRESETS.forEach(function(item, idx) {
+      var displayPrompt = item.prompt.replace(/\b(BBCA|BBRI|BMRI|ANTM)\b/g, curTk);
       html += '<button onclick="sendStockChatPreset(' + idx + ')" class="btn btn-ghost" style="text-align:left;padding:8px 10px;height:auto;display:flex;flex-direction:column;align-items:flex-start;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">'
         + '<div style="font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%">' + item.title + '</div>'
-        + '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;margin-top:2px">' + item.prompt.slice(0, 38) + '...</div>'
+        + '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;margin-top:2px">' + displayPrompt.slice(0, 38) + '...</div>'
         + '</button>';
     });
 
@@ -1679,7 +1662,8 @@ if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
 function sendStockChatPreset(idx) {
   var p = STOCKCHAT_PROMPT_PRESETS[idx];
   if (!p) return;
-  var text = p.prompt.replace(/BBCA/g, STOCKCHAT_SELECTED_TICKER);
+  var tk = STOCKCHAT_SELECTED_TICKER || (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker && GLOBAL_STOCK_CONTEXT.getTicker()) || 'BBCA';
+  var text = p.prompt.replace(/\b(BBCA|BBRI|BMRI|ANTM)\b/g, tk);
   sendStockChatPrompt(text);
 }
 

@@ -1361,25 +1361,6 @@ function renderStockDossierPage(targetTicker) {
   html += '      </button>';
   html += '    </div>';
   html += '  </div>';
-
-  // Search Bar + Quick Tickers
-  html += '  <div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--border)">';
-  html += '    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:260px">';
-  html += '      <i class="ti ti-search" style="font-size:18px;color:var(--text3)"></i>';
-  html += '      <input type="text" id="dossier-ticker-input" value="' + dossierState.ticker + '" placeholder="Masukkan Kode Saham (contoh: BBCA, TLKM, ASII)..." ';
-  html += '        style="flex:1;background:transparent;border:none;color:var(--text);font-family:var(--font-mono);font-size:14px;font-weight:700;text-transform:uppercase;outline:none" ';
-  html += '        onkeydown="if(event.key===\'Enter\'){if(typeof sm360SelectTicker===\'function\'){sm360SelectTicker(this.value,\'stock-dossier\');}else{dossierRunAnalysis(this.value);}}" />';
-  html += '      <button class="sm-btn" style="padding:6px 14px;font-size:12px" onclick="var inp=document.getElementById(\'dossier-ticker-input\');var val=inp?inp.value:\'\';if(typeof sm360SelectTicker===\'function\'){sm360SelectTicker(val,\'stock-dossier\');}else{dossierRunAnalysis(val);}}">Analisis Lengkap</button>';
-  html += '    </div>';
-
-  html += '    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
-  html += '      <span style="font-size:11px;color:var(--text3);font-weight:600">Quick Ticker:</span>';
-  ['BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'BREN', 'AMMN', 'ICBP', 'ADRO'].forEach(function(tk) {
-    var isSel = tk === dossierState.ticker;
-    html += '      <span onclick="dossierSelectTicker(\'' + tk + '\')" class="sm-chip' + (isSel ? ' active' : '') + '">' + tk + '</span>';
-  });
-  html += '    </div>';
-  html += '  </div>';
   html += '</div>';
 
   // Loading State

@@ -255,6 +255,62 @@ assert.strictEqual(elements['dossier-ticker-input'].value, 'ANTM');
 assert.strictEqual(elements['intel-search-input'].value, 'ANTM');
 console.log('✅ Quick Chip selection immediately synchronized all 5 modules.');
 
+// ── TEST 8: Full 5-Step Traversal with YELO (User Reported Case) ──
+console.log('\n--- Scenario 8: User searches YELO and navigates Steps 1 -> 2 -> 3 -> 4 -> 5 -> 1 ---');
+analysisTriggerLog = [];
+
+// Step 0: Search YELO from Top Command Bar
+sandbox.sm360SelectTicker('YELO', 'sm360-top-bar');
+assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
+
+// Step 1: Chart & Technical
+sandbox.sm360Go('technical', 'YELO');
+assert.strictEqual(sandbox.currentPage, 'technical');
+assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
+assert.strictEqual(sandbox.TECH_DATA.ticker, 'YELO');
+console.log('  ✓ Step 1 (Technical & Chart): Active ticker is YELO');
+
+// Step 2: Bandarmology & Flow
+sandbox.sm360Go('stock-intel', 'YELO');
+assert.strictEqual(sandbox.currentPage, 'stock-intel');
+assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
+assert.strictEqual(sandbox.MW_SELECTED_INTEL_TICKER, 'YELO');
+console.log('  ✓ Step 2 (Bandarmology & Flow): Active ticker is YELO');
+
+// Step 3: Valuation & Fundamental
+sandbox.sm360Go('fundamental', 'YELO');
+assert.strictEqual(sandbox.currentPage, 'fundamental');
+assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
+assert.strictEqual(sandbox.FUND_DATA.ticker, 'YELO');
+console.log('  ✓ Step 3 (Valuation & Fundamental): Active ticker is YELO');
+
+// Step 4: Stock Dossier & KSEI
+sandbox.sm360Go('stock-dossier', 'YELO');
+assert.strictEqual(sandbox.currentPage, 'stock-dossier');
+assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
+assert.strictEqual(sandbox.STOCK_DOSSIER_STATE.ticker, 'YELO');
+console.log('  ✓ Step 4 (Stock Dossier & KSEI): Active ticker is YELO');
+
+// Step 5: AI Hypothesis (StockChat)
+sandbox.sm360Go('stockchat', 'YELO');
+assert.strictEqual(sandbox.currentPage, 'stockchat');
+assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
+assert.strictEqual(sandbox.STOCKCHAT_SELECTED_TICKER, 'YELO');
+// Trigger renderStockChatPage to ensure no fallback or reset occurs
+sandbox.renderStockChatPage();
+assert.strictEqual(sandbox.GLOBAL_STOCK_CONTEXT.getTicker(), 'YELO');
+assert.strictEqual(sandbox.STOCKCHAT_SELECTED_TICKER, 'YELO');
+console.log('  ✓ Step 5 (AI Hypothesis / StockChat): Active ticker remains YELO without reset');
+
+// Return to Step 1 & verify YELO remains unbroken across all tabs
+sandbox.sm360Go('technical', 'YELO');
+assert.strictEqual(sandbox.TECH_DATA.ticker, 'YELO');
+assert.strictEqual(sandbox.FUND_DATA.ticker, 'YELO');
+assert.strictEqual(sandbox.MW_SELECTED_INTEL_TICKER, 'YELO');
+assert.strictEqual(sandbox.STOCKCHAT_SELECTED_TICKER, 'YELO');
+assert.strictEqual(sandbox.STOCK_DOSSIER_STATE.ticker, 'YELO');
+console.log('  ✓ Traversal loop verified: YELO persisted across all 5 modules with zero desync.');
+
 console.log('\n═══════════════════════════════════════════════════════');
 console.log('🎉 ALL END-TO-END LINKAGE & SYNC SCENARIOS PASSED 100%!');
 console.log('═══════════════════════════════════════════════════════\n');

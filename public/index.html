@@ -3000,26 +3000,8 @@
 
     <!-- MAIN WORKSPACE -->
     <main class="sm-main" id="fund-main-scroll-container">
-      <!-- TOP COMMAND BAR -->
-      <div class="sm-top-bar">
-        <div class="sm-input-group">
-          <label>Kode Saham</label>
-          <input type="text" id="fundTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA" placeholder="Contoh: BBCA, BBRI, BMRI, TLKM" onkeydown="if(event.key==='Enter')fundFetchData()">
-        </div>
-        <button class="sm-btn" onclick="fundFetchData()"><i class="ti ti-search" style="font-size:13px"></i>Jalankan Analisa Fundamental</button>
-        <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
-          <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
-          <span class="sm-chip" onclick="fundSetTicker('BBCA')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBCA"><img src="https://assets.stockbit.com/logos/companies/BBCA.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBCA</span>
-          <span class="sm-chip" onclick="fundSetTicker('BBRI')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBRI"><img src="https://assets.stockbit.com/logos/companies/BBRI.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBRI</span>
-          <span class="sm-chip" onclick="fundSetTicker('BMRI')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BMRI"><img src="https://assets.stockbit.com/logos/companies/BMRI.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BM</span></span>BMRI</span>
-          <span class="sm-chip" onclick="fundSetTicker('TLKM')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="TLKM"><img src="https://assets.stockbit.com/logos/companies/TLKM.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">TL</span></span>TLKM</span>
-          <span class="sm-chip" onclick="fundSetTicker('ASII')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ASII"><img src="https://assets.stockbit.com/logos/companies/ASII.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AS</span></span>ASII</span>
-          <span class="sm-chip" onclick="fundSetTicker('ICBP')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ICBP"><img src="https://assets.stockbit.com/logos/companies/ICBP.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">IC</span></span>ICBP</span>
-          <span class="sm-chip" onclick="fundSetTicker('ADRO')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ADRO"><img src="https://assets.stockbit.com/logos/companies/ADRO.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AD</span></span>ADRO</span>
-          <span class="sm-chip" onclick="fundSetTicker('ANTM')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ANTM"><img src="https://assets.stockbit.com/logos/companies/ANTM.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AN</span></span>ANTM</span>
-        </div>
-        <div id="fund-status" style="font-size:12px;font-weight:600;padding:10px 14px;border-radius:8px;display:none;width:100%"></div>
-      </div>
+      <!-- STATUS BANNER -->
+      <div id="fund-status" style="font-size:12px;font-weight:600;padding:10px 14px;border-radius:8px;display:none;width:100%;margin-bottom:12px"></div>
 
       <!-- COMBINED MASTER TAB: 1, 9, 2, 3, 4, 5, 6, 7 Unified -->
       <div id="fund-tab1" class="sm-tab-panel active" style="gap:18px">
@@ -3704,25 +3686,8 @@
 
     <!-- MAIN WORKSPACE -->
     <main class="sm-main">
-      <!-- TOP COMMAND BAR -->
-      <div class="sm-top-bar">
-        <div class="sm-input-group">
-          <label>Kode Saham</label>
-          <input type="text" id="techTickerInput" class="sm-input" list="idx-all-tickers-datalist" value="BBCA" placeholder="Contoh: BBCA, BBRI, BMRI, TLKM, ASII" onkeydown="if(event.key==='Enter')techFetchData()">
-        </div>
-        <button class="sm-btn btn-tech" onclick="techFetchData()"><i class="ti ti-search" style="font-size:13px"></i>Jalankan Analisa Teknikal &amp; Flow</button>
-        <div style="display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap">
-          <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Quick Tickers:</span>
-          <span class="sm-chip" onclick="techSetTicker('BBCA')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBCA"><img src="https://assets.stockbit.com/logos/companies/BBCA.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBCA</span>
-          <span class="sm-chip" onclick="techSetTicker('BBRI')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BBRI"><img src="https://assets.stockbit.com/logos/companies/BBRI.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BB</span></span>BBRI</span>
-          <span class="sm-chip" onclick="techSetTicker('BMRI')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="BMRI"><img src="https://assets.stockbit.com/logos/companies/BMRI.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">BM</span></span>BMRI</span>
-          <span class="sm-chip" onclick="techSetTicker('TLKM')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="TLKM"><img src="https://assets.stockbit.com/logos/companies/TLKM.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">TL</span></span>TLKM</span>
-          <span class="sm-chip" onclick="techSetTicker('ASII')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ASII"><img src="https://assets.stockbit.com/logos/companies/ASII.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AS</span></span>ASII</span>
-          <span class="sm-chip" onclick="techSetTicker('ADRO')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ADRO"><img src="https://assets.stockbit.com/logos/companies/ADRO.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AD</span></span>ADRO</span>
-          <span class="sm-chip" onclick="techSetTicker('ANTM')"><span class="stock-logo-wrap" style="width:14px;height:14px" title="ANTM"><img src="https://assets.stockbit.com/logos/companies/ANTM.png" alt="" class="stock-logo-img" loading="lazy" onerror="this.style.display='none';var f=this.nextElementSibling;if(f){f.style.display='inline-flex';}" onload="this.style.display='block';var f=this.nextElementSibling;if(f){f.style.display='none';}" /><span class="stock-logo-fallback" style="font-size:6px">AN</span></span>ANTM</span>
-        </div>
-        <div id="tech-status" style="font-size:12px;font-weight:600;padding:10px 14px;border-radius:8px;display:none;width:100%"></div>
-      </div>
+      <!-- STATUS BANNER -->
+      <div id="tech-status" style="font-size:12px;font-weight:600;padding:10px 14px;border-radius:8px;display:none;width:100%;margin-bottom:12px"></div>
 
       <!-- TAB 1: Live Interactive Chart -->
       <div id="tech-tab1" class="sm-tab-panel active">

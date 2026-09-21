@@ -771,60 +771,10 @@ function renderStockIntelPage() {
   MW_SELECTED_INTEL_TICKER = ticker;
   var isIdx = isRegisteredIdxTicker(ticker);
 
-  // Susun Dropdown Options strictly with IDX Stocks
-  var universe = getIntelUniverse();
-  var optionsHtml = '';
-
-  optionsHtml += '<optgroup label="⭐ Saham Likuid Terverifikasi IDX (LQ45 / Bluechip)">';
-  universe.top.forEach(function(t) {
-    var m = getIntelStockMeta(t);
-    optionsHtml += '<option value="' + t + '" ' + (t === ticker ? 'selected' : '') + '>'
-      + t + ' — ' + m.name + (m.price > 0 ? ' (Rp ' + fmtK(m.price) + ')' : '')
-      + '</option>';
-  });
-  optionsHtml += '</optgroup>';
-
-  optionsHtml += '<optgroup label="Semua Emiten Bursa Efek Indonesia">';
-  universe.all.forEach(function(t) {
-    if (!universe.top.includes(t)) {
-      var m = getIntelStockMeta(t);
-      optionsHtml += '<option value="' + t + '" ' + (t === ticker ? 'selected' : '') + '>'
-        + t + ' — ' + m.name
-        + '</option>';
-    }
-  });
-  optionsHtml += '</optgroup>';
-
-  var quickList = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'ANTM', 'ADRO', 'ICBP', 'UNVR', 'GOTO', 'BRIS'];
-  var quickChipsHtml = quickList.map(function(qt) {
-    var isSel = qt === ticker;
-    return '<button onclick="selectStockIntelTicker(\'' + qt + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:3px 9px;border-radius:6px;font-family:var(--font-mono);font-weight:700;border:1px solid var(--border2)">' + qt + '</button>';
-  }).join(' ');
-
   // CASE A: NON-IDX TICKER (STRICT PROHIBITION OF DUMMY DATA)
   var nav360 = (typeof renderStockMaster360Nav === 'function') ? renderStockMaster360Nav('flow', ticker) : '';
   if (!isIdx) {
     var notFoundHtml = nav360
-      // TOP SEARCH TOOLBAR
-      + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
-        + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-          + '<div style="display:flex;align-items:center;gap:6px">'
-            + '<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase">Pilih Emiten:</span>'
-            + '<select id="intel-ticker-select" class="form-select" style="font-size:12px;height:30px;min-width:220px" onchange="selectStockIntelTicker(this.value)">'
-              + optionsHtml
-            + '</select>'
-          + '</div>'
-          + '<div style="display:flex;gap:4px">'
-            + '<input type="text" id="intel-search-input" class="form-input" placeholder="Kode IDX..." value="' + ticker + '" style="width:100px;height:30px;font-size:12px;text-transform:uppercase;font-family:var(--font-mono)" onkeydown="if(event.key===\'Enter\')handleIntelSearchSubmit(event)">'
-            + '<button class="btn btn-primary btn-xs" onclick="handleIntelSearchSubmit(event)">Periksa</button>'
-          + '</div>'
-        + '</div>'
-        + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
-          + '<span style="font-size:10px;color:var(--text3);font-weight:600">Quick IDX:</span>'
-          + quickChipsHtml
-        + '</div>'
-      + '</div>'
-
       // ZERO-STATE COMPLIANCE WARNING CARD
       // FIX (2026-09-13, Tahap 3 standardisasi shadow — sama pola bug Tahap 1):
       // div ini sebelumnya tanpa class="card", shadow hardcoded (0 8px 30px
@@ -841,10 +791,10 @@ function renderStockIntelPage() {
           + 'Sesuai aturan kepatuhan dan integritas data pasar modal MoneyWatch, <strong>seluruh data dummy dan saham fiktif dilarang</strong>. Modul Stock Intelligence hanya menampilkan data riil emiten yang tercatat secara resmi di BEI / IDX.'
         + '</div>'
         + '<div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">'
-          + '<button class="btn btn-primary btn-sm" onclick="selectStockIntelTicker(\'BBCA\')">Buka Saham BBCA</button>'
-          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'BBRI\')">Buka Saham BBRI</button>'
-          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'TLKM\')">Buka Saham TLKM</button>'
-          + '<button class="btn btn-ghost btn-sm" onclick="selectStockIntelTicker(\'ASII\')">Buka Saham ASII</button>'
+          + '<button class="btn btn-primary btn-sm" onclick="sm360SelectTicker(\'BBCA\')">Buka Saham BBCA</button>'
+          + '<button class="btn btn-ghost btn-sm" onclick="sm360SelectTicker(\'BBRI\')">Buka Saham BBRI</button>'
+          + '<button class="btn btn-ghost btn-sm" onclick="sm360SelectTicker(\'TLKM\')">Buka Saham TLKM</button>'
+          + '<button class="btn btn-ghost btn-sm" onclick="sm360SelectTicker(\'ASII\')">Buka Saham ASII</button>'
         + '</div>'
       + '</div>';
 
@@ -861,32 +811,20 @@ function renderStockIntelPage() {
   var gaugeOffset = gaugeCirc - (data.score / 100) * gaugeCirc;
 
   var html = nav360
-    // TOP SEARCH & REAL-TIME TOOLBAR WITH TIMESTAMP
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
-      + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-        + '<div style="display:flex;align-items:center;gap:6px">'
-          + '<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase">PILIH EMITEN:</span>'
-          + '<select id="intel-ticker-select" class="form-select" style="font-size:12px;height:30px;min-width:220px" onchange="selectStockIntelTicker(this.value)">'
-            + optionsHtml
-          + '</select>'
-        + '</div>'
-        + '<div style="display:flex;gap:4px">'
-          + '<input type="text" id="intel-search-input" class="form-input" placeholder="Ketik kode IDX..." value="' + ticker + '" style="width:90px;height:30px;font-size:12px;text-transform:uppercase;font-family:var(--font-mono)" onkeydown="if(event.key===\'Enter\')handleIntelSearchSubmit(event)">'
-          + '<button class="btn btn-primary btn-xs" onclick="handleIntelSearchSubmit(event)">Buka</button>'
-        + '</div>'
+    // REAL-TIME STATUS & REFRESH SUB-BAR
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+        + '<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Modul: Bandarmology &amp; Smart Money Flow</span>'
       + '</div>'
 
       // Real-time Controls & Timestamp Badge
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         + '<span class="badge b-neu" style="font-size:10px;font-family:var(--font-mono);border:1px solid var(--border2);display:flex;align-items:center;gap:4px" title="Waktu sinkronisasi data pasar">'
-          + '<span id="intel-timestamp-val">' + data.timestamp + '</span>'
+          + '<span id="intel-timestamp-val">' + (data.timestamp || 'Realtime') + '</span>'
         + '</span>'
         + '<button id="intel-refresh-btn" class="btn btn-ghost btn-xs" onclick="fetchRealStockIntelData(\'' + ticker + '\')" style="border-color:#00D4FF;color:#00D4FF" title="Ambil pembaruan quote & orderbook realtime">'
           + 'Refresh Real-Time'
         + '</button>'
-        + '<div style="display:flex;align-items:center;gap:4px">'
-          + quickChipsHtml
-        + '</div>'
       + '</div>'
     + '</div>'
 
