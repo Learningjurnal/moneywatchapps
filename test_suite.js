@@ -5524,33 +5524,27 @@ test('REGRESSION GUARD: Invezgo quota budget planning — longer cache TTL + quo
 test('REGRESSION GUARD: Bandarmology market-aggregate views use real Invezgo data when available, and correctly read both real/simulated field-name shapes', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
 
-  // 1. These market-aggregate views must no longer call
-  // generateClientSideBrokerSummary() directly for their per-ticker loop —
-  // they must go through bandarGetCachedSummary() (real-data-aware) instead.
-  // (renderBandarmologyForeignFlowView() was REPLACED entirely on 2026-09-18
-  // — it no longer loops a client-side ticker sample at all, real or
-  // simulated; it now fetches whole-market real data from a dedicated
-  // server endpoint. See the getUniverseForeignFlow() regression test
-  // below for its own coverage. renderBandarmologyAccumulationView()/
-  // renderBandarmologyDistributionView() were REPLACED the same way, same
-  // day — they now fetch GET /api/idx/accumulation-distribution
-  // (whole-market real Invezgo data) instead of looping a client cache.
-  // renderBandarmologyBrokerTrailView() was similarly UPGRADED on 2026-09-20
-  // to fetch GET /api/idx/broker-summary-by-broker/:code (whole-market real
-  // Invezgo data per broker via GET /analysis/summary/broker/{code}), so it
-  // no longer loops a 42-ticker sample either.
-  // renderBandarmologyMarketFlowView is the one view checked here.)
-  const viewBounds = [
-    ['renderBandarmologyMarketFlowView', /function renderBandarmologyMarketFlowView[\s\S]*?\n}\n/]
-  ];
-  viewBounds.forEach(([name, re]) => {
-    const m = src.match(re);
-    assert(m, `REGRESSION: could not locate ${name}() in 41-stockchat-cockpit.js to verify it`);
-    assert(!/generateClientSideBrokerSummary\(/.test(m[0]),
-      `REGRESSION: ${name}() calls generateClientSideBrokerSummary() directly again — it will always show simulated data even with INVEZGO_API_KEY configured, reproducing the exact user-reported bug`);
-    assert(/bandarGetCachedSummary\(/.test(m[0]),
-      `REGRESSION: ${name}() no longer reads through bandarGetCachedSummary() — real Invezgo data (fetched by bandarPrefetchMarketBatch()) will never reach this view`);
-  });
+  // 1. renderBandarmologyMarketFlowView() was redesigned (2026-09-21) from a
+  // per-ticker bandarGetCachedSummary() loop (Big 4 Banks + sector statics)
+  // into a skeleton renderer — real content filled asynchronously by
+  // bandarLoadRealMarketFlow() which calls /api/idx/accumulation-distribution
+  // once (whole-market, 1 API call/day). Same skeleton+async pattern as the
+  // foreign flow view.
+  // Check: neither the skeleton nor the content renderer calls
+  // generateClientSideBrokerSummary() directly (would bypass real data).
+  const skeletonSrc = src.match(/function renderBandarmologyMarketFlowView[\s\S]*?\n}\n/)[0];
+  assert(skeletonSrc, 'REGRESSION: could not locate renderBandarmologyMarketFlowView() in 41-stockchat-cockpit.js');
+  assert(!/generateClientSideBrokerSummary\(/.test(skeletonSrc),
+    'REGRESSION: renderBandarmologyMarketFlowView() calls generateClientSideBrokerSummary() directly — it will always show simulated data even with INVEZGO_API_KEY configured');
+  assert(skeletonSrc.includes('bandar-market-flow-content'),
+    'REGRESSION: renderBandarmologyMarketFlowView() must render skeleton placeholder id="bandar-market-flow-content" for async fill by bandarLoadRealMarketFlow()');
+  // The content renderer (bandarRenderMarketFlowContent) must not loop per-ticker either.
+  const contentRendererSrc = src.match(/function bandarRenderMarketFlowContent[\s\S]*?\n}\n/);
+  assert(contentRendererSrc, 'REGRESSION: bandarRenderMarketFlowContent() missing — skeleton has no content renderer');
+  assert(!/generateClientSideBrokerSummary\(/.test(contentRendererSrc[0]),
+    'REGRESSION: bandarRenderMarketFlowContent() calls generateClientSideBrokerSummary() directly — reproducing the per-ticker-loop bug that was replaced');
+  assert(!/bandarGetCachedSummary\(/.test(contentRendererSrc[0]),
+    'REGRESSION: bandarRenderMarketFlowContent() must NOT use bandarGetCachedSummary() per-ticker loop — it must read score/acc/dist from the whole-market /api/idx/accumulation-distribution payload instead');
 
   // 2. The prefetch must actually be wired into the page renderer, and must
   // re-render once real data arrives (not just fetch-and-discard).
@@ -7678,26 +7672,49 @@ test('REGRESSION GUARD: Technical Chart auto-refresh idempotency, enlarged verti
   assert(aiChartSrc.includes('ZONA JUAL AI / TP'), 'REGRESSION: applyAiChartOverlay() must render ZONA JUAL AI / TP overlay');
 });
 
-test('REGRESSION GUARD: Bandarmology market-aggregate (Opsi B: real concentration % vs fake net flow, dynamic timeframe selector, and whole-market foreign flow mounted)', () => {
+test('REGRESSION GUARD: Bandarmology market-aggregate (Opsi B → whole-market Smart Money scanner: skeleton+async loader, daily cache, no fake net flow, foreign flow mounted)', () => {
   const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
 
-  // Masalah 1: Opsi B - no bandarSmartMoneyNetRp call in renderBandarmologyMarketFlowView, uses top3BuyPct and verdict
-  const mfvMatch = cockpitSrc.match(/function renderBandarmologyMarketFlowView\(tk\) \{([\s\S]*?)\n\}\n\n\/\//);
+  // 1. renderBandarmologyMarketFlowView() must render a skeleton placeholder — real content
+  //    filled by bandarLoadRealMarketFlow() async (same pattern as foreign flow view).
+  const mfvMatch = cockpitSrc.match(/function renderBandarmologyMarketFlowView\(tk\) \{([\s\S]*?)\n\}\n/);
   assert(mfvMatch, 'REGRESSION: could not isolate renderBandarmologyMarketFlowView body');
+  assert(mfvMatch[0].includes('bandar-market-flow-content'),
+    'REGRESSION: renderBandarmologyMarketFlowView() must render skeleton with id="bandar-market-flow-content" for async fill');
   assert(!mfvMatch[0].includes('bandarSmartMoneyNetRp('),
-    'REGRESSION: renderBandarmologyMarketFlowView() must NOT call bandarSmartMoneyNetRp() (fake net flow heuristic removed per Opsi B)');
-  assert(mfvMatch[0].includes('top3BuyPct') || mfvMatch[0].includes('top3BuyerPct'),
-    'REGRESSION: renderBandarmologyMarketFlowView() must use real concentration.top3BuyPct for broker share %');
+    'REGRESSION: renderBandarmologyMarketFlowView() must NOT call bandarSmartMoneyNetRp() (fake net flow heuristic)');
+  // Big 4 Banks per-ticker concentration loop removed — whole-market accumulation score used instead.
+  assert(!mfvMatch[0].includes('bigBanksTickers'),
+    'REGRESSION: Big 4 Banks ticker list must be removed from renderBandarmologyMarketFlowView() (replaced by whole-market scanner)');
 
-  // Masalah 2: Dynamic timeframe state and selector in market view
+  // 2. bandarRenderMarketFlowContent() must exist and use score-based accumulation data
+  //    (Invezgo /analysis/top/accumulation, not per-ticker concentration %).
+  assert(cockpitSrc.includes('function bandarRenderMarketFlowContent('),
+    'REGRESSION: bandarRenderMarketFlowContent() must be defined to render acc/dist data');
+  assert(cockpitSrc.includes('item.score') || cockpitSrc.includes('.score'),
+    'REGRESSION: bandarRenderMarketFlowContent() must use .score from whole-market accumulation data');
+
+  // 3. Daily cache guard — must not re-fetch Invezgo on every tab visit.
+  assert(cockpitSrc.includes('_BANDAR_MARKET_FLOW_CACHE'),
+    'REGRESSION: _BANDAR_MARKET_FLOW_CACHE must be defined for daily result caching');
+  assert(cockpitSrc.includes('_bandarMarketFlowCacheValid'),
+    'REGRESSION: _bandarMarketFlowCacheValid() must guard against duplicate daily fetches');
+
+  // 4. Async loader must be triggered on mount and exported.
+  assert(cockpitSrc.includes('async function bandarLoadRealMarketFlow('),
+    'REGRESSION: bandarLoadRealMarketFlow() must be an async function');
+  assert(cockpitSrc.includes('setTimeout(bandarLoadRealMarketFlow,'),
+    'REGRESSION: renderBandarmologyCockpitPage() must trigger bandarLoadRealMarketFlow via setTimeout on mount');
+  assert(cockpitSrc.includes('window.bandarLoadRealMarketFlow = bandarLoadRealMarketFlow'),
+    'REGRESSION: bandarLoadRealMarketFlow must be exported to window');
+
+  // 5. Dynamic timeframe state still present (used by other views on same page).
   assert(cockpitSrc.includes('var BANDARMOLOGY_MARKET_TIMEFRAME ='),
     'REGRESSION: BANDARMOLOGY_MARKET_TIMEFRAME state variable must be defined');
   assert(cockpitSrc.includes('bandarSetMarketTimeframe'),
-    'REGRESSION: bandarSetMarketTimeframe() function must be defined to handle timeframe dropdown changes');
-  assert(!mfvMatch[0].includes("bandarGetCachedSummary(t, '1D')"),
-    'REGRESSION: renderBandarmologyMarketFlowView() must not hardcode 1D string literal when calling bandarGetCachedSummary()');
+    'REGRESSION: bandarSetMarketTimeframe() function must be defined');
 
-  // Masalah 3: Foreign flow view mounted in market cockpit
+  // 6. Foreign flow view still mounted in market cockpit.
   assert(cockpitSrc.includes('+ renderBandarmologyForeignFlowView(tk)'),
     'REGRESSION: renderBandarmologyCockpitPage() must mount renderBandarmologyForeignFlowView() in composed HTML');
   assert(cockpitSrc.includes('setTimeout(bandarLoadRealForeignFlow, 40);'),
