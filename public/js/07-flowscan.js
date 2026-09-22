@@ -1352,7 +1352,6 @@ function fsRenderWlPage(){
     +list.map(function(w){
       var last=w.data[w.data.length-1],prev=w.data[w.data.length-2]||last;
       var livePrice = (typeof prices!=='undefined' && prices[w.t]) ? prices[w.t] : last.c;
-      var chg=((last.c-prev.c)/prev.c*100);
       var pItem = portoMap[w.t];
       var portoBadge = pItem
         ? '<div style="display:inline-flex;flex-direction:column;gap:2px"><span class="badge b-up" style="font-size:10px;font-weight:700;letter-spacing:0.3px">'+pItem.lot+' Lot</span><span style="font-size:9px;color:var(--text2);font-family:var(--font-mono)">Avg Rp '+fmt(pItem.avg)+'</span></div>'
@@ -1361,17 +1360,23 @@ function fsRenderWlPage(){
       // KNOWN_ISSUES.md #2: same disclosure as Ranking/Heatmap — this row's
       // score/signal can be entirely synthetic (fsGenData()'s fallback).
       var isSim=!!(w.data && w.data.simulated);
-      return '<tr style="'+(w.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':w.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'')+(isSim?';outline:1px solid rgba(255,61,90,.15)':'')+'">'
+      // chg is only meaningful when data is real; skip for simulated rows.
+      var chg = isSim ? null : ((last.c-prev.c)/prev.c*100);
+      // Row background: do not colour-code simulated rows by fake signal.
+      var rowBg = isSim ? '' : (w.a.sig==='AKUMULASI'?'background:rgba(0,229,160,.03)':w.a.sig==='DISTRIBUSI'?'background:rgba(255,61,90,.03)':'');
+      var simTip = 'title="Data tidak tersedia dari Yahoo Finance. Nilai ini adalah simulasi — bukan sinyal pasar nyata."';
+      var dashCell = '<td class="mono" style="color:var(--text3)" '+simTip+'>—</td>';
+      return '<tr style="'+rowBg+(isSim?';outline:1px solid rgba(255,61,90,.15)':'')+'">'
         +'<td class="mono" style="font-weight:700;cursor:pointer;color:var(--accent)" onclick="fsQuickLoad(\''+w.t+'\')" title="Buka analisa detail FlowScan"><div style="display:flex;align-items:center;gap:6px">'+(typeof getStockLogoHtml==='function'?getStockLogoHtml(w.t,16):'')+w.t+fsSrcDot(isSim)+'</div></td>'
         +'<td><div style="font-size:12px;font-weight:500">'+w.n+'</div><span class="badge b-neu" style="font-size:9px">'+w.s+'</span></td>'
         +'<td>'+portoBadge+'</td>'
         +'<td class="mono" style="font-weight:600">'+fsP(livePrice)+'</td>'
-        +'<td class="mono '+(chg>=0?'up':'dn')+'">'+fsPct(chg)+'</td>'
-        +'<td><div style="display:flex;align-items:center;gap:5px"><span class="mono" style="color:'+fsScColor(w.a.sc)+';min-width:22px;font-weight:600">'+w.a.sc+'</span><div class="prog" style="width:50px"><div class="progf" style="width:'+w.a.sc+'%;background:'+fsScColor(w.a.sc)+'"></div></div></div></td>'
-        +'<td>'+fsMkBdg(w.a.sig,true)+'</td>'
-        +'<td class="mono" style="color:'+(w.a.cl>0?'#41f3a7':'#e21d48')+'">'+(w.a.cl*100).toFixed(1)+'%</td>'
-        +'<td class="mono" style="color:'+(last.vr>1.5?'#41f3a7':'var(--text2)')+'">'+last.vr.toFixed(2)+'×</td>'
-        +'<td class="mono" style="color:'+(w.a.rl>70?'#e21d48':w.a.rl<30?'#41f3a7':'var(--text2)')+'">'+w.a.rl.toFixed(1)+'</td>'
+        +(isSim ? dashCell : '<td class="mono '+(chg>=0?'up':'dn')+'">'+fsPct(chg)+'</td>')
+        +(isSim ? dashCell : '<td><div style="display:flex;align-items:center;gap:5px"><span class="mono" style="color:'+fsScColor(w.a.sc)+';min-width:22px;font-weight:600">'+w.a.sc+'</span><div class="prog" style="width:50px"><div class="progf" style="width:'+w.a.sc+'%;background:'+fsScColor(w.a.sc)+'"></div></div></div></td>')
+        +(isSim ? dashCell : '<td>'+fsMkBdg(w.a.sig,true)+'</td>')
+        +(isSim ? dashCell : '<td class="mono" style="color:'+(w.a.cl>0?'#41f3a7':'#e21d48')+'">'+(w.a.cl*100).toFixed(1)+'%</td>')
+        +(isSim ? dashCell : '<td class="mono" style="color:'+(last.vr>1.5?'#41f3a7':'var(--text2)')+'">'+last.vr.toFixed(2)+'×</td>')
+        +(isSim ? dashCell : '<td class="mono" style="color:'+(w.a.rl>70?'#e21d48':w.a.rl<30?'#41f3a7':'var(--text2)')+'">'+w.a.rl.toFixed(1)+'</td>')
         +'<td><button class="btn btn-red btn-xs" onclick="fsTgWl(\''+w.t+'\');fsRenderWlPage()" style="font-size:10px" title="Hapus dari Watchlist">✕</button></td>'
         +'</tr>';
     }).join('')+'</tbody></table></div>';

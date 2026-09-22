@@ -7943,6 +7943,56 @@ test('REGRESSION GUARD: Stock Master Terminal 360 End-to-End Ticker Sync & Searc
 });
 
 
+test('REGRESSION GUARD: fsRenderWlPage() must NOT show CHG%/Skor/Sinyal/CMF/VolRatio/RSI from simulated data (CPRI-suspend reproducing case)', () => {
+  // Root cause: fsGenData() fallback generates synthetic candles. When isSim===true,
+  // the old code still showed chg/skor/sinyal/CMF/volRatio/RSI from those candles,
+  // producing fake ▲1.96% / SKOR 100 / AKUMULASI for CPRI (suspend) — AGENTS.md Rule 1+5.
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/07-flowscan.js'), 'utf8');
+
+  // 1. isSim must be computed BEFORE chg, so chg can be conditionally skipped.
+  const renderFnSrc = src.match(/function fsRenderWlPage[\s\S]*?\n}\n/);
+  assert(renderFnSrc, 'REGRESSION: could not isolate fsRenderWlPage() body');
+  const fnBody = renderFnSrc[0];
+  // isSim must be declared before chg in the function body
+  const isSimIdx = fnBody.indexOf('var isSim=');
+  const chgIdx   = fnBody.indexOf('var chg =');
+  assert(isSimIdx !== -1, 'REGRESSION: isSim declaration missing from fsRenderWlPage()');
+  assert(chgIdx   !== -1, 'REGRESSION: chg declaration missing from fsRenderWlPage()');
+  assert(isSimIdx < chgIdx, 'REGRESSION: isSim must be declared before chg — simulated guard must gate the chg calculation');
+
+  // 2. chg must be null (not computed) when isSim is true.
+  assert(fnBody.includes('var chg = isSim ? null :'),
+    'REGRESSION: chg must be set to null when isSim===true — simulated rows must not compute a fake CHG%');
+
+  // 3. Row background must NOT colour-code simulated rows by fake signal.
+  assert(fnBody.includes('var rowBg = isSim ?'),
+    'REGRESSION: rowBg must be neutralised for simulated rows (no green AKUMULASI bg on fake signal)');
+
+  // 4. dashCell helper must exist for each metric.
+  assert(fnBody.includes("var dashCell = '"),
+    'REGRESSION: dashCell helper must be defined for — placeholder cells');
+
+  // 5. Each metric cell must be gated on isSim.
+  // CHG%
+  assert(/isSim \? dashCell.*fsPct\(chg\)/.test(fnBody),
+    'REGRESSION: CHG% cell must show dashCell when isSim===true (fake CHG% was user-reported bug for CPRI suspend)');
+  // Skor Big Money
+  assert(/isSim \? dashCell.*fsScColor\(w\.a\.sc\)/.test(fnBody),
+    'REGRESSION: Skor Big Money cell must show dashCell when isSim===true');
+  // Sinyal Flow — either dashCell or a DATA SIM badge, must NOT call fsMkBdg when isSim
+  assert(/isSim \? dashCell.*fsMkBdg\(w\.a\.sig/.test(fnBody),
+    'REGRESSION: Sinyal Flow cell must NOT call fsMkBdg() when isSim===true — fake AKUMULASI/DISTRIBUSI must not be shown');
+  // CMF
+  assert(/isSim \? dashCell.*w\.a\.cl/.test(fnBody),
+    'REGRESSION: CMF cell must show dashCell when isSim===true');
+  // Vol Ratio
+  assert(/isSim \? dashCell.*last\.vr/.test(fnBody),
+    'REGRESSION: Vol Ratio cell must show dashCell when isSim===true');
+  // RSI
+  assert(/isSim \? dashCell.*w\.a\.rl/.test(fnBody),
+    'REGRESSION: RSI cell must show dashCell when isSim===true');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
