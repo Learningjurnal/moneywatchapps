@@ -182,6 +182,32 @@ function fsGenData(tk,days){
   if (typeof rdGetAny === 'function') {
     var realRows = rdGetAny(tk);
     if (realRows && realRows.length > 0) {
+      // Sync last row with live market price if available
+      var livePx = (typeof getGlobalMarketPrice === 'function') ? getGlobalMarketPrice(tk) : 0;
+      if (livePx > 0 && realRows[realRows.length - 1]) {
+        var lastR = realRows[realRows.length - 1];
+        var lastD = new Date(lastR.date || lastR.dt || Date.now());
+        var nowD = new Date();
+        var isSameDay = lastD.getFullYear() === nowD.getFullYear() && lastD.getMonth() === nowD.getMonth() && lastD.getDate() === nowD.getDate();
+        if (isSameDay) {
+          lastR.close = livePx;
+          lastR.c = livePx;
+          lastR.high = Math.max(lastR.high || livePx, livePx);
+          lastR.low = Math.min(lastR.low || livePx, livePx);
+        } else if (nowD > lastD) {
+          var prevClose = Number(lastR.close || lastR.c || livePx);
+          realRows.push({
+            date: nowD.toISOString().slice(0, 10),
+            dt: nowD,
+            open: prevClose,
+            high: Math.max(prevClose, livePx),
+            low: Math.min(prevClose, livePx),
+            close: livePx,
+            c: livePx,
+            volume: 1000000
+          });
+        }
+      }
       var slice = realRows.slice(-days);
       var obv = 0, ad = 0;
       var out = slice.map(function(r) {
@@ -248,6 +274,16 @@ function fsGenData(tk,days){
     o = fsRoundTick(o); h = fsRoundTick(h); l = fsRoundTick(l); c = fsRoundTick(c);
     data.push({dt:dt, o:o, h:h, l:l, c:c, v:v, obv:obv, ad:ad, mfv:mfm*v, big:big, up:c>=o, mfm:mfm});
     price = c;
+  }
+  if (data.length > 0 && price > 0 && base > 0 && price !== base) {
+    var scale = base / price;
+    data.forEach(function(d) {
+      d.o = fsRoundTick(d.o * scale);
+      d.h = fsRoundTick(d.h * scale);
+      d.l = fsRoundTick(d.l * scale);
+      d.c = fsRoundTick(d.c * scale);
+    });
+    data[data.length - 1].c = base;
   }
   data.simulated = true; // KNOWN_ISSUES.md #2 — this whole series is the seeded random-walk fallback, not real OHLCV
   return data;

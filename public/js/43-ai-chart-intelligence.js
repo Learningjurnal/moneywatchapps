@@ -96,11 +96,27 @@ function buildAiSharedMarketContext(ticker, timeframe) {
     isSimulated = true; // satu candle datar dari harga terakhir, bukan OHLCV riil
   }
 
+  var globalPx = (typeof getGlobalMarketPrice === 'function') ? getGlobalMarketPrice(tk) : ((typeof prices !== 'undefined' && prices[tk]) ? Number(prices[tk]) : 0);
+  var globalChg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk) : ((typeof changes !== 'undefined' && changes[tk]) ? Number(changes[tk]) : 0);
+
+  // Sync latest candle with global live market price
+  if (globalPx > 0 && ohlcv.length > 0) {
+    var lastCandle = ohlcv[ohlcv.length - 1];
+    if (lastCandle.c !== globalPx) {
+      lastCandle.c = globalPx;
+      lastCandle.close = globalPx;
+      lastCandle.h = Math.max(lastCandle.h, globalPx);
+      lastCandle.high = Math.max(lastCandle.high, globalPx);
+      lastCandle.l = Math.min(lastCandle.l, globalPx);
+      lastCandle.low = Math.min(lastCandle.low, globalPx);
+    }
+  }
+
   var closePrices = ohlcv.map(function(d) { return d.c; });
-  var curPrice = closePrices[closePrices.length - 1] || 5000;
+  var curPrice = globalPx > 0 ? globalPx : (closePrices[closePrices.length - 1] || 5000);
   var prevPrice = closePrices[closePrices.length - 2] || curPrice;
-  var chg = curPrice - prevPrice;
-  var chgPct = prevPrice > 0 ? (chg / prevPrice * 100) : 0;
+  var chg = globalPx > 0 ? (globalPx - prevPrice) : (curPrice - prevPrice);
+  var chgPct = (globalPx > 0 && globalChg !== 0) ? globalChg : (prevPrice > 0 ? (chg / prevPrice * 100) : 0);
 
   // Indicators: RSI, MA20, MA50, CMF
   var rsi = calculateAiRsi(closePrices, 14);

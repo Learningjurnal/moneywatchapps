@@ -98,13 +98,18 @@ function rdFetchYahoo(tk, cb, pi){
         var pts = (json && json.points && Array.isArray(json.points)) ? json.points : null;
         if(!pts || pts.length < 15) throw new Error('TOO_FEW');
         var rows = pts.map(function(p){
+          var c = Number(p.close !== undefined ? p.close : (p.c !== undefined ? p.c : 0));
+          var o = Number(p.open !== undefined ? p.open : (p.o !== undefined ? p.o : c));
+          var h = Number(p.high !== undefined ? p.high : (p.h !== undefined ? p.h : Math.max(o, c)));
+          var l = Number(p.low !== undefined ? p.low : (p.l !== undefined ? p.l : Math.min(o, c)));
+          var v = Number(p.volume !== undefined ? p.volume : (p.v !== undefined ? p.v : 0));
           return {
             date: p.date || (p.t ? new Date(p.t).toISOString().slice(0,10) : ''),
-            open: p.open || p.close || 0,
-            high: p.high || p.close || 0,
-            low: p.low || p.close || 0,
-            close: p.close || 0,
-            volume: p.volume || 0
+            open: o,
+            high: h,
+            low: l,
+            close: c,
+            volume: v
           };
         }).filter(function(r){ return r.close > 0; });
         if(rows.length < 15) throw new Error('TOO_FEW_FILTERED');

@@ -1563,6 +1563,24 @@ function techFetchData(tickerOverride, force) {
 
   // Render the currently active tab immediately for maximum responsiveness
   techSwitchTab(TECH_DATA.activeTab || 1, force !== undefined ? force : tickerChanged);
+
+  // Live quote sync: fetch live price so prices[cleanCode] is always synchronized across all tabs
+  if (typeof fetch === 'function' && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+    fetch('/api/idx/quote/' + encodeURIComponent(cleanCode))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(q) {
+        if (q && q.price > 0) {
+          if (typeof syncGlobalMarketQuote === 'function') {
+            syncGlobalMarketQuote(cleanCode, q);
+          }
+          var mLive = document.getElementById('tech-sm360-mount');
+          if (mLive && typeof renderStockMaster360Nav === 'function') {
+            mLive.innerHTML = renderStockMaster360Nav('technical', cleanCode, q);
+          }
+        }
+      })
+      .catch(function() {});
+  }
 }
 
 // FIX: subscribe ke GLOBAL_STOCK_CONTEXT supaya halaman Technical selalu sync
@@ -1646,6 +1664,14 @@ function techRenderMainChart(ticker) {
   var prevPrice = Number(closePrices[closePrices.length - 2]) || curPrice;
   var chg = curPrice - prevPrice;
   var chgPct = prevPrice > 0 ? (chg / prevPrice * 100) : 0;
+
+  var livePx = (typeof getGlobalMarketPrice === 'function') ? getGlobalMarketPrice(ticker) : 0;
+  var liveChg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(ticker) : 0;
+  if (livePx > 0) {
+    curPrice = livePx;
+    chg = livePx - prevPrice;
+    if (liveChg !== 0) chgPct = liveChg;
+  }
 
   var bVwapInfo = (typeof calculateBandarVwap === 'function') ? calculateBandarVwap(ticker) : null;
   var bVwapHtml = (bVwapInfo && bVwapInfo.available)
@@ -1865,9 +1891,14 @@ function techRunFlowScanTab(ticker) {
   // 1. Metric Cards
   var cardsEl = document.getElementById('tech-fs-cards');
   if (cardsEl) {
+    var livePx = (typeof getGlobalMarketPrice === 'function') ? getGlobalMarketPrice(tk) : 0;
+    var liveChg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk) : 0;
+    var displayPx = (livePx > 0) ? livePx : Number(last.c);
+    var displayChg = (livePx > 0 && liveChg !== 0) ? liveChg : chg;
+
     cardsEl.innerHTML = ''
       + '<div class="metric"><div class="mlabel">Saham</div><div class="mval" style="font-size:20px">' + tk + '</div><div class="msub neu">' + info.s + '</div></div>'
-      + '<div class="metric"><div class="mlabel">Harga Terakhir</div><div class="mval" style="font-size:18px">Rp ' + Number(last.c).toLocaleString('id-ID') + '</div><div class="msub ' + (chg >= 0 ? 'up' : 'dn') + '">' + (chg >= 0 ? '▲' : '▼') + Math.abs(chg).toFixed(2) + '%</div></div>'
+      + '<div class="metric"><div class="mlabel">Harga Terakhir</div><div class="mval" style="font-size:18px">Rp ' + Number(displayPx).toLocaleString('id-ID') + '</div><div class="msub ' + (displayChg >= 0 ? 'up' : 'dn') + '">' + (displayChg >= 0 ? '▲' : '▼') + Math.abs(displayChg).toFixed(2) + '%</div></div>'
       + '<div class="metric"><div class="mlabel">Sinyal Bandar</div><div style="margin-top:6px"><span class="badge ' + (a.sig === 'AKUMULASI' ? 'b-up' : a.sig === 'DISTRIBUSI' ? 'b-dn' : 'b-neu') + '"><i class="ti ' + (a.sig === 'AKUMULASI' ? 'ti-trending-up' : a.sig === 'DISTRIBUSI' ? 'ti-trending-down' : 'ti-minus') + '"></i> ' + a.sig + '</span></div><div class="msub neu">' + a.str + '</div></div>'
       + '<div class="metric"><div class="mlabel">Skor Big Money</div><div class="mval" style="color:' + (a.sc >= 58 ? '#10B981' : a.sc <= 42 ? '#EF4444' : '#60A5FA') + '">' + a.sc + '/100</div><div class="msub"><div class="prog"><div class="progf" style="width:' + a.sc + '%;background:' + (a.sc >= 58 ? '#10B981' : a.sc <= 42 ? '#EF4444' : '#60A5FA') + '"></div></div></div></div>'
       + '<div class="metric"><div class="mlabel">Net Vol Institusi</div><div class="mval ' + (net >= 0 ? 'up' : 'dn') + '">' + (net >= 0 ? '+' : '') + (typeof fsV === 'function' ? fsV(Math.abs(net)) : (net / 1e6).toFixed(1) + 'Jt') + '</div><div class="msub neu">' + (a.bu || 0) + ' acc / ' + (a.bd || 0) + ' dist hari</div></div>';
