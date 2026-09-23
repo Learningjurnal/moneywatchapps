@@ -7550,13 +7550,14 @@ await asyncTest('REGRESSION GUARD: OpenRouter backup provider — config gating,
   assert(routeStart !== -1, "/api/ai/agent-chat route not found");
   const routeEnd = fullSrc.indexOf('\napp.', routeStart + 10);
   const routeSrc = fullSrc.slice(routeStart, routeEnd === -1 ? routeStart + 20000 : routeEnd);
+  const geminiCatchIdx = routeSrc.indexOf('gracefully routing to Anthropic backup engine');
   const claudeCatchIdx = routeSrc.indexOf('gracefully routing to backup engine');
   const openRouterCallIdx = routeSrc.indexOf('callOpenRouterAgentLoop(message, history, userContext, executedTools)');
   const deterministicIdx = routeSrc.indexOf('DETERMINISTIC AGENTIC ENGINE FALLBACK');
-  assert(claudeCatchIdx !== -1 && openRouterCallIdx !== -1 && deterministicIdx !== -1,
-    'REGRESSION: one of the 3 provider-chain markers (Claude catch / OpenRouter call / deterministic fallback) is missing from /api/ai/agent-chat — has the chain been restructured?');
-  assert(claudeCatchIdx < openRouterCallIdx && openRouterCallIdx < deterministicIdx,
-    'REGRESSION: /api/ai/agent-chat no longer tries providers in order Claude -> OpenRouter -> deterministic — this must never be reordered (OpenRouter before Claude defeats the point of Claude being the primary, lower-latency path; deterministic before OpenRouter would skip a configured backup entirely)');
+  assert(geminiCatchIdx !== -1 && claudeCatchIdx !== -1 && openRouterCallIdx !== -1 && deterministicIdx !== -1,
+    'REGRESSION: one of the 4 provider-chain markers (Gemini catch / Claude catch / OpenRouter call / deterministic fallback) is missing from /api/ai/agent-chat — has the chain been restructured?');
+  assert(geminiCatchIdx < claudeCatchIdx && claudeCatchIdx < openRouterCallIdx && openRouterCallIdx < deterministicIdx,
+    'REGRESSION: /api/ai/agent-chat no longer tries providers in order Gemini -> Claude -> OpenRouter -> deterministic — user explicitly requested Gemini as primary, Anthropic & OpenRouter as backups');
 
   // /api/ai/status must honestly report the backup's configured state too
   // (same "status as-is, never calls the real API" pattern as `available`).
@@ -7565,6 +7566,106 @@ await asyncTest('REGRESSION GUARD: OpenRouter backup provider — config gating,
   const statusSrc = fullSrc.slice(statusStart, statusEnd);
   assert(/backupAvailable/.test(statusSrc) && /backupModel/.test(statusSrc),
     'REGRESSION: GET /api/ai/status no longer reports backupAvailable/backupModel — the toolbar "AI Engine" indicator can no longer distinguish "OpenRouter backup configured" from "no AI configured at all"');
+  assert(/geminiAvailable/.test(statusSrc) && /geminiModel/.test(statusSrc),
+    'REGRESSION: GET /api/ai/status no longer reports geminiAvailable/geminiModel');
+});
+
+// ── TEST: Google Gemini Primary Provider (2026-09-23, user-requested:
+// "jadikan yang utama, anthropic dan openrouter menjadi backup")
+await asyncTest('REGRESSION GUARD: Google Gemini primary provider — config gating, REST loop, and 4-tier fallback chain (2026-09-23)', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+
+  // 1. getGeminiConfig() gating & defaults
+  const configStart = fullSrc.indexOf('function getGeminiConfig()');
+  assert(configStart !== -1, 'getGeminiConfig() not found in server.js');
+  let configSrc = fullSrc.slice(configStart);
+  configSrc = configSrc.slice(0, configSrc.indexOf('\n// OpenRouter backup'));
+  const configSandbox = { process: { env: {} } };
+  vm.createContext(configSandbox);
+  vm.runInContext(configSrc, configSandbox, { filename: 'server.js getGeminiConfig() sandbox' });
+  assert.strictEqual(configSandbox.getGeminiConfig(), null,
+    'REGRESSION: getGeminiConfig() must return null when GEMINI_API_KEY is unset');
+
+  const configSandbox2 = { process: { env: { GEMINI_API_KEY: 'AIza-test-123' } } };
+  vm.createContext(configSandbox2);
+  vm.runInContext(configSrc, configSandbox2, { filename: 'server.js getGeminiConfig() default model sandbox' });
+  const cfg2 = configSandbox2.getGeminiConfig();
+  assert(cfg2 && cfg2.apiKey === 'AIza-test-123', 'REGRESSION: getGeminiConfig() must read GEMINI_API_KEY');
+  assert.strictEqual(cfg2.model, 'gemini-2.5-flash', 'REGRESSION: getGeminiConfig() must default to gemini-2.5-flash');
+
+  const configSandbox3 = { process: { env: { GEMINI_API_KEY: 'AIza-test-123', GEMINI_MODEL: 'gemini-2.0-flash' } } };
+  vm.createContext(configSandbox3);
+  vm.runInContext(configSrc, configSandbox3, { filename: 'server.js getGeminiConfig() model override sandbox' });
+  assert.strictEqual(configSandbox3.getGeminiConfig().model, 'gemini-2.0-flash', 'REGRESSION: getGeminiConfig() must honor GEMINI_MODEL override');
+
+  // 2. callGeminiAgentLoop sandbox verification
+  const loopStart = fullSrc.indexOf('async function callGeminiAgentLoop(');
+  assert(loopStart !== -1, 'callGeminiAgentLoop() not found in server.js');
+  const loopEnd = fullSrc.indexOf('\nconst SYSTEM_INSTRUCTION_MONEYWATCH_AI', loopStart);
+  const loopSrc = fullSrc.slice(loopStart, loopEnd);
+
+  const fakeDeclarations = [{ name: 'cek_harga', description: 'test', parameters: { type: 'OBJECT', properties: { ticker: { type: 'STRING', description: 'kode' } }, required: ['ticker'] } }];
+  const fetchCalls = [];
+  let fetchCallCount = 0;
+  const executedToolCalls = [];
+  const loopSandbox = {
+    AGENT_TOOL_DECLARATIONS: fakeDeclarations,
+    SYSTEM_INSTRUCTION_MONEYWATCH_AI: 'test system prompt',
+    withTimeout: (p) => p,
+    getGeminiConfig: () => ({ apiKey: 'AIza-test-123', model: 'gemini-2.5-flash' }),
+    executeAgentTool: async (name, args) => {
+      executedToolCalls.push({ name, args });
+      return { ticker: args.ticker, price: 9100 };
+    },
+    fetch: async (url, opts) => {
+      fetchCallCount++;
+      fetchCalls.push({ url, body: JSON.parse(opts.body) });
+      if (fetchCallCount === 1) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            candidates: [{
+              content: {
+                role: 'model',
+                parts: [{
+                  functionCall: {
+                    name: 'cek_harga',
+                    args: { ticker: 'BBCA' }
+                  }
+                }]
+              }
+            }]
+          })
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{
+            content: {
+              role: 'model',
+              parts: [{ text: 'Harga saham BBCA adalah Rp 9.100.' }]
+            }
+          }]
+        })
+      };
+    }
+  };
+  vm.createContext(loopSandbox);
+  vm.runInContext(loopSrc, loopSandbox, { filename: 'server.js callGeminiAgentLoop() sandbox' });
+
+  const executedTools = [];
+  const result = await loopSandbox.callGeminiAgentLoop('cek harga BBCA', [], {}, executedTools);
+  assert.strictEqual(fetchCallCount, 2, 'REGRESSION: callGeminiAgentLoop() must execute 2 turns (tool call then final text answer)');
+  assert(fetchCalls[0].url.includes('gemini-2.5-flash:generateContent'), 'REGRESSION: callGeminiAgentLoop() must call Gemini generateContent endpoint');
+  assert(fetchCalls[0].url.includes('key=AIza-test-123'), 'REGRESSION: callGeminiAgentLoop() must send API key query parameter');
+  assert.strictEqual(executedToolCalls.length, 1, 'REGRESSION: tool was not executed');
+  assert.strictEqual(executedToolCalls[0].args.ticker, 'BBCA');
+  assert.strictEqual(executedTools.length, 1);
+  assert.strictEqual(result.reply, 'Harga saham BBCA adalah Rp 9.100.');
+  assert.strictEqual(result.usedModel, 'gemini-2.5-flash');
 });
 // FIX (2026-09-20, user-requested: "untuk news pakai API 9router sebagai
 // utama dan anthropic sebagai backup, agar news tidak kosong saat credit

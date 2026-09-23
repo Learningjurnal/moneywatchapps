@@ -824,6 +824,18 @@ function getAiClient() {
 
 const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
 
+// Google Gemini primary provider config (2026-09-23, user-requested: "jadikan yang utama,
+// anthropic dan openrouter menjadi backup"). Menggunakan official Google GenAI REST API
+// (v1beta generateContent) via Node.js native fetch tanpa external dependency.
+function getGeminiConfig() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+  };
+}
+
 // OpenRouter backup provider config (2026-09-19, user-requested: "anthropic
 // key bisakah di gabungkan dengan API openrouter, supaya bisa saling
 // backup"). Sengaja HANYA dipakai kalau panggilan Anthropic langsung di
@@ -888,6 +900,72 @@ async function callClaudeWithRetry(ai, requestConfig, options = {}) {
   }
 
   throw lastError || new Error('Claude API mengalami lonjakan permintaan (429/5xx).');
+}
+
+// Robust helper untuk pemanggilan Gemini non-agentic (teks/refleksi/analisa portofolio)
+// dengan automatic retry dan model-candidate fallback.
+async function callGeminiTextWithRetry(prompt, options = {}) {
+  const config = getGeminiConfig();
+  if (!config) throw new Error('GEMINI_NOT_CONFIGURED');
+  const timeoutMs = options.timeoutMs || 15000;
+  const maxRetries = options.maxRetries ?? 2;
+  const candidateModels = [config.model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
+
+  let lastError = null;
+  for (const model of uniqueModels) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const body = {
+          contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        };
+        if (options.system) {
+          body.systemInstruction = { parts: [{ text: options.system }] };
+        }
+        if (options.tools) {
+          body.tools = options.tools;
+        }
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
+        const resp = await withTimeout(
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }),
+          timeoutMs
+        );
+
+        if (resp.status === 404) {
+          break; // Model tidak tersedia di tier API key ini, coba kandidat model lain
+        }
+
+        if (!resp.ok) {
+          const errText = await resp.text();
+          throw new Error(`GEMINI_HTTP_${resp.status}: ${errText}`);
+        }
+
+        const data = await resp.json();
+        const candidate = data && data.candidates && data.candidates[0];
+        const text = (candidate?.content?.parts || [])
+          .filter(p => p.text)
+          .map(p => p.text)
+          .join('\n');
+        return { text, usedModel: model, rawData: data };
+      } catch (err) {
+        lastError = err;
+        const msg = String(err?.message || err);
+        const isRetryable = msg.includes('429') || msg.includes('503') || msg.includes('AI_REQUEST_TIMEOUT');
+        if (isRetryable && attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 400));
+          continue;
+        }
+        break;
+      }
+    }
+  }
+
+  throw lastError || new Error('Gemini API mengalami gangguan.');
 }
 
 // Shared reply post-processing for /api/ai/agent-chat's success paths
@@ -1237,13 +1315,13 @@ app.get('/api/sectoral-news', async (req, res) => {
 });
 app.post('/api/ai/portfolio-advice', aiRateLimiter, async (req, res) => {
   const { portfolioSummary, metrics, hfMetrics, ihsg } = req.body || {};
+  const geminiConfig = getGeminiConfig();
   const ai = getAiClient();
-  if (!ai) {
-    return res.status(400).json({ success: false, error: 'ANTHROPIC_API_KEY belum dikonfigurasi di server.' });
+  if (!geminiConfig && !ai) {
+    return res.status(400).json({ success: false, error: 'GEMINI_API_KEY atau ANTHROPIC_API_KEY belum dikonfigurasi di server.' });
   }
 
-  try {
-    const prompt = `Anda adalah seorang hedge fund portfolio manager dan analis saham senior IDX yang sangat tajam, objektif, dan profesional.
+  const prompt = `Anda adalah seorang hedge fund portfolio manager dan analis saham senior IDX yang sangat tajam, objektif, dan profesional.
 Analisis data portofolio investor Indonesia berikut ini secara mendalam ala tearsheet institusional:
 - Ringkasan AUM & Modal: ${JSON.stringify(portfolioSummary || {})}
 - Metrik Risiko & Portofolio: ${JSON.stringify(metrics || {})}
@@ -1259,28 +1337,55 @@ Berikan analisis terstruktur dalam Bahasa Indonesia yang tegas dan berbobot deng
 
 Gunakan format markdown yang rapi, tegas, dan profesional. Tutup dengan disclaimer bahwa ini bukan rekomendasi investasi mutlak.`;
 
-    const { response } = await callClaudeWithRetry(
-      ai,
-      {
-        max_tokens: 4096,
-        tools: [{ type: 'web_search_20260209', name: 'web_search' }],
-        messages: [{ role: 'user', content: prompt }]
-      },
-      { timeoutMs: 15000, maxRetries: 2 }
-    );
-
-    const text = claudeExtractText(response);
-    const groundingChunks = claudeExtractGroundingChunks(response);
-
-    return res.json({
-      success: true,
-      analysis: text,
-      grounded: groundingChunks.length > 0
-    });
-  } catch (err) {
-    console.error('Claude portfolio advice error:', err);
-    return res.status(500).json({ success: false, error: err.message || 'Gagal menghasilkan analisis AI.' });
+  // 1. Coba Gemini terlebih dahulu (Primary)
+  if (geminiConfig) {
+    try {
+      const { text, rawData } = await callGeminiTextWithRetry(prompt, {
+        timeoutMs: 20000,
+        maxRetries: 1,
+        tools: [{ googleSearch: {} }]
+      });
+      if (text) {
+        const hasGrounding = !!(rawData?.candidates?.[0]?.groundingMetadata?.groundingChunks?.length);
+        return res.json({
+          success: true,
+          analysis: text,
+          grounded: hasGrounding
+        });
+      }
+    } catch (geminiErr) {
+      console.warn('Gemini portfolio advice notice, mencoba Claude sebagai cadangan:', geminiErr?.message || geminiErr);
+    }
   }
+
+  // 2. Coba Claude (Backup)
+  if (ai) {
+    try {
+      const { response } = await callClaudeWithRetry(
+        ai,
+        {
+          max_tokens: 4096,
+          tools: [{ type: 'web_search_20260209', name: 'web_search' }],
+          messages: [{ role: 'user', content: prompt }]
+        },
+        { timeoutMs: 15000, maxRetries: 2 }
+      );
+
+      const text = claudeExtractText(response);
+      const groundingChunks = claudeExtractGroundingChunks(response);
+
+      return res.json({
+        success: true,
+        analysis: text,
+        grounded: groundingChunks.length > 0
+      });
+    } catch (err) {
+      console.error('Claude portfolio advice error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Gagal menghasilkan analisis AI.' });
+    }
+  }
+
+  return res.status(500).json({ success: false, error: 'Gagal menghasilkan analisis AI dari seluruh provider.' });
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -2247,6 +2352,155 @@ async function callOpenRouterAgentLoop(message, history, userContext, executedTo
   throw new Error('OPENROUTER_MAX_ITERATIONS_EXCEEDED');
 }
 
+// Google Gemini Agentic Loop via official v1beta generateContent REST API
+// (2026-09-23, user-requested: "jadikan yang utama, anthropic dan openrouter menjadi backup").
+// AGENT_TOOL_DECLARATIONS di atas adalah skema asli Gemini (uppercase JSON types,
+// parameters.properties) yang dipakai langsung tanpa perlu konversi format.
+async function callGeminiAgentLoop(message, history, userContext, executedTools) {
+  const config = getGeminiConfig();
+  if (!config) throw new Error('GEMINI_NOT_CONFIGURED');
+
+  const candidateModels = [config.model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
+
+  // Map history to Gemini format: { role: 'user' | 'model', parts: [{ text }] }
+  const rawContents = [];
+  (history || []).slice(-8).forEach(h => {
+    if (h.role === 'user' || h.role === 'assistant' || h.role === 'model') {
+      const textContent = (h.text || h.content || '').trim();
+      if (textContent) {
+        rawContents.push({
+          role: (h.role === 'assistant' || h.role === 'model') ? 'model' : 'user',
+          parts: [{ text: textContent }]
+        });
+      }
+    }
+  });
+
+  // Gemini API requires first turn to be 'user'
+  while (rawContents.length > 0 && rawContents[0].role !== 'user') {
+    rawContents.shift();
+  }
+
+  // Ensure alternating roles
+  const contents = [];
+  let prevRole = null;
+  for (const c of rawContents) {
+    if (c.role !== prevRole) {
+      contents.push(c);
+      prevRole = c.role;
+    }
+  }
+
+  // Append current user message
+  const userMsg = message.trim();
+  if (prevRole === 'user') {
+    contents.push({ role: 'model', parts: [{ text: 'Baik, mari kita analisa pertanyaan Anda.' }] });
+  }
+  contents.push({ role: 'user', parts: [{ text: userMsg }] });
+
+  let currentIteration = 0;
+  const maxIterations = 5;
+  let activeModel = config.model;
+
+  while (currentIteration < maxIterations) {
+    currentIteration++;
+
+    let resp = null;
+    let lastErr = null;
+
+    for (const m of uniqueModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
+        const body = {
+          systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION_MONEYWATCH_AI }] },
+          contents: contents,
+          tools: [{ functionDeclarations: AGENT_TOOL_DECLARATIONS }]
+        };
+
+        const res = await withTimeout(
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }),
+          20000
+        );
+
+        if (res.status === 404) {
+          continue; // Try next candidate model
+        }
+
+        resp = res;
+        activeModel = m;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+
+    if (!resp) {
+      throw lastErr || new Error('GEMINI_API_UNAVAILABLE');
+    }
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      let errJson = null;
+      try { errJson = JSON.parse(errText); } catch (_) {}
+      const errMsg = errJson?.error?.message || `GEMINI_HTTP_${resp.status}: ${errText}`;
+      const err = new Error(errMsg);
+      err.status = resp.status;
+      throw err;
+    }
+
+    const data = await resp.json();
+    const candidate = data && data.candidates && data.candidates[0];
+    if (!candidate || !candidate.content) {
+      throw new Error('GEMINI_EMPTY_RESPONSE');
+    }
+
+    const parts = candidate.content.parts || [];
+    const functionCalls = [];
+    for (const p of parts) {
+      if (p.functionCall) {
+        functionCalls.push(p.functionCall);
+      }
+    }
+
+    if (functionCalls.length > 0) {
+      contents.push(candidate.content);
+
+      const responseParts = [];
+      for (const call of functionCalls) {
+        const toolResult = await executeAgentTool(call.name, call.args || {}, userContext);
+        executedTools.push({
+          name: call.name,
+          args: call.args || {},
+          result: toolResult
+        });
+        responseParts.push({
+          functionResponse: {
+            name: call.name,
+            response: { output: toolResult }
+          }
+        });
+      }
+
+      contents.push({
+        role: 'user',
+        parts: responseParts
+      });
+
+      continue;
+    }
+
+    const text = parts.filter(p => p.text).map(p => p.text).join('\n');
+    return { reply: text || '', usedModel: activeModel };
+  }
+
+  throw new Error('GEMINI_MAX_ITERATIONS_EXCEEDED');
+}
+
 const SYSTEM_INSTRUCTION_MONEYWATCH_AI = `Anda adalah "MoneyWatch Pro AI & StockChat", asisten analis portofolio multi-aset kelas institusional dan pakar Bandarmology & Value Investing pasar modal Indonesia (IHSG/BEI).
 
 KNOWLEDGE BASE & STRATEGI TRADING/INVESTASI INSTITUSIONAL:
@@ -2311,26 +2565,25 @@ ALUR KERJA (AGENTIC LOOP):
 - Evaluasi hasil data dan sajikan jawaban terstruktur yang mencakup data, strategi trading/investasi yang sesuai, kepatuhan BEI/pajak, analisis dua sisi (potensi vs risiko), dan disclaimer.`;
 
 // GET /api/ai/status — status APA ADANYA dari AI Engine untuk indikator
-// toolbar "AI Engine Live" (public/index.html bottom-toolbar). Sebelumnya
-// indikator itu HTML statis (dot hijau + teks "Live" hardcoded, tidak
-// pernah dicek) — ditemukan lewat audit (2026-09-17, INCIDENT_LOG.md) dan
-// dikonfirmasi menyesatkan: di lingkungan mana pun ANTHROPIC_API_KEY tidak
-// terkonfigurasi, StockChat/Copilot diam-diam jatuh ke fallback
-// deterministik (lihat catch block di /api/ai/agent-chat di atas), tapi
-// toolbar tetap mengklaim "Live". Endpoint ini TIDAK memanggil Claude API
-// sama sekali — getAiClient() hanya mengecek keberadaan env var/instansiasi
-// SDK, jadi instan & gratis, aman dipanggil tiap boot halaman.
+// toolbar "AI Engine Live" (public/index.html bottom-toolbar). Mendukung
+// hierarki provider 3-tingkat: Gemini (Utama) -> Anthropic Claude (Backup 1) ->
+// OpenRouter (Backup 2). Endpoint ini TIDAK memanggil API eksternal sungguhan
+// (hanya mengecek ketersediaan env var/instansiasi SDK sehingga instan & gratis).
 app.get('/api/ai/status', (req, res) => {
-  const available = !!getAiClient();
-  // backupAvailable: OPENROUTER_API_KEY dikonfigurasi (2026-09-19,
-  // fitur backup provider) — status APA ADANYA yang sama seperti
-  // `available` di atas, TIDAK memanggil OpenRouter sungguhan (gratis &
-  // instan, sama seperti getAiClient() untuk Anthropic).
+  const geminiConfig = getGeminiConfig();
+  const anthropicAvailable = !!getAiClient();
   const backupConfig = getOpenRouterConfig();
+  const geminiAvailable = !!geminiConfig;
+
   res.json({
     success: true,
-    available,
-    model: available ? CLAUDE_MODEL : null,
+    available: geminiAvailable || anthropicAvailable,
+    model: geminiAvailable ? geminiConfig.model : (anthropicAvailable ? CLAUDE_MODEL : null),
+    provider: geminiAvailable ? 'gemini' : (anthropicAvailable ? 'anthropic' : (backupConfig ? 'openrouter' : 'deterministic')),
+    geminiAvailable,
+    geminiModel: geminiConfig ? geminiConfig.model : null,
+    anthropicAvailable,
+    anthropicModel: anthropicAvailable ? CLAUDE_MODEL : null,
     backupAvailable: !!backupConfig,
     backupModel: backupConfig ? backupConfig.model : null
   });
@@ -2345,16 +2598,22 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
   }
 
   const executedTools = [];
-  const ai = getAiClient();
 
-  // 1. IF CLAUDE API IS CONFIGURED: RUN MULTI-TURN TOOL CALLING LOOP
-  // FIX (2026-09-12, provider migration): was Gemini's functionCalls/
-  // functionResponse protocol (parts[]/contents[], role 'model'). Claude's
-  // Messages API uses tool_use/tool_result content blocks instead — an
-  // assistant turn that wants a tool returns stop_reason:'tool_use' with
-  // one or more tool_use blocks in response.content; the reply is a single
-  // user message carrying ALL matching tool_result blocks together (never
-  // split across messages — see Anthropic's parallel-tool-use guidance).
+  // 1. PRIMARY: GOOGLE GEMINI MULTI-TURN TOOL CALLING LOOP
+  // (2026-09-23, user-requested: "jadikan yang utama, anthropic dan openrouter menjadi backup")
+  const geminiConfig = getGeminiConfig();
+  if (geminiConfig) {
+    try {
+      const { reply, usedModel } = await callGeminiAgentLoop(message, history, userContext, executedTools);
+      return res.json(finalizeAgentChatResponse(reply, executedTools, (usedModel || 'Gemini') + ' Agentic Loop'));
+    } catch (geminiError) {
+      console.warn('Gemini Agent loop notice, gracefully routing to Anthropic backup engine:', geminiError?.message || geminiError);
+      // Fall through to Anthropic Claude backup below
+    }
+  }
+
+  // 2. BACKUP 1: CLAUDE MULTI-TURN TOOL CALLING LOOP
+  const ai = getAiClient();
   if (ai) {
     try {
       // Build conversation history in Claude's {role, content} shape
@@ -2819,13 +3078,7 @@ app.post('/api/ai/signal-reflection', aiRateLimiter, async (req, res) => {
     return `Sinyal ${arah} untuk ${ticker} menghasilkan return riil ${rawReturnPct.toFixed(2)}% (IHSG periode sama: ${(benchmarkReturnPct || 0).toFixed(2)}%, alpha ${(alphaReturnPct || 0).toFixed(2)}%) — pergerakan ${hasil}. Refleksi ini dihasilkan dari template deterministik (Claude API tidak tersedia saat resolusi), bukan analisis kontekstual penuh.`;
   }
 
-  const ai = getAiClient();
-  if (!ai) {
-    return res.json({ success: true, reflection: templateReflection(), model: 'template-fallback' });
-  }
-
-  try {
-    const prompt = `Anda menganalisis HASIL AKTUAL sebuah sinyal teknikal masa lalu untuk pembelajaran (post-mortem) — ini BUKAN permintaan rekomendasi baru, jangan sarankan aksi apa pun.
+  const prompt = `Anda menganalisis HASIL AKTUAL sebuah sinyal teknikal masa lalu untuk pembelajaran (post-mortem) — ini BUKAN permintaan rekomendasi baru, jangan sarankan aksi apa pun.
 
 Data sinyal:
 - Ticker: ${ticker}
@@ -2840,17 +3093,38 @@ ${rationale ? '- Rasionalisasi sinyal saat itu: ' + rationale : ''}
 
 Tulis refleksi 2-4 kalimat bahasa Indonesia: apakah sinyal ini terbukti benar, seberapa besar kontribusi arah pasar umum (IHSG) vs kekuatan spesifik ticker (alpha), dan satu pelajaran objektif dari hasil ini. Jangan mengulang angka yang sudah disebutkan di atas kata demi kata — sintesiskan maknanya.`;
 
-    const { response, usedModel } = await callClaudeWithRetry(
-      ai,
-      { max_tokens: 300, messages: [{ role: 'user', content: prompt }] },
-      { timeoutMs: 12000, maxRetries: 1 }
-    );
-    const text = claudeExtractText(response);
-    return res.json({ success: true, reflection: text || templateReflection(), model: text ? (usedModel || CLAUDE_MODEL) : 'template-fallback' });
-  } catch (err) {
-    console.warn('[AI Signal Reflection] Claude call failed, using template fallback:', err?.message || err);
-    return res.json({ success: true, reflection: templateReflection(), model: 'template-fallback' });
+  // 1. Coba Gemini terlebih dahulu (Provider Utama)
+  if (getGeminiConfig()) {
+    try {
+      const { text, usedModel } = await callGeminiTextWithRetry(prompt, { timeoutMs: 12000, maxRetries: 1 });
+      if (text) {
+        return res.json({ success: true, reflection: text, model: usedModel });
+      }
+    } catch (geminiErr) {
+      console.warn('[AI Signal Reflection] Gemini call failed, trying Claude backup:', geminiErr?.message || geminiErr);
+    }
   }
+
+  // 2. Coba Claude (Provider Cadangan)
+  const ai = getAiClient();
+  if (ai) {
+    try {
+      const { response, usedModel } = await callClaudeWithRetry(
+        ai,
+        { max_tokens: 300, messages: [{ role: 'user', content: prompt }] },
+        { timeoutMs: 12000, maxRetries: 1 }
+      );
+      const text = claudeExtractText(response);
+      if (text) {
+        return res.json({ success: true, reflection: text, model: usedModel || CLAUDE_MODEL });
+      }
+    } catch (err) {
+      console.warn('[AI Signal Reflection] Claude call failed, using template fallback:', err?.message || err);
+    }
+  }
+
+  // 3. Fallback template deterministik jika tidak ada AI eksternal yang tersedia
+  return res.json({ success: true, reflection: templateReflection(), model: 'template-fallback' });
 });
 
 
