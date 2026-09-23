@@ -129,7 +129,7 @@ function renderBandarMovementPage() {
             <i class="ti ti-chart-arrows-vertical" style="color:var(--accent,#3B82F6)"></i>
             STEP 6: BANDAR MOVEMENT &amp; FLOW COCKPIT
           </div>
-          <span class="badge badge-primary" style="font-size:11px;font-weight:700;padding:2px 8px">${BM_STATE.ticker}</span>
+          <span id="bm-header-ticker-badge" class="badge badge-primary" style="font-size:11px;font-weight:700;padding:2px 8px">${BM_STATE.ticker}</span>
           <span id="bm-data-status-badge" style="font-size:11px;color:var(--text3)"></span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -248,9 +248,18 @@ function renderBandarMovementPage() {
                 </div>
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:6px">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <!-- Broker Summary Timeframe Switcher -->
+              <div class="btn-group" style="display:inline-flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden">
+                ${['1D', '1W', '1M', '3M'].map(function(tf) {
+                  return '<button type="button" class="btn btn-xs ' + (BM_STATE.timeframe === tf ? 'btn-primary' : 'btn-ghost') + '" onclick="bmSetTimeframe(\'' + tf + '\')" style="font-size:10px;padding:2px 7px">' + tf + '</button>';
+                }).join('')}
+              </div>
               <button type="button" class="btn btn-xs ${BM_STATE.isNet ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleNet()" style="font-size:10px;padding:3px 8px">
-                Net Mode: ${BM_STATE.isNet ? 'ON' : 'OFF'}
+                Net: ${BM_STATE.isNet ? 'ON' : 'OFF'}
+              </button>
+              <button type="button" class="btn btn-xs btn-ghost" onclick="bmLoadData('${BM_STATE.ticker}', true)" title="Muat ulang Broker Summary (${BM_STATE.timeframe})" style="font-size:10px;padding:3px 6px;border:1px solid var(--border2);border-radius:4px">
+                <i class="ti ti-refresh"></i>
               </button>
             </div>
           </div>
@@ -302,6 +311,9 @@ async function bmLoadData(ticker, force) {
   if (!ticker) return;
   BM_STATE.ticker = ticker.toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
 
+  var tkBadge = document.getElementById('bm-header-ticker-badge');
+  if (tkBadge) tkBadge.textContent = BM_STATE.ticker;
+
   var statusBadge = document.getElementById('bm-data-status-badge');
   if (statusBadge) statusBadge.innerHTML = '⏳ Memuat data Bandar Movement...';
 
@@ -309,7 +321,8 @@ async function bmLoadData(ticker, force) {
     var query = '?timeframe=' + encodeURIComponent(BM_STATE.timeframe)
       + '&big_money=' + (BM_STATE.isBigMoney ? 'true' : 'false')
       + '&investor=' + encodeURIComponent(BM_STATE.investor)
-      + '&market=' + encodeURIComponent(BM_STATE.market);
+      + '&market=' + encodeURIComponent(BM_STATE.market)
+      + (force ? '&refresh=true&force=true' : '');
 
     var res = await fetch('/api/idx/bandar-movement/' + encodeURIComponent(BM_STATE.ticker) + query);
     var json = await res.json();
@@ -587,24 +600,41 @@ function bmRenderBrokerSummaryWidget() {
 
   if (!bSummary || !Array.isArray(bSummary.buyers) || !Array.isArray(bSummary.sellers) || (bSummary.buyers.length === 0 && bSummary.sellers.length === 0)) {
     if (gaugeEl) gaugeEl.innerHTML = '';
+    var tfText = (BM_STATE.timeframe && BM_STATE.timeframe !== '1D')
+      ? 'Data Broker Summary periode <b>' + BM_STATE.timeframe + '</b> untuk <b>' + (BM_STATE.ticker || 'emiten ini') + '</b> saat ini belum tersedia dari bursa atau sedang disiapkan.'
+      : 'Data Broker Summary harian (1D) untuk <b>' + (BM_STATE.ticker || 'emiten ini') + '</b> saat ini belum tersedia atau belum dipublikasikan oleh bursa (EOD diterbitkan sore hari pk 17:30 WIB setelah penutupan bursa).';
     tablesEl.innerHTML = '<div style="padding:28px 16px;text-align:center;background:var(--bg3);border:1px dashed var(--border2);border-radius:10px;margin:8px 0">'
       + '<div style="font-size:22px;margin-bottom:8px">📡</div>'
-      + '<div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:4px">Data Broker Summary Belum Tersedia</div>'
-      + '<div style="color:var(--text3);font-size:11.5px;max-width:440px;margin:0 auto;line-height:1.5">Data Broker Summary untuk <b>' + (BM_STATE.ticker || 'emiten ini') + '</b> saat ini tidak tersedia atau belum dipublikasikan oleh bursa (EOD diterbitkan sore hari setelah penutupan bursa).</div>'
+      + '<div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:4px">Data Broker Summary Belum Tersedia (' + BM_STATE.timeframe + ')</div>'
+      + '<div style="color:var(--text3);font-size:11.5px;max-width:440px;margin:0 auto 14px;line-height:1.5">' + tfText + '</div>'
+      + '<button type="button" class="btn btn-sm btn-primary" onclick="bmLoadData(\'' + (BM_STATE.ticker || 'BBCA') + '\', true)" style="display:inline-flex;align-items:center;gap:6px">'
+      + '<i class="ti ti-refresh"></i> Muat Ulang Data (' + BM_STATE.timeframe + ')'
+      + '</button>'
       + '</div>';
     return;
   }
 
   var verdict = (bSummary.bandarmology && bSummary.bandarmology.verdict) || 'NEUTRAL';
-  var score = (bSummary.bandarmology && bSummary.bandarmology.score) || 0;
-  var normPct = Math.max(0, Math.min(100, Math.round(((score + 100) / 200) * 100)));
-  var vColor = score >= 20 ? '#10B981' : (score <= -20 ? '#EF4444' : 'var(--text3)');
+  var rawScore = bSummary.bandarmology && bSummary.bandarmology.score !== undefined ? bSummary.bandarmology.score : 50;
+  var score = Number(rawScore);
+  // Backend computeBandarmologyVerdict outputs score on [0, 100] scale:
+  // 0-15: Big Dist, 30: Normal Dist, 50: Neutral, 75: Normal Acc, 90-100: Big Acc
+  var normPct = Math.max(0, Math.min(100, Math.round(score)));
+  var vColor = score >= 60 ? '#10B981' : (score <= 40 ? '#EF4444' : 'var(--text3)');
+  var scoreLabel = '';
+  if (score > 50) {
+    scoreLabel = `(+${score - 50})`;
+  } else if (score < 50) {
+    scoreLabel = `(${score - 50})`;
+  } else {
+    scoreLabel = '(Net 0)';
+  }
 
   if (gaugeEl) {
     gaugeEl.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
         <span style="color:#EF4444;font-weight:700">Big Dist</span>
-        <span style="color:${vColor};font-weight:800;font-size:12px">${verdict} (${score > 0 ? '+' : ''}${score})</span>
+        <span style="color:${vColor};font-weight:800;font-size:12px">${verdict} ${scoreLabel}</span>
         <span style="color:#10B981;font-weight:700">Big Acc</span>
       </div>
       <div style="position:relative;height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden">
@@ -881,5 +911,26 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined' && typeof d
       }
     }
   });
+}
+
+// Synchronize with GLOBAL_STOCK_CONTEXT (Stock Master 360)
+if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT && typeof window.GLOBAL_STOCK_CONTEXT.subscribe === 'function') {
+  window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk) {
+    if (!tk) return;
+    var clean = String(tk).toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
+    if (clean && clean !== BM_STATE.ticker) {
+      BM_STATE.ticker = clean;
+      var activePage = document.querySelector('.page.on');
+      if (activePage && activePage.id === 'page-bandar-movement') {
+        renderBandarMovementPage();
+      }
+    }
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.BM_STATE = BM_STATE;
+  window.bmLoadData = bmLoadData;
+  window.renderBandarMovementPage = renderBandarMovementPage;
 }
 

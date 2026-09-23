@@ -3607,7 +3607,8 @@ app.get('/api/idx/bandar-movement/:ticker', async (req, res) => {
       isBigMoney,
       investor,
       market,
-      date
+      date,
+      refresh: req.query.refresh === 'true' || req.query.force === 'true'
     });
 
     return res.json({
@@ -3774,7 +3775,7 @@ app.post('/api/idx/quotes', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Tickers array required' });
     }
 
-    const cleanTickers = tickers.slice(0, 30).map(t => String(t).toUpperCase().replace(/\.JK$/i, '').trim());
+    const cleanTickers = tickers.slice(0, 100).map(t => String(t).toUpperCase().replace(/\.JK$/i, '').trim());
     const results = await Promise.allSettled(cleanTickers.map(t => fetchYahooQuote(t)));
 
     const quotes = {};

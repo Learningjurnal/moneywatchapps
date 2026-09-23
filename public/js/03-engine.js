@@ -1475,7 +1475,8 @@ function fhApplyIHSG(price, prev, open, high, low, chg, chgPct){
 // Semua ticker portofolio diambil dalam satu putaran, dijeda 1,5 dtk per request
 // agar tidak membanjiri proxy publik. previousClose disimpan untuk % harian akurat.
 var prevCloses = {};
-function fhFetchStocks(){
+function fhFetchStocks(force){
+  if(force) window._lastPortoQuotesFetch = 0;
   var porto = getPortfolio();
   var codes = porto.length > 0
     ? porto.map(function(p){ return p.ticker; })
@@ -1532,6 +1533,7 @@ function fhFetchStocks(){
           }
         });
         if(updated){
+          window._lastPortoQuotesFetch = Date.now();
           fhSetBadge('live', '● LIVE');
           _triggerRenderAfterPrice();
           return;
@@ -1551,15 +1553,23 @@ function fhFetchStocks(){
       setTimeout(function(){
         yfFetch(code+'.JK', function(err, meta){
           if(!err && meta && meta.regularMarketPrice > 0){
+            var realChg = (typeof meta.fulldayChange === 'number' && !isNaN(meta.fulldayChange)) ? meta.fulldayChange
+                        : (typeof meta.regularMarketChange === 'number' && !isNaN(meta.regularMarketChange)) ? meta.regularMarketChange
+                        : null;
+            var realChgPct = (typeof meta.regularMarketChangePercent === 'number' && !isNaN(meta.regularMarketChangePercent)) ? meta.regularMarketChangePercent
+                           : (typeof meta.fulldayChangePercent === 'number' && !isNaN(meta.fulldayChangePercent)) ? meta.fulldayChangePercent
+                           : null;
+            var prev = (realChg !== null && Math.abs(realChg) > 0.0001) ? (meta.regularMarketPrice - realChg)
+                     : (realChgPct !== null && Math.abs(realChgPct) > 0.0001) ? (meta.regularMarketPrice / (1 + (realChgPct / 100)))
+                     : (meta.previousClose || meta.regularMarketPreviousClose || meta.chartPreviousClose || meta.regularMarketPrice);
+
             prices[code] = meta.regularMarketPrice;
-            // FIX (2026-09-14): chartPreviousClose adalah field yang benar-benar
-            // dikembalikan endpoint chart Yahoo, lihat catatan di fhFetchIHSG().
-            if(meta.chartPreviousClose > 0) prevCloses[code] = meta.chartPreviousClose;
-            else if(meta.previousClose > 0) prevCloses[code] = meta.previousClose;
-            if(prevCloses[code] > 0){
-              var fallbackChg = ((meta.regularMarketPrice - prevCloses[code]) / prevCloses[code]) * 100;
-              if(typeof changes !== 'undefined') changes[code] = fallbackChg;
-            }
+            if(prev > 0) prevCloses[code] = prev;
+            var fallbackChg = (realChgPct !== null)
+              ? realChgPct
+              : ((prev > 0) ? ((meta.regularMarketPrice - prev) / prev * 100) : 0);
+            if(typeof changes !== 'undefined') changes[code] = fallbackChg;
+            window._lastPortoQuotesFetch = Date.now();
             if(typeof DB!=='undefined' && DB[code]) DB[code].base = meta.regularMarketPrice;
             if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
             _triggerRenderAfterPrice();

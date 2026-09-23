@@ -24,8 +24,9 @@ function renderDailyBriefPage() {
   var rdn = typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0;
   var totalMV = porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
   
-  // Trigger fresh quote fetching for portfolio holdings if quotes not yet fetched
-  if (typeof fhFetchStocks === 'function' && porto.length > 0 && (!window.prices || !Object.keys(window.prices).length)) {
+  // Trigger fresh quote fetching for portfolio holdings if quotes not yet fetched or older than 30s
+  var shouldFetchQuotes = porto.length > 0 && (!window.prices || !Object.keys(window.prices).length || !window._lastPortoQuotesFetch || (Date.now() - window._lastPortoQuotesFetch > 30000));
+  if (typeof fhFetchStocks === 'function' && shouldFetchQuotes) {
     try { fhFetchStocks(); } catch(e) {}
   }
   // Trigger fresh live IHSG fetch if not yet fetched
@@ -36,14 +37,13 @@ function renderDailyBriefPage() {
   // Compute dynamic daily change for each portfolio holding
   porto.forEach(function(p) {
     var cur = (typeof prices !== 'undefined' && prices[p.ticker] > 0) ? prices[p.ticker] : (p.mp || p.avg || 0);
-    var prev = (typeof prevCloses !== 'undefined' && prevCloses[p.ticker] > 0) ? prevCloses[p.ticker] : 0;
     var chg = 0;
-    if (cur > 0 && prev > 0) {
-      chg = ((cur - prev) / prev) * 100;
+    if (typeof changes !== 'undefined' && changes[p.ticker] !== undefined && !isNaN(changes[p.ticker])) {
+      chg = Number(changes[p.ticker]);
+    } else if (typeof prevCloses !== 'undefined' && prevCloses[p.ticker] > 0 && cur > 0) {
+      chg = ((cur - prevCloses[p.ticker]) / prevCloses[p.ticker]) * 100;
     } else if (typeof getGlobalMarketChange === 'function') {
       chg = getGlobalMarketChange(p.ticker);
-    } else if (typeof changes !== 'undefined' && changes[p.ticker] !== undefined) {
-      chg = Number(changes[p.ticker]);
     }
     p.dynamicChgPct = chg;
     p.chgPct = chg;
@@ -246,7 +246,12 @@ function renderDailyBriefPage() {
         + '</div>'
         + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Pemindaian risiko konsentrasi posisi, momentum harian, dan rekomendasi aksi untuk setiap aset di portofolio Anda.</div>'
       + '</div>'
-      + '<button class="btn btn-outline btn-sm" onclick="goPage(\'portofolio\',null)">Kelola Portofolio</button>'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<button class="btn btn-primary btn-sm" onclick="if(typeof fhFetchStocks===\'function\'){fhFetchStocks(true);this.innerHTML=\'<i class=\\\'ti ti-loader\\\'></i> Menyinkronkan...\';setTimeout(function(){if(typeof renderDailyBriefPage===\'function\')renderDailyBriefPage();},1200);}" style="display:inline-flex;align-items:center;gap:6px">'
+          + '<i class="ti ti-refresh"></i> Refresh Harga Live'
+        + '</button>'
+        + '<button class="btn btn-outline btn-sm" onclick="goPage(\'portofolio\',null)">Kelola Portofolio</button>'
+      + '</div>'
     + '</div>';
 
   if (!porto.length) {
@@ -273,7 +278,9 @@ function renderDailyBriefPage() {
 
     porto.forEach(function(p) {
       var weight = totalPortfolioAssets > 0 ? ((p.mv || 0) / totalPortfolioAssets * 100).toFixed(1) : '0.0';
-      var chgPct = (typeof p.chgPct === 'number') ? p.chgPct : ((typeof p.dynamicChgPct === 'number') ? p.dynamicChgPct : ((typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(p.ticker) : (typeof changes !== 'undefined' && changes[p.ticker] !== undefined ? Number(changes[p.ticker]) : 0)));
+      var chgPct = (typeof changes !== 'undefined' && changes[p.ticker] !== undefined && !isNaN(changes[p.ticker]))
+        ? Number(changes[p.ticker])
+        : ((typeof p.chgPct === 'number') ? p.chgPct : ((typeof p.dynamicChgPct === 'number') ? p.dynamicChgPct : ((typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(p.ticker) : 0)));
       var dayPnl = (p.mv || 0) * (chgPct / 100);
       var unreal = p.unreal || 0;
       var unrealPct = (typeof p.unrealPct === 'number') ? p.unrealPct : (p.cost > 0 ? (unreal / p.cost * 100) : (p.ret || 0));
