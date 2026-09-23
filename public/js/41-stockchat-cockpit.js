@@ -1397,11 +1397,11 @@ function renderBrokerSummaryWidget(data) {
 
   topSellers.forEach(function(sItem) {
     var isF = sItem.type === 'F';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border2);font-size:11px">'
-      + '<div style="display:flex;align-items:center;gap:4px">'
-      + '<span class="badge ' + (isF ? 'b-amb' : 'b-neu') + '" style="font-family:monospace;font-size:9px;font-weight:700">' + sItem.broker + '</span>'
-      + '<span style="color:var(--text);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + sItem.name + '">' + bItem.name.replace(/ Sekuritas.*/i, '') + '</span>'
-      + '</div>'
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border2);font-size:11px">'
+        + '<div style="display:flex;align-items:center;gap:4px">'
+        + '<span class="badge ' + (isF ? 'b-amb' : 'b-neu') + '" style="font-family:monospace;font-size:9px;font-weight:700">' + sItem.broker + '</span>'
+        + '<span style="color:var(--text);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (sItem.name || '') + '">' + (sItem.name || '').replace(/ Sekuritas.*/i, '') + '</span>'
+        + '</div>'
       + '<div style="text-align:right">'
       + '<span class="mono font-semibold" style="color:var(--text)">' + Number(sItem.volumeLot || 0).toLocaleString('id-ID') + '</span>'
       + '<span class="mono" style="font-size:10px;color:var(--text3);margin-left:4px">@' + Number(sItem.avgPrice || 0).toLocaleString('id-ID') + '</span>'
@@ -1419,6 +1419,79 @@ function renderBrokerSummaryWidget(data) {
   }
 
   html += '</div>';
+  return html;
+}
+
+// Widget to render Broker Summary by Broker (e.g., all stocks accumulated by AK)
+function renderBrokerByBrokerWidget(data) {
+  if (!data || !data.ok) return '<div class="card" style="padding:14px;font-size:12px;color:var(--text3)">Data broker summary tidak tersedia.</div>';
+  var broker = data.broker || 'AK';
+  var tf = data.timeframe || '1W';
+  var buys = (data.netBuyStocks || []).slice(0, 5);
+  var sells = (data.netSellStocks || []).slice(0, 5);
+
+  var html = '<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:8px;flex-wrap:wrap;gap:8px">'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<span class="badge b-accent" style="font-size:12px;font-weight:900;font-family:monospace">BROKER ' + broker + '</span>'
+    + '<span class="badge b-neu mono" style="font-size:10px">' + tf + '</span>'
+    + '<span class="badge b-up" style="font-size:10px">Invezgo / IDX Feed</span>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--text3)">Total Saham: <strong style="color:var(--text)">' + (data.totalStocksTraded || (buys.length + sells.length)) + '</strong></div>'
+    + '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;padding-top:4px">'
+    + '<div style="display:flex;flex-direction:column;gap:4px">'
+    + '<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--green);border-bottom:1px solid rgba(16,185,129,0.3);padding-bottom:4px">'
+    + '<span>TOP NET BUY (' + broker + ' AKUMULASI)</span>'
+    + '<span>NILAI / LOT</span>'
+    + '</div>';
+
+  if (buys.length === 0) {
+    html += '<div style="font-size:11px;color:var(--text3);padding:6px 0">Tidak ada saham net buy terdeteksi.</div>';
+  } else {
+    buys.forEach(function(b) {
+      var valM = b.netValue ? (b.netValue / 1e9).toFixed(2) : (b.value ? (b.value / 1e9).toFixed(2) : '0');
+      var lot = Number(b.netLot || b.volumeLot || b.lot || 0).toLocaleString('id-ID');
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border2);font-size:11px">'
+        + '<div style="display:flex;align-items:center;gap:4px">'
+        + '<span class="badge b-neu font-mono" style="font-size:10px;font-weight:700">' + (b.ticker || b.symbol) + '</span>'
+        + '<span style="color:var(--text);font-size:10px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (b.name || '') + '</span>'
+        + '</div>'
+        + '<div style="text-align:right">'
+        + '<span class="mono up" style="font-weight:700">Rp ' + valM + ' M</span>'
+        + '<span class="mono" style="font-size:10px;color:var(--text3);margin-left:4px">' + lot + ' Lot</span>'
+        + '</div>'
+        + '</div>';
+    });
+  }
+  html += '</div>';
+
+  html += '<div style="display:flex;flex-direction:column;gap:4px">'
+    + '<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--red);border-bottom:1px solid rgba(244,63,94,0.3);padding-bottom:4px">'
+    + '<span>TOP NET SELL (' + broker + ' DISTRIBUSI)</span>'
+    + '<span>NILAI / LOT</span>'
+    + '</div>';
+
+  if (sells.length === 0) {
+    html += '<div style="font-size:11px;color:var(--text3);padding:6px 0">Tidak ada saham net sell terdeteksi.</div>';
+  } else {
+    sells.forEach(function(s) {
+      var valM = s.netValue ? (Math.abs(s.netValue) / 1e9).toFixed(2) : (s.value ? (s.value / 1e9).toFixed(2) : '0');
+      var lot = Number(Math.abs(s.netLot || s.volumeLot || s.lot || 0)).toLocaleString('id-ID');
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border2);font-size:11px">'
+        + '<div style="display:flex;align-items:center;gap:4px">'
+        + '<span class="badge b-neu font-mono" style="font-size:10px;font-weight:700">' + (s.ticker || s.symbol) + '</span>'
+        + '<span style="color:var(--text);font-size:10px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.name || '') + '</span>'
+        + '</div>'
+        + '<div style="text-align:right">'
+        + '<span class="mono down" style="font-weight:700">Rp ' + valM + ' M</span>'
+        + '<span class="mono" style="font-size:10px;color:var(--text3);margin-left:4px">' + lot + ' Lot</span>'
+        + '</div>'
+        + '</div>';
+    });
+  }
+  html += '</div></div></div>';
   return html;
 }
 
@@ -1596,6 +1669,8 @@ function renderStockChatPage(containerId) {
           // consequently never fired for a live server response either.
           if (tc.name === 'cek_broker_summary' && tc.result && !tc.result.error) {
             html += renderBrokerSummaryWidget(tc.result);
+          } else if (tc.name === 'cek_broker_summary_by_broker' && tc.result && !tc.result.error) {
+            html += renderBrokerByBrokerWidget(tc.result);
           } else {
             html += '<div style="margin-top:8px;padding:6px 10px;border-radius:6px;font-size:10px;font-family:monospace;background:var(--bg4);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;gap:6px">'
               + '<span style="color:var(--accent);font-weight:700">Tool Executed:</span> ' + tc.name
@@ -1714,6 +1789,15 @@ async function sendStockChatPrompt(text) {
   STOCKCHAT_IS_BUSY = true;
   renderStockChatPage();
 
+  // Safety watchdog timer: guarantees chat never stays locked
+  var watchdogTimer = setTimeout(function() {
+    if (STOCKCHAT_IS_BUSY) {
+      console.warn('[StockChat] Watchdog timer triggered, unlocking chat');
+      STOCKCHAT_IS_BUSY = false;
+      renderStockChatPage();
+    }
+  }, 14000);
+
   try {
     // Extract user holdings & balance context
     var porto = (typeof getPortfolio === 'function') ? getPortfolio() : (window.holdings || []);
@@ -1725,7 +1809,7 @@ async function sendStockChatPrompt(text) {
       if (typeof getAiSignalHistorySummary === 'function') {
         aiSignalHistory = await Promise.race([
           getAiSignalHistorySummary(),
-          new Promise(function(resolve) { setTimeout(function() { resolve([]); }, 3000); })
+          new Promise(function(resolve) { setTimeout(function() { resolve([]); }, 2000); })
         ]);
       }
     } catch (sigErr) {
@@ -1747,7 +1831,7 @@ async function sendStockChatPrompt(text) {
       var priorHistory = STOCKCHAT_CONVERSATION.slice(0, -1).slice(-8);
 
       var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-      var timeoutId = controller ? setTimeout(function() { controller.abort(); }, 20000) : null;
+      var timeoutId = controller ? setTimeout(function() { controller.abort(); }, 10000) : null;
 
       var fetchOptions = {
         method: 'POST',
@@ -1784,8 +1868,8 @@ async function sendStockChatPrompt(text) {
       var clientAiResult = generateClientSideAiAgentResponse(text, userContext);
       STOCKCHAT_CONVERSATION.push({
         role: 'assistant',
-        text: clientAiResult.reply,
-        toolCalls: clientAiResult.toolCalls || []
+        text: (clientAiResult && clientAiResult.reply) ? clientAiResult.reply : 'Mohon maaf, analisa tidak dapat diproses saat ini.',
+        toolCalls: (clientAiResult && clientAiResult.toolCalls) ? clientAiResult.toolCalls : []
       });
     }
   } catch (outerErr) {
@@ -1796,6 +1880,7 @@ async function sendStockChatPrompt(text) {
       toolCalls: []
     });
   } finally {
+    if (watchdogTimer) clearTimeout(watchdogTimer);
     STOCKCHAT_IS_BUSY = false;
     renderStockChatPage();
   }
@@ -1832,7 +1917,10 @@ function generateClientSideAiAgentResponse(message, userContext) {
   // engine takes over. Doesn't need a resolved matchedTicker either — the
   // ticker (if any) comes from the prediction object itself.
   var isPredictionIntent = /\b(sinyal|prediksi|xgboost|rekomendasi|layak beli|worth buy|apakah bagus|apakah layak)\b/i.test(message);
-  var isTickerIndependentIntent = isPortfolioIntent || isStrategyIntent || isAiPerformanceIntent || isPredictionIntent;
+  var KNOWN_BROKERS = ['AK','BK','CC','YP','PD','NI','RX','ZP','YU','DX','CP','AZ','LG','GR','KZ','SQ','OD','AI','MG','XL','XC','EP','DR','DH','FS','BQ','AG','HP','KI','KK','TF','XA','TP','AN','AT','IN','SF','SS','DP','HD'];
+  var matchedBroker = words.find(function(w) { return KNOWN_BROKERS.includes(w); });
+  var isBrokerQuery = Boolean(matchedBroker && (pLower.includes('bandar') || pLower.includes('broker') || pLower.includes('akumulasi') || pLower.includes('distribusi') || pLower.includes('beli') || pLower.includes('jual')));
+  var isTickerIndependentIntent = isPortfolioIntent || isStrategyIntent || isAiPerformanceIntent || isPredictionIntent || isBrokerQuery;
 
   var matchedTicker = words.find(function(w) {
     return (typeof DB !== 'undefined' && DB[w]) ||
@@ -1840,9 +1928,11 @@ function generateClientSideAiAgentResponse(message, userContext) {
            ((userContext && userContext.holdings) || []).some(function(h) { return h.ticker === w; });
   });
 
+  var STOP_WORDS = ['DATA','STOCK','BROKER','FLOW','BUY','SELL','HELP','ASING','RITEL','PORTO','VALUASI','DIVIDEN','SAHAM','BANDAR','SELAMA','SEMINGGU','HARI','BULAN','TAHUN','YANG','DARI','PADA','UNTUK','DENGAN','KODE','APAKAH','TOLONG','ANALISA','TENTANG','BAGAIMANA','BERAPA','KEMARIN','BESOK','WAKTU','SEKURITAS'];
+
   if (!matchedTicker && !isTickerIndependentIntent) {
     var possibleCode = words.find(function(w) {
-      return w.length >= 3 && w.length <= 6 && !['DATA','STOCK','BROKER','FLOW','BUY','SELL','HELP','ASING','RITEL','PORTO','VALUASI','DIVIDEN'].includes(w);
+      return w.length >= 3 && w.length <= 6 && !STOP_WORDS.includes(w);
     });
     if (possibleCode) matchedTicker = possibleCode;
   }

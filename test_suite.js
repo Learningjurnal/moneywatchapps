@@ -7591,7 +7591,7 @@ await asyncTest('REGRESSION GUARD: Google Gemini primary provider — config gat
   vm.runInContext(configSrc, configSandbox2, { filename: 'server.js getGeminiConfig() default model sandbox' });
   const cfg2 = configSandbox2.getGeminiConfig();
   assert(cfg2 && cfg2.apiKey === 'AIza-test-123', 'REGRESSION: getGeminiConfig() must read GEMINI_API_KEY');
-  assert.strictEqual(cfg2.model, 'gemini-2.5-flash', 'REGRESSION: getGeminiConfig() must default to gemini-2.5-flash');
+  assert.strictEqual(cfg2.model, 'gemini-1.5-flash', 'REGRESSION: getGeminiConfig() must default to gemini-1.5-flash');
 
   const configSandbox3 = { process: { env: { GEMINI_API_KEY: 'AIza-test-123', GEMINI_MODEL: 'gemini-2.0-flash' } } };
   vm.createContext(configSandbox3);
@@ -7612,7 +7612,7 @@ await asyncTest('REGRESSION GUARD: Google Gemini primary provider — config gat
     AGENT_TOOL_DECLARATIONS: fakeDeclarations,
     SYSTEM_INSTRUCTION_MONEYWATCH_AI: 'test system prompt',
     withTimeout: (p) => p,
-    getGeminiConfig: () => ({ apiKey: 'AIza-test-123', model: 'gemini-2.5-flash' }),
+    getGeminiConfig: () => ({ apiKey: 'AIza-test-123', model: 'gemini-1.5-flash' }),
     executeAgentTool: async (name, args) => {
       executedToolCalls.push({ name, args });
       return { ticker: args.ticker, price: 9100 };
@@ -7659,13 +7659,18 @@ await asyncTest('REGRESSION GUARD: Google Gemini primary provider — config gat
   const executedTools = [];
   const result = await loopSandbox.callGeminiAgentLoop('cek harga BBCA', [], {}, executedTools);
   assert.strictEqual(fetchCallCount, 2, 'REGRESSION: callGeminiAgentLoop() must execute 2 turns (tool call then final text answer)');
-  assert(fetchCalls[0].url.includes('gemini-2.5-flash:generateContent'), 'REGRESSION: callGeminiAgentLoop() must call Gemini generateContent endpoint');
+  assert(fetchCalls[0].url.includes('gemini-1.5-flash:generateContent'), 'REGRESSION: callGeminiAgentLoop() must call Gemini generateContent endpoint');
   assert(fetchCalls[0].url.includes('key=AIza-test-123'), 'REGRESSION: callGeminiAgentLoop() must send API key query parameter');
   assert.strictEqual(executedToolCalls.length, 1, 'REGRESSION: tool was not executed');
   assert.strictEqual(executedToolCalls[0].args.ticker, 'BBCA');
   assert.strictEqual(executedTools.length, 1);
+  assert.strictEqual(fetchCalls[1].body.contents[2].role, 'tool', 'REGRESSION: tool response role must be "tool" for Gemini API');
   assert.strictEqual(result.reply, 'Harga saham BBCA adalah Rp 9.100.');
-  assert.strictEqual(result.usedModel, 'gemini-2.5-flash');
+  assert.strictEqual(result.usedModel, 'gemini-1.5-flash');
+
+  // Verify cek_broker_summary_by_broker exists in AGENT_TOOL_DECLARATIONS
+  assert(fullSrc.includes("name: 'cek_broker_summary_by_broker'"),
+    'REGRESSION: cek_broker_summary_by_broker tool declaration missing from server.js');
 });
 // FIX (2026-09-20, user-requested: "untuk news pakai API 9router sebagai
 // utama dan anthropic sebagai backup, agar news tidak kosong saat credit

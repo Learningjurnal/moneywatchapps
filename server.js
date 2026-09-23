@@ -832,7 +832,7 @@ function getGeminiConfig() {
   if (!apiKey) return null;
   return {
     apiKey,
-    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash'
   };
 }
 
@@ -907,9 +907,9 @@ async function callClaudeWithRetry(ai, requestConfig, options = {}) {
 async function callGeminiTextWithRetry(prompt, options = {}) {
   const config = getGeminiConfig();
   if (!config) throw new Error('GEMINI_NOT_CONFIGURED');
-  const timeoutMs = options.timeoutMs || 15000;
+  const timeoutMs = options.timeoutMs || 8000;
   const maxRetries = options.maxRetries ?? 2;
-  const candidateModels = [config.model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const candidateModels = [config.model, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
   const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
 
   let lastError = null;
@@ -1956,6 +1956,13 @@ async function executeAgentTool(toolName, args, userContext = {}) {
       return summary;
     }
 
+    case 'cek_broker_summary_by_broker': {
+      const brokerCode = (args.brokerCode || 'AK').trim().toUpperCase();
+      const timeframe = (args.timeframe || '1W').toUpperCase();
+      const data = await getBrokerSummaryByBroker(brokerCode, timeframe);
+      return data;
+    }
+
     // AI Paper Trading performance & lessons-learned — this data lives
     // entirely client-side (localStorage/AI_TRADE_STATE, 38-ai-autonomous-
     // trading.js), so unlike every other tool above the server has ZERO
@@ -2218,6 +2225,24 @@ const AGENT_TOOL_DECLARATIONS = [
         }
       }
     }
+  },
+  {
+    name: 'cek_broker_summary_by_broker',
+    description: 'Mengambil daftar saham-saham yang diakumulasi (Net Buy) atau didistribusi (Net Sell) oleh broker sekuritas tertentu (misal: AK, BK, CC, YP, PD, NI, RX, ZP) dalam rentang waktu 1D, 3D, 1W, 1M. Panggil tool ini saat pengguna bertanya saham apa yang diakumulasi atau dijual oleh kode broker tertentu (misal: "saham yang diakumulasi bandar AK selama seminggu").',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        brokerCode: {
+          type: 'STRING',
+          description: 'Kode broker 2 huruf kapital BEI, contoh: AK, BK, CC, YP, PD, NI, RX, ZP'
+        },
+        timeframe: {
+          type: 'STRING',
+          description: 'Rentang waktu analisis: "1D", "3D", "1W", "1M". Default: "1W"'
+        }
+      },
+      required: ['brokerCode']
+    }
   }
 ];
 
@@ -2360,7 +2385,7 @@ async function callGeminiAgentLoop(message, history, userContext, executedTools)
   const config = getGeminiConfig();
   if (!config) throw new Error('GEMINI_NOT_CONFIGURED');
 
-  const candidateModels = [config.model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const candidateModels = [config.model, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
   const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
 
   // Map history to Gemini format: { role: 'user' | 'model', parts: [{ text }] }
@@ -2402,14 +2427,16 @@ async function callGeminiAgentLoop(message, history, userContext, executedTools)
   let currentIteration = 0;
   const maxIterations = 5;
   let activeModel = config.model;
+  let verifiedModel = null;
 
   while (currentIteration < maxIterations) {
     currentIteration++;
 
     let resp = null;
     let lastErr = null;
+    const modelsToTry = verifiedModel ? [verifiedModel] : uniqueModels;
 
-    for (const m of uniqueModels) {
+    for (const m of modelsToTry) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
         const body = {
@@ -2424,7 +2451,7 @@ async function callGeminiAgentLoop(message, history, userContext, executedTools)
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
           }),
-          20000
+          8000
         );
 
         if (res.status === 404) {
@@ -2433,6 +2460,7 @@ async function callGeminiAgentLoop(message, history, userContext, executedTools)
 
         resp = res;
         activeModel = m;
+        verifiedModel = m;
         break;
       } catch (e) {
         lastErr = e;
@@ -2481,13 +2509,14 @@ async function callGeminiAgentLoop(message, history, userContext, executedTools)
         responseParts.push({
           functionResponse: {
             name: call.name,
-            response: { output: toolResult }
+            response: { result: toolResult }
           }
         });
       }
 
+      // Google Gemini v1beta function calling REST spec mandates role: 'tool'
       contents.push({
-        role: 'user',
+        role: 'tool',
         parts: responseParts
       });
 
