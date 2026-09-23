@@ -2470,6 +2470,61 @@ function renderPortfolioHub(){
     }
   }
 
+  // Performa Saham Hari Ini (1D Day Gain) & Akumulasi Return
+  var sahamDayGain = 0;
+  var sahamPrevMv = 0;
+  porto.forEach(function(p){
+    var cur = (typeof prices !== 'undefined' && prices[p.ticker] > 0) ? prices[p.ticker] : (p.mp || p.avg || 0);
+    var shares = p.shares || (p.lot ? p.lot * 100 : 0);
+    var mv = cur * shares;
+
+    var prev = (typeof prevCloses !== 'undefined' && prevCloses[p.ticker] > 0) ? prevCloses[p.ticker] : 0;
+    var chgPct = 0;
+    if (typeof changes !== 'undefined' && changes[p.ticker] !== undefined && !isNaN(changes[p.ticker])) {
+      chgPct = Number(changes[p.ticker]);
+    } else if (typeof getGlobalMarketChange === 'function') {
+      chgPct = getGlobalMarketChange(p.ticker);
+    }
+
+    if (prev > 0) {
+      sahamDayGain += (cur - prev) * shares;
+      sahamPrevMv += prev * shares;
+    } else if (chgPct !== 0) {
+      var prevVal = mv / (1 + (chgPct / 100));
+      sahamDayGain += (mv - prevVal);
+      sahamPrevMv += prevVal;
+    } else {
+      sahamPrevMv += mv;
+    }
+  });
+
+  var sahamDayPct = sahamPrevMv > 0 ? (sahamDayGain / sahamPrevMv) * 100 : (sahamMv > 0 ? (sahamDayGain / sahamMv) * 100 : 0);
+
+  if(el('hub-saham-day-chg')) {
+    if(porto.length === 0 || sahamDayGain === 0) {
+      el('hub-saham-day-chg').textContent = 'Rp 0 (0.00%)';
+      el('hub-saham-day-chg').style.color = 'var(--text)';
+    } else {
+      var signDay = sahamDayGain > 0 ? '+' : '-';
+      el('hub-saham-day-chg').textContent = signDay + 'Rp ' + fmt(Math.abs(Math.round(sahamDayGain))) + ' (' + (sahamDayPct >= 0 ? '+' : '') + sahamDayPct.toFixed(2) + '%)';
+      el('hub-saham-day-chg').style.color = sahamDayGain > 0 ? '#10B981' : '#EF4444';
+    }
+  }
+
+  if(el('hub-saham-accum-pill')) {
+    if(el('hub-saham-accum-icon')) {
+      el('hub-saham-accum-icon').textContent = sahamPct >= 0 ? '▲' : '▼';
+    }
+    if(el('hub-saham-accum-pct')) {
+      el('hub-saham-accum-pct').textContent = (sahamPct >= 0 ? '+' : '') + sahamPct.toFixed(2) + '% Akumulasi';
+    }
+    el('hub-saham-accum-pill').style.color = sahamPct >= 0 ? '#10B981' : '#EF4444';
+    el('hub-saham-accum-pill').style.background = sahamPct >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+    el('hub-saham-accum-pill').style.borderColor = sahamPct >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+    el('hub-saham-accum-pill').style.boxShadow = sahamPct >= 0 ? '0 0 15px rgba(16, 185, 129, 0.2)' : '0 0 15px rgba(239, 68, 68, 0.2)';
+    el('hub-saham-accum-pill').title = 'Total Akumulasi P/L Saham: ' + (sahamPnl >= 0 ? '+' : '') + 'Rp ' + fmt(Math.round(sahamPnl));
+  }
+
   // Update Donut
   var donut = el('hub-donut');
   if(el('hub-donut-center-val')) {

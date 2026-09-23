@@ -985,8 +985,8 @@
                 </div>
             </div>
 
-            <!-- Resume Metrics 4-Column Strip (Decluttered Single Row) -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px 20px">
+            <!-- Resume Metrics 5-Column Strip (Decluttered Single Row) -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px 20px">
                 <!-- Nilai Portofolio Investasi (BUKAN Net Worth — angka ini
                      tidak memasukkan Saldo Kas RDN di sebelahnya maupun aset
                      non-investasi/utang yang dihitung di halaman Wealth,
@@ -1019,6 +1019,17 @@
                 <div>
                     <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Total Posisi Multi-Aset</div>
                     <div style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px;font-variant-numeric:tabular-nums" id="hub-tot-posisi">0 Aset Aktif</div>
+                </div>
+
+                <!-- Performa Saham Hari Ini & Akumulasi (1D + Total Return) -->
+                <div>
+                    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Performa Saham Hari Ini</div>
+                    <div style="font-size:20px;font-weight:800;font-family:var(--font-mono);color:var(--text);letter-spacing:-0.5px;font-variant-numeric:tabular-nums" id="hub-saham-day-chg">Rp 0 (0.00%)</div>
+                    <div style="margin-top:6px">
+                        <div class="badge-trend" id="hub-saham-accum-pill" style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,245,155,0.12);color:var(--green);padding:2px 8px;border-radius:6px;font-weight:700;font-size:11px;font-family:var(--font-mono)" title="Persentase perubahan nilai secara akumulasi">
+                            <span id="hub-saham-accum-icon">▲</span> <span id="hub-saham-accum-pct">+0.00% Akumulasi</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4364,7 +4375,7 @@
 <script src="js/03-engine.js?v=20260923c"></script>
 <script src="js/04-render.js?v=20260919e"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
-<script src="js/05-assets.js?v=20260913a"></script>
+<script src="js/05-assets.js?v=20260923d"></script>
 <script src="js/06-analysis-router.js?v=20260920a"></script>
 <script src="js/07-flowscan.js?v=20260923a"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
