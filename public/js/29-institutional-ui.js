@@ -144,9 +144,9 @@
 
     allTickers.forEach(function(ticker) {
       var info = (window.DB && window.DB[ticker]) || {};
-      var p = curPrices[ticker] || info.base || 0;
+      var p = (typeof getGlobalMarketPrice === 'function') ? getGlobalMarketPrice(ticker) : (curPrices[ticker] || info.base || 0);
       var pc = curPrevCloses[ticker] || p;
-      var chg = pc > 0 ? ((p - pc) / pc * 100) : 0;
+      var chg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(ticker) : (pc > 0 ? ((p - pc) / pc * 100) : 0);
       var isGain = chg >= 0;
 
       items.push({

@@ -145,7 +145,8 @@ function usSetSort(field) {
 function usOpenTicker(ticker) {
   if (typeof sm360SelectTicker === 'function') {
     sm360SelectTicker(ticker);
-  } else if (typeof goPage === 'function') {
+  }
+  if (typeof goPage === 'function') {
     goPage('stock-dossier');
   }
 }

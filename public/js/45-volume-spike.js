@@ -179,7 +179,7 @@ function vsSparklineHtml(closes, isUp, gradId) {
 // baris tabel screening (kanan) — satu titik hitung, supaya angka rasio yang
 // ditampilkan di kedua tempat selalu konsisten (sebelumnya logika ini hanya
 // ada inline di vsRenderContent(), diduplikasi manual kalau dipakai di tabel).
-function vsVolumeStats(rows) {
+function vsVolumeStats(rows, ticker) {
   var todayRow = rows[rows.length - 1];
   var todayVol = todayRow.volume || 0;
   var vol14Arr = rows.slice(-15, -1).map(function(r) { return r.volume; });
@@ -191,6 +191,12 @@ function vsVolumeStats(rows) {
   var closes = rows.map(function(r) { return r.close; });
   var n = closes.length;
   var pctChange = function(daysBack) {
+    if (daysBack === 1 && ticker && typeof getGlobalMarketChange === 'function') {
+      var gChg = getGlobalMarketChange(ticker);
+      if (typeof gChg === 'number' && !isNaN(gChg) && (gChg !== 0 || (typeof changes !== 'undefined' && changes[ticker] !== undefined))) {
+        return gChg;
+      }
+    }
     var idx = n - 1 - daysBack;
     if (idx < 0 || !closes[idx]) return null;
     return ((closes[n - 1] - closes[idx]) / closes[idx]) * 100;
@@ -461,7 +467,7 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
       VS_SCREEN_STATE.scannedCount++;
       var rows = (typeof rdGetAny === 'function') ? rdGetAny(tk) : null;
       if (rows && rows.length >= 15) {
-        var stats = vsVolumeStats(rows);
+        var stats = vsVolumeStats(rows, tk);
         // FIX (2026-09-14, user-reported "layout tidak stabil, seluruh
         // layout berubah"): sebelumnya SEMUA saham yang berhasil dipindai
         // (spike ATAU tidak) ditambahkan ke tabel — untuk index besar

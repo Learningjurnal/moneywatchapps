@@ -231,13 +231,22 @@ var IDX_PIPELINE = {
       if (typeof yfFetch === 'function') {
         yfFetch(cleanTk + '.JK', function(err, meta) {
           if (!err && meta && meta.regularMarketPrice) {
+            var realChgPct = (typeof meta.regularMarketChangePercent === 'number' && !isNaN(meta.regularMarketChangePercent)) ? meta.regularMarketChangePercent
+                           : (typeof meta.fulldayChangePercent === 'number' && !isNaN(meta.fulldayChangePercent)) ? meta.fulldayChangePercent
+                           : null;
+            var realChg = (typeof meta.regularMarketChange === 'number' && !isNaN(meta.regularMarketChange)) ? meta.regularMarketChange
+                        : (typeof meta.fulldayChange === 'number' && !isNaN(meta.fulldayChange)) ? meta.fulldayChange
+                        : null;
+            var prevClose = (realChg !== null && Math.abs(realChg) > 0.0001) ? (meta.regularMarketPrice - realChg)
+                          : (meta.previousClose || meta.regularMarketPreviousClose || meta.chartPreviousClose || meta.regularMarketPrice);
             var q = {
               code: cleanTk,
               price: meta.regularMarketPrice,
-              change: meta.regularMarketPrice - (meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice),
-              changePercent: meta.chartPreviousClose ? ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100) : 0
+              change: realChg !== null ? realChg : (meta.regularMarketPrice - prevClose),
+              changePercent: realChgPct !== null ? realChgPct : (prevClose > 0 ? ((meta.regularMarketPrice - prevClose) / prevClose * 100) : 0)
             };
             if (typeof prices !== 'undefined') prices[cleanTk] = q.price;
+            if (typeof changes !== 'undefined') changes[cleanTk] = q.changePercent;
             if (cb) cb(null, q, null);
           } else {
             if (cb) cb(err || new Error('No quote data'));

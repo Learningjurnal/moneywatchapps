@@ -3623,7 +3623,7 @@ app.get('/api/idx/bandar-movement/:ticker', async (req, res) => {
 // GET /api/idx/trade-flow/:ticker — Intraday HAKA/HAKI Tape
 app.get('/api/idx/trade-flow/:ticker', async (req, res) => {
   try {
-    const ticker = (req.params.ticker || '').toUpperCase().trim();
+    const ticker = (req.params.ticker || '').toUpperCase().replace(/\.JK$/i, '').trim();
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
 
     const date = req.query.date || null;
@@ -3642,7 +3642,7 @@ app.get('/api/idx/trade-flow/:ticker', async (req, res) => {
 // GET /api/idx/broker-flow/:ticker — Multi-Broker Cumulative Flow Time Series
 app.get('/api/idx/broker-flow/:ticker', async (req, res) => {
   try {
-    const ticker = (req.params.ticker || '').toUpperCase().trim();
+    const ticker = (req.params.ticker || '').toUpperCase().replace(/\.JK$/i, '').trim();
     if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
 
     const range = (req.query.range || req.query.tf || '1D').toUpperCase();

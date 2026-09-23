@@ -315,11 +315,19 @@ function dossierComputeSmartMoneyScore(harvested) {
   var price = quote.price || quote.close || 0;
 
   var score = 50;
-  if (/big\s*accum|akumulasi\s*besar/i.test(statusStr)) score = 90;
-  else if (/accum|akumulasi/i.test(statusStr)) score = 75;
-  else if (/neutral|netral/i.test(statusStr)) score = 55;
-  else if (/distrib|distribusi\s*besar/i.test(statusStr)) score = 25;
-  else if (/distrib/i.test(statusStr)) score = 35;
+  if (bandar.score !== undefined && typeof bandar.score === 'number' && !isNaN(bandar.score)) {
+    score = Math.max(0, Math.min(100, Math.round(bandar.score)));
+  } else if (/big\s*accum|akumulasi\s*besar/i.test(statusStr)) {
+    score = 90;
+  } else if (/accum|akumulasi/i.test(statusStr)) {
+    score = 75;
+  } else if (/big\s*distrib|distribusi\s*besar/i.test(statusStr)) {
+    score = 15;
+  } else if (/distrib/i.test(statusStr)) {
+    score = 30;
+  } else if (/neutral|netral/i.test(statusStr)) {
+    score = 50;
+  }
 
   // Bonus/penalty for foreign flow
   if (foreignNet !== null) {
