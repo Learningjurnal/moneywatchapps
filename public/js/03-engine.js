@@ -1494,6 +1494,7 @@ function fhFetchStocks(){
         if(currentPage==='dashboard') { try{ renderDashboard(); }catch(e){} }
         else if(currentPage==='portofolio') { try{ renderPortofolio(); }catch(e){} }
         else if(currentPage==='performance') { try{ renderStockPerformance(); }catch(e){} }
+        else if(currentPage==='daily-brief') { try{ renderDailyBriefPage(); }catch(e){} }
       }
     }, 400);
   }
@@ -1515,6 +1516,10 @@ function fhFetchStocks(){
           if(q && q.price > 0){
             prices[c] = q.price;
             if(q.previous > 0) prevCloses[c] = q.previous;
+            var chg = (q.changePercent !== undefined && !isNaN(q.changePercent))
+              ? Number(q.changePercent)
+              : ((q.previous > 0) ? ((q.price - q.previous) / q.previous * 100) : 0);
+            if(typeof changes !== 'undefined') changes[c] = chg;
             if(typeof DB!=='undefined' && DB[c]) DB[c].base = q.price;
             updated = true;
           }
@@ -1544,6 +1549,10 @@ function fhFetchStocks(){
             // dikembalikan endpoint chart Yahoo, lihat catatan di fhFetchIHSG().
             if(meta.chartPreviousClose > 0) prevCloses[code] = meta.chartPreviousClose;
             else if(meta.previousClose > 0) prevCloses[code] = meta.previousClose;
+            if(prevCloses[code] > 0){
+              var fallbackChg = ((meta.regularMarketPrice - prevCloses[code]) / prevCloses[code]) * 100;
+              if(typeof changes !== 'undefined') changes[code] = fallbackChg;
+            }
             if(typeof DB!=='undefined' && DB[code]) DB[code].base = meta.regularMarketPrice;
             if(typeof mwCheckPriceAlerts==='function') mwCheckPriceAlerts();
             _triggerRenderAfterPrice();

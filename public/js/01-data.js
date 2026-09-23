@@ -280,6 +280,11 @@ function getGlobalMarketChange(ticker) {
   if (typeof changes !== 'undefined' && changes[tk] !== undefined && !isNaN(changes[tk])) {
     return Number(changes[tk]);
   }
+  if (typeof prices !== 'undefined' && prices[tk] > 0 && typeof prevCloses !== 'undefined' && prevCloses[tk] > 0) {
+    var c = ((prices[tk] - prevCloses[tk]) / prevCloses[tk]) * 100;
+    if (typeof changes !== 'undefined') changes[tk] = c;
+    return c;
+  }
   if (typeof rdGetAny === 'function') {
     var rdRows = rdGetAny(tk);
     if (rdRows && rdRows.length >= 2 && rdRows[rdRows.length - 1] && rdRows[rdRows.length - 2]) {

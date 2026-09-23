@@ -50,10 +50,13 @@ function techKillChart(key) {
 // ============================================================
 
 function renderStockMaster360Nav(activePillar, currentTicker) {
+  var customQuote = arguments[2];
   var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
   var tk = (currentTicker || globalTk || 'BBCA').toUpperCase().replace(/\.JK$/i, '').replace(/\.US$/i, '').trim();
-  var px = (typeof prices !== 'undefined' && prices[tk]) ? Number(prices[tk]) : 0;
-  var chg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk) : ((typeof changes !== 'undefined' && changes[tk]) ? Number(changes[tk]) : 0);
+  var px = (customQuote && customQuote.price > 0) ? Number(customQuote.price) : ((typeof prices !== 'undefined' && prices[tk]) ? Number(prices[tk]) : 0);
+  var chg = (customQuote && customQuote.changePercent !== undefined && !isNaN(customQuote.changePercent))
+    ? Number(customQuote.changePercent)
+    : ((typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk) : ((typeof changes !== 'undefined' && changes[tk]) ? Number(changes[tk]) : 0));
 
 
 

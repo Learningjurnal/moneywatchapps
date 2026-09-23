@@ -1359,7 +1359,17 @@ function renderStockDossierPage(targetTicker) {
   var changeStr = (changePct >= 0 ? '+' : '') + Number(changePct).toFixed(2) + '%';
   var changeColor = changePct >= 0 ? 'var(--green)' : 'var(--red)';
 
-  var nav360 = (typeof renderStockMaster360Nav === 'function') ? renderStockMaster360Nav('dossier', dossierState.ticker) : '';
+  if (price > 0) {
+    if (typeof prices === 'undefined') window.prices = {};
+    window.prices[dossierState.ticker] = price;
+  }
+  if (changePct !== undefined && !isNaN(changePct)) {
+    if (typeof changes === 'undefined') window.changes = {};
+    window.changes[dossierState.ticker] = changePct;
+  }
+  var nav360 = (typeof renderStockMaster360Nav === 'function')
+    ? renderStockMaster360Nav('dossier', dossierState.ticker)
+    : '';
   var html = nav360;
 
   // ── Header & Action Bar ──

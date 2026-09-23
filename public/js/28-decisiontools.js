@@ -24,11 +24,25 @@ function renderDailyBriefPage() {
   var rdn = typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0;
   var totalMV = porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
   
+  // Trigger fresh quote fetching for portfolio holdings if quotes not yet fetched
+  if (typeof fhFetchStocks === 'function' && porto.length > 0 && (!window.prices || !Object.keys(window.prices).length)) {
+    try { fhFetchStocks(); } catch(e) {}
+  }
+
   // Compute dynamic daily change for each portfolio holding
   porto.forEach(function(p) {
-    var cur = (typeof prices !== 'undefined' && prices[p.ticker]) ? prices[p.ticker] : (p.mp || p.avg || 0);
-    var prev = p.avg > 0 ? p.avg : cur;
-    p.dynamicChgPct = prev > 0 ? ((cur - prev) / prev * 100) : (p.chgPct || 0);
+    var cur = (typeof prices !== 'undefined' && prices[p.ticker] > 0) ? prices[p.ticker] : (p.mp || p.avg || 0);
+    var prev = (typeof prevCloses !== 'undefined' && prevCloses[p.ticker] > 0) ? prevCloses[p.ticker] : 0;
+    var chg = 0;
+    if (cur > 0 && prev > 0) {
+      chg = ((cur - prev) / prev) * 100;
+    } else if (typeof getGlobalMarketChange === 'function') {
+      chg = getGlobalMarketChange(p.ticker);
+    } else if (typeof changes !== 'undefined' && changes[p.ticker] !== undefined) {
+      chg = Number(changes[p.ticker]);
+    }
+    p.dynamicChgPct = chg;
+    p.chgPct = chg;
   });
 
   var dayGain = porto.reduce(function(a, p) { return a + ((p.mv || 0) * (p.dynamicChgPct || 0) / 100); }, 0);
@@ -255,11 +269,11 @@ function renderDailyBriefPage() {
 
     porto.forEach(function(p) {
       var weight = totalPortfolioAssets > 0 ? ((p.mv || 0) / totalPortfolioAssets * 100).toFixed(1) : '0.0';
-      var chgPct = (typeof p.chgPct === 'number') ? p.chgPct : ((typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(p.ticker) : (typeof changes !== 'undefined' && changes[p.ticker] !== undefined ? Number(changes[p.ticker]) : 0));
+      var chgPct = (typeof p.chgPct === 'number') ? p.chgPct : ((typeof p.dynamicChgPct === 'number') ? p.dynamicChgPct : ((typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(p.ticker) : (typeof changes !== 'undefined' && changes[p.ticker] !== undefined ? Number(changes[p.ticker]) : 0)));
       var dayPnl = (p.mv || 0) * (chgPct / 100);
       var unreal = p.unreal || 0;
       var unrealPct = (typeof p.unrealPct === 'number') ? p.unrealPct : (p.cost > 0 ? (unreal / p.cost * 100) : (p.ret || 0));
-      var curPrice = p.curPrice || p.mp || p.price || ((typeof prices !== 'undefined' && prices[p.ticker]) ? prices[p.ticker] : p.avg);
+      var curPrice = (typeof prices !== 'undefined' && prices[p.ticker] > 0) ? prices[p.ticker] : (p.curPrice || p.mp || p.price || p.avg);
 
       // Dynamic Position Risk Score & AI Action Signal calculation
       // Based on portfolio concentration (FINANCIAL_POLICY §7), unrealized drawdown, and price momentum
