@@ -202,20 +202,20 @@ function renderBandarMovementPage() {
               
               <!-- INVESTOR FILTER DROPDOWN -->
               <div class="bm-dropdown-container" style="position:relative;display:inline-block">
-                <button type="button" class="btn btn-xs" onclick="bmToggleDropdown('bm-investor-dropdown')" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">
+                <button type="button" class="btn btn-xs" onclick="bmToggleDropdown('bm-investor-dropdown')" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">
                   <span>${bmGetInvestorLabel(BM_STATE.investor)}</span>
                   <i class="ti ti-chevron-down" style="font-size:10px;color:var(--text3)"></i>
                 </button>
-                <div id="bm-investor-dropdown" class="bm-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:140px;background:#1E222D;border:1px solid rgba(255,255,255,0.12);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:100;padding:4px;overflow:hidden">
-                  <div onclick="bmSetInvestor('all')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.investor === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                <div id="bm-investor-dropdown" class="bm-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:140px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:100;padding:4px;overflow:hidden">
+                  <div onclick="bmSetInvestor('all')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'all' ? 'var(--border2)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='var(--border2)'" onmouseout="this.style.background='${BM_STATE.investor === 'all' ? 'var(--border2)' : 'transparent'}'">
                     <span>All Investor</span>
                     ${BM_STATE.investor === 'all' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
                   </div>
-                  <div onclick="bmSetInvestor('foreign')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'foreign' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.investor === 'foreign' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                  <div onclick="bmSetInvestor('foreign')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'foreign' ? 'var(--border2)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='var(--border2)'" onmouseout="this.style.background='${BM_STATE.investor === 'foreign' ? 'var(--border2)' : 'transparent'}'">
                     <span>Foreign</span>
                     ${BM_STATE.investor === 'foreign' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
                   </div>
-                  <div onclick="bmSetInvestor('domestic')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'domestic' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.investor === 'domestic' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                  <div onclick="bmSetInvestor('domestic')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.investor === 'domestic' ? 'var(--border2)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='var(--border2)'" onmouseout="this.style.background='${BM_STATE.investor === 'domestic' ? 'var(--border2)' : 'transparent'}'">
                     <span>Domestic</span>
                     ${BM_STATE.investor === 'domestic' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
                   </div>
@@ -224,24 +224,24 @@ function renderBandarMovementPage() {
 
               <!-- MARKET FILTER DROPDOWN -->
               <div class="bm-dropdown-container" style="position:relative;display:inline-block">
-                <button type="button" class="btn btn-xs" onclick="bmToggleDropdown('bm-market-dropdown')" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">
+                <button type="button" class="btn btn-xs" onclick="bmToggleDropdown('bm-market-dropdown')" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--text);cursor:pointer">
                   <span>${bmGetMarketLabel(BM_STATE.market)}</span>
                   <i class="ti ti-chevron-down" style="font-size:10px;color:var(--text3)"></i>
                 </button>
-                <div id="bm-market-dropdown" class="bm-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:140px;background:#1E222D;border:1px solid rgba(255,255,255,0.12);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:100;padding:4px;overflow:hidden">
-                  <div onclick="bmSetMarket('all')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.market === 'all' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                <div id="bm-market-dropdown" class="bm-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:140px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:100;padding:4px;overflow:hidden">
+                  <div onclick="bmSetMarket('all')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'all' ? 'var(--border2)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='var(--border2)'" onmouseout="this.style.background='${BM_STATE.market === 'all' ? 'var(--border2)' : 'transparent'}'">
                     <span>All Market</span>
                     ${BM_STATE.market === 'all' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
                   </div>
-                  <div onclick="bmSetMarket('RG')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'RG' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.market === 'RG' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                  <div onclick="bmSetMarket('RG')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'RG' ? 'var(--border2)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='var(--border2)'" onmouseout="this.style.background='${BM_STATE.market === 'RG' ? 'var(--border2)' : 'transparent'}'">
                     <span>Regular</span>
                     ${BM_STATE.market === 'RG' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
                   </div>
-                  <div onclick="bmSetMarket('TN')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'TN' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.market === 'TN' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                  <div onclick="bmSetMarket('TN')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'TN' ? 'var(--border2)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='var(--border2)'" onmouseout="this.style.background='${BM_STATE.market === 'TN' ? 'var(--border2)' : 'transparent'}'">
                     <span>Tunai</span>
                     ${BM_STATE.market === 'TN' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
                   </div>
-                  <div onclick="bmSetMarket('NG')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'NG' ? 'rgba(255,255,255,0.08)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='${BM_STATE.market === 'NG' ? 'rgba(255,255,255,0.08)' : 'transparent'}'">
+                  <div onclick="bmSetMarket('NG')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text);background:${BM_STATE.market === 'NG' ? 'var(--border2)' : 'transparent'};transition:background 0.15s" onmouseover="this.style.background='var(--border2)'" onmouseout="this.style.background='${BM_STATE.market === 'NG' ? 'var(--border2)' : 'transparent'}'">
                     <span>Nego</span>
                     ${BM_STATE.market === 'NG' ? '<span style="width:16px;height:16px;border-radius:50%;background:#10B981;display:inline-flex;align-items:center;justify-content:center;color:#FFF;font-size:10px"><i class="ti ti-check" style="stroke-width:3"></i></span>' : ''}
                   </div>
@@ -585,8 +585,13 @@ function bmRenderBrokerSummaryWidget() {
   var tablesEl = document.getElementById('bm-summary-tables-wrap');
   if (!tablesEl) return;
 
-  if (!bSummary || !Array.isArray(bSummary.buyers) || !Array.isArray(bSummary.sellers)) {
-    tablesEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Data Broker Summary belum tersedia.</div>';
+  if (!bSummary || !Array.isArray(bSummary.buyers) || !Array.isArray(bSummary.sellers) || (bSummary.buyers.length === 0 && bSummary.sellers.length === 0)) {
+    if (gaugeEl) gaugeEl.innerHTML = '';
+    tablesEl.innerHTML = '<div style="padding:28px 16px;text-align:center;background:var(--bg3);border:1px dashed var(--border2);border-radius:10px;margin:8px 0">'
+      + '<div style="font-size:22px;margin-bottom:8px">📡</div>'
+      + '<div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:4px">Data Broker Summary Belum Tersedia</div>'
+      + '<div style="color:var(--text3);font-size:11.5px;max-width:440px;margin:0 auto;line-height:1.5">Data Broker Summary untuk <b>' + (BM_STATE.ticker || 'emiten ini') + '</b> saat ini tidak tersedia atau belum dipublikasikan oleh bursa (EOD diterbitkan sore hari setelah penutupan bursa).</div>'
+      + '</div>';
     return;
   }
 

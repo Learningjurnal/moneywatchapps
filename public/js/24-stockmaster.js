@@ -55,11 +55,7 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
   var px = (typeof prices !== 'undefined' && prices[tk]) ? Number(prices[tk]) : 0;
   var chg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(tk) : ((typeof changes !== 'undefined' && changes[tk]) ? Number(changes[tk]) : 0);
 
-  var quickList = ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'TLKM', 'ASII', 'ANTM', 'ADRO', 'ICBP', 'UNVR', 'GOTO', 'BRIS'];
-  var quickChipsHtml = quickList.map(function(qt) {
-    var isSel = qt === tk;
-    return '<button type="button" onclick="sm360SelectTicker(\'' + qt + '\')" class="btn btn-xs ' + (isSel ? 'btn-primary' : 'btn-ghost') + '" style="font-size:10px;padding:2px 8px;border-radius:6px;font-family:var(--font-mono);font-weight:700;border:1px solid var(--border2)">' + qt + '</button>';
-  }).join(' ');
+
 
   var specNot = (typeof getTickerSpecialNotation === 'function') ? getTickerSpecialNotation(tk) : null;
   var notationBadgeHtml = '';
@@ -95,20 +91,17 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
         + '<div>'
           + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
             + '<span style="font-size:17px;font-weight:900;color:var(--text);font-family:Fira Code,monospace">' + tk + '</span>'
-            + (px > 0 ? '<span style="font-size:16px;font-weight:800;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace">Rp ' + px.toLocaleString('id-ID') + '</span>' : '')
-            + (chg !== 0 ? '<span class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</span>' : '')
+            + '<span id="sm360-header-price" style="font-size:16px;font-weight:800;color:' + (chg >= 0 ? '#10B981' : '#EF4444') + ';font-family:Fira Code,monospace;' + (px > 0 ? '' : 'display:none;') + '">Rp ' + px.toLocaleString('id-ID') + '</span>'
+            + '<span id="sm360-header-change" class="badge ' + (chg >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:10px;' + (chg !== 0 ? '' : 'display:none;') + '">' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</span>'
             + notationBadgeHtml
           + '</div>'
           + '<div style="font-size:10.5px;color:var(--text3);font-weight:600">STOCK MASTER TERMINAL 360 : SINGLE STOCK COMPREHENSIVE INTELLIGENCE</div>'
         + '</div>'
       + '</div>'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-        + '<div style="display:flex;gap:4px">'
-          + '<input type="text" id="sm360-search-inp" class="form-input finput sm360-search-input" placeholder="Ketik Ticker IDX..." value="' + tk + '" style="width:110px;height:28px;font-size:11px;text-transform:uppercase;font-family:var(--font-mono);font-weight:700" onkeydown="if(event.key===\'Enter\'){sm360SelectTicker(this.value,\'sm360-top-bar\');}">'
-          + '<button type="button" class="btn btn-primary btn-xs" onclick="var inp=this.previousElementSibling;if(inp&&inp.value){sm360SelectTicker(inp.value.trim(),\'sm360-top-bar\');}else{sm360SearchSubmit(this);}" style="font-size:10px;padding:3px 10px;font-weight:700">Periksa</button>'
-        + '</div>'
-        + '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">'
-          + quickChipsHtml
+        + '<div style="display:flex;gap:6px;align-items:center">'
+          + '<input type="text" id="sm360-search-inp" class="form-input finput sm360-search-input" placeholder="Cari Ticker (e.g. BBCA)..." value="' + tk + '" style="width:180px;height:32px;font-size:12px;text-transform:uppercase;font-family:var(--font-mono);font-weight:700;padding:4px 10px;border-radius:6px" onkeydown="if(event.key===\'Enter\'){sm360SelectTicker(this.value,\'sm360-top-bar\');}">'
+          + '<button type="button" class="btn btn-primary btn-sm" onclick="var inp=this.previousElementSibling;if(inp&&inp.value){sm360SelectTicker(inp.value.trim(),\'sm360-top-bar\');}else{sm360SearchSubmit(this);}" style="font-size:11px;padding:5px 12px;font-weight:700;height:32px;border-radius:6px">Periksa</button>'
         + '</div>'
       + '</div>'
     + '</div>'

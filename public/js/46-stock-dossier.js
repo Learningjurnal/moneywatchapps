@@ -1133,6 +1133,25 @@ async function dossierHarvestData(ticker) {
     var qData = results[0];
     harvested.quote = (qData && qData.quote) ? qData.quote : qData;
 
+    // Real-time synchronization of quote to global pricing SSOT & SM360 topbar
+    if (harvested.quote && typeof syncGlobalMarketQuote === 'function') {
+      syncGlobalMarketQuote(cleanTicker, harvested.quote);
+      var pEl = document.getElementById('sm360-header-price');
+      var cEl = document.getElementById('sm360-header-change');
+      var realPx = harvested.quote.price || harvested.quote.regularMarketPrice || 0;
+      var realChg = harvested.quote.changePercent !== undefined ? harvested.quote.changePercent : (harvested.quote.regularMarketChangePercent || 0);
+      if (pEl && realPx > 0) {
+        pEl.textContent = 'Rp ' + Number(realPx).toLocaleString('id-ID');
+        pEl.style.color = realChg >= 0 ? '#10B981' : '#EF4444';
+        pEl.style.display = 'inline';
+      }
+      if (cEl) {
+        cEl.textContent = (realChg >= 0 ? '+' : '') + Number(realChg).toFixed(2) + '%';
+        cEl.className = 'badge ' + (realChg >= 0 ? 'b-up' : 'b-dn');
+        cEl.style.display = 'inline';
+      }
+    }
+
     var bData = results[1];
     harvested.brokerSummary = (bData && bData.data) ? bData.data : bData;
 

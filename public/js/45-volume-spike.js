@@ -78,6 +78,7 @@ var VS_STATE = { ticker: null, loading: false };
 var VS_CONTAINER_ID = 'page-volume-spike';
 var VS_SCREEN_STATE = {
   index: 'lq45',          // filter aktif: lq45 | idx30 | idx80 | kompas100
+  filterBandar: 'all',    // filter akumulasi/distribusi: all | acc | dist
   rows: [],                // hasil scan [{code,name,todayVol,med14,med30,ratio14,ratio30,isSpike,chg1d}]
   scanning: false,
   scannedCount: 0,
@@ -96,8 +97,7 @@ var VS_SCAN_BATCH = 4; // concurrency kept modest — rdEnsure()/rdFetchYahoo() 
 // FIX (2026-09-14, user-requested): tabel screening dibatasi menampilkan
 // maksimal 10 baris tertinggi (sesuai sort aktif) — scan seluruh index
 // TETAP jalan penuh di background (VS_SCREEN_STATE.rows menyimpan SEMUA
-// saham spike yang ditemukan, tidak dibuang), cuma yang DITAMPILKAN dibatasi.
-var VS_MAX_DISPLAY_ROWS = 10;
+var VS_MAX_DISPLAY_ROWS = 20;
 
 function vsFmtVol(n) {
   n = Number(n) || 0;
@@ -336,15 +336,21 @@ function vsScreenPanelShellHtml() {
   var opts = Object.keys(VS_INDEX_LABELS).map(function(k) {
     return '<option value="' + k + '"' + (k === VS_SCREEN_STATE.index ? ' selected' : '') + '>' + VS_INDEX_LABELS[k] + '</option>';
   }).join('');
+  var filterBandar = VS_SCREEN_STATE.filterBandar || 'all';
   return '<div class="card" style="border-radius:12px;background:var(--bg2);border:1px solid var(--border)">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'
       + '<div class="ctitle" style="font-size:13px;display:flex;align-items:center;gap:6px"><i class="ti ti-scan" style="color:var(--accent)"></i> Screening Volume Spike</div>'
-      + '<div style="display:flex;gap:6px;align-items:center">'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+        + '<select class="finput fsel" id="vs-filter-bandar" style="font-size:11px;padding:5px 8px;border-radius:8px" onchange="vsFilterScreen(this.value)">'
+          + '<option value="all"' + (filterBandar === 'all' ? ' selected' : '') + '>Semua Aliran</option>'
+          + '<option value="acc"' + (filterBandar === 'acc' ? ' selected' : '') + '>🟢 Akumulasi</option>'
+          + '<option value="dist"' + (filterBandar === 'dist' ? ' selected' : '') + '>🔴 Distribusi</option>'
+        + '</select>'
         + '<select class="finput fsel" id="vs-screen-index" style="font-size:11.5px;padding:5px 10px;border-radius:8px" onchange="vsStartScreening(this.value)">' + opts + '</select>'
         + '<button class="btn btn-ghost btn-xs" id="vs-screen-refresh" onclick="vsStartScreening(VS_SCREEN_STATE.index, true)" title="Pindai ulang" style="border-radius:6px;padding:5px 8px"><i class="ti ti-refresh"></i></button>'
       + '</div>'
     + '</div>'
-    + '<div style="font-size:10.5px;color:var(--text3);margin-bottom:10px;line-height:1.4">Filter otomatis saham dengan rasio volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x vs median 30 hari. Klik baris emiten untuk analisis detail.</div>'
+    + '<div style="font-size:10.5px;color:var(--text3);margin-bottom:10px;line-height:1.4">Filter otomatis 20 saham dengan rasio volume ≥' + VS_SPIKE_THRESHOLD.toFixed(2) + 'x vs median 30 hari. Klik baris emiten untuk analisis detail.</div>'
     + '<div id="vs-screen-progress" style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:600"></div>'
     + '<div style="overflow-x:auto"><table class="tbl" style="font-size:11.5px;width:100%">'
       + '<thead><tr>'
@@ -353,7 +359,7 @@ function vsScreenPanelShellHtml() {
         + '<th style="cursor:pointer;text-align:right" onclick="vsSortScreen(\'med14\')">Median 14D' + vsSortArrow('med14') + '</th>'
         + '<th style="cursor:pointer;text-align:right" onclick="vsSortScreen(\'med30\')">Median 30D' + vsSortArrow('med30') + '</th>'
         + '<th style="cursor:pointer;text-align:right" onclick="vsSortScreen(\'ratio30\')">Rasio (30D)' + vsSortArrow('ratio30') + '</th>'
-        + '<th style="text-align:center" title="Heuristik dari arah harga hari ini (chg1d real) — bukan identitas buyer/seller sebenarnya">Indikasi</th>'
+        + '<th style="cursor:pointer;text-align:center" onclick="vsSortScreen(\'chg1d\')" title="Heuristik dari arah harga hari ini (chg1d real) — bukan identitas buyer/seller sebenarnya">Indikasi' + vsSortArrow('chg1d') + '</th>'
       + '</tr></thead>'
       + '<tbody id="vs-screen-tbody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Memindai...</td></tr></tbody>'
     + '</table></div>'
@@ -502,7 +508,12 @@ function vsScanNext(universe, i, myToken, forceRefresh) {
 
 function vsSortedScreenRows() {
   var key = VS_SCREEN_STATE.sortKey, dir = VS_SCREEN_STATE.sortDir;
-  var rows = VS_SCREEN_STATE.rows.slice();
+  var filter = VS_SCREEN_STATE.filterBandar || 'all';
+  var rows = VS_SCREEN_STATE.rows.filter(function(r) {
+    if (filter === 'acc') return typeof r.chg1d === 'number' && r.chg1d >= 0;
+    if (filter === 'dist') return typeof r.chg1d === 'number' && r.chg1d < 0;
+    return true;
+  });
   rows.sort(function(a, b) {
     var vA = a[key], vB = b[key];
     if (typeof vA === 'string') {
@@ -516,6 +527,12 @@ function vsSortedScreenRows() {
 function vsTopScreenRows() {
   return vsSortedScreenRows().slice(0, VS_MAX_DISPLAY_ROWS);
 }
+
+function vsFilterScreen(val) {
+  VS_SCREEN_STATE.filterBandar = val || 'all';
+  vsRenderScreenTable();
+}
+window.vsFilterScreen = vsFilterScreen;
 
 // HTML 1 baris tabel screening — dipakai BERSAMA oleh rebuild penuh
 // (vsRenderScreenTable, dipanggil jarang/sekali) dan penambahan 1 baris
@@ -591,6 +608,12 @@ function vsAppendScreenRow(r) {
 //     rendah keluar. Saham yang tidak cukup tinggi diam-diam diabaikan
 //     dari tampilan (tapi tetap tersimpan di VS_SCREEN_STATE.rows).
 function vsMaybeUpdateVisibleTable(newRow) {
+  var filter = VS_SCREEN_STATE.filterBandar || 'all';
+  var matches = true;
+  if (filter === 'acc') matches = (typeof newRow.chg1d === 'number' && newRow.chg1d >= 0);
+  else if (filter === 'dist') matches = (typeof newRow.chg1d === 'number' && newRow.chg1d < 0);
+  if (!matches) return;
+
   var tbody = el('vs-screen-tbody');
   var shownCount = tbody ? tbody.querySelectorAll('tr[data-code]').length : 0;
   if (shownCount < VS_MAX_DISPLAY_ROWS) {
@@ -598,7 +621,7 @@ function vsMaybeUpdateVisibleTable(newRow) {
     return;
   }
   if (vsTopScreenRows().indexOf(newRow) !== -1) {
-    vsRenderScreenTable(); // tetap dibatasi 10 baris oleh vsTopScreenRows() — murah, jarang terjadi
+    vsRenderScreenTable(); // tetap dibatasi max baris oleh vsTopScreenRows() — murah, jarang terjadi
   }
 }
 
@@ -855,7 +878,7 @@ function vsRenderVolumeChart(last7, med30) {
         var ctx = chart.ctx;
         ctx.save();
         ctx.setLineDash([4, 3]);
-        ctx.strokeStyle = 'rgba(96,165,250,.7)';
+        ctx.strokeStyle = 'rgba(245,158,11,0.85)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(xScale.left, y);

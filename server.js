@@ -1915,6 +1915,30 @@ async function executeAgentTool(toolName, args, userContext = {}) {
       };
     }
 
+    case 'scan_market_accumulation': {
+      try {
+        const type = (args.type || 'all').toLowerCase();
+        const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 20);
+        const data = await getUniverseAccumulationDistribution();
+        const acc = (data.accumulation || []).slice(0, limit);
+        const dist = (data.distribution || []).slice(0, limit);
+        return {
+          isReal: !data.isSimulated,
+          dataSource: data.dataSource || 'Invezgo / IDX EOD Feed',
+          dateScanned: data.updatedAt,
+          topAccumulation: (type === 'all' || type === 'accumulation') ? acc : [],
+          topDistribution: (type === 'all' || type === 'distribution') ? dist : [],
+          summary: `Ditemukan ${data.counts?.accumulation || acc.length} saham terakumulasi dan ${data.counts?.distribution || dist.length} saham terdistribusi.`
+        };
+      } catch (e) {
+        return {
+          error: e.message || 'Gagal memindai akumulasi seluruh pasar.',
+          topAccumulation: [],
+          topDistribution: []
+        };
+      }
+    }
+
     default:
       return { error: `Alat ${toolName} tidak dikenal.` };
   }
@@ -2071,6 +2095,23 @@ const AGENT_TOOL_DECLARATIONS = [
         ticker: { type: 'STRING', description: 'Kode ticker saham BEI 4 huruf kapital, contoh: BBCA, BBRI, BMRI, PGEO, TLKM' }
       },
       required: ['ticker']
+    }
+  },
+  {
+    name: 'scan_market_accumulation',
+    description: 'Memindai seluruh pasar BEI untuk mendeteksi saham-saham yang sedang mengalami AKUMULASI atau DISTRIBUSI terbesar oleh Smart Money / Bandar hari ini. Panggil tool ini saat pengguna bertanya saham apa yang sedang diakumulasi, saham yang menarik aliran dana institusi hari ini, atau minta daftar top akumulasi/distribusi seluruh market.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        type: {
+          type: 'STRING',
+          description: 'Filter jenis aliran: "accumulation" (hanya akumulasi), "distribution" (hanya distribusi), atau "all" (keduanya). Default: "all"'
+        },
+        limit: {
+          type: 'INTEGER',
+          description: 'Jumlah saham teratas yang ingin ditampilkan (1-20, default: 10)'
+        }
+      }
     }
   }
 ];
@@ -2317,24 +2358,40 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
   if (ai) {
     try {
       // Build conversation history in Claude's {role, content} shape
-      const messages = [];
+      const rawMessages = [];
       (history || []).slice(-8).forEach(h => {
         if (h.role === 'user' || h.role === 'assistant' || h.role === 'model') {
-          messages.push({
-            role: h.role === 'model' ? 'assistant' : h.role,
-            content: h.text || h.content || ''
-          });
+          const textContent = (h.text || h.content || '').trim();
+          if (textContent) {
+            rawMessages.push({
+              role: h.role === 'model' ? 'assistant' : h.role,
+              content: textContent
+            });
+          }
         }
       });
 
-      // Append current user message (prevent duplicate consecutive user message)
-      const lastClaudeMsg = messages[messages.length - 1];
-      if (!lastClaudeMsg || lastClaudeMsg.role !== 'user' || lastClaudeMsg.content !== message.trim()) {
-        if (lastClaudeMsg && lastClaudeMsg.role === 'user') {
-          messages.push({ role: 'assistant', content: 'Baik, mari kita analisa pertanyaan Anda.' });
-        }
-        messages.push({ role: 'user', content: message.trim() });
+      // Anthropic API requirement: messages[0].role MUST be 'user'
+      while (rawMessages.length > 0 && rawMessages[0].role !== 'user') {
+        rawMessages.shift();
       }
+
+      // Enforce strict alternating roles (user -> assistant -> user)
+      const messages = [];
+      let prevRole = null;
+      for (const m of rawMessages) {
+        if (m.role !== prevRole) {
+          messages.push(m);
+          prevRole = m.role;
+        }
+      }
+
+      // Append current user message
+      const userMsg = message.trim();
+      if (prevRole === 'user') {
+        messages.push({ role: 'assistant', content: 'Baik, mari kita analisa pertanyaan Anda.' });
+      }
+      messages.push({ role: 'user', content: userMsg });
 
       // Agentic Execution Loop (up to 5 steps)
       let currentIteration = 0;

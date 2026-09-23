@@ -809,22 +809,7 @@
   function initPriceAlertUI() {
     loadAlerts();
 
-    // 1. Injeksi Bell Alert Icon di Topbar
-    var topbarRight = document.querySelector('.topbar-right');
-    if (topbarRight && !document.getElementById('tb-alert-btn')) {
-      var alertBtn = document.createElement('button');
-      alertBtn.id = 'tb-alert-btn';
-      alertBtn.className = 'btn btn-ghost btn-xs';
-      alertBtn.style.cssText = 'position:relative;display:flex;align-items:center;gap:4px;font-size:11px;border-color:var(--border2);color:var(--text2);padding:4px 8px;';
-      alertBtn.title = 'Price Alerts & Target Monitor';
-      alertBtn.innerHTML = 
-        '<i class="ti ti-bell" style="font-size:14px;color:var(--amber)"></i>' +
-        '<span id="tb-alert-badge" class="tb-alert-badge" style="display:none">0</span>';
-      alertBtn.onclick = function() {
-        if (typeof goPage === 'function') goPage('alerts');
-      };
-      topbarRight.insertBefore(alertBtn, topbarRight.firstChild);
-    }
+    // 1. Injeksi Bell Alert Icon di Topbar: sudah ada secara statis di index.html (#tb-alert-btn)
 
     // 2. Injeksi Navigasi Sidebar jika belum ada
     var sideNavScroll = document.getElementById('side-nav-scroll');

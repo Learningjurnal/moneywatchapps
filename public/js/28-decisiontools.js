@@ -255,48 +255,59 @@ function renderDailyBriefPage() {
 
     porto.forEach(function(p) {
       var weight = totalPortfolioAssets > 0 ? ((p.mv || 0) / totalPortfolioAssets * 100).toFixed(1) : '0.0';
-      var dayPnl = (p.mv || 0) * (p.chgPct || 0) / 100;
+      var chgPct = (typeof p.chgPct === 'number') ? p.chgPct : ((typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(p.ticker) : (typeof changes !== 'undefined' && changes[p.ticker] !== undefined ? Number(changes[p.ticker]) : 0));
+      var dayPnl = (p.mv || 0) * (chgPct / 100);
       var unreal = p.unreal || 0;
-      var unrealPct = p.unrealPct || 0;
-      var chgPct = p.chgPct || 0;
+      var unrealPct = (typeof p.unrealPct === 'number') ? p.unrealPct : (p.cost > 0 ? (unreal / p.cost * 100) : (p.ret || 0));
+      var curPrice = p.curPrice || p.mp || p.price || ((typeof prices !== 'undefined' && prices[p.ticker]) ? prices[p.ticker] : p.avg);
 
-      // Determine smart AI action signal for each stock
-      // FIX (2026-09-18, audit menyeluruh): dulu variabel & kolom UI ini
-      // bernama "healthScore" / "HEALTH & VALUASI" — namanya menyiratkan
-      // analisis fundamental (PER/PBV/ROE), padahal murni fungsi dari
-      // bobot posisi & P&L unrealized (data portofolio REAL, bukan
-      // karangan — tapi label-nya menjanjikan sesuatu yang tidak pernah
-      // dihitung). Diganti nama & label jadi "positionRiskScore"/"SKOR
-      // RISIKO POSISI" supaya sesuai dengan apa yang benar-benar diukur.
+      // Dynamic Position Risk Score & AI Action Signal calculation
+      // Based on portfolio concentration (FINANCIAL_POLICY §7), unrealized drawdown, and price momentum
+      var wNum = parseFloat(weight) || 0;
+      var rScore = 100;
+      if (wNum > 15) {
+        rScore -= Math.min(30, (wNum - 15) * 2.5); // Penalti konsentrasi melebihi batas 15%
+      }
+      if (unrealPct < 0) {
+        rScore -= Math.min(35, Math.abs(unrealPct) * 1.2); // Penalti floating drawdown
+      }
+      var info = (typeof DB !== 'undefined' && DB[p.ticker]) ? DB[p.ticker] : (p.info || {});
+      if (info.beta && info.beta > 1.3) {
+        rScore -= 5; // Penalti volatilitas tinggi
+      }
+      var positionRiskScore = Math.max(10, Math.min(100, Math.round(rScore)));
+      var riskScoreBadge = positionRiskScore >= 75 ? 'b-up' : (positionRiskScore >= 50 ? 'b-amb' : 'b-dn');
+
       var signal = 'HOLD / COMPOUND';
       var signalBadge = 'b-up';
-      var positionRiskScore = 80;
 
-      if (parseFloat(weight) > 16) {
+      if (wNum > 16) {
         signal = 'TRIM / REBALANCE';
         signalBadge = 'b-amb';
-        positionRiskScore = 78;
-      } else if (unrealPct < -12) {
-        signal = 'EVALUATE THESIS / DCA';
+      } else if (unrealPct <= -15) {
+        signal = 'STOP LOSS / THESIS BREAK';
         signalBadge = 'b-dn';
-        positionRiskScore = 68;
-      } else if (unrealPct > 25) {
+      } else if (unrealPct < -8) {
+        signal = 'EVALUATE THESIS / DCA';
+        signalBadge = 'b-amb';
+      } else if (unrealPct >= 20) {
         signal = 'SECURE PROFIT / TRAILING';
         signalBadge = 'b-accent';
-        positionRiskScore = 88;
-      } else if (chgPct > 2.0) {
+      } else if (chgPct >= 2.0) {
         signal = 'MOMENTUM EXPANSION';
         signalBadge = 'b-up';
-        positionRiskScore = 85;
+      } else if (chgPct <= -2.5) {
+        signal = 'PULLBACK MONITOR';
+        signalBadge = 'b-neu';
       }
 
       html += '<tr>'
         + '<td style="text-align:left">'
           + '<div style="display:flex;align-items:center;gap:8px">'
             + '<strong class="mono" style="font-size:13px;color:var(--text)">' + p.ticker + '</strong>'
-            + '<span style="font-size:11px;color:var(--text3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.name || '') + '</span>'
+            + '<span style="font-size:11px;color:var(--text3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.name || (info && info.name) || '') + '</span>'
           + '</div>'
-          + '<div style="font-size:10px;color:var(--text3);margin-top:2px">Harga: Rp ' + fmtK(p.cur) + ' · Avg: Rp ' + fmtK(p.avg) + '</div>'
+          + '<div style="font-size:10px;color:var(--text3);margin-top:2px">Harga: Rp ' + fmtK(curPrice) + ' · Avg: Rp ' + fmtK(p.avg) + '</div>'
         + '</td>'
         + '<td style="text-align:right" class="mono">'
           + '<div style="color:var(--text);font-weight:700">Rp ' + fmtK(p.mv) + '</div>'
@@ -314,13 +325,13 @@ function renderDailyBriefPage() {
           + '<div style="font-size:10px;" class="' + (unrealPct >= 0 ? 'up' : 'dn') + '">' + (unrealPct >= 0 ? '+' : '') + unrealPct.toFixed(2) + '%</div>'
         + '</td>'
         + '<td style="text-align:center">'
-          + '<span class="badge b-up" style="font-size:10px">' + positionRiskScore + '/100</span>'
+          + '<span class="badge ' + riskScoreBadge + '" style="font-size:10px">' + positionRiskScore + '/100</span>'
         + '</td>'
         + '<td style="text-align:center">'
           + '<span class="badge ' + signalBadge + '" style="font-size:10px">' + signal + '</span>'
         + '</td>'
         + '<td style="text-align:center">'
-          + '<button class="btn btn-outline btn-sm" onclick="switchIntelTicker(\'' + p.ticker + '\')" style="padding:3px 8px;font-size:10.5px" title="Buka Cockpit Analisis ' + p.ticker + '">Cockpit</button>'
+          + '<button class="btn btn-outline btn-sm" onclick="switchIntelTicker(\'' + p.ticker + '\')" style="padding:3px 8px;font-size:10.5px" title="Buka Detail Analisis ' + p.ticker + '">Detail</button>'
         + '</td>'
       + '</tr>';
     });

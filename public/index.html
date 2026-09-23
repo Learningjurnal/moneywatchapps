@@ -741,9 +741,9 @@
     </div>
 
     <!-- Notification / Alerts Bell -->
-    <button class="btn btn-ghost btn-xs" onclick="goPage('alerts')" title="Notifikasi & Price Alerts" style="font-size:12px;position:relative;padding:5px 8px;border-radius:6px;border-color:var(--border2);color:var(--text2)">
-      <i class="ti ti-bell" style="font-size:14px"></i>
-      <span id="tb-alert-dot" style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--red);display:none"></span>
+    <button id="tb-alert-btn" class="btn btn-ghost btn-xs" onclick="goPage('alerts')" title="Notifikasi & Price Alerts" style="font-size:12px;position:relative;padding:5px 8px;border-radius:6px;border-color:var(--border2);color:var(--text2)">
+      <i class="ti ti-bell" style="font-size:14px;color:var(--amber)"></i>
+      <span id="tb-alert-badge" class="tb-alert-badge" style="display:none">0</span>
     </button>
 
   </div>
@@ -3798,10 +3798,9 @@
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border2)">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input id="wl-add-input" type="text" placeholder="Kode saham (e.g. BBCA)" maxlength="6"
-          style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:5px 10px;border-radius:6px;text-transform:uppercase;width:180px"
+          style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:6px 12px;border-radius:6px;text-transform:uppercase;width:240px"
           oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fsAddFromInput()">
-        <button class="btn btn-primary btn-sm" onclick="fsAddFromInput()">+ Tambah</button>
-        <div id="wl-qa-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:4px"></div>
+        <button class="btn btn-primary btn-sm" onclick="fsAddFromInput()" style="padding:6px 14px;font-weight:700">+ Tambah</button>
       </div>
       <div id="wl-sort-row" style="display:flex;gap:4px">
         <button class="btn btn-primary btn-xs" onclick="fsSetWlSort('default',this)">Default</button>

@@ -143,8 +143,11 @@ function usSetSort(field) {
 }
 
 function usOpenTicker(ticker) {
-  if (typeof goPage === 'function') goPage('stock-intel');
-  if (typeof selectStockIntelTicker === 'function') selectStockIntelTicker(ticker);
+  if (typeof sm360SelectTicker === 'function') {
+    sm360SelectTicker(ticker);
+  } else if (typeof goPage === 'function') {
+    goPage('stock-dossier');
+  }
 }
 
 function usSortIndicator(field) {
@@ -261,12 +264,12 @@ function usRenderShell() {
         + '<option value="ACCUM"' + (f.whale === 'ACCUM' ? ' selected' : '') + '>Akumulasi</option>'
         + '<option value="DIST"' + (f.whale === 'DIST' ? ' selected' : '') + '>Distribusi</option>'
       + '</select></div>'
-    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Min Uptrend</label>'
-      + '<input id="us-f-minuptrend" type="number" min="0" max="100" placeholder="0-100" value="' + (f.minUptrend || '') + '" style="width:70px;' + fis + '" class="finput"></div>'
-    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Max PER</label>'
-      + '<input id="us-f-maxper" type="number" min="0" placeholder="mis. 15" value="' + (f.maxPer || '') + '" style="width:70px;' + fis + '" class="finput"></div>'
-    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Min ROE %</label>'
-      + '<input id="us-f-minroe" type="number" placeholder="mis. 10" value="' + (f.minRoe || '') + '" style="width:70px;' + fis + '" class="finput"></div>'
+    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px;white-space:nowrap">Min Uptrend</label>'
+      + '<input id="us-f-minuptrend" type="number" min="0" max="100" placeholder="0-100" value="' + (f.minUptrend || '') + '" style="min-width:90px;width:90px;' + fis + '" class="finput"></div>'
+    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px;white-space:nowrap">Max PER</label>'
+      + '<input id="us-f-maxper" type="number" min="0" placeholder="mis. 15" value="' + (f.maxPer || '') + '" style="min-width:90px;width:90px;' + fis + '" class="finput"></div>'
+    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px;white-space:nowrap">Min ROE %</label>'
+      + '<input id="us-f-minroe" type="number" placeholder="mis. 10" value="' + (f.minRoe || '') + '" style="min-width:90px;width:90px;' + fis + '" class="finput"></div>'
     + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Wave Phase</label>'
       + '<select id="us-f-wavephase" class="finput fsel" style="' + fis + '">'
         + '<option value="ALL"' + (f.wavePhase === 'ALL' ? ' selected' : '') + '>Semua</option>'
@@ -290,7 +293,8 @@ function usRenderShell() {
       + '<thead><tr>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'ticker\')">Ticker' + usSortIndicator('ticker') + '</th>'
         + '<th>Nama</th>'
-        + '<th>Sektor</th>'
+        + '<th style="cursor:pointer" onclick="usSetSort(\'chg1d\')">Chg% (1D)' + usSortIndicator('chg1d') + '</th>'
+        + '<th style="cursor:pointer" onclick="usSetSort(\'chg7d\')">Chg% (7D)' + usSortIndicator('chg7d') + '</th>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'per\')">PER' + usSortIndicator('per') + '</th>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'roe\')">ROE' + usSortIndicator('roe') + '</th>'
         + '<th>Trend</th>'
@@ -301,14 +305,20 @@ function usRenderShell() {
       + '</tr></thead><tbody>';
 
     if (US_STATE.rows.length === 0 && US_STATE.loaded) {
-      html += '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-mute)">Tidak ada saham yang cocok dengan filter ini.</td></tr>';
+      html += '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-mute)">Tidak ada saham yang cocok dengan filter ini.</td></tr>';
     }
 
     US_STATE.rows.forEach(function (r) {
+      var c1d = r.chg1d != null ? (r.chg1d >= 0 ? '+' : '') + r.chg1d.toFixed(2) + '%' : '<span style="color:var(--text-mute)">N/A</span>';
+      var c1dCol = r.chg1d != null ? (r.chg1d >= 0 ? 'var(--green)' : 'var(--red)') : 'inherit';
+      var c7d = r.chg7d != null ? (r.chg7d >= 0 ? '+' : '') + r.chg7d.toFixed(2) + '%' : '<span style="color:var(--text-mute)">N/A</span>';
+      var c7dCol = r.chg7d != null ? (r.chg7d >= 0 ? 'var(--green)' : 'var(--red)') : 'inherit';
+
       html += '<tr style="cursor:pointer" onclick="usOpenTicker(\'' + r.ticker + '\')">'
         + '<td><b>' + r.ticker + '</b>' + (r.confirmedUptrendWhale ? ' <span class="badge b-up" style="font-size:8px;padding:1px 4px" title="Uptrend + Akumulasi Terkonfirmasi">🐋+📈</span>' : '') + '</td>'
         + '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (r.name || '-') + '</td>'
-        + '<td style="font-size:11px;color:var(--text-mute)">' + (r.sector || '-') + '</td>'
+        + '<td style="font-weight:700;color:' + c1dCol + ';font-family:var(--font-mono)">' + c1d + '</td>'
+        + '<td style="font-weight:700;color:' + c7dCol + ';font-family:var(--font-mono)">' + c7d + '</td>'
         + '<td>' + (r.per != null ? r.per.toFixed(1) + 'x' : '<span style="color:var(--text-mute)">N/A</span>') + '</td>'
         + '<td>' + (r.roe != null ? r.roe.toFixed(1) + '%' : '<span style="color:var(--text-mute)">N/A</span>') + '</td>'
         + '<td>' + (r.trend ? ('<span class="badge ' + (r.trend === 'UPTREND' ? 'b-up' : r.trend === 'DOWNTREND' ? 'b-dn' : 'b-neu') + '" style="font-size:9px">' + r.trend + '</span>') : '<span style="color:var(--text-mute)">N/A</span>') + '</td>'

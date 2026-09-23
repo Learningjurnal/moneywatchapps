@@ -15,11 +15,17 @@
 // from the same real, simulated-broker-summary-based aggregation instead of
 // shipping two separate, disagreeing sets of sector flow numbers.
 var BANDAR_SECTOR_DEFS = [
-  { name: 'Financials (Perbankan & Keuangan)', tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BBTN'] },
-  { name: 'Basic Materials (Tambang & Mineral)', tickers: ['ANTM', 'AMMN', 'MDKA', 'INCO', 'BRMS', 'MBMA', 'INKP', 'TKIM'] },
-  { name: 'Energy (Minyak, Gas & Batubara)', tickers: ['ADRO', 'PTRO', 'MEDC', 'PGAS', 'PTBA', 'BUMI', 'DEWA', 'AADI'] },
-  { name: 'Infrastructure (Telko & Infrastruktur)', tickers: ['TLKM', 'BREN', 'TPIA', 'PGEO', 'JSMR', 'EXCL', 'WIFI'] },
-  { name: 'Consumer & Retail (Sektor Konsumer)', tickers: ['UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'CPIN', 'MYOR', 'ACES'] }
+  { name: 'Financials (Keuangan)', tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BBTN', 'BDMN', 'BNGA', 'MEGA', 'NISP', 'ARTO', 'PNBN', 'BCIC', 'BTPS'] },
+  { name: 'Energy (Energi)', tickers: ['ADRO', 'PTRO', 'MEDC', 'PGAS', 'PTBA', 'BUMI', 'DEWA', 'AADI', 'INDY', 'ITMG', 'HRUM', 'AKRA', 'ENRG', 'RAJA', 'ELSA', 'DOID', 'ADMR', 'MBSS'] },
+  { name: 'Basic Materials (Barang Baku)', tickers: ['ANTM', 'AMMN', 'MDKA', 'INCO', 'BRMS', 'MBMA', 'INKP', 'TKIM', 'SMGR', 'INTP', 'TPIA', 'BRPT', 'ARCI', 'NICL', 'NCKL', 'AVIA', 'MCOL'] },
+  { name: 'Consumer Non-Cyclicals (Konsumer Primer)', tickers: ['UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'CPIN', 'MYOR', 'JPFA', 'GGRM', 'HMSP', 'CMRY', 'AMRT', 'MIDI', 'AALI', 'LSIP', 'TAPG', 'DSNG'] },
+  { name: 'Consumer Cyclicals (Konsumer Non-Primer)', tickers: ['ACES', 'MAPI', 'MAPA', 'ERAA', 'RALS', 'LPPF', 'AUTO', 'DRMA', 'SMSM', 'ASLC', 'GJTL', 'WIFI', 'BMTR', 'MNCN', 'SCMA'] },
+  { name: 'Healthcare (Kesehatan)', tickers: ['KLBF', 'SIDO', 'MIKA', 'HEAL', 'SILO', 'PRDA', 'TSPC', 'IRRA', 'KAEF', 'INAF', 'SAME'] },
+  { name: 'Technology (Teknologi)', tickers: ['GOTO', 'BUKA', 'EMTK', 'WIRG', 'BELI', 'MTDL', 'DCII', 'MLPT', 'MCAS', 'DMMX'] },
+  { name: 'Infrastructures (Infrastruktur)', tickers: ['TLKM', 'BREN', 'TPIA', 'PGEO', 'JSMR', 'EXCL', 'ISAT', 'TOWR', 'TBIG', 'POWR', 'META', 'CENT', 'CDIA'] },
+  { name: 'Properties & Real Estate (Properti)', tickers: ['BSDE', 'PWON', 'CTRA', 'SMRA', 'ASRI', 'APLN', 'DILD', 'SSIA', 'KIJA', 'PANI', 'SMDM', 'BKSL', 'LPKR'] },
+  { name: 'Industrials (Perindustrian)', tickers: ['ASII', 'UNTR', 'HEXA', 'ARNA', 'MARK', 'IMPC', 'MLIA', 'KBLI', 'CCSI', 'KBLM'] },
+  { name: 'Transportation & Logistics (Transportasi)', tickers: ['SMDR', 'TMAS', 'BIRD', 'ASSA', 'GIAA', 'WEHA', 'PSSI', 'HAIS'] }
 ];
 
 var STOCKCHAT_CONVERSATION = [
@@ -1696,31 +1702,42 @@ async function sendStockChatPrompt(text) {
   STOCKCHAT_IS_BUSY = true;
   renderStockChatPage();
 
-  // Extract user holdings & balance context
-  var porto = (typeof getPortfolio === 'function') ? getPortfolio() : (window.holdings || []);
-  var totalAum = (typeof computeCurrentAUM === 'function') ? computeCurrentAUM() : 0;
-  var rdn = (typeof calcRdnBalance === 'function') ? calcRdnBalance() : 0;
-
-  // AI Signal Reflection Log Fase 3 (2026-09-17): riwayat sinyal ter-resolusi
-  // (return riil, hasil vs IHSG, refleksi) dikirim apa adanya — server tidak
-  // pernah punya akses Supabase sendiri (lihat cek_sinyal_teknikal di
-  // server.js), filter per-ticker dilakukan di sana setelah ticker diketahui.
-  var aiSignalHistory = (typeof getAiSignalHistorySummary === 'function') ? await getAiSignalHistorySummary() : [];
-
-  var userContext = {
-    holdings: porto,
-    totalAum: totalAum,
-    rdnCash: rdn,
-    selectedTicker: STOCKCHAT_SELECTED_TICKER,
-    livePrices: window.prices || {},
-    aiSignalHistory: aiSignalHistory
-  };
-
   try {
+    // Extract user holdings & balance context
+    var porto = (typeof getPortfolio === 'function') ? getPortfolio() : (window.holdings || []);
+    var totalAum = (typeof computeCurrentAUM === 'function') ? computeCurrentAUM() : 0;
+    var rdn = (typeof calcRdnBalance === 'function') ? calcRdnBalance() : 0;
+
+    var aiSignalHistory = [];
+    try {
+      if (typeof getAiSignalHistorySummary === 'function') {
+        aiSignalHistory = await Promise.race([
+          getAiSignalHistorySummary(),
+          new Promise(function(resolve) { setTimeout(function() { resolve([]); }, 3000); })
+        ]);
+      }
+    } catch (sigErr) {
+      console.warn('[StockChat] getAiSignalHistorySummary error:', sigErr);
+    }
+
+    var userContext = {
+      holdings: porto,
+      totalAum: totalAum,
+      rdnCash: rdn,
+      selectedTicker: STOCKCHAT_SELECTED_TICKER,
+      livePrices: window.prices || {},
+      aiSignalHistory: aiSignalHistory
+    };
+
+    var serverHandled = false;
     try {
       // Prior history: exclude the newly pushed user message so role alternating is preserved
       var priorHistory = STOCKCHAT_CONVERSATION.slice(0, -1).slice(-8);
-      var res = await fetch('/api/ai/agent-chat', {
+
+      var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timeoutId = controller ? setTimeout(function() { controller.abort(); }, 20000) : null;
+
+      var fetchOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1728,7 +1745,11 @@ async function sendStockChatPrompt(text) {
           history: priorHistory,
           userContext: userContext
         })
-      });
+      };
+      if (controller) fetchOptions.signal = controller.signal;
+
+      var res = await fetch('/api/ai/agent-chat', fetchOptions);
+      if (timeoutId) clearTimeout(timeoutId);
 
       if (res.ok) {
         var data = await res.json();
@@ -1739,19 +1760,28 @@ async function sendStockChatPrompt(text) {
             toolCalls: data.toolCalls || []
           });
           if (typeof logAiSignalToReflectionLog === 'function') logAiSignalToReflectionLog('stockchat', data.toolCalls);
-          return;
+          serverHandled = true;
         }
       }
     } catch (err) {
-      console.warn('[StockChat] Server AI API unavailable, engaging client-side AI Agent Reasoning Engine:', err);
+      console.warn('[StockChat] Server AI API unavailable/timed out, engaging client-side AI Agent Reasoning Engine:', err);
     }
 
-    // Client-Side Institutional AI Reasoning Engine (Guarantees 100% Availability on GitHub Pages & Multi-Device)
-    var clientAiResult = generateClientSideAiAgentResponse(text, userContext);
+    if (!serverHandled) {
+      // Client-Side Institutional AI Reasoning Engine (Guarantees 100% Availability on GitHub Pages & Multi-Device)
+      var clientAiResult = generateClientSideAiAgentResponse(text, userContext);
+      STOCKCHAT_CONVERSATION.push({
+        role: 'assistant',
+        text: clientAiResult.reply,
+        toolCalls: clientAiResult.toolCalls || []
+      });
+    }
+  } catch (outerErr) {
+    console.error('[StockChat] Unexpected prompt execution error:', outerErr);
     STOCKCHAT_CONVERSATION.push({
       role: 'assistant',
-      text: clientAiResult.reply,
-      toolCalls: clientAiResult.toolCalls || []
+      text: 'Mohon maaf, terjadi gangguan saat memproses analisa. Silakan coba ajukan pertanyaan kembali.',
+      toolCalls: []
     });
   } finally {
     STOCKCHAT_IS_BUSY = false;
@@ -2363,7 +2393,7 @@ function renderBandarmologyCockpitPage(containerId) {
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">'
     + '<div>'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">'
-    + 'Bandarmology &amp; Smart Money (Seluruh Market)'
+    + 'Market Flow'
     + '<span class="badge b-accent" style="font-size:9px;margin-left:4px">INSTITUTIONAL RADAR</span>'
     + '</div>'
     + '<div class="psub">Analisis Macro IHSG, Big Banks, Sektoral Heatmap &amp; Konsentrasi Akumulasi/Distribusi seluruh BEI. Untuk analisis per-emiten (Broker Flow, CMF, VWAP Bands, Foreign Flow), lihat tab Bandarmology di halaman Technical.</div>'
@@ -2381,10 +2411,10 @@ function renderBandarmologyCockpitPage(containerId) {
     + '<span>Analisis Emiten (Technical)</span>'
     + '</button>'
     + '<button onclick="goPage(\'radar\')" class="btn btn-ghost btn-xs">'
-    + 'Opportunity Radar'
+    + 'Screener'
     + '</button>'
-    + '<button onclick="goPage(\'stock-intel\')" class="btn btn-ghost btn-xs flex items-center gap-1">'
-    + '<span>Stock Intelligence</span>'
+    + '<button onclick="goPage(\'stock-dossier\')" class="btn btn-ghost btn-xs flex items-center gap-1">'
+    + '<span>Stock Master 360</span>'
     + '</button>'
     + '</div>'
     + '</div>';
@@ -2697,26 +2727,65 @@ function bandarRenderMarketFlowContent(data) {
     + '</div>';
 
   // --- Sektor Rotasi Modal Heatmap ---
-  // Map setiap emiten dari acc/distList ke sektornya, hitung net score per sektor.
+  // Map setiap emiten dari acc/distList ke 11 sektor resmi IDX, hitung net score per sektor.
   var sectorMap = {};
   BANDAR_SECTOR_DEFS.forEach(function(sec) { sectorMap[sec.name] = { name: sec.name, accScore: 0, distScore: 0, accCount: 0, distCount: 0 }; });
-  var otherSector = { name: 'Lainnya', accScore: 0, distScore: 0, accCount: 0, distCount: 0 };
 
   function mapItemToSector(item, side) {
-    var matched = false;
-    BANDAR_SECTOR_DEFS.forEach(function(sec) {
-      if (sec.tickers.indexOf(item.ticker) !== -1) {
-        matched = true;
-        if (side === 'acc') { sectorMap[sec.name].accScore += (item.score || 0); sectorMap[sec.name].accCount++; }
-        else { sectorMap[sec.name].distScore += Math.abs(item.score || 0); sectorMap[sec.name].distCount++; }
+    if (!item) return;
+    var rawTk = (item.ticker || '').toUpperCase().trim();
+    var matchedSecName = null;
+
+    // 1. Direct match with BANDAR_SECTOR_DEFS
+    for (var i = 0; i < BANDAR_SECTOR_DEFS.length; i++) {
+      if (BANDAR_SECTOR_DEFS[i].tickers.indexOf(rawTk) !== -1) {
+        matchedSecName = BANDAR_SECTOR_DEFS[i].name;
+        break;
       }
-    });
-    // If sector not matched by predefined list — use item.sector field from universe
-    if (!matched && item.sector) {
-      var sk = item.sector;
-      if (!sectorMap[sk]) sectorMap[sk] = { name: sk, accScore: 0, distScore: 0, accCount: 0, distCount: 0 };
-      if (side === 'acc') { sectorMap[sk].accScore += (item.score || 0); sectorMap[sk].accCount++; }
-      else { sectorMap[sk].distScore += Math.abs(item.score || 0); sectorMap[sk].distCount++; }
+    }
+
+    // 2. Lookup from item.sector, DB, or IDX_UNIVERSE
+    if (!matchedSecName) {
+      var rawSec = item.sector;
+      if (!rawSec && typeof DB !== 'undefined' && DB[rawTk] && DB[rawTk].sector) {
+        rawSec = DB[rawTk].sector;
+      }
+      if (!rawSec && typeof IDX_UNIVERSE !== 'undefined' && Array.isArray(IDX_UNIVERSE)) {
+        var uMatch = IDX_UNIVERSE.find(function(x) { return x.c === rawTk; });
+        if (uMatch && uMatch.s) rawSec = uMatch.s;
+      }
+
+      if (rawSec) {
+        var s = String(rawSec).toLowerCase();
+        if (/keuangan|financial/i.test(s)) matchedSecName = 'Financials (Keuangan)';
+        else if (/energi|energy/i.test(s)) matchedSecName = 'Energy (Energi)';
+        else if (/bahan baku|basic material|tambang|mineral|barang baku/i.test(s)) matchedSecName = 'Basic Materials (Barang Baku)';
+        else if (/non-cyclical|konsumer primer|consumer non/i.test(s)) matchedSecName = 'Consumer Non-Cyclicals (Konsumer Primer)';
+        else if (/cyclical|konsumer non-primer|consumer cycl/i.test(s)) matchedSecName = 'Consumer Cyclicals (Konsumer Non-Primer)';
+        else if (/kesehatan|health/i.test(s)) matchedSecName = 'Healthcare (Kesehatan)';
+        else if (/teknologi|technology/i.test(s)) matchedSecName = 'Technology (Teknologi)';
+        else if (/infrastruktur|infrastructure/i.test(s)) matchedSecName = 'Infrastructures (Infrastruktur)';
+        else if (/properti|property|properties|real estate/i.test(s)) matchedSecName = 'Properties & Real Estate (Properti)';
+        else if (/industri|industrial/i.test(s)) matchedSecName = 'Industrials (Perindustrian)';
+        else if (/transport|logistik|logistic/i.test(s)) matchedSecName = 'Transportation & Logistics (Transportasi)';
+      }
+    }
+
+    // 3. Fallback to 'Lainnya' only if completely unknown
+    if (!matchedSecName) {
+      matchedSecName = 'Lainnya';
+    }
+
+    if (!sectorMap[matchedSecName]) {
+      sectorMap[matchedSecName] = { name: matchedSecName, accScore: 0, distScore: 0, accCount: 0, distCount: 0 };
+    }
+
+    if (side === 'acc') {
+      sectorMap[matchedSecName].accScore += (item.score || 0);
+      sectorMap[matchedSecName].accCount++;
+    } else {
+      sectorMap[matchedSecName].distScore += Math.abs(item.score || 0);
+      sectorMap[matchedSecName].distCount++;
     }
   }
   accList.forEach(function(it) { mapItemToSector(it, 'acc'); });
