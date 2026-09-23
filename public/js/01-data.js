@@ -317,11 +317,46 @@ function syncGlobalMarketQuote(ticker, quoteData) {
   if (typeof changes === 'undefined') window.changes = {};
 
   if (quoteData.price && Number(quoteData.price) > 0) {
-    prices[tk] = Number(quoteData.price);
+    var livePx = Number(quoteData.price);
+    prices[tk] = livePx;
+
+    // Synchronize latest candle in rdGetAny so chart/wave/engine series reflect live quote
+    if (typeof rdGetAny === 'function') {
+      var rdRows = rdGetAny(tk);
+      if (rdRows && rdRows.length > 0) {
+        var lastR = rdRows[rdRows.length - 1];
+        var lastD = new Date(lastR.date || lastR.dt || Date.now());
+        var nowD = new Date();
+        var isSameDay = lastD.getFullYear() === nowD.getFullYear() && lastD.getMonth() === nowD.getMonth() && lastD.getDate() === nowD.getDate();
+        if (isSameDay) {
+          lastR.close = livePx;
+          lastR.c = livePx;
+          lastR.high = Math.max(lastR.high || livePx, livePx);
+          lastR.low = Math.min(lastR.low || livePx, livePx);
+        } else if (nowD > lastD) {
+          var prevClose = Number(lastR.close || lastR.c || livePx);
+          rdRows.push({
+            date: nowD.toISOString().slice(0, 10),
+            dt: nowD,
+            open: prevClose,
+            high: Math.max(prevClose, livePx),
+            low: Math.min(prevClose, livePx),
+            close: livePx,
+            c: livePx,
+            volume: quoteData.volume || 1000000
+          });
+        }
+      }
+    }
   }
   if (quoteData.changePercent !== undefined && !isNaN(quoteData.changePercent)) {
     changes[tk] = Number(quoteData.changePercent);
   }
+}
+
+function setGlobalMarketPrice(ticker, price, changePercent) {
+  if (!ticker || !price || isNaN(price)) return;
+  syncGlobalMarketQuote(ticker, { price: Number(price), changePercent: changePercent });
 }
 
 if (typeof window !== 'undefined') {
@@ -329,6 +364,7 @@ if (typeof window !== 'undefined') {
   window.getGlobalMarketChange = getGlobalMarketChange;
   window.formatMarketPrice = formatMarketPrice;
   window.syncGlobalMarketQuote = syncGlobalMarketQuote;
+  window.setGlobalMarketPrice = setGlobalMarketPrice;
 }
 
 // STOCK DATABASE dengan sektor IDX

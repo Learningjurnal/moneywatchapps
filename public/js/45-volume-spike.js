@@ -190,6 +190,10 @@ function vsVolumeStats(rows, ticker) {
   var ratio30 = med30 > 0 ? (todayVol / med30) : 0;
   var closes = rows.map(function(r) { return r.close; });
   var n = closes.length;
+  var livePx = (ticker && typeof getGlobalMarketPrice === 'function') ? getGlobalMarketPrice(ticker) : 0;
+  if (livePx > 0 && n > 0) {
+    closes[n - 1] = livePx;
+  }
   var pctChange = function(daysBack) {
     if (daysBack === 1 && ticker && typeof getGlobalMarketChange === 'function') {
       var gChg = getGlobalMarketChange(ticker);
@@ -676,7 +680,7 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
   var info = (typeof DB !== 'undefined' && DB[tk]) ? DB[tk] : null;
   var name = (info && info.name) || tk + ' Tbk.';
 
-  var stats = vsVolumeStats(rows);
+  var stats = vsVolumeStats(rows, tk);
   var todayVol = stats.todayVol, med14 = stats.med14, med30 = stats.med30;
   var ratio14 = stats.ratio14, ratio30 = stats.ratio30, isSpike = stats.isSpike;
   var closes = stats.closes;

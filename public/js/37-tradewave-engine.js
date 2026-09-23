@@ -65,6 +65,31 @@
     if (typeof rdGetAny === 'function') {
       var realRows = rdGetAny(cleanTk);
       if (realRows && realRows.length > 0) {
+        var livePx = (typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(cleanTk) : 0);
+        if (livePx && livePx > 0) {
+          var lastR = realRows[realRows.length - 1];
+          var lastD = new Date(lastR.date || lastR.dt || Date.now());
+          var nowD = new Date();
+          var isSameDay = lastD.getFullYear() === nowD.getFullYear() && lastD.getMonth() === nowD.getMonth() && lastD.getDate() === nowD.getDate();
+          if (isSameDay) {
+            lastR.close = livePx;
+            lastR.c = livePx;
+            lastR.high = Math.max(lastR.high || livePx, livePx);
+            lastR.low = Math.min(lastR.low || livePx, livePx);
+          } else if (nowD > lastD) {
+            var prevClose = Number(lastR.close || lastR.c || livePx);
+            realRows.push({
+              date: nowD.toISOString().slice(0, 10),
+              dt: nowD,
+              open: prevClose,
+              high: Math.max(prevClose, livePx),
+              low: Math.min(prevClose, livePx),
+              close: livePx,
+              c: livePx,
+              volume: 1000000
+            });
+          }
+        }
         var slice = realRows.slice(-count);
         return slice.map(function(r) {
           var o = r.open || r.o || r.close || r.c || 5000;
@@ -270,6 +295,17 @@
     var cur = ohlcv[n - 1];
     var prev = ohlcv[n - 2] || cur;
 
+    // Synchronize latest candle and price with canonical global market source
+    var livePx = (typeof getGlobalMarketPrice === 'function') ? getGlobalMarketPrice(cleanTk) : 0;
+    var liveChg = (typeof getGlobalMarketChange === 'function') ? getGlobalMarketChange(cleanTk) : null;
+    if (livePx > 0 && cur) {
+      cur.close = livePx;
+      cur.c = livePx;
+      if (cur.high < livePx) cur.high = livePx;
+      if (cur.low > livePx) cur.low = livePx;
+      closes[n - 1] = livePx;
+    }
+
     // 1. EMA Ribbon (9, 21, 50, 200)
     var ema9 = twCalcEma(closes, 9);
     var ema21 = twCalcEma(closes, 21);
@@ -314,7 +350,9 @@
     var waveColor = '#10B981'; // Green
     var waveBadge = 'b-up';
 
-    var chgPct = prev.close > 0 ? ((cur.close - prev.close) / prev.close * 100) : 0;
+    var chgPct = (liveChg !== null && !isNaN(liveChg))
+      ? Number(liveChg)
+      : (prev.close > 0 ? ((cur.close - prev.close) / prev.close * 100) : 0);
     var rsiArr = twCalcRsi(closes, 14);
     var rsiVal = rsiArr[rsiArr.length - 1];
 
@@ -441,6 +479,31 @@
     if (!c) return;
 
     var ticker = TW_STATE.ticker || 'BBCA';
+    var cleanTk = (ticker || 'BBCA').toUpperCase().replace('.JK', '').replace('.US', '');
+
+    // Synchronize live quote in background so prices and changes are real-time
+    if (typeof fetch === 'function' && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+      if (!TW_FETCHING['quote_' + cleanTk]) {
+        TW_FETCHING['quote_' + cleanTk] = true;
+        fetch('/api/idx/quote/' + encodeURIComponent(cleanTk))
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(q) {
+            TW_FETCHING['quote_' + cleanTk] = false;
+            if (q && q.price > 0) {
+              if (typeof syncGlobalMarketQuote === 'function') {
+                syncGlobalMarketQuote(cleanTk, q);
+              }
+              if (TW_STATE.ticker === cleanTk) {
+                twRerender();
+              }
+            }
+          })
+          .catch(function() {
+            TW_FETCHING['quote_' + cleanTk] = false;
+          });
+      }
+    }
+
     var data = twAnalyzeWave(ticker);
     TW_STATE.cachedAnalysis[ticker] = data;
 
@@ -804,9 +867,13 @@
   }
 
   function twSetTicker(ticker) {
-    TW_STATE.ticker = ticker.toUpperCase();
+    var clean = (ticker || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+    TW_STATE.ticker = clean;
     var inp = document.getElementById('tw-ticker-input');
-    if (inp) inp.value = TW_STATE.ticker;
+    if (inp) inp.value = clean;
+    if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT && typeof window.GLOBAL_STOCK_CONTEXT.setTicker === 'function') {
+      window.GLOBAL_STOCK_CONTEXT.setTicker(clean, 'tradewave');
+    }
     twRerender();
   }
 
@@ -837,6 +904,21 @@
         }
       }, 100);
     }
+  }
+
+  // Sync dengan context saham global lintas halaman
+  if (typeof window !== 'undefined' && window.GLOBAL_STOCK_CONTEXT) {
+    window.GLOBAL_STOCK_CONTEXT.subscribe(function(tk, source) {
+      if (source === 'tradewave' || !tk) return;
+      var clean = tk.toUpperCase().trim().replace(/\.JK$/i, '').replace(/\.US$/i, '');
+      TW_STATE.ticker = clean;
+      var inp = document.getElementById('tw-ticker-input');
+      if (inp) inp.value = clean;
+      var radar = document.getElementById('page-radar');
+      if (radar && radar.classList.contains('on') && typeof twRerender === 'function') {
+        twRerender();
+      }
+    });
   }
 
   // ══════════════════════════════════════════════════════════

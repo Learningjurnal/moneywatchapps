@@ -1215,6 +1215,7 @@ function scRenderTable(data2){
   var tbody = el('sc-tbody');
   if(!tbody) return;
   tbody.innerHTML = data3.sort(function(a,b){return b.score-a.score;}).map(function(s){
+    var liveP = (typeof getGlobalMarketPrice === 'function' ? getGlobalMarketPrice(s.t) : 0) || s.price || 0;
     var rsiCol = s.rsi<30?'var(--green)':s.rsi>70?'var(--red)':'var(--amber)';
     var sig = s.rsi<30?'BUY':s.rsi>70?'SELL':'HOLD';
     var sigClass = s.rsi<30?'sig-buy':s.rsi>70?'sig-sell':'sig-hold';
@@ -1223,7 +1224,7 @@ function scRenderTable(data2){
       +'<td style="color:var(--accent);font-weight:700">'+s.t+(s.live?'<span style="font-size:8px;color:var(--green);margin-left:4px">●</span>':'')+'</td>'
       +'<td style="color:var(--text2)">'+s.n+'</td>'
       +'<td><span class="badge b-gray">'+s.s+'</span></td>'
-      +'<td>Rp '+Math.round(s.price).toLocaleString('id-ID')+'</td>'
+      +'<td>Rp '+Math.round(liveP).toLocaleString('id-ID')+'</td>'
       +'<td style="color:'+rsiCol+'">'+s.rsi.toFixed(1)+'</td>'
       +'<td style="color:'+(s.mom1m>=0?'var(--green)':'var(--red)')+'">'+(s.mom1m>=0?'+':'')+s.mom1m.toFixed(2)+'%</td>'
       +'<td style="color:'+(s.mom3m>=0?'var(--green)':'var(--red)')+'">'+(s.mom3m>=0?'+':'')+s.mom3m.toFixed(2)+'%</td>'
