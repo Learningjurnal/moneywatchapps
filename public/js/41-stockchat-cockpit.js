@@ -14,19 +14,21 @@
 // — hoisted out of renderBandarmologyMarketFlowView() so both views compute
 // from the same real, simulated-broker-summary-based aggregation instead of
 // shipping two separate, disagreeing sets of sector flow numbers.
-var BANDAR_SECTOR_DEFS = [
-  { name: 'Financials (Keuangan)', tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BBTN', 'BDMN', 'BNGA', 'MEGA', 'NISP', 'ARTO', 'PNBN', 'BCIC', 'BTPS'] },
-  { name: 'Energy (Energi)', tickers: ['ADRO', 'PTRO', 'MEDC', 'PGAS', 'PTBA', 'BUMI', 'DEWA', 'AADI', 'INDY', 'ITMG', 'HRUM', 'AKRA', 'ENRG', 'RAJA', 'ELSA', 'DOID', 'ADMR', 'MBSS'] },
-  { name: 'Basic Materials (Barang Baku)', tickers: ['ANTM', 'AMMN', 'MDKA', 'INCO', 'BRMS', 'MBMA', 'INKP', 'TKIM', 'SMGR', 'INTP', 'TPIA', 'BRPT', 'ARCI', 'NICL', 'NCKL', 'AVIA', 'MCOL'] },
-  { name: 'Consumer Non-Cyclicals (Konsumer Primer)', tickers: ['UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'CPIN', 'MYOR', 'JPFA', 'GGRM', 'HMSP', 'CMRY', 'AMRT', 'MIDI', 'AALI', 'LSIP', 'TAPG', 'DSNG'] },
-  { name: 'Consumer Cyclicals (Konsumer Non-Primer)', tickers: ['ACES', 'MAPI', 'MAPA', 'ERAA', 'RALS', 'LPPF', 'AUTO', 'DRMA', 'SMSM', 'ASLC', 'GJTL', 'WIFI', 'BMTR', 'MNCN', 'SCMA'] },
-  { name: 'Healthcare (Kesehatan)', tickers: ['KLBF', 'SIDO', 'MIKA', 'HEAL', 'SILO', 'PRDA', 'TSPC', 'IRRA', 'KAEF', 'INAF', 'SAME'] },
-  { name: 'Technology (Teknologi)', tickers: ['GOTO', 'BUKA', 'EMTK', 'WIRG', 'BELI', 'MTDL', 'DCII', 'MLPT', 'MCAS', 'DMMX'] },
-  { name: 'Infrastructures (Infrastruktur)', tickers: ['TLKM', 'BREN', 'TPIA', 'PGEO', 'JSMR', 'EXCL', 'ISAT', 'TOWR', 'TBIG', 'POWR', 'META', 'CENT', 'CDIA'] },
-  { name: 'Properties & Real Estate (Properti)', tickers: ['BSDE', 'PWON', 'CTRA', 'SMRA', 'ASRI', 'APLN', 'DILD', 'SSIA', 'KIJA', 'PANI', 'SMDM', 'BKSL', 'LPKR'] },
-  { name: 'Industrials (Perindustrian)', tickers: ['ASII', 'UNTR', 'HEXA', 'ARNA', 'MARK', 'IMPC', 'MLIA', 'KBLI', 'CCSI', 'KBLM'] },
-  { name: 'Transportation & Logistics (Transportasi)', tickers: ['SMDR', 'TMAS', 'BIRD', 'ASSA', 'GIAA', 'WEHA', 'PSSI', 'HAIS'] }
-];
+var BANDAR_SECTOR_DEFS = (typeof IDX_SECTOR_GROUPS !== 'undefined')
+  ? Object.keys(IDX_SECTOR_GROUPS).map(function(name) { return { name: name, tickers: IDX_SECTOR_GROUPS[name] }; })
+  : [
+      { name: 'Financials (Keuangan)', tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI', 'BRIS', 'BBTN', 'BDMN', 'BNGA', 'MEGA', 'NISP', 'ARTO', 'PNBN', 'BCIC', 'BTPS'] },
+      { name: 'Energy (Energi)', tickers: ['ADRO', 'PTRO', 'MEDC', 'PGAS', 'PTBA', 'BUMI', 'DEWA', 'AADI', 'INDY', 'ITMG', 'HRUM', 'AKRA', 'ENRG', 'RAJA', 'ELSA', 'DOID', 'ADMR', 'MBSS'] },
+      { name: 'Basic Materials (Barang Baku)', tickers: ['ANTM', 'AMMN', 'MDKA', 'INCO', 'BRMS', 'MBMA', 'INKP', 'TKIM', 'SMGR', 'INTP', 'TPIA', 'BRPT', 'ARCI', 'NICL', 'NCKL', 'AVIA', 'MCOL'] },
+      { name: 'Consumer Non-Cyclicals (Konsumer Primer)', tickers: ['UNVR', 'ICBP', 'INDF', 'KLBF', 'SIDO', 'CPIN', 'MYOR', 'JPFA', 'GGRM', 'HMSP', 'CMRY', 'AMRT', 'MIDI', 'AALI', 'LSIP', 'TAPG', 'DSNG'] },
+      { name: 'Consumer Cyclicals (Konsumer Non-Primer)', tickers: ['ACES', 'MAPI', 'MAPA', 'ERAA', 'RALS', 'LPPF', 'AUTO', 'DRMA', 'SMSM', 'ASLC', 'GJTL', 'WIFI', 'BMTR', 'MNCN', 'SCMA'] },
+      { name: 'Healthcare (Kesehatan)', tickers: ['KLBF', 'SIDO', 'MIKA', 'HEAL', 'SILO', 'PRDA', 'TSPC', 'IRRA', 'KAEF', 'INAF', 'SAME'] },
+      { name: 'Technology (Teknologi)', tickers: ['GOTO', 'BUKA', 'EMTK', 'WIRG', 'BELI', 'MTDL', 'DCII', 'MLPT', 'MCAS', 'DMMX'] },
+      { name: 'Infrastructures (Infrastruktur)', tickers: ['TLKM', 'BREN', 'TPIA', 'PGEO', 'JSMR', 'EXCL', 'ISAT', 'TOWR', 'TBIG', 'POWR', 'META', 'CENT', 'CDIA'] },
+      { name: 'Properties & Real Estate (Properti)', tickers: ['BSDE', 'PWON', 'CTRA', 'SMRA', 'ASRI', 'APLN', 'DILD', 'SSIA', 'KIJA', 'PANI', 'SMDM', 'BKSL', 'LPKR'] },
+      { name: 'Industrials (Perindustrian)', tickers: ['ASII', 'UNTR', 'HEXA', 'ARNA', 'MARK', 'IMPC', 'MLIA', 'KBLI', 'CCSI', 'KBLM'] },
+      { name: 'Transportation & Logistics (Transportasi)', tickers: ['SMDR', 'TMAS', 'BIRD', 'ASSA', 'GIAA', 'WEHA', 'PSSI', 'HAIS'] }
+    ];
 
 var STOCKCHAT_CONVERSATION = [
   {
@@ -2736,26 +2738,33 @@ function bandarRenderMarketFlowContent(data) {
     var rawTk = (item.ticker || '').toUpperCase().trim();
     var matchedSecName = null;
 
-    // 1. Direct match with BANDAR_SECTOR_DEFS
-    for (var i = 0; i < BANDAR_SECTOR_DEFS.length; i++) {
-      if (BANDAR_SECTOR_DEFS[i].tickers.indexOf(rawTk) !== -1) {
-        matchedSecName = BANDAR_SECTOR_DEFS[i].name;
-        break;
+    // 1. Direct match with IDX_SECTOR_MAP (full IDX universe mapping)
+    if (typeof IDX_SECTOR_MAP !== 'undefined' && IDX_SECTOR_MAP[rawTk]) {
+      matchedSecName = IDX_SECTOR_MAP[rawTk];
+    }
+
+    // 2. Direct match with BANDAR_SECTOR_DEFS
+    if (!matchedSecName) {
+      for (var i = 0; i < BANDAR_SECTOR_DEFS.length; i++) {
+        if (BANDAR_SECTOR_DEFS[i].tickers.indexOf(rawTk) !== -1) {
+          matchedSecName = BANDAR_SECTOR_DEFS[i].name;
+          break;
+        }
       }
     }
 
-    // 2. Lookup from item.sector, DB, or IDX_UNIVERSE
+    // 3. Lookup from item.sector, DB, or IDX_UNIVERSE
     if (!matchedSecName) {
       var rawSec = item.sector;
       if (!rawSec && typeof DB !== 'undefined' && DB[rawTk] && DB[rawTk].sector) {
         rawSec = DB[rawTk].sector;
       }
       if (!rawSec && typeof IDX_UNIVERSE !== 'undefined' && Array.isArray(IDX_UNIVERSE)) {
-        var uMatch = IDX_UNIVERSE.find(function(x) { return x.c === rawTk; });
+        var uMatch = IDX_UNIVERSE.find(function(x) { return (x.t || x.c) === rawTk; });
         if (uMatch && uMatch.s) rawSec = uMatch.s;
       }
 
-      if (rawSec) {
+      if (rawSec && rawSec !== 'Lainnya') {
         var s = String(rawSec).toLowerCase();
         if (/keuangan|financial/i.test(s)) matchedSecName = 'Financials (Keuangan)';
         else if (/energi|energy/i.test(s)) matchedSecName = 'Energy (Energi)';
@@ -2771,7 +2780,7 @@ function bandarRenderMarketFlowContent(data) {
       }
     }
 
-    // 3. Fallback to 'Lainnya' only if completely unknown
+    // 4. Fallback to 'Lainnya' only if completely unknown
     if (!matchedSecName) {
       matchedSecName = 'Lainnya';
     }
@@ -2792,7 +2801,10 @@ function bandarRenderMarketFlowContent(data) {
   distList.forEach(function(it) { mapItemToSector(it, 'dist'); });
 
   var sectorRows = Object.values(sectorMap)
-    .filter(function(s) { return s.accCount > 0 || s.distCount > 0; })
+    .filter(function(s) {
+      if (s.name === 'Lainnya' && s.accCount === 0 && s.distCount === 0) return false;
+      return s.accCount > 0 || s.distCount > 0;
+    })
     .sort(function(a, b) { return (b.accScore - b.distScore) - (a.accScore - a.distScore); });
   if (sectorRows.length === 0) {
     // Fallback: show all predefined sectors with zero values

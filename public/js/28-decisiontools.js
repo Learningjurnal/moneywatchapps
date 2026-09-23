@@ -28,6 +28,10 @@ function renderDailyBriefPage() {
   if (typeof fhFetchStocks === 'function' && porto.length > 0 && (!window.prices || !Object.keys(window.prices).length)) {
     try { fhFetchStocks(); } catch(e) {}
   }
+  // Trigger fresh live IHSG fetch if not yet fetched
+  if (typeof fhFetchIHSG === 'function' && !window._ihsgLiveFetched) {
+    try { fhFetchIHSG(); } catch(e) {}
+  }
 
   // Compute dynamic daily change for each portfolio holding
   porto.forEach(function(p) {
@@ -61,8 +65,8 @@ function renderDailyBriefPage() {
   var isIhsgLive = window._ihsgLiveFetched === true;
   var curIhsg = (typeof ihsgCur === 'number' && ihsgCur > 0) ? ihsgCur : 6845.00;
   var baseIhsg = (typeof ihsgBase === 'number' && ihsgBase > 0) ? ihsgBase : 6800.00;
-  var ihsgDiff = curIhsg - baseIhsg;
-  var ihsgPct = baseIhsg > 0 ? (ihsgDiff / baseIhsg * 100).toFixed(2) : '0.00';
+  var ihsgDiff = (typeof window.ihsgChg === 'number') ? window.ihsgChg : (curIhsg - baseIhsg);
+  var ihsgPct = (typeof window.ihsgPct === 'number') ? Math.abs(window.ihsgPct).toFixed(2) : (baseIhsg > 0 ? Math.abs(ihsgDiff / baseIhsg * 100).toFixed(2) : '0.00');
   var isBullish = ihsgDiff >= 0;
 
   // Sorting for dynamic portfolio analysis

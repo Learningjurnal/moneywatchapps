@@ -1418,35 +1418,38 @@ function fhFetchIHSG(){
       }
       return;
     }
+    var realChg = (typeof meta.fulldayChange === 'number' && !isNaN(meta.fulldayChange)) ? meta.fulldayChange
+                : (typeof meta.regularMarketChange === 'number' && !isNaN(meta.regularMarketChange)) ? meta.regularMarketChange
+                : null;
+    var realChgPct = (typeof meta.regularMarketChangePercent === 'number' && !isNaN(meta.regularMarketChangePercent)) ? meta.regularMarketChangePercent
+                   : (typeof meta.fulldayChangePercent === 'number' && !isNaN(meta.fulldayChangePercent)) ? meta.fulldayChangePercent
+                   : null;
+    var prev = (realChg !== null && Math.abs(realChg) > 0.0001) ? (meta.regularMarketPrice - realChg)
+             : (realChgPct !== null && Math.abs(realChgPct) > 0.0001) ? (meta.regularMarketPrice / (1 + (realChgPct / 100)))
+             : (meta.previousClose || meta.regularMarketPreviousClose || meta.chartPreviousClose || meta.regularMarketPrice);
+
     fhApplyIHSG(
       meta.regularMarketPrice,
-      // FIX (2026-09-14, user-reported "IHSG selalu +0,00%"): endpoint Yahoo
-      // /v8/finance/chart/{symbol} TIDAK PERNAH mengisi field `previousClose`
-      // (itu field quoteSummary, bukan chart) - field yang benar-benar ada di
-      // sini adalah `chartPreviousClose` (dipakai konsisten di file lain:
-      // lib/idx-data-engine.js, lib/providers/yahoo-client.js,
-      // 41-stockchat-cockpit.js, 40-idx-pipeline.js). Sebelumnya
-      // meta.previousClose selalu undefined -> fallback ke harga sekarang
-      // -> perubahan harian selalu dihitung 0,00% walau harga di atasnya benar.
-      meta.chartPreviousClose||meta.previousClose||meta.regularMarketPrice,
+      prev,
       meta.regularMarketOpen||meta.regularMarketPrice,
       meta.regularMarketDayHigh||meta.regularMarketPrice,
-      meta.regularMarketDayLow||meta.regularMarketPrice
+      meta.regularMarketDayLow||meta.regularMarketPrice,
+      realChg,
+      realChgPct
     );
     fhSetBadge('live','● LIVE');
   });
 }
 
-function fhApplyIHSG(price, prev, open, high, low){
+function fhApplyIHSG(price, prev, open, high, low, chg, chgPct){
   if(!price || isNaN(price) || price <= 0) return;
   ihsgCur  = Math.round(price * 100) / 100;
   ihsgBase = (prev && prev > 0) ? Math.round(prev * 100) / 100 : ihsgCur;
-  // ihsgCur/ihsgBase start life as hardcoded placeholders (01-data.js,
-  // 6500.83) that are already > 0 — a simple ">0" check can't tell a real
-  // fetch from that placeholder. This flag is the one place that flips
-  // true only when a real IHSG price has actually been applied, so
-  // consumers (e.g. Morning Brief's "Real-time Feed" label) can be honest.
   window._ihsgLiveFetched = true;
+  if(typeof chg === 'number') window.ihsgChg = Math.round(chg * 100) / 100;
+  else window.ihsgChg = Math.round((ihsgCur - ihsgBase) * 100) / 100;
+  if(typeof chgPct === 'number') window.ihsgPct = Math.round(chgPct * 100) / 100;
+  else window.ihsgPct = ihsgBase > 0 ? Math.round(((ihsgCur - ihsgBase) / ihsgBase * 100) * 100) / 100 : 0;
   
   var opVal = (open && open > 0) ? open : (ihsgBase || ihsgCur);
   var hiVal = (high && high > 0) ? high : Math.max(ihsgCur, opVal);
@@ -1458,9 +1461,13 @@ function fhApplyIHSG(price, prev, open, high, low){
 
   ihsgHistPush(ihsgCur);
   updateTopbar();
-  if(typeof currentPage !== 'undefined' && currentPage === 'dashboard'){
-    try{ buildIhsgChart(window._currentIhsgTf || '1H'); }catch(e){}
-    try{ renderPage('dashboard'); }catch(e){}
+  if(typeof currentPage !== 'undefined'){
+    if(currentPage === 'dashboard'){
+      try{ buildIhsgChart(window._currentIhsgTf || '1H'); }catch(e){}
+      try{ renderPage('dashboard'); }catch(e){}
+    } else if(currentPage === 'daily-brief'){
+      try{ if(typeof renderDailyBriefPage === 'function') renderDailyBriefPage(); }catch(e){}
+    }
   }
 }
 

@@ -1331,13 +1331,45 @@ var _IDX_RAW_LIST = {
   'PPRO':{name:'PP Properti Tbk.',base:100,sector:'Lainnya',beta:1.0},
 };
 
+// ══════════════════════════════════════════════════════════
+// PEMETAAN 11 SEKTOR RESMI IDX LENGKAP UNTUK SELURUH EMITEN BEI
+// ══════════════════════════════════════════════════════════
+var IDX_SECTOR_GROUPS = {
+  "Financials (Keuangan)": ["BBCA","BBRI","BMRI","BBNI","BRIS","BBTN","BDMN","BNGA","MEGA","NISP","ARTO","PNBN","BCIC","BTPS","AGRO","AMAG","APIC","ASBI","ASDM","ASJT","ASMI","ASRM","BABP","BACA","BBHI","BBKP","BBLD","BBMD","BBYB","BCAP","BEKS","BFIN","BGTG","BINA","BJBR","BJTM","BKSW","BMAS","BNBA","BNII","BNLI","BPFI","BPII","BPRN","BTPN","CASH","CFIN","DNAR","FUJI","GSMF","HDFA","INPC","JMAS","LPPS","MASB","MAYA","MFIN","MTWI","NOBU","PADI","PANS","PEGE","PNBS","PNLF","POLA","POOL","RELI","SDRA","SMMA","SRTG","TRIM","TUGU","VINS","WOMF","VRNA","BHIT","IBFN","LPGI","BVIC","LIFE","MREI","PNIN","TIFA","TRUS","BAPO","PLAS","PUDP","ABDA","BSIM","BSWD","MGNA","OCAP","YULE","CASA","NICK","SFAN","AMAR","BBSI","BANK","GRIA","PART","YOII","SUPA","ADMF","AGRS","AHAP","AIMS"],
+  "Energy (Energi)": ["ADRO","PTRO","MEDC","PGAS","PTBA","BUMI","DEWA","AADI","INDY","ITMG","HRUM","AKRA","ENRG","RAJA","ELSA","DOID","ADMR","MBSS","ABMM","ARII","BIPI","BOSS","BSSR","BYAN","CNKO","COAL","CUAN","FIRE","GTBO","IATA","LEAD","MBAP","MCOL","MITI","MYOH","PKPK","PSAB","RIGS","RMKE","RUIS","SGER","SMMT","SMRU","SURE","TAMU","TCPI","TOBA","WOWS","WINS","APEX","DSSA","KKGI","BORN","GEMS","ARTI","DWGL","SEMA","SUGI","BBRM","ITMA","TPMA","ZINC","JSKY","LABA","OILS","SICO","ARKO","CBRE","FUTR","LMAX","RATU"],
+  "Basic Materials (Barang Baku)": ["ANTM","AMMN","MDKA","INCO","BRMS","MBMA","INKP","TKIM","SMGR","INTP","TPIA","BRPT","ARCI","NICL","NCKL","AVIA","AGII","ALDO","ALKA","ALMI","AMFG","APLI","BAJA","BEBS","BTON","CITA","CLPI","CMNT","CTBN","DAJK","DPNS","EKAD","ESSA","ETWA","FASW","FPNI","GDST","GGRP","IFSH","IGAR","INAI","INCF","INCI","INRU","IPOL","ISSP","KDSI","KIAS","KRAS","LION","LMSH","LTLS","MDKI","MOLI","NIKL","OPMS","PICO","POLU","SAMF","SBMA","SMBR","SMCB","SMKL","SPMA","SQMI","SRSN","SULI","SWAT","TBMS","TDPM","TINS","TIRT","TOYS","TRST","WSBP","WTON","YPAS","DKFT","ESIP","SMGA","SOLA","TAYS","UNIC","BOLT","KBRI","HKMU","CAKK","KOTA","BAPI","PURE","EURO","TGUK","PPRI","DADA","BESS","EMAS"],
+  "Consumer Non-Cyclicals (Konsumer Primer)": ["MCOR","BTEK","TEBE","MAIN","SIMP","KMTR","UNVR","ICBP","INDF","CPIN","MYOR","JPFA","GGRM","HMSP","CMRY","AMRT","MIDI","AALI","LSIP","TAPG","DSNG","ADES","AISA","ALTO","ANDI","ANJT","BEEF","BISI","BUDI","BWPT","CEKA","CLEO","COCO","CPRO","CSRA","DEFI","DLTA","DMND","DPUM","ENZO","FISH","FITT","FOOD","GOOD","GOLL","GZCO","HOKI","IKAN","JAWA","JARR","KEJU","KINO","MAGP","MAXI","MBTO","MGRO","MLBI","MKTR","MOVI","NASI","NSSS","PALM","PCAR","PGUN","PMMP","PNGO","PSGO","ROTI","SDPC","SIPD","SKBM","SKLT","SSMS","STAA","STTP","TBLA","TCID","TRGU","UCID","ULTJ","UNSP","WAPO","WIIM","WMPP","WMUU","IIKP","MPPA","SMAR","TLDN","CAMP","DSFI","SGRO","ITIC","ASHA","GULA","UDNG","ISEA","BRRC","FORE","FAPA"],
+  "Consumer Cyclicals (Konsumer Non-Primer)": ["CINT","OBMD","ACES","MAPI","MAPA","ERAA","RALS","LPPF","AUTO","DRMA","SMSM","ASLC","GJTL","WIFI","BMTR","MNCN","SCMA","ABBA","AGAR","AKKU","ARGO","ARTA","BATA","BAYU","BELL","BIMA","BLTZ","BOLA","BOGA","BOBA","CSAP","CSMI","DAYA","DFAM","DIGI","DOOH","EAST","ECII","ERTX","ESTA","FILM","GLOB","GWAB","HERO","HRTA","IDEA","IMAS","INDS","JGLE","KDTN","KPIG","LFLO","LUCY","MAPB","MARI","MDIA","MGLV","MINA","MSIN","NETV","PANR","PDES","PJAA","PLAN","PMJS","PNSE","POLI","RAAM","RANC","RICY","RUNS","SHID","SNLK","SONA","SOST","SOTS","SPMT","TALF","TELE","TOOL","TOPS","TOSK","TYRE","VAST","VERN","VIVA","VTNY","ZONE","ESTI","HOTL","LPLI","MDRN","MLPL","MPMX","PBRX","SRIL","TRIS","FAST","PZZA","TRIO","WOOD","CNTX","IMJS","SSTM","ENAK"],
+  "Healthcare (Kesehatan)": ["SOHO","PEHA","KLBF","SIDO","MIKA","HEAL","SILO","PRDA","TSPC","IRRA","KAEF","INAF","SAME","CARE","DVLA","MERK","OMED","PRAY","PYFA","RSGK","SRAJ","EPMT","MEDS","HALO","BMHS","DGNS","SCPI","VICI","MMIX","RSCH","HYGN","LABS","OBAT","DKHH","CHEK"],
+  "Technology (Teknologi)": ["GOTO","BUKA","EMTK","WIRG","BELI","MTDL","DCII","MLPT","MCAS","DMMX","AREA","ATIC","AWAN","AXIO","CHIP","CYBR","DIVA","DNET","GLVA","HDIT","IRSX","JAST","KIOS","KREN","LUCK","METO","NFCX","PACK","PTSN","SKYB","TECH","TFAS","TRON","UVCR","WGSH","ZYRX","ASGR","LMAS","ENVY","EDGE","BUVA","INOV","NANO","NINE","JATI","VKTR","MSTI","BATR","DOSS","MENN"],
+  "Infrastructures (Infrastruktur)": ["PGEO","PTIS","KOPI","PBID","TLKM","BREN","JSMR","EXCL","ISAT","TOWR","TBIG","POWR","META","CENT","CDIA","ACST","ADHI","BALI","BUKK","CASS","CMNP","DGIK","FREN","GOLD","HADE","IBST","IDPR","JKON","KBLV","KEEN","LAPD","LINK","MTEL","MTFN","NRCA","OASA","PPRE","PTPP","SUPR","TGRA","TOTL","WEGE","WIKA","WSKT","KBLI","CCSI","KBLM","VOKS","JECC","SCCO","AKPI","GHON","SMKM","KRYA","KLIN","RMKO","ASLI","MKAP","MEJA"],
+  "Properties & Real Estate (Properti)": ["AMOR","BAPA","KBAG","PANI","SSIA","BSDE","PWON","CTRA","SMRA","ASRI","APLN","DILD","KIJA","SMDM","BKSL","LPKR","ARMY","ASPI","ATAP","BCIP","BEST","BIKA","BIPP","BKDP","DART","DMAS","DUTI","ELTY","EMDE","FMII","GMTD","GPRA","GWSA","HOMI","INPP","JRPT","LAND","LPCK","MDLN","MKPI","MMLP","MTLA","MTSM","NASA","NIRO","NZIA","OMRE","PAMG","PPRO","RBMS","RDTX","REAL","RIMO","RISE","ROCK","RODA","SATU","TARA","TRIN","TRUE","URBN","WINR","COWL","JSPT","LCGP","POLL","GAMA","GEMA","HOME","ICON","JIHD","PGLI","PLIN","CITY","MPRO","CLAY","CPRI","HRME","POSA","ADCP","IPAC","SWID","BSBK","GTRA","RELF","GRPM","GOLF"],
+  "Industrials (Perindustrian)": ["ZBRA","MARK","GMFI","ASII","UNTR","HEXA","ARNA","IMPC","MLIA","AMIN","APII","BAST","BDKR","BHAT","BMSR","BRAM","BRNA","BTEL","CARS","CSIS","CTTH","DYAN","FORU","GDYR","GPSO","HDTX","HOPE","IKAI","INDR","INTD","JKSW","JTPE","KICI","KOIN","KONI","KPAL","KRAH","LPIN","MABA","MICE","MPOW","MYTX","NIPS","POLY","SLIS","STAR","TFCO","TMPO","UNIT","UNTX","VICO","WIDI","BNBR","INTA","MFMI","IKBI","LMPI","MRAT","MSKY","OKAS","PSDN","PSKT","PTSP","SIMA","SOCI","TGKA","TIRA","TOTO","TRAM","TRIL","WICO","MKNT","MTRA","PBSA","MORA","LCKM","INPS","SPTO","PRIM","NUSA","DUCK","SKRN","YELO","SOSS","NATO","MTPS","KAYU","IPTV","BLUE","ARKA","SINI","IFII","PGJO","INDO","PTPW","TAMA","SBAT","CBMF","RONY","BBSS","EPAC","UANG","SOFA","SCNP","KMDS","PURI","PTDU","UNIQ","FIMP","NPGF","FLMC","KUAS","DEPO","BINO","IPPE","BSML","BAUT","NTBK","BIKE","MTMH","IBOS","OLIV","CHEM","DEWI","RCCC","AMMS","RAFI","KKES","BUAH","CRAB","CBUT","PDPP","ZATA","PADA","ISAP","SOUL","ELIT","BEER","CBPE","SUNI","WINE","BMBL","PEVE","FWCT","NAYZ","KING","HILL","PTMP","SAGE","HAJJ","SMIL","CRSN","INET","MAHA","CNMA","FOLK","HBAT","ERAL","MUTU","MSIE","BABY","AEGS","IOTF","KOCI","PTPS","STRK","KOKA","RGAS","IKPM","AYAM","SURI","GRPH","UNTD","MPIX","LIVE","BAIK","VISI","MHKI","ATLA","DATA","SPRE","BLES","GUNA","NEST","PTMR","DAAZ","NAIK","MDIY","KSIX","HGII","DGWG","CBDK","MINE","ASPR","COIN","MERI","KAQI","YUPI","MDLA","AYLS","AMAN","PIPA","CGAS","NICE","MSJA","SMLE","ACRO","MANG","KETR","UFOE","PMUI","RLCO","ADMG"],
+  "Transportation & Logistics (Transportasi)": ["HITS","BULL","CANI","PSSI","SMDR","TMAS","BIRD","ASSA","GIAA","WEHA","HAIS","AKSI","BPTR","CMPP","DEAL","GTSI","HELI","IPCC","IPCM","JAYA","KJEN","KLAS","KOBX","LAJU","LRNA","MIRA","MPXL","NELY","PIKK","PORT","PPGL","PRAS","PURA","SAFE","SAPX","SDMU","SHIP","TNCA","TRJA","TRUK","BLTA","INDX","KARW","ELPI","TAXI","HATM","HUMI","LOPI","ALII","BOAT","PSAT","BLOG","PJHB","WBSA"],
+};
+
+var IDX_SECTOR_MAP = {};
+Object.keys(IDX_SECTOR_GROUPS).forEach(function(sec){
+  IDX_SECTOR_GROUPS[sec].forEach(function(tk){ IDX_SECTOR_MAP[tk] = sec; });
+});
+if(typeof window !== "undefined"){
+  window.IDX_SECTOR_GROUPS = IDX_SECTOR_GROUPS;
+  window.IDX_SECTOR_MAP = IDX_SECTOR_MAP;
+}
+
 Object.keys(_IDX_RAW_LIST).forEach(function(k){
+  var mappedSec = IDX_SECTOR_MAP[k];
   if(!DB[k]){
     DB[k] = _IDX_RAW_LIST[k];
+    if(mappedSec) DB[k].sector = mappedSec;
   } else {
     if(DB[k].base === 100 && _IDX_RAW_LIST[k].base > 100) DB[k].base = _IDX_RAW_LIST[k].base;
     if((!DB[k].name || DB[k].name === k) && _IDX_RAW_LIST[k].name) DB[k].name = _IDX_RAW_LIST[k].name;
-    if((!DB[k].sector || DB[k].sector === 'Lainnya') && _IDX_RAW_LIST[k].sector && _IDX_RAW_LIST[k].sector !== 'Lainnya') DB[k].sector = _IDX_RAW_LIST[k].sector;
+    if(mappedSec && (!DB[k].sector || DB[k].sector === 'Lainnya')) {
+      DB[k].sector = mappedSec;
+    } else if((!DB[k].sector || DB[k].sector === 'Lainnya') && _IDX_RAW_LIST[k].sector && _IDX_RAW_LIST[k].sector !== 'Lainnya') {
+      DB[k].sector = _IDX_RAW_LIST[k].sector;
+    }
   }
 });
 var COLORS = ['#ff6600','#00d4aa','#0088ff','#ffbb00','#9b7fe8','#ff4466','#00b4c8','#ff8833','#44cc88','#dd8800','#6688ff','#22dd66'];
