@@ -3358,7 +3358,7 @@ app.get('/api/idx/ai-scan', async (req, res) => {
     let tickers = req.query.tickers ? String(req.query.tickers).split(',') : null;
     if (!tickers || !tickers.length) {
       const universe = loadBaseUniverse();
-      tickers = Object.values(universe).filter(u => u.indexes && u.indexes.lq45).map(u => u.code);
+      tickers = Object.values(universe).filter(u => u.indexes && (u.indexes.idx80 || u.indexes.lq45)).map(u => u.code);
     }
     const signals = await computeStockSignalBatch(tickers);
     return res.json({ success: true, count: signals.length, signals });

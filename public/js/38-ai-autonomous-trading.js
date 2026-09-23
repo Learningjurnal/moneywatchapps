@@ -150,7 +150,7 @@
   // per-request cap — see the comment above /api/idx/ai-scan in
   // server.js) rather than one huge request, and sequentially rather than
   // in parallel to stay gentle on Yahoo Finance's rate limits.
-  var AI_SCAN_UNIVERSE_KEY = 'lq45'; // 'lq45' | 'idx80' | 'kompas100'
+  var AI_SCAN_UNIVERSE_KEY = 'idx80'; // 'lq45' | 'idx80' | 'kompas100'
   var AI_SCAN_UNIVERSE_LABELS = { lq45: 'LQ45 (45)', idx80: 'IDX80 (~85)', kompas100: 'Kompas100 (~127)' };
   var AI_SCAN_BATCH_SIZE = 80;
   var AI_SCAN_PROGRESS = null; // { done, total } while a multi-batch scan is running, else null
