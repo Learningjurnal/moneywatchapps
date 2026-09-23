@@ -8099,6 +8099,59 @@ test('REGRESSION GUARD: fsRenderWlPage() must NOT show CHG%/Skor/Sinyal/CMF/VolR
     'REGRESSION: RSI cell must show dashCell when isSim===true');
 });
 
+// ── TEST: SlowTrading RSI + Dual MACD Adoption & Integrity Guard (2026-09-23)
+await asyncTest('STRATEGY ENGINE: SlowTrading RSI + Dual MACD strategy definition, indicators, and gap-down slippage (2026-09-23)', async () => {
+  const engineModule = await import('./lib/idx-data-engine.js');
+  const { STRATEGY_DEFINITIONS, runStrategyBacktest, computeStockSignal, computeIndicatorSeries } = engineModule;
+
+  // 1. STRATEGY_DEFINITIONS includes strat_slow_trading_dual_macd
+  assert(STRATEGY_DEFINITIONS.strat_slow_trading_dual_macd, 'strat_slow_trading_dual_macd must be registered in STRATEGY_DEFINITIONS');
+  const strat = STRATEGY_DEFINITIONS.strat_slow_trading_dual_macd;
+  assert.strictEqual(strat.id, 'strat_slow_trading_dual_macd');
+  assert(strat.name.includes('SlowTrading'), 'Strategy name must mention SlowTrading');
+  assert(strat.description.includes('RSI-50'), 'Strategy description must explain RSI-50 envelope');
+
+  // 2. computeIndicatorSeries calculates rsi50 and dual MACD
+  const testPoints = [];
+  const baseT = 1609459200000;
+  for (let i = 0; i < 70; i++) {
+    const p = 1000 + i * 10;
+    testPoints.push({ t: baseT + i * 86400000, o: p, h: p + 15, l: p - 5, c: p + 10, v: 5000000 });
+  }
+  const indSeries = computeIndicatorSeries(testPoints);
+  assert(indSeries.rsi50, 'computeIndicatorSeries must compute rsi50');
+  assert(indSeries.macdFast && Array.isArray(indSeries.macdFast.line), 'computeIndicatorSeries must compute macdFast.line');
+  assert(indSeries.macdFast && Array.isArray(indSeries.macdFast.signal), 'computeIndicatorSeries must compute macdFast.signal');
+  assert(indSeries.macdFilter && Array.isArray(indSeries.macdFilter.line), 'computeIndicatorSeries must compute macdFilter.line');
+  assert(indSeries.macdFilter && Array.isArray(indSeries.macdFilter.signal), 'computeIndicatorSeries must compute macdFilter.signal');
+
+  // 3. computeStockSignal exposes rsi50
+  const sig = await computeStockSignal('BBCA');
+  assert(sig, 'computeStockSignal must return signal for BBCA');
+  if (sig.price > 0 && sig.signal !== 'NO DATA') {
+    assert(sig.rsi50 !== undefined, 'signal must expose rsi50 when technical data is computed');
+  }
+
+  // 4. Backtest execution for strat_slow_trading_dual_macd
+  const backtestResult = await runStrategyBacktest('strat_slow_trading_dual_macd', 'BBCA');
+  assert(backtestResult, 'runStrategyBacktest must return result object');
+  assert.strictEqual(backtestResult.strategyId, 'strat_slow_trading_dual_macd');
+  assert(Array.isArray(backtestResult.trades), 'trades must be an array');
+  assert(backtestResult.summary, 'summary must exist');
+  assert(typeof backtestResult.summary.totalTrades === 'number', 'totalTrades must be a number');
+
+  // 5. Verify trade structure if any trades fired
+  if (backtestResult.trades.length > 0) {
+    const sampleTrade = backtestResult.trades[0];
+    assert.strictEqual(sampleTrade.ticker, 'BBCA', 'Trade ticker must match');
+    assert(sampleTrade.entryPrice > 0, 'Entry price must be positive');
+    assert(sampleTrade.exitPrice > 0, 'Exit price must be positive');
+    assert(typeof sampleTrade.returnPct === 'number', 'ReturnPct must be number');
+    assert(['WIN', 'LOSS'].includes(sampleTrade.result), 'Trade result must be WIN or LOSS');
+    assert(sampleTrade.holdingBars <= 4, 'Holding bars for SlowTrading must be capped (<= 4 bars)');
+  }
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

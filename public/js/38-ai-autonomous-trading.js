@@ -105,6 +105,7 @@
         strat_pullback: 1.0,
         strat_breakout: 1.0,
         strat_mean_reversion: 1.0,
+        strat_slow_trading_dual_macd: 1.0,
         composite_scoring: 1.0
       },
       adaptationHistory: []
@@ -233,7 +234,8 @@
   var STRATEGY_META = {
     strat_pullback: 'Trend Pullback',
     strat_breakout: 'Volume Breakout',
-    strat_mean_reversion: 'Mean Reversion Oversold'
+    strat_mean_reversion: 'Mean Reversion Oversold',
+    strat_slow_trading_dual_macd: 'SlowTrading RSI + Dual MACD'
   };
 
   async function fetchAllStrategyBacktests() {
