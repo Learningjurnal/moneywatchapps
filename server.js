@@ -55,7 +55,7 @@ import {
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus } from './lib/invezgo-client.js';
-import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals } from './lib/engine/strategy/StrategyEngine.js';
+import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 
@@ -4447,6 +4447,25 @@ app.get('/api/strategy-engine/latest', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Strategy Engine Latest Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/strategy-engine/daily-picks?limit=10 — sidebar widget source.
+// Read-only: merges the day's (or most recent trading day's) already-
+// persisted STRONG/QUALIFIED signals across all 4 strategies, re-runs the
+// winning strategy for just the top `limit` tickers to attach a real
+// explanation, and caches the result 10 min. Never fabricates picks —
+// returns fewer than `limit` (with `note` explaining why) if the day's
+// rotating scan hasn't found enough yet. See getDailyTopPicks() for the
+// full reasoning (lib/engine/strategy/StrategyEngine.js).
+app.get('/api/strategy-engine/daily-picks', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 25);
+    const data = await getDailyTopPicks(limit);
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    console.error('[Strategy Engine Daily Picks Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
