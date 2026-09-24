@@ -1,6 +1,6 @@
 # 💼 Money Watch Pro — Production Final Release (v6.2.0)
 
-[![Test Suite](https://img.shields.io/badge/Tests-310%2B%20Passing%20(6%20Suites)-10b981.svg)](file:///test_suite.js)
+[![Test Suite](https://img.shields.io/badge/Tests-370%2B%20Passing%20(7%20Suites)-10b981.svg)](file:///test_suite.js)
 [![Data Integrity](https://img.shields.io/badge/Data%20Integrity-100%25%20Verified%20(Zero%20Dummy)-0284c7.svg)](file:///DATA_TRACEABILITY_MANIFESTO.md)
 [![Financial Policy](https://img.shields.io/badge/Financial%20Policy-Canonical%20BEI%20Compliance-8b5cf6.svg)](file:///FINANCIAL_POLICY.md)
 [![AI Engine](https://img.shields.io/badge/AI%20Engine-Gemini%20%2B%20Claude%20Tool--Calling-f59e0b.svg)](file:///server.js)
@@ -146,6 +146,11 @@ Diadopsi dari strategi Pine Script profesional dan divalidasi dengan data bursa 
 - **Profit Factor**: `7.18`
 - **Max Drawdown**: `0.31%`
 
+### Strategy Engine V1 (`lib/engine/`)
+Pipeline skoring deterministik terpisah — Provider Adapter → Normalized Market Data → Indicator Engine → Strategy Engine → Scoring Engine — dengan 4 strategi berbobot (`strategies/*.json`, bobot selalu berjumlah 1.0): **swing-flow**, **day-trading**, **momentum-candidate**, **hidden-accumulation**. Delapan indikator (HIGH_BID_OFFER, NO_SELL, CLOSE_HIGH, HIGH_ATS, HIGH_NON_REGULAR, FOREIGN, VOLUME, FREQUENCY) dihitung dari data order-book & intraday Invezgo real, dengan baseline rolling 20-hari-bursa per ticker (Redis-backed). Status hasil hanya `STRONG/QUALIFIED/WATCH/REJECT/DATA_INSUFFICIENT` — **tidak pernah** `BUY/SELL` langsung. Kondisi mandatory yang datanya tidak tersedia menghasilkan `DATA_INSUFFICIENT` (jujur), bukan `REJECT` (yang berarti data ada tapi gagal syarat). Diakses via tab **Strategy Engine** di halaman Screener, dipanaskan otomatis oleh cron eksternal (GitHub Actions, lihat `.github/workflows/strategy-engine-cron.yml`) karena kuota 2 cron-slot Vercel Hobby sudah terpakai oleh Opportunity Radar & Technical Indicator cache.
+
+**Deviasi dari spesifikasi awal yang didisclosure di kode** (bukan disembunyikan): HIGH_BID_OFFER/NO_SELL hanya memakai depth order-book Level 1 (Invezgo tidak menyediakan depth 5-level); klasifikasi RG/NG/TN pada HIGH_NON_REGULAR bersifat provisional (belum dikonfirmasi eksplisit dari dokumentasi resmi Invezgo, walau cocok dengan terminologi resmi BEI).
+
 ---
 
 ## 🗺️ Peta Navigasi 7-Pilar Aplikasi
@@ -155,7 +160,7 @@ Navigasi sidebar dirancang elegan, intuitif, dan tanpa duplikasi:
 ```text
 ├── 1. COMMAND CENTER
 │   ├── Market Pulse          → Rangkuman sentimen pasar, IHSG, & agenda makro harian
-│   ├── Screener              → Unified Screener (CMF Proxy, Broker Flow Riil, Sektor)
+│   ├── Screener              → Unified Screener (CMF Proxy, Broker Flow Riil, Sektor) + tab Strategy Engine
 │   ├── Portfolio Snapshot    → Dashboard eksekutif portofolio & alokasi aset
 │   └── Alerts                → Peringatan harga otomatis (Price Alerts)
 │
@@ -298,20 +303,21 @@ Akses aplikasi melalui peramban di `http://localhost:3000`.
 Platform ini mengimplementasikan pengujian otomatis ketat tanpa regresi:
 
 ```bash
-# Menjalankan seluruh 6 Test Suites (>310 assertions):
+# Menjalankan seluruh 7 Test Suites (>370 assertions):
 npm test
 
 # Menjalankan linter & syntax verification ES Modules:
 npm run lint
 ```
 
-### Rincian 6 Test Suites:
-1. **`test_suite.js`**: Suite utama (256 pengujian) yang mencakup logika finansial, indikator teknikal, strategi SlowTrading RSI + Dual MACD, sanitasi ticker, dan proteksi regresi UI.
+### Rincian 7 Test Suites:
+1. **`test_suite.js`**: Suite utama (261 pengujian) yang mencakup logika finansial, indikator teknikal, strategi SlowTrading RSI + Dual MACD, sanitasi ticker, dan proteksi regresi UI.
 2. **`test_financial_policy.js`**: Detektor drift terhadap [FINANCIAL_POLICY.md](file:///FINANCIAL_POLICY.md) (pajak PPh Final 0.1%, PPN 11%, BEI Levy, limit konsentrasi saham 15%, dan buffer kas RDN 20%).
 3. **`test_provider_functions.js`**: Pengujian integrasi adapter Yahoo Finance dan Invezgo API dengan mocking fetch live network.
 4. **`test_security_regressions.js`**: Pengujian keamanan MW-P0-001 (isolasi data antar-pengguna, validasi token server-side, proteksi penghapusan data).
 5. **`test_code_integrity_audit.js`**: Audit integritas kode kanonikal (SSOT harga pasar, invariasi gauge Bandarmology 0–100, pencegahan data sintetis).
 6. **`test_e2e_search_sync.js`**: Simulasi End-to-End sinkronisasi pencarian kode saham lintas 6 modul Stock Master 360 secara serentak.
+7. **`test_strategy_engine.js`**: Pengujian mesin skoring deterministik Strategy Engine V1 (formula indikator, validator bobot strategi, mandatory-condition override, rotasi cron, wiring UI).
 
 ---
 
