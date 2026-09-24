@@ -77,6 +77,18 @@ function dossierGetWeights() {
   return dossierGetDefaultWeights();
 }
 
+// FIX (2026-09-24, user-reported: "Stock Master 360 sering stuck, harus di
+// reload ulang" — same root cause as the Market Flow fix above it: none of
+// dossierHarvestData()'s 7 concurrent fetch() calls (quote, broker summary,
+// history, KSEI static, KSEI live, regime, AI hypothesis) had a
+// client-side timeout. A single hung response leaves Promise.all() pending
+// forever, so dossierState.isLoading — only reset in dossierHarvestData()'s
+// own finally block, which never runs if the promise never settles — stays
+// true permanently. dossierRunAnalysis()'s guard at renderStockDossierPage
+// time (`!dossierState.isLoading`) then blocks any retry, so only a full
+// browser reload recovers, matching the report exactly.
+var DOSSIER_FETCH_TIMEOUT_MS = 12000;
+
 var dossierState = {
   ticker: 'BBCA',
   activeTab: 'overview',
@@ -1094,37 +1106,37 @@ async function dossierHarvestData(ticker) {
 
   try {
     // 1. Fetch Quote
-    var quotePromise = fetch('/api/idx/quote/' + cleanTicker)
+    var quotePromise = fetch('/api/idx/quote/' + cleanTicker, { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
     // 2. Fetch Broker Summary
-    var brokerPromise = fetch('/api/idx/broker-summary/' + cleanTicker)
+    var brokerPromise = fetch('/api/idx/broker-summary/' + cleanTicker, { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
     // 3. Fetch History (90 bars daily)
-    var historyPromise = fetch('/api/idx/history/' + cleanTicker + '?timeframe=1D&limit=90')
+    var historyPromise = fetch('/api/idx/history/' + cleanTicker + '?timeframe=1D&limit=90', { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
     // 4. Fetch KSEI (dataset statis >5% holder, Google Sheets, ~840/958 ticker)
-    var kseiPromise = fetch('/api/ksei/stock/' + cleanTicker)
+    var kseiPromise = fetch('/api/ksei/stock/' + cleanTicker, { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
     // 4b. Fetch KSEI komposisi LIVE Invezgo (kategori investor Asing/Lokal x 9 kategori)
-    var kseiLivePromise = fetch('/api/idx/shareholder-composition/' + cleanTicker)
+    var kseiLivePromise = fetch('/api/idx/shareholder-composition/' + cleanTicker, { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
     // 5. Fetch Market Regime
-    var regimePromise = fetch('/api/idx/regime')
+    var regimePromise = fetch('/api/idx/regime', { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
     // 6. Fetch AI Hypothesis
-    var hypothesisPromise = fetch('/api/idx/hypothesis/' + cleanTicker)
+    var hypothesisPromise = fetch('/api/idx/hypothesis/' + cleanTicker, { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 

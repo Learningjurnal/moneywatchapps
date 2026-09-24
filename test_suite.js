@@ -8312,6 +8312,41 @@ await asyncTest('REGRESSION GUARD: bandarLoadBrokerPortfolio() resets its loadin
   assert(/_bandarBrokerPortfolioLoading = false;/.test(catchMatch[0]), 'REGRESSION: .catch() no longer resets _bandarBrokerPortfolioLoading — a timeout (AbortError) will permanently lock this section, requiring a full page reload to recover');
 });
 
+// ============================================================
+// BUG (2026-09-24, user-reported): "halaman lain juga sering stuck, coba
+// cek Stock Master 360" — same class of bug as the Market Flow fix above:
+// dossierHarvestData() (public/js/46-stock-dossier.js) fires 7 concurrent
+// fetch() calls via Promise.all() (quote, broker summary, history, KSEI
+// static, KSEI live, regime, AI hypothesis) with no client-side timeout on
+// any of them. A single hung response leaves Promise.all() pending
+// forever; dossierState.isLoading is only reset in the harvest function's
+// own finally block (and dossierRunAnalysis()'s .finally()), neither of
+// which runs if the underlying promise never settles — so the loading
+// state locks permanently, and dossierRunAnalysis()'s render-time guard
+// (`!dossierState.isLoading`) blocks any retry, requiring a full browser
+// reload to recover.
+// ============================================================
+await asyncTest('REGRESSION GUARD: every dossierHarvestData() fetch() call (quote, broker summary, history, KSEI static, KSEI live, regime, AI hypothesis) has a client-side timeout', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+
+  assert(/DOSSIER_FETCH_TIMEOUT_MS/.test(src), 'REGRESSION: no shared frontend fetch-timeout constant found in 46-stock-dossier.js');
+
+  function assertHasTimeoutNear(label, fetchCallSnippetRegex) {
+    const idx = src.search(fetchCallSnippetRegex);
+    assert(idx !== -1, `REGRESSION: could not locate the ${label} fetch() call to check for a timeout`);
+    const windowSrc = src.slice(Math.max(0, idx - 200), idx + 300);
+    assert(/AbortSignal\.timeout\(DOSSIER_FETCH_TIMEOUT_MS\)/.test(windowSrc), `REGRESSION: ${label} fetch() has no AbortSignal.timeout — a hung response will permanently lock dossierState.isLoading, requiring a full page reload`);
+  }
+
+  assertHasTimeoutNear('quote', /fetch\('\/api\/idx\/quote\/'/);
+  assertHasTimeoutNear('broker summary', /fetch\('\/api\/idx\/broker-summary\/'/);
+  assertHasTimeoutNear('history', /fetch\('\/api\/idx\/history\/'/);
+  assertHasTimeoutNear('KSEI static', /fetch\('\/api\/ksei\/stock\/'/);
+  assertHasTimeoutNear('KSEI live composition', /fetch\('\/api\/idx\/shareholder-composition\/'/);
+  assertHasTimeoutNear('market regime', /fetch\('\/api\/idx\/regime'/);
+  assertHasTimeoutNear('AI hypothesis', /fetch\('\/api\/idx\/hypothesis\/'/);
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
