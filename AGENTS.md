@@ -757,36 +757,61 @@ file; keep this section as the single source of truth if the gate's rules
 change.
 
 ## 30.1 Purpose and scope
-Yahoo Finance and Invezgo are **market-data** sources (price/OHLC/volume,
-broker flow) — a valid quote or a clean chart from them is **never**
-evidence that a stock is clear of regulatory action. Regulatory status
-(BEI Special Notation, Papan Pemantauan Khusus / FCA watchlist, suspension)
-comes exclusively from `idx.co.id`, via `fetchIdxSpecialNotations()`
-(`lib/providers/idx-client.js`) — a whole-market fetch (1-2 calls covering
-all ~958 IDX tickers) with a 12-hour cache.
+Yahoo Finance's price/OHLC feed is a **market-data** source — a valid
+quote or a clean chart from it is **never** evidence that a stock is
+clear of regulatory action. Regulatory status (BEI Special Notation,
+Papan Pemantauan Khusus / FCA watchlist, suspension) is sourced separately
+and combined from two providers, in priority order (see 30.1.1).
 
 The Gate is a pure regulatory filter. It must **never** be extended with
 valuation, fundamental, or technical criteria — that scoring stays in the
 analysis layer that runs after the Gate.
 
+### 30.1.1 Source priority (changed 2026-09-24)
+1. **Primary: `fetchInvezgoNotation()`** (`lib/invezgo-client.js`) — GET
+   `/analysis/notation`, Invezgo's own officially documented notation
+   endpoint, whole-market in one parameter-free call, 12h cache. Chosen as
+   primary because Invezgo is already proven reachable from this app's
+   Vercel deployment (the Strategy Engine cron's first live run processed
+   843/958 tickers against it), while `idx.co.id`'s reachability from a
+   Vercel serverless IP was never verified — exchange sites commonly block
+   datacenter/bot traffic, which would leave the gate (and every feature
+   gated by it) permanently `DATA_ERROR`.
+   **Provenance caveat, not silently assumed**: the OpenAPI spec's example
+   shows one `{code, date, list}` entry per stock; it is unconfirmed
+   whether a stock can carry multiple historical entries or always exactly
+   one current entry. `lib/regulatory-gate.js`'s normalizer takes the
+   entry with the latest `date` per code as current status — documented
+   in code, treat as provisional until a live response confirms it.
+2. **Fallback: `fetchIdxSpecialNotations()`** (`lib/providers/idx-client.js`)
+   — direct `idx.co.id` scrape, used only when Invezgo's call fails. Kept
+   as a second independent source (not dropped) per explicit user
+   decision, so an Invezgo-side outage doesn't also take the gate down.
+
+`lib/regulatory-gate.js`'s `getCombinedNotationEnvelope()` tries Invezgo
+first and only calls the idx.co.id fallback on failure; the returned
+envelope's `source` field (and each per-ticker result's `source`) discloses
+which one actually answered — `'Invezgo (data notasi resmi BEI)'` or
+`'BEI (idx.co.id, fallback — Invezgo gagal)'`.
+
 ## 30.2 Classification
 `getRegulatoryHealthGate(tickers, forceRefresh?)` classifies every input
-ticker into one of four statuses, from a single `fetchIdxSpecialNotations()`
-snapshot:
+ticker into one of four statuses, from a single combined-envelope snapshot
+(30.1.1):
 
 | Status | Meaning | `eligible` |
 |---|---|---|
-| `CLEAR` | Fresh idx.co.id data fetched successfully; ticker has no active notation entry | `true` |
+| `CLEAR` | Fresh data (Invezgo or idx.co.id fallback) fetched successfully; ticker has no active notation entry | `true` |
 | `FLAGGED` | Fresh data; ticker has an active Special Notation / watchlist entry | `false` |
-| `UNKNOWN` | idx.co.id refresh failed but a prior (stale, past 12h TTL) cache exists | `false` |
-| `DATA_ERROR` | idx.co.id has never been reached successfully — no cache at all | `false` |
+| `UNKNOWN` | Both sources' refresh failed but a prior (stale, past 12h TTL) idx.co.id cache exists | `false` |
+| `DATA_ERROR` | Neither source has ever been reached successfully — no cache anywhere | `false` |
 
 Non-negotiable, matching Aturan Wajib CLAUDE.md §5 and the Zero Fabricated
 Data principle:
 - Yahoo/Invezgo price data ≠ regulatory clearance.
 - `UNKNOWN` ≠ `CLEAR`.
 - `STALE` ≠ `CLEAR`.
-- An idx.co.id API failure ≠ `CLEAR`.
+- A regulatory-source API failure (either provider) ≠ `CLEAR`.
 - No synthetic/guessed regulatory status.
 - No permanent hardcoded "safe stock" list.
 
@@ -805,11 +830,16 @@ the tickers whose gate result is `eligible`.
   `excludeFlagged` contract; a non-eligible ticker can never render as
   `BUY ZONE`/`WATCHLIST` and is relabeled `TIDAK LAYAK (REGULASI)`.
 - Both expose `summary.regulatoryClear/Flagged/Unknown/DataError` and a
-  `dataSources.regulatory` / `regulatoryDataSource` envelope
-  (`available`, `isStale`, `source: 'BEI (idx.co.id)'`, `checkedAt`) so the
-  UI can honestly disclose when the whole gate is running in a degraded
-  state (e.g. every row hidden because idx.co.id is unreachable) instead of
-  silently returning an empty list.
+  `dataSources.regulatory` / `regulatoryDataSource` envelope (`available`,
+  `isStale`, `source` — see 30.1.1 for the two possible values, `checkedAt`)
+  so the UI can honestly disclose when the whole gate is running in a
+  degraded state (e.g. every row hidden because both regulatory sources
+  are unreachable) instead of silently returning an empty list. The
+  Unified Screener UI (`public/js/48-unified-screener.js`) renders a
+  dedicated red banner + a distinct empty-table message when
+  `dataSources.regulatory.available` is `false`, so a fully-gated result
+  is never mistaken for "no rows match your filter" (fixed 2026-09-24
+  after a user report of exactly that confusion).
 
 ## 30.4 Extending the gate to a new entry point
 Any new whole-market or per-ticker analysis surface (future Screener
