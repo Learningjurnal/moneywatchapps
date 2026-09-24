@@ -429,6 +429,150 @@ await (async () => {
   });
 })();
 
+// ============================================================
+// PART 9 — Daily Top Picks (sidebar widget) — user request 2026-09-24:
+// "1 sidebar recommendation ... rekomendasi stock pick ... 10 saham ...
+// score dan alasan nya ... reload tiap 15 menit ... setiap hari berubah
+// kecuali libur bursa." getDailyTopPicks() must NEVER invent a pick — it
+// only ever surfaces tickers warmStrategyEngineRotating() already scored
+// STRONG/QUALIFIED and persisted; it re-runs the winning strategy once
+// per picked ticker to attach a real explanation.
+// ============================================================
+await (async () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.INVEZGO_API_KEY;
+  process.env.INVEZGO_API_KEY = 'mock_test_key';
+
+  global.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('idx.co.id')) return { ok: false, status: 500, headers: { getSetCookie: () => [] }, json: async () => ({}) };
+    if (u.includes('/analysis/order-book/')) {
+      return { ok: true, status: 200, json: async () => ({ code: 'X', bid: [{ bid1price: 100, bid1lot: 5000, bid1freq: 3 }], offer: [{ offer1price: 101, offer1lot: 500, offer1freq: 2 }] }) };
+    }
+    if (u.includes('/analysis/intraday-data/')) {
+      return { ok: true, status: 200, json: async () => ({ open: 95, high: 105, low: 90, close: 104, avg: 98, volume: 3_000_000, freq: 1500, value: 3_000_000_000, prev: 96 }) };
+    }
+    return { ok: false, status: 500, json: async () => ({}) };
+  };
+
+  try {
+    const { getDailyTopPicks } = await import('./lib/engine/strategy/StrategyEngine.js');
+    const { storeSetEx } = await import('./lib/invezgo-client.js');
+
+    const testDate = new Date().toISOString().slice(0, 10); // real "today" — getDailyTopPicks() looks backward from today, so a seeded date must be within its lookback window
+    // Seed two strategies' signal logs directly (bypassing the cron), exactly
+    // the shape warmStrategyEngineRotating() itself writes: {ticker, status, score}.
+    await storeSetEx(`strategy_engine:signal_log:swing-flow:${testDate}`, [
+      { ticker: 'PICKHI', status: 'STRONG', score: 91.5 },
+      { ticker: 'PICKLO', status: 'QUALIFIED', score: 62.0 }
+    ], 60);
+    await storeSetEx(`strategy_engine:signal_log:momentum-candidate:${testDate}`, [
+      { ticker: 'PICKHI', status: 'QUALIFIED', score: 70.0 }, // lower score than swing-flow's — must lose the dedupe
+      { ticker: 'PICKMID', status: 'STRONG', score: 85.0 }
+    ], 60);
+
+    await asyncTest('getDailyTopPicks(): merges signals across all 4 strategies, dedupes a ticker to its highest-scoring strategy, ranks by score descending', async () => {
+      const result = await getDailyTopPicks(10, true /* forceRefresh, bypass the 10-min cache */);
+      assert.strictEqual(result.date, testDate, 'must find the seeded date via lookback (no real signals exist for it otherwise)');
+      assert(result.count >= 3, `expected at least the 3 seeded tickers, got ${result.count}`);
+      const byTicker = {};
+      result.picks.forEach(p => { byTicker[p.ticker] = p; });
+      assert(byTicker.PICKHI, 'PICKHI must be present');
+      assert.strictEqual(byTicker.PICKHI.strategyId, 'swing-flow', 'REGRESSION: dedupe must keep the HIGHER-scoring strategy match (swing-flow 91.5 > momentum-candidate 70.0), not just whichever strategy was iterated last');
+      assert(byTicker.PICKMID, 'PICKMID must be present');
+      assert(byTicker.PICKLO, 'PICKLO must be present');
+      // Ranking: PICKHI (91.5) > PICKMID (85.0) > PICKLO (62.0)
+      const rankOf = t => result.picks.findIndex(p => p.ticker === t);
+      assert(rankOf('PICKHI') < rankOf('PICKMID'), 'REGRESSION: picks are not sorted by score descending');
+      assert(rankOf('PICKMID') < rankOf('PICKLO'), 'REGRESSION: picks are not sorted by score descending');
+    });
+
+    await asyncTest('getDailyTopPicks(): every pick carries a real, non-empty reason string (explanations re-computed via runStrategyForTicker, not fabricated)', async () => {
+      const result = await getDailyTopPicks(10, true);
+      result.picks.forEach(p => {
+        assert(typeof p.reason === 'string' && p.reason.length > 0, `REGRESSION: pick ${p.ticker} has no reason text — the widget would show an empty explanation instead of a real one`);
+        assert(typeof p.score === 'number', `REGRESSION: pick ${p.ticker} has no numeric score`);
+        assert(['STRONG', 'QUALIFIED', 'WATCH', 'REJECT', 'DATA_INSUFFICIENT'].includes(p.status), `REGRESSION: pick ${p.ticker} status "${p.status}" is not part of the engine's official vocabulary`);
+      });
+    });
+
+    await asyncTest('getDailyTopPicks(): honestly reports fewer than `limit` picks via `note` instead of padding the list — never fabricates picks to reach the requested count', async () => {
+      const result = await getDailyTopPicks(10, true);
+      assert(result.count < 10, 'this test only seeded 3 tickers, so count must stay below the requested limit of 10');
+      assert(result.picks.length === result.count, 'REGRESSION: picks array length must exactly match the honestly-reported count — no padding');
+      assert(typeof result.note === 'string' && result.note.length > 0, 'REGRESSION: when count < requested limit, a `note` must explain why, instead of silently looking like a complete top-10');
+    });
+
+    await asyncTest('getDailyTopPicks(): a request for a date with zero signals anywhere in the lookback window returns count:0, not an error or fabricated picks', async () => {
+      const originalDateNow = Date.now;
+      // Force "today" to a date far outside the lookback window from any seeded data.
+      Date.now = () => new Date('2050-06-15T00:00:00Z').getTime();
+      try {
+        const result = await getDailyTopPicks(10, true);
+        assert.strictEqual(result.count, 0);
+        assert.deepStrictEqual(result.picks, []);
+      } finally {
+        Date.now = originalDateNow;
+      }
+    });
+  } finally {
+    global.fetch = originalFetch;
+    process.env.INVEZGO_API_KEY = originalKey;
+  }
+})();
+
+await (async () => {
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  await asyncTest('server.js: GET /api/strategy-engine/daily-picks exists and caps `limit` (never an unbounded scan)', async () => {
+    const routeMatch = serverSrc.match(/app\.get\('\/api\/strategy-engine\/daily-picks'[\s\S]*?\n\}\);/);
+    assert(routeMatch, 'route not found');
+    assert(/getDailyTopPicks/.test(routeMatch[0]));
+    assert(/Math\.min\(Math\.max\(/.test(routeMatch[0]), 'REGRESSION: limit param is no longer clamped — a caller could request an unbounded number of re-computed explanations');
+  });
+
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/49-strategy-engine.js'), 'utf8');
+  await asyncTest('UI: sidebar Daily Picks widget fetches the real endpoint, refreshes every 15 minutes, and never hardcodes a fallback stock list', async () => {
+    assert(/function sideDailyPicksInit/.test(cockpitSrc), 'sideDailyPicksInit() is missing');
+    assert(/function sideDailyPicksLoad/.test(cockpitSrc), 'sideDailyPicksLoad() is missing');
+    assert(/\/api\/strategy-engine\/daily-picks/.test(cockpitSrc), 'REGRESSION: widget no longer calls the real backend endpoint');
+    assert(/SIDE_PICKS_REFRESH_MS\s*=\s*15\s*\*\s*60\s*\*\s*1000/.test(cockpitSrc), 'REGRESSION: refresh interval is no longer 15 minutes as requested');
+    assert(/setInterval\(sideDailyPicksLoad, SIDE_PICKS_REFRESH_MS\)/.test(cockpitSrc), 'REGRESSION: widget no longer auto-refreshes on the 15-minute timer');
+    // Zero-fabrication guard: no hardcoded ticker array anywhere near the render function.
+    const renderFnMatch = cockpitSrc.match(/function sideDailyPicksRender\(\)[\s\S]*?\n\}/);
+    assert(renderFnMatch, 'sideDailyPicksRender() is missing');
+    assert(!/\[\s*'[A-Z]{3,5}'\s*,\s*'[A-Z]{3,5}'/.test(renderFnMatch[0]), 'REGRESSION: sideDailyPicksRender() appears to contain a hardcoded ticker list — picks must come only from the API response');
+  });
+
+  const indexSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  await asyncTest('UI: index.html has the #side-daily-picks container and boots sideDailyPicksInit()', async () => {
+    assert(/id="side-daily-picks"/.test(indexSrc), 'REGRESSION: sidebar container div is missing');
+    const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+    assert(/sideDailyPicksInit/.test(routerSrc), 'REGRESSION: sideDailyPicksInit() is never called from app bootstrap — the widget will never load');
+  });
+})();
+
+// ============================================================
+// PART 10 — Strategy Lab backtest table overlap fix (user-reported,
+// screenshot showing "Aturan Riil"'s long description text colliding
+// with the numeric columns after it). Root cause: .tbl td forces
+// white-space:nowrap by default (public/css/main.css) — the strategy
+// description column is the only genuinely variable-length text column
+// in this table and was never given an override, so its content could
+// extend past its visual cell boundary into neighboring columns instead
+// of wrapping.
+// ============================================================
+await (async () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  await asyncTest('UI: Strategy Lab backtest table\'s "Aturan Riil" description column wraps instead of forcing nowrap (fixes reported column overlap)', async () => {
+    const fnMatch = src.match(/function renderAiStrategyLab[\s\S]*?\n  \}/);
+    assert(fnMatch, 'renderAiStrategyLab() not found');
+    assert(/r\.strategy\.description[\s\S]{0,0}/.test(fnMatch[0]) || /strategy\.description/.test(fnMatch[0]), 'description cell not found');
+    const cellMatch = fnMatch[0].match(/<td[^']*'[^']*strategy\.description[^']*'/);
+    assert(cellMatch, 'REGRESSION: could not isolate the Aturan Riil <td> — check it still renders r.strategy.description');
+    assert(/white-space:normal/.test(cellMatch[0]), 'REGRESSION: Aturan Riil column no longer overrides the table\'s default white-space:nowrap — long descriptions will again risk overlapping neighboring columns');
+  });
+})();
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} STRATEGY ENGINE TESTS PASSED SUCCESSFULLY!`);
 console.log('═══════════════════════════════════════════════════════');

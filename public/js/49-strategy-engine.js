@@ -223,3 +223,111 @@ function seRenderStrategyEnginePage(containerId) {
 
   container.innerHTML = html;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// SIDEBAR DAILY PICKS WIDGET
+// User request (2026-09-24): "1 sidebar recommendation, isinya adalah
+// rekomendasi stock pick dari analisa anda, sifatnya harian, setiap hari
+// berubah kecuali libur bursa, dan akan reload tiap 15 menit, stock pick
+// cukup 10 saham aja, namun anda beri score dan alasan nya."
+//
+// ZERO FABRICATION (CLAUDE.md #1/#3): this widget invents NOTHING. It
+// reads GET /api/strategy-engine/daily-picks, which itself only ever
+// returns tickers that warmStrategyEngineRotating()'s cron already scored
+// STRONG/QUALIFIED with the real Strategy Engine V1 formulas (see that
+// endpoint's server.js comment and getDailyTopPicks() in
+// lib/engine/strategy/StrategyEngine.js). "Changes daily except market
+// holidays" and "10 stocks" are honored by the backend, not faked here:
+// the backend walks back to the most recent date that actually has
+// signals (weekends/holidays naturally reuse the last trading day's real
+// results) and returns fewer than 10 with an honest `note` if the day's
+// rotation hasn't found that many yet — this widget renders that note
+// verbatim rather than padding the list.
+// ─────────────────────────────────────────────────────────────────────────
+
+var SIDE_PICKS_REFRESH_MS = 15 * 60 * 1000; // 15 minutes, as requested
+var SIDE_PICKS_STATE = { loading: false, data: null, error: null };
+var _sidePicksTimer = null;
+
+function sideDailyPicksInit() {
+  var el = document.getElementById('side-daily-picks');
+  if (!el) return; // markup not present on this build — no-op, not an error
+  sideDailyPicksLoad();
+  if (_sidePicksTimer) clearInterval(_sidePicksTimer);
+  _sidePicksTimer = setInterval(sideDailyPicksLoad, SIDE_PICKS_REFRESH_MS);
+}
+
+async function sideDailyPicksLoad() {
+  SIDE_PICKS_STATE.loading = true;
+  SIDE_PICKS_STATE.error = null;
+  sideDailyPicksRender();
+  try {
+    var resp = await fetch('/api/strategy-engine/daily-picks?limit=10', { signal: AbortSignal.timeout(15000) });
+    var json = await resp.json();
+    if (!json.success) throw new Error(json.error || 'Gagal memuat rekomendasi harian');
+    SIDE_PICKS_STATE.data = json;
+  } catch (e) {
+    SIDE_PICKS_STATE.error = e.message || String(e);
+  } finally {
+    SIDE_PICKS_STATE.loading = false;
+    sideDailyPicksRender();
+  }
+}
+
+function sideDailyPicksStatusColor(status) {
+  if (status === 'STRONG') return 'var(--green,#10b981)';
+  if (status === 'QUALIFIED') return 'var(--blue,#38bdf8)';
+  return 'var(--text3,#94a3b8)';
+}
+
+function sideDailyPicksEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function sideDailyPicksRender() {
+  var el = document.getElementById('side-daily-picks');
+  if (!el) return;
+
+  var header = '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 4px 6px">'
+    + '<span style="font-size:10.5px;font-weight:800;letter-spacing:0.4px;color:var(--text3,#94a3b8);text-transform:uppercase">Rekomendasi Harian</span>'
+    + '<span class="badge b-accent" style="font-size:8px">STRATEGY ENGINE</span>'
+    + '</div>';
+
+  var body;
+  if (SIDE_PICKS_STATE.loading && !SIDE_PICKS_STATE.data) {
+    body = '<div style="padding:10px 4px;font-size:11px;color:var(--text3,#94a3b8)">Memuat rekomendasi...</div>';
+  } else if (SIDE_PICKS_STATE.error && !SIDE_PICKS_STATE.data) {
+    body = '<div style="padding:10px 4px;font-size:11px;color:var(--text3,#94a3b8)">Gagal memuat: ' + sideDailyPicksEsc(SIDE_PICKS_STATE.error) + '</div>';
+  } else if (SIDE_PICKS_STATE.data && SIDE_PICKS_STATE.data.count === 0) {
+    body = '<div style="padding:10px 4px;font-size:11px;color:var(--text3,#94a3b8);line-height:1.5">Belum ada saham STRONG/QUALIFIED untuk ' + sideDailyPicksEsc(SIDE_PICKS_STATE.data.date) + '. Kemungkinan hari libur bursa atau rotasi scan harian belum menemukan sinyal.</div>';
+  } else if (SIDE_PICKS_STATE.data) {
+    var d = SIDE_PICKS_STATE.data;
+    var rows = d.picks.map(function (p) {
+      return '<div onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stock-dossier\');" '
+        + 'style="padding:7px 6px;border-radius:6px;cursor:pointer;transition:background 0.15s" '
+        + 'onmouseover="this.style.background=\'var(--bg3,rgba(255,255,255,0.04))\'" onmouseout="this.style.background=\'transparent\'">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">'
+        + '<span style="font-size:10px;font-weight:700;color:var(--text3,#94a3b8);width:14px;flex-shrink:0">' + p.rank + '</span>'
+        + '<span class="mono" style="font-size:12px;font-weight:800;color:var(--text);flex:1">' + sideDailyPicksEsc(p.ticker) + '</span>'
+        + '<span class="mono" style="font-size:11px;font-weight:800;color:' + sideDailyPicksStatusColor(p.status) + '">' + (p.score != null ? p.score : '-') + '</span>'
+        + '</div>'
+        + '<div style="font-size:9px;color:var(--text3,#94a3b8);margin:1px 0 3px 20px">' + sideDailyPicksEsc(p.strategyName) + ' · <span style="color:' + sideDailyPicksStatusColor(p.status) + '">' + p.status + '</span></div>'
+        + '<div style="font-size:10px;color:var(--text2,#cbd5e1);line-height:1.4;margin-left:20px">' + sideDailyPicksEsc(p.reason).slice(0, 160) + (p.reason && p.reason.length > 160 ? '…' : '') + '</div>'
+        + '</div>';
+    }).join('<div style="height:1px;background:var(--border2,rgba(255,255,255,0.06));margin:2px 0"></div>');
+
+    body = '<div style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column">' + rows + '</div>';
+    if (d.note) {
+      body += '<div style="padding:6px 4px 2px;font-size:9.5px;color:var(--text3,#94a3b8);line-height:1.4">' + sideDailyPicksEsc(d.note) + '</div>';
+    }
+    body += '<div style="padding:6px 4px 0;font-size:9px;color:var(--text3,#94a3b8);border-top:1px solid var(--border2,rgba(255,255,255,0.06));margin-top:6px;line-height:1.4">'
+      + 'Data ' + sideDailyPicksEsc(d.date) + ' · bukan nasihat investasi, hasil skor otomatis dari data real Invezgo.'
+      + '</div>';
+  } else {
+    body = '';
+  }
+
+  el.innerHTML = header + body;
+}

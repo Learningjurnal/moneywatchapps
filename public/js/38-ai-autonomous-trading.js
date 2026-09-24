@@ -2406,7 +2406,7 @@
       var isProfitable = pf != null && pf > 1.0 && s.expectancyR > 0;
       html += '<tr>'
         + '<td style="font-weight:700;color:var(--text)">' + r.strategy.name + '<div style="font-size:10px;color:var(--text3);font-weight:normal">' + r.strategy.type + '</div></td>'
-        + '<td style="font-size:10.5px;color:var(--text2);max-width:280px">' + r.strategy.description + '</td>'
+        + '<td style="font-size:10.5px;color:var(--text2);max-width:260px;min-width:200px;white-space:normal;word-break:break-word;line-height:1.4">' + r.strategy.description + '</td>'
         + '<td style="font-family:var(--font-mono)">' + s.totalTrades + '</td>'
         + '<td><strong style="font-family:var(--font-mono);color:' + (s.winRate >= 55 ? 'var(--green)' : s.winRate >= 45 ? 'var(--amber)' : 'var(--red)') + '">' + s.winRate + '%</strong></td>'
         + '<td><strong style="font-family:var(--font-mono);color:' + (pf == null ? 'var(--text3)' : pf >= 1.5 ? 'var(--green)' : pf >= 1.0 ? 'var(--amber)' : 'var(--red)') + '">' + (pf == null ? 'N/A' : pf) + '</strong></td>'
