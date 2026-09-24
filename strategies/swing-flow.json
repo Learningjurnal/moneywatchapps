@@ -1,0 +1,15 @@
+{
+  "id": "swing-flow",
+  "name": "SWING FLOW",
+  "version": "1.0.0",
+  "weights": {
+    "HIGH_BID_OFFER": 0.25,
+    "HIGH_ATS": 0.20,
+    "CLOSE_HIGH": 0.20,
+    "VOLUME": 0.15,
+    "FOREIGN": 0.10,
+    "FREQUENCY": 0.10
+  },
+  "mandatoryConditions": [],
+  "scoreBands": { "strong": 80, "qualified": 70, "watch": 55 }
+}

@@ -55,6 +55,8 @@ import {
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus } from './lib/invezgo-client.js';
+import { runStrategyForUniverse } from './lib/engine/strategy/StrategyEngine.js';
+import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -4378,6 +4380,48 @@ app.get('/api/idx/unified-screener', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[Unified Screener Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/strategy-engine/strategies — list Strategy Engine V1 definitions
+// (id/name/version/weights/mandatoryConditions/scoreBands), so the UI can
+// build a strategy picker without hardcoding the 4 strategies client-side.
+app.get('/api/strategy-engine/strategies', async (req, res) => {
+  try {
+    return res.json({ success: true, strategies: listStrategies() });
+  } catch (err) {
+    console.error('[Strategy Engine List Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/strategy-engine/scan?strategy=swing-flow&tickers=BBCA,BBRI&date=YYYY-MM-DD
+// Strategy Engine V1 (2026-09-24). `tickers` is REQUIRED and user-supplied
+// — this deliberately does NOT default to scanning the whole ~958-ticker
+// universe on every request (that would burn Invezgo quota on an
+// unauthenticated GET). Whole-universe scanning belongs in a scheduled
+// cron job (see warmTechnicalRotating()/warmRadarFundamentalsRotating()
+// for the established pattern this app already uses for other whole-
+// market Invezgo scans) — not yet wired for the Strategy Engine as of this
+// commit; run it manually with an explicit ticker list until that cron
+// exists. Every ticker is passed through the Regulatory Health Gate before
+// any indicator is computed (lib/regulatory-gate.js) — a FLAGGED/UNKNOWN/
+// DATA_ERROR ticker returns DATA_INSUFFICIENT with zero Invezgo calls.
+app.get('/api/strategy-engine/scan', async (req, res) => {
+  try {
+    const strategyId = String(req.query.strategy || '').trim();
+    if (!strategyId) return res.status(400).json({ success: false, error: 'Parameter "strategy" wajib diisi (lihat GET /api/strategy-engine/strategies)' });
+    const tickersRaw = String(req.query.tickers || '').trim();
+    if (!tickersRaw) return res.status(400).json({ success: false, error: 'Parameter "tickers" wajib diisi (pisahkan dengan koma), mis. ?tickers=BBCA,BBRI' });
+    const tickers = tickersRaw.split(',').map(t => t.trim()).filter(Boolean);
+    if (tickers.length > 50) return res.status(400).json({ success: false, error: 'Maksimal 50 ticker per request (proteksi kuota Invezgo) — jadwalkan scan whole-market lewat cron, bukan endpoint on-demand ini' });
+
+    const date = req.query.date ? String(req.query.date) : null;
+    const data = await runStrategyForUniverse(tickers, strategyId, { date });
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    console.error('[Strategy Engine Scan Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

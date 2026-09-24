@@ -7,12 +7,13 @@
     "dev": "node server.js",
     "build": "echo 'Build complete'",
     "start": "node server.js",
-    "test": "node test_suite.js && node test_financial_policy.js && node test_provider_functions.js && node test_security_regressions.js && node test_code_integrity_audit.js && node test_e2e_search_sync.js",
+    "test": "node test_suite.js && node test_financial_policy.js && node test_provider_functions.js && node test_security_regressions.js && node test_code_integrity_audit.js && node test_e2e_search_sync.js && node test_strategy_engine.js",
     "test:policy": "node test_financial_policy.js",
     "test:providers": "node test_provider_functions.js",
     "test:security": "node test_security_regressions.js",
     "test:audit": "node test_code_integrity_audit.js",
     "test:e2e": "node test_e2e_search_sync.js",
+    "test:strategy-engine": "node test_strategy_engine.js",
     "lint": "node --check server.js && node --check lib/idx-data-engine.js && node --check public/js/03-engine.js && node --check public/js/21-performance.js && node --check public/js/02b-price-index.js && eslint lib server.js"
   },
   "dependencies": {

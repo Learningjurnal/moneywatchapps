@@ -1,0 +1,14 @@
+{
+  "id": "day-trading",
+  "name": "DAY TRADING",
+  "version": "1.0.0",
+  "weights": {
+    "HIGH_BID_OFFER": 0.20,
+    "VOLUME": 0.25,
+    "FREQUENCY": 0.25,
+    "HIGH_ATS": 0.15,
+    "CLOSE_HIGH": 0.15
+  },
+  "mandatoryConditions": [],
+  "scoreBands": { "strong": 80, "qualified": 70, "watch": 55 }
+}

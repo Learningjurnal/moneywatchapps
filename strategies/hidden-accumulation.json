@@ -1,0 +1,14 @@
+{
+  "id": "hidden-accumulation",
+  "name": "HIDDEN ACCUMULATION CANDIDATE",
+  "version": "1.0.0",
+  "weights": {
+    "HIGH_BID_OFFER": 0.25,
+    "HIGH_NON_REGULAR": 0.30,
+    "FOREIGN": 0.25,
+    "CLOSE_HIGH": 0.10,
+    "VOLUME": 0.10
+  },
+  "mandatoryConditions": ["HIGH_BID_OFFER", "HIGH_NON_REGULAR", "FOREIGN"],
+  "scoreBands": { "strong": 80, "qualified": 70, "watch": 55 }
+}
