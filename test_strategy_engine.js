@@ -582,6 +582,62 @@ await (async () => {
   });
 })();
 
+// ============================================================
+// PART 11 — GitHub Actions cron schedule covers all 4 strategies, not
+// just swing-flow (user-reported: "apakah ini normal?" — the Daily Picks
+// widget was empty for everyone). Root cause found by inspecting the
+// workflow's actual run history via the GitHub API: every run so far was
+// workflow_dispatch (manual), none via "schedule", and the workflow's
+// `strategy` env defaulted to 'swing-flow' with no way for a scheduled
+// (non-manual) trigger to ever pass a different value — so
+// day-trading/momentum-candidate/hidden-accumulation would NEVER have
+// been scanned automatically, no matter how long the schedule ran.
+// getDailyTopPicks() merges signals from all 4 strategies, so 3 of its 4
+// sources would have stayed permanently empty.
+// ============================================================
+await (async () => {
+  const workflowPath = path.join(__dirname, '.github/workflows/strategy-engine-cron.yml');
+  const src = fs.readFileSync(workflowPath, 'utf8');
+  const strategyIds = fs.readdirSync(path.join(__dirname, 'strategies'))
+    .filter(f => f.endsWith('.json'))
+    .map(f => JSON.parse(fs.readFileSync(path.join(__dirname, 'strategies', f), 'utf8')).id);
+
+  await asyncTest('GitHub Actions workflow: strategy-engine-cron.yml is valid YAML and schedules all 4 real strategy ids (not just swing-flow)', async () => {
+    assert.strictEqual(strategyIds.length, 4, `expected 4 strategy definitions in strategies/*.json, found ${strategyIds.length}`);
+
+    let doc;
+    try {
+      const { execFileSync } = await import('child_process');
+      const out = execFileSync('python3', ['-c', `
+import json, sys, yaml
+with open(${JSON.stringify(workflowPath)}) as f:
+    print(json.dumps(yaml.safe_load(f)))
+`]);
+      doc = JSON.parse(out.toString());
+    } catch (e) {
+      throw new Error(`workflow YAML failed to parse (invalid syntax): ${e.message}`);
+    }
+
+    const onBlock = doc.on || doc[true] || doc['on:'];
+    assert(onBlock && Array.isArray(onBlock.schedule), 'REGRESSION: workflow has no `on.schedule` array');
+    assert.strictEqual(onBlock.schedule.length, 4, `REGRESSION: expected 4 schedule entries (one per strategy), found ${onBlock.schedule.length} — day-trading/momentum-candidate/hidden-accumulation will go unscanned forever if this drops back to 1`);
+
+    // Every real strategy id must appear in the job's cron->strategy mapping.
+    strategyIds.forEach(id => {
+      assert(src.includes(`STRATEGY_ID='${id}'`), `REGRESSION: strategy "${id}" (strategies/${id}.json) is not mapped to any schedule entry in the workflow — it will never be scanned automatically`);
+    });
+
+    // The mapping must key off github.event.schedule (the only way to
+    // distinguish which of the 4 schedule entries fired), not a single
+    // hardcoded default that every scheduled run would fall back to.
+    assert(/SCHEDULE_CRON.*github\.event\.schedule/.test(src), 'REGRESSION: workflow no longer reads github.event.schedule — a scheduled (non-manual) run has no other way to know which of the 4 cron entries triggered it');
+    assert(/case "\$SCHEDULE_CRON" in/.test(src), 'REGRESSION: the cron-string-to-strategy-id case mapping is gone');
+
+    // workflow_dispatch (manual) must still be able to override.
+    assert(/INPUT_STRATEGY:\$\{\{github\.event\.inputs\.strategy\}\}/.test(src.replace(/\s/g, '')), 'REGRESSION: manual workflow_dispatch can no longer override the strategy id');
+  });
+})();
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} STRATEGY ENGINE TESTS PASSED SUCCESSFULLY!`);
 console.log('═══════════════════════════════════════════════════════');
