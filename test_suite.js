@@ -6413,7 +6413,7 @@ test('REGRESSION GUARD: getUniverseForeignFlow() must scan the whole BEI market 
   assert(!/var sampleTickers = \[/.test(foreignViewSrc),
     'REGRESSION: renderBandarmologyForeignFlowView() reverted to iterating a hardcoded ticker sample instead of the whole-market endpoint');
   assert(/async function bandarLoadRealForeignFlow/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() is gone — Foreign Flow view no longer fetches real whole-market data');
-  assert(/fetch\('\/api\/idx\/foreign-flow'\)/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() no longer fetches GET /api/idx/foreign-flow');
+  assert(/fetch\('\/api\/idx\/foreign-flow'/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() no longer fetches GET /api/idx/foreign-flow');
 });
 
 // ── TEST: _mergeWealthData() must respect tombstones for bank/debt/
@@ -6576,7 +6576,7 @@ test('REGRESSION GUARD: Accumulation/Distribution views use whole-market Invezgo
   assert(!/var sampleTickers = \[/.test(distViewSrc), 'REGRESSION: renderBandarmologyDistributionView() reverted to a hardcoded ticker sample');
 
   assert(/async function bandarLoadAccDist/.test(cockpitSrc), 'REGRESSION: bandarLoadAccDist() is gone — Accumulation/Distribution no longer fetch real whole-market data');
-  assert(/fetch\('\/api\/idx\/accumulation-distribution'\)/.test(cockpitSrc), 'REGRESSION: bandarLoadAccDist() no longer fetches GET /api/idx/accumulation-distribution');
+  assert(/fetch\('\/api\/idx\/accumulation-distribution'/.test(cockpitSrc), 'REGRESSION: bandarLoadAccDist() no longer fetches GET /api/idx/accumulation-distribution');
 
   // Container ids must be DISTINCT — both views render on the same page
   // simultaneously; a shared id would make document.getElementById() only
@@ -8261,6 +8261,143 @@ await asyncTest('REGRESSION GUARD: Unified Screener UI discloses when the Regula
   assert(/ds\.regulatory && !ds\.regulatory\.available/.test(src), 'REGRESSION: the honesty banner no longer checks dataSources.regulatory.available — an empty table from a fully-excluded universe will again look like a filter problem');
   assert(/Tabel screener kosong BUKAN karena filter Anda/.test(src), 'REGRESSION: the specific "this is not your filter" disclosure text is gone');
   assert(/gateDown \? 'Semua saham tersembunyi/.test(src), 'REGRESSION: the empty-state row message no longer distinguishes gate-exclusion from a real empty filter result');
+});
+
+// ============================================================
+// BUG (2026-09-24, user-reported): "aplikasi selalu crash saat membuka
+// market flow, harus di reload ulang" — this is the frontend half of the
+// "stuck saat ambil data" incident from earlier this session, which only
+// fixed the 18 backend fetch() sites and explicitly left the 91 frontend
+// sites untouched (disclosed as a scope limitation at the time). Market
+// Flow (renderBandarmologyCockpitPage) is the page that reproduces it most
+// reliably: it fires 5 different fetch() calls on every open (acc/dist,
+// foreign flow, market flow scanner, broker portfolio, plus one per ticker
+// in the ~48-ticker prefetch batch) with NO client-side timeout on any of
+// them. A single hung response leaves that fetch's Promise permanently
+// pending — Promise.all() in bandarPrefetchMarketBatch() never resolves,
+// and worse, bandarLoadBrokerPortfolio() never resets
+// _bandarBrokerPortfolioLoading back to false, permanently locking that
+// section's loading-guard (`if (_bandarBrokerPortfolioLoading) return;`)
+// so no page reload of #page-bandarmology alone can recover — only a full
+// browser reload resets the JS state, exactly matching the report. Fix:
+// AbortSignal.timeout() on all 5 call sites, same pattern as the backend
+// fix, so a hung request fails fast instead of hanging forever.
+// ============================================================
+await asyncTest('REGRESSION GUARD: every Market Flow fetch() call (broker summary, acc/dist, foreign flow, market flow scanner, broker portfolio) has a client-side timeout', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  assert(/BANDAR_FETCH_TIMEOUT_MS/.test(src), 'REGRESSION: no shared frontend fetch-timeout constant found in 41-stockchat-cockpit.js');
+
+  function assertHasTimeoutNear(label, fetchCallSnippetRegex) {
+    const idx = src.search(fetchCallSnippetRegex);
+    assert(idx !== -1, `REGRESSION: could not locate the ${label} fetch() call to check for a timeout`);
+    const window_ = src.slice(Math.max(0, idx - 400), idx + 400);
+    assert(/AbortSignal\.timeout\(BANDAR_FETCH_TIMEOUT_MS\)/.test(window_), `REGRESSION: ${label} fetch() has no AbortSignal.timeout — a hung response will hang forever and lock the page, requiring a full reload`);
+  }
+
+  assertHasTimeoutNear('fetchBrokerSummaryData() (per-ticker, used by the ~48-ticker prefetch batch)', /fetch\('\/api\/idx\/broker-summary\/'/);
+  assertHasTimeoutNear('bandarLoadRealMarketFlow() (whole-market acc/dist scanner)', /fetch\('\/api\/idx\/accumulation-distribution', \{ signal/);
+  assertHasTimeoutNear('bandarLoadRealForeignFlow()', /fetch\('\/api\/idx\/foreign-flow'/);
+  assertHasTimeoutNear('bandarLoadBrokerPortfolio()', /fetch\('\/api\/idx\/broker-summary-by-broker\/'/);
+});
+
+await asyncTest('REGRESSION GUARD: bandarLoadBrokerPortfolio() resets its loading guard even if the fetch times out (AbortError), not just on ok/rejected-with-data)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnStart = src.indexOf('function bandarLoadBrokerPortfolio(');
+  assert(fnStart !== -1, 'REGRESSION: could not isolate bandarLoadBrokerPortfolio() body');
+  const nextFnStart = src.indexOf('\nfunction ', fnStart + 1);
+  const body = src.slice(fnStart, nextFnStart !== -1 ? nextFnStart : fnStart + 3000);
+  const catchMatch = body.match(/\.catch\(function\(err\)\s*\{[\s\S]*?\n\s*\}\);/);
+  assert(catchMatch, 'REGRESSION: bandarLoadBrokerPortfolio() lost its .catch() handler');
+  assert(/_bandarBrokerPortfolioLoading = false;/.test(catchMatch[0]), 'REGRESSION: .catch() no longer resets _bandarBrokerPortfolioLoading — a timeout (AbortError) will permanently lock this section, requiring a full page reload to recover');
+});
+
+// ============================================================
+// BUG (2026-09-24, user-reported): "halaman lain juga sering stuck, coba
+// cek Stock Master 360" — same class of bug as the Market Flow fix above:
+// dossierHarvestData() (public/js/46-stock-dossier.js) fires 7 concurrent
+// fetch() calls via Promise.all() (quote, broker summary, history, KSEI
+// static, KSEI live, regime, AI hypothesis) with no client-side timeout on
+// any of them. A single hung response leaves Promise.all() pending
+// forever; dossierState.isLoading is only reset in the harvest function's
+// own finally block (and dossierRunAnalysis()'s .finally()), neither of
+// which runs if the underlying promise never settles — so the loading
+// state locks permanently, and dossierRunAnalysis()'s render-time guard
+// (`!dossierState.isLoading`) blocks any retry, requiring a full browser
+// reload to recover.
+// ============================================================
+await asyncTest('REGRESSION GUARD: every dossierHarvestData() fetch() call (quote, broker summary, history, KSEI static, KSEI live, regime, AI hypothesis) has a client-side timeout', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+
+  assert(/DOSSIER_FETCH_TIMEOUT_MS/.test(src), 'REGRESSION: no shared frontend fetch-timeout constant found in 46-stock-dossier.js');
+
+  function assertHasTimeoutNear(label, fetchCallSnippetRegex) {
+    const idx = src.search(fetchCallSnippetRegex);
+    assert(idx !== -1, `REGRESSION: could not locate the ${label} fetch() call to check for a timeout`);
+    const windowSrc = src.slice(Math.max(0, idx - 200), idx + 300);
+    assert(/AbortSignal\.timeout\(DOSSIER_FETCH_TIMEOUT_MS\)/.test(windowSrc), `REGRESSION: ${label} fetch() has no AbortSignal.timeout — a hung response will permanently lock dossierState.isLoading, requiring a full page reload`);
+  }
+
+  assertHasTimeoutNear('quote', /fetch\('\/api\/idx\/quote\/'/);
+  assertHasTimeoutNear('broker summary', /fetch\('\/api\/idx\/broker-summary\/'/);
+  assertHasTimeoutNear('history', /fetch\('\/api\/idx\/history\/'/);
+  assertHasTimeoutNear('KSEI static', /fetch\('\/api\/ksei\/stock\/'/);
+  assertHasTimeoutNear('KSEI live composition', /fetch\('\/api\/idx\/shareholder-composition\/'/);
+  assertHasTimeoutNear('market regime', /fetch\('\/api\/idx\/regime'/);
+  assertHasTimeoutNear('AI hypothesis', /fetch\('\/api\/idx\/hypothesis\/'/);
+});
+
+// ============================================================
+// BUG (2026-09-24, user-reported, still reproducing after the fetch-
+// timeout fix above): "saat membuka market flow masih crash" — a Chrome
+// "Page Unresponsive" dialog, which fires specifically when the RENDERER
+// MAIN THREAD is blocked, not from a hung network request (fetch() is
+// async I/O and never blocks the main thread by itself — the timeout fix
+// above was necessary but not the actual cause of this dialog).
+//
+// Root cause: FH.timer (public/js/03-engine.js, the global 15s live-price
+// polling loop) calls `renderPage(currentPage)` every 4th tick (~60s)
+// while any page is open, purely so pages showing the fast-moving IHSG/
+// stock price ticker redraw with fresh numbers. For 'bandarmology'
+// (Market Flow), 06-analysis-router.js routes this straight into
+// renderBandarmologyCockpitPage() — which, on EVERY call with no guard at
+// all, nulls _bandarAccDistCache and re-fires all 5 data loaders
+// (acc/dist x2, foreign flow, market flow scanner, broker portfolio) PLUS
+// bandarPrefetchMarketBatch's ~48-ticker concurrent fetch batch, while
+// also tearing down and rebuilding the entire page's HTML. Market Flow's
+// content is 100% driven by Invezgo's own daily-cached whole-market data
+// — none of it depends on the fast 15s price tick — so this periodic
+// call was pure waste. Left running for a couple of minutes on the page,
+// each ~60s cycle stacks a fresh ~53-request wave (with the previous
+// wave's responses still arriving/parsing/re-rendering), and the
+// cumulative JSON-parsing + DOM-rebuild work on the main thread is what
+// trips Chrome's unresponsive-page watchdog — matching the report exactly
+// (page loads fine, then hangs after sitting on it a while).
+//
+// Fix: renderBandarmologyCockpitPage() now skips the entire heavy
+// reload+rebuild when called again with the same ticker/timeframe/
+// broker/date as its last real render (a periodic poke with nothing
+// user-relevant changed is now a cheap no-op), while still allowing a
+// forced refresh — used once by bandarPrefetchMarketBatch() after real
+// data actually arrives, and naturally whenever the user changes ticker/
+// timeframe/broker/date.
+// ============================================================
+await asyncTest('REGRESSION GUARD: renderBandarmologyCockpitPage() does not repeat its ~53-request reload+rebuild every time it is called with nothing user-relevant changed (Market Flow "Page Unresponsive" fix)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnStart = src.indexOf('function renderBandarmologyCockpitPage(');
+  assert(fnStart !== -1, 'REGRESSION: could not isolate renderBandarmologyCockpitPage() body');
+  const nextFnStart = src.indexOf('\nfunction ', fnStart + 1);
+  const body = src.slice(fnStart, nextFnStart !== -1 ? nextFnStart : fnStart + 5000);
+
+  assert(/_bandarLastRenderedKey/.test(body), 'REGRESSION: renderBandarmologyCockpitPage() lost its dedupe guard — every call (including the global 60s periodic redraw poke) will again refetch all ~53 requests and rebuild the whole page, causing the reported "Page Unresponsive" hang');
+  assert(/if\s*\(\s*!force[\s\S]{0,80}return;/.test(body), 'REGRESSION: the dedupe guard no longer early-returns for an unforced, unchanged repeat call');
+
+  // The guard must not silence bandarPrefetchMarketBatch()'s own
+  // legitimate one-time refresh after real data actually arrives.
+  const prefetchFnStart = src.indexOf('function bandarPrefetchMarketBatch(');
+  assert(prefetchFnStart !== -1, 'REGRESSION: bandarPrefetchMarketBatch() is gone');
+  const prefetchBody = src.slice(prefetchFnStart, src.indexOf('\nfunction ', prefetchFnStart + 1));
+  assert(/renderBandarmologyCockpitPage\(containerId,\s*true\)/.test(prefetchBody), 'REGRESSION: bandarPrefetchMarketBatch() no longer force-refreshes after real data arrives — its completion re-render will be silently skipped by the new dedupe guard, so views will stay stuck on simulated/placeholder data forever');
 });
 
 console.log('═══════════════════════════════════════════════════════');

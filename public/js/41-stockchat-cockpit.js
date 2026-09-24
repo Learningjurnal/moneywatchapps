@@ -38,6 +38,17 @@ var STOCKCHAT_CONVERSATION = [
   }
 ];
 
+// FIX (2026-09-24, user-reported: "aplikasi selalu crash saat membuka
+// market flow, harus di reload ulang"): frontend half of the "stuck saat
+// ambil data" incident — the earlier backend fetch-timeout fix explicitly
+// left frontend fetch() calls untouched. Market Flow's 5 fetch() sites
+// (broker summary per-ticker, acc/dist, foreign flow, market flow scanner,
+// broker portfolio) had none, so one hung response could stall a Promise
+// forever and, for the broker portfolio call, permanently lock its
+// loading-guard (only a full page reload recovers). AbortSignal.timeout()
+// applied below to all 5 sites so a hung request fails fast instead.
+var BANDAR_FETCH_TIMEOUT_MS = 12000;
+
 var STOCKCHAT_IS_BUSY = false;
 var STOCKCHAT_SELECTED_TICKER = 'BBCA';
 var STOCKCHAT_TIMEFRAME = '1D';
@@ -307,7 +318,7 @@ async function fetchBrokerSummaryData(ticker, timeframe) {
 
   // 1. Try Backend API
   try {
-    var res = await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf));
+    var res = await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf), { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
     if (res.ok) {
       var data = await res.json();
       if (data && data.success && data.data && data.data.price > 0) {
@@ -2483,12 +2494,38 @@ function bandarRenderBrokerPortfolioSection() {
 // sekarang HANYA merender mode market (macro IHSG, Big Banks, Sektoral
 // Heatmap, Accum/Distrib Radar, Broker Trail). Toolbar 2-mode & fokus-emiten
 // yang dulu ada di sini dihapus karena tidak relevan lagi.
-function renderBandarmologyCockpitPage(containerId) {
+// FIX (2026-09-24, user-reported: "saat membuka market flow masih crash" —
+// a Chrome "Page Unresponsive" dialog, which flags a blocked MAIN THREAD,
+// not a hung network request; the earlier fetch-timeout fix was necessary
+// but didn't address this). Root cause: FH.timer (03-engine.js) calls
+// renderPage(currentPage) every ~60s purely to refresh the fast-moving
+// price ticker on whatever page is open — but Market Flow's content is
+// 100% driven by Invezgo's own daily-cached whole-market data, with zero
+// dependency on that price tick. Every one of those ~60s pokes used to
+// re-run this function's FULL reload+rebuild (~53 concurrent requests +
+// a full page HTML teardown/rebuild) unconditionally, forever, for as
+// long as the user stayed on the page — stacking overlapping request
+// waves whose JSON-parsing + DOM-rebuild work on the main thread is what
+// trips the browser's unresponsive-page watchdog. Now a repeat call with
+// nothing user-relevant changed (same ticker/timeframe/broker/date) is a
+// cheap no-op; pass force=true to bypass it (used by
+// bandarPrefetchMarketBatch() below for its legitimate one-time refresh
+// once real data actually arrives).
+var _bandarLastRenderedKey = null;
+
+function renderBandarmologyCockpitPage(containerId, force) {
   var target = document.getElementById(containerId || 'page-bandarmology');
   if (!target) return;
 
   var tk = (STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
   BANDARMOLOGY_MASTER_MODE = 'market';
+
+  var todayKey = new Date().toISOString().slice(0, 10);
+  var renderKey = tk + '|' + BANDARMOLOGY_MARKET_TIMEFRAME + '|' + BANDARMOLOGY_SELECTED_BROKER + '|' + BANDARMOLOGY_BROKER_TIMEFRAME + '|' + todayKey;
+  if (!force && renderKey === _bandarLastRenderedKey && target.childElementCount > 0) {
+    return;
+  }
+  _bandarLastRenderedKey = renderKey;
 
   var html = '<div style="margin-bottom:16px">'
     // Header Cockpit
@@ -2645,7 +2682,7 @@ function bandarPrefetchMarketBatch(containerId, tk, tf) {
     .then(function() {
       BANDAR_MARKET_PREFETCH_INFLIGHT = false;
       var target = document.getElementById(containerId || 'page-bandarmology');
-      if (target) renderBandarmologyCockpitPage(containerId);
+      if (target) renderBandarmologyCockpitPage(containerId, true);
     })
     .catch(function() { BANDAR_MARKET_PREFETCH_INFLIGHT = false; });
 }
@@ -2972,7 +3009,7 @@ async function bandarLoadRealMarketFlow() {
       container.innerHTML = bandarRenderMarketFlowContent(_BANDAR_MARKET_FLOW_CACHE.data);
       return;
     }
-    var res = await fetch('/api/idx/accumulation-distribution');
+    var res = await fetch('/api/idx/accumulation-distribution', { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
     var data = await res.json();
     // Cache result keyed to today's date
     _BANDAR_MARKET_FLOW_CACHE = { data: data, dateKey: new Date().toISOString().slice(0, 10) };
@@ -3067,7 +3104,7 @@ async function bandarLoadRealForeignFlow() {
   var container = document.getElementById('bandar-foreign-flow-market-content');
   if (!container) return;
   try {
-    var res = await fetch('/api/idx/foreign-flow');
+    var res = await fetch('/api/idx/foreign-flow', { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
     var data = await res.json();
     container.innerHTML = bandarRenderForeignFlowMarket(data);
   } catch (e) {
@@ -3152,7 +3189,7 @@ async function bandarLoadAccDist(mode) {
   if (!container) return;
   try {
     if (!_bandarAccDistCache) {
-      var res = await fetch('/api/idx/accumulation-distribution');
+      var res = await fetch('/api/idx/accumulation-distribution', { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
       var json = await res.json();
       if (json && json.success !== false) _bandarAccDistCache = json;
       else { var elErr = document.getElementById(containerId); if (elErr) elErr.innerHTML = bandarRenderAccDistTable(mode, json); return; }
@@ -3255,7 +3292,7 @@ function bandarLoadBrokerPortfolio(brokerCode, tf) {
   _bandarBrokerPortfolioLoading = true;
   bandarRenderBrokerPortfolioSection();
 
-  fetch('/api/idx/broker-summary-by-broker/' + encodeURIComponent(bCode) + '?tf=' + encodeURIComponent(timeframe))
+  fetch('/api/idx/broker-summary-by-broker/' + encodeURIComponent(bCode) + '?tf=' + encodeURIComponent(timeframe), { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) })
     .then(function(res) { return res.json(); })
     .then(function(json) {
       _bandarBrokerPortfolioLoading = false;
