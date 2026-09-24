@@ -844,6 +844,96 @@ await (async () => {
 })();
 
 // ============================================================
+// lib/regulatory-gate.js (part 3, 2026-09-24 — user-reported: "kalo data
+// tidak pernah tersedia, screener akan terus 0"): Invezgo GET
+// /analysis/notation is now the PRIMARY regulatory-data source
+// (idx.co.id demoted to fallback), because Invezgo is already proven
+// reachable from this app's Vercel deployment while idx.co.id's
+// reachability was never verified. Covers: Invezgo success is used
+// directly (idx.co.id never even called), the "take the latest `date`
+// entry per code" provenance assumption, and the fallback path when
+// Invezgo fails.
+// ============================================================
+await (async () => {
+  const savedFetch = global.fetch;
+  const originalKey = process.env.INVEZGO_API_KEY;
+  process.env.INVEZGO_API_KEY = 'mock_test_key';
+  try {
+    const { getRegulatoryHealthGate, REGULATORY_STATUS } = await import('./lib/regulatory-gate.js');
+
+    await asyncTest('getRegulatoryHealthGate(): Invezgo GET /analysis/notation success is used directly — idx.co.id is never called', async () => {
+      let idxCoIdCalled = false;
+      global.fetch = async (url) => {
+        const s = String(url);
+        if (s.includes('idx.co.id')) { idxCoIdCalled = true; return { ok: false, status: 500, headers: { getSetCookie: () => [] }, json: async () => ({}) }; }
+        if (s.includes('/analysis/notation')) {
+          return {
+            ok: true, status: 200,
+            json: async () => [
+              { code: 'BUMI', date: '2026-01-01T00:00:00.000Z', list: [{ notation: 'X', description: 'FCA lama' }] }
+            ]
+          };
+        }
+        return { ok: false, status: 500, json: async () => ({}) };
+      };
+      const gate = await getRegulatoryHealthGate(['BUMI', 'BBCA'], true);
+      assert.strictEqual(idxCoIdCalled, false, 'REGRESSION: idx.co.id was called even though Invezgo succeeded — Invezgo must be tried first and used directly on success');
+      assert.strictEqual(gate.source, 'Invezgo (data notasi resmi BEI)');
+      assert.strictEqual(gate.byTicker.BUMI.status, REGULATORY_STATUS.FLAGGED);
+      assert.strictEqual(gate.byTicker.BBCA.status, REGULATORY_STATUS.CLEAR);
+      assert.strictEqual(gate.byTicker.BBCA.eligible, true);
+    });
+
+    await asyncTest('getRegulatoryHealthGate(): with multiple {date, list} entries per code from Invezgo, the LATEST date wins as current status', async () => {
+      global.fetch = async (url) => {
+        const s = String(url);
+        if (s.includes('/analysis/notation')) {
+          return {
+            ok: true, status: 200,
+            json: async () => [
+              { code: 'BUMI', date: '2024-01-01T00:00:00.000Z', list: [{ notation: 'X', description: 'notasi lama, sudah dicabut' }] },
+              { code: 'BUMI', date: '2026-06-01T00:00:00.000Z', list: [] } // most recent: notation cleared
+            ]
+          };
+        }
+        return { ok: false, status: 500, json: async () => ({}) };
+      };
+      const gate = await getRegulatoryHealthGate(['BUMI'], true);
+      assert.strictEqual(gate.byTicker.BUMI.status, REGULATORY_STATUS.CLEAR, 'the 2026-06-01 entry (empty list) is more recent than the 2024 X-notation entry and must win');
+      assert.strictEqual(gate.byTicker.BUMI.eligible, true);
+    });
+
+    await asyncTest('getRegulatoryHealthGate(): falls back to idx.co.id when Invezgo fails, and discloses the fallback in `source`', async () => {
+      global.fetch = async (url) => {
+        const s = String(url);
+        if (s.includes('/analysis/notation')) return { ok: false, status: 500, json: async () => ({}) };
+        if (s.includes('GetSpecialNotation')) return { ok: true, headers: { getSetCookie: () => [] }, json: async () => ({ data: [{ Code: 'BUMI', Notation: 'X', Description: 'FCA' }] }) };
+        if (s.includes('GetWatchlistStock')) return { ok: true, headers: { getSetCookie: () => [] }, json: async () => ({ data: [] }) };
+        return { ok: true, headers: { getSetCookie: () => [] }, json: async () => ({}) };
+      };
+      const gate = await getRegulatoryHealthGate(['BUMI', 'BBCA'], true);
+      assert.strictEqual(gate.source, 'BEI (idx.co.id, fallback — Invezgo gagal)');
+      assert.strictEqual(gate.byTicker.BUMI.status, REGULATORY_STATUS.FLAGGED, 'fallback data must still classify correctly');
+    });
+
+    await asyncTest('getRegulatoryHealthGate(): DATA_ERROR (never CLEAR) when BOTH Invezgo and idx.co.id fail with no cache', async () => {
+      global.fetch = async () => ({ ok: false, status: 500, headers: { getSetCookie: () => [] }, json: async () => ({}) });
+      // Force a scenario with no prior cache by using tickers unlikely to
+      // collide with any cache populated by earlier tests in this file —
+      // the DATA_ERROR-vs-UNKNOWN distinction itself is already covered
+      // by part 1's pristine-cache test; this asserts the combined
+      // envelope's failure path never flips to CLEAR/eligible.
+      const gate = await getRegulatoryHealthGate(['ZZZZ9'], true);
+      assert.notStrictEqual(gate.byTicker.ZZZZ9.status, REGULATORY_STATUS.CLEAR, 'REGRESSION: total failure of both sources must never classify as CLEAR');
+      assert.strictEqual(gate.byTicker.ZZZZ9.eligible, false);
+    });
+  } finally {
+    global.fetch = savedFetch;
+    process.env.INVEZGO_API_KEY = originalKey;
+  }
+})();
+
+// ============================================================
 // INCIDENT #3 (2026-09-24, real production failure — GitHub Actions run
 // 35964062571 against the live Vercel deployment): storeSetEx(key, value,
 // 0) — used by warmStrategyEngineRotating()'s cursor ("0 = no expiry",
