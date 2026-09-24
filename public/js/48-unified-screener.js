@@ -171,6 +171,14 @@ function usRenderShell() {
     + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter. Termasuk analisis Wave per-ticker (tab "Wave Cockpit"), kalkulator ukuran posisi (tab "Risk Planner"), screener RSI/momentum (tab "Quant Screener"), dan scanner lonjakan volume (tab "Volume Spike") — bekas TradeWave/Quant Lab/Volume Spike, sekarang jadi bagian dari Screener ini.</div>'
     + '</div>';
 
+  // Daily Picks widget (49-strategy-engine.js) — lives here (not the global
+  // sidebar, moved 2026-09-24 per user feedback: "penempatannya di sidebar
+  // belum tepat, masukkan saja di screener") since it's screening content,
+  // visible above every Screener sub-tab. usDailyPicksInit() is idempotent —
+  // only fetches once, later calls (incl. periodic same-page refresh ticks)
+  // just repaint from already-loaded state.
+  html += '<div id="us-daily-picks" class="card" style="padding:14px 16px;margin-bottom:16px"></div>';
+
   // Top-level page tabs — Screener (whole-market table) vs Wave Cockpit /
   // Risk Planner (single-ticker, bekas halaman TradeWave terpisah,
   // digabung ke sini 2026-09-18 atas permintaan user: "toolbar trade wave
@@ -187,6 +195,7 @@ function usRenderShell() {
   if (pt === 'strategy') {
     html += '<div id="us-strategy-subpage"></div>';
     c.innerHTML = html;
+    if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
     if (typeof seRenderStrategyEnginePage === 'function') seRenderStrategyEnginePage('us-strategy-subpage');
     return;
   }
@@ -194,6 +203,7 @@ function usRenderShell() {
   if (pt === 'cockpit' || pt === 'planner') {
     html += '<div id="us-wave-subpage"></div>';
     c.innerHTML = html;
+    if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
     if (typeof twRenderSubPage === 'function') {
       twRenderSubPage('us-wave-subpage', pt === 'cockpit' ? 1 : 3);
     }
@@ -215,6 +225,7 @@ function usRenderShell() {
       html += '<div id="us-wave-subpage">' + (typeof qtScreenerSubPageHtml === 'function' ? qtScreenerSubPageHtml() : '') + '</div>';
       c.innerHTML = html;
     }
+    if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
     if (typeof scRenderTable !== 'undefined') {
       if (!QT.scData.length) scBuildSim(scRenderTable); else scRenderTable();
     }
@@ -227,6 +238,7 @@ function usRenderShell() {
       html += '<div id="us-wave-subpage"></div>';
       c.innerHTML = html;
     }
+    if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
     VS_CONTAINER_ID = 'us-wave-subpage';
     if (typeof renderVolumeSpikePage === 'function') renderVolumeSpikePage();
     return;
@@ -364,6 +376,7 @@ function usRenderShell() {
   html += '<div id="us-validation-panel" style="margin-top:20px"></div>';
 
   c.innerHTML = html;
+  if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
   usRenderValidationPanel();
   if (!US_VALIDATION.signalLog.fetchedOnce) {
     US_VALIDATION.signalLog.fetchedOnce = true;

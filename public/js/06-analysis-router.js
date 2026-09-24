@@ -1014,7 +1014,6 @@ document.addEventListener('DOMContentLoaded',function(){
 
   // ── Yahoo Finance realtime init & 5-minute portfolio refresh background interval ──
   fhStart();
-  if(typeof sideDailyPicksInit==='function') sideDailyPicksInit();
   if(typeof startPortfolioBackgroundInterval==='function') startPortfolioBackgroundInterval();
   if(typeof updateAllLastSyncTimestamps==='function') updateAllLastSyncTimestamps();
   // Audit fix (2026-09-17): kedua indikator ini dulu HTML statis (dot hijau
