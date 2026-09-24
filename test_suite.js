@@ -8245,6 +8245,24 @@ await asyncTest('REGRESSION GUARD: GET /api/idx/indices no longer serves hardcod
   assert(/available: false/.test(body), 'REGRESSION: non-IHSG indices must be disclosed as available:false, not fabricated numbers');
 });
 
+// ============================================================
+// BUG (2026-09-24, user-reported): "screener tidak mengeluarkan data,
+// padahal tidak ada filter yang diterapkan" — an empty Screener table
+// caused by the Regulatory Health Gate excluding the whole universe
+// (idx.co.id unreachable, no cache yet) looked identical, in the UI, to
+// an empty table caused by an overly narrow filter. The frontend never
+// read dataSources.regulatory.available at all. Fix: a dedicated red
+// banner + a distinct empty-state message when the gate itself is down,
+// so the user isn't misled into debugging filters that were never the
+// problem.
+// ============================================================
+await asyncTest('REGRESSION GUARD: Unified Screener UI discloses when the Regulatory Health Gate (not a filter) is why the table is empty', async () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/ds\.regulatory && !ds\.regulatory\.available/.test(src), 'REGRESSION: the honesty banner no longer checks dataSources.regulatory.available — an empty table from a fully-excluded universe will again look like a filter problem');
+  assert(/Tabel screener kosong BUKAN karena filter Anda/.test(src), 'REGRESSION: the specific "this is not your filter" disclosure text is gone');
+  assert(/gateDown \? 'Semua saham tersembunyi/.test(src), 'REGRESSION: the empty-state row message no longer distinguishes gate-exclusion from a real empty filter result');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

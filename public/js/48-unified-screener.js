@@ -244,6 +244,22 @@ function usRenderShell() {
         + ' — skor Whale akan selalu netral sampai INVEZGO_API_KEY dikonfigurasi.'
         + '</div>';
     }
+    // FIX (2026-09-24, user-reported: "screener tidak mengeluarkan data,
+    // padahal tidak ada filter yang diterapkan"): saat data notasi khusus
+    // BEI (Regulatory Health Gate, lib/regulatory-gate.js) gagal diambil
+    // dan belum ada cache, generateUnifiedScreener() DENGAN SENGAJA
+    // menyembunyikan SEMUA baris (fail-closed — status regulasi yang tidak
+    // terverifikasi tidak boleh dianggap "aman") — tapi sebelum fix ini,
+    // UI diam saja, membuat kosongnya tabel terlihat seperti bug filter
+    // padahal sebenarnya seluruh universe memang sengaja disembunyikan.
+    if (ds.regulatory && !ds.regulatory.available) {
+      html += '<div class="card" style="padding:10px 14px;margin-bottom:12px;border:1px solid var(--down,#dc2626);font-size:12.5px">'
+        + '<b>⚠️ Tabel screener kosong BUKAN karena filter Anda.</b> Data notasi khusus BEI (Regulatory Health Gate) sedang tidak bisa diverifikasi dari idx.co.id'
+        + (ds.regulatory.isStale ? ' (memakai cache lama yang sudah kedaluwarsa)' : ' (belum ada cache sama sekali)')
+        + ' — sesuai kebijakan zero-fabricated-data, SEMUA ' + (US_STATE.summary ? US_STATE.summary.totalUniverse : '958') + ' saham default disembunyikan daripada menampilkan status regulasi yang belum terverifikasi sebagai "aman". '
+        + '<button class="btn btn-ghost btn-xs" onclick="usFetchAndRender()" style="margin-left:6px">🔄 Muat Ulang</button>'
+        + '</div>';
+    }
   }
   if (US_STATE.summary) {
     var s = US_STATE.summary;
@@ -314,7 +330,10 @@ function usRenderShell() {
       + '</tr></thead><tbody>';
 
     if (US_STATE.rows.length === 0 && US_STATE.loaded) {
-      html += '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-mute)">Tidak ada saham yang cocok dengan filter ini.</td></tr>';
+      var gateDown = US_STATE.dataSources && US_STATE.dataSources.regulatory && !US_STATE.dataSources.regulatory.available;
+      html += '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-mute)">'
+        + (gateDown ? 'Semua saham tersembunyi — lihat peringatan Regulatory Health Gate di atas, bukan hasil filter Anda.' : 'Tidak ada saham yang cocok dengan filter ini.')
+        + '</td></tr>';
     }
 
     US_STATE.rows.forEach(function (r) {
