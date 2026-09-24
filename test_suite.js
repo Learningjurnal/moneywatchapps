@@ -8347,6 +8347,59 @@ await asyncTest('REGRESSION GUARD: every dossierHarvestData() fetch() call (quot
   assertHasTimeoutNear('AI hypothesis', /fetch\('\/api\/idx\/hypothesis\/'/);
 });
 
+// ============================================================
+// BUG (2026-09-24, user-reported, still reproducing after the fetch-
+// timeout fix above): "saat membuka market flow masih crash" — a Chrome
+// "Page Unresponsive" dialog, which fires specifically when the RENDERER
+// MAIN THREAD is blocked, not from a hung network request (fetch() is
+// async I/O and never blocks the main thread by itself — the timeout fix
+// above was necessary but not the actual cause of this dialog).
+//
+// Root cause: FH.timer (public/js/03-engine.js, the global 15s live-price
+// polling loop) calls `renderPage(currentPage)` every 4th tick (~60s)
+// while any page is open, purely so pages showing the fast-moving IHSG/
+// stock price ticker redraw with fresh numbers. For 'bandarmology'
+// (Market Flow), 06-analysis-router.js routes this straight into
+// renderBandarmologyCockpitPage() — which, on EVERY call with no guard at
+// all, nulls _bandarAccDistCache and re-fires all 5 data loaders
+// (acc/dist x2, foreign flow, market flow scanner, broker portfolio) PLUS
+// bandarPrefetchMarketBatch's ~48-ticker concurrent fetch batch, while
+// also tearing down and rebuilding the entire page's HTML. Market Flow's
+// content is 100% driven by Invezgo's own daily-cached whole-market data
+// — none of it depends on the fast 15s price tick — so this periodic
+// call was pure waste. Left running for a couple of minutes on the page,
+// each ~60s cycle stacks a fresh ~53-request wave (with the previous
+// wave's responses still arriving/parsing/re-rendering), and the
+// cumulative JSON-parsing + DOM-rebuild work on the main thread is what
+// trips Chrome's unresponsive-page watchdog — matching the report exactly
+// (page loads fine, then hangs after sitting on it a while).
+//
+// Fix: renderBandarmologyCockpitPage() now skips the entire heavy
+// reload+rebuild when called again with the same ticker/timeframe/
+// broker/date as its last real render (a periodic poke with nothing
+// user-relevant changed is now a cheap no-op), while still allowing a
+// forced refresh — used once by bandarPrefetchMarketBatch() after real
+// data actually arrives, and naturally whenever the user changes ticker/
+// timeframe/broker/date.
+// ============================================================
+await asyncTest('REGRESSION GUARD: renderBandarmologyCockpitPage() does not repeat its ~53-request reload+rebuild every time it is called with nothing user-relevant changed (Market Flow "Page Unresponsive" fix)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnStart = src.indexOf('function renderBandarmologyCockpitPage(');
+  assert(fnStart !== -1, 'REGRESSION: could not isolate renderBandarmologyCockpitPage() body');
+  const nextFnStart = src.indexOf('\nfunction ', fnStart + 1);
+  const body = src.slice(fnStart, nextFnStart !== -1 ? nextFnStart : fnStart + 5000);
+
+  assert(/_bandarLastRenderedKey/.test(body), 'REGRESSION: renderBandarmologyCockpitPage() lost its dedupe guard — every call (including the global 60s periodic redraw poke) will again refetch all ~53 requests and rebuild the whole page, causing the reported "Page Unresponsive" hang');
+  assert(/if\s*\(\s*!force[\s\S]{0,80}return;/.test(body), 'REGRESSION: the dedupe guard no longer early-returns for an unforced, unchanged repeat call');
+
+  // The guard must not silence bandarPrefetchMarketBatch()'s own
+  // legitimate one-time refresh after real data actually arrives.
+  const prefetchFnStart = src.indexOf('function bandarPrefetchMarketBatch(');
+  assert(prefetchFnStart !== -1, 'REGRESSION: bandarPrefetchMarketBatch() is gone');
+  const prefetchBody = src.slice(prefetchFnStart, src.indexOf('\nfunction ', prefetchFnStart + 1));
+  assert(/renderBandarmologyCockpitPage\(containerId,\s*true\)/.test(prefetchBody), 'REGRESSION: bandarPrefetchMarketBatch() no longer force-refreshes after real data arrives — its completion re-render will be silently skipped by the new dedupe guard, so views will stay stuck on simulated/placeholder data forever');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
