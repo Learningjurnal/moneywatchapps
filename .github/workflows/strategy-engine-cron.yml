@@ -1,0 +1,66 @@
+name: Strategy Engine Rotating Scan
+
+# Memanggil GET /api/cron/warm-strategy-engine (server.js) secara terjadwal
+# — pengganti Vercel native cron untuk fitur ini. Vercel Hobby cuma
+# mengizinkan 2 cron job per project, dan 2 slot itu sudah dipakai oleh
+# /api/cron/warm-radar-fundamentals (05:00 WIB) dan
+# /api/cron/warm-technical-indicators (05:30 WIB) — lihat komentar di
+# server.js dan lib/engine/strategy/StrategyEngine.js untuk detailnya.
+# GitHub Actions tidak punya batas jumlah workflow terjadwal seperti itu,
+# jadi dipakai sebagai penjadwal eksternal untuk cron ke-3 ini.
+#
+# WAJIB disiapkan sebelum workflow ini bisa jalan (Settings > Secrets and
+# variables > Actions > New repository secret):
+#   - MONEYWATCH_APP_URL : URL production app, mis. https://nama-app-anda.vercel.app
+#                          (tanpa trailing slash)
+#   - CRON_SECRET        : NILAI YANG SAMA PERSIS dengan env var CRON_SECRET
+#                          yang sudah di-set di Vercel project settings —
+#                          endpoint ini menolak (403) request tanpa header
+#                          Authorization yang cocok.
+#
+# Default 1x/hari (05:35 WIB / 22:35 UTC, sesaat setelah 2 cron Vercel di
+# atas) sesuai keputusan awal ("frekuensi scan 1x/hari"). Untuk cakupan
+# lebih cepat / lebih dari 1x/hari, tambah baris `cron:` lain di bawah
+# (GitHub Actions tidak membatasi ini seperti Vercel Hobby) — tiap
+# panggilan melanjutkan rotasi dari cursor terakhir, jadi aman dipanggil
+# lebih sering, cuma menambah kecepatan cakupan.
+on:
+  schedule:
+    - cron: '35 22 * * 1-5'   # 22:35 UTC = 05:35 WIB, Senin-Jumat (hari bursa)
+  workflow_dispatch:
+    inputs:
+      strategy:
+        description: 'Strategy id (default: swing-flow — satu-satunya yang tanpa mandatory condition, jadi paling cepat progress per run)'
+        required: false
+        default: 'swing-flow'
+
+jobs:
+  warm-strategy-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Panggil endpoint cron Strategy Engine
+        env:
+          APP_URL: ${{ secrets.MONEYWATCH_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          STRATEGY_ID: ${{ github.event.inputs.strategy || 'swing-flow' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::Secret MONEYWATCH_APP_URL dan/atau CRON_SECRET belum diset di repo Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          echo "Memanggil ${APP_URL}/api/cron/warm-strategy-engine?strategy=${STRATEGY_ID} ..."
+          http_code=$(curl -sS -o response.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_URL}/api/cron/warm-strategy-engine?strategy=${STRATEGY_ID}")
+
+          echo "--- Response body ---"
+          cat response.json
+          echo ""
+          echo "--- HTTP status: ${http_code} ---"
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Endpoint mengembalikan HTTP ${http_code} (403 = CRON_SECRET tidak cocok dengan yang di-set di Vercel; cek dulu sebelum menuduh bug lain)."
+            exit 1
+          fi
