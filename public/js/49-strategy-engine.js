@@ -225,11 +225,18 @@ function seRenderStrategyEnginePage(containerId) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// SIDEBAR DAILY PICKS WIDGET
+// DAILY PICKS WIDGET (Screener page header)
 // User request (2026-09-24): "1 sidebar recommendation, isinya adalah
 // rekomendasi stock pick dari analisa anda, sifatnya harian, setiap hari
 // berubah kecuali libur bursa, dan akan reload tiap 15 menit, stock pick
-// cukup 10 saham aja, namun anda beri score dan alasan nya."
+// cukup 10 saham aja, namun anda beri score dan alasan nya." Originally
+// placed in the global left sidebar; moved into the Screener page
+// (2026-09-24, user-reported: "penempatannya di sidebar belum tepat,
+// masukkan saja di screener supaya tidak berantakan") since that sidebar
+// is shared across every page and this widget is screening/analysis
+// content, not navigation — public/js/48-unified-screener.js's
+// usRenderShell() now renders its container (#us-daily-picks) and calls
+// usDailyPicksInit() once.
 //
 // ZERO FABRICATION (CLAUDE.md #1/#3): this widget invents NOTHING. It
 // reads GET /api/strategy-engine/daily-picks, which itself only ever
@@ -245,86 +252,94 @@ function seRenderStrategyEnginePage(containerId) {
 // verbatim rather than padding the list.
 // ─────────────────────────────────────────────────────────────────────────
 
-var SIDE_PICKS_REFRESH_MS = 15 * 60 * 1000; // 15 minutes, as requested
-var SIDE_PICKS_STATE = { loading: false, data: null, error: null };
-var _sidePicksTimer = null;
+var US_DAILY_PICKS_REFRESH_MS = 15 * 60 * 1000; // 15 minutes, as requested
+var US_DAILY_PICKS_STATE = { loading: false, data: null, error: null };
+var _usDailyPicksTimer = null;
+var _usDailyPicksInitialized = false;
 
-function sideDailyPicksInit() {
-  var el = document.getElementById('side-daily-picks');
+// usRenderShell() calls this on every render (including periodic same-page
+// refresh ticks from 03-engine.js) — must be idempotent: only fetch/start
+// the interval the FIRST time, otherwise just repaint from existing state.
+function usDailyPicksInit() {
+  var el = document.getElementById('us-daily-picks');
   if (!el) return; // markup not present on this build — no-op, not an error
-  sideDailyPicksLoad();
-  if (_sidePicksTimer) clearInterval(_sidePicksTimer);
-  _sidePicksTimer = setInterval(sideDailyPicksLoad, SIDE_PICKS_REFRESH_MS);
+  if (_usDailyPicksInitialized) {
+    usDailyPicksRender();
+    return;
+  }
+  _usDailyPicksInitialized = true;
+  usDailyPicksLoad();
+  if (_usDailyPicksTimer) clearInterval(_usDailyPicksTimer);
+  _usDailyPicksTimer = setInterval(usDailyPicksLoad, US_DAILY_PICKS_REFRESH_MS);
 }
 
-async function sideDailyPicksLoad() {
-  SIDE_PICKS_STATE.loading = true;
-  SIDE_PICKS_STATE.error = null;
-  sideDailyPicksRender();
+async function usDailyPicksLoad() {
+  US_DAILY_PICKS_STATE.loading = true;
+  US_DAILY_PICKS_STATE.error = null;
+  usDailyPicksRender();
   try {
     var resp = await fetch('/api/strategy-engine/daily-picks?limit=10', { signal: AbortSignal.timeout(15000) });
     var json = await resp.json();
     if (!json.success) throw new Error(json.error || 'Gagal memuat rekomendasi harian');
-    SIDE_PICKS_STATE.data = json;
+    US_DAILY_PICKS_STATE.data = json;
   } catch (e) {
-    SIDE_PICKS_STATE.error = e.message || String(e);
+    US_DAILY_PICKS_STATE.error = e.message || String(e);
   } finally {
-    SIDE_PICKS_STATE.loading = false;
-    sideDailyPicksRender();
+    US_DAILY_PICKS_STATE.loading = false;
+    usDailyPicksRender();
   }
 }
 
-function sideDailyPicksStatusColor(status) {
+function usDailyPicksStatusColor(status) {
   if (status === 'STRONG') return 'var(--green,#10b981)';
   if (status === 'QUALIFIED') return 'var(--blue,#38bdf8)';
   return 'var(--text3,#94a3b8)';
 }
 
-function sideDailyPicksEsc(s) {
+function usDailyPicksEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
   });
 }
 
-function sideDailyPicksRender() {
-  var el = document.getElementById('side-daily-picks');
+// Horizontal card row layout (fits the Screener page's full width, unlike
+// the old narrow sidebar list) — one scrollable row of compact tiles.
+function usDailyPicksRender() {
+  var el = document.getElementById('us-daily-picks');
   if (!el) return;
 
-  var header = '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 4px 6px">'
-    + '<span style="font-size:10.5px;font-weight:800;letter-spacing:0.4px;color:var(--text3,#94a3b8);text-transform:uppercase">Rekomendasi Harian</span>'
-    + '<span class="badge b-accent" style="font-size:8px">STRATEGY ENGINE</span>'
+  var header = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    + '<span style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">🎯 Rekomendasi Harian <span class="badge b-accent" style="font-size:8px">STRATEGY ENGINE V1</span></span>'
     + '</div>';
 
   var body;
-  if (SIDE_PICKS_STATE.loading && !SIDE_PICKS_STATE.data) {
-    body = '<div style="padding:10px 4px;font-size:11px;color:var(--text3,#94a3b8)">Memuat rekomendasi...</div>';
-  } else if (SIDE_PICKS_STATE.error && !SIDE_PICKS_STATE.data) {
-    body = '<div style="padding:10px 4px;font-size:11px;color:var(--text3,#94a3b8)">Gagal memuat: ' + sideDailyPicksEsc(SIDE_PICKS_STATE.error) + '</div>';
-  } else if (SIDE_PICKS_STATE.data && SIDE_PICKS_STATE.data.count === 0) {
-    body = '<div style="padding:10px 4px;font-size:11px;color:var(--text3,#94a3b8);line-height:1.5">Belum ada saham STRONG/QUALIFIED untuk ' + sideDailyPicksEsc(SIDE_PICKS_STATE.data.date) + '. Kemungkinan hari libur bursa atau rotasi scan harian belum menemukan sinyal.</div>';
-  } else if (SIDE_PICKS_STATE.data) {
-    var d = SIDE_PICKS_STATE.data;
-    var rows = d.picks.map(function (p) {
+  if (US_DAILY_PICKS_STATE.loading && !US_DAILY_PICKS_STATE.data) {
+    body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8)">Memuat rekomendasi...</div>';
+  } else if (US_DAILY_PICKS_STATE.error && !US_DAILY_PICKS_STATE.data) {
+    body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8)">Gagal memuat: ' + usDailyPicksEsc(US_DAILY_PICKS_STATE.error) + '</div>';
+  } else if (US_DAILY_PICKS_STATE.data && US_DAILY_PICKS_STATE.data.count === 0) {
+    body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8);line-height:1.5">Belum ada saham STRONG/QUALIFIED untuk ' + usDailyPicksEsc(US_DAILY_PICKS_STATE.data.date) + '. Kemungkinan hari libur bursa atau rotasi scan harian belum menemukan sinyal.</div>';
+  } else if (US_DAILY_PICKS_STATE.data) {
+    var d = US_DAILY_PICKS_STATE.data;
+    var cards = d.picks.map(function (p) {
       return '<div onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stock-dossier\');" '
-        + 'style="padding:7px 6px;border-radius:6px;cursor:pointer;transition:background 0.15s" '
+        + 'style="flex:0 0 220px;padding:10px 12px;border-radius:8px;border:1px solid var(--border2,rgba(255,255,255,0.08));cursor:pointer;transition:background 0.15s" '
         + 'onmouseover="this.style.background=\'var(--bg3,rgba(255,255,255,0.04))\'" onmouseout="this.style.background=\'transparent\'">'
-        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">'
-        + '<span style="font-size:10px;font-weight:700;color:var(--text3,#94a3b8);width:14px;flex-shrink:0">' + p.rank + '</span>'
-        + '<span class="mono" style="font-size:12px;font-weight:800;color:var(--text);flex:1">' + sideDailyPicksEsc(p.ticker) + '</span>'
-        + '<span class="mono" style="font-size:11px;font-weight:800;color:' + sideDailyPicksStatusColor(p.status) + '">' + (p.score != null ? p.score : '-') + '</span>'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">'
+        + '<span style="font-size:10px;font-weight:700;color:var(--text3,#94a3b8)">#' + p.rank + '</span>'
+        + '<span class="mono" style="font-size:13px;font-weight:800;color:var(--text)">' + usDailyPicksEsc(p.ticker) + '</span>'
+        + '<span class="mono" style="font-size:12px;font-weight:800;color:' + usDailyPicksStatusColor(p.status) + '">' + (p.score != null ? p.score : '-') + '</span>'
         + '</div>'
-        + '<div style="font-size:9px;color:var(--text3,#94a3b8);margin:1px 0 3px 20px">' + sideDailyPicksEsc(p.strategyName) + ' · <span style="color:' + sideDailyPicksStatusColor(p.status) + '">' + p.status + '</span></div>'
-        + '<div style="font-size:10px;color:var(--text2,#cbd5e1);line-height:1.4;margin-left:20px">' + sideDailyPicksEsc(p.reason).slice(0, 160) + (p.reason && p.reason.length > 160 ? '…' : '') + '</div>'
+        + '<div style="font-size:9px;color:var(--text3,#94a3b8);margin-bottom:4px">' + usDailyPicksEsc(p.strategyName) + ' · <span style="color:' + usDailyPicksStatusColor(p.status) + '">' + p.status + '</span></div>'
+        + '<div style="font-size:10px;color:var(--text2,#cbd5e1);line-height:1.4">' + usDailyPicksEsc(p.reason).slice(0, 140) + (p.reason && p.reason.length > 140 ? '…' : '') + '</div>'
         + '</div>';
-    }).join('<div style="height:1px;background:var(--border2,rgba(255,255,255,0.06));margin:2px 0"></div>');
+    }).join('');
 
-    body = '<div style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column">' + rows + '</div>';
-    if (d.note) {
-      body += '<div style="padding:6px 4px 2px;font-size:9.5px;color:var(--text3,#94a3b8);line-height:1.4">' + sideDailyPicksEsc(d.note) + '</div>';
-    }
-    body += '<div style="padding:6px 4px 0;font-size:9px;color:var(--text3,#94a3b8);border-top:1px solid var(--border2,rgba(255,255,255,0.06));margin-top:6px;line-height:1.4">'
-      + 'Data ' + sideDailyPicksEsc(d.date) + ' · bukan nasihat investasi, hasil skor otomatis dari data real Invezgo.'
-      + '</div>';
+    body = '<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">' + cards + '</div>';
+    var footerBits = [];
+    if (d.note) footerBits.push(usDailyPicksEsc(d.note));
+    footerBits.push('Data ' + usDailyPicksEsc(d.date) + ' · bukan nasihat investasi, hasil skor otomatis dari data real Invezgo.');
+    body += '<div style="padding-top:6px;font-size:9.5px;color:var(--text3,#94a3b8);line-height:1.4">' + footerBits.join(' — ') + '</div>';
   } else {
     body = '';
   }

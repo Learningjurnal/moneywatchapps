@@ -531,23 +531,32 @@ await (async () => {
   });
 
   const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/49-strategy-engine.js'), 'utf8');
-  await asyncTest('UI: sidebar Daily Picks widget fetches the real endpoint, refreshes every 15 minutes, and never hardcodes a fallback stock list', async () => {
-    assert(/function sideDailyPicksInit/.test(cockpitSrc), 'sideDailyPicksInit() is missing');
-    assert(/function sideDailyPicksLoad/.test(cockpitSrc), 'sideDailyPicksLoad() is missing');
+  await asyncTest('UI: Daily Picks widget fetches the real endpoint, refreshes every 15 minutes, and never hardcodes a fallback stock list', async () => {
+    assert(/function usDailyPicksInit/.test(cockpitSrc), 'usDailyPicksInit() is missing');
+    assert(/function usDailyPicksLoad/.test(cockpitSrc), 'usDailyPicksLoad() is missing');
     assert(/\/api\/strategy-engine\/daily-picks/.test(cockpitSrc), 'REGRESSION: widget no longer calls the real backend endpoint');
-    assert(/SIDE_PICKS_REFRESH_MS\s*=\s*15\s*\*\s*60\s*\*\s*1000/.test(cockpitSrc), 'REGRESSION: refresh interval is no longer 15 minutes as requested');
-    assert(/setInterval\(sideDailyPicksLoad, SIDE_PICKS_REFRESH_MS\)/.test(cockpitSrc), 'REGRESSION: widget no longer auto-refreshes on the 15-minute timer');
+    assert(/US_DAILY_PICKS_REFRESH_MS\s*=\s*15\s*\*\s*60\s*\*\s*1000/.test(cockpitSrc), 'REGRESSION: refresh interval is no longer 15 minutes as requested');
+    assert(/setInterval\(usDailyPicksLoad, US_DAILY_PICKS_REFRESH_MS\)/.test(cockpitSrc), 'REGRESSION: widget no longer auto-refreshes on the 15-minute timer');
+    // Idempotency guard (2026-09-24 re-home fix): usRenderShell() calls
+    // usDailyPicksInit() on every render, including periodic same-page
+    // refresh ticks — without this guard it would re-fetch and reset the
+    // interval every time, the same class of bug as the Market Flow
+    // "Page Unresponsive" incident earlier this session.
+    assert(/_usDailyPicksInitialized/.test(cockpitSrc), 'REGRESSION: usDailyPicksInit() lost its idempotency guard — repeated calls (e.g. from the periodic same-page refresh tick) will re-fetch and reset the interval every time instead of repainting from existing state');
     // Zero-fabrication guard: no hardcoded ticker array anywhere near the render function.
-    const renderFnMatch = cockpitSrc.match(/function sideDailyPicksRender\(\)[\s\S]*?\n\}/);
-    assert(renderFnMatch, 'sideDailyPicksRender() is missing');
-    assert(!/\[\s*'[A-Z]{3,5}'\s*,\s*'[A-Z]{3,5}'/.test(renderFnMatch[0]), 'REGRESSION: sideDailyPicksRender() appears to contain a hardcoded ticker list — picks must come only from the API response');
+    const renderFnMatch = cockpitSrc.match(/function usDailyPicksRender\(\)[\s\S]*?\n\}/);
+    assert(renderFnMatch, 'usDailyPicksRender() is missing');
+    assert(!/\[\s*'[A-Z]{3,5}'\s*,\s*'[A-Z]{3,5}'/.test(renderFnMatch[0]), 'REGRESSION: usDailyPicksRender() appears to contain a hardcoded ticker list — picks must come only from the API response');
   });
 
   const indexSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
-  await asyncTest('UI: index.html has the #side-daily-picks container and boots sideDailyPicksInit()', async () => {
-    assert(/id="side-daily-picks"/.test(indexSrc), 'REGRESSION: sidebar container div is missing');
+  await asyncTest('UI: Daily Picks widget lives in the Screener page (not the global sidebar) and index.html no longer has the old sidebar container', async () => {
+    assert(!/id="side-daily-picks"/.test(indexSrc), 'REGRESSION: old sidebar container div is back — widget was explicitly moved out of the sidebar per user feedback ("penempatannya di sidebar belum tepat")');
     const routerSrc = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
-    assert(/sideDailyPicksInit/.test(routerSrc), 'REGRESSION: sideDailyPicksInit() is never called from app bootstrap — the widget will never load');
+    assert(!/sideDailyPicksInit/.test(routerSrc), 'REGRESSION: app bootstrap still references the old sidebar init function name');
+    const screenerSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+    assert(/id="us-daily-picks"/.test(screenerSrc), 'REGRESSION: Screener page no longer renders the #us-daily-picks container');
+    assert(/usDailyPicksInit\(\)/.test(screenerSrc), 'REGRESSION: usRenderShell() no longer calls usDailyPicksInit() — the widget will never load on the Screener page');
   });
 })();
 
