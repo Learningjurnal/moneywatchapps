@@ -21,14 +21,10 @@ var IDX_PIPELINE = {
     isLoading: false,
     lastUpdated: null,
     summary: {
-      ihsg: { price: 6586, change: 180, changePercent: 2.81 },
-      usdidr: { price: 17720, change: 25, changePercent: 0.14 },
-      marketBreadth: { advancing: 340, declining: 210, unchanged: 180, totalListed: 958 },
-      tradeSummary: [
-        { id: 'Saham', volume: 22500000000, value: 14850000000000, frequency: 1285000 },
-        { id: 'ETF', volume: 850000, value: 480000000, frequency: 190 },
-        { id: 'Sukuk & Obligasi', volume: 120000, value: 125000000000, frequency: 450 }
-      ],
+      ihsg: { price: null, change: null, changePercent: null },
+      usdidr: { price: null, change: null, changePercent: null },
+      marketBreadth: { advancing: 0, declining: 0, unchanged: 0, totalListed: 0, isSample: true, sampleSize: 0, sampleNote: 'Memuat data pasar...' },
+      tradeSummary: [],
       topGainers: [],
       topLosers: [],
       mostActive: []
@@ -320,15 +316,18 @@ var IDX_PIPELINE = {
     var ihsgEl = document.getElementById('hdr-ihsg-val') || document.getElementById('top-ihsg-badge');
     if (ihsgEl && ihsg) {
       var isUp = ihsg.change >= 0;
-      ihsgEl.innerHTML = '<span style="color:' + (isUp ? '#10b981' : '#ef4444') + '; font-weight:700;">IHSG ' + 
-        (ihsg.price ? ihsg.price.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '6.586,01') + 
-        ' (' + (isUp ? '+' : '') + (ihsg.changePercent || 0).toFixed(2) + '%)</span>';
+      ihsgEl.innerHTML = ihsg.price
+        ? '<span style="color:' + (isUp ? '#10b981' : '#ef4444') + '; font-weight:700;">IHSG ' +
+          ihsg.price.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+          ' (' + (isUp ? '+' : '') + (ihsg.changePercent || 0).toFixed(2) + '%)</span>'
+        : '<span style="color:#94a3b8;">IHSG memuat...</span>';
     }
 
     var usdEl = document.getElementById('hdr-usd-val') || document.getElementById('top-usd-badge');
     if (usdEl && usd) {
-      usdEl.innerHTML = '<span style="color:#64748b; font-size:12px;">USD/IDR ' + 
-        (usd.price ? Math.round(usd.price).toLocaleString('id-ID') : '17.720') + '</span>';
+      usdEl.innerHTML = usd.price
+        ? '<span style="color:#64748b; font-size:12px;">USD/IDR ' + Math.round(usd.price).toLocaleString('id-ID') + '</span>'
+        : '<span style="color:#94a3b8; font-size:12px;">USD/IDR memuat...</span>';
     }
   },
 
@@ -341,8 +340,9 @@ var IDX_PIPELINE = {
     if (existing) existing.remove();
 
     var sum = self.state.summary;
-    var ihsg = sum.ihsg || { price: 6586, changePercent: 2.81 };
-    var breadth = sum.marketBreadth || { advancing: 340, declining: 210, unchanged: 180, totalListed: 958 };
+    var ihsg = sum.ihsg || { price: null, changePercent: null };
+    var breadth = sum.marketBreadth || { advancing: 0, declining: 0, unchanged: 0, totalListed: 0, isSample: true, sampleSize: 0 };
+    var tradeRow = (sum.tradeSummary && sum.tradeSummary[0]) || null;
     var cal = self.state.calendar || {};
 
     var modalHtml = `
@@ -370,30 +370,30 @@ var IDX_PIPELINE = {
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
               <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px;">
                 <div style="font-size:11px; font-weight:600; color:#166534; text-transform:uppercase;">IHSG (Composite)</div>
-                <div style="font-size:22px; font-weight:800; color:#15803d; margin:4px 0;">${(ihsg.price||6586).toLocaleString('id-ID', {minimumFractionDigits:2})}</div>
-                <div style="font-size:12px; font-weight:700; color:#15803d;">${(ihsg.changePercent >= 0 ? '+' : '')}${(ihsg.changePercent||0).toFixed(2)}% (Live)</div>
+                <div style="font-size:22px; font-weight:800; color:#15803d; margin:4px 0;">${ihsg.price ? ihsg.price.toLocaleString('id-ID', {minimumFractionDigits:2}) : 'Memuat...'}</div>
+                <div style="font-size:12px; font-weight:700; color:#15803d;">${ihsg.price ? ((ihsg.changePercent >= 0 ? '+' : '') + (ihsg.changePercent||0).toFixed(2) + '% (Live)') : ''}</div>
               </div>
 
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
-                <div style="font-size:11px; font-weight:600; color:#475569; text-transform:uppercase;">Market Breadth</div>
+                <div style="font-size:11px; font-weight:600; color:#475569; text-transform:uppercase;">Market Breadth (Sampel ${breadth.sampleSize || 0} Saham)</div>
                 <div style="display:flex; align-items:baseline; gap:6px; margin:4px 0;">
                   <span style="font-size:16px; font-weight:800; color:#16a34a;">${breadth.advancing} Naik</span>
                   <span style="font-size:14px; color:#94a3b8;">/</span>
                   <span style="font-size:16px; font-weight:800; color:#dc2626;">${breadth.declining} Turun</span>
                 </div>
-                <div style="font-size:11px; color:#64748b;">${breadth.unchanged} Stagnan · Total ${breadth.totalListed} Saham</div>
+                <div style="font-size:11px; color:#64748b;">${breadth.unchanged} Stagnan · Sampel bellwether, bukan breadth ${breadth.totalListed || 0} emiten penuh</div>
               </div>
 
               <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:16px;">
-                <div style="font-size:11px; font-weight:600; color:#1e40af; text-transform:uppercase;">Turnover Perdagangan</div>
-                <div style="font-size:20px; font-weight:800; color:#1d4ed8; margin:4px 0;">Rp 14,85 Triliun</div>
-                <div style="font-size:11px; color:#1e40af;">Volume: 22,5 Miliar Lembar</div>
+                <div style="font-size:11px; font-weight:600; color:#1e40af; text-transform:uppercase;">Turnover (Sampel Bellwether)</div>
+                <div style="font-size:20px; font-weight:800; color:#1d4ed8; margin:4px 0;">${tradeRow ? ('Rp ' + (tradeRow.value/1e12).toLocaleString('id-ID', {maximumFractionDigits:2}) + ' Triliun') : 'Belum tersedia'}</div>
+                <div style="font-size:11px; color:#1e40af;">${tradeRow ? ('Volume: ' + (tradeRow.volume/1e9).toLocaleString('id-ID', {maximumFractionDigits:2}) + ' Miliar Lembar · bukan total bursa') : 'Data turnover whole-market belum terintegrasi'}</div>
               </div>
 
               <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:12px; padding:16px;">
                 <div style="font-size:11px; font-weight:600; color:#6b21a8; text-transform:uppercase;">Kurs Acuan USD/IDR</div>
-                <div style="font-size:20px; font-weight:800; color:#7e22ce; margin:4px 0;">Rp ${(sum.usdidr?.price||17720).toLocaleString('id-ID')}</div>
-                <div style="font-size:11px; color:#6b21a8;">Bank Indonesia / Real-Time FX</div>
+                <div style="font-size:20px; font-weight:800; color:#7e22ce; margin:4px 0;">${sum.usdidr && sum.usdidr.price ? ('Rp ' + Math.round(sum.usdidr.price).toLocaleString('id-ID')) : 'Memuat...'}</div>
+                <div style="font-size:11px; color:#6b21a8;">Real-Time FX (Yahoo Finance)</div>
               </div>
             </div>
 

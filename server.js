@@ -4258,33 +4258,34 @@ app.get('/api/idx/top-movers', async (req, res) => {
 app.get('/api/idx/indices', async (req, res) => {
   try {
     const summary = await getIdxMarketSummary();
+    // FIX (2026-09-24, bug audit): LQ45/IDX30/KOMPAS100/SRI-KEHATI/ISSI
+    // prices and all 11 sector change% rows used to be hardcoded literal
+    // constants that never changed (the exact same "+2.01%" for both LQ45
+    // and IDX30 forever) — served as if real by a live endpoint, with no
+    // disclosure. No real index/sector-rotation feed for these is
+    // currently integrated (sector rotation exists for a different feature
+    // via Invezgo /analysis/sector/rotation, but that's weekly-interval
+    // COMPOSITE-based data, not a same-shape daily index/sector list — do
+    // not repurpose it here without verifying the shape matches). Per
+    // CLAUDE.md Aturan #1/#3: only IHSG (real, from getIdxMarketSummary())
+    // is returned with values; every other index/sector is returned with
+    // null values and an explicit unavailable flag instead of invented
+    // numbers.
     const indices = [
-      { code: 'IHSG', name: 'Indeks Harga Saham Gabungan', price: summary.ihsg.price, change: summary.ihsg.change, changePercent: summary.ihsg.changePercent },
-      { code: 'LQ45', name: 'Indeks LQ45 Terlikuid', price: 924.50, change: 18.20, changePercent: 2.01 },
-      { code: 'IDX30', name: 'Indeks IDX30 Bluechip', price: 478.10, change: 9.40, changePercent: 2.01 },
-      { code: 'KOMPAS100', name: 'Indeks Kompas 100', price: 1180.40, change: 21.60, changePercent: 1.86 },
-      { code: 'SRI-KEHATI', name: 'Indeks SRI-KEHATI ESG', price: 420.15, change: 7.80, changePercent: 1.89 },
-      { code: 'ISSI', name: 'Indeks Saham Syariah Indonesia', price: 216.80, change: 3.40, changePercent: 1.59 }
-    ];
-
-    const sectors = [
-      { name: 'Keuangan', changePercent: 2.45, status: 'up' },
-      { name: 'Energi', changePercent: 3.12, status: 'up' },
-      { name: 'Barang Baku', changePercent: 1.80, status: 'up' },
-      { name: 'Perindustrian', changePercent: 0.95, status: 'up' },
-      { name: 'Konsumer Primer', changePercent: 0.40, status: 'up' },
-      { name: 'Konsumer Non-Primer', changePercent: -0.25, status: 'down' },
-      { name: 'Kesehatan', changePercent: 0.15, status: 'up' },
-      { name: 'Properti', changePercent: 1.10, status: 'up' },
-      { name: 'Teknologi', changePercent: -1.20, status: 'down' },
-      { name: 'Infrastruktur', changePercent: 1.65, status: 'up' },
-      { name: 'Transportasi & Logistik', changePercent: 0.85, status: 'up' }
+      { code: 'IHSG', name: 'Indeks Harga Saham Gabungan', price: summary.ihsg.price, change: summary.ihsg.change, changePercent: summary.ihsg.changePercent, available: true },
+      { code: 'LQ45', name: 'Indeks LQ45 Terlikuid', price: null, change: null, changePercent: null, available: false },
+      { code: 'IDX30', name: 'Indeks IDX30 Bluechip', price: null, change: null, changePercent: null, available: false },
+      { code: 'KOMPAS100', name: 'Indeks Kompas 100', price: null, change: null, changePercent: null, available: false },
+      { code: 'SRI-KEHATI', name: 'Indeks SRI-KEHATI ESG', price: null, change: null, changePercent: null, available: false },
+      { code: 'ISSI', name: 'Indeks Saham Syariah Indonesia', price: null, change: null, changePercent: null, available: false }
     ];
 
     return res.json({
       success: true,
       indices: indices,
-      sectors: sectors,
+      sectors: [],
+      sectorsAvailable: false,
+      dataNote: 'Hanya IHSG yang real (Yahoo Finance). Indeks lain (LQ45/IDX30/KOMPAS100/SRI-KEHATI/ISSI) dan performa sektoral belum punya sumber data real yang terintegrasi — sebelumnya endpoint ini mengembalikan angka statis karangan, sekarang jujur dilabeli unavailable daripada dikarang.',
       updatedAt: new Date().toISOString()
     });
   } catch (err) {

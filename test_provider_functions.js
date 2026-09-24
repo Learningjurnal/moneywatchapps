@@ -137,6 +137,89 @@ await (async () => {
       assert(typeof q.orderBook.bids[0].price === 'number' && q.orderBook.bids[0].price > 0,
         'orderBook.bids[0].price is not a valid number');
     });
+
+    // ============================================================
+    // BUG AUDIT (2026-09-24): orderBook and frequency are formula-derived
+    // (not real IDX order-book depth / real trade-frequency data) but used
+    // to carry zero disclosure. Regression: both must now be explicitly
+    // labeled as simulated.
+    // ============================================================
+    await asyncTest('BUG AUDIT: fetchYahooQuote() discloses orderBook and frequency as simulated (formula-derived), not real', async () => {
+      const q = await fetchYahooQuote('BBCA');
+      assert.strictEqual(q.orderBook.isSimulated, true, 'orderBook must be explicitly disclosed as isSimulated:true — it is formula-derived from volume fractions, not real Level-2 depth');
+      assert(typeof q.orderBook.note === 'string' && q.orderBook.note.length > 0, 'orderBook must carry a human-readable disclosure note');
+      assert.strictEqual(q.frequencyIsSimulated, true, 'frequency must be explicitly disclosed as frequencyIsSimulated:true — Yahoo does not expose real trade-frequency data for IDX tickers');
+    });
+  } finally {
+    global.fetch = originalFetch;
+  }
+})();
+
+// ============================================================
+// BUG AUDIT (2026-09-24): fetchYahooQuote()'s fundamentals.isReal used to
+// be a single boolean covering the WHOLE bundle, true as soon as Yahoo gave
+// EPS or BVPS — even when every OTHER ratio (roe/roa/der/npm/pbv/per/
+// dividendYield) silently fell back to a formula or hardcoded-per-ticker
+// guess. Regression: a partial-coverage response (EPS real, everything
+// else missing) must now report per-field provenance and isReal:false for
+// the whole bundle.
+// ============================================================
+await (async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('v8/finance/chart')) {
+      return {
+        ok: true,
+        json: async () => ({
+          chart: { result: [{
+            meta: {
+              regularMarketPrice: 9500, chartPreviousClose: 9400,
+              regularMarketDayHigh: 9600, regularMarketDayLow: 9400,
+              regularMarketVolume: 1000000
+            },
+            timestamp: [1700000000],
+            indicators: { quote: [{ open: [9400], high: [9600], low: [9400], close: [9500], volume: [1000000] }] }
+          }] }
+        })
+      };
+    }
+    if (u.includes('quoteSummary')) {
+      // Partial coverage: Yahoo gives EPS but nothing else (roe/roa/der/
+      // npm/pbv/per/dividendYield all absent from the module response).
+      return {
+        ok: true,
+        json: async () => ({
+          quoteSummary: { result: [{
+            financialData: {},
+            defaultKeyStatistics: { trailingEps: { raw: 500 }, bookValue: { raw: 3000 } },
+            summaryDetail: {}
+          }] }
+        })
+      };
+    }
+    if (u.includes('fc.yahoo.com')) {
+      return { ok: true, headers: { get: (h) => (h === 'set-cookie' ? 'B=session123; Path=/' : null) }, text: async () => '' };
+    }
+    if (u.includes('getcrumb')) {
+      return { ok: true, headers: { get: () => null }, text: async () => 'CRUMB123' };
+    }
+    return { ok: false, status: 500, headers: { get: () => null }, text: async () => '', json: async () => ({}) };
+  };
+
+  try {
+    const { fetchYahooQuote } = await import('./lib/providers/yahoo-client.js');
+    await asyncTest('BUG AUDIT: fetchYahooQuote() fundamentals.isReal is false (not true) when only EPS/BVPS are real and other ratios are estimated', async () => {
+      const q = await fetchYahooQuote('PARTIALCOVERAGETICKER');
+      const f = q.fundamentals;
+      assert(f, 'fundamentals object must exist');
+      assert(f.fieldIsReal, 'fundamentals.fieldIsReal breakdown must exist');
+      assert.strictEqual(f.fieldIsReal.eps, true, 'eps came from Yahoo — must be marked real');
+      assert.strictEqual(f.fieldIsReal.bvps, true, 'bvps came from Yahoo — must be marked real');
+      assert.strictEqual(f.fieldIsReal.roe, false, 'roe was NOT provided by Yahoo in this mock — must be marked NOT real');
+      assert.strictEqual(f.fieldIsReal.der, false, 'der was NOT provided by Yahoo in this mock — must be marked NOT real');
+      assert.strictEqual(f.isReal, false, 'REGRESSION: whole-bundle isReal must be false when even one displayed ratio is an estimate/guess — labeling it true here is exactly the mislabeling bug being fixed');
+    });
   } finally {
     global.fetch = originalFetch;
   }

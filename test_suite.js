@@ -8192,6 +8192,59 @@ await asyncTest('STRATEGY ENGINE: SlowTrading RSI + Dual MACD strategy definitio
   }
 });
 
+// ============================================================
+// BUG AUDIT (2026-09-24): getIdxMarketSummary() used to fabricate whole-
+// market breadth/turnover from a 20-ticker bellwether sample scaled by
+// arbitrary multipliers (x20/x18/x15 for breadth, x15/x12/x18 for trade
+// totals), plus hardcoded ETF/DIRE/Sukuk & Obligasi rows and a fixed
+// totalMarketCap constant — all presented with zero disclosure. Source-text
+// regression: the fabrication formulas must be gone and honest-sample
+// disclosure fields must be present.
+// ============================================================
+await asyncTest('REGRESSION GUARD: getIdxMarketSummary() no longer scales a 20-ticker sample into fake whole-market breadth/turnover, and discloses the sample honestly', async () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = engineSrc.match(/async function getIdxMarketSummary\(\) \{[\s\S]*?\n\}\n\n\/\/ IDX_BROKERS/);
+  assert(fnMatch, 'REGRESSION: could not isolate getIdxMarketSummary() body');
+  const body = fnMatch[0];
+
+  assert(!/gainers \* 20/.test(body), 'REGRESSION: marketBreadth.advancing is fabricating from gainers*20 again');
+  assert(!/losers \* 18/.test(body), 'REGRESSION: marketBreadth.declining is fabricating from losers*18 again');
+  assert(!/totalVolume \* 15/.test(body), 'REGRESSION: tradeSummary volume is fabricating a x15 whole-market scale-up again');
+  assert(!/id: 'ETF'/.test(body), 'REGRESSION: hardcoded fake ETF trade-summary row is back');
+  assert(!/id: 'DIRE'/.test(body), 'REGRESSION: hardcoded fake DIRE trade-summary row is back');
+  assert(!/id: 'Sukuk & Obligasi'/.test(body), 'REGRESSION: hardcoded fake Sukuk & Obligasi trade-summary row is back');
+  assert(!/totalMarketCap: 118/.test(body), 'REGRESSION: hardcoded fake totalMarketCap constant is back');
+  assert(/isSample: true/.test(body), 'REGRESSION: marketBreadth/tradeSummary must disclose isSample:true');
+  assert(/totalMarketCapAvailable: false/.test(body), 'REGRESSION: totalMarketCap must be honestly disclosed as unavailable, not fabricated');
+
+  const { getIdxMarketSummary } = await import('./lib/idx-data-engine.js');
+  const summary = await getIdxMarketSummary();
+  assert(summary.marketBreadth.isSample === true, 'runtime: marketBreadth.isSample must be true');
+  assert(typeof summary.marketBreadth.sampleSize === 'number', 'runtime: marketBreadth.sampleSize must be a number');
+  assert(summary.totalMarketCap === null, 'runtime: totalMarketCap must be null, not a fabricated constant');
+  assert(summary.totalMarketCapAvailable === false, 'runtime: totalMarketCapAvailable must be false');
+  assert(Array.isArray(summary.tradeSummary) && summary.tradeSummary.every(r => r.id !== 'ETF' && r.id !== 'DIRE' && r.id !== 'Sukuk & Obligasi'), 'runtime: tradeSummary must not contain fabricated ETF/DIRE/Sukuk rows');
+});
+
+// ============================================================
+// BUG AUDIT (2026-09-24): GET /api/idx/indices used to return 5 of 6
+// indices (LQ45/IDX30/KOMPAS100/SRI-KEHATI/ISSI) and all 11 sector rows as
+// static hardcoded constants that never changed. Source-text regression:
+// those constants must be gone and the route must disclose unavailability.
+// ============================================================
+await asyncTest('REGRESSION GUARD: GET /api/idx/indices no longer serves hardcoded fake LQ45/IDX30/sector values as if real', async () => {
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const routeMatch = serverSrc.match(/app\.get\('\/api\/idx\/indices'[\s\S]*?\n\}\);/);
+  assert(routeMatch, 'REGRESSION: could not isolate GET /api/idx/indices route body');
+  const body = routeMatch[0];
+
+  assert(!/price: 924\.50/.test(body), 'REGRESSION: hardcoded fake LQ45 price is back');
+  assert(!/price: 478\.10/.test(body), 'REGRESSION: hardcoded fake IDX30 price is back');
+  assert(!/name: 'Keuangan', changePercent: 2\.45/.test(body), 'REGRESSION: hardcoded fake sector list is back');
+  assert(/sectorsAvailable: false/.test(body), 'REGRESSION: route must disclose sectorsAvailable:false when no real sector feed is integrated');
+  assert(/available: false/.test(body), 'REGRESSION: non-IHSG indices must be disclosed as available:false, not fabricated numbers');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
