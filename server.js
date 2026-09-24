@@ -860,6 +860,14 @@ function getOpenRouterConfig() {
 }
 
 // Timeout helper to ensure AI API calls never hang indefinitely
+// FIX (2026-09-24, user-reported: "aplikasi sering stuck saat ambil
+// data"): the Yahoo proxy route below (~line 3250) had no timeout on its
+// raw fetch() calls — a hanging Yahoo response left the whole proxy
+// request stuck until Vercel's 30s ceiling. AI provider calls already use
+// withTimeout() above; this constant covers the proxy's plain fetch()
+// calls the same way.
+const PROXY_FETCH_TIMEOUT_MS = Number(process.env.PROXY_FETCH_TIMEOUT_MS || 8000);
+
 function withTimeout(promise, ms = 15000) {
   let timer;
   const timeoutPromise = new Promise((_, reject) => {
@@ -3251,13 +3259,13 @@ app.get('/api/proxy', async (req, res) => {
     let response;
     if (needsCrumb) {
       let auth = await getYahooCrumb(false);
-      response = await fetch(withCrumb(targetUrl, auth.crumb), { headers: buildHeaders(auth) });
+      response = await fetch(withCrumb(targetUrl, auth.crumb), { headers: buildHeaders(auth), signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS) });
       if (response.status === 401) {
         auth = await getYahooCrumb(true);
-        response = await fetch(withCrumb(targetUrl, auth.crumb), { headers: buildHeaders(auth) });
+        response = await fetch(withCrumb(targetUrl, auth.crumb), { headers: buildHeaders(auth), signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS) });
       }
     } else {
-      response = await fetch(targetUrl, { headers: buildHeaders(null) });
+      response = await fetch(targetUrl, { headers: buildHeaders(null), signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS) });
     }
 
     // Jika query1 gagal (404/429/500), coba alihkan otomatis ke query2
@@ -3267,9 +3275,9 @@ app.get('/api/proxy', async (req, res) => {
         let altResp;
         if (needsCrumb) {
           const auth = await getYahooCrumb(false); // cached — same session as above
-          altResp = await fetch(withCrumb(altUrl, auth.crumb), { headers: buildHeaders(auth) });
+          altResp = await fetch(withCrumb(altUrl, auth.crumb), { headers: buildHeaders(auth), signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS) });
         } else {
-          altResp = await fetch(altUrl, { headers: buildHeaders(null) });
+          altResp = await fetch(altUrl, { headers: buildHeaders(null), signal: AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS) });
         }
         if (altResp.ok) {
           response = altResp;

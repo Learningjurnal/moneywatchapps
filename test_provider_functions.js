@@ -958,6 +958,66 @@ await (async () => {
 })();
 
 // ============================================================
+// INCIDENT #4 (2026-09-24, user-reported: "aplikasi sering stuck saat
+// ambil data"): NONE of this app's outbound fetch() calls to Yahoo
+// Finance / idx.co.id / Invezgo / the Yahoo proxy route had a timeout —
+// a silently-hanging third-party response left the request stuck until
+// Vercel's 30s function ceiling killed it, with no clean error surfaced.
+// Source-text check (a real hang can't be safely simulated without a
+// slow/blocking fake server, which risks making this test itself hang in
+// CI) — asserts every raw fetch() call site now carries
+// `signal: AbortSignal.timeout(...)`.
+// ============================================================
+await (async () => {
+  const invezgoSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  const yahooSrc = fs.readFileSync(path.join(__dirname, 'lib/providers/yahoo-client.js'), 'utf8');
+  const idxSrc = fs.readFileSync(path.join(__dirname, 'lib/providers/idx-client.js'), 'utf8');
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+
+  function countRealFetchCalls(src) {
+    // Real call sites look like `fetch(` preceded by `await `, `return `,
+    // or start-of-expression whitespace on their own statement — the
+    // shared regex below is deliberately loose; each test asserts an
+    // exact expected count per file so a miscount (new call site added
+    // without a timeout, or this regex drifting) fails loudly rather than
+    // silently under/over-counting.
+    return (src.match(/(?:await\s+fetch\(|return\s+fetch\(|^\s*fetch\()/gm) || []).length;
+  }
+
+  await asyncTest('INCIDENT #4: invezgoFetch() — the single chokepoint for ~15 Invezgo endpoints — applies AbortSignal.timeout()', () => {
+    assert.strictEqual((invezgoSrc.match(/AbortSignal\.timeout\(/g) || []).length, 1, 'expected exactly 1 AbortSignal.timeout() call in invezgo-client.js (the shared invezgoFetch() chokepoint)');
+    const fnMatch = invezgoSrc.match(/async function invezgoFetch\(url, options = \{\}\) \{[\s\S]*?\n\}/);
+    assert(fnMatch && /signal: AbortSignal\.timeout\(INVEZGO_FETCH_TIMEOUT_MS\)/.test(fnMatch[0]), 'REGRESSION: invezgoFetch()\'s fetch() call no longer has a timeout — every Invezgo endpoint can hang indefinitely again');
+  });
+
+  await asyncTest('INCIDENT #4: every raw fetch() call in lib/providers/yahoo-client.js has a timeout', () => {
+    const realCalls = countRealFetchCalls(yahooSrc);
+    const timeouts = (yahooSrc.match(/AbortSignal\.timeout\(YAHOO_FETCH_TIMEOUT_MS\)/g) || []).length;
+    assert.strictEqual(realCalls, 6, `expected 6 real fetch() call sites in yahoo-client.js, found ${realCalls} — update this test's expected count if a call site was legitimately added/removed`);
+    assert.strictEqual(timeouts, realCalls, `REGRESSION: ${realCalls - timeouts} fetch() call(s) in yahoo-client.js are missing AbortSignal.timeout()`);
+  });
+
+  await asyncTest('INCIDENT #4: every raw fetch() call in lib/providers/idx-client.js has a timeout', () => {
+    const realCalls = countRealFetchCalls(idxSrc);
+    const timeouts = (idxSrc.match(/AbortSignal\.timeout\(IDX_FETCH_TIMEOUT_MS\)/g) || []).length;
+    assert.strictEqual(realCalls, 6, `expected 6 real fetch() call sites in idx-client.js, found ${realCalls} — update this test's expected count if a call site was legitimately added/removed`);
+    assert.strictEqual(timeouts, realCalls, `REGRESSION: ${realCalls - timeouts} fetch() call(s) in idx-client.js are missing AbortSignal.timeout()`);
+  });
+
+  await asyncTest('INCIDENT #4: the Yahoo proxy route in server.js applies a timeout to all 5 of its fetch() call sites', () => {
+    const proxyTimeouts = (serverSrc.match(/AbortSignal\.timeout\(PROXY_FETCH_TIMEOUT_MS\)/g) || []).length;
+    assert.strictEqual(proxyTimeouts, 5, `REGRESSION: expected 5 fetch() call sites in the Yahoo proxy route to carry AbortSignal.timeout(PROXY_FETCH_TIMEOUT_MS), found ${proxyTimeouts}`);
+  });
+
+  await asyncTest('INCIDENT #4: AI provider calls (Gemini/OpenRouter/news RSS) in server.js still go through withTimeout()', () => {
+    // Pre-existing protection (not new in this incident) — guard against
+    // a future refactor accidentally dropping it.
+    const withTimeoutCalls = (serverSrc.match(/await withTimeout\(/g) || []).length;
+    assert(withTimeoutCalls >= 6, `expected at least 6 withTimeout()-wrapped calls (Gemini/Claude/OpenRouter/news RSS), found ${withTimeoutCalls}`);
+  });
+})();
+
+// ============================================================
 console.log('═══════════════════════════════════════════════════════');
 if (passedTests === totalTests) {
   console.log(`🎉 ALL ${passedTests}/${totalTests} PROVIDER FUNCTION TESTS PASSED`);
