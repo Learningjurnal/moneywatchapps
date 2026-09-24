@@ -746,3 +746,77 @@ Before shipping such a pattern:
 - The re-entry's trigger condition must have an explicit cooldown, backoff, or max-attempt cap — not just "not already cached, not already loading." A failure state must count as "already tried recently," not as "safe to retry immediately."
 - Prefer extracting the trigger/guard condition into its own small, pure (no DOM, no network) function, exported for direct testing — see `intelShouldAutoFetch()` in `public/js/27-stockintel.js` and its test in `test_provider_functions.js` as the reference pattern.
 - Manually verify the loop actually terminates under a sustained-failure scenario (mock the dependency to always fail, simulate N rapid re-entries, assert the call count stays bounded) before considering the fix complete — do not assume a cooldown constant alone is proof; test it the way `test_provider_functions.js`'s INCIDENT #2 case does.
+
+---
+
+# 30. REGULATORY HEALTH GATE (BEI SPECIAL NOTATION)
+
+Added 2026-09-24, implemented in `lib/regulatory-gate.js`. This section is
+the operative spec — there is no separate `docs/regulatory-health-gate.md`
+file; keep this section as the single source of truth if the gate's rules
+change.
+
+## 30.1 Purpose and scope
+Yahoo Finance and Invezgo are **market-data** sources (price/OHLC/volume,
+broker flow) — a valid quote or a clean chart from them is **never**
+evidence that a stock is clear of regulatory action. Regulatory status
+(BEI Special Notation, Papan Pemantauan Khusus / FCA watchlist, suspension)
+comes exclusively from `idx.co.id`, via `fetchIdxSpecialNotations()`
+(`lib/providers/idx-client.js`) — a whole-market fetch (1-2 calls covering
+all ~958 IDX tickers) with a 12-hour cache.
+
+The Gate is a pure regulatory filter. It must **never** be extended with
+valuation, fundamental, or technical criteria — that scoring stays in the
+analysis layer that runs after the Gate.
+
+## 30.2 Classification
+`getRegulatoryHealthGate(tickers, forceRefresh?)` classifies every input
+ticker into one of four statuses, from a single `fetchIdxSpecialNotations()`
+snapshot:
+
+| Status | Meaning | `eligible` |
+|---|---|---|
+| `CLEAR` | Fresh idx.co.id data fetched successfully; ticker has no active notation entry | `true` |
+| `FLAGGED` | Fresh data; ticker has an active Special Notation / watchlist entry | `false` |
+| `UNKNOWN` | idx.co.id refresh failed but a prior (stale, past 12h TTL) cache exists | `false` |
+| `DATA_ERROR` | idx.co.id has never been reached successfully — no cache at all | `false` |
+
+Non-negotiable, matching Aturan Wajib CLAUDE.md §5 and the Zero Fabricated
+Data principle:
+- Yahoo/Invezgo price data ≠ regulatory clearance.
+- `UNKNOWN` ≠ `CLEAR`.
+- `STALE` ≠ `CLEAR`.
+- An idx.co.id API failure ≠ `CLEAR`.
+- No synthetic/guessed regulatory status.
+- No permanent hardcoded "safe stock" list.
+
+`filterEligibleTickers(tickers)` is a convenience wrapper returning only
+the tickers whose gate result is `eligible`.
+
+## 30.3 Wired entry points
+- `generateUnifiedScreener()` (`lib/idx-data-engine.js`) — every row carries
+  `regulatoryStatus`/`regulatoryEligible`/`regulatoryReason`; rows are
+  excluded by default (`excludeFlagged` unset or truthy) unless caller
+  explicitly passes `excludeFlagged: false`. `confirmedUptrendWhale` uses a
+  gate-aware `regulatoryConfirmed` value, never the raw technical
+  `confirmed` flag, so a technically-strong but regulator-flagged stock
+  never surfaces as "Confirmed".
+- `getUniverseOpportunityRadar()` (`lib/idx-data-engine.js`) — same
+  `excludeFlagged` contract; a non-eligible ticker can never render as
+  `BUY ZONE`/`WATCHLIST` and is relabeled `TIDAK LAYAK (REGULASI)`.
+- Both expose `summary.regulatoryClear/Flagged/Unknown/DataError` and a
+  `dataSources.regulatory` / `regulatoryDataSource` envelope
+  (`available`, `isStale`, `source: 'BEI (idx.co.id)'`, `checkedAt`) so the
+  UI can honestly disclose when the whole gate is running in a degraded
+  state (e.g. every row hidden because idx.co.id is unreachable) instead of
+  silently returning an empty list.
+
+## 30.4 Extending the gate to a new entry point
+Any new whole-market or per-ticker analysis surface (future Screener
+variants, StockChat tool calls that recommend a ticker for entry, cron
+background jobs) that can result in a BUY/entry-style recommendation must
+call `getRegulatoryHealthGate()` (or `filterEligibleTickers()`) before
+presenting or scoring candidates, and must default to excluding
+non-`CLEAR` tickers — matching the pattern above. It is one whole-market
+snapshot, not a per-ticker network call, so there is no quota/perf reason
+to skip it.

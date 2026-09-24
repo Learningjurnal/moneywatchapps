@@ -58,5 +58,13 @@ bisa salah ambil keputusan dari angka yang terlihat presisi.
   pass-with-fix.
 - `node -c`, `npm test`, `npm run lint` sebelum commit.
 - Cache-bust `?v=` di `index.html` untuk file JS/CSS yang berubah.
-- Catat setiap insiden/perbaikan di `INCIDENT_LOG.md` (Bahasa Indonesia).
 - Semua respons ke user dalam Bahasa Indonesia.
+- **`INCIDENT_LOG.md` SUDAH DIHAPUS** (dibersihkan sengaja oleh user,
+  commit `30cd06e` "clean repo docs") — JANGAN dibuat ulang atau ditulisi
+  lagi. Dokumentasi arsitektur/kebijakan sekarang hidup di `AGENTS.md`
+  (Master AI Knowledge Base) dan `DATA_TRACEABILITY_MANIFESTO.md` (5-Tier
+  Data Provenance) — catatan insiden/fix spesifik cukup di pesan commit
+  git yang deskriptif, bukan file log terpisah lagi. Referensi
+  `INCIDENT_LOG.md` yang masih tersisa di komentar kode lama (banyak file
+  `public/js/*.js`) adalah jejak historis, bukan instruksi aktif — tidak
+  perlu diburu dan dihapus satu-satu.

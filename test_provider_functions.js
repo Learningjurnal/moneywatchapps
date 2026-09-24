@@ -60,6 +60,37 @@ async function asyncTest(name, fn) {
 }
 
 // ============================================================
+// lib/regulatory-gate.js — Regulatory Health Gate (part 1: the pristine
+// "never contacted idx.co.id successfully yet" DATA_ERROR path). Placed
+// as the FIRST test in this file, before anything else in this process
+// can populate lib/providers/idx-client.js's module-level special-
+// notation cache — that shared state is what makes this scenario
+// otherwise impossible to test deterministically later in the file (see
+// part 2, further down, which uses forceRefresh=true once a cache may
+// already exist from here or from the fetchIdxSpecialNotations() tests
+// below).
+// NON-NEGOTIABLE (docs/regulatory-health-gate.md §29): API failure or
+// unavailable data must NEVER silently resolve to CLEAR/eligible=true.
+// ============================================================
+await (async () => {
+  const savedFetch = global.fetch;
+  try {
+    global.fetch = async () => ({ ok: false, status: 500, headers: { getSetCookie: () => [] }, json: async () => ({}) });
+    const { getRegulatoryHealthGate, REGULATORY_STATUS } = await import('./lib/regulatory-gate.js');
+    await asyncTest('getRegulatoryHealthGate(): total idx.co.id failure with no prior cache marks every ticker DATA_ERROR, never CLEAR', async () => {
+      const gate = await getRegulatoryHealthGate(['BBCA', 'BBRI']);
+      assert.strictEqual(gate.dataAvailable, false, 'dataAvailable must be false');
+      ['BBCA', 'BBRI'].forEach((tk) => {
+        assert.strictEqual(gate.byTicker[tk].status, REGULATORY_STATUS.DATA_ERROR, `${tk} must be DATA_ERROR when idx.co.id is fully unreachable and no cache exists`);
+        assert.strictEqual(gate.byTicker[tk].eligible, false, `REGRESSION: ${tk} must not be eligible=true when regulatory status could not be verified at all`);
+      });
+    });
+  } finally {
+    global.fetch = savedFetch;
+  }
+})();
+
+// ============================================================
 // INCIDENT #1 (2026-09-10): getBeiTickSize was not imported into
 // lib/providers/yahoo-client.js after the provider-adapter refactor
 // moved it to lib/providers/idx-client.js — every real-time quote fetch
@@ -571,8 +602,12 @@ await (async () => {
 
   try {
     const { fetchIdxSpecialNotations, IDX_SPECIAL_NOTATION_DICT } = await import('./lib/providers/idx-client.js');
-    await asyncTest('fetchIdxSpecialNotations(): parses and maps BEI special notations and FCA watchlist correctly', async () => {
-      const res = await fetchIdxSpecialNotations(true);
+    await asyncTest('fetchIdxSpecialNotations(): parses and maps BEI special notations and FCA watchlist correctly, wrapped in an explicit available/isStale envelope', async () => {
+      const envelope = await fetchIdxSpecialNotations(true);
+      assert.strictEqual(envelope.available, true, 'available must be true when idx.co.id calls succeed');
+      assert.strictEqual(envelope.isStale, false, 'isStale must be false on a fresh successful fetch');
+      assert(envelope.checkedAt, 'checkedAt must be set on a successful fetch');
+      const res = envelope.byTicker;
       assert(res.BUMI, 'BUMI should be mapped');
       assert(res.BUMI.notations.includes('X'), 'BUMI should have notation X');
       assert.strictEqual(res.BUMI.isWatchlist, true, 'BUMI should be isWatchlist=true');
@@ -588,6 +623,25 @@ await (async () => {
       assert.strictEqual(res.GOTO.isHighRisk, false, 'GOTO MVS is informative (not high risk)');
       assert(IDX_SPECIAL_NOTATION_DICT['X'], 'Dictionary should define X');
       assert(IDX_SPECIAL_NOTATION_DICT['E'], 'Dictionary should define E');
+    });
+
+    // FIX (Regulatory Health Gate, 2026-09-24): both idx.co.id calls failing
+    // (non-exception, just !ok) must NEVER silently report available:true
+    // — that would look identical to "checked, genuinely clean market",
+    // which is exactly the UNKNOWN-as-CLEAR bug this gate exists to
+    // prevent. A prior successful fetch's cache may still be served
+    // (marked isStale:true, last-known-state disclosure), but it must
+    // never be presented as a fresh, verified CLEAR result.
+    await asyncTest('fetchIdxSpecialNotations(): both idx.co.id endpoints failing must report available=false / isStale=true, never silently CLEAR', async () => {
+      const savedFetch = global.fetch;
+      global.fetch = async () => ({ ok: false, status: 403, headers: { getSetCookie: () => [] }, json: async () => ({}) });
+      try {
+        const envelope = await fetchIdxSpecialNotations(true);
+        assert.strictEqual(envelope.available, false, 'REGRESSION: available must be false when both idx.co.id calls return non-ok status');
+        assert.strictEqual(envelope.isStale, true, 'isStale must be true when serving a prior cache after a failed refresh');
+      } finally {
+        global.fetch = savedFetch;
+      }
     });
   } finally {
     global.fetch = originalFetch;
@@ -671,6 +725,38 @@ await (async () => {
   } finally {
     global.fetch = originalFetch;
     process.env.INVEZGO_API_KEY = originalEnvKey;
+  }
+})();
+
+// ============================================================
+// lib/regulatory-gate.js — Regulatory Health Gate (part 2: uses
+// forceRefresh=true throughout so it never depends on whatever state
+// idx-client.js's module-level notation cache happens to be in from
+// earlier tests in this file — see part 1 near the top of this file,
+// which specifically tests the pristine-no-cache-yet DATA_ERROR path).
+// ============================================================
+await (async () => {
+  const savedFetch = global.fetch;
+  try {
+    const { getRegulatoryHealthGate, filterEligibleTickers, REGULATORY_STATUS } = await import('./lib/regulatory-gate.js');
+
+    await asyncTest('getRegulatoryHealthGate(): CLEAR ticker (fresh data, no notation entry) is eligible, FLAGGED never is', async () => {
+      global.fetch = async (url) => {
+        const s = String(url);
+        if (s.includes('GetSpecialNotation')) return { ok: true, headers: { getSetCookie: () => [] }, json: async () => ({ data: [{ Code: 'BUMI', Notation: 'X', Description: 'FCA' }] }) };
+        if (s.includes('GetWatchlistStock')) return { ok: true, headers: { getSetCookie: () => [] }, json: async () => ({ data: [] }) };
+        return { ok: true, headers: { getSetCookie: () => [] }, json: async () => ({}) };
+      };
+      const gate = await getRegulatoryHealthGate(['BUMI', 'BBCA'], true);
+      assert.strictEqual(gate.byTicker.BUMI.status, REGULATORY_STATUS.FLAGGED, 'BUMI has an active notation, must be FLAGGED');
+      assert.strictEqual(gate.byTicker.BUMI.eligible, false, 'FLAGGED must never be eligible=true');
+      assert.strictEqual(gate.byTicker.BBCA.status, REGULATORY_STATUS.CLEAR, 'BBCA has no notation on a fresh fetch, must be CLEAR');
+      assert.strictEqual(gate.byTicker.BBCA.eligible, true, 'CLEAR must be eligible=true');
+      const eligible = await filterEligibleTickers(['BUMI', 'BBCA']);
+      assert.deepStrictEqual(eligible, ['BBCA'], 'filterEligibleTickers() must drop the FLAGGED ticker');
+    });
+  } finally {
+    global.fetch = savedFetch;
   }
 })();
 

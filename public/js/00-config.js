@@ -551,6 +551,13 @@ async function checkSupabaseCloudStatus() {
 // ══════════════════════════════════════════════════════════
 window.GLOBAL_SPECIAL_NOTATIONS = {};
 window.GLOBAL_SPECIAL_NOTATIONS_LOADED = false;
+// FIX (Regulatory Health Gate, 2026-09-24): dulu tidak ada cara membedakan
+// "sudah dicek, memang bersih" dari "belum berhasil dimuat sama sekali" --
+// getTickerSpecialNotation() mengembalikan null untuk KEDUANYA. Sekarang
+// server mengirim available/isStale eksplisit (lihat fetchIdxSpecialNotations()),
+// disimpan di sini supaya konsumen (mis. gate sisi client) bisa membedakan.
+window.GLOBAL_SPECIAL_NOTATIONS_AVAILABLE = false;
+window.GLOBAL_SPECIAL_NOTATIONS_STALE = false;
 
 window.loadSpecialNotations = async function(force) {
   if (window.GLOBAL_SPECIAL_NOTATIONS_LOADED && !force && Object.keys(window.GLOBAL_SPECIAL_NOTATIONS).length > 0) {
@@ -560,6 +567,8 @@ window.loadSpecialNotations = async function(force) {
     var resp = await fetch('/api/idx/special-notations' + (force ? '?force=true' : ''));
     if (resp.ok) {
       var json = await resp.json();
+      window.GLOBAL_SPECIAL_NOTATIONS_AVAILABLE = !!(json && json.available);
+      window.GLOBAL_SPECIAL_NOTATIONS_STALE = !!(json && json.isStale);
       if (json && json.data) {
         window.GLOBAL_SPECIAL_NOTATIONS = json.data;
         window.GLOBAL_SPECIAL_NOTATIONS_LOADED = true;

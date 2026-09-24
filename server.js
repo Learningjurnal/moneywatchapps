@@ -4030,14 +4030,17 @@ app.get('/api/idx/brokers', (req, res) => {
 app.get('/api/idx/special-notations', async (req, res) => {
   try {
     const force = req.query.force === 'true';
-    const notations = await fetchIdxSpecialNotations(force);
+    const result = await fetchIdxSpecialNotations(force);
     return res.json({
       success: true,
-      available: true,
+      available: result.available,
+      isStale: result.isStale,
+      reason: result.reason || null,
       dataSource: 'Bursa Efek Indonesia (idx.co.id) — Live Real-Time Feed',
       dictionary: IDX_SPECIAL_NOTATION_DICT,
-      totalEmitenWithNotations: Object.keys(notations).length,
-      data: notations,
+      totalEmitenWithNotations: Object.keys(result.byTicker).length,
+      data: result.byTicker,
+      checkedAt: result.checkedAt,
       retrievedAt: new Date().toISOString()
     });
   } catch (err) {
@@ -4052,11 +4055,13 @@ app.get('/api/idx/special-notations/:ticker', async (req, res) => {
     if (!tk) {
       return res.status(400).json({ success: false, error: 'Ticker required' });
     }
-    const notations = await fetchIdxSpecialNotations();
-    const entry = notations[tk] || null;
+    const result = await fetchIdxSpecialNotations();
+    const entry = result.byTicker[tk] || null;
     return res.json({
       success: true,
       ticker: tk,
+      available: result.available,
+      isStale: result.isStale,
       hasSpecialNotation: !!entry,
       isWatchlist: entry ? entry.isWatchlist : false,
       isHighRisk: entry ? entry.isHighRisk : false,

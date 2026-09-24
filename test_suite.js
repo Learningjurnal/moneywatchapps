@@ -6893,7 +6893,14 @@ test('REGRESSION GUARD: generateUnifiedScreener()\'s "confirmed" gate uses tech.
 
 await asyncTest('BEHAVIOR: generateUnifiedScreener() runs end-to-end without an Invezgo/Redis config and returns an honest, well-shaped result', async () => {
   const { generateUnifiedScreener } = await import('./lib/idx-data-engine.js');
-  const result = await generateUnifiedScreener({ limit: 10 });
+  // excludeFlagged:false — this test's own purpose (pipeline runs
+  // end-to-end, rows are well-shaped) is orthogonal to the Regulatory
+  // Health Gate's default filtering; the gate's own fail-closed default is
+  // covered by a dedicated test below. This sandbox also has no network
+  // access to idx.co.id, so the gate would otherwise mark every ticker
+  // DATA_ERROR and legitimately return zero rows — not a bug, but not
+  // what this particular test is checking.
+  const result = await generateUnifiedScreener({ limit: 10, excludeFlagged: false });
   assert(result.success === true, 'generateUnifiedScreener() did not report success:true');
   assert(Array.isArray(result.rows), 'result.rows is not an array');
   assert(result.rows.length > 0, 'result.rows is empty — expected at least 10 of 958 universe rows');
@@ -6907,6 +6914,39 @@ await asyncTest('BEHAVIOR: generateUnifiedScreener() runs end-to-end without an 
     // environment, no ticker should have real technical/fundamental data —
     // confirms the function degrades honestly rather than fabricating.
     assert(r.isRealTechnical === false, `${r.ticker} claims isRealTechnical:true with no Yahoo/Redis config in this test env`);
+  });
+});
+
+// FIX (Regulatory Health Gate, 2026-09-24): the default behavior (no
+// excludeFlagged override) must fail CLOSED, not open, when the
+// regulatory source can't be verified at all — this sandbox has no
+// network access to idx.co.id, which is exactly the DATA_ERROR scenario
+// docs/regulatory-health-gate.md §26 requires: SOURCE FAILURE -> UNKNOWN
+// -> NOT ELIGIBLE -> SKIP DEEP ANALYSIS, never "assume CLEAR and show
+// everything anyway".
+await asyncTest('BEHAVIOR: generateUnifiedScreener() default (excludeFlagged unset) hides every row when the Regulatory Health Gate data source is entirely unavailable, and discloses why', async () => {
+  const { generateUnifiedScreener } = await import('./lib/idx-data-engine.js');
+  const result = await generateUnifiedScreener({});
+  assert.strictEqual(result.rows.length, 0, 'REGRESSION: rows must be empty by default when regulatory status can\'t be verified for any ticker (this sandbox has no idx.co.id access) — silently showing them would be UNKNOWN-treated-as-CLEAR');
+  assert.strictEqual(result.summary.regulatoryDataError, result.summary.totalUniverse, 'every ticker should be regulatoryDataError when idx.co.id is fully unreachable and no cache exists');
+  assert.strictEqual(result.dataSources.regulatory.available, false, 'dataSources.regulatory.available must honestly report false');
+});
+
+// FIX (Regulatory Health Gate, 2026-09-24): same fail-closed contract
+// applied to getUniverseOpportunityRadar() — must never present a saham
+// as BUY ZONE/Strong Buy when its regulatory status can't be verified.
+await asyncTest('BEHAVIOR: getUniverseOpportunityRadar() default (excludeFlagged unset) hides every item when the Regulatory Health Gate data source is entirely unavailable, and never shows BUY ZONE/WATCHLIST for an unverified ticker', async () => {
+  const { getUniverseOpportunityRadar } = await import('./lib/idx-data-engine.js');
+  const excluded = await getUniverseOpportunityRadar({});
+  assert.strictEqual(excluded.items.length, 0, 'REGRESSION: items must be empty by default when regulatory status can\'t be verified for any ticker');
+  assert.strictEqual(excluded.summary.regulatoryDataError, excluded.summary.totalUniverse, 'every ticker should be regulatoryDataError when idx.co.id is fully unreachable and no cache exists');
+
+  const all = await getUniverseOpportunityRadar({ excludeFlagged: false });
+  assert(all.items.length > 900, 'excludeFlagged:false should still return the full ~958 universe (unfiltered, for transparency)');
+  all.items.forEach((it) => {
+    assert.strictEqual(it.regulatoryEligible, false, `${it.ticker} should be regulatoryEligible:false when idx.co.id is unreachable`);
+    assert(it.zone !== 'BUY ZONE' && it.zone !== 'WATCHLIST',
+      `REGRESSION: ${it.ticker} shows zone="${it.zone}" despite unverifiable regulatory status — a DATA_ERROR/UNKNOWN ticker must never present as an actionable buy opportunity`);
   });
 });
 
