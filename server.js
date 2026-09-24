@@ -55,7 +55,7 @@ import {
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus } from './lib/invezgo-client.js';
-import { runStrategyForUniverse } from './lib/engine/strategy/StrategyEngine.js';
+import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 
@@ -4422,6 +4422,51 @@ app.get('/api/strategy-engine/scan', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Strategy Engine Scan Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/strategy-engine/latest?strategy=swing-flow&date=YYYY-MM-DD
+// Reads today's (or a given day's) persisted STRONG/QUALIFIED signals
+// accumulated so far by warmStrategyEngineRotating() — a cheap Redis read,
+// no Invezgo calls. Empty array is honest ("nothing found yet today"),
+// not an error.
+app.get('/api/strategy-engine/latest', async (req, res) => {
+  try {
+    const strategyId = String(req.query.strategy || '').trim();
+    if (!strategyId) return res.status(400).json({ success: false, error: 'Parameter "strategy" wajib diisi' });
+    const data = await getLatestStrategyEngineSignals(strategyId, req.query.date ? String(req.query.date) : null);
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    console.error('[Strategy Engine Latest Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/cron/warm-strategy-engine — CRON_SECRET-guarded rotating
+// whole-universe warmer for the Strategy Engine (see
+// warmStrategyEngineRotating()'s header comment, lib/engine/strategy/
+// StrategyEngine.js, for why this is NOT in vercel.json's `crons` array:
+// Vercel Hobby caps a project at 2 scheduled cron jobs and both slots are
+// already used by warm-radar-fundamentals/warm-technical-indicators).
+// Point an external scheduler (cron-job.org, a GitHub Actions scheduled
+// workflow, etc.) at this URL with `Authorization: Bearer <CRON_SECRET>`
+// to actually automate it — or swap out one of the 2 existing slots.
+// ?strategy= defaults to swing-flow (the strategy with no mandatory
+// conditions, so it makes the most progress per run even on tickers
+// missing one data point).
+app.get('/api/cron/warm-strategy-engine', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization || '';
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  try {
+    const strategyId = String(req.query.strategy || 'swing-flow').trim();
+    const result = await warmStrategyEngineRotating(20000, strategyId);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Strategy Engine Cron Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -30,7 +30,7 @@ var US_STATE = {
   summary: null,
   dataSources: null,
   total: 0,
-  pageTab: 'screener', // 'screener' | 'cockpit' | 'planner'
+  pageTab: 'screener', // 'screener' | 'cockpit' | 'planner' | 'quant' | 'volspike' | 'strategy'
   filters: {
     search: '',
     index: 'ALL',
@@ -181,7 +181,15 @@ function usRenderShell() {
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'planner\')" style="' + usPageTabBtnStyle(pt === 'planner') + '">📐 Risk Planner</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'quant\')" style="' + usPageTabBtnStyle(pt === 'quant') + '">🔬 Quant Screener</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'volspike\')" style="' + usPageTabBtnStyle(pt === 'volspike') + '">⚡ Volume Spike</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'strategy\')" style="' + usPageTabBtnStyle(pt === 'strategy') + '">🎯 Strategy Engine</button>'
     + '</div>';
+
+  if (pt === 'strategy') {
+    html += '<div id="us-strategy-subpage"></div>';
+    c.innerHTML = html;
+    if (typeof seRenderStrategyEnginePage === 'function') seRenderStrategyEnginePage('us-strategy-subpage');
+    return;
+  }
 
   if (pt === 'cockpit' || pt === 'planner') {
     html += '<div id="us-wave-subpage"></div>';

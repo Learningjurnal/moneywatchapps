@@ -358,6 +358,77 @@ await (async () => {
   });
 })();
 
+// ============================================================
+// PART 7 — cron: warmStrategyEngineRotating() rotates the cursor, skips
+// gate-excluded tickers cheaply, and persists STRONG/QUALIFIED signals for
+// getLatestStrategyEngineSignals() to read back.
+// ============================================================
+await (async () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.INVEZGO_API_KEY;
+  process.env.INVEZGO_API_KEY = 'mock_test_key';
+
+  global.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('idx.co.id')) return { ok: false, status: 500, headers: { getSetCookie: () => [] }, json: async () => ({}) };
+    if (u.includes('/analysis/order-book/')) {
+      return { ok: true, status: 200, json: async () => ({ code: 'X', bid: [{ bid1price: 100, bid1lot: 5000, bid1freq: 3 }], offer: [{ offer1price: 101, offer1lot: 500, offer1freq: 2 }] }) };
+    }
+    if (u.includes('/analysis/intraday-data/')) {
+      return { ok: true, status: 200, json: async () => ({ open: 95, high: 105, low: 90, close: 104, avg: 98, volume: 3_000_000, freq: 1500, value: 3_000_000_000, prev: 96 }) };
+    }
+    return { ok: false, status: 500, json: async () => ({}) };
+  };
+
+  try {
+    const { warmStrategyEngineRotating, getLatestStrategyEngineSignals } = await import('./lib/engine/strategy/StrategyEngine.js');
+
+    await asyncTest('CRON: warmStrategyEngineRotating() processes tickers, rotates the cursor, and returns a summary shape', async () => {
+      const result = await warmStrategyEngineRotating(3000, 'swing-flow', 2);
+      assert.strictEqual(result.strategyId, 'swing-flow');
+      assert(result.processed > 0, 'must process at least one ticker within the time budget');
+      assert(typeof result.cursorAfter === 'number');
+      assert(result.universeSize > 0);
+    });
+
+    await asyncTest('CRON: getLatestStrategyEngineSignals() honestly returns an empty array (not an error) when nothing has qualified yet', async () => {
+      const data = await getLatestStrategyEngineSignals('swing-flow', '2099-01-01');
+      assert.strictEqual(data.strategyId, 'swing-flow');
+      assert(Array.isArray(data.signals));
+    });
+  } finally {
+    global.fetch = originalFetch;
+    process.env.INVEZGO_API_KEY = originalKey;
+  }
+})();
+
+// ============================================================
+// PART 8 — cron/latest server routes + UI wiring (source-text checks)
+// ============================================================
+await (async () => {
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  await asyncTest('server.js: GET /api/cron/warm-strategy-engine is CRON_SECRET-guarded (fails closed, like the other 2 cron routes)', async () => {
+    const routeMatch = serverSrc.match(/app\.get\('\/api\/cron\/warm-strategy-engine'[\s\S]*?\n\}\);/);
+    assert(routeMatch, 'route not found');
+    assert(/CRON_SECRET/.test(routeMatch[0]));
+    assert(/403/.test(routeMatch[0]));
+  });
+  await asyncTest('server.js: GET /api/strategy-engine/latest exists (read-only, no Invezgo calls)', async () => {
+    assert(/app\.get\('\/api\/strategy-engine\/latest'/.test(serverSrc));
+  });
+
+  const uiSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  await asyncTest('UI: Unified Screener page has a "Strategy Engine" tab wired to seRenderStrategyEnginePage()', async () => {
+    assert(/usSwitchPageTab\(\\'strategy\\'\)/.test(uiSrc));
+    assert(/seRenderStrategyEnginePage\('us-strategy-subpage'\)/.test(uiSrc));
+  });
+
+  const indexSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  await asyncTest('UI: 49-strategy-engine.js is loaded by index.html', async () => {
+    assert(/js\/49-strategy-engine\.js\?v=/.test(indexSrc));
+  });
+})();
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} STRATEGY ENGINE TESTS PASSED SUCCESSFULLY!`);
 console.log('═══════════════════════════════════════════════════════');
