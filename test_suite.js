@@ -5546,11 +5546,13 @@ test('REGRESSION GUARD: Bandarmology market-aggregate views use real Invezgo dat
   assert(!/bandarGetCachedSummary\(/.test(contentRendererSrc[0]),
     'REGRESSION: bandarRenderMarketFlowContent() must NOT use bandarGetCachedSummary() per-ticker loop — it must read score/acc/dist from the whole-market /api/idx/accumulation-distribution payload instead');
 
-  // 2. The prefetch must actually be wired into the page renderer, and must
-  // re-render once real data arrives (not just fetch-and-discard).
+  // 2. bandarPrefetchMarketBatch() itself must still exist and still
+  // re-render (with force=true) once its data arrives — this is checked by
+  // a separate test below. It is NO LONGER called from
+  // renderBandarmologyCockpitPage() (fixed 2026-09-24: its
+  // STOCKCHAT_BROKER_DATA_CACHE output was found to feed nothing rendered
+  // on this page — see the "Page Unresponsive" regression test below).
   assert(/function bandarPrefetchMarketBatch/.test(src), 'REGRESSION: bandarPrefetchMarketBatch() is gone');
-  assert(/bandarPrefetchMarketBatch\(containerId, tk\);/.test(src),
-    'REGRESSION: renderBandarmologyCockpitPage() no longer kicks off the real-data prefetch — views will stay stuck on their simulated first paint forever');
 
   // 3. Field-name-mapping correctness: extract and directly execute the two
   // pure helper functions against both real-shaped and simulated-shaped
@@ -8398,6 +8400,42 @@ await asyncTest('REGRESSION GUARD: renderBandarmologyCockpitPage() does not repe
   assert(prefetchFnStart !== -1, 'REGRESSION: bandarPrefetchMarketBatch() is gone');
   const prefetchBody = src.slice(prefetchFnStart, src.indexOf('\nfunction ', prefetchFnStart + 1));
   assert(/renderBandarmologyCockpitPage\(containerId,\s*true\)/.test(prefetchBody), 'REGRESSION: bandarPrefetchMarketBatch() no longer force-refreshes after real data arrives — its completion re-render will be silently skipped by the new dedupe guard, so views will stay stuck on simulated/placeholder data forever');
+});
+
+// ============================================================
+// BUG (2026-09-24, user-reported, still reproducing after BOTH fixes
+// above): "masih sama saja, tidak ada perubahan" — even after a hard
+// refresh confirmed on the latest deploy. Root cause found by tracing
+// what bandarPrefetchMarketBatch() (called at the end of every
+// renderBandarmologyCockpitPage()) actually feeds: it fetches broker
+// summary data for ~48 tickers one by one (fetchBrokerSummaryData(),
+// each with its own internal fallback chain — a backend call, then, on
+// failure, a client-side Yahoo Finance call through a 3-proxy retry
+// chain) and stores it in STOCKCHAT_BROKER_DATA_CACHE. But NOTHING
+// rendered on the current Market Flow page reads that cache — Market
+// Flow, Foreign Flow, Accumulation, Distribution and Broker Trail were
+// all migrated to whole-market Invezgo endpoints in earlier fixes this
+// session (2026-09-17/18), and the two functions that DO still read
+// STOCKCHAT_BROKER_DATA_CACHE (renderBandarmologySmartMoneyRadarView(),
+// bandarDataBanner()'s caller) are dead code with zero call sites
+// anywhere in the app since that migration. So this ~48-ticker batch —
+// up to ~144 request attempts once every proxy fallback is counted —
+// was pure overhead on every single Market Flow page load: it competes
+// for the browser's limited per-origin connections with the 5 requests
+// that ARE rendered, and its individually-resolving promises each
+// trigger JSON parsing / processing on the main thread as they land,
+// which is what was actually tripping the "Page Unresponsive" watchdog
+// once this batch's slower stragglers (those hitting the full 3-proxy
+// Yahoo fallback chain) started resolving ~30-60s in — independent of,
+// and in addition to, the periodic-re-render issue fixed just above.
+// ============================================================
+await asyncTest('REGRESSION GUARD: renderBandarmologyCockpitPage() no longer fires the ~48-ticker broker-summary prefetch batch whose output nothing on Market Flow actually reads', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnStart = src.indexOf('function renderBandarmologyCockpitPage(');
+  assert(fnStart !== -1, 'REGRESSION: could not isolate renderBandarmologyCockpitPage() body');
+  const nextFnStart = src.indexOf('\nfunction ', fnStart + 1);
+  const body = src.slice(fnStart, nextFnStart !== -1 ? nextFnStart : fnStart + 5000);
+  assert(!/[^/]\s*bandarPrefetchMarketBatch\(containerId/.test(body), 'REGRESSION: renderBandarmologyCockpitPage() calls bandarPrefetchMarketBatch() again — this fires ~48 concurrent per-ticker fetches (each with its own multi-proxy Yahoo fallback chain) whose output nothing currently rendered on Market Flow reads, and was the real cause of the reported "Page Unresponsive" hang');
 });
 
 console.log('═══════════════════════════════════════════════════════');

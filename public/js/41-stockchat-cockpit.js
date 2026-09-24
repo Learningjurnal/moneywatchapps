@@ -2586,14 +2586,22 @@ function renderBandarmologyCockpitPage(containerId, force) {
   setTimeout(bandarLoadRealMarketFlow, 60);
   setTimeout(function() { bandarLoadBrokerPortfolio(BANDARMOLOGY_SELECTED_BROKER, BANDARMOLOGY_BROKER_TIMEFRAME); }, 40);
 
-  // Kick off (or let already-run) real-data prefetch for the shared
-  // market-wide sample universe — first paint above used whatever was
-  // already cached (real if a previous prefetch finished, simulated
-  // fallback otherwise, exactly like before this fix). Once the batch
-  // resolves, bandarPrefetchMarketBatch() re-renders this same page so all
-  // views flip to real numbers together instead of staying stuck on the
-  // simulated first paint forever.
-  bandarPrefetchMarketBatch(containerId, tk);
+  // FIX (2026-09-24, user-reported "Page Unresponsive" — root cause found
+  // after the periodic-re-render fix above didn't fully resolve it):
+  // bandarPrefetchMarketBatch() used to fire here on every page load,
+  // fetching broker-summary data for ~48 tickers (each with its own
+  // multi-proxy Yahoo fallback chain on failure) into
+  // STOCKCHAT_BROKER_DATA_CACHE. NOTHING currently rendered on this page
+  // reads that cache — Market Flow/Foreign Flow/Accumulation/Distribution/
+  // Broker Trail all migrated to whole-market Invezgo endpoints in earlier
+  // fixes this session, and the two functions that still read it
+  // (renderBandarmologySmartMoneyRadarView(), the old Smart Money Radar
+  // card) have zero call sites anywhere in the app. This was pure
+  // overhead competing for the browser's limited per-origin connections
+  // with the 5 requests that ARE rendered, and its individually-resolving
+  // promises processing on the main thread as they landed is what was
+  // actually tripping the "Page Unresponsive" watchdog ~30-60s in — not
+  // called at all anymore.
 }
 
 // KNOWN_ISSUES.md #3 — shared disclosure banner for every Bandarmology view
