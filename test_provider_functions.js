@@ -844,6 +844,30 @@ await (async () => {
 })();
 
 // ============================================================
+// INCIDENT #3 (2026-09-24, real production failure — GitHub Actions run
+// 35964062571 against the live Vercel deployment): storeSetEx(key, value,
+// 0) — used by warmStrategyEngineRotating()'s cursor ("0 = no expiry",
+// same convention as setTechnicalWarmCursor()) — unconditionally passed
+// {ex: ttlSec} to the real Upstash Redis client, and Redis rejects
+// `EX 0` with "ERR invalid expire time". The in-memory fallback used by
+// this test sandbox (no Redis configured here) already handled ttlSec=0
+// correctly via its own ternary, which is exactly why this bug was NOT
+// caught by any earlier test in this file or in test_strategy_engine.js —
+// it only manifested against the real, Redis-configured production
+// deployment. Source-text check since the Redis branch cannot be safely
+// exercised without live network access to Upstash from this sandbox.
+// ============================================================
+await (async () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  await asyncTest('INCIDENT #3: storeSetEx() must not pass {ex: 0} to Redis (ERR invalid expire time) — only include ex when ttlSec is truthy', () => {
+    const fnMatch = src.match(/async function storeSetEx\(key, value, ttlSec\) \{[\s\S]*?\n\}/);
+    assert(fnMatch, 'could not isolate storeSetEx()');
+    assert(/ttlSec \? redis\.set\(key, value, \{ ex: ttlSec \}\) : redis\.set\(key, value\)/.test(fnMatch[0]),
+      'REGRESSION: storeSetEx() unconditionally passes {ex: ttlSec} again — this breaks any caller using ttlSec=0 for "no expiry" against a real Redis (confirmed in production, see GitHub Actions run 35964062571)');
+  });
+})();
+
+// ============================================================
 console.log('═══════════════════════════════════════════════════════');
 if (passedTests === totalTests) {
   console.log(`🎉 ALL ${passedTests}/${totalTests} PROVIDER FUNCTION TESTS PASSED`);
