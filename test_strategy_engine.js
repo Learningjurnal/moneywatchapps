@@ -212,11 +212,25 @@ await (async () => {
     });
   });
 
-  await asyncTest('StrategyRegistry: momentum-candidate and hidden-accumulation carry the spec\'s mandatory conditions', async () => {
+  // FIX (2026-09-25): FOREIGN removed from all 3 strategies that carried
+  // it (weights + mandatoryConditions), not just asserted here — see
+  // lib/engine/indicators/foreignFlow.js's header comment for the full
+  // incident: /analysis/top/foreign's calculated_value turned out to be
+  // Invezgo's own ranking score (verified against 3 real captured API
+  // responses), not a net Rupiah amount as the old code assumed, which
+  // collapsed FOREIGN's participation ratio to ~0 for virtually every
+  // ticker — a real problem since it was `mandatoryCondition` for these
+  // two strategies. Weights redistributed proportionally among the
+  // remaining indicators (still summing to 1.0, checked by the test
+  // above) rather than left unassigned.
+  await asyncTest('StrategyRegistry: momentum-candidate and hidden-accumulation carry the spec\'s mandatory conditions (FOREIGN excluded, see fix note above)', async () => {
     const registry = loadStrategyRegistry();
-    assert.deepStrictEqual(registry['momentum-candidate'].mandatoryConditions.sort(), ['FOREIGN', 'HIGH_BID_OFFER', 'NO_SELL'].sort());
-    assert.deepStrictEqual(registry['hidden-accumulation'].mandatoryConditions.sort(), ['FOREIGN', 'HIGH_BID_OFFER', 'HIGH_NON_REGULAR'].sort());
+    assert.deepStrictEqual(registry['momentum-candidate'].mandatoryConditions.sort(), ['HIGH_BID_OFFER', 'NO_SELL'].sort());
+    assert.deepStrictEqual(registry['hidden-accumulation'].mandatoryConditions.sort(), ['HIGH_BID_OFFER', 'HIGH_NON_REGULAR'].sort());
     assert.deepStrictEqual(registry['swing-flow'].mandatoryConditions, []);
+    assert(!('FOREIGN' in registry['momentum-candidate'].weights), 'REGRESSION: FOREIGN weight is back in momentum-candidate despite the unverified-scale bug not being fixed');
+    assert(!('FOREIGN' in registry['hidden-accumulation'].weights), 'REGRESSION: FOREIGN weight is back in hidden-accumulation despite the unverified-scale bug not being fixed');
+    assert(!('FOREIGN' in registry['swing-flow'].weights), 'REGRESSION: FOREIGN weight is back in swing-flow despite the unverified-scale bug not being fixed');
   });
 })();
 

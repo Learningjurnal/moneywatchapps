@@ -3,12 +3,11 @@
   "name": "MOMENTUM CANDIDATE",
   "version": "1.0.0",
   "weights": {
-    "HIGH_BID_OFFER": 0.30,
-    "NO_SELL": 0.25,
-    "FOREIGN": 0.20,
-    "CLOSE_HIGH": 0.15,
-    "VOLUME": 0.10
+    "HIGH_BID_OFFER": 0.375,
+    "NO_SELL": 0.3125,
+    "CLOSE_HIGH": 0.1875,
+    "VOLUME": 0.125
   },
-  "mandatoryConditions": ["HIGH_BID_OFFER", "NO_SELL", "FOREIGN"],
+  "mandatoryConditions": ["HIGH_BID_OFFER", "NO_SELL"],
   "scoreBands": { "strong": 80, "qualified": 70, "watch": 55 }
 }

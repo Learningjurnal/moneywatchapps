@@ -3059,12 +3059,17 @@ function bandarRenderForeignFlowMarket(data) {
       + (data.message || data.dataSource) + '</div>';
   }
 
-  var fmtRp = function(v) {
-    var m = Math.round((v || 0) / 1000000);
-    var m2 = Math.round((v || 0) / 1000000000);
-    if (Math.abs(m2) >= 1) return (v >= 0 ? '+Rp ' : '-Rp ') + Math.abs(m2).toLocaleString('id-ID') + ' M';
-    return (v >= 0 ? '+Rp ' : '-Rp ') + Math.abs(m).toLocaleString('id-ID') + ' Jt';
-  };
+  // FIX (2026-09-25, user-reported: "+Rp 0 Jt" ditampilkan untuk SEMUA
+  // baris, termasuk baris net-sell yang seharusnya negatif — GOTO
+  // menunjukkan "+Rp 50" yang absurd untuk seluruh BEI): field yang
+  // dipakai di sini (dulu netValueRp, sekarang score) TERNYATA bukan
+  // Rupiah — itu skor ranking Invezgo sendiri (calculated_value, dari
+  // /analysis/top/foreign), diverifikasi dari 3 respons API real user
+  // (tidak ada penjelasan field ini di dokumentasi Invezgo). Diganti dari
+  // format Rupiah palsu jadi "Skor" jujur, konsisten dengan cara
+  // /analysis/top/accumulation (widget Radar Akumulasi/Distribusi) sudah
+  // benar memperlakukan field yang sama.
+  var fmtScore = function(s) { return Number(s || 0).toFixed(2); };
   var renderCol = function(list, colorVar, badgeClass, badgeText) {
     var html = '<div style="display:flex;flex-direction:column">';
     list.slice(0, 5).forEach(function(item) {
@@ -3077,7 +3082,7 @@ function bandarRenderForeignFlowMarket(data) {
         + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + (item.name || item.ticker) + '</div>'
         + '</div>'
         + '<div style="text-align:right">'
-        + '<div class="mono" style="font-weight:800;font-size:13px;color:var(' + colorVar + ')">' + fmtRp(item.netValueRp) + '</div>'
+        + '<div class="mono" style="font-weight:800;font-size:13px;color:var(' + colorVar + ')">Skor ' + fmtScore(item.score) + '</div>'
         + '<div class="mono" style="font-size:11px;color:var(--text3)">Rp ' + Number(item.price || 0).toLocaleString('id-ID') + '</div>'
         + '</div>'
         + '</div>';
@@ -3158,6 +3163,25 @@ function bandarRenderAccDistTable(mode, data) {
       + '</div>';
   }
 
+  // FIX (2026-09-25, user-reported: "lot hanya 12, dengan harga 13.000
+  // dikatakan akumulasi seluruh BEI" — SRAJ score 80.8 with only 12 lot
+  // traded, BBSI score -74 with only 3 lot, both ranked top-10 "seluruh
+  // BEI"): `score` here is genuinely Invezgo's own calculated_value
+  // (not fabricated), but the ranking has no minimum-liquidity floor, so
+  // a Rp15 juta trade can outrank far larger, more meaningful ones. User
+  // chose (AskUserQuestion) to add a Nilai Transaksi (Rp) column rather
+  // than filter/threshold anything server-side — no arbitrary cutoff
+  // invented, the raw ranking stays untouched, user judges each row's
+  // credibility themselves from the real transaction value already
+  // returned by Invezgo (valueRp, previously fetched but never shown).
+  var fmtNilaiTransaksi = function(v) {
+    var abs = Math.abs(Number(v) || 0);
+    if (abs >= 1e12) return 'Rp ' + (abs / 1e12).toFixed(2) + ' T';
+    if (abs >= 1e9)  return 'Rp ' + (abs / 1e9).toFixed(2) + ' M';
+    if (abs >= 1e6)  return 'Rp ' + (abs / 1e6).toFixed(1) + ' Jt';
+    return 'Rp ' + abs.toLocaleString('id-ID');
+  };
+
   var rows = list.length ? list.map(function(item) {
     var emitenName = item.name || ((typeof DB !== 'undefined' && DB[item.ticker] && DB[item.ticker].name) || item.ticker);
     return '<tr>'
@@ -3165,11 +3189,12 @@ function bandarRenderAccDistTable(mode, data) {
       + '<td style="font-size:11px;color:var(--text2)">' + (item.sector || '-') + '</td>'
       + '<td class="mono" style="text-align:right;font-weight:700;color:' + color + '">' + Number(item.score || 0).toFixed(1) + '</td>'
       + '<td class="mono" style="text-align:right;color:var(--text2)">' + (Number(item.volume || 0) / 100).toLocaleString('id-ID') + ' Lot</td>'
+      + '<td class="mono" style="text-align:right;color:var(--text2)">' + fmtNilaiTransaksi(item.valueRp) + '</td>'
       + '<td class="mono" style="text-align:right;font-weight:700;color:var(--text)">Rp ' + Number(item.avgPrice || 0).toLocaleString('id-ID') + '</td>'
       + '<td class="mono ' + (item.priceChangePct >= 0 ? 'up' : 'down') + '" style="text-align:right">' + (item.priceChangePct >= 0 ? '+' : '') + Number(item.priceChangePct || 0).toFixed(2) + '%</td>'
       + '<td style="text-align:center"><button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-ghost btn-xs">Detail Broker</button></td>'
       + '</tr>';
-  }).join('') : '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3);font-size:11px">Tidak ada data untuk hari ini.</td></tr>';
+  }).join('') : '<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--text3);font-size:11px">Tidak ada data untuk hari ini.</td></tr>';
 
   return '<div class="card" style="padding:16px">'
     + '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-bottom:12px">'
@@ -3182,7 +3207,7 @@ function bandarRenderAccDistTable(mode, data) {
     + '<div class="tbl-wrap" style="overflow-x:auto">'
     + '<table class="tbl" style="width:100%;font-size:12px">'
     + '<thead><tr>'
-    + '<th>Emiten</th><th>Sektor</th><th style="text-align:right">Skor</th><th style="text-align:right">Volume</th><th style="text-align:right">Harga</th><th style="text-align:right">Perubahan</th><th style="text-align:center">Aksi</th>'
+    + '<th>Emiten</th><th>Sektor</th><th style="text-align:right">Skor</th><th style="text-align:right">Volume</th><th style="text-align:right">Nilai Transaksi</th><th style="text-align:right">Harga</th><th style="text-align:right">Perubahan</th><th style="text-align:center">Aksi</th>'
     + '</tr></thead>'
     + '<tbody>' + rows + '</tbody>'
     + '</table>'
