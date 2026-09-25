@@ -8936,6 +8936,57 @@ await asyncTest('REGRESSION GUARD: bandarRenderAccDistTable() (Radar Akumulasi/D
   assert.strictEqual(sandbox.fmtNilaiTransaksi(450000), 'Rp 450.000', 'REGRESSION: a sub-1-juta value no longer falls back to plain Rupiah formatting — got ' + sandbox.fmtNilaiTransaksi(450000));
 });
 
+// ============================================================
+// BUG (2026-09-25, user-reported: "TOP 5 FOREIGN NET BUY/SELL" widget
+// showed "+Rp 0 Jt" / "+Rp 1 Jt" for EVERY row, including net-sell rows
+// that should be negative — GOTO showed "+Rp 50" for the whole BEI
+// market, an absurd figure). Root cause verified against 3 real Invezgo
+// API responses the user captured (/analysis/top/foreign,
+// /analysis/top/retail, /analysis/top/accumulation — identical schema in
+// all 3): `calculated_value` is Invezgo's own small-magnitude ranking
+// score (matches the last point of that row's own `graph` series,
+// sometimes negative, no documented scale), NOT a Rupiah amount — the
+// old code's own comment claiming otherwise was never verified. Fixed by
+// renaming the field from netValueRp to score (getUniverseForeignFlow(),
+// lib/idx-data-engine.js) and rendering it honestly as "Skor" instead of
+// a fabricated "+Rp" figure (bandarRenderForeignFlowMarket(),
+// 41-stockchat-cockpit.js) — same treatment already correctly applied to
+// /analysis/top/accumulation's calculated_value elsewhere in this file.
+// ============================================================
+await asyncTest('REGRESSION GUARD: getUniverseForeignFlow() and its widget treat Invezgo\'s calculated_value as a score, not a fabricated Rupiah net-value', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = engineSrc.match(/async function getUniverseForeignFlow[\s\S]*?\n\}\n/);
+  assert(fnMatch, 'getUniverseForeignFlow() not found');
+  const fnBody = fnMatch[0];
+
+  assert(/score: Number\(item\.calculated_value\) \|\| 0/.test(fnBody),
+    'REGRESSION: getUniverseForeignFlow() no longer maps calculated_value to a field named `score` — it may be back to claiming this is a Rupiah net-value');
+  assert(!/netValueRp: Number\(item\.calculated_value\)/.test(fnBody),
+    'REGRESSION: getUniverseForeignFlow() maps calculated_value back into a field literally named netValueRp — this was the confirmed-wrong assumption (verified against 3 real Invezgo API responses, none show calculated_value as a Rupiah amount)');
+  assert(/\.sort\(\(a, b\) => b\.score - a\.score\)/.test(fnBody) && /\.sort\(\(a, b\) => a\.score - b\.score\)/.test(fnBody),
+    'REGRESSION: netBuy/netSell no longer sort by the renamed `score` field');
+
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const widgetMatch = cockpitSrc.match(/function bandarRenderForeignFlowMarket\(data\) \{[\s\S]*?\nasync function bandarLoadRealForeignFlow/);
+  assert(widgetMatch, 'bandarRenderForeignFlowMarket() not found');
+  const widgetBody = widgetMatch[0];
+  assert(/Skor ' \+ fmtScore\(item\.score\)/.test(widgetBody),
+    'REGRESSION: bandarRenderForeignFlowMarket() no longer renders the score honestly as "Skor X.XX" — a fabricated "+Rp" figure may be back');
+  assert(!/item\.netValueRp/.test(widgetBody),
+    'REGRESSION: bandarRenderForeignFlowMarket() reads item.netValueRp again — that field no longer exists on getUniverseForeignFlow()\'s rows (renamed to score), so this would render "Skor undefined" or NaN');
+
+  // Functional proof: a distribution (net-sell) row with a NEGATIVE score
+  // must render as a negative number, not a "+Rp 0" that hides the sign —
+  // this is exactly the bug the user's screenshot showed (BBSI-style
+  // negative-score rows displaying with a misleading "+").
+  const fmtMatch = widgetBody.match(/var fmtScore = function\(s\) \{ return Number\(s \|\| 0\)\.toFixed\(2\); \};/);
+  assert(fmtMatch, 'could not locate fmtScore() definition');
+  const sandbox = {};
+  vm.runInContext('var fmtScore = ' + fmtMatch[0].replace(/^var fmtScore = /, '').replace(/;$/, ''), vm.createContext(sandbox));
+  assert.strictEqual(sandbox.fmtScore(-74.0), '-74.00', 'REGRESSION: a negative score (distribution) no longer preserves its sign when formatted');
+  assert.strictEqual(sandbox.fmtScore(80.8), '80.80', 'REGRESSION: a positive score (accumulation) formats incorrectly');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

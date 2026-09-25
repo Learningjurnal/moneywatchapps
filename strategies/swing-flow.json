@@ -3,12 +3,11 @@
   "name": "SWING FLOW",
   "version": "1.0.0",
   "weights": {
-    "HIGH_BID_OFFER": 0.25,
-    "HIGH_ATS": 0.20,
-    "CLOSE_HIGH": 0.20,
-    "VOLUME": 0.15,
-    "FOREIGN": 0.10,
-    "FREQUENCY": 0.10
+    "HIGH_BID_OFFER": 0.2778,
+    "HIGH_ATS": 0.2222,
+    "CLOSE_HIGH": 0.2222,
+    "VOLUME": 0.1667,
+    "FREQUENCY": 0.1111
   },
   "mandatoryConditions": [],
   "scoreBands": { "strong": 80, "qualified": 70, "watch": 55 }

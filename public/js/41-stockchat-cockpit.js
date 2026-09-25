@@ -3059,12 +3059,17 @@ function bandarRenderForeignFlowMarket(data) {
       + (data.message || data.dataSource) + '</div>';
   }
 
-  var fmtRp = function(v) {
-    var m = Math.round((v || 0) / 1000000);
-    var m2 = Math.round((v || 0) / 1000000000);
-    if (Math.abs(m2) >= 1) return (v >= 0 ? '+Rp ' : '-Rp ') + Math.abs(m2).toLocaleString('id-ID') + ' M';
-    return (v >= 0 ? '+Rp ' : '-Rp ') + Math.abs(m).toLocaleString('id-ID') + ' Jt';
-  };
+  // FIX (2026-09-25, user-reported: "+Rp 0 Jt" ditampilkan untuk SEMUA
+  // baris, termasuk baris net-sell yang seharusnya negatif — GOTO
+  // menunjukkan "+Rp 50" yang absurd untuk seluruh BEI): field yang
+  // dipakai di sini (dulu netValueRp, sekarang score) TERNYATA bukan
+  // Rupiah — itu skor ranking Invezgo sendiri (calculated_value, dari
+  // /analysis/top/foreign), diverifikasi dari 3 respons API real user
+  // (tidak ada penjelasan field ini di dokumentasi Invezgo). Diganti dari
+  // format Rupiah palsu jadi "Skor" jujur, konsisten dengan cara
+  // /analysis/top/accumulation (widget Radar Akumulasi/Distribusi) sudah
+  // benar memperlakukan field yang sama.
+  var fmtScore = function(s) { return Number(s || 0).toFixed(2); };
   var renderCol = function(list, colorVar, badgeClass, badgeText) {
     var html = '<div style="display:flex;flex-direction:column">';
     list.slice(0, 5).forEach(function(item) {
@@ -3077,7 +3082,7 @@ function bandarRenderForeignFlowMarket(data) {
         + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + (item.name || item.ticker) + '</div>'
         + '</div>'
         + '<div style="text-align:right">'
-        + '<div class="mono" style="font-weight:800;font-size:13px;color:var(' + colorVar + ')">' + fmtRp(item.netValueRp) + '</div>'
+        + '<div class="mono" style="font-weight:800;font-size:13px;color:var(' + colorVar + ')">Skor ' + fmtScore(item.score) + '</div>'
         + '<div class="mono" style="font-size:11px;color:var(--text3)">Rp ' + Number(item.price || 0).toLocaleString('id-ID') + '</div>'
         + '</div>'
         + '</div>';
