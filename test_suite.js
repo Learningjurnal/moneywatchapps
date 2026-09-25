@@ -8987,6 +8987,28 @@ await asyncTest('REGRESSION GUARD: getUniverseForeignFlow() and its widget treat
   assert.strictEqual(sandbox.fmtScore(80.8), '80.80', 'REGRESSION: a positive score (accumulation) formats incorrectly');
 });
 
+// ============================================================
+// BUG (2026-09-25, user-reported: "hapus saja TOP SMART MONEY INFLOW
+// karena menyesatkan"): bandarRenderMarketFlowContent() rendered a "TOP
+// SMART MONEY INFLOW/OUTFLOW" top-5 card section that duplicated the
+// exact same getUniverseAccumulationDistribution() data already shown in
+// more detail (sector, volume, Nilai Transaksi, harga) by RADAR SAHAM
+// TERAKUMULASI/TERDISTRIBUSI SELURUH BEI (bandarRenderAccDistTable) on
+// the same page — two views of the same numbers, the sparser one adding
+// confusion rather than value. Removed at the user's request; a Sector
+// Rotation (RRG) chart is planned to replace it once the real Invezgo
+// endpoint is confirmed.
+// ============================================================
+test('REGRESSION GUARD: "TOP SMART MONEY INFLOW/OUTFLOW" duplicate scanner section stays removed from bandarRenderMarketFlowContent()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function bandarRenderMarketFlowContent\(data\) \{[\s\S]*?\n\/\/ Lazy loader — fetches \/api\/idx\/accumulation-distribution/);
+  assert(fnMatch, 'bandarRenderMarketFlowContent() not found');
+  assert(!/>TOP SMART MONEY INFLOW/.test(fnMatch[0]),
+    'REGRESSION: "TOP SMART MONEY INFLOW" section is back — user asked for it to be removed as a misleading duplicate of the Radar Akumulasi/Distribusi table');
+  assert(!/>TOP SMART MONEY OUTFLOW/.test(fnMatch[0]),
+    'REGRESSION: "TOP SMART MONEY OUTFLOW" section is back — same as above');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

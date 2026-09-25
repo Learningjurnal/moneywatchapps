@@ -2776,15 +2776,6 @@ function bandarRenderMarketFlowContent(data) {
   var totalScanned = (data && data.counts && data.counts.totalUniverseScanned) || (accCount + distCount);
   var dateLabel = (data && data.date) ? data.date : new Date().toISOString().slice(0,10);
 
-  var fmtRp = function(v) {
-    var abs = Math.abs(v || 0);
-    if (abs >= 1e12) return (v >= 0 ? '+' : '-') + 'Rp ' + (abs / 1e12).toFixed(1) + ' T';
-    if (abs >= 1e9)  return (v >= 0 ? '+' : '-') + 'Rp ' + Math.round(abs / 1e9) + ' M';
-    if (abs >= 1e6)  return (v >= 0 ? '+' : '-') + 'Rp ' + Math.round(abs / 1e6) + ' Jt';
-    return (v >= 0 ? '+' : '-') + 'Rp ' + Math.round(abs).toLocaleString('id-ID');
-  };
-  var fmtScore = function(s) { return Number(s || 0).toFixed(1); };
-
   // --- Metric summary cards ---
   var breadthPct = totalScanned > 0 ? Math.round((accCount / totalScanned) * 100) : 0;
   var breadthLabel = breadthPct >= 60 ? 'RISK-ON (Akumulasi Dominan)'
@@ -2827,51 +2818,16 @@ function bandarRenderMarketFlowContent(data) {
     + '</div>'
     + '</div>';
 
-  // --- Scanner columns: Top 5 Acc vs Top 5 Dist ---
-  var renderScannerRow = function(item, side) {
-    var isUp = side === 'acc';
-    var scoreColor = isUp ? 'var(--green)' : 'var(--red)';
-    var priceBadge = item.priceChangePct >= 0 ? 'b-up' : 'b-dn';
-    var changeStr  = (item.priceChangePct >= 0 ? '+' : '') + Number(item.priceChangePct || 0).toFixed(2) + '%';
-    var valStr = fmtRp(item.valueRp || 0);
-    return '<div onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" '
-      + 'style="display:flex;justify-content:space-between;align-items:center;padding:10px 8px;'
-      + 'border-bottom:1px solid var(--border2);cursor:pointer;border-radius:6px;transition:background 0.15s" '
-      + 'onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'transparent\'">'
-      + '<div>'
-      + '<div style="display:flex;align-items:center;gap:6px">'
-      + '<span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span>'
-      + '<span class="badge ' + priceBadge + '" style="font-size:9px">' + changeStr + '</span>'
-      + '</div>'
-      + '<div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (item.name || item.ticker) + '</div>'
-      + '</div>'
-      + '<div style="text-align:right">'
-      + '<div class="mono" style="font-weight:800;font-size:13px;color:' + scoreColor + '">Score ' + fmtScore(item.score) + '</div>'
-      + '<div class="mono" style="font-size:11px;color:var(--text3)">' + valStr + '</div>'
-      + '</div>'
-      + '</div>';
-  };
-
-  var scannerHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">'
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--green)">TOP SMART MONEY INFLOW (AKUMULASI)</div>'
-    + '<span class="badge b-up" style="font-size:9px">BELI</span>'
-    + '</div>'
-    + (accList.length === 0
-        ? '<div style="padding:16px;text-align:center;color:var(--text3);font-size:11px">Data belum tersedia untuk hari ini.</div>'
-        : accList.slice(0,5).map(function(it){ return renderScannerRow(it, 'acc'); }).join(''))
-    + '</div>'
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--red)">TOP SMART MONEY OUTFLOW (DISTRIBUSI)</div>'
-    + '<span class="badge b-dn" style="font-size:9px">JUAL</span>'
-    + '</div>'
-    + (distList.length === 0
-        ? '<div style="padding:16px;text-align:center;color:var(--text3);font-size:11px">Data belum tersedia untuk hari ini.</div>'
-        : distList.slice(0,5).map(function(it){ return renderScannerRow(it, 'dist'); }).join(''))
-    + '</div>'
-    + '</div>';
+  // FIX (2026-09-25, user-reported: "hapus saja TOP SMART MONEY INFLOW
+  // karena menyesatkan" — this section duplicated the same
+  // getUniverseAccumulationDistribution() data already shown in more
+  // detail by RADAR SAHAM TERAKUMULASI/TERDISTRIBUSI SELURUH BEI
+  // (bandarRenderAccDistTable, top 10 with sector + volume + Nilai
+  // Transaksi + harga), just as a sparser top-5 card view with no
+  // Nilai Transaksi context — two views of the same numbers, one less
+  // informative than the other, sitting on the same page). Removed;
+  // user asked for a Sector Rotation (RRG) chart in its place, pending
+  // confirmation of the real Invezgo endpoint that returns it.
 
   // --- Sektor Rotasi Modal Heatmap ---
   // Map setiap emiten dari acc/distList ke 11 sektor resmi IDX, hitung net score per sektor.
@@ -3000,7 +2956,6 @@ function bandarRenderMarketFlowContent(data) {
   return '<div style="display:flex;flex-direction:column;gap:16px">'
     + bannerHtml
     + metricCards
-    + scannerHtml
     + sectorHeatHtml
     + '</div>';
 }
