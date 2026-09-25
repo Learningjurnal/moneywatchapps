@@ -8464,22 +8464,32 @@ await asyncTest('REGRESSION GUARD: Sector Insight "Pergerakan Aliran Modal Sekto
   assert(/chartWrapper\.style\.cssText = '[^']*flex:1/.test(body), 'REGRESSION: chart wrapper no longer uses flex:1 to grow within its flex-column container');
   assert(/var height = Math\.max\(380, chartWrapper\.clientHeight \|\| 0\)/.test(body), 'REGRESSION: SVG height is no longer computed from the wrapper\'s actual rendered clientHeight — it will go back to a fixed value that ignores the card\'s real height');
 
-  // BUG (2026-09-25, user-reported): the first fix above made the chart
-  // fill its card, but also made its ResizeObserver re-render on HEIGHT
-  // changes of the very element this function itself resizes — a classic
-  // ResizeObserver + flex-grow feedback loop, so the chart never stopped
-  // reloading. Fixed by making the SVG's actual visual size purely
-  // CSS-driven (width/height:100% + preserveAspectRatio="none", stretching
-  // to fill chartWrapper regardless of the internal viewBox coordinate
-  // system) so NO resize-triggered re-render is needed for height at all —
-  // only width still triggers one, exactly as before any of this started.
-  assert(/\.style\('width', '100%'\)/.test(body) && /\.style\('height', '100%'\)/.test(body), 'REGRESSION: the <svg> is no longer sized via CSS width/height:100% — it will need JS-driven height recomputation again, reopening the resize-loop risk');
-  assert(/preserveAspectRatio.*none/.test(body), 'REGRESSION: <svg> lost preserveAspectRatio="none" — without it the chart will letterbox instead of truly filling the card');
-  assert(!/\.attr\('height', height\)/.test(body), 'REGRESSION: <svg> is setting a fixed height ATTRIBUTE again — CSS height:100% must be the only thing controlling its rendered size');
-
+  // BUG (2026-09-25, user-reported #2, "grafik terus reload"): the first
+  // fix above made the chart fill its card, but also made its
+  // ResizeObserver re-render on HEIGHT changes of the very element this
+  // function itself resizes — a classic ResizeObserver + flex-grow
+  // feedback loop, so the chart never stopped reloading.
   const resizeObserverMatch = body.match(/_siResizeObserver = new ResizeObserver\(function\(entries\)[\s\S]*?\n    \}\);/);
   assert(resizeObserverMatch, 'REGRESSION: could not isolate the ResizeObserver callback');
   assert(!/newH/.test(resizeObserverMatch[0]) && !/contentRect\.height/.test(resizeObserverMatch[0]), 'REGRESSION: the ResizeObserver is comparing height again — since this function is what determines this element\'s own flex-computed height, watching height here caused an infinite re-render loop (the exact bug just reported) and must never come back');
+
+  // BUG (2026-09-25, user-reported #3, "font dan ukurannya tidak sesuai"):
+  // fixing #2 by switching the <svg> to a CSS-only fill
+  // (width/height:100% + preserveAspectRatio="none") let the browser
+  // rescale the WHOLE internal coordinate system non-uniformly on X vs Y
+  // whenever the measured `height` didn't exactly match the box's true
+  // final rendered height — which distorted every font-size set in SVG
+  // user units below, making labels look wrong-sized next to every other
+  // card on the page. Fixed by going back to a plain 1:1 mapping: the
+  // <svg>'s own height ATTRIBUTE (not CSS) is set to the exact same
+  // number as viewBox's height, so the browser never rescales the Y axis
+  // at all and text renders at its literal authored size — the width
+  // attribute stays a CSS percentage (matches viewBox width by
+  // measurement, and only ever caused horizontal scroll, never text
+  // distortion, in this chart's whole history).
+  assert(/\.attr\('height', height\)/.test(body), 'REGRESSION: <svg> is no longer given a plain height ATTRIBUTE equal to the measured `height` — a CSS-only fill (width/height:100%) will again let the browser rescale text non-uniformly whenever the measurement doesn\'t exactly match the box\'s true final height');
+  assert(!/\.attr\('preserveAspectRatio'/.test(body), 'REGRESSION: preserveAspectRatio attribute is back — with a 1:1 height attribute mapping it has no purpose and its presence signals the CSS-stretch approach that caused the font-distortion bug has crept back in');
+  assert(!/\.style\('height', '100%'\)/.test(body), 'REGRESSION: <svg> is CSS-stretched to height:100% again — this bypasses the 1:1 viewBox mapping and reintroduces the font-distortion bug');
 });
 
 console.log('═══════════════════════════════════════════════════════');

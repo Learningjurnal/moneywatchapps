@@ -636,29 +636,28 @@
     var innerW = Math.max(120, width - margin.left - margin.right);
     var innerH = Math.max(200, height - margin.top - margin.bottom);
 
-    // FIX (2026-09-25, user-reported: chart went into an infinite re-render
-    // loop right after the "fill the card" fix above): the previous
-    // attempt made the ResizeObserver re-render on HEIGHT changes too, but
-    // this SAME render function is what sets chartWrapper's flex-computed
-    // height in the first place — any sub-pixel layout adjustment from
-    // that (a well-known ResizeObserver + flex-grow feedback pattern) kept
-    // re-triggering itself. Fixed properly with a CSS-only fill: `height`
-    // above still picks a sensible design height for the D3 scales'
-    // internal coordinate system (measured once, not re-derived on every
-    // resize), but the actual VISUAL size is now driven by CSS
-    // width/height:100% + preserveAspectRatio="none", so the SVG stretches
-    // to fill chartWrapper's real flex-computed box with zero JS
-    // involvement — no resize-triggered re-render for height is needed at
-    // all anymore (only width still triggers a re-render below, exactly
-    // as it did before this whole fix, since that path never looped).
+    // FIX (2026-09-25, user-reported "font dan ukurannya tidak sesuai"):
+    // the previous CSS-only-fill attempt (width/height:100% +
+    // preserveAspectRatio="none") let the browser rescale the SVG's whole
+    // internal coordinate system — including every font-size set in SVG
+    // user units below — to whatever the actual rendered box turned out
+    // to be, independently on X and Y. Any tiny mismatch between the
+    // `height` measured once above and the box's true final height (grid
+    // stretch settles a beat after this synchronous read in some cases)
+    // stretched text non-uniformly, which is exactly what made the labels
+    // look wrong-sized next to every other card on the page. Fixed by
+    // going back to a plain 1:1 mapping — viewBox and the SVG's own
+    // width/height are set to the SAME measured numbers, so the browser
+    // never rescales anything and text renders at its literal authored
+    // size, matching the rest of the app exactly like it always did
+    // before any of today's height-related changes.
     var svg = d3.select(chartWrapper)
       .append('svg')
       .attr('id', 'si-d3-svg')
+      .attr('width', '100%')
+      .attr('height', height)
       .attr('viewBox', '0 0 ' + width + ' ' + height)
-      .attr('preserveAspectRatio', 'none')
-      .style('display', 'block')
-      .style('width', '100%')
-      .style('height', '100%');
+      .style('display', 'block');
 
     // Tooltip tunggal global
     var tooltip = d3.select('body').select('#si-d3-tooltip');
