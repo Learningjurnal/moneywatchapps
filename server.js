@@ -4085,6 +4085,31 @@ app.get('/api/idx/special-notations/:ticker', async (req, res) => {
   }
 });
 
+// FIX (2026-09-25, user-reported: Beta/Alpha riil table still empty for
+// every row even after throttling /api/idx/history — live Vercel function
+// logs the user shared showed the actual smoking gun: THIS route,
+// /api/idx/quotes, fires one Yahoo Finance call per portfolio ticker via a
+// single unbounded Promise.allSettled(list.map(...)) — up to 100
+// simultaneous query1.finance.yahoo.com requests per invocation (confirmed
+// live: ~18 concurrent calls fired from one POST for an ~18-stock
+// portfolio). This runs on every price-refresh cycle, so it was
+// contending with (and likely still triggering Yahoo throttling for) the
+// /api/idx/history calls that were already bounded earlier the same day —
+// fixing history's concurrency alone couldn't help while this endpoint
+// kept bursting unbounded on the same deployment/IP. Same fix shape as
+// fetchYahooHistoryBatched() in lib/idx-data-engine.js: chunk into fixed
+// BATCH=8 groups, one batch resolved before the next starts.
+async function fetchYahooQuoteBatched(tickers, batchSize) {
+  const BATCH = batchSize || 8;
+  const results = [];
+  for (let i = 0; i < tickers.length; i += BATCH) {
+    const batch = tickers.slice(i, i + BATCH);
+    const batchResults = await Promise.allSettled(batch.map(t => fetchYahooQuote(t)));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 // POST /api/idx/quotes — Batch real-time quotes
 app.post('/api/idx/quotes', async (req, res) => {
   try {
@@ -4094,7 +4119,7 @@ app.post('/api/idx/quotes', async (req, res) => {
     }
 
     const cleanTickers = tickers.slice(0, 100).map(t => String(t).toUpperCase().replace(/\.JK$/i, '').trim());
-    const results = await Promise.allSettled(cleanTickers.map(t => fetchYahooQuote(t)));
+    const results = await fetchYahooQuoteBatched(cleanTickers);
 
     const quotes = {};
     results.forEach((r, idx) => {
@@ -4133,7 +4158,7 @@ app.get('/api/idx/screener', async (req, res) => {
 
     // Sample top tickers for quick fundamental check
     const topSample = list.slice(0, parseInt(limit, 10) || 50);
-    const quoteResults = await Promise.allSettled(topSample.map(item => fetchYahooQuote(item.code)));
+    const quoteResults = await fetchYahooQuoteBatched(topSample.map(item => item.code));
 
     const enriched = quoteResults.map((qr, i) => {
       const base = topSample[i];

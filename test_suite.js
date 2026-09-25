@@ -8794,6 +8794,77 @@ await asyncTest('REGRESSION GUARD: rdEnsure() (shared FlowScan/Ranking/Heatmap/S
   assert.strictEqual(dupCbCount, 5, 'REGRESSION: only ' + dupCbCount + ' of 5 callers for the deduped ticker got their callback invoked — a caller would hang forever waiting for rdEnsure()');
 });
 
+// ============================================================
+// BUG (2026-09-25, user-reported: Beta/Alpha riil table still empty for
+// every row even after /api/idx/history's concurrency was already
+// bounded earlier the same day). Root cause found from live Vercel
+// function logs the user shared: POST /api/idx/quotes — the batch
+// real-time-quote endpoint called on every price-refresh cycle for the
+// user's whole portfolio (public/js/03-engine.js) — fired an unbounded
+// Promise.allSettled(list.map(t => fetchYahooQuote(t))) for up to 100
+// tickers at once (confirmed live: ~18 simultaneous
+// query1.finance.yahoo.com calls from one invocation for an ~18-stock
+// portfolio). This ran concurrently with (and could keep throttling)
+// the already-bounded /api/idx/history calls on the same deployment/IP
+// — fixing history's concurrency alone could not help while this
+// endpoint kept bursting unbounded. GET /api/idx/screener had the same
+// pattern for its quote-enrichment step. Fixed with
+// fetchYahooQuoteBatched(), same BATCH=8 chunking shape as
+// fetchYahooHistoryBatched() in lib/idx-data-engine.js (fixed earlier
+// the same day), routed through both call sites.
+// ============================================================
+await asyncTest('REGRESSION GUARD: server.js batches Yahoo quote fetches in /api/idx/quotes and /api/idx/screener instead of firing the whole ticker list at once', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+
+  assert(/async function fetchYahooQuoteBatched\(tickers, batchSize\)/.test(fullSrc),
+    'REGRESSION: fetchYahooQuoteBatched() helper is gone');
+  const helperMatch = fullSrc.match(/async function fetchYahooQuoteBatched\([\s\S]*?\n\}/);
+  assert(helperMatch, 'could not extract fetchYahooQuoteBatched() body');
+  assert(/for \(let i = 0; i < tickers\.length; i \+= BATCH\)/.test(helperMatch[0]),
+    'REGRESSION: fetchYahooQuoteBatched() no longer chunks the ticker list');
+  assert(/tickers\.slice\(i, i \+ BATCH\)/.test(helperMatch[0]),
+    'REGRESSION: fetchYahooQuoteBatched() no longer slices into fixed-size batches');
+
+  const quotesRouteMatch = fullSrc.match(/app\.post\('\/api\/idx\/quotes'[\s\S]*?\n\}\);/);
+  assert(quotesRouteMatch, 'POST /api/idx/quotes route not found');
+  assert(/fetchYahooQuoteBatched\(cleanTickers\)/.test(quotesRouteMatch[0]),
+    'REGRESSION: POST /api/idx/quotes no longer routes through fetchYahooQuoteBatched() — up to 100 simultaneous Yahoo quote calls per portfolio refresh again, this was the confirmed live root cause of the empty Beta/Alpha table');
+  assert(!/Promise\.allSettled\(cleanTickers\.map/.test(quotesRouteMatch[0]),
+    'REGRESSION: POST /api/idx/quotes is back to an unbounded Promise.allSettled(cleanTickers.map(...)) burst');
+
+  const screenerRouteMatch = fullSrc.match(/app\.get\('\/api\/idx\/screener'[\s\S]*?\n\}\);/);
+  assert(screenerRouteMatch, 'GET /api/idx/screener route not found');
+  assert(/fetchYahooQuoteBatched\(topSample\.map\(item => item\.code\)\)/.test(screenerRouteMatch[0]),
+    'REGRESSION: GET /api/idx/screener no longer routes through fetchYahooQuoteBatched()');
+  assert(!/Promise\.allSettled\(topSample\.map/.test(screenerRouteMatch[0]),
+    'REGRESSION: GET /api/idx/screener is back to an unbounded Promise.allSettled(topSample.map(...)) burst');
+
+  // Functional proof: extract fetchYahooQuoteBatched() standalone, stub
+  // fetchYahooQuote() to track concurrent in-flight calls, confirm peak
+  // concurrency never exceeds BATCH size (8) across 19 fake tickers (not
+  // a multiple of 8, to catch an off-by-one in the chunking loop) —
+  // matching the ~18-ticker portfolio size from the live incident.
+  const sandbox = { setTimeout, console, Promise };
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(helperMatch[0], ctx, { filename: 'server.js (fetchYahooQuoteBatched slice, sandboxed)' });
+  assert.strictEqual(typeof ctx.fetchYahooQuoteBatched, 'function', 'fetchYahooQuoteBatched() not found in extracted slice');
+
+  let inFlight = 0, peakInFlight = 0;
+  const fakeTickers = Array.from({ length: 19 }, (_, i) => 'FAKE' + i);
+  ctx.fetchYahooQuote = (t) => {
+    inFlight++;
+    peakInFlight = Math.max(peakInFlight, inFlight);
+    return new Promise((resolve) => {
+      setTimeout(() => { inFlight--; resolve({ price: 100, isSimulated: false }); }, Math.random() * 5);
+    });
+  };
+
+  const results = await ctx.fetchYahooQuoteBatched(fakeTickers, 8);
+  assert(peakInFlight <= 8, 'REGRESSION: peak concurrent fetchYahooQuote() calls was ' + peakInFlight + ' (>8) — fetchYahooQuoteBatched() is bursting past its batch size');
+  assert.strictEqual(results.length, 19, 'expected one result per input ticker, got ' + results.length);
+  assert(results.every(r => r.status === 'fulfilled'), 'expected all fake fetches to resolve as fulfilled');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
