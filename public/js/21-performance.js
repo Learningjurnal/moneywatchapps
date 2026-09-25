@@ -866,23 +866,43 @@ function renderDividendYoC(){
 // sudah dipakai FlowScan/Ranking/dst di 13-realdata.js — satu sumber
 // data, bukan fetch terpisah) untuk SEMUA ticker yang sedang dipegang.
 // Dipakai bersama oleh Alpha/Beta riil (di sini) dan Correlation
-// portofolio riil (11-quant.js) supaya tidak ada 2 cara fetch berbeda. ──
+// portofolio riil (11-quant.js) supaya tidak ada 2 cara fetch berbeda.
+//
+// FIX (2026-09-25, user report: tabel Beta/Alpha kosong "Data harga riil
+// belum cukup panjang" di SEMUA baris sekaligus untuk portofolio ~20
+// saham): sebelumnya fungsi ini menembak rdEnsure() untuk SEMUA ticker
+// SEKALIGUS via tickers.forEach() tanpa batas concurrency — 20 saham berarti
+// 20 request /api/idx/history/:ticker paralel ke Yahoo Finance dari server
+// yang sama, burst seperti ini adalah pemicu umum Yahoo throttle/lambat
+// merespons, sehingga banyak/semua fetch timeout (8 detik per fetch,
+// YAHOO_FETCH_TIMEOUT_MS) bersamaan — persis pola "semua baris gagal
+// bareng" yang dilaporkan, bukan cuma 1-2 ticker bermasalah. Dibatasi
+// CONCURRENCY=4, pola sama persis dengan perfFetchManyDailyHistory() di
+// atas (dipakai rebuild equity history) yang sudah benar sejak awal. ──
 function perfFetchHoldingsHistory(cb){
   var porto = (typeof getPortfolio==='function') ? getPortfolio() : [];
   var tickers = porto.map(function(p){return p.ticker;});
   if(!tickers.length){ cb({}, [], porto); return; }
-  var result={}, failed=[], remaining=tickers.length;
-  function done(){ if(--remaining<=0) cb(result, failed, porto); }
-  tickers.forEach(function(tk){
-    if(typeof rdEnsure!=='function'){ failed.push(tk); done(); return; }
+  var result={}, failed=[];
+  var CONCURRENCY = 4, idx = 0, doneCount = 0;
+  function next(){
+    if(idx>=tickers.length) return;
+    var tk = tickers[idx++];
+    if(typeof rdEnsure!=='function'){ failed.push(tk); afterOne(); return; }
     rdEnsure(tk, function(err){
       if(!err){
         var rows = (typeof rdGetAny==='function') ? rdGetAny(tk) : null;
         if(rows && rows.length>=30) result[tk]=rows; else failed.push(tk);
       } else failed.push(tk);
-      done();
+      afterOne();
     });
-  });
+  }
+  function afterOne(){
+    doneCount++;
+    if(doneCount>=tickers.length) cb(result, failed, porto);
+    else next();
+  }
+  for(var i=0;i<Math.min(CONCURRENCY, tickers.length);i++) next();
 }
 // Peta tanggal->return harian dari array OHLCV terurut menaik
 function perfDailyReturns(rows){
