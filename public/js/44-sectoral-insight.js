@@ -636,13 +636,29 @@
     var innerW = Math.max(120, width - margin.left - margin.right);
     var innerH = Math.max(200, height - margin.top - margin.bottom);
 
+    // FIX (2026-09-25, user-reported: chart went into an infinite re-render
+    // loop right after the "fill the card" fix above): the previous
+    // attempt made the ResizeObserver re-render on HEIGHT changes too, but
+    // this SAME render function is what sets chartWrapper's flex-computed
+    // height in the first place — any sub-pixel layout adjustment from
+    // that (a well-known ResizeObserver + flex-grow feedback pattern) kept
+    // re-triggering itself. Fixed properly with a CSS-only fill: `height`
+    // above still picks a sensible design height for the D3 scales'
+    // internal coordinate system (measured once, not re-derived on every
+    // resize), but the actual VISUAL size is now driven by CSS
+    // width/height:100% + preserveAspectRatio="none", so the SVG stretches
+    // to fill chartWrapper's real flex-computed box with zero JS
+    // involvement — no resize-triggered re-render for height is needed at
+    // all anymore (only width still triggers a re-render below, exactly
+    // as it did before this whole fix, since that path never looped).
     var svg = d3.select(chartWrapper)
       .append('svg')
       .attr('id', 'si-d3-svg')
-      .attr('width', '100%')
-      .attr('height', height)
       .attr('viewBox', '0 0 ' + width + ' ' + height)
-      .style('display', 'block');
+      .attr('preserveAspectRatio', 'none')
+      .style('display', 'block')
+      .style('width', '100%')
+      .style('height', '100%');
 
     // Tooltip tunggal global
     var tooltip = d3.select('body').select('#si-d3-tooltip');
@@ -1174,16 +1190,19 @@
       try { _siResizeObserver.disconnect(); } catch (e) {}
     }
 
+    // FIX (2026-09-25): only WIDTH re-triggers a re-render (needed because
+    // D3's band/linear scales and text-truncation margins are computed in
+    // real pixels from the measured width). HEIGHT is deliberately NOT
+    // watched here anymore — see the CSS-only fill note above the <svg>
+    // creation: watching this same element's height while this very
+    // function is what determines that element's flex-computed height
+    // caused an infinite re-render loop (a known ResizeObserver +
+    // flex-grow feedback pattern), which is exactly the bug just reported.
     var resizeTimer = null;
     _siResizeObserver = new ResizeObserver(function(entries) {
       if (!entries || entries.length === 0) return;
       var newW = entries[0].contentRect.width;
-      var newH = entries[0].contentRect.height;
-      // Re-render juga saat TINGGI card berubah signifikan (mis. daftar
-      // berita di kartu sebelah selesai dimuat dan card ini ikut
-      // di-stretch CSS grid) — bukan cuma lebar, supaya chart tetap
-      // mengisi penuh tinggi card yang sekarang tersedia.
-      if (Math.abs(newW - width) > 15 || Math.abs(newH - height) > 15) {
+      if (Math.abs(newW - width) > 15) {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function() {
           if (_siState.viewMode === 'bar') {
