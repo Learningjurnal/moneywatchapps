@@ -8937,6 +8937,65 @@ await asyncTest('REGRESSION GUARD: bandarRenderAccDistTable() (Radar Akumulasi/D
 });
 
 // ============================================================
+// BUG (2026-09-25, user-reported, second follow-up on the same screenshot:
+// "seharusnya yang menjadi konsentrasi bukan score namun nilai
+// transaksinya dan volumenya, di urutkan dari yang paling besar ke kecil
+// dengan menampikan hanya 10 besar" — adding the Nilai Transaksi column
+// above was not enough; the ranking itself was still Invezgo's
+// calculated_value score, which has no liquidity floor, so a Rp15.5 juta
+// / 12-lot trade (SRAJ, score 80.8) still ranked #1 "SELURUH BEI" ahead of
+// far larger real trades). Fix: bandarRenderAccDistTable() now re-sorts
+// the full accumulation/distribution list by real Nilai Transaksi (Rp,
+// item.valueRp) descending BEFORE truncating to the top 10 — score stays
+// visible as context but no longer decides rank or cutoff.
+// ============================================================
+test('REGRESSION GUARD: bandarRenderAccDistTable() ranks by real Nilai Transaksi (Rp), not Invezgo\'s calculated_value score', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = fullSrc.match(/function bandarRenderAccDistTable\(mode, data\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'bandarRenderAccDistTable() not found');
+  const fnBody = fnMatch[0];
+
+  const sortMatch = fnBody.match(/list = list\.slice\(\)\.sort\(function\(a, b\) \{[\s\S]*?\n  \}\)\.slice\(0, 10\);/);
+  assert(sortMatch, 'REGRESSION: bandarRenderAccDistTable() no longer re-sorts list by valueRp before truncating to top 10 — the thin-liquidity SRAJ/BBSI top-rank bug is back');
+  assert(/b\.valueRp.*a\.valueRp|Number\(b\.valueRp\).*Number\(a\.valueRp\)/.test(sortMatch[0]),
+    'REGRESSION: the sort comparator no longer orders by valueRp descending (b - a)');
+  assert(!/list = list\.slice\(0, 10\);\s*\n\s*var color/.test(fnBody),
+    'REGRESSION: list is truncated to 10 directly off the server\'s score-sorted order again, bypassing the Nilai Transaksi re-sort');
+
+  // Functional proof: given an unsorted-by-value list, the render output
+  // lists the ticker with the largest valueRp first, not the one Invezgo
+  // scored highest.
+  const fakeData = {
+    success: true, isSimulated: false, date: '2026-09-25',
+    counts: { accumulation: 3, distribution: 0, totalUniverseScanned: 3 },
+    accumulation: [
+      { ticker: 'SRAJ', name: 'Sejahtera Raya', sector: '-', score: 80.8, avgPrice: 13000, priceChangePct: 0, volume: 1200, valueRp: 15500000 },
+      { ticker: 'BBCA', name: 'Bank Central Asia', sector: 'Financials', score: 5.2, avgPrice: 9500, priceChangePct: 1.2, volume: 5000000, valueRp: 47500000000 },
+      { ticker: 'TLKM', name: 'Telkom Indonesia', sector: 'Infrastructures', score: 12.1, avgPrice: 2900, priceChangePct: -0.5, volume: 3000000, valueRp: 8700000000 }
+    ],
+    distribution: []
+  };
+  const html = bandarRenderAccDistTableForTest(fullSrc, 'acc', fakeData);
+  const idxBBCA = html.indexOf('BBCA');
+  const idxTLKM = html.indexOf('TLKM');
+  const idxSRAJ = html.indexOf('SRAJ');
+  assert(idxBBCA > -1 && idxTLKM > -1 && idxSRAJ > -1, 'expected all 3 fake tickers to appear in rendered output');
+  assert(idxBBCA < idxTLKM && idxTLKM < idxSRAJ,
+    'REGRESSION: rows are not ordered by Nilai Transaksi descending — BBCA (Rp47.5 M) should render before TLKM (Rp8.7 M) before SRAJ (Rp15.5 Jt, highest score but lowest real value)');
+});
+
+// Extracts and runs bandarRenderAccDistTable() in an isolated sandbox
+// (same eval-based technique already used elsewhere in this suite for
+// vanilla-JS render functions with no external dependencies).
+function bandarRenderAccDistTableForTest(fullSrc, mode, data) {
+  const fnMatch = fullSrc.match(/function bandarRenderAccDistTable\(mode, data\) \{[\s\S]*?\n\}/);
+  const sandbox = { DB: {}, Number, Math, JSON };
+  vm.createContext(sandbox);
+  vm.runInContext('var bandarRenderAccDistTable = ' + fnMatch[0], sandbox);
+  return sandbox.bandarRenderAccDistTable(mode, data);
+}
+
+// ============================================================
 // BUG (2026-09-25, user-reported: "TOP 5 FOREIGN NET BUY/SELL" widget
 // showed "+Rp 0 Jt" / "+Rp 1 Jt" for EVERY row, including net-sell rows
 // that should be negative — GOTO showed "+Rp 50" for the whole BEI

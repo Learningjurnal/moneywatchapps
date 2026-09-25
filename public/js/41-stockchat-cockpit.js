@@ -3348,12 +3348,25 @@ function renderBandarmologyDistributionView() {
 function bandarRenderAccDistTable(mode, data) {
   var isAcc = mode === 'acc';
   var list = isAcc ? (data && data.accumulation) || [] : (data && data.distribution) || [];
-  list = list.slice(0, 10);
+  // FIX (2026-09-25, user-reported, with screenshot: SRAJ score 80.8 with
+  // only 12 lot / Rp15.5 juta ranked #1 "AKUMULASI SELURUH BEI", BBSI
+  // score -74 with only 3 lot / Rp1.4 juta ranked #1 distribution —
+  // "seharusnya yang menjadi konsentrasi bukan score namun nilai
+  // transaksinya dan volumenya, di urutkan dari yang paling besar ke
+  // kecil"): re-rank by real transaction value (Rp) descending — the
+  // genuinely meaningful signal for "whole-market" significance — instead
+  // of Invezgo's own calculated_value score, which has no liquidity
+  // floor and lets a thin trade outrank a large one. Score column stays
+  // visible (still real, still useful context) but no longer decides
+  // the ranking or the top-10 cutoff.
+  list = list.slice().sort(function(a, b) {
+    return (Number(b.valueRp) || 0) - (Number(a.valueRp) || 0);
+  }).slice(0, 10);
   var color = isAcc ? 'var(--green)' : 'var(--red)';
   var title = isAcc ? 'RADAR SAHAM TERAKUMULASI SELURUH BEI' : 'RADAR SAHAM TERDISTRIBUSI SELURUH BEI (PERINGATAN TEKANAN JUAL)';
   var subtitle = isAcc
-    ? 'Skor akumulasi dari Invezgo (top/accumulation) — seluruh emiten aktif, bukan sampel.'
-    : 'Skor distribusi dari Invezgo (top/accumulation, sisi negatif) — seluruh emiten aktif, bukan sampel.';
+    ? 'Diurutkan dari Nilai Transaksi (Rp) terbesar — seluruh emiten aktif, bukan sampel. Skor Invezgo (top/accumulation) ditampilkan sebagai konteks tambahan, bukan urutan.'
+    : 'Diurutkan dari Nilai Transaksi (Rp) terbesar — seluruh emiten aktif, bukan sampel. Skor Invezgo (top/accumulation, sisi negatif) ditampilkan sebagai konteks tambahan, bukan urutan.';
 
   if (!data || data.success === false || data.isSimulated || !data.counts) {
     return '<div class="card" style="padding:16px">'
