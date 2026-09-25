@@ -862,47 +862,51 @@ function renderDividendYoC(){
   }).join('');
 }
 
-// ── Fetch riwayat harga harian RIIL (Yahoo, via rdEnsure/rdGetAny yang
-// sudah dipakai FlowScan/Ranking/dst di 13-realdata.js — satu sumber
-// data, bukan fetch terpisah) untuk SEMUA ticker yang sedang dipegang.
-// Dipakai bersama oleh Alpha/Beta riil (di sini) dan Correlation
+// ── Fetch riwayat harga harian RIIL untuk SEMUA ticker yang sedang
+// dipegang. Dipakai bersama oleh Alpha/Beta riil (di sini) dan Correlation
 // portofolio riil (11-quant.js) supaya tidak ada 2 cara fetch berbeda.
 //
-// FIX (2026-09-25, user report: tabel Beta/Alpha kosong "Data harga riil
-// belum cukup panjang" di SEMUA baris sekaligus untuk portofolio ~20
-// saham): sebelumnya fungsi ini menembak rdEnsure() untuk SEMUA ticker
-// SEKALIGUS via tickers.forEach() tanpa batas concurrency — 20 saham berarti
-// 20 request /api/idx/history/:ticker paralel ke Yahoo Finance dari server
-// yang sama, burst seperti ini adalah pemicu umum Yahoo throttle/lambat
-// merespons, sehingga banyak/semua fetch timeout (8 detik per fetch,
-// YAHOO_FETCH_TIMEOUT_MS) bersamaan — persis pola "semua baris gagal
-// bareng" yang dilaporkan, bukan cuma 1-2 ticker bermasalah. Dibatasi
-// CONCURRENCY=4, pola sama persis dengan perfFetchManyDailyHistory() di
-// atas (dipakai rebuild equity history) yang sudah benar sejak awal. ──
+// FIX #1 (2026-09-25, user report: tabel Beta/Alpha kosong "Data harga
+// riil belum cukup panjang" di SEMUA baris sekaligus untuk portofolio
+// ~20 saham): sebelumnya fungsi ini menembak rdEnsure() untuk SEMUA
+// ticker SEKALIGUS via tickers.forEach() tanpa batas concurrency.
+// Dibatasi CONCURRENCY=4 — tapi ini TIDAK CUKUP, lihat FIX #2.
+//
+// FIX #2 (akar masalah sebenarnya, ditemukan lewat log diagnostik
+// browser user: "stockRets keys=53 ... ihsgRets keys=2410 overlap=1
+// (need >=20)"): fungsi ini sebelumnya membaca cache rdEnsure()/
+// rdGetAny() di 13-realdata.js — cache itu dipopulasi lewat
+// rdFetchYahoo() yang minta tf=1Y ke /api/idx/history, dan tf=1Y
+// ternyata memetakan ke interval MINGGUAN (lihat
+// HISTORY_TF_MAP['1Y'].interval='1wk' di lib/providers/yahoo-client.js)
+// — bukan harian seperti nama variabelnya ("riwayat harga HARIAN riil")
+// menyiratkan. IHSG (via rdFetchIhsgDaily -> perfFetchDailyHistory
+// DAILY_MAX) betul-betul harian. Meregresikan return MINGGUAN saham vs
+// return HARIAN IHSG membuat tanggal keduanya nyaris tidak pernah persis
+// sama (candle mingguan Yahoo tidak selalu jatuh di hari bursa yang ada
+// di seri harian) — overlap runtuh ke ~0-1 titik, gagal syarat minimal
+// 20 titik SETIAP KALI, terlepas dari seberapa bagus data mentahnya.
+// Fixed dengan mengalihkan ke perfFetchManyDailyHistory() (fungsi di
+// atas, sudah dipakai equity-rebuild) — benar-benar harian
+// (DAILY_MAX/10 tahun) dan sudah concurrency-safe (CONCURRENCY=4) sejak
+// awal, sehingga FIX #1 di atas kini redundan tapi tidak berbahaya untuk
+// dihapus terpisah. Efek samping baik: Correlation Matrix (11-quant.js)
+// yang juga pakai fungsi ini untuk window "180 hari" sebelumnya cuma
+// dapat ~53 baris mingguan (jauh dari 180 hari asli) — sekarang benar
+// dapat data harian. ──
 function perfFetchHoldingsHistory(cb){
   var porto = (typeof getPortfolio==='function') ? getPortfolio() : [];
   var tickers = porto.map(function(p){return p.ticker;});
   if(!tickers.length){ cb({}, [], porto); return; }
-  var result={}, failed=[];
-  var CONCURRENCY = 4, idx = 0, doneCount = 0;
-  function next(){
-    if(idx>=tickers.length) return;
-    var tk = tickers[idx++];
-    if(typeof rdEnsure!=='function'){ failed.push(tk); afterOne(); return; }
-    rdEnsure(tk, function(err){
-      if(!err){
-        var rows = (typeof rdGetAny==='function') ? rdGetAny(tk) : null;
-        if(rows && rows.length>=30) result[tk]=rows; else failed.push(tk);
-      } else failed.push(tk);
-      afterOne();
+  var requests = tickers.map(function(tk){ return {assetClass:'stock', code:tk}; });
+  perfFetchManyDailyHistory(requests, function(histMapByKey){
+    var result={}, failed=[];
+    tickers.forEach(function(tk){
+      var rows = histMapByKey[perfHistCacheKey('stock', tk)];
+      if(rows && rows.length>=30) result[tk]=rows; else failed.push(tk);
     });
-  }
-  function afterOne(){
-    doneCount++;
-    if(doneCount>=tickers.length) cb(result, failed, porto);
-    else next();
-  }
-  for(var i=0;i<Math.min(CONCURRENCY, tickers.length);i++) next();
+    cb(result, failed, porto);
+  });
 }
 // Peta tanggal->return harian dari array OHLCV terurut menaik
 function perfDailyReturns(rows){

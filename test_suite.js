@@ -8569,63 +8569,94 @@ await asyncTest('REGRESSION GUARD: Pairs Trading "Analisa Pairs" (simulasi) disc
 // ============================================================
 // BUG (2026-09-25, user report: tabel Beta/Alpha riil di Performance
 // tampil "Data harga riil belum cukup panjang" di SEMUA baris sekaligus
-// untuk portofolio ~20 saham): perfFetchHoldingsHistory() menembak
-// rdEnsure() untuk SEMUA ticker portofolio SEKALIGUS lewat
-// tickers.forEach() tanpa batas concurrency — 20 saham berarti 20 request
-// /api/idx/history/:ticker paralel ke Yahoo Finance dari server yang
-// sama, burst seperti ini adalah pemicu umum Yahoo throttle sehingga
-// banyak/semua fetch timeout bersamaan (bukan cuma 1-2 ticker
-// bermasalah). Fixed dengan membatasi CONCURRENCY=4, pola sama persis
-// dengan perfFetchManyDailyHistory() di file yang sama (dipakai rebuild
-// equity history) yang sudah benar sejak awal.
+// untuk portofolio ~20 saham). Two fixes were needed, in order:
+//
+// FIX #1 (superseded by FIX #2 below, kept working in the interim):
+// perfFetchHoldingsHistory() fired rdEnsure() for every portfolio ticker
+// at once via a plain forEach, no concurrency bound — bounded to
+// CONCURRENCY=4.
+//
+// FIX #2 (the actual root cause, found from the user's own browser
+// console diagnostic log: "stockRets keys=53 ... ihsgRets keys=2410
+// overlap=1 (need >=20)"): perfFetchHoldingsHistory() read its per-stock
+// history from rdEnsure()/rdGetAny() (13-realdata.js), which is
+// populated via rdFetchYahoo()'s tf=1Y request — and tf=1Y maps to a
+// WEEKLY Yahoo interval (HISTORY_TF_MAP['1Y'].interval='1wk' in
+// lib/providers/yahoo-client.js), not daily. IHSG's own series
+// (rdFetchIhsgDaily -> perfFetchDailyHistory DAILY_MAX) is genuinely
+// daily. Regressing weekly stock returns against daily IHSG returns
+// means the two date sets almost never land on the same calendar date,
+// collapsing the overlap to ~0-1 points regardless of how much real data
+// either side has — exactly the reported symptom, and exactly what the
+// live diagnostic log confirmed. Fixed by routing
+// perfFetchHoldingsHistory() through perfFetchManyDailyHistory() (the
+// already-daily, already concurrency-safe fetcher used for equity-history
+// rebuilding) instead of the weekly-cache-backed rdEnsure()/rdGetAny().
 // ============================================================
-await asyncTest('REGRESSION GUARD: perfFetchHoldingsHistory() (Beta/Alpha riil, Correlation) throttles concurrent Yahoo fetches instead of firing all portfolio tickers at once', () => {
+await asyncTest('REGRESSION GUARD: perfFetchHoldingsHistory() (Beta/Alpha riil, Correlation) fetches genuinely DAILY history via perfFetchManyDailyHistory(), not the weekly-interval rdEnsure()/rdGetAny() cache', () => {
   const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/21-performance.js'), 'utf8');
 
-  const startMarker = '// ── Fetch riwayat harga harian RIIL';
-  const start = fullSrc.indexOf(startMarker);
-  assert(start !== -1, 'sanity: perfFetchHoldingsHistory() header comment not found — has it moved?');
-  let src = fullSrc.slice(start);
-  const endMarker = '\n// Peta tanggal->return';
-  const relEnd = src.indexOf(endMarker);
-  assert(relEnd !== -1, 'sanity: could not find the boundary right after perfFetchHoldingsHistory() (next function perfDailyReturns)');
-  src = src.slice(0, relEnd);
+  const fnMatch = fullSrc.match(/function perfFetchHoldingsHistory\(cb\)\{[\s\S]*?\n\}/);
+  assert(fnMatch, 'perfFetchHoldingsHistory() not found');
+  const fnBody = fnMatch[0];
+  assert(/perfFetchManyDailyHistory\(requests, function/.test(fnBody),
+    'REGRESSION: perfFetchHoldingsHistory() no longer routes through perfFetchManyDailyHistory() — it may be back to reading the weekly-interval rdEnsure()/rdGetAny() cache, which was the confirmed root cause of the Beta/Alpha table\'s date-overlap collapsing to ~0-1 points');
+  assert(/assetClass:\s*'stock'/.test(fnBody),
+    'REGRESSION: perfFetchHoldingsHistory() no longer requests assetClass:\'stock\' history (daily) for portfolio tickers');
+  assert(!/rdEnsure\(/.test(fnBody) && !/rdGetAny\(/.test(fnBody),
+    'REGRESSION: perfFetchHoldingsHistory() calls rdEnsure()/rdGetAny() again — that cache is populated via a WEEKLY (tf=1Y -> interval=1wk) Yahoo request, which cannot date-align with IHSG\'s daily series for the Beta/Alpha regression');
 
-  assert(/CONCURRENCY\s*=\s*4/.test(src), 'REGRESSION: perfFetchHoldingsHistory() no longer bounds concurrency — it is firing every portfolio ticker\'s fetch at once again, which is exactly what caused all rows to fail together on real multi-holding portfolios');
+  // Build a sandboxable slice: perfHistCacheKey() + perfFetchManyDailyHistory()
+  // (both needed, real bodies) stitched to perfFetchHoldingsHistory() —
+  // perfFetchDailyHistory() itself (the real-network leaf) is stubbed by
+  // the test instead of included, so no real fetch() ever runs.
+  const keyFnMatch = fullSrc.match(/function perfHistCacheKey\([\s\S]*?\n\}/);
+  assert(keyFnMatch, 'perfHistCacheKey() not found');
+  const manyFnMatch = fullSrc.match(/function perfFetchManyDailyHistory\([\s\S]*?\n\}/);
+  assert(manyFnMatch, 'perfFetchManyDailyHistory() not found');
 
-  // Functional proof: stub getPortfolio()/rdEnsure()/rdGetAny() and track
-  // how many rdEnsure() calls are in flight at any given moment while
-  // resolving 12 fake tickers asynchronously (setTimeout, so calls don't
-  // resolve synchronously in call order — a real network fetch wouldn't
-  // either). The peak in-flight count must never exceed 4.
+  const src = keyFnMatch[0] + '\n' + manyFnMatch[0] + '\n' + fnBody;
+  assert(!/function perfFetchDailyHistory/.test(src), 'sanity: perfFetchDailyHistory() (real network) leaked into the extracted slice — it should be stubbed by the test');
+
   const sandbox = { window: {}, setTimeout, console };
   sandbox.window = sandbox;
   const ctx = vm.createContext(sandbox);
-  vm.runInContext(src, ctx, { filename: '21-performance.js (perfFetchHoldingsHistory slice, sandboxed)' });
-
+  vm.runInContext(src, ctx, { filename: '21-performance.js (perfFetchHoldingsHistory + deps slice, sandboxed)' });
   assert.strictEqual(typeof ctx.perfFetchHoldingsHistory, 'function', 'perfFetchHoldingsHistory() not found in extracted slice');
 
   const N = 12;
   const fakeTickers = Array.from({ length: N }, (_, i) => 'FAKE' + i);
   const fakePorto = fakeTickers.map((t) => ({ ticker: t, mv: 100 }));
-  const fakeRows = Array.from({ length: 40 }, (_, i) => ({ date: '2020-01-0' + (1 + (i % 9)), close: 100 + i }));
+  // 40 rows of genuinely daily-spaced dates (not weekly) — a >=30-row
+  // daily series is what the fix expects to receive from
+  // perfFetchDailyHistory('stock', ...) now, not a ~53-row weekly one.
+  const fakeDailyRows = Array.from({ length: 40 }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 0, 1)); d.setUTCDate(d.getUTCDate() + i);
+    return { date: d.toISOString().slice(0, 10), close: 100 + i };
+  });
 
-  let inFlight = 0, peakInFlight = 0;
+  let inFlight = 0, peakInFlight = 0, requestedAssetClasses = new Set();
   ctx.getPortfolio = () => fakePorto;
-  ctx.rdEnsure = (tk, cb) => {
+  ctx.perfFetchDailyHistory = (assetClass, code, cb) => {
+    requestedAssetClasses.add(assetClass);
     inFlight++;
     peakInFlight = Math.max(peakInFlight, inFlight);
-    setTimeout(() => { inFlight--; cb(null); }, Math.random() * 5);
+    setTimeout(() => { inFlight--; cb(null, fakeDailyRows); }, Math.random() * 5);
   };
-  ctx.rdGetAny = () => fakeRows;
 
   return new Promise((resolve, reject) => {
     ctx.perfFetchHoldingsHistory((result, failed, porto) => {
       try {
-        assert(peakInFlight <= 4, 'REGRESSION: peak concurrent rdEnsure() calls was ' + peakInFlight + ' (>4) — perfFetchHoldingsHistory() is bursting all portfolio tickers at once again instead of throttling to CONCURRENCY=4');
+        assert(peakInFlight <= 4, 'REGRESSION: peak concurrent perfFetchDailyHistory() calls was ' + peakInFlight + ' (>4) — the concurrency bound perfFetchManyDailyHistory() is supposed to provide is gone');
+        assert.deepStrictEqual([...requestedAssetClasses], ['stock'], 'expected perfFetchHoldingsHistory() to request assetClass \'stock\' (daily) history, got: ' + [...requestedAssetClasses].join(', '));
         assert.strictEqual(Object.keys(result).length, N, 'all ' + N + ' fake tickers should have resolved into result, got ' + Object.keys(result).length);
         assert.strictEqual(failed.length, 0, 'no tickers should have failed in this stub, got ' + failed.length);
         assert.strictEqual(porto, fakePorto, 'porto passed through to callback should be the same array getPortfolio() returned');
+        // result must be keyed by the PLAIN ticker (e.g. "FAKE0"), not the
+        // perfHistCacheKey()-prefixed form (e.g. "PXH_STK_FAKE0") — callers
+        // like corrRender() (11-quant.js) index it with Object.keys(histMap)
+        // and expect plain tickers back.
+        assert(result['FAKE0'], 'REGRESSION: result is not keyed by plain ticker — corrRender() and perfComputeRealBeta() both look up histMap[ticker] with the plain ticker string');
         resolve();
       } catch (e) { reject(e); }
     });
