@@ -8566,6 +8566,72 @@ await asyncTest('REGRESSION GUARD: Pairs Trading "Analisa Pairs" (simulasi) disc
     'REGRESSION: the disclosure banner is no longer prepended into #pt-stats innerHTML — a user reading the pair stats would see no warning at all');
 });
 
+// ============================================================
+// BUG (2026-09-25, user report: tabel Beta/Alpha riil di Performance
+// tampil "Data harga riil belum cukup panjang" di SEMUA baris sekaligus
+// untuk portofolio ~20 saham): perfFetchHoldingsHistory() menembak
+// rdEnsure() untuk SEMUA ticker portofolio SEKALIGUS lewat
+// tickers.forEach() tanpa batas concurrency — 20 saham berarti 20 request
+// /api/idx/history/:ticker paralel ke Yahoo Finance dari server yang
+// sama, burst seperti ini adalah pemicu umum Yahoo throttle sehingga
+// banyak/semua fetch timeout bersamaan (bukan cuma 1-2 ticker
+// bermasalah). Fixed dengan membatasi CONCURRENCY=4, pola sama persis
+// dengan perfFetchManyDailyHistory() di file yang sama (dipakai rebuild
+// equity history) yang sudah benar sejak awal.
+// ============================================================
+await asyncTest('REGRESSION GUARD: perfFetchHoldingsHistory() (Beta/Alpha riil, Correlation) throttles concurrent Yahoo fetches instead of firing all portfolio tickers at once', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/21-performance.js'), 'utf8');
+
+  const startMarker = '// ── Fetch riwayat harga harian RIIL';
+  const start = fullSrc.indexOf(startMarker);
+  assert(start !== -1, 'sanity: perfFetchHoldingsHistory() header comment not found — has it moved?');
+  let src = fullSrc.slice(start);
+  const endMarker = '\n// Peta tanggal->return';
+  const relEnd = src.indexOf(endMarker);
+  assert(relEnd !== -1, 'sanity: could not find the boundary right after perfFetchHoldingsHistory() (next function perfDailyReturns)');
+  src = src.slice(0, relEnd);
+
+  assert(/CONCURRENCY\s*=\s*4/.test(src), 'REGRESSION: perfFetchHoldingsHistory() no longer bounds concurrency — it is firing every portfolio ticker\'s fetch at once again, which is exactly what caused all rows to fail together on real multi-holding portfolios');
+
+  // Functional proof: stub getPortfolio()/rdEnsure()/rdGetAny() and track
+  // how many rdEnsure() calls are in flight at any given moment while
+  // resolving 12 fake tickers asynchronously (setTimeout, so calls don't
+  // resolve synchronously in call order — a real network fetch wouldn't
+  // either). The peak in-flight count must never exceed 4.
+  const sandbox = { window: {}, setTimeout, console };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '21-performance.js (perfFetchHoldingsHistory slice, sandboxed)' });
+
+  assert.strictEqual(typeof ctx.perfFetchHoldingsHistory, 'function', 'perfFetchHoldingsHistory() not found in extracted slice');
+
+  const N = 12;
+  const fakeTickers = Array.from({ length: N }, (_, i) => 'FAKE' + i);
+  const fakePorto = fakeTickers.map((t) => ({ ticker: t, mv: 100 }));
+  const fakeRows = Array.from({ length: 40 }, (_, i) => ({ date: '2020-01-0' + (1 + (i % 9)), close: 100 + i }));
+
+  let inFlight = 0, peakInFlight = 0;
+  ctx.getPortfolio = () => fakePorto;
+  ctx.rdEnsure = (tk, cb) => {
+    inFlight++;
+    peakInFlight = Math.max(peakInFlight, inFlight);
+    setTimeout(() => { inFlight--; cb(null); }, Math.random() * 5);
+  };
+  ctx.rdGetAny = () => fakeRows;
+
+  return new Promise((resolve, reject) => {
+    ctx.perfFetchHoldingsHistory((result, failed, porto) => {
+      try {
+        assert(peakInFlight <= 4, 'REGRESSION: peak concurrent rdEnsure() calls was ' + peakInFlight + ' (>4) — perfFetchHoldingsHistory() is bursting all portfolio tickers at once again instead of throttling to CONCURRENCY=4');
+        assert.strictEqual(Object.keys(result).length, N, 'all ' + N + ' fake tickers should have resolved into result, got ' + Object.keys(result).length);
+        assert.strictEqual(failed.length, 0, 'no tickers should have failed in this stub, got ' + failed.length);
+        assert.strictEqual(porto, fakePorto, 'porto passed through to callback should be the same array getPortfolio() returned');
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  });
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
