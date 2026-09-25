@@ -942,12 +942,32 @@ function perfComputeRealBeta(cb){
       var ihsgClose = {}; ihsgRows.forEach(function(r){ ihsgClose[r.date]=r.close; });
       var rf = 0.065; // BI rate approx — konsisten dengan computeRiskMetrics()/computeHedgeFundMetrics()
       var results=[];
+      // DIAGNOSTIC (2026-09-25, user report: every row in the Beta/Alpha
+      // table shows "Data harga riil belum cukup panjang" even though
+      // both the per-stock and IHSG Yahoo fetches were confirmed live
+      // (via DevTools) to return real, populous `points` arrays — so the
+      // failure is happening somewhere in the overlap/regression math
+      // below, not in data availability. Rather than guess again from
+      // another round of screenshots, log the exact numbers at the point
+      // of failure so the real cause (rows too short, date-format
+      // mismatch, insufficient overlap, etc.) is visible directly in the
+      // browser console on the next occurrence.
       porto.forEach(function(p){
         var rows = histMap[p.ticker];
-        if(!rows){ results.push({ticker:p.ticker, mv:p.mv, ok:false}); return; }
+        if(!rows){ results.push({ticker:p.ticker, mv:p.mv, ok:false}); console.warn('[Beta/Alpha] ' + p.ticker + ': no rows in histMap (rdEnsure/rdGetAny failed or ticker mismatch)'); return; }
         var stockRets = perfDailyReturns(rows);
         var reg = perfRegressBeta(stockRets, ihsgRets);
-        if(!reg){ results.push({ticker:p.ticker, mv:p.mv, ok:false}); return; }
+        if(!reg){
+          var stockDates = Object.keys(stockRets);
+          var overlap = stockDates.filter(function(d){ return ihsgRets.hasOwnProperty(d); });
+          console.warn('[Beta/Alpha] ' + p.ticker + ': regression failed — rows=' + rows.length
+            + ' stockRets keys=' + stockDates.length
+            + ' (first=' + stockDates[0] + ' last=' + stockDates[stockDates.length - 1] + ')'
+            + ' ihsgRets keys=' + Object.keys(ihsgRets).length
+            + ' overlap=' + overlap.length + ' (need >=20)');
+          results.push({ticker:p.ticker, mv:p.mv, ok:false});
+          return;
+        }
         var stockClose={}; rows.forEach(function(r){ stockClose[r.date]=r.close; });
         var d0=reg.dates[0], d1=reg.dates[reg.dates.length-1];
         var stockRetPeriod = stockClose[d0]>0 ? (stockClose[d1]-stockClose[d0])/stockClose[d0]*100 : 0;
