@@ -153,10 +153,49 @@ function rdFetchYahoo(tk, cb, pi){
   })
   .catch(function(){ rdFetchYahoo(cleanTk, cb, pi+1); });
 }
+// FIX (2026-09-25, follow-up audit "cek halaman lain yang masih pakai
+// fetch tanpa concurrency limit"): rdEnsure() is the single shared
+// chokepoint FlowScan/Ranking/Heatmap/Scanner/Alerts/Watchlist/Candle all
+// call (see file header) to warm a ticker's real OHLCV cache — but it had
+// no concurrency bound at all. fsInit() alone can call it for up to 60
+// tickers (FS_RD ranking) plus every watchlist/portfolio ticker (FS_WL) on
+// a single page load; with a cold cache (new session, cleared cache,
+// browser switch), that fires one /api/idx/history/:ticker Yahoo call per
+// distinct uncached ticker simultaneously — the exact same burst-triggers-
+// throttling bug class fixed earlier the same day server-side
+// (fetchYahooHistoryBatched() in lib/idx-data-engine.js) and client-side
+// (perfFetchHoldingsHistory() in 21-performance.js). Fixed here at the
+// shared chokepoint itself (rather than patching every caller separately)
+// with a small dedupe+queue: concurrent rdEnsure() calls for the SAME
+// ticker share one fetch and callback list, and only RD_MAX_CONCURRENT
+// (4, matching the constant already used elsewhere for this purpose)
+// distinct tickers fetch at once — additional tickers wait in RD_QUEUE
+// until a slot frees. The already-cached fast path (rdGet(tk) truthy)
+// is untouched: still a synchronous cb(null), no queueing.
+var RD_INFLIGHT = {};       // tk -> array of pending callbacks for an in-flight fetch
+var RD_INFLIGHT_COUNT = 0;  // number of distinct tickers currently fetching
+var RD_QUEUE = [];          // fetches waiting for a free concurrency slot
+var RD_MAX_CONCURRENT = 4;
 function rdEnsure(tk, cb){
   if(rdGet(tk)){ cb(null); return; }
   if(RD_FAILED[tk]){ cb('failed'); return; }
-  rdFetchYahoo(tk, function(err){ cb(err); });
+  if(RD_INFLIGHT[tk]){ RD_INFLIGHT[tk].push(cb); return; }
+  RD_INFLIGHT[tk] = [cb];
+  function run(){
+    RD_INFLIGHT_COUNT++;
+    rdFetchYahoo(tk, function(err){
+      RD_INFLIGHT_COUNT--;
+      var cbs = RD_INFLIGHT[tk] || [];
+      delete RD_INFLIGHT[tk];
+      cbs.forEach(function(fn){ fn(err); });
+      if(RD_QUEUE.length){
+        var next = RD_QUEUE.shift();
+        next();
+      }
+    });
+  }
+  if(RD_INFLIGHT_COUNT < RD_MAX_CONCURRENT) run();
+  else RD_QUEUE.push(run);
 }
 
 // FIX: `prices{}` (dipakai getPortfolio() untuk Nilai Pasar) dan RD_STORE (cache

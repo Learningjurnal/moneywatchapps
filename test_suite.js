@@ -8710,6 +8710,90 @@ await asyncTest('REGRESSION GUARD: idx-data-engine.js batches Yahoo history fetc
   assert(results.every(r => r.status === 'fulfilled'), 'expected all fake fetches to resolve as fulfilled');
 });
 
+// ============================================================
+// BUG (2026-09-25, follow-up audit "cek halaman lain yang masih pakai
+// fetch tanpa concurrency limit"): rdEnsure() in 13-realdata.js is the
+// single shared chokepoint FlowScan/Ranking/Heatmap/Scanner/Alerts/
+// Watchlist/Candle all call to warm a ticker's real OHLCV cache, with no
+// concurrency bound at all. fsInit() (07-flowscan.js) alone can trigger it
+// for up to 60 tickers (FS_RD ranking) plus every watchlist/portfolio
+// ticker (FS_WL) in one page load — with a cold cache, that's one
+// simultaneous /api/idx/history/:ticker Yahoo call per distinct uncached
+// ticker, the same burst-triggers-throttling bug class fixed 3x earlier
+// the same day (perfFetchHoldingsHistory in 21-performance.js,
+// fetchYahooHistoryBatched in lib/idx-data-engine.js). Fixed at the shared
+// chokepoint itself with a dedupe+queue: same-ticker concurrent calls
+// share one fetch, and only RD_MAX_CONCURRENT (4) distinct tickers fetch
+// at once.
+// ============================================================
+await asyncTest('REGRESSION GUARD: rdEnsure() (shared FlowScan/Ranking/Heatmap/Scanner/Watchlist real-data chokepoint) throttles concurrent Yahoo fetches and dedupes same-ticker calls', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/13-realdata.js'), 'utf8');
+
+  assert(/var RD_MAX_CONCURRENT = 4/.test(fullSrc), 'REGRESSION: RD_MAX_CONCURRENT is gone — rdEnsure() may be unbounded again');
+  assert(/var RD_QUEUE = \[\]/.test(fullSrc), 'REGRESSION: RD_QUEUE is gone — rdEnsure() has no queueing mechanism');
+  assert(/var RD_INFLIGHT = \{\}/.test(fullSrc), 'REGRESSION: RD_INFLIGHT dedupe map is gone');
+
+  // Build a sandboxable slice: everything up to (excluding) rdFetchYahoo's
+  // real-network definition, stitched to the rdEnsure() block that follows
+  // it — rdFetchYahoo is stubbed by the test itself instead, so no real
+  // fetch() ever runs.
+  const preStart = fullSrc.indexOf('var RD_STORE');
+  assert(preStart !== -1, 'sanity: RD_STORE declaration not found');
+  const preEnd = fullSrc.indexOf('\nfunction rdFetchYahoo');
+  assert(preEnd !== -1, 'sanity: rdFetchYahoo() boundary not found — has it moved/renamed?');
+  const preSlice = fullSrc.slice(preStart, preEnd);
+
+  const postStart = fullSrc.indexOf('// FIX (2026-09-25, follow-up audit "cek halaman lain yang masih pakai\n// fetch tanpa concurrency limit")');
+  assert(postStart !== -1, 'sanity: could not locate the rdEnsure() fix comment — has it been reworded/removed?');
+  const postEndMarker = fullSrc.indexOf('\n// FIX: `prices{}`', postStart); // next section's header comment
+  assert(postEndMarker !== -1, 'sanity: could not find the boundary right after rdEnsure() (next section: rdFetchLivePrice)');
+  const postSlice = fullSrc.slice(postStart, postEndMarker);
+
+  const src = preSlice + '\n' + postSlice;
+  assert(/function rdEnsure\(tk, cb\)/.test(src), 'sanity: rdEnsure() not present in the extracted slice');
+  assert(!/function rdFetchYahoo/.test(src), 'sanity: rdFetchYahoo() leaked into the extracted slice — it should be stubbed by the test, not the real network version');
+
+  const sandbox = { window: {}, document: { getElementById: () => null }, localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {}, length: 0, key: () => null }, setTimeout, console };
+  sandbox.window = sandbox;
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(src, ctx, { filename: '13-realdata.js (rdEnsure slice, sandboxed)' });
+  assert.strictEqual(typeof ctx.rdEnsure, 'function', 'rdEnsure() not found in extracted slice');
+
+  // Functional proof 1: peak concurrent rdFetchYahoo() calls across 15
+  // distinct fake tickers never exceeds RD_MAX_CONCURRENT (4).
+  let inFlight = 0, peakInFlight = 0, fetchCallCount = 0;
+  const pendingByTk = {};
+  ctx.rdFetchYahoo = (tk, cb) => {
+    fetchCallCount++;
+    inFlight++;
+    peakInFlight = Math.max(peakInFlight, inFlight);
+    pendingByTk[tk] = cb;
+    setTimeout(() => { inFlight--; cb(null); }, Math.random() * 5);
+  };
+
+  const fakeTickers = Array.from({ length: 15 }, (_, i) => 'FAKE' + i);
+  await new Promise((resolve) => {
+    let done = 0;
+    fakeTickers.forEach((tk) => {
+      ctx.rdEnsure(tk, () => { done++; if (done === fakeTickers.length) resolve(); });
+    });
+  });
+  assert(peakInFlight <= 4, 'REGRESSION: peak concurrent rdFetchYahoo() calls was ' + peakInFlight + ' (>4) — rdEnsure() is bursting past RD_MAX_CONCURRENT again');
+  assert.strictEqual(fetchCallCount, 15, 'expected exactly one rdFetchYahoo() call per distinct ticker, got ' + fetchCallCount);
+
+  // Functional proof 2: 5 concurrent rdEnsure() calls for the SAME ticker
+  // (before its fetch resolves) must dedupe into exactly 1 rdFetchYahoo()
+  // call, with all 5 callbacks still firing once it resolves.
+  fetchCallCount = 0;
+  let resolveDup;
+  ctx.rdFetchYahoo = (tk, cb) => { fetchCallCount++; resolveDup = () => cb(null); };
+  let dupCbCount = 0;
+  for (let i = 0; i < 5; i++) ctx.rdEnsure('DUPTK', () => { dupCbCount++; });
+  assert.strictEqual(fetchCallCount, 1, 'REGRESSION: 5 concurrent rdEnsure() calls for the same ticker triggered ' + fetchCallCount + ' separate rdFetchYahoo() calls instead of deduping to 1 — wasteful duplicate fetches for the same symbol');
+  resolveDup();
+  assert.strictEqual(dupCbCount, 5, 'REGRESSION: only ' + dupCbCount + ' of 5 callers for the deduped ticker got their callback invoked — a caller would hang forever waiting for rdEnsure()');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
