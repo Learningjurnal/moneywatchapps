@@ -8937,6 +8937,65 @@ await asyncTest('REGRESSION GUARD: bandarRenderAccDistTable() (Radar Akumulasi/D
 });
 
 // ============================================================
+// BUG (2026-09-25, user-reported, second follow-up on the same screenshot:
+// "seharusnya yang menjadi konsentrasi bukan score namun nilai
+// transaksinya dan volumenya, di urutkan dari yang paling besar ke kecil
+// dengan menampikan hanya 10 besar" — adding the Nilai Transaksi column
+// above was not enough; the ranking itself was still Invezgo's
+// calculated_value score, which has no liquidity floor, so a Rp15.5 juta
+// / 12-lot trade (SRAJ, score 80.8) still ranked #1 "SELURUH BEI" ahead of
+// far larger real trades). Fix: bandarRenderAccDistTable() now re-sorts
+// the full accumulation/distribution list by real Nilai Transaksi (Rp,
+// item.valueRp) descending BEFORE truncating to the top 10 — score stays
+// visible as context but no longer decides rank or cutoff.
+// ============================================================
+test('REGRESSION GUARD: bandarRenderAccDistTable() ranks by real Nilai Transaksi (Rp), not Invezgo\'s calculated_value score', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = fullSrc.match(/function bandarRenderAccDistTable\(mode, data\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'bandarRenderAccDistTable() not found');
+  const fnBody = fnMatch[0];
+
+  const sortMatch = fnBody.match(/list = list\.slice\(\)\.sort\(function\(a, b\) \{[\s\S]*?\n  \}\)\.slice\(0, 10\);/);
+  assert(sortMatch, 'REGRESSION: bandarRenderAccDistTable() no longer re-sorts list by valueRp before truncating to top 10 — the thin-liquidity SRAJ/BBSI top-rank bug is back');
+  assert(/b\.valueRp.*a\.valueRp|Number\(b\.valueRp\).*Number\(a\.valueRp\)/.test(sortMatch[0]),
+    'REGRESSION: the sort comparator no longer orders by valueRp descending (b - a)');
+  assert(!/list = list\.slice\(0, 10\);\s*\n\s*var color/.test(fnBody),
+    'REGRESSION: list is truncated to 10 directly off the server\'s score-sorted order again, bypassing the Nilai Transaksi re-sort');
+
+  // Functional proof: given an unsorted-by-value list, the render output
+  // lists the ticker with the largest valueRp first, not the one Invezgo
+  // scored highest.
+  const fakeData = {
+    success: true, isSimulated: false, date: '2026-09-25',
+    counts: { accumulation: 3, distribution: 0, totalUniverseScanned: 3 },
+    accumulation: [
+      { ticker: 'SRAJ', name: 'Sejahtera Raya', sector: '-', score: 80.8, avgPrice: 13000, priceChangePct: 0, volume: 1200, valueRp: 15500000 },
+      { ticker: 'BBCA', name: 'Bank Central Asia', sector: 'Financials', score: 5.2, avgPrice: 9500, priceChangePct: 1.2, volume: 5000000, valueRp: 47500000000 },
+      { ticker: 'TLKM', name: 'Telkom Indonesia', sector: 'Infrastructures', score: 12.1, avgPrice: 2900, priceChangePct: -0.5, volume: 3000000, valueRp: 8700000000 }
+    ],
+    distribution: []
+  };
+  const html = bandarRenderAccDistTableForTest(fullSrc, 'acc', fakeData);
+  const idxBBCA = html.indexOf('BBCA');
+  const idxTLKM = html.indexOf('TLKM');
+  const idxSRAJ = html.indexOf('SRAJ');
+  assert(idxBBCA > -1 && idxTLKM > -1 && idxSRAJ > -1, 'expected all 3 fake tickers to appear in rendered output');
+  assert(idxBBCA < idxTLKM && idxTLKM < idxSRAJ,
+    'REGRESSION: rows are not ordered by Nilai Transaksi descending — BBCA (Rp47.5 M) should render before TLKM (Rp8.7 M) before SRAJ (Rp15.5 Jt, highest score but lowest real value)');
+});
+
+// Extracts and runs bandarRenderAccDistTable() in an isolated sandbox
+// (same eval-based technique already used elsewhere in this suite for
+// vanilla-JS render functions with no external dependencies).
+function bandarRenderAccDistTableForTest(fullSrc, mode, data) {
+  const fnMatch = fullSrc.match(/function bandarRenderAccDistTable\(mode, data\) \{[\s\S]*?\n\}/);
+  const sandbox = { DB: {}, Number, Math, JSON };
+  vm.createContext(sandbox);
+  vm.runInContext('var bandarRenderAccDistTable = ' + fnMatch[0], sandbox);
+  return sandbox.bandarRenderAccDistTable(mode, data);
+}
+
+// ============================================================
 // BUG (2026-09-25, user-reported: "TOP 5 FOREIGN NET BUY/SELL" widget
 // showed "+Rp 0 Jt" / "+Rp 1 Jt" for EVERY row, including net-sell rows
 // that should be negative — GOTO showed "+Rp 50" for the whole BEI
@@ -8985,6 +9044,74 @@ await asyncTest('REGRESSION GUARD: getUniverseForeignFlow() and its widget treat
   vm.runInContext('var fmtScore = ' + fmtMatch[0].replace(/^var fmtScore = /, '').replace(/;$/, ''), vm.createContext(sandbox));
   assert.strictEqual(sandbox.fmtScore(-74.0), '-74.00', 'REGRESSION: a negative score (distribution) no longer preserves its sign when formatted');
   assert.strictEqual(sandbox.fmtScore(80.8), '80.80', 'REGRESSION: a positive score (accumulation) formats incorrectly');
+});
+
+// ============================================================
+// BUG (2026-09-25, user-reported: "hapus saja TOP SMART MONEY INFLOW
+// karena menyesatkan"): bandarRenderMarketFlowContent() rendered a "TOP
+// SMART MONEY INFLOW/OUTFLOW" top-5 card section that duplicated the
+// exact same getUniverseAccumulationDistribution() data already shown in
+// more detail (sector, volume, Nilai Transaksi, harga) by RADAR SAHAM
+// TERAKUMULASI/TERDISTRIBUSI SELURUH BEI (bandarRenderAccDistTable) on
+// the same page — two views of the same numbers, the sparser one adding
+// confusion rather than value. Removed at the user's request; a Sector
+// Rotation (RRG) chart is planned to replace it once the real Invezgo
+// endpoint is confirmed.
+// ============================================================
+test('REGRESSION GUARD: "TOP SMART MONEY INFLOW/OUTFLOW" duplicate scanner section stays removed from bandarRenderMarketFlowContent()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function bandarRenderMarketFlowContent\(data\) \{[\s\S]*?\n\/\/ Lazy loader — fetches \/api\/idx\/accumulation-distribution/);
+  assert(fnMatch, 'bandarRenderMarketFlowContent() not found');
+  assert(!/>TOP SMART MONEY INFLOW/.test(fnMatch[0]),
+    'REGRESSION: "TOP SMART MONEY INFLOW" section is back — user asked for it to be removed as a misleading duplicate of the Radar Akumulasi/Distribusi table');
+  assert(!/>TOP SMART MONEY OUTFLOW/.test(fnMatch[0]),
+    'REGRESSION: "TOP SMART MONEY OUTFLOW" section is back — same as above');
+});
+
+// ============================================================
+// FEATURE (2026-09-25, user request: "diganti dengan Sector Rotation
+// Chart, contoh dan file json nya sudah saya kirimkan"): the removed
+// "TOP SMART MONEY INFLOW/OUTFLOW" section is replaced by a Sector
+// Rotation (RRG) chart consuming the already-verified, real
+// GET /api/idx/sector-rotation endpoint (Invezgo GET /analysis/sector/
+// rotation). Guard: the mount point is wired into
+// bandarRenderMarketFlowContent()'s output, the loader is hooked into
+// both branches of bandarLoadRealMarketFlow() (cache-hit and fresh-
+// fetch), and the honest-unavailable path never fabricates numbers when
+// data.available is false.
+// ============================================================
+test('FEATURE: Sector Rotation Chart mount point is wired into bandarRenderMarketFlowContent()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/id="bandar-sector-rotation-chart"/.test(src), 'REGRESSION: Sector Rotation Chart mount point missing from bandarRenderMarketFlowContent()');
+  const fnMatch = src.match(/function bandarRenderMarketFlowContent\(data\) \{[\s\S]*?\n\/\/ Lazy loader — fetches \/api\/idx\/accumulation-distribution/);
+  assert(fnMatch, 'bandarRenderMarketFlowContent() not found');
+  assert(/bandar-sector-rotation-chart/.test(fnMatch[0]), 'REGRESSION: Sector Rotation Chart mount point not actually returned by bandarRenderMarketFlowContent()');
+});
+
+test('FEATURE: bandarLoadSectorRotationChart() is hooked into both branches of bandarLoadRealMarketFlow()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/async function bandarLoadRealMarketFlow\(\) \{[\s\S]*?\n\}\nwindow\.bandarLoadRealMarketFlow/);
+  assert(fnMatch, 'bandarLoadRealMarketFlow() not found');
+  const hookCount = (fnMatch[0].match(/bandarLoadSectorRotationChart\(\);/g) || []).length;
+  assert.strictEqual(hookCount, 2, 'REGRESSION: bandarLoadSectorRotationChart() must be called in both the cache-hit and fresh-fetch branches of bandarLoadRealMarketFlow(), found ' + hookCount);
+});
+
+test('FEATURE: bandarRenderSectorRotationChart() honest-unavailable path never fabricates numbers', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function bandarRenderSectorRotationChart\(mount, data\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'bandarRenderSectorRotationChart() not found');
+  assert(/if \(!data \|\| !data\.available\)/.test(fnMatch[0]), 'REGRESSION: bandarRenderSectorRotationChart() no longer guards on data.available before rendering');
+  assert(/BANDAR_ROTATION_REASON_TEXT/.test(fnMatch[0]), 'REGRESSION: honest reason-code text missing from unavailable path');
+});
+
+test('FEATURE: Sector Rotation KPI cards derive from real trail data, not fabricated formulas', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function bandarRenderSectorRotationChart\(mount, data\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'bandarRenderSectorRotationChart() not found');
+  assert(/s\.quadrant === 'leading'/.test(fnMatch[0]) && /s\.quadrant === 'improving'/.test(fnMatch[0]),
+    'REGRESSION: Leading/Improving counts no longer derived from real per-sector quadrant field');
+  assert(/Math\.sqrt\(Math\.pow\(b\.x - a\.x, 2\) \+ Math\.pow\(b\.y - a\.y, 2\)\)/.test(fnMatch[0]),
+    'REGRESSION: "Strongest Rotation" no longer computed from real consecutive trail-point distance');
 });
 
 console.log('═══════════════════════════════════════════════════════');
