@@ -396,6 +396,27 @@ await (async () => {
       assert.strictEqual(data.strategyId, 'swing-flow');
       assert(Array.isArray(data.signals));
     });
+
+    // FIX (2026-09-25, user-reported): the rotating universe cursor used
+    // to be ONE global key shared by every strategy. Once the cron
+    // schedule started calling all 4 strategies daily (2026-09-24), each
+    // strategy's run advanced the SAME cursor, so a strategy's daily
+    // batch scanned whatever slice the PREVIOUS strategy's run left off
+    // at instead of its own — quartering each strategy's effective
+    // coverage speed. Each strategy must track its own independent
+    // cursor.
+    await asyncTest('CRON: warmStrategyEngineRotating() gives each strategy its own independent cursor (running one strategy must not advance another\'s)', async () => {
+      const first = await warmStrategyEngineRotating(3000, 'swing-flow', 3);
+      assert(first.cursorAfter > 0, 'swing-flow must have advanced past 0 within the time budget');
+
+      const second = await warmStrategyEngineRotating(3000, 'day-trading', 3);
+      assert.strictEqual(second.cursorBefore, 0, 'REGRESSION: day-trading\'s cursor started somewhere other than 0 — it inherited swing-flow\'s cursor position instead of tracking its own, quartering its effective universe-coverage speed');
+
+      // Running swing-flow again must resume from where swing-flow itself
+      // left off, unaffected by day-trading's run in between.
+      const third = await warmStrategyEngineRotating(3000, 'swing-flow', 3);
+      assert.strictEqual(third.cursorBefore, first.cursorAfter, 'REGRESSION: swing-flow\'s cursor was clobbered by day-trading\'s run — cursors are not independent per strategy');
+    });
   } finally {
     global.fetch = originalFetch;
     process.env.INVEZGO_API_KEY = originalKey;
