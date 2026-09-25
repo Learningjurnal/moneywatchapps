@@ -8632,6 +8632,84 @@ await asyncTest('REGRESSION GUARD: perfFetchHoldingsHistory() (Beta/Alpha riil, 
   });
 });
 
+// ============================================================
+// BUG (2026-09-25, audit follow-up "cek halaman lain yang masih pakai
+// fetch tanpa concurrency limit"): 3 server-side call sites in
+// lib/idx-data-engine.js (runStrategyBacktest, runUnifiedScreenerBacktest,
+// resolveScreenerSignalLog) fired fetchYahooHistory() for an entire
+// ticker list via a single unbounded Promise.all/allSettled(list.map(...))
+// — up to 360 simultaneous Yahoo Finance calls in the worst case
+// (runAllStrategiesBacktest: 8 strategies x 45 tickers each). Unlike the
+// client-side perfFetchHoldingsHistory() bug fixed earlier the same day,
+// this one runs on the server, so a burst here risks Yahoo throttling
+// affecting every user of the app, not just one portfolio. Fixed by
+// introducing fetchYahooHistoryBatched() — chunks the ticker list into
+// fixed BATCH=8 groups, resolving one batch (via Promise.allSettled, so
+// one bad ticker doesn't abort the rest) before starting the next — and
+// routing all 3 call sites through it.
+// ============================================================
+await asyncTest('REGRESSION GUARD: idx-data-engine.js batches Yahoo history fetches instead of firing the whole ticker list at once (backtest + screener signal log resolution)', async () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+
+  assert(/async function fetchYahooHistoryBatched\(tickers, tf, batchSize\)/.test(fullSrc),
+    'REGRESSION: fetchYahooHistoryBatched() helper is gone');
+
+  const helperMatch = fullSrc.match(/async function fetchYahooHistoryBatched\([\s\S]*?\n\}/);
+  assert(helperMatch, 'could not extract fetchYahooHistoryBatched() body');
+  assert(/for \(let i = 0; i < tickers\.length; i \+= BATCH\)/.test(helperMatch[0]),
+    'REGRESSION: fetchYahooHistoryBatched() no longer chunks the ticker list — it may be firing everything at once again');
+  assert(/tickers\.slice\(i, i \+ BATCH\)/.test(helperMatch[0]),
+    'REGRESSION: fetchYahooHistoryBatched() no longer slices into fixed-size batches');
+
+  // The 3 known-vulnerable call sites must route through the batched
+  // helper, not call Promise.all/allSettled(list.map(fetchYahooHistory))
+  // directly on a user/data-controlled ticker list anymore.
+  const runStrategyBacktestMatch = fullSrc.match(/async function runStrategyBacktest\([\s\S]*?\n\}/);
+  assert(runStrategyBacktestMatch, 'runStrategyBacktest() not found');
+  assert(/fetchYahooHistoryBatched\(clean, 'BACKTEST'\)/.test(runStrategyBacktestMatch[0]),
+    'REGRESSION: runStrategyBacktest() no longer routes through fetchYahooHistoryBatched() — runAllStrategiesBacktest() can burst up to 8 x 45 = 360 simultaneous Yahoo calls again');
+  assert(!/Promise\.allSettled\(clean\.map\(t => fetchYahooHistory/.test(runStrategyBacktestMatch[0]),
+    'REGRESSION: runStrategyBacktest() is back to an unbounded Promise.allSettled(clean.map(...)) burst');
+
+  const runUnifiedScreenerBacktestMatch = fullSrc.match(/async function runUnifiedScreenerBacktest\([\s\S]*?\n\s*\/\/ Candidate pool:/);
+  assert(runUnifiedScreenerBacktestMatch, 'runUnifiedScreenerBacktest() (up to the candidate-pool section) not found');
+  assert(/fetchYahooHistoryBatched\(candidates, 'BACKTEST'\)/.test(runUnifiedScreenerBacktestMatch[0]),
+    'REGRESSION: runUnifiedScreenerBacktest() no longer routes through fetchYahooHistoryBatched() — up to 80 simultaneous Yahoo calls again');
+  assert(!/Promise\.allSettled\(candidates\.map/.test(runUnifiedScreenerBacktestMatch[0]),
+    'REGRESSION: runUnifiedScreenerBacktest() is back to an unbounded Promise.allSettled(candidates.map(...)) burst');
+
+  const resolveMatch = fullSrc.match(/async function resolveScreenerSignalLog\([\s\S]*?\n\}/);
+  assert(resolveMatch, 'resolveScreenerSignalLog() not found');
+  assert(/fetchYahooHistoryBatched\(tickers, 'BACKTEST'\)/.test(resolveMatch[0]),
+    'REGRESSION: resolveScreenerSignalLog() no longer routes through fetchYahooHistoryBatched() — this one is the highest-risk site since the pending-signal ticker list can grow to hundreds of unique tickers, unbounded, on every read of the log');
+  assert(!/Promise\.allSettled\(tickers\.map/.test(resolveMatch[0]),
+    'REGRESSION: resolveScreenerSignalLog() is back to an unbounded Promise.allSettled(tickers.map(...)) burst');
+
+  // Functional proof, not just source text: extract fetchYahooHistoryBatched()
+  // standalone, stub fetchYahooHistory() to track concurrent in-flight calls,
+  // and confirm peak concurrency never exceeds BATCH size (8) across 23 fake
+  // tickers (not a multiple of 8, to catch an off-by-one in the chunking loop).
+  const sandbox = { setTimeout, console, Promise };
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(helperMatch[0], ctx, { filename: 'idx-data-engine.js (fetchYahooHistoryBatched slice, sandboxed)' });
+  assert.strictEqual(typeof ctx.fetchYahooHistoryBatched, 'function', 'fetchYahooHistoryBatched() not found in extracted slice');
+
+  let inFlight = 0, peakInFlight = 0;
+  const fakeTickers = Array.from({ length: 23 }, (_, i) => 'FAKE' + i);
+  ctx.fetchYahooHistory = (t) => {
+    inFlight++;
+    peakInFlight = Math.max(peakInFlight, inFlight);
+    return new Promise((resolve) => {
+      setTimeout(() => { inFlight--; resolve({ points: [{ t: 1, close: 100 }] }); }, Math.random() * 5);
+    });
+  };
+
+  const results = await ctx.fetchYahooHistoryBatched(fakeTickers, 'BACKTEST', 8);
+  assert(peakInFlight <= 8, 'REGRESSION: peak concurrent fetchYahooHistory() calls was ' + peakInFlight + ' (>8) — fetchYahooHistoryBatched() is bursting past its batch size');
+  assert.strictEqual(results.length, 23, 'expected one result per input ticker, got ' + results.length);
+  assert(results.every(r => r.status === 'fulfilled'), 'expected all fake fetches to resolve as fulfilled');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
