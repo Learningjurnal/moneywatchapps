@@ -55,7 +55,7 @@ import {
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus } from './lib/invezgo-client.js';
-import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks } from './lib/engine/strategy/StrategyEngine.js';
+import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 
@@ -4472,6 +4472,29 @@ app.get('/api/strategy-engine/latest', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Strategy Engine Latest Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/strategy-engine/daily-stats?strategy=hidden-accumulation&days=14
+// Read-only trend view: {processed, STRONG, QUALIFIED, WATCH, REJECT,
+// DATA_INSUFFICIENT, qualifyingRate} per day, oldest first. Built
+// specifically to watch whether removing FOREIGN from
+// hidden-accumulation/momentum-candidate's mandatoryConditions (see
+// foreignFlow.js's header comment) actually raises their qualifying rate
+// going forward — no historical backtest is possible here (order-book/
+// intraday data has no confirmed historical retention at Invezgo), so
+// this is the only honest way to validate the fix. See
+// getStrategyEngineDailyStats() (lib/engine/strategy/StrategyEngine.js).
+app.get('/api/strategy-engine/daily-stats', async (req, res) => {
+  try {
+    const strategyId = String(req.query.strategy || '').trim();
+    if (!strategyId) return res.status(400).json({ success: false, error: 'Parameter "strategy" wajib diisi' });
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 14, 1), 30);
+    const data = await getStrategyEngineDailyStats(strategyId, days);
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    console.error('[Strategy Engine Daily Stats Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

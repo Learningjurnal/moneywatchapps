@@ -405,6 +405,40 @@ await (async () => {
       assert(result.universeSize > 0);
     });
 
+    // FIX (2026-09-25, follow-up to removing FOREIGN from
+    // hidden-accumulation/momentum-candidate — see foreignFlow.js's
+    // header comment): no historical backtest is possible for this
+    // engine, so warmStrategyEngineRotating() now also persists a daily
+    // {processed, STRONG, QUALIFIED, WATCH, REJECT, DATA_INSUFFICIENT}
+    // counter (not just the winning tickers) so getStrategyEngineDailyStats()
+    // can show a real qualifying-rate trend going forward.
+    await asyncTest('CRON: warmStrategyEngineRotating() persists daily stats (processed + full status breakdown) queryable via getStrategyEngineDailyStats()', async () => {
+      const { getStrategyEngineDailyStats } = await import('./lib/engine/strategy/StrategyEngine.js');
+      const todayKey = new Date().toISOString().slice(0, 10);
+
+      const before = await getStrategyEngineDailyStats('hidden-accumulation', 1);
+      const beforeProcessed = before.days[0].processed;
+
+      const result = await warmStrategyEngineRotating(3000, 'hidden-accumulation', 3);
+      assert(result.processed > 0, 'must process at least one ticker within the time budget');
+
+      const after = await getStrategyEngineDailyStats('hidden-accumulation', 1);
+      const todayStats = after.days[0];
+      assert.strictEqual(todayStats.date, todayKey, 'REGRESSION: getStrategyEngineDailyStats() did not return today as the single requested day');
+      assert.strictEqual(todayStats.processed, beforeProcessed + result.processed,
+        'REGRESSION: daily stats processed count did not accumulate by exactly this run\'s processed count — stats are being overwritten instead of merged across runs');
+
+      const sum = todayStats.STRONG + todayStats.QUALIFIED + todayStats.WATCH + todayStats.REJECT + todayStats.DATA_INSUFFICIENT;
+      assert.strictEqual(sum, todayStats.processed,
+        'REGRESSION: status breakdown counts do not sum to processed — some result status is being dropped or double-counted');
+
+      if (todayStats.processed > 0) {
+        const expectedRate = Math.round(((todayStats.STRONG + todayStats.QUALIFIED) / todayStats.processed) * 1000) / 10;
+        assert.strictEqual(todayStats.qualifyingRate, expectedRate,
+          'REGRESSION: qualifyingRate no longer matches (STRONG+QUALIFIED)/processed*100 rounded to 1 decimal');
+      }
+    });
+
     await asyncTest('CRON: getLatestStrategyEngineSignals() honestly returns an empty array (not an error) when nothing has qualified yet', async () => {
       const data = await getLatestStrategyEngineSignals('swing-flow', '2099-01-01');
       assert.strictEqual(data.strategyId, 'swing-flow');
