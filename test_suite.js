@@ -8896,6 +8896,46 @@ await asyncTest('REGRESSION GUARD: server.js batches Yahoo quote fetches in /api
   assert(results.every(r => r.status === 'fulfilled'), 'expected all fake fetches to resolve as fulfilled');
 });
 
+// ============================================================
+// BUG (2026-09-25, user-reported: "lot hanya 12, dengan harga 13.000
+// dikatakan akumulasi seluruh BEI, dan BBSI vol 3 lot, dikatakan
+// distribusi" — screenshot showed SRAJ score 80.8 with a 12-lot trade,
+// and BBSI score -74 with a 3-lot trade, both ranked top-10 "RADAR SAHAM
+// TERAKUMULASI/TERDISTRIBUSI SELURUH BEI"). `score` is genuinely
+// Invezgo's own calculated_value (not fabricated), but the table showed
+// no transaction-value context at all — just Lot count and per-share
+// price — so a user had no way to judge whether a "top" ranking
+// represented anything economically meaningful. User chose (via
+// AskUserQuestion) to add a Nilai Transaksi (Rp) column rather than
+// silently filter/threshold the ranking, so the real Invezgo `value`
+// field (already fetched as valueRp in getUniverseAccumulationDistribution(),
+// lib/idx-data-engine.js, but never rendered) is now shown.
+// ============================================================
+await asyncTest('REGRESSION GUARD: bandarRenderAccDistTable() (Radar Akumulasi/Distribusi Seluruh BEI) shows real transaction value (Rp) per row, not just Lot count and per-share price', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+
+  const fnMatch = fullSrc.match(/function bandarRenderAccDistTable\(mode, data\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'bandarRenderAccDistTable() not found');
+  const fnBody = fnMatch[0];
+
+  assert(/fmtNilaiTransaksi/.test(fnBody), 'REGRESSION: the Nilai Transaksi formatter is gone from bandarRenderAccDistTable()');
+  assert(/item\.valueRp/.test(fnBody), 'REGRESSION: the row no longer reads item.valueRp — the real Invezgo transaction value is available but not being surfaced again, same gap that misled the user into reading a 12-lot trade as a meaningful market-wide accumulation signal');
+  assert(/<th style="text-align:right">Nilai Transaksi<\/th>/.test(fnBody), 'REGRESSION: the "Nilai Transaksi" column header is gone');
+  assert(/colspan="8"/.test(fnBody), 'REGRESSION: the empty-state row colspan was not updated for the new 8th column — an empty result would render a misaligned table');
+
+  // Functional proof: run the actual formatter logic against known values
+  // and confirm the scale labels (Jt/M/T) match the real magnitudes —
+  // this is the exact number a user reads to judge a row's credibility,
+  // so a scale bug here would be as misleading as having no column at all.
+  const fmtMatch = fnBody.match(/var fmtNilaiTransaksi = function\(v\) \{[\s\S]*?\n  \};/);
+  assert(fmtMatch, 'could not extract fmtNilaiTransaksi() body');
+  const sandbox = {};
+  vm.runInContext('var fmtNilaiTransaksi = ' + fmtMatch[0].replace(/^var fmtNilaiTransaksi = /, ''), vm.createContext(sandbox));
+  assert.strictEqual(sandbox.fmtNilaiTransaksi(15600000), 'Rp 15.6 Jt', 'REGRESSION: a Rp15.6 juta value (the exact SRAJ scenario reported) no longer formats as "Rp 15.6 Jt" — got ' + sandbox.fmtNilaiTransaksi(15600000));
+  assert.strictEqual(sandbox.fmtNilaiTransaksi(2_500_000_000), 'Rp 2.50 M', 'REGRESSION: a Rp2.5 miliar value no longer formats with the M (miliar) scale — got ' + sandbox.fmtNilaiTransaksi(2500000000));
+  assert.strictEqual(sandbox.fmtNilaiTransaksi(450000), 'Rp 450.000', 'REGRESSION: a sub-1-juta value no longer falls back to plain Rupiah formatting — got ' + sandbox.fmtNilaiTransaksi(450000));
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
