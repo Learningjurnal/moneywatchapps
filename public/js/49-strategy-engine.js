@@ -22,8 +22,36 @@ var SE_STATE = {
   error: null,
   data: null, // last /scan response
   expandedTicker: null,
-  latest: { loading: false, fetchedFor: null, data: null, error: null }
+  latest: { loading: false, fetchedFor: null, data: null, error: null },
+  dailyStats: { loading: false, fetchedFor: null, data: null, error: null }
 };
+
+// FIX (2026-09-25, follow-up to removing FOREIGN from
+// hidden-accumulation/momentum-candidate's mandatoryConditions —
+// see lib/engine/indicators/foreignFlow.js's header comment for the
+// incident): no historical backtest is possible for this engine
+// (order-book/intraday data has no confirmed historical retention at
+// Invezgo), so the only honest way to confirm the fix actually raised
+// the qualifying rate is to watch it happen for real. Reads
+// GET /api/strategy-engine/daily-stats (accumulated day-by-day from
+// warmStrategyEngineRotating(), not a fresh computation).
+async function seLoadDailyStats(strategyId) {
+  SE_STATE.dailyStats.loading = true;
+  seRenderStrategyEnginePage('us-strategy-subpage');
+  try {
+    var resp = await fetch('/api/strategy-engine/daily-stats?strategy=' + encodeURIComponent(strategyId) + '&days=14');
+    var json = await resp.json();
+    if (!json.success) throw new Error(json.error || 'Gagal memuat tren harian');
+    SE_STATE.dailyStats.data = json;
+    SE_STATE.dailyStats.fetchedFor = strategyId;
+    SE_STATE.dailyStats.error = null;
+  } catch (e) {
+    SE_STATE.dailyStats.error = e.message;
+  } finally {
+    SE_STATE.dailyStats.loading = false;
+    seRenderStrategyEnginePage('us-strategy-subpage');
+  }
+}
 
 // "Hasil Cron Terakhir" — sinyal STRONG/QUALIFIED yang sudah terkumpul
 // hari ini dari warmStrategyEngineRotating() (lib/engine/strategy/
@@ -136,6 +164,11 @@ function seRenderStrategyEnginePage(containerId) {
     return; // seLoadLatest re-renders when it resolves
   }
 
+  if (SE_STATE.dailyStats.fetchedFor !== SE_STATE.selectedStrategy && !SE_STATE.dailyStats.loading) {
+    seLoadDailyStats(SE_STATE.selectedStrategy);
+    return; // seLoadDailyStats re-renders when it resolves
+  }
+
   var strat = SE_STATE.strategies.find(function (s) { return s.id === SE_STATE.selectedStrategy; });
 
   var html = '<div class="card" style="padding:14px;margin-bottom:12px">'
@@ -182,6 +215,34 @@ function seRenderStrategyEnginePage(containerId) {
       + '</div>';
   } else {
     html += '<div style="font-size:11.5px;color:var(--text-mute)">Belum ada sinyal terkumpul hari ini. Cron GET /api/cron/warm-strategy-engine belum otomatis jalan lewat Vercel native cron (2 slot Hobby sudah dipakai 2 cron lain) — perlu penjadwal eksternal (cron-job.org, GitHub Actions, dll) yang memanggil URL itu dengan header Authorization Bearer CRON_SECRET, atau jalankan manual dulu untuk tes.</div>';
+  }
+  html += '</div>';
+
+  // "Tren Harian (14 Hari)" — validasi forward setelah FOREIGN dihapus
+  // dari weights/mandatoryConditions (2026-09-25): tidak ada backtest
+  // historis yang bisa dijalankan untuk engine ini, jadi qualifyingRate
+  // dari hari ke hari adalah satu-satunya bukti nyata apakah fix ini
+  // benar-benar menaikkan tingkat lolos strategi yang sebelumnya
+  // mandatory-FOREIGN (hidden-accumulation, momentum-candidate).
+  html += '<div class="card" style="padding:14px;margin-bottom:12px">'
+    + '<div style="font-weight:700;margin-bottom:6px">Tren Harian (14 Hari Terakhir)</div>';
+  if (SE_STATE.dailyStats.error) {
+    html += '<div style="font-size:11.5px;color:var(--down,#dc2626)">' + SE_STATE.dailyStats.error + '</div>';
+  } else if (SE_STATE.dailyStats.loading) {
+    html += '<div style="font-size:11.5px;color:var(--text-mute)">Memuat…</div>';
+  } else if (SE_STATE.dailyStats.data && SE_STATE.dailyStats.data.days) {
+    var activeDays = SE_STATE.dailyStats.data.days.filter(function (d) { return d.processed > 0; });
+    if (!activeDays.length) {
+      html += '<div style="font-size:11.5px;color:var(--text-mute)">Belum ada data cron untuk 14 hari terakhir — statistik ini mulai terkumpul sejak fix FOREIGN 2026-09-25, butuh beberapa hari cron berjalan sebelum trennya terlihat.</div>';
+    } else {
+      html += '<div style="font-size:11px;color:var(--text-mute);margin-bottom:8px">Hanya hari dengan aktivitas cron ditampilkan · qualifyingRate = (STRONG+QUALIFIED) / processed</div>'
+        + '<div style="overflow-x:auto"><table class="tbl" style="width:100%;font-size:11.5px">'
+        + '<thead><tr><th>Tanggal</th><th>Discan</th><th>STRONG</th><th>QUALIFIED</th><th>WATCH</th><th>REJECT</th><th>DATA_INSUFFICIENT</th><th>Qualifying Rate</th></tr></thead><tbody>'
+        + activeDays.map(function (d) {
+            return '<tr><td>' + d.date + '</td><td>' + d.processed + '</td><td>' + d.STRONG + '</td><td>' + d.QUALIFIED + '</td><td>' + d.WATCH + '</td><td>' + d.REJECT + '</td><td>' + d.DATA_INSUFFICIENT + '</td><td>' + (d.qualifyingRate != null ? d.qualifyingRate + '%' : '-') + '</td></tr>';
+          }).join('')
+        + '</tbody></table></div>';
+    }
   }
   html += '</div>';
 
