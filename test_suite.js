@@ -8492,6 +8492,43 @@ await asyncTest('REGRESSION GUARD: Sector Insight "Pergerakan Aliran Modal Sekto
   assert(!/\.style\('height', '100%'\)/.test(body), 'REGRESSION: <svg> is CSS-stretched to height:100% again — this bypasses the 1:1 viewBox mapping and reintroduces the font-distortion bug');
 });
 
+// ============================================================
+// BUG (2026-09-25, user-asked "apakah ini hanya SVG atau datanya rill?"
+// then requested a fix): the sector flow chart's CMF formula is genuine,
+// but siComputeConstituentStats() never checked whether fsGenData()
+// (07-flowscan.js) had to fall back to its seeded random-walk placeholder
+// series for a given constituent ticker (no real OHLCV cached yet for
+// it) — so a sector's score could be partly built from placeholder data
+// while looking 100% real to the user, with zero disclosure. Fixed by
+// threading fsGenData()'s own `.simulated` flag through
+// siComputeConstituentStats() -> siComputeAllSectors() (realCount/
+// totalCount per sector) -> a tooltip disclosure line + a global banner
+// when any sector has a gap.
+// ============================================================
+await asyncTest('REGRESSION GUARD: Sector Insight chart discloses when a sector\'s CMF score is partly built from placeholder (not-yet-cached) OHLCV instead of looking silently 100% real', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+
+  const fnMatch = src.match(/function siComputeConstituentStats\([\s\S]*?\n  \}/);
+  assert(fnMatch, 'siComputeConstituentStats() not found');
+  const body = fnMatch[0];
+  assert(/isSimulated: true/.test(body), 'REGRESSION: the empty-OHLCV fallback path no longer marks itself isSimulated:true');
+  assert(/isSimulated: !!ohlcv\.simulated/.test(body), 'REGRESSION: the real-data path no longer carries through fsGenData()\'s own .simulated flag — a sector\'s score can silently include placeholder data again with no way to tell');
+
+  const allSectorsMatch = src.match(/function siComputeAllSectors\([\s\S]*?\n  \}/);
+  assert(allSectorsMatch, 'siComputeAllSectors() not found');
+  const allBody = allSectorsMatch[0];
+  assert(/if \(!stat\.isSimulated\) realCount\+\+/.test(allBody), 'REGRESSION: siComputeAllSectors() no longer counts how many constituents are backed by real data');
+  assert(/realCount: realCount/.test(allBody) && /totalCount: sec\.constituents\.length/.test(allBody), 'REGRESSION: sector result objects no longer expose realCount/totalCount for the UI to disclose');
+
+  assert(/function siRenderDataQualityNote/.test(src), 'REGRESSION: siRenderDataQualityNote() helper is gone');
+  const noteCallCount = (src.match(/siRenderDataQualityNote\(d\)/g) || []).length;
+  assert(noteCallCount >= 2, 'REGRESSION: the data-quality disclosure is no longer wired into both chart tooltips (bar chart + quadrant/matrix view)');
+
+  const barChartFnMatch = src.match(/function siRenderD3CmfBarChart\([\s\S]*?\n  \}/);
+  assert(barChartFnMatch, 'siRenderD3CmfBarChart() not found');
+  assert(/sectorsWithGaps/.test(barChartFnMatch[0]), 'REGRESSION: the global "N sektor punya data estimasi" banner is gone from the bar chart header — a user would have to hover every single bar to discover any gap exists at all');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

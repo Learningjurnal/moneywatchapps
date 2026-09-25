@@ -174,7 +174,8 @@
         cmf: 0,
         volume: 0,
         turnover: 0,
-        valid: false
+        valid: false,
+        isSimulated: true
       };
     }
 
@@ -224,7 +225,15 @@
       cmf: cmfVal,
       volume: totalVolPeriod,
       turnover: totalVolPeriod * curClose,
-      valid: true
+      valid: true,
+      // FIX (2026-09-25, user-requested): fsGenData() flags its own output
+      // .simulated when it had to fall back to the seeded random-walk
+      // series (no real OHLCV cached for this ticker yet) — see
+      // 07-flowscan.js. Carrying that flag through so a sector's CMF can
+      // honestly disclose when it's PARTLY built from placeholder data
+      // instead of silently looking 100% real just because the formula
+      // itself is genuine.
+      isSimulated: !!ohlcv.simulated
     };
   }
 
@@ -241,11 +250,13 @@
       var weightedCmfSum = 0;
       var weightedRetSum = 0;
       var totalVol = 0;
+      var realCount = 0;
 
       sec.constituents.forEach(function(tk) {
         var stat = siComputeConstituentStats(tk, tfDays);
         constituentStats.push(stat);
-        
+        if (!stat.isSimulated) realCount++;
+
         var w = Math.max(1, stat.turnover);
         weightedCmfSum += (stat.cmf * w);
         weightedRetSum += (stat.retPct * w);
@@ -300,6 +311,8 @@
         flowStatus: flowStatus,
         flowBadgeClass: flowBadgeClass,
         flowScoreLabel: flowScoreLabel,
+        realCount: realCount,
+        totalCount: sec.constituents.length,
         topGainer: constituentStats[0] || null,
         topLaggard: constituentStats[constituentStats.length - 1] || null
       });
@@ -311,6 +324,25 @@
     });
 
     return results;
+  }
+
+  // FIX (2026-09-25, user-requested): "apakah ini hanya SVG atau datanya
+  // rill?" surfaced a real disclosure gap — CMF sektor dihitung dari
+  // formula asli, tapi kalau salah satu saham konstituennya belum punya
+  // OHLCV real ter-cache, fsGenData() (07-flowscan.js) diam-diam jatuh ke
+  // deret random-walk seeded sebagai placeholder (self-healing, bukan
+  // fabrikasi permanen — lihat komentar fsGenData). Skor sektor itu tetap
+  // tampil seolah 100% real tanpa disclosure. Fungsi ini menampilkan
+  // status real/estimasi per sektor di tooltip, konsisten dengan pola
+  // disclosure realCount/totalCount yang sudah dipakai di Bandarmology
+  // (bandarDataBanner, 41-stockchat-cockpit.js).
+  function siRenderDataQualityNote(d) {
+    var realCount = typeof d.realCount === 'number' ? d.realCount : d.totalCount;
+    var totalCount = d.totalCount || (d.constituents ? d.constituents.length : 0);
+    if (totalCount === 0 || realCount >= totalCount) {
+      return '<div style="font-size:9px;color:#10b981;margin-bottom:6px">✓ Seluruh ' + totalCount + ' saham penyusun memakai data OHLCV real.</div>';
+    }
+    return '<div style="font-size:9px;color:#f59e0b;margin-bottom:6px">⚠ ' + realCount + ' dari ' + totalCount + ' saham penyusun memakai data OHLCV real — sisanya estimasi sementara (belum ter-cache), skor CMF sektor ini bisa bergeser setelah data real masuk.</div>';
   }
 
   /**
@@ -611,6 +643,20 @@
         (selKey ? '<span class="badge b-accent" style="font-size:9.5px;padding:1px 6px">Filter Aktif</span><button onclick="siClearSectorFilter()" class="btn btn-ghost btn-xs" style="padding:1px 6px;font-size:10px;color:var(--text2)">Reset</button>' : '<span style="font-style:italic">Klik bar untuk menyaring berita</span>') +
       '</div>';
     container.appendChild(headerEl);
+
+    // Disclosure global kalau ADA sektor yang skornya sebagian dibangun
+    // dari data placeholder (lihat siRenderDataQualityNote()) — supaya
+    // tidak perlu hover satu-satu bar untuk tahu ada data yang belum
+    // sepenuhnya real.
+    var sectorsWithGaps = data.filter(function(d) {
+      return typeof d.realCount === 'number' && d.totalCount > 0 && d.realCount < d.totalCount;
+    });
+    if (sectorsWithGaps.length > 0) {
+      var gapNote = document.createElement('div');
+      gapNote.style.cssText = 'font-size:10px;color:#f59e0b;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:6px 10px;margin-bottom:8px';
+      gapNote.textContent = '⚠ ' + sectorsWithGaps.length + ' dari ' + data.length + ' sektor punya saham penyusun yang datanya masih estimasi sementara (belum ter-cache) — hover bar untuk rincian per sektor.';
+      container.appendChild(gapNote);
+    }
 
     // Chart Wrapper
     var chartWrapper = document.createElement('div');
@@ -1068,6 +1114,7 @@
           '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">' +
             'Saham Penggerak: ' + (moversHtml || '-') +
           '</div>' +
+          siRenderDataQualityNote(d) +
           '<div style="font-size:9.5px;color:var(--accent);border-top:1px dashed var(--border2);padding-top:4px;display:flex;align-items:center;gap:4px">' +
             '<span>' + (selKey === d.key ? 'Sektor sedang aktif difilter. Klik untuk melepas filter.' : 'Klik bar untuk memfilter berita sektor ' + d.name) + '</span>' +
           '</div>';
@@ -2082,6 +2129,7 @@
             '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">' +
               'Saham Penggerak: ' + (moversHtml || '-') +
             '</div>' +
+            siRenderDataQualityNote(d) +
             '<div style="font-size:9.5px;color:var(--accent);border-top:1px dashed var(--border2);padding-top:4px;display:flex;align-items:center;gap:4px">' +
               '<span>' + (selKey === d.key ? 'Sektor sedang aktif difilter. Klik untuk melepas filter.' : 'Klik node untuk memfilter berita sektor ' + d.name) + '</span>' +
             '</div>';
