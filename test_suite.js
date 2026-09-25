@@ -8438,6 +8438,33 @@ await asyncTest('REGRESSION GUARD: renderBandarmologyCockpitPage() no longer fir
   assert(!/[^/]\s*bandarPrefetchMarketBatch\(containerId/.test(body), 'REGRESSION: renderBandarmologyCockpitPage() calls bandarPrefetchMarketBatch() again — this fires ~48 concurrent per-ticker fetches (each with its own multi-proxy Yahoo fallback chain) whose output nothing currently rendered on Market Flow reads, and was the real cause of the reported "Page Unresponsive" hang');
 });
 
+// ============================================================
+// BUG (2026-09-25, user-reported, screenshot): "Pergerakan Aliran Modal
+// Sektoral" D3 bar chart on the Sector Insight page left a large empty
+// gap below its x-axis before the card's own border — root cause: the
+// chart's <svg> had a FIXED height (450/460px) while its parent card sat
+// in a 2-column CSS grid row whose height stretches to match the taller
+// sibling card ("Berita Pasar & Katalis Terkoneksi"), so the chart never
+// grew to fill the card it was actually given. Fixed by making the
+// chart's container/wrapper flex to fill the card and computing the SVG
+// height from the wrapper's actual rendered clientHeight instead of a
+// hardcoded number.
+// ============================================================
+await asyncTest('REGRESSION GUARD: Sector Insight "Pergerakan Aliran Modal Sektoral" chart fills its card height instead of leaving a fixed-height gap', () => {
+  const indexSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  const containerMatch = indexSrc.match(/<div id="si-visual-container"[^>]*>/);
+  assert(containerMatch, 'REGRESSION: #si-visual-container markup is missing from index.html');
+  assert(/flex:1/.test(containerMatch[0]) && /display:flex/.test(containerMatch[0]), 'REGRESSION: #si-visual-container no longer stretches to fill its card (flex:1) — the chart will again leave a gap when the sibling news card is taller');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+  const fnMatch = jsSrc.match(/function siRenderD3CmfBarChart\([\s\S]*?\n  \}/);
+  assert(fnMatch, 'siRenderD3CmfBarChart() not found');
+  const body = fnMatch[0];
+  assert(!/chartWrapper\.style\.cssText = '[^']*height:460px/.test(body), 'REGRESSION: chart wrapper is back to a fixed height:460px instead of flexing to fill the card');
+  assert(/chartWrapper\.style\.cssText = '[^']*flex:1/.test(body), 'REGRESSION: chart wrapper no longer uses flex:1 to grow within its flex-column container');
+  assert(/var height = Math\.max\(380, chartWrapper\.clientHeight \|\| 0\)/.test(body), 'REGRESSION: SVG height is no longer computed from the wrapper\'s actual rendered clientHeight — it will go back to a fixed value that ignores the card\'s real height');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

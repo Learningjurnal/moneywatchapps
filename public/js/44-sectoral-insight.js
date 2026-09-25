@@ -587,6 +587,15 @@
     var selKey = _siState.selectedSectorKey;
 
     container.innerHTML = '';
+    // FIX (2026-09-25, user-reported: grafik ini menyisakan banyak ruang
+    // kosong di bawah sumbu-X sebelum batas card) — root cause: chart
+    // dulu punya tinggi TETAP (460px) walau card kiri ini di-stretch oleh
+    // CSS grid mengikuti tinggi card berita di sebelah kanan (yang bisa
+    // jauh lebih tinggi kalau daftar beritanya panjang). container ini
+    // sekarang jadi flex column mengisi penuh card, dan chartWrapper di
+    // bawah pakai flex:1 supaya SVG ikut membesar mengisi tinggi
+    // sebenarnya yang tersedia, bukan berhenti di 460px.
+    container.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:380px';
 
     // Header Legend & Filter Info
     var headerEl = document.createElement('div');
@@ -606,11 +615,16 @@
     // Chart Wrapper
     var chartWrapper = document.createElement('div');
     chartWrapper.id = 'si-d3-chart-wrapper';
-    chartWrapper.style.cssText = 'position:relative;width:100%;height:460px;user-select:none';
+    chartWrapper.style.cssText = 'position:relative;width:100%;flex:1;min-height:380px;user-select:none';
     container.appendChild(chartWrapper);
 
     var width = chartWrapper.clientWidth || container.clientWidth || 520;
-    var height = 450;
+    // Tinggi diambil dari ruang aktual yang tersedia (chartWrapper sudah
+    // di-flex:1 di dalam container, jadi clientHeight-nya sudah
+    // mencerminkan tinggi card sesungguhnya setelah di-stretch CSS grid),
+    // bukan angka tetap — supaya SVG mengisi penuh card, tidak menyisakan
+    // ruang kosong di bawah sumbu-X.
+    var height = Math.max(380, chartWrapper.clientHeight || 0);
 
     var isMobile = width < 500;
     var margin = {
@@ -1164,7 +1178,12 @@
     _siResizeObserver = new ResizeObserver(function(entries) {
       if (!entries || entries.length === 0) return;
       var newW = entries[0].contentRect.width;
-      if (Math.abs(newW - width) > 15) {
+      var newH = entries[0].contentRect.height;
+      // Re-render juga saat TINGGI card berubah signifikan (mis. daftar
+      // berita di kartu sebelah selesai dimuat dan card ini ikut
+      // di-stretch CSS grid) — bukan cuma lebar, supaya chart tetap
+      // mengisi penuh tinggi card yang sekarang tersedia.
+      if (Math.abs(newW - width) > 15 || Math.abs(newH - height) > 15) {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function() {
           if (_siState.viewMode === 'bar') {
