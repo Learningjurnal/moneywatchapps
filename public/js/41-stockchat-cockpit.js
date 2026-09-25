@@ -2826,8 +2826,17 @@ function bandarRenderMarketFlowContent(data) {
   // Transaksi + harga), just as a sparser top-5 card view with no
   // Nilai Transaksi context — two views of the same numbers, one less
   // informative than the other, sitting on the same page). Removed;
-  // user asked for a Sector Rotation (RRG) chart in its place, pending
-  // confirmation of the real Invezgo endpoint that returns it.
+  // user asked for a Sector Rotation (RRG) chart in its place —
+  // GET /api/idx/sector-rotation already existed (built earlier this
+  // session, confirmed live against GET /analysis/sector/rotation by the
+  // user), just never rendered as an actual chart anywhere — only
+  // consumed as a table annotation in 44-sectoral-insight.js. Placeholder
+  // filled async by bandarLoadSectorRotationChart() below (same pattern
+  // as bandarLoadRealMarketFlow() itself), since this view's own data is
+  // already loaded synchronously by the time this HTML is built.
+  var sectorRotationHtml = '<div class="card" style="padding:16px">'
+    + '<div id="bandar-sector-rotation-chart"><div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Memuat Sector Rotation Chart (RRG)…</div></div>'
+    + '</div>';
 
   // --- Sektor Rotasi Modal Heatmap ---
   // Map setiap emiten dari acc/distList ke 11 sektor resmi IDX, hitung net score per sektor.
@@ -2956,6 +2965,7 @@ function bandarRenderMarketFlowContent(data) {
   return '<div style="display:flex;flex-direction:column;gap:16px">'
     + bannerHtml
     + metricCards
+    + sectorRotationHtml
     + sectorHeatHtml
     + '</div>';
 }
@@ -2970,6 +2980,7 @@ async function bandarLoadRealMarketFlow() {
     // Use cache if still valid for today
     if (_bandarMarketFlowCacheValid()) {
       container.innerHTML = bandarRenderMarketFlowContent(_BANDAR_MARKET_FLOW_CACHE.data);
+      bandarLoadSectorRotationChart();
       return;
     }
     var res = await fetch('/api/idx/accumulation-distribution', { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
@@ -2977,6 +2988,7 @@ async function bandarLoadRealMarketFlow() {
     // Cache result keyed to today's date
     _BANDAR_MARKET_FLOW_CACHE = { data: data, dateKey: new Date().toISOString().slice(0, 10) };
     container.innerHTML = bandarRenderMarketFlowContent(data);
+    bandarLoadSectorRotationChart();
   } catch (e) {
     if (container) {
       container.innerHTML = '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat Smart Money Divergence Scanner: ' + e.message + '</div>';
@@ -2985,6 +2997,237 @@ async function bandarLoadRealMarketFlow() {
 }
 window.bandarLoadRealMarketFlow = bandarLoadRealMarketFlow;
 window.bandarRenderMarketFlowContent = bandarRenderMarketFlowContent;
+
+// ── Sector Rotation Chart (RRG — Relative Rotation Graph) ──
+// User-requested replacement for the removed "TOP SMART MONEY INFLOW/
+// OUTFLOW" section. Data source: GET /api/idx/sector-rotation, which
+// already existed (built earlier this session, wired to the confirmed-
+// real GET /analysis/sector/rotation Invezgo endpoint) but was only ever
+// consumed as a table annotation in 44-sectoral-insight.js — this is its
+// first real chart rendering. x/y are Invezgo's own RS-Ratio/RS-Momentum,
+// rebased to 100 = the COMPOSITE benchmark (confirmed from the user's own
+// captured response: trail values cluster around 80-125 with 100 as the
+// implied center, matching standard RRG convention and the reference
+// invezgo.com chart the user shared).
+//
+// Color: 11 sectors are shown simultaneously (an all-pairs scatter/trail
+// scenario) — per the dataviz design system's own validator, NO ordering
+// of ANY categorical palette clears CVD-safe separation past 3
+// simultaneous series in that scenario (confirmed by running
+// scripts/validate_palette.js against several 11-color candidates here).
+// Direct text labels at every trail's current point (mandatory in this
+// chart form regardless, matching the reference chart) carry the real
+// identity signal; color is a secondary/supporting cue only, and the
+// table view below the chart is the fully color-independent fallback.
+var BANDAR_ROTATION_COLORS_LIGHT = {
+  IDXENERGY: '#2a78d6', IDXFINANCE: '#eb6834', IDXBASIC: '#1baf7a', IDXINDUST: '#eda100',
+  IDXNONCYC: '#4a3aa7', IDXCYCLIC: '#e34948', IDXHEALTH: '#008300', IDXPROPERT: '#e87ba4',
+  IDXTECHNO: '#00a6c8', IDXINFRA: '#a85200', IDXTRANS: '#8a3ab8'
+};
+var BANDAR_ROTATION_COLORS_DARK = {
+  IDXENERGY: '#5b9ee8', IDXFINANCE: '#d9722e', IDXBASIC: '#29a36e', IDXINDUST: '#c99a1d',
+  IDXNONCYC: '#8a6be0', IDXCYCLIC: '#d95a58', IDXHEALTH: '#399939', IDXPROPERT: '#cf76a0',
+  IDXTECHNO: '#28a0b8', IDXINFRA: '#c26f1f', IDXTRANS: '#9c58c2'
+};
+var BANDAR_ROTATION_REASON_TEXT = {
+  NOT_CONFIGURED: 'Invezgo API key belum dikonfigurasi',
+  AUTH_FAILED: 'Autentikasi Invezgo gagal',
+  SUBSCRIPTION_INSUFFICIENT: 'Paket langganan Invezgo tidak mencakup data ini',
+  RATE_LIMITED: 'Kuota/rate limit Invezgo tercapai',
+  NO_DATA: 'Belum ada data rotasi sektor untuk rentang ini',
+  UNEXPECTED_SCHEMA: 'Skema respons Invezgo tidak dikenali',
+  NETWORK_ERROR: 'Gangguan jaringan ke Invezgo'
+};
+var _BANDAR_ROTATION_CACHE = null; // {data, dateKey}
+function _bandarRotationCacheValid() {
+  return _BANDAR_ROTATION_CACHE && _BANDAR_ROTATION_CACHE.dateKey === new Date().toISOString().slice(0, 10);
+}
+
+async function bandarLoadSectorRotationChart() {
+  var mount = document.getElementById('bandar-sector-rotation-chart');
+  if (!mount) return;
+  try {
+    if (_bandarRotationCacheValid()) {
+      bandarRenderSectorRotationChart(mount, _BANDAR_ROTATION_CACHE.data);
+      return;
+    }
+    var res = await fetch('/api/idx/sector-rotation', { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
+    var json = await res.json();
+    var data = (json && json.success) ? json.data : { available: false, reason: 'NETWORK_ERROR' };
+    _BANDAR_ROTATION_CACHE = { data: data, dateKey: new Date().toISOString().slice(0, 10) };
+    bandarRenderSectorRotationChart(mount, data);
+  } catch (e) {
+    if (mount) mount.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Gagal memuat Sector Rotation Chart: ' + e.message + '</div>';
+  }
+}
+window.bandarLoadSectorRotationChart = bandarLoadSectorRotationChart;
+
+function bandarRenderSectorRotationChart(mount, data) {
+  if (!data || !data.available) {
+    var reason = (data && BANDAR_ROTATION_REASON_TEXT[data.reason]) || 'Data tidak tersedia';
+    mount.innerHTML = '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2)">'
+      + 'Sector Rotation Chart (RRG) belum tersedia: ' + reason + '.'
+      + '</div>';
+    return;
+  }
+
+  var isDark = typeof document !== 'undefined' && document.documentElement && (document.documentElement.getAttribute('data-theme') === 'dark'
+    || (!document.documentElement.hasAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches));
+  var colorMap = isDark ? BANDAR_ROTATION_COLORS_DARK : BANDAR_ROTATION_COLORS_LIGHT;
+
+  var sectors = Object.keys(data.bySectorKey || {}).map(function (k) { return data.bySectorKey[k]; })
+    .filter(function (s) { return s && Array.isArray(s.trail) && s.trail.length; });
+
+  if (!sectors.length) {
+    mount.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Belum ada data rotasi sektor untuk hari ini.</div>';
+    return;
+  }
+
+  // --- KPI cards (all computed from the real trail data, nothing fabricated) ---
+  var leadingCount = sectors.filter(function (s) { return s.quadrant === 'leading'; }).length;
+  var improvingCount = sectors.filter(function (s) { return s.quadrant === 'improving'; }).length;
+  var rotationBias = leadingCount + improvingCount;
+  // "Strongest rotation" = sector whose position moved the most (Euclidean
+  // distance) between its last two real trail points — a real measure of
+  // recent rotation speed, not a guessed score.
+  var strongest = null, strongestDist = -1;
+  sectors.forEach(function (s) {
+    if (s.trail.length < 2) return;
+    var a = s.trail[s.trail.length - 2], b = s.trail[s.trail.length - 1];
+    var dist = Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2));
+    if (dist > strongestDist) { strongestDist = dist; strongest = s; }
+  });
+
+  var quadrantLabel = { leading: 'Leading', improving: 'Improving', weakening: 'Weakening', lagging: 'Lagging' };
+  var kpiHtml = '<div class="row4" style="margin-bottom:14px">'
+    + '<div class="metric"><div class="mlabel">Strongest Rotation</div>'
+    + '<div class="mval mono" style="font-size:16px">' + (strongest ? strongest.code : '-') + '</div>'
+    + '<div class="msub neu">' + (strongest ? (quadrantLabel[strongest.quadrant] || strongest.quadrant || '-') : '-') + '</div></div>'
+    + '<div class="metric"><div class="mlabel">Leading Count</div>'
+    + '<div class="mval up mono" style="font-size:20px">' + leadingCount + '</div><div class="msub neu">Leading</div></div>'
+    + '<div class="metric"><div class="mlabel">Improving Count</div>'
+    + '<div class="mval mono" style="font-size:20px;color:var(--accent)">' + improvingCount + '</div><div class="msub neu">Improving</div></div>'
+    + '<div class="metric"><div class="mlabel">Rotation Bias</div>'
+    + '<div class="mval mono" style="font-size:20px">' + rotationBias + ' / ' + sectors.length + '</div><div class="msub neu">Leading + Improving</div></div>'
+    + '</div>';
+
+  var headerHtml = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
+    + '<div style="font-weight:700;font-size:13px">Sector Rotation Chart</div>'
+    + '<div style="font-size:10px;color:var(--text3)">Benchmark: ' + (data.benchmark || 'COMPOSITE') + (data.dataTimestamp ? ' · ' + String(data.dataTimestamp).slice(0, 10) : '') + '</div>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-bottom:12px">Data REAL Invezgo API (RS-Ratio vs RS-Momentum, rebased ke 100 = ' + (data.benchmark || 'COMPOSITE') + ') — visualisasi kekuatan & momentum relatif tiap sektor, bukan sampel.</div>';
+
+  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
+
+  _bandarRenderRotationSvg(document.getElementById('bandar-rotation-svg-wrap'), sectors, colorMap, isDark);
+  _bandarRenderRotationTable(document.getElementById('bandar-rotation-table-wrap'), sectors, colorMap, quadrantLabel);
+}
+
+function _bandarRenderRotationTable(wrap, sectors, colorMap, quadrantLabel) {
+  var sorted = sectors.slice().sort(function (a, b) { return (a.name || a.code).localeCompare(b.name || b.code); });
+  var rows = sorted.map(function (s) {
+    return '<tr>'
+      + '<td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + (colorMap[s.code] || '#888') + ';margin-right:6px;vertical-align:middle"></span>' + (s.name || s.code) + '</td>'
+      + '<td style="font-size:11px;color:var(--text3)">' + (quadrantLabel[s.quadrant] || s.quadrant || '-') + '</td>'
+      + '<td class="mono" style="text-align:right">' + (s.x != null ? s.x.toFixed(1) : '-') + '</td>'
+      + '<td class="mono" style="text-align:right">' + (s.y != null ? s.y.toFixed(1) : '-') + '</td>'
+      + '</tr>';
+  }).join('');
+  wrap.innerHTML = '<div style="overflow-x:auto"><table class="tbl" style="width:100%;font-size:11.5px">'
+    + '<thead><tr><th>Sektor</th><th>Kuadran</th><th style="text-align:right">RS-Ratio</th><th style="text-align:right">RS-Momentum</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody></table></div>';
+}
+
+function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
+  if (typeof d3 === 'undefined' || !wrap) return;
+  wrap.innerHTML = '';
+
+  var width = Math.max(320, wrap.clientWidth || wrap.parentElement.clientWidth || 600);
+  var height = Math.round(width * 0.62);
+  var margin = { top: 20, right: 20, bottom: 20, left: 20 };
+
+  // Domain: symmetric around (100,100) — the benchmark centerline — sized
+  // to the real max deviation across every sector's real trail points,
+  // never a hardcoded window.
+  var maxDev = 10;
+  sectors.forEach(function (s) {
+    s.trail.forEach(function (p) {
+      maxDev = Math.max(maxDev, Math.abs(p.x - 100), Math.abs(p.y - 100));
+    });
+  });
+  maxDev *= 1.15; // padding so trail lines/labels don't clip the edge
+
+  var x = d3.scaleLinear().domain([100 - maxDev, 100 + maxDev]).range([margin.left, width - margin.right]);
+  var y = d3.scaleLinear().domain([100 - maxDev, 100 + maxDev]).range([height - margin.bottom, margin.top]);
+
+  var svg = d3.select(wrap).append('svg')
+    .attr('id', 'bandar-rotation-svg')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('viewBox', '0 0 ' + width + ' ' + height)
+    .style('display', 'block');
+
+  var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  var textColor = typeof _chartTextColor === 'function' ? _chartTextColor('--text2', isDark ? '#D2D8DF' : '#333') : (isDark ? '#D2D8DF' : '#333');
+
+  // Quadrant crosshair at the benchmark centerline (100,100) — matches
+  // the reference chart's own convention, plain background (no tinted
+  // regions competing with the trail colors as primary ink).
+  svg.append('line').attr('x1', x(100)).attr('x2', x(100)).attr('y1', margin.top).attr('y2', height - margin.bottom).attr('stroke', gridColor).attr('stroke-width', 1);
+  svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', gridColor).attr('stroke-width', 1);
+  svg.append('text').attr('x', x(100) + 4).attr('y', y(100) - 4).attr('font-size', 9).attr('fill', textColor).attr('opacity', 0.6).text((sectors[0] && 'COMPOSITE') || '');
+
+  // Quadrant corner labels — a STATUS encoding (macro market-state), a
+  // different color role than the per-sector identity colors above.
+  var corners = [
+    { label: 'Improving', color: '#2a78d6', ax: margin.left + 6, ay: margin.top + 12, anchor: 'start' },
+    { label: 'Leading', color: '#1baf7a', ax: width - margin.right - 6, ay: margin.top + 12, anchor: 'end' },
+    { label: 'Lagging', color: '#e34948', ax: margin.left + 6, ay: height - margin.bottom - 6, anchor: 'start' },
+    { label: 'Weakening', color: '#eda100', ax: width - margin.right - 6, ay: height - margin.bottom - 6, anchor: 'end' }
+  ];
+  corners.forEach(function (c) {
+    svg.append('text').attr('x', c.ax).attr('y', c.ay).attr('text-anchor', c.anchor).attr('font-size', 10).attr('font-weight', 700).attr('fill', c.color).text(c.label);
+  });
+
+  var line = d3.line().x(function (p) { return x(p.x); }).y(function (p) { return y(p.y); }).curve(d3.curveCatmullRom.alpha(0.5));
+
+  var tooltip = d3.select(wrap).append('div')
+    .style('position', 'absolute').style('pointer-events', 'none').style('opacity', 0)
+    .style('background', isDark ? '#1a1f2b' : '#fff').style('border', '1px solid var(--border)')
+    .style('border-radius', '6px').style('padding', '6px 10px').style('font-size', '11px').style('z-index', 20);
+
+  sectors.forEach(function (s) {
+    var color = colorMap[s.code] || (isDark ? '#8a8f9a' : '#555');
+    var g = svg.append('g');
+    g.append('path').datum(s.trail).attr('d', line).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 2).attr('opacity', 0.85);
+
+    s.trail.forEach(function (p, i) {
+      var isLast = i === s.trail.length - 1;
+      g.append('circle')
+        .attr('cx', x(p.x)).attr('cy', y(p.y)).attr('r', isLast ? 5 : 2.5)
+        .attr('fill', color).attr('stroke', isLast ? (isDark ? '#0b0d12' : '#fff') : 'none').attr('stroke-width', isLast ? 1.5 : 0)
+        .style('cursor', 'pointer')
+        .on('mouseover', function (event) {
+          tooltip.style('opacity', 1).html(
+            '<b>' + (s.name || s.code) + '</b><br>' + p.date + '<br>RS-Ratio: ' + p.x.toFixed(1) + ' · RS-Momentum: ' + p.y.toFixed(1)
+          );
+        })
+        .on('mousemove', function (event) {
+          var rect = wrap.getBoundingClientRect();
+          tooltip.style('left', (event.clientX - rect.left + 12) + 'px').style('top', (event.clientY - rect.top - 10) + 'px');
+        })
+        .on('mouseout', function () { tooltip.style('opacity', 0); });
+    });
+
+    var last = s.trail[s.trail.length - 1];
+    g.append('text')
+      .attr('x', x(last.x) + 8).attr('y', y(last.y) + 3)
+      .attr('font-size', 10).attr('font-weight', 700).attr('fill', color)
+      .text(s.code);
+  });
+
+  wrap.style.position = 'relative';
+}
 
 // 3. Foreign Flow View
 // FIX (2026-09-18, user-reported bug + standing rule violation: "apakah

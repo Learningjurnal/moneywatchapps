@@ -9009,6 +9009,52 @@ test('REGRESSION GUARD: "TOP SMART MONEY INFLOW/OUTFLOW" duplicate scanner secti
     'REGRESSION: "TOP SMART MONEY OUTFLOW" section is back — same as above');
 });
 
+// ============================================================
+// FEATURE (2026-09-25, user request: "diganti dengan Sector Rotation
+// Chart, contoh dan file json nya sudah saya kirimkan"): the removed
+// "TOP SMART MONEY INFLOW/OUTFLOW" section is replaced by a Sector
+// Rotation (RRG) chart consuming the already-verified, real
+// GET /api/idx/sector-rotation endpoint (Invezgo GET /analysis/sector/
+// rotation). Guard: the mount point is wired into
+// bandarRenderMarketFlowContent()'s output, the loader is hooked into
+// both branches of bandarLoadRealMarketFlow() (cache-hit and fresh-
+// fetch), and the honest-unavailable path never fabricates numbers when
+// data.available is false.
+// ============================================================
+test('FEATURE: Sector Rotation Chart mount point is wired into bandarRenderMarketFlowContent()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/id="bandar-sector-rotation-chart"/.test(src), 'REGRESSION: Sector Rotation Chart mount point missing from bandarRenderMarketFlowContent()');
+  const fnMatch = src.match(/function bandarRenderMarketFlowContent\(data\) \{[\s\S]*?\n\/\/ Lazy loader — fetches \/api\/idx\/accumulation-distribution/);
+  assert(fnMatch, 'bandarRenderMarketFlowContent() not found');
+  assert(/bandar-sector-rotation-chart/.test(fnMatch[0]), 'REGRESSION: Sector Rotation Chart mount point not actually returned by bandarRenderMarketFlowContent()');
+});
+
+test('FEATURE: bandarLoadSectorRotationChart() is hooked into both branches of bandarLoadRealMarketFlow()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/async function bandarLoadRealMarketFlow\(\) \{[\s\S]*?\n\}\nwindow\.bandarLoadRealMarketFlow/);
+  assert(fnMatch, 'bandarLoadRealMarketFlow() not found');
+  const hookCount = (fnMatch[0].match(/bandarLoadSectorRotationChart\(\);/g) || []).length;
+  assert.strictEqual(hookCount, 2, 'REGRESSION: bandarLoadSectorRotationChart() must be called in both the cache-hit and fresh-fetch branches of bandarLoadRealMarketFlow(), found ' + hookCount);
+});
+
+test('FEATURE: bandarRenderSectorRotationChart() honest-unavailable path never fabricates numbers', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function bandarRenderSectorRotationChart\(mount, data\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'bandarRenderSectorRotationChart() not found');
+  assert(/if \(!data \|\| !data\.available\)/.test(fnMatch[0]), 'REGRESSION: bandarRenderSectorRotationChart() no longer guards on data.available before rendering');
+  assert(/BANDAR_ROTATION_REASON_TEXT/.test(fnMatch[0]), 'REGRESSION: honest reason-code text missing from unavailable path');
+});
+
+test('FEATURE: Sector Rotation KPI cards derive from real trail data, not fabricated formulas', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function bandarRenderSectorRotationChart\(mount, data\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'bandarRenderSectorRotationChart() not found');
+  assert(/s\.quadrant === 'leading'/.test(fnMatch[0]) && /s\.quadrant === 'improving'/.test(fnMatch[0]),
+    'REGRESSION: Leading/Improving counts no longer derived from real per-sector quadrant field');
+  assert(/Math\.sqrt\(Math\.pow\(b\.x - a\.x, 2\) \+ Math\.pow\(b\.y - a\.y, 2\)\)/.test(fnMatch[0]),
+    'REGRESSION: "Strongest Rotation" no longer computed from real consecutive trail-point distance');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
