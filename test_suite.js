@@ -8463,6 +8463,23 @@ await asyncTest('REGRESSION GUARD: Sector Insight "Pergerakan Aliran Modal Sekto
   assert(!/chartWrapper\.style\.cssText = '[^']*height:460px/.test(body), 'REGRESSION: chart wrapper is back to a fixed height:460px instead of flexing to fill the card');
   assert(/chartWrapper\.style\.cssText = '[^']*flex:1/.test(body), 'REGRESSION: chart wrapper no longer uses flex:1 to grow within its flex-column container');
   assert(/var height = Math\.max\(380, chartWrapper\.clientHeight \|\| 0\)/.test(body), 'REGRESSION: SVG height is no longer computed from the wrapper\'s actual rendered clientHeight — it will go back to a fixed value that ignores the card\'s real height');
+
+  // BUG (2026-09-25, user-reported): the first fix above made the chart
+  // fill its card, but also made its ResizeObserver re-render on HEIGHT
+  // changes of the very element this function itself resizes — a classic
+  // ResizeObserver + flex-grow feedback loop, so the chart never stopped
+  // reloading. Fixed by making the SVG's actual visual size purely
+  // CSS-driven (width/height:100% + preserveAspectRatio="none", stretching
+  // to fill chartWrapper regardless of the internal viewBox coordinate
+  // system) so NO resize-triggered re-render is needed for height at all —
+  // only width still triggers one, exactly as before any of this started.
+  assert(/\.style\('width', '100%'\)/.test(body) && /\.style\('height', '100%'\)/.test(body), 'REGRESSION: the <svg> is no longer sized via CSS width/height:100% — it will need JS-driven height recomputation again, reopening the resize-loop risk');
+  assert(/preserveAspectRatio.*none/.test(body), 'REGRESSION: <svg> lost preserveAspectRatio="none" — without it the chart will letterbox instead of truly filling the card');
+  assert(!/\.attr\('height', height\)/.test(body), 'REGRESSION: <svg> is setting a fixed height ATTRIBUTE again — CSS height:100% must be the only thing controlling its rendered size');
+
+  const resizeObserverMatch = body.match(/_siResizeObserver = new ResizeObserver\(function\(entries\)[\s\S]*?\n    \}\);/);
+  assert(resizeObserverMatch, 'REGRESSION: could not isolate the ResizeObserver callback');
+  assert(!/newH/.test(resizeObserverMatch[0]) && !/contentRect\.height/.test(resizeObserverMatch[0]), 'REGRESSION: the ResizeObserver is comparing height again — since this function is what determines this element\'s own flex-computed height, watching height here caused an infinite re-render loop (the exact bug just reported) and must never come back');
 });
 
 console.log('═══════════════════════════════════════════════════════');
