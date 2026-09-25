@@ -1769,7 +1769,7 @@ function pairsFetch(){
   var dataA, dataB, done=0;
   function tryDone(){
     done++;
-    if(done===2&&dataA&&dataB) pairsAnalyzeWith(a,b,dataA,dataB);
+    if(done===2&&dataA&&dataB) pairsAnalyzeWith(a,b,dataA,dataB,false);
   }
   qtFetchOHLCV(a,365,function(e,d){dataA=d;tryDone();});
   setTimeout(function(){qtFetchOHLCV(b,365,function(e,d){dataB=d;tryDone();});},1000);
@@ -1777,10 +1777,16 @@ function pairsFetch(){
 
 function pairsAnalyze(){
   var a=(el('pt-a').value||'BBCA').toUpperCase(), b=(el('pt-b').value||'BBRI').toUpperCase();
-  pairsAnalyzeWith(a,b, qtGenSim(a,365), qtGenSim(b,365));
+  pairsAnalyzeWith(a,b, qtGenSim(a,365), qtGenSim(b,365), true);
 }
 
-function pairsAnalyzeWith(a,b,dataA,dataB){
+// FIX (2026-09-25, audit "cek halaman lain yang masih pakai data simulasi
+// tanpa disclosure"): pairsAnalyze() (tombol "Analisa Pairs") memakai
+// qtGenSim() random-walk sintetis untuk KEDUA saham dan merender ke fungsi
+// YANG SAMA dengan pairsFetch() (tombol "Live", data Yahoo asli via
+// qtFetchOHLCV) — tanpa isSimulated, user tidak bisa membedakan hasil
+// simulasi dari hasil live sama sekali di #pt-stats.
+function pairsAnalyzeWith(a,b,dataA,dataB,isSimulated){
   var closeA=dataA.map(function(d){return d.close;}), closeB=dataB.map(function(d){return d.close;});
   var n=Math.min(closeA.length,closeB.length);
   var A=closeA.slice(-n), B=closeB.slice(-n);
@@ -1797,7 +1803,11 @@ function pairsAnalyzeWith(a,b,dataA,dataB){
   var lastZ=zscore[zscore.length-1];
   var corr=qtPearson(A,B);
 
-  el('pt-stats').innerHTML=[
+  var ptSimBanner = isSimulated
+    ? '<div style="padding:5px 8px;margin-bottom:6px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;color:var(--amber);font-size:10px">⚠ SIMULASI — harga & statistik di bawah ini adalah random-walk sintetis, bukan data pasar real. Klik "Live" untuk data Yahoo Finance asli.</div>'
+    : '<div style="padding:5px 8px;margin-bottom:6px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.25);border-radius:6px;color:var(--green);font-size:10px">✓ LIVE — data harga dari Yahoo Finance.</div>';
+
+  el('pt-stats').innerHTML=ptSimBanner+[
     'Pair: <b style="color:var(--accent)">'+a+' / '+b+'</b>',
     'Korelasi: <b style="color:'+(corr>0.7?'var(--green)':corr>0.4?'var(--amber)':'var(--red)')+'">'+corr.toFixed(3)+'</b>',
     'Z-Score terakhir: <b style="color:'+(Math.abs(lastZ)>2?'var(--red)':Math.abs(lastZ)>1?'var(--amber)':'var(--green)')+'">'+lastZ.toFixed(2)+'</b>',

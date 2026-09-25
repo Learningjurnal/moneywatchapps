@@ -8529,6 +8529,43 @@ await asyncTest('REGRESSION GUARD: Sector Insight chart discloses when a sector\
   assert(/sectorsWithGaps/.test(barChartFnMatch[0]), 'REGRESSION: the global "N sektor punya data estimasi" banner is gone from the bar chart header — a user would have to hover every single bar to discover any gap exists at all');
 });
 
+// ============================================================
+// BUG (2026-09-25, audit "cek halaman lain yang masih pakai data
+// simulasi tanpa disclosure"): pairsAnalyze() (tombol "Analisa Pairs" di
+// halaman Pairs Trading) memakai qtGenSim() random-walk sintetis untuk
+// KEDUA saham, lalu me-render lewat pairsAnalyzeWith() — fungsi yang
+// SAMA PERSIS dipakai pairsFetch() (tombol "Live", data Yahoo asli).
+// #pt-stats/#pt-signal-badge tidak pernah punya indikasi apa pun bahwa
+// hasil yang tampil (Korelasi, Z-Score, "Harga X terakhir: Rp ...")
+// adalah karangan, padahal user bisa saja mengira sedang melihat data
+// live. Fixed dengan parameter isSimulated pada pairsAnalyzeWith(),
+// true dari pairsAnalyze(), false dari pairsFetch(), dirender sebagai
+// banner amber/green di #pt-stats.
+// ============================================================
+await asyncTest('REGRESSION GUARD: Pairs Trading "Analisa Pairs" (simulasi) discloses that its stats are synthetic instead of looking identical to "Live" (Yahoo real data)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+
+  const analyzeMatch = src.match(/function pairsAnalyze\(\)[\s\S]*?\n\}/);
+  assert(analyzeMatch, 'pairsAnalyze() not found');
+  assert(/pairsAnalyzeWith\(a,b,\s*qtGenSim\(a,365\),\s*qtGenSim\(b,365\),\s*true\)/.test(analyzeMatch[0]),
+    'REGRESSION: pairsAnalyze() (synthetic qtGenSim data) no longer passes isSimulated=true into pairsAnalyzeWith()');
+
+  const fetchMatch = src.match(/function pairsFetch\(\)[\s\S]*?\n\}/);
+  assert(fetchMatch, 'pairsFetch() not found');
+  assert(/pairsAnalyzeWith\(a,b,dataA,dataB,false\)/.test(fetchMatch[0]),
+    'REGRESSION: pairsFetch() (real Yahoo data via qtFetchOHLCV) no longer passes isSimulated=false into pairsAnalyzeWith()');
+
+  const withMatch = src.match(/function pairsAnalyzeWith\([\s\S]*?\n\}/);
+  assert(withMatch, 'pairsAnalyzeWith() not found');
+  const withBody = withMatch[0];
+  assert(/function pairsAnalyzeWith\(a,b,dataA,dataB,isSimulated\)/.test(src),
+    'REGRESSION: pairsAnalyzeWith() no longer accepts an isSimulated parameter');
+  assert(/isSimulated\s*\?/.test(withBody) && /SIMULASI/.test(withBody),
+    'REGRESSION: pairsAnalyzeWith() no longer branches on isSimulated to show a "SIMULASI" disclosure');
+  assert(/el\('pt-stats'\)\.innerHTML\s*=\s*\w+\s*\+/.test(withBody),
+    'REGRESSION: the disclosure banner is no longer prepended into #pt-stats innerHTML — a user reading the pair stats would see no warning at all');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
