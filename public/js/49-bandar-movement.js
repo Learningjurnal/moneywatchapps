@@ -754,8 +754,15 @@ function bmRenderBrokerDistributionSankey() {
   // Broker Summary next to it (the taller of the two stretches the row;
   // CSS Grid stretch never clips the taller item) is simpler and correct.
   var NODE_MIN_H = 30, NODE_GAP = 10;
+  // Budget more than the bare NODE_MIN_H floor per row (46px, not 30) so
+  // there is real surplus height left for layoutHeights() below to hand
+  // out proportionally to value — budgeting exactly the floor leaves zero
+  // surplus at the row cap, which renders every node at an identical
+  // height regardless of value (technically not clipped, but loses the
+  // whole point of a value-weighted flow chart).
+  var NODE_BUDGET_H = 46;
   var maxRows = Math.max(buyers.length, sellers.length);
-  var neededUsableHeight = maxRows * NODE_MIN_H + (maxRows - 1) * NODE_GAP;
+  var neededUsableHeight = maxRows * NODE_BUDGET_H + (maxRows - 1) * NODE_GAP;
   var height = Math.max(320, neededUsableHeight + topPad + bottomPad);
   var usableHeight = height - topPad - bottomPad;
 
@@ -768,12 +775,42 @@ function bmRenderBrokerDistributionSankey() {
   var totalBuyVal = dist.totalBuyVal || 1;
   var totalSellVal = dist.totalSellVal || 1;
 
+  // FIX (2026-09-26, user-reported 3x with screenshots, real data this
+  // time — root cause finally confirmed by measuring actual DOM/canvas
+  // pixel values, not guessed): `Math.max(NODE_MIN_H, proportional)` looks
+  // safe per-node but is NOT safe in total. With real broker data (a
+  // couple of dominant brokers + a long tail of small ones, which is the
+  // normal shape, not an edge case), several small brokers all get floored
+  // up to NODE_MIN_H while the dominant ones keep their full, larger
+  // proportional share on top — the SUM of every node's height then
+  // exceeds usableHeight (verified: 10 nodes computed to need ~473px of
+  // usableHeight when only 390px was budgeted), pushing the last nodes'
+  // y-position past the canvas's own drawn height, silently invisible
+  // (a canvas clips its own drawing at its bounds — no scrollbar, no
+  // console error, nothing to see it happening). This was never a
+  // container/CSS/grid clipping problem despite two earlier fixes assuming
+  // so — canvas and card were already sized correctly.
+  //
+  // Real fix: give every node NODE_MIN_H as a guaranteed baseline, then
+  // distribute only the SURPLUS height (usableHeight minus what every
+  // floor reserves) proportionally by value. Sum of (baseline + share of
+  // surplus) across all nodes is exactly usableHeight by construction —
+  // there is no per-node ceiling to silently blow through.
+  function layoutHeights(nodes, totalVal, availHeight) {
+    var n = nodes.length;
+    var usable = availHeight - (n - 1) * NODE_GAP;
+    var surplus = Math.max(0, usable - n * NODE_MIN_H);
+    return nodes.map(function(node) {
+      return NODE_MIN_H + (node.value / totalVal) * surplus;
+    });
+  }
+
   // Calculate Buyer Node Positions
   var bCurrentY = topPad;
-  var bAvailHeight = usableHeight - (buyers.length - 1) * NODE_GAP;
+  var bHeights = layoutHeights(buyers, totalBuyVal, usableHeight);
 
-  buyers.forEach(function(b) {
-    var h = Math.max(NODE_MIN_H, (b.value / totalBuyVal) * bAvailHeight);
+  buyers.forEach(function(b, i) {
+    var h = bHeights[i];
     b.x = leftX;
     b.y = bCurrentY;
     b.w = nodeWidth;
@@ -783,10 +820,10 @@ function bmRenderBrokerDistributionSankey() {
 
   // Calculate Seller Node Positions
   var sCurrentY = topPad;
-  var sAvailHeight = usableHeight - (sellers.length - 1) * NODE_GAP;
+  var sHeights = layoutHeights(sellers, totalSellVal, usableHeight);
 
-  sellers.forEach(function(s) {
-    var h = Math.max(NODE_MIN_H, (s.value / totalSellVal) * sAvailHeight);
+  sellers.forEach(function(s, i) {
+    var h = sHeights[i];
     s.x = rightX;
     s.y = sCurrentY;
     s.w = nodeWidth;
