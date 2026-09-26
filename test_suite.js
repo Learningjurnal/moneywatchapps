@@ -9232,6 +9232,65 @@ test('REGRESSION GUARD: "Lainnya" sector bucket in ROTASI MODAL SEKTOR shows whi
     'REGRESSION: the Lainnya row no longer surfaces which real ticker(s) caused it — back to an unexplained bucket');
 });
 
+// ============================================================
+// BUG (2026-09-26, root cause of "Lainnya" traced from the diagnostic
+// above — user's own screenshot of the new ticker list showed 11 of 16
+// were warrant codes: CYBR-W, CSIS-W, MGNA-W, PJHB-W, MANG-W, PYFA-W,
+// INET-W2, ISAP-W, COCO-W, PEGE-W, KOCI-W). Verified directly against
+// loadBaseUniverse(): every one of those 11 base tickers (CYBR, CSIS,
+// MGNA, PJHB, MANG, PYFA, INET, ISAP, COCO, PEGE, KOCI) already has a
+// real, non-'Lainnya' sector — the lookup just never stripped the IDX
+// warrant suffix before matching. A warrant is definitionally the same
+// company/sector as its underlying stock, so resolving it via the base
+// ticker reuses already-verified data (not a new guess). The other 5
+// tickers from that screenshot (RANS, EMMI, JECX, BACH, JELI) are
+// genuinely absent from the static universe and are deliberately left
+// unresolved — no sector has been verified for them from any official
+// source, so per CLAUDE.md's zero-fabrication rule they must keep
+// falling through to 'Lainnya' honestly, not get a guessed sector.
+// ============================================================
+await asyncTest('REGRESSION GUARD: getUniverseAccumulationDistribution()/getUniverseForeignFlow() resolve a warrant ticker (-W suffix) to its underlying stock\'s real sector', async () => {
+  const universeModule = await import('./lib/universe.js');
+  const universe = universeModule.loadBaseUniverse();
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const helperMatch = engineSrc.match(/function resolveUniverseEntryForCode\(universe, code\) \{[\s\S]*?\n\}/);
+  assert(helperMatch, 'REGRESSION: resolveUniverseEntryForCode() helper is gone from lib/idx-data-engine.js — warrant tickers will fall back into the "Lainnya" bucket again');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext('var resolveUniverseEntryForCode = ' + helperMatch[0], sandbox);
+
+  // Functional proof using the REAL loaded universe (not fake data): each
+  // of these 11 real warrant tickers, confirmed unresolved before this
+  // fix, must now resolve to its real underlying stock's real sector.
+  const warrantToBase = {
+    'CYBR-W': 'CYBR', 'CSIS-W': 'CSIS', 'MGNA-W': 'MGNA', 'PJHB-W': 'PJHB',
+    'MANG-W': 'MANG', 'PYFA-W': 'PYFA', 'INET-W2': 'INET', 'ISAP-W': 'ISAP',
+    'COCO-W': 'COCO', 'PEGE-W': 'PEGE', 'KOCI-W': 'KOCI'
+  };
+  Object.keys(warrantToBase).forEach(function (warrantCode) {
+    const baseCode = warrantToBase[warrantCode];
+    assert(universe[baseCode], 'test setup invalid: base ticker ' + baseCode + ' unexpectedly missing from loadBaseUniverse()');
+    const resolved = sandbox.resolveUniverseEntryForCode(universe, warrantCode);
+    assert(resolved, 'REGRESSION: ' + warrantCode + ' no longer resolves to any universe entry — will fall back to "Lainnya"');
+    assert.strictEqual(resolved.sector, universe[baseCode].sector,
+      'REGRESSION: ' + warrantCode + ' resolved to the wrong sector (expected its underlying stock ' + baseCode + '\'s real sector "' + universe[baseCode].sector + '", got "' + resolved.sector + '")');
+  });
+
+  // A ticker that is neither a real universe key nor a warrant of one
+  // must still resolve to null (honestly unresolved), never fabricated.
+  assert.strictEqual(sandbox.resolveUniverseEntryForCode(universe, 'RANS'), null,
+    'REGRESSION: a genuinely unmapped, non-warrant ticker (RANS) must resolve to null, not a guessed entry');
+
+  const mapRowUsage = (engineSrc.match(/const mapRow = \(item\) => \{[\s\S]*?\n  \};/g) || []);
+  assert(mapRowUsage.length >= 2, 'expected both getUniverseAccumulationDistribution() and getUniverseForeignFlow() to define mapRow()');
+  mapRowUsage.forEach(function (fn) {
+    assert(/resolveUniverseEntryForCode\(universe, item\.code\)/.test(fn),
+      'REGRESSION: a mapRow() no longer calls resolveUniverseEntryForCode() — reverted to the exact-match universe[item.code] lookup that fails on warrant tickers');
+  });
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
