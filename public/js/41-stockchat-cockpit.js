@@ -3117,13 +3117,16 @@ function bandarRenderSectorRotationChart(mount, data) {
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-bottom:12px">Data REAL Invezgo API (RS-Ratio vs RS-Momentum, rebased ke 100 = ' + (data.benchmark || 'COMPOSITE') + ') — visualisasi kekuatan & momentum relatif tiap sektor, bukan sampel.</div>';
 
-  // FIX (2026-09-26, user-reported: "perkecil ukuran grafik karena layout
-  // terlalu penuh dengan grafik"): the chart previously stretched to the
-  // full card width (often >900px on desktop), dominating the page.
-  // Capped to a smaller, centered footprint — plenty of room for 11
-  // labeled trails without the chart overwhelming the rest of the
-  // Bandarmology page.
-  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%;max-width:520px;margin:0 auto"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
+  // FIX (2026-09-26, user-reported twice: first "perkecil ukuran grafik
+  // karena layout terlalu penuh dengan grafik" — chart stretched to the
+  // full card width (>900px), then "belum bagus terlalu kecil ukuran
+  // grafiknya, proporsionalkan dengan layout" — the fixed 520px cap left
+  // large empty margins on wide desktop cards (screenshot showed it
+  // ~1650px wide with the 520px chart stranded in the middle). Switched
+  // from a small fixed cap to a proportional width (68% of the card,
+  // same KPI-row width) with a generous upper bound — scales with the
+  // page instead of being either full-bleed or a fixed small box.
+  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:68%;max-width:900px;min-width:420px;margin:0 auto"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
 
   _bandarRenderRotationSvg(document.getElementById('bandar-rotation-svg-wrap'), sectors, colorMap, isDark);
   _bandarRenderRotationTable(document.getElementById('bandar-rotation-table-wrap'), sectors, colorMap, quadrantLabel);
