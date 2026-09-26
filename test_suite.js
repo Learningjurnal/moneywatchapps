@@ -1900,8 +1900,11 @@ test('REGRESSION GUARD: Technical + Bandarmology (stock mode) consolidation — 
     'REGRESSION: techRunBandarmologyTab() (the new Bandarmology-stock-mode tab on the Technical page) was removed from 24-stockmaster.js');
   assert(/techRunBandarmologyTab\(ticker\)/.test(stockmasterJs),
     'REGRESSION: techSwitchTab() no longer calls techRunBandarmologyTab() when switching into the FlowScan/Bandarmology tab');
-  assert(/renderBandarmologySmartMoneyFlowView/.test(stockmasterJs) && /renderBandarmologyForeignFlowView/.test(stockmasterJs),
-    'REGRESSION: techRunBandarmologyTab() no longer reuses the existing Bandarmology view functions (renderBandarmologySmartMoneyFlowView/renderBandarmologyForeignFlowView) — it must not reimplement them');
+  assert(/renderBandarmologySmartMoneyFlowView/.test(stockmasterJs),
+    'REGRESSION: techRunBandarmologyTab() no longer reuses the existing renderBandarmologySmartMoneyFlowView() — it must not reimplement it');
+  // renderBandarmologyForeignFlowView() was removed 2026-09-26 (misleading
+  // "TOP 5 Foreign Net Buy/Sell" widget) — techRunBandarmologyTab() must NOT
+  // call it; see the "dead ... widget ... must stay removed" test.
 
   assert(/id="tech-bandar-content"/.test(indexHtml),
     'REGRESSION: public/index.html no longer has the #tech-bandar-content container for the merged Bandarmology tab inside page-technical');
@@ -6404,18 +6407,49 @@ test('REGRESSION GUARD: getUniverseForeignFlow() must scan the whole BEI market 
   assert(/isSimulated:\s*true/.test(fnSrc) && /NOT_CONFIGURED|Invezgo API key belum dikonfigurasi/.test(fnSrc),
     'REGRESSION: getUniverseForeignFlow() no longer honestly reports isSimulated:true when Invezgo is not configured');
 
+  // getUniverseForeignFlow() itself stays and stays exported — the Unified
+  // Screener (generateUnifiedScreener()) still calls it internally for its
+  // categorical whale-score signal (foreign net buy/sell membership, not the
+  // raw score value). Only the HTTP route and the market-wide "TOP 5
+  // Foreign Net Buy/Sell" UI widget that displayed its unverified score as
+  // a ranked list were removed — see the "REMOVED" regression guard below.
   assert(/getUniverseForeignFlow,/.test(engineSrc), 'REGRESSION: getUniverseForeignFlow is no longer exported from lib/idx-data-engine.js');
+});
+
+// ── TEST: the "TOP 5 FOREIGN NET BUY/SELL" market-wide widget must stay
+// removed ──
+// User-reported (2026-09-26): "hilangkan TOP 5 FOREIGN NET BUY (AKUMULASI
+// ASING), TOP 5 FOREIGN NET SELL (DISTRIBUSI ASING), karena data
+// menyesatkan" — the widget ranked tickers by Invezgo's calculated_value
+// (renamed "score" in an earlier fix, see the test above), a field never
+// documented or verified by Invezgo to represent actual net foreign Rupiah
+// flow. Relabeling it as "Skor" (2026-09-25 fix) didn't fix the underlying
+// problem: an unverified ranking score presented as "TOP 5 Foreign Net
+// Buy/Sell" still implies a level of certainty the data doesn't support.
+// Removed entirely rather than relabeled again. getUniverseForeignFlow()
+// itself is NOT removed — see the test above.
+test('REGRESSION GUARD: dead "TOP 5 Foreign Net Buy/Sell" widget (renderBandarmologyForeignFlowView/bandarRenderForeignFlowMarket/bandarLoadRealForeignFlow, GET /api/idx/foreign-flow) must stay removed', () => {
+  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(!/function renderBandarmologyForeignFlowView/.test(cockpitSrc),
+    'REGRESSION: renderBandarmologyForeignFlowView() is back — the misleading "TOP 5 Foreign Net Buy/Sell" widget must stay removed');
+  assert(!/function bandarRenderForeignFlowMarket/.test(cockpitSrc),
+    'REGRESSION: bandarRenderForeignFlowMarket() is back');
+  assert(!/function bandarLoadRealForeignFlow/.test(cockpitSrc),
+    'REGRESSION: bandarLoadRealForeignFlow() is back');
+  assert(!/TOP 5 FOREIGN NET BUY/.test(cockpitSrc) && !/TOP 5 FOREIGN NET SELL/.test(cockpitSrc),
+    'REGRESSION: the "TOP 5 FOREIGN NET BUY/SELL" labels are back in the UI');
+  assert(!/fetch\('\/api\/idx\/foreign-flow'/.test(cockpitSrc),
+    'REGRESSION: a fetch(\'/api/idx/foreign-flow\') call is back in the cockpit UI');
+
+  const stockmasterSrc = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(!/renderBandarmologyForeignFlowView/.test(stockmasterSrc),
+    'REGRESSION: techRunBandarmologyTab() calls renderBandarmologyForeignFlowView() again');
+  assert(!/bandarLoadRealForeignFlow/.test(stockmasterSrc),
+    'REGRESSION: techRunBandarmologyTab() calls bandarLoadRealForeignFlow() again');
 
   const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
-  assert(/app\.get\('\/api\/idx\/foreign-flow'/.test(serverSrc), 'REGRESSION: GET /api/idx/foreign-flow route is gone from server.js');
-  assert(/getUniverseForeignFlow\(\)/.test(serverSrc), 'REGRESSION: the /api/idx/foreign-flow route no longer calls getUniverseForeignFlow()');
-
-  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
-  const foreignViewSrc = cockpitSrc.match(/function renderBandarmologyForeignFlowView[\s\S]*?\n\}\n/)[0];
-  assert(!/var sampleTickers = \[/.test(foreignViewSrc),
-    'REGRESSION: renderBandarmologyForeignFlowView() reverted to iterating a hardcoded ticker sample instead of the whole-market endpoint');
-  assert(/async function bandarLoadRealForeignFlow/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() is gone — Foreign Flow view no longer fetches real whole-market data');
-  assert(/fetch\('\/api\/idx\/foreign-flow'/.test(cockpitSrc), 'REGRESSION: bandarLoadRealForeignFlow() no longer fetches GET /api/idx/foreign-flow');
+  assert(!/app\.get\('\/api\/idx\/foreign-flow'/.test(serverSrc),
+    'REGRESSION: GET /api/idx/foreign-flow route is back in server.js');
 });
 
 // ── TEST: _mergeWealthData() must respect tombstones for bank/debt/
@@ -7862,11 +7896,9 @@ test('REGRESSION GUARD: Bandarmology market-aggregate (Opsi B → whole-market S
   assert(cockpitSrc.includes('bandarSetMarketTimeframe'),
     'REGRESSION: bandarSetMarketTimeframe() function must be defined');
 
-  // 6. Foreign flow view still mounted in market cockpit.
-  assert(cockpitSrc.includes('+ renderBandarmologyForeignFlowView(tk)'),
-    'REGRESSION: renderBandarmologyCockpitPage() must mount renderBandarmologyForeignFlowView() in composed HTML');
-  assert(cockpitSrc.includes('setTimeout(bandarLoadRealForeignFlow, 40);'),
-    'REGRESSION: renderBandarmologyCockpitPage() must trigger bandarLoadRealForeignFlow on mount');
+  // 6. Foreign flow "TOP 5" widget intentionally removed (2026-09-26, user-
+  //    reported misleading data) — see the "dead ... widget ... must stay
+  //    removed" regression guard test.
 });
 
 test('REGRESSION GUARD: Broker Summary by Broker (Invezgo whole-market portfolio endpoint, idx-data-engine mapping, server route, and cockpit view)', () => {
@@ -8299,7 +8331,9 @@ await asyncTest('REGRESSION GUARD: every Market Flow fetch() call (broker summar
 
   assertHasTimeoutNear('fetchBrokerSummaryData() (per-ticker, used by the ~48-ticker prefetch batch)', /fetch\('\/api\/idx\/broker-summary\/'/);
   assertHasTimeoutNear('bandarLoadRealMarketFlow() (whole-market acc/dist scanner)', /fetch\('\/api\/idx\/accumulation-distribution', \{ signal/);
-  assertHasTimeoutNear('bandarLoadRealForeignFlow()', /fetch\('\/api\/idx\/foreign-flow'/);
+  // bandarLoadRealForeignFlow()/GET /api/idx/foreign-flow removed 2026-09-26
+  // (misleading "TOP 5 Foreign Net Buy/Sell" widget) — see the "dead ...
+  // widget ... must stay removed" regression guard test.
   assertHasTimeoutNear('bandarLoadBrokerPortfolio()', /fetch\('\/api\/idx\/broker-summary-by-broker\/'/);
 });
 
@@ -9012,7 +9046,13 @@ function bandarRenderAccDistTableForTest(fullSrc, mode, data) {
 // 41-stockchat-cockpit.js) — same treatment already correctly applied to
 // /analysis/top/accumulation's calculated_value elsewhere in this file.
 // ============================================================
-await asyncTest('REGRESSION GUARD: getUniverseForeignFlow() and its widget treat Invezgo\'s calculated_value as a score, not a fabricated Rupiah net-value', () => {
+// NOTE (2026-09-26): this test originally also checked
+// bandarRenderForeignFlowMarket()'s widget rendering (fmtScore sign
+// handling etc.) — that widget was removed at the user's request ("TOP 5
+// FOREIGN NET BUY/SELL... data menyesatkan"). getUniverseForeignFlow()
+// itself stays (still used internally by the Unified Screener), so its
+// score-vs-fabricated-Rupiah field naming is still worth guarding.
+await asyncTest('REGRESSION GUARD: getUniverseForeignFlow() treats Invezgo\'s calculated_value as a score, not a fabricated Rupiah net-value', () => {
   const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
   const fnMatch = engineSrc.match(/async function getUniverseForeignFlow[\s\S]*?\n\}\n/);
   assert(fnMatch, 'getUniverseForeignFlow() not found');
@@ -9024,26 +9064,6 @@ await asyncTest('REGRESSION GUARD: getUniverseForeignFlow() and its widget treat
     'REGRESSION: getUniverseForeignFlow() maps calculated_value back into a field literally named netValueRp — this was the confirmed-wrong assumption (verified against 3 real Invezgo API responses, none show calculated_value as a Rupiah amount)');
   assert(/\.sort\(\(a, b\) => b\.score - a\.score\)/.test(fnBody) && /\.sort\(\(a, b\) => a\.score - b\.score\)/.test(fnBody),
     'REGRESSION: netBuy/netSell no longer sort by the renamed `score` field');
-
-  const cockpitSrc = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
-  const widgetMatch = cockpitSrc.match(/function bandarRenderForeignFlowMarket\(data\) \{[\s\S]*?\nasync function bandarLoadRealForeignFlow/);
-  assert(widgetMatch, 'bandarRenderForeignFlowMarket() not found');
-  const widgetBody = widgetMatch[0];
-  assert(/Skor ' \+ fmtScore\(item\.score\)/.test(widgetBody),
-    'REGRESSION: bandarRenderForeignFlowMarket() no longer renders the score honestly as "Skor X.XX" — a fabricated "+Rp" figure may be back');
-  assert(!/item\.netValueRp/.test(widgetBody),
-    'REGRESSION: bandarRenderForeignFlowMarket() reads item.netValueRp again — that field no longer exists on getUniverseForeignFlow()\'s rows (renamed to score), so this would render "Skor undefined" or NaN');
-
-  // Functional proof: a distribution (net-sell) row with a NEGATIVE score
-  // must render as a negative number, not a "+Rp 0" that hides the sign —
-  // this is exactly the bug the user's screenshot showed (BBSI-style
-  // negative-score rows displaying with a misleading "+").
-  const fmtMatch = widgetBody.match(/var fmtScore = function\(s\) \{ return Number\(s \|\| 0\)\.toFixed\(2\); \};/);
-  assert(fmtMatch, 'could not locate fmtScore() definition');
-  const sandbox = {};
-  vm.runInContext('var fmtScore = ' + fmtMatch[0].replace(/^var fmtScore = /, '').replace(/;$/, ''), vm.createContext(sandbox));
-  assert.strictEqual(sandbox.fmtScore(-74.0), '-74.00', 'REGRESSION: a negative score (distribution) no longer preserves its sign when formatted');
-  assert.strictEqual(sandbox.fmtScore(80.8), '80.80', 'REGRESSION: a positive score (accumulation) formats incorrectly');
 });
 
 // ============================================================

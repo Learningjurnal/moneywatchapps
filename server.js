@@ -32,7 +32,6 @@ import {
   getScreenerSignalLogSummary,
   warmTechnicalRotating,
   getUniverseAccumulationDistribution,
-  getUniverseForeignFlow,
   getTransactionFlowVisualizer,
   getBeiTickSize,
   generateBrokerSummary,
@@ -4610,20 +4609,12 @@ app.post('/api/idx/accumulation-distribution', async (req, res) => {
   }
 });
 
-// GET /api/idx/foreign-flow — Top Foreign Net Buy/Sell seluruh BEI (1
-// panggilan Invezgo untuk SELURUH pasar, bukan sampel ticker). Menggantikan
-// pendekatan lama di renderBandarmologyForeignFlowView() (public/js/41-
-// stockchat-cockpit.js) yang cuma iterasi ~42 ticker hardcoded — lihat
-// komentar getUniverseForeignFlow() di lib/idx-data-engine.js.
-app.get('/api/idx/foreign-flow', async (req, res) => {
-  try {
-    const data = await getUniverseForeignFlow();
-    return res.json(data);
-  } catch (err) {
-    console.error('[IDX Foreign Flow Scanner Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
+// GET /api/idx/foreign-flow — REMOVED (2026-09-26, user-reported: "TOP 5
+// FOREIGN NET BUY/SELL" widget menampilkan data menyesatkan). Endpoint ini
+// hanya dikonsumsi oleh widget yang sudah dihapus di public/js/41-
+// stockchat-cockpit.js. getUniverseForeignFlow() sendiri TETAP ADA di
+// lib/idx-data-engine.js karena masih dipakai internal oleh Unified
+// Screener (bukan lewat HTTP) — lihat komentar di sana.
 
 // GET /api/idx/flow-trail/:ticker — Interactive Transaction Flow Visualizer per Ticker
 app.get('/api/idx/flow-trail/:ticker', async (req, res) => {

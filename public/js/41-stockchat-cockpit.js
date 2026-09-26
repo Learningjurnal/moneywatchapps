@@ -2568,7 +2568,6 @@ function renderBandarmologyCockpitPage(containerId, force) {
   // ticker sama. Lihat INCIDENT_LOG.md.
   html += '<div id="bandarmology-tab-content" style="min-height:460px;display:flex;flex-direction:column;gap:16px">'
     + renderBandarmologyMarketFlowView(tk)
-    + renderBandarmologyForeignFlowView(tk)
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
     + renderBandarmologyAccumulationView()
     + renderBandarmologyDistributionView()
@@ -2581,7 +2580,6 @@ function renderBandarmologyCockpitPage(containerId, force) {
   _bandarAccDistCache = null;
   setTimeout(function() { bandarLoadAccDist('acc'); }, 40);
   setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
-  setTimeout(bandarLoadRealForeignFlow, 40);
   // Kick off 1 API call for the whole-market Smart Money scanner (cached daily).
   setTimeout(bandarLoadRealMarketFlow, 60);
   setTimeout(function() { bandarLoadBrokerPortfolio(BANDARMOLOGY_SELECTED_BROKER, BANDARMOLOGY_BROKER_TIMEFRAME); }, 40);
@@ -3283,100 +3281,16 @@ function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
   wrap.style.position = 'relative';
 }
 
-// 3. Foreign Flow View
-// FIX (2026-09-18, user-reported bug + standing rule violation: "apakah
-// khusus LQ45? jangan hanya analisa LQ45, analisa semua emiten"): dulu
-// fungsi ini iterasi ~42 ticker hardcoded lalu menghitung netRp dari
-// bandarForeignNetRp() yang selalu null untuk data REAL Invezgo (endpoint
-// summary/stock investor=all tidak punya flag F/D per broker) — hasilnya
-// "+Rp 0 M" & "Porsi Asing: 50%" identik untuk SEMUA baris, dan Top Buy/
-// Top Sell menampilkan urutan yang sama persis (sort atas array yang semua
-// nilainya sama = no-op). Diganti total: sekarang cuma render placeholder
-// sinkron, lalu bandarLoadRealForeignFlow() mengambil data REAL SELURUH
-// BEI dari GET /api/idx/foreign-flow (endpoint /analysis/top/foreign
-// Invezgo, 1 panggilan API untuk seluruh pasar — lihat
-// getUniverseForeignFlow() di lib/idx-data-engine.js).
-function renderBandarmologyForeignFlowView(tk) {
-  return '<div id="bandar-foreign-flow-market-content">'
-    + '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memuat Foreign Net Buy/Sell seluruh BEI...</div>'
-    + '</div>';
-}
-
-function bandarRenderForeignFlowMarket(data) {
-  if (!data || !data.success) {
-    return '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat data Foreign Flow.</div>';
-  }
-  if (data.isSimulated) {
-    return '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2)">'
-      + (data.message || data.dataSource) + '</div>';
-  }
-
-  // FIX (2026-09-25, user-reported: "+Rp 0 Jt" ditampilkan untuk SEMUA
-  // baris, termasuk baris net-sell yang seharusnya negatif — GOTO
-  // menunjukkan "+Rp 50" yang absurd untuk seluruh BEI): field yang
-  // dipakai di sini (dulu netValueRp, sekarang score) TERNYATA bukan
-  // Rupiah — itu skor ranking Invezgo sendiri (calculated_value, dari
-  // /analysis/top/foreign), diverifikasi dari 3 respons API real user
-  // (tidak ada penjelasan field ini di dokumentasi Invezgo). Diganti dari
-  // format Rupiah palsu jadi "Skor" jujur, konsisten dengan cara
-  // /analysis/top/accumulation (widget Radar Akumulasi/Distribusi) sudah
-  // benar memperlakukan field yang sama.
-  var fmtScore = function(s) { return Number(s || 0).toFixed(2); };
-  var renderCol = function(list, colorVar, badgeClass, badgeText) {
-    var html = '<div style="display:flex;flex-direction:column">';
-    list.slice(0, 5).forEach(function(item) {
-      html += '<div onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" style="display:flex;justify-content:space-between;align-items:center;padding:10px 8px;border-bottom:1px solid var(--border2);cursor:pointer;border-radius:6px;transition:background 0.15s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'transparent\'">'
-        + '<div>'
-        + '<div style="display:flex;align-items:center;gap:6px">'
-        + '<span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span>'
-        + '<span class="badge ' + (item.priceChangePct >= 0 ? 'b-up' : 'b-dn') + '" style="font-size:9px">' + (item.priceChangePct >= 0 ? '+' : '') + item.priceChangePct.toFixed(2) + '%</span>'
-        + '</div>'
-        + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + (item.name || item.ticker) + '</div>'
-        + '</div>'
-        + '<div style="text-align:right">'
-        + '<div class="mono" style="font-weight:800;font-size:13px;color:var(' + colorVar + ')">Skor ' + fmtScore(item.score) + '</div>'
-        + '<div class="mono" style="font-size:11px;color:var(--text3)">Rp ' + Number(item.price || 0).toLocaleString('id-ID') + '</div>'
-        + '</div>'
-        + '</div>';
-    });
-    if (list.length === 0) html += '<div style="padding:16px;text-align:center;color:var(--text3);font-size:11px">Tidak ada data untuk hari ini.</div>';
-    html += '</div>';
-    return html;
-  };
-
-  return '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-bottom:12px">'
-    + 'Data REAL dari Invezgo API (' + data.date + ') — seluruh ' + data.counts.totalUniverseScanned + ' emiten BEI yang tercatat aktivitas asing, bukan sampel/LQ45.'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--green)">TOP 5 FOREIGN NET BUY (AKUMULASI ASING)</div>'
-    + '<span class="badge b-up" style="font-size:9px">INFLOW</span>'
-    + '</div>'
-    + renderCol(data.netBuy, '--green', 'b-up', 'INFLOW')
-    + '</div>'
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border2);margin-bottom:8px">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--red)">TOP 5 FOREIGN NET SELL (DISTRIBUSI ASING)</div>'
-    + '<span class="badge b-dn" style="font-size:9px">OUTFLOW</span>'
-    + '</div>'
-    + renderCol(data.netSell, '--red', 'b-dn', 'OUTFLOW')
-    + '</div>'
-    + '</div>';
-}
-
-async function bandarLoadRealForeignFlow() {
-  var container = document.getElementById('bandar-foreign-flow-market-content');
-  if (!container) return;
-  try {
-    var res = await fetch('/api/idx/foreign-flow', { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
-    var data = await res.json();
-    container.innerHTML = bandarRenderForeignFlowMarket(data);
-  } catch (e) {
-    container.innerHTML = '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat data Foreign Flow: ' + e.message + '</div>';
-  }
-}
-window.bandarLoadRealForeignFlow = bandarLoadRealForeignFlow;
+// 3. Foreign Flow View — REMOVED (2026-09-26, user-reported: the whole-
+// market "Foreign Net Buy/Sell" top-5 ranking cards showed data menyesatkan
+// [misleading data]). This widget ranked tickers by Invezgo's
+// calculated_value from /analysis/top/foreign, a field never documented or
+// verified to represent actual net foreign Rupiah flow (see the removed
+// getUniverseForeignFlow()/bandarRenderForeignFlowMarket() history — it was
+// already relabeled from a fabricated "+Rp" figure to a "Skor" once before,
+// per CLAUDE.md rule #3, but an unverified ranking score presented as "TOP 5
+// Foreign Net Buy/Sell" is still misleading regardless of the label).
+// Removed entirely rather than relabeled again, per explicit user request.
 
 // 4. Accumulation View
 // FIX (2026-09-18, user-reported: "lanjut perbaiki 3 view Bandarmology
@@ -4249,7 +4163,6 @@ function mountBandarmologySmartMoneyCharts(tk) {
 
 window.renderBandarmologyCockpitPage = renderBandarmologyCockpitPage;
 window.renderBandarmologyMarketFlowView = renderBandarmologyMarketFlowView;
-window.renderBandarmologyForeignFlowView = renderBandarmologyForeignFlowView;
 window.renderBandarmologyAccumulationView = renderBandarmologyAccumulationView;
 window.renderBandarmologyDistributionView = renderBandarmologyDistributionView;
 window.renderBandarmologySmartMoneyRadarView = renderBandarmologySmartMoneyRadarView;
