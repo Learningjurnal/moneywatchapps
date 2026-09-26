@@ -9114,6 +9114,38 @@ test('FEATURE: Sector Rotation KPI cards derive from real trail data, not fabric
     'REGRESSION: "Strongest Rotation" no longer computed from real consecutive trail-point distance');
 });
 
+// ============================================================
+// BUG (2026-09-26, user-reported: "sector rotation garisnya tidak
+// terlkihat di tema terang dan gelap, garis di sumbunya"): the Sector
+// Rotation Chart's crosshair (the x=100/y=100 benchmark reference lines)
+// used stroke rgba(...,0.08) — 8% opacity — visually indistinguishable
+// from the card background in both light and dark theme. Confirmed by
+// rendering the chart standalone (Playwright, real captured
+// Sector_rotation.json data) and screenshotting both themes: every trail
+// line/dot/label was correctly visible, only the crosshair itself was
+// invisible. Fixed by raising the crosshair stroke opacity and adding a
+// dash pattern so it reads as a reference line, not a data series.
+// ============================================================
+test('REGRESSION GUARD: Sector Rotation Chart crosshair (benchmark axis lines) is visibly opaque in both themes', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function _bandarRenderRotationSvg\(wrap, sectors, colorMap, isDark\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, '_bandarRenderRotationSvg() not found');
+  const fnBody = fnMatch[0];
+
+  const gridColorMatch = fnBody.match(/var gridColor = isDark \? '([^']+)' : '([^']+)';/);
+  assert(gridColorMatch, 'could not find gridColor assignment in _bandarRenderRotationSvg()');
+
+  const extractAlpha = (rgba) => {
+    const m = rgba.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/);
+    return m ? parseFloat(m[1]) : null;
+  };
+  const darkAlpha = extractAlpha(gridColorMatch[1]);
+  const lightAlpha = extractAlpha(gridColorMatch[2]);
+  assert(darkAlpha !== null && lightAlpha !== null, 'could not parse alpha channel from gridColor rgba() values');
+  assert(darkAlpha >= 0.25, 'REGRESSION: dark-theme crosshair opacity (' + darkAlpha + ') is too low to be visible again — the "garis di sumbunya tidak terlihat" bug is back');
+  assert(lightAlpha >= 0.25, 'REGRESSION: light-theme crosshair opacity (' + lightAlpha + ') is too low to be visible again — the "garis di sumbunya tidak terlihat" bug is back');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
