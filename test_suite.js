@@ -9280,8 +9280,12 @@ await asyncTest('REGRESSION GUARD: getUniverseAccumulationDistribution()/getUniv
 
   // A ticker that is neither a real universe key nor a warrant of one
   // must still resolve to null (honestly unresolved), never fabricated.
-  assert.strictEqual(sandbox.resolveUniverseEntryForCode(universe, 'RANS'), null,
-    'REGRESSION: a genuinely unmapped, non-warrant ticker (RANS) must resolve to null, not a guessed entry');
+  // Uses a fabricated, unambiguously-not-real IDX code rather than a real
+  // one, since real gaps get fixed over time (e.g. RANS itself, once
+  // "genuinely unmapped" here, was added to the universe later this same
+  // session from the user's official IDX Stock Screener export).
+  assert.strictEqual(sandbox.resolveUniverseEntryForCode(universe, 'ZZZZFAKE'), null,
+    'REGRESSION: a genuinely unmapped, non-warrant ticker must resolve to null, not a guessed entry');
 
   const mapRowUsage = (engineSrc.match(/const mapRow = \(item\) => \{[\s\S]*?\n  \};/g) || []);
   assert(mapRowUsage.length >= 2, 'expected both getUniverseAccumulationDistribution() and getUniverseForeignFlow() to define mapRow()');
@@ -9289,6 +9293,48 @@ await asyncTest('REGRESSION GUARD: getUniverseAccumulationDistribution()/getUniv
     assert(/resolveUniverseEntryForCode\(universe, item\.code\)/.test(fn),
       'REGRESSION: a mapRow() no longer calls resolveUniverseEntryForCode() — reverted to the exact-match universe[item.code] lookup that fails on warrant tickers');
   });
+});
+
+// ============================================================
+// BUG (2026-09-26, continuation of the "Lainnya" investigation): the 5
+// remaining non-warrant unmapped tickers from the user's screenshot
+// (RANS, EMMI, JECX, BACH, JELI), plus FREN (already correctly present
+// in IDX_SECTOR_GROUPS but missing a DB entry, so it never became a key
+// in loadBaseUniverse()'s combined universe) and GOTOM (found while
+// cross-checking the user-provided official IDX Stock Screener export,
+// "IDX-Stock-Screener-26Sep2026.xlsx", against our static universe — 960
+// real listed tickers vs our 958, a 7-ticker gap). Sector for each was
+// read directly from that xlsx's own Sector column (verified real data,
+// not guessed) and added to both DB and IDX_SECTOR_GROUPS.
+// ============================================================
+test('REGRESSION GUARD: 7 tickers found missing from the static universe (via the official IDX Stock Screener export) are now present with their real sector', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
+  const sandbox = { window: {}, document: { getElementById: () => null } };
+  sandbox.window = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(src, sandbox);
+
+  const expected = {
+    BACH: 'Industrials (Perindustrian)',
+    EMMI: 'Healthcare (Kesehatan)',
+    FREN: 'Infrastructures (Infrastruktur)',
+    GOTOM: 'Technology (Teknologi)',
+    JECX: 'Healthcare (Kesehatan)',
+    JELI: 'Consumer Non-Cyclicals (Konsumer Primer)',
+    RANS: 'Consumer Cyclicals (Konsumer Non-Primer)'
+  };
+  Object.keys(expected).forEach(function (ticker) {
+    assert(sandbox.DB[ticker], 'REGRESSION: ' + ticker + ' is missing from DB again');
+    assert.strictEqual(sandbox.IDX_SECTOR_MAP[ticker], expected[ticker],
+      'REGRESSION: ' + ticker + ' no longer maps to its real IDX sector "' + expected[ticker] + '" (got "' + sandbox.IDX_SECTOR_MAP[ticker] + '")');
+  });
+});
+
+await asyncTest('REGRESSION GUARD: loadBaseUniverse() has zero "Lainnya" entries after adding the 7 missing tickers', async () => {
+  const universeModule = await import('./lib/universe.js');
+  const universe = universeModule.loadBaseUniverse();
+  const lainnya = Object.keys(universe).filter(function (c) { return universe[c].sector === 'Lainnya'; });
+  assert.strictEqual(lainnya.length, 0, 'REGRESSION: loadBaseUniverse() now has tickers stuck at the generic "Lainnya" sector: ' + lainnya.join(', '));
 });
 
 console.log('═══════════════════════════════════════════════════════');
