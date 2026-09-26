@@ -9198,6 +9198,40 @@ test('REGRESSION GUARD: Sector Rotation Chart height is capped independently of 
   assert(parseInt(heightMatch[1], 10) <= 600, 'REGRESSION: height cap (' + heightMatch[1] + 'px) raised well past what the user confirmed was already correct');
 });
 
+// ============================================================
+// BUG (2026-09-26, user asked directly: "cari penyebab muncul sector
+// lainnya" — screenshot showed "ROTASI MODAL SEKTOR (SMART MONEY FLOW
+// SCORE)" listing a "Lainnya" bucket while the Sector Rotation Chart's
+// table never shows one). Root cause traced structurally: the two
+// features get their per-sector breakdown from fundamentally different
+// places. Sector Rotation Chart consumes Invezgo's own pre-aggregated
+// /analysis/sector/rotation endpoint (only the 11 official IDX sectors,
+// exhaustive by construction — no per-ticker lookup can fail). ROTASI
+// MODAL SEKTOR instead maps each ticker from getUniverseAccumulation-
+// Distribution() to a sector using our own static universe (public/js/
+// 01-data.js, ~958 hardcoded tickers) — verified this static universe
+// itself has ZERO 'Lainnya' entries (loadBaseUniverse() output), so the
+// bucket only fires for a ticker Invezgo returns that isn't a key in
+// that static universe at all (most likely a newer IPO listed after the
+// static file was last compiled). Fix: instead of a silent, unexplained
+// "Lainnya" bucket, the widget now tracks and displays the actual ticker
+// code(s) that fell through — turning a mystery into an actionable,
+// honest diagnosis (which specific ticker needs adding to the static
+// sector map) without fabricating a guessed sector for it.
+// ============================================================
+test('REGRESSION GUARD: "Lainnya" sector bucket in ROTASI MODAL SEKTOR shows which ticker(s) caused it, not just a silent label', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function bandarRenderMarketFlowContent\(data\) \{[\s\S]*?\n\/\/ Lazy loader — fetches \/api\/idx\/accumulation-distribution/);
+  assert(fnMatch, 'bandarRenderMarketFlowContent() not found');
+  const fnBody = fnMatch[0];
+
+  assert(/tickers: \[\]/.test(fnBody), 'REGRESSION: sectorMap buckets no longer track which tickers landed in them');
+  assert(/matchedSecName === 'Lainnya'[\s\S]{0,120}tickers\.push\(rawTk\)/.test(fnBody),
+    'REGRESSION: unmapped tickers are no longer recorded against the Lainnya bucket');
+  assert(/Ticker belum ada di peta sektor statis/.test(fnBody),
+    'REGRESSION: the Lainnya row no longer surfaces which real ticker(s) caused it — back to an unexplained bucket');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
