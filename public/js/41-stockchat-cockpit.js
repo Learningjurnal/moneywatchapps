@@ -3117,7 +3117,13 @@ function bandarRenderSectorRotationChart(mount, data) {
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-bottom:12px">Data REAL Invezgo API (RS-Ratio vs RS-Momentum, rebased ke 100 = ' + (data.benchmark || 'COMPOSITE') + ') — visualisasi kekuatan & momentum relatif tiap sektor, bukan sampel.</div>';
 
-  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
+  // FIX (2026-09-26, user-reported: "perkecil ukuran grafik karena layout
+  // terlalu penuh dengan grafik"): the chart previously stretched to the
+  // full card width (often >900px on desktop), dominating the page.
+  // Capped to a smaller, centered footprint — plenty of room for 11
+  // labeled trails without the chart overwhelming the rest of the
+  // Bandarmology page.
+  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%;max-width:520px;margin:0 auto"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
 
   _bandarRenderRotationSvg(document.getElementById('bandar-rotation-svg-wrap'), sectors, colorMap, isDark);
   _bandarRenderRotationTable(document.getElementById('bandar-rotation-table-wrap'), sectors, colorMap, quadrantLabel);
@@ -3167,23 +3173,36 @@ function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
     .attr('viewBox', '0 0 ' + width + ' ' + height)
     .style('display', 'block');
 
-  // FIX (2026-09-26, user-reported: "sector rotation garisnya tidak
-  // terlihat di tema terang dan gelap, garis di sumbunya"): the crosshair
-  // stroke was rgba(...,0.08) — 8% opacity — visually indistinguishable
-  // from the card background in both themes (confirmed by rendering this
-  // chart standalone with the real captured Sector_rotation.json and
-  // screenshotting light+dark: the crosshair was invisible while every
-  // other element rendered correctly). Raised to a clearly visible but
-  // still recessive gray, dashed to read as a reference line rather than
-  // a data series (it isn't one — it's the x=100/y=100 benchmark line).
-  var gridColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)';
   var textColor = typeof _chartTextColor === 'function' ? _chartTextColor('--text2', isDark ? '#D2D8DF' : '#333') : (isDark ? '#D2D8DF' : '#333');
 
-  // Quadrant crosshair at the benchmark centerline (100,100) — matches
-  // the reference chart's own convention, plain background (no tinted
-  // regions competing with the trail colors as primary ink).
-  svg.append('line').attr('x1', x(100)).attr('x2', x(100)).attr('y1', margin.top).attr('y2', height - margin.bottom).attr('stroke', gridColor).attr('stroke-width', 1.25).attr('stroke-dasharray', '4,3');
-  svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', gridColor).attr('stroke-width', 1.25).attr('stroke-dasharray', '4,3');
+  // FIX (2026-09-26, user-reported again with a reference screenshot of
+  // StockCharts' own RRG — "masih belum kontras dengan background, buat
+  // seperti contoh"): a dashed crosshair line alone (previous fix) was
+  // still not enough contrast against a plain white/dark card — the
+  // reference chart uses a filled, tinted background per quadrant so
+  // orientation is obvious at a glance, not just from 2 thin lines.
+  // Replicated that here: 4 flat-tinted rects (same base hues as the
+  // corner labels below) behind the trails, opacity tuned separately per
+  // theme so it reads clearly without competing with the trail colors as
+  // primary ink.
+  var quadrantFillOpacity = isDark ? 0.16 : 0.10;
+  var quadrantRects = [
+    { color: '#2a78d6', x0: margin.left, x1: x(100), y0: margin.top, y1: y(100) },          // Improving (top-left)
+    { color: '#1baf7a', x0: x(100), x1: width - margin.right, y0: margin.top, y1: y(100) }, // Leading (top-right)
+    { color: '#e34948', x0: margin.left, x1: x(100), y0: y(100), y1: height - margin.bottom },          // Lagging (bottom-left)
+    { color: '#eda100', x0: x(100), x1: width - margin.right, y0: y(100), y1: height - margin.bottom }  // Weakening (bottom-right)
+  ];
+  quadrantRects.forEach(function (q) {
+    svg.append('rect')
+      .attr('x', q.x0).attr('y', q.y0).attr('width', q.x1 - q.x0).attr('height', q.y1 - q.y0)
+      .attr('fill', q.color).attr('opacity', quadrantFillOpacity);
+  });
+
+  // Crosshair at the benchmark centerline (100,100) — now mostly a precise
+  // reference line since the quadrant fills already carry the contrast.
+  var gridColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)';
+  svg.append('line').attr('x1', x(100)).attr('x2', x(100)).attr('y1', margin.top).attr('y2', height - margin.bottom).attr('stroke', gridColor).attr('stroke-width', 1.25);
+  svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', gridColor).attr('stroke-width', 1.25);
   svg.append('text').attr('x', x(100) + 4).attr('y', y(100) - 4).attr('font-size', 9).attr('fill', textColor).attr('opacity', 0.85).text((sectors[0] && 'COMPOSITE') || '');
 
   // Quadrant corner labels — a STATUS encoding (macro market-state), a

@@ -9146,6 +9146,40 @@ test('REGRESSION GUARD: Sector Rotation Chart crosshair (benchmark axis lines) i
   assert(lightAlpha >= 0.25, 'REGRESSION: light-theme crosshair opacity (' + lightAlpha + ') is too low to be visible again — the "garis di sumbunya tidak terlihat" bug is back');
 });
 
+// ============================================================
+// BUG (2026-09-26, user follow-up with a StockCharts RRG reference
+// screenshot: "masih belum kontras dengan background, buat seperti
+// contoh, perkecil ukuran grafik karena layout terlalu penuh dengan
+// grafik"): a thin dashed crosshair alone (previous fix) still read as
+// low-contrast against a plain card background; the reference chart
+// uses a filled, tinted background per quadrant for at-a-glance
+// orientation. Verified by rendering the chart standalone (Playwright,
+// real captured Sector_rotation.json) before/after: the fix adds 4
+// tinted quadrant background rects and caps the chart's max width (it
+// previously stretched to the full, often 900px+, card width).
+// ============================================================
+test('REGRESSION GUARD: Sector Rotation Chart has tinted quadrant backgrounds for contrast (matches reference RRG chart)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function _bandarRenderRotationSvg\(wrap, sectors, colorMap, isDark\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, '_bandarRenderRotationSvg() not found');
+  const fnBody = fnMatch[0];
+
+  assert(/quadrantRects/.test(fnBody), 'REGRESSION: the 4 tinted quadrant background rects are gone — the chart is back to low-contrast lines-only');
+  assert(/svg\.append\('rect'\)/.test(fnBody), 'REGRESSION: no <rect> elements appended for quadrant backgrounds');
+  const opacityMatch = fnBody.match(/var quadrantFillOpacity = isDark \? ([\d.]+) : ([\d.]+);/);
+  assert(opacityMatch, 'could not find quadrantFillOpacity assignment');
+  assert(parseFloat(opacityMatch[1]) >= 0.08 && parseFloat(opacityMatch[2]) >= 0.08,
+    'REGRESSION: quadrant fill opacity dropped low enough to be indistinguishable from the card background again');
+});
+
+test('REGRESSION GUARD: Sector Rotation Chart is capped to a smaller footprint, not full card width', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function bandarRenderSectorRotationChart\(mount, data\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'bandarRenderSectorRotationChart() not found');
+  assert(/id="bandar-rotation-svg-wrap" style="width:100%;max-width:\d+px;margin:0 auto"/.test(fnMatch[0]),
+    'REGRESSION: the Sector Rotation Chart mount no longer caps max-width — it will stretch to fill the whole card again ("layout terlalu penuh dengan grafik")');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
