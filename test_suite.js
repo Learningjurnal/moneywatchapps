@@ -9337,6 +9337,45 @@ await asyncTest('REGRESSION GUARD: loadBaseUniverse() has zero "Lainnya" entries
   assert.strictEqual(lainnya.length, 0, 'REGRESSION: loadBaseUniverse() now has tickers stuck at the generic "Lainnya" sector: ' + lainnya.join(', '));
 });
 
+// ============================================================
+// FEATURE (2026-09-26, user request: "perbaiki sop trading di knowledge
+// dulu, buatkan contoh konkrit analisis agar user mudah mengerti proses
+// analisa yang dijalankan, berikan disclaimer apabila ada keraguan
+// data"): SYSTEM_INSTRUCTION_MONEYWATCH_AI (server.js) already had
+// per-tool disclaimer rules (#2 broker summary, #7 broker summary
+// status, #10 XGBoost) but no GENERAL rule covering every other tool's
+// doubtful data, and no worked example showing end users (via the AI's
+// own answers) what the actual analysis process looks like. Added rule
+// #13 (blanket data-reliability disclaimer, inline at the doubtful
+// finding, not deferred to the closing disclaimer) and a "CONTOH
+// KONKRIT ALUR ANALISA" walkthrough section.
+// ============================================================
+test('REGRESSION GUARD: SYSTEM_INSTRUCTION_MONEYWATCH_AI has a general data-reliability disclaimer rule and a concrete worked example', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const promptStart = src.indexOf('const SYSTEM_INSTRUCTION_MONEYWATCH_AI');
+  assert(promptStart !== -1, 'SYSTEM_INSTRUCTION_MONEYWATCH_AI not found in server.js — has it been renamed?');
+  const promptEnd = src.indexOf('\n// GET /api/ai/status', promptStart);
+  assert(promptEnd !== -1, 'sanity: could not find the boundary right after SYSTEM_INSTRUCTION_MONEYWATCH_AI — extraction range may need updating');
+  const prompt = src.slice(promptStart, promptEnd);
+
+  assert(/13\. CATATAN KEANDALAN DATA \(WAJIB, BERLAKU UNTUK SEMUA ALAT/.test(prompt),
+    'REGRESSION: the general (all-tools) data-reliability disclaimer rule #13 is missing');
+  assert(/Catatan Keandalan Data: <apa yang diragukan> — <kenapa>/.test(prompt),
+    'REGRESSION: rule #13 no longer specifies the exact inline disclaimer format');
+  assert(/CONTOH KONKRIT ALUR ANALISA/.test(prompt),
+    'REGRESSION: the concrete worked-example analysis walkthrough is missing');
+  assert(/JANGAN jadikan angka-angka contoh ini sebagai data sungguhan/.test(prompt),
+    'REGRESSION: the worked example no longer warns against treating its illustrative numbers as real data — risks the model parroting fake BBCA figures as if real');
+  assert(/tepat di bagian data itu — JANGAN ditunda\/digabung ke disclaimer penutup/.test(prompt),
+    'REGRESSION: FORMAT RESPON no longer distinguishes the inline data-reliability note from the closing investment-decision disclaimer');
+
+  // Existing rules #2/#10 disambiguation must be untouched by this addition.
+  assert(/KEAHLIAN BANDARMOLOGY & BROKER SUMMARY \(PRIORITAS UTAMA\)/.test(prompt),
+    'REGRESSION: adding rule #13 broke/removed the existing rule #2 broker-summary priority marker');
+  assert(/HANYA kalau pengguna secara eksplisit menyebut model\/AI\/machine learning\/XGBoost/.test(prompt),
+    'REGRESSION: adding rule #13 broke/removed the existing rule #10 XGBoost disambiguation');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
