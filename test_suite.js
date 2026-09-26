@@ -9172,12 +9172,26 @@ test('REGRESSION GUARD: Sector Rotation Chart has tinted quadrant backgrounds fo
     'REGRESSION: quadrant fill opacity dropped low enough to be indistinguishable from the card background again');
 });
 
-test('REGRESSION GUARD: Sector Rotation Chart is capped to a smaller footprint, not full card width', () => {
+// FIX (2026-09-26, second size follow-up: "belum bagus terlalu kecil
+// ukuran grafiknya, proporsionalkan dengan layout" — the previous fixed
+// 520px cap looked stranded with large empty margins on a wide desktop
+// card). Re-checked as a proportional width (a percentage, not a small
+// fixed pixel box) with a generous upper bound, so it neither goes
+// full-bleed (the original complaint) nor sits as a tiny fixed box (this
+// complaint).
+test('REGRESSION GUARD: Sector Rotation Chart width is proportional to its card, not full-bleed or a tiny fixed box', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
   const fnMatch = src.match(/function bandarRenderSectorRotationChart\(mount, data\) \{[\s\S]*?\n\}/);
   assert(fnMatch, 'bandarRenderSectorRotationChart() not found');
-  assert(/id="bandar-rotation-svg-wrap" style="width:100%;max-width:\d+px;margin:0 auto"/.test(fnMatch[0]),
-    'REGRESSION: the Sector Rotation Chart mount no longer caps max-width — it will stretch to fill the whole card again ("layout terlalu penuh dengan grafik")');
+  const wrapMatch = fnMatch[0].match(/id="bandar-rotation-svg-wrap" style="width:(\d+)%;max-width:(\d+)px;min-width:(\d+)px;margin:0 auto"/);
+  assert(wrapMatch, 'REGRESSION: the Sector Rotation Chart mount is no longer a proportional (percentage) width with min/max bounds');
+  const pct = parseInt(wrapMatch[1], 10);
+  const maxW = parseInt(wrapMatch[2], 10);
+  const minW = parseInt(wrapMatch[3], 10);
+  assert(pct < 100, 'REGRESSION: width is 100% again — full-bleed, the original "layout terlalu penuh" complaint is back');
+  assert(pct >= 50, 'REGRESSION: width percentage (' + pct + '%) is too small — will look stranded with large empty margins on wide cards again, the "terlalu kecil" complaint is back');
+  assert(maxW >= 700, 'REGRESSION: max-width (' + maxW + 'px) shrunk back down to a small fixed box');
+  assert(minW >= 320, 'REGRESSION: min-width (' + minW + 'px) too small for the chart to stay legible on narrow screens');
 });
 
 console.log('═══════════════════════════════════════════════════════');
