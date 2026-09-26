@@ -20,9 +20,7 @@
 (function(window, document) {
   'use strict';
 
-  // ══════════════════════════════════════════════════════════
   // 1. STATE & ISOLATED PAPER TRADING UNIVERSE
-  // ══════════════════════════════════════════════════════════
   var AI_TRADE_STATE = {
     activeTab: 'cockpit', // 'cockpit' | 'scanner' | 'deep' | 'strategylab' | 'hypotheses' | 'backtest' | 'paper' | 'journal' | 'learning' | 'dataquality'
     selectedTicker: 'BBCA',
@@ -114,7 +112,6 @@
 
   var AI_UNIVERSE = [];
 
-  // ══════════════════════════════════════════════════════════
   // 2. REAL COMPOSITE SIGNAL ENGINE (server-computed from live price +
   //    technical indicators + fundamentals — see /api/idx/ai-scan and
   //    lib/idx-data-engine.js#computeStockSignal).
@@ -125,7 +122,6 @@
   //    "thesis" narrative text as if it were live analysis. Replaced
   //    entirely — nothing below is fabricated; fields that can't be
   //    computed from real data are labeled as such instead of guessed.
-  // ══════════════════════════════════════════════════════════
   var AI_SCAN_LOADING = false;
   var AI_SCAN_LOADED_AT = null;
   var AI_SCAN_ERROR = null;
@@ -532,15 +528,11 @@
     }
   }
 
-  // ══════════════════════════════════════════════════════════
   // 3. UI RENDERING ENGINE & MODULAR COCKPIT
-  // ══════════════════════════════════════════════════════════
 
-  // ══════════════════════════════════════════════════════════
   // REAL PAPER TRADING EXECUTION — persisted, actually opens/closes
   // positions against live prices instead of showing a permanently
   // frozen example portfolio.
-  // ══════════════════════════════════════════════════════════
   var AI_PAPER_STORAGE_KEY = 'mw_ai_paper_v3';
 
   function savePaperAccountState() {
@@ -569,13 +561,11 @@
   // "undefined" and always no-opped.
   loadPaperAccountState();
 
-  // ══════════════════════════════════════════════════════════
   // HYPOTHESIS LAB PERSISTENCE — mirrors AI_PAPER_STORAGE_KEY exactly.
   // Isolated research/paper data — never routed through the Supabase
   // user_data blob saveData() uses for real portfolio data (different
   // table entirely, see AI CLOUD SYNC below), same isolation guarantee
   // as the rest of this page's paper-trading state.
-  // ══════════════════════════════════════════════════════════
   var AI_HYPO_STORAGE_KEY = 'mw_ai_hypotheses_v1';
 
   function saveHypothesesState() {
@@ -596,7 +586,6 @@
 
   loadHypothesesState();
 
-  // ══════════════════════════════════════════════════════════
   // AUDIT TRAIL / DECISION LOG (roadmap 3.2, AGENTS.md §21) — a durable,
   // append-only record of every decision the engine actually made,
   // separate from AI_TRADE_STATE.hypotheses (which only keeps the LATEST
@@ -607,7 +596,6 @@
   // edited once written — an action taken later (opening/closing a
   // position) is logged as a NEW event, not a mutation of the original
   // decision record, matching how a real audit trail works.
-  // ══════════════════════════════════════════════════════════
   var AI_DECISION_LOG_KEY = 'mw_ai_decision_log_v1';
   var AI_DECISION_LOG_MAX = 500; // bounded like equityHistory (730) — a research log, not unlimited storage
 
@@ -629,9 +617,7 @@
 
   loadDecisionLog();
 
-  // ══════════════════════════════════════════════════════════
   // AUTONOMOUS AUTO-PILOT & ADAPTIVE WEIGHTS PERSISTENCE
-  // ══════════════════════════════════════════════════════════
   var AI_AUTOPILOT_KEY = 'mw_ai_autopilot_v1';
   var AI_ADAPTIVE_KEY = 'mw_ai_adaptive_weights_v1';
 
@@ -677,9 +663,7 @@
 
   loadAdaptiveWeightsState();
 
-  // ══════════════════════════════════════════════════════════
   // CAPITAL CONFIGURATION & AUTO-PILOT CONTROLS
-  // ══════════════════════════════════════════════════════════
   function aiConfigureCapital(newCapital) {
     var amount = Number(newCapital);
     if (!amount || amount <= 0 || isNaN(amount)) {
@@ -760,9 +744,7 @@
     return ap.enabled;
   }
 
-  // ══════════════════════════════════════════════════════════
   // CONTINUOUS ADAPTIVE LEARNING: CALIBRATION ENGINE
-  // ══════════════════════════════════════════════════════════
   function aiCalibrateAdaptiveWeights(closedTrade) {
     if (!closedTrade || typeof closedTrade !== 'object') return null;
     var weights = AI_TRADE_STATE.adaptiveWeights;
@@ -833,7 +815,6 @@
     return record;
   }
 
-  // ══════════════════════════════════════════════════════════
   // AI PAPER TRADING — SUPABASE CLOUD SYNC (2026-09-11, user-requested)
   //
   // Everything above this point (paperAccount/hypotheses/decisionLog) used
@@ -855,7 +836,6 @@
   // `.id` field on that user object, see authDoGuestLogin() in
   // 08-auth.js), so this silently no-ops for them exactly like
   // fireSaveAllData() does for real portfolio data.
-  // ══════════════════════════════════════════════════════════
   var AI_CLOUD_SYNC_DEBOUNCE_MS = 2000; // batches rapid successive saves (e.g. opening several positions back-to-back) into one network call
   var _aiCloudSyncTimer = null;
   var _aiCloudLoadedOnce = false; // guards against loadAiCloudState() re-firing on every initAiAutonomousSuite() call (page re-opened within one session)
@@ -1764,7 +1744,7 @@
       + '  <div>'
       + '    <div class="ptitle" style="display:flex;align-items:center;gap:8px;font-size:22px">'
       + '      Autonomous AI Trading'
-      + '      <span class="badge b-accent" style="font-size:10px;padding:3px 9px">SELF-LEARNING QUANT</span>'
+      + '      <span class="badge b-accent" style="font-size:10px;padding:3px 9px" title="Bobot strategi/regime dikalibrasi ulang otomatis setiap trade ditutup, lihat aiCalibrateAdaptiveWeights()">KALIBRASI ADAPTIF</span>'
       + '      <span class="badge b-up" style="font-size:10px;padding:3px 9px">PAPER TRADING ONLY</span>'
       + '    </div>'
       + '    <div class="psub" style="max-width:860px;margin-top:4px">'
@@ -1880,9 +1860,7 @@
     return (n >= 0 ? '+' : '') + n;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 4. SUB-PAGE RENDERING: COCKPIT UTAMA (OVERVIEW)
-  // ══════════════════════════════════════════════════════════
   function renderAiCockpit(state) {
     ensureFullUniverseLoaded();
     syncAiPaperPortfolioLivePrices(false);
@@ -2039,9 +2017,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 5. SUB-PAGE RENDERING: SCANNER & EXPECTED VALUE
-  // ══════════════════════════════════════════════════════════
   function renderAiScanner(state) {
     ensureFullUniverseLoaded();
 
@@ -2164,9 +2140,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 6. SUB-PAGE RENDERING: EXPLAINABLE AI & DEEP ANALYSIS
-  // ══════════════════════════════════════════════════════════
   function renderAiDeepAnalysis(state) {
     ensureFullUniverseLoaded();
     var tk = state.selectedTicker || 'BBCA';
@@ -2356,9 +2330,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 7. SUB-PAGE RENDERING: 10 STRATEGY LAB & SCORECARDS
-  // ══════════════════════════════════════════════════════════
   function renderAiStrategyLab(state) {
     var html = ''
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
@@ -2435,9 +2407,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 8. SUB-PAGE RENDERING: AUTONOMOUS HYPOTHESIS LAB
-  // ══════════════════════════════════════════════════════════
   // Real Hypothesis Lab — calls /api/idx/hypothesis/:ticker (Signal &
   // Confluence Engine, PAPER/research mode only; see
   // lib/idx-data-engine.js#generateTradingHypothesis). Previously this
@@ -2538,9 +2508,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 9. SUB-PAGE RENDERING: AI PAPER PORTFOLIO (ISOLATED)
-  // ══════════════════════════════════════════════════════════
   function renderAiPaperPortfolio(state) {
     syncAiPaperPortfolioLivePrices(false);
     ensureFullUniverseLoaded();
@@ -2743,9 +2711,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 10. SUB-PAGE RENDERING: POST-MORTEM & CRITIQUE JOURNAL
-  // ══════════════════════════════════════════════════════════
   function renderAiJournal(state) {
     var trades = state.paperAccount.closedTrades;
 
@@ -2822,9 +2788,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 11. SUB-PAGE RENDERING: MARKET REGIME & SECTOR ROTATION
-  // ══════════════════════════════════════════════════════════
   function renderAiMarketRegime(state) {
     var r = state.marketRegime;
 
@@ -2888,9 +2852,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 12. SUB-PAGE RENDERING: REALISTIC BACKTEST LAB
-  // ══════════════════════════════════════════════════════════
   function renderAiBacktestLab(state) {
     var strategyOptions = STRATEGY_META;
 
@@ -2967,9 +2929,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 12B. SUB-PAGE RENDERING: COPY TRADING TERMINAL & SIGNAL DISPATCHER
-  // ══════════════════════════════════════════════════════════
   function aiFormatCopyTradingSignal(item) {
     if (!item) return '';
     var ticker = item.ticker || '';
@@ -3181,9 +3141,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 13. SUB-PAGE RENDERING: AI LEARNING LOG & DYNAMIC ADAPTIVE WEIGHTS
-  // ══════════════════════════════════════════════════════════
   function renderAiLearningLog(state) {
     var p = state.paperAccount;
     var trades = (p && p.closedTrades) || [];
@@ -3441,9 +3399,7 @@
     }
   }
 
-  // ══════════════════════════════════════════════════════════
   // 14. SUB-PAGE RENDERING: DATA QUALITY & FRESHNESS MONITOR
-  // ══════════════════════════════════════════════════════════
   // Real Data Quality Gate status via /api/idx/data-quality/:ticker (see
   // assessDataQuality() in lib/idx-data-engine.js — the same gate that
   // already decides NO_TRADE for /api/idx/hypothesis/:ticker). Previously
@@ -3539,9 +3495,7 @@
     return html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // 15. ACTION HANDLERS & GLOBAL NAVIGATION HOOKS
-  // ══════════════════════════════════════════════════════════
 
   function aiSwitchTab(tabName) {
     AI_TRADE_STATE.activeTab = tabName;
@@ -3574,9 +3528,7 @@
     renderAiTradingPage();
   }
 
-  // ══════════════════════════════════════════════════════════
   // AUTONOMOUS AI EXECUTION LOOP
-  // ══════════════════════════════════════════════════════════
   async function aiRunAutonomousCycle(isManual) {
     var ap = AI_TRADE_STATE.autoPilot;
     var isEnabled = ap && ap.enabled;
@@ -3693,9 +3645,7 @@
     aiRunAutonomousCycle(true);
   }
 
-  // ══════════════════════════════════════════════════════════
   // 12. EXPOSE TO GLOBAL NAMESPACE
-  // ══════════════════════════════════════════════════════════
   window.AI_TRADE_STATE = AI_TRADE_STATE;
   window.AI_UNIVERSE = AI_UNIVERSE;
   window.initAiAutonomousSuite = initAiAutonomousSuite;

@@ -27,9 +27,7 @@
 (function(window, document) {
   'use strict';
 
-  // ══════════════════════════════════════════════════════════
   // 1. STATE & UNIVERSE DEFINITION
-  // ══════════════════════════════════════════════════════════
   var TW_STATE = {
     ticker: 'BBCA',
     assetType: 'stock', // 'stock' | 'crypto' | 'us'
@@ -50,9 +48,7 @@
     }
   }
 
-  // ══════════════════════════════════════════════════════════
   // 2. MATHEMATICAL WAVE & INDICATOR COMPUTATION ENGINE
-  // ══════════════════════════════════════════════════════════
 
   /**
    * Generates or fetches synthetic & live OHLCV price series for wave calculations
@@ -464,9 +460,7 @@
     };
   }
 
-  // ══════════════════════════════════════════════════════════
   // 3. UI RENDERING & COMPONENT BUILDERS
-  // ══════════════════════════════════════════════════════════
 
   // Renders Wave Cockpit (tabIdx===1) or Risk Planner (tabIdx===3) into the
   // given container id. Called by the unified Screener page
@@ -854,9 +848,7 @@
     });
   }
 
-  // ══════════════════════════════════════════════════════════
   // 4. ACTION HANDLERS & NAVIGATION HOOKS
-  // ══════════════════════════════════════════════════════════
 
   // Wave Cockpit/Risk Planner now render inside the unified Screener page's
   // own tab container (see twRenderSubPage() above), so a re-render just
@@ -921,9 +913,7 @@
     });
   }
 
-  // ══════════════════════════════════════════════════════════
   // 5. EXPOSE TO GLOBAL NAMESPACE
-  // ══════════════════════════════════════════════════════════
   window.TW_STATE = TW_STATE;
   window.twRenderSubPage = twRenderSubPage;
   window.twSetTicker = twSetTicker;

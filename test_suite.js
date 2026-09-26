@@ -1449,7 +1449,7 @@ test('REGRESSION GUARD: generateUnifiedScreener() must expose wave-analysis fiel
     'computeWaveAnalysis() not found — has it been renamed/removed?');
   const fnStart = src.indexOf('async function generateUnifiedScreener');
   assert(fnStart !== -1, 'generateUnifiedScreener() not found');
-  const fnEnd = src.indexOf('\n// ════', fnStart + 10);
+  const fnEnd = src.indexOf('\nasync function ', fnStart + 10);
   const body = src.slice(fnStart, fnEnd !== -1 ? fnEnd : fnStart + 8000);
   ['wavePhase', 'waveScore', 'superTrendBullish', 'cmf', 'waveInvalidation', 'waveTp1', 'waveTp2', 'waveTp3', 'waveRiskReward'].forEach((field) => {
     assert(body.includes(field + ':'),
@@ -3370,7 +3370,7 @@ await asyncTest("REGRESSION GUARD: logAiSignalToReflectionLog() must skip guest 
   const start = fullSrc.indexOf('// AI SIGNAL REFLECTION LOG');
   assert(start !== -1, 'sanity: the AI SIGNAL REFLECTION LOG section not found in 00-config.js — has it moved/been renamed?');
   let src = fullSrc.slice(start);
-  const relEnd = src.indexOf('\n// ══════════════════════════════════════════════════════════\n// GLOBAL STOCK CONTEXT');
+  const relEnd = src.indexOf('\n// GLOBAL STOCK CONTEXT');
   assert(relEnd !== -1, 'sanity: could not find the boundary right after logAiSignalToReflectionLog() — extraction range may need updating');
   src = src.slice(0, relEnd);
 
@@ -3467,7 +3467,7 @@ await asyncTest("REGRESSION GUARD: resolveOneAiSignal() computes real return vs 
   const start = fullSrc.indexOf('// AI SIGNAL REFLECTION LOG');
   assert(start !== -1, 'sanity: the AI SIGNAL REFLECTION LOG section not found in 00-config.js — has it moved/been renamed?');
   let src = fullSrc.slice(start);
-  const relEnd = src.indexOf('\n// ══════════════════════════════════════════════════════════\n// GLOBAL STOCK CONTEXT');
+  const relEnd = src.indexOf('\n// GLOBAL STOCK CONTEXT');
   assert(relEnd !== -1, 'sanity: could not find the boundary right after the resolution job — extraction range may need updating');
   src = src.slice(0, relEnd);
 
@@ -3580,7 +3580,7 @@ await asyncTest("REGRESSION GUARD: getAiSignalHistorySummary() skips guest mode 
   const start = fullSrc.indexOf('// AI SIGNAL REFLECTION LOG');
   assert(start !== -1, 'sanity: the AI SIGNAL REFLECTION LOG section not found in 00-config.js — has it moved/been renamed?');
   let src = fullSrc.slice(start);
-  const relEnd = src.indexOf('\n// ══════════════════════════════════════════════════════════\n// GLOBAL STOCK CONTEXT');
+  const relEnd = src.indexOf('\n// GLOBAL STOCK CONTEXT');
   assert(relEnd !== -1, 'sanity: could not find the boundary right after getAiSignalHistorySummary() — extraction range may need updating');
   src = src.slice(0, relEnd);
 
@@ -4739,9 +4739,7 @@ test('AI AUTONOMOUS TRADING: aiFormatCopyTradingSignal() generates actionable in
   assert(signalText.includes('Risk : Reward'), 'Signal must contain Risk:Reward');
 });
 
-// ══════════════════════════════════════════════════════════════
 // TEST SUITE: 1-CLICK MASTER STOCK ANALYSIS DOSSIER
-// ══════════════════════════════════════════════════════════════
 
 function getDossierContext() {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
@@ -5267,9 +5265,7 @@ test('REGRESSION GUARD: Harga Wajar auto-fill tries live Invezgo for EVERY ticke
   assert(/STOCK_FINANCIAL_DATABASE\[tk\]/.test(fnSrc), 'REGRESSION: the curated STOCK_FINANCIAL_DATABASE fallback (used when Invezgo is unavailable) is gone from hw_autoFill()');
 });
 
-// ══════════════════════════════════════════════════════════════
 // TEST SUITE: CLOUD SYNC MERGE — WEALTH (REKENING BANK/HUTANG/PIUTANG)
-// ══════════════════════════════════════════════════════════════
 
 // Audit finding (2026-09-17, INCIDENT_LOG.md): user reported "data hilang
 // saat pindah device" for bank accounts / debts / receivables. Root cause:
@@ -5365,9 +5361,7 @@ test('REGRESSION GUARD: cloud wealth (bank/debt/piutang) must not be discarded b
   assert.deepStrictEqual(bankIds, [1, 2], 'Two independently-added bank accounts from two devices must both survive (union by id), neither overwritten');
 });
 
-// ══════════════════════════════════════════════════════════════
 // TEST SUITE: SMART MONEY SCREENER CONSOLIDATION (2026-09-17)
-// ══════════════════════════════════════════════════════════════
 
 // User-requested consolidation (INCIDENT_LOG.md 2026-09-17): 3 previously
 // separate screeners that overlapped in concept (accumulation/distribution
@@ -6909,14 +6903,14 @@ test('REGRESSION GUARD: generateUnifiedScreener() merges accumulation/distributi
   // fetchInvezgoScreener() (the throttled, quota-metered custom-formula
   // endpoint) must NOT be called automatically inside the whole-market pass
   // — user explicitly said "kalo dianalisa asal akan memakan kuota".
-  const unifiedFnMatch = engineSrc.match(/async function generateUnifiedScreener\(params = \{\}\) \{[\s\S]*?\n\}\n\n\/\/ ══/);
+  const unifiedFnMatch = engineSrc.match(/async function generateUnifiedScreener\(params = \{\}\) \{[\s\S]*?\n\}\n\nasync function /);
   assert(unifiedFnMatch, 'REGRESSION: could not isolate generateUnifiedScreener() body to check for accidental fetchInvezgoScreener() calls');
   assert(!/fetchInvezgoScreener\(/.test(unifiedFnMatch[0]), 'REGRESSION: generateUnifiedScreener() now calls fetchInvezgoScreener() automatically — this burns the throttled/quota-metered custom-formula endpoint on every whole-market page load, which the user explicitly said to avoid');
 });
 
 test('REGRESSION GUARD: generateUnifiedScreener()\'s "confirmed" gate uses tech.score>=80 (raised 2026-09-19 after backtest evidence), not the old uptrendScore>=60, and stays in sync with runUnifiedScreenerBacktest()\'s baseline (2026-09-19, formula-strength audit: of 3 tested threshold tweaks, only raising the technical-score gate held up after removing the 4 mania-stock outliers that drove every other backtest result that week — median alpha +0.82%, beat-benchmark 54.3% on N=95 with outliers excluded)', () => {
   const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
-  const unifiedFnMatch = src.match(/async function generateUnifiedScreener\(params = \{\}\) \{[\s\S]*?\n\}\n\n\/\/ ══/);
+  const unifiedFnMatch = src.match(/async function generateUnifiedScreener\(params = \{\}\) \{[\s\S]*?\n\}\n\nasync function /);
   assert(unifiedFnMatch, 'REGRESSION: could not isolate generateUnifiedScreener() body');
   assert(/const confirmed = tech != null && tech\.score >= 80 && whaleScore >= 3;/.test(unifiedFnMatch[0]), 'REGRESSION: "confirmed" no longer gates on the backtest-validated tech.score>=80 threshold (either reverted to the old uptrendScore>=60, or drifted to check the wrong — fundamentals-diluted — score entirely)');
   assert(!/uptrendScore >= 60/.test(unifiedFnMatch[0]), 'REGRESSION: the old, backtest-disproven uptrendScore>=60 gate is back');

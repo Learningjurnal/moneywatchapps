@@ -183,9 +183,7 @@
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════
-     LANDING PAGE — Halaman Paling Awal (Public Showcase - Dribbble Trading Style)
-     ══════════════════════════════════════════════ -->
+<!-- LANDING PAGE — Halaman Paling Awal (Public Showcase - Dribbble Trading Style) -->
 <div id="landing-screen" class="landing-screen-wrap">
 <style>
 /* ── ULTRA-REALISTIC LANDING — Cinematic Deep Space & Earth Horizon ─────────────────────── */
@@ -246,18 +244,6 @@
 }
 
 /* Institutional Telemetry HUD / Coordinates */
-.lp-telemetry-grid {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(56, 189, 248, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 189, 248, 0.02) 1px, transparent 1px);
-  background-size: 80px 80px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 20%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 20%, transparent 80%);
-}
-
 .lp-telemetry-bar {
   position: absolute;
   display: flex;
@@ -281,16 +267,13 @@
   align-items: center;
   gap: 8px;
 }
+/* antislop audit-001 #3: marks a real status label ("IDX FEED: OPERATIONAL")
+   so the dot itself stays, but its glow and endless pulse were dropped —
+   this screen already carries glow on the hero border and CTA hover. */
 .lp-telemetry-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
   background: #38BDF8;
-  box-shadow: 0 0 8px #38BDF8;
-  animation: statusPulse 2s ease-in-out infinite;
-}
-@keyframes statusPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 /* Central Institutional Hero Card */
@@ -309,9 +292,10 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(56, 189, 248, 0.16);
   border-radius: 24px;
+  /* antislop audit-001 #3: dropped the card's own ambient glow layer here —
+     the CTA button below already carries the screen's one glow accent. */
   box-shadow:
     0 25px 60px rgba(0, 0, 0, 0.75),
-    0 0 40px rgba(56, 189, 248, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
   margin: 0 20px;
 }
@@ -477,12 +461,11 @@
       <span>COORDINATES: 06°12′S 106°48′E</span>
     </div>
     <div class="lp-telemetry-item">
-      <span>ENGINE: DUAL-CORE AI CONFLUENCE</span>
+      <span>ENGINE: MULTI-STRATEGY CONFLUENCE</span>
     </div>
   </div>
 
   <!-- Background Layers -->
-  <div class="lp-telemetry-grid"></div>
   <div class="lp-horizon-glow"></div>
   <div class="lp-starfield"></div>
 
@@ -537,18 +520,14 @@
       <span>REGIME DETECTION: ACTIVE</span>
     </div>
     <div class="lp-telemetry-item">
-      <span>ZERO SYNTHETIC DATA ENFORCED</span>
+      <span>DATA SIMULASI SELALU DIBERI LABEL</span>
     </div>
   </div>
 </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     AUTH OVERLAY — Login Screen (Modal)
-     ══════════════════════════════════════════════ -->
-<!-- ══════════════════════════════════════════════
-     AUTH OVERLAY — Login Screen (Datago Split Modal Style)
-     ══════════════════════════════════════════════ -->
+<!-- AUTH OVERLAY — Login Screen (Modal) -->
+<!-- AUTH OVERLAY — Login Screen (Datago Split Modal Style) -->
 <div id="auth-overlay" class="hidden">
   <div class="auth-split-box">
     <!-- Left Brand & Live Intelligence Showcase -->
@@ -564,8 +543,9 @@
           Operating system kuantitatif untuk membedah akumulasi bandar riil, valuasi intrinsik Benjamin Graham, dan manajemen dividen bebas pajak PMK 18.
         </div>
 
-        <!-- Mini live market preview card -->
+        <!-- Contoh tampilan (BUKAN data live — angka statis, ditampilkan sebelum login) -->
         <div class="auth-telemetry-card">
+          <div class="auth-telemetry-example-tag">Contoh tampilan, bukan data real-time</div>
           <div class="auth-telemetry-header">
             <span style="color:#FFFFFF;font-weight:700">BBCA · Bank Central Asia</span>
             <span style="color:#10B981;background:rgba(16,185,129,0.15);padding:1px 6px;border-radius:3px">+1.8%</span>
@@ -577,7 +557,7 @@
         </div>
 
         <div class="auth-brand-points">
-          <div class="auth-brand-point"><i class="ti ti-circle-check-filled"></i> 100% Data Riil Bursa Efek Indonesia (Zero Fiktif)</div>
+          <div class="auth-brand-point"><i class="ti ti-circle-check-filled"></i> Data Riil Bursa Efek Indonesia, Berlabel Jujur saat Simulasi</div>
           <div class="auth-brand-point"><i class="ti ti-circle-check-filled"></i> Deteksi Aliran Asing &amp; Broker Summary Institusi</div>
           <div class="auth-brand-point"><i class="ti ti-circle-check-filled"></i> Kepatuhan Pajak Dividen 0% Regulasi PMK 18</div>
           <div class="auth-brand-point"><i class="ti ti-circle-check-filled"></i> Enkripsi Data Cloud &amp; Isolasi Portofolio Mandiri</div>
@@ -585,7 +565,7 @@
       </div>
 
       <div class="auth-brand-quote">
-        "Platform analitik paling objektif untuk mengambil keputusan investasi tanpa terdistorsi noise data spekulatif."
+        Platform analitik dirancang meminimalkan noise data spekulatif dalam pengambilan keputusan investasi.
       </div>
     </div>
 
@@ -1841,7 +1821,7 @@
     <div class="metric"><div class="mlabel">Return Terbaik</div><div class="mval" id="p-best">-</div><div class="msub" id="p-best-sub"></div></div>
   </div>
 
-  <!-- ═══ TABEL PORTOFOLIO UTAMA ═══
+  <!-- TABEL PORTOFOLIO UTAMA
        FIX (2026-09-11, user-submitted deep-dive review — "card
        clutter"): this table used to sit BELOW the Donut Chart, Gain/Loss
        Bar Chart, and Performa per Saham toolbar cards (moved below,
@@ -1886,7 +1866,7 @@
     </div>
   </div>
 
-  <!-- ═══ DONUT CHART ALOKASI PORTOFOLIO REAL-TIME ═══ -->
+  <!-- DONUT CHART ALOKASI PORTOFOLIO REAL-TIME -->
   <div class="card" style="margin-top:16px;margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
@@ -1906,7 +1886,7 @@
     </div>
   </div>
 
-  <!-- ═══ NETT GAIN/LOSS PER SAHAM PORTOFOLIO BAR CHART ═══ -->
+  <!-- NETT GAIN/LOSS PER SAHAM PORTOFOLIO BAR CHART -->
   <div class="card" style="margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>
@@ -1920,7 +1900,7 @@
     </div>
   </div>
 
-  <!-- ═══ TOOLBAR PERFORMA PER SAHAM — realized + unrealized per kode, termasuk yang sudah ditutup ═══ -->
+  <!-- TOOLBAR PERFORMA PER SAHAM — realized + unrealized per kode, termasuk yang sudah ditutup -->
   <div class="card">
     <div id="perf-toolbar-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div>

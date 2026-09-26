@@ -1,7 +1,5 @@
-// ══════════════════════════════════════════════════════════════════════════
 // MONEY WATCH PRO — CONSOLIDATED MASTER REPORT & EXPORT SUITE (v7.0)
 // Laporan Tunggal Terkonsolidasi: Portofolio, Multi-Aset, Kas, Liabilitas & FIRE
-// ══════════════════════════════════════════════════════════════════════════
 
 var MW_PDF_INCLUDE_PRIVACY_MASK = false;
 
@@ -49,9 +47,7 @@ function _mwCsvEsc(val) {
   return '"' + str + '"';
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // MASTER BUILDER: 1 LAPORAN FINANSIAL TUNGGAL TERKONSOLIDASI (ALL-IN-ONE)
-// ══════════════════════════════════════════════════════════════════════════
 function buildConsolidatedReportHtml() {
   var porto = (typeof getPortfolio === 'function') ? getPortfolio() : [];
   var crypto = (typeof getCryptoPortfolio === 'function') ? getCryptoPortfolio() : [];
@@ -438,9 +434,7 @@ function buildConsolidatedReportHtml() {
     + '</div>';
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // EXPORT SPREADSHEET / CSV TERKONSOLIDASI (ALL-IN-ONE)
-// ══════════════════════════════════════════════════════════════════════════
 function exportConsolidatedPortfolioCsv() {
   var dateStamp = new Date().toISOString().slice(0, 10);
   var user = (typeof _currentUser !== 'undefined' && _currentUser && _currentUser.email) ? _currentUser.email : 'Investor Tamu';
@@ -605,9 +599,7 @@ function exportConsolidatedPortfolioCsv() {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // SALIN RINGKASAN EKSEKUTIF KONSOLIDASI (MARKDOWN)
-// ══════════════════════════════════════════════════════════════════════════
 function copyPortfolioSummaryMarkdown() {
   var user = (typeof _currentUser !== 'undefined' && _currentUser && _currentUser.email) ? _currentUser.email : 'Investor';
   var dateStr = _mwPdfDate();
@@ -688,9 +680,7 @@ function _mwFallbackCopyText(text) {
   document.body.removeChild(textArea);
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // MASTER JSON BACKUP
-// ══════════════════════════════════════════════════════════════════════════
 function downloadConsolidatedJsonBackup() {
   if (typeof downloadBackup === 'function') {
     downloadBackup();
@@ -705,9 +695,7 @@ function downloadConsolidatedJsonBackup() {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // UNDUH DOKUMEN PDF & CETAK LAPORAN TUNGGAL TERKONSOLIDASI
-// ══════════════════════════════════════════════════════════════════════════
 function downloadPdfReport() {
   var dateStamp = new Date().toISOString().slice(0, 10);
   var filename = 'MoneyWatchPro_Laporan_Konsolidasi_Lengkap_' + dateStamp + '.pdf';
@@ -775,9 +763,7 @@ function printPdfReport() {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // MODAL DIALOG PREVIEW LAPORAN TUNGGAL KONSOLIDASI
-// ══════════════════════════════════════════════════════════════════════════
 function mwOpenPdfReportModal() {
   var modal = document.getElementById('pdf-report-modal');
   if (!modal) {

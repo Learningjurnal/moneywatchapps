@@ -1,9 +1,7 @@
-// ╔══════════════════════════════════════════════════════════╗
 // ║  BULK IMPORT TRANSAKSI — download template & upload Excel ║
 // ║  Tab Transaksi: catat banyak transaksi beli/jual sekaligus║
 // ║  dari file .xlsx, komisi/pajak tetap dihitung otomatis    ║
 // ║  lewat calcTxComponents() yang sama dengan input manual.  ║
-// ╚══════════════════════════════════════════════════════════╝
 
 // ── 1. TEMPLATE — unduh .xlsx siap isi ──
 function txDownloadTemplate(){
@@ -207,9 +205,7 @@ function txConfirmImport(){
   }
 }
 
-// ╔══════════════════════════════════════════════════════════╗
 // ║  BULK IMPORT DIVIDEN — download template & upload Excel   ║
-// ╚══════════════════════════════════════════════════════════╝
 
 function divDownloadTemplate(){
   if(typeof XLSX==='undefined'){ if(typeof showSaveStatus==='function') showSaveStatus('⚠ Pustaka Excel belum termuat, coba lagi sebentar','var(--red)'); return; }

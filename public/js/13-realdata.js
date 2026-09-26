@@ -1,9 +1,7 @@
-// ╔══════════════════════════════════════════════════════════╗
 // ║  REAL DATA ENGINE — sambungkan Kelompok B ke Yahoo riil  ║
 // ║  FlowScan · Candle · Correlation · Ranking · Heatmap ·   ║
 // ║  Scanner · Screener → data OHLCV harian riil (cache/hari)║
 // ║  + VERDICT GABUNGAN: satu skor insight dari semua tools  ║
-// ╚══════════════════════════════════════════════════════════╝
 
 var RD_STORE  = {};   // tk → rows [{date,open,high,low,close,volume}] — RIIL saja
 var RD_STALE  = {};   // tk → rows dari cache hari sebelumnya (fallback lebih baik dari simulasi)
@@ -246,11 +244,9 @@ function rdToFs(rows, days){
   return out;
 }
 
-// ══════════════════════════════════════════════
 // OVERRIDE 1 — fsGenData: cache-first data riil
 // Semua pemakai (FlowScan, Ranking, Heatmap, Scanner, Alerts,
 // Watchlist, Candle via cdGenOhlcv) otomatis ikut riil.
-// ══════════════════════════════════════════════
 var _fsGenSim = fsGenData;
 fsGenData = function(tk, days){
   var rows = rdGetAny(tk);
@@ -258,10 +254,8 @@ fsGenData = function(tk, days){
   return _fsGenSim(tk, days);
 };
 
-// ══════════════════════════════════════════════
 // OVERRIDE 2 — qtFetchOHLCV: cache-first (≤ 1 thn)
 // Backtester/Screener/Pairs/Monthly Returns hemat request.
-// ══════════════════════════════════════════════
 var _qtFetchOrig = qtFetchOHLCV;
 qtFetchOHLCV = function(tk, rangeDays, cb){
   var rows = rdGet(String(tk).toUpperCase());
@@ -276,9 +270,7 @@ qtFetchOHLCV = function(tk, rangeDays, cb){
   _qtFetchOrig(tk, rangeDays, function(err, data){ cb(err, data); });
 };
 
-// ══════════════════════════════════════════════
 // OVERRIDE 3 — fsRunAnalysis: fetch riil dulu, lalu analisa + VERDICT
-// ══════════════════════════════════════════════
 var _fsRunOrig = fsRunAnalysis;
 fsRunAnalysis = function(){
   var inp = el('fs-ticker-input');
@@ -300,11 +292,9 @@ fsRunAnalysis = function(){
   rdUpdateBanners();
 };
 
-// ══════════════════════════════════════════════
 // VERDICT GABUNGAN — satu skor dari semua analitik Kelompok B
 // Komponen: Big Money (30%) · Trend MA (25%) · RSI (15%) ·
 //           CMF (15%) · VWAP (5%) · Momentum 3 bln (10%)
-// ══════════════════════════════════════════════
 function rdRenderVerdict(tk, fetching){
   var pg = el('page-flowscan'); if(!pg) return;
   var box = el('rd-verdict');
@@ -407,9 +397,7 @@ function rdRenderVerdict(tk, fetching){
   '</div>';
 }
 
-// ══════════════════════════════════════════════
 // UNIVERSE LOADER — data riil untuk Ranking/Heatmap/Scanner/Alerts/Watchlist
-// ══════════════════════════════════════════════
 function rdUniverseTickers(){
   // FIX AUDIT: versi lama memotong ke FS_UNIV.slice(0,12) lalu .slice(0,20) total —
   // bila portofolio user sendiri sudah >20 saham (kasus nyata), saham miliknya yang
@@ -537,16 +525,12 @@ function rdBuildScData(){
   });
 }
 
-// ══════════════════════════════════════════════
 // Correlation Matrix: didelegasikan ke mesin kanonikal (11-quant.js)
-// ══════════════════════════════════════════════
 // Tidak menimpa corrRender() dengan data statis / qtGenSim. Modul 11-quant.js
 // menghitung korelasi portofolio riil pengguna + metrik risiko VaR 95% via perfFetchHoldingsHistory.
 
 
-// ══════════════════════════════════════════════
 // BANNER STATUS DATA — di semua halaman Kelompok B
-// ══════════════════════════════════════════════
 var RD_BANNER_PAGES = ['heatmap','scanner','alerts','screener','candle','correlation'];
 function rdBannerHtml(){
   var uTks = rdUniverseTickers();
@@ -578,9 +562,7 @@ function rdSetBannerText(html){
   });
 }
 
-// ══════════════════════════════════════════════
 // HOOK NAVIGASI — auto-fetch per halaman
-// ══════════════════════════════════════════════
 var _rdGoPage = window.goPage;
 window.goPage = function(page, btn){
   _rdGoPage.call(this, page, btn);

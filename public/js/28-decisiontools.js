@@ -11,9 +11,7 @@
  * 6. AI Investment Copilot (Conversational portfolio analysis & quick prompt chips)
  */
 
-// ══════════════════════════════════════════════════════════
 // 1. MORNING / DAILY BRIEF
-// ══════════════════════════════════════════════════════════
 function renderDailyBriefPage() {
   var c = el('page-daily-brief');
   if (!c) return;
@@ -235,9 +233,7 @@ function renderDailyBriefPage() {
 
   html += '</div></div>';
 
-  // ══════════════════════════════════════════════════════════
   // FULL PORTFOLIO HOLDINGS INTELLIGENCE & HEALTH MATRIX
-  // ══════════════════════════════════════════════════════════
   html += '<div class="card" style="padding:22px;margin-bottom:18px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
       + '<div>'
@@ -569,9 +565,7 @@ function dbBuildIhsgChartInstance(cv, hist, timeLabels, hasTs, prevClose, isBull
   charts['dbIhsg'].$isBullish = isBullish;
 }
 
-// ══════════════════════════════════════════════════════════
 // 2. INVESTMENT THESIS TRACKER
-// ══════════════════════════════════════════════════════════
 var MW_THESES = [];
 
 function saveThesesToStorage() {
@@ -723,9 +717,7 @@ function deleteThesis(idx) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
 // 3. DECISION JOURNAL & POST-TRADE REVIEW
-// ══════════════════════════════════════════════════════════
 var MW_JOURNALS = [];
 
 function saveJournalsToStorage() {
@@ -870,9 +862,7 @@ function saveNewJournalFromModal() {
   if (typeof showSaveStatus === 'function') showSaveStatus('Jurnal tersimpan');
 }
 
-// ══════════════════════════════════════════════════════════
 // 4. SCENARIO ENGINE ("WHAT IF?" SIMULATOR)
-// ══════════════════════════════════════════════════════════
 
 // Real portfolio Beta + parametric VaR — every scenario branch below used
 // to carry its own hardcoded "VaR 95%: X%" / "Beta Portofolio: X" literal,
@@ -1200,11 +1190,8 @@ function runCustomScenarioSimulation() {
   if (container) container.innerHTML = renderScenarioResultBox(res);
 }
 
-// ══════════════════════════════════════════════════════════
 // 5. REBALANCING INTELLIGENCE & SIMULATOR
-// ══════════════════════════════════════════════════════════
 // 5. REBALANCING INTELLIGENCE & SIMULATOR
-// ══════════════════════════════════════════════════════════
 var _rebalanceMode = 'equal'; // 'equal' or 'custom'
 var _rebalanceCustomWeights = {};
 
@@ -1380,9 +1367,7 @@ function renderRebalancingPage() {
 }
 
 
-// ══════════════════════════════════════════════════════════
 // 6. MONEYWATCH PRO AI AGENT (INSTITUTIONAL MULTI-ASSET ANALYST)
-// ══════════════════════════════════════════════════════════
 var MW_COPILOT_HISTORY = [
   {
     role: 'assistant',

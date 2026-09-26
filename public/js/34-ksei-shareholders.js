@@ -65,9 +65,7 @@ var KSEI_STATE = {
   isSyncing: false
 };
 
-// ══════════════════════════════════════════════════════════════
 // 1. DATA INITIALIZATION & SUPABASE CLOUD SYNC (public.ksei_ownership)
-// ══════════════════════════════════════════════════════════════
 
 // Debounce is mostly moot here (upload is a deliberate one-click action,
 // not a rapid-fire stream of edits like AI Paper Trading positions) but
@@ -198,7 +196,6 @@ async function kseiInitData(forceRefresh) {
   }
 }
 
-// ══════════════════════════════════════════════════════════════
 // EXCEL UPLOAD TEMPLATE — fixed, named columns (header-based lookup,
 // case/whitespace-insensitive), NOT positional like the old CSV parser
 // this replaces. One row = one investor, OR one row per custodian
@@ -209,7 +206,6 @@ async function kseiInitData(forceRefresh) {
 // numbered reason — never silently falls back to a guessed default
 // (the old parser's worst flaw: a hardcoded "26 Aug 2026" reportDate
 // fallback when its date regex failed to match).
-// ══════════════════════════════════════════════════════════════
 var KSEI_TEMPLATE_REQUIRED_COLUMNS = ['Ticker', 'Nama Emiten', 'Nama Investor', 'Status', 'Persentase (%)', 'Jumlah Saham', 'Tanggal Laporan'];
 // Optional — see the freeFloat/freeFloatIsEstimated note in kseiParseWorkbook()
 // below for why this is a SEPARATE column, not derived from the required ones.
@@ -412,7 +408,6 @@ function kseiParseWorkbook(rows) {
   };
 }
 
-// ══════════════════════════════════════════════════════════════
 // RAW IDX FILE UPLOAD — Kepemilikan >5% + Free Float, straight from IDX,
 // no manual "build Master" step required (user-requested, 2026-09-11,
 // after the single-template path above). Validated against a real KSEI
@@ -437,7 +432,6 @@ function kseiParseWorkbook(rows) {
 // into the wrong field. When 2 period columns exist side by side, the
 // RIGHTMOST (last) one is always the most recent — confirmed against
 // both real files.
-// ══════════════════════════════════════════════════════════════
 
 // Guards against a ticker cell like "TRUE"/"FALSE" coming back as a JS
 // boolean instead of text — found via the real KSEI file: ticker "TRUE"
@@ -621,7 +615,6 @@ function kseiParseFreeFloatRaw(rows2D) {
   return { byTicker: byTicker, errors: [] };
 }
 
-// ══════════════════════════════════════════════════════════════
 // SAME-INVESTOR DEDUPLICATION (added 2026-09-11, user-requested audit —
 // "cek kalau ada emiten lain yang datanya aneh"). Found scanning all 840
 // real emiten: KSEI's raw export lists the SAME beneficial owner under 2+
@@ -944,9 +937,7 @@ function getKseiStock(ticker) {
   };
 }
 
-// ══════════════════════════════════════════════════════════════
 // 2. MODAL & EXPLORER INTERFACE
-// ══════════════════════════════════════════════════════════════
 
 /**
  * Open the dedicated KSEI 5%+ Shareholders & Free Float Explorer Modal
@@ -1140,9 +1131,7 @@ function renderKseiModalBody() {
   }
 }
 
-// ══════════════════════════════════════════════════════════════
 // 3. TAB 1: EMITEN SHAREHOLDER & FREE FLOAT ANALYSIS VIEW
-// ══════════════════════════════════════════════════════════════
 
 function renderKseiStockView(container, ticker, embedded) {
   var stock = getKseiStock(ticker);
@@ -1563,9 +1552,7 @@ function kseiRenderLiveCompositionHtml(data) {
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">' + sections.join('') + '</div>';
 }
 
-// ══════════════════════════════════════════════════════════════
 // 4. TAB 2: MARKET-WIDE FREE FLOAT SCANNER
-// ══════════════════════════════════════════════════════════════
 
 function renderKseiScannerView(container) {
   var list = Object.values(KSEI_STATE.data || {});
@@ -1711,9 +1698,7 @@ function kseiOnScannerSearch(val) {
   renderKseiScannerView(document.getElementById('ksei-modal-content'));
 }
 
-// ══════════════════════════════════════════════════════════════
 // 5. TAB 3: EXCEL UPLOAD & SUMBER DATA
-// ══════════════════════════════════════════════════════════════
 
 function renderKseiSettingsView(container) {
   var m = KSEI_STATE.metadata || {};
@@ -1794,9 +1779,7 @@ function renderKseiSettingsView(container) {
   `;
 }
 
-// ══════════════════════════════════════════════════════════════
 // 6. INTEGRATION WIDGETS (FUNDAMENTAL SUITE & STOCK INTEL)
-// ══════════════════════════════════════════════════════════════
 
 /**
  * Render KSEI Shareholders and Free Float Widget for Fundamental Suite Tab 10

@@ -667,9 +667,7 @@ var tradeStrategy = {
   'ADRO': 'Core Long',
   'SMDR': 'Core Long'
 };
-// ══════════════════════════════════════════════════════════
 // DATA MERGE & CONFLICT RESOLUTION ENGINE
-// ══════════════════════════════════════════════════════════
 function _makeTxSig(t){
   if(!t) return '';
   return (t.date || '') + '|' + (t.type || '') + '|' + (t.ticker || '') + '|' + (t.lot || 0) + '|' + (t.price || 0) + '|' + (t.sekuritas || '');
@@ -1033,9 +1031,7 @@ function _mergeDatasets(localObj, cloudObj){
   };
 }
 
-// ══════════════════════════════════════════════════════════
 // CLOUD PERSISTENCE & REALTIME CROSS-DEVICE ENGINE
-// ══════════════════════════════════════════════════════════
 var _cloudSyncFailed = false;
 var _syncInFlight = false;
 var _syncQueued = false;

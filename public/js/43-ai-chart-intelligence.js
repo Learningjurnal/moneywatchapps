@@ -23,9 +23,7 @@ var AI_CHART_STATE = {
   }
 };
 
-// ══════════════════════════════════════════════════════════
 // 1. SINGLE SOURCE OF TRUTH — MARKET DATA CONTEXT BUILDER
-// ══════════════════════════════════════════════════════════
 function buildAiSharedMarketContext(ticker, timeframe) {
   var tk = (ticker || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '');
   var tf = timeframe || '1D';
@@ -386,9 +384,7 @@ function calculateAiAutoZones(ctx, struct, fib) {
   };
 }
 
-// ══════════════════════════════════════════════════════════
 // 2. DETERMINISTIC INTELLIGENCE ENGINES
-// ══════════════════════════════════════════════════════════
 
 // A. Market Structure Engine (HH/HL/LH/LL, BOS, CHoCH)
 function detectAiMarketStructure(ohlcv) {
@@ -634,9 +630,7 @@ function generateAiTradeSetup(ctx, struct, fib, patterns, confScore) {
   };
 }
 
-// ══════════════════════════════════════════════════════════
 // 3. AI DRAWING OVERLAY LAYER FOR CHART.JS
-// ══════════════════════════════════════════════════════════
 function applyAiChartOverlay(chartInstance, setup, fib, srZones, aiZones) {
   if (!chartInstance) return;
 
@@ -1026,9 +1020,7 @@ function applyAiChartOverlay(chartInstance, setup, fib, srZones, aiZones) {
   chartInstance.update('none');
 }
 
-// ══════════════════════════════════════════════════════════
 // 4. MAIN ORCHESTRATOR & UI RENDERER (OPSI A IMPLEMENTATION)
-// ══════════════════════════════════════════════════════════
 function runAiChartAnalysis(ticker) {
   var force = arguments.length > 1 ? arguments[1] : true;
   var tk = (ticker || TECH_DATA.ticker || 'BBCA').toUpperCase().trim().replace(/\.JK$/i, '');
@@ -1404,9 +1396,7 @@ function toggleAiOverlay(key) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
 // 5. EXPLAIN CHART MODAL & JOURNAL SAVE INTEGRATION
-// ══════════════════════════════════════════════════════════
 function openAiExplainModal(ticker) {
   var last = AI_CHART_STATE.lastAnalysis;
   if (!last) {

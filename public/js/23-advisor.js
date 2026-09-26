@@ -6,9 +6,7 @@
  * 4. Executive View / Pro Terminal View Workspace Switcher
  */
 
-// ══════════════════════════════════════════════════════════
 // 1. WORKSPACE VIEW SWITCHER (Executive View vs Pro Analyst)
-// ══════════════════════════════════════════════════════════
 var MW_VIEW_MODE = 'pro'; // 'pro' | 'executive'
 
 function mwSetViewMode(mode) {
@@ -46,9 +44,7 @@ function mwShowToast(msg) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
 // 2. CLIENT / INVESTOR TEAR SHEET (PDF & PRINT MODAL)
-// ══════════════════════════════════════════════════════════
 function openInvestorTearSheet() {
   var modal = document.getElementById('modal');
   var mTitle = document.getElementById('m-title');
@@ -190,9 +186,7 @@ function printInvestorTearSheet() {
 }
 
 
-// ══════════════════════════════════════════════════════════
 // 3. SMART ASSET REBALANCING CALCULATOR
-// ══════════════════════════════════════════════════════════
 var REBALANCE_TARGETS = {
   saham: 60,
   rdn: 15,
@@ -325,9 +319,7 @@ function rebRecalculate() {
 }
 
 
-// ══════════════════════════════════════════════════════════
 // 4. VALUATION-BASED SIGNAL (was "3-Pillar Traffic Light Matrix")
-// ══════════════════════════════════════════════════════════
 // This used to claim a "3-pillar consensus" (Valuation + FlowScan +
 // Quant Trend & Quality) with a "Skor Konsensus: X/3" badge. In reality:
 //   - FlowScan always read `FS_STOCKS[ticker].signal`, but FS_STOCKS is

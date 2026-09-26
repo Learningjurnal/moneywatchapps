@@ -1,10 +1,8 @@
-// ╔══════════════════════════════════════════════════════════╗
 // ║  ADMIN PANEL — Kelola Daftar Saham                        ║
 // ║  Perbaiki nama/sektor yang salah tafsir, tambah ticker    ║
 // ║  baru, kecualikan yang tidak relevan, paksa muat ulang    ║
 // ║  data riil per saham. Menutup akar masalah: universe yang ║
 // ║  dulu terpotong diam-diam jatuh ke harga simulasi acak.   ║
-// ╚══════════════════════════════════════════════════════════╝
 
 var ADMIN_META  = {};  // code -> {name, sector, excluded}
 var ADMIN_EXTRA = [];  // kode ticker tambahan yang didaftarkan manual
@@ -70,12 +68,10 @@ function adminSectorOptions(selected){
   return keys.map(function(k){ return '<option value="'+k+'"'+(k===selected?' selected':'')+'>'+k+'</option>'; }).join('');
 }
 
-// ══════════════════════════════════════════════
 // IMPORT UNIVERSE DARI FILE EXCEL IDX — reset total
 // (mis. hasil export "IDX Stock Screener") — menggantikan SELURUH
 // universe bawaan (FS_UNIV/DB/LQ45_STOCKS) dengan isi file.
 // Portofolio & watchlist milik user TIDAK ikut terhapus.
-// ══════════════════════════════════════════════
 var IDX_UNIVERSE = null;      // array mentah hasil import terakhir (null = pakai bawaan)
 var IDX_UNIVERSE_INFO = null; // {fileName, importedAt, count}
 

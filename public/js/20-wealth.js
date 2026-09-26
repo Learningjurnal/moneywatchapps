@@ -1,9 +1,7 @@
-// ╔══════════════════════════════════════════════════════════╗
 // ║  WEALTH MODULE — Personal Family Office                  ║
 // ║  Diadaptasi dari Wealth OS, terintegrasi Money Watch     ║
 // ║  Net Worth · Bank & Dana Darurat · Hutang · Piutang ·    ║
 // ║  FIRE & Proyeksi · Wealth Score                          ║
-// ╚══════════════════════════════════════════════════════════╝
 
 // ── STATE ──
 var WEALTH_KEY = 'mw_wealth_v1';
@@ -143,9 +141,7 @@ function wScoreCalc(a){
   return Math.min(100, sc);
 }
 
-// ══════════════════════════════════════════════
 // ROUTER HOOK — pola sama dengan modul QuantTrader
-// ══════════════════════════════════════════════
 var _wOrigGoPage = window.goPage;
 window.goPage = function(page, btn){
   if(_wOrigGoPage) _wOrigGoPage.call(this, page, btn);
@@ -183,9 +179,7 @@ function wSubNav(activePage){
   return html;
 }
 
-// ══════════════════════════════════════════════
 // PAGE 1 — NET WORTH DASHBOARD
-// ══════════════════════════════════════════════
 function wRenderNet(){
   var a = wCalc();
   var dr = wPct(a.debt.t, a.aset);
@@ -403,9 +397,7 @@ function wBankLogoHtml(bankName, size){
   return '<div class="w-bank-logo" style="width:'+s+'px;height:'+s+'px;font-size:'+(s*.34).toFixed(0)+'px;background:'+lg.bg+';color:'+(lg.fg||'#fff')+'">'+lg.code+'</div>';
 }
 
-// ══════════════════════════════════════════════
 // PAGE 2 — BANK & DANA DARURAT
-// ══════════════════════════════════════════════
 function wRenderBank(){
   var a = wCalc();
   var t3 = WEALTH.expense*3, t6 = WEALTH.expense*6;
@@ -454,9 +446,7 @@ function wRenderBank(){
   '</div></div>';
 }
 
-// ══════════════════════════════════════════════
 // PAGE 3 — HUTANG (avalanche & snowball)
-// ══════════════════════════════════════════════
 // Format tanggal jatuh tempo dengan pewarnaan — merah (lewat), amber (≤7 hari), abu-abu normal
 function wFmtDueDate(dateStr){
   if(!dateStr) return '<span style="color:var(--text3)">—</span>';
@@ -582,9 +572,7 @@ function wRenderDebt(){
   }
 }
 
-// ══════════════════════════════════════════════
 // PAGE 4 — PIUTANG
-// ══════════════════════════════════════════════
 function wRenderPiutang(){
   var piu = WEALTH.piutang;
   var tP = piu.reduce(function(s,x){return s+(x.pokok||0)},0);
@@ -657,9 +645,7 @@ function wRenderPiutang(){
   }
 }
 
-// ══════════════════════════════════════════════
 // PAGE 5 — FIRE & PROYEKSI
-// ══════════════════════════════════════════════
 function wRenderFire(){
   var a = wCalc();
   var annualExp = WEALTH.expense*12;
@@ -762,9 +748,7 @@ function wProjRecalc(){
   }
 }
 
-// ══════════════════════════════════════════════
 // MODAL CRUD
-// ══════════════════════════════════════════════
 function wOpenModal(title, bodyHtml){
   el('wm-title').textContent = title;
   el('wm-body').innerHTML = bodyHtml;
@@ -940,9 +924,7 @@ function wSaveSettings(){
   wCloseModal(); wRerender();
 }
 
-// ══════════════════════════════════════════════
 // EXPORT / IMPORT (JSON, terpisah dari backup jurnal)
-// ══════════════════════════════════════════════
 function wExport(){
   try{
     var payload = {_app:'MoneyWatchPro-Wealth', _version:'1.0', _exportedAt:new Date().toISOString(), wealth:WEALTH};

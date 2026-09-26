@@ -125,9 +125,7 @@ function fmtIdr(n) {
   return Math.round(n || 0).toLocaleString('id-ID');
 }
 
-// ══════════════════════════════════════════════════════════
 // SERVER-SIDE USER DATA PERSISTENCE MIRROR & RECOVERY
-// ══════════════════════════════════════════════════════════
 const USER_STORES_DIR = path.join(__dirname, 'data', 'user-stores');
 if (!fs.existsSync(USER_STORES_DIR)) {
   try {
@@ -416,9 +414,7 @@ app.post('/api/user-data/clear', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════
 // REALTIME MULTI-DEVICE SYNCHRONIZATION BUS (SSE STREAM)
-// ══════════════════════════════════════════════════════════
 const syncClients = new Map(); // Map<string (clientId), { uid: string, res: Response, deviceId: string }>
 
 function broadcastSyncUpdate(targetUid, dataObj, originDeviceId) {
@@ -515,9 +511,7 @@ app.get('/api/sync/stream', (req, res) => {
   });
 });
 
-// ══════════════════════════════════════════════════════════
 // BACKEND RDN SYNCHRONIZATION & RECONCILIATION ENGINE
-// ══════════════════════════════════════════════════════════
 function reconcileRdnPayload(data) {
   const transactions = Array.isArray(data.transactions) ? data.transactions : [];
   const dividends = Array.isArray(data.dividends) ? data.dividends : [];
@@ -1019,9 +1013,7 @@ function claudeExtractGroundingChunks(response) {
 }
 
 
-// ══════════════════════════════════════════════════════════
 // SECTORAL MARKET NEWS & CATALYST INTELLIGENCE ENDPOINT
-// ══════════════════════════════════════════════════════════
 let sectoralNewsCache = {
   data: null,
   timestamp: 0,
@@ -1397,9 +1389,7 @@ Gunakan format markdown yang rapi, tegas, dan profesional. Tutup dengan disclaim
   return res.status(500).json({ success: false, error: 'Gagal menghasilkan analisis AI dari seluruh provider.' });
 });
 
-// ══════════════════════════════════════════════════════════════
 // MONEYWATCH PRO AI AGENT — INSTITUTIONAL MULTI-ASSET ANALYST
-// ══════════════════════════════════════════════════════════════
 
 // BEI (Bursa Efek Indonesia) Trading Rules Engine
 const BEI_RULES = {
@@ -3319,7 +3309,6 @@ app.get('/api/proxy', async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════
 // KSEI 5%+ SHAREHOLDERS & FREE FLOAT INTELLIGENCE ENGINE
 //
 // The live/current dataset is now user-uploaded and stored client-side
@@ -3331,7 +3320,6 @@ app.get('/api/proxy', async (req, res) => {
 // a fresh parse here were removed: that write always threw EROFS on
 // Vercel's read-only production filesystem, the same failure class
 // already documented and fixed for /api/user-data/save above).
-// ════════════════════════════════════════════════════════════
 let _kseiCache = null;
 
 
@@ -3506,9 +3494,7 @@ app.get('/api/ksei/summary', (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════
 // IDX DATA HUB ENDPOINTS (Integrated from NeaByteLab/IDX-API)
-// ══════════════════════════════════════════════════════════
 
 // GET /api/idx/summary — High-level trade summary & live breadth
 app.get('/api/idx/summary', async (req, res) => {

@@ -1389,9 +1389,7 @@ var _IDX_RAW_LIST = {
   'RANS':{name:'Rans Entertainmen Indonesia Tbk.',base:0,sector:'Lainnya',beta:1.0},
 };
 
-// ══════════════════════════════════════════════════════════
 // PEMETAAN 11 SEKTOR RESMI IDX LENGKAP UNTUK SELURUH EMITEN BEI
-// ══════════════════════════════════════════════════════════
 var IDX_SECTOR_GROUPS = {
   "Financials (Keuangan)": ["BBCA","BBRI","BMRI","BBNI","BRIS","BBTN","BDMN","BNGA","MEGA","NISP","ARTO","PNBN","BCIC","BTPS","AGRO","AMAG","APIC","ASBI","ASDM","ASJT","ASMI","ASRM","BABP","BACA","BBHI","BBKP","BBLD","BBMD","BBYB","BCAP","BEKS","BFIN","BGTG","BINA","BJBR","BJTM","BKSW","BMAS","BNBA","BNII","BNLI","BPFI","BPII","BPRN","BTPN","CASH","CFIN","DNAR","FUJI","GSMF","HDFA","INPC","JMAS","LPPS","MASB","MAYA","MFIN","MTWI","NOBU","PADI","PANS","PEGE","PNBS","PNLF","POLA","POOL","RELI","SDRA","SMMA","SRTG","TRIM","TUGU","VINS","WOMF","VRNA","BHIT","IBFN","LPGI","BVIC","LIFE","MREI","PNIN","TIFA","TRUS","BAPO","PLAS","PUDP","ABDA","BSIM","BSWD","MGNA","OCAP","YULE","CASA","NICK","SFAN","AMAR","BBSI","BANK","GRIA","PART","YOII","SUPA","ADMF","AGRS","AHAP","AIMS"],
   "Energy (Energi)": ["ADRO","PTRO","MEDC","PGAS","PTBA","BUMI","DEWA","AADI","INDY","ITMG","HRUM","AKRA","ENRG","RAJA","ELSA","DOID","ADMR","MBSS","ABMM","ARII","BIPI","BOSS","BSSR","BYAN","CNKO","COAL","CUAN","FIRE","GTBO","IATA","LEAD","MBAP","MCOL","MITI","MYOH","PKPK","PSAB","RIGS","RMKE","RUIS","SGER","SMMT","SMRU","SURE","TAMU","TCPI","TOBA","WOWS","WINS","APEX","DSSA","KKGI","BORN","GEMS","ARTI","DWGL","SEMA","SUGI","BBRM","ITMA","TPMA","ZINC","JSKY","LABA","OILS","SICO","ARKO","CBRE","FUTR","LMAX","RATU"],

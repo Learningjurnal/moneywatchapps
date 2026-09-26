@@ -121,9 +121,7 @@
     }
   }
 
-  // ══════════════════════════════════════════════════════════════════
   // RENDER FULL SETTINGS PAGE / PILLAR
-  // ══════════════════════════════════════════════════════════════════
   function renderSettingsPage() {
     var c = document.getElementById('page-settings');
     if (!c) return;
@@ -600,13 +598,11 @@
     loadApiQuotaWidgets();
   }
 
-  // ══════════════════════════════════════════════════════════════════
   // API QUOTA MONITOR — Invezgo (GET /api/idx/invezgo-status). The Gemini
   // quota widget that used to sit alongside this (GET /api/ai/gemini-status)
   // was removed in the 2026-09-12 Claude migration — Anthropic has no
   // equivalent lightweight self-reported per-model quota endpoint, and
   // Gemini itself is no longer called anywhere in this app.
-  // ══════════════════════════════════════════════════════════════════
   function quotaBar(pct, alert90, alert80) {
     var safePct = (typeof pct === 'number' && isFinite(pct)) ? Math.max(0, Math.min(100, pct)) : 0;
     var color = alert90 ? 'var(--red)' : (alert80 ? '#f59e0b' : 'var(--accent)');
@@ -695,9 +691,7 @@
     }
   }
 
-  // ══════════════════════════════════════════════════════════════════
   // EVENT HANDLERS
-  // ══════════════════════════════════════════════════════════════════
   function handleSaveTaxSettings(e) {
     if (e && e.preventDefault) e.preventDefault();
     var buyFee = Number(document.getElementById('cfg-buyfee').value) / 100;

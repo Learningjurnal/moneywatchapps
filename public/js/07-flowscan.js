@@ -813,9 +813,7 @@ function fsRunScanner(){
     }).join('')+'</div>';
 }
 
-// ══════════════════════════════════════════════════════════
 // SMART MONEY SCREENER — mode switch (2026-09-17, konsolidasi screener)
-// ══════════════════════════════════════════════════════════
 // Sebelumnya ada 3 fitur terpisah yang overlap konsep (deteksi akumulasi/
 // distribusi "smart money"), dua di antaranya bahkan memakai fungsi hitung
 // CMF yang identik persis (fsGenData/fsCalcCMF di file ini):

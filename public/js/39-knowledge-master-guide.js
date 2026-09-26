@@ -79,9 +79,7 @@
     c.innerHTML = html;
   }
 
-  // ══════════════════════════════════════════════════════════
   // TAB 1: ALUR ANALISIS END-TO-END (PIPELINE)
-  // ══════════════════════════════════════════════════════════
   function renderWorkflowTab() {
     return ''
       + '<div class="card" style="padding:22px;margin-bottom:18px;border:1px solid rgba(56,189,248,0.25);background:linear-gradient(135deg, var(--bg2) 0%, rgba(56,189,248,0.03) 100%)">'
@@ -179,9 +177,7 @@
       + '</div>';
   }
 
-  // ══════════════════════════════════════════════════════════
   // TAB 2: MANAJEMEN PORTOFOLIO & KAS RDN
-  // ══════════════════════════════════════════════════════════
   function renderPortfolioManagementTab() {
     return ''
       + '<div class="card" style="padding:22px;margin-bottom:18px">'
@@ -248,9 +244,7 @@
       + '</div>';
   }
 
-  // ══════════════════════════════════════════════════════════
   // TAB 2: PLAYBOOK STRATEGI TRADING & INVESTASI
-  // ══════════════════════════════════════════════════════════
   function renderStrategiesTab() {
     return ''
       + '<div class="card" style="padding:22px;margin-bottom:18px">'
@@ -357,9 +351,7 @@
       + '</div>';
   }
 
-  // ══════════════════════════════════════════════════════════
   // TAB 3: FUNDAMENTAL VS TEKNIKAL (CONVICTION MATRIX)
-  // ══════════════════════════════════════════════════════════
   function renderConvictionTab() {
     return ''
       + '<div class="card" style="padding:22px;margin-bottom:18px">'
@@ -453,9 +445,7 @@
       + '</div>';
   }
 
-  // ══════════════════════════════════════════════════════════
   // TAB 4: PETA INTEGRASI TIAP TOOLBAR
-  // ══════════════════════════════════════════════════════════
   function renderToolbarsTab() {
     return ''
       + '<div class="card" style="padding:22px;margin-bottom:18px">'
@@ -573,9 +563,7 @@
       + '</div>';
   }
 
-  // ══════════════════════════════════════════════════════════
   // TAB 5: SIMULATOR KEYAKINAN SAHAM INTERAKTIF
-  // ══════════════════════════════════════════════════════════
   function renderSimulatorTab() {
     var state = KNOWLEDGE_STATE;
     var inp = state.simInputs;

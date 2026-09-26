@@ -308,7 +308,6 @@ function computeRiskMetrics(){
   return {porto:porto,n:porto.length,totalMV:totalMV,totalCost:totalCost,beta:beta,volAnn:volAnn,var95:var95,
     sharpe:sharpe,real:real,unreal:unreal,totalReturn:totalReturn,secCnt:secCnt,topSecPct:topSecPct,topSec:topSec,score:score,bySec:bySec};
 }
-// ══════════════════════════════════════════════════════════
 // METRIK GAYA HEDGE FUND — dihitung dari riwayat ekuitas harian
 // sungguhan (equityHistory), bukan estimasi statis per-saham.
 // Rumus: Sharpe/Sortino/Calmar/Max Drawdown standar industri,
@@ -316,7 +315,6 @@ function computeRiskMetrics(){
 // Minimal 10 titik data supaya statistik tidak menyesatkan —
 // di bawah itu, ditandai historyTooShort dan hanya isi dasar
 // (HHI, win rate) yang tetap dihitung dari data transaksi.
-// ══════════════════════════════════════════════════════════
 function computeHedgeFundMetrics(){
   var porto=(typeof getPortfolio==='function')?getPortfolio():[];
   var totalMV=porto.reduce(function(a,p){return a+p.mv},0);

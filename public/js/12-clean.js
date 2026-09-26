@@ -1,7 +1,5 @@
-// ╔══════════════════════════════════════════════════════════╗
 // ║  FRESH START — Bersihkan semua sisa localStorage lama    ║
 // ║  Penyimpanan 100% menggunakan Supabase Cloud             ║
-// ╚══════════════════════════════════════════════════════════╝
 
 function mwPurgeLocalState(force) {
   try {

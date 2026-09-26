@@ -1,6 +1,4 @@
-// ══════════════════════════════════════════════════════════
 // APP CONFIG
-// ══════════════════════════════════════════════════════════
 // FIX AUDIT (2026-09-12, GitHub secret-scanning alert): this file used to
 // also hold a live Firebase Web SDK config (FIREBASE_CONFIG, FIRESTORE_DB_ID,
 // getFirebaseDb(), the firebase.initializeApp()/firebase.auth() boot block
@@ -44,9 +42,7 @@ function getFirestoreUserUid(user) {
 // no-op flag since something downstream may still read window._schemaOutdated.
 window._schemaOutdated = false;
 
-// ══════════════════════════════════════════════════════════
 // SUPABASE (per-user data + auth) — see AGENTS.md / migration notes for why
-// ══════════════════════════════════════════════════════════
 // FIX AUDIT: the Firebase project this app used to depend on (zinc-snowfall-6lcf1)
 // was a shared Google AI Studio "Starter Tier" backend used by several
 // unrelated apps - the account operating this app only had narrow IAM roles
@@ -103,9 +99,7 @@ function getSupabaseAccessToken() {
   return null;
 }
 
-// ══════════════════════════════════════════════════════════
 // AI SIGNAL REFLECTION LOG — Fase 2 (2026-09-17)
-// ══════════════════════════════════════════════════════════
 // Dipanggil dari StockChat (41-stockchat-cockpit.js) dan AI Copilot
 // (28-decisiontools.js) setiap kali respons AI membawa toolCalls yang
 // mengandung "cek_sinyal_teknikal" (lihat server.js, executeAgentTool()) —
@@ -177,9 +171,7 @@ async function logAiSignalToReflectionLog(source, toolCalls) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
 // AI SIGNAL REFLECTION LOG — JOB RESOLUSI (Fase 2 lanjutan, 2026-09-17)
-// ══════════════════════════════════════════════════════════
 // Dipanggil sekali per sesi lewat ensureAiSignalLogResolved() (dari
 // StockChat/Copilot page-open, mirip pola loadAiCloudState() di
 // 38-ai-autonomous-trading.js) — TIDAK ada cron/worker terpisah, app ini
@@ -325,9 +317,7 @@ async function resolveOneAiSignal(row, client) {
   }
 }
 
-// ══════════════════════════════════════════════════════════
 // AI SIGNAL REFLECTION LOG — Fase 3: injeksi riwayat ke prompt (2026-09-17)
-// ══════════════════════════════════════════════════════════
 // Dipanggil dari StockChat/Copilot SEBELUM tiap pesan dikirim ke server —
 // sama seperti pola aiPaperTrading/xgboostPrediction yang sudah ada
 // (server.js TIDAK PERNAH punya akses Supabase sendiri, lihat catatan di
@@ -371,9 +361,7 @@ async function getAiSignalHistorySummary() {
   }
 }
 
-// ══════════════════════════════════════════════════════════
 // GLOBAL STOCK CONTEXT & UNIFIED DISPATCH SYSTEM
-// ══════════════════════════════════════════════════════════
 window.GLOBAL_STOCK_CONTEXT = {
   activeTicker: 'BBCA',
   listeners: [],
@@ -472,9 +460,7 @@ window.mwSelectGlobalStock = function(ticker, targetPage) {
   }
 };
 
-// ══════════════════════════════════════════════════════════
 // BOTTOM TOOLBAR STATUS INDICATORS — pengecekan nyata (2026-09-17, audit fix)
-// ══════════════════════════════════════════════════════════
 // Kedua indikator ini (dot "AI Engine Live" dan dot Supabase di tombol
 // Pengaturan & Data) sebelumnya HTML statis — dot hijau permanen tanpa
 // pengecekan apa pun, ditemukan lewat audit toolbar AI Engine (INCIDENT_LOG.md
@@ -546,9 +532,7 @@ async function checkSupabaseCloudStatus() {
   }
 }
 
-// ══════════════════════════════════════════════════════════
 // GLOBAL SPECIAL NOTATIONS & WATCHLIST BOARD (FCA) SYSTEM
-// ══════════════════════════════════════════════════════════
 window.GLOBAL_SPECIAL_NOTATIONS = {};
 window.GLOBAL_SPECIAL_NOTATIONS_LOADED = false;
 // FIX (Regulatory Health Gate, 2026-09-24): dulu tidak ada cara membedakan

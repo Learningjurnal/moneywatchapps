@@ -1580,9 +1580,7 @@ function renderStockDossierPage(targetTicker) {
   // ── DUAL-COLUMN SPLIT TERMINAL: DATA UTAMA VS SUPPORTING ──
   html += '<div class="dossier-split-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px, 100%), 1fr));gap:20px;margin-bottom:24px;align-items:start">';
 
-  // ════════════════════════════════════════════════════════════
   // 1. DATA UTAMA (HARGA SAHAM & PERFORMA BISNIS PERUSAHAAN)
-  // ════════════════════════════════════════════════════════════
   html += '  <div>';
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px">';
   html += '      <div>';
@@ -1669,9 +1667,7 @@ function renderStockDossierPage(targetTicker) {
 
   html += '  </div>'; // End Kolom 1
 
-  // ════════════════════════════════════════════════════════════
   // 2. SUPPORTING: FAKTOR EKSTERNAL & ARUS PASAR
-  // ════════════════════════════════════════════════════════════
   html += '  <div>';
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px">';
   html += '      <div>';
