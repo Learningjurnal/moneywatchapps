@@ -3167,15 +3167,24 @@ function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
     .attr('viewBox', '0 0 ' + width + ' ' + height)
     .style('display', 'block');
 
-  var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  // FIX (2026-09-26, user-reported: "sector rotation garisnya tidak
+  // terlihat di tema terang dan gelap, garis di sumbunya"): the crosshair
+  // stroke was rgba(...,0.08) — 8% opacity — visually indistinguishable
+  // from the card background in both themes (confirmed by rendering this
+  // chart standalone with the real captured Sector_rotation.json and
+  // screenshotting light+dark: the crosshair was invisible while every
+  // other element rendered correctly). Raised to a clearly visible but
+  // still recessive gray, dashed to read as a reference line rather than
+  // a data series (it isn't one — it's the x=100/y=100 benchmark line).
+  var gridColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)';
   var textColor = typeof _chartTextColor === 'function' ? _chartTextColor('--text2', isDark ? '#D2D8DF' : '#333') : (isDark ? '#D2D8DF' : '#333');
 
   // Quadrant crosshair at the benchmark centerline (100,100) — matches
   // the reference chart's own convention, plain background (no tinted
   // regions competing with the trail colors as primary ink).
-  svg.append('line').attr('x1', x(100)).attr('x2', x(100)).attr('y1', margin.top).attr('y2', height - margin.bottom).attr('stroke', gridColor).attr('stroke-width', 1);
-  svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', gridColor).attr('stroke-width', 1);
-  svg.append('text').attr('x', x(100) + 4).attr('y', y(100) - 4).attr('font-size', 9).attr('fill', textColor).attr('opacity', 0.6).text((sectors[0] && 'COMPOSITE') || '');
+  svg.append('line').attr('x1', x(100)).attr('x2', x(100)).attr('y1', margin.top).attr('y2', height - margin.bottom).attr('stroke', gridColor).attr('stroke-width', 1.25).attr('stroke-dasharray', '4,3');
+  svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', gridColor).attr('stroke-width', 1.25).attr('stroke-dasharray', '4,3');
+  svg.append('text').attr('x', x(100) + 4).attr('y', y(100) - 4).attr('font-size', 9).attr('fill', textColor).attr('opacity', 0.85).text((sectors[0] && 'COMPOSITE') || '');
 
   // Quadrant corner labels — a STATUS encoding (macro market-state), a
   // different color role than the per-sector identity colors above.
