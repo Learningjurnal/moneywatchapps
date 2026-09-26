@@ -2841,7 +2841,7 @@ function bandarRenderMarketFlowContent(data) {
   // --- Sektor Rotasi Modal Heatmap ---
   // Map setiap emiten dari acc/distList ke 11 sektor resmi IDX, hitung net score per sektor.
   var sectorMap = {};
-  BANDAR_SECTOR_DEFS.forEach(function(sec) { sectorMap[sec.name] = { name: sec.name, accScore: 0, distScore: 0, accCount: 0, distCount: 0 }; });
+  BANDAR_SECTOR_DEFS.forEach(function(sec) { sectorMap[sec.name] = { name: sec.name, accScore: 0, distScore: 0, accCount: 0, distCount: 0, tickers: [] }; });
 
   function mapItemToSector(item, side) {
     if (!item) return;
@@ -2896,7 +2896,7 @@ function bandarRenderMarketFlowContent(data) {
     }
 
     if (!sectorMap[matchedSecName]) {
-      sectorMap[matchedSecName] = { name: matchedSecName, accScore: 0, distScore: 0, accCount: 0, distCount: 0 };
+      sectorMap[matchedSecName] = { name: matchedSecName, accScore: 0, distScore: 0, accCount: 0, distCount: 0, tickers: [] };
     }
 
     if (side === 'acc') {
@@ -2905,6 +2905,24 @@ function bandarRenderMarketFlowContent(data) {
     } else {
       sectorMap[matchedSecName].distScore += Math.abs(item.score || 0);
       sectorMap[matchedSecName].distCount++;
+    }
+    // FIX (2026-09-26, user asked directly: "cari penyebab muncul sector
+    // lainnya"): root cause traced to tickers Invezgo's real-time top
+    // accumulation/distribution scan returns that are NOT keys in our own
+    // static universe (public/js/01-data.js DB/_IDX_RAW_LIST/
+    // IDX_SECTOR_GROUPS, ~958 tickers) — most likely a newer IPO listed
+    // after that static file was last compiled. When universe[item.code]
+    // is undefined, getUniverseAccumulationDistribution() (lib/idx-data-
+    // engine.js) sets sector:'-', which matches none of the regex
+    // patterns above, so it falls to this generic bucket. Sector Rotation
+    // Chart (RRG) never hits this failure mode because it consumes
+    // Invezgo's own pre-aggregated per-sector endpoint directly — there
+    // is no per-ticker lookup to fail there. Tracking the actual ticker
+    // codes here (rather than only the bucket name) turns each future
+    // occurrence into an actionable, honest diagnosis instead of a
+    // silent mystery bucket.
+    if (matchedSecName === 'Lainnya' && sectorMap[matchedSecName].tickers.indexOf(rawTk) === -1) {
+      sectorMap[matchedSecName].tickers.push(rawTk);
     }
   }
   accList.forEach(function(it) { mapItemToSector(it, 'acc'); });
@@ -2957,7 +2975,9 @@ function bandarRenderMarketFlowContent(data) {
       + '<div style="width:' + barDist + '%;height:100%;background:var(--red);border-radius:4px;transition:width 0.4s"></div>'
       + '</div>'
       + '</div>'
-      + '</div>'
+      + (s.name === 'Lainnya' && s.tickers.length
+          ? '<div style="font-size:9.5px;color:var(--text3);margin-top:2px">Ticker belum ada di peta sektor statis (kemungkinan IPO baru): ' + s.tickers.join(', ') + '</div>'
+          : '')
       + '</div>';
   });
   sectorHeatHtml += '</div></div>';
