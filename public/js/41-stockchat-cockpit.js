@@ -3117,16 +3117,14 @@ function bandarRenderSectorRotationChart(mount, data) {
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-bottom:12px">Data REAL Invezgo API (RS-Ratio vs RS-Momentum, rebased ke 100 = ' + (data.benchmark || 'COMPOSITE') + ') — visualisasi kekuatan & momentum relatif tiap sektor, bukan sampel.</div>';
 
-  // FIX (2026-09-26, user-reported twice: first "perkecil ukuran grafik
-  // karena layout terlalu penuh dengan grafik" — chart stretched to the
-  // full card width (>900px), then "belum bagus terlalu kecil ukuran
-  // grafiknya, proporsionalkan dengan layout" — the fixed 520px cap left
-  // large empty margins on wide desktop cards (screenshot showed it
-  // ~1650px wide with the 520px chart stranded in the middle). Switched
-  // from a small fixed cap to a proportional width (68% of the card,
-  // same KPI-row width) with a generous upper bound — scales with the
-  // page instead of being either full-bleed or a fixed small box.
-  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:68%;max-width:900px;min-width:420px;margin:0 auto"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
+  // FIX (2026-09-26, third size iteration — user asked explicitly: "buat
+  // memanjang ke samping sampai tidak ada space kosong menyamping, panjang
+  // atas bawah sudah sesuai"): fill the full card width — no side margins
+  // — while keeping the height the user already confirmed is fine. Width
+  // and height are decoupled in _bandarRenderRotationSvg() below (height
+  // is capped independent of width) specifically so this can go 100%
+  // wide without also growing much taller.
+  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
 
   _bandarRenderRotationSvg(document.getElementById('bandar-rotation-svg-wrap'), sectors, colorMap, isDark);
   _bandarRenderRotationTable(document.getElementById('bandar-rotation-table-wrap'), sectors, colorMap, quadrantLabel);
@@ -3152,7 +3150,12 @@ function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
   wrap.innerHTML = '';
 
   var width = Math.max(320, wrap.clientWidth || wrap.parentElement.clientWidth || 600);
-  var height = Math.round(width * 0.62);
+  // Height is capped independently of width (not a fixed width*ratio) so
+  // that filling the card's full width (per the user's explicit request)
+  // does not also inflate the chart's height — the height the user
+  // confirmed as "sudah sesuai" is preserved regardless of how wide the
+  // card is.
+  var height = Math.min(560, Math.round(width * 0.62));
   var margin = { top: 20, right: 20, bottom: 20, left: 20 };
 
   // Domain: symmetric around (100,100) — the benchmark centerline — sized
