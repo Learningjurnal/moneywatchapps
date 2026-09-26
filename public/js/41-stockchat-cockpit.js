@@ -3089,8 +3089,15 @@ function bandarRenderSectorRotationChart(mount, data) {
     return;
   }
 
-  var isDark = typeof document !== 'undefined' && document.documentElement && (document.documentElement.getAttribute('data-theme') === 'dark'
-    || (!document.documentElement.hasAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches));
+  // FIX (2026-09-26, user-reported with screenshot: sector trails/labels
+  // invisible in light theme): this used to check a `data-theme` attribute
+  // the app never sets, falling back to the OS-level `prefers-color-scheme`
+  // — so on a device with a dark OS preference, this stayed "dark" even
+  // with the app's own theme toggle switched to light, drawing the DARK
+  // color palette and dark tooltip on light-theme's pale backgrounds.
+  // `document.body.classList.contains('theme-light')` is the actual
+  // mechanism the app uses everywhere else (see line ~4026 below).
+  var isDark = typeof document !== 'undefined' && document.body && !document.body.classList.contains('theme-light');
   var colorMap = isDark ? BANDAR_ROTATION_COLORS_DARK : BANDAR_ROTATION_COLORS_LIGHT;
 
   var sectors = Object.keys(data.bySectorKey || {}).map(function (k) { return data.bySectorKey[k]; })
@@ -3243,10 +3250,14 @@ function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
 
   var line = d3.line().x(function (p) { return x(p.x); }).y(function (p) { return y(p.y); }).curve(d3.curveCatmullRom.alpha(0.5));
 
+  // Styled via .bandar-rotation-tooltip in main.css (same var(--bg2)/
+  // var(--border2) + body.theme-light recipe as the app's #mw-tooltip) —
+  // CSS custom properties already flip correctly with the real theme
+  // class, so this can't drift out of sync with isDark the way inline
+  // JS-computed colors did before this fix.
   var tooltip = d3.select(wrap).append('div')
-    .style('position', 'absolute').style('pointer-events', 'none').style('opacity', 0)
-    .style('background', isDark ? '#1a1f2b' : '#fff').style('border', '1px solid var(--border)')
-    .style('border-radius', '6px').style('padding', '6px 10px').style('font-size', '11px').style('z-index', 20);
+    .attr('class', 'bandar-rotation-tooltip')
+    .style('position', 'absolute').style('opacity', 0);
 
   sectors.forEach(function (s) {
     var color = colorMap[s.code] || (isDark ? '#8a8f9a' : '#555');
@@ -3261,7 +3272,9 @@ function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
         .style('cursor', 'pointer')
         .on('mouseover', function (event) {
           tooltip.style('opacity', 1).html(
-            '<b>' + (s.name || s.code) + '</b><br>' + p.date + '<br>RS-Ratio: ' + p.x.toFixed(1) + ' · RS-Momentum: ' + p.y.toFixed(1)
+            '<div class="brt-title">' + (s.name || s.code) + '</div>'
+            + '<div class="brt-body">' + p.date + '</div>'
+            + '<div class="brt-body">RS-Ratio: ' + p.x.toFixed(1) + ' · RS-Momentum: ' + p.y.toFixed(1) + '</div>'
           );
         })
         .on('mousemove', function (event) {
