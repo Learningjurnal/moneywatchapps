@@ -280,6 +280,7 @@ function renderBandarMovementPage() {
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-size:14px;font-weight:800;color:var(--text)">Broker Distribution (Alluvial Flow)</span>
+              <span style="font-size:9px;font-weight:700;letter-spacing:.03em;color:#F59E0B;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:4px;padding:2px 7px" title="Nilai per pasangan buyer-seller dihitung proporsional dari total beli/jual broker, bukan pasangan transaksi yang benar-benar teramati (broker summary IDX tidak mengungkap siapa berdagang dengan siapa)">ESTIMASI PROPORSIONAL</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;font-size:11px">
               <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#8B5CF6"></span> Domestik</span>
@@ -288,12 +289,12 @@ function renderBandarMovementPage() {
             </div>
           </div>
 
-          <div id="bm-sankey-container" style="position:relative;min-height:320px;width:100%;flex:1">
+          <div id="bm-sankey-container" style="position:relative;min-height:360px;width:100%;flex:1">
             <canvas id="bm-sankey-canvas" style="width:100%;height:100%;display:block"></canvas>
           </div>
 
           <div style="margin-top:10px;font-size:10.5px;color:var(--text3);text-align:center">
-            Pita aliran menunjukkan distribusi volume &amp; nilai perpindahan barang dari Top Buyer ke Top Seller
+            Ketebalan pita = estimasi proporsional nilai per broker (bukan pasangan transaksi teramati) &middot; hanya alur bernilai material yang ditampilkan
           </div>
         </div>
       </div>
@@ -734,7 +735,7 @@ function bmRenderBrokerDistributionSankey() {
   var bottomPad = 20;
   var usableHeight = height - topPad - bottomPad;
 
-  var nodeWidth = 80;
+  var nodeWidth = 86;
   var leftX = 20;
   var rightX = width - nodeWidth - 20;
 
@@ -743,7 +744,7 @@ function bmRenderBrokerDistributionSankey() {
 
   // Calculate Buyer Node Positions
   var bCurrentY = topPad;
-  var bGap = 6;
+  var bGap = 10;
   var bAvailHeight = usableHeight - (buyers.length - 1) * bGap;
 
   buyers.forEach(function(b) {
@@ -757,7 +758,7 @@ function bmRenderBrokerDistributionSankey() {
 
   // Calculate Seller Node Positions
   var sCurrentY = topPad;
-  var sGap = 6;
+  var sGap = 10;
   var sAvailHeight = usableHeight - (sellers.length - 1) * sGap;
 
   sellers.forEach(function(s) {
@@ -769,30 +770,77 @@ function bmRenderBrokerDistributionSankey() {
     sCurrentY += h + sGap;
   });
 
-  // Draw Flow Ribbons (Bezier Curves)
+  // Draw Flow Ribbons — filled bands, not thin strokes, allocated to
+  // distinct segments of each node's height (largest flow first) so a
+  // buyer's several ribbons fan out side-by-side instead of all leaving
+  // from the node's exact center and crossing on top of each other.
+  // FIX (2026-09-26, user-reported with reference screenshot: "pita
+  // menumpuk"): the old renderer stroked every buyer-seller pair as its
+  // own thin line anchored to each node's vertical midpoint, so a buyer
+  // with several outgoing links drew every ribbon starting from the same
+  // point, guaranteeing overlap right at the node. Also drops flows below
+  // 8% of the buyer's own value (always keeping each buyer's single
+  // largest flow) so the chart shows the material distribution instead of
+  // ~49 near-invisible buyer x seller combinations — see isEstimate note
+  // on distributionSankey in generateBandarMovementData() for why these
+  // per-pair values are a proportional estimate, not observed trades.
+  var MIN_LINK_SHARE = 0.08;
+  var linksByBuyer = {};
   links.forEach(function(link) {
+    (linksByBuyer[link.sourceCode] = linksByBuyer[link.sourceCode] || []).push(link);
+  });
+  var renderLinks = [];
+  Object.keys(linksByBuyer).forEach(function(code) {
+    var bNode = buyers.find(function(b) { return b.code === code; });
+    var bVal = (bNode && bNode.value) || 1;
+    linksByBuyer[code].slice().sort(function(a, b) { return b.value - a.value; })
+      .forEach(function(link, i) {
+        if (i === 0 || link.value / bVal >= MIN_LINK_SHARE) renderLinks.push(link);
+      });
+  });
+
+  function allocateSegments(nodes, codeKey) {
+    var segByLink = {};
+    nodes.forEach(function(node) {
+      var nodeLinks = renderLinks.filter(function(l) { return l[codeKey] === node.code; });
+      var total = nodeLinks.reduce(function(sum, l) { return sum + l.value; }, 0) || 1;
+      var y = node.y;
+      nodeLinks.forEach(function(l) {
+        var segH = (l.value / total) * node.h;
+        segByLink[l.__rid] = { y0: y, y1: y + segH };
+        y += segH;
+      });
+    });
+    return segByLink;
+  }
+  renderLinks.forEach(function(l, i) { l.__rid = i; });
+  var buyerSegments = allocateSegments(buyers, 'sourceCode');
+  var sellerSegments = allocateSegments(sellers, 'targetCode');
+
+  renderLinks.forEach(function(link) {
     var bNode = buyers.find(b => b.code === link.sourceCode);
     var sNode = sellers.find(s => s.code === link.targetCode);
-    if (!bNode || !sNode) return;
+    var bSeg = buyerSegments[link.__rid];
+    var sSeg = sellerSegments[link.__rid];
+    if (!bNode || !sNode || !bSeg || !sSeg) return;
 
-    var startX = bNode.x + bNode.w;
-    var startY = bNode.y + (bNode.h / 2);
-    var endX = sNode.x;
-    var endY = sNode.y + (sNode.h / 2);
+    var x0 = bNode.x + bNode.w;
+    var x1 = sNode.x;
+    var cpx = x0 + (x1 - x0) * 0.5;
 
-    var cp1x = startX + (endX - startX) * 0.5;
-    var cp1y = startY;
-    var cp2x = startX + (endX - startX) * 0.5;
-    var cp2y = endY;
+    var grad = ctx.createLinearGradient(x0, 0, x1, 0);
+    grad.addColorStop(0, link.color || '#8B5CF6');
+    grad.addColorStop(1, sNode.color || link.color || '#8B5CF6');
 
-    var ribbonAlpha = Math.max(0.15, Math.min(0.65, link.value / totalBuyVal));
     ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, endX, endY);
-    ctx.lineWidth = Math.max(1.5, Math.min(18, (link.value / totalBuyVal) * 40));
-    ctx.strokeStyle = link.color || '#8B5CF6';
-    ctx.globalAlpha = ribbonAlpha;
-    ctx.stroke();
+    ctx.moveTo(x0, bSeg.y0);
+    ctx.bezierCurveTo(cpx, bSeg.y0, cpx, sSeg.y0, x1, sSeg.y0);
+    ctx.lineTo(x1, sSeg.y1);
+    ctx.bezierCurveTo(cpx, sSeg.y1, cpx, bSeg.y1, x0, bSeg.y1);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.62;
+    ctx.fill();
     ctx.globalAlpha = 1.0;
   });
 
