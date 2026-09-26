@@ -293,12 +293,12 @@ function renderBandarMovementPage() {
             </div>
           </div>
 
-          <div id="bm-sankey-container" style="position:relative;width:100%;flex:1;min-height:0;max-height:520px;overflow-y:auto;overflow-x:hidden">
+          <div id="bm-sankey-container" style="position:relative;width:100%;flex:1">
             <canvas id="bm-sankey-canvas" style="width:100%;display:block"></canvas>
           </div>
 
           <div style="margin-top:10px;font-size:10.5px;color:var(--text3);text-align:center">
-            Klik broker untuk menyorot pita miliknya saja &middot; ketebalan pita = estimasi proporsional (bukan pasangan transaksi teramati) &middot; scroll di dalam chart untuk lihat semua broker
+            Klik broker untuk menyorot pita miliknya saja &middot; ketebalan pita = estimasi proporsional (bukan pasangan transaksi teramati)
           </div>
         </div>
       </div>
@@ -728,8 +728,12 @@ function bmRenderBrokerDistributionSankey() {
     return;
   }
 
-  var buyers = dist.buyers.slice(0, 7);
-  var sellers = dist.sellers.slice(0, 7);
+  // FIX (2026-09-26, user-reported twice with screenshots: ribbons/rows
+  // still cut off, "samakan saja card sampingnya" [just match the card
+  // next to it]): matches Broker Summary's 10-row list instead of 7, so
+  // the two side-by-side cards show the same number of brokers.
+  var buyers = dist.buyers.slice(0, 10);
+  var sellers = dist.sellers.slice(0, 10);
   var links = dist.links || [];
 
   var topPad = 24;
@@ -738,14 +742,17 @@ function bmRenderBrokerDistributionSankey() {
   var leftX = 20;
   var rightX = width - nodeWidth - 20;
 
-  // FIX (2026-09-26, user-reported: bottom rows cut off with no way to
-  // reach them): height used to come from the container's own rendered
-  // size (rect.height), which a CSS grid can squeeze or stretch to match
-  // its row regardless of how many buyers/sellers there are. Height is now
-  // content-driven — every node gets at least NODE_MIN_H — and
-  // #bm-sankey-container (main render template above) caps its own height
-  // with overflow-y:auto, so a chart taller than the card scrolls inside
-  // the card instead of being clipped with no way to see the rest.
+  // Height is content-driven (every node gets at least NODE_MIN_H) and
+  // #bm-sankey-container has no height cap of its own (just flex:1) — the
+  // canvas's real pixel height forces the container, and therefore the
+  // whole card, to actually be that tall. A prior fix tried capping the
+  // container at max-height + overflow-y:auto so a too-tall chart would
+  // scroll inside the card, but that visibly clipped content instead
+  // (flex:1 + max-height doesn't reliably leave room to scroll into across
+  // browsers). Letting the card grow to its real content height and
+  // relying on the grid's default align-items:stretch to reconcile it with
+  // Broker Summary next to it (the taller of the two stretches the row;
+  // CSS Grid stretch never clips the taller item) is simpler and correct.
   var NODE_MIN_H = 30, NODE_GAP = 10;
   var maxRows = Math.max(buyers.length, sellers.length);
   var neededUsableHeight = maxRows * NODE_MIN_H + (maxRows - 1) * NODE_GAP;
