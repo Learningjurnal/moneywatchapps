@@ -662,22 +662,26 @@ function bmRenderBrokerSummaryWidget() {
     var bInfo = b ? bmGetBrokerInfo(b.broker) : null;
     var sInfo = s ? bmGetBrokerInfo(s.broker) : null;
 
+    // FIX (2026-09-26, user-reported: text too cramped against column
+    // edges/each other) — padding widened from 6px/8px to 9px/14px, and a
+    // 14px gap column added around the buy/sell divider (was a bare 1px
+    // line with the neighboring text touching it directly).
     rowsHtml += `
       <tr style="border-bottom:1px solid var(--border2);font-size:11px">
         <!-- BUY SIDE -->
-        <td style="padding:6px 8px;font-weight:700;color:${bInfo ? bInfo.color : 'inherit'}">${b ? b.broker : '-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono)">${b ? bmFormatRp(b.valueRp) : '-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:var(--text2)">${b ? bmFormatLot(b.volumeLot) : '-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:#38BDF8">${b ? bmFormatAvg(b.avgPrice) : '-'}</td>
+        <td style="padding:9px 14px;font-weight:700;color:${bInfo ? bInfo.color : 'inherit'}">${b ? b.broker : '-'}</td>
+        <td style="padding:9px 14px;text-align:right;font-family:var(--font-mono)">${b ? bmFormatRp(b.valueRp) : '-'}</td>
+        <td style="padding:9px 14px;text-align:right;font-family:var(--font-mono);color:var(--text2)">${b ? bmFormatLot(b.volumeLot) : '-'}</td>
+        <td style="padding:9px 14px;text-align:right;font-family:var(--font-mono);color:#38BDF8">${b ? bmFormatAvg(b.avgPrice) : '-'}</td>
 
         <!-- DIVIDER -->
-        <td style="width:1px;background:var(--border2);padding:0"></td>
+        <td style="width:14px;padding:0;border-left:1px solid var(--border2)"></td>
 
         <!-- SELL SIDE -->
-        <td style="padding:6px 8px;font-weight:700;color:${sInfo ? sInfo.color : 'inherit'}">${s ? s.broker : '-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono)">${s ? bmFormatRp(s.valueRp) : '-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:var(--text2)">${s ? bmFormatLot(s.volumeLot) : '-'}</td>
-        <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:#38BDF8">${s ? bmFormatAvg(s.avgPrice) : '-'}</td>
+        <td style="padding:9px 14px;font-weight:700;color:${sInfo ? sInfo.color : 'inherit'}">${s ? s.broker : '-'}</td>
+        <td style="padding:9px 14px;text-align:right;font-family:var(--font-mono)">${s ? bmFormatRp(s.valueRp) : '-'}</td>
+        <td style="padding:9px 14px;text-align:right;font-family:var(--font-mono);color:var(--text2)">${s ? bmFormatLot(s.volumeLot) : '-'}</td>
+        <td style="padding:9px 14px;text-align:right;font-family:var(--font-mono);color:#38BDF8">${s ? bmFormatAvg(s.avgPrice) : '-'}</td>
       </tr>
     `;
   }
@@ -685,16 +689,16 @@ function bmRenderBrokerSummaryWidget() {
   tablesEl.innerHTML = `
     <table style="width:100%;border-collapse:collapse;text-align:left">
       <thead>
-        <tr style="background:var(--bg3);font-size:10px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border)">
-          <th style="padding:6px 8px">Buy</th>
-          <th style="padding:6px 8px;text-align:right">B.Val</th>
-          <th style="padding:6px 8px;text-align:right">B.Lot</th>
-          <th style="padding:6px 8px;text-align:right">B.Avg</th>
-          <th style="width:1px;background:var(--border2);padding:0"></th>
-          <th style="padding:6px 8px">Sell</th>
-          <th style="padding:6px 8px;text-align:right">S.Val</th>
-          <th style="padding:6px 8px;text-align:right">S.Lot</th>
-          <th style="padding:6px 8px;text-align:right">S.Avg</th>
+        <tr style="background:var(--bg3);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);border-bottom:1px solid var(--border)">
+          <th style="padding:8px 14px">Buy</th>
+          <th style="padding:8px 14px;text-align:right">B.Val</th>
+          <th style="padding:8px 14px;text-align:right">B.Lot</th>
+          <th style="padding:8px 14px;text-align:right">B.Avg</th>
+          <th style="width:14px;padding:0;border-left:1px solid var(--border2)"></th>
+          <th style="padding:8px 14px">Sell</th>
+          <th style="padding:8px 14px;text-align:right">S.Val</th>
+          <th style="padding:8px 14px;text-align:right">S.Lot</th>
+          <th style="padding:8px 14px;text-align:right">S.Avg</th>
         </tr>
       </thead>
       <tbody>
@@ -736,7 +740,9 @@ function bmRenderBrokerDistributionSankey() {
   var sellers = dist.sellers.slice(0, 10);
   var links = dist.links || [];
 
-  var topPad = 24;
+  // topPad leaves room for the "BUYER"/"SELLER" column labels drawn below
+  // (user-reported: chart had no header telling you which pillar is which).
+  var topPad = 34;
   var bottomPad = 20;
   var nodeWidth = 86;
   var leftX = 20;
@@ -771,6 +777,16 @@ function bmRenderBrokerDistributionSankey() {
   canvas.height = height * dpr;
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, width, height);
+
+  // Column headers — user-reported: no label told you which pillar was
+  // buyers vs sellers.
+  ctx.font = 'bold 11px Inter, sans-serif';
+  ctx.fillStyle = '#10B981';
+  ctx.textAlign = 'left';
+  ctx.fillText('BUYER', leftX, 16);
+  ctx.fillStyle = '#EF4444';
+  ctx.textAlign = 'right';
+  ctx.fillText('SELLER', rightX + nodeWidth, 16);
 
   var totalBuyVal = dist.totalBuyVal || 1;
   var totalSellVal = dist.totalSellVal || 1;
