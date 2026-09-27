@@ -273,13 +273,22 @@ function usRenderShell() {
         + '</div>';
     }
   }
+  // FIX (2026-09-27, user-reported: angka cakupan di bawah ini MENURUN hari
+  // ke hari, kontradiksi dengan klaim lama "akan mengisi bertahap lewat
+  // cron harian"): klaim lama tidak akurat — dengan TTL cache lama yang
+  // hampir sama persis dengan interval cron 1x/hari, cakupan tidak pernah
+  // benar-benar terakumulasi ke penuh (lihat FIX TECHNICAL_CACHE_TTL_SEC di
+  // idx-data-engine.js). TTL sudah dinaikkan ke 10-14 hari supaya klaim ini
+  // benar sekarang, tapi teks disesuaikan juga supaya tidak lagi berjanji
+  // "harian" — cron memang jalan harian, tapi butuh beberapa hari untuk
+  // satu putaran penuh ~965 saham, bukan sehari.
   if (US_STATE.summary) {
     var s = US_STATE.summary;
     html += '<div class="card" style="padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-mute)">'
       + 'Cakupan teknikal (cron-warmed): ' + s.technicalCoverage + '/' + s.totalUniverse + ' saham. '
       + 'Cakupan fundamental: ' + s.fundamentalCoverage + '/' + s.totalUniverse + ' saham. '
       + 'Cakupan Wave Analysis: ' + (s.waveCoverage != null ? s.waveCoverage : 0) + '/' + s.totalUniverse + ' saham. '
-      + 'Saham di luar cakupan tampil "N/A" (bukan skor 0) — akan mengisi bertahap lewat cron harian.'
+      + 'Saham di luar cakupan tampil "N/A" (bukan skor 0) — cron harian memindai sebagian saham setiap hari (butuh beberapa hari untuk 1 putaran penuh seluruh universe), cache bertahan 10-14 hari sebelum di-refresh ulang.'
       + '</div>';
   }
 
@@ -328,6 +337,13 @@ function usRenderShell() {
     html += '<div class="card" style="padding:0;overflow-x:auto">'
       + '<table class="tbl" style="width:100%;font-size:12.5px">'
       + '<thead><tr>'
+        // Rank column (2026-09-27, user-requested: "berikan tanda ranking
+        // ... untuk melihat urutannya") — US_STATE.rows is already the
+        // server-sorted top /100 result for the active sort column (no
+        // client pagination/offset exists), so row index+1 IS the real
+        // rank; it re-numbers automatically whenever the user changes the
+        // sort column since the rows themselves come back re-sorted.
+        + '<th style="width:32px;text-align:center;color:var(--text-mute)">#</th>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'ticker\')">Ticker' + usSortIndicator('ticker') + '</th>'
         + '<th>Nama</th>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'chg1d\')">Chg% (1D)' + usSortIndicator('chg1d') + '</th>'
@@ -343,18 +359,23 @@ function usRenderShell() {
 
     if (US_STATE.rows.length === 0 && US_STATE.loaded) {
       var gateDown = US_STATE.dataSources && US_STATE.dataSources.regulatory && !US_STATE.dataSources.regulatory.available;
-      html += '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-mute)">'
+      html += '<tr><td colspan="12" style="text-align:center;padding:20px;color:var(--text-mute)">'
         + (gateDown ? 'Semua saham tersembunyi — lihat peringatan Regulatory Health Gate di atas, bukan hasil filter Anda.' : 'Tidak ada saham yang cocok dengan filter ini.')
         + '</td></tr>';
     }
 
-    US_STATE.rows.forEach(function (r) {
+    US_STATE.rows.forEach(function (r, i) {
       var c1d = r.chg1d != null ? (r.chg1d >= 0 ? '+' : '') + r.chg1d.toFixed(2) + '%' : '<span style="color:var(--text-mute)">N/A</span>';
       var c1dCol = r.chg1d != null ? (r.chg1d >= 0 ? 'var(--green)' : 'var(--red)') : 'inherit';
       var c7d = r.chg7d != null ? (r.chg7d >= 0 ? '+' : '') + r.chg7d.toFixed(2) + '%' : '<span style="color:var(--text-mute)">N/A</span>';
       var c7dCol = r.chg7d != null ? (r.chg7d >= 0 ? 'var(--green)' : 'var(--red)') : 'inherit';
+      var rank = i + 1;
+      var rankBadge = rank <= 3
+        ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:' + (rank === 1 ? '#F59E0B' : rank === 2 ? '#94A3B8' : '#B45309') + ';color:#0B0D12;font-weight:800;font-size:10.5px">' + rank + '</span>'
+        : '<span style="color:var(--text-mute);font-family:var(--font-mono);font-size:11px">' + rank + '</span>';
 
       html += '<tr style="cursor:pointer" onclick="usOpenTicker(\'' + r.ticker + '\')">'
+        + '<td style="text-align:center">' + rankBadge + '</td>'
         + '<td><b>' + r.ticker + '</b>' + (r.confirmedUptrendWhale ? ' <span class="badge b-up" style="font-size:8px;padding:1px 4px" title="Uptrend + Akumulasi Terkonfirmasi">🐋+📈</span>' : '') + '</td>'
         + '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (r.name || '-') + '</td>'
         + '<td style="font-weight:700;color:' + c1dCol + ';font-family:var(--font-mono)">' + c1d + '</td>'

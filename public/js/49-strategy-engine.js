@@ -382,12 +382,20 @@ function usDailyPicksRender() {
     body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8);line-height:1.5">Belum ada saham STRONG/QUALIFIED untuk ' + usDailyPicksEsc(US_DAILY_PICKS_STATE.data.date) + '. Kemungkinan hari libur bursa atau rotasi scan harian belum menemukan sinyal.</div>';
   } else if (US_DAILY_PICKS_STATE.data) {
     var d = US_DAILY_PICKS_STATE.data;
+    // FIX (2026-09-27, user-requested: "berikan tanda ranking ... untuk
+    // melihat urutannya") — p.rank already existed but was a barely-visible
+    // 10px muted "#N" tag; replaced with the same numbered-circle badge
+    // used on the Unified Screener table (gold/silver/bronze for #1-3) so
+    // the order is obvious at a glance, not just implied by scroll position.
     var cards = d.picks.map(function (p) {
+      var rankBadgeBg = p.rank === 1 ? '#F59E0B' : p.rank === 2 ? '#94A3B8' : p.rank === 3 ? '#B45309' : 'var(--bg3,rgba(255,255,255,0.08))';
+      var rankBadgeColor = p.rank <= 3 ? '#0B0D12' : 'var(--text3,#94a3b8)';
+      var rankBadge = '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:' + rankBadgeBg + ';color:' + rankBadgeColor + ';font-weight:800;font-size:10px;flex-shrink:0">' + p.rank + '</span>';
       return '<div onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stock-dossier\');" '
         + 'style="flex:0 0 220px;padding:10px 12px;border-radius:8px;border:1px solid var(--border2,rgba(255,255,255,0.08));cursor:pointer;transition:background 0.15s" '
         + 'onmouseover="this.style.background=\'var(--bg3,rgba(255,255,255,0.04))\'" onmouseout="this.style.background=\'transparent\'">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">'
-        + '<span style="font-size:10px;font-weight:700;color:var(--text3,#94a3b8)">#' + p.rank + '</span>'
+        + rankBadge
         + '<span class="mono" style="font-size:13px;font-weight:800;color:var(--text)">' + usDailyPicksEsc(p.ticker) + '</span>'
         + '<span class="mono" style="font-size:12px;font-weight:800;color:' + usDailyPicksStatusColor(p.status) + '">' + (p.score != null ? p.score : '-') + '</span>'
         + '</div>'

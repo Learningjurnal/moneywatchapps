@@ -6303,7 +6303,14 @@ test('REGRESSION GUARD: fetchYahooFundamentals() cache must be Redis-backed (yfS
   assert(/await yfStoreSetEx\(cacheKey,\s*\{\s*isReal:\s*false,\s*data:\s*null\s*\},\s*FUNDAMENTALS_NEGATIVE_TTL_SEC\)/.test(fnSrc),
     'REGRESSION: a negative (no-coverage) result is no longer written with the shorter negative TTL');
 
-  assert(/const FUNDAMENTALS_CACHE_TTL_SEC = 24 \* 60 \* 60/.test(src), 'REGRESSION: the approved 24-hour positive TTL constant is gone/changed');
+  // FIX (2026-09-27, user-reported: fundamental/technical coverage
+  // DECREASED day over day instead of accumulating — the old 24h TTL was
+  // ~equal to the once-daily cron interval, so warmed entries expired
+  // almost exactly as fast as the rotating cron could add new ones,
+  // capping net coverage at roughly one day's throughput instead of
+  // accumulating to the full universe as the UI promised). TTL raised to
+  // 14 days — see the FUNDAMENTALS_CACHE_TTL_SEC definition's own comment.
+  assert(/const FUNDAMENTALS_CACHE_TTL_SEC = 14 \* 24 \* 60 \* 60/.test(src), 'REGRESSION: the 14-day positive TTL constant (raised from 24h to fix coverage that decayed as fast as the daily cron could add it) is gone/changed');
   assert(/const FUNDAMENTALS_NEGATIVE_TTL_SEC = 10 \* 60/.test(src), 'REGRESSION: the approved 10-minute negative TTL constant is gone/changed');
 
   // Falls back to an in-memory Map only when Upstash isn't configured —
