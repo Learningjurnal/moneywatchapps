@@ -1503,33 +1503,31 @@ function techSwitchTab(idx, force) {
   }
 }
 
-// FIX (2026-09-19, konsolidasi menu "Eksekusi no 1": Technical +
-// Bandarmology mode saham digabung — keduanya sama-sama memanggil
-// fsGenData()+fsProcess() untuk ticker yang sama, jadi dipertahankan
-// sebagai 1 tab alih-alih 2 halaman terpisah dengan cakupan tumpang
-// tindih). renderBandarmologySmartMoneyFlowView() (41-stockchat-cockpit.js)
-// sudah mandiri (self-contained HTML + self-mounting chart via setTimeout
-// di dalam fungsinya sendiri) sehingga bisa dipanggil langsung dari sini
-// tanpa reimplementasi. Bandarmology halaman (mode saham) sudah dihapus —
-// lihat renderBandarmologyCockpitPage() yang sekarang hanya render mode
-// market.
-// FIX (2026-09-26, user-reported: "Foreign Net Buy/Sell" top-5 widget
-// menampilkan data menyesatkan): the whole-market foreign-flow view/loader
-// functions were removed from 41-stockchat-cockpit.js — the calls here
-// were removed to match.
+// FIX (2026-09-19, konsolidasi menu "Eksekusi no 1"): Technical +
+// Bandarmology mode saham digabung jadi 1 tab di sini, memanggil
+// renderBandarmologySmartMoneyFlowView() (41-stockchat-cockpit.js)
+// langsung tanpa reimplementasi.
+// FIX (2026-09-27, user-requested: "digabung Modul: Bandarmology & Smart
+// Money Flow" ke tab 6 Bandar Movement, konsisten dengan Trade Flow/Broker
+// Flow yang dihapus dari Bandar Movement karena "tidak menghasilkan apa2"):
+// renderBandarmologySmartMoneyFlowView() dipindah render-nya ke
+// public/js/49-bandar-movement.js sebagai pengganti 2 widget yang dihapus
+// itu. Tab ini TIDAK memanggilnya lagi secara langsung — canvas chart-nya
+// pakai ID tetap (bandarSmartCmfChart dkk), jadi kalau dirender di 2
+// halaman yang sama-sama persist di DOM (Technical & Bandar Movement)
+// sekaligus, document.getElementById() cuma akan menemukan instance
+// pertama dan salah satu chart gagal ter-mount. Sekarang cukup jadi kartu
+// pintasan ke Bandar Movement (satu-satunya tempat modul ini dirender).
 function techRunBandarmologyTab(ticker) {
   var tk = (ticker || TECH_DATA.ticker || 'BBCA').trim().toUpperCase().replace(/\.JK$/i, '');
   var container = document.getElementById('tech-bandar-content');
   if (!container) return;
   if (typeof STOCKCHAT_SELECTED_TICKER !== 'undefined') STOCKCHAT_SELECTED_TICKER = tk;
-  var html = '';
-  if (typeof renderBandarmologySmartMoneyFlowView === 'function') {
-    html += renderBandarmologySmartMoneyFlowView(tk);
-  }
-  container.innerHTML = html || '<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">Modul Bandarmology tidak tersedia.</div>';
-  // renderBandarmologySmartMoneyFlowView() sudah menjadwalkan
-  // mountBandarmologySmartMoneyCharts() sendiri via setTimeout — tidak
-  // perlu dipanggil ulang di sini.
+  container.innerHTML = '<div class="card" style="padding:36px 20px;text-align:center">'
+    + '<div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:6px">Smart Money Flow &amp; Volume Price Matrix untuk ' + tk + '</div>'
+    + '<div style="font-size:11.5px;color:var(--text2);max-width:420px;margin:0 auto 16px">CMF, VWAP Bands, Volume Surge, dan seluruh analisis Bandarmology per-saham sekarang ada di satu tempat: modul Bandar Movement.</div>'
+    + '<button class="btn btn-primary btn-xs" onclick="if(typeof BM_STATE!==\'undefined\')BM_STATE.ticker=\'' + tk + '\';goPage(\'bandar-movement\')" style="font-weight:700">Buka Bandar Movement &rarr;</button>'
+    + '</div>';
 }
 
 function techSetTicker(ticker) {

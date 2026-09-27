@@ -732,7 +732,7 @@ await (async () => {
 })();
 
 // ============================================================
-// STEP 6: BANDAR MOVEMENT COCKPIT TESTS (Trade Flow, Broker Flow, Sankey)
+// STEP 6: BANDAR MOVEMENT COCKPIT TESTS (Broker Summary, Sankey)
 // ============================================================
 await (async () => {
   const originalFetch = global.fetch;
@@ -741,26 +741,6 @@ await (async () => {
 
   global.fetch = async (url) => {
     const urlStr = String(url);
-    if (urlStr.includes('/analysis/trade-flow/')) {
-      return {
-        ok: true,
-        status: 200,
-        json: async () => [
-          { time: '2026-09-21T09:05:00', price: 50, buy_value: 100000000, sell_value: 50000000 },
-          { time: '2026-09-21T09:10:00', price: 52, buy_value: 300000000, sell_value: 100000000 },
-          { time: '2026-09-21T10:00:00', price: 56, buy_value: 600000000, sell_value: 200000000 }
-        ]
-      };
-    }
-    if (urlStr.includes('/analysis/broker-flow/')) {
-      return {
-        ok: true,
-        status: 200,
-        json: async () => [
-          { time: '2026-09-21', price: 56, brokers: { XC: 650000000, XL: 406000000, YP: 309000000, SQ: -1200000000 } }
-        ]
-      };
-    }
     if (urlStr.includes('/analysis/summary/stock/')) {
       return {
         ok: true,
@@ -776,31 +756,18 @@ await (async () => {
   };
 
   try {
-    const { fetchInvezgoTradeFlow, fetchInvezgoBrokerFlow } = await import('./lib/invezgo-client.js');
     const { generateBandarMovementData } = await import('./lib/idx-data-engine.js');
 
-    await asyncTest('fetchInvezgoTradeFlow(): computes cumulative buy/sell and net accumulation score', async () => {
-      const res = await fetchInvezgoTradeFlow('BMRI', '2026-09-21', false);
-      assert.strictEqual(res.ok, true, 'Trade flow should succeed');
-      assert.strictEqual(res.points.length, 3, 'Should have 3 points');
-      assert.strictEqual(res.totalBuyValue, 1000000000, 'Total buy should sum to 1B');
-      assert.strictEqual(res.totalSellValue, 350000000, 'Total sell should sum to 350M');
-      assert.strictEqual(res.netValue, 650000000, 'Net should be +650M');
-      assert(res.accScore > 0, 'Acc score should be positive');
-    });
-
-    await asyncTest('fetchInvezgoBrokerFlow(): maps multi-broker time-series flow', async () => {
-      const res = await fetchInvezgoBrokerFlow('BMRI', '1D', 'all', 'RG');
-      assert.strictEqual(res.ok, true, 'Broker flow should succeed');
-      assert.strictEqual(res.points.length, 1, 'Should return points');
-      assert.strictEqual(res.points[0].brokers.XC, 650000000, 'XC flow should match');
-    });
-
-    await asyncTest('generateBandarMovementData(): aggregates Trade Flow, Broker Summary, and Sankey Links', async () => {
+    // FIX (2026-09-27, user-reported: Trade Flow and Broker Flow widgets
+    // "tidak menghasilkan apa2" in real use): fetchInvezgoTradeFlow()/
+    // fetchInvezgoBrokerFlow() and their tests were removed — those 2
+    // endpoints had no other caller once removed from
+    // generateBandarMovementData().
+    await asyncTest('generateBandarMovementData(): aggregates Broker Summary and Sankey Links (no Trade Flow / Broker Flow)', async () => {
       const res = await generateBandarMovementData('BMRI', { timeframe: '1D' });
       assert.strictEqual(res.ok, true, 'Bandar movement aggregator should succeed');
-      assert(res.tradeFlow.ok, 'Trade flow should be ok');
-      assert(res.brokerFlow.ok, 'Broker flow should be ok');
+      assert.strictEqual(res.tradeFlow, undefined, 'tradeFlow field should no longer be returned');
+      assert.strictEqual(res.brokerFlow, undefined, 'brokerFlow field should no longer be returned');
       assert(res.distributionSankey.buyers.length > 0, 'Sankey should have buyers');
       assert(res.distributionSankey.sellers.length > 0, 'Sankey should have sellers');
       assert(res.distributionSankey.links.length > 0, 'Sankey should compute links');

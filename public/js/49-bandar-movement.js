@@ -1,11 +1,22 @@
 /**
  * 49-bandar-movement.js — MoneyWatch Pro: Step 6 Bandar Movement Cockpit
  *
- * Implements 4 core Bandarmology widgets in Stock Master Terminal 360:
- * 1. Trade Flow (Intraday HAKA vs HAKI cumulative tape, Big Money filter, Net Acc/Dist gauge)
- * 2. Broker Flow (Cumulative multi-broker time series with 1D/1W/1M/3M/YTD/1Y timeframes + interactive broker chips)
- * 3. Broker Summary (Two-column Buyer vs Seller table with B.Val/Lot/Avg & S.Val/Lot/Avg + Broker Action gauge)
- * 4. Broker Distribution (Interactive Sankey / Alluvial Flow Diagram with Domestic, BUMN, and Foreign color coding)
+ * Implements 3 core Bandarmology widgets in Stock Master Terminal 360:
+ * 1. Smart Money Flow & Volume Price Matrix (CMF, VWAP Bands, Volume Surge, A/D Trend —
+ *    merged in from renderBandarmologySmartMoneyFlowView(), 41-stockchat-cockpit.js)
+ * 2. Broker Summary (Two-column Buyer vs Seller table with B.Val/Lot/Avg & S.Val/Lot/Avg + Broker Action gauge)
+ * 3. Broker Distribution (Interactive Sankey / Alluvial Flow Diagram with Domestic, BUMN, and Foreign color coding)
+ *
+ * FIX (2026-09-27, user-reported: "Trade Flow dan Broker Flow ... tidak
+ * menghasilkan apa2" — consistently empty in real use): those 2 widgets
+ * (and their fetchInvezgoTradeFlow()/fetchInvezgoBrokerFlow() backend calls,
+ * which had no other caller) were removed entirely rather than shipping UI
+ * that never shows real data. The Bandarmology & Smart Money Flow module
+ * (previously its own tab inside "Chart & Techno-Bandarmology" on the
+ * Technical page) was merged in here instead — that page's sub-tab now
+ * just points here (see techRunBandarmologyTab(), 24-stockmaster.js) to
+ * avoid rendering the same charts (fixed canvas element IDs) on 2 pages
+ * that persist in the DOM simultaneously.
  *
  * Strictly follows:
  * - CLAUDE.md: Zero synthetic/fabricated data (honest degradation when Invezgo unavailable)
@@ -15,12 +26,9 @@
 var BM_STATE = {
   ticker: 'BBCA',
   timeframe: '1D', // '1D', '1W', '1M', '3M', 'YTD', '1Y'
-  isBigMoney: false,
-  metric: 'value', // 'value' | 'volume'
   investor: 'all', // 'all' | 'foreign' | 'domestic'
   market: 'RG', // 'RG' | 'NG' | 'TN'
   isNet: true,
-  selectedBrokers: ['XC', 'XL', 'YP', 'AZ', 'SQ'],
   data: null,
   isLoading: false,
   charts: {},
@@ -140,62 +148,14 @@ function renderBandarMovementPage() {
         </div>
       </div>
 
-      <!-- 4-GRID COCKPIT CONTAINER -->
+      <!-- SMART MONEY FLOW & VOLUME PRICE MATRIX (merged in from the Technical
+           page's former "Chart & Techno-Bandarmology" sub-tab — full width,
+           self-contained multi-card block, filled after render below) -->
+      <div id="bm-smart-money-flow-mount" style="margin-bottom:16px"></div>
+
+      <!-- 2-GRID COCKPIT CONTAINER -->
       <div id="bm-cockpit-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(580px, 1fr));gap:16px">
-        <!-- 1. TRADE FLOW WIDGET -->
-        <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:14px;font-weight:800;color:var(--text)">Trade Flow</span>
-              <div class="btn-group" style="display:inline-flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden">
-                <button type="button" class="btn btn-xs ${!BM_STATE.isBigMoney ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleBigMoney(false)" style="font-size:10px;padding:3px 8px">All Trades</button>
-                <button type="button" class="btn btn-xs ${BM_STATE.isBigMoney ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleBigMoney(true)" style="font-size:10px;padding:3px 8px">Big Money</button>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">${BM_STATE.data && BM_STATE.data.date ? BM_STATE.data.date : 'Today'}</span>
-            </div>
-          </div>
-
-          <div id="bm-trade-flow-chart-container" style="position:relative;height:280px;width:100%;margin-bottom:12px">
-            <canvas id="bm-trade-flow-canvas"></canvas>
-          </div>
-
-          <!-- TRADE FLOW POWER GAUGE -->
-          <div id="bm-trade-flow-gauge-wrap" style="margin-top:auto;padding-top:10px;border-top:1px solid var(--border2)">
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-
-        <!-- 2. BROKER FLOW WIDGET -->
-        <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:14px;font-weight:800;color:var(--text)">Broker Flow ⓘ</span>
-              <div class="btn-group" style="display:inline-flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden">
-                <button type="button" class="btn btn-xs ${BM_STATE.metric === 'value' ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleMetric('value')" style="font-size:10px;padding:3px 8px">Value</button>
-                <button type="button" class="btn btn-xs ${BM_STATE.metric === 'volume' ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleMetric('volume')" style="font-size:10px;padding:3px 8px">Volume</button>
-              </div>
-            </div>
-            <!-- Timeframe selector -->
-            <div style="display:flex;gap:4px">
-              ${['1D', '1W', '1M', '3M', 'YTD', '1Y'].map(function(tf) {
-                return '<button type="button" class="btn btn-xs ' + (BM_STATE.timeframe === tf ? 'btn-primary' : 'btn-ghost') + '" onclick="bmSetTimeframe(\'' + tf + '\')" style="font-size:10px;padding:2px 8px;border-radius:4px">' + tf + '</button>';
-              }).join('')}
-            </div>
-          </div>
-
-          <div id="bm-broker-flow-chart-container" style="position:relative;height:280px;width:100%;margin-bottom:12px">
-            <canvas id="bm-broker-flow-canvas"></canvas>
-          </div>
-
-          <!-- BROKER SELECTOR CHIPS -->
-          <div id="bm-broker-chips-wrap" style="margin-top:auto;padding-top:10px;border-top:1px solid var(--border2);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-
-        <!-- 3. BROKER SUMMARY WIDGET -->
+        <!-- 1. BROKER SUMMARY WIDGET -->
         <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -276,7 +236,7 @@ function renderBandarMovementPage() {
           </div>
         </div>
 
-        <!-- 4. BROKER DISTRIBUTION (SANKEY / ALLUVIAL FLOW) -->
+        <!-- 2. BROKER DISTRIBUTION (SANKEY / ALLUVIAL FLOW) -->
         <div class="card" style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -305,6 +265,11 @@ function renderBandarMovementPage() {
     </div>
   `;
 
+  var smMount = document.getElementById('bm-smart-money-flow-mount');
+  if (smMount && typeof renderBandarmologySmartMoneyFlowView === 'function') {
+    smMount.innerHTML = renderBandarmologySmartMoneyFlowView(BM_STATE.ticker);
+  }
+
   bmLoadData(BM_STATE.ticker);
 }
 
@@ -324,7 +289,6 @@ async function bmLoadData(ticker, force) {
 
   try {
     var query = '?timeframe=' + encodeURIComponent(BM_STATE.timeframe)
-      + '&big_money=' + (BM_STATE.isBigMoney ? 'true' : 'false')
       + '&investor=' + encodeURIComponent(BM_STATE.investor)
       + '&market=' + encodeURIComponent(BM_STATE.market)
       + (force ? '&refresh=true&force=true' : '');
@@ -371,232 +335,11 @@ function bmRenderEmptyState(msg) {
 
 function bmRenderAllWidgets() {
   if (!BM_STATE.data) return;
-  bmRenderTradeFlowWidget();
-  bmRenderBrokerFlowWidget();
   bmRenderBrokerSummaryWidget();
   bmRenderBrokerDistributionSankey();
 }
 
-// 1. Trade Flow Chart & Gauge
-function bmRenderTradeFlowWidget() {
-  var tfData = BM_STATE.data.tradeFlow;
-  var canvas = document.getElementById('bm-trade-flow-canvas');
-  var gaugeWrap = document.getElementById('bm-trade-flow-gauge-wrap');
-  if (!canvas) return;
-
-  bmKillChart('tradeFlow');
-
-  if (!tfData || !tfData.ok || !Array.isArray(tfData.points) || tfData.points.length === 0) {
-    var parent = document.getElementById('bm-trade-flow-chart-container');
-    if (parent) {
-      parent.innerHTML = '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:var(--text3);font-size:12px">Data Trade Flow intraday belum tersedia untuk saham ini.</div>';
-    }
-    return;
-  }
-
-  var labels = tfData.points.map(p => p.time.slice(11, 16) || p.time);
-  var buySeries = tfData.points.map(p => p.cumBuyValue);
-  var sellSeries = tfData.points.map(p => p.cumSellValue);
-  var priceSeries = tfData.points.map(p => p.price);
-
-  if (typeof Chart !== 'undefined') {
-    BM_STATE.charts['tradeFlow'] = new Chart(canvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Buy (HAKA)',
-            data: buySeries,
-            borderColor: '#10B981',
-            backgroundColor: 'rgba(16,185,129,0.05)',
-            borderWidth: 2,
-            pointRadius: 0,
-            yAxisID: 'y'
-          },
-          {
-            label: 'Sell (HAKI)',
-            data: sellSeries,
-            borderColor: '#EF4444',
-            backgroundColor: 'rgba(239,68,68,0.05)',
-            borderWidth: 2,
-            pointRadius: 0,
-            yAxisID: 'y'
-          },
-          {
-            label: 'Price',
-            data: priceSeries,
-            borderColor: '#38BDF8',
-            borderWidth: 1.5,
-            borderDash: [3, 3],
-            pointRadius: 0,
-            yAxisID: 'y1'
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { boxWidth: 10, font: { size: 10 }, color: '#94A3B8' }
-          },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) {
-                if (ctx.datasetIndex === 2) return 'Price: Rp ' + Number(ctx.raw).toLocaleString('id-ID');
-                return ctx.dataset.label + ': ' + bmFormatRp(ctx.raw);
-              }
-            }
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#64748B', maxTicksLimit: 7 } },
-          y: {
-            position: 'left',
-            grid: { color: 'rgba(255,255,255,0.04)' },
-            ticks: {
-              font: { size: 9 },
-              color: '#64748B',
-              callback: function(v) { return bmFormatRp(v); }
-            }
-          },
-          y1: {
-            position: 'right',
-            grid: { display: false },
-            ticks: {
-              font: { size: 9 },
-              color: '#38BDF8',
-              callback: function(v) { return 'Rp ' + Number(v).toLocaleString('id-ID'); }
-            }
-          }
-        }
-      }
-    });
-  }
-
-  // Gauge Meter
-  if (gaugeWrap) {
-    var score = tfData.accScore || 0;
-    var normPct = Math.max(0, Math.min(100, Math.round(((score + 100) / 200) * 100)));
-    var label = tfData.meterLabel || 'Neutral';
-    var labelColor = score >= 15 ? '#10B981' : (score <= -15 ? '#EF4444' : 'var(--text3)');
-
-    gaugeWrap.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
-        <span style="color:#EF4444;font-weight:700">Net Dist</span>
-        <span style="color:${labelColor};font-weight:800;font-size:12px">${label} (${score > 0 ? '+' : ''}${score}%)</span>
-        <span style="color:#10B981;font-weight:700">Net Acc</span>
-      </div>
-      <div style="position:relative;height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden">
-        <div style="position:absolute;left:0;top:0;bottom:0;width:50%;background:linear-gradient(to right, #EF4444, rgba(239,68,68,0.2))"></div>
-        <div style="position:absolute;right:0;top:0;bottom:0;width:50%;background:linear-gradient(to right, rgba(16,185,129,0.2), #10B981)"></div>
-        <div style="position:absolute;top:0;bottom:0;left:${normPct}%;width:4px;background:#FFF;border-radius:2px;transform:translateX(-50%);box-shadow:0 0 6px rgba(255,255,255,0.8)"></div>
-      </div>
-    `;
-  }
-}
-
-// 2. Multi-Broker Cumulative Flow Chart
-function bmRenderBrokerFlowWidget() {
-  var bfData = BM_STATE.data.brokerFlow;
-  var canvas = document.getElementById('bm-broker-flow-canvas');
-  var chipsWrap = document.getElementById('bm-broker-chips-wrap');
-  if (!canvas) return;
-
-  bmKillChart('brokerFlow');
-
-  if (!bfData || !bfData.ok || !Array.isArray(bfData.points) || bfData.points.length === 0) {
-    var parent = document.getElementById('bm-broker-flow-chart-container');
-    if (parent) {
-      parent.innerHTML = '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:var(--text3);font-size:12px">Data Broker Flow time-series belum tersedia.</div>';
-    }
-    return;
-  }
-
-  var labels = bfData.points.map(p => p.time.slice(0, 10));
-  var colorPalette = ['#8B5CF6', '#38BDF8', '#EC4899', '#F59E0B', '#EF4444', '#10B981', '#6366F1', '#14B8A6'];
-
-  var datasets = BM_STATE.selectedBrokers.map(function(bCode, idx) {
-    var dataVals = bfData.points.map(function(pt) {
-      return (pt.brokers && pt.brokers[bCode]) ? Number(pt.brokers[bCode]) : 0;
-    });
-
-    return {
-      label: bCode,
-      data: dataVals,
-      borderColor: colorPalette[idx % colorPalette.length],
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      pointRadius: 0,
-      yAxisID: 'y'
-    };
-  });
-
-  if (typeof Chart !== 'undefined') {
-    BM_STATE.charts['brokerFlow'] = new Chart(canvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: datasets
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { boxWidth: 10, font: { size: 10 }, color: '#94A3B8' }
-          },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) {
-                return ctx.dataset.label + ': ' + bmFormatRp(ctx.raw);
-              }
-            }
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#64748B', maxTicksLimit: 7 } },
-          y: {
-            grid: { color: 'rgba(255,255,255,0.04)' },
-            ticks: {
-              font: { size: 9 },
-              color: '#64748B',
-              callback: function(v) { return bmFormatRp(v); }
-            }
-          }
-        }
-      }
-    });
-  }
-
-  // Chips at bottom
-  if (chipsWrap) {
-    var chipsHtml = BM_STATE.selectedBrokers.map(function(code, idx) {
-      var color = colorPalette[idx % colorPalette.length];
-      return `
-        <span class="badge" style="background:rgba(255,255,255,0.05);color:${color};border:1px solid ${color};padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">
-          ● ${code}
-          <i class="ti ti-x" style="cursor:pointer;font-size:10px" onclick="bmRemoveBroker('${code}')"></i>
-        </span>
-      `;
-    }).join(' ');
-
-    chipsWrap.innerHTML = `
-      <div style="font-size:11px;color:var(--text3);margin-right:4px">Brokers:</div>
-      ${chipsHtml}
-      <button type="button" class="btn btn-xs btn-ghost" onclick="bmPromptAddBroker()" style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px dashed var(--border2)">
-        <i class="ti ti-plus"></i> Tambah
-      </button>
-    `;
-  }
-}
-
-// 3. Broker Summary & Power Meter
+// 1. Broker Summary & Power Meter
 function bmRenderBrokerSummaryWidget() {
   var bSummary = BM_STATE.data.brokerSummary;
   var gaugeEl = document.getElementById('bm-broker-action-gauge');
@@ -708,7 +451,7 @@ function bmRenderBrokerSummaryWidget() {
   `;
 }
 
-// 4. Broker Distribution Sankey Alluvial Flow
+// 2. Broker Distribution Sankey Alluvial Flow
 function bmRenderBrokerDistributionSankey() {
   var dist = BM_STATE.data.distributionSankey;
   var canvas = document.getElementById('bm-sankey-canvas');
@@ -1007,34 +750,9 @@ function bmSetTimeframe(tf) {
   renderBandarMovementPage();
 }
 
-function bmToggleBigMoney(val) {
-  BM_STATE.isBigMoney = !!val;
-  renderBandarMovementPage();
-}
-
-function bmToggleMetric(m) {
-  BM_STATE.metric = m;
-  renderBandarMovementPage();
-}
-
 function bmToggleNet() {
   BM_STATE.isNet = !BM_STATE.isNet;
   bmRenderBrokerSummaryWidget();
-}
-
-function bmRemoveBroker(code) {
-  BM_STATE.selectedBrokers = BM_STATE.selectedBrokers.filter(c => c !== code);
-  bmRenderBrokerFlowWidget();
-}
-
-function bmPromptAddBroker() {
-  var code = prompt('Masukkan 2 huruf kode broker IDX (contoh: YP, CC, AK, NI, PD):');
-  if (!code) return;
-  var clean = code.trim().toUpperCase();
-  if (clean.length === 2 && BM_STATE.selectedBrokers.indexOf(clean) === -1) {
-    BM_STATE.selectedBrokers.push(clean);
-    bmRenderBrokerFlowWidget();
-  }
 }
 
 function bmToggleDropdown(id) {

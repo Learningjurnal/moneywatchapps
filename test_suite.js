@@ -1908,8 +1908,18 @@ test('REGRESSION GUARD: Technical + Bandarmology (stock mode) consolidation — 
     'REGRESSION: techRunBandarmologyTab() (the new Bandarmology-stock-mode tab on the Technical page) was removed from 24-stockmaster.js');
   assert(/techRunBandarmologyTab\(ticker\)/.test(stockmasterJs),
     'REGRESSION: techSwitchTab() no longer calls techRunBandarmologyTab() when switching into the FlowScan/Bandarmology tab');
-  assert(/renderBandarmologySmartMoneyFlowView/.test(stockmasterJs),
-    'REGRESSION: techRunBandarmologyTab() no longer reuses the existing renderBandarmologySmartMoneyFlowView() — it must not reimplement it');
+  // FIX (2026-09-27, user-requested further consolidation: "digabung Modul:
+  // Bandarmology & Smart Money Flow" into tab 6 Bandar Movement): this
+  // superseded the note below — techRunBandarmologyTab() used to call
+  // renderBandarmologySmartMoneyFlowView() directly, but that view now
+  // renders ONLY inside public/js/49-bandar-movement.js (its chart canvases
+  // use fixed IDs, so rendering it on 2 simultaneously-persisting SPA pages
+  // would break one of them). This tab is now a handoff card instead.
+  assert(!/renderBandarmologySmartMoneyFlowView\(tk\)/.test(stockmasterJs),
+    'REGRESSION: techRunBandarmologyTab() reimplements/re-calls renderBandarmologySmartMoneyFlowView(tk) again — it should now be a Bandar Movement handoff card, and the view itself should render only from 49-bandar-movement.js to avoid the duplicate-canvas-ID risk');
+  assert(/BM_STATE\.ticker\s*=/.test(stockmasterJs)
+    && (/goPage\(\\'bandar-movement\\'\)/.test(stockmasterJs) || /goPage\('bandar-movement'\)/.test(stockmasterJs)),
+    'REGRESSION: techRunBandarmologyTab() no longer hands off to Bandar Movement (BM_STATE.ticker + goPage(\'bandar-movement\'))');
   // renderBandarmologyForeignFlowView() was removed 2026-09-26 (misleading
   // "TOP 5 Foreign Net Buy/Sell" widget) — techRunBandarmologyTab() must NOT
   // call it; see the "dead ... widget ... must stay removed" test.
