@@ -2358,6 +2358,9 @@ var BANDARMOLOGY_SELECTED_BROKER = 'YU';
 var BANDARMOLOGY_BROKER_TIMEFRAME = '1D';
 var _bandarBrokerPortfolioCache = {};
 var _bandarBrokerPortfolioLoading = false;
+// Fetch hanya dipicu oleh aksi eksplisit user (klik broker/timeframe/cari) — bukan
+// otomatis saat halaman Market Flow dibuka, supaya tidak boros kuota Invezgo.
+var _bandarBrokerUserPicked = false;
 var BANDARMOLOGY_BROKER_LIST = [
   { code: 'YU', name: 'CGS International Sekuritas', type: 'F', badge: 'Asing / Institusi' },
   { code: 'AK', name: 'UBS Sekuritas Indonesia', type: 'F', badge: 'Asing / Smart Money' },
@@ -2451,6 +2454,7 @@ window.setBandarmologyTab = function(subTab) {
 
 window.setBandarmologyBroker = function(brokerCode) {
   BANDARMOLOGY_SELECTED_BROKER = (brokerCode || 'YU').toUpperCase().trim();
+  _bandarBrokerUserPicked = true;
   var el = document.getElementById('bandarmology-broker-trail-view');
   if (el) {
     bandarRenderBrokerPortfolioSection();
@@ -2462,6 +2466,7 @@ window.setBandarmologyBroker = function(brokerCode) {
 
 window.setBandarmologyBrokerTimeframe = function(tf) {
   BANDARMOLOGY_BROKER_TIMEFRAME = (tf || '1D').toUpperCase();
+  _bandarBrokerUserPicked = true;
   var el = document.getElementById('bandarmology-broker-trail-view');
   if (el) {
     bandarRenderBrokerPortfolioSection();
@@ -2582,7 +2587,9 @@ function renderBandarmologyCockpitPage(containerId, force) {
   setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
   // Kick off 1 API call for the whole-market Smart Money scanner (cached daily).
   setTimeout(bandarLoadRealMarketFlow, 60);
-  setTimeout(function() { bandarLoadBrokerPortfolio(BANDARMOLOGY_SELECTED_BROKER, BANDARMOLOGY_BROKER_TIMEFRAME); }, 40);
+  // Broker Summary by Broker TIDAK di-fetch otomatis di sini — hemat kuota
+  // Invezgo. Baru fetch setelah user pilih broker (lihat _bandarBrokerUserPicked
+  // di renderBandarmologyBrokerTrailView()).
 
   // FIX (2026-09-24, user-reported "Page Unresponsive" — root cause found
   // after the periodic-re-render fix above didn't fully resolve it):
@@ -3562,8 +3569,11 @@ function renderBandarmologyBrokerTrailView() {
   var cacheKey = bCode + '_' + tf;
   var cachedData = _bandarBrokerPortfolioCache[cacheKey];
   var isLoading = _bandarBrokerPortfolioLoading && !cachedData;
+  var isIdle = !cachedData && !isLoading && !_bandarBrokerUserPicked;
 
-  if (!cachedData && !_bandarBrokerPortfolioLoading) {
+  // Fetch hanya jalan setelah user benar-benar memilih broker (klik pill,
+  // ganti rentang, atau cari kode custom) — lihat _bandarBrokerUserPicked.
+  if (_bandarBrokerUserPicked && !cachedData && !_bandarBrokerPortfolioLoading) {
     setTimeout(function() { bandarLoadBrokerPortfolio(bCode, tf); }, 10);
   }
 
@@ -3573,7 +3583,7 @@ function renderBandarmologyBrokerTrailView() {
 
   var isReal = Boolean(cachedData && cachedData.quality && cachedData.quality.status === 'REAL');
   var dataTime = (cachedData && (cachedData.quality?.retrievedAt || cachedData.toDate)) || '';
-  var dateBadge = dataTime ? ('Diperbarui: ' + dataTime.slice(0, 10)) : (isLoading ? 'Memuat data...' : 'Menunggu respons');
+  var dateBadge = dataTime ? ('Diperbarui: ' + dataTime.slice(0, 10)) : (isIdle ? 'Menunggu pilihan broker' : (isLoading ? 'Memuat data...' : 'Menunggu respons'));
 
   var tfLabels = { '1D': 'Hari Ini (1D)', '5D': '1 Minggu (5D)', '1M': '1 Bulan (1M)' };
 
@@ -3585,7 +3595,7 @@ function renderBandarmologyBrokerTrailView() {
     + '<div>'
     + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
     + '<span style="font-size:14px;font-weight:800;letter-spacing:0.5px;color:var(--text);text-transform:uppercase">Broker Summary by Broker (Portofolio Akumulasi &amp; Distribusi se-BEI)</span>'
-    + '<span class="badge ' + (isReal ? 'b-up' : 'b-neu') + '" style="font-size:10px;font-weight:700">' + (isReal ? 'REAL INVEZGO' : (isLoading ? 'MEMUAT...' : 'FEED WHOLE MARKET')) + '</span>'
+    + '<span class="badge ' + (isReal ? 'b-up' : 'b-neu') + '" style="font-size:10px;font-weight:700">' + (isReal ? 'REAL INVEZGO' : (isLoading ? 'MEMUAT...' : (isIdle ? 'BELUM DIMUAT' : 'FEED WHOLE MARKET'))) + '</span>'
     + '</div>'
     + '<p style="font-size:11px;color:var(--text2);margin:0;max-width:720px">'
     + 'Analisis portofolio lengkap transaksi satu broker di seluruh emiten BEI dalam 1 panggilan data resmi Invezgo.'
@@ -3635,7 +3645,7 @@ function renderBandarmologyBrokerTrailView() {
     + '<span class="badge b-neu" style="font-size:9px;font-weight:700">' + bInfo.badge + '</span>'
     + '</div>'
     + '<div style="font-size:11px;color:var(--text2);margin-top:2px">'
-    + 'Periode: <strong style="color:var(--text)">' + (tfLabels[tf] || tf) + '</strong> | Total Saham Ditransaksikan: <strong style="color:var(--text)">' + totalTraded + ' Emiten</strong> | ' + dateBadge
+    + 'Periode: <strong style="color:var(--text)">' + (tfLabels[tf] || tf) + '</strong> | Total Saham Ditransaksikan: <strong style="color:var(--text)">' + (isIdle ? '-' : (totalTraded + ' Emiten')) + '</strong> | ' + dateBadge
     + '</div>'
     + '</div>'
     + '</div>'
@@ -3646,7 +3656,17 @@ function renderBandarmologyBrokerTrailView() {
     + '</div>'
     + '</div>';
 
-  // Content Area: Loading or Tables
+  // Content Area: Idle (menunggu pilihan user) / Loading / Tables
+  if (isIdle) {
+    html += '<div class="card" style="padding:36px;text-align:center;color:var(--text2);border:1px solid var(--border2);border-radius:10px">'
+      + '<div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:4px">Pilih broker di atas untuk menampilkan portofolionya</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-bottom:14px">Data baru diambil dari Invezgo setelah Anda memilih, supaya kuota API tidak terpakai sia-sia.</div>'
+      + '<button onclick="setBandarmologyBroker(\'' + bCode + '\')" class="btn btn-primary btn-xs" style="padding:6px 16px;font-weight:700">Tampilkan Data Broker ' + bCode + '</button>'
+      + '</div>';
+    html += '</div>';
+    return html;
+  }
+
   if (isLoading) {
     html += '<div class="card" style="padding:36px;text-align:center;color:var(--text2);border:1px solid var(--border2);border-radius:10px">'
       + '<div class="spinner" style="width:28px;height:28px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:spin 0.8s linear infinite"></div>'
