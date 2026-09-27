@@ -814,7 +814,7 @@ function renderStockIntelPage() {
     // REAL-TIME STATUS & REFRESH SUB-BAR
     + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
       + '<div style="display:flex;align-items:center;gap:8px">'
-        + '<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Modul: Bandarmology &amp; Smart Money Flow</span>'
+        + '<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Modul: Ringkasan Saham &amp; Skor AI</span>'
       + '</div>'
 
       // Real-time Controls & Timestamp Badge
@@ -970,42 +970,21 @@ function renderStockIntelPage() {
         + '</div>'
       + '</div>'
 
-      // CARD 4: BOTTOM RIGHT — SMART MONEY / BROKER FLOW RIIL
+      // CARD 4: BOTTOM RIGHT — pintasan ke Bandar Movement
+      // FIX (2026-09-27, konsolidasi tab "Bandarmology": kartu ini dulu
+      // menampilkan tabel Top Broker Buyer sendiri (1 timeframe, kolom
+      // terbatas) yang datanya sama persis dengan widget "Broker Summary"
+      // di tab 6 Bandar Movement (keduanya dari generateBrokerSummary() di
+      // server) — cuma versi Bandar Movement jauh lebih lengkap (Buyer vs
+      // Seller, Val/Lot/Avg, gauge). Alih-alih duplikasi tabel, kartu ini
+      // sekarang jadi pintasan langsung. data.brokerRows/brokerTf dkk TETAP
+      // dipertahankan di getStockIntelData() karena masih dipakai
+      // openBandarFlowModal() (tombol "Bandar Flow" di header atas).
       + '<div class="intel-bento-card">'
-        + '<div class="intel-section-title">'
-          + '<span>TOP BROKER BUYER (DATA RIIL)</span>'
-          + '<div class="sm-suite-tabs" style="padding:2px;gap:3px">'
-            + ['1D', '1W', '1M', '1Y'].map(function(tf) {
-              var isAct = tf === data.brokerTf;
-              return '<button class="sm-nav-item ' + (isAct ? 'active' : '') + '" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono);font-weight:700" onclick="setIntelBrokerTimeframe(\'' + tf + '\')">' + tf + '</button>';
-            }).join('')
-          + '</div>'
-        + '</div>'
-        + '<div style="overflow-x:auto;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px">'
-          + (data.brokerRows.length > 0
-            ? '<table class="tbl" style="font-size:11px;font-family:var(--font-mono)">'
-                + '<thead><tr>'
-                  + '<th>KODE</th><th>NAMA BROKER</th><th>VOLUME (LOT)</th><th>AVG HARGA</th>'
-                + '</tr></thead>'
-                + '<tbody>'
-                  + data.brokerRows.map(function(b) {
-                      return '<tr>'
-                        + '<td style="font-weight:800;color:var(--accent-blue)">' + (b.code || '-') + '</td>'
-                        + '<td style="font-family:var(--font-display)">' + (b.name || '-') + '</td>'
-                        + '<td>' + (b.volume ? fmtK(b.volume) : '-') + '</td>'
-                        + '<td style="font-weight:700;color:var(--text)">' + (b.avgPrice ? ('Rp ' + fmtK(b.avgPrice)) : '-') + '</td>'
-                      + '</tr>';
-                    }).join('')
-                + '</tbody>'
-              + '</table>'
-            // FIX (2026-09-18): pesan dulu SELALU bilang "sedang
-            // disinkronisasi, klik Refresh" — menyesatkan kalau penyebabnya
-            // sebenarnya "data memang tidak ada untuk timeframe ini" (bukan
-            // masalah sinkronisasi yang refresh bisa perbaiki). Sekarang
-            // beda pesan tergantung apakah fetch real sudah pernah dicoba.
-            : (data.brokerTfTried
-                ? '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11.5px">Tidak ada data broker signifikan untuk ' + data.brokerTfTried + data.brokerEmptyReason + ' — coba timeframe lebih panjang (1W/1M/1Y) di atas.</div>'
-                : '<div style="padding:24px 12px;text-align:center;color:var(--text3);font-size:11.5px">Data broker summary sedang dimuat dari feed BEI. Silakan klik tombol Refresh Real-Time.</div>'))
+        + '<div class="intel-section-title"><span>AKTIVITAS BROKER &amp; BANDARMOLOGY</span></div>'
+        + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:20px;text-align:center">'
+          + '<div style="font-size:11.5px;color:var(--text2);line-height:1.5;max-width:280px">Trade Flow, Broker Flow, Broker Summary (Buyer vs Seller), dan Broker Distribution (Sankey) lengkap untuk ' + ticker + ' ada di modul Bandar Movement.</div>'
+          + '<button class="btn btn-primary btn-xs" onclick="if(typeof BM_STATE!==\'undefined\')BM_STATE.ticker=\'' + ticker + '\';goPage(\'bandar-movement\')" style="font-weight:700">Buka Bandar Movement →</button>'
         + '</div>'
       + '</div>'
 
@@ -1045,8 +1024,8 @@ function renderStockIntelPage() {
         // rather than relying only on the passive GLOBAL_STOCK_CONTEXT sync.
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
           + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Smart Money / Bandarmology</div>'
-          + '<div style="font-size:11px;color:var(--text2)">Broker flow lengkap, foreign flow, dan sinyal CMF/VWAP untuk ' + ticker + '.</div>'
-          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + ticker + '\');if(typeof goBandarmology===\'function\')goBandarmology(\'stock\',null);">Buka Analisis Bandarmology (Technical) →</button>'
+          + '<div style="font-size:11px;color:var(--text2)">Trade Flow, Broker Flow, Broker Summary Buyer vs Seller, dan Broker Distribution (Sankey) untuk ' + ticker + '.</div>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof BM_STATE!==\'undefined\')BM_STATE.ticker=\'' + ticker + '\';goPage(\'bandar-movement\')">Buka Bandar Movement →</button>'
         + '</div>'
         // Kartu ke-5: Volume Spike (baru, 45-volume-spike.js) — sebelumnya
         // fitur ini tidak muncul sama sekali di hub "Lanjutkan Analisa

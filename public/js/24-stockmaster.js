@@ -71,11 +71,21 @@ function renderStockMaster360Nav(activePillar, currentTicker) {
       + '</span>';
   }
 
+  // Urutan tab (2026-09-27, user-requested): Stock Dossier jadi tab #1 —
+  // sidebar utama "Stock Master 360" (public/index.html) sudah lama masuk
+  // langsung ke goPage('stock-dossier'), jadi nomor tab sekarang disamakan
+  // dengan urutan navigasi nyata alih-alih menampilkannya sebagai "4."
   var tabs = [
-    { id: 'technical', icon: 'ti-chart-candle', label: '1. Chart & Techno-Bandarmology', page: 'technical' },
-    { id: 'flow', icon: 'ti-radar', label: '2. Bandarmology & Flow', page: 'stock-intel' },
-    { id: 'fundamental', icon: 'ti-report-analytics', label: '3. Valuation & Fundamental', page: 'fundamental' },
-    { id: 'dossier', icon: 'ti-file-analytics', label: '4. Stock Dossier & KSEI', page: 'stock-dossier' },
+    { id: 'dossier', icon: 'ti-file-analytics', label: '1. Stock Dossier & KSEI', page: 'stock-dossier' },
+    { id: 'technical', icon: 'ti-chart-candle', label: '2. Chart & Techno-Bandarmology', page: 'technical' },
+    // FIX (2026-09-27, user-reported: tab ini berlabel "Bandarmology" tapi
+    // isinya dashboard umum — skor AI, statistik fundamental, chart harga,
+    // S/R, verdict — dengan cuma 1 kartu bandarmology tipis yang malah
+    // mengarahkan user ke tab lain untuk analisis bandarmology sungguhan.
+    // Label diganti supaya sesuai isi; kartu bandarmology-nya diganti jadi
+    // pintasan langsung ke tab 6 "Bandar Movement" (lihat 27-stockintel.js).
+    { id: 'flow', icon: 'ti-layout-dashboard', label: '3. Ringkasan & Skor AI', page: 'stock-intel' },
+    { id: 'fundamental', icon: 'ti-report-analytics', label: '4. Valuation & Fundamental', page: 'fundamental' },
     { id: 'stockchat', icon: 'ti-brain', label: '5. AI Hypothesis (StockChat)', page: 'stockchat' },
     { id: 'bandarmovement', icon: 'ti-chart-arrows-vertical', label: '6. Bandar Movement', page: 'bandar-movement' }
   ];

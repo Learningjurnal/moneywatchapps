@@ -1214,12 +1214,20 @@ test('REGRESSION GUARD: dashboard HTML must still have both new zone containers'
 // was no handoff to Bandarmology/Smart Money. Guards that the 4th handoff
 // card (added this session) stays wired to the same ticker-preload pattern
 // the other 3 already use, not silently dropped in a future edit.
+// FIX (2026-09-27, user-requested Stock Master 360 tab dedup): the handoff
+// used to point to the Technical page's embedded Techno-Bandarmology
+// sub-tab (goBandarmology('stock', null)). Now that tab 6 "Bandar Movement"
+// is the designated full single-stock bandarmology destination (Trade Flow,
+// Broker Flow, Broker Summary, Broker Distribution — richer than the
+// Technical sub-tab's CMF/VWAP view), the handoff was retargeted there
+// instead, matching the same BM_STATE.ticker=... pre-load pattern
+// sm360Go()/sm360SelectTicker() already use for that page.
 test('REGRESSION GUARD: Stock Intelligence cockpit must keep its Bandarmology/Smart Money handoff card', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
   assert(/Smart Money \/ Bandarmology/.test(src), 'Smart Money / Bandarmology handoff card heading is missing from 27-stockintel.js');
-  assert(/selectStockChatTicker\(/.test(src), 'Handoff card no longer pre-loads the ticker via selectStockChatTicker() before navigating to Bandarmology');
-  assert(/goBandarmology\(\\'stock\\',null\)/.test(src) || /goBandarmology\('stock',null\)/.test(src),
-    'Handoff card no longer navigates to Bandarmology in stock mode');
+  assert(/BM_STATE\.ticker\s*=/.test(src), 'Handoff card no longer pre-loads the ticker via BM_STATE.ticker before navigating to Bandar Movement');
+  assert(/goPage\(\\'bandar-movement\\'\)/.test(src) || /goPage\('bandar-movement'\)/.test(src),
+    'Handoff card no longer navigates to the Bandar Movement page');
   // The other 3 pre-existing handoff cards must still be there too — this
   // guard would also catch someone removing the whole "LANJUTKAN ANALISA
   // MENDALAM" section by accident while editing something else nearby.
@@ -7250,11 +7258,19 @@ test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER reads real buyer rows from 
   assert(Array.isArray(withNoData) && withNoData.length === 0, 'brokerRows should be an empty array (not null/undefined) when topBuyers is genuinely empty');
 });
 
-test('REGRESSION GUARD: Stock Intel TOP BROKER BUYER empty-state message discloses WHY (simulated fallback / specific Invezgo failure reason), not just "no data"', () => {
+// FIX (2026-09-27, user-requested Stock Master 360 tab dedup): CARD 4's own
+// TOP BROKER BUYER table (1 timeframe, no buyer/seller split) duplicated
+// data already shown more completely by tab 6 "Bandar Movement" (both come
+// from generateBrokerSummary() server-side) — replaced with a direct
+// handoff button instead of re-rendering the same table. The expanded
+// "Bandar Flow" quick-look modal (openBandarFlowModal()) is untouched and
+// still needs its own brokerEmptyReason disclosure, so 1 occurrence remains
+// (was 2 when CARD 4 duplicated it).
+test('REGRESSION GUARD: Stock Intel "Bandar Flow" quick-look modal empty-state message discloses WHY (simulated fallback / specific Invezgo failure reason), not just "no data"', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/27-stockintel.js'), 'utf8');
   assert(/brokerEmptyReason/.test(src), 'REGRESSION: brokerEmptyReason is gone — empty-state message no longer distinguishes simulated-fallback/quota-exhausted from genuinely-no-data');
   const occurrences = (src.match(/data\.brokerTfTried \+ data\.brokerEmptyReason/g) || []).length;
-  assert(occurrences >= 2, `REGRESSION: expected both TOP BROKER BUYER render spots (CARD 4 + expanded modal) to append brokerEmptyReason to the empty-state message, found ${occurrences}`);
+  assert(occurrences >= 1, `REGRESSION: expected the "Bandar Flow" quick-look modal to append brokerEmptyReason to its empty-state message, found ${occurrences}`);
 });
 
 // User-reported (2026-09-19): testing DEWA across the app gave contradictory
