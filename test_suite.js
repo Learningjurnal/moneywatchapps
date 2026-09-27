@@ -9423,6 +9423,143 @@ test('REGRESSION GUARD: SYSTEM_INSTRUCTION_MONEYWATCH_AI has a general data-reli
     'REGRESSION: adding rule #13 broke/removed the existing rule #10 XGBoost disambiguation');
 });
 
+// ============================================================
+// FEATURE (2026-09-27, user follow-up: "saya masih bingung menggunakan
+// screener karena terlalu banyak screener dan menunjukan saham yang
+// berbeda-beda... 3 dari 6 saja, untuk mempertajam kesimpulan beli"):
+// Screener Consensus — only surfaces a ticker when 3+ of 5 independent
+// screening systems agree it looks bullish today. Volume Spike Scanner
+// and Quant Screener were previously client-only (no server whole-market
+// endpoint); ported server-side here (EXACT same formulas as
+// public/js/45-volume-spike.js's vsVolumeStats() and public/js/
+// 11-quant.js's scBuildSim() per-ticker calc — not re-derived) so a
+// server-side confluence check can see them too. Radar Akumulasi/
+// Distribusi was investigated and deliberately excluded as a 6th system:
+// generateUnifiedScreener()'s own whaleScore already folds in that exact
+// accDist signal, so counting both would double-count one piece of
+// evidence as two independent votes.
+// ============================================================
+test('computeVolumeSpikeSignal()/computeQuantScreenerSignal() match the exact formulas from 45-volume-spike.js/11-quant.js (Screener Consensus port)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const constMatch = src.match(/const VOLUME_SPIKE_THRESHOLD = [\d.]+;.*$/m);
+  assert(constMatch, 'REGRESSION: VOLUME_SPIKE_THRESHOLD constant not found in idx-data-engine.js');
+  const helperSrc = [constMatch[0]].concat([
+    'function _median', 'function computeVolumeSpikeSignal',
+    'function computeWilderRSI', 'function computeSimpleSMA', 'function computeQuantScreenerSignal'
+  ].map((marker) => {
+    const m = src.match(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s\\S]*?\\n}\\n'));
+    assert(m, `REGRESSION: could not locate ${marker}() in idx-data-engine.js — has it been renamed/removed?`);
+    return m[0];
+  })).join('\n');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(helperSrc, sandbox, { filename: 'screener-consensus-helpers (sandboxed)' });
+
+  // Volume Spike: 29 quiet days (constant volume) then 1 day with a real
+  // spike — matches the exact "today vs median of last 14/30 days"
+  // formula, not a guessed threshold.
+  const quietPoints = [];
+  for (let i = 0; i < 30; i++) quietPoints.push({ c: 1000 + i, v: 500000 });
+  const spikePoints = quietPoints.concat([{ c: 1050, v: 500000 * 2 }]); // 2x median -> spike
+  const flatPoints = quietPoints.concat([{ c: 999, v: 500000 }]); // no spike
+
+  const spikeSignal = sandbox.computeVolumeSpikeSignal(spikePoints);
+  assert(spikeSignal, 'REGRESSION: computeVolumeSpikeSignal() returned null for a valid 31-bar series');
+  assert.strictEqual(spikeSignal.isSpike, true, 'REGRESSION: a 2x-median volume day is no longer detected as a spike (threshold or ratio math broken)');
+  assert(spikeSignal.ratio14 >= 1.70 && spikeSignal.ratio30 >= 1.70, 'REGRESSION: spike ratio14/ratio30 no longer computed >= the 1.70x threshold for an actual 2x day');
+
+  const flatSignal = sandbox.computeVolumeSpikeSignal(flatPoints);
+  assert.strictEqual(flatSignal.isSpike, false, 'REGRESSION: a normal (non-spiking) volume day is being flagged as a spike — false positive');
+
+  assert.strictEqual(sandbox.computeVolumeSpikeSignal([{ c: 1, v: 1 }]), null,
+    'REGRESSION: computeVolumeSpikeSignal() must return null (honest "insufficient data"), not throw or fabricate, for too few bars');
+
+  // Quant Screener: a clean synthetic uptrend must score well above 50 and
+  // read aboveMa50:true; a clean downtrend must read aboveMa50:false.
+  function synthTrend(n, direction) {
+    const pts = [];
+    let price = 1000;
+    // 'up' cycles through a realistic mix of up/down days (not a pure
+    // monotonic 1.015/day climb) so RSI settles in a healthy ~55-65 zone
+    // instead of pinning near 100 (a market that never has a single red
+    // day is unrealistic and also scores WORSE under this ported formula,
+    // which deliberately penalizes extreme-overbought RSI — see
+    // computeQuantScreenerSignal()'s score formula).
+    const upPattern = [1.028, 1.006, 0.972, 1.012];
+    for (let i = 0; i < n; i++) {
+      price = direction === 'up' ? price * upPattern[i % upPattern.length] : price * 0.985;
+      pts.push({ c: price });
+    }
+    return pts;
+  }
+  const upSignal = sandbox.computeQuantScreenerSignal(synthTrend(80, 'up'));
+  assert(upSignal, 'REGRESSION: computeQuantScreenerSignal() returned null for a valid 80-bar series');
+  assert.strictEqual(upSignal.aboveMa50, true, 'REGRESSION: a clean synthetic uptrend no longer reads aboveMa50:true');
+  assert(upSignal.score > 70, `REGRESSION: a clean synthetic uptrend scored only ${upSignal.score} (expected >70, matching the existing green-tier UI threshold in 11-quant.js)`);
+  assert(upSignal.mom1m > 0, 'REGRESSION: 1-month momentum on a clean uptrend must be positive');
+
+  const downSignal = sandbox.computeQuantScreenerSignal(synthTrend(80, 'down'));
+  assert.strictEqual(downSignal.aboveMa50, false, 'REGRESSION: a clean synthetic downtrend no longer reads aboveMa50:false');
+
+  assert.strictEqual(sandbox.computeQuantScreenerSignal([{ c: 1 }]), null,
+    'REGRESSION: computeQuantScreenerSignal() must return null (honest "insufficient data"), not throw or fabricate, for too few bars');
+});
+
+test('REGRESSION GUARD: fetchAndCacheTechnicalSignal() rides volumeSpike/quantScreener on the same cache entry (no extra Yahoo fetch)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function fetchAndCacheTechnicalSignal\(ticker\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'fetchAndCacheTechnicalSignal() not found');
+  assert(/tech\.volumeSpike = computeVolumeSpikeSignal\(history\?\.points\)/.test(fnMatch[0]),
+    'REGRESSION: fetchAndCacheTechnicalSignal() no longer attaches volumeSpike to the technical cache entry — Screener Consensus\'s Volume Spike vote will always be empty');
+  assert(/tech\.quantScreener = computeQuantScreenerSignal\(history\?\.points\)/.test(fnMatch[0]),
+    'REGRESSION: fetchAndCacheTechnicalSignal() no longer attaches quantScreener to the technical cache entry — Screener Consensus\'s Quant Screener vote will always be empty');
+});
+
+test('REGRESSION GUARD: generateScreenerConsensus() uses 5 independent systems (not 6 — Radar Akumulasi/Distribusi deliberately excluded to avoid double-counting)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function generateScreenerConsensus\(params = \{\}\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'generateScreenerConsensus() not found');
+  const fn = fnMatch[0];
+
+  assert(/Math\.max\(1, Math\.min\(5, Number\(params\.minAgree\) \|\| 3\)\)/.test(fn),
+    'REGRESSION: minAgree no longer defaults to 3 (the user-approved threshold) or no longer caps at 5 systems');
+  assert(/u\.confirmedUptrendWhale === true/.test(fn), 'REGRESSION: Unified Screener vote no longer reuses its existing backtest-validated confirmedUptrendWhale flag');
+  assert(/strategyEngine\.tickers\.has\(code\)/.test(fn), 'REGRESSION: Strategy Engine vote no longer reuses getQualifyingTickersToday()\'s real STRONG/QUALIFIED signal set');
+  assert(/r\.zone === 'BUY ZONE'/.test(fn), 'REGRESSION: Opportunity Radar vote no longer reuses its existing BUY ZONE threshold');
+  assert(/tech\.volumeSpike\.isSpike && tech\.chg1d != null && tech\.chg1d > 0/.test(fn),
+    'REGRESSION: Volume Spike vote no longer requires both a real spike AND a positive price move (a spike on a down day is distribution, not a buy signal)');
+  assert(/tech\.quantScreener\.score > 70 && tech\.quantScreener\.aboveMa50/.test(fn),
+    'REGRESSION: Quant Screener vote no longer requires both score>70 and price above MA50');
+  assert(!/getUniverseAccumulationDistribution/.test(fn),
+    'REGRESSION: Radar Akumulasi/Distribusi crept back in as a 6th vote — this double-counts the same evidence Unified Screener\'s whaleScore already includes');
+});
+
+test('REGRESSION GUARD: GET /api/idx/screener-consensus route exists and calls generateScreenerConsensus()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/screener-consensus'/.test(src), 'REGRESSION: the /api/idx/screener-consensus route is missing');
+  const routeMatch = src.match(/app\.get\('\/api\/idx\/screener-consensus'[\s\S]*?\n\}\);/);
+  assert(routeMatch, 'could not isolate the /api/idx/screener-consensus route body');
+  assert(/generateScreenerConsensus\(req\.query\)/.test(routeMatch[0]), 'REGRESSION: the route no longer calls generateScreenerConsensus(req.query)');
+});
+
+test('REGRESSION GUARD: "Konsensus Screener" tab is wired into the Screener page shell (usRenderShell)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/usSwitchPageTab\(\\'consensus\\'\)/.test(src), 'REGRESSION: the Konsensus Screener tab button is missing from the Screener page');
+  const branchMatch = src.match(/if \(pt === 'consensus'\) \{[\s\S]*?\n  \}/);
+  assert(branchMatch, 'REGRESSION: usRenderShell() no longer has a branch for pt === \'consensus\'');
+  assert(/csScreenerSubPageHtml\(\)/.test(branchMatch[0]) && /csInit\(\)/.test(branchMatch[0]),
+    'REGRESSION: the consensus tab branch no longer mounts csScreenerSubPageHtml()/calls csInit()');
+});
+
+test('REGRESSION GUARD: 50-screener-consensus.js fetches the real /api/idx/screener-consensus endpoint and never fabricates a fallback list', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/50-screener-consensus.js'), 'utf8');
+  assert(/fetch\('\/api\/idx\/screener-consensus\?minAgree=' \+ CS_STATE\.minAgree/.test(src),
+    'REGRESSION: csLoad() no longer fetches the real /api/idx/screener-consensus endpoint');
+  assert(!/hardcod|fallback.*\[.*'[A-Z]{4}'/i.test(src.replace(/\/\/.*$/gm, '')),
+    'REGRESSION: a hardcoded ticker fallback list appears to have been added to the Konsensus Screener UI');
+  assert(/Ini bukan bug/.test(src), 'REGRESSION: the honest "0 results today is not a bug" explanation is missing from the empty-state message');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
