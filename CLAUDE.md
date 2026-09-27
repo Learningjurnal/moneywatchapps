@@ -53,7 +53,34 @@ bisa salah ambil keputusan dari angka yang terlihat presisi.
   data mentah/generik, atau nonaktifkan fitur itu dulu (dikonfirmasi ke
   user dulu kalau menonaktifkan berarti fitur besar berhenti berfungsi).
 
-## 4. Disiplin lain yang sudah mapan di sesi-sesi sebelumnya
+## 4. Desain UI: institusional & clean, bukan template "AI-generated"
+User (2026-09-27) menetapkan arah desain baru: aplikasi harus terlihat
+profesional/institusional, bukan seperti dashboard yang jelas di-generate AI
+(ciri khasnya: kartu kecil bertumpuk untuk tiap metrik + paragraf penjelasan
+panjang tampil apa adanya di layout).
+
+Aturan konkret ke depan:
+- **Jangan bungkus tiap metrik kecil jadi kartu terpisah.** Kelompokkan
+  metrik yang secara logis satu topik dalam SATU kartu/section, bukan kartu
+  per angka. Kartu tetap boleh dipakai untuk pengelompokan yang memang
+  fungsional (mis. beda topik/beda sumber data) — yang dihindari adalah
+  kartu berlebihan untuk hal yang seharusnya cukup jadi baris/kolom di
+  dalam satu kartu yang sama.
+- **Kalimat penjelasan fitur TIDAK tampil apa adanya di layout.** Pindahkan
+  ke ikon info kecil (SVG, bukan emoji/karakter unicode) di sebelah
+  judul/label. Perilaku: **klik/tap = toggle buka-tutup popover** (wajib,
+  supaya jalan di HP/touchscreen — TIDAK boleh hover-only), hover di
+  desktop boleh jadi tambahan (bukan pengganti), klik di luar popover =
+  tutup, `aria-label`/`aria-expanded` dasar untuk aksesibilitas keyboard.
+- **Pola komponennya HARUS satu helper yang dipakai ulang di semua
+  halaman** (bukan di-reinvent per file setiap kali ada fitur baru) — cari
+  dulu apakah helper ini sudah dibuat sebelum menambah versi baru sendiri
+  (untuk menghindari N implementasi info-icon yang beda perilaku).
+- Ini berlaku untuk fitur BARU dan fitur yang DISENTUH ke depan secara
+  default (rollout bertahap) — bukan izin untuk mengaudit ulang seluruh
+  halaman sekaligus tanpa diminta eksplisit oleh user.
+
+## 5. Disiplin lain yang sudah mapan di sesi-sesi sebelumnya
 - Setiap regresi baru: buktikan fail-without-fix (`git stash`) sebelum
   pass-with-fix.
 - `node -c`, `npm test`, `npm run lint` sebelum commit.

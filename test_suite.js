@@ -9698,6 +9698,98 @@ test('functional: renderVolTopContributors() ranks the real top-3 holdings by we
   assert(idxAdro === -1, 'REGRESSION: more than the top 3 contributors are shown (ADRO, the 4th-ranked, should be excluded)');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// CLAUDE.md Aturan #4 (2026-09-27): "Desain UI institusional & clean" —
+// satu komponen ikon-info SVG reusable (uiInfoIcon(), 03-engine.js) yang
+// menggantikan kalimat penjelasan yang sebelumnya tampil apa adanya di
+// layout. Klik/tap WAJIB bisa toggle (bukan hover-only, supaya jalan di
+// HP/touchscreen).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: uiInfoIcon() exists (03-engine.js) as the ONE reusable info-icon helper, and is exposed on window for use by any page', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/function uiInfoIcon\(text\)/.test(src), 'REGRESSION: uiInfoIcon() helper is gone — pages will go back to inventing their own info-icon markup per file');
+  assert(/window\.uiInfoIcon = uiInfoIcon/.test(src), 'REGRESSION: uiInfoIcon is no longer exposed on window — callers in other page files would throw ReferenceError');
+  const fnMatch = src.match(/function uiInfoIcon\(text\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'uiInfoIcon() body not found');
+  assert(/class="ui-info-icon"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer emits the .ui-info-icon class — CSS and the click/hover delegation below both key off this class');
+  assert(/role="button"/.test(fnMatch[0]) && /tabindex="0"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() lost keyboard accessibility (role=button/tabindex=0) — keyboard-only users could never open it');
+  assert(/aria-expanded="false"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer sets an initial aria-expanded state');
+  assert(/escapeHtml\(text\)/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer escapes its text argument — a ticker name or AI-influenced string could break the markup or inject HTML');
+  assert(/<svg/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer renders an inline SVG (CLAUDE.md explicitly requires SVG, not an emoji/unicode glyph)');
+});
+
+test('REGRESSION GUARD: clicking/tapping a .ui-info-icon toggles its popover open/closed — must NOT be hover-only (breaks on touchscreens)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/document\.addEventListener\('click', function\(e\) \{[\s\S]*?ui-info-icon/.test(src),
+    'REGRESSION: no click handler wired for .ui-info-icon — the popover would only ever open via hover, which never fires on a touchscreen');
+  assert(/data-ui-info-open/.test(src), 'REGRESSION: the open/closed state tracking attribute (data-ui-info-open) is gone');
+  assert(/e\.key === 'Escape'/.test(src), 'REGRESSION: Escape no longer closes an open info popover');
+  assert(/e\.key === 'Enter' \|\| e\.key === ' '/.test(src), 'REGRESSION: Enter/Space no longer activates a focused .ui-info-icon — keyboard-only users could never open it');
+  // The existing hover-tooltip mouseover handler must defer to a click-locked-open icon,
+  // not fight it (hover firing mid-interaction would otherwise flip the icon's wrap style/close it).
+  assert(/data-ui-info-open['"]\) === ['"]1['"]\) return/.test(src),
+    'REGRESSION: the mouseover tooltip handler no longer skips an icon that is click-locked open — hover could stomp on an open click-triggered popover');
+});
+
+test('REGRESSION GUARD: main.css defines .ui-info-icon and the wrapping #mw-tooltip.mw-tt-info popover variant', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  assert(/\.ui-info-icon\{/.test(css), 'REGRESSION: .ui-info-icon styling is gone — the icon would render unstyled/oversized inline SVG');
+  assert(/#mw-tooltip\.mw-tt-info/.test(css), 'REGRESSION: the wrapping popover variant for info-icon text (as opposed to short nowrap chart tooltips) is gone');
+  assert(/white-space:normal/.test(css.match(/#mw-tooltip\.mw-tt-info[\s\S]{0,200}/)[0]), 'REGRESSION: info-icon popover text no longer wraps (would force one giant nowrap line for a full sentence)');
+});
+
+test('functional: uiInfoIcon() HTML-escapes its argument (prevents markup injection from a ticker/AI-derived explanation string)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  const escSrc = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
+  const escMatch = escSrc.match(/function escapeHtml\(str\)\{[\s\S]*?\n\}/);
+  const fnMatch = src.match(/function uiInfoIcon\(text\) \{[\s\S]*?\n\}/);
+  assert(escMatch && fnMatch, 'escapeHtml() or uiInfoIcon() body not found');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(escMatch[0] + '\n' + fnMatch[0], sandbox);
+
+  const html = sandbox.uiInfoIcon('<script>alert(1)</script> & "quotes" \'here\'');
+  assert(!/<script>alert/.test(html), 'REGRESSION: uiInfoIcon() output contains an un-escaped <script> tag — XSS risk');
+  assert(/&lt;script&gt;/.test(html), 'REGRESSION: uiInfoIcon() did not HTML-escape the < and > characters of its input');
+  assert(/&quot;/.test(html) && /&#39;/.test(html), 'REGRESSION: uiInfoIcon() did not escape quote characters — could break out of the data-tooltip="..." attribute');
+});
+
+test('REGRESSION GUARD: pilot rollout — Wave Cockpit Elliott Wave metric moved its long methodology caveat from a whole-card hover title to a dedicated uiInfoIcon()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
+  assert(/uiInfoIcon\('Klasifikasi heuristik dari EMA ribbon/.test(src),
+    'REGRESSION: the Elliott Wave phase methodology caveat is no longer routed through uiInfoIcon() — either it silently vanished or went back to being a raw title attribute on the whole card');
+  assert(!/<div class="metric" title="Klasifikasi heuristik/.test(src),
+    'REGRESSION: the old whole-card title="..." (hover-only, not click/tap-able) reappeared on the Elliott Wave metric');
+});
+
+test('REGRESSION GUARD: pilot rollout — Sector Insight\'s 4-quadrant summary strip (Akumulasi/Markup/Distribusi/Markdown) moved its always-visible one-sentence description into uiInfoIcon(), and the card click-to-open-full-legend still works without the icon click leaking through', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+  const fnMatch = src.match(/function siBuildSummaryStripHtml\(quadBuckets\) \{[\s\S]*?\n  \}/);
+  assert(fnMatch, 'siBuildSummaryStripHtml() body not found');
+  const body = fnMatch[0];
+
+  ['Smart money serap likuiditas di harga dasar sebelum fase markup.',
+   'Reli ekspansi tren naik didukung arus modal institusional kuat.',
+   'Bearish divergence: harga di pucuk tapi modal institusi keluar (exit).',
+   'Tekanan jual dominan dan downtrend berlanjut, utamakan defensif.'
+  ].forEach(sentence => {
+    assert(body.indexOf("uiInfoIcon('" + sentence + "')") > -1,
+      'REGRESSION: quadrant description "' + sentence.slice(0, 30) + '..." no longer routed through uiInfoIcon() — either it vanished or went back to an always-visible layout line');
+  });
+
+  // The always-visible bottom description <div> (separate from the CMF/Ret formula line) must be gone.
+  assert(!/font-size:10px;color:var\(--text2\);line-height:1\.3">Smart money/.test(body),
+    'REGRESSION: the old always-visible description line is back underneath the CMF/Ret formula line');
+
+  // The parent card's onclick (opens the FULL legend on click) must ignore clicks that
+  // originated on the info icon, otherwise clicking the icon would also pop open the
+  // unrelated full-legend modal at the same time.
+  const onclickGuards = body.match(/onclick="if\(!event\.target\.closest\(\\'\.ui-info-icon\\'\)\) siToggleMatrixLegend\(true\)"/g) || [];
+  assert(onclickGuards.length === 4, 'REGRESSION: the 4 quadrant cards\' onclick no longer guards against clicks on their embedded .ui-info-icon — clicking the info icon would also incorrectly trigger the full-legend popup');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

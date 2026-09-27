@@ -584,8 +584,8 @@
     return ''
       // Top 4 Metrics Summary
       + '<div class="row4" style="margin-bottom:18px">'
-      + '  <div class="metric" title="Klasifikasi heuristik dari EMA ribbon (9/21/50), arah SuperTrend, dan RSI-14 riil — bukan hasil hitung ulang siklus Elliott Wave multi-swing penuh (5 gelombang impulsif + 3 korektif berbasis rasio Fibonacci antar-gelombang).">'
-      + '    <div class="mlabel">Fase Siklus Elliott Wave <i class="ti ti-info-circle" style="font-size:10px;color:var(--text3)"></i></div>'
+      + '  <div class="metric">'
+      + '    <div class="mlabel">Fase Siklus Elliott Wave ' + uiInfoIcon('Klasifikasi heuristik dari EMA ribbon (9/21/50), arah SuperTrend, dan RSI-14 riil — bukan hasil hitung ulang siklus Elliott Wave multi-swing penuh (5 gelombang impulsif + 3 korektif berbasis rasio Fibonacci antar-gelombang).') + '</div>'
       + '    <div class="mval" style="color:' + data.waveColor + ';font-size:18px">' + data.wavePhase + '</div>'
       + '    <div class="msub neu">' + data.waveLabel + '</div>'
       + '  </div>'
