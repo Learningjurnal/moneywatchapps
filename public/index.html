@@ -1094,6 +1094,27 @@
                             Memuat asesmen risiko portofolio...
                         </div>
 
+                        <!-- FIX (2026-09-27, user-reported: "Portfolio Risk tidak fit
+                             antara card dan isinya, masih banyak space kosong... isi
+                             informasi lain atau buat card/isinya disesuaikan supaya
+                             fit"): this card is CSS-grid-stretched (.dash-analytics-row,
+                             align-items:stretch) to match its taller sibling ("Komposisi
+                             & Alokasi Aset"), leaving empty space below the narrative.
+                             The obvious fill candidate (#vol-benchmark-d3-chart below,
+                             hidden) was investigated first and rejected: its 12-month
+                             history is NOT real data — ihsgVolBase is a hardcoded static
+                             array and portoVol for 11 of 12 months is synthesized via a
+                             sine-wave "cyclicalFactor", only the current month is real
+                             (see renderPortfolioVolBenchmarkChartD3() in 05-assets.js) —
+                             exposing it would violate CLAUDE.md's Zero Fabricated Data
+                             rule. Filled instead with "Top Kontributor Risiko": real
+                             per-holding weight×volatility ranking, computed from
+                             risk.assets (05-assets.js's calcPortfolioVolatilityAndRisk())
+                             — the EXACT SAME weight/vol figures already feeding the
+                             Risk Score/Volatilitas/Beta/VaR metrics above, not a new
+                             tier of estimate. -->
+                        <div id="vol-top-contributors" style="font-size:11px;color:var(--text2);padding:2px 4px"></div>
+
                         <!-- Hidden elements to preserve JS compatibility -->
                         <div style="display:none">
                             <div id="vol-gauge-needle"></div>
@@ -4355,7 +4376,7 @@
 <script src="js/03-engine.js?v=20260923c"></script>
 <script src="js/04-render.js?v=20260919e"></script>
 <script src="js/36-crypto-technical.js?v=20260918a"></script>
-<script src="js/05-assets.js?v=20260923d"></script>
+<script src="js/05-assets.js?v=20260927a"></script>
 <script src="js/06-analysis-router.js?v=20260924b"></script>
 <script src="js/07-flowscan.js?v=20260923a"></script>
 <script src="js/08-auth.js?v=20260915c"></script>
@@ -4378,18 +4399,18 @@
 <script src="js/29-institutional-ui.js?v=20260923d"></script>
 <script src="js/30-price-alerts.js?v=20260923a"></script><script src="js/32-pdf-reports.js?v=20260918a"></script><script src="js/34-ksei-shareholders.js?v=20260919a"></script>
 <script src="js/35-settings.js?v=20260918a"></script>
-<script src="js/37-tradewave-engine.js?v=20260923c"></script>
+<script src="js/37-tradewave-engine.js?v=20260927a"></script>
 <script src="js/38-ai-autonomous-trading.js?v=20260924a"></script>
 <script src="js/39-knowledge-master-guide.js?v=20260915b"></script>
 <script src="js/40-idx-pipeline.js?v=20260924b"></script>
 <script src="js/41-stockchat-cockpit.js?v=20260927a"></script>
 <script src="js/42-dividend-calendar.js?v=20260918a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260920c"></script>
-<script src="js/44-sectoral-insight.js?v=20260925d"></script>
+<script src="js/44-sectoral-insight.js?v=20260927a"></script>
 <script src="js/45-volume-spike.js?v=20260923e"></script>
 <script src="js/46-stock-dossier.js?v=20260924a"></script>
 <script src="js/47-ai-signal-history.js?v=20260917b"></script>
-<script src="js/48-unified-screener.js?v=20260927a"></script>
+<script src="js/48-unified-screener.js?v=20260927b"></script>
 <script src="js/49-strategy-engine.js?v=20260925a"></script>
 <script src="js/49-bandar-movement.js?v=20260927a"></script>
 <script src="js/50-screener-consensus.js?v=20260927a"></script>

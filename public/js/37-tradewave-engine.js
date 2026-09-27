@@ -553,8 +553,16 @@
       return;
     }
 
+    // FIX (2026-09-27, user-requested: "gabungkan wave cockpit dan risk
+    // planner, taruh risk planner dibawahnya"): tabIdx 1 sekarang selalu
+    // merender Wave Cockpit lalu Risk Planner tepat di bawahnya — satu
+    // scroll, satu keputusan entry (chart+setup di atas, kalkulator
+    // lot/RRR di bawah), bukan 2 tab terpisah lagi. tabIdx===3 dibiarkan
+    // berfungsi sendiri (dipakai internal kalau suatu saat perlu render
+    // Risk Planner tanpa Wave Cockpit), tapi tidak ada pemanggil aktif
+    // yang memakainya lagi setelah fix ini.
     if (tabIdx === 1) {
-      html += renderTab1WaveCockpit(data);
+      html += renderTab1WaveCockpit(data) + renderTab3RiskPlanner(data);
     } else if (tabIdx === 3) {
       html += renderTab3RiskPlanner(data);
     }
@@ -686,7 +694,7 @@
     var estProfitTP2 = Math.round(lotsAllowed * 100 * (data.targets.tp2 - cur));
 
     return ''
-      + '<div class="g2b" style="margin-bottom:18px">'
+      + '<div id="tw-risk-planner-section" class="g2b" style="margin-bottom:18px">'
       + '  <!-- Risk Sizing Calculator Inputs -->'
       + '  <div class="card" style="padding:22px">'
       + '    <div class="cheader" style="margin-bottom:14px">'
@@ -883,8 +891,15 @@
     twRerender();
   }
 
+  // FIX (2026-09-27, "planner" page tab removed — Risk Planner now lives
+  // directly below Wave Cockpit on the same page, see twRenderSubPage()):
+  // this button used to switch to a separate 'planner' tab; now it just
+  // scrolls down to the Risk Planner section already rendered on-screen.
   function twSetOrderSheet(entry, sl, tp) {
-    if (typeof usSwitchPageTab === 'function') usSwitchPageTab('planner');
+    var el = document.getElementById('tw-risk-planner-section');
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   function twExecuteToTradeJournal(ticker, entry, lot, sl, tp) {
