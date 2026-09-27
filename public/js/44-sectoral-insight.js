@@ -412,6 +412,26 @@
       _siState.lastUpdated = new Date();
       siRenderNewsPanel();
       siRenderKPIs();
+      // FIX (2026-09-27, user-reported: "Pergerakan Aliran Modal Sektoral
+      // grafiknya jangan dibuat fix sesuai ukuran cardnya, maksimalkan
+      // sesuai ukuran card, sekarang kalo diklik salah satu sectoralnya
+      // baru grafik membesar"): siRenderD3CmfBarChart() measures
+      // #si-visual-container's height ONCE, synchronously, right when it
+      // first draws — and that height is CSS-grid-stretched to match this
+      // news panel (its sibling in the same grid row). On first page
+      // load the news panel still shows its short "Memuat..." placeholder
+      // (siRenderNewsPanel() hasn't run with real data yet), so the row
+      // — and the chart's measured height — is short too. The chart never
+      // re-measures on its own (HEIGHT changes are deliberately NOT
+      // watched by its ResizeObserver — see the "infinite loop" fix note
+      // at siRenderD3CmfBarChart()'s own ResizeObserver setup), so it
+      // stays stuck small until something else (like clicking a bar,
+      // which calls siRenderVisualPane() again) forces a fresh
+      // measurement after the news panel has actually grown. Re-rendering
+      // the visual pane HERE — right after the news panel's real content
+      // (and therefore the row's real height) has settled — fixes the
+      // exact same race without needing a click.
+      siRenderVisualPane();
     }
   }
 

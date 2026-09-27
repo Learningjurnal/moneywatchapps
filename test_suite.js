@@ -7061,11 +7061,15 @@ test('REGRESSION GUARD: TradeWave Wave Cockpit/Risk Planner consolidated into th
     'REGRESSION: the tradewave router case no longer renders the Unified Screener');
 
   const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
-  assert(/pageTab:\s*'screener'/.test(jsSrc), 'REGRESSION: US_STATE.pageTab (screener/cockpit/planner) is gone');
-  assert(/function usSwitchPageTab/.test(jsSrc), 'REGRESSION: usSwitchPageTab() is gone — no way to switch to Wave Cockpit/Risk Planner tabs');
+  assert(/pageTab:\s*'screener'/.test(jsSrc), 'REGRESSION: US_STATE.pageTab (screener/cockpit/quant/...) is gone');
+  assert(/function usSwitchPageTab/.test(jsSrc), 'REGRESSION: usSwitchPageTab() is gone — no way to switch to the Wave Cockpit & Risk Planner tab');
   assert(/window\.usSwitchPageTab = usSwitchPageTab/.test(jsSrc), 'REGRESSION: usSwitchPageTab is no longer exposed on window — the tab buttons\' onclick would fail');
-  assert(/twRenderSubPage\('us-wave-subpage',\s*pt === 'cockpit' \? 1 : 3\)/.test(jsSrc),
-    'REGRESSION: usRenderShell() no longer calls twRenderSubPage() for the cockpit/planner tabs — Wave Cockpit/Risk Planner content will never render inside the Screener page');
+  // FIX (2026-09-27): Wave Cockpit and Risk Planner were merged into one
+  // tab (tabIdx 1 now renders both, Risk Planner below) — 'planner' is no
+  // longer a separate pageTab/tabIdx-3 call. See the dedicated merge test
+  // further below for the up-to-date assertions on this.
+  assert(/twRenderSubPage\('us-wave-subpage', 1\)/.test(jsSrc),
+    'REGRESSION: usRenderShell() no longer calls twRenderSubPage() for the cockpit tab — Wave Cockpit/Risk Planner content will never render inside the Screener page');
 
   const twSrc = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
   assert(/function twRenderSubPage\(containerId, tabIdx\)/.test(twSrc),
@@ -9558,6 +9562,140 @@ test('REGRESSION GUARD: 50-screener-consensus.js fetches the real /api/idx/scree
   assert(!/hardcod|fallback.*\[.*'[A-Z]{4}'/i.test(src.replace(/\/\/.*$/gm, '')),
     'REGRESSION: a hardcoded ticker fallback list appears to have been added to the Konsensus Screener UI');
   assert(/Ini bukan bug/.test(src), 'REGRESSION: the honest "0 results today is not a bug" explanation is missing from the empty-state message');
+});
+
+// ============================================================
+// FEATURE (2026-09-27, user-requested: "gabungkan wave cockpit dan risk
+// planner, taruh risk planner dibawahnya, agar user langsung bisa
+// membayangkan posisi saat akan entry"): Wave Cockpit and Risk Planner
+// were 2 separate page tabs (pt==='cockpit' vs pt==='planner') requiring
+// a tab switch between seeing the chart/setup and sizing the position.
+// Merged into one tab — Wave Cockpit on top, Risk Planner directly
+// below — via twRenderSubPage(containerId, 1) now rendering both.
+// ============================================================
+test('REGRESSION GUARD: "planner" is no longer a separate Screener page tab — Wave Cockpit and Risk Planner render together under "cockpit"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(!/usSwitchPageTab\(\\'planner\\'\)/.test(src), 'REGRESSION: a separate "planner" tab button is back — Wave Cockpit and Risk Planner should be merged into one tab');
+  assert(!/pt === 'planner'/.test(src), 'REGRESSION: usRenderShell() still branches on a separate pt===\'planner\' — the merge was reverted');
+  const cockpitBranch = src.match(/if \(pt === 'cockpit'\) \{[\s\S]*?\n  \}/);
+  assert(cockpitBranch, 'REGRESSION: the cockpit tab branch is missing');
+  assert(/twRenderSubPage\('us-wave-subpage', 1\)/.test(cockpitBranch[0]), 'REGRESSION: the cockpit tab no longer calls twRenderSubPage with tabIdx 1 (the combined view)');
+});
+
+test('REGRESSION GUARD: twRenderSubPage(containerId, 1) renders Wave Cockpit followed by Risk Planner (not either alone)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
+  const fnMatch = src.match(/function twRenderSubPage\(containerId, tabIdx\) \{[\s\S]*?\n    c\.innerHTML = html;/);
+  assert(fnMatch, 'twRenderSubPage() not found or its structure changed');
+  assert(/renderTab1WaveCockpit\(data\) \+ renderTab3RiskPlanner\(data\)/.test(fnMatch[0]),
+    'REGRESSION: tabIdx===1 no longer concatenates renderTab1WaveCockpit() + renderTab3RiskPlanner() — Risk Planner is no longer rendered below Wave Cockpit on the same page');
+
+  // Risk Planner's own section must carry an id so twSetOrderSheet() can
+  // scroll to it (there is no separate tab to switch to anymore).
+  const riskPlannerFn = src.match(/function renderTab3RiskPlanner\(data\) \{[\s\S]*?\n  \}/);
+  assert(riskPlannerFn, 'renderTab3RiskPlanner() not found');
+  assert(/id="tw-risk-planner-section"/.test(riskPlannerFn[0]), 'REGRESSION: the Risk Planner section lost its scroll-target id (tw-risk-planner-section)');
+
+  const orderSheetFn = src.match(/function twSetOrderSheet\(entry, sl, tp\) \{[\s\S]*?\n  \}/);
+  assert(orderSheetFn, 'twSetOrderSheet() not found');
+  assert(!/usSwitchPageTab\('planner'\)/.test(orderSheetFn[0]), 'REGRESSION: twSetOrderSheet() still tries to switch to the removed \'planner\' tab');
+  assert(/getElementById\('tw-risk-planner-section'\)/.test(orderSheetFn[0]) && /scrollIntoView/.test(orderSheetFn[0]),
+    'REGRESSION: twSetOrderSheet() no longer scrolls to the Risk Planner section');
+});
+
+// ============================================================
+// BUG (2026-09-27, user-reported: "Pergerakan Aliran Modal Sektoral
+// grafiknya jangan dibuat fix sesuai ukuran cardnya, maksimalkan sesuai
+// ukuran card, sekarang kalo diklik salah satu sectoralnya baru grafik
+// membesar"): siRenderD3CmfBarChart() measures #si-visual-container's
+// height once, synchronously, the FIRST time it draws — right after
+// init() calls siRenderVisualPane() (line ~534) but BEFORE siFetchNews()
+// (line ~536) resolves. Since #si-visual-container sits in a CSS grid
+// row stretched to match the news panel (its sibling), and the news
+// panel still shows its short "Memuat..." placeholder at that point, the
+// chart's one-time height measurement is too small — and since its
+// ResizeObserver deliberately does NOT watch height (a previously-fixed
+// infinite-loop risk), it never corrects itself until something else
+// (like clicking a sector bar, which calls siRenderVisualPane() again)
+// forces a fresh measurement after the news panel has actually grown.
+// ============================================================
+test('REGRESSION GUARD: siFetchNews() re-renders the sectoral visual pane after news content settles (fixes the "must click to expand" chart-height race)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+  const fnMatch = src.match(/async function siFetchNews\(force\) \{[\s\S]*?\n  \}/);
+  assert(fnMatch, 'siFetchNews() not found');
+  const financeIdx = fnMatch[0].indexOf('finally {');
+  assert(financeIdx !== -1, 'siFetchNews() has no finally block');
+  const financeBlock = fnMatch[0].slice(financeIdx);
+  assert(/siRenderVisualPane\(\)/.test(financeBlock),
+    'REGRESSION: siFetchNews()\'s finally block no longer calls siRenderVisualPane() — the sectoral flow chart will go back to staying stuck small until the user clicks a sector bar');
+});
+
+// ============================================================
+// BUG (2026-09-27, user-reported: "Portfolio Risk tidak fit antara card
+// dan isinya, masih banyak space kosong anda bisa isi informasi lain
+// atau buat card atau isinya disesuaikan supaya fit"): the dashboard's
+// "Portfolio Risk" card (#card-portfolio-volatility) is CSS-grid-
+// stretched (.dash-analytics-row, align-items:stretch) to match its
+// taller sibling card, leaving empty space below its compact metrics.
+// Investigated first: the obvious fill candidate,
+// #vol-benchmark-d3-chart (previously hidden), turned out to render
+// FABRICATED data (a hardcoded ihsgVolBase array + a sine-wave
+// "cyclicalFactor" synthesizing 11 of 12 "historical" months) —
+// exposing it would violate CLAUDE.md's Zero Fabricated Data rule, so it
+// stays hidden. Filled instead with a real "Top Kontributor Risiko"
+// ranking computed from risk.assets (the same weight/vol figures
+// already feeding the visible Risk Score/Volatilitas/Beta/VaR metrics
+// on this same card — not a new estimate tier).
+// ============================================================
+test('REGRESSION GUARD: Portfolio Risk card\'s empty space is filled with a REAL top-risk-contributor ranking, not the fabricated 12-month benchmark chart', () => {
+  const htmlSrc = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert(/id="vol-top-contributors"/.test(htmlSrc), 'REGRESSION: the vol-top-contributors mount point is missing from the Portfolio Risk card');
+  // The fabricated chart container must still be inside a hidden wrapper — this
+  // guards against someone "fixing the empty space" by simply un-hiding it later.
+  const hiddenBlockMatch = htmlSrc.match(/<!-- Hidden elements to preserve JS compatibility -->\s*<div style="display:none">[\s\S]*?<span id="vol-12m-spread"><\/span>\s*<\/div>/);
+  assert(hiddenBlockMatch, 'REGRESSION: the "Hidden elements to preserve JS compatibility" wrapper is gone');
+  assert(/id="vol-benchmark-d3-chart"/.test(hiddenBlockMatch[0]),
+    'REGRESSION: vol-benchmark-d3-chart (renders FABRICATED sine-wave "historical" data — see renderPortfolioVolBenchmarkChartD3()) is no longer inside the hidden wrapper — it must never be shown to users as if it were real');
+
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/05-assets.js'), 'utf8');
+  const fnMatch = jsSrc.match(/function renderVolTopContributors\(risk\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'renderVolTopContributors() not found');
+  assert(/a\.weight \* a\.vol/.test(fnMatch[0]), 'REGRESSION: the ranking no longer computes contribution as weight×volatility');
+  assert(/risk\.assets/.test(jsSrc.match(/function renderVolTopContributors\(risk\) \{[\s\S]*?\n\}/)[0]) || /assets = \(risk && Array\.isArray\(risk\.assets\)\)/.test(fnMatch[0]),
+    'REGRESSION: renderVolTopContributors() no longer reads risk.assets (the real per-holding weight/vol data)');
+  assert(/renderVolTopContributors\(risk\)/.test(jsSrc.match(/function renderPortfolioHub\(\)\{[\s\S]{0,20000}/)[0]),
+    'REGRESSION: renderPortfolioHub() no longer calls renderVolTopContributors() — the Portfolio Risk card will go back to showing empty space');
+});
+
+test('functional: renderVolTopContributors() ranks the real top-3 holdings by weight×volatility, highest first', () => {
+  const jsSrc = fs.readFileSync(path.join(__dirname, 'public/js/05-assets.js'), 'utf8');
+  const fnMatch = jsSrc.match(/function renderVolTopContributors\(risk\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'renderVolTopContributors() not found');
+
+  const mockMount = { innerHTML: '' };
+  const sandbox = { el: (id) => (id === 'vol-top-contributors' ? mockMount : null) };
+  vm.createContext(sandbox);
+  vm.runInContext('var renderVolTopContributors = ' + fnMatch[0], sandbox);
+
+  const risk = {
+    assets: [
+      { name: 'GOTO - GoTo Gojek Tokopedia', type: 'saham', weight: 0.10, vol: 0.60 }, // contrib 0.060 (highest)
+      { name: 'BBCA - Bank Central Asia', type: 'saham', weight: 0.50, vol: 0.18 },     // contrib 0.090 (actually highest)
+      { name: 'ADRO - Adaro Energy', type: 'saham', weight: 0.05, vol: 0.30 },          // contrib 0.015 (lowest of the 3)
+      { name: 'BTC (Bitcoin)', type: 'crypto', weight: 0.35, vol: 0.48 }                // contrib 0.168 (highest overall)
+    ]
+  };
+  sandbox.renderVolTopContributors(risk);
+
+  const html = mockMount.innerHTML;
+  assert(html, 'REGRESSION: renderVolTopContributors() produced no output for a non-empty portfolio');
+  const idxBtc = html.indexOf('BTC');
+  const idxBbca = html.indexOf('BBCA');
+  const idxGoto = html.indexOf('GOTO');
+  const idxAdro = html.indexOf('ADRO');
+  assert(idxBtc > -1 && idxBbca > -1 && idxGoto > -1, 'expected the top 3 (by weight×vol) holdings to appear in the output');
+  assert(idxBtc < idxBbca && idxBbca < idxGoto,
+    'REGRESSION: holdings are not ranked by real weight×volatility contribution, highest first (expected BTC > BBCA > GOTO)');
+  assert(idxAdro === -1, 'REGRESSION: more than the top 3 contributors are shown (ADRO, the 4th-ranked, should be excluded)');
 });
 
 console.log('═══════════════════════════════════════════════════════');

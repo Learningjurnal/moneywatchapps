@@ -30,7 +30,7 @@ var US_STATE = {
   summary: null,
   dataSources: null,
   total: 0,
-  pageTab: 'screener', // 'screener' | 'cockpit' | 'planner' | 'quant' | 'volspike' | 'strategy'
+  pageTab: 'screener', // 'screener' | 'cockpit' | 'quant' | 'volspike' | 'strategy' | 'consensus'
   filters: {
     search: '',
     index: 'ALL',
@@ -183,10 +183,20 @@ function usRenderShell() {
   // Risk Planner (single-ticker, bekas halaman TradeWave terpisah,
   // digabung ke sini 2026-09-18 atas permintaan user: "toolbar trade wave
   // di hilangkan saja semua bergabung di scanner").
+  //
+  // FIX (2026-09-27, user-requested: "gabungkan wave cockpit dan risk
+  // planner, taruh risk planner dibawahnya, agar user langsung bisa
+  // membayangkan posisi saat akan entry"): Wave Cockpit dan Risk Planner
+  // dulunya 2 tab terpisah (pt==='cockpit' vs pt==='planner') — user
+  // harus pindah tab untuk melihat kalkulator posisi setelah melihat
+  // chart/setup, padahal keduanya soal SATU keputusan entry yang sama.
+  // Digabung jadi 1 tab: Wave Cockpit (chart, EMA ribbon, SuperTrend,
+  // Fibonacci target) di atas, Risk Planner (kalkulator lot/RRR/order
+  // sheet) tepat di bawahnya — lihat twRenderSubPage() di
+  // 37-tradewave-engine.js untuk penggabungan render-nya.
   html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'screener\')" style="' + usPageTabBtnStyle(pt === 'screener') + '">📊 Screener</button>'
-    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'cockpit\')" style="' + usPageTabBtnStyle(pt === 'cockpit') + '">🌊 Wave Cockpit</button>'
-    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'planner\')" style="' + usPageTabBtnStyle(pt === 'planner') + '">📐 Risk Planner</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'cockpit\')" style="' + usPageTabBtnStyle(pt === 'cockpit') + '">🌊 Wave Cockpit &amp; Risk Planner</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'quant\')" style="' + usPageTabBtnStyle(pt === 'quant') + '">🔬 Quant Screener</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'volspike\')" style="' + usPageTabBtnStyle(pt === 'volspike') + '">⚡ Volume Spike</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'strategy\')" style="' + usPageTabBtnStyle(pt === 'strategy') + '">🎯 Strategy Engine</button>'
@@ -209,12 +219,14 @@ function usRenderShell() {
     return;
   }
 
-  if (pt === 'cockpit' || pt === 'planner') {
+  if (pt === 'cockpit') {
     html += '<div id="us-wave-subpage"></div>';
     c.innerHTML = html;
     if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
     if (typeof twRenderSubPage === 'function') {
-      twRenderSubPage('us-wave-subpage', pt === 'cockpit' ? 1 : 3);
+      // tabIdx 1 now renders Wave Cockpit + Risk Planner combined (see
+      // fix comment above) — 'planner' is no longer a separate pageTab.
+      twRenderSubPage('us-wave-subpage', 1);
     }
     return;
   }

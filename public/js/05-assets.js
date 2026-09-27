@@ -2364,6 +2364,50 @@ function calcPortfolioVolatilityAndRisk(){
 }
 window.calcPortfolioVolatilityAndRisk = calcPortfolioVolatilityAndRisk;
 
+// FIX (2026-09-27, user-reported: "Portfolio Risk tidak fit antara card
+// dan isinya, masih banyak space kosong"): fills the "Portfolio Risk"
+// dashboard card's leftover space (it's CSS-grid-stretched to match its
+// taller sibling) with a real top-3 risk-contributor ranking, using
+// risk.assets — the same weight/vol figures already feeding the Risk
+// Score/Volatilitas/Beta/VaR metrics shown above it on this same card,
+// not a new estimate. Deliberately NOT the hidden #vol-benchmark-d3-chart
+// (see comment on that container in index.html) — its 12-month history
+// is synthetic (sine-wave-generated), not real, so exposing it would
+// misrepresent fabricated data as real.
+function renderVolTopContributors(risk) {
+  var mount = el('vol-top-contributors');
+  if (!mount) return;
+  var assets = (risk && Array.isArray(risk.assets)) ? risk.assets : [];
+  if (!assets.length) {
+    mount.innerHTML = '';
+    return;
+  }
+  var ranked = assets.slice()
+    .map(function (a) { return { name: a.name, type: a.type, weight: a.weight, vol: a.vol, contrib: a.weight * a.vol }; })
+    .sort(function (a, b) { return b.contrib - a.contrib; })
+    .slice(0, 3);
+  var totalContrib = ranked.reduce(function (s, a) { return s + a.contrib; }, 0) || 1;
+  var maxContrib = ranked[0].contrib || 1;
+
+  var rows = ranked.map(function (a) {
+    var pctOfTop3 = (a.contrib / totalContrib) * 100;
+    var barWidth = Math.max(4, (a.contrib / maxContrib) * 100);
+    return '<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:6px">'
+      + '<div style="display:flex;justify-content:space-between;font-size:10.5px">'
+      + '<span style="color:var(--text);font-weight:600">' + a.name + '</span>'
+      + '<span class="mono" style="color:var(--text3)">bobot ' + (a.weight * 100).toFixed(1) + '% · vol ' + (a.vol * 100).toFixed(1) + '%</span>'
+      + '</div>'
+      + '<div style="width:100%;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden">'
+      + '<div style="width:' + barWidth.toFixed(1) + '%;height:100%;background:var(--amber);border-radius:3px"></div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  mount.innerHTML = '<div style="font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;padding-top:4px;border-top:1px solid var(--border2)">Top Kontributor Risiko (bobot × volatilitas)</div>'
+    + rows;
+}
+window.renderVolTopContributors = renderVolTopContributors;
+
 function renderPortfolioHub(){
   var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
   var sahamMv = porto.reduce(function(a,p){ return a + (p.mv || 0); }, 0);
@@ -2601,6 +2645,7 @@ function renderPortfolioHub(){
   if (el('vol-risk-narrative')) {
     el('vol-risk-narrative').innerHTML = risk.narrative;
   }
+  renderVolTopContributors(risk);
 
   // Render D3.js Portfolio Volatility vs Benchmark Chart
   renderPortfolioVolBenchmarkChartD3(risk);
