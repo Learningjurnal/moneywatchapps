@@ -1862,7 +1862,7 @@ function renderStockDossierPage(targetTicker) {
   // ── TAB: 1. VALUASI ──
   html += '    <div class="dossier-tab-pane" data-tab="valuation" style="display:' + (dossierState.activeTab === 'valuation' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Valuasi &amp; Margin of Safety (Bobot: ' + res.weightsUsed.valuation + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Valuasi &amp; Margin of Safety (Bobot: ' + res.weightsUsed.valuation + '%) ' + uiInfoIcon('Metodologi: Menggunakan formula Graham Number √(22.5 × EPS × BVPS) dan perbandingan median historis PE/PBV untuk menentukan batas Margin of Safety kuantitatif.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.valuation);
   html += '      </div>';
   if (!res.pillars.valuation.available) {
@@ -1876,14 +1876,13 @@ function renderStockDossierPage(targetTicker) {
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Price to Earnings (PE)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.valuation.per ? res.pillars.valuation.per.toFixed(1) + 'x' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Price to Book (PBV)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.valuation.pbv ? res.pillars.valuation.pbv.toFixed(2) + 'x' : '-') + '</div></div>';
     html += '      </div>';
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Menggunakan formula Graham Number √(22.5 × EPS × BVPS) dan perbandingan median historis PE/PBV untuk menentukan batas Margin of Safety kuantitatif.</p>';
   }
   html += '    </div>';
 
   // ── TAB: 2. SMART MONEY ──
   html += '    <div class="dossier-tab-pane" data-tab="smartMoney" style="display:' + (dossierState.activeTab === 'smartMoney' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Aliran Smart Money &amp; Bandarmology (Bobot: ' + res.weightsUsed.smartMoney + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Aliran Smart Money &amp; Bandarmology (Bobot: ' + res.weightsUsed.smartMoney + '%) ' + uiInfoIcon('Metodologi: Berdasarkan Kyle (1985) Microstructure & Amihud Illiquidity, mengidentifikasi akumulasi broker terpilih yang mengendalikan likuiditas transaksi di pasar reguler.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.smartMoney);
   html += '      </div>';
   if (!res.pillars.smartMoney.available) {
@@ -1965,14 +1964,13 @@ function renderStockDossierPage(targetTicker) {
       html += '      </div>';
     }
 
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Berdasarkan Kyle (1985) Microstructure &amp; Amihud Illiquidity, mengidentifikasi akumulasi broker terpilih yang mengendalikan likuiditas transaksi di pasar reguler.</p>';
   }
   html += '    </div>';
 
   // ── TAB: 3. TEKNIKAL ──
   html += '    <div class="dossier-tab-pane" data-tab="technical" style="display:' + (dossierState.activeTab === 'technical' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Momentum &amp; Indikator Teknikal (Bobot: ' + res.weightsUsed.technical + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Momentum &amp; Indikator Teknikal (Bobot: ' + res.weightsUsed.technical + '%) ' + uiInfoIcon('Metodologi: Melacak konfirmasi struktur Exponential Moving Average (EMA) 20/50 serta ekspansi volume terhadap rata-rata 20 hari untuk memfilter false breakout.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.technical);
   html += '      </div>';
   if (!res.pillars.technical.available) {
@@ -1984,14 +1982,13 @@ function renderStockDossierPage(targetTicker) {
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">EMA 20 &amp; EMA 50</span><div style="font-family:var(--font-mono);font-size:16px;font-weight:800">' + (res.pillars.technical.ema20 ? 'Rp ' + res.pillars.technical.ema20.toLocaleString('id-ID') : '-') + ' / ' + (res.pillars.technical.ema50 ? 'Rp ' + res.pillars.technical.ema50.toLocaleString('id-ID') : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Volume Spike Ratio</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.technical.volumeSpike ? res.pillars.technical.volumeSpike + 'x avg' : '-') + '</div></div>';
     html += '      </div>';
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Melacak konfirmasi struktur Exponential Moving Average (EMA) 20/50 serta ekspansi volume terhadap rata-rata 20 hari untuk memfilter false breakout.</p>';
   }
   html += '    </div>';
 
   // ── TAB: 4. KSEI ──
   html += '    <div class="dossier-tab-pane" data-tab="ksei" style="display:' + (dossierState.activeTab === 'ksei' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Kepemilikan Kustodian KSEI (Bobot: ' + res.weightsUsed.ksei + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Kepemilikan Kustodian KSEI (Bobot: ' + res.weightsUsed.ksei + '%) ' + uiInfoIcon('Metodologi: Mengaudit laporan kepemilikan efek Kustodian Sentral Efek Indonesia (KSEI) >5% untuk memetakan kekuatan modal konglomerasi dan kestabilan pemegang saham utama.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.ksei);
   html += '      </div>';
   if (!res.pillars.ksei.available) {
@@ -2003,14 +2000,13 @@ function renderStockDossierPage(targetTicker) {
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Kepemilikan Kustodian Asing</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.ksei.foreignPct !== null ? res.pillars.ksei.foreignPct.toFixed(1) + '%' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Tanggal Laporan Data</span><div style="font-size:14px;font-weight:700">' + (res.pillars.ksei.reportDate || 'Terbaru') + '</div></div>';
     html += '      </div>';
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Mengaudit laporan kepemilikan efek Kustodian Sentral Efek Indonesia (KSEI) >5% untuk memetakan kekuatan modal konglomerasi dan kestabilan pemegang saham utama.</p>';
   }
   html += '    </div>';
 
   // ── TAB: 5. FUNDAMENTAL & DIVIDEN ──
   html += '    <div class="dossier-tab-pane" data-tab="fundamental" style="display:' + (dossierState.activeTab === 'fundamental' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Profitabilitas &amp; Dividen (Bobot: ' + res.weightsUsed.fundamental + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Profitabilitas &amp; Dividen (Bobot: ' + res.weightsUsed.fundamental + '%) ' + uiInfoIcon('Metodologi: Menguji kesehatan neraca modal, efisiensi laba bersih terhadap ekuitas pemegang saham, dan rekam jejak yield dividen tunai.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.fundamental);
   html += '      </div>';
   if (!res.pillars.fundamental.available) {
@@ -2022,7 +2018,6 @@ function renderStockDossierPage(targetTicker) {
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Net Profit Margin (NPM)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.fundamental.npm !== null ? res.pillars.fundamental.npm.toFixed(1) + '%' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Dividend Yield</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.fundamental.divYield !== null ? res.pillars.fundamental.divYield.toFixed(1) + '%' : '-') + '</div></div>';
     html += '      </div>';
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Menguji kesehatan neraca modal, efisiensi laba bersih terhadap ekuitas pemegang saham, dan rekam jejak yield dividen tunai.</p>';
   }
   html += '    </div>';
 

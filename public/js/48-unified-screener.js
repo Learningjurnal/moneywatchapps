@@ -477,8 +477,7 @@ function usRenderValidationPanel() {
   // Track A: Backtest
   var bt = US_VALIDATION.backtest;
   html += '<div class="card" style="padding:14px;margin-bottom:12px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">A. Backtest Historis (cepat, teknikal+whale saja)</div>'
-    + '<div style="font-size:11.5px;color:var(--text-mute);margin-bottom:10px">Komponen valuasi (PER/ROE) TIDAK disertakan di sini — aplikasi ini tidak punya snapshot fundamental historis per tanggal, menyertakannya akan jadi look-ahead bias (hasil kelihatan bagus tapi palsu).</div>'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">A. Backtest Historis (cepat, teknikal+whale saja) ' + uiInfoIcon('Komponen valuasi (PER/ROE) TIDAK disertakan di sini — aplikasi ini tidak punya snapshot fundamental historis per tanggal, menyertakannya akan jadi look-ahead bias (hasil kelihatan bagus tapi palsu).') + '</div>'
     + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">'
     + '<div><label style="font-size:10.5px;color:var(--text-mute);display:block">Lookback (hari)</label><input id="us-bt-lookback" type="number" value="45" min="10" max="90" style="width:70px;padding:5px 8px;font-size:11.5px;border-radius:6px" class="finput"></div>'
     + '<div><label style="font-size:10.5px;color:var(--text-mute);display:block">Forward (hari)</label><input id="us-bt-forward" type="number" value="20" min="5" max="60" style="width:70px;padding:5px 8px;font-size:11.5px;border-radius:6px" class="finput"></div>'
@@ -512,8 +511,7 @@ function usRenderValidationPanel() {
   // Track B: Forward paper-trading log
   var sl = US_VALIDATION.signalLog;
   html += '<div class="card" style="padding:14px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">B. Forward Paper-Trading Log (lambat, formula lengkap termasuk valuasi)</div>'
-    + '<div style="font-size:11.5px;color:var(--text-mute);margin-bottom:10px">Setiap hari (via cron), sinyal "confirmed" hari itu dicatat otomatis dengan harga entry real. Setelah 20 hari bursa, hasilnya dihitung dari harga real — nol look-ahead bias, tapi butuh waktu terkumpul.</div>';
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">B. Forward Paper-Trading Log (lambat, formula lengkap termasuk valuasi) ' + uiInfoIcon('Setiap hari (via cron), sinyal "confirmed" hari itu dicatat otomatis dengan harga entry real. Setelah 20 hari bursa, hasilnya dihitung dari harga real — nol look-ahead bias, tapi butuh waktu terkumpul.') + '</div>';
 
   if (sl.loading && !sl.data) {
     html += '<div style="color:var(--text-mute);font-size:12px">Memuat…</div>';

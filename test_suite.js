@@ -4772,7 +4772,11 @@ function getDossierContext() {
     },
     fetch: () => Promise.resolve({ ok: false }),
     setTimeout: setTimeout,
-    showToast: () => {}
+    showToast: () => {},
+    // uiInfoIcon() (public/js/03-engine.js, CLAUDE.md Aturan #4) isn't loaded in
+    // this isolated sandbox — stub it so the real 46-stock-dossier.js render
+    // functions (which now call it next to each tab's <h4> title) don't throw.
+    uiInfoIcon: () => ''
   };
   sandbox.window = sandbox;
   const ctx = vm.createContext(sandbox);
@@ -9788,6 +9792,79 @@ test('REGRESSION GUARD: pilot rollout — Sector Insight\'s 4-quadrant summary s
   // unrelated full-legend modal at the same time.
   const onclickGuards = body.match(/onclick="if\(!event\.target\.closest\(\\'\.ui-info-icon\\'\)\) siToggleMatrixLegend\(true\)"/g) || [];
   assert(onclickGuards.length === 4, 'REGRESSION: the 4 quadrant cards\' onclick no longer guards against clicks on their embedded .ui-info-icon — clicking the info icon would also incorrectly trigger the full-legend popup');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// CLAUDE.md Aturan #4 rollout, batch 2 (2026-09-27) — 7 hover-only title
+// badges in index.html, 5 "Metodologi:" paragraphs in the Stock Dossier
+// (46-stock-dossier.js), and 2 static bias-caveat captions in the
+// Screener's validation panel (48-unified-screener.js) all converted to
+// the click/tap-able .ui-info-icon pattern.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: index.html — 7 hover-only title="..." info badges converted to .ui-info-icon (click/tap-able)', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  const oldHoverOnlyPhrases = [
+    'title="Standar GIPS (Global Investment Performance Standards)',
+    'title="Dihitung dari riwayat ekuitas harian aplikasi vs data historis IHSG riil',
+    'title="Bias psikologis umum: menahan saham rugi lebih lama',
+    "title=\"Beta di kartu 'Manajemen Risiko' di bawah pakai nilai beta statis",
+    'title="Yield on Cost = dividen tahun berjalan dibagi harga BELI dulu',
+    'title="Metodologi: Formula Chaikin Money Flow (CMF 20)',
+    'title="Total komisi+PPN+PPh+Levy dibagi total nilai transaksi bulan itu',
+  ];
+  oldHoverOnlyPhrases.forEach(phrase => {
+    assert(!html.includes(phrase), 'REGRESSION: a hover-only title="..." badge reappeared (' + phrase.slice(0, 50) + '...) — this text would go back to being unreachable on a touchscreen');
+  });
+
+  const newTooltipTexts = [
+    'TWR mengukur murni keahlian pemilihan aset',
+    'makin sering Anda buka aplikasi, makin rapat',
+    'menahan saham rugi lebih lama karena enggan realisasi rugi',
+    'Beta di sini dihitung langsung dari regresi harga harian riil',
+    'Yield on Cost = dividen tahun berjalan dibagi harga BELI dulu',
+    'Formula Chaikin Money Flow (CMF 20)',
+    'Total komisi+PPN+PPh+Levy dibagi total nilai transaksi bulan itu',
+  ];
+  newTooltipTexts.forEach(text => {
+    assert(html.includes(text) && html.includes('class="ui-info-icon"'),
+      'REGRESSION: expected explanation text "' + text.slice(0, 40) + '..." to now live inside a .ui-info-icon data-tooltip, but it is missing');
+  });
+
+  const iconCount = (html.match(/class="ui-info-icon"/g) || []).length;
+  assert(iconCount >= 7, 'REGRESSION: expected at least 7 .ui-info-icon instances in index.html (one per converted badge), found ' + iconCount);
+});
+
+test('REGRESSION GUARD: Stock Dossier (46-stock-dossier.js) — 5 tab "Metodologi:" paragraphs moved into uiInfoIcon() next to each tab title, no longer an always-visible <p>', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+
+  assert(!/<p style="font-size:11px;color:var\(--text2\);margin:0">Metodologi:/.test(src),
+    'REGRESSION: at least one Stock Dossier tab\'s "Metodologi:" paragraph is back as an always-visible <p>, not routed through uiInfoIcon()');
+
+  const methodologies = [
+    'Menggunakan formula Graham Number',
+    'Berdasarkan Kyle (1985) Microstructure',
+    'Melacak konfirmasi struktur Exponential Moving Average',
+    'Mengaudit laporan kepemilikan efek Kustodian Sentral Efek Indonesia',
+    'Menguji kesehatan neraca modal',
+  ];
+  methodologies.forEach(m => {
+    assert(new RegExp("uiInfoIcon\\('Metodologi: " + m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(src),
+      'REGRESSION: the "' + m.slice(0, 30) + '..." methodology note is no longer routed through uiInfoIcon()');
+  });
+});
+
+test('REGRESSION GUARD: Screener validation panel (48-unified-screener.js) — Track A/B look-ahead-bias caveats moved into uiInfoIcon() next to each track\'s title', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/uiInfoIcon\('Komponen valuasi \(PER\/ROE\) TIDAK disertakan di sini/.test(src),
+    'REGRESSION: Track A\'s look-ahead-bias caveat is no longer routed through uiInfoIcon()');
+  assert(/uiInfoIcon\('Setiap hari \(via cron\), sinyal "confirmed" hari itu dicatat otomatis/.test(src),
+    'REGRESSION: Track B\'s methodology caveat is no longer routed through uiInfoIcon()');
+  // The dynamic, per-backtest-result methodology line (d.methodology) must be untouched —
+  // it varies with live data and must stay visible, not become a static uiInfoIcon() call.
+  assert(/Metodologi: ' \+ d\.methodology/.test(src),
+    'REGRESSION: the dynamic per-result methodology line (d.methodology, varies with backtest params) was changed — it must stay visible inline since it is computed output, not static help copy');
 });
 
 console.log('═══════════════════════════════════════════════════════');
