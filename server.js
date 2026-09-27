@@ -27,6 +27,7 @@ import {
   getUniverseOpportunityRadar,
   warmRadarFundamentalsRotating,
   generateUnifiedScreener,
+  generateScreenerConsensus,
   runUnifiedScreenerBacktest,
   logTodaysUnifiedScreenerSignals,
   getScreenerSignalLogSummary,
@@ -4409,6 +4410,27 @@ app.get('/api/idx/unified-screener', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[Unified Screener Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/screener-consensus — Screener Consensus (2026-09-27,
+// user-requested: "mempertajam kesimpulan beli" — user was confused by
+// this app's 6 separate screening features each surfacing different
+// tickers with nothing cross-checking between them). Only surfaces a
+// ticker when `minAgree` (default 3) of 5 independent screening systems
+// agree it looks bullish today — see generateScreenerConsensus() (lib/
+// idx-data-engine.js) for exactly which 5 systems, their pre-existing
+// qualifying thresholds, and why Radar Akumulasi/Distribusi was
+// deliberately excluded as a 6th (already folded into Unified Screener's
+// own whaleScore — counting it again would double-count one signal as
+// two independent votes).
+app.get('/api/idx/screener-consensus', async (req, res) => {
+  try {
+    const data = await generateScreenerConsensus(req.query);
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    console.error('[Screener Consensus Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

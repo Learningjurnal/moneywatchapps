@@ -190,7 +190,16 @@ function usRenderShell() {
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'quant\')" style="' + usPageTabBtnStyle(pt === 'quant') + '">🔬 Quant Screener</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'volspike\')" style="' + usPageTabBtnStyle(pt === 'volspike') + '">⚡ Volume Spike</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'strategy\')" style="' + usPageTabBtnStyle(pt === 'strategy') + '">🎯 Strategy Engine</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'consensus\')" style="' + usPageTabBtnStyle(pt === 'consensus') + '">✅ Konsensus Screener</button>'
     + '</div>';
+
+  if (pt === 'consensus') {
+    html += '<div id="us-consensus-subpage">' + (typeof csScreenerSubPageHtml === 'function' ? csScreenerSubPageHtml() : '') + '</div>';
+    c.innerHTML = html;
+    if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
+    if (typeof csInit === 'function') csInit();
+    return;
+  }
 
   if (pt === 'strategy') {
     html += '<div id="us-strategy-subpage"></div>';
