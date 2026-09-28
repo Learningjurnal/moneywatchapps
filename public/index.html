@@ -1557,6 +1557,16 @@
     </div>
   </div>
 
+  <!-- ROW 4.5: Return Tahunan (Capital Gain vs Dividen per tahun, dari seluruh mutasi jual-beli saham) -->
+  <div class="card" style="margin-bottom:18px">
+    <div class="cheader">
+      <span class="ctitle">Return Tahunan — Capital Gain vs Dividen</span>
+      <span class="badge b-gray" title="Capital Gain: realized P&L dari transaksi JUAL saham (metodologi avg-cost, sama dengan kartu Realized Gain di atas), dikelompokkan per tahun terjadinya penjualan. Dividen: pembayaran dividen riil yang tercatat, dikelompokkan per tahun pembayaran. Bukan return % — untuk return % yang disetahunkan (annualized) & timing-aware, lihat kartu XIRR/TWR di atas.">ⓘ metodologi</span>
+    </div>
+    <div class="cw" style="height:220px"><canvas id="perfAnnualReturnChart"></canvas></div>
+    <div id="perf-annual-return-table" style="margin-top:14px;overflow-x:auto"></div>
+  </div>
+
   <!-- ROW 5: Disposition Effect + Frekuensi Trading -->
   <div class="g2c" style="margin-bottom:18px">
     <div class="card" style="margin:0">
@@ -4394,7 +4404,7 @@
 <script src="js/14-admin.js?v=20260909a"></script>
 <script src="js/15-txbulk.js?v=20260915b"></script>
 <script src="js/20-wealth.js?v=20260918a"></script>
-<script src="js/21-performance.js?v=20260925c"></script>
+<script src="js/21-performance.js?v=20260928a"></script>
 <script src="js/22-datahealth.js?v=20260902c"></script>
 <script src="js/23-advisor.js?v=20260915b"></script>
 <script src="js/24-stockmaster.js?v=20260927b"></script>

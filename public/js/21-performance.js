@@ -17,6 +17,7 @@ function renderPerformance(){
   perfRenderBenchmark();
   perfRenderTradeSummary();
   perfRenderRealized();
+  perfRenderAnnualReturn();
   perfRenderDisposition();
   perfRenderActivity();
   perfRenderOtherAssets();
@@ -595,6 +596,106 @@ function perfRenderRealized(){
   var divTotal = (dividends||[]).reduce(function(a,d){return a+(d.net||0);},0);
   el('perf-dividend-total').textContent = 'Rp '+fmtK(divTotal);
   el('perf-dividend-sub').textContent = (dividends||[]).length+' pembayaran';
+}
+
+// ── Return Tahunan — Capital Gain (realized) vs Dividen, per tahun kalender.
+// Capital gain pakai metodologi avg-cost yang SAMA dengan
+// perfComputeTradeStats()/perfComputeMonthlyActivity() (satu-satunya sumber
+// realized P&L di seluruh app), disusun ulang dari transactions[] (semua
+// mutasi BUY/SELL saham) yang diurut per tanggal lalu dikelompokkan per
+// tahun SELL-nya terjadi — bukan FIFO per-lot, tapi konsisten dengan angka
+// realized gain lain di halaman ini. Dividen dari dividends[] (data riil,
+// bukan estimasi) dikelompokkan per tahun tanggal pembayaran. Murni breakdown
+// Rp — tidak menghitung % return per tahun karena itu butuh basis modal
+// awal tahun yang tidak reliable ditelusuri dari data yang ada (return %
+// lifetime/timing-aware sudah ada di kartu XIRR/TWR di atas). ──
+function perfComputeAnnualReturn(){
+  var byYear = {};
+  function ensure(y){ if(!byYear[y]) byYear[y] = {year:y, capitalGain:0, dividend:0, sellTrades:0, divPayments:0}; return byYear[y]; }
+
+  var pos = {};
+  (transactions||[]).slice().sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(tx){
+    if(!pos[tx.ticker]) pos[tx.ticker] = {lot:0, cost:0};
+    var p = pos[tx.ticker];
+    if(tx.type==='BUY'){ p.lot += tx.lot; p.cost += tx.gross; }
+    else if(tx.type==='SELL' && p.lot>0){
+      var avg = p.cost/(p.lot*100), sold = tx.lot*100, pnl = tx.gross - avg*sold;
+      var yr = ensure(tx.date.slice(0,4));
+      yr.capitalGain += pnl;
+      yr.sellTrades++;
+      p.lot -= tx.lot; p.cost = Math.max(0, p.cost - avg*sold);
+    }
+  });
+
+  (dividends||[]).forEach(function(d){
+    var y = (d.date||'').slice(0,4);
+    if(!y) return;
+    var yr = ensure(y);
+    yr.dividend += (d.net||0);
+    yr.divPayments++;
+  });
+
+  return Object.keys(byYear).sort().map(function(y){
+    var r = byYear[y];
+    r.total = r.capitalGain + r.dividend;
+    return r;
+  });
+}
+function perfRenderAnnualReturn(){
+  var data = perfComputeAnnualReturn();
+  kc('perfAnnualReturn');
+  var cv = el('perfAnnualReturnChart');
+  var tblBox = el('perf-annual-return-table');
+
+  // FIX (verifikasi live): jangan ganti innerHTML wrapper canvas untuk
+  // empty-state — itu menghapus elemen <canvas> dari DOM permanen, jadi
+  // kalau user baru menambah transaksi/dividen setelahnya, render berikutnya
+  // tidak akan pernah menemukan canvas lagi (el() balik null) tanpa reload
+  // halaman penuh. Ikuti pola perfRenderActivity(): biarkan canvas tetap
+  // ada (kosong/belum ada chart), pesan honest-empty cukup di area tabel.
+  if(!data.length){
+    if(tblBox) tblBox.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:11px">Belum ada transaksi jual saham atau pembayaran dividen untuk dihitung per tahun.</div>';
+    return;
+  }
+
+  if(cv){
+    var txt = (typeof _chartTextColor==='function') ? _chartTextColor('--text2','#D2D8DF') : '#D2D8DF';
+    charts['perfAnnualReturn'] = new Chart(cv, {
+      type:'bar',
+      data:{
+        labels: data.map(function(d){return d.year;}),
+        datasets:[
+          {label:'Capital Gain', data:data.map(function(d){return d.capitalGain;}), backgroundColor:'rgba(65,243,167,.8)', borderRadius:3, stack:'s'},
+          {label:'Dividen', data:data.map(function(d){return d.dividend;}), backgroundColor:'rgba(47,106,243,.8)', borderRadius:3, stack:'s'}
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{display:true, labels:{color:txt, font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'}, boxWidth:10}},
+          tooltip:Object.assign({},TT,{callbacks:{label:function(c){ return c.dataset.label+': '+(c.parsed.y>=0?'+':'')+'Rp '+fmtK(c.parsed.y); }}})
+        },
+        scales:{
+          x:{stacked:true, ticks:{color:txt, font:{size:10,weight:'bold',family:'"Fira Code","Public Sans",monospace'}}, grid:{display:false}},
+          y:{stacked:true, ticks:{color:txt, font:{size:9,weight:'bold',family:'"Fira Code","Public Sans",monospace'}, callback:function(v){return fmtK(v);}}, grid:{color:GC}}
+        }
+      }
+    });
+  }
+
+  if(tblBox){
+    tblBox.innerHTML = '<table class="tbl" style="width:100%;font-size:11.5px">'
+      + '<thead><tr><th>Tahun</th><th style="text-align:right">Capital Gain</th><th style="text-align:right">Dividen</th><th style="text-align:right">Total Return</th></tr></thead>'
+      + '<tbody>' + data.slice().reverse().map(function(d){
+          return '<tr>'
+            + '<td class="mono" style="font-weight:700">'+d.year+'</td>'
+            + '<td class="mono" style="text-align:right"><span class="'+(d.capitalGain>=0?'up':'dn')+'">'+(d.capitalGain>=0?'+':'')+'Rp '+fmtK(d.capitalGain)+'</span></td>'
+            + '<td class="mono up" style="text-align:right">+Rp '+fmtK(d.dividend)+'</td>'
+            + '<td class="mono" style="text-align:right;font-weight:700"><span class="'+(d.total>=0?'up':'dn')+'">'+(d.total>=0?'+':'')+'Rp '+fmtK(d.total)+'</span></td>'
+            + '</tr>';
+        }).join('')
+      + '</tbody></table>';
+  }
 }
 
 // ── Disposition Effect — rata-rata lama tahan saham UNTUNG vs RUGI.
