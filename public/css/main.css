@@ -444,7 +444,14 @@ body.theme-light .dash-view-toggle-bar .btn.on {
 }
 .dash-summary-row {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  /* FIX (2026-09-28, user-reported: label & teks saling menimpa) — kolom
+     label dulu tetap 180px sementara .dash-summary-label punya
+     white-space:nowrap; label terpanjang ("TINDAKAN DIREKOMENDASIKAN")
+     lebih lebar dari 180px pada font 11px/bold/uppercase, jadi teksnya
+     meluber ke kolom kedua dan menimpa isi baris. minmax(...,max-content)
+     membuat kolom ikut melebar mengikuti label terpanjang, jadi tidak
+     pernah overflow lagi. */
+  grid-template-columns: minmax(180px, max-content) 1fr;
   gap: 16px;
   align-items: flex-start;
   padding: 10px 0;
