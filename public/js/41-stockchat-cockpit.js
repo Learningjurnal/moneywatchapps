@@ -2577,6 +2577,7 @@ function renderBandarmologyCockpitPage(containerId, force) {
     + renderBandarmologyAccumulationView()
     + renderBandarmologyDistributionView()
     + '</div>'
+    + renderBandarmologyNetAccumulationView()
     + renderBandarmologyBrokerTrailView()
     + '</div>';
 
@@ -2585,6 +2586,7 @@ function renderBandarmologyCockpitPage(containerId, force) {
   _bandarAccDistCache = null;
   setTimeout(function() { bandarLoadAccDist('acc'); }, 40);
   setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
+  setTimeout(function() { bandarLoadNetAccDist(BANDAR_NET_ACC_DIST_DAYS); }, 50);
   // Kick off 1 API call for the whole-market Smart Money scanner (cached daily).
   setTimeout(bandarLoadRealMarketFlow, 60);
   // Broker Summary by Broker TIDAK di-fetch otomatis di sini — hemat kuota
@@ -3433,6 +3435,114 @@ async function bandarLoadAccDist(mode) {
     if (el2) el2.innerHTML = '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat data: ' + e.message + '</div>';
   }
 }
+
+// 6. Net Akumulasi/Distribusi Multi-Hari (2026-09-28, user-requested: "saya
+// belum bisa menganalisis saham yang diakumulasi oleh bandar selama 2
+// sampai 30 hari secara nett") — beda dari renderBandarmologyAccumulationView()/
+// renderBandarmologyDistributionView() di atas (snapshot SATU hari): ini
+// menjumlahkan skor akumulasi/distribusi Invezgo lintas N hari bursa
+// (GET /api/idx/accumulation-distribution-range), jadi tren beberapa hari
+// kelihatan, bukan cuma potret hari ini. Ditempatkan di halaman Market
+// Flow yang sudah ada (bukan menu sidebar baru) sesuai keputusan user.
+var BANDAR_NET_ACC_DIST_DAYS = 10;
+var _bandarNetAccDistCache = null; // { data, days, dateKey }
+
+function renderBandarmologyNetAccumulationView() {
+  return '<div id="bandar-net-acc-content"><div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memuat net akumulasi/distribusi multi-hari...</div></div>';
+}
+
+function bandarSetNetAccDistDays(days) {
+  var n = parseInt(days, 10);
+  if (!Number.isFinite(n)) return;
+  n = Math.max(2, Math.min(30, n));
+  BANDAR_NET_ACC_DIST_DAYS = n;
+  _bandarNetAccDistCache = null;
+  bandarLoadNetAccDist(n);
+}
+window.bandarSetNetAccDistDays = bandarSetNetAccDistDays;
+
+function bandarRenderNetAccDistTable(data) {
+  if (!data || data.success === false || data.isSimulated) {
+    return '<div class="card" style="padding:16px">'
+      + bandarNetAccDistHeader(BANDAR_NET_ACC_DIST_DAYS)
+      + '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2)">' + ((data && (data.message || data.dataSource)) || 'Data tidak tersedia.') + '</div>'
+      + '</div>';
+  }
+
+  var fmtScore = function(v) { return (v > 0 ? '+' : '') + Number(v || 0).toLocaleString('id-ID'); };
+
+  var buildRows = function(list, color) {
+    if (!list.length) return '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text3);font-size:11px">Tidak ada emiten pada window ini.</td></tr>';
+    return list.slice(0, 10).map(function(item) {
+      var emitenName = item.name || ((typeof DB !== 'undefined' && DB[item.ticker] && DB[item.ticker].name) || item.ticker);
+      return '<tr>'
+        + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + emitenName + '</div></td>'
+        + '<td style="font-size:11px;color:var(--text2)">' + (item.sector || '-') + '</td>'
+        + '<td class="mono" style="text-align:right;font-weight:700;color:' + color + '">' + fmtScore(item.netScore) + '</td>'
+        + '<td class="mono" style="text-align:right;color:var(--text2)">' + item.daysAppeared + ' / ' + data.daysWithData + ' hari</td>'
+        + '<td class="mono" style="text-align:right;color:var(--text)">Rp ' + Number(item.lastPrice || 0).toLocaleString('id-ID') + '</td>'
+        + '<td style="text-align:center"><button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-ghost btn-xs">Detail Broker</button></td>'
+        + '</tr>';
+    }).join('');
+  };
+
+  return '<div class="card" style="padding:16px">'
+    + bandarNetAccDistHeader(data.daysRequested)
+    + '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-bottom:12px">'
+    + 'Data REAL Invezgo API — ' + data.dateRange.from + ' s/d ' + data.dateRange.to + ' (' + data.daysWithData + ' dari ' + data.daysRequested + ' hari bursa punya data) — seluruh emiten BEI aktif, bukan sampel.'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
+    + '<div>'
+    + '<div style="font-size:12px;font-weight:700;color:var(--green)">TOP NET AKUMULATOR</div>'
+    + '<div class="tbl-wrap" style="overflow-x:auto;margin-top:6px">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Skor Net</th><th style="text-align:right">Muncul</th><th style="text-align:right">Harga</th><th style="text-align:center">Aksi</th></tr></thead>'
+    + '<tbody>' + buildRows(data.accumulators, 'var(--green)') + '</tbody>'
+    + '</table></div></div>'
+    + '<div>'
+    + '<div style="font-size:12px;font-weight:700;color:var(--red)">TOP NET DISTRIBUTOR</div>'
+    + '<div class="tbl-wrap" style="overflow-x:auto;margin-top:6px">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Skor Net</th><th style="text-align:right">Muncul</th><th style="text-align:right">Harga</th><th style="text-align:center">Aksi</th></tr></thead>'
+    + '<tbody>' + buildRows(data.distributors, 'var(--red)') + '</tbody>'
+    + '</table></div></div>'
+    + '</div>'
+    + '</div>';
+}
+
+function bandarNetAccDistHeader(daysValue) {
+  return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Net Akumulasi/Distribusi Multi-Hari '
+    + uiInfoIcon('Skor di sini adalah skor ranking relatif Invezgo (calculated_value dari /analysis/top/accumulation) yang DIJUMLAHKAN lintas beberapa hari bursa — BUKAN akumulasi nilai Rupiah. "Muncul X dari Y hari" menunjukkan konsistensi: makin sering ticker itu masuk top-mover harian, makin kuat sinyalnya (bukan cuma sekali nyembul). Hari libur bursa otomatis dilewati dan tidak dihitung sebagai hari bursa.')
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<label for="bandar-net-acc-days-input" style="font-size:11px;font-weight:700;color:var(--text3)">Window (2-30 hari):</label>'
+    + '<input id="bandar-net-acc-days-input" type="number" min="2" max="30" value="' + daysValue + '" class="sm-input" style="width:60px;padding:4px 8px;font-size:11px;border-radius:6px">'
+    + '<button class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px" onclick="bandarSetNetAccDistDays(document.getElementById(\'bandar-net-acc-days-input\').value)">Terapkan</button>'
+    + '</div>'
+    + '</div>';
+}
+
+async function bandarLoadNetAccDist(days) {
+  var container = document.getElementById('bandar-net-acc-content');
+  if (!container) return;
+  var n = days || BANDAR_NET_ACC_DIST_DAYS;
+  var todayKey = new Date().toISOString().slice(0, 10);
+  try {
+    if (!_bandarNetAccDistCache || _bandarNetAccDistCache.days !== n || _bandarNetAccDistCache.dateKey !== todayKey) {
+      var res = await fetch('/api/idx/accumulation-distribution-range?days=' + n, { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
+      var json = await res.json();
+      _bandarNetAccDistCache = { data: json, days: n, dateKey: todayKey };
+    }
+    var el = document.getElementById('bandar-net-acc-content');
+    if (el) el.innerHTML = bandarRenderNetAccDistTable(_bandarNetAccDistCache.data);
+  } catch (e) {
+    var el2 = document.getElementById('bandar-net-acc-content');
+    if (el2) el2.innerHTML = '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat data: ' + e.message + '</div>';
+  }
+}
+window.bandarLoadNetAccDist = bandarLoadNetAccDist;
+window.renderBandarmologyNetAccumulationView = renderBandarmologyNetAccumulationView;
 window.bandarLoadAccDist = bandarLoadAccDist;
 
 // 6. Smart Money Radar View (Dynamic Universal Footprint)

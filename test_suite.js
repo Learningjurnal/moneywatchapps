@@ -9867,6 +9867,82 @@ test('REGRESSION GUARD: Screener validation panel (48-unified-screener.js) — T
     'REGRESSION: the dynamic per-result methodology line (d.methodology, varies with backtest params) was changed — it must stay visible inline since it is computed output, not static help copy');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-28, user-requested: "saya belum bisa menganalisis
+// saham yang diakumulasi oleh bandar selama 2 sampai 30 hari secara
+// nett") — getUniverseAccumulationDistributionRange() (lib/idx-data-
+// engine.js), GET /api/idx/accumulation-distribution-range (server.js),
+// and the new "Net Akumulasi/Distribusi Multi-Hari" view inside the
+// existing Market Flow page (41-stockchat-cockpit.js).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: getUniverseAccumulationDistributionRange() exists, clamps days to 2-30, and sums calculated_value across dates (honest netScore, never a fabricated Rupiah figure)', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function getUniverseAccumulationDistributionRange\(params = \{\}\)/.test(engineSrc),
+    'REGRESSION: getUniverseAccumulationDistributionRange() is gone');
+  assert(/getUniverseAccumulationDistributionRange,/.test(engineSrc.slice(engineSrc.indexOf('export {'))),
+    'REGRESSION: getUniverseAccumulationDistributionRange is no longer exported — server.js could not import it');
+
+  const fnSrc = engineSrc.match(/async function getUniverseAccumulationDistributionRange[\s\S]*?\n\}\n/)[0];
+  assert(/Math\.max\(UNIVERSE_ACC_DIST_RANGE_MIN_DAYS, Math\.min\(UNIVERSE_ACC_DIST_RANGE_MAX_DAYS, days\)\)/.test(fnSrc),
+    'REGRESSION: days param is no longer clamped to [2,30] — an out-of-range value (e.g. 500) could trigger an unbounded scan/quota spend');
+  assert(/fetchInvezgoTopMovers\('accumulation', date\)/.test(fnSrc),
+    'REGRESSION: no longer calls fetchInvezgoTopMovers() per date — must reuse the confirmed whole-market endpoint, not invent a new one');
+  assert(/entry\.netScore \+= Number\(item\.calculated_value\) \|\| 0/.test(fnSrc),
+    'REGRESSION: netScore is no longer summed directly from calculated_value (whose sign already encodes accum/dist direction per Invezgo) — a wrong subtraction formula could double-count or invert direction');
+  assert(!/netRp|netValueRp|:\s*Number\(entry\.netScore\).*Rp/.test(fnSrc),
+    'REGRESSION: netScore must never be relabeled/formatted as a Rupiah figure — it stays a summed Invezgo ranking score, per CLAUDE.md Zero Fabricated Data');
+  assert(/daysWithData/.test(fnSrc) && /rows\.length === 0\) return; \/\/ hari libur\/tidak ada data — tidak dihitung/.test(fnSrc),
+    'REGRESSION: a date with no data (market holiday) must not silently count toward daysWithData — the UI\'s "X of Y days" honesty claim depends on this');
+});
+
+test('REGRESSION GUARD: collectCandidateTradingDates() skips Saturday/Sunday and returns exactly N weekday candidates counting backward', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const stepFn = engineSrc.match(/function stepBackOneCalendarDay\(dateStr\) \{[\s\S]*?\n\}/)[0];
+  const collectFn = engineSrc.match(/function collectCandidateTradingDates\(fromDate, days\) \{[\s\S]*?\n\}/)[0];
+  assert(stepFn && collectFn, 'stepBackOneCalendarDay()/collectCandidateTradingDates() body not found');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(stepFn + '\n' + collectFn, sandbox);
+
+  // 2026-09-28 is a Monday. Stepping back from a Monday for 5 candidates
+  // should skip the preceding Sat (26th)/Sun (27th) entirely.
+  // .join() (not assert.deepStrictEqual on the raw array) — vm.createContext()
+  // arrays live in a separate V8 realm with their own Array.prototype, which
+  // trips deepStrictEqual's cross-realm identity check even when the actual
+  // contents are identical.
+  const dates = sandbox.collectCandidateTradingDates('2026-09-28', 5);
+  assert.strictEqual(dates.length, 5, 'expected exactly 5 candidate dates');
+  assert.strictEqual(Array.prototype.join.call(dates, ','), ['2026-09-28', '2026-09-25', '2026-09-24', '2026-09-23', '2026-09-22'].join(','),
+    'REGRESSION: candidate dates no longer correctly skip the weekend (26th/27th) when counting back from a Monday');
+});
+
+test('REGRESSION GUARD: GET /api/idx/accumulation-distribution-range exists and calls getUniverseAccumulationDistributionRange() with the days query param', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/accumulation-distribution-range'/.test(src),
+    'REGRESSION: GET /api/idx/accumulation-distribution-range route is gone');
+  const routeSrc = src.match(/app\.get\('\/api\/idx\/accumulation-distribution-range'[\s\S]*?\n\}\);/)[0];
+  assert(/getUniverseAccumulationDistributionRange\(\{ days: req\.query\.days \}\)/.test(routeSrc),
+    'REGRESSION: the route no longer calls getUniverseAccumulationDistributionRange() with req.query.days');
+});
+
+test('REGRESSION GUARD: Market Flow page (41-stockchat-cockpit.js) gained a "Net Akumulasi/Distribusi Multi-Hari" view, wired into the existing Bandarmology market-mode render (not a new sidebar page)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/function renderBandarmologyNetAccumulationView\(\)/.test(src), 'REGRESSION: renderBandarmologyNetAccumulationView() is gone');
+  assert(/function bandarLoadNetAccDist\(days\)/.test(src), 'REGRESSION: bandarLoadNetAccDist() is gone');
+  assert(/renderBandarmologyNetAccumulationView\(\)/.test(src.match(/html \+= '<div id="bandarmology-tab-content"[\s\S]*?\n    \+ '<\/div>';/)[0]),
+    'REGRESSION: renderBandarmologyNetAccumulationView() is no longer wired into the Bandarmology market-mode page render — the new view would never appear');
+  assert(/fetch\('\/api\/idx\/accumulation-distribution-range\?days=' \+ n/.test(src),
+    'REGRESSION: bandarLoadNetAccDist() no longer calls the new range endpoint');
+  // Days input must clamp client-side too (defense in depth, matches the server clamp).
+  assert(/n = Math\.max\(2, Math\.min\(30, n\)\)/.test(src),
+    'REGRESSION: bandarSetNetAccDistDays() no longer clamps the day-window input to [2,30] client-side');
+  // The score/methodology caveat must go through uiInfoIcon() (CLAUDE.md Aturan #4), not a raw always-visible paragraph.
+  assert(/uiInfoIcon\('Skor di sini adalah skor ranking relatif Invezgo/.test(src),
+    'REGRESSION: the "score is not Rupiah" caveat is no longer routed through uiInfoIcon() — it would either vanish or go back to being an always-visible paragraph, violating CLAUDE.md Aturan #4');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

@@ -33,6 +33,7 @@ import {
   getScreenerSignalLogSummary,
   warmTechnicalRotating,
   getUniverseAccumulationDistribution,
+  getUniverseAccumulationDistributionRange,
   getTransactionFlowVisualizer,
   getBeiTickSize,
   generateBrokerSummary,
@@ -4567,6 +4568,20 @@ app.get('/api/idx/accumulation-distribution', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[IDX Acc/Dist Scanner Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/accumulation-distribution-range — Net Akumulasi/Distribusi
+// seluruh BEI dijumlahkan lintas 2-30 hari bursa (user-requested 2026-09-28:
+// "saya belum bisa menganalisis saham yang diakumulasi oleh bandar selama
+// 2 sampai 30 hari secara nett"). ?days=N (default 10, clamp 2-30).
+app.get('/api/idx/accumulation-distribution-range', async (req, res) => {
+  try {
+    const data = await getUniverseAccumulationDistributionRange({ days: req.query.days });
+    return res.json(data);
+  } catch (err) {
+    console.error('[IDX Net Acc/Dist Range Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
