@@ -4772,7 +4772,11 @@ function getDossierContext() {
     },
     fetch: () => Promise.resolve({ ok: false }),
     setTimeout: setTimeout,
-    showToast: () => {}
+    showToast: () => {},
+    // uiInfoIcon() (public/js/03-engine.js, CLAUDE.md Aturan #4) isn't loaded in
+    // this isolated sandbox — stub it so the real 46-stock-dossier.js render
+    // functions (which now call it next to each tab's <h4> title) don't throw.
+    uiInfoIcon: () => ''
   };
   sandbox.window = sandbox;
   const ctx = vm.createContext(sandbox);
@@ -9696,6 +9700,247 @@ test('functional: renderVolTopContributors() ranks the real top-3 holdings by we
   assert(idxBtc < idxBbca && idxBbca < idxGoto,
     'REGRESSION: holdings are not ranked by real weight×volatility contribution, highest first (expected BTC > BBCA > GOTO)');
   assert(idxAdro === -1, 'REGRESSION: more than the top 3 contributors are shown (ADRO, the 4th-ranked, should be excluded)');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// CLAUDE.md Aturan #4 (2026-09-27): "Desain UI institusional & clean" —
+// satu komponen ikon-info SVG reusable (uiInfoIcon(), 03-engine.js) yang
+// menggantikan kalimat penjelasan yang sebelumnya tampil apa adanya di
+// layout. Klik/tap WAJIB bisa toggle (bukan hover-only, supaya jalan di
+// HP/touchscreen).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: uiInfoIcon() exists (03-engine.js) as the ONE reusable info-icon helper, and is exposed on window for use by any page', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/function uiInfoIcon\(text\)/.test(src), 'REGRESSION: uiInfoIcon() helper is gone — pages will go back to inventing their own info-icon markup per file');
+  assert(/window\.uiInfoIcon = uiInfoIcon/.test(src), 'REGRESSION: uiInfoIcon is no longer exposed on window — callers in other page files would throw ReferenceError');
+  const fnMatch = src.match(/function uiInfoIcon\(text\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'uiInfoIcon() body not found');
+  assert(/class="ui-info-icon"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer emits the .ui-info-icon class — CSS and the click/hover delegation below both key off this class');
+  assert(/role="button"/.test(fnMatch[0]) && /tabindex="0"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() lost keyboard accessibility (role=button/tabindex=0) — keyboard-only users could never open it');
+  assert(/aria-expanded="false"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer sets an initial aria-expanded state');
+  assert(/escapeHtml\(text\)/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer escapes its text argument — a ticker name or AI-influenced string could break the markup or inject HTML');
+  assert(/<svg/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer renders an inline SVG (CLAUDE.md explicitly requires SVG, not an emoji/unicode glyph)');
+});
+
+test('REGRESSION GUARD: clicking/tapping a .ui-info-icon toggles its popover open/closed — must NOT be hover-only (breaks on touchscreens)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/document\.addEventListener\('click', function\(e\) \{[\s\S]*?ui-info-icon/.test(src),
+    'REGRESSION: no click handler wired for .ui-info-icon — the popover would only ever open via hover, which never fires on a touchscreen');
+  assert(/data-ui-info-open/.test(src), 'REGRESSION: the open/closed state tracking attribute (data-ui-info-open) is gone');
+  assert(/e\.key === 'Escape'/.test(src), 'REGRESSION: Escape no longer closes an open info popover');
+  assert(/e\.key === 'Enter' \|\| e\.key === ' '/.test(src), 'REGRESSION: Enter/Space no longer activates a focused .ui-info-icon — keyboard-only users could never open it');
+  // The existing hover-tooltip mouseover handler must defer to a click-locked-open icon,
+  // not fight it (hover firing mid-interaction would otherwise flip the icon's wrap style/close it).
+  assert(/data-ui-info-open['"]\) === ['"]1['"]\) return/.test(src),
+    'REGRESSION: the mouseover tooltip handler no longer skips an icon that is click-locked open — hover could stomp on an open click-triggered popover');
+});
+
+test('REGRESSION GUARD: main.css defines .ui-info-icon and the wrapping #mw-tooltip.mw-tt-info popover variant', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  assert(/\.ui-info-icon\{/.test(css), 'REGRESSION: .ui-info-icon styling is gone — the icon would render unstyled/oversized inline SVG');
+  assert(/#mw-tooltip\.mw-tt-info/.test(css), 'REGRESSION: the wrapping popover variant for info-icon text (as opposed to short nowrap chart tooltips) is gone');
+  assert(/white-space:normal/.test(css.match(/#mw-tooltip\.mw-tt-info[\s\S]{0,200}/)[0]), 'REGRESSION: info-icon popover text no longer wraps (would force one giant nowrap line for a full sentence)');
+});
+
+test('functional: uiInfoIcon() HTML-escapes its argument (prevents markup injection from a ticker/AI-derived explanation string)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  const escSrc = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
+  const escMatch = escSrc.match(/function escapeHtml\(str\)\{[\s\S]*?\n\}/);
+  const fnMatch = src.match(/function uiInfoIcon\(text\) \{[\s\S]*?\n\}/);
+  assert(escMatch && fnMatch, 'escapeHtml() or uiInfoIcon() body not found');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(escMatch[0] + '\n' + fnMatch[0], sandbox);
+
+  const html = sandbox.uiInfoIcon('<script>alert(1)</script> & "quotes" \'here\'');
+  assert(!/<script>alert/.test(html), 'REGRESSION: uiInfoIcon() output contains an un-escaped <script> tag — XSS risk');
+  assert(/&lt;script&gt;/.test(html), 'REGRESSION: uiInfoIcon() did not HTML-escape the < and > characters of its input');
+  assert(/&quot;/.test(html) && /&#39;/.test(html), 'REGRESSION: uiInfoIcon() did not escape quote characters — could break out of the data-tooltip="..." attribute');
+});
+
+test('REGRESSION GUARD: pilot rollout — Wave Cockpit Elliott Wave metric moved its long methodology caveat from a whole-card hover title to a dedicated uiInfoIcon()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
+  assert(/uiInfoIcon\('Klasifikasi heuristik dari EMA ribbon/.test(src),
+    'REGRESSION: the Elliott Wave phase methodology caveat is no longer routed through uiInfoIcon() — either it silently vanished or went back to being a raw title attribute on the whole card');
+  assert(!/<div class="metric" title="Klasifikasi heuristik/.test(src),
+    'REGRESSION: the old whole-card title="..." (hover-only, not click/tap-able) reappeared on the Elliott Wave metric');
+});
+
+test('REGRESSION GUARD: pilot rollout — Sector Insight\'s 4-quadrant summary strip (Akumulasi/Markup/Distribusi/Markdown) moved its always-visible one-sentence description into uiInfoIcon(), and the card click-to-open-full-legend still works without the icon click leaking through', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+  const fnMatch = src.match(/function siBuildSummaryStripHtml\(quadBuckets\) \{[\s\S]*?\n  \}/);
+  assert(fnMatch, 'siBuildSummaryStripHtml() body not found');
+  const body = fnMatch[0];
+
+  ['Smart money serap likuiditas di harga dasar sebelum fase markup.',
+   'Reli ekspansi tren naik didukung arus modal institusional kuat.',
+   'Bearish divergence: harga di pucuk tapi modal institusi keluar (exit).',
+   'Tekanan jual dominan dan downtrend berlanjut, utamakan defensif.'
+  ].forEach(sentence => {
+    assert(body.indexOf("uiInfoIcon('" + sentence + "')") > -1,
+      'REGRESSION: quadrant description "' + sentence.slice(0, 30) + '..." no longer routed through uiInfoIcon() — either it vanished or went back to an always-visible layout line');
+  });
+
+  // The always-visible bottom description <div> (separate from the CMF/Ret formula line) must be gone.
+  assert(!/font-size:10px;color:var\(--text2\);line-height:1\.3">Smart money/.test(body),
+    'REGRESSION: the old always-visible description line is back underneath the CMF/Ret formula line');
+
+  // The parent card's onclick (opens the FULL legend on click) must ignore clicks that
+  // originated on the info icon, otherwise clicking the icon would also pop open the
+  // unrelated full-legend modal at the same time.
+  const onclickGuards = body.match(/onclick="if\(!event\.target\.closest\(\\'\.ui-info-icon\\'\)\) siToggleMatrixLegend\(true\)"/g) || [];
+  assert(onclickGuards.length === 4, 'REGRESSION: the 4 quadrant cards\' onclick no longer guards against clicks on their embedded .ui-info-icon — clicking the info icon would also incorrectly trigger the full-legend popup');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// CLAUDE.md Aturan #4 rollout, batch 2 (2026-09-27) — 7 hover-only title
+// badges in index.html, 5 "Metodologi:" paragraphs in the Stock Dossier
+// (46-stock-dossier.js), and 2 static bias-caveat captions in the
+// Screener's validation panel (48-unified-screener.js) all converted to
+// the click/tap-able .ui-info-icon pattern.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: index.html — 7 hover-only title="..." info badges converted to .ui-info-icon (click/tap-able)', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  const oldHoverOnlyPhrases = [
+    'title="Standar GIPS (Global Investment Performance Standards)',
+    'title="Dihitung dari riwayat ekuitas harian aplikasi vs data historis IHSG riil',
+    'title="Bias psikologis umum: menahan saham rugi lebih lama',
+    "title=\"Beta di kartu 'Manajemen Risiko' di bawah pakai nilai beta statis",
+    'title="Yield on Cost = dividen tahun berjalan dibagi harga BELI dulu',
+    'title="Metodologi: Formula Chaikin Money Flow (CMF 20)',
+    'title="Total komisi+PPN+PPh+Levy dibagi total nilai transaksi bulan itu',
+  ];
+  oldHoverOnlyPhrases.forEach(phrase => {
+    assert(!html.includes(phrase), 'REGRESSION: a hover-only title="..." badge reappeared (' + phrase.slice(0, 50) + '...) — this text would go back to being unreachable on a touchscreen');
+  });
+
+  const newTooltipTexts = [
+    'TWR mengukur murni keahlian pemilihan aset',
+    'makin sering Anda buka aplikasi, makin rapat',
+    'menahan saham rugi lebih lama karena enggan realisasi rugi',
+    'Beta di sini dihitung langsung dari regresi harga harian riil',
+    'Yield on Cost = dividen tahun berjalan dibagi harga BELI dulu',
+    'Formula Chaikin Money Flow (CMF 20)',
+    'Total komisi+PPN+PPh+Levy dibagi total nilai transaksi bulan itu',
+  ];
+  newTooltipTexts.forEach(text => {
+    assert(html.includes(text) && html.includes('class="ui-info-icon"'),
+      'REGRESSION: expected explanation text "' + text.slice(0, 40) + '..." to now live inside a .ui-info-icon data-tooltip, but it is missing');
+  });
+
+  const iconCount = (html.match(/class="ui-info-icon"/g) || []).length;
+  assert(iconCount >= 7, 'REGRESSION: expected at least 7 .ui-info-icon instances in index.html (one per converted badge), found ' + iconCount);
+});
+
+test('REGRESSION GUARD: Stock Dossier (46-stock-dossier.js) — 5 tab "Metodologi:" paragraphs moved into uiInfoIcon() next to each tab title, no longer an always-visible <p>', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+
+  assert(!/<p style="font-size:11px;color:var\(--text2\);margin:0">Metodologi:/.test(src),
+    'REGRESSION: at least one Stock Dossier tab\'s "Metodologi:" paragraph is back as an always-visible <p>, not routed through uiInfoIcon()');
+
+  const methodologies = [
+    'Menggunakan formula Graham Number',
+    'Berdasarkan Kyle (1985) Microstructure',
+    'Melacak konfirmasi struktur Exponential Moving Average',
+    'Mengaudit laporan kepemilikan efek Kustodian Sentral Efek Indonesia',
+    'Menguji kesehatan neraca modal',
+  ];
+  methodologies.forEach(m => {
+    assert(new RegExp("uiInfoIcon\\('Metodologi: " + m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(src),
+      'REGRESSION: the "' + m.slice(0, 30) + '..." methodology note is no longer routed through uiInfoIcon()');
+  });
+});
+
+test('REGRESSION GUARD: Screener validation panel (48-unified-screener.js) — Track A/B look-ahead-bias caveats moved into uiInfoIcon() next to each track\'s title', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/uiInfoIcon\('Komponen valuasi \(PER\/ROE\) TIDAK disertakan di sini/.test(src),
+    'REGRESSION: Track A\'s look-ahead-bias caveat is no longer routed through uiInfoIcon()');
+  assert(/uiInfoIcon\('Setiap hari \(via cron\), sinyal "confirmed" hari itu dicatat otomatis/.test(src),
+    'REGRESSION: Track B\'s methodology caveat is no longer routed through uiInfoIcon()');
+  // The dynamic, per-backtest-result methodology line (d.methodology) must be untouched —
+  // it varies with live data and must stay visible, not become a static uiInfoIcon() call.
+  assert(/Metodologi: ' \+ d\.methodology/.test(src),
+    'REGRESSION: the dynamic per-result methodology line (d.methodology, varies with backtest params) was changed — it must stay visible inline since it is computed output, not static help copy');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-28, user-requested: "saya belum bisa menganalisis
+// saham yang diakumulasi oleh bandar selama 2 sampai 30 hari secara
+// nett") — getUniverseAccumulationDistributionRange() (lib/idx-data-
+// engine.js), GET /api/idx/accumulation-distribution-range (server.js),
+// and the new "Net Akumulasi/Distribusi Multi-Hari" view inside the
+// existing Market Flow page (41-stockchat-cockpit.js).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: getUniverseAccumulationDistributionRange() exists, clamps days to 2-30, and sums calculated_value across dates (honest netScore, never a fabricated Rupiah figure)', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function getUniverseAccumulationDistributionRange\(params = \{\}\)/.test(engineSrc),
+    'REGRESSION: getUniverseAccumulationDistributionRange() is gone');
+  assert(/getUniverseAccumulationDistributionRange,/.test(engineSrc.slice(engineSrc.indexOf('export {'))),
+    'REGRESSION: getUniverseAccumulationDistributionRange is no longer exported — server.js could not import it');
+
+  const fnSrc = engineSrc.match(/async function getUniverseAccumulationDistributionRange[\s\S]*?\n\}\n/)[0];
+  assert(/Math\.max\(UNIVERSE_ACC_DIST_RANGE_MIN_DAYS, Math\.min\(UNIVERSE_ACC_DIST_RANGE_MAX_DAYS, days\)\)/.test(fnSrc),
+    'REGRESSION: days param is no longer clamped to [2,30] — an out-of-range value (e.g. 500) could trigger an unbounded scan/quota spend');
+  assert(/fetchInvezgoTopMovers\('accumulation', date\)/.test(fnSrc),
+    'REGRESSION: no longer calls fetchInvezgoTopMovers() per date — must reuse the confirmed whole-market endpoint, not invent a new one');
+  assert(/entry\.netScore \+= Number\(item\.calculated_value\) \|\| 0/.test(fnSrc),
+    'REGRESSION: netScore is no longer summed directly from calculated_value (whose sign already encodes accum/dist direction per Invezgo) — a wrong subtraction formula could double-count or invert direction');
+  assert(!/netRp|netValueRp|:\s*Number\(entry\.netScore\).*Rp/.test(fnSrc),
+    'REGRESSION: netScore must never be relabeled/formatted as a Rupiah figure — it stays a summed Invezgo ranking score, per CLAUDE.md Zero Fabricated Data');
+  assert(/daysWithData/.test(fnSrc) && /rows\.length === 0\) return; \/\/ hari libur\/tidak ada data — tidak dihitung/.test(fnSrc),
+    'REGRESSION: a date with no data (market holiday) must not silently count toward daysWithData — the UI\'s "X of Y days" honesty claim depends on this');
+});
+
+test('REGRESSION GUARD: collectCandidateTradingDates() skips Saturday/Sunday and returns exactly N weekday candidates counting backward', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const stepFn = engineSrc.match(/function stepBackOneCalendarDay\(dateStr\) \{[\s\S]*?\n\}/)[0];
+  const collectFn = engineSrc.match(/function collectCandidateTradingDates\(fromDate, days\) \{[\s\S]*?\n\}/)[0];
+  assert(stepFn && collectFn, 'stepBackOneCalendarDay()/collectCandidateTradingDates() body not found');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(stepFn + '\n' + collectFn, sandbox);
+
+  // 2026-09-28 is a Monday. Stepping back from a Monday for 5 candidates
+  // should skip the preceding Sat (26th)/Sun (27th) entirely.
+  // .join() (not assert.deepStrictEqual on the raw array) — vm.createContext()
+  // arrays live in a separate V8 realm with their own Array.prototype, which
+  // trips deepStrictEqual's cross-realm identity check even when the actual
+  // contents are identical.
+  const dates = sandbox.collectCandidateTradingDates('2026-09-28', 5);
+  assert.strictEqual(dates.length, 5, 'expected exactly 5 candidate dates');
+  assert.strictEqual(Array.prototype.join.call(dates, ','), ['2026-09-28', '2026-09-25', '2026-09-24', '2026-09-23', '2026-09-22'].join(','),
+    'REGRESSION: candidate dates no longer correctly skip the weekend (26th/27th) when counting back from a Monday');
+});
+
+test('REGRESSION GUARD: GET /api/idx/accumulation-distribution-range exists and calls getUniverseAccumulationDistributionRange() with the days query param', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/accumulation-distribution-range'/.test(src),
+    'REGRESSION: GET /api/idx/accumulation-distribution-range route is gone');
+  const routeSrc = src.match(/app\.get\('\/api\/idx\/accumulation-distribution-range'[\s\S]*?\n\}\);/)[0];
+  assert(/getUniverseAccumulationDistributionRange\(\{ days: req\.query\.days \}\)/.test(routeSrc),
+    'REGRESSION: the route no longer calls getUniverseAccumulationDistributionRange() with req.query.days');
+});
+
+test('REGRESSION GUARD: Market Flow page (41-stockchat-cockpit.js) gained a "Net Akumulasi/Distribusi Multi-Hari" view, wired into the existing Bandarmology market-mode render (not a new sidebar page)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/function renderBandarmologyNetAccumulationView\(\)/.test(src), 'REGRESSION: renderBandarmologyNetAccumulationView() is gone');
+  assert(/function bandarLoadNetAccDist\(days\)/.test(src), 'REGRESSION: bandarLoadNetAccDist() is gone');
+  assert(/renderBandarmologyNetAccumulationView\(\)/.test(src.match(/html \+= '<div id="bandarmology-tab-content"[\s\S]*?\n    \+ '<\/div>';/)[0]),
+    'REGRESSION: renderBandarmologyNetAccumulationView() is no longer wired into the Bandarmology market-mode page render — the new view would never appear');
+  assert(/fetch\('\/api\/idx\/accumulation-distribution-range\?days=' \+ n/.test(src),
+    'REGRESSION: bandarLoadNetAccDist() no longer calls the new range endpoint');
+  // Days input must clamp client-side too (defense in depth, matches the server clamp).
+  assert(/n = Math\.max\(2, Math\.min\(30, n\)\)/.test(src),
+    'REGRESSION: bandarSetNetAccDistDays() no longer clamps the day-window input to [2,30] client-side');
+  // The score/methodology caveat must go through uiInfoIcon() (CLAUDE.md Aturan #4), not a raw always-visible paragraph.
+  assert(/uiInfoIcon\('Skor di sini adalah skor ranking relatif Invezgo/.test(src),
+    'REGRESSION: the "score is not Rupiah" caveat is no longer routed through uiInfoIcon() — it would either vanish or go back to being an always-visible paragraph, violating CLAUDE.md Aturan #4');
 });
 
 console.log('═══════════════════════════════════════════════════════');

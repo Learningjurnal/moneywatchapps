@@ -1602,43 +1602,39 @@
   function siBuildSummaryStripHtml(quadBuckets) {
     return '' +
       // 1. Akumulasi
-      '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.35)" title="Klik untuk membuka penjelasan lengkap Akumulasi">' +
+      '<div class="si-matrix-strip-item" onclick="if(!event.target.closest(\'.ui-info-icon\')) siToggleMatrixLegend(true)" style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.35)" title="Klik untuk membuka penjelasan lengkap Akumulasi">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="font-size:11.5px;font-weight:800;color:#06b6d4">1. Akumulasi</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:#06b6d4">1. Akumulasi ' + uiInfoIcon('Smart money serap likuiditas di harga dasar sebelum fase markup.') + '</span>' +
           '<span class="badge" style="background:rgba(6,182,212,0.2);color:#06b6d4;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.accumulation.length + ' Sektor</span>' +
         '</div>' +
-        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#06b6d4;font-weight:700;margin-bottom:2px">CMF > 0 · Ret ≤ 0%</div>' +
-        '<div style="font-size:10px;color:var(--text2);line-height:1.3">Smart money serap likuiditas di harga dasar sebelum fase markup.</div>' +
+        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#06b6d4;font-weight:700">CMF > 0 · Ret ≤ 0%</div>' +
       '</div>' +
 
       // 2. Markup
-      '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.35)" title="Klik untuk membuka penjelasan lengkap Markup">' +
+      '<div class="si-matrix-strip-item" onclick="if(!event.target.closest(\'.ui-info-icon\')) siToggleMatrixLegend(true)" style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.35)" title="Klik untuk membuka penjelasan lengkap Markup">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="font-size:11.5px;font-weight:800;color:#10b981">2. Markup</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:#10b981">2. Markup ' + uiInfoIcon('Reli ekspansi tren naik didukung arus modal institusional kuat.') + '</span>' +
           '<span class="badge" style="background:rgba(16,185,129,0.2);color:#10b981;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.markup.length + ' Sektor</span>' +
         '</div>' +
-        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#10b981;font-weight:700;margin-bottom:2px">CMF > 0 · Ret > 0%</div>' +
-        '<div style="font-size:10px;color:var(--text2);line-height:1.3">Reli ekspansi tren naik didukung arus modal institusional kuat.</div>' +
+        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#10b981;font-weight:700">CMF > 0 · Ret > 0%</div>' +
       '</div>' +
 
       // 3. Distribusi
-      '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.35)" title="Klik untuk membuka penjelasan lengkap Distribusi">' +
+      '<div class="si-matrix-strip-item" onclick="if(!event.target.closest(\'.ui-info-icon\')) siToggleMatrixLegend(true)" style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.35)" title="Klik untuk membuka penjelasan lengkap Distribusi">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="font-size:11.5px;font-weight:800;color:#f59e0b">3. Distribusi</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:#f59e0b">3. Distribusi ' + uiInfoIcon('Bearish divergence: harga di pucuk tapi modal institusi keluar (exit).') + '</span>' +
           '<span class="badge" style="background:rgba(245,158,11,0.2);color:#f59e0b;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.distribution.length + ' Sektor</span>' +
         '</div>' +
-        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#f59e0b;font-weight:700;margin-bottom:2px">CMF ≤ 0 · Ret > 0%</div>' +
-        '<div style="font-size:10px;color:var(--text2);line-height:1.3">Bearish divergence: harga di pucuk tapi modal institusi keluar (exit).</div>' +
+        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#f59e0b;font-weight:700">CMF ≤ 0 · Ret > 0%</div>' +
       '</div>' +
 
       // 4. Markdown
-      '<div class="si-matrix-strip-item" onclick="siToggleMatrixLegend(true)" style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.35)" title="Klik untuk membuka penjelasan lengkap Markdown">' +
+      '<div class="si-matrix-strip-item" onclick="if(!event.target.closest(\'.ui-info-icon\')) siToggleMatrixLegend(true)" style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.35)" title="Klik untuk membuka penjelasan lengkap Markdown">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
-          '<span style="font-size:11.5px;font-weight:800;color:#ef4444">4. Markdown</span>' +
+          '<span style="font-size:11.5px;font-weight:800;color:#ef4444">4. Markdown ' + uiInfoIcon('Tekanan jual dominan dan downtrend berlanjut, utamakan defensif.') + '</span>' +
           '<span class="badge" style="background:rgba(239,68,68,0.2);color:#ef4444;font-size:9px;padding:1px 5px;font-weight:700">' + quadBuckets.markdown.length + ' Sektor</span>' +
         '</div>' +
-        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#ef4444;font-weight:700;margin-bottom:2px">CMF ≤ 0 · Ret ≤ 0%</div>' +
-        '<div style="font-size:10px;color:var(--text2);line-height:1.3">Tekanan jual dominan dan downtrend berlanjut, utamakan defensif.</div>' +
+        '<div style="font-size:9.5px;font-family:var(--font-mono);color:#ef4444;font-weight:700">CMF ≤ 0 · Ret ≤ 0%</div>' +
       '</div>';
   }
 
