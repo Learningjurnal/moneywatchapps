@@ -9943,6 +9943,105 @@ test('REGRESSION GUARD: Market Flow page (41-stockchat-cockpit.js) gained a "Net
     'REGRESSION: the "score is not Rupiah" caveat is no longer routed through uiInfoIcon() — it would either vanish or go back to being an always-visible paragraph, violating CLAUDE.md Aturan #4');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-28, user-requested): Indonesia Economic Data Engine
+// (Bank Indonesia + BPS). SCAFFOLDING ONLY — this sandbox's egress proxy
+// blocks both bi.go.id and webapi.bps.go.id (403 policy denial, confirmed
+// via curl), and there is no BPS_API_KEY. Per CLAUDE.md Aturan #1, no
+// indicator parser is written against a guessed schema — these tests
+// verify the HONEST scaffolding (config, health check, unified schema,
+// fail-closed NOT_CONFIGURED/not_verified states), not real BI/BPS data.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: normalizeEconomicRecord() enforces the unified status enum and never fabricates a value for a non-live status', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/economic-data-engine.js'), 'utf8');
+  assert(/const allowedStatus = \['VERIFIED', 'CACHED', 'STALE', 'UNAVAILABLE', 'ERROR'\]/.test(src),
+    'REGRESSION: normalizeEconomicRecord() no longer restricts status to the 5 spec-defined values — an invented status string could slip through');
+  assert(/status === 'VERIFIED' \|\| status === 'CACHED' \|\| status === 'STALE'\) \? \(typeof raw\.value === 'number' \? raw\.value : null\) : null/.test(src),
+    'REGRESSION: normalizeEconomicRecord() no longer nulls out `value` for UNAVAILABLE/ERROR records — a stale/fabricated number could leak through as if it were live data');
+});
+
+asyncTest('functional: normalizeEconomicRecord() (real import, not a sandbox mock) round-trips a VERIFIED record honestly and nulls value for UNAVAILABLE', async () => {
+  const { normalizeEconomicRecord } = await import('./lib/economic-data-engine.js');
+
+  const verified = normalizeEconomicRecord({
+    provider: 'BPS', indicator: 'Inflasi', value: 2.51, unit: 'percent', period: '2026-09',
+    frequency: 'monthly', geography: 'Indonesia', source: 'Badan Pusat Statistik',
+    source_type: 'official_api', source_url: 'https://webapi.bps.go.id/developer',
+    retrieved_at: '2026-09-28T00:00:00Z', status: 'VERIFIED'
+  });
+  assert.strictEqual(verified.value, 2.51, 'a VERIFIED record must keep its real numeric value');
+  assert.strictEqual(verified.status, 'VERIFIED');
+
+  const unavailable = normalizeEconomicRecord({ provider: 'BPS', indicator: 'Inflasi', value: 2.51, status: 'UNAVAILABLE' });
+  assert.strictEqual(unavailable.value, null,
+    'REGRESSION: an UNAVAILABLE record must never carry a numeric value through, even if the raw input smuggled one in — the caller must not be able to accidentally display it as real');
+
+  const invalidStatus = normalizeEconomicRecord({ provider: 'BPS', indicator: 'Inflasi', value: 2.51, status: 'MADE_UP_STATUS' });
+  assert.strictEqual(invalidStatus.status, 'ERROR', 'REGRESSION: an out-of-enum status string must fall back to ERROR, not pass through silently');
+  assert.strictEqual(invalidStatus.value, null, 'an ERROR-status record must also null its value');
+
+  assert.throws(() => normalizeEconomicRecord(null), 'normalizeEconomicRecord(null) must throw, not silently return a fabricated empty record');
+});
+
+test('REGRESSION GUARD: BPS provider fails closed to NOT_CONFIGURED without BPS_API_KEY — never fabricates data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bps-client.js'), 'utf8');
+  assert(/if \(!apiKey\) \{\s*return \{\s*configured: false,\s*status: 'NOT_CONFIGURED'/.test(src),
+    'REGRESSION: checkBpsLiveStatus() no longer fails closed to NOT_CONFIGURED when BPS_API_KEY is absent');
+  assert(/if \(!apiKey\) \{\s*return \{ ok: false, reason: 'NOT_CONFIGURED', raw: null \};/.test(src),
+    'REGRESSION: bpsListModels() no longer fails closed to NOT_CONFIGURED without an API key — could attempt a request with an empty key');
+  assert(/schemaVerified: false/.test(src),
+    'REGRESSION: bpsListModels() no longer marks its raw response as schemaVerified:false — callers could start trusting an unverified field mapping');
+});
+
+asyncTest('functional: checkBpsLiveStatus() (real import) returns NOT_CONFIGURED when BPS_API_KEY is unset in this test run', async () => {
+  const savedKey = process.env.BPS_API_KEY;
+  delete process.env.BPS_API_KEY;
+  try {
+    const { checkBpsLiveStatus } = await import('./lib/providers/bps-client.js');
+    const result = await checkBpsLiveStatus();
+    assert.strictEqual(result.configured, false);
+    assert.strictEqual(result.status, 'NOT_CONFIGURED');
+  } finally {
+    if (savedKey !== undefined) process.env.BPS_API_KEY = savedKey;
+  }
+});
+
+test('REGRESSION GUARD: BI provider never fabricates a SOAP response — fetchBiJisdor()/fetchBiKursTransaksi() return access:"not_verified", not invented data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bi-client.js'), 'utf8');
+  const jisdorFn = src.match(/async function fetchBiJisdor\(\) \{[\s\S]*?\n\}/)[0];
+  const kursFn = src.match(/async function fetchBiKursTransaksi\([\s\S]*?\n\}/)[0];
+  assert(/access: 'not_verified'/.test(jisdorFn), 'REGRESSION: fetchBiJisdor() no longer returns access:"not_verified" — could now be fabricating a value');
+  assert(!/getKursTransaksiBI|SOAPAction|<soap:/i.test(jisdorFn + kursFn),
+    'REGRESSION: fetchBiJisdor()/fetchBiKursTransaksi() now contain a SOAP envelope/operation name that was never verified against a real BI response — this is exactly the guessed-schema parser CLAUDE.md Aturan #1 forbids');
+});
+
+asyncTest('functional: getEconomicHealth() (real import) never throws, and reports BI/BPS status using only the 5 allowed values', async () => {
+  const { getEconomicHealth } = await import('./lib/economic-data-engine.js');
+  const health = await getEconomicHealth();
+  const allowed = ['VERIFIED', 'CACHED', 'STALE', 'UNAVAILABLE', 'ERROR', 'NOT_CONFIGURED', 'REACHABLE', 'ACTIVE', 'INVALID_RESPONSE'];
+  assert(health.BI && allowed.includes(health.BI.status), 'BI health status must be one of the provider-defined states');
+  assert(health.BPS && allowed.includes(health.BPS.status), 'BPS health status must be one of the provider-defined states');
+  assert(typeof health.latency_ms === 'number' && health.latency_ms >= 0, 'latency_ms must be a real measured number');
+  assert(typeof health.checked_at === 'string', 'checked_at must be a real ISO timestamp string');
+});
+
+test('REGRESSION GUARD: GET /api/economic/health, /api/economic/bps/datasets, /api/economic/bi/jisdor, /api/economic/bi/exchange-rate all exist and call the engine (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/economic\/health'/.test(src), 'REGRESSION: GET /api/economic/health route is gone');
+  assert(/app\.get\('\/api\/economic\/bps\/datasets'/.test(src), 'REGRESSION: GET /api/economic/bps/datasets route is gone');
+  assert(/app\.get\('\/api\/economic\/bi\/jisdor'/.test(src), 'REGRESSION: GET /api/economic/bi/jisdor route is gone');
+  assert(/app\.get\('\/api\/economic\/bi\/exchange-rate'/.test(src), 'REGRESSION: GET /api/economic/bi/exchange-rate route is gone');
+  assert(/getEconomicHealth\(\)/.test(src) && /discoverBpsDatasets\(/.test(src) && /fetchBiJisdor\(\)/.test(src) && /fetchBiKursTransaksi\(/.test(src),
+    'REGRESSION: one or more /api/economic/* routes no longer calls its real engine/provider function');
+  // Specific indicator routes (inflation/GDP/trade/labor/JISDOR-with-parsed-fields)
+  // must NOT exist yet — building them now would mean guessing BPS dataset IDs
+  // or the BI SOAP schema, exactly what this feature's spec §7 and CLAUDE.md
+  // Aturan #1 forbid until a human supplies a verified sample.
+  assert(!/\/api\/economic\/bps\/inflation/.test(src) && !/\/api\/economic\/bps\/gdp/.test(src),
+    'REGRESSION: a specific BPS indicator route (inflation/gdp) appeared without a verified dataset_id — this means someone guessed the BPS dataset code, which the spec explicitly forbids (§7: "Jangan hard-code kode indikator secara sembarangan")');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

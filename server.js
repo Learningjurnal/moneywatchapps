@@ -57,6 +57,8 @@ import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus }
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
+import { getEconomicHealth, discoverBpsDatasets } from './lib/economic-data-engine.js';
+import { fetchBiJisdor, fetchBiKursTransaksi } from './lib/providers/bi-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -4651,6 +4653,82 @@ app.get('/api/idx/financial-statement/:ticker', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[IDX Financial Statement Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── Indonesia Economic Data Engine (BI + BPS) ──
+// STATUS (2026-09-28): scaffolding — see lib/economic-data-engine.js and
+// lib/providers/bi-client.js/bps-client.js for the full explanation.
+// No indicator data (inflasi/PDB/ekspor-impor/JISDOR/Kurs Transaksi) is
+// verified yet: this sandbox's egress proxy blocks both bi.go.id and
+// webapi.bps.go.id, and there is no BPS_API_KEY configured. These routes
+// intentionally return honest NOT_CONFIGURED/UNAVAILABLE/not_verified
+// states — per CLAUDE.md Aturan #1, never a fabricated number.
+
+// GET /api/economic/health — combined BI + BPS reachability/config status.
+app.get('/api/economic/health', async (req, res) => {
+  try {
+    const health = await getEconomicHealth();
+    return res.json(health);
+  } catch (err) {
+    console.error('[Economic Health Error]', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/economic/bps/datasets — BPS dataset discovery (spec §7). Requires
+// BPS_API_KEY; returns { ok:false, reason:'NOT_CONFIGURED' } honestly
+// without it. ?model=data|subject|unit|var (default 'data'), ?domain=
+// (default '0000' = nasional).
+app.get('/api/economic/bps/datasets', async (req, res) => {
+  try {
+    const result = await discoverBpsDatasets(req.query.model, req.query.domain);
+    return res.json({
+      success: result.ok,
+      provider: 'BPS',
+      source: { name: 'Badan Pusat Statistik', type: 'official_api', url: 'https://webapi.bps.go.id/developer' },
+      data: result.ok ? result.raw : null,
+      meta: { status: result.ok ? 'VERIFIED' : result.reason, schemaVerified: result.schemaVerified === true }
+    });
+  } catch (err) {
+    console.error('[BPS Discovery Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/economic/bi/jisdor — NOT yet implemented (SOAP schema
+// unverified, see bi-client.js). Returns access:'not_verified' honestly.
+app.get('/api/economic/bi/jisdor', async (req, res) => {
+  try {
+    const result = await fetchBiJisdor();
+    return res.json({
+      success: false,
+      provider: 'BI',
+      source: { name: 'Bank Indonesia', type: 'official_api', url: 'https://www.bi.go.id/biwebservice/wskursbi.asmx' },
+      data: [],
+      meta: { status: result.access === 'not_verified' ? 'UNAVAILABLE' : 'ERROR', message: result.message }
+    });
+  } catch (err) {
+    console.error('[BI JISDOR Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/economic/bi/exchange-rate — NOT yet implemented (same reason as
+// /bi/jisdor above).
+app.get('/api/economic/bi/exchange-rate', async (req, res) => {
+  try {
+    const result = await fetchBiKursTransaksi(req.query.currency, req.query.date);
+    return res.json({
+      success: false,
+      provider: 'BI',
+      source: { name: 'Bank Indonesia', type: 'official_api', url: 'https://www.bi.go.id/biwebservice/wskursbi.asmx' },
+      data: [],
+      meta: { status: result.access === 'not_verified' ? 'UNAVAILABLE' : 'ERROR', message: result.message }
+    });
+  } catch (err) {
+    console.error('[BI Exchange Rate Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
