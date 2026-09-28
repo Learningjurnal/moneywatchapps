@@ -459,10 +459,13 @@ async function fetchRealStockIntelData(ticker, brokerTf) {
     }
 
     // 2. Fetch broker summary — timeframe dari selector user (default 1D),
-    // bukan hardcoded lagi.
-    var bsResp = await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf));
-    if (bsResp.ok) {
-      var bsJson = await bsResp.json();
+    // bukan hardcoded lagi. Lewat mwFetchBrokerSummaryRaw() (shared cache,
+    // 41-stockchat-cockpit.js) supaya kalau StockChat sudah fetch ticker +
+    // timeframe yang sama, di sini tinggal cache hit — bukan fetch ulang.
+    var bsJson = (typeof mwFetchBrokerSummaryRaw === 'function')
+      ? await mwFetchBrokerSummaryRaw(tk, tf)
+      : await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf)).then(function(r) { return r.ok ? r.json() : null; });
+    if (bsJson) {
       if (!MW_INTEL_CACHE[tk]) MW_INTEL_CACHE[tk] = {};
       // Simpan status "berhasil fetch tapi memang kosong" secara eksplisit
       // supaya UI bisa membedakan "belum pernah dicoba" vs "sudah dicoba,

@@ -1,0 +1,15 @@
+# Normalize line endings for all text files this repo already stores as
+# CRLF (confirmed on server.js, public/index.html, public/css/main.css,
+# test_suite.js, etc.) — without this, an editor/tool that writes LF for
+# only the lines it touches produces a file that's part-CRLF/part-LF,
+# which is exactly what caused the 18716-line false-diff incident earlier
+# in this project's history (a line-ending mismatch made git see nearly
+# every line as changed). `text=auto eol=crlf` makes git normalize any
+# text file to CRLF in the working tree regardless of what a tool wrote,
+# so a mixed-EOL edit gets silently corrected on the next `git add`
+# instead of producing a misleading diff or a repeat incident.
+* text=auto eol=crlf
+
+# Never touch line endings in files where they're meaningful or where
+# platform-specific tooling expects LF.
+*.sh text eol=lf

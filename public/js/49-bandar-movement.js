@@ -28,7 +28,6 @@ var BM_STATE = {
   timeframe: '1D', // '1D', '1W', '1M', '3M', 'YTD', '1Y'
   investor: 'all', // 'all' | 'foreign' | 'domestic'
   market: 'RG', // 'RG' | 'NG' | 'TN'
-  isNet: true,
   data: null,
   isLoading: false,
   charts: {},
@@ -210,15 +209,20 @@ function renderBandarMovementPage() {
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <!-- FIX (2026-09-28, code audit): a "Net: ON/OFF" toggle used
+                   to sit here — it flipped BM_STATE.isNet and re-rendered,
+                   but bmRenderBrokerSummaryWidget() never actually read
+                   isNet, so the click changed the button's own color and
+                   nothing else. Removed rather than guessing at intended
+                   behavior (a real "net per broker" view would need
+                   matching buyers/sellers by broker code and subtracting
+                   valueRp, which this widget doesn't do anywhere today). -->
               <!-- Broker Summary Timeframe Switcher -->
               <div class="btn-group" style="display:inline-flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden">
                 ${['1D', '1W', '1M', '3M'].map(function(tf) {
                   return '<button type="button" class="btn btn-xs ' + (BM_STATE.timeframe === tf ? 'btn-primary' : 'btn-ghost') + '" onclick="bmSetTimeframe(\'' + tf + '\')" style="font-size:10px;padding:2px 7px">' + tf + '</button>';
                 }).join('')}
               </div>
-              <button type="button" class="btn btn-xs ${BM_STATE.isNet ? 'btn-primary' : 'btn-ghost'}" onclick="bmToggleNet()" style="font-size:10px;padding:3px 8px">
-                Net: ${BM_STATE.isNet ? 'ON' : 'OFF'}
-              </button>
               <button type="button" class="btn btn-xs btn-ghost" onclick="bmLoadData('${BM_STATE.ticker}', true)" title="Muat ulang Broker Summary (${BM_STATE.timeframe})" style="font-size:10px;padding:3px 6px;border:1px solid var(--border2);border-radius:4px">
                 <i class="ti ti-refresh"></i>
               </button>
@@ -748,11 +752,6 @@ window.bmSankeySelectNode = bmSankeySelectNode;
 function bmSetTimeframe(tf) {
   BM_STATE.timeframe = tf;
   renderBandarMovementPage();
-}
-
-function bmToggleNet() {
-  BM_STATE.isNet = !BM_STATE.isNet;
-  bmRenderBrokerSummaryWidget();
 }
 
 function bmToggleDropdown(id) {
