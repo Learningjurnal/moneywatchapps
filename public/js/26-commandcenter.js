@@ -703,13 +703,25 @@ function renderRadarFlowTrailSubTab() {
           + '<span class="badge b-up">' + flow.companyName + '</span>'
           + '<span class="badge ' + (bBandar.verdict?.includes('ACCUM') ? 'b-up' : 'b-dn') + '">' + (bBandar.verdict || 'NORMAL FLOW') + '</span>'
         + '</div>'
-        + '<div style="font-size:12px;color:var(--text3);margin-top:4px">Harga Saat Ini: <strong style="color:var(--text)">Rp ' + Number(flow.currentPrice || 0).toLocaleString('id-ID') + '</strong> · Sektor: ' + flow.sector + '</div>'
+        // FIX (2026-09-28, code audit): flow.currentPrice/bandarAvgCost/
+        // bandarProfitPercent used to always render as numbers even when
+        // the backend's Yahoo quote fetch had silently failed and fallen
+        // back to a fabricated placeholder — `Number(flow.currentPrice ||
+        // 0)` and `flow.bandarAvgCost || flow.currentPrice` both treated
+        // "no real data" the same as "Rp 0", so a fake price rendered no
+        // differently from a real one. quoteAvailable (getTransactionFlow
+        // Visualizer(), lib/idx-data-engine.js) now says explicitly which
+        // case this is.
+        + '<div style="font-size:12px;color:var(--text3);margin-top:4px">Harga Saat Ini: <strong style="color:var(--text)">' + (flow.quoteAvailable ? ('Rp ' + Number(flow.currentPrice).toLocaleString('id-ID')) : 'Data Tidak Tersedia') + '</strong> · Sektor: ' + flow.sector + '</div>'
       + '</div>'
       + '<div style="display:flex;gap:12px;align-items:center">'
         + '<div style="text-align:right;background:var(--bg3);padding:8px 14px;border-radius:8px;border:1px solid var(--border2)">'
           + '<div style="font-size:10px;color:var(--text3);font-weight:700">ESTIMASI BANDAR AVG COST</div>'
-          + '<div class="mono" style="font-size:18px;font-weight:800;color:var(--accent)">Rp ' + Number(flow.bandarAvgCost || flow.currentPrice).toLocaleString('id-ID') + '</div>'
-          + '<div style="font-size:10px" class="' + (flow.bandarProfitPercent >= 0 ? 'up' : 'dn') + '">Margin: ' + (flow.bandarProfitPercent >= 0 ? '+' : '') + flow.bandarProfitPercent + '%</div>'
+          + (flow.quoteAvailable
+            ? '<div class="mono" style="font-size:18px;font-weight:800;color:var(--accent)">Rp ' + Number(flow.bandarAvgCost || flow.currentPrice).toLocaleString('id-ID') + '</div>'
+              + '<div style="font-size:10px" class="' + (flow.bandarProfitPercent >= 0 ? 'up' : 'dn') + '">Margin: ' + (flow.bandarProfitPercent >= 0 ? '+' : '') + flow.bandarProfitPercent + '%</div>'
+            : '<div style="font-size:12px;font-weight:700;color:var(--text3)">Tidak tersedia</div>'
+              + '<div style="font-size:10px;color:var(--text3)">Harga Yahoo Finance gagal diambil</div>')
         + '</div>'
         + '<button class="btn btn-primary" onclick="goPage(\'stock-intel\');if(typeof selectStockIntelTicker===\'function\')selectStockIntelTicker(\'' + flow.ticker + '\');">Buka Cockpit AI →</button>'
       + '</div>'
