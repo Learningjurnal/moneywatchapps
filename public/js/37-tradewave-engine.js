@@ -902,15 +902,57 @@
     }
   }
 
+  // FIX (2026-09-28): tombol ini dulu cuma pindah halaman + toast "sudah
+  // dicatat" tanpa pernah memanggil mekanisme penyimpanan jurnal apa pun —
+  // MW_JOURNALS tidak pernah bertambah, klaim toast-nya bohong. Jurnal
+  // beneran (lihat openNewJournalModal()/saveNewJournalFromModal() di
+  // 28-decisiontools.js) butuh rasional, kondisi emosi, dan confidence yang
+  // sifatnya subjektif — TIDAK bisa dikarang di sini tanpa melanggar aturan
+  // #3 (label simulasi tidak menghapuskan larangan mengarang angka/isi
+  // spesifik). Jadi fungsi ini hanya membuka form jurnal ASLI dan
+  // mempra-isi field OBJEKTIF yang sudah dihitung Risk Planner (ticker,
+  // harga entry, lot, SL, TP2) sebagai teks rasional referensi; rasional
+  // naratif, kondisi emosi & confidence tetap harus diisi manual oleh user
+  // sebelum benar-benar tersimpan lewat tombol "Simpan ke Jurnal" (yang
+  // memanggil saveNewJournalFromModal() -> MW_JOURNALS -> saveData()).
   function twExecuteToTradeJournal(ticker, entry, lot, sl, tp) {
+    if (!lot || lot <= 0) {
+      if (typeof showToast === 'function') {
+        showToast('⚠ Ukuran lot hasil kalkulasi Risk Planner adalah 0 — perbesar modal atau toleransi risiko dulu sebelum mencatat ke Jurnal.');
+      }
+      return;
+    }
+
     if (typeof goPage === 'function') {
       goPage('journal');
-      setTimeout(function() {
-        if (typeof showToast === 'function') {
-          showToast('✓ Rencana trade ' + ticker + ' (' + lot + ' lot) dicatat ke Decision Journal');
-        }
-      }, 100);
     }
+
+    setTimeout(function() {
+      if (typeof openNewJournalModal === 'function') {
+        openNewJournalModal();
+      }
+
+      var tickerInp = document.getElementById('jn-in-ticker');
+      var typeInp = document.getElementById('jn-in-type');
+      var lotInp = document.getElementById('jn-in-lot');
+      var priceInp = document.getElementById('jn-in-price');
+      var rationaleInp = document.getElementById('jn-in-rationale');
+
+      if (tickerInp) tickerInp.value = ticker;
+      if (typeInp) typeInp.value = 'BUY';
+      if (lotInp) lotInp.value = lot;
+      if (priceInp) priceInp.value = entry;
+      if (rationaleInp) {
+        rationaleInp.value = 'Rencana dari TradeWave Risk Planner: Entry Rp ' + Number(entry).toLocaleString('id-ID')
+          + ', Stop Loss (invalidasi wave) Rp ' + Number(sl).toLocaleString('id-ID')
+          + ', Target Profit 2 (Fibonacci 1.618) Rp ' + Number(tp).toLocaleString('id-ID')
+          + '. Lengkapi rasional keputusan Anda di sini.';
+      }
+
+      if (typeof showToast === 'function') {
+        showToast('📝 Form Jurnal dipra-isi dari TradeWave (' + ticker + ', ' + lot + ' lot) — lengkapi rasional, kondisi emosi & confidence, lalu klik "Simpan ke Jurnal".');
+      }
+    }, 150);
   }
 
   // Sync dengan context saham global lintas halaman
