@@ -257,6 +257,17 @@ function getStockIntelData(ticker) {
     ? cached.brokerSummary
     : (typeof generateClientSideBrokerSummary === 'function' ? generateClientSideBrokerSummary(tk, MW_INTEL_BROKER_TF) : null);
   var bandar = bSummary && bSummary.bandarmology ? bSummary.bandarmology : null;
+  // FIX (2026-09-28, audit "cek fitur lain yang mirip lagi"): every read
+  // below used to check `bandar.status`, a field that never existed on
+  // either the real (computeBandarmologyVerdict(), lib/idx-data-engine.js)
+  // or simulated (generateClientSideBrokerSummary(), 41-stockchat-
+  // cockpit.js) bandarmology shape — both use `verdict` instead. So the
+  // score bonus, catalyst/risk narrative, and status badge below silently
+  // never reflected real bandarmology data for any ticker. Also gate on
+  // !isSimulated explicitly (defense in depth — no current simulated shape
+  // sets `verdict` to an ACCUMULATION/DISTRIBUTION string, but this keeps
+  // it that way even if a future fallback shape does).
+  var bandarIsReal = !!(bandar && bSummary && !bSummary.isSimulated);
   // FIX (2026-09-18, user-reported: "TOP BROKER BUYER tidak menampilkan
   // data apa2... sudah coba semua timeframe"): this read `bSummary.brokers
   // .buyer` — a field path that NEVER existed in either data shape this
@@ -290,7 +301,7 @@ function getStockIntelData(ticker) {
     if (perStr !== '-' && parseFloat(perStr) < 15) score += 10;
     if (pbvStr !== '-' && parseFloat(pbvStr) < 2) score += 10;
     if (roeStr !== '-' && parseFloat(roeStr) > 12) score += 15;
-    if (bandar && bandar.status && bandar.status.includes('Accumulation')) score += 15;
+    if (bandarIsReal && bandar.verdict && bandar.verdict.includes('ACCUMULATION')) score += 15;
   }
   score = Math.min(95, Math.max(25, score));
 
@@ -391,7 +402,7 @@ function getStockIntelData(ticker) {
       if (perStr !== '-' && parseFloat(perStr) < 15) catalystParts.push('PER murah (' + perStr + ')');
       if (pbvStr !== '-' && parseFloat(pbvStr) < 2) catalystParts.push('PBV wajar (' + pbvStr + ')');
       if (roeStr !== '-' && parseFloat(roeStr) > 12) catalystParts.push('ROE tinggi (' + roeStr + ')');
-      if (bandar && bandar.status && bandar.status.includes('Accumulation')) catalystParts.push('akumulasi broker terdeteksi');
+      if (bandarIsReal && bandar.verdict && bandar.verdict.includes('ACCUMULATION')) catalystParts.push('akumulasi broker terdeteksi');
       var catalyst = catalystParts.length > 0
         ? catalystParts.join(', ')
         : 'Belum ada katalis fundamental/flow yang menonjol dari data saat ini';
@@ -399,13 +410,13 @@ function getStockIntelData(ticker) {
       var riskParts = [];
       if (derStr !== '-' && parseFloat(derStr) > 1.5) riskParts.push('DER tinggi (' + derStr + ')');
       if (perStr !== '-' && parseFloat(perStr) > 25) riskParts.push('valuasi PER premium (' + perStr + ')');
-      if (bandar && bandar.status && bandar.status.includes('Distribution')) riskParts.push('distribusi broker terdeteksi');
+      if (bandarIsReal && bandar.verdict && bandar.verdict.includes('DISTRIBUTION')) riskParts.push('distribusi broker terdeteksi');
       var risk = riskParts.length > 0
         ? riskParts.join(', ') + ', di luar fluktuasi harga pasar umum'
         : 'Fluktuasi harga pasar umum & batasan volatilitas — tidak ada red flag spesifik dari rasio yang tersedia';
 
       return {
-        badge: bandar && bandar.status ? bandar.status : (score >= 70 ? 'AKUMULASI TERKONFIRMASI' : 'MONITORING'),
+        badge: bandarIsReal && bandar.verdict ? bandar.verdict : (score >= 70 ? 'AKUMULASI TERKONFIRMASI' : 'MONITORING'),
         quote: meta.name + ' tercatat di BEI sektor ' + meta.sector + '. Data disinkronisasi langsung dari feed pasar modal.',
         catalyst: catalyst,
         risk: risk,
@@ -415,12 +426,17 @@ function getStockIntelData(ticker) {
     })(),
     seasonality: seasonality,
     financials: financials,
-    flow: {
-      cmf: bandar && bandar.status ? bandar.status : 'Netral',
-      foreignFlow3D: bSummary && bSummary.foreignFlow ? ('Rp ' + (bSummary.foreignFlow / 1e9).toFixed(2) + ' M') : '-',
-      volumeRatio: quote.volume ? (fmtK(quote.volume) + ' lot') : '-',
-      vwap: price > 0 ? ('Rp ' + fmtK(price)) : '-'
-    },
+    // FIX (2026-09-28, audit "cek fitur lain yang mirip lagi"): removed a
+    // `flow: {cmf, foreignFlow3D, volumeRatio, vwap}` object here — dead
+    // output, never read by any caller of getStockIntelData() (confirmed:
+    // no `.flow` reference anywhere in the codebase). Its card was already
+    // replaced by a shortcut to Bandar Movement (see CARD 4 comment in
+    // renderStockIntelPage() below). It also doubled as a second silent
+    // instance of the `bandar.status` bug fixed above (a field that never
+    // existed) and read `bSummary.foreignFlow` at the wrong nesting level
+    // (real data nests it under `bandarmology.foreignFlow`) — moot now that
+    // it's gone, but worth noting neither bug was ever user-visible since
+    // nothing rendered this object.
     brokerRows: brokerRows,
     brokerTf: MW_INTEL_BROKER_TF,
     brokerTfTried: brokerTfTried,
@@ -459,10 +475,13 @@ async function fetchRealStockIntelData(ticker, brokerTf) {
     }
 
     // 2. Fetch broker summary — timeframe dari selector user (default 1D),
-    // bukan hardcoded lagi.
-    var bsResp = await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf));
-    if (bsResp.ok) {
-      var bsJson = await bsResp.json();
+    // bukan hardcoded lagi. Lewat mwFetchBrokerSummaryRaw() (shared cache,
+    // 41-stockchat-cockpit.js) supaya kalau StockChat sudah fetch ticker +
+    // timeframe yang sama, di sini tinggal cache hit — bukan fetch ulang.
+    var bsJson = (typeof mwFetchBrokerSummaryRaw === 'function')
+      ? await mwFetchBrokerSummaryRaw(tk, tf)
+      : await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf)).then(function(r) { return r.ok ? r.json() : null; });
+    if (bsJson) {
       if (!MW_INTEL_CACHE[tk]) MW_INTEL_CACHE[tk] = {};
       // Simpan status "berhasil fetch tapi memang kosong" secara eksplisit
       // supaya UI bisa membedakan "belum pernah dicoba" vs "sudah dicoba,

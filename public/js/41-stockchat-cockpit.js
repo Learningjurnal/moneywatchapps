@@ -54,6 +54,47 @@ var STOCKCHAT_SELECTED_TICKER = 'BBCA';
 var STOCKCHAT_TIMEFRAME = '1D';
 var STOCKCHAT_ACTIVE_TAB = 'chat'; // 'chat' | 'broker-flow'
 var STOCKCHAT_BROKER_DATA_CACHE = {};
+
+// FIX (2026-09-28, code audit): StockChat (this file), Stock Intel
+// (27-stockintel.js) and Bandar Movement (49-bandar-movement.js) each kept
+// their own independent cache for broker-summary data, even though
+// StockChat and Stock Intel hit the EXACT same endpoint
+// (/api/idx/broker-summary/:ticker?timeframe=) — switching from one page
+// to the other for the same ticker/timeframe re-fetched instead of
+// reusing what was just loaded. This shared raw-response cache dedupes
+// that specific fetch. It intentionally caches only the RAW backend JSON
+// (not each page's own fallback-injected shape) — StockChat and Stock
+// Intel degrade differently on failure (StockChat falls back to a labeled
+// client-side simulation, Stock Intel shows an honest empty state), and
+// sharing only the raw fetch result keeps that difference intact instead
+// of forcing one page's fallback behavior onto the other. Bandar
+// Movement's /api/idx/bandar-movement/:ticker is a different, bundled
+// endpoint (broker summary + Sankey distribution together) — not the same
+// call, so it isn't part of this cache.
+var MW_BROKER_SUMMARY_RAW_CACHE = {};
+
+async function mwFetchBrokerSummaryRaw(ticker, timeframe) {
+  var tk = (ticker || 'BBCA').toUpperCase().replace(/\.JK$/i, '').trim();
+  var tf = (timeframe || '1D').toUpperCase();
+  var key = tk + '_' + tf;
+
+  if (Object.prototype.hasOwnProperty.call(MW_BROKER_SUMMARY_RAW_CACHE, key)) {
+    return MW_BROKER_SUMMARY_RAW_CACHE[key];
+  }
+
+  try {
+    var res = await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf), { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
+    var json = res.ok ? await res.json() : null;
+    MW_BROKER_SUMMARY_RAW_CACHE[key] = json;
+    return json;
+  } catch (e) {
+    // Don't cache a transient network failure — the next caller (this
+    // page or another one sharing this cache) should get a fresh attempt
+    // rather than being stuck with a permanent null for the session.
+    return null;
+  }
+}
+window.mwFetchBrokerSummaryRaw = mwFetchBrokerSummaryRaw;
 var STOCKCHAT_IS_LOADING_FLOW = false;
 var STOCKCHAT_BUYERS_SORT = { field: 'valueRp', order: 'desc' };
 var STOCKCHAT_SELLERS_SORT = { field: 'valueRp', order: 'desc' };
@@ -316,16 +357,15 @@ async function fetchBrokerSummaryData(ticker, timeframe) {
     return STOCKCHAT_BROKER_DATA_CACHE[cacheKey];
   }
 
-  // 1. Try Backend API
+  // 1. Try Backend API — via the shared raw cache (see
+  // MW_BROKER_SUMMARY_RAW_CACHE above) so switching to Stock Intel for the
+  // same ticker/timeframe reuses this fetch instead of repeating it.
   try {
-    var res = await fetch('/api/idx/broker-summary/' + encodeURIComponent(tk) + '?timeframe=' + encodeURIComponent(tf), { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
-    if (res.ok) {
-      var data = await res.json();
-      if (data && data.success && data.data && data.data.price > 0) {
-        if (typeof prices !== 'undefined') prices[tk] = data.data.price;
-        STOCKCHAT_BROKER_DATA_CACHE[cacheKey] = data.data;
-        return data.data;
-      }
+    var data = await mwFetchBrokerSummaryRaw(tk, tf);
+    if (data && data.success && data.data && data.data.price > 0) {
+      if (typeof prices !== 'undefined') prices[tk] = data.data.price;
+      STOCKCHAT_BROKER_DATA_CACHE[cacheKey] = data.data;
+      return data.data;
     }
   } catch (err) {}
 

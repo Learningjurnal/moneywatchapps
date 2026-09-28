@@ -238,7 +238,17 @@ async function renderDashboardSmartFlowPreview(){
     var results = await Promise.all(tickers.map(function(tk){ return fetchBrokerSummaryData(tk, '1D'); }));
     var totalNet = 0, accCount = 0, realCount = 0;
     results.forEach(function(bd){
-      var netVal = (bd.bandarmology && bd.bandarmology.smartMoney) ? bd.bandarmology.smartMoney.institutionalNetRp : 0;
+      // FIX (2026-09-28, user-reported: Money Flow selalu "+Rp 0 M" dan
+      // tidak pernah berubah): jalur data real (lib/idx-data-engine.js) dan
+      // jalur fallback simulasi pakai nama field beda untuk metrik yang
+      // sama — institutionalNetRp di bawah `smartMoney` vs
+      // smartMoneyNetValRp di bawah `retailVsSmartMoney`. Sudah
+      // didokumentasikan & diperbaiki di view lain lewat helper
+      // bandarSmartMoneyNetRp (41-stockchat-cockpit.js), cuma kartu
+      // dashboard ini yang terlewat dan masih baca field lama secara
+      // langsung, jadi selalu 0 untuk data REAL (bukan karena datanya
+      // memang tidak ada).
+      var netVal = (typeof bandarSmartMoneyNetRp === 'function') ? bandarSmartMoneyNetRp(bd.bandarmology) : 0;
       totalNet += (netVal || 0);
       if((netVal || 0) >= 0) accCount++;
       if(bd.isSimulated === false) realCount++;

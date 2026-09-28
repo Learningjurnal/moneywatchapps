@@ -36,7 +36,8 @@
     capital: 100000000, // Rp 100 Jt default
     riskPct: 1.5,       // 1.5% risk
     chartMode: 'wave',
-    cachedAnalysis: {}
+    cachedAnalysis: {},
+    planCalc: null // last Risk Planner calc (entry/sl/tp2/lots) — see twRecalcPlanner()
   };
 
   var TW_CHARTS = {};
@@ -693,6 +694,18 @@
     var positionWeight = cap > 0 ? ((totalPositionVal / cap) * 100).toFixed(1) : 0;
     var estProfitTP2 = Math.round(lotsAllowed * 100 * (data.targets.tp2 - cur));
 
+    // FIX (2026-09-28, user-reported: mengetik di TOTAL MODAL PORTOFOLIO
+    // membuat halaman "bergerak" dan input kehilangan fokus tiap ketukan
+    // tombol): oninput di 5 field ini dulu memanggil twRecalcPlanner() ->
+    // twRerender() -> usRenderShell(), me-render ulang SELURUH shell
+    // Screener (bukan cuma kalkulator ini) — menghancurkan & membuat ulang
+    // elemen <input>, sehingga fokus & posisi kursor hilang tiap keystroke.
+    // twRecalcPlanner() sekarang hanya update teks output di bawah lewat
+    // getElementById(), tanpa re-render apapun. planCalc disimpan supaya
+    // tombol "Catat ke Decision Journal" baca nilai TERKINI (termasuk kalau
+    // user sudah edit entry/SL/TP2) tanpa nge-bake angka lama ke onclick.
+    TW_STATE.planCalc = { ticker: data.ticker, entry: cur, sl: data.targets.invalidation, tp2: data.targets.tp2, lots: lotsAllowed };
+
     return ''
       + '<div id="tw-risk-planner-section" class="g2b" style="margin-bottom:18px">'
       + '  <!-- Risk Sizing Calculator Inputs -->'
@@ -737,24 +750,24 @@
       + '      <div style="display:flex;flex-direction:column;gap:10px">'
       + '        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border2)">'
       + '          <span style="color:var(--text2);font-size:12px">Maksimal Risiko Uang (1R)</span>'
-      + '          <strong style="color:var(--red);font-family:var(--font-mono)">Rp ' + Number(riskAmount).toLocaleString('id-ID') + '</strong>'
+      + '          <strong id="tw-out-risk-amount" style="color:var(--red);font-family:var(--font-mono)">Rp ' + Number(riskAmount).toLocaleString('id-ID') + '</strong>'
       + '        </div>'
       + '        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border2)">'
       + '          <span style="color:var(--text2);font-size:12px">Rekomendasi Ukuran Lot Beli</span>'
-      + '          <strong style="color:var(--accent);font-size:18px;font-family:var(--font-mono)">' + lotsAllowed + ' Lot (' + (lotsAllowed * 100) + ' Lembar)</strong>'
+      + '          <strong id="tw-out-lots" style="color:var(--accent);font-size:18px;font-family:var(--font-mono)">' + lotsAllowed + ' Lot (' + (lotsAllowed * 100) + ' Lembar)</strong>'
       + '        </div>'
       + '        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border2)">'
       + '          <span style="color:var(--text2);font-size:12px">Total Nilai Alokasi Posisi</span>'
-      + '          <strong style="color:var(--text);font-family:var(--font-mono)">Rp ' + Number(totalPositionVal).toLocaleString('id-ID') + ' (' + positionWeight + '% AUM)</strong>'
+      + '          <strong id="tw-out-position-val" style="color:var(--text);font-family:var(--font-mono)">Rp ' + Number(totalPositionVal).toLocaleString('id-ID') + ' (' + positionWeight + '% AUM)</strong>'
       + '        </div>'
       + '        <div style="display:flex;justify-content:space-between;padding:8px 0">'
       + '          <span style="color:var(--text2);font-size:12px">Potensi Profit Bersih di TP2</span>'
-      + '          <strong style="color:var(--green);font-size:16px;font-family:var(--font-mono)">+Rp ' + Number(estProfitTP2).toLocaleString('id-ID') + '</strong>'
+      + '          <strong id="tw-out-profit-tp2" style="color:var(--green);font-size:16px;font-family:var(--font-mono)">+Rp ' + Number(estProfitTP2).toLocaleString('id-ID') + '</strong>'
       + '        </div>'
       + '      </div>'
       + '    </div>'
       + '    <div style="margin-top:14px;display:flex;gap:8px">'
-      + '      <button class="btn btn-blue btn-sm" style="flex:1" onclick="twExecuteToTradeJournal(\'' + data.ticker + '\',' + cur + ',' + lotsAllowed + ',' + data.targets.invalidation + ',' + data.targets.tp2 + ')">📝 Catat ke Decision Journal</button>'
+      + '      <button class="btn btn-blue btn-sm" style="flex:1" onclick="twExecuteToTradeJournal()">📝 Catat ke Decision Journal</button>'
       + '    </div>'
       + '  </div>'
       + '</div>';
@@ -883,12 +896,45 @@
     twSetTicker(val);
   }
 
+  // Recalculates the Risk Planner's 4 output values and updates their text
+  // in place — no re-render, so the 5 input fields (which trigger this on
+  // every keystroke via oninput) never lose focus. See the FIX comment
+  // above renderTab3RiskPlanner()'s TW_STATE.planCalc assignment.
   function twRecalcPlanner() {
     var capInp = document.getElementById('tw-plan-cap');
     var riskInp = document.getElementById('tw-plan-risk');
-    if (capInp) TW_STATE.capital = parseFloat(capInp.value) || 100000000;
-    if (riskInp) TW_STATE.riskPct = parseFloat(riskInp.value) || 1.5;
-    twRerender();
+    var entryInp = document.getElementById('tw-plan-entry');
+    var slInp = document.getElementById('tw-plan-sl');
+    var tpInp = document.getElementById('tw-plan-tp');
+    if (!capInp || !riskInp || !entryInp || !slInp || !tpInp) return;
+
+    var cap = parseFloat(capInp.value) || 0;
+    var riskPct = parseFloat(riskInp.value) || 0;
+    var cur = parseFloat(entryInp.value) || 0;
+    var sl = parseFloat(slInp.value) || 0;
+    var tp2 = parseFloat(tpInp.value) || 0;
+
+    TW_STATE.capital = cap || 100000000;
+    TW_STATE.riskPct = riskPct || 1.5;
+
+    var riskAmount = Math.round(cap * (riskPct / 100));
+    var riskPerShare = Math.max(1, cur - sl);
+    var sharesAllowed = Math.floor(riskAmount / riskPerShare);
+    var lotsAllowed = Math.floor(sharesAllowed / 100);
+    var totalPositionVal = lotsAllowed * 100 * cur;
+    var positionWeight = cap > 0 ? ((totalPositionVal / cap) * 100).toFixed(1) : 0;
+    var estProfitTP2 = Math.round(lotsAllowed * 100 * (tp2 - cur));
+
+    TW_STATE.planCalc = { ticker: TW_STATE.ticker, entry: cur, sl: sl, tp2: tp2, lots: lotsAllowed };
+
+    var elRisk = document.getElementById('tw-out-risk-amount');
+    var elLots = document.getElementById('tw-out-lots');
+    var elPos = document.getElementById('tw-out-position-val');
+    var elProfit = document.getElementById('tw-out-profit-tp2');
+    if (elRisk) elRisk.textContent = 'Rp ' + Number(riskAmount).toLocaleString('id-ID');
+    if (elLots) elLots.textContent = lotsAllowed + ' Lot (' + (lotsAllowed * 100) + ' Lembar)';
+    if (elPos) elPos.textContent = 'Rp ' + Number(totalPositionVal).toLocaleString('id-ID') + ' (' + positionWeight + '% AUM)';
+    if (elProfit) elProfit.textContent = '+Rp ' + Number(estProfitTP2).toLocaleString('id-ID');
   }
 
   // FIX (2026-09-27, "planner" page tab removed — Risk Planner now lives
@@ -902,15 +948,71 @@
     }
   }
 
-  function twExecuteToTradeJournal(ticker, entry, lot, sl, tp) {
+  // No-arg (was ticker/entry/lot/sl/tp baked into the onclick string at
+  // render time) — reads TW_STATE.planCalc instead, which twRecalcPlanner()
+  // keeps current on every keystroke without a re-render. Baked-in args
+  // would have gone stale the moment the user edited entry/SL/TP2 after
+  // the card first rendered, since those edits no longer trigger a re-render.
+  //
+  // FIX (2026-09-28, merged with a parallel fix for the same function):
+  // this button used to just navigate + show a toast claiming "sudah
+  // dicatat" without ever calling any save mechanism — MW_JOURNALS never
+  // grew, the toast's claim was false. The real journal save flow
+  // (openNewJournalModal()/saveNewJournalFromModal(), 28-decisiontools.js)
+  // needs rationale/kondisi emosi/confidence, which are subjective — NOT
+  // something to fabricate here (CLAUDE.md rule #3: a "simulasi" label
+  // doesn't excuse inventing specific numbers/content). So this only opens
+  // the REAL journal form and pre-fills the OBJECTIVE fields already
+  // computed by the Risk Planner (ticker, entry price, lot, SL, TP2) as
+  // reference text; the user still fills in rationale, kondisi emosi &
+  // confidence themselves before it's actually saved via "Simpan ke
+  // Jurnal" (which calls saveNewJournalFromModal() -> MW_JOURNALS ->
+  // saveData()).
+  function twExecuteToTradeJournal() {
+    var calc = TW_STATE.planCalc || {};
+    var ticker = calc.ticker || TW_STATE.ticker || 'BBCA';
+    var entry = calc.entry || 0;
+    var sl = calc.sl || 0;
+    var tp = calc.tp2 || 0;
+    var lot = calc.lots || 0;
+
+    if (!lot || lot <= 0) {
+      if (typeof showToast === 'function') {
+        showToast('⚠ Ukuran lot hasil kalkulasi Risk Planner adalah 0 — perbesar modal atau toleransi risiko dulu sebelum mencatat ke Jurnal.');
+      }
+      return;
+    }
+
     if (typeof goPage === 'function') {
       goPage('journal');
-      setTimeout(function() {
-        if (typeof showToast === 'function') {
-          showToast('✓ Rencana trade ' + ticker + ' (' + lot + ' lot) dicatat ke Decision Journal');
-        }
-      }, 100);
     }
+
+    setTimeout(function() {
+      if (typeof openNewJournalModal === 'function') {
+        openNewJournalModal();
+      }
+
+      var tickerInp = document.getElementById('jn-in-ticker');
+      var typeInp = document.getElementById('jn-in-type');
+      var lotInp = document.getElementById('jn-in-lot');
+      var priceInp = document.getElementById('jn-in-price');
+      var rationaleInp = document.getElementById('jn-in-rationale');
+
+      if (tickerInp) tickerInp.value = ticker;
+      if (typeInp) typeInp.value = 'BUY';
+      if (lotInp) lotInp.value = lot;
+      if (priceInp) priceInp.value = entry;
+      if (rationaleInp) {
+        rationaleInp.value = 'Rencana dari TradeWave Risk Planner: Entry Rp ' + Number(entry).toLocaleString('id-ID')
+          + ', Stop Loss (invalidasi wave) Rp ' + Number(sl).toLocaleString('id-ID')
+          + ', Target Profit 2 (Fibonacci 1.618) Rp ' + Number(tp).toLocaleString('id-ID')
+          + '. Lengkapi rasional keputusan Anda di sini.';
+      }
+
+      if (typeof showToast === 'function') {
+        showToast('📝 Form Jurnal dipra-isi dari TradeWave (' + ticker + ', ' + lot + ' lot) — lengkapi rasional, kondisi emosi & confidence, lalu klik "Simpan ke Jurnal".');
+      }
+    }, 150);
   }
 
   // Sync dengan context saham global lintas halaman
