@@ -953,18 +953,66 @@
   // keeps current on every keystroke without a re-render. Baked-in args
   // would have gone stale the moment the user edited entry/SL/TP2 after
   // the card first rendered, since those edits no longer trigger a re-render.
+  //
+  // FIX (2026-09-28, merged with a parallel fix for the same function):
+  // this button used to just navigate + show a toast claiming "sudah
+  // dicatat" without ever calling any save mechanism — MW_JOURNALS never
+  // grew, the toast's claim was false. The real journal save flow
+  // (openNewJournalModal()/saveNewJournalFromModal(), 28-decisiontools.js)
+  // needs rationale/kondisi emosi/confidence, which are subjective — NOT
+  // something to fabricate here (CLAUDE.md rule #3: a "simulasi" label
+  // doesn't excuse inventing specific numbers/content). So this only opens
+  // the REAL journal form and pre-fills the OBJECTIVE fields already
+  // computed by the Risk Planner (ticker, entry price, lot, SL, TP2) as
+  // reference text; the user still fills in rationale, kondisi emosi &
+  // confidence themselves before it's actually saved via "Simpan ke
+  // Jurnal" (which calls saveNewJournalFromModal() -> MW_JOURNALS ->
+  // saveData()).
   function twExecuteToTradeJournal() {
     var calc = TW_STATE.planCalc || {};
     var ticker = calc.ticker || TW_STATE.ticker || 'BBCA';
+    var entry = calc.entry || 0;
+    var sl = calc.sl || 0;
+    var tp = calc.tp2 || 0;
     var lot = calc.lots || 0;
+
+    if (!lot || lot <= 0) {
+      if (typeof showToast === 'function') {
+        showToast('⚠ Ukuran lot hasil kalkulasi Risk Planner adalah 0 — perbesar modal atau toleransi risiko dulu sebelum mencatat ke Jurnal.');
+      }
+      return;
+    }
+
     if (typeof goPage === 'function') {
       goPage('journal');
-      setTimeout(function() {
-        if (typeof showToast === 'function') {
-          showToast('✓ Rencana trade ' + ticker + ' (' + lot + ' lot) dicatat ke Decision Journal');
-        }
-      }, 100);
     }
+
+    setTimeout(function() {
+      if (typeof openNewJournalModal === 'function') {
+        openNewJournalModal();
+      }
+
+      var tickerInp = document.getElementById('jn-in-ticker');
+      var typeInp = document.getElementById('jn-in-type');
+      var lotInp = document.getElementById('jn-in-lot');
+      var priceInp = document.getElementById('jn-in-price');
+      var rationaleInp = document.getElementById('jn-in-rationale');
+
+      if (tickerInp) tickerInp.value = ticker;
+      if (typeInp) typeInp.value = 'BUY';
+      if (lotInp) lotInp.value = lot;
+      if (priceInp) priceInp.value = entry;
+      if (rationaleInp) {
+        rationaleInp.value = 'Rencana dari TradeWave Risk Planner: Entry Rp ' + Number(entry).toLocaleString('id-ID')
+          + ', Stop Loss (invalidasi wave) Rp ' + Number(sl).toLocaleString('id-ID')
+          + ', Target Profit 2 (Fibonacci 1.618) Rp ' + Number(tp).toLocaleString('id-ID')
+          + '. Lengkapi rasional keputusan Anda di sini.';
+      }
+
+      if (typeof showToast === 'function') {
+        showToast('📝 Form Jurnal dipra-isi dari TradeWave (' + ticker + ', ' + lot + ' lot) — lengkapi rasional, kondisi emosi & confidence, lalu klik "Simpan ke Jurnal".');
+      }
+    }, 150);
   }
 
   // Sync dengan context saham global lintas halaman
