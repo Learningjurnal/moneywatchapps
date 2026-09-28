@@ -525,6 +525,12 @@
     return siComputeAllSectors('1D');
   };
 
+  // Expose siComputeAllSectors itself (not just the '1D'-hardcoded wrapper
+  // above) so the Market Condition Report (51-market-report.js) can pass
+  // '1W'/'1M' for its Mingguan/Bulanan periods — siComputeAllSectors was
+  // module-scoped (declared inside this IIFE), unreachable from outside.
+  window.siComputeAllSectors = siComputeAllSectors;
+
   /**
    * Segarkan Seluruh Data Sektoral & Berita
    */

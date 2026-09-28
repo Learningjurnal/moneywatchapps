@@ -786,6 +786,12 @@
       <button onclick="goPage('watchlist',this)"><i class="ti ti-star"></i><span class="side-label">Watchlist</span><span id="fs-wl-count" class="badge b-accent" style="margin-left:auto;font-size:8px;padding:1px 5px">0</span></button>
       <button onclick="goBandarmology('market',this)"><i class="ti ti-chart-arrows"></i><span class="side-label">Market Flow</span></button>
       <button onclick="goPage('sectoral-insight',this)"><i class="ti ti-chart-arcs"></i><span class="side-label">Sector Insight</span></button>
+      <!-- Laporan Pasar: modal (bukan halaman) yang menggabungkan IHSG &
+           Market Regime, Rotasi Sektor, Radar Akumulasi/Distribusi, dan
+           Konsensus Screener jadi 1 dokumen PDF — lihat 51-market-report.js.
+           Satu-satunya tombol sidebar yang membuka modal langsung (tidak
+           lewat goPage), karena ini murni "generate dokumen", bukan halaman. -->
+      <button onclick="mwOpenMarketReportModal()"><i class="ti ti-file-report"></i><span class="side-label">Laporan Pasar</span></button>
     </div>
   </div>
 
@@ -4406,7 +4412,7 @@
 <script src="js/41-stockchat-cockpit.js?v=20260927a"></script>
 <script src="js/42-dividend-calendar.js?v=20260918a"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260920c"></script>
-<script src="js/44-sectoral-insight.js?v=20260927a"></script>
+<script src="js/44-sectoral-insight.js?v=20260928a"></script>
 <script src="js/45-volume-spike.js?v=20260923e"></script>
 <script src="js/46-stock-dossier.js?v=20260924a"></script>
 <script src="js/47-ai-signal-history.js?v=20260917b"></script>
@@ -4414,6 +4420,7 @@
 <script src="js/49-strategy-engine.js?v=20260925a"></script>
 <script src="js/49-bandar-movement.js?v=20260927a"></script>
 <script src="js/50-screener-consensus.js?v=20260927a"></script>
+<script src="js/51-market-report.js?v=20260928b"></script>
 
   <!-- Theme Toggle Floating Button -->
   <button id="theme-toggle-btn" style="position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#2563eb;color:#ffffff;border:none;box-shadow:0 4px 15px rgba(0,0,0,0.25);cursor:pointer;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform 0.2s;" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
