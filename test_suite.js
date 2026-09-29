@@ -9538,8 +9538,16 @@ test('REGRESSION GUARD: generateScreenerConsensus() uses 5 independent systems (
     'REGRESSION: Volume Spike vote no longer requires both a real spike AND a positive price move (a spike on a down day is distribution, not a buy signal)');
   assert(/tech\.quantScreener\.score > 70 && tech\.quantScreener\.aboveMa50/.test(fn),
     'REGRESSION: Quant Screener vote no longer requires both score>70 and price above MA50');
-  assert(!/getUniverseAccumulationDistribution/.test(fn),
-    'REGRESSION: Radar Akumulasi/Distribusi crept back in as a 6th vote — this double-counts the same evidence Unified Screener\'s whaleScore already includes');
+  // The VOTING loop (agreeCount/votes) must never reference accumulation/
+  // distribution data — that's the double-counting this test guards
+  // against. getUniverseAccumulationDistributionRange() legitimately
+  // appears LATER in the function (2026-09-29) as display-only enrichment
+  // of the already-filtered `rows` (netAccumulation/topBroker fields,
+  // user-requested), which cannot affect agreeCount — so the ban is
+  // scoped to the vote-building loop only, not the whole function body.
+  const votingLoop = fn.slice(0, fn.indexOf('if (votes.length >= minAgree)'));
+  assert(!/getUniverseAccumulationDistribution/.test(votingLoop),
+    'REGRESSION: Radar Akumulasi/Distribusi crept back in as a 6th VOTE inside the agreeCount-building loop — this double-counts the same evidence Unified Screener\'s whaleScore already includes');
 });
 
 test('REGRESSION GUARD: GET /api/idx/screener-consensus route exists and calls generateScreenerConsensus()', () => {
@@ -9941,6 +9949,156 @@ test('REGRESSION GUARD: Market Flow page (41-stockchat-cockpit.js) gained a "Net
   // The score/methodology caveat must go through uiInfoIcon() (CLAUDE.md Aturan #4), not a raw always-visible paragraph.
   assert(/uiInfoIcon\('Skor di sini adalah skor ranking relatif Invezgo/.test(src),
     'REGRESSION: the "score is not Rupiah" caveat is no longer routed through uiInfoIcon() — it would either vanish or go back to being an always-visible paragraph, violating CLAUDE.md Aturan #4');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-28, user-requested): Indonesia Economic Data Engine
+// (Bank Indonesia + BPS). SCAFFOLDING ONLY — this sandbox's egress proxy
+// blocks both bi.go.id and webapi.bps.go.id (403 policy denial, confirmed
+// via curl), and there is no BPS_API_KEY. Per CLAUDE.md Aturan #1, no
+// indicator parser is written against a guessed schema — these tests
+// verify the HONEST scaffolding (config, health check, unified schema,
+// fail-closed NOT_CONFIGURED/not_verified states), not real BI/BPS data.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: normalizeEconomicRecord() enforces the unified status enum and never fabricates a value for a non-live status', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/economic-data-engine.js'), 'utf8');
+  assert(/const allowedStatus = \['VERIFIED', 'CACHED', 'STALE', 'UNAVAILABLE', 'ERROR'\]/.test(src),
+    'REGRESSION: normalizeEconomicRecord() no longer restricts status to the 5 spec-defined values — an invented status string could slip through');
+  assert(/status === 'VERIFIED' \|\| status === 'CACHED' \|\| status === 'STALE'\) \? \(typeof raw\.value === 'number' \? raw\.value : null\) : null/.test(src),
+    'REGRESSION: normalizeEconomicRecord() no longer nulls out `value` for UNAVAILABLE/ERROR records — a stale/fabricated number could leak through as if it were live data');
+});
+
+asyncTest('functional: normalizeEconomicRecord() (real import, not a sandbox mock) round-trips a VERIFIED record honestly and nulls value for UNAVAILABLE', async () => {
+  const { normalizeEconomicRecord } = await import('./lib/economic-data-engine.js');
+
+  const verified = normalizeEconomicRecord({
+    provider: 'BPS', indicator: 'Inflasi', value: 2.51, unit: 'percent', period: '2026-09',
+    frequency: 'monthly', geography: 'Indonesia', source: 'Badan Pusat Statistik',
+    source_type: 'official_api', source_url: 'https://webapi.bps.go.id/developer',
+    retrieved_at: '2026-09-28T00:00:00Z', status: 'VERIFIED'
+  });
+  assert.strictEqual(verified.value, 2.51, 'a VERIFIED record must keep its real numeric value');
+  assert.strictEqual(verified.status, 'VERIFIED');
+
+  const unavailable = normalizeEconomicRecord({ provider: 'BPS', indicator: 'Inflasi', value: 2.51, status: 'UNAVAILABLE' });
+  assert.strictEqual(unavailable.value, null,
+    'REGRESSION: an UNAVAILABLE record must never carry a numeric value through, even if the raw input smuggled one in — the caller must not be able to accidentally display it as real');
+
+  const invalidStatus = normalizeEconomicRecord({ provider: 'BPS', indicator: 'Inflasi', value: 2.51, status: 'MADE_UP_STATUS' });
+  assert.strictEqual(invalidStatus.status, 'ERROR', 'REGRESSION: an out-of-enum status string must fall back to ERROR, not pass through silently');
+  assert.strictEqual(invalidStatus.value, null, 'an ERROR-status record must also null its value');
+
+  assert.throws(() => normalizeEconomicRecord(null), 'normalizeEconomicRecord(null) must throw, not silently return a fabricated empty record');
+});
+
+test('REGRESSION GUARD: BPS provider fails closed to NOT_CONFIGURED without BPS_API_KEY — never fabricates data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bps-client.js'), 'utf8');
+  assert(/if \(!apiKey\) \{\s*return \{\s*configured: false,\s*status: 'NOT_CONFIGURED'/.test(src),
+    'REGRESSION: checkBpsLiveStatus() no longer fails closed to NOT_CONFIGURED when BPS_API_KEY is absent');
+  assert(/if \(!apiKey\) \{\s*return \{ ok: false, reason: 'NOT_CONFIGURED', raw: null \};/.test(src),
+    'REGRESSION: bpsListModels() no longer fails closed to NOT_CONFIGURED without an API key — could attempt a request with an empty key');
+  assert(/schemaVerified: false/.test(src),
+    'REGRESSION: bpsListModels() no longer marks its raw response as schemaVerified:false — callers could start trusting an unverified field mapping');
+});
+
+asyncTest('functional: checkBpsLiveStatus() (real import) returns NOT_CONFIGURED when BPS_API_KEY is unset in this test run', async () => {
+  const savedKey = process.env.BPS_API_KEY;
+  delete process.env.BPS_API_KEY;
+  try {
+    const { checkBpsLiveStatus } = await import('./lib/providers/bps-client.js');
+    const result = await checkBpsLiveStatus();
+    assert.strictEqual(result.configured, false);
+    assert.strictEqual(result.status, 'NOT_CONFIGURED');
+  } finally {
+    if (savedKey !== undefined) process.env.BPS_API_KEY = savedKey;
+  }
+});
+
+test('REGRESSION GUARD: BI provider never fabricates a SOAP response — fetchBiJisdor()/fetchBiKursTransaksi() return access:"not_verified", not invented data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bi-client.js'), 'utf8');
+  const jisdorFn = src.match(/async function fetchBiJisdor\(\) \{[\s\S]*?\n\}/)[0];
+  const kursFn = src.match(/async function fetchBiKursTransaksi\([\s\S]*?\n\}/)[0];
+  assert(/access: 'not_verified'/.test(jisdorFn), 'REGRESSION: fetchBiJisdor() no longer returns access:"not_verified" — could now be fabricating a value');
+  assert(!/getKursTransaksiBI|SOAPAction|<soap:/i.test(jisdorFn + kursFn),
+    'REGRESSION: fetchBiJisdor()/fetchBiKursTransaksi() now contain a SOAP envelope/operation name that was never verified against a real BI response — this is exactly the guessed-schema parser CLAUDE.md Aturan #1 forbids');
+});
+
+asyncTest('functional: getEconomicHealth() (real import) never throws, and reports BI/BPS status using only the 5 allowed values', async () => {
+  const { getEconomicHealth } = await import('./lib/economic-data-engine.js');
+  const health = await getEconomicHealth();
+  const allowed = ['VERIFIED', 'CACHED', 'STALE', 'UNAVAILABLE', 'ERROR', 'NOT_CONFIGURED', 'REACHABLE', 'ACTIVE', 'INVALID_RESPONSE'];
+  assert(health.BI && allowed.includes(health.BI.status), 'BI health status must be one of the provider-defined states');
+  assert(health.BPS && allowed.includes(health.BPS.status), 'BPS health status must be one of the provider-defined states');
+  assert(typeof health.latency_ms === 'number' && health.latency_ms >= 0, 'latency_ms must be a real measured number');
+  assert(typeof health.checked_at === 'string', 'checked_at must be a real ISO timestamp string');
+});
+
+test('REGRESSION GUARD: GET /api/economic/health, /api/economic/bps/datasets, /api/economic/bi/jisdor, /api/economic/bi/exchange-rate all exist and call the engine (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/economic\/health'/.test(src), 'REGRESSION: GET /api/economic/health route is gone');
+  assert(/app\.get\('\/api\/economic\/bps\/datasets'/.test(src), 'REGRESSION: GET /api/economic/bps/datasets route is gone');
+  assert(/app\.get\('\/api\/economic\/bi\/jisdor'/.test(src), 'REGRESSION: GET /api/economic/bi/jisdor route is gone');
+  assert(/app\.get\('\/api\/economic\/bi\/exchange-rate'/.test(src), 'REGRESSION: GET /api/economic/bi/exchange-rate route is gone');
+  assert(/getEconomicHealth\(\)/.test(src) && /discoverBpsDatasets\(/.test(src) && /fetchBiJisdor\(\)/.test(src) && /fetchBiKursTransaksi\(/.test(src),
+    'REGRESSION: one or more /api/economic/* routes no longer calls its real engine/provider function');
+  // Specific indicator routes (inflation/GDP/trade/labor/JISDOR-with-parsed-fields)
+  // must NOT exist yet — building them now would mean guessing BPS dataset IDs
+  // or the BI SOAP schema, exactly what this feature's spec §7 and CLAUDE.md
+  // Aturan #1 forbid until a human supplies a verified sample.
+  assert(!/\/api\/economic\/bps\/inflation/.test(src) && !/\/api\/economic\/bps\/gdp/.test(src),
+    'REGRESSION: a specific BPS indicator route (inflation/gdp) appeared without a verified dataset_id — this means someone guessed the BPS dataset code, which the spec explicitly forbids (§7: "Jangan hard-code kode indikator secara sembarangan")');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-29, user-reported: "Konsensus Screener belum ada
+// analisa broker... saya lihat saham yang masuk konsensus namun nilai
+// hari ini sudah -13%, sehingga analisa tidak tepat sasaran"). Root
+// cause: price/chg1d in the consensus response rode the SAME 10-14-day
+// stale caches the votes are computed from. Fix: live per-ticker quote
+// overwrite (rows are already the small filtered subset, not the whole
+// universe) + honest priceWarning, plus netAccumulation (multi-day
+// bandar signal) and topBroker (per-ticker real broker breakdown) as
+// display-only enrichment — NOT a 6th vote (see the updated "not 6" test
+// above for that boundary).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: generateScreenerConsensus() overwrites price/chg1d with a LIVE quote for its (already-filtered, small) result rows, never leaves the stale cached snapshot silently passing as current', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function generateScreenerConsensus\(params = \{\}\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'generateScreenerConsensus() not found');
+  const fn = fnMatch[0];
+
+  assert(/fetchYahooQuote\(row\.ticker\)/.test(fn), 'REGRESSION: no longer fetches a live quote per consensus row — price/chg1d could go back to being up to 10-14 days stale');
+  assert(/if \(q && !q\.isSimulated && typeof q\.price === 'number' && q\.price > 0\)/.test(fn),
+    'REGRESSION: live quote is no longer guarded against fetchYahooQuote()\'s fabricated isSimulated:true placeholder — a simulated quote could overwrite price/chg1d as if real');
+  assert(/row\.priceIsLive = (true|false)/.test(fn), 'REGRESSION: rows no longer disclose whether price/chg1d is a live quote or the stale cached fallback');
+  assert(/row\.priceWarning = \(row\.priceIsLive && row\.chg1d != null && row\.chg1d <= -3\)/.test(fn),
+    'REGRESSION: the honest price-warning (live price already moved sharply against a "bullish consensus" signal) is gone');
+});
+
+test('REGRESSION GUARD: generateScreenerConsensus() attaches netAccumulation (multi-day bandar signal) and topBroker (real per-ticker broker breakdown) to each result row', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function generateScreenerConsensus\(params = \{\}\) \{[\s\S]*?\n\}/);
+  const fn = fnMatch[0];
+
+  assert(/getUniverseAccumulationDistributionRange\(\{ days: rangeDays \}\)/.test(fn),
+    'REGRESSION: no longer reuses the multi-day accumulation/distribution engine (built 2026-09-28) for netAccumulation');
+  assert(/generateBrokerSummary\(row\.ticker, q, '1D'\)/.test(fn),
+    'REGRESSION: no longer fetches a real per-ticker broker summary for topBroker — the whole-market accumulation endpoint has no per-broker breakdown, only the per-ticker call does');
+  assert(/const topBuyer = \(bs && !bs\.isSimulated && Array\.isArray\(bs\.topBuyers\)/.test(fn),
+    'REGRESSION: topBroker no longer guards against a simulated broker-summary fallback — a fabricated broker name/value could surface as if real');
+  assert(/row\.netAccumulation = acc \? \{/.test(fn) && /netScore: null,\s*\n\s*daysAppeared: 0/.test(fn),
+    'REGRESSION: a ticker absent from the accumulation/distribution top-mover window no longer honestly reports null/0 — could silently imply zero activity instead of "no signal in this window"');
+});
+
+test('REGRESSION GUARD: 50-screener-consensus.js renders netAccumulation/topBroker/priceWarning from the API response, and discloses via uiInfoIcon() (not a raw paragraph) that they are informational, not part of the consensus score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/50-screener-consensus.js'), 'utf8');
+  assert(/row\.netAccumulation/.test(src), 'REGRESSION: csRenderRow() no longer reads row.netAccumulation — the bandar-accumulation column would render empty');
+  assert(/row\.topBroker/.test(src), 'REGRESSION: csRenderRow() no longer reads row.topBroker — the broker column would render empty');
+  assert(/row\.priceWarning/.test(src), 'REGRESSION: csRenderRow() no longer surfaces row.priceWarning — a stale-signal-vs-live-price mismatch would go unshown again');
+  assert(/uiInfoIcon\('Akumulasi\/Distribusi dijumlahkan/.test(src),
+    'REGRESSION: the "informational, not part of the score" caveat for the new column is no longer routed through uiInfoIcon() — violates CLAUDE.md Aturan #4');
 });
 
 console.log('═══════════════════════════════════════════════════════');

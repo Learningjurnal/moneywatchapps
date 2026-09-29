@@ -66,12 +66,39 @@ function csRenderRow(row) {
   var voteDetails = row.votes.map(function (v) {
     return '<div style="font-size:10.5px;color:var(--text3);margin-top:2px">' + (CS_SYSTEM_ICON[v.system] || '') + ' <b>' + v.system + '</b>: ' + v.detail + '</div>';
   }).join('');
+
+  // FIX (2026-09-29, user-reported: broker/bandar analysis missing +
+  // stale price letting an already-crashed stock look "bullish"): price/
+  // chg1d below are now LIVE (row.priceIsLive) whenever generateScreenerConsensus()
+  // managed to fetch a real quote for this row — priceWarning surfaces
+  // honestly when that live price has already moved sharply against the
+  // (cache-based) consensus signal, instead of hiding the mismatch.
+  var priceCell = (row.chg1d != null ? ((row.chg1d >= 0 ? '+' : '') + row.chg1d.toFixed(2) + '%') : '-')
+    + (row.priceIsLive === false ? ' <span title="Kuota real-time gagal — masih data cache, bisa beberapa hari lalu">⚠</span>' : '');
+
+  var accHtml = '<div style="font-size:10px;color:var(--text3);margin-top:2px">Tidak ada sinyal akumulasi/distribusi ' + (row.netAccumulation ? row.netAccumulation.daysWindow : 10) + ' hari terakhir</div>';
+  if (row.netAccumulation && row.netAccumulation.netScore != null) {
+    var na = row.netAccumulation;
+    var naColor = na.direction === 'AKUMULASI' ? 'var(--green)' : 'var(--red)';
+    accHtml = '<div style="font-size:10.5px;color:' + naColor + ';font-weight:700;margin-top:2px">'
+      + na.direction + ' ' + na.daysWindow + 'H (skor ' + (na.netScore > 0 ? '+' : '') + na.netScore + ', muncul ' + na.daysAppeared + '/' + na.daysWithData + ' hari)'
+      + '</div>';
+  }
+  var brokerHtml = row.topBroker
+    ? '<div style="font-size:10.5px;color:var(--text2);margin-top:2px">Top Buyer: <b>' + row.topBroker.code + '</b> (Rp ' + (row.topBroker.valueRp / 1e9).toFixed(2) + ' M)</div>'
+    : '<div style="font-size:10px;color:var(--text3);margin-top:2px">Data broker tidak tersedia</div>';
+
+  var warningHtml = row.priceWarning
+    ? '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:4px 8px;margin-top:4px;font-size:10px;color:var(--red)">⚠ ' + row.priceWarning + '</div>'
+    : '';
+
   return '<tr>'
     + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + row.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + row.name + '</div></td>'
     + '<td style="font-size:11px;color:var(--text2)">' + (row.sector || '-') + '</td>'
     + '<td class="mono" style="text-align:right;font-weight:700;color:var(--green)">' + row.agreeCount + '/5</td>'
-    + '<td>' + badges + voteDetails + '</td>'
-    + '<td class="mono" style="text-align:right;color:' + (row.chg1d >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (row.chg1d != null ? ((row.chg1d >= 0 ? '+' : '') + row.chg1d.toFixed(2) + '%') : '-') + '</td>'
+    + '<td>' + badges + voteDetails + warningHtml + '</td>'
+    + '<td class="mono" style="text-align:right;color:' + (row.chg1d >= 0 ? 'var(--green)' : 'var(--red)') + '">' + priceCell + '</td>'
+    + '<td>' + accHtml + brokerHtml + '</td>'
     + '<td style="text-align:center"><button onclick="selectStockChatTicker(\'' + row.ticker + '\')" class="btn btn-ghost btn-xs">Detail</button></td>'
     + '</tr>';
 }
@@ -117,7 +144,7 @@ function csRender() {
       + '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">' + rows.length + ' saham disetujui ≥' + data.minAgree + ' dari 5 sistem, dari total ' + data.universeScanned + ' emiten dipindai.</div>'
       + '<div class="tbl-wrap" style="overflow-x:auto">'
       + '<table class="tbl" style="width:100%;font-size:12px">'
-      + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Konsensus</th><th>Sistem yang Setuju</th><th style="text-align:right">Perubahan</th><th style="text-align:center">Aksi</th></tr></thead>'
+      + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Konsensus</th><th>Sistem yang Setuju</th><th style="text-align:right">Perubahan</th><th>Akumulasi Bandar &amp; Broker ' + uiInfoIcon('Akumulasi/Distribusi dijumlahkan dari skor ranking relatif Invezgo lintas beberapa hari (BUKAN Rupiah) — "muncul X/Y hari" menandakan konsistensi. Top Buyer adalah broker dengan nilai beli terbesar hari ini (data real per-ticker, bukan whole-market). Keduanya informasi tambahan, TIDAK ikut menentukan skor Konsensus di atas.') + '</th><th style="text-align:center">Aksi</th></tr></thead>'
       + '<tbody>' + rows.map(csRenderRow).join('') + '</tbody>'
       + '</table></div></div>';
   }
