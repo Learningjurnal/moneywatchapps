@@ -10176,6 +10176,77 @@ test('REGRESSION GUARD: 50-screener-consensus.js renders netAccumulation/topBrok
     'REGRESSION: the "informational, not part of the score" caveat for the new column is no longer routed through uiInfoIcon() — violates CLAUDE.md Aturan #4');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-29, user-reported: "pada card traffic light kenapa
+// pilar arus bandar dan likuidas menunjukan data belum tersedia"). Root
+// cause: fundBuildTrafficLight() (24-stockmaster.js) hardcoded pillar 2
+// ("Pilar Arus Bandar & Likuiditas Asing / FlowScan") to a static "Belum
+// Tersedia" badge with zero computation — never wired to any real data
+// source, unlike pillar 1 (valuation) and pillar 3 (ROE quality) which
+// ARE computed. getStockBandarFlowPillar() (lib/idx-data-engine.js) now
+// combines 3 real per-ticker Invezgo signals (broker concentration
+// verdict, whole-market Top Accumulation/Distribution membership,
+// whole-market Top Foreign Net Buy/Sell membership) fail-closed honest
+// to available:false when the core broker-summary component isn't real.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: getStockBandarFlowPillar() exists, requires a REAL broker summary before scoring, and never invents Rupiah values from the top-mover ranking score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function getStockBandarFlowPillar\(ticker\) \{[\s\S]*?\n\}\n\n\/\/ UNIFIED SCREENER/);
+  assert(fnMatch, 'REGRESSION: getStockBandarFlowPillar() is missing from lib/idx-data-engine.js');
+  const fn = fnMatch[0];
+
+  assert(/const brokerReal = Boolean\(brokerSummary && !brokerSummary\.isSimulated && !brokerSummary\.isInvalid/.test(fn),
+    'REGRESSION: getStockBandarFlowPillar() no longer requires a real (non-simulated, non-invalid) broker summary before computing a score');
+  assert(/if \(!brokerReal\) \{\s*return \{\s*available: false/.test(fn),
+    'REGRESSION: getStockBandarFlowPillar() no longer fails closed to available:false when the broker summary is not real — could start scoring off simulated data');
+  assert(/bukan nilai Rupiah/.test(fn),
+    'REGRESSION: the foreign top-mover component no longer discloses that its `score` is a ranking score, not a Rupiah value — this exact mislabeling got a widget removed on 2026-09-26 (see getUniverseForeignFlow()\'s own comment)');
+  assert(/getUniverseAccumulationDistribution\(\{\}\)/.test(fn) && /getUniverseForeignFlow\(\{\}\)/.test(fn) && /generateBrokerSummary\(clean, null, '1D'\)/.test(fn),
+    'REGRESSION: getStockBandarFlowPillar() no longer composes all 3 real signals (broker summary, whole-market acc/dist, whole-market foreign flow)');
+});
+
+asyncTest('functional: getStockBandarFlowPillar() (real import, tested with PTRO per user request) fails closed to available:false without INVEZGO_API_KEY, never a fabricated score', async () => {
+  const savedKey = process.env.INVEZGO_API_KEY;
+  delete process.env.INVEZGO_API_KEY;
+  try {
+    const { getStockBandarFlowPillar } = await import('./lib/idx-data-engine.js');
+    const result = await getStockBandarFlowPillar('PTRO');
+    assert.strictEqual(result.available, false, 'getStockBandarFlowPillar(\'PTRO\') must be available:false without a configured Invezgo key — never a fabricated pillar score');
+    assert.strictEqual(typeof result.message, 'string');
+    assert.strictEqual(result.score, undefined, 'no score field should be present when available:false — a stray 0/1/2 here could be misread as a real neutral/bearish signal');
+  } finally {
+    if (savedKey !== undefined) process.env.INVEZGO_API_KEY = savedKey;
+  }
+});
+
+asyncTest('functional: getStockBandarFlowPillar() rejects an empty ticker honestly instead of defaulting to a fabricated default stock', async () => {
+  const { getStockBandarFlowPillar } = await import('./lib/idx-data-engine.js');
+  const result = await getStockBandarFlowPillar('');
+  assert.strictEqual(result.available, false);
+  assert.strictEqual(result.reason, 'NO_TICKER');
+});
+
+test('REGRESSION GUARD: GET /api/idx/bandar-flow-pillar/:ticker exists and calls getStockBandarFlowPillar() (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/bandar-flow-pillar\/:ticker'/.test(src), 'REGRESSION: GET /api/idx/bandar-flow-pillar/:ticker route is gone');
+  assert(/getStockBandarFlowPillar\(ticker\)/.test(src), 'REGRESSION: /api/idx/bandar-flow-pillar/:ticker route no longer calls getStockBandarFlowPillar()');
+});
+
+test('REGRESSION GUARD: StockMaster 360 Traffic Light pillar 2 (Arus Bandar & Likuiditas Asing) is no longer permanently hardcoded to "Belum Tersedia" — it fetches the real per-ticker endpoint and falls back honestly only on failure', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(/async function fundLoadBandarFlowPillar\(ticker, valScore, quantScore\)/.test(src),
+    'REGRESSION: fundLoadBandarFlowPillar() is missing — pillar 2 would go back to a static hardcoded badge');
+  assert(/fetch\('\/api\/idx\/bandar-flow-pillar\/' \+ encodeURIComponent\(ticker\)/.test(src),
+    'REGRESSION: fundLoadBandarFlowPillar() no longer fetches the real per-ticker bandar-flow-pillar endpoint');
+  assert(/fundBuildTrafficLight[\s\S]{0,3000}fundLoadBandarFlowPillar\(FUND_DATA\.ticker, valScore, quantScore\)/.test(src),
+    'REGRESSION: fundBuildTrafficLight() no longer kicks off the real pillar-2 fetch');
+  assert(/if \(!d \|\| !d\.available\) \{\s*renderUnavailable/.test(src),
+    'REGRESSION: fundLoadBandarFlowPillar() no longer falls back honestly to "Belum Tersedia" when the API reports unavailable — could start rendering a stale/default score');
+  assert(/FUND_DATA\.ticker !== ticker/.test(src),
+    'REGRESSION: fundLoadBandarFlowPillar() no longer guards against a stale response overwriting a different ticker\'s pillar 2 panel after a fast ticker switch');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

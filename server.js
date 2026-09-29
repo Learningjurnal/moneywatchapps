@@ -38,6 +38,7 @@ import {
   getBeiTickSize,
   generateBrokerSummary,
   getBrokerSummaryByBroker,
+  getStockBandarFlowPillar,
   generateBandarMovementData,
   generateShareholderComposition,
   generateSectorRotation,
@@ -3880,6 +3881,25 @@ app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
       data: summary
     });
   } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/bandar-flow-pillar/:ticker — StockMaster 360 Traffic Light
+// pilar "Arus Bandar & Likuiditas Asing" (FlowScan), 2026-09-29. Gabungan
+// 3 sinyal REAL per-ticker (lihat komentar getStockBandarFlowPillar() di
+// lib/idx-data-engine.js untuk detail): konsentrasi broker hari ini +
+// Top Akumulasi/Distribusi seluruh bursa + Top Foreign Net Buy/Sell
+// seluruh bursa. Fail-closed jujur ke available:false kalau data broker
+// simulasi/tidak tersedia — TIDAK pernah menghitung skor dari data karangan.
+app.get('/api/idx/bandar-flow-pillar/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const result = await getStockBandarFlowPillar(ticker);
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[Bandar Flow Pillar Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
