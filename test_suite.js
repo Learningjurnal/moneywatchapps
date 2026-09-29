@@ -10015,6 +10015,71 @@ asyncTest('functional: checkBpsLiveStatus() (real import) returns NOT_CONFIGURED
   }
 });
 
+// REGRESSION (2026-09-29, corrected from official BPS documentation +
+// a community Postman collection): the BPS WebAPI URL format is
+// QUERY-STRING (`/v1/api/list/?model=X&domain=Y&...`), NOT path-segment
+// (`/v1/api/list/model/X/lang/Y/domain/Z/key/K`) — the earlier format was
+// an unverified web-search guess. This guards against silently reverting
+// to the wrong (guessed) format.
+test('REGRESSION GUARD: BPS client builds URLs in query-string format (verified from official docs), not the earlier unverified path-segment format', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bps-client.js'), 'utf8');
+  assert(!/\/v1\/api\/list\/model\//.test(src),
+    'REGRESSION: bps-client.js reverted to the unverified path-segment URL format (/v1/api/list/model/X/lang/...) — official docs confirm query-string format instead');
+  assert(/\/v1\/api\/list\/\?model=/.test(src),
+    'REGRESSION: bps-client.js no longer builds the BPS list endpoint URL in query-string format (?model=...)');
+});
+
+// REGRESSION: fetchBpsStrategicIndicators() schema — verified from official
+// BPS documentation (Strategic Indicators page, user-confirmed complete
+// field list). Guards against silently drifting from the verified fields
+// or fabricating fields (period/frequency/geography) the endpoint doesn't
+// actually provide.
+test('REGRESSION GUARD: fetchBpsStrategicIndicators() uses the verified request/response schema and requires domain explicitly (no guessed default)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bps-client.js'), 'utf8');
+  const fnMatch = src.match(/async function fetchBpsStrategicIndicators\([\s\S]*?\n\}/);
+  assert(fnMatch, 'REGRESSION: fetchBpsStrategicIndicators() is missing from bps-client.js');
+  const fn = fnMatch[0];
+  assert(/model=indicators/.test(fn), 'REGRESSION: fetchBpsStrategicIndicators() no longer requests model=indicators');
+  assert(/if \(!domain\)/.test(fn) && /DOMAIN_REQUIRED/.test(fn),
+    'REGRESSION: fetchBpsStrategicIndicators() no longer fails closed when domain is missing — this would mean guessing a national domain code that was never verified');
+  assert(/title/.test(fn) && /desc/.test(fn) && /data_source/.test(fn) && /value/.test(fn) && /unit/.test(fn),
+    'REGRESSION: fetchBpsStrategicIndicators() no longer maps the verified fields (title/desc/data_source/value/unit)');
+  assert(!/period|frequency|geography/.test(fn),
+    'REGRESSION: fetchBpsStrategicIndicators() now fabricates period/frequency/geography fields the verified schema does not actually provide');
+});
+
+asyncTest('functional: fetchBpsStrategicIndicators() (real import) fails closed without BPS_API_KEY, and separately requires domain even with a key', async () => {
+  const savedKey = process.env.BPS_API_KEY;
+  delete process.env.BPS_API_KEY;
+  try {
+    const { fetchBpsStrategicIndicators } = await import('./lib/providers/bps-client.js');
+    const noKey = await fetchBpsStrategicIndicators({ domain: '1100' });
+    assert.strictEqual(noKey.ok, false);
+    assert.strictEqual(noKey.reason, 'NOT_CONFIGURED');
+
+    process.env.BPS_API_KEY = 'test-fake-key-for-schema-guard-only';
+    const noDomain = await fetchBpsStrategicIndicators({});
+    assert.strictEqual(noDomain.ok, false, 'fetchBpsStrategicIndicators() must not proceed without an explicit domain');
+    assert.strictEqual(noDomain.reason, 'DOMAIN_REQUIRED');
+  } finally {
+    if (savedKey !== undefined) process.env.BPS_API_KEY = savedKey; else delete process.env.BPS_API_KEY;
+  }
+});
+
+asyncTest('functional: getBpsStrategicIndicators() (economic-data-engine.js, real import) fails closed without BPS_API_KEY and never invents period/frequency/geography', async () => {
+  const savedKey = process.env.BPS_API_KEY;
+  delete process.env.BPS_API_KEY;
+  try {
+    const { getBpsStrategicIndicators } = await import('./lib/economic-data-engine.js');
+    const result = await getBpsStrategicIndicators({ domain: '1100' });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.reason, 'NOT_CONFIGURED');
+    assert.deepStrictEqual(result.records, []);
+  } finally {
+    if (savedKey !== undefined) process.env.BPS_API_KEY = savedKey;
+  }
+});
+
 test('REGRESSION GUARD: BI provider never fabricates a SOAP response — fetchBiJisdor()/fetchBiKursTransaksi() return access:"not_verified", not invented data', () => {
   const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bi-client.js'), 'utf8');
   const jisdorFn = src.match(/async function fetchBiJisdor\(\) \{[\s\S]*?\n\}/)[0];
@@ -10048,6 +10113,16 @@ test('REGRESSION GUARD: GET /api/economic/health, /api/economic/bps/datasets, /a
   // Aturan #1 forbid until a human supplies a verified sample.
   assert(!/\/api\/economic\/bps\/inflation/.test(src) && !/\/api\/economic\/bps\/gdp/.test(src),
     'REGRESSION: a specific BPS indicator route (inflation/gdp) appeared without a verified dataset_id — this means someone guessed the BPS dataset code, which the spec explicitly forbids (§7: "Jangan hard-code kode indikator secara sembarangan")');
+});
+
+// REGRESSION: GET /api/economic/bps/indicators — the one BPS indicator
+// route allowed to exist with a specific `model=` because its schema
+// (Strategic Indicators, model=indicators) is genuinely verified from
+// official docs, unlike the still-forbidden inflation/gdp routes above.
+test('REGRESSION GUARD: GET /api/economic/bps/indicators exists and calls getBpsStrategicIndicators() (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/economic\/bps\/indicators'/.test(src), 'REGRESSION: GET /api/economic/bps/indicators route is gone');
+  assert(/getBpsStrategicIndicators\(/.test(src), 'REGRESSION: /api/economic/bps/indicators route no longer calls getBpsStrategicIndicators()');
 });
 
 // ═══════════════════════════════════════════════════════════════════════

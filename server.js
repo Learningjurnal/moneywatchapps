@@ -57,7 +57,7 @@ import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus }
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
-import { getEconomicHealth, discoverBpsDatasets } from './lib/economic-data-engine.js';
+import { getEconomicHealth, discoverBpsDatasets, getBpsStrategicIndicators } from './lib/economic-data-engine.js';
 import { fetchBiJisdor, fetchBiKursTransaksi } from './lib/providers/bi-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -4693,6 +4693,34 @@ app.get('/api/economic/bps/datasets', async (req, res) => {
     });
   } catch (err) {
     console.error('[BPS Discovery Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/economic/bps/indicators — Strategic Indicators (spec `model=indicators`,
+// skema SUDAH terverifikasi dari dokumentasi resmi — lihat
+// fetchBpsStrategicIndicators() di lib/providers/bps-client.js). Requires
+// BPS_API_KEY dan ?domain= (WAJIB — kode wilayah nasional/pusat BELUM
+// terverifikasi, jadi tidak ada default di sini; lihat catatan di
+// bps-client.js). Optional: ?var=, ?page=, ?lang= (default 'ind').
+app.get('/api/economic/bps/indicators', async (req, res) => {
+  try {
+    const result = await getBpsStrategicIndicators({
+      domain: req.query.domain,
+      lang: req.query.lang,
+      varId: req.query.var,
+      page: req.query.page
+    });
+    return res.json({
+      success: result.ok,
+      provider: 'BPS',
+      source: { name: 'Badan Pusat Statistik', type: 'official_api', url: 'https://webapi.bps.go.id/documentation/' },
+      data: result.ok ? result.records : [],
+      pagination: result.ok ? result.pagination : null,
+      meta: { status: result.ok ? 'VERIFIED' : result.reason, message: result.message || null }
+    });
+  } catch (err) {
+    console.error('[BPS Strategic Indicators Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

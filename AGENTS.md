@@ -853,14 +853,38 @@ to skip it.
 
 ---
 
-# 31. INDONESIA ECONOMIC DATA ENGINE (BI + BPS) — PLAN, PHASE 1 DONE
+# 31. INDONESIA ECONOMIC DATA ENGINE (BI + BPS) — PLAN, PHASE 1 DONE, BPS STRATEGIC INDICATORS VERIFIED
 
 Ditambahkan 2026-09-28/29. Fase 1 (skeleton) sudah dikerjakan dan di-PR
 (learningjurnal/moneywatchapps#238, branch `claude/baca-evaluasi-m2gwto`).
-Fase 2+ **BELUM dikerjakan** — sengaja dihentikan di sini untuk fokus ke
-fitur lain (keputusan user 2026-09-29). Sesi berikutnya yang melanjutkan
-harus baca section ini dulu sebelum menyentuh `lib/economic-data-engine.js`
-atau `lib/providers/bi-client.js`/`bps-client.js` lagi.
+**Update 2026-09-29**: user mengirim URL dokumentasi resmi BPS WebAPI
+(`https://webapi.bps.go.id/documentation/`) dan sudah punya `BPS_API_KEY`
+sendiri (belum di-set di environment sesi ini). Sandbox sesi ini TETAP
+tidak bisa menjangkau `webapi.bps.go.id` (egress diblokir di level proxy,
+bukan soal key) — jadi verifikasi dilakukan lewat user mengirim SCREENSHOT
+dokumentasi resmi secara langsung (bukan web search/WebFetch, keduanya
+diblokir untuk domain ini). Hasil dari proses itu:
+1. **Format URL BPS WebAPI dikoreksi**: QUERY-STRING
+   (`/v1/api/list/?model=X&domain=Y&lang=ind&key=K`), BUKAN path-segment
+   (`model/X/lang/Y/domain/Z/key/K`) seperti yang ditulis di Fase 1 —
+   format lama itu tebakan dari web search yang TIDAK terverifikasi dan
+   sekarang terbukti salah. Sudah diperbaiki di `checkBpsLiveStatus()` dan
+   `bpsListModels()`.
+2. **Skema `model=indicators` (Strategic Indicators) SUDAH terverifikasi**
+   dari tabel parameter/response resmi (user konfirmasi eksplisit "tidak
+   ada filed lain") dan diimplementasikan di
+   `fetchBpsStrategicIndicators()` (`bps-client.js`) +
+   `getBpsStrategicIndicators()` (`economic-data-engine.js`) + route
+   `GET /api/economic/bps/indicators`. Ini SATU-SATUNYA indikator BPS di
+   app ini dengan skema respons terverifikasi lengkap — lihat 31.2a untuk
+   detail dan gap yang tersisa.
+3. Fase 2+ untuk indikator LAIN (inflasi/PDB/ekspor-impor via
+   `model=data`, dan seluruh sisi BI) **BELUM dikerjakan** — masih perlu
+   discovery/verifikasi per-indikator sendiri, lihat 31.3.
+
+Sesi berikutnya yang melanjutkan harus baca section ini dulu sebelum
+menyentuh `lib/economic-data-engine.js` atau
+`lib/providers/bi-client.js`/`bps-client.js` lagi.
 
 ## 31.1 Kenapa berhenti di skeleton
 
@@ -887,19 +911,57 @@ apa adanya.
 
 - `lib/providers/bps-client.js` — config (`BPS_API_KEY`/`BPS_API_BASE_URL`/
   `BPS_TIMEOUT_MS`/`BPS_CACHE_TTL`), `checkBpsLiveStatus()`,
-  `bpsListModels()` (dataset discovery, raw response `schemaVerified:false`).
+  `bpsListModels()` (dataset discovery, raw response `schemaVerified:false`),
+  `fetchBpsStrategicIndicators()` (skema terverifikasi — lihat 31.2a).
 - `lib/providers/bi-client.js` — `checkBiLiveStatus()` (probe GET murni,
   bukan panggilan SOAP), `fetchBiJisdor()`/`fetchBiKursTransaksi()` stub
   yang return `access:'not_verified'` (SENGAJA tidak ada SOAPAction/
   envelope tebakan).
 - `lib/economic-data-engine.js` — `normalizeEconomicRecord()` (unified
   schema, enum status 5 nilai: `VERIFIED|CACHED|STALE|UNAVAILABLE|ERROR`,
-  `value` dipaksa `null` untuk status non-live), `getEconomicHealth()`.
+  `value` dipaksa `null` untuk status non-live), `getEconomicHealth()`,
+  `getBpsStrategicIndicators()` (wraps `fetchBpsStrategicIndicators()` ke
+  `normalizeEconomicRecord()`, period/frequency/geography dibiarkan null
+  karena endpoint tidak menyediakannya per-item).
 - `server.js` — `GET /api/economic/health`, `/bps/datasets`, `/bi/jisdor`,
-  `/bi/exchange-rate`. **Sengaja belum ada** route indikator spesifik
-  (`bps/inflation`, `bps/gdp`, dst) — lihat 31.1.
-- 7 regression test di `test_suite.js` (cari `Indonesia Economic Data
-  Engine` untuk lokasinya) + `.env.example` terdokumentasi.
+  `/bi/exchange-rate`, `/bps/indicators` (baru, skema terverifikasi).
+  **Sengaja belum ada** route indikator spesifik lain (`bps/inflation`,
+  `bps/gdp`, dst) — lihat 31.1 & 31.3.
+- Regression test di `test_suite.js` (cari `Indonesia Economic Data
+  Engine` / `StrategicIndicators` untuk lokasinya) + `.env.example`
+  terdokumentasi.
+
+## 31.2a BPS Strategic Indicators (`model=indicators`) — skema terverifikasi
+
+Sumber verifikasi: dokumentasi resmi BPS WebAPI (screenshot user dari
+`https://webapi.bps.go.id/documentation/#domain`), dikonfirmasi lengkap
+oleh user ("tidak ada filed lain"). Detail:
+
+- Request params: `model` (fixed `'indicators'`), `domain` (WAJIB, Number
+  4-digit, "central and province domain" per dokumentasi), `var`
+  (opsional, Number, filter ID variabel), `page` (opsional), `lang`
+  (opsional, default `'ind'`), `key` (wajib).
+- Response: `{ status, "data-availability", data: [ {page,pages,
+  per_page,count,total}, [ {title,desc,data_source,value,unit}, ... ] ] }`
+  — array 2-elemen di bawah `data`: elemen 0 = metadata pagination,
+  elemen 1 = array item indikator.
+- `fetchBpsStrategicIndicators({domain, lang, varId, page})` di
+  `bps-client.js` memetakan ini APA ADANYA (title/desc/dataSource/value/
+  unit) — TIDAK menambah field turunan.
+
+**GAP YANG BELUM TERSELESAIKAN — kode domain nasional/pusat**: dokumentasi
+Strategic Indicators cuma bilang `domain` itu "central and province
+domain" tanpa menyebutkan nilai spesifik untuk level nasional. Sesi ini
+belum pernah melihat halaman dokumentasi "Domain" terpisah (yang di-link
+lewat anchor `#domain` di URL yang user kirim). Karena itu:
+- `fetchBpsStrategicIndicators()` TIDAK punya default `domain` — caller
+  wajib mengoper nilai eksplisit, gagal closed ke `DOMAIN_REQUIRED` kalau
+  tidak.
+- Sesi berikutnya yang mau memanggil endpoint ini secara live HARUS lebih
+  dulu minta user isi konten halaman dokumentasi "Domain" (screenshot),
+  atau minta user coba panggil endpoint dengan kode yang mereka yakini
+  benar dan kirim balik responsnya — JANGAN menebak (mis. `'0000'` dari
+  konvensi umum BPS yang tidak terverifikasi di sesi ini).
 
 ## 31.3 Rencana Fase 2+ (JANGAN mulai tanpa prasyarat di bawah terpenuhi)
 
