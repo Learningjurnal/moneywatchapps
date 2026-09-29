@@ -9538,8 +9538,16 @@ test('REGRESSION GUARD: generateScreenerConsensus() uses 5 independent systems (
     'REGRESSION: Volume Spike vote no longer requires both a real spike AND a positive price move (a spike on a down day is distribution, not a buy signal)');
   assert(/tech\.quantScreener\.score > 70 && tech\.quantScreener\.aboveMa50/.test(fn),
     'REGRESSION: Quant Screener vote no longer requires both score>70 and price above MA50');
-  assert(!/getUniverseAccumulationDistribution/.test(fn),
-    'REGRESSION: Radar Akumulasi/Distribusi crept back in as a 6th vote — this double-counts the same evidence Unified Screener\'s whaleScore already includes');
+  // The VOTING loop (agreeCount/votes) must never reference accumulation/
+  // distribution data — that's the double-counting this test guards
+  // against. getUniverseAccumulationDistributionRange() legitimately
+  // appears LATER in the function (2026-09-29) as display-only enrichment
+  // of the already-filtered `rows` (netAccumulation/topBroker fields,
+  // user-requested), which cannot affect agreeCount — so the ban is
+  // scoped to the vote-building loop only, not the whole function body.
+  const votingLoop = fn.slice(0, fn.indexOf('if (votes.length >= minAgree)'));
+  assert(!/getUniverseAccumulationDistribution/.test(votingLoop),
+    'REGRESSION: Radar Akumulasi/Distribusi crept back in as a 6th VOTE inside the agreeCount-building loop — this double-counts the same evidence Unified Screener\'s whaleScore already includes');
 });
 
 test('REGRESSION GUARD: GET /api/idx/screener-consensus route exists and calls generateScreenerConsensus()', () => {
@@ -10040,6 +10048,57 @@ test('REGRESSION GUARD: GET /api/economic/health, /api/economic/bps/datasets, /a
   // Aturan #1 forbid until a human supplies a verified sample.
   assert(!/\/api\/economic\/bps\/inflation/.test(src) && !/\/api\/economic\/bps\/gdp/.test(src),
     'REGRESSION: a specific BPS indicator route (inflation/gdp) appeared without a verified dataset_id — this means someone guessed the BPS dataset code, which the spec explicitly forbids (§7: "Jangan hard-code kode indikator secara sembarangan")');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-29, user-reported: "Konsensus Screener belum ada
+// analisa broker... saya lihat saham yang masuk konsensus namun nilai
+// hari ini sudah -13%, sehingga analisa tidak tepat sasaran"). Root
+// cause: price/chg1d in the consensus response rode the SAME 10-14-day
+// stale caches the votes are computed from. Fix: live per-ticker quote
+// overwrite (rows are already the small filtered subset, not the whole
+// universe) + honest priceWarning, plus netAccumulation (multi-day
+// bandar signal) and topBroker (per-ticker real broker breakdown) as
+// display-only enrichment — NOT a 6th vote (see the updated "not 6" test
+// above for that boundary).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: generateScreenerConsensus() overwrites price/chg1d with a LIVE quote for its (already-filtered, small) result rows, never leaves the stale cached snapshot silently passing as current', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function generateScreenerConsensus\(params = \{\}\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'generateScreenerConsensus() not found');
+  const fn = fnMatch[0];
+
+  assert(/fetchYahooQuote\(row\.ticker\)/.test(fn), 'REGRESSION: no longer fetches a live quote per consensus row — price/chg1d could go back to being up to 10-14 days stale');
+  assert(/if \(q && !q\.isSimulated && typeof q\.price === 'number' && q\.price > 0\)/.test(fn),
+    'REGRESSION: live quote is no longer guarded against fetchYahooQuote()\'s fabricated isSimulated:true placeholder — a simulated quote could overwrite price/chg1d as if real');
+  assert(/row\.priceIsLive = (true|false)/.test(fn), 'REGRESSION: rows no longer disclose whether price/chg1d is a live quote or the stale cached fallback');
+  assert(/row\.priceWarning = \(row\.priceIsLive && row\.chg1d != null && row\.chg1d <= -3\)/.test(fn),
+    'REGRESSION: the honest price-warning (live price already moved sharply against a "bullish consensus" signal) is gone');
+});
+
+test('REGRESSION GUARD: generateScreenerConsensus() attaches netAccumulation (multi-day bandar signal) and topBroker (real per-ticker broker breakdown) to each result row', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function generateScreenerConsensus\(params = \{\}\) \{[\s\S]*?\n\}/);
+  const fn = fnMatch[0];
+
+  assert(/getUniverseAccumulationDistributionRange\(\{ days: rangeDays \}\)/.test(fn),
+    'REGRESSION: no longer reuses the multi-day accumulation/distribution engine (built 2026-09-28) for netAccumulation');
+  assert(/generateBrokerSummary\(row\.ticker, q, '1D'\)/.test(fn),
+    'REGRESSION: no longer fetches a real per-ticker broker summary for topBroker — the whole-market accumulation endpoint has no per-broker breakdown, only the per-ticker call does');
+  assert(/const topBuyer = \(bs && !bs\.isSimulated && Array\.isArray\(bs\.topBuyers\)/.test(fn),
+    'REGRESSION: topBroker no longer guards against a simulated broker-summary fallback — a fabricated broker name/value could surface as if real');
+  assert(/row\.netAccumulation = acc \? \{/.test(fn) && /netScore: null,\s*\n\s*daysAppeared: 0/.test(fn),
+    'REGRESSION: a ticker absent from the accumulation/distribution top-mover window no longer honestly reports null/0 — could silently imply zero activity instead of "no signal in this window"');
+});
+
+test('REGRESSION GUARD: 50-screener-consensus.js renders netAccumulation/topBroker/priceWarning from the API response, and discloses via uiInfoIcon() (not a raw paragraph) that they are informational, not part of the consensus score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/50-screener-consensus.js'), 'utf8');
+  assert(/row\.netAccumulation/.test(src), 'REGRESSION: csRenderRow() no longer reads row.netAccumulation — the bandar-accumulation column would render empty');
+  assert(/row\.topBroker/.test(src), 'REGRESSION: csRenderRow() no longer reads row.topBroker — the broker column would render empty');
+  assert(/row\.priceWarning/.test(src), 'REGRESSION: csRenderRow() no longer surfaces row.priceWarning — a stale-signal-vs-live-price mismatch would go unshown again');
+  assert(/uiInfoIcon\('Akumulasi\/Distribusi dijumlahkan/.test(src),
+    'REGRESSION: the "informational, not part of the score" caveat for the new column is no longer routed through uiInfoIcon() — violates CLAUDE.md Aturan #4');
 });
 
 console.log('═══════════════════════════════════════════════════════');
