@@ -850,3 +850,123 @@ presenting or scoring candidates, and must default to excluding
 non-`CLEAR` tickers — matching the pattern above. It is one whole-market
 snapshot, not a per-ticker network call, so there is no quota/perf reason
 to skip it.
+
+---
+
+# 31. INDONESIA ECONOMIC DATA ENGINE (BI + BPS) — PLAN, PHASE 1 DONE
+
+Ditambahkan 2026-09-28/29. Fase 1 (skeleton) sudah dikerjakan dan di-PR
+(learningjurnal/moneywatchapps#238, branch `claude/baca-evaluasi-m2gwto`).
+Fase 2+ **BELUM dikerjakan** — sengaja dihentikan di sini untuk fokus ke
+fitur lain (keputusan user 2026-09-29). Sesi berikutnya yang melanjutkan
+harus baca section ini dulu sebelum menyentuh `lib/economic-data-engine.js`
+atau `lib/providers/bi-client.js`/`bps-client.js` lagi.
+
+## 31.1 Kenapa berhenti di skeleton
+
+User minta Economic Data Engine penuh (28 bagian spec: BI + BPS, discovery,
+DB, cache, dashboard, test, health check). Audit sebelum coding (lihat PR
+#238 untuk detail lengkap) menemukan 2 blocker yang genuinely di luar
+kendali sesi manapun tanpa input manusia:
+
+1. **Tidak ada `BPS_API_KEY`** — pendaftaran di `webapi.bps.go.id/developer`
+   butuh akun manusia, tidak bisa dilakukan AI.
+2. **Egress sandbox pengembangan memblokir `bi.go.id` DAN
+   `webapi.bps.go.id`** (403 policy denial, dikonfirmasi via curl langsung)
+   — belum diverifikasi apakah ini spesifik sandbox atau juga berlaku di
+   production Vercel.
+
+Menulis parser (field mapping BPS JSON, SOAP envelope BI) tanpa respons
+real yang terverifikasi = menebak skema API eksternal, dilarang keras oleh
+CLAUDE.md Aturan #1. Jadi Fase 1 cuma membangun bagian yang JUJUR bisa
+diselesaikan tanpa network: provider architecture, config, health check,
+endpoint yang mengembalikan `NOT_CONFIGURED`/`UNAVAILABLE`/`not_verified`
+apa adanya.
+
+## 31.2 Yang SUDAH ada (Fase 1, di PR #238)
+
+- `lib/providers/bps-client.js` — config (`BPS_API_KEY`/`BPS_API_BASE_URL`/
+  `BPS_TIMEOUT_MS`/`BPS_CACHE_TTL`), `checkBpsLiveStatus()`,
+  `bpsListModels()` (dataset discovery, raw response `schemaVerified:false`).
+- `lib/providers/bi-client.js` — `checkBiLiveStatus()` (probe GET murni,
+  bukan panggilan SOAP), `fetchBiJisdor()`/`fetchBiKursTransaksi()` stub
+  yang return `access:'not_verified'` (SENGAJA tidak ada SOAPAction/
+  envelope tebakan).
+- `lib/economic-data-engine.js` — `normalizeEconomicRecord()` (unified
+  schema, enum status 5 nilai: `VERIFIED|CACHED|STALE|UNAVAILABLE|ERROR`,
+  `value` dipaksa `null` untuk status non-live), `getEconomicHealth()`.
+- `server.js` — `GET /api/economic/health`, `/bps/datasets`, `/bi/jisdor`,
+  `/bi/exchange-rate`. **Sengaja belum ada** route indikator spesifik
+  (`bps/inflation`, `bps/gdp`, dst) — lihat 31.1.
+- 7 regression test di `test_suite.js` (cari `Indonesia Economic Data
+  Engine` untuk lokasinya) + `.env.example` terdokumentasi.
+
+## 31.3 Rencana Fase 2+ (JANGAN mulai tanpa prasyarat di bawah terpenuhi)
+
+**Prasyarat mutlak sebelum Fase 2 boleh dimulai** (per CLAUDE.md Aturan #1
+— jangan mulai coding parser tanpa ini, walau user sudah tidak sabar):
+1. User (manusia) sudah daftar `webapi.bps.go.id/developer` dan kirim
+   `BPS_API_KEY` yang valid.
+2. User sudah kirim minimal 1 contoh respons JSON REAL dari BPS (hasil
+   panggilan Postman/browser mereka sendiri, atau dari discovery endpoint
+   `GET /api/economic/bps/datasets` yang sudah dibangun di Fase 1 —
+   endpoint itu SEKARANG BISA dites begitu key tersedia, tidak perlu
+   nunggu sesi AI berikutnya untuk menjalankannya).
+3. Untuk BI: contoh respons SOAP real (SoapUI/Postman terhadap WSDL
+   `wskursbi.asmx`) untuk operasi JISDOR dan Kurs Transaksi — ATAU
+   konfirmasi eksplisit dari user bahwa BI boleh ditunda dulu (BPS lebih
+   prioritas karena cakupannya lebih luas: inflasi, PDB, ekspor-impor,
+   tenaga kerja, kemiskinan — semua ada di satu WebAPI, sementara BI cuma
+   kurs/JISDOR).
+
+**Urutan kerja Fase 2 setelah prasyarat terpenuhi:**
+
+1. **BPS parser pertama (inflasi)** — pilih SATU indikator dulu (inflasi
+   paling sering diminta), jalankan discovery real
+   (`bpsListModels('data', ...)` / `bpsListModels('subject', ...)`) untuk
+   menemukan `dataset_id`/`var` code yang benar dari respons real (BUKAN
+   ditebak dari nama variabel yang "kedengarannya benar"). Tulis
+   `fetchBpsIndicator(datasetParams)` di `bps-client.js` yang memetakan
+   response real ke field asli (bukan tebakan), lalu
+   `normalizeEconomicRecord()` untuk keluarannya. Tambah 1 route:
+   `GET /api/economic/bps/inflation`.
+2. **Ulangi pola yang sama** untuk PDB, ekspor-impor, tenaga kerja,
+   kemiskinan — SATU indikator sekaligus, masing-masing lewat discovery
+   real dulu, jangan batch semua sekaligus tanpa verifikasi per-indikator
+   (BPS bisa saja punya `dataset_id` beda struktur per topik).
+3. **BI JISDOR/Kurs Transaksi** — setelah dapat sampel SOAP real, tulis
+   parser XML (app ini belum punya dependency XML parser — cek apakah
+   Node's built-in cukup untuk respons SOAP BI yang biasanya flat, atau
+   perlu tambah dependency ringan; jangan tambah library besar tanpa
+   alasan kuat).
+4. **Cache Redis per-indikator** — pola sama seperti
+   `lib/invezgo-client.js`'s `getOrFetch()`: TTL sesuai frequency data
+   asli (BPS bulanan/kuartalan/tahunan — baca dari metadata dataset,
+   JANGAN asumsikan semua bulanan; lihat spec asli user §9). BI (kurs
+   harian) TTL lebih pendek.
+5. **Dashboard UI** — halaman baru "Indonesia Economic Dashboard"
+   (sidebar baru ATAU tab di halaman market-wide yang sudah ada — putuskan
+   bareng user saat itu, jangan asumsikan sepihak, sama seperti pola
+   AskUserQuestion yang dipakai untuk fitur ikon-info/Net Akumulasi
+   sebelumnya di sesi ini). Setiap card WAJIB tampilkan Source/Last
+   Updated/Status persis seperti spec asli §19 — pola ini SUDAH ada
+   presedennya di app ini (lihat kartu-kartu Invezgo yang sudah
+   menampilkan dataSource/updatedAt).
+6. **Cross-source validation** (spec §20, kalau BI dan BPS pernah
+   tumpang-tindih definisi indikator yang sama) — baru relevan kalau
+   kedua provider sudah punya data real untuk indikator yang sama.
+7. **Health check UI + test lengkap** — perluas test yang sudah ada di
+   Fase 1, tambahkan test per-indikator baru mengikuti pola yang sama
+   (fail-without-fix → pass-with-fix, functional test via import real).
+
+## 31.4 Yang JANGAN dilakukan di Fase 2
+
+- Jangan buat tabel Supabase server-side baru untuk `economic_data` tanpa
+  keputusan ulang dari user — keputusan 2026-09-28 sudah eksplisit pilih
+  Redis/Upstash cache-only, konsisten dengan seluruh app ini.
+- Jangan tebak `dataset_id`/`var` code BPS dari nama yang "kedengarannya
+  benar" — selalu lewat `bpsListModels()` discovery dulu dengan key real.
+- Jangan tulis parser SOAP BI tanpa sampel respons real — kalau user belum
+  sempat kirim, BPS saja dulu (cakupannya jauh lebih luas).
+- Jangan buat route indikator BPS baru tanpa memverifikasi field mapping
+  dari respons real masing-masing — satu indikator, satu verifikasi.
