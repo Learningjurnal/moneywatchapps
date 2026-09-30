@@ -56,9 +56,15 @@ function usSwitchPageTab(tab) {
 // it costs several Invezgo calls, shouldn't fire on every page load).
 // Track B (forward paper-trading log, full formula) auto-loads once —
 // it's a cheap read of an already-resolved Redis log, not a live scan.
+// Track C (2026-09-30, user-requested: "bagaimana membuat trading engine
+// semakin lama semakin pintar dari data yang sudah dibaca") — kalibrasi
+// win-rate per whaleScore/uptrendScore dari Track B yang sudah terkumpul.
+// Sama seperti Track B, ini cuma agregasi atas log Redis yang sudah ada
+// (nol panggilan Invezgo/Yahoo baru), jadi aman di-auto-load sekali.
 var US_VALIDATION = {
   backtest: { loading: false, data: null, error: null },
-  signalLog: { loading: false, data: null, error: null, fetchedOnce: false }
+  signalLog: { loading: false, data: null, error: null, fetchedOnce: false },
+  calibration: { loading: false, data: null, error: null, fetchedOnce: false }
 };
 
 function usWhaleBadgeClass(label) {
@@ -424,6 +430,10 @@ function usRenderShell() {
     US_VALIDATION.signalLog.fetchedOnce = true;
     usFetchSignalLog();
   }
+  if (!US_VALIDATION.calibration.fetchedOnce) {
+    US_VALIDATION.calibration.fetchedOnce = true;
+    usFetchCalibrationReport();
+  }
 }
 
 // ── Win-rate validation panel (Track A: backtest, Track B: forward log) ──
@@ -465,6 +475,32 @@ async function usFetchSignalLog() {
     US_VALIDATION.signalLog.loading = false;
     usRenderValidationPanel();
   }
+}
+
+async function usFetchCalibrationReport() {
+  US_VALIDATION.calibration.loading = true;
+  usRenderValidationPanel();
+  try {
+    var resp = await fetch('/api/idx/screener-calibration-report');
+    var json = await resp.json();
+    if (!json.success) throw new Error(json.error || 'Gagal memuat laporan kalibrasi');
+    US_VALIDATION.calibration.data = json.data;
+  } catch (e) {
+    US_VALIDATION.calibration.error = e.message;
+  } finally {
+    US_VALIDATION.calibration.loading = false;
+    usRenderValidationPanel();
+  }
+}
+
+function usCalibrationBucketRowHtml(labelHtml, b) {
+  return '<tr' + (b.smallSample ? ' style="opacity:.6"' : '') + '>'
+    + '<td>' + labelHtml + (b.smallSample ? ' <span style="font-size:9px;color:var(--amber,#d97706)" title="Sampel kecil (n&lt;' + 5 + '), jangan disimpulkan">⚠ n kecil</span>' : '') + '</td>'
+    + '<td style="text-align:right" class="mono">' + b.n + '</td>'
+    + '<td style="text-align:right" class="mono">' + (b.winRate != null ? b.winRate + '%' : '-') + '</td>'
+    + '<td style="text-align:right" class="mono">' + usFmtPct(b.avgReturnPct) + '</td>'
+    + '<td style="text-align:right" class="mono">' + usFmtPct(b.avgAlphaPct) + '</td>'
+    + '</tr>';
 }
 
 function usRenderValidationPanel() {
@@ -545,6 +581,35 @@ function usRenderValidationPanel() {
   }
   html += '</div>';
 
+  // Track C: Kalibrasi bobot dari Track B yang sudah terkumpul.
+  var cal = US_VALIDATION.calibration;
+  html += '<div class="card" style="padding:14px;margin-top:12px">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">C. Kalibrasi Bobot (dari Track B) ' + uiInfoIcon('Memecah win-rate & alpha Track B per level whaleScore dan rentang uptrendScore, supaya terlihat komponen mana yang benar-benar berkorelasi dengan hasil nyata. Ini laporan untuk ditinjau manusia — TIDAK otomatis mengubah bobot formula (percobaan ML otomatis di app ini sebelumnya tidak pernah terbukti prediktif, lihat ml/README.md).') + '</div>';
+
+  if (cal.loading && !cal.data) {
+    html += '<div style="color:var(--text-mute);font-size:12px">Memuat…</div>';
+  } else if (cal.error) {
+    html += '<div style="color:var(--down,#dc2626);font-size:12px">Gagal: ' + cal.error + '</div>';
+  } else if (cal.data) {
+    var c = cal.data;
+    if (!c.available) {
+      html += '<div style="color:var(--text-mute);font-size:12px">' + c.message + '</div>';
+    } else {
+      html += '<div style="font-size:11px;color:var(--text-mute);margin-bottom:8px">' + c.scope + '</div>';
+      html += '<table class="tbl" style="width:100%;font-size:11.5px;margin-bottom:10px"><thead><tr><th>Bucket</th><th style="text-align:right">n</th><th style="text-align:right">Win Rate</th><th style="text-align:right">Avg Return</th><th style="text-align:right">Avg Alpha</th></tr></thead><tbody>';
+      html += usCalibrationBucketRowHtml('<b>Keseluruhan</b>', c.overall);
+      (c.byWhaleScore || []).forEach(function (b) {
+        html += usCalibrationBucketRowHtml('whaleScore = ' + b.whaleScore, b);
+      });
+      (c.byUptrendBand || []).forEach(function (b) {
+        html += usCalibrationBucketRowHtml('uptrendScore ' + b.label, b);
+      });
+      html += '</tbody></table>';
+      html += '<div style="font-size:10.5px;color:var(--text-mute)">Berdasarkan ' + c.resolvedCount + ' sinyal Track B yang sudah selesai horizonnya. Bucket dengan tanda ⚠ punya sampel terlalu kecil untuk disimpulkan.</div>';
+    }
+  }
+  html += '</div>';
+
   el.innerHTML = html;
 }
 
@@ -577,3 +642,4 @@ window.usSetSort = usSetSort;
 window.usOpenTicker = usOpenTicker;
 window.usRunBacktest = usRunBacktest;
 window.usFetchSignalLog = usFetchSignalLog;
+window.usFetchCalibrationReport = usFetchCalibrationReport;

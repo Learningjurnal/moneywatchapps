@@ -7245,6 +7245,75 @@ test('REGRESSION GUARD: Unified Screener frontend renders a win-rate validation 
   assert(/Sampel cuma/.test(src), 'REGRESSION: the small-sample-size warning is gone from the backtest panel');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "bagaimana saya membuat trading
+// engine semakin lama semakin pintar dari data yang sudah dibaca"). App
+// ini sudah pernah mencoba jalur ML otomatis (ml/README.md: XGBoost, 3
+// iterasi, TIDAK PERNAH prediktif di atas tebak-tebakan acak, sengaja
+// dihentikan) — pendekatan di sini SENGAJA bukan model baru, melainkan
+// laporan kalibrasi manual: pecah win-rate/alpha Track B (forward log
+// yang sudah berjalan) per whaleScore & rentang uptrendScore, untuk
+// ditinjau manusia. TIDAK mengubah bobot generateUnifiedScreener()
+// secara otomatis — mengubah bobot dari sampel kecil tanpa review adalah
+// pola overfitting yang sama yang membuat percobaan XGBoost gagal.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: getScreenerCalibrationReport() fails closed honestly below a minimum sample size, and never claims it can evaluate whaleScore<3 (Track B only ever logs confirmed signals)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function getScreenerCalibrationReport\(\) \{[\s\S]*?\n\}\n/);
+  assert(fnMatch, 'REGRESSION: getScreenerCalibrationReport() is missing from lib/idx-data-engine.js');
+  const fn = fnMatch[0];
+
+  assert(/resolved\.length < CALIBRATION_MIN_RESOLVED/.test(fn) && /available: false/.test(fn),
+    'REGRESSION: getScreenerCalibrationReport() no longer fails closed to available:false below the minimum resolved-sample threshold — a near-meaningless bucket breakdown could be presented as a real calibration report');
+  assert(/scope:/.test(fn) && /whaleScore<3/.test(fn),
+    'REGRESSION: the report no longer discloses that Track B only ever logs confirmed (whaleScore>=3) signals — presenting the bucket breakdown without this caveat would misleadingly imply lower-whaleScore performance was measured');
+  assert(!/generateUnifiedScreener\([^)]*whaleWeight|WEIGHT\s*=/.test(fn),
+    'REGRESSION: getScreenerCalibrationReport() appears to be mutating scoring weights directly — this must stay a read-only report for human review, not an automatic weight-adjustment mechanism');
+});
+
+test('REGRESSION GUARD: calibration buckets flag small samples instead of presenting them with the same confidence as large ones', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/smallSample: rows\.length < CALIBRATION_SMALL_BUCKET_N/.test(src),
+    'REGRESSION: calibrationBucketStats() no longer flags small-n buckets — a 1-2 sample bucket could look as trustworthy as a 50-sample one');
+});
+
+await asyncTest('BEHAVIOR: getScreenerCalibrationReport() (real import, no Redis configured) honestly reports insufficient sample rather than fabricating buckets', async () => {
+  const engine = await import('./lib/idx-data-engine.js');
+  const result = await engine.getScreenerCalibrationReport();
+  // In this test environment the forward log is whatever's accumulated in
+  // the in-memory fallback store across this run — almost certainly under
+  // the minimum, so this exercises the honest-insufficient-sample path.
+  if (!result.available) {
+    assert.strictEqual(result.reason, 'INSUFFICIENT_SAMPLE');
+    assert(typeof result.resolvedCount === 'number');
+    assert(typeof result.message === 'string' && result.message.length > 0);
+  } else {
+    // If enough entries happened to accumulate from earlier tests in this
+    // same process, the report must still carry its honesty scaffolding.
+    assert(typeof result.scope === 'string' && result.scope.length > 0);
+    assert(Array.isArray(result.byWhaleScore));
+    assert(Array.isArray(result.byUptrendBand));
+  }
+});
+
+test('REGRESSION GUARD: GET /api/idx/screener-calibration-report exists and calls getScreenerCalibrationReport() (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/screener-calibration-report'/.test(src), 'REGRESSION: GET /api/idx/screener-calibration-report route is gone');
+  assert(/getScreenerCalibrationReport\(\)/.test(src), 'REGRESSION: /api/idx/screener-calibration-report route no longer calls getScreenerCalibrationReport()');
+});
+
+test('REGRESSION GUARD: Unified Screener frontend renders Track C calibration report, auto-loaded once, honestly disclosing it does not auto-adjust weights', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/async function usFetchCalibrationReport/.test(src), 'REGRESSION: usFetchCalibrationReport() is gone');
+  assert(/fetch\('\/api\/idx\/screener-calibration-report'\)/.test(src), 'REGRESSION: usFetchCalibrationReport() no longer fetches the real calibration endpoint');
+  assert(/US_VALIDATION\.calibration\.fetchedOnce/.test(src), 'REGRESSION: the calibration report no longer auto-loads once when the validation panel first renders');
+  assert(/window\.usFetchCalibrationReport = usFetchCalibrationReport/.test(src),
+    'REGRESSION: usFetchCalibrationReport no longer exposed on window');
+  assert(/TIDAK otomatis mengubah bobot formula/.test(src),
+    'REGRESSION: the UI no longer discloses that this report does not auto-adjust the scoring formula — could mislead a user into thinking the engine silently retrains itself');
+});
+
 // User-reported (2026-09-18): "TOP BROKER BUYER (DATA RIIL) pada stock
 // intel tidak menampilkan data apa2... sudah coba semua timeframe, tidak
 // ada hasil". Root cause found: brokerRows was read from

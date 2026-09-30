@@ -31,6 +31,7 @@ import {
   runUnifiedScreenerBacktest,
   logTodaysUnifiedScreenerSignals,
   getScreenerSignalLogSummary,
+  getScreenerCalibrationReport,
   warmTechnicalRotating,
   getUniverseAccumulationDistribution,
   getUniverseAccumulationDistributionRange,
@@ -4637,6 +4638,24 @@ app.get('/api/idx/screener-signal-log', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[Screener Signal Log Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/screener-calibration-report — Track C: kalibrasi bobot dari
+// Track B (forward log) yang sudah terkumpul (2026-09-30, user-requested:
+// "bagaimana membuat trading engine semakin lama semakin pintar dari data
+// yang sudah dibaca"). Laporan pecah win-rate/alpha per whaleScore &
+// rentang uptrendScore — TIDAK mengubah bobot formula otomatis (lihat
+// komentar getScreenerCalibrationReport() untuk alasan: ml/README.md
+// sudah mendokumentasikan percobaan ML otomatis yang gagal karena
+// overfitting pada sampel kecil).
+app.get('/api/idx/screener-calibration-report', async (req, res) => {
+  try {
+    const data = await getScreenerCalibrationReport();
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[Screener Calibration Report Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
