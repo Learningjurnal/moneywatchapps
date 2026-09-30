@@ -814,10 +814,90 @@ function vsRenderContent(tk, rows, bs1d, bs30d) {
         }).join('')
     + '</div>'
 
-    + vsForeignFlowCardHtml(bs1d, bs30d);
+    + vsForeignFlowCardHtml(bs1d, bs30d)
+
+    + vsOrderBookCardShellHtml();
 
   vsRenderBody(tk, html);
   vsRenderVolumeChart(last7, med30);
+  vsLoadOrderBook(tk);
+}
+
+// FIX (2026-09-30, user-requested: "pada volume spike ditambahkan card
+// order book, lihat doc invezgo untuk melengkapinya"). Data REAL, LEVEL 1
+// SAJA (bid1/offer1 — Invezgo tidak menyediakan level lebih dalam, lihat
+// komentar fetchInvezgoOrderBook() di lib/invezgo-client.js), lewat
+// GET /api/idx/order-book/:ticker. Card dirender segera sebagai
+// "Memuat..." (pola sama seperti fundLoadBandarFlowPillar() di
+// 24-stockmaster.js) lalu di-update di tempat begitu fetch selesai — jujur
+// fallback ke "Belum Tersedia"/"Saham Disuspensi" kalau data tidak real,
+// TIDAK PERNAH mengarang harga bid/offer.
+function vsOrderBookCardShellHtml() {
+  return '<div id="vs-orderbook-card" class="card" style="margin-top:14px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);padding:14px 16px">'
+    + '<div class="cheader" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '<span class="ctitle" style="font-size:12.5px;display:flex;align-items:center;gap:6px"><i class="ti ti-stack-2" style="color:var(--accent)"></i> Order Book (Bid/Offer Level 1)</span>'
+      + '<span id="vs-orderbook-badge" style="font-size:9.5px;color:var(--text3)">Memuat...</span>'
+    + '</div>'
+    + '<div id="vs-orderbook-body" style="text-align:center;padding:16px;color:var(--text3);font-size:11.5px">Memuat data order book...</div>'
+  + '</div>';
+}
+
+function vsOrderBookFmtRp(n) {
+  return 'Rp ' + Math.round(n || 0).toLocaleString('id-ID');
+}
+
+async function vsLoadOrderBook(tk) {
+  var bodyEl = document.getElementById('vs-orderbook-body');
+  var badgeEl = document.getElementById('vs-orderbook-badge');
+  if (!bodyEl) return;
+
+  var renderUnavailable = function(msg, badgeText) {
+    if (!document.getElementById('vs-orderbook-body') || VS_STATE.ticker !== tk) return;
+    if (badgeEl) badgeEl.innerHTML = '<span class="badge b-gray" style="font-size:8px">' + (badgeText || 'BELUM TERSEDIA') + '</span>';
+    bodyEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);font-size:11.5px">' + msg + '</div>';
+  };
+
+  try {
+    var res = await fetch('/api/idx/order-book/' + encodeURIComponent(tk) + '?market=RG', { signal: AbortSignal.timeout(15000) });
+    var json = await res.json();
+    var d = json && json.success ? json.data : null;
+
+    // Ticker mungkin sudah berganti sejak fetch dimulai — jangan timpa card ticker lain.
+    if (VS_STATE.ticker !== tk || !document.getElementById('vs-orderbook-body')) return;
+
+    if (!d || !d.available) {
+      var reasonMsg = !d ? 'Gagal memuat data order book.'
+        : d.reason === 'SUSPENDED' ? 'Saham ' + tk + ' sedang disuspensi — tidak ada order book aktif.'
+        : d.reason === 'NOT_CONFIGURED' ? 'Order book real membutuhkan Invezgo API key yang belum dikonfigurasi di server ini.'
+        : d.reason === 'EMPTY_BOOK' ? 'Tidak ada antrian bid/offer aktif untuk ' + tk + ' saat ini.'
+        : 'Data order book real untuk ' + tk + ' belum tersedia dari Invezgo saat ini (' + d.reason + ').';
+      renderUnavailable(reasonMsg, d && d.reason === 'SUSPENDED' ? 'SUSPENSI' : 'BELUM TERSEDIA');
+      return;
+    }
+
+    if (badgeEl) badgeEl.innerHTML = '<span class="badge b-up" style="font-size:8px">REAL &middot; PASAR ' + (d.market || 'RG') + '</span>';
+
+    var spreadHtml = (d.spread !== null)
+      ? '<div style="text-align:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border2);font-size:11px;color:var(--text3)">Spread: <b style="color:var(--text)">' + vsOrderBookFmtRp(d.spread) + '</b> (' + d.spreadPct.toFixed(2) + '%)</div>'
+      : '';
+
+    bodyEl.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+      + '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 12px">'
+        + '<div style="font-size:9.5px;color:var(--green);font-weight:700;letter-spacing:0.04em;margin-bottom:4px">BID (BELI) TERBAIK</div>'
+        + '<div class="up" style="font-size:18px;font-weight:800;font-family:var(--font-mono)">' + vsOrderBookFmtRp(d.bid1.price) + '</div>'
+        + '<div style="font-size:10.5px;color:var(--text3);margin-top:4px">' + d.bid1.lot.toLocaleString('id-ID') + ' lot &middot; ' + d.bid1.freq.toLocaleString('id-ID') + ' order</div>'
+      + '</div>'
+      + '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 12px">'
+        + '<div style="font-size:9.5px;color:var(--red);font-weight:700;letter-spacing:0.04em;margin-bottom:4px">OFFER (JUAL) TERBAIK</div>'
+        + '<div class="dn" style="font-size:18px;font-weight:800;font-family:var(--font-mono)">' + vsOrderBookFmtRp(d.offer1.price) + '</div>'
+        + '<div style="font-size:10.5px;color:var(--text3);margin-top:4px">' + d.offer1.lot.toLocaleString('id-ID') + ' lot &middot; ' + d.offer1.freq.toLocaleString('id-ID') + ' order</div>'
+      + '</div>'
+    + '</div>'
+    + spreadHtml
+    + '<div style="font-size:9.5px;color:var(--text3);margin-top:10px;padding-top:8px;border-top:1px solid var(--border2)">Invezgo hanya menyediakan level 1 (antrian terbaik) — bukan seluruh kedalaman order book (depth).</div>';
+  } catch (eOb) {
+    renderUnavailable('Gagal memuat data order book: ' + eOb.message, 'GAGAL');
+  }
 }
 
 function vsForeignFlowCardHtml(bs1d, bs30d) {

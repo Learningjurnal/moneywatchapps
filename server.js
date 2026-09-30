@@ -54,7 +54,7 @@ import {
   getDataQualityTelemetry,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
-import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus } from './lib/invezgo-client.js';
+import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook } from './lib/invezgo-client.js';
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
@@ -3849,6 +3849,66 @@ app.get('/api/idx/backtest-all', async (req, res) => {
     const results = await runAllStrategiesBacktest(tickers);
     return res.json({ success: true, results });
   } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/order-book/:ticker — Real Level-1 bid/offer (Volume Spike
+// Scanner card, 2026-09-30 user request: "pada volume spike ditambahkan
+// card order book, lihat doc invezgo untuk melengkapinya"). Schema
+// VERIFIED from Invezgo's own OpenAPI spec (api-1.yaml,
+// AnalysisController_getOrderBook — a real vendor-captured "Test Request"
+// example, not guessed; see fetchInvezgoOrderBook()'s own comment in
+// lib/invezgo-client.js): Invezgo exposes LEVEL 1 ONLY (bid1/offer1 —
+// no bid2/offer2/etc, confirmed by grepping the whole spec). `market`
+// defaults to 'RG' (Pasar Reguler — the BEI segment where retail/normal
+// trading happens; NG/TN are negotiated/cash market, not applicable to
+// a general order-book card). 204 from Invezgo = stock suspended, passed
+// through honestly as `suspended:true`, never faked as an empty spread.
+app.get('/api/idx/order-book/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const market = (req.query.market || 'RG').toUpperCase();
+
+    const result = await fetchInvezgoOrderBook(ticker, market, req.query.date, req.query.time);
+
+    if (!result.ok) {
+      return res.json({
+        success: true,
+        data: { available: false, reason: result.reason, suspended: false, bid1: null, offer1: null, spread: null, spreadPct: null, market }
+      });
+    }
+    if (result.suspended || !result.bid.length || !result.offer.length) {
+      return res.json({
+        success: true,
+        data: { available: false, reason: result.suspended ? 'SUSPENDED' : 'EMPTY_BOOK', suspended: !!result.suspended, bid1: null, offer1: null, spread: null, spreadPct: null, market }
+      });
+    }
+
+    const b = result.bid[0] || {};
+    const o = result.offer[0] || {};
+    const bid1 = { price: Number(b.bid1price) || 0, lot: Number(b.bid1lot) || 0, freq: Number(b.bid1freq) || 0 };
+    const offer1 = { price: Number(o.offer1price) || 0, lot: Number(o.offer1lot) || 0, freq: Number(o.offer1freq) || 0 };
+    const spread = (bid1.price > 0 && offer1.price > 0) ? (offer1.price - bid1.price) : null;
+    const spreadPct = (spread !== null && bid1.price > 0) ? (spread / bid1.price) * 100 : null;
+
+    return res.json({
+      success: true,
+      data: {
+        available: true,
+        reason: null,
+        suspended: false,
+        market,
+        bid1,
+        offer1,
+        spread,
+        spreadPct,
+        updatedAt: (result.quality && result.quality.retrievedAt) || new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    console.error('[Order Book Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

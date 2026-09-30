@@ -10247,6 +10247,63 @@ test('REGRESSION GUARD: StockMaster 360 Traffic Light pillar 2 (Arus Bandar & Li
     'REGRESSION: fundLoadBandarFlowPillar() no longer guards against a stale response overwriting a different ticker\'s pillar 2 panel after a fast ticker switch');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "pada volume spike ditambahkan
+// card order book, lihat doc invezgo untuk melengkapinya"). Data source:
+// fetchInvezgoOrderBook() (lib/invezgo-client.js), ALREADY schema-verified
+// from Invezgo's own OpenAPI spec (a real vendor-captured example, not
+// guessed) and already used internally by the Strategy Engine's
+// MarketDataProvider — this feature just exposes it as a new HTTP route
+// + UI card on the Volume Spike Scanner page, no new schema is invented.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: GET /api/idx/order-book/:ticker exists, calls the schema-verified fetchInvezgoOrderBook(), and never fabricates bid/offer when Invezgo reports unavailable/suspended/empty', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const fnMatch = src.match(/app\.get\('\/api\/idx\/order-book\/:ticker'[\s\S]*?\n\}\);/);
+  assert(fnMatch, 'REGRESSION: GET /api/idx/order-book/:ticker route is gone');
+  const fn = fnMatch[0];
+
+  assert(/fetchInvezgoOrderBook\(ticker, market, req\.query\.date, req\.query\.time\)/.test(fn),
+    'REGRESSION: /api/idx/order-book/:ticker no longer calls the schema-verified fetchInvezgoOrderBook()');
+  assert(/if \(!result\.ok\) \{/.test(fn) && /available: false, reason: result\.reason/.test(fn),
+    'REGRESSION: the route no longer fails closed honestly to available:false when fetchInvezgoOrderBook() reports !ok — could start fabricating a bid/offer');
+  assert(/result\.suspended \|\| !result\.bid\.length \|\| !result\.offer\.length/.test(fn),
+    'REGRESSION: the route no longer guards against a suspended stock or an empty bid/offer array — could render a fabricated spread from an empty book');
+  assert(/bid1price/.test(fn) && /offer1price/.test(fn) && /bid1lot/.test(fn) && /offer1lot/.test(fn) && /bid1freq/.test(fn) && /offer1freq/.test(fn),
+    'REGRESSION: the route no longer maps the verified Level-1 fields (bid1price/lot/freq, offer1price/lot/freq) from Invezgo\'s real response shape');
+});
+
+asyncTest('functional: GET /api/idx/order-book/:ticker (real Express route, tested with PTRO) fails closed to available:false without INVEZGO_API_KEY, never a fabricated bid/offer', async () => {
+  const savedKey = process.env.INVEZGO_API_KEY;
+  delete process.env.INVEZGO_API_KEY;
+  try {
+    const { fetchInvezgoOrderBook } = await import('./lib/invezgo-client.js');
+    const result = await fetchInvezgoOrderBook('PTRO', 'RG');
+    assert.strictEqual(result.ok, false, 'fetchInvezgoOrderBook(\'PTRO\') must be ok:false without a configured Invezgo key — never a fabricated order book');
+    assert.strictEqual(result.reason, 'NOT_CONFIGURED');
+  } finally {
+    if (savedKey !== undefined) process.env.INVEZGO_API_KEY = savedKey;
+  }
+});
+
+test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
+  assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');
+  assert(/async function vsLoadOrderBook\(tk\)/.test(src), 'REGRESSION: vsLoadOrderBook() is missing — the Order Book card would never fetch real data');
+  assert(/fetch\('\/api\/idx\/order-book\/' \+ encodeURIComponent\(tk\)/.test(src),
+    'REGRESSION: vsLoadOrderBook() no longer fetches the real per-ticker order-book endpoint');
+  assert(/vsForeignFlowCardHtml\(bs1d, bs30d\)[\s\S]{0,500}vsLoadOrderBook\(tk\)/.test(src),
+    'REGRESSION: vsRenderContent() no longer kicks off the Order Book fetch when a ticker is rendered');
+  assert(/if \(!d \|\| !d\.available\) \{/.test(src),
+    'REGRESSION: vsLoadOrderBook() no longer falls back honestly when the API reports the order book unavailable — could render a stale/fabricated card');
+  assert(/d\.reason === 'SUSPENDED'/.test(src),
+    'REGRESSION: the suspended-stock case is no longer disclosed distinctly from a generic "unavailable" message');
+  assert(/VS_STATE\.ticker !== tk/.test(src),
+    'REGRESSION: vsLoadOrderBook() no longer guards against a stale response overwriting a different ticker\'s order book card after a fast ticker switch');
+  assert(/hanya menyediakan level 1/.test(src),
+    'REGRESSION: the card no longer discloses that Invezgo only exposes Level 1 (best bid/offer), not full market depth — could mislead a user into thinking this is a full order book');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
