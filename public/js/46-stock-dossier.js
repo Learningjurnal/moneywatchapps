@@ -1115,8 +1115,19 @@ async function dossierHarvestData(ticker) {
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
-    // 3. Fetch History (90 bars daily)
-    var historyPromise = fetch('/api/idx/history/' + cleanTicker + '?timeframe=1D&limit=90', { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
+    // 3. Fetch History (candle harian, ~6 bulan)
+    // FIX (2026-09-30, audit finding): route GET /api/idx/history/:ticker
+    // (server.js) hanya membaca query param `tf` (bukan `timeframe`) dan
+    // TIDAK punya param `limit` sama sekali — `?timeframe=1D&limit=90`
+    // diam-diam diabaikan server, jatuh ke default `tf='1D'`, yang berarti
+    // candle 5 MENIT untuk HARI INI SAJA (lihat HISTORY_TF_MAP di
+    // lib/providers/yahoo-client.js), bukan 90 hari harian seperti
+    // diklaim komentar lama. dossierComputeTechnicalScore() (EMA20/EMA50/
+    // RSI14) lalu dihitung dari granularitas yang salah tanpa disclosure.
+    // `tf=SCAN` (interval 1d, range 6mo, ~126 bar) adalah bucket internal
+    // yang sudah ada persis untuk kebutuhan ini (dipakai AI scanner untuk
+    // EMA50 real — lihat komentar HISTORY_TF_MAP).
+    var historyPromise = fetch('/api/idx/history/' + cleanTicker + '?tf=SCAN', { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 

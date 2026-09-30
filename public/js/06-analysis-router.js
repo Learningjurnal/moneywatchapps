@@ -220,7 +220,13 @@ function cdGenOhlcv(tk){
 function cdSrcNote(){
   var n=el('cd-src-note'); if(!n)return;
   if(CD_SRC==='sheet'){
-    n.innerHTML='<span>📄</span><div>Sumber data: <b style="color:var(--accent)">candle ADMR dari sheet</b> (data historis nyata yang Anda lampirkan). Zona &amp; parameter sesuai sheet.</div>';
+    // FIX (2026-09-30, audit finding): data OHLCV asli dari sheet yang
+    // dilampirkan user HILANG dari file ini (lihat komentar _cdSeedOhlcv()
+    // di atas) dan diganti seed sinus deterministik — BUKAN data historis
+    // nyata. Label sebelumnya secara eksplisit mengklaim "data historis
+    // nyata yang Anda lampirkan", padahal 100% hasil formula. Dijujurkan
+    // di sini sesuai CLAUDE.md Aturan #1/#3.
+    n.innerHTML='<span>⚠️</span><div>Sumber data: <b style="color:var(--amber)">SIMULASI (seed placeholder)</b> untuk ADMR. Data OHLCV asli dari sheet yang pernah dilampirkan sudah hilang dari sistem — candle ini dibangkitkan dari formula deterministik, <b>bukan</b> data pasar nyata. Pilih ticker lain untuk memakai data live real.</div>';
   } else if (typeof isValidStockTicker === 'function' && !isValidStockTicker(CD_TICKER)) {
     n.innerHTML='<span>⚠️</span><div>Sumber data: <b style="color:var(--red)">Ticker '+CD_TICKER+' Tidak Terdaftar</b>. Kode saham tidak ditemukan dalam Stock Universe IDX. Seluruh parameter teknikal bernilai 0.</div>';
   } else if (typeof rdIsReal === 'function' && rdIsReal(CD_TICKER)) {

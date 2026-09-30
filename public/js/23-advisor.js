@@ -35,6 +35,37 @@ function mwInitViewMode() {
   mwSetViewMode(saved);
 }
 
+// FIX (2026-09-30, audit finding): totalValuation()/equityHoldingsVal()/
+// cryptoTotalValuation()/reksadanaTotalValuation()/etfTotalValuation()
+// were called (guarded by `typeof x === 'function'`) at every call site in
+// this file below, but NONE of them were ever defined anywhere in the
+// codebase — every AUM/breakdown figure in Investor Tear Sheet and the
+// Rebalancing Calculator silently fell back to 0, indistinguishable from
+// an investor genuinely holding nothing. Defined here using the exact
+// same per-asset-class field names computeCurrentAUM() (03-engine.js)
+// already uses and has verified against getPortfolio()/getCryptoPortfolio()/
+// getEtfPortfolio()/getRdPortfolio()'s real shapes — no new data source,
+// just exposing the same real breakdown as separate callable pieces.
+function equityHoldingsVal() {
+  var porto = (typeof getPortfolio === 'function') ? getPortfolio() : [];
+  return porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
+}
+function cryptoTotalValuation() {
+  var porto = (typeof getCryptoPortfolio === 'function') ? getCryptoPortfolio() : [];
+  return porto.reduce(function(a, p) { return a + (p.mv || 0); }, 0);
+}
+function etfTotalValuation() {
+  var porto = (typeof getEtfPortfolio === 'function') ? getEtfPortfolio() : [];
+  return porto.reduce(function(a, p) { return a + (p.mvIdr || 0); }, 0);
+}
+function reksadanaTotalValuation() {
+  var porto = (typeof getRdPortfolio === 'function') ? getRdPortfolio() : [];
+  return porto.reduce(function(a, p) { return a + (p.val || p.mv || 0); }, 0);
+}
+function totalValuation() {
+  return (typeof computeCurrentAUM === 'function') ? computeCurrentAUM() : 0;
+}
+
 function mwShowToast(msg) {
   var bar = document.getElementById('save-status-bar');
   if (bar) {
@@ -67,10 +98,15 @@ function openInvestorTearSheet() {
   var gainPct = netDeposit > 0 ? (gainRp / netDeposit * 100) : 0;
 
   // Top 5 holdings
-  var topHoldings = (window.holdings || []).slice().sort(function(a, b) {
-    var vA = (a.lot || 0) * 100 * (a.last || a.avg || 0);
-    var vB = (b.lot || 0) * 100 * (b.last || b.avg || 0);
-    return vB - vA;
+  // FIX (2026-09-30, audit finding): window.holdings was never declared
+  // anywhere in the codebase (real portfolio positions live in
+  // getPortfolio(), 03-engine.js) — this table was always empty
+  // ("Belum ada posisi saham") regardless of the investor's real
+  // portfolio. getPortfolio() rows already carry a real computed `.mv`
+  // (market value), so sort directly by that instead of recomputing it
+  // from fields (`.last`) that don't exist on this shape.
+  var topHoldings = (typeof getPortfolio === 'function' ? getPortfolio() : []).slice().sort(function(a, b) {
+    return (b.mv || 0) - (a.mv || 0);
   }).slice(0, 5);
 
   var nowStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -133,7 +169,7 @@ function openInvestorTearSheet() {
     + '        <thead><tr style="color:#64748b;text-align:left;border-bottom:1px solid #cbd5e1"><th style="padding:3px 0">Ticker</th><th>Lot</th><th>Avg Buy</th><th>Last</th><th style="text-align:right">P/L %</th></tr></thead>'
     + '        <tbody>'
     + (topHoldings.length ? topHoldings.map(function(h) {
-        var last = h.last || h.avg || 0;
+        var last = h.mp || h.last || h.avg || 0;
         var pnlPct = h.avg > 0 ? ((last - h.avg) / h.avg * 100) : 0;
         var col = pnlPct >= 0 ? '#10b981' : '#ef4444';
         return '<tr style="border-bottom:1px solid #f1f5f9">'

@@ -3637,7 +3637,13 @@ app.get('/api/idx/history/:ticker', async (req, res) => {
     if (!/^[A-Z0-9^.=\-]{1,15}$/i.test(ticker)) {
       return res.status(400).json({ success: false, error: 'Invalid ticker format' });
     }
-    const tf = ['1D', '1W', '1M', '1Y', 'DAILY_MAX'].includes(req.query.tf) ? req.query.tf : '1D';
+    // 'SCAN' (interval 1d, range 6mo) diizinkan di sini juga — bucket yang
+    // sama yang sudah dipakai AI scanner internal untuk EMA50 real (lihat
+    // HISTORY_TF_MAP di lib/providers/yahoo-client.js), dibutuhkan Stock
+    // Dossier (46-stock-dossier.js) untuk skor teknikal candle harian
+    // beberapa bulan — bukan kemampuan baru, cuma bucket TTL Yahoo yang
+    // sama diekspos lewat route baca-saja yang sudah ada.
+    const tf = ['1D', '1W', '1M', '1Y', 'DAILY_MAX', 'SCAN'].includes(req.query.tf) ? req.query.tf : '1D';
     const market = ['id', 'us', 'crypto'].includes(req.query.market) ? req.query.market : 'id';
 
     const history = await fetchYahooHistory(ticker, tf, market);

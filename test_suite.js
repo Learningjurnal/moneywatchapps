@@ -10373,6 +10373,91 @@ test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real
     'REGRESSION: the card no longer discloses that Invezgo only exposes Level 1 (best bid/offer), not full market depth — could mislead a user into thinking this is a full order book');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "evaluasi seluruh js dan fitur
+// cari bug nya, pastikan bahwa tiap fitur saling terhubung panggilan nya,
+// tidak ada yang mengarang data"). 9 parallel audit agents surfaced 8
+// HIGH-confidence findings across 8 files; this block regression-guards
+// every one of them.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: 28-decisiontools.js renderRebalancePage() no longer has a duplicate dead `var html` declaration', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const fnMatch = src.match(/function renderRebalancePage\(\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'REGRESSION: renderRebalancePage() is missing');
+  const matches = fnMatch[0].match(/var html = /g) || [];
+  assert.strictEqual(matches.length, 1, 'REGRESSION: renderRebalancePage() has a duplicate `var html =` declaration again — the first block is dead code, immediately overwritten by the second');
+});
+
+test('REGRESSION GUARD: 30-price-alerts.js opens its modal with the real "on" class (matching closeModal() and every other modal), not the CSS-dead "open" class', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/30-price-alerts.js'), 'utf8');
+  assert(!/modal\.classList\.add\('open'\)/.test(src),
+    'REGRESSION: the Price Alert modal reverted to modal.classList.add(\'open\') — that class has no CSS rule anywhere (main.css only defines .overlay.on), so the modal never actually displays');
+  assert(/modal\.classList\.add\('on'\)/.test(src),
+    'REGRESSION: the Price Alert modal no longer opens with the real .on class used by closeModal() and every other modal in this app');
+});
+
+test('REGRESSION GUARD: 32-pdf-reports.js monthlyInv never fabricates a Rp 5,000,000/month assumption when income data is missing, and the projection table discloses when it falls back to Rp 0', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/32-pdf-reports.js'), 'utf8');
+  assert(!/monthlyInv = \(monthlyInc > monthlyExp\) \? \(monthlyInc - monthlyExp\) : \(5 \* 1000000\)/.test(src),
+    'REGRESSION: monthlyInv reverted to silently fabricating Rp 5,000,000/month when income data is unavailable — this fed a specific Rupiah 20-year projection into the OFFICIAL PDF report with zero disclosure');
+  assert(/var monthlyInvAvailable = monthlyInc > 0 && monthlyInc > monthlyExp/.test(src),
+    'REGRESSION: monthlyInvAvailable honesty flag is gone — monthlyInv must be 0 (not a guessed number) when real income data is missing/insufficient');
+  assert(/Data pemasukan bulanan belum diisi\/tidak mencukupi/.test(src),
+    'REGRESSION: the Compound 20-Year Simulation table no longer discloses when its monthly-contribution assumption is Rp 0 due to missing data, rather than a genuine user assumption');
+});
+
+test('REGRESSION GUARD: 11-quant.js Screener default ("lq45") always fetches the real /api/idx/stocks universe once, instead of permanently scanning the 15-ticker LQ45_STOCKS placeholder that the dropdown mislabels "LQ45 (45 Bluechips)"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert(/function scEnsureUniverseLoaded\(cb\)/.test(src), 'REGRESSION: scEnsureUniverseLoaded() is missing — nothing guarantees the real universe gets fetched for the default index');
+  const changeUnivMatch = src.match(/function scChangeUniverse\(idx\) \{[\s\S]*?\n\}/);
+  assert(changeUnivMatch, 'REGRESSION: scChangeUniverse() is missing');
+  assert(!/idx === 'lq45' \|\| QT_SCREENER_UNIVERSE/.test(changeUnivMatch[0]),
+    'REGRESSION: scChangeUniverse() reverted to skipping the real-universe fetch whenever idx===\'lq45\' — the default screener view would permanently scan the 15-ticker placeholder again');
+  assert(/scEnsureUniverseLoaded\(scBuildSim\)/.test(src),
+    'REGRESSION: the initial screener page load (goPage hook) or scChangeUniverse() no longer routes through scEnsureUniverseLoaded() before building the scan');
+});
+
+test('REGRESSION GUARD: 01-data.js getGlobalMarketPrice() excludes the DB base:100 sentinel placeholder instead of returning it as a real market price', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
+  assert(/DB\[tk\]\.base > 0 && DB\[tk\]\.base !== 100/.test(src),
+    'REGRESSION: getGlobalMarketPrice() no longer excludes the base:100 sentinel — hundreds of tickers in _IDX_RAW_LIST carry this as a "no real price known yet" placeholder (see the DB merge logic\'s own `DB[k].base === 100` check), and returning it presents a fabricated "Rp 100" as if it were a genuine quote');
+});
+
+test('REGRESSION GUARD: 06-analysis-router.js no longer claims the sine-wave-generated ADMR candle seed is "data historis nyata yang Anda lampirkan"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(!/data historis nyata yang Anda lampirkan/.test(src),
+    'REGRESSION: cdSrcNote() reverted to actively claiming the _cdSeedOhlcv() sine/cosine formula output is real historical data the user attached — this is a direct CLAUDE.md Aturan #1/#3 violation, not just a missing label');
+  assert(/SIMULASI \(seed placeholder\)/.test(src),
+    'REGRESSION: the ADMR candle source note no longer honestly discloses it is a synthetic seed, not real market data');
+});
+
+test('REGRESSION GUARD: 46-stock-dossier.js history fetch uses the real "tf" query param (server.js only reads tf, never "timeframe"), and no longer silently gets 5-minute intraday candles for a 90-day technical score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(!/\/api\/idx\/history\/' \+ cleanTicker \+ '\?timeframe=1D&limit=90'/.test(src),
+    'REGRESSION: dossierHarvestData() reverted to sending ?timeframe=1D&limit=90 — server.js/api/idx/history/:ticker only reads req.query.tf and has no `limit` param at all, so this silently defaulted to 5-minute-interval, today-only candles for what the code claims is a 90-day daily technical score');
+  assert(/\/api\/idx\/history\/' \+ cleanTicker \+ '\?tf=SCAN'/.test(src),
+    'REGRESSION: dossierHarvestData() no longer requests the real tf=SCAN (1d interval, 6mo range) bucket for its technical score history');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/\['1D', '1W', '1M', '1Y', 'DAILY_MAX', 'SCAN'\]\.includes\(req\.query\.tf\)/.test(serverSrc),
+    'REGRESSION: GET /api/idx/history/:ticker no longer whitelists tf=SCAN — Stock Dossier\'s history fetch would silently fall back to the wrong (1D/intraday) timeframe again');
+});
+
+test('REGRESSION GUARD: 23-advisor.js Investor Tear Sheet / Rebalancing Calculator valuation functions are real and no longer silently resolve to 0', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/23-advisor.js'), 'utf8');
+  ['totalValuation', 'equityHoldingsVal', 'cryptoTotalValuation', 'reksadanaTotalValuation', 'etfTotalValuation'].forEach((fn) => {
+    assert(new RegExp('function ' + fn + '\\(').test(src),
+      `REGRESSION: ${fn}() is missing again — every AUM/allocation figure guarded by 'typeof ${fn} === function' would silently fall back to 0, indistinguishable from a genuinely empty portfolio`);
+  });
+  assert(/function equityHoldingsVal\(\) \{[\s\S]*?getPortfolio\(\)/.test(src),
+    'REGRESSION: equityHoldingsVal() no longer sources from the real getPortfolio() (03-engine.js)');
+  assert(!/window\.holdings \|\| \[\]/.test(src),
+    'REGRESSION: Top 5 Holdings reverted to reading window.holdings, a global that is never declared anywhere in the codebase — the table would silently show "Belum ada posisi saham" for every investor regardless of their real portfolio');
+  assert(/getPortfolio\(\) : \[\]\)\.slice\(\)\.sort/.test(src),
+    'REGRESSION: Top 5 Holdings no longer sorts real getPortfolio() rows by market value');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

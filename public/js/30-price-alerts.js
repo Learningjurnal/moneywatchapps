@@ -488,7 +488,7 @@
       mwCalcAlertDistance();
     }
 
-    modal.classList.add('open');
+    modal.classList.add('on');
   };
 
   window.mwOnAlertModalTickerChange = function(ticker) {
