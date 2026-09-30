@@ -3107,17 +3107,23 @@ function _bandarRotationCacheValid() {
   return _BANDAR_ROTATION_CACHE && _BANDAR_ROTATION_CACHE.cacheKey === _bandarRotationCacheKey();
 }
 
-// Filter tanggal mulai/selesai untuk Sector Rotation Chart — from/to adalah
-// parameter request Invezgo yang nyata & sudah terverifikasi (lihat komentar
-// skema di fetchInvezgoSectorRotation(), lib/invezgo-client.js), bukan
-// tebakan. Ditaruh di luar #bandar-sector-rotation-chart supaya nilai input
-// tidak ikut hilang tiap chart-nya di-render ulang.
+// Filter tanggal mulai/selesai untuk Sector Rotation Chart. from/to di sini
+// TIDAK dikirim mentah-mentah sebagai parameter request Invezgo (lihat
+// komentar detail di fetchInvezgoSectorRotation(), lib/invezgo-client.js,
+// untuk kronologi bug-nya) — server menerjemahkannya jadi parameter `tail`
+// (jumlah titik mingguan yang ditampilkan), sementara permintaan aktual ke
+// Invezgo tetap memakai jendela kalender yang cukup lebar (>=180 hari)
+// supaya perhitungan smoothing-nya selalu punya cukup data historis, apa
+// pun rentang yang dipilih pengguna. Ditaruh di luar
+// #bandar-sector-rotation-chart supaya nilai input tidak ikut hilang tiap
+// chart-nya di-render ulang.
 function bandarSectorRotationFilterHtml() {
   var todayStr = new Date().toISOString().slice(0, 10);
   var fromVal = _bandarRotationFilter.from || '';
   var toVal = _bandarRotationFilter.to || '';
   var isFiltered = !!(_bandarRotationFilter.from || _bandarRotationFilter.to);
-  return '<div id="bandar-rotation-filter-mount" style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+  return '<div id="bandar-rotation-filter-mount" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">'
+    + '<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">'
     + '<div style="display:flex;flex-direction:column;gap:3px">'
     + '<label for="bandar-rotation-from" style="font-size:10px;font-weight:700;color:var(--text3)">Tanggal Mulai</label>'
     + '<input type="date" id="bandar-rotation-from" class="sm-input" max="' + todayStr + '" value="' + fromVal + '" style="padding:4px 8px;font-size:11px;border-radius:6px;width:auto;height:auto">'
@@ -3127,8 +3133,10 @@ function bandarSectorRotationFilterHtml() {
     + '<input type="date" id="bandar-rotation-to" class="sm-input" max="' + todayStr + '" value="' + toVal + '" style="padding:4px 8px;font-size:11px;border-radius:6px;width:auto;height:auto">'
     + '</div>'
     + '<button onclick="bandarApplySectorRotationDateFilter()" class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;font-weight:700">Terapkan</button>'
-    + (isFiltered ? '<button onclick="bandarResetSectorRotationDateFilter()" class="btn btn-ghost btn-xs" style="padding:5px 10px">Reset</button><span class="badge b-accent" style="font-size:9px">Filter Aktif</span>' : '<span style="font-size:10px;color:var(--text3)">Default: 180 hari terakhir</span>')
+    + (isFiltered ? '<button onclick="bandarResetSectorRotationDateFilter()" class="btn btn-ghost btn-xs" style="padding:5px 10px">Reset</button><span class="badge b-accent" style="font-size:9px">Filter Aktif</span>' : '<span style="font-size:10px;color:var(--text3)">Default: 5 titik mingguan terakhir</span>')
     + '<span id="bandar-rotation-filter-err" style="font-size:10.5px;color:var(--red)"></span>'
+    + '</div>'
+    + '<div style="font-size:9.5px;color:var(--text3)">Data RRG ini per-minggu (bukan harian) — rentang menentukan berapa titik mingguan yang ditampilkan. Rentang 1 minggu hanya akan menampilkan 1 titik.</div>'
     + '</div>';
 }
 

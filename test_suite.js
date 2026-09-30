@@ -10595,8 +10595,12 @@ test('REGRESSION GUARD: fetchInvezgoSectorRotation() accepts an explicit from/to
   const fnSrc = src.match(/async function fetchInvezgoSectorRotation[\s\S]*?\n\}\n/)[0];
   assert(/INVEZGO_DATE_RE\.test\(toDate\)/.test(fnSrc) && /INVEZGO_DATE_RE\.test\(fromDate\)/.test(fnSrc),
     'REGRESSION: fetchInvezgoSectorRotation() no longer validates toDate/fromDate against a YYYY-MM-DD format — a malformed value could silently reach the Invezgo request URL');
-  assert(/if \(from > to\) return \{ ok: false, reason: 'INVALID_DATE_RANGE' \}/.test(fnSrc),
+  assert(/if \(userFrom && userFrom > to\) return \{ ok: false, reason: 'INVALID_DATE_RANGE' \}/.test(fnSrc),
     'REGRESSION: fetchInvezgoSectorRotation() no longer fails closed with INVALID_DATE_RANGE when from > to');
+  assert(/const spanWeeks = Math\.ceil\(spanDays \/ 7\)/.test(fnSrc) && /tail = Math\.max\(1, Math\.min\(52, spanWeeks \|\| 1\)\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer derives the spec\'s own `tail` (trailing weekly points, 1-52) from the user\'s requested date range — root cause of the earlier bug where any custom from/to narrower than ~180 days returned honest-but-confusing NO_DATA (the smoothing calc needs length+tail weekly bars of real history, which a literal narrow from/to starves)');
+  assert(/const minCalendarDays = Math\.max\(180, Math\.ceil\(\(INVEZGO_ROTATION_LENGTH \+ tail\) \* 7 \* 1\.4\)\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer widens the actual Invezgo request window regardless of the user\'s requested display range — a user-narrowed literal from/to would starve the smoothing calculation again');
 });
 
 test('REGRESSION GUARD: generateSectorRotation() and GET /api/idx/sector-rotation pass through and validate the from/to date-range filter', () => {
@@ -10633,6 +10637,25 @@ test('REGRESSION GUARD: Sector Rotation Chart (Market Flow) has a real date-rang
     'REGRESSION: bandarLoadSectorRotationChart() no longer sends the selected from/to filter as query params to /api/idx/sector-rotation');
   assert(/_bandarRotationCacheKey/.test(src) && /_bandarRotationFilter\.from \|\| ''/.test(src),
     'REGRESSION: the Sector Rotation Chart in-memory cache no longer keys on the active date filter — switching the filter could silently show a stale, differently-filtered chart from cache');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FIX (2026-09-30, user-reported: "Aksi pada konsensus screener tidak
+// mengarah pada page manapun"). The "Detail" button on Screener Consensus
+// called selectStockChatTicker(ticker), which only sets the ticker and
+// re-renders StockChat's OWN internal DOM (#page-bandarmology content) —
+// it never navigates there, so clicking it from a different page (Screener
+// Consensus) did nothing visible. window.goStockIntelCockpit() is the
+// SSOT navigation helper already used elsewhere in the app (30-price-
+// alerts.js, 29-institutional-ui.js) for exactly this "jump to a ticker on
+// another page" case.
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: Screener Consensus "Detail" button actually navigates to Stock Intel via the real goStockIntelCockpit() helper, not a same-page-only ticker setter', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/50-screener-consensus.js'), 'utf8');
+  assert(!/onclick="selectStockChatTicker\(/.test(src),
+    'REGRESSION: the Detail button reverted to calling selectStockChatTicker(ticker) — that function only re-renders StockChat\'s own DOM in place, it never navigates there, so clicking Detail from Screener Consensus (a different page) does nothing visible');
+  assert(src.includes("window.goStockIntelCockpit"),
+    'REGRESSION: the Detail button no longer calls the real window.goStockIntelCockpit() navigation helper');
 });
 
 console.log('═══════════════════════════════════════════════════════');

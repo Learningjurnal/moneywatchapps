@@ -99,7 +99,7 @@ function csRenderRow(row) {
     + '<td>' + badges + voteDetails + warningHtml + '</td>'
     + '<td class="mono" style="text-align:right;color:' + (row.chg1d >= 0 ? 'var(--green)' : 'var(--red)') + '">' + priceCell + '</td>'
     + '<td>' + accHtml + brokerHtml + '</td>'
-    + '<td style="text-align:center"><button onclick="selectStockChatTicker(\'' + row.ticker + '\')" class="btn btn-ghost btn-xs">Detail</button></td>'
+    + '<td style="text-align:center"><button onclick="if(typeof window.goStockIntelCockpit===\'function\'){window.goStockIntelCockpit(\'' + row.ticker + '\');}else if(typeof goPage===\'function\'){goPage(\'stock-intel\');}" class="btn btn-ghost btn-xs">Detail</button></td>'
     + '</tr>';
 }
 

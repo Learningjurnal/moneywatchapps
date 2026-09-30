@@ -4291,10 +4291,15 @@ app.get('/api/idx/shareholder-composition/:ticker', async (req, res) => {
 // sector-index level (base=COMPOSITE). Supplements, never replaces, the
 // CMF-constituent estimate in public/js/44-sectoral-insight.js.
 // Optional ?from=YYYY-MM-DD&to=YYYY-MM-DD (user-facing date-range filter on
-// the Sector Rotation Chart, public/js/41-stockchat-cockpit.js) — both are
-// the real Invezgo request params (see fetchInvezgoSectorRotation() schema
-// comment), validated here so a malformed value fails closed with 400
-// instead of silently falling through to the default 180-day window.
+// the Sector Rotation Chart, public/js/41-stockchat-cockpit.js) — validated
+// here so a malformed value fails closed with 400 instead of silently
+// falling through. NOTE: from/to are NOT forwarded to Invezgo verbatim;
+// fetchInvezgoSectorRotation() (lib/invezgo-client.js) translates the range
+// into the spec's own `tail` param (how many weekly points to show) while
+// keeping the actual Invezgo request window wide enough for the smoothing
+// calculation — see that function's comment for why (an earlier version
+// forwarded from/to as-is and a narrow user range starved the calculation,
+// causing an honest but confusing NO_DATA for anything but the default).
 const IDX_DATE_QUERY_RE = /^\d{4}-\d{2}-\d{2}$/;
 app.get('/api/idx/sector-rotation', async (req, res) => {
   try {
