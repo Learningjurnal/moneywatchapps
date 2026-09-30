@@ -133,29 +133,16 @@ var STOCKCHAT_PROMPT_PRESETS = [
   }
 ];
 
-// Official BEI Broker Master List
-var CLIENT_IDX_BROKERS = {
-  'YP': { code: 'YP', name: 'Mirae Asset Sekuritas Indonesia', type: 'D', category: 'Retail Leader' },
-  'CC': { code: 'CC', name: 'Mandiri Sekuritas', type: 'D', category: 'State-Owned/Institutional' },
-  'PD': { code: 'PD', name: 'Indo Premier Sekuritas (IPOT)', type: 'D', category: 'Retail Leader' },
-  'XC': { code: 'XC', name: 'Ajaib Sekuritas Asia', type: 'D', category: 'Retail Tech' },
-  'XL': { code: 'XL', name: 'Stockbit Sekuritas Digital', type: 'D', category: 'Retail Tech' },
-  'AK': { code: 'AK', name: 'UBS Sekuritas Indonesia', type: 'F', category: 'Foreign Global Tier-1' },
-  'BK': { code: 'BK', name: 'J.P. Morgan Sekuritas Indonesia', type: 'F', category: 'Foreign Global Tier-1' },
-  'ZP': { code: 'ZP', name: 'Maybank Sekuritas Indonesia', type: 'F', category: 'Regional Institutional' },
-  'KZ': { code: 'KZ', name: 'CLSA Sekuritas Indonesia', type: 'F', category: 'Foreign Institutional' },
-  'CS': { code: 'CS', name: 'Credit Suisse / CGS International', type: 'F', category: 'Foreign Institutional' },
-  'RX': { code: 'RX', name: 'Macquarie Sekuritas Indonesia', type: 'F', category: 'Foreign Institutional' },
-  'OD': { code: 'OD', name: 'BRI Danareksa Sekuritas', type: 'D', category: 'State-Owned/Institutional' },
-  'SQ': { code: 'SQ', name: 'BCA Sekuritas', type: 'D', category: 'Top Private Banking' },
-  'NI': { code: 'NI', name: 'BNI Sekuritas', type: 'D', category: 'State-Owned/Institutional' },
-  'EP': { code: 'EP', name: 'MNC Sekuritas', type: 'D', category: 'Domestic Retail' },
-  'KK': { code: 'KK', name: 'Phillip Sekuritas Indonesia', type: 'D', category: 'Retail Platform' },
-  'CP': { code: 'CP', name: 'KB Valbury Sekuritas', type: 'D', category: 'Institutional & Retail' },
-  'DR': { code: 'DR', name: 'RHB Sekuritas Indonesia', type: 'D', category: 'Regional Broker' },
-  'LG': { code: 'LG', name: 'Trimegah Sekuritas Indonesia', type: 'D', category: 'Domestic Investment Bank' },
-  'IF': { code: 'IF', name: 'Samuel Sekuritas Indonesia', type: 'D', category: 'Domestic Institutional' }
-};
+// FIX (2026-09-30, audit finding): CLIENT_IDX_BROKERS (a hardcoded ~20-
+// broker master list) was pure dead code — declared here but never read
+// anywhere in this file or any other. It also duplicated the REAL master
+// list (IDX_BROKERS, lib/providers/idx-client.js) that generateBrokerSummary()
+// already uses server-side to enrich broker name/category directly into
+// the topBuyers/topSellers rows this page consumes from
+// /api/idx/broker-summary/:ticker — so a separate client-side copy was
+// never actually needed, and its risk was drifting out of sync with the
+// real list (new/renamed brokers) with nothing depending on it to notice.
+// Removed entirely rather than kept in sync.
 
 // Comprehensive Real-Time Price & Valuation Resolver (Zero Dummy Data Policy)
 function getAccurateStockPrice(ticker) {
@@ -3585,79 +3572,6 @@ window.bandarLoadNetAccDist = bandarLoadNetAccDist;
 window.renderBandarmologyNetAccumulationView = renderBandarmologyNetAccumulationView;
 window.bandarLoadAccDist = bandarLoadAccDist;
 
-// 6. Smart Money Radar View (Dynamic Universal Footprint)
-function renderBandarmologySmartMoneyRadarView(tk) {
-  var ticker = (tk || STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
-  var bData = bandarGetCachedSummary(ticker, '1D');
-  var b = bData.bandarmology || {};
-  var buyers = bData.topBuyers || [];
-  var sellers = bData.topSellers || [];
-
-  var instList = ['AK', 'BK', 'ZP', 'KZ', 'CS', 'RX', 'CC', 'SQ', 'OD', 'NI', 'LG', 'IF', 'YU'];
-  var retList = ['YP', 'PD', 'XC', 'XL', 'KK', 'EP', 'AT'];
-
-  var smBuyers = buyers.filter(function(x) { return instList.includes(x.broker); });
-  var smSellers = sellers.filter(function(x) { return instList.includes(x.broker); });
-  var retBuyers = buyers.filter(function(x) { return retList.includes(x.broker); });
-  var retSellers = sellers.filter(function(x) { return retList.includes(x.broker); });
-
-  var smBuyVal = smBuyers.reduce(function(a, b) { return a + (b.valueRp || 0); }, 0);
-  var smSellVal = smSellers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
-  var smNet = smBuyVal - smSellVal;
-
-  var retBuyVal = retBuyers.reduce(function(a, b) { return a + (b.valueRp || 0); }, 0);
-  var retSellVal = retSellers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
-  var retNet = retBuyVal - retSellVal;
-
-  var smScore = b.score || 80;
-  var smDominance = (b.concentration && (b.concentration.top3BuyerPct || b.concentration.top3BuyPct)) || 68;
-  var smBuyBrokersText = smBuyers.map(function(x){ return x.broker; }).join(', ') || 'AK, BK, CC';
-  var retSellBrokersText = retSellers.map(function(x){ return x.broker; }).join(', ') || 'YP, PD, XC';
-
-  var isBullishDivergence = smNet > 0 && retNet < 0;
-  var divStatus = isBullishDivergence ? 'BULLISH DIVERGENCE (SMART MONEY INFLOW)' : (smNet < 0 && retNet > 0 ? 'BEARISH DIVERGENCE (DISTRIBUTION TO RETAIL)' : 'NEUTRAL ROTATION');
-  var divDesc = isBullishDivergence ? 'Institusi menyerap barang konsisten sementara investor ritel melepas posisi' : 'Pergerakan harga sejalan dengan distribusi / akumulasi standar';
-
-  var html = bandarDataBanner(bData.isSimulated === false ? 1 : 0, 1)
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
-    + '<div>'
-    + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + 'SMART MONEY VS RETAIL FOOTPRINT: <span class="mono" style="color:var(--accent)">' + ticker + '</span>'
-    + '</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs aliran ritel reguler</div>'
-    + '</div>'
-    + '<span class="badge b-up" style="font-size:10px;font-weight:700">SMART MONEY SCORE: ' + smScore + '/100</span>'
-    + '</div>'
-
-    + '<div class="row4" style="margin-bottom:12px">'
-    + '<div class="metric">'
-    + '<div class="mlabel">1. DOMINANSI INSTITUSI / WHALE</div>'
-    + '<div class="mval up mono" style="font-size:16px">WHALE DOMINANT (' + smDominance + '%)</div>'
-    + '<div class="msub neu">Akumulator: <strong class="mono" style="color:var(--text)">' + smBuyBrokersText + '</strong> (+Rp ' + Math.abs(Math.round(smNet/1000000000)) + 'M)</div>'
-    + '</div>'
-
-    + '<div class="metric">'
-    + '<div class="mlabel">2. RETAIL SENTIMENT FOOTPRINT</div>'
-    + '<div class="mval ' + (retNet < 0 ? 'amb' : 'down') + ' mono" style="font-size:16px">' + (retNet < 0 ? 'RETAIL SELLING' : 'RETAIL ABSORBING') + '</div>'
-    + '<div class="msub neu">Broker Ritel: <strong class="mono" style="color:var(--text)">' + retSellBrokersText + '</strong></div>'
-    + '</div>'
-
-    + '<div class="metric">'
-    + '<div class="mlabel">3. DIVERGENSI SMART MONEY</div>'
-    + '<div class="mval ' + (isBullishDivergence ? 'up' : 'neu') + ' mono" style="font-size:14px">' + divStatus + '</div>'
-    + '<div class="msub neu">' + divDesc + '</div>'
-    + '</div>'
-    + '</div>'
-
-    + '<div style="padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:12px;line-height:1.5;color:var(--text2)">'
-    + '<div style="font-weight:700;color:var(--green);margin-bottom:4px;display:flex;align-items:center;gap:4px">Kesimpulan AI Smart Money &amp; Bandarmology:</div>'
-    + 'Smart Money terdeteksi aktif pada saham <strong class="mono" style="color:var(--text)">' + ticker + '</strong> dengan net institutional flow <strong class="up mono">' + (smNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smNet/1000000000)).toLocaleString('id-ID') + ' Miliar</strong>. Broker institusi utama (<span class="mono" style="color:var(--text)">' + smBuyBrokersText + '</span>) mendominasi konsentrasi akumulasi.'
-    + '</div>'
-    + '</div>';
-  return html;
-}
-
 // 7. Broker Trail View
 // 7. Broker Summary by Broker View (Whole-Market Institutional Portfolio)
 function bandarLoadBrokerPortfolio(brokerCode, tf) {
@@ -4348,7 +4262,6 @@ window.renderBandarmologyCockpitPage = renderBandarmologyCockpitPage;
 window.renderBandarmologyMarketFlowView = renderBandarmologyMarketFlowView;
 window.renderBandarmologyAccumulationView = renderBandarmologyAccumulationView;
 window.renderBandarmologyDistributionView = renderBandarmologyDistributionView;
-window.renderBandarmologySmartMoneyRadarView = renderBandarmologySmartMoneyRadarView;
 window.renderBandarmologySmartMoneyFlowView = renderBandarmologySmartMoneyFlowView;
 window.renderBandarmologyBrokerTrailView = renderBandarmologyBrokerTrailView;
 window.getAccurateStockPrice = getAccurateStockPrice;

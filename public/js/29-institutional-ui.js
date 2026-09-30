@@ -156,10 +156,15 @@
         sub: (info.name || 'Saham BEI') + ' · ' + (info.sector || 'Sektor IDX'),
         badge: (p > 0 ? 'Rp ' + p.toLocaleString('id-ID') : 'Rp —') + ' (' + (isGain ? '+' : '') + chg.toFixed(2) + '%)',
         badgeColor: isGain ? 'var(--green)' : 'var(--red)',
+        // FIX (2026-09-30, audit finding): openStockIntelCockpit() was
+        // never defined anywhere — this always fell through to
+        // goPage('stock-intel') without ever setting the clicked ticker.
+        // goStockIntelCockpit() (30-price-alerts.js) does the real thing:
+        // sets GLOBAL_STOCK_CONTEXT then navigates.
         action: function() {
-          if (typeof openStockIntelCockpit === 'function') {
-            openStockIntelCockpit(ticker);
-          } else {
+          if (typeof window.goStockIntelCockpit === 'function') {
+            window.goStockIntelCockpit(ticker);
+          } else if (typeof goPage === 'function') {
             goPage('stock-intel');
           }
         }

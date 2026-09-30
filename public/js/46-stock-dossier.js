@@ -434,13 +434,19 @@ function dossierComputeSmartMoneyScore(harvested) {
     score: score,
     top3Pct: top3Pct ? Math.round(top3Pct) : null,
     foreignFlow: foreignNet,
-    bandarStatus: statusStr || 'Normal Accumulation',
+    // FIX (2026-09-30, audit finding): dulu fallback ke 'Normal
+    // Accumulation'/'Akumulasi' saat API tidak mengembalikan field
+    // status/action apa pun — mengimplikasikan akumulasi TERDETEKSI,
+    // padahal sebenarnya tidak ada sinyal status sama sekali dari data
+    // real. `score` di atas sudah benar netral (50) untuk kasus ini;
+    // label teks sekarang jujur mengikuti, bukan menyiratkan temuan.
+    bandarStatus: statusStr || 'Status Tidak Tersedia',
     vwapBandar: vwapBandar,
     accumulators: accumulators,
     distributors: distributors,
     topBuyers: rawBuyers,
     topSellers: rawSellers,
-    reason: (isSimulated ? '[SIMULASI MODEL] ' : '') + 'Status: ' + (statusStr || 'Akumulasi') + (top3Pct ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
+    reason: (isSimulated ? '[SIMULASI MODEL] ' : '') + 'Status: ' + (statusStr || 'Tidak tersedia dari API') + (top3Pct ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
             (accumulators.length ? ' · Top Akumulator: ' + accumulators.slice(0, 3).map(function(a){ return a.code; }).join(', ') : '') +
             (foreignNet !== null && foreignNet !== 0 ? ' · Foreign Net: Rp ' + (foreignNet / 1e9).toFixed(2) + ' M' : '')
   };

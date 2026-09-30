@@ -10458,6 +10458,127 @@ test('REGRESSION GUARD: 23-advisor.js Investor Tear Sheet / Rebalancing Calculat
     'REGRESSION: Top 5 Holdings no longer sorts real getPortfolio() rows by market value');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "lanjut ke MEDIUM dan LOW" — same
+// full-codebase audit as the HIGH-fix block above). Regression-guards for
+// the MEDIUM and LOW confidence findings.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: 38-ai-autonomous-trading.js adaptiveWeights.strategyMultipliers no longer pre-seeds keys real closed trades never use', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(!/strategyMultipliers:\s*\{\s*strat_pullback:/.test(src),
+    'REGRESSION: strategyMultipliers reverted to pre-seeding strat_pullback/etc — real closed AI trades key by trend-label or "composite_scoring", so these 5 keys were dead weight that aiCalibrateAdaptiveWeights() never touched');
+  assert(/strategyMultipliers:\s*\{\s*\}/.test(src),
+    'REGRESSION: strategyMultipliers no longer starts empty — aiCalibrateAdaptiveWeights() auto-creates real keys on demand, so a stale hardcoded seed can only mislead');
+});
+
+test('REGRESSION GUARD: 38-ai-autonomous-trading.js STRATEGY_META merges live /api/idx/strategies data instead of relying solely on a hardcoded fallback that can drift from server.js STRATEGY_DEFINITIONS', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(/typeof fetch === 'function'/.test(src) && /fetch\('\/api\/idx\/strategies'\)/.test(src),
+    'REGRESSION: no longer fetches /api/idx/strategies (guarded by typeof fetch check, for sandboxed/non-browser execution) to merge real strategy names into STRATEGY_META — the dropdown can silently drift from server.js STRATEGY_DEFINITIONS');
+  assert(/json\.strategies\.forEach\(function\(s\) \{ if \(s && s\.id && s\.name\) STRATEGY_META\[s\.id\] = s\.name; \}\)/.test(src),
+    'REGRESSION: the /api/idx/strategies response is no longer merged into STRATEGY_META');
+});
+
+test('REGRESSION GUARD: 46-stock-dossier.js bandarmology pillar no longer defaults an unavailable verdict to a fabricated "Normal Accumulation"/"Akumulasi" reading', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(!/bandarStatus: statusStr \|\| 'Normal Accumulation'/.test(src),
+    'REGRESSION: bandarStatus fallback reverted to "Normal Accumulation" — this asserts a specific bullish accumulation reading even when the real API returned nothing, violating CLAUDE.md Aturan #1/#3');
+  assert(/bandarStatus: statusStr \|\| 'Status Tidak Tersedia'/.test(src),
+    'REGRESSION: bandarStatus no longer honestly falls back to "Status Tidak Tersedia" when the real verdict is missing');
+});
+
+test('REGRESSION GUARD: 30-price-alerts.js and 29-institutional-ui.js navigate to Stock Intel via the real GLOBAL_STOCK_CONTEXT + goPage(), not a non-existent openStockIntelCockpit()', () => {
+  const alertsSrc = fs.readFileSync(path.join(__dirname, 'public/js/30-price-alerts.js'), 'utf8');
+  assert(!/openStockIntelCockpit\(ticker\)/.test(alertsSrc.replace(/window\.goStockIntelCockpit[\s\S]*?\n\};/, '')),
+    'REGRESSION: 30-price-alerts.js reverted to calling openStockIntelCockpit(ticker), a function that does not exist anywhere in the codebase — clicking through from a price alert would throw and do nothing');
+  assert(/window\.GLOBAL_STOCK_CONTEXT\.setTicker\(ticker, 'price-alerts'\)/.test(alertsSrc),
+    'REGRESSION: goStockIntelCockpit() no longer routes the ticker through GLOBAL_STOCK_CONTEXT before navigating to Stock Intel');
+
+  const uiSrc = fs.readFileSync(path.join(__dirname, 'public/js/29-institutional-ui.js'), 'utf8');
+  assert(!/openStockIntelCockpit\(ticker\)/.test(uiSrc),
+    'REGRESSION: the command palette action reverted to calling openStockIntelCockpit(ticker), a function that does not exist — the command palette "go to stock" action would throw and do nothing');
+  assert(/window\.goStockIntelCockpit === 'function'/.test(uiSrc),
+    'REGRESSION: the command palette no longer calls the real window.goStockIntelCockpit() to navigate to a ticker');
+});
+
+test('REGRESSION GUARD: 28-decisiontools.js new-thesis modal no longer hardcodes expectedReturn to a fabricated "+20.0%" regardless of the real target/current price', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(!/expectedReturn: '\+20\.0%'/.test(src),
+    'REGRESSION: saveNewThesisFromModal() reverted to hardcoding expectedReturn as "+20.0%" for every thesis regardless of the user\'s actual target price and current market price — a fabricated, always-identical number');
+  assert(/var expectedReturn = \(curPrice > 0 && target > 0\)/.test(src),
+    'REGRESSION: saveNewThesisFromModal() no longer computes expectedReturn from the real current price and target price (or honestly leaves it null when unavailable)');
+});
+
+test('REGRESSION GUARD: 28-decisiontools.js Rebalancing page no longer shows a static "Deviasi: < 1.0% / Status: Optimal" placeholder regardless of the real computed portfolio deviation', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(!/Deviasi:<\/span><strong class="mono up">&lt; 1\.0%/.test(src),
+    'REGRESSION: renderRebalancePage() reverted to a hardcoded "Deviasi: < 1.0%" text that never reflected the real per-position deviations computed in the same function');
+  assert(/maxAbsDeviation = Math\.max\(maxAbsDeviation, Math\.abs\(deltaPct\)\)/.test(src),
+    'REGRESSION: renderRebalancePage() no longer tracks the real maximum absolute deviation across positions');
+  assert(/outOfBalanceCount\+\+/.test(src),
+    'REGRESSION: renderRebalancePage() no longer counts how many positions are actually out of balance');
+});
+
+test('REGRESSION GUARD: 28-decisiontools.js "Salin Order Sheet" button performs a real clipboard copy of computed rebalance instructions, not a placeholder alert()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(/function rebCopyOrderSheet\(\)/.test(src),
+    'REGRESSION: rebCopyOrderSheet() is missing — the order sheet button has nothing real to call');
+  assert(/onclick="rebCopyOrderSheet\(\)"/.test(src),
+    'REGRESSION: the order sheet button no longer calls rebCopyOrderSheet() — it may have reverted to a placeholder alert()');
+  assert(/navigator\.clipboard && navigator\.clipboard\.writeText/.test(src),
+    'REGRESSION: rebCopyOrderSheet() no longer performs a real clipboard write of the computed BELI/JUAL instructions');
+  assert(/_rebalanceOrderSheetLines\.push/.test(src) === false && /orderSheetLines\.push\(/.test(src),
+    'REGRESSION: renderRebalancePage() no longer builds real per-position BELI/JUAL order sheet lines from the computed deviations');
+});
+
+test('REGRESSION GUARD: 42-dividend-calendar.js getEnrichedDividendEvents() no longer references the deleted IDX_DIVIDEND_MASTER_REGISTRY global (would ReferenceError)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/42-dividend-calendar.js'), 'utf8');
+  assert(!/IDX_DIVIDEND_MASTER_REGISTRY\.slice\(\)/.test(src),
+    'REGRESSION: getEnrichedDividendEvents() reverted to reading IDX_DIVIDEND_MASTER_REGISTRY.slice() — that variable was deleted elsewhere in this file, so this throws a ReferenceError every time it runs');
+  assert(/DIV_CALENDAR_STATE\.cachedData && DIV_CALENDAR_STATE\.cachedData\.length/.test(src),
+    'REGRESSION: getEnrichedDividendEvents() no longer falls back to the real DIV_CALENDAR_STATE.cachedData source');
+});
+
+test('REGRESSION GUARD: 41-stockchat-cockpit.js no longer carries the dead renderBandarmologySmartMoneyRadarView() view (zero call sites)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  // NOTE (2026-09-30): bandarUniqueMarketTickers()/bandarPrefetchMarketBatch()
+  // were almost deleted in this same audit pass as "dead code" (no direct
+  // call sites), but pre-existing regression tests elsewhere in this file
+  // (search "bandarPrefetchMarketBatch() is gone") document them as
+  // intentionally-preserved, disabled-but-not-removed code tied to a real
+  // "Page Unresponsive" incident fix — so they were restored and are
+  // deliberately NOT asserted-gone here.
+  assert(!/function renderBandarmologySmartMoneyRadarView/.test(src),
+    'REGRESSION: renderBandarmologySmartMoneyRadarView() is back — this dead view function had zero call sites');
+  assert(!/window\.renderBandarmologySmartMoneyRadarView = renderBandarmologySmartMoneyRadarView/.test(src),
+    'REGRESSION: the dead renderBandarmologySmartMoneyRadarView export is back');
+});
+
+test('REGRESSION GUARD: 41-stockchat-cockpit.js no longer carries the dead CLIENT_IDX_BROKERS ~20-broker hardcoded object (zero read-references; real enrichment is server-side IDX_BROKERS)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(!/var CLIENT_IDX_BROKERS = \{/.test(src),
+    'REGRESSION: CLIENT_IDX_BROKERS is back — this hardcoded broker-name object had zero read-references anywhere in the codebase (real broker enrichment happens server-side via IDX_BROKERS in generateBrokerSummary()), so it was pure dead weight and a future drift risk if anyone started using it instead of the server data');
+});
+
+test('REGRESSION GUARD: 38-ai-autonomous-trading.js scan-universe comment no longer claims a stale "default LQ45 (45 tickers)" when the real default is IDX80', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(!/default LQ45 \(45 tickers/.test(src),
+    'REGRESSION: the scan universe selector comment reverted to claiming a stale "default LQ45 (45 tickers)" — the real default and behavior is IDX80 (~85 tickers), and this could mislead a future maintainer into believing the scan covers fewer tickers than it does (or the wrong universe entirely)');
+});
+
+test('REGRESSION GUARD: 02-storage.js audit function/DOM id are honestly named checkSupabaseLiveSyncStatus/sh-supabase-audit-box, not the stale "Firebase" naming for a Supabase-backed check', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/02-storage.js'), 'utf8');
+  assert(!/checkFirebaseLiveSyncStatus/.test(src),
+    'REGRESSION: checkFirebaseLiveSyncStatus() is back — this app\'s live sync backend is Supabase, not Firebase; the stale name could mislead a future maintainer into thinking a Firebase integration exists or is being audited');
+  assert(!/sh-firebase-audit-box/.test(src),
+    'REGRESSION: the sh-firebase-audit-box DOM id is back — same stale-naming issue');
+  assert(/function checkSupabaseLiveSyncStatus/.test(src),
+    'REGRESSION: checkSupabaseLiveSyncStatus() is missing — the live sync audit function must be honestly named for the real backend it checks');
+  assert(/sh-supabase-audit-box/.test(src),
+    'REGRESSION: the sh-supabase-audit-box DOM id is missing');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

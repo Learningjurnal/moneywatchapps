@@ -851,11 +851,19 @@
     }
   };
 
-  // Helper helper to jump to stock cockpit
+  // Helper to jump to stock cockpit with the right ticker selected.
+  // FIX (2026-09-30, audit finding): openStockIntelCockpit() was never
+  // defined anywhere in the codebase — this always fell through to
+  // goPage('stock-intel') with no ticker set, opening whatever ticker was
+  // last active instead of the one the user actually clicked. Stock
+  // Intel (27-stockintel.js) already subscribes to GLOBAL_STOCK_CONTEXT
+  // and picks up ticker changes from it — same pattern used across the
+  // rest of this app (StockChat, Fundamental, Volume Spike, etc.).
   window.goStockIntelCockpit = function(ticker) {
-    if (typeof openStockIntelCockpit === 'function') {
-      openStockIntelCockpit(ticker);
-    } else if (typeof goPage === 'function') {
+    if (ticker && typeof window.GLOBAL_STOCK_CONTEXT !== 'undefined' && window.GLOBAL_STOCK_CONTEXT.setTicker) {
+      window.GLOBAL_STOCK_CONTEXT.setTicker(ticker, 'price-alerts');
+    }
+    if (typeof goPage === 'function') {
       goPage('stock-intel');
     }
   };

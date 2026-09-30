@@ -99,13 +99,25 @@
         RISK_OFF: 0.60,
         UNKNOWN: 0.90
       },
-      strategyMultipliers: {
-        strat_pullback: 1.0,
-        strat_breakout: 1.0,
-        strat_mean_reversion: 1.0,
-        strat_slow_trading_dual_macd: 1.0,
-        composite_scoring: 1.0
-      },
+      // FIX (2026-09-30, audit finding): dulu di-seed dengan 5 key nama
+      // Strategy Lab (strat_pullback/strat_breakout/strat_mean_reversion/
+      // strat_slow_trading_dual_macd/composite_scoring) — tapi
+      // closedTrade.strategy TIDAK PERNAH bernilai salah satu dari 4 key
+      // strat_* itu di mana pun di file ini (itu murni nama untuk dropdown
+      // Strategy Lab, fitur backtest server-side TERPISAH yang tidak
+      // berhubungan dengan paper account ini). Trade nyata selalu memakai
+      // label trend ("Trend Following (Uptrend)", dll dari
+      // _adaptRealSignal()) atau "Signal & Confluence Engine (REGIME)"
+      // dari Hypothesis Lab, dengan 'composite_scoring' sebagai fallback
+      // (lihat aiCalibrateAdaptiveWeights()). 4 key strat_* itu jadi bobot
+      // hantu yang tidak pernah tersentuh kalibrasi, tapi badge UI
+      // "KALIBRASI ADAPTIF" bisa menyesatkan seolah strategi bernama itu
+      // benar-benar dikalibrasi. aiCalibrateAdaptiveWeights() sudah
+      // auto-membuat key baru saat dibutuhkan (lihat fungsi itu), jadi
+      // pre-seed di sini tidak diperlukan — dibiarkan kosong supaya kartu
+      // "BOBOT STRATEGI" hanya menampilkan strategi yang benar-benar
+      // pernah dikalibrasi dari trade real.
+      strategyMultipliers: {},
       adaptationHistory: []
     }
   };
@@ -140,8 +152,8 @@
   var AI_SCAN_LAST_ATTEMPT = 0;
   var AI_SCAN_RETRY_COOLDOWN_MS = 30000;
 
-  // Scan universe selector — default LQ45 (45 tickers, a single request,
-  // byte-for-byte the original behavior). A broader universe is fetched as
+  // Scan universe selector — default IDX80 (~85 tickers; see
+  // AI_SCAN_UNIVERSE_KEY below). A broader universe is fetched as
   // a ticker-code list first (GET /api/idx/stocks?index=...), then scanned
   // in sequential batches of AI_SCAN_BATCH_SIZE (matches the server's own
   // per-request cap — see the comment above /api/idx/ai-scan in
@@ -227,12 +239,25 @@
   var AI_WALKFORWARD_STRATEGY = 'strat_pullback';
   // Mirrors lib/idx-data-engine.js#STRATEGY_DEFINITIONS names — just for
   // the dropdown label; the actual computation always happens server-side.
+  // Hardcoded here as the synchronous fallback so the dropdown renders
+  // immediately, but refreshed from the real source of truth right below
+  // (FIX 2026-09-30, audit finding: this list previously had no
+  // mechanism to notice if STRATEGY_DEFINITIONS server-side ever adds,
+  // renames, or removes a strategy — GET /api/idx/strategies already
+  // exists and returns that exact list, just never fetched from here).
   var STRATEGY_META = {
     strat_pullback: 'Trend Pullback',
     strat_breakout: 'Volume Breakout',
     strat_mean_reversion: 'Mean Reversion Oversold',
     strat_slow_trading_dual_macd: 'SlowTrading RSI + Dual MACD'
   };
+  if (typeof fetch === 'function') {
+    fetch('/api/idx/strategies').then(function(r) { return r.json(); }).then(function(json) {
+      if (json && json.success && Array.isArray(json.strategies)) {
+        json.strategies.forEach(function(s) { if (s && s.id && s.name) STRATEGY_META[s.id] = s.name; });
+      }
+    }).catch(function() { /* best-effort — dropdown keeps working off the static fallback above */ });
+  }
 
   async function fetchAllStrategyBacktests() {
     if (AI_BACKTEST_LOADING) return;
