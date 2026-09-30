@@ -3094,6 +3094,17 @@ var BANDAR_ROTATION_REASON_TEXT = {
   NETWORK_ERROR: 'Gangguan jaringan ke Invezgo',
   INVALID_DATE_RANGE: 'Tanggal mulai tidak boleh setelah tanggal selesai'
 };
+// User-facing sector-visibility filter (Sector Rotation Chart) — a Set-like
+// map of sector codes currently HIDDEN from the chart/table (empty = show
+// all 11). Chosen as a "hidden" set rather than a "selected" one so the
+// default (no filter applied yet) needs no upfront population with all 11
+// codes — matches the common chart-legend "click to hide a series"
+// convention. Survives re-renders triggered by the date filter (module-
+// level state, not reset by bandarLoadSectorRotationChart()); the KPI
+// cards above the chart always reflect the FULL market (all 11 sectors)
+// regardless of this filter — only the chart/table below are a drill-down.
+var _bandarRotationHiddenSectors = {};
+
 var _BANDAR_ROTATION_CACHE = null; // {data, cacheKey}
 // User-facing date-range filter (Sector Rotation Chart) — null/null means
 // "pakai default server" (jendela 180 hari kalender berakhir hari ini, lihat
@@ -3162,6 +3173,51 @@ function bandarResetSectorRotationDateFilter() {
   bandarLoadSectorRotationChart();
 }
 window.bandarResetSectorRotationDateFilter = bandarResetSectorRotationDateFilter;
+
+// Sector-visibility chips — one per REAL sector Invezgo actually returned
+// (never a hardcoded 11-sector list, so a sector genuinely unavailable for
+// the current date range simply has no chip to toggle). Clicking a chip
+// hides/shows that sector's trail+row; "Tampilkan Semua" only appears once
+// at least one is hidden. Re-renders from the already-fetched cached data —
+// toggling visibility never triggers a new network request.
+function bandarRotationSectorChipsHtml(sectors, colorMap) {
+  var chips = sectors.map(function (s) {
+    var isHidden = !!_bandarRotationHiddenSectors[s.code];
+    var color = colorMap[s.code] || '#888';
+    var style = 'display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:12px;cursor:pointer;border:1px solid ' + (isHidden ? 'var(--border2)' : color) + ';background:' + (isHidden ? 'transparent' : color + '1f') + ';color:' + (isHidden ? 'var(--text3)' : color) + ';opacity:' + (isHidden ? '0.6' : '1');
+    return '<button type="button" onclick="bandarToggleRotationSector(\'' + s.code + '\')" style="' + style + '" title="' + (isHidden ? 'Klik untuk menampilkan kembali' : 'Klik untuk menyembunyikan') + '">'
+      + '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + color + ';opacity:' + (isHidden ? '0.4' : '1') + '"></span>'
+      + (s.name || s.code)
+      + '</button>';
+  }).join('');
+  var anyHidden = sectors.some(function (s) { return !!_bandarRotationHiddenSectors[s.code]; });
+  return '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+    + chips
+    + (anyHidden ? '<button type="button" onclick="bandarShowAllRotationSectors()" class="btn btn-ghost btn-xs" style="padding:3px 9px;font-size:10.5px">Tampilkan Semua</button>' : '')
+    + '</div>';
+}
+
+function _bandarRerenderRotationFromCache() {
+  var mount = document.getElementById('bandar-sector-rotation-chart');
+  if (mount && _BANDAR_ROTATION_CACHE) bandarRenderSectorRotationChart(mount, _BANDAR_ROTATION_CACHE.data);
+}
+
+function bandarToggleRotationSector(code) {
+  if (!code) return;
+  if (_bandarRotationHiddenSectors[code]) {
+    delete _bandarRotationHiddenSectors[code];
+  } else {
+    _bandarRotationHiddenSectors[code] = true;
+  }
+  _bandarRerenderRotationFromCache();
+}
+window.bandarToggleRotationSector = bandarToggleRotationSector;
+
+function bandarShowAllRotationSectors() {
+  _bandarRotationHiddenSectors = {};
+  _bandarRerenderRotationFromCache();
+}
+window.bandarShowAllRotationSectors = bandarShowAllRotationSectors;
 
 async function bandarLoadSectorRotationChart() {
   var mount = document.getElementById('bandar-sector-rotation-chart');
@@ -3260,6 +3316,14 @@ function bandarRenderSectorRotationChart(mount, data) {
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-bottom:12px">Data REAL Invezgo API (RS-Ratio vs RS-Momentum, rebased ke 100 = ' + (data.benchmark || 'COMPOSITE') + ') — visualisasi kekuatan & momentum relatif tiap sektor, bukan sampel.</div>';
 
+  // Sector-visibility filter (user-requested: "tambahkan filter sectoral
+  // untuk hanya menampilkan sector yang dipilih") — KPI cards above stay
+  // computed from the FULL market (sectors, not visibleSectors) since they
+  // are meant as always-on market-breadth context; only the chart/table
+  // drill-down respects which sectors the user chose to hide.
+  var chipsHtml = bandarRotationSectorChipsHtml(sectors, colorMap);
+  var visibleSectors = sectors.filter(function (s) { return !_bandarRotationHiddenSectors[s.code]; });
+
   // FIX (2026-09-26, third size iteration — user asked explicitly: "buat
   // memanjang ke samping sampai tidak ada space kosong menyamping, panjang
   // atas bawah sudah sesuai"): fill the full card width — no side margins
@@ -3267,10 +3331,16 @@ function bandarRenderSectorRotationChart(mount, data) {
   // and height are decoupled in _bandarRenderRotationSvg() below (height
   // is capped independent of width) specifically so this can go 100%
   // wide without also growing much taller.
-  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
+  mount.innerHTML = headerHtml + kpiHtml + chipsHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
 
-  _bandarRenderRotationSvg(document.getElementById('bandar-rotation-svg-wrap'), sectors, colorMap, isDark);
-  _bandarRenderRotationTable(document.getElementById('bandar-rotation-table-wrap'), sectors, colorMap, quadrantLabel);
+  if (!visibleSectors.length) {
+    document.getElementById('bandar-rotation-svg-wrap').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Semua sektor disembunyikan — klik salah satu chip di atas atau "Tampilkan Semua" untuk menampilkan kembali.</div>';
+    document.getElementById('bandar-rotation-table-wrap').innerHTML = '';
+    return;
+  }
+
+  _bandarRenderRotationSvg(document.getElementById('bandar-rotation-svg-wrap'), visibleSectors, colorMap, isDark);
+  _bandarRenderRotationTable(document.getElementById('bandar-rotation-table-wrap'), visibleSectors, colorMap, quadrantLabel);
 }
 
 function _bandarRenderRotationTable(wrap, sectors, colorMap, quadrantLabel) {

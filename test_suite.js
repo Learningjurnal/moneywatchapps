@@ -10658,6 +10658,44 @@ test('REGRESSION GUARD: Screener Consensus "Detail" button actually navigates to
     'REGRESSION: the Detail button no longer calls the real window.goStockIntelCockpit() navigation helper');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "Tambahkan filter sectoralnya untuk
+// hanya menampilkan sector yang dipilih, atau buat lebih advance menurut
+// rekomendasi anda"). Sector Rotation Chart (RRG) gains per-sector
+// show/hide chips — clicking a chip toggles that sector's trail/row out of
+// the chart+table below, re-rendered from the already-cached data (no
+// re-fetch). KPI cards above stay computed from the FULL market regardless
+// of the filter, since they're market-breadth context, not a drill-down.
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: Sector Rotation Chart has real per-sector show/hide chips that filter the chart/table without re-fetching, while KPI cards stay market-wide', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/function bandarRotationSectorChipsHtml/.test(src),
+    'REGRESSION: bandarRotationSectorChipsHtml() is missing — the Sector Rotation Chart no longer renders per-sector visibility chips');
+  assert(/function bandarToggleRotationSector/.test(src),
+    'REGRESSION: bandarToggleRotationSector() is missing — clicking a sector chip has nothing to call');
+  assert(/function bandarShowAllRotationSectors/.test(src),
+    'REGRESSION: bandarShowAllRotationSectors() is missing — there is no way to clear the sector-visibility filter');
+
+  const toggleFnSrc = src.match(/function bandarToggleRotationSector[\s\S]*?\n\}\n/)[0];
+  assert(/_bandarRerenderRotationFromCache\(\)/.test(toggleFnSrc),
+    'REGRESSION: bandarToggleRotationSector() no longer re-renders from the cached data — toggling a chip should never trigger a new network request');
+  const rerenderFnSrc = src.match(/function _bandarRerenderRotationFromCache[\s\S]*?\n\}\n/)[0];
+  assert(/_BANDAR_ROTATION_CACHE\.data/.test(rerenderFnSrc) && !/fetch\(/.test(rerenderFnSrc),
+    'REGRESSION: _bandarRerenderRotationFromCache() no longer re-renders purely from the in-memory cache — a sector-visibility toggle must stay a local, no-network operation');
+
+  const chartFnSrc = src.match(/function bandarRenderSectorRotationChart[\s\S]*?\n {2}_bandarRenderRotationTable\([^;]*\);\n\}\n/)[0];
+  assert(/var visibleSectors = sectors\.filter/.test(chartFnSrc),
+    'REGRESSION: bandarRenderSectorRotationChart() no longer derives a visibleSectors subset from _bandarRotationHiddenSectors');
+  assert(/_bandarRenderRotationSvg\(document\.getElementById\('bandar-rotation-svg-wrap'\), visibleSectors/.test(chartFnSrc),
+    'REGRESSION: the RRG scatter chart no longer respects the sector-visibility filter — it should draw only visibleSectors, not every sector unconditionally');
+  assert(/_bandarRenderRotationTable\(document\.getElementById\('bandar-rotation-table-wrap'\), visibleSectors/.test(chartFnSrc),
+    'REGRESSION: the sector table below the chart no longer respects the sector-visibility filter');
+  assert(/if \(!visibleSectors\.length\)/.test(chartFnSrc),
+    'REGRESSION: hiding every sector no longer shows an honest "semua sektor disembunyikan" message — it could instead silently render a broken/empty chart');
+  assert(/var kpiHtml = /.test(chartFnSrc) && chartFnSrc.indexOf('var kpiHtml = ') < chartFnSrc.indexOf('var visibleSectors ='),
+    'REGRESSION: the KPI cards are no longer computed before (i.e. independently of) the sector-visibility filter — they must always reflect the full market, not just the sectors currently shown');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
