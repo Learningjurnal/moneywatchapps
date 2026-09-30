@@ -6270,7 +6270,7 @@ test('REGRESSION GUARD: generateSectorRotation() must map Invezgo\'s 11 official
 
   assert(/async function generateSectorRotation/.test(engineSrc), 'REGRESSION: generateSectorRotation() is missing');
   const fnSrc = engineSrc.match(/async function generateSectorRotation[\s\S]*?\n\}\n/)[0];
-  assert(/fetchInvezgoSectorRotation\(\)/.test(fnSrc), 'REGRESSION: generateSectorRotation() no longer calls fetchInvezgoSectorRotation()');
+  assert(/fetchInvezgoSectorRotation\(to, from\)/.test(fnSrc), 'REGRESSION: generateSectorRotation() no longer calls fetchInvezgoSectorRotation()');
   assert(/available:\s*false/.test(fnSrc), 'REGRESSION: an unavailable result no longer reports available:false honestly');
 
   const mapMatch = engineSrc.match(/const INVEZGO_SECTOR_CODE_TO_KEY = \{([\s\S]*?)\};/);
@@ -10577,6 +10577,62 @@ test('REGRESSION GUARD: 02-storage.js audit function/DOM id are honestly named c
     'REGRESSION: checkSupabaseLiveSyncStatus() is missing — the live sync audit function must be honestly named for the real backend it checks');
   assert(/sh-supabase-audit-box/.test(src),
     'REGRESSION: the sh-supabase-audit-box DOM id is missing');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "Sector Rotation Chart, bisa di
+// filter dengan tanggal mulai dan selesai"). from/to are the real,
+// already-documented Invezgo request params (see the schema comment above
+// fetchInvezgoSectorRotation() in lib/invezgo-client.js) — this just wires
+// a UI date-range filter through to them, honestly failing closed on a bad
+// range instead of guessing/silently ignoring it.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: fetchInvezgoSectorRotation() accepts an explicit from/to date range, validates format, and fails closed on from > to', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/async function fetchInvezgoSectorRotation\(toDate, fromDate\)/.test(src),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer accepts an explicit fromDate parameter — the date-range filter has nothing to pass through to');
+  const fnSrc = src.match(/async function fetchInvezgoSectorRotation[\s\S]*?\n\}\n/)[0];
+  assert(/INVEZGO_DATE_RE\.test\(toDate\)/.test(fnSrc) && /INVEZGO_DATE_RE\.test\(fromDate\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer validates toDate/fromDate against a YYYY-MM-DD format — a malformed value could silently reach the Invezgo request URL');
+  assert(/if \(from > to\) return \{ ok: false, reason: 'INVALID_DATE_RANGE' \}/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer fails closed with INVALID_DATE_RANGE when from > to');
+});
+
+test('REGRESSION GUARD: generateSectorRotation() and GET /api/idx/sector-rotation pass through and validate the from/to date-range filter', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = engineSrc.match(/async function generateSectorRotation[\s\S]*?\n\}\n/)[0];
+  assert(/async function generateSectorRotation\(params\)/.test(engineSrc),
+    'REGRESSION: generateSectorRotation() no longer accepts a params argument — the server route has nothing to pass from/to through with');
+  assert(/fetchInvezgoSectorRotation\(to, from\)/.test(fnSrc),
+    'REGRESSION: generateSectorRotation() no longer forwards from/to to fetchInvezgoSectorRotation()');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const routeSrc = serverSrc.match(/app\.get\('\/api\/idx\/sector-rotation'[\s\S]*?\n\}\);/)[0];
+  assert(/IDX_DATE_QUERY_RE\.test\(from\)/.test(routeSrc) && /IDX_DATE_QUERY_RE\.test\(to\)/.test(routeSrc),
+    'REGRESSION: GET /api/idx/sector-rotation no longer validates ?from=/?to= against a YYYY-MM-DD format before use — a malformed query value could reach generateSectorRotation() unvalidated');
+  assert(/from > to/.test(routeSrc) && /status\(400\)/.test(routeSrc),
+    'REGRESSION: GET /api/idx/sector-rotation no longer rejects from > to with a 400 — an inverted range would silently fall through instead of failing closed');
+  assert(/generateSectorRotation\(\{ from, to \}\)/.test(routeSrc),
+    'REGRESSION: GET /api/idx/sector-rotation no longer passes the validated from/to query params through to generateSectorRotation()');
+});
+
+test('REGRESSION GUARD: Sector Rotation Chart (Market Flow) has a real date-range filter UI wired to the from/to query params, with client-side from>to validation', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/function bandarSectorRotationFilterHtml/.test(src),
+    'REGRESSION: bandarSectorRotationFilterHtml() is missing — the Sector Rotation Chart card no longer renders start/end date inputs');
+  assert(/id="bandar-rotation-from"/.test(src) && /id="bandar-rotation-to"/.test(src),
+    'REGRESSION: the Sector Rotation Chart date filter no longer has both a start and end date input');
+  assert(/function bandarApplySectorRotationDateFilter/.test(src),
+    'REGRESSION: bandarApplySectorRotationDateFilter() is missing — the "Terapkan" button has nothing to call');
+  assert(/if \(from && to && from > to\)/.test(src),
+    'REGRESSION: bandarApplySectorRotationDateFilter() no longer rejects a start date after the end date before firing a request');
+  assert(/function bandarResetSectorRotationDateFilter/.test(src),
+    'REGRESSION: bandarResetSectorRotationDateFilter() is missing — there is no way to clear the filter back to the default 180-day window');
+  assert(/qs\.push\('from=' \+ encodeURIComponent\(_bandarRotationFilter\.from\)\)/.test(src) && /qs\.push\('to=' \+ encodeURIComponent\(_bandarRotationFilter\.to\)\)/.test(src),
+    'REGRESSION: bandarLoadSectorRotationChart() no longer sends the selected from/to filter as query params to /api/idx/sector-rotation');
+  assert(/_bandarRotationCacheKey/.test(src) && /_bandarRotationFilter\.from \|\| ''/.test(src),
+    'REGRESSION: the Sector Rotation Chart in-memory cache no longer keys on the active date filter — switching the filter could silently show a stale, differently-filtered chart from cache');
 });
 
 console.log('═══════════════════════════════════════════════════════');

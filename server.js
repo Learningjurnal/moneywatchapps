@@ -4290,9 +4290,25 @@ app.get('/api/idx/shareholder-composition/:ticker', async (req, res) => {
 // GET /api/idx/sector-rotation — Invezgo RRG (Relative Rotation Graph) at
 // sector-index level (base=COMPOSITE). Supplements, never replaces, the
 // CMF-constituent estimate in public/js/44-sectoral-insight.js.
+// Optional ?from=YYYY-MM-DD&to=YYYY-MM-DD (user-facing date-range filter on
+// the Sector Rotation Chart, public/js/41-stockchat-cockpit.js) — both are
+// the real Invezgo request params (see fetchInvezgoSectorRotation() schema
+// comment), validated here so a malformed value fails closed with 400
+// instead of silently falling through to the default 180-day window.
+const IDX_DATE_QUERY_RE = /^\d{4}-\d{2}-\d{2}$/;
 app.get('/api/idx/sector-rotation', async (req, res) => {
   try {
-    const data = await generateSectorRotation();
+    const { from, to } = req.query;
+    if (from !== undefined && !IDX_DATE_QUERY_RE.test(from)) {
+      return res.status(400).json({ success: false, error: 'Parameter from harus berformat YYYY-MM-DD' });
+    }
+    if (to !== undefined && !IDX_DATE_QUERY_RE.test(to)) {
+      return res.status(400).json({ success: false, error: 'Parameter to harus berformat YYYY-MM-DD' });
+    }
+    if (from !== undefined && to !== undefined && from > to) {
+      return res.status(400).json({ success: false, error: 'Parameter from tidak boleh setelah to' });
+    }
+    const data = await generateSectorRotation({ from, to });
     return res.json({ success: true, data });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

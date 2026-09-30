@@ -2869,6 +2869,7 @@ function bandarRenderMarketFlowContent(data) {
   // as bandarLoadRealMarketFlow() itself), since this view's own data is
   // already loaded synchronously by the time this HTML is built.
   var sectorRotationHtml = '<div class="card" style="padding:16px">'
+    + bandarSectorRotationFilterHtml()
     + '<div id="bandar-sector-rotation-chart"><div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Memuat Sector Rotation Chart (RRG)…</div></div>'
     + '</div>';
 
@@ -3090,25 +3091,98 @@ var BANDAR_ROTATION_REASON_TEXT = {
   RATE_LIMITED: 'Kuota/rate limit Invezgo tercapai',
   NO_DATA: 'Belum ada data rotasi sektor untuk rentang ini',
   UNEXPECTED_SCHEMA: 'Skema respons Invezgo tidak dikenali',
-  NETWORK_ERROR: 'Gangguan jaringan ke Invezgo'
+  NETWORK_ERROR: 'Gangguan jaringan ke Invezgo',
+  INVALID_DATE_RANGE: 'Tanggal mulai tidak boleh setelah tanggal selesai'
 };
-var _BANDAR_ROTATION_CACHE = null; // {data, dateKey}
-function _bandarRotationCacheValid() {
-  return _BANDAR_ROTATION_CACHE && _BANDAR_ROTATION_CACHE.dateKey === new Date().toISOString().slice(0, 10);
+var _BANDAR_ROTATION_CACHE = null; // {data, cacheKey}
+// User-facing date-range filter (Sector Rotation Chart) — null/null means
+// "pakai default server" (jendela 180 hari kalender berakhir hari ini, lihat
+// fetchInvezgoSectorRotation() di lib/invezgo-client.js). Diisi lewat 2
+// input tanggal + tombol Terapkan di bandarSectorRotationFilterHtml().
+var _bandarRotationFilter = { from: null, to: null };
+function _bandarRotationCacheKey() {
+  return (_bandarRotationFilter.from || '') + '|' + (_bandarRotationFilter.to || '') + '|' + new Date().toISOString().slice(0, 10);
 }
+function _bandarRotationCacheValid() {
+  return _BANDAR_ROTATION_CACHE && _BANDAR_ROTATION_CACHE.cacheKey === _bandarRotationCacheKey();
+}
+
+// Filter tanggal mulai/selesai untuk Sector Rotation Chart — from/to adalah
+// parameter request Invezgo yang nyata & sudah terverifikasi (lihat komentar
+// skema di fetchInvezgoSectorRotation(), lib/invezgo-client.js), bukan
+// tebakan. Ditaruh di luar #bandar-sector-rotation-chart supaya nilai input
+// tidak ikut hilang tiap chart-nya di-render ulang.
+function bandarSectorRotationFilterHtml() {
+  var todayStr = new Date().toISOString().slice(0, 10);
+  var fromVal = _bandarRotationFilter.from || '';
+  var toVal = _bandarRotationFilter.to || '';
+  var isFiltered = !!(_bandarRotationFilter.from || _bandarRotationFilter.to);
+  return '<div id="bandar-rotation-filter-mount" style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+    + '<div style="display:flex;flex-direction:column;gap:3px">'
+    + '<label for="bandar-rotation-from" style="font-size:10px;font-weight:700;color:var(--text3)">Tanggal Mulai</label>'
+    + '<input type="date" id="bandar-rotation-from" class="sm-input" max="' + todayStr + '" value="' + fromVal + '" style="padding:4px 8px;font-size:11px;border-radius:6px;width:auto;height:auto">'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:3px">'
+    + '<label for="bandar-rotation-to" style="font-size:10px;font-weight:700;color:var(--text3)">Tanggal Selesai</label>'
+    + '<input type="date" id="bandar-rotation-to" class="sm-input" max="' + todayStr + '" value="' + toVal + '" style="padding:4px 8px;font-size:11px;border-radius:6px;width:auto;height:auto">'
+    + '</div>'
+    + '<button onclick="bandarApplySectorRotationDateFilter()" class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;font-weight:700">Terapkan</button>'
+    + (isFiltered ? '<button onclick="bandarResetSectorRotationDateFilter()" class="btn btn-ghost btn-xs" style="padding:5px 10px">Reset</button><span class="badge b-accent" style="font-size:9px">Filter Aktif</span>' : '<span style="font-size:10px;color:var(--text3)">Default: 180 hari terakhir</span>')
+    + '<span id="bandar-rotation-filter-err" style="font-size:10.5px;color:var(--red)"></span>'
+    + '</div>';
+}
+
+function bandarApplySectorRotationDateFilter() {
+  var fromEl = document.getElementById('bandar-rotation-from');
+  var toEl = document.getElementById('bandar-rotation-to');
+  var errEl = document.getElementById('bandar-rotation-filter-err');
+  var from = fromEl ? fromEl.value : '';
+  var to = toEl ? toEl.value : '';
+  if (errEl) errEl.textContent = '';
+
+  if (from && to && from > to) {
+    if (errEl) errEl.textContent = 'Tanggal mulai tidak boleh setelah tanggal selesai.';
+    return;
+  }
+  _bandarRotationFilter = { from: from || null, to: to || null };
+  bandarLoadSectorRotationChart();
+}
+window.bandarApplySectorRotationDateFilter = bandarApplySectorRotationDateFilter;
+
+function bandarResetSectorRotationDateFilter() {
+  _bandarRotationFilter = { from: null, to: null };
+  bandarLoadSectorRotationChart();
+}
+window.bandarResetSectorRotationDateFilter = bandarResetSectorRotationDateFilter;
 
 async function bandarLoadSectorRotationChart() {
   var mount = document.getElementById('bandar-sector-rotation-chart');
   if (!mount) return;
+  // Re-render the filter controls every load so the "Filter Aktif"/Reset
+  // affordance stays in sync with _bandarRotationFilter, without touching
+  // the input elements' own current values (bandarSectorRotationFilterHtml()
+  // reads them back from _bandarRotationFilter, which is only updated by
+  // Terapkan/Reset — never mid-typing).
+  var filterEl = document.getElementById('bandar-rotation-filter-mount');
+  if (filterEl) filterEl.outerHTML = bandarSectorRotationFilterHtml();
   try {
     if (_bandarRotationCacheValid()) {
       bandarRenderSectorRotationChart(mount, _BANDAR_ROTATION_CACHE.data);
       return;
     }
-    var res = await fetch('/api/idx/sector-rotation', { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
+    mount.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Memuat Sector Rotation Chart (RRG)…</div>';
+    var qs = [];
+    if (_bandarRotationFilter.from) qs.push('from=' + encodeURIComponent(_bandarRotationFilter.from));
+    if (_bandarRotationFilter.to) qs.push('to=' + encodeURIComponent(_bandarRotationFilter.to));
+    var url = '/api/idx/sector-rotation' + (qs.length ? '?' + qs.join('&') : '');
+    var res = await fetch(url, { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
     var json = await res.json();
     var data = (json && json.success) ? json.data : { available: false, reason: 'NETWORK_ERROR' };
-    _BANDAR_ROTATION_CACHE = { data: data, dateKey: new Date().toISOString().slice(0, 10) };
+    if (json && json.success === false && json.error) {
+      mount.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">' + json.error + '</div>';
+      return;
+    }
+    _BANDAR_ROTATION_CACHE = { data: data, cacheKey: _bandarRotationCacheKey() };
     bandarRenderSectorRotationChart(mount, data);
   } catch (e) {
     if (mount) mount.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Gagal memuat Sector Rotation Chart: ' + e.message + '</div>';
