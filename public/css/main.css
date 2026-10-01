@@ -155,6 +155,18 @@ body.theme-light #mw-tooltip{background:#fff;border-color:#E2E8F0;color:#0F172A;
 body.theme-light #mw-tooltip .mw-tt-title{color:#0F172A}
 body.theme-light #mw-tooltip .mw-tt-body{color:#354453}
 
+/* Ikon-info (CLAUDE.md Aturan #4, 2026-09-27): satu pola SVG reusable
+   dipakai lintas halaman lewat uiInfoIcon() (03-engine.js) — pindahkan
+   kalimat penjelasan dari layout ke sini, buka lewat klik/tap (wajib di
+   HP) atau hover (bonus desktop). #mw-tt-info memberi popovernya lebar
+   yang lebih besar + boleh wrap (beda dari tooltip chart singkat yang
+   nowrap di atas). */
+.ui-info-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;color:var(--text3);cursor:pointer;flex-shrink:0;vertical-align:middle;margin-left:4px;transition:color .12s ease}
+.ui-info-icon:hover,.ui-info-icon:focus-visible,.ui-info-icon[data-ui-info-open="1"]{color:var(--accent)}
+.ui-info-icon:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#mw-tooltip.mw-tt-info{max-width:300px}
+#mw-tooltip.mw-tt-info .mw-tt-body{white-space:normal;display:block;line-height:1.55}
+
 /* Sector Rotation Chart (RRG) tooltip — same recipe as #mw-tooltip above,
    scoped to its own class since it lives inside the chart wrapper div
    (position:relative) rather than appended to <body>. Colors come from CSS

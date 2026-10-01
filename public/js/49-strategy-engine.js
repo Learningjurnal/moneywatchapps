@@ -113,6 +113,37 @@ function seReadForm() {
   if (tk) SE_STATE.tickersInput = tk.value;
 }
 
+// User-requested (2026-10-01): "apakah harus dimasukan kode saham, buat
+// sinkron saja dengan portofolio sebagai opsi" — fills the ticker input
+// from the user's REAL current holdings (getPortfolio(), 03-engine.js —
+// the same source of truth every other portfolio view in this app reads
+// from) instead of requiring manual entry. Deliberately just fills the
+// input rather than auto-running the scan: the user can still edit the
+// list before hitting "Jalankan Scan", and a strategy scan calling
+// Invezgo per ticker is not something to fire without an explicit click.
+function seSyncFromPortfolio() {
+  if (typeof getPortfolio !== 'function') {
+    SE_STATE.error = 'Modul Portofolio tidak termuat di halaman ini — isi ticker manual.';
+    seRenderStrategyEnginePage('us-strategy-subpage');
+    return;
+  }
+  var porto = getPortfolio();
+  if (!porto || !porto.length) {
+    SE_STATE.error = 'Portofolio Anda masih kosong — isi transaksi dulu di menu Portofolio, atau masukkan ticker manual di sini.';
+    seRenderStrategyEnginePage('us-strategy-subpage');
+    return;
+  }
+  var tickers = porto.map(function (p) { return p.ticker; });
+  var wasCapped = tickers.length > 50;
+  if (wasCapped) tickers = tickers.slice(0, 50);
+  SE_STATE.tickersInput = tickers.join(',');
+  SE_STATE.error = wasCapped
+    ? ('Portofolio Anda punya ' + porto.length + ' saham — hanya 50 pertama yang disinkronkan (batas maksimal scan per kuota Invezgo).')
+    : null;
+  seRenderStrategyEnginePage('us-strategy-subpage');
+}
+window.seSyncFromPortfolio = seSyncFromPortfolio;
+
 async function seRunScan() {
   seReadForm();
   var tickers = SE_STATE.tickersInput.split(',').map(function (t) { return t.trim().toUpperCase(); }).filter(Boolean);
@@ -187,6 +218,7 @@ function seRenderStrategyEnginePage(containerId) {
     + '</select></div>'
     + '<div style="flex:1;min-width:220px"><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Ticker (pisah koma, maks 50)</label>'
     + '<input id="se-tickers-input" type="text" placeholder="BBCA,BBRI,TLKM" value="' + (SE_STATE.tickersInput || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:5px 9px;font-size:11.5px;border-radius:6px" class="finput"></div>'
+    + '<button class="btn btn-ghost btn-sm" onclick="seSyncFromPortfolio()" title="Isi otomatis dari saham yang sedang Anda pegang di menu Portofolio">📂 Sinkron Portofolio</button>'
     + '<button class="btn btn-primary btn-sm" onclick="seRunScan()"' + (SE_STATE.loading ? ' disabled' : '') + '>' + (SE_STATE.loading ? 'Memindai…' : '▶ Jalankan Scan') + '</button>'
     + '</div>';
 

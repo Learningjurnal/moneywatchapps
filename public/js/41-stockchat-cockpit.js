@@ -133,29 +133,16 @@ var STOCKCHAT_PROMPT_PRESETS = [
   }
 ];
 
-// Official BEI Broker Master List
-var CLIENT_IDX_BROKERS = {
-  'YP': { code: 'YP', name: 'Mirae Asset Sekuritas Indonesia', type: 'D', category: 'Retail Leader' },
-  'CC': { code: 'CC', name: 'Mandiri Sekuritas', type: 'D', category: 'State-Owned/Institutional' },
-  'PD': { code: 'PD', name: 'Indo Premier Sekuritas (IPOT)', type: 'D', category: 'Retail Leader' },
-  'XC': { code: 'XC', name: 'Ajaib Sekuritas Asia', type: 'D', category: 'Retail Tech' },
-  'XL': { code: 'XL', name: 'Stockbit Sekuritas Digital', type: 'D', category: 'Retail Tech' },
-  'AK': { code: 'AK', name: 'UBS Sekuritas Indonesia', type: 'F', category: 'Foreign Global Tier-1' },
-  'BK': { code: 'BK', name: 'J.P. Morgan Sekuritas Indonesia', type: 'F', category: 'Foreign Global Tier-1' },
-  'ZP': { code: 'ZP', name: 'Maybank Sekuritas Indonesia', type: 'F', category: 'Regional Institutional' },
-  'KZ': { code: 'KZ', name: 'CLSA Sekuritas Indonesia', type: 'F', category: 'Foreign Institutional' },
-  'CS': { code: 'CS', name: 'Credit Suisse / CGS International', type: 'F', category: 'Foreign Institutional' },
-  'RX': { code: 'RX', name: 'Macquarie Sekuritas Indonesia', type: 'F', category: 'Foreign Institutional' },
-  'OD': { code: 'OD', name: 'BRI Danareksa Sekuritas', type: 'D', category: 'State-Owned/Institutional' },
-  'SQ': { code: 'SQ', name: 'BCA Sekuritas', type: 'D', category: 'Top Private Banking' },
-  'NI': { code: 'NI', name: 'BNI Sekuritas', type: 'D', category: 'State-Owned/Institutional' },
-  'EP': { code: 'EP', name: 'MNC Sekuritas', type: 'D', category: 'Domestic Retail' },
-  'KK': { code: 'KK', name: 'Phillip Sekuritas Indonesia', type: 'D', category: 'Retail Platform' },
-  'CP': { code: 'CP', name: 'KB Valbury Sekuritas', type: 'D', category: 'Institutional & Retail' },
-  'DR': { code: 'DR', name: 'RHB Sekuritas Indonesia', type: 'D', category: 'Regional Broker' },
-  'LG': { code: 'LG', name: 'Trimegah Sekuritas Indonesia', type: 'D', category: 'Domestic Investment Bank' },
-  'IF': { code: 'IF', name: 'Samuel Sekuritas Indonesia', type: 'D', category: 'Domestic Institutional' }
-};
+// FIX (2026-09-30, audit finding): CLIENT_IDX_BROKERS (a hardcoded ~20-
+// broker master list) was pure dead code — declared here but never read
+// anywhere in this file or any other. It also duplicated the REAL master
+// list (IDX_BROKERS, lib/providers/idx-client.js) that generateBrokerSummary()
+// already uses server-side to enrich broker name/category directly into
+// the topBuyers/topSellers rows this page consumes from
+// /api/idx/broker-summary/:ticker — so a separate client-side copy was
+// never actually needed, and its risk was drifting out of sync with the
+// real list (new/renamed brokers) with nothing depending on it to notice.
+// Removed entirely rather than kept in sync.
 
 // Comprehensive Real-Time Price & Valuation Resolver (Zero Dummy Data Policy)
 function getAccurateStockPrice(ticker) {
@@ -2623,6 +2610,7 @@ function renderBandarmologyCockpitPage(containerId, force) {
     + renderBandarmologyAccumulationView()
     + renderBandarmologyDistributionView()
     + '</div>'
+    + renderBandarmologyNetAccumulationView()
     + renderBandarmologyBrokerTrailView()
     + '</div>';
 
@@ -2631,6 +2619,7 @@ function renderBandarmologyCockpitPage(containerId, force) {
   _bandarAccDistCache = null;
   setTimeout(function() { bandarLoadAccDist('acc'); }, 40);
   setTimeout(function() { bandarLoadAccDist('dist'); }, 40);
+  setTimeout(function() { bandarLoadNetAccDist(BANDAR_NET_ACC_DIST_DAYS); }, 50);
   // Kick off 1 API call for the whole-market Smart Money scanner (cached daily).
   setTimeout(bandarLoadRealMarketFlow, 60);
   // Broker Summary by Broker TIDAK di-fetch otomatis di sini — hemat kuota
@@ -2886,6 +2875,7 @@ function bandarRenderMarketFlowContent(data) {
   // as bandarLoadRealMarketFlow() itself), since this view's own data is
   // already loaded synchronously by the time this HTML is built.
   var sectorRotationHtml = '<div class="card" style="padding:16px">'
+    + bandarSectorRotationFilterHtml()
     + '<div id="bandar-sector-rotation-chart"><div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Memuat Sector Rotation Chart (RRG)…</div></div>'
     + '</div>';
 
@@ -3107,25 +3097,162 @@ var BANDAR_ROTATION_REASON_TEXT = {
   RATE_LIMITED: 'Kuota/rate limit Invezgo tercapai',
   NO_DATA: 'Belum ada data rotasi sektor untuk rentang ini',
   UNEXPECTED_SCHEMA: 'Skema respons Invezgo tidak dikenali',
-  NETWORK_ERROR: 'Gangguan jaringan ke Invezgo'
+  NETWORK_ERROR: 'Gangguan jaringan ke Invezgo',
+  INVALID_DATE_RANGE: 'Tanggal mulai tidak boleh setelah tanggal selesai'
 };
-var _BANDAR_ROTATION_CACHE = null; // {data, dateKey}
-function _bandarRotationCacheValid() {
-  return _BANDAR_ROTATION_CACHE && _BANDAR_ROTATION_CACHE.dateKey === new Date().toISOString().slice(0, 10);
+// User-facing sector-visibility filter (Sector Rotation Chart) — a Set-like
+// map of sector codes currently HIDDEN from the chart/table (empty = show
+// all 11). Chosen as a "hidden" set rather than a "selected" one so the
+// default (no filter applied yet) needs no upfront population with all 11
+// codes — matches the common chart-legend "click to hide a series"
+// convention. Survives re-renders triggered by the date filter (module-
+// level state, not reset by bandarLoadSectorRotationChart()); the KPI
+// cards above the chart always reflect the FULL market (all 11 sectors)
+// regardless of this filter — only the chart/table below are a drill-down.
+var _bandarRotationHiddenSectors = {};
+
+var _BANDAR_ROTATION_CACHE = null; // {data, cacheKey}
+// User-facing date-range filter (Sector Rotation Chart) — null/null means
+// "pakai default server" (jendela 180 hari kalender berakhir hari ini, lihat
+// fetchInvezgoSectorRotation() di lib/invezgo-client.js). Diisi lewat 2
+// input tanggal + tombol Terapkan di bandarSectorRotationFilterHtml().
+var _bandarRotationFilter = { from: null, to: null };
+function _bandarRotationCacheKey() {
+  return (_bandarRotationFilter.from || '') + '|' + (_bandarRotationFilter.to || '') + '|' + new Date().toISOString().slice(0, 10);
 }
+function _bandarRotationCacheValid() {
+  return _BANDAR_ROTATION_CACHE && _BANDAR_ROTATION_CACHE.cacheKey === _bandarRotationCacheKey();
+}
+
+// Filter tanggal mulai/selesai untuk Sector Rotation Chart. from/to di sini
+// TIDAK dikirim mentah-mentah sebagai parameter request Invezgo (lihat
+// komentar detail di fetchInvezgoSectorRotation(), lib/invezgo-client.js,
+// untuk kronologi bug-nya) — server menerjemahkannya jadi parameter `tail`
+// (jumlah titik mingguan yang ditampilkan), sementara permintaan aktual ke
+// Invezgo tetap memakai jendela kalender yang cukup lebar (>=180 hari)
+// supaya perhitungan smoothing-nya selalu punya cukup data historis, apa
+// pun rentang yang dipilih pengguna. Ditaruh di luar
+// #bandar-sector-rotation-chart supaya nilai input tidak ikut hilang tiap
+// chart-nya di-render ulang.
+function bandarSectorRotationFilterHtml() {
+  var todayStr = new Date().toISOString().slice(0, 10);
+  var fromVal = _bandarRotationFilter.from || '';
+  var toVal = _bandarRotationFilter.to || '';
+  var isFiltered = !!(_bandarRotationFilter.from || _bandarRotationFilter.to);
+  return '<div id="bandar-rotation-filter-mount" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">'
+    + '<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">'
+    + '<div style="display:flex;flex-direction:column;gap:3px">'
+    + '<label for="bandar-rotation-from" style="font-size:10px;font-weight:700;color:var(--text3)">Tanggal Mulai</label>'
+    + '<input type="date" id="bandar-rotation-from" class="sm-input" max="' + todayStr + '" value="' + fromVal + '" style="padding:4px 8px;font-size:11px;border-radius:6px;width:auto;height:auto">'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:3px">'
+    + '<label for="bandar-rotation-to" style="font-size:10px;font-weight:700;color:var(--text3)">Tanggal Selesai</label>'
+    + '<input type="date" id="bandar-rotation-to" class="sm-input" max="' + todayStr + '" value="' + toVal + '" style="padding:4px 8px;font-size:11px;border-radius:6px;width:auto;height:auto">'
+    + '</div>'
+    + '<button onclick="bandarApplySectorRotationDateFilter()" class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px;font-weight:700">Terapkan</button>'
+    + (isFiltered ? '<button onclick="bandarResetSectorRotationDateFilter()" class="btn btn-ghost btn-xs" style="padding:5px 10px">Reset</button><span class="badge b-accent" style="font-size:9px">Filter Aktif</span>' : '<span style="font-size:10px;color:var(--text3)">Default: 5 titik mingguan terakhir</span>')
+    + '<span id="bandar-rotation-filter-err" style="font-size:10.5px;color:var(--red)"></span>'
+    + '</div>'
+    + '<div style="font-size:9.5px;color:var(--text3)">Data RRG ini per-minggu (bukan harian) — rentang menentukan berapa titik mingguan yang ditampilkan. Rentang 1 minggu hanya akan menampilkan 1 titik.</div>'
+    + '</div>';
+}
+
+function bandarApplySectorRotationDateFilter() {
+  var fromEl = document.getElementById('bandar-rotation-from');
+  var toEl = document.getElementById('bandar-rotation-to');
+  var errEl = document.getElementById('bandar-rotation-filter-err');
+  var from = fromEl ? fromEl.value : '';
+  var to = toEl ? toEl.value : '';
+  if (errEl) errEl.textContent = '';
+
+  if (from && to && from > to) {
+    if (errEl) errEl.textContent = 'Tanggal mulai tidak boleh setelah tanggal selesai.';
+    return;
+  }
+  _bandarRotationFilter = { from: from || null, to: to || null };
+  bandarLoadSectorRotationChart();
+}
+window.bandarApplySectorRotationDateFilter = bandarApplySectorRotationDateFilter;
+
+function bandarResetSectorRotationDateFilter() {
+  _bandarRotationFilter = { from: null, to: null };
+  bandarLoadSectorRotationChart();
+}
+window.bandarResetSectorRotationDateFilter = bandarResetSectorRotationDateFilter;
+
+// Sector-visibility chips — one per REAL sector Invezgo actually returned
+// (never a hardcoded 11-sector list, so a sector genuinely unavailable for
+// the current date range simply has no chip to toggle). Clicking a chip
+// hides/shows that sector's trail+row; "Tampilkan Semua" only appears once
+// at least one is hidden. Re-renders from the already-fetched cached data —
+// toggling visibility never triggers a new network request.
+function bandarRotationSectorChipsHtml(sectors, colorMap) {
+  var chips = sectors.map(function (s) {
+    var isHidden = !!_bandarRotationHiddenSectors[s.code];
+    var color = colorMap[s.code] || '#888';
+    var style = 'display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:12px;cursor:pointer;border:1px solid ' + (isHidden ? 'var(--border2)' : color) + ';background:' + (isHidden ? 'transparent' : color + '1f') + ';color:' + (isHidden ? 'var(--text3)' : color) + ';opacity:' + (isHidden ? '0.6' : '1');
+    return '<button type="button" onclick="bandarToggleRotationSector(\'' + s.code + '\')" style="' + style + '" title="' + (isHidden ? 'Klik untuk menampilkan kembali' : 'Klik untuk menyembunyikan') + '">'
+      + '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + color + ';opacity:' + (isHidden ? '0.4' : '1') + '"></span>'
+      + (s.name || s.code)
+      + '</button>';
+  }).join('');
+  var anyHidden = sectors.some(function (s) { return !!_bandarRotationHiddenSectors[s.code]; });
+  return '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+    + chips
+    + (anyHidden ? '<button type="button" onclick="bandarShowAllRotationSectors()" class="btn btn-ghost btn-xs" style="padding:3px 9px;font-size:10.5px">Tampilkan Semua</button>' : '')
+    + '</div>';
+}
+
+function _bandarRerenderRotationFromCache() {
+  var mount = document.getElementById('bandar-sector-rotation-chart');
+  if (mount && _BANDAR_ROTATION_CACHE) bandarRenderSectorRotationChart(mount, _BANDAR_ROTATION_CACHE.data);
+}
+
+function bandarToggleRotationSector(code) {
+  if (!code) return;
+  if (_bandarRotationHiddenSectors[code]) {
+    delete _bandarRotationHiddenSectors[code];
+  } else {
+    _bandarRotationHiddenSectors[code] = true;
+  }
+  _bandarRerenderRotationFromCache();
+}
+window.bandarToggleRotationSector = bandarToggleRotationSector;
+
+function bandarShowAllRotationSectors() {
+  _bandarRotationHiddenSectors = {};
+  _bandarRerenderRotationFromCache();
+}
+window.bandarShowAllRotationSectors = bandarShowAllRotationSectors;
 
 async function bandarLoadSectorRotationChart() {
   var mount = document.getElementById('bandar-sector-rotation-chart');
   if (!mount) return;
+  // Re-render the filter controls every load so the "Filter Aktif"/Reset
+  // affordance stays in sync with _bandarRotationFilter, without touching
+  // the input elements' own current values (bandarSectorRotationFilterHtml()
+  // reads them back from _bandarRotationFilter, which is only updated by
+  // Terapkan/Reset — never mid-typing).
+  var filterEl = document.getElementById('bandar-rotation-filter-mount');
+  if (filterEl) filterEl.outerHTML = bandarSectorRotationFilterHtml();
   try {
     if (_bandarRotationCacheValid()) {
       bandarRenderSectorRotationChart(mount, _BANDAR_ROTATION_CACHE.data);
       return;
     }
-    var res = await fetch('/api/idx/sector-rotation', { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
+    mount.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Memuat Sector Rotation Chart (RRG)…</div>';
+    var qs = [];
+    if (_bandarRotationFilter.from) qs.push('from=' + encodeURIComponent(_bandarRotationFilter.from));
+    if (_bandarRotationFilter.to) qs.push('to=' + encodeURIComponent(_bandarRotationFilter.to));
+    var url = '/api/idx/sector-rotation' + (qs.length ? '?' + qs.join('&') : '');
+    var res = await fetch(url, { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
     var json = await res.json();
     var data = (json && json.success) ? json.data : { available: false, reason: 'NETWORK_ERROR' };
-    _BANDAR_ROTATION_CACHE = { data: data, dateKey: new Date().toISOString().slice(0, 10) };
+    if (json && json.success === false && json.error) {
+      mount.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">' + json.error + '</div>';
+      return;
+    }
+    _BANDAR_ROTATION_CACHE = { data: data, cacheKey: _bandarRotationCacheKey() };
     bandarRenderSectorRotationChart(mount, data);
   } catch (e) {
     if (mount) mount.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Gagal memuat Sector Rotation Chart: ' + e.message + '</div>';
@@ -3195,6 +3322,14 @@ function bandarRenderSectorRotationChart(mount, data) {
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-bottom:12px">Data REAL Invezgo API (RS-Ratio vs RS-Momentum, rebased ke 100 = ' + (data.benchmark || 'COMPOSITE') + ') — visualisasi kekuatan & momentum relatif tiap sektor, bukan sampel.</div>';
 
+  // Sector-visibility filter (user-requested: "tambahkan filter sectoral
+  // untuk hanya menampilkan sector yang dipilih") — KPI cards above stay
+  // computed from the FULL market (sectors, not visibleSectors) since they
+  // are meant as always-on market-breadth context; only the chart/table
+  // drill-down respects which sectors the user chose to hide.
+  var chipsHtml = bandarRotationSectorChipsHtml(sectors, colorMap);
+  var visibleSectors = sectors.filter(function (s) { return !_bandarRotationHiddenSectors[s.code]; });
+
   // FIX (2026-09-26, third size iteration — user asked explicitly: "buat
   // memanjang ke samping sampai tidak ada space kosong menyamping, panjang
   // atas bawah sudah sesuai"): fill the full card width — no side margins
@@ -3202,10 +3337,16 @@ function bandarRenderSectorRotationChart(mount, data) {
   // and height are decoupled in _bandarRenderRotationSvg() below (height
   // is capped independent of width) specifically so this can go 100%
   // wide without also growing much taller.
-  mount.innerHTML = headerHtml + kpiHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
+  mount.innerHTML = headerHtml + kpiHtml + chipsHtml + '<div id="bandar-rotation-svg-wrap" style="width:100%"></div>' + '<div id="bandar-rotation-table-wrap" style="margin-top:12px"></div>';
 
-  _bandarRenderRotationSvg(document.getElementById('bandar-rotation-svg-wrap'), sectors, colorMap, isDark);
-  _bandarRenderRotationTable(document.getElementById('bandar-rotation-table-wrap'), sectors, colorMap, quadrantLabel);
+  if (!visibleSectors.length) {
+    document.getElementById('bandar-rotation-svg-wrap').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Semua sektor disembunyikan — klik salah satu chip di atas atau "Tampilkan Semua" untuk menampilkan kembali.</div>';
+    document.getElementById('bandar-rotation-table-wrap').innerHTML = '';
+    return;
+  }
+
+  _bandarRenderRotationSvg(document.getElementById('bandar-rotation-svg-wrap'), visibleSectors, colorMap, isDark);
+  _bandarRenderRotationTable(document.getElementById('bandar-rotation-table-wrap'), visibleSectors, colorMap, quadrantLabel);
 }
 
 function _bandarRenderRotationTable(wrap, sectors, colorMap, quadrantLabel) {
@@ -3479,88 +3620,115 @@ async function bandarLoadAccDist(mode) {
     if (el2) el2.innerHTML = '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat data: ' + e.message + '</div>';
   }
 }
-window.bandarLoadAccDist = bandarLoadAccDist;
 
-// 6. Smart Money Radar View (Dynamic Universal Footprint)
-function renderBandarmologySmartMoneyRadarView(tk) {
-  var ticker = (tk || STOCKCHAT_SELECTED_TICKER || 'BBCA').toUpperCase();
-  var bData = bandarGetCachedSummary(ticker, '1D');
-  var b = bData.bandarmology || {};
-  var buyers = bData.topBuyers || [];
-  var sellers = bData.topSellers || [];
+// 6. Net Akumulasi/Distribusi Multi-Hari (2026-09-28, user-requested: "saya
+// belum bisa menganalisis saham yang diakumulasi oleh bandar selama 2
+// sampai 30 hari secara nett") — beda dari renderBandarmologyAccumulationView()/
+// renderBandarmologyDistributionView() di atas (snapshot SATU hari): ini
+// menjumlahkan skor akumulasi/distribusi Invezgo lintas N hari bursa
+// (GET /api/idx/accumulation-distribution-range), jadi tren beberapa hari
+// kelihatan, bukan cuma potret hari ini. Ditempatkan di halaman Market
+// Flow yang sudah ada (bukan menu sidebar baru) sesuai keputusan user.
+var BANDAR_NET_ACC_DIST_DAYS = 10;
+var _bandarNetAccDistCache = null; // { data, days, dateKey }
 
-  var instList = ['AK', 'BK', 'ZP', 'KZ', 'CS', 'RX', 'CC', 'SQ', 'OD', 'NI', 'LG', 'IF', 'YU'];
-  var retList = ['YP', 'PD', 'XC', 'XL', 'KK', 'EP', 'AT'];
+function renderBandarmologyNetAccumulationView() {
+  return '<div id="bandar-net-acc-content"><div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memuat net akumulasi/distribusi multi-hari...</div></div>';
+}
 
-  var smBuyers = buyers.filter(function(x) { return instList.includes(x.broker); });
-  var smSellers = sellers.filter(function(x) { return instList.includes(x.broker); });
-  var retBuyers = buyers.filter(function(x) { return retList.includes(x.broker); });
-  var retSellers = sellers.filter(function(x) { return retList.includes(x.broker); });
+function bandarSetNetAccDistDays(days) {
+  var n = parseInt(days, 10);
+  if (!Number.isFinite(n)) return;
+  n = Math.max(2, Math.min(30, n));
+  BANDAR_NET_ACC_DIST_DAYS = n;
+  _bandarNetAccDistCache = null;
+  bandarLoadNetAccDist(n);
+}
+window.bandarSetNetAccDistDays = bandarSetNetAccDistDays;
 
-  var smBuyVal = smBuyers.reduce(function(a, b) { return a + (b.valueRp || 0); }, 0);
-  var smSellVal = smSellers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
-  var smNet = smBuyVal - smSellVal;
+function bandarRenderNetAccDistTable(data) {
+  if (!data || data.success === false || data.isSimulated) {
+    return '<div class="card" style="padding:16px">'
+      + bandarNetAccDistHeader(BANDAR_NET_ACC_DIST_DAYS)
+      + '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2)">' + ((data && (data.message || data.dataSource)) || 'Data tidak tersedia.') + '</div>'
+      + '</div>';
+  }
 
-  var retBuyVal = retBuyers.reduce(function(a, b) { return a + (b.valueRp || 0); }, 0);
-  var retSellVal = retSellers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
-  var retNet = retBuyVal - retSellVal;
+  var fmtScore = function(v) { return (v > 0 ? '+' : '') + Number(v || 0).toLocaleString('id-ID'); };
 
-  // Gate on isSimulated BEFORE building display strings — same class of bug
-  // already fixed as INV-004 (lib/idx-data-engine.js computeStockSignal()):
-  // a simulated bData must never feed a fabricated score/dominance/broker
-  // name that looks like a real reading (CLAUDE.md #3 — a "SIMULASI" label
-  // doesn't excuse showing precision-looking invented numbers).
-  var isBandarSim = bData.isSimulated !== false;
-  var smScore = (!isBandarSim && b.score != null) ? b.score : null;
-  var smDominance = (!isBandarSim && b.concentration && (b.concentration.top3BuyerPct || b.concentration.top3BuyPct)) || null;
-  var smBuyBrokersText = (!isBandarSim && smBuyers.length) ? smBuyers.map(function(x){ return x.broker; }).join(', ') : '';
-  var retSellBrokersText = (!isBandarSim && retSellers.length) ? retSellers.map(function(x){ return x.broker; }).join(', ') : '';
+  var buildRows = function(list, color) {
+    if (!list.length) return '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text3);font-size:11px">Tidak ada emiten pada window ini.</td></tr>';
+    return list.slice(0, 10).map(function(item) {
+      var emitenName = item.name || ((typeof DB !== 'undefined' && DB[item.ticker] && DB[item.ticker].name) || item.ticker);
+      return '<tr>'
+        + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + item.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + emitenName + '</div></td>'
+        + '<td style="font-size:11px;color:var(--text2)">' + (item.sector || '-') + '</td>'
+        + '<td class="mono" style="text-align:right;font-weight:700;color:' + color + '">' + fmtScore(item.netScore) + '</td>'
+        + '<td class="mono" style="text-align:right;color:var(--text2)">' + item.daysAppeared + ' / ' + data.daysWithData + ' hari</td>'
+        + '<td class="mono" style="text-align:right;color:var(--text)">Rp ' + Number(item.lastPrice || 0).toLocaleString('id-ID') + '</td>'
+        + '<td style="text-align:center"><button onclick="selectStockChatTicker(\'' + item.ticker + '\');setBandarmologyMode(\'stock\');" class="btn btn-ghost btn-xs">Detail Broker</button></td>'
+        + '</tr>';
+    }).join('');
+  };
 
-  var isBullishDivergence = !isBandarSim && smNet > 0 && retNet < 0;
-  var divStatus = isBandarSim ? 'DATA TIDAK TERSEDIA' : (isBullishDivergence ? 'BULLISH DIVERGENCE (SMART MONEY INFLOW)' : (smNet < 0 && retNet > 0 ? 'BEARISH DIVERGENCE (DISTRIBUTION TO RETAIL)' : 'NEUTRAL ROTATION'));
-  var divDesc = isBandarSim ? 'Belum ada data broker summary real untuk ticker ini.' : (isBullishDivergence ? 'Institusi menyerap barang konsisten sementara investor ritel melepas posisi' : 'Pergerakan harga sejalan dengan distribusi / akumulasi standar');
-
-  var html = bandarDataBanner(bData.isSimulated === false ? 1 : 0, 1)
-    + '<div class="card" style="padding:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border2);margin-bottom:12px;flex-wrap:wrap;gap:8px">'
+  return '<div class="card" style="padding:16px">'
+    + bandarNetAccDistHeader(data.daysRequested)
+    + '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-bottom:12px">'
+    + 'Data REAL Invezgo API — ' + data.dateRange.from + ' s/d ' + data.dateRange.to + ' (' + data.daysWithData + ' dari ' + data.daysRequested + ' hari bursa punya data) — seluruh emiten BEI aktif, bukan sampel.'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">'
     + '<div>'
-    + '<div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'
-    + 'SMART MONEY VS RETAIL FOOTPRINT: <span class="mono" style="color:var(--accent)">' + ticker + '</span>'
-    + '</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs aliran ritel reguler</div>'
-    + '</div>'
-    + '<span class="badge b-up" style="font-size:10px;font-weight:700">SMART MONEY SCORE: ' + (smScore != null ? smScore + '/100' : 'N/A') + '</span>'
-    + '</div>'
-
-    + '<div class="row4" style="margin-bottom:12px">'
-    + '<div class="metric">'
-    + '<div class="mlabel">1. DOMINANSI INSTITUSI / WHALE</div>'
-    + '<div class="mval ' + (smDominance != null ? 'up' : 'neu') + ' mono" style="font-size:16px">' + (smDominance != null ? 'WHALE DOMINANT (' + smDominance + '%)' : 'DATA TIDAK TERSEDIA') + '</div>'
-    + '<div class="msub neu">Akumulator: <strong class="mono" style="color:var(--text)">' + (smBuyBrokersText || '-') + '</strong>' + (!isBandarSim ? ' (+Rp ' + Math.abs(Math.round(smNet/1000000000)) + 'M)' : '') + '</div>'
-    + '</div>'
-
-    + '<div class="metric">'
-    + '<div class="mlabel">2. RETAIL SENTIMENT FOOTPRINT</div>'
-    + '<div class="mval ' + (isBandarSim ? 'neu' : (retNet < 0 ? 'amb' : 'down')) + ' mono" style="font-size:16px">' + (isBandarSim ? 'DATA TIDAK TERSEDIA' : (retNet < 0 ? 'RETAIL SELLING' : 'RETAIL ABSORBING')) + '</div>'
-    + '<div class="msub neu">Broker Ritel: <strong class="mono" style="color:var(--text)">' + (retSellBrokersText || '-') + '</strong></div>'
-    + '</div>'
-
-    + '<div class="metric">'
-    + '<div class="mlabel">3. DIVERGENSI SMART MONEY</div>'
-    + '<div class="mval ' + (isBullishDivergence ? 'up' : 'neu') + ' mono" style="font-size:14px">' + divStatus + '</div>'
-    + '<div class="msub neu">' + divDesc + '</div>'
-    + '</div>'
-    + '</div>'
-
-    + '<div style="padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:12px;line-height:1.5;color:var(--text2)">'
-    + '<div style="font-weight:700;color:var(--green);margin-bottom:4px;display:flex;align-items:center;gap:4px">Kesimpulan AI Smart Money &amp; Bandarmology:</div>'
-    + (isBandarSim
-        ? 'Belum ada data broker summary real untuk <strong class="mono" style="color:var(--text)">' + ticker + '</strong> — tidak ada kesimpulan yang bisa ditarik sampai data real tersedia.'
-        : 'Smart Money terdeteksi aktif pada saham <strong class="mono" style="color:var(--text)">' + ticker + '</strong> dengan net institutional flow <strong class="up mono">' + (smNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smNet/1000000000)).toLocaleString('id-ID') + ' Miliar</strong>. Broker institusi utama (<span class="mono" style="color:var(--text)">' + (smBuyBrokersText || '-') + '</span>) mendominasi konsentrasi akumulasi.')
+    + '<div style="font-size:12px;font-weight:700;color:var(--green)">TOP NET AKUMULATOR</div>'
+    + '<div class="tbl-wrap" style="overflow-x:auto;margin-top:6px">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Skor Net</th><th style="text-align:right">Muncul</th><th style="text-align:right">Harga</th><th style="text-align:center">Aksi</th></tr></thead>'
+    + '<tbody>' + buildRows(data.accumulators, 'var(--green)') + '</tbody>'
+    + '</table></div></div>'
+    + '<div>'
+    + '<div style="font-size:12px;font-weight:700;color:var(--red)">TOP NET DISTRIBUTOR</div>'
+    + '<div class="tbl-wrap" style="overflow-x:auto;margin-top:6px">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Skor Net</th><th style="text-align:right">Muncul</th><th style="text-align:right">Harga</th><th style="text-align:center">Aksi</th></tr></thead>'
+    + '<tbody>' + buildRows(data.distributors, 'var(--red)') + '</tbody>'
+    + '</table></div></div>'
     + '</div>'
     + '</div>';
-  return html;
 }
+
+function bandarNetAccDistHeader(daysValue) {
+  return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">Net Akumulasi/Distribusi Multi-Hari '
+    + uiInfoIcon('Skor di sini adalah skor ranking relatif Invezgo (calculated_value dari /analysis/top/accumulation) yang DIJUMLAHKAN lintas beberapa hari bursa — BUKAN akumulasi nilai Rupiah. "Muncul X dari Y hari" menunjukkan konsistensi: makin sering ticker itu masuk top-mover harian, makin kuat sinyalnya (bukan cuma sekali nyembul). Hari libur bursa otomatis dilewati dan tidak dihitung sebagai hari bursa.')
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<label for="bandar-net-acc-days-input" style="font-size:11px;font-weight:700;color:var(--text3)">Window (2-30 hari):</label>'
+    + '<input id="bandar-net-acc-days-input" type="number" min="2" max="30" value="' + daysValue + '" class="sm-input" style="width:60px;padding:4px 8px;font-size:11px;border-radius:6px">'
+    + '<button class="sm-btn" style="font-size:11px;padding:5px 12px;border-radius:6px" onclick="bandarSetNetAccDistDays(document.getElementById(\'bandar-net-acc-days-input\').value)">Terapkan</button>'
+    + '</div>'
+    + '</div>';
+}
+
+async function bandarLoadNetAccDist(days) {
+  var container = document.getElementById('bandar-net-acc-content');
+  if (!container) return;
+  var n = days || BANDAR_NET_ACC_DIST_DAYS;
+  var todayKey = new Date().toISOString().slice(0, 10);
+  try {
+    if (!_bandarNetAccDistCache || _bandarNetAccDistCache.days !== n || _bandarNetAccDistCache.dateKey !== todayKey) {
+      var res = await fetch('/api/idx/accumulation-distribution-range?days=' + n, { signal: AbortSignal.timeout(BANDAR_FETCH_TIMEOUT_MS) });
+      var json = await res.json();
+      _bandarNetAccDistCache = { data: json, days: n, dateKey: todayKey };
+    }
+    var el = document.getElementById('bandar-net-acc-content');
+    if (el) el.innerHTML = bandarRenderNetAccDistTable(_bandarNetAccDistCache.data);
+  } catch (e) {
+    var el2 = document.getElementById('bandar-net-acc-content');
+    if (el2) el2.innerHTML = '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat data: ' + e.message + '</div>';
+  }
+}
+window.bandarLoadNetAccDist = bandarLoadNetAccDist;
+window.renderBandarmologyNetAccumulationView = renderBandarmologyNetAccumulationView;
+window.bandarLoadAccDist = bandarLoadAccDist;
 
 // 7. Broker Trail View
 // 7. Broker Summary by Broker View (Whole-Market Institutional Portfolio)
@@ -4252,7 +4420,6 @@ window.renderBandarmologyCockpitPage = renderBandarmologyCockpitPage;
 window.renderBandarmologyMarketFlowView = renderBandarmologyMarketFlowView;
 window.renderBandarmologyAccumulationView = renderBandarmologyAccumulationView;
 window.renderBandarmologyDistributionView = renderBandarmologyDistributionView;
-window.renderBandarmologySmartMoneyRadarView = renderBandarmologySmartMoneyRadarView;
 window.renderBandarmologySmartMoneyFlowView = renderBandarmologySmartMoneyFlowView;
 window.renderBandarmologyBrokerTrailView = renderBandarmologyBrokerTrailView;
 window.getAccurateStockPrice = getAccurateStockPrice;

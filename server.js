@@ -31,12 +31,17 @@ import {
   runUnifiedScreenerBacktest,
   logTodaysUnifiedScreenerSignals,
   getScreenerSignalLogSummary,
+  getScreenerCalibrationReport,
+  logTodaysConsensusSignals,
+  getConsensusSignalLogSummary,
   warmTechnicalRotating,
   getUniverseAccumulationDistribution,
+  getUniverseAccumulationDistributionRange,
   getTransactionFlowVisualizer,
   getBeiTickSize,
   generateBrokerSummary,
   getBrokerSummaryByBroker,
+  getStockBandarFlowPillar,
   generateBandarMovementData,
   generateShareholderComposition,
   generateSectorRotation,
@@ -52,10 +57,12 @@ import {
   getDataQualityTelemetry,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
-import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus } from './lib/invezgo-client.js';
+import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook } from './lib/invezgo-client.js';
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
+import { getEconomicHealth, discoverBpsDatasets, getBpsStrategicIndicators } from './lib/economic-data-engine.js';
+import { fetchBiJisdor, fetchBiKursTransaksi } from './lib/providers/bi-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -3632,7 +3639,13 @@ app.get('/api/idx/history/:ticker', async (req, res) => {
     if (!/^[A-Z0-9^.=\-]{1,15}$/i.test(ticker)) {
       return res.status(400).json({ success: false, error: 'Invalid ticker format' });
     }
-    const tf = ['1D', '1W', '1M', '1Y', 'DAILY_MAX'].includes(req.query.tf) ? req.query.tf : '1D';
+    // 'SCAN' (interval 1d, range 6mo) diizinkan di sini juga — bucket yang
+    // sama yang sudah dipakai AI scanner internal untuk EMA50 real (lihat
+    // HISTORY_TF_MAP di lib/providers/yahoo-client.js), dibutuhkan Stock
+    // Dossier (46-stock-dossier.js) untuk skor teknikal candle harian
+    // beberapa bulan — bukan kemampuan baru, cuma bucket TTL Yahoo yang
+    // sama diekspos lewat route baca-saja yang sudah ada.
+    const tf = ['1D', '1W', '1M', '1Y', 'DAILY_MAX', 'SCAN'].includes(req.query.tf) ? req.query.tf : '1D';
     const market = ['id', 'us', 'crypto'].includes(req.query.market) ? req.query.market : 'id';
 
     const history = await fetchYahooHistory(ticker, tf, market);
@@ -3849,6 +3862,66 @@ app.get('/api/idx/backtest-all', async (req, res) => {
   }
 });
 
+// GET /api/idx/order-book/:ticker — Real Level-1 bid/offer (Volume Spike
+// Scanner card, 2026-09-30 user request: "pada volume spike ditambahkan
+// card order book, lihat doc invezgo untuk melengkapinya"). Schema
+// VERIFIED from Invezgo's own OpenAPI spec (api-1.yaml,
+// AnalysisController_getOrderBook — a real vendor-captured "Test Request"
+// example, not guessed; see fetchInvezgoOrderBook()'s own comment in
+// lib/invezgo-client.js): Invezgo exposes LEVEL 1 ONLY (bid1/offer1 —
+// no bid2/offer2/etc, confirmed by grepping the whole spec). `market`
+// defaults to 'RG' (Pasar Reguler — the BEI segment where retail/normal
+// trading happens; NG/TN are negotiated/cash market, not applicable to
+// a general order-book card). 204 from Invezgo = stock suspended, passed
+// through honestly as `suspended:true`, never faked as an empty spread.
+app.get('/api/idx/order-book/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const market = (req.query.market || 'RG').toUpperCase();
+
+    const result = await fetchInvezgoOrderBook(ticker, market, req.query.date, req.query.time);
+
+    if (!result.ok) {
+      return res.json({
+        success: true,
+        data: { available: false, reason: result.reason, suspended: false, bid1: null, offer1: null, spread: null, spreadPct: null, market }
+      });
+    }
+    if (result.suspended || !result.bid.length || !result.offer.length) {
+      return res.json({
+        success: true,
+        data: { available: false, reason: result.suspended ? 'SUSPENDED' : 'EMPTY_BOOK', suspended: !!result.suspended, bid1: null, offer1: null, spread: null, spreadPct: null, market }
+      });
+    }
+
+    const b = result.bid[0] || {};
+    const o = result.offer[0] || {};
+    const bid1 = { price: Number(b.bid1price) || 0, lot: Number(b.bid1lot) || 0, freq: Number(b.bid1freq) || 0 };
+    const offer1 = { price: Number(o.offer1price) || 0, lot: Number(o.offer1lot) || 0, freq: Number(o.offer1freq) || 0 };
+    const spread = (bid1.price > 0 && offer1.price > 0) ? (offer1.price - bid1.price) : null;
+    const spreadPct = (spread !== null && bid1.price > 0) ? (spread / bid1.price) * 100 : null;
+
+    return res.json({
+      success: true,
+      data: {
+        available: true,
+        reason: null,
+        suspended: false,
+        market,
+        bid1,
+        offer1,
+        spread,
+        spreadPct,
+        updatedAt: (result.quality && result.quality.retrievedAt) || new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    console.error('[Order Book Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/idx/broker-summary/:ticker — Comprehensive Broker Flow & Bandarmology
 app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
   try {
@@ -3877,6 +3950,25 @@ app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
       data: summary
     });
   } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/bandar-flow-pillar/:ticker — StockMaster 360 Traffic Light
+// pilar "Arus Bandar & Likuiditas Asing" (FlowScan), 2026-09-29. Gabungan
+// 3 sinyal REAL per-ticker (lihat komentar getStockBandarFlowPillar() di
+// lib/idx-data-engine.js untuk detail): konsentrasi broker hari ini +
+// Top Akumulasi/Distribusi seluruh bursa + Top Foreign Net Buy/Sell
+// seluruh bursa. Fail-closed jujur ke available:false kalau data broker
+// simulasi/tidak tersedia — TIDAK pernah menghitung skor dari data karangan.
+app.get('/api/idx/bandar-flow-pillar/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const result = await getStockBandarFlowPillar(ticker);
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[Bandar Flow Pillar Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -4208,9 +4300,30 @@ app.get('/api/idx/shareholder-composition/:ticker', async (req, res) => {
 // GET /api/idx/sector-rotation — Invezgo RRG (Relative Rotation Graph) at
 // sector-index level (base=COMPOSITE). Supplements, never replaces, the
 // CMF-constituent estimate in public/js/44-sectoral-insight.js.
+// Optional ?from=YYYY-MM-DD&to=YYYY-MM-DD (user-facing date-range filter on
+// the Sector Rotation Chart, public/js/41-stockchat-cockpit.js) — validated
+// here so a malformed value fails closed with 400 instead of silently
+// falling through. NOTE: from/to are NOT forwarded to Invezgo verbatim;
+// fetchInvezgoSectorRotation() (lib/invezgo-client.js) translates the range
+// into the spec's own `tail` param (how many weekly points to show) while
+// keeping the actual Invezgo request window wide enough for the smoothing
+// calculation — see that function's comment for why (an earlier version
+// forwarded from/to as-is and a narrow user range starved the calculation,
+// causing an honest but confusing NO_DATA for anything but the default).
+const IDX_DATE_QUERY_RE = /^\d{4}-\d{2}-\d{2}$/;
 app.get('/api/idx/sector-rotation', async (req, res) => {
   try {
-    const data = await generateSectorRotation();
+    const { from, to } = req.query;
+    if (from !== undefined && !IDX_DATE_QUERY_RE.test(from)) {
+      return res.status(400).json({ success: false, error: 'Parameter from harus berformat YYYY-MM-DD' });
+    }
+    if (to !== undefined && !IDX_DATE_QUERY_RE.test(to)) {
+      return res.status(400).json({ success: false, error: 'Parameter to harus berformat YYYY-MM-DD' });
+    }
+    if (from !== undefined && to !== undefined && from > to) {
+      return res.status(400).json({ success: false, error: 'Parameter from tidak boleh setelah to' });
+    }
+    const data = await generateSectorRotation({ from, to });
     return res.json({ success: true, data });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -4345,6 +4458,15 @@ app.get('/api/cron/warm-radar-fundamentals', async (req, res) => {
 // generateUnifiedScreener() pass — cache-only reads, no live Yahoo
 // fetches, should be fast, but never assume "fast enough" without a
 // margin on a 30s function).
+// FIX (2026-10-01, user-requested: "lakukan uji kebenaran [konsensus
+// screener]... hari ke 1, 2, dan 3"): also logs today's Konsensus
+// Screener rows for a SEPARATE forward-validation log (Track D — see
+// logTodaysConsensusSignals()/lib/idx-data-engine.js), same piggyback
+// reasoning as Track B above. generateScreenerConsensus() itself is a
+// whole-market pass too (cache-only reads given warmTechnicalRotating()
+// just ran, same cost class as Track B's own generateUnifiedScreener()
+// call) — budget trimmed again, 20s -> 15s, to keep headroom for BOTH
+// logging steps combined on a 30s function.
 app.get('/api/cron/warm-technical-indicators', async (req, res) => {
   const secret = process.env.CRON_SECRET;
   const authHeader = req.headers.authorization || '';
@@ -4352,7 +4474,7 @@ app.get('/api/cron/warm-technical-indicators', async (req, res) => {
     return res.status(403).json({ success: false, error: 'Forbidden' });
   }
   try {
-    const result = await warmTechnicalRotating(20000);
+    const result = await warmTechnicalRotating(15000);
     let signalLog = null;
     try {
       signalLog = await logTodaysUnifiedScreenerSignals();
@@ -4360,7 +4482,14 @@ app.get('/api/cron/warm-technical-indicators', async (req, res) => {
       console.error('[Screener Signal Log Cron Error]', logErr);
       signalLog = { added: 0, error: logErr.message };
     }
-    return res.json({ success: true, ...result, signalLog });
+    let consensusLog = null;
+    try {
+      consensusLog = await logTodaysConsensusSignals();
+    } catch (logErr) {
+      console.error('[Consensus Signal Log Cron Error]', logErr);
+      consensusLog = { added: 0, error: logErr.message };
+    }
+    return res.json({ success: true, ...result, signalLog, consensusLog });
   } catch (err) {
     console.error('[Technical Indicators Cron Error]', err);
     return res.status(500).json({ success: false, error: err.message });
@@ -4566,6 +4695,46 @@ app.get('/api/idx/screener-signal-log', async (req, res) => {
   }
 });
 
+// GET /api/idx/screener-calibration-report — Track C: kalibrasi bobot dari
+// Track B (forward log) yang sudah terkumpul (2026-09-30, user-requested:
+// "bagaimana membuat trading engine semakin lama semakin pintar dari data
+// yang sudah dibaca"). Laporan pecah win-rate/alpha per whaleScore &
+// rentang uptrendScore — TIDAK mengubah bobot formula otomatis (lihat
+// komentar getScreenerCalibrationReport() untuk alasan: ml/README.md
+// sudah mendokumentasikan percobaan ML otomatis yang gagal karena
+// overfitting pada sampel kecil).
+app.get('/api/idx/screener-calibration-report', async (req, res) => {
+  try {
+    const data = await getScreenerCalibrationReport();
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[Screener Calibration Report Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/consensus-signal-log — Track D win-rate validation
+// (2026-10-01, user-requested: "lakukan uji kebenaran pada konsensus
+// screener... hari ke 1, 2 dan 3 apakah benar naik atau turun, sehingga
+// screener bisa dipercaya kebenaran dan prediksinya"). Returns the
+// Konsensus Screener forward-validation log's current state (per-horizon
+// d1/d2/d3 win-rate & avg return, broken down by how many systems
+// agreed), resolving any newly-matured horizon on read. See
+// getConsensusSignalLogSummary()/resolveConsensusSignalLog() (lib/idx-
+// data-engine.js) — this is a SEPARATE log from Track B/C above (those
+// forward-test Unified Screener's own "confirmed" signals over 20 days;
+// this one specifically tests Konsensus Screener membership over 1/2/3
+// days, the exact question the user asked).
+app.get('/api/idx/consensus-signal-log', async (req, res) => {
+  try {
+    const data = await getConsensusSignalLogSummary();
+    return res.json(data);
+  } catch (err) {
+    console.error('[Consensus Signal Log Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/idx/accumulation-distribution — Accumulation & Distribution Scanner
 // (LQ45 default when no ?tickers= is given — pass one to scan any other
 // slice, e.g. a batch of the full ~900+ IDX universe).
@@ -4575,6 +4744,20 @@ app.get('/api/idx/accumulation-distribution', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[IDX Acc/Dist Scanner Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/accumulation-distribution-range — Net Akumulasi/Distribusi
+// seluruh BEI dijumlahkan lintas 2-30 hari bursa (user-requested 2026-09-28:
+// "saya belum bisa menganalisis saham yang diakumulasi oleh bandar selama
+// 2 sampai 30 hari secara nett"). ?days=N (default 10, clamp 2-30).
+app.get('/api/idx/accumulation-distribution-range', async (req, res) => {
+  try {
+    const data = await getUniverseAccumulationDistributionRange({ days: req.query.days });
+    return res.json(data);
+  } catch (err) {
+    console.error('[IDX Net Acc/Dist Range Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -4644,6 +4827,110 @@ app.get('/api/idx/financial-statement/:ticker', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[IDX Financial Statement Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── Indonesia Economic Data Engine (BI + BPS) ──
+// STATUS (2026-09-28): scaffolding — see lib/economic-data-engine.js and
+// lib/providers/bi-client.js/bps-client.js for the full explanation.
+// No indicator data (inflasi/PDB/ekspor-impor/JISDOR/Kurs Transaksi) is
+// verified yet: this sandbox's egress proxy blocks both bi.go.id and
+// webapi.bps.go.id, and there is no BPS_API_KEY configured. These routes
+// intentionally return honest NOT_CONFIGURED/UNAVAILABLE/not_verified
+// states — per CLAUDE.md Aturan #1, never a fabricated number.
+
+// GET /api/economic/health — combined BI + BPS reachability/config status.
+app.get('/api/economic/health', async (req, res) => {
+  try {
+    const health = await getEconomicHealth();
+    return res.json(health);
+  } catch (err) {
+    console.error('[Economic Health Error]', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/economic/bps/datasets — BPS dataset discovery (spec §7). Requires
+// BPS_API_KEY; returns { ok:false, reason:'NOT_CONFIGURED' } honestly
+// without it. ?model=data|subject|unit|var (default 'data'), ?domain=
+// (default '0000' = nasional).
+app.get('/api/economic/bps/datasets', async (req, res) => {
+  try {
+    const result = await discoverBpsDatasets(req.query.model, req.query.domain);
+    return res.json({
+      success: result.ok,
+      provider: 'BPS',
+      source: { name: 'Badan Pusat Statistik', type: 'official_api', url: 'https://webapi.bps.go.id/developer' },
+      data: result.ok ? result.raw : null,
+      meta: { status: result.ok ? 'VERIFIED' : result.reason, schemaVerified: result.schemaVerified === true }
+    });
+  } catch (err) {
+    console.error('[BPS Discovery Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/economic/bps/indicators — Strategic Indicators (spec `model=indicators`,
+// skema SUDAH terverifikasi dari dokumentasi resmi — lihat
+// fetchBpsStrategicIndicators() di lib/providers/bps-client.js). Requires
+// BPS_API_KEY dan ?domain= (WAJIB — kode wilayah nasional/pusat BELUM
+// terverifikasi, jadi tidak ada default di sini; lihat catatan di
+// bps-client.js). Optional: ?var=, ?page=, ?lang= (default 'ind').
+app.get('/api/economic/bps/indicators', async (req, res) => {
+  try {
+    const result = await getBpsStrategicIndicators({
+      domain: req.query.domain,
+      lang: req.query.lang,
+      varId: req.query.var,
+      page: req.query.page
+    });
+    return res.json({
+      success: result.ok,
+      provider: 'BPS',
+      source: { name: 'Badan Pusat Statistik', type: 'official_api', url: 'https://webapi.bps.go.id/documentation/' },
+      data: result.ok ? result.records : [],
+      pagination: result.ok ? result.pagination : null,
+      meta: { status: result.ok ? 'VERIFIED' : result.reason, message: result.message || null }
+    });
+  } catch (err) {
+    console.error('[BPS Strategic Indicators Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/economic/bi/jisdor — NOT yet implemented (SOAP schema
+// unverified, see bi-client.js). Returns access:'not_verified' honestly.
+app.get('/api/economic/bi/jisdor', async (req, res) => {
+  try {
+    const result = await fetchBiJisdor();
+    return res.json({
+      success: false,
+      provider: 'BI',
+      source: { name: 'Bank Indonesia', type: 'official_api', url: 'https://www.bi.go.id/biwebservice/wskursbi.asmx' },
+      data: [],
+      meta: { status: result.access === 'not_verified' ? 'UNAVAILABLE' : 'ERROR', message: result.message }
+    });
+  } catch (err) {
+    console.error('[BI JISDOR Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/economic/bi/exchange-rate — NOT yet implemented (same reason as
+// /bi/jisdor above).
+app.get('/api/economic/bi/exchange-rate', async (req, res) => {
+  try {
+    const result = await fetchBiKursTransaksi(req.query.currency, req.query.date);
+    return res.json({
+      success: false,
+      provider: 'BI',
+      source: { name: 'Bank Indonesia', type: 'official_api', url: 'https://www.bi.go.id/biwebservice/wskursbi.asmx' },
+      data: [],
+      meta: { status: result.access === 'not_verified' ? 'UNAVAILABLE' : 'ERROR', message: result.message }
+    });
+  } catch (err) {
+    console.error('[BI Exchange Rate Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

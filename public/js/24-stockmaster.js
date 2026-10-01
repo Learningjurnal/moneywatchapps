@@ -1373,38 +1373,103 @@ function fundBuildSensitivityMatrix(bvps, payout, minReturn, curPrice, basePer, 
 // under a label ("FlowScan") that implied it was computed. Removed from
 // the score entirely; the pillar is now shown as an honest "Belum
 // Tersedia" instead of a number that was never real.
+var TL_SIGNAL_BADGE = function(score) {
+  if (score === 2) return '<span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">BULLISH / BUY</span>';
+  if (score === 1) return '<span style="background:rgba(59,130,246,0.2);color:#60A5FA;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">NEUTRAL / HOLD</span>';
+  return '<span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">BEARISH / TRIM</span>';
+};
+
+// FIX (2026-09-29, user-reported: "kenapa pilar arus bandar dan likuidas
+// menunjukan data belum tersedia"): pilar ini dulu hardcoded "Belum
+// Tersedia" tanpa perhitungan apapun — sekarang dihitung real dari
+// GET /api/idx/bandar-flow-pillar/:ticker (getStockBandarFlowPillar(),
+// lib/idx-data-engine.js), yang menggabungkan 3 sinyal broker/asing REAL
+// per-ticker dari Invezgo (lihat komentar fungsi itu). Karena endpoint
+// baru ini perlu fetch terpisah (tidak mau membuat seluruh
+// fundBuildTrafficLight/fundPopulateData jadi async), pilar 1 & 3 tetap
+// dirender SEGERA (sinkron, dari data yang sudah ada), sementara pilar 2
+// dirender "Memuat..." lalu di-update di tempat begitu fetch selesai —
+// tetap jujur fallback ke "Belum Tersedia" kalau fetch gagal/data
+// simulasi (TIDAK pernah menampilkan skor dari data karangan).
 function fundBuildTrafficLight(mosPct, roe, per, curPrice) {
   var tlBody = document.getElementById('hw-tl-body-t3');
   if (!tlBody) return;
 
   var valScore = mosPct > 15 ? 2 : (mosPct > 0 ? 1 : 0);
   var quantScore = roe > 0.15 ? 2 : (roe > 0.10 ? 1 : 0);
-  var totalScore = valScore + quantScore;
-  var maxScore = 4;
-
-  var getSignalBadge = function(score) {
-    if (score === 2) return '<span style="background:rgba(16,185,129,0.2);color:#10B981;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">BULLISH / BUY</span>';
-    if (score === 1) return '<span style="background:rgba(59,130,246,0.2);color:#60A5FA;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">NEUTRAL / HOLD</span>';
-    return '<span style="background:rgba(239,68,68,0.2);color:#EF4444;padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">BEARISH / TRIM</span>';
-  };
 
   tlBody.innerHTML = ''
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
     + '  <span style="font-size:11px;color:var(--text3)">1. Pilar Valuasi Fundamental (MoS / Multi-Model)</span>'
-    + '  <div>' + getSignalBadge(valScore) + '</div>'
+    + '  <div>' + TL_SIGNAL_BADGE(valScore) + '</div>'
     + '</div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);opacity:.6">'
+    + '<div id="hw-tl-pillar2-t3" style="display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border)">'
     + '  <span style="font-size:11px;color:var(--text3)">2. Pilar Arus Bandar &amp; Likuiditas Asing (FlowScan)</span>'
-    + '  <div><span style="background:var(--bg4);color:var(--text3);padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">Belum Tersedia</span></div>'
+    + '  <div><span style="background:var(--bg4);color:var(--text3);padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px">Memuat...</span></div>'
     + '</div>'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
     + '  <span style="font-size:11px;color:var(--text3)">3. Pilar Kualitas Ekuitas &amp; Profitabilitas (Quant ROE)</span>'
-    + '  <div>' + getSignalBadge(quantScore) + '</div>'
+    + '  <div>' + TL_SIGNAL_BADGE(quantScore) + '</div>'
     + '</div>'
-    + '<div style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
+    + '<div id="hw-tl-consensus-t3" style="margin-top:8px;padding:8px;background:var(--bg3);border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
     + '  <span style="font-size:12px;font-weight:800;color:var(--text)">KONSENSUS (2 Pilar Riil):</span>'
-    + '  <span style="font-size:12px;font-weight:800;color:' + (totalScore >= 3 ? '#10B981' : (totalScore >= 1 ? '#60A5FA' : '#EF4444')) + '">' + (totalScore >= 3 ? 'STRONG BUY CONVICTION' : (totalScore >= 1 ? 'ACCUMULATE ON WEAKNESS' : 'WAIT & SEE / AVOID')) + ' (' + totalScore + '/' + maxScore + ')</span>'
+    + '  <span style="font-size:12px;font-weight:800;color:' + (valScore + quantScore >= 3 ? '#10B981' : (valScore + quantScore >= 1 ? '#60A5FA' : '#EF4444')) + '">' + (valScore + quantScore >= 3 ? 'STRONG BUY CONVICTION' : (valScore + quantScore >= 1 ? 'ACCUMULATE ON WEAKNESS' : 'WAIT & SEE / AVOID')) + ' (' + (valScore + quantScore) + '/4)</span>'
     + '</div>';
+
+  fundLoadBandarFlowPillar(FUND_DATA.ticker, valScore, quantScore);
+}
+
+async function fundLoadBandarFlowPillar(ticker, valScore, quantScore) {
+  var pillarEl = document.getElementById('hw-tl-pillar2-t3');
+  var consensusEl = document.getElementById('hw-tl-consensus-t3');
+  if (!pillarEl) return;
+
+  var renderUnavailable = function(msg) {
+    if (!document.getElementById('hw-tl-pillar2-t3')) return; // user sudah pindah ticker
+    pillarEl.style.opacity = '.6';
+    pillarEl.innerHTML = '<span style="font-size:11px;color:var(--text3)">2. Pilar Arus Bandar &amp; Likuiditas Asing (FlowScan)</span>'
+      + '<div><span style="background:var(--bg4);color:var(--text3);padding:2px 8px;border-radius:4px;font-weight:700;font-size:10px" title="' + (msg || '').replace(/"/g, '&quot;') + '">Belum Tersedia</span></div>';
+  };
+
+  try {
+    var res = await fetch('/api/idx/bandar-flow-pillar/' + encodeURIComponent(ticker), { signal: AbortSignal.timeout(15000) });
+    var json = await res.json();
+    var d = json && json.success ? json.data : null;
+
+    // Ticker mungkin sudah berganti sejak fetch dimulai (user klik cepat) —
+    // jangan timpa panel pilar 2 milik ticker lain.
+    if (FUND_DATA.ticker !== ticker || !document.getElementById('hw-tl-pillar2-t3')) return;
+
+    if (!d || !d.available) {
+      renderUnavailable(d && d.message ? d.message : 'Data broker/asing real untuk ticker ini belum tersedia dari Invezgo hari ini.');
+      return;
+    }
+
+    pillarEl.style.opacity = '1';
+    var detailHtml = d.components.map(function(c) {
+      var sign = c.points > 0 ? '+' : '';
+      var color = c.points > 0 ? '#10B981' : (c.points < 0 ? '#EF4444' : 'var(--text3)');
+      return '<div style="font-size:9.5px;color:var(--text3);margin-top:2px">'
+        + '<span style="color:' + color + ';font-weight:700">' + sign + c.points + '</span> ' + c.label
+        + (c.real ? '' : ' <span style="opacity:.7">(data whole-market tidak tersedia hari ini)</span>')
+        + '</div>';
+    }).join('');
+
+    pillarEl.innerHTML = '<span style="font-size:11px;color:var(--text3)">2. Pilar Arus Bandar &amp; Likuiditas Asing (FlowScan)</span>'
+      + '<div style="text-align:right">' + TL_SIGNAL_BADGE(d.score) + detailHtml + '</div>';
+
+    // Update konsensus jadi 3 pilar sekarang pilar 2 real.
+    if (consensusEl) {
+      var totalScore = valScore + quantScore + d.score;
+      var maxScore = 6;
+      consensusEl.innerHTML = '<span style="font-size:12px;font-weight:800;color:var(--text)">KONSENSUS (3 Pilar Riil):</span>'
+        + '<span style="font-size:12px;font-weight:800;color:' + (totalScore >= 5 ? '#10B981' : (totalScore >= 2 ? '#60A5FA' : '#EF4444')) + '">' + (totalScore >= 5 ? 'STRONG BUY CONVICTION' : (totalScore >= 2 ? 'ACCUMULATE ON WEAKNESS' : 'WAIT & SEE / AVOID')) + ' (' + totalScore + '/' + maxScore + ')</span>';
+    }
+  } catch (eFlow) {
+    if (FUND_DATA.ticker === ticker && document.getElementById('hw-tl-pillar2-t3')) {
+      renderUnavailable('Gagal memuat data pilar arus bandar: ' + eFlow.message);
+    }
+  }
 }
 
 function fundCalculateDCF() {

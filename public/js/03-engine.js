@@ -2386,20 +2386,11 @@ function buildRetDistChart(porto){
 
 
 
-// DOM tooltips for metrics and icons
-document.addEventListener('mouseover', function(e) {
-  let target = e.target.closest('[title], [data-tooltip]');
-  if (!target) return;
-  if (target.tagName.toLowerCase() === 'canvas') return;
-
-  if (target.hasAttribute('title')) {
-    target.setAttribute('data-tooltip', target.getAttribute('title'));
-    target.removeAttribute('title');
-  }
-  
-  let text = target.getAttribute('data-tooltip');
-  if (!text) return;
-
+// DOM tooltips for metrics and icons — dan (CLAUDE.md Aturan #4, 2026-09-27)
+// ikon-info klik/tap: hover TIDAK cukup di HP/touchscreen, jadi klik/tap
+// harus bisa toggle popover yang sama secara mandiri dari hover.
+function mwShowTooltip(target, text, opts) {
+  opts = opts || {};
   let tooltipEl = document.getElementById('mw-tooltip');
   if (!tooltipEl) {
       tooltipEl = document.createElement('div');
@@ -2408,33 +2399,121 @@ document.addEventListener('mouseover', function(e) {
   }
 
   tooltipEl.innerHTML = '<div class="mw-tt-body">' + text.replace(/\n/g, '<br>') + '</div>';
-  
+  tooltipEl.classList.toggle('mw-tt-info', !!opts.wrap);
+
   const rect = target.getBoundingClientRect();
   let left = rect.left + window.pageXOffset + (rect.width / 2);
   let top = rect.bottom + window.pageYOffset + 8;
 
   tooltipEl.style.display = 'flex';
   tooltipEl.style.pointerEvents = 'none';
-  
+
   // Measure after content is set
   let ttRect = tooltipEl.getBoundingClientRect();
   left = left - (ttRect.width / 2);
-  
+
   if (left < 10) left = 10;
   if (left + ttRect.width > window.innerWidth) left = window.innerWidth - ttRect.width - 10;
-  
+
   if (top + ttRect.height > window.innerHeight + window.pageYOffset) {
      top = rect.top + window.pageYOffset - ttRect.height - 8;
   }
-  
+
   tooltipEl.style.left = left + 'px';
   tooltipEl.style.top = top + 'px';
   tooltipEl.style.opacity = 1;
   tooltipEl.style.transform = 'translateY(0)';
-  
+  return tooltipEl;
+}
+function mwHideTooltip() {
+  let tooltipEl = document.getElementById('mw-tooltip');
+  if (!tooltipEl) return;
+  tooltipEl.style.opacity = 0;
+  tooltipEl.style.transform = 'translateY(4px)';
+}
+window.mwShowTooltip = mwShowTooltip;
+window.mwHideTooltip = mwHideTooltip;
+
+document.addEventListener('mouseover', function(e) {
+  let target = e.target.closest('[title], [data-tooltip]');
+  if (!target) return;
+  if (target.tagName.toLowerCase() === 'canvas') return;
+  // Ikon info sudah punya perilaku klik/tap sendiri di bawah (mandatory di
+  // touchscreen) — hover di sini cuma tambahan untuk desktop, dan tidak
+  // boleh menimpa popover yang sedang dikunci terbuka lewat klik.
+  if (target.classList.contains('ui-info-icon') && target.getAttribute('data-ui-info-open') === '1') return;
+
+  if (target.hasAttribute('title')) {
+    target.setAttribute('data-tooltip', target.getAttribute('title'));
+    target.removeAttribute('title');
+  }
+
+  let text = target.getAttribute('data-tooltip');
+  if (!text) return;
+
+  mwShowTooltip(target, text, { wrap: target.classList.contains('ui-info-icon') });
+
   target.addEventListener('mouseleave', function onLeave() {
-     tooltipEl.style.opacity = 0;
-     tooltipEl.style.transform = 'translateY(4px)';
+     if (target.getAttribute('data-ui-info-open') !== '1') mwHideTooltip();
      target.removeEventListener('mouseleave', onLeave);
   });
 });
+
+// Ikon-info: klik/tap = toggle buka-tutup (wajib, lihat CLAUDE.md Aturan #4).
+document.addEventListener('click', function(e) {
+  let icon = e.target.closest('.ui-info-icon');
+  if (icon) {
+    e.stopPropagation();
+    let isOpen = icon.getAttribute('data-ui-info-open') === '1';
+    document.querySelectorAll('.ui-info-icon[data-ui-info-open="1"]').forEach(function(other) {
+      other.setAttribute('data-ui-info-open', '0');
+      other.setAttribute('aria-expanded', 'false');
+    });
+    if (isOpen) {
+      icon.setAttribute('data-ui-info-open', '0');
+      icon.setAttribute('aria-expanded', 'false');
+      mwHideTooltip();
+    } else {
+      icon.setAttribute('data-ui-info-open', '1');
+      icon.setAttribute('aria-expanded', 'true');
+      mwShowTooltip(icon, icon.getAttribute('data-tooltip') || '', { wrap: true });
+    }
+    return;
+  }
+  // Klik di luar ikon-info yang sedang terbuka -> tutup.
+  let openIcon = document.querySelector('.ui-info-icon[data-ui-info-open="1"]');
+  if (openIcon) {
+    openIcon.setAttribute('data-ui-info-open', '0');
+    openIcon.setAttribute('aria-expanded', 'false');
+    mwHideTooltip();
+  }
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    let openIcon = document.querySelector('.ui-info-icon[data-ui-info-open="1"]');
+    if (openIcon) {
+      openIcon.setAttribute('data-ui-info-open', '0');
+      openIcon.setAttribute('aria-expanded', 'false');
+      mwHideTooltip();
+    }
+    return;
+  }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('ui-info-icon')) {
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
+// Helper reusable (CLAUDE.md Aturan #4): SATU pola ikon-info dipakai di
+// semua halaman — jangan bikin versi baru per file, panggil ini.
+function uiInfoIcon(text) {
+  var safe = escapeHtml(text);
+  return '<span class="ui-info-icon" role="button" tabindex="0" aria-label="Penjelasan" '
+    + 'aria-expanded="false" data-ui-info-open="0" data-tooltip="' + safe + '">'
+    + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6"/>'
+    + '<path d="M12 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+    + '<circle cx="12" cy="7.5" r="1.15" fill="currentColor"/>'
+    + '</svg></span>';
+}
+window.uiInfoIcon = uiInfoIcon;

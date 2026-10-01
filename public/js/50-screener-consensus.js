@@ -66,15 +66,139 @@ function csRenderRow(row) {
   var voteDetails = row.votes.map(function (v) {
     return '<div style="font-size:10.5px;color:var(--text3);margin-top:2px">' + (CS_SYSTEM_ICON[v.system] || '') + ' <b>' + v.system + '</b>: ' + v.detail + '</div>';
   }).join('');
+
+  // FIX (2026-09-29, user-reported: broker/bandar analysis missing +
+  // stale price letting an already-crashed stock look "bullish"): price/
+  // chg1d below are now LIVE (row.priceIsLive) whenever generateScreenerConsensus()
+  // managed to fetch a real quote for this row — priceWarning surfaces
+  // honestly when that live price has already moved sharply against the
+  // (cache-based) consensus signal, instead of hiding the mismatch.
+  var priceCell = (row.chg1d != null ? ((row.chg1d >= 0 ? '+' : '') + row.chg1d.toFixed(2) + '%') : '-')
+    + (row.priceIsLive === false ? ' <span title="Kuota real-time gagal — masih data cache, bisa beberapa hari lalu">⚠</span>' : '');
+
+  var accHtml = '<div style="font-size:10px;color:var(--text3);margin-top:2px">Tidak ada sinyal akumulasi/distribusi ' + (row.netAccumulation ? row.netAccumulation.daysWindow : 10) + ' hari terakhir</div>';
+  if (row.netAccumulation && row.netAccumulation.netScore != null) {
+    var na = row.netAccumulation;
+    var naColor = na.direction === 'AKUMULASI' ? 'var(--green)' : 'var(--red)';
+    accHtml = '<div style="font-size:10.5px;color:' + naColor + ';font-weight:700;margin-top:2px">'
+      + na.direction + ' ' + na.daysWindow + 'H (skor ' + (na.netScore > 0 ? '+' : '') + na.netScore + ', muncul ' + na.daysAppeared + '/' + na.daysWithData + ' hari)'
+      + '</div>';
+  }
+  var brokerHtml = row.topBroker
+    ? '<div style="font-size:10.5px;color:var(--text2);margin-top:2px">Top Buyer: <b>' + row.topBroker.code + '</b> (Rp ' + (row.topBroker.valueRp / 1e9).toFixed(2) + ' M)</div>'
+    : '<div style="font-size:10px;color:var(--text3);margin-top:2px">Data broker tidak tersedia</div>';
+
+  var warningHtml = row.priceWarning
+    ? '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:4px 8px;margin-top:4px;font-size:10px;color:var(--red)">⚠ ' + row.priceWarning + '</div>'
+    : '';
+
   return '<tr>'
     + '<td><span class="mono" style="font-weight:800;color:var(--text)">' + row.ticker + '</span><div style="font-size:10px;color:var(--text3)">' + row.name + '</div></td>'
     + '<td style="font-size:11px;color:var(--text2)">' + (row.sector || '-') + '</td>'
     + '<td class="mono" style="text-align:right;font-weight:700;color:var(--green)">' + row.agreeCount + '/5</td>'
-    + '<td>' + badges + voteDetails + '</td>'
-    + '<td class="mono" style="text-align:right;color:' + (row.chg1d >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (row.chg1d != null ? ((row.chg1d >= 0 ? '+' : '') + row.chg1d.toFixed(2) + '%') : '-') + '</td>'
-    + '<td style="text-align:center"><button onclick="selectStockChatTicker(\'' + row.ticker + '\')" class="btn btn-ghost btn-xs">Detail</button></td>'
+    + '<td>' + badges + voteDetails + warningHtml + '</td>'
+    + '<td class="mono" style="text-align:right;color:' + (row.chg1d >= 0 ? 'var(--green)' : 'var(--red)') + '">' + priceCell + '</td>'
+    + '<td>' + accHtml + brokerHtml + '</td>'
+    + '<td style="text-align:center"><button onclick="if(typeof window.goStockIntelCockpit===\'function\'){window.goStockIntelCockpit(\'' + row.ticker + '\');}else if(typeof goPage===\'function\'){goPage(\'stock-intel\');}" class="btn btn-ghost btn-xs">Detail</button></td>'
     + '</tr>';
 }
+
+// ── Uji Kebenaran Konsensus (Track D forward-validation log) ────────────
+// User-requested (2026-10-01): "lakukan uji kebenaran, misalnya saham
+// sudah masuk konsesus, uji hari ke 1, 2 dan 3 apakah benar naik atau
+// turun, sehingga screener bisa dipercaya kebenaran dan prediksinya".
+// Consumes GET /api/idx/consensus-signal-log (getConsensusSignalLogSummary(),
+// lib/idx-data-engine.js) — a cron logs every ticker that enters Konsensus
+// Screener each trading day with its real entry price, then honestly
+// resolves the real close +1/+2/+3 trading days later (never estimated —
+// a horizon that hasn't matured yet, or has no history point yet, stays
+// "pending" and is retried later). This is the credibility check itself:
+// a win rate near 50% with ~0 alpha would mean the consensus signal is no
+// better than a coin flip, and that must be shown plainly, not hidden.
+var CS_VALIDATION_STATE = { loading: false, data: null, error: null };
+
+async function csLoadValidation() {
+  CS_VALIDATION_STATE.loading = true;
+  csRenderValidationSection();
+  try {
+    var res = await fetch('/api/idx/consensus-signal-log', { signal: AbortSignal.timeout(20000) });
+    var json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Gagal memuat uji kebenaran konsensus');
+    CS_VALIDATION_STATE.data = json;
+    CS_VALIDATION_STATE.error = null;
+  } catch (e) {
+    CS_VALIDATION_STATE.error = e.message;
+  } finally {
+    CS_VALIDATION_STATE.loading = false;
+    csRenderValidationSection();
+  }
+}
+
+var CS_HORIZON_LABEL = { d1: 'Hari ke-1', d2: 'Hari ke-2', d3: 'Hari ke-3' };
+
+function csHorizonRowHtml(label, stat) {
+  if (!stat || !stat.n) {
+    return '<tr><td>' + label + '</td><td colspan="4" style="color:var(--text3);font-size:11px">Belum ada yang matang (belum cukup hari bursa berlalu)</td></tr>';
+  }
+  var naikColor = stat.naikRate >= 50 ? 'var(--green)' : 'var(--red)';
+  return '<tr>'
+    + '<td>' + label + (stat.smallSample ? ' <span class="badge b-amb" style="font-size:8.5px;margin-left:4px" title="Sampel kecil (n<5), belum berarti secara statistik">n kecil</span>' : '') + '</td>'
+    + '<td class="mono" style="text-align:right">' + stat.n + '</td>'
+    + '<td class="mono" style="text-align:right;font-weight:700;color:' + naikColor + '">' + stat.naikRate.toFixed(1) + '%</td>'
+    + '<td class="mono" style="text-align:right;color:' + (stat.avgReturnPct >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (stat.avgReturnPct >= 0 ? '+' : '') + stat.avgReturnPct.toFixed(2) + '%</td>'
+    + '<td class="mono" style="text-align:right;color:' + (stat.avgAlphaPct == null ? 'var(--text3)' : (stat.avgAlphaPct >= 0 ? 'var(--green)' : 'var(--red)')) + '">' + (stat.avgAlphaPct == null ? '-' : ((stat.avgAlphaPct >= 0 ? '+' : '') + stat.avgAlphaPct.toFixed(2) + '%')) + '</td>'
+    + '</tr>';
+}
+
+function csRenderValidationSection() {
+  var mount = document.getElementById('cs-validation-mount');
+  if (!mount) return;
+
+  var infoIcon = (typeof uiInfoIcon === 'function') ? uiInfoIcon('Setiap hari bursa, cron mencatat saham yang MASUK Konsensus Screener hari itu (harga masuk real) sebagai sinyal pending. Harga penutupan riil +1/+2/+3 hari bursa berikutnya dicek otomatis begitu matang — kalau belum ada data histori untuk tanggal itu, tetap "pending", tidak pernah ditebak. "Alpha" = return saham dikurangi return IHSG periode yang sama (mengukur apakah sinyal ini lebih baik dari sekadar ikut pasar).') : '';
+  var header = '<div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;margin-bottom:10px">Uji Kebenaran Konsensus (Forward-Test Day 1/2/3)' + infoIcon + '</div>';
+
+  if (CS_VALIDATION_STATE.loading && !CS_VALIDATION_STATE.data) {
+    mount.innerHTML = '<div class="card" style="padding:16px">' + header + '<div style="font-size:11.5px;color:var(--text3)">Memuat riwayat forward-test...</div></div>';
+    return;
+  }
+  if (CS_VALIDATION_STATE.error) {
+    mount.innerHTML = '<div class="card" style="padding:16px">' + header + '<div style="font-size:11.5px;color:var(--text3)">Gagal memuat: ' + CS_VALIDATION_STATE.error + '</div></div>';
+    return;
+  }
+  var d = CS_VALIDATION_STATE.data;
+  if (!d || !d.totalEntries) {
+    mount.innerHTML = '<div class="card" style="padding:16px">' + header
+      + '<div style="font-size:11.5px;color:var(--text3)">Belum ada riwayat — cron harian baru mulai mencatat saham yang masuk Konsensus Screener setiap hari bursa. Hasil day-1/2/3 akan muncul di sini setelah beberapa hari bursa berjalan.</div></div>';
+    return;
+  }
+
+  var byHorizon = d.byHorizon || {};
+  var horizonRows = ['d1', 'd2', 'd3'].map(function (k) { return csHorizonRowHtml(CS_HORIZON_LABEL[k], byHorizon[k]); }).join('');
+  var horizonTable = '<div class="tbl-wrap" style="overflow-x:auto;margin-bottom:14px">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead><tr><th>Horizon</th><th style="text-align:right">n</th><th style="text-align:right">% Naik</th><th style="text-align:right">Rata² Return</th><th style="text-align:right">Rata² Alpha vs IHSG</th></tr></thead>'
+    + '<tbody>' + horizonRows + '</tbody></table></div>';
+
+  var byAgree = d.byAgreeCount || [];
+  var agreeTable = '';
+  if (byAgree.length) {
+    var agreeRows = byAgree.map(function (row) {
+      var sub = ['d1', 'd2', 'd3'].map(function (k) { return csHorizonRowHtml(row.agreeCount + ' dari 5 sepakat — ' + CS_HORIZON_LABEL[k], row[k]); }).join('');
+      return sub;
+    }).join('');
+    agreeTable = '<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">Pecahan per Jumlah Sistem yang Sepakat</div>'
+      + '<div class="tbl-wrap" style="overflow-x:auto">'
+      + '<table class="tbl" style="width:100%;font-size:12px">'
+      + '<thead><tr><th>Horizon</th><th style="text-align:right">n</th><th style="text-align:right">% Naik</th><th style="text-align:right">Rata² Return</th><th style="text-align:right">Rata² Alpha vs IHSG</th></tr></thead>'
+      + '<tbody>' + agreeRows + '</tbody></table></div>';
+  }
+
+  mount.innerHTML = '<div class="card" style="padding:16px">' + header
+    + '<div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">' + d.totalEntries + ' sinyal tercatat total, ' + d.fullyResolvedCount + ' sudah matang penuh (hari ke-3 selesai).</div>'
+    + horizonTable + agreeTable
+    + '</div>';
+}
+window.csLoadValidation = csLoadValidation;
 
 function csRender() {
   var mount = document.getElementById('cs-mount');
@@ -117,7 +241,7 @@ function csRender() {
       + '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">' + rows.length + ' saham disetujui ≥' + data.minAgree + ' dari 5 sistem, dari total ' + data.universeScanned + ' emiten dipindai.</div>'
       + '<div class="tbl-wrap" style="overflow-x:auto">'
       + '<table class="tbl" style="width:100%;font-size:12px">'
-      + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Konsensus</th><th>Sistem yang Setuju</th><th style="text-align:right">Perubahan</th><th style="text-align:center">Aksi</th></tr></thead>'
+      + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Konsensus</th><th>Sistem yang Setuju</th><th style="text-align:right">Perubahan</th><th>Akumulasi Bandar &amp; Broker ' + uiInfoIcon('Akumulasi/Distribusi dijumlahkan dari skor ranking relatif Invezgo lintas beberapa hari (BUKAN Rupiah) — "muncul X/Y hari" menandakan konsistensi. Top Buyer adalah broker dengan nilai beli terbesar hari ini (data real per-ticker, bukan whole-market). Keduanya informasi tambahan, TIDAK ikut menentukan skor Konsensus di atas.') + '</th><th style="text-align:center">Aksi</th></tr></thead>'
       + '<tbody>' + rows.map(csRenderRow).join('') + '</tbody>'
       + '</table></div></div>';
   }
@@ -126,12 +250,14 @@ function csRender() {
 }
 
 function csScreenerSubPageHtml() {
-  return '<div id="cs-mount"></div>';
+  return '<div id="cs-mount"></div><div id="cs-validation-mount" style="margin-top:14px"></div>';
 }
 
 function csInit() {
   if (!CS_STATE.data && !CS_STATE.loading) csLoad(CS_STATE.minAgree);
   else csRender();
+  if (!CS_VALIDATION_STATE.data && !CS_VALIDATION_STATE.loading) csLoadValidation();
+  else csRenderValidationSection();
 }
 
 if (typeof window !== 'undefined') {

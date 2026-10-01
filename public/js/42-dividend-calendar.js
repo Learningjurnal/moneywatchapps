@@ -57,9 +57,15 @@ function getDivCalPortfolioMap() {
 // ── Helper: Gabungkan API Calendar, Master Registry, dan Dividen Riil User ──
 function getEnrichedDividendEvents() {
   var portoMap = getDivCalPortfolioMap();
+  // FIX (2026-09-30, audit finding): IDX_DIVIDEND_MASTER_REGISTRY was
+  // deleted entirely (see the FIX comment above) but this fallback still
+  // referenced it — a ReferenceError waiting to fire if this code path
+  // (currently unreachable: renderDividendCalendarComponent() always
+  // shows the disabled notice and never calls this) is ever re-enabled
+  // without someone noticing. Empty array — honest "no data" instead.
   var masterList = (DIV_CALENDAR_STATE.cachedData && DIV_CALENDAR_STATE.cachedData.length)
     ? DIV_CALENDAR_STATE.cachedData
-    : IDX_DIVIDEND_MASTER_REGISTRY.slice();
+    : [];
 
   // Deduplikasi by code + paymentDate
   var eventMap = {};

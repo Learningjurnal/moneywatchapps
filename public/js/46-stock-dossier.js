@@ -439,13 +439,19 @@ function dossierComputeSmartMoneyScore(harvested) {
     score: score,
     top3Pct: top3Pct ? Math.round(top3Pct) : null,
     foreignFlow: foreignNet,
-    bandarStatus: statusStr || 'Normal Accumulation',
+    // FIX (2026-09-30, audit finding): dulu fallback ke 'Normal
+    // Accumulation'/'Akumulasi' saat API tidak mengembalikan field
+    // status/action apa pun — mengimplikasikan akumulasi TERDETEKSI,
+    // padahal sebenarnya tidak ada sinyal status sama sekali dari data
+    // real. `score` di atas sudah benar netral (50) untuk kasus ini;
+    // label teks sekarang jujur mengikuti, bukan menyiratkan temuan.
+    bandarStatus: statusStr || 'Status Tidak Tersedia',
     vwapBandar: vwapBandar,
     accumulators: accumulators,
     distributors: distributors,
     topBuyers: rawBuyers,
     topSellers: rawSellers,
-    reason: (isSimulated ? '[SIMULASI MODEL] ' : '') + 'Status: ' + (statusStr || 'Akumulasi') + (top3Pct ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
+    reason: (isSimulated ? '[SIMULASI MODEL] ' : '') + 'Status: ' + (statusStr || 'Tidak tersedia dari API') + (top3Pct ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
             (accumulators.length ? ' · Top Akumulator: ' + accumulators.slice(0, 3).map(function(a){ return a.code; }).join(', ') : '') +
             (foreignNet !== null && foreignNet !== 0 ? ' · Foreign Net: Rp ' + (foreignNet / 1e9).toFixed(2) + ' M' : '')
   };
@@ -1136,8 +1142,19 @@ async function dossierHarvestData(ticker) {
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
-    // 3. Fetch History (90 bars daily)
-    var historyPromise = fetch('/api/idx/history/' + cleanTicker + '?timeframe=1D&limit=90', { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
+    // 3. Fetch History (candle harian, ~6 bulan)
+    // FIX (2026-09-30, audit finding): route GET /api/idx/history/:ticker
+    // (server.js) hanya membaca query param `tf` (bukan `timeframe`) dan
+    // TIDAK punya param `limit` sama sekali — `?timeframe=1D&limit=90`
+    // diam-diam diabaikan server, jatuh ke default `tf='1D'`, yang berarti
+    // candle 5 MENIT untuk HARI INI SAJA (lihat HISTORY_TF_MAP di
+    // lib/providers/yahoo-client.js), bukan 90 hari harian seperti
+    // diklaim komentar lama. dossierComputeTechnicalScore() (EMA20/EMA50/
+    // RSI14) lalu dihitung dari granularitas yang salah tanpa disclosure.
+    // `tf=SCAN` (interval 1d, range 6mo, ~126 bar) adalah bucket internal
+    // yang sudah ada persis untuk kebutuhan ini (dipakai AI scanner untuk
+    // EMA50 real — lihat komentar HISTORY_TF_MAP).
+    var historyPromise = fetch('/api/idx/history/' + cleanTicker + '?tf=SCAN', { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
@@ -1221,6 +1238,34 @@ async function dossierHarvestData(ticker) {
           volume: p.v
         };
       });
+
+      // FIX (2026-10-01, user-reported: Step 6 Bandar Movement Cockpit's CMF
+      // widget showed "STRONG DISTRIBUTION" for PORT while this very page's
+      // own composite verdict and the Screener's whaleScore both read
+      // bullish — root cause traced to this exact fetch: the REAL ~6-month
+      // daily history this page just pulled from /api/idx/history?tf=SCAN
+      // was only ever kept in this page's own `harvested.history` variable,
+      // never written to RD_STORE (13-realdata.js), the SHARED cache
+      // fsGenData() (07-flowscan.js, feeds Step 6's CMF/VWAP/A-D widgets)
+      // checks before falling back to a seeded-random SYNTHETIC candle
+      // series for any ticker it has no real OHLCV cached for. So even
+      // though real data for this ticker was sitting in the browser the
+      // whole time, Step 6 had no way to know and silently computed its
+      // "-31%" from fabricated noise instead. hData.points already carries
+      // a real `date` (YYYY-MM-DD) string per bar (see yahoo-client.js) —
+      // reshaping into rdSave()'s expected {date,open,high,low,close,volume}
+      // rows and writing it through means every other RD_STORE consumer on
+      // this page (and any other page visited afterward in the same
+      // session) now sees the SAME real data this page already fetched,
+      // instead of recomputing/guessing independently.
+      if (typeof rdSave === 'function' && hData.points.length >= 5) {
+        var rdRows = hData.points
+          .filter(function(p) { return p && p.date; })
+          .map(function(p) {
+            return { date: p.date, open: p.o, high: p.h, low: p.l, close: p.c, volume: p.v };
+          });
+        if (rdRows.length >= 5) rdSave(cleanTicker, rdRows);
+      }
     } else if (hData && Array.isArray(hData.candles)) {
       harvested.history = hData.candles;
     } else if (Array.isArray(hData)) {
@@ -1883,7 +1928,7 @@ function renderStockDossierPage(targetTicker) {
   // ── TAB: 1. VALUASI ──
   html += '    <div class="dossier-tab-pane" data-tab="valuation" style="display:' + (dossierState.activeTab === 'valuation' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Valuasi &amp; Margin of Safety (Bobot: ' + res.weightsUsed.valuation + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Valuasi &amp; Margin of Safety (Bobot: ' + res.weightsUsed.valuation + '%) ' + uiInfoIcon('Metodologi: Menggunakan formula Graham Number √(22.5 × EPS × BVPS) dan perbandingan median historis PE/PBV untuk menentukan batas Margin of Safety kuantitatif.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.valuation);
   html += '      </div>';
   if (!res.pillars.valuation.available) {
@@ -1897,14 +1942,13 @@ function renderStockDossierPage(targetTicker) {
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Price to Earnings (PE)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.valuation.per ? res.pillars.valuation.per.toFixed(1) + 'x' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Price to Book (PBV)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.valuation.pbv ? res.pillars.valuation.pbv.toFixed(2) + 'x' : '-') + '</div></div>';
     html += '      </div>';
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Menggunakan formula Graham Number √(22.5 × EPS × BVPS) dan perbandingan median historis PE/PBV untuk menentukan batas Margin of Safety kuantitatif.</p>';
   }
   html += '    </div>';
 
   // ── TAB: 2. SMART MONEY ──
   html += '    <div class="dossier-tab-pane" data-tab="smartMoney" style="display:' + (dossierState.activeTab === 'smartMoney' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Aliran Smart Money &amp; Bandarmology (Bobot: ' + res.weightsUsed.smartMoney + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Aliran Smart Money &amp; Bandarmology (Bobot: ' + res.weightsUsed.smartMoney + '%) ' + uiInfoIcon('Metodologi: Berdasarkan Kyle (1985) Microstructure & Amihud Illiquidity, mengidentifikasi akumulasi broker terpilih yang mengendalikan likuiditas transaksi di pasar reguler.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.smartMoney);
   html += '      </div>';
   if (!res.pillars.smartMoney.available) {
@@ -1986,14 +2030,13 @@ function renderStockDossierPage(targetTicker) {
       html += '      </div>';
     }
 
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Berdasarkan Kyle (1985) Microstructure &amp; Amihud Illiquidity, mengidentifikasi akumulasi broker terpilih yang mengendalikan likuiditas transaksi di pasar reguler.</p>';
   }
   html += '    </div>';
 
   // ── TAB: 3. TEKNIKAL ──
   html += '    <div class="dossier-tab-pane" data-tab="technical" style="display:' + (dossierState.activeTab === 'technical' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Momentum &amp; Indikator Teknikal (Bobot: ' + res.weightsUsed.technical + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Momentum &amp; Indikator Teknikal (Bobot: ' + res.weightsUsed.technical + '%) ' + uiInfoIcon('Metodologi: Melacak konfirmasi struktur Exponential Moving Average (EMA) 20/50 serta ekspansi volume terhadap rata-rata 20 hari untuk memfilter false breakout.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.technical);
   html += '      </div>';
   if (!res.pillars.technical.available) {
@@ -2005,14 +2048,13 @@ function renderStockDossierPage(targetTicker) {
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">EMA 20 &amp; EMA 50</span><div style="font-family:var(--font-mono);font-size:16px;font-weight:800">' + (res.pillars.technical.ema20 ? 'Rp ' + res.pillars.technical.ema20.toLocaleString('id-ID') : '-') + ' / ' + (res.pillars.technical.ema50 ? 'Rp ' + res.pillars.technical.ema50.toLocaleString('id-ID') : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Volume Spike Ratio</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.technical.volumeSpike ? res.pillars.technical.volumeSpike + 'x avg' : '-') + '</div></div>';
     html += '      </div>';
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Melacak konfirmasi struktur Exponential Moving Average (EMA) 20/50 serta ekspansi volume terhadap rata-rata 20 hari untuk memfilter false breakout.</p>';
   }
   html += '    </div>';
 
   // ── TAB: 4. KSEI ──
   html += '    <div class="dossier-tab-pane" data-tab="ksei" style="display:' + (dossierState.activeTab === 'ksei' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Kepemilikan Kustodian KSEI (Bobot: ' + res.weightsUsed.ksei + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Kepemilikan Kustodian KSEI (Bobot: ' + res.weightsUsed.ksei + '%) ' + uiInfoIcon('Metodologi: Mengaudit laporan kepemilikan efek Kustodian Sentral Efek Indonesia (KSEI) >5% untuk memetakan kekuatan modal konglomerasi dan kestabilan pemegang saham utama.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.ksei);
   html += '      </div>';
   if (!res.pillars.ksei.available) {
@@ -2024,14 +2066,13 @@ function renderStockDossierPage(targetTicker) {
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Kepemilikan Kustodian Asing</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.ksei.foreignPct !== null ? res.pillars.ksei.foreignPct.toFixed(1) + '%' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Tanggal Laporan Data</span><div style="font-size:14px;font-weight:700">' + (res.pillars.ksei.reportDate || 'Terbaru') + '</div></div>';
     html += '      </div>';
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Mengaudit laporan kepemilikan efek Kustodian Sentral Efek Indonesia (KSEI) >5% untuk memetakan kekuatan modal konglomerasi dan kestabilan pemegang saham utama.</p>';
   }
   html += '    </div>';
 
   // ── TAB: 5. FUNDAMENTAL & DIVIDEN ──
   html += '    <div class="dossier-tab-pane" data-tab="fundamental" style="display:' + (dossierState.activeTab === 'fundamental' ? 'block' : 'none') + '">';
   html += '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">';
-  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Profitabilitas &amp; Dividen (Bobot: ' + res.weightsUsed.fundamental + '%)</h4>';
+  html += '        <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0">Rincian Profitabilitas &amp; Dividen (Bobot: ' + res.weightsUsed.fundamental + '%) ' + uiInfoIcon('Metodologi: Menguji kesehatan neraca modal, efisiensi laba bersih terhadap ekuitas pemegang saham, dan rekam jejak yield dividen tunai.') + '</h4>';
   html += '        ' + dossierRenderStatusBadge(res.pillars.fundamental);
   html += '      </div>';
   if (!res.pillars.fundamental.available) {
@@ -2043,7 +2084,6 @@ function renderStockDossierPage(targetTicker) {
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Net Profit Margin (NPM)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.fundamental.npm !== null ? res.pillars.fundamental.npm.toFixed(1) + '%' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Dividend Yield</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.fundamental.divYield !== null ? res.pillars.fundamental.divYield.toFixed(1) + '%' : '-') + '</div></div>';
     html += '      </div>';
-    html += '      <p style="font-size:11px;color:var(--text2);margin:0">Metodologi: Menguji kesehatan neraca modal, efisiensi laba bersih terhadap ekuitas pemegang saham, dan rekam jejak yield dividen tunai.</p>';
   }
   html += '    </div>';
 

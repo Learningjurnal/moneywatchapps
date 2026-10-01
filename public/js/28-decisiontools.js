@@ -690,13 +690,24 @@ function saveNewThesisFromModal() {
   var horizon = el('th-in-horizon').value.trim() || '12 Bulan';
   var inval = el('th-in-inval').value.trim() || 'Melanggar level support fundamental.';
 
+  // FIX (2026-09-30, audit finding): expectedReturn dulu selalu hardcode
+  // '+20.0%' untuk SETIAP thesis baru, tidak peduli berapa Target Price
+  // yang diinput user vs harga saat ini — tampil di kartu thesis seolah
+  // dihitung dari target riil. Sekarang dihitung real dari harga pasar
+  // saat ini (getGlobalMarketPrice) vs Target Price; null (disembunyikan
+  // UI, bukan angka karangan) kalau harga saat ini belum tersedia.
+  var curPrice = (typeof getGlobalMarketPrice === 'function') ? getGlobalMarketPrice(ticker) : 0;
+  var expectedReturn = (curPrice > 0 && target > 0)
+    ? (((target - curPrice) / curPrice * 100) >= 0 ? '+' : '') + ((target - curPrice) / curPrice * 100).toFixed(1) + '%'
+    : null;
+
   MW_THESES.unshift({
     id: 'th-' + Date.now(),
     ticker: ticker,
     date: new Date().toISOString().slice(0, 10),
     whyBought: why,
     targetPrice: target,
-    expectedReturn: '+20.0%',
+    expectedReturn: expectedReturn,
     timeHorizon: horizon,
     invalidation: inval,
     status: 'INTACT',
@@ -1194,6 +1205,7 @@ function runCustomScenarioSimulation() {
 // 5. REBALANCING INTELLIGENCE & SIMULATOR
 var _rebalanceMode = 'equal'; // 'equal' or 'custom'
 var _rebalanceCustomWeights = {};
+var _rebalanceOrderSheetLines = []; // populated by renderRebalancePage(), read by rebCopyOrderSheet()
 
 function setRebalanceMode(mode){
   _rebalanceMode = mode;
@@ -1206,6 +1218,33 @@ function updateCustomRebWeight(ticker, val){
 }
 window.updateCustomRebWeight = updateCustomRebWeight;
 
+// FIX (2026-09-30, audit finding): tombol "Salin Order Sheet" sebelumnya
+// cuma alert() mengklaim "berhasil disiapkan" tanpa benar-benar menyalin
+// apa pun ke clipboard — menyesatkan meski bukan soal data pasar.
+// Sekarang benar-benar menyalin teks instruksi real (dibangun dari
+// _rebalanceOrderSheetLines, diisi ulang tiap renderRebalancePage()).
+function rebCopyOrderSheet(){
+  var lines = _rebalanceOrderSheetLines || [];
+  if (!lines.length) {
+    if (typeof mwShowToast === 'function') mwShowToast('Tidak ada instruksi order — semua posisi sudah sesuai target.');
+    return;
+  }
+  var text = 'ORDER SHEET REBALANCING — ' + new Date().toLocaleDateString('id-ID') + '\n' + lines.join('\n');
+  var onSuccess = function() {
+    if (typeof mwShowToast === 'function') mwShowToast('Order sheet (' + lines.length + ' instruksi) disalin ke clipboard.');
+  };
+  var onFailure = function() {
+    if (typeof mwShowToast === 'function') mwShowToast('Gagal menyalin otomatis — salin manual dari log konsol (F12).');
+    console.log(text);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onSuccess, onFailure);
+  } else {
+    onFailure();
+  }
+}
+window.rebCopyOrderSheet = rebCopyOrderSheet;
+
 function renderRebalancePage() {
   var c = el('page-rebalance');
   if (!c) return;
@@ -1215,11 +1254,6 @@ function renderRebalancePage() {
   var rdn = typeof calcRdnBalance === 'function' ? calcRdnBalance() : 0;
   var totalAUM = totalMV + Math.max(0, rdn);
 
-  var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
-    + '<div>'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Smart Rebalancing Engine &amp; Order Sheet</div>'
-    + '<div class="psub">Sistem otomatis menghitung rekomendasi transaksi beli/jual untuk mengembalikan alokasi portofolio ke target persentase ideal.</div>'
-    + '</div>'
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
     + '<div>'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-scale" style="color:var(--accent)"></i> Smart Rebalancing Engine &amp; Order Sheet</div>'
@@ -1247,6 +1281,9 @@ function renderRebalancePage() {
   var defaultTarget = 100 / Math.max(porto.length, 1);
   var rowsHtml = '';
   var totalTargetCheck = 0;
+  var maxAbsDeviation = 0;
+  var outOfBalanceCount = 0;
+  var orderSheetLines = [];
 
   porto.forEach(function(p) {
     var curWeight = totalMV > 0 ? (p.mv / totalMV * 100) : 0;
@@ -1260,8 +1297,14 @@ function renderRebalancePage() {
 
     var isOver = deltaPct < -1.5;
     var isUnder = deltaPct > 1.5;
+    maxAbsDeviation = Math.max(maxAbsDeviation, Math.abs(deltaPct));
+    if (isOver || isUnder) outOfBalanceCount++;
     var actionBadge = isOver ? '<span class="badge b-dn" style="display:inline-flex;align-items:center;gap:4px"><i class="ti ti-arrow-down-right"></i> TRIM / JUAL</span>' : (isUnder ? '<span class="badge b-up" style="display:inline-flex;align-items:center;gap:4px"><i class="ti ti-arrow-up-right"></i> ACCUMULATE / BELI</span>' : '<span class="badge b-neu" style="display:inline-flex;align-items:center;gap:4px"><i class="ti ti-check"></i> HOLD / SESUAI</span>');
     var actionDesc = isOver ? 'Jual ~' + estLots + ' lot' : (isUnder ? 'Beli ~' + estLots + ' lot' : 'Pertahankan alokasi');
+
+    if (isOver || isUnder) {
+      orderSheetLines.push((isOver ? 'JUAL' : 'BELI') + ' ' + p.ticker + ' ~' + estLots + ' lot (target ' + targetWeight.toFixed(1) + '%, saat ini ' + curWeight.toFixed(1) + '%, deviasi ' + (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%)');
+    }
 
     var targetInputHtml = _rebalanceMode === 'custom'
       ? '<div style="display:flex;align-items:center;gap:4px"><input type="number" step="0.5" min="0" max="100" value="' + targetWeight.toFixed(1) + '" onchange="updateCustomRebWeight(\'' + p.ticker + '\', this.value)" class="finput mono" style="width:70px;padding:3px 6px;text-align:right"><span style="font-size:11px;color:var(--text3)">%</span></div>'
@@ -1276,6 +1319,8 @@ function renderRebalancePage() {
       + '<td class="mono ' + (deltaPct >= 0 ? 'up' : 'dn') + '" style="text-align:right;font-weight:600">' + (deltaPct >= 0 ? '+' : '-') + 'Rp ' + fmtK(estVal) + '</td>'
     + '</tr>';
   });
+
+  _rebalanceOrderSheetLines = orderSheetLines;
 
   html += '<div class="card" style="margin-bottom:16px;background:var(--bg2);border:1px solid var(--border);border-radius:12px">'
     + '<div class="ctitle" style="font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px">'
@@ -1313,11 +1358,18 @@ function renderRebalancePage() {
           + '</div>'
         + '</div>'
         + '<div style="background:rgba(0,200,255,0.03);border:1px solid rgba(0,200,255,0.2);border-radius:10px;padding:12px">'
-          + '<div style="font-size:10px;color:var(--accent);font-weight:700;letter-spacing:0.04em">PROYEKSI PASCA-REBALANCE</div>'
+          + '<div style="font-size:10px;color:var(--accent);font-weight:700;letter-spacing:0.04em">STATUS ALOKASI SAAT INI</div>'
           + '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px">'
             + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Target:</span><strong class="mono up">' + (_rebalanceMode === 'equal' ? defaultTarget.toFixed(1) + '%' : 'Custom Target') + '</strong></div>'
-            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Deviasi:</span><strong class="mono up">&lt; 1.0%</strong></div>'
-            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Status:</span><strong class="mono up">Optimal</strong></div>'
+            // FIX (2026-09-30, audit finding): dulu "Deviasi: < 1.0%" dan
+            // "Status: Optimal" adalah teks statis, TIDAK dihitung dari data
+            // rebalance aktual — selalu tampil sama walau portofolio sangat
+            // timpang. Sekarang deviasi maksimum & jumlah posisi yang perlu
+            // disesuaikan dihitung real dari loop di atas (deltaPct per
+            // posisi), sebelum eksekusi order sheet — bukan klaim hasil
+            // pasca-rebalance yang belum tentu terjadi.
+            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Deviasi Terbesar:</span><strong class="mono ' + (maxAbsDeviation > 1.5 ? 'dn' : 'up') + '">' + maxAbsDeviation.toFixed(1) + '%</strong></div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text2)">Status:</span><strong class="mono ' + (outOfBalanceCount > 0 ? 'dn' : 'up') + '">' + (outOfBalanceCount > 0 ? outOfBalanceCount + ' Posisi Perlu Disesuaikan' : 'Sudah Seimbang') + '</strong></div>'
           + '</div>'
         + '</div>'
       + '</div>'
@@ -1331,7 +1383,7 @@ function renderRebalancePage() {
         + '</div>'
       + '</div>'
       + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-        + '<button class="btn btn-primary btn-sm" onclick="alert(\'Lembar instruksi order rebalance berhasil disiapkan. Salin atau catat untuk eksekusi di sekuritas.\')" style="display:inline-flex;align-items:center;gap:6px"><i class="ti ti-copy"></i> Salin Order Sheet</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="rebCopyOrderSheet()" style="display:inline-flex;align-items:center;gap:6px"><i class="ti ti-copy"></i> Salin Order Sheet</button>'
         + (_rebalanceMode === 'custom' ? '<button class="btn btn-ghost btn-sm" onclick="_rebalanceCustomWeights={};renderRebalancePage()" style="display:inline-flex;align-items:center;gap:6px"><i class="ti ti-rotate"></i> Reset Target</button>' : '')
       + '</div>'
     + '</div>'

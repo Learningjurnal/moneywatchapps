@@ -850,27 +850,19 @@ test('REGRESSION GUARD: 41-stockchat-cockpit.js broker tables must guard avgPric
   assert.strictEqual(guardedCount, 2, 'Expected both the Top Buyer and Top Seller table price-spread calcs to carry the avgPrice>0 guard');
 });
 
-// ── TEST 31b: Smart Money Radar / Aggregated Broker Flow must gate on
-// isSimulated before showing a score/broker-name as if real (2026-10-01
-// audit — same class of bug already fixed as INV-004 in
-// lib/idx-data-engine.js computeStockSignal()). Before this fix,
-// renderBandarmologySmartMoneyRadarView() fell back to a hardcoded
-// "SMART MONEY SCORE: 80/100" / "WHALE DOMINANT (68%)" / real broker codes
-// ('AK, BK, CC' / 'YP, PD, XC') whenever bData had no real score/brokers —
-// including when bData.isSimulated is true — making a fabricated reading
-// indistinguishable from a real one. renderAggregatedBrokerFlowView() had
-// the identical pattern for its Smart Money Net Flow card and Broker
-// Mutation Flow Spectrum pills ('AK, BK' / 'AK, BK, ZP' / 'YP, PD, XC').
-test('REGRESSION GUARD: renderBandarmologySmartMoneyRadarView() must gate smScore/smDominance/broker names on isSimulated, never fall back to a fabricated 80/68/AK-BK-CC', () => {
-  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
-  const fnMatch = src.match(/function renderBandarmologySmartMoneyRadarView\([\s\S]*?\n}\n/);
-  assert(fnMatch, 'REGRESSION: could not locate renderBandarmologySmartMoneyRadarView() in 41-stockchat-cockpit.js');
-  const fnSrc = fnMatch[0];
-  assert(/var isBandarSim = bData\.isSimulated !== false;/.test(fnSrc), 'REGRESSION: the isSimulated gate (isBandarSim) is missing — score/dominance/broker fields are unguarded again');
-  assert(!/b\.score \|\| 80/.test(fnSrc), 'REGRESSION: smScore fell back to a fabricated flat 80 again, bypassing the isSimulated gate');
-  assert(!/\|\| 68;/.test(fnSrc), 'REGRESSION: smDominance fell back to a fabricated flat 68% again, bypassing the isSimulated gate');
-  assert(!/'AK, BK, CC'/.test(fnSrc) && !/'YP, PD, XC'/.test(fnSrc), 'REGRESSION: smart-money/retail broker codes fell back to fabricated real broker names again');
-});
+// ── TEST 31b: Aggregated Broker Flow must gate on isSimulated before
+// showing a broker-name as if real (2026-10-01 audit — same class of bug
+// already fixed as INV-004 in lib/idx-data-engine.js computeStockSignal()).
+// renderAggregatedBrokerFlowView() fell back to hardcoded broker codes
+// ('AK, BK' / 'AK, BK, ZP' / 'YP, PD, XC') in its Smart Money Net Flow card
+// and Broker Mutation Flow Spectrum pills whenever data had no real
+// buyers/sellers — including when data.isSimulated is true — making a
+// fabricated reading indistinguishable from a real one.
+// NOTE: this audit also found the identical pattern in the (separate,
+// already-dead — zero call sites, see 2026-10-01 merge) old Smart Money
+// Radar view. That function was removed upstream in the same window this
+// fix landed (see "no longer carries the dead renderBandarmologySmartMoneyRadarView()
+// view" below) — the fix doesn't apply to code that no longer exists.
 test('REGRESSION GUARD: renderAggregatedBrokerFlowView() must gate Smart Money Net Flow / Broker Mutation pills on data.isSimulated, never fall back to fabricated AK/BK/ZP/YP/PD/XC broker codes', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
   const fnMatch = src.match(/function renderAggregatedBrokerFlowView\(data\) \{[\s\S]*?\n  var retBrokerPills[\s\S]*?\n\n/);
@@ -4804,7 +4796,11 @@ function getDossierContext() {
     },
     fetch: () => Promise.resolve({ ok: false }),
     setTimeout: setTimeout,
-    showToast: () => {}
+    showToast: () => {},
+    // uiInfoIcon() (public/js/03-engine.js, CLAUDE.md Aturan #4) isn't loaded in
+    // this isolated sandbox — stub it so the real 46-stock-dossier.js render
+    // functions (which now call it next to each tab's <h4> title) don't throw.
+    uiInfoIcon: () => ''
   };
   sandbox.window = sandbox;
   const ctx = vm.createContext(sandbox);
@@ -6344,7 +6340,7 @@ test('REGRESSION GUARD: generateSectorRotation() must map Invezgo\'s 11 official
 
   assert(/async function generateSectorRotation/.test(engineSrc), 'REGRESSION: generateSectorRotation() is missing');
   const fnSrc = engineSrc.match(/async function generateSectorRotation[\s\S]*?\n\}\n/)[0];
-  assert(/fetchInvezgoSectorRotation\(\)/.test(fnSrc), 'REGRESSION: generateSectorRotation() no longer calls fetchInvezgoSectorRotation()');
+  assert(/fetchInvezgoSectorRotation\(to, from\)/.test(fnSrc), 'REGRESSION: generateSectorRotation() no longer calls fetchInvezgoSectorRotation()');
   assert(/available:\s*false/.test(fnSrc), 'REGRESSION: an unavailable result no longer reports available:false honestly');
 
   const mapMatch = engineSrc.match(/const INVEZGO_SECTOR_CODE_TO_KEY = \{([\s\S]*?)\};/);
@@ -7317,6 +7313,75 @@ test('REGRESSION GUARD: Unified Screener frontend renders a win-rate validation 
   // impressive is exactly the kind of misleading precision CLAUDE.md warns
   // against.
   assert(/Sampel cuma/.test(src), 'REGRESSION: the small-sample-size warning is gone from the backtest panel');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "bagaimana saya membuat trading
+// engine semakin lama semakin pintar dari data yang sudah dibaca"). App
+// ini sudah pernah mencoba jalur ML otomatis (ml/README.md: XGBoost, 3
+// iterasi, TIDAK PERNAH prediktif di atas tebak-tebakan acak, sengaja
+// dihentikan) — pendekatan di sini SENGAJA bukan model baru, melainkan
+// laporan kalibrasi manual: pecah win-rate/alpha Track B (forward log
+// yang sudah berjalan) per whaleScore & rentang uptrendScore, untuk
+// ditinjau manusia. TIDAK mengubah bobot generateUnifiedScreener()
+// secara otomatis — mengubah bobot dari sampel kecil tanpa review adalah
+// pola overfitting yang sama yang membuat percobaan XGBoost gagal.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: getScreenerCalibrationReport() fails closed honestly below a minimum sample size, and never claims it can evaluate whaleScore<3 (Track B only ever logs confirmed signals)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function getScreenerCalibrationReport\(\) \{[\s\S]*?\n\}\n/);
+  assert(fnMatch, 'REGRESSION: getScreenerCalibrationReport() is missing from lib/idx-data-engine.js');
+  const fn = fnMatch[0];
+
+  assert(/resolved\.length < CALIBRATION_MIN_RESOLVED/.test(fn) && /available: false/.test(fn),
+    'REGRESSION: getScreenerCalibrationReport() no longer fails closed to available:false below the minimum resolved-sample threshold — a near-meaningless bucket breakdown could be presented as a real calibration report');
+  assert(/scope:/.test(fn) && /whaleScore<3/.test(fn),
+    'REGRESSION: the report no longer discloses that Track B only ever logs confirmed (whaleScore>=3) signals — presenting the bucket breakdown without this caveat would misleadingly imply lower-whaleScore performance was measured');
+  assert(!/generateUnifiedScreener\([^)]*whaleWeight|WEIGHT\s*=/.test(fn),
+    'REGRESSION: getScreenerCalibrationReport() appears to be mutating scoring weights directly — this must stay a read-only report for human review, not an automatic weight-adjustment mechanism');
+});
+
+test('REGRESSION GUARD: calibration buckets flag small samples instead of presenting them with the same confidence as large ones', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/smallSample: rows\.length < CALIBRATION_SMALL_BUCKET_N/.test(src),
+    'REGRESSION: calibrationBucketStats() no longer flags small-n buckets — a 1-2 sample bucket could look as trustworthy as a 50-sample one');
+});
+
+await asyncTest('BEHAVIOR: getScreenerCalibrationReport() (real import, no Redis configured) honestly reports insufficient sample rather than fabricating buckets', async () => {
+  const engine = await import('./lib/idx-data-engine.js');
+  const result = await engine.getScreenerCalibrationReport();
+  // In this test environment the forward log is whatever's accumulated in
+  // the in-memory fallback store across this run — almost certainly under
+  // the minimum, so this exercises the honest-insufficient-sample path.
+  if (!result.available) {
+    assert.strictEqual(result.reason, 'INSUFFICIENT_SAMPLE');
+    assert(typeof result.resolvedCount === 'number');
+    assert(typeof result.message === 'string' && result.message.length > 0);
+  } else {
+    // If enough entries happened to accumulate from earlier tests in this
+    // same process, the report must still carry its honesty scaffolding.
+    assert(typeof result.scope === 'string' && result.scope.length > 0);
+    assert(Array.isArray(result.byWhaleScore));
+    assert(Array.isArray(result.byUptrendBand));
+  }
+});
+
+test('REGRESSION GUARD: GET /api/idx/screener-calibration-report exists and calls getScreenerCalibrationReport() (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/screener-calibration-report'/.test(src), 'REGRESSION: GET /api/idx/screener-calibration-report route is gone');
+  assert(/getScreenerCalibrationReport\(\)/.test(src), 'REGRESSION: /api/idx/screener-calibration-report route no longer calls getScreenerCalibrationReport()');
+});
+
+test('REGRESSION GUARD: Unified Screener frontend renders Track C calibration report, auto-loaded once, honestly disclosing it does not auto-adjust weights', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/async function usFetchCalibrationReport/.test(src), 'REGRESSION: usFetchCalibrationReport() is gone');
+  assert(/fetch\('\/api\/idx\/screener-calibration-report'\)/.test(src), 'REGRESSION: usFetchCalibrationReport() no longer fetches the real calibration endpoint');
+  assert(/US_VALIDATION\.calibration\.fetchedOnce/.test(src), 'REGRESSION: the calibration report no longer auto-loads once when the validation panel first renders');
+  assert(/window\.usFetchCalibrationReport = usFetchCalibrationReport/.test(src),
+    'REGRESSION: usFetchCalibrationReport no longer exposed on window');
+  assert(/TIDAK otomatis mengubah bobot formula/.test(src),
+    'REGRESSION: the UI no longer discloses that this report does not auto-adjust the scoring formula — could mislead a user into thinking the engine silently retrains itself');
 });
 
 // User-reported (2026-09-18): "TOP BROKER BUYER (DATA RIIL) pada stock
@@ -9642,8 +9707,16 @@ test('REGRESSION GUARD: generateScreenerConsensus() uses 5 independent systems (
     'REGRESSION: Volume Spike vote no longer requires both a real spike AND a positive price move (a spike on a down day is distribution, not a buy signal)');
   assert(/tech\.quantScreener\.score > 70 && tech\.quantScreener\.aboveMa50/.test(fn),
     'REGRESSION: Quant Screener vote no longer requires both score>70 and price above MA50');
-  assert(!/getUniverseAccumulationDistribution/.test(fn),
-    'REGRESSION: Radar Akumulasi/Distribusi crept back in as a 6th vote — this double-counts the same evidence Unified Screener\'s whaleScore already includes');
+  // The VOTING loop (agreeCount/votes) must never reference accumulation/
+  // distribution data — that's the double-counting this test guards
+  // against. getUniverseAccumulationDistributionRange() legitimately
+  // appears LATER in the function (2026-09-29) as display-only enrichment
+  // of the already-filtered `rows` (netAccumulation/topBroker fields,
+  // user-requested), which cannot affect agreeCount — so the ban is
+  // scoped to the vote-building loop only, not the whole function body.
+  const votingLoop = fn.slice(0, fn.indexOf('if (votes.length >= minAgree)'));
+  assert(!/getUniverseAccumulationDistribution/.test(votingLoop),
+    'REGRESSION: Radar Akumulasi/Distribusi crept back in as a 6th VOTE inside the agreeCount-building loop — this double-counts the same evidence Unified Screener\'s whaleScore already includes');
 });
 
 test('REGRESSION GUARD: GET /api/idx/screener-consensus route exists and calls generateScreenerConsensus()', () => {
@@ -9804,6 +9877,1023 @@ test('functional: renderVolTopContributors() ranks the real top-3 holdings by we
   assert(idxBtc < idxBbca && idxBbca < idxGoto,
     'REGRESSION: holdings are not ranked by real weight×volatility contribution, highest first (expected BTC > BBCA > GOTO)');
   assert(idxAdro === -1, 'REGRESSION: more than the top 3 contributors are shown (ADRO, the 4th-ranked, should be excluded)');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// CLAUDE.md Aturan #4 (2026-09-27): "Desain UI institusional & clean" —
+// satu komponen ikon-info SVG reusable (uiInfoIcon(), 03-engine.js) yang
+// menggantikan kalimat penjelasan yang sebelumnya tampil apa adanya di
+// layout. Klik/tap WAJIB bisa toggle (bukan hover-only, supaya jalan di
+// HP/touchscreen).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: uiInfoIcon() exists (03-engine.js) as the ONE reusable info-icon helper, and is exposed on window for use by any page', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/function uiInfoIcon\(text\)/.test(src), 'REGRESSION: uiInfoIcon() helper is gone — pages will go back to inventing their own info-icon markup per file');
+  assert(/window\.uiInfoIcon = uiInfoIcon/.test(src), 'REGRESSION: uiInfoIcon is no longer exposed on window — callers in other page files would throw ReferenceError');
+  const fnMatch = src.match(/function uiInfoIcon\(text\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'uiInfoIcon() body not found');
+  assert(/class="ui-info-icon"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer emits the .ui-info-icon class — CSS and the click/hover delegation below both key off this class');
+  assert(/role="button"/.test(fnMatch[0]) && /tabindex="0"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() lost keyboard accessibility (role=button/tabindex=0) — keyboard-only users could never open it');
+  assert(/aria-expanded="false"/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer sets an initial aria-expanded state');
+  assert(/escapeHtml\(text\)/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer escapes its text argument — a ticker name or AI-influenced string could break the markup or inject HTML');
+  assert(/<svg/.test(fnMatch[0]), 'REGRESSION: uiInfoIcon() no longer renders an inline SVG (CLAUDE.md explicitly requires SVG, not an emoji/unicode glyph)');
+});
+
+test('REGRESSION GUARD: clicking/tapping a .ui-info-icon toggles its popover open/closed — must NOT be hover-only (breaks on touchscreens)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  assert(/document\.addEventListener\('click', function\(e\) \{[\s\S]*?ui-info-icon/.test(src),
+    'REGRESSION: no click handler wired for .ui-info-icon — the popover would only ever open via hover, which never fires on a touchscreen');
+  assert(/data-ui-info-open/.test(src), 'REGRESSION: the open/closed state tracking attribute (data-ui-info-open) is gone');
+  assert(/e\.key === 'Escape'/.test(src), 'REGRESSION: Escape no longer closes an open info popover');
+  assert(/e\.key === 'Enter' \|\| e\.key === ' '/.test(src), 'REGRESSION: Enter/Space no longer activates a focused .ui-info-icon — keyboard-only users could never open it');
+  // The existing hover-tooltip mouseover handler must defer to a click-locked-open icon,
+  // not fight it (hover firing mid-interaction would otherwise flip the icon's wrap style/close it).
+  assert(/data-ui-info-open['"]\) === ['"]1['"]\) return/.test(src),
+    'REGRESSION: the mouseover tooltip handler no longer skips an icon that is click-locked open — hover could stomp on an open click-triggered popover');
+});
+
+test('REGRESSION GUARD: main.css defines .ui-info-icon and the wrapping #mw-tooltip.mw-tt-info popover variant', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'public/css/main.css'), 'utf8');
+  assert(/\.ui-info-icon\{/.test(css), 'REGRESSION: .ui-info-icon styling is gone — the icon would render unstyled/oversized inline SVG');
+  assert(/#mw-tooltip\.mw-tt-info/.test(css), 'REGRESSION: the wrapping popover variant for info-icon text (as opposed to short nowrap chart tooltips) is gone');
+  assert(/white-space:normal/.test(css.match(/#mw-tooltip\.mw-tt-info[\s\S]{0,200}/)[0]), 'REGRESSION: info-icon popover text no longer wraps (would force one giant nowrap line for a full sentence)');
+});
+
+test('functional: uiInfoIcon() HTML-escapes its argument (prevents markup injection from a ticker/AI-derived explanation string)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  const escSrc = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
+  const escMatch = escSrc.match(/function escapeHtml\(str\)\{[\s\S]*?\n\}/);
+  const fnMatch = src.match(/function uiInfoIcon\(text\) \{[\s\S]*?\n\}/);
+  assert(escMatch && fnMatch, 'escapeHtml() or uiInfoIcon() body not found');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(escMatch[0] + '\n' + fnMatch[0], sandbox);
+
+  const html = sandbox.uiInfoIcon('<script>alert(1)</script> & "quotes" \'here\'');
+  assert(!/<script>alert/.test(html), 'REGRESSION: uiInfoIcon() output contains an un-escaped <script> tag — XSS risk');
+  assert(/&lt;script&gt;/.test(html), 'REGRESSION: uiInfoIcon() did not HTML-escape the < and > characters of its input');
+  assert(/&quot;/.test(html) && /&#39;/.test(html), 'REGRESSION: uiInfoIcon() did not escape quote characters — could break out of the data-tooltip="..." attribute');
+});
+
+test('REGRESSION GUARD: pilot rollout — Wave Cockpit Elliott Wave metric moved its long methodology caveat from a whole-card hover title to a dedicated uiInfoIcon()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/37-tradewave-engine.js'), 'utf8');
+  assert(/uiInfoIcon\('Klasifikasi heuristik dari EMA ribbon/.test(src),
+    'REGRESSION: the Elliott Wave phase methodology caveat is no longer routed through uiInfoIcon() — either it silently vanished or went back to being a raw title attribute on the whole card');
+  assert(!/<div class="metric" title="Klasifikasi heuristik/.test(src),
+    'REGRESSION: the old whole-card title="..." (hover-only, not click/tap-able) reappeared on the Elliott Wave metric');
+});
+
+test('REGRESSION GUARD: pilot rollout — Sector Insight\'s 4-quadrant summary strip (Akumulasi/Markup/Distribusi/Markdown) moved its always-visible one-sentence description into uiInfoIcon(), and the card click-to-open-full-legend still works without the icon click leaking through', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+  const fnMatch = src.match(/function siBuildSummaryStripHtml\(quadBuckets\) \{[\s\S]*?\n  \}/);
+  assert(fnMatch, 'siBuildSummaryStripHtml() body not found');
+  const body = fnMatch[0];
+
+  ['Smart money serap likuiditas di harga dasar sebelum fase markup.',
+   'Reli ekspansi tren naik didukung arus modal institusional kuat.',
+   'Bearish divergence: harga di pucuk tapi modal institusi keluar (exit).',
+   'Tekanan jual dominan dan downtrend berlanjut, utamakan defensif.'
+  ].forEach(sentence => {
+    assert(body.indexOf("uiInfoIcon('" + sentence + "')") > -1,
+      'REGRESSION: quadrant description "' + sentence.slice(0, 30) + '..." no longer routed through uiInfoIcon() — either it vanished or went back to an always-visible layout line');
+  });
+
+  // The always-visible bottom description <div> (separate from the CMF/Ret formula line) must be gone.
+  assert(!/font-size:10px;color:var\(--text2\);line-height:1\.3">Smart money/.test(body),
+    'REGRESSION: the old always-visible description line is back underneath the CMF/Ret formula line');
+
+  // The parent card's onclick (opens the FULL legend on click) must ignore clicks that
+  // originated on the info icon, otherwise clicking the icon would also pop open the
+  // unrelated full-legend modal at the same time.
+  const onclickGuards = body.match(/onclick="if\(!event\.target\.closest\(\\'\.ui-info-icon\\'\)\) siToggleMatrixLegend\(true\)"/g) || [];
+  assert(onclickGuards.length === 4, 'REGRESSION: the 4 quadrant cards\' onclick no longer guards against clicks on their embedded .ui-info-icon — clicking the info icon would also incorrectly trigger the full-legend popup');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// CLAUDE.md Aturan #4 rollout, batch 2 (2026-09-27) — 7 hover-only title
+// badges in index.html, 5 "Metodologi:" paragraphs in the Stock Dossier
+// (46-stock-dossier.js), and 2 static bias-caveat captions in the
+// Screener's validation panel (48-unified-screener.js) all converted to
+// the click/tap-able .ui-info-icon pattern.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: index.html — 7 hover-only title="..." info badges converted to .ui-info-icon (click/tap-able)', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+
+  const oldHoverOnlyPhrases = [
+    'title="Standar GIPS (Global Investment Performance Standards)',
+    'title="Dihitung dari riwayat ekuitas harian aplikasi vs data historis IHSG riil',
+    'title="Bias psikologis umum: menahan saham rugi lebih lama',
+    "title=\"Beta di kartu 'Manajemen Risiko' di bawah pakai nilai beta statis",
+    'title="Yield on Cost = dividen tahun berjalan dibagi harga BELI dulu',
+    'title="Metodologi: Formula Chaikin Money Flow (CMF 20)',
+    'title="Total komisi+PPN+PPh+Levy dibagi total nilai transaksi bulan itu',
+  ];
+  oldHoverOnlyPhrases.forEach(phrase => {
+    assert(!html.includes(phrase), 'REGRESSION: a hover-only title="..." badge reappeared (' + phrase.slice(0, 50) + '...) — this text would go back to being unreachable on a touchscreen');
+  });
+
+  const newTooltipTexts = [
+    'TWR mengukur murni keahlian pemilihan aset',
+    'makin sering Anda buka aplikasi, makin rapat',
+    'menahan saham rugi lebih lama karena enggan realisasi rugi',
+    'Beta di sini dihitung langsung dari regresi harga harian riil',
+    'Yield on Cost = dividen tahun berjalan dibagi harga BELI dulu',
+    'Formula Chaikin Money Flow (CMF 20)',
+    'Total komisi+PPN+PPh+Levy dibagi total nilai transaksi bulan itu',
+  ];
+  newTooltipTexts.forEach(text => {
+    assert(html.includes(text) && html.includes('class="ui-info-icon"'),
+      'REGRESSION: expected explanation text "' + text.slice(0, 40) + '..." to now live inside a .ui-info-icon data-tooltip, but it is missing');
+  });
+
+  const iconCount = (html.match(/class="ui-info-icon"/g) || []).length;
+  assert(iconCount >= 7, 'REGRESSION: expected at least 7 .ui-info-icon instances in index.html (one per converted badge), found ' + iconCount);
+});
+
+test('REGRESSION GUARD: Stock Dossier (46-stock-dossier.js) — 5 tab "Metodologi:" paragraphs moved into uiInfoIcon() next to each tab title, no longer an always-visible <p>', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+
+  assert(!/<p style="font-size:11px;color:var\(--text2\);margin:0">Metodologi:/.test(src),
+    'REGRESSION: at least one Stock Dossier tab\'s "Metodologi:" paragraph is back as an always-visible <p>, not routed through uiInfoIcon()');
+
+  const methodologies = [
+    'Menggunakan formula Graham Number',
+    'Berdasarkan Kyle (1985) Microstructure',
+    'Melacak konfirmasi struktur Exponential Moving Average',
+    'Mengaudit laporan kepemilikan efek Kustodian Sentral Efek Indonesia',
+    'Menguji kesehatan neraca modal',
+  ];
+  methodologies.forEach(m => {
+    assert(new RegExp("uiInfoIcon\\('Metodologi: " + m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(src),
+      'REGRESSION: the "' + m.slice(0, 30) + '..." methodology note is no longer routed through uiInfoIcon()');
+  });
+});
+
+test('REGRESSION GUARD: Screener validation panel (48-unified-screener.js) — Track A/B look-ahead-bias caveats moved into uiInfoIcon() next to each track\'s title', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/uiInfoIcon\('Komponen valuasi \(PER\/ROE\) TIDAK disertakan di sini/.test(src),
+    'REGRESSION: Track A\'s look-ahead-bias caveat is no longer routed through uiInfoIcon()');
+  assert(/uiInfoIcon\('Setiap hari \(via cron\), sinyal "confirmed" hari itu dicatat otomatis/.test(src),
+    'REGRESSION: Track B\'s methodology caveat is no longer routed through uiInfoIcon()');
+  // The dynamic, per-backtest-result methodology line (d.methodology) must be untouched —
+  // it varies with live data and must stay visible, not become a static uiInfoIcon() call.
+  assert(/Metodologi: ' \+ d\.methodology/.test(src),
+    'REGRESSION: the dynamic per-result methodology line (d.methodology, varies with backtest params) was changed — it must stay visible inline since it is computed output, not static help copy');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-28, user-requested: "saya belum bisa menganalisis
+// saham yang diakumulasi oleh bandar selama 2 sampai 30 hari secara
+// nett") — getUniverseAccumulationDistributionRange() (lib/idx-data-
+// engine.js), GET /api/idx/accumulation-distribution-range (server.js),
+// and the new "Net Akumulasi/Distribusi Multi-Hari" view inside the
+// existing Market Flow page (41-stockchat-cockpit.js).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: getUniverseAccumulationDistributionRange() exists, clamps days to 2-30, and sums calculated_value across dates (honest netScore, never a fabricated Rupiah figure)', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function getUniverseAccumulationDistributionRange\(params = \{\}\)/.test(engineSrc),
+    'REGRESSION: getUniverseAccumulationDistributionRange() is gone');
+  assert(/getUniverseAccumulationDistributionRange,/.test(engineSrc.slice(engineSrc.indexOf('export {'))),
+    'REGRESSION: getUniverseAccumulationDistributionRange is no longer exported — server.js could not import it');
+
+  const fnSrc = engineSrc.match(/async function getUniverseAccumulationDistributionRange[\s\S]*?\n\}\n/)[0];
+  assert(/Math\.max\(UNIVERSE_ACC_DIST_RANGE_MIN_DAYS, Math\.min\(UNIVERSE_ACC_DIST_RANGE_MAX_DAYS, days\)\)/.test(fnSrc),
+    'REGRESSION: days param is no longer clamped to [2,30] — an out-of-range value (e.g. 500) could trigger an unbounded scan/quota spend');
+  assert(/fetchInvezgoTopMovers\('accumulation', date\)/.test(fnSrc),
+    'REGRESSION: no longer calls fetchInvezgoTopMovers() per date — must reuse the confirmed whole-market endpoint, not invent a new one');
+  assert(/entry\.netScore \+= Number\(item\.calculated_value\) \|\| 0/.test(fnSrc),
+    'REGRESSION: netScore is no longer summed directly from calculated_value (whose sign already encodes accum/dist direction per Invezgo) — a wrong subtraction formula could double-count or invert direction');
+  assert(!/netRp|netValueRp|:\s*Number\(entry\.netScore\).*Rp/.test(fnSrc),
+    'REGRESSION: netScore must never be relabeled/formatted as a Rupiah figure — it stays a summed Invezgo ranking score, per CLAUDE.md Zero Fabricated Data');
+  assert(/daysWithData/.test(fnSrc) && /rows\.length === 0\) return; \/\/ hari libur\/tidak ada data — tidak dihitung/.test(fnSrc),
+    'REGRESSION: a date with no data (market holiday) must not silently count toward daysWithData — the UI\'s "X of Y days" honesty claim depends on this');
+});
+
+test('REGRESSION GUARD: collectCandidateTradingDates() skips Saturday/Sunday and returns exactly N weekday candidates counting backward', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const stepFn = engineSrc.match(/function stepBackOneCalendarDay\(dateStr\) \{[\s\S]*?\n\}/)[0];
+  const collectFn = engineSrc.match(/function collectCandidateTradingDates\(fromDate, days\) \{[\s\S]*?\n\}/)[0];
+  assert(stepFn && collectFn, 'stepBackOneCalendarDay()/collectCandidateTradingDates() body not found');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(stepFn + '\n' + collectFn, sandbox);
+
+  // 2026-09-28 is a Monday. Stepping back from a Monday for 5 candidates
+  // should skip the preceding Sat (26th)/Sun (27th) entirely.
+  // .join() (not assert.deepStrictEqual on the raw array) — vm.createContext()
+  // arrays live in a separate V8 realm with their own Array.prototype, which
+  // trips deepStrictEqual's cross-realm identity check even when the actual
+  // contents are identical.
+  const dates = sandbox.collectCandidateTradingDates('2026-09-28', 5);
+  assert.strictEqual(dates.length, 5, 'expected exactly 5 candidate dates');
+  assert.strictEqual(Array.prototype.join.call(dates, ','), ['2026-09-28', '2026-09-25', '2026-09-24', '2026-09-23', '2026-09-22'].join(','),
+    'REGRESSION: candidate dates no longer correctly skip the weekend (26th/27th) when counting back from a Monday');
+});
+
+test('REGRESSION GUARD: GET /api/idx/accumulation-distribution-range exists and calls getUniverseAccumulationDistributionRange() with the days query param', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/accumulation-distribution-range'/.test(src),
+    'REGRESSION: GET /api/idx/accumulation-distribution-range route is gone');
+  const routeSrc = src.match(/app\.get\('\/api\/idx\/accumulation-distribution-range'[\s\S]*?\n\}\);/)[0];
+  assert(/getUniverseAccumulationDistributionRange\(\{ days: req\.query\.days \}\)/.test(routeSrc),
+    'REGRESSION: the route no longer calls getUniverseAccumulationDistributionRange() with req.query.days');
+});
+
+test('REGRESSION GUARD: Market Flow page (41-stockchat-cockpit.js) gained a "Net Akumulasi/Distribusi Multi-Hari" view, wired into the existing Bandarmology market-mode render (not a new sidebar page)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/function renderBandarmologyNetAccumulationView\(\)/.test(src), 'REGRESSION: renderBandarmologyNetAccumulationView() is gone');
+  assert(/function bandarLoadNetAccDist\(days\)/.test(src), 'REGRESSION: bandarLoadNetAccDist() is gone');
+  assert(/renderBandarmologyNetAccumulationView\(\)/.test(src.match(/html \+= '<div id="bandarmology-tab-content"[\s\S]*?\n    \+ '<\/div>';/)[0]),
+    'REGRESSION: renderBandarmologyNetAccumulationView() is no longer wired into the Bandarmology market-mode page render — the new view would never appear');
+  assert(/fetch\('\/api\/idx\/accumulation-distribution-range\?days=' \+ n/.test(src),
+    'REGRESSION: bandarLoadNetAccDist() no longer calls the new range endpoint');
+  // Days input must clamp client-side too (defense in depth, matches the server clamp).
+  assert(/n = Math\.max\(2, Math\.min\(30, n\)\)/.test(src),
+    'REGRESSION: bandarSetNetAccDistDays() no longer clamps the day-window input to [2,30] client-side');
+  // The score/methodology caveat must go through uiInfoIcon() (CLAUDE.md Aturan #4), not a raw always-visible paragraph.
+  assert(/uiInfoIcon\('Skor di sini adalah skor ranking relatif Invezgo/.test(src),
+    'REGRESSION: the "score is not Rupiah" caveat is no longer routed through uiInfoIcon() — it would either vanish or go back to being an always-visible paragraph, violating CLAUDE.md Aturan #4');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-28, user-requested): Indonesia Economic Data Engine
+// (Bank Indonesia + BPS). SCAFFOLDING ONLY — this sandbox's egress proxy
+// blocks both bi.go.id and webapi.bps.go.id (403 policy denial, confirmed
+// via curl), and there is no BPS_API_KEY. Per CLAUDE.md Aturan #1, no
+// indicator parser is written against a guessed schema — these tests
+// verify the HONEST scaffolding (config, health check, unified schema,
+// fail-closed NOT_CONFIGURED/not_verified states), not real BI/BPS data.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: normalizeEconomicRecord() enforces the unified status enum and never fabricates a value for a non-live status', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/economic-data-engine.js'), 'utf8');
+  assert(/const allowedStatus = \['VERIFIED', 'CACHED', 'STALE', 'UNAVAILABLE', 'ERROR'\]/.test(src),
+    'REGRESSION: normalizeEconomicRecord() no longer restricts status to the 5 spec-defined values — an invented status string could slip through');
+  assert(/status === 'VERIFIED' \|\| status === 'CACHED' \|\| status === 'STALE'\) \? \(typeof raw\.value === 'number' \? raw\.value : null\) : null/.test(src),
+    'REGRESSION: normalizeEconomicRecord() no longer nulls out `value` for UNAVAILABLE/ERROR records — a stale/fabricated number could leak through as if it were live data');
+});
+
+asyncTest('functional: normalizeEconomicRecord() (real import, not a sandbox mock) round-trips a VERIFIED record honestly and nulls value for UNAVAILABLE', async () => {
+  const { normalizeEconomicRecord } = await import('./lib/economic-data-engine.js');
+
+  const verified = normalizeEconomicRecord({
+    provider: 'BPS', indicator: 'Inflasi', value: 2.51, unit: 'percent', period: '2026-09',
+    frequency: 'monthly', geography: 'Indonesia', source: 'Badan Pusat Statistik',
+    source_type: 'official_api', source_url: 'https://webapi.bps.go.id/developer',
+    retrieved_at: '2026-09-28T00:00:00Z', status: 'VERIFIED'
+  });
+  assert.strictEqual(verified.value, 2.51, 'a VERIFIED record must keep its real numeric value');
+  assert.strictEqual(verified.status, 'VERIFIED');
+
+  const unavailable = normalizeEconomicRecord({ provider: 'BPS', indicator: 'Inflasi', value: 2.51, status: 'UNAVAILABLE' });
+  assert.strictEqual(unavailable.value, null,
+    'REGRESSION: an UNAVAILABLE record must never carry a numeric value through, even if the raw input smuggled one in — the caller must not be able to accidentally display it as real');
+
+  const invalidStatus = normalizeEconomicRecord({ provider: 'BPS', indicator: 'Inflasi', value: 2.51, status: 'MADE_UP_STATUS' });
+  assert.strictEqual(invalidStatus.status, 'ERROR', 'REGRESSION: an out-of-enum status string must fall back to ERROR, not pass through silently');
+  assert.strictEqual(invalidStatus.value, null, 'an ERROR-status record must also null its value');
+
+  assert.throws(() => normalizeEconomicRecord(null), 'normalizeEconomicRecord(null) must throw, not silently return a fabricated empty record');
+});
+
+test('REGRESSION GUARD: BPS provider fails closed to NOT_CONFIGURED without BPS_API_KEY — never fabricates data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bps-client.js'), 'utf8');
+  assert(/if \(!apiKey\) \{\s*return \{\s*configured: false,\s*status: 'NOT_CONFIGURED'/.test(src),
+    'REGRESSION: checkBpsLiveStatus() no longer fails closed to NOT_CONFIGURED when BPS_API_KEY is absent');
+  assert(/if \(!apiKey\) \{\s*return \{ ok: false, reason: 'NOT_CONFIGURED', raw: null \};/.test(src),
+    'REGRESSION: bpsListModels() no longer fails closed to NOT_CONFIGURED without an API key — could attempt a request with an empty key');
+  assert(/schemaVerified: false/.test(src),
+    'REGRESSION: bpsListModels() no longer marks its raw response as schemaVerified:false — callers could start trusting an unverified field mapping');
+});
+
+asyncTest('functional: checkBpsLiveStatus() (real import) returns NOT_CONFIGURED when BPS_API_KEY is unset in this test run', async () => {
+  const savedKey = process.env.BPS_API_KEY;
+  delete process.env.BPS_API_KEY;
+  try {
+    const { checkBpsLiveStatus } = await import('./lib/providers/bps-client.js');
+    const result = await checkBpsLiveStatus();
+    assert.strictEqual(result.configured, false);
+    assert.strictEqual(result.status, 'NOT_CONFIGURED');
+  } finally {
+    if (savedKey !== undefined) process.env.BPS_API_KEY = savedKey;
+  }
+});
+
+// REGRESSION (2026-09-29, corrected from official BPS documentation +
+// a community Postman collection): the BPS WebAPI URL format is
+// QUERY-STRING (`/v1/api/list/?model=X&domain=Y&...`), NOT path-segment
+// (`/v1/api/list/model/X/lang/Y/domain/Z/key/K`) — the earlier format was
+// an unverified web-search guess. This guards against silently reverting
+// to the wrong (guessed) format.
+test('REGRESSION GUARD: BPS client builds URLs in query-string format (verified from official docs), not the earlier unverified path-segment format', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bps-client.js'), 'utf8');
+  assert(!/\/v1\/api\/list\/model\//.test(src),
+    'REGRESSION: bps-client.js reverted to the unverified path-segment URL format (/v1/api/list/model/X/lang/...) — official docs confirm query-string format instead');
+  assert(/\/v1\/api\/list\/\?model=/.test(src),
+    'REGRESSION: bps-client.js no longer builds the BPS list endpoint URL in query-string format (?model=...)');
+});
+
+// REGRESSION: fetchBpsStrategicIndicators() schema — verified from official
+// BPS documentation (Strategic Indicators page, user-confirmed complete
+// field list). Guards against silently drifting from the verified fields
+// or fabricating fields (period/frequency/geography) the endpoint doesn't
+// actually provide.
+test('REGRESSION GUARD: fetchBpsStrategicIndicators() uses the verified request/response schema and requires domain explicitly (no guessed default)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bps-client.js'), 'utf8');
+  const fnMatch = src.match(/async function fetchBpsStrategicIndicators\([\s\S]*?\n\}/);
+  assert(fnMatch, 'REGRESSION: fetchBpsStrategicIndicators() is missing from bps-client.js');
+  const fn = fnMatch[0];
+  assert(/model=indicators/.test(fn), 'REGRESSION: fetchBpsStrategicIndicators() no longer requests model=indicators');
+  assert(/if \(!domain\)/.test(fn) && /DOMAIN_REQUIRED/.test(fn),
+    'REGRESSION: fetchBpsStrategicIndicators() no longer fails closed when domain is missing — this would mean guessing a national domain code that was never verified');
+  assert(/title/.test(fn) && /desc/.test(fn) && /data_source/.test(fn) && /value/.test(fn) && /unit/.test(fn),
+    'REGRESSION: fetchBpsStrategicIndicators() no longer maps the verified fields (title/desc/data_source/value/unit)');
+  assert(!/period|frequency|geography/.test(fn),
+    'REGRESSION: fetchBpsStrategicIndicators() now fabricates period/frequency/geography fields the verified schema does not actually provide');
+});
+
+asyncTest('functional: fetchBpsStrategicIndicators() (real import) fails closed without BPS_API_KEY, and separately requires domain even with a key', async () => {
+  const savedKey = process.env.BPS_API_KEY;
+  delete process.env.BPS_API_KEY;
+  try {
+    const { fetchBpsStrategicIndicators } = await import('./lib/providers/bps-client.js');
+    const noKey = await fetchBpsStrategicIndicators({ domain: '1100' });
+    assert.strictEqual(noKey.ok, false);
+    assert.strictEqual(noKey.reason, 'NOT_CONFIGURED');
+
+    process.env.BPS_API_KEY = 'test-fake-key-for-schema-guard-only';
+    const noDomain = await fetchBpsStrategicIndicators({});
+    assert.strictEqual(noDomain.ok, false, 'fetchBpsStrategicIndicators() must not proceed without an explicit domain');
+    assert.strictEqual(noDomain.reason, 'DOMAIN_REQUIRED');
+  } finally {
+    if (savedKey !== undefined) process.env.BPS_API_KEY = savedKey; else delete process.env.BPS_API_KEY;
+  }
+});
+
+asyncTest('functional: getBpsStrategicIndicators() (economic-data-engine.js, real import) fails closed without BPS_API_KEY and never invents period/frequency/geography', async () => {
+  const savedKey = process.env.BPS_API_KEY;
+  delete process.env.BPS_API_KEY;
+  try {
+    const { getBpsStrategicIndicators } = await import('./lib/economic-data-engine.js');
+    const result = await getBpsStrategicIndicators({ domain: '1100' });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.reason, 'NOT_CONFIGURED');
+    assert.deepStrictEqual(result.records, []);
+  } finally {
+    if (savedKey !== undefined) process.env.BPS_API_KEY = savedKey;
+  }
+});
+
+test('REGRESSION GUARD: BI provider never fabricates a SOAP response — fetchBiJisdor()/fetchBiKursTransaksi() return access:"not_verified", not invented data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/providers/bi-client.js'), 'utf8');
+  const jisdorFn = src.match(/async function fetchBiJisdor\(\) \{[\s\S]*?\n\}/)[0];
+  const kursFn = src.match(/async function fetchBiKursTransaksi\([\s\S]*?\n\}/)[0];
+  assert(/access: 'not_verified'/.test(jisdorFn), 'REGRESSION: fetchBiJisdor() no longer returns access:"not_verified" — could now be fabricating a value');
+  assert(!/getKursTransaksiBI|SOAPAction|<soap:/i.test(jisdorFn + kursFn),
+    'REGRESSION: fetchBiJisdor()/fetchBiKursTransaksi() now contain a SOAP envelope/operation name that was never verified against a real BI response — this is exactly the guessed-schema parser CLAUDE.md Aturan #1 forbids');
+});
+
+asyncTest('functional: getEconomicHealth() (real import) never throws, and reports BI/BPS status using only the 5 allowed values', async () => {
+  const { getEconomicHealth } = await import('./lib/economic-data-engine.js');
+  const health = await getEconomicHealth();
+  const allowed = ['VERIFIED', 'CACHED', 'STALE', 'UNAVAILABLE', 'ERROR', 'NOT_CONFIGURED', 'REACHABLE', 'ACTIVE', 'INVALID_RESPONSE'];
+  assert(health.BI && allowed.includes(health.BI.status), 'BI health status must be one of the provider-defined states');
+  assert(health.BPS && allowed.includes(health.BPS.status), 'BPS health status must be one of the provider-defined states');
+  assert(typeof health.latency_ms === 'number' && health.latency_ms >= 0, 'latency_ms must be a real measured number');
+  assert(typeof health.checked_at === 'string', 'checked_at must be a real ISO timestamp string');
+});
+
+test('REGRESSION GUARD: GET /api/economic/health, /api/economic/bps/datasets, /api/economic/bi/jisdor, /api/economic/bi/exchange-rate all exist and call the engine (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/economic\/health'/.test(src), 'REGRESSION: GET /api/economic/health route is gone');
+  assert(/app\.get\('\/api\/economic\/bps\/datasets'/.test(src), 'REGRESSION: GET /api/economic/bps/datasets route is gone');
+  assert(/app\.get\('\/api\/economic\/bi\/jisdor'/.test(src), 'REGRESSION: GET /api/economic/bi/jisdor route is gone');
+  assert(/app\.get\('\/api\/economic\/bi\/exchange-rate'/.test(src), 'REGRESSION: GET /api/economic/bi/exchange-rate route is gone');
+  assert(/getEconomicHealth\(\)/.test(src) && /discoverBpsDatasets\(/.test(src) && /fetchBiJisdor\(\)/.test(src) && /fetchBiKursTransaksi\(/.test(src),
+    'REGRESSION: one or more /api/economic/* routes no longer calls its real engine/provider function');
+  // Specific indicator routes (inflation/GDP/trade/labor/JISDOR-with-parsed-fields)
+  // must NOT exist yet — building them now would mean guessing BPS dataset IDs
+  // or the BI SOAP schema, exactly what this feature's spec §7 and CLAUDE.md
+  // Aturan #1 forbid until a human supplies a verified sample.
+  assert(!/\/api\/economic\/bps\/inflation/.test(src) && !/\/api\/economic\/bps\/gdp/.test(src),
+    'REGRESSION: a specific BPS indicator route (inflation/gdp) appeared without a verified dataset_id — this means someone guessed the BPS dataset code, which the spec explicitly forbids (§7: "Jangan hard-code kode indikator secara sembarangan")');
+});
+
+// REGRESSION: GET /api/economic/bps/indicators — the one BPS indicator
+// route allowed to exist with a specific `model=` because its schema
+// (Strategic Indicators, model=indicators) is genuinely verified from
+// official docs, unlike the still-forbidden inflation/gdp routes above.
+test('REGRESSION GUARD: GET /api/economic/bps/indicators exists and calls getBpsStrategicIndicators() (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/economic\/bps\/indicators'/.test(src), 'REGRESSION: GET /api/economic/bps/indicators route is gone');
+  assert(/getBpsStrategicIndicators\(/.test(src), 'REGRESSION: /api/economic/bps/indicators route no longer calls getBpsStrategicIndicators()');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-29, user-reported: "Konsensus Screener belum ada
+// analisa broker... saya lihat saham yang masuk konsensus namun nilai
+// hari ini sudah -13%, sehingga analisa tidak tepat sasaran"). Root
+// cause: price/chg1d in the consensus response rode the SAME 10-14-day
+// stale caches the votes are computed from. Fix: live per-ticker quote
+// overwrite (rows are already the small filtered subset, not the whole
+// universe) + honest priceWarning, plus netAccumulation (multi-day
+// bandar signal) and topBroker (per-ticker real broker breakdown) as
+// display-only enrichment — NOT a 6th vote (see the updated "not 6" test
+// above for that boundary).
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: generateScreenerConsensus() overwrites price/chg1d with a LIVE quote for its (already-filtered, small) result rows, never leaves the stale cached snapshot silently passing as current', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function generateScreenerConsensus\(params = \{\}\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'generateScreenerConsensus() not found');
+  const fn = fnMatch[0];
+
+  assert(/fetchYahooQuote\(row\.ticker\)/.test(fn), 'REGRESSION: no longer fetches a live quote per consensus row — price/chg1d could go back to being up to 10-14 days stale');
+  assert(/if \(q && !q\.isSimulated && typeof q\.price === 'number' && q\.price > 0\)/.test(fn),
+    'REGRESSION: live quote is no longer guarded against fetchYahooQuote()\'s fabricated isSimulated:true placeholder — a simulated quote could overwrite price/chg1d as if real');
+  assert(/row\.priceIsLive = (true|false)/.test(fn), 'REGRESSION: rows no longer disclose whether price/chg1d is a live quote or the stale cached fallback');
+  assert(/row\.priceWarning = \(row\.priceIsLive && row\.chg1d != null && row\.chg1d <= -3\)/.test(fn),
+    'REGRESSION: the honest price-warning (live price already moved sharply against a "bullish consensus" signal) is gone');
+});
+
+test('REGRESSION GUARD: generateScreenerConsensus() attaches netAccumulation (multi-day bandar signal) and topBroker (real per-ticker broker breakdown) to each result row', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function generateScreenerConsensus\(params = \{\}\) \{[\s\S]*?\n\}/);
+  const fn = fnMatch[0];
+
+  assert(/getUniverseAccumulationDistributionRange\(\{ days: rangeDays \}\)/.test(fn),
+    'REGRESSION: no longer reuses the multi-day accumulation/distribution engine (built 2026-09-28) for netAccumulation');
+  assert(/generateBrokerSummary\(row\.ticker, q, '1D'\)/.test(fn),
+    'REGRESSION: no longer fetches a real per-ticker broker summary for topBroker — the whole-market accumulation endpoint has no per-broker breakdown, only the per-ticker call does');
+  assert(/const topBuyer = \(bs && !bs\.isSimulated && Array\.isArray\(bs\.topBuyers\)/.test(fn),
+    'REGRESSION: topBroker no longer guards against a simulated broker-summary fallback — a fabricated broker name/value could surface as if real');
+  assert(/row\.netAccumulation = acc \? \{/.test(fn) && /netScore: null,\s*\n\s*daysAppeared: 0/.test(fn),
+    'REGRESSION: a ticker absent from the accumulation/distribution top-mover window no longer honestly reports null/0 — could silently imply zero activity instead of "no signal in this window"');
+});
+
+test('REGRESSION GUARD: 50-screener-consensus.js renders netAccumulation/topBroker/priceWarning from the API response, and discloses via uiInfoIcon() (not a raw paragraph) that they are informational, not part of the consensus score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/50-screener-consensus.js'), 'utf8');
+  assert(/row\.netAccumulation/.test(src), 'REGRESSION: csRenderRow() no longer reads row.netAccumulation — the bandar-accumulation column would render empty');
+  assert(/row\.topBroker/.test(src), 'REGRESSION: csRenderRow() no longer reads row.topBroker — the broker column would render empty');
+  assert(/row\.priceWarning/.test(src), 'REGRESSION: csRenderRow() no longer surfaces row.priceWarning — a stale-signal-vs-live-price mismatch would go unshown again');
+  assert(/uiInfoIcon\('Akumulasi\/Distribusi dijumlahkan/.test(src),
+    'REGRESSION: the "informational, not part of the score" caveat for the new column is no longer routed through uiInfoIcon() — violates CLAUDE.md Aturan #4');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-29, user-reported: "pada card traffic light kenapa
+// pilar arus bandar dan likuidas menunjukan data belum tersedia"). Root
+// cause: fundBuildTrafficLight() (24-stockmaster.js) hardcoded pillar 2
+// ("Pilar Arus Bandar & Likuiditas Asing / FlowScan") to a static "Belum
+// Tersedia" badge with zero computation — never wired to any real data
+// source, unlike pillar 1 (valuation) and pillar 3 (ROE quality) which
+// ARE computed. getStockBandarFlowPillar() (lib/idx-data-engine.js) now
+// combines 3 real per-ticker Invezgo signals (broker concentration
+// verdict, whole-market Top Accumulation/Distribution membership,
+// whole-market Top Foreign Net Buy/Sell membership) fail-closed honest
+// to available:false when the core broker-summary component isn't real.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: getStockBandarFlowPillar() exists, requires a REAL broker summary before scoring, and never invents Rupiah values from the top-mover ranking score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/async function getStockBandarFlowPillar\(ticker\) \{[\s\S]*?\n\}\n\n\/\/ UNIFIED SCREENER/);
+  assert(fnMatch, 'REGRESSION: getStockBandarFlowPillar() is missing from lib/idx-data-engine.js');
+  const fn = fnMatch[0];
+
+  assert(/const brokerReal = Boolean\(brokerSummary && !brokerSummary\.isSimulated && !brokerSummary\.isInvalid/.test(fn),
+    'REGRESSION: getStockBandarFlowPillar() no longer requires a real (non-simulated, non-invalid) broker summary before computing a score');
+  assert(/if \(!brokerReal\) \{\s*return \{\s*available: false/.test(fn),
+    'REGRESSION: getStockBandarFlowPillar() no longer fails closed to available:false when the broker summary is not real — could start scoring off simulated data');
+  assert(/bukan nilai Rupiah/.test(fn),
+    'REGRESSION: the foreign top-mover component no longer discloses that its `score` is a ranking score, not a Rupiah value — this exact mislabeling got a widget removed on 2026-09-26 (see getUniverseForeignFlow()\'s own comment)');
+  assert(/getUniverseAccumulationDistribution\(\{\}\)/.test(fn) && /getUniverseForeignFlow\(\{\}\)/.test(fn) && /generateBrokerSummary\(clean, null, '1D'\)/.test(fn),
+    'REGRESSION: getStockBandarFlowPillar() no longer composes all 3 real signals (broker summary, whole-market acc/dist, whole-market foreign flow)');
+});
+
+asyncTest('functional: getStockBandarFlowPillar() (real import, tested with PTRO per user request) fails closed to available:false without INVEZGO_API_KEY, never a fabricated score', async () => {
+  const savedKey = process.env.INVEZGO_API_KEY;
+  delete process.env.INVEZGO_API_KEY;
+  try {
+    const { getStockBandarFlowPillar } = await import('./lib/idx-data-engine.js');
+    const result = await getStockBandarFlowPillar('PTRO');
+    assert.strictEqual(result.available, false, 'getStockBandarFlowPillar(\'PTRO\') must be available:false without a configured Invezgo key — never a fabricated pillar score');
+    assert.strictEqual(typeof result.message, 'string');
+    assert.strictEqual(result.score, undefined, 'no score field should be present when available:false — a stray 0/1/2 here could be misread as a real neutral/bearish signal');
+  } finally {
+    if (savedKey !== undefined) process.env.INVEZGO_API_KEY = savedKey;
+  }
+});
+
+asyncTest('functional: getStockBandarFlowPillar() rejects an empty ticker honestly instead of defaulting to a fabricated default stock', async () => {
+  const { getStockBandarFlowPillar } = await import('./lib/idx-data-engine.js');
+  const result = await getStockBandarFlowPillar('');
+  assert.strictEqual(result.available, false);
+  assert.strictEqual(result.reason, 'NO_TICKER');
+});
+
+test('REGRESSION GUARD: GET /api/idx/bandar-flow-pillar/:ticker exists and calls getStockBandarFlowPillar() (not a fabricated inline response)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/app\.get\('\/api\/idx\/bandar-flow-pillar\/:ticker'/.test(src), 'REGRESSION: GET /api/idx/bandar-flow-pillar/:ticker route is gone');
+  assert(/getStockBandarFlowPillar\(ticker\)/.test(src), 'REGRESSION: /api/idx/bandar-flow-pillar/:ticker route no longer calls getStockBandarFlowPillar()');
+});
+
+test('REGRESSION GUARD: StockMaster 360 Traffic Light pillar 2 (Arus Bandar & Likuiditas Asing) is no longer permanently hardcoded to "Belum Tersedia" — it fetches the real per-ticker endpoint and falls back honestly only on failure', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/24-stockmaster.js'), 'utf8');
+  assert(/async function fundLoadBandarFlowPillar\(ticker, valScore, quantScore\)/.test(src),
+    'REGRESSION: fundLoadBandarFlowPillar() is missing — pillar 2 would go back to a static hardcoded badge');
+  assert(/fetch\('\/api\/idx\/bandar-flow-pillar\/' \+ encodeURIComponent\(ticker\)/.test(src),
+    'REGRESSION: fundLoadBandarFlowPillar() no longer fetches the real per-ticker bandar-flow-pillar endpoint');
+  assert(/fundBuildTrafficLight[\s\S]{0,3000}fundLoadBandarFlowPillar\(FUND_DATA\.ticker, valScore, quantScore\)/.test(src),
+    'REGRESSION: fundBuildTrafficLight() no longer kicks off the real pillar-2 fetch');
+  assert(/if \(!d \|\| !d\.available\) \{\s*renderUnavailable/.test(src),
+    'REGRESSION: fundLoadBandarFlowPillar() no longer falls back honestly to "Belum Tersedia" when the API reports unavailable — could start rendering a stale/default score');
+  assert(/FUND_DATA\.ticker !== ticker/.test(src),
+    'REGRESSION: fundLoadBandarFlowPillar() no longer guards against a stale response overwriting a different ticker\'s pillar 2 panel after a fast ticker switch');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "pada volume spike ditambahkan
+// card order book, lihat doc invezgo untuk melengkapinya"). Data source:
+// fetchInvezgoOrderBook() (lib/invezgo-client.js), ALREADY schema-verified
+// from Invezgo's own OpenAPI spec (a real vendor-captured example, not
+// guessed) and already used internally by the Strategy Engine's
+// MarketDataProvider — this feature just exposes it as a new HTTP route
+// + UI card on the Volume Spike Scanner page, no new schema is invented.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: GET /api/idx/order-book/:ticker exists, calls the schema-verified fetchInvezgoOrderBook(), and never fabricates bid/offer when Invezgo reports unavailable/suspended/empty', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const fnMatch = src.match(/app\.get\('\/api\/idx\/order-book\/:ticker'[\s\S]*?\n\}\);/);
+  assert(fnMatch, 'REGRESSION: GET /api/idx/order-book/:ticker route is gone');
+  const fn = fnMatch[0];
+
+  assert(/fetchInvezgoOrderBook\(ticker, market, req\.query\.date, req\.query\.time\)/.test(fn),
+    'REGRESSION: /api/idx/order-book/:ticker no longer calls the schema-verified fetchInvezgoOrderBook()');
+  assert(/if \(!result\.ok\) \{/.test(fn) && /available: false, reason: result\.reason/.test(fn),
+    'REGRESSION: the route no longer fails closed honestly to available:false when fetchInvezgoOrderBook() reports !ok — could start fabricating a bid/offer');
+  assert(/result\.suspended \|\| !result\.bid\.length \|\| !result\.offer\.length/.test(fn),
+    'REGRESSION: the route no longer guards against a suspended stock or an empty bid/offer array — could render a fabricated spread from an empty book');
+  assert(/bid1price/.test(fn) && /offer1price/.test(fn) && /bid1lot/.test(fn) && /offer1lot/.test(fn) && /bid1freq/.test(fn) && /offer1freq/.test(fn),
+    'REGRESSION: the route no longer maps the verified Level-1 fields (bid1price/lot/freq, offer1price/lot/freq) from Invezgo\'s real response shape');
+});
+
+asyncTest('functional: GET /api/idx/order-book/:ticker (real Express route, tested with PTRO) fails closed to available:false without INVEZGO_API_KEY, never a fabricated bid/offer', async () => {
+  const savedKey = process.env.INVEZGO_API_KEY;
+  delete process.env.INVEZGO_API_KEY;
+  try {
+    const { fetchInvezgoOrderBook } = await import('./lib/invezgo-client.js');
+    const result = await fetchInvezgoOrderBook('PTRO', 'RG');
+    assert.strictEqual(result.ok, false, 'fetchInvezgoOrderBook(\'PTRO\') must be ok:false without a configured Invezgo key — never a fabricated order book');
+    assert.strictEqual(result.reason, 'NOT_CONFIGURED');
+  } finally {
+    if (savedKey !== undefined) process.env.INVEZGO_API_KEY = savedKey;
+  }
+});
+
+test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
+  assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');
+  assert(/async function vsLoadOrderBook\(tk\)/.test(src), 'REGRESSION: vsLoadOrderBook() is missing — the Order Book card would never fetch real data');
+  assert(/fetch\('\/api\/idx\/order-book\/' \+ encodeURIComponent\(tk\)/.test(src),
+    'REGRESSION: vsLoadOrderBook() no longer fetches the real per-ticker order-book endpoint');
+  assert(/vsForeignFlowCardHtml\(bs1d, bs30d\)[\s\S]{0,500}vsLoadOrderBook\(tk\)/.test(src),
+    'REGRESSION: vsRenderContent() no longer kicks off the Order Book fetch when a ticker is rendered');
+  assert(/if \(!d \|\| !d\.available\) \{/.test(src),
+    'REGRESSION: vsLoadOrderBook() no longer falls back honestly when the API reports the order book unavailable — could render a stale/fabricated card');
+  assert(/d\.reason === 'SUSPENDED'/.test(src),
+    'REGRESSION: the suspended-stock case is no longer disclosed distinctly from a generic "unavailable" message');
+  assert(/VS_STATE\.ticker !== tk/.test(src),
+    'REGRESSION: vsLoadOrderBook() no longer guards against a stale response overwriting a different ticker\'s order book card after a fast ticker switch');
+  assert(/hanya menyediakan level 1/.test(src),
+    'REGRESSION: the card no longer discloses that Invezgo only exposes Level 1 (best bid/offer), not full market depth — could mislead a user into thinking this is a full order book');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "evaluasi seluruh js dan fitur
+// cari bug nya, pastikan bahwa tiap fitur saling terhubung panggilan nya,
+// tidak ada yang mengarang data"). 9 parallel audit agents surfaced 8
+// HIGH-confidence findings across 8 files; this block regression-guards
+// every one of them.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: 28-decisiontools.js renderRebalancePage() no longer has a duplicate dead `var html` declaration', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  const fnMatch = src.match(/function renderRebalancePage\(\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'REGRESSION: renderRebalancePage() is missing');
+  const matches = fnMatch[0].match(/var html = /g) || [];
+  assert.strictEqual(matches.length, 1, 'REGRESSION: renderRebalancePage() has a duplicate `var html =` declaration again — the first block is dead code, immediately overwritten by the second');
+});
+
+test('REGRESSION GUARD: 30-price-alerts.js opens its modal with the real "on" class (matching closeModal() and every other modal), not the CSS-dead "open" class', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/30-price-alerts.js'), 'utf8');
+  assert(!/modal\.classList\.add\('open'\)/.test(src),
+    'REGRESSION: the Price Alert modal reverted to modal.classList.add(\'open\') — that class has no CSS rule anywhere (main.css only defines .overlay.on), so the modal never actually displays');
+  assert(/modal\.classList\.add\('on'\)/.test(src),
+    'REGRESSION: the Price Alert modal no longer opens with the real .on class used by closeModal() and every other modal in this app');
+});
+
+test('REGRESSION GUARD: 32-pdf-reports.js monthlyInv never fabricates a Rp 5,000,000/month assumption when income data is missing, and the projection table discloses when it falls back to Rp 0', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/32-pdf-reports.js'), 'utf8');
+  assert(!/monthlyInv = \(monthlyInc > monthlyExp\) \? \(monthlyInc - monthlyExp\) : \(5 \* 1000000\)/.test(src),
+    'REGRESSION: monthlyInv reverted to silently fabricating Rp 5,000,000/month when income data is unavailable — this fed a specific Rupiah 20-year projection into the OFFICIAL PDF report with zero disclosure');
+  assert(/var monthlyInvAvailable = monthlyInc > 0 && monthlyInc > monthlyExp/.test(src),
+    'REGRESSION: monthlyInvAvailable honesty flag is gone — monthlyInv must be 0 (not a guessed number) when real income data is missing/insufficient');
+  assert(/Data pemasukan bulanan belum diisi\/tidak mencukupi/.test(src),
+    'REGRESSION: the Compound 20-Year Simulation table no longer discloses when its monthly-contribution assumption is Rp 0 due to missing data, rather than a genuine user assumption');
+});
+
+test('REGRESSION GUARD: 11-quant.js Screener default ("lq45") always fetches the real /api/idx/stocks universe once, instead of permanently scanning the 15-ticker LQ45_STOCKS placeholder that the dropdown mislabels "LQ45 (45 Bluechips)"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert(/function scEnsureUniverseLoaded\(cb\)/.test(src), 'REGRESSION: scEnsureUniverseLoaded() is missing — nothing guarantees the real universe gets fetched for the default index');
+  const changeUnivMatch = src.match(/function scChangeUniverse\(idx\) \{[\s\S]*?\n\}/);
+  assert(changeUnivMatch, 'REGRESSION: scChangeUniverse() is missing');
+  assert(!/idx === 'lq45' \|\| QT_SCREENER_UNIVERSE/.test(changeUnivMatch[0]),
+    'REGRESSION: scChangeUniverse() reverted to skipping the real-universe fetch whenever idx===\'lq45\' — the default screener view would permanently scan the 15-ticker placeholder again');
+  assert(/scEnsureUniverseLoaded\(scBuildSim\)/.test(src),
+    'REGRESSION: the initial screener page load (goPage hook) or scChangeUniverse() no longer routes through scEnsureUniverseLoaded() before building the scan');
+});
+
+test('REGRESSION GUARD: 01-data.js getGlobalMarketPrice() excludes the DB base:100 sentinel placeholder instead of returning it as a real market price', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/01-data.js'), 'utf8');
+  assert(/DB\[tk\]\.base > 0 && DB\[tk\]\.base !== 100/.test(src),
+    'REGRESSION: getGlobalMarketPrice() no longer excludes the base:100 sentinel — hundreds of tickers in _IDX_RAW_LIST carry this as a "no real price known yet" placeholder (see the DB merge logic\'s own `DB[k].base === 100` check), and returning it presents a fabricated "Rp 100" as if it were a genuine quote');
+});
+
+test('REGRESSION GUARD: 06-analysis-router.js no longer claims the sine-wave-generated ADMR candle seed is "data historis nyata yang Anda lampirkan"', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/06-analysis-router.js'), 'utf8');
+  assert(!/data historis nyata yang Anda lampirkan/.test(src),
+    'REGRESSION: cdSrcNote() reverted to actively claiming the _cdSeedOhlcv() sine/cosine formula output is real historical data the user attached — this is a direct CLAUDE.md Aturan #1/#3 violation, not just a missing label');
+  assert(/SIMULASI \(seed placeholder\)/.test(src),
+    'REGRESSION: the ADMR candle source note no longer honestly discloses it is a synthetic seed, not real market data');
+});
+
+test('REGRESSION GUARD: 46-stock-dossier.js history fetch uses the real "tf" query param (server.js only reads tf, never "timeframe"), and no longer silently gets 5-minute intraday candles for a 90-day technical score', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(!/\/api\/idx\/history\/' \+ cleanTicker \+ '\?timeframe=1D&limit=90'/.test(src),
+    'REGRESSION: dossierHarvestData() reverted to sending ?timeframe=1D&limit=90 — server.js/api/idx/history/:ticker only reads req.query.tf and has no `limit` param at all, so this silently defaulted to 5-minute-interval, today-only candles for what the code claims is a 90-day daily technical score');
+  assert(/\/api\/idx\/history\/' \+ cleanTicker \+ '\?tf=SCAN'/.test(src),
+    'REGRESSION: dossierHarvestData() no longer requests the real tf=SCAN (1d interval, 6mo range) bucket for its technical score history');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/\['1D', '1W', '1M', '1Y', 'DAILY_MAX', 'SCAN'\]\.includes\(req\.query\.tf\)/.test(serverSrc),
+    'REGRESSION: GET /api/idx/history/:ticker no longer whitelists tf=SCAN — Stock Dossier\'s history fetch would silently fall back to the wrong (1D/intraday) timeframe again');
+});
+
+test('REGRESSION GUARD: 23-advisor.js Investor Tear Sheet / Rebalancing Calculator valuation functions are real and no longer silently resolve to 0', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/23-advisor.js'), 'utf8');
+  ['totalValuation', 'equityHoldingsVal', 'cryptoTotalValuation', 'reksadanaTotalValuation', 'etfTotalValuation'].forEach((fn) => {
+    assert(new RegExp('function ' + fn + '\\(').test(src),
+      `REGRESSION: ${fn}() is missing again — every AUM/allocation figure guarded by 'typeof ${fn} === function' would silently fall back to 0, indistinguishable from a genuinely empty portfolio`);
+  });
+  assert(/function equityHoldingsVal\(\) \{[\s\S]*?getPortfolio\(\)/.test(src),
+    'REGRESSION: equityHoldingsVal() no longer sources from the real getPortfolio() (03-engine.js)');
+  assert(!/window\.holdings \|\| \[\]/.test(src),
+    'REGRESSION: Top 5 Holdings reverted to reading window.holdings, a global that is never declared anywhere in the codebase — the table would silently show "Belum ada posisi saham" for every investor regardless of their real portfolio');
+  assert(/getPortfolio\(\) : \[\]\)\.slice\(\)\.sort/.test(src),
+    'REGRESSION: Top 5 Holdings no longer sorts real getPortfolio() rows by market value');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "lanjut ke MEDIUM dan LOW" — same
+// full-codebase audit as the HIGH-fix block above). Regression-guards for
+// the MEDIUM and LOW confidence findings.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: 38-ai-autonomous-trading.js adaptiveWeights.strategyMultipliers no longer pre-seeds keys real closed trades never use', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(!/strategyMultipliers:\s*\{\s*strat_pullback:/.test(src),
+    'REGRESSION: strategyMultipliers reverted to pre-seeding strat_pullback/etc — real closed AI trades key by trend-label or "composite_scoring", so these 5 keys were dead weight that aiCalibrateAdaptiveWeights() never touched');
+  assert(/strategyMultipliers:\s*\{\s*\}/.test(src),
+    'REGRESSION: strategyMultipliers no longer starts empty — aiCalibrateAdaptiveWeights() auto-creates real keys on demand, so a stale hardcoded seed can only mislead');
+});
+
+test('REGRESSION GUARD: 38-ai-autonomous-trading.js STRATEGY_META merges live /api/idx/strategies data instead of relying solely on a hardcoded fallback that can drift from server.js STRATEGY_DEFINITIONS', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(/typeof fetch === 'function'/.test(src) && /fetch\('\/api\/idx\/strategies'\)/.test(src),
+    'REGRESSION: no longer fetches /api/idx/strategies (guarded by typeof fetch check, for sandboxed/non-browser execution) to merge real strategy names into STRATEGY_META — the dropdown can silently drift from server.js STRATEGY_DEFINITIONS');
+  assert(/json\.strategies\.forEach\(function\(s\) \{ if \(s && s\.id && s\.name\) STRATEGY_META\[s\.id\] = s\.name; \}\)/.test(src),
+    'REGRESSION: the /api/idx/strategies response is no longer merged into STRATEGY_META');
+});
+
+test('REGRESSION GUARD: 46-stock-dossier.js bandarmology pillar no longer defaults an unavailable verdict to a fabricated "Normal Accumulation"/"Akumulasi" reading', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  assert(!/bandarStatus: statusStr \|\| 'Normal Accumulation'/.test(src),
+    'REGRESSION: bandarStatus fallback reverted to "Normal Accumulation" — this asserts a specific bullish accumulation reading even when the real API returned nothing, violating CLAUDE.md Aturan #1/#3');
+  assert(/bandarStatus: statusStr \|\| 'Status Tidak Tersedia'/.test(src),
+    'REGRESSION: bandarStatus no longer honestly falls back to "Status Tidak Tersedia" when the real verdict is missing');
+});
+
+test('REGRESSION GUARD: 30-price-alerts.js and 29-institutional-ui.js navigate to Stock Intel via the real GLOBAL_STOCK_CONTEXT + goPage(), not a non-existent openStockIntelCockpit()', () => {
+  const alertsSrc = fs.readFileSync(path.join(__dirname, 'public/js/30-price-alerts.js'), 'utf8');
+  assert(!/openStockIntelCockpit\(ticker\)/.test(alertsSrc.replace(/window\.goStockIntelCockpit[\s\S]*?\n\};/, '')),
+    'REGRESSION: 30-price-alerts.js reverted to calling openStockIntelCockpit(ticker), a function that does not exist anywhere in the codebase — clicking through from a price alert would throw and do nothing');
+  assert(/window\.GLOBAL_STOCK_CONTEXT\.setTicker\(ticker, 'price-alerts'\)/.test(alertsSrc),
+    'REGRESSION: goStockIntelCockpit() no longer routes the ticker through GLOBAL_STOCK_CONTEXT before navigating to Stock Intel');
+
+  const uiSrc = fs.readFileSync(path.join(__dirname, 'public/js/29-institutional-ui.js'), 'utf8');
+  assert(!/openStockIntelCockpit\(ticker\)/.test(uiSrc),
+    'REGRESSION: the command palette action reverted to calling openStockIntelCockpit(ticker), a function that does not exist — the command palette "go to stock" action would throw and do nothing');
+  assert(/window\.goStockIntelCockpit === 'function'/.test(uiSrc),
+    'REGRESSION: the command palette no longer calls the real window.goStockIntelCockpit() to navigate to a ticker');
+});
+
+test('REGRESSION GUARD: 28-decisiontools.js new-thesis modal no longer hardcodes expectedReturn to a fabricated "+20.0%" regardless of the real target/current price', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(!/expectedReturn: '\+20\.0%'/.test(src),
+    'REGRESSION: saveNewThesisFromModal() reverted to hardcoding expectedReturn as "+20.0%" for every thesis regardless of the user\'s actual target price and current market price — a fabricated, always-identical number');
+  assert(/var expectedReturn = \(curPrice > 0 && target > 0\)/.test(src),
+    'REGRESSION: saveNewThesisFromModal() no longer computes expectedReturn from the real current price and target price (or honestly leaves it null when unavailable)');
+});
+
+test('REGRESSION GUARD: 28-decisiontools.js Rebalancing page no longer shows a static "Deviasi: < 1.0% / Status: Optimal" placeholder regardless of the real computed portfolio deviation', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(!/Deviasi:<\/span><strong class="mono up">&lt; 1\.0%/.test(src),
+    'REGRESSION: renderRebalancePage() reverted to a hardcoded "Deviasi: < 1.0%" text that never reflected the real per-position deviations computed in the same function');
+  assert(/maxAbsDeviation = Math\.max\(maxAbsDeviation, Math\.abs\(deltaPct\)\)/.test(src),
+    'REGRESSION: renderRebalancePage() no longer tracks the real maximum absolute deviation across positions');
+  assert(/outOfBalanceCount\+\+/.test(src),
+    'REGRESSION: renderRebalancePage() no longer counts how many positions are actually out of balance');
+});
+
+test('REGRESSION GUARD: 28-decisiontools.js "Salin Order Sheet" button performs a real clipboard copy of computed rebalance instructions, not a placeholder alert()', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/28-decisiontools.js'), 'utf8');
+  assert(/function rebCopyOrderSheet\(\)/.test(src),
+    'REGRESSION: rebCopyOrderSheet() is missing — the order sheet button has nothing real to call');
+  assert(/onclick="rebCopyOrderSheet\(\)"/.test(src),
+    'REGRESSION: the order sheet button no longer calls rebCopyOrderSheet() — it may have reverted to a placeholder alert()');
+  assert(/navigator\.clipboard && navigator\.clipboard\.writeText/.test(src),
+    'REGRESSION: rebCopyOrderSheet() no longer performs a real clipboard write of the computed BELI/JUAL instructions');
+  assert(/_rebalanceOrderSheetLines\.push/.test(src) === false && /orderSheetLines\.push\(/.test(src),
+    'REGRESSION: renderRebalancePage() no longer builds real per-position BELI/JUAL order sheet lines from the computed deviations');
+});
+
+test('REGRESSION GUARD: 42-dividend-calendar.js getEnrichedDividendEvents() no longer references the deleted IDX_DIVIDEND_MASTER_REGISTRY global (would ReferenceError)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/42-dividend-calendar.js'), 'utf8');
+  assert(!/IDX_DIVIDEND_MASTER_REGISTRY\.slice\(\)/.test(src),
+    'REGRESSION: getEnrichedDividendEvents() reverted to reading IDX_DIVIDEND_MASTER_REGISTRY.slice() — that variable was deleted elsewhere in this file, so this throws a ReferenceError every time it runs');
+  assert(/DIV_CALENDAR_STATE\.cachedData && DIV_CALENDAR_STATE\.cachedData\.length/.test(src),
+    'REGRESSION: getEnrichedDividendEvents() no longer falls back to the real DIV_CALENDAR_STATE.cachedData source');
+});
+
+test('REGRESSION GUARD: 41-stockchat-cockpit.js no longer carries the dead renderBandarmologySmartMoneyRadarView() view (zero call sites)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  // NOTE (2026-09-30): bandarUniqueMarketTickers()/bandarPrefetchMarketBatch()
+  // were almost deleted in this same audit pass as "dead code" (no direct
+  // call sites), but pre-existing regression tests elsewhere in this file
+  // (search "bandarPrefetchMarketBatch() is gone") document them as
+  // intentionally-preserved, disabled-but-not-removed code tied to a real
+  // "Page Unresponsive" incident fix — so they were restored and are
+  // deliberately NOT asserted-gone here.
+  assert(!/function renderBandarmologySmartMoneyRadarView/.test(src),
+    'REGRESSION: renderBandarmologySmartMoneyRadarView() is back — this dead view function had zero call sites');
+  assert(!/window\.renderBandarmologySmartMoneyRadarView = renderBandarmologySmartMoneyRadarView/.test(src),
+    'REGRESSION: the dead renderBandarmologySmartMoneyRadarView export is back');
+});
+
+test('REGRESSION GUARD: 41-stockchat-cockpit.js no longer carries the dead CLIENT_IDX_BROKERS ~20-broker hardcoded object (zero read-references; real enrichment is server-side IDX_BROKERS)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(!/var CLIENT_IDX_BROKERS = \{/.test(src),
+    'REGRESSION: CLIENT_IDX_BROKERS is back — this hardcoded broker-name object had zero read-references anywhere in the codebase (real broker enrichment happens server-side via IDX_BROKERS in generateBrokerSummary()), so it was pure dead weight and a future drift risk if anyone started using it instead of the server data');
+});
+
+test('REGRESSION GUARD: 38-ai-autonomous-trading.js scan-universe comment no longer claims a stale "default LQ45 (45 tickers)" when the real default is IDX80', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(!/default LQ45 \(45 tickers/.test(src),
+    'REGRESSION: the scan universe selector comment reverted to claiming a stale "default LQ45 (45 tickers)" — the real default and behavior is IDX80 (~85 tickers), and this could mislead a future maintainer into believing the scan covers fewer tickers than it does (or the wrong universe entirely)');
+});
+
+test('REGRESSION GUARD: 02-storage.js audit function/DOM id are honestly named checkSupabaseLiveSyncStatus/sh-supabase-audit-box, not the stale "Firebase" naming for a Supabase-backed check', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/02-storage.js'), 'utf8');
+  assert(!/checkFirebaseLiveSyncStatus/.test(src),
+    'REGRESSION: checkFirebaseLiveSyncStatus() is back — this app\'s live sync backend is Supabase, not Firebase; the stale name could mislead a future maintainer into thinking a Firebase integration exists or is being audited');
+  assert(!/sh-firebase-audit-box/.test(src),
+    'REGRESSION: the sh-firebase-audit-box DOM id is back — same stale-naming issue');
+  assert(/function checkSupabaseLiveSyncStatus/.test(src),
+    'REGRESSION: checkSupabaseLiveSyncStatus() is missing — the live sync audit function must be honestly named for the real backend it checks');
+  assert(/sh-supabase-audit-box/.test(src),
+    'REGRESSION: the sh-supabase-audit-box DOM id is missing');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "Sector Rotation Chart, bisa di
+// filter dengan tanggal mulai dan selesai"). from/to are the real,
+// already-documented Invezgo request params (see the schema comment above
+// fetchInvezgoSectorRotation() in lib/invezgo-client.js) — this just wires
+// a UI date-range filter through to them, honestly failing closed on a bad
+// range instead of guessing/silently ignoring it.
+// ═══════════════════════════════════════════════════════════════════════
+
+test('REGRESSION GUARD: fetchInvezgoSectorRotation() accepts an explicit from/to date range, validates format, and fails closed on from > to', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
+  assert(/async function fetchInvezgoSectorRotation\(toDate, fromDate\)/.test(src),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer accepts an explicit fromDate parameter — the date-range filter has nothing to pass through to');
+  const fnSrc = src.match(/async function fetchInvezgoSectorRotation[\s\S]*?\n\}\n/)[0];
+  assert(/INVEZGO_DATE_RE\.test\(toDate\)/.test(fnSrc) && /INVEZGO_DATE_RE\.test\(fromDate\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer validates toDate/fromDate against a YYYY-MM-DD format — a malformed value could silently reach the Invezgo request URL');
+  assert(/if \(userFrom && userFrom > to\) return \{ ok: false, reason: 'INVALID_DATE_RANGE' \}/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer fails closed with INVALID_DATE_RANGE when from > to');
+  assert(/const spanWeeks = Math\.ceil\(spanDays \/ 7\)/.test(fnSrc) && /tail = Math\.max\(1, Math\.min\(52, spanWeeks \|\| 1\)\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer derives the spec\'s own `tail` (trailing weekly points, 1-52) from the user\'s requested date range — root cause of the earlier bug where any custom from/to narrower than ~180 days returned honest-but-confusing NO_DATA (the smoothing calc needs length+tail weekly bars of real history, which a literal narrow from/to starves)');
+  assert(/const minCalendarDays = Math\.max\(180, Math\.ceil\(\(INVEZGO_ROTATION_LENGTH \+ tail\) \* 7 \* 1\.4\)\)/.test(fnSrc),
+    'REGRESSION: fetchInvezgoSectorRotation() no longer widens the actual Invezgo request window regardless of the user\'s requested display range — a user-narrowed literal from/to would starve the smoothing calculation again');
+});
+
+test('REGRESSION GUARD: generateSectorRotation() and GET /api/idx/sector-rotation pass through and validate the from/to date-range filter', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnSrc = engineSrc.match(/async function generateSectorRotation[\s\S]*?\n\}\n/)[0];
+  assert(/async function generateSectorRotation\(params\)/.test(engineSrc),
+    'REGRESSION: generateSectorRotation() no longer accepts a params argument — the server route has nothing to pass from/to through with');
+  assert(/fetchInvezgoSectorRotation\(to, from\)/.test(fnSrc),
+    'REGRESSION: generateSectorRotation() no longer forwards from/to to fetchInvezgoSectorRotation()');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const routeSrc = serverSrc.match(/app\.get\('\/api\/idx\/sector-rotation'[\s\S]*?\n\}\);/)[0];
+  assert(/IDX_DATE_QUERY_RE\.test\(from\)/.test(routeSrc) && /IDX_DATE_QUERY_RE\.test\(to\)/.test(routeSrc),
+    'REGRESSION: GET /api/idx/sector-rotation no longer validates ?from=/?to= against a YYYY-MM-DD format before use — a malformed query value could reach generateSectorRotation() unvalidated');
+  assert(/from > to/.test(routeSrc) && /status\(400\)/.test(routeSrc),
+    'REGRESSION: GET /api/idx/sector-rotation no longer rejects from > to with a 400 — an inverted range would silently fall through instead of failing closed');
+  assert(/generateSectorRotation\(\{ from, to \}\)/.test(routeSrc),
+    'REGRESSION: GET /api/idx/sector-rotation no longer passes the validated from/to query params through to generateSectorRotation()');
+});
+
+test('REGRESSION GUARD: Sector Rotation Chart (Market Flow) has a real date-range filter UI wired to the from/to query params, with client-side from>to validation', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/function bandarSectorRotationFilterHtml/.test(src),
+    'REGRESSION: bandarSectorRotationFilterHtml() is missing — the Sector Rotation Chart card no longer renders start/end date inputs');
+  assert(/id="bandar-rotation-from"/.test(src) && /id="bandar-rotation-to"/.test(src),
+    'REGRESSION: the Sector Rotation Chart date filter no longer has both a start and end date input');
+  assert(/function bandarApplySectorRotationDateFilter/.test(src),
+    'REGRESSION: bandarApplySectorRotationDateFilter() is missing — the "Terapkan" button has nothing to call');
+  assert(/if \(from && to && from > to\)/.test(src),
+    'REGRESSION: bandarApplySectorRotationDateFilter() no longer rejects a start date after the end date before firing a request');
+  assert(/function bandarResetSectorRotationDateFilter/.test(src),
+    'REGRESSION: bandarResetSectorRotationDateFilter() is missing — there is no way to clear the filter back to the default 180-day window');
+  assert(/qs\.push\('from=' \+ encodeURIComponent\(_bandarRotationFilter\.from\)\)/.test(src) && /qs\.push\('to=' \+ encodeURIComponent\(_bandarRotationFilter\.to\)\)/.test(src),
+    'REGRESSION: bandarLoadSectorRotationChart() no longer sends the selected from/to filter as query params to /api/idx/sector-rotation');
+  assert(/_bandarRotationCacheKey/.test(src) && /_bandarRotationFilter\.from \|\| ''/.test(src),
+    'REGRESSION: the Sector Rotation Chart in-memory cache no longer keys on the active date filter — switching the filter could silently show a stale, differently-filtered chart from cache');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FIX (2026-09-30, user-reported: "Aksi pada konsensus screener tidak
+// mengarah pada page manapun"). The "Detail" button on Screener Consensus
+// called selectStockChatTicker(ticker), which only sets the ticker and
+// re-renders StockChat's OWN internal DOM (#page-bandarmology content) —
+// it never navigates there, so clicking it from a different page (Screener
+// Consensus) did nothing visible. window.goStockIntelCockpit() is the
+// SSOT navigation helper already used elsewhere in the app (30-price-
+// alerts.js, 29-institutional-ui.js) for exactly this "jump to a ticker on
+// another page" case.
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: Screener Consensus "Detail" button actually navigates to Stock Intel via the real goStockIntelCockpit() helper, not a same-page-only ticker setter', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/50-screener-consensus.js'), 'utf8');
+  assert(!/onclick="selectStockChatTicker\(/.test(src),
+    'REGRESSION: the Detail button reverted to calling selectStockChatTicker(ticker) — that function only re-renders StockChat\'s own DOM in place, it never navigates there, so clicking Detail from Screener Consensus (a different page) does nothing visible');
+  assert(src.includes("window.goStockIntelCockpit"),
+    'REGRESSION: the Detail button no longer calls the real window.goStockIntelCockpit() navigation helper');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-09-30, user-requested: "Tambahkan filter sectoralnya untuk
+// hanya menampilkan sector yang dipilih, atau buat lebih advance menurut
+// rekomendasi anda"). Sector Rotation Chart (RRG) gains per-sector
+// show/hide chips — clicking a chip toggles that sector's trail/row out of
+// the chart+table below, re-rendered from the already-cached data (no
+// re-fetch). KPI cards above stay computed from the FULL market regardless
+// of the filter, since they're market-breadth context, not a drill-down.
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: Sector Rotation Chart has real per-sector show/hide chips that filter the chart/table without re-fetching, while KPI cards stay market-wide', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  assert(/function bandarRotationSectorChipsHtml/.test(src),
+    'REGRESSION: bandarRotationSectorChipsHtml() is missing — the Sector Rotation Chart no longer renders per-sector visibility chips');
+  assert(/function bandarToggleRotationSector/.test(src),
+    'REGRESSION: bandarToggleRotationSector() is missing — clicking a sector chip has nothing to call');
+  assert(/function bandarShowAllRotationSectors/.test(src),
+    'REGRESSION: bandarShowAllRotationSectors() is missing — there is no way to clear the sector-visibility filter');
+
+  const toggleFnSrc = src.match(/function bandarToggleRotationSector[\s\S]*?\n\}\n/)[0];
+  assert(/_bandarRerenderRotationFromCache\(\)/.test(toggleFnSrc),
+    'REGRESSION: bandarToggleRotationSector() no longer re-renders from the cached data — toggling a chip should never trigger a new network request');
+  const rerenderFnSrc = src.match(/function _bandarRerenderRotationFromCache[\s\S]*?\n\}\n/)[0];
+  assert(/_BANDAR_ROTATION_CACHE\.data/.test(rerenderFnSrc) && !/fetch\(/.test(rerenderFnSrc),
+    'REGRESSION: _bandarRerenderRotationFromCache() no longer re-renders purely from the in-memory cache — a sector-visibility toggle must stay a local, no-network operation');
+
+  const chartFnSrc = src.match(/function bandarRenderSectorRotationChart[\s\S]*?\n {2}_bandarRenderRotationTable\([^;]*\);\n\}\n/)[0];
+  assert(/var visibleSectors = sectors\.filter/.test(chartFnSrc),
+    'REGRESSION: bandarRenderSectorRotationChart() no longer derives a visibleSectors subset from _bandarRotationHiddenSectors');
+  assert(/_bandarRenderRotationSvg\(document\.getElementById\('bandar-rotation-svg-wrap'\), visibleSectors/.test(chartFnSrc),
+    'REGRESSION: the RRG scatter chart no longer respects the sector-visibility filter — it should draw only visibleSectors, not every sector unconditionally');
+  assert(/_bandarRenderRotationTable\(document\.getElementById\('bandar-rotation-table-wrap'\), visibleSectors/.test(chartFnSrc),
+    'REGRESSION: the sector table below the chart no longer respects the sector-visibility filter');
+  assert(/if \(!visibleSectors\.length\)/.test(chartFnSrc),
+    'REGRESSION: hiding every sector no longer shows an honest "semua sektor disembunyikan" message — it could instead silently render a broken/empty chart');
+  assert(/var kpiHtml = /.test(chartFnSrc) && chartFnSrc.indexOf('var kpiHtml = ') < chartFnSrc.indexOf('var visibleSectors ='),
+    'REGRESSION: the KPI cards are no longer computed before (i.e. independently of) the sector-visibility filter — they must always reflect the full market, not just the sectors currently shown');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-10-01, user-requested: "Lakukan evaluasi pada konsensus
+// screener, lakukan uji kebenaran, misalnya saham sudah masuk konsesus,
+// uji hari ke 1, 2 dan 3 apakah benar naik atau turun, sehingga screener
+// bisa dipercaya kebenaran dan prediksinya"). Track D: a dedicated
+// forward-validation log for Konsensus Screener membership — distinct
+// from Track B/C (which forward-test Unified Screener's own "confirmed"
+// signals over 20 days) — checking the real close at +1/+2/+3 trading
+// days, broken down by how many systems agreed (3/4/5).
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: Konsensus Screener forward-validation log (Track D) — logs today\'s consensus rows via Redis, resolves each horizon (d1/d2/d3) lazily on read, never resolves before its horizon matures', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function logTodaysConsensusSignals/.test(src), 'REGRESSION: logTodaysConsensusSignals() is gone');
+  assert(/async function resolveConsensusSignalLog/.test(src), 'REGRESSION: resolveConsensusSignalLog() is gone');
+  assert(/async function getConsensusSignalLogSummary/.test(src), 'REGRESSION: getConsensusSignalLogSummary() is gone');
+  assert(/const CONSENSUS_HORIZON_DAYS = \[1, 2, 3\]/.test(src), 'REGRESSION: the 3 checkpoints (day 1/2/3) the user explicitly asked for are gone — this must test exactly those, not an arbitrary single horizon');
+  assert(/if \(daysSince < d\) return; \/\/ not matured yet/.test(src), 'REGRESSION: resolveConsensusSignalLog() no longer guards against resolving a horizon before it has matured — this would fabricate a day-1/2/3 return from an incomplete window');
+  assert(/if \(!exitPoint\) return; \/\/ can't resolve honestly yet/.test(src), 'REGRESSION: resolveConsensusSignalLog() no longer stays honestly pending when there is no real history point yet for a matured horizon — it must never guess an exit price');
+  assert(/h\.outcome = h\.returnPct > 0 \? 'NAIK' : \(h\.returnPct < 0 \? 'TURUN' : 'FLAT'\)/.test(src), 'REGRESSION: the real NAIK/TURUN/FLAT outcome label the user explicitly asked for ("apakah benar naik atau turun") is gone');
+  assert(/logTodaysConsensusSignals,/.test(src) && /resolveConsensusSignalLog,/.test(src) && /getConsensusSignalLogSummary,/.test(src),
+    'REGRESSION: one or more Track D functions no longer exported from idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/logTodaysConsensusSignals\(\)/.test(serverSrc), 'REGRESSION: warm-technical-indicators cron no longer piggybacks the daily consensus-logging step (no 3rd cron slot exists on Vercel Hobby to replace it)');
+  assert(/app\.get\('\/api\/idx\/consensus-signal-log'/.test(serverSrc), 'REGRESSION: GET /api/idx/consensus-signal-log route is gone');
+});
+
+await asyncTest('BEHAVIOR: Konsensus Screener forward log round-trips cleanly with no Redis configured (in-memory fallback) and never double-logs the same day', async () => {
+  const engine = await import('./lib/idx-data-engine.js');
+  const before = await engine.getConsensusSignalLogSummary();
+  assert(before.success === true, 'getConsensusSignalLogSummary() did not report success:true');
+  assert(typeof before.totalEntries === 'number', 'totalEntries must be a number');
+  assert(before.byHorizon && before.byHorizon.d1 && before.byHorizon.d2 && before.byHorizon.d3,
+    'REGRESSION: getConsensusSignalLogSummary() no longer reports d1/d2/d3 buckets — the exact 3 checkpoints the user asked for');
+
+  const first = await engine.logTodaysConsensusSignals();
+  const second = await engine.logTodaysConsensusSignals();
+  assert(second.added === 0 && /already logged today/.test(second.reason || ''),
+    'REGRESSION: logTodaysConsensusSignals() double-logged the same day instead of skipping — would inflate/duplicate the forward-test log');
+});
+
+test('REGRESSION GUARD: Konsensus Screener page renders an "Uji Kebenaran" (forward-validation) section with day-1/2/3 win-rate, broken down by how many systems agreed', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/50-screener-consensus.js'), 'utf8');
+  assert(/function csLoadValidation/.test(src), 'REGRESSION: csLoadValidation() is gone');
+  assert(/function csRenderValidationSection/.test(src), 'REGRESSION: csRenderValidationSection() is gone');
+  assert(/cs-validation-mount/.test(src), 'REGRESSION: the validation section container is gone from csScreenerSubPageHtml()');
+  assert(/window\.csLoadValidation = csLoadValidation/.test(src), 'REGRESSION: csLoadValidation no longer exposed on window');
+  assert(/byAgreeCount/.test(src), 'REGRESSION: the per-agreeCount (3/4/5) breakdown the user asked for ("apakah makin banyak sistem setuju makin benar") is gone from the rendered section');
+  assert(/Belum ada riwayat/.test(src), 'REGRESSION: the honest "no data yet" fallback for a freshly-deployed log is gone — must never silently show an empty/misleading table');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-10-01, user-requested: "jelaskan bagaimana menjalankan
+// Money Watch Strategy Engine V1, apakah harus di masukan kode saham,
+// buat sinkron saja dengan portofolio sebagai opsi"). Strategy Engine V1
+// (public/js/49-strategy-engine.js) required manually typing a comma-
+// separated ticker list before every scan — this adds an explicit "Sinkron
+// Portofolio" button that fills that input from the user's REAL current
+// holdings (getPortfolio(), 03-engine.js) as a convenience, not a
+// replacement: it only fills the input, it never auto-runs the scan, so
+// the user can still edit the list or ignore the button and type tickers
+// manually as before.
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: Strategy Engine V1 has a "Sinkron Portofolio" option that fills (never auto-runs) the ticker input from the user\'s real holdings, and degrades honestly when the portfolio module or holdings are missing', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/49-strategy-engine.js'), 'utf8');
+  assert(/function seSyncFromPortfolio/.test(src), 'REGRESSION: seSyncFromPortfolio() is gone — there is no way to sync the ticker input from the portfolio anymore');
+  assert(/window\.seSyncFromPortfolio = seSyncFromPortfolio/.test(src), 'REGRESSION: seSyncFromPortfolio no longer exposed on window — the button\'s onclick would fail');
+  assert(/onclick="seSyncFromPortfolio\(\)"/.test(src), 'REGRESSION: no button wires to seSyncFromPortfolio() — the feature exists but is unreachable from the UI');
+
+  const fnSrc = src.match(/function seSyncFromPortfolio\(\)[\s\S]*?\n\}\n/)[0];
+  assert(/typeof getPortfolio !== 'function'/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() no longer guards against getPortfolio() not being loaded — would throw a ReferenceError instead of degrading honestly');
+  assert(/if \(!porto \|\| !porto\.length\)/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() no longer honestly handles an empty portfolio (0 holdings) — must not silently clear the ticker input or crash');
+  assert(/tickers\.slice\(0, 50\)/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() no longer caps synced tickers at 50 — a large portfolio could exceed seRunScan()\'s own 50-ticker quota guard with no warning');
+  assert(!/seRunScan\(\)/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() now auto-runs the scan — it must only fill the input (an Invezgo-calling scan should never fire without an explicit "Jalankan Scan" click)');
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FIX (2026-10-01, user-reported with screenshots: Stock Master 360's Step
+// 6 "Bandar Movement & Flow Cockpit" showed STRONG DISTRIBUTION (-31%) for
+// PORT while the SAME page's own composite verdict (BUY/ACCUMULATE) and
+// the Screener's whaleScore (Akumulasi Kuat) both read bullish for the
+// same ticker at the same time — root cause traced to dossierHarvestData()
+// fetching PORT's real ~6-month daily history from /api/idx/history?tf=SCAN
+// but only keeping it in this page's own local `harvested.history`
+// variable, NEVER writing it to RD_STORE (13-realdata.js) — the shared
+// cache fsGenData() (07-flowscan.js, feeds Step 6's CMF/VWAP/A-D widgets)
+// checks before falling back to a seeded-random SYNTHETIC candle series.
+// So Step 6 silently computed its "-31%" from fabricated noise even though
+// real data for the exact same ticker was already sitting in the browser.
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: dossierHarvestData() writes real fetched history into the shared RD_STORE cache (rdSave()), so Step 6\'s CMF/VWAP widgets reuse it instead of falling back to simulated candles for a ticker this page already fetched real data for', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  const fnSrc = src.match(/async function dossierHarvestData[\s\S]*?\n\}\n/)[0];
+  assert(/typeof rdSave === 'function'/.test(fnSrc), 'REGRESSION: dossierHarvestData() no longer writes the real history it just fetched into RD_STORE — Step 6\'s Smart Money Flow widget will silently fall back to fabricated/simulated candles for any ticker only ever viewed via Stock Dossier first, contradicting this same page\'s own composite verdict');
+  assert(/rdSave\(cleanTicker, rdRows\)/.test(fnSrc), 'REGRESSION: the rdSave() call for the real-history-to-shared-cache fix is gone');
+  assert(/return \{ date: p\.date, open: p\.o, high: p\.h, low: p\.l, close: p\.c, volume: p\.v \};/.test(fnSrc),
+    'REGRESSION: the row shape written to RD_STORE no longer matches what rdSave()/rdGet() expect ({date,open,high,low,close,volume}) — would silently corrupt the shared cache for every other RD_STORE consumer');
+  assert(/rdRows\.length >= 5/.test(fnSrc), 'REGRESSION: no longer guards against writing a too-short/empty real history into the shared cache');
 });
 
 console.log('═══════════════════════════════════════════════════════');

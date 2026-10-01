@@ -260,7 +260,13 @@ function getGlobalMarketPrice(ticker) {
   }
 
   // 5. Database Base Price in DB (01-data.js)
-  if (typeof DB !== 'undefined' && DB[tk] && DB[tk].base > 0) {
+  // FIX (2026-09-30, audit finding): DB[tk].base === 100 is a SENTINEL
+  // placeholder ("no real base price known yet" — see the merge logic
+  // below that only overwrites it when a real source has base > 100), not
+  // a real price. Hundreds of tickers in _IDX_RAW_LIST still carry it
+  // untouched. Returning it here presented a fabricated "Rp 100" as if it
+  // were a genuine market price — excluded now, falls through to 0.
+  if (typeof DB !== 'undefined' && DB[tk] && DB[tk].base > 0 && DB[tk].base !== 100) {
     return Number(DB[tk].base);
   }
 

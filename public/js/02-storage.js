@@ -2249,8 +2249,8 @@ function restoreFromBackup(file){
 // security rules). Reading the client's own row directly with the
 // already-authenticated Supabase client is both simpler and actually
 // authoritative.
-async function checkFirebaseLiveSyncStatus(){
-  var box = el('sh-firebase-audit-box');
+async function checkSupabaseLiveSyncStatus(){
+  var box = el('sh-supabase-audit-box');
   if(!box) return;
   box.style.display = 'block';
   box.innerHTML = '<div style="color:var(--text3);display:flex;align-items:center;gap:6px"><span>⏳ Mengaudit koneksi & data langsung ke Supabase Cloud...</span></div>';
@@ -2277,7 +2277,7 @@ async function checkFirebaseLiveSyncStatus(){
         <div style="color:var(--text2);font-size:11.5px;line-height:1.6;margin-bottom:10px">
           Portofolio Anda saat ini aktif dan tersimpan di penyimpanan lokal peramban ini, namun baris di Supabase untuk akun ini belum dibuat — belum ada cadangan cloud yang permanen.
         </div>
-        <button class="btn btn-blue btn-sm" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="padding:6px 14px;font-size:11.5px">
+        <button class="btn btn-blue btn-sm" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkSupabaseLiveSyncStatus(); })" style="padding:6px 14px;font-size:11.5px">
           Sinkronkan ke Supabase Sekarang
         </button>
       `;
@@ -2327,7 +2327,7 @@ async function checkFirebaseLiveSyncStatus(){
     box.innerHTML = '<div style="color:var(--red);font-size:11.5px">Gagal memeriksa status Supabase: ' + (e.message || e) + '</div>';
   }
 }
-window.checkFirebaseLiveSyncStatus = checkFirebaseLiveSyncStatus;
+window.checkSupabaseLiveSyncStatus = checkSupabaseLiveSyncStatus;
 
 function openSettingsHub(tab){
   var m = el('settings-hub-modal');
@@ -2420,16 +2420,16 @@ function shRenderContent(tab){
       </div>
 
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-        <button class="btn btn-blue" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkFirebaseLiveSyncStatus(); })" style="justify-content:center;padding:11px;font-weight:700;font-size:12.5px">
+        <button class="btn btn-blue" onclick="migrateLocalDataToSupabaseCloud(true).then(function(){ checkSupabaseLiveSyncStatus(); })" style="justify-content:center;padding:11px;font-weight:700;font-size:12.5px">
           Pindahkan / Sinkronkan Data ke Supabase Cloud Sekarang
         </button>
 
-        <button class="btn btn-ghost" onclick="checkFirebaseLiveSyncStatus()" style="justify-content:center;padding:10px;border-color:var(--accent);color:var(--accent);font-weight:600">
+        <button class="btn btn-ghost" onclick="checkSupabaseLiveSyncStatus()" style="justify-content:center;padding:10px;border-color:var(--accent);color:var(--accent);font-weight:600">
           Periksa Status Sinkronisasi Supabase Cloud (Live Audit)
         </button>
 
-        <div id="sh-firebase-audit-box" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px">
-          <!-- Injected dynamically by checkFirebaseLiveSyncStatus() -->
+        <div id="sh-supabase-audit-box" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px">
+          <!-- Injected dynamically by checkSupabaseLiveSyncStatus() -->
         </div>
 
         <button class="btn btn-ghost" onclick="fireLoadAllData().then(function(){ if(typeof showSaveStatus==='function') showSaveStatus('Data terbaru dimuat dari Cloud','var(--green)'); closeSettingsHub(); })" style="justify-content:center;padding:10px;border-color:var(--border)">

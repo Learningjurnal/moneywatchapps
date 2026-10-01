@@ -304,11 +304,24 @@ var QT_MONTHS=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov'
 // defaults to 'lq45' (fast, ~45 tickers, unchanged behavior for existing
 // users) with 'idx30'/'kompas100'/'all' (950+) selectable from the UI.
 var QT_SCREENER_UNIVERSE = null; // [{t,n,s,indexes}] seluruh BEI, dimuat sekali dari /api/idx/stocks
+var QT_SCREENER_UNIVERSE_LOADING = false;
 var QT_SCREENER_INDEX = 'lq45';
 
+// FIX (2026-09-30, audit finding): the 2026-09-17 fix above only ever
+// fetched QT_SCREENER_UNIVERSE when the user EXPLICITLY switched the
+// dropdown away from 'lq45' (scChangeUniverse()'s old `idx === 'lq45' ||
+// QT_SCREENER_UNIVERSE` short-circuit skipped the fetch entirely for the
+// default index) — and the very first screener render (goPage() below)
+// calls scBuildSim() directly, never scChangeUniverse(). Net effect: the
+// default "LQ45 (45 Bluechips)" view permanently scanned the 15-ticker
+// LQ45_STOCKS placeholder and never once fetched the real ~45-member LQ45
+// list unless a user happened to switch indexes and switch back. Fixed by
+// always fetching the real universe once (regardless of which index is
+// active) before building the screener — LQ45_STOCKS now only serves its
+// originally-intended purpose: a genuinely transient placeholder while
+// that one fetch is in flight, per this file's own comment above.
 function scResolveUniverseList() {
-  if (QT_SCREENER_INDEX === 'lq45' && !QT_SCREENER_UNIVERSE) return LQ45_STOCKS; // fast path: no fetch needed, matches pre-fix behavior exactly
-  if (!QT_SCREENER_UNIVERSE) return LQ45_STOCKS; // still loading — caller will re-run once loaded
+  if (!QT_SCREENER_UNIVERSE) return LQ45_STOCKS; // still loading — caller re-runs once loaded
   var idx = QT_SCREENER_INDEX;
   var filtered = QT_SCREENER_UNIVERSE.filter(function(s) {
     if (idx === 'all') return true;
@@ -317,23 +330,26 @@ function scResolveUniverseList() {
   return filtered.length ? filtered : LQ45_STOCKS; // never render an empty screener if a filter matches nothing
 }
 
-function scChangeUniverse(idx) {
-  QT_SCREENER_INDEX = idx;
-  if (idx === 'lq45' || QT_SCREENER_UNIVERSE) {
-    QT.scData = [];
-    scBuildSim();
-    return;
-  }
+function scEnsureUniverseLoaded(cb) {
+  if (QT_SCREENER_UNIVERSE || QT_SCREENER_UNIVERSE_LOADING) { if (cb) cb(); return; }
+  QT_SCREENER_UNIVERSE_LOADING = true;
   el('sc-status') && (el('sc-status').textContent = 'Memuat daftar saham BEI...');
   fetch('/api/idx/stocks').then(function(r) { return r.json(); }).then(function(json) {
     QT_SCREENER_UNIVERSE = (json && Array.isArray(json.data))
       ? json.data.map(function(s) { return { t: s.code, n: s.name || s.code, s: fsSectorLabel(s.sector) || s.sector || 'Lainnya', indexes: s.indexes || {} }; })
       : [];
-    QT.scData = [];
-    scBuildSim();
+    QT_SCREENER_UNIVERSE_LOADING = false;
+    if (cb) cb();
   }).catch(function(e) {
+    QT_SCREENER_UNIVERSE_LOADING = false;
     el('sc-status') && (el('sc-status').textContent = 'Gagal memuat daftar saham: ' + (e && e.message));
   });
+}
+
+function scChangeUniverse(idx) {
+  QT_SCREENER_INDEX = idx;
+  QT.scData = [];
+  scEnsureUniverseLoaded(scBuildSim);
 }
 
 // ── Page init hooks ──
@@ -341,7 +357,7 @@ var _origGoPage2 = window.goPage;
 window.goPage = function(page, btn){
   if(_origGoPage2) _origGoPage2.call(this, page, btn);
   if(page === 'backtester')   { /* auto nothing, wait for user */ }
-  if(page === 'screener')     { if(!QT.scData.length) scBuildSim(); else scRenderTable(); }
+  if(page === 'screener')     { if(!QT.scData.length) scEnsureUniverseLoaded(scBuildSim); else scRenderTable(); }
   if(page === 'correlation')  corrRender();
   if(page === 'monthly-returns') { if(typeof mrInitTickers==='function') mrInitTickers(); mrRender(); }
   if(page === 'pairs')        { /* wait */ }

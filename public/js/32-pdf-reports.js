@@ -102,7 +102,17 @@ function buildConsolidatedReportHtml() {
   var currentYear = new Date().getFullYear();
   var cagr = 0.12;
   var infl = 0.04;
-  var monthlyInv = (monthlyInc > monthlyExp) ? (monthlyInc - monthlyExp) : (5 * 1000000);
+  // FIX (2026-09-30, audit finding): sama seperti fix monthlyExp di atas —
+  // dulu kalau income belum diisi/kalah dari pengeluaran, monthlyInv diam-
+  // diam jatuh ke angka karangan Rp 5.000.000/bulan, lalu dipakai
+  // menghasilkan proyeksi net worth 20 tahun (angka Rupiah spesifik +
+  // status "✓ Reached") di Laporan Resmi seolah dihitung dari data user
+  // riil. Sekarang jujur: monthlyInv = 0 (bukan angka tebakan) kalau data
+  // income tidak tersedia/tidak mencukupi, dan proyeksi di bawah diberi
+  // disclosure eksplisit lewat monthlyInvAvailable (lihat pemakaian di
+  // bagian render tabel proyeksi).
+  var monthlyInvAvailable = monthlyInc > 0 && monthlyInc > monthlyExp;
+  var monthlyInv = monthlyInvAvailable ? (monthlyInc - monthlyExp) : 0;
 
   // Saham Rows
   var sortedPorto = porto.slice().sort(function(x, y) { return y.mv - x.mv; });
@@ -420,6 +430,9 @@ function buildConsolidatedReportHtml() {
     + '    <tbody>' + fireScenariosHtml + '</tbody>'
     + '  </table>'
     + '  <div style="font-size:10px;font-weight:700;color:#0f172a;margin:8px 0 4px">Simulasi Compound 20 Tahun (Return 12% p.a., Inflasi 4%)</div>'
+    + (monthlyInvAvailable
+        ? '  <div style="font-size:9px;color:#64748b;margin-bottom:6px">Asumsi setoran bulanan: ' + _mwPdfRp(monthlyInv) + ' (Pemasukan − Pengeluaran dari data Anda).</div>'
+        : '  <div style="font-size:9px;color:#b45309;margin-bottom:6px;font-weight:600">⚠ Data pemasukan bulanan belum diisi/tidak mencukupi — proyeksi di bawah mengasumsikan setoran tambahan Rp 0/bulan (compounding murni dari net worth saat ini), BUKAN estimasi kemampuan investasi Anda.</div>')
     + '  <table style="width:100%;border-collapse:collapse;font-size:9.5px;text-align:left;border:1px solid #cbd5e1">'
     + '    <thead><tr style="background:#f1f5f9;border-bottom:2px solid #cbd5e1;color:#334155"><th style="padding:5px 8px">HORIZON</th><th style="padding:5px 8px;text-align:right">NILAI NOMINAL</th><th style="padding:5px 8px;text-align:right">NILAI RIIL (INFLASI 4%)</th><th style="padding:5px 8px;text-align:center">STATUS TARGET</th></tr></thead>'
     + '    <tbody>' + projRows + '</tbody>'
