@@ -10772,6 +10772,30 @@ test('REGRESSION GUARD: Strategy Engine V1 has a "Sinkron Portofolio" option tha
   assert(!/seRunScan\(\)/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() now auto-runs the scan — it must only fill the input (an Invezgo-calling scan should never fire without an explicit "Jalankan Scan" click)');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FIX (2026-10-01, user-reported with screenshots: Stock Master 360's Step
+// 6 "Bandar Movement & Flow Cockpit" showed STRONG DISTRIBUTION (-31%) for
+// PORT while the SAME page's own composite verdict (BUY/ACCUMULATE) and
+// the Screener's whaleScore (Akumulasi Kuat) both read bullish for the
+// same ticker at the same time — root cause traced to dossierHarvestData()
+// fetching PORT's real ~6-month daily history from /api/idx/history?tf=SCAN
+// but only keeping it in this page's own local `harvested.history`
+// variable, NEVER writing it to RD_STORE (13-realdata.js) — the shared
+// cache fsGenData() (07-flowscan.js, feeds Step 6's CMF/VWAP/A-D widgets)
+// checks before falling back to a seeded-random SYNTHETIC candle series.
+// So Step 6 silently computed its "-31%" from fabricated noise even though
+// real data for the exact same ticker was already sitting in the browser.
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: dossierHarvestData() writes real fetched history into the shared RD_STORE cache (rdSave()), so Step 6\'s CMF/VWAP widgets reuse it instead of falling back to simulated candles for a ticker this page already fetched real data for', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+  const fnSrc = src.match(/async function dossierHarvestData[\s\S]*?\n\}\n/)[0];
+  assert(/typeof rdSave === 'function'/.test(fnSrc), 'REGRESSION: dossierHarvestData() no longer writes the real history it just fetched into RD_STORE — Step 6\'s Smart Money Flow widget will silently fall back to fabricated/simulated candles for any ticker only ever viewed via Stock Dossier first, contradicting this same page\'s own composite verdict');
+  assert(/rdSave\(cleanTicker, rdRows\)/.test(fnSrc), 'REGRESSION: the rdSave() call for the real-history-to-shared-cache fix is gone');
+  assert(/return \{ date: p\.date, open: p\.o, high: p\.h, low: p\.l, close: p\.c, volume: p\.v \};/.test(fnSrc),
+    'REGRESSION: the row shape written to RD_STORE no longer matches what rdSave()/rdGet() expect ({date,open,high,low,close,volume}) — would silently corrupt the shared cache for every other RD_STORE consumer');
+  assert(/rdRows\.length >= 5/.test(fnSrc), 'REGRESSION: no longer guards against writing a too-short/empty real history into the shared cache');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

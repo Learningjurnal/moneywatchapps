@@ -1217,6 +1217,34 @@ async function dossierHarvestData(ticker) {
           volume: p.v
         };
       });
+
+      // FIX (2026-10-01, user-reported: Step 6 Bandar Movement Cockpit's CMF
+      // widget showed "STRONG DISTRIBUTION" for PORT while this very page's
+      // own composite verdict and the Screener's whaleScore both read
+      // bullish — root cause traced to this exact fetch: the REAL ~6-month
+      // daily history this page just pulled from /api/idx/history?tf=SCAN
+      // was only ever kept in this page's own `harvested.history` variable,
+      // never written to RD_STORE (13-realdata.js), the SHARED cache
+      // fsGenData() (07-flowscan.js, feeds Step 6's CMF/VWAP/A-D widgets)
+      // checks before falling back to a seeded-random SYNTHETIC candle
+      // series for any ticker it has no real OHLCV cached for. So even
+      // though real data for this ticker was sitting in the browser the
+      // whole time, Step 6 had no way to know and silently computed its
+      // "-31%" from fabricated noise instead. hData.points already carries
+      // a real `date` (YYYY-MM-DD) string per bar (see yahoo-client.js) —
+      // reshaping into rdSave()'s expected {date,open,high,low,close,volume}
+      // rows and writing it through means every other RD_STORE consumer on
+      // this page (and any other page visited afterward in the same
+      // session) now sees the SAME real data this page already fetched,
+      // instead of recomputing/guessing independently.
+      if (typeof rdSave === 'function' && hData.points.length >= 5) {
+        var rdRows = hData.points
+          .filter(function(p) { return p && p.date; })
+          .map(function(p) {
+            return { date: p.date, open: p.o, high: p.h, low: p.l, close: p.c, volume: p.v };
+          });
+        if (rdRows.length >= 5) rdSave(cleanTicker, rdRows);
+      }
     } else if (hData && Array.isArray(hData.candles)) {
       harvested.history = hData.candles;
     } else if (Array.isArray(hData)) {
