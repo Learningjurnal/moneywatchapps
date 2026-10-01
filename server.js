@@ -32,6 +32,8 @@ import {
   logTodaysUnifiedScreenerSignals,
   getScreenerSignalLogSummary,
   getScreenerCalibrationReport,
+  logTodaysConsensusSignals,
+  getConsensusSignalLogSummary,
   warmTechnicalRotating,
   getUniverseAccumulationDistribution,
   getUniverseAccumulationDistributionRange,
@@ -4448,6 +4450,15 @@ app.get('/api/cron/warm-radar-fundamentals', async (req, res) => {
 // generateUnifiedScreener() pass — cache-only reads, no live Yahoo
 // fetches, should be fast, but never assume "fast enough" without a
 // margin on a 30s function).
+// FIX (2026-10-01, user-requested: "lakukan uji kebenaran [konsensus
+// screener]... hari ke 1, 2, dan 3"): also logs today's Konsensus
+// Screener rows for a SEPARATE forward-validation log (Track D — see
+// logTodaysConsensusSignals()/lib/idx-data-engine.js), same piggyback
+// reasoning as Track B above. generateScreenerConsensus() itself is a
+// whole-market pass too (cache-only reads given warmTechnicalRotating()
+// just ran, same cost class as Track B's own generateUnifiedScreener()
+// call) — budget trimmed again, 20s -> 15s, to keep headroom for BOTH
+// logging steps combined on a 30s function.
 app.get('/api/cron/warm-technical-indicators', async (req, res) => {
   const secret = process.env.CRON_SECRET;
   const authHeader = req.headers.authorization || '';
@@ -4455,7 +4466,7 @@ app.get('/api/cron/warm-technical-indicators', async (req, res) => {
     return res.status(403).json({ success: false, error: 'Forbidden' });
   }
   try {
-    const result = await warmTechnicalRotating(20000);
+    const result = await warmTechnicalRotating(15000);
     let signalLog = null;
     try {
       signalLog = await logTodaysUnifiedScreenerSignals();
@@ -4463,7 +4474,14 @@ app.get('/api/cron/warm-technical-indicators', async (req, res) => {
       console.error('[Screener Signal Log Cron Error]', logErr);
       signalLog = { added: 0, error: logErr.message };
     }
-    return res.json({ success: true, ...result, signalLog });
+    let consensusLog = null;
+    try {
+      consensusLog = await logTodaysConsensusSignals();
+    } catch (logErr) {
+      console.error('[Consensus Signal Log Cron Error]', logErr);
+      consensusLog = { added: 0, error: logErr.message };
+    }
+    return res.json({ success: true, ...result, signalLog, consensusLog });
   } catch (err) {
     console.error('[Technical Indicators Cron Error]', err);
     return res.status(500).json({ success: false, error: err.message });
@@ -4683,6 +4701,28 @@ app.get('/api/idx/screener-calibration-report', async (req, res) => {
     return res.json({ success: true, data });
   } catch (err) {
     console.error('[Screener Calibration Report Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/consensus-signal-log — Track D win-rate validation
+// (2026-10-01, user-requested: "lakukan uji kebenaran pada konsensus
+// screener... hari ke 1, 2 dan 3 apakah benar naik atau turun, sehingga
+// screener bisa dipercaya kebenaran dan prediksinya"). Returns the
+// Konsensus Screener forward-validation log's current state (per-horizon
+// d1/d2/d3 win-rate & avg return, broken down by how many systems
+// agreed), resolving any newly-matured horizon on read. See
+// getConsensusSignalLogSummary()/resolveConsensusSignalLog() (lib/idx-
+// data-engine.js) — this is a SEPARATE log from Track B/C above (those
+// forward-test Unified Screener's own "confirmed" signals over 20 days;
+// this one specifically tests Konsensus Screener membership over 1/2/3
+// days, the exact question the user asked).
+app.get('/api/idx/consensus-signal-log', async (req, res) => {
+  try {
+    const data = await getConsensusSignalLogSummary();
+    return res.json(data);
+  } catch (err) {
+    console.error('[Consensus Signal Log Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -10696,6 +10696,57 @@ test('REGRESSION GUARD: Sector Rotation Chart has real per-sector show/hide chip
     'REGRESSION: the KPI cards are no longer computed before (i.e. independently of) the sector-visibility filter — they must always reflect the full market, not just the sectors currently shown');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-10-01, user-requested: "Lakukan evaluasi pada konsensus
+// screener, lakukan uji kebenaran, misalnya saham sudah masuk konsesus,
+// uji hari ke 1, 2 dan 3 apakah benar naik atau turun, sehingga screener
+// bisa dipercaya kebenaran dan prediksinya"). Track D: a dedicated
+// forward-validation log for Konsensus Screener membership — distinct
+// from Track B/C (which forward-test Unified Screener's own "confirmed"
+// signals over 20 days) — checking the real close at +1/+2/+3 trading
+// days, broken down by how many systems agreed (3/4/5).
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: Konsensus Screener forward-validation log (Track D) — logs today\'s consensus rows via Redis, resolves each horizon (d1/d2/d3) lazily on read, never resolves before its horizon matures', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(/async function logTodaysConsensusSignals/.test(src), 'REGRESSION: logTodaysConsensusSignals() is gone');
+  assert(/async function resolveConsensusSignalLog/.test(src), 'REGRESSION: resolveConsensusSignalLog() is gone');
+  assert(/async function getConsensusSignalLogSummary/.test(src), 'REGRESSION: getConsensusSignalLogSummary() is gone');
+  assert(/const CONSENSUS_HORIZON_DAYS = \[1, 2, 3\]/.test(src), 'REGRESSION: the 3 checkpoints (day 1/2/3) the user explicitly asked for are gone — this must test exactly those, not an arbitrary single horizon');
+  assert(/if \(daysSince < d\) return; \/\/ not matured yet/.test(src), 'REGRESSION: resolveConsensusSignalLog() no longer guards against resolving a horizon before it has matured — this would fabricate a day-1/2/3 return from an incomplete window');
+  assert(/if \(!exitPoint\) return; \/\/ can't resolve honestly yet/.test(src), 'REGRESSION: resolveConsensusSignalLog() no longer stays honestly pending when there is no real history point yet for a matured horizon — it must never guess an exit price');
+  assert(/h\.outcome = h\.returnPct > 0 \? 'NAIK' : \(h\.returnPct < 0 \? 'TURUN' : 'FLAT'\)/.test(src), 'REGRESSION: the real NAIK/TURUN/FLAT outcome label the user explicitly asked for ("apakah benar naik atau turun") is gone');
+  assert(/logTodaysConsensusSignals,/.test(src) && /resolveConsensusSignalLog,/.test(src) && /getConsensusSignalLogSummary,/.test(src),
+    'REGRESSION: one or more Track D functions no longer exported from idx-data-engine.js');
+
+  const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  assert(/logTodaysConsensusSignals\(\)/.test(serverSrc), 'REGRESSION: warm-technical-indicators cron no longer piggybacks the daily consensus-logging step (no 3rd cron slot exists on Vercel Hobby to replace it)');
+  assert(/app\.get\('\/api\/idx\/consensus-signal-log'/.test(serverSrc), 'REGRESSION: GET /api/idx/consensus-signal-log route is gone');
+});
+
+await asyncTest('BEHAVIOR: Konsensus Screener forward log round-trips cleanly with no Redis configured (in-memory fallback) and never double-logs the same day', async () => {
+  const engine = await import('./lib/idx-data-engine.js');
+  const before = await engine.getConsensusSignalLogSummary();
+  assert(before.success === true, 'getConsensusSignalLogSummary() did not report success:true');
+  assert(typeof before.totalEntries === 'number', 'totalEntries must be a number');
+  assert(before.byHorizon && before.byHorizon.d1 && before.byHorizon.d2 && before.byHorizon.d3,
+    'REGRESSION: getConsensusSignalLogSummary() no longer reports d1/d2/d3 buckets — the exact 3 checkpoints the user asked for');
+
+  const first = await engine.logTodaysConsensusSignals();
+  const second = await engine.logTodaysConsensusSignals();
+  assert(second.added === 0 && /already logged today/.test(second.reason || ''),
+    'REGRESSION: logTodaysConsensusSignals() double-logged the same day instead of skipping — would inflate/duplicate the forward-test log');
+});
+
+test('REGRESSION GUARD: Konsensus Screener page renders an "Uji Kebenaran" (forward-validation) section with day-1/2/3 win-rate, broken down by how many systems agreed', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/50-screener-consensus.js'), 'utf8');
+  assert(/function csLoadValidation/.test(src), 'REGRESSION: csLoadValidation() is gone');
+  assert(/function csRenderValidationSection/.test(src), 'REGRESSION: csRenderValidationSection() is gone');
+  assert(/cs-validation-mount/.test(src), 'REGRESSION: the validation section container is gone from csScreenerSubPageHtml()');
+  assert(/window\.csLoadValidation = csLoadValidation/.test(src), 'REGRESSION: csLoadValidation no longer exposed on window');
+  assert(/byAgreeCount/.test(src), 'REGRESSION: the per-agreeCount (3/4/5) breakdown the user asked for ("apakah makin banyak sistem setuju makin benar") is gone from the rendered section');
+  assert(/Belum ada riwayat/.test(src), 'REGRESSION: the honest "no data yet" fallback for a freshly-deployed log is gone — must never silently show an empty/misleading table');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

@@ -103,6 +103,103 @@ function csRenderRow(row) {
     + '</tr>';
 }
 
+// ── Uji Kebenaran Konsensus (Track D forward-validation log) ────────────
+// User-requested (2026-10-01): "lakukan uji kebenaran, misalnya saham
+// sudah masuk konsesus, uji hari ke 1, 2 dan 3 apakah benar naik atau
+// turun, sehingga screener bisa dipercaya kebenaran dan prediksinya".
+// Consumes GET /api/idx/consensus-signal-log (getConsensusSignalLogSummary(),
+// lib/idx-data-engine.js) — a cron logs every ticker that enters Konsensus
+// Screener each trading day with its real entry price, then honestly
+// resolves the real close +1/+2/+3 trading days later (never estimated —
+// a horizon that hasn't matured yet, or has no history point yet, stays
+// "pending" and is retried later). This is the credibility check itself:
+// a win rate near 50% with ~0 alpha would mean the consensus signal is no
+// better than a coin flip, and that must be shown plainly, not hidden.
+var CS_VALIDATION_STATE = { loading: false, data: null, error: null };
+
+async function csLoadValidation() {
+  CS_VALIDATION_STATE.loading = true;
+  csRenderValidationSection();
+  try {
+    var res = await fetch('/api/idx/consensus-signal-log', { signal: AbortSignal.timeout(20000) });
+    var json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Gagal memuat uji kebenaran konsensus');
+    CS_VALIDATION_STATE.data = json;
+    CS_VALIDATION_STATE.error = null;
+  } catch (e) {
+    CS_VALIDATION_STATE.error = e.message;
+  } finally {
+    CS_VALIDATION_STATE.loading = false;
+    csRenderValidationSection();
+  }
+}
+
+var CS_HORIZON_LABEL = { d1: 'Hari ke-1', d2: 'Hari ke-2', d3: 'Hari ke-3' };
+
+function csHorizonRowHtml(label, stat) {
+  if (!stat || !stat.n) {
+    return '<tr><td>' + label + '</td><td colspan="4" style="color:var(--text3);font-size:11px">Belum ada yang matang (belum cukup hari bursa berlalu)</td></tr>';
+  }
+  var naikColor = stat.naikRate >= 50 ? 'var(--green)' : 'var(--red)';
+  return '<tr>'
+    + '<td>' + label + (stat.smallSample ? ' <span class="badge b-amb" style="font-size:8.5px;margin-left:4px" title="Sampel kecil (n<5), belum berarti secara statistik">n kecil</span>' : '') + '</td>'
+    + '<td class="mono" style="text-align:right">' + stat.n + '</td>'
+    + '<td class="mono" style="text-align:right;font-weight:700;color:' + naikColor + '">' + stat.naikRate.toFixed(1) + '%</td>'
+    + '<td class="mono" style="text-align:right;color:' + (stat.avgReturnPct >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (stat.avgReturnPct >= 0 ? '+' : '') + stat.avgReturnPct.toFixed(2) + '%</td>'
+    + '<td class="mono" style="text-align:right;color:' + (stat.avgAlphaPct == null ? 'var(--text3)' : (stat.avgAlphaPct >= 0 ? 'var(--green)' : 'var(--red)')) + '">' + (stat.avgAlphaPct == null ? '-' : ((stat.avgAlphaPct >= 0 ? '+' : '') + stat.avgAlphaPct.toFixed(2) + '%')) + '</td>'
+    + '</tr>';
+}
+
+function csRenderValidationSection() {
+  var mount = document.getElementById('cs-validation-mount');
+  if (!mount) return;
+
+  var infoIcon = (typeof uiInfoIcon === 'function') ? uiInfoIcon('Setiap hari bursa, cron mencatat saham yang MASUK Konsensus Screener hari itu (harga masuk real) sebagai sinyal pending. Harga penutupan riil +1/+2/+3 hari bursa berikutnya dicek otomatis begitu matang — kalau belum ada data histori untuk tanggal itu, tetap "pending", tidak pernah ditebak. "Alpha" = return saham dikurangi return IHSG periode yang sama (mengukur apakah sinyal ini lebih baik dari sekadar ikut pasar).') : '';
+  var header = '<div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;margin-bottom:10px">Uji Kebenaran Konsensus (Forward-Test Day 1/2/3)' + infoIcon + '</div>';
+
+  if (CS_VALIDATION_STATE.loading && !CS_VALIDATION_STATE.data) {
+    mount.innerHTML = '<div class="card" style="padding:16px">' + header + '<div style="font-size:11.5px;color:var(--text3)">Memuat riwayat forward-test...</div></div>';
+    return;
+  }
+  if (CS_VALIDATION_STATE.error) {
+    mount.innerHTML = '<div class="card" style="padding:16px">' + header + '<div style="font-size:11.5px;color:var(--text3)">Gagal memuat: ' + CS_VALIDATION_STATE.error + '</div></div>';
+    return;
+  }
+  var d = CS_VALIDATION_STATE.data;
+  if (!d || !d.totalEntries) {
+    mount.innerHTML = '<div class="card" style="padding:16px">' + header
+      + '<div style="font-size:11.5px;color:var(--text3)">Belum ada riwayat — cron harian baru mulai mencatat saham yang masuk Konsensus Screener setiap hari bursa. Hasil day-1/2/3 akan muncul di sini setelah beberapa hari bursa berjalan.</div></div>';
+    return;
+  }
+
+  var byHorizon = d.byHorizon || {};
+  var horizonRows = ['d1', 'd2', 'd3'].map(function (k) { return csHorizonRowHtml(CS_HORIZON_LABEL[k], byHorizon[k]); }).join('');
+  var horizonTable = '<div class="tbl-wrap" style="overflow-x:auto;margin-bottom:14px">'
+    + '<table class="tbl" style="width:100%;font-size:12px">'
+    + '<thead><tr><th>Horizon</th><th style="text-align:right">n</th><th style="text-align:right">% Naik</th><th style="text-align:right">Rata² Return</th><th style="text-align:right">Rata² Alpha vs IHSG</th></tr></thead>'
+    + '<tbody>' + horizonRows + '</tbody></table></div>';
+
+  var byAgree = d.byAgreeCount || [];
+  var agreeTable = '';
+  if (byAgree.length) {
+    var agreeRows = byAgree.map(function (row) {
+      var sub = ['d1', 'd2', 'd3'].map(function (k) { return csHorizonRowHtml(row.agreeCount + ' dari 5 sepakat — ' + CS_HORIZON_LABEL[k], row[k]); }).join('');
+      return sub;
+    }).join('');
+    agreeTable = '<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">Pecahan per Jumlah Sistem yang Sepakat</div>'
+      + '<div class="tbl-wrap" style="overflow-x:auto">'
+      + '<table class="tbl" style="width:100%;font-size:12px">'
+      + '<thead><tr><th>Horizon</th><th style="text-align:right">n</th><th style="text-align:right">% Naik</th><th style="text-align:right">Rata² Return</th><th style="text-align:right">Rata² Alpha vs IHSG</th></tr></thead>'
+      + '<tbody>' + agreeRows + '</tbody></table></div>';
+  }
+
+  mount.innerHTML = '<div class="card" style="padding:16px">' + header
+    + '<div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">' + d.totalEntries + ' sinyal tercatat total, ' + d.fullyResolvedCount + ' sudah matang penuh (hari ke-3 selesai).</div>'
+    + horizonTable + agreeTable
+    + '</div>';
+}
+window.csLoadValidation = csLoadValidation;
+
 function csRender() {
   var mount = document.getElementById('cs-mount');
   if (!mount) return;
@@ -153,12 +250,14 @@ function csRender() {
 }
 
 function csScreenerSubPageHtml() {
-  return '<div id="cs-mount"></div>';
+  return '<div id="cs-mount"></div><div id="cs-validation-mount" style="margin-top:14px"></div>';
 }
 
 function csInit() {
   if (!CS_STATE.data && !CS_STATE.loading) csLoad(CS_STATE.minAgree);
   else csRender();
+  if (!CS_VALIDATION_STATE.data && !CS_VALIDATION_STATE.loading) csLoadValidation();
+  else csRenderValidationSection();
 }
 
 if (typeof window !== 'undefined') {
