@@ -10747,6 +10747,31 @@ test('REGRESSION GUARD: Konsensus Screener page renders an "Uji Kebenaran" (forw
   assert(/Belum ada riwayat/.test(src), 'REGRESSION: the honest "no data yet" fallback for a freshly-deployed log is gone — must never silently show an empty/misleading table');
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// FEATURE (2026-10-01, user-requested: "jelaskan bagaimana menjalankan
+// Money Watch Strategy Engine V1, apakah harus di masukan kode saham,
+// buat sinkron saja dengan portofolio sebagai opsi"). Strategy Engine V1
+// (public/js/49-strategy-engine.js) required manually typing a comma-
+// separated ticker list before every scan — this adds an explicit "Sinkron
+// Portofolio" button that fills that input from the user's REAL current
+// holdings (getPortfolio(), 03-engine.js) as a convenience, not a
+// replacement: it only fills the input, it never auto-runs the scan, so
+// the user can still edit the list or ignore the button and type tickers
+// manually as before.
+// ═══════════════════════════════════════════════════════════════════════
+test('REGRESSION GUARD: Strategy Engine V1 has a "Sinkron Portofolio" option that fills (never auto-runs) the ticker input from the user\'s real holdings, and degrades honestly when the portfolio module or holdings are missing', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/49-strategy-engine.js'), 'utf8');
+  assert(/function seSyncFromPortfolio/.test(src), 'REGRESSION: seSyncFromPortfolio() is gone — there is no way to sync the ticker input from the portfolio anymore');
+  assert(/window\.seSyncFromPortfolio = seSyncFromPortfolio/.test(src), 'REGRESSION: seSyncFromPortfolio no longer exposed on window — the button\'s onclick would fail');
+  assert(/onclick="seSyncFromPortfolio\(\)"/.test(src), 'REGRESSION: no button wires to seSyncFromPortfolio() — the feature exists but is unreachable from the UI');
+
+  const fnSrc = src.match(/function seSyncFromPortfolio\(\)[\s\S]*?\n\}\n/)[0];
+  assert(/typeof getPortfolio !== 'function'/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() no longer guards against getPortfolio() not being loaded — would throw a ReferenceError instead of degrading honestly');
+  assert(/if \(!porto \|\| !porto\.length\)/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() no longer honestly handles an empty portfolio (0 holdings) — must not silently clear the ticker input or crash');
+  assert(/tickers\.slice\(0, 50\)/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() no longer caps synced tickers at 50 — a large portfolio could exceed seRunScan()\'s own 50-ticker quota guard with no warning');
+  assert(!/seRunScan\(\)/.test(fnSrc), 'REGRESSION: seSyncFromPortfolio() now auto-runs the scan — it must only fill the input (an Invezgo-calling scan should never fire without an explicit "Jalankan Scan" click)');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');
