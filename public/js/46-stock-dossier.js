@@ -173,9 +173,13 @@ function dossierComputeValuationScore(harvested) {
   }
 
   var quote = (harvested.quote && harvested.quote.quote) ? harvested.quote.quote : (harvested.quote || {});
+  // Gate on isSimulated BEFORE any math — a fabricated placeholder price must
+  // never feed Graham Number / fair value / Margin of Safety (same class of
+  // bug already fixed as INV-004 in lib/idx-data-engine.js computeStockSignal()).
+  var isValSim = Boolean(quote.isSimulated || (quote.quality && quote.quality.status === 'SIMULATION'));
   var fundObj = harvested.fundamentals || harvested.fund || quote.fundamentals || {};
   var qf = quote.fundamentals || fundObj;
-  var price = quote.price || (quote.close) || 0;
+  var price = (quote && !isValSim) ? (quote.price || quote.close || 0) : 0;
 
   var per = (qf.per !== undefined && qf.per !== null) ? Number(qf.per) :
             (qf.pe !== undefined && qf.pe !== null) ? Number(qf.pe) :
@@ -211,13 +215,15 @@ function dossierComputeValuationScore(harvested) {
   if (price <= 0 || (per === null && pbv === null && fairValue === null && mosPct === null)) {
     return {
       available: false,
-      status: 'DATA_UNAVAILABLE',
+      status: isValSim ? 'SIMULATION' : 'DATA_UNAVAILABLE',
       score: null,
       mosPct: null,
       fairValue: null,
       per: per,
       pbv: pbv,
-      reason: 'Data valuasi fundamental tidak mencukupi untuk menghitung margin of safety.'
+      reason: isValSim
+        ? 'Harga live tidak tersedia (kuota/koneksi Yahoo gagal) — menolak menghitung valuasi dari harga simulasi.'
+        : 'Data valuasi fundamental tidak mencukupi untuk menghitung margin of safety.'
     };
   }
 
@@ -251,7 +257,6 @@ function dossierComputeValuationScore(harvested) {
     score = Math.max(15, Math.min(95, subScore));
   }
 
-  var isValSim = Boolean(quote.isSimulated || (quote.quality && quote.quality.status === 'SIMULATION'));
   var perStr = per !== null && !isNaN(per) ? per.toFixed(1) + 'x' : '-';
   var pbvStr = pbv !== null && !isNaN(pbv) ? pbv.toFixed(2) + 'x' : '-';
 
@@ -731,6 +736,24 @@ function dossierComputeFundamentalScore(harvested) {
   var fund = harvested.fundamentals || harvested.fund || quote.fundamentals || {};
   var qf = quote.fundamentals || fund;
 
+  // Gate on isSimulated BEFORE any math — same class of bug already fixed as
+  // INV-004 (lib/idx-data-engine.js computeStockSignal()): a fabricated
+  // fundamentals envelope must never feed the ROE/DER/NPM/dividend score.
+  var isFundSim = Boolean((fund && fund.isSimulated) || (fund && fund.quality && fund.quality.status === 'SIMULATION'));
+  if (isFundSim) {
+    return {
+      available: false,
+      status: 'SIMULATION',
+      isSimulated: true,
+      score: null,
+      roe: null,
+      der: null,
+      npm: null,
+      divYield: null,
+      reason: 'Rasio fundamental (ROE/DER/NPM/Dividend) tidak tersedia secara real — menolak menghitung skor dari data simulasi.'
+    };
+  }
+
   var roe = (qf.roe !== undefined && qf.roe !== null) ? Number(qf.roe) : ((fund.roe !== undefined && fund.roe !== null) ? Number(fund.roe) : null);
   var der = (qf.der !== undefined && qf.der !== null) ? Number(qf.der) : ((fund.der !== undefined && fund.der !== null) ? Number(fund.der) : null);
   var npm = (qf.npm !== undefined && qf.npm !== null) ? Number(qf.npm) :
@@ -805,18 +828,16 @@ function dossierComputeFundamentalScore(harvested) {
   if (roe !== null && !isNaN(roe) && roe < 0) fundWarnings.push('Rugi Bersih');
   var fundWarningSuffix = fundWarnings.length > 0 ? ' [' + fundWarnings.join(', ') + ']' : '';
 
-  var isFundSim = Boolean((fund && fund.isSimulated) || (fund && fund.quality && fund.quality.status === 'SIMULATION'));
-
   return {
     available: true,
-    status: isFundSim ? 'SIMULATION' : 'REAL',
-    isSimulated: isFundSim,
+    status: 'REAL',
+    isSimulated: false,
     score: score,
     roe: roe !== null && !isNaN(roe) ? Math.round(roe * 10) / 10 : null,
     der: der !== null && !isNaN(der) ? Math.round(der * 100) / 100 : null,
     npm: npm !== null && !isNaN(npm) ? Math.round(npm * 10) / 10 : null,
     divYield: divYield !== null && !isNaN(divYield) ? Math.round(divYield * 10) / 10 : null,
-    reason: ((isFundSim ? '[SIMULASI] ' : '') + 'ROE: ' + (roe !== null && !isNaN(roe) ? roe.toFixed(1) + '%' : '-') +
+    reason: ('ROE: ' + (roe !== null && !isNaN(roe) ? roe.toFixed(1) + '%' : '-') +
             ' · DER: ' + (der !== null && !isNaN(der) ? der.toFixed(2) + 'x' : '-') +
             (npm !== null && !isNaN(npm) ? ' · NPM: ' + npm.toFixed(1) + '%' : '') +
             ' · Div Yield: ' + (divYield !== null && !isNaN(divYield) ? divYield.toFixed(1) + '%' : '-')) + fundWarningSuffix

@@ -820,10 +820,13 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div>'
 
     // Card 4: Smart Money Net Flow
+    // Gate on data.isSimulated / empty buyer list BEFORE falling back — a
+    // hardcoded 'AK, BK' must never stand in for real broker codes (same
+    // class of bug already fixed as INV-004 in lib/idx-data-engine.js).
     + '<div class="metric">'
     + '<div class="mlabel">SMART MONEY NET FLOW</div>'
     + '<div class="mval mono ' + (smartMoneyNet >= 0 ? 'up' : 'dn') + '" style="font-size:20px">' + (smartMoneyNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smartMoneyNet / 1000000000)).toLocaleString('id-ID') + ' M</div>'
-    + '<div class="msub neu truncate">' + (smartMoneyBuyBrokers.slice(0, 2).map(function(x){return x.broker;}).join(', ') || 'AK, BK') + ' Accumulating</div>'
+    + '<div class="msub neu truncate">' + ((!data.isSimulated && smartMoneyBuyBrokers.length) ? smartMoneyBuyBrokers.slice(0, 2).map(function(x){return x.broker;}).join(', ') + ' Accumulating' : 'Data broker tidak tersedia') + '</div>'
     + '</div>'
     + '</div>';
 
@@ -839,13 +842,16 @@ function renderAggregatedBrokerFlowView(data) {
   var instRatioPct = Math.min(Math.max(Math.round((smartMoneyBuyVal / totalFlow) * 100), 5), 95);
   var retRatioPct = 100 - instRatioPct;
 
-  var instBrokerPills = (smartMoneyBuyBrokers.slice(0, 5).map(function(x){
+  // Gate on data.isSimulated / empty broker list BEFORE falling back —
+  // hardcoded broker-code pills must never stand in for real broker codes
+  // (same class of bug already fixed as INV-004 in lib/idx-data-engine.js).
+  var instBrokerPills = (!data.isSimulated && smartMoneyBuyBrokers.length) ? smartMoneyBuyBrokers.slice(0, 5).map(function(x){
     return '<span style="background:rgba(16,185,129,0.12);color:#10B981;border:1px solid rgba(16,185,129,0.25);padding:2px 6px;border-radius:4px;font-size:9.5px;font-family:var(--font-mono);font-weight:700">' + x.broker + '</span>';
-  }).join(' ')) || '<span style="color:var(--text3);font-size:10px">AK, BK, ZP</span>';
+  }).join(' ') : '<span style="color:var(--text3);font-size:10px">Tidak tersedia</span>';
 
-  var retBrokerPills = (retailSellBrokers.slice(0, 5).map(function(x){
+  var retBrokerPills = (!data.isSimulated && retailSellBrokers.length) ? retailSellBrokers.slice(0, 5).map(function(x){
     return '<span style="background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.25);padding:2px 6px;border-radius:4px;font-size:9.5px;font-family:var(--font-mono);font-weight:700">' + x.broker + '</span>';
-  }).join(' ')) || '<span style="color:var(--text3);font-size:10px">YP, PD, XC</span>';
+  }).join(' ') : '<span style="color:var(--text3);font-size:10px">Tidak tersedia</span>';
 
   html += '<div class="card" style="padding:18px;margin-bottom:14px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">'
@@ -3499,14 +3505,20 @@ function renderBandarmologySmartMoneyRadarView(tk) {
   var retSellVal = retSellers.reduce(function(a, s) { return a + (s.valueRp || 0); }, 0);
   var retNet = retBuyVal - retSellVal;
 
-  var smScore = b.score || 80;
-  var smDominance = (b.concentration && (b.concentration.top3BuyerPct || b.concentration.top3BuyPct)) || 68;
-  var smBuyBrokersText = smBuyers.map(function(x){ return x.broker; }).join(', ') || 'AK, BK, CC';
-  var retSellBrokersText = retSellers.map(function(x){ return x.broker; }).join(', ') || 'YP, PD, XC';
+  // Gate on isSimulated BEFORE building display strings — same class of bug
+  // already fixed as INV-004 (lib/idx-data-engine.js computeStockSignal()):
+  // a simulated bData must never feed a fabricated score/dominance/broker
+  // name that looks like a real reading (CLAUDE.md #3 — a "SIMULASI" label
+  // doesn't excuse showing precision-looking invented numbers).
+  var isBandarSim = bData.isSimulated !== false;
+  var smScore = (!isBandarSim && b.score != null) ? b.score : null;
+  var smDominance = (!isBandarSim && b.concentration && (b.concentration.top3BuyerPct || b.concentration.top3BuyPct)) || null;
+  var smBuyBrokersText = (!isBandarSim && smBuyers.length) ? smBuyers.map(function(x){ return x.broker; }).join(', ') : '';
+  var retSellBrokersText = (!isBandarSim && retSellers.length) ? retSellers.map(function(x){ return x.broker; }).join(', ') : '';
 
-  var isBullishDivergence = smNet > 0 && retNet < 0;
-  var divStatus = isBullishDivergence ? 'BULLISH DIVERGENCE (SMART MONEY INFLOW)' : (smNet < 0 && retNet > 0 ? 'BEARISH DIVERGENCE (DISTRIBUTION TO RETAIL)' : 'NEUTRAL ROTATION');
-  var divDesc = isBullishDivergence ? 'Institusi menyerap barang konsisten sementara investor ritel melepas posisi' : 'Pergerakan harga sejalan dengan distribusi / akumulasi standar';
+  var isBullishDivergence = !isBandarSim && smNet > 0 && retNet < 0;
+  var divStatus = isBandarSim ? 'DATA TIDAK TERSEDIA' : (isBullishDivergence ? 'BULLISH DIVERGENCE (SMART MONEY INFLOW)' : (smNet < 0 && retNet > 0 ? 'BEARISH DIVERGENCE (DISTRIBUTION TO RETAIL)' : 'NEUTRAL ROTATION'));
+  var divDesc = isBandarSim ? 'Belum ada data broker summary real untuk ticker ini.' : (isBullishDivergence ? 'Institusi menyerap barang konsisten sementara investor ritel melepas posisi' : 'Pergerakan harga sejalan dengan distribusi / akumulasi standar');
 
   var html = bandarDataBanner(bData.isSimulated === false ? 1 : 0, 1)
     + '<div class="card" style="padding:16px">'
@@ -3517,20 +3529,20 @@ function renderBandarmologySmartMoneyRadarView(tk) {
     + '</div>'
     + '<div style="font-size:11px;color:var(--text3);margin-top:2px">Deteksi divergensi akumulasi tersembunyi (silent accumulation) vs aliran ritel reguler</div>'
     + '</div>'
-    + '<span class="badge b-up" style="font-size:10px;font-weight:700">SMART MONEY SCORE: ' + smScore + '/100</span>'
+    + '<span class="badge b-up" style="font-size:10px;font-weight:700">SMART MONEY SCORE: ' + (smScore != null ? smScore + '/100' : 'N/A') + '</span>'
     + '</div>'
 
     + '<div class="row4" style="margin-bottom:12px">'
     + '<div class="metric">'
     + '<div class="mlabel">1. DOMINANSI INSTITUSI / WHALE</div>'
-    + '<div class="mval up mono" style="font-size:16px">WHALE DOMINANT (' + smDominance + '%)</div>'
-    + '<div class="msub neu">Akumulator: <strong class="mono" style="color:var(--text)">' + smBuyBrokersText + '</strong> (+Rp ' + Math.abs(Math.round(smNet/1000000000)) + 'M)</div>'
+    + '<div class="mval ' + (smDominance != null ? 'up' : 'neu') + ' mono" style="font-size:16px">' + (smDominance != null ? 'WHALE DOMINANT (' + smDominance + '%)' : 'DATA TIDAK TERSEDIA') + '</div>'
+    + '<div class="msub neu">Akumulator: <strong class="mono" style="color:var(--text)">' + (smBuyBrokersText || '-') + '</strong>' + (!isBandarSim ? ' (+Rp ' + Math.abs(Math.round(smNet/1000000000)) + 'M)' : '') + '</div>'
     + '</div>'
 
     + '<div class="metric">'
     + '<div class="mlabel">2. RETAIL SENTIMENT FOOTPRINT</div>'
-    + '<div class="mval ' + (retNet < 0 ? 'amb' : 'down') + ' mono" style="font-size:16px">' + (retNet < 0 ? 'RETAIL SELLING' : 'RETAIL ABSORBING') + '</div>'
-    + '<div class="msub neu">Broker Ritel: <strong class="mono" style="color:var(--text)">' + retSellBrokersText + '</strong></div>'
+    + '<div class="mval ' + (isBandarSim ? 'neu' : (retNet < 0 ? 'amb' : 'down')) + ' mono" style="font-size:16px">' + (isBandarSim ? 'DATA TIDAK TERSEDIA' : (retNet < 0 ? 'RETAIL SELLING' : 'RETAIL ABSORBING')) + '</div>'
+    + '<div class="msub neu">Broker Ritel: <strong class="mono" style="color:var(--text)">' + (retSellBrokersText || '-') + '</strong></div>'
     + '</div>'
 
     + '<div class="metric">'
@@ -3542,7 +3554,9 @@ function renderBandarmologySmartMoneyRadarView(tk) {
 
     + '<div style="padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:12px;line-height:1.5;color:var(--text2)">'
     + '<div style="font-weight:700;color:var(--green);margin-bottom:4px;display:flex;align-items:center;gap:4px">Kesimpulan AI Smart Money &amp; Bandarmology:</div>'
-    + 'Smart Money terdeteksi aktif pada saham <strong class="mono" style="color:var(--text)">' + ticker + '</strong> dengan net institutional flow <strong class="up mono">' + (smNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smNet/1000000000)).toLocaleString('id-ID') + ' Miliar</strong>. Broker institusi utama (<span class="mono" style="color:var(--text)">' + smBuyBrokersText + '</span>) mendominasi konsentrasi akumulasi.'
+    + (isBandarSim
+        ? 'Belum ada data broker summary real untuk <strong class="mono" style="color:var(--text)">' + ticker + '</strong> — tidak ada kesimpulan yang bisa ditarik sampai data real tersedia.'
+        : 'Smart Money terdeteksi aktif pada saham <strong class="mono" style="color:var(--text)">' + ticker + '</strong> dengan net institutional flow <strong class="up mono">' + (smNet >= 0 ? '+Rp ' : '-Rp ') + Math.abs(Math.round(smNet/1000000000)).toLocaleString('id-ID') + ' Miliar</strong>. Broker institusi utama (<span class="mono" style="color:var(--text)">' + (smBuyBrokersText || '-') + '</span>) mendominasi konsentrasi akumulasi.')
     + '</div>'
     + '</div>';
   return html;

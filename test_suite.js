@@ -850,6 +850,38 @@ test('REGRESSION GUARD: 41-stockchat-cockpit.js broker tables must guard avgPric
   assert.strictEqual(guardedCount, 2, 'Expected both the Top Buyer and Top Seller table price-spread calcs to carry the avgPrice>0 guard');
 });
 
+// ── TEST 31b: Smart Money Radar / Aggregated Broker Flow must gate on
+// isSimulated before showing a score/broker-name as if real (2026-10-01
+// audit — same class of bug already fixed as INV-004 in
+// lib/idx-data-engine.js computeStockSignal()). Before this fix,
+// renderBandarmologySmartMoneyRadarView() fell back to a hardcoded
+// "SMART MONEY SCORE: 80/100" / "WHALE DOMINANT (68%)" / real broker codes
+// ('AK, BK, CC' / 'YP, PD, XC') whenever bData had no real score/brokers —
+// including when bData.isSimulated is true — making a fabricated reading
+// indistinguishable from a real one. renderAggregatedBrokerFlowView() had
+// the identical pattern for its Smart Money Net Flow card and Broker
+// Mutation Flow Spectrum pills ('AK, BK' / 'AK, BK, ZP' / 'YP, PD, XC').
+test('REGRESSION GUARD: renderBandarmologySmartMoneyRadarView() must gate smScore/smDominance/broker names on isSimulated, never fall back to a fabricated 80/68/AK-BK-CC', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function renderBandarmologySmartMoneyRadarView\([\s\S]*?\n}\n/);
+  assert(fnMatch, 'REGRESSION: could not locate renderBandarmologySmartMoneyRadarView() in 41-stockchat-cockpit.js');
+  const fnSrc = fnMatch[0];
+  assert(/var isBandarSim = bData\.isSimulated !== false;/.test(fnSrc), 'REGRESSION: the isSimulated gate (isBandarSim) is missing — score/dominance/broker fields are unguarded again');
+  assert(!/b\.score \|\| 80/.test(fnSrc), 'REGRESSION: smScore fell back to a fabricated flat 80 again, bypassing the isSimulated gate');
+  assert(!/\|\| 68;/.test(fnSrc), 'REGRESSION: smDominance fell back to a fabricated flat 68% again, bypassing the isSimulated gate');
+  assert(!/'AK, BK, CC'/.test(fnSrc) && !/'YP, PD, XC'/.test(fnSrc), 'REGRESSION: smart-money/retail broker codes fell back to fabricated real broker names again');
+});
+test('REGRESSION GUARD: renderAggregatedBrokerFlowView() must gate Smart Money Net Flow / Broker Mutation pills on data.isSimulated, never fall back to fabricated AK/BK/ZP/YP/PD/XC broker codes', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/41-stockchat-cockpit.js'), 'utf8');
+  const fnMatch = src.match(/function renderAggregatedBrokerFlowView\(data\) \{[\s\S]*?\n  var retBrokerPills[\s\S]*?\n\n/);
+  assert(fnMatch, 'REGRESSION: could not locate renderAggregatedBrokerFlowView() body (through retBrokerPills) in 41-stockchat-cockpit.js');
+  const fnSrc = fnMatch[0];
+  assert(!/\|\| 'AK, BK'/.test(fnSrc), "REGRESSION: Smart Money Net Flow card fell back to a fabricated 'AK, BK' again, bypassing the isSimulated gate");
+  assert(!/'AK, BK, ZP'/.test(fnSrc) && !/'YP, PD, XC'/.test(fnSrc), 'REGRESSION: Broker Mutation Flow Spectrum pills fell back to fabricated broker codes again');
+  const simGuardCount = (fnSrc.match(/!data\.isSimulated/g) || []).length;
+  assert(simGuardCount >= 3, `REGRESSION: expected the Smart Money Net Flow card + both broker-pill blocks to all check !data.isSimulated (found ${simGuardCount})`);
+});
+
 // ── TEST 32: double-submit guard on every modal "Konfirmasi/Simpan" button ──
 // public/js/05-assets.js can't safely run under Node either (same ~20
 // implicit-global problem as TEST 29-31), so this locks down the contract
@@ -4926,6 +4958,52 @@ test('MASTER DOSSIER: Individual pillar scoring models behave within valid quant
   assert.strictEqual(regimeResEmpty.score, 55, 'Empty regime should fallback safely to neutral sideways (55) without crashing');
 });
 
+// REGRESSION (2026-10-01 audit): dossierComputeValuationScore()/
+// dossierComputeFundamentalScore() used to compute their precise score/
+// Margin-of-Safety/ROE-DER-NPM numbers from `quote`/`fund` BEFORE checking
+// isSimulated — the flag was only read afterward to pick a display label
+// ('SIMULATION' vs 'REAL'), never to gate the math itself. Same class of
+// bug already fixed as INV-004 in lib/idx-data-engine.js computeStockSignal()
+// (a simulated quote must be treated as "no live data", not a usable input).
+test('REGRESSION GUARD: dossierComputeValuationScore() refuses to compute a score/fair-value/MoS from a simulated quote', () => {
+  const dossier = getDossierContext();
+  const valSimulated = {
+    quote: { price: 8000, isSimulated: true, fundamentals: { per: 12, pbv: 1.5, eps: 800, bvps: 5500 } }
+  };
+  const res = dossier.dossierComputeValuationScore(valSimulated);
+  assert.strictEqual(res.available, false, 'REGRESSION: a simulated quote must not produce an available:true valuation score');
+  assert.strictEqual(res.score, null, 'REGRESSION: score must be null, not computed from a fabricated price');
+  assert.strictEqual(res.status, 'SIMULATION', 'REGRESSION: status must honestly disclose SIMULATION');
+
+  // Sanity: the exact same inputs with isSimulated:false must still produce
+  // the real computed score — proves this is a gate, not a blanket break.
+  const valReal = {
+    quote: { price: 8000, isSimulated: false, fundamentals: { per: 12, pbv: 1.5, eps: 800, bvps: 5500 } }
+  };
+  const resReal = dossier.dossierComputeValuationScore(valReal);
+  assert.strictEqual(resReal.available, true, 'A real (non-simulated) quote must still compute a valuation score normally');
+  assert(typeof resReal.score === 'number', 'A real quote must still produce a numeric score');
+});
+test('REGRESSION GUARD: dossierComputeFundamentalScore() refuses to compute a score from simulated ROE/DER/NPM/dividend fundamentals', () => {
+  const dossier = getDossierContext();
+  const fundSimulated = {
+    quote: { fundamentals: { roe: 18.5, der: 0.65, npm: 22.0, dividendYield: 4.8, isSimulated: true } }
+  };
+  const res = dossier.dossierComputeFundamentalScore(fundSimulated);
+  assert.strictEqual(res.available, false, 'REGRESSION: simulated fundamentals must not produce an available:true score');
+  assert.strictEqual(res.score, null, 'REGRESSION: score must be null, not computed from fabricated ROE/DER/NPM');
+  assert.strictEqual(res.isSimulated, true, 'REGRESSION: isSimulated must be honestly disclosed as true');
+
+  // Sanity: the exact same inputs with isSimulated:false must still compute
+  // the real score (matches the existing "Strong ROE/low DER" test above).
+  const fundReal = {
+    quote: { fundamentals: { roe: 18.5, der: 0.65, npm: 22.0, dividendYield: 4.8, isSimulated: false } }
+  };
+  const resReal = dossier.dossierComputeFundamentalScore(fundReal);
+  assert.strictEqual(resReal.available, true, 'A real (non-simulated) fundamentals object must still compute a score normally');
+  assert(resReal.score >= 80, `Strong ROE and low DER must still score >= 80 when not simulated (got ${resReal.score})`);
+});
+
 // User-reported (2026-09-18): Stock Dossier's "Kepemilikan Kustodian KSEI"
 // pillar showed "DATA TIDAK TERSEDIA" for major tickers (BBCA/BBRI/GGRM)
 // even though the app already has a working, live Invezgo endpoint for
@@ -8959,6 +9037,36 @@ await asyncTest('REGRESSION GUARD: server.js batches Yahoo quote fetches in /api
   assert(peakInFlight <= 8, 'REGRESSION: peak concurrent fetchYahooQuote() calls was ' + peakInFlight + ' (>8) — fetchYahooQuoteBatched() is bursting past its batch size');
   assert.strictEqual(results.length, 19, 'expected one result per input ticker, got ' + results.length);
   assert(results.every(r => r.status === 'fulfilled'), 'expected all fake fetches to resolve as fulfilled');
+});
+
+// REGRESSION (2026-10-01 audit): GET /api/idx/screener already gated its
+// per/pbv/roe/der/npm/dividendYield fields on `!q.isSimulated` (INV-004/
+// INV-009 comment above them), but price/changePercent/volume/marketCap in
+// the SAME row object were read straight off `q` with no such gate — a
+// simulated quote's basePrice-derived price, flat 0% change, flat
+// 1,000,000 volume, and price-derived marketCap (all fabricated, see
+// lib/providers/yahoo-client.js's isSimulated placeholder) leaked through
+// as if real, even though the row's own `isSimulated` flag said otherwise.
+test('REGRESSION GUARD: GET /api/idx/screener gates price/changePercent/marketCap/volume on q.isSimulated, same as the fundamentals fields', () => {
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const screenerRouteMatch = fullSrc.match(/app\.get\('\/api\/idx\/screener'[\s\S]*?\n\}\);/);
+  assert(screenerRouteMatch, 'GET /api/idx/screener route not found');
+  const routeSrc = screenerRouteMatch[0];
+
+  assert(/price: \(q && !q\.isSimulated\) \? \(q\.price \|\| 0\) : \(base\.basePrice \|\| 0\)/.test(routeSrc),
+    'REGRESSION: price is no longer gated on q.isSimulated — a fabricated simulated price can leak through again');
+  assert(/changePercent: \(q && !q\.isSimulated\) \? \(q\.changePercent \|\| 0\) : 0/.test(routeSrc),
+    'REGRESSION: changePercent is no longer gated on q.isSimulated');
+  assert(/volume: \(q && !q\.isSimulated\) \? \(q\.volume \|\| 0\) : 0/.test(routeSrc),
+    'REGRESSION: volume is no longer gated on q.isSimulated — the simulated placeholder\'s flat 1,000,000 volume can leak through again');
+  assert(/marketCap: \(q && !q\.isSimulated && q\.marketCap != null\) \? q\.marketCap : /.test(routeSrc),
+    'REGRESSION: marketCap is no longer gated on q.isSimulated — a price-derived fabricated market cap can leak through again');
+
+  // The original fundamentals gate (already correct) must still be intact.
+  ['per', 'pbv', 'roe', 'der', 'npm', 'dividendYield'].forEach((field) => {
+    assert(new RegExp(field + ': \\(q && !q\\.isSimulated\\) \\? \\(q\\.fundamentals\\?\\.' + field).test(routeSrc),
+      `REGRESSION: the pre-existing isSimulated gate for ${field} is gone`);
+  });
 });
 
 // ============================================================

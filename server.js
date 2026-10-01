@@ -4125,12 +4125,20 @@ app.get('/api/idx/screener', async (req, res) => {
         name: base.name,
         sector: base.sector,
         board: base.board,
-        price: q?.price || base.basePrice || 0,
-        changePercent: q?.changePercent || 0,
+        // Gate on q.isSimulated BEFORE reading price/changePercent/marketCap/
+        // volume — same class of bug already fixed below for the
+        // fundamentals fields (INV-004/INV-009): a simulated quote's price
+        // is a fabricated basePrice-derived value, its changePercent is
+        // always a flat 0, its volume a flat 1,000,000, and its marketCap is
+        // derived from that same fake price — none of it is real, so it
+        // must fall back the same honest way the fundamentals fields do
+        // instead of leaking through unguarded.
+        price: (q && !q.isSimulated) ? (q.price || 0) : (base.basePrice || 0),
+        changePercent: (q && !q.isSimulated) ? (q.changePercent || 0) : 0,
         // INV-010: no static 5-billion-share default — null when the share
         // count isn't verified, rather than a fabricated market cap.
-        marketCap: q?.marketCap ?? (base.shares ? (base.basePrice || 1000) * base.shares : null),
-        volume: q?.volume || 0,
+        marketCap: (q && !q.isSimulated && q.marketCap != null) ? q.marketCap : (base.shares ? (base.basePrice || 1000) * base.shares : null),
+        volume: (q && !q.isSimulated) ? (q.volume || 0) : 0,
         // INV-004/INV-009: when the quote itself is simulated (Yahoo
         // unreachable, no cache — see fetchYahooQuote's isSimulated flag),
         // its fundamentals are fabricated too. Previously this fell back to
