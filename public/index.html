@@ -2383,6 +2383,23 @@
     </div>
   </div>
 
+  <!-- GRAFIK PERFORMA SEKTOR (Invezgo /analysis/stalker/sector, whole-market real) -->
+  <div class="card" style="margin-bottom:18px">
+    <div class="cheader" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div>
+        <span class="ctitle" style="font-size:14px;font-weight:700">Performa Relatif 11 Sektor Resmi BEI</span>
+        <div id="si-perf-note" style="font-size:11px;color:var(--text3);margin-top:2px">Memuat data performa sektor...</div>
+      </div>
+      <div style="display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px">
+        <button class="btn btn-ghost btn-xs si-perf-period-btn" data-period="1M" onclick="siSetPerfPeriod('1M')" style="padding:4px 10px;border-radius:4px;font-size:11px">1B</button>
+        <button class="btn btn-ghost btn-xs si-perf-period-btn on" data-period="3M" onclick="siSetPerfPeriod('3M')" style="padding:4px 10px;border-radius:4px;font-size:11px">3B</button>
+        <button class="btn btn-ghost btn-xs si-perf-period-btn" data-period="6M" onclick="siSetPerfPeriod('6M')" style="padding:4px 10px;border-radius:4px;font-size:11px">6B</button>
+        <button class="btn btn-ghost btn-xs si-perf-period-btn" data-period="1Y" onclick="siSetPerfPeriod('1Y')" style="padding:4px 10px;border-radius:4px;font-size:11px">1T</button>
+      </div>
+    </div>
+    <div style="height:280px"><canvas id="si-perf-chart"></canvas></div>
+  </div>
+
   <!-- TABEL RINCIAN 11 SEKTOR IDX & KONSTITUEN -->
   <div class="card">
     <div class="cheader" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -4422,7 +4439,7 @@
 <script src="js/41-stockchat-cockpit.js?v=20260930e"></script>
 <script src="js/42-dividend-calendar.js?v=20260930b"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260920c"></script>
-<script src="js/44-sectoral-insight.js?v=20261002a"></script>
+<script src="js/44-sectoral-insight.js?v=20261002b"></script>
 <script src="js/45-volume-spike.js?v=20260930a"></script>
 <script src="js/46-stock-dossier.js?v=20261002a"></script>
 <script src="js/47-ai-signal-history.js?v=20260917b"></script>

@@ -146,7 +146,13 @@
     // null = belum dimuat/masih memuat; {} = sudah dicoba, tidak tersedia
     // (honest fallback per-sektor via realRotationReason).
     realRotation: null,
-    realRotationReason: null
+    realRotationReason: null,
+    // Grafik Performa Sektor (GET /api/idx/sector-performance, Invezgo
+    // /analysis/stalker/sector) — line chart rebase-100, BEDA dari
+    // realRotation (RRG) di atas. Cache per periode supaya ganti tab
+    // tidak fetch ulang; undefined = belum pernah dicoba.
+    perfPeriod: '3M',
+    perfData: {} // { '1M': {available,sectors,from,to}|{available:false,reason}, ... }
   };
 
   // Instance ResizeObserver D3
@@ -378,6 +384,124 @@
     }
     siRenderTable();
   }
+
+  // GET /analysis/stalker/sector (via /api/idx/sector-performance) ->
+  // this app's own IDX_SECTOR_DEFINITIONS `key` — Invezgo's IDX-IC codes
+  // mapped 1:1 to the keys already used throughout this file (color,
+  // labelId). This is a direct code correspondence, not a guessed
+  // translation — both sides are BEI's own standard 11-sector
+  // classification, just spelled differently by the 2 sources.
+  var SI_STALKER_CODE_TO_KEY = {
+    IDXENERGY: 'energy', IDXBASIC: 'basic-materials', IDXINDUST: 'industrials',
+    IDXNONCYC: 'consumer-non-cyclicals', IDXCYCLIC: 'consumer-cyclicals',
+    IDXHEALTH: 'healthcare', IDXFINANCE: 'financials', IDXPROPERT: 'properties',
+    IDXTECHNO: 'technology', IDXINFRA: 'infrastructures', IDXTRANS: 'transportation'
+  };
+  var SI_PERF_PERIOD_DAYS = { '1M': 30, '3M': 90, '6M': 180, '1Y': 365 };
+
+  async function siLoadSectorPerformance(period, force) {
+    if (!force && _siState.perfData[period] !== undefined) {
+      siRenderSectorPerformanceChart();
+      return;
+    }
+    var days = SI_PERF_PERIOD_DAYS[period] || 90;
+    var toD = new Date();
+    var fromD = new Date(toD.getTime() - days * 86400000);
+    var iso = function(d) { return d.toISOString().slice(0, 10); };
+    try {
+      var res = await fetch('/api/idx/sector-performance?from=' + iso(fromD) + '&to=' + iso(toD));
+      var json = await res.json();
+      if (json && json.success && json.data && json.data.available) {
+        _siState.perfData[period] = json.data;
+      } else {
+        _siState.perfData[period] = { available: false, reason: (json && json.data && json.data.reason) || 'UNKNOWN' };
+      }
+    } catch (e) {
+      _siState.perfData[period] = { available: false, reason: 'NETWORK_ERROR' };
+    }
+    siRenderSectorPerformanceChart();
+  }
+
+  function siSetPerfPeriod(period) {
+    _siState.perfPeriod = period;
+    document.querySelectorAll('.si-perf-period-btn').forEach(function(b) {
+      b.classList.toggle('on', b.getAttribute('data-period') === period);
+    });
+    siLoadSectorPerformance(period, false);
+  }
+  window.siSetPerfPeriod = siSetPerfPeriod;
+
+  var SI_PERF_REASON_TEXT = {
+    NOT_CONFIGURED: 'Invezgo API key belum dikonfigurasi di server.',
+    AUTH_FAILED: 'Autentikasi Invezgo gagal.',
+    SUBSCRIPTION_INSUFFICIENT: 'Paket langganan Invezgo tidak mencakup data ini.',
+    RATE_LIMITED: 'Kuota/rate limit Invezgo tercapai, coba lagi nanti.',
+    NETWORK_ERROR: 'Gangguan jaringan ke Invezgo.',
+    UNEXPECTED_SCHEMA: 'Skema respons Invezgo tidak dikenali.'
+  };
+
+  function siRenderSectorPerformanceChart() {
+    var canvas = document.getElementById('si-perf-chart');
+    var noteEl = document.getElementById('si-perf-note');
+    if (!canvas) return;
+    kc('siSectorPerf');
+
+    var period = _siState.perfPeriod;
+    var d = _siState.perfData[period];
+
+    if (!d) {
+      if (noteEl) noteEl.textContent = 'Memuat data performa sektor...';
+      return;
+    }
+    if (!d.available) {
+      if (noteEl) noteEl.textContent = SI_PERF_REASON_TEXT[d.reason] || 'Data performa sektor tidak tersedia saat ini.';
+      return;
+    }
+
+    var labels = (d.sectors[0] && d.sectors[0].data || []).map(function(p) { return p.date; });
+    var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    var txt = (typeof _chartTextColor === 'function') ? _chartTextColor('--text2', '#D2D8DF') : '#D2D8DF';
+
+    var datasets = d.sectors.map(function(s) {
+      var def = IDX_SECTOR_DEFINITIONS.find(function(x) { return x.key === SI_STALKER_CODE_TO_KEY[s.index]; });
+      var color = def ? def.color : '#94a3b8';
+      return {
+        label: def ? def.labelId : s.index,
+        data: s.data.map(function(p) { return p.value; }),
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 1.6,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        tension: 0.15
+      };
+    });
+
+    charts['siSectorPerf'] = new Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { color: txt, boxWidth: 10, font: { size: 9.5 } } },
+          tooltip: { callbacks: { label: function(c) {
+            var v = c.parsed.y;
+            return c.dataset.label + ': ' + (v >= 100 ? '+' : '') + (v - 100).toFixed(1) + '%';
+          } } }
+        },
+        scales: {
+          x: { ticks: { color: txt, maxTicksLimit: 8, font: { size: 9 } }, grid: { display: false } },
+          y: { ticks: { color: txt, font: { size: 9 }, callback: function(v) { return (v >= 100 ? '+' : '') + Math.round(v - 100) + '%'; } }, grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' } }
+        }
+      }
+    });
+
+    if (noteEl) {
+      noteEl.textContent = 'Performa kumulatif 11 indeks sektoral resmi BEI sejak ' + d.from + ' (direbase ke 0% pada tanggal itu), Invezgo /analysis/stalker/sector.';
+    }
+  }
+  window.siLoadSectorPerformance = siLoadSectorPerformance;
 
   /**
    * Mengambil berita sektoral dari API backend atau fallback
@@ -2584,6 +2708,11 @@
     if (_siState.realRotation === null) {
       siLoadRealRotation();
     }
+
+    // Grafik Performa Sektor — selalu coba render dari cache (fetch cuma
+    // jalan kalau periode aktif belum pernah dicoba, lihat
+    // siLoadSectorPerformance()'s own `!force` guard).
+    siLoadSectorPerformance(_siState.perfPeriod, false);
   };
 
 })(window);

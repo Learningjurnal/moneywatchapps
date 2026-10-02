@@ -10650,6 +10650,63 @@ test('REGRESSION GUARD: Stock Dossier "Dokumen Resmi BEI" tab fetches real per-t
   mapKeys.forEach(k => assert(observedTypes.includes(k), `REGRESSION: DOSSIER_DISCLOSURE_TYPE_LABELS has a key "${k}" that was never actually observed from a live Invezgo response — looks like a guessed translation`));
 });
 
+// ============================================================
+// FEATURE (2026-10-02, audit "lanjut yang stalker/sector" — last of the 3
+// explored-but-unused whole-market endpoints): GET /analysis/stalker/
+// sector (fetchInvezgoSectorStalker(), lib/invezgo-client.js — schema
+// verified live: {index: [{index, data: [{date, value}]}]}, DIFFERENT
+// from /analysis/sector/rotation's RRG x/y/quadrant shape) now powers a
+// "Performa Relatif 11 Sektor" line chart on Sectoral Insight.
+// ============================================================
+test('REGRESSION GUARD: GET /api/idx/sector-performance exists, validates from/to, calls the schema-verified fetchInvezgoSectorStalker(), and never fabricates sector data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const fnMatch = src.match(/app\.get\('\/api\/idx\/sector-performance'[\s\S]*?\n\}\);/);
+  assert(fnMatch, 'REGRESSION: GET /api/idx/sector-performance route is gone');
+  const fn = fnMatch[0];
+
+  assert(/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$/.test(fn), 'REGRESSION: the route no longer validates from/to as YYYY-MM-DD before calling Invezgo');
+  assert(/fetchInvezgoSectorStalker\(from, to\)/.test(fn), 'REGRESSION: /api/idx/sector-performance no longer calls the schema-verified fetchInvezgoSectorStalker()');
+  assert(/if \(!result\.ok\) \{/.test(fn) && /available: false, reason: result\.reason, sectors: \[\]/.test(fn),
+    'REGRESSION: the route no longer fails closed honestly to available:false/sectors:[] — could start fabricating sector performance');
+});
+
+await asyncTest('functional: fetchInvezgoSectorStalker() (real import) fails closed without INVEZGO_API_KEY, and separately rejects an invalid date range', async () => {
+  const savedKey = process.env.INVEZGO_API_KEY;
+  delete process.env.INVEZGO_API_KEY;
+  try {
+    const { fetchInvezgoSectorStalker } = await import('./lib/invezgo-client.js');
+    const noKey = await fetchInvezgoSectorStalker('2026-01-01', '2026-02-01');
+    assert.strictEqual(noKey.ok, false, 'fetchInvezgoSectorStalker() must be ok:false without a configured Invezgo key — never fabricated sector data');
+    assert.strictEqual(noKey.reason, 'NOT_CONFIGURED');
+
+    process.env.INVEZGO_API_KEY = 'test-fake-key-for-schema-guard-only';
+    const badRange = await fetchInvezgoSectorStalker('2026-02-01', '2026-01-01');
+    assert.strictEqual(badRange.ok, false, 'fetchInvezgoSectorStalker() must reject from > to');
+    assert.strictEqual(badRange.reason, 'INVALID_DATE_RANGE');
+  } finally {
+    if (savedKey !== undefined) process.env.INVEZGO_API_KEY = savedKey; else delete process.env.INVEZGO_API_KEY;
+  }
+});
+
+test('REGRESSION GUARD: Sectoral Insight "Performa Relatif 11 Sektor" chart maps Invezgo IDX-IC codes to this app\'s OWN existing sector key system (not a separate/duplicated label set), and degrades honestly when unavailable', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+
+  assert(/async function siLoadSectorPerformance\(period, force\)/.test(src), 'REGRESSION: siLoadSectorPerformance() is missing');
+  assert(/function siRenderSectorPerformanceChart\(\)/.test(src), 'REGRESSION: siRenderSectorPerformanceChart() is missing');
+  assert(/fetch\('\/api\/idx\/sector-performance\?from=' \+ iso\(fromD\) \+ '&to=' \+ iso\(toD\)\)/.test(src), 'REGRESSION: siLoadSectorPerformance() no longer fetches the real sector-performance endpoint');
+  assert(/if \(!d\.available\) \{/.test(src), 'REGRESSION: siRenderSectorPerformanceChart() no longer handles the unavailable case honestly — could render a stale/empty chart indistinguishably from "really has no data"');
+
+  // The code->key map must point ONLY at keys that already exist in
+  // IDX_SECTOR_DEFINITIONS — reusing the app's single existing sector
+  // naming/color system, not inventing a second one that could drift.
+  const mapMatch = src.match(/var SI_STALKER_CODE_TO_KEY = \{[\s\S]*?\n  \};/);
+  assert(mapMatch, 'REGRESSION: SI_STALKER_CODE_TO_KEY is missing');
+  const definedKeys = [...src.matchAll(/key: '([\w-]+)',/g)].map(m => m[1]);
+  const mappedValues = [...mapMatch[0].matchAll(/: '([\w-]+)'/g)].map(m => m[1]);
+  assert.strictEqual(mappedValues.length, 11, 'REGRESSION: SI_STALKER_CODE_TO_KEY no longer maps all 11 official IDX-IC sectors');
+  mappedValues.forEach(v => assert(definedKeys.includes(v), `REGRESSION: SI_STALKER_CODE_TO_KEY maps to "${v}", which is not a key in IDX_SECTOR_DEFINITIONS — a second, divergent sector label set is being introduced`));
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');

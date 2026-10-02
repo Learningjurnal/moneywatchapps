@@ -57,7 +57,7 @@ import {
   getDataQualityTelemetry,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
-import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook, fetchInvezgoNews, fetchInvezgoDisclosure } from './lib/invezgo-client.js';
+import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook, fetchInvezgoNews, fetchInvezgoDisclosure, fetchInvezgoSectorStalker } from './lib/invezgo-client.js';
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
@@ -4052,6 +4052,38 @@ app.get('/api/idx/disclosure/:ticker', async (req, res) => {
     });
   } catch (err) {
     console.error('[Disclosure Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/sector-performance — 11 IDX-IC sector indices' cumulative
+// performance over a date range (fetchInvezgoSectorStalker(), lib/invezgo-
+// client.js — schema verified live, see that function's comment).
+// DIFFERENT from GET /api/idx/sector-rotation (RRG x/y/quadrant) — this is
+// a simpler rebased-to-100 performance line series. Returns Invezgo's raw
+// sector CODES (IDXENERGY, etc.) unchanged — mapping to this app's own
+// label/color system (IDX_SECTOR_DEFINITIONS) happens client-side in
+// 44-sectoral-insight.js, the one place that mapping already lives, so it
+// isn't duplicated/at risk of drifting between server and client.
+app.get('/api/idx/sector-performance', async (req, res) => {
+  try {
+    const from = String(req.query.from || '');
+    const to = String(req.query.to || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      return res.status(400).json({ success: false, error: 'Parameter from/to wajib format YYYY-MM-DD' });
+    }
+
+    const result = await fetchInvezgoSectorStalker(from, to);
+    if (!result.ok) {
+      return res.json({ success: true, data: { available: false, reason: result.reason, sectors: [] } });
+    }
+
+    return res.json({
+      success: true,
+      data: { available: true, sectors: result.sectors, from, to }
+    });
+  } catch (err) {
+    console.error('[Sector Performance Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
