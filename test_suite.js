@@ -7931,31 +7931,70 @@ await asyncTest('REGRESSION GUARD: Google Gemini primary provider — config gat
 // habis"): /api/sectoral-news deliberately REVERSES this app's normal
 // provider order (Claude primary everywhere else) because the Anthropic
 // key configured for this app has no credit, so Claude always fails first
-// on this route — OpenRouter must be tried FIRST here, Claude only as
-// fallback. User also explicitly confirmed Invezgo has no news endpoint,
-// so this route must never call an Invezgo news fetcher.
-test('REGRESSION GUARD: /api/sectoral-news must try OpenRouter BEFORE Claude (reversed from the app\'s normal provider order) and never call an Invezgo news endpoint', () => {
+// on this route — OpenRouter must be tried before Claude whenever both are
+// reached.
+// UPDATE (2026-10-02, audit "eksplorasi endpoint whole-market"): this test
+// used to also assert /api/sectoral-news must NEVER call Invezgo, because
+// "user explicitly confirmed Invezgo has no news endpoint" — that premise
+// is now disproven: GET /analysis/news was verified live with a real key
+// (fetchInvezgoNews(), lib/invezgo-client.js) and returns real whole-
+// market news. Invezgo is now the FIRST tier tried (ahead of OpenRouter/
+// Claude/RSS — see fetchSectoralNewsViaInvezgo()'s comment in server.js
+// for why: structured real data has no hallucination/scraping risk the
+// other 3 tiers carry).
+test('REGRESSION GUARD: /api/sectoral-news tries Invezgo first, then OpenRouter before Claude, then RSS', () => {
   const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
   assert(/function fetchSectoralNewsViaOpenRouter\(/.test(fullSrc), 'fetchSectoralNewsViaOpenRouter() is missing from server.js');
   assert(/plugins:\s*\[\{\s*id:\s*'web'/.test(fullSrc), 'fetchSectoralNewsViaOpenRouter() no longer requests OpenRouter\'s web-grounding plugin — without it the model could fabricate headlines/URLs from training data instead of real search results');
+  assert(/async function fetchSectoralNewsViaInvezgo\(\)/.test(fullSrc), 'REGRESSION: fetchSectoralNewsViaInvezgo() is missing from server.js — the real-data news tier was removed');
+  assert(/source:\s*'Invezgo News'/.test(fullSrc), 'REGRESSION: the Invezgo news tier no longer labels its honest source — could start looking like an attributed publisher byline it never verified');
+  assert(/url:\s*null/.test(fullSrc), 'REGRESSION: the Invezgo news tier no longer leaves url honestly null — Invezgo\'s /analysis/news response has no article URL, fabricating one would violate CLAUDE.md Aturan #1');
 
   const routeStart = fullSrc.indexOf("app.get('/api/sectoral-news'");
   assert(routeStart !== -1, "/api/sectoral-news route not found");
   const routeEnd = fullSrc.indexOf('\napp.', routeStart + 10);
   const routeSrc = fullSrc.slice(routeStart, routeEnd === -1 ? routeStart + 20000 : routeEnd);
 
+  const invezgoIdx = routeSrc.indexOf('fetchSectoralNewsViaInvezgo()');
   const openRouterIdx = routeSrc.indexOf('fetchSectoralNewsViaOpenRouter(orConfig)');
   const claudeIdx = routeSrc.indexOf('callClaudeWithRetry(');
-  assert(openRouterIdx !== -1 && claudeIdx !== -1,
-    'REGRESSION: one of the 2 provider-chain markers (fetchSectoralNewsViaOpenRouter call / callClaudeWithRetry call) is missing from /api/sectoral-news');
+  const rssIdx = routeSrc.indexOf('fetchSectoralNewsViaRss()');
+  assert(invezgoIdx !== -1 && openRouterIdx !== -1 && claudeIdx !== -1 && rssIdx !== -1,
+    'REGRESSION: one of the 4 provider-chain markers (Invezgo/OpenRouter/Claude/RSS call) is missing from /api/sectoral-news');
+  assert(invezgoIdx < openRouterIdx,
+    'REGRESSION: /api/sectoral-news no longer tries Invezgo before OpenRouter — real structured data should be preferred over AI-generated results');
   assert(openRouterIdx < claudeIdx,
-    'REGRESSION: /api/sectoral-news no longer tries OpenRouter before Claude — this route needs OpenRouter FIRST (Anthropic key has no credit, see INCIDENT_LOG.md), reordering back to Claude-first would make news go empty again');
+    'REGRESSION: /api/sectoral-news no longer tries OpenRouter before Claude — this route needs OpenRouter FIRST (Anthropic key has no credit, see commit history), reordering back to Claude-first would make news go empty again');
+  assert(claudeIdx < rssIdx,
+    'REGRESSION: /api/sectoral-news no longer tries Claude before the RSS fallback');
 
   const claudeStart = routeSrc.indexOf('if (!resolved) {');
-  assert(claudeStart !== -1, 'REGRESSION: /api/sectoral-news no longer gates the Claude fallback behind a `resolved` flag — could call Claude even after OpenRouter already succeeded, wasting a paid call');
+  assert(claudeStart !== -1, 'REGRESSION: /api/sectoral-news no longer gates a fallback tier behind a `resolved` flag — could call a later tier even after an earlier one already succeeded, wasting a paid/rate-limited call');
+});
 
-  assert(!/fetchInvezgo/i.test(routeSrc) && !/invezgo/i.test(routeSrc),
-    'REGRESSION: /api/sectoral-news calls something Invezgo-related — user explicitly confirmed Invezgo has no news endpoint, this route must only use OpenRouter/Claude');
+await asyncTest('functional: fetchSectoralNewsViaInvezgo-equivalent classifier never lets a long article body\'s incidental opposite-sentiment phrase override the headline\'s real impact', async () => {
+  // Regression for a bug caught live while building this tier: classifying
+  // impact from title+content (not title alone) let an unrelated bullish
+  // word deep in a bearish article's body ("230 saham MENGUAT" inside an
+  // "IHSG Merosot...Terkoreksi 30,72%" piece) flip the whole item to
+  // BULLISH. Exercises the real classifySectoralNewsText() via sandbox
+  // extraction (same technique as other server.js source-regex tests in
+  // this file) since it is not exported as a standalone module.
+  const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const keywordsStart = fullSrc.indexOf('const SECTOR_KEYWORDS = [');
+  assert(keywordsStart !== -1, 'REGRESSION: could not isolate SECTOR_KEYWORDS');
+  const fnMatch = fullSrc.match(/function classifySectoralNewsText\(title, content\) \{[\s\S]*?\n\}/);
+  assert(fnMatch, 'REGRESSION: could not isolate classifySectoralNewsText() body');
+  const fnEnd = fnMatch.index + fnMatch[0].length;
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(fullSrc.slice(keywordsStart, fnEnd), sandbox, { filename: 'classifySectoralNewsText sandbox' });
+  assert.strictEqual(typeof sandbox.classifySectoralNewsText, 'function', 'REGRESSION: classifySectoralNewsText() did not load into the sandbox');
+
+  const title = 'IHSG Merosot Kembali ke Level 5.000-an, Terkoreksi 30,72% Ytd';
+  const content = 'Sebanyak 230 saham menguat, 404 saham terkoreksi, dan 151 saham lainnya tidak bergerak pada penutupan sesi I ini.';
+  const result = sandbox.classifySectoralNewsText(title, content);
+  assert.strictEqual(result.impact, 'BEARISH', 'REGRESSION: a clearly bearish headline must not be flipped BULLISH by an incidental bullish phrase in the article body');
 });
 
 // FIX (2026-09-20, user bug report: "hanya bisa kirim 1 chat, chat kedua

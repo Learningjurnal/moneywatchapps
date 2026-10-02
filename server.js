@@ -57,7 +57,7 @@ import {
   getDataQualityTelemetry,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
-import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook } from './lib/invezgo-client.js';
+import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook, fetchInvezgoNews } from './lib/invezgo-client.js';
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
@@ -1127,6 +1127,55 @@ async function fetchSectoralNewsViaOpenRouter(orConfig) {
   return extractSectoralNewsJsonArray(rawText);
 }
 
+// Shared keyword heuristic for inferring sector/ticker/impact from a news
+// title+content string — used by BOTH the RSS fallback below and the new
+// Invezgo tier, since neither source tags items with sector/ticker/impact
+// itself (RSS has no such metadata at all; Invezgo's /analysis/news only
+// gives {title,date,content} — see fetchInvezgoNews() comment in
+// lib/invezgo-client.js). This is an INFERENCE from real text, not
+// invented data — consistent with how classifySectoralNewsText() is the
+// only place this guesswork happens, rather than each tier reimplementing
+// its own heuristic that could silently drift apart.
+const SECTOR_KEYWORDS = [
+  { key: 'Financials', name: 'Keuangan', words: ['bbca', 'bbri', 'bmri', 'bbni', 'bank', 'perbankan', 'bunga', 'ojk', 'kredit'], tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI'] },
+  { key: 'Energy', name: 'Energi', words: ['adro', 'ptba', 'pgeo', 'medc', 'pgas', 'batu bara', 'minyak', 'gas', 'pln', 'energi'], tickers: ['ADRO', 'PTBA', 'PGEO', 'MEDC'] },
+  { key: 'Basic Materials', name: 'Barang Baku', words: ['antm', 'inco', 'tins', 'smgr', 'intp', 'nikel', 'emas', 'tembaga', 'timah', 'semen'], tickers: ['ANTM', 'INCO', 'TINS', 'SMGR'] },
+  { key: 'Consumer Non-Cyclicals', name: 'Konsumer Primer', words: ['icbp', 'indf', 'unvr', 'myor', 'hmsp', 'ggrm', 'fmcg', 'sembako', 'makanan'], tickers: ['ICBP', 'INDF', 'UNVR'] },
+  { key: 'Infrastructure', name: 'Infrastruktur', words: ['tlkm', 'isat', 'excl', 'towr', 'tbia', 'wika', 'adhi', 'ptpp', 'tol', 'telekomunikasi'], tickers: ['TLKM', 'ISAT', 'TOWR'] },
+  { key: 'Technology', name: 'Teknologi', words: ['goto', 'buka', 'dnet', 'wiru', 'startup', 'digital', 'teknologi'], tickers: ['GOTO', 'BUKA'] },
+  { key: 'Consumer Cyclicals', name: 'Konsumer Non-Primer', words: ['aces', 'mapi', 'eraa', 'auto', 'asii', 'otomotif', 'ritel'], tickers: ['ASII', 'MAPI', 'ACES'] },
+  { key: 'Healthcare', name: 'Kesehatan', words: ['klbf', 'mika', 'silo', 'farma', 'obat', 'rs', 'kesehatan'], tickers: ['KLBF', 'MIKA'] }
+];
+
+// FIX (2026-10-02, caught live while testing the Invezgo news tier):
+// impact used to be classified from the SAME text used for sector/ticker
+// matching — fine for RSS (title-only, a few words) but wrong once this
+// got reused for Invezgo's full article bodies: a bearish IHSG headline
+// ("IHSG Merosot... Terkoreksi 30,72%") got misclassified BULLISH because
+// an unrelated sentence deep in the body ("230 saham MENGUAT, 404
+// terkoreksi") happened to contain a bullish keyword. Impact now reads
+// ONLY the title (an editorial signal for the whole piece) — content is
+// still used for sector/ticker matching, where more text genuinely helps
+// coverage and isn't sentiment-sensitive the same way.
+function classifySectoralNewsText(title, content) {
+  const titleLower = String(title || '').toLowerCase();
+  const fullLower = titleLower + ' ' + String(content || '').toLowerCase();
+  const matchedSector = SECTOR_KEYWORDS.find(s => s.words.some(w => fullLower.includes(w))) || null;
+
+  let impact = 'NEUTRAL';
+  let impactReason = 'Dinamika pasar modal terkini';
+  if (/menguat|naik|rekor|laba|untung|akumulasi|melejit|lonjak|surplus|dividen|terbang|hijau/i.test(titleLower)) {
+    impact = 'BULLISH';
+    impactReason = 'Sentimen positif pasar / performa emiten';
+  } else if (/melemah|turun|anjlok|rugi|tertekan|drop|merah|distribusi|jebol|merosot/i.test(titleLower)) {
+    impact = 'BEARISH';
+    impactReason = 'Tekanan pasar / fluktuasi harga';
+  }
+
+  const mentionedTickers = matchedSector ? matchedSector.tickers.filter(tk => fullLower.includes(tk.toLowerCase())) : [];
+  return { matchedSector, impact, impactReason, mentionedTickers };
+}
+
 // Fallback berita pasar modal riil Indonesia (Google News RSS IDX) tanpa biaya
 // dan tanpa batas kuota jika OpenRouter/Claude tidak tersedia/kehabisan kredit.
 async function fetchSectoralNewsViaRss() {
@@ -1137,17 +1186,6 @@ async function fetchSectoralNewsViaRss() {
   const xml = await resp.text();
   const items = [];
   const itemMatches = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
-
-  const SECTOR_KEYWORDS = [
-    { key: 'Financials', name: 'Keuangan', words: ['bbca', 'bbri', 'bmri', 'bbni', 'bank', 'perbankan', 'bunga', 'ojk', 'kredit'], tickers: ['BBCA', 'BBRI', 'BMRI', 'BBNI'] },
-    { key: 'Energy', name: 'Energi', words: ['adro', 'ptba', 'pgeo', 'medc', 'pgas', 'batu bara', 'minyak', 'gas', 'pln', 'energi'], tickers: ['ADRO', 'PTBA', 'PGEO', 'MEDC'] },
-    { key: 'Basic Materials', name: 'Barang Baku', words: ['antm', 'inco', 'tins', 'smgr', 'intp', 'nikel', 'emas', 'tembaga', 'timah', 'semen'], tickers: ['ANTM', 'INCO', 'TINS', 'SMGR'] },
-    { key: 'Consumer Non-Cyclicals', name: 'Konsumer Primer', words: ['icbp', 'indf', 'unvr', 'myor', 'hmsp', 'ggrm', 'fmcg', 'sembako', 'makanan'], tickers: ['ICBP', 'INDF', 'UNVR'] },
-    { key: 'Infrastructure', name: 'Infrastruktur', words: ['tlkm', 'isat', 'excl', 'towr', 'tbia', 'wika', 'adhi', 'ptpp', 'tol', 'telekomunikasi'], tickers: ['TLKM', 'ISAT', 'TOWR'] },
-    { key: 'Technology', name: 'Teknologi', words: ['goto', 'buka', 'dnet', 'wiru', 'startup', 'digital', 'teknologi'], tickers: ['GOTO', 'BUKA'] },
-    { key: 'Consumer Cyclicals', name: 'Konsumer Non-Primer', words: ['aces', 'mapi', 'eraa', 'auto', 'asii', 'otomotif', 'ritel'], tickers: ['ASII', 'MAPI', 'ACES'] },
-    { key: 'Healthcare', name: 'Kesehatan', words: ['klbf', 'mika', 'silo', 'farma', 'obat', 'rs', 'kesehatan'], tickers: ['KLBF', 'MIKA'] }
-  ];
 
   let idCounter = 1;
   for (const itemXml of itemMatches.slice(0, 20)) {
@@ -1169,31 +1207,17 @@ async function fetchSectoralNewsViaRss() {
       title = parts.join(' - ');
     }
 
-    const titleLower = title.toLowerCase();
-    let matchedSector = SECTOR_KEYWORDS.find(s => s.words.some(w => titleLower.includes(w)));
-    if (!matchedSector) {
-      matchedSector = SECTOR_KEYWORDS[idCounter % SECTOR_KEYWORDS.length];
-    }
-
-    let impact = 'NEUTRAL';
-    let impactReason = 'Dinamika pasar modal terkini';
-    if (/menguat|naik|rekor|laba|untung|akumulasi|melejit|lonjak|surplus|dividen|terbang|hijau/i.test(titleLower)) {
-      impact = 'BULLISH';
-      impactReason = 'Sentimen positif pasar / performa emiten';
-    } else if (/melemah|turun|anjlok|rugi|tertekan|drop|merah|distribusi|jebol|merosot/i.test(titleLower)) {
-      impact = 'BEARISH';
-      impactReason = 'Tekanan pasar / fluktuasi harga';
-    }
-
-    const mentionedTickers = matchedSector.tickers.filter(tk => titleLower.includes(tk.toLowerCase()));
-    if (mentionedTickers.length === 0) {
-      mentionedTickers.push(matchedSector.tickers[0]);
-    }
+    const { matchedSector, impact, impactReason, mentionedTickers } = classifySectoralNewsText(title);
+    // RSS tier keeps its pre-existing round-robin fallback when no keyword
+    // matches, so every RSS item still lands in some sector bucket for the
+    // sector-filter UI (unchanged behavior from before this refactor).
+    const sector = matchedSector || SECTOR_KEYWORDS[idCounter % SECTOR_KEYWORDS.length];
+    const tickers = mentionedTickers.length ? mentionedTickers : [sector.tickers[0]];
 
     items.push({
       id: `sec_rss_${idCounter++}`,
-      sector: matchedSector.key,
-      sectorName: matchedSector.name,
+      sector: sector.key,
+      sectorName: sector.name,
       title: title,
       summary: title,
       source: source,
@@ -1201,12 +1225,58 @@ async function fetchSectoralNewsViaRss() {
       category: 'Market News',
       impact: impact,
       impactReason: impactReason,
-      tickers: mentionedTickers,
+      tickers: tickers,
       time: timeStr
     });
   }
 
   return items;
+}
+
+// GET /analysis/news (fetchInvezgoNews(), lib/invezgo-client.js) — whole-
+// market real news, no AI/scraping involved. Preferred FIRST tier (ahead
+// of the AI tiers below): structured real data straight from a market-
+// data vendor carries no hallucination risk the AI tiers do, and no HTML-
+// scraping fragility the RSS tier has. Items arrive with ONLY
+// {title,date,content} — no source/url/sector/ticker/impact — so this
+// honestly labels source as "Invezgo News" (the real origin of THIS tier,
+// not a fabricated publisher byline) and leaves url null (the UI already
+// renders a non-link title when url is falsy — see
+// 44-sectoral-insight.js's siRenderNewsPanel()) rather than inventing
+// either. Sector/tickers come from the SAME classifySectoralNewsText()
+// heuristic the RSS tier uses, matched against title+content (Invezgo's
+// articles are full-length, giving more text to match than RSS's title-
+// only snippets) — impact stays title-only even here (see that
+// function's comment: a full article body can contain incidental
+// opposite-sentiment phrases a headline won't). Items with no keyword
+// match stay sector:null/sectorName:'Pasar Umum' rather than being forced
+// into an unrelated bucket (unlike the RSS tier's round-robin, this tier
+// has no equivalent legacy behavior to preserve).
+async function fetchSectoralNewsViaInvezgo() {
+  const result = await fetchInvezgoNews(1);
+  if (!result.ok) throw new Error(`INVEZGO_NEWS_${result.reason || 'UNAVAILABLE'}`);
+
+  return (result.items || []).map((item, idx) => {
+    const { matchedSector, impact, impactReason, mentionedTickers } = classifySectoralNewsText(item.title, item.content);
+    const content = String(item.content || '');
+    const summary = content.length > 220 ? content.slice(0, 220).trim() + '…' : content;
+    const time = item.date ? new Date(item.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini';
+
+    return {
+      id: `sec_inv_${idx + 1}`,
+      sector: matchedSector ? matchedSector.key : null,
+      sectorName: matchedSector ? matchedSector.name : 'Pasar Umum',
+      title: item.title,
+      summary: summary || item.title,
+      source: 'Invezgo News',
+      url: null,
+      category: 'Market News',
+      impact: impact,
+      impactReason: impactReason,
+      tickers: mentionedTickers,
+      time: time
+    };
+  });
 }
 
 app.get('/api/sectoral-news', async (req, res) => {
@@ -1226,8 +1296,26 @@ app.get('/api/sectoral-news', async (req, res) => {
   } else {
     let resolved = false;
 
-    // 1. OpenRouter DULU (Jalur Utama AI)
-    const orConfig = getOpenRouterConfig();
+    // 1. Invezgo DULU (data real, bukan AI/scraping — lihat
+    // fetchSectoralNewsViaInvezgo() di atas untuk alasan urutan ini)
+    try {
+      const invezgoNews = await fetchSectoralNewsViaInvezgo();
+      if (Array.isArray(invezgoNews) && invezgoNews.length >= 3) {
+        sectoralNewsCache = { data: invezgoNews, timestamp: now, rateLimitedUntil: 0 };
+        newsList = invezgoNews;
+        dataUnavailable = false;
+        resolved = true;
+      } else {
+        unavailableReason = 'Invezgo tidak mengembalikan cukup berita, mencoba AI.';
+      }
+    } catch (err) {
+      const msg = (err && err.message) ? err.message : String(err);
+      console.warn('Invezgo sectoral-news notice, mencoba AI sebagai cadangan:', msg);
+      unavailableReason = 'Invezgo tidak tersedia, mencoba cadangan AI.';
+    }
+
+    // 2. OpenRouter sebagai CADANGAN AI
+    const orConfig = resolved ? null : getOpenRouterConfig();
     if (orConfig) {
       try {
         const parsed = await fetchSectoralNewsViaOpenRouter(orConfig);
@@ -1246,7 +1334,7 @@ app.get('/api/sectoral-news', async (req, res) => {
       }
     }
 
-    // 2. Claude sebagai CADANGAN AI
+    // 3. Claude sebagai CADANGAN AI
     if (!resolved) {
       const ai = getAiClient();
       if (ai && now > sectoralNewsCache.rateLimitedUntil) {
@@ -1288,7 +1376,7 @@ app.get('/api/sectoral-news', async (req, res) => {
       }
     }
 
-    // 3. Fallback Feed Berita Finansial Riil (Google News RSS IDX)
+    // 4. Fallback Feed Berita Finansial Riil (Google News RSS IDX)
     if (!resolved) {
       try {
         const rssNews = await fetchSectoralNewsViaRss();
@@ -4972,6 +5060,20 @@ app.use((req, res, next) => {
 });
 
 // Start HTTP server on 0.0.0.0:3000 (when not managed by Vercel serverless runtime)
+// NOTE (2026-10-02, audit "cek konfigurasi Vercel production" — jangan
+// ditanyakan ulang): Vercel TIDAK PERNAH menjalankan `npm start`/`node
+// server.js` — api/index.js meng-import `app` langsung dari sini sebagai
+// handler serverless (lihat vercel.json: functions."api/index.js"), jadi
+// guard `!process.env.VERCEL` di atas sudah cukup untuk mencegah
+// app.listen() berjalan dua kali di production. Env var Vercel di-inject
+// langsung ke process.env dari dashboard — tidak pernah lewat file .env
+// sama sekali (file itu memang tidak pernah ikut deploy, lihat
+// .gitignore). KARENA ITU: jangan tambahkan flag `--env-file=.env` ke
+// script start/dev di package.json — selain tidak relevan untuk Vercel,
+// itu akan membuat `npm start` CRASH (`node: .env: not found`) di mesin
+// manapun yang belum bikin `.env` lokal (clone baru, CI, dst). Untuk
+// testing lokal dengan key real, jalankan manual:
+// `node --env-file=.env server.js`.
 if (!process.env.VERCEL) {
   app.listen(PORT, '0.0.0.0', () => {
     console.log('Money Watch Pro server running on http://0.0.0.0:' + PORT);

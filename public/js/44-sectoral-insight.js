@@ -2432,9 +2432,13 @@
         '</div>' +
 
         '<div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.4">' +
-          '<a href="' + (item.url || '#') + '" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'inherit\'">' +
-            item.title +
-          '</a>' +
+          // FIX (2026-10-02, tier berita Invezgo): item.url bisa null kalau
+          // tier sumbernya (mis. Invezgo) tidak menyediakan link artikel —
+          // dulu fallback ke href="#", link mati yang tidak kemana-mana.
+          // Render sebagai teks biasa (bukan <a>) kalau tidak ada URL asli.
+          (item.url
+            ? '<a href="' + item.url + '" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'inherit\'">' + item.title + '</a>'
+            : '<span>' + item.title + '</span>') +
         '</div>' +
 
         '<div style="font-size:11.5px;color:var(--text2);line-height:1.5">' +
