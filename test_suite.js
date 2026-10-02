@@ -10142,7 +10142,7 @@ test('REGRESSION GUARD: normalizeEconomicRecord() enforces the unified status en
     'REGRESSION: normalizeEconomicRecord() no longer nulls out `value` for UNAVAILABLE/ERROR records — a stale/fabricated number could leak through as if it were live data');
 });
 
-asyncTest('functional: normalizeEconomicRecord() (real import, not a sandbox mock) round-trips a VERIFIED record honestly and nulls value for UNAVAILABLE', async () => {
+await asyncTest('functional: normalizeEconomicRecord() (real import, not a sandbox mock) round-trips a VERIFIED record honestly and nulls value for UNAVAILABLE', async () => {
   const { normalizeEconomicRecord } = await import('./lib/economic-data-engine.js');
 
   const verified = normalizeEconomicRecord({
@@ -10175,7 +10175,7 @@ test('REGRESSION GUARD: BPS provider fails closed to NOT_CONFIGURED without BPS_
     'REGRESSION: bpsListModels() no longer marks its raw response as schemaVerified:false — callers could start trusting an unverified field mapping');
 });
 
-asyncTest('functional: checkBpsLiveStatus() (real import) returns NOT_CONFIGURED when BPS_API_KEY is unset in this test run', async () => {
+await asyncTest('functional: checkBpsLiveStatus() (real import) returns NOT_CONFIGURED when BPS_API_KEY is unset in this test run', async () => {
   const savedKey = process.env.BPS_API_KEY;
   delete process.env.BPS_API_KEY;
   try {
@@ -10221,7 +10221,7 @@ test('REGRESSION GUARD: fetchBpsStrategicIndicators() uses the verified request/
     'REGRESSION: fetchBpsStrategicIndicators() now fabricates period/frequency/geography fields the verified schema does not actually provide');
 });
 
-asyncTest('functional: fetchBpsStrategicIndicators() (real import) fails closed without BPS_API_KEY, and separately requires domain even with a key', async () => {
+await asyncTest('functional: fetchBpsStrategicIndicators() (real import) fails closed without BPS_API_KEY, and separately requires domain even with a key', async () => {
   const savedKey = process.env.BPS_API_KEY;
   delete process.env.BPS_API_KEY;
   try {
@@ -10239,7 +10239,7 @@ asyncTest('functional: fetchBpsStrategicIndicators() (real import) fails closed 
   }
 });
 
-asyncTest('functional: getBpsStrategicIndicators() (economic-data-engine.js, real import) fails closed without BPS_API_KEY and never invents period/frequency/geography', async () => {
+await asyncTest('functional: getBpsStrategicIndicators() (economic-data-engine.js, real import) fails closed without BPS_API_KEY and never invents period/frequency/geography', async () => {
   const savedKey = process.env.BPS_API_KEY;
   delete process.env.BPS_API_KEY;
   try {
@@ -10262,7 +10262,7 @@ test('REGRESSION GUARD: BI provider never fabricates a SOAP response — fetchBi
     'REGRESSION: fetchBiJisdor()/fetchBiKursTransaksi() now contain a SOAP envelope/operation name that was never verified against a real BI response — this is exactly the guessed-schema parser CLAUDE.md Aturan #1 forbids');
 });
 
-asyncTest('functional: getEconomicHealth() (real import) never throws, and reports BI/BPS status using only the 5 allowed values', async () => {
+await asyncTest('functional: getEconomicHealth() (real import) never throws, and reports BI/BPS status using only the 5 allowed values', async () => {
   const { getEconomicHealth } = await import('./lib/economic-data-engine.js');
   const health = await getEconomicHealth();
   const allowed = ['VERIFIED', 'CACHED', 'STALE', 'UNAVAILABLE', 'ERROR', 'NOT_CONFIGURED', 'REACHABLE', 'ACTIVE', 'INVALID_RESPONSE'];
@@ -10379,7 +10379,7 @@ test('REGRESSION GUARD: getStockBandarFlowPillar() exists, requires a REAL broke
     'REGRESSION: getStockBandarFlowPillar() no longer composes all 3 real signals (broker summary, whole-market acc/dist, whole-market foreign flow)');
 });
 
-asyncTest('functional: getStockBandarFlowPillar() (real import, tested with PTRO per user request) fails closed to available:false without INVEZGO_API_KEY, never a fabricated score', async () => {
+await asyncTest('functional: getStockBandarFlowPillar() (real import, tested with PTRO per user request) fails closed to available:false without INVEZGO_API_KEY, never a fabricated score', async () => {
   const savedKey = process.env.INVEZGO_API_KEY;
   delete process.env.INVEZGO_API_KEY;
   try {
@@ -10393,7 +10393,7 @@ asyncTest('functional: getStockBandarFlowPillar() (real import, tested with PTRO
   }
 });
 
-asyncTest('functional: getStockBandarFlowPillar() rejects an empty ticker honestly instead of defaulting to a fabricated default stock', async () => {
+await asyncTest('functional: getStockBandarFlowPillar() rejects an empty ticker honestly instead of defaulting to a fabricated default stock', async () => {
   const { getStockBandarFlowPillar } = await import('./lib/idx-data-engine.js');
   const result = await getStockBandarFlowPillar('');
   assert.strictEqual(result.available, false);
@@ -10446,7 +10446,7 @@ test('REGRESSION GUARD: GET /api/idx/order-book/:ticker exists, calls the schema
     'REGRESSION: the route no longer maps the verified Level-1 fields (bid1price/lot/freq, offer1price/lot/freq) from Invezgo\'s real response shape');
 });
 
-asyncTest('functional: GET /api/idx/order-book/:ticker (real Express route, tested with PTRO) fails closed to available:false without INVEZGO_API_KEY, never a fabricated bid/offer', async () => {
+await asyncTest('functional: GET /api/idx/order-book/:ticker (real Express route, tested with PTRO) fails closed to available:false without INVEZGO_API_KEY, never a fabricated bid/offer', async () => {
   const savedKey = process.env.INVEZGO_API_KEY;
   delete process.env.INVEZGO_API_KEY;
   try {
