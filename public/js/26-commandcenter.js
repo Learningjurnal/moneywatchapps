@@ -985,7 +985,7 @@ function renderDataConnPage() {
       + '</div>'
       + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">'
         + '<div><strong>Supabase Cloud</strong><div style="font-size:11px;color:var(--text3)">Penyimpanan riwayat transaksi, portofolio snapshot, dan thesis journal</div></div>'
-        + '<span class="badge b-up">FIREBASE STORE</span>'
+        + '<span class="badge b-up">SUPABASE STORE</span>'
       + '</div>'
       + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px">'
         + '<div><strong>In-Memory Cache Layer (TTL 45s)</strong><div style="font-size:11px;color:var(--text3)">Pencegah rate-limit dan pengoptimal performa dashboard</div></div>'

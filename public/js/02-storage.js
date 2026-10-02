@@ -654,7 +654,7 @@ try {
 
 
 // ============================================================
-// FIREBASE FIRESTORE DATA SYNC
+// CLOUD DATA SYNC (SUPABASE)
 // ============================================================
 var tradeStrategy = {
   'ARCI': 'Swing Trade',
@@ -1679,7 +1679,7 @@ async function fireLoadAllData(){
 }
 
 // ============================================================
-// DATA SAVE & SYNC CONTROLLER (FIREBASE FIRESTORE CLOUD-FIRST)
+// DATA SAVE & SYNC CONTROLLER (SUPABASE CLOUD-FIRST)
 // ============================================================
 function saveData(){
   if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
@@ -2120,7 +2120,7 @@ window.resetAllDataToZero = clearData;
 // ============================================================
 function downloadBackup(){
   var payload = {
-    version: 'moneywatch_firebase_v1',
+    version: 'moneywatch_backup_v1',
     transactions: transactions || [],
     dividends: dividends || [],
     rdnMutations: rdnMutations || [],
