@@ -480,7 +480,7 @@ async function checkAiEngineStatus() {
       dot.style.boxShadow = '0 0 6px #10b981';
       label.textContent = 'AI Engine Live';
       if (data.geminiAvailable) {
-        label.title = 'Google Gemini API (' + (data.geminiModel || 'gemini-2.5-flash') + ') terkonfigurasi sebagai engine utama.'
+        label.title = 'Google Gemini API (' + (data.geminiModel || 'gemini-3.8-flash') + ') terkonfigurasi sebagai engine utama.'
           + (data.anthropicAvailable ? ' Backup Anthropic (' + data.anthropicModel + ') siap.' : '')
           + (data.backupAvailable ? ' Backup OpenRouter (' + data.backupModel + ') siap.' : '');
       } else {

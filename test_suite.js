@@ -7822,7 +7822,7 @@ await asyncTest('REGRESSION GUARD: OpenRouter backup provider — config gating,
 
 // ── TEST: Google Gemini Primary Provider (2026-09-23, user-requested:
 // "jadikan yang utama, anthropic dan openrouter menjadi backup")
-await asyncTest('REGRESSION GUARD: Google Gemini primary provider — config gating, REST loop, and 4-tier fallback chain (2026-09-23)', async () => {
+await asyncTest('REGRESSION GUARD: Google Gemini primary provider — config gating, REST loop, and model fallback chain (2026-09-23, model default updated 2026-10-02)', async () => {
   const fullSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
 
   // 1. getGeminiConfig() gating & defaults
@@ -7841,7 +7841,11 @@ await asyncTest('REGRESSION GUARD: Google Gemini primary provider — config gat
   vm.runInContext(configSrc, configSandbox2, { filename: 'server.js getGeminiConfig() default model sandbox' });
   const cfg2 = configSandbox2.getGeminiConfig();
   assert(cfg2 && cfg2.apiKey === 'AIza-test-123', 'REGRESSION: getGeminiConfig() must read GEMINI_API_KEY');
-  assert.strictEqual(cfg2.model, 'gemini-1.5-flash', 'REGRESSION: getGeminiConfig() must default to gemini-1.5-flash');
+  // FIX (2026-10-02, audit konektivitas provider real): gemini-1.5-flash
+  // confirmed 404/deprecated via live test with a real key — see
+  // getGeminiConfig()'s comment in server.js. gemini-3.8-flash is the only
+  // name verified working.
+  assert.strictEqual(cfg2.model, 'gemini-3.8-flash', 'REGRESSION: getGeminiConfig() must default to gemini-3.8-flash');
 
   const configSandbox3 = { process: { env: { GEMINI_API_KEY: 'AIza-test-123', GEMINI_MODEL: 'gemini-2.0-flash' } } };
   vm.createContext(configSandbox3);

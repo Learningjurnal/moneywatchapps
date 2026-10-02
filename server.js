@@ -828,12 +828,19 @@ const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022'
 // Google Gemini primary provider config (2026-09-23, user-requested: "jadikan yang utama,
 // anthropic dan openrouter menjadi backup"). Menggunakan official Google GenAI REST API
 // (v1beta generateContent) via Node.js native fetch tanpa external dependency.
+// FIX (2026-10-02, audit konektivitas provider real): default lama
+// 'gemini-1.5-flash' sudah dipensiunkan Google (404 "is not found for API
+// version v1beta"). Dites live dengan key real: gemini-2.5-flash dan
+// gemini-2.0-flash JUGA sudah 404 ("no longer available to new users"),
+// hanya gemini-3.8-flash yang sukses merespons. Lihat juga candidateModels
+// di callGeminiTextWithRetry()/callGeminiAgentLoop() di bawah — sama-sama
+// diperbarui.
 function getGeminiConfig() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
   return {
     apiKey,
-    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash'
+    model: process.env.GEMINI_MODEL || 'gemini-3.8-flash'
   };
 }
 
@@ -918,7 +925,11 @@ async function callGeminiTextWithRetry(prompt, options = {}) {
   if (!config) throw new Error('GEMINI_NOT_CONFIGURED');
   const timeoutMs = options.timeoutMs || 8000;
   const maxRetries = options.maxRetries ?? 2;
-  const candidateModels = [config.model, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+  // FIX (2026-10-02): gemini-1.5-flash/gemini-2.0-flash/gemini-1.5-pro all
+  // confirmed 404 (deprecated) via live test — gemini-3.8-flash is the only
+  // name verified working, kept here as a safety net behind config.model in
+  // case GEMINI_MODEL is overridden to something else that then fails.
+  const candidateModels = [config.model, 'gemini-3.8-flash'];
   const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
 
   let lastError = null;
@@ -2390,7 +2401,11 @@ async function callGeminiAgentLoop(message, history, userContext, executedTools)
   const config = getGeminiConfig();
   if (!config) throw new Error('GEMINI_NOT_CONFIGURED');
 
-  const candidateModels = [config.model, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+  // FIX (2026-10-02): gemini-1.5-flash/gemini-2.0-flash/gemini-1.5-pro all
+  // confirmed 404 (deprecated) via live test — gemini-3.8-flash is the only
+  // name verified working, kept here as a safety net behind config.model in
+  // case GEMINI_MODEL is overridden to something else that then fails.
+  const candidateModels = [config.model, 'gemini-3.8-flash'];
   const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
 
   // Map history to Gemini format: { role: 'user' | 'model', parts: [{ text }] }
