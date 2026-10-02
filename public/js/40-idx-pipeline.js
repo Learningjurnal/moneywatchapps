@@ -375,19 +375,19 @@ var IDX_PIPELINE = {
               </div>
 
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
-                <div style="font-size:11px; font-weight:600; color:#475569; text-transform:uppercase;">Market Breadth (Sampel ${breadth.sampleSize || 0} Saham)</div>
+                <div style="font-size:11px; font-weight:600; color:#475569; text-transform:uppercase;">Market Breadth (${breadth.isSample ? ('Sampel ' + (breadth.sampleSize || 0) + ' Saham') : ('Whole-Market, ' + (breadth.sampleSize || 0) + ' Saham')})</div>
                 <div style="display:flex; align-items:baseline; gap:6px; margin:4px 0;">
                   <span style="font-size:16px; font-weight:800; color:#16a34a;">${breadth.advancing} Naik</span>
                   <span style="font-size:14px; color:#94a3b8;">/</span>
                   <span style="font-size:16px; font-weight:800; color:#dc2626;">${breadth.declining} Turun</span>
                 </div>
-                <div style="font-size:11px; color:#64748b;">${breadth.unchanged} Stagnan · Sampel bellwether, bukan breadth ${breadth.totalListed || 0} emiten penuh</div>
+                <div style="font-size:11px; color:#64748b;">${breadth.unchanged} Stagnan/Tidak Aktif · ${breadth.isSample ? ('Sampel bellwether, bukan breadth ' + (breadth.totalListed || 0) + ' emiten penuh') : ('Whole-market real dari ' + (breadth.totalListed || 0) + ' emiten terdaftar')}</div>
               </div>
 
               <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:16px;">
-                <div style="font-size:11px; font-weight:600; color:#1e40af; text-transform:uppercase;">Turnover (Sampel Bellwether)</div>
+                <div style="font-size:11px; font-weight:600; color:#1e40af; text-transform:uppercase;">Turnover (${breadth.isSample ? 'Sampel Bellwether' : 'Whole-Market'})</div>
                 <div style="font-size:20px; font-weight:800; color:#1d4ed8; margin:4px 0;">${tradeRow ? ('Rp ' + (tradeRow.value/1e12).toLocaleString('id-ID', {maximumFractionDigits:2}) + ' Triliun') : 'Belum tersedia'}</div>
-                <div style="font-size:11px; color:#1e40af;">${tradeRow ? ('Volume: ' + (tradeRow.volume/1e9).toLocaleString('id-ID', {maximumFractionDigits:2}) + ' Miliar Lembar · bukan total bursa') : 'Data turnover whole-market belum terintegrasi'}</div>
+                <div style="font-size:11px; color:#1e40af;">${tradeRow ? ('Volume: ' + (tradeRow.volume/1e9).toLocaleString('id-ID', {maximumFractionDigits:2}) + ' Miliar Lembar' + (breadth.isSample ? ' · bukan total bursa' : ' · whole-market')) : 'Data turnover whole-market belum terintegrasi'}</div>
               </div>
 
               <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:12px; padding:16px;">

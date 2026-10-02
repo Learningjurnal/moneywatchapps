@@ -21,9 +21,13 @@
  * 4. Konsensus Screener — GET /api/idx/screener-consensus?minAgree=3
  *    (generateScreenerConsensus()) — rekomendasi "saat ini", sama untuk
  *    ketiga periode.
- * 5. Ringkasan Bellwether 20 Saham — GET /api/idx/summary
- *    (getIdxMarketSummary()) — WAJIB dilabeli sampel 20 saham, bukan
- *    breadth ~958 emiten BEI penuh (lihat marketBreadth.sampleNote).
+ * 5. Ringkasan Pergerakan Pasar — GET /api/idx/summary (getIdxMarketSummary()).
+ *    FIX (2026-10-02): sekarang whole-market REAL via Invezgo
+ *    /analysis/top/change saat Invezgo dikonfigurasi (marketBreadth.
+ *    isSample:false); fallback ke sampel 20 bellwether (isSample:true,
+ *    dilabeli jujur via marketBreadth.sampleNote) saat Invezgo tidak
+ *    tersedia. Judul section & label di buildBellwetherSection() di bawah
+ *    sudah dibuat dinamis mengikuti isSample, bukan hardcode "bellwether".
  *
  * Sengaja TIDAK dimasukkan: Foreign Flow (widget-nya sudah dicabut
  * 2026-09-26 karena data menyesatkan, tidak ada route client-reachable
@@ -336,21 +340,21 @@ function buildBellwetherSection(summary) {
       + '<div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:10px">'
       + '  <div style="font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700">Advancing / Declining</div>'
       + '  <div style="font-size:15px;font-weight:800;font-family:monospace;margin-top:2px"><span style="color:#047857">' + mb.advancing + '</span> / <span style="color:#b91c1c">' + mb.declining + '</span></div>'
-      + '  <div style="font-size:8.5px;color:#94a3b8">dari ' + mb.sampleSize + ' saham sampel</div>'
+      + '  <div style="font-size:8.5px;color:#94a3b8">dari ' + mb.sampleSize + (mb.isSample ? ' saham sampel' : ' saham whole-market') + '</div>'
       + '</div>'
       + '<div>'
-      + '  <div style="font-size:9.5px;font-weight:700;color:#047857;margin-bottom:3px">Top Gainers (Sampel)</div>'
+      + '  <div style="font-size:9.5px;font-weight:700;color:#047857;margin-bottom:3px">Top Gainers' + (mb.isSample ? ' (Sampel)' : '') + '</div>'
       + (gainers.length ? gainers.map(moverRow).join('') : '<div style="font-size:9px;color:#94a3b8">-</div>')
       + '</div>'
       + '<div>'
-      + '  <div style="font-size:9.5px;font-weight:700;color:#b91c1c;margin-bottom:3px">Top Losers (Sampel)</div>'
+      + '  <div style="font-size:9.5px;font-weight:700;color:#b91c1c;margin-bottom:3px">Top Losers' + (mb.isSample ? ' (Sampel)' : '') + '</div>'
       + (losers.length ? losers.map(moverRow).join('') : '<div style="font-size:9px;color:#94a3b8">-</div>')
       + '</div>'
       + '</div>';
   }
 
   return '<div style="margin-bottom:16px">'
-    + mrSectionTitle(5, 'RINGKASAN 20 SAHAM BELLWETHER', '')
+    + mrSectionTitle(5, (mb && mb.isSample === false) ? 'RINGKASAN PERGERAKAN WHOLE-MARKET' : 'RINGKASAN 20 SAHAM BELLWETHER', '')
     + body
     + '<div style="font-size:8.5px;color:#b45309;margin-top:4px;font-weight:600">'
     + (mb ? mb.sampleNote : 'Sampel 20 saham unggulan (bellwether), BUKAN representasi penuh ~958 emiten BEI — belum ada feed breadth whole-market real-time yang terintegrasi.')

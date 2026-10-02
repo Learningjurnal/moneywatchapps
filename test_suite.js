@@ -8431,11 +8431,94 @@ await asyncTest('REGRESSION GUARD: getIdxMarketSummary() no longer scales a 20-t
 
   const { getIdxMarketSummary } = await import('./lib/idx-data-engine.js');
   const summary = await getIdxMarketSummary();
-  assert(summary.marketBreadth.isSample === true, 'runtime: marketBreadth.isSample must be true');
+  // isSample depends on whether INVEZGO_API_KEY is configured in whatever
+  // environment this test runs in (2026-10-02: whole-market REAL data via
+  // Invezgo /analysis/top/change when available — isSample:false — honest
+  // bellwether-sample fallback otherwise — isSample:true — see the
+  // dedicated test below). Both are legitimate outcomes here; what must
+  // hold regardless of which one actually ran is the shape/honesty.
+  assert(typeof summary.marketBreadth.isSample === 'boolean', 'runtime: marketBreadth.isSample must be a boolean');
   assert(typeof summary.marketBreadth.sampleSize === 'number', 'runtime: marketBreadth.sampleSize must be a number');
+  assert(typeof summary.marketBreadth.sampleNote === 'string' && summary.marketBreadth.sampleNote.length > 0, 'runtime: marketBreadth.sampleNote must be a non-empty disclosure string');
   assert(summary.totalMarketCap === null, 'runtime: totalMarketCap must be null, not a fabricated constant');
   assert(summary.totalMarketCapAvailable === false, 'runtime: totalMarketCapAvailable must be false');
   assert(Array.isArray(summary.tradeSummary) && summary.tradeSummary.every(r => r.id !== 'ETF' && r.id !== 'DIRE' && r.id !== 'Sukuk & Obligasi'), 'runtime: tradeSummary must not contain fabricated ETF/DIRE/Sukuk rows');
+});
+
+// ============================================================
+// FEATURE (2026-10-02, audit "eksplorasi endpoint whole-market yang belum
+// dimanfaatkan"): getIdxMarketSummary() now tries Invezgo's whole-market
+// GET /analysis/top/change FIRST (fetchInvezgoTopChange(), lib/invezgo-
+// client.js — schema verified live, see that function's comment) before
+// falling back to the 20-ticker bellwether sample. Source-text regression:
+// the whole-market branch must exist, must disclose isSample:false
+// honestly, must NOT claim non-mover tickers are definitively "unchanged"
+// (some may simply not have traded), and the bellwether fallback branch
+// must still be present (never silently removed).
+// ============================================================
+test('REGRESSION GUARD: getIdxMarketSummary() tries Invezgo whole-market top/change before falling back to the bellwether sample, and never claims non-movers are definitively flat', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = engineSrc.match(/async function getIdxMarketSummary\(\) \{[\s\S]*?\n\}\n\n\/\/ IDX_BROKERS/);
+  assert(fnMatch, 'REGRESSION: could not isolate getIdxMarketSummary() body');
+  const body = fnMatch[0];
+
+  assert(/fetchInvezgoTopChange\(\)/.test(body), 'REGRESSION: getIdxMarketSummary() no longer calls fetchInvezgoTopChange() — whole-market breadth integration removed');
+  assert(/isSample: false/.test(body), 'REGRESSION: the Invezgo whole-market branch no longer discloses isSample:false');
+  assert(/isSample: true/.test(body), 'REGRESSION: the bellwether-sample fallback branch is gone — getIdxMarketSummary() must still degrade honestly when Invezgo is unconfigured');
+  assert(/bellwethers = \[/.test(body), 'REGRESSION: the 20-ticker bellwether fallback list was removed, not just its isSample:true label');
+  assert(/tidak membedakan keduanya secara eksplisit/.test(body), 'REGRESSION: the whole-market branch must honestly disclose that non-mover tickers could be flat OR simply untraded (not asserted as definitively unchanged)');
+});
+
+await asyncTest('functional: getIdxMarketSummary() whole-market branch maps Invezgo top/change fields to the same quote shape (code/name/price/changePercent/value/volume) the bellwether-sample branch already produces, so UI consumers need no special-casing', async () => {
+  const fakeGain = [{ code: 'FAKE1', name: 'Fake Satu', price: 100, change: 10.5, value: 5000000, volume: 1000, logo: 'x', calculated_value: 10.5, graph: [] }];
+  const fakeLoss = [{ code: 'FAKE2', name: 'Fake Dua', price: 90, change: -5.25, value: 3000000, volume: 800, logo: 'x', calculated_value: -5.25, graph: [] }];
+
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = engineSrc.match(/async function getIdxMarketSummary\(\) \{[\s\S]*?\n\}\n\n\/\/ IDX_BROKERS/);
+  const fnSrc = fnMatch[0].replace('async function getIdxMarketSummary()', 'async function getIdxMarketSummaryTestCopy()');
+
+  const sandbox = {
+    // _summaryCache/_summaryCacheTime/CACHE_TTL_MS: the real function's own
+    // module-level cache-check at its top (`if (_summaryCache && ...)`) is
+    // part of the extracted source — null/0/any-TTL here just means the
+    // cache-check evaluates falsy and execution falls through to the real
+    // logic under test, same as a cold-start call in production.
+    _summaryCache: null,
+    _summaryCacheTime: 0,
+    CACHE_TTL_MS: 30000,
+    loadBaseUniverse: () => ({ FAKE1: {}, FAKE2: {}, FAKE3: {} }),
+    fetchInvezgoTopChange: async () => ({ ok: true, gain: fakeGain, loss: fakeLoss }),
+    fetchYahooQuote: async () => ({ isSimulated: true }), // must never be reached on the success path
+    fetch: async () => { throw new Error('ihsg/usd fetch should not block the breadth branch under test'); },
+    console
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fnSrc, sandbox, { filename: 'getIdxMarketSummary() whole-market sandbox' });
+
+  const summary = await sandbox.getIdxMarketSummaryTestCopy();
+  assert.strictEqual(summary.marketBreadth.isSample, false);
+  assert.strictEqual(summary.marketBreadth.advancing, 1);
+  assert.strictEqual(summary.marketBreadth.declining, 1);
+  assert.strictEqual(summary.marketBreadth.totalListed, 3);
+  assert.strictEqual(summary.marketBreadth.unchanged, 1, 'REGRESSION: 3 universe - 2 movers = 1 unaccounted ticker');
+  // Field-by-field (not assert.deepStrictEqual) — objects built inside a
+  // vm.createContext() sandbox belong to a DIFFERENT V8 realm than this
+  // outer test file, so their Object prototype differs even when every
+  // own-property value is identical; deepStrictEqual's prototype check
+  // fails on that cross-realm mismatch alone, which isn't the thing this
+  // test is actually verifying.
+  const g0 = summary.topGainers[0];
+  assert.strictEqual(g0.code, 'FAKE1');
+  assert.strictEqual(g0.name, 'Fake Satu');
+  assert.strictEqual(g0.price, 100);
+  assert.strictEqual(g0.changePercent, 10.5, 'REGRESSION: whole-market gain items must map Invezgo\'s `change` field to `changePercent`, matching the bellwether-sample shape UI consumers already read');
+  assert.strictEqual(g0.volume, 1000);
+  assert.strictEqual(g0.value, 5000000);
+  const l0 = summary.topLosers[0];
+  assert.strictEqual(l0.code, 'FAKE2');
+  assert.strictEqual(l0.changePercent, -5.25);
+  assert.strictEqual(l0.value, 3000000);
+  assert.strictEqual(summary.mostActive[0].code, 'FAKE1', 'REGRESSION: mostActive must rank by real value across BOTH gain+loss, not just gain');
 });
 
 // ============================================================
