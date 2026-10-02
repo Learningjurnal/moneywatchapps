@@ -6763,8 +6763,8 @@ test('REGRESSION GUARD: Volume Spike Scanner must show an accumulation/distribut
 // API data invezgo punya data financial" — verified schema from 2 real
 // BBCA JSON files (BS+IS) the user uploaded: no shares-outstanding field
 // exists (derived as Net Income ÷ EPS), the EPS row's raw value needs an
-// undocumented ÷1,000,000 scale factor (inferred from numeric plausibility:
-// BBCA FY2025 467000000/1e6=467, a realistic EPS), and no DPS field exists
+// undocumented per-issuer scale divisor (BBCA ÷1e6, AMMN ÷1e3; resolved by
+// hwResolveEpsScale(), not a single constant), and no DPS field exists
 // at all — all disclosed honestly rather than presented as primary data.
 test('REGRESSION GUARD: Harga Wajar auto-fill fetches real Invezgo financial-statement data for uncurated tickers, with honest disclosure', () => {
   const invezgoSrc = fs.readFileSync(path.join(__dirname, 'lib/invezgo-client.js'), 'utf8');
@@ -6785,7 +6785,7 @@ test('REGRESSION GUARD: Harga Wajar auto-fill fetches real Invezgo financial-sta
     'REGRESSION: DPS is no longer honestly left null (no DPS field exists in the financial statement endpoint)');
   assert(/disclosures:/.test(fnSrc) && /epsScaleAssumption/.test(fnSrc) && /sharesDerived/.test(fnSrc),
     'REGRESSION: generateFinancialStatementSummary() no longer discloses the EPS scale assumption / derived-shares methodology');
-  assert(/generateFinancialStatementSummary$/m.test(engineSrc) || /generateFinancialStatementSummary\s*\n?\};/.test(engineSrc),
+  assert(/^\s*generateFinancialStatementSummary,?\s*$/m.test(engineSrc.match(/export \{[\s\S]*?\n\};?/g).pop()),
     'REGRESSION: generateFinancialStatementSummary is no longer exported from lib/idx-data-engine.js');
 
   const serverSrc = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
@@ -10789,6 +10789,36 @@ await asyncTest('functional: dossierComputeSmartMoneyScore() shows a genuine 0% 
   } finally {
     if (savedKey !== undefined) process.env.INVEZGO_API_KEY = savedKey;
   }
+});
+
+await asyncTest('functional: hwResolveEpsScale() picks the per-issuer EPS divisor from real Invezgo raw values (BBCA 1e6, AMMN 1e3, ASII 1e9, GOTO loss-making) and refuses to guess without an anchor', async () => {
+  const { hwResolveEpsScale } = await import('./lib/idx-data-engine.js');
+  const bbca = hwResolveEpsScale({ epsRaw: 467000000, netIncomeRaw: 57537287000000, referenceShares: 123275050000, price: 6100 });
+  assert.strictEqual(bbca.divisor, 1e6, 'BBCA raw EPS 467000000 must be divided by 1e6 (Rp 467)');
+  const ammn = hwResolveEpsScale({ epsRaw: 58030.4065, netIncomeRaw: 4200102491158.737, referenceShares: 72511450000, price: 4240 });
+  assert.strictEqual(ammn.divisor, 1e3, 'REGRESSION: AMMN raw EPS 58030 must be divided by 1e3 (Rp 58), not the BBCA-derived 1e6 that produced EPS 0.06 and a nonsensical Rp 2 fair value');
+  const ammnByPer = hwResolveEpsScale({ epsRaw: 58030.4065, netIncomeRaw: 4200102491158.737, referenceShares: null, price: 4240 });
+  assert.strictEqual(ammnByPer.divisor, 1e3, 'without listed shares the PER anchor must still pick 1e3 for AMMN');
+  assert.strictEqual(ammnByPer.anchor, 'implied_per');
+  const asii = hwResolveEpsScale({ epsRaw: 810000000000, netIncomeRaw: 32769000000000, referenceShares: 40483553140, price: 6000 });
+  assert.strictEqual(asii.divisor, 1e9, 'ASII raw EPS 810e9 must be divided by 1e9 (Rp 810)');
+  const goto = hwResolveEpsScale({ epsRaw: -1120000, netIncomeRaw: -1185654000000, referenceShares: 1201409662836, price: 30 });
+  assert.strictEqual(goto.divisor, 1e6, 'a loss-making issuer (negative EPS and Net Income) must still resolve via the listed-shares anchor');
+  assert.strictEqual(hwResolveEpsScale({ epsRaw: 58030.4065, netIncomeRaw: 4200102491158.737, referenceShares: null, price: null }), null,
+    'with no independent anchor the scale must stay unresolved instead of guessing');
+  assert.strictEqual(hwResolveEpsScale({ epsRaw: -1120000, netIncomeRaw: -1185654000000, referenceShares: null, price: 30 }), null,
+    'a loss-making issuer without listed shares cannot be validated by PER and must stay unresolved');
+});
+
+test('REGRESSION GUARD: generateFinancialStatementSummary() no longer hardcodes a single EPS divisor, sums discontinued-operations EPS, and rejects unverifiable scales', () => {
+  const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  assert(!/HW_EPS_SCALE_DIVISOR/.test(engineSrc),
+    'REGRESSION: a single hardcoded EPS divisor is back — the raw EPS scale differs per issuer (BBCA 1e6, AMMN 1e3, ASII 1e9)');
+  const fnSrc = engineSrc.match(/async function generateFinancialStatementSummary[\s\S]*?\n\}\n/)[0];
+  assert(/hwResolveEpsScale\(/.test(fnSrc) && /EPS_SCALE_UNVERIFIED/.test(fnSrc),
+    'REGRESSION: the EPS scale is no longer resolved per issuer / unverifiable scales are no longer rejected');
+  assert(/epsDiscontinuedByYear/.test(fnSrc),
+    'REGRESSION: discontinued-operations EPS is no longer added, so Net Income ÷ EPS derives wrong shares for issuers like UNVR');
 });
 
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
