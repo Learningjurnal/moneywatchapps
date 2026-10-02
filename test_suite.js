@@ -10798,7 +10798,7 @@ await asyncTest('functional: hwResolveEpsScale() picks the per-issuer EPS diviso
   assert.strictEqual(bbca.divisor, 1e6, 'BBCA raw EPS 467000000 must be divided by 1e6 (Rp 467)');
   const ammn = hwResolveEpsScale({ epsRaw: 58030.4065, netIncomeRaw: 4200102491158.737, referenceShares: 72511450000, price: 4240 });
   assert.strictEqual(ammn.divisor, 1e3, 'REGRESSION: AMMN raw EPS 58030 must be divided by 1e3 (Rp 58), not the BBCA-derived 1e6 that produced EPS 0.06 and a nonsensical Rp 2 fair value');
-  const ammnByPer = hwResolveEpsScale({ epsRaw: 58030.4065, netIncomeRaw: 4200102491158.737, referenceShares: null, price: 4240 });
+  const ammnByPer = hwResolveEpsScale({ epsRaw: 58030.4065, netIncomeRaw: 4200102491158.737, referenceShares: null, price: 4240, equityRaw: 9.0049965e13 });
   assert.strictEqual(ammnByPer.divisor, 1e3, 'without listed shares the PER anchor must still pick 1e3 for AMMN');
   assert.strictEqual(ammnByPer.anchor, 'implied_per');
   const asii = hwResolveEpsScale({ epsRaw: 810000000000, netIncomeRaw: 32769000000000, referenceShares: 40483553140, price: 6000 });
@@ -10871,6 +10871,28 @@ await asyncTest('functional: hwBuildFinancialRows() skips a fiscal year whose ra
     price: 1000
   });
   assert.deepStrictEqual(steady.skippedYears, [], 'a genuine 15x equity growth over three years must NOT be treated as a unit anomaly');
+});
+
+await asyncTest('functional: hwBuildFinancialRows() does not anchor the EPS scale on an OLD year against today\'s price (real PYFA: EPS 514 vs price 198 must not become EPS 0.51 / 535 trillion shares)', async () => {
+  const { hwBuildFinancialRows } = await import('./lib/idx-data-engine.js');
+  const toMap = (pairs) => new Map(pairs);
+  const pyfa = hwBuildFinancialRows({
+    equityByYear: toMap([[2022, 4.42e11], [2023, 3.57e11], [2024, 1.04e12], [2025, 7.67e11]]),
+    netIncomeByYear: toMap([[2022, 2.75e11], [2023, -8.52e10], [2024, -3.30e11], [2025, -3.80e11]]),
+    epsRawByYear: toMap([[2022, 514.39], [2023, 159.27], [2024, -38.91], [2025, -33.79]]),
+    referenceShares: null,
+    price: 198
+  });
+  assert.strictEqual(pyfa, null,
+    'REGRESSION: a loss-making latest year leaves no trustworthy anchor — the builder must report "unverifiable" instead of anchoring FY2022 EPS 514 on today\'s price (PER 0.38) and picking the wrong /1000 scale');
+  const keen = hwBuildFinancialRows({
+    equityByYear: toMap([[2022, 2407964352873], [2023, 2535015472552], [2024, 2729902571020], [2025, 2931256710.438]]),
+    netIncomeByYear: toMap([[2022, 197531492730], [2023, 199037825920], [2024, 100742691572], [2025, 130258812.894]]),
+    epsRawByYear: toMap([[2022, 53.4854], [2023, 53.956], [2024, 27.4754], [2025, 0.0352]]),
+    referenceShares: null,
+    price: 840
+  });
+  assert(keen && keen.rows.length === 3, 'a genuinely plausible older-year PER (KEEN FY2024, PER ~31) must still anchor the scale');
 });
 
 test('REGRESSION GUARD: generateFinancialStatementSummary() no longer hardcodes a single EPS divisor, sums discontinued-operations EPS, and rejects unverifiable scales', () => {
