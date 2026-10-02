@@ -10850,6 +10850,29 @@ await asyncTest('functional: hwBuildFinancialRows() resolves the EPS scale PER F
     'with no anchor at all the builder must return null instead of guessing a scale');
 });
 
+await asyncTest('functional: hwBuildFinancialRows() skips a fiscal year whose raw amounts arrive in a different unit (real KEEN FY2025 is 1000x smaller than FY2022-24)', async () => {
+  const { hwBuildFinancialRows } = await import('./lib/idx-data-engine.js');
+  const toMap = (pairs) => new Map(pairs);
+  const keen = hwBuildFinancialRows({
+    equityByYear: toMap([[2022, 2407964352873], [2023, 2535015472552], [2024, 2729902571020], [2025, 2931256710.438]]),
+    netIncomeByYear: toMap([[2022, 197531492730], [2023, 199037825920], [2024, 100742691572], [2025, 130258812.894]]),
+    epsRawByYear: toMap([[2022, 53.4854], [2023, 53.956], [2024, 27.4754], [2025, 0.0352]]),
+    referenceShares: null,
+    price: 840
+  });
+  assert.deepStrictEqual(keen.rows.map(r => r.year), [2022, 2023, 2024],
+    'REGRESSION: KEEN FY2025 (equity 2.93 billion vs ~2,700 billion the year before) must be dropped, not shown with BVPS Rp 1');
+  assert.deepStrictEqual(keen.skippedYears, [2025]);
+  const steady = hwBuildFinancialRows({
+    equityByYear: toMap([[2022, 1e12], [2023, 2e12], [2024, 9e12], [2025, 1.5e13]]),
+    netIncomeByYear: toMap([[2022, 1e11], [2023, 2e11], [2024, 9e11], [2025, 1.5e12]]),
+    epsRawByYear: toMap([[2022, 10], [2023, 20], [2024, 90], [2025, 150]]),
+    referenceShares: 1e10,
+    price: 1000
+  });
+  assert.deepStrictEqual(steady.skippedYears, [], 'a genuine 15x equity growth over three years must NOT be treated as a unit anomaly');
+});
+
 test('REGRESSION GUARD: generateFinancialStatementSummary() no longer hardcodes a single EPS divisor, sums discontinued-operations EPS, and rejects unverifiable scales', () => {
   const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
   assert(!/HW_EPS_SCALE_DIVISOR/.test(engineSrc),
