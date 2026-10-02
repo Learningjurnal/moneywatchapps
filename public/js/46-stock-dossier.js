@@ -311,20 +311,35 @@ function dossierComputeSmartMoneyScore(harvested) {
   }
 
   var bandar = bSummary.bandarmology || bSummary;
-  var statusStr = (bandar.status || bandar.action || bSummary.accumulation || bSummary.action || '').toString();
-  var top3Pct = (bandar.top3Concentration !== undefined && bandar.top3Concentration !== null)
-    ? Number(bandar.top3Concentration)
-    : ((bandar.top3BuyersPercent !== undefined && bandar.top3BuyersPercent !== null)
-      ? Number(bandar.top3BuyersPercent)
-      : ((bSummary.top3Concentration !== undefined && bSummary.top3Concentration !== null) ? Number(bSummary.top3Concentration) : null));
+  // FIX (2026-10-02, user-reported: PTRO dossier menunjukkan "Status Tidak
+  // Tersedia" / "-" / "Tidak Tersedia" di ketiga kartu ini padahal badge
+  // pilar sudah REAL): field yang dibaca sebelumnya (status/
+  // top3Concentration/top3BuyersPercent/foreignFlow.netBuy/netValue) TIDAK
+  // PERNAH ADA di kedua skema generateBrokerSummary() — real
+  // (computeBandarmologyVerdict(), lib/idx-data-engine.js) pakai `verdict`,
+  // `concentration.top3BuyPct`, `foreignFlow.netValRp`; simulasi
+  // (generateClientSideBrokerSummary(), 41-stockchat-cockpit.js) pakai
+  // `verdict` juga tapi `concentration.top3BuyerPct` (beda penamaan dari
+  // real — inkonsistensi pre-existing di engine, di luar scope fix ini) dan
+  // `foreignFlow.netValueRp`. Pola bug yang sama dengan yang sudah
+  // diperbaiki di 27-stockintel.js audit sebelumnya di sesi ini — field
+  // mati yang tidak pernah match, bukan data yang genuinely tidak ada.
+  var statusStr = (bandar.verdict || bandar.status || bandar.action || bSummary.accumulation || bSummary.action || '').toString();
+  var concentration = bandar.concentration || {};
+  var top3Pct = (concentration.top3BuyPct !== undefined && concentration.top3BuyPct !== null)
+    ? Number(concentration.top3BuyPct)
+    : ((concentration.top3BuyerPct !== undefined && concentration.top3BuyerPct !== null)
+      ? Number(concentration.top3BuyerPct)
+      : ((bandar.top3Concentration !== undefined && bandar.top3Concentration !== null) ? Number(bandar.top3Concentration) : null));
 
   var foreignNet = null;
-  if (bandar.foreignNet !== undefined && bandar.foreignNet !== null) {
+  var ff = bandar.foreignFlow || {};
+  if (ff.netValRp !== undefined && ff.netValRp !== null) {
+    foreignNet = Number(ff.netValRp);
+  } else if (ff.netValueRp !== undefined && ff.netValueRp !== null) {
+    foreignNet = Number(ff.netValueRp);
+  } else if (bandar.foreignNet !== undefined && bandar.foreignNet !== null) {
     foreignNet = Number(bandar.foreignNet);
-  } else if (bSummary.foreignNet !== undefined && bSummary.foreignNet !== null) {
-    foreignNet = Number(bSummary.foreignNet);
-  } else if (bandar.foreignFlow && (bandar.foreignFlow.netBuy !== undefined || bandar.foreignFlow.netValue !== undefined)) {
-    foreignNet = Number(bandar.foreignFlow.netBuy !== undefined ? bandar.foreignFlow.netBuy : bandar.foreignFlow.netValue);
   }
 
   var vwapBandar = bandar.vwap || bSummary.vwap || null;
