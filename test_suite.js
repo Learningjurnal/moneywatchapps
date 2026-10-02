@@ -10763,6 +10763,34 @@ await asyncTest('functional: dossierComputeSmartMoneyScore() correctly surfaces 
   assert.strictEqual(typeof result.top3Pct, 'number', 'REGRESSION: top3Pct is null even though real concentration data was present — the field read is broken again');
 });
 
+// BUG AUDIT (2026-10-02, caught while re-checking the field-name fix above
+// across many tickers): `top3Pct ? Math.round(top3Pct) : null` treats a
+// GENUINE 0% concentration (e.g. generateBrokerSummaryTemplate()'s
+// deliberate all-zero "NO DATA" block, lib/idx-data-engine.js) as if it
+// were missing data, because 0 is falsy in JS — same class of bug as the
+// field-name issue, different mechanism. Forced the simulated path (no
+// INVEZGO_API_KEY) to get a real 0% concentration value to test against,
+// rather than guessing.
+await asyncTest('functional: dossierComputeSmartMoneyScore() shows a genuine 0% top3Pct as 0, not null (0 is falsy in JS, not "missing")', async () => {
+  const savedKey = process.env.INVEZGO_API_KEY;
+  delete process.env.INVEZGO_API_KEY;
+  try {
+    const idx = await import('./lib/idx-data-engine.js');
+    const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+    const fnMatch = src.match(/function dossierComputeSmartMoneyScore\(harvested\) \{[\s\S]*?\n\}/);
+    const sandbox = {};
+    vm.createContext(sandbox);
+    vm.runInContext(fnMatch[0], sandbox, { filename: 'dossierComputeSmartMoneyScore 0pct sandbox' });
+
+    const summary = await idx.generateBrokerSummary('BBCA', { price: 1000, isSimulated: false }, '1D');
+    assert.strictEqual(summary.isSimulated, true, 'test setup: expected the simulated template path without INVEZGO_API_KEY');
+    const result = sandbox.dossierComputeSmartMoneyScore({ brokerSummary: summary, quote: { price: 1000 } });
+    assert.strictEqual(result.top3Pct, 0, 'REGRESSION: a genuine 0% concentration must render as 0, not null — null means "no data", 0 means "no data" too (same simulated template) but for OTHER tickers 0 could be a real computed value and must not collapse into the unavailable case');
+  } finally {
+    if (savedKey !== undefined) process.env.INVEZGO_API_KEY = savedKey;
+  }
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');

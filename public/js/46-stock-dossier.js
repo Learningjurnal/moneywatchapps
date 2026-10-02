@@ -452,7 +452,13 @@ function dossierComputeSmartMoneyScore(harvested) {
     isSimulated: isSimulated,
     dataSource: bSummary.dataSource || (isSimulated ? 'Model Simulasi Deterministik' : 'Invezgo API (real)'),
     score: score,
-    top3Pct: top3Pct ? Math.round(top3Pct) : null,
+    // FIX (2026-10-02, caught while re-checking the field-name fix across
+    // tickers): `top3Pct ? ... : null` treats a genuine 0% concentration
+    // (e.g. the simulated "NO DATA" template's deliberate all-zero
+    // concentration block) as if it were missing data — 0 is falsy in JS.
+    // Null-check instead, same fix applied to every other top3Pct read
+    // below.
+    top3Pct: (top3Pct !== null && top3Pct !== undefined) ? Math.round(top3Pct) : null,
     foreignFlow: foreignNet,
     // FIX (2026-09-30, audit finding): dulu fallback ke 'Normal
     // Accumulation'/'Akumulasi' saat API tidak mengembalikan field
@@ -466,7 +472,7 @@ function dossierComputeSmartMoneyScore(harvested) {
     distributors: distributors,
     topBuyers: rawBuyers,
     topSellers: rawSellers,
-    reason: (isSimulated ? '[SIMULASI MODEL] ' : '') + 'Status: ' + (statusStr || 'Tidak tersedia dari API') + (top3Pct ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
+    reason: (isSimulated ? '[SIMULASI MODEL] ' : '') + 'Status: ' + (statusStr || 'Tidak tersedia dari API') + ((top3Pct !== null && top3Pct !== undefined) ? ' (Konsentrasi Top 3: ' + Math.round(top3Pct) + '%)' : '') +
             (accumulators.length ? ' · Top Akumulator: ' + accumulators.slice(0, 3).map(function(a){ return a.code; }).join(', ') : '') +
             (foreignNet !== null && foreignNet !== 0 ? ' · Foreign Net: Rp ' + (foreignNet / 1e9).toFixed(2) + ' M' : '')
   };
@@ -1854,7 +1860,7 @@ function renderStockDossierPage(targetTicker) {
   html += '      </div>';
   html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
   html += '        <div><span style="color:var(--text3)">Aksi Bandar:</span> <b style="color:var(--text)">' + (sm.bandarStatus || '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Konsentrasi Top 3:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (sm.top3Pct ? sm.top3Pct + '%' : '-') + '</b></div>';
+  html += '        <div><span style="color:var(--text3)">Konsentrasi Top 3:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (sm.top3Pct !== null && sm.top3Pct !== undefined ? sm.top3Pct + '%' : '-') + '</b></div>';
   html += '      </div>';
 
   // PROMINENT FEATURE: NAMA BROKER AKUMULATOR UTAMA
@@ -2059,7 +2065,7 @@ function renderStockDossierPage(targetTicker) {
 
     html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Status Bandarmology</span><div style="font-size:16px;font-weight:800;color:var(--blue)">' + res.pillars.smartMoney.bandarStatus + '</div></div>';
-    html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Konsentrasi Top 3 Broker</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.smartMoney.top3Pct ? res.pillars.smartMoney.top3Pct + '%' : '-') + '</div></div>';
+    html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Konsentrasi Top 3 Broker</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.smartMoney.top3Pct !== null && res.pillars.smartMoney.top3Pct !== undefined ? res.pillars.smartMoney.top3Pct + '%' : '-') + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Net Foreign Flow</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:' + tabFfColor + '">' + tabFfText + '</div></div>';
     html += '        <div class="card" style="padding:12px;background:var(--bg2)"><span style="font-size:10px;color:var(--text3)">Bandar VWAP (Est. Rata-Rata)</span><div style="font-family:var(--font-mono);font-size:18px;font-weight:800">' + (res.pillars.smartMoney.vwapBandar ? 'Rp ' + Math.round(res.pillars.smartMoney.vwapBandar).toLocaleString('id-ID') : '-') + '</div></div>';
     html += '      </div>';
