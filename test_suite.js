@@ -6779,9 +6779,10 @@ test('REGRESSION GUARD: Harga Wajar auto-fill fetches real Invezgo financial-sta
     'REGRESSION: generateFinancialStatementSummary() no longer fetches the real Balance Sheet from Invezgo');
   assert(/fetchInvezgoFinancialStatement\(clean, 'IS', 'FY', 4\)/.test(fnSrc),
     'REGRESSION: generateFinancialStatementSummary() no longer fetches the real Income Statement from Invezgo');
-  assert(/netIncomeRaw \/ eps/.test(fnSrc),
+  const builderSrc = engineSrc.match(/function hwBuildFinancialRows[\s\S]*?\n\}\n/)[0];
+  assert(/netIncomeRaw \/ eps/.test(builderSrc),
     'REGRESSION: shares outstanding is no longer derived from Net Income ÷ EPS (there is no direct shares field in the API)');
-  assert(/dps:\s*null/.test(fnSrc),
+  assert(/dps:\s*null/.test(builderSrc),
     'REGRESSION: DPS is no longer honestly left null (no DPS field exists in the financial statement endpoint)');
   assert(/disclosures:/.test(fnSrc) && /epsScaleAssumption/.test(fnSrc) && /sharesDerived/.test(fnSrc),
     'REGRESSION: generateFinancialStatementSummary() no longer discloses the EPS scale assumption / derived-shares methodology');
@@ -10810,12 +10811,51 @@ await asyncTest('functional: hwResolveEpsScale() picks the per-issuer EPS diviso
     'a loss-making issuer without listed shares cannot be validated by PER and must stay unresolved');
 });
 
+await asyncTest('functional: hwBuildFinancialRows() resolves the EPS scale PER FISCAL YEAR (real TLKM/BBNI raw values mix ÷1e9, ÷1e6 and ÷1 across years) and skips years it cannot verify', async () => {
+  const { hwBuildFinancialRows } = await import('./lib/idx-data-engine.js');
+  const toMap = (pairs) => new Map(pairs);
+  const tlkm = hwBuildFinancialRows({
+    equityByYear: toMap([[2022, 1.4e14], [2023, 1.5e14], [2024, 1.6e14], [2025, 1.3e14]]),
+    netIncomeByYear: toMap([[2025, 17814000000000], [2024, 23649000000000], [2023, 24560000000000], [2022, 20753000000000]]),
+    epsRawByYear: toMap([[2025, 179.83], [2024, 238730000000], [2023, 247920000000], [2022, 209490000000]]),
+    referenceShares: 99062216600,
+    price: 3000
+  });
+  assert.deepStrictEqual(tlkm.rows.map(r => r.eps), [209.49, 247.92, 238.73, 179.83],
+    'REGRESSION: TLKM EPS must be resolved per year (FY2022-24 raw is ÷1e9, FY2025 raw is ÷1) — one scale for all years produced EPS 0 / trillions of shares');
+  assert(tlkm.rows.every(r => r.shares > 98000 && r.shares < 100000),
+    'REGRESSION: derived shares must stay ~99 billion (juta) in every year once the scale is per year');
+
+  const bbni = hwBuildFinancialRows({
+    equityByYear: toMap([[2022, 1], [2023, 1], [2024, 1], [2025, 1]]),
+    netIncomeByYear: toMap([[2025, 20040703000000], [2024, 21463599000000], [2023, 20909476000000], [2022, 18312054000000]]),
+    epsRawByYear: toMap([[2025, 537000000], [2024, 570], [2023, 561000000], [2022, 983000000]]),
+    referenceShares: 37294752960,
+    price: 4000
+  });
+  assert.deepStrictEqual(bbni.rows.map(r => r.eps), [983, 561, 570, 537],
+    'REGRESSION: BBNI FY2024 raw EPS 570 (÷1) amid ÷1e6 years must not become EPS 0');
+
+  const unverifiable = hwBuildFinancialRows({
+    equityByYear: toMap([[2024, 1], [2025, 1]]),
+    netIncomeByYear: toMap([[2025, 4200102491158], [2024, 10311966945000]]),
+    epsRawByYear: toMap([[2025, 58030.4], [2024, 0.01]]),
+    referenceShares: 72511450000,
+    price: 4240
+  });
+  assert.deepStrictEqual(unverifiable.rows.map(r => r.year), [2025]);
+  assert.deepStrictEqual(unverifiable.skippedYears, [2024],
+    'a year whose raw EPS cannot be matched to the share count must be skipped, not guessed');
+  assert.strictEqual(hwBuildFinancialRows({ equityByYear: toMap([[2025, 1]]), netIncomeByYear: toMap([[2025, 1e12]]), epsRawByYear: toMap([[2025, 100]]), referenceShares: null, price: null }), null,
+    'with no anchor at all the builder must return null instead of guessing a scale');
+});
+
 test('REGRESSION GUARD: generateFinancialStatementSummary() no longer hardcodes a single EPS divisor, sums discontinued-operations EPS, and rejects unverifiable scales', () => {
   const engineSrc = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
   assert(!/HW_EPS_SCALE_DIVISOR/.test(engineSrc),
     'REGRESSION: a single hardcoded EPS divisor is back — the raw EPS scale differs per issuer (BBCA 1e6, AMMN 1e3, ASII 1e9)');
   const fnSrc = engineSrc.match(/async function generateFinancialStatementSummary[\s\S]*?\n\}\n/)[0];
-  assert(/hwResolveEpsScale\(/.test(fnSrc) && /EPS_SCALE_UNVERIFIED/.test(fnSrc),
+  assert(/hwBuildFinancialRows\(/.test(fnSrc) && /EPS_SCALE_UNVERIFIED/.test(fnSrc),
     'REGRESSION: the EPS scale is no longer resolved per issuer / unverifiable scales are no longer rejected');
   assert(/epsDiscontinuedByYear/.test(fnSrc),
     'REGRESSION: discontinued-operations EPS is no longer added, so Net Income ÷ EPS derives wrong shares for issuers like UNVR');
