@@ -10581,6 +10581,75 @@ await asyncTest('functional: GET /api/idx/order-book/:ticker (real Express route
   }
 });
 
+// ============================================================
+// FEATURE (2026-10-02, audit "panel dokumen keterbukaan informasi"):
+// GET /analysis/disclosure?code={ticker} (fetchInvezgoDisclosure(),
+// lib/invezgo-client.js — schema verified live, confirmed per-ticker
+// filterable, NOT a whole-market feed needing client-side filtering) now
+// powers a new "Dokumen Resmi BEI" tab on Stock Dossier. Source-text
+// regression: the route/wiring must exist, must fail closed honestly,
+// and must never translate a `type` value this app hasn't actually
+// observed from a real response.
+// ============================================================
+test('REGRESSION GUARD: GET /api/idx/disclosure/:ticker exists, calls the schema-verified fetchInvezgoDisclosure(), and never fabricates a document list', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const fnMatch = src.match(/app\.get\('\/api\/idx\/disclosure\/:ticker'[\s\S]*?\n\}\);/);
+  assert(fnMatch, 'REGRESSION: GET /api/idx/disclosure/:ticker route is gone');
+  const fn = fnMatch[0];
+
+  assert(/fetchInvezgoDisclosure\(ticker, page\)/.test(fn),
+    'REGRESSION: /api/idx/disclosure/:ticker no longer calls the schema-verified fetchInvezgoDisclosure()');
+  assert(/if \(!result\.ok\) \{/.test(fn) && /available: false, reason: result\.reason, items: \[\]/.test(fn),
+    'REGRESSION: the route no longer fails closed honestly to available:false/items:[] when fetchInvezgoDisclosure() reports !ok — could start fabricating a document list');
+});
+
+await asyncTest('functional: fetchInvezgoDisclosure() (real import, tested with BBCA) fails closed without INVEZGO_API_KEY, and separately requires a ticker even with a key', async () => {
+  const savedKey = process.env.INVEZGO_API_KEY;
+  delete process.env.INVEZGO_API_KEY;
+  try {
+    const { fetchInvezgoDisclosure } = await import('./lib/invezgo-client.js');
+    const noKey = await fetchInvezgoDisclosure('BBCA');
+    assert.strictEqual(noKey.ok, false, 'fetchInvezgoDisclosure(\'BBCA\') must be ok:false without a configured Invezgo key — never a fabricated document list');
+    assert.strictEqual(noKey.reason, 'NOT_CONFIGURED');
+
+    process.env.INVEZGO_API_KEY = 'test-fake-key-for-schema-guard-only';
+    const noTicker = await fetchInvezgoDisclosure('');
+    assert.strictEqual(noTicker.ok, false, 'fetchInvezgoDisclosure() must not proceed without an explicit ticker');
+    assert.strictEqual(noTicker.reason, 'TICKER_REQUIRED');
+  } finally {
+    if (savedKey !== undefined) process.env.INVEZGO_API_KEY = savedKey; else delete process.env.INVEZGO_API_KEY;
+  }
+});
+
+test('REGRESSION GUARD: Stock Dossier "Dokumen Resmi BEI" tab fetches real per-ticker disclosures, keeps them OUT of the composite score, and never invents a label for an unobserved document type', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/46-stock-dossier.js'), 'utf8');
+
+  assert(/fetch\('\/api\/idx\/disclosure\/' \+ cleanTicker/.test(src),
+    'REGRESSION: dossierHarvestData() no longer fetches the real per-ticker disclosure endpoint');
+  assert(/result\.disclosure = harvested\.disclosure/.test(src),
+    'REGRESSION: dossierCalculateScore() no longer attaches disclosure data to the result — the new tab would have nothing to render');
+  // Must NOT be folded into the `pillars` object passed to
+  // dossierCalculateCompositeScore() — disclosure has no meaningful score.
+  const pillarsBlockMatch = src.match(/var pillars = \{[\s\S]*?\n  \};/);
+  assert(pillarsBlockMatch, 'REGRESSION: could not isolate the pillars object in dossierCalculateScore()');
+  assert(!/disclosure/.test(pillarsBlockMatch[0]),
+    'REGRESSION: disclosure got folded into the scoring `pillars` object — a document list has no meaningful score and must stay outside compositeScore/confidenceLevel');
+
+  assert(/function dossierRenderDisclosureList\(disclosure\)/.test(src), 'REGRESSION: dossierRenderDisclosureList() is missing from 46-stock-dossier.js');
+  assert(/if \(!disclosure \|\| !disclosure\.available\) \{/.test(src),
+    'REGRESSION: dossierRenderDisclosureList() no longer honestly handles the unavailable case — could render a stale/empty list indistinguishably from "really has no documents"');
+
+  // Type-label map must only contain values actually observed live
+  // (see fetchInvezgoDisclosure()'s comment in lib/invezgo-client.js) —
+  // any OTHER key here would be a guessed translation CLAUDE.md Aturan #1
+  // forbids.
+  const labelMapMatch = src.match(/var DOSSIER_DISCLOSURE_TYPE_LABELS = \{[\s\S]*?\n\};/);
+  assert(labelMapMatch, 'REGRESSION: DOSSIER_DISCLOSURE_TYPE_LABELS is missing');
+  const observedTypes = ['dividen', 'rups', 'right_issue', 'press_release', 'public_expose', 'shareholder', 'other'];
+  const mapKeys = [...labelMapMatch[0].matchAll(/^\s*(\w+):/gm)].map(m => m[1]);
+  mapKeys.forEach(k => assert(observedTypes.includes(k), `REGRESSION: DOSSIER_DISCLOSURE_TYPE_LABELS has a key "${k}" that was never actually observed from a live Invezgo response — looks like a guessed translation`));
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');

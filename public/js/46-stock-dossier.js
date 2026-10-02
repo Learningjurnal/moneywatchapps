@@ -1055,7 +1055,13 @@ function dossierCalculateScore(harvested, weights) {
     regime: regimePillar
   };
 
-  return dossierCalculateCompositeScore(pillars, weights);
+  var result = dossierCalculateCompositeScore(pillars, weights);
+  // Dokumen Keterbukaan Informasi BEI: murni informasional, BUKAN pilar
+  // skoring (tidak ada "skor" yang bermakna untuk daftar dokumen resmi) —
+  // dilampirkan terpisah dari `pillars` supaya tidak ikut masuk ke
+  // perhitungan compositeScore/confidenceLevel.
+  result.disclosure = harvested.disclosure;
+  return result;
 }
 
 // ============================================================
@@ -1128,7 +1134,8 @@ async function dossierHarvestData(ticker) {
     kseiLive: null,
     regime: null,
     fund: null,
-    aiHypothesis: null
+    aiHypothesis: null,
+    disclosure: null
   };
 
   try {
@@ -1178,6 +1185,12 @@ async function dossierHarvestData(ticker) {
       .then(function(r) { return r.ok ? r.json() : null; })
       .catch(function() { return null; });
 
+    // 7. Fetch Dokumen Keterbukaan Informasi BEI (real, per-ticker — lihat
+    // fetchInvezgoDisclosure() di lib/invezgo-client.js)
+    var disclosurePromise = fetch('/api/idx/disclosure/' + cleanTicker, { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .catch(function() { return null; });
+
     var results = await Promise.all([
       quotePromise,
       brokerPromise,
@@ -1185,7 +1198,8 @@ async function dossierHarvestData(ticker) {
       kseiPromise,
       regimePromise,
       hypothesisPromise,
-      kseiLivePromise
+      kseiLivePromise,
+      disclosurePromise
     ]);
 
     var qData = results[0];
@@ -1282,6 +1296,9 @@ async function dossierHarvestData(ticker) {
 
     var kseiLiveData = results[6];
     harvested.kseiLive = (kseiLiveData && kseiLiveData.success && kseiLiveData.data) ? kseiLiveData.data : null;
+
+    var disclosureData = results[7];
+    harvested.disclosure = (disclosureData && disclosureData.success && disclosureData.data) ? disclosureData.data : null;
 
     // Local cached fallback if API fundamentals missing
     if (typeof FUND_DATA !== 'undefined' && FUND_DATA) {
@@ -1405,6 +1422,63 @@ function dossierRenderStatusBadge(pillar) {
     return '<span class="badge" style="background:rgba(245,158,11,0.18);color:#f59e0b;border:1px solid rgba(245,158,11,0.35);font-size:9px;padding:1px 5px;font-weight:700" title="Data merupakan estimasi model simulasi (Invezgo API belum terhubung)"><i class="ti ti-flask"></i> SIMULASI</span>';
   }
   return '<span class="badge b-up" style="font-size:9px;padding:1px 5px">REAL</span>';
+}
+
+// Label manusiawi untuk `type` dokumen keterbukaan informasi — HANYA untuk
+// nilai yang sudah benar-benar diamati live dari Invezgo /analysis/
+// disclosure (lihat komentar fetchInvezgoDisclosure() di lib/invezgo-
+// client.js: other, shareholder, press_release, public_expose, dividen).
+// Nilai `type` lain yang belum pernah diamati/didokumentasikan TIDAK
+// diberi terjemahan tebakan — tampil apa adanya (CLAUDE.md Aturan #1).
+var DOSSIER_DISCLOSURE_TYPE_LABELS = {
+  dividen: 'Dividen',
+  rups: 'RUPS',
+  right_issue: 'Right Issue',
+  press_release: 'Press Release',
+  public_expose: 'Public Expose',
+  shareholder: 'Pemegang Saham',
+  other: 'Lainnya'
+};
+
+function dossierRenderDisclosureList(disclosure) {
+  if (!disclosure || !disclosure.available) {
+    var reason = disclosure && disclosure.reason === 'NOT_CONFIGURED'
+      ? 'Invezgo API belum dikonfigurasi di server.'
+      : 'Data dokumen keterbukaan informasi tidak tersedia saat ini.';
+    return '<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">' + reason + '</div>';
+  }
+  var items = disclosure.items || [];
+  if (!items.length) {
+    return '<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Belum ada dokumen keterbukaan informasi tercatat untuk emiten ini.</div>';
+  }
+
+  var html = '<div style="display:flex;flex-direction:column;gap:8px">';
+  items.forEach(function(item) {
+    var typeLabel = DOSSIER_DISCLOSURE_TYPE_LABELS[item.type] || item.type || 'Lainnya';
+    var dateStr = item.date ? new Date(item.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+    var files = Array.isArray(item.list) ? item.list : [];
+
+    html += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">';
+    html += '  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">';
+    html += '    <span class="badge b-gray" style="font-size:9px;flex-shrink:0">' + typeLabel + '</span>';
+    html += '    <span style="font-size:10px;color:var(--text3);white-space:nowrap">' + dateStr + '</span>';
+    html += '  </div>';
+    html += '  <div style="font-size:12px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:6px">' + item.title + '</div>';
+    if (files.length) {
+      html += '  <div style="display:flex;flex-wrap:wrap;gap:6px">';
+      files.forEach(function(f, idx) {
+        html += '    <a href="' + f.url + '" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;gap:3px"><i class="ti ti-file-type-pdf"></i> Dok ' + (idx + 1) + '</a>';
+      });
+      html += '  </div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+
+  if (disclosure.totalPage > 1) {
+    html += '<div style="text-align:center;margin-top:10px;font-size:10px;color:var(--text3)">Menampilkan halaman ' + (disclosure.page || 1) + ' dari ' + disclosure.totalPage + ' — dokumen lebih lama tersedia langsung di idx.co.id.</div>';
+  }
+  return html;
 }
 
 function renderStockDossierPage(targetTicker) {
@@ -1861,7 +1935,8 @@ function renderStockDossierPage(targetTicker) {
     { id: 'technical', label: '3. Teknikal & Momentum' },
     { id: 'ksei', label: '4. Kepemilikan KSEI' },
     { id: 'fundamental', label: '5. Fundamental & Dividen' },
-    { id: 'regime', label: '6. AI Regime & Verdict' }
+    { id: 'regime', label: '6. AI Regime & Verdict' },
+    { id: 'disclosure', label: 'Dokumen Resmi BEI' }
   ].forEach(function(t) {
     var isActive = dossierState.activeTab === t.id;
     html += '    <button class="dossier-tab-btn ' + (isActive ? 'active' : '') + '" data-tab="' + t.id + '" onclick="dossierSwitchTab(\'' + t.id + '\')" ';
@@ -2117,6 +2192,16 @@ function renderStockDossierPage(targetTicker) {
   }
 
   html += '      <p style="font-size:11px;color:var(--text2);margin:0">Kondisi pasar makro (IHSG trend &amp; risk appetite) menjadi regulator multiplier agar sinyal saham tunggal tidak dieksekusi secara membabi buta di pasar risk-off.</p>';
+  html += '    </div>';
+
+  // ── TAB: DOKUMEN RESMI BEI (Keterbukaan Informasi) ──
+  // Murni informasional (lihat komentar dossierCalculateScore()) — tidak
+  // ada status badge pilar/skor di sini, cuma daftar dokumen resmi real
+  // dari Invezgo /analysis/disclosure (link PDF langsung ke idx.co.id).
+  html += '    <div class="dossier-tab-pane" data-tab="disclosure" style="display:' + (dossierState.activeTab === 'disclosure' ? 'block' : 'none') + '">';
+  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0 0 4px 0">Dokumen Keterbukaan Informasi BEI</h4>';
+  html += '      <p style="font-size:11px;color:var(--text3);margin:0 0 12px 0">Daftar pengumuman resmi emiten ke Bursa Efek Indonesia (RUPS, dividen, laporan keuangan, press release, dll), diurut dari yang terbaru.</p>';
+  html += dossierRenderDisclosureList(res.disclosure);
   html += '    </div>';
 
   html += '  </div>'; // End Tab Content Container

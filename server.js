@@ -57,7 +57,7 @@ import {
   getDataQualityTelemetry,
   classifyMarketRegime
 } from './lib/idx-data-engine.js';
-import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook, fetchInvezgoNews } from './lib/invezgo-client.js';
+import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook, fetchInvezgoNews, fetchInvezgoDisclosure } from './lib/invezgo-client.js';
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
@@ -4021,6 +4021,37 @@ app.get('/api/idx/order-book/:ticker', async (req, res) => {
     });
   } catch (err) {
     console.error('[Order Book Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/disclosure/:ticker — official BEI "keterbukaan informasi"
+// documents for a single ticker (fetchInvezgoDisclosure(), lib/invezgo-
+// client.js — schema verified live, see that function's comment). Fails
+// closed honestly (available:false) without INVEZGO_API_KEY or on any
+// upstream error — never fabricates a document list.
+app.get('/api/idx/disclosure/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker;
+    if (!ticker) return res.status(400).json({ success: false, error: 'Ticker required' });
+    const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+
+    const result = await fetchInvezgoDisclosure(ticker, page);
+    if (!result.ok) {
+      return res.json({ success: true, data: { available: false, reason: result.reason, items: [], totalPage: 0 } });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        available: true,
+        items: result.items,
+        page,
+        totalPage: result.totalPage
+      }
+    });
+  } catch (err) {
+    console.error('[Disclosure Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
