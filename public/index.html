@@ -178,7 +178,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20261003d">
+<link rel="stylesheet" href="css/main.css?v=20261003e">
 <link rel="stylesheet" href="css/wealth.css?v=20261003a">
 </head>
 <body>
@@ -186,97 +186,69 @@
 <!-- LANDING PAGE — Halaman Paling Awal (Public Showcase - Dribbble Trading Style) -->
 <div id="landing-screen" class="landing-screen-wrap">
 <style>
-/* ── ULTRA-REALISTIC LANDING — Cinematic Deep Space & Earth Horizon ─────────────────────── */
+/* ── TRADINGVIEW THEMED PRO TERMINAL LANDING SCREEN ─────────────────────── */
 .lp-wrap {
   position: relative;
   width: 100%; height: 100vh;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   overflow: hidden;
-  background-color: #02040a;
+  background-color: #131722;
   background-image:
-    radial-gradient(ellipse 90% 70% at 50% 40%, rgba(2, 6, 23, 0.45) 0%, rgba(2, 6, 18, 0.78) 70%, rgba(1, 3, 10, 0.96) 100%),
-    url('img/landing-bg.jpg?v=20260920');
-  background-size: cover;
-  background-position: center bottom;
-  background-repeat: no-repeat;
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(41, 98, 255, 0.08) 0%, rgba(19, 23, 34, 0) 70%),
+    linear-gradient(rgba(42, 46, 57, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 46, 57, 0.45) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+  background-position: 0 0, -1px -1px, -1px -1px;
 }
 
-/* Atmospheric Horizon Glow & Rayleigh Scattering Bloom */
+/* Subtle Technical Ambient Glow */
 .lp-horizon-glow {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(circle 850px at 75% 85%, rgba(56, 189, 248, 0.13) 0%, rgba(14, 165, 233, 0.04) 50%, transparent 75%),
-    radial-gradient(circle 600px at 45% 95%, rgba(37, 99, 235, 0.09) 0%, transparent 60%);
-  mix-blend-mode: screen;
-  animation: atmosphericBreathe 12s ease-in-out infinite alternate;
-}
-@keyframes atmosphericBreathe {
-  0% { opacity: 0.8; transform: scale(1); }
-  100% { opacity: 1; transform: scale(1.03); }
+  background: radial-gradient(circle 800px at 50% 50%, rgba(41, 98, 255, 0.05) 0%, transparent 65%);
 }
 
-/* Realistic Micro Starfield (subtle pinpoint astronomical scintillation) */
 .lp-starfield {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,0.9) 100%, transparent),
-    radial-gradient(1px 1px at 28% 12%, rgba(255,255,255,0.6) 100%, transparent),
-    radial-gradient(1px 1px at 45% 8%,  rgba(200,230,255,0.85) 100%, transparent),
-    radial-gradient(1.5px 1.5px at 68% 15%, rgba(255,255,255,0.95) 100%, transparent),
-    radial-gradient(1px 1px at 82% 22%, rgba(255,245,220,0.7) 100%, transparent),
-    radial-gradient(1px 1px at 92% 10%, rgba(255,255,255,0.6) 100%, transparent),
-    radial-gradient(1px 1px at 8%  35%, rgba(255,255,255,0.5) 100%, transparent),
-    radial-gradient(1.5px 1.5px at 22% 28%, rgba(186,230,253,0.8) 100%, transparent),
-    radial-gradient(1px 1px at 38% 32%, rgba(255,255,255,0.4) 100%, transparent),
-    radial-gradient(1px 1px at 60% 25%, rgba(255,255,255,0.75) 100%, transparent),
-    radial-gradient(1px 1px at 85% 38%, rgba(255,255,255,0.55) 100%, transparent);
-  background-size: 100% 100%;
-  animation: starScintillate 6s ease-in-out infinite alternate;
-}
-@keyframes starScintillate {
-  0% { opacity: 0.7; }
-  100% { opacity: 0.95; }
+  display: none;
 }
 
-/* Institutional Telemetry HUD / Coordinates */
+/* Institutional Telemetry Ribbon */
 .lp-telemetry-bar {
   position: absolute;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 32px;
+  padding: 13px 28px;
   width: 100%;
   box-sizing: border-box;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
   font-size: 11px;
-  color: rgba(148, 163, 184, 0.6);
-  letter-spacing: 0.1em;
+  font-weight: 500;
+  color: #787b86;
+  letter-spacing: 0.04em;
   pointer-events: none;
   z-index: 5;
+  background: rgba(19, 23, 34, 0.92);
+  backdrop-filter: blur(8px);
 }
-.lp-telemetry-top { top: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
-.lp-telemetry-bottom { bottom: 0; border-top: 1px solid rgba(255, 255, 255, 0.04); }
+.lp-telemetry-top { top: 0; border-bottom: 1px solid #2a2e39; }
+.lp-telemetry-bottom { bottom: 0; border-top: 1px solid #2a2e39; }
 
 .lp-telemetry-item {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-/* antislop audit-001 #3: marks a real status label ("IDX FEED: OPERATIONAL")
-   so the dot itself stays, but its glow and endless pulse were dropped —
-   this screen already carries glow on the hero border and CTA hover. */
+
 .lp-telemetry-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: #38BDF8;
+  background: #089981;
 }
 
-/* Central Institutional Hero Card */
+/* Central Institutional Hero Card — TradingView Surface */
 .lp-hero-card {
   position: relative;
   z-index: 10;
@@ -284,76 +256,72 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
-  padding: 44px 40px;
-  max-width: 540px;
-  background: rgba(3, 8, 20, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(56, 189, 248, 0.16);
-  border-radius: 24px;
-  /* antislop audit-001 #3: dropped the card's own ambient glow layer here —
-     the CTA button below already carries the screen's one glow accent. */
-  box-shadow:
-    0 25px 60px rgba(0, 0, 0, 0.75),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  gap: 20px;
+  padding: 38px 36px;
+  max-width: 520px;
+  background: #1e222d;
+  border: 1px solid #2a2e39;
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
   margin: 0 20px;
 }
 
 .lp-logo-row {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .lp-logo-text {
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
-  color: #FFFFFF;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: #f0f3fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
 }
 .lp-logo-text span {
-  color: #38BDF8;
+  color: #2962ff;
 }
 .lp-badge {
-  background: rgba(56, 189, 248, 0.12);
-  color: #38BDF8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(41, 98, 255, 0.12);
+  color: #2962ff;
+  border: 1px solid rgba(41, 98, 255, 0.28);
   font-size: 10px;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 6px;
-  letter-spacing: 1.2px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.8px;
 }
 
 .lp-headline {
-  font-size: clamp(30px, 5.2vw, 48px);
-  font-weight: 900;
-  color: #FFFFFF;
-  line-height: 1.15;
-  letter-spacing: -1.2px;
+  font-size: clamp(28px, 4.4vw, 40px);
+  font-weight: 700;
+  color: #f0f3fa;
+  line-height: 1.2;
+  letter-spacing: -0.8px;
   margin: 0;
-  text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
 }
 .lp-headline .acc {
-  background: linear-gradient(135deg, #38BDF8 0%, #60A5FA 60%, #93C5FD 100%);
+  color: #2962ff;
+  background: linear-gradient(135deg, #2962ff 0%, #5484ff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .lp-sub {
-  font-size: 14px;
-  color: rgba(226, 232, 240, 0.85);
+  font-size: 13.5px;
+  color: #787b86;
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.55;
   max-width: 440px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.01em;
 }
 
 .lp-actions-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -361,84 +329,81 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   max-width: 320px;
-  padding: 15px 32px;
-  background: linear-gradient(135deg, #0284C7 0%, #2563EB 50%, #38BDF8 100%);
-  color: #FFFFFF;
-  font-size: 15px;
-  font-weight: 800;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50px;
+  padding: 12px 24px;
+  background: #2962ff;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid #2962ff;
+  border-radius: 6px;
   cursor: pointer;
-  letter-spacing: 0.4px;
-  box-shadow:
-    0 10px 30px rgba(2, 132, 199, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 14px rgba(41, 98, 255, 0.3);
+  transition: background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
 }
 .lp-btn-start:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow:
-    0 14px 40px rgba(2, 132, 199, 0.6),
-    0 0 20px rgba(56, 189, 248, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: #1e53e5;
+  border-color: #1e53e5;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(41, 98, 255, 0.42);
 }
 .lp-btn-start i {
-  font-size: 17px;
-  transition: transform 0.2s ease;
+  font-size: 15px;
+  transition: transform 0.15s ease;
 }
 .lp-btn-start:hover i {
   transform: translateX(3px);
 }
 
 .lp-btn-guest {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(226, 232, 240, 0.8);
+  background: #2a2e39;
+  border: 1px solid #363a45;
+  color: #d1d4dc;
   font-size: 13px;
-  font-weight: 600;
-  padding: 9px 24px;
-  border-radius: 50px;
+  font-weight: 500;
+  padding: 9px 20px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  width: 100%;
+  max-width: 320px;
 }
 .lp-btn-guest:hover {
-  background: rgba(56, 189, 248, 0.15);
-  color: #FFFFFF;
-  border-color: rgba(56, 189, 248, 0.4);
-  transform: translateY(-1px);
+  background: #363a45;
+  border-color: #4a4e5a;
+  color: #ffffff;
 }
 
 .lp-trust-strip {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #2a2e39;
   width: 100%;
-  font-size: 11px;
-  color: rgba(148, 163, 184, 0.7);
-  letter-spacing: 0.03em;
+  font-size: 11.5px;
+  color: #787b86;
+  letter-spacing: 0.02em;
 }
 .lp-trust-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 .lp-trust-item i {
-  color: #38BDF8;
-  font-size: 13px;
+  color: #2962ff;
+  font-size: 13.5px;
 }
 
 @media (max-width: 640px) {
   .lp-hero-card {
-    padding: 32px 20px;
+    padding: 28px 20px;
     margin: 0 16px;
-    gap: 18px;
+    gap: 16px;
   }
   .lp-telemetry-bar {
     display: none;
@@ -535,7 +500,7 @@
       <div class="auth-brand-top">
         <div class="auth-brand-logo-row">
           <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="30" style="width:auto;display:block">
-          <div class="auth-logo">Money<span style="color:#38BDF8">Watch</span></div>
+          <div class="auth-logo">Money<span style="color:#2962ff">Watch</span></div>
           <span class="auth-brand-badge">PRO v6.2</span>
         </div>
         <div class="auth-brand-headline">Intelijen Pasar &amp; Bandarmology Presisi Tinggi</div>
@@ -548,11 +513,11 @@
           <div class="auth-telemetry-example-tag">Contoh tampilan, bukan data real-time</div>
           <div class="auth-telemetry-header">
             <span style="color:#FFFFFF;font-weight:700">BBCA · Bank Central Asia</span>
-            <span style="color:#10B981;background:rgba(16,185,129,0.15);padding:1px 6px;border-radius:3px">+1.8%</span>
+            <span style="color:#089981;background:rgba(8,153,129,0.15);padding:1px 6px;border-radius:3px">+1.8%</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:#94A3B8;font-family:var(--font-mono, monospace)">
-            <span>Smart Money: <strong style="color:#38BDF8">Akumulasi Besar (72.4%)</strong></span>
-            <span>MoS: <strong style="color:#10B981">+9.3%</strong></span>
+            <span>Smart Money: <strong style="color:#2962ff">Akumulasi Besar (72.4%)</strong></span>
+            <span>MoS: <strong style="color:#089981">+9.3%</strong></span>
           </div>
         </div>
 
@@ -615,8 +580,8 @@
         <button class="auth-btn" id="auth-login-btn" onclick="authDoLogin()">Masuk ke Terminal →</button>
         <div class="auth-info">
           Sesi terenkripsi aman · Auto-logout jika inaktif 60 menit<br>
-          Lupa password? <span style="color:#38BDF8;cursor:pointer;font-weight:600" onclick="authShowReset()">Reset via kode</span>
-          · <span style="color:#38BDF8;cursor:pointer;font-weight:600" onclick="authShowSetup('Buat akun baru')">Buat Akun Baru</span>
+          Lupa password? <span style="color:#2962ff;cursor:pointer;font-weight:600" onclick="authShowReset()">Reset via kode</span>
+          · <span style="color:#2962ff;cursor:pointer;font-weight:600" onclick="authShowSetup('Buat akun baru')">Buat Akun Baru</span>
         </div>
       </div>
 
@@ -647,7 +612,7 @@
           </div>
         </div>
         <button class="auth-btn" onclick="authDoSetup()">Buat Akun &amp; Masuk →</button>
-        <div class="auth-info" id="auth-setup-back" style="cursor:pointer;color:#38BDF8;margin-top:12px" onclick="authShowLogin()">← Kembali ke login</div>
+        <div class="auth-info" id="auth-setup-back" style="cursor:pointer;color:#2962ff;margin-top:12px" onclick="authShowLogin()">← Kembali ke login</div>
       </div>
 
       <!-- Reset form -->
@@ -663,7 +628,7 @@
           </div>
         </div>
         <button class="auth-btn" onclick="authDoReset()">Verifikasi &amp; Lanjutkan →</button>
-        <div class="auth-info" style="cursor:pointer;color:#38BDF8;margin-top:12px" onclick="authShowLogin()">← Kembali ke login</div>
+        <div class="auth-info" style="cursor:pointer;color:#2962ff;margin-top:12px" onclick="authShowLogin()">← Kembali ke login</div>
       </div>
     </div>
   </div>
@@ -4509,7 +4474,7 @@
 <script src="js/42-dividend-calendar.js?v=20260930b"></script>
 <script src="js/43-ai-chart-intelligence.js?v=20260920c"></script>
 <script src="js/44-sectoral-insight.js?v=20261003a"></script>
-<script src="js/45-volume-spike.js?v=20261003b"></script>
+<script src="js/45-volume-spike.js?v=20261003c"></script>
 <script src="js/46-stock-dossier.js?v=20261003a"></script>
 <script src="js/47-ai-signal-history.js?v=20260917b"></script>
 <script src="js/48-unified-screener.js?v=20261003c"></script>

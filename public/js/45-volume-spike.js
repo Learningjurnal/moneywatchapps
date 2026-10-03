@@ -170,8 +170,6 @@ function vsSparklineHtml(closes, isUp, gradId) {
     + '</defs>'
     + '<path d="' + fillD + '" fill="url(#' + id + ')" />'
     + '<path d="' + d + '" fill="none" stroke="' + strokeColor + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>'
-    + '<circle cx="' + lastPt.x.toFixed(1) + '" cy="' + lastPt.y.toFixed(1) + '" r="5" fill="' + strokeColor + '" opacity="0.25"/>'
-    + '<circle cx="' + lastPt.x.toFixed(1) + '" cy="' + lastPt.y.toFixed(1) + '" r="2.5" fill="' + strokeColor + '"/>'
     + '</svg>';
 }
 
