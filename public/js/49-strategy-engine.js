@@ -402,7 +402,7 @@ function usDailyPicksRender() {
   if (!el) return;
 
   var header = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-    + '<span style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">🎯 Rekomendasi Harian <span class="badge b-accent" style="font-size:8px">STRATEGY ENGINE V1</span></span>'
+    + '<span style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Rekomendasi Harian <span class="badge b-accent" style="font-size:8px">STRATEGY ENGINE V1</span></span>'
     + '</div>';
 
   var body;

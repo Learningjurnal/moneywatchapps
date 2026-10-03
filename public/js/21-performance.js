@@ -214,8 +214,8 @@ function perfRenderAllocation(mode){
   if(cv && items.length){
     charts['perfAlloc'] = new Chart(cv,{type:'doughnut',
       data:{labels:items.map(function(x){return x.label;}),
-            datasets:[{data:items.map(function(x){return x.val;}),backgroundColor:items.map(function(x){return x.color;}),borderWidth:0,hoverOffset:4}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+            datasets:[{data:items.map(function(x){return x.val;}),backgroundColor:items.map(function(x){return x.color;}),borderWidth:0,borderRadius:4,spacing:2,hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
         plugins:{legend:{display:false},tooltip:Object.assign({},TT,{callbacks:{label:function(c){return c.label+': Rp '+fmtK(c.parsed);}}})}}});
   }
   el('perf-alloc-legend').innerHTML = items.length ? items.map(function(x){

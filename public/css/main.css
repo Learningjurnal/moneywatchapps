@@ -42,10 +42,10 @@
 
   --cyan-electric:#00c8ff;
 
-  --table-header-bg:#141C22;
+  --table-header-bg:#0E1322;
   --table-header-text:#8F9AA6;
 
-  --table-row-hover:rgba(0,0,255,0.08);
+  --table-row-hover:rgba(56,189,248,0.045);
 
   --radius-md:6px;
   --radius-lg:8px;
@@ -105,7 +105,7 @@ body.theme-light {
   --table-header-bg:#EDF1F5;
   --table-header-text:#4A5560;
 
-  --table-row-hover:#F5F7FA;
+  --table-row-hover:rgba(15,105,255,0.035);
 
   /* Merged in from a second, now-removed duplicate `body.theme-light {}`
      block ("COMPREHENSIVE LIGHT THEME ENGINE") further down this file —
@@ -147,7 +147,7 @@ body::after{display:none}
    rendered as a plain static block at the very bottom of the page,
    invisible below the fold on every chart in the app (reported by user:
    hovering any chart showed no numbers). */
-#mw-tooltip{position:fixed;left:0;top:0;z-index:9999;pointer-events:none;opacity:0;transition:opacity .12s ease;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:11px;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:260px;color:var(--text)}
+#mw-tooltip{position:fixed;left:0;top:0;z-index:9999;pointer-events:none;opacity:0;transition:opacity .12s ease;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:11px;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:260px;color:var(--text);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 #mw-tooltip .mw-tt-title{font-weight:700;color:var(--text);margin-bottom:3px;white-space:nowrap}
 #mw-tooltip .mw-tt-body{display:flex;align-items:center;gap:6px;color:var(--text2);white-space:nowrap}
 #mw-tooltip .mw-tt-indicator{width:8px;height:8px;border-radius:2px;flex-shrink:0;forced-color-adjust:none}
@@ -172,15 +172,16 @@ body.theme-light #mw-tooltip .mw-tt-body{color:#354453}
    (position:relative) rather than appended to <body>. Colors come from CSS
    vars so the theme can never drift out of sync the way the old inline
    JS-computed tooltip colors did (antislop audit, 2026-09-26). */
-.bandar-rotation-tooltip{pointer-events:none;z-index:20;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:7px 11px;font-size:11px;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:220px;color:var(--text);transition:opacity .12s ease}
+.bandar-rotation-tooltip{pointer-events:none;z-index:20;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:7px 11px;font-size:11px;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:220px;color:var(--text);transition:opacity .12s ease;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .bandar-rotation-tooltip .brt-title{font-weight:700;color:var(--text);margin-bottom:2px;white-space:nowrap}
 .bandar-rotation-tooltip .brt-body{color:var(--text2);white-space:nowrap}
 body.theme-light .bandar-rotation-tooltip{background:#fff;border-color:#E2E8F0;color:#0F172A;box-shadow:0 8px 24px rgba(0,0,0,.12)}
 body.theme-light .bandar-rotation-tooltip .brt-title{color:#0F172A}
 body.theme-light .bandar-rotation-tooltip .brt-body{color:#354453}
 
-/* TOPBAR — StockMaster PRO Command Bar Style */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:44px;background:#0E131F;border-bottom:1px solid var(--border);flex-shrink:0;z-index:100;gap:12px;position:relative}
+/* TOPBAR — Modern Frosted Institutional Command Bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:46px;background:rgba(14,19,31,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle);flex-shrink:0;z-index:100;gap:12px;position:relative}
+body.theme-light .topbar{background:rgba(255,255,255,0.92)!important;border-bottom:1px solid var(--border)!important;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
 
 /* BOTTOM TOOLBAR — status/jam/pengaturan/akun, dipindah dari topbar agar
    tidak menumpuk di layar sempit. Flex child biasa dari .app (bukan
@@ -233,6 +234,14 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
 .topbar .ti-search {
   color: var(--text3) !important;
 }
+#topbar-global-search {
+  transition: all 0.18s ease;
+}
+#topbar-global-search:focus {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18) !important;
+  width: 230px !important;
+}
 .nav-wrap{flex:1;min-width:0;padding:2px 0;position:static}
 .nav-wrap::-webkit-scrollbar{height:2px}
 .nav-wrap::-webkit-scrollbar-thumb{background:var(--bg5)}
@@ -244,10 +253,12 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
 .live{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green);font-family:'Inter',sans-serif;letter-spacing:.5px;font-weight:700}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite}
 @keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,.5)}50%{opacity:.5;box-shadow:0 0 0 4px rgba(16,185,129,0)}}
-.ihsg-bar{display:flex;align-items:center;gap:6px;background:#080B10;border:1px solid var(--border);border-radius:6px;padding:3px 8px}
+.ihsg-bar{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;transition:border-color .15s ease}
+.ihsg-bar:hover{border-color:var(--border2)}
 .ibar-val{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text)}
 .ibar-chg{font-family:var(--font-mono);font-size:10.5px;font-weight:700}
-.rdn-bar{display:flex;align-items:center;gap:6px;background:#080B10;border:1px solid var(--border);border-radius:6px;padding:3px 8px}
+.rdn-bar{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;transition:border-color .15s ease}
+.rdn-bar:hover{border-color:var(--accent)}
 .rdn-label{font-size:9px;color:var(--text3);font-family:'Inter',sans-serif;letter-spacing:.5px;text-transform:uppercase;font-weight:700}
 .rdn-val{font-family:var(--font-mono);font-size:11.5px;font-weight:700;color:var(--text)}
 .clock{font-family:var(--font-mono);font-size:10.5px;color:var(--text3);letter-spacing:.5px}
@@ -378,37 +389,56 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
 
 /* Dashboard Progressive Disclosure View Toggle */
 .dash-view-toggle-bar {
+  background: var(--bg2) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: background var(--spring), border-color var(--spring);
 }
-.dash-view-toggle-bar .btn.on {
-  background: rgba(56, 189, 248, 0.14) !important;
+.dash-view-toggle-bar .btn.on,
+.dash-view-toggle-bar .sm-chip.active,
+.dash-view-toggle-bar .sm-chip.on {
+  background: rgba(56, 189, 248, 0.12) !important;
   color: #38BDF8 !important;
-  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
   font-weight: 700 !important;
-  box-shadow: 0 1px 6px rgba(56, 189, 248, 0.12) !important;
+  box-shadow: 0 1px 6px rgba(56, 189, 248, 0.10) !important;
 }
-body.theme-light .dash-view-toggle-bar .btn.on {
+body.theme-light .dash-view-toggle-bar {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+body.theme-light .dash-view-toggle-bar .btn.on,
+body.theme-light .dash-view-toggle-bar .sm-chip.active,
+body.theme-light .dash-view-toggle-bar .sm-chip.on {
   background: #EFF6FF !important;
   color: #0284C7 !important;
   border: 1px solid #93C5FD !important;
   font-weight: 700 !important;
-  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.15) !important;
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.12) !important;
 }
 
 /* ── SLEEK INTEGRATED DASHBOARD REGIME STRIP ── */
 .dash-regime-strip {
   background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 12px 18px;
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 4px;
-  transition: border-color 0.15s ease;
+  margin-bottom: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 .dash-regime-strip:hover {
   border-color: var(--border2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+body.theme-light .dash-regime-strip {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+body.theme-light .dash-regime-strip:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 .dash-regime-meta {
   display: inline-flex;
@@ -467,7 +497,7 @@ body.theme-light .dash-view-toggle-bar .btn.on {
   gap: 16px;
   align-items: flex-start;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .dash-summary-row:last-child {
   border-bottom: none;
@@ -490,7 +520,7 @@ body.theme-light .dash-view-toggle-bar .btn.on {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--text3);
+  background: var(--accent-blue);
   display: inline-block;
   flex-shrink: 0;
 }
@@ -504,10 +534,10 @@ body.theme-light .dash-view-toggle-bar .btn.on {
   font-size: 9.5px;
   color: var(--text3);
   margin-left: 6px;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   background: var(--bg3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   font-weight: 500;
 }
 @media (max-width: 680px) {
@@ -533,20 +563,27 @@ body.theme-light .dash-view-toggle-bar .btn.on {
   }
 }
 
-/* METRIC & CARD (BLOOMBERG / TRADINGVIEW TERMINAL) */
+/* METRIC & CARD (MODERN INSTITUTIONAL TERMINAL) */
 .metric{
   background:var(--bg2);
-  border:1px solid var(--border);
+  border:1px solid var(--border-subtle);
   border-radius:var(--radius);
   padding:14px 16px;
   position:relative;
-  transition:border-color .15s ease;
-  box-shadow:none;
+  transition:border-color .18s ease, box-shadow .18s ease;
+  box-shadow:0 1px 3px rgba(0,0,0,0.12);
 }
 .metric:hover{
   border-color:var(--border2);
   transform:none;
-  box-shadow:none;
+  box-shadow:0 4px 14px rgba(0,0,0,0.22);
+}
+body.theme-light .metric{
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+body.theme-light .metric:hover{
+  border-color:var(--border2);
+  box-shadow:0 4px 12px rgba(0,0,0,0.06);
 }
 .metric::before{display:none}
 .mlabel{
@@ -563,7 +600,7 @@ body.theme-light .dash-view-toggle-bar .btn.on {
   font-weight:700;
   font-family:var(--font-mono);
   line-height:1.2;
-  color:#F8FAFC;
+  color:var(--text);
   letter-spacing:-.01em;
   font-variant-numeric:tabular-nums;
   font-feature-settings:"tnum" 1, "zero" 1;
@@ -579,17 +616,24 @@ body.theme-light .dash-view-toggle-bar .btn.on {
 
 .card{
   background:var(--bg2);
-  border:1px solid var(--border);
+  border:1px solid var(--border-subtle);
   border-radius:var(--radius-lg);
   padding:16px 18px;
   backdrop-filter:none;
-  box-shadow:none;
+  box-shadow:0 1px 3px rgba(0,0,0,0.12);
   margin-bottom:14px;
-  transition:border-color .15s ease;
+  transition:border-color .18s ease, box-shadow .18s ease;
 }
 .card:hover{
   border-color:var(--border2);
-  box-shadow:none;
+  box-shadow:0 4px 14px rgba(0,0,0,0.22);
+}
+body.theme-light .card{
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+body.theme-light .card:hover{
+  border-color:var(--border2);
+  box-shadow:0 4px 12px rgba(0,0,0,0.06);
 }
 
 /* Asset-card styling */
@@ -653,48 +697,44 @@ body.theme-light .dash-view-toggle-bar .btn.on {
 }
 
 .b-up {
-  background: rgba(0, 245, 155, 0.14);
-  color: #00F59B;
-  border: 1px solid rgba(0, 245, 155, 0.35);
+  background: rgba(0, 200, 5, 0.12);
+  color: #00E676;
+  border: 1px solid rgba(0, 200, 5, 0.28);
 }
 .b-dn {
-  background: rgba(255, 59, 92, 0.14);
-  color: #FF3B5C;
-  border: 1px solid rgba(255, 59, 92, 0.35);
+  background: rgba(255, 51, 58, 0.12);
+  color: #FF5252;
+  border: 1px solid rgba(255, 51, 58, 0.28);
 }
 .b-neu {
-  background: rgba(0, 212, 255, 0.14);
-  color: #00D4FF;
-  border: 1px solid rgba(0, 212, 255, 0.35);
+  background: rgba(56, 189, 248, 0.10);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
 }
 .b-amb {
-  background: rgba(255, 184, 0, 0.14);
-  color: #FFB800;
-  border: 1px solid rgba(255, 184, 0, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.28);
 }
 .b-pur {
-  background: rgba(192, 132, 252, 0.14);
-  color: #C084FC;
-  border: 1px solid rgba(192, 132, 252, 0.35);
+  background: rgba(139, 92, 246, 0.12);
+  color: #A78BFA;
+  border: 1px solid rgba(139, 92, 246, 0.28);
 }
 .b-accent {
-  /* Soft blue tint background with the icon-safe accent blue as text
-     (var(--accent): #5B8DEF dark / #0000FF light) rather than the raw
-     brand blue, which is too dark to read at this size on a tinted
-     background of itself. Small badge text (COCKPIT/RADAR/PRO tags). */
-  background: rgba(0, 0, 255, 0.16);
-  color: var(--accent);
-  border: 1px solid rgba(0, 0, 255, 0.45);
+  background: rgba(56, 189, 248, 0.12);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.28);
 }
 .b-teal {
-  background: rgba(20, 184, 166, 0.14);
+  background: rgba(20, 184, 166, 0.12);
   color: #2DD4BF;
-  border: 1px solid rgba(20, 184, 166, 0.35);
+  border: 1px solid rgba(20, 184, 166, 0.28);
 }
 .b-gray {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
 }
 
 body.theme-light .b-up {
@@ -703,9 +743,9 @@ body.theme-light .b-up {
   border-color: #A7F3D0;
 }
 body.theme-light .b-dn {
-  background: #FEF2F2;
-  color: #B91C1C;
-  border-color: #FECACA;
+  background: #FFF1F2;
+  color: #BE123C;
+  border-color: #FECDD3;
 }
 body.theme-light .b-neu {
   background: #F0F9FF;
@@ -716,6 +756,11 @@ body.theme-light .b-amb {
   background: #FFFBEB;
   color: #B45309;
   border-color: #FDE68A;
+}
+body.theme-light .b-accent {
+  background: #EFF6FF;
+  color: #0284C7;
+  border-color: #BAE6FD;
 }
 
 /* Institutional Signal Labels */
@@ -837,11 +882,10 @@ body.theme-light .sig-strong-buy {
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--border);
-  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   background: var(--bg2);
   scrollbar-width: thin;
-  scrollbar-color: #1E293B var(--bg);
 }
 
 .tbl {
@@ -861,27 +905,27 @@ body.theme-light .sig-strong-buy {
 .tbl th {
   font-size: 10px;
   color: var(--text3);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   font-family: var(--font-display);
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border2);
+  border-bottom: 1px solid var(--border-subtle);
   text-align: left;
   font-weight: 700;
   white-space: nowrap;
-  background: var(--table-header-bg, #141C22);
+  background: var(--table-header-bg, #0E1322);
   color: var(--table-header-text, var(--text3));
   text-transform: uppercase;
   user-select: none;
   position: sticky;
   top: 0;
   z-index: 5;
-  box-shadow: 0 1px 0 var(--border);
+  box-shadow: 0 1px 0 var(--border-subtle);
 }
 
 body.theme-light .tbl th {
   background: var(--table-header-bg, #EDF1F5);
   color: var(--table-header-text, #4A5560);
-  box-shadow: 0 1px 0 var(--border);
+  box-shadow: 0 1px 0 var(--border-subtle);
 }
 
 .tbl td {
@@ -1106,9 +1150,10 @@ body.theme-light .tbl tbody tr:hover td.tbl-sticky-right {
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fg{display:flex;flex-direction:column;gap:5px}
 .flabel{font-size:10px;color:var(--text3);font-family:'Inter',sans-serif;letter-spacing:0.04em;font-weight:700;text-transform:uppercase}
-.finput{background:#080B10;border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:#fff;font-family:'Inter',sans-serif;font-size:12px;outline:none;transition:border .15s;width:100%}
-.finput:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,.2)}
-.finput option{background:#101522;color:#fff}
+.finput{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;transition:border-color .15s ease, box-shadow .15s ease;width:100%}
+.finput:focus{border-color:var(--accent-blue);box-shadow:0 0 0 2px rgba(56,189,248,.18)}
+.finput option{background:var(--bg2);color:var(--text)}
+body.theme-light .finput option{background:#FFFFFF;color:#1D252C}
 .fsel{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%23787b86' d='M5 6L0 0h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;-webkit-appearance:none;appearance:none}
 .ffull{grid-column:1/-1}
 .ftri{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
@@ -1523,24 +1568,24 @@ body.theme-light .drawer-panel {
   padding:7px 10px;
   border-radius:6px;
   font-size:11.5px;
-  font-weight:600;
+  font-weight:500;
   cursor:pointer;
   color:var(--text2);
   background:none;
   border:1px solid transparent;
   font-family:'Inter',sans-serif;
-  transition:all var(--spring);
+  transition:all 0.15s ease;
   white-space:nowrap;
   overflow:visible;
   position: relative;
 }
 .side-nav button i.ti{
-  font-size:15px;
+  font-size:14px;
   flex-shrink:0;
   width:18px;
   text-align:center;
-  color:#FFFFFF;
-  transition:color var(--spring), transform var(--spring);
+  color:var(--text3);
+  transition:color 0.15s ease, transform 0.15s ease;
 }
 .side-label{
   white-space:nowrap;
@@ -1556,23 +1601,35 @@ body.theme-light .drawer-panel {
 }
 .side-nav button:hover{
   color:var(--text);
-  background:var(--brand-soft);
-  border-color:rgba(0,0,255,.3);
+  background:rgba(255,255,255,0.04);
+  border-color:transparent;
+}
+body.theme-light .side-nav button:hover{
+  background:rgba(0,0,0,0.04);
 }
 .side-nav button:hover i.ti{
-  color: #FFFFFF;
-  transform:scale(1.08);
-}
-/* Active — solid / highlighted card with indicator */
-.side-nav button.on{
-  background:var(--brand-soft);
   color:var(--text);
-  font-weight:700;
-  border-color:var(--accent);
-  box-shadow:inset 3px 0 0 var(--accent);
+  transform:translateX(1px);
+}
+/* Active — sleek pill with vertical accent bar */
+.side-nav button.on{
+  background:rgba(56,189,248,0.1) !important;
+  color:var(--text) !important;
+  font-weight:600;
+  border-color:rgba(56,189,248,0.2);
+  box-shadow:inset 3px 0 0 var(--accent-blue);
 }
 .side-nav button.on i.ti{
-  color: #FFFFFF;
+  color:var(--accent-blue);
+}
+body.theme-light .side-nav button.on{
+  background:rgba(15,105,255,0.08) !important;
+  color:var(--text) !important;
+  border-color:rgba(15,105,255,0.18);
+  box-shadow:inset 3px 0 0 var(--accent);
+}
+body.theme-light .side-nav button.on i.ti{
+  color:var(--accent);
 }
 .nav-due-badge{
   margin-left:auto;
@@ -1960,8 +2017,8 @@ body.mode-executive .metric .mval {
 }
 .sm-suite-header {
   background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   padding: 12px 18px;
   display: flex;
   align-items: center;
@@ -1969,7 +2026,10 @@ body.mode-executive .metric .mval {
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.45);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+body.theme-light .sm-suite-header {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 .sm-suite-brand {
   font-size: 14px;
@@ -2153,16 +2213,22 @@ body.mode-executive .metric .mval {
 
 .sm-card {
   background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   padding: 18px 20px;
   margin-bottom: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.45);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   transition: border-color .18s ease, box-shadow .18s ease;
 }
 .sm-card:hover {
-  border-color: rgba(56, 189, 248, 0.3);
-  box-shadow: 0 6px 24px rgba(0,0,0,.6);
+  border-color: var(--border2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+body.theme-light .sm-card {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+body.theme-light .sm-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 .sm-card-fill {
   flex: 1;
@@ -2171,10 +2237,13 @@ body.mode-executive .metric .mval {
   min-height: 520px;
   padding: 0;
   overflow: hidden;
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
   background: var(--bg2);
-  box-shadow: 0 4px 20px rgba(0,0,0,.45);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+body.theme-light .sm-card-fill {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 .sm-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .sm-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -2182,15 +2251,23 @@ body.mode-executive .metric .mval {
 
 .sm-stat-box {
   background: var(--bg3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   padding: 12px 14px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   text-align: left;
-  transition: border-color .18s ease, transform .18s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
 .sm-stat-box:hover {
-  border-color: rgba(56, 189, 248, 0.35);
+  border-color: var(--border2);
   transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+body.theme-light .sm-stat-box {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+body.theme-light .sm-stat-box:hover {
+  box-shadow: 0 3px 8px rgba(0,0,0,0.05);
 }
 .sm-stat-label {
   font-size: 10px;

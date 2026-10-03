@@ -504,7 +504,7 @@ function wRenderDebt(){
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">Hutang & Kewajiban</div><div class="psub">Strategi pelunasan avalanche (hemat bunga) vs snowball (motivasi)</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">📄 Laporan Konsolidasi</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">Laporan Konsolidasi</button>'+
       '<button class="btn btn-blue btn-sm" onclick="wModalDebt()">＋ Tambah Hutang</button>'+
     '</div>'+
   '</div>'+
@@ -583,7 +583,7 @@ function wRenderPiutang(){
   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
     '<div><div class="ptitle">Piutang</div><div class="psub">Uang yang dipinjamkan ke pihak lain — pantau progres pembayarannya</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">📄 Laporan Konsolidasi</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="if(typeof mwOpenPdfReportModal===\'function\')mwOpenPdfReportModal();" title="Buka Laporan Finansial Konsolidasi Terpadu (PDF, Excel, Teks &amp; JSON)">Laporan Konsolidasi</button>'+
       '<button class="btn btn-blue btn-sm" onclick="wModalPiutang()">＋ Tambah Piutang</button>'+
     '</div>'+
   '</div>'+

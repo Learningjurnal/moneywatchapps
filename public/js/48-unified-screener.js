@@ -201,12 +201,12 @@ function usRenderShell() {
   // sheet) tepat di bawahnya — lihat twRenderSubPage() di
   // 37-tradewave-engine.js untuk penggabungan render-nya.
   html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
-    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'screener\')" style="' + usPageTabBtnStyle(pt === 'screener') + '">📊 Screener</button>'
-    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'cockpit\')" style="' + usPageTabBtnStyle(pt === 'cockpit') + '">🌊 Wave Cockpit &amp; Risk Planner</button>'
-    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'quant\')" style="' + usPageTabBtnStyle(pt === 'quant') + '">🔬 Quant Screener</button>'
-    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'volspike\')" style="' + usPageTabBtnStyle(pt === 'volspike') + '">⚡ Volume Spike</button>'
-    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'strategy\')" style="' + usPageTabBtnStyle(pt === 'strategy') + '">🎯 Strategy Engine</button>'
-    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'consensus\')" style="' + usPageTabBtnStyle(pt === 'consensus') + '">✅ Konsensus Screener</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'screener\')" style="' + usPageTabBtnStyle(pt === 'screener') + '">Screener</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'cockpit\')" style="' + usPageTabBtnStyle(pt === 'cockpit') + '">Wave Cockpit &amp; Risk Planner</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'quant\')" style="' + usPageTabBtnStyle(pt === 'quant') + '">Quant Screener</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'volspike\')" style="' + usPageTabBtnStyle(pt === 'volspike') + '">Volume Spike</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'strategy\')" style="' + usPageTabBtnStyle(pt === 'strategy') + '">Strategy Engine</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'consensus\')" style="' + usPageTabBtnStyle(pt === 'consensus') + '">Konsensus Screener</button>'
     + '</div>';
 
   if (pt === 'consensus') {
@@ -296,7 +296,7 @@ function usRenderShell() {
         + '<b>⚠️ Tabel screener kosong BUKAN karena filter Anda.</b> Data notasi khusus BEI (Regulatory Health Gate) sedang tidak bisa diverifikasi dari idx.co.id'
         + (ds.regulatory.isStale ? ' (memakai cache lama yang sudah kedaluwarsa)' : ' (belum ada cache sama sekali)')
         + ' — sesuai kebijakan zero-fabricated-data, SEMUA ' + (US_STATE.summary ? US_STATE.summary.totalUniverse : '958') + ' saham default disembunyikan daripada menampilkan status regulasi yang belum terverifikasi sebagai "aman". '
-        + '<button class="btn btn-ghost btn-xs" onclick="usFetchAndRender()" style="margin-left:6px">🔄 Muat Ulang</button>'
+        + '<button class="btn btn-ghost btn-xs" onclick="usFetchAndRender()" style="margin-left:6px"><i class="ti ti-refresh"></i> Muat Ulang</button>'
         + '</div>';
     }
   }

@@ -52,19 +52,19 @@ function csSetMinAgree(n) {
 }
 
 var CS_SYSTEM_ICON = {
-  'Unified Screener': '📊',
-  'Strategy Engine': '🎯',
-  'Opportunity Radar': '🧭',
-  'Volume Spike': '⚡',
-  'Quant Screener': '🔬'
+  'Unified Screener': '',
+  'Strategy Engine': '',
+  'Opportunity Radar': '',
+  'Volume Spike': '',
+  'Quant Screener': ''
 };
 
 function csRenderRow(row) {
   var badges = row.agreeSystems.map(function (sys) {
-    return '<span class="badge b-up" style="font-size:9px;margin-right:4px">' + (CS_SYSTEM_ICON[sys] || '') + ' ' + sys + '</span>';
+    return '<span class="badge b-up" style="font-size:9px;margin-right:4px">' + (CS_SYSTEM_ICON[sys] ? CS_SYSTEM_ICON[sys] + ' ' : '') + sys + '</span>';
   }).join('');
   var voteDetails = row.votes.map(function (v) {
-    return '<div style="font-size:10.5px;color:var(--text3);margin-top:2px">' + (CS_SYSTEM_ICON[v.system] || '') + ' <b>' + v.system + '</b>: ' + v.detail + '</div>';
+    return '<div style="font-size:10.5px;color:var(--text3);margin-top:2px">' + (CS_SYSTEM_ICON[v.system] ? CS_SYSTEM_ICON[v.system] + ' ' : '') + '<b>' + v.system + '</b>: ' + v.detail + '</div>';
   }).join('');
 
   // FIX (2026-09-29, user-reported: broker/bandar analysis missing +
@@ -210,7 +210,7 @@ function csRender() {
   }).join('');
 
   var intro = '<div class="card" style="padding:16px;margin-bottom:14px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:4px">✅ Konsensus Screener</div>'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:4px">Konsensus Screener</div>'
     + '<div style="font-size:11.5px;color:var(--text3);margin-bottom:10px">Ticker hanya tampil kalau disetujui beberapa sistem screening SEKALIGUS (Unified Screener, Strategy Engine, Opportunity Radar, Volume Spike, Quant Screener) — bukan mesin skor baru, murni filter AND di atas ambang yang sudah ada di masing-masing halaman. Radar Akumulasi/Distribusi TIDAK dihitung terpisah karena sudah termasuk di dalam skor Unified Screener.</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">' + minAgreeButtons + '</div>'
     + '</div>';

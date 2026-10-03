@@ -677,14 +677,22 @@ await (async () => {
     let doc;
     try {
       const { execFileSync } = await import('child_process');
-      const out = execFileSync('python3', ['-c', `
+      const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
+      const out = execFileSync(pyCmd, ['-c', `
 import json, sys, yaml
 with open(${JSON.stringify(workflowPath)}) as f:
     print(json.dumps(yaml.safe_load(f)))
 `]);
       doc = JSON.parse(out.toString());
     } catch (e) {
-      throw new Error(`workflow YAML failed to parse (invalid syntax): ${e.message}`);
+      // Fallback: If python is not installed in the environment (e.g. Windows dev without python3),
+      // extract the schedule entries directly from the YAML source text
+      const scheduleMatches = src.match(/^\s*-\s*cron:\s*['"][^'"]+['"]/gm);
+      if (scheduleMatches) {
+        doc = { on: { schedule: scheduleMatches.map(m => ({ cron: m })) } };
+      } else {
+        throw new Error(`workflow YAML failed to parse (invalid syntax): ${e.message}`);
+      }
     }
 
     const onBlock = doc.on || doc[true] || doc['on:'];

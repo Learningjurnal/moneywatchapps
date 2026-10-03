@@ -375,7 +375,7 @@ function buildMarketReportHtml(period) {
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0f172a;padding-bottom:14px;margin-bottom:16px">'
     + '  <div>'
     + '    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
-    + '      <div style="width:26px;height:26px;background:#0f172a;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#38bdf8;font-weight:800;font-size:14px">MW</div>'
+    + '      <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="28" style="height:28px;width:auto;display:inline-block;vertical-align:middle;object-fit:contain">'
     + '      <div style="font-size:17px;font-weight:800;letter-spacing:-0.3px;color:#0f172a">MONEY WATCH <span style="color:#2563eb">PRO</span></div>'
     + '    </div>'
     + '    <div style="font-size:13px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px">Laporan Kondisi Pasar — ' + periodLabel + '</div>'
@@ -470,7 +470,7 @@ function _createMarketReportModalDom() {
     + '<div style="padding:16px 20px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;background:var(--bg3)">'
     + '  <div>'
     + '    <div style="font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">'
-    + '      <span>📈 Laporan Kondisi Pasar</span>'
+    + '      <span>Laporan Kondisi Pasar</span>'
     + '      <span class="badge b-up" style="font-size:9.5px">Data Real BEI</span>'
     + '    </div>'
     + '    <div style="font-size:11px;color:var(--text3);margin-top:2px">IHSG &amp; Regime, Rotasi Sektor, Radar Akumulasi/Distribusi, Konsensus Screener, Ringkasan Bellwether</div>'
@@ -482,8 +482,8 @@ function _createMarketReportModalDom() {
     + '<div style="padding:10px 20px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:var(--bg3)">'
     + '  <div style="display:inline-flex;background:var(--bg2);padding:3px;border-radius:8px;border:1px solid var(--border2);gap:4px">' + periodTabsHtml + '</div>'
     + '  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
-    + '    <button class="btn btn-blue btn-xs" onclick="downloadMarketReportPdf()" title="Unduh Laporan Kondisi Pasar sebagai PDF" style="font-size:11px;gap:5px;font-weight:700">📥 Unduh PDF</button>'
-    + '    <button class="btn btn-ghost btn-xs" onclick="printMarketReportPdf()" title="Cetak Laporan" style="font-size:11px;gap:4px;border-color:var(--border2)">🖨️ Cetak</button>'
+    + '    <button class="btn btn-blue btn-xs" onclick="downloadMarketReportPdf()" title="Unduh Laporan Kondisi Pasar sebagai PDF" style="font-size:11px;gap:5px;font-weight:700"><i class="ti ti-download"></i> Unduh PDF</button>'
+    + '    <button class="btn btn-ghost btn-xs" onclick="printMarketReportPdf()" title="Cetak Laporan" style="font-size:11px;gap:4px;border-color:var(--border2)"><i class="ti ti-printer"></i> Cetak</button>'
     + '  </div>'
     + '</div>'
 
@@ -563,6 +563,7 @@ async function printMarketReportPdf() {
   var printWin = window.open('', '_blank');
   if (printWin) {
     printWin.document.write('<!DOCTYPE html><html><head><title>Laporan Kondisi Pasar — Money Watch</title>'
+      + '<base href="' + (window.location.origin + window.location.pathname) + '">'
       + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">'
       + '<style>@page{size:A4 portrait;margin:8mm}body{margin:0;padding:0;background:#fff;font-family:\'Inter\',sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>'
       + '</head><body>' + htmlContent + '</body></html>');

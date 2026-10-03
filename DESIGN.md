@@ -106,3 +106,76 @@ one.
   real, checkable source — this app's history includes multiple removed
   instances of exactly this (see `anti-slop/audit-001-2026-09-26.md`).
 - No customer testimonials or logo bars until real ones exist.
+
+---
+
+## Aturan Baku Konsistensi Desain Antar-Menu & Layout (Design System Standard)
+
+> Ditetapkan agar transisi antar ~45 halaman/menu terasa sebagai **satu terminal terpadu yang konsisten, bersih, dan modern**, bukan kumpulan halaman terpisah yang dibuat dengan selera berbeda.
+
+### 1. Struktur Anatomi Halaman Baku (Page Anatomy)
+Setiap halaman/fitur di bawah `#page-*` harus mengikuti susunan hierarki 3 zona berikut:
+1. **Header Zona Atas (Page Header)**:
+   - Judul Halaman (`h1` atau `h2`, font-weight 700-800, `letter-spacing: -0.02em`, `color: var(--text)`).
+   - Timestamp / Sync Badge di sebelah kanan (misal: "Diperbarui: HH:MM:SS" dengan font mono).
+   - Action Bar terpadu (tombol refresh, export, atau switch mode menggunakan `.sm-btn`).
+2. **Control & Filter Strip (Sub-navigation)**:
+   - Jika halaman memiliki sub-kategori/sub-view (seperti All/Whale/Breakout atau timeframes): letakkan dalam satu bar horizontal terpadu (`.dash-view-toggle-bar` atau wadah segmented chip).
+   - Chip aktif wajib memakai class `.sm-chip.active` atau `.btn.on`, bukan membuat style button baru per halaman.
+3. **Content Grid (Canvas Utama)**:
+   - Menggunakan CSS Grid terstruktur (`grid-template-columns: repeat(auto-fit, minmax(...))` atau 2-kolom seimbang), dengan `gap: 14px-16px`. Hindari layout masonry acak yang membuat tinggi kartu tidak sejajar.
+
+### 2. Aturan Pengelompokan Kartu & Metrik (No Metric Fragmentation)
+Mengacu pada `CLAUDE.md` Aturan #4:
+- **DILARANG** membungkus setiap angka/metrik kecil ke dalam kartu terpisah (anti-AI slop).
+- **WAJIB** mengelompokkan metrik yang berada dalam satu topik/sumber data ke dalam **SATU kartu terpadu (`.card`)**.
+  - Contoh baik: 1 kartu "Valuasi Finansial" berisi 4 baris data (PER, PBV, ROE, DER) atau 1 grid mini di dalamnya.
+  - Contoh buruk: 4 kartu terpisah untuk masing-masing PER, PBV, ROE, dan DER.
+- Semua kartu wajib menggunakan class `.card` dengan `background: var(--bg2)`, `border: 1px solid var(--border)`, dan `border-radius: var(--radius-lg)` (8-10px). Hindari shadow tebal; gunakan hover halus `border-color: var(--border2)`.
+
+### 3. Standar Tabel Data Finansial (Financial Data Tables)
+Data tabel adalah komponen inti terminal ini. Semua tabel lintas menu wajib mematuhi aturan perataan:
+- **Kolom Teks / Identitas (Ticker, Nama Saham, Sektor)**: Rata kiri (`text-align: left`).
+- **Kolom Angka Finansial (Harga, Lot, Volume, Value, P/L, Persen, Rasio)**:
+  - **WAJIB rata kanan (`text-align: right`)**.
+  - **WAJIB menggunakan font angka tabular**: `font-family: var(--font-mono)`, `font-variant-numeric: tabular-nums`, dan `font-feature-settings: "tnum" 1` agar angka tidak bergeser saat data berubah.
+- **Header Tabel (`th`)**:
+  - `font-size: 10px-10.5px`, uppercase, `color: var(--text3)`, `letter-spacing: 0.05em`.
+  - Background `var(--table-header-bg)` dan border bawah `1px solid var(--border)`.
+- **Row Hover & Interaksi**:
+  - Baris tabel wajib memiliki hover halus (`background: var(--table-row-hover)`).
+- **Mobile Overflow**:
+  - Setiap tabel WAJIB dibungkus kontainer dengan `overflow-x: auto` (misal `.table-wrap`) agar tabel lebar tidak merusak lebar layar HP/tablet.
+
+### 4. Aturan Penjelasan Fitur & Micro-copy (Info-Icon Standard)
+- **DILARANG** menampilkan paragraf penjelasan panjang langsung di layout halaman (menghabiskan ruang analisa terminal).
+- **WAJIB** menggunakan helper reusable `uiInfoIcon(id, text)` di sebelah label/judul metrik.
+- **Interaksi Popover**:
+  - Wajib mendukung **klik/tap untuk toggle buka-tutup** agar berfungsi di layar sentuh/HP (tidak boleh hover-only).
+  - Klik di luar area popover otomatis menutup popover.
+
+### 5. Aturan Semantik Warna & Integritas Status
+Patuhi aturan warna finansial yang konsisten di semua halaman:
+- **Hijau (`var(--green)`)**: Khusus indikasi positif (Gain, Akumulasi, Net Inflow, Target Tercapai, Status Optimal).
+- **Merah (`var(--red)`)**: Khusus indikasi negatif (Loss, Distribusi, Net Outflow, Stop Loss Terkena, Risiko Tinggi).
+- **Biru (`var(--accent)` / `var(--accent-blue)`)**: Navigasi aktif, interaksi klik, status telemetri operasional.
+- **Amber (`rgba(245,158,11,*)`)**: **HANYA** untuk pola kejujuran data (data simulasi, estimasi historis yang belum divalidasi, fallback saat API eksternal down). Jangan gunakan warna amber untuk badge dekorasi biasa.
+
+### 6. Aturan Mutlak Paritas Tema Terang & Gelap (Theme Parity)
+- **DILARANG KERAS** meng-hardcode warna teks atau latar dengan nilai hex solid statis seperti `color: #FFFFFF`, `color: #000000`, atau `background: #0E131F` di dalam template string JS atau inline CSS komponen baru.
+- **WAJIB** menggunakan CSS Custom Properties:
+  - Background: `var(--bg)`, `var(--bg2)`, `var(--bg3)`.
+  - Teks: `var(--text)` (primer), `var(--text2)` (sekunder), `var(--text3)` (muted/label).
+  - Garis batas: `var(--border)`, `var(--border2)`, `var(--border-subtle)`.
+- Setiap kali membuat atau memodifikasi layout menu, **WAJIB diuji di kedua tema** (Dark dan Light mode via `body.theme-light`). Teks putih di atas latar putih atau teks hitam di latar gelap adalah cacat rilis (P0 bug).
+
+### 7. Checklist Verifikasi Konsistensi Desain (Consistency Gate)
+Sebelum menganggap perubahan layout atau penambahan menu selesai, verifikasi 7 poin ini:
+1. [ ] Apakah Page Header memiliki judul terstruktur dengan Action/Refresh yang rapi?
+2. [ ] Apakah metrik sekelompok sudah digabung dalam satu Card, bukan terpecah-pecah?
+3. [ ] Apakah seluruh angka finansial rata kanan dan menggunakan font `tabular-nums`?
+4. [ ] Apakah penjelasan fitur menggunakan popover `uiInfoIcon()`, bukan teks deskripsi panjang?
+5. [ ] Apakah warna hijau/merah/amber digunakan strictly sesuai makna semantiknya?
+6. [ ] Apakah tampilan tetap terbaca jelas (kontras tinggi, tidak ada teks tak terlihat) saat tombol tema beralih ke Mode Terang?
+7. [ ] Apakah layout responsif dan tabel dapat di-scroll horizontal tanpa membuat halaman HP meluber ke samping?
+

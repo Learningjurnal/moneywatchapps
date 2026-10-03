@@ -466,8 +466,7 @@ function fsRenderCharts(){
 
   // Font sebelumnya #4a5e82 tipis (dilaporkan user 2026-09-13, sama seperti
   // rk-chart di fsRenderRanking() di atas) — ganti ke _chartTextColor()
-  // theme-aware + bold, dipakai untuk 5 chart FlowScan detail di bawah.
-  var GC2='rgba(255,255,255,.04)',TC2={color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:10,weight:'bold',family:'"Fira Code","Public Sans",monospace'}};
+  var GC2=(typeof _chartGridColor==='function'?_chartGridColor():'rgba(255,255,255,.04)'),TC2={color:(typeof _chartTextColor==='function'?_chartTextColor('--text2','#D2D8DF'):'#D2D8DF'),font:{size:10,weight:'bold',family:'"Fira Code","Public Sans",monospace'}};
   var bo={responsive:true,maintainAspectRatio:false,
     plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(6,11,23,.95)',borderColor:'rgba(255,255,255,.08)',borderWidth:1,titleColor:'#8fa3c8',bodyColor:'#dce8ff',bodyFont:{family:'Menlo',size:11}}},
     scales:{x:{ticks:Object.assign({maxTicksLimit:8,autoSkip:true},TC2),grid:{display:false},border:{display:false}},

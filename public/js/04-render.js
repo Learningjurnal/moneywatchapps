@@ -664,13 +664,15 @@ function renderPortofolio(){
           data:dataVals,
           backgroundColor:backgroundColors,
           borderWidth:0,
+          borderRadius:4,
+          spacing:2,
           hoverOffset:6
         }]
       },
       options:{
         responsive:true,
         maintainAspectRatio:false,
-        cutout:'65%',
+        cutout:'72%',
         plugins:{
           legend:{display:false},
           tooltip:Object.assign({}, TT, {

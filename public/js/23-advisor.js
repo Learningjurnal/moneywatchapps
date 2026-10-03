@@ -116,7 +116,10 @@ function openInvestorTearSheet() {
     + '  <!-- Header -->'
     + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1e3a8a;padding-bottom:12px;margin-bottom:16px">'
     + '    <div>'
-    + '      <div style="font-size:20px;font-weight:800;color:#1e3a8a;letter-spacing:-0.5px">MONEY WATCH <span style="color:#f97316">PRO</span></div>'
+    + '      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    + '        <img src="img/logo-mark.png?v=20260915a" alt="MoneyWatch" height="28" style="height:28px;width:auto;display:inline-block;vertical-align:middle;object-fit:contain">'
+    + '        <div style="font-size:18px;font-weight:800;color:#1e3a8a;letter-spacing:-0.5px">MONEY WATCH <span style="color:#2563eb">PRO</span></div>'
+    + '      </div>'
     + '      <div style="font-size:12px;font-weight:600;color:#475569">PORTFOLIO TEAR SHEET &amp; INVESTOR BRIEF</div>'
     + '    </div>'
     + '    <div style="text-align:right">'
@@ -203,7 +206,7 @@ function openInvestorTearSheet() {
     + '<!-- Action buttons in modal -->'
     + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'
     + '  <button class="btn btn-ghost" onclick="closeModal()">Tutup</button>'
-    + '  <button class="btn btn-blue" onclick="printInvestorTearSheet()">🖨️ Cetak / Unduh PDF</button>'
+    + '  <button class="btn btn-blue" onclick="printInvestorTearSheet()"><i class="ti ti-printer"></i> Cetak / Unduh PDF</button>'
     + '</div>';
 
   mBody.innerHTML = html;

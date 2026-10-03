@@ -17,24 +17,25 @@
 .w-fill.red{background:var(--red)}
 
 /* Kartu rekening bank (Institutional Dark Terminal) */
-.w-bank-card{border-radius:8px;padding:16px;margin-bottom:10px;color:#fff;position:relative;overflow:hidden;border:1px solid var(--border2);background:var(--bg3);box-shadow:none}
-.w-bank-card::after{content:'';position:absolute;top:-30px;right:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.04);pointer-events:none}
+.w-bank-card{border-radius:var(--radius-lg);padding:16px;margin-bottom:10px;color:var(--text);position:relative;overflow:hidden;border:1px solid var(--border-subtle);background:var(--bg3);box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:border-color .18s ease, transform .18s ease}
+.w-bank-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.w-bank-card::after{content:'';position:absolute;top:-30px;right:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.03);pointer-events:none}
 
 /* Logo bank — badge inisial + warna brand (lihat wBankLogo() di 20-wealth.js) */
 .w-bank-logo{border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;letter-spacing:-.02em;flex-shrink:0;box-shadow:none;text-shadow:none}
 
 /* Baris piutang */
-.w-piu-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.w-piu-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-subtle)}
 .w-piu-row:last-child{border-bottom:none}
 .w-piu-av{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
 
 /* Insight card */
-.w-insight{display:flex;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;transition:all var(--spring)}
-.w-insight:hover{border-color:rgba(37,99,235,.4);transform:translateY(-1px)}
+.w-insight{display:flex;gap:12px;background:var(--bg2);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease}
+.w-insight:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,0.18)}
 .w-insight-ic{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
 
 /* Mini stat row */
-.w-mini{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.w-mini{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-subtle);font-size:12px}
 .w-mini:last-child{border-bottom:none}
 
 /* Form field di modal wealth */
@@ -56,7 +57,7 @@
    WEALTH MODULE — LIGHT THEME OVERRIDES
    ══════════════════════════════════════════════ */
 body.theme-light .w-hero-value {
-  color: #6001D2 !important;
+  color: var(--accent) !important;
 }
 body.theme-light .w-track {
   background: #E2E8F0 !important;
@@ -64,18 +65,19 @@ body.theme-light .w-track {
 body.theme-light .w-bank-card {
   background: #FFFFFF !important;
   color: #0F172A !important;
-  border: 1px solid #CBD5E1 !important;
-  box-shadow: none !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
 }
 body.theme-light .w-piu-row {
   border-bottom: 1px solid #E2E8F0 !important;
 }
 body.theme-light .w-insight {
   background: #FFFFFF !important;
-  border: 1px solid #CBD5E1 !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
 }
 body.theme-light .w-insight:hover {
-  border-color: #6001D2 !important;
+  border-color: var(--accent) !important;
 }
 body.theme-light .w-mini {
   border-bottom: 1px solid #E2E8F0 !important;

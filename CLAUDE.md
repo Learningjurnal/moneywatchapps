@@ -79,6 +79,11 @@ Aturan konkret ke depan:
 - Ini berlaku untuk fitur BARU dan fitur yang DISENTUH ke depan secara
   default (rollout bertahap) — bukan izin untuk mengaudit ulang seluruh
   halaman sekaligus tanpa diminta eksplisit oleh user.
+- **Standar Lengkap Desain:** Rincian anatomi halaman, standar tabel finansial,
+  warna semantik, paritas tema terang/gelap, dan 7-poin checklist verifikasi
+  tercantum di [DESIGN.md](file:///c:/Users/Andry%20Zuma%20Musa/Documents/GitHub/moneywatchapps/DESIGN.md)
+  (Aturan Baku Konsistensi Desain Antar-Menu & Layout).
+
 
 ## 5. Disiplin lain yang sudah mapan di sesi-sesi sebelumnya
 - Setiap regresi baru: buktikan fail-without-fix (`git stash`) sebelum

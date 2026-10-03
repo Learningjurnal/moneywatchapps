@@ -1941,8 +1941,23 @@ function kc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 // (lihat index.html toggleTheme()) supaya tetap sinkron kalau user ganti
 // tema di tengah sesi tanpa reload — chart tetap dibangun ulang dari nol
 // tiap kunjungan halaman (perf fix di bawah), jadi mutasi ini cukup.
-var TC={color:'#8a90ad',font:{family:'"Fira Code","Public Sans",monospace',size:9,weight:'bold'}};
-var GC='rgba(255,102,0,.07)';
+var TC={color:'#8a90ad',font:{family:'"Fira Code","Inter",monospace',size:9,weight:'600'}};
+
+// Theme-aware Chart.js gridline color (2026-10-03):
+// Subtly blended gridlines adapting automatically between dark and light themes.
+function _chartGridColor() {
+  try {
+    var isLight = typeof document !== 'undefined' && document.body && document.body.classList.contains('theme-light');
+    return isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.045)';
+  } catch (e) {
+    return 'rgba(255, 255, 255, 0.045)';
+  }
+}
+var GC = _chartGridColor();
+if (typeof window !== 'undefined') {
+  window._chartGridColor = _chartGridColor;
+  window.GC = GC;
+}
 
 // Theme-aware Chart.js tick/legend text color (2026-09-13, user-reported:
 // chart axis labels unreadable in dark theme). Canvas can't render
@@ -2080,6 +2095,30 @@ if (typeof Chart !== 'undefined') {
   // chart benefits without editing 51 individual configs (and any future
   // chart added to the app gets this for free too).
   Chart.defaults.animation = false;
+
+  // Modern institutional chart aesthetic defaults (2026-10-03):
+  // Clean curves for lines, subtle rounded bars, floating segmented rings for doughnuts/pies.
+  if (Chart.defaults.font) {
+    Chart.defaults.font.family = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  }
+  if (!Chart.defaults.elements) Chart.defaults.elements = {};
+  Chart.defaults.elements.line = Object.assign({}, Chart.defaults.elements.line, {
+    tension: 0.35,
+    borderWidth: 2
+  });
+  Chart.defaults.elements.point = Object.assign({}, Chart.defaults.elements.point, {
+    radius: 0,
+    hoverRadius: 5,
+    hitRadius: 8
+  });
+  Chart.defaults.elements.bar = Object.assign({}, Chart.defaults.elements.bar, {
+    borderRadius: 4,
+    borderSkipped: false
+  });
+  Chart.defaults.elements.arc = Object.assign({}, Chart.defaults.elements.arc, {
+    borderRadius: 3,
+    spacing: 2
+  });
 }
 
 
