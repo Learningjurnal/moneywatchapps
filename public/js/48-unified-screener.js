@@ -30,7 +30,7 @@ var US_STATE = {
   summary: null,
   dataSources: null,
   total: 0,
-  pageTab: 'screener', // 'screener' | 'cockpit' | 'quant' | 'volspike' | 'strategy' | 'consensus'
+  pageTab: 'screener', // 'screener' | 'cockpit' | 'quant' | 'volspike' | 'strategy' | 'consensus' | 'tvscan'
   filters: {
     search: '',
     index: 'ALL',
@@ -207,7 +207,20 @@ function usRenderShell() {
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'volspike\')" style="' + usPageTabBtnStyle(pt === 'volspike') + '">Volume Spike</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'strategy\')" style="' + usPageTabBtnStyle(pt === 'strategy') + '">Strategy Engine</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'consensus\')" style="' + usPageTabBtnStyle(pt === 'consensus') + '">Konsensus Screener</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'tvscan\')" style="' + usPageTabBtnStyle(pt === 'tvscan') + '">TradingView</button>'
     + '</div>';
+
+  // Tab TradingView (52-tv-scanner.js): wrapper dibangun sekali; tvsRenderSubPage()
+  // mengelola DOM-nya sendiri supaya filter tidak hilang saat tick refresh.
+  if (pt === 'tvscan') {
+    if (!document.getElementById('tvs-root')) {
+      html += '<div id="us-tvs-subpage"></div>';
+      c.innerHTML = html;
+    }
+    if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
+    if (typeof tvsRenderSubPage === 'function') tvsRenderSubPage('us-tvs-subpage');
+    return;
+  }
 
   if (pt === 'consensus') {
     html += '<div id="us-consensus-subpage">' + (typeof csScreenerSubPageHtml === 'function' ? csScreenerSubPageHtml() : '') + '</div>';
