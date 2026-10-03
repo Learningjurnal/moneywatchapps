@@ -125,13 +125,24 @@ Setiap halaman/fitur di bawah `#page-*` harus mengikuti susunan hierarki 3 zona 
 3. **Content Grid (Canvas Utama)**:
    - Menggunakan CSS Grid terstruktur (`grid-template-columns: repeat(auto-fit, minmax(...))` atau 2-kolom seimbang), dengan `gap: 14px-16px`. Hindari layout masonry acak yang membuat tinggi kartu tidak sejajar.
 
-### 2. Aturan Pengelompokan Kartu & Metrik (No Metric Fragmentation)
-Mengacu pada `CLAUDE.md` Aturan #4:
-- **DILARANG** membungkus setiap angka/metrik kecil ke dalam kartu terpisah (anti-AI slop).
-- **WAJIB** mengelompokkan metrik yang berada dalam satu topik/sumber data ke dalam **SATU kartu terpadu (`.card`)**.
-  - Contoh baik: 1 kartu "Valuasi Finansial" berisi 4 baris data (PER, PBV, ROE, DER) atau 1 grid mini di dalamnya.
-  - Contoh buruk: 4 kartu terpisah untuk masing-masing PER, PBV, ROE, dan DER.
-- Semua kartu wajib menggunakan class `.card` dengan `background: var(--bg2)`, `border: 1px solid var(--border)`, dan `border-radius: var(--radius-lg)` (8-10px). Hindari shadow tebal; gunakan hover halus `border-color: var(--border2)`.
+### 2. Aturan Pengelompokan Kartu & Kepadatan Konten (Zero Card Fragmentation & High Density)
+Mengacu pada prinsip terminal kuantitatif profesional:
+- **SATUKAN KARTU TERPISAH (Zero Card Fragmentation)**:
+  - **DILARANG** memecah metrik, modul, atau kontrol yang berkaitan erat ke dalam banyak kartu kecil terpisah (anti-AI slop).
+  - **WAJIB** menyatukan elemen-elemen tersebut ke dalam **SATU kartu terpadu (`.card`)**.
+  - Untuk memisahkan bagian internal di dalam kartu, gunakan **sub-panel elegan** (`background: var(--bg3); border-radius: 8px; padding: 10px 14px`) atau garis pembatas halus (`height: 1px; background: var(--border-subtle); margin: 12px 0`).
+  - *Contoh baik*: 1 kartu "Ringkasan Performa Trading" memuat Win Rate, Profit Factor, Total Tx, Profit, Loss, dan Top Gainer dalam 2 baris grid internal.
+  - *Contoh buruk*: 6 kartu terpisah untuk masing-masing Win Rate, Profit Factor, Total Tx, Profit, Loss, dan Top Gainer yang memboroskan ruang dan margin.
+- **UKURAN KONTEN & HINDARI ZONA KOSONG (Zero Empty Wasteland)**:
+  - Padding kartu standar adalah `14px 16px` (compact: `12px 14px`). Hindari padding raksasa yang menyisakan ruang kosong tak bernilai.
+  - Hindari kartu dengan zona kosong melompong (wasteland). Setiap kartu harus memiliki rasio kepadatan informasi yang proporsional:
+    - Tinggi chart/canvas harus pas (`180px–220px`).
+    - Grid metrik internal harus memanfaatkan ruang secara seimbang (`align-items: stretch`).
+- **ALINEASI & PENCEGAHAN OVERLAP TEKS (Anti-Collision Alignment)**:
+  - **DILARANG KERAS** membiarkan kalimat, judul, badge, atau tombol saling balapan / bertumpuk (`race/overlap`) ketika ukuran viewport berubah.
+  - Kontainer header (`.cheader`, header halaman) **WAJIB** menyertakan `flex-wrap: wrap; gap: 8px 12px; min-width: 0`.
+  - Wadah judul dan teks (`.ctitle`, `.ptitle`, `.psub`) **WAJIB** memiliki `min-width: 0; word-break: break-word` dan `line-height` yang proporsional agar jika teks panjang atau tombol kanan banyak, tombol turun ke bawah dengan rapi tanpa menutupi teks.
+  - Tombol aksi di sisi kanan header kartu harus dibungkus wadah fleksibel (`display: flex; gap: 6px; flex-wrap: wrap; align-items: center`).
 
 ### 3. Standar Tabel Data Finansial (Financial Data Tables)
 Data tabel adalah komponen inti terminal ini. Semua tabel lintas menu wajib mematuhi aturan perataan:
@@ -170,12 +181,13 @@ Patuhi aturan warna finansial yang konsisten di semua halaman:
 - Setiap kali membuat atau memodifikasi layout menu, **WAJIB diuji di kedua tema** (Dark dan Light mode via `body.theme-light`). Teks putih di atas latar putih atau teks hitam di latar gelap adalah cacat rilis (P0 bug).
 
 ### 7. Checklist Verifikasi Konsistensi Desain (Consistency Gate)
-Sebelum menganggap perubahan layout atau penambahan menu selesai, verifikasi 7 poin ini:
+Sebelum menganggap perubahan layout atau penambahan menu selesai, verifikasi 8 poin ini:
 1. [ ] Apakah Page Header memiliki judul terstruktur dengan Action/Refresh yang rapi?
-2. [ ] Apakah metrik sekelompok sudah digabung dalam satu Card, bukan terpecah-pecah?
-3. [ ] Apakah seluruh angka finansial rata kanan dan menggunakan font `tabular-nums`?
-4. [ ] Apakah penjelasan fitur menggunakan popover `uiInfoIcon()`, bukan teks deskripsi panjang?
-5. [ ] Apakah warna hijau/merah/amber digunakan strictly sesuai makna semantiknya?
-6. [ ] Apakah tampilan tetap terbaca jelas (kontras tinggi, tidak ada teks tak terlihat) saat tombol tema beralih ke Mode Terang?
-7. [ ] Apakah layout responsif dan tabel dapat di-scroll horizontal tanpa membuat halaman HP meluber ke samping?
+2. [ ] Apakah metrik & modul sekelompok sudah disatukan dalam 1 Card terpadu (Zero Card Fragmentation) dan bebas dari ruang kosong melompong (Zero Wasteland)?
+3. [ ] Apakah judul, teks kalimat, badge, dan kontrol tombol bebas dari tabrakan atau tumpang tindih (no race/overlap) saat lebar layar berubah?
+4. [ ] Apakah seluruh angka finansial rata kanan dan menggunakan font `tabular-nums`?
+5. [ ] Apakah penjelasan fitur menggunakan popover `uiInfoIcon()`, bukan teks deskripsi panjang?
+6. [ ] Apakah warna hijau/merah/amber digunakan strictly sesuai makna semantiknya?
+7. [ ] Apakah tampilan tetap terbaca jelas (kontras tinggi, tidak ada teks tak terlihat) saat tombol tema beralih ke Mode Terang?
+8. [ ] Apakah layout responsif dan tabel dapat di-scroll horizontal tanpa membuat halaman HP meluber ke samping?
 

@@ -309,20 +309,27 @@ function usRenderShell() {
   // benar sekarang, tapi teks disesuaikan juga supaya tidak lagi berjanji
   // "harian" — cron memang jalan harian, tapi butuh beberapa hari untuk
   // satu putaran penuh ~965 saham, bukan sehari.
+  var coverageStrip = '';
   if (US_STATE.summary) {
     var s = US_STATE.summary;
-    html += '<div class="card" style="padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-mute)">'
-      + 'Cakupan teknikal (cron-warmed): ' + s.technicalCoverage + '/' + s.totalUniverse + ' saham. '
-      + 'Cakupan fundamental: ' + s.fundamentalCoverage + '/' + s.totalUniverse + ' saham. '
-      + 'Cakupan Wave Analysis: ' + (s.waveCoverage != null ? s.waveCoverage : 0) + '/' + s.totalUniverse + ' saham. '
-      + 'Saham di luar cakupan tampil "N/A" (bukan skor 0) — cron harian memindai sebagian saham setiap hari (butuh beberapa hari untuk 1 putaran penuh seluruh universe), cache bertahan 10-14 hari sebelum di-refresh ulang.'
+    var infoPopover = (typeof uiInfoIcon === 'function')
+      ? uiInfoIcon('Saham di luar cakupan tampil "N/A" (bukan skor 0) — cron harian memindai sebagian saham setiap hari (butuh beberapa hari untuk 1 putaran penuh seluruh universe), cache bertahan 10-14 hari sebelum di-refresh ulang.')
+      : '';
+    coverageStrip = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 12px;font-size:11.5px;color:var(--text3);padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--border-subtle);width:100%">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<span>Cakupan: <b>' + s.technicalCoverage + '/' + s.totalUniverse + '</b> teknikal · <b>' + s.fundamentalCoverage + '/' + s.totalUniverse + '</b> fundamental · <b>' + (s.waveCoverage != null ? s.waveCoverage : 0) + '/' + s.totalUniverse + '</b> wave</span>'
+      + infoPopover
+      + '</div>'
+      + '<span style="font-size:10px;color:var(--text3)">Cache TTL: 10–14 hari</span>'
       + '</div>';
   }
 
   // Filter panel (finput/fsel — same input/select classes used app-wide,
   // e.g. Portfolio/RDN/Dividen filter bars in public/index.html)
   var fis = 'padding:5px 9px;font-size:11.5px;border-radius:6px';
-  html += '<div class="card" style="padding:14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">'
+  html += '<div class="card" style="padding:12px 14px;margin-bottom:12px">'
+    + coverageStrip
+    + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">'
     + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Cari</label>'
       + '<input id="us-f-search" type="text" placeholder="Ticker/nama" value="' + (f.search || '').replace(/"/g, '&quot;') + '" style="width:120px;' + fis + '" class="finput"></div>'
     + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Index</label>'
@@ -354,7 +361,7 @@ function usRenderShell() {
       + '<input id="us-f-confirmed" type="checkbox"' + (f.confirmedOnly ? ' checked' : '') + '> '
       + '<label style="font-size:11.5px" for="us-f-confirmed">Uptrend + Akumulasi Terkonfirmasi saja</label></div>'
     + '<button class="btn btn-primary btn-sm" onclick="usApplyFilters()">Terapkan Filter</button>'
-    + '</div>';
+    + '</div></div>';
 
   if (US_STATE.error) {
     html += '<div class="card" style="padding:14px;color:var(--down,#dc2626)">Gagal memuat data: ' + US_STATE.error + '</div>';

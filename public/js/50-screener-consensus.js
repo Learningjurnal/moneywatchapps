@@ -209,44 +209,46 @@ function csRender() {
     return '<button class="btn btn-ghost btn-sm" onclick="csSetMinAgree(' + n + ')" style="font-weight:700;' + (active ? 'background:rgba(34,197,94,0.15);border-color:var(--green);color:var(--green)' : '') + '">' + n + ' dari 5 sepakat</button>';
   }).join('');
 
-  var intro = '<div class="card" style="padding:16px;margin-bottom:14px">'
-    + '<div style="font-weight:700;font-size:13px;margin-bottom:4px">Konsensus Screener</div>'
-    + '<div style="font-size:11.5px;color:var(--text3);margin-bottom:10px">Ticker hanya tampil kalau disetujui beberapa sistem screening SEKALIGUS (Unified Screener, Strategy Engine, Opportunity Radar, Volume Spike, Quant Screener) — bukan mesin skor baru, murni filter AND di atas ambang yang sudah ada di masing-masing halaman. Radar Akumulasi/Distribusi TIDAK dihitung terpisah karena sudah termasuk di dalam skor Unified Screener.</div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap">' + minAgreeButtons + '</div>'
+  var infoIconHtml = (typeof uiInfoIcon === 'function')
+    ? uiInfoIcon('Ticker hanya tampil kalau disetujui beberapa sistem screening SEKALIGUS (Unified Screener, Strategy Engine, Opportunity Radar, Volume Spike, Quant Screener) — murni filter AND di atas ambang yang sudah ada di masing-masing halaman. Radar Akumulasi/Distribusi TIDAK dihitung terpisah karena sudah termasuk di dalam skor Unified Screener.')
+    : '';
+
+  var header = '<div class="cheader" style="margin-bottom:12px;padding-bottom:10px">'
+    + '<div style="display:flex;align-items:center;gap:6px;min-width:0">'
+    + '<span class="ctitle" style="font-size:13px;font-weight:700">Konsensus Screener</span>'
+    + infoIconHtml
+    + '</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + minAgreeButtons + '</div>'
     + '</div>';
 
+  var content = '';
   if (CS_STATE.loading && !CS_STATE.data) {
-    mount.innerHTML = intro + '<div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Memindai seluruh BEI lewat 5 sistem screening (bisa beberapa detik)...</div>';
-    return;
-  }
-  if (CS_STATE.error) {
-    mount.innerHTML = intro + '<div class="card" style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat Konsensus Screener: ' + CS_STATE.error + '</div>';
-    return;
-  }
-  if (!CS_STATE.data) {
-    mount.innerHTML = intro;
-    return;
-  }
-
-  var data = CS_STATE.data;
-  var rows = data.results || [];
-  var tableHtml;
-  if (!rows.length) {
-    tableHtml = '<div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12px">'
-      + 'Tidak ada saham yang disetujui ' + data.minAgree + ' dari 5 sistem sekaligus hari ini dari ' + data.universeScanned + ' emiten yang dipindai.'
-      + '<div style="margin-top:6px;font-size:11px">Ini bukan bug — artinya memang belum ada saham dengan sinyal bullish yang cukup kuat/konsisten hari ini. Coba turunkan ambang ke 3 dari 5, atau cek lagi besok.</div>'
-      + '</div>';
+    content = '<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:12px">Memindai seluruh BEI lewat 5 sistem screening (bisa beberapa detik)...</div>';
+  } else if (CS_STATE.error) {
+    content = '<div style="padding:16px;color:var(--text3);font-size:12px">Gagal memuat Konsensus Screener: ' + CS_STATE.error + '</div>';
+  } else if (!CS_STATE.data) {
+    content = '<div style="padding:16px;color:var(--text3);font-size:12px">Memuat data konsensus...</div>';
   } else {
-    tableHtml = '<div class="card" style="padding:16px">'
-      + '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">' + rows.length + ' saham disetujui ≥' + data.minAgree + ' dari 5 sistem, dari total ' + data.universeScanned + ' emiten dipindai.</div>'
-      + '<div class="tbl-wrap" style="overflow-x:auto">'
-      + '<table class="tbl" style="width:100%;font-size:12px">'
-      + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Konsensus</th><th>Sistem yang Setuju</th><th style="text-align:right">Perubahan</th><th>Akumulasi Bandar &amp; Broker ' + uiInfoIcon('Akumulasi/Distribusi dijumlahkan dari skor ranking relatif Invezgo lintas beberapa hari (BUKAN Rupiah) — "muncul X/Y hari" menandakan konsistensi. Top Buyer adalah broker dengan nilai beli terbesar hari ini (data real per-ticker, bukan whole-market). Keduanya informasi tambahan, TIDAK ikut menentukan skor Konsensus di atas.') + '</th><th style="text-align:center">Aksi</th></tr></thead>'
-      + '<tbody>' + rows.map(csRenderRow).join('') + '</tbody>'
-      + '</table></div></div>';
+    var data = CS_STATE.data;
+    var rows = data.results || [];
+    if (!rows.length) {
+      content = '<div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:12px">'
+        + 'Tidak ada saham yang disetujui ' + data.minAgree + ' dari 5 sistem sekaligus hari ini dari ' + data.universeScanned + ' emiten yang dipindai.'
+        + '<div style="margin-top:6px;font-size:11px">Ini bukan bug — artinya memang belum ada saham dengan sinyal bullish yang cukup kuat/konsisten hari ini. Coba turunkan ambang ke 3 dari 5, atau cek lagi besok.</div>'
+        + '</div>';
+    } else {
+      content = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+        + '<span><b>' + rows.length + ' saham</b> disetujui ≥' + data.minAgree + ' dari 5 sistem (dari total ' + data.universeScanned + ' emiten dipindai).</span>'
+        + '</div>'
+        + '<div class="tbl-wrap" style="overflow-x:auto">'
+        + '<table class="tbl" style="width:100%;font-size:12px">'
+        + '<thead><tr><th>Emiten</th><th>Sektor</th><th style="text-align:right">Konsensus</th><th>Sistem yang Setuju</th><th style="text-align:right">Perubahan</th><th>Akumulasi Bandar &amp; Broker ' + uiInfoIcon('Akumulasi/Distribusi dijumlahkan dari skor ranking relatif Invezgo lintas beberapa hari (BUKAN Rupiah) — "muncul X/Y hari" menandakan konsistensi. Top Buyer adalah broker dengan nilai beli terbesar hari ini (data real per-ticker, bukan whole-market). Keduanya informasi tambahan, TIDAK ikut menentukan skor Konsensus di atas.') + '</th><th style="text-align:center">Aksi</th></tr></thead>'
+        + '<tbody>' + rows.map(csRenderRow).join('') + '</tbody>'
+        + '</table></div>';
+    }
   }
 
-  mount.innerHTML = intro + tableHtml;
+  mount.innerHTML = '<div class="card" style="padding:14px 16px;margin-bottom:14px">' + header + content + '</div>';
 }
 
 function csScreenerSubPageHtml() {
