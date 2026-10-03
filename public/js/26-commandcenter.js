@@ -168,6 +168,7 @@ function getMarketRegime() {
     return {
       ready: false,
       failed: failed,
+      cls: mrUnavailableClassification(failed ? 'unavailable' : 'loading', ''),
       status: failed ? 'GAGAL MEMUAT DATA IHSG' : 'MEMUAT DATA REAL…', statusBadge: failed ? 'b-dn' : 'b-neu', strategy: '-',
       equityTarget: '-', cashTarget: '-',
       ihsgVal: '-', ihsgChg: 0, volatility: '-',
@@ -187,20 +188,16 @@ function getMarketRegime() {
   }
   var dailyVol = (typeof techStdDev === 'function') ? techStdDev(rets) : 0;
 
-  var status = 'NEUTRAL / ACCUMULATION', statusBadge = 'b-amb', strategy = 'SELECTIVE ACCUMULATION', equityTarget = '60% – 75%', cashTarget = '25% – 40%';
-  if (ihsgChg <= -0.8) {
-    status = 'BEARISH'; statusBadge = 'b-dn'; strategy = 'CAPITAL PRESERVATION'; equityTarget = '40% – 55%'; cashTarget = '45% – 60%';
-  } else if (ihsgChg >= 0.8) {
-    status = 'BULLISH'; statusBadge = 'b-up'; strategy = 'RISK-ON'; equityTarget = '70% – 85%'; cashTarget = '15% – 30%';
-  }
+  var cls = mrClassification();
 
   return {
     ready: true,
-    status: status,
-    statusBadge: statusBadge,
-    strategy: strategy,
-    equityTarget: equityTarget,
-    cashTarget: cashTarget,
+    cls: cls,
+    status: cls.status,
+    statusBadge: cls.badge,
+    strategy: cls.strategy,
+    equityTarget: cls.equityTarget,
+    cashTarget: cls.cashTarget,
     ihsgVal: ihsgVal.toFixed(2),
     ihsgChg: Math.round(ihsgChg * 100) / 100,
     volatility: dailyVol.toFixed(2) + '% (harian, realisasi 20 hari)',
@@ -573,7 +570,8 @@ var MR_CONTEXT_TTL_MS = 5 * 60 * 1000;
 var MR_RETRY_AFTER_MS = 45 * 1000;
 var MR_CONTEXT = {
   breadth: { url: '/api/idx/summary', loading: false, data: null, error: null, at: 0, failedAt: 0 },
-  tech: { url: '/api/idx/tv-scan', loading: false, data: null, error: null, at: 0, failedAt: 0 }
+  tech: { url: '/api/idx/tv-scan', loading: false, data: null, error: null, at: 0, failedAt: 0 },
+  regime: { url: '/api/idx/regime', loading: false, data: null, error: null, at: 0, failedAt: 0 }
 };
 
 function mrLoadContext() {
@@ -601,6 +599,42 @@ function mrLoadContext() {
   });
 }
 
+// ── Klasifikasi status: dari /api/idx/regime (tren EMA20/EMA50 + RSI-14) ────
+// FIX (2026-10-04): status dulu hanya dari perubahan IHSG SATU HARI (ambang
+// ±0,8%) sehingga IHSG downtrend dengan RSI 18,9 (server: RISK_OFF) tampil
+// "NEUTRAL / ACCUMULATION, ekuitas 60–75%". Sekarang memakai klasifikasi
+// server (classifyMarketRegime). Rentang alokasi di bawah adalah PEDOMAN UMUM
+// per regime (bukan data dan belum divalidasi backtest) — dinyatakan di ikon info.
+var MR_REGIME_MAP = {
+  BULL_TREND: { status: 'BULLISH', badge: 'b-up', strategy: 'RISK-ON', equityTarget: '70% – 85%', cashTarget: '15% – 30%' },
+  SIDEWAYS: { status: 'NEUTRAL / ACCUMULATION', badge: 'b-amb', strategy: 'SELECTIVE ACCUMULATION', equityTarget: '60% – 75%', cashTarget: '25% – 40%' },
+  HIGH_VOLATILITY: { status: 'HIGH VOLATILITY', badge: 'b-amb', strategy: 'SELEKTIF — WASPADA KOREKSI', equityTarget: '60% – 75%', cashTarget: '25% – 40%' },
+  BEAR_TREND: { status: 'BEARISH', badge: 'b-dn', strategy: 'CAPITAL PRESERVATION', equityTarget: '40% – 55%', cashTarget: '45% – 60%' },
+  RISK_OFF: { status: 'RISK-OFF', badge: 'b-dn', strategy: 'CAPITAL PRESERVATION', equityTarget: '40% – 55%', cashTarget: '45% – 60%' }
+};
+
+function mrUnavailableClassification(state, description) {
+  return { state: state, status: state === 'loading' ? 'MEMUAT KLASIFIKASI…' : 'KLASIFIKASI TIDAK TERSEDIA', badge: 'b-neu',
+    strategy: '-', equityTarget: '-', cashTarget: '-', description: description || '', confidence: null, code: null, computedAt: null };
+}
+
+function mrClassification() {
+  var slot = MR_CONTEXT.regime;
+  var payload = slot.data && slot.data.regime;
+  if (payload) {
+    var mapped = MR_REGIME_MAP[payload.regime];
+    if (mapped) {
+      return Object.assign({}, mapped, { state: 'ok', code: payload.regime, confidence: payload.confidence, description: payload.description || '', computedAt: payload.computedAt || null });
+    }
+    // Mis. UNKNOWN: data historis IHSG tidak cukup — tidak ada rekomendasi alokasi.
+    return mrUnavailableClassification('unavailable', payload.description || 'Data historis IHSG tidak cukup untuk klasifikasi regime.');
+  }
+  if (slot.error && !slot.loading) {
+    return mrUnavailableClassification('unavailable', 'Gagal memuat klasifikasi regime (' + slot.error + '). Mencoba lagi otomatis.');
+  }
+  return mrUnavailableClassification('loading', '');
+}
+
 function mrInfo(text) {
   return typeof uiInfoIcon === 'function' ? uiInfoIcon(text) : '';
 }
@@ -623,14 +657,14 @@ function mrFmtInt(n) {
 }
 
 function mrTrendPillarHtml(r) {
-  // Ambang ±0,8% SAMA dengan yang dipakai status di atas (getMarketRegime()).
+  // Ambang ±0,8% hanya untuk label harian pilar ini (status regime memakai klasifikasi server).
   var label = !r.ready ? (r.failed ? 'Gagal Dimuat' : 'Memuat…') : (r.ihsgChg >= 0.8 ? 'Bullish Harian' : (r.ihsgChg <= -0.8 ? 'Bearish Harian' : 'Netral Harian'));
   var color = !r.ready ? 'var(--text3)' : (r.ihsgChg >= 0.8 ? 'var(--green)' : (r.ihsgChg <= -0.8 ? 'var(--red)' : 'var(--text)'));
   var sub = r.ready
     ? ('IHSG ' + r.ihsgVal + ' (' + (r.ihsgChg >= 0 ? '+' : '') + r.ihsgChg + '% vs penutupan sebelumnya).')
     : (r.failed ? 'Data historis IHSG gagal diambil (mis. batas permintaan terlampaui). Mencoba lagi otomatis dalam beberapa detik.' : 'Mengambil data historis IHSG real…');
   return mrPillarHtml('1. TREN IHSG (REAL)', label, color, sub,
-    'Berdasarkan perubahan harian IHSG dari data historis nyata. Bullish/Bearish bila perubahan menembus ±0,8%, selain itu Netral — ambang yang sama dengan status di bagian atas halaman. Ini hanya satu hari, bukan struktur tren; lihat Market Regime di Command Center untuk klasifikasi berbasis EMA/RSI.');
+    'Berdasarkan perubahan harian IHSG dari data historis nyata. Bullish/Bearish bila perubahan menembus ±0,8%, selain itu Netral. Ini hanya gambaran satu hari; status regime di atas memakai struktur tren EMA/RSI.');
 }
 
 function mrForeignPillarHtml() {
@@ -689,6 +723,18 @@ function mrTechBreadthPillarHtml() {
     'Persentase emiten yang harganya di atas rata-rata 200 hari (dan 50 hari), dihitung dari seluruh emiten yang tercakup scanner TradingView. Sumber tidak resmi dan tertunda ±10 menit. Konteks saja, belum dipakai dalam klasifikasi status; emiten tanpa data SMA tidak dihitung.');
 }
 
+function mrStatusInfo(cls) {
+  if (!cls) return '';
+  var parts = [];
+  if (cls.description) parts.push(cls.description);
+  if (cls.state === 'ok') {
+    parts.push('Keyakinan ' + cls.confidence + '% adalah skor heuristik, bukan probabilitas.');
+    parts.push('Rentang alokasi adalah pedoman umum per regime, bukan rekomendasi personal, dan belum divalidasi backtest.');
+  }
+  parts.push('Sumber: GET /api/idx/regime (tren EMA20/EMA50 dan RSI-14 IHSG dari Yahoo Finance)' + (cls.computedAt ? ', dihitung ' + new Date(cls.computedAt).toLocaleString('id-ID') : '') + '.');
+  return mrInfo(parts.join(' '));
+}
+
 function renderMarketRegimePage() {
   var c = el('page-market-regime');
   if (!c) return;
@@ -699,23 +745,23 @@ function renderMarketRegimePage() {
 
   var html = '<div style="margin-bottom:16px">'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Market Regime &amp; Tactical Allocation</div>'
-    + '<div class="psub">Klasifikasi berbasis tren &amp; volatilitas riil IHSG untuk menentukan strategi ekuitas optimal. Status di atas dihitung dari pergerakan harian IHSG. Market Breadth ditampilkan sebagai konteks dari data real dan belum dipakai dalam klasifikasi; Foreign Flow tidak tersedia dari feed yang bisa diverifikasi (lihat pilar 2).</div>'
+    + '<div class="psub">Klasifikasi regime pasar IHSG untuk menentukan porsi ekuitas. Status dihitung dari struktur tren (EMA20/EMA50) dan RSI-14 IHSG, bukan dari satu hari pergerakan. Market Breadth ditampilkan sebagai konteks dari data real dan belum dipakai dalam klasifikasi; Foreign Flow tidak tersedia dari feed yang bisa diverifikasi (lihat pilar 2).</div>'
   + '</div>'
 
   + '<div class="row3" style="margin-bottom:16px">'
     + '<div class="metric">'
       + '<div class="mlabel">STATUS MARKET REGIME</div>'
       + '<div class="mval ' + regimeCls + '" style="font-size:24px">' + r.status + '</div>'
-      + '<div class="msub ' + regimeCls + '">Strategi: ' + r.strategy + '</div>'
+      + '<div class="msub ' + regimeCls + '" style="display:flex;align-items:center">Strategi: ' + r.strategy + mrStatusInfo(r.cls) + '</div>'
     + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">REKOMENDASI ALOKASI EKUITAS</div>'
-      + '<div class="mval up" style="font-size:24px">' + r.equityTarget + '</div>'
+      + '<div class="mval ' + (r.cls && r.cls.state === 'ok' ? 'up' : 'neu') + '" style="font-size:24px">' + r.equityTarget + '</div>'
       + '<div class="msub neu">Porsi Saham Aktif</div>'
     + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">REKOMENDASI ALOKASI KAS</div>'
-      + '<div class="mval amb" style="font-size:24px">' + r.cashTarget + '</div>'
+      + '<div class="mval ' + (r.cls && r.cls.state === 'ok' ? 'amb' : 'neu') + '" style="font-size:24px">' + r.cashTarget + '</div>'
       + '<div class="msub neu">Cadangan Likuiditas</div>'
     + '</div>'
   + '</div>'
