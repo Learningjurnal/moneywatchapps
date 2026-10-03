@@ -574,6 +574,7 @@
       var saved = JSON.parse(raw);
       if (saved && typeof saved === 'object' && Array.isArray(saved.openPositions) && Array.isArray(saved.closedTrades)) {
         AI_TRADE_STATE.paperAccount = saved;
+        recomputePaperStats();
       }
     } catch (e) {}
   }
@@ -918,6 +919,7 @@
         var changed = false;
         if (cloud.paperAccount && typeof cloud.paperAccount === 'object' && Array.isArray(cloud.paperAccount.openPositions) && Array.isArray(cloud.paperAccount.closedTrades)) {
           AI_TRADE_STATE.paperAccount = cloud.paperAccount;
+          recomputePaperStats();
           try { localStorage.setItem(AI_PAPER_STORAGE_KEY, JSON.stringify(cloud.paperAccount)); } catch (e) {}
           changed = true;
         }
@@ -1196,6 +1198,15 @@
 
   // Recomputes every aggregate stat from the real closedTrades array —
   // never stored/incremented by hand, always derived fresh.
+  // Kas adalah turunan buku: modal awal + PnL terealisasi − modal yang tertanam di posisi terbuka. Dihitung ulang supaya
+  // ekuitas selalu sama dengan modal + PnL, termasuk di akun lama yang kasnya menyimpang karena penutupan posisi dulu
+  // mengembalikan nilai pasar tanpa fee dan bukan harga exit.
+  function reconcilePaperCash(p) {
+    if (!(p.initialCapital > 0)) return;
+    var openCost = (p.openPositions || []).reduce(function(s, x) { return s + (x.costBasis || 0); }, 0);
+    p.cash = Math.round(p.initialCapital + (p.realizedPnL || 0) - openCost);
+  }
+
   function recomputePaperStats() {
     var p = AI_TRADE_STATE.paperAccount;
     var trades = p.closedTrades || [];
@@ -1210,6 +1221,7 @@
     p.winRate = trades.length ? Math.round((wins.length / trades.length) * 1000) / 10 : 0;
     p.profitFactor = grossLoss > 0 ? Math.round((grossWin / grossLoss) * 100) / 100 : (grossWin > 0 ? null : 0);
     p.realizedPnL = trades.reduce(function(s, t) { return s + t.netPnL; }, 0);
+    reconcilePaperCash(p);
 
     // Max drawdown from the real equity snapshot history (appended on
     // every recompute below), not an invented percentage.
@@ -1311,7 +1323,7 @@
 
     var errorClassification = classifyTradeOutcome(reason, result);
 
-    p.cash += pos.currentValue;
+    p.cash += Math.round(px * pos.shares - frictionCost);
     p.openPositions.splice(idx, 1);
     p.closedTrades.unshift({
       id: pos.id,

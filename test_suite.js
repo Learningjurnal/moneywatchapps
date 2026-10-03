@@ -10976,6 +10976,37 @@ test('REGRESSION GUARD: Monthly Return Calendar, Backtester heatmap and Correlat
   assert(!/'rgba\(255,34,68,'/.test(src), 'REGRESSION: a heatmap went back to a translucent red background whose text fails contrast in the light theme');
 });
 
+test('functional: AI Paper Portfolio cash is derived from the ledger (initial capital + realized PnL - open cost), using the real figures of a Rp 750 Jt account', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  const fn = src.match(/function reconcilePaperCash\(p\) \{[\s\S]*?\n  \}/)[0];
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(fn, sandbox, { filename: 'reconcilePaperCash sandbox' });
+  const account = { initialCapital: 750000000, realizedPnL: -3760367, cash: 731165900, openPositions: [{ costBasis: 14700000 }] };
+  sandbox.reconcilePaperCash(account);
+  assert.strictEqual(account.cash, 731539633, 'cash must equal initial capital + realized PnL - open position cost');
+  const equity = account.cash + 14553000;
+  assert.strictEqual(equity, 750000000 - 3760367 - 147000, 'REGRESSION: equity (cash + open positions) must equal initial capital + realized + unrealized PnL — the screenshot account showed Rp 745.718.900 against a -0.52% return');
+  const noCapital = { initialCapital: undefined, realizedPnL: 5, cash: 123, openPositions: [] };
+  sandbox.reconcilePaperCash(noCapital);
+  assert.strictEqual(noCapital.cash, 123, 'an account without a valid initial capital must be left untouched, not zeroed');
+  const reconfigured = { initialCapital: 50000000, realizedPnL: 0, cash: 0, openPositions: [] };
+  sandbox.reconcilePaperCash(reconfigured);
+  assert.strictEqual(reconfigured.cash, 50000000, 'changing the capital must flow straight into cash (no hardcoded 100 Jt)');
+});
+
+test('REGRESSION GUARD: closing an AI paper position credits cash with the real exit proceeds net of friction, not the stale live market value', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/38-ai-autonomous-trading.js'), 'utf8');
+  assert(/p\.cash \+= Math\.round\(px \* pos\.shares - frictionCost\);/.test(src),
+    'REGRESSION: aiClosePosition() no longer credits exit price x shares minus friction to cash');
+  assert(!/p\.cash \+= pos\.currentValue;/.test(src),
+    'REGRESSION: cash is credited with pos.currentValue again — ignores the exit price and friction, so equity drifts from initial capital + PnL');
+  assert(/reconcilePaperCash\(p\);/.test(src.match(/function recomputePaperStats\(\) \{[\s\S]*?\n  \}/)[0]),
+    'REGRESSION: recomputePaperStats() no longer re-derives cash, so old drifted accounts are not corrected');
+  assert(/AI_TRADE_STATE\.paperAccount = saved;\s*recomputePaperStats\(\);/.test(src),
+    'REGRESSION: a persisted paper account is no longer reconciled when loaded');
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');
