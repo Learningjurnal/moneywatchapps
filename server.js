@@ -12,6 +12,7 @@ if (typeof process.loadEnvFile === 'function' && fs.existsSync('.env')) {
 }
 
 import Anthropic from '@anthropic-ai/sdk';
+import { getMarketScan, reconcileWithUniverse } from './lib/providers/tradingview-scanner-client.js';
 import {
   loadBaseUniverse,
   fetchYahooQuote,
@@ -4533,6 +4534,60 @@ app.get('/api/idx/top-movers', async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/idx/tv-scan — Screener teknikal+fundamental seluruh BEI dari
+// TradingView Scanner (1 panggilan HTTP). PROTOTIPE: sumber tidak resmi,
+// data tertunda ±10 menit. Kode universe yang tidak ada di scanner
+// dikembalikan di coverage.notCovered (bukan diisi tebakan).
+const TV_SCAN_SOURCE = 'TradingView Scanner (endpoint tidak resmi, data tertunda)';
+
+app.get('/api/idx/tv-scan', async (req, res) => {
+  try {
+    const scan = await getMarketScan();
+    const { rows, coverage } = reconcileWithUniverse(scan.rows, loadBaseUniverse());
+    return res.json({
+      success: true,
+      source: TV_SCAN_SOURCE,
+      fetchedAt: new Date(scan.fetchedAt).toISOString(),
+      stale: scan.stale,
+      ...(scan.error ? { refreshError: scan.error } : {}),
+      coverage,
+      rows
+    });
+  } catch (err) {
+    console.error('[tv-scan] gagal:', err.message);
+    return res.status(502).json({ success: false, source: TV_SCAN_SOURCE, error: 'Sumber TradingView tidak tersedia saat ini' });
+  }
+});
+
+// GET /api/idx/tv-scan/:ticker — satu emiten. Emiten di universe tapi tidak
+// tercakup scanner => 404 jujur dengan available:false.
+app.get('/api/idx/tv-scan/:ticker', async (req, res) => {
+  const code = String(req.params.ticker || '').toUpperCase();
+  if (!/^[A-Z0-9-]{2,8}$/.test(code)) {
+    return res.status(400).json({ success: false, error: 'Kode emiten tidak valid' });
+  }
+  try {
+    const scan = await getMarketScan();
+    const row = scan.rows.find(r => r.code === code);
+    if (row) {
+      return res.json({ success: true, source: TV_SCAN_SOURCE, fetchedAt: new Date(scan.fetchedAt).toISOString(), stale: scan.stale, available: true, row });
+    }
+    const inUniverse = Boolean(loadBaseUniverse()[code]);
+    return res.status(404).json({
+      success: false,
+      source: TV_SCAN_SOURCE,
+      available: false,
+      reason: inUniverse ? 'NOT_IN_TRADINGVIEW_SCANNER' : 'UNKNOWN_TICKER',
+      error: inUniverse
+        ? 'Emiten ada di universe aplikasi tetapi tidak tercakup scanner TradingView — gunakan sumber lain (Yahoo/Invezgo)'
+        : 'Kode emiten tidak dikenal'
+    });
+  } catch (err) {
+    console.error('[tv-scan] gagal:', err.message);
+    return res.status(502).json({ success: false, source: TV_SCAN_SOURCE, error: 'Sumber TradingView tidak tersedia saat ini' });
   }
 });
 
