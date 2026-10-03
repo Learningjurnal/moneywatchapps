@@ -17,12 +17,85 @@
  * - Tab ini TIDAK menerapkan Regulatory Health Gate (notasi khusus BEI);
  *   hal itu dinyatakan di ikon info.
  *
+ * Strategi preset (TVS_PRESETS): kumpulan filter siap pakai yang mengisi
+ * kolom filter otomatis. Ambang batasnya heuristik umum yang dikalibrasi
+ * terhadap sebaran data nyata (2026-10-03: tiap preset menghasilkan 15–103
+ * emiten dari 335 emiten likuid), BUKAN hasil backtest — panel strategi
+ * selalu menyatakan itu. Kriteria yang tampil di UI dibangkitkan dari
+ * state filter aktual sehingga tidak bisa berbeda dari yang dijalankan.
+ *
  * Wrapper dibangun sekali; render berikutnya hanya mengganti isi tabel
  * supaya input filter tidak hilang saat tick refresh periodik 03-engine.js.
  */
 
 var TVS_PAGE_SIZE = 100;
 var TVS_REFRESH_AFTER_MS = 5 * 60 * 1000;
+var TVS_DEFAULT_PRESET = 'quality';
+
+function tvsIsNum(v) { return typeof v === 'number' && isFinite(v); }
+function tvsAtLeast(v, min) { return min == null || (tvsIsNum(v) && v >= min); }
+function tvsAtMost(v, max) { return max == null || (tvsIsNum(v) && v <= max); }
+
+// Satu spesifikasi per filter numerik: nama state, label, placeholder, lebar
+// input, fungsi uji (r = baris, v = angka), dan teks ringkasan kriteria.
+var TVS_FILTER_SPECS = [
+  { name: 'minValueTradedB', label: 'Nilai trx min (M/hari)', ph: 'mis. 1', w: 112, test: function (r, v) { return tvsAtLeast(r.valueTraded, v * 1e9); }, text: function (v) { return 'Nilai transaksi ≥ Rp ' + v + ' M/hari'; } },
+  { name: 'minMarketCapT', label: 'Mkt Cap min (T)', ph: 'mis. 2', w: 100, test: function (r, v) { return tvsAtLeast(r.marketCap, v * 1e12); }, text: function (v) { return 'Mkt Cap ≥ ' + v + ' T'; } },
+  { name: 'minPe', label: 'P/E min', ph: '0', w: 70, test: function (r, v) { return tvsAtLeast(r.pe, v); }, text: function (v) { return 'P/E ≥ ' + v; } },
+  { name: 'maxPe', label: 'P/E maks', ph: 'mis. 15', w: 82, test: function (r, v) { return tvsAtMost(r.pe, v); }, text: function (v) { return 'P/E ≤ ' + v; } },
+  { name: 'maxPb', label: 'P/B maks', ph: 'mis. 1,5', w: 82, test: function (r, v) { return tvsAtMost(r.pb, v); }, text: function (v) { return 'P/B ≤ ' + v; } },
+  { name: 'minRoe', label: 'ROE min %', ph: 'mis. 10', w: 82, test: function (r, v) { return tvsAtLeast(r.roe, v); }, text: function (v) { return 'ROE ≥ ' + v + '%'; } },
+  { name: 'maxDer', label: 'DER maks', ph: 'mis. 1', w: 82, test: function (r, v) { return tvsAtMost(r.debtToEquity, v); }, text: function (v) { return 'DER ≤ ' + v; } },
+  { name: 'minYield', label: 'Yield min %', ph: 'mis. 4', w: 88, test: function (r, v) { return tvsAtLeast(r.dividendYield, v); }, text: function (v) { return 'Yield ≥ ' + v + '%'; } },
+  { name: 'minRsi', label: 'RSI min', ph: '0-100', w: 76, test: function (r, v) { return tvsAtLeast(r.rsi, v); }, text: function (v) { return 'RSI ≥ ' + v; } },
+  { name: 'maxRsi', label: 'RSI maks', ph: '0-100', w: 76, test: function (r, v) { return tvsAtMost(r.rsi, v); }, text: function (v) { return 'RSI ≤ ' + v; } },
+  { name: 'minAdx', label: 'ADX min', ph: 'mis. 25', w: 80, test: function (r, v) { return tvsAtLeast(r.adx, v); }, text: function (v) { return 'ADX ≥ ' + v; } },
+  { name: 'minPerf1M', label: 'Perf 1B min %', ph: 'mis. 0', w: 92, test: function (r, v) { return tvsAtLeast(r.perf1M, v); }, text: function (v) { return 'Perf 1B ≥ ' + v + '%'; } },
+  { name: 'maxFromHigh52w', label: 'Jarak High 52M maks %', ph: 'mis. 5', w: 128, test: function (r, v) { return tvsAtLeast(r.distHigh52w, -v); }, text: function (v) { return 'Maks ' + v + '% di bawah High 52M'; } },
+  { name: 'minRating1D', label: 'Rating 1D min', ph: '-1 s/d 1', w: 92, test: function (r, v) { return tvsAtLeast(r.ratingAll1D, v); }, text: function (v) { return 'Rating 1D ≥ ' + v; }, info: 'rating' },
+  { name: 'minRating1W', label: 'Rating 1W min', ph: '-1 s/d 1', w: 92, test: function (r, v) { return tvsAtLeast(r.ratingAll1W, v); }, text: function (v) { return 'Rating 1W ≥ ' + v; }, info: 'rating' }
+];
+
+var TVS_CHECK_SPECS = [
+  { name: 'aboveSma50', label: 'Harga di atas SMA50', test: function (r) { return tvsIsNum(r.distSma50) && r.distSma50 > 0; }, text: 'Harga > SMA50' },
+  { name: 'aboveSma200', label: 'Harga di atas SMA200', test: function (r) { return tvsIsNum(r.distSma200) && r.distSma200 > 0; }, text: 'Harga > SMA200' }
+];
+
+function tvsEmptyFilters() {
+  var f = { search: '', sector: 'ALL' };
+  TVS_FILTER_SPECS.forEach(function (s) { f[s.name] = ''; });
+  TVS_CHECK_SPECS.forEach(function (s) { f[s.name] = false; });
+  return f;
+}
+
+var TVS_LIQ = 1; // nilai transaksi min (miliar Rp/hari): buang emiten yang nyaris tak diperdagangkan
+
+// criteria memakai nama filter di TVS_FILTER_SPECS / TVS_CHECK_SPECS.
+var TVS_PRESETS = [
+  { id: 'all', label: 'Semua', criteria: {}, sort: { key: 'marketCap', dir: 'desc' },
+    desc: 'Seluruh emiten yang tercakup scanner, tanpa filter. Urut Market Cap terbesar.' },
+  { id: 'quality', label: 'Kualitas Likuid',
+    criteria: { minValueTradedB: TVS_LIQ, minRoe: 10, minPe: 0, maxPe: 25 }, sort: { key: 'marketCap', dir: 'desc' },
+    desc: 'Perusahaan yang laba atas ekuitasnya baik, P/E positif dan tidak terlalu mahal, serta cukup likuid. Titik awal umum sebelum dipersempit. P/E positif berarti emiten merugi tidak ikut. Diurut Market Cap terbesar, bukan ROE: ROE sangat tinggi sering dipicu ekuitas yang kecil, bukan kualitas.' },
+  { id: 'value', label: 'Value Sehat',
+    criteria: { minValueTradedB: TVS_LIQ, minPe: 0, maxPe: 15, maxPb: 1.5, minRoe: 10, maxDer: 1 }, sort: { key: 'pe', dir: 'asc' },
+    desc: 'Valuasi relatif murah (P/E dan P/B rendah) tetapi masih menghasilkan laba (ROE) dan utangnya terkendali. Murah bisa berarti prospek memburuk (value trap) — cek tren laba di halaman detail. DER kurang bermakna untuk bank dan sektor Finance.' },
+  { id: 'dividend', label: 'Dividen Tinggi',
+    criteria: { minValueTradedB: TVS_LIQ, minYield: 5, minPe: 0, maxPe: 20, minRoe: 8, minMarketCapT: 2 }, sort: { key: 'dividendYield', dir: 'desc' },
+    desc: 'Yield dividen menurut TradingView tinggi, tetapi emitennya masih untung, tidak terlalu mahal, dan berukuran menengah ke atas. Yield tinggi bisa muncul karena harga jatuh, dan data ini tidak menunjukkan rasio payout maupun kepastian dividen berikutnya.' },
+  { id: 'oversold', label: 'Oversold Berkualitas',
+    criteria: { minValueTradedB: TVS_LIQ, maxRsi: 35, minRoe: 10, minPe: 0, maxPe: 20, maxDer: 1.5 }, sort: { key: 'rsi', dir: 'asc' },
+    desc: 'Saham yang secara teknikal jenuh jual (RSI rendah) tetapi fundamentalnya masih sehat. RSI rendah bisa terus turun — gunakan sebagai daftar pantauan, lalu cari konfirmasi tren/volume. DER kurang bermakna untuk sektor Finance.' },
+  { id: 'momentum', label: 'Momentum Tren Naik',
+    criteria: { minValueTradedB: TVS_LIQ, aboveSma50: true, aboveSma200: true, minRsi: 50, maxRsi: 70, minAdx: 25, minPerf1M: 0, minRating1D: 0.3 }, sort: { key: 'ratingAll1D', dir: 'desc' },
+    desc: 'Tren naik yang sudah terbentuk: harga di atas SMA50 dan SMA200, RSI di zona kuat tetapi belum ekstrem, ADX menunjukkan tren berarah, dan performa 1 bulan tidak negatif. Saat pasar lemah hasilnya wajar sedikit.' },
+  { id: 'nearhigh', label: 'Dekat High 52 Minggu',
+    criteria: { minValueTradedB: TVS_LIQ, maxFromHigh52w: 5, aboveSma200: true }, sort: { key: 'distHigh52w', dir: 'desc' },
+    desc: 'Harga berada maksimal 5% di bawah titik tertinggi 52 minggu dan di atas SMA200: kandidat yang sedang menguji atau menembus puncak lama. Penembusan bisa gagal (false breakout).' },
+  { id: 'consensus', label: 'Konsensus Teknikal',
+    criteria: { minValueTradedB: TVS_LIQ, minRating1D: 0.5, minRating1W: 0.3 }, sort: { key: 'ratingAll1D', dir: 'desc' },
+    desc: 'Rating gabungan TradingView positif di dua horizon sekaligus (harian dan mingguan). Angka mentah dari sumber, bukan rekomendasi MoneyWatch.' }
+];
 
 var TVS_STATE = {
   loading: false,
@@ -31,20 +104,19 @@ var TVS_STATE = {
   fetchedAtMs: 0,
   visible: TVS_PAGE_SIZE,
   showNotCovered: false,
+  presetId: TVS_DEFAULT_PRESET,
   sort: { key: 'marketCap', dir: 'desc' },
-  filters: {
-    search: '', sector: 'ALL',
-    minRsi: '', maxRsi: '', maxPe: '', maxPb: '', minRoe: '', maxDer: '',
-    minYield: '', minMarketCapT: '', minRating: '', aboveSma200: false
-  }
+  filters: tvsEmptyFilters()
 };
 
-// [key, label, numeric?, formatter-key]
+// Kolom tabel. key harus nama field baris (termasuk field turunan di tvsDerive).
 var TVS_COLS = [
   { key: 'sector', label: 'Sektor', num: false },
   { key: 'price', label: 'Harga', num: true, fmt: 'int' },
   { key: 'perf1M', label: '1B %', num: true, fmt: 'pct', signed: true },
   { key: 'perfYtd', label: 'YTD %', num: true, fmt: 'pct', signed: true },
+  { key: 'distHigh52w', label: 'vs High 52M %', num: true, fmt: 'pct', signed: true },
+  { key: 'valueTraded', label: 'Nilai Trx (M)', num: true, fmt: 'billion' },
   { key: 'marketCap', label: 'Mkt Cap (T)', num: true, fmt: 'trillion' },
   { key: 'pe', label: 'P/E', num: true, fmt: 'dec' },
   { key: 'pb', label: 'P/B', num: true, fmt: 'dec' },
@@ -52,6 +124,7 @@ var TVS_COLS = [
   { key: 'debtToEquity', label: 'DER', num: true, fmt: 'dec' },
   { key: 'dividendYield', label: 'Yield %', num: true, fmt: 'pct' },
   { key: 'rsi', label: 'RSI', num: true, fmt: 'dec1' },
+  { key: 'adx', label: 'ADX', num: true, fmt: 'dec1' },
   { key: 'distSma200', label: 'vs SMA200 %', num: true, fmt: 'pct', signed: true },
   { key: 'ratingAll1D', label: 'Rating 1D', num: true, fmt: 'rating', signed: true },
   { key: 'ratingAll1W', label: 'Rating 1W', num: true, fmt: 'rating', signed: true }
@@ -60,6 +133,8 @@ var TVS_COLS = [
 var TVS_INFO_TITLE = 'Screener seluruh emiten BEI dari TradingView Scanner dalam satu panggilan: teknikal, fundamental, performa, dan rating. Data tertunda ±10 menit dan berasal dari endpoint tidak resmi. Tanda "–" berarti sumber tidak mengirim nilainya; tidak diisi tebakan. Sektor mengikuti klasifikasi TradingView (bahasa Inggris), bukan IDX-IC.';
 var TVS_INFO_FILTER = 'Filter dijalankan di browser pada data yang sudah dimuat. Filter numerik yang aktif mengecualikan emiten yang nilainya kosong, karena nilai yang tidak diketahui tidak bisa dinyatakan lolos. Tab ini tidak menerapkan Regulatory Health Gate (notasi khusus BEI) seperti tab Screener — emiten bernotasi khusus tetap tampil.';
 var TVS_INFO_RATING = 'Rating gabungan TradingView dari indikator moving average dan osilator, skala -1 (condong jual) sampai +1 (condong beli). Angka mentah dari sumber, bukan rekomendasi MoneyWatch.';
+var TVS_INFO_PRESET = 'Strategi siap pakai: memilih satu akan mengisi kolom filter dan urutan otomatis, dan semuanya bisa Anda ubah. Ambang batas adalah heuristik umum yang dikalibrasi terhadap sebaran data saat ini, bukan hasil backtest.';
+var TVS_NOT_VALIDATED = 'Kriteria heuristik umum — belum divalidasi backtest di data BEI aplikasi ini, bukan rekomendasi. Jumlah hasil berubah mengikuti kondisi pasar.';
 
 function tvsInfo(text) {
   return typeof uiInfoIcon === 'function' ? uiInfoIcon(text) : '';
@@ -70,18 +145,15 @@ function tvsEsc(v) {
 }
 
 // ── Formatting ───────────────────────────────────────────────────────────
-function tvsIsNum(v) { return typeof v === 'number' && isFinite(v); }
-
 function tvsFormat(v, fmt) {
   if (!tvsIsNum(v)) return null;
+  var two = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
   switch (fmt) {
     case 'int': return Math.round(v).toLocaleString('id-ID');
-    case 'dec': return v.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     case 'dec1': return v.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    case 'pct': return v.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    case 'trillion': return (v / 1e12).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    case 'rating': return v.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    default: return String(v);
+    case 'trillion': return (v / 1e12).toLocaleString('id-ID', two);
+    case 'billion': return (v / 1e9).toLocaleString('id-ID', two);
+    default: return v.toLocaleString('id-ID', two); // dec, pct, rating
   }
 }
 
@@ -101,11 +173,17 @@ function tvsCellHtml(row, col) {
 }
 
 // ── Data ─────────────────────────────────────────────────────────────────
+// Field turunan hanya dihitung bila kedua operandnya nilai nyata dari sumber.
+function tvsRelativeTo(price, ref) {
+  return (tvsIsNum(price) && tvsIsNum(ref) && ref > 0) ? (price / ref - 1) * 100 : null;
+}
+
 function tvsDerive(row) {
-  var dist = (tvsIsNum(row.price) && tvsIsNum(row.sma200) && row.sma200 > 0)
-    ? (row.price / row.sma200 - 1) * 100
-    : null;
-  return Object.assign({}, row, { distSma200: dist });
+  return Object.assign({}, row, {
+    distSma50: tvsRelativeTo(row.price, row.sma50),
+    distSma200: tvsRelativeTo(row.price, row.sma200),
+    distHigh52w: tvsRelativeTo(row.price, row.high52w)
+  });
 }
 
 async function tvsLoad(force) {
@@ -130,64 +208,98 @@ async function tvsLoad(force) {
   }
 }
 
+function tvsToNumber(s) {
+  if (s === '' || s == null) return null;
+  var n = Number(String(s).replace(',', '.'));
+  return isFinite(n) ? n : null;
+}
+
+// Filter aktif + nilai kosong => baris dikecualikan (lihat TVS_INFO_FILTER).
+function tvsRowPasses(r, f, q) {
+  if (q && r.code.toLowerCase().indexOf(q) === -1 && String(r.name || '').toLowerCase().indexOf(q) === -1) return false;
+  if (f.sector !== 'ALL' && r.sector !== f.sector) return false;
+  for (var i = 0; i < TVS_CHECK_SPECS.length; i++) {
+    if (f[TVS_CHECK_SPECS[i].name] && !TVS_CHECK_SPECS[i].test(r)) return false;
+  }
+  for (var j = 0; j < TVS_FILTER_SPECS.length; j++) {
+    var v = tvsToNumber(f[TVS_FILTER_SPECS[j].name]);
+    if (v != null && !TVS_FILTER_SPECS[j].test(r, v)) return false;
+  }
+  return true;
+}
+
+function tvsCompare(a, b, key, sign) {
+  var av = a[key], bv = b[key];
+  var an = av == null || av === '', bn = bv == null || bv === '';
+  if (an && bn) return a.code < b.code ? -1 : 1;
+  if (an) return 1;   // nilai kosong selalu di bawah, apa pun arah urut
+  if (bn) return -1;
+  if (typeof av === 'string') return sign * av.localeCompare(bv);
+  return sign * (av - bv);
+}
+
 function tvsFilteredRows() {
   var rows = (TVS_STATE.data && TVS_STATE.data.rows) || [];
   var f = TVS_STATE.filters;
   var q = f.search.trim().toLowerCase();
-  var num = function (s) { return s === '' ? null : Number(s); };
-  var minRsi = num(f.minRsi), maxRsi = num(f.maxRsi), maxPe = num(f.maxPe), maxPb = num(f.maxPb);
-  var minRoe = num(f.minRoe), maxDer = num(f.maxDer), minYield = num(f.minYield);
-  var minCapT = num(f.minMarketCapT), minRating = num(f.minRating);
-
-  // Filter aktif + nilai kosong => baris dikecualikan (lihat TVS_INFO_FILTER).
-  var atLeast = function (v, min) { return min == null || (tvsIsNum(v) && v >= min); };
-  var atMost = function (v, max) { return max == null || (tvsIsNum(v) && v <= max); };
-
-  var out = rows.filter(function (r) {
-    if (q && r.code.toLowerCase().indexOf(q) === -1 && String(r.name || '').toLowerCase().indexOf(q) === -1) return false;
-    if (f.sector !== 'ALL' && r.sector !== f.sector) return false;
-    if (f.aboveSma200 && !(tvsIsNum(r.distSma200) && r.distSma200 > 0)) return false;
-    return atLeast(r.rsi, minRsi) && atMost(r.rsi, maxRsi) && atMost(r.pe, maxPe) && atMost(r.pb, maxPb)
-      && atLeast(r.roe, minRoe) && atMost(r.debtToEquity, maxDer) && atLeast(r.dividendYield, minYield)
-      && atLeast(r.marketCap, minCapT == null ? null : minCapT * 1e12) && atLeast(r.ratingAll1D, minRating);
-  });
-
-  var key = TVS_STATE.sort.key;
   var sign = TVS_STATE.sort.dir === 'asc' ? 1 : -1;
-  return out.slice().sort(function (a, b) {
-    var av = a[key], bv = b[key];
-    var an = av == null || av === '', bn = bv == null || bv === '';
-    if (an && bn) return a.code < b.code ? -1 : 1;
-    if (an) return 1;   // nilai kosong selalu di bawah, apa pun arah urut
-    if (bn) return -1;
-    if (typeof av === 'string') return sign * av.localeCompare(bv);
-    return sign * (av - bv);
+  var key = TVS_STATE.sort.key;
+  return rows.filter(function (r) { return tvsRowPasses(r, f, q); })
+    .sort(function (a, b) { return tvsCompare(a, b, key, sign); });
+}
+
+// Ringkasan kriteria dibangkitkan dari state filter nyata.
+function tvsCriteriaSummary() {
+  var f = TVS_STATE.filters;
+  var parts = [];
+  TVS_FILTER_SPECS.forEach(function (s) {
+    var v = tvsToNumber(f[s.name]);
+    if (v != null) parts.push(s.text(v));
   });
+  TVS_CHECK_SPECS.forEach(function (s) { if (f[s.name]) parts.push(s.text); });
+  if (f.sector !== 'ALL') parts.push('Sektor ' + f.sector);
+  if (f.search.trim()) parts.push('Cari "' + f.search.trim() + '"');
+  return parts;
 }
 
 // ── Actions (dipanggil dari atribut onclick/oninput) ─────────────────────
+function tvsApplyPreset(id) {
+  var preset = TVS_PRESETS.find(function (p) { return p.id === id; });
+  if (!preset) return;
+  var filters = tvsEmptyFilters();
+  Object.keys(preset.criteria).forEach(function (name) {
+    var v = preset.criteria[name];
+    filters[name] = typeof v === 'boolean' ? v : String(v);
+  });
+  TVS_STATE.filters = filters;
+  TVS_STATE.presetId = id;
+  TVS_STATE.sort = Object.assign({}, preset.sort);
+  TVS_STATE.visible = TVS_PAGE_SIZE;
+  tvsSyncControls();
+  tvsRenderBody();
+}
+
 function tvsSetFilter(name, value) {
   var next = {};
   next[name] = value;
   TVS_STATE.filters = Object.assign({}, TVS_STATE.filters, next);
+  TVS_STATE.presetId = 'custom';
   TVS_STATE.visible = TVS_PAGE_SIZE;
+  tvsRenderPresets();
   tvsRenderBody();
 }
 
-function tvsResetFilters() {
-  TVS_STATE.filters = Object.assign({}, TVS_STATE.filters, {
-    search: '', sector: 'ALL', minRsi: '', maxRsi: '', maxPe: '', maxPb: '', minRoe: '', maxDer: '',
-    minYield: '', minMarketCapT: '', minRating: '', aboveSma200: false
-  });
+// Selaraskan elemen input dengan TVS_STATE.filters (setelah preset diterapkan).
+function tvsSyncControls() {
   var root = document.getElementById('tvs-root');
   if (root) {
     root.querySelectorAll('[data-tvs-filter]').forEach(function (inp) {
-      if (inp.type === 'checkbox') inp.checked = false;
-      else inp.value = inp.tagName === 'SELECT' ? 'ALL' : '';
+      var v = TVS_STATE.filters[inp.getAttribute('data-tvs-filter')];
+      if (inp.type === 'checkbox') inp.checked = !!v;
+      else inp.value = v == null ? '' : v;
     });
   }
-  TVS_STATE.visible = TVS_PAGE_SIZE;
-  tvsRenderBody();
+  tvsRenderPresets();
 }
 
 function tvsSortBy(key) {
@@ -213,11 +325,16 @@ function tvsOpenTicker(code) {
 }
 
 // ── Render ───────────────────────────────────────────────────────────────
-function tvsFilterInput(name, label, placeholder, width) {
-  var v = TVS_STATE.filters[name];
-  return '<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;white-space:nowrap">' + label + '</label>'
-    + '<input class="finput" type="number" data-tvs-filter="' + name + '" placeholder="' + placeholder + '" value="' + tvsEsc(v) + '"'
-    + ' oninput="tvsSetFilter(\'' + name + '\', this.value)" style="width:' + width + 'px;min-width:' + width + 'px;padding:5px 9px;font-size:11.5px;border-radius:6px"></div>';
+function tvsFilterInput(spec) {
+  var v = TVS_STATE.filters[spec.name];
+  return '<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;white-space:nowrap">' + spec.label + (spec.info === 'rating' ? tvsInfo(TVS_INFO_RATING) : '') + '</label>'
+    + '<input class="finput" type="number" step="any" data-tvs-filter="' + spec.name + '" placeholder="' + spec.ph + '" value="' + tvsEsc(v) + '"'
+    + ' oninput="tvsSetFilter(\'' + spec.name + '\', this.value)" style="width:' + spec.w + 'px;min-width:' + spec.w + 'px;padding:5px 9px;font-size:11.5px;border-radius:6px"></div>';
+}
+
+function tvsCheckInput(spec) {
+  return '<div style="display:flex;align-items:center;gap:6px;padding-bottom:5px"><input id="tvs-' + spec.name + '" type="checkbox" data-tvs-filter="' + spec.name + '"'
+    + (TVS_STATE.filters[spec.name] ? ' checked' : '') + ' onchange="tvsSetFilter(\'' + spec.name + '\', this.checked)"> <label for="tvs-' + spec.name + '" style="font-size:11.5px">' + spec.label + '</label></div>';
 }
 
 function tvsShellHtml() {
@@ -235,6 +352,10 @@ function tvsShellHtml() {
     + '</div>'
     + '<div id="tvs-disclosure"></div>'
     + '<div style="height:1px;background:var(--border-subtle);margin:12px 0"></div>'
+    + '<div style="display:flex;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text3)">Strategi' + tvsInfo(TVS_INFO_PRESET) + '</div>'
+    + '<div id="tvs-presets" style="display:flex;gap:6px;flex-wrap:wrap"></div>'
+    + '<div id="tvs-strategy" style="margin-top:10px"></div>'
+    + '<div style="height:1px;background:var(--border-subtle);margin:12px 0"></div>'
     + '<div style="display:flex;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text3)">Filter' + tvsInfo(TVS_INFO_FILTER) + '</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">'
       + '<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Cari</label>'
@@ -243,21 +364,41 @@ function tvsShellHtml() {
         + '<select class="finput fsel" id="tvs-sector" data-tvs-filter="sector" onchange="tvsSetFilter(\'sector\', this.value)" style="' + fis + '">'
         + sectorOpts.map(function (s) { return '<option value="' + tvsEsc(s) + '"' + (f.sector === s ? ' selected' : '') + '>' + (s === 'ALL' ? 'Semua' : tvsEsc(s)) + '</option>'; }).join('')
         + '</select></div>'
-      + tvsFilterInput('minRsi', 'RSI min', '0-100', 76)
-      + tvsFilterInput('maxRsi', 'RSI maks', '0-100', 76)
-      + tvsFilterInput('maxPe', 'P/E maks', 'mis. 15', 82)
-      + tvsFilterInput('maxPb', 'P/B maks', 'mis. 1,5', 82)
-      + tvsFilterInput('minRoe', 'ROE min %', 'mis. 10', 82)
-      + tvsFilterInput('maxDer', 'DER maks', 'mis. 1', 82)
-      + tvsFilterInput('minYield', 'Yield min %', 'mis. 4', 88)
-      + tvsFilterInput('minMarketCapT', 'Mkt Cap min (T)', 'mis. 10', 100)
-      + tvsFilterInput('minRating', 'Rating 1D min' + tvsInfo(TVS_INFO_RATING), '-1 s/d 1', 96)
-      + '<div style="display:flex;align-items:center;gap:6px;padding-bottom:5px"><input id="tvs-above200" type="checkbox" data-tvs-filter="aboveSma200"' + (f.aboveSma200 ? ' checked' : '') + ' onchange="tvsSetFilter(\'aboveSma200\', this.checked)"> <label for="tvs-above200" style="font-size:11.5px">Harga di atas SMA200</label></div>'
-      + '<button class="btn btn-ghost btn-sm" onclick="tvsResetFilters()">Reset</button>'
+      + TVS_FILTER_SPECS.map(tvsFilterInput).join('')
+      + TVS_CHECK_SPECS.map(tvsCheckInput).join('')
+      + '<button class="btn btn-ghost btn-sm" onclick="tvsApplyPreset(\'all\')">Reset</button>'
     + '</div>'
     + '<div style="height:1px;background:var(--border-subtle);margin:12px 0"></div>'
     + '<div id="tvs-table"></div>'
   + '</div>';
+}
+
+function tvsRenderPresets() {
+  var box = document.getElementById('tvs-presets');
+  if (box) {
+    box.innerHTML = TVS_PRESETS.map(function (p) {
+      return '<button class="pbtn' + (TVS_STATE.presetId === p.id ? ' on' : '') + '" onclick="tvsApplyPreset(\'' + p.id + '\')">' + tvsEsc(p.label) + '</button>';
+    }).join('');
+  }
+  tvsRenderStrategy();
+}
+
+function tvsRenderStrategy() {
+  var box = document.getElementById('tvs-strategy');
+  if (!box) return;
+  var preset = TVS_PRESETS.find(function (p) { return p.id === TVS_STATE.presetId; });
+  var title = preset ? preset.label : 'Filter kustom';
+  var info = preset ? tvsInfo(preset.desc) : '';
+  var parts = tvsCriteriaSummary();
+  var sortCol = TVS_COLS.find(function (c) { return c.key === TVS_STATE.sort.key; });
+  var sortText = sortCol ? ('Urut: ' + sortCol.label + (TVS_STATE.sort.dir === 'asc' ? ' naik' : ' turun')) : '';
+  var criteria = parts.length ? parts.map(tvsEsc).join(' · ') : 'Tanpa filter';
+  var showWarn = preset ? preset.id !== 'all' : parts.length > 0;
+  box.innerHTML = '<div style="background:var(--bg3);border-radius:8px;padding:10px 14px">'
+    + '<div style="display:flex;align-items:center;font-weight:700;font-size:12.5px">' + tvsEsc(title) + info + '</div>'
+    + '<div class="mono" style="margin-top:4px;font-size:11px;line-height:1.7;color:var(--text2);word-break:break-word">' + criteria + (sortText ? ' · <span style="color:var(--text3)">' + tvsEsc(sortText) + '</span>' : '') + '</div>'
+    + (showWarn ? '<div style="margin-top:6px;display:inline-block;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:3px 8px;font-size:10.5px;color:var(--text2)">' + tvsEsc(TVS_NOT_VALIDATED) + '</div>' : '')
+    + '</div>';
 }
 
 function tvsDisclosureHtml() {
@@ -282,6 +423,7 @@ function tvsDisclosureHtml() {
 function tvsTableHtml(rows) {
   var shown = rows.slice(0, TVS_STATE.visible);
   var s = TVS_STATE.sort;
+  var total = TVS_STATE.data ? TVS_STATE.data.rows.length : 0;
   var arrow = function (k) { return s.key === k ? (s.dir === 'desc' ? ' ↓' : ' ↑') : ''; };
   var th = function (key, label, num) {
     return '<th class="' + (num ? 'num' : '') + '" style="cursor:pointer;white-space:nowrap" onclick="tvsSortBy(\'' + key + '\')">' + label + arrow(key) + '</th>';
@@ -296,8 +438,10 @@ function tvsTableHtml(rows) {
   var more = rows.length > shown.length
     ? '<div style="text-align:center;margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="tvsShowMore()">Tampilkan ' + Math.min(TVS_PAGE_SIZE, rows.length - shown.length) + ' lagi (' + shown.length + ' dari ' + rows.length + ')</button></div>'
     : '';
-  return '<div style="font-size:11px;color:var(--text3);margin-bottom:8px"><span class="mono">' + rows.length + '</span> emiten sesuai filter</div>'
-    + '<div class="tbl-wrap" style="max-height:70vh;overflow:auto"><table class="tbl tbl-freeze-col"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' + more;
+  var empty = rows.length ? '' : '<div style="padding:14px 0;font-size:12px;color:var(--text3)">Tidak ada emiten yang lolos kriteria ini saat ini. Longgarkan salah satu filter atau pilih strategi lain.</div>';
+  return '<div style="font-size:11px;color:var(--text3);margin-bottom:8px"><span class="mono" style="color:var(--text);font-weight:700">' + rows.length + '</span> dari <span class="mono">' + total + '</span> emiten lolos filter</div>'
+    + empty
+    + (rows.length ? '<div class="tbl-wrap" style="max-height:70vh;overflow:auto"><table class="tbl tbl-freeze-col"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' : '') + more;
 }
 
 function tvsSkeletonHtml() {
@@ -311,6 +455,7 @@ function tvsRenderBody() {
   if (!table) return;
   var disc = document.getElementById('tvs-disclosure');
   var upd = document.getElementById('tvs-updated');
+  tvsRenderStrategy();
 
   if (TVS_STATE.error && !TVS_STATE.data) {
     table.innerHTML = '<div style="padding:12px 0;color:var(--red);font-size:12.5px">Gagal memuat data: ' + tvsEsc(TVS_STATE.error)
@@ -331,14 +476,20 @@ function tvsRenderSubPage(containerId) {
   var host = document.getElementById(containerId);
   if (!host) return;
   if (!document.getElementById('tvs-root')) host.innerHTML = tvsShellHtml();
+  tvsRenderPresets();
   tvsRenderBody();
   tvsLoad(false).then(function () {
-    // Sektor baru diketahui setelah data pertama masuk: bangun ulang hanya dropdown-nya.
+    // Sektor baru diketahui setelah data pertama masuk: bangun ulang shell
+    // (nilai filter tetap karena dirender dari TVS_STATE.filters).
     var sel = document.getElementById('tvs-sector');
     if (sel && sel.options.length <= 1 && TVS_STATE.data) {
       var host2 = document.getElementById(containerId);
       if (host2) host2.innerHTML = tvsShellHtml();
+      tvsRenderPresets();
       tvsRenderBody();
     }
   });
 }
+
+// Strategi bawaan: kolom filter terisi otomatis saat tab pertama dibuka.
+tvsApplyPreset(TVS_DEFAULT_PRESET);

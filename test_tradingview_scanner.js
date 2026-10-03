@@ -5,6 +5,10 @@
  */
 
 import assert from 'assert';
+import fs from 'fs';
+import vm from 'vm';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   TV_COLUMNS,
   parseScanResponse,
@@ -13,6 +17,7 @@ import {
   _resetCacheForTests
 } from './lib/providers/tradingview-scanner-client.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let passed = 0;
 let total = 0;
 
@@ -118,6 +123,72 @@ await test('reconcile: kode universe yang tak ada di scanner masuk notCovered; E
   assert.strictEqual(coverage.universeSize, 4);
   assert.strictEqual(coverage.covered, 2);
   assert.strictEqual(coverage.outsideUniverse, 1);
+});
+
+// ── UI: preset strategi (public/js/52-tv-scanner.js, dimuat lewat vm) ─────
+const uiSandbox = { window: {}, document: { getElementById: () => null }, AbortSignal, fetch: () => { throw new Error('no network'); }, console };
+uiSandbox.window = uiSandbox;
+vm.runInContext(fs.readFileSync(path.join(__dirname, 'public', 'js', '52-tv-scanner.js'), 'utf8'), vm.createContext(uiSandbox));
+const ui = uiSandbox;
+
+function uiRow(overrides) {
+  return ui.tvsDerive(Object.assign({ code: 'TEST', name: 'Test', sector: 'Finance', price: 1000, valueTraded: 5e9,
+    marketCap: 5e12, pe: 10, pb: 1, roe: 15, debtToEquity: 0.5, dividendYield: 6, rsi: 30, adx: 30, perf1M: 1,
+    sma50: 900, sma200: 800, high52w: 1020, ratingAll1D: 0.6, ratingAll1W: 0.4 }, overrides));
+}
+const uiPasses = (presetId, row) => {
+  ui.tvsApplyPreset(presetId);
+  return ui.tvsFilteredRows.call(null) && ui.tvsRowPasses(row, ui.TVS_STATE.filters, '');
+};
+
+await test('ui: kriteria & kunci urut tiap preset mengacu pada filter/kolom yang benar-benar ada', () => {
+  const names = new Set([...ui.TVS_FILTER_SPECS, ...ui.TVS_CHECK_SPECS].map(s => s.name));
+  const colKeys = new Set(ui.TVS_COLS.map(c => c.key));
+  ui.TVS_PRESETS.forEach(p => {
+    Object.keys(p.criteria).forEach(k => assert(names.has(k), `preset ${p.id}: filter tak dikenal "${k}"`));
+    assert(colKeys.has(p.sort.key), `preset ${p.id}: kunci urut "${p.sort.key}" bukan kolom tabel`);
+  });
+});
+
+await test('ui: tab dibuka dengan strategi bawaan yang sudah mengisi kolom filter', () => {
+  const fresh = vm.createContext(Object.assign({}, uiSandbox, { window: {} }));
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'public', 'js', '52-tv-scanner.js'), 'utf8'), fresh);
+  assert.strictEqual(fresh.TVS_STATE.presetId, fresh.TVS_DEFAULT_PRESET);
+  assert.strictEqual(fresh.TVS_STATE.filters.minRoe, '10');
+  assert.strictEqual(fresh.TVS_STATE.filters.minValueTradedB, '1');
+});
+
+await test('ui: preset Value Sehat meloloskan emiten yang memenuhi semua kriteria', () => {
+  assert.strictEqual(uiPasses('value', uiRow({ pe: 12, pb: 1.2, roe: 12, debtToEquity: 0.8 })), true);
+});
+
+await test('ui: nilai kosong pada kolom yang difilter => emiten dikecualikan (bukan dianggap lolos)', () => {
+  ['pe', 'pb', 'roe', 'debtToEquity'].forEach(field => {
+    assert.strictEqual(uiPasses('value', uiRow({ [field]: null })), false, `${field} kosong seharusnya tidak lolos`);
+  });
+});
+
+await test('ui: ambang batas dihormati (P/E 15,01 gagal, ROE 9,99 gagal, nilai trx < 1 M gagal)', () => {
+  assert.strictEqual(uiPasses('value', uiRow({ pe: 15.01 })), false);
+  assert.strictEqual(uiPasses('value', uiRow({ roe: 9.99 })), false);
+  assert.strictEqual(uiPasses('value', uiRow({ valueTraded: 9.9e8 })), false);
+});
+
+await test('ui: jarak ke High 52M dan harga vs SMA dihitung hanya dari operand nyata', () => {
+  assert.strictEqual(uiRow({ high52w: null }).distHigh52w, null);
+  assert.strictEqual(uiRow({ sma200: 0 }).distSma200, null);
+  assert(Math.abs(uiRow({ price: 1000, high52w: 1050 }).distHigh52w - (-4.7619)) < 0.001);
+  assert.strictEqual(uiPasses('nearhigh', uiRow({ price: 1000, high52w: 1050, sma200: 900 })), true);
+  assert.strictEqual(uiPasses('nearhigh', uiRow({ price: 1000, high52w: 1060, sma200: 900 })), false, 'lebih dari 5% di bawah High 52M');
+});
+
+await test('ui: mengubah filter manual mengubah strategi jadi "kustom"; ringkasan kriteria mengikuti state', () => {
+  ui.tvsApplyPreset('value');
+  ui.tvsSetFilter('maxPe', '12');
+  assert.strictEqual(ui.TVS_STATE.presetId, 'custom');
+  const text = ui.tvsCriteriaSummary().join(' | ');
+  assert(text.includes('P/E ≤ 12'), text);
+  assert(!text.includes('P/E ≤ 15'), 'ringkasan tidak boleh memuat ambang lama');
 });
 
 console.log(passed === total ? `🎉 ALL ${passed}/${total} TRADINGVIEW SCANNER TESTS PASSED` : `⚠️  ${passed}/${total} PASSED`);
