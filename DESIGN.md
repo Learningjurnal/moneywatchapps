@@ -131,8 +131,12 @@ Mengacu pada prinsip terminal kuantitatif profesional:
   - **DILARANG** memecah metrik, modul, atau kontrol yang berkaitan erat ke dalam banyak kartu kecil terpisah (anti-AI slop).
   - **WAJIB** menyatukan elemen-elemen tersebut ke dalam **SATU kartu terpadu (`.card`)**.
   - Untuk memisahkan bagian internal di dalam kartu, gunakan **sub-panel elegan** (`background: var(--bg3); border-radius: 8px; padding: 10px 14px`) atau garis pembatas halus (`height: 1px; background: var(--border-subtle); margin: 12px 0`).
-  - *Contoh baik*: 1 kartu "Ringkasan Performa Trading" memuat Win Rate, Profit Factor, Total Tx, Profit, Loss, dan Top Gainer dalam 2 baris grid internal.
-  - *Contoh buruk*: 6 kartu terpisah untuk masing-masing Win Rate, Profit Factor, Total Tx, Profit, Loss, dan Top Gainer yang memboroskan ruang dan margin.
+  - *Contoh baik*: 
+    - 1 kartu "Ringkasan Performa Trading" memuat Win Rate, Profit Factor, Total Tx, Profit, Loss, dan Top Gainer dalam 2 baris grid internal.
+    - 1 kartu "Transaksi Saham" mengintegrasikan 4 ringkasan metrik (Total Tx, Beli, Jual, Fee) langsung di atas tabel transaksi.
+    - 1 kartu "Hub Arus Kas & Saldo RDN" mengintegrasikan 4 metrik kas, chart arus kas masuk/keluar, dan ringkasan sekuritas aktif.
+    - 1 kartu "Performa & Gain/Loss per Saham" memadukan chart distribusi P&L emiten dan tabel rincian performa per kode.
+  - *Contoh buruk*: Banyak kartu terpisah yang berjejer atau bertumpuk vertikal dengan topik yang sama, menciptakan pemborosan ruang dan margin melompong.
 - **UKURAN KONTEN & HINDARI ZONA KOSONG (Zero Empty Wasteland)**:
   - Padding kartu standar adalah `14px 16px` (compact: `12px 14px`). Hindari padding raksasa yang menyisakan ruang kosong tak bernilai.
   - Hindari kartu dengan zona kosong melompong (wasteland). Setiap kartu harus memiliki rasio kepadatan informasi yang proporsional:
@@ -153,17 +157,23 @@ Data tabel adalah komponen inti terminal ini. Semua tabel lintas menu wajib mema
 - **Header Tabel (`th`)**:
   - `font-size: 10px-10.5px`, uppercase, `color: var(--text3)`, `letter-spacing: 0.05em`.
   - Background `var(--table-header-bg)` dan border bawah `1px solid var(--border)`.
+  - **WAJIB Sticky Header**: `position: sticky; top: 0; z-index: 5;` agar header kolom tetap terbaca saat tabel panjang di-scroll ke bawah.
 - **Row Hover & Interaksi**:
   - Baris tabel wajib memiliki hover halus (`background: var(--table-row-hover)`).
-- **Mobile Overflow**:
-  - Setiap tabel WAJIB dibungkus kontainer dengan `overflow-x: auto` (misal `.table-wrap`) agar tabel lebar tidak merusak lebar layar HP/tablet.
+- **Mobile Overflow & Freeze Column**:
+  - Setiap tabel WAJIB dibungkus kontainer dengan `overflow-x: auto` (`.tbl-wrap`) agar tabel lebar tidak merusak lebar layar HP/tablet.
+  - Kolom pertama ticker dibekukan dengan class `.tbl-freeze-col` dan bayangan tepi halus di tema gelap maupun terang.
 
-### 4. Aturan Penjelasan Fitur & Micro-copy (Info-Icon Standard)
-- **DILARANG** menampilkan paragraf penjelasan panjang langsung di layout halaman (menghabiskan ruang analisa terminal).
-- **WAJIB** menggunakan helper reusable `uiInfoIcon(id, text)` di sebelah label/judul metrik.
-- **Interaksi Popover**:
-  - Wajib mendukung **klik/tap untuk toggle buka-tutup** agar berfungsi di layar sentuh/HP (tidak boleh hover-only).
-  - Klik di luar area popover otomatis menutup popover.
+### 4. Standar Penjelasan Fitur & State Pemuatan (Info-Icon & Skeleton)
+- **Info-Icon Micro-copy**:
+  - **DILARANG** menampilkan paragraf penjelasan panjang langsung di layout halaman (menghabiskan ruang analisa terminal).
+  - **WAJIB** menggunakan helper reusable `uiInfoIcon(id, text)` di sebelah label/judul metrik.
+  - Mendukung klik/tap toggle buka-tutup di HP/touchscreen.
+- **Micro-Skeleton Shimmer Loader**:
+  - **DILARANG** menampilkan teks polos seperti "Memuat..." atau emoji jam pasir yang menyebabkan pergeseran layout (*CLS*).
+  - **WAJIB** menggunakan `.skeleton-pulse`, `.skeleton-box`, atau `.skeleton-text` dengan animasi shimmer halus berlatar `var(--bg3)` saat data asinkron sedang dihitung/diambil.
+- **Segmented Control & Period Toggles**:
+  - Pemilihan periode grafik (1W, 1M, 3M, YTD, 1Y, ALL) wajib menggunakan class `.pbtn` yang seragam dengan font mono, border halus, dan state aktif `.on` beraksen cyan/biru (`#38BDF8`).
 
 ### 5. Aturan Semantik Warna & Integritas Status
 Patuhi aturan warna finansial yang konsisten di semua halaman:

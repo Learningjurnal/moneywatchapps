@@ -1446,10 +1446,76 @@ body.theme-light .drawer-panel {
 .cw{position:relative}
 .cdset{display:flex;flex-direction:column;gap:3px}.cdset span{font-size:10px;color:var(--text3);letter-spacing:0;font-family:'Inter',sans-serif}.cdset input{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none}.cdset input:focus{border-color:var(--blue)}
 
-/* PBTN */
-.pbtn{padding:3px 10px;border-radius:4px;font-size:11px;cursor:pointer;color:var(--text3);border:1px solid var(--border);background:transparent;font-family:'Inter',sans-serif;letter-spacing:0;transition:all .12s}
-.pbtn:hover{color:var(--text);border-color:var(--border2)}
-.pbtn.on{background:rgba(41,98,255,.15);color:var(--blue);border-color:rgba(41,98,255,.4)}
+/* PBTN (SEGMENTED PERIOD TOGGLE) */
+.pbtn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  color: var(--text2);
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  letter-spacing: 0.02em;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pbtn:hover {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38BDF8;
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-1px);
+}
+.pbtn.on,
+.pbtn.active {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #38BDF8 !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  font-weight: 700;
+  box-shadow: 0 1px 6px rgba(56, 189, 248, 0.12);
+}
+
+/* SKELETON LOADER (MODERN INSTITUTIONAL SHIMMER) */
+@keyframes skeletonShimmer {
+  0% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+  100% { opacity: 0.45; }
+}
+
+.skeleton-pulse {
+  background: var(--bg3);
+  border-radius: var(--radius-sm, 4px);
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+  display: inline-block;
+  pointer-events: none;
+}
+
+.skeleton-box {
+  width: 100%;
+  height: 48px;
+  background: var(--bg3);
+  border-radius: 8px;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+  border: 1px solid var(--border-subtle);
+}
+
+.skeleton-text {
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bg3);
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+  margin-bottom: 6px;
+}
+
+body.theme-light .skeleton-pulse,
+body.theme-light .skeleton-box,
+body.theme-light .skeleton-text {
+  background: #E2E8F0;
+  border-color: #CBD5E1;
+}
 
 /* ALERT */
 .alert{padding:10px 14px;border-radius:5px;font-size:12px;margin-bottom:10px;border:1px solid;font-family:'Inter',sans-serif}

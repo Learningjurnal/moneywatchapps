@@ -178,7 +178,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.min.js" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/main.css?v=20261003c">
+<link rel="stylesheet" href="css/main.css?v=20261003d">
 <link rel="stylesheet" href="css/wealth.css?v=20261003a">
 </head>
 <body>
@@ -1614,7 +1614,19 @@
       <span class="ctitle">Alpha &amp; Beta Riil (Regresi vs IHSG)</span>
       <span class="ui-info-icon" role="button" tabindex="0" aria-label="Penjelasan" aria-expanded="false" data-ui-info-open="0" data-tooltip="Beta di kartu &#39;Manajemen Risiko&#39; di bawah pakai nilai beta statis per saham dari database. Beta di sini dihitung langsung dari regresi harga harian riil terhadap IHSG (data Yahoo Finance) — lebih akurat tapi butuh waktu ambil data & riwayat harga cukup panjang"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1.15" fill="currentColor"/></svg></span>
     </div>
-    <div id="perf-beta-body"><div style="text-align:center;padding:24px;color:var(--text3);font-size:11px">⏳ Menghitung dari data harga riil…</div></div>
+    <div id="perf-beta-body">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:12px 6px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="skeleton-pulse" style="width:24px;height:12px;border-radius:4px"></div>
+          <span style="font-size:11px;color:var(--text3)">Menghitung regresi Alpha &amp; Beta harga riil vs IHSG…</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px">
+          <div class="skeleton-box" style="height:64px"></div>
+          <div class="skeleton-box" style="height:64px"></div>
+          <div class="skeleton-box" style="height:64px"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ===== MANAJEMEN RISIKO (dipindahkan dari Dashboard) ===== -->
@@ -1712,39 +1724,56 @@
       <button class="btn btn-ghost" onclick="goPage('rdn-audit')" style="border-color:rgba(0,200,255,.4);color:var(--accent)">Log Audit Transaksi</button>
     </div>
   </div>
-  <div class="row4" style="margin-bottom:12px">
-    <div class="metric">
-      <div class="mlabel">Saldo Kas / RDN</div>
-      <div class="mval lg up" id="rdn-saldo">Rp 0</div>
-      <div class="msub neu" id="rdn-sekuritas">— sekuritas</div>
+  <!-- KARTU TERPADU: RINGKASAN ARUS KAS & SALDO RDN -->
+  <div class="card" style="margin-bottom:16px;border-radius:10px">
+    <div class="cheader">
+      <span class="ctitle">Ringkasan Arus Kas &amp; Likuiditas Portofolio</span>
+      <span class="badge b-blue" style="font-size:10px">Multi-Akun Kas</span>
     </div>
-    <div class="metric">
-      <div class="mlabel">Total Setoran</div>
-      <div class="mval" id="rdn-in">Rp 0</div>
-      <div class="msub neu" id="rdn-in-cnt">0 kali</div>
+
+    <!-- 4 Metrics Row inside Card -->
+    <div class="row4" style="margin-bottom:14px">
+      <div style="padding:10px 12px;background:var(--bg3);border-radius:8px">
+        <div class="mlabel">Saldo Kas / RDN</div>
+        <div class="mval lg up" id="rdn-saldo" style="font-size:20px">Rp 0</div>
+        <div class="msub neu" id="rdn-sekuritas">— sekuritas</div>
+      </div>
+      <div style="padding:10px 12px;background:var(--bg3);border-radius:8px">
+        <div class="mlabel">Total Setoran</div>
+        <div class="mval" id="rdn-in" style="font-size:17px">Rp 0</div>
+        <div class="msub neu" id="rdn-in-cnt">0 kali</div>
+      </div>
+      <div style="padding:10px 12px;background:var(--bg3);border-radius:8px">
+        <div class="mlabel">Total Penarikan</div>
+        <div class="mval" id="rdn-out" style="font-size:17px">Rp 0</div>
+        <div class="msub neu" id="rdn-out-cnt">0 kali</div>
+      </div>
+      <div style="padding:10px 12px;background:var(--bg3);border-radius:8px">
+        <div class="mlabel">Dana Digunakan Beli</div>
+        <div class="mval" id="rdn-used" style="font-size:17px">Rp 0</div>
+        <div class="msub neu">dari pembelian aset</div>
+      </div>
     </div>
-    <div class="metric">
-      <div class="mlabel">Total Penarikan</div>
-      <div class="mval" id="rdn-out">Rp 0</div>
-      <div class="msub neu" id="rdn-out-cnt">0 kali</div>
-    </div>
-    <div class="metric">
-      <div class="mlabel">Dana Digunakan Beli</div>
-      <div class="mval" id="rdn-used">Rp 0</div>
-      <div class="msub neu">dari pembelian aset</div>
-    </div>
-  </div>
-  <div class="g2b">
-    <div class="card" style="display:flex;flex-direction:column">
-      <div class="cheader"><span class="ctitle">Arus Kas RDN</span></div>
-      <div class="cw" style="height:190px;flex:1;min-height:0"><canvas id="rdnFlowChart"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="cheader"><span class="ctitle">Ringkasan Saldo</span></div>
-      <div id="rdn-summary"></div>
-      <div class="sep"></div>
-      <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);letter-spacing:1px;margin-bottom:8px">PENGATURAN SEKURITAS AKTIF</div>
-      <div id="rdn-sec-info"></div>
+
+    <div style="height:1px;background:var(--border-subtle);margin-bottom:14px"></div>
+
+    <!-- Internal 2-Col Grid for Chart and Detail Breakdown -->
+    <div class="g2b" style="align-items:stretch">
+      <div style="display:flex;flex-direction:column;background:var(--bg3);border-radius:8px;padding:12px 14px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-chart-arrows" style="color:var(--accent)"></i> Arus Kas Masuk vs Keluar
+        </div>
+        <div class="cw" style="height:190px;flex:1;min-height:0"><canvas id="rdnFlowChart"></canvas></div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:12px 14px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-wallet" style="color:var(--accent)"></i> Rincian Saldo &amp; Akun
+        </div>
+        <div id="rdn-summary"></div>
+        <div class="sep"></div>
+        <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);letter-spacing:1px;margin-bottom:8px">PENGATURAN SEKURITAS AKTIF</div>
+        <div id="rdn-sec-info"></div>
+      </div>
     </div>
   </div>
   <div class="card">
@@ -1782,11 +1811,11 @@
 
 <!-- ===== TRANSAKSI ===== -->
 <div id="page-transaksi" class="page" style="flex-direction:column;overflow:hidden;padding:0">
-  <div style="flex-shrink:0;padding:14px 16px 0">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-      <div>
+  <div style="flex-shrink:0;padding:14px 16px 10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:12px">
+      <div style="min-width:240px;flex:1">
         <div class="ptitle">Transaksi Saham</div>
-        <div class="psub">Catat beli/jual saham dengan kalkulasi komisi &amp; pajak otomatis sesuai sekuritas</div>
+        <div class="psub" style="margin-bottom:0">Catat beli/jual saham dengan kalkulasi komisi &amp; pajak otomatis sesuai sekuritas</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-green" id="btn-beli" style="font-weight:700;display:inline-flex;align-items:center;gap:5px"><i class="ti ti-arrow-up-right"></i> + Beli Saham</button>
@@ -1795,19 +1824,39 @@
         <button class="btn btn-ghost" onclick="txImportExcel()" style="border-color:rgba(16,185,129,.35);color:var(--green);font-size:11px" title="Upload banyak transaksi sekaligus dari file Excel"><i class="ti ti-upload"></i> Upload Excel</button>
       </div>
     </div>
-    <div class="row4">
-      <div class="metric"><div class="mlabel">Total Transaksi</div><div class="mval" id="tx-cnt">0</div><div class="msub neu">semua waktu</div></div>
-      <div class="metric"><div class="mlabel">Total Beli</div><div class="mval" id="tx-buy">Rp 0</div><div class="msub neu" id="tx-buy-cnt">0 transaksi</div></div>
-      <div class="metric"><div class="mlabel">Total Jual</div><div class="mval" id="tx-sell">Rp 0</div><div class="msub neu" id="tx-sell-cnt">0 transaksi</div></div>
-      <div class="metric"><div class="mlabel">Total Komisi+Pajak</div><div class="mval" id="tx-tax">Rp 0</div><div class="msub neu">biaya keseluruhan</div></div>
-    </div>
   </div>
-  <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column;margin:10px 16px 14px;overflow:hidden;border-radius:12px">
-    <div class="cheader" style="flex-shrink:0">
-      <span class="ctitle">Riwayat Transaksi Saham</span>
-      <div class="filter-toolbar" style="margin-bottom:0;width:auto;flex-wrap:wrap;gap:6px">
-        <input class="finput" id="tx-search" style="width:140px;padding:6px 10px;font-size:11px;font-family:var(--font-mono);border-radius:6px" placeholder="Cari ticker...">
-        <select class="finput fsel" id="tx-filter" style="width:95px;padding:6px 8px;font-size:11px;border-radius:6px">
+
+  <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column;margin:0 16px 14px;overflow:hidden;border-radius:10px;padding:0">
+    <!-- Integrated Summary Strip inside the Card -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px;background:var(--bg3);padding:10px 14px;border-bottom:1px solid var(--border)">
+      <div style="padding:6px 10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border-subtle)">
+        <div class="mlabel" style="margin-bottom:2px">Total Transaksi</div>
+        <div class="mval" id="tx-cnt" style="font-size:17px">0</div>
+        <div class="msub neu" style="margin-top:2px">semua waktu</div>
+      </div>
+      <div style="padding:6px 10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border-subtle)">
+        <div class="mlabel" style="margin-bottom:2px">Total Beli</div>
+        <div class="mval" id="tx-buy" style="font-size:17px">Rp 0</div>
+        <div class="msub neu" id="tx-buy-cnt" style="margin-top:2px">0 transaksi</div>
+      </div>
+      <div style="padding:6px 10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border-subtle)">
+        <div class="mlabel" style="margin-bottom:2px">Total Jual</div>
+        <div class="mval" id="tx-sell" style="font-size:17px">Rp 0</div>
+        <div class="msub neu" id="tx-sell-cnt" style="margin-top:2px">0 transaksi</div>
+      </div>
+      <div style="padding:6px 10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border-subtle)">
+        <div class="mlabel" style="margin-bottom:2px">Total Komisi + Pajak</div>
+        <div class="mval" id="tx-tax" style="font-size:17px">Rp 0</div>
+        <div class="msub neu" style="margin-top:2px">biaya keseluruhan</div>
+      </div>
+    </div>
+
+    <!-- Toolbar Header -->
+    <div class="cheader" style="flex-shrink:0;padding:10px 14px;margin-bottom:0;border-bottom:1px solid var(--border)">
+      <span class="ctitle" style="font-size:13px;font-weight:700">Riwayat Transaksi Saham</span>
+      <div class="filter-toolbar" style="margin-bottom:0;width:auto;flex-wrap:wrap;gap:6px;align-items:center">
+        <input class="finput" id="tx-search" style="width:140px;padding:5px 9px;font-size:11px;font-family:var(--font-mono);border-radius:6px" placeholder="Cari ticker...">
+        <select class="finput fsel" id="tx-filter" style="width:95px;padding:5px 8px;font-size:11px;border-radius:6px">
           <option value="all">Semua</option><option value="BUY">Beli</option><option value="SELL">Jual</option>
         </select>
         <button class="btn btn-ghost btn-xs" onclick="txSelectAll()" id="tx-sel-all-btn" style="border-radius:6px;font-weight:700">☑ Pilih</button>
@@ -1940,28 +1989,15 @@
     </div>
   </div>
 
-  <!-- NETT GAIN/LOSS PER SAHAM PORTOFOLIO BAR CHART -->
-  <div class="card" style="margin-bottom:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+  <!-- MODUL TERPADU: PERFORMA & GAIN/LOSS PER SAHAM -->
+  <div class="card" style="margin-bottom:16px;border-radius:12px">
+    <div id="perf-toolbar-header" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:10px">
       <div>
-        <div class="ptitle" style="font-size:14px">Gain/Loss per Saham</div>
-        <div class="psub">Akumulasi Realized + Potensi P&amp;L per emiten aktif dalam portofolio</div>
+        <div class="ptitle" style="font-size:14px;margin-bottom:2px">Performa &amp; Gain/Loss per Emiten</div>
+        <div class="psub" style="margin-bottom:0">Akumulasi Realized + Potensi P&amp;L per saham aktif &amp; tertutup</div>
       </div>
-      <div id="porto-pnl-summary-pills" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
-    </div>
-    <div style="height:220px;position:relative;width:100%">
-      <canvas id="portoRealizedVsPotensiChart"></canvas>
-    </div>
-  </div>
-
-  <!-- TOOLBAR PERFORMA PER SAHAM — realized + unrealized per kode, termasuk yang sudah ditutup -->
-  <div class="card">
-    <div id="perf-toolbar-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <div>
-        <div class="ptitle" style="font-size:14px">Performa per Saham</div>
-        <div class="psub">Ringkasan hasil investasi per emiten</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div id="porto-pnl-summary-pills" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"></div>
         <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);cursor:pointer">
           <input type="checkbox" checked onchange="togglePerfClosed()"> Tampilkan saham ditutup
         </label>
@@ -1970,17 +2006,20 @@
         </button>
       </div>
     </div>
-    <div class="row4" id="perf-summary" style="margin-bottom:12px"></div>
+    <div style="height:210px;position:relative;width:100%;margin-bottom:12px">
+      <canvas id="portoRealizedVsPotensiChart"></canvas>
+    </div>
+    <div class="row4" id="perf-summary" style="margin-bottom:8px"></div>
     <div id="perf-table-wrap" style="display:none;overflow-x:auto;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-      <table class="tbl">
-        <thead><tr>
+      <table class="tbl tbl-freeze-col">
+        <thead style="position:sticky;top:0;z-index:2;background:var(--bg3)"><tr>
           <th onclick="sortPerf('ticker')" style="cursor:pointer;user-select:none">Ticker <span id="perf-sort-ico-ticker" style="font-size:9px;color:var(--text3)">↕</span></th>
           <th>Status</th>
-          <th onclick="sortPerf('lot')" style="cursor:pointer;user-select:none">Lot Aktif <span id="perf-sort-ico-lot" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th onclick="sortPerf('realized')" style="cursor:pointer;user-select:none">Realized P&amp;L <span id="perf-sort-ico-realized" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th onclick="sortPerf('unreal')" style="cursor:pointer;user-select:none">Unrealized P&amp;L <span id="perf-sort-ico-unreal" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th onclick="sortPerf('total')" style="cursor:pointer;user-select:none">Total P&amp;L <span id="perf-sort-ico-total" style="font-size:9px;color:var(--text3)">↕</span></th>
-          <th>Riwayat</th>
+          <th class="text-right" onclick="sortPerf('lot')" style="cursor:pointer;user-select:none">Lot Aktif <span id="perf-sort-ico-lot" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPerf('realized')" style="cursor:pointer;user-select:none">Realized P&amp;L <span id="perf-sort-ico-realized" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPerf('unreal')" style="cursor:pointer;user-select:none">Unrealized P&amp;L <span id="perf-sort-ico-unreal" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-right" onclick="sortPerf('total')" style="cursor:pointer;user-select:none">Total P&amp;L <span id="perf-sort-ico-total" style="font-size:9px;color:var(--text3)">↕</span></th>
+          <th class="text-center">Riwayat</th>
         </tr></thead>
         <tbody id="perf-toolbar-body"></tbody>
       </table>
