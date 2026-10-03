@@ -10906,6 +10906,47 @@ test('REGRESSION GUARD: generateFinancialStatementSummary() no longer hardcodes 
     'REGRESSION: discontinued-operations EPS is no longer added, so Net Income ÷ EPS derives wrong shares for issuers like UNVR');
 });
 
+await asyncTest('functional: Unified Screener rank is canonical (Uptrend, then Whale) and does NOT change when the table is sorted by another column', async () => {
+  const { computeScreenerRankMap, sortScreenerRows } = await import('./lib/idx-data-engine.js');
+  const row = (ticker, uptrendScore, whaleScore, chg7d, chg1d, regulatoryEligible = true) =>
+    ({ ticker, uptrendScore, whaleScore, chg7d, chg1d, regulatoryEligible });
+  const evaluated = [
+    row('PPRO', 40, 0, 31.25, -4.55),
+    row('DAAZ', 80, 1, 13.23, 2.79),
+    row('SOSS', 80, 0, 12.92, -14.83),
+    row('NODT', null, 0, null, null),
+    row('FLAG', 95, 3, 50, 5, false)
+  ];
+  const rankMap = computeScreenerRankMap(evaluated, true);
+  assert.strictEqual(rankMap.get('DAAZ'), 1, 'highest Uptrend wins; Whale breaks the tie with SOSS');
+  assert.strictEqual(rankMap.get('SOSS'), 2);
+  assert.strictEqual(rankMap.get('PPRO'), 3);
+  assert.strictEqual(rankMap.has('NODT'), false, 'a ticker without technical data must stay unranked, not be placed arbitrarily');
+  assert.strictEqual(rankMap.has('FLAG'), false, 'a regulatory-ineligible ticker must not take a rank the user could be told to buy');
+  assert.strictEqual(computeScreenerRankMap(evaluated, false).get('FLAG'), 1, 'with the regulatory gate off the flagged ticker is ranked on its own scores');
+
+  const ranked = evaluated.map(r => ({ ...r, rank: rankMap.get(r.ticker) ?? null })).filter(r => r.regulatoryEligible);
+  const by7d = sortScreenerRows(ranked, 'chg7d', true);
+  assert.strictEqual(by7d[0].ticker, 'PPRO', 'sorting by 7D puts PPRO on top of the table');
+  assert.strictEqual(by7d[0].rank, 3, 'REGRESSION: PPRO must keep rank 3 when it is merely first in a 7D sort — the "#" column used to renumber to 1');
+  assert.deepStrictEqual(sortScreenerRows(ranked, 'rank', false).map(r => r.ticker), ['DAAZ', 'SOSS', 'PPRO', 'NODT'],
+    'sorting by rank restores the canonical order and keeps unranked tickers last');
+  assert.deepStrictEqual(sortScreenerRows(ranked, 'rank', true).map(r => r.ticker).slice(-1), ['NODT'], 'unranked tickers stay last in either direction');
+
+  const tied = [row('BBB', 50, 0, 5, 1), row('AAA', 50, 0, 5, 1)].map((r, i) => ({ ...r, rank: [2, 1][i] }));
+  assert.deepStrictEqual(sortScreenerRows(tied, 'chg7d', true).map(r => r.ticker), ['AAA', 'BBB'], 'a tie on the sorted column is broken by canonical rank');
+  assert.deepStrictEqual(sortScreenerRows([...tied].reverse(), 'chg7d', true).map(r => r.ticker), ['AAA', 'BBB'], 'the result must not depend on the input order (the old comparator returned -1 for ties in both directions)');
+});
+
+test('REGRESSION GUARD: Screener table shows the server rank (r.rank), not the row index, and "#" can be clicked to restore the rank order', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/48-unified-screener.js'), 'utf8');
+  assert(/var rank = r\.rank;/.test(src), 'REGRESSION: the "#" column no longer reads the server-provided rank');
+  assert(!/var rank = i \+ 1;/.test(src), 'REGRESSION: the "#" column is numbered by row position again, so it renumbers on every sort');
+  assert(/usSetSort\(\\'rank\\'\)/.test(src), 'REGRESSION: the "#" header can no longer restore the rank order');
+  assert(/field === 'rank' \? 'asc' : 'desc'/.test(src), 'REGRESSION: sorting by rank no longer starts ascending (1 first)');
+  assert(/uiInfoIcon\('Peringkat Screener/.test(src), 'REGRESSION: the rank explanation no longer uses the shared uiInfoIcon helper');
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');

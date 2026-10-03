@@ -143,7 +143,7 @@ function usSetSort(field) {
     US_STATE.order = US_STATE.order === 'desc' ? 'asc' : 'desc';
   } else {
     US_STATE.sort = field;
-    US_STATE.order = 'desc';
+    US_STATE.order = field === 'rank' ? 'asc' : 'desc';
   }
   usFetchAndRender();
 }
@@ -364,13 +364,10 @@ function usRenderShell() {
     html += '<div class="card" style="padding:0;overflow-x:auto">'
       + '<table class="tbl" style="width:100%;font-size:12.5px">'
       + '<thead><tr>'
-        // Rank column (2026-09-27, user-requested: "berikan tanda ranking
-        // ... untuk melihat urutannya") — US_STATE.rows is already the
-        // server-sorted top /100 result for the active sort column (no
-        // client pagination/offset exists), so row index+1 IS the real
-        // rank; it re-numbers automatically whenever the user changes the
-        // sort column since the rows themselves come back re-sorted.
-        + '<th style="width:32px;text-align:center;color:var(--text-mute)">#</th>'
+        // Peringkat dihitung server (r.rank) dan tetap saat kolom lain di-sort; klik "#" untuk kembali ke urutan peringkat.
+        + '<th style="width:44px;text-align:center;color:var(--text-mute)"><span style="cursor:pointer" onclick="usSetSort(\'rank\')">#' + usSortIndicator('rank') + '</span>'
+          + (typeof uiInfoIcon === 'function' ? ' ' + uiInfoIcon('Peringkat Screener: urut dari skor Uptrend tertinggi, lalu skor Whale. Nomor ini tetap sama walau Anda mengurutkan kolom lain; klik # untuk kembali ke urutan peringkat. Saham tanpa data teknikal tidak diberi peringkat (–).') : '')
+          + '</th>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'ticker\')">Ticker' + usSortIndicator('ticker') + '</th>'
         + '<th>Nama</th>'
         + '<th style="cursor:pointer" onclick="usSetSort(\'chg1d\')">Chg% (1D)' + usSortIndicator('chg1d') + '</th>'
@@ -396,10 +393,12 @@ function usRenderShell() {
       var c1dCol = r.chg1d != null ? (r.chg1d >= 0 ? 'var(--green)' : 'var(--red)') : 'inherit';
       var c7d = r.chg7d != null ? (r.chg7d >= 0 ? '+' : '') + r.chg7d.toFixed(2) + '%' : '<span style="color:var(--text-mute)">N/A</span>';
       var c7dCol = r.chg7d != null ? (r.chg7d >= 0 ? 'var(--green)' : 'var(--red)') : 'inherit';
-      var rank = i + 1;
-      var rankBadge = rank <= 3
-        ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:' + (rank === 1 ? '#F59E0B' : rank === 2 ? '#94A3B8' : '#B45309') + ';color:#0B0D12;font-weight:800;font-size:10.5px">' + rank + '</span>'
-        : '<span style="color:var(--text-mute);font-family:var(--font-mono);font-size:11px">' + rank + '</span>';
+      var rank = r.rank;
+      var rankBadge = rank == null
+        ? '<span style="color:var(--text-mute);font-family:var(--font-mono);font-size:11px" title="Belum ada data teknikal">–</span>'
+        : rank <= 3
+          ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:' + (rank === 1 ? '#F59E0B' : rank === 2 ? '#94A3B8' : '#B45309') + ';color:#0B0D12;font-weight:800;font-size:10.5px">' + rank + '</span>'
+          : '<span style="color:var(--text-mute);font-family:var(--font-mono);font-size:11px">' + rank + '</span>';
 
       html += '<tr style="cursor:pointer" onclick="usOpenTicker(\'' + r.ticker + '\')">'
         + '<td style="text-align:center">' + rankBadge + '</td>'
