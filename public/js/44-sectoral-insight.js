@@ -2458,6 +2458,80 @@
   /**
    * Render Panel Berita Terkoneksi (Kolom Kanan)
    */
+  // Pembuat HTML satu kartu berita (murni, tanpa DOM supaya bisa dites): semua teks eksternal di-escape.
+  function siBuildNewsCardHtml(item) {
+    var html = '';
+    var impactColor = item.impact === 'BULLISH' ? '#10b981' : (item.impact === 'BEARISH' ? '#ef4444' : '#f59e0b');
+    var impactBg = item.impact === 'BULLISH' ? 'rgba(16,185,129,0.12)' : (item.impact === 'BEARISH' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)');
+
+    // Berita dari Invezgo tidak punya URL artikel (hanya judul, tanggal, isi): kartunya dibuka di dalam aplikasi, bukan ke tautan karangan.
+    var safeUrl = /^https?:\/\//i.test(String(item.url || '')) ? item.url : null;
+    var fullText = String(item.content || '');
+    var canExpand = !safeUrl && fullText.length > 0;
+    var contentHtml = canExpand
+      ? fullText.split(/\n{2,}/).map(function(par) { return '<p style="margin:0 0 8px">' + escapeHtml(par.replace(/\n/g, ' ')) + '</p>'; }).join('')
+      : '';
+    var published = item.publishedAt
+      ? new Date(item.publishedAt).toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB'
+      : '';
+
+    var tickerChips = '';
+    if (Array.isArray(item.tickers) && item.tickers.length > 0) {
+      tickerChips = item.tickers.map(function(tk) {
+        return '<span onclick="event.stopPropagation();siInspectTicker(\'' + tk + '\')" class="badge" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:10px;padding:2px 6px" title="Buka analisis saham ' + tk + '">' +
+          tk + ' ↗' +
+        '</span>';
+      }).join(' ');
+    }
+
+    html += '<div' + (canExpand ? ' class="si-news-card" role="button" tabindex="0" aria-expanded="false" onclick="siToggleNewsItem(this)" onkeydown="siNewsKey(event,this)"' : '') + ' style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px' + (canExpand ? ';cursor:pointer' : '') + '">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+        '<div style="font-size:10.5px;color:var(--text3);display:flex;align-items:center;gap:6px">' +
+          '<span style="font-weight:700;color:var(--accent)">' + escapeHtml(item.source || 'Media Finansial') + '</span>' +
+          '<span>·</span>' +
+          '<span>' + escapeHtml(item.time || 'Terkini') + '</span>' +
+          '<span>·</span>' +
+          '<span style="color:var(--text2)">' + escapeHtml(item.category || item.sectorName || 'Sektoral') + '</span>' +
+        '</div>' +
+        '<span class="badge" style="background:' + impactBg + ';border:1px solid ' + impactColor + ';color:' + impactColor + ';font-size:9.5px;font-weight:700;padding:1px 6px">' +
+          (item.impact || 'NEUTRAL') +
+        '</span>' +
+      '</div>' +
+
+      '<div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.4">' +
+        // FIX (2026-10-02, tier berita Invezgo): item.url bisa null kalau
+        // tier sumbernya (mis. Invezgo) tidak menyediakan link artikel —
+        // dulu fallback ke href="#", link mati yang tidak kemana-mana.
+        // Render sebagai teks biasa (bukan <a>) kalau tidak ada URL asli.
+        (safeUrl
+          ? '<a href="' + escapeHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'inherit\'">' + escapeHtml(item.title) + ' ↗</a>'
+          : '<span>' + escapeHtml(item.title) + '</span>') +
+      '</div>' +
+
+      '<div class="si-news-summary" style="font-size:11.5px;color:var(--text2);line-height:1.5">' +
+        escapeHtml(item.summary) +
+      '</div>' +
+
+      (canExpand
+        ? '<div class="si-news-body" style="display:none;font-size:12px;color:var(--text);line-height:1.65;border-top:1px dashed var(--border2);padding-top:8px;cursor:text" onclick="event.stopPropagation()">' +
+            (published ? '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">Terbit ' + escapeHtml(published) + '</div>' : '') +
+            contentHtml +
+            '<div style="font-size:10.5px;color:var(--text3);font-style:italic">Isi artikel dari Invezgo News. Penyedia data tidak menyertakan tautan ke situs asli.</div>' +
+          '</div>' +
+          '<div class="si-news-hint" style="font-size:10.5px;color:var(--accent);font-weight:600">Baca selengkapnya ▾</div>'
+        : '') +
+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px dashed var(--border2)">' +
+        '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">' +
+          '<span style="font-size:10px;color:var(--text3)">Emiten:</span>' +
+          tickerChips +
+        '</div>' +
+        (item.impactReason ? '<span style="font-size:10px;color:var(--text3);font-style:italic">' + escapeHtml(item.impactReason) + '</span>' : '') +
+      '</div>' +
+    '</div>';
+    return html;
+  }
+
   function siRenderNewsPanel() {
     var container = document.getElementById('si-news-list');
     var filterBadge = document.getElementById('si-active-sector-filter');
@@ -2529,54 +2603,7 @@
     var html = '<div style="display:flex;flex-direction:column;gap:10px">';
 
     displayNews.forEach(function(item) {
-      var impactColor = item.impact === 'BULLISH' ? '#10b981' : (item.impact === 'BEARISH' ? '#ef4444' : '#f59e0b');
-      var impactBg = item.impact === 'BULLISH' ? 'rgba(16,185,129,0.12)' : (item.impact === 'BEARISH' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)');
-
-      var tickerChips = '';
-      if (Array.isArray(item.tickers) && item.tickers.length > 0) {
-        tickerChips = item.tickers.map(function(tk) {
-          return '<span onclick="siInspectTicker(\'' + tk + '\')" class="badge" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:10px;padding:2px 6px" title="Buka analisis saham ' + tk + '">' +
-            tk + ' ↗' +
-          '</span>';
-        }).join(' ');
-      }
-
-      html += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
-          '<div style="font-size:10.5px;color:var(--text3);display:flex;align-items:center;gap:6px">' +
-            '<span style="font-weight:700;color:var(--accent)">' + (item.source || 'Media Finansial') + '</span>' +
-            '<span>·</span>' +
-            '<span>' + (item.time || 'Terkini') + '</span>' +
-            '<span>·</span>' +
-            '<span style="color:var(--text2)">' + (item.category || item.sectorName || 'Sektoral') + '</span>' +
-          '</div>' +
-          '<span class="badge" style="background:' + impactBg + ';border:1px solid ' + impactColor + ';color:' + impactColor + ';font-size:9.5px;font-weight:700;padding:1px 6px">' +
-            (item.impact || 'NEUTRAL') +
-          '</span>' +
-        '</div>' +
-
-        '<div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.4">' +
-          // FIX (2026-10-02, tier berita Invezgo): item.url bisa null kalau
-          // tier sumbernya (mis. Invezgo) tidak menyediakan link artikel —
-          // dulu fallback ke href="#", link mati yang tidak kemana-mana.
-          // Render sebagai teks biasa (bukan <a>) kalau tidak ada URL asli.
-          (item.url
-            ? '<a href="' + item.url + '" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'inherit\'">' + item.title + '</a>'
-            : '<span>' + item.title + '</span>') +
-        '</div>' +
-
-        '<div style="font-size:11.5px;color:var(--text2);line-height:1.5">' +
-          item.summary +
-        '</div>' +
-
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px dashed var(--border2)">' +
-          '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">' +
-            '<span style="font-size:10px;color:var(--text3)">Emiten:</span>' +
-            tickerChips +
-          '</div>' +
-          (item.impactReason ? '<span style="font-size:10px;color:var(--text3);font-style:italic">' + item.impactReason + '</span>' : '') +
-        '</div>' +
-      '</div>';
+      html += siBuildNewsCardHtml(item);
     });
 
     html += '</div>';
@@ -2672,6 +2699,27 @@
   /**
    * Buka Analisis Saham Constituent
    */
+  window.siToggleNewsItem = function(card) {
+    if (!card) return;
+    var body = card.querySelector('.si-news-body');
+    var summary = card.querySelector('.si-news-summary');
+    var hint = card.querySelector('.si-news-hint');
+    if (!body) return;
+    var opening = body.style.display === 'none';
+    body.style.display = opening ? 'block' : 'none';
+    if (summary) summary.style.display = opening ? 'none' : 'block';
+    if (hint) hint.textContent = opening ? 'Tutup ▴' : 'Baca selengkapnya ▾';
+    card.setAttribute('aria-expanded', opening ? 'true' : 'false');
+  };
+
+  window.siNewsKey = function(event, card) {
+    if (event.target !== card) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      window.siToggleNewsItem(card);
+    }
+  };
+
   window.siInspectTicker = function(ticker) {
     if (!ticker) return;
     var tk = String(ticker).toUpperCase().trim();

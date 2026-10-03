@@ -1268,6 +1268,9 @@ async function fetchSectoralNewsViaInvezgo() {
       sectorName: matchedSector ? matchedSector.name : 'Pasar Umum',
       title: item.title,
       summary: summary || item.title,
+      // Invezgo tidak memberi URL artikel, tetapi memberi isi lengkapnya: UI membukanya di dalam aplikasi saat kartu diklik.
+      content: content.length > 12000 ? content.slice(0, 12000).trim() + '…' : content,
+      publishedAt: item.date || null,
       source: 'Invezgo News',
       url: null,
       category: 'Market News',

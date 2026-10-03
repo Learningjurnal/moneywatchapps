@@ -11169,6 +11169,34 @@ await asyncTest('invariants: the portfolio math checkers catch injected bugs (fe
   assert(noGuard.includes('JUAL-MELEBIHI-KEPEMILIKAN-DITERIMA'), 'removing the ownership guard must be flagged');
 });
 
+test('functional: news cards are clickable (Invezgo items open the full article in-app), escape external text, and never link to unsafe or invented URLs', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/44-sectoral-insight.js'), 'utf8');
+  const fn = src.match(/function siBuildNewsCardHtml\(item\) \{[\s\S]*?\n  \}/)[0];
+  const sandbox = { escapeHtml: (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') };
+  vm.createContext(sandbox);
+  vm.runInContext(fn, sandbox, { filename: 'siBuildNewsCardHtml sandbox' });
+  const base = { summary: 'ringkas', source: 'Invezgo News', tickers: ['ASII'], impact: 'BULLISH', time: '15.30 WIB' };
+
+  const invezgo = sandbox.siBuildNewsCardHtml({ ...base, title: 'Astra <img src=x onerror=alert(1)>', url: null, content: 'Paragraf satu.\n\nParagraf <b>dua</b>.', publishedAt: '2026-10-03T15:30:30' });
+  assert(/onclick="siToggleNewsItem\(this\)"/.test(invezgo) && /role="button"/.test(invezgo) && /tabindex="0"/.test(invezgo) && /aria-expanded="false"/.test(invezgo),
+    'REGRESSION: an Invezgo news card (no article URL) must be clickable and keyboard-accessible, not plain text');
+  assert(/Paragraf satu/.test(invezgo) && /Paragraf &lt;b&gt;dua/.test(invezgo), 'the full article text must be inside the card, HTML-escaped');
+  assert(!/<img/.test(invezgo) && /&lt;img/.test(invezgo), 'REGRESSION: a news title is injected into innerHTML without escaping (XSS)');
+  assert(/event\.stopPropagation\(\);siInspectTicker/.test(invezgo), 'clicking a ticker chip must not also toggle the card');
+  assert(!/href=/.test(invezgo), 'an item without a real URL must not render a link (no invented or dead hrefs)');
+
+  const rss = sandbox.siBuildNewsCardHtml({ ...base, title: 'Judul RSS', url: 'https://example.com/a?x=1&y=2', content: '' });
+  assert(/href="https:\/\/example\.com\/a\?x=1&amp;y=2"/.test(rss) && !/siToggleNewsItem/.test(rss), 'an RSS item with a real URL keeps its external link and is not an in-app expander');
+  const unsafe = sandbox.siBuildNewsCardHtml({ ...base, title: 'x', url: 'javascript:alert(1)', content: '' });
+  assert(!/javascript:/.test(unsafe), 'a non-http(s) URL must never become a link');
+
+  const server = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+  const invezgoMapper = server.match(/async function fetchSectoralNewsViaInvezgo\(\) \{[\s\S]*?\n\}/)[0];
+  assert(/content:\s*content\.length/.test(invezgoMapper) && /publishedAt:\s*item\.date/.test(invezgoMapper), 'REGRESSION: the server no longer forwards the full article content and publish date of Invezgo news');
+  assert(/url:\s*null/.test(invezgoMapper), 'Invezgo news must keep url:null (the provider supplies no article URL; never invent one)');
+  assert(/window\.siToggleNewsItem = function/.test(src) && /window\.siNewsKey = function/.test(src), 'the card toggle handlers are not exported to window');
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');
