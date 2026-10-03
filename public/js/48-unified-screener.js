@@ -174,7 +174,7 @@ function usRenderShell() {
 
   var html = '<div style="margin-bottom:16px">'
     + '<div class="ptitle">Screener</div>'
-    + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter. Termasuk analisis Wave per-ticker (tab "Wave Cockpit"), kalkulator ukuran posisi (tab "Risk Planner"), screener RSI/momentum (tab "Quant Screener"), dan scanner lonjakan volume (tab "Volume Spike") — bekas TradeWave/Quant Lab/Volume Spike, sekarang jadi bagian dari Screener ini.</div>'
+    + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter. Termasuk analisis Wave per-ticker (tab "Wave Cockpit"), kalkulator ukuran posisi (tab "Risk Planner"), screener RSI/momentum (tab "Quant Screener"), dan scanner lonjakan volume (tab "Volume Spike") — bekas TradeWave/Quant Lab/Volume Spike, sekarang jadi bagian dari Screener ini. Tab "TradingView" menyaring ~840 emiten dengan teknikal, fundamental, dan rating dari TradingView (data tertunda ±10 menit).</div>'
     + '</div>';
 
   // Daily Picks widget (49-strategy-engine.js) — lives here (not the global
