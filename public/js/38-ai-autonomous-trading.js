@@ -697,11 +697,16 @@
       return false;
     }
     var p = AI_TRADE_STATE.paperAccount;
-    var prevCapital = p.initialCapital;
-    var diff = amount - prevCapital;
+    // Kas = modal + PnL terealisasi - biaya posisi terbuka; modal di bawah angka ini membuat kas negatif.
+    var investedCost = (p.openPositions || []).reduce(function(s, x) { return s + (x.costBasis || 0); }, 0);
+    var minCapital = Math.ceil(investedCost - (p.realizedPnL || 0));
+    if (amount < minCapital) {
+      if (typeof showToast === 'function') showToast('Modal minimal Rp ' + minCapital.toLocaleString('id-ID') + ' selama posisi terbuka masih menanam Rp ' + Math.round(investedCost).toLocaleString('id-ID') + '. Tutup posisi dulu atau pilih modal lebih besar.', 'var(--red)');
+      return false;
+    }
     p.initialCapital = amount;
-    p.cash = Math.max(0, p.cash + diff);
     recomputePaperStats();
+    syncAiPaperPortfolioLivePrices(false);
     savePaperAccountState();
     if (typeof showToast === 'function') {
       showToast('Modal virtual diatur ke Rp ' + Number(amount).toLocaleString('id-ID'));
@@ -1273,7 +1278,21 @@
   // fresh regime reading from the exact moment "Cek Exit" ran and passes
   // it through to avoid a redundant fetch; every other caller (manual
   // Tutup, auto SL/TP) leaves it undefined and this fetches fresh itself.
+  // Satu penutupan per posisi pada satu waktu: siklus refresh bisa memanggil ini untuk beberapa posisi sekaligus.
+  var aiClosingIds = {};
+  var aiPositionSeq = 0;
+
   async function aiClosePosition(posId, exitPrice, reason, knownRegimeAtExit) {
+    if (aiClosingIds[posId]) return;
+    aiClosingIds[posId] = true;
+    try {
+      return await aiClosePositionOnce(posId, exitPrice, reason, knownRegimeAtExit);
+    } finally {
+      delete aiClosingIds[posId];
+    }
+  }
+
+  async function aiClosePositionOnce(posId, exitPrice, reason, knownRegimeAtExit) {
     var p = AI_TRADE_STATE.paperAccount;
     var idx = p.openPositions.findIndex(function(x) { return x.id === posId; });
     if (idx < 0) return;
@@ -1301,6 +1320,11 @@
 
     // Real regime at exit — never fabricated; null if the fetch fails.
     var regimeAtExit = knownRegimeAtExit || await fetchCurrentRegimeLabel();
+
+    // Daftar posisi bisa berubah selama await di atas (penutupan lain selesai lebih dulu): cari ulang, jangan pakai indeks lama.
+    idx = p.openPositions.findIndex(function(x) { return x.id === posId; });
+    if (idx < 0) return;
+    pos = p.openPositions[idx];
 
     var lesson, mistake, improvement;
     if (reason === 'TAKE PROFIT') {
@@ -1538,6 +1562,12 @@
     }
     lots = riskGate.cappedLots;
 
+    // Pemeriksaan di awal terjadi sebelum await; dua pemanggilan bersamaan (klik ganda, siklus tumpang tindih) bisa lolos keduanya.
+    if (p.openPositions.some(function(x) { return x.ticker === ticker; })) {
+      if (typeof showToast === 'function') showToast('Sudah ada posisi terbuka untuk ' + ticker + '.');
+      return;
+    }
+
     var shares = lots * 100;
     var costBasis = shares * entry;
     p.cash -= costBasis;
@@ -1579,7 +1609,7 @@
     };
 
     p.openPositions.push({
-      id: 'POS-' + Date.now(),
+      id: 'POS-' + Date.now() + '-' + (++aiPositionSeq),
       ticker: ticker,
       strategy: sig.strategy,
       entryDate: new Date().toISOString().slice(0, 10),
@@ -1709,7 +1739,8 @@
               // entry), never the dashboard's own ticker-tape cache which
               // can lag/placeholder for tickers outside its rotation.
               if (pos.currentPrice <= pos.sl) {
-                aiClosePosition(pos.id, pos.sl, 'STOP LOSS');
+                // Stop order terpicu di harga pasar saat ini: bila pasar sudah gap di bawah SL, fill-nya di harga pasar, bukan di SL.
+                aiClosePosition(pos.id, Math.min(pos.sl, pos.currentPrice), 'STOP LOSS');
               } else if (pos.tp1 && pos.currentPrice >= pos.tp1) {
                 aiClosePosition(pos.id, pos.tp1, 'TAKE PROFIT');
               }

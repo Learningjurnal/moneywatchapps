@@ -11077,6 +11077,50 @@ test('REGRESSION GUARD: every local-only user data store is wired into the Supab
   assert(/function diSaveData\(\)\{[\s\S]*?saveData\(\)/.test(read('public/js/09-divinvest.js')), 'REGRESSION: Dividen Investasi edits no longer trigger a cloud save');
 });
 
+await asyncTest('invariants: the Harga Wajar checker flags every bug class found in this project (and stays quiet on healthy data)', async () => {
+  const { checkFinancialStatement } = await import('./scripts/invariants/harga-wajar.mjs');
+  const note = { epsScaleAssumption: 'dipakai pembagi per tahun (FY2025 ÷1)' };
+  const payload = (rows) => ({ success: true, available: true, rows, disclosures: note });
+  const ids = (rows, price) => checkFinancialStatement(payload(rows), { price }).map((v) => v.id);
+  const row = (year, eps, equity, shares, netIncome) => ({ year, eps, equity, shares, netIncome, dps: null, per: '' });
+
+  assert.deepStrictEqual(ids([row(2022, 209.49, 129258, 99064, 20753), row(2023, 247.92, 135744, 99064, 24560), row(2024, 238.73, 142094, 99062, 23649), row(2025, 179.83, 130685, 99060, 17814)], 2250), [],
+    'real TLKM rows (after the per-year scale fix) must produce no findings');
+  assert(ids([row(2022, 983, 100000, 18629, 18312), row(2023, 0, 110000, 37655436842, 20909)], 4000).includes('SKALA-SAHAM-MELEDAK'),
+    'EPS 0 with trillions of shares (BBNI/TLKM per-year scale bug) must be flagged as a scale explosion');
+  assert(ids([row(2022, 0.51, 442, 535083, 275)], 198).includes('BVPS-MUSTAHIL'),
+    'real PYFA wrong-scale row (EPS 0.51, 535 trillion shares, BVPS Rp 0.8) must be flagged');
+  const keen = ids([row(2024, 27.48, 2729.9, 3667, 100.7), row(2025, 0.04, 2.931, 3701, 0.13)], 840);
+  assert(keen.includes('BVPS-MUSTAHIL') && keen.includes('EKUITAS-LONCAT'), 'real KEEN FY2025 (amounts 1000x smaller) must be flagged as an equity jump and impossible BVPS');
+  assert(checkFinancialStatement({ success: true, available: false }).some((v) => v.id === 'TANPA-ALASAN'), 'available:false without a reason must be flagged');
+  assert(checkFinancialStatement({ success: true, available: true, rows: [row(2025, 10, 100, 1000, 10)] }).some((v) => v.id === 'PENGUNGKAPAN-HILANG'), 'a result without the EPS-scale disclosure must be flagged');
+});
+
+await asyncTest('invariants: the Screener checker flags unstable ranks, wrong whale labels and mis-sorted columns', async () => {
+  const { checkScreener } = await import('./scripts/invariants/screener.mjs');
+  const row = (ticker, rank, uptrendScore, whaleScore, extra = {}) => ({ ticker, rank, uptrendScore, whaleScore, whaleDataAvailable: true, whaleLabel: whaleScore >= 3 ? 'Akumulasi Kuat' : whaleScore >= 1 ? 'Akumulasi Lemah' : whaleScore <= -1 ? 'Distribusi' : 'Netral', regulatoryEligible: true, confirmedUptrendWhale: false, price: 1000, chg1d: 1, chg7d: 5, per: 10, ...extra });
+  const res = (rows) => ({ success: true, rows, total: rows.length, summary: { rankedTotal: rows.filter((r) => r.rank != null).length } });
+  const a = row('AAA', 1, 90, 2, { chg7d: 2 });
+  const b = row('BBB', 2, 80, 0, { chg7d: 9 });
+  const good = checkScreener({ byUptrend: res([a, b]), by7d: res([b, a]), byRank: res([a, b]) });
+  assert.deepStrictEqual(good.map((v) => v.id), [], 'a healthy fixture must produce no findings');
+
+  const renumbered = checkScreener({ byUptrend: res([a, b]), by7d: res([{ ...b, rank: 1 }, { ...a, rank: 2 }]), byRank: res([a, b]) }).map((v) => v.id);
+  assert(renumbered.includes('RANK-BERUBAH-ANTAR-SORT'), 'REGRESSION: the "# renumbers when sorted" bug must be flagged');
+  assert(checkScreener({ byUptrend: res([row('CCC', 1, 70, 3, { whaleLabel: 'Netral' })]) }).some((v) => v.id === 'LABEL-WHALE-SALAH'), 'a whale label that contradicts its score must be flagged');
+  assert(checkScreener({ byUptrend: res([a, b]), by7d: res([a, b]) }).some((v) => v.id === 'SORT-TIDAK-BENAR'), 'a column that is not actually sorted must be flagged');
+  assert(checkScreener({ byUptrend: res([b, a]) }).some((v) => v.id === 'URUTAN-RANK-TIDAK-KANONIK' || v.id === 'RANK-TIDAK-BERURUT-1-N'), 'ranks that do not follow Uptrend/Whale order must be flagged');
+});
+
+await asyncTest('invariants: AI Paper Portfolio holds its ledger, risk-gate and concurrency properties over random operation sequences', async () => {
+  const { runAiPaperProperties } = await import('./scripts/invariants/ai-paper.mjs');
+  for (let seed = 1; seed <= 4; seed++) {
+    const findings = await runAiPaperProperties({ rootDir: __dirname, seed, steps: 120 });
+    assert.deepStrictEqual(findings.map((f) => `${f.sev} ${f.id}: ${f.msg}`).slice(0, 3), [],
+      'REGRESSION: AI Paper Portfolio violates an invariant (see scripts/invariants/ai-paper.mjs for what each id means)');
+  }
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');

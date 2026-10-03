@@ -1032,3 +1032,20 @@ lewat anchor `#domain` di URL yang user kirim). Karena itu:
   sempat kirim, BPS saja dulu (cakupannya jauh lebih luas).
 - Jangan buat route indikator BPS baru tanpa memverifikasi field mapping
   dari respons real masing-masing — satu indikator, satu verifikasi.
+
+# 32. Sapuan Invarian (menemukan bug yang tidak terlihat saat audit)
+
+Audit membaca kode terbukti meleset: hampir semua bug nyata ditemukan lewat (a) gejala di layar, atau (b) data real
+dalam jumlah banyak. `scripts/invariants/` mengotomatiskan (b). Jalankan: `npm run check:invariants` (lihat opsi di
+header `scripts/invariants/run.mjs`; exit code 1 bila ada ERROR).
+
+- **Harga Wajar** (`harga-wajar.mjs`): jumlah saham stabil antar tahun, BVPS/PER/PBV masuk akal, tanda EPS = tanda laba,
+  tidak ada lonjakan ekuitas 1000x, pengungkapan skala EPS ada. Dijalankan atas sampel ticker dari production.
+- **Screener** (`screener.mjs`): rank identik di semua sort, urut Uptrend → Whale → ticker, label whale sesuai skor,
+  kolom benar-benar terurut. Dijalankan di 4 urutan sort sekaligus.
+- **AI Paper** (`ai-paper.mjs`): urutan operasi acak (modal, buka/tutup, gap SL, reset, panggilan bersamaan) lewat
+  fungsi ASLI aplikasi di vm Node, dicek terhadap buku bayangan independen. Ikut `npm test`.
+
+ERROR = kontradiksi pasti bug; WARN = tidak lazim tapi bisa sah (split, ROE ekstrem) dan perlu dilihat manusia.
+Setiap bug baru yang ditemukan SEBAIKNYA ditambahkan sebagai aturan baru di pemeriksa yang relevan, plus fixture bug
+aslinya di `test_suite.js`, supaya kelas bug itu tidak bisa kembali.
