@@ -289,7 +289,7 @@ var WNW_LS_KEY = 'mw_wealth_networth_hist_v1';
 function wNetWorthHistoryLoad(){
   try{ return JSON.parse(localStorage.getItem(WNW_LS_KEY)||'[]'); }catch(e){ return []; }
 }
-function wNetWorthHistorySave(arr){ try{ localStorage.setItem(WNW_LS_KEY, JSON.stringify(arr)); }catch(e){} }
+function wNetWorthHistorySave(arr){ try{ localStorage.setItem(WNW_LS_KEY, JSON.stringify(arr)); if(typeof mwExtrasTouch==='function') mwExtrasTouch('netWorthHistory'); }catch(e){} }
 function wNetWorthSnapshotToday(net){
   var today = new Date().toISOString().slice(0,10);
   var hist = wNetWorthHistoryLoad();

@@ -1358,6 +1358,7 @@ async function fireSaveAllData(){
     priceAlerts: currentAlerts,
     wealth: currentWealth,
     equityHistory: currentEqHist,
+    userExtras: (typeof mwExtrasCollect === 'function') ? mwExtrasCollect() : {},
     activeSekuritas: activeSekuritas || 'Stockbit',
     rdnBalance: rdnBalance || 0,
     cashAccounts: (typeof CASH_ACCOUNTS !== 'undefined') ? CASH_ACCOUNTS : {},
@@ -1463,6 +1464,8 @@ function _applyCloudPayload(cloudData, currentLocalState) {
     equityHistoryLoad();
   }
 
+  var extrasResult = (typeof mwExtrasApply === 'function') ? mwExtrasApply(cloudData.userExtras) : null;
+
   if(cloudData.adminMeta && typeof ADMIN_META !== 'undefined') ADMIN_META = cloudData.adminMeta;
   if(cloudData.adminExtra && typeof ADMIN_EXTRA !== 'undefined') ADMIN_EXTRA = cloudData.adminExtra;
   if(cloudData.idxUniverse && typeof IDX_UNIVERSE !== 'undefined') IDX_UNIVERSE = cloudData.idxUniverse;
@@ -1505,6 +1508,8 @@ function _applyCloudPayload(cloudData, currentLocalState) {
       localStorage.removeItem('mw_emergency_backup_v2');
     } catch(e){}
   } catch(e){}
+
+  return { extrasPushNeeded: !!(extrasResult && extrasResult.pushNeeded) };
 }
 
 async function fireLoadAllData(){
@@ -1601,7 +1606,7 @@ async function fireLoadAllData(){
 
     var cloudData = result.data.data || {};
 
-    _applyCloudPayload(cloudData, currentLocalState);
+    var applied = _applyCloudPayload(cloudData, currentLocalState);
 
     // If local state had new items not in cloud, push to cloud.
     // FIX AUDIT (CRITICAL, data loss): this used to also require
@@ -1623,6 +1628,10 @@ async function fireLoadAllData(){
       var localTxCount = (currentLocalState.transactions || []).length;
       var cloudTxCount = (cloudData.transactions || []).length;
       if((transactions.length > cloudTxCount || localTxCount > cloudTxCount) && transactions.length > 0){
+        try {
+          fireSaveAllData();
+        } catch(e){}
+      } else if(applied && applied.extrasPushNeeded){
         try {
           fireSaveAllData();
         } catch(e){}

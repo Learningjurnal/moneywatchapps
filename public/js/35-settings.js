@@ -53,6 +53,7 @@
   function saveSettings() {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(state));
+      if (typeof mwExtrasTouch === 'function') mwExtrasTouch('settings');
     } catch(e) {
       console.warn('MW_SETTINGS save error:', e);
     }

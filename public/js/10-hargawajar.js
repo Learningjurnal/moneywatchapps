@@ -1630,7 +1630,11 @@ function hw_removeRow(i) {
 window.hw_removeRow = hw_removeRow;
 
 function hw_resetAll() {
-  try { localStorage.removeItem('hw_state'); } catch(e) {}
+  try {
+    localStorage.removeItem('hw_state');
+    if (typeof mwExtrasTouch === 'function') mwExtrasTouch('hwState');
+  } catch(e) {}
+  if (typeof saveData === 'function') saveData();
   hwData = { rows: [], ticker: '', currentPrice: 0, minReturn: 6, projYears: 5 };
   HW_LAST_CONFIRMED_TICKER = null;
   var ti = document.getElementById('hw-ticker-input'); if (ti) ti.value = '';
@@ -2325,7 +2329,10 @@ function hw_clearResults() {
 
 function hw_saveToStorage() {
   hw_syncInputs();
-  try { localStorage.setItem('hw_state', JSON.stringify(hwData)); } catch(e) {}
+  try {
+    localStorage.setItem('hw_state', JSON.stringify(hwData));
+    if (typeof mwExtrasTouch === 'function') mwExtrasTouch('hwState');
+  } catch(e) {}
   if (hwData.ticker && hwData._result) {
     try {
       var hist = JSON.parse(localStorage.getItem('hw_history')||'[]');
@@ -2340,10 +2347,12 @@ function hw_saveToStorage() {
       });
       hist = hist.slice(0, 20);
       localStorage.setItem('hw_history', JSON.stringify(hist));
+      if (typeof mwExtrasTouch === 'function') mwExtrasTouch('hwHistory');
       hw_renderHistoryList();
       if (typeof showSaveStatus === 'function') showSaveStatus('Analisa disimpan', 'var(--green)');
     } catch(e) {}
   }
+  if (typeof saveData === 'function') saveData();
 }
 window.hw_saveToStorage = hw_saveToStorage;
 
@@ -2368,6 +2377,8 @@ function hw_renderHistoryList() {
 function hw_clearHistory() {
   if (!confirm('Hapus semua histori analisa?')) return;
   localStorage.removeItem('hw_history');
+  if (typeof mwExtrasTouch === 'function') mwExtrasTouch('hwHistory');
+  if (typeof saveData === 'function') saveData();
   hw_renderHistoryList();
 }
 window.hw_clearHistory = hw_clearHistory;

@@ -11007,6 +11007,76 @@ test('REGRESSION GUARD: closing an AI paper position credits cash with the real 
     'REGRESSION: a persisted paper account is no longer reconciled when loaded');
 });
 
+test('functional: user extras (watchlist, Harga Wajar, dossier weights, settings, net worth history) sync by per-key timestamp and never lose data', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/02c-user-extras.js'), 'utf8');
+  const makeDevice = (initial) => {
+    const store = Object.assign({}, initial);
+    const sandbox = {
+      window: {},
+      localStorage: {
+        getItem: (k) => (k in store ? store[k] : null),
+        setItem: (k, v) => { store[k] = String(v); },
+        removeItem: (k) => { delete store[k]; }
+      }
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(src, sandbox, { filename: '02c-user-extras sandbox' });
+    return { sandbox, store };
+  };
+
+  const a = makeDevice({ moneywatch_watchlist: JSON.stringify(['BBCA', 'TLKM']), mw_dossier_weights_v1: JSON.stringify({ valuation: 20 }) });
+  const legacy = a.sandbox.mwExtrasCollect();
+  assert.deepStrictEqual(Object.keys(legacy).sort(), ['dossierWeights', 'watchlist'], 'only keys that exist locally are collected');
+  assert.strictEqual(legacy.watchlist.t, '1970-01-01T00:00:00.000Z', 'legacy data without a timestamp must count as the oldest so it never overwrites the cloud');
+  a.sandbox.mwExtrasTouch('watchlist');
+  assert(a.sandbox.mwExtrasCollect().watchlist.t > '2020', 'touching a key stamps it with the current time');
+
+  const emptyCloud = a.sandbox.mwExtrasApply({});
+  assert.strictEqual(emptyCloud.pushNeeded, true, 'local data missing from the cloud must be flagged for push');
+
+  const cloud = { watchlist: { v: ['BBRI'], t: '2999-01-01T00:00:00.000Z' }, hwHistory: { v: [{ ticker: 'AMMN' }], t: '2999-01-01T00:00:00.000Z' } };
+  const applied = a.sandbox.mwExtrasApply(cloud);
+  assert.deepStrictEqual([...applied.applied].sort(), ['hwHistory', 'watchlist']);
+  assert.deepStrictEqual(JSON.parse(a.store.moneywatch_watchlist), ['BBRI'], 'a newer cloud value replaces the local one');
+  assert.deepStrictEqual(JSON.parse(a.store.hw_history), [{ ticker: 'AMMN' }], 'a key that only exists in the cloud is restored locally (new device)');
+
+  const older = a.sandbox.mwExtrasApply({ watchlist: { v: ['OLD'], t: '2000-01-01T00:00:00.000Z' } });
+  assert.deepStrictEqual(JSON.parse(a.store.moneywatch_watchlist), ['BBRI'], 'an older cloud value must not overwrite newer local data');
+  assert.strictEqual(older.pushNeeded, true, 'newer local data must be flagged for push');
+
+  const removed = a.sandbox.mwExtrasApply({ hwHistory: { v: null, t: '2999-06-01T00:00:00.000Z' } });
+  assert.strictEqual(a.store.hw_history, undefined, 'a newer deletion (null value) removes the key on this device too');
+  assert(removed.applied.includes('hwHistory'));
+
+  const b = makeDevice({ mw_wealth_networth_hist_v1: JSON.stringify([{ date: '2026-10-01', net: 100 }, { date: '2026-10-02', net: 110 }]) });
+  b.sandbox.mwExtrasTouch('netWorthHistory');
+  const nw = b.sandbox.mwExtrasApply({ netWorthHistory: { v: [{ date: '2026-09-30', net: 90 }, { date: '2026-10-02', net: 115 }], t: '2000-01-01T00:00:00.000Z' } });
+  const mergedHistory = JSON.parse(b.store.mw_wealth_networth_hist_v1);
+  assert.deepStrictEqual(mergedHistory.map(r => r.date), ['2026-09-30', '2026-10-01', '2026-10-02'], 'net worth history is a union by date, so snapshots from either device survive');
+  assert.strictEqual(mergedHistory[2].net, 110, 'on the same date the newer side (local here) wins');
+  assert.strictEqual(nw.pushNeeded, true, 'the merged history differs from the cloud copy, so it must be pushed back');
+});
+
+test('REGRESSION GUARD: every local-only user data store is wired into the Supabase payload and its save path', () => {
+  const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
+  const storage = read('public/js/02-storage.js');
+  assert(/userExtras:\s*\(typeof mwExtrasCollect === 'function'\) \? mwExtrasCollect\(\) : \{\}/.test(storage),
+    'REGRESSION: fireSaveAllData() no longer sends userExtras to Supabase');
+  assert(/mwExtrasApply\(cloudData\.userExtras\)/.test(storage), 'REGRESSION: _applyCloudPayload() no longer restores userExtras from Supabase');
+  assert(/extrasPushNeeded/.test(storage), 'REGRESSION: local extras that are newer than the cloud are no longer pushed up after load');
+  assert(/js\/02c-user-extras\.js/.test(read('public/index.html')), 'REGRESSION: 02c-user-extras.js is no longer loaded by index.html');
+  const wired = [
+    ['public/js/07-flowscan.js', "mwExtrasTouch('watchlist')"],
+    ['public/js/10-hargawajar.js', "mwExtrasTouch('hwState')"],
+    ['public/js/10-hargawajar.js', "mwExtrasTouch('hwHistory')"],
+    ['public/js/46-stock-dossier.js', "mwExtrasTouch('dossierWeights')"],
+    ['public/js/35-settings.js', "mwExtrasTouch('settings')"],
+    ['public/js/20-wealth.js', "mwExtrasTouch('netWorthHistory')"]
+  ];
+  wired.forEach(([file, call]) => assert(read(file).includes(call), 'REGRESSION: ' + file + ' no longer stamps ' + call + ' when it saves, so the change would never win a sync'));
+  assert(/function diSaveData\(\)\{[\s\S]*?saveData\(\)/.test(read('public/js/09-divinvest.js')), 'REGRESSION: Dividen Investasi edits no longer trigger a cloud save');
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');

@@ -126,6 +126,8 @@ function dossierSaveWeights(newWeights) {
   try {
     if (typeof localStorage !== 'undefined' && localStorage) {
       localStorage.setItem('mw_dossier_weights_v1', JSON.stringify(dossierState.weights));
+      if (typeof mwExtrasTouch === 'function') mwExtrasTouch('dossierWeights');
+      if (typeof saveData === 'function') saveData();
     }
   } catch (e) {}
 

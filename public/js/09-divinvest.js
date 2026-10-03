@@ -15,6 +15,7 @@ function diLoadData(){
 }
 function diSaveData(){
   try{localStorage.setItem(DI_KEY,JSON.stringify({entries:divInvestData,nextId:_divInvestId}));}catch(e){}
+  if(typeof saveData==='function') saveData();
 }
 
 // ============================================================

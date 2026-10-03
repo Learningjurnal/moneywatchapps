@@ -1281,6 +1281,7 @@ function fsSaveWl(){
   try{
     var tickers = FS_WL.map(function(w){ return w.t; });
     localStorage.setItem('moneywatch_watchlist', JSON.stringify(tickers));
+    if(typeof mwExtrasTouch==='function') mwExtrasTouch('watchlist');
     if(typeof saveData==='function') saveData();
   }catch(e){}
 }
