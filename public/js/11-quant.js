@@ -1004,9 +1004,10 @@ function runBacktest(){
         for(var mi=0;mi<12;mi++){
           var mk=('0'+(mi+1)).slice(-2);
           var v=mrets[y]&&mrets[y][mk]!==undefined?mrets[y][mk]:null;
-          var bg=v===null?'transparent':v>=0?'rgba(0,212,170,'+(0.15+Math.min(Math.abs(v)/10,0.7))+')':'rgba(255,34,68,'+(0.15+Math.min(Math.abs(v)/10,0.7))+')';
-          var col=v===null?'var(--text3)':v>=0?'var(--green)':'var(--red)';
-          html+='<td style="background:'+bg+';color:'+col+';padding:4px 5px;text-align:center;border-radius:2px;min-width:38px">'+(v===null?'—':v.toFixed(1)+'%')+'</td>';
+          var heat=v===null?null:uiHeatCell(v,10);
+          var bg=heat?heat.bg:'transparent';
+          var col=heat?heat.color:'var(--text3)';
+          html+='<td style="background:'+bg+';color:'+col+';font-weight:700;font-size:10px;padding:4px 5px;text-align:center;border-radius:2px;min-width:38px">'+(v===null?'—':v.toFixed(1)+'%')+'</td>';
         }
         html+='</tr>';
       });
@@ -1357,8 +1358,7 @@ function corrRender(){
       tickers.forEach(function(b,j){
         var v=matrix[i][j]; var bg,col;
         if(i===j){bg='rgba(255,255,255,.08)';col='var(--text3)';}
-        else if(v>0){var int2=Math.min(1,v/.8);bg='rgba(0,212,170,'+(0.15+int2*.65)+')';col='var(--green)';}
-        else{var int3=Math.min(1,Math.abs(v)/.8);bg='rgba(255,34,68,'+(0.15+int3*.65)+')';col='var(--red)';}
+        else{var heat=uiHeatCell(v,.8);bg=heat.bg;col=heat.color;}
         h+='<div style="background:'+bg+';color:'+col+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border-radius:2px;height:30px;margin:1px;font-family:Menlo,monospace" title="'+a+' vs '+b+': '+v.toFixed(3)+'">'+(i===j?'1.00':v.toFixed(2))+'</div>';
       });
     });
@@ -1700,8 +1700,9 @@ function mrRender(){
       for(var mi = 0; mi < 12; mi++){
         var ym2 = y + '-' + ('0' + (mi + 1)).slice(-2);
         var v = monthRets[ym2];
-        var bg = v === undefined ? 'transparent' : v >= 0 ? 'rgba(0,212,170,' + (0.16 + Math.min(Math.abs(v) / 8, .65)) + ')' : 'rgba(255,34,68,' + (0.16 + Math.min(Math.abs(v) / 8, .65)) + ')';
-        var col = v === undefined ? 'var(--text3)' : v >= 0 ? 'var(--green)' : 'var(--red)';
+        var heat = v === undefined ? null : uiHeatCell(v, 8);
+        var bg = heat ? heat.bg : 'transparent';
+        var col = heat ? heat.color : 'var(--text3)';
         h += '<td style="background:' + bg + ';color:' + col + ';font-weight:700;padding:8px 4px;text-align:center;border-radius:3px;min-width:54px;border:1px solid var(--border)">' + (v === undefined ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%') + '</td>';
         if(v !== undefined){
           ytd += v;

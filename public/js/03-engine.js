@@ -2517,3 +2517,16 @@ function uiInfoIcon(text) {
     + '</svg></span>';
 }
 window.uiInfoIcon = uiInfoIcon;
+
+// Warna sel heatmap hijau/merah (Monthly Return Calendar, Backtester, Correlation Matrix): latar solid + teks gelap tetap,
+// jadi kontrasnya >= 4,5:1 di tema gelap maupun terang. Latar transparan + teks var(--green)/var(--red) gagal di tema terang.
+var UI_HEAT_TEXT = '#0B0D12';
+var UI_HEAT_POS = { pale: [214, 245, 236], full: [0, 212, 170] };
+var UI_HEAT_NEG = { pale: [254, 226, 231], full: [255, 34, 68] };
+function uiHeatCell(value, scale) {
+  var t = Math.min(1, Math.abs(value) / scale);
+  var tone = value >= 0 ? UI_HEAT_POS : UI_HEAT_NEG;
+  var rgb = tone.pale.map(function (p, i) { return Math.round(p + (tone.full[i] - p) * t); });
+  return { bg: 'rgb(' + rgb.join(',') + ')', color: UI_HEAT_TEXT };
+}
+window.uiHeatCell = uiHeatCell;

@@ -10947,6 +10947,35 @@ test('REGRESSION GUARD: Screener table shows the server rank (r.rank), not the r
   assert(/uiInfoIcon\('Peringkat Screener/.test(src), 'REGRESSION: the rank explanation no longer uses the shared uiInfoIcon helper');
 });
 
+test('functional: uiHeatCell() keeps every green/red heatmap cell at WCAG contrast >= 4.5:1 for the text, at every intensity', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/03-engine.js'), 'utf8');
+  const block = src.match(/var UI_HEAT_TEXT[\s\S]*?window\.uiHeatCell = uiHeatCell;/)[0];
+  const sandbox = { window: {} };
+  vm.createContext(sandbox);
+  vm.runInContext(block, sandbox, { filename: 'uiHeatCell sandbox' });
+  const luminance = ([r, g, b]) => {
+    const lin = (c) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  };
+  const parse = (css) => css.match(/\d+/g).slice(0, 3).map(Number);
+  const contrast = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+  for (const sign of [1, -1]) {
+    for (let v = 0; v <= 12; v += 0.25) {
+      const cell = sandbox.uiHeatCell(sign * v, 8);
+      const ratio = contrast(parse(cell.bg), parse(cell.color));
+      assert(ratio >= 4.5, 'REGRESSION: heatmap cell ' + (sign * v) + ' has text contrast ' + ratio.toFixed(2) + ' (< 4.5) — bg ' + cell.bg + ', text ' + cell.color);
+    }
+  }
+  assert.strictEqual(sandbox.uiHeatCell(5, 8).color, sandbox.uiHeatCell(-5, 8).color, 'positive and negative cells must share the same readable text color');
+});
+
+test('REGRESSION GUARD: Monthly Return Calendar, Backtester heatmap and Correlation Matrix share uiHeatCell() instead of translucent bg + var(--green)/var(--red) text', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/js/11-quant.js'), 'utf8');
+  assert((src.match(/uiHeatCell\(/g) || []).length >= 3, 'REGRESSION: one of the three heatmaps no longer uses the shared uiHeatCell() helper');
+  assert(!/'rgba\(0,212,170,'/.test(src), 'REGRESSION: a heatmap went back to a translucent green background whose text fails contrast in the light theme');
+  assert(!/'rgba\(255,34,68,'/.test(src), 'REGRESSION: a heatmap went back to a translucent red background whose text fails contrast in the light theme');
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');
