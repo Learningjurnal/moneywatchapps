@@ -138,15 +138,28 @@ function calcPortfolioHealthScore() {
 // them, they're now openly marked unavailable and dropped from the
 // regime classification logic, which is based on real IHSG trend alone.
 var MR_FETCHING = false;
+// FIX (2026-10-04): perfFetchDailyHistory() memanggil callback juga saat GAGAL (mis. 429).
+// Callback lama me-render ulang halaman, render ulang memicu fetch lagi => loop tanpa jeda
+// yang menghabiskan rate limiter /api/idx (60/menit/IP) dan membuat semua panel lain ikut
+// 429/kosong. Sekarang gagal => catat waktu, tampilkan status gagal, coba lagi setelah jeda.
+var MR_FETCH_FAILED_AT = 0;
+var MR_FETCH_RETRY_MS = 45 * 1000;
 function getMarketRegime() {
   var ihsgKey = (typeof perfHistCacheKey === 'function') ? perfHistCacheKey('index', '^JKSE') : 'IHSG_DAILY';
   var ihsgRows = (typeof rdGetAny === 'function') ? rdGetAny(ihsgKey) : null;
 
   if (!ihsgRows || ihsgRows.length < 2) {
-    if (!MR_FETCHING && typeof rdFetchIhsgDaily === 'function') {
+    var failed = MR_FETCH_FAILED_AT > 0 && (Date.now() - MR_FETCH_FAILED_AT) < MR_FETCH_RETRY_MS;
+    if (!MR_FETCHING && !failed && typeof rdFetchIhsgDaily === 'function') {
       MR_FETCHING = true;
       rdFetchIhsgDaily(function() {
         MR_FETCHING = false;
+        var rowsNow = (typeof rdGetAny === 'function') ? rdGetAny(ihsgKey) : null;
+        var gotData = !!(rowsNow && rowsNow.length >= 2);
+        MR_FETCH_FAILED_AT = gotData ? 0 : Date.now();
+        if (!gotData) setTimeout(function() {
+          if (typeof currentPage !== 'undefined' && currentPage === 'market-regime' && typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
+        }, MR_FETCH_RETRY_MS + 500);
         if (typeof currentPage !== 'undefined' && currentPage === 'market-regime' && typeof renderMarketRegimePage === 'function') {
           renderMarketRegimePage();
         }
@@ -154,7 +167,8 @@ function getMarketRegime() {
     }
     return {
       ready: false,
-      status: 'MEMUAT DATA REAL…', statusBadge: 'b-neu', strategy: '-',
+      failed: failed,
+      status: failed ? 'GAGAL MEMUAT DATA IHSG' : 'MEMUAT DATA REAL…', statusBadge: failed ? 'b-dn' : 'b-neu', strategy: '-',
       equityTarget: '-', cashTarget: '-',
       ihsgVal: '-', ihsgChg: 0, volatility: '-',
       foreignFlow: null, breadthAdv: null, breadthDec: null
@@ -548,6 +562,133 @@ function selectRadarFlowTicker(tk) {
 /**
  * Render Full Market Regime Page
  */
+// ── Pilar Market Regime: konteks pasar dari data REAL ──────────────────────
+// Breadth whole-market datang dari GET /api/idx/summary (marketBreadth,
+// Invezgo /analysis/top/change); breadth teknikal dari GET /api/idx/tv-scan
+// (TradingView, tertunda ±10 menit). Keduanya hanya KONTEKS — belum dipakai
+// dalam klasifikasi status (getMarketRegime() tetap berbasis IHSG). Gagal
+// muat => "Belum Tersedia" beserta alasannya, tidak pernah angka tebakan.
+var MR_CONTEXT_TTL_MS = 5 * 60 * 1000;
+// Setelah gagal (mis. 429 dari rate limiter), jangan coba lagi sebelum jeda ini lewat.
+var MR_RETRY_AFTER_MS = 45 * 1000;
+var MR_CONTEXT = {
+  breadth: { url: '/api/idx/summary', loading: false, data: null, error: null, at: 0, failedAt: 0 },
+  tech: { url: '/api/idx/tv-scan', loading: false, data: null, error: null, at: 0, failedAt: 0 }
+};
+
+function mrLoadContext() {
+  Object.keys(MR_CONTEXT).forEach(function (key) {
+    var slot = MR_CONTEXT[key];
+    var fresh = slot.data && (Date.now() - slot.at) < MR_CONTEXT_TTL_MS;
+    var backingOff = slot.failedAt && (Date.now() - slot.failedAt) < MR_RETRY_AFTER_MS;
+    if (slot.loading || fresh || backingOff) return;
+    slot.loading = true;
+    fetch(slot.url, { signal: AbortSignal.timeout(30000) })
+      .then(function (res) { return res.json(); })
+      .then(function (json) {
+        if (!json.success) throw new Error(json.error || 'Respons tidak berhasil');
+        slot.data = json; slot.error = null; slot.at = Date.now(); slot.failedAt = 0;
+      })
+      .catch(function (e) {
+        slot.error = e.message || 'Gagal memuat';
+        slot.failedAt = Date.now();
+        setTimeout(mrLoadContext, MR_RETRY_AFTER_MS + 500);
+      })
+      .then(function () {
+        slot.loading = false;
+        if (typeof currentPage !== 'undefined' && currentPage === 'market-regime') renderMarketRegimePage();
+      });
+  });
+}
+
+function mrInfo(text) {
+  return typeof uiInfoIcon === 'function' ? uiInfoIcon(text) : '';
+}
+
+// Satu bentuk kartu pilar untuk semua pilar (judul, nilai utama, keterangan, ikon info).
+function mrPillarHtml(title, headline, headlineColor, sub, info) {
+  return '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px;min-width:0">'
+    + '<div style="display:flex;align-items:center;font-size:11px;color:var(--text3);font-weight:700">' + title + (info ? mrInfo(info) : '') + '</div>'
+    + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:' + headlineColor + ';word-break:break-word">' + headline + '</div>'
+    + '<div style="font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5">' + sub + '</div>'
+  + '</div>';
+}
+
+function mrSkeletonHtml() {
+  return '<div class="skeleton-box" style="height:22px;margin-top:2px"></div>';
+}
+
+function mrFmtInt(n) {
+  return Number(n).toLocaleString('id-ID');
+}
+
+function mrTrendPillarHtml(r) {
+  // Ambang ±0,8% SAMA dengan yang dipakai status di atas (getMarketRegime()).
+  var label = !r.ready ? (r.failed ? 'Gagal Dimuat' : 'Memuat…') : (r.ihsgChg >= 0.8 ? 'Bullish Harian' : (r.ihsgChg <= -0.8 ? 'Bearish Harian' : 'Netral Harian'));
+  var color = !r.ready ? 'var(--text3)' : (r.ihsgChg >= 0.8 ? 'var(--green)' : (r.ihsgChg <= -0.8 ? 'var(--red)' : 'var(--text)'));
+  var sub = r.ready
+    ? ('IHSG ' + r.ihsgVal + ' (' + (r.ihsgChg >= 0 ? '+' : '') + r.ihsgChg + '% vs penutupan sebelumnya).')
+    : (r.failed ? 'Data historis IHSG gagal diambil (mis. batas permintaan terlampaui). Mencoba lagi otomatis dalam beberapa detik.' : 'Mengambil data historis IHSG real…');
+  return mrPillarHtml('1. TREN IHSG (REAL)', label, color, sub,
+    'Berdasarkan perubahan harian IHSG dari data historis nyata. Bullish/Bearish bila perubahan menembus ±0,8%, selain itu Netral — ambang yang sama dengan status di bagian atas halaman. Ini hanya satu hari, bukan struktur tren; lihat Market Regime di Command Center untuk klasifikasi berbasis EMA/RSI.');
+}
+
+function mrForeignPillarHtml() {
+  return mrPillarHtml('2. FOREIGN CAPITAL FLOW', 'Belum Tersedia', 'var(--text3)',
+    'Sumber yang ada hanya memberi skor peringkat asing, bukan nilai net Rupiah.',
+    'Endpoint foreign dari Invezgo mengembalikan skor peringkat (bukan nilai net beli/jual asing dalam Rupiah) dan makna skornya tidak terverifikasi, sehingga angka arus dana asing yang jujur belum bisa ditampilkan. Widget lama dicabut karena menyesatkan. Tidak dipakai dalam penentuan regime.');
+}
+
+function mrBreadthPillarHtml() {
+  var slot = MR_CONTEXT.breadth;
+  var title = '3. MARKET BREADTH &amp; ADVANCE/DECLINE';
+  var b = slot.data && slot.data.marketBreadth;
+  if (!b && slot.loading) return mrPillarHtml(title, mrSkeletonHtml(), 'var(--text3)', '&nbsp;', '');
+  if (!b) {
+    return mrPillarHtml(title, 'Belum Tersedia', 'var(--text3)',
+      'Gagal memuat breadth pasar' + (slot.error ? ' (' + escapeHtml(slot.error) + ')' : '') + '.', '');
+  }
+  var moved = b.advancing + b.declining;
+  var advShare = moved > 0 ? (b.advancing / moved * 100) : null;
+  var headline = mrFmtInt(b.advancing) + ' naik · ' + mrFmtInt(b.declining) + ' turun';
+  var color = advShare == null ? 'var(--text3)' : (advShare >= 55 ? 'var(--green)' : (advShare <= 45 ? 'var(--red)' : 'var(--text)'));
+  var sub = (advShare == null ? '' : (advShare.toFixed(1).replace('.', ',') + '% dari yang bergerak naik · '))
+    + mrFmtInt(b.unchanged) + ' tidak bergerak/tidak diperdagangkan · dari ' + mrFmtInt(b.totalListed) + ' emiten.';
+  if (b.isSample) {
+    sub = '<span style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:4px;padding:1px 6px">Sampel ' + mrFmtInt(b.sampleSize) + ' saham bellwether, bukan seluruh bursa</span> ' + sub;
+  }
+  return mrPillarHtml(title, headline, color, sub, escapeHtml(b.sampleNote || '') + ' Sumber: ' + escapeHtml(b.dataSource || 'tidak diketahui') + '. Konteks saja, belum dipakai dalam klasifikasi status.');
+}
+
+function mrVolatilityPillarHtml(r) {
+  return mrPillarHtml('4. VOLATILITAS IHSG (REAL, 20 HARI)', r.volatility, r.ready ? 'var(--accent)' : 'var(--text3)',
+    'Deviasi standar return harian IHSG riil.', 'Deviasi standar return harian IHSG selama 20 hari bursa terakhir dari data historis nyata, bukan estimasi.');
+}
+
+function mrTechBreadthPillarHtml() {
+  var slot = MR_CONTEXT.tech;
+  var title = '5. BREADTH TEKNIKAL (TRADINGVIEW)';
+  var rows = slot.data && slot.data.rows;
+  if (!rows && slot.loading) return mrPillarHtml(title, mrSkeletonHtml(), 'var(--text3)', '&nbsp;', '');
+  if (!rows) {
+    return mrPillarHtml(title, 'Belum Tersedia', 'var(--text3)',
+      'Gagal memuat data TradingView' + (slot.error ? ' (' + escapeHtml(slot.error) + ')' : '') + '.', '');
+  }
+  // Hanya emiten yang punya nilai harga DAN SMA (tidak diisi tebakan).
+  var share = function (key) {
+    var valid = rows.filter(function (x) { return typeof x.price === 'number' && typeof x[key] === 'number' && x[key] > 0; });
+    var above = valid.filter(function (x) { return x.price > x[key]; }).length;
+    return { n: valid.length, pct: valid.length ? above / valid.length * 100 : null };
+  };
+  var s200 = share('sma200');
+  var s50 = share('sma50');
+  var fmtPct = function (v) { return v == null ? '–' : v.toFixed(1).replace('.', ',') + '%'; };
+  var color = s200.pct == null ? 'var(--text3)' : (s200.pct >= 60 ? 'var(--green)' : (s200.pct <= 40 ? 'var(--red)' : 'var(--text)'));
+  return mrPillarHtml(title, fmtPct(s200.pct) + ' di atas SMA200', color,
+    fmtPct(s50.pct) + ' di atas SMA50 · dari ' + mrFmtInt(s200.n) + ' emiten tercakup · tertunda ±10 menit.',
+    'Persentase emiten yang harganya di atas rata-rata 200 hari (dan 50 hari), dihitung dari seluruh emiten yang tercakup scanner TradingView. Sumber tidak resmi dan tertunda ±10 menit. Konteks saja, belum dipakai dalam klasifikasi status; emiten tanpa data SMA tidak dihitung.');
+}
+
 function renderMarketRegimePage() {
   var c = el('page-market-regime');
   if (!c) return;
@@ -558,7 +699,7 @@ function renderMarketRegimePage() {
 
   var html = '<div style="margin-bottom:16px">'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Market Regime &amp; Tactical Allocation</div>'
-    + '<div class="psub">Klasifikasi berbasis tren &amp; volatilitas riil IHSG untuk menentukan strategi ekuitas optimal. Foreign Flow &amp; Market Breadth belum tersedia dari feed real (lihat catatan di bawah), sehingga tidak dipakai dalam klasifikasi ini.</div>'
+    + '<div class="psub">Klasifikasi berbasis tren &amp; volatilitas riil IHSG untuk menentukan strategi ekuitas optimal. Status di atas dihitung dari pergerakan harian IHSG. Market Breadth ditampilkan sebagai konteks dari data real dan belum dipakai dalam klasifikasi; Foreign Flow tidak tersedia dari feed yang bisa diverifikasi (lihat pilar 2).</div>'
   + '</div>'
 
   + '<div class="row3" style="margin-bottom:16px">'
@@ -582,30 +723,16 @@ function renderMarketRegimePage() {
   + '<div class="card" style="margin-bottom:16px;padding:20px">'
     + '<div class="ctitle" style="font-size:14px;margin-bottom:12px">Pilar Penentu Market Regime (Multi-Factor Breakdown)</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">'
-      + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-        + '<div style="font-size:11px;color:var(--text3);font-weight:700">1. TREN IHSG (REAL)</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:' + (r.ready ? (r.ihsgChg >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)') + '">' + (r.ready ? (r.ihsgChg >= 0 ? 'Bullish' : 'Bearish') + ' Harian' : 'Memuat…') + '</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">' + (r.ready ? ('IHSG ' + r.ihsgVal + ' (' + (r.ihsgChg >= 0 ? '+' : '') + r.ihsgChg + '% vs penutupan sebelumnya).') : 'Mengambil data historis IHSG real…') + '</div>'
-      + '</div>'
-      + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-        + '<div style="font-size:11px;color:var(--text3);font-weight:700">2. FOREIGN CAPITAL FLOW</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--text3)">Belum Tersedia</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Aplikasi ini belum punya feed data arus dana asing real-time — tidak ditampilkan agar tidak menampilkan angka karangan. Tidak dipakai dalam penentuan regime di atas.</div>'
-      + '</div>'
-      + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-        + '<div style="font-size:11px;color:var(--text3);font-weight:700">3. MARKET BREADTH &amp; ADVANCE/DECLINE</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:var(--text3)">Belum Tersedia</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Butuh data harga real-time seluruh ~950 emiten BEI sekaligus, belum ada feed untuk ini — tidak ditampilkan agar tidak menampilkan angka karangan. Tidak dipakai dalam penentuan regime di atas.</div>'
-      + '</div>'
-      + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
-        + '<div style="font-size:11px;color:var(--text3);font-weight:700">4. VOLATILITAS IHSG (REAL, 20 HARI)</div>'
-        + '<div style="font-size:18px;font-weight:700;margin-top:6px;color:' + (r.ready ? 'var(--accent)' : 'var(--text3)') + '">' + r.volatility + '</div>'
-        + '<div style="font-size:11px;color:var(--text2);margin-top:4px">Deviasi standar return harian IHSG riil, bukan estimasi.</div>'
-      + '</div>'
+      + mrTrendPillarHtml(r)
+      + mrForeignPillarHtml()
+      + mrBreadthPillarHtml()
+      + mrVolatilityPillarHtml(r)
+      + mrTechBreadthPillarHtml()
     + '</div>'
   + '</div>';
 
   c.innerHTML = html;
+  mrLoadContext();
 }
 
 /**
