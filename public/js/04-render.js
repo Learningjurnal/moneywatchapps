@@ -757,6 +757,10 @@ function renderPortofolio(){
   var cntEl=el('porto-filter-count');
   if(cntEl) cntEl.textContent=(qSearch||qSector||qSignal||qPnl)?rows.length+' dari '+porto.length+' saham':porto.length+' saham';
 
+  var avgHeader=el('porto-th-avg');
+  if(avgHeader && typeof uiInfoIcon==='function' && !avgHeader.querySelector('.ui-info-icon')){
+    avgHeader.insertAdjacentHTML('beforeend',' '+uiInfoIcon('Avg Beli dan Modal sudah termasuk fee beli (komisi, PPN, levy), yaitu uang yang benar-benar Anda keluarkan. Karena itu Unrealized P&L dan Return % sama dengan hasil nyata jika dijual di harga pasar tanpa memperhitungkan fee jual; PnL total (realized + unrealized) cocok dengan arus kas rekening.'));
+  }
   el('porto-tbody').innerHTML=rows.map(function(p,i){
     var alloc=p.alloc, sig=p.sig;
     var sigCls=sig==='BUY'?'sig-buy':sig==='SELL'?'sig-sell':'sig-hold';

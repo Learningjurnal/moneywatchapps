@@ -95,7 +95,69 @@ function addRdn(date, type, ket, amount, sekuritas, linkedTxId, account){
   // Note: saveData() harus dipanggil dari caller utama (addTx/addDiv/submitRdn)
 }
 
+// Replay kronologis (tanggal, id): jual yang melebihi kepemilikan di tanggal itu memasukkan uang ke RDN tanpa biaya pokok,
+// sehingga PnL dan saldo kas tidak lagi sejalan. Mengembalikan pelanggaran pertama, atau null bila buku bersih.
+function validateStockLedger(txList){
+  var held = {};
+  var sorted = (txList || []).slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
+  });
+  for(var i = 0; i < sorted.length; i++){
+    var tx = sorted[i];
+    var current = held[tx.ticker] || 0;
+    if(tx.type === 'BUY'){
+      held[tx.ticker] = current + tx.lot;
+    } else if(tx.type === 'SELL'){
+      if(tx.lot > current + 1e-9){
+        return {
+          ticker: tx.ticker, date: tx.date, id: tx.id, held: current, sell: tx.lot,
+          message: 'Jual ' + tx.lot + ' lot ' + tx.ticker + ' pada ' + tx.date + ' melebihi kepemilikan (tercatat ' + current + ' lot pada tanggal itu). Catat pembelian lebih dulu atau periksa tanggalnya.'
+        };
+      }
+      held[tx.ticker] = current - tx.lot;
+    }
+  }
+  return null;
+}
+
+// Hapus transaksi + mutasi RDN tertaut dengan validasi buku: tidak boleh meninggalkan penjualan tanpa posisi.
+function removeTxById(id){
+  var remaining = (transactions || []).filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
+  var violation = validateStockLedger(remaining);
+  if(violation) return { ok: false, message: 'Tidak bisa menghapus: ' + violation.message };
+  transactions = remaining;
+  rdnMutations = (rdnMutations || []).filter(function(r){ return String(r.linkedTxId) !== String(id) && r.linkedTxId !== Number(id); });
+  if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+  return { ok: true };
+}
+
+// Ubah transaksi (inti logika updateTx(), tanpa DOM) dengan validasi buku sebelum data disentuh.
+function applyTxEdit(id, fields){
+  var idx = transactions.findIndex(function(t){ return t.id === id; });
+  if(idx === -1) return { ok: false, message: 'Transaksi tidak ditemukan' };
+  var isBuy = fields.type === 'BUY';
+  var gross = fields.lot * 100 * parsePrice(String(fields.price));
+  var c = calcTxComponents(gross, isBuy, fields.sekuritas);
+  var updated = { id:id, date:fields.date, type:fields.type, ticker:fields.ticker,
+                  lot:fields.lot, price:fields.price, gross:gross,
+                  komisi:c.komisi, ppn:c.ppn, levy:c.levy, pph:c.pph,
+                  tax:c.ppn+c.levy+c.pph, net:c.net, sekuritas:fields.sekuritas };
+  var candidate = transactions.slice();
+  candidate[idx] = updated;
+  var violation = validateStockLedger(candidate);
+  if(violation) return { ok: false, message: 'Tidak bisa menyimpan: ' + violation.message };
+  rdnMutations = rdnMutations.filter(function(r){ return r.linkedTxId !== id; });
+  transactions[idx] = updated;
+  addRdn(fields.date, fields.type, (isBuy ? 'Beli ' : 'Jual ') + fields.lot + ' lot ' + fields.ticker + ' @ Rp ' + fmt(fields.price), isBuy ? -c.net : c.net, fields.sekuritas, id);
+  if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
+  return { ok: true, tx: updated };
+}
+
+// Mengembalikan { ok, message }: ok=false bila penjualan melebihi kepemilikan (data tidak diubah sama sekali).
 function addTx(date,type,ticker,lot,price,sekuritas){
+  var violation = validateStockLedger(transactions.concat([{ id: nextTxId, date: date, type: type, ticker: ticker, lot: lot }]));
+  if(violation) return { ok: false, message: violation.message };
   var isBuy = type==='BUY';
   var gross  = lot*100*price;
   var c      = calcTxComponents(gross, isBuy, sekuritas);
@@ -111,6 +173,7 @@ function addTx(date,type,ticker,lot,price,sekuritas){
     addRdn(date,'SELL','Jual '+lot+' lot '+ticker+' @ Rp '+fmt(price),c.net,sekuritas, txId);
   }
   saveData();
+  return { ok: true };
 }
 
 function addDiv(date,ticker,shares,dps,pphRate){
@@ -189,7 +252,7 @@ function getPortfolio(){
     var d = (a.date||'').localeCompare(b.date||'');
     return d !== 0 ? d : ((a.id||0) - (b.id||0));
   }).forEach(function(tx){
-    if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,buyNet:0,sellNet:0};
+    if(!pos[tx.ticker]) pos[tx.ticker]={ticker:tx.ticker,lot:0,shares:0,cost:0,netCost:0,buyNet:0,sellNet:0};
     var p=pos[tx.ticker];
     var isBuy = tx.type==='BUY';
     var mult = getTxMultiplier(tx);
@@ -199,6 +262,7 @@ function getPortfolio(){
       p.lot += tx.lot;
       p.shares += txShares;
       p.cost += (tx.gross || netVal);
+      p.netCost += netVal;
       p.buyNet += netVal;
     } else {
       var sold = txShares;
@@ -209,15 +273,23 @@ function getPortfolio(){
       // and corrupt p.cost for the rest of this reduce). Matches the same
       // p.qty>0 ? ... : 0 pattern already used by getCryptoPortfolio().
       var avg = p.shares > 0 ? (p.cost / p.shares) : 0;
+      var avgNetBasis = p.shares > 0 ? (p.netCost / p.shares) : 0;
       p.lot = Math.max(0, p.lot - tx.lot);
       p.shares = Math.max(0, p.shares - sold);
       p.cost = Math.max(0, p.cost - (avg * sold));
+      p.netCost = Math.max(0, p.netCost - (avgNetBasis * sold));
       p.sellNet += netVal;
-      if(p.shares <= 0) p.cost = 0;
+      if(p.shares <= 0){ p.cost = 0; p.netCost = 0; }
     }
   });
   var result=Object.values(pos).filter(function(p){return p.lot>0}).map(function(p){
     var info=DB[p.ticker]||{name:p.ticker,sector:'Lainnya',beta:1.0};
+    // Satu dasar biaya untuk semua angka turunan: yang benar-benar dibayar TERMASUK fee beli (netCost). Dengan begitu
+    // Modal, Avg Beli, Unrealized dan Return % konsisten, dan realized + unrealized sama dengan PnL arus kas riil.
+    // Nilai tanpa fee tetap tersedia sebagai costGross/avgGross.
+    var costGross=p.cost;
+    var avgGross=p.shares>0?costGross/p.shares:0;
+    p.cost=p.netCost;
     var avg=p.shares>0?p.cost/p.shares:0;
     // Prioritas harga: 1. Live price dari feed, 2. Base price DB jika realistis (>100), 3. Harga modal rata-rata beli (avg), 4. info.base
     var mp = (prices[p.ticker] && prices[p.ticker]>0)
@@ -226,7 +298,7 @@ function getPortfolio(){
     var mv=mp*p.shares;
     var unreal=mv-p.cost;
     var ret=p.cost>0?(unreal/p.cost)*100:0;
-    return Object.assign({},p,{mp:mp,price:mp,mv:mv,avg:avg,unreal:unreal,ret:ret,info:info});
+    return Object.assign({},p,{mp:mp,price:mp,mv:mv,avg:avg,unreal:unreal,ret:ret,info:info,costGross:costGross,avgGross:avgGross});
   });
   _portoCache=result; _portoCacheKey=cacheKey;
   return result;

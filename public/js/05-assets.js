@@ -1674,7 +1674,8 @@ function submitTxModal(){
   var lot=parseFloat(el('mf-lot').value||0);var price=parsePrice(el('mf-price')&&el('mf-price').value||'0');
   if(!date||!ticker||lot<=0||price<=0){alert('Lengkapi semua data!');return;}
   if(!_modalSubmitAllowed()) return;
-  addTx(date,modalType==='buy'?'BUY':'SELL',ticker,lot,price,sec);
+  var added = addTx(date,modalType==='buy'?'BUY':'SELL',ticker,lot,price,sec);
+  if(added && added.ok === false){ alert(added.message); return; }
   showSaveStatus('✓ Transaksi '+(modalType==='buy'?'Beli':'Jual')+' '+ticker+' tersimpan');
   closeModal();renderPage(currentPage);
   // FIX: ticker baru belum tentu punya harga live — ambil sekarang juga,
@@ -1858,9 +1859,8 @@ function delTx(id){
   mwConfirm('Hapus Transaksi Saham', 'Hapus <strong>' + escHtml(label) + '</strong>?<br><span style="font-size:11px;color:var(--text3);margin-top:6px;display:inline-block">Mutasi RDN terkait juga akan dihapus dan saldo RDN dihitung ulang.</span>', function(){
     if(!Array.isArray(transactions)) transactions=[];
     if(!Array.isArray(rdnMutations)) rdnMutations=[];
-    transactions = transactions.filter(function(t){ return String(t.id) !== String(id) && t.id !== Number(id); });
-    rdnMutations = rdnMutations.filter(function(r){ return String(r.linkedTxId) !== String(id) && r.linkedTxId !== Number(id); });
-    rebuildRdnBalance();
+    var removed = removeTxById(id);
+    if(!removed.ok){ alert(removed.message); return; }
     saveData();
     showSaveStatus('✓ Transaksi dihapus & saldo RDN diperbarui', 'var(--green)');
     if(typeof renderPage === 'function') renderPage(currentPage);
@@ -1936,29 +1936,8 @@ function updateTx(id){
   var price  = parseFloat(el('ef-price').value||0);
   if(!date||!ticker||lot<=0||price<=0){ alert('Lengkapi semua data!'); return; }
 
-  // Remove old RDN linked mutations
-  rdnMutations = rdnMutations.filter(function(r){ return r.linkedTxId !== id; });
-
-  // Recalculate using calcTxComponents (4-component fee model)
-  var isBuy   = type==='BUY';
-  var gross   = lot*100*parsePrice(String(price));
-  var c       = calcTxComponents(gross, isBuy, sec);
-
-  // Update the transaction in place
-  var idx = transactions.findIndex(function(t){ return t.id === id; });
-  if(idx === -1){ alert('Transaksi tidak ditemukan'); return; }
-  transactions[idx] = {id:id, date:date, type:type, ticker:ticker,
-                       lot:lot, price:price, gross:gross,
-                       komisi:c.komisi, ppn:c.ppn, levy:c.levy, pph:c.pph,
-                       tax:c.ppn+c.levy+c.pph, net:c.net, sekuritas:sec};
-
-  // Re-add RDN mutation with linkedTxId
-  if(isBuy){
-    addRdn(date,'BUY','Beli '+lot+' lot '+ticker+' @ Rp '+fmt(price),-c.net, sec, id);
-  } else {
-    addRdn(date,'SELL','Jual '+lot+' lot '+ticker+' @ Rp '+fmt(price), c.net, sec, id);
-  }
-  rebuildRdnBalance();
+  var edited = applyTxEdit(id, {date:date, type:type, ticker:ticker, lot:lot, price:price, sekuritas:sec});
+  if(!edited.ok){ alert(edited.message); return; }
   saveData();
   showSaveStatus('✓ Transaksi '+ticker+' berhasil diperbarui');
   closeModal();

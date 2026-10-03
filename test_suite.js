@@ -11121,6 +11121,54 @@ await asyncTest('invariants: AI Paper Portfolio holds its ledger, risk-gate and 
   }
 });
 
+await asyncTest('invariants: the portfolio math checkers catch injected bugs (fee on top, RDN sign, realized PnL, missing ownership guard) and the real engine passes', async () => {
+  const { createPortfolioSandbox } = await import('./scripts/invariants/portfolio-sandbox.mjs');
+  const { checkFeeEngine, checkReturns, checkLedgerGuards, runPortfolioProperties } = await import('./scripts/invariants/portfolio.mjs');
+  const errors = (findings) => findings.filter((f) => f.sev === 'ERROR').map((f) => f.id);
+
+  const healthy = createPortfolioSandbox(__dirname);
+  assert.deepStrictEqual(healthy.loadErrors, [], 'the portfolio engine must load in the Node sandbox');
+  assert.deepStrictEqual(errors(checkFeeEngine(healthy.sandbox)), [], 'REGRESSION: the real fee/tax engine violates a fee invariant');
+  assert.deepStrictEqual(errors(checkReturns(healthy.sandbox)), [], 'REGRESSION: XIRR/TWR violate a return invariant');
+  assert.deepStrictEqual(errors(checkLedgerGuards({ rootDir: __dirname })), [], 'REGRESSION: a sell exceeding holdings is accepted again (cash rises with no cost basis)');
+  for (let seed = 1; seed <= 3; seed++) {
+    assert.deepStrictEqual(errors(runPortfolioProperties({ rootDir: __dirname, seed, steps: 100 })), [], 'REGRESSION: portfolio position/PnL/RDN math violates an invariant (seed ' + seed + ')');
+  }
+
+  const feeOnTop = createPortfolioSandbox(__dirname);
+  feeOnTop.sandbox.calcTxComponents = (gross, isBuy) => {
+    const rate = isBuy ? 0.0018 : 0.0028;
+    const komisi = Math.round(gross * rate);
+    const ppn = Math.round(komisi * 0.11);
+    const levy = Math.round(gross * 0.00043);
+    const pph = isBuy ? 0 : Math.round(gross * 0.001);
+    const totalFee = komisi + ppn + levy + pph;
+    return { gross, komisi, ppn, levy, pph, serviceFee: 0, totalFee, net: isBuy ? gross + totalFee : gross - totalFee, komisiRate: rate };
+  };
+  assert(errors(checkFeeEngine(feeOnTop.sandbox)).includes('TOTAL-FEE-MENYIMPANG-DARI-TARIF-ALL-IN'), 'the old "PPN/levy/PPh added on top of the all-in rate" bug must be flagged');
+
+  const rdnSign = errors(runPortfolioProperties({ rootDir: __dirname, seed: 1, steps: 40, mutate: (S) => {
+    const original = S.addRdn;
+    S.addRdn = (date, type, ket, amount, sek, linked, acc) => original(date, type, ket, type === 'BUY' ? Math.abs(amount) : amount, sek, linked, acc);
+  } }));
+  assert(rdnSign.includes('REKONSILIASI-MENGUBAH-SALDO-RDN'), 'a BUY that credits instead of debits the RDN must be flagged');
+
+  const realized = errors(runPortfolioProperties({ rootDir: __dirname, seed: 2, steps: 60, mutate: (S) => {
+    const original = S.getStockPerformanceByTicker;
+    S.getStockPerformanceByTicker = () => original().map((r) => ({ ...r, realized: r.realized + 1000 }));
+  } }));
+  assert(realized.includes('REALIZED-PNL-SALAH'), 'a realized PnL that drifts from the independent average-cost model must be flagged');
+
+  const grossBasis = errors(runPortfolioProperties({ rootDir: __dirname, seed: 3, steps: 60, mutate: (S) => {
+    const original = S.getPortfolio;
+    S.getPortfolio = () => original().map((r) => ({ ...r, cost: r.costGross, avg: r.avgGross, unreal: r.mv - r.costGross }));
+  } }));
+  assert(grossBasis.includes('PNL-TOTAL-TIDAK-SAMA-ARUS-KAS'), 'REGRESSION: realized + unrealized must equal the real cash-flow PnL; an unrealized based on a cost without buy fees must be flagged');
+
+  const noGuard = errors(checkLedgerGuards({ rootDir: __dirname, mutate: (S) => { S.validateStockLedger = () => null; } }));
+  assert(noGuard.includes('JUAL-MELEBIHI-KEPEMILIKAN-DITERIMA'), 'removing the ownership guard must be flagged');
+});
+
 test('REGRESSION GUARD: Volume Spike Scanner (45-volume-spike.js) renders a real Order Book card wired to the new endpoint, with an honest suspended/unavailable fallback', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/js/45-volume-spike.js'), 'utf8');
   assert(/function vsOrderBookCardShellHtml\(\)/.test(src), 'REGRESSION: vsOrderBookCardShellHtml() is missing — the Order Book card placeholder would be gone');

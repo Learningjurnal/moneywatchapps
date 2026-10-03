@@ -1045,6 +1045,13 @@ header `scripts/invariants/run.mjs`; exit code 1 bila ada ERROR).
   kolom benar-benar terurut. Dijalankan di 4 urutan sort sekaligus.
 - **AI Paper** (`ai-paper.mjs`): urutan operasi acak (modal, buka/tutup, gap SL, reset, panggilan bersamaan) lewat
   fungsi ASLI aplikasi di vm Node, dicek terhadap buku bayangan independen. Ikut `npm test`.
+- **Portofolio** (`portfolio.mjs`, mesin dimuat oleh `portfolio-sandbox.mjs`): grid fee/pajak semua sekuritas, XIRR/TWR
+  (NPV pada rate hasil harus 0), dan urutan acak `addTx`/`addDiv`/`addRdn`/`applyTxEdit`/`removeTxById` dicek terhadap
+  model rata-rata tertimbang independen (jumlah saham, biaya pokok, realized, saldo RDN, AUM, idempotensi rekalkulasi).
+  `validateStockLedger()` menolak penjualan melebihi kepemilikan di jalur tambah/ubah/hapus/impor. Ikut `npm test`,
+  dan detektornya divalidasi dengan bug yang disuntikkan (fee di atas tarif, tanda RDN terbalik, realized melenceng).
+  Definisi biaya pokok posisi saham (`getPortfolio()`): `cost`/`avg`/`unreal`/`ret` memakai uang yang benar-benar dibayar
+  TERMASUK fee beli (net), sehingga realized + unrealized = PnL arus kas riil; versi tanpa fee ada di `costGross`/`avgGross`.
 
 ERROR = kontradiksi pasti bug; WARN = tidak lazim tapi bisa sah (split, ROE ekstrem) dan perlu dilihat manusia.
 Setiap bug baru yang ditemukan SEBAIKNYA ditambahkan sebagai aturan baru di pemeriksa yang relevan, plus fixture bug

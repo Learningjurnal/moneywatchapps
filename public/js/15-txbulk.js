@@ -177,10 +177,23 @@ function txConfirmImport(){
   // massal itu O(n^2) di jaringan. Nonaktifkan sementara, simpan sekali di akhir.
   var realSaveData = saveData;
   saveData = function(){};
+  var rejected = [];
+  // Urutan baris di file bebas, tetapi validasi kepemilikan berjalan per baris: proses kronologis, BUY lebih dulu pada tanggal sama.
+  rows = rows.slice().sort(function(a, b){
+    var d = (a.date || '').localeCompare(b.date || '');
+    if(d !== 0) return d;
+    return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
+  });
   try{
-    rows.forEach(function(r){ addTx(r.date, r.type, r.ticker, r.lot, r.price, r.sekuritas); });
+    rows.forEach(function(r){
+      var result = addTx(r.date, r.type, r.ticker, r.lot, r.price, r.sekuritas);
+      if(result && result.ok === false) rejected.push(result.message);
+    });
   } finally {
     saveData = realSaveData;
+  }
+  if(rejected.length){
+    alert(rejected.length + ' baris DITOLAK karena penjualan melebihi kepemilikan (tidak diimpor):\n\n' + rejected.slice(0, 8).join('\n') + (rejected.length > 8 ? '\n... dan ' + (rejected.length - 8) + ' lainnya' : ''));
   }
   if(typeof rebuildRdnBalance==='function') rebuildRdnBalance();
   saveData();
