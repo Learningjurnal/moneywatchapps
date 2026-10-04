@@ -3282,13 +3282,25 @@ Tulis refleksi 2-4 kalimat bahasa Indonesia: apakah sinyal ini terbukti benar, s
 
 // In-memory cache for external market data requests (TTL 60s for live quotes, 300s for historical)
 // Helper: SSRF & URL security guard
+// AUDIT 2026-10-04: sebelumnya hanya memblokir IP privat literal — bisa dipakai sebagai open relay ke host publik mana
+// pun, dan lolos untuk bentuk IPv6-mapped (mis. [::ffff:7f00:1]) atau nama host yang di-resolve ke IP privat. Kini
+// ALLOWLIST host: hanya sumber data yang benar-benar dipakai klien lewat proxy ini (Yahoo Finance, TradingView search).
+const PROXY_ALLOWED_HOSTS = new Set([
+  'query1.finance.yahoo.com',
+  'query2.finance.yahoo.com',
+  'finance.yahoo.com',
+  'fc.yahoo.com',
+  's.tradingview.com'
+]);
 export function isSafeProxyUrl(urlString) {
   try {
     const parsed = new URL(urlString);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       return false;
     }
+    if (parsed.username || parsed.password) return false;
     const hostname = parsed.hostname.toLowerCase();
+    if (!PROXY_ALLOWED_HOSTS.has(hostname)) return false;
     if (
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
