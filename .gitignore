@@ -40,3 +40,6 @@ bun.lock
 /css/
 /js/
 
+
+# Cache data mentah backtest (Invezgo/Yahoo; dapat dibuat ulang)
+.cache/

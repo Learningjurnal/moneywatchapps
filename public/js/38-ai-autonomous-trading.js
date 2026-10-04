@@ -2322,6 +2322,102 @@
   }
 
   // 7. SUB-PAGE RENDERING: 10 STRATEGY LAB & SCORECARDS
+  // ── "Strategi Lain" — status JUJUR berbasis data nyata (2026-10-04) ─────────────────────────
+  // Dulu kartu statis "Belum Diimplementasikan" dengan alasan yang sebagian keliru: riwayat akumulasi Invezgo
+  // ada ±2 tahun (cukup untuk backtest), dan pipeline ML sudah ada serta sudah dicoba. Kini angka dibaca dari
+  // hasil nyata: GET /api/idx/accumulation-backtest (dihitung offline, scripts/backtest/run-accumulation-
+  // backtest.mjs) dan /models/xgb_signal_meta.json (metrik test model XGBoost). Gagal muat => "belum tersedia".
+  var AI_OTHER = { loading: false, loaded: false, backtest: null, xgb: null };
+  var AI_OTHER_VERDICT = {
+    EDGE_TERBUKTI: { label: 'Ada indikasi keunggulan', cls: 'b-up' },
+    TIDAK_TERBUKTI: { label: 'Keunggulan tidak terbukti', cls: 'b-neu' },
+    NEGATIF: { label: 'Berkinerja di bawah pasar', cls: 'b-dn' },
+    DATA_KURANG: { label: 'Data belum cukup', cls: 'b-amb' },
+    ADA_INDIKASI_EDGE: { label: 'Ada indikasi keunggulan', cls: 'b-up' }
+  };
+
+  function aiLoadOtherStrategies() {
+    if (AI_OTHER.loading || AI_OTHER.loaded) return;
+    AI_OTHER.loading = true;
+    Promise.all([
+      fetch('/api/idx/accumulation-backtest').then(function (r) { return r.json(); }).catch(function () { return null; }),
+      fetch('/models/xgb_signal_meta.json').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+    ]).then(function (res) {
+      AI_OTHER.backtest = res[0];
+      AI_OTHER.xgb = res[1];
+      AI_OTHER.loaded = true;
+    }).then(function () {
+      AI_OTHER.loading = false;
+      if (AI_TRADE_STATE.activeTab === 'strategylab') renderAiTradingPage();
+    });
+  }
+
+  function aiFmtPct(v, signed) {
+    if (v === null || v === undefined || !isFinite(v)) return '–';
+    return (signed && v > 0 ? '+' : '') + Number(v).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  }
+
+  function aiAccumulationBacktestHtml(bt) {
+    if (!bt || !bt.available) {
+      return '<div style="font-size:11px;color:var(--text3);line-height:1.6">' + (AI_OTHER.loading ? 'Memuat hasil backtest…' : 'Hasil backtest belum tersedia' + (bt && bt.reason ? ' (' + escapeHtml(bt.reason) + ')' : '') + '.') + '</div>';
+    }
+    var v = AI_OTHER_VERDICT[bt.overall] || AI_OTHER_VERDICT.TIDAK_TERBUKTI;
+    var cov = bt.coverage || {};
+    var rows = (bt.primary || []).map(function (r) {
+      var vv = AI_OTHER_VERDICT[r.verdict] || AI_OTHER_VERDICT.TIDAK_TERBUKTI;
+      return '<tr>'
+        + '<td>Top-' + r.variant.topK + ' · ' + r.variant.horizon + ' hari</td>'
+        + '<td class="mono num">' + r.nSignals + '</td>'
+        + '<td class="mono num">' + aiFmtPct(r.medianNetPct, true) + '</td>'
+        + '<td class="mono num">' + aiFmtPct(r.medianExcessVsUniversePct, true) + '</td>'
+        + '<td class="mono num">' + aiFmtPct(r.ci.low, true) + ' s/d ' + aiFmtPct(r.ci.high, true) + '</td>'
+        + '<td><span class="badge ' + vv.cls + '" style="font-size:9.5px">' + vv.label + '</span></td>'
+        + '</tr>';
+    }).join('');
+    var info = typeof uiInfoIcon === 'function'
+      ? uiInfoIcon('Metode: ' + (bt.methodology || []).join(' ') + ' Asumsi: ' + (bt.assumptions || []).join(' ') + ' Keterbatasan: ' + (bt.limitations || []).join(' '))
+      : '';
+    var controlLine = 'Kontrol distribusi (seharusnya berkinerja buruk bila peringkat bermakna): unggul pada ' + bt.controlOutperformsCount + ' dari ' + (bt.control || []).length + ' varian.';
+    return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+      + '<span class="badge ' + v.cls + '" style="font-size:10px">' + v.label + '</span>'
+      + '<span style="font-size:11px;color:var(--text3)">' + escapeHtml(bt.dataRange.from) + ' s/d ' + escapeHtml(bt.dataRange.to) + ' · ' + cov.datesWithData + ' tanggal · ' + cov.tickersWithPriceHistory + '/' + cov.tickersSeen + ' emiten berharga · dihitung ' + escapeHtml(String(bt.computedAt).slice(0, 10)) + '</span>' + info
+      + '</div>'
+      + '<div style="overflow-x:auto"><table class="tbl tbl-tight" style="font-size:11px"><thead><tr><th>Varian</th><th class="num">Sinyal</th><th class="num">Median net</th><th class="num">Median excess vs pasar</th><th class="num">CI (koreksi Bonferroni)</th><th>Verdict</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+      + '<div style="font-size:10.5px;color:var(--text3);margin-top:6px;line-height:1.6">' + controlLine + ' Excess = return bersih (setelah biaya asumsi) dikurangi rata-rata emiten likuid pada hari yang sama; median excess cenderung negatif untuk hampir semua kelompok karena rata-rata pasar terdorong saham outlier, jadi bandingkan dengan kontrol. Bias penyintas membuat hasil cenderung terlalu optimistis.</div>';
+  }
+
+  function aiXgbSummaryHtml(meta) {
+    if (!meta || typeof meta.test_roc_auc !== 'number') {
+      return '<div style="font-size:11px;color:var(--text3);line-height:1.6">Metrik model belum bisa dimuat. Model XGBoost sudah pernah dilatih dan diuji (lihat ml/README.md); iterasinya dihentikan karena tidak ada sinyal prediktif.</div>';
+    }
+    var auc = meta.test_roc_auc;
+    var noEdge = Math.abs(auc - 0.5) < 0.03;
+    return '<div style="font-size:11.5px;color:var(--text2);line-height:1.7">Sudah dicoba (XGBoost, dilatih ' + escapeHtml(String(meta.trained_at).slice(0, 10)) + ', ' + meta.tickers_used.length + ' emiten, ' + meta.n_test + ' sampel uji): '
+      + 'ROC AUC <b class="mono">' + auc.toLocaleString('id-ID', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + '</b>'
+      + (noEdge ? ' (setara tebak acak = 0,500)' : '') + ', presisi sinyal beli <b class="mono">' + aiFmtPct(meta.buy_precision_at_threshold * 100) + '</b> vs base rate <b class="mono">' + aiFmtPct(meta.base_rate * 100) + '</b>'
+      + (noEdge ? ' — <b>tidak ada keunggulan</b>.' : '.') + ' Fitur harga saja tidak membawa sinyal; menggabungkan banyak model dengan fitur yang sama tidak menambah informasi.</div>';
+  }
+
+  function aiOtherStrategiesHtml() {
+    aiLoadOtherStrategies();
+    var hdr = function (title, sub) {
+      return '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">' + title + (sub || '') + '</div>';
+    };
+    var divider = '<div style="height:1px;background:var(--border-subtle);margin:14px 0"></div>';
+    return '<div class="card" style="padding:16px 20px;margin-bottom:18px">'
+      + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center">Strategi Lain: Status Berdasarkan Data Nyata'
+      + (typeof uiInfoIcon === 'function' ? uiInfoIcon('Tiga strategi ini tidak diberi angka karangan. Statusnya dibaca dari hasil uji nyata; bila hasil tidak bisa dimuat, yang tampil adalah "belum tersedia", bukan perkiraan.') : '') + '</div>'
+      + hdr('Bandarmologi / akumulasi bandar (backtest historis)')
+      + aiAccumulationBacktestHtml(AI_OTHER.backtest)
+      + divider
+      + hdr('Ensemble model ML')
+      + aiXgbSummaryHtml(AI_OTHER.xgb)
+      + divider
+      + hdr('Regime-adaptive switching')
+      + '<div style="font-size:11.5px;color:var(--text2);line-height:1.7">Belum diuji. Prasyaratnya belum terpenuhi: (1) strategi dasar yang akan dipilih belum punya keunggulan (lihat tabel backtest di atas), jadi berpindah di antaranya tidak menghasilkan apa-apa; (2) klasifikasi regime berganti sangat sering (median ±5 hari dalam 2 tahun terakhir, per 2026-10-04) sehingga perlu penghalusan sebelum bisa dijadikan dasar pemilihan strategi; (3) backtest Strategy Lab baru memakai ±45 emiten, terlalu sedikit untuk membandingkan kinerja per regime.</div>'
+      + '</div>';
+  }
+
   function renderAiStrategyLab(state) {
     var html = ''
       + '<div class="card" style="padding:20px;margin-bottom:18px">'
@@ -2343,6 +2439,8 @@
       html += '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px">'
         + (AI_BACKTEST_LOADING ? '⏳ Mensimulasikan 3 strategi × ~45 saham LQ45 × 2 tahun data harian (~5-10 detik)...' : 'Klik "Jalankan Backtest Riil" untuk menghitung win rate, profit factor, dan drawdown yang sebenarnya dari histori harga.')
         + '</div></div>';
+      // Kartu "Strategi Lain" tidak bergantung pada backtest LQ45: tampil selalu.
+      html += aiOtherStrategiesHtml();
       return html;
     }
 
@@ -2390,10 +2488,7 @@
       + '  </div>'
       + '</div>';
 
-    html += '<div class="card" style="padding:16px 20px;margin-bottom:18px;background:rgba(148,163,184,0.05)">'
-      + '  <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">Strategi Lain (Belum Diimplementasikan)</div>'
-      + '  <div style="font-size:11px;color:var(--text3);line-height:1.6">Strategi berbasis Bandarmologi/broker flow historis, model ensemble ML, dan regime-adaptive switching sengaja belum ditambahkan — masing-masing butuh data historis broker per-transaksi atau pipeline training ML yang belum tersedia di aplikasi ini. Menampilkan angka untuk strategi tersebut tanpa data itu akan berarti mengarang lagi, jadi lebih baik jujur belum ada.</div>'
-      + '</div>';
+    html += aiOtherStrategiesHtml();
 
     return html;
   }

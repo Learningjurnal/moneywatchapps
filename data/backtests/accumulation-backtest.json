@@ -1,0 +1,468 @@
+{
+  "computedAt": "2026-10-04T16:39:48.169Z",
+  "question": "Apakah emiten top-akumulasi Invezgo pada hari D mengungguli rata-rata emiten likuid sesudahnya, setelah biaya transaksi?",
+  "dataRange": {
+    "from": "2024-10-04",
+    "to": "2026-09-04"
+  },
+  "coverage": {
+    "signalDatesRequested": 500,
+    "datesWithData": 453,
+    "datesWithoutData": 47,
+    "tickersSeen": 909,
+    "tickersWithPriceHistory": 907,
+    "tickersWithoutPriceHistory": 2,
+    "avgUniverseSizePerDate": 859
+  },
+  "config": {
+    "topKs": [
+      10,
+      30
+    ],
+    "horizons": [
+      5,
+      10,
+      20
+    ],
+    "minValueRp": 1000000000,
+    "roundTripCostPct": 0.4,
+    "trimPct": 0.05,
+    "bootstrapIters": 2000,
+    "seed": 20261004,
+    "alpha": 0.05,
+    "minDates": 100
+  },
+  "overall": "TIDAK_TERBUKTI",
+  "primary": [
+    {
+      "variant": {
+        "kind": "accum",
+        "topK": 10,
+        "horizon": 5
+      },
+      "nSignals": 4526,
+      "nDates": 453,
+      "skippedNotExecutable": 4,
+      "meanNetPct": 0.32,
+      "medianNetPct": -0.74,
+      "trimmedMeanNetPct": -0.56,
+      "winRatePct": 41.05,
+      "p10NetPct": -8.71,
+      "p90NetPct": 8.19,
+      "meanExcessVsUniversePct": 0.2,
+      "medianExcessVsUniversePct": -1.06,
+      "pctSignalsBeatUniverse": 40.61,
+      "meanExcessVsIndexPct": 0.56,
+      "medianExcessVsIndexPct": -0.78,
+      "dateMeanExcessPct": 0.2,
+      "ci": {
+        "low": -0.42,
+        "high": 0.85,
+        "level": 99.17
+      },
+      "halves": {
+        "first": 0.18,
+        "second": 0.22
+      },
+      "top5SharePositivePct": 4.11,
+      "verdict": "TIDAK_TERBUKTI",
+      "reason": "CI 99.2% mencakup 0 (-0.42% s/d 0.85%); median excess -1.06% <= 0."
+    },
+    {
+      "variant": {
+        "kind": "accum",
+        "topK": 10,
+        "horizon": 10
+      },
+      "nSignals": 4526,
+      "nDates": 453,
+      "skippedNotExecutable": 4,
+      "meanNetPct": 0.88,
+      "medianNetPct": -0.92,
+      "trimmedMeanNetPct": -0.53,
+      "winRatePct": 42.47,
+      "p10NetPct": -11.99,
+      "p90NetPct": 12.26,
+      "meanExcessVsUniversePct": 0.35,
+      "medianExcessVsUniversePct": -1.88,
+      "pctSignalsBeatUniverse": 39.9,
+      "meanExcessVsIndexPct": 1.25,
+      "medianExcessVsIndexPct": -0.92,
+      "dateMeanExcessPct": 0.35,
+      "ci": {
+        "low": -0.94,
+        "high": 1.58,
+        "level": 99.17
+      },
+      "halves": {
+        "first": 0.26,
+        "second": 0.43
+      },
+      "top5SharePositivePct": 4.39,
+      "verdict": "TIDAK_TERBUKTI",
+      "reason": "CI 99.2% mencakup 0 (-0.94% s/d 1.58%); median excess -1.88% <= 0."
+    },
+    {
+      "variant": {
+        "kind": "accum",
+        "topK": 10,
+        "horizon": 20
+      },
+      "nSignals": 4526,
+      "nDates": 453,
+      "skippedNotExecutable": 4,
+      "meanNetPct": 2.22,
+      "medianNetPct": -1.23,
+      "trimmedMeanNetPct": -0.42,
+      "winRatePct": 43.22,
+      "p10NetPct": -16.07,
+      "p90NetPct": 19.28,
+      "meanExcessVsUniversePct": 0.95,
+      "medianExcessVsUniversePct": -2.67,
+      "pctSignalsBeatUniverse": 40.28,
+      "meanExcessVsIndexPct": 2.95,
+      "medianExcessVsIndexPct": -1.13,
+      "dateMeanExcessPct": 0.95,
+      "ci": {
+        "low": -1.33,
+        "high": 2.8,
+        "level": 99.17
+      },
+      "halves": {
+        "first": 0.25,
+        "second": 1.64
+      },
+      "top5SharePositivePct": 6.31,
+      "verdict": "TIDAK_TERBUKTI",
+      "reason": "CI 99.2% mencakup 0 (-1.33% s/d 2.80%); median excess -2.67% <= 0."
+    },
+    {
+      "variant": {
+        "kind": "accum",
+        "topK": 30,
+        "horizon": 5
+      },
+      "nSignals": 13577,
+      "nDates": 453,
+      "skippedNotExecutable": 13,
+      "meanNetPct": -0.05,
+      "medianNetPct": -0.85,
+      "trimmedMeanNetPct": -0.76,
+      "winRatePct": 40.91,
+      "p10NetPct": -8.78,
+      "p90NetPct": 7.77,
+      "meanExcessVsUniversePct": -0.17,
+      "medianExcessVsUniversePct": -1.18,
+      "pctSignalsBeatUniverse": 39.91,
+      "meanExcessVsIndexPct": 0.19,
+      "medianExcessVsIndexPct": -0.84,
+      "dateMeanExcessPct": -0.17,
+      "ci": {
+        "low": -0.57,
+        "high": 0.27,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -0.34,
+        "second": 0
+      },
+      "top5SharePositivePct": 1.69,
+      "verdict": "TIDAK_TERBUKTI",
+      "reason": "CI 99.2% mencakup 0 (-0.57% s/d 0.27%); median excess -1.18% <= 0; paruh periode tidak konsisten (-0.34% / 0.00%)."
+    },
+    {
+      "variant": {
+        "kind": "accum",
+        "topK": 30,
+        "horizon": 10
+      },
+      "nSignals": 13577,
+      "nDates": 453,
+      "skippedNotExecutable": 13,
+      "meanNetPct": 0.2,
+      "medianNetPct": -1.15,
+      "trimmedMeanNetPct": -0.99,
+      "winRatePct": 41.48,
+      "p10NetPct": -12.73,
+      "p90NetPct": 11.23,
+      "meanExcessVsUniversePct": -0.33,
+      "medianExcessVsUniversePct": -2.06,
+      "pctSignalsBeatUniverse": 38.94,
+      "meanExcessVsIndexPct": 0.57,
+      "medianExcessVsIndexPct": -1.2,
+      "dateMeanExcessPct": -0.33,
+      "ci": {
+        "low": -1.16,
+        "high": 0.57,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -0.63,
+        "second": -0.04
+      },
+      "top5SharePositivePct": 1.93,
+      "verdict": "TIDAK_TERBUKTI",
+      "reason": "CI 99.2% mencakup 0 (-1.16% s/d 0.57%); median excess -2.06% <= 0; paruh periode tidak konsisten (-0.63% / -0.04%)."
+    },
+    {
+      "variant": {
+        "kind": "accum",
+        "topK": 30,
+        "horizon": 20
+      },
+      "nSignals": 13577,
+      "nDates": 453,
+      "skippedNotExecutable": 13,
+      "meanNetPct": 1.03,
+      "medianNetPct": -1.57,
+      "trimmedMeanNetPct": -1.1,
+      "winRatePct": 42.29,
+      "p10NetPct": -16.95,
+      "p90NetPct": 16.92,
+      "meanExcessVsUniversePct": -0.24,
+      "medianExcessVsUniversePct": -3.1,
+      "pctSignalsBeatUniverse": 38.84,
+      "meanExcessVsIndexPct": 1.76,
+      "medianExcessVsIndexPct": -1.38,
+      "dateMeanExcessPct": -0.24,
+      "ci": {
+        "low": -1.81,
+        "high": 1.15,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -1.11,
+        "second": 0.63
+      },
+      "top5SharePositivePct": 2.87,
+      "verdict": "TIDAK_TERBUKTI",
+      "reason": "CI 99.2% mencakup 0 (-1.81% s/d 1.15%); median excess -3.10% <= 0; paruh periode tidak konsisten (-1.11% / 0.63%)."
+    }
+  ],
+  "control": [
+    {
+      "variant": {
+        "kind": "dist",
+        "topK": 10,
+        "horizon": 5
+      },
+      "nSignals": 4520,
+      "nDates": 453,
+      "skippedNotExecutable": 10,
+      "meanNetPct": -0.55,
+      "medianNetPct": -0.81,
+      "trimmedMeanNetPct": -0.87,
+      "winRatePct": 40.29,
+      "p10NetPct": -9.2,
+      "p90NetPct": 7.44,
+      "meanExcessVsUniversePct": -0.67,
+      "medianExcessVsUniversePct": -1.29,
+      "pctSignalsBeatUniverse": 39.14,
+      "meanExcessVsIndexPct": -0.3,
+      "medianExcessVsIndexPct": -0.87,
+      "dateMeanExcessPct": -0.66,
+      "ci": {
+        "low": -1.14,
+        "high": -0.13,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -0.81,
+        "second": -0.52
+      },
+      "top5SharePositivePct": 4.26,
+      "verdict": "NEGATIF",
+      "reason": "Batas atas CI = -0.13% < 0: sinyal berkinerja LEBIH BURUK dari rata-rata pasar likuid."
+    },
+    {
+      "variant": {
+        "kind": "dist",
+        "topK": 10,
+        "horizon": 10
+      },
+      "nSignals": 4520,
+      "nDates": 453,
+      "skippedNotExecutable": 10,
+      "meanNetPct": -0.37,
+      "medianNetPct": -1.09,
+      "trimmedMeanNetPct": -0.97,
+      "winRatePct": 41,
+      "p10NetPct": -12.84,
+      "p90NetPct": 11.13,
+      "meanExcessVsUniversePct": -0.91,
+      "medianExcessVsUniversePct": -2.08,
+      "pctSignalsBeatUniverse": 38.81,
+      "meanExcessVsIndexPct": 0,
+      "medianExcessVsIndexPct": -1.01,
+      "dateMeanExcessPct": -0.91,
+      "ci": {
+        "low": -1.75,
+        "high": -0.02,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -1.1,
+        "second": -0.71
+      },
+      "top5SharePositivePct": 3.23,
+      "verdict": "NEGATIF",
+      "reason": "Batas atas CI = -0.02% < 0: sinyal berkinerja LEBIH BURUK dari rata-rata pasar likuid."
+    },
+    {
+      "variant": {
+        "kind": "dist",
+        "topK": 10,
+        "horizon": 20
+      },
+      "nSignals": 4520,
+      "nDates": 453,
+      "skippedNotExecutable": 10,
+      "meanNetPct": 0.16,
+      "medianNetPct": -1.63,
+      "trimmedMeanNetPct": -1.28,
+      "winRatePct": 41.08,
+      "p10NetPct": -17.63,
+      "p90NetPct": 17.45,
+      "meanExcessVsUniversePct": -1.11,
+      "medianExcessVsUniversePct": -3.21,
+      "pctSignalsBeatUniverse": 37.7,
+      "meanExcessVsIndexPct": 0.89,
+      "medianExcessVsIndexPct": -1.39,
+      "dateMeanExcessPct": -1.11,
+      "ci": {
+        "low": -3.21,
+        "high": 0.75,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -1.82,
+        "second": -0.4
+      },
+      "top5SharePositivePct": 3.07,
+      "verdict": "TIDAK_TERBUKTI",
+      "reason": "CI 99.2% mencakup 0 (-3.21% s/d 0.75%); median excess -3.21% <= 0; paruh periode tidak konsisten (-1.82% / -0.40%)."
+    },
+    {
+      "variant": {
+        "kind": "dist",
+        "topK": 30,
+        "horizon": 5
+      },
+      "nSignals": 13569,
+      "nDates": 453,
+      "skippedNotExecutable": 21,
+      "meanNetPct": -0.62,
+      "medianNetPct": -0.84,
+      "trimmedMeanNetPct": -0.94,
+      "winRatePct": 41.32,
+      "p10NetPct": -9.31,
+      "p90NetPct": 7.27,
+      "meanExcessVsUniversePct": -0.74,
+      "medianExcessVsUniversePct": -1.28,
+      "pctSignalsBeatUniverse": 38.86,
+      "meanExcessVsIndexPct": -0.38,
+      "medianExcessVsIndexPct": -0.85,
+      "dateMeanExcessPct": -0.74,
+      "ci": {
+        "low": -1.08,
+        "high": -0.38,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -0.92,
+        "second": -0.56
+      },
+      "top5SharePositivePct": 1.65,
+      "verdict": "NEGATIF",
+      "reason": "Batas atas CI = -0.38% < 0: sinyal berkinerja LEBIH BURUK dari rata-rata pasar likuid."
+    },
+    {
+      "variant": {
+        "kind": "dist",
+        "topK": 30,
+        "horizon": 10
+      },
+      "nSignals": 13569,
+      "nDates": 453,
+      "skippedNotExecutable": 21,
+      "meanNetPct": -0.48,
+      "medianNetPct": -1.07,
+      "trimmedMeanNetPct": -1.07,
+      "winRatePct": 41.66,
+      "p10NetPct": -12.97,
+      "p90NetPct": 10.89,
+      "meanExcessVsUniversePct": -1.02,
+      "medianExcessVsUniversePct": -2,
+      "pctSignalsBeatUniverse": 38.64,
+      "meanExcessVsIndexPct": -0.12,
+      "medianExcessVsIndexPct": -1.06,
+      "dateMeanExcessPct": -1.02,
+      "ci": {
+        "low": -1.73,
+        "high": -0.27,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -1.44,
+        "second": -0.6
+      },
+      "top5SharePositivePct": 1.46,
+      "verdict": "NEGATIF",
+      "reason": "Batas atas CI = -0.27% < 0: sinyal berkinerja LEBIH BURUK dari rata-rata pasar likuid."
+    },
+    {
+      "variant": {
+        "kind": "dist",
+        "topK": 30,
+        "horizon": 20
+      },
+      "nSignals": 13569,
+      "nDates": 453,
+      "skippedNotExecutable": 21,
+      "meanNetPct": 0.04,
+      "medianNetPct": -1.6,
+      "trimmedMeanNetPct": -1.3,
+      "winRatePct": 41.96,
+      "p10NetPct": -17.96,
+      "p90NetPct": 17.2,
+      "meanExcessVsUniversePct": -1.23,
+      "medianExcessVsUniversePct": -3.13,
+      "pctSignalsBeatUniverse": 38.26,
+      "meanExcessVsIndexPct": 0.77,
+      "medianExcessVsIndexPct": -1.38,
+      "dateMeanExcessPct": -1.23,
+      "ci": {
+        "low": -2.8,
+        "high": 0.12,
+        "level": 99.17
+      },
+      "halves": {
+        "first": -1.96,
+        "second": -0.5
+      },
+      "top5SharePositivePct": 1.41,
+      "verdict": "TIDAK_TERBUKTI",
+      "reason": "CI 99.2% mencakup 0 (-2.80% s/d 0.12%); median excess -3.13% <= 0; paruh periode tidak konsisten (-1.96% / -0.50%)."
+    }
+  ],
+  "controlOutperformsCount": 0,
+  "methodology": [
+    "Sinyal: emiten masuk top-K peringkat akumulasi Invezgo (urut calculated_value) pada hari D, nilai transaksi hari D >= Rp 1 miliar.",
+    "Entry: harga BUKA hari bursa berikutnya (D+1). Exit: harga TUTUP hari ke-h (h = 5, 10, 20; hari entry = hari ke-1). Tidak ada data hari D+1 atau sesudahnya yang dipakai untuk memilih sinyal.",
+    "Pembanding 1: rata-rata return emiten likuid yang muncul di daftar Invezgo pada hari yang sama (equal-weight, entry/exit identik). Pembanding 2: IHSG.",
+    "Statistik: median, trimmed mean 5%, interval kepercayaan block-bootstrap per tanggal (blok = horizon), koreksi Bonferroni untuk 6 varian primer.",
+    "Kontrol negatif: top-distribusi seharusnya berkinerja lebih buruk dari pasar bila peringkat Invezgo bermakna.",
+    "Verdict EDGE_TERBUKTI hanya bila batas bawah CI > 0, median excess > 0, dan kedua paruh periode positif (aturan ditetapkan sebelum melihat hasil)."
+  ],
+  "assumptions": [
+    "Biaya transaksi bolak-balik 0.4% (ASUMSI fee beli + fee jual + pajak jual); slippage dan dampak harga TIDAK dimodelkan.",
+    "Harga dari Yahoo Finance (close disesuaikan split, tanpa dividen). Entry di harga buka dianggap bisa terisi penuh.",
+    "Makna calculated_value Invezgo tidak terverifikasi dari dokumentasi; dipakai hanya sebagai urutan peringkat."
+  ],
+  "limitations": [
+    "Bias penyintas: emiten yang sudah delisting tidak punya riwayat Yahoo, sehingga dikeluarkan — hasil cenderung terlalu optimistis, bukan sebaliknya.",
+    "Akumulasi cenderung memilih emiten kecil/tidak likuid; filter Rp 1 miliar/hari mengurangi tetapi tidak menghapus risiko eksekusi.",
+    "Satu rezim pasar (±2 tahun terakhir); hasil belum tentu berlaku di rezim lain.",
+    "Retensi riwayat Invezgo terverifikasi sampai ±2 tahun (3 tahun menjawab 422)."
+  ]
+}

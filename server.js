@@ -4913,6 +4913,23 @@ app.get('/api/cron/warm-daily-picks', async (req, res) => {
   }
 });
 
+// GET /api/idx/accumulation-backtest — hasil backtest akumulasi 2 tahun (dihitung OFFLINE oleh
+// scripts/backtest/run-accumulation-backtest.mjs lalu disimpan ke data/backtests/accumulation-backtest.json;
+// terlalu berat untuk fungsi serverless: ±500 tanggal Invezgo + riwayat harga ±950 emiten). Hanya MEMBACA file;
+// bila belum ada, available:false (bukan angka karangan). Lihat lib/backtest/accumulation-backtest.js.
+app.get('/api/idx/accumulation-backtest', (req, res) => {
+  try {
+    const file = path.join(__dirname, 'data', 'backtests', 'accumulation-backtest.json');
+    if (!fs.existsSync(file)) {
+      return res.json({ success: true, available: false, reason: 'Backtest belum dijalankan (scripts/backtest/run-accumulation-backtest.mjs).' });
+    }
+    return res.json({ success: true, available: true, ...JSON.parse(fs.readFileSync(file, 'utf8')) });
+  } catch (err) {
+    console.error('[Accumulation Backtest Read Error]', err);
+    return res.status(500).json({ success: false, error: 'Gagal membaca hasil backtest akumulasi' });
+  }
+});
+
 // GET /api/idx/unified-screener-backtest — Track A win-rate validation
 // (2026-09-18, user-requested: "bagaimana agar saya bisa menguji apakah
 // screener benar atau salah"). See runUnifiedScreenerBacktest()'s header
