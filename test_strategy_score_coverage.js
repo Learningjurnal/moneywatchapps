@@ -88,9 +88,10 @@ await test('skenario ASDM (day-trading nyata): hanya HIGH_BID_OFFER valid => WAT
 });
 
 // Mock Invezgo: order-book ada, intraday 422 (baseline & intraday tidak tersedia) => 1 indikator valid.
-function installThinMock() {
+function installThinMock(delayMs = 0) {
   global.fetch = async (url) => {
     const u = String(url);
+    if (delayMs && (u.includes('/analysis/order-book/') || u.includes('/analysis/intraday-data/'))) await new Promise(r => setTimeout(r, delayMs));
     if (u.includes('idx.co.id')) return { ok: false, status: 500, headers: { getSetCookie: () => [] }, json: async () => ({}) };
     if (u.includes('/analysis/notation')) return { ok: true, status: 200, json: async () => [] };
     if (u.includes('/analysis/order-book/')) return { ok: true, status: 200, json: async () => ({ code: 'TSTA', bid: [{ bid1price: 100, bid1lot: 5000, bid1freq: 3 }], offer: [{ offer1price: 101, offer1lot: 500, offer1freq: 2 }] }) };
@@ -117,6 +118,18 @@ await test('pick tersimpan dari aturan lama (STRONG bukti tipis) divalidasi ulan
   assert.strictEqual(picks.date, eod);
   assert(!picks.picks.some(p => p.ticker === 'TSTA'), 'sinyal bukti tipis tidak boleh jadi rekomendasi');
   assert.strictEqual(picks.count, 0);
+});
+
+await test('validasi ulang pick berjalan paralel: banyak kandidat + emiten lambat tetap selesai jauh di bawah batas fungsi 30 dtk', async () => {
+  installThinMock(400); // tiap panggilan 400 ms; berurutan 14 kandidat ~5,6 dtk, paralel (4) ~1,6 dtk
+  const eod = getLatestEodTradingDate();
+  const candidates = Array.from({ length: 14 }, (_, i) => ({ ticker: 'TS' + String(i + 10), status: 'STRONG', score: 99 - i }));
+  await storeSetEx('strategy_engine:signal_log:momentum-candidate:' + eod, candidates, 3600);
+  const t0 = Date.now();
+  const picks = await engine.getDailyTopPicks(10, true);
+  const elapsed = Date.now() - t0;
+  assert(elapsed < 3500, `validasi ulang terlalu lambat (${elapsed} ms) — kemungkinan masih berurutan`);
+  assert(Array.isArray(picks.picks));
 });
 
 global.fetch = originalFetch;
