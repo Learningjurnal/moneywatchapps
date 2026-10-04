@@ -89,3 +89,26 @@ jobs:
             echo "::error::Endpoint mengembalikan HTTP ${http_code} (403 = CRON_SECRET tidak cocok dengan yang di-set di Vercel; cek dulu sebelum menuduh bug lain)."
             exit 1
           fi
+
+      # Langkah terpisah (invokasi fungsi sendiri, batas 30 dtk): hangatkan cache Rekomendasi Harian
+      # supaya widget (timeout klien 15 dtk) tidak mendapat cache kosong. Non-fatal: cache hanya
+      # optimasi, kegagalannya cukup jadi peringatan dan tidak menandai run scan sebagai gagal.
+      - name: Hangatkan cache Rekomendasi Harian
+        if: success()
+        continue-on-error: true
+        env:
+          APP_URL: ${{ secrets.MONEYWATCH_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+          http_code=$(curl -sS -m 60 -o warm.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_URL}/api/cron/warm-daily-picks")
+          echo "--- Response body ---"
+          cat warm.json
+          echo ""
+          echo "--- HTTP status: ${http_code} ---"
+          if [ "$http_code" != "200" ]; then
+            echo "::warning::Pemanasan cache daily-picks gagal (HTTP ${http_code}); widget memakai hitung-ulang saat dibuka."
+            exit 1
+          fi

@@ -4886,6 +4886,33 @@ app.get('/api/cron/warm-strategy-engine', async (req, res) => {
   }
 });
 
+// GET /api/cron/warm-daily-picks — CRON_SECRET-guarded: hitung ulang & simpan cache Rekomendasi Harian.
+// Dipanggil workflow SETELAH scan (langkah terpisah): scan (~16 dtk) + validasi ulang picks (~15-20 dtk)
+// tidak muat dalam satu invokasi fungsi (maxDuration 30 dtk), dan cache kosong membuat widget (timeout
+// klien 15 dtk) gagal untuk pengunjung pertama. limit=10 sama dengan yang diminta widget.
+app.get('/api/cron/warm-daily-picks', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization || '';
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  try {
+    const startedAt = Date.now();
+    const data = await getDailyTopPicks(10, true);
+    return res.json({
+      success: true,
+      date: data.date,
+      count: data.count,
+      revalidationUnverified: data.revalidationUnverified,
+      cacheTtlSec: data.cacheTtlSec,
+      durationMs: Date.now() - startedAt
+    });
+  } catch (err) {
+    console.error('[Daily Picks Warm Error]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/idx/unified-screener-backtest — Track A win-rate validation
 // (2026-09-18, user-requested: "bagaimana agar saya bisa menguji apakah
 // screener benar atau salah"). See runUnifiedScreenerBacktest()'s header

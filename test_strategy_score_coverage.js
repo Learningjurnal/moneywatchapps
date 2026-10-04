@@ -132,6 +132,48 @@ await test('validasi ulang pick berjalan paralel: banyak kandidat + emiten lamba
   assert(Array.isArray(picks.picks));
 });
 
+// ── Pemanasan cache daily-picks (2026-10-04) ──────────────────────────────
+await test('TTL cache bertingkat: lama hanya untuk hasil sehat (ada pick & tak ada yang gagal diverifikasi)', () => {
+  const ttl = engine.pickDailyPicksCacheTtl;
+  assert.strictEqual(ttl({ count: 10, unverified: 0 }), 48 * 3600, 'sehat => 48 jam');
+  assert.strictEqual(ttl({ count: 10, unverified: 1 }), 120, 'ada yang tak terverifikasi => singkat, jangan tahan hasil cacat');
+  assert.strictEqual(ttl({ count: 0, unverified: 0 }), 600, 'kosong => 10 menit (cron berikutnya menambah sinyal)');
+  assert.strictEqual(ttl({ count: 0, unverified: 3 }), 120);
+});
+
+await test('hasil dengan validasi ulang tak terverifikasi (data pasar gagal) di-cache singkat, dan cache dipakai tanpa force', async () => {
+  installThinMock(); // intraday 422 => validasi ulang tanpa data tanggal itu => tak terverifikasi
+  const eod = getLatestEodTradingDate();
+  await storeSetEx('strategy_engine:signal_log:day-trading:' + eod, [{ ticker: 'TSTA', status: 'STRONG', score: 100 }], 3600);
+  const first = await engine.getDailyTopPicks(10, true);
+  assert(first.revalidationUnverified >= 1, 'harus tercatat tak terverifikasi: ' + first.revalidationUnverified);
+  assert(first.cacheTtlSec <= 300, 'TTL harus singkat, bukan ' + first.cacheTtlSec);
+  const second = await engine.getDailyTopPicks(10, false);
+  assert.strictEqual(second.generatedAt, first.generatedAt, 'tanpa force harus membaca cache, bukan menghitung ulang');
+});
+
+await test('route cron pemanas ada, dijaga CRON_SECRET, dan memaksa hitung ulang limit=10 (sama dengan widget)', async () => {
+  const fsMod = await import('fs');
+  const src = fsMod.readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+  const route = src.match(/app\.get\('\/api\/cron\/warm-daily-picks'[\s\S]*?\n\}\);/);
+  assert(route, 'route /api/cron/warm-daily-picks tidak ditemukan');
+  assert(/Bearer \$\{secret\}/.test(route[0]) && /403/.test(route[0]), 'route harus dijaga CRON_SECRET (403)');
+  assert(/getDailyTopPicks\(10, true\)/.test(route[0]), 'harus getDailyTopPicks(10, true)');
+  const widget = fsMod.readFileSync(new URL('./public/js/49-strategy-engine.js', import.meta.url), 'utf8');
+  assert(/daily-picks\?limit=10/.test(widget), 'widget harus tetap meminta limit=10 agar cocok dengan cache yang dihangatkan');
+});
+
+await test('workflow cron: langkah pemanas cache berjalan SETELAH scan, non-fatal, dan memanggil endpoint yang benar', async () => {
+  const fsMod = await import('fs');
+  const y = fsMod.readFileSync(new URL('./.github/workflows/strategy-engine-cron.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const scanIdx = y.indexOf('/api/cron/warm-strategy-engine?strategy=');
+  const warmIdx = y.indexOf('/api/cron/warm-daily-picks');
+  assert(scanIdx > 0 && warmIdx > scanIdx, 'langkah pemanas harus setelah langkah scan');
+  const step = y.slice(y.indexOf('- name: Hangatkan cache Rekomendasi Harian'));
+  assert(/if: success\(\)/.test(step) && /continue-on-error: true/.test(step), 'harus jalan hanya bila scan sukses dan non-fatal');
+  assert(/Authorization: Bearer/.test(step));
+});
+
 global.fetch = originalFetch;
 if (originalKey === undefined) delete process.env.INVEZGO_API_KEY; else process.env.INVEZGO_API_KEY = originalKey;
 
