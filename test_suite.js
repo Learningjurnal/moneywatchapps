@@ -7057,9 +7057,25 @@ await asyncTest('BEHAVIOR: generateUnifiedScreener() runs end-to-end without an 
 // docs/regulatory-health-gate.md §26 requires: SOURCE FAILURE -> UNKNOWN
 // -> NOT ELIGIBLE -> SKIP DEEP ANALYSIS, never "assume CLEAR and show
 // everything anyway".
+// FIX (2026-10-04): tes fail-closed di bawah dulu mengandalkan "sandbox ini tidak punya akses ke idx.co.id" —
+// bergantung pada jaringan mesin penguji. Di mesin yang bisa menjangkau idx.co.id gate melapor tersedia dan tes
+// gagal; ini juga menyingkap bug parser fallback (lihat test_idx_notation_parser.js). Sekarang idx.co.id
+// di-mock tidak tersedia (403, seperti blokir Cloudflare) dan cache notasi di-reset, sehingga deterministik.
+async function mockIdxUnreachable() {
+  const idxClient = await import('./lib/providers/idx-client.js');
+  idxClient._resetSpecialNotationCacheForTests();
+  const realFetch = global.fetch;
+  global.fetch = async (url, opts) => (String(url).includes('idx.co.id')
+    ? { ok: false, status: 403, headers: { getSetCookie: () => [] }, json: async () => ({}) }
+    : realFetch(url, opts));
+  return () => { global.fetch = realFetch; idxClient._resetSpecialNotationCacheForTests(); };
+}
+
 await asyncTest('BEHAVIOR: generateUnifiedScreener() default (excludeFlagged unset) hides every row when the Regulatory Health Gate data source is entirely unavailable, and discloses why', async () => {
   const { generateUnifiedScreener } = await import('./lib/idx-data-engine.js');
-  const result = await generateUnifiedScreener({});
+  const restoreIdx = await mockIdxUnreachable();
+  let result;
+  try { result = await generateUnifiedScreener({}); } finally { restoreIdx(); }
   assert.strictEqual(result.rows.length, 0, 'REGRESSION: rows must be empty by default when regulatory status can\'t be verified for any ticker (this sandbox has no idx.co.id access) — silently showing them would be UNKNOWN-treated-as-CLEAR');
   assert.strictEqual(result.summary.regulatoryDataError, result.summary.totalUniverse, 'every ticker should be regulatoryDataError when idx.co.id is fully unreachable and no cache exists');
   assert.strictEqual(result.dataSources.regulatory.available, false, 'dataSources.regulatory.available must honestly report false');
@@ -7070,11 +7086,15 @@ await asyncTest('BEHAVIOR: generateUnifiedScreener() default (excludeFlagged uns
 // as BUY ZONE/Strong Buy when its regulatory status can't be verified.
 await asyncTest('BEHAVIOR: getUniverseOpportunityRadar() default (excludeFlagged unset) hides every item when the Regulatory Health Gate data source is entirely unavailable, and never shows BUY ZONE/WATCHLIST for an unverified ticker', async () => {
   const { getUniverseOpportunityRadar } = await import('./lib/idx-data-engine.js');
-  const excluded = await getUniverseOpportunityRadar({});
+  const restoreIdx = await mockIdxUnreachable();
+  let excluded, all;
+  try {
+    excluded = await getUniverseOpportunityRadar({});
+    all = await getUniverseOpportunityRadar({ excludeFlagged: false });
+  } finally { restoreIdx(); }
   assert.strictEqual(excluded.items.length, 0, 'REGRESSION: items must be empty by default when regulatory status can\'t be verified for any ticker');
   assert.strictEqual(excluded.summary.regulatoryDataError, excluded.summary.totalUniverse, 'every ticker should be regulatoryDataError when idx.co.id is fully unreachable and no cache exists');
 
-  const all = await getUniverseOpportunityRadar({ excludeFlagged: false });
   assert(all.items.length > 900, 'excludeFlagged:false should still return the full ~958 universe (unfiltered, for transparency)');
   all.items.forEach((it) => {
     assert.strictEqual(it.regulatoryEligible, false, `${it.ticker} should be regulatoryEligible:false when idx.co.id is unreachable`);
