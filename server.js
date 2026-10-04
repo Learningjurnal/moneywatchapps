@@ -127,6 +127,17 @@ app.use('/api/proxy', createRateLimiter(60 * 1000, 180, 'permintaan proxy'));
 app.use('/api/user-data', createRateLimiter(60 * 1000, 30, 'permintaan simpan/hapus data'));
 app.use('/api/sync', createRateLimiter(60 * 1000, 30, 'permintaan sinkronisasi'));
 
+// AUDIT 2026-10-04: handler sebelumnya mengirim err.message mentah ke klien — bisa membocorkan isi respons upstream
+// (mis. "GEMINI_HTTP_403: <body penuh>"), path, atau detail internal. Kini detail lengkap hanya di log server; klien
+// menerima KODE galat (mis. GEMINI_HTTP_429) bila pesan diawali kode huruf-besar, selain itu pesan generik.
+function publicErrorMessage(err, fallback) {
+  const generic = fallback || 'Terjadi kesalahan pada server. Silakan coba lagi.';
+  const msg = String((err && err.message) || '');
+  console.error('[API Error]', msg.slice(0, 500));
+  const m = msg.match(/^([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)(?=$|[:s])/);
+  return m ? m[1] : generic;
+}
+
 // API health endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
@@ -335,7 +346,7 @@ app.get('/api/user-data/load', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to load user data from server',
-      message: err.message
+      message: publicErrorMessage(err)
     });
   }
 });
@@ -421,7 +432,7 @@ app.post('/api/user-data/clear', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to clear user data on server',
-      message: err.message
+      message: publicErrorMessage(err)
     });
   }
 });
@@ -734,7 +745,7 @@ app.post('/api/sync/reconcile-rdn', (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to reconcile RDN mutations',
-      message: err.message
+      message: publicErrorMessage(err)
     });
   }
 });
@@ -806,7 +817,7 @@ app.post('/api/sync/audit-rdn', (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to audit RDN synchronization',
-      message: err.message
+      message: publicErrorMessage(err)
     });
   }
 });
@@ -1496,7 +1507,7 @@ Gunakan format markdown yang rapi, tegas, dan profesional. Tutup dengan disclaim
       });
     } catch (err) {
       console.error('Claude portfolio advice error:', err);
-      return res.status(500).json({ success: false, error: err.message || 'Gagal menghasilkan analisis AI.' });
+      return res.status(500).json({ success: false, error: publicErrorMessage(err, 'Gagal menghasilkan analisis AI.') });
     }
   }
 
@@ -1728,7 +1739,7 @@ async function executeAgentTool(toolName, args, userContext = {}) {
 
         return signal;
       } catch (e) {
-        return { ticker: raw, signal: 'NO DATA', error: e.message || 'Gagal menghitung sinyal teknikal.', pastSignals: [] };
+        return { ticker: raw, signal: 'NO DATA', error: publicErrorMessage(e, 'Gagal menghitung sinyal teknikal.'), pastSignals: [] };
       }
     }
 
@@ -2157,7 +2168,7 @@ async function executeAgentTool(toolName, args, userContext = {}) {
         };
       } catch (e) {
         return {
-          error: e.message || 'Gagal memindai akumulasi seluruh pasar.',
+          error: publicErrorMessage(e, 'Gagal memindai akumulasi seluruh pasar.'),
           topAccumulation: [],
           topDistribution: []
         };
@@ -3205,7 +3216,7 @@ app.post('/api/ai/agent-chat', aiRateLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('MoneyWatch AI fallback error:', err);
-    return res.status(500).json({ success: false, error: err.message || 'Gagal memproses analisis AI.' });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err, 'Gagal memproses analisis AI.') });
   }
 });
 
@@ -3445,7 +3456,7 @@ app.get('/api/proxy', async (req, res) => {
 
     res.status(502).json({
       error: 'Proxy request failed',
-      message: err.message
+      message: publicErrorMessage(err)
     });
   }
 });
@@ -3556,7 +3567,7 @@ app.get('/api/ksei/data', (req, res) => {
       data: paginated
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3599,7 +3610,7 @@ app.get('/api/ksei/stock/:ticker', (req, res) => {
       stock: stock
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3631,7 +3642,7 @@ app.get('/api/ksei/summary', (req, res) => {
       }
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3644,7 +3655,7 @@ app.get('/api/idx/summary', async (req, res) => {
     return res.json({ success: true, ...summary });
   } catch (err) {
     console.error('[IDX API Summary Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3685,7 +3696,7 @@ app.get('/api/idx/stocks', (req, res) => {
       data: paginated
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3736,7 +3747,7 @@ app.get('/api/idx/quote/:ticker', async (req, res) => {
       } : null
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3775,7 +3786,7 @@ app.get('/api/idx/history/:ticker', async (req, res) => {
     const history = await fetchYahooHistory(ticker, tf, market);
     return res.json({ success: !history.error, ...history });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3788,7 +3799,7 @@ app.get('/api/idx/ai-signal/:ticker', async (req, res) => {
     const signal = await computeStockSignal(ticker);
     return res.json({ success: !signal.error, signal });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3808,7 +3819,7 @@ app.get('/api/idx/ai-scan', async (req, res) => {
     const signals = await computeStockSignalBatch(tickers);
     return res.json({ success: true, count: signals.length, signals });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3819,7 +3830,7 @@ app.post('/api/idx/ai-scan', async (req, res) => {
     const signals = await computeStockSignalBatch(tickers);
     return res.json({ success: true, count: signals.length, signals });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3864,7 +3875,7 @@ app.get('/api/idx/hypothesis/:ticker', async (req, res) => {
     const hypothesis = await generateTradingHypothesis(ticker, accountContext);
     return res.json({ success: true, hypothesis });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3907,7 +3918,7 @@ app.get('/api/idx/exit-hypothesis/:ticker', async (req, res) => {
     const hypothesis = await generateExitHypothesis(ticker, position);
     return res.json({ success: true, hypothesis });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3931,7 +3942,7 @@ app.get('/api/idx/data-quality/:ticker', async (req, res) => {
     const dataQuality = assessDataQuality(ticker, history);
     return res.json({ success: true, dataQuality, ihsgDataQuality: regime.dataQuality });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3945,7 +3956,7 @@ app.get('/api/idx/regime', async (req, res) => {
     const regime = await classifyMarketRegime();
     return res.json({ success: true, regime });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -3982,7 +3993,7 @@ app.get('/api/idx/backtest-all', async (req, res) => {
     const results = await runAllStrategiesBacktest(tickers);
     return res.json({ success: true, results });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4042,7 +4053,7 @@ app.get('/api/idx/order-book/:ticker', async (req, res) => {
     });
   } catch (err) {
     console.error('[Order Book Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4073,7 +4084,7 @@ app.get('/api/idx/disclosure/:ticker', async (req, res) => {
     });
   } catch (err) {
     console.error('[Disclosure Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4105,7 +4116,7 @@ app.get('/api/idx/sector-performance', async (req, res) => {
     });
   } catch (err) {
     console.error('[Sector Performance Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4137,7 +4148,7 @@ app.get('/api/idx/broker-summary/:ticker', async (req, res) => {
       data: summary
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4156,7 +4167,7 @@ app.get('/api/idx/bandar-flow-pillar/:ticker', async (req, res) => {
     return res.json({ success: true, data: result });
   } catch (err) {
     console.error('[Bandar Flow Pillar Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4173,7 +4184,7 @@ app.get('/api/idx/broker-summary-by-broker/:code', async (req, res) => {
       data: summary
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4204,7 +4215,7 @@ app.get('/api/idx/bandar-movement/:ticker', async (req, res) => {
       data: result
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4240,7 +4251,7 @@ app.get('/api/idx/invezgo-status', async (req, res) => {
       updatedAt: new Date().toISOString()
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4255,7 +4266,7 @@ app.get('/api/idx/data-quality-status', async (req, res) => {
     const telemetry = await getDataQualityTelemetry();
     return res.json({ success: true, ...telemetry });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4268,7 +4279,7 @@ app.get('/api/idx/brokers', (req, res) => {
       brokers: IDX_BROKERS
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4290,7 +4301,7 @@ app.get('/api/idx/special-notations', async (req, res) => {
       retrievedAt: new Date().toISOString()
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4317,7 +4328,7 @@ app.get('/api/idx/special-notations/:ticker', async (req, res) => {
       dictionary: IDX_SPECIAL_NOTATION_DICT
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4367,7 +4378,7 @@ app.post('/api/idx/quotes', async (req, res) => {
 
     return res.json({ success: true, count: Object.keys(quotes).length, quotes });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4465,7 +4476,7 @@ app.get('/api/idx/screener', async (req, res) => {
       results: filtered
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4480,7 +4491,7 @@ app.get('/api/idx/shareholder-composition/:ticker', async (req, res) => {
     const data = await generateShareholderComposition(ticker);
     return res.json({ success: true, data });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4513,7 +4524,7 @@ app.get('/api/idx/sector-rotation', async (req, res) => {
     const data = await generateSectorRotation({ from, to });
     return res.json({ success: true, data });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4534,7 +4545,7 @@ app.post('/api/idx/master-screener', async (req, res) => {
     }
     return res.json({ success: true, data });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4550,7 +4561,7 @@ app.get('/api/idx/top-movers', async (req, res) => {
       updatedAt: summary.updatedAt
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4643,7 +4654,7 @@ app.get('/api/idx/indices', async (req, res) => {
       updatedAt: new Date().toISOString()
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4654,7 +4665,7 @@ app.get('/api/idx/opportunity-radar', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[IDX Opportunity Radar Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4680,7 +4691,7 @@ app.get('/api/cron/warm-radar-fundamentals', async (req, res) => {
     return res.json({ success: true, ...result });
   } catch (err) {
     console.error('[Radar Fundamentals Cron Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4733,7 +4744,7 @@ app.get('/api/cron/warm-technical-indicators', async (req, res) => {
     return res.json({ success: true, ...result, signalLog, consensusLog });
   } catch (err) {
     console.error('[Technical Indicators Cron Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4748,7 +4759,7 @@ app.get('/api/idx/unified-screener', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[Unified Screener Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4769,7 +4780,7 @@ app.get('/api/idx/screener-consensus', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Screener Consensus Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4781,7 +4792,7 @@ app.get('/api/strategy-engine/strategies', async (req, res) => {
     return res.json({ success: true, strategies: listStrategies() });
   } catch (err) {
     console.error('[Strategy Engine List Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4811,7 +4822,7 @@ app.get('/api/strategy-engine/scan', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Strategy Engine Scan Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4828,7 +4839,7 @@ app.get('/api/strategy-engine/latest', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Strategy Engine Latest Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4851,7 +4862,7 @@ app.get('/api/strategy-engine/daily-stats', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Strategy Engine Daily Stats Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4870,7 +4881,7 @@ app.get('/api/strategy-engine/daily-picks', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Strategy Engine Daily Picks Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4899,7 +4910,7 @@ app.get('/api/cron/warm-strategy-engine', async (req, res) => {
     return res.json({ success: true, ...result });
   } catch (err) {
     console.error('[Strategy Engine Cron Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4926,7 +4937,7 @@ app.get('/api/cron/warm-daily-picks', async (req, res) => {
     });
   } catch (err) {
     console.error('[Daily Picks Warm Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4962,7 +4973,7 @@ app.get('/api/idx/unified-screener-backtest', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[Unified Screener Backtest Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4977,7 +4988,7 @@ app.get('/api/idx/screener-signal-log', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[Screener Signal Log Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -4995,7 +5006,7 @@ app.get('/api/idx/screener-calibration-report', async (req, res) => {
     return res.json({ success: true, data });
   } catch (err) {
     console.error('[Screener Calibration Report Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5017,7 +5028,7 @@ app.get('/api/idx/consensus-signal-log', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[Consensus Signal Log Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5030,7 +5041,7 @@ app.get('/api/idx/accumulation-distribution', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[IDX Acc/Dist Scanner Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5044,7 +5055,7 @@ app.get('/api/idx/accumulation-distribution-range', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[IDX Net Acc/Dist Range Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5061,7 +5072,7 @@ app.post('/api/idx/accumulation-distribution', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[IDX Acc/Dist Scanner Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5083,7 +5094,7 @@ app.get('/api/idx/flow-trail/:ticker', async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error('[IDX Flow Trail Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5096,7 +5107,7 @@ app.get('/api/idx/calendar', async (req, res) => {
     return res.json({ success: true, ...cal });
   } catch (err) {
     console.error('[IDX Calendar Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5113,7 +5124,7 @@ app.get('/api/idx/financial-statement/:ticker', async (req, res) => {
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[IDX Financial Statement Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5133,7 +5144,7 @@ app.get('/api/economic/health', async (req, res) => {
     return res.json(health);
   } catch (err) {
     console.error('[Economic Health Error]', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: publicErrorMessage(err) });
   }
 });
 
@@ -5153,7 +5164,7 @@ app.get('/api/economic/bps/datasets', async (req, res) => {
     });
   } catch (err) {
     console.error('[BPS Discovery Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5181,7 +5192,7 @@ app.get('/api/economic/bps/indicators', async (req, res) => {
     });
   } catch (err) {
     console.error('[BPS Strategic Indicators Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5199,7 +5210,7 @@ app.get('/api/economic/bi/jisdor', async (req, res) => {
     });
   } catch (err) {
     console.error('[BI JISDOR Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 
@@ -5217,7 +5228,7 @@ app.get('/api/economic/bi/exchange-rate', async (req, res) => {
     });
   } catch (err) {
     console.error('[BI Exchange Rate Error]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });
 

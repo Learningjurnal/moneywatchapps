@@ -3337,7 +3337,7 @@ await asyncTest("REGRESSION GUARD: executeAgentTool('cek_sinyal_teknikal') must 
   // mutated object reference would trivially "pass" no matter what was
   // added to it.
   const fakeSignal1 = { ticker: 'BBCA', signal: 'BUY', compositeScore: 65, entry: 9000, sl: 8700, tp1: 9500, tp2: 9800, computedAt: '2026-09-17T00:00:00.000Z' };
-  const sandbox1 = { window: {}, computeStockSignal: async () => fakeSignal1 };
+  const sandbox1 = { window: {}, publicErrorMessage: (e, fb) => fb || "err", computeStockSignal: async () => fakeSignal1 };
   sandbox1.window = sandbox1;
   const ctx1 = vm.createContext(sandbox1);
   vm.runInContext(src, ctx1, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal success path (sandboxed load for test)' });
@@ -3354,7 +3354,7 @@ await asyncTest("REGRESSION GUARD: executeAgentTool('cek_sinyal_teknikal') must 
 
   // 2. computeStockSignal() throws (e.g. Yahoo unreachable) — must degrade
   // to a NO DATA response, never propagate the exception or invent a signal.
-  const sandbox2 = { window: {}, computeStockSignal: async () => { throw new Error('Yahoo Finance unreachable'); } };
+  const sandbox2 = { window: {}, publicErrorMessage: (e, fb) => fb || "err", computeStockSignal: async () => { throw new Error('Yahoo Finance unreachable'); } };
   sandbox2.window = sandbox2;
   const ctx2 = vm.createContext(sandbox2);
   vm.runInContext(src, ctx2, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal failure path (sandboxed load for test)' });
@@ -3368,7 +3368,7 @@ await asyncTest("REGRESSION GUARD: executeAgentTool('cek_sinyal_teknikal') must 
   // end up in pastSignals, capped at 3, most-recent-first order preserved
   // (the array is already ordered by the client; the tool must not reorder it).
   const fakeSignal3 = { ticker: 'BBCA', signal: 'HOLD' };
-  const sandbox3 = { window: {}, computeStockSignal: async () => fakeSignal3 };
+  const sandbox3 = { window: {}, publicErrorMessage: (e, fb) => fb || "err", computeStockSignal: async () => fakeSignal3 };
   sandbox3.window = sandbox3;
   const ctx3 = vm.createContext(sandbox3);
   vm.runInContext(src, ctx3, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal pastSignals filtering (sandboxed load for test)' });
@@ -3390,7 +3390,7 @@ await asyncTest("REGRESSION GUARD: executeAgentTool('cek_sinyal_teknikal') must 
   // (which would make the later Supabase insert fail against the CHECK
   // constraint) and never silently defaulted to 'HOLD'.
   const fakeSignalBad = { ticker: 'BBCA', signal: 'MAYBE BUY IDK' };
-  const sandbox4 = { window: {}, computeStockSignal: async () => fakeSignalBad };
+  const sandbox4 = { window: {}, publicErrorMessage: (e, fb) => fb || "err", computeStockSignal: async () => fakeSignalBad };
   sandbox4.window = sandbox4;
   const ctx4 = vm.createContext(sandbox4);
   vm.runInContext(src, ctx4, { filename: 'server.js executeAgentTool() cek_sinyal_teknikal REVIEW-sentinel guard (sandboxed load for test)' });
@@ -11664,4 +11664,4 @@ test('REGRESSION GUARD: dossierHarvestData() writes real fetched history into th
 
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
-console.log('═══════════════════════════════════════════════════════');
+console.log('═══════════════════════════════════════════════════════');
