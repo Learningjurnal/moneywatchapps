@@ -4877,7 +4877,8 @@ app.get('/api/cron/warm-strategy-engine', async (req, res) => {
   }
   try {
     const strategyId = String(req.query.strategy || 'swing-flow').trim();
-    const result = await warmStrategyEngineRotating(20000, strategyId);
+    // Anggaran 16 dtk + batas per-emiten 11 dtk < maxDuration fungsi (30 dtk, vercel.json).
+    const result = await warmStrategyEngineRotating(16000, strategyId);
     return res.json({ success: true, ...result });
   } catch (err) {
     console.error('[Strategy Engine Cron Error]', err);

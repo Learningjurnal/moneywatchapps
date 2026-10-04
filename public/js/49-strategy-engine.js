@@ -411,7 +411,15 @@ function usDailyPicksRender() {
   } else if (US_DAILY_PICKS_STATE.error && !US_DAILY_PICKS_STATE.data) {
     body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8)">Gagal memuat: ' + usDailyPicksEsc(US_DAILY_PICKS_STATE.error) + '</div>';
   } else if (US_DAILY_PICKS_STATE.data && US_DAILY_PICKS_STATE.data.count === 0) {
-    body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8);line-height:1.5">Belum ada saham STRONG/QUALIFIED untuk ' + usDailyPicksEsc(US_DAILY_PICKS_STATE.data.date) + '. Kemungkinan hari libur bursa atau rotasi scan harian belum menemukan sinyal.</div>';
+    // FIX (2026-10-04): teks lama MENEBAK penyebab ("hari libur bursa ..."). Sekarang menyebut
+    // cakupan pemindaian nyata dari server (scanCoverage), supaya "belum ada hasil" bisa
+    // dibedakan dari "baru sedikit emiten terpindai" dan "belum ada yang berhasil dipindai".
+    var emptyData = US_DAILY_PICKS_STATE.data;
+    var cov = emptyData.scanCoverage;
+    var emptyReason = (cov && cov.scannedPerStrategyMax > 0)
+      ? ('Rotasi harian baru memindai ' + cov.scannedPerStrategyMax + ' dari ' + cov.universeSize + ' emiten (per strategi) dan belum menemukan yang berstatus STRONG/QUALIFIED.')
+      : 'Belum ada emiten yang berhasil dipindai untuk tanggal ini.';
+    body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8);line-height:1.5">Belum ada saham STRONG/QUALIFIED untuk ' + usDailyPicksEsc(emptyData.date) + '. ' + usDailyPicksEsc(emptyReason) + '</div>';
   } else if (US_DAILY_PICKS_STATE.data) {
     var d = US_DAILY_PICKS_STATE.data;
     // FIX (2026-09-27, user-requested: "berikan tanda ranking ... untuk

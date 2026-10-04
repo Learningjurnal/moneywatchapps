@@ -414,17 +414,23 @@ await (async () => {
     // can show a real qualifying-rate trend going forward.
     await asyncTest('CRON: warmStrategyEngineRotating() persists daily stats (processed + full status breakdown) queryable via getStrategyEngineDailyStats()', async () => {
       const { getStrategyEngineDailyStats } = await import('./lib/engine/strategy/StrategyEngine.js');
-      const todayKey = new Date().toISOString().slice(0, 10);
+      // FIX (2026-10-04): cron kini menulis di kunci tanggal EOD bursa terakhir
+      // (getLatestEodTradingDate), bukan tanggal kalender UTC — pembacaan harus
+      // mencari entri dengan tanggal itu (bisa 1-3 hari sebelum "hari ini").
+      const { getLatestEodTradingDate } = await import('./lib/invezgo-client.js');
+      const todayKey = getLatestEodTradingDate();
+      const findDay = (stats) => stats.days.find(d => d.date === todayKey);
 
-      const before = await getStrategyEngineDailyStats('hidden-accumulation', 1);
-      const beforeProcessed = before.days[0].processed;
+      const before = await getStrategyEngineDailyStats('hidden-accumulation', 5);
+      assert(findDay(before), 'REGRESSION: getStrategyEngineDailyStats() window does not include the latest EOD trading date ' + todayKey);
+      const beforeProcessed = findDay(before).processed;
 
       const result = await warmStrategyEngineRotating(3000, 'hidden-accumulation', 3);
       assert(result.processed > 0, 'must process at least one ticker within the time budget');
+      assert.strictEqual(result.dataDate, todayKey, 'REGRESSION: cron must scan the latest EOD trading date, not the UTC calendar date');
 
-      const after = await getStrategyEngineDailyStats('hidden-accumulation', 1);
-      const todayStats = after.days[0];
-      assert.strictEqual(todayStats.date, todayKey, 'REGRESSION: getStrategyEngineDailyStats() did not return today as the single requested day');
+      const after = await getStrategyEngineDailyStats('hidden-accumulation', 5);
+      const todayStats = findDay(after);
       assert.strictEqual(todayStats.processed, beforeProcessed + result.processed,
         'REGRESSION: daily stats processed count did not accumulate by exactly this run\'s processed count — stats are being overwritten instead of merged across runs');
 
