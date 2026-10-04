@@ -234,72 +234,52 @@ var REBALANCE_TARGETS = {
   etf: 5
 };
 
-function openRebalancingModal() {
-  var modal = document.getElementById('modal');
-  var mTitle = document.getElementById('m-title');
-  var mBody = document.getElementById('m-body');
-  if (!modal || !mBody) return;
+// FIX (2026-10-04, "periksa semua layout yang double2"): kalkulator alokasi antar KELAS ASET ini dulu modal
+// terpisah (tombol "Smart Rebalancer" di Performance), padahal halaman Rebalance sudah ada untuk bobot antar
+// SAHAM — dua pintu rebalancing berbeda. Kini satu halaman Rebalance dengan tab "Kelas Aset" (isi modal lama,
+// id elemen dan rebRecalculate() tidak berubah) + tab Equal Weight / Target Kustom. Tombol Performance
+// membuka tab ini lewat goRebalanceAssetClass().
+function goRebalanceAssetClass() {
+  _rebalanceMode = 'assetclass';
+  goPage('rebalance');
+}
+window.goRebalanceAssetClass = goRebalanceAssetClass;
 
-  mTitle.textContent = '⚖️ Smart Portfolio Rebalancing Calculator';
-
+function rebAssetClassSectionHtml() {
   var totEquity = (typeof totalValuation === 'function') ? totalValuation() : 0;
-  var sahamVal = (typeof equityHoldingsVal === 'function') ? equityHoldingsVal() : 0;
-  var rdnVal = (typeof rdnBalance === 'number') ? rdnBalance : 0;
-  var cryptoVal = (typeof cryptoTotalValuation === 'function') ? cryptoTotalValuation() : 0;
-  var rdVal = (typeof reksadanaTotalValuation === 'function') ? reksadanaTotalValuation() : 0;
-  var etfVal = (typeof etfTotalValuation === 'function') ? etfTotalValuation() : 0;
+  var rows = [
+    { id: 'saham', label: 'Saham IDX', cur: (typeof equityHoldingsVal === 'function') ? equityHoldingsVal() : 0, target: REBALANCE_TARGETS.saham },
+    { id: 'rdn', label: 'Kas RDN (Liquid)', cur: (typeof rdnBalance === 'number') ? rdnBalance : 0, target: REBALANCE_TARGETS.rdn },
+    { id: 'rd', label: 'Reksa Dana / Obligasi', cur: (typeof reksadanaTotalValuation === 'function') ? reksadanaTotalValuation() : 0, target: REBALANCE_TARGETS.reksadana },
+    { id: 'etf', label: 'US ETFs', cur: (typeof etfTotalValuation === 'function') ? etfTotalValuation() : 0, target: REBALANCE_TARGETS.etf },
+    { id: 'crypto', label: 'Crypto', cur: (typeof cryptoTotalValuation === 'function') ? cryptoTotalValuation() : 0, target: REBALANCE_TARGETS.crypto }
+  ];
+  var targetInputs = rows.map(function (r) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px">' + r.label + '</span>'
+      + '<input type="number" id="reb-t-' + r.id + '" value="' + r.target + '" onchange="rebRecalculate()" class="finput" style="width:60px;padding:3px 6px"></div>';
+  }).join('');
+  var currentRows = rows.map(function (r) {
+    var pct = totEquity > 0 ? (r.cur / totEquity * 100) : 0;
+    return '<div style="display:flex;justify-content:space-between"><span>' + r.label + ':</span><b class="mono">' + pct.toFixed(1) + '% (Rp ' + fmt(r.cur) + ')</b></div>';
+  }).join('');
 
-  var currentAlloc = {
-    saham: totEquity > 0 ? (sahamVal / totEquity * 100) : 0,
-    rdn: totEquity > 0 ? (rdnVal / totEquity * 100) : 0,
-    reksadana: totEquity > 0 ? (rdVal / totEquity * 100) : 0,
-    crypto: totEquity > 0 ? (cryptoVal / totEquity * 100) : 0,
-    etf: totEquity > 0 ? (etfVal / totEquity * 100) : 0
-  };
-
-  var html = ''
-    + '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">'
-    + '  Tetapkan target alokasi portofolio nasabah untuk mengontrol risiko dan menghitung instruksi beli/jual secara presisi.'
-    + '</div>'
-
-    + '<div class="card" style="margin-bottom:14px;background:var(--bg3)">'
-    + '  <div class="cheader"><span class="ctitle">🎯 Target Alokasi vs Alokasi Saat Ini</span><span class="badge b-neu">Total AUM: Rp ' + fmt(totEquity) + '</span></div>'
-    + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+  return '<div class="card" style="margin-bottom:14px">'
+    + '  <div class="cheader"><span class="ctitle">Target Alokasi vs Alokasi Saat Ini</span><span class="badge b-neu">Total AUM: Rp ' + fmt(totEquity) + '</span></div>'
+    + '  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">'
     + '    <div>'
     + '      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Target (%)</div>'
-    + '      <div style="display:flex;flex-direction:column;gap:6px">'
-    + '        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px">Saham IDX</span><input type="number" id="reb-t-saham" value="' + REBALANCE_TARGETS.saham + '" onchange="rebRecalculate()" class="finput" style="width:60px;padding:3px 6px"></div>'
-    + '        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px">Kas RDN (Liquid)</span><input type="number" id="reb-t-rdn" value="' + REBALANCE_TARGETS.rdn + '" onchange="rebRecalculate()" class="finput" style="width:60px;padding:3px 6px"></div>'
-    + '        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px">Reksa Dana / Obligasi</span><input type="number" id="reb-t-rd" value="' + REBALANCE_TARGETS.reksadana + '" onchange="rebRecalculate()" class="finput" style="width:60px;padding:3px 6px"></div>'
-    + '        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px">US ETFs</span><input type="number" id="reb-t-etf" value="' + REBALANCE_TARGETS.etf + '" onchange="rebRecalculate()" class="finput" style="width:60px;padding:3px 6px"></div>'
-    + '        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px">Crypto</span><input type="number" id="reb-t-crypto" value="' + REBALANCE_TARGETS.crypto + '" onchange="rebRecalculate()" class="finput" style="width:60px;padding:3px 6px"></div>'
-    + '      </div>'
+    + '      <div style="display:flex;flex-direction:column;gap:6px">' + targetInputs + '</div>'
     + '    </div>'
     + '    <div>'
     + '      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Alokasi Aktual Saat Ini</div>'
-    + '      <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;padding-top:4px">'
-    + '        <div style="display:flex;justify-content:space-between"><span>Saham IDX:</span><b class="mono">' + currentAlloc.saham.toFixed(1) + '% (Rp ' + fmt(sahamVal) + ')</b></div>'
-    + '        <div style="display:flex;justify-content:space-between"><span>Kas RDN:</span><b class="mono">' + currentAlloc.rdn.toFixed(1) + '% (Rp ' + fmt(rdnVal) + ')</b></div>'
-    + '        <div style="display:flex;justify-content:space-between"><span>Reksa Dana:</span><b class="mono">' + currentAlloc.reksadana.toFixed(1) + '% (Rp ' + fmt(rdVal) + ')</b></div>'
-    + '        <div style="display:flex;justify-content:space-between"><span>US ETFs:</span><b class="mono">' + currentAlloc.etf.toFixed(1) + '% (Rp ' + fmt(etfVal) + ')</b></div>'
-    + '        <div style="display:flex;justify-content:space-between"><span>Crypto:</span><b class="mono">' + currentAlloc.crypto.toFixed(1) + '% (Rp ' + fmt(cryptoVal) + ')</b></div>'
-    + '      </div>'
+    + '      <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;padding-top:4px">' + currentRows + '</div>'
     + '    </div>'
     + '  </div>'
     + '</div>'
-
     + '<div class="card">'
-    + '  <div class="cheader"><span class="ctitle">📋 Instruksi Eksekusi Rebalancing</span><span class="badge b-amb" id="reb-total-check">100% Target</span></div>'
+    + '  <div class="cheader"><span class="ctitle">Instruksi Eksekusi Rebalancing</span><span class="badge b-amb" id="reb-total-check">100% Target</span></div>'
     + '  <div id="reb-instructions-body"></div>'
-    + '</div>'
-
-    + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'
-    + '  <button class="btn btn-ghost" onclick="closeModal()">Tutup</button>'
     + '</div>';
-
-  mBody.innerHTML = html;
-  modal.classList.add('on');
-  rebRecalculate();
 }
 
 function rebRecalculate() {

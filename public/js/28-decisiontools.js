@@ -1219,9 +1219,15 @@ function runCustomScenarioSimulation() {
 
 // 5. REBALANCING INTELLIGENCE & SIMULATOR
 // 5. REBALANCING INTELLIGENCE & SIMULATOR
-var _rebalanceMode = 'equal'; // 'equal' or 'custom'
+var _rebalanceMode = 'equal'; // 'equal' | 'custom' (bobot antar saham) | 'assetclass' (alokasi antar kelas aset)
 var _rebalanceCustomWeights = {};
 var _rebalanceOrderSheetLines = []; // populated by renderRebalancePage(), read by rebCopyOrderSheet()
+
+function rebModeButtonHtml(mode, icon, label){
+  var on = _rebalanceMode === mode;
+  return '<button class="sm-nav-item ' + (on ? 'active' : '') + '" onclick="setRebalanceMode(\'' + mode + '\')" style="padding:6px 14px;border-radius:7px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;'
+    + (on ? 'background:var(--accent);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ' + icon + '"></i> ' + label + '</button>';
+}
 
 function setRebalanceMode(mode){
   _rebalanceMode = mode;
@@ -1273,13 +1279,22 @@ function renderRebalancePage() {
   var html = '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">'
     + '<div>'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px"><i class="ti ti-scale" style="color:var(--accent)"></i> Smart Rebalancing Engine &amp; Order Sheet</div>'
-    + '<div class="psub">Sistem otomatis menghitung rekomendasi transaksi beli/jual untuk mengembalikan alokasi portofolio ke target persentase ideal.</div>'
+    + '<div class="psub">Sistem otomatis menghitung rekomendasi transaksi beli/jual untuk mengembalikan alokasi portofolio ke target persentase ideal — antar saham (Equal Weight / Target Kustom) atau antar kelas aset (Kelas Aset).</div>'
     + '</div>'
     + '<div class="sm-suite-tabs" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:3px;display:inline-flex;gap:4px">'
-    + '<button class="sm-nav-item ' + (_rebalanceMode==='equal'?'active':'') + '" onclick="setRebalanceMode(\'equal\')" style="padding:6px 14px;border-radius:7px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (_rebalanceMode==='equal' ? 'background:var(--accent);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ti-equal"></i> Equal Weight</button>'
-    + '<button class="sm-nav-item ' + (_rebalanceMode==='custom'?'active':'') + '" onclick="setRebalanceMode(\'custom\')" style="padding:6px 14px;border-radius:7px;border:none;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;' + (_rebalanceMode==='custom' ? 'background:var(--accent);color:#0a0e17;box-shadow:0 1px 3px rgba(0,0,0,0.2)' : 'background:transparent;color:var(--text2)') + '"><i class="ti ti-adjustments"></i> Target Kustom</button>'
+    + rebModeButtonHtml('equal', 'ti-equal', 'Equal Weight')
+    + rebModeButtonHtml('custom', 'ti-adjustments', 'Target Kustom')
+    + rebModeButtonHtml('assetclass', 'ti-layers-intersect', 'Kelas Aset')
     + '</div>'
     + '</div>';
+
+  if (_rebalanceMode === 'assetclass') {
+    // Alokasi antar kelas aset tidak butuh posisi saham aktif (RDN, reksa dana, ETF, crypto ikut dihitung).
+    html += (typeof rebAssetClassSectionHtml === 'function') ? rebAssetClassSectionHtml() : '';
+    c.innerHTML = html;
+    if (typeof rebRecalculate === 'function') rebRecalculate();
+    return;
+  }
 
   if (!porto || porto.length === 0) {
     html += '<div class="card" style="text-align:center;padding:48px 20px;color:var(--text3);border-radius:12px;background:var(--bg2);border:1px solid var(--border)">'
