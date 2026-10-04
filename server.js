@@ -121,6 +121,11 @@ function createRateLimiter(windowMs, maxRequests, label) {
   };
 }
 const aiRateLimiter = createRateLimiter(60 * 1000, 10, 'permintaan AI'); // 10 request/menit/IP
+// AUDIT 2026-10-04: /api/proxy, /api/user-data/* dan /api/sync/* sebelumnya tanpa rate limit sama sekali.
+// Batas longgar (klien memanggil proxy tiap beberapa detik untuk harga) tapi menutup penyalahgunaan massal.
+app.use('/api/proxy', createRateLimiter(60 * 1000, 180, 'permintaan proxy'));
+app.use('/api/user-data', createRateLimiter(60 * 1000, 30, 'permintaan simpan/hapus data'));
+app.use('/api/sync', createRateLimiter(60 * 1000, 30, 'permintaan sinkronisasi'));
 
 // API health endpoint
 app.get('/api/health', (req, res) => {

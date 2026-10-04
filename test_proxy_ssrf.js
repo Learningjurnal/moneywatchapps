@@ -31,4 +31,18 @@ t('protokol non-http dan kredensial dalam URL ditolak', () => {
   assert(!ok('https://user:pw@query1.finance.yahoo.com/'));
   assert(!ok('bukan url'));
 });
-console.log(n === 4 ? '🎉 ALL 4/4 PROXY SSRF TESTS PASSED' : '⚠️ ' + n + '/4');
+
+// Rate limit terpasang SEBELUM definisi rute terkait (urutan middleware Express menentukan).
+{
+  const iLimit = src.indexOf("app.use('/api/proxy', createRateLimiter(");
+  const iRoute = src.indexOf("app.get('/api/proxy'");
+  const iSave = src.indexOf("app.post('/api/user-data/save'");
+  const iSync = src.indexOf("app.post('/api/sync/reconcile-rdn'");
+  t('rate limiter proxy/user-data/sync terpasang sebelum rute-nya', () => {
+    assert(iLimit > 0 && iLimit < iRoute, 'limiter /api/proxy harus sebelum rutenya');
+    const iUd = src.indexOf("app.use('/api/user-data', createRateLimiter(");
+    const iSy = src.indexOf("app.use('/api/sync', createRateLimiter(");
+    assert(iUd > 0 && iUd < iSave && iSy > 0 && iSy < iSync);
+  });
+}
+console.log(n === 5 ? '🎉 ALL 5/5 PROXY SSRF TESTS PASSED' : '⚠️ ' + n + '/5');
