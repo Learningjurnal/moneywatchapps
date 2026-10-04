@@ -2818,8 +2818,10 @@ function bandarRenderMarketFlowContent(data) {
 
   // --- Metric summary cards ---
   var breadthPct = totalScanned > 0 ? Math.round((accCount / totalScanned) * 100) : 0;
-  var breadthLabel = breadthPct >= 60 ? 'RISK-ON (Akumulasi Dominan)'
-    : (breadthPct <= 40 ? 'RISK-OFF (Distribusi Dominan)' : 'MIXED / SIDEWAYS');
+  // FIX (2026-10-04): label lama "RISK-ON/RISK-OFF/MIXED" adalah panggilan regime ke-6 yang berbeda dari klasifikasi
+  // regime asli (Market Regime). Ini hanya rasio emiten akumulasi vs distribusi smart money, bukan regime pasar.
+  var breadthLabel = breadthPct >= 60 ? 'Akumulasi dominan'
+    : (breadthPct <= 40 ? 'Distribusi dominan' : 'Akumulasi dan distribusi seimbang');
   var breadthColor = breadthPct >= 60 ? 'var(--green)' : (breadthPct <= 40 ? 'var(--red)' : 'var(--text2)');
 
   // Top divergence signal: if top-1 acc score >> top-1 dist score → SM inflow signal
@@ -2847,7 +2849,7 @@ function bandarRenderMarketFlowContent(data) {
     + '<div class="msub neu">smart money keluar (melepas)</div>'
     + '</div>'
     + '<div class="metric">'
-    + '<div class="mlabel">MARKET BREADTH</div>'
+    + '<div class="mlabel">RASIO AKUMULASI</div>'
     + '<div class="mval mono" style="font-size:20px;color:' + breadthColor + '">' + breadthPct + '%</div>'
     + '<div class="msub neu">' + breadthLabel + '</div>'
     + '</div>'

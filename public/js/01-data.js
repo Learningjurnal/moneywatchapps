@@ -1559,27 +1559,7 @@ var activeSekuritas = 'Stockbit';
 var rdnBalance = 0;
 var charts = {};
 
-function sideToggleGroup(btn) {
-  if (!btn) return;
-  var group = (typeof btn.closest === 'function') ? btn.closest('.side-group') : (btn.parentElement ? (btn.parentElement.closest ? btn.parentElement.closest('.side-group') : btn.parentElement) : null);
-  if (!group && btn.classList && btn.classList.contains('side-group')) group = btn;
-  if (!group) return;
-  var isOpen = group.classList.contains('open');
-  if (isOpen) {
-    group.classList.remove('open');
-  } else {
-    group.classList.add('open');
-  }
-  var groupKey = group.getAttribute('data-group');
-  if (groupKey) {
-    try {
-      var saved = JSON.parse(localStorage.getItem('mw_side_groups') || '{}');
-      saved[groupKey] = !isOpen;
-      localStorage.setItem('mw_side_groups', JSON.stringify(saved));
-    } catch(e){}
-  }
-}
-window.sideToggleGroup = sideToggleGroup;
+// sideToggleGroup() didefinisikan di 12-clean.js (salinan ganda di sini dihapus 2026-10-04: selalu ditimpa).
 
 // ============================================================
 // STOCK LOGO HELPER (OFFICIAL IDX/STOCKBIT CDN + INSTANT FALLBACK)

@@ -19,6 +19,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const src = fs.readFileSync(path.join(__dirname, 'public', 'js', '26-commandcenter.js'), 'utf8');
+// Sumber regime tunggal (dimuat lebih dulu, seperti urutan <script> di index.html)
+const storeSrc = fs.readFileSync(path.join(__dirname, 'public', 'js', '03b-regime-store.js'), 'utf8');
 
 let passed = 0;
 let total = 0;
@@ -51,7 +53,9 @@ function makeSandbox() {
     window: {}
   };
   sandbox.window = sandbox;
-  vm.runInContext(src, vm.createContext(sandbox));
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(storeSrc, ctx);
+  vm.runInContext(src, ctx);
   return { sandbox, state };
 }
 
@@ -74,7 +78,9 @@ function makeSandboxWithData(responses) {
     navigator: {}, window: {}
   };
   sandbox.window = sandbox;
-  vm.runInContext(src, vm.createContext(sandbox));
+  const ctx = vm.createContext(sandbox);
+  vm.runInContext(storeSrc, ctx);
+  vm.runInContext(src, ctx);
   return { sandbox, state };
 }
 const flush = () => new Promise(r => setImmediate(r));
@@ -99,8 +105,9 @@ await test('setelah gagal, halaman menampilkan status gagal yang jujur (bukan "M
   const { sandbox, state } = makeSandbox();
   sandbox.renderMarketRegimePage();
   sandbox.renderMarketRegimePage(); // render berikutnya masih dalam jeda backoff
-  assert(state.container.innerHTML.includes('GAGAL MEMUAT DATA IHSG'), 'status gagal tidak tampil');
   assert(state.container.innerHTML.includes('Gagal Dimuat'), 'pilar 1 tidak menandai gagal');
+  assert(state.container.innerHTML.includes('Data historis IHSG gagal diambil'), 'alasan kegagalan data IHSG tidak tampil di pilar 1');
+  assert(!state.container.innerHTML.includes('MEMUAT DATA REAL'), 'tidak boleh "Memuat" selamanya setelah gagal');
   assert.strictEqual(state.ihsgFetches, 1, 'render ulang dalam jeda backoff tidak boleh fetch lagi');
 });
 
@@ -113,6 +120,21 @@ await test('pemuat konteks (breadth/TradingView) yang gagal tidak mengulang tanp
   sandbox.renderMarketRegimePage();
   assert.strictEqual(state.contextFetches, 3, `fetch konteks = ${state.contextFetches}, seharusnya 3 (breadth + tv-scan + regime, masing-masing sekali)`);
   assert(state.container.innerHTML.includes('Gagal memuat breadth pasar'), 'pilar 3 tidak jujur saat gagal');
+});
+
+await test('judul status mengikuti klasifikasi regime walau data historis IHSG klien GAGAL dimuat (tidak lagi "GAGAL MEMUAT DATA IHSG")', async () => {
+  const { sandbox, state } = makeSandbox(); // rdGetAny=null => data IHSG klien tidak pernah ada
+  sandbox.fetch = (url) => String(url).includes('/api/idx/regime')
+    ? Promise.resolve({ json: async () => ({ success: true, regime: { regime: 'RISK_OFF', confidence: 65, description: 'd', computedAt: '2026-10-03T17:00:00Z' } }) })
+    : Promise.reject(new Error('x'));
+  sandbox.renderMarketRegimePage();
+  await flush(); await flush(); await flush();
+  sandbox.renderMarketRegimePage();
+  const html = state.container.innerHTML;
+  assert(html.includes('>RISK-OFF<'), 'judul harus RISK-OFF dari klasifikasi regime');
+  assert(!html.includes('GAGAL MEMUAT DATA IHSG'), 'judul tidak boleh menyalahkan data IHSG klien');
+  assert(html.includes('40% – 55%'), 'alokasi dari klasifikasi harus tampil');
+  assert(html.includes('Gagal Dimuat'), 'pilar 1 tetap jujur soal data IHSG yang gagal');
 });
 
 await test('tanpa data, pilar Foreign Flow tetap jujur (tidak ada angka karangan)', () => {
@@ -133,8 +155,8 @@ await test('status mengikuti klasifikasi server: RISK_OFF + IHSG naik 0,46% hari
 
 await test('pemetaan regime server -> status & alokasi (BULL_TREND, BEAR_TREND, SIDEWAYS, HIGH_VOLATILITY)', async () => {
   const expectations = [
-    ['BULL_TREND', 'BULLISH', '70% – 85%'], ['BEAR_TREND', 'BEARISH', '40% – 55%'],
-    ['SIDEWAYS', 'NEUTRAL / ACCUMULATION', '60% – 75%'], ['HIGH_VOLATILITY', 'HIGH VOLATILITY', '60% – 75%']
+    ['BULL_TREND', 'BULL TREND', '70% – 85%'], ['BEAR_TREND', 'BEAR TREND', '40% – 55%'],
+    ['SIDEWAYS', 'SIDEWAYS', '60% – 75%'], ['HIGH_VOLATILITY', 'HIGH VOLATILITY', '60% – 75%']
   ];
   for (const [code, status, equity] of expectations) {
     const html = await renderSettled({ '/api/idx/regime': regimePayload(code), '/api/idx/summary': Error('x'), '/api/idx/tv-scan': Error('x') });

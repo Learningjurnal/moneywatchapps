@@ -187,7 +187,7 @@
       { id: 'bandarmology', title: 'Bandarmology', sub: 'Broker flow, Chaikin CMF, foreign flow, dan deteksi akumulasi/distribusi big player' },
       { id: 'technical', title: 'Analisis Teknikal & Flow', sub: 'RSI, MACD, Stochastic, MA 20/50/200, dan support resistance' },
       { id: 'screener', title: 'Screener Saham LQ45', sub: 'Filter saham berbasis kriteria fundamental dan momentum' },
-      { id: 'market-regime', title: 'Market Regime', sub: 'Deteksi siklus Bull/Bear, VIX, suku bunga, dan yield bond' },
+      { id: 'market-regime', title: 'Market Regime & Tactical Allocation', sub: 'Klasifikasi regime IHSG (tren EMA/RSI), breadth pasar, volatilitas, dan pedoman porsi ekuitas vs kas' },
       { id: 'radar', title: 'Opportunity Radar', sub: 'Peluang breakout, dividend trap, dan value turnaround' },
       { id: 'scenario', title: 'Skenario Stress Test', sub: 'Simulasi dampak ke portofolio jika IHSG crash atau komoditas turun' },
       { id: 'backtester', title: 'Backtester Strategi', sub: 'Uji historis kinerja DCA, momentum, atau value investing' },

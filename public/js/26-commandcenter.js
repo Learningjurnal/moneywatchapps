@@ -165,12 +165,16 @@ function getMarketRegime() {
         }
       });
     }
+    // FIX (2026-10-04): status utama = klasifikasi regime dari store bersama, TERLEPAS dari apakah data
+    // historis IHSG di klien (pilar 1 dan 4) sudah termuat — dulu judul menampilkan "GAGAL MEMUAT DATA IHSG"
+    // padahal klasifikasi RISK-OFF sudah ada. Kegagalan data IHSG hanya memengaruhi pilar 1 dan 4.
+    var pendingCls = mwRegimeClassification();
     return {
       ready: false,
       failed: failed,
-      cls: mrUnavailableClassification(failed ? 'unavailable' : 'loading', ''),
-      status: failed ? 'GAGAL MEMUAT DATA IHSG' : 'MEMUAT DATA REAL…', statusBadge: failed ? 'b-dn' : 'b-neu', strategy: '-',
-      equityTarget: '-', cashTarget: '-',
+      cls: pendingCls,
+      status: pendingCls.status, statusBadge: pendingCls.badge, strategy: pendingCls.strategy,
+      equityTarget: pendingCls.equityTarget, cashTarget: pendingCls.cashTarget,
       ihsgVal: '-', ihsgChg: 0, volatility: '-',
       foreignFlow: null, breadthAdv: null, breadthDec: null
     };
@@ -188,7 +192,7 @@ function getMarketRegime() {
   }
   var dailyVol = (typeof techStdDev === 'function') ? techStdDev(rets) : 0;
 
-  var cls = mrClassification();
+  var cls = mwRegimeClassification();
 
   return {
     ready: true,
@@ -570,11 +574,17 @@ var MR_CONTEXT_TTL_MS = 5 * 60 * 1000;
 var MR_RETRY_AFTER_MS = 45 * 1000;
 var MR_CONTEXT = {
   breadth: { url: '/api/idx/summary', loading: false, data: null, error: null, at: 0, failedAt: 0 },
-  tech: { url: '/api/idx/tv-scan', loading: false, data: null, error: null, at: 0, failedAt: 0 },
-  regime: { url: '/api/idx/regime', loading: false, data: null, error: null, at: 0, failedAt: 0 }
+  tech: { url: '/api/idx/tv-scan', loading: false, data: null, error: null, at: 0, failedAt: 0 }
 };
 
+// Klasifikasi regime TIDAK dimuat di sini: satu sumber bersama di 03b-regime-store.js
+// (mwRegimeEnsure/mwRegimeClassification), dipakai juga Dashboard, Market Pulse, AI Trading, dsb.
+if (typeof mwRegimeSubscribe === 'function') mwRegimeSubscribe(function () {
+  if (typeof currentPage !== 'undefined' && currentPage === 'market-regime' && typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
+});
+
 function mrLoadContext() {
+  mwRegimeEnsure(false);
   Object.keys(MR_CONTEXT).forEach(function (key) {
     var slot = MR_CONTEXT[key];
     var fresh = slot.data && (Date.now() - slot.at) < MR_CONTEXT_TTL_MS;
@@ -597,42 +607,6 @@ function mrLoadContext() {
         if (typeof currentPage !== 'undefined' && currentPage === 'market-regime') renderMarketRegimePage();
       });
   });
-}
-
-// ── Klasifikasi status: dari /api/idx/regime (tren EMA20/EMA50 + RSI-14) ────
-// FIX (2026-10-04): status dulu hanya dari perubahan IHSG SATU HARI (ambang
-// ±0,8%) sehingga IHSG downtrend dengan RSI 18,9 (server: RISK_OFF) tampil
-// "NEUTRAL / ACCUMULATION, ekuitas 60–75%". Sekarang memakai klasifikasi
-// server (classifyMarketRegime). Rentang alokasi di bawah adalah PEDOMAN UMUM
-// per regime (bukan data dan belum divalidasi backtest) — dinyatakan di ikon info.
-var MR_REGIME_MAP = {
-  BULL_TREND: { status: 'BULLISH', badge: 'b-up', strategy: 'RISK-ON', equityTarget: '70% – 85%', cashTarget: '15% – 30%' },
-  SIDEWAYS: { status: 'NEUTRAL / ACCUMULATION', badge: 'b-amb', strategy: 'SELECTIVE ACCUMULATION', equityTarget: '60% – 75%', cashTarget: '25% – 40%' },
-  HIGH_VOLATILITY: { status: 'HIGH VOLATILITY', badge: 'b-amb', strategy: 'SELEKTIF — WASPADA KOREKSI', equityTarget: '60% – 75%', cashTarget: '25% – 40%' },
-  BEAR_TREND: { status: 'BEARISH', badge: 'b-dn', strategy: 'CAPITAL PRESERVATION', equityTarget: '40% – 55%', cashTarget: '45% – 60%' },
-  RISK_OFF: { status: 'RISK-OFF', badge: 'b-dn', strategy: 'CAPITAL PRESERVATION', equityTarget: '40% – 55%', cashTarget: '45% – 60%' }
-};
-
-function mrUnavailableClassification(state, description) {
-  return { state: state, status: state === 'loading' ? 'MEMUAT KLASIFIKASI…' : 'KLASIFIKASI TIDAK TERSEDIA', badge: 'b-neu',
-    strategy: '-', equityTarget: '-', cashTarget: '-', description: description || '', confidence: null, code: null, computedAt: null };
-}
-
-function mrClassification() {
-  var slot = MR_CONTEXT.regime;
-  var payload = slot.data && slot.data.regime;
-  if (payload) {
-    var mapped = MR_REGIME_MAP[payload.regime];
-    if (mapped) {
-      return Object.assign({}, mapped, { state: 'ok', code: payload.regime, confidence: payload.confidence, description: payload.description || '', computedAt: payload.computedAt || null });
-    }
-    // Mis. UNKNOWN: data historis IHSG tidak cukup — tidak ada rekomendasi alokasi.
-    return mrUnavailableClassification('unavailable', payload.description || 'Data historis IHSG tidak cukup untuk klasifikasi regime.');
-  }
-  if (slot.error && !slot.loading) {
-    return mrUnavailableClassification('unavailable', 'Gagal memuat klasifikasi regime (' + slot.error + '). Mencoba lagi otomatis.');
-  }
-  return mrUnavailableClassification('loading', '');
 }
 
 function mrInfo(text) {

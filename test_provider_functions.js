@@ -336,6 +336,7 @@ await asyncTest('INCIDENT #3: aiShouldAutoLoadUniverse() blocks re-entrant auto-
   sandbox.window = sandbox;
   sandbox.self = sandbox;
   const ctx = vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'public/js/03b-regime-store.js'), 'utf8'), ctx); // store regime bersama
   vm.runInContext(src, ctx, { filename: '38-ai-autonomous-trading.js (sandboxed load for test)' });
 
   assert.strictEqual(typeof ctx.aiShouldAutoLoadUniverse, 'function',
@@ -511,6 +512,7 @@ await asyncTest('aiSetScanUniverse(): a universe larger than one batch is fetche
   sandbox.window = sandbox;
   sandbox.self = sandbox;
   const ctx = vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'public/js/03b-regime-store.js'), 'utf8'), ctx); // store regime bersama
   vm.runInContext(src, ctx, { filename: '38-ai-autonomous-trading.js (sandboxed load for test)' });
 
   assert.strictEqual(typeof ctx.aiSetScanUniverse, 'function',

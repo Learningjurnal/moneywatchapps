@@ -72,54 +72,37 @@ function switchDashboardView(view, btn){
 var _dashInsightRegime = null; // last real regime result, or null while loading/failed
 var _dashInsightTopPick = null; // top BUY ZONE radar item, or null
 
-var _dashRegimeLoading = false;
-var DASH_REGIME_DISPLAY = {
-  BULL_TREND: { label: 'BULL TREND', color: 'var(--green)', bg: 'rgba(0,245,155,0.15)' },
-  BEAR_TREND: { label: 'BEAR TREND', color: 'var(--red)', bg: 'rgba(255,61,90,0.15)' },
-  HIGH_VOLATILITY: { label: 'HIGH VOLATILITY', color: 'var(--amber)', bg: 'rgba(255,184,0,0.15)' },
-  RISK_OFF: { label: 'RISK OFF', color: 'var(--red)', bg: 'rgba(255,61,90,0.15)' },
-  SIDEWAYS: { label: 'SIDEWAYS', color: 'var(--text3)', bg: 'var(--bg3)' },
-  UNKNOWN: { label: 'BELUM DIKETAHUI', color: 'var(--text3)', bg: 'var(--bg3)' }
-};
-async function renderDashboardMarketRegime(){
+// Strip regime Dashboard = tampilan RINGKAS dari store bersama (03b-regime-store.js — satu fetch,
+// satu tabel label untuk seluruh UI); rincian ada di halaman Market Regime ("Lihat Detail →").
+// FIX (2026-10-04): dulu fetch /api/idx/regime sendiri + tabel label sendiri (DASH_REGIME_DISPLAY).
+function paintDashboardMarketRegime(){
   var badge = el('dash-regime-badge');
-  if(!badge || _dashRegimeLoading) return;
-  _dashRegimeLoading = true;
-  try {
-    var resp = await fetch('/api/idx/regime');
-    var json = await resp.json();
-    if(!json.success || !json.regime) throw new Error(json.error || 'Gagal memuat regime');
-    var r = json.regime;
-    // Page may have navigated away while this fetch was in flight — bail
-    // out rather than writing into elements that no longer matter (or, in
-    // a hash collision, belong to a different page now).
-    if(!el('dash-regime-badge')) return;
-    var display = DASH_REGIME_DISPLAY[r.regime] || { label: r.regime || '—', color: 'var(--text3)', bg: 'var(--bg3)' };
-    el('dash-regime-badge').textContent = display.label;
-    el('dash-regime-badge').style.color = display.color;
-    el('dash-regime-badge').style.background = display.bg;
-    if(el('dash-regime-confidence')) el('dash-regime-confidence').textContent = r.confidence != null ? ('Confidence ' + r.confidence + '%') : '';
-    if(el('dash-regime-ihsg')) el('dash-regime-ihsg').textContent = r.ihsg ? Number(r.ihsg).toLocaleString('id-ID', {maximumFractionDigits:2}) : '—';
-    if(el('dash-regime-ihsg-chg')){
-      var chg = r.ihsgChangePct;
-      el('dash-regime-ihsg-chg').textContent = chg != null ? ((chg >= 0 ? '+' : '') + chg.toFixed(2) + '%') : '';
-      el('dash-regime-ihsg-chg').style.color = (chg != null && chg < 0) ? 'var(--red)' : 'var(--green)';
-    }
-    if(el('dash-regime-desc')) el('dash-regime-desc').textContent = r.description || '';
-    _dashInsightRegime = r;
-  } catch(err){
-    if(el('dash-regime-badge')){
-      el('dash-regime-badge').textContent = 'Gagal Memuat';
-      el('dash-regime-badge').style.color = 'var(--red)';
-      el('dash-regime-badge').style.background = 'var(--bg3)';
-    }
-    if(el('dash-regime-desc')) el('dash-regime-desc').textContent = 'Tidak bisa memuat klasifikasi market regime saat ini: ' + ((err && err.message) || 'error jaringan') + '.';
-    _dashInsightRegime = null;
-  } finally {
-    _dashRegimeLoading = false;
-    if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
+  if(!badge) return;
+  var cls = mwRegimeClassification();
+  var r = mwRegimePeek();
+  badge.textContent = cls.state === 'ok' ? cls.status : (cls.state === 'loading' ? 'Memuat…' : 'Tidak Tersedia');
+  badge.style.color = cls.color;
+  badge.style.background = cls.bg;
+  if(el('dash-regime-confidence')) el('dash-regime-confidence').textContent = (cls.state === 'ok' && cls.confidence != null) ? ('Confidence ' + cls.confidence + '%') : '';
+  if(el('dash-regime-ihsg')) el('dash-regime-ihsg').textContent = (r && r.ihsg) ? Number(r.ihsg).toLocaleString('id-ID', {maximumFractionDigits:2}) : '—';
+  if(el('dash-regime-ihsg-chg')){
+    var chg = r ? r.ihsgChangePct : null;
+    el('dash-regime-ihsg-chg').textContent = chg != null ? ((chg >= 0 ? '+' : '') + chg.toFixed(2) + '%') : '';
+    el('dash-regime-ihsg-chg').style.color = (chg != null && chg < 0) ? 'var(--red)' : 'var(--green)';
   }
+  if(el('dash-regime-desc')) el('dash-regime-desc').textContent = cls.state === 'loading' ? 'Memuat klasifikasi regime pasar…' : (cls.description || '');
+  _dashInsightRegime = r;
 }
+async function renderDashboardMarketRegime(){
+  paintDashboardMarketRegime();
+  await mwRegimeEnsure(false);
+  paintDashboardMarketRegime();
+  if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
+}
+if (typeof mwRegimeSubscribe === 'function') mwRegimeSubscribe(function(){
+  paintDashboardMarketRegime();
+  if(typeof renderDashboardAIInsight === 'function') renderDashboardAIInsight();
+});
 
 var _dashRadarLoading = false;
 async function renderDashboardRadarPreview(){

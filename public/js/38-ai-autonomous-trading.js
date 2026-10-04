@@ -27,27 +27,9 @@
     selectedStrategyId: 'strat_pullback',
     filterSignal: 'all',
     searchQuery: '',
-    // regime/confidence/ihsg/ihsgChange/regimeDescription are populated from
-    // the real classifyMarketRegime() engine (lib/idx-data-engine.js) via
-    // fetchAiMarketRegime() -> GET /api/idx/regime, triggered when the Market
-    // Regime tab is opened (see aiSwitchTab). breadthPct/foreignFlowToday/
-    // sectorLeader have no real data source yet (would need per-stock
-    // breadth and a sector-index/broker-summary feed we haven't built) —
-    // every field below used to ship as a permanently fixed fake number
-    // shown as if live ("82% CONVICTION", "BULLISH RISK-ON", "+Rp 542
-    // Miliar"), misleading because a user couldn't tell which was which.
-    // These three are left null on purpose; the render functions show
-    // "Belum Dihitung" instead of a fabricated number.
-    marketRegime: {
-      regime: null,
-      confidence: null,
-      ihsg: 0,
-      ihsgChange: null,
-      breadthPct: null,
-      foreignFlowToday: null,
-      sectorLeader: null,
-      regimeDescription: null
-    },
+    // FIX (2026-10-04): state marketRegime dihapus. Regime kini SATU sumber bersama (03b-regime-store.js:
+    // mwRegimeClassification/mwRegimeCode) — sebelumnya tab ini punya fetch + tabel label sendiri sehingga
+    // berbeda dari halaman Market Regime & Tactical Allocation.
     // ISOLATED VIRTUAL ACCOUNT (Rp 100 Juta Initial Capital) — starts
     // genuinely empty. The old version shipped with 3 fake open positions
     // and 3 fake closed trades baked in permanently; this one only ever
@@ -222,11 +204,6 @@
   var AI_DQ_ERROR = null;
   var AI_DQ_TICKER = null;   // ticker AI_DQ_RESULT was computed for
 
-  // Market Regime tab loading state — see /api/idx/regime (real
-  // classifyMarketRegime() from lib/idx-data-engine.js, same classifier
-  // generateTradingHypothesis()/computeConfluence() already use server-side).
-  var AI_REGIME_LOADING = false;
-  var AI_REGIME_ERROR = null;
 
   // Real backtest results (Strategy Lab / Backtest Lab) — null until the
   // user explicitly runs one (server-side simulation over ~135 tickers x
@@ -1079,50 +1056,11 @@
     }
   }
 
-  // Fetches the real market regime classification (/api/idx/regime, backed by
-  // classifyMarketRegime() in lib/idx-data-engine.js) and maps it into
-  // AI_TRADE_STATE.marketRegime for the Market Regime tab, translating the
-  // field names that differ between the engine's response and the render
-  // function's shape (ihsgChangePct -> ihsgChange, description ->
-  // regimeDescription). breadthPct/foreignFlowToday/sectorLeader have no real
-  // data source and are intentionally left untouched (null).
-  async function fetchAiMarketRegime() {
-    if (AI_REGIME_LOADING) return;
-
-    AI_REGIME_LOADING = true;
-    AI_REGIME_ERROR = null;
-    renderAiTradingPage();
-    try {
-      var resp = await fetch('/api/idx/regime');
-      var json = await resp.json();
-      if (!json.success) throw new Error(json.error || 'Gagal memuat klasifikasi market regime');
-
-      var r = json.regime;
-      AI_TRADE_STATE.marketRegime.regime = r.regime;
-      AI_TRADE_STATE.marketRegime.confidence = r.confidence;
-      AI_TRADE_STATE.marketRegime.ihsg = r.ihsg;
-      AI_TRADE_STATE.marketRegime.ihsgChange = r.ihsgChangePct;
-      AI_TRADE_STATE.marketRegime.regimeDescription = r.description;
-    } catch (err) {
-      AI_REGIME_ERROR = (err && err.message) || 'Gagal memuat klasifikasi market regime';
-      if (typeof showToast === 'function') showToast('' + AI_REGIME_ERROR);
-    } finally {
-      AI_REGIME_LOADING = false;
-      renderAiTradingPage();
-    }
-  }
-
-  // Lightweight regime fetch for stamping onto a position's post-mortem
-  // fields (regimeAtEntry/regimeAtExit, roadmap 3.1) — separate from
-  // fetchAiMarketRegime() above, which mutates the whole Market Regime
-  // tab's display state; this just returns the value, or null on failure
-  // (never a fabricated regime label).
+  // Label regime saat ini untuk distempel ke post-mortem posisi (regimeAtEntry/regimeAtExit, roadmap 3.1):
+  // dari store bersama (satu fetch ber-cache), atau null bila tidak tersedia — tidak pernah label karangan.
   async function fetchCurrentRegimeLabel() {
-    try {
-      var resp = await fetch('/api/idx/regime');
-      var json = await resp.json();
-      return (json.success && json.regime) ? json.regime.regime : null;
-    } catch (e) { return null; }
+    var r = await mwRegimeEnsure(false);
+    return r ? r.regime : null;
   }
 
   // Opens a paper position from a generated hypothesis by upserting it into
@@ -1694,12 +1632,6 @@
     var netProfit = (p.realizedPnL || 0) + p.unrealizedPnL;
     p.totalReturnPct = p.initialCapital > 0 ? Number(((netProfit / p.initialCapital) * 100).toFixed(2)) : 0;
 
-    if (typeof prices !== 'undefined' && prices['^JKSE'] && prices['^JKSE'] > 0) {
-      AI_TRADE_STATE.marketRegime.ihsg = Math.round(prices['^JKSE']);
-    } else if (typeof ihsgCur !== 'undefined' && ihsgCur > 0) {
-      AI_TRADE_STATE.marketRegime.ihsg = Math.round(ihsgCur);
-    }
-
     if (forceFetch) {
       aiRefreshPaperPortfolioQuotes(true, onDone);
     }
@@ -1804,7 +1736,9 @@
 
     var state = AI_TRADE_STATE;
     var paper = state.paperAccount;
-    var regime = state.marketRegime;
+    // Tab 'regime' dihapus (duplikat halaman Market Regime): state lama yang tersimpan diarahkan ke Cockpit.
+    if (state.activeTab === 'regime') state.activeTab = 'cockpit';
+    mwRegimeEnsure(false);
 
     var html = ''
       // Header & Navigation Bar
@@ -1822,7 +1756,6 @@
       + '  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'cockpit' ? 'on' : '') + '" onclick="aiSwitchTab(\'cockpit\')" style="' + (state.activeTab === 'cockpit' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Overview</button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'copy' ? 'on' : '') + '" onclick="aiSwitchTab(\'copy\')" style="' + (state.activeTab === 'copy' ? 'background:rgba(34,197,94,0.18);border-color:var(--green);color:var(--green);font-weight:700' : 'color:var(--green);border-color:rgba(34,197,94,0.3)') + '">📋 Copy Trading <span class="badge b-up" style="font-size:9px;padding:1px 5px">READY</span></button>'
-      + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'regime' ? 'on' : '') + '" onclick="aiSwitchTab(\'regime\')" style="' + (state.activeTab === 'regime' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Market Regime</button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'scanner' ? 'on' : '') + '" onclick="aiSwitchTab(\'scanner\')" style="' + (state.activeTab === 'scanner' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Scanner &amp; EV</button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'deep' ? 'on' : '') + '" onclick="aiSwitchTab(\'deep\')" style="' + (state.activeTab === 'deep' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">Explainable AI</button>'
       + '    <button class="btn btn-ghost btn-sm ' + (state.activeTab === 'strategylab' ? 'on' : '') + '" onclick="aiSwitchTab(\'strategylab\')" style="' + (state.activeTab === 'strategylab' ? 'background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#38bdf8' : '') + '">10 Strategy Lab</button>'
@@ -1883,8 +1816,6 @@
       html += renderAiCockpit(state);
     } else if (state.activeTab === 'copy') {
       html += renderAiCopyTrading(state);
-    } else if (state.activeTab === 'regime') {
-      html += renderAiMarketRegime(state);
     } else if (state.activeTab === 'scanner') {
       html += renderAiScanner(state);
     } else if (state.activeTab === 'deep') {
@@ -1908,22 +1839,27 @@
     c.innerHTML = html;
   }
 
-  // Regime display helpers — shared by renderAiCockpit and
-  // renderAiMarketRegime. classifyMarketRegime() can genuinely return a
-  // bearish/risk-off regime, so the icon/color must follow r.regime instead
-  // of a single hardcoded bullish "up"/presentation; and ihsgChange can be
-  // negative, so the sign must not be hardcoded to "+".
-  var REGIME_DISPLAY = {
-    BULL_TREND: { icon: '', cls: 'up' },
-    BEAR_TREND: { icon: '', cls: 'down' },
-    RISK_OFF: { icon: '', cls: 'down' },
-    HIGH_VOLATILITY: { icon: '', cls: 'down' },
-    SIDEWAYS: { icon: '', cls: 'neu' },
-    UNKNOWN: { icon: '', cls: 'neu' }
-  };
-  function regimeDisplay(regime) {
-    return REGIME_DISPLAY[regime] || { icon: '', cls: 'neu' };
+  // Kartu regime Cockpit: tampilan RINGKAS dari store bersama + tautan ke halaman Market Regime.
+  // (Dulu tab "Market Regime" terpisah dengan tabel label sendiri, 4 kotak yang permanen kosong, dan
+  // IHSG dari harga portofolio paper — berbeda dari halaman Market Regime & Tactical Allocation.)
+  function aiRegimeKpiInner() {
+    var rg = mwRegimeClassification();
+    var cls = rg.badge === 'b-up' ? 'up' : (rg.badge === 'b-dn' ? 'down' : 'neu');
+    var sub;
+    if (rg.state === 'ok') {
+      sub = 'IHSG ' + (rg.ihsg != null ? Number(rg.ihsg).toLocaleString('id-ID', { maximumFractionDigits: 2 }) : '-')
+        + (rg.ihsgChangePct != null ? ' (' + signedPct(rg.ihsgChangePct) + '%)' : '')
+        + ' · Keyakinan ' + rg.confidence + '% · ' + mwRegimeDetailLinkHtml();
+    } else {
+      sub = rg.state === 'loading' ? 'Memuat klasifikasi regime…' : rg.description;
+    }
+    return '    <div class="mlabel">Market Regime</div>'
+      + '    <div class="mval ' + cls + '" style="font-size:18px">' + rg.status + '</div>'
+      + '    <div class="msub neu">' + sub + '</div>';
   }
+  if (typeof mwRegimeSubscribe === 'function') mwRegimeSubscribe(function () {
+    if (typeof currentPage !== 'undefined' && currentPage === 'ai-trading') renderAiTradingPage();
+  });
   function signedPct(n) {
     return (n >= 0 ? '+' : '') + n;
   }
@@ -1933,7 +1869,6 @@
     ensureFullUniverseLoaded();
     syncAiPaperPortfolioLivePrices(false);
     var p = state.paperAccount;
-    var r = state.marketRegime;
 
     if (!AI_UNIVERSE.length) {
       return '<div class="card" style="padding:40px;text-align:center;color:var(--text3)">'
@@ -1952,22 +1887,10 @@
     var eqSign = p.totalReturnPct >= 0 ? '+' : '';
 
     return ''
-      // Row 4 KPI Cards
-      + '<div class="row4" style="margin-bottom:18px">'
-      + '  <div class="metric">'
-      + '    <div class="mlabel">Market Regime IHSG</div>'
-      + (r.regime
-          ? '    <div class="mval ' + regimeDisplay(r.regime).cls + '" style="font-size:18px">' + r.regime + '</div>'
-          : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
-      + '    <div class="msub neu">IHSG ' + (r.ihsg || '-') + (r.ihsgChange != null ? ' (' + signedPct(r.ihsgChange) + '%)' : '') + (r.breadthPct != null ? ' · Breadth ' + r.breadthPct + '%' : ' · Breadth belum tersedia')  + '</div>'
-      + '  </div>'
-      + '  <div class="metric">'
-      + '    <div class="mlabel">AI Conviction &amp; Edge</div>'
-      + (r.confidence != null
-          ? '    <div class="mval" style="color:#38bdf8;font-size:20px">' + r.confidence + '% CONVICTION</div>'
-          : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
-      + '    <div class="msub neu">Foreign Flow: ' + (r.foreignFlowToday || 'Belum tersedia') + '</div>'
-      + '  </div>'
+      // Row 3 KPI Cards (kartu "AI Conviction & Edge" dihapus: isinya keyakinan klasifikasi regime yang
+      // salah label sebagai "conviction" + "Foreign Flow: belum tersedia" — kini bagian kartu Market Regime)
+      + '<div class="row3" style="margin-bottom:18px">'
+      + '  <div class="metric">' + aiRegimeKpiInner() + '  </div>'
       + '  <div class="metric">'
       + '    <div class="mlabel">Sinyal Terkuat Saat Ini</div>'
       + '    <div class="mval" style="color:var(--accent);font-size:18px">' + bestOpp.strategy + '</div>'
@@ -2856,70 +2779,6 @@
     return html;
   }
 
-  // 11. SUB-PAGE RENDERING: MARKET REGIME & SECTOR ROTATION
-  function renderAiMarketRegime(state) {
-    var r = state.marketRegime;
-
-    var errHtml = AI_REGIME_ERROR
-      ? '<div style="margin-bottom:14px;font-size:11.5px;color:var(--red)">' + AI_REGIME_ERROR + '</div>'
-      : '';
-
-    // Sector rotation and per-strategy regime-fit both used to ship as fixed
-    // fake tables (invented % changes, invented flow figures, invented
-    // ACTIVE/DISABLED verdicts). There is no real sector-index feed, and no
-    // engine that maps the real regime (r.regime, from classifyMarketRegime)
-    // to which strategies should be auto-enabled, so both are shown as an
-    // honest empty state instead of numbers that were never computed.
-    var html = errHtml
-      + '<div class="row4" style="margin-bottom:18px">'
-      + '  <div class="metric">'
-      + '    <div class="mlabel">Klasifikasi Market Regime</div>'
-      + (r.regime
-          ? '    <div class="mval ' + regimeDisplay(r.regime).cls + '" style="font-size:18px">' + r.regime + '</div>'
-          : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
-      + '    <div class="msub neu">' + (r.confidence != null ? 'Probabilitas Konfirmasi: ' + r.confidence + '%' : 'Model klasifikasi regime belum dibangun') + (r.regimeDescription ? '<br>' + r.regimeDescription : '') + '</div>'
-      + '  </div>'
-      + '  <div class="metric">'
-      + '    <div class="mlabel">Benchmark IHSG Composite</div>'
-      + '    <div class="mval" style="color:var(--green);font-size:20px">' + (r.ihsg || '-') + '</div>'
-      + '    <div class="msub neu">' + (r.ihsgChange != null ? signedPct(r.ihsgChange) + '% harian' : 'Perubahan harian belum dihitung') + '</div>'
-      + '  </div>'
-      + '  <div class="metric">'
-      + '    <div class="mlabel">Market Breadth Ratio</div>'
-      + (r.breadthPct != null
-          ? '    <div class="mval" style="color:#38bdf8;font-size:20px">' + r.breadthPct + '% ADVANCE</div>'
-          : '    <div class="mval" style="font-size:14px;color:var(--text3)">Belum Dihitung</div>')
-      + '    <div class="msub neu">Perlu data breadth per-saham (naik/turun/stagnan) yang belum tersedia</div>'
-      + '  </div>'
-      + '  <div class="metric">'
-      + '    <div class="mlabel">Foreign Institutional Net Flow</div>'
-      + '    <div class="mval" style="font-size:14px;color:var(--text3)">' + (r.foreignFlowToday || 'Belum Tersedia') + '</div>'
-      + '    <div class="msub neu">Perlu feed data broker summary/KSEI harian</div>'
-      + '  </div>'
-      + '</div>'
-
-      // Sector Rotation & Strategy Adaptation
-      + '<div style="display:grid;grid-template-columns:1.2fr 1.8fr;gap:18px;margin-bottom:18px">'
-      + '  <!-- Sector Rotation Table -->'
-      + '  <div class="card" style="padding:20px">'
-      + '    <div class="cheader" style="margin-bottom:14px">'
-      + '      <span class="ctitle">Rotasi Sektor &amp; Aliran Dana</span>'
-      + '    </div>'
-      + '    <div style="padding:24px 8px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6">Data rotasi sektor belum tersedia.<br>Membutuhkan feed indeks sektoral (IDXFINANCE, IDXENERGY, dst) real-time yang belum diintegrasikan.</div>'
-      + '  </div>'
-
-      + '  <!-- Strategy Eligibility Engine Matrix -->'
-      + '  <div class="card" style="padding:20px">'
-      + '    <div class="cheader" style="margin-bottom:14px">'
-      + '      <span class="ctitle">Adaptasi Strategi Terhadap Regime Aktif</span>'
-      + '    </div>'
-      + '    <div style="padding:24px 8px;text-align:center;color:var(--text3);font-size:12px;line-height:1.6">Belum ada mesin klasifikasi regime yang bisa menentukan strategi mana yang layak diaktifkan secara otomatis.<br>Gunakan hasil riil di <strong>Strategy Lab</strong> untuk membandingkan performa antar strategi.</div>'
-      + '  </div>'
-      + '</div>';
-
-    return html;
-  }
-
   // 12. SUB-PAGE RENDERING: REALISTIC BACKTEST LAB
   function renderAiBacktestLab(state) {
     var strategyOptions = STRATEGY_META;
@@ -3010,7 +2869,7 @@
     var riskPct = entry > 0 && sl > 0 ? Number(((entry - sl) / entry * 100).toFixed(1)) : 2.5;
     var tp1Pct = entry > 0 && tp1 > 0 ? Number(((tp1 - entry) / entry * 100).toFixed(1)) : 0;
     var tp2Pct = entry > 0 && tp2 > 0 ? Number(((tp2 - entry) / entry * 100).toFixed(1)) : 0;
-    var regime = (AI_TRADE_STATE.marketRegime && AI_TRADE_STATE.marketRegime.regime) || 'SIDEWAYS';
+    var regime = mwRegimeCode() || 'TIDAK TERSEDIA'; // sebelumnya 'SIDEWAYS' karangan bila tab regime belum pernah dibuka
     var timeStr = new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
 
     return [
@@ -3574,9 +3433,6 @@
     if (tabName === 'dataquality' && !AI_DQ_RESULT && !AI_DQ_LOADING) {
       fetchAiDataQuality();
     }
-    if (tabName === 'regime' && !AI_REGIME_LOADING) {
-      fetchAiMarketRegime();
-    }
     renderAiTradingPage();
   }
 
@@ -3638,8 +3494,12 @@
 
     if (!AI_UNIVERSE || !AI_UNIVERSE.length) return;
 
-    var currentRegime = (AI_TRADE_STATE.marketRegime && AI_TRADE_STATE.marketRegime.regime) || 'SIDEWAYS';
-    var regimeMult = (AI_TRADE_STATE.adaptiveWeights && AI_TRADE_STATE.adaptiveWeights.regimeMultipliers && AI_TRADE_STATE.adaptiveWeights.regimeMultipliers[currentRegime]) || 1.0;
+    // FIX (2026-10-04): regime dulu baru dimuat saat tab Market Regime dibuka, jadi auto-trader memakai
+    // 'SIDEWAYS' KARANGAN (pengali regime salah) bila tab itu belum pernah dibuka. Kini dimuat dari store
+    // bersama; tidak tersedia => pengali netral 1.0 (bukan asumsi SIDEWAYS).
+    await mwRegimeEnsure(false);
+    var currentRegime = mwRegimeCode();
+    var regimeMult = (currentRegime && AI_TRADE_STATE.adaptiveWeights && AI_TRADE_STATE.adaptiveWeights.regimeMultipliers && AI_TRADE_STATE.adaptiveWeights.regimeMultipliers[currentRegime]) || 1.0;
 
     // 3. Filter candidates: BUY signals, not already opened
     var candidates = AI_UNIVERSE.filter(function(x) {
@@ -3742,7 +3602,6 @@
   window.aiBuildTrainingDataset = aiBuildTrainingDataset;
   window.aiExportTrainingDataset = aiExportTrainingDataset;
   window.fetchAiDataQuality = fetchAiDataQuality;
-  window.fetchAiMarketRegime = fetchAiMarketRegime;
   window.aiConfigureCapital = aiConfigureCapital;
   window.aiResetPaperCapital = aiResetPaperCapital;
   window.aiPromptSetCapital = aiPromptSetCapital;

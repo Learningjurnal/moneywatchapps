@@ -1199,9 +1199,13 @@ async function dossierHarvestData(ticker) {
       .catch(function() { return null; });
 
     // 5. Fetch Market Regime
-    var regimePromise = fetch('/api/idx/regime', { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })
-      .then(function(r) { return r.ok ? r.json() : null; })
-      .catch(function() { return null; });
+    // Regime dari store bersama (03b-regime-store.js): satu fetch ber-cache untuk seluruh UI. Bentuk
+    // {success, regime:{...}} dipertahankan karena penilai di bawah membaca regimeObj.regime.regime.
+    // Dibalap dengan DOSSIER_FETCH_TIMEOUT_MS: respons yang menggantung tidak boleh mengunci dossierState.isLoading.
+    var regimePromise = Promise.race([
+      mwRegimeEnsure(false),
+      new Promise(function(resolve) { setTimeout(function() { resolve(null); }, DOSSIER_FETCH_TIMEOUT_MS); })
+    ]).then(function(r) { return r ? { success: true, regime: r } : null; });
 
     // 6. Fetch AI Hypothesis
     var hypothesisPromise = fetch('/api/idx/hypothesis/' + cleanTicker, { signal: AbortSignal.timeout(DOSSIER_FETCH_TIMEOUT_MS) })

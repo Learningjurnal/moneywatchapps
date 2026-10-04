@@ -12,7 +12,27 @@
  */
 
 // 1. MORNING / DAILY BRIEF
+// FIX (2026-10-04): kartu ini dulu menentukan "RISK-ON BULLISH" / "BEARISH CORRECTION" HANYA dari tanda
+// perubahan IHSG hari ini (angka IHSG cadangan 6845 bila feed belum live) — bertentangan dengan
+// klasifikasi regime asli (mis. RISK-OFF saat IHSG downtrend dengan RSI 18,9). Kini membaca store
+// regime bersama (03b-regime-store.js), sama dengan Dashboard, halaman Market Regime, dan AI Trading.
+function dbRegimeCardInner() {
+  var rg = mwRegimeClassification();
+  var cls = rg.badge === 'b-up' ? 'up' : (rg.badge === 'b-dn' ? 'dn' : 'neu');
+  var sub = rg.state === 'ok'
+    ? ('Strategi: ' + rg.strategy + ' · ' + mwRegimeDetailLinkHtml())
+    : (rg.state === 'loading' ? 'Memuat klasifikasi regime pasar…' : rg.description);
+  return '<div class="mlabel">MARKET REGIME</div>'
+    + '<div class="mval ' + cls + '" style="font-size:22px">' + rg.status + '</div>'
+    + '<div class="msub ' + cls + '">' + sub + '</div>';
+}
+if (typeof mwRegimeSubscribe === 'function') mwRegimeSubscribe(function () {
+  var card = document.getElementById('db-regime-card');
+  if (card) card.innerHTML = dbRegimeCardInner();
+});
+
 function renderDailyBriefPage() {
+  mwRegimeEnsure(false);
   var c = el('page-daily-brief');
   if (!c) return;
 
@@ -89,11 +109,7 @@ function renderDailyBriefPage() {
   + '</div>'
 
   + '<div class="row3" style="margin-bottom:18px">'
-    + '<div class="metric">'
-      + '<div class="mlabel">MARKET REGIME HARI INI</div>'
-      + '<div class="mval ' + (isBullish ? 'up' : 'dn') + '" style="font-size:22px">' + (isBullish ? 'RISK-ON BULLISH' : 'BEARISH CORRECTION') + '</div>'
-      + '<div class="msub ' + (isBullish ? 'up' : 'dn') + '">IHSG ' + curIhsg.toLocaleString('id-ID', {minimumFractionDigits:2}) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%) · ' + (isIhsgLive ? 'Real-time Feed' : 'Data Belum Tersedia (Estimasi)') + '</div>'
-    + '</div>'
+    + '<div class="metric" id="db-regime-card">' + dbRegimeCardInner() + '</div>'
     + '<div class="metric">'
       + '<div class="mlabel">ESTIMASI DELTA PORTOFOLIO HARI INI</div>'
       + '<div class="mval ' + (dayGain >= 0 ? 'up' : 'dn') + '" style="font-size:22px">' + (dayGain >= 0 ? '+' : '') + 'Rp ' + fmtK(dayGain) + ' (' + (dayGainPct >= 0 ? '+' : '') + dayGainPct + '%)</div>'
@@ -134,7 +150,7 @@ function renderDailyBriefPage() {
       return '<div class="card" style="padding:0;margin-bottom:18px;overflow:hidden">'
         + '<div style="display:flex;flex-wrap:wrap">'
           + '<div style="flex:1 1 440px;min-width:280px;padding:18px 20px 12px">'
-            + '<div style="font-size:11px;color:var(--text3);letter-spacing:.03em">IHSG · Indeks Harga Saham Gabungan</div>'
+            + '<div style="font-size:11px;color:var(--text3);letter-spacing:.03em">IHSG · Indeks Harga Saham Gabungan · <span style="' + (isIhsgLive ? '' : 'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:4px;padding:0 6px;') + '">' + (isIhsgLive ? 'Real-time Feed' : 'Data Belum Tersedia (Estimasi)') + '</span></div>'
             + '<div style="display:flex;align-items:baseline;gap:10px;margin-top:2px;margin-bottom:10px">'
               + '<span style="font-size:24px;font-weight:700;font-family:var(--font-mono)">' + fmtIdx(curIhsg) + '</span>'
               + '<span class="' + (isBullish ? 'up' : 'dn') + '" style="font-size:13px;font-weight:600">' + (isBullish ? '▲' : '▼') + ' ' + (isBullish ? '+' : '') + ihsgDiff.toFixed(2) + ' (' + (isBullish ? '+' : '') + ihsgPct + '%)</span>'

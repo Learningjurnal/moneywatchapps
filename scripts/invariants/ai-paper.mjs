@@ -38,6 +38,8 @@ export function createAiPaperSandbox(rootDir) {
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
+  // store regime bersama dimuat sebelum 38, seperti urutan <script> di index.html
+  vm.runInContext(fs.readFileSync(path.join(rootDir, 'public/js/03b-regime-store.js'), 'utf8'), sandbox, { filename: '03b-regime-store.js' });
   vm.runInContext(source, sandbox, { filename: '38-ai-autonomous-trading.js' });
   return { sandbox, quotes, store };
 }

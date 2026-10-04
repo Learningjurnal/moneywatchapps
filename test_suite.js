@@ -4645,6 +4645,7 @@ test('AI AUTONOMOUS TRADING: aiConfigureCapital() and aiResetPaperCapital() mana
   };
   sandbox.window = sandbox;
   const ctx = vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'public/js/03b-regime-store.js'), 'utf8'), ctx); // store regime bersama (dimuat sebelum 38 seperti di index.html)
   vm.runInContext(fullSrc, ctx, { filename: '38-ai-autonomous-trading.js full test load' });
 
   const state = ctx.AI_TRADE_STATE;
@@ -4693,6 +4694,7 @@ test('AI AUTONOMOUS TRADING: aiCalibrateAdaptiveWeights() dynamically adjusts we
   };
   sandbox.window = sandbox;
   const ctx = vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'public/js/03b-regime-store.js'), 'utf8'), ctx); // store regime bersama (dimuat sebelum 38 seperti di index.html)
   vm.runInContext(fullSrc, ctx, { filename: '38-ai-autonomous-trading.js test load' });
 
   const weights = ctx.AI_TRADE_STATE.adaptiveWeights;
@@ -4758,6 +4760,7 @@ test('AI AUTONOMOUS TRADING: aiFormatCopyTradingSignal() generates actionable in
   };
   sandbox.window = sandbox;
   const ctx = vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'public/js/03b-regime-store.js'), 'utf8'), ctx); // store regime bersama (dimuat sebelum 38 seperti di index.html)
   vm.runInContext(fullSrc, ctx, { filename: '38-ai-autonomous-trading.js test load' });
 
   const testPosition = {
@@ -8680,7 +8683,8 @@ await asyncTest('REGRESSION GUARD: every dossierHarvestData() fetch() call (quot
   assertHasTimeoutNear('history', /fetch\('\/api\/idx\/history\/'/);
   assertHasTimeoutNear('KSEI static', /fetch\('\/api\/ksei\/stock\/'/);
   assertHasTimeoutNear('KSEI live composition', /fetch\('\/api\/idx\/shareholder-composition\/'/);
-  assertHasTimeoutNear('market regime', /fetch\('\/api\/idx\/regime'/);
+  // Regime kini lewat store bersama (03b-regime-store.js); batas waktu dossier dijaga lewat Promise.race.
+  assert(/Promise\.race\(\[\s*mwRegimeEnsure\(false\)[\s\S]{0,200}DOSSIER_FETCH_TIMEOUT_MS/.test(src), 'REGRESSION: market regime di dossier harus dibalap dengan DOSSIER_FETCH_TIMEOUT_MS (respons menggantung mengunci dossierState.isLoading)');
   assertHasTimeoutNear('AI hypothesis', /fetch\('\/api\/idx\/hypothesis\/'/);
 });
 

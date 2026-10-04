@@ -64,7 +64,7 @@ async function mwLoadMarketReportData(period, force) {
   var tf = MW_MARKET_REPORT_PERIOD_TF[period] || '1D';
 
   var results = await Promise.allSettled([
-    fetch('/api/idx/regime').then(function(r) { return r.json(); }),
+    mwRegimeEnsure(false).then(function(r) { return { success: !!r, regime: r }; }), // store regime bersama (03b-regime-store.js)
     fetch('/api/idx/history/%5EJKSE?tf=DAILY_MAX').then(function(r) { return r.json(); }),
     fetch('/api/idx/accumulation-distribution').then(function(r) { return r.json(); }),
     fetch('/api/idx/screener-consensus?minAgree=3').then(function(r) { return r.json(); }),
@@ -130,10 +130,10 @@ async function mwLoadMarketReportData(period, force) {
 // HTML SECTION BUILDERS (semua sync — dipanggil setelah data ter-cache)
 // ────────────────────────────────────────────────────────────────
 
-var MR_REGIME_LABEL = {
-  BULL_TREND: 'Bull Trend', BEAR_TREND: 'Bear Trend', SIDEWAYS: 'Sideways / Konsolidasi',
-  HIGH_VOLATILITY: 'Volatilitas Tinggi', RISK_OFF: 'Risk-Off', UNKNOWN: 'Belum Dapat Diklasifikasi'
-};
+// Label diturunkan dari tabel tunggal MW_REGIME_MAP (03b-regime-store.js) — dulu tabel sendiri
+// ("Sideways / Konsolidasi", "Volatilitas Tinggi") yang berbeda dari tampilan di halaman lain.
+var MR_REGIME_LABEL = { UNKNOWN: 'Belum Dapat Diklasifikasi' };
+Object.keys(MW_REGIME_MAP).forEach(function (code) { MR_REGIME_LABEL[code] = MW_REGIME_MAP[code].label; });
 var MR_REGIME_COLOR = {
   BULL_TREND: '#047857', BEAR_TREND: '#b91c1c', SIDEWAYS: '#64748b',
   HIGH_VOLATILITY: '#b45309', RISK_OFF: '#b91c1c', UNKNOWN: '#64748b'
