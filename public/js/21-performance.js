@@ -1225,8 +1225,9 @@ function computeTWR(muts, terminalValue){
       var ePrev = hist[i-1].equity;
       var eCur = hist[i].equity;
       
-      // Cek apakah ada cash flow eksternal di tanggal dCur
-      var cfOnDate = sortedMuts.filter(function(m){ return m.date === dCur; })
+      // AUDIT 2026-10-05: arus kas eksternal SEPANJANG periode (dPrev, dCur] — sebelumnya hanya yang tanggalnya persis
+      // sama dengan dCur, sehingga setor/tarik di antara dua snapshot (mis. akhir pekan) hilang dari perhitungan TWR.
+      var cfOnDate = sortedMuts.filter(function(m){ return m.date > dPrev && m.date <= dCur; })
                                .reduce(function(acc, m){ return acc + m.amount; }, 0);
       
       if(ePrev > 0){

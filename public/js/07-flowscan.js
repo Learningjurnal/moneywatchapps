@@ -194,19 +194,11 @@ function fsGenData(tk,days){
           lastR.c = livePx;
           lastR.high = Math.max(lastR.high || livePx, livePx);
           lastR.low = Math.min(lastR.low || livePx, livePx);
-        } else if (nowD > lastD) {
-          var prevClose = Number(lastR.close || lastR.c || livePx);
-          realRows.push({
-            date: nowD.toISOString().slice(0, 10),
-            dt: nowD,
-            open: prevClose,
-            high: Math.max(prevClose, livePx),
-            low: Math.min(prevClose, livePx),
-            close: livePx,
-            c: livePx,
-            volume: 1000000
-          });
         }
+        // AUDIT 2026-10-05: cabang lama MENAMBAH bar sintetis "hari ini" (open=close kemarin, volume dikarang 1.000.000)
+        // ketika bar Yahoo terakhir bukan hari ini (akhir pekan/pra-buka) dan memutasi cache RD_STORE bersama. Akibatnya
+        // Chg% 1D selalu 0,00%, Vol Ratio/CMF/OBV tercemar volume rekaan. Kini hanya bar hari-ini yang nyata yang disinkronkan
+        // dengan harga live; tanpa bar hari ini, perubahan harian tetap dari dua bar nyata terakhir.
       }
       var slice = realRows.slice(-days);
       var obv = 0, ad = 0;
