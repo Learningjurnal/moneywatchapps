@@ -7350,3 +7350,248 @@ body.theme-light .terminal-asset-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
+/* ============================================================
+   GLOBAL INSTITUTIONAL TERMINAL DESIGN LAYER (KOYFIN / FACTSET)
+   - Zero-DOM-Breakage: 100% pure CSS enhancement across all views
+   - Global Tabular-Nums Alignment for Financial Numbers
+   - Sticky Glassmorphic Table Headers & High-Density Rows
+   - Ultra-Clean Minimal Custom Scrollbars
+   - High-Contrast Smart Money & Signal Pill Badges
+   - Dark & Light Theme Complete Parity (WCAG AA Compliant)
+   ============================================================ */
+
+/* 1. Global Financial Number Alignment */
+td, th,
+.kpi-val, .metric-value, .stat-value, .stock-price, .chg-val,
+.ibar-val, .ibar-chg, .rdn-val, .tick-val, .tick-chg,
+.side-label-num, .terminal-mono, [data-tabular="true"] {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* 2. Universal Data Tables Across Modules (Stock Master, Screener, Bandarmology, Dividen, Kalender) */
+#page-stock-dossier table,
+#page-screener table,
+#page-consensus table,
+#page-unified-screener table,
+#page-bandarmology table,
+#page-sectoral-insight table,
+#page-dividen table,
+#page-divinvest table,
+#page-crypto-technical table,
+#page-alerts table,
+.stock-table,
+.radar-table,
+.screener-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+#page-stock-dossier table th,
+#page-screener table th,
+#page-consensus table th,
+#page-unified-screener table th,
+#page-bandarmology table th,
+#page-sectoral-insight table th,
+#page-dividen table th,
+#page-divinvest table th,
+#page-crypto-technical table th,
+#page-alerts table th,
+.stock-table th,
+.radar-table th,
+.screener-tbl th {
+  padding: 8px 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--text3);
+  background: var(--table-header-bg, #0E1322);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+body.theme-light #page-stock-dossier table th,
+body.theme-light #page-screener table th,
+body.theme-light #page-consensus table th,
+body.theme-light #page-unified-screener table th,
+body.theme-light #page-bandarmology table th,
+body.theme-light #page-sectoral-insight table th,
+body.theme-light #page-dividen table th,
+body.theme-light #page-divinvest table th,
+body.theme-light #page-crypto-technical table th,
+body.theme-light #page-alerts table th,
+body.theme-light .stock-table th,
+body.theme-light .radar-table th,
+body.theme-light .screener-tbl th {
+  background: #EDF1F5;
+  color: #4A5560;
+  border-bottom-color: #CBD5E1;
+}
+
+#page-stock-dossier table td,
+#page-screener table td,
+#page-consensus table td,
+#page-unified-screener table td,
+#page-bandarmology table td,
+#page-sectoral-insight table td,
+#page-dividen table td,
+#page-divinvest table td,
+#page-crypto-technical table td,
+#page-alerts table td,
+.stock-table td,
+.radar-table td,
+.screener-tbl td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+body.theme-light #page-stock-dossier table td,
+body.theme-light #page-screener table td,
+body.theme-light #page-consensus table td,
+body.theme-light #page-unified-screener table td,
+body.theme-light #page-bandarmology table td,
+body.theme-light #page-sectoral-insight table td,
+body.theme-light #page-dividen table td,
+body.theme-light #page-divinvest table td,
+body.theme-light #page-crypto-technical table td,
+body.theme-light #page-alerts table td,
+body.theme-light .stock-table td,
+body.theme-light .radar-table td,
+body.theme-light .screener-tbl td {
+  border-bottom-color: #E2E8F0;
+}
+
+#page-stock-dossier table tbody tr:hover td,
+#page-screener table tbody tr:hover td,
+#page-consensus table tbody tr:hover td,
+#page-unified-screener table tbody tr:hover td,
+#page-bandarmology table tbody tr:hover td,
+#page-sectoral-insight table tbody tr:hover td,
+#page-dividen table tbody tr:hover td,
+#page-divinvest table tbody tr:hover td,
+#page-crypto-technical table tbody tr:hover td,
+#page-alerts table tbody tr:hover td,
+.stock-table tbody tr:hover td,
+.radar-table tbody tr:hover td,
+.screener-tbl tbody tr:hover td {
+  background: var(--table-row-hover, rgba(56, 189, 248, 0.045)) !important;
+}
+
+body.theme-light #page-stock-dossier table tbody tr:hover td,
+body.theme-light #page-screener table tbody tr:hover td,
+body.theme-light #page-consensus table tbody tr:hover td,
+body.theme-light #page-unified-screener table tbody tr:hover td,
+body.theme-light #page-bandarmology table tbody tr:hover td,
+body.theme-light #page-sectoral-insight table tbody tr:hover td,
+body.theme-light #page-dividen table tbody tr:hover td,
+body.theme-light #page-divinvest table tbody tr:hover td,
+body.theme-light #page-crypto-technical table tbody tr:hover td,
+body.theme-light #page-alerts table tbody tr:hover td,
+body.theme-light .stock-table tbody tr:hover td,
+body.theme-light .radar-table tbody tr:hover td,
+body.theme-light .screener-tbl tbody tr:hover td {
+  background: #F1F5F9 !important;
+}
+
+/* 3. Universal Minimal Custom Scrollbars */
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.35);
+}
+body.theme-light *::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.14);
+}
+body.theme-light *::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 255, 0.28);
+}
+
+/* 4. Global Input & Interactive Micro-Focus State */
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: var(--accent, #5B8DEF) !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18) !important;
+}
+
+/* 5. Institutional Smart Money & Pill Badges */
+.badge-accum, .badge-inflow, .badge-buy, .tag-accum {
+  background: rgba(0, 200, 5, 0.12) !important;
+  color: #00e676 !important;
+  border: 1px solid rgba(0, 200, 5, 0.28) !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  padding: 1.5px 6px !important;
+  border-radius: 4px !important;
+}
+
+.badge-dist, .badge-outflow, .badge-sell, .tag-dist {
+  background: rgba(255, 51, 58, 0.12) !important;
+  color: #ff5252 !important;
+  border: 1px solid rgba(255, 51, 58, 0.28) !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  padding: 1.5px 6px !important;
+  border-radius: 4px !important;
+}
+
+.badge-neutral, .badge-hold, .tag-neutral {
+  background: rgba(255, 158, 0, 0.12) !important;
+  color: #ffb300 !important;
+  border: 1px solid rgba(255, 158, 0, 0.28) !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  padding: 1.5px 6px !important;
+  border-radius: 4px !important;
+}
+
+body.theme-light .badge-accum, body.theme-light .badge-inflow, body.theme-light .badge-buy, body.theme-light .tag-accum {
+  background: #ECFDF3 !important;
+  color: #00873C !important;
+  border-color: #A6F4C5 !important;
+}
+
+body.theme-light .badge-dist, body.theme-light .badge-outflow, body.theme-light .badge-sell, body.theme-light .tag-dist {
+  background: #FFF1F3 !important;
+  color: #D0163A !important;
+  border-color: #FECDD3 !important;
+}
+
+body.theme-light .badge-neutral, body.theme-light .badge-hold, body.theme-light .tag-neutral {
+  background: #FFFBEB !important;
+  color: #B45309 !important;
+  border-color: #FDE68A !important;
+}
+
+/* 6. Card & Bento Depth Refinement */
+.card, .panel, .dossier-card {
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.card:hover, .panel:hover, .dossier-card:hover {
+  border-color: var(--border2);
+}
+body.theme-light .card:hover, body.theme-light .panel:hover, body.theme-light .dossier-card:hover {
+  border-color: #CBD5E1;
+}
+
+
