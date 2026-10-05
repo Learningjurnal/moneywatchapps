@@ -205,17 +205,32 @@ function wRenderNet(){
     '<div class="w-hero-value">'+wRp(a.net)+'</div>'+
     '<div class="w-hero-sub">Aset '+wRp(a.aset)+' &nbsp;·&nbsp; Hutang <span class="dn">'+wRp(a.debt.t)+'</span> ('+dr.toFixed(1)+'%)</div>'+
   '</div>'+
-  '<div class="row4">'+
-    '<div class="metric"><div class="mlabel">Portofolio Investasi</div><div class="mval">'+wRp(a.invTotal)+'</div><div class="msub neu">saham + crypto + ETF + RD + kas</div></div>'+
-    '<div class="metric"><div class="mlabel">Kas & Bank</div><div class="mval">'+wRp(a.bankTotal)+'</div><div class="msub '+(a.emMonths>=6?'up':a.emMonths>=3?'amb':'dn')+'">Dana darurat '+a.emMonths.toFixed(1)+' bln '+(a.emMonths>=6?'':'')+'</div></div>'+
-    '<div class="metric"><div class="mlabel">Passive Income</div><div class="mval up">'+wRp(a.passive/12)+'<span style="font-size:11px;color:var(--text3)">/bln</span></div><div class="msub neu">dividen 12 bln: '+wRp(a.div12)+'</div></div>'+
-    '<div class="metric" style="display:flex;align-items:center;gap:12px">'+
-      '<div class="w-ring"><svg width="84" height="84" style="transform:rotate(-90deg)">'+
-        '<circle cx="42" cy="42" r="34" fill="none" stroke="var(--bg4)" stroke-width="7"/>'+
-        '<circle cx="42" cy="42" r="34" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+ring+'" stroke-dashoffset="'+(ring*(1-a.score/100))+'"/>'+
-      '</svg><div class="w-ring-center"><div style="font-size:19px;font-weight:700;font-family:\'Menlo\',monospace">'+a.score+'</div><div style="font-size:9px;color:var(--text3)">score</div></div></div>'+
-      '<div><div class="mlabel">Wealth Score</div><span class="badge '+gradeCls+'">'+grade+'</span>'+
-      '<div class="msub neu" style="margin-top:6px">FIRE '+firePct.toFixed(1)+'%</div></div>'+
+  '<div class="kpi-ribbon" style="margin-bottom:16px">'+
+    '<div class="kpi-ribbon-item">'+
+      '<div class="kpi-label">Portofolio Investasi</div>'+
+      '<div class="kpi-val">'+wRp(a.invTotal)+'</div>'+
+      '<div class="kpi-sub">saham + crypto + ETF + RD + kas</div>'+
+    '</div>'+
+    '<div class="kpi-ribbon-item">'+
+      '<div class="kpi-label">Kas &amp; Bank</div>'+
+      '<div class="kpi-val">'+wRp(a.bankTotal)+'</div>'+
+      '<div class="kpi-sub '+(a.emMonths>=6?'up':a.emMonths>=3?'amb':'dn')+'">Dana darurat '+a.emMonths.toFixed(1)+' bln</div>'+
+    '</div>'+
+    '<div class="kpi-ribbon-item">'+
+      '<div class="kpi-label">Passive Income</div>'+
+      '<div class="kpi-val up">'+wRp(a.passive/12)+'<span style="font-size:11px;color:var(--text3);font-weight:400">/bln</span></div>'+
+      '<div class="kpi-sub">dividen 12 bln: '+wRp(a.div12)+'</div>'+
+    '</div>'+
+    '<div class="kpi-ribbon-item" style="display:flex;flex-direction:row;align-items:center;gap:12px">'+
+      '<div class="w-ring" style="width:64px;height:64px;flex-shrink:0"><svg width="64" height="64" style="transform:rotate(-90deg)">'+
+        '<circle cx="32" cy="32" r="26" fill="none" stroke="var(--bg4)" stroke-width="6"/>'+
+        '<circle cx="32" cy="32" r="26" fill="none" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+(2*Math.PI*26)+'" stroke-dashoffset="'+((2*Math.PI*26)*(1-a.score/100))+'"/>'+
+      '</svg><div class="w-ring-center"><div style="font-size:16px;font-weight:700;font-family:\'Menlo\',monospace">'+a.score+'</div><div style="font-size:8px;color:var(--text3)">score</div></div></div>'+
+      '<div style="min-width:0">'+
+        '<div class="kpi-label" style="margin-bottom:2px">Wealth Score</div>'+
+        '<div><span class="badge '+gradeCls+'" style="font-size:10px">'+grade+'</span></div>'+
+        '<div class="kpi-sub" style="margin-top:4px">FIRE '+firePct.toFixed(1)+'%</div>'+
+      '</div>'+
     '</div>'+
   '</div>'+
   '<div class="card">'+

@@ -517,31 +517,56 @@ function perfRenderBenchmarkWith(hist, noteEl){
 // metodologi identik dengan getRealizedPnl()/getPortfolio() — satu sumber
 // kebenaran untuk cara menghitung P&L per posisi) ──
 function perfComputeTradeStats(){
-  var pos={}, trades=[];
-  (transactions||[]).slice().sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(tx){
-    if(!pos[tx.ticker]) pos[tx.ticker]={lot:0,cost:0};
-    var p=pos[tx.ticker];
-    if(tx.type==='BUY'){ p.lot+=tx.lot; p.cost+=tx.gross; }
-    else if(tx.type==='SELL' && p.lot>0){
-      var avg=p.cost/(p.lot*100), sold=tx.lot*100, pnl=tx.gross-avg*sold;
-      trades.push({ticker:tx.ticker, pnl:pnl});
-      p.lot-=tx.lot; p.cost=Math.max(0,p.cost-avg*sold);
-    }
+  var metrics = (typeof calcChronologicalTxMetrics === 'function') ? calcChronologicalTxMetrics() : null;
+  var trades = [];
+  var sorted = (transactions||[]).slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
   });
-  var wins=trades.filter(function(t){return t.pnl>0;});
-  var losses=trades.filter(function(t){return t.pnl<0;});
-  var grossProfit=wins.reduce(function(a,t){return a+t.pnl;},0);
-  var grossLoss=Math.abs(losses.reduce(function(a,t){return a+t.pnl;},0));
+
+  if(metrics){
+    sorted.forEach(function(tx){
+      if(tx.type === 'SELL'){
+        var m = metrics[tx.id];
+        var pnl = (m && m.pnlNet !== null && isFinite(m.pnlNet)) ? m.pnlNet : ((tx.net || tx.gross || 0) - (tx.gross || 0));
+        trades.push({ticker: tx.ticker, date: tx.date, lot: tx.lot, pnl: pnl, id: tx.id});
+      }
+    });
+  } else {
+    var pos = {};
+    sorted.forEach(function(tx){
+      if(!pos[tx.ticker]) pos[tx.ticker] = {lot:0, cost:0};
+      var p = pos[tx.ticker];
+      var txNet = tx.net || tx.gross || 0;
+      if(tx.type === 'BUY'){
+        p.lot += tx.lot;
+        p.cost += txNet;
+      } else if(tx.type === 'SELL' && p.lot > 0){
+        var avg = p.cost / (p.lot * 100);
+        var sold = tx.lot * 100;
+        var pnl = txNet - (avg * sold);
+        trades.push({ticker: tx.ticker, date: tx.date, lot: tx.lot, pnl: pnl, id: tx.id});
+        p.lot -= tx.lot;
+        p.cost = Math.max(0, p.cost - (avg * sold));
+        if(p.lot <= 0) p.cost = 0;
+      }
+    });
+  }
+
+  var wins = trades.filter(function(t){ return t.pnl > 0; });
+  var losses = trades.filter(function(t){ return t.pnl < 0; });
+  var grossProfit = wins.reduce(function(a,t){ return a + t.pnl; }, 0);
+  var grossLoss = Math.abs(losses.reduce(function(a,t){ return a + t.pnl; }, 0));
   return {
-    trades:trades, wins:wins.length, losses:losses.length,
-    grossProfit:grossProfit, grossLoss:grossLoss,
-    maxProfit: wins.length ? Math.max.apply(null,wins.map(function(t){return t.pnl;})) : 0,
-    maxLoss: losses.length ? Math.min.apply(null,losses.map(function(t){return t.pnl;})) : 0,
-    avgProfit: wins.length ? grossProfit/wins.length : 0,
-    avgLoss: losses.length ? -(grossLoss/losses.length) : 0,
-    winRate: trades.length ? (wins.length/trades.length*100) : null,
-    profitFactor: grossLoss>0 ? (grossProfit/grossLoss) : (grossProfit>0 ? Infinity : null),
-    totalTxValue: (transactions||[]).reduce(function(a,t){return a+t.gross;},0),
+    trades: trades, wins: wins.length, losses: losses.length,
+    grossProfit: Math.round(grossProfit), grossLoss: Math.round(grossLoss),
+    maxProfit: wins.length ? Math.max.apply(null, wins.map(function(t){ return t.pnl; })) : 0,
+    maxLoss: losses.length ? Math.min.apply(null, losses.map(function(t){ return t.pnl; })) : 0,
+    avgProfit: wins.length ? Math.round(grossProfit / wins.length) : 0,
+    avgLoss: losses.length ? -Math.round(grossLoss / losses.length) : 0,
+    winRate: trades.length ? (wins.length / trades.length * 100) : null,
+    profitFactor: grossLoss > 0 ? (grossProfit / grossLoss) : (grossProfit > 0 ? Infinity : null),
+    totalTxValue: (transactions||[]).reduce(function(a,t){ return a + (t.gross || 0); }, 0),
     totalOrders: (transactions||[]).length
   };
 }
@@ -555,10 +580,17 @@ function perfRenderTradeSummary(){
     arc.style.strokeDashoffset = arcLen*(1-pct/100);
     arc.setAttribute('stroke', pct>=55?'#41f3a7':pct>=40?'#fbbf24':'#e21d48');
   }
-  el('perf-winrate-val').textContent = s.winRate===null ? '—' : pct.toFixed(0)+'%';
-  el('perf-winrate-trades').textContent = s.trades.length+' Trades';
-  el('perf-wins').textContent = s.wins;
-  el('perf-losses').textContent = s.losses;
+  var wrText = s.winRate===null ? '—' : pct.toFixed(0)+'%';
+  var wrVal = el('perf-winrate-val');
+  if(wrVal) wrVal.textContent = wrText;
+  var wrGauge = el('perf-winrate-gauge-val');
+  if(wrGauge) wrGauge.textContent = wrText;
+  var wrTrades = el('perf-winrate-trades');
+  if(wrTrades) wrTrades.textContent = s.trades.length+' Trades';
+  var wrWins = el('perf-wins');
+  if(wrWins) wrWins.textContent = s.wins;
+  var wrLosses = el('perf-losses');
+  if(wrLosses) wrLosses.textContent = s.losses;
 
   var pf = el('perf-profit-factor');
   pf.textContent = s.profitFactor===null ? '—' : (s.profitFactor===Infinity ? '∞' : s.profitFactor.toFixed(2));
@@ -613,19 +645,44 @@ function perfComputeAnnualReturn(){
   var byYear = {};
   function ensure(y){ if(!byYear[y]) byYear[y] = {year:y, capitalGain:0, dividend:0, sellTrades:0, divPayments:0}; return byYear[y]; }
 
-  var pos = {};
-  (transactions||[]).slice().sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(tx){
-    if(!pos[tx.ticker]) pos[tx.ticker] = {lot:0, cost:0};
-    var p = pos[tx.ticker];
-    if(tx.type==='BUY'){ p.lot += tx.lot; p.cost += tx.gross; }
-    else if(tx.type==='SELL' && p.lot>0){
-      var avg = p.cost/(p.lot*100), sold = tx.lot*100, pnl = tx.gross - avg*sold;
-      var yr = ensure(tx.date.slice(0,4));
-      yr.capitalGain += pnl;
-      yr.sellTrades++;
-      p.lot -= tx.lot; p.cost = Math.max(0, p.cost - avg*sold);
-    }
+  var metrics = (typeof calcChronologicalTxMetrics === 'function') ? calcChronologicalTxMetrics() : null;
+  var sorted = (transactions||[]).slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
   });
+
+  if(metrics){
+    sorted.forEach(function(tx){
+      if(tx.type === 'SELL'){
+        var yr = ensure((tx.date||'').slice(0,4));
+        var m = metrics[tx.id];
+        var pnl = (m && m.pnlNet !== null && isFinite(m.pnlNet)) ? m.pnlNet : ((tx.net || tx.gross || 0) - (tx.gross || 0));
+        yr.capitalGain += pnl;
+        yr.sellTrades++;
+      }
+    });
+  } else {
+    var pos = {};
+    sorted.forEach(function(tx){
+      if(!pos[tx.ticker]) pos[tx.ticker] = {lot:0, cost:0};
+      var p = pos[tx.ticker];
+      var txNet = tx.net || tx.gross || 0;
+      if(tx.type === 'BUY'){
+        p.lot += tx.lot;
+        p.cost += txNet;
+      } else if(tx.type === 'SELL' && p.lot > 0){
+        var avg = p.cost / (p.lot * 100);
+        var sold = tx.lot * 100;
+        var pnl = txNet - (avg * sold);
+        var yr = ensure((tx.date||'').slice(0,4));
+        yr.capitalGain += pnl;
+        yr.sellTrades++;
+        p.lot -= tx.lot;
+        p.cost = Math.max(0, p.cost - (avg * sold));
+        if(p.lot <= 0) p.cost = 0;
+      }
+    });
+  }
 
   (dividends||[]).forEach(function(d){
     var y = (d.date||'').slice(0,4);
@@ -637,6 +694,8 @@ function perfComputeAnnualReturn(){
 
   return Object.keys(byYear).sort().map(function(y){
     var r = byYear[y];
+    r.capitalGain = Math.round(r.capitalGain);
+    r.dividend = Math.round(r.dividend);
     r.total = r.capitalGain + r.dividend;
     return r;
   });
@@ -684,14 +743,23 @@ function perfRenderAnnualReturn(){
   }
 
   if(tblBox){
-    tblBox.innerHTML = '<table class="tbl" style="width:100%;font-size:11.5px">'
-      + '<thead><tr><th>Tahun</th><th style="text-align:right">Capital Gain</th><th style="text-align:right">Dividen</th><th style="text-align:right">Total Return</th></tr></thead>'
+    tblBox.innerHTML = '<table class="terminal-tbl" style="width:100%">'
+      + '<thead><tr><th style="width:80px">Tahun</th><th style="text-align:right">Capital Gain</th><th style="text-align:right">Dividen</th><th style="text-align:right">Total Return</th><th style="width:140px;text-align:center">Komposisi</th></tr></thead>'
       + '<tbody>' + data.slice().reverse().map(function(d){
+          var totalPos = Math.max(0, d.capitalGain) + Math.max(0, d.dividend);
+          var cgPct = totalPos > 0 ? (Math.max(0, d.capitalGain) / totalPos * 100) : 0;
+          var divPct = totalPos > 0 ? (Math.max(0, d.dividend) / totalPos * 100) : 0;
           return '<tr>'
             + '<td class="mono" style="font-weight:700">'+d.year+'</td>'
             + '<td class="mono" style="text-align:right"><span class="'+(d.capitalGain>=0?'up':'dn')+'">'+(d.capitalGain>=0?'+':'')+'Rp '+fmtK(d.capitalGain)+'</span></td>'
             + '<td class="mono up" style="text-align:right">+Rp '+fmtK(d.dividend)+'</td>'
             + '<td class="mono" style="text-align:right;font-weight:700"><span class="'+(d.total>=0?'up':'dn')+'">'+(d.total>=0?'+':'')+'Rp '+fmtK(d.total)+'</span></td>'
+            + '<td style="text-align:center">'
+            +   '<div style="display:flex;height:6px;border-radius:3px;background:var(--bg4);overflow:hidden;width:100%">'
+            +     '<div style="width:'+cgPct.toFixed(1)+'%;background:var(--green)" title="Capital Gain: '+cgPct.toFixed(0)+'%"></div>'
+            +     '<div style="width:'+divPct.toFixed(1)+'%;background:var(--blue)" title="Dividen: '+divPct.toFixed(0)+'%"></div>'
+            +   '</div>'
+            + '</td>'
             + '</tr>';
         }).join('')
       + '</tbody></table>';
@@ -703,25 +771,38 @@ function perfRenderAnnualReturn(){
 // nol (bukan per-lot FIFO, tapi cukup untuk mengukur pola tahan-lepas —
 // metodologi P&L per trade tetap avg-cost yang sama dengan seluruh app). ──
 function perfComputeDisposition(){
-  var pos={}, trades=[];
-  (transactions||[]).slice().sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(tx){
-    if(!pos[tx.ticker]) pos[tx.ticker]={lot:0,cost:0,openDate:null};
-    var p=pos[tx.ticker];
-    if(tx.type==='BUY'){
-      if(p.lot<=0) p.openDate=tx.date;
-      p.lot+=tx.lot; p.cost+=tx.gross;
-    } else if(tx.type==='SELL' && p.lot>0){
-      var avg=p.cost/(p.lot*100), sold=tx.lot*100, pnl=tx.gross-avg*sold;
-      var holdDays = p.openDate ? Math.round((new Date(tx.date)-new Date(p.openDate))/86400000) : null;
-      trades.push({ticker:tx.ticker, pnl:pnl, holdDays:holdDays});
-      p.lot-=tx.lot; p.cost=Math.max(0,p.cost-avg*sold);
-      if(p.lot<=0){ p.lot=0; p.cost=0; p.openDate=null; }
+  var metrics = (typeof calcChronologicalTxMetrics === 'function') ? calcChronologicalTxMetrics() : null;
+  var pos = {}, trades = [];
+  var sorted = (transactions||[]).slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
+  });
+
+  sorted.forEach(function(tx){
+    if(!pos[tx.ticker]) pos[tx.ticker] = {lot:0, cost:0, openDate:null};
+    var p = pos[tx.ticker];
+    var txNet = tx.net || tx.gross || 0;
+    if(tx.type === 'BUY'){
+      if(p.lot <= 0) p.openDate = tx.date;
+      p.lot += tx.lot;
+      p.cost += txNet;
+    } else if(tx.type === 'SELL' && p.lot > 0){
+      var pnl = (metrics && metrics[tx.id] && metrics[tx.id].pnlNet !== null)
+        ? metrics[tx.id].pnlNet
+        : (txNet - (p.cost / (p.lot * 100)) * (tx.lot * 100));
+      var holdDays = p.openDate ? Math.round((new Date(tx.date) - new Date(p.openDate)) / 86400000) : null;
+      trades.push({ticker: tx.ticker, pnl: pnl, holdDays: holdDays});
+      var avg = p.cost / (p.lot * 100);
+      var sold = tx.lot * 100;
+      p.lot -= tx.lot;
+      p.cost = Math.max(0, p.cost - (avg * sold));
+      if(p.lot <= 0){ p.lot = 0; p.cost = 0; p.openDate = null; }
     }
   });
-  var winners = trades.filter(function(t){return t.pnl>0 && t.holdDays!=null;});
-  var losers  = trades.filter(function(t){return t.pnl<0 && t.holdDays!=null;});
-  var avg = function(arr){ return arr.length ? arr.reduce(function(a,t){return a+t.holdDays;},0)/arr.length : null; };
-  return {winners:winners.length, losers:losers.length, avgHoldWin:avg(winners), avgHoldLoss:avg(losers)};
+  var winners = trades.filter(function(t){ return t.pnl > 0 && t.holdDays != null; });
+  var losers  = trades.filter(function(t){ return t.pnl < 0 && t.holdDays != null; });
+  var avg = function(arr){ return arr.length ? arr.reduce(function(a,t){ return a + t.holdDays; }, 0) / arr.length : null; };
+  return {winners: winners.length, losers: losers.length, avgHoldWin: avg(winners), avgHoldLoss: avg(losers)};
 }
 function perfRenderDisposition(){
   var d = perfComputeDisposition();
@@ -746,25 +827,49 @@ function perfRenderDisposition(){
 function perfComputeMonthlyActivity(){
   var byMonth={};
   (transactions||[]).forEach(function(tx){
-    var m=tx.date.slice(0,7);
+    var m=(tx.date||'').slice(0,7);
     if(!byMonth[m]) byMonth[m]={trades:0,pnl:0};
     byMonth[m].trades++;
   });
-  var pos={};
-  (transactions||[]).slice().sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(tx){
-    if(!pos[tx.ticker]) pos[tx.ticker]={lot:0,cost:0};
-    var p=pos[tx.ticker];
-    if(tx.type==='BUY'){ p.lot+=tx.lot; p.cost+=tx.gross; }
-    else if(tx.type==='SELL' && p.lot>0){
-      var avg=p.cost/(p.lot*100), sold=tx.lot*100, pnl=tx.gross-avg*sold;
-      var m=tx.date.slice(0,7);
-      if(!byMonth[m]) byMonth[m]={trades:0,pnl:0};
-      byMonth[m].pnl+=pnl;
-      p.lot-=tx.lot; p.cost=Math.max(0,p.cost-avg*sold);
-    }
+  var metrics = (typeof calcChronologicalTxMetrics === 'function') ? calcChronologicalTxMetrics() : null;
+  var sorted = (transactions||[]).slice().sort(function(a,b){
+    var d = (a.date||'').localeCompare(b.date||'');
+    return d !== 0 ? d : ((a.id||0) - (b.id||0));
   });
+
+  if(metrics){
+    sorted.forEach(function(tx){
+      if(tx.type === 'SELL'){
+        var m = (tx.date||'').slice(0,7);
+        if(!byMonth[m]) byMonth[m] = {trades:0, pnl:0};
+        var pnl = (metrics[tx.id] && metrics[tx.id].pnlNet !== null) ? metrics[tx.id].pnlNet : 0;
+        byMonth[m].pnl += pnl;
+      }
+    });
+  } else {
+    var pos = {};
+    sorted.forEach(function(tx){
+      if(!pos[tx.ticker]) pos[tx.ticker] = {lot:0, cost:0};
+      var p = pos[tx.ticker];
+      var txNet = tx.net || tx.gross || 0;
+      if(tx.type === 'BUY'){
+        p.lot += tx.lot;
+        p.cost += txNet;
+      } else if(tx.type === 'SELL' && p.lot > 0){
+        var avg = p.cost / (p.lot * 100);
+        var sold = tx.lot * 100;
+        var pnl = txNet - (avg * sold);
+        var m = (tx.date||'').slice(0,7);
+        if(!byMonth[m]) byMonth[m] = {trades:0, pnl:0};
+        byMonth[m].pnl += pnl;
+        p.lot -= tx.lot;
+        p.cost = Math.max(0, p.cost - (avg * sold));
+        if(p.lot <= 0) p.cost = 0;
+      }
+    });
+  }
   var months=Object.keys(byMonth).sort();
-  return months.map(function(m){ return {month:m, trades:byMonth[m].trades, pnl:byMonth[m].pnl}; });
+  return months.map(function(m){ return {month:m, trades:byMonth[m].trades, pnl:Math.round(byMonth[m].pnl)}; });
 }
 function perfRenderActivity(){
   var data = perfComputeMonthlyActivity();

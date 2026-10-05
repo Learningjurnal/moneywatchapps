@@ -24,6 +24,7 @@ import {
   runAllStrategiesBacktest,
   STRATEGY_DEFINITIONS,
   getIdxMarketSummary,
+  getIdxIndexQuote,
   getIdxCalendarData,
   getUniverseOpportunityRadar,
   warmRadarFundamentalsRotating,
@@ -4622,7 +4623,7 @@ app.get('/api/idx/tv-scan/:ticker', async (req, res) => {
 // GET /api/idx/indices — Major IDX Indices and Sectoral Performance
 app.get('/api/idx/indices', async (req, res) => {
   try {
-    const summary = await getIdxMarketSummary();
+    const [summary, lq45Quote, jiiQuote] = await Promise.all([getIdxMarketSummary(), getIdxIndexQuote('^JKLQ45'), getIdxIndexQuote('^JKII')]);
     // FIX (2026-09-24, bug audit): LQ45/IDX30/KOMPAS100/SRI-KEHATI/ISSI
     // prices and all 11 sector change% rows used to be hardcoded literal
     // constants that never changed (the exact same "+2.01%" for both LQ45
@@ -4638,11 +4639,13 @@ app.get('/api/idx/indices', async (req, res) => {
     // numbers.
     const indices = [
       { code: 'IHSG', name: 'Indeks Harga Saham Gabungan', price: summary.ihsg.price, change: summary.ihsg.change, changePercent: summary.ihsg.changePercent, available: true },
-      { code: 'LQ45', name: 'Indeks LQ45 Terlikuid', price: null, change: null, changePercent: null, available: false },
+      // 2026-10-05: LQ45 dan JII kini real dari Yahoo Finance (^JKLQ45, ^JKII); selebihnya tetap tidak tersedia.
+      { code: 'LQ45', name: 'Indeks LQ45 Terlikuid', ...lq45Quote },
       { code: 'IDX30', name: 'Indeks IDX30 Bluechip', price: null, change: null, changePercent: null, available: false },
       { code: 'KOMPAS100', name: 'Indeks Kompas 100', price: null, change: null, changePercent: null, available: false },
       { code: 'SRI-KEHATI', name: 'Indeks SRI-KEHATI ESG', price: null, change: null, changePercent: null, available: false },
-      { code: 'ISSI', name: 'Indeks Saham Syariah Indonesia', price: null, change: null, changePercent: null, available: false }
+      { code: 'ISSI', name: 'Indeks Saham Syariah Indonesia', price: null, change: null, changePercent: null, available: false },
+      { code: 'JII', name: 'Jakarta Islamic Index (30 saham syariah; bukan ISSI)', ...jiiQuote }
     ];
 
     return res.json({
@@ -4650,7 +4653,7 @@ app.get('/api/idx/indices', async (req, res) => {
       indices: indices,
       sectors: [],
       sectorsAvailable: false,
-      dataNote: 'Hanya IHSG yang real (Yahoo Finance). Indeks lain (LQ45/IDX30/KOMPAS100/SRI-KEHATI/ISSI) dan performa sektoral belum punya sumber data real yang terintegrasi — sebelumnya endpoint ini mengembalikan angka statis karangan, sekarang jujur dilabeli unavailable daripada dikarang.',
+      dataNote: 'Hanya IHSG, LQ45, dan JII yang real (Yahoo Finance). Indeks lain (IDX30/KOMPAS100/SRI-KEHATI/ISSI) dan performa sektoral belum punya sumber data real yang terintegrasi — sebelumnya endpoint ini mengembalikan angka statis karangan, sekarang jujur dilabeli unavailable daripada dikarang.',
       updatedAt: new Date().toISOString()
     });
   } catch (err) {

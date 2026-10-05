@@ -1238,7 +1238,8 @@
     var px = Number(exitPrice) > 0 ? Number(exitPrice) : pos.currentPrice;
 
     var grossPnL = (px - pos.entryPrice) * pos.shares;
-    var frictionCost = Math.round((pos.entryPrice + px) * pos.shares * 0.001); // ~0.1% each side, approximated
+    // Fee beli 0,15% + fee jual 0,25% (termasuk PPh jual) = 0,4% round-trip — sinkron dengan lib/backtest/costs.js
+    var frictionCost = Math.round(pos.entryPrice * pos.shares * 0.0015 + px * pos.shares * 0.0025);
     var netPnL = Math.round(grossPnL - frictionCost);
     var returnPct = pos.costBasis > 0 ? Math.round((netPnL / pos.costBasis) * 10000) / 100 : 0;
     var riskAmount = pos.entrySlDistance || Math.abs(pos.entryPrice - pos.sl) * pos.shares || 1;
@@ -2483,7 +2484,7 @@
     html += '</tbody></table></div>'
       + '  <div style="padding:12px 4px 0;font-size:10.5px;color:var(--text3);line-height:1.6">'
       + '    * Drawdown dihitung dengan asumsi risiko 1% modal per trade (bukan compounding 100% modal). ** Sharpe per-trade disederhanakan, belum diannualisasi.<br>'
-      + '    Biaya transaksi (~0.2% round-trip: fee broker + PPN + levy) sudah dikurangkan dari setiap hasil trade.'
+      + '    Biaya transaksi (~0,4% round-trip: fee beli 0,15% + jual 0,25% termasuk pajak jual; slippage tidak dimodelkan) sudah dikurangkan dari setiap hasil trade.'
       + (AI_BACKTEST_LOADED_AT ? '<br>Terakhir dijalankan: ' + AI_BACKTEST_LOADED_AT.toLocaleString('id-ID') + ' WIB' : '')
       + '  </div>'
       + '</div>';
@@ -2924,7 +2925,7 @@
 
       + '  <div style="background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text)">'
       + '    <strong>' + r.strategy.name + ':</strong> ' + r.strategy.description
-      + '    <div style="margin-top:6px;color:var(--text3);font-size:11px">Disimulasikan atas ' + r.tickersScanned + ' saham LQ45. Biaya transaksi ~0.2% round-trip sudah dikurangkan dari tiap trade. Terakhir dijalankan: ' + (AI_BACKTEST_LOADED_AT ? AI_BACKTEST_LOADED_AT.toLocaleString('id-ID') : '-') + ' WIB.</div>'
+      + '    <div style="margin-top:6px;color:var(--text3);font-size:11px">Disimulasikan atas ' + r.tickersScanned + ' saham LQ45. Biaya transaksi ~0,4% round-trip (slippage tidak dimodelkan) sudah dikurangkan dari tiap trade. Terakhir dijalankan: ' + (AI_BACKTEST_LOADED_AT ? AI_BACKTEST_LOADED_AT.toLocaleString('id-ID') : '-') + ' WIB.</div>'
       + '  </div>'
 
       + '  <div style="overflow-x:auto">'

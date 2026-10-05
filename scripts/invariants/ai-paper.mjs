@@ -44,7 +44,9 @@ export function createAiPaperSandbox(rootDir) {
   return { sandbox, quotes, store };
 }
 
-const FRICTION = 0.001;
+// Sinkron dengan aiClosePosition() (38-ai-autonomous-trading.js) & lib/backtest/costs.js: fee beli 0,15% + fee jual 0,25%.
+const BUY_FEE = 0.0015;
+const SELL_FEE = 0.0025;
 
 export async function runAiPaperProperties({ rootDir, seed = 1, steps = 150 }) {
   const { sandbox, quotes, store } = createAiPaperSandbox(rootDir);
@@ -68,7 +70,7 @@ export async function runAiPaperProperties({ rootDir, seed = 1, steps = 150 }) {
       seenTrades.add(trade.id);
       const shares = trade.lots * 100;
       operations++;
-      shadowCash += trade.exitPrice * shares - Math.round((trade.entryPrice + trade.exitPrice) * shares * FRICTION);
+      shadowCash += trade.exitPrice * shares - Math.round(trade.entryPrice * shares * BUY_FEE + trade.exitPrice * shares * SELL_FEE);
     }
   };
 

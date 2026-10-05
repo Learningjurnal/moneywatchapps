@@ -149,12 +149,17 @@ function parsePrice(val){
   if(s.indexOf(',')!==-1){
     s = s.replace(/\./g,'').replace(',','.');
   } else {
-    // Hanya titik: jika titik di posisi ribuan (misal "67.303") → hapus titik
-    // Jika titik di akhir untuk desimal (misal "67.30") → biarkan
-    var dotIdx = s.lastIndexOf('.');
-    if(dotIdx !== -1 && (s.length - dotIdx - 1) === 3 && s.indexOf('.')=== dotIdx){
-      // titik diikuti tepat 3 digit → ribuan separator → hapus
+    // Jika ada lebih dari satu titik (misal "1.250.000" atau "10.000.000"), semua titik adalah pemisah ribuan
+    var dotCount = (s.match(/\./g) || []).length;
+    if(dotCount > 1){
       s = s.replace(/\./g,'');
+    } else if(dotCount === 1){
+      // Hanya ada satu titik: jika titik diikuti tepat 3 digit (misal "67.303" atau "1.250") → ribuan separator → hapus
+      // Jika diikuti selain 3 digit (misal "67.30" atau "12.5"), biarkan sebagai desimal
+      var dotIdx = s.indexOf('.');
+      if((s.length - dotIdx - 1) === 3){
+        s = s.replace(/\./g,'');
+      }
     }
   }
   return parseFloat(s)||0;

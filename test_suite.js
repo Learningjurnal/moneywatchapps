@@ -5063,7 +5063,7 @@ test('REGRESSION GUARD: Stock Dossier KSEI pillar falls back to live Invezgo com
   assert(/harvested\.kseiLive/.test(src), 'REGRESSION: harvested.kseiLive is gone — the KSEI pillar has no live-Invezgo fallback source');
 });
 
-test('MASTER DOSSIER: Non-universe ticker rejection & zero dummy data mandate (AGENTS.md §1, §5, §28)', async () => {
+await asyncTest('MASTER DOSSIER: Non-universe ticker rejection & zero dummy data mandate (AGENTS.md §1, §5, §28)', async () => {
   const dossier = getDossierContext();
 
   // 1. Ticker validator must reject non-existent tickers
@@ -5200,7 +5200,7 @@ test('MASTER DOSSIER: DOM structure, script inclusion, and router integration', 
   assert(routerJs.includes('renderStockDossierPage'), '06-analysis-router.js must call renderStockDossierPage()');
 });
 
-test('REGRESSION GUARD: lib/idx-data-engine.js loads cleanly without ReferenceError when Redis is not installed', async () => {
+test('REGRESSION GUARD: lib/idx-data-engine.js loads cleanly without ReferenceError when Redis is not installed', () => {
   const origUrl = process.env.UPSTASH_REDIS_REST_URL;
   const origToken = process.env.UPSTASH_REDIS_REST_TOKEN;
   try {

@@ -7121,3 +7121,232 @@ body.theme-light .si-matrix-legend-trigger-btn:hover {
   padding: 22px 24px;
   border-radius: 12px;
 }
+
+/* ============================================================
+   INSTITUTIONAL MODULAR TERMINAL (KOYFIN / FACTSET STYLE)
+   - Zero Card Fragmentation: multi-metric ribbons with seamless borders
+   - Data Density & Financial Monospace Tabulars
+   - Dark/Light Theme Parity with dynamic CSS tokens
+   - Responsive multi-column grid layouts
+   ============================================================ */
+
+.kpi-ribbon {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 18px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+body.theme-light .kpi-ribbon {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  background: #ffffff;
+  border-color: var(--border);
+}
+
+.kpi-ribbon-item {
+  padding: 12px 14px;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  position: relative;
+  transition: background .15s ease;
+}
+
+.kpi-ribbon-item:last-child {
+  border-right: none;
+}
+
+.kpi-ribbon-item:hover {
+  background: rgba(255,255,255,0.025);
+}
+
+body.theme-light .kpi-ribbon-item:hover {
+  background: rgba(0,0,0,0.02);
+}
+
+.kpi-ribbon-item .kpi-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text3);
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.kpi-ribbon-item .kpi-val {
+  font-size: 19px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-ribbon-item .kpi-sub {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terminal-grid-65-35 {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+  align-items: stretch;
+}
+
+.terminal-grid-50-50 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+  align-items: stretch;
+}
+
+@media (max-width: 992px) {
+  .terminal-grid-65-35,
+  .terminal-grid-50-50 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.terminal-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.terminal-tbl th {
+  padding: 8px 10px;
+  color: var(--text3);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  background: var(--table-header-bg, var(--bg3));
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.terminal-tbl td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.terminal-tbl tr:hover td {
+  background: var(--table-row-hover);
+}
+
+/* Institutional Terminal Dashboard Helpers */
+.kpi-ribbon-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+@media (max-width: 1180px) {
+  .kpi-ribbon-5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-ribbon-5 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.terminal-risk-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: var(--bg3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.terminal-risk-cell {
+  padding: 10px 12px;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.terminal-risk-cell:last-child {
+  border-right: none;
+}
+
+@media (max-width: 900px) {
+  .terminal-risk-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .terminal-risk-cell:nth-child(2n) {
+    border-right: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .terminal-risk-strip {
+    grid-template-columns: 1fr;
+  }
+  .terminal-risk-cell {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .terminal-risk-cell:last-child {
+    border-bottom: none;
+  }
+}
+
+.terminal-asset-card {
+  background: var(--bg2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color .15s ease, box-shadow .15s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-asset-card:hover {
+  border-color: var(--border2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+}
+
+body.theme-light .terminal-asset-card {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+body.theme-light .terminal-asset-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
