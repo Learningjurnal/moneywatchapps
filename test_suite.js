@@ -11662,6 +11662,50 @@ test('REGRESSION GUARD: dossierHarvestData() writes real fetched history into th
   assert(/rdRows\.length >= 5/.test(fnSrc), 'REGRESSION: no longer guards against writing a too-short/empty real history into the shared cache');
 });
 
+test('REGRESSION GUARD: sortScreenerRows() always places null values at bottom in both asc and desc order', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/function sortScreenerRows[\s\S]*?\n\}\n/);
+  assert(fnMatch, 'sortScreenerRows not found');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(fnMatch[0], sandbox);
+  const rows = [
+    { ticker: 'BBCA', rank: 1, per: 15, wavePhase: 'WAVE 3 EXTENSION' },
+    { ticker: 'BBRI', rank: 2, per: 11, wavePhase: 'WAVE 1 BREAKOUT' },
+    { ticker: 'NOPE', rank: 3, per: null, wavePhase: null }
+  ];
+  // Test numeric field ASC (cheapest PER first, nulls at bottom)
+  const ascPer = sandbox.sortScreenerRows(rows, 'per', false);
+  assert.strictEqual(ascPer[0].ticker, 'BBRI', 'Lowest PER should come first in ascending order');
+  assert.strictEqual(ascPer[1].ticker, 'BBCA', 'Higher PER should come second in ascending order');
+  assert.strictEqual(ascPer[2].ticker, 'NOPE', 'Null PER must be placed at the bottom, not the top');
+
+  // Test numeric field DESC (highest PER first, nulls at bottom)
+  const descPer = sandbox.sortScreenerRows(rows, 'per', true);
+  assert.strictEqual(descPer[0].ticker, 'BBCA');
+  assert.strictEqual(descPer[1].ticker, 'BBRI');
+  assert.strictEqual(descPer[2].ticker, 'NOPE', 'Null PER must be placed at the bottom in descending order');
+
+  // Test string field ASC & DESC
+  const ascWave = sandbox.sortScreenerRows(rows, 'wavePhase', false);
+  assert.strictEqual(ascWave[0].ticker, 'BBRI', 'WAVE 1 should precede WAVE 3');
+  assert.strictEqual(ascWave[1].ticker, 'BBCA');
+  assert.strictEqual(ascWave[2].ticker, 'NOPE', 'Null string must be placed at the bottom');
+});
+
+test('REGRESSION GUARD: computeWilderRSI() handles flatline / halted stocks with 50 (neutral), not 100', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'lib/idx-data-engine.js'), 'utf8');
+  const fnMatch = src.match(/function computeWilderRSI[\s\S]*?\n\}\n/);
+  assert(fnMatch, 'computeWilderRSI not found');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(fnMatch[0], sandbox);
+  // Completely flatline 20 bars (zero gains, zero losses)
+  const flatCloses = new Array(20).fill(1000);
+  const rsi = sandbox.computeWilderRSI(flatCloses, 14);
+  assert.strictEqual(rsi, 50, 'A completely flat / halted stock must have RSI 50 (neutral), not 100');
+});
+
 console.log('═══════════════════════════════════════════════════════');
 console.log(`🎉 ALL ${passedTests}/${totalTests} TESTS PASSED SUCCESSFULLY WITH ZERO ERRORS!`);
 console.log('═══════════════════════════════════════════════════════');

@@ -51,7 +51,7 @@ var TVS_FILTER_SPECS = [
   { name: 'maxRsi', label: 'RSI maks', ph: '0-100', w: 76, test: function (r, v) { return tvsAtMost(r.rsi, v); }, text: function (v) { return 'RSI ≤ ' + v; } },
   { name: 'minAdx', label: 'ADX min', ph: 'mis. 25', w: 80, test: function (r, v) { return tvsAtLeast(r.adx, v); }, text: function (v) { return 'ADX ≥ ' + v; } },
   { name: 'minPerf1M', label: 'Perf 1B min %', ph: 'mis. 0', w: 92, test: function (r, v) { return tvsAtLeast(r.perf1M, v); }, text: function (v) { return 'Perf 1B ≥ ' + v + '%'; } },
-  { name: 'maxFromHigh52w', label: 'Jarak High 52M maks %', ph: 'mis. 5', w: 128, test: function (r, v) { return tvsAtLeast(r.distHigh52w, -v); }, text: function (v) { return 'Maks ' + v + '% di bawah High 52M'; } },
+  { name: 'maxFromHigh52w', label: 'Jarak High 52M maks %', ph: 'mis. 5', w: 128, test: function (r, v) { return tvsAtLeast(r.distHigh52w, -Math.abs(v)); }, text: function (v) { return 'Maks ' + Math.abs(v) + '% di bawah High 52M'; } },
   { name: 'minRating1D', label: 'Rating 1D min', ph: '-1 s/d 1', w: 92, test: function (r, v) { return tvsAtLeast(r.ratingAll1D, v); }, text: function (v) { return 'Rating 1D ≥ ' + v; }, info: 'rating' },
   { name: 'minRating1W', label: 'Rating 1W min', ph: '-1 s/d 1', w: 92, test: function (r, v) { return tvsAtLeast(r.ratingAll1W, v); }, text: function (v) { return 'Rating 1W ≥ ' + v; }, info: 'rating' }
 ];

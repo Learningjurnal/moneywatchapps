@@ -528,11 +528,11 @@ function qtRSI(close, n){
   var rs=[]; var gain=0, loss=0;
   for(var i=1;i<=n;i++){ var ch=close[i]-close[i-1]; if(ch>0)gain+=ch; else loss-=ch; }
   gain/=n; loss/=n;
-  rs.push(loss===0?100:100-100/(1+gain/loss));
+  rs.push(loss===0?(gain===0?50:100):100-100/(1+gain/loss));
   for(var j=n+1;j<close.length;j++){
     var ch2=close[j]-close[j-1]; var g=ch2>0?ch2:0; var l=ch2<0?-ch2:0;
     gain=(gain*(n-1)+g)/n; loss=(loss*(n-1)+l)/n;
-    rs.push(loss===0?100:100-100/(1+gain/loss));
+    rs.push(loss===0?(gain===0?50:100):100-100/(1+gain/loss));
   }
   var out=new Array(n).fill(null); rs.forEach(function(v){out.push(v);}); return out;
 }
@@ -1159,13 +1159,21 @@ function scBuildSim(onDone){
           var rsi2 = qtRSI(close, 14);
           var ma50 = qtSMA(close, 50);
           var rsiLast = rsi2[rsi2.length-1]||50;
-          var lc=close[close.length-1], lm=ma50[ma50.length-1]||lc;
-          var mom1m=close.length>22?(lc-close[close.length-22])/close[close.length-22]*100:0;
-          var mom3m=close.length>66?(lc-close[Math.max(0,close.length-66)])/close[Math.max(0,close.length-66)]*100:mom1m;
+          var lc=close[close.length-1], hasMa = ma50[ma50.length-1] != null, lm=hasMa ? ma50[ma50.length-1] : lc;
+          var mom1m=(close.length>22 && close[close.length-22]>0)?(lc-close[close.length-22])/close[close.length-22]*100:0;
+          var momBaseIdx = Math.max(0,close.length-66);
+          var mom3m=(close.length>66 && close[momBaseIdx]>0)?(lc-close[momBaseIdx])/close[momBaseIdx]*100:mom1m;
           var last30 = close.slice(-30);
-          var vol = last30.length>1 ? Math.sqrt(last30.slice(1).map(function(c,i){return Math.pow((c-last30[i])/last30[i]*100,2);}).reduce(function(a,b){return a+b;},0)/(last30.length-1)) : 0;
-          var score=Math.round((50-Math.abs(rsiLast-50))/50*40+(mom1m>0?Math.min(mom1m*2,30):0)+(lc>lm?20:0));
-          QT.scData.push(Object.assign({},st,{rsi:rsiLast,mom1m:mom1m,mom3m:mom3m,vol:vol,price:lc,aboveMa:lc>lm,score:score,live:source==='real'}));
+          var vol = 0;
+          if (last30.length > 1) {
+            var sqDevs = last30.slice(1).map(function(c,i){
+              var prev = last30[i];
+              return prev > 0 ? Math.pow((c-prev)/prev*100,2) : 0;
+            });
+            vol = Math.sqrt(sqDevs.reduce(function(a,b){return a+b;},0)/(last30.length-1));
+          }
+          var score=Math.round((50-Math.abs(rsiLast-50))/50*40+(mom1m>0?Math.min(mom1m*2,30):0)+(hasMa && lc>lm?20:0));
+          QT.scData.push(Object.assign({},st,{rsi:rsiLast,mom1m:mom1m,mom3m:mom3m,vol:vol,price:lc,aboveMa:hasMa && lc>lm,score:score,live:source==='real'}));
         }
         if (pending<=0) {
           QT_SC_BUILDING = false;
