@@ -612,7 +612,19 @@ function usRenderValidationPanel() {
   } else if (cal.data) {
     var c = cal.data;
     if (!c.available) {
-      html += '<div style="color:var(--text-mute);font-size:12px">' + c.message + '</div>';
+      var pendingCount = (c.pendingCount != null ? c.pendingCount : (sl && sl.data ? sl.data.pendingCount : 0));
+      html += '<div style="background:var(--bg-card-subtle,rgba(255,255,255,0.03));border:1px dashed var(--border-subtle,rgba(255,255,255,0.1));border-radius:6px;padding:12px;font-size:12px">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">'
+        + '<span class="badge b-amb" style="font-size:10px;font-weight:700">⏳ MENUNGGU HORIZON SELESAI</span>'
+        + '<span style="font-size:11px;color:var(--text-mute)">Progres Sampel: <b>' + (c.resolvedCount || 0) + ' / ' + (c.minRequired || 10) + '</b> selesai</span>'
+        + '</div>'
+        + '<div style="color:var(--text-mute);margin-bottom:6px">' + c.message + '</div>'
+        + (pendingCount > 0
+          ? '<div style="font-size:11px;color:var(--text3);line-height:1.5">Saat ini ada <b>' + pendingCount + ' sinyal Track B</b> sedang berjalan (pending, horizon 20 hari). '
+            + (c.firstMaturityDate ? 'Sinyal pertama (dicatat ' + (c.earliestDate || '2026-09-23') + ') baru akan mencapai horizon 20 hari sekitar <b>' + c.firstMaturityDate + '</b>. ' : '')
+            + 'Sesuai prinsip integritas data dan anti-overfitting, tabel bobot per bucket tidak menampilkan tebakan semu sampai minimal 10 sinyal benar-benar selesai.</div>'
+          : '')
+        + '</div>';
     } else {
       html += '<div style="font-size:11px;color:var(--text-mute);margin-bottom:8px">' + c.scope + '</div>';
       html += '<table class="tbl" style="width:100%;font-size:11.5px;margin-bottom:10px"><thead><tr><th>Bucket</th><th style="text-align:right">n</th><th style="text-align:right">Win Rate</th><th style="text-align:right">Avg Return</th><th style="text-align:right">Avg Alpha</th></tr></thead><tbody>';
@@ -626,6 +638,8 @@ function usRenderValidationPanel() {
       html += '</tbody></table>';
       html += '<div style="font-size:10.5px;color:var(--text-mute)">Berdasarkan ' + c.resolvedCount + ' sinyal Track B yang sudah selesai horizonnya. Bucket dengan tanda ⚠ punya sampel terlalu kecil untuk disimpulkan.</div>';
     }
+  } else {
+    html += '<div style="color:var(--text-mute);font-size:12px">Memuat…</div>';
   }
   html += '</div>';
 
