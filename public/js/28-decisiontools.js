@@ -95,13 +95,36 @@ function renderDailyBriefPage() {
   var topHoldingWeight = (topHolding && totalPortfolioAssets > 0) ? (topHolding.mv / totalPortfolioAssets * 100).toFixed(1) : '0.0';
   var topGainer = sortedByChg.length ? sortedByChg[0] : null;
 
-  // Calculate annual projected dividends across all holdings in portfolio
+  // Calculate annual projected dividends across all holdings with verified yield data
   var totalAnnualDiv = 0;
+  var verifiedDivHoldings = 0;
   porto.forEach(function(p) {
     var info = (typeof DB !== 'undefined' && DB[p.ticker]) ? DB[p.ticker] : {};
-    var yieldRate = p.yYield || info.grossDividendYield ? parseFloat(info.grossDividendYield) : 3.5;
-    totalAnnualDiv += (p.mv || 0) * (yieldRate / 100);
+    var rawYield = (p.yYield !== undefined && p.yYield !== null) ? p.yYield
+      : ((p.dividendYield !== undefined && p.dividendYield !== null) ? p.dividendYield
+      : ((p.info && p.info.grossDividendYield) ? p.info.grossDividendYield
+      : ((p.info && p.info.dividendYield) ? p.info.dividendYield
+      : (info.grossDividendYield || info.dividendYield))));
+    var yieldRate = parseFloat(rawYield);
+    if (!isNaN(yieldRate) && yieldRate > 0) {
+      totalAnnualDiv += (p.mv || 0) * (yieldRate / 100);
+      verifiedDivHoldings++;
+    }
   });
+
+  var divPast12m = 0;
+  var divPast12mCount = 0;
+  if (typeof dividends !== 'undefined' && Array.isArray(dividends)) {
+    var oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    var oneYearAgoStr = oneYearAgo.toISOString().slice(0, 10);
+    dividends.forEach(function(d) {
+      if (d.date && d.date >= oneYearAgoStr) {
+        divPast12m += (d.net || d.amount || 0);
+        divPast12mCount++;
+      }
+    });
+  }
 
   var html = '<div style="margin-bottom:20px">'
     + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Morning Brief &amp; 3 Things to Watch Today</div>'
@@ -237,15 +260,39 @@ function renderDailyBriefPage() {
   }
 
   // 3. Dynamic Watch #3: Total Projected Dividend Pipeline
-  html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
-    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-      + '<span class="badge b-accent">3. DIVIDEND &amp; CASHFLOW</span>'
-      + '<strong style="color:var(--text);font-size:13px">Estimasi ~Rp ' + fmtK(totalAnnualDiv) + '/Tahun</strong>'
-    + '</div>'
-    + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
-      + 'Seluruh ' + porto.length + ' emiten saham di portofolio Anda diproyeksikan menghasilkan dividen agregat ~Rp ' + fmtK(totalAnnualDiv / 12) + '/bulan. Mengaktifkan strategi Auto-Reinvest Dividen ke saham bervaluasi terdiskon (MoS tinggi) akan melipatgandakan efek compound interest jangka panjang.'
-    + '</div>'
-  + '</div>';
+  if (totalAnnualDiv > 0) {
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<span class="badge b-accent">3. DIVIDEND &amp; CASHFLOW</span>'
+        + '<strong style="color:var(--text);font-size:13px">Estimasi ~Rp ' + fmtK(totalAnnualDiv) + '/Tahun (' + verifiedDivHoldings + ' Saham)</strong>'
+      + '</div>'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
+        + verifiedDivHoldings + ' dari ' + porto.length + ' emiten saham di portofolio dengan data yield terverifikasi diproyeksikan menghasilkan dividen agregat ~Rp ' + fmtK(totalAnnualDiv / 12) + '/bulan.'
+        + (divPast12m > 0 ? ' Realisasi 12 bulan terakhir: Rp ' + fmtK(divPast12m) + ' (' + divPast12mCount + ' pembayaran).' : '')
+        + ' Mengaktifkan strategi Auto-Reinvest Dividen ke saham bervaluasi terdiskon (MoS tinggi) akan melipatgandakan efek compound interest jangka panjang.'
+      + '</div>'
+    + '</div>';
+  } else if (divPast12m > 0) {
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<span class="badge b-accent">3. DIVIDEND &amp; CASHFLOW</span>'
+        + '<strong style="color:var(--text);font-size:13px">Realisasi Rp ' + fmtK(divPast12m) + ' (12 Bulan Terakhir)</strong>'
+      + '</div>'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
+        + 'Tercatat ' + divPast12mCount + ' penerimaan dividen riil dalam 12 bulan terakhir (rata-rata ~Rp ' + fmtK(divPast12m / 12) + '/bulan). Proyeksi forward yield memerlukan data yield emiten yang terverifikasi. Anda dapat mencatat dividen atau menghitung riwayat otomatis via integrasi Yahoo Finance di tab Dividen.'
+      + '</div>'
+    + '</div>';
+  } else {
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<span class="badge b-accent">3. DIVIDEND &amp; CASHFLOW</span>'
+        + '<strong style="color:var(--text);font-size:13px">Data Yield Belum Tersedia</strong>'
+      + '</div>'
+      + '<div style="font-size:12px;color:var(--text2);line-height:1.55;flex:1">'
+        + 'Belum ada data dividend yield resmi terverifikasi atau riwayat penerimaan dividen yang tercatat untuk emiten portofolio saat ini. Sesuai prinsip integritas pasar, tidak ada angka yield estimasi tiruan yang ditampilkan. Anda dapat mencatat transaksi dividen atau menarik riwayat resmi emiten via Yahoo Finance di tab Dividen.'
+      + '</div>'
+    + '</div>';
+  }
 
   html += '</div></div>';
 

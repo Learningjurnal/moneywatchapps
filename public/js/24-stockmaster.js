@@ -844,7 +844,7 @@ function fundPopulateData() {
   var per = d.trailingPE ? d.trailingPE.raw : 14.5;
   var fpe = d.forwardPE ? d.forwardPE.raw : per * 0.92;
   var pbv = s.priceToBook ? s.priceToBook.raw : 2.0;
-  var divY = d.dividendYield ? d.dividendYield.raw : 0.035;
+  var divY = (d.dividendYield && d.dividendYield.raw !== undefined && d.dividendYield.raw !== null) ? d.dividendYield.raw : 0;
   var payout = d.payoutRatio ? d.payoutRatio.raw : 0.45;
   var dps = eps * payout;
 
@@ -909,7 +909,7 @@ function fundPopulateData() {
   // 4. Moat & Multiples
   var elMGm = document.getElementById('sm-m-gmargin'); if (elMGm) elMGm.innerText = fundFmt(gm, true);
   var elMRoe = document.getElementById('sm-m-roe'); if (elMRoe) elMRoe.innerText = fundFmt(roe, true);
-  var elMqDiv = document.getElementById('sm-mq-div'); if (elMqDiv) elMqDiv.innerText = fundFmt(divY, true);
+  var elMqDiv = document.getElementById('sm-mq-div'); if (elMqDiv) elMqDiv.innerText = (divY > 0) ? fundFmt(divY, true) : '-';
   var elMqPay = document.getElementById('sm-mq-payout'); if (elMqPay) elMqPay.innerText = fundFmt(payout, true);
 
   // Sync active ticker display & auto-populate current market price in Tab 3
@@ -952,7 +952,7 @@ function fundPopulateData() {
       + '  <ul style="margin-left:20px;font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2)">'
       + '    <li>Fundamental solid di sektor <b>' + sector + '</b> dengan ROE <b>' + fundFmt(roe, true) + '</b> dan profit margin <b>' + fundFmt(pm, true) + '</b>.</li>'
       + '    <li>Penetrasi pangsa pasar luas dan daya beli pelanggan tangguh (Pricing Power terbukti dari gross margin ' + fundFmt(gm, true) + ').</li>'
-      + '    <li>Kapasitas dividen teratur dengan yield <b>' + fundFmt(divY, true) + '</b> dan neraca bebas tekanan liabilitas tinggi (DER ' + dte.toFixed(2) + 'x).</li>'
+      + (divY > 0 ? '    <li>Kapasitas dividen teratur dengan yield <b>' + fundFmt(divY, true) + '</b> dan neraca bebas tekanan liabilitas tinggi (DER ' + dte.toFixed(2) + 'x).</li>' : '    <li>Neraca operasional terjaga dengan Debt to Equity Ratio (DER ' + dte.toFixed(2) + 'x).</li>')
       + '  </ul>'
       + '</div>'
       + '<div class="sm-card">'

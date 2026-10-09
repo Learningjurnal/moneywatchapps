@@ -1351,18 +1351,38 @@ function corrRender(){
 
     var matrix=tickers.map(function(a){return tickers.map(function(b){return qtPearson(returns[a],returns[b]);});});
 
-    var h='<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:60px '+tickers.map(function(){return '1fr';}).join(' ')+';gap:2px">';
-    h+='<div></div>'+tickers.map(function(t){return '<div style="font-size:10px;font-weight:700;color:var(--text2);text-align:center;padding:2px">'+t+'</div>';}).join('');
-    tickers.forEach(function(a,i){
-      h+='<div style="font-size:10px;font-weight:700;color:var(--text2);display:flex;align-items:center;padding-right:4px">'+a+'</div>';
-      tickers.forEach(function(b,j){
-        var v=matrix[i][j]; var bg,col;
-        if(i===j){bg='rgba(255,255,255,.08)';col='var(--text3)';}
-        else{var heat=uiHeatCell(v,.8);bg=heat.bg;col=heat.color;}
-        h+='<div style="background:'+bg+';color:'+col+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border-radius:2px;height:30px;margin:1px;font-family:Menlo,monospace" title="'+a+' vs '+b+': '+v.toFixed(3)+'">'+(i===j?'1.00':v.toFixed(2))+'</div>';
+    var colWidth = 'minmax(48px, 1fr)';
+    var minTableWidth = 56 + (tickers.length * 48);
+    var h = '<div style="overflow-x:auto;padding-bottom:6px"><div style="display:grid;grid-template-columns:56px ' + tickers.map(function(){ return colWidth; }).join(' ') + ';gap:3px;min-width:' + minTableWidth + 'px">';
+    h += '<div></div>' + tickers.map(function(t){
+      return '<div style="font-size:11px;font-weight:800;color:var(--text);text-align:center;padding:4px 2px;font-family:Menlo,monospace;letter-spacing:0.02em">' + t + '</div>';
+    }).join('');
+
+    tickers.forEach(function(a, i){
+      h += '<div style="font-size:11px;font-weight:800;color:var(--text);display:flex;align-items:center;padding-right:6px;font-family:Menlo,monospace;letter-spacing:0.02em">' + a + '</div>';
+      tickers.forEach(function(b, j){
+        var v = matrix[i][j];
+        var bg, col;
+        if (i === j) {
+          var heatSelf = uiHeatCell(1.0, 1.0);
+          bg = heatSelf.bg;
+          col = heatSelf.color;
+        } else if (Math.abs(v) < 0.005) {
+          bg = 'var(--bg3)';
+          col = 'var(--text3)';
+        } else {
+          var heat = uiHeatCell(v, 1.0);
+          bg = heat.bg;
+          col = heat.color;
+        }
+        var cellText = (i === j) ? '1.00' : v.toFixed(2);
+        var titleText = a + ' vs ' + b + ': ' + (v >= 0 ? '+' : '') + v.toFixed(3);
+        h += '<div style="background:' + bg + ';color:' + col + ';border:1px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;height:32px;font-family:Menlo,monospace;letter-spacing:-0.02em;box-sizing:border-box" title="' + titleText + '">'
+          + cellText
+          + '</div>';
       });
     });
-    h+='</div></div>';
+    h += '</div></div>';
     if(failed.length) h += '<div style="font-size:10px;color:var(--text3);margin-top:8px">'+failed.length+' saham belum punya data riil cukup dan tidak ikut dihitung: '+failed.join(', ')+'</div>';
     mEl.innerHTML=h;
 
