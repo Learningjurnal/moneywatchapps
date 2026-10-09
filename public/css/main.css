@@ -905,6 +905,7 @@ body.theme-light .sig-strong-buy {
 
 /* FINANCIAL DATA TABLES (INSTITUTIONAL PRECISION) */
 .tbl-wrap,
+.table-wrap,
 .table-container,
 .tbl-responsive {
   position: relative;
@@ -917,7 +918,8 @@ body.theme-light .sig-strong-buy {
   scrollbar-width: thin;
 }
 
-.tbl {
+.tbl,
+.table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -925,18 +927,20 @@ body.theme-light .sig-strong-buy {
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-.tbl thead {
+.tbl thead,
+.table thead {
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-.tbl th {
+.tbl th,
+.table th {
   font-size: 10px;
   color: var(--text3);
   letter-spacing: 0.05em;
   font-family: var(--font-display);
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border-subtle);
   text-align: left;
   font-weight: 700;
@@ -951,14 +955,16 @@ body.theme-light .sig-strong-buy {
   box-shadow: 0 1px 0 var(--border-subtle);
 }
 
-body.theme-light .tbl th {
+body.theme-light .tbl th,
+body.theme-light .table th {
   background: var(--table-header-bg, #EDF1F5);
   color: var(--table-header-text, #4A5560);
   box-shadow: 0 1px 0 var(--border-subtle);
 }
 
-.tbl td {
-  padding: 8px 12px;
+.tbl td,
+.table td {
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.04));
   font-size: 12px;
   vertical-align: middle;
@@ -969,23 +975,28 @@ body.theme-light .tbl th {
   transition: background 0.12s ease;
 }
 
-body.theme-light .tbl td {
+body.theme-light .tbl td,
+body.theme-light .table td {
   border-bottom: 1px solid var(--border-subtle, #E0E4E9);
 }
 
-.tbl tbody tr {
+.tbl tbody tr,
+.table tbody tr {
   transition: all 0.12s ease;
 }
 
-.tbl tbody tr:last-child td {
+.tbl tbody tr:last-child td,
+.table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.tbl tbody tr:hover td {
+.tbl tbody tr:hover td,
+.table tbody tr:hover td {
   background: var(--table-row-hover, rgba(0, 0, 255, 0.08));
 }
 
-body.theme-light .tbl tbody tr:hover td {
+body.theme-light .tbl tbody tr:hover td,
+body.theme-light .table tbody tr:hover td {
   background: var(--table-row-hover, #F5F7FA);
 }
 

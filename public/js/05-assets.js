@@ -2368,21 +2368,22 @@ function renderVolTopContributors(risk) {
   var totalContrib = ranked.reduce(function (s, a) { return s + a.contrib; }, 0) || 1;
   var maxContrib = ranked[0].contrib || 1;
 
-  var rows = ranked.map(function (a) {
+  var rows = ranked.map(function (a, idx) {
     var pctOfTop3 = (a.contrib / totalContrib) * 100;
     var barWidth = Math.max(4, (a.contrib / maxContrib) * 100);
-    return '<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:6px">'
-      + '<div style="display:flex;justify-content:space-between;font-size:10.5px">'
-      + '<span style="color:var(--text);font-weight:600">' + a.name + '</span>'
-      + '<span class="mono" style="color:var(--text3)">bobot ' + (a.weight * 100).toFixed(1) + '% · vol ' + (a.vol * 100).toFixed(1) + '%</span>'
+    var isLast = idx === ranked.length - 1;
+    return '<div style="display:flex;flex-direction:column;gap:6px;' + (isLast ? 'margin-bottom:2px' : 'margin-bottom:12px') + '">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;line-height:1.4">'
+      + '<span style="color:var(--text);font-weight:600;letter-spacing:0.01em">' + a.name + '</span>'
+      + '<span class="mono" style="color:var(--text3);font-size:10.5px">bobot ' + (a.weight * 100).toFixed(1) + '% · vol ' + (a.vol * 100).toFixed(1) + '%</span>'
       + '</div>'
-      + '<div style="width:100%;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden">'
-      + '<div style="width:' + barWidth.toFixed(1) + '%;height:100%;background:var(--amber);border-radius:3px"></div>'
+      + '<div style="width:100%;height:6px;background:var(--bg3);border-radius:4px;overflow:hidden">'
+      + '<div style="width:' + barWidth.toFixed(1) + '%;height:100%;background:var(--amber);border-radius:4px"></div>'
       + '</div>'
       + '</div>';
   }).join('');
 
-  mount.innerHTML = '<div style="font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;padding-top:4px;border-top:1px solid var(--border2)">Top Kontributor Risiko (bobot × volatilitas)</div>'
+  mount.innerHTML = '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;padding-top:10px;border-top:1px solid var(--border-subtle)">Top Kontributor Risiko (bobot × volatilitas)</div>'
     + rows;
 }
 window.renderVolTopContributors = renderVolTopContributors;
