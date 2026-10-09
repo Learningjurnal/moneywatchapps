@@ -2277,6 +2277,30 @@ body.theme-light .sm-suite-header {
   border-color: rgba(56, 189, 248, 0.35);
 }
 
+/* AI Auto-Pilot Saklar Geser (Sliding Toggle Switch) */
+.ai-switch-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  font-family: var(--font-display, 'Plus Jakarta Sans', sans-serif);
+}
+.ai-switch-btn:hover {
+  border-color: var(--border2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.ai-switch-btn.active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
 .sm-chip {
   background: var(--bg3);
   border: 1px solid var(--border);

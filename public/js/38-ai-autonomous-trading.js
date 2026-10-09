@@ -1778,10 +1778,18 @@
       + '      <strong>Prinsip Kemandirian &amp; Keamanan Portofolio:</strong> AI Engine beroperasi 100% pada <strong>Virtual Paper Account</strong> terisolasi. Seluruh keputusan BUY/SELL/HOLD dieksekusi secara otonom tanpa menyentuh portofolio riil pengguna.'
       + '    </div>'
       + '  </div>'
-      + '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-      + (isApOn
-          ? '    <button class="sm-btn" onclick="aiToggleAutoPilot(false)" style="color:var(--green)">⚡ AUTO-PILOT: AKTIF</button>'
-          : '    <button class="sm-btn" onclick="aiToggleAutoPilot(true)">⚪ AUTO-PILOT: OFF (Klik Aktifkan)</button>')
+      + '  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+      + '    <button type="button" class="ai-switch-btn ' + (isApOn ? 'active' : '') + '" onclick="aiToggleAutoPilot()" role="switch" aria-checked="' + (isApOn ? 'true' : 'false') + '" title="' + (isApOn ? 'Auto-Pilot aktif. Klik saklar untuk menonaktifkan.' : 'Auto-Pilot nonaktif. Klik saklar untuk mengaktifkan.') + '" style="background:var(--bg3);border:1px solid ' + (isApOn ? 'rgba(16,185,129,0.45)' : 'var(--border)') + ';border-radius:20px;padding:4px 12px 4px 6px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;transition:all 0.2s ease">'
+      + '      <div class="ai-switch-track" style="position:relative;width:38px;height:22px;background:' + (isApOn ? '#10B981' : 'var(--bg)') + ';border:1px solid ' + (isApOn ? '#059669' : 'var(--border2)') + ';border-radius:11px;transition:all 0.22s ease;flex-shrink:0;box-shadow:inset 0 1px 3px rgba(0,0,0,0.2)">'
+      + '        <div class="ai-switch-thumb" style="position:absolute;top:2px;left:' + (isApOn ? '18px' : '2px') + ';width:18px;height:18px;background:#ffffff;border-radius:50%;transition:left 0.22s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 1px 3px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center">'
+      + (isApOn ? '          <span style="width:6px;height:6px;background:#10B981;border-radius:50%"></span>' : '')
+      + '        </div>'
+      + '      </div>'
+      + '      <span style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:4px">'
+      + '        <span style="color:#f59e0b">⚡</span> Auto-Pilot:'
+      + '        <b style="font-size:11px;font-weight:800;color:' + (isApOn ? '#10B981' : 'var(--text3)') + ';letter-spacing:0.04em;text-transform:uppercase">' + (isApOn ? 'AKTIF' : 'NONAKTIF') + '</b>'
+      + '      </span>'
+      + '    </button>'
       + '    <button class="sm-btn" onclick="aiPromptSetCapital()" title="Atur modal awal virtual">💰 Modal: Rp ' + ((state.paperAccount.initialCapital || 100000000) / 1000000).toFixed(0) + ' Jt</button>'
       + '    <button class="sm-btn" onclick="aiTriggerAutonomousCycle()">Jalankan Siklus AI</button>'
       + '  </div>'
