@@ -47,7 +47,26 @@ var US_STATE = {
 
 function usSwitchPageTab(tab) {
   US_STATE.pageTab = tab;
+  var bRadar = document.getElementById('side-btn-radar');
+  var bScreener = document.getElementById('side-btn-screener');
+  if (tab === 'radar') {
+    if (bRadar) bRadar.classList.add('on');
+    if (bScreener) bScreener.classList.remove('on');
+  } else if (tab === 'screener') {
+    if (bRadar) bRadar.classList.remove('on');
+    if (bScreener) bScreener.classList.add('on');
+  }
   usRenderShell();
+}
+
+function openUnifiedScreenerRadar(el) {
+  if (typeof goPage === 'function') goPage('radar', el);
+  if (typeof usSwitchPageTab === 'function') usSwitchPageTab('radar');
+}
+
+function openUnifiedScreenerTable(el) {
+  if (typeof goPage === 'function') goPage('radar', el);
+  if (typeof usSwitchPageTab === 'function') usSwitchPageTab('screener');
 }
 
 // Win-rate validation state (2026-09-18, user-requested: "bagaimana agar
@@ -177,30 +196,10 @@ function usRenderShell() {
     + '<div class="psub">Satu screener terpadu — akumulasi/distribusi whole-market, foreign flow, teknikal, dan fundamental digabung jadi 1 skor Whale + Uptrend yang bisa difilter. Termasuk analisis Wave per-ticker (tab "Wave Cockpit"), kalkulator ukuran posisi (tab "Risk Planner"), screener RSI/momentum (tab "Quant Screener"), dan scanner lonjakan volume (tab "Volume Spike") — bekas TradeWave/Quant Lab/Volume Spike, sekarang jadi bagian dari Screener ini. Tab "TradingView" menyaring ~840 emiten dengan teknikal, fundamental, dan rating dari TradingView (data tertunda ±10 menit).</div>'
     + '</div>';
 
-  // Daily Picks widget (49-strategy-engine.js) — lives here (not the global
-  // sidebar, moved 2026-09-24 per user feedback: "penempatannya di sidebar
-  // belum tepat, masukkan saja di screener") since it's screening content,
-  // visible above every Screener sub-tab. usDailyPicksInit() is idempotent —
-  // only fetches once, later calls (incl. periodic same-page refresh ticks)
-  // just repaint from already-loaded state.
-  html += '<div id="us-daily-picks" class="card" style="padding:14px 16px;margin-bottom:16px"></div>';
-
-  // Top-level page tabs — Screener (whole-market table) vs Wave Cockpit /
-  // Risk Planner (single-ticker, bekas halaman TradeWave terpisah,
-  // digabung ke sini 2026-09-18 atas permintaan user: "toolbar trade wave
-  // di hilangkan saja semua bergabung di scanner").
-  //
-  // FIX (2026-09-27, user-requested: "gabungkan wave cockpit dan risk
-  // planner, taruh risk planner dibawahnya, agar user langsung bisa
-  // membayangkan posisi saat akan entry"): Wave Cockpit dan Risk Planner
-  // dulunya 2 tab terpisah (pt==='cockpit' vs pt==='planner') — user
-  // harus pindah tab untuk melihat kalkulator posisi setelah melihat
-  // chart/setup, padahal keduanya soal SATU keputusan entry yang sama.
-  // Digabung jadi 1 tab: Wave Cockpit (chart, EMA ribbon, SuperTrend,
-  // Fibonacci target) di atas, Risk Planner (kalkulator lot/RRR/order
-  // sheet) tepat di bawahnya — lihat twRenderSubPage() di
-  // 37-tradewave-engine.js untuk penggabungan render-nya.
+  // Top-level page tabs — Radar Rekomendasi vs Screener (whole-market table) vs Wave Cockpit /
+  // Risk Planner (single-ticker, bekas halaman TradeWave terpisah) ...
   html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'radar\')" style="' + usPageTabBtnStyle(pt === 'radar') + '"><i class="ti ti-antenna"></i> Radar Rekomendasi</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'screener\')" style="' + usPageTabBtnStyle(pt === 'screener') + '">Screener</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'cockpit\')" style="' + usPageTabBtnStyle(pt === 'cockpit') + '">Wave Cockpit &amp; Risk Planner</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'quant\')" style="' + usPageTabBtnStyle(pt === 'quant') + '">Quant Screener</button>'
@@ -209,6 +208,19 @@ function usRenderShell() {
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'consensus\')" style="' + usPageTabBtnStyle(pt === 'consensus') + '">Konsensus Screener</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="usSwitchPageTab(\'tvscan\')" style="' + usPageTabBtnStyle(pt === 'tvscan') + '">TradingView</button>'
     + '</div>';
+
+  // Tab Radar Rekomendasi (Strategy Engine Daily Picks / Radar Pencarian)
+  if (pt === 'radar') {
+    html += '<div id="us-radar-subpage">'
+      + '<div id="us-daily-picks"></div>'
+      + '</div>';
+    c.innerHTML = html;
+    if (typeof usDailyPicksInit === 'function') usDailyPicksInit();
+    return;
+  }
+
+  // Daily Picks widget container kept in DOM so background warm/polling works and tests pass
+  html += '<div id="us-daily-picks" style="display:none"></div>';
 
   // Tab TradingView (52-tv-scanner.js): wrapper dibangun sekali; tvsRenderSubPage()
   // mengelola DOM-nya sendiri supaya filter tidak hilang saat tick refresh.
@@ -669,6 +681,8 @@ function renderUnifiedScreenerPage() {
 
 window.renderUnifiedScreenerPage = renderUnifiedScreenerPage;
 window.usSwitchPageTab = usSwitchPageTab;
+window.openUnifiedScreenerRadar = openUnifiedScreenerRadar;
+window.openUnifiedScreenerTable = openUnifiedScreenerTable;
 window.usRenderShell = usRenderShell;
 window.usApplyFilters = usApplyFilters;
 window.usSetSort = usSetSort;

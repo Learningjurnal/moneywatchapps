@@ -395,63 +395,331 @@ function usDailyPicksEsc(s) {
   });
 }
 
-// Horizontal card row layout (fits the Screener page's full width, unlike
-// the old narrow sidebar list) — one scrollable row of compact tiles.
+// Parse raw rationale string into clean structured items
+function usDailyPicksParseReason(reason) {
+  if (!reason) return [];
+  var parts = String(reason).split(/\s*—\s*/);
+  var items = [];
+  parts.forEach(function (part) {
+    var p = part.trim();
+    if (!p) return;
+    if (/^(STRONG|QUALIFIED|WATCH|REJECT):\s*FinalScore/i.test(p)) {
+      items.push({ type: 'verdict', label: 'STATUS &amp; SKOR', text: p, icon: 'ti-award', badgeClass: 'b-up' });
+    } else if (/^Skor dihitung dari/i.test(p)) {
+      items.push({ type: 'weight', label: 'CAKUPAN BOBOT', text: p, icon: 'ti-scale', badgeClass: 'b-amb' });
+    } else {
+      var colonIdx = p.indexOf(':');
+      if (colonIdx > 0 && colonIdx < 35) {
+        var key = p.slice(0, colonIdx).trim().replace(/_/g, ' ');
+        var val = p.slice(colonIdx + 1).trim();
+        items.push({ type: 'indicator', label: key, text: val, icon: 'ti-check', badgeClass: 'b-accent' });
+      } else {
+        items.push({ type: 'note', label: 'CATATAN ANALISIS', text: p, icon: 'ti-info-circle', badgeClass: 'b-neu' });
+      }
+    }
+  });
+  return items;
+}
+
+// Modal Popup for detailed rationale & breakdown
+function usDailyPicksOpenModal(idx) {
+  if (!US_DAILY_PICKS_STATE.data || !Array.isArray(US_DAILY_PICKS_STATE.data.picks)) return;
+  var p = US_DAILY_PICKS_STATE.data.picks[idx];
+  if (!p) return;
+
+  var existing = document.getElementById('us-picks-modal-backdrop');
+  if (existing) existing.remove();
+
+  var scoreNum = p.score != null ? Number(p.score) : null;
+  var isAlpha = scoreNum != null && scoreNum >= 88.0;
+  var isStrong = scoreNum != null && scoreNum >= 83.0 && scoreNum < 88.0;
+
+  var structured = usDailyPicksParseReason(p.reason);
+  var indicatorCards = structured.map(function (item) {
+    return '<div class="radar-modal-indicator-item">'
+      + '<span class="indicator-badge-chip ' + (item.badgeClass || '') + '"><i class="ti ' + item.icon + '"></i> ' + usDailyPicksEsc(item.label) + '</span>'
+      + '<div style="color:var(--text);font-size:11.5px;line-height:1.4">' + usDailyPicksEsc(item.text) + '</div>'
+      + '</div>';
+  }).join('');
+
+  var tierBadgeText = isAlpha
+    ? '🔥 <strong style="color:#f59e0b">ALPHA TARGET (TIER 1)</strong> — Konfluensi tertinggi pada pemindaian hari ini'
+    : (isStrong ? '⚡ <strong style="color:#10b981">STRONG MOMENTUM (TIER 2)</strong> — Memenuhi akumulasi bandar &amp; momentum kuat'
+      : '🎯 <strong style="color:#38bdf8">QUALIFIED TARGET (TIER 3)</strong> — Lolos ambang batas seleksi strategi');
+
+  var modalHtml = '<div id="us-picks-modal-backdrop" class="radar-modal-backdrop" onclick="if(event.target===this)usDailyPicksCloseModal()">'
+    + '<div class="radar-modal-card" role="dialog" aria-modal="true" aria-labelledby="radar-modal-title">'
+    + '<div class="radar-modal-header">'
+    + '  <div style="display:flex;align-items:center;gap:12px">'
+    + '    <div style="flex-shrink:0">' + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(p.ticker, 42) : '') + '</div>'
+    + '    <div>'
+    + '      <div style="display:flex;align-items:center;gap:8px">'
+    + '        <span id="radar-modal-title" class="mono" style="font-size:18px;font-weight:900;color:var(--text)">' + usDailyPicksEsc(p.ticker) + '</span>'
+    + '        <span class="badge ' + (p.rank === 1 ? 'b-amb' : 'b-accent') + '" style="font-size:10px">RANK #' + p.rank + '</span>'
+    + '        <span class="badge ' + (p.status === 'STRONG' ? 'b-up' : 'b-blue') + '" style="font-size:10px">' + usDailyPicksEsc(p.status) + '</span>'
+    + '      </div>'
+    + '      <div style="font-size:12px;color:var(--text3);margin-top:2px">' + usDailyPicksEsc(p.name || p.ticker) + '</div>'
+    + '    </div>'
+    + '  </div>'
+    + '  <button class="radar-modal-close" onclick="usDailyPicksCloseModal()" aria-label="Tutup">✕</button>'
+    + '</div>'
+    + '<div class="radar-modal-body">'
+    + '  <div class="radar-modal-score-banner">'
+    + '    <div class="modal-score-circle ' + (isAlpha ? 'score-circle-alpha' : '') + '">'
+    + '      <div class="score-large-val" style="color:' + usDailyPicksStatusColor(p.status) + '">' + (p.score != null ? p.score : '-') + '</div>'
+    + '      <div class="score-large-lbl">FINAL SCORE</div>'
+    + '    </div>'
+    + '    <div class="modal-score-details">'
+    + '      <div class="modal-strategy-title"><i class="ti ti-compass" style="color:var(--accent)"></i> Strategi: <strong>' + usDailyPicksEsc(p.strategyName) + '</strong></div>'
+    + '      <div class="modal-tier-tag">' + tierBadgeText + '</div>'
+    + '      <div class="modal-weight-note">Sistem perhitungan kuantitatif berbasis indikator multi-faktor tanpa manipulasi data sintetis.</div>'
+    + '    </div>'
+    + '  </div>'
+    + '  <div class="radar-modal-section-title"><i class="ti ti-list-check"></i> Rincian Parameter &amp; Logika Skor</div>'
+    + '  <div class="radar-modal-indicator-list">' + (indicatorCards || '<div style="color:var(--text3);font-size:11px">Tidak ada rincian tambahan.</div>') + '</div>'
+    + '  <div class="radar-modal-verbatim-box">'
+    + '    <div class="verbatim-header"><i class="ti ti-file-text"></i> Penjelasan Rationale Lengkap (Strategy Engine V1):</div>'
+    + '    <div class="verbatim-content">' + usDailyPicksEsc(p.reason || 'Tidak ada penjelasan') + '</div>'
+    + '  </div>'
+    + '</div>'
+    + '<div class="radar-modal-footer">'
+    + '  <div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:6px">'
+    + '    <span class="radar-live-blip" style="width:6px;height:6px"></span> Data real Invezgo · Diperbarui tiap 15 mnt'
+    + '  </div>'
+    + '  <div style="display:flex;gap:8px">'
+    + '    <button class="btn btn-ghost btn-sm" onclick="usDailyPicksCloseModal()">Tutup</button>'
+    + '    <button class="btn btn-ghost btn-sm" onclick="usDailyPicksCloseModal();if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stockchat\');">'
+    + '      <i class="ti ti-terminal-2"></i> StockChat AI'
+    + '    </button>'
+    + '    <button class="btn btn-primary btn-sm" onclick="usDailyPicksCloseModal();if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stock-dossier\');">'
+    + '      <i class="ti ti-chart-candle"></i> Buka Stock Master 360'
+    + '    </button>'
+    + '  </div>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function usDailyPicksCloseModal() {
+  var m = document.getElementById('us-picks-modal-backdrop');
+  if (m) m.remove();
+}
+
+window.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') usDailyPicksCloseModal();
+});
+
+// Search Radar layout with live sweep HUD, target blips, score tier visualizer, and popup modal
 function usDailyPicksRender() {
   var el = document.getElementById('us-daily-picks');
   if (!el) return;
 
-  var header = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-    + '<span style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Rekomendasi Harian <span class="badge b-accent" style="font-size:8px">STRATEGY ENGINE V1</span></span>'
+  var d = US_DAILY_PICKS_STATE.data;
+  var hasPicks = d && Array.isArray(d.picks) && d.picks.length > 0;
+  var pickCount = hasPicks ? d.picks.length : 0;
+  var dateStr = (d && d.date) || 'Hari Ini';
+
+  // Top HUD Status Bar
+  var header = '<div class="radar-hud-bar">'
+    + '<div class="radar-hud-status">'
+    + '  <span class="radar-live-blip"></span>'
+    + '  <span class="radar-hud-title">Radar Pencarian Saham <span class="badge b-accent" style="font-size:9px">STRATEGY ENGINE V1</span></span>'
+    + '</div>'
+    + '<div class="radar-hud-meta">'
+    + '  <span class="radar-meta-chip"><i class="ti ti-calendar"></i> ' + usDailyPicksEsc(dateStr) + '</span>'
+    + '  <span class="radar-meta-chip"><i class="ti ti-target"></i> ' + pickCount + ' TARGET TERDETEKSI</span>'
+    + '  <button class="btn btn-ghost btn-xs radar-refresh-btn" onclick="usDailyPicksLoad()" title="Pindai Ulang Radar"><i class="ti ti-refresh"></i> Pindai Ulang</button>'
+    + '</div>'
     + '</div>';
 
-  var body;
-  if (US_DAILY_PICKS_STATE.loading && !US_DAILY_PICKS_STATE.data) {
-    body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8)">Memuat rekomendasi...</div>';
-  } else if (US_DAILY_PICKS_STATE.error && !US_DAILY_PICKS_STATE.data) {
-    body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8)">Gagal memuat: ' + usDailyPicksEsc(US_DAILY_PICKS_STATE.error) + '</div>';
-  } else if (US_DAILY_PICKS_STATE.data && US_DAILY_PICKS_STATE.data.count === 0) {
-    // FIX (2026-10-04): teks lama MENEBAK penyebab ("hari libur bursa ..."). Sekarang menyebut
-    // cakupan pemindaian nyata dari server (scanCoverage), supaya "belum ada hasil" bisa
-    // dibedakan dari "baru sedikit emiten terpindai" dan "belum ada yang berhasil dipindai".
-    var emptyData = US_DAILY_PICKS_STATE.data;
-    var cov = emptyData.scanCoverage;
+  var content;
+  if (US_DAILY_PICKS_STATE.loading && !d) {
+    content = '<div class="radar-scope-wrapper" style="text-align:center;padding:48px 20px">'
+      + '<div class="radar-scope-container" style="width:260px;height:260px;margin-bottom:16px">'
+      + '  <div class="radar-scope">'
+      + '    <div class="radar-ring ring-alpha"></div>'
+      + '    <div class="radar-ring ring-strong"></div>'
+      + '    <div class="radar-sweep-beam"></div>'
+      + '    <div class="radar-center-origin"></div>'
+      + '  </div>'
+      + '</div>'
+      + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Memindai Peluang Pasar...</div>'
+      + '<div style="font-size:11px;color:var(--text3)">Mengevaluasi konfluensi bandarmology, momentum, dan fundamental emiten IDX</div>'
+      + '</div>';
+    el.innerHTML = header + content;
+    return;
+  }
+
+  if (US_DAILY_PICKS_STATE.error && !d) {
+    content = '<div class="radar-scope-wrapper" style="text-align:center;padding:36px 20px">'
+      + '<div style="color:var(--red,#ef4444);font-size:24px;margin-bottom:8px"><i class="ti ti-alert-triangle"></i></div>'
+      + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Radar Mengalami Gangguan Sensor</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-bottom:14px">' + usDailyPicksEsc(US_DAILY_PICKS_STATE.error) + '</div>'
+      + '<button class="btn btn-outline btn-sm" onclick="usDailyPicksLoad()"><i class="ti ti-refresh"></i> Coba Hubungkan Kembali</button>'
+      + '</div>';
+    el.innerHTML = header + content;
+    return;
+  }
+
+  if (d && d.count === 0) {
+    var cov = d.scanCoverage;
     var emptyReason = (cov && cov.scannedPerStrategyMax > 0)
       ? ('Rotasi harian baru memindai ' + cov.scannedPerStrategyMax + ' dari ' + cov.universeSize + ' emiten (per strategi) dan belum menemukan yang berstatus STRONG/QUALIFIED.')
       : 'Belum ada emiten yang berhasil dipindai untuk tanggal ini.';
-    body = '<div style="padding:12px 4px;font-size:11px;color:var(--text3,#94a3b8);line-height:1.5">Belum ada saham STRONG/QUALIFIED untuk ' + usDailyPicksEsc(emptyData.date) + '. ' + usDailyPicksEsc(emptyReason) + '</div>';
-  } else if (US_DAILY_PICKS_STATE.data) {
-    var d = US_DAILY_PICKS_STATE.data;
-    // FIX (2026-09-27, user-requested: "berikan tanda ranking ... untuk
-    // melihat urutannya") — p.rank already existed but was a barely-visible
-    // 10px muted "#N" tag; replaced with the same numbered-circle badge
-    // used on the Unified Screener table (gold/silver/bronze for #1-3) so
-    // the order is obvious at a glance, not just implied by scroll position.
-    var cards = d.picks.map(function (p) {
-      var rankBadgeBg = p.rank === 1 ? '#F59E0B' : p.rank === 2 ? '#94A3B8' : p.rank === 3 ? '#B45309' : 'var(--bg3,rgba(255,255,255,0.08))';
-      var rankBadgeColor = p.rank <= 3 ? '#0B0D12' : 'var(--text3,#94a3b8)';
-      var rankBadge = '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:' + rankBadgeBg + ';color:' + rankBadgeColor + ';font-weight:800;font-size:10px;flex-shrink:0">' + p.rank + '</span>';
-      return '<div onclick="if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stock-dossier\');" '
-        + 'style="flex:0 0 220px;padding:10px 12px;border-radius:8px;border:1px solid var(--border2,rgba(255,255,255,0.08));cursor:pointer;transition:background 0.15s" '
-        + 'onmouseover="this.style.background=\'var(--bg3,rgba(255,255,255,0.04))\'" onmouseout="this.style.background=\'transparent\'">'
-        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">'
-        + rankBadge
-        + '<span class="mono" style="font-size:13px;font-weight:800;color:var(--text)">' + usDailyPicksEsc(p.ticker) + '</span>'
-        + '<span class="mono" style="font-size:12px;font-weight:800;color:' + usDailyPicksStatusColor(p.status) + '">' + (p.score != null ? p.score : '-') + '</span>'
-        + '</div>'
-        + '<div style="font-size:9px;color:var(--text3,#94a3b8);margin-bottom:4px">' + usDailyPicksEsc(p.strategyName) + ' · <span style="color:' + usDailyPicksStatusColor(p.status) + '">' + p.status + '</span></div>'
-        + '<div style="font-size:10px;color:var(--text2,#cbd5e1);line-height:1.4">' + usDailyPicksEsc(p.reason).slice(0, 140) + (p.reason && p.reason.length > 140 ? '…' : '') + '</div>'
-        + '</div>';
-    }).join('');
-
-    body = '<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">' + cards + '</div>';
-    var footerBits = [];
-    if (d.note) footerBits.push(usDailyPicksEsc(d.note));
-    footerBits.push('Data ' + usDailyPicksEsc(d.date) + ' · bukan nasihat investasi, hasil skor otomatis dari data real Invezgo.');
-    body += '<div style="padding-top:6px;font-size:9.5px;color:var(--text3,#94a3b8);line-height:1.4">' + footerBits.join(' — ') + '</div>';
-  } else {
-    body = '';
+    content = '<div class="radar-scope-wrapper" style="text-align:center;padding:36px 20px">'
+      + '<div class="radar-scope-container" style="width:240px;height:240px;margin-bottom:16px">'
+      + '  <div class="radar-scope">'
+      + '    <div class="radar-ring ring-alpha"></div>'
+      + '    <div class="radar-ring ring-strong"></div>'
+      + '    <div class="radar-sweep-beam"></div>'
+      + '    <div class="radar-center-origin"></div>'
+      + '  </div>'
+      + '</div>'
+      + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Belum Ada Saham Masuk Jangkauan Radar</div>'
+      + '<div style="font-size:11px;color:var(--text3);max-width:540px;margin:0 auto;line-height:1.5">' + usDailyPicksEsc(emptyReason) + '</div>'
+      + '</div>';
+    el.innerHTML = header + content;
+    return;
   }
 
-  el.innerHTML = header + body;
+  if (hasPicks) {
+    // Generate Radar Scope Blips & Target Cards
+    var blipsHtml = '';
+    var cardsHtml = '';
+    var totalPicks = d.picks.length;
+
+    d.picks.forEach(function (p, idx) {
+      var scoreVal = Number(p.score) || 75;
+      var isAlpha = scoreVal >= 88.0;
+      var isStrong = scoreVal >= 83.0 && scoreVal < 88.0;
+      var tierClass = isAlpha ? 'tier-alpha' : (isStrong ? 'tier-strong' : 'tier-qualified');
+
+      // Distance from center: higher score = closer to center (16% to 80% radius)
+      var distPct = Math.max(16, Math.min(80, 84 - (scoreVal - 70) * 2.8));
+      var angleDeg = (idx * (360 / totalPicks) + 40) % 360;
+      var rad = angleDeg * (Math.PI / 180);
+      var leftPct = (50 + (distPct / 2) * Math.cos(rad)).toFixed(2);
+      var topPct = (50 + (distPct / 2) * Math.sin(rad)).toFixed(2);
+
+      var logoSize = isAlpha ? 28 : 24;
+      var stockLogo = typeof getStockLogoHtml === 'function' ? getStockLogoHtml(p.ticker, logoSize) : '';
+
+      // Special visual effect based on scoring on radar
+      var specialGlowHtml = '';
+      if (isAlpha) {
+        specialGlowHtml = '<div class="radar-blip-ping-gold"></div><div class="radar-target-reticle"></div>';
+      } else if (isStrong) {
+        specialGlowHtml = '<div class="radar-blip-ping-green"></div>';
+      } else {
+        specialGlowHtml = '<div class="radar-blip-ping-cyan"></div>';
+      }
+
+      blipsHtml += '<div class="radar-target-blip ' + tierClass + '" style="left:' + leftPct + '%;top:' + topPct + '%" '
+        + 'onclick="usDailyPicksOpenModal(' + idx + ')" '
+        + 'title="' + usDailyPicksEsc(p.ticker) + ' (' + usDailyPicksEsc(p.name || '') + ') · Skor: ' + (p.score != null ? p.score : '-') + ' · Klik untuk alasan">'
+        + specialGlowHtml
+        + '<div class="radar-blip-inner">'
+        + stockLogo
+        + '</div>'
+        + '<div class="radar-blip-label-pod">'
+        + '<span class="radar-blip-ticker">' + usDailyPicksEsc(p.ticker) + '</span>'
+        + '<span class="radar-blip-score">' + (p.score != null ? p.score : '-') + '</span>'
+        + '</div>'
+        + '</div>';
+
+      // Card for Target Feed list on right
+      var rankClass = p.rank === 1 ? 'rank-1' : (p.rank === 2 ? 'rank-2' : (p.rank === 3 ? 'rank-3' : 'rank-other'));
+      var cardTierClass = isAlpha ? 'card-tier-alpha' : (isStrong ? 'card-tier-strong' : 'card-tier-qualified');
+      var scoreBadgeClass = isAlpha ? 'score-alpha' : (isStrong ? 'score-strong' : 'score-qualified');
+      var scoreIcon = isAlpha ? '<i class="ti ti-flame" style="color:#f59e0b"></i>' : (isStrong ? '<i class="ti ti-bolt" style="color:#10b981"></i>' : '');
+
+      cardsHtml += '<div class="radar-target-card ' + cardTierClass + '" onclick="usDailyPicksOpenModal(' + idx + ')">'
+        + '<div class="target-card-left">'
+        + '  <div class="target-rank-badge ' + rankClass + '">' + p.rank + '</div>'
+        + '  <div class="target-logo-wrap">' + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(p.ticker, 36) : '') + '</div>'
+        + '  <div class="target-identity">'
+        + '    <div class="target-ticker">' + usDailyPicksEsc(p.ticker)
+        + (isAlpha ? ' <span class="badge b-amb" style="font-size:8px;padding:1px 4px">HOT TARGET</span>' : '')
+        + '    </div>'
+        + '    <div class="target-name">' + usDailyPicksEsc(p.name || p.ticker) + '</div>'
+        + '  </div>'
+        + '</div>'
+        + '<div class="target-card-center">'
+        + '  <span class="badge b-accent target-strat-badge">' + usDailyPicksEsc(p.strategyName) + '</span>'
+        + '  <span class="target-status-badge ' + (p.status === 'STRONG' ? 'status-strong' : 'status-qualified') + '">'
+        + '    <span class="status-dot"></span> ' + usDailyPicksEsc(p.status)
+        + '  </span>'
+        + '</div>'
+        + '<div class="target-card-right">'
+        + '  <div class="target-score-badge ' + scoreBadgeClass + '">'
+        + scoreIcon
+        + '    <span class="score-num">' + (p.score != null ? p.score : '-') + '</span>'
+        + '  </div>'
+        + '  <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();usDailyPicksOpenModal(' + idx + ');" title="Buka Penjelasan &amp; Rationale">'
+        + '    <i class="ti ti-file-text"></i> Alasan'
+        + '  </button>'
+        + '  <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stock-dossier\');" title="Buka Dossier / Chart">'
+        + '    <i class="ti ti-chart-candle"></i>'
+        + '  </button>'
+        + '</div>'
+        + '</div>';
+    });
+
+    var radarScopeScreen = '<div class="radar-screen-box">'
+      + '<div class="radar-scope-container">'
+      + '  <div class="radar-compass-label radar-compass-n">000° N</div>'
+      + '  <div class="radar-compass-label radar-compass-e">090° E</div>'
+      + '  <div class="radar-compass-label radar-compass-s">180° S</div>'
+      + '  <div class="radar-compass-label radar-compass-w">270° W</div>'
+      + '  <div class="radar-scope" id="radar-scope-screen">'
+      + '    <div class="radar-ring ring-outer"><span class="radar-ring-tag">75</span></div>'
+      + '    <div class="radar-ring ring-qualified"><span class="radar-ring-tag">80</span></div>'
+      + '    <div class="radar-ring ring-strong"><span class="radar-ring-tag">85</span></div>'
+      + '    <div class="radar-ring ring-alpha"><span class="radar-ring-tag">90+ ALPHA</span></div>'
+      + '    <div class="radar-crosshair-h"></div>'
+      + '    <div class="radar-crosshair-v"></div>'
+      + '    <div class="radar-sweep-beam"></div>'
+      + '    <div class="radar-center-origin"></div>'
+      + blipsHtml
+      + '  </div>'
+      + '</div>'
+      + '<div style="margin-top:12px;display:flex;align-items:center;gap:12px;font-size:10px;color:var(--text3);font-family:var(--font-mono)">'
+      + '  <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Bullseye 88+ (Alpha)</span>'
+      + '  <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block"></span> Strong 83-87</span>'
+      + '  <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#06b6d4;display:inline-block"></span> Qualified &lt;83</span>'
+      + '</div>'
+      + '</div>';
+
+    var targetsFeed = '<div class="radar-targets-panel">'
+      + '<div class="radar-targets-header">'
+      + '  <div class="radar-targets-title"><i class="ti ti-radar-2"></i> Saham Masuk Radar Pencarian</div>'
+      + '  <div style="font-size:11px;color:var(--text3)">Klik saham untuk membaca popup alasan lengkap</div>'
+      + '</div>'
+      + cardsHtml
+      + '</div>';
+
+    var footerBits = [];
+    if (d.note) footerBits.push(usDailyPicksEsc(d.note));
+    footerBits.push('Data ' + usDailyPicksEsc(d.date) + ' · Bukan nasihat investasi. Hasil perhitungan kuantitatif Strategy Engine V1 dari data pasar nyata Invezgo.');
+
+    content = '<div class="radar-scope-wrapper">'
+      + '<div class="radar-main-grid">'
+      + radarScopeScreen
+      + targetsFeed
+      + '</div>'
+      + '<div style="padding-top:14px;margin-top:14px;border-top:1px solid var(--border2,rgba(255,255,255,0.06));font-size:10px;color:var(--text3,#94a3b8);line-height:1.4">'
+      + footerBits.join(' — ')
+      + '</div>'
+      + '</div>';
+  } else {
+    content = '';
+  }
+
+  el.innerHTML = header + content;
 }
+
+window.usDailyPicksOpenModal = usDailyPicksOpenModal;
+window.usDailyPicksCloseModal = usDailyPicksCloseModal;
+window.usDailyPicksRender = usDailyPicksRender;
