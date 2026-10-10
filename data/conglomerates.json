@@ -110,23 +110,23 @@
       "ticker": "BNBR",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 25.31,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT BAKRIE CAPITAL INDONESIA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT BAKRIE CAPITAL INDONESIA dengan kepemilikan 25.31%."
     },
     {
       "ticker": "BUMI",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 45.78,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (Mach Energy (Hongkong) Limited)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas Mach Energy (Hongkong) Limited dengan kepemilikan 45.78%."
     },
     {
       "ticker": "BRMS",
@@ -137,40 +137,40 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; investor terdaftar di KSEI memerlukan konfirmasi beneficial ownership lebih lanjut."
     },
     {
       "ticker": "ENRG",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 17.54,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT SHIMA GLOBAL KAPITAL)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT SHIMA GLOBAL KAPITAL dengan kepemilikan 17.54%."
     },
     {
       "ticker": "DEWA",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 6.21,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT ANDHESTI TUNGKAS PRATAMA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT ANDHESTI TUNGKAS PRATAMA dengan kepemilikan 6.21%."
     },
     {
       "ticker": "UNSP",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 5.21,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT BAKRIE CAPITAL INDONESIA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT BAKRIE CAPITAL INDONESIA dengan kepemilikan 5.21%."
     },
     {
       "ticker": "ELTY",
@@ -181,95 +181,95 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; investor terdaftar di KSEI memerlukan konfirmasi beneficial ownership lebih lanjut."
     },
     {
       "ticker": "VIVA",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 32.63,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT. Bakrie Global Ventura)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT. Bakrie Global Ventura dengan kepemilikan 32.63%."
     },
     {
       "ticker": "MDIA",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 80.73,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT VISI MEDIA ASIA Tbk)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT VISI MEDIA ASIA Tbk dengan kepemilikan 80.73%."
     },
     {
       "ticker": "JGLE",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 38.76,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT SURYA GLOBAL NUSANTARA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT SURYA GLOBAL NUSANTARA dengan kepemilikan 38.76%."
     },
     {
       "ticker": "VKTR",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 21.06,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (Bakrie Metal Industries, PT)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas Bakrie Metal Industries, PT dengan kepemilikan 21.06%."
     },
     {
       "ticker": "ALII",
       "group_id": "BAKRIE",
       "group_name": "Grup Bakrie",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 32.87,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT. GRAHA ADIKA NIAGA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT. GRAHA ADIKA NIAGA dengan kepemilikan 32.87%."
     },
     {
       "ticker": "BRPT",
       "group_id": "BARITO_PRAJOGO",
       "group_name": "Grup Prajogo Pangestu / Barito",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "DIRECT",
+      "ownership_pct": 19.29,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PRAJOGO PANGESTU)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PRAJOGO PANGESTU dengan kepemilikan 19.29%."
     },
     {
       "ticker": "TPIA",
       "group_id": "BARITO_PRAJOGO",
       "group_name": "Grup Prajogo Pangestu / Barito",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 13.67,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT BARITO PACIFIC TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT BARITO PACIFIC TBK dengan kepemilikan 13.67%."
     },
     {
       "ticker": "BREN",
       "group_id": "BARITO_PRAJOGO",
       "group_name": "Grup Prajogo Pangestu / Barito",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 22.67,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (GREEN ERA ENERGY PTE. LTD.)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas GREEN ERA ENERGY PTE. LTD. dengan kepemilikan 22.67%."
     },
     {
       "ticker": "CUAN",
@@ -280,128 +280,128 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "PTRO",
       "group_id": "BARITO_PRAJOGO",
       "group_name": "Grup Prajogo Pangestu / Barito",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 45.33,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT. KREASI JASA PERSADA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT. KREASI JASA PERSADA dengan kepemilikan 45.33%."
     },
     {
       "ticker": "CDIA",
       "group_id": "BARITO_PRAJOGO",
       "group_name": "Grup Prajogo Pangestu / Barito",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 9,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT CHANDRA ASRI PACIFIC TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT CHANDRA ASRI PACIFIC TBK dengan kepemilikan 9%."
     },
     {
       "ticker": "ADRO",
       "group_id": "THOHIR_ADARO",
       "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 48.77,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (ADARO STRATEGIC INVESTMENTS)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas ADARO STRATEGIC INVESTMENTS dengan kepemilikan 48.77%."
     },
     {
       "ticker": "AADI",
       "group_id": "THOHIR_ADARO",
       "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 15.37,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (ALAMTRI RESOURCES INDONESIA TBK PT)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas ALAMTRI RESOURCES INDONESIA TBK PT dengan kepemilikan 15.37%."
     },
     {
       "ticker": "ADMR",
       "group_id": "THOHIR_ADARO",
       "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 85.45,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (ALAMTRI RESOURCES INDONESIA TBK PT)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas ALAMTRI RESOURCES INDONESIA TBK PT dengan kepemilikan 85.45%."
     },
     {
       "ticker": "MBMA",
       "group_id": "THOHIR_ADARO",
       "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 50.04,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (MERDEKA ENERGI NUSANTARA, PT)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas MERDEKA ENERGI NUSANTARA, PT dengan kepemilikan 50.04%."
     },
     {
       "ticker": "RAJA",
       "group_id": "HAPSORO",
       "group_name": "Afiliasi Happy Hapsoro",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 35.73,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT SENTOSA BERSAMA MITRA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT SENTOSA BERSAMA MITRA dengan kepemilikan 35.73%."
     },
     {
       "ticker": "MINA",
       "group_id": "HAPSORO",
       "group_name": "Afiliasi Happy Hapsoro",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 30.48,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT TIRTA ORISA YASA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT TIRTA ORISA YASA dengan kepemilikan 30.48%."
     },
     {
       "ticker": "UANG",
       "group_id": "HAPSORO",
       "group_name": "Afiliasi Happy Hapsoro",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 9.49,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT BHINEKA ABADI INVESTAMA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT BHINEKA ABADI INVESTAMA dengan kepemilikan 9.49%."
     },
     {
       "ticker": "SINI",
       "group_id": "HAPSORO",
       "group_name": "Afiliasi Happy Hapsoro",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 12,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT. AUTUM PRIMA INDONESIA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT. AUTUM PRIMA INDONESIA dengan kepemilikan 12%."
     },
     {
       "ticker": "ARKO",
       "group_id": "HAPSORO",
       "group_name": "Afiliasi Happy Hapsoro",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 38.89,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (ARKORA BAKTI INDONESIA, PT)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas ARKORA BAKTI INDONESIA, PT dengan kepemilikan 38.89%."
     },
     {
       "ticker": "DCII",
@@ -412,7 +412,7 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Kandidat utama untuk ditelusuri; jangan anggap kepemilikan aktif tanpa verifikasi terbaru."
+      "notes": "Relasi kandidat; investor terdaftar di KSEI memerlukan konfirmasi beneficial ownership lebih lanjut."
     },
     {
       "ticker": "BBCA",
@@ -423,7 +423,7 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "BELI",
@@ -434,18 +434,18 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "TOWR",
       "group_id": "DJARUM_HARTONO",
       "group_name": "Grup Djarum / Hartono",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 7.45,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT DWIMURIA INVESTAMA ANDALAN)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT DWIMURIA INVESTAMA ANDALAN dengan kepemilikan 7.45%."
     },
     {
       "ticker": "SUPR",
@@ -456,29 +456,29 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "RANC",
       "group_id": "DJARUM_HARTONO",
       "group_name": "Grup Djarum / Hartono",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 5.76,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT PRIMA RASA INTI)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT PRIMA RASA INTI dengan kepemilikan 5.76%."
     },
     {
       "ticker": "DATA",
       "group_id": "DJARUM_HARTONO",
       "group_name": "Grup Djarum / Hartono",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "AFFILIATE",
+      "ownership_pct": 51,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PROFESIONAL TELEKOMUNIKASI INDONESIA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PROFESIONAL TELEKOMUNIKASI INDONESIA dengan kepemilikan 51%."
     },
     {
       "ticker": "INDF",
@@ -489,7 +489,7 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "ICBP",
@@ -500,84 +500,84 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "IMAS",
       "group_id": "SALIM",
       "group_name": "Grup Salim",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 18.17,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT Tritunggal Intipermata)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT Tritunggal Intipermata dengan kepemilikan 18.17%."
     },
     {
       "ticker": "DNET",
       "group_id": "SALIM",
       "group_name": "Grup Salim",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 20.13,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT MEGAH ERARAHARJA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT MEGAH ERARAHARJA dengan kepemilikan 20.13%."
     },
     {
       "ticker": "DCII",
       "group_id": "SALIM",
       "group_name": "Grup Salim",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Kandidat hubungan investasi/afiliasi; verifikasi struktur pemegang saham terkini."
+      "relation_type": "DIRECT",
+      "ownership_pct": 11.12,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (ANTHONI SALIM)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas ANTHONI SALIM dengan kepemilikan 11.12%."
     },
     {
       "ticker": "BSDE",
       "group_id": "SINAR_MAS",
       "group_name": "Grup Sinar Mas",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 18.21,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT PARAGA ARTAMIDA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT PARAGA ARTAMIDA dengan kepemilikan 18.21%."
     },
     {
       "ticker": "DSSA",
       "group_id": "SINAR_MAS",
       "group_name": "Grup Sinar Mas",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 17.62,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT DIAN SWASTATIKA SENTOSA TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT DIAN SWASTATIKA SENTOSA TBK dengan kepemilikan 17.62%."
     },
     {
       "ticker": "SMMA",
       "group_id": "SINAR_MAS",
       "group_name": "Grup Sinar Mas",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 49.85,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (SINAR MAS CAKRAWALA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas SINAR MAS CAKRAWALA dengan kepemilikan 49.85%."
     },
     {
       "ticker": "INKP",
       "group_id": "SINAR_MAS",
       "group_name": "Grup Sinar Mas",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 17.26,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT APP PURINUSA EKAPERSADA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT APP PURINUSA EKAPERSADA dengan kepemilikan 17.26%."
     },
     {
       "ticker": "TKIM",
@@ -588,7 +588,7 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "SMAR",
@@ -599,29 +599,29 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "GEMS",
       "group_id": "SINAR_MAS",
       "group_name": "Grup Sinar Mas",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 51,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT DIAN SWASTATIKA SENTOSA TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT DIAN SWASTATIKA SENTOSA TBK dengan kepemilikan 51%."
     },
     {
       "ticker": "LPKR",
       "group_id": "LIPPO",
       "group_name": "Grup Lippo",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 10.4,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PRIMANTARA UTAMA SEJAHTERA, PT)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PRIMANTARA UTAMA SEJAHTERA, PT dengan kepemilikan 10.4%."
     },
     {
       "ticker": "LPCK",
@@ -632,73 +632,73 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "MLPL",
       "group_id": "LIPPO",
       "group_name": "Grup Lippo",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 9.9,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (TRIJAYA ANUGERAH PRATAMA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas TRIJAYA ANUGERAH PRATAMA dengan kepemilikan 9.9%."
     },
     {
       "ticker": "MLPT",
       "group_id": "LIPPO",
       "group_name": "Grup Lippo",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 84.95,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (MULTIPOLAR,PT,TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas MULTIPOLAR,PT,TBK dengan kepemilikan 84.95%."
     },
     {
       "ticker": "MPPA",
       "group_id": "LIPPO",
       "group_name": "Grup Lippo",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 77.16,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (MULTIPOLAR,PT,TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas MULTIPOLAR,PT,TBK dengan kepemilikan 77.16%."
     },
     {
       "ticker": "LPPF",
       "group_id": "LIPPO",
       "group_name": "Grup Lippo",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 9.43,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (MULTIPOLAR,PT,TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas MULTIPOLAR,PT,TBK dengan kepemilikan 9.43%."
     },
     {
       "ticker": "SILO",
       "group_id": "LIPPO",
       "group_name": "Grup Lippo",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 20.6,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (MEGAPRATAMA KARYA PERSADA, PT)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas MEGAPRATAMA KARYA PERSADA, PT dengan kepemilikan 20.6%."
     },
     {
       "ticker": "NOBU",
       "group_id": "LIPPO",
       "group_name": "Grup Lippo",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 20.87,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT. PRIMA CAKRAWALA SENTOSA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT. PRIMA CAKRAWALA SENTOSA dengan kepemilikan 20.87%."
     },
     {
       "ticker": "GMTD",
@@ -709,62 +709,62 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "BHIT",
       "group_id": "MNC",
       "group_name": "Grup MNC",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 6.11,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (EP - BHAKTI PANJIWIRA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas EP - BHAKTI PANJIWIRA dengan kepemilikan 6.11%."
     },
     {
       "ticker": "BMTR",
       "group_id": "MNC",
       "group_name": "Grup MNC",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 34.32,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT MNC ASIA HOLDING TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT MNC ASIA HOLDING TBK dengan kepemilikan 34.32%."
     },
     {
       "ticker": "MNCN",
       "group_id": "MNC",
       "group_name": "Grup MNC",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 38.87,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT GLOBAL MEDIACOM TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT GLOBAL MEDIACOM TBK dengan kepemilikan 38.87%."
     },
     {
       "ticker": "IPTV",
       "group_id": "MNC",
       "group_name": "Grup MNC",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 62.77,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT GLOBAL MEDIACOM TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT GLOBAL MEDIACOM TBK dengan kepemilikan 62.77%."
     },
     {
       "ticker": "MSIN",
       "group_id": "MNC",
       "group_name": "Grup MNC",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 7.66,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (MEDIA NUSANTARA CITRA, PT)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas MEDIA NUSANTARA CITRA, PT dengan kepemilikan 7.66%."
     },
     {
       "ticker": "ASII",
@@ -775,18 +775,18 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "UNTR",
       "group_id": "ASTRA",
       "group_name": "Grup Astra",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 7.41,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT UNITED TRACTORS TBK)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT UNITED TRACTORS TBK dengan kepemilikan 7.41%."
     },
     {
       "ticker": "AALI",
@@ -797,7 +797,7 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "AUTO",
@@ -808,18 +808,18 @@
       "evidence_source": "",
       "verified_at": null,
       "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "notes": "Relasi kandidat; belum tercakup di snapshot KSEI 840 emiten, memerlukan verifikasi laporan tahunan BEI."
     },
     {
       "ticker": "ACST",
       "group_id": "ASTRA",
       "group_name": "Grup Astra",
-      "relation_type": "REVIEW",
-      "ownership_pct": null,
-      "evidence_source": "",
-      "verified_at": null,
-      "status": "REVIEW",
-      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+      "relation_type": "CONTROLLER",
+      "ownership_pct": 91.17,
+      "evidence_source": "KSEI Kepemilikan Efek >5% per 26 Aug 2026 (PT. KARYA SUPRA PERKASA)",
+      "verified_at": "2026-08-26",
+      "status": "VERIFIED",
+      "notes": "Terverifikasi dari laporan resmi KSEI per 26 Aug 2026 melalui entitas PT. KARYA SUPRA PERKASA dengan kepemilikan 91.17%."
     }
   ],
   "implementation_rules": [
@@ -828,5 +828,12 @@
     "Set VERIFIED hanya setelah ada bukti resmi yang dicatat pada evidence_source dan verified_at.",
     "Periksa status ticker dan relasi terkini dari BEI, laporan tahunan, keterbukaan informasi, dan data KSEI.",
     "Satu ticker boleh memiliki lebih dari satu relasi grup jika bukti mendukung."
-  ]
+  ],
+  "last_synced_at": "2026-10-10T07:00:14.304Z",
+  "sync_summary": {
+    "total_relations": 65,
+    "verified_count": 49,
+    "review_count": 16,
+    "ksei_report_date": "26 Aug 2026"
+  }
 }

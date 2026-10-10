@@ -311,10 +311,13 @@ function seRenderStrategyEnginePage(containerId) {
   if (SE_STATE.selectedConglomerate && SE_STATE.conglomerates && Array.isArray(SE_STATE.conglomerates.groups)) {
     var activeGroup = SE_STATE.conglomerates.groups.find(function (g) { return g.group_id === SE_STATE.selectedConglomerate; });
     if (activeGroup) {
+      var rels = (SE_STATE.conglomerates.relations || []).filter(function (r) { return r.group_id === activeGroup.group_id; });
+      var verifiedInGroup = rels.filter(function (r) { return r.status === 'VERIFIED'; });
       html += '<div style="margin-top:10px;padding:9px 12px;background:var(--bg2,#1a1e29);border:1px solid var(--border,#2b3245);border-radius:8px;font-size:11px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">'
         + '<div><span class="badge b-up" style="font-size:10.5px">🏢 ' + activeGroup.group_name + '</span></div>'
         + '<div style="color:var(--text)"><b style="color:var(--text-mute)">Anchor:</b> ' + activeGroup.anchor_person + '</div>'
         + '<div style="color:var(--text)"><b style="color:var(--text-mute)">Sektor:</b> ' + activeGroup.sector + '</div>'
+        + '<div style="color:var(--up,#16a34a)"><b>KSEI >5%:</b> ' + verifiedInGroup.length + '/' + rels.length + ' emiten terverifikasi</div>'
         + '<div style="color:var(--text-mute);font-style:italic">ℹ️ ' + (activeGroup.verification_note || '') + '</div>'
         + '</div>';
     }
