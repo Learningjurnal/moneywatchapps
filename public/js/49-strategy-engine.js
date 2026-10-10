@@ -575,25 +575,34 @@ function usDailyPicksRender() {
   var header = '<div class="radar-hud-bar">'
     + '<div class="radar-hud-status">'
     + '  <span class="radar-live-blip"></span>'
-    + '  <span class="radar-hud-title">Radar Pencarian Saham <span class="badge b-accent" style="font-size:9px">STRATEGY ENGINE V1</span></span>'
+    + '  <span class="radar-hud-title">Tactical Sonar Radar <span class="badge b-blue" style="font-size:9px;border-color:rgba(56,189,248,0.4)">STRATEGY ENGINE V1</span></span>'
     + '</div>'
     + '<div class="radar-hud-meta">'
+    + '  <span class="radar-meta-chip"><i class="ti ti-activity"></i> POLAR 360° SWEEP</span>'
     + '  <span class="radar-meta-chip"><i class="ti ti-calendar"></i> ' + usDailyPicksEsc(dateStr) + '</span>'
-    + '  <span class="radar-meta-chip"><i class="ti ti-target"></i> ' + pickCount + ' TARGET TERDETEKSI</span>'
+    + '  <span class="radar-meta-chip"><i class="ti ti-target"></i> ' + pickCount + ' TARGET TERKUNCI</span>'
     + '  <button class="btn btn-ghost btn-xs" onclick="usDailyPicksOpenCoverageModal()" title="Info Metodologi &amp; Cakupan"><i class="ti ti-info-circle"></i> Info Rotasi</button>'
     + '  <button class="btn btn-ghost btn-xs radar-refresh-btn" onclick="usDailyPicksLoad()" title="Pindai Ulang Radar"><i class="ti ti-refresh"></i> Pindai Ulang</button>'
     + '</div>'
     + '</div>';
 
+  var cornerBrackets = '<div class="radar-hud-bracket radar-hud-tl"></div>'
+    + '<div class="radar-hud-bracket radar-hud-tr"></div>'
+    + '<div class="radar-hud-bracket radar-hud-bl"></div>'
+    + '<div class="radar-hud-bracket radar-hud-br"></div>';
+
   var content;
   if (US_DAILY_PICKS_STATE.loading && !d) {
     content = '<div class="radar-scope-wrapper" style="text-align:center;padding:48px 20px">'
+      + cornerBrackets
       + '<div class="radar-scope-container" style="width:300px;height:300px;margin-bottom:16px">'
       + '  <div class="radar-scope">'
       + '    <div class="radar-ring ring-alpha"></div>'
       + '    <div class="radar-ring ring-strong"></div>'
+      + '    <div class="radar-crosshair-h"></div>'
+      + '    <div class="radar-crosshair-v"></div>'
       + '    <div class="radar-sweep-beam"></div>'
-      + '    <div class="radar-center-origin"></div>'
+      + '    <div class="radar-center-origin"><div class="radar-emitter-ripple"></div></div>'
       + '  </div>'
       + '</div>'
       + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Memindai Peluang Pasar...</div>'
@@ -605,6 +614,7 @@ function usDailyPicksRender() {
 
   if (US_DAILY_PICKS_STATE.error && !d) {
     content = '<div class="radar-scope-wrapper" style="text-align:center;padding:36px 20px">'
+      + cornerBrackets
       + '<div style="color:var(--red,#ef4444);font-size:24px;margin-bottom:8px"><i class="ti ti-alert-triangle"></i></div>'
       + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Radar Mengalami Gangguan Sensor</div>'
       + '<div style="font-size:11px;color:var(--text3);margin-bottom:14px">' + usDailyPicksEsc(US_DAILY_PICKS_STATE.error) + '</div>'
@@ -620,12 +630,15 @@ function usDailyPicksRender() {
       ? ('Rotasi harian baru memindai ' + cov.scannedPerStrategyMax + ' dari ' + cov.universeSize + ' emiten (per strategi) dan belum menemukan yang berstatus STRONG/QUALIFIED.')
       : 'Belum ada emiten yang berhasil dipindai untuk tanggal ini.';
     content = '<div class="radar-scope-wrapper" style="text-align:center;padding:36px 20px">'
+      + cornerBrackets
       + '<div class="radar-scope-container" style="width:280px;height:280px;margin-bottom:16px">'
       + '  <div class="radar-scope">'
       + '    <div class="radar-ring ring-alpha"></div>'
       + '    <div class="radar-ring ring-strong"></div>'
+      + '    <div class="radar-crosshair-h"></div>'
+      + '    <div class="radar-crosshair-v"></div>'
       + '    <div class="radar-sweep-beam"></div>'
-      + '    <div class="radar-center-origin"></div>'
+      + '    <div class="radar-center-origin"><div class="radar-emitter-ripple"></div></div>'
       + '  </div>'
       + '</div>'
       + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Belum Ada Saham Masuk Jangkauan Radar</div>'
@@ -656,12 +669,12 @@ function usDailyPicksRender() {
       var logoSize = isAlpha ? 30 : 26;
       var stockLogo = typeof getStockLogoHtml === 'function' ? getStockLogoHtml(p.ticker, logoSize) : '';
 
-      // Special visual effect based on scoring on radar
+      // Special visual effect based on scoring on radar (Futuristic Blue & Cyan)
       var specialGlowHtml = '';
       if (isAlpha) {
-        specialGlowHtml = '<div class="radar-blip-ping-gold"></div><div class="radar-target-reticle"></div>';
+        specialGlowHtml = '<div class="radar-blip-ping-blue-alpha"></div><div class="radar-target-reticle"></div>';
       } else if (isStrong) {
-        specialGlowHtml = '<div class="radar-blip-ping-green"></div>';
+        specialGlowHtml = '<div class="radar-blip-ping-blue"></div>';
       } else {
         specialGlowHtml = '<div class="radar-blip-ping-cyan"></div>';
       }
@@ -708,9 +721,13 @@ function usDailyPicksRender() {
     var radarScopeHero = '<div class="radar-hero-box">'
       + '<div class="radar-scope-container hero-radar-size">'
       + '  <div class="radar-compass-label radar-compass-n">000° N</div>'
+      + '  <div class="radar-compass-label radar-compass-ne">045°</div>'
       + '  <div class="radar-compass-label radar-compass-e">090° E</div>'
+      + '  <div class="radar-compass-label radar-compass-se">135°</div>'
       + '  <div class="radar-compass-label radar-compass-s">180° S</div>'
+      + '  <div class="radar-compass-label radar-compass-sw">225°</div>'
       + '  <div class="radar-compass-label radar-compass-w">270° W</div>'
+      + '  <div class="radar-compass-label radar-compass-nw">315°</div>'
       + '  <div class="radar-scope" id="radar-scope-screen">'
       + '    <div class="radar-ring ring-outer"><span class="radar-ring-tag">75</span></div>'
       + '    <div class="radar-ring ring-qualified"><span class="radar-ring-tag">80</span></div>'
@@ -718,34 +735,37 @@ function usDailyPicksRender() {
       + '    <div class="radar-ring ring-alpha"><span class="radar-ring-tag">88+ ALPHA</span></div>'
       + '    <div class="radar-crosshair-h"></div>'
       + '    <div class="radar-crosshair-v"></div>'
+      + '    <div class="radar-crosshair-d1"></div>'
+      + '    <div class="radar-crosshair-d2"></div>'
       + '    <div class="radar-sweep-beam"></div>'
-      + '    <div class="radar-center-origin"></div>'
+      + '    <div class="radar-center-origin"><div class="radar-emitter-ripple"></div></div>'
       + blipsHtml
       + '  </div>'
       + '</div>'
-      + '<div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:10.5px;color:var(--text3);font-family:var(--font-mono);flex-wrap:wrap">'
-      + '  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Bullseye 88+ (Alpha Target)</span>'
-      + '  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block"></span> Strong 83-87</span>'
-      + '  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#06b6d4;display:inline-block"></span> Qualified &lt;83</span>'
+      + '<div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:18px;font-size:11px;color:#94a3b8;font-family:var(--font-mono);flex-wrap:wrap">'
+      + '  <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#00e5ff;box-shadow:0 0 8px #00e5ff;display:inline-block"></span> <strong style="color:var(--text,#f8fafc)">Bullseye 88+</strong> (Alpha Target · Cyan Glow)</span>'
+      + '  <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#3b82f6;box-shadow:0 0 8px #3b82f6;display:inline-block"></span> <strong style="color:var(--text,#f8fafc)">Strong 83-87</strong> (Electric Blue)</span>'
+      + '  <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#0284c7;display:inline-block"></span> <strong style="color:var(--text,#f8fafc)">Qualified &lt;83</strong> (Sky Blue)</span>'
       + '</div>'
       + '</div>';
 
     // Cards Row (Horizontal Scrollable, Compact, Plain)
     var cardsSection = '<div class="radar-cards-section">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">'
-      + '  <span style="font-size:12px;font-weight:800;color:var(--text);letter-spacing:0.02em;display:flex;align-items:center;gap:6px"><i class="ti ti-target" style="color:var(--accent)"></i> Daftar Saham Terdeteksi (' + totalPicks + ' Emiten)</span>'
+      + '  <span style="font-size:12px;font-weight:800;color:var(--text);letter-spacing:0.02em;display:flex;align-items:center;gap:6px"><i class="ti ti-target" style="color:#38bdf8"></i> Daftar Saham Terdeteksi (' + totalPicks + ' Emiten)</span>'
       + '  <span style="font-size:10.5px;color:var(--text3)">Klik kartu atau tombol "Alasan" untuk popup rincian</span>'
       + '</div>'
       + '<div class="radar-cards-scroll-row">' + cardsHtml + '</div>'
       + '</div>';
 
     // Clean Minimal Footer (No long text dump; opened via modal)
-    var footerBar = '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border2,rgba(255,255,255,0.06));display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+    var footerBar = '<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(56,189,248,0.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
       + '<span style="font-size:10.5px;color:var(--text3)">Data EOD ' + usDailyPicksEsc(d.date) + ' · Bukan nasihat investasi</span>'
       + '<button class="btn btn-ghost btn-xs" onclick="usDailyPicksOpenCoverageModal()" style="font-size:10px;padding:2px 8px;color:var(--text3)"><i class="ti ti-info-circle"></i> Catatan Rotasi &amp; Metodologi</button>'
       + '</div>';
 
     content = '<div class="radar-scope-wrapper">'
+      + cornerBrackets
       + radarScopeHero
       + cardsSection
       + footerBar
