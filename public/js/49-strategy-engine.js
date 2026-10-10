@@ -280,32 +280,66 @@ function seRenderStrategyEnginePage(containerId) {
 
   var strat = SE_STATE.strategies.find(function (s) { return s.id === SE_STATE.selectedStrategy; });
 
-  var html = '<div class="card" style="padding:14px;margin-bottom:12px">'
-    + '<div style="font-weight:700;margin-bottom:6px">Money Watch Strategy Engine V1</div>'
-    + '<div style="font-size:11.5px;color:var(--text-mute);margin-bottom:10px">'
-    + 'Engine deterministik berbasis order book &amp; frekuensi transaksi real (Invezgo). '
-    + 'Hasil hanya salah satu dari: <b>STRONG</b> / <b>QUALIFIED</b> / <b>WATCH</b> / <b>REJECT</b> / <b>DATA_INSUFFICIENT</b> — tidak pernah label BUY/SELL, dan bukan rekomendasi keuangan. '
-    + 'Threshold di sini adalah default awal yang bisa dikalibrasi ulang, bukan parameter yang sudah tervalidasi empiris.'
+  var html = '<div class="se-card">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">'
+    + '  <div class="se-header-title">'
+    + '    <i class="ti ti-cpu" style="color:var(--accent-blue,#38bdf8);font-size:20px"></i>'
+    + '    <span>Money Watch Strategy Engine V1</span>'
+    + '    <span class="se-badge-engine">Deterministic Quant Engine</span>'
+    + '  </div>'
+    + '  <div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px">'
+    + '    <span class="radar-live-blip" style="width:7px;height:7px"></span> Order Book &amp; Intraday Invezgo Live'
+    + '  </div>'
     + '</div>'
-    + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">'
-    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Strategi</label>'
-    + '<select id="se-strategy-select" class="finput fsel" onchange="seOnStrategyChange()" style="padding:5px 9px;font-size:11.5px;border-radius:6px;min-width:180px">'
-    + SE_STATE.strategies.map(function (s) {
-        return '<option value="' + s.id + '"' + (s.id === SE_STATE.selectedStrategy ? ' selected' : '') + '>' + s.name + '</option>';
-      }).join('')
-    + '</select></div>'
-    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">🏢 Universe Konglomerasi</label>'
-    + '<select id="se-conglomerate-select" class="finput fsel" onchange="seOnConglomerateChange()" style="padding:5px 9px;font-size:11.5px;border-radius:6px;min-width:210px">'
-    + '<option value="">-- Pilih Konglomerasi (Bebas) --</option>'
-    + ((SE_STATE.conglomerates && SE_STATE.conglomerates.groups) ? SE_STATE.conglomerates.groups.map(function (g) {
-        var count = (SE_STATE.conglomerates.relations || []).filter(function (r) { return r.group_id === g.group_id; }).length;
-        return '<option value="' + g.group_id + '"' + (g.group_id === SE_STATE.selectedConglomerate ? ' selected' : '') + '>' + g.group_name + ' (' + count + ' emiten)</option>';
-      }).join('') : '')
-    + '</select></div>'
-    + '<div style="flex:1;min-width:200px"><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Ticker (pisah koma, maks 50)</label>'
-    + '<input id="se-tickers-input" type="text" placeholder="BBCA,BBRI,TLKM" value="' + (SE_STATE.tickersInput || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:5px 9px;font-size:11.5px;border-radius:6px" class="finput"></div>'
-    + '<button class="btn btn-ghost btn-sm" onclick="seSyncFromPortfolio()" title="Isi otomatis dari saham yang sedang Anda pegang di menu Portofolio">📂 Sinkron Portofolio</button>'
-    + '<button class="btn btn-primary btn-sm" onclick="seRunScan()"' + (SE_STATE.loading ? ' disabled' : '') + '>' + (SE_STATE.loading ? 'Memindai…' : '▶ Jalankan Scan') + '</button>'
+    + '<div class="se-header-desc">'
+    + 'Engine kuantitatif deterministik berbasis analisis mendalam order book &amp; anomali frekuensi transaksi pasar real-time (Invezgo). '
+    + 'Setiap ticker dievaluasi secara obyektif berdasarkan aturan matematis baku dan diklasifikasikan ke dalam 5 tingkatan status:'
+    + '</div>'
+    + '<div class="se-status-taxonomy">'
+    + '  <span class="se-taxonomy-label"><i class="ti ti-tags"></i> Taksonomi Status:</span>'
+    + '  <span class="badge b-up" style="font-size:10px;font-weight:700">STRONG</span>'
+    + '  <span class="badge b-blue" style="font-size:10px;font-weight:700">QUALIFIED</span>'
+    + '  <span class="badge b-amb" style="font-size:10px;font-weight:700">WATCH</span>'
+    + '  <span class="badge b-down" style="font-size:10px;font-weight:700">REJECT</span>'
+    + '  <span class="badge" style="font-size:10px;background:var(--bg5,#1e293b);color:var(--text3,#8f9aa6)">DATA_INSUFFICIENT</span>'
+    + '  <span style="font-size:10.5px;color:var(--text3);margin-left:auto;font-style:italic">✦ Sinyal matematis, bukan rekomendasi finansial (tanpa label BUY/SELL)</span>'
+    + '</div>'
+    + '<div class="se-control-grid">'
+    + '  <div>'
+    + '    <label class="se-field-label"><i class="ti ti-chart-dots" style="color:var(--accent-blue,#38bdf8)"></i> Strategi Kuantitatif</label>'
+    + '    <select id="se-strategy-select" class="se-select finput fsel" onchange="seOnStrategyChange()">'
+    +      SE_STATE.strategies.map(function (s) {
+             return '<option value="' + s.id + '"' + (s.id === SE_STATE.selectedStrategy ? ' selected' : '') + '>' + s.name + '</option>';
+           }).join('')
+    + '    </select>'
+    + '  </div>'
+    + '  <div>'
+    + '    <label class="se-field-label"><i class="ti ti-building" style="color:var(--accent,#5b8def)"></i> Universe Konglomerasi (Preset)</label>'
+    + '    <select id="se-conglomerate-select" class="se-select finput fsel" onchange="seOnConglomerateChange()">'
+    + '      <option value="">-- Pilih Konglomerasi (Bebas) --</option>'
+    +      ((SE_STATE.conglomerates && SE_STATE.conglomerates.groups) ? SE_STATE.conglomerates.groups.map(function (g) {
+             var count = (SE_STATE.conglomerates.relations || []).filter(function (r) { return r.group_id === g.group_id; }).length;
+             return '<option value="' + g.group_id + '"' + (g.group_id === SE_STATE.selectedConglomerate ? ' selected' : '') + '>' + g.group_name + ' (' + count + ' emiten)</option>';
+           }).join('') : '')
+    + '    </select>'
+    + '  </div>'
+    + '</div>'
+    + '<div>'
+    + '  <label class="se-field-label" style="justify-content:space-between">'
+    + '    <span><i class="ti ti-search" style="color:var(--accent-blue,#38bdf8)"></i> Daftar Ticker Target (Maksimal 50 Emiten)</span>'
+    + '    <span style="font-size:11px;color:var(--text3);font-weight:normal">Pisahkan dengan koma</span>'
+    + '  </label>'
+    + '  <div class="se-action-bar">'
+    + '    <div style="flex:1;min-width:260px">'
+    + '      <input id="se-tickers-input" type="text" class="se-input finput mono" placeholder="BBCA, BBRI, TLKM, ADRO" value="' + (SE_STATE.tickersInput || '').replace(/"/g, '&quot;') + '" style="font-weight:600;letter-spacing:0.5px">'
+    + '    </div>'
+    + '    <button class="btn btn-ghost btn-sm" onclick="seSyncFromPortfolio()" title="Isi otomatis dari saham yang sedang Anda pegang di menu Portofolio" style="height:40px;padding:0 14px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;gap:6px">'
+    + '      <i class="ti ti-folder-check"></i> 📂 Sinkron Portofolio'
+    + '    </button>'
+    + '    <button class="btn btn-primary btn-sm" onclick="seRunScan()"' + (SE_STATE.loading ? ' disabled' : '') + ' style="height:40px;padding:0 22px;border-radius:8px;font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(15,105,255,0.35)">'
+    + '      <i class="ti ti-player-play"></i> ' + (SE_STATE.loading ? 'Memindai…' : '▶ Jalankan Scan')
+    + '    </button>'
+    + '  </div>'
     + '</div>';
 
   if (SE_STATE.selectedConglomerate && SE_STATE.conglomerates && Array.isArray(SE_STATE.conglomerates.groups)) {
@@ -313,66 +347,175 @@ function seRenderStrategyEnginePage(containerId) {
     if (activeGroup) {
       var rels = (SE_STATE.conglomerates.relations || []).filter(function (r) { return r.group_id === activeGroup.group_id; });
       var verifiedInGroup = rels.filter(function (r) { return r.status === 'VERIFIED'; });
-      html += '<div style="margin-top:10px;padding:9px 12px;background:var(--bg2,#1a1e29);border:1px solid var(--border,#2b3245);border-radius:8px;font-size:11px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">'
-        + '<div><span class="badge b-up" style="font-size:10.5px">🏢 ' + activeGroup.group_name + '</span></div>'
-        + '<div style="color:var(--text)"><b style="color:var(--text-mute)">Anchor:</b> ' + activeGroup.anchor_person + '</div>'
-        + '<div style="color:var(--text)"><b style="color:var(--text-mute)">Sektor:</b> ' + activeGroup.sector + '</div>'
-        + '<div style="color:var(--up,#16a34a)"><b>KSEI >5%:</b> ' + verifiedInGroup.length + '/' + rels.length + ' emiten terverifikasi</div>'
-        + '<div style="color:var(--text-mute);font-style:italic">ℹ️ ' + (activeGroup.verification_note || '') + '</div>'
+      html += '<div class="se-conglom-banner">'
+        + '  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+        + '    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">'
+        + '      <span class="badge b-up" style="font-size:11px;font-weight:800;padding:4px 8px">🏢 ' + activeGroup.group_name + '</span>'
+        + '      <span style="font-size:11.5px;color:var(--text)"><b style="color:var(--text-mute)">Anchor:</b> ' + activeGroup.anchor_person + '</span>'
+        + '      <span style="font-size:11.5px;color:var(--text)"><b style="color:var(--text-mute)">Sektor:</b> ' + activeGroup.sector + '</span>'
+        + '    </div>'
+        + '    <span class="badge" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);font-size:11px;font-weight:700;padding:4px 9px">✓ KSEI &gt;5%: ' + verifiedInGroup.length + '/' + rels.length + ' emiten terverifikasi</span>'
+        + '  </div>'
+        + (activeGroup.verification_note ? ('  <div style="font-size:11px;color:var(--text-mute);font-style:italic">ℹ️ ' + activeGroup.verification_note + '</div>') : '')
         + '</div>';
     }
   }
 
   if (strat) {
-    html += '<div style="margin-top:10px;font-size:11px;color:var(--text-mute)">'
-      + 'Bobot: ' + Object.keys(strat.weights).map(function (k) { return k + ' ' + Math.round(strat.weights[k] * 100) + '%'; }).join(', ')
-      + (strat.mandatoryConditions && strat.mandatoryConditions.length ? ' · Mandatory: ' + strat.mandatoryConditions.join(', ') : '')
+    html += '<div class="se-weights-ribbon">'
+      + '  <span style="font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px"><i class="ti ti-adjustments"></i> Bobot &amp; Indikator:</span>'
+      + Object.keys(strat.weights).map(function (k) {
+          var isMandatory = (strat.mandatoryConditions || []).includes(k);
+          var pct = Math.round(strat.weights[k] * 100);
+          return '<span class="se-weight-chip ' + (isMandatory ? 'mandatory' : '') + '">'
+            + k + ' <b>' + pct + '%</b>' + (isMandatory ? ' <span style="font-size:9.5px">🔒 MANDATORY</span>' : '')
+            + '</span>';
+        }).join('')
       + '</div>';
   }
   html += '</div>';
 
   // "Hasil Cron Terakhir" — akumulasi sinyal STRONG/QUALIFIED hari ini
   // dari warmStrategyEngineRotating(), bukan hasil scan manual di atas.
-  html += '<div class="card" style="padding:14px;margin-bottom:12px">'
-    + '<div style="font-weight:700;margin-bottom:6px">Hasil Cron Terakhir (Hari Ini)</div>';
+  html += '<div class="se-card">'
+    + '  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">'
+    + '    <div style="font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">'
+    + '      <i class="ti ti-bolt" style="color:var(--amber,#f59e0b)"></i> Hasil Cron Terakhir (Hari Ini)'
+    + '    </div>'
+    + (SE_STATE.latest.data ? ('<span class="badge b-accent" style="font-size:10px">Tanggal ' + SE_STATE.latest.data.date + '</span>') : '')
+    + '  </div>'
+    + '  <div style="font-size:11.5px;color:var(--text-mute);margin-bottom:12px">'
+    + '    Akumulasi sinyal berkala dari <code>warmStrategyEngineRotating()</code> yang berhasil lolos kriteria STRONG atau QUALIFIED hari ini.'
+    + '  </div>';
+
   if (SE_STATE.latest.error) {
-    html += '<div style="font-size:11.5px;color:var(--down,#dc2626)">' + SE_STATE.latest.error + '</div>';
+    html += '<div style="font-size:11.5px;color:var(--down,#dc2626);padding:10px 14px;background:rgba(239,68,68,0.1);border-radius:8px">' + SE_STATE.latest.error + '</div>';
   } else if (SE_STATE.latest.loading) {
-    html += '<div style="font-size:11.5px;color:var(--text-mute)">Memuat…</div>';
+    html += '<div style="font-size:11.5px;color:var(--text-mute);padding:14px;text-align:center"><i class="ti ti-loader ti-spin"></i> Memuat sinyal terbaru…</div>';
   } else if (SE_STATE.latest.data && SE_STATE.latest.data.signals && SE_STATE.latest.data.signals.length > 0) {
-    html += '<div style="font-size:11.5px;color:var(--text-mute);margin-bottom:8px">Tanggal ' + SE_STATE.latest.data.date + ' — ' + SE_STATE.latest.data.signals.length + ' sinyal STRONG/QUALIFIED terkumpul sejauh ini.</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:6px">'
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:10px">'
       + SE_STATE.latest.data.signals.map(function (s) {
-          return '<span class="badge ' + seStatusBadgeClass(s.status) + '" style="font-size:10px">' + s.ticker + ' · ' + s.status + ' (' + s.score + ')</span>';
+          var isStrong = s.status === 'STRONG';
+          var badgeStyle = isStrong
+            ? 'background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)'
+            : 'background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3)';
+          return '<div style="background:var(--bg3,#0D1322);border:1px solid var(--border,#1E293B);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px">'
+            + '  <div style="display:flex;align-items:center;gap:8px">'
+            + '    <span class="mono" style="font-weight:800;font-size:14px;color:var(--text)">' + s.ticker + '</span>'
+            + '    <span class="badge" style="' + badgeStyle + ';font-size:10px;font-weight:700">' + s.status + '</span>'
+            + '  </div>'
+            + '  <div class="mono" style="font-weight:800;font-size:14px;color:var(--text)">' + (s.score != null ? s.score : '-') + '</div>'
+            + '</div>';
         }).join('')
       + '</div>';
   } else {
-    html += '<div style="font-size:11.5px;color:var(--text-mute)">Belum ada sinyal terkumpul hari ini. Cron GET /api/cron/warm-strategy-engine belum otomatis jalan lewat Vercel native cron (2 slot Hobby sudah dipakai 2 cron lain) — perlu penjadwal eksternal (cron-job.org, GitHub Actions, dll) yang memanggil URL itu dengan header Authorization Bearer CRON_SECRET, atau jalankan manual dulu untuk tes.</div>';
+    html += '<div style="font-size:11.5px;color:var(--text-mute);padding:14px;background:var(--bg3,#0D1322);border:1px solid var(--border,#1E293B);border-radius:8px;line-height:1.6">'
+      + 'Belum ada sinyal terkumpul hari ini. Cron <code>GET /api/cron/warm-strategy-engine</code> belum otomatis jalan lewat Vercel native cron (2 slot Hobby sudah dipakai 2 cron lain) — perlu penjadwal eksternal (cron-job.org, GitHub Actions, dll) yang memanggil URL itu dengan header Authorization Bearer CRON_SECRET, atau jalankan manual dulu untuk tes.'
+      + '</div>';
   }
   html += '</div>';
 
   // "Tren Harian (14 Hari)" — validasi forward setelah FOREIGN dihapus
-  // dari weights/mandatoryConditions (2026-09-25): tidak ada backtest
-  // historis yang bisa dijalankan untuk engine ini, jadi qualifyingRate
-  // dari hari ke hari adalah satu-satunya bukti nyata apakah fix ini
-  // benar-benar menaikkan tingkat lolos strategi yang sebelumnya
-  // mandatory-FOREIGN (hidden-accumulation, momentum-candidate).
-  html += '<div class="card" style="padding:14px;margin-bottom:12px">'
-    + '<div style="font-weight:700;margin-bottom:6px">Tren Harian (14 Hari Terakhir)</div>';
+  html += '<div class="se-card">'
+    + '  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">'
+    + '    <div style="font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">'
+    + '      <i class="ti ti-chart-line" style="color:var(--accent-blue,#38bdf8)"></i> Tren Harian &amp; Forward Validation (14 Hari Terakhir)'
+    + '    </div>'
+    + '    <div style="font-size:11px;color:var(--text3)">Qualifying Rate = (STRONG + QUALIFIED) / Discan</div>'
+    + '  </div>'
+    + '  <div style="font-size:11.5px;color:var(--text-mute);margin-bottom:14px">'
+    + '    Evaluasi performa harian cron rotasi Strategy Engine untuk memvalidasi tingkat kelulusan sinyal pasar secara objektif.'
+    + '  </div>';
+
   if (SE_STATE.dailyStats.error) {
-    html += '<div style="font-size:11.5px;color:var(--down,#dc2626)">' + SE_STATE.dailyStats.error + '</div>';
+    html += '<div style="font-size:11.5px;color:var(--down,#dc2626);padding:10px 14px;background:rgba(239,68,68,0.1);border-radius:8px">' + SE_STATE.dailyStats.error + '</div>';
   } else if (SE_STATE.dailyStats.loading) {
-    html += '<div style="font-size:11.5px;color:var(--text-mute)">Memuat…</div>';
+    html += '<div style="font-size:11.5px;color:var(--text-mute);padding:14px;text-align:center"><i class="ti ti-loader ti-spin"></i> Memuat statistik harian…</div>';
   } else if (SE_STATE.dailyStats.data && SE_STATE.dailyStats.data.days) {
     var activeDays = SE_STATE.dailyStats.data.days.filter(function (d) { return d.processed > 0; });
     if (!activeDays.length) {
-      html += '<div style="font-size:11.5px;color:var(--text-mute)">Belum ada data cron untuk 14 hari terakhir — statistik ini mulai terkumpul sejak fix FOREIGN 2026-09-25, butuh beberapa hari cron berjalan sebelum trennya terlihat.</div>';
+      html += '<div style="font-size:11.5px;color:var(--text-mute);padding:14px;background:var(--bg3,#0D1322);border:1px solid var(--border,#1E293B);border-radius:8px">'
+        + 'Belum ada data cron untuk 14 hari terakhir — statistik ini mulai terkumpul sejak pembaruan sistem, butuh beberapa hari cron berjalan sebelum trennya terlihat.'
+        + '</div>';
     } else {
-      html += '<div style="font-size:11px;color:var(--text-mute);margin-bottom:8px">Hanya hari dengan aktivitas cron ditampilkan · qualifyingRate = (STRONG+QUALIFIED) / processed</div>'
-        + '<div style="overflow-x:auto"><table class="tbl" style="width:100%;font-size:11.5px">'
-        + '<thead><tr><th>Tanggal</th><th>Discan</th><th>STRONG</th><th>QUALIFIED</th><th>WATCH</th><th>REJECT</th><th>DATA_INSUFFICIENT</th><th>Qualifying Rate</th></tr></thead><tbody>'
+      var totalProcessed = 0;
+      var totalStrong = 0;
+      var totalQualified = 0;
+      var peakRate = 0;
+      var peakDate = '-';
+
+      activeDays.forEach(function (d) {
+        var proc = Number(d.processed) || 0;
+        var sCount = Number(d.STRONG) || 0;
+        var qCount = Number(d.QUALIFIED) || 0;
+        var rVal = Number(d.qualifyingRate) || 0;
+        totalProcessed += proc;
+        totalStrong += sCount;
+        totalQualified += qCount;
+        if (rVal > peakRate) {
+          peakRate = rVal;
+          peakDate = d.date;
+        }
+      });
+      var totalPassed = totalStrong + totalQualified;
+      var avgRate = totalProcessed > 0 ? ((totalPassed / totalProcessed) * 100).toFixed(1) : '0';
+
+      html += '<div class="se-kpi-grid">'
+        + '  <div class="se-kpi-box">'
+        + '    <div class="se-kpi-title"><i class="ti ti-scan"></i> Total Discan (14H)</div>'
+        + '    <div class="se-kpi-val">' + totalProcessed + '</div>'
+        + '    <div class="se-kpi-sub">Emiten dipindai rotasi</div>'
+        + '  </div>'
+        + '  <div class="se-kpi-box">'
+        + '    <div class="se-kpi-title"><i class="ti ti-check-double" style="color:#10b981"></i> Sinyal Lolos (S+Q)</div>'
+        + '    <div class="se-kpi-val" style="color:#10b981">' + totalPassed + '</div>'
+        + '    <div class="se-kpi-sub">' + totalStrong + ' STRONG · ' + totalQualified + ' QUALIFIED</div>'
+        + '  </div>'
+        + '  <div class="se-kpi-box">'
+        + '    <div class="se-kpi-title"><i class="ti ti-percentage" style="color:var(--accent-blue,#38bdf8)"></i> Rata-rata Lolos</div>'
+        + '    <div class="se-kpi-val" style="color:var(--accent-blue,#38bdf8)">' + avgRate + '%</div>'
+        + '    <div class="se-kpi-sub">Rasio kelulusan agregat</div>'
+        + '  </div>'
+        + '  <div class="se-kpi-box">'
+        + '    <div class="se-kpi-title"><i class="ti ti-flame" style="color:var(--amber,#f59e0b)"></i> Puncak Sinyal</div>'
+        + '    <div class="se-kpi-val" style="color:var(--amber,#f59e0b)">' + peakRate + '%</div>'
+        + '    <div class="se-kpi-sub">Pada ' + peakDate + '</div>'
+        + '  </div>'
+        + '</div>';
+
+      html += '<div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border,#1E293B)">'
+        + '<table class="tbl se-trend-table" style="width:100%">'
+        + '<thead><tr>'
+        + '  <th style="text-align:left">Tanggal</th>'
+        + '  <th style="text-align:center">Discan</th>'
+        + '  <th style="text-align:center">STRONG</th>'
+        + '  <th style="text-align:center">QUALIFIED</th>'
+        + '  <th style="text-align:center">WATCH</th>'
+        + '  <th style="text-align:center">REJECT</th>'
+        + '  <th style="text-align:center">DATA INSUFFICIENT</th>'
+        + '  <th style="text-align:right;min-width:160px">Qualifying Rate</th>'
+        + '</tr></thead><tbody>'
         + activeDays.map(function (d) {
-            return '<tr><td>' + d.date + '</td><td>' + d.processed + '</td><td>' + d.STRONG + '</td><td>' + d.QUALIFIED + '</td><td>' + d.WATCH + '</td><td>' + d.REJECT + '</td><td>' + d.DATA_INSUFFICIENT + '</td><td>' + (d.qualifyingRate != null ? d.qualifyingRate + '%' : '-') + '</td></tr>';
+            var qRate = d.qualifyingRate != null ? Number(d.qualifyingRate) : 0;
+            var barColor = qRate >= 30 ? 'linear-gradient(90deg, #10b981, #34d399)' : (qRate > 0 ? 'linear-gradient(90deg, #0284c7, #38bdf8)' : 'transparent');
+            var rateColor = qRate >= 30 ? '#10b981' : (qRate > 0 ? '#38bdf8' : 'var(--text3,#8f9aa6)');
+            return '<tr>'
+              + '<td class="mono" style="font-weight:700;color:var(--text)">' + d.date + '</td>'
+              + '<td style="text-align:center"><span class="se-num-badge" style="background:var(--bg3,#0D1322);color:var(--text2,#D2D8DF)">' + d.processed + '</span></td>'
+              + '<td style="text-align:center">' + (d.STRONG > 0 ? ('<span class="se-num-badge" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3)">' + d.STRONG + '</span>') : '<span style="color:var(--text3)">-</span>') + '</td>'
+              + '<td style="text-align:center">' + (d.QUALIFIED > 0 ? ('<span class="se-num-badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3)">' + d.QUALIFIED + '</span>') : '<span style="color:var(--text3)">-</span>') + '</td>'
+              + '<td style="text-align:center">' + (d.WATCH > 0 ? ('<span class="se-num-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b">' + d.WATCH + '</span>') : '<span style="color:var(--text3)">-</span>') + '</td>'
+              + '<td style="text-align:center">' + (d.REJECT > 0 ? ('<span style="color:#f87171;font-weight:600;font-family:var(--font-mono)">' + d.REJECT + '</span>') : '<span style="color:var(--text3)">-</span>') + '</td>'
+              + '<td style="text-align:center">' + (d.DATA_INSUFFICIENT > 0 ? ('<span style="color:var(--text3);font-family:var(--font-mono)">' + d.DATA_INSUFFICIENT + '</span>') : '<span style="color:var(--text3)">-</span>') + '</td>'
+              + '<td style="text-align:right">'
+              + '  <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end">'
+              + '    <div style="flex:1;max-width:80px;height:7px;background:var(--bg5,#1e293b);border-radius:4px;overflow:hidden">'
+              + '      <div style="width:' + Math.min(100, qRate) + '%;height:100%;background:' + barColor + ';border-radius:4px"></div>'
+              + '    </div>'
+              + '    <span class="mono" style="font-weight:800;font-size:12px;color:' + rateColor + ';min-width:44px;text-align:right">' + (d.qualifyingRate != null ? d.qualifyingRate + '%' : '-') + '</span>'
+              + '  </div>'
+              + '</td>'
+              + '</tr>';
           }).join('')
         + '</tbody></table></div>';
     }
@@ -380,30 +523,49 @@ function seRenderStrategyEnginePage(containerId) {
   html += '</div>';
 
   if (SE_STATE.error) {
-    html += '<div class="card" style="padding:12px;color:var(--down,#dc2626);margin-bottom:12px">' + SE_STATE.error + '</div>';
+    html += '<div class="se-card" style="padding:14px 18px;color:var(--down,#dc2626);border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);display:flex;align-items:center;gap:10px">'
+      + '<i class="ti ti-alert-triangle" style="font-size:20px;flex-shrink:0"></i>'
+      + '<div>' + SE_STATE.error + '</div>'
+      + '</div>';
   }
 
   if (SE_STATE.data) {
     var d = SE_STATE.data;
     if (d.regulatoryDataSource && !d.regulatoryDataSource.available) {
-      html += '<div class="card" style="padding:10px 14px;margin-bottom:12px;font-size:11.5px;border:1px solid var(--border)">'
-        + '⚠️ Data notasi khusus BEI (Regulatory Health Gate) sedang tidak tersedia' + (d.regulatoryDataSource.isStale ? ' (memakai cache lama)' : '') + ' — semua ticker default DATA_INSUFFICIENT sampai data ini pulih.'
+      html += '<div class="se-card" style="padding:12px 16px;border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.08);color:var(--amber,#f59e0b);display:flex;align-items:center;gap:10px">'
+        + '<i class="ti ti-alert-circle" style="font-size:18px;flex-shrink:0"></i>'
+        + '<div>⚠️ Data notasi khusus BEI (Regulatory Health Gate) sedang tidak tersedia' + (d.regulatoryDataSource.isStale ? ' (memakai cache lama)' : '') + ' — semua ticker default DATA_INSUFFICIENT sampai data ini pulih.</div>'
         + '</div>';
     }
-    html += '<div class="card" style="padding:10px 14px;margin-bottom:12px;font-size:11.5px;color:var(--text-mute)">'
-      + 'STRONG: ' + d.summary.strong + ' · QUALIFIED: ' + d.summary.qualified + ' · WATCH: ' + d.summary.watch + ' · REJECT: ' + d.summary.reject + ' · DATA_INSUFFICIENT: ' + d.summary.dataInsufficient
+    html += '<div class="se-card">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+      + '  <div style="font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">'
+      + '    <i class="ti ti-list-check" style="color:var(--accent-blue,#38bdf8)"></i> Hasil Pemindaian Target'
+      + '  </div>'
+      + '  <div style="display:flex;flex-wrap:wrap;gap:6px">'
+      + '    <span class="badge b-up" style="font-size:10px;font-weight:700">STRONG: ' + d.summary.strong + '</span>'
+      + '    <span class="badge b-blue" style="font-size:10px;font-weight:700">QUALIFIED: ' + d.summary.qualified + '</span>'
+      + '    <span class="badge b-amb" style="font-size:10px;font-weight:700">WATCH: ' + d.summary.watch + '</span>'
+      + '    <span class="badge b-down" style="font-size:10px;font-weight:700">REJECT: ' + d.summary.reject + '</span>'
+      + '    <span class="badge" style="font-size:10px;background:var(--bg5,#1e293b);color:var(--text3,#8f9aa6)">DATA_INSUFFICIENT: ' + d.summary.dataInsufficient + '</span>'
+      + '  </div>'
       + '</div>';
 
-    html += '<div class="card" style="padding:0;overflow-x:auto">'
+    html += '<div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border,#1E293B)">'
       + '<table class="tbl" style="width:100%;font-size:12.5px">'
-      + '<thead><tr><th>Ticker</th><th>Status</th><th>Score</th><th>Detail</th></tr></thead><tbody>';
+      + '<thead><tr>'
+      + '  <th style="text-align:left;padding:10px 14px">Ticker</th>'
+      + '  <th style="text-align:left;padding:10px 14px">Status</th>'
+      + '  <th style="text-align:left;padding:10px 14px">Score</th>'
+      + '  <th style="text-align:right;padding:10px 14px">Detail</th>'
+      + '</tr></thead><tbody>';
 
     d.results.forEach(function (r) {
       html += '<tr>'
-        + '<td><b>' + r.ticker + '</b></td>'
-        + '<td><span class="badge ' + seStatusBadgeClass(r.status) + '" style="font-size:9px">' + r.status + '</span></td>'
-        + '<td>' + (r.score != null ? r.score : '<span style="color:var(--text-mute)">-</span>') + '</td>'
-        + '<td><button class="btn btn-ghost btn-xs" onclick="seToggleExplain(\'' + r.ticker + '\')">' + (SE_STATE.expandedTicker === r.ticker ? 'Tutup' : 'Lihat penjelasan') + '</button></td>'
+        + '<td style="padding:10px 14px"><span class="mono" style="font-weight:800;font-size:13px;color:var(--text)">' + r.ticker + '</span></td>'
+        + '<td style="padding:10px 14px"><span class="badge ' + seStatusBadgeClass(r.status) + '" style="font-size:9.5px;font-weight:700">' + r.status + '</span></td>'
+        + '<td style="padding:10px 14px"><span class="mono" style="font-weight:700;color:' + (r.score != null ? 'var(--text)' : 'var(--text-mute)') + '">' + (r.score != null ? r.score : '-') + '</span></td>'
+        + '<td style="padding:10px 14px;text-align:right"><button class="btn btn-ghost btn-xs" onclick="seToggleExplain(\'' + r.ticker + '\')" style="border-radius:6px;font-weight:600">' + (SE_STATE.expandedTicker === r.ticker ? '✕ Tutup' : '🔍 Lihat penjelasan') + '</button></td>'
         + '</tr>';
       if (SE_STATE.expandedTicker === r.ticker) {
         var statusClass = 'status-' + String(r.status || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -447,7 +609,7 @@ function seRenderStrategyEnginePage(containerId) {
       }
     });
 
-    html += '</tbody></table></div>';
+    html += '</tbody></table></div></div>';
   }
 
   container.innerHTML = html;
