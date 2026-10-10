@@ -133,13 +133,27 @@ function seSyncFromPortfolio() {
     seRenderStrategyEnginePage('us-strategy-subpage');
     return;
   }
-  var tickers = porto.map(function (p) { return p.ticker; });
+  // Filter only valid IDX equity tickers (clean up .JK suffix, strip non-equity/crypto symbols)
+  var seen = {};
+  var tickers = [];
+  porto.forEach(function (p) {
+    var raw = String((p && p.ticker) || '').toUpperCase().replace(/\.JK$/i, '').trim();
+    if (/^[A-Z]{4}$/.test(raw) && !seen[raw]) {
+      seen[raw] = true;
+      tickers.push(raw);
+    }
+  });
+  if (!tickers.length) {
+    SE_STATE.error = 'Tidak ada saham IDX valid yang ditemukan di portofolio Anda — silakan masukkan ticker manual di sini.';
+    seRenderStrategyEnginePage('us-strategy-subpage');
+    return;
+  }
   var wasCapped = tickers.length > 50;
   if (wasCapped) tickers = tickers.slice(0, 50);
   SE_STATE.tickersInput = tickers.join(',');
   SE_STATE.error = wasCapped
-    ? ('Portofolio Anda punya ' + porto.length + ' saham — hanya 50 pertama yang disinkronkan (batas maksimal scan per kuota Invezgo).')
-    : null;
+    ? ('Portofolio Anda punya ' + porto.length + ' item — hanya 50 saham IDX pertama yang disinkronkan (batas maksimal scan per kuota Invezgo).')
+    : (tickers.length > 15 ? ('Disinkronkan ' + tickers.length + ' saham IDX dari portofolio. Tip: Untuk pemindaian cepat, Anda dapat memindai bertahap 10–15 saham.') : null);
   seRenderStrategyEnginePage('us-strategy-subpage');
 }
 window.seSyncFromPortfolio = seSyncFromPortfolio;
@@ -163,6 +177,19 @@ async function seRunScan() {
   try {
     var url = '/api/strategy-engine/scan?strategy=' + encodeURIComponent(SE_STATE.selectedStrategy) + '&tickers=' + encodeURIComponent(tickers.join(','));
     var resp = await fetch(url);
+    if (!resp.ok) {
+      if (resp.status === 504 || resp.status === 502) {
+        throw new Error('Server timeout (HTTP ' + resp.status + '): Pemindaian memakan waktu terlalu lama. Silakan kurangi jumlah ticker (mis. 5–15 saham) agar selesai lebih cepat.');
+      }
+      var errText = '';
+      try {
+        var errJson = await resp.json();
+        errText = errJson.error || errJson.message || '';
+      } catch (_) {
+        try { errText = (await resp.text()).slice(0, 150); } catch (__) {}
+      }
+      throw new Error(errText || ('Gagal memindai (HTTP ' + resp.status + ')'));
+    }
     var json = await resp.json();
     if (!json.success) throw new Error(json.error || 'Scan gagal');
     SE_STATE.data = json;
