@@ -8491,5 +8491,150 @@ body.theme-light .radar-modal-footer {
   border-top-color: #e2e8f0;
 }
 
+/* ── Strategy Engine V1 - Scan Result Explanation Row ── */
+.se-explain-cell {
+  background: var(--bg2, #080C14) !important;
+  color: var(--text, #FFFFFF) !important;
+  white-space: normal !important;
+  padding: 14px 18px !important;
+  border-top: 1px solid var(--border2, #232F4D) !important;
+  border-bottom: 2px solid var(--border2, #232F4D) !important;
+}
 
+body.theme-light .se-explain-cell {
+  background: var(--bg3, #EDF1F5) !important;
+  color: var(--text, #1D252C) !important;
+  border-top-color: var(--border, #CBD1D8) !important;
+  border-bottom-color: var(--border, #CBD1D8) !important;
+}
 
+.se-explain-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.se-explain-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text, #FFFFFF);
+}
+
+body.theme-light .se-explain-header {
+  color: var(--text, #1D252C);
+  border-bottom-color: var(--border, #E0E4E9);
+}
+
+.se-explain-verdict {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 11.5px;
+  line-height: 1.5;
+  background: var(--bg3, #0D1322);
+  border: 1px solid var(--border, #1E293B);
+  color: var(--text, #FFFFFF);
+}
+
+body.theme-light .se-explain-verdict {
+  background: #FFFFFF;
+  border-color: #CBD1D8;
+  color: #1D252C;
+}
+
+.se-explain-verdict.status-strong,
+.se-explain-verdict.status-qualified {
+  border-left: 3px solid #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  color: #a7f3d0;
+}
+body.theme-light .se-explain-verdict.status-strong,
+body.theme-light .se-explain-verdict.status-qualified {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.se-explain-verdict.status-watch {
+  border-left: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
+}
+body.theme-light .se-explain-verdict.status-watch {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.se-explain-verdict.status-reject {
+  border-left: 3px solid #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+body.theme-light .se-explain-verdict.status-reject {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.se-explain-verdict.status-data_insufficient {
+  border-left: 3px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  color: #bae6fd;
+}
+body.theme-light .se-explain-verdict.status-data_insufficient {
+  background: #f0f9ff;
+  color: #075985;
+}
+
+.se-explain-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg, #030712);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text2, #D2D8DF);
+}
+
+body.theme-light .se-explain-item {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+  color: #334155;
+}
+
+.se-explain-item-dot {
+  color: var(--accent-blue, #38BDF8);
+  font-size: 13px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+body.theme-light .se-explain-item-dot {
+  color: var(--blue, #0F69FF);
+}
+
+.se-explain-key {
+  font-weight: 700;
+  color: var(--text, #FFFFFF);
+  font-family: var(--font-mono, monospace);
+  margin-right: 4px;
+}
+
+body.theme-light .se-explain-key {
+  color: #0F172A;
+}
+
+.se-explain-val {
+  color: var(--text2, #D2D8DF);
+}
+
+body.theme-light .se-explain-val {
+  color: #475569;
+}

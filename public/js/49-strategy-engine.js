@@ -406,9 +406,44 @@ function seRenderStrategyEnginePage(containerId) {
         + '<td><button class="btn btn-ghost btn-xs" onclick="seToggleExplain(\'' + r.ticker + '\')">' + (SE_STATE.expandedTicker === r.ticker ? 'Tutup' : 'Lihat penjelasan') + '</button></td>'
         + '</tr>';
       if (SE_STATE.expandedTicker === r.ticker) {
-        html += '<tr><td colspan="4" style="background:var(--bg-alt,#f8fafc);font-size:11px;padding:10px 14px">'
-          + (r.explanations || []).map(function (line) { return '<div>' + line.replace(/</g, '&lt;') + '</div>'; }).join('')
-          + '</td></tr>';
+        var statusClass = 'status-' + String(r.status || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        var explanations = r.explanations || [];
+        var verdictLine = explanations.length > 0 ? explanations[0] : ('Status: ' + r.status);
+        var indicatorLines = explanations.slice(1);
+
+        html += '<tr><td colspan="4" class="se-explain-cell" style="background:var(--bg2,#080C14);color:var(--text,#FFFFFF);white-space:normal;padding:14px 18px">'
+          + '<div class="se-explain-box">'
+          + '  <div class="se-explain-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
+          + '    <div style="display:flex;align-items:center;gap:8px">'
+          + '      <span style="font-weight:700">🔍 Penjelasan Analisa &amp; Indikator: ' + r.ticker + '</span>'
+          + '      <span class="badge ' + seStatusBadgeClass(r.status) + '" style="font-size:9px">' + r.status + '</span>'
+          + '    </div>'
+          + '    <div style="font-size:11px;color:var(--text3)">' + (r.score != null ? ('Skor: ' + r.score) : 'Tanpa skor') + '</div>'
+          + '  </div>'
+          + '  <div class="se-explain-verdict ' + statusClass + '">'
+          +      verdictLine.replace(/</g, '&lt;')
+          + '  </div>';
+
+        if (indicatorLines.length > 0) {
+          html += '  <div style="display:flex;flex-direction:column;gap:5px">';
+          indicatorLines.forEach(function (line) {
+            var colonIdx = line.indexOf(':');
+            var keyPart = '';
+            var valPart = line;
+            if (colonIdx > 0 && colonIdx < 30) {
+              keyPart = line.substring(0, colonIdx);
+              valPart = line.substring(colonIdx + 1);
+            }
+            html += '<div class="se-explain-item">'
+              + '<span class="se-explain-item-dot">•</span>'
+              + (keyPart ? ('<span class="se-explain-key">' + keyPart.replace(/</g, '&lt;') + ':</span>') : '')
+              + '<span class="se-explain-val">' + valPart.replace(/</g, '&lt;') + '</span>'
+              + '</div>';
+          });
+          html += '  </div>';
+        }
+
+        html += '</div></td></tr>';
       }
     });
 
