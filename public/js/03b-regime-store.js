@@ -120,5 +120,5 @@ function mwRegimeUnavailable(state, description) {
 
 /** Tautan ke halaman rinci, untuk tampilan ringkas (strip Dashboard, kartu Market Pulse, Cockpit AI). */
 function mwRegimeDetailLinkHtml() {
-  return '<a href="javascript:void(0)" onclick="goPage(\'market-regime\')" style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none">Lihat detail →</a>';
+  return '<a href="javascript:void(0)" onclick="goPage(\'daily-brief\');setTimeout(function(){var e=document.getElementById(\'db-regime-pillars\');if(e)e.scrollIntoView({behavior:\'smooth\'});},150);" style="color:var(--accent);font-size:11px;font-weight:700;text-decoration:none">Lihat detail →</a>';
 }

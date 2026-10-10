@@ -158,10 +158,14 @@ function getMarketRegime() {
         var gotData = !!(rowsNow && rowsNow.length >= 2);
         MR_FETCH_FAILED_AT = gotData ? 0 : Date.now();
         if (!gotData) setTimeout(function() {
-          if (typeof currentPage !== 'undefined' && currentPage === 'market-regime' && typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
+          if (typeof currentPage !== 'undefined' && (currentPage === 'market-regime' || currentPage === 'daily-brief')) {
+            if (currentPage === 'daily-brief' && typeof renderDailyBriefPage === 'function') renderDailyBriefPage();
+            else if (typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
+          }
         }, MR_FETCH_RETRY_MS + 500);
-        if (typeof currentPage !== 'undefined' && currentPage === 'market-regime' && typeof renderMarketRegimePage === 'function') {
-          renderMarketRegimePage();
+        if (typeof currentPage !== 'undefined' && (currentPage === 'market-regime' || currentPage === 'daily-brief')) {
+          if (currentPage === 'daily-brief' && typeof renderDailyBriefPage === 'function') renderDailyBriefPage();
+          else if (typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
         }
       });
     }
@@ -580,7 +584,10 @@ var MR_CONTEXT = {
 // Klasifikasi regime TIDAK dimuat di sini: satu sumber bersama di 03b-regime-store.js
 // (mwRegimeEnsure/mwRegimeClassification), dipakai juga Dashboard, Market Pulse, AI Trading, dsb.
 if (typeof mwRegimeSubscribe === 'function') mwRegimeSubscribe(function () {
-  if (typeof currentPage !== 'undefined' && currentPage === 'market-regime' && typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
+  if (typeof currentPage !== 'undefined' && (currentPage === 'market-regime' || currentPage === 'daily-brief')) {
+    if (currentPage === 'daily-brief' && typeof renderDailyBriefPage === 'function') renderDailyBriefPage();
+    else if (typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
+  }
 });
 
 function mrLoadContext() {
@@ -604,7 +611,10 @@ function mrLoadContext() {
       })
       .then(function () {
         slot.loading = false;
-        if (typeof currentPage !== 'undefined' && currentPage === 'market-regime') renderMarketRegimePage();
+        if (typeof currentPage !== 'undefined' && (currentPage === 'market-regime' || currentPage === 'daily-brief')) {
+          if (currentPage === 'daily-brief' && typeof renderDailyBriefPage === 'function') renderDailyBriefPage();
+          else if (typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
+        }
       });
   });
 }
@@ -754,6 +764,16 @@ function renderMarketRegimePage() {
   c.innerHTML = html;
   mrLoadContext();
 }
+
+window.renderMarketRegimePage = renderMarketRegimePage;
+window.getMarketRegime = getMarketRegime;
+window.mrLoadContext = mrLoadContext;
+window.mrTrendPillarHtml = mrTrendPillarHtml;
+window.mrForeignPillarHtml = mrForeignPillarHtml;
+window.mrBreadthPillarHtml = mrBreadthPillarHtml;
+window.mrVolatilityPillarHtml = mrVolatilityPillarHtml;
+window.mrTechBreadthPillarHtml = mrTechBreadthPillarHtml;
+window.mrStatusInfo = mrStatusInfo;
 
 /**
  * Render Full Opportunity Radar Page with Subtabs

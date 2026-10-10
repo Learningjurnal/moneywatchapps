@@ -160,7 +160,7 @@ await test("AI Trading tidak lagi memakai nilai bawaan karangan 'SIDEWAYS' untuk
   assert(/mwRegimeCode\(\)/.test(src), 'harus memakai mwRegimeCode() dari store');
 });
 
-await test('index.html memuat store SEBELUM semua pemakainya dan sidebar punya entri Market Regime', () => {
+await test('index.html memuat store SEBELUM semua pemakainya dan sidebar punya entri Market Pulse (Market Regime digabung)', () => {
   const html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
   const pos = (f) => html.indexOf('js/' + f + '?v=');
   const storePos = pos('03b-regime-store.js');
@@ -168,7 +168,8 @@ await test('index.html memuat store SEBELUM semua pemakainya dan sidebar punya e
   ['04-render.js', '26-commandcenter.js', '28-decisiontools.js', '38-ai-autonomous-trading.js', '46-stock-dossier.js', '51-market-report.js'].forEach((f) => {
     assert(pos(f) > storePos, `${f} dimuat sebelum store`);
   });
-  assert(/goPage\('market-regime',this\)/.test(html), 'sidebar tidak punya entri Market Regime');
+  assert(/goPage\('daily-brief',this\)/.test(html), 'sidebar harus punya entri Market Pulse (daily-brief)');
+  assert(!/goPage\('market-regime',this\)/.test(html), 'sidebar tidak boleh lagi punya entri terpisah Market Regime');
 });
 
 await test('teks palet perintah tidak lagi mengklaim VIX/suku bunga/yield bond untuk Market Regime', () => {

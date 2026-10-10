@@ -20,9 +20,9 @@ function dbRegimeCardInner() {
   var rg = mwRegimeClassification();
   var cls = rg.badge === 'b-up' ? 'up' : (rg.badge === 'b-dn' ? 'dn' : 'neu');
   var sub = rg.state === 'ok'
-    ? ('Strategi: ' + rg.strategy + ' · ' + mwRegimeDetailLinkHtml())
+    ? ('Strategi: ' + rg.strategy + ' · Ekuitas: ' + rg.equityTarget + ' · Kas: ' + rg.cashTarget + ' · ' + mwRegimeDetailLinkHtml())
     : (rg.state === 'loading' ? 'Memuat klasifikasi regime pasar…' : rg.description);
-  return '<div class="mlabel">MARKET REGIME</div>'
+  return '<div class="mlabel">MARKET REGIME &amp; ALOKASI TAKTIS</div>'
     + '<div class="mval ' + cls + '" style="font-size:22px">' + rg.status + '</div>'
     + '<div class="msub ' + cls + '">' + sub + '</div>';
 }
@@ -33,6 +33,7 @@ if (typeof mwRegimeSubscribe === 'function') mwRegimeSubscribe(function () {
 
 function renderDailyBriefPage() {
   mwRegimeEnsure(false);
+  if (typeof mrLoadContext === 'function') mrLoadContext();
   var c = el('page-daily-brief');
   if (!c) return;
 
@@ -126,9 +127,10 @@ function renderDailyBriefPage() {
     });
   }
 
+  var rg = mwRegimeClassification();
   var html = '<div style="margin-bottom:20px">'
-    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Morning Brief &amp; 3 Things to Watch Today</div>'
-    + '<div class="psub">Ringkasan harian cerdas sebelum pembukaan pasar saham: Makro, Portfolio Delta, dan Evaluasi Seluruh ' + porto.length + ' Emiten Portofolio. · <span class="mono">' + dateStr + '</span></div>'
+    + '<div class="ptitle" style="display:flex;align-items:center;gap:8px">Market Pulse · Market Regime &amp; Tactical Allocation</div>'
+    + '<div class="psub">Ringkasan harian komprehensif pasar saham: Status Regime IHSG, Alokasi Aset Taktis, Evaluasi 5 Pilar Multi-Faktor, Portfolio Delta, dan 3 Things to Watch. · <span class="mono">' + dateStr + '</span></div>'
   + '</div>'
 
   + '<div class="row3" style="margin-bottom:18px">'
@@ -141,7 +143,7 @@ function renderDailyBriefPage() {
     + '<div class="metric">'
       + '<div class="mlabel">STATUS LIKUIDITAS KAS RDN</div>'
       + '<div class="mval amb" style="font-size:22px">Rp ' + fmtK(rdn) + '</div>'
-      + '<div class="msub up">Ready for Tactical Buy Zone Deployment</div>'
+      + '<div class="msub up">' + (rg.state === 'ok' ? ('Target Kas Taktis: ' + rg.cashTarget + ' · Siap Dialokasikan') : 'Ready for Tactical Buy Zone Deployment') + '</div>'
     + '</div>'
   + '</div>'
 
@@ -198,6 +200,50 @@ function renderDailyBriefPage() {
               }).join('')
             + '<div style="font-size:9.5px;color:var(--text3);margin-top:8px;line-height:1.4">Volume &amp; data 52 minggu belum terintegrasi — Day Low/High &amp; Open dihitung dari histori sesi aplikasi ini.</div>'
           + '</div>'
+        + '</div>'
+      + '</div>';
+    })()
+
+  // 5-Pillar Multi-Factor Breakdown & Tactical Allocation (Dilebur dari Market Regime)
+  + (function(){
+      var r = typeof getMarketRegime === 'function' ? getMarketRegime() : { status: rg.status, strategy: rg.strategy, equityTarget: rg.equityTarget, cashTarget: rg.cashTarget, ready: false };
+      var rCls = r.cls || rg;
+      var statusInfo = typeof mrStatusInfo === 'function' ? mrStatusInfo(rCls) : '';
+      var trendPillar = typeof mrTrendPillarHtml === 'function' ? mrTrendPillarHtml(r) : '';
+      var foreignPillar = typeof mrForeignPillarHtml === 'function' ? mrForeignPillarHtml() : '';
+      var breadthPillar = typeof mrBreadthPillarHtml === 'function' ? mrBreadthPillarHtml() : '';
+      var volPillar = typeof mrVolatilityPillarHtml === 'function' ? mrVolatilityPillarHtml(r) : '';
+      var techPillar = typeof mrTechBreadthPillarHtml === 'function' ? mrTechBreadthPillarHtml() : '';
+
+      return '<div class="card" id="db-regime-pillars" style="margin-bottom:18px;padding:20px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
+          + '<div>'
+            + '<div class="ctitle" style="font-size:15px;display:flex;align-items:center;gap:8px">'
+              + 'Pilar Penentu Market Regime &amp; Tactical Allocation (5 Pilar Multi-Faktor)'
+            + '</div>'
+            + '<div style="font-size:11px;color:var(--text3);margin-top:2px">'
+              + 'Struktur tren (EMA20/EMA50) dan RSI-14 IHSG menentukan alokasi aset. Market Breadth &amp; Volatilitas sebagai konteks konfirmasi risiko.'
+            + '</div>'
+          + '</div>'
+          + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+            + '<span class="badge ' + (rg.badge || 'b-neu') + '" style="font-size:12px;padding:4px 10px">' + rg.status + '</span>'
+            + '<span class="badge b-up" style="font-size:11px;padding:4px 8px">Ekuitas: ' + rg.equityTarget + '</span>'
+            + '<span class="badge b-amb" style="font-size:11px;padding:4px 8px">Kas: ' + rg.cashTarget + '</span>'
+            + '<button class="btn btn-ghost btn-xs" onclick="if(typeof mrLoadContext===\'function\')mrLoadContext();if(typeof mwRegimeEnsure===\'function\')mwRegimeEnsure(true);renderDailyBriefPage();" title="Refresh data pilar">'
+              + '↻ Refresh Pilar'
+            + '</button>'
+          + '</div>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:14px">'
+          + trendPillar
+          + foreignPillar
+          + breadthPillar
+          + volPillar
+          + techPillar
+        + '</div>'
+        + '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+          + '<div><strong>Rekomendasi Taktis:</strong> ' + rg.strategy + (statusInfo ? ' · ' + statusInfo : '') + '</div>'
+          + '<div style="color:var(--text3);font-size:10px">Sumber: GET /api/idx/regime &amp; Multi-Factor Market Engine</div>'
         + '</div>'
       + '</div>';
     })()

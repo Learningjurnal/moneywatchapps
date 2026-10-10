@@ -805,7 +805,16 @@ function goPage(name,btn){
   // jadi cuma dipindah tab-nya, bukan formula-nya digabung. Pola alias
   // sama seperti UNIFIED_SCREENER_ALIASES di atas — semua goPage('hargawajar')
   // lama tetap bekerja tanpa perlu diubah satu-satu.
-  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : (name === 'hargawajar' ? 'fundamental' : name)));
+  // FIX (2026-10-10, user-directed consolidation): "Market Regime & Tactical Allocation"
+  // digabungkan ke "Market Pulse" (daily-brief). goPage('market-regime') otomatis dialihkan ke
+  // daily-brief dan di-scroll ke bagian 5 Pilar Regime & Alokasi Taktis.
+  var targetPageName = name === 'smart-money-flow' ? 'bandarmology' : (name === 'flowscan' ? 'bandarmology' : (UNIFIED_SCREENER_ALIASES.indexOf(name) !== -1 ? 'radar' : (name === 'hargawajar' ? 'fundamental' : (name === 'market-regime' ? 'daily-brief' : name))));
+  if (name === 'market-regime') {
+    setTimeout(function() {
+      var elSec = document.getElementById('db-regime-pillars');
+      if (elSec) elSec.scrollIntoView({ behavior: 'smooth' });
+    }, 150);
+  }
   // Sama seperti reset US_STATE.pageTab di bawah: switch ke tab Harga Wajar
   // HANYA pada navigasi nyata (goPage()), bukan di renderPage()'s case
   // 'hargawajar' (dipanggil ulang oleh tick refresh periodik 03-engine.js
@@ -889,8 +898,10 @@ function renderPage(name){
     case 'dashboard':renderDashboard();break;
     case 'settings':if(typeof renderSettingsPage==='function')renderSettingsPage();break;
     case 'daily-brief':if(typeof renderDailyBriefPage==='function')renderDailyBriefPage();else if(typeof renderDailyBrief==='function')renderDailyBrief();break;
-    case 'stock-intel':if(typeof renderStockIntelCockpit==='function')renderStockIntelCockpit();break;
-    case 'market-regime':if(typeof renderMarketRegimePage==='function')renderMarketRegimePage();break;
+    case 'market-regime':
+      if (typeof renderDailyBriefPage === 'function') renderDailyBriefPage();
+      else if (typeof renderMarketRegimePage === 'function') renderMarketRegimePage();
+      break;
     // 'radar'/'ranking'/'scanner' all render the Unified Screener now (see
     // the goPage() redirect above and public/js/48-unified-screener.js) —
     // renderOpportunityRadarPage() (old Opportunity Radar UI) stays defined
