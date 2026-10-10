@@ -1,0 +1,832 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_name": "Money Watch - Master Konglomerasi & Afiliasi Saham BEI",
+  "generated_date": "2026-10-10",
+  "purpose": "Seed list kandidat untuk verifikasi relasi konglomerasi; bukan register kepemilikan final atau sinyal transaksi.",
+  "source_of_truth": [
+    {
+      "name": "BEI - Profil Perusahaan Tercatat",
+      "url": "https://www.idx.co.id/id/perusahaan-tercatat/profil-perusahaan-tercatat/"
+    },
+    {
+      "name": "BEI - Data Kepemilikan Saham",
+      "url": "https://www.idx.co.id/id/perusahaan-tercatat/data-kepemilikan-saham/"
+    }
+  ],
+  "allowed_relation_types": [
+    "CONTROLLER",
+    "DIRECT",
+    "INDIRECT",
+    "AFFILIATE",
+    "HISTORICAL",
+    "REVIEW"
+  ],
+  "allowed_statuses": [
+    "VERIFIED",
+    "REVIEW",
+    "INACTIVE"
+  ],
+  "groups": [
+    {
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "anchor_person": "Keluarga/Grup Bakrie",
+      "sector": "Energi, pertambangan, media, perkebunan, infrastruktur",
+      "verification_note": "Kandidat awal; verifikasi relasi tiap emiten dan status terkini."
+    },
+    {
+      "group_id": "BARITO_PRAJOGO",
+      "group_name": "Grup Prajogo Pangestu / Barito",
+      "anchor_person": "Prajogo Pangestu",
+      "sector": "Petrokimia, energi, pertambangan, infrastruktur",
+      "verification_note": "Kandidat awal; bedakan perusahaan grup, afiliasi, dan kepemilikan langsung."
+    },
+    {
+      "group_id": "THOHIR_ADARO",
+      "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
+      "anchor_person": "Garibaldi (Boy) Thohir",
+      "sector": "Pertambangan, energi, mineral",
+      "verification_note": "Tidak semua emiten dalam ekosistem otomatis dikendalikan pribadi oleh Boy Thohir."
+    },
+    {
+      "group_id": "HAPSORO",
+      "group_name": "Afiliasi Happy Hapsoro",
+      "anchor_person": "Happy Hapsoro",
+      "sector": "Energi, investasi, properti, pertambangan",
+      "verification_note": "Periksa kepemilikan langsung/tidak langsung dari keterbukaan terbaru."
+    },
+    {
+      "group_id": "TOTO_SUGIRI",
+      "group_name": "Afiliasi Toto Sugiri",
+      "anchor_person": "Toto Sugiri",
+      "sector": "Pusat data dan teknologi informasi",
+      "verification_note": "DCII merupakan kandidat utama; hubungan historis tidak otomatis berarti kepemilikan aktif."
+    },
+    {
+      "group_id": "DJARUM_HARTONO",
+      "group_name": "Grup Djarum / Hartono",
+      "anchor_person": "Keluarga Hartono",
+      "sector": "Perbankan, digital, telekomunikasi, investasi",
+      "verification_note": "Hubungan setiap emiten berbeda; verifikasi melalui laporan dan struktur kepemilikan."
+    },
+    {
+      "group_id": "SALIM",
+      "group_name": "Grup Salim",
+      "anchor_person": "Keluarga Salim",
+      "sector": "Pangan, otomotif, investasi, teknologi",
+      "verification_note": "Afiliasi dan kepemilikan minoritas perlu dibedakan dari pengendalian."
+    },
+    {
+      "group_id": "SINAR_MAS",
+      "group_name": "Grup Sinar Mas",
+      "anchor_person": "Keluarga Widjaja / Sinar Mas",
+      "sector": "Properti, energi, keuangan, pulp dan kertas, perkebunan",
+      "verification_note": "Kandidat awal; cek struktur pengendali per emiten."
+    },
+    {
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "anchor_person": "Keluarga Riady / Lippo",
+      "sector": "Properti, ritel, kesehatan, teknologi, keuangan",
+      "verification_note": "Afiliasi historis atau minoritas tidak otomatis merupakan pengendalian aktif."
+    },
+    {
+      "group_id": "MNC",
+      "group_name": "Grup MNC",
+      "anchor_person": "Hary Tanoesoedibjo / MNC",
+      "sector": "Media, hiburan, digital, keuangan",
+      "verification_note": "Gunakan relasi induk-anak usaha berdasarkan profil emiten dan laporan terbaru."
+    },
+    {
+      "group_id": "ASTRA",
+      "group_name": "Grup Astra",
+      "anchor_person": "Astra International",
+      "sector": "Otomotif, alat berat, pertambangan, agribisnis, infrastruktur",
+      "verification_note": "Daftar ini tidak mencakup seluruh anak usaha non-tercatat."
+    }
+  ],
+  "relations": [
+    {
+      "ticker": "BNBR",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "BUMI",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "BRMS",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ENRG",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "DEWA",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "UNSP",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ELTY",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "VIVA",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "MDIA",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "JGLE",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "VKTR",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ALII",
+      "group_id": "BAKRIE",
+      "group_name": "Grup Bakrie",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "BRPT",
+      "group_id": "BARITO_PRAJOGO",
+      "group_name": "Grup Prajogo Pangestu / Barito",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "TPIA",
+      "group_id": "BARITO_PRAJOGO",
+      "group_name": "Grup Prajogo Pangestu / Barito",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "BREN",
+      "group_id": "BARITO_PRAJOGO",
+      "group_name": "Grup Prajogo Pangestu / Barito",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "CUAN",
+      "group_id": "BARITO_PRAJOGO",
+      "group_name": "Grup Prajogo Pangestu / Barito",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "PTRO",
+      "group_id": "BARITO_PRAJOGO",
+      "group_name": "Grup Prajogo Pangestu / Barito",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "CDIA",
+      "group_id": "BARITO_PRAJOGO",
+      "group_name": "Grup Prajogo Pangestu / Barito",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ADRO",
+      "group_id": "THOHIR_ADARO",
+      "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "AADI",
+      "group_id": "THOHIR_ADARO",
+      "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ADMR",
+      "group_id": "THOHIR_ADARO",
+      "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "MBMA",
+      "group_id": "THOHIR_ADARO",
+      "group_name": "Ekosistem Adaro / Afiliasi Boy Thohir",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "RAJA",
+      "group_id": "HAPSORO",
+      "group_name": "Afiliasi Happy Hapsoro",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "MINA",
+      "group_id": "HAPSORO",
+      "group_name": "Afiliasi Happy Hapsoro",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "UANG",
+      "group_id": "HAPSORO",
+      "group_name": "Afiliasi Happy Hapsoro",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "SINI",
+      "group_id": "HAPSORO",
+      "group_name": "Afiliasi Happy Hapsoro",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ARKO",
+      "group_id": "HAPSORO",
+      "group_name": "Afiliasi Happy Hapsoro",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "DCII",
+      "group_id": "TOTO_SUGIRI",
+      "group_name": "Afiliasi Toto Sugiri",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Kandidat utama untuk ditelusuri; jangan anggap kepemilikan aktif tanpa verifikasi terbaru."
+    },
+    {
+      "ticker": "BBCA",
+      "group_id": "DJARUM_HARTONO",
+      "group_name": "Grup Djarum / Hartono",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "BELI",
+      "group_id": "DJARUM_HARTONO",
+      "group_name": "Grup Djarum / Hartono",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "TOWR",
+      "group_id": "DJARUM_HARTONO",
+      "group_name": "Grup Djarum / Hartono",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "SUPR",
+      "group_id": "DJARUM_HARTONO",
+      "group_name": "Grup Djarum / Hartono",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "RANC",
+      "group_id": "DJARUM_HARTONO",
+      "group_name": "Grup Djarum / Hartono",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "DATA",
+      "group_id": "DJARUM_HARTONO",
+      "group_name": "Grup Djarum / Hartono",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "INDF",
+      "group_id": "SALIM",
+      "group_name": "Grup Salim",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ICBP",
+      "group_id": "SALIM",
+      "group_name": "Grup Salim",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "IMAS",
+      "group_id": "SALIM",
+      "group_name": "Grup Salim",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "DNET",
+      "group_id": "SALIM",
+      "group_name": "Grup Salim",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "DCII",
+      "group_id": "SALIM",
+      "group_name": "Grup Salim",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Kandidat hubungan investasi/afiliasi; verifikasi struktur pemegang saham terkini."
+    },
+    {
+      "ticker": "BSDE",
+      "group_id": "SINAR_MAS",
+      "group_name": "Grup Sinar Mas",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "DSSA",
+      "group_id": "SINAR_MAS",
+      "group_name": "Grup Sinar Mas",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "SMMA",
+      "group_id": "SINAR_MAS",
+      "group_name": "Grup Sinar Mas",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "INKP",
+      "group_id": "SINAR_MAS",
+      "group_name": "Grup Sinar Mas",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "TKIM",
+      "group_id": "SINAR_MAS",
+      "group_name": "Grup Sinar Mas",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "SMAR",
+      "group_id": "SINAR_MAS",
+      "group_name": "Grup Sinar Mas",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "GEMS",
+      "group_id": "SINAR_MAS",
+      "group_name": "Grup Sinar Mas",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "LPKR",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "LPCK",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "MLPL",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "MLPT",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "MPPA",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "LPPF",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "SILO",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "NOBU",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "GMTD",
+      "group_id": "LIPPO",
+      "group_name": "Grup Lippo",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "BHIT",
+      "group_id": "MNC",
+      "group_name": "Grup MNC",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "BMTR",
+      "group_id": "MNC",
+      "group_name": "Grup MNC",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "MNCN",
+      "group_id": "MNC",
+      "group_name": "Grup MNC",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "IPTV",
+      "group_id": "MNC",
+      "group_name": "Grup MNC",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "MSIN",
+      "group_id": "MNC",
+      "group_name": "Grup MNC",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ASII",
+      "group_id": "ASTRA",
+      "group_name": "Grup Astra",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "UNTR",
+      "group_id": "ASTRA",
+      "group_name": "Grup Astra",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "AALI",
+      "group_id": "ASTRA",
+      "group_name": "Grup Astra",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "AUTO",
+      "group_id": "ASTRA",
+      "group_name": "Grup Astra",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    },
+    {
+      "ticker": "ACST",
+      "group_id": "ASTRA",
+      "group_name": "Grup Astra",
+      "relation_type": "REVIEW",
+      "ownership_pct": null,
+      "evidence_source": "",
+      "verified_at": null,
+      "status": "REVIEW",
+      "notes": "Relasi kandidat dari seed list; wajib verifikasi sebelum dipakai sebagai afiliasi aktif."
+    }
+  ],
+  "implementation_rules": [
+    "Jangan menganggap relasi REVIEW sebagai afiliasi terverifikasi.",
+    "ownership_pct harus null jika tidak ada bukti kepemilikan yang valid.",
+    "Set VERIFIED hanya setelah ada bukti resmi yang dicatat pada evidence_source dan verified_at.",
+    "Periksa status ticker dan relasi terkini dari BEI, laporan tahunan, keterbukaan informasi, dan data KSEI.",
+    "Satu ticker boleh memiliki lebih dari satu relasi grup jika bukti mendukung."
+  ]
+}

@@ -4869,6 +4869,27 @@ app.get('/api/strategy-engine/daily-stats', async (req, res) => {
   }
 });
 
+// GET /api/strategy-engine/conglomerates
+// Serves canonical conglomerate seed list (data/conglomerates.json) for universe filtering
+let _conglomeratesCache = null;
+app.get('/api/strategy-engine/conglomerates', (req, res) => {
+  try {
+    if (!_conglomeratesCache) {
+      const filePath = path.join(__dirname, 'data', 'conglomerates.json');
+      if (fs.existsSync(filePath)) {
+        _conglomeratesCache = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      }
+    }
+    if (!_conglomeratesCache) {
+      return res.status(404).json({ success: false, error: 'Data konglomerasi tidak ditemukan' });
+    }
+    return res.json({ success: true, ..._conglomeratesCache });
+  } catch (err) {
+    console.error('[Strategy Engine Conglomerates Error]', err);
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
+  }
+});
+
 // GET /api/strategy-engine/daily-picks?limit=10 — sidebar widget source.
 // Read-only: merges the day's (or most recent trading day's) already-
 // persisted STRONG/QUALIFIED signals across all 4 strategies, re-runs the

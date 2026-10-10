@@ -17,6 +17,9 @@ var SE_STATE = {
   strategiesLoaded: false,
   strategies: [],
   selectedStrategy: 'swing-flow',
+  conglomeratesLoaded: false,
+  conglomerates: null,
+  selectedConglomerate: '',
   tickersInput: '',
   loading: false,
   error: null,
@@ -106,10 +109,54 @@ function seOnStrategyChange() {
   seRenderStrategyEnginePage('us-strategy-subpage');
 }
 
+async function seLoadConglomerates() {
+  if (SE_STATE.conglomeratesLoaded) return;
+  try {
+    var resp = await fetch('/api/strategy-engine/conglomerates');
+    var json = await resp.json();
+    if (json.success && Array.isArray(json.groups)) {
+      SE_STATE.conglomerates = json;
+    }
+  } catch (_) { /* silent fallback */ }
+  SE_STATE.conglomeratesLoaded = true;
+  seRenderStrategyEnginePage('us-strategy-subpage');
+}
+
+function seOnConglomerateChange() {
+  var sel = document.getElementById('se-conglomerate-select');
+  if (!sel) return;
+  var groupId = sel.value;
+  SE_STATE.selectedConglomerate = groupId;
+  if (!groupId) {
+    seRenderStrategyEnginePage('us-strategy-subpage');
+    return;
+  }
+  if (SE_STATE.conglomerates && Array.isArray(SE_STATE.conglomerates.relations)) {
+    var groupRels = SE_STATE.conglomerates.relations.filter(function (r) {
+      return r.group_id === groupId;
+    });
+    var tickers = groupRels.map(function (r) { return r.ticker; });
+    var seen = {};
+    var uniqueTickers = [];
+    tickers.forEach(function (t) {
+      if (t && !seen[t]) {
+        seen[t] = true;
+        uniqueTickers.push(t);
+      }
+    });
+    SE_STATE.tickersInput = uniqueTickers.join(',');
+    SE_STATE.error = null;
+  }
+  seRenderStrategyEnginePage('us-strategy-subpage');
+}
+window.seOnConglomerateChange = seOnConglomerateChange;
+
 function seReadForm() {
   var sel = document.getElementById('se-strategy-select');
+  var cong = document.getElementById('se-conglomerate-select');
   var tk = document.getElementById('se-tickers-input');
   if (sel) SE_STATE.selectedStrategy = sel.value;
+  if (cong) SE_STATE.selectedConglomerate = cong.value;
   if (tk) SE_STATE.tickersInput = tk.value;
 }
 
@@ -227,6 +274,10 @@ function seRenderStrategyEnginePage(containerId) {
     return; // seLoadDailyStats re-renders when it resolves
   }
 
+  if (!SE_STATE.conglomeratesLoaded) {
+    seLoadConglomerates();
+  }
+
   var strat = SE_STATE.strategies.find(function (s) { return s.id === SE_STATE.selectedStrategy; });
 
   var html = '<div class="card" style="padding:14px;margin-bottom:12px">'
@@ -238,16 +289,36 @@ function seRenderStrategyEnginePage(containerId) {
     + '</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">'
     + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Strategi</label>'
-    + '<select id="se-strategy-select" class="finput fsel" onchange="seOnStrategyChange()" style="padding:5px 9px;font-size:11.5px;border-radius:6px;min-width:220px">'
+    + '<select id="se-strategy-select" class="finput fsel" onchange="seOnStrategyChange()" style="padding:5px 9px;font-size:11.5px;border-radius:6px;min-width:180px">'
     + SE_STATE.strategies.map(function (s) {
         return '<option value="' + s.id + '"' + (s.id === SE_STATE.selectedStrategy ? ' selected' : '') + '>' + s.name + '</option>';
       }).join('')
     + '</select></div>'
-    + '<div style="flex:1;min-width:220px"><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Ticker (pisah koma, maks 50)</label>'
+    + '<div><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">🏢 Universe Konglomerasi</label>'
+    + '<select id="se-conglomerate-select" class="finput fsel" onchange="seOnConglomerateChange()" style="padding:5px 9px;font-size:11.5px;border-radius:6px;min-width:210px">'
+    + '<option value="">-- Pilih Konglomerasi (Bebas) --</option>'
+    + ((SE_STATE.conglomerates && SE_STATE.conglomerates.groups) ? SE_STATE.conglomerates.groups.map(function (g) {
+        var count = (SE_STATE.conglomerates.relations || []).filter(function (r) { return r.group_id === g.group_id; }).length;
+        return '<option value="' + g.group_id + '"' + (g.group_id === SE_STATE.selectedConglomerate ? ' selected' : '') + '>' + g.group_name + ' (' + count + ' emiten)</option>';
+      }).join('') : '')
+    + '</select></div>'
+    + '<div style="flex:1;min-width:200px"><label style="font-size:11px;color:var(--text-mute);display:block;margin-bottom:3px">Ticker (pisah koma, maks 50)</label>'
     + '<input id="se-tickers-input" type="text" placeholder="BBCA,BBRI,TLKM" value="' + (SE_STATE.tickersInput || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:5px 9px;font-size:11.5px;border-radius:6px" class="finput"></div>'
     + '<button class="btn btn-ghost btn-sm" onclick="seSyncFromPortfolio()" title="Isi otomatis dari saham yang sedang Anda pegang di menu Portofolio">📂 Sinkron Portofolio</button>'
     + '<button class="btn btn-primary btn-sm" onclick="seRunScan()"' + (SE_STATE.loading ? ' disabled' : '') + '>' + (SE_STATE.loading ? 'Memindai…' : '▶ Jalankan Scan') + '</button>'
     + '</div>';
+
+  if (SE_STATE.selectedConglomerate && SE_STATE.conglomerates && Array.isArray(SE_STATE.conglomerates.groups)) {
+    var activeGroup = SE_STATE.conglomerates.groups.find(function (g) { return g.group_id === SE_STATE.selectedConglomerate; });
+    if (activeGroup) {
+      html += '<div style="margin-top:10px;padding:9px 12px;background:var(--bg2,#1a1e29);border:1px solid var(--border,#2b3245);border-radius:8px;font-size:11px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">'
+        + '<div><span class="badge b-up" style="font-size:10.5px">🏢 ' + activeGroup.group_name + '</span></div>'
+        + '<div style="color:var(--text)"><b style="color:var(--text-mute)">Anchor:</b> ' + activeGroup.anchor_person + '</div>'
+        + '<div style="color:var(--text)"><b style="color:var(--text-mute)">Sektor:</b> ' + activeGroup.sector + '</div>'
+        + '<div style="color:var(--text-mute);font-style:italic">ℹ️ ' + (activeGroup.verification_note || '') + '</div>'
+        + '</div>';
+    }
+  }
 
   if (strat) {
     html += '<div style="margin-top:10px;font-size:11px;color:var(--text-mute)">'
