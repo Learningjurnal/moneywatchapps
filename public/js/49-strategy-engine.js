@@ -384,9 +384,9 @@ async function usDailyPicksLoad() {
 }
 
 function usDailyPicksStatusColor(status) {
-  if (status === 'STRONG') return 'var(--green,#10b981)';
-  if (status === 'QUALIFIED') return 'var(--blue,#38bdf8)';
-  return 'var(--text3,#94a3b8)';
+  if (status === 'STRONG') return 'var(--green, #10b981)';
+  if (status === 'QUALIFIED') return 'var(--accent-blue, #0ea5e9)';
+  return 'var(--text3, #94a3b8)';
 }
 
 function usDailyPicksEsc(s) {
@@ -421,7 +421,7 @@ function usDailyPicksParseReason(reason) {
   return items;
 }
 
-// Modal Popup for detailed rationale & breakdown
+// Modal Popup for individual stock detailed rationale & breakdown
 function usDailyPicksOpenModal(idx) {
   if (!US_DAILY_PICKS_STATE.data || !Array.isArray(US_DAILY_PICKS_STATE.data.picks)) return;
   var p = US_DAILY_PICKS_STATE.data.picks[idx];
@@ -443,7 +443,7 @@ function usDailyPicksOpenModal(idx) {
   }).join('');
 
   var tierBadgeText = isAlpha
-    ? '🔥 <strong style="color:#f59e0b">ALPHA TARGET (TIER 1)</strong> — Konfluensi tertinggi pada pemindaian hari ini'
+    ? '🔥 <strong style="color:#f59e0b">ALPHA TARGET (TIER 1)</strong> — Konfluensi tertinggi pada pemindaian radar hari ini'
     : (isStrong ? '⚡ <strong style="color:#10b981">STRONG MOMENTUM (TIER 2)</strong> — Memenuhi akumulasi bandar &amp; momentum kuat'
       : '🎯 <strong style="color:#38bdf8">QUALIFIED TARGET (TIER 3)</strong> — Lolos ambang batas seleksi strategi');
 
@@ -502,6 +502,56 @@ function usDailyPicksOpenModal(idx) {
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
+// Modal Popup for methodology & scan coverage note (moved from bottom card text)
+function usDailyPicksOpenCoverageModal() {
+  var d = US_DAILY_PICKS_STATE.data;
+  if (!d) return;
+
+  var existing = document.getElementById('us-picks-modal-backdrop');
+  if (existing) existing.remove();
+
+  var cov = d.scanCoverage;
+  var covText = (cov && cov.scannedPerStrategyMax > 0)
+    ? ('Rotasi harian memindai ' + cov.scannedPerStrategyMax + ' dari ' + cov.universeSize + ' emiten (per strategi) untuk tanggal ini.')
+    : 'Pemindaian berjalan secara rotatif sesuai jadwal cron bursa.';
+
+  var noteText = d.note || 'Daftar rekomendasi dihasilkan dari perhitungan kuantitatif Strategy Engine V1.';
+
+  var modalHtml = '<div id="us-picks-modal-backdrop" class="radar-modal-backdrop" onclick="if(event.target===this)usDailyPicksCloseModal()">'
+    + '<div class="radar-modal-card" role="dialog" aria-modal="true">'
+    + '<div class="radar-modal-header">'
+    + '  <div style="display:flex;align-items:center;gap:8px">'
+    + '    <i class="ti ti-info-circle" style="color:var(--accent);font-size:20px"></i>'
+    + '    <div>'
+    + '      <div style="font-size:14px;font-weight:800;color:var(--text)">Metodologi &amp; Cakupan Rotasi Harian</div>'
+    + '      <div style="font-size:11px;color:var(--text3)">Strategy Engine V1 · Rekomendasi Saham Otomatis</div>'
+    + '    </div>'
+    + '  </div>'
+    + '  <button class="radar-modal-close" onclick="usDailyPicksCloseModal()" aria-label="Tutup">✕</button>'
+    + '</div>'
+    + '<div class="radar-modal-body">'
+    + '  <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px;font-size:12px;color:var(--text);line-height:1.6">'
+    + '    <div style="font-weight:700;color:var(--text);margin-bottom:6px"><i class="ti ti-file-text"></i> Catatan Pemindaian:</div>'
+    + '    ' + usDailyPicksEsc(noteText)
+    + '  </div>'
+    + '  <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px;font-size:12px;color:var(--text);line-height:1.6">'
+    + '    <div style="font-weight:700;color:var(--text);margin-bottom:6px"><i class="ti ti-cpu"></i> Cakupan Pemindaian Universe:</div>'
+    + '    ' + usDailyPicksEsc(covText) + ' Ini BUKAN pemindaian ulang serentak seluruh ~985 emiten secara real-time demi efisiensi kuota provider, melainkan hasil akumulatif cron rotasi resmi.'
+    + '  </div>'
+    + '  <div style="font-size:11px;color:var(--text3);line-height:1.5">'
+    + '    <strong>Integritas Pasar:</strong> Sistem ini tidak pernah menggunakan data sintetis / fiktif. Saham yang masuk radar wajib lolos Regulatory Health Gate (bebas notasi khusus bermasalah) dan lolos ambang batas indikator mandatory.'
+    + '  </div>'
+    + '</div>'
+    + '<div class="radar-modal-footer">'
+    + '  <div style="font-size:10px;color:var(--text3)">Tanggal Data: ' + usDailyPicksEsc(d.date || '-') + '</div>'
+    + '  <button class="btn btn-ghost btn-sm" onclick="usDailyPicksCloseModal()">Tutup</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
 function usDailyPicksCloseModal() {
   var m = document.getElementById('us-picks-modal-backdrop');
   if (m) m.remove();
@@ -511,7 +561,7 @@ window.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') usDailyPicksCloseModal();
 });
 
-// Search Radar layout with live sweep HUD, target blips, score tier visualizer, and popup modal
+// Search Radar layout with prominent hero radar, plain compact cards, and popups for long text
 function usDailyPicksRender() {
   var el = document.getElementById('us-daily-picks');
   if (!el) return;
@@ -530,6 +580,7 @@ function usDailyPicksRender() {
     + '<div class="radar-hud-meta">'
     + '  <span class="radar-meta-chip"><i class="ti ti-calendar"></i> ' + usDailyPicksEsc(dateStr) + '</span>'
     + '  <span class="radar-meta-chip"><i class="ti ti-target"></i> ' + pickCount + ' TARGET TERDETEKSI</span>'
+    + '  <button class="btn btn-ghost btn-xs" onclick="usDailyPicksOpenCoverageModal()" title="Info Metodologi &amp; Cakupan"><i class="ti ti-info-circle"></i> Info Rotasi</button>'
     + '  <button class="btn btn-ghost btn-xs radar-refresh-btn" onclick="usDailyPicksLoad()" title="Pindai Ulang Radar"><i class="ti ti-refresh"></i> Pindai Ulang</button>'
     + '</div>'
     + '</div>';
@@ -537,7 +588,7 @@ function usDailyPicksRender() {
   var content;
   if (US_DAILY_PICKS_STATE.loading && !d) {
     content = '<div class="radar-scope-wrapper" style="text-align:center;padding:48px 20px">'
-      + '<div class="radar-scope-container" style="width:260px;height:260px;margin-bottom:16px">'
+      + '<div class="radar-scope-container" style="width:300px;height:300px;margin-bottom:16px">'
       + '  <div class="radar-scope">'
       + '    <div class="radar-ring ring-alpha"></div>'
       + '    <div class="radar-ring ring-strong"></div>'
@@ -569,7 +620,7 @@ function usDailyPicksRender() {
       ? ('Rotasi harian baru memindai ' + cov.scannedPerStrategyMax + ' dari ' + cov.universeSize + ' emiten (per strategi) dan belum menemukan yang berstatus STRONG/QUALIFIED.')
       : 'Belum ada emiten yang berhasil dipindai untuk tanggal ini.';
     content = '<div class="radar-scope-wrapper" style="text-align:center;padding:36px 20px">'
-      + '<div class="radar-scope-container" style="width:240px;height:240px;margin-bottom:16px">'
+      + '<div class="radar-scope-container" style="width:280px;height:280px;margin-bottom:16px">'
       + '  <div class="radar-scope">'
       + '    <div class="radar-ring ring-alpha"></div>'
       + '    <div class="radar-ring ring-strong"></div>'
@@ -585,9 +636,8 @@ function usDailyPicksRender() {
   }
 
   if (hasPicks) {
-    // Generate Radar Scope Blips & Target Cards
+    // Generate Hero Radar Scope Blips & Compact Plain Cards
     var blipsHtml = '';
-    var cardsHtml = '';
     var totalPicks = d.picks.length;
 
     d.picks.forEach(function (p, idx) {
@@ -596,14 +646,14 @@ function usDailyPicksRender() {
       var isStrong = scoreVal >= 83.0 && scoreVal < 88.0;
       var tierClass = isAlpha ? 'tier-alpha' : (isStrong ? 'tier-strong' : 'tier-qualified');
 
-      // Distance from center: higher score = closer to center (16% to 80% radius)
+      // Distance from center: higher score = closer to center bullseye (16% to 80% radius)
       var distPct = Math.max(16, Math.min(80, 84 - (scoreVal - 70) * 2.8));
       var angleDeg = (idx * (360 / totalPicks) + 40) % 360;
       var rad = angleDeg * (Math.PI / 180);
       var leftPct = (50 + (distPct / 2) * Math.cos(rad)).toFixed(2);
       var topPct = (50 + (distPct / 2) * Math.sin(rad)).toFixed(2);
 
-      var logoSize = isAlpha ? 28 : 24;
+      var logoSize = isAlpha ? 30 : 26;
       var stockLogo = typeof getStockLogoHtml === 'function' ? getStockLogoHtml(p.ticker, logoSize) : '';
 
       // Special visual effect based on scoring on radar
@@ -618,7 +668,7 @@ function usDailyPicksRender() {
 
       blipsHtml += '<div class="radar-target-blip ' + tierClass + '" style="left:' + leftPct + '%;top:' + topPct + '%" '
         + 'onclick="usDailyPicksOpenModal(' + idx + ')" '
-        + 'title="' + usDailyPicksEsc(p.ticker) + ' (' + usDailyPicksEsc(p.name || '') + ') · Skor: ' + (p.score != null ? p.score : '-') + ' · Klik untuk alasan">'
+        + 'title="' + usDailyPicksEsc(p.ticker) + ' (' + usDailyPicksEsc(p.name || '') + ') · Skor: ' + (p.score != null ? p.score : '-') + ' · Klik untuk buka popup">'
         + specialGlowHtml
         + '<div class="radar-blip-inner">'
         + stockLogo
@@ -628,47 +678,35 @@ function usDailyPicksRender() {
         + '<span class="radar-blip-score">' + (p.score != null ? p.score : '-') + '</span>'
         + '</div>'
         + '</div>';
-
-      // Card for Target Feed list on right
-      var rankClass = p.rank === 1 ? 'rank-1' : (p.rank === 2 ? 'rank-2' : (p.rank === 3 ? 'rank-3' : 'rank-other'));
-      var cardTierClass = isAlpha ? 'card-tier-alpha' : (isStrong ? 'card-tier-strong' : 'card-tier-qualified');
-      var scoreBadgeClass = isAlpha ? 'score-alpha' : (isStrong ? 'score-strong' : 'score-qualified');
-      var scoreIcon = isAlpha ? '<i class="ti ti-flame" style="color:#f59e0b"></i>' : (isStrong ? '<i class="ti ti-bolt" style="color:#10b981"></i>' : '');
-
-      cardsHtml += '<div class="radar-target-card ' + cardTierClass + '" onclick="usDailyPicksOpenModal(' + idx + ')">'
-        + '<div class="target-card-left">'
-        + '  <div class="target-rank-badge ' + rankClass + '">' + p.rank + '</div>'
-        + '  <div class="target-logo-wrap">' + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(p.ticker, 36) : '') + '</div>'
-        + '  <div class="target-identity">'
-        + '    <div class="target-ticker">' + usDailyPicksEsc(p.ticker)
-        + (isAlpha ? ' <span class="badge b-amb" style="font-size:8px;padding:1px 4px">HOT TARGET</span>' : '')
-        + '    </div>'
-        + '    <div class="target-name">' + usDailyPicksEsc(p.name || p.ticker) + '</div>'
-        + '  </div>'
-        + '</div>'
-        + '<div class="target-card-center">'
-        + '  <span class="badge b-accent target-strat-badge">' + usDailyPicksEsc(p.strategyName) + '</span>'
-        + '  <span class="target-status-badge ' + (p.status === 'STRONG' ? 'status-strong' : 'status-qualified') + '">'
-        + '    <span class="status-dot"></span> ' + usDailyPicksEsc(p.status)
-        + '  </span>'
-        + '</div>'
-        + '<div class="target-card-right">'
-        + '  <div class="target-score-badge ' + scoreBadgeClass + '">'
-        + scoreIcon
-        + '    <span class="score-num">' + (p.score != null ? p.score : '-') + '</span>'
-        + '  </div>'
-        + '  <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();usDailyPicksOpenModal(' + idx + ');" title="Buka Penjelasan &amp; Rationale">'
-        + '    <i class="ti ti-file-text"></i> Alasan'
-        + '  </button>'
-        + '  <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stock-dossier\');" title="Buka Dossier / Chart">'
-        + '    <i class="ti ti-chart-candle"></i>'
-        + '  </button>'
-        + '</div>'
-        + '</div>';
     });
 
-    var radarScopeScreen = '<div class="radar-screen-box">'
-      + '<div class="radar-scope-container">'
+    // Plain compact card row — follows previous design (no images, plain color, no text clutter)
+    var cardsHtml = d.picks.map(function (p, idx) {
+      var rankBadgeBg = p.rank === 1 ? '#F59E0B' : p.rank === 2 ? '#94A3B8' : p.rank === 3 ? '#B45309' : 'var(--bg3, rgba(255,255,255,0.08))';
+      var rankBadgeColor = p.rank <= 3 ? '#0B0D12' : 'var(--text3, #94a3b8)';
+      var rankBadge = '<span class="radar-rank-circle" style="background:' + rankBadgeBg + ';color:' + rankBadgeColor + '">' + p.rank + '</span>';
+
+      return '<div onclick="usDailyPicksOpenModal(' + idx + ')" class="radar-plain-card" role="button" tabindex="0" title="Klik untuk membuka popup alasan ' + usDailyPicksEsc(p.ticker) + '">'
+        + '<div class="radar-card-top-row">'
+        + '  <div class="radar-card-ident">'
+        +      rankBadge
+        + '    <span class="mono radar-card-ticker">' + usDailyPicksEsc(p.ticker) + '</span>'
+        + '  </div>'
+        + '  <span class="mono radar-card-score" style="color:' + usDailyPicksStatusColor(p.status) + '">' + (p.score != null ? p.score : '-') + '</span>'
+        + '</div>'
+        + '<div class="radar-card-strat-row">'
+        +    usDailyPicksEsc(p.strategyName) + ' · <span style="font-weight:700;color:' + usDailyPicksStatusColor(p.status) + '">' + usDailyPicksEsc(p.status) + '</span>'
+        + '</div>'
+        + '<div class="radar-card-actions">'
+        + '  <button class="btn btn-ghost btn-xs radar-card-btn" onclick="event.stopPropagation();usDailyPicksOpenModal(' + idx + ');"><i class="ti ti-file-text"></i> Alasan</button>'
+        + '  <button class="btn btn-ghost btn-xs radar-card-btn-icon" onclick="event.stopPropagation();if(typeof selectStockChatTicker===\'function\')selectStockChatTicker(\'' + p.ticker + '\');if(typeof goPage===\'function\')goPage(\'stock-dossier\');" title="Chart / Dossier"><i class="ti ti-chart-candle"></i></button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    // Large Hero Radar Screen (Centered)
+    var radarScopeHero = '<div class="radar-hero-box">'
+      + '<div class="radar-scope-container hero-radar-size">'
       + '  <div class="radar-compass-label radar-compass-n">000° N</div>'
       + '  <div class="radar-compass-label radar-compass-e">090° E</div>'
       + '  <div class="radar-compass-label radar-compass-s">180° S</div>'
@@ -677,7 +715,7 @@ function usDailyPicksRender() {
       + '    <div class="radar-ring ring-outer"><span class="radar-ring-tag">75</span></div>'
       + '    <div class="radar-ring ring-qualified"><span class="radar-ring-tag">80</span></div>'
       + '    <div class="radar-ring ring-strong"><span class="radar-ring-tag">85</span></div>'
-      + '    <div class="radar-ring ring-alpha"><span class="radar-ring-tag">90+ ALPHA</span></div>'
+      + '    <div class="radar-ring ring-alpha"><span class="radar-ring-tag">88+ ALPHA</span></div>'
       + '    <div class="radar-crosshair-h"></div>'
       + '    <div class="radar-crosshair-v"></div>'
       + '    <div class="radar-sweep-beam"></div>'
@@ -685,33 +723,32 @@ function usDailyPicksRender() {
       + blipsHtml
       + '  </div>'
       + '</div>'
-      + '<div style="margin-top:12px;display:flex;align-items:center;gap:12px;font-size:10px;color:var(--text3);font-family:var(--font-mono)">'
-      + '  <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Bullseye 88+ (Alpha)</span>'
-      + '  <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block"></span> Strong 83-87</span>'
-      + '  <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#06b6d4;display:inline-block"></span> Qualified &lt;83</span>'
+      + '<div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:10.5px;color:var(--text3);font-family:var(--font-mono);flex-wrap:wrap">'
+      + '  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Bullseye 88+ (Alpha Target)</span>'
+      + '  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block"></span> Strong 83-87</span>'
+      + '  <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#06b6d4;display:inline-block"></span> Qualified &lt;83</span>'
       + '</div>'
       + '</div>';
 
-    var targetsFeed = '<div class="radar-targets-panel">'
-      + '<div class="radar-targets-header">'
-      + '  <div class="radar-targets-title"><i class="ti ti-radar-2"></i> Saham Masuk Radar Pencarian</div>'
-      + '  <div style="font-size:11px;color:var(--text3)">Klik saham untuk membaca popup alasan lengkap</div>'
+    // Cards Row (Horizontal Scrollable, Compact, Plain)
+    var cardsSection = '<div class="radar-cards-section">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">'
+      + '  <span style="font-size:12px;font-weight:800;color:var(--text);letter-spacing:0.02em;display:flex;align-items:center;gap:6px"><i class="ti ti-target" style="color:var(--accent)"></i> Daftar Saham Terdeteksi (' + totalPicks + ' Emiten)</span>'
+      + '  <span style="font-size:10.5px;color:var(--text3)">Klik kartu atau tombol "Alasan" untuk popup rincian</span>'
       + '</div>'
-      + cardsHtml
+      + '<div class="radar-cards-scroll-row">' + cardsHtml + '</div>'
       + '</div>';
 
-    var footerBits = [];
-    if (d.note) footerBits.push(usDailyPicksEsc(d.note));
-    footerBits.push('Data ' + usDailyPicksEsc(d.date) + ' · Bukan nasihat investasi. Hasil perhitungan kuantitatif Strategy Engine V1 dari data pasar nyata Invezgo.');
+    // Clean Minimal Footer (No long text dump; opened via modal)
+    var footerBar = '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border2,rgba(255,255,255,0.06));display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+      + '<span style="font-size:10.5px;color:var(--text3)">Data EOD ' + usDailyPicksEsc(d.date) + ' · Bukan nasihat investasi</span>'
+      + '<button class="btn btn-ghost btn-xs" onclick="usDailyPicksOpenCoverageModal()" style="font-size:10px;padding:2px 8px;color:var(--text3)"><i class="ti ti-info-circle"></i> Catatan Rotasi &amp; Metodologi</button>'
+      + '</div>';
 
     content = '<div class="radar-scope-wrapper">'
-      + '<div class="radar-main-grid">'
-      + radarScopeScreen
-      + targetsFeed
-      + '</div>'
-      + '<div style="padding-top:14px;margin-top:14px;border-top:1px solid var(--border2,rgba(255,255,255,0.06));font-size:10px;color:var(--text3,#94a3b8);line-height:1.4">'
-      + footerBits.join(' — ')
-      + '</div>'
+      + radarScopeHero
+      + cardsSection
+      + footerBar
       + '</div>';
   } else {
     content = '';
@@ -721,5 +758,6 @@ function usDailyPicksRender() {
 }
 
 window.usDailyPicksOpenModal = usDailyPicksOpenModal;
+window.usDailyPicksOpenCoverageModal = usDailyPicksOpenCoverageModal;
 window.usDailyPicksCloseModal = usDailyPicksCloseModal;
 window.usDailyPicksRender = usDailyPicksRender;
