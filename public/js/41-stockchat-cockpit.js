@@ -3083,14 +3083,14 @@ window.bandarRenderMarketFlowContent = bandarRenderMarketFlowContent;
 // identity signal; color is a secondary/supporting cue only, and the
 // table view below the chart is the fully color-independent fallback.
 var BANDAR_ROTATION_COLORS_LIGHT = {
-  IDXENERGY: '#2a78d6', IDXFINANCE: '#eb6834', IDXBASIC: '#1baf7a', IDXINDUST: '#eda100',
-  IDXNONCYC: '#4a3aa7', IDXCYCLIC: '#e34948', IDXHEALTH: '#008300', IDXPROPERT: '#e87ba4',
-  IDXTECHNO: '#00a6c8', IDXINFRA: '#a85200', IDXTRANS: '#8a3ab8'
+  IDXENERGY: '#0284c7', IDXFINANCE: '#ea580c', IDXBASIC: '#059669', IDXINDUST: '#d97706',
+  IDXNONCYC: '#7c3aed', IDXCYCLIC: '#e11d48', IDXHEALTH: '#16a34a', IDXPROPERT: '#db2777',
+  IDXTECHNO: '#0891b2', IDXINFRA: '#c2410c', IDXTRANS: '#9333ea'
 };
 var BANDAR_ROTATION_COLORS_DARK = {
-  IDXENERGY: '#5b9ee8', IDXFINANCE: '#d9722e', IDXBASIC: '#29a36e', IDXINDUST: '#c99a1d',
-  IDXNONCYC: '#8a6be0', IDXCYCLIC: '#d95a58', IDXHEALTH: '#399939', IDXPROPERT: '#cf76a0',
-  IDXTECHNO: '#28a0b8', IDXINFRA: '#c26f1f', IDXTRANS: '#9c58c2'
+  IDXENERGY: '#00d2ff', IDXFINANCE: '#fb923c', IDXBASIC: '#10b981', IDXINDUST: '#facc15',
+  IDXNONCYC: '#c084fc', IDXCYCLIC: '#fb7185', IDXHEALTH: '#34d399', IDXPROPERT: '#f472b6',
+  IDXTECHNO: '#22d3ee', IDXINFRA: '#f97316', IDXTRANS: '#e879f9'
 };
 var BANDAR_ROTATION_REASON_TEXT = {
   NOT_CONFIGURED: 'Invezgo API key belum dikonfigurasi',
@@ -3189,12 +3189,14 @@ window.bandarResetSectorRotationDateFilter = bandarResetSectorRotationDateFilter
 // at least one is hidden. Re-renders from the already-fetched cached data —
 // toggling visibility never triggers a new network request.
 function bandarRotationSectorChipsHtml(sectors, colorMap) {
+  var isDark = typeof document !== 'undefined' && document.body && !document.body.classList.contains('theme-light');
   var chips = sectors.map(function (s) {
     var isHidden = !!_bandarRotationHiddenSectors[s.code];
     var color = colorMap[s.code] || '#888';
-    var style = 'display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:12px;cursor:pointer;border:1px solid ' + (isHidden ? 'var(--border2)' : color) + ';background:' + (isHidden ? 'transparent' : color + '1f') + ';color:' + (isHidden ? 'var(--text3)' : color) + ';opacity:' + (isHidden ? '0.6' : '1');
+    var glowStyle = (isDark && !isHidden) ? ';box-shadow:0 0 8px ' + color + '44' : '';
+    var style = 'display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:12px;cursor:pointer;border:1px solid ' + (isHidden ? 'var(--border2)' : color) + ';background:' + (isHidden ? 'transparent' : color + '1f') + ';color:' + (isHidden ? 'var(--text3)' : color) + ';opacity:' + (isHidden ? '0.6' : '1') + glowStyle;
     return '<button type="button" onclick="bandarToggleRotationSector(\'' + s.code + '\')" style="' + style + '" title="' + (isHidden ? 'Klik untuk menampilkan kembali' : 'Klik untuk menyembunyikan') + '">'
-      + '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + color + ';opacity:' + (isHidden ? '0.4' : '1') + '"></span>'
+      + '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + color + ';opacity:' + (isHidden ? '0.4' : '1') + (isDark && !isHidden ? ';box-shadow:0 0 6px ' + color : '') + '"></span>'
       + (s.name || s.code)
       + '</button>';
   }).join('');
@@ -3400,19 +3402,43 @@ function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
     .attr('viewBox', '0 0 ' + width + ' ' + height)
     .style('display', 'block');
 
+  // Defs for Neon Glow & Filter Effects
+  var defs = svg.append('defs');
+
+  var glowFilter = defs.append('filter')
+    .attr('id', 'rrg-neon-glow')
+    .attr('x', '-50%')
+    .attr('y', '-50%')
+    .attr('width', '200%')
+    .attr('height', '200%');
+
+  glowFilter.append('feGaussianBlur')
+    .attr('stdDeviation', isDark ? '4' : '2')
+    .attr('result', 'coloredBlur');
+
+  var feMerge = glowFilter.append('feMerge');
+  feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+  feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+  feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  var dotGlowFilter = defs.append('filter')
+    .attr('id', 'rrg-dot-glow')
+    .attr('x', '-100%')
+    .attr('y', '-100%')
+    .attr('width', '300%')
+    .attr('height', '300%');
+
+  dotGlowFilter.append('feGaussianBlur')
+    .attr('stdDeviation', isDark ? '3' : '1.5')
+    .attr('result', 'dotBlur');
+
+  var dotFeMerge = dotGlowFilter.append('feMerge');
+  dotFeMerge.append('feMergeNode').attr('in', 'dotBlur');
+  dotFeMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
   var textColor = typeof _chartTextColor === 'function' ? _chartTextColor('--text2', isDark ? '#D2D8DF' : '#333') : (isDark ? '#D2D8DF' : '#333');
 
-  // FIX (2026-09-26, user-reported again with a reference screenshot of
-  // StockCharts' own RRG — "masih belum kontras dengan background, buat
-  // seperti contoh"): a dashed crosshair line alone (previous fix) was
-  // still not enough contrast against a plain white/dark card — the
-  // reference chart uses a filled, tinted background per quadrant so
-  // orientation is obvious at a glance, not just from 2 thin lines.
-  // Replicated that here: 4 flat-tinted rects (same base hues as the
-  // corner labels below) behind the trails, opacity tuned separately per
-  // theme so it reads clearly without competing with the trail colors as
-  // primary ink.
-  var quadrantFillOpacity = isDark ? 0.16 : 0.10;
+  var quadrantFillOpacity = isDark ? 0.18 : 0.10;
   var quadrantRects = [
     { color: '#2a78d6', x0: margin.left, x1: x(100), y0: margin.top, y1: y(100) },          // Improving (top-left)
     { color: '#1baf7a', x0: x(100), x1: width - margin.right, y0: margin.top, y1: y(100) }, // Leading (top-right)
@@ -3425,65 +3451,163 @@ function _bandarRenderRotationSvg(wrap, sectors, colorMap, isDark) {
       .attr('fill', q.color).attr('opacity', quadrantFillOpacity);
   });
 
-  // Crosshair at the benchmark centerline (100,100) — now mostly a precise
-  // reference line since the quadrant fills already carry the contrast.
-  var gridColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)';
+  // Crosshair at the benchmark centerline (100,100)
+  var gridColor = isDark ? 'rgba(56,189,248,0.35)' : 'rgba(0,0,0,0.35)';
   svg.append('line').attr('x1', x(100)).attr('x2', x(100)).attr('y1', margin.top).attr('y2', height - margin.bottom).attr('stroke', gridColor).attr('stroke-width', 1.25);
   svg.append('line').attr('x1', margin.left).attr('x2', width - margin.right).attr('y1', y(100)).attr('y2', y(100)).attr('stroke', gridColor).attr('stroke-width', 1.25);
-  svg.append('text').attr('x', x(100) + 4).attr('y', y(100) - 4).attr('font-size', 9).attr('fill', textColor).attr('opacity', 0.85).text((sectors[0] && 'COMPOSITE') || '');
+  svg.append('text').attr('x', x(100) + 4).attr('y', y(100) - 4).attr('font-size', 9).attr('font-weight', 700).attr('font-family', 'var(--font-mono, monospace)').attr('fill', textColor).attr('opacity', 0.85).text((sectors[0] && 'COMPOSITE') || '');
 
-  // Quadrant corner labels — a STATUS encoding (macro market-state), a
-  // different color role than the per-sector identity colors above.
+  // Quadrant corner labels with glowing accent
   var corners = [
-    { label: 'Improving', color: '#2a78d6', ax: margin.left + 6, ay: margin.top + 12, anchor: 'start' },
-    { label: 'Leading', color: '#1baf7a', ax: width - margin.right - 6, ay: margin.top + 12, anchor: 'end' },
-    { label: 'Lagging', color: '#e34948', ax: margin.left + 6, ay: height - margin.bottom - 6, anchor: 'start' },
-    { label: 'Weakening', color: '#eda100', ax: width - margin.right - 6, ay: height - margin.bottom - 6, anchor: 'end' }
+    { label: 'Improving', color: isDark ? '#38bdf8' : '#2a78d6', ax: margin.left + 6, ay: margin.top + 12, anchor: 'start' },
+    { label: 'Leading', color: isDark ? '#00e5ff' : '#1baf7a', ax: width - margin.right - 6, ay: margin.top + 12, anchor: 'end' },
+    { label: 'Lagging', color: isDark ? '#f43f5e' : '#e34948', ax: margin.left + 6, ay: height - margin.bottom - 6, anchor: 'start' },
+    { label: 'Weakening', color: isDark ? '#fbbf24' : '#eda100', ax: width - margin.right - 6, ay: height - margin.bottom - 6, anchor: 'end' }
   ];
   corners.forEach(function (c) {
-    svg.append('text').attr('x', c.ax).attr('y', c.ay).attr('text-anchor', c.anchor).attr('font-size', 10).attr('font-weight', 700).attr('fill', c.color).text(c.label);
+    svg.append('text').attr('x', c.ax).attr('y', c.ay).attr('text-anchor', c.anchor).attr('font-size', 10.5).attr('font-weight', 800).attr('fill', c.color)
+      .style('text-shadow', isDark ? ('0 0 8px ' + c.color) : 'none')
+      .text(c.label);
   });
 
   var line = d3.line().x(function (p) { return x(p.x); }).y(function (p) { return y(p.y); }).curve(d3.curveCatmullRom.alpha(0.5));
 
-  // Styled via .bandar-rotation-tooltip in main.css (same var(--bg2)/
-  // var(--border2) + body.theme-light recipe as the app's #mw-tooltip) —
-  // CSS custom properties already flip correctly with the real theme
-  // class, so this can't drift out of sync with isDark the way inline
-  // JS-computed colors did before this fix.
+  // Styled via .bandar-rotation-tooltip in main.css
   var tooltip = d3.select(wrap).append('div')
     .attr('class', 'bandar-rotation-tooltip')
     .style('position', 'absolute').style('opacity', 0);
 
   sectors.forEach(function (s) {
-    var color = colorMap[s.code] || (isDark ? '#8a8f9a' : '#555');
-    var g = svg.append('g');
-    g.append('path').datum(s.trail).attr('d', line).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 2).attr('opacity', 0.85);
+    var color = colorMap[s.code] || (isDark ? '#38bdf8' : '#0284c7');
+    var g = svg.append('g').attr('class', 'rrg-sector-trail').attr('data-sector', s.code);
+
+    if (isDark) {
+      // 1. Outer Wide Neon Aura (Glow layer)
+      g.append('path').datum(s.trail)
+        .attr('d', line).attr('fill', 'none')
+        .attr('stroke', color).attr('stroke-width', 8)
+        .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+        .attr('opacity', 0.28)
+        .style('filter', 'url(#rrg-neon-glow)')
+        .style('pointer-events', 'none');
+
+      // 2. Medium Neon Corona Halo
+      g.append('path').datum(s.trail)
+        .attr('d', line).attr('fill', 'none')
+        .attr('stroke', color).attr('stroke-width', 4)
+        .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+        .attr('opacity', 0.65)
+        .style('pointer-events', 'none');
+
+      // 3. Crisp Neon Core Beam
+      g.append('path').datum(s.trail)
+        .attr('d', line).attr('fill', 'none')
+        .attr('stroke', color).attr('stroke-width', 2.2)
+        .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+        .attr('opacity', 1)
+        .style('pointer-events', 'none');
+
+      // 4. White-Hot Energy Filament Core
+      g.append('path').datum(s.trail)
+        .attr('d', line).attr('fill', 'none')
+        .attr('stroke', '#ffffff').attr('stroke-width', 0.8)
+        .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+        .attr('opacity', 0.5)
+        .style('pointer-events', 'none');
+    } else {
+      // Light Mode: Vibrant crisp lines with soft shadow
+      g.append('path').datum(s.trail)
+        .attr('d', line).attr('fill', 'none')
+        .attr('stroke', color).attr('stroke-width', 3.5)
+        .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+        .attr('opacity', 0.35)
+        .style('pointer-events', 'none');
+
+      g.append('path').datum(s.trail)
+        .attr('d', line).attr('fill', 'none')
+        .attr('stroke', color).attr('stroke-width', 2.2)
+        .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+        .attr('opacity', 1)
+        .style('pointer-events', 'none');
+    }
+
+    // Interactive Invisible Hit Area
+    g.append('path').datum(s.trail)
+      .attr('d', line).attr('fill', 'none')
+      .attr('stroke', 'transparent').attr('stroke-width', 16)
+      .style('cursor', 'pointer');
 
     s.trail.forEach(function (p, i) {
       var isLast = i === s.trail.length - 1;
-      g.append('circle')
-        .attr('cx', x(p.x)).attr('cy', y(p.y)).attr('r', isLast ? 5 : 2.5)
-        .attr('fill', color).attr('stroke', isLast ? (isDark ? '#0b0d12' : '#fff') : 'none').attr('stroke-width', isLast ? 1.5 : 0)
-        .style('cursor', 'pointer')
-        .on('mouseover', function (event) {
-          tooltip.style('opacity', 1).html(
-            '<div class="brt-title">' + (s.name || s.code) + '</div>'
-            + '<div class="brt-body">' + p.date + '</div>'
-            + '<div class="brt-body">RS-Ratio: ' + p.x.toFixed(1) + ' · RS-Momentum: ' + p.y.toFixed(1) + '</div>'
-          );
-        })
-        .on('mousemove', function (event) {
-          var rect = wrap.getBoundingClientRect();
-          tooltip.style('left', (event.clientX - rect.left + 12) + 'px').style('top', (event.clientY - rect.top - 10) + 'px');
-        })
-        .on('mouseout', function () { tooltip.style('opacity', 0); });
+      if (isLast) {
+        if (isDark) {
+          // Outer glowing ripple halo for head
+          g.append('circle')
+            .attr('cx', x(p.x)).attr('cy', y(p.y)).attr('r', 9)
+            .attr('fill', color).attr('opacity', 0.28)
+            .style('filter', 'url(#rrg-dot-glow)');
+          g.append('circle')
+            .attr('cx', x(p.x)).attr('cy', y(p.y)).attr('r', 7.5)
+            .attr('fill', 'none').attr('stroke', color).attr('stroke-width', 1.5).attr('opacity', 0.75);
+        }
+        g.append('circle')
+          .attr('cx', x(p.x)).attr('cy', y(p.y)).attr('r', 5)
+          .attr('fill', color)
+          .attr('stroke', isDark ? '#ffffff' : '#0b0d12')
+          .attr('stroke-width', 1.8)
+          .style('cursor', 'pointer')
+          .on('mouseover', function () {
+            tooltip.style('opacity', 1).html(
+              '<div class="brt-title" style="color:' + color + '">' + (s.name || s.code) + '</div>'
+              + '<div class="brt-body">' + p.date + '</div>'
+              + '<div class="brt-body">RS-Ratio: <strong>' + p.x.toFixed(1) + '</strong> · RS-Momentum: <strong>' + p.y.toFixed(1) + '</strong></div>'
+            );
+          })
+          .on('mousemove', function (event) {
+            var rect = wrap.getBoundingClientRect();
+            tooltip.style('left', (event.clientX - rect.left + 12) + 'px').style('top', (event.clientY - rect.top - 10) + 'px');
+          })
+          .on('mouseout', function () { tooltip.style('opacity', 0); });
+      } else {
+        g.append('circle')
+          .attr('cx', x(p.x)).attr('cy', y(p.y)).attr('r', isDark ? 2.8 : 2.5)
+          .attr('fill', color)
+          .attr('stroke', isDark ? '#ffffff' : 'none')
+          .attr('stroke-width', isDark ? 0.7 : 0)
+          .attr('opacity', 0.95)
+          .style('cursor', 'pointer')
+          .on('mouseover', function () {
+            tooltip.style('opacity', 1).html(
+              '<div class="brt-title" style="color:' + color + '">' + (s.name || s.code) + '</div>'
+              + '<div class="brt-body">' + p.date + '</div>'
+              + '<div class="brt-body">RS-Ratio: <strong>' + p.x.toFixed(1) + '</strong> · RS-Momentum: <strong>' + p.y.toFixed(1) + '</strong></div>'
+            );
+          })
+          .on('mousemove', function (event) {
+            var rect = wrap.getBoundingClientRect();
+            tooltip.style('left', (event.clientX - rect.left + 12) + 'px').style('top', (event.clientY - rect.top - 10) + 'px');
+          })
+          .on('mouseout', function () { tooltip.style('opacity', 0); });
+      }
     });
 
     var last = s.trail[s.trail.length - 1];
-    g.append('text')
-      .attr('x', x(last.x) + 8).attr('y', y(last.y) + 3)
-      .attr('font-size', 10).attr('font-weight', 700).attr('fill', color)
+    var textX = x(last.x) + 8;
+    var textY = y(last.y) + 3.5;
+    var labelG = g.append('g').style('cursor', 'pointer');
+    if (isDark) {
+      labelG.append('text')
+        .attr('x', textX).attr('y', textY)
+        .attr('font-size', 10.5).attr('font-weight', 800).attr('font-family', 'var(--font-mono, monospace)')
+        .attr('fill', color).attr('stroke', color).attr('stroke-width', 2.5).attr('stroke-linejoin', 'round')
+        .attr('opacity', 0.6)
+        .text(s.code);
+    }
+    labelG.append('text')
+      .attr('x', textX).attr('y', textY)
+      .attr('font-size', 10.5).attr('font-weight', 800).attr('font-family', 'var(--font-mono, monospace)')
+      .attr('fill', isDark ? '#ffffff' : color)
+      .style('text-shadow', isDark ? ('0 0 6px ' + color + ', 0 0 12px ' + color) : 'none')
       .text(s.code);
   });
 
