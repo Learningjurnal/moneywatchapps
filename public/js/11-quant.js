@@ -820,15 +820,22 @@ function runBacktest(){
       } else if(sig.type==='SELL'&&shares>0){
         var sPx=sellFillPx(close[sig.i]);
         var proceeds=shares*sPx*(1-comm-0.001); // komisi + PPh jual 0.1%
-        var pnl=proceeds-shares*entryP2*(1+comm);
-        txLog.push({entry:dates[entryIdx],exit:dates[sig.i],entryP:entryP2,exitP:sPx,dur:sig.i-entryIdx,ret:(sPx-entryP2)/entryP2*100,pnl:pnl});
+        var buyCost=shares*entryP2*(1+comm);
+        var pnl=proceeds-buyCost;
+        var netRet=buyCost>0?(pnl/buyCost)*100:0;
+        txLog.push({entry:dates[entryIdx],exit:dates[sig.i],entryP:entryP2,exitP:sPx,dur:sig.i-entryIdx,ret:netRet,pnl:pnl});
         cash+=proceeds;shares=0;
       }
     });
     // Liquidate at end
     if(shares>0){
       var lp=sellFillPx(close[close.length-1]);
-      cash+=shares*lp*(1-comm-0.001);shares=0;
+      var endProceeds=shares*lp*(1-comm-0.001);
+      var endBuyCost=shares*entryP2*(1+comm);
+      var endPnl=endProceeds-endBuyCost;
+      var endNetRet=endBuyCost>0?(endPnl/endBuyCost)*100:0;
+      txLog.push({entry:dates[entryIdx],exit:dates[dates.length-1],entryP:entryP2,exitP:lp,dur:(close.length-1)-entryIdx,ret:endNetRet,pnl:endPnl});
+      cash+=endProceeds;shares=0;
     }
 
     // Build equity curve
@@ -855,28 +862,29 @@ function runBacktest(){
       monthMap[ym] = {close:close[i], date:dt};
     });
 
-    // DD
-    var eqFull = close.map(function(c,i){
-      var runC2 = capital, runS2 = 0;
-      signals.forEach(function(sig){
-        if(sig.i <= i){
-          if(sig.type==='BUY'&&runC2>0){var bPx3=buyFillPx(close[sig.i]);var sh2=Math.floor(runC2/(bPx3*100))*100;if(sh2>0){runC2-=sh2*bPx3*(1+comm);runS2=sh2;}}
-          else if(sig.type==='SELL'&&runS2>0){var sPx3=sellFillPx(close[sig.i]);runC2+=runS2*sPx3*(1-comm-0.001);runS2=0;}
-        }
-      });
-      return runC2+(runS2*c);
-    });
-
-    var ddFull = eqFull.map(function(v,i){
-      if(v>peak2) peak2=v;
-      return (v-peak2)/peak2*100;
-    });
+    // DD & Equity Curve (Single-pass linear O(N) forward simulation)
+    var sigIdx = 0;
+    var runC2 = capital, runS2 = 0;
     var peak2 = capital;
-    // re-calc dd properly
-    peak2 = capital;
-    ddFull = eqFull.map(function(v){
-      if(v>peak2)peak2=v;
-      return (v-peak2)/peak2*100;
+    var ddFull = [];
+    var eqFull = close.map(function(c, i){
+      while(sigIdx < signals.length && signals[sigIdx].i === i){
+        var sig = signals[sigIdx];
+        if(sig.type === 'BUY' && runC2 > 0){
+          var bPx3 = buyFillPx(close[sig.i]);
+          var sh2 = Math.floor(runC2 / (bPx3 * 100)) * 100;
+          if(sh2 > 0){ runC2 -= sh2 * bPx3 * (1 + comm); runS2 = sh2; }
+        } else if(sig.type === 'SELL' && runS2 > 0){
+          var sPx3 = sellFillPx(close[sig.i]);
+          runC2 += runS2 * sPx3 * (1 - comm - 0.001);
+          runS2 = 0;
+        }
+        sigIdx++;
+      }
+      var eqVal = runC2 + (runS2 * c);
+      if(eqVal > peak2) peak2 = eqVal;
+      ddFull.push((eqVal - peak2) / peak2 * 100);
+      return eqVal;
     });
     var minDD = Math.min.apply(null, ddFull);
 
