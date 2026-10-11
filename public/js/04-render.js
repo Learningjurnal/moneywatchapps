@@ -1076,7 +1076,7 @@ function renderDividen(){
     // sendiri yang beradaptasi ke tema aktif + font-weight bold, tanpa
     // mengubah TC global (dipakai banyak chart lain di luar cakupan ini).
     var divProjTickColor = typeof _chartTextColor === 'function' ? _chartTextColor('--text2','#D2D8DF') : '#D2D8DF';
-    var divProjTick = { color: divProjTickColor, font: { family: '"Fira Code","Public Sans",monospace', size: 9, weight: 'bold' } };
+    var divProjTick = { color: divProjTickColor, font: { family: '"Fira Code",monospace', size: 9, weight: 'bold' } };
     charts['divProj'] = new Chart(cvP, {type:'line',
       data:{labels:projYears.map(String),datasets:[
         {data:projVals, borderColor:'#41f3a7', borderWidth:2, fill:true, tension:.4, pointRadius:4,

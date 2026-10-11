@@ -28,7 +28,7 @@
 | Lapisan Sistem | Komponen & Teknologi | Peran & Keunggulan |
 |---|---|---|
 | **Front-End Architecture** | Vanilla JavaScript (Modular ES6+ / Native DOM) | 45 modul terpisah (`public/js/*.js`) tanpa bloatware framework. Rendering instan, zero hydration delay, di-route via `06-analysis-router.js`. |
-| **Styling & Design System** | Tailwind CSS + Institutional CSS Variables | `main.css` & `wealth.css` dengan dukungan Dark Mode/Light Mode instan, tipografi finansial tabular (*Public Sans*, *Inter*, *Fira Code*). |
+| **Styling & Design System** | Tailwind CSS + Institutional CSS Variables | `main.css` & `wealth.css` dengan dukungan Dark Mode/Light Mode instan, tipografi finansial tabular (*Plus Jakarta Sans*, *Inter*, *Fira Code*). |
 | **Visualisasi Finansial** | Chart.js 4.4.1, TradingView Lightweight Charts, D3.js v7 | Candlestick interaktif, Pita 4-EMA, pita Bollinger, profil volume, diagram Sankey aliran broker, matriks korelasi, dan ekspor PDF via `html2pdf.js`. |
 | **Client-Side AI/ML Inference** | `onnxruntime-web` | Inferensi model sinyal XGBoost (dilatih via `ml/train_xgb_signal.py`) dieksekusi 100% lokal di browser pengguna tanpa latensi API server. |
 | **Back-End Server & Proxy** | Node.js + Express.js (`server.js`) | API Gateway data pasar, proxy data terenkripsi, canonical financial engine, auto-warming cache, dan eksekutor tool-calling AI. |

@@ -1752,7 +1752,7 @@ function renderStockDossierPage(targetTicker) {
   html += '  <div>';
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(15,105,255,0.08) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(15,105,255,0.22);border-left:3px solid var(--blue);border-radius:8px">';
   html += '      <div>';
-  html += '        <div style="font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
+  html += '        <div style="font-family:var(--font-display);font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
   html += '          <i class="ti ti-building-bank" style="color:var(--blue);font-size:15px"></i> 1. DATA UTAMA (HARGA &amp; KINERJA EMITEN)';
   html += '        </div>';
   html += '        <div style="font-size:11px;color:var(--text3);margin-top:2px">Faktor internal: valuasi fundamental, momentum teknikal, dan profitabilitas bisnis.</div>';
@@ -1801,7 +1801,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="display:flex;align-items:center;gap:10px">';
   html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:18px;flex-shrink:0"><i class="ti ti-scale"></i></div>';
   html += '          <div>';
-  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Valuasi &amp; Harga Wajar (Graham/DCF)</div>';
+  html += '            <div style="font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-0.01em;color:var(--text);line-height:1.2">Valuasi &amp; Harga Wajar (Graham/DCF)</div>';
   html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
   html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.valuation + '%</span>';
   html += '              ' + dossierRenderStatusBadge(vp);
@@ -1883,7 +1883,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="display:flex;align-items:center;gap:10px">';
   html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:18px;flex-shrink:0"><i class="ti ti-chart-candle"></i></div>';
   html += '          <div>';
-  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Momentum &amp; Analisis Teknikal</div>';
+  html += '            <div style="font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-0.01em;color:var(--text);line-height:1.2">Momentum &amp; Analisis Teknikal</div>';
   html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
   html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.technical + '%</span>';
   html += '              ' + dossierRenderStatusBadge(tp);
@@ -1969,7 +1969,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="display:flex;align-items:center;gap:10px">';
   html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:18px;flex-shrink:0"><i class="ti ti-coins"></i></div>';
   html += '          <div>';
-  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Profitabilitas &amp; Dividen</div>';
+  html += '            <div style="font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-0.01em;color:var(--text);line-height:1.2">Profitabilitas &amp; Dividen</div>';
   html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
   html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.fundamental + '%</span>';
   html += '              ' + dossierRenderStatusBadge(fp);
@@ -2022,7 +2022,7 @@ function renderStockDossierPage(targetTicker) {
   html += '  <div>';
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(139,92,246,0.08) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(139,92,246,0.22);border-left:3px solid #8b5cf6;border-radius:8px">';
   html += '      <div>';
-  html += '        <div style="font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
+  html += '        <div style="font-family:var(--font-display);font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
   html += '          <i class="ti ti-waves" style="color:#8b5cf6;font-size:15px"></i> 2. SUPPORTING (FAKTOR EKSTERNAL &amp; PASAR)';
   html += '        </div>';
   html += '        <div style="font-size:11px;color:var(--text3);margin-top:2px">Faktor eksternal: akumulasi broker bandar, kepemilikan KSEI, dan iklim IHSG.</div>';
@@ -2072,7 +2072,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="display:flex;align-items:center;gap:10px">';
   html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;color:#8b5cf6;font-size:18px;flex-shrink:0"><i class="ti ti-radar"></i></div>';
   html += '          <div>';
-  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Smart Money &amp; Broker Flow</div>';
+  html += '            <div style="font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-0.01em;color:var(--text);line-height:1.2">Smart Money &amp; Broker Flow</div>';
   html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
   html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.smartMoney + '%</span>';
   html += '              ' + dossierRenderStatusBadge(sm);
@@ -2115,7 +2115,7 @@ function renderStockDossierPage(targetTicker) {
     var accumBorder = isSimAccum ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)';
     var accumTitleColor = isSimAccum ? '#f59e0b' : 'var(--green)';
     var accumTitleIcon = isSimAccum ? 'ti ti-flask' : 'ti ti-users';
-    var accumTitleText = isSimAccum ? 'Broker Akumulator (Simulasi)' : 'Broker Akumulator Teratas';
+    var accumTitleText = isSimAccum ? 'Broker Akumulator (Simulasi Model):' : 'Broker Akumulator Teratas:';
 
     html += '      <div style="margin-bottom:10px;padding:8px 10px;background:' + accumBg + ';border:1px solid ' + accumBorder + ';border-radius:6px">';
     html += '        <div style="font-size:9.5px;font-weight:800;color:' + accumTitleColor + ';text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">';
@@ -2184,7 +2184,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="display:flex;align-items:center;gap:10px">';
   html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;color:#8b5cf6;font-size:18px;flex-shrink:0"><i class="ti ti-shield-check"></i></div>';
   html += '          <div>';
-  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Kepemilikan Kustodian KSEI</div>';
+  html += '            <div style="font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-0.01em;color:var(--text);line-height:1.2">Kepemilikan Kustodian KSEI</div>';
   html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
   html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.ksei + '%</span>';
   html += '              ' + dossierRenderStatusBadge(kp);
@@ -2282,7 +2282,7 @@ function renderStockDossierPage(targetTicker) {
   html += '        <div style="display:flex;align-items:center;gap:10px">';
   html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;color:#8b5cf6;font-size:18px;flex-shrink:0"><i class="ti ti-compass"></i></div>';
   html += '          <div>';
-  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Market Regime IHSG &amp; AI</div>';
+  html += '            <div style="font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:-0.01em;color:var(--text);line-height:1.2">Market Regime IHSG &amp; AI</div>';
   html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
   html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.regime + '%</span>';
   html += '              ' + dossierRenderStatusBadge(rp);
@@ -2306,8 +2306,7 @@ function renderStockDossierPage(targetTicker) {
   html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:' + rpRegimeColor + ';margin-top:2px">' + rpRegimeStr + '</div>';
   html += '        </div>';
   html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
-  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Confidence AI</div>';
-  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + rpConfStr + '</div>';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px"><span style="color:var(--text3)">Confidence:</span> <b style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);display:block;margin-top:2px">' + rpConfStr + '</b></div>';
   html += '        </div>';
   html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
   html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Status Pasar</div>';
@@ -2349,7 +2348,7 @@ function renderStockDossierPage(targetTicker) {
   ].forEach(function(t) {
     var isActive = dossierState.activeTab === t.id;
     html += '    <button class="dossier-tab-btn ' + (isActive ? 'active' : '') + '" data-tab="' + t.id + '" onclick="dossierSwitchTab(\'' + t.id + '\')" ';
-    html += '      style="padding:12px 18px;font-size:12px;font-weight:700;border:none;background:transparent;color:' + (isActive ? 'var(--blue)' : 'var(--text2)') + ';border-bottom:2px solid ' + (isActive ? 'var(--blue)' : 'transparent') + ';cursor:pointer;white-space:nowrap">';
+    html += '      style="padding:12px 18px;font-family:var(--font-display);font-size:12px;font-weight:700;letter-spacing:0.2px;border:none;background:transparent;color:' + (isActive ? 'var(--blue)' : 'var(--text2)') + ';border-bottom:2px solid ' + (isActive ? 'var(--blue)' : 'transparent') + ';cursor:pointer;white-space:nowrap">';
     html += '      ' + t.label;
     html += '    </button>';
   });
@@ -2360,12 +2359,12 @@ function renderStockDossierPage(targetTicker) {
 
   // ── TAB: OVERVIEW ──
   html += '    <div class="dossier-tab-pane" data-tab="overview" style="display:' + (dossierState.activeTab === 'overview' ? 'block' : 'none') + '">';
-  html += '      <h4 style="font-size:14px;font-weight:800;color:var(--text);margin:0 0 12px 0">Ringkasan Eksekutif &amp; Tesis Investasi</h4>';
+  html += '      <h4 style="font-family:var(--font-display);font-size:15px;font-weight:800;letter-spacing:-0.02em;color:var(--text);margin:0 0 12px 0">Ringkasan Eksekutif &amp; Tesis Investasi</h4>';
   html += '      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
 
   // Bull Case Box
   html += '        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:14px">';
-  html += '          <div style="font-size:12px;font-weight:800;color:var(--green);margin-bottom:6px"><i class="ti ti-trending-up"></i> FAKTOR PENDORONG (BULL CASE)</div>';
+  html += '          <div style="font-family:var(--font-display);font-size:12px;font-weight:800;letter-spacing:0.2px;color:var(--green);margin-bottom:6px"><i class="ti ti-trending-up"></i> FAKTOR PENDORONG (BULL CASE)</div>';
   html += '          <ul style="margin:0;padding-left:18px;font-size:11px;color:var(--text2);line-height:1.6">';
   if (res.pillars.valuation.available && res.pillars.valuation.mosPct > 10) {
     html += '            <li>Margin of Safety positif (+' + res.pillars.valuation.mosPct.toFixed(1) + '%), harga saat ini berada di bawah estimasi nilai intrinsik.</li>';
@@ -2388,7 +2387,7 @@ function renderStockDossierPage(targetTicker) {
 
   // Bear Case / Risks Box
   html += '        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:14px">';
-  html += '          <div style="font-size:12px;font-weight:800;color:var(--red);margin-bottom:6px"><i class="ti ti-alert-circle"></i> FAKTOR RISIKO &amp; INVALIDASI</div>';
+  html += '          <div style="font-family:var(--font-display);font-size:12px;font-weight:800;letter-spacing:0.2px;color:var(--red);margin-bottom:6px"><i class="ti ti-alert-circle"></i> FAKTOR RISIKO &amp; INVALIDASI</div>';
   html += '          <ul style="margin:0;padding-left:18px;font-size:11px;color:var(--text2);line-height:1.6">';
   if (res.pillars.valuation.available && res.pillars.valuation.mosPct < -15) {
     html += '            <li>Valuasi relatif premium/overvalued (MoS: ' + res.pillars.valuation.mosPct.toFixed(1) + '%).</li>';

@@ -258,11 +258,22 @@ fsGenData = function(tk, days){
 // Backtester/Screener/Pairs/Monthly Returns hemat request.
 var _qtFetchOrig = qtFetchOHLCV;
 qtFetchOHLCV = function(tk, rangeDays, cb){
-  var rows = rdGet(String(tk).toUpperCase());
+  var cleanTk = String(tk || '').toUpperCase().replace(/\.JK$/i, '').trim();
+  var rows = rdGet(cleanTk);
   if(rows && rangeDays <= 380){
     try{
       el('bt-data-status') && (el('bt-data-status').textContent = '✅ Data riil (cache hari ini): '+rows.length+' hari');
-      el('bt-src-label') && (el('bt-src-label').textContent = '● LIVE Yahoo (cache)', el('bt-src-label').style.color = 'var(--green)');
+      if(typeof btUpdateDataSrc === 'function'){
+        btUpdateDataSrc(cleanTk, rows, '● LIVE Yahoo (cache)', 'var(--green)');
+      } else {
+        el('bt-src-label') && (el('bt-src-label').textContent = '● LIVE Yahoo (cache)', el('bt-src-label').style.color = 'var(--green)');
+        el('bt-src-ticker') && (el('bt-src-ticker').textContent = cleanTk + '.JK');
+        el('bt-src-count') && (el('bt-src-count').textContent = rows.length + ' baris');
+        if(rows.length){
+          el('bt-src-date') && (el('bt-src-date').textContent = rows[rows.length-1].date);
+          el('bt-src-price') && (el('bt-src-price').textContent = 'Rp ' + Math.round(rows[rows.length-1].close).toLocaleString('id-ID'));
+        }
+      }
     }catch(e){}
     cb(null, rows.slice());
     return;

@@ -2420,13 +2420,11 @@ var _centerTextPlugin = {
     var y = (chart.chartArea.top+chart.chartArea.bottom)/2;
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    // Font sebelumnya "Menlo" + bottom text #8a90ad tipis (dilaporkan user
-    // 2026-09-13, konsisten dengan chart lain) — ganti font ke Fira Code/
-    // Public Sans (font asli aplikasi) + warna bottom text theme-aware.
-    ctx.font = '700 20px "Fira Code","Public Sans",monospace';
+    // Konsisten dengan chart lain — font tabular Fira Code monospace + warna bottom text theme-aware.
+    ctx.font = '700 20px "Fira Code",monospace';
     ctx.fillStyle = opt.color || '#f5f5fa';
     ctx.fillText(opt.top, x, y-9);
-    ctx.font = '700 9px "Fira Code","Public Sans",monospace';
+    ctx.font = '700 9px "Fira Code",monospace';
     ctx.fillStyle = typeof _chartTextColor === 'function' ? _chartTextColor('--text2', '#D2D8DF') : '#D2D8DF';
     ctx.fillText(opt.bottom, x, y+10);
     ctx.restore();

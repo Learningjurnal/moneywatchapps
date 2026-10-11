@@ -51,13 +51,13 @@ arbitrary "too many colors" violation (R-29 exempts industry-semantic color).
 
 ## Typography
 
-- UI text: `Inter` (`main.css:124`). Chosen for legibility at small sizes
-  across a data-dense interface, not as an unexamined AI default — this app
-  runs almost entirely at 10-13px.
-- Numeric/data values and the landing page's "telemetry" flavor text: monospace
-  (`var(--font-mono)`, `ui-monospace`/`SFMono-Regular`/`Menlo` stack). Reserved
-  for values and status readouts, matching a real trading-terminal convention
-  (ticker tapes, HUDs) — not decoration.
+Strict 3-Font System (maksimal 3 font famili):
+1. **Headings & Brand Display**: `Plus Jakarta Sans` (`--font-display`). Weights: 500, 600, 700, 800.
+   Digunakan untuk semua judul halaman (`.ptitle`), kartu analisis (`.ctitle`, `.card-title`), dan elemen `h1`–`h6` dengan letter-spacing rapat (`-0.02em` s/d `-0.01em`) untuk estetika institusional modern.
+2. **UI Body & Labels**: `Inter` (`--font-body`). Weights: 400, 500, 600, 700.
+   Dipilih untuk keterbacaan netral pada ukuran teks kecil (10–13px) di antarmuka tabel, form input, modal, dan navigasi aplikasi.
+3. **Tabular Data & Monospace**: `Fira Code` (`--font-mono`). Weights: 400, 500, 600, 700.
+   Dikhususkan untuk angka kuantitatif, kode ticker bursa, nilai harga, persentase, telemetry HUD, dan sumbu grafik (Chart.js ticks) guna menjamin keselarasan angka tabular (tabular-nums).
 
 ## Icons
 

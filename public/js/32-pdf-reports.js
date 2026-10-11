@@ -763,7 +763,7 @@ function printPdfReport() {
   if (printWin) {
     printWin.document.write('<!DOCTYPE html><html><head><title>Laporan Konsolidasi Finansial Terpadu — Money Watch</title>'
       + '<base href="' + (window.location.origin + window.location.pathname) + '">'
-      + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">'
+      + '<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Fira+Code:wght@500;700&display=swap" rel="stylesheet">'
       + '<style>@page{size:A4 portrait;margin:8mm}body{margin:0;padding:0;background:#fff;font-family:\'Inter\',sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>'
       + '</head><body>' + htmlContent + '</body></html>');
     printWin.document.close();
