@@ -9730,6 +9730,16 @@ await asyncTest('REGRESSION GUARD: loadBaseUniverse() has zero "Lainnya" entries
   assert.strictEqual(lainnya.length, 0, 'REGRESSION: loadBaseUniverse() now has tickers stuck at the generic "Lainnya" sector: ' + lainnya.join(', '));
 });
 
+await asyncTest('REGRESSION GUARD: PRDL ticker maps to Prodia Diagnostic Line Tbk PT in Healthcare, not Pratama Abadi Nusa', async () => {
+  const universeModule = await import('./lib/universe.js');
+  const universe = universeModule.loadBaseUniverse();
+  const prdl = universe['PRDL'];
+  assert(prdl, 'PRDL must exist in universe');
+  assert.strictEqual(prdl.name, 'Prodia Diagnostic Line Tbk PT', 'PRDL must be named Prodia Diagnostic Line Tbk PT per official BEI data');
+  assert.strictEqual(prdl.sector, 'Healthcare', 'PRDL must be in Healthcare sector');
+  assert(!prdl.name.includes('Pratama Abadi'), 'PRDL must never be confused with Pratama Abadi Nusa (the former name of PANI)');
+});
+
 // ============================================================
 // FEATURE (2026-09-26, user request: "perbaiki sop trading di knowledge
 // dulu, buatkan contoh konkrit analisis agar user mudah mengerti proses
