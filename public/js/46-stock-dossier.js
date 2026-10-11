@@ -1748,202 +1748,584 @@ function renderStockDossierPage(targetTicker) {
   html += '<div class="dossier-split-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px, 100%), 1fr));gap:20px;margin-bottom:24px;align-items:start">';
 
   // 1. DATA UTAMA (HARGA SAHAM & PERFORMA BISNIS PERUSAHAAN)
+  var wUtama = (res.weightsUsed.valuation || 0) + (res.weightsUsed.technical || 0) + (res.weightsUsed.fundamental || 0);
   html += '  <div>';
-  html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px">';
+  html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(15,105,255,0.08) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(15,105,255,0.22);border-left:3px solid var(--blue);border-radius:8px">';
   html += '      <div>';
-  html += '        <div style="font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px">';
-  html += '          <i class="ti ti-building-bank" style="color:var(--blue)"></i> 1. DATA UTAMA (HARGA &amp; KINERJA EMITEN)';
+  html += '        <div style="font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
+  html += '          <i class="ti ti-building-bank" style="color:var(--blue);font-size:15px"></i> 1. DATA UTAMA (HARGA &amp; KINERJA EMITEN)';
   html += '        </div>';
-  html += '        <div style="font-size:10.5px;color:var(--text3);margin-top:2px">Faktor internal: valuasi fundamental, momentum teknikal, dan profitabilitas.</div>';
+  html += '        <div style="font-size:11px;color:var(--text3);margin-top:2px">Faktor internal: valuasi fundamental, momentum teknikal, dan profitabilitas bisnis.</div>';
   html += '      </div>';
-  html += '      <span class="badge" style="background:var(--bg2);border:1px solid var(--border);color:var(--text2);font-weight:800;font-size:10px">BOBOT ' + (res.weightsUsed.valuation + res.weightsUsed.technical + res.weightsUsed.fundamental) + '%</span>';
+  html += '      <span class="badge" style="background:rgba(15,105,255,0.15);border:1px solid rgba(15,105,255,0.3);color:var(--text);font-weight:800;font-size:10px;padding:3px 8px;letter-spacing:0.5px">BOBOT ' + wUtama + '%</span>';
   html += '    </div>';
 
   // 1.1 Card: Valuasi & Harga Wajar
   var vp = res.pillars.valuation || {};
   var vpAvail = vp.available === true;
+  var vpScoreVal = (vpAvail && typeof vp.score === 'number') ? vp.score : null;
   var vpScoreColor = vpAvail ? (vp.score >= 75 ? 'var(--green)' : (vp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  var vpMosColor = (vp.mosPct !== null) ? (vp.mosPct >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
-  html += '      onclick="dossierSwitchTab(\'valuation\')" onmouseover="this.style.borderColor=\'var(--blue)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
-  html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-scale" style="color:var(--blue)"></i> Valuasi &amp; Harga Wajar (Graham/DCF)</div>';
-  html += '        <div style="display:flex;align-items:center;gap:4px">';
-  html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.valuation + '%</span>';
-  html += '          ' + dossierRenderStatusBadge(vp);
+  var vpMosColor = (vp.mosPct !== null && vp.mosPct !== undefined) ? (vp.mosPct >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
+  var vpMosStr = (vp.mosPct !== null && vp.mosPct !== undefined) ? (vp.mosPct > 0 ? '+' : '') + vp.mosPct.toFixed(1) + '%' : '-';
+  var vpFairValStr = vp.fairValue ? 'Rp ' + Math.round(vp.fairValue).toLocaleString('id-ID') : '-';
+  var vpPerStr = (vp.per !== null && vp.per !== undefined) ? vp.per.toFixed(1) + 'x' : ((quote.fundamentals && quote.fundamentals.per) ? quote.fundamentals.per.toFixed(1) + 'x' : '-');
+  var vpPbvStr = (vp.pbv !== null && vp.pbv !== undefined) ? vp.pbv.toFixed(2) + 'x' : ((quote.fundamentals && quote.fundamentals.pbv) ? quote.fundamentals.pbv.toFixed(2) + 'x' : '-');
+
+  var vpInsight = 'Data valuasi tidak tersedia';
+  var vpInsightIcon = 'ti ti-info-circle';
+  var vpInsightColor = 'var(--text3)';
+  if (vpAvail) {
+    if (vp.mosPct !== null && vp.mosPct >= 20) {
+      vpInsight = 'Undervalued: Harga terdiskon ' + vpMosStr + ' dari estimasi harga wajar';
+      vpInsightIcon = 'ti ti-rosette-discount-check';
+      vpInsightColor = 'var(--green)';
+    } else if (vp.mosPct !== null && vp.mosPct >= 0) {
+      vpInsight = 'Fair Value: Harga berada dekat rentang nilai wajar wajar (' + vpMosStr + ')';
+      vpInsightIcon = 'ti ti-check';
+      vpInsightColor = 'var(--blue)';
+    } else if (vp.mosPct !== null) {
+      vpInsight = 'Overvalued: Harga melampaui estimasi nilai wajar (' + vpMosStr + ')';
+      vpInsightIcon = 'ti ti-alert-triangle';
+      vpInsightColor = 'var(--amber)';
+    } else {
+      vpInsight = 'Valuasi terestimasi via PER ' + vpPerStr + ' & PBV ' + vpPbvStr;
+      vpInsightIcon = 'ti ti-scale';
+      vpInsightColor = 'var(--text2)';
+    }
+  }
+
+  html += '    <div class="card" style="padding:16px 18px;border:1px solid var(--border);background:var(--bg2);margin-bottom:14px;border-radius:10px;cursor:pointer;transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s" ';
+  html += '      onclick="dossierSwitchTab(\'valuation\')" onmouseover="this.style.borderColor=\'var(--blue)\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 18px rgba(0,0,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\';this.style.boxShadow=\'none\'">';
+  // Card Header Row
+  html += '      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">';
+  html += '        <div style="display:flex;align-items:center;gap:10px">';
+  html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:18px;flex-shrink:0"><i class="ti ti-scale"></i></div>';
+  html += '          <div>';
+  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Valuasi &amp; Harga Wajar (Graham/DCF)</div>';
+  html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
+  html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.valuation + '%</span>';
+  html += '              ' + dossierRenderStatusBadge(vp);
+  html += '            </div>';
+  html += '          </div>';
+  html += '        </div>';
+  html += '        <div style="text-align:right;flex-shrink:0">';
+  html += '          <div style="display:inline-flex;align-items:baseline;gap:2px">';
+  html += '            <span style="font-family:var(--font-mono);font-size:22px;font-weight:900;color:' + vpScoreColor + ';line-height:1">' + (vpScoreVal !== null ? vpScoreVal : '-') + '</span>';
+  html += '            ' + (vpAvail ? '<span style="font-size:11px;color:var(--text3);font-weight:600">/100</span>' : '');
+  html += '          </div>';
+  html += '          <div style="width:58px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin:4px 0 0 auto">';
+  html += '            <div style="width:' + (vpScoreVal !== null ? Math.min(100, Math.max(0, vpScoreVal)) : 0) + '%;height:100%;background:' + vpScoreColor + '"></div>';
+  html += '          </div>';
   html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
-  html += '        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:' + vpScoreColor + '">' + (vpAvail && typeof vp.score === 'number' ? vp.score : '-') + (vpAvail ? '<span style="font-size:11px;color:var(--text3)">/100</span>' : '') + '</div>';
-  html += '        <div style="font-size:11px;color:var(--blue);font-weight:700">Detail &rarr;</div>';
+  // 4-Metric Grid
+  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Nilai Intrinsik</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + vpFairValStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Margin of Safety</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:' + vpMosColor + ';margin-top:2px">' + vpMosStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">P/E Ratio</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + vpPerStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">P/B Ratio</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + vpPbvStr + '</div>';
+  html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Nilai Intrinsik:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (vp.fairValue ? 'Rp ' + Math.round(vp.fairValue).toLocaleString('id-ID') : '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Margin of Safety:</span> <b style="font-family:var(--font-mono);color:' + vpMosColor + '">' + (vp.mosPct !== null ? (vp.mosPct > 0 ? '+' : '') + vp.mosPct.toFixed(1) + '%' : '-') + '</b></div>';
+  // Footer
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px">';
+  html += '        <div style="color:' + vpInsightColor + ';display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 75px)">';
+  html += '          <i class="' + vpInsightIcon + '" style="flex-shrink:0"></i>';
+  html += '          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + vpInsight + '</span>';
+  html += '        </div>';
+  html += '        <div style="font-size:11px;color:var(--blue);font-weight:700;display:inline-flex;align-items:center;gap:3px;flex-shrink:0">Detail &rarr;</div>';
   html += '      </div>';
-  html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (vp.reason || 'Data valuasi tidak tersedia.') + '</div>';
   html += '    </div>';
 
   // 1.2 Card: Momentum & Analisis Teknikal
   var tp = res.pillars.technical || {};
   var tpAvail = tp.available === true;
+  var tpScoreVal = (tpAvail && typeof tp.score === 'number') ? tp.score : null;
   var tpScoreColor = tpAvail ? (tp.score >= 75 ? 'var(--green)' : (tp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
-  html += '      onclick="dossierSwitchTab(\'technical\')" onmouseover="this.style.borderColor=\'var(--blue)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
-  html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-chart-candle" style="color:var(--blue)"></i> Momentum &amp; Analisis Teknikal</div>';
-  html += '        <div style="display:flex;align-items:center;gap:4px">';
-  html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.technical + '%</span>';
-  html += '          ' + dossierRenderStatusBadge(tp);
+  var tpRsiColor = tp.rsi !== null ? (tp.rsi >= 70 ? 'var(--red)' : (tp.rsi <= 30 ? 'var(--green)' : 'var(--text)')) : 'var(--text3)';
+  var tpTrendClean = tp.trend ? tp.trend.split('(')[0].trim() : '-';
+  var tpMaStatus = (tp.ema20 && price > 0) ? (price > tp.ema20 ? 'Price > EMA20' : 'Price < EMA20') : '-';
+  var tpVolStr = tp.volumeSpike !== null && tp.volumeSpike !== undefined ? tp.volumeSpike + 'x Baseline' : '-';
+
+  var tpInsight = 'Data teknikal tidak tersedia';
+  var tpInsightIcon = 'ti ti-info-circle';
+  var tpInsightColor = 'var(--text3)';
+  if (tpAvail) {
+    if (tp.score >= 75) {
+      tpInsight = 'Bullish Momentum: Struktur tren kuat di atas rata-rata pergerakan EMA';
+      tpInsightIcon = 'ti ti-trending-up';
+      tpInsightColor = 'var(--green)';
+    } else if (tp.score >= 50) {
+      tpInsight = 'Netral / Konsolidasi: Indikator teknikal bergerak dalam rentang wajar';
+      tpInsightIcon = 'ti ti-arrows-left-right';
+      tpInsightColor = 'var(--amber)';
+    } else {
+      tpInsight = 'Bearish Bias: Tekanan jual teknikal terdeteksi di bawah baseline EMA';
+      tpInsightIcon = 'ti ti-trending-down';
+      tpInsightColor = 'var(--red)';
+    }
+  }
+
+  html += '    <div class="card" style="padding:16px 18px;border:1px solid var(--border);background:var(--bg2);margin-bottom:14px;border-radius:10px;cursor:pointer;transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s" ';
+  html += '      onclick="dossierSwitchTab(\'technical\')" onmouseover="this.style.borderColor=\'var(--blue)\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 18px rgba(0,0,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\';this.style.boxShadow=\'none\'">';
+  // Header
+  html += '      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">';
+  html += '        <div style="display:flex;align-items:center;gap:10px">';
+  html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:18px;flex-shrink:0"><i class="ti ti-chart-candle"></i></div>';
+  html += '          <div>';
+  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Momentum &amp; Analisis Teknikal</div>';
+  html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
+  html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.technical + '%</span>';
+  html += '              ' + dossierRenderStatusBadge(tp);
+  html += '            </div>';
+  html += '          </div>';
+  html += '        </div>';
+  html += '        <div style="text-align:right;flex-shrink:0">';
+  html += '          <div style="display:inline-flex;align-items:baseline;gap:2px">';
+  html += '            <span style="font-family:var(--font-mono);font-size:22px;font-weight:900;color:' + tpScoreColor + ';line-height:1">' + (tpScoreVal !== null ? tpScoreVal : '-') + '</span>';
+  html += '            ' + (tpAvail ? '<span style="font-size:11px;color:var(--text3);font-weight:600">/100</span>' : '');
+  html += '          </div>';
+  html += '          <div style="width:58px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin:4px 0 0 auto">';
+  html += '            <div style="width:' + (tpScoreVal !== null ? Math.min(100, Math.max(0, tpScoreVal)) : 0) + '%;height:100%;background:' + tpScoreColor + '"></div>';
+  html += '          </div>';
   html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
-  html += '        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:' + tpScoreColor + '">' + (tpAvail && typeof tp.score === 'number' ? tp.score : '-') + (tpAvail ? '<span style="font-size:11px;color:var(--text3)">/100</span>' : '') + '</div>';
-  html += '        <div style="font-size:11px;color:var(--blue);font-weight:700">Detail &rarr;</div>';
+  // 4-Metric Grid
+  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Struktur Tren</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + tpTrendClean + '">' + tpTrendClean + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">RSI (14)</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:' + tpRsiColor + ';margin-top:2px">' + (tp.rsi !== null ? tp.rsi : '-') + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Volume Aktivitas</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + tpVolStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Posisi EMA</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + tpMaStatus + '</div>';
+  html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Struktur Tren:</span> <b style="color:var(--text)">' + (tp.trend || '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">RSI (14):</span> <b style="font-family:var(--font-mono);color:' + (tp.rsi >= 70 ? 'var(--red)' : (tp.rsi <= 30 ? 'var(--green)' : 'var(--text)')) + '">' + (tp.rsi !== null ? tp.rsi : '-') + '</b></div>';
+  // Footer
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px">';
+  html += '        <div style="color:' + tpInsightColor + ';display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 75px)">';
+  html += '          <i class="' + tpInsightIcon + '" style="flex-shrink:0"></i>';
+  html += '          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + tpInsight + '</span>';
+  html += '        </div>';
+  html += '        <div style="font-size:11px;color:var(--blue);font-weight:700;display:inline-flex;align-items:center;gap:3px;flex-shrink:0">Detail &rarr;</div>';
   html += '      </div>';
-  html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (tp.reason || 'Data teknikal tidak tersedia.') + '</div>';
   html += '    </div>';
 
   // 1.3 Card: Profitabilitas & Dividen
   var fp = res.pillars.fundamental || {};
   var fpAvail = fp.available === true;
+  var fpScoreVal = (fpAvail && typeof fp.score === 'number') ? fp.score : null;
   var fpScoreColor = fpAvail ? (fp.score >= 75 ? 'var(--green)' : (fp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
-  html += '      onclick="dossierSwitchTab(\'fundamental\')" onmouseover="this.style.borderColor=\'var(--blue)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
-  html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-coins" style="color:var(--blue)"></i> Profitabilitas &amp; Dividen</div>';
-  html += '        <div style="display:flex;align-items:center;gap:4px">';
-  html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.fundamental + '%</span>';
-  html += '          ' + dossierRenderStatusBadge(fp);
+  var fpRoeStr = (fp.roe !== null && fp.roe !== undefined) ? fp.roe.toFixed(1) + '%' : '-';
+  var fpDerStr = (fp.der !== null && fp.der !== undefined) ? fp.der.toFixed(2) + 'x' : '-';
+  var fpNpmStr = (fp.npm !== null && fp.npm !== undefined) ? fp.npm.toFixed(1) + '%' : ((quote.fundamentals && quote.fundamentals.npm) ? quote.fundamentals.npm.toFixed(1) + '%' : '-');
+  var fpDyStr = (fp.divYield !== null && fp.divYield !== undefined) ? fp.divYield.toFixed(1) + '%' : ((quote.fundamentals && quote.fundamentals.dividendYield) ? quote.fundamentals.dividendYield.toFixed(1) + '%' : '-');
+
+  var fpInsight = 'Data profitabilitas tidak tersedia';
+  var fpInsightIcon = 'ti ti-info-circle';
+  var fpInsightColor = 'var(--text3)';
+  if (fpAvail) {
+    if (fp.roe !== null && fp.roe >= 15 && fp.der !== null && fp.der < 1.0) {
+      fpInsight = 'Prima: ROE tinggi (' + fpRoeStr + ') dengan rasio hutang sangat sehat (' + fpDerStr + ')';
+      fpInsightIcon = 'ti ti-rosette-discount-check';
+      fpInsightColor = 'var(--green)';
+    } else if (fp.roe !== null && fp.roe >= 10) {
+      fpInsight = 'Sehat: Profitabilitas stabil dengan permodalan yang memadai';
+      fpInsightIcon = 'ti ti-check';
+      fpInsightColor = 'var(--blue)';
+    } else if (fp.roe !== null && fp.roe < 0) {
+      fpInsight = 'Waspada: Emiten membukukan kinerja laba bersih negatif';
+      fpInsightIcon = 'ti ti-alert-triangle';
+      fpInsightColor = 'var(--red)';
+    } else {
+      fpInsight = 'Kinerja keuangan wajar dalam rentang normal industri';
+      fpInsightIcon = 'ti ti-coins';
+      fpInsightColor = 'var(--text2)';
+    }
+  }
+
+  html += '    <div class="card" style="padding:16px 18px;border:1px solid var(--border);background:var(--bg2);margin-bottom:0;border-radius:10px;cursor:pointer;transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s" ';
+  html += '      onclick="dossierSwitchTab(\'fundamental\')" onmouseover="this.style.borderColor=\'var(--blue)\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 18px rgba(0,0,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\';this.style.boxShadow=\'none\'">';
+  // Header
+  html += '      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">';
+  html += '        <div style="display:flex;align-items:center;gap:10px">';
+  html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:18px;flex-shrink:0"><i class="ti ti-coins"></i></div>';
+  html += '          <div>';
+  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Profitabilitas &amp; Dividen</div>';
+  html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
+  html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.fundamental + '%</span>';
+  html += '              ' + dossierRenderStatusBadge(fp);
+  html += '            </div>';
+  html += '          </div>';
+  html += '        </div>';
+  html += '        <div style="text-align:right;flex-shrink:0">';
+  html += '          <div style="display:inline-flex;align-items:baseline;gap:2px">';
+  html += '            <span style="font-family:var(--font-mono);font-size:22px;font-weight:900;color:' + fpScoreColor + ';line-height:1">' + (fpScoreVal !== null ? fpScoreVal : '-') + '</span>';
+  html += '            ' + (fpAvail ? '<span style="font-size:11px;color:var(--text3);font-weight:600">/100</span>' : '');
+  html += '          </div>';
+  html += '          <div style="width:58px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin:4px 0 0 auto">';
+  html += '            <div style="width:' + (fpScoreVal !== null ? Math.min(100, Math.max(0, fpScoreVal)) : 0) + '%;height:100%;background:' + fpScoreColor + '"></div>';
+  html += '          </div>';
   html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
-  html += '        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:' + fpScoreColor + '">' + (fpAvail && typeof fp.score === 'number' ? fp.score : '-') + (fpAvail ? '<span style="font-size:11px;color:var(--text3)">/100</span>' : '') + '</div>';
-  html += '        <div style="font-size:11px;color:var(--blue);font-weight:700">Detail &rarr;</div>';
+  // 4-Metric Grid
+  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">ROE (Ekuitas)</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + fpRoeStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">DER (Hutang)</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + fpDerStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Net Margin (NPM)</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + fpNpmStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Dividend Yield</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + fpDyStr + '</div>';
+  html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">ROE:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (fp.roe !== null ? fp.roe.toFixed(1) + '%' : '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">DER (Hutang):</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (fp.der !== null ? fp.der.toFixed(2) + 'x' : '-') + '</b></div>';
+  // Footer
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px">';
+  html += '        <div style="color:' + fpInsightColor + ';display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 75px)">';
+  html += '          <i class="' + fpInsightIcon + '" style="flex-shrink:0"></i>';
+  html += '          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + fpInsight + '</span>';
+  html += '        </div>';
+  html += '        <div style="font-size:11px;color:var(--blue);font-weight:700;display:inline-flex;align-items:center;gap:3px;flex-shrink:0">Detail &rarr;</div>';
   html += '      </div>';
-  html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (fp.reason || 'Data profitabilitas tidak tersedia.') + '</div>';
   html += '    </div>';
 
   html += '  </div>'; // End Kolom 1
 
   // 2. SUPPORTING: FAKTOR EKSTERNAL & ARUS PASAR
+  var wSupporting = (res.weightsUsed.smartMoney || 0) + (res.weightsUsed.ksei || 0) + (res.weightsUsed.regime || 0);
   html += '  <div>';
-  html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px">';
+  html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(139,92,246,0.08) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(139,92,246,0.22);border-left:3px solid #8b5cf6;border-radius:8px">';
   html += '      <div>';
-  html += '        <div style="font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px">';
-  html += '          <i class="ti ti-waves" style="color:var(--blue)"></i> 2. SUPPORTING (FAKTOR EKSTERNAL &amp; PASAR)';
+  html += '        <div style="font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
+  html += '          <i class="ti ti-waves" style="color:#8b5cf6;font-size:15px"></i> 2. SUPPORTING (FAKTOR EKSTERNAL &amp; PASAR)';
   html += '        </div>';
-  html += '        <div style="font-size:10.5px;color:var(--text3);margin-top:2px">Faktor eksternal: akumulasi broker bandar, kepemilikan KSEI, dan iklim IHSG.</div>';
+  html += '        <div style="font-size:11px;color:var(--text3);margin-top:2px">Faktor eksternal: akumulasi broker bandar, kepemilikan KSEI, dan iklim IHSG.</div>';
   html += '      </div>';
-  html += '      <span class="badge" style="background:var(--bg2);border:1px solid var(--border);color:var(--text2);font-weight:800;font-size:10px">BOBOT ' + (res.weightsUsed.smartMoney + res.weightsUsed.ksei + res.weightsUsed.regime) + '%</span>';
+  html += '      <span class="badge" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:var(--text);font-weight:800;font-size:10px;padding:3px 8px;letter-spacing:0.5px">BOBOT ' + wSupporting + '%</span>';
   html += '    </div>';
 
-  // 2.1 Card: Smart Money & Bandarmology (WITH NAMA BROKER AKUMULATOR)
+  // 2.1 Card: Smart Money & Bandarmology
   var sm = res.pillars.smartMoney || {};
   var smAvail = sm.available === true;
+  var smScoreVal = (smAvail && typeof sm.score === 'number') ? sm.score : null;
   var smScoreColor = smAvail ? (sm.score >= 75 ? 'var(--green)' : (sm.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
   var accumList = sm.accumulators || [];
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
-  html += '      onclick="dossierSwitchTab(\'smartMoney\')" onmouseover="this.style.borderColor=\'#8b5cf6\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
-  html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-radar" style="color:#8b5cf6"></i> Smart Money &amp; Broker Flow</div>';
-  html += '        <div style="display:flex;align-items:center;gap:4px">';
-  html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.smartMoney + '%</span>';
-  html += '          ' + dossierRenderStatusBadge(sm);
+  var smStatusStr = sm.bandarStatus || '-';
+  var smStatusColor = (/accum|akumulasi/i.test(smStatusStr)) ? 'var(--green)' : ((/distrib/i.test(smStatusStr)) ? 'var(--red)' : 'var(--amber)');
+  var smTop3Str = (sm.top3Pct !== null && sm.top3Pct !== undefined) ? sm.top3Pct + '%' : '-';
+  var smForeignStr = sm.foreignFlow ? ((sm.foreignFlow > 0 ? '+Rp ' : '-Rp ') + (Math.abs(sm.foreignFlow) >= 1e9 ? (Math.abs(sm.foreignFlow)/1e9).toFixed(1) + ' M' : (Math.abs(sm.foreignFlow)/1e6).toFixed(0) + ' Jt')) : 'Netral';
+  var smVwapStr = (sm.vwapBandar && sm.vwapBandar > 0) ? 'Rp ' + Math.round(sm.vwapBandar).toLocaleString('id-ID') : '-';
+
+  var smInsight = 'Data broker flow tidak tersedia';
+  var smInsightIcon = 'ti ti-info-circle';
+  var smInsightColor = 'var(--text3)';
+  if (smAvail) {
+    if (/big\s*accum|akumulasi\s*besar/i.test(smStatusStr)) {
+      smInsight = 'Big Accumulation: Terdeteksi akumulasi agresif oleh broker institusi';
+      smInsightIcon = 'ti ti-radar';
+      smInsightColor = 'var(--green)';
+    } else if (/accum|akumulasi/i.test(smStatusStr)) {
+      smInsight = 'Akumulasi Terdeteksi: Broker utama menyerap suplai di pasar';
+      smInsightIcon = 'ti ti-chart-arrows-vertical';
+      smInsightColor = 'var(--green)';
+    } else if (/distrib/i.test(smStatusStr)) {
+      smInsight = 'Distribusi Berlangsung: Tekanan keluar dari broker besar';
+      smInsightIcon = 'ti ti-alert-triangle';
+      smInsightColor = 'var(--red)';
+    } else {
+      smInsight = 'Aksi Netral: Arus transaksi broker berimbang tanpa dominasi agresif';
+      smInsightIcon = 'ti ti-scale';
+      smInsightColor = 'var(--text2)';
+    }
+  }
+
+  html += '    <div class="card" style="padding:16px 18px;border:1px solid var(--border);background:var(--bg2);margin-bottom:14px;border-radius:10px;cursor:pointer;transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s" ';
+  html += '      onclick="dossierSwitchTab(\'smartMoney\')" onmouseover="this.style.borderColor=\'#8b5cf6\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 18px rgba(0,0,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\';this.style.boxShadow=\'none\'">';
+  // Header
+  html += '      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">';
+  html += '        <div style="display:flex;align-items:center;gap:10px">';
+  html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;color:#8b5cf6;font-size:18px;flex-shrink:0"><i class="ti ti-radar"></i></div>';
+  html += '          <div>';
+  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Smart Money &amp; Broker Flow</div>';
+  html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
+  html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.smartMoney + '%</span>';
+  html += '              ' + dossierRenderStatusBadge(sm);
+  html += '            </div>';
+  html += '          </div>';
+  html += '        </div>';
+  html += '        <div style="text-align:right;flex-shrink:0">';
+  html += '          <div style="display:inline-flex;align-items:baseline;gap:2px">';
+  html += '            <span style="font-family:var(--font-mono);font-size:22px;font-weight:900;color:' + smScoreColor + ';line-height:1">' + (smScoreVal !== null ? smScoreVal : '-') + '</span>';
+  html += '            ' + (smAvail ? '<span style="font-size:11px;color:var(--text3);font-weight:600">/100</span>' : '');
+  html += '          </div>';
+  html += '          <div style="width:58px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin:4px 0 0 auto">';
+  html += '            <div style="width:' + (smScoreVal !== null ? Math.min(100, Math.max(0, smScoreVal)) : 0) + '%;height:100%;background:' + smScoreColor + '"></div>';
+  html += '          </div>';
   html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
-  html += '        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:' + smScoreColor + '">' + (smAvail && typeof sm.score === 'number' ? sm.score : '-') + (smAvail ? '<span style="font-size:11px;color:var(--text3)">/100</span>' : '') + '</div>';
-  html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700">Detail &rarr;</div>';
+  // 4-Metric Grid
+  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Aksi Bandar</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:' + smStatusColor + ';margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + smStatusStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Konsentrasi Top 3</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + smTop3Str + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Foreign Flow</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + smForeignStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Bandar VWAP</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + smVwapStr + '</div>';
+  html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Aksi Bandar:</span> <b style="color:var(--text)">' + (sm.bandarStatus || '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Konsentrasi Top 3:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (sm.top3Pct !== null && sm.top3Pct !== undefined ? sm.top3Pct + '%' : '-') + '</b></div>';
-  html += '      </div>';
-
-  // PROMINENT FEATURE: NAMA BROKER AKUMULATOR UTAMA
+  // Top Buyers Feature Box
   if (accumList && accumList.length > 0) {
     var isSimAccum = sm.isSimulated || sm.status === 'SIMULATION';
-    var accumBg = isSimAccum ? 'rgba(245,158,11,0.06)' : 'rgba(16,185,129,0.06)';
-    var accumBorder = isSimAccum ? 'rgba(245,158,11,0.25)' : 'rgba(16,185,129,0.25)';
+    var accumBg = isSimAccum ? 'rgba(245,158,11,0.04)' : 'rgba(16,185,129,0.04)';
+    var accumBorder = isSimAccum ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)';
     var accumTitleColor = isSimAccum ? '#f59e0b' : 'var(--green)';
-    var accumTitleIcon = isSimAccum ? 'ti ti-flask' : 'ti ti-user-check';
-    var accumTitleText = isSimAccum ? 'Broker Akumulator (Simulasi Model):' : 'Broker Akumulator Utama (Top Buyers):';
+    var accumTitleIcon = isSimAccum ? 'ti ti-flask' : 'ti ti-users';
+    var accumTitleText = isSimAccum ? 'Broker Akumulator (Simulasi)' : 'Broker Akumulator Teratas';
 
-    html += '      <div style="margin-bottom:8px;padding:8px 10px;background:' + accumBg + ';border:1px solid ' + accumBorder + ';border-radius:6px">';
-    html += '        <div style="font-size:10px;font-weight:900;color:' + accumTitleColor + ';text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i class="' + accumTitleIcon + '"></i> ' + accumTitleText + '</div>';
-    html += '        <div style="display:flex;flex-direction:column;gap:4px">';
+    html += '      <div style="margin-bottom:10px;padding:8px 10px;background:' + accumBg + ';border:1px solid ' + accumBorder + ';border-radius:6px">';
+    html += '        <div style="font-size:9.5px;font-weight:800;color:' + accumTitleColor + ';text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">';
+    html += '          <span style="display:inline-flex;align-items:center;gap:4px"><i class="' + accumTitleIcon + '"></i> ' + accumTitleText + '</span>';
+    html += '          <span style="color:var(--text3);font-size:9px">Top Buyers</span>';
+    html += '        </div>';
+    html += '        <div style="display:flex;flex-direction:column;gap:5px">';
     accumList.slice(0, 3).forEach(function(acc) {
       html += '          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px">';
-      html += '            <div style="display:inline-flex;align-items:center;gap:6px">';
-      html += '              <span class="badge" style="background:' + (isSimAccum ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)') + ';color:' + (isSimAccum ? '#f59e0b' : 'var(--green)') + ';font-family:var(--font-mono);font-weight:900;padding:1px 5px;font-size:10px">' + acc.code + '</span>';
-      html += '              <span style="font-weight:700;color:var(--text)">' + acc.name + '</span>';
-      if (acc.isForeign) html += ' <span class="badge" style="font-size:8px;padding:0 3px;background:rgba(59,130,246,0.15);color:var(--blue)">ASING</span>';
+      html += '            <div style="display:inline-flex;align-items:center;gap:6px;overflow:hidden;max-width:calc(100% - 90px)">';
+      html += '              <span class="badge" style="background:' + (isSimAccum ? 'rgba(245,158,11,0.18)' : 'rgba(16,185,129,0.18)') + ';color:' + (isSimAccum ? '#f59e0b' : 'var(--green)') + ';font-family:var(--font-mono);font-weight:900;padding:1px 5px;font-size:10px;border-radius:4px">' + acc.code + '</span>';
+      html += '              <span style="font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + acc.name + '</span>';
+      if (acc.isForeign) html += ' <span class="badge" style="font-size:8px;padding:0 3px;background:rgba(59,130,246,0.15);color:var(--blue);flex-shrink:0">ASING</span>';
       html += '            </div>';
-      html += '            <div style="font-family:var(--font-mono);font-weight:800;color:var(--text)">' + acc.valStr + '</div>';
+      html += '            <div style="font-family:var(--font-mono);font-weight:800;color:var(--text);font-size:11.5px;flex-shrink:0">' + acc.valStr + '</div>';
       html += '          </div>';
     });
     html += '        </div>';
     html += '      </div>';
   }
-
-  html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (sm.reason || 'Data smart money tidak tersedia.') + '</div>';
+  // Footer
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px">';
+  html += '        <div style="color:' + smInsightColor + ';display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 75px)">';
+  html += '          <i class="' + smInsightIcon + '" style="flex-shrink:0"></i>';
+  html += '          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + smInsight + '</span>';
+  html += '        </div>';
+  html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700;display:inline-flex;align-items:center;gap:3px;flex-shrink:0">Detail &rarr;</div>';
+  html += '      </div>';
   html += '    </div>';
 
   // 2.2 Card: Kepemilikan KSEI
   var kp = res.pillars.ksei || {};
   var kpAvail = kp.available === true;
+  var kpScoreVal = (kpAvail && typeof kp.score === 'number') ? kp.score : null;
   var kpScoreColor = kpAvail ? (kp.score >= 75 ? 'var(--green)' : (kp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);margin-bottom:12px;cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
-  html += '      onclick="dossierSwitchTab(\'ksei\')" onmouseover="this.style.borderColor=\'#8b5cf6\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
-  html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-shield-check" style="color:#8b5cf6"></i> Kepemilikan Kustodian KSEI</div>';
-  html += '        <div style="display:flex;align-items:center;gap:4px">';
-  html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.ksei + '%</span>';
-  html += '          ' + dossierRenderStatusBadge(kp);
+  var kpFloatVal = (kp.freeFloat !== null && kp.freeFloat !== undefined) ? kp.freeFloat : null;
+  var kpFloatStr = kpFloatVal !== null ? kpFloatVal.toFixed(1) + '%' : '-';
+  var kpInstVal = (kp.institutionalPct !== null && kp.institutionalPct !== undefined) ? kp.institutionalPct : null;
+  var kpInstStr = kpInstVal !== null ? kpInstVal.toFixed(1) + '%' : '-';
+  var kpForeignStr = (kp.foreignPct !== null && kp.foreignPct !== undefined) ? kp.foreignPct.toFixed(1) + '%' : '0.0%';
+  var kpDateStr = kp.reportDate ? String(kp.reportDate).slice(0, 10) : 'Terbaru';
+
+  var kpInsight = 'Data kepemilikan KSEI tidak tersedia';
+  var kpInsightIcon = 'ti ti-info-circle';
+  var kpInsightColor = 'var(--text3)';
+  if (kpAvail) {
+    if (kpInstVal !== null && kpInstVal >= 55) {
+      kpInsight = 'Stabilitas Tinggi: Kepemilikan dominan dikuasai institusi (' + kpInstStr + ')';
+      kpInsightIcon = 'ti ti-shield-check';
+      kpInsightColor = 'var(--green)';
+    } else if (kpFloatVal !== null && kpFloatVal > 60) {
+      kpInsight = 'Ritel Signifikan: Free float publik tinggi (' + kpFloatStr + '), volatilitas lebih sensitif';
+      kpInsightIcon = 'ti ti-alert-circle';
+      kpInsightColor = 'var(--amber)';
+    } else {
+      kpInsight = 'Struktur pemegang saham seimbang antara institusi dan publik';
+      kpInsightIcon = 'ti ti-users';
+      kpInsightColor = 'var(--text2)';
+    }
+  }
+
+  html += '    <div class="card" style="padding:16px 18px;border:1px solid var(--border);background:var(--bg2);margin-bottom:14px;border-radius:10px;cursor:pointer;transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s" ';
+  html += '      onclick="dossierSwitchTab(\'ksei\')" onmouseover="this.style.borderColor=\'#8b5cf6\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 18px rgba(0,0,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\';this.style.boxShadow=\'none\'">';
+  // Header
+  html += '      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">';
+  html += '        <div style="display:flex;align-items:center;gap:10px">';
+  html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;color:#8b5cf6;font-size:18px;flex-shrink:0"><i class="ti ti-shield-check"></i></div>';
+  html += '          <div>';
+  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Kepemilikan Kustodian KSEI</div>';
+  html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
+  html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.ksei + '%</span>';
+  html += '              ' + dossierRenderStatusBadge(kp);
+  html += '            </div>';
+  html += '          </div>';
+  html += '        </div>';
+  html += '        <div style="text-align:right;flex-shrink:0">';
+  html += '          <div style="display:inline-flex;align-items:baseline;gap:2px">';
+  html += '            <span style="font-family:var(--font-mono);font-size:22px;font-weight:900;color:' + kpScoreColor + ';line-height:1">' + (kpScoreVal !== null ? kpScoreVal : '-') + '</span>';
+  html += '            ' + (kpAvail ? '<span style="font-size:11px;color:var(--text3);font-weight:600">/100</span>' : '');
+  html += '          </div>';
+  html += '          <div style="width:58px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin:4px 0 0 auto">';
+  html += '            <div style="width:' + (kpScoreVal !== null ? Math.min(100, Math.max(0, kpScoreVal)) : 0) + '%;height:100%;background:' + kpScoreColor + '"></div>';
+  html += '          </div>';
   html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
-  html += '        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:' + kpScoreColor + '">' + (kpAvail && typeof kp.score === 'number' ? kp.score : '-') + (kpAvail ? '<span style="font-size:11px;color:var(--text3)">/100</span>' : '') + '</div>';
-  html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700">Detail &rarr;</div>';
+  // 4-Metric Grid
+  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Free Float Publik</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + kpFloatStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Total Institusi</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + kpInstStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Investor Asing</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + kpForeignStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Periode Data</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + kpDateStr + '</div>';
+  html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Free Float Publik:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (kp.freeFloat !== null ? kp.freeFloat.toFixed(1) + '%' : '-') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Total Institusi:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (kp.institutionalPct !== null ? kp.institutionalPct.toFixed(1) + '%' : '-') + '</b></div>';
+  // Ownership Stacked Breakdown Bar
+  if (kpAvail && (kpInstVal !== null || kpFloatVal !== null)) {
+    var bInst = kpInstVal !== null ? Math.min(100, Math.max(0, kpInstVal)) : 50;
+    var bFloat = kpFloatVal !== null ? Math.min(100, Math.max(0, kpFloatVal)) : (100 - bInst);
+    html += '      <div style="margin-bottom:10px;padding:8px 10px;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.05);border-radius:6px">';
+    html += '        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:9.5px;color:var(--text3);font-weight:700">';
+    html += '          <span>KOMPOSISI KEPEMILIKAN SAHAM</span>';
+    html += '          <span style="font-family:var(--font-mono)">' + bInst.toFixed(0) + '% Inst. / ' + bFloat.toFixed(0) + '% Publik</span>';
+    html += '        </div>';
+    html += '        <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;display:flex">';
+    html += '          <div style="height:100%;width:' + bInst + '%;background:#8b5cf6" title="Institusi: ' + bInst.toFixed(1) + '%"></div>';
+    html += '          <div style="height:100%;width:' + bFloat + '%;background:#38bdf8" title="Publik: ' + bFloat.toFixed(1) + '%"></div>';
+    html += '        </div>';
+    html += '      </div>';
+  }
+  // Footer
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px">';
+  html += '        <div style="color:' + kpInsightColor + ';display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 75px)">';
+  html += '          <i class="' + kpInsightIcon + '" style="flex-shrink:0"></i>';
+  html += '          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + kpInsight + '</span>';
+  html += '        </div>';
+  html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700;display:inline-flex;align-items:center;gap:3px;flex-shrink:0">Detail &rarr;</div>';
   html += '      </div>';
-  html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (kp.reason || 'Data KSEI tidak tersedia.') + '</div>';
   html += '    </div>';
 
   // 2.3 Card: Market Regime IHSG & AI Confluence
   var rp = res.pillars.regime || {};
   var rpAvail = rp.available === true;
+  var rpScoreVal = (rpAvail && typeof rp.score === 'number') ? rp.score : null;
   var rpScoreColor = rpAvail ? (rp.score >= 75 ? 'var(--green)' : (rp.score >= 50 ? 'var(--amber)' : 'var(--red)')) : 'var(--text3)';
-  html += '    <div class="card" style="padding:14px;border:1px solid var(--border);background:var(--bg2);cursor:pointer;transition:transform 0.15s,border-color 0.15s" ';
-  html += '      onclick="dossierSwitchTab(\'regime\')" onmouseover="this.style.borderColor=\'#8b5cf6\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
-  html += '      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-  html += '        <div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px"><i class="ti ti-compass" style="color:#8b5cf6"></i> Market Regime IHSG &amp; AI</div>';
-  html += '        <div style="display:flex;align-items:center;gap:4px">';
-  html += '          <span class="badge" style="background:var(--bg2);color:var(--text3);font-size:9px">' + res.weightsUsed.regime + '%</span>';
-  html += '          ' + dossierRenderStatusBadge(rp);
+  var rpRegimeStr = rp.regime || 'SIDEWAYS';
+  var rpRegimeColor = rpRegimeStr === 'BULL_TREND' ? 'var(--green)' : (rpRegimeStr === 'BEAR_TREND' ? 'var(--red)' : 'var(--amber)');
+  var rpConfStr = (typeof rp.regimeConfidence === 'number' ? rp.regimeConfidence : 75) + '%';
+  var rpMarketStatus = rpRegimeStr === 'BULL_TREND' ? 'Risk-On (Kondusif)' : (rpRegimeStr === 'BEAR_TREND' ? 'Risk-Off (Tertekan)' : 'Netral (Konsolidasi)');
+  var rpSizingAdvice = rpRegimeStr === 'BULL_TREND' ? 'Optimal (Agresif)' : (rpRegimeStr === 'BEAR_TREND' ? 'Defensif (Ketat)' : 'Selektif');
+
+  var rpInsight = 'Data market regime IHSG tidak tersedia';
+  var rpInsightIcon = 'ti ti-info-circle';
+  var rpInsightColor = 'var(--text3)';
+  if (rpAvail) {
+    if (rpRegimeStr === 'BULL_TREND') {
+      rpInsight = 'Iklim Kondusif: Pasar dalam fase bull trend, peluang momentum optimal';
+      rpInsightIcon = 'ti ti-trending-up';
+      rpInsightColor = 'var(--green)';
+    } else if (rpRegimeStr === 'BEAR_TREND' || rpRegimeStr === 'RISK_OFF') {
+      rpInsight = 'Pasar Tertekan: Disiplin batasi sizing dan prioritaskan proteksi modal';
+      rpInsightIcon = 'ti ti-shield-alert';
+      rpInsightColor = 'var(--red)';
+    } else {
+      rpInsight = 'Pasar Sideways: Selektif memilih saham dengan katalis akumulasi kuat';
+      rpInsightIcon = 'ti ti-arrows-left-right';
+      rpInsightColor = 'var(--amber)';
+    }
+  }
+
+  html += '    <div class="card" style="padding:16px 18px;border:1px solid var(--border);background:var(--bg2);margin-bottom:0;border-radius:10px;cursor:pointer;transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s" ';
+  html += '      onclick="dossierSwitchTab(\'regime\')" onmouseover="this.style.borderColor=\'#8b5cf6\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 18px rgba(0,0,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\';this.style.boxShadow=\'none\'">';
+  // Header
+  html += '      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">';
+  html += '        <div style="display:flex;align-items:center;gap:10px">';
+  html += '          <div style="width:34px;height:34px;border-radius:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;color:#8b5cf6;font-size:18px;flex-shrink:0"><i class="ti ti-compass"></i></div>';
+  html += '          <div>';
+  html += '            <div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.2">Market Regime IHSG &amp; AI</div>';
+  html += '            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
+  html += '              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text3);font-size:9.5px;padding:1px 6px;font-weight:700">Bobot ' + res.weightsUsed.regime + '%</span>';
+  html += '              ' + dossierRenderStatusBadge(rp);
+  html += '            </div>';
+  html += '          </div>';
+  html += '        </div>';
+  html += '        <div style="text-align:right;flex-shrink:0">';
+  html += '          <div style="display:inline-flex;align-items:baseline;gap:2px">';
+  html += '            <span style="font-family:var(--font-mono);font-size:22px;font-weight:900;color:' + rpScoreColor + ';line-height:1">' + (rpScoreVal !== null ? rpScoreVal : '-') + '</span>';
+  html += '            ' + (rpAvail ? '<span style="font-size:11px;color:var(--text3);font-weight:600">/100</span>' : '');
+  html += '          </div>';
+  html += '          <div style="width:58px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;margin:4px 0 0 auto">';
+  html += '            <div style="width:' + (rpScoreVal !== null ? Math.min(100, Math.max(0, rpScoreVal)) : 0) + '%;height:100%;background:' + rpScoreColor + '"></div>';
+  html += '          </div>';
   html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">';
-  html += '        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:' + rpScoreColor + '">' + (rpAvail && typeof rp.score === 'number' ? rp.score : '-') + (rpAvail ? '<span style="font-size:11px;color:var(--text3)">/100</span>' : '') + '</div>';
-  html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700">Detail &rarr;</div>';
+  // 4-Metric Grid
+  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Regime IHSG</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:' + rpRegimeColor + ';margin-top:2px">' + rpRegimeStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Confidence AI</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + rpConfStr + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Status Pasar</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + rpMarketStatus + '</div>';
+  html += '        </div>';
+  html += '        <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 9px">';
+  html += '          <div style="font-size:9.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Taktik Sizing</div>';
+  html += '          <div style="font-family:var(--font-mono);font-size:12.5px;font-weight:800;color:var(--text);margin-top:2px">' + rpSizingAdvice + '</div>';
+  html += '        </div>';
   html += '      </div>';
-  html += '      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px">';
-  html += '        <div><span style="color:var(--text3)">Regime IHSG:</span> <b style="color:var(--text)">' + (rp.regime || 'SIDEWAYS') + '</b></div>';
-  html += '        <div><span style="color:var(--text3)">Confidence:</span> <b style="font-family:var(--font-mono);color:var(--text)">' + (typeof rp.regimeConfidence === 'number' ? rp.regimeConfidence : 75) + '%</b></div>';
+  // Footer
+  html += '      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px">';
+  html += '        <div style="color:' + rpInsightColor + ';display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 75px)">';
+  html += '          <i class="' + rpInsightIcon + '" style="flex-shrink:0"></i>';
+  html += '          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rpInsight + '</span>';
+  html += '        </div>';
+  html += '        <div style="font-size:11px;color:#8b5cf6;font-weight:700;display:inline-flex;align-items:center;gap:3px;flex-shrink:0">Detail &rarr;</div>';
   html += '      </div>';
-  html += '      <div style="font-size:11px;color:var(--text2);line-height:1.4">' + (rp.reason || 'Data regime tidak tersedia.') + '</div>';
   html += '    </div>';
 
   html += '  </div>'; // End Kolom 2
