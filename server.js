@@ -4901,7 +4901,8 @@ app.get('/api/strategy-engine/conglomerates', (req, res) => {
 app.get('/api/strategy-engine/daily-picks', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 25);
-    const data = await getDailyTopPicks(limit);
+    const forceRefresh = req.query.refresh === 'true' || req.query.force === '1' || req.query.force === 'true';
+    const data = await getDailyTopPicks(limit, forceRefresh);
     return res.json({ success: true, ...data });
   } catch (err) {
     console.error('[Strategy Engine Daily Picks Error]', err);

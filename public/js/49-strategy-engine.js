@@ -664,12 +664,34 @@ function usDailyPicksInit() {
   _usDailyPicksTimer = setInterval(usDailyPicksLoad, US_DAILY_PICKS_REFRESH_MS);
 }
 
-async function usDailyPicksLoad() {
+function usGetConglomerateForTicker(ticker, pickObj) {
+  if (pickObj && pickObj.conglomerate) return pickObj.conglomerate;
+  if (!ticker) return null;
+  var clean = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();
+  if (SE_STATE.conglomerates && Array.isArray(SE_STATE.conglomerates.relations)) {
+    var match = SE_STATE.conglomerates.relations.find(function (r) {
+      return String(r.ticker).toUpperCase() === clean && (r.status === 'VERIFIED' || r.status === 'REVIEW');
+    });
+    if (match) {
+      return {
+        groupId: match.group_id,
+        groupName: match.group_name,
+        relationType: match.relation_type,
+        status: match.status
+      };
+    }
+  }
+  return null;
+}
+
+async function usDailyPicksLoad(forceRefresh) {
   US_DAILY_PICKS_STATE.loading = true;
   US_DAILY_PICKS_STATE.error = null;
   usDailyPicksRender();
+  if (!SE_STATE.conglomeratesLoaded) seLoadConglomerates();
   try {
-    var resp = await fetch('/api/strategy-engine/daily-picks?limit=10', { signal: AbortSignal.timeout(15000) });
+    var url = '/api/strategy-engine/daily-picks?limit=10' + (forceRefresh ? '&refresh=true' : '');
+    var resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
     var json = await resp.json();
     if (!json.success) throw new Error(json.error || 'Gagal memuat rekomendasi harian');
     US_DAILY_PICKS_STATE.data = json;
@@ -740,6 +762,22 @@ function usDailyPicksOpenModal(idx) {
       + '</div>';
   }).join('');
 
+  var cong = usGetConglomerateForTicker(p.ticker, p);
+  var congHeaderBadge = cong
+    ? '        <span class="badge" style="background:rgba(245,158,11,0.18);color:#f59e0b;border:1px solid rgba(245,158,11,0.45);font-size:10px;font-weight:700" title="' + usDailyPicksEsc(cong.owner) + '"><i class="ti ti-building"></i> ' + usDailyPicksEsc(cong.groupName) + '</span>'
+    : '';
+
+  var congCalloutHtml = cong
+    ? '  <div style="margin:12px 0 14px 0;padding:11px 14px;border-radius:10px;background:linear-gradient(135deg, rgba(245,158,11,0.12), rgba(180,83,9,0.06));border:1px solid rgba(245,158,11,0.35);display:flex;align-items:flex-start;gap:10px">'
+      + '    <i class="ti ti-building" style="color:#f59e0b;font-size:18px;margin-top:2px;flex-shrink:0"></i>'
+      + '    <div style="font-size:11.5px;color:var(--text);line-height:1.45">'
+      + '      <div style="font-weight:800;color:#f59e0b;margin-bottom:2px">Emiten Terafiliasi Konglomerasi: ' + usDailyPicksEsc(cong.groupName) + '</div>'
+      + '      <div>Saham ini terafiliasi dengan konglomerasi <strong>' + usDailyPicksEsc(cong.groupName) + '</strong> (' + usDailyPicksEsc(cong.owner) + '). Perhatikan korelasi pergerakan harga intra-grup karena saham dalam konglomerasi yang sama biasanya bergerak serentak didorong rotasi modal dan sentimen kelompok bisnis.</div>'
+      + (cong.affiliates && cong.affiliates.length ? '      <div style="margin-top:5px;color:var(--text3);font-size:10.5px">Kluster Emiten Afiliasi: <span class="mono" style="color:var(--text);font-weight:700">' + usDailyPicksEsc(cong.affiliates.join(', ')) + '</span></div>' : '')
+      + '    </div>'
+      + '  </div>'
+    : '';
+
   var tierBadgeText = isAlpha
     ? '🔥 <strong style="color:#f59e0b">ALPHA TARGET (TIER 1)</strong> — Konfluensi tertinggi pada pemindaian radar hari ini'
     : (isStrong ? '⚡ <strong style="color:#10b981">STRONG MOMENTUM (TIER 2)</strong> — Memenuhi akumulasi bandar &amp; momentum kuat'
@@ -751,10 +789,11 @@ function usDailyPicksOpenModal(idx) {
     + '  <div style="display:flex;align-items:center;gap:12px">'
     + '    <div style="flex-shrink:0">' + (typeof getStockLogoHtml === 'function' ? getStockLogoHtml(p.ticker, 42) : '') + '</div>'
     + '    <div>'
-    + '      <div style="display:flex;align-items:center;gap:8px">'
+    + '      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
     + '        <span id="radar-modal-title" class="mono" style="font-size:18px;font-weight:900;color:var(--text)">' + usDailyPicksEsc(p.ticker) + '</span>'
     + '        <span class="badge ' + (p.rank === 1 ? 'b-amb' : 'b-accent') + '" style="font-size:10px">RANK #' + p.rank + '</span>'
     + '        <span class="badge ' + (p.status === 'STRONG' ? 'b-up' : 'b-blue') + '" style="font-size:10px">' + usDailyPicksEsc(p.status) + '</span>'
+    +          congHeaderBadge
     + '      </div>'
     + '      <div style="font-size:12px;color:var(--text3);margin-top:2px">' + usDailyPicksEsc(p.name || p.ticker) + '</div>'
     + '    </div>'
@@ -773,6 +812,7 @@ function usDailyPicksOpenModal(idx) {
     + '      <div class="modal-weight-note">Sistem perhitungan kuantitatif berbasis indikator multi-faktor tanpa manipulasi data sintetis.</div>'
     + '    </div>'
     + '  </div>'
+    +    congCalloutHtml
     + '  <div class="radar-modal-section-title"><i class="ti ti-list-check"></i> Rincian Parameter &amp; Logika Skor</div>'
     + '  <div class="radar-modal-indicator-list">' + (indicatorCards || '<div style="color:var(--text3);font-size:11px">Tidak ada rincian tambahan.</div>') + '</div>'
     + '  <div class="radar-modal-verbatim-box">'
@@ -880,7 +920,7 @@ function usDailyPicksRender() {
     + '  <span class="radar-meta-chip"><i class="ti ti-calendar"></i> ' + usDailyPicksEsc(dateStr) + '</span>'
     + '  <span class="radar-meta-chip"><i class="ti ti-target"></i> ' + pickCount + ' TARGET TERKUNCI</span>'
     + '  <button class="btn btn-ghost btn-xs" onclick="usDailyPicksOpenCoverageModal()" title="Info Metodologi &amp; Cakupan"><i class="ti ti-info-circle"></i> Info Rotasi</button>'
-    + '  <button class="btn btn-ghost btn-xs radar-refresh-btn" onclick="usDailyPicksLoad()" title="Pindai Ulang Radar"><i class="ti ti-refresh"></i> Pindai Ulang</button>'
+    + '  <button class="btn btn-ghost btn-xs radar-refresh-btn" onclick="usDailyPicksLoad(true)" title="Pindai Ulang Radar"><i class="ti ti-refresh"></i> Pindai Ulang</button>'
     + '</div>'
     + '</div>';
 
@@ -957,6 +997,13 @@ function usDailyPicksRender() {
       var isStrong = scoreVal >= 83.0 && scoreVal < 88.0;
       var tierClass = isAlpha ? 'tier-alpha' : (isStrong ? 'tier-strong' : 'tier-qualified');
 
+      var cong = usGetConglomerateForTicker(p.ticker, p);
+      var congClass = cong ? ' is-conglomerate' : '';
+      var congTagHtml = cong
+        ? '<span class="radar-blip-cong-tag" title="Konglomerasi ' + usDailyPicksEsc(cong.groupName) + '"><i class="ti ti-building"></i> ' + usDailyPicksEsc(cong.groupName) + '</span>'
+        : '';
+      var congPip = cong ? '<div class="radar-cong-pip" title="Saham Konglomerasi: ' + usDailyPicksEsc(cong.groupName) + '"></div>' : '';
+
       // Distance from center: higher score = closer to center bullseye (16% to 80% radius)
       var distPct = Math.max(16, Math.min(80, 84 - (scoreVal - 70) * 2.8));
       var angleDeg = (idx * (360 / totalPicks) + 40) % 360;
@@ -977,16 +1024,18 @@ function usDailyPicksRender() {
         specialGlowHtml = '<div class="radar-blip-ping-cyan"></div>';
       }
 
-      blipsHtml += '<div class="radar-target-blip ' + tierClass + '" style="left:' + leftPct + '%;top:' + topPct + '%" '
+      blipsHtml += '<div class="radar-target-blip ' + tierClass + congClass + '" style="left:' + leftPct + '%;top:' + topPct + '%" '
         + 'onclick="usDailyPicksOpenModal(' + idx + ')" '
-        + 'title="' + usDailyPicksEsc(p.ticker) + ' (' + usDailyPicksEsc(p.name || '') + ') · Skor: ' + (p.score != null ? p.score : '-') + ' · Klik untuk buka popup">'
+        + 'title="' + usDailyPicksEsc(p.ticker) + (cong ? ' [' + usDailyPicksEsc(cong.groupName) + ']' : '') + ' (' + usDailyPicksEsc(p.name || '') + ') · Skor: ' + (p.score != null ? p.score : '-') + ' · Klik untuk buka popup">'
         + specialGlowHtml
+        + congPip
         + '<div class="radar-blip-inner">'
         + stockLogo
         + '</div>'
         + '<div class="radar-blip-label-pod">'
         + '<span class="radar-blip-ticker">' + usDailyPicksEsc(p.ticker) + '</span>'
         + '<span class="radar-blip-score">' + (p.score != null ? p.score : '-') + '</span>'
+        + congTagHtml
         + '</div>'
         + '</div>';
     });
@@ -997,11 +1046,18 @@ function usDailyPicksRender() {
       var rankBadgeColor = p.rank <= 3 ? '#0B0D12' : 'var(--text3, #94a3b8)';
       var rankBadge = '<span class="radar-rank-circle" style="background:' + rankBadgeBg + ';color:' + rankBadgeColor + '">' + p.rank + '</span>';
 
-      return '<div onclick="usDailyPicksOpenModal(' + idx + ')" class="radar-plain-card" role="button" tabindex="0" title="Klik untuk membuka popup alasan ' + usDailyPicksEsc(p.ticker) + '">'
+      var cong = usGetConglomerateForTicker(p.ticker, p);
+      var congBadge = cong
+        ? '<span class="radar-card-cong-badge" title="Grup Konglomerasi ' + usDailyPicksEsc(cong.groupName) + ' (' + usDailyPicksEsc(cong.owner) + ')"><i class="ti ti-building"></i> ' + usDailyPicksEsc(cong.groupName) + '</span>'
+        : '';
+      var cardCongClass = cong ? ' radar-card-cong' : '';
+
+      return '<div onclick="usDailyPicksOpenModal(' + idx + ')" class="radar-plain-card' + cardCongClass + '" role="button" tabindex="0" title="Klik untuk membuka popup alasan ' + usDailyPicksEsc(p.ticker) + '">'
         + '<div class="radar-card-top-row">'
         + '  <div class="radar-card-ident">'
         +      rankBadge
         + '    <span class="mono radar-card-ticker">' + usDailyPicksEsc(p.ticker) + '</span>'
+        +      congBadge
         + '  </div>'
         + '  <span class="mono radar-card-score" style="color:' + usDailyPicksStatusColor(p.status) + '">' + (p.score != null ? p.score : '-') + '</span>'
         + '</div>'
@@ -1044,6 +1100,7 @@ function usDailyPicksRender() {
       + '  <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#00e5ff;box-shadow:0 0 8px #00e5ff;display:inline-block"></span> <strong style="color:var(--text,#f8fafc)">Bullseye 88+</strong> (Alpha Target · Cyan Glow)</span>'
       + '  <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#3b82f6;box-shadow:0 0 8px #3b82f6;display:inline-block"></span> <strong style="color:var(--text,#f8fafc)">Strong 83-87</strong> (Electric Blue)</span>'
       + '  <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#0284c7;display:inline-block"></span> <strong style="color:var(--text,#f8fafc)">Qualified &lt;83</strong> (Sky Blue)</span>'
+      + '  <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:3px;background:#f59e0b;box-shadow:0 0 8px rgba(245,158,11,0.6);display:inline-block"></span> <strong style="color:#f59e0b"><i class="ti ti-building" style="font-size:11px"></i> Konglomerasi</strong> (Gold Badge · Kluster Afiliasi)</span>'
       + '</div>'
       + '</div>';
 
