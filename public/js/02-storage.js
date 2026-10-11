@@ -92,14 +92,23 @@ function resetUserPortfolioState() {
     WEALTH.expense = 0;
     WEALTH.bank = [];
     WEALTH.debt = [];
+    WEALTH.piutang = [];
     WEALTH.emas = 0;
     WEALTH.obligasi = 0;
     WEALTH.deposito = 0;
+    WEALTH.tombstones = [];
+  }
+  if (typeof wResetWealth === 'function') {
+    wResetWealth();
   }
   if (typeof CASH_ACCOUNTS !== 'undefined') {
     if (CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = 0;
     if (CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = 0;
     if (CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
+    if (CASH_ACCOUNTS.etf) CASH_ACCOUNTS.etf.balance = 0;
+  }
+  if (typeof equityHistorySave === 'function') {
+    equityHistorySave([]);
   }
   if (typeof _invalidatePortoCache === 'function') {
     _invalidatePortoCache();
@@ -108,106 +117,77 @@ function resetUserPortfolioState() {
 window.resetUserPortfolioState = resetUserPortfolioState;
 
 // ============================================================
-// DEMO SANDBOX DEFAULT STATE (DATA SIMULASI TERISOLASI)
+// DEMO SANDBOX DEFAULT STATE (AKUN BERSIH / ZERO-STATE)
 // ============================================================
-// Data demo bersifat simulasi netral, fiktif, dan 100% terisolasi dari akun pribadi pengguna.
+// Akun demo bersifat bersih (clean zero-state) tanpa residu transaksi, aset, kas, atau hutang fiktif.
+// Terisolasi 100% dari akun pribadi pengguna.
 var DEMO_SANDBOX_SAMPLE = {
   isDemoSandbox: true,
-  transactions: [
-    {
-      id: 1,
-      date: '2026-09-01',
-      type: 'BUY',
-      ticker: 'BBCA',
-      lot: 10,
-      shares: 1000,
-      price: 9800,
-      gross: 9800000,
-      komisi: 0,
-      ppn: 0,
-      levy: 0,
-      pph: 0,
-      tax: 0,
-      net: 9800000,
-      sekuritas: 'Stockbit'
-    }
-  ],
-  rdnMutations: [
-    {
-      id: 1,
-      date: '2026-09-01',
-      type: 'TOPUP',
-      ket: 'Modal Awal Simulasi Demo',
-      amount: 15000000,
-      balance: 15000000,
-      sekuritas: 'Stockbit',
-      linkedTxId: null,
-      account: 'saham'
-    },
-    {
-      id: 2,
-      date: '2026-09-01',
-      type: 'BUY',
-      ket: 'Beli 10 lot BBCA @ Rp 9.800 (Simulasi)',
-      amount: -9800000,
-      balance: 5200000,
-      sekuritas: 'Stockbit',
-      linkedTxId: 1,
-      account: 'saham'
-    }
-  ],
+  isExplicitlyEmpty: true,
+  transactions: [],
+  rdnMutations: [],
   dividends: [],
-  rdnBalance: 5200000,
-  activeSekuritas: 'Stockbit'
+  cryptoTx: [],
+  etfTx: [],
+  rdTx: [],
+  divInvestData: [],
+  tradeStrategy: {},
+  theses: [],
+  journals: [],
+  equityHistory: [],
+  rdnBalance: 0,
+  activeSekuritas: 'Stockbit',
+  wealth: {
+    income: 0,
+    expense: 0,
+    deposito: 0,
+    emas: 0,
+    obligasi: 0,
+    bank: [],
+    debt: [],
+    piutang: [],
+    tombstones: []
+  }
 };
 
 function initDemoSandbox(force){
-  var isDemo = (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user'));
+  var isDemo = (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user' || _currentUser.email === 'tamu@moneywatch.pro' || _currentUser.email === 'demo@moneywatch.pro'));
   if(!isDemo && !force) return;
 
-  transactions = JSON.parse(JSON.stringify(DEMO_SANDBOX_SAMPLE.transactions));
-  rdnMutations = JSON.parse(JSON.stringify(DEMO_SANDBOX_SAMPLE.rdnMutations));
-  dividends = [];
-  cryptoTx = [];
-  etfTx = [];
-  rdTx = [];
-  divInvestData = [];
-  nextTxId = 2;
-  nextRdnId = 3;
-  nextDivId = 1;
-  nextCryptoId = 1;
-  nextEtfId = 1;
-  nextRdId = 1;
-  activeSekuritas = DEMO_SANDBOX_SAMPLE.activeSekuritas || 'Stockbit';
-  rdnBalance = DEMO_SANDBOX_SAMPLE.rdnBalance;
-
-  if(typeof CASH_ACCOUNTS !== 'undefined'){
-    if(CASH_ACCOUNTS.saham) CASH_ACCOUNTS.saham.balance = rdnBalance;
-    if(CASH_ACCOUNTS.crypto) CASH_ACCOUNTS.crypto.balance = 0;
-    if(CASH_ACCOUNTS.reksadana) CASH_ACCOUNTS.reksadana.balance = 0;
-  }
-
-  tradeStrategy = {};
-
-  if (typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
-  if (typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
+  resetUserPortfolioState();
 
   try {
     var payloadObj = {
-      transactions: transactions,
-      dividends: dividends,
-      rdnMutations: rdnMutations,
-      cryptoTx: cryptoTx,
-      etfTx: etfTx,
-      rdTx: rdTx,
-      divInvestData: divInvestData,
-      tradeStrategy: tradeStrategy,
-      activeSekuritas: activeSekuritas,
-      rdnBalance: rdnBalance,
+      transactions: [],
+      dividends: [],
+      rdnMutations: [],
+      cryptoTx: [],
+      etfTx: [],
+      rdTx: [],
+      divInvestData: [],
+      tradeStrategy: {},
+      activeSekuritas: 'Stockbit',
+      rdnBalance: 0,
+      theses: [],
+      journals: [],
+      equityHistory: [],
+      wealth: {
+        income: 0,
+        expense: 0,
+        deposito: 0,
+        emas: 0,
+        obligasi: 0,
+        bank: [],
+        debt: [],
+        piutang: [],
+        tombstones: []
+      },
       isDemoSandbox: true,
+      isExplicitlyEmpty: true,
       savedAt: new Date().toISOString()
     };
     localStorage.setItem('mw_local_data_v3_demo', JSON.stringify(payloadObj));
+    localStorage.setItem('mw_wealth_v1_demo', JSON.stringify(payloadObj.wealth));
   } catch(e){}
 }
 
@@ -1870,7 +1850,11 @@ function loadData(){
             var hasPrivateTickers = (parsedDemo.transactions || []).some(function(t){
               return t.ticker === 'GGRM' || t.ticker === 'PGEO' || t.ticker === 'SMDR' || t.ticker === 'CDIA' || t.ticker === 'ADRO';
             });
-            if(!hasPrivateTickers){
+            // Purge sisa data sampel lama (BBCA 10 lot atau saldo 5.2jt)
+            var hasOldSampleData = (parsedDemo.transactions || []).some(function(t){
+              return t.ticker === 'BBCA' && t.shares === 1000 && t.price === 9800;
+            }) || (parsedDemo.rdnBalance === 5200000);
+            if(!hasPrivateTickers && !hasOldSampleData){
               isDemoValid = true;
               raw = rawDemo;
             }

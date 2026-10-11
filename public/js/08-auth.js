@@ -217,10 +217,22 @@ function authDoGuestLogin(){
     localStorage.removeItem('mw_explicit_logout');
     localStorage.removeItem('mw_local_data_v2');
     localStorage.removeItem('mw_emergency_backup_v2');
+    // Akun demo selalu mulai dengan status 100% clean tanpa data portofolio, aset, kas, atau hutang sisa
+    localStorage.removeItem('mw_local_data_v3_demo');
+    localStorage.removeItem('mw_wealth_v1_demo');
+    localStorage.removeItem('mw_wealth_v1');
+    localStorage.removeItem('mw_trade_strategy_demo');
+    localStorage.removeItem('mw_portfolio_cache_demo');
   } catch(e){}
   
   if (typeof resetUserPortfolioState === 'function') {
     resetUserPortfolioState();
+  }
+  if (typeof wResetWealth === 'function') {
+    wResetWealth();
+  }
+  if (typeof initDemoSandbox === 'function') {
+    initDemoSandbox(true);
   }
   if (typeof loadData === 'function') {
     loadData();

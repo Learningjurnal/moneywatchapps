@@ -27,13 +27,38 @@ var WEALTH = {
 var wCharts = {};
 var WPAGES = ['wealth','wbank','wdebt','wpiutang','wfire'];
 
+function getWealthStorageKey(){
+  return (typeof getUserStorageKey === 'function') ? getUserStorageKey(WEALTH_KEY) : WEALTH_KEY;
+}
+
+function wResetWealth(){
+  WEALTH.income = 0;
+  WEALTH.expense = 0;
+  WEALTH.deposito = 0;
+  WEALTH.emas = 0;
+  WEALTH.obligasi = 0;
+  WEALTH.bank = [];
+  WEALTH.debt = [];
+  WEALTH.piutang = [];
+  WEALTH.tombstones = [];
+  if (typeof wUpdateDueBadge === 'function') wUpdateDueBadge();
+}
+window.wResetWealth = wResetWealth;
+
 function wSave(){
-  try{ localStorage.setItem(WEALTH_KEY, JSON.stringify(WEALTH)); }catch(e){}
+  var key = getWealthStorageKey();
+  try{ localStorage.setItem(key, JSON.stringify(WEALTH)); }catch(e){}
   if(typeof saveData==='function') saveData();
 }
 function wLoad(){
+  var isDemo = (typeof _currentUser !== 'undefined' && _currentUser && (_currentUser.isGuest || _currentUser.isDemo || _currentUser.uid === 'demo_guest_user' || _currentUser.email === 'tamu@moneywatch.pro' || _currentUser.email === 'demo@moneywatch.pro'));
+  if (isDemo) {
+    wResetWealth();
+    return;
+  }
   try{
-    var r = localStorage.getItem(WEALTH_KEY);
+    var key = getWealthStorageKey();
+    var r = localStorage.getItem(key);
     if(r){ var d = JSON.parse(r); if(d && typeof d==='object') Object.keys(WEALTH).forEach(function(k){ if(d[k]!==undefined) WEALTH[k]=d[k]; }); }
   }catch(e){}
 }
