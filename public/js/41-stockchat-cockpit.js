@@ -935,9 +935,7 @@ function renderAggregatedBrokerFlowView(data) {
     + '</div>'
     + '</div>';
 
-  // ==========================================
-  // SORTABLE TABLES: Top 5 Buying vs Selling
-  // ==========================================
+  // Sortable tables: top buyers vs sellers
   var rawBuyers = data.topBuyers || [];
   var rawSellers = data.topSellers || [];
 
@@ -1178,10 +1176,7 @@ function askAiAboutCurrentBrokerFlow(ticker) {
   }, 150);
 }
 
-// ============================================================
-// 1-YEAR BROKER ANALYSIS DATABASE & COST BASIS MATRIX
-// Calculates and visualizes historical broker buying averages across 250 trading days
-// ============================================================
+// Broker accumulation cost basis analysis
 // FIX (2026-09-18, user-reported after full-codebase audit): this used to
 // fabricate a "1-Year Broker Cost Matrix" — a hardcoded broker list
 // (majorBrokers) with invented weight/bias percentages, used to compute
@@ -2369,13 +2364,7 @@ window.openStockIntelForTicker = function(tk) {
   else if (typeof selectStockIntelTicker === 'function') selectStockIntelTicker(tk);
 };
 
-// ============================================================
-// ============================================================
-// BANDARMOLOGY & SMART MONEY COCKPIT SUITE
-// 2 Master Modes:
-// 1. ANALISIS FULL EMITEN (Single Stock Deep Cockpit: Broker Flow + CMF + VWAP Bands + Foreign Flow)
-// 2. ANALISIS FULL MARKET (Macro IHSG + Big Banks + Sektoral Heatmap + Accum/Distrib Radar + Screener)
-// ============================================================
+// Bandarmology and smart money cockpit suite (market overview and sectoral flows)
 
 // FIX (2026-09-19): mode saham dihapus dari halaman ini (lihat
 // renderBandarmologyCockpitPage()) — variabel ini sekarang selalu 'market'
@@ -2816,7 +2805,7 @@ function bandarRenderMarketFlowContent(data) {
   var totalScanned = (data && data.counts && data.counts.totalUniverseScanned) || (accCount + distCount);
   var dateLabel = (data && data.date) ? data.date : new Date().toISOString().slice(0,10);
 
-  // --- Metric summary cards ---
+  // Metric summary cards
   var breadthPct = totalScanned > 0 ? Math.round((accCount / totalScanned) * 100) : 0;
   // FIX (2026-10-04): label lama "RISK-ON/RISK-OFF/MIXED" adalah panggilan regime ke-6 yang berbeda dari klasifikasi
   // regime asli (Market Regime). Ini hanya rasio emiten akumulasi vs distribusi smart money, bukan regime pasar.
@@ -2881,7 +2870,7 @@ function bandarRenderMarketFlowContent(data) {
     + '<div id="bandar-sector-rotation-chart"><div style="padding:24px;text-align:center;color:var(--text3);font-size:11px">Memuat Sector Rotation Chart (RRG)…</div></div>'
     + '</div>';
 
-  // --- Sektor Rotasi Modal Heatmap ---
+  // Sektor Rotasi Modal Heatmap
   // Map setiap emiten dari acc/distList ke 11 sektor resmi IDX, hitung net score per sektor.
   var sectorMap = {};
   BANDAR_SECTOR_DEFS.forEach(function(sec) { sectorMap[sec.name] = { name: sec.name, accScore: 0, distScore: 0, accCount: 0, distCount: 0, tickers: [] }; });
@@ -3292,7 +3281,7 @@ function bandarRenderSectorRotationChart(mount, data) {
     return;
   }
 
-  // --- KPI cards (all computed from the real trail data, nothing fabricated) ---
+  // KPI cards computed from real trail data
   var leadingCount = sectors.filter(function (s) { return s.quadrant === 'leading'; }).length;
   var improvingCount = sectors.filter(function (s) { return s.quadrant === 'improving'; }).length;
   var rotationBias = leadingCount + improvingCount;
@@ -4267,9 +4256,7 @@ function renderBandarmologySmartMoneyFlowView(tk) {
     + '</div>'
     + '</div>'
 
-    // ============================================================
-    // INTERACTIVE REAL-TIME CHART SUITE (PRICE, CMF, FOREIGN, VOL)
-    // ============================================================
+    // Interactive chart suite (price, CMF, foreign flow, volume)
     // FIX (2026-09-11, found during a dead-feature audit): this section
     // had no id at all, so setBandarmologyTab()'s 'smart-money-flow'
     // scroll-to (in this same file) was silently targeting a

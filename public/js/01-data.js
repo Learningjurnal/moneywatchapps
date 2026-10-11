@@ -1,7 +1,4 @@
-// ============================================================
-// SEKURITAS DATABASE — tarif komisi berbeda per sekuritas
-// ============================================================
-// Komisi broker (murni, sebelum PPN & Levy)
+// Sekuritas database dan tarif komisi broker
 // Sumber: halaman resmi masing-masing sekuritas (Jual = Beli + PPh Final 0.1%)
 var SEKURITAS = {
   'Stockbit':         {buyFee:0.0018, sellFee:0.0028, color:'#ff6b6b'},  // Total Tax/Fee: 0.18% Beli & 0.28% Jual (All-in)
@@ -16,9 +13,9 @@ var SEKURITAS = {
   'Trimegah':         {buyFee:0.0015, sellFee:0.0025, color:'#34d399'},
 };
 
-// ── SORT STATE untuk tabel Ringkasan Semua Aset ──
+// Sort state untuk tabel Ringkasan Semua Aset
 var _assetSort = {key:'mv', asc:false};
-// ── SORT & FILTER STATE untuk tabel Portofolio Saham ──
+// Sort dan filter state untuk tabel Portofolio Saham
 var _portoSort = {key:'mv', asc:false};
 function sortPorto(key){
   if(_portoSort.key===key) _portoSort.asc=!_portoSort.asc;
@@ -219,9 +216,7 @@ var IDX_SECTORS = {
   'Lainnya':            {color:'#94a3b8',icon:'📦',desc:'Belum terklasifikasi sektor resmi IDX'}
 };
 
-// ============================================================
-// SINGLE SOURCE OF TRUTH (SSOT) FOR REAL-TIME MARKET PRICING
-// ============================================================
+// Single source of truth untuk harga pasar real-time
 // Aturan: Tidak ada angka dummy/karangan. Jika harga belum terload,
 // kembalikan 0 / tanda eksplisit ('Rp —' / 'Memuat...') dan trigger live fetch.
 function getGlobalMarketPrice(ticker) {
@@ -1457,9 +1452,7 @@ function sectorIcon(name){
   return (IDX_SECTORS[name] && IDX_SECTORS[name].icon) || '📊';
 }
 
-// ============================================================
-// STATE
-// ============================================================
+// Application state
 var transactions = [];
 var dividends = [];
 var rdnMutations = [];
@@ -1566,9 +1559,7 @@ var charts = {};
 
 // sideToggleGroup() didefinisikan di 12-clean.js (salinan ganda di sini dihapus 2026-10-04: selalu ditimpa).
 
-// ============================================================
-// STOCK LOGO HELPER (OFFICIAL IDX/STOCKBIT CDN + INSTANT FALLBACK)
-// ============================================================
+// Stock logo helper (CDN and monogram fallback)
 function getStockLogoUrl(ticker) {
   if (!ticker) return '';
   var t = String(ticker).trim().toUpperCase();
@@ -1620,9 +1611,7 @@ window.getStockLogoUrl = getStockLogoUrl;
 window.getStockLogoHtml = getStockLogoHtml;
 window.getTickerBadgeWithLogo = getTickerBadgeWithLogo;
 
-// ============================================================
-// STRICT STOCK UNIVERSE VALIDATION (ZERO DUMMY DATA POLICY)
-// ============================================================
+// Strict stock universe validation (Zero Dummy Data policy)
 function isValidStockTicker(ticker) {
   if (!ticker) return false;
   var tk = String(ticker).toUpperCase().replace(/\.JK$/i, '').trim();

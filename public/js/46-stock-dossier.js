@@ -50,9 +50,7 @@ var DOSSIER_PRESETS = {
   }
 };
 
-// ============================================================
-// 1. WEIGHT MANAGEMENT & CALIBRATION
-// ============================================================
+// Weight management & calibration
 
 function dossierGetDefaultWeights() {
   return Object.assign({}, DOSSIER_DEFAULT_WEIGHTS);
@@ -86,16 +84,7 @@ function dossierGetWeights() {
   return dossierGetDefaultWeights();
 }
 
-// FIX (2026-09-24, user-reported: "Stock Master 360 sering stuck, harus di
-// reload ulang" — same root cause as the Market Flow fix above it: none of
-// dossierHarvestData()'s 7 concurrent fetch() calls (quote, broker summary,
-// history, KSEI static, KSEI live, regime, AI hypothesis) had a
-// client-side timeout. A single hung response leaves Promise.all() pending
-// forever, so dossierState.isLoading — only reset in dossierHarvestData()'s
-// own finally block, which never runs if the promise never settles — stays
-// true permanently. dossierRunAnalysis()'s guard at renderStockDossierPage
-// time (`!dossierState.isLoading`) then blocks any retry, so only a full
-// browser reload recovers, matching the report exactly.
+// Client-side timeout preventing hung responses from leaving dossierState.isLoading stuck
 var DOSSIER_FETCH_TIMEOUT_MS = 12000;
 
 var dossierState = {
@@ -162,9 +151,7 @@ function dossierApplyPreset(presetKey, saveImmediately) {
   return true;
 }
 
-// ============================================================
-// 2. SCORING ENGINE (INSTITUTIONAL MULTI-FACTOR + DYNAMIC RENORMALIZATION)
-// ============================================================
+// Scoring engine (multi-factor with dynamic renormalization)
 
 /**
  * Pillar 1: Valuasi & Margin of Safety (0–100)
@@ -1096,9 +1083,7 @@ function dossierCalculateScore(harvested, weights) {
   return result;
 }
 
-// ============================================================
-// 3. DATA HARVESTING & STRICT VALIDATION (AGENTS.md §1, §5, §28)
-// ============================================================
+// Data harvesting and validation
 
 function dossierIsValidTicker(ticker) {
   if (!ticker) return false;
@@ -1379,9 +1364,7 @@ async function dossierHarvestData(ticker) {
   return dossierState.scoringResult;
 }
 
-// ============================================================
-// 4. USER INTERFACE RENDERING (ALL-IN-ONE DOSSIER)
-// ============================================================
+// User interface rendering
 
 function dossierSelectTicker(tk) {
   if (!tk) return;
@@ -2636,9 +2619,7 @@ function renderStockDossierPage(targetTicker) {
   }
 }
 
-// ============================================================
-// 5. WEIGHTS CONFIGURATION MODAL (INTERACTIVE DRAWER)
-// ============================================================
+// Weights configuration modal
 
 function dossierOpenWeightsModal() {
   var modalId = 'dossier-weights-modal';
@@ -2833,9 +2814,7 @@ function dossierSubmitCustomWeights() {
   }
 }
 
-// ============================================================
-// 6. ACTION SHORTCUTS (INTEROPERABILITY)
-// ============================================================
+// Action shortcuts
 
 function dossierAddToWatchlist(tk) {
   var clean = String(tk || '').toUpperCase().trim();
@@ -2878,9 +2857,7 @@ function dossierOpenInStockChat(tk) {
   }
 }
 
-// ============================================================
-// 7. COMMONJS / NODE ENVIRONMENT EXPORTS (FOR AUTOMATED TESTS)
-// ============================================================
+// Test exports for Node environment
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {

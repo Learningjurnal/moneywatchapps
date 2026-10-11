@@ -108,9 +108,7 @@ function bmKillChart(key) {
   }
 }
 
-// ============================================================
-// MAIN PAGE RENDERER
-// ============================================================
+// Main page renderer
 
 function renderBandarMovementPage() {
   var container = document.getElementById('page-bandar-movement');
@@ -277,9 +275,7 @@ function renderBandarMovementPage() {
   bmLoadData(BM_STATE.ticker);
 }
 
-// ============================================================
-// DATA LOADER & API HANDLER
-// ============================================================
+// Data loader and API handler
 
 async function bmLoadData(ticker, force) {
   if (!ticker) return;
@@ -333,9 +329,7 @@ function bmRenderEmptyState(msg) {
   }
 }
 
-// ============================================================
-// WIDGET RENDERERS
-// ============================================================
+// Widget renderers
 
 function bmRenderAllWidgets() {
   if (!BM_STATE.data) return;
@@ -745,9 +739,7 @@ function bmSankeySelectNode(nodeOrNull) {
 }
 window.bmSankeySelectNode = bmSankeySelectNode;
 
-// ============================================================
-// INTERACTION HANDLERS
-// ============================================================
+// Interaction handlers
 
 function bmSetTimeframe(tf) {
   BM_STATE.timeframe = tf;

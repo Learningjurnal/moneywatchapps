@@ -1,6 +1,4 @@
-// ============================================================
-// GENERIC IN-APP TOAST NOTIFICATION
-// ============================================================
+// Generic in-app toast notification
 // `showToast(message)` is referenced (defensively, behind `typeof
 // showToast === 'function'` guards) from ~20 call sites across the app —
 // AI Trading paper-trading actions, KSEI, TradeWave, AI Chart Intelligence
@@ -215,9 +213,7 @@ function isDividendAlreadyRecorded(ticker, dateStr, windowDays){
 }
 window.isDividendAlreadyRecorded = isDividendAlreadyRecorded;
 
-// ============================================================
-// PORTFOLIO CALC
-// ============================================================
+// Portfolio calculation and caching
 var _portoCache=null, _portoCacheKey='';
 function _invalidatePortoCache(){ _portoCache=null; _portoCacheKey=''; }
 function _txHash(){
@@ -967,9 +963,7 @@ function calcRdnBalance(account){
   return isNaN(bal) ? 0 : bal;
 }
 
-// ============================================================
-// YAHOO FINANCE REALTIME ENGINE (tanpa API key)
-// ============================================================
+// Yahoo Finance real-time price engine
 var FH = {
   status: 'off',              // 'off' | 'live' | 'error' | 'loading'
   timer: null,                // interval handle
@@ -1927,9 +1921,7 @@ function buildTickerTape(){
   if(tc) tc.innerHTML=html;
 }
 
-// ============================================================
-// CHARTS
-// ============================================================
+// Chart helper and style configuration
 function kc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 // TC.color sebelumnya #8a90ad statis + font Menlo tipis (dilaporkan user
 // 2026-09-13 sulit terbaca di beberapa chart — lihat _chartTextColor() di

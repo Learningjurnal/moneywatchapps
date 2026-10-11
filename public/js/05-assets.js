@@ -1,6 +1,4 @@
-// ============================================================
-// MODAL
-// ============================================================
+// Modal state and controls
 var modalType='';
 
 // Shared double-submit guard for every modal "Konfirmasi/Simpan" button
@@ -274,9 +272,7 @@ function openModal(type, targetAccount){
 }
 
 
-// ============================================================
-// CRYPTO DATABASE (harga dalam USD, konversi ke IDR)
-// ============================================================
+// Crypto database (prices in USD, converted to IDR)
 var CRYPTO_DB = {
   'BTC':  {name:'Bitcoin',       category:'Layer 1',   baseUSD:67000,  color:'#f7931a', icon:'₿'},
   'ETH':  {name:'Ethereum',      category:'Layer 1',   baseUSD:3200,   color:'#627eea', icon:'Ξ'},
@@ -360,9 +356,7 @@ var RD_TYPES = {
   'Campuran':        {color:'#8070d2', desc:'Kombinasi saham, obligasi & pasar uang'},
 };
 
-// ============================================================
-// NEW STATE
-// ============================================================
+// State variables for crypto, ETF, and mutual funds
 var cryptoTx = [];
 var etfTx = [];
 var rdTx = [];
@@ -374,9 +368,7 @@ var nextCryptoId = 1;
 var nextEtfId = 1;
 var nextRdId = 1;
 
-// ============================================================
-// LOAD DATA REAL — CRYPTO, ETF, REKSA DANA
-// ============================================================
+// Load crypto, ETF, and mutual funds data
 function loadSampleRd(){
   // Semua reksa dana SUDAH DICAIRKAN — tidak ada posisi aktif
   // Hanya daftarkan ke RD_DB untuk tampilan di tab Reksa Dana (mode riwayat)
@@ -400,9 +392,7 @@ function loadSampleRd(){
   });
 }
 
-// ============================================================
-// CRYPTO FUNCTIONS
-// ============================================================
+// Crypto price calculation and state helpers
 // FIX: sebelumnya fungsi ini menambahkan noise Math.random() ±2.5% ke harga
 // dasar setiap kali dipanggil — memalsukan seolah harga bergerak live padahal
 // tidak. Fungsi ini hanya jalur FALLBACK yang jalan sekali saat init (lihat
@@ -717,7 +707,7 @@ function renderCrypto(){
     }
   }
 
-  // ── Isi dropdown filter kategori (pertahankan pilihan aktif) ──
+  // Populate category filter dropdown
   var crCatSel=el('cr-filter-cat');
   if(crCatSel){
     var curCrCat=crCatSel.value;
@@ -726,7 +716,7 @@ function renderCrypto(){
     if(crCatList.indexOf(curCrCat)>-1) crCatSel.value=curCrCat;
   }
 
-  // ── Terapkan filter ──
+  // Filter crypto rows
   var crQ=(el('cr-filter-search')&&el('cr-filter-search').value||'').trim().toUpperCase();
   var crQCat=(el('cr-filter-cat')&&el('cr-filter-cat').value)||'';
   var crQSig=(el('cr-filter-signal')&&el('cr-filter-signal').value)||'';
@@ -754,7 +744,7 @@ function renderCrypto(){
   if(crQPnl==='profit') crRows=crRows.filter(function(p){return p.unreal>=0;});
   else if(crQPnl==='loss') crRows=crRows.filter(function(p){return p.unreal<0;});
 
-  // ── Terapkan sort ──
+  // Sort crypto rows
   var crSk=_crSort.key, crAsc=_crSort.asc;
   crRows.sort(function(a,b){
     var va,vb;
@@ -937,9 +927,7 @@ function submitCryptoModal(type){
   closeModal();renderCrypto();
 }
 
-// ============================================================
-// ETF FUNCTIONS
-// ============================================================
+// ETF helper functions
 // FIX: sama seperti updateCryptoPrices() — noise Math.random() dihapus.
 // Harga live sesungguhnya datang dari fhFetchEtf() (03-engine.js, Yahoo
 // Finance, siklus fhStart()). Ini cuma fallback awal, harga dasar apa
@@ -1022,7 +1010,7 @@ function renderEtf(){
     return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><div style="display:flex;align-items:center;gap:6px"><span class="sec-dot" style="background:'+col+'"></span><span style="font-size:11px;font-weight:600">'+cat+'</span></div><span style="font-family:var(--font-mono);font-size:10px">'+pctCat.toFixed(1)+'%</span></div><div class="prog"><div class="progf" style="width:'+pctCat.toFixed(1)+'%;background:'+col+'"></div></div><div style="font-size:9px;color:var(--text3);margin-top:2px">'+d.cnt+' ETF · Rp '+fmtK(d.mv)+'</div></div>';
   }).join('')||'<div style="color:var(--text3);text-align:center;padding:16px">Belum ada ETF</div>';
 
-  // ── Isi dropdown filter kategori (pertahankan pilihan aktif) ──
+  // Populate category filter dropdown
   var etfCatSel=el('etf-filter-cat');
   if(etfCatSel){
     var curEtfCat=etfCatSel.value;
@@ -1031,7 +1019,7 @@ function renderEtf(){
     if(etfCatList.indexOf(curEtfCat)>-1) etfCatSel.value=curEtfCat;
   }
 
-  // ── Terapkan filter ──
+  // Filter ETF rows
   var etfQ=(el('etf-filter-search')&&el('etf-filter-search').value||'').trim().toUpperCase();
   var etfQCat=(el('etf-filter-cat')&&el('etf-filter-cat').value)||'';
   var etfQSig=(el('etf-filter-signal')&&el('etf-filter-signal').value)||'';
@@ -1047,7 +1035,7 @@ function renderEtf(){
   if(etfQPnl==='profit') etfRows=etfRows.filter(function(p){return p.unrIdr>=0;});
   else if(etfQPnl==='loss') etfRows=etfRows.filter(function(p){return p.unrIdr<0;});
 
-  // ── Terapkan sort ──
+  // Sort ETF rows
   var etfSk=_etfSort.key, etfAsc=_etfSort.asc;
   etfRows.sort(function(a,b){
     var va,vb;
@@ -1137,9 +1125,7 @@ function submitEtfModal(type){
   closeModal();renderEtf();
 }
 
-// ============================================================
-// REKSA DANA FUNCTIONS
-// ============================================================
+// Mutual funds helper functions
 // CATATAN JUJUR (tidak bisa sepenuhnya dihilangkan, beda kasus dari Crypto/ETF
 // di atas): tidak ada API publik NAB real-time resmi untuk Reksa Dana
 // Indonesia yang bisa dipakai gratis dari client-side — tidak seperti Yahoo
@@ -1196,22 +1182,22 @@ function rdFilterPlatform(plat, btn){
 }
 
 function renderReksaDana(){
-  // ── Data dari XLSX (semua sudah dicairkan) ──
+  // XLSX historical dataset
   var funds = XLSX_DATA.funds;
   var totalGain = funds.reduce(function(a,f){return a+(f.gl||0)},0);
   var mc = XLSX_DATA.fund_margin_by_cat;
 
-  // ── Posisi aktif dari rdTx ──
+  // Active holdings from rdTx
   var porto = getRdPortfolio();
   var aktivMV = porto.reduce(function(a,p){return a+p.mv},0);
 
-  // ── Metrics ──
+  // Summary metrics
   el('rd-total').textContent = 'Rp '+fmtK(totalGain);
   el('rd-aktif-val').textContent   = aktivMV>0 ? 'Rp '+fmtK(aktivMV) : 'Rp 0';
   el('rd-aktif-val').className     = 'mval '+(aktivMV>0?'up':'neu');
   el('rd-aktif-sub').textContent   = aktivMV>0 ? porto.length+' produk aktif' : '0 produk (semua dicairkan)';
 
-  // ── Chart: gain per kategori ──
+  // Category performance chart
   kc('rdPerf');
   var catGain = {};
   funds.forEach(function(f){ catGain[f.category] = (catGain[f.category]||0) + (f.gl||0); });
@@ -1230,7 +1216,7 @@ function renderReksaDana(){
       scales:{x:{grid:{color:GC},ticks:TC},y:{grid:{color:GC},ticks:Object.assign({},TC,{callback:function(v){return 'Rp '+fmtK(v)}}),position:'right'}}}
   });
 
-  // ── Isi dropdown filter jenis (pertahankan pilihan aktif) ──
+  // Type filter dropdown
   var rdTypeSel=el('rd-filter-type');
   if(rdTypeSel){
     var curRdType=rdTypeSel.value;
@@ -1239,7 +1225,7 @@ function renderReksaDana(){
     if(rdTypeList.indexOf(curRdType)>-1) rdTypeSel.value=curRdType;
   }
 
-  // ── Terapkan filter ──
+  // Apply type/search/pnl filters
   var rdQ=(el('rd-filter-search')&&el('rd-filter-search').value||'').trim().toUpperCase();
   var rdQType=(el('rd-filter-type')&&el('rd-filter-type').value)||'';
   var rdQPnl=(el('rd-filter-pnl')&&el('rd-filter-pnl').value)||'';
@@ -1252,7 +1238,7 @@ function renderReksaDana(){
   if(rdQPnl==='profit') rdRows=rdRows.filter(function(p){return p.unreal>=0;});
   else if(rdQPnl==='loss') rdRows=rdRows.filter(function(p){return p.unreal<0;});
 
-  // ── Terapkan sort ──
+  // Apply sorting
   var rdSk=_rdSort.key, rdAsc=_rdSort.asc;
   rdRows.sort(function(a,b){
     var va,vb;
@@ -1268,7 +1254,7 @@ function renderReksaDana(){
   var rdCntEl=el('rd-filter-count');
   if(rdCntEl) rdCntEl.textContent=(rdQ||rdQType||rdQPnl)?rdRows.length+' dari '+porto.length+' produk':porto.length+' produk';
 
-  // ── Tabel posisi aktif (rdTx) ──
+  // Active positions table
   el('rd-tbody').innerHTML = porto.length===0
     ? '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:16px">Belum ada posisi aktif — gunakan + Beli RD untuk menambahkan</td></tr>'
     : (rdRows.length===0
@@ -1292,7 +1278,7 @@ function renderReksaDana(){
           +'</tr>';
     }).join(''));
 
-  // ── History table dari XLSX ──
+  // Historical transactions table
   var filtered = _rdHistoryFilter==='all' ? funds : funds.filter(function(f){return f.account===_rdHistoryFilter});
   el('rd-history-tbody').innerHTML = filtered.map(function(f){
     var col = {'Pasar Uang':'#ffc107','Pendapatan Tetap':'#41f3a7','Saham':'#00c8ff','Campuran':'#8070d2'}[f.category]||'#4a5e82';
@@ -1310,7 +1296,7 @@ function renderReksaDana(){
       +'</tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:14px">Tidak ada data</td></tr>';
 
-  // ── Log transaksi user ──
+  // User transaction log
   var posRd={};
   el('rd-tx-tbody').innerHTML = rdTx.slice().sort(function(a,b){return b.date.localeCompare(a.date)}).map(function(tx){
     var isBeli=tx.type==='BELI';
@@ -1944,9 +1930,7 @@ function updateTx(id){
   renderPage(currentPage);
 }
 
-// ============================================================
-// UNIVERSAL SAFE CONFIRMATION DIALOG (IFRAME-RESILIENT)
-// ============================================================
+// Universal safe confirmation dialog (iframe-resilient)
 function mwConfirm(title, message, onConfirm, confirmBtnText, btnClass){
   var m = (typeof el === 'function') ? el('modal') : document.getElementById('modal');
   if(!m){
@@ -2030,13 +2014,8 @@ function delRdnManual(id){
 window.delRdnManual = delRdnManual;
 window.delDiv = delDiv;
 
-// ============================================================
-// NAVIGATION
-// ============================================================
-
-// === EMBEDDED DATA: Mutasi_Final.xlsx (transaksi historis + candle ADMR) ===
+// Transaction modal breakdown and embedded data from Mutasi_Final.xlsx
 var MUTASI_DATA={codes:[],sek:[],summary:{},totals:{r:0,f:0,bv:0,sv:0,n:0,db:0,ds:0,disc_b:0,disc_s:0,first:0,last:0},raw:[]};
-// ── DETAIL PERHITUNGAN TRANSAKSI (Modal Breakdown) ──
 function openTxDetailModal(txId){
   var tx = transactions.find(function(t){ return t.id === txId; });
   if(!tx){ if(typeof showSaveStatus==='function') showSaveStatus('Transaksi tidak ditemukan','var(--red)'); return; }
@@ -2105,9 +2084,7 @@ function openTxDetailModal(txId){
   el('modal').classList.add('on');
 }
 
-// ============================================================
-// PORTFOLIO VOLATILITY & RISK ASSESSMENT ENGINE
-// ============================================================
+// Portfolio volatility and risk assessment engine
 function calcPortfolioVolatilityAndRisk(){
   var porto = typeof getPortfolio === 'function' ? getPortfolio() : [];
   var cryptoPorto = typeof getCryptoPortfolio === 'function' ? getCryptoPortfolio() : [];
@@ -2588,9 +2565,7 @@ function renderPortfolioHub(){
     }).join('');
   }
 
-  // ==========================================
-  // RENDER PORTFOLIO VOLATILITY GAUGE & METRICS
-  // ==========================================
+  // Portfolio volatility gauge and metrics rendering
   var risk = calcPortfolioVolatilityAndRisk();
 
   if (el('vol-risk-score')) {

@@ -45,9 +45,7 @@ function techKillChart(key) {
   }
 }
 
-// ============================================================
-// 0. STOCK MASTER TERMINAL 360 (UNIFIED EMITEN WORKFLOW)
-// ============================================================
+// Stock Master Terminal 360 unified emiten navigation
 
 function renderStockMaster360Nav(activePillar, currentTicker) {
   var customQuote = arguments[2];
@@ -263,9 +261,7 @@ window.sm360Go = sm360Go;
 window.sm360SelectTicker = sm360SelectTicker;
 window.sm360SearchSubmit = sm360SearchSubmit;
 
-// ============================================================
-// 1. MEGA FUNDAMENTAL SUITE LOGIC
-// ============================================================
+// Fundamental suite logic and state initialization
 
 function fundInit() {
   var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
@@ -1514,9 +1510,7 @@ function fundCalculateDCF() {
   }
 }
 
-// ============================================================
-// 2. MEGA TECHNICAL & FLOW SUITE LOGIC (OPTIMIZED & RESPONSIVE)
-// ============================================================
+// Technical and flow suite logic
 
 function techInit(force) {
   var globalTk = (typeof GLOBAL_STOCK_CONTEXT !== 'undefined' && GLOBAL_STOCK_CONTEXT.getTicker) ? GLOBAL_STOCK_CONTEXT.getTicker() : 'BBCA';
@@ -2533,9 +2527,7 @@ function techRenderPivotsTab(ticker) {
     + '</div>';
 }
 
-// ============================================================
-// 3. BACKWARDS COMPATIBILITY ALIASES
-// ============================================================
+// Backwards compatibility aliases
 window.smSwitchTab = fundSwitchTab;
 window.smFetchData = fundFetchData;
 window.smSetTicker = fundSetTicker;

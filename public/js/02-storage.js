@@ -116,10 +116,7 @@ function resetUserPortfolioState() {
 }
 window.resetUserPortfolioState = resetUserPortfolioState;
 
-// ============================================================
-// DEMO SANDBOX DEFAULT STATE (AKUN BERSIH / ZERO-STATE)
-// ============================================================
-// Akun demo bersifat bersih (clean zero-state) tanpa residu transaksi, aset, kas, atau hutang fiktif.
+// Demo sandbox default state (clean zero-state isolated from user accounts)
 // Terisolasi 100% dari akun pribadi pengguna.
 var DEMO_SANDBOX_SAMPLE = {
   isDemoSandbox: true,
@@ -335,9 +332,7 @@ function sanitizeRdnMutations(){
   if(typeof rebuildRdnBalance === 'function') rebuildRdnBalance();
 }
 
-// ============================================================
-// BACKEND & DATABASE RDN RECONCILIATION ENGINE
-// ============================================================
+// RDN reconciliation with recorded transactions
 function reconcileRdnWithTransactions(silent){
   if(!Array.isArray(transactions)) transactions = [];
   if(!Array.isArray(dividends)) dividends = [];
@@ -633,9 +628,7 @@ try {
 }
 
 
-// ============================================================
-// CLOUD DATA SYNC (SUPABASE)
-// ============================================================
+// Cloud data synchronization and trade strategy mapping
 var tradeStrategy = {
   'ARCI': 'Swing Trade',
   'PGEO': 'Core Long',
@@ -1667,9 +1660,7 @@ async function fireLoadAllData(){
   }
 }
 
-// ============================================================
-// DATA SAVE & SYNC CONTROLLER (SUPABASE CLOUD-FIRST)
-// ============================================================
+// Data persistence and Supabase synchronization
 function saveData(){
   if(typeof _invalidatePortoCache === 'function') _invalidatePortoCache();
 
@@ -1837,9 +1828,7 @@ function loadData(){
 
     var raw = null;
     if(isDemoSession){
-      // STRICT SECURITY ENFORCEMENT:
-      // Mode Tamu / Demo HANYA boleh membaca sandbox demo lokalnya sendiri.
-      // DILARANG KERAS membaca atau fallback ke key data user mana pun!
+      // Demo guest mode isolates from user data and only reads local sandbox.
       var demoKey = 'mw_local_data_v3_demo';
       var rawDemo = localStorage.getItem(demoKey);
       var isDemoValid = false;
@@ -2108,9 +2097,7 @@ window.clearData = clearData;
 window.resetAllDatabaseAndTransactions = clearData;
 window.resetAllDataToZero = clearData;
 
-// ============================================================
-// BACKUP & RESTORE MODAL (JSON FILE EXPORT / IMPORT)
-// ============================================================
+// Backup and restore helpers (JSON file export/import)
 function downloadBackup(){
   var payload = {
     version: 'moneywatch_backup_v1',
@@ -2737,18 +2724,14 @@ function showSaveStatus(msg, color, persist, priority){
   }, duration);
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
+// Formatting and DOM utility helpers
 function fmt(n){return Math.round(n||0).toLocaleString('id-ID')}
 function fmtK(n){var a=Math.abs(n||0);if(a>=1e12)return(n/1e12).toFixed(2)+'T';if(a>=1e9)return(n/1e9).toFixed(2)+'M';if(a>=1e6)return(n/1e6).toFixed(1)+'Jt';return fmt(n)}
 function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function today(){return new Date().toISOString().split('T')[0]}
 function el(id){return document.getElementById(id)}
 
-// ============================================================
-// METADATA PASAR & ACUAN DATA
-// ============================================================
+// Market metadata and reference state
 var XLSX_DATA = {
   total_equity: 0,
   margin_total: 0,

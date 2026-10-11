@@ -1,8 +1,5 @@
-// ==========================================
-// HARGA WAJAR — MoS Valuation Engine
-// Metodologi: EPS-based IRR + Future Stock Price (9-Step Warren Buffett & Value Investing)
-// Real Data Reference: Google Sheets Form MoS & Finc State
-// ==========================================
+// Margin of safety valuation engine
+// EPS-based IRR and future stock price projections (Warren Buffett & Benjamin Graham value investing methodology)
 
 var STOCK_FINANCIAL_DATABASE = {
   "GGRM": {
@@ -1913,12 +1910,12 @@ function hw_recalc() {
   var N = hwData.projYears || 5;
   var reqReturn = minRet / 100;
 
-  // === Step 1: Initial IRR = EPS_latest / Price ===
+  // Initial IRR from latest EPS / current price
   var eps0 = parseFloat(latest.eps);
   var irr = eps0 / price0;
   var irrPass = (irr * 100) >= minRet;
 
-  // === Step 2a: Average ROE ===
+  // Historical average ROE
   var roeList = [];
   rows.forEach(function(r) {
     var eq = parseFloat(r.equity);
@@ -1934,7 +1931,7 @@ function hw_recalc() {
   });
   var avgROE = roeList.length ? roeList.reduce(function(s,v){return s+v;},0) / roeList.length : 0.15;
 
-  // === Step 2b: Average DPR = DPS / EPS ===
+  // Historical average dividend payout ratio
   var dprWarning = false;
   var dprList = [];
   rows.forEach(function(r) {
@@ -1948,21 +1945,19 @@ function hw_recalc() {
   });
   var avgDPR = dprList.length ? dprList.reduce(function(s,v){return s+v;},0) / dprList.length : 0.35;
 
-  // === Step 2c: ROE after payout ===
+  // Retained earnings ROE after payout
   var roeAfterPayout = avgROE * (1 - avgDPR);
 
-  // === Step 3a: Equity per Share (Rp/saham) ===
+  // Equity per share
   var equityMiliar = parseFloat(latest.equity);
   var sharesJuta = parseFloat(latest.shares);
   var equityPerShare = (equityMiliar * 1e9) / (sharesJuta * 1e6);
 
-  // === Step 3b: Future Equity per Share ===
+  // Projected equity per share and future EPS
   var futureEquityPerShare = equityPerShare * Math.pow(1 + Math.max(roeAfterPayout, -0.5), N);
-
-  // === Step 4: Future EPS ===
   var futureEPS = futureEquityPerShare * avgROE;
 
-  // === Step 5: Average PER ===
+  // Historical average PER
   var perList = [];
   rows.forEach(function(r) {
     var p = parseFloat(r.per);
@@ -1975,7 +1970,7 @@ function hw_recalc() {
   var exitPER = Math.min(avgPER, latestPer > 0 ? latestPer : avgPER);
   var futurePrice = futureEPS * exitPER;
 
-  // === Future Price + Dividends (9-Step MoS Formula) ===
+  // Projected cumulative dividends and terminal price
   var totalDividends = 0;
   for (var k = 1; k <= N; k++) {
     var projectedEq = equityPerShare * Math.pow(1 + roeAfterPayout, k);
@@ -1984,18 +1979,16 @@ function hw_recalc() {
   }
   var futurePriceWithDiv = futurePrice + totalDividends;
 
-  // === Step 7: Expected Rate of Return ROE ===
+  // Expected rate of return and discounted fair value
   var expRoeReturn = (futurePriceWithDiv > 0 && price0 > 0) ? Math.pow(futurePriceWithDiv / price0, 1 / N) - 1 : 0;
-
-  // === Step 8: Fair Value (Harga Wajar) ===
   var fairValue = (futurePriceWithDiv > 0) ? futurePriceWithDiv / Math.pow(1 + reqReturn, N) : (futurePrice / Math.pow(1 + reqReturn, N));
 
-  // === Step 9: Margin of Safety ===
+  // Margin of safety calculation
   var mosPct = fairValue > 0 ? (fairValue - price0) / fairValue * 100 : -Infinity;
   var mosPass = isFinite(mosPct) && mosPct > 0;
   var overallPass = irrPass && mosPass;
 
-  // === Render Verdict & Badges ===
+  // Render verdict badges
   var elTkDisp = document.getElementById('hw-ticker-display');
   if (elTkDisp) elTkDisp.textContent = ticker;
   var elTkLogo = document.getElementById('hw-ticker-logo');
@@ -2024,7 +2017,7 @@ function hw_recalc() {
     }
   }
 
-  // === Render Numbers ===
+  // Render valuation metrics
   var mosPctDisplay = isFinite(mosPct) ? fmtPct(mosPct) : (mosPct === -Infinity ? '−∞' : '∞');
   var elFairPrice = document.getElementById('hw-fair-price');
   if (elFairPrice) {
@@ -2068,7 +2061,7 @@ function hw_recalc() {
   var elV_fsp = document.getElementById('hw-v-fsp'); if (elV_fsp) elV_fsp.textContent = fmtRp(futurePriceWithDiv);
   var elV_roe2 = document.getElementById('hw-v-roe2'); if (elV_roe2) elV_roe2.textContent = fmtPct(roeAfterPayout * 100);
 
-  // === Multi-Model Valuation Calculations ===
+  // Multi-model valuation calculations (Graham, Lynch, DDM)
   var grahamVal = (eps0 > 0 && equityPerShare > 0) ? Math.sqrt(22.5 * eps0 * equityPerShare) : 0;
   var grahamMos = (grahamVal > 0 && price0 > 0) ? (grahamVal - price0) / grahamVal * 100 : 0;
 
@@ -2113,7 +2106,7 @@ function hw_recalc() {
     elDdmPct.style.color = ddmMos > 0 ? 'var(--green)' : 'var(--text3)';
   }
 
-  // === 2D Sensitivity Matrix Rendering ===
+  // 2D Sensitivity Matrix Rendering
   // Label dipersingkat (Bear/Base/Bull polos + angka di baris terpisah,
   // bukan "Bear (18.8x)" satu baris) supaya cukup di kolom sidebar 340px —
   // sebelumnya white-space:nowrap bawaan `.tbl` memaksa label panjang jadi

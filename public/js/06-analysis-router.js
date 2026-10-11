@@ -1,6 +1,4 @@
-// ============================================================
-// CANDLE ANALYSIS
-// ============================================================
+// Candle analysis and trade planning
 function cd_dateStr(serial){
   var d=new Date(Date.UTC(1899,11,30)+serial*86400000);
   return ('0'+d.getUTCDate()).slice(-2)+'/'+('0'+(d.getUTCMonth()+1)).slice(-2)+'/'+d.getUTCFullYear();
@@ -282,16 +280,8 @@ function renderCandle(){
 }
 
 
-// ============================================================
-// (removed) STRATEGI PER-EMITEN panel — dead code: its container element
-// (#d-tradetype) was never present in index.html, so renderStrategyPanel()
-// always no-op'd and this UI was never actually reachable anywhere in the
-// app. stratOf()/tradeStrategy still silently defaulted every stock to
-// 'Core Long' wherever it was read (e.g. the PDF/CSV reports), which is
-// what made that column look permanently un-settable — removed there too.
-// ============================================================
-
-// ── Risk metrics (dipakai dashboard & saran AI) ──
+// Dead code note: per-stock strategy panel container #d-tradetype was pruned.
+// Risk metrics used by dashboard and AI recommendations
 function computeRiskMetrics(){
   var porto=(typeof getPortfolio==='function')?getPortfolio():[];
   var totalMV=porto.reduce(function(a,p){return a+p.mv},0)||1;
@@ -697,9 +687,7 @@ function fsRenderProb(a){
 }
 
 
-// ============================================================
-// IMPOR DIVIDEN LAMPIRAN + PAJAK PER-SEKURITAS + RINGKASAN ASET
-// ============================================================
+// Dividend import, per-broker tax overrides, and asset summary
 // PPh per sekuritas mengikuti tarif global (tab Pajak). Override khusus jika tarif berbeda dari global.
 var sekTaxOverride = {};
 
@@ -994,9 +982,7 @@ function renderPage(name){
   }
 }
 
-// ============================================================
-// INIT
-// ============================================================
+// Initialization lifecycle
 document.addEventListener('DOMContentLoaded',function(){
   var hasData = loadData();
   // FIX: normalizeSekLabels tidak pernah didefinisikan di file asli —
