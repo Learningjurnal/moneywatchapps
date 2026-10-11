@@ -39,7 +39,9 @@ var DOSSIER_PRESETS = {
   swing: {
     label: 'Aggressive Swing Bandarmology',
     desc: 'Fokus akumulasi broker institusi, foreign flow streak, dan momentum teknikal breakout.',
-    weights: { valuation: 10, smartMoney: 35, technical: 30, ksei: 15, fundamental: 0, regime: 10 }
+    // Kalibrasi institusional: Data Utama (valuation 15% + technical 35% + fundamental 15% = 65%)
+    // mendominasi faktor pendukung eksternal (smartMoney 20% + ksei 10% + regime 5% = 35%).
+    weights: { valuation: 15, smartMoney: 20, technical: 35, ksei: 10, fundamental: 15, regime: 5 }
   },
   technoFund: {
     label: 'Techno-Fundamental Growth',
@@ -67,7 +69,14 @@ function dossierGetWeights() {
         });
         if (valid) {
           var sum = parsed.valuation + parsed.smartMoney + parsed.technical + parsed.ksei + parsed.fundamental + parsed.regime;
-          if (Math.abs(sum - 100) < 0.1) return parsed;
+          if (Math.abs(sum - 100) < 0.1) {
+            // Auto-heal legacy swing preset di mana Data Utama hanya 40% dan Supporting 60% (fundamental 0)
+            if (parsed.fundamental === 0 && parsed.smartMoney === 35 && parsed.valuation === 10 && parsed.technical === 30) {
+              parsed = Object.assign({}, DOSSIER_PRESETS.swing.weights);
+              try { localStorage.setItem('mw_dossier_weights_v1', JSON.stringify(parsed)); } catch (e) {}
+            }
+            return parsed;
+          }
         }
       }
     }
@@ -1747,13 +1756,13 @@ function renderStockDossierPage(targetTicker) {
   // ── DUAL-COLUMN SPLIT TERMINAL: DATA UTAMA VS SUPPORTING ──
   html += '<div class="dossier-split-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px, 100%), 1fr));gap:20px;margin-bottom:24px;align-items:start">';
 
-  // 1. DATA UTAMA (HARGA SAHAM & PERFORMA BISNIS PERUSAHAAN)
+  // DATA UTAMA (HARGA SAHAM & PERFORMA BISNIS PERUSAHAAN)
   var wUtama = (res.weightsUsed.valuation || 0) + (res.weightsUsed.technical || 0) + (res.weightsUsed.fundamental || 0);
   html += '  <div>';
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(15,105,255,0.08) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(15,105,255,0.22);border-left:3px solid var(--blue);border-radius:8px">';
   html += '      <div>';
   html += '        <div style="font-family:var(--font-display);font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
-  html += '          <i class="ti ti-building-bank" style="color:var(--blue);font-size:15px"></i> 1. DATA UTAMA (HARGA &amp; KINERJA EMITEN)';
+  html += '          <i class="ti ti-building-bank" style="color:var(--blue);font-size:15px"></i> DATA UTAMA (HARGA &amp; KINERJA EMITEN)';
   html += '        </div>';
   html += '        <div style="font-size:11px;color:var(--text3);margin-top:2px">Faktor internal: valuasi fundamental, momentum teknikal, dan profitabilitas bisnis.</div>';
   html += '      </div>';
@@ -2017,13 +2026,13 @@ function renderStockDossierPage(targetTicker) {
 
   html += '  </div>'; // End Kolom 1
 
-  // 2. SUPPORTING: FAKTOR EKSTERNAL & ARUS PASAR
+  // SUPPORTING: FAKTOR EKSTERNAL & ARUS PASAR
   var wSupporting = (res.weightsUsed.smartMoney || 0) + (res.weightsUsed.ksei || 0) + (res.weightsUsed.regime || 0);
   html += '  <div>';
   html += '    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px 14px;background:linear-gradient(90deg, rgba(139,92,246,0.08) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(139,92,246,0.22);border-left:3px solid #8b5cf6;border-radius:8px">';
   html += '      <div>';
   html += '        <div style="font-family:var(--font-display);font-size:12px;font-weight:900;color:var(--text);letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px">';
-  html += '          <i class="ti ti-waves" style="color:#8b5cf6;font-size:15px"></i> 2. SUPPORTING (FAKTOR EKSTERNAL &amp; PASAR)';
+  html += '          <i class="ti ti-waves" style="color:#8b5cf6;font-size:15px"></i> SUPPORTING (FAKTOR EKSTERNAL &amp; PASAR)';
   html += '        </div>';
   html += '        <div style="font-size:11px;color:var(--text3);margin-top:2px">Faktor eksternal: akumulasi broker bandar, kepemilikan KSEI, dan iklim IHSG.</div>';
   html += '      </div>';
@@ -2662,28 +2671,69 @@ function dossierOpenWeightsModal() {
   html += '      </div>';
   html += '    </div>';
 
-  // Sliders
-  var sliders = [
-    { key: 'valuation', label: '1. Valuasi & Harga Wajar (MoS, PE/PBV)' },
-    { key: 'smartMoney', label: '2. Smart Money & Bandar (Broker Flow)' },
-    { key: 'technical', label: '3. Momentum & Teknikal (EMA, RSI, Vol)' },
-    { key: 'ksei', label: '4. Struktur Kepemilikan KSEI (Free Float)' },
-    { key: 'fundamental', label: '5. Fundamental & Dividen (ROE, DER, Yield)' },
-    { key: 'regime', label: '6. Market Regime AI (IHSG Macro Context)' }
+  // Sliders grouped by Data Utama vs Supporting
+  var slidersUtama = [
+    { key: 'valuation', label: 'Valuasi & Harga Wajar (MoS, PE/PBV)' },
+    { key: 'technical', label: 'Momentum & Teknikal (EMA, RSI, Vol)' },
+    { key: 'fundamental', label: 'Fundamental & Dividen (ROE, DER, Yield)' }
+  ];
+  var slidersSupporting = [
+    { key: 'smartMoney', label: 'Smart Money & Bandar (Broker Flow)' },
+    { key: 'ksei', label: 'Struktur Kepemilikan KSEI (Free Float)' },
+    { key: 'regime', label: 'Market Regime AI (IHSG Macro Context)' }
   ];
 
-  html += '    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">';
-  sliders.forEach(function(s) {
+  var curUtama = (w.valuation || 0) + (w.technical || 0) + (w.fundamental || 0);
+  var curSupporting = (w.smartMoney || 0) + (w.ksei || 0) + (w.regime || 0);
+
+  html += '    <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:16px">';
+
+  // Group 1: DATA UTAMA
+  html += '      <div style="padding:10px 12px;background:rgba(15,105,255,0.05);border:1px solid rgba(15,105,255,0.18);border-radius:8px">';
+  html += '        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  html += '          <div style="font-family:var(--font-display);font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:6px">';
+  html += '            <i class="ti ti-building-bank"></i> DATA UTAMA (HARGA &amp; KINERJA EMITEN)';
+  html += '          </div>';
+  html += '          <span id="dossier-w-subtotal-utama" class="badge" style="background:rgba(15,105,255,0.15);border:1px solid rgba(15,105,255,0.3);color:var(--blue);font-weight:800;font-size:10px;padding:2px 6px">SUBTOTAL ' + curUtama + '%</span>';
+  html += '        </div>';
+  html += '        <div style="display:flex;flex-direction:column;gap:10px">';
+  slidersUtama.forEach(function(s) {
     var val = w[s.key] !== undefined ? w[s.key] : 0;
-    html += '      <div>';
-    html += '        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">';
-    html += '          <span style="color:var(--text2);font-weight:600">' + s.label + '</span>';
-    html += '          <span style="font-family:var(--font-mono);font-weight:700;color:var(--blue)" id="dossier-w-label-' + s.key + '">' + val + '%</span>';
-    html += '        </div>';
-    html += '        <input type="range" min="0" max="100" step="5" value="' + val + '" class="finput" style="width:100%;height:6px;accent-color:var(--blue)" ';
-    html += '          id="dossier-w-inp-' + s.key + '" oninput="dossierOnSliderChange()" />';
-    html += '      </div>';
+    html += '          <div>';
+    html += '            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">';
+    html += '              <span style="color:var(--text2);font-weight:600">' + s.label + '</span>';
+    html += '              <span style="font-family:var(--font-mono);font-weight:700;color:var(--blue)" id="dossier-w-label-' + s.key + '">' + val + '%</span>';
+    html += '            </div>';
+    html += '            <input type="range" min="0" max="100" step="5" value="' + val + '" class="finput" style="width:100%;height:6px;accent-color:var(--blue)" ';
+    html += '              id="dossier-w-inp-' + s.key + '" oninput="dossierOnSliderChange()" />';
+    html += '          </div>';
   });
+  html += '        </div>';
+  html += '      </div>';
+
+  // Group 2: SUPPORTING
+  html += '      <div style="padding:10px 12px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.18);border-radius:8px">';
+  html += '        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  html += '          <div style="font-family:var(--font-display);font-size:11px;font-weight:800;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:6px">';
+  html += '            <i class="ti ti-waves"></i> SUPPORTING (FAKTOR EKSTERNAL &amp; PASAR)';
+  html += '          </div>';
+  html += '          <span id="dossier-w-subtotal-supporting" class="badge" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#8b5cf6;font-weight:800;font-size:10px;padding:2px 6px">SUBTOTAL ' + curSupporting + '%</span>';
+  html += '        </div>';
+  html += '        <div style="display:flex;flex-direction:column;gap:10px">';
+  slidersSupporting.forEach(function(s) {
+    var val = w[s.key] !== undefined ? w[s.key] : 0;
+    html += '          <div>';
+    html += '            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">';
+    html += '              <span style="color:var(--text2);font-weight:600">' + s.label + '</span>';
+    html += '              <span style="font-family:var(--font-mono);font-weight:700;color:#8b5cf6" id="dossier-w-label-' + s.key + '">' + val + '%</span>';
+    html += '            </div>';
+    html += '            <input type="range" min="0" max="100" step="5" value="' + val + '" class="finput" style="width:100%;height:6px;accent-color:#8b5cf6" ';
+    html += '              id="dossier-w-inp-' + s.key + '" oninput="dossierOnSliderChange()" />';
+    html += '          </div>';
+  });
+  html += '        </div>';
+  html += '      </div>';
+
   html += '    </div>';
 
   // Sum & Validation Bar
@@ -2716,14 +2766,25 @@ function dossierOpenWeightsModal() {
 
 function dossierOnSliderChange() {
   var keys = ['valuation', 'smartMoney', 'technical', 'ksei', 'fundamental', 'regime'];
+  var values = {};
   var total = 0;
   keys.forEach(function(k) {
     var inp = document.getElementById('dossier-w-inp-' + k);
     var val = inp ? parseInt(inp.value, 10) || 0 : 0;
     var lbl = document.getElementById('dossier-w-label-' + k);
     if (lbl) lbl.textContent = val + '%';
+    values[k] = val;
     total += val;
   });
+
+  var subUtama = (values.valuation || 0) + (values.technical || 0) + (values.fundamental || 0);
+  var subSupporting = (values.smartMoney || 0) + (values.ksei || 0) + (values.regime || 0);
+
+  var subUtamaLbl = document.getElementById('dossier-w-subtotal-utama');
+  if (subUtamaLbl) subUtamaLbl.textContent = 'SUBTOTAL ' + subUtama + '%';
+
+  var subSupportingLbl = document.getElementById('dossier-w-subtotal-supporting');
+  if (subSupportingLbl) subSupportingLbl.textContent = 'SUBTOTAL ' + subSupporting + '%';
 
   var totLbl = document.getElementById('dossier-w-total-label');
   var saveBtn = document.getElementById('dossier-w-save-btn');

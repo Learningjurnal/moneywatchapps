@@ -4828,13 +4828,31 @@ test('MASTER DOSSIER: 46-stock-dossier.js loads and exports institutional preset
   const sumDef = defWeights.valuation + defWeights.smartMoney + defWeights.technical + defWeights.ksei + defWeights.fundamental + defWeights.regime;
   assert.strictEqual(sumDef, 100, 'Default weights must sum to exactly 100%');
 
-  // Verify all presets sum to 100%
+  // Verify all presets sum to 100% and Data Utama is strictly dominant over Supporting
   const presets = dossier.DOSSIER_PRESETS;
   Object.keys(presets).forEach(key => {
     const pw = presets[key].weights;
     const sum = pw.valuation + pw.smartMoney + pw.technical + pw.ksei + pw.fundamental + pw.regime;
     assert.strictEqual(sum, 100, `Preset ${key} weights must sum to 100%`);
+
+    const wUtama = pw.valuation + pw.technical + pw.fundamental;
+    const wSupporting = pw.smartMoney + pw.ksei + pw.regime;
+    assert.ok(wUtama > wSupporting, `Preset ${key} must have Data Utama (${wUtama}%) > Supporting (${wSupporting}%)`);
   });
+
+  // Verify auto-heal of legacy swing weights (40% Utama vs 60% Supporting)
+  const legacySwingJson = JSON.stringify({ valuation: 10, smartMoney: 35, technical: 30, ksei: 15, fundamental: 0, regime: 10 });
+  const mockStorage = {
+    getItem: (k) => k === 'mw_dossier_weights_v1' ? legacySwingJson : null,
+    setItem: (k, v) => {}
+  };
+  const ctx = getDossierContext();
+  ctx.localStorage = mockStorage;
+  const healedWeights = ctx.dossierGetWeights();
+  const healedUtama = healedWeights.valuation + healedWeights.technical + healedWeights.fundamental;
+  const healedSupporting = healedWeights.smartMoney + healedWeights.ksei + healedWeights.regime;
+  assert.strictEqual(healedUtama, 65, 'Legacy swing weights must be auto-healed so Data Utama is 65%');
+  assert.strictEqual(healedSupporting, 35, 'Legacy swing weights must be auto-healed so Supporting is 35%');
 });
 
 test('MASTER DOSSIER: Zero Synthetic Data & Dynamic Denominator Renormalization protocol', () => {
