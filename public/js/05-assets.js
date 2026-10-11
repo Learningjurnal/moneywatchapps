@@ -190,10 +190,10 @@ function openModal(type, targetAccount){
   } else if(type==='portfolioRisk'){
     var riskData = (typeof calcPortfolioVolatilityAndRisk === 'function') ? calcPortfolioVolatilityAndRisk() : null;
     if (!riskData) {
-      el('m-title').textContent = '⚡ Volatilitas & Asesmen Risiko Portofolio';
+      el('m-title').textContent = 'Volatilitas & Asesmen Risiko Portofolio';
       el('m-body').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3)">Data portofolio tidak tersedia.</div>';
     } else {
-      el('m-title').textContent = '⚡ Rincian Volatilitas & Profil Risiko Portofolio';
+      el('m-title').textContent = 'Rincian Volatilitas & Profil Risiko Portofolio';
       el('m-title').style.color = riskData.riskColor || 'var(--accent)';
 
       var assetRows = (riskData.assets || []).filter(function(a){ return a.val > 0; }).sort(function(a,b){

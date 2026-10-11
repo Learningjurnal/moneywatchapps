@@ -650,7 +650,7 @@
             <input type="password" id="auth-password" placeholder="Masukkan password akun..." autocomplete="current-password" onkeydown="if(event.key==='Enter')authDoLogin()">
           </div>
         </div>
-        <button class="auth-btn" id="auth-login-btn" onclick="authDoLogin()">Masuk ke Terminal →</button>
+        <button class="auth-btn" id="auth-login-btn" onclick="authDoLogin()">Masuk ke Terminal</button>
         <div class="auth-info">
           Sesi terenkripsi aman · Auto-logout jika inaktif 60 menit<br>
           Lupa password? <span style="color:#2962ff;cursor:pointer;font-weight:600" onclick="authShowReset()">Reset via kode</span>
@@ -684,7 +684,7 @@
             <input type="password" id="auth-new-pass2" placeholder="Ulangi password baru..." autocomplete="new-password">
           </div>
         </div>
-        <button class="auth-btn" onclick="authDoSetup()">Buat Akun &amp; Masuk →</button>
+        <button class="auth-btn" onclick="authDoSetup()">Buat Akun &amp; Masuk</button>
         <div class="auth-info" id="auth-setup-back" style="cursor:pointer;color:#2962ff;margin-top:12px" onclick="authShowLogin()">← Kembali ke login</div>
       </div>
 
@@ -700,7 +700,7 @@
             <input type="email" id="auth-reset-code" placeholder="email@domain.com">
           </div>
         </div>
-        <button class="auth-btn" onclick="authDoReset()">Verifikasi &amp; Lanjutkan →</button>
+        <button class="auth-btn" onclick="authDoReset()">Verifikasi &amp; Lanjutkan</button>
         <div class="auth-info" style="cursor:pointer;color:#2962ff;margin-top:12px" onclick="authShowLogin()">← Kembali ke login</div>
       </div>
     </div>
@@ -951,8 +951,8 @@
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                 <span style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-right:4px">Tampilan:</span>
                 <button id="btn-dash-view-all" class="sm-chip active on" onclick="switchDashboardView('all', this)">Semua</button>
-                <button id="btn-dash-view-cc" class="sm-chip" onclick="switchDashboardView('command-center', this)">🎯 Command Center</button>
-                <button id="btn-dash-view-portfolio" class="sm-chip" onclick="switchDashboardView('portfolio', this)">📊 Portofolio Snapshot</button>
+                <button id="btn-dash-view-cc" class="sm-chip" onclick="switchDashboardView('command-center', this)">Command Center</button>
+                <button id="btn-dash-view-portfolio" class="sm-chip" onclick="switchDashboardView('portfolio', this)">Portofolio Snapshot</button>
             </div>
             <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">
                 <span id="dash-view-hint">Mode Lengkap (Command Center &amp; Portofolio)</span>
@@ -983,7 +983,7 @@
           </div>
           <span class="dash-regime-sep hide-mobile"></span>
           <div id="dash-regime-desc" class="dash-regime-desc">Memuat klasifikasi regime pasar…</div>
-          <button class="sm-btn" onclick="goPage('daily-brief')" style="white-space:nowrap;flex-shrink:0">Lihat Detail →</button>
+          <button class="sm-btn" onclick="goPage('daily-brief')" style="white-space:nowrap;flex-shrink:0">Lihat Detail</button>
         </div>
 
         <!-- 1. MANAGE ASSET CARD (EXECUTIVE SUMMARY KPI RIBBON) -->
@@ -1339,7 +1339,7 @@
                   <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Opportunity Radar</span>
                   <span class="badge b-blue" style="font-size:9.5px">Top Picks</span>
                 </div>
-                <button class="sm-btn" onclick="goPage('radar')">Lihat Semua →</button>
+                <button class="sm-btn" onclick="goPage('radar')">Lihat Semua</button>
               </div>
               <div id="dash-radar-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat peluang teratas…</div>
@@ -1355,7 +1355,7 @@
                   <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Heatmap Sektoral</span>
                   <span class="badge b-neu" style="font-size:9.5px">IDX Sectors</span>
                 </div>
-                <button class="sm-btn" onclick="goPage('sectoral-insight')">Lihat Semua →</button>
+                <button class="sm-btn" onclick="goPage('sectoral-insight')">Lihat Semua</button>
               </div>
               <div id="dash-heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:8px">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat heatmap sektoral…</div>
@@ -1372,7 +1372,7 @@
                   <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Money Flow</span>
                   <span class="badge b-green" style="font-size:9.5px">Smart Money</span>
                 </div>
-                <button class="sm-btn" onclick="goBandarmology('market',null)">Lihat Detail →</button>
+                <button class="sm-btn" onclick="goBandarmology('market',null)">Lihat Detail</button>
               </div>
               <div id="dash-smartflow-body">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat aliran dana…</div>
@@ -1397,7 +1397,7 @@
                   <span style="font-size:13.5px;font-weight:700;color:var(--text);font-family:var(--font-display)">Alerts &amp; Actions</span>
                   <span class="badge b-red" style="font-size:9.5px">Real-Time</span>
                 </div>
-                <button class="sm-btn" onclick="goPage('alerts')">Kelola Alerts →</button>
+                <button class="sm-btn" onclick="goPage('alerts')">Kelola Alerts</button>
               </div>
               <div id="dash-alerts-list" style="display:flex;flex-direction:column;gap:8px">
                 <div style="color:var(--text3);font-size:11.5px;padding:8px 0">Memuat alert…</div>
@@ -3254,7 +3254,7 @@
           <div id="sm-d-ksei-tab1-summary" class="sm-card" style="margin-bottom:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <h3 style="font-size:13px;font-weight:700;color:var(--text);margin:0">Kepemilikan Saham &amp; Free Float KSEI (&gt;5%)</h3>
-              <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(3)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 3 →</button>
+              <button class="btn btn-xs btn-blue" onclick="fundSwitchTab(3)" style="font-size:10px;padding:3px 8px">Lihat Rincian Tab 3</button>
             </div>
             <div id="sm-d-ksei-tab1-content" style="font-size:12px;color:var(--text3)">Memuat data KSEI...</div>
           </div>
@@ -4054,7 +4054,7 @@
           style="background:none;border:none;outline:none;color:var(--text);font-family:var(--font-mono);font-size:12px;text-transform:uppercase;width:110px;letter-spacing:.8px"
           onkeydown="if(event.key==='Enter')cdLoadInput()"/>
       </div>
-      <button class="btn btn-blue" onclick="cdLoadInput()" style="font-size:12px">Muat ↗</button>
+      <button class="btn btn-blue" onclick="cdLoadInput()" style="font-size:12px">Muat</button>
       <button class="btn btn-ghost" onclick="cdAutoZona()" style="font-size:12px;border-color:rgba(45,212,191,.35);color:var(--teal)" title="Hitung ulang zona/stop/TP otomatis dari struktur harga">Auto Zona</button>
       <button class="btn btn-ghost" onclick="cdRecalc()" style="font-size:12px">↻ Hitung Ulang</button>
     </div>

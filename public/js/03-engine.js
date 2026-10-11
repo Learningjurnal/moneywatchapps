@@ -1433,7 +1433,7 @@ function refreshPortfolioMarketData(options){
 
     if(isManual){
       if(typeof showSaveStatus === 'function') showSaveStatus('✓ Data portofolio berhasil diperbarui');
-      if(typeof showToast === 'function') showToast('🔄 Data pasar portofolio berhasil disinkronkan');
+      if(typeof showToast === 'function') showToast('Data pasar portofolio berhasil disinkronkan');
     }
     if(typeof options.onComplete === 'function') options.onComplete();
   }, 1200);
@@ -1824,7 +1824,7 @@ function openFinnhubSettings(){
     openSettingsHub('feed');
     return;
   }
-  el('m-title').textContent = '📡 Pengaturan Mode & Fluktuasi Harga';
+  el('m-title').textContent = 'Pengaturan Mode & Fluktuasi Harga';
   el('m-title').style.color = 'var(--accent)';
   var sc = priceEngineMode==='static'?'var(--text3)':FH.status==='live'?'var(--green)':FH.status==='error'?'var(--red)':'var(--text3)';
   var st = priceEngineMode==='static'?'🔒 Kunci Statis (Harga Tetap)':FH.status==='live'?'● Live Yahoo Finance':FH.status==='error'?'● Error Reconnect':'○ Simulasi';

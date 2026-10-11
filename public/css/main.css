@@ -253,8 +253,7 @@ body.theme-light .bottom-toolbar{background:#FFFFFF!important;border-top:1px sol
 .nav button.on{background:var(--brand-primary);color:#fff;font-weight:700}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .live{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green);font-family:'Inter',sans-serif;letter-spacing:.5px;font-weight:700}
-.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite}
-@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,.5)}50%{opacity:.5;box-shadow:0 0 0 4px rgba(16,185,129,0)}}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
 .ihsg-bar{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;transition:border-color .15s ease}
 .ihsg-bar:hover{border-color:var(--border2)}
 .ibar-val{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text)}
@@ -814,43 +813,36 @@ body.theme-light .b-accent {
   background: rgba(0, 245, 155, 0.16);
   color: #00F59B;
   border: 1px solid rgba(0, 245, 155, 0.45);
-  box-shadow: 0 0 12px rgba(0, 245, 155, 0.18);
 }
 .sig-sell {
   background: rgba(255, 59, 92, 0.16);
   color: #FF3B5C;
   border: 1px solid rgba(255, 59, 92, 0.45);
-  box-shadow: 0 0 12px rgba(255, 59, 92, 0.18);
 }
 .sig-hold {
   background: rgba(255, 184, 0, 0.16);
   color: #FFB800;
   border: 1px solid rgba(255, 184, 0, 0.45);
-  box-shadow: 0 0 10px rgba(255, 184, 0, 0.12);
 }
 .sig-breakout {
   background: rgba(255, 136, 0, 0.2);
   color: #FF9800;
   border: 1px solid rgba(255, 136, 0, 0.5);
-  box-shadow: 0 0 14px rgba(255, 136, 0, 0.25);
 }
 .sig-whale, .sig-accumulation {
   background: rgba(0, 245, 155, 0.2);
   color: #00F59B;
   border: 1px solid rgba(0, 245, 155, 0.5);
-  box-shadow: 0 0 14px rgba(0, 245, 155, 0.25);
 }
 .sig-strong-buy {
   background: rgba(0, 212, 255, 0.2);
   color: #00D4FF;
   border: 1px solid rgba(0, 212, 255, 0.5);
-  box-shadow: 0 0 14px rgba(0, 212, 255, 0.25);
 }
 .sig-oversold {
   background: rgba(192, 132, 252, 0.2);
   color: #D8B4FE;
   border: 1px solid rgba(192, 132, 252, 0.5);
-  box-shadow: 0 0 12px rgba(192, 132, 252, 0.2);
 }
 .sig-squeeze {
   background: rgba(255, 184, 0, 0.2);
@@ -861,7 +853,6 @@ body.theme-light .b-accent {
   background: rgba(255, 59, 92, 0.2);
   color: #FF4D6D;
   border: 1px solid rgba(255, 59, 92, 0.5);
-  box-shadow: 0 0 14px rgba(255, 59, 92, 0.25);
 }
 
 .sig:hover {
@@ -7687,17 +7678,11 @@ body.theme-light .radar-hud-bar {
 }
 
 .radar-live-blip {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #38bdf8;
-  box-shadow: 0 0 10px #38bdf8;
-  animation: radarBeaconPulseBlue 1.8s infinite ease-in-out;
-}
-
-@keyframes radarBeaconPulseBlue {
-  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 8px #38bdf8; }
-  50% { transform: scale(1.4); opacity: 0.65; box-shadow: 0 0 18px #00e5ff; }
+  flex-shrink: 0;
 }
 
 .radar-hud-title {

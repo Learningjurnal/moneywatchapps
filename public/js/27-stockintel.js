@@ -1003,7 +1003,7 @@ function renderStockIntelPage() {
         + '<div class="intel-section-title"><span>AKTIVITAS BROKER &amp; BANDARMOLOGY</span></div>'
         + '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:20px;text-align:center">'
           + '<div style="font-size:11.5px;color:var(--text2);line-height:1.5;max-width:280px">Trade Flow, Broker Flow, Broker Summary (Buyer vs Seller), dan Broker Distribution (Sankey) lengkap untuk ' + ticker + ' ada di modul Bandar Movement.</div>'
-          + '<button class="btn btn-primary btn-xs" onclick="if(typeof BM_STATE!==\'undefined\')BM_STATE.ticker=\'' + ticker + '\';goPage(\'bandar-movement\')" style="font-weight:700">Buka Bandar Movement →</button>'
+          + '<button class="btn btn-primary btn-xs" onclick="if(typeof BM_STATE!==\'undefined\')BM_STATE.ticker=\'' + ticker + '\';goPage(\'bandar-movement\')" style="font-weight:700">Buka Bandar Movement</button>'
         + '</div>'
       + '</div>'
 
@@ -1021,17 +1021,17 @@ function renderStockIntelPage() {
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
           + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Analisis Fundamental</div>'
           + '<div style="font-size:11px;color:var(--text2)">PER ' + data.stats.per + ' · PBV ' + data.stats.pbv + ' · ROE ' + data.stats.roe + ' — DCF, konsensus Graham/Lynch/DDM, Bull/Bear Debate &amp; KSEI.</div>'
-          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof fundSetTicker===\'function\')fundSetTicker(\'' + ticker + '\');goPage(\'fundamental\')">Buka Analisa Fundamental →</button>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof fundSetTicker===\'function\')fundSetTicker(\'' + ticker + '\');goPage(\'fundamental\')">Buka Analisa Fundamental</button>'
         + '</div>'
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
           + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Analisis Teknikal</div>'
           + '<div style="font-size:11px;color:var(--text2)">Bias ' + data.plan.bias + ' · Entry ' + data.plan.entryZone + ' — FlowScan Bandarmologi, 20+ gauge, candlestick &amp; pivot S/R.</div>'
-          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof techSetTicker===\'function\')techSetTicker(\'' + ticker + '\');goPage(\'technical\')">Buka Analisa Teknikal →</button>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof techSetTicker===\'function\')techSetTicker(\'' + ticker + '\');goPage(\'technical\')">Buka Analisa Teknikal</button>'
         + '</div>'
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
           + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Valuation (Margin of Safety)</div>'
           + '<div style="font-size:11px;color:var(--text2)">Hitung harga wajar 9-langkah dari data keuangan historis riil (EPS, BVPS, DPS) untuk ' + ticker + '.</div>'
-          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof hw_loadStock===\'function\')hw_loadStock(\'' + ticker + '\');goPage(\'hargawajar\')">Buka Kalkulator MoS →</button>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof hw_loadStock===\'function\')hw_loadStock(\'' + ticker + '\');goPage(\'hargawajar\')">Buka Kalkulator MoS</button>'
         + '</div>'
         // UIUX_ROADMAP_AUDIT.md §8 (Stock Cockpit) lists a "Smart Money" tab
         // (flow, accumulation/distribution, institutional activity) — the
@@ -1044,7 +1044,7 @@ function renderStockIntelPage() {
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
           + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Smart Money / Bandarmology</div>'
           + '<div style="font-size:11px;color:var(--text2)">Trade Flow, Broker Flow, Broker Summary Buyer vs Seller, dan Broker Distribution (Sankey) untuk ' + ticker + '.</div>'
-          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof BM_STATE!==\'undefined\')BM_STATE.ticker=\'' + ticker + '\';goPage(\'bandar-movement\')">Buka Bandar Movement →</button>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="if(typeof BM_STATE!==\'undefined\')BM_STATE.ticker=\'' + ticker + '\';goPage(\'bandar-movement\')">Buka Bandar Movement</button>'
         + '</div>'
         // Kartu ke-5: Volume Spike (baru, 45-volume-spike.js) — sebelumnya
         // fitur ini tidak muncul sama sekali di hub "Lanjutkan Analisa
@@ -1055,7 +1055,7 @@ function renderStockIntelPage() {
         + '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">'
           + '<div style="font-size:12px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:6px">Volume Spike Scanner</div>'
           + '<div style="font-size:11px;color:var(--text2)">Lonjakan volume vs median 14D/30D, price change 1D/3D/7D, dan foreign flow untuk ' + ticker + '.</div>'
-          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="goPage(\'volume-spike\',null)">Buka Volume Spike →</button>'
+          + '<button class="btn btn-ghost btn-xs" style="align-self:flex-start" onclick="goPage(\'volume-spike\',null)">Buka Volume Spike</button>'
         + '</div>'
       + '</div>'
     + '</div>';
