@@ -241,9 +241,8 @@ function renderDailyBriefPage() {
           + volPillar
           + techPillar
         + '</div>'
-        + '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+        + '<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;font-size:11px;color:var(--text2);display:flex;align-items:center;flex-wrap:wrap;gap:8px">'
           + '<div><strong>Rekomendasi Taktis:</strong> ' + rg.strategy + (statusInfo ? ' · ' + statusInfo : '') + '</div>'
-          + '<div style="color:var(--text3);font-size:10px">Sumber: GET /api/idx/regime &amp; Multi-Factor Market Engine</div>'
         + '</div>'
       + '</div>';
     })()
