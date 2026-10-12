@@ -746,13 +746,21 @@ function renderPortofolio(){
   if(avgHeader && typeof uiInfoIcon==='function' && !avgHeader.querySelector('.ui-info-icon')){
     avgHeader.insertAdjacentHTML('beforeend',' '+uiInfoIcon('Avg Beli dan Modal sudah termasuk fee beli (komisi, PPN, levy), yaitu uang yang benar-benar Anda keluarkan. Karena itu Unrealized P&L dan Return % sama dengan hasil nyata jika dijual di harga pasar tanpa memperhitungkan fee jual; PnL total (realized + unrealized) cocok dengan arus kas rekening.'));
   }
+  var activeAlerts = (typeof window.mwGetPriceAlerts === 'function' ? window.mwGetPriceAlerts() : []) || [];
   el('porto-tbody').innerHTML=rows.map(function(p,i){
     var alloc=p.alloc, sig=p.sig;
     var sigCls=sig==='BUY'?'sig-buy':sig==='SELL'?'sig-sell':'sig-hold';
     var secColor=sectorColor(p.info.sector);
     var colorHex=COLORS[i%12] || '#2563EB';
+    var curAlert = Array.isArray(activeAlerts) ? activeAlerts.find(function(a){ return a.ticker === p.ticker && a.status === 'ACTIVE'; }) : null;
+    var hasAlert = !!curAlert;
+    var alertTitle = hasAlert
+      ? 'Alert aktif: ' + p.ticker + ' target Rp ' + fmt(curAlert.targetPrice) + ' (' + (curAlert.tag || 'Target') + ')'
+      : 'Pasang Price Alert untuk ' + p.ticker;
+    var alertSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="' + (hasAlert ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none"><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></svg>';
+    var alertBtnHtml = '<button type="button" class="btn btn-ghost btn-xs porto-alert-btn" data-alert="' + (hasAlert ? '1' : '0') + '" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\'' + p.ticker + '\',' + p.mp + ')" title="' + alertTitle + '" aria-label="' + alertTitle + '">' + alertSvg + '</button>';
     return '<tr>'
-      +'<td class="tbl-sticky-left"><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+colorHex+'">'+p.ticker+'</span><button class="btn btn-ghost btn-xs porto-alert-btn" onclick="event.stopPropagation();if(typeof openCreatePriceAlertModal===\'function\')openCreatePriceAlertModal(\''+p.ticker+'\','+p.mp+')" title="Pasang Price Alert untuk '+p.ticker+'" style="padding:1px 4px;font-size:10px;border:none;color:var(--amber)">Alert</button></div></td>'
+      +'<td class="tbl-sticky-left"><div style="display:inline-flex;align-items:center;gap:6px">'+getStockLogoHtml(p.ticker, 22)+'<span class="tp" style="border-color:'+colorHex+'">'+p.ticker+'</span>'+alertBtnHtml+'</div></td>'
       +'<td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">'+p.info.name+'</td>'
       +'<td><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--font-mono);color:var(--text2)"><span class="sec-dot" style="background:'+secColor+'"></span>'+p.info.sector+'</span></td>'
       +'<td class="mono num text-right">'+p.lot+'</td>'
