@@ -532,6 +532,22 @@ function getIntelUniverse() {
  */
 function setIntelTimeframe(tf) {
   INTEL_CHART_TIMEFRAME = tf;
+
+  // Update button active state in DOM immediately
+  if (typeof document !== 'undefined' && document.querySelectorAll) {
+    var tabs = document.querySelectorAll('#intel-chart-tf-tabs button, .intel-bento-card .sm-suite-tabs button');
+    tabs.forEach(function(btn) {
+      var btnTf = btn.getAttribute('data-tf') || btn.textContent.trim();
+      if (['1D', '1W', '1M', '1Y'].indexOf(btnTf) !== -1) {
+        if (btnTf === tf) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      }
+    });
+  }
+
   renderIntelPriceChart();
 }
 
@@ -575,8 +591,9 @@ async function fetchIntelChartHistory(ticker, tf) {
   if (!MW_INTEL_CACHE[tk].history) MW_INTEL_CACHE[tk].history = {};
 
   // Avoid duplicate concurrent fetches for the same ticker+timeframe
-  if (MW_INTEL_CACHE[tk].history[cacheKey + '_loading']) return;
+  if (MW_INTEL_CACHE[tk].history[cacheKey + '_loading'] || MW_INTEL_CACHE[tk].history[tf + '_loading']) return;
   MW_INTEL_CACHE[tk].history[cacheKey + '_loading'] = true;
+  MW_INTEL_CACHE[tk].history[tf + '_loading'] = true;
 
   try {
     var resp = await fetch('/api/idx/history/' + encodeURIComponent(tk) + '?tf=' + tf);
@@ -588,6 +605,7 @@ async function fetchIntelChartHistory(ticker, tf) {
     MW_INTEL_CACHE[tk].history[tf + '_error'] = true;
   } finally {
     MW_INTEL_CACHE[tk].history[cacheKey + '_loading'] = false;
+    MW_INTEL_CACHE[tk].history[tf + '_loading'] = false;
     MW_INTEL_CACHE[tk].history[tf + '_fetched'] = true;
     // Only redraw if user hasn't navigated away from this ticker/timeframe meanwhile
     if (MW_SELECTED_INTEL_TICKER === tk && INTEL_CHART_TIMEFRAME === tf) {
@@ -953,10 +971,10 @@ function renderStockIntelPage() {
       + '<div class="intel-bento-card">'
         + '<div class="intel-section-title">'
           + '<span>GRAFIK HARGA REALTIME</span>'
-          + '<div class="sm-suite-tabs" style="padding:2px;gap:3px">'
+          + '<div id="intel-chart-tf-tabs" class="sm-suite-tabs" style="padding:2px;gap:3px">'
             + ['1D', '1W', '1M', '1Y'].map(function(tf) {
               var isAct = tf === INTEL_CHART_TIMEFRAME;
-              return '<button class="sm-nav-item ' + (isAct ? 'active' : '') + '" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono);font-weight:700" onclick="setIntelTimeframe(\'' + tf + '\')">' + tf + '</button>';
+              return '<button data-tf="' + tf + '" class="sm-nav-item ' + (isAct ? 'active' : '') + '" style="font-size:10px;padding:3px 8px;font-family:var(--font-mono);font-weight:700" onclick="setIntelTimeframe(\'' + tf + '\')">' + tf + '</button>';
             }).join('')
           + '</div>'
         + '</div>'
