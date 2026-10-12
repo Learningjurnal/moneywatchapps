@@ -1518,6 +1518,15 @@ body.theme-light .drawer-panel {
   box-shadow: 0 1px 6px rgba(56, 189, 248, 0.12);
 }
 
+/* Screener TradingView Preset Buttons Typography Alignment */
+#tvs-presets .pbtn {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: -0.01em;
+}
+
+
 /* SKELETON LOADER (MODERN INSTITUTIONAL SHIMMER) */
 @keyframes skeletonShimmer {
   0% { opacity: 0.45; }

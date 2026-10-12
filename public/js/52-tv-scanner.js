@@ -327,14 +327,14 @@ function tvsOpenTicker(code) {
 // ── Render ───────────────────────────────────────────────────────────────
 function tvsFilterInput(spec) {
   var v = TVS_STATE.filters[spec.name];
-  return '<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;white-space:nowrap">' + spec.label + (spec.info === 'rating' ? tvsInfo(TVS_INFO_RATING) : '') + '</label>'
+  return '<div><label style="font-size:10.5px;font-weight:600;font-family:var(--font-display);color:var(--text3);display:block;margin-bottom:3px;white-space:nowrap">' + spec.label + (spec.info === 'rating' ? tvsInfo(TVS_INFO_RATING) : '') + '</label>'
     + '<input class="finput" type="number" step="any" data-tvs-filter="' + spec.name + '" placeholder="' + spec.ph + '" value="' + tvsEsc(v) + '"'
     + ' oninput="tvsSetFilter(\'' + spec.name + '\', this.value)" style="width:' + spec.w + 'px;min-width:' + spec.w + 'px;padding:5px 9px;font-size:11.5px;border-radius:6px"></div>';
 }
 
 function tvsCheckInput(spec) {
   return '<div style="display:flex;align-items:center;gap:6px;padding-bottom:5px"><input id="tvs-' + spec.name + '" type="checkbox" data-tvs-filter="' + spec.name + '"'
-    + (TVS_STATE.filters[spec.name] ? ' checked' : '') + ' onchange="tvsSetFilter(\'' + spec.name + '\', this.checked)"> <label for="tvs-' + spec.name + '" style="font-size:11.5px">' + spec.label + '</label></div>';
+    + (TVS_STATE.filters[spec.name] ? ' checked' : '') + ' onchange="tvsSetFilter(\'' + spec.name + '\', this.checked)"> <label for="tvs-' + spec.name + '" style="font-size:11.5px;font-weight:500;font-family:var(--font-display);color:var(--text2)">' + spec.label + '</label></div>';
 }
 
 function tvsShellHtml() {
@@ -345,22 +345,27 @@ function tvsShellHtml() {
   var fis = 'padding:5px 9px;font-size:11.5px;border-radius:6px';
 
   return '<div id="tvs-root" class="card" style="padding:14px 16px;margin-bottom:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 12px;min-width:0;margin-bottom:10px">'
-      + '<div style="display:flex;align-items:center;min-width:0;font-weight:700;font-size:13px;word-break:break-word">Screener TradingView' + tvsInfo(TVS_INFO_TITLE) + '</div>'
-      + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span id="tvs-updated" class="mono" style="font-size:10.5px;color:var(--text3)"></span>'
-      + '<button class="sm-btn" onclick="tvsLoad(true)"><i class="ti ti-refresh"></i> Muat Ulang</button></div>'
+    + '<div class="cheader" style="margin-bottom:12px;padding-bottom:10px">'
+      + '<div style="display:flex;align-items:center;gap:6px;min-width:0">'
+        + '<span class="ctitle" style="font-size:14px;font-weight:800;font-family:var(--font-display);letter-spacing:-0.02em;color:var(--text)">Screener TradingView</span>'
+        + tvsInfo(TVS_INFO_TITLE)
+      + '</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+        + '<span id="tvs-updated" style="display:inline-flex;align-items:center;gap:4px"></span>'
+        + '<button class="btn btn-ghost btn-xs" onclick="tvsLoad(true)" style="display:inline-flex;align-items:center;gap:5px;font-weight:700"><i class="ti ti-refresh"></i> Muat Ulang</button>'
+      + '</div>'
     + '</div>'
     + '<div id="tvs-disclosure"></div>'
     + '<div style="height:1px;background:var(--border-subtle);margin:12px 0"></div>'
-    + '<div style="display:flex;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text3)">Strategi' + tvsInfo(TVS_INFO_PRESET) + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:11px;font-weight:700;font-family:var(--font-display);letter-spacing:0.04em;text-transform:uppercase;color:var(--text3)">Strategi' + tvsInfo(TVS_INFO_PRESET) + '</div>'
     + '<div id="tvs-presets" style="display:flex;gap:6px;flex-wrap:wrap"></div>'
     + '<div id="tvs-strategy" style="margin-top:10px"></div>'
     + '<div style="height:1px;background:var(--border-subtle);margin:12px 0"></div>'
-    + '<div style="display:flex;align-items:center;margin-bottom:8px;font-size:11px;color:var(--text3)">Filter' + tvsInfo(TVS_INFO_FILTER) + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:11px;font-weight:700;font-family:var(--font-display);letter-spacing:0.04em;text-transform:uppercase;color:var(--text3)">Filter' + tvsInfo(TVS_INFO_FILTER) + '</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">'
-      + '<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Cari</label>'
+      + '<div><label style="font-size:10.5px;font-weight:600;font-family:var(--font-display);color:var(--text3);display:block;margin-bottom:3px">Cari</label>'
         + '<input class="finput" type="text" data-tvs-filter="search" placeholder="Ticker/nama" value="' + tvsEsc(f.search) + '" oninput="tvsSetFilter(\'search\', this.value)" style="width:120px;' + fis + '"></div>'
-      + '<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Sektor</label>'
+      + '<div><label style="font-size:10.5px;font-weight:600;font-family:var(--font-display);color:var(--text3);display:block;margin-bottom:3px">Sektor</label>'
         + '<select class="finput fsel" id="tvs-sector" data-tvs-filter="sector" onchange="tvsSetFilter(\'sector\', this.value)" style="' + fis + '">'
         + sectorOpts.map(function (s) { return '<option value="' + tvsEsc(s) + '"' + (f.sector === s ? ' selected' : '') + '>' + (s === 'ALL' ? 'Semua' : tvsEsc(s)) + '</option>'; }).join('')
         + '</select></div>'
@@ -395,9 +400,9 @@ function tvsRenderStrategy() {
   var criteria = parts.length ? parts.map(tvsEsc).join(' · ') : 'Tanpa filter';
   var showWarn = preset ? preset.id !== 'all' : parts.length > 0;
   box.innerHTML = '<div style="background:var(--bg3);border-radius:8px;padding:10px 14px">'
-    + '<div style="display:flex;align-items:center;font-weight:700;font-size:12.5px">' + tvsEsc(title) + info + '</div>'
-    + '<div class="mono" style="margin-top:4px;font-size:11px;line-height:1.7;color:var(--text2);word-break:break-word">' + criteria + (sortText ? ' · <span style="color:var(--text3)">' + tvsEsc(sortText) + '</span>' : '') + '</div>'
-    + (showWarn ? '<div style="margin-top:6px;display:inline-block;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:3px 8px;font-size:10.5px;color:var(--text2)">' + tvsEsc(TVS_NOT_VALIDATED) + '</div>' : '')
+    + '<div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;font-family:var(--font-display);letter-spacing:-0.01em;color:var(--text)">' + tvsEsc(title) + info + '</div>'
+    + '<div style="margin-top:4px;font-size:11.5px;line-height:1.6;color:var(--text2);word-break:break-word;font-family:var(--font-body)">' + criteria + (sortText ? ' · <span style="color:var(--text3)">' + tvsEsc(sortText) + '</span>' : '') + '</div>'
+    + (showWarn ? '<div style="margin-top:6px;display:inline-block;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:3px 8px;font-size:10.5px;color:var(--text2);font-family:var(--font-body)">' + tvsEsc(TVS_NOT_VALIDATED) + '</div>' : '')
     + '</div>';
 }
 
@@ -426,7 +431,7 @@ function tvsTableHtml(rows) {
   var total = TVS_STATE.data ? TVS_STATE.data.rows.length : 0;
   var arrow = function (k) { return s.key === k ? (s.dir === 'desc' ? ' ↓' : ' ↑') : ''; };
   var th = function (key, label, num) {
-    return '<th class="' + (num ? 'num' : '') + '" style="cursor:pointer;white-space:nowrap" onclick="tvsSortBy(\'' + key + '\')">' + label + arrow(key) + '</th>';
+    return '<th class="' + (num ? 'num' : '') + '" style="cursor:pointer;white-space:nowrap;font-family:var(--font-display);letter-spacing:0.04em" onclick="tvsSortBy(\'' + key + '\')">' + label + arrow(key) + '</th>';
   };
   var head = '<tr>' + th('code', 'Emiten', false) + TVS_COLS.map(function (c) { return th(c.key, c.label, c.num); }).join('') + '</tr>';
   var body = shown.map(function (r) {
@@ -468,7 +473,11 @@ function tvsRenderBody() {
     return;
   }
   if (disc) disc.innerHTML = tvsDisclosureHtml();
-  if (upd) upd.textContent = TVS_STATE.data.fetchedAt ? 'Diperbarui: ' + new Date(TVS_STATE.data.fetchedAt).toLocaleTimeString('id-ID') : '';
+  if (upd) {
+    upd.innerHTML = TVS_STATE.data.fetchedAt
+      ? '<span style="color:var(--text3);font-size:10.5px">Diperbarui:</span> <strong style="color:var(--text2);font-family:var(--font-mono);font-size:10.5px;font-weight:700">' + new Date(TVS_STATE.data.fetchedAt).toLocaleTimeString('id-ID') + '</strong>'
+      : '';
+  }
   table.innerHTML = (TVS_STATE.loading ? '<div class="skeleton-box" style="height:3px;margin-bottom:8px"></div>' : '') + tvsTableHtml(tvsFilteredRows());
 }
 
