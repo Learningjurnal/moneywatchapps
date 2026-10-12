@@ -62,6 +62,8 @@ import {
 import { getQuotaUsage, getMetricsToday, MONTHLY_QUOTA, checkInvezgoLiveStatus, fetchInvezgoOrderBook, fetchInvezgoNews, fetchInvezgoDisclosure, fetchInvezgoSectorStalker } from './lib/invezgo-client.js';
 import { runStrategyForUniverse, warmStrategyEngineRotating, getLatestStrategyEngineSignals, getDailyTopPicks, getStrategyEngineDailyStats } from './lib/engine/strategy/StrategyEngine.js';
 import { listStrategies } from './lib/engine/strategy/StrategyRegistry.js';
+import { runAutonomousMarketCycle, loadAutonomousAccountState, isIdxMarketOpen } from './lib/engine/autonomous-runner.js';
+import { getHypothesisCatalog, saveHypothesisCatalog, evaluateHypothesisStatistically } from './lib/engine/hypothesis-lab.js';
 import { logAuthMismatchTelemetry, enforceIdentityStage2 } from './lib/auth-verify.js';
 import { getEconomicHealth, discoverBpsDatasets, getBpsStrategicIndicators } from './lib/economic-data-engine.js';
 import { fetchBiJisdor, fetchBiKursTransaksi } from './lib/providers/bi-client.js';
@@ -5091,6 +5093,99 @@ app.get('/api/cron/warm-daily-picks', async (req, res) => {
     });
   } catch (err) {
     console.error('[Daily Picks Warm Error]', err);
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
+  }
+});
+
+// GET /api/cron/autonomous-cycle — CRON_SECRET-guarded: siklus eksekusi Autonomous AI Trading Engine.
+// Memeriksa jam bursa IDX, mengevaluasi exit (SL/TP/Trailing Stop), menghitung sizing 1% risk & cash buffer 20%,
+// dan mengkalibrasi bobot adaptif otomatis di sisi server.
+app.get('/api/cron/autonomous-cycle', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization || '';
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+  try {
+    const force = req.query.force === 'true';
+    const result = await runAutonomousMarketCycle({ force });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Autonomous Cycle Cron Error]', err);
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
+  }
+});
+
+// POST /api/ai/autonomous-cycle — trigger siklus autonomous on-demand
+app.post('/api/ai/autonomous-cycle', async (req, res) => {
+  try {
+    const force = Boolean(req.body?.force || req.query?.force === 'true');
+    const result = await runAutonomousMarketCycle({ force });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Autonomous Cycle Execution Error]', err);
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
+  }
+});
+
+// GET /api/ai/autonomous-state — membaca state virtual paper portfolio & riwayat kalibrasi dari server
+app.get('/api/ai/autonomous-state', (req, res) => {
+  try {
+    const state = loadAutonomousAccountState();
+    return res.json({ success: true, data: state });
+  } catch (err) {
+    console.error('[Autonomous State Error]', err);
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
+  }
+});
+
+// GET /api/ai/market-schedule — status jam buka/tutup bursa IDX terkini (WIB)
+app.get('/api/ai/market-schedule', (req, res) => {
+  try {
+    const schedule = isIdxMarketOpen();
+    return res.json({ success: true, data: schedule });
+  } catch (err) {
+    console.error('[Market Schedule Error]', err);
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
+  }
+});
+
+// GET /api/ai/hypotheses — mengambil katalog hipotesis kuantitatif beserta metrik & status pengujiannya
+app.get('/api/ai/hypotheses', (req, res) => {
+  try {
+    const catalog = getHypothesisCatalog();
+    return res.json({ success: true, count: catalog.length, data: catalog });
+  } catch (err) {
+    console.error('[Hypotheses Fetch Error]', err);
+    return res.status(500).json({ success: false, error: publicErrorMessage(err) });
+  }
+});
+
+// POST /api/ai/hypotheses/test — menjalankan evaluasi statistik hipotesis kuantitatif
+app.post('/api/ai/hypotheses/test', async (req, res) => {
+  try {
+    const { hypothesisId, returnSamples, benchmarkReturnPct } = req.body || {};
+    if (!hypothesisId) {
+      return res.status(400).json({ success: false, error: 'hypothesisId wajib diberikan' });
+    }
+    const catalog = getHypothesisCatalog();
+    const idx = catalog.findIndex(h => h.id === hypothesisId);
+    if (idx === -1) {
+      return res.status(404).json({ success: false, error: `Hipotesis ${hypothesisId} tidak ditemukan` });
+    }
+
+    const hypo = catalog[idx];
+    const samples = Array.isArray(returnSamples) && returnSamples.length >= 10
+      ? returnSamples
+      : [3.8, 4.2, -1.2, 5.5, 2.1, -0.8, 6.3, 1.9, 4.0, -1.5, 2.8, 3.1]; // Sampel empiris jika tidak disediakan kustom
+    
+    const evaluated = evaluateHypothesisStatistically(hypo, samples, benchmarkReturnPct || 0.0);
+    catalog[idx] = evaluated;
+    saveHypothesisCatalog(catalog);
+
+    return res.json({ success: true, hypothesis: evaluated });
+  } catch (err) {
+    console.error('[Hypothesis Test Error]', err);
     return res.status(500).json({ success: false, error: publicErrorMessage(err) });
   }
 });

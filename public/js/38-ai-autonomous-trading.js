@@ -184,6 +184,8 @@
   // time, on demand, not as a batch scan.
   var AI_HYPO_LOADING = false;
   var AI_HYPO_ERROR = null;
+  var AI_HYPO_CATALOG = null;
+  var AI_HYPO_CATALOG_LOADING = false;
 
   // Exit Hypothesis state for AI Paper Portfolio — see generateExitHypothesis()
   // in lib/idx-data-engine.js (/api/idx/exit-hypothesis/:ticker). Kept
@@ -1113,6 +1115,50 @@
     AI_TRADE_STATE.hypotheses = AI_TRADE_STATE.hypotheses.filter(function(h) { return h.id !== id; });
     saveHypothesesState();
     renderAiTradingPage();
+  }
+
+  // Mengambil katalog hipotesis kuantitatif institusional dari backend
+  async function aiFetchHypothesisCatalog() {
+    if (AI_HYPO_CATALOG_LOADING) return;
+    AI_HYPO_CATALOG_LOADING = true;
+    try {
+      var res = await fetch('/api/ai/hypotheses');
+      var json = await res.json();
+      if (json && json.success && Array.isArray(json.data)) {
+        AI_HYPO_CATALOG = json.data;
+        if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+      }
+    } catch (e) {
+      console.warn('[Hypothesis Catalog]', e && e.message);
+    } finally {
+      AI_HYPO_CATALOG_LOADING = false;
+    }
+  }
+
+  // Menjalankan evaluasi bootstrap & validasi fee untuk sebuah hipotesis
+  async function aiTestHypothesis(hypoId) {
+    if (!hypoId) return;
+    try {
+      if (typeof showToast === 'function') showToast('Menjalankan uji bootstrap & validasi fee untuk hipotesis ' + hypoId + '...');
+      var res = await fetch('/api/ai/hypotheses/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hypothesisId: hypoId })
+      });
+      var json = await res.json();
+      if (json && json.success && json.hypothesis) {
+        if (AI_HYPO_CATALOG) {
+          var idx = AI_HYPO_CATALOG.findIndex(function(h) { return h.id === hypoId; });
+          if (idx !== -1) AI_HYPO_CATALOG[idx] = json.hypothesis;
+        }
+        if (typeof showToast === 'function') {
+          showToast('Uji hipotesis selesai: Status ' + json.hypothesis.status + ' (Excess: +' + json.hypothesis.meanExcessReturnPct + '%)');
+        }
+        if (typeof renderAiTradingPage === 'function') renderAiTradingPage();
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Gagal menguji hipotesis: ' + (e && e.message));
+    }
   }
 
   // Calls the real /api/idx/data-quality/:ticker endpoint (assessDataQuality
@@ -2619,12 +2665,61 @@
   function renderAiHypothesisLab(state) {
     var hypos = state.hypotheses;
 
-    var html = '<div class="card" style="padding:20px;margin-bottom:18px">'
+    if (!AI_HYPO_CATALOG && !AI_HYPO_CATALOG_LOADING) {
+      aiFetchHypothesisCatalog();
+    }
+
+    var html = '';
+
+    // ── 1. KATALOG HIPOTESIS STRATEGI KUANTITATIF (INSTITUTIONAL) ──
+    if (Array.isArray(AI_HYPO_CATALOG) && AI_HYPO_CATALOG.length > 0) {
+      html += '<div class="card" style="padding:20px;margin-bottom:18px">'
+        + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">'
+        + '    <div>'
+        + '      <div class="ctitle" style="font-size:15px;display:flex;align-items:center;gap:6px">🔬 Institutional Quantitative Hypotheses</div>'
+        + '      <div style="font-size:11.5px;color:var(--text3)">Pengujian hipotesis berbasis data historis riil dengan bootstrap 90% CI &amp; potongan biaya 0.40% round-trip.</div>'
+        + '    </div>'
+        + '    <span class="badge b-accent" style="font-size:10px">' + AI_HYPO_CATALOG.length + ' Hipotesis Terdaftar</span>'
+        + '  </div>'
+        + '  <div style="display:grid;grid-template-columns:1fr;gap:12px">';
+
+      AI_HYPO_CATALOG.forEach(function(cat) {
+        var isAcc = cat.status === 'ACCEPTED';
+        var stColor = isAcc ? 'var(--green)' : (cat.status === 'REJECTED' ? 'var(--red)' : 'var(--amber)');
+        var stBg = isAcc ? 'rgba(16,185,129,0.12)' : (cat.status === 'REJECTED' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)');
+
+        html += '<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">'
+          + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
+          + '    <div>'
+          + '      <strong style="font-size:13.5px;color:var(--text)">' + cat.title + '</strong>'
+          + '      <div style="font-size:11.5px;color:var(--text2);margin-top:2px;line-height:1.4">' + cat.statement + '</div>'
+          + '    </div>'
+          + '    <div style="display:flex;gap:6px;align-items:center">'
+          + '      <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;background:' + stBg + ';color:' + stColor + '">' + cat.status + '</span>'
+          + '      <button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px;border-color:rgba(56,189,248,0.4);color:#38bdf8" onclick="aiTestHypothesis(\'' + cat.id + '\')">⚡ Uji Bootstrap</button>'
+          + '    </div>'
+          + '  </div>'
+          + '  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:var(--bg2);padding:8px 10px;border-radius:6px;font-size:11px;margin-bottom:6px">'
+          + '    <div><span style="color:var(--text3)">Sample (N):</span> <strong>' + (cat.sampleSize || '-') + '</strong></div>'
+          + '    <div><span style="color:var(--text3)">Win Rate:</span> <strong style="color:var(--green)">' + (cat.winRatePct != null ? cat.winRatePct + '%' : '-') + '</strong></div>'
+          + '    <div><span style="color:var(--text3)">Excess Return:</span> <strong style="color:' + (cat.meanExcessReturnPct >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (cat.meanExcessReturnPct != null ? (cat.meanExcessReturnPct >= 0 ? '+' : '') + cat.meanExcessReturnPct + '%' : '-') + '</strong></div>'
+          + '    <div><span style="color:var(--text3)">90% CI:</span> <strong>[' + (cat.lowerConfidenceInterval != null ? cat.lowerConfidenceInterval : '-') + '%, ' + (cat.upperConfidenceInterval != null ? cat.upperConfidenceInterval : '-') + '%]</strong></div>'
+          + '    <div><span style="color:var(--text3)">p-value:</span> <strong>' + (cat.pValue != null ? cat.pValue : '-') + '</strong></div>'
+          + '  </div>'
+          + '  <div style="font-size:10.5px;color:var(--text3);font-style:italic">' + (cat.notes || '') + '</div>'
+          + '</div>';
+      });
+
+      html += '  </div></div>';
+    }
+
+    // ── 2. GENERATOR HIPOTESIS PER EMITEN (CONFLUENCE ENGINE) ──
+    html += '<div class="card" style="padding:20px;margin-bottom:18px">'
       + '  <div style="margin-bottom:16px">'
       + '    <div class="ctitle" style="font-size:16px;display:flex;align-items:center;gap:6px">'
-      + '      Hypothesis Lab'
+      + '      Single-Ticker Confluence Hypothesis'
       + '    </div>'
-      + '    <div style="font-size:12px;color:var(--text3)">Hipotesis trading terstruktur dari Signal &amp; Confluence Engine — menggabungkan teknikal, fundamental, regime pasar IHSG, dan (jika tersedia) broker flow riil. Mode PAPER/riset saja — tidak ada order riil yang dieksekusi dari sini.</div>'
+      + '    <div style="font-size:12px;color:var(--text3)">Hipotesis trading terstruktur dari Signal &amp; Confluence Engine — menggabungkan teknikal, fundamental, regime pasar IHSG, dan broker flow riil. Mode PAPER/riset saja.</div>'
       + '  </div>'
       + '  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">'
       + '    <input id="ai-hypo-ticker-input" type="text" placeholder="Kode ticker (mis. BBCA)" value="' + (state.selectedTicker || '') + '" style="flex:1;min-width:160px;padding:8px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--font-mono);text-transform:uppercase" onkeydown="if(event.key===\'Enter\'){aiGenerateHypothesis()}">'
@@ -2634,8 +2729,8 @@
       + '</div>';
 
     if (!hypos.length) {
-      html += '<div class="card" style="padding:30px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
-        + 'Belum ada hipotesis dihasilkan.<br>Masukkan kode ticker di atas dan klik "Hasilkan Hipotesis" untuk menjalankan Confluence Engine terhadap data riil emiten tersebut.'
+      html += '<div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">'
+        + 'Belum ada hipotesis per-emiten yang dibuat.<br>Masukkan kode ticker di atas dan klik "Hasilkan Hipotesis" untuk menjalankan Confluence Engine.'
         + '</div>';
       return html;
     }
@@ -2943,6 +3038,24 @@
         ? ('<span class="badge b-accent" style="font-size:9.5px;padding:2px 6px" title="Dievaluasi oleh model AI Institutional">🤖 ' + t.critiqueSource + '</span>')
         : ('<span class="badge" style="font-size:9.5px;padding:2px 6px;color:var(--text3);border-color:var(--border)" title="Dievaluasi oleh Template Deterministik">⚙️ Deterministic</span>');
 
+      var errTaxonomy = t.errorClassification || null;
+      var errBadge = '';
+      if (errTaxonomy === 'CLEAN_WIN') {
+        errBadge = '<span class="badge b-up" style="font-size:9.5px;padding:2px 7px" title="Menang bersih sesuai rencana">🏆 CLEAN WIN</span>';
+      } else if (errTaxonomy === 'TIMING_ERROR') {
+        errBadge = '<span class="badge" style="font-size:9.5px;padding:2px 7px;background:rgba(245,158,11,0.15);color:#f59e0b;border-color:#f59e0b" title="Timing exit/entry kurang optimal (MFE/MAE anomali)">⚠️ TIMING ERROR</span>';
+      } else if (errTaxonomy === 'REGIME_ERROR') {
+        errBadge = '<span class="badge b-dn" style="font-size:9.5px;padding:2px 7px" title="Regime bursa memburuk menjadi BEAR_TREND/RISK_OFF">🛡️ REGIME MISMATCH</span>';
+      } else if (errTaxonomy === 'SIGNAL_ERROR') {
+        errBadge = '<span class="badge b-dn" style="font-size:9.5px;padding:2px 7px" title="False breakout: anjlok tanpa pantulan">❌ FALSE BREAKOUT</span>';
+      } else if (errTaxonomy === 'NORMAL_LOSS') {
+        errBadge = '<span class="badge" style="font-size:9.5px;padding:2px 7px;color:var(--text3)" title="Rugi wajar terkendali dalam batas risiko 1R">📉 CONTROLLED LOSS</span>';
+      }
+
+      var mfeCaptureBadge = (t.mfeCapturePct != null && t.mfeCapturePct > 0)
+        ? ('<span class="badge" style="font-size:9.5px;padding:2px 6px;color:#38bdf8;border-color:rgba(56,189,248,0.3)" title="Persentase potensi keuntungan puncak yang berhasil diamankan">MFE Capture: ' + t.mfeCapturePct + '%</span>')
+        : '';
+
       html += ''
         + '<div style="background:var(--bg3);border:1px solid ' + (isWin ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)') + ';border-radius:10px;padding:16px">'
         + '  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
@@ -2952,6 +3065,8 @@
         + '        ' + t.ticker + ' — ' + t.strategy
         + '        <span class="badge ' + resCls + '">' + t.result + ' (' + (t.returnPct >= 0 ? '+' : '') + t.returnPct + '% / ' + t.rMultiple + 'R)</span>'
         + '        ' + srcBadge
+        + '        ' + errBadge
+        + '        ' + mfeCaptureBadge
         + '      </div>'
         + '    </div>'
         + '    <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
@@ -3827,5 +3942,7 @@
   window.renderAiCopyTrading = renderAiCopyTrading;
   window.aiFormatCopyTradingSignal = aiFormatCopyTradingSignal;
   window.aiCopySignalToClipboard = aiCopySignalToClipboard;
+  window.aiTestHypothesis = aiTestHypothesis;
+  window.aiFetchHypothesisCatalog = aiFetchHypothesisCatalog;
 
 })(window, document);

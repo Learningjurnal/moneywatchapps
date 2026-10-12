@@ -1,0 +1,69 @@
+name: Autonomous Trading Engine Runner
+
+# Menjalankan siklus Autonomous AI Trading Engine secara terjadwal di jam bursa IDX resmi:
+# - Sesi 1: 09:15, 10:30, 11:30 WIB
+# - Sesi 2: 14:00, 15:15, 15:45 WIB
+#
+# Memeriksa SL/TP/Trailing Stop untuk posisi terbuka, memfilter sinyal baru via Meta-Labeler ML,
+# dan mengkalibrasi bobot adaptif otomatis di sisi server.
+#
+# Diperlukan Secrets di GitHub Repo (Settings > Secrets and variables > Actions):
+# - MONEYWATCH_APP_URL : URL aplikasi Vercel / server produksi (misal https://app.moneywatch.id)
+# - CRON_SECRET        : Secret kunci otentikasi cron (sama dengan di env var Vercel)
+
+on:
+  schedule:
+    - cron: '15 2 * * 1-5'   # 02:15 UTC = 09:15 WIB (Sesi 1 Opening Scan)
+    - cron: '30 3 * * 1-5'   # 03:30 UTC = 10:30 WIB (Sesi 1 Mid-Morning Review)
+    - cron: '30 4 * * 1-5'   # 04:30 UTC = 11:30 WIB (Sesi 1 Closing Check)
+    - cron: '00 7 * * 1-5'   # 07:00 UTC = 14:00 WIB (Sesi 2 Afternoon Scan)
+    - cron: '15 8 * * 1-5'   # 08:15 UTC = 15:15 WIB (Sesi 2 Pre-Close Review)
+    - cron: '45 8 * * 1-5'   # 08:45 UTC = 15:45 WIB (EOD Settlement & Exit Check)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Paksa jalankan siklus meskipun di luar jam bursa resmi (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  run-autonomous-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Eksekusi Autonomous Cycle Endpoint
+        env:
+          APP_URL: ${{ secrets.MONEYWATCH_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FORCE_EXEC: ${{ github.event.inputs.force }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::warning::Secret MONEYWATCH_APP_URL atau CRON_SECRET belum dikonfigurasi di GitHub Actions Secrets. Siklus dilewati."
+            exit 0
+          fi
+
+          FORCE_PARAM=""
+          if [ "${FORCE_EXEC:-}" = "true" ]; then
+            FORCE_PARAM="?force=true"
+          fi
+
+          TARGET_URL="${APP_URL%/}/api/cron/autonomous-cycle${FORCE_PARAM}"
+          echo "Memanggil Autonomous Cycle: ${TARGET_URL}"
+
+          HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Accept: application/json" \
+            "${TARGET_URL}")
+
+          HTTP_BODY=$(echo "${HTTP_RESPONSE}" | sed '$d')
+          HTTP_STATUS=$(echo "${HTTP_RESPONSE}" | tail -n 1)
+
+          echo "Response Status: ${HTTP_STATUS}"
+          echo "Response Body: ${HTTP_BODY}"
+
+          if [ "${HTTP_STATUS}" -ne 200 ]; then
+            echo "::error::Eksekusi autonomous cycle gagal dengan status HTTP ${HTTP_STATUS}"
+            exit 1
+          fi
+
+          echo "✅ Siklus Autonomous Berhasil Dieksekusi."

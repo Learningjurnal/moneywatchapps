@@ -174,6 +174,28 @@ await test('workflow cron: langkah pemanas cache berjalan SETELAH scan, non-fata
   assert(/Authorization: Bearer/.test(step));
 });
 
+await test('regime dinamis: BEAR_TREND atau RISK_OFF membatasi status STRONG ke WATCH', () => {
+  const rBear = scoreStrategy(
+    strategyDef({ A: 0.5, B: 0.5 }),
+    [valid('A', 100), valid('B', 100)],
+    { marketRegime: 'BEAR_TREND', regimeMultiplier: 0.7 }
+  );
+  assert.strictEqual(rBear.status, S.WATCH, 'BEAR_TREND harus membatasi ke WATCH');
+  assert.strictEqual(rBear.rawStatus, S.STRONG);
+  assert.strictEqual(rBear.regimeCapped, true);
+  assert.strictEqual(rBear.adaptedScore, 70); // 100 * 0.7 = 70
+  assert(rBear.reason.includes('Market Regime (BEAR_TREND)'));
+
+  const rBull = scoreStrategy(
+    strategyDef({ A: 0.5, B: 0.5 }),
+    [valid('A', 100), valid('B', 100)],
+    { marketRegime: 'BULL_TREND', regimeMultiplier: 1.1 }
+  );
+  assert.strictEqual(rBull.status, S.STRONG, 'BULL_TREND tidak membatasi');
+  assert.strictEqual(rBull.regimeCapped, false);
+  assert.strictEqual(rBull.adaptedScore, 100); // clamped at 100
+});
+
 global.fetch = originalFetch;
 if (originalKey === undefined) delete process.env.INVEZGO_API_KEY; else process.env.INVEZGO_API_KEY = originalKey;
 
